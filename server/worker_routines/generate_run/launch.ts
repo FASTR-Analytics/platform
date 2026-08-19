@@ -12,8 +12,6 @@ import { _IS_PRODUCTION } from "../../exposed_env_vars.ts";
 import { getPgConnectionFromCacheOrNew } from "../../db/mod.ts";
 import {
   createGeneratingRun,
-  getGeneratingRunIdForAttachTargets,
-  getIneligibleAttachTargetNames,
   markRunGenerationFailed,
 } from "../../db/instance/run_generation.ts";
 import { publishFailedRunDirOrSweep } from "../../runs/mod.ts";
@@ -34,31 +32,19 @@ import {
 // modal — nothing is persisted before this call), validates it, mints the
 // 'generating' catalog row, and spawns the worker; the run owns its whole
 // lifecycle from here.
-// Concurrency ruling (Phase 3 sub-fork d): generations run concurrently, but
-// a launch is refused while any of its ATTACH TARGETS is already the target
-// of a generating run — claimed in the same synchronous segment as the check
-// (run_module's claim pattern), with the catalog as the cross-restart
-// backstop. The host owns teardown: workers never self-close, and a crashed
-// worker's containers are removed by deterministic name.
+// Concurrency: generations run concurrently, full stop. The launch guard
+// that refused overlapping ATTACH TARGETS died with them (D5 — a generation
+// repoints nothing, so two generations cannot collide over a product). The
+// registry below survives for teardown alone: the host owns it, workers never
+// self-close, and a crashed worker's containers are removed by deterministic
+// name.
 
 type GeneratingEntry = {
-  attachTargetProjectIds: string[];
   moduleIds: string[];
   worker: Worker | null;
 };
 
 const GENERATING_BY_RUN = new Map<string, GeneratingEntry>();
-
-function targetsClaimed(projectIds: string[]): boolean {
-  for (const entry of GENERATING_BY_RUN.values()) {
-    if (
-      entry.attachTargetProjectIds.some((id) => projectIds.includes(id))
-    ) {
-      return true;
-    }
-  }
-  return false;
-}
 
 const broadcastEnded = new BroadcastChannel(RUN_GENERATION_ENDED_CHANNEL);
 broadcastEnded.addEventListener("message", (evt) => {
@@ -74,7 +60,6 @@ broadcastEnded.addEventListener("message", (evt) => {
 
 export type RunGenerationLaunchInput = {
   label: string;
-  attachTargetProjectIds: string[];
   step1Result: RunGenerationStep1Result;
   step2Result: RunGenerationStep2Result;
 };
@@ -112,36 +97,13 @@ export async function launchRunGeneration(
   input: RunGenerationLaunchInput,
   createdBy: string,
 ): Promise<APIResponseWithData<{ runId: string }>> {
-  const { label, attachTargetProjectIds, step1Result, step2Result } = input;
+  const { label, step1Result, step2Result } = input;
   const invalidMsg = getLaunchInputInvalidMsg(input);
   if (invalidMsg !== undefined) {
     return { success: false, err: invalidMsg };
   }
-  const targetAlreadyGenerating = {
-    success: false as const,
-    err:
-      "A results package is already being generated for one of the projects you selected",
-  };
-  if (targetsClaimed(attachTargetProjectIds)) {
-    return targetAlreadyGenerating;
-  }
 
-  const ineligibleTargets = await getIneligibleAttachTargetNames(
-    mainDb,
-    attachTargetProjectIds,
-  );
-  if (ineligibleTargets.length > 0) {
-    return {
-      success: false,
-      err:
-        `These projects can no longer be attached to (deleted, locked, or being copied): ${
-          ineligibleTargets.join(", ")
-        }`,
-    };
-  }
-
-  // Disk guard for the dataset extracts the prepare stage is about to export
-  // (re-pointed from the deleted per-project attach route — same threshold).
+  // Disk guard for the dataset extracts the prepare stage is about to export.
   const selectedFamilies: string[] = [
     ...(step1Result.hmis ? ["hmis"] : []),
     ...(step1Result.hfa ? ["hfa"] : []),
@@ -159,28 +121,12 @@ export async function launchRunGeneration(
     }
   }
 
-  if (targetsClaimed(attachTargetProjectIds)) {
-    return targetAlreadyGenerating;
-  }
-  // Claim the slot in the same synchronous segment as the check above, so
-  // concurrent launch requests cannot both start a generation for a target.
+  // Registered before the worker is spawned so the crash handler can always
+  // find its module list (the container names it must remove).
   const runId = crypto.randomUUID();
   const moduleIds = step2Result.modules.map((m) => m.moduleId);
-  GENERATING_BY_RUN.set(runId, {
-    attachTargetProjectIds,
-    moduleIds,
-    worker: null,
-  });
+  GENERATING_BY_RUN.set(runId, { moduleIds, worker: null });
   try {
-    const dbGeneratingRunId = await getGeneratingRunIdForAttachTargets(
-      mainDb,
-      attachTargetProjectIds,
-    );
-    if (dbGeneratingRunId !== undefined) {
-      GENERATING_BY_RUN.delete(runId);
-      return targetAlreadyGenerating;
-    }
-
     const progress: RunProgress = {
       moduleOrder: moduleIds,
       moduleStatus: Object.fromEntries(
@@ -192,8 +138,6 @@ export async function launchRunGeneration(
     const summary: RunSummary = {
       manifestSchemaVersion: RUN_MANIFEST_SCHEMA_VERSION,
       provenance: "wizard",
-      backfillSourceProjectId: null,
-      attachTargetProjectIds,
       moduleIds,
       metricCount: 0,
       totalRowCount: 0,
@@ -207,7 +151,6 @@ export async function launchRunGeneration(
       progress,
     });
     const worker = instantiateGenerateRunWorker({
-      attachTargetProjectIds,
       runId,
       label,
       step1Result,
@@ -221,10 +164,11 @@ export async function launchRunGeneration(
     });
     const entry = GENERATING_BY_RUN.get(runId);
     if (entry === undefined) {
-      // Superseded between claim and spawn — cannot happen while the claim
-      // above holds, but mirror the run_module attach guard anyway.
+      // The run ENDED before its worker handle was stored (an instant
+      // failure broadcast on RUN_GENERATION_ENDED_CHANNEL): the entry is
+      // already gone, so terminate here or the worker leaks.
       worker.terminate();
-      return targetAlreadyGenerating;
+      return { success: false, err: "The generation ended before it started" };
     }
     entry.worker = worker;
     notifyInstanceRunProgress(runId, progress);

@@ -6,7 +6,7 @@ import {
   type RunDetail,
   type RunModuleFileListing,
 } from "lib";
-import { parseModuleConfigSelections } from "../db/project/modules.ts";
+import { parseModuleConfigSelections } from "./module_config.ts";
 import {
   _MODULE_LOG_FILE_NAME,
   _MODULE_SCRIPT_FILE_NAME,
@@ -17,21 +17,16 @@ import { isRunIdShape, runDirPath } from "./run_paths.ts";
 // Reading a package's INTERNALS — the generated R script, the execution log,
 // and the raw output files under runs/{runId}/outputs/{moduleId}.
 //
-// This module is the single implementation, deliberately, because the same
-// bytes are served through two mounts with two different permission models
-// (PLAN_RESULTS_RUNS, Tim's ruling 2026-07-30):
-//   - the INSTANCE catalogue (routes/instance/run_generation.ts) takes a runId
-//     and is `can_configure_data` — an admin browsing packages, including ones
-//     attached to no project at all;
-//   - a PROJECT (routes/project/results_package.ts) never names a runId. It
-//     resolves the run from `projects.run_id` and gates each kind of content on
-//     the per-project bit built for it: `can_view_script_code` for the script,
-//     `can_view_logs` for the log, `can_view_data` for the raw files.
-// What a package contains does not depend on who is asking; only the chrome
-// and the guard do. Hence: one reader, two guards.
+// These reads are run-keyed and mounted ONCE (routes/instance/
+// run_generation.ts, Tim's ruling 2026-08-18 superseding the 2026-07-30
+// per-project mount): a package is instance-level data, so what it contains
+// is gated on the instance data bits — `can_view_data` for the script and the
+// raw files, `can_view_logs` for the log — wherever it is explored (the
+// catalogue, the AI tools, MCP). What a package contains does not depend on
+// who is asking.
 //
 // Path safety is enforced HERE rather than at each route, because these
-// (with the run-lens read context, run_query/run_read.ts) are the only
+// (with the run read context, run_query/run_read.ts) are the only
 // functions that turn caller-supplied strings into paths under the runs
 // volume. runId must be a UUID (isRunIdShape, run_paths.ts), moduleId must be
 // in the module registry, and a file name may not contain a path separator

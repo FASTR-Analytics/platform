@@ -53,7 +53,7 @@ export async function ensureDatasetCsvTargetDir(
 
 // The facilities_{hmis,hfa} column set — the run's facilities parquet is built
 // from these rows directly.
-export const PROJECT_FACILITY_COLUMN_NAMES = [
+export const RUN_FACILITY_COLUMN_NAMES = [
   "facility_id",
   "admin_area_4",
   "admin_area_3",
@@ -69,7 +69,7 @@ export const PROJECT_FACILITY_COLUMN_NAMES = [
   "facility_custom_5",
 ] as const;
 
-export type ProjectFacilityRow = {
+export type RunFacilityRow = {
   facility_id: string;
   admin_area_4: string;
   admin_area_3: string;
@@ -92,7 +92,7 @@ export type DatasetHmisRunCapture = {
     indicator_common_id: string;
     indicator_common_label: string;
   }[];
-  facilities: ProjectFacilityRow[];
+  facilities: RunFacilityRow[];
   calculatedIndicators: CalculatedIndicator[];
 };
 
@@ -229,13 +229,13 @@ WHERE EXISTS (
     if (calculatedIndicatorsWithMissingData.length > 0) {
       return {
         success: false,
-        err: `Cannot add data to project. The following calculated indicators reference indicators that don't exist in your data:\n\n${calculatedIndicatorsWithMissingData.join("\n")}\n\nPlease edit or remove these calculated indicators, or ensure your data includes the required indicators.`,
+        err: `Cannot capture HMIS data into this results package. The following calculated indicators reference indicators that don't exist in your data:\n\n${calculatedIndicatorsWithMissingData.join("\n")}\n\nPlease edit or remove these calculated indicators, or ensure your data includes the required indicators.`,
       };
     }
 
     const facilities = (await mainDb.unsafe(
-      `SELECT ${PROJECT_FACILITY_COLUMN_NAMES.join(", ")} FROM facilities_hmis`,
-    )) as ProjectFacilityRow[];
+      `SELECT ${RUN_FACILITY_COLUMN_NAMES.join(", ")} FROM facilities_hmis`,
+    )) as RunFacilityRow[];
 
     return {
       success: true,

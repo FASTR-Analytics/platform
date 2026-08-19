@@ -1,28 +1,15 @@
-import { z } from "zod";
-import { Sql } from "postgres";
 import {
-  type DatasetType,
-  DisaggregationOption,
+  type DisaggregationOption,
   type PeriodOption,
-  ResultsValue,
-  disaggregationOption,
-  getDisaggregationAllowedPresentationOptions,
-  metricAIDescriptionInstalled,
-  postAggregationExpressionStrict,
+  type ResultsValue,
   type StructureColumns,
 } from "lib";
-import { detectColumnExists, getResultsObjectTableName } from "../utils.ts";
-import { DBMetric } from "./_project_database_types.ts";
 
-/**
- * Metric Enricher
- *
- * Converts a DBMetric from the database into a full ResultsValue with enriched
- * disaggregation options based on what columns are available in the results object table.
- */
+// The disaggregation columns a results object can physically carry, and the
+// two derivations every reader shares. Single source of the probe list — the
+// run-manifest availability derivation (server/runs/) gates on exactly these
+// columns.
 
-// Single source of the probe lists — the run-manifest availability derivation
-// (server/runs/) must gate on exactly the same columns as this live probe path.
 export const PHYSICAL_DISAGGREGATION_COLUMNS: DisaggregationOption[] = [
   "admin_area_2",
   "admin_area_3",
@@ -57,141 +44,6 @@ export function getEnabledFacilityDisaggregationOptions(
     { option: "facility_custom_5", enabled: facilityConfig.includeCustom5 },
   ];
   return facilityOptions.filter((f) => f.enabled).map((f) => f.option);
-}
-
-export async function enrichMetric(
-  dbMetric: DBMetric,
-  projectDb: Sql,
-  facilityConfig: StructureColumns | undefined,
-  datasetFamily: DatasetType | undefined,
-): Promise<ResultsValue> {
-  const resultsObjectId = dbMetric.results_object_id;
-
-  // facility_id on the results table means rows are raw facility observations
-  // (not pre-aggregated area summaries) — drives both the facility
-  // disaggregation options and roll-up eligibility for AVG metrics.
-  const hasFacilityLevelRows = await detectColumnExists(
-    projectDb,
-    getResultsObjectTableName(resultsObjectId),
-    "facility_id",
-  );
-
-  const disaggregationOptions = await buildDisaggregationOptions(
-    z
-      .array(disaggregationOption)
-      .parse(JSON.parse(dbMetric.required_disaggregation_options)),
-    resultsObjectId,
-    projectDb,
-    facilityConfig,
-    hasFacilityLevelRows,
-  );
-
-  const enrichedMetric: ResultsValue = {
-    id: dbMetric.id,
-    resultsObjectId,
-    valueProps: z.array(z.string()).parse(JSON.parse(dbMetric.value_props)),
-    valueFunc: dbMetric.value_func as ResultsValue["valueFunc"],
-    hasFacilityLevelRows,
-    datasetFamily,
-    postAggregationExpression: dbMetric.post_aggregation_expression
-      ? postAggregationExpressionStrict.parse(
-          JSON.parse(dbMetric.post_aggregation_expression),
-        )
-      : undefined,
-    valueLabelReplacements: dbMetric.value_label_replacements
-      ? z
-          .record(z.string(), z.string())
-          .parse(JSON.parse(dbMetric.value_label_replacements))
-      : undefined,
-    label: dbMetric.label,
-    variantLabel: dbMetric.variant_label ?? undefined,
-    formatAs: z.enum(["percent", "number", "indicator"]).parse(
-      dbMetric.format_as,
-    ),
-    disaggregationOptions,
-    mostGranularTimePeriodColumnInResultsFile:
-      inferMostGranularTimePeriodColumn(disaggregationOptions),
-    aiDescription: dbMetric.ai_description
-      ? metricAIDescriptionInstalled.parse(JSON.parse(dbMetric.ai_description))
-      : undefined,
-    importantNotes: dbMetric.important_notes ?? undefined,
-  };
-
-  return enrichedMetric;
-}
-
-async function buildDisaggregationOptions(
-  requiredOptions: DisaggregationOption[],
-  resultsObjectId: string,
-  projectDb: Sql,
-  facilityConfig: StructureColumns | undefined,
-  hasFacilityId: boolean,
-): Promise<ResultsValue["disaggregationOptions"]> {
-  const out: ResultsValue["disaggregationOptions"] = [];
-  const tableName = getResultsObjectTableName(resultsObjectId);
-
-  for (const disOpt of PHYSICAL_DISAGGREGATION_COLUMNS) {
-    if (await detectColumnExists(projectDb, tableName, disOpt)) {
-      out.push({
-        value: disOpt,
-        isRequired: requiredOptions.includes(disOpt),
-        allowedPresentationOptions:
-          getDisaggregationAllowedPresentationOptions(disOpt),
-      });
-    }
-  }
-
-  if (facilityConfig) {
-    if (hasFacilityId) {
-      for (const option of getEnabledFacilityDisaggregationOptions(facilityConfig)) {
-        out.push({
-          value: option,
-          isRequired: requiredOptions.includes(option),
-          allowedPresentationOptions:
-            getDisaggregationAllowedPresentationOptions(option),
-        });
-      }
-    }
-  }
-
-  const hasPeriodId = await detectColumnExists(
-    projectDb,
-    tableName,
-    "period_id",
-  );
-  if (hasPeriodId) {
-    for (const disOpt of [
-      "year",
-      "month",
-      "quarter_id",
-      "period_id",
-    ] as DisaggregationOption[]) {
-      out.push({
-        value: disOpt,
-        isRequired: requiredOptions.includes(disOpt),
-        allowedPresentationOptions:
-          getDisaggregationAllowedPresentationOptions(disOpt),
-      });
-    }
-  } else if (await detectColumnExists(projectDb, tableName, "quarter_id")) {
-    for (const disOpt of ["quarter_id", "year"] as DisaggregationOption[]) {
-      out.push({
-        value: disOpt,
-        isRequired: requiredOptions.includes(disOpt),
-        allowedPresentationOptions:
-          getDisaggregationAllowedPresentationOptions(disOpt),
-      });
-    }
-  } else if (await detectColumnExists(projectDb, tableName, "year")) {
-    out.push({
-      value: "year",
-      isRequired: requiredOptions.includes("year"),
-      allowedPresentationOptions:
-        getDisaggregationAllowedPresentationOptions("year"),
-    });
-  }
-
-  return out;
 }
 
 export function inferMostGranularTimePeriodColumn(

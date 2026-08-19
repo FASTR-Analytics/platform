@@ -16,10 +16,11 @@ import { runDirPath } from "./run_paths.ts";
 // reclaims a run's disk.
 //
 // Order matters: the catalog row goes FIRST, inside its own guard (refused
-// while any project points at the run or it is still generating), because
-// the row is what makes a run reachable. If the directory removal then
-// fails, the loss is disk, not correctness; a half-deleted run that was
-// still listed would be an attachable package with no files.
+// while any product points at the run, while it is pinned, or while it is
+// still generating), because the row is what makes a run reachable. If the
+// directory removal then fails, the loss is disk, not correctness; a
+// half-deleted run that was still listed would be an attachable package with
+// no files.
 export async function deleteRun(
   mainDb: Sql,
   runId: string,
@@ -53,11 +54,10 @@ export async function deleteRun(
 
 // Disk reclamation, not correctness (Q-D ruling): TimCacheC entries carry a
 // 15–30 day TTL and `get` compares version hashes, so a dead run's entries
-// are never served either way. The three caches below fold runId into their
-// UNIQUENESS hash, so they can be scanned by prefix; `po_detail` folds it
-// into its VERSION hash instead and is deliberately left to expire — its
-// entries are version-dead the moment the run goes, and re-keying it purely
-// to reclaim them would cost a cache-prefix bump.
+// are never served either way. All three run-keyed caches fold runId into
+// their UNIQUENESS hash as its LEADING segment, which is what makes these
+// prefix scans exhaustive — the scope token added by D7 rides in the
+// TRAILING segment precisely so it cannot break them.
 async function purgeRunCaches(runId: string): Promise<void> {
   const [poItems, metricInfo, replicantOpts] = await Promise.all([
     _PO_ITEMS_CACHE.scanUniquenessHashes(`${runId}|`),

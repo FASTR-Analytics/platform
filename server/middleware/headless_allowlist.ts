@@ -24,13 +24,14 @@ export const HEADLESS_ALLOWED_ROUTE_NAMES = [
   // whoami probe (server/tests/pat_identity_parity_test.ts) and grants only
   // the caller's own identity.
   "getCurrentUser",
-  // The run-keyed metric reads (S8 "one core, two lenses"; Tim's ruling
-  // 2026-08-18 — what a package contains is a function of the runId alone,
-  // gated on instance can_view_data). A leaked credential reaches exactly
-  // what its user's own instance bits already reach in the UI; the /mcp
-  // tools resolve the runId from the instance's pin at call time, never from
-  // the model. The module reads (script/logs/settings) are SPA-only tools
-  // and deliberately absent.
+  // The run-keyed figure-data reads (Tim's ruling 2026-08-18 — what a
+  // package RETURNS is a function of the (runId, adminArea2) pair alone).
+  // Both are requireApprovedUser() (PLAN_PRODUCTS_RESTRUCTURE D7), so a
+  // leaked credential reaches exactly what its user's own account already
+  // reaches in the UI; the /mcp tools resolve the runId from the instance's
+  // pin at call time, never from the model, and always at national scope.
+  // The package INTERNALS (script/logs/files/settings, still gated on the
+  // instance data bits) are SPA-only tools and deliberately absent.
   "getRunPresentationObjectItems",
   "getRunResultsValueInfo",
 ] as const satisfies readonly (keyof typeof routeRegistry)[];

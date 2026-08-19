@@ -11,19 +11,15 @@ import {
   getValidatedModuleId,
   metricAIDescriptionInstalled,
   parseInstalledModuleDefinition,
-  parsePresentationObjectConfig,
   postAggregationExpressionStrict,
-  projectScopeToken,
-  throwIfErrWithData,
+  scopeToken,
   vizPresetInstalled,
   type APIResponseWithData,
-  type DatasetInProject,
   type DatasetType,
   type DisaggregationOption,
   type GenericLongFormFetchConfig,
   type HfaIndicatorAggregation,
   type HfaIndicatorType,
-  type HfaTaxonomyForAI,
   type IndicatorMetadata,
   type InstalledModuleSummary,
   type InstalledModuleWithConfigSelections,
@@ -33,9 +29,10 @@ import {
   type ModuleId,
   type PeriodBounds,
   type PeriodOption,
-  type PresentationObjectDetail,
   type ResultsValue,
   type ResultsValueInfoForPresentationObject,
+  type RunDataset,
+  type RunAuthoringContextHfaTaxonomy,
   type RunManifest,
   type RunMetric,
   type RunModule,
@@ -46,8 +43,8 @@ import {
   getResultsObjectTableName,
   tryCatchDatabaseAsync,
 } from "../db/utils.ts";
-import { inferMostGranularTimePeriodColumn } from "../db/project/metric_enricher.ts";
-import { parseModuleConfigSelections } from "../db/project/modules.ts";
+import { inferMostGranularTimePeriodColumn } from "./disaggregation_columns.ts";
+import { parseModuleConfigSelections } from "../runs/module_config.ts";
 import {
   getRunManifestCached,
   readRunInputJsonCached,
@@ -81,10 +78,6 @@ import type {
   SqlRowsExecutor,
 } from "../server_only_funcs_presentation_objects/types.ts";
 import { executeSqlOverParquet, type ParquetView } from "./duckdb_executor.ts";
-import {
-  findVirtualDefault,
-  VIRTUAL_DEFAULT_LAST_UPDATED,
-} from "./virtual_defaults.ts";
 
 // The run read path (PLAN_RESULTS_RUNS Status, model point 3): every function
 // here consults ONLY the attached immutable run — manifest for metadata (no
@@ -97,19 +90,31 @@ export type RunReadContext = {
   runId: string;
   runDir: string;
   manifest: RunManifest;
-  // The owning project's AA2 identity (projects.admin_area_2); null =
-  // national. Scopes every read through the FromRun wrappers
-  // (PLAN_1_PROJECT_AA2_SCOPE §3).
+  // The caller's admin-area-2 identity (the `admin_area_2` of the product the
+  // figure lives in); null = national. Scopes every read through the FromRun
+  // wrappers (PLAN_1_PROJECT_AA2_SCOPE §3).
   adminArea2: string | null;
   scopeToken: string;
 };
 
-// The two lenses onto one read core. A read context is (run, scope): the
-// PROJECT lens resolves both from the project row — its attached run and its
-// AA2 — and is what every project-mounted data route uses; the RUN lens takes
-// the run id directly at national scope and is what the run-keyed instance
-// routes (and through them the pinned-package MCP surface) use. Everything
-// below the context is shared.
+// ONE lens onto the read core (PLAN_PRODUCTS_RESTRUCTURE D7): a read context
+// is the (run, scope) pair the CALLER supplies — there is no project row to
+// resolve it from any more. Both halves arrive over the wire, so both are
+// shape-checked here, once, before anything interpolates them.
+//
+// runId becomes a filesystem path; adminArea2 becomes a SQL string literal
+// (escapeSqlString'd at the two interpolation sites in computeScopeFilters /
+// buildWhereClause) and a Valkey key segment (scopeToken percent-encodes it).
+// The `min(1)` shape is the one the project route enforced when the value was
+// written to projects.admin_area_2: an empty string is neither national (that
+// is `null`) nor a real area, and would silently scope to nothing.
+
+function adminArea2ShapeInvalidMsg(
+  adminArea2: string | null,
+): string | undefined {
+  if (adminArea2 === null) return undefined;
+  return adminArea2.trim() === "" ? "Invalid scope" : undefined;
+}
 
 async function buildRunReadContext(
   runId: string,
@@ -121,37 +126,21 @@ async function buildRunReadContext(
     runDir: runDirPath(runId),
     manifest,
     adminArea2,
-    scopeToken: projectScopeToken(adminArea2),
+    scopeToken: scopeToken(adminArea2),
   };
 }
 
-// Resolves the project's attached run via projects.run_id — the one and only
-// serving pointer. No run attached is a typed, expected state (projects await
-// their backfill synthesis or first wizard generation); a non-null pointer to
-// an unreadable run is an operational error surfaced loudly.
-export async function getRunReadContext(
-  mainDb: Sql,
-  projectId: string,
-): Promise<APIResponseWithData<RunReadContext>> {
+// The manifest alone, for the reads that need the package's CATALOG and no
+// data (module settings, the authoring context). No scope: scope changes what
+// a query returns, never what exists to author against.
+export async function getRunManifest(
+  runId: string,
+): Promise<APIResponseWithData<RunManifest>> {
+  if (!isRunIdShape(runId)) {
+    return { success: false, err: "Invalid results package id" };
+  }
   try {
-    const row = (
-      await mainDb<{ run_id: string | null; admin_area_2: string | null }[]>`
-SELECT run_id, admin_area_2 FROM projects WHERE id = ${projectId}
-`
-    ).at(0);
-    if (row === undefined) {
-      return { success: false, err: "Project not found" };
-    }
-    if (row.run_id === null) {
-      return {
-        success: false,
-        err: "No results package attached to this project",
-      };
-    }
-    return {
-      success: true,
-      data: await buildRunReadContext(row.run_id, row.admin_area_2),
-    };
+    return { success: true, data: await getRunManifestCached(runId) };
   } catch (e) {
     return {
       success: false,
@@ -160,18 +149,37 @@ SELECT run_id, admin_area_2 FROM projects WHERE id = ${projectId}
   }
 }
 
-// The run lens: an explicit run id at national scope. Accepts any run id the
-// caller is authorized to read (the instance data bits) — an unreadable or
-// unknown run surfaces as the manifest read failing. The id is CALLER
-// supplied (a URL param) and becomes a path, so it is shape-checked first.
-export async function getRunReadContextForRun(
+// The DATA lens. `runs.status = 'ready'` is checked against the catalog
+// (not the manifest): a generating run has no manifest file at all, but a
+// FAILED one can have a published partial dir, and neither may serve figures.
+export async function getReadyRunReadContext(
+  mainDb: Sql,
   runId: string,
+  adminArea2: string | null,
 ): Promise<APIResponseWithData<RunReadContext>> {
   if (!isRunIdShape(runId)) {
     return { success: false, err: "Invalid results package id" };
   }
+  const scopeInvalidMsg = adminArea2ShapeInvalidMsg(adminArea2);
+  if (scopeInvalidMsg !== undefined) {
+    return { success: false, err: scopeInvalidMsg };
+  }
   try {
-    return { success: true, data: await buildRunReadContext(runId, null) };
+    const row = (
+      await mainDb<{ status: string }[]>`
+SELECT status FROM runs WHERE id = ${runId}
+`
+    ).at(0);
+    if (row === undefined) {
+      return { success: false, err: "Results package not found" };
+    }
+    if (row.status !== "ready") {
+      return { success: false, err: "This results package is not ready" };
+    }
+    return {
+      success: true,
+      data: await buildRunReadContext(runId, adminArea2),
+    };
   } catch (e) {
     return {
       success: false,
@@ -371,18 +379,18 @@ async function readInputRows<T>(
   return z.array(rowSchema).parse(raw);
 }
 
-// The project-level dataset/indicator lists that T1 carries, all served from
-// the attached run's own inputs (PLAN_RESULTS_RUNS Phase 3 re-cut ruling 5 —
-// the project mirror tables are no longer written, so they are never read).
+// The dataset/indicator lists that T1 carries, all served from the run's own
+// inputs (PLAN_RESULTS_RUNS Phase 3 re-cut ruling 5 — the mirror tables are no
+// longer written, so they are never read).
 
-export function getProjectDatasetsFromManifest(
+export function getRunDatasetsFromManifest(
   manifest: RunManifest,
-): DatasetInProject[] {
+): RunDataset[] {
   return manifest.datasets.map((d) => ({
     datasetType: d.datasetType,
     info: d.info,
     dateExported: d.lastUpdated,
-  } as DatasetInProject));
+  } as RunDataset));
 }
 
 export async function getCommonIndicatorsFromManifestInputs(
@@ -419,12 +427,14 @@ export async function getIcehIndicatorsFromManifestInputs(
     }));
 }
 
-// The AI's HFA taxonomy, from the run's captured indicator/category mirrors.
-// Time points stay instance-wide (they are not run content).
+// The HFA taxonomy, from the run's captured indicator/category mirrors.
+// Time points are NOT run content — HFA survey rounds are instance-wide T1
+// state — so they are absent here and composed in by each consumer (the
+// client for the authoring context, server/mcp/context_cache.ts for the AI
+// tools' full HfaTaxonomyForAI).
 export async function getHfaTaxonomyFromManifestInputs(
   ctx: RunInputSource,
-  timePoints: { id: string; label: string; periodId: string }[],
-): Promise<HfaTaxonomyForAI> {
+): Promise<RunAuthoringContextHfaTaxonomy> {
   const [indicators, categories, subCategories, serviceCategories, variantGroups, variantItems] =
     await Promise.all([
       readInputRows(ctx, "hfa_indicators_snapshot.json", hfaTaxonomyIndicatorRow),
@@ -466,7 +476,6 @@ export async function getHfaTaxonomyFromManifestInputs(
     variantItems: variantItems
       .toSorted((a, b) => a.sort_order - b.sort_order)
       .map((i) => ({ id: i.id, groupId: i.group_id, label: i.label })),
-    timePoints,
     indicators: indicators
       .toSorted((a, b) => a.sort_order - b.sort_order)
       .map((i) => ({
@@ -615,8 +624,9 @@ export function resolveMetricFromRun(
 
 // ── The run-derived catalog as the client sees it (T1 store) ─────────────────
 
-// The manifest module catalog → InstalledModuleSummary[], sorted by id — the
-// project's modules ARE the attached run's modules (no live project-DB state).
+// The manifest module catalog → InstalledModuleSummary[], sorted by id. A
+// package's modules are whatever the generation ran; nothing is installed or
+// mutated after the fact.
 export function getModuleSummariesFromManifest(
   manifest: RunManifest,
 ): InstalledModuleSummary[] {
@@ -722,71 +732,6 @@ export function getRunVersionInfo(
   return versionInfoFor(ctx, moduleId);
 }
 
-// PO row (authored content) stays on the project DB; only the resultsValue
-// resolution comes from the run. No row → the id may be a virtual default
-// (item 5b): a manifest preset projection, derived here with the run as its
-// whole identity.
-export async function getPresentationObjectDetailFromRun(
-  ctx: RunReadContext,
-  projectId: string,
-  projectDb: Sql,
-  presentationObjectId: string,
-): Promise<APIResponseWithData<PresentationObjectDetail>> {
-  return await tryCatchDatabaseAsync(async () => {
-    const rawPresObj = (
-      await projectDb<
-        {
-          id: string;
-          metric_id: string;
-          last_updated: string;
-          label: string;
-          config: string;
-          is_default_visualization: boolean;
-          folder_id: string | null;
-        }[]
-      >`
-SELECT * FROM presentation_objects WHERE id = ${presentationObjectId}
-`
-    ).at(0);
-    if (rawPresObj === undefined) {
-      const virtual = findVirtualDefault(ctx.manifest, presentationObjectId);
-      if (virtual === undefined) {
-        throw new Error("No presentation object with this id");
-      }
-      const resVirtualValue = resolveMetricFromRun(ctx, virtual.metricId);
-      throwIfErrWithData(resVirtualValue);
-      const virtualDetail: PresentationObjectDetail = {
-        id: virtual.id,
-        projectId,
-        resultsValue: resVirtualValue.data.resultsValue,
-        lastUpdated: VIRTUAL_DEFAULT_LAST_UPDATED,
-        label: virtual.label,
-        config: virtual.config,
-        isDefault: true,
-        folderId: null,
-        runId: ctx.runId,
-        scopeToken: ctx.scopeToken,
-      };
-      return { success: true, data: virtualDetail };
-    }
-    const resResultsValue = resolveMetricFromRun(ctx, rawPresObj.metric_id);
-    throwIfErrWithData(resResultsValue);
-    const presObj: PresentationObjectDetail = {
-      id: rawPresObj.id,
-      projectId,
-      resultsValue: resResultsValue.data.resultsValue,
-      lastUpdated: rawPresObj.last_updated,
-      label: rawPresObj.label,
-      config: parsePresentationObjectConfig(rawPresObj.config),
-      isDefault: rawPresObj.is_default_visualization,
-      folderId: rawPresObj.folder_id,
-      runId: ctx.runId,
-      scopeToken: ctx.scopeToken,
-    };
-    return { success: true, data: presObj };
-  });
-}
-
 function versionInfoFor(ctx: RunReadContext, moduleId: string) {
   const mod = findModule(ctx.manifest, moduleId);
   return {
@@ -797,7 +742,7 @@ function versionInfoFor(ctx: RunReadContext, moduleId: string) {
   };
 }
 
-// ── Project scope (PLAN_1_PROJECT_AA2_SCOPE §3) ──────────────────────────────
+// ── Admin-area-2 scope (PLAN_1_PROJECT_AA2_SCOPE §3) ─────────────────────────
 
 // Derived child values are immutable per run, so they memo like manifests:
 // FIFO cap for memory, evicted only when the run is deleted.
@@ -827,7 +772,7 @@ const SCOPE_EMPTY_SENTINEL = "__SCOPE_EMPTY__";
 // CLOSED, never unfiltered: the family is undeclarable for a module whose
 // dataSources are all upstream results objects (m004/m005/m006), and those
 // same modules drop admin_area_2 from their admin3 outputs, so the pair would
-// otherwise show every area in the country inside a scoped project. Blank is
+// otherwise show every area in the country inside a scoped product. Blank is
 // wrong visibly; national data under a regional heading is wrong silently.
 // The durable fix is those scripts emitting admin_area_2 (which puts them on
 // the direct-filter path and retires the derivation entirely) — tracked in

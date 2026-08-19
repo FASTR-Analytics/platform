@@ -8,13 +8,11 @@ import type {
 // handshake, and the completion message the worker broadcasts so the host
 // can terminate it and release the generation claim.
 //
-// A run belongs to no project (Q-A): `attachTargetProjectIds` is the
-// launch-time attach selection — the projects the publish transaction
-// repoints and the projects progress is pushed to. It may be empty; the run
-// is then published unattached and picked up from a project's attach picker.
+// A generation PRODUCES a package and points nothing at it (D5): there are no
+// attach targets. Products acquire the package afterwards, from their own
+// package picker.
 
 export type GenerateRunStartData = {
-  attachTargetProjectIds: string[];
   runId: string;
   label: string;
   step1Result: RunGenerationStep1Result;

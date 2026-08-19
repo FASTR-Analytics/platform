@@ -125,9 +125,7 @@ function sortByDependencies(modules: ResolvedRunModule[]): ResolvedRunModule[] {
 }
 
 // The script-generation inputs come from THIS run's dataset captures
-// (prepare_inputs), not from project snapshot tables — under the
-// no-dual-write model (Phase 3 re-cut ruling 5) nothing is written to a
-// project DB, and the captured rows are by construction the ones this run's
+// (prepare_inputs): the captured rows are by construction the ones this run's
 // extracts were built from. Time-point order is instance-wide.
 type ScriptGenerationInputs = PreparedRunInputs["scriptInputs"] & {
   hfaTimePointOrder: string[];
@@ -142,14 +140,14 @@ function generateScript(
   if (detail.scriptGenerationType === "hfa") {
     if (inputs.hfaIndicators.length === 0) {
       throw new Error(
-        "No HFA indicators in the project snapshot — the HFA data prepare step did not produce indicators",
+        "No HFA indicators captured — the HFA data prepare step did not produce indicators",
       );
     }
   }
   if (detail.scriptGenerationType === "calculated_indicators") {
     if (inputs.calculatedIndicators.length === 0) {
       throw new Error(
-        "No calculated indicators in the project snapshot — the HMIS data prepare step did not produce them",
+        "No calculated indicators captured — the HMIS data prepare step did not produce them",
       );
     }
   }

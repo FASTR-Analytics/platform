@@ -2,14 +2,13 @@ import type {
   DatasetType,
   GenericLongFormFetchConfig,
   InstanceCalendar,
-  StructureColumns,
   OptionalFacilityColumn,
 } from "lib";
 import type { DynamicPeriodColumn } from "./period_helpers.ts";
 
 // The engine seam (PLAN_RESULTS_RUNS §2.4): cores build one SQL string and
-// execute it through this; the Postgres wrapper passes projectDb.unsafe, the
-// runs wrapper passes the DuckDB-over-parquet executor.
+// execute it through this; the run read path passes the
+// DuckDB-over-parquet executor.
 export type SqlRowsExecutor = (
   sql: string,
 ) => Promise<Record<string, unknown>[]>;

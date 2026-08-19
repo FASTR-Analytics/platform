@@ -56,9 +56,8 @@ export async function executeRunModule(args: {
   const { module: mod } = args;
   const moduleId = mod.moduleId;
   // The live R line goes to the instance catalogue only (Q-B/(e)):
-  // generation is an instance act and a project is attached only once the
-  // run is ready, so no project channel has a live view to feed. The full
-  // log is captured in the run either way.
+  // generation is an instance act, and there is exactly one channel to feed.
+  // The full log is captured in the run either way.
   const notifyRScript = (line: string) => {
     notifyInstanceRScript(args.runId, moduleId, line);
   };

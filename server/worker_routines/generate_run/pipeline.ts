@@ -3,22 +3,18 @@ import type { Sql } from "postgres";
 import {
   getDatasetFamily,
   metricStrict,
-  throwIfErrWithData,
   type RunMetric,
   type RunModule,
   type RunProgress,
 } from "lib";
-import { createWorkerReadConnection } from "../../db/mod.ts";
 import { _INSTANCE_COUNTRY_ISO3 } from "../../exposed_env_vars.ts";
-import { prepareModuleDefinitionForStorage } from "../../db/project/modules.ts";
+import { prepareModuleDefinitionForStorage } from "../../runs/module_config.ts";
 import {
   publishReadyRun,
   updateRunProgress,
 } from "../../db/instance/run_generation.ts";
 import {
-  buildRunAttachedManifestPayload,
   buildRunPackageIntoTmp,
-  notifyRunAttachedForProject,
   runDirPath,
   runTmpDirPath,
 } from "../../runs/mod.ts";
@@ -150,12 +146,10 @@ export async function runGenerationPipeline(
   }
   progress.currentModuleId = null;
 
-  // ONE finalize (§3.8): wholesale manifest + inputs capture via the shared
-  // package builder. Under the no-dual-write model (Phase 3 re-cut ruling 5)
-  // the catalog is handed to the builder from THIS generation's resolved
-  // definitions — no project-DB round trip — and the input mirrors were
-  // written by prepare.
-  const { manifest, summary } = await buildRunPackageIntoTmp(
+  // ONE finalize (§3.8): wholesale manifest + inputs capture via the package
+  // builder. The catalog is handed to the builder from THIS generation's
+  // resolved definitions, and the input mirrors were written by prepare.
+  const { summary } = await buildRunPackageIntoTmp(
     mainDb,
     std.runId,
     tmpDir,
@@ -163,14 +157,11 @@ export async function runGenerationPipeline(
       label: std.label,
       provenance: "wizard",
       source: {
-        kind: "captured",
         modules: buildRunModules(resolved, memo),
         metrics: buildRunMetrics(resolved),
         datasets: prepared.datasets,
         facilitiesTables: prepared.facilitiesTables,
       },
-      backfillSourceProjectId: null,
-      attachTargetProjectIds: std.attachTargetProjectIds,
       moduleMemo: memo,
       moduleCsvDir: (moduleId) => join(tmpDir, "outputs", moduleId),
       extraInputFiles: prepared.extraInputFiles,
@@ -178,47 +169,22 @@ export async function runGenerationPipeline(
   );
 
   await Deno.rename(tmpDir, runDirPath(std.runId));
-  await publishReadyRun(mainDb, {
-    runId: std.runId,
-    attachTargetProjectIds: std.attachTargetProjectIds,
-    summary,
-    progress,
-  });
+  await publishReadyRun(mainDb, { runId: std.runId, summary, progress });
 
-  // Repoint events, one per attach target: the full catalog, every field
-  // derived from the run just published (the legacy project plane is no
-  // longer written, so it is never read here either). A run launched with no
-  // targets publishes silently and is attached later from a project's
-  // picker.
-  // Final progress first: it is what tells the catalogue that this
-  // generation is over, so it must not be gated on the per-target catalog
-  // reads below (a run with no targets does none of them). Attach targets
-  // learn of the publish through `run_attached` alone — a project has no
-  // live view of a generation (it is attached only once the run is ready).
-  // The run IS published from here on — a notify failure must never fail the
-  // generation (worker.ts's catch would flip a published, attached run to
-  // 'failed'). Same class of post-write catch as attachRunToProject: log,
-  // continue; the read plane reports a broken payload properly on its own.
+  // The publish is the whole ending: a generation PRODUCES a package and
+  // repoints nothing (D5), so there is no per-product event to fan out —
+  // products acquire this package later, from their own picker. The final
+  // progress push is what tells the catalogue the generation is over.
+  //
+  // The run IS published from here on, so a notify failure must never fail
+  // the generation (worker.ts's catch would flip a published run to
+  // 'failed'): log and continue, and the catalogue self-corrects on the next
+  // reconnect.
   try {
     notifyInstanceRunProgress(std.runId, progress);
-
-    if (std.attachTargetProjectIds.length > 0) {
-      const payload = await buildRunAttachedManifestPayload(mainDb, {
-        runId: std.runId,
-        manifest,
-      });
-      for (const projectId of std.attachTargetProjectIds) {
-        const projectDb = createWorkerReadConnection(projectId);
-        try {
-          await notifyRunAttachedForProject(mainDb, projectId, projectDb, payload);
-        } finally {
-          await projectDb.end();
-        }
-      }
-    }
   } catch (e) {
     console.error(
-      `[generate_run] run ${std.runId} published but its post-publish events could not be built: ${
+      `[generate_run] run ${std.runId} published but its final progress event could not be pushed: ${
         e instanceof Error ? e.message : e
       }`,
     );

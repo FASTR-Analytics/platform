@@ -3,7 +3,6 @@ import { createWorkerReadConnection } from "../../db/mod.ts";
 import { markRunGenerationFailed } from "../../db/instance/run_generation.ts";
 import { publishFailedRunDirOrSweep } from "../../runs/mod.ts";
 import {
-  notifyInstanceProjectsLastUpdated,
   notifyInstanceRunProgress,
   notifyInstanceRunsCatalogUpdated,
 } from "../../task_management/notify_instance_updated.ts";
@@ -52,13 +51,10 @@ async function run(std: GenerateRunStartData) {
       await failGeneration(mainDb, std, e);
     }
     // One notify site for finalize AND fail (ruling 3): by this point either
-    // publishReadyRun or markRunGenerationFailed has updated the row. A
-    // publish also repointed the attach targets' projects.run_id, which the
-    // project cards render.
+    // publishReadyRun or markRunGenerationFailed has updated the row, and
+    // the catalogue nonce is the only thing that has to move — a generation
+    // repoints no product (D5).
     notifyInstanceRunsCatalogUpdated();
-    if (successOrError === "success") {
-      notifyInstanceProjectsLastUpdated(new Date().toISOString());
-    }
     const ended: GenerateRunEndedData = {
       runId: std.runId,
       successOrError,

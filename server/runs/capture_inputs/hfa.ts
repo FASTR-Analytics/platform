@@ -18,9 +18,9 @@ import { getHfaIndicatorsVersion } from "../../db/instance/instance.ts";
 import { tryCatchDatabaseAsync } from "../../db/utils.ts";
 import {
   ensureDatasetCsvTargetDir,
-  PROJECT_FACILITY_COLUMN_NAMES,
+  RUN_FACILITY_COLUMN_NAMES,
   type DatasetCsvTarget,
-  type ProjectFacilityRow,
+  type RunFacilityRow,
 } from "./hmis.ts";
 
 // See the HMIS file's header note. computeDatasetHfaRunCapture does the
@@ -32,7 +32,7 @@ import {
 export type DatasetHfaRunCapture = {
   info: RunDatasetHfaInfo;
   lastUpdated: string;
-  facilities: ProjectFacilityRow[];
+  facilities: RunFacilityRow[];
   indicatorsHfa: { var_name: string; example_values: string }[];
   sentinelValues: {
     var_name: string;
@@ -209,8 +209,8 @@ COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADE
 
     // Fetch facilities from main database for the run capture
     const facilities = (await mainDb.unsafe(
-      `SELECT ${PROJECT_FACILITY_COLUMN_NAMES.join(", ")} FROM facilities_hfa`,
-    )) as ProjectFacilityRow[];
+      `SELECT ${RUN_FACILITY_COLUMN_NAMES.join(", ")} FROM facilities_hfa`,
+    )) as RunFacilityRow[];
 
     // Fetch unique HFA indicators (var_name) from main database with sample values
     const hfaIndicators = (await mainDb.unsafe(`

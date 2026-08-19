@@ -2,13 +2,11 @@ import type { DisaggregationOption, StructureColumns } from "lib";
 import {
   getEnabledFacilityDisaggregationOptions,
   PHYSICAL_DISAGGREGATION_COLUMNS,
-} from "../db/project/metric_enricher.ts";
+} from "../run_query/disaggregation_columns.ts";
 
-// Pure twin of the enricher's probe loop (buildDisaggregationOptions in
-// metric_enricher.ts): derives the available disaggregation options from a
-// known column set instead of live probes. Shares the enricher's own column
-// lists so the two paths cannot drift; the parity rig diffs their outputs
-// end-to-end. Ordering matches the enricher exactly (UI list order).
+// Derives the available disaggregation options for a results object from its
+// known column set (the run manifest's declared columns). Ordering is the UI
+// list order.
 export function deriveAvailableDisaggregationOptions(
   columnNames: Set<string>,
   facilityConfig: StructureColumns | undefined,

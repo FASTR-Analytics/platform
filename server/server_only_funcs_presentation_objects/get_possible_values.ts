@@ -1,9 +1,4 @@
-import { Sql } from "postgres";
-import {
-  detectColumnExists,
-  getResultsObjectTableName,
-  tryCatchDatabaseAsync,
-} from "../db/mod.ts";
+import { tryCatchDatabaseAsync } from "../db/mod.ts";
 import {
   APIResponseWithData,
   BLANK_SENTINEL,
@@ -11,12 +6,8 @@ import {
   GenericLongFormFetchConfig,
   MULTI_MEMBERSHIP_DELIMITER,
   MULTI_MEMBERSHIP_FILTER_COLUMNS,
-  type DatasetType,
 } from "lib";
-import {
-  buildQueryContext,
-  facilitiesTableForFamily,
-} from "./get_query_context.ts";
+import { facilitiesTableForFamily } from "./get_query_context.ts";
 import {
   blankFoldedRef,
   buildWhereClause,
@@ -86,50 +77,6 @@ export type PossibleValuesDeps = {
   execute: SqlRowsExecutor;
   columnExists: (tableName: string, columnName: string) => Promise<boolean>;
 };
-
-// Postgres wrapper — probes and executes on the project DB.
-export async function getPossibleValues(
-  projectDb: Sql,
-  resultsObjectId: string,
-  datasetFamily: DatasetType | undefined,
-  disaggregationOption: DisaggregationOption,
-  mainDb: Sql,
-  labelMap: Map<string, string>,
-  filters?: GenericLongFormFetchConfig["filters"],
-  periodFilterExactBounds?: {
-    min: number;
-    max: number;
-  },
-): Promise<APIResponseWithData<{ id: string; label: string }[]>> {
-  return await tryCatchDatabaseAsync(async () => {
-    const tableName = getResultsObjectTableName(resultsObjectId);
-    const fetchConfig = buildMinimalFetchConfig(
-      disaggregationOption,
-      filters ?? [],
-      periodFilterExactBounds,
-    );
-    const queryContext = await buildQueryContext(
-      mainDb,
-      projectDb,
-      tableName,
-      fetchConfig,
-      datasetFamily,
-    );
-    return await getPossibleValuesCore(
-      {
-        execute: (sql) => projectDb.unsafe(sql),
-        columnExists: (table, column) =>
-          detectColumnExists(projectDb, table, column),
-      },
-      queryContext,
-      tableName,
-      disaggregationOption,
-      labelMap,
-      filters ?? [],
-      periodFilterExactBounds,
-    );
-  });
-}
 
 // Build minimal fetchConfig to leverage buildQueryContext / buildWhereClause
 export function buildMinimalFetchConfig(
@@ -264,7 +211,8 @@ export async function getPossibleValuesCore(
         queryContext.datasetFamily,
       );
 
-      // Check if the disaggregation option column exists in project facilities table
+      // Check if the disaggregation option column exists in the package's
+      // facilities table
       if (columnPrefixes.has(disaggregationOption)) {
         const columnExists = await deps.columnExists(
           facilitiesTable,
@@ -273,7 +221,7 @@ export async function getPossibleValuesCore(
         if (!columnExists) {
           return {
             success: false,
-            err: `Column ${disaggregationOption} does not exist in project facilities table`,
+            err: `Column ${disaggregationOption} does not exist in the facilities table`,
           };
         }
       }

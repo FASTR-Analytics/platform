@@ -1,9 +1,4 @@
-import { Sql } from "postgres";
-import {
-  detectColumnExists,
-  getResultsObjectTableName,
-  tryCatchDatabaseAsync,
-} from "../db/mod.ts";
+import { tryCatchDatabaseAsync } from "../db/mod.ts";
 import {
   APIResponseWithData,
   GenericLongFormFetchConfig,
@@ -15,12 +10,7 @@ import {
 } from "lib";
 import { MAX_ITEMS } from "./consts.ts";
 import { buildCombinedQuery } from "./get_combined_query.ts";
-import {
-  getDatasetFamilyForModule,
-  getIndicatorMetadata,
-} from "./get_indicator_metadata.ts";
 import { getPeriodBoundsCore } from "./get_period_bounds.ts";
-import { buildQueryContext } from "./get_query_context.ts";
 import { buildWhereClause } from "./query_helpers.ts";
 import type { QueryContext, SqlRowsExecutor } from "./types.ts";
 
@@ -39,54 +29,6 @@ export type ItemsVersionInfo = {
   // Set by the run read path beside runId (PLAN_1_PROJECT_AA2_SCOPE §4).
   scopeToken?: string;
 };
-
-// Postgres wrapper — probes and executes on the project DB.
-export async function getPresentationObjectItems(
-  mainDb: Sql,
-  projectDb: Sql,
-  resultsObjectId: string,
-  fetchConfig: GenericLongFormFetchConfig,
-  firstPeriodOption: PeriodOption | undefined,
-  moduleLastRun: string,
-  datasetsVersion: string,
-): Promise<APIResponseWithData<ItemsHolderPresentationObject>> {
-  return await tryCatchDatabaseAsync(async () => {
-    const roRow = (
-      await projectDb<{ module_id: string }[]>`
-SELECT module_id FROM results_objects WHERE id = ${resultsObjectId}
-`
-    ).at(0);
-    if (!roRow) throw new Error(`Unknown results object: ${resultsObjectId}`);
-    const moduleId = roRow.module_id;
-
-    const tableName = getResultsObjectTableName(resultsObjectId);
-
-    const datasetFamily = await getDatasetFamilyForModule(projectDb, moduleId);
-
-    const queryContext = await buildQueryContext(
-      mainDb,
-      projectDb,
-      tableName,
-      fetchConfig,
-      datasetFamily,
-    );
-
-    return await getPresentationObjectItemsCore(
-      {
-        execute: (sql) => projectDb.unsafe(sql),
-        columnExists: (table, column) =>
-          detectColumnExists(projectDb, table, column),
-        getIndicatorMetadata: () => getIndicatorMetadata(projectDb, moduleId),
-      },
-      resultsObjectId,
-      tableName,
-      queryContext,
-      fetchConfig,
-      firstPeriodOption,
-      { moduleLastRun, datasetsVersion },
-    );
-  });
-}
 
 export async function getPresentationObjectItemsCore(
   deps: ItemsQueryDeps,

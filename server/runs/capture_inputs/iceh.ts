@@ -38,7 +38,7 @@ export async function computeDatasetIcehRunCapture(
     `;
     const dataRowCount = Number(dataCountRow[0].count);
     if (dataRowCount === 0) {
-      throw new Error("No ICEH data available to add to project");
+      throw new Error("No ICEH data available to capture into this results package");
     }
 
     // Capture the staleness hash BEFORE exporting: hash-after-export can

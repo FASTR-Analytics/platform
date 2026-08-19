@@ -7,19 +7,19 @@ import {
   type HfaIndicator,
   type HfaIndicatorCode,
   type HfaIndicatorVariantCode,
-  type RunDataset,
   type RunGenerationStep1Result,
+  type RunManifestDataset,
 } from "lib";
+import { dbRowToHfaIndicator } from "../../db/mod.ts";
+import { calculatedIndicatorToSnapshotRow } from "../../runs/capture_inputs/calculated_indicators.ts";
+import { computeDatasetHfaRunCapture } from "../../runs/capture_inputs/hfa.ts";
 import {
-  calculatedIndicatorToSnapshotRow,
-  computeDatasetHfaRunCapture,
   computeDatasetHmisRunCapture,
-  computeDatasetIcehRunCapture,
-  dbRowToHfaIndicator,
-  PROJECT_FACILITY_COLUMN_NAMES,
+  RUN_FACILITY_COLUMN_NAMES,
   type DatasetCsvTarget,
-  type ProjectFacilityRow,
-} from "../../db/mod.ts";
+  type RunFacilityRow,
+} from "../../runs/capture_inputs/hmis.ts";
+import { computeDatasetIcehRunCapture } from "../../runs/capture_inputs/iceh.ts";
 import { _RUNS_DIR_PATH_POSTGRES_INTERNAL } from "../../exposed_env_vars.ts";
 import {
   exportRowsToParquet,
@@ -33,15 +33,14 @@ import { sha256HexOfFile } from "./input_key.ts";
 import type { HfaSentinelRow } from "../../server_only_funcs/get_script_with_parameters_hfa.ts";
 
 // Stage 1 of the run pipeline — prepare inputs (PLAN_RESULTS_RUNS item 2;
-// COPY TO re-targeted by item 7, binding decision 4; project-DB writes
-// deleted by the Phase 3 re-cut, ruling 5). The dataset CAPTURE functions do
-// every instance-DB read plus the `COPY … TO` that writes each extract
-// DIRECTLY into the run's inputs/datasets/ (the Postgres container writes
-// through the runs volume via the _POSTGRES_INTERNAL namespace). Nothing is
-// written to any project database: the captured rows become this run's own
-// input mirrors (JSON + facilities parquet) and its manifest datasets info,
-// and they feed script generation. A family not selected in step 1 simply
-// has no extract and no manifest entry.
+// COPY TO re-targeted by item 7, binding decision 4). The dataset CAPTURE
+// functions do every instance-DB read plus the `COPY … TO` that writes each
+// extract DIRECTLY into the run's inputs/datasets/ (the Postgres container
+// writes through the runs volume via the _POSTGRES_INTERNAL namespace). The
+// captured rows become this run's own input mirrors (JSON + facilities
+// parquet) and its manifest datasets info, and they feed script generation.
+// A family not selected in step 1 simply has no extract and no manifest
+// entry.
 
 export type PreparedRunInputs = {
   selectedFamilies: DatasetType[];
@@ -49,13 +48,12 @@ export type PreparedRunInputs = {
   datasetExtractHashes: Map<DatasetType, string>;
   // Relative paths (from the run dir root) for the manifest's inputFiles.
   extraInputFiles: string[];
-  // Manifest `datasets` entries, built from the captures (the project
-  // `datasets` table is never written or read on this path).
-  datasets: RunDataset[];
+  // Manifest `datasets` rows, built from the captures. The raw manifest
+  // shape, not the RunDataset projection readers consume.
+  datasets: RunManifestDataset[];
   // Facilities tables captured into the run, with their parquet columns.
   facilitiesTables: { tableName: string; columns: ExportedColumn[] }[];
-  // Everything script generation needs (previously re-read from the project
-  // snapshot tables the dual-write had just populated).
+  // Everything script generation needs, straight from the captures above.
   scriptInputs: {
     knownDatasetVariables: Set<string>;
     hfaIndicators: HfaIndicator[];
@@ -69,10 +67,10 @@ export type PreparedRunInputs = {
   };
 };
 
-// The project facilities tables are all-text; the run parquet declares the
+// The instance facilities tables are all-text; the run parquet declares the
 // same (§2.3 declared types, never inferred).
 const FACILITY_PARQUET_COLUMNS: ExportedColumn[] =
-  PROJECT_FACILITY_COLUMN_NAMES.map((name) => ({
+  RUN_FACILITY_COLUMN_NAMES.map((name) => ({
     name,
     duckDbType: "VARCHAR",
   }));
@@ -98,7 +96,7 @@ export async function prepareRunInputs(
   });
 
   const selectedFamilies: DatasetType[] = [];
-  const datasets: RunDataset[] = [];
+  const datasets: RunManifestDataset[] = [];
   const extraInputFiles: string[] = [];
   const facilitiesTables: { tableName: string; columns: ExportedColumn[] }[] =
     [];
@@ -184,8 +182,8 @@ export async function prepareRunInputs(
     scriptInputs.knownDatasetVariables = new Set(
       capture.indicatorsHfa.map((r) => r.var_name),
     );
-    // Script generation consumed these through the project snapshot reader,
-    // which ordered by category → sub-category → indicator sort order. The
+    // Script generation used to consume these through a snapshot reader that
+    // ordered by category → sub-category → indicator sort order. The
     // order reaches the generated R script (hence the module inputKey), so
     // it is reproduced here rather than inherited from the instance query.
     const categoryOrder = new Map(
@@ -289,7 +287,7 @@ async function writeInputJson(
 async function writeFacilitiesParquet(
   tmpDir: string,
   tableName: string,
-  facilities: ProjectFacilityRow[],
+  facilities: RunFacilityRow[],
 ): Promise<void> {
   await exportRowsToParquet(
     facilities as unknown as Record<string, unknown>[],

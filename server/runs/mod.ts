@@ -1,28 +1,13 @@
 export {
   buildRunPackageIntoTmp,
   readCsvHeaders,
-  synthesizeRunForProject,
   type RunBuildOptions,
 } from "./synthesize_run.ts";
-export {
-  attachRunToProject,
-  buildRunAttachedManifestPayload,
-  notifyRunAttachedForProject,
-} from "./attach_run.ts";
-export { buildResultsPackageCompatibilityReport } from "./package_compatibility.ts";
 export { deleteRun } from "./delete_run.ts";
-export {
-  pinRunAndRepointFollowers,
-  setProjectFollowPinnedAndAlign,
-  unpinRun,
-} from "./pin_run.ts";
+export { pinRun, unpinRun } from "./pin_run.ts";
 export { deriveAvailableDisaggregationOptions } from "./disaggregation_availability.ts";
 export { getRunGenerationModuleOptions } from "./generation_wizard_reads.ts";
-export {
-  exportPgTableToParquet,
-  exportRowsToParquet,
-  type ExportedColumn,
-} from "./pg_export.ts";
+export { exportRowsToParquet, type ExportedColumn } from "./pg_export.ts";
 export {
   evictRunFromManifestCache,
   getRunManifestCached,

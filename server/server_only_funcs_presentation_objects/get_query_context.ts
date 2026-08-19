@@ -1,20 +1,9 @@
-import { Sql } from "postgres";
-import { getStructureSchemaForDatasetFamily } from "../db/instance/config.ts";
-import {
-  detectColumnExists,
-  detectHasPeriodId,
-  getTextColumnNames,
-} from "../db/mod.ts";
 import {
   GenericLongFormFetchConfig,
-  getCalendar,
-  getEnabledOptionalFacilityColumns,
-  throwIfErrWithData,
   type DatasetType,
   type DisaggregationOption,
   type OptionalFacilityColumn,
 } from "lib";
-import { detectNeededPeriodColumns, needsPeriodCTEFor } from "./period_helpers.ts";
 import type { QueryContext } from "./types.ts";
 
 export function facilitiesTableForFamily(
@@ -29,9 +18,8 @@ export function facilitiesTableForFamily(
   );
 }
 
-// The facility-column slice of the query context, shared by the Postgres
-// builder below and the manifest-based builder in server/run_query/ so the
-// two cannot drift.
+// The facility-column slice of the query context, called by the
+// manifest-based builder in server/run_query/run_read.ts.
 export function computeFacilityContext(
   fetchConfig: GenericLongFormFetchConfig,
   enabledFacilityColumns: OptionalFacilityColumn[],
@@ -79,71 +67,5 @@ export function computeFacilityContext(
     needsFacilityJoin: requestedOptionalFacilityColumns.length > 0,
     facilityFilters,
     nonFacilityFilters,
-  };
-}
-
-export async function buildQueryContext(
-  mainDb: Sql,
-  projectDb: Sql,
-  tableName: string,
-  fetchConfig: GenericLongFormFetchConfig,
-  datasetFamily: DatasetType | undefined,
-): Promise<QueryContext> {
-  // The FAMILY's schema decides what's enabled (iceh/undefined → none)
-  const structureSchema = await getStructureSchemaForDatasetFamily(
-    mainDb,
-    datasetFamily,
-  );
-
-  const enabledFacilityColumns = structureSchema
-    ? getEnabledOptionalFacilityColumns(structureSchema)
-    : [];
-
-  const facilityContext = computeFacilityContext(
-    fetchConfig,
-    enabledFacilityColumns,
-  );
-
-  // Check which time column exists in the table
-  const hasPeriodId = await detectHasPeriodId(projectDb, tableName);
-  const hasQuarterId = !hasPeriodId && await detectColumnExists(projectDb, tableName, "quarter_id");
-  const hasFacilityId = await detectColumnExists(
-    projectDb,
-    tableName,
-    "facility_id",
-  );
-  const calendar = getCalendar();
-  const neededPeriodColumns = detectNeededPeriodColumns(fetchConfig);
-  const needsPeriodCTE = needsPeriodCTEFor({
-    hasPeriodId,
-    hasQuarterId,
-    neededPeriodColumns,
-    calendar,
-  });
-
-  // Both sides of the join: a facility column reaches the query as `f.<col>`,
-  // and its type lives in the facilities table, not the results table.
-  const textColumns = await getTextColumnNames(projectDb, tableName);
-  if (facilityContext.needsFacilityJoin) {
-    const facilityTextColumns = await getTextColumnNames(
-      projectDb,
-      facilitiesTableForFamily(datasetFamily),
-    );
-    for (const col of facilityTextColumns) {
-      textColumns.add(col);
-    }
-  }
-
-  return {
-    textColumns,
-    datasetFamily,
-    hasPeriodId,
-    hasQuarterId,
-    hasFacilityId,
-    calendar,
-    enabledFacilityColumns,
-    ...facilityContext,
-    needsPeriodCTE,
-    neededPeriodColumns,
   };
 }
