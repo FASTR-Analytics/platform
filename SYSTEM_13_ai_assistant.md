@@ -90,6 +90,17 @@ the query pipeline the data tools call is **S9**.
    binds the instance's **pinned** results package (national scope, run-keyed
    instance routes, gate = instance `can_view_data`) and exposes only the shared
    tools + `get_overview` — 6 read-only tools, no `projectId`, no writes.
+   **Interpretation context rides the shared reads, not extra tools**
+   (2026-08-19): `get_metric_data` fetches value info beside the items and
+   states the metric's full period coverage plus, per indicator in the
+   Dimension Summary, label / format / direction / thresholds (thresholds in
+   display units, mirroring the scorecard's inclusive cutoff rule);
+   `buildInstanceContextSections` states the instance calendar and
+   `buildPackageGroundingSections` the package's period coverage (finest
+   physical time column; `/mcp` only — the SPA holds no manifest). Nothing
+   about modules, provenance, or unavailable metrics goes into the AI
+   context: it does not help read a metric (Tim 2026-08-19). A separate
+   indicator-dictionary tool was considered and dropped as redundant.
    The `/mcp` surface is stateless above the wire: the pin is read from the DB
    on every call (a pin-move is visible on the next call; `get_overview`
    answers without a pin), and package tools are boot-time templates bound per call via

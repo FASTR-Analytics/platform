@@ -1,6 +1,8 @@
 import { getCountryLabel } from "../consts.ts";
 import type { DatasetInProject } from "../types/datasets_in_project.ts";
 import type { InstanceState } from "../types/instance_sse.ts";
+import type { PeriodBounds } from "../types/presentation_objects.ts";
+import { inferPeriodFormatFromValue } from "../types/_metric_installed.ts";
 import type { InfoCatalogTopic } from "./info_catalog.ts";
 
 // The shared halves of the AI system prompt — what both surfaces (the SPA
@@ -75,6 +77,9 @@ export function buildInstanceContextSections(instance: InstanceState): string[] 
   }
 
   sections.push(`**Instance:** ${instance.instanceName}`);
+  sections.push(
+    `**Calendar:** ${instance.instanceCalendar} (period ids like 202503 are year+month in this calendar)`,
+  );
   sections.push("");
 
   sections.push("# Terminology");
@@ -186,7 +191,10 @@ export type PackageGrounding = {
   datasets: DatasetInProject[];
   commonIndicators: { id: string; label: string }[];
   icehIndicators: { id: string; label: string }[];
-  moduleCount: number;
+  // The package's overall period range across its results objects (null =
+  // no time-indexed results). Omitted when the caller cannot know it — the
+  // SPA holds no manifest client-side; /mcp reads it from the manifest.
+  periodCoverage?: PeriodBounds | null;
 };
 
 export function buildPackageGroundingSections(
@@ -237,10 +245,14 @@ export function buildPackageGroundingSections(
     }
   }
 
-  if (grounding.moduleCount > 0) {
+  if (grounding.periodCoverage !== undefined) {
     sections.push("");
     sections.push(
-      `**Installed analysis modules:** ${grounding.moduleCount}`,
+      grounding.periodCoverage === null
+        ? "**Period coverage:** no time-indexed results"
+        : `**Period coverage:** ${
+          inferPeriodFormatFromValue(grounding.periodCoverage.min) ?? "unknown"
+        } ${grounding.periodCoverage.min} to ${grounding.periodCoverage.max} (the widest range across the package's results; each metric states its own in get_metric_data)`,
     );
   }
   return sections;

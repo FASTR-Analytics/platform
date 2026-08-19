@@ -72,7 +72,7 @@ export function buildMcpToolsForPrincipal(principal: McpPrincipal): AnyTool[] {
   const getOverviewTool = createAITool({
     name: "get_overview",
     description:
-      "Overview of this FASTR instance: country, the pinned results package and what it holds (datasets, indicators, analysis modules), terminology, and how to use the other tools. Call this first.",
+      "Overview of this FASTR instance: country, calendar, the pinned results package and what it holds (datasets, indicators, period coverage), terminology, and how to use the other tools. Call this first.",
     inputSchema: z.object({}),
     kind: "read",
     headless: true,

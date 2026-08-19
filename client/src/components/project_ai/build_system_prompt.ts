@@ -32,7 +32,6 @@ export function buildSystemPromptForContext(
       datasets: projectState.projectDatasets,
       commonIndicators: projectState.commonIndicators,
       icehIndicators: projectState.icehIndicators,
-      moduleCount: projectState.projectModules.length,
     }),
     ...buildDataCoverageSections(instance),
     "",

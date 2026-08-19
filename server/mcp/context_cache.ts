@@ -3,7 +3,9 @@ import type { AIToolWithMetadata } from "@timroberton/panther";
 import type {
   InstanceState,
   PackageGrounding,
+  PeriodBounds,
   RunListingItem,
+  RunManifest,
   ServerActionTransport,
 } from "lib";
 import {
@@ -27,7 +29,6 @@ import {
   getHfaTaxonomyFromManifestInputs,
   getIcehIndicatorsFromManifestInputs,
   getMetricsWithStatusFromManifest,
-  getModuleSummariesFromManifest,
   getProjectDatasetsFromManifest,
 } from "../run_query/mod.ts";
 import { createMcpAIToolEnv } from "./env.ts";
@@ -164,6 +165,34 @@ export async function resolvePinnedRunId(): Promise<string | null> {
   return res.data;
 }
 
+// The widest period range across the package's time-indexed results objects.
+// A results object's periodBounds are in its own physicalTimeColumn's units
+// (period_id YYYYMM, quarter_id YYYYQ, year YYYY), so min/max is taken within
+// ONE unit: the finest-grained column present. null = nothing time-indexed.
+const PHYSICAL_TIME_COLUMNS_FINEST_FIRST = [
+  "period_id",
+  "quarter_id",
+  "year",
+] as const;
+
+export function packagePeriodCoverage(
+  manifest: RunManifest,
+): PeriodBounds | null {
+  for (const column of PHYSICAL_TIME_COLUMNS_FINEST_FIRST) {
+    const bounds = manifest.resultsObjects
+      .filter((ro) => ro.physicalTimeColumn === column)
+      .map((ro) => ro.periodBounds)
+      .filter((pb): pb is PeriodBounds => pb !== null);
+    if (bounds.length > 0) {
+      return {
+        min: Math.min(...bounds.map((b) => b.min)),
+        max: Math.max(...bounds.map((b) => b.max)),
+      };
+    }
+  }
+  return null;
+}
+
 // Every package-tool result at /mcp starts with one provenance line naming
 // the run it read (label + generated timestamp — the same identity
 // get_overview gives; no run id, which no tool accepts as input). The pin
@@ -244,7 +273,6 @@ export async function resolvePackageContext(
   const manifest = await getRunManifestCached(runId);
   const runInputs = { runId, manifest };
   const metrics = getMetricsWithStatusFromManifest(manifest);
-  const modules = getModuleSummariesFromManifest(manifest);
   const icehIndicators = await getIcehIndicatorsFromManifestInputs(runInputs);
   const hfaTaxonomy = await getHfaTaxonomyFromManifestInputs(
     runInputs,
@@ -254,7 +282,7 @@ export async function resolvePackageContext(
     datasets: getProjectDatasetsFromManifest(manifest),
     commonIndicators: await getCommonIndicatorsFromManifestInputs(runInputs),
     icehIndicators,
-    moduleCount: modules.length,
+    periodCoverage: packagePeriodCoverage(manifest),
   };
 
   const transport = buildPrincipalTransport(principal.token);

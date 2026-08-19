@@ -9,6 +9,7 @@ import type {
   IndicatorFormat,
   MetricFormatAs,
   MetricWithStatus,
+  PeriodBounds,
   PresentationObjectConfig,
 } from "../types/mod.ts";
 import type { TranslatableString } from "../translate/types.ts";
@@ -99,15 +100,26 @@ export async function getMetricDataForAI(
         rollupDim: undefined,
       };
 
-  const res = await env.getItems({
-    resultsObjectId: metric.resultsObjectId,
-    fetchConfig,
-    firstPeriodOption: metric.mostGranularTimePeriodColumnInResultsFile,
-  });
+  // Value info rides alongside the items: its periodBounds is the metric's
+  // FULL period coverage (the results object's range, independent of this
+  // query's filters) — what lets the model tell "the data ends here" from "I
+  // didn't ask for later periods". Context, not data: a failed read omits the
+  // line rather than failing the tool.
+  const [res, valueInfoRes] = await Promise.all([
+    env.getItems({
+      resultsObjectId: metric.resultsObjectId,
+      fetchConfig,
+      firstPeriodOption: metric.mostGranularTimePeriodColumnInResultsFile,
+    }),
+    env.getResultsValueInfo(metricId),
+  ]);
   if (!res.success) {
     throw new AIToolFailure(res.err);
   }
   const itemsHolder = res.data;
+  const periodCoverage = valueInfoRes.success
+    ? valueInfoRes.data.periodBounds ?? null
+    : undefined;
 
   const indicatorMetadata = itemsHolder.status === "ok"
     ? itemsHolder.indicatorMetadata
@@ -127,6 +139,7 @@ export async function getMetricDataForAI(
     periodFilter,
     aiDescription,
     indicatorMetadata,
+    periodCoverage,
   );
 }
 
@@ -143,6 +156,9 @@ function formatItemsAsMarkdown(
   periodFilter?: GenericLongFormFetchConfig["periodFilter"],
   aiDescription?: MetricAIDescription,
   indicatorMetadata?: IndicatorMetadata[],
+  // null = the metric is not time-indexed; undefined = unknown (value info
+  // could not be read), which prints nothing.
+  periodCoverage?: PeriodBounds | null,
 ): string {
   const lines: string[] = [];
 
@@ -218,6 +234,17 @@ function formatItemsAsMarkdown(
 
   if (disaggregations.length > 0) {
     lines.push("**Disaggregated by:** " + disaggregations.join(", "));
+    lines.push("");
+  }
+
+  if (periodCoverage !== undefined) {
+    lines.push(
+      periodCoverage === null
+        ? "**Period coverage (all data for this metric):** not time-indexed"
+        : `**Period coverage (all data for this metric):** ${
+          inferPeriodFormatFromValue(periodCoverage.min) ?? "unknown"
+        } ${periodCoverage.min} to ${periodCoverage.max}`,
+    );
     lines.push("");
   }
 
@@ -305,17 +332,23 @@ function formatItemsAsMarkdown(
           const valuesWithLabels = stats.uniqueValues.map((val) => {
             const meta = metadataById.get(val);
             // "indicator" metric: the value's format is a per-indicator fact
-            // the model needs to read the CSV honestly.
+            // the model needs to read the CSV honestly. Direction and
+            // thresholds, where the indicator declares them, are what
+            // "good"/"bad" means for that row.
             const format = metric.formatAs === "indicator"
               ? meta?.format_as
               : undefined;
+            const notes = [
+              ...(format ? [format] : []),
+              ...(meta ? [formatIndicatorThresholds(meta)] : []),
+            ].filter((n) => n !== "");
             if (meta?.label && meta.label !== val) {
-              return format
-                ? `${val} (${meta.label} — ${format})`
+              return notes.length > 0
+                ? `${val} (${meta.label} — ${notes.join("; ")})`
                 : `${val} (${meta.label})`;
             }
-            if (format) {
-              return `${val} (${format})`;
+            if (notes.length > 0) {
+              return `${val} (${notes.join("; ")})`;
             }
             if (col === "strat") {
               const stratInfo =
@@ -366,6 +399,41 @@ function formatItemsAsMarkdown(
   lines.push(csvData);
 
   return lines.join("\n");
+}
+
+// "higher is better; green ≥ 80, yellow ≥ 50 (in % points)" from what the
+// indicator declares; "" when it declares nothing. Mirrors the scorecard's
+// cutoff rule (client _5_scorecard.ts getScorecardCutoffColor): thresholds
+// are compared against the DISPLAY-scaled value — percent as 0-100 points,
+// rate_per_10k as counts per 10,000 — inclusive toward green in both
+// directions (higher_is_better → ≥, lower_is_better → ≤). The CSV prints
+// percent values as 0-1 fractions, so the unit is spelled out.
+function formatIndicatorThresholds(meta: IndicatorMetadata): string {
+  const parts: string[] = [];
+  if (meta.threshold_direction) {
+    parts.push(
+      meta.threshold_direction === "higher_is_better"
+        ? "higher is better"
+        : "lower is better",
+    );
+  }
+  const cmp = meta.threshold_direction === "lower_is_better" ? "≤" : "≥";
+  const bands: string[] = [];
+  if (meta.threshold_green !== undefined) {
+    bands.push(`green ${cmp} ${meta.threshold_green}`);
+  }
+  if (meta.threshold_yellow !== undefined) {
+    bands.push(`yellow ${cmp} ${meta.threshold_yellow}`);
+  }
+  if (bands.length > 0) {
+    const unit = meta.format_as === "percent"
+      ? " (in % points; the CSV shows 0-1 fractions)"
+      : meta.format_as === "rate_per_10k"
+      ? " (per 10,000)"
+      : "";
+    parts.push(bands.join(", ") + unit);
+  }
+  return parts.join("; ");
 }
 
 // Ids that DECLARE a format, bucketed by it, in first-seen format order. Ids
