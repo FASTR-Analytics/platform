@@ -20,8 +20,7 @@ const tintAlpha = () => (darkMode() ? "80" : "33");
 
 /** Display name for a stored editor — prefers the live INSTANCE roster record
  *  over the name captured at edit time (people get renamed; emails don't).
- *  The roster is instance-wide now: with the project tier gone there is no
- *  narrower set of users a product's editors could come from (D2). */
+ *  A product's editors always come from that one roster (D2). */
 export function editorDisplayName(e: VersionEditor): string {
   const known = instanceState.users.find((u) => u.email === e.email);
   const liveName = known
@@ -36,7 +35,7 @@ export function editorDisplayNames(editors: VersionEditor[]): string {
 
 /** email -> display name map for authorship-run lookups: the session's
  *  editors plus any other emails appearing in the runs — writers AND deleters
- *  (resolved against the live project users, falling back to the email). */
+ *  (resolved against the live instance users, falling back to the email). */
 export function buildAuthorNames(
   editors: VersionEditor[],
   runs:

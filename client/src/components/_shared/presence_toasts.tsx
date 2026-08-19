@@ -243,7 +243,7 @@ export function notifyPresenceToasts(
   present = next;
 }
 
-/** Reset on disconnect / project switch (collab.ts disconnectCollab). */
+/** Reset on disconnect (collab.ts disconnectCollab). */
 export function resetPresenceToasts(): void {
   lastScopeKey = null;
   present = new Map();

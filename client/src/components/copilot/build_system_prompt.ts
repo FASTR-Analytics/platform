@@ -18,7 +18,7 @@ import {
 // The copilot's system prompt: the shared grounding blocks (lib/ai_tools/
 // build_system_prompt.ts) plus the instance's own prose — the results package
 // the copilot is currently serving, the product counts, and the instance-level
-// `ai_context` (D15; there is no per-project context any more).
+// `ai_context` (D15).
 //
 // BYTE-STABLE across navigation WITHIN one package: no view/mode argument —
 // per-view instructions ride each view's instructions in ai_views.ts as a

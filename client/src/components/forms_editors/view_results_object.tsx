@@ -16,7 +16,7 @@ import { serverActions } from "~/server_actions";
 // The RAW results file behind a metric, read straight from the run directory
 // under the caller's PackageScope (D7). Scoped, not national: the read applies
 // the same area filter the figure queries do, so an AA2 product's raw preview
-// shows that product's rows — which is what the project lens used to supply.
+// shows that product's rows.
 export function ViewResultsObject(
   p: EditorComponentProps<
     {

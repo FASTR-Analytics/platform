@@ -47,9 +47,9 @@ const HEADING = {
 // pattern) — choose data, configure modules, confirm + launch. All state is
 // client-local until launch sends the whole configuration in one body;
 // nothing persists server-side before that, so abandoning the modal is a
-// no-op by construction. Generation is an instance-level act, so the wizard
-// has no project context. On launch the run owns its whole lifecycle and
-// progress arrives over instance SSE on the Results packages surface.
+// no-op by construction. Generation is an instance-level act. On launch the
+// run owns its whole lifecycle and progress arrives over instance SSE on the
+// Results packages surface.
 export function ResultsPackageWizard(
   p: AlertComponentProps<Record<never, never>, undefined>,
 ) {

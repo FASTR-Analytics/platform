@@ -16,7 +16,7 @@ import { darkMode } from "~/state/t4_ui";
 // things a plain <textarea> can't do. Shared by the slide editor (text-block
 // body + title/header fields) and the visualization editor (caption fields);
 // the caller supplies `canEdit` (each surface has its own configure permission),
-// so this component is decoupled from any one project-state permission.
+// so this component is decoupled from any one permission.
 
 // ── Selection hover name flag ────────────────────────────────────────────────
 // yCollab names a peer when you hover their CARET (its own CSS hover on

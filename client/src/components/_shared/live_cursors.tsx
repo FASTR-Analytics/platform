@@ -79,10 +79,9 @@ export type PointerAwarenessState = {
         x: number;
         y: number;
       }
-    // (There is no "page" surface: list-page cursors rode the project-level
-    // page-awareness relay, which is gone from the wire protocol with the
-    // project tier — D8. Every remaining surface belongs to a document
-    // session.)
+    // (There is no "page" surface: the wire protocol carries no page-level
+    // awareness relay, so list pages show no cursors — D8. Every surface
+    // belongs to a document session.)
     //
     // A named CHROME region of any surface family ([data-cursor-zone]
     // element: header bars, side panels, the area around a canvas). Zones

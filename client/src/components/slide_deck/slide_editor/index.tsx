@@ -235,8 +235,8 @@ export function SlideEditor(p: Props) {
   let undoMgr: Y.UndoManager | undefined;
   let detachUndoPop: (() => void) | undefined;
   // ONE product-edit gate (D2): every approved user is a full editor of every
-  // product, so the seventeen project flags collapse to this single function —
-  // which is also the one place a later permission model has to replace.
+  // product, so this single function is the whole check — and the one place a
+  // later permission model has to replace.
   const canUndoRedo = () =>
     !!session() && collabReady() && canEditProducts();
 

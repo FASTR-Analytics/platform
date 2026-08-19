@@ -20,7 +20,7 @@ import { useAIDocuments } from "./ai_documents";
 // ONE mount for the whole copilot (D15): it wraps the Products page AND both
 // editor overlays, because panther registers tools once per mount and the
 // `returnToContext` stack and the tours all rely on ONE controller. ONE
-// conversation scope, "copilot" — there is no project to key it by any more.
+// conversation scope, "copilot".
 export function CopilotWrapper(p: ParentProps) {
   const sdkClient = createCopilotSDKClient();
 

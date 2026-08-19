@@ -177,7 +177,7 @@ const TERMINAL_CLOSE_CODES = new Set([4403, 1008]);
 
 let ws: WebSocket | undefined;
 // Is a connection WANTED? (There is one socket per signed-in approved user
-// for the whole session — no project id to key it by any more.)
+// for the whole session.)
 let wantConnection = false;
 let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
 let attempts = 0;

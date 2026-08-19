@@ -40,10 +40,10 @@ type OpenViewer = (element: Viewer, moduleId: string) => void;
 
 // The catalogue's detail pane (master–detail, PLAN ruling 1: instance surface
 // only). This is the ONLY surface that renders a non-ready run — the
-// generating/failed bodies live here, because a project is attached only
-// once a run is ready and so never sees one. A READY run is rendered by the
-// shared ResultsPackageView, exactly as a project's tab renders it; this pane
-// adds only its housekeeping chrome (pin/unpin, guarded delete, "in use by").
+// generating/failed bodies live here, because a product can only point at a
+// ready run and so never sees one. A READY run is rendered by the shared
+// ResultsPackageView, exactly as a product renders it; this pane adds only
+// its housekeeping chrome (pin/unpin, guarded delete, "in use by").
 export function RunCatalogDetailPane(p: {
   run: RunCatalogItem;
   liveProgress: RunProgress | undefined;
@@ -54,7 +54,7 @@ export function RunCatalogDetailPane(p: {
 
   // Guarded hard delete (fork ruling 3): ONE act — catalog row, files and
   // cached results — with no archived state and no automatic GC. The server
-  // refuses while a project points at the package or it is still generating;
+  // refuses while a product points at the package or it is still generating;
   // the pane states the reason rather than hiding the button, so an
   // undeletable package is never a mystery. No refetch on success: the SSE
   // push updates the store and the sidebar's pin effect moves selection.

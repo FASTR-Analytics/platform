@@ -217,7 +217,7 @@ export function DeckVersionPreview(p: {
         const prevById = new Map(prevOrdered.map((s) => [s.id, s] as const));
         const currentIds = new Set(orderedSlides.map((s) => s.id));
 
-        // email -> display name (live project users preferred), covering the
+        // email -> display name (live instance users preferred), covering the
         // session's editors plus anyone in the per-slide ledger.
         const names: Record<string, string> = {};
         const addName = (email: string) => {

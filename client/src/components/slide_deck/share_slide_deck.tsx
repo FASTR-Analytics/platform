@@ -22,8 +22,7 @@ export function ShareSlideDeck(
     {
       deckId: string;
       deckLabel: string;
-      // The INSTANCE roster: with the project tier gone there is no narrower
-      // recipient list to offer (D2).
+      // The instance roster — the recipient list on offer (D2).
       userEmails: string[];
     },
     undefined

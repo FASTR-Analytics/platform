@@ -6,7 +6,7 @@ export const DEFAULT_BUILTIN_TOOLS = { webSearch: true, webFetch: true };
 const ISO_RE = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/;
 
 // The `/ai` proxy is guarded requireApprovedUser() and logs usage against the
-// caller's email — there is no project header any more (D2/D15).
+// caller's email, and nothing finer (D2/D15).
 export function createCopilotSDKClient() {
   const baseURL = _SERVER_HOST
     ? `${_SERVER_HOST}/ai`

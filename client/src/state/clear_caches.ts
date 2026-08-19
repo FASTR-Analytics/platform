@@ -3,10 +3,9 @@ import { clearGeoJsonMemoryCache } from "./instance/t2_geojson";
 
 // The AI prefixes are the ONE thing kept across a data-cache clear (and the
 // one thing an AI-cache clear touches): everything else in IndexedDB is a T2
-// cache entry that a re-fetch reproduces. Cache NAMES are otherwise
-// unchanged by the products restructure — the deploy flush clears every
-// non-AI key on a version change anyway, so pre-restructure entries under the
-// old key shapes are gone by the time the new code reads them (D8).
+// cache entry that a re-fetch reproduces, so nothing here has to reason about
+// stale key shapes — the deploy flush clears every non-AI key on a version
+// change.
 const AI_PREFIXES = ["ai-conv", "ai-documents"];
 
 export async function clearDataCache(): Promise<void> {

@@ -35,10 +35,9 @@ import { instanceState } from "~/state/instance/t1_store";
 // launch — and the catalogue of every package the instance holds, as a
 // master–detail (sidebar list + detail pane). The listing is T1
 // (`instanceState.runsCatalog`, pushed on every catalogue mutation), so this
-// surface has no component fetch of its own. A package attaches to projects
-// at launch (the wizard's confirm step) or later from a project's Results
-// package tab. This surface owns the only act that ever reclaims a
-// package's disk.
+// surface has no component fetch of its own. Generation only PRODUCES a
+// package; each product points at one from its own settings. This surface
+// owns the only act that ever reclaims a package's disk.
 export function InstanceResultsPackages() {
   const { openEditor, EditorWrapper } = getEditorWrapper();
 

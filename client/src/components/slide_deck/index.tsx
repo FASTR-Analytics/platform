@@ -236,8 +236,8 @@ function SlideDeckEditorInner(p: {
       props: {
         deckId: p.productId,
         deckLabel: p.deckLabel,
-        // The instance roster: with the project tier gone there is no
-        // narrower recipient list (D2).
+        // The instance roster — every approved user is a possible
+        // recipient (D2).
         userEmails: instanceState.users.map((u) => u.email),
       },
     });

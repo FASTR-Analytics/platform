@@ -2,9 +2,9 @@ import { get, set, del } from "idb-keyval";
 
 // Anthropic file ids for documents the user has attached to the copilot, held
 // per browser. ONE conversation scope: the copilot is a single instance-level
-// mount (§2.6), so there is nothing left to key these by — the old
-// `ai-documents/<projectId>` residue in a returning user's IndexedDB is
-// accepted and never migrated (D8).
+// mount (§2.6), so this one key holds them all. Any other `ai-documents/*`
+// key in a returning user's IndexedDB is inert — nothing reads it, and only
+// an AI-cache clear removes it (D8).
 const _KEY = "ai-documents/copilot";
 
 export type CopilotDocument = {
