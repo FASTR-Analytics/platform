@@ -1,8 +1,16 @@
-import { FigureBundle, PackageScope, RunAuthoringContext, t3 } from "lib";
+import {
+  FigureBundle,
+  FigurePackageIssue,
+  PackageScope,
+  RunAuthoringContext,
+  figurePackageIssueForMetrics,
+  t3,
+} from "lib";
 import { Button } from "panther";
 import { Show, createSignal } from "solid-js";
 import { instanceState } from "~/state/instance/t1_store";
 import { resolveFigureBundleInteractively } from "~/generate_visualization/mod";
+import type { ResolveFigureResult } from "~/generate_visualization/mod";
 
 // =============================================================================
 // The stale-figure affordance (D4)
@@ -33,50 +41,62 @@ export function scopeLabel(adminArea2: string | null): string {
   return adminArea2 ?? t3({ en: "National", fr: "National", pt: "Nacional" });
 }
 
-export type UpdateFigureResult =
-  | { ok: true; bundle: FigureBundle }
-  | { ok: false; reason: string };
-
 // Re-resolve one figure under a target pair — the whole of the update action.
 //
-// The metric comes from the TARGET package's authoring context: that lookup IS
-// the "metric not in this package" check, and it is why authoring against a
-// reattached product needs no separate pre-flight.
+// The metric comes from the TARGET package's authoring context, and that lookup
+// IS the "metric not in this package" check — which is why reattaching a
+// product needs no compatibility pre-flight anywhere.
 //
-// It goes through the INTERACTIVE items read, deliberately NOT through
-// `resolveBundleFromMetricAndConfig`: that resolver runs `assertReplicantValid`,
-// which is the AI policy (throw with the valid-value list). D4 rules the human
-// path the other way — a stored replicant value that no longer exists under the
-// new package is AUTO-DEFAULTED by `resolveDefaultReplicant` inside this read,
-// never thrown on, so a figure that can render always does. Same composition
-// the slide and report editors use when they apply an edit.
+// The resolution itself is the INTERACTIVE one (auto-defaults a replicant that
+// no longer exists), never the strict AI one — see
+// resolveFigureBundleInteractively for why the two policies differ.
 export async function updateFigureToScope(
   scope: PackageScope,
   authoringContext: RunAuthoringContext,
   bundle: FigureBundle,
-): Promise<UpdateFigureResult> {
-  const metric = authoringContext.metrics.find((m) => m.id === bundle.metricId);
-  if (!metric) {
-    return {
-      ok: false,
-      reason: t3({
-        en: `Metric "${bundle.metricId}" is not in ${packageLabel(scope.runId)}`,
-        fr: `L'indicateur "${bundle.metricId}" n'est pas dans ${packageLabel(scope.runId)}`,
-        pt: `A métrica "${bundle.metricId}" não está em ${packageLabel(scope.runId)}`,
-      }),
-    };
+): Promise<ResolveFigureResult> {
+  // ONE rule for "why won't this figure resolve here", shared with the server
+  // (lib/figure_package_issue.ts): a missing metric makes its availability
+  // stamp and its dimensions unanswerable, so the first thing that fails is
+  // what gets reported.
+  const issue = figurePackageIssueForMetrics(
+    bundle.metricId,
+    bundle.config,
+    authoringContext.metrics,
+  );
+  if (issue !== null) {
+    return { ok: false, reason: describePackageIssue(issue, scope.runId) };
   }
-  if (metric.status !== "ready") {
-    return {
-      ok: false,
-      reason: t3({
-        en: `Metric "${metric.label}" is not available in ${packageLabel(scope.runId)}${metric.statusReason ? `: ${metric.statusReason}` : ""}`,
-        fr: `L'indicateur "${metric.label}" n'est pas disponible dans ${packageLabel(scope.runId)}${metric.statusReason ? ` : ${metric.statusReason}` : ""}`,
-        pt: `A métrica "${metric.label}" não está disponível em ${packageLabel(scope.runId)}${metric.statusReason ? `: ${metric.statusReason}` : ""}`,
-      }),
-    };
-  }
+  const metric = authoringContext.metrics.find((m) => m.id === bundle.metricId)!;
   return resolveFigureBundleInteractively(scope, metric, bundle.config);
+}
+
+function describePackageIssue(
+  issue: FigurePackageIssue,
+  runId: string,
+): string {
+  const pkg = packageLabel(runId);
+  if (issue.kind === "metric_not_in_package") {
+    return t3({
+      en: `Metric "${issue.metricId}" is not in ${pkg}`,
+      fr: `L'indicateur "${issue.metricId}" n'est pas dans ${pkg}`,
+      pt: `A métrica "${issue.metricId}" não está em ${pkg}`,
+    });
+  }
+  if (issue.kind === "metric_unavailable") {
+    const because = issue.reason === null ? "" : `: ${issue.reason}`;
+    return t3({
+      en: `Metric "${issue.metricId}" is not available in ${pkg}${because}`,
+      fr: `L'indicateur "${issue.metricId}" n'est pas disponible dans ${pkg}${because}`,
+      pt: `A métrica "${issue.metricId}" não está disponível em ${pkg}${because}`,
+    });
+  }
+  const dims = issue.disaggregationOptions.join(", ");
+  return t3({
+    en: `${pkg} has no ${dims} for this figure`,
+    fr: `${pkg} n'a pas de ${dims} pour cette figure`,
+    pt: `${pkg} não tem ${dims} para esta figura`,
+  });
 }
 
 type BadgeProps = {

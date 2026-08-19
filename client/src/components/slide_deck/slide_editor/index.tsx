@@ -82,12 +82,10 @@ import {
 } from "~/components/figure_editor/stale_figure_badge";
 import {
   findStaleFiguresInLayout,
-  makeFigureBundleFromFetchedData,
-  resolveBundleFromMetricAndConfig,
+  resolveFigureBundleInteractively,
 } from "~/generate_visualization/mod";
 import { serverActions } from "~/server_actions";
 import { _SLIDE_CACHE } from "~/state/products/t2_slides";
-import { getPresentationObjectItemsFromCacheOrFetch } from "~/state/products/t2_figure_data";
 import { setShowAi, showAi } from "~/state/t4_ui";
 import {
   collabSocketOpen,
@@ -835,38 +833,16 @@ export function SlideEditor(p: Props) {
         // under the product's CURRENT pair, so applying an edit to a stale
         // figure also brings it up to date.
         if (result?.updated) {
-          const newConfig = result.updated.config;
-
-          const newItemsRes = await getPresentationObjectItemsFromCacheOrFetch(
+          const rebuilt = await resolveFigureBundleInteractively(
             p.scope,
             metric,
-            newConfig,
+            result.updated.config,
           );
-
-          if (
-            newItemsRes.success === false ||
-            newItemsRes.data.ih.status !== "ok"
-          ) {
-            await openAlert({
-              text: t3({
-                en: "Failed to regenerate the figure",
-                fr: "Échec de la régénération de la figure",
-                pt: "Falha ao regenerar a figura",
-              }),
-              intent: "danger",
-            });
+          if (!rebuilt.ok) {
+            await openAlert({ text: rebuilt.reason, intent: "danger" });
             return;
           }
-
-          applyFigureBundle(
-            makeFigureBundleFromFetchedData(p.scope, {
-              resultsValue: metric,
-              ih: newItemsRes.data.ih as Parameters<
-                typeof makeFigureBundleFromFetchedData
-              >[1]["ih"],
-              effectiveConfig: newItemsRes.data.config,
-            }),
-          );
+          applyFigureBundle(rebuilt.bundle);
         }
       } finally {
         setEditingFigureBlockId(undefined);
@@ -922,26 +898,16 @@ export function SlideEditor(p: Props) {
 
     if (!result) return;
 
-    try {
-      const bundle = await resolveBundleFromMetricAndConfig(
-        p.scope,
-        result.metric,
-        result.config,
-      );
-      setFigureBlockBundle(blockId, bundle);
-    } catch (err) {
-      await openAlert({
-        text:
-          err instanceof Error
-            ? err.message
-            : t3({
-              en: "Failed to create the figure",
-              fr: "Échec de la création de la figure",
-              pt: "Falha ao criar a figura",
-            }),
-        intent: "danger",
-      });
+    const resolved = await resolveFigureBundleInteractively(
+      p.scope,
+      result.metric,
+      result.config,
+    );
+    if (!resolved.ok) {
+      await openAlert({ text: resolved.reason, intent: "danger" });
+      return;
     }
+    setFigureBlockBundle(blockId, resolved.bundle);
   }
 
   // ── Stale figures on THIS slide (D4) ────────────────────────────────────────

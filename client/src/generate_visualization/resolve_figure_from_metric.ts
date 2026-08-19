@@ -2,12 +2,12 @@ import type {
   DatasetType,
   FigureBundle,
   GenericLongFormFetchConfig,
-  PeriodOption,
+  PackageScope,
   PresentationObjectConfig,
   ResultsValueForVisualization,
 } from "lib";
 import { figureBundleSchema } from "lib";
-import { _PO_ITEMS_CACHE } from "~/state/project/t2_presentation_objects";
+import { _PO_ITEMS_CACHE } from "~/state/products/t2_figure_data";
 import { serverActions } from "~/server_actions";
 import { poItemsQueue } from "~/state/_infra/request_queue";
 import { getAdminAreaLevelFromMapConfig } from "./get_admin_area_level_from_config";
@@ -16,10 +16,15 @@ import { getSnapshotInstanceLocalization } from "~/state/instance/t1_store";
 
 // Plain-inputs resolver: takes the metric data already resolved by the caller
 // (AI adapter in slide_deck/slide_ai). No AI types imported here.
+//
+// It goes at the items cache DIRECTLY rather than through
+// getPresentationObjectItemsFromCacheOrFetch because the caller already holds a
+// built fetch config (and only a projection of the metric), not a full
+// ResultsValue + config pair. Same cache entry either way — the uniqueness key
+// is `(runId, scopeToken, resultsObjectId, fetchConfigHash)`.
 export type MetricInputsForBundle = {
   metricId: string;
   resultsObjectId: string;
-  mostGranularTimePeriodColumnInResultsFile: PeriodOption | undefined;
   moduleLastRun: string;
   resultsValueForViz: ResultsValueForVisualization;
   datasetFamily: DatasetType | undefined;
@@ -27,36 +32,29 @@ export type MetricInputsForBundle = {
 };
 
 export async function resolveFigureBundleFromMetric(
-  projectId: string,
+  scope: PackageScope,
   inputs: MetricInputsForBundle,
   config: PresentationObjectConfig,
 ): Promise<FigureBundle> {
-  const { metricId, resultsObjectId, mostGranularTimePeriodColumnInResultsFile, moduleLastRun, resultsValueForViz, datasetFamily, fetchConfig } = inputs;
+  const { metricId, resultsObjectId, moduleLastRun, resultsValueForViz, datasetFamily, fetchConfig } = inputs;
 
-  const { data, version } = await _PO_ITEMS_CACHE.get({
-    projectId,
-    resultsObjectId,
-    fetchConfig,
-  });
+  const params = { scope, resultsObjectId, fetchConfig };
+  const { data, version } = await _PO_ITEMS_CACHE.get(params);
 
   let itemsHolder;
   if (data) {
     itemsHolder = data;
   } else {
     const newPromise = poItemsQueue.enqueue(() =>
-      serverActions.getPresentationObjectItems({
-        projectId,
+      serverActions.getRunPresentationObjectItems({
+        run_id: scope.runId,
         resultsObjectId,
         fetchConfig,
-        firstPeriodOption: mostGranularTimePeriodColumnInResultsFile,
+        adminArea2: scope.adminArea2,
       }),
     );
 
-    _PO_ITEMS_CACHE.setPromise(
-      newPromise,
-      { projectId, resultsObjectId, fetchConfig },
-      version,
-    );
+    _PO_ITEMS_CACHE.setPromise(newPromise, params, version);
 
     const res = await newPromise;
     if (!res.success) {
@@ -88,8 +86,13 @@ export async function resolveFigureBundleFromMetric(
     geo,
     localization: getSnapshotInstanceLocalization(),
     metricId,
+    // The pair this bundle was RESOLVED under (D4) — what makes staleness a
+    // per-figure comparison against the product's current pair, and what
+    // getRollupRowLabel reads to label the roll-up row outside any shell.
+    scope: { adminArea2: scope.adminArea2 },
     snapshotAt: new Date().toISOString(),
     provenance: {
+      runId: scope.runId,
       moduleLastRun,
       datasetsVersion: itemsHolder.datasetsVersion,
     },

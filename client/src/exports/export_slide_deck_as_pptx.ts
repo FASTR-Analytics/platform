@@ -6,11 +6,10 @@ import {
 } from "panther";
 import { type Slide, PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
 import { serverActions } from "~/server_actions";
-import { _SLIDE_CACHE } from "~/state/project/t2_slides";
+import { getSlideFromCacheOrFetch } from "~/state/products/t2_slides";
 import { convertSlideToPageInputs } from "../generate_slide_deck/convert_slide_to_page_inputs";
 
 export async function exportSlideDeckAsPptx(
-  projectId: string,
   deckId: string,
   progress: (pct: number) => void,
 ): Promise<APIResponseNoData> {
@@ -20,7 +19,6 @@ export async function exportSlideDeckAsPptx(
     progress(0.05);
 
     const resDeckDetail = await serverActions.getSlideDeckDetail({
-      projectId,
       deck_id: deckId,
     });
 
@@ -41,24 +39,13 @@ export async function exportSlideDeckAsPptx(
       await new Promise((res) => setTimeout(res, 0));
       progress(0.2 + (0.7 * i) / resDeckDetail.data.slideIds.length);
 
-      const cached = await _SLIDE_CACHE.get({ projectId, slideId });
-      let slide: Slide;
-
-      if (!cached.data) {
-        const res = await serverActions.getSlide({
-          projectId,
-          slide_id: slideId,
-        });
-        if (res.success === false) {
-          return res;
-        }
-        slide = res.data.slide;
-      } else {
-        slide = cached.data.slide;
+      const resSlide = await getSlideFromCacheOrFetch(slideId);
+      if (resSlide.success === false) {
+        return resSlide;
       }
+      const slide: Slide = resSlide.data.slide;
 
       const resPageInputs = await convertSlideToPageInputs(
-        projectId,
         slide,
         i,
         resDeckDetail.data.config,

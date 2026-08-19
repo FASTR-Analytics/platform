@@ -98,7 +98,7 @@
   background-color: transparent;
 }
 /* Remote collaborators' selection highlights arrive as the PEER's colorLight
-   (their presence color at ~20% alpha, state/project/collab.ts) — chosen for
+   (their presence color at ~20% alpha, state/instance/collab.ts) — chosen for
    light surfaces and nearly invisible over dark ones. The inline
    background-color can't be re-alphaed from CSS, so layer a translucent
    light wash on top (background-image stacks above background-color); the
@@ -128,7 +128,7 @@
    light document model — near-black text, invisible on dark surfaces.
    .md-dark-adapt re-points the color vars on descendants (an element's own
    var value beats an ancestor's inline one) while keeping the document
-   typography. Markdown with NO style (AI chat, dashboard summaries) needs no
+   typography. Markdown with NO style (AI chat, card summaries) needs no
    wrapper — its --md-* defaults chain to the app tokens already. Dark-only,
    dual-gated like .cm-ySelection above. */
 :root[data-scheme="dark"] .md-dark-adapt * {

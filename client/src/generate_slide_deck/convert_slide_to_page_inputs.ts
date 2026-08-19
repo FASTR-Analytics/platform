@@ -37,7 +37,7 @@ import {
   buildFigureInputs,
 } from "~/generate_visualization/mod";
 import { _SERVER_HOST } from "~/server_actions";
-import { getImgFromCacheOrFetch } from "~/state/project/t2_images";
+import { getImgFromCacheOrFetch } from "~/state/products/t2_images";
 import { FASTR_LOGO_VALUES } from "~/components/_shared/fastr_logos";
 import { unavailableItemMarkdown } from "~/exports/_media_placeholder";
 import { getBackgroundDetail } from "./get_overlay_image";
@@ -301,8 +301,10 @@ async function loadLogos(
   return result;
 }
 
+// Slide → renderable page. Purely a function of the slide and the deck config:
+// every figure block already carries its resolved bundle, so nothing here needs
+// a package, a scope, or any owning-container id.
 export async function convertSlideToPageInputs(
-  projectId: string,
   slide: Slide,
   slideIndex: number | undefined,
   config: SlideDeckConfig,

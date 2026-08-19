@@ -40,7 +40,6 @@ export * from "./run_authoring_context.ts";
 export * from "./run_generation.ts";
 export * from "./run_manifest.ts";
 export * from "./slides.ts";
-export * from "./sort.ts";
 export * from "./ai_input.ts";
 export * from "./streaming.ts";
 export * from "./structure.ts";

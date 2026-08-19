@@ -1,6 +1,7 @@
 import { getReplicateByProp } from "./get_disaggregator_display_prop.ts";
 import type { DisaggregationOption } from "./types/disaggregation_options.ts";
 import type { PresentationObjectConfig } from "./types/_presentation_object_config.ts";
+import type { MetricWithStatus } from "./types/modules.ts";
 import type { FigurePackageIssue } from "./types/run_generation.ts";
 import type { RunManifest } from "./types/run_manifest.ts";
 
@@ -61,6 +62,49 @@ export function figurePackageIssueFor(
     (r) => r.id === metric.results_object_id,
   );
   const available = new Set<string>(ro?.availableDisaggregationOptions ?? []);
+  const missing = requestedDisaggregationOptions(config).filter(
+    (disOpt) => !available.has(disOpt),
+  );
+  if (missing.length > 0) {
+    return {
+      kind: "dimensions_not_in_package",
+      disaggregationOptions: missing,
+      datasetFamily: metric.datasetFamily ?? undefined,
+    };
+  }
+
+  return null;
+}
+
+// The same three answers from the AUTHORING CONTEXT instead of the manifest —
+// what the client actually holds. `getRunAuthoringContext` is a projection of
+// the manifest, and `MetricWithStatus` already carries the availability stamp
+// and the results object's disaggregation options, so the two agree by
+// construction rather than by a second implementation of the rule.
+//
+// `metrics` is the target package's context, so a metric absent from the array
+// is a metric absent from the package. Same resolution order as above.
+export function figurePackageIssueForMetrics(
+  metricId: string,
+  config: PresentationObjectConfig,
+  metrics: MetricWithStatus[],
+): FigurePackageIssue | null {
+  const metric = metrics.find((m) => m.id === metricId);
+  if (metric === undefined) {
+    return { kind: "metric_not_in_package", metricId };
+  }
+
+  if (metric.status === "unavailable") {
+    return {
+      kind: "metric_unavailable",
+      metricId,
+      reason: metric.statusReason ?? null,
+    };
+  }
+
+  const available = new Set<string>(
+    metric.disaggregationOptions.map((d) => d.value),
+  );
   const missing = requestedDisaggregationOptions(config).filter(
     (disOpt) => !available.has(disOpt),
   );

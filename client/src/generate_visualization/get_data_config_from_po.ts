@@ -12,6 +12,7 @@ import {
   BLANK_SENTINEL_LABEL,
   CountryCodes,
   type DisaggregationOption,
+  type FigureBundle,
   FigureLocalization,
   pickLang,
   PresentationObjectConfig,
@@ -34,7 +35,11 @@ import {
 } from "lib";
 import { getDateLabelReplacements } from "./get_date_label_replacements";
 import { getNigeriaAdminAreaLabelReplacements } from "./format_admin_area_labels";
-import { projectState } from "~/state/project/t1_store";
+
+// The pair a figure was resolved under, as the bundle carries it. Threaded
+// through the data-config builders for exactly one reason: the roll-up row's
+// label. It is a per-figure fact, never an ambient one — see getRollupRowLabel.
+type FigureScope = FigureBundle["scope"];
 
 function getNigeriaLabelReplacements(countryIso3: string | undefined, jsonArray?: any[]): Record<string, string> {
   if (countryIso3 === CountryCodes.Nigeria && jsonArray) {
@@ -73,6 +78,7 @@ function buildLabelReplacements(
   indicatorLabelReplacements: Record<string, string>,
   dateLabelReplacements: Record<string, string>,
   localization: Pick<FigureLocalization, "language" | "countryIso3">,
+  scope: FigureScope,
   jsonArray?: any[],
 ): Record<string, string> {
   const base = {
@@ -88,7 +94,7 @@ function buildLabelReplacements(
   // All pin ids (current admin + facility sentinels + render-compat legacy)
   // map to the one active roll-up's label — only one roll-up can be active,
   // and a grid only ever carries the sentinel its own dimension emitted.
-  const rollupLabel = getRollupRowLabel(config, localization.language, localization.countryIso3);
+  const rollupLabel = getRollupRowLabel(config, localization.language, localization.countryIso3, scope);
   return {
     ...base,
     ...Object.fromEntries(ROLLUP_PIN_IDS.map((id) => [id, rollupLabel])),
@@ -100,7 +106,12 @@ function buildLabelReplacements(
 // the row can be an AVG or a recomputed ratio): "National", "{Area} — All
 // areas" for a pinned parent, "All facilities" for a facility dimension.
 // Filters never change the label — see getRollupLabelContextForDimension.
-function getRollupRowLabel(config: PresentationObjectConfig, language: Language, countryIso3: string | undefined): string {
+function getRollupRowLabel(
+  config: PresentationObjectConfig,
+  language: Language,
+  countryIso3: string | undefined,
+  scope: FigureScope,
+): string {
   const ctx = getRollupLabelContext(config);
   if (ctx?.kind === "pinned" && ctx.value) {
     return `${resolveAdminAreaLabel(ctx.value, countryIso3)} — ${pickLang(language, { en: "All areas", fr: "Toutes les zones" })}`;
@@ -108,12 +119,17 @@ function getRollupRowLabel(config: PresentationObjectConfig, language: Language,
   if (ctx?.kind === "all_facilities") {
     return pickLang(language, { en: "All facilities", fr: "Tous les établissements", pt: "Todos os estabelecimentos" });
   }
-  // Project AA2 scope: the scope filter is server-injected and never in the
-  // PO config, so the context still reads national while the row totals one
-  // area — render the pinned form instead. Display-only; the scope is never
-  // pushed into the config (that would reach the fetch config and cache hash).
-  if (projectState.adminArea2 !== null) {
-    return `${resolveAdminAreaLabel(projectState.adminArea2, countryIso3)} — ${pickLang(language, { en: "All areas", fr: "Toutes les zones" })}`;
+  // AA2 scope: the scope filter is server-injected and never in the PO config,
+  // so the context still reads national while the row totals one area — render
+  // the pinned form instead. Display-only; the scope is never pushed into the
+  // config (that would reach the fetch config and cache hash).
+  //
+  // Read from the BUNDLE, never a global store (D4). A stored figure carries
+  // the scope it was resolved under, so an export, a thumbnail or a version
+  // preview labels the row correctly outside any authoring shell — the live
+  // hole where an AA2 product's exported figure said "National".
+  if (scope.adminArea2 !== null) {
+    return `${resolveAdminAreaLabel(scope.adminArea2, countryIso3)} — ${pickLang(language, { en: "All areas", fr: "Toutes les zones" })}`;
   }
   return pickLang(language, TC.national);
 }
@@ -285,6 +301,7 @@ export function getTimeseriesJsonDataConfigFromPresentationObjectConfig(
   effectiveValueProps: string[],
   indicatorLabelReplacements: Record<string, string>,
   localization: Pick<FigureLocalization, "language" | "countryIso3">,
+  scope: FigureScope,
   jsonArray?: any[],
 ): TimeseriesJsonDataConfig {
   if (config.d.type !== "timeseries") {
@@ -321,6 +338,7 @@ export function getTimeseriesJsonDataConfigFromPresentationObjectConfig(
       indicatorLabelReplacements,
       {},
       localization,
+      scope,
       jsonArray,
     ),
   };
@@ -332,6 +350,7 @@ export function getTableJsonDataConfigFromPresentationObjectConfig(
   effectiveValueProps: string[],
   indicatorLabelReplacements: Record<string, string>,
   localization: FigureLocalization,
+  scope: FigureScope,
   jsonArray?: any[],
   customSortHeaders?: string[],
 ): TableJsonDataConfig {
@@ -383,6 +402,7 @@ export function getTableJsonDataConfigFromPresentationObjectConfig(
       indicatorLabelReplacements,
       dateLabelReplacements,
       localization,
+      scope,
       jsonArray,
     ),
   };
@@ -394,6 +414,7 @@ function getChartJsonDataConfig(
   effectiveValueProps: string[],
   indicatorLabelReplacements: Record<string, string>,
   localization: FigureLocalization,
+  scope: FigureScope,
   jsonArray?: any[],
 ): ChartOVJsonDataConfig {
   if (config.d.type !== "chart") {
@@ -439,6 +460,7 @@ function getChartJsonDataConfig(
       indicatorLabelReplacements,
       dateLabelReplacements,
       localization,
+      scope,
       jsonArray,
     ),
   };
@@ -450,10 +472,11 @@ export function getChartOVJsonDataConfigFromPresentationObjectConfig(
   effectiveValueProps: string[],
   indicatorLabelReplacements: Record<string, string>,
   localization: FigureLocalization,
+  scope: FigureScope,
   jsonArray?: any[],
 ): ChartOVJsonDataConfig {
   return {
-    ...getChartJsonDataConfig(resultsValue, config, effectiveValueProps, indicatorLabelReplacements, localization, jsonArray),
+    ...getChartJsonDataConfig(resultsValue, config, effectiveValueProps, indicatorLabelReplacements, localization, scope, jsonArray),
     membership: { indicator: "unbalanced", lane: "unbalanced" },
     proportional: { bands: true, panes: true },
   };
@@ -479,6 +502,7 @@ export function getPieJsonDataConfigFromPresentationObjectConfig(
   effectiveValueProps: string[],
   indicatorLabelReplacements: Record<string, string>,
   localization: Pick<FigureLocalization, "language" | "countryIso3">,
+  scope: FigureScope,
   effectiveFormatAs: IndicatorFormat,
   jsonArray?: any[],
 ): PieJsonDataConfig {
@@ -520,6 +544,7 @@ export function getPieJsonDataConfigFromPresentationObjectConfig(
       indicatorLabelReplacements,
       {},
       localization,
+      scope,
       jsonArray,
     ),
   };
@@ -531,10 +556,11 @@ export function getChartOHJsonDataConfigFromPresentationObjectConfig(
   effectiveValueProps: string[],
   indicatorLabelReplacements: Record<string, string>,
   localization: FigureLocalization,
+  scope: FigureScope,
   jsonArray?: any[],
 ): ChartOHJsonDataConfig {
   return {
-    ...getChartJsonDataConfig(resultsValue, config, effectiveValueProps, indicatorLabelReplacements, localization, jsonArray),
+    ...getChartJsonDataConfig(resultsValue, config, effectiveValueProps, indicatorLabelReplacements, localization, scope, jsonArray),
     membership: { indicator: "unbalanced", tier: "unbalanced" },
     proportional: { bands: true, panes: true },
   };

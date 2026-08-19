@@ -7,12 +7,11 @@ import {
 } from "panther";
 import { type Slide, getAllSlideFontVariants, PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
 import { serverActions } from "~/server_actions";
-import { _SLIDE_CACHE } from "~/state/project/t2_slides";
+import { getSlideFromCacheOrFetch } from "~/state/products/t2_slides";
 import { convertSlideToPageInputs } from "../generate_slide_deck/convert_slide_to_page_inputs";
 import fontMap from "~/font-map.json";
 
 export async function exportSlideDeckAsPdfVector(
-  projectId: string,
   deckId: string,
   progress: (pct: number) => void,
 ): Promise<APIResponseNoData> {
@@ -22,7 +21,6 @@ export async function exportSlideDeckAsPdfVector(
     progress(0.05);
 
     const resDeckDetail = await serverActions.getSlideDeckDetail({
-      projectId,
       deck_id: deckId,
     });
 
@@ -59,24 +57,13 @@ export async function exportSlideDeckAsPdfVector(
         pdf.addPage([pdfW, pdfH], pdfOrientation);
       }
 
-      const cached = await _SLIDE_CACHE.get({ projectId, slideId });
-      let slide: Slide;
-
-      if (!cached.data) {
-        const res = await serverActions.getSlide({
-          projectId,
-          slide_id: slideId,
-        });
-        if (res.success === false) {
-          return res;
-        }
-        slide = res.data.slide;
-      } else {
-        slide = cached.data.slide;
+      const resSlide = await getSlideFromCacheOrFetch(slideId);
+      if (resSlide.success === false) {
+        return resSlide;
       }
+      const slide: Slide = resSlide.data.slide;
 
       const resPageInputs = await convertSlideToPageInputs(
-        projectId,
         slide,
         i,
         resDeckDetail.data.config,

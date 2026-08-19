@@ -1,11 +1,11 @@
-import type { PresentationObjectConfig, ResultsValue } from "lib";
+import type { PackageScope, PresentationObjectConfig, ResultsValue } from "lib";
 import { AIToolFailure } from "panther";
 import {
   formatReplicantLabelForDisplay,
   getFetchConfigFromPresentationObjectConfig,
   getReplicateByProp,
 } from "lib";
-import { getReplicantOptionsFromCacheOrFetch } from "~/state/project/t2_replicant_options";
+import { getReplicantOptionsFromCacheOrFetch } from "~/state/products/t2_replicant_options";
 
 // Strict replicant validation, shared by every path where the AI CREATES or EDITS
 // a figure (from_metric, from_visualization, update_figure). Throws with the
@@ -17,7 +17,7 @@ import { getReplicantOptionsFromCacheOrFetch } from "~/state/project/t2_replican
 // auto-default via resolveDefaultReplicant so a figure always shows something for
 // a human who is clicking around.
 export async function assertReplicantValid(
-  projectId: string,
+  scope: PackageScope,
   resultsValue: ResultsValue,
   config: PresentationObjectConfig,
 ): Promise<void> {
@@ -31,9 +31,12 @@ export async function assertReplicantValid(
   if (!resOptions.success) {
     throw new AIToolFailure(resOptions.err);
   }
+  // metricId, not resultsObjectId: the run-keyed options route resolves the
+  // results object from the manifest itself, and this shares the ONE options
+  // cache entry with resolveDefaultReplicant (which keys on the metric).
   const optRes = await getReplicantOptionsFromCacheOrFetch(
-    projectId,
-    resultsValue.resultsObjectId,
+    scope,
+    resultsValue.id,
     replicateBy,
     resOptions.data,
   );

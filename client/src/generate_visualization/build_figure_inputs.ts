@@ -50,7 +50,7 @@ export function buildFigureInputs(
   bundle: FigureBundle,
   deckStyle?: DeckStyleContext,
 ): FigureInputs {
-  const { config, items, resultsValue, indicatorMetadata, dateRange, geo, localization } = bundle;
+  const { config, items, resultsValue, indicatorMetadata, dateRange, geo, localization, scope } = bundle;
 
   const geoJson = resolveGeoJson(geo, config);
 
@@ -87,6 +87,7 @@ export function buildFigureInputs(
       effectiveValueProps,
       indicatorLabelReplacements,
       localization,
+      scope,
       items,
     );
     const d = getTimeseriesDataTransformed(
@@ -118,6 +119,7 @@ export function buildFigureInputs(
           effectiveValueProps,
           indicatorLabelReplacements,
           localization,
+          scope,
           items,
           customSortHeaders,
         ),
@@ -149,6 +151,7 @@ export function buildFigureInputs(
             effectiveValueProps,
             indicatorLabelReplacements,
             localization,
+            scope,
             items,
           ),
         },
@@ -165,6 +168,7 @@ export function buildFigureInputs(
           effectiveValueProps,
           indicatorLabelReplacements,
           localization,
+          scope,
           items,
         ),
       },
@@ -226,6 +230,7 @@ export function buildFigureInputs(
       effectiveValueProps,
       indicatorLabelReplacements,
       localization,
+      scope,
       effectiveFormat.axisFormat,
       items,
     );

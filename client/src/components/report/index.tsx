@@ -8,10 +8,8 @@ import {
   type ImageBlock,
   materializeReport,
   type PackageScope,
-  type PresentationObjectConfig,
   type ProductSummary,
   type ReportDocContent,
-  type ResultsValue,
   type RunAuthoringContext,
   productScope,
   t3,
@@ -64,10 +62,8 @@ import { getReportDetailFromCacheOrFetch } from "~/state/products/t2_report_deta
 import { setShowAi, showAi } from "~/state/t4_ui";
 import {
   findStaleFiguresInReport,
-  makeFigureBundleFromFetchedData,
-  resolveBundleFromMetricAndConfig,
+  resolveFigureBundleInteractively,
 } from "~/generate_visualization/mod";
-import { getPresentationObjectItemsFromCacheOrFetch } from "~/state/products/t2_figure_data";
 import type {
   ReportEditProposalResult,
   ReportEditProposal,
@@ -1028,40 +1024,6 @@ export function ReportEditor(p: Props) {
     return await persistFigures(next);
   }
 
-  // Regenerate a FigureBlock from a metric + config, under THIS product's pair
-  // — which is what stamps the bundle for the D4 staleness comparison.
-  async function buildFigureBlock(
-    metric: ResultsValue,
-    config: PresentationObjectConfig,
-  ): Promise<
-    { ok: true; figureBlock: FigureBlock } | { ok: false; err: string }
-  > {
-    const pair = scope();
-    const itemsRes = await getPresentationObjectItemsFromCacheOrFetch(
-      pair,
-      metric,
-      config,
-    );
-    if (!itemsRes.success || itemsRes.data.ih.status !== "ok") {
-      return {
-        ok: false,
-        err: t3({
-          en: "Failed to generate the figure",
-          fr: "Échec de la génération de la figure",
-          pt: "Falha ao gerar a figura",
-        }),
-      };
-    }
-    const ih = itemsRes.data.ih;
-    const effectiveConfig = itemsRes.data.config;
-    const bundle = makeFigureBundleFromFetchedData(pair, {
-      resultsValue: metric,
-      ih: ih as Parameters<typeof makeFigureBundleFromFetchedData>[1]["ih"],
-      effectiveConfig,
-    });
-    return { ok: true, figureBlock: { type: "figure" as const, bundle } };
-  }
-
   // ── toolbar / embed-editor actions ───────────────────────────────────────────
 
   // The ONE figure-authoring path (D3): the product run's presets and the
@@ -1081,30 +1043,17 @@ export function ReportEditor(p: Props) {
       }),
     );
     if (!result) return;
-    let figureBlock: FigureBlock;
-    try {
-      const bundle = await resolveBundleFromMetricAndConfig(
-        scope(),
-        result.metric,
-        result.config,
-      );
-      figureBlock = { type: "figure", bundle };
-    } catch (err) {
-      await openAlert({
-        text:
-          err instanceof Error
-            ? err.message
-            : t3({
-                en: "Failed to add the figure",
-                fr: "Échec de l'ajout de la figure",
-                pt: "Falha ao adicionar a figura",
-              }),
-        intent: "danger",
-      });
+    const resolved = await resolveFigureBundleInteractively(
+      scope(),
+      result.metric,
+      result.config,
+    );
+    if (!resolved.ok) {
+      await openAlert({ text: resolved.reason, intent: "danger" });
       return;
     }
     const id = crypto.randomUUID();
-    await updateFigure(id, figureBlock);
+    await updateFigure(id, { type: "figure", bundle: resolved.bundle });
     editorApi?.insertEmbedOnNewLine(
       `![${sanitizeCaption(result.metric.label)}](figure:${id})`,
     );
@@ -1153,26 +1102,16 @@ export function ReportEditor(p: Props) {
       }),
     );
     if (!chosen) return;
-    try {
-      const bundle = await resolveBundleFromMetricAndConfig(
-        scope(),
-        chosen.metric,
-        chosen.config,
-      );
-      await updateFigure(sel.id, { type: "figure", bundle });
-    } catch (err) {
-      await openAlert({
-        text:
-          err instanceof Error
-            ? err.message
-            : t3({
-                en: "Failed to switch the figure",
-                fr: "Échec du changement de visualisation",
-                pt: "Falha ao trocar a visualização",
-              }),
-        intent: "danger",
-      });
+    const resolved = await resolveFigureBundleInteractively(
+      scope(),
+      chosen.metric,
+      chosen.config,
+    );
+    if (!resolved.ok) {
+      await openAlert({ text: resolved.reason, intent: "danger" });
+      return;
     }
+    await updateFigure(sel.id, { type: "figure", bundle: resolved.bundle });
   }
 
   async function handleEdit() {
@@ -1236,12 +1175,18 @@ export function ReportEditor(p: Props) {
         }),
       );
       if (!result?.updated) return;
-      const built = await buildFigureBlock(metric, result.updated.config);
+      // Re-resolve under the product's CURRENT pair, so applying an edit to a
+      // stale figure also brings it up to date.
+      const built = await resolveFigureBundleInteractively(
+        scope(),
+        metric,
+        result.updated.config,
+      );
       if (!built.ok) {
-        await openAlert({ text: built.err, intent: "danger" });
+        await openAlert({ text: built.reason, intent: "danger" });
         return;
       }
-      await updateFigure(sel.id, built.figureBlock);
+      await updateFigure(sel.id, { type: "figure", bundle: built.bundle });
     } finally {
       setEditingFigureId(undefined);
     }
@@ -1257,12 +1202,16 @@ export function ReportEditor(p: Props) {
       props: { scope: scope(), context, preselectedMetricId: null },
     });
     if (!result) return;
-    const built = await buildFigureBlock(result.metric, result.config);
+    const built = await resolveFigureBundleInteractively(
+      scope(),
+      result.metric,
+      result.config,
+    );
     if (!built.ok) {
-      await openAlert({ text: built.err, intent: "danger" });
+      await openAlert({ text: built.reason, intent: "danger" });
       return;
     }
-    await updateFigure(sel.id, built.figureBlock);
+    await updateFigure(sel.id, { type: "figure", bundle: built.bundle });
   }
 
   // ── Stale figures (D4) ──────────────────────────────────────────────────────
