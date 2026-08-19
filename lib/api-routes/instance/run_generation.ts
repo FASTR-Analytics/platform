@@ -23,40 +23,35 @@ import type {
 import { genericLongFormFetchConfigSchema } from "../../validate_fetch_config.ts";
 import { route } from "../route-utils.ts";
 
-// Results-package launch wizard + catalogue (PLAN_RESULTS_RUNS item 2,
-// re-cut by Phase 3 items 1 and 3). Instance-level routes entered from the
-// instance shell, instance-admin gated (can_configure_data) except the
-// package reads below: the wizard
-// is an ephemeral modal that persists nothing before launch, and a
-// generation belongs to no project — it attaches to the projects chosen at
-// launch.
+// Results-package launch wizard + catalogue. Instance-level routes entered
+// from the instance shell, instance-admin gated (can_configure_data) except
+// the package reads below. The wizard is an ephemeral modal that persists
+// nothing before launch, and a generation simply PRODUCES a package.
 
 // A run's outputs dir holds one module's generated script, execution log and
-// raw CSVs. These reads are run-keyed and mounted ONCE (Tim's ruling
-// 2026-08-18, superseding the 2026-07-30 per-project mount): a package is
+// raw CSVs. These reads are run-keyed and mounted ONCE: a package is
 // instance-level data, so what it contains is gated on the instance data
 // bits — `can_view_data` for detail/script/files/download, `can_view_logs`
-// for logs — wherever it is explored (the catalogue, a project's tab, the AI
-// tools, MCP). Reader: server/runs/package_internals.ts.
+// for logs — wherever it is explored (the catalogue, the AI tools, MCP).
+// Reader: server/runs/package_internals.ts.
 const runModuleParamsSchema = z.object({
   run_id: z.string(),
   module_id: z.string(),
 });
 
 export const runGenerationRouteRegistry = {
-  // The instance catalogue (item 3): every run, newest first, with the
-  // projects currently attached to each. This is instance-T1's fetch half
-  // (the `projects` pattern): `runs_catalog_updated` broadcasts a data-free
-  // timestamp, and each entitled client pulls the listing here — the guard
-  // is evaluated per request, so run labels never ride the broadcast and
-  // permission changes take effect live.
+  // The instance catalogue: every run, newest first, with the products
+  // currently pointing at each. Instance-T1's fetch half —
+  // `runs_catalog_updated` broadcasts a data-free timestamp and each entitled
+  // client pulls the listing here, so the guard is evaluated per request: run
+  // labels never ride the broadcast and permission changes take effect live.
   listRunCatalog: route({
     path: "/run_generation/catalog",
     method: "GET",
     response: {} as RunCatalogItem[],
   }),
   // Guarded hard delete (Q1 ruling): catalog row + run dir + the runId-keyed
-  // cache entries, in ONE act. Refused while any project points at the run
+  // cache entries, in ONE act. Refused while any product points at the run
   // or it is still generating.
   deleteRun: route({
     path: "/run_generation/run/:run_id",
@@ -124,12 +119,10 @@ export const runGenerationRouteRegistry = {
     params: runModuleParamsSchema,
     response: {} as InstalledModuleWithConfigSelections,
   }),
-  // THE figure-data mount (D7). There is no project lens any more: the caller
-  // supplies the (runId, adminArea2) pair its product carries, and `null`
-  // adminArea2 means national. Guarded requireApprovedUser() plus a
-  // runs.status = 'ready' gate; /mcp reaches them at national scope, so the
-  // headless allowlist stays byte-identical. adminArea2 is shape-validated
-  // and escaped server-side exactly as the project lens did.
+  // THE figure-data mount: the caller supplies the (runId, adminArea2) pair
+  // its product carries, and `null` adminArea2 means national. Guarded
+  // requireApprovedUser() plus a runs.status = 'ready' gate; /mcp reaches them
+  // at national scope. adminArea2 is shape-validated and escaped server-side.
   getRunPresentationObjectItems: route({
     path: "/run_generation/run/:run_id/presentation_object_items",
     method: "POST",
@@ -168,12 +161,10 @@ export const runGenerationRouteRegistry = {
     }),
     response: {} as ReplicantOptionsForPresentationObject,
   }),
-  // The raw results-object preview (was the project-mounted
-  // getResultsObjectItems).
-  // SCOPED like the other three, not national: getResultsObjectItemsFromRun
-  // applies computeScopeFilters internally, so the raw preview of an AA2
-  // product's results object must carry that product's area or it silently
-  // shows national rows — which is what the project lens used to supply.
+  // The raw results-object preview. SCOPED like the other three, not
+  // national: getResultsObjectItemsFromRun applies computeScopeFilters
+  // internally, so the preview of an AA2 product's results object must carry
+  // that product's area or it silently shows national rows.
   getRunResultsObjectItems: route({
     path: "/run_generation/run/:run_id/results_object_items/:results_object_id",
     method: "POST",
