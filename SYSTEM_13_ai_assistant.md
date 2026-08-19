@@ -67,22 +67,32 @@ the query pipeline the data tools call is **S9**.
    in-process through the full PAT middleware chain — see S1) and can never do
    what the user can't. **Two classes of tool, one env seam** (2026-08-19):
    `lib/ai_tools` holds exactly the tools BOTH surfaces expose (metrics ×2,
-   modules ×4, methodology docs ×2, `get_info`) over `AIToolEnv` — a package
-   data source bound at construction (items, value info, module
-   script/logs/settings; no project or run id ever crosses the seam or appears
-   in a schema). The SPA binds a project (`clientAIToolEnvFor(
+   methodology docs ×2, `get_info`) over `AIToolEnv` — a package data source
+   bound at construction (items, value info; no project or run id ever
+   crosses the seam or appears in a schema). Shared tool OUTPUT states only
+   what both surfaces can act on: `from_metric` authoring guidance is the SPA
+   prompt's and block schema's contract, never a shared formatter's; the
+   metrics listing keeps its per-metric presets (grain, filters, replicant
+   requirement) as reference data about the metric. `get_info` topics are
+   inputs, split by location like tools: `INFO_TOPICS` (lib, shared —
+   `iceh`) and the client's `SPA_INFO_TOPICS` (shared + the equity-profile
+   report recipe); each surface passes its ONE list to both
+   `getSharedToolsForInfo` and `buildSystemPrompt`, so tool whitelist and
+   prompt never diverge. The SPA binds a project (`clientAIToolEnvFor(
    projectId)`,
    cache-backed, the attached package resolved from project T1 at call time;
-   `ClientAIToolEnv` adds the project-content getters) and concatenates its own
-   client tools (project content — visualizations, slide decks, reports,
-   `get_slide` — plus editors, navigation, drafts) in
+   `ClientAIToolEnv` adds the module script/logs/settings getters and the
+   project-content getters) and concatenates its own client tools (module
+   internals ×4 — `/mcp` is for seeing results, ruled 2026-08-19 — project
+   content — visualizations, slide decks, reports, `get_slide` — plus
+   editors, navigation, drafts) in
    [build_tools.ts](client/src/components/project_ai/build_tools.ts); `/mcp`
    binds the instance's **pinned** results package (national scope, run-keyed
    instance routes, gate = instance `can_view_data`) and exposes only the shared
-   tools + `get_orientation` — 10 read-only tools, no `projectId`, no writes.
+   tools + `get_overview` — 6 read-only tools, no `projectId`, no writes.
    The `/mcp` surface is stateless above the wire: the pin is read from the DB
-   on every call (a pin-move is visible on the next call; orientation answers
-   without a pin), and package tools are boot-time templates bound per call via
+   on every call (a pin-move is visible on the next call; `get_overview`
+   answers without a pin), and package tools are boot-time templates bound per call via
    panther's `bindAITool` because panther caches a principal's tool set per
    core. The catalog is fixed per process: a client sees a catalog change only
    when it re-lists (a chat client: refresh the connector's tools, or a new
@@ -736,12 +746,13 @@ embed count is surfaced in the proposal summary). Remaining:
   and either admit an ordering verb or have `validateFigureConfigEdit`
   reject/annotate edits a custom order would override.
 - **[LOW]** Complex (non-3×3) layouts read back as `structure: null`, so only
-  `replace_slide` (destructive rebuild) can edit them. **[LOW]**
-  `get_available_modules` reduces `dirty:"error"` to the bare word "Error" with
-  no message while still showing `metricCount`, and remediation needs a
-  `get_module_log` call the list doesn't hint at. **[LOW]**
-  `get_module_settings` formats only `parameterSelections`, omitting other
-  `ModuleConfigSelections` fields its description implies. **[LOW]**
+  `replace_slide` (destructive rebuild) can edit them. **[LOW]** (SPA-only
+  module tools) `get_available_modules` reduces `dirty:"error"` to the bare
+  word "Error" with no message while still showing `metricCount`, and
+  remediation needs a `get_module_log` call the list doesn't hint at.
+  **[LOW]** `get_module_settings` formats only `parameterSelections`,
+  omitting other `ModuleConfigSelections` fields its description implies.
+  **[LOW]**
   `sanitizeCaption` silently strips brackets/newlines from report captions with
   no feedback (mangles e.g. "95% CI [0.4, 0.6]").
 - **[MED, reuse/quality — not a bug] Unify the figure-RESOLUTION cores.** AI

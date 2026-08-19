@@ -10,7 +10,6 @@ import {
   createAllServerActions,
   createDevGlobalUser,
   getSharedToolsForMetrics,
-  getSharedToolsForModules,
 } from "lib";
 import type { GlobalUser } from "lib";
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
@@ -64,9 +63,9 @@ export type McpPackageContext = {
   runId: string;
   run: RunListingItem;
   grounding: PackageGrounding;
-  // The shared tools (metrics + modules), fully bound to this
-  // (principal, package) — the bound outer tools resolve their inner tool
-  // from this set by name, and the orientation catalog renders from it.
+  // The shared metric tools, fully bound to this (principal, package) — the
+  // bound outer tools resolve their inner tool from this set by name, and
+  // the overview's tool catalog renders from it.
   // deno-lint-ignore no-explicit-any
   sessionTools: AIToolWithMetadata<any>[];
 };
@@ -154,7 +153,7 @@ export async function resolveInstanceState(
 }
 
 // The pin, read now. null is a typed, expected state (a fresh instance, or
-// after unpin/delete) — orientation renders it; every other tool fails with
+// after unpin/delete) — get_overview renders it; every other tool fails with
 // NO_PIN_MESSAGE via requirePinnedPackageContext.
 export async function resolvePinnedRunId(): Promise<string | null> {
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
@@ -167,7 +166,7 @@ export async function resolvePinnedRunId(): Promise<string | null> {
 
 // Every package-tool result at /mcp starts with one provenance line naming
 // the run it read (label + generated timestamp — the same identity
-// get_orientation gives; no run id, which no tool accepts as input). The pin
+// get_overview gives; no run id, which no tool accepts as input). The pin
 // can move between two calls of one conversation and a client may carry a
 // stale catalog, so results are self-identifying by construction. Failures
 // pass through unchanged.
@@ -263,10 +262,12 @@ export async function resolvePackageContext(
   const env = createMcpAIToolEnv(serverActions, runId);
 
   // deno-lint-ignore no-explicit-any
-  const sessionTools: AIToolWithMetadata<any>[] = [
-    ...getSharedToolsForMetrics(env, metrics, icehIndicators, hfaTaxonomy),
-    ...getSharedToolsForModules(env, modules, metrics),
-  ].map((tool) => withSourceHeader(tool, run));
+  const sessionTools: AIToolWithMetadata<any>[] = getSharedToolsForMetrics(
+    env,
+    metrics,
+    icehIndicators,
+    hfaTaxonomy,
+  ).map((tool) => withSourceHeader(tool, run));
 
   const context: McpPackageContext = {
     runId,

@@ -1,24 +1,24 @@
-import { AIToolFailure, createAITool } from "@timroberton/panther";
+import { AIToolFailure, createAITool } from "panther";
 import { z } from "zod";
-import type { InstalledModuleSummary, MetricWithStatus } from "../types/mod.ts";
-import { formatModulesListForAI } from "./format_modules_list_for_ai.ts";
-import { formatModuleSettingsForAI } from "./format_module_settings_for_ai.ts";
-import type { AIToolEnv } from "./env.ts";
+import type { InstalledModuleSummary, MetricWithStatus } from "lib";
+import { clientAIToolEnvFor } from "../client_env";
+import { formatModulesListForAI } from "./_internal/format_modules_list_for_ai";
+import { formatModuleSettingsForAI } from "./_internal/format_module_settings_for_ai";
 
-// Tools over ONE results package. Which package is never a model-facing
-// input — on every surface there is exactly one correct answer (the SPA:
-// whatever the project has attached; /mcp: the instance's pinned package),
-// so asking the model to name a run would invite it to get right what it
-// cannot get wrong. The env is bound to that package (env.ts); the
-// script/log/settings reads are the run-keyed package reads behind it
+// How the project's attached package was produced (SPA-only — the /mcp
+// surface is for seeing results, not module internals). Which package is
+// never a model-facing input: the env resolves the project's attached run at
+// call time, so a mid-conversation repoint moves these tools with it. The
+// script/log/settings reads are the run-keyed package reads
 // (`getRunModuleScript`/`getRunModuleLogs`/`getRunModuleWithConfigSelections`,
 // instance data bits — Tim's ruling 2026-08-18: what a package contains is a
 // function of the runId alone).
-export function getSharedToolsForModules(
-  env: AIToolEnv,
+export function getClientToolsForModules(
+  projectId: string,
   modules: InstalledModuleSummary[],
   metrics: MetricWithStatus[],
 ) {
+  const env = clientAIToolEnvFor(projectId);
   return [
     createAITool({
       name: "get_available_modules",
@@ -30,7 +30,6 @@ export function getSharedToolsForModules(
       },
       inProgressLabel: "Getting available modules...",
       kind: "read",
-      headless: true,
     }),
 
     createAITool({
@@ -44,7 +43,6 @@ export function getSharedToolsForModules(
       },
       inProgressLabel: "Getting module script...",
       kind: "read",
-      headless: true,
     }),
 
     createAITool({
@@ -59,7 +57,6 @@ export function getSharedToolsForModules(
       },
       inProgressLabel: "Getting module log...",
       kind: "read",
-      headless: true,
     }),
 
     createAITool({
@@ -74,7 +71,6 @@ export function getSharedToolsForModules(
       },
       inProgressLabel: "Getting module settings...",
       kind: "read",
-      headless: true,
     }),
   ];
 }

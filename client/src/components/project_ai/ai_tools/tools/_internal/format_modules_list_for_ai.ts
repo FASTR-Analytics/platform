@@ -1,4 +1,4 @@
-import type { InstalledModuleSummary, MetricWithStatus } from "../types/mod.ts";
+import type { InstalledModuleSummary, MetricWithStatus } from "lib";
 
 export function formatModulesListForAI(
   modules: InstalledModuleSummary[],

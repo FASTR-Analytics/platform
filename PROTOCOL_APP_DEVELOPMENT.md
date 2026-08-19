@@ -117,7 +117,7 @@ something you find later. `deno task test` alone runs the same suite.
 ```
 
 ```bash
-./mcp_probe local get_orientation
+./mcp_probe local get_overview
 ./mcp_probe local get_metric_data '{"metricId":"m10-02-01"}'
 FASTR_PAT=fastr_pat_… ./mcp_probe testing-tim --list
 ```
@@ -197,7 +197,7 @@ Target: `testing-tim` (app port 9151, Postgres 19151),
 
 ### A deploy target proves only as much as the data on it
 
-`get_orientation` reporting "no results package is pinned" on an unseeded
+`get_overview` reporting "no results package is pinned" on an unseeded
 instance is the correct answer, not a bug — it means the only claim that target
 supports is "the new bytes boot and serve." Before treating an instance as a
 verification rung, confirm it carries a PINNED package with known data, and a
@@ -228,14 +228,15 @@ unauthenticated `401` challenge. On local dev with `BYPASS_AUTH` that last check
 returns 200 and says so; anywhere else a non-401 is a real finding.
 
 **The exposed surface is the AI assistant's *shared* tools over the pinned
-package**: 10 reads, no writes (S13 principle 2). Project content and the
-browser-only editor tools — visualizations, decks, reports, live editing,
-navigation, ask-the-user — are SPA-only by design and must stay out.
+package**: 6 reads, no writes (S13 principle 2). Module internals (script,
+logs, settings), project content and the browser-only editor tools —
+visualizations, decks, reports, live editing, navigation, ask-the-user — are
+SPA-only by design and must stay out.
 
 So MCP exercises: the route registry and `APIResponse` envelope, server actions,
-the run-keyed package reads (items, value info, script, logs, settings), the
-query/formatting layer, orientation and prompt assembly, the pin resolution,
-and the instance `can_view_data` / `can_view_logs` gates. It does **not**
+the run-keyed metric reads (items, value info), the query/formatting layer,
+`get_overview` and prompt assembly, the pin resolution, and the instance
+`can_view_data` gate. It does **not**
 exercise ingestion, module execution, viz or slide authoring, exports, client
 rendering, project access, or SSE — drive those with Playwright
 against testing-tim.
@@ -252,6 +253,15 @@ matches what you meant to accept, it is reachable via a real call, and its
 permission gate actually denies. The first three are probe one-liners; the
 fourth needs a non-admin identity, which means `BYPASS_AUTH= deno task dev`
 with a PAT, or rung 2.
+
+**Shared-tool content stays surface-neutral** (S13 principle 2). Three greps,
+each expected to print nothing:
+
+```bash
+grep -rn "from_metric" lib/ai_tools/ | grep -v content_validators.ts:   # authoring guidance is SPA-prompt/schema only
+grep -rn -E "getModuleScript|getModuleLogs|getModuleSettings" lib/ai_tools/ server/mcp/   # module tools are client-only
+grep -rn "getRunModule" server/middleware/headless_allowlist.ts          # the allowlist admits only what /mcp calls
+```
 
 ---
 

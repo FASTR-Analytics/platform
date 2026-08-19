@@ -28,8 +28,8 @@ import { buildMcpToolsForPrincipal } from "./mcp_tools.ts";
 const INSTRUCTIONS = [
   "FASTR Analytics assistant. Every tool reads this instance's pinned national results package.",
   "Rules:",
-  "- Call get_orientation FIRST — it carries the live grounding (which package is pinned, its datasets, indicators and analysis modules) and the tool catalog.",
-  "- Discover metric and module ids with get_available_metrics / get_available_modules; never invent them.",
+  "- Call get_overview FIRST — it carries the live grounding (which package is pinned, its datasets, indicators and analysis modules) and the tool catalog.",
+  "- Discover metric ids with get_available_metrics; never invent them.",
   "- All tools are read-only and safe to call freely.",
   "- Data questions: use get_metric_data (CSV output). Load get_info topics before domain-specific analysis.",
 ].join("\n");

@@ -9,6 +9,7 @@ import {
   SLIDE_TEXT_TOTAL_WORD_COUNT_MAX,
   SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET,
 } from "lib";
+import { SPA_INFO_TOPICS } from "./ai_tools/client_info_topics";
 
 // The copilot's system prompt: the shared grounding blocks (lib/ai_tools/
 // build_system_prompt.ts) plus the project's own prose — its name, what its
@@ -52,6 +53,7 @@ export function buildSystemPromptForContext(
   return buildSystemPrompt({
     contextSection: sections.join("\n"),
     toolCatalog,
+    infoTopics: SPA_INFO_TOPICS,
     roleAndPurpose:
       "You are an AI assistant helping users explore, analyze, and present their health data. You can query data, show draft visualizations, and help create slide decks.",
     extraCorePrinciples: [

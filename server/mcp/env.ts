@@ -20,14 +20,5 @@ export function createMcpAIToolEnv(
       }),
     getResultsValueInfo: (metricId) =>
       serverActions.getRunResultsValueInfo({ run_id: runId, metricId }),
-    getModuleScript: (moduleId) =>
-      serverActions.getRunModuleScript({ run_id: runId, module_id: moduleId }),
-    getModuleLogs: (moduleId) =>
-      serverActions.getRunModuleLogs({ run_id: runId, module_id: moduleId }),
-    getModuleSettings: (moduleId) =>
-      serverActions.getRunModuleWithConfigSelections({
-        run_id: runId,
-        module_id: moduleId,
-      }),
   };
 }

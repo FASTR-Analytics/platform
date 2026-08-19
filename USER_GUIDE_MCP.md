@@ -35,25 +35,26 @@ nothing to pick per question.
 
 ## What you get
 
-The `/mcp` endpoint exposes the FASTR AI Assistant's **shared** data tools —
-the same tool definitions the in-app chat uses for metrics and modules — over
-the pinned package: **10 read-only tools, no writes**. Project content
-(visualizations, slide decks, reports) and the browser-only editor tools are
-**not** exposed — they belong to a project or need a live browser tab.
+The `/mcp` endpoint is for **seeing results**: it exposes the FASTR AI
+Assistant's **shared** metric tools — the same tool definitions the in-app chat
+uses to query data — over the pinned package: **6 read-only tools, no writes**.
+Module internals (R scripts, logs, settings), project content (visualizations,
+slide decks, reports) and the browser-only editor tools are **not** exposed —
+they are the in-app assistant's, belong to a project, or need a live browser
+tab.
 
-| Area        | Tools                                                                                   |
-| ----------- | --------------------------------------------------------------------------------------- |
-| Orientation | `get_orientation` (call this first)                                                     |
-| Metrics     | `get_available_metrics`, `get_metric_data` (CSV output)                                 |
-| Modules     | `get_available_modules`, `get_module_r_script`, `get_module_log`, `get_module_settings` |
-| Reference   | `get_methodology_docs_list`, `get_methodology_doc_content`, `get_info`                  |
+| Area      | Tools                                                                  |
+| --------- | ---------------------------------------------------------------------- |
+| Overview  | `get_overview` (call this first)                                       |
+| Metrics   | `get_available_metrics`, `get_metric_data` (CSV output)                |
+| Reference | `get_methodology_docs_list`, `get_methodology_doc_content`, `get_info` |
 
 No tool takes a project or package id: every call reads whatever package is
 pinned **right now** (an admin re-pinning moves the connector on the next
-call). Reading a package needs the instance permission **can_view_data**
-(`can_view_logs` for `get_module_log`); global admins always have it.
+call). Reading a package needs the instance permission **can_view_data**;
+global admins always have it.
 
-If **nothing is pinned**, `get_orientation` still answers and says so; the
+If **nothing is pinned**, `get_overview` still answers and says so; the
 package tools return the same message until an admin with `can_configure_data`
 pins a package under Results packages.
 
@@ -188,10 +189,10 @@ use OAuth or the Claude Code CLI form above.
 Start a Claude session with the FASTR connector enabled. A good first move is to
 let the assistant orient itself:
 
-- **"Use the FASTR tools. Call get_orientation and tell me which results
-  package is pinned and what metrics and modules it holds."**
+- **"Use the FASTR tools. Call get_overview and tell me which results
+  package is pinned and what metrics it holds."**
 
-`get_orientation` carries the live grounding — the pinned package's name, its
+`get_overview` carries the live grounding — the pinned package's name, its
 datasets and indicators, its analysis modules — and how to query metric data.
 Then ask naturally:
 
@@ -200,14 +201,11 @@ Then ask naturally:
   ids, then `get_metric_data` (returns CSV) and reasons over it.
 - **Reference docs** — "Load the ICEH methodology and explain the equity
   measures." (`get_info` / methodology tools.)
-- **Inspect a module** — "What settings was module <id> generated with? Show me
-  its R script." "Why did module <id> fail? Show me its log."
 
 ### Good habits
 
-- The assistant discovers ids with `get_available_metrics` /
-  `get_available_modules`; it should never invent an id. If it does, correct it
-  and point it at the discovery tool.
+- The assistant discovers ids with `get_available_metrics`; it should never
+  invent an id. If it does, correct it and point it at the discovery tool.
 - Every tool is read-only — nothing you ask can change anything in FASTR.
 - The data is the **national** package: there is no per-project scope here. For
   a project's own visualizations, decks and reports, use the in-app assistant.
@@ -247,9 +245,6 @@ Then ask naturally:
   your connection — no package is pinned yet. An admin with
   `can_configure_data` pins one under Results packages; the tools work from the
   next call.
-- **403 on `get_module_log` only.** Logs are gated on the instance
-  `can_view_logs` permission separately from the data bit; the other tools
-  keep working.
 - **Local dev: everything 401s even with a fresh token.** A dev boot with
   `BYPASS_AUTH` set does not exercise real PAT auth. Boot with
   `BYPASS_AUTH= deno task dev` when testing tokens.
@@ -272,7 +267,7 @@ Then ask naturally:
   verification, a **deny-by-default** route allowlist (a PAT can only reach the
   read-only package routes the assistant needs — it can never mint or revoke
   tokens, reach admin/user routes, or write anything), and the instance
-  `can_view_data` / `can_view_logs` gates on every read.
+  `can_view_data` gate on every read.
 - The surface is **read-only by construction**: it exposes no write tool at
   all, so a leaked credential can read exactly what your own instance
   permissions already show you in the app, and change nothing.

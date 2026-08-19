@@ -185,6 +185,14 @@ Deno.test("PAT auth resolves to the identical user context as Clerk auth (GET /u
     });
     assertEquals(denied.status, 403);
 
+    // The module reads are SPA-only tools (/mcp is for seeing results), so a
+    // PAT is refused at the allowlist before any run lookup.
+    const deniedModuleRead = await headlessApp.request(
+      "/run_generation/run/00000000-0000-0000-0000-000000000000/module/m010/script",
+      { headers: { Authorization: `Bearer ${minted.data.token}` } },
+    );
+    assertEquals(deniedModuleRead.status, 403);
+
     // A bad token never reaches a handler.
     const badToken = await headlessApp.request("/user", {
       headers: { Authorization: "Bearer fastr_pat_deadbeef" },

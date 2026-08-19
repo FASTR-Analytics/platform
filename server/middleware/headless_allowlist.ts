@@ -24,17 +24,15 @@ export const HEADLESS_ALLOWED_ROUTE_NAMES = [
   // whoami probe (server/tests/pat_identity_parity_test.ts) and grants only
   // the caller's own identity.
   "getCurrentUser",
-  // The run-keyed package reads (S8 "one core, two lenses"; Tim's ruling
+  // The run-keyed metric reads (S8 "one core, two lenses"; Tim's ruling
   // 2026-08-18 — what a package contains is a function of the runId alone,
-  // gated on instance can_view_data / can_view_logs). A leaked credential
-  // reaches exactly what its user's own instance bits already reach in the
-  // UI; the /mcp tools resolve the runId from the instance's pin at call
-  // time, never from the model.
+  // gated on instance can_view_data). A leaked credential reaches exactly
+  // what its user's own instance bits already reach in the UI; the /mcp
+  // tools resolve the runId from the instance's pin at call time, never from
+  // the model. The module reads (script/logs/settings) are SPA-only tools
+  // and deliberately absent.
   "getRunPresentationObjectItems",
   "getRunResultsValueInfo",
-  "getRunModuleScript",
-  "getRunModuleLogs",
-  "getRunModuleWithConfigSelections",
 ] as const satisfies readonly (keyof typeof routeRegistry)[];
 
 // Non-registry paths: the /info markdown docs (served by the headless app's

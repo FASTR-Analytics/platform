@@ -10,11 +10,12 @@ import {
   getSharedToolsForInfo,
   getSharedToolsForMethodologyDocs,
   getSharedToolsForMetrics,
-  getSharedToolsForModules,
 } from "lib";
 import { createAskUserQuestionsTool } from "panther";
 import { clientAIToolEnvFor } from "./ai_tools/client_env";
+import { SPA_INFO_TOPICS } from "./ai_tools/client_info_topics";
 import { getClientToolsForDrafts } from "./ai_tools/tools/drafts";
+import { getClientToolsForModules } from "./ai_tools/tools/modules";
 import { getClientToolsForReportEditor } from "./ai_tools/tools/report_editor";
 import { getClientToolsForReports } from "./ai_tools/tools/reports";
 import { getClientToolsForSlideDecks } from "./ai_tools/tools/slide_decks";
@@ -46,15 +47,16 @@ export function buildToolsForContext(params: BuildToolsParams) {
   const env = clientAIToolEnvFor(projectId);
 
   return [
-    // Shared data tools (metrics + modules), bound to this project's package.
+    // Shared metric tools, bound to this project's package.
     ...getSharedToolsForMetrics(env, metrics, icehIndicators, hfaTaxonomy),
-    ...getSharedToolsForModules(env, modules, metrics),
+    // Module internals of that package (SPA-only)
+    ...getClientToolsForModules(projectId, modules, metrics),
     // Project content
     ...getClientToolsForVisualizations(projectId, visualizations, metrics),
     ...getClientToolsForSlideDecks(slideDecks),
     ...getClientToolsForReports(projectId, reports),
     ...getSharedToolsForMethodologyDocs(),
-    ...getSharedToolsForInfo(),
+    ...getSharedToolsForInfo(SPA_INFO_TOPICS),
 
     // View-gated tools (createAITool with viewRegistry + availableIn)
     ...getClientToolsForSlides(projectId, metrics),

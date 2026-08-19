@@ -1,4 +1,4 @@
-import type { InstalledModuleWithConfigSelections } from "../types/mod.ts";
+import type { InstalledModuleWithConfigSelections } from "lib";
 
 export function formatModuleSettingsForAI(
   module: InstalledModuleWithConfigSelections,

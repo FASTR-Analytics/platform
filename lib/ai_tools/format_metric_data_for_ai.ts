@@ -364,41 +364,6 @@ function formatItemsAsMarkdown(
     resolveItemFormat(metric.formatAs, metadataById),
   );
   lines.push(csvData);
-  lines.push("");
-
-  lines.push("=".repeat(80));
-  lines.push("## Creating Visualizations from this Metric");
-  lines.push("");
-  lines.push(
-    "To visualize this metric, use a `from_metric` block with a vizPresetId from get_available_metrics.",
-  );
-  lines.push("");
-  lines.push("```");
-  lines.push("{");
-  lines.push('  "type": "from_metric",');
-  lines.push(`  "metricId": "${metric.id}",`);
-  lines.push('  "vizPresetId": "<preset_id>",');
-  lines.push('  "chartTitle": "Your chart title here",');
-  lines.push(
-    '  "filters": [{ "disOpt": "<dimension>", "values": ["<value>"] }],',
-  );
-  lines.push('  "startDate": 202301,');
-  lines.push('  "endDate": 202412');
-  lines.push("}");
-  lines.push("```");
-  lines.push("");
-  lines.push("**Notes:**");
-  lines.push(
-    `- Use get_available_metrics to see available vizPresetId values for metric "${metric.id}"`,
-  );
-  lines.push("- filters and startDate/endDate are optional");
-  lines.push(
-    "- Date format depends on the preset (YYYY or YYYYMM — shown in preset listing)",
-  );
-  lines.push(
-    "- Only filter on dimensions listed in the preset's allowedFilters",
-  );
-  lines.push("");
 
   return lines.join("\n");
 }

@@ -6,6 +6,7 @@ import type {
   DisaggregationLabelConfig,
   DisaggregationOption,
   GenericLongFormFetchConfig,
+  InstalledModuleWithConfigSelections,
   PresentationObjectDetail,
   ReplicantOptionsForPresentationObject,
   SlideWithMeta,
@@ -25,17 +26,26 @@ import { getSnapshotProjectState } from "~/state/project/t1_store";
 // The SPA's injection of the shared AI-tool environment (lib/ai_tools/env.ts),
 // bound to ONE project at construction: cache-backed getters over the
 // project routes (so chat tool calls share cache entries with the interactive
-// UI), plus the SPA-only getters the client tools need — project content
-// (PO detail, slides) and figure-shaping helpers (replicant options,
-// dimension labels). One env per project, memoized — client code stays keyed
-// by projectId and derives the bound env at the lib boundary
-// (`clientAIToolEnvFor(projectId)`), so components and helpers that hold only
-// a project id never thread an env.
+// UI), plus the SPA-only getters the client tools need — module internals
+// (script, logs, settings), project content (PO detail, slides) and
+// figure-shaping helpers (replicant options, dimension labels). One env per
+// project, memoized — client code stays keyed by projectId and derives the
+// bound env at the lib boundary (`clientAIToolEnvFor(projectId)`), so
+// components and helpers that hold only a project id never thread an env.
 //
 // The package behind the module reads is resolved from project T1 AT CALL
 // TIME, so a mid-conversation repoint moves the tools to the newly attached
-// package (the ruling in lib/ai_tools/tools_modules.ts).
+// package (the ruling in ./tools/modules.ts).
 export type ClientAIToolEnv = AIToolEnv & {
+  getModuleScript: (
+    moduleId: string,
+  ) => Promise<APIResponseWithData<{ script: string }>>;
+  getModuleLogs: (
+    moduleId: string,
+  ) => Promise<APIResponseWithData<{ logs: string }>>;
+  getModuleSettings: (
+    moduleId: string,
+  ) => Promise<APIResponseWithData<InstalledModuleWithConfigSelections>>;
   getPODetail: (
     presentationObjectId: string,
   ) => Promise<APIResponseWithData<PresentationObjectDetail>>;

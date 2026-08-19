@@ -360,7 +360,7 @@ deliberate:
   any tool schema. It reads `getPinnedRunId` from the DB on EVERY call
   (never the 30 s cached `InstanceState` copy), so a pin-move is visible on
   the next call; its context cache is keyed `(token, runId)`. No pin is a
-  typed state: `get_orientation` still answers (naming the fix — an admin
+  typed state: `get_overview` still answers (naming the fix — an admin
   with `can_configure_data` pins one), the package tools fail with the same
   sentence. Deploying to an instance with MCP users and no pin therefore
   takes their data tools dark until someone pins. Prose in S13 principle 2.
@@ -397,16 +397,18 @@ The same rule governs the AI tools: the shared tools' `AIToolEnv`
 never comes from the model. The SPA env resolves the project's
 `attachedRunId` from project T1 at call time, so a mid-conversation repoint
 moves the tools with it; the `/mcp` env is bound to the pin resolved for
-that call. Module SETTINGS follow script/logs onto the run-keyed mount
-(`getRunModuleWithConfigSelections`, `can_view_data`; the project-mounted
-`getModuleWithConfigSelections` — sole consumer the AI tool — is deleted,
-so a project member without the instance bit loses `get_module_settings` in
-the copilot exactly as the package tab already hides settings from them).
-The headless allowlist admits exactly the run-keyed package reads
-(`getRunPresentationObjectItems`, `getRunResultsValueInfo`,
-`getRunModuleScript`, `getRunModuleLogs`,
-`getRunModuleWithConfigSelections`): a leaked PAT reaches exactly what its
-user's own instance bits already reach in the UI.
+that call. The SPA-only module tools (script/logs/settings —
+`client/src/components/project_ai/ai_tools/tools/modules.ts`, getters on
+`ClientAIToolEnv`) read the run-keyed mount too
+(`getRunModuleScript`/`getRunModuleLogs`/`getRunModuleWithConfigSelections`,
+`can_view_data`; the project-mounted `getModuleWithConfigSelections` — sole
+consumer the AI tool — is deleted, so a project member without the instance
+bit loses `get_module_settings` in the copilot exactly as the package tab
+already hides settings from them). The headless allowlist admits exactly the
+run-keyed metric reads the `/mcp` tools need (`getRunPresentationObjectItems`,
+`getRunResultsValueInfo`; `/mcp` is for seeing results, so the module reads
+are deliberately absent): a leaked PAT reaches exactly what its user's own
+instance bits already reach in the UI, and less.
 
 **Metric DATA is package contents too — one read core, two lenses**
 (2026-08-19). A `RunReadContext` is (run, scope). The PROJECT lens

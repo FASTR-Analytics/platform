@@ -1,10 +1,10 @@
 import { getCountryLabel } from "../consts.ts";
 import type { DatasetInProject } from "../types/datasets_in_project.ts";
 import type { InstanceState } from "../types/instance_sse.ts";
-import { INFO_TOPICS } from "./info_catalog.ts";
+import type { InfoCatalogTopic } from "./info_catalog.ts";
 
 // The shared halves of the AI system prompt — what both surfaces (the SPA
-// copilot and the /mcp orientation) ground the model with. Each surface
+// copilot and the /mcp get_overview) ground the model with. Each surface
 // assembles its own context section from these building blocks and its own
 // prose (the SPA: the project's name, viz/deck/report counts, aiContext —
 // client/src/components/project_ai/build_system_prompt.ts; /mcp: the pinned
@@ -17,6 +17,10 @@ import { INFO_TOPICS } from "./info_catalog.ts";
 export type SystemPromptParts = {
   contextSection: string;
   toolCatalog: string;
+  // The get_info topics THIS surface exposes — the same list its
+  // getSharedToolsForInfo was built with, so the prompt never names a topic
+  // the tool would refuse.
+  infoTopics: InfoCatalogTopic[];
   // "# Role and Purpose" body — what THIS surface's assistant is for.
   roleAndPurpose: string;
   // Core principles this surface adds after the four shared ones (the SPA
@@ -28,7 +32,7 @@ export type SystemPromptParts = {
 export function buildSystemPrompt(parts: SystemPromptParts): string {
   const currentDate = new Date().toISOString().split("T")[0];
   const dateHeader = `**CURRENT DATE: ${currentDate}**\n\n---\n\n`;
-  const referenceDocsSection = buildReferenceDocsSection();
+  const referenceDocsSection = buildReferenceDocsSection(parts.infoTopics);
   const baseInstructions = getBaseInstructions(
     parts.roleAndPurpose,
     parts.extraCorePrinciples,
@@ -39,16 +43,16 @@ export function buildSystemPrompt(parts: SystemPromptParts): string {
 
 // ── Reference documentation catalog ──
 
-function buildReferenceDocsSection(): string {
-  if (INFO_TOPICS.length === 0) return "";
+function buildReferenceDocsSection(topics: InfoCatalogTopic[]): string {
+  if (topics.length === 0) return "";
   const sections: string[] = [];
   sections.push("# Reference documentation");
   sections.push("");
   sections.push(
-    "Authoritative reference docs you can load on demand with the **get_info** tool. When a task relates to one of these topics (for example, building an ICEH equity profile report), call get_info for that topic FIRST and follow it.",
+    "Authoritative reference docs you can load on demand with the **get_info** tool. When a task relates to one of these topics, call get_info for that topic FIRST and follow it.",
   );
   sections.push("");
-  for (const t of INFO_TOPICS) {
+  for (const t of topics) {
     sections.push(`- **${t.topic}** — ${t.title}: ${t.description}`);
   }
   sections.push("");

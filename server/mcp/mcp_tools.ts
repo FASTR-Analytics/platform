@@ -15,7 +15,7 @@ import {
   getSharedToolsForInfo,
   getSharedToolsForMethodologyDocs,
   getSharedToolsForMetrics,
-  getSharedToolsForModules,
+  INFO_TOPICS,
 } from "lib";
 import {
   buildPrincipalTransport,
@@ -53,20 +53,14 @@ function templateThrow(): never {
 const TEMPLATE_ENV: AIToolEnv = {
   getItems: templateThrow,
   getResultsValueInfo: templateThrow,
-  getModuleScript: templateThrow,
-  getModuleLogs: templateThrow,
-  getModuleSettings: templateThrow,
 };
 
-const TEMPLATE_TOOLS: AnyTool[] = [
-  ...getSharedToolsForMetrics(
-    TEMPLATE_ENV,
-    [],
-    [],
-    structuredClone(EMPTY_HFA_TAXONOMY),
-  ),
-  ...getSharedToolsForModules(TEMPLATE_ENV, [], []),
-];
+const TEMPLATE_TOOLS: AnyTool[] = getSharedToolsForMetrics(
+  TEMPLATE_ENV,
+  [],
+  [],
+  structuredClone(EMPTY_HFA_TAXONOMY),
+);
 
 ////////////////////////////////////////////////////////////////////////////////
 // PER-PRINCIPAL TOOL SET (the D3 thunk)
@@ -75,23 +69,23 @@ const TEMPLATE_TOOLS: AnyTool[] = [
 export function buildMcpToolsForPrincipal(principal: McpPrincipal): AnyTool[] {
   const transport = buildPrincipalTransport(principal.token);
 
-  const getOrientationTool = createAITool({
-    name: "get_orientation",
+  const getOverviewTool = createAITool({
+    name: "get_overview",
     description:
-      "Read the orientation for this FASTR instance: what it is, which results package is pinned (the one every tool here reads), what that package holds — datasets, indicators, analysis modules — and how to use the tools against it. Call this first.",
+      "Overview of this FASTR instance: country, the pinned results package and what it holds (datasets, indicators, analysis modules), terminology, and how to use the other tools. Call this first.",
     inputSchema: z.object({}),
     kind: "read",
     headless: true,
     handler: async () => {
       const instanceState = await resolveInstanceState(principal);
       const runId = await resolvePinnedRunId();
-      // Orientation answers WITHOUT a pin — a connector still connects and
+      // The overview answers WITHOUT a pin — a connector still connects and
       // the model can explain what to do; every other tool fails typed.
       if (runId === null) {
         return [
           `FASTR Analytics instance "${instanceState.instanceName}" — health-facility data analysis over the instance's pinned results package.`,
           NO_PIN_MESSAGE,
-          "Until a package is pinned, the package tools (get_available_metrics, get_metric_data, get_available_modules, get_module_r_script, get_module_log, get_module_settings) cannot answer. The reference tools (get_methodology_docs_list, get_methodology_doc_content, get_info) still work.",
+          "Until a package is pinned, the package tools (get_available_metrics, get_metric_data) cannot answer. The reference tools (get_methodology_docs_list, get_methodology_doc_content, get_info) still work.",
         ].join("\n\n");
       }
       const ctx = await resolvePackageContext(principal, runId);
@@ -104,7 +98,7 @@ export function buildMcpToolsForPrincipal(principal: McpPrincipal): AnyTool[] {
         ...buildPackageGroundingSections(ctx.grounding),
         ...buildDataCoverageSections(instanceState),
         "",
-        "Every tool here reads this package at national scope. Discover metric and module ids with get_available_metrics / get_available_modules; never invent them.",
+        "Every tool here reads this package at national scope. Discover metric ids with get_available_metrics; never invent them.",
         "",
         "---",
         "",
@@ -112,14 +106,15 @@ export function buildMcpToolsForPrincipal(principal: McpPrincipal): AnyTool[] {
       return buildSystemPrompt({
         contextSection,
         toolCatalog: buildToolCatalog(ctx.sessionTools),
+        infoTopics: INFO_TOPICS,
         roleAndPurpose:
-          "You are an AI assistant helping users explore and analyze the health data in this instance's pinned results package. You can list metrics and modules, query metric data (CSV), and read module scripts, logs and settings. Everything is read-only.",
+          "You are an AI assistant helping users explore and analyze the health data in this instance's pinned results package. You can list metrics and query metric data (CSV), and read the FASTR methodology and reference docs. Everything is read-only.",
         extraCorePrinciples: [],
       });
     },
   });
 
-  // The 6 package tools, bound: the outer tool is the boot-time template
+  // The 2 package tools, bound: the outer tool is the boot-time template
   // (static schema); resolve() runs per call, reads the pin, and hands back
   // the inner tool from that package's context — authorization (instance
   // can_view_data) runs inside resolvePackageContext on every cold resolve,
@@ -141,9 +136,9 @@ export function buildMcpToolsForPrincipal(principal: McpPrincipal): AnyTool[] {
   );
 
   return [
-    getOrientationTool,
+    getOverviewTool,
     ...boundPackageTools,
     ...getSharedToolsForMethodologyDocs(),
-    ...getSharedToolsForInfo(transport),
+    ...getSharedToolsForInfo(INFO_TOPICS, transport),
   ];
 }

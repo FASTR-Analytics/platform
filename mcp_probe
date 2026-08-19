@@ -25,7 +25,7 @@
 # Examples:
 #   ./mcp_probe local --info
 #   ./mcp_probe local --list
-#   ./mcp_probe local get_orientation
+#   ./mcp_probe local get_overview
 #   ./mcp_probe local get_available_metrics
 #   FASTR_PAT=fastr_pat_… ./mcp_probe testing-tim get_metric_data '{"metricId":"m10-02-01"}'
 #   ./mcp_probe testing-tim --discovery
