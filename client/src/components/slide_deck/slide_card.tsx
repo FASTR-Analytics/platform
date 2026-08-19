@@ -11,11 +11,10 @@ import {
   type MenuItem,
 } from "panther";
 import { PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
-import { getSlideFromCacheOrFetch } from "~/state/project/t2_slides";
-import { projectState } from "~/state/project/t1_store";
+import { getSlideFromCacheOrFetch } from "~/state/products/t2_slides";
+import { instanceState } from "~/state/instance/t1_store";
 
 type Props = {
-  projectId: string;
   deckId: string;
   slideId: string;
   index: number;
@@ -40,12 +39,12 @@ export function SlideCard(p: Props) {
   // Fetch slide from cache, reactive to state updates
   let fetchRunId = 0;
   createEffect(async () => {
-    projectState.lastUpdated.slides[p.slideId]; // Track for reactivity
+    instanceState.lastUpdated.slides[p.slideId]; // Track for reactivity
     const config = p.deckConfig; // Track synchronously before first await
     const index = p.index;
     const runId = ++fetchRunId;
 
-    const res = await getSlideFromCacheOrFetch(p.projectId, p.slideId);
+    const res = await getSlideFromCacheOrFetch(p.slideId);
     if (runId !== fetchRunId) return;
 
     if (!res.success) {
@@ -54,7 +53,6 @@ export function SlideCard(p: Props) {
     }
 
     const renderRes = await convertSlideToPageInputs(
-      p.projectId,
       res.data.slide,
       index,
       config,

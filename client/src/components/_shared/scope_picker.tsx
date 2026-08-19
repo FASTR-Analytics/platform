@@ -7,29 +7,29 @@ import { getAdminAreaLabel } from "~/state/instance/_util_disaggregation_label";
 // The picker's working state: "single with no area chosen yet" is a real
 // interim UI state (adminArea2 undefined) that callers must reject on save —
 // the stored value is always string | null (null = national).
-export type ProjectScopeSelection =
+export type ScopeSelection =
   | { mode: "national" }
   | { mode: "single"; adminArea2: string | undefined };
 
 export function scopeSelectionFromStored(
   adminArea2: string | null,
-): ProjectScopeSelection {
+): ScopeSelection {
   return adminArea2 === null ? { mode: "national" } : { mode: "single", adminArea2 };
 }
 
 // undefined = incomplete (single mode with no area chosen).
 export function storedValueFromScopeSelection(
-  sel: ProjectScopeSelection,
+  sel: ScopeSelection,
 ): string | null | undefined {
   return sel.mode === "national" ? null : sel.adminArea2;
 }
 
 type Props = {
-  selection: ProjectScopeSelection;
-  onChange: (s: ProjectScopeSelection) => void;
+  selection: ScopeSelection;
+  onChange: (s: ScopeSelection) => void;
 };
 
-export function ProjectScopePicker(p: Props) {
+export function ScopePicker(p: Props) {
   const areasQuery = createQuery<string[]>(() => serverActions.listAdminArea2s({}));
 
   const chosenArea = () =>
@@ -38,11 +38,7 @@ export function ProjectScopePicker(p: Props) {
   return (
     <div class="ui-spy-sm">
       <RadioGroup<"national" | "single">
-        label={t3({
-          en: "Project scope",
-          fr: "Portée du projet",
-          pt: "Âmbito do projeto",
-        })}
+        label={t3({ en: "Scope", fr: "Portée", pt: "Âmbito" })}
         value={p.selection.mode}
         options={[
           {
@@ -110,9 +106,9 @@ export function ProjectScopePicker(p: Props) {
       </Show>
       <div class="text-base-content-muted text-sm">
         {t3({
-          en: "A scoped project sees the attached results package as if it contained only that area. Metrics with no area breakdown remain national.",
-          fr: "Un projet à portée limitée voit le paquet de résultats attaché comme s'il ne contenait que cette zone. Les indicateurs sans ventilation par zone restent nationaux.",
-          pt: "Um projeto com âmbito limitado vê o pacote de resultados anexado como se contivesse apenas essa zona. Os indicadores sem desagregação por zona permanecem nacionais.",
+          en: "A scoped product reads its results package as if it contained only that area. Metrics with no area breakdown remain national.",
+          fr: "Un produit à portée limitée lit son paquet de résultats comme s'il ne contenait que cette zone. Les indicateurs sans ventilation par zone restent nationaux.",
+          pt: "Um produto com âmbito limitado lê o seu pacote de resultados como se contivesse apenas essa zona. Os indicadores sem desagregação por zona permanecem nacionais.",
         })}
       </div>
     </div>

@@ -78,14 +78,14 @@ export function buildLayoutContextMenu<T>(
   if (isEmptyFigure) {
     if (callbacks.onSelectVisualization) {
       items.push({
-        label: t3({ en: "Select visualization", fr: "Sélectionner la visualisation", pt: "Selecionar a visualização" }),
+        label: t3({ en: "Select figure", fr: "Sélectionner la figure", pt: "Selecionar a figura" }),
         icon: "chart",
         onClick: () => callbacks.onSelectVisualization!(targetId),
       });
     }
     if (callbacks.onCreateVisualization) {
       items.push({
-        label: t3({ en: "Create new visualization", fr: "Créer une nouvelle visualisation", pt: "Criar nova visualização" }),
+        label: t3({ en: "Create new figure", fr: "Créer une nouvelle figure", pt: "Criar nova figura" }),
         icon: "plus",
         onClick: () => callbacks.onCreateVisualization!(targetId),
       });
@@ -100,7 +100,7 @@ export function buildLayoutContextMenu<T>(
 
     if (isFigureWithSource && callbacks.onEditVisualization) {
       items.push({
-        label: t3({ en: "Edit visualization", fr: "Modifier la visualisation", pt: "Editar visualização" }),
+        label: t3({ en: "Edit figure", fr: "Modifier la figure", pt: "Editar figura" }),
         icon: "pencil",
         onClick: () => callbacks.onEditVisualization!(targetId),
       });
@@ -108,7 +108,7 @@ export function buildLayoutContextMenu<T>(
 
     if (callbacks.onReplaceVisualization) {
       items.push({
-        label: t3({ en: "Switch visualization", fr: "Changer de visualisation", pt: "Mudar de visualização" }),
+        label: t3({ en: "Switch figure", fr: "Changer de figure", pt: "Mudar de figura" }),
         icon: "switchHorizontal",
         onClick: () => callbacks.onReplaceVisualization!(targetId),
       });
@@ -116,7 +116,7 @@ export function buildLayoutContextMenu<T>(
 
     if (callbacks.onCreateVisualization) {
       items.push({
-        label: t3({ en: "Create new visualization", fr: "Créer une nouvelle visualisation", pt: "Criar nova visualização" }),
+        label: t3({ en: "Create new figure", fr: "Créer une nouvelle figure", pt: "Criar nova figura" }),
         icon: "plus",
         onClick: () => callbacks.onCreateVisualization!(targetId),
       });
@@ -124,7 +124,7 @@ export function buildLayoutContextMenu<T>(
 
     if (callbacks.onRemoveVisualization) {
       items.push({
-        label: t3({ en: "Remove visualization", fr: "Supprimer la visualisation", pt: "Remover a visualização" }),
+        label: t3({ en: "Remove figure", fr: "Supprimer la figure", pt: "Remover a figura" }),
         icon: "trash",
         intent: "danger",
         onClick: () => callbacks.onRemoveVisualization!(targetId),
@@ -157,7 +157,7 @@ export function buildLayoutContextMenu<T>(
 
     if (blockType !== "figure" && callbacks.onConvertToFigure) {
       conversionItems.push({
-        label: t3({ en: "Visualization", fr: "Visualisation", pt: "Visualização" }),
+        label: t3({ en: "Figure", fr: "Figure", pt: "Figura" }),
         icon: "chart",
         onClick: () => callbacks.onConvertToFigure!(targetId),
       });

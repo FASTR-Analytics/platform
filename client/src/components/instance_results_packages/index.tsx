@@ -190,8 +190,8 @@ export function InstanceResultsPackages() {
                           <Show when={run.id === instanceState.pinnedRunId}>
                             <PinnedBadge />
                           </Show>
-                          <Show when={run.attachedProjects.length > 0}>
-                            <Badge>{run.attachedProjects.length}</Badge>
+                          <Show when={run.attachedProducts.length > 0}>
+                            <Badge>{run.attachedProducts.length}</Badge>
                           </Show>
                         </div>
                         <div class="ui-text-caption">

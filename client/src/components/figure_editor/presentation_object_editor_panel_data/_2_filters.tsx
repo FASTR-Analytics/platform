@@ -6,7 +6,6 @@ import {
   PeriodBounds,
   periodFilterHasBounds,
   PresentationObjectConfig,
-  PresentationObjectDetail,
   ResultsValue,
   getCalendar,
   t3,
@@ -55,7 +54,7 @@ function periodToYear(v: number): number {
 }
 
 type FiltersProps = {
-  poDetail: PresentationObjectDetail;
+  metric: ResultsValue;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
   resultsValueInfo: ResultsValueInfoForPresentationObject;
@@ -76,9 +75,9 @@ export function Filters(p: FiltersProps) {
       <div class="text-md font-700">{t3({ en: "Filter (subset)", fr: "Filtre (sous-ensemble)", pt: "Filtro (subconjunto)" })}</div>
 
       <div class="ui-spy-sm">
-        <Show when={p.poDetail.resultsValue.valueProps.length > 1}>
+        <Show when={p.metric.valueProps.length > 1}>
           <DataValuesFilter
-            poDetail={p.poDetail}
+            metric={p.metric}
             tempConfig={p.tempConfig}
             setTempConfig={p.setTempConfig}
           />
@@ -107,7 +106,7 @@ export function Filters(p: FiltersProps) {
                   return (
                     <DisaggregationFilter
                       disOpt={disOpt}
-                      datasetFamily={p.poDetail.resultsValue.datasetFamily}
+                      datasetFamily={p.metric.datasetFamily}
                       keyedStatus={keyedStatus}
                       tempConfig={p.tempConfig}
                       setTempConfig={p.setTempConfig}
@@ -124,7 +123,7 @@ export function Filters(p: FiltersProps) {
 }
 
 type DataValuesFilterProps = {
-  poDetail: PresentationObjectDetail;
+  metric: ResultsValue;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
 };
@@ -155,12 +154,12 @@ function DataValuesFilter(p: DataValuesFilterProps) {
         <div class="pb-4">
           <Switch>
             <Match
-              when={p.poDetail.resultsValue.valueProps.length >
+              when={p.metric.valueProps.length >
                 FILTER_SEARCH_THRESHOLD}
             >
               <MultiSelectSearch
                 values={p.tempConfig.d.valuesFilter ?? []}
-                options={p.poDetail.resultsValue.valueProps.map((v) => ({
+                options={p.metric.valueProps.map((v) => ({
                   value: v,
                   label: v,
                 }))}
@@ -170,11 +169,11 @@ function DataValuesFilter(p: DataValuesFilterProps) {
               />
             </Match>
             <Match
-              when={p.poDetail.resultsValue.valueProps.length <=
+              when={p.metric.valueProps.length <=
                 FILTER_SEARCH_THRESHOLD}
             >
               <div class="ui-gap-sm ui-pad flex max-h-[300px] flex-wrap overflow-auto rounded border font-mono text-xs">
-                <For each={p.poDetail.resultsValue.valueProps}>
+                <For each={p.metric.valueProps}>
                   {(opt) => {
                     const isSelected = () =>
                       (p.tempConfig.d.valuesFilter ?? []).includes(opt);

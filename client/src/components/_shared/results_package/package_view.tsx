@@ -34,19 +34,16 @@ import {
 import { ViewLogs } from "./view_logs";
 import { ViewScript } from "./view_script";
 
-// One READY results package, as it is explored ANYWHERE — the instance
-// catalogue's detail pane and a project's Results package tab mount this
-// same component (Tim's ruling 2026-08-18: what a package contains is a
-// function of the runId alone, so it is read through one run-keyed mount and
-// rendered by one view). Header (label, pin, status, provenance) + the
-// per-module cards: settings, Script/Logs viewers, files with download.
+// One READY results package, as it is explored ANYWHERE (Tim's ruling
+// 2026-08-18: what a package contains is a function of the runId alone, so it
+// is read through one run-keyed mount and rendered by one view). Header
+// (label, pin, status, provenance) + the per-module cards: settings,
+// Script/Logs viewers, files with download.
 //
-// The hosts add only their own chrome through the slots: the catalogue puts
-// pin/unpin/delete in `headerActions` and renders generating/failed runs
-// itself (a project is attached only once a run is ready, so this view is
-// ready-only by construction); the project tab puts its scope warning in
-// `headerNote`. A project's tab and the catalogue therefore show a package
-// identically — the only reason to look at both is to check.
+// Hosts add only their own chrome through the slots: the instance catalogue
+// puts pin/unpin/delete in `headerActions` and renders generating/failed runs
+// itself, so this view is ready-only by construction; `headerNote` carries
+// whatever caveat the host needs above the module cards.
 export function ResultsPackageView(p: {
   run: RunListingItem;
   headerActions?: JSX.Element;
@@ -329,9 +326,9 @@ export function ResultsPackageProvenanceLine(p: { run: RunListingItem }) {
       {p.run.createdBy !== null ? ` · ${p.run.createdBy}` : ""}
       {p.run.provenance === "synthetic-backfill"
         ? ` · ${t3({
-            en: "created from existing project results",
-            fr: "créé à partir des résultats existants du projet",
-            pt: "criado a partir dos resultados existentes do projeto",
+            en: "created from pre-existing results",
+            fr: "créé à partir de résultats préexistants",
+            pt: "criado a partir de resultados preexistentes",
           })}`
         : ""}
       {p.run.summary?.diskSizeBytes != null

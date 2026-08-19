@@ -2,7 +2,6 @@ import {
   DisaggregationDisplayOption,
   DisaggregationOption,
   PresentationObjectConfig,
-  PresentationObjectDetail,
   PresentationOption,
   ResultsValue,
   VIZ_TYPE_CONFIG,
@@ -15,7 +14,7 @@ import { batch } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
 
 type DataValuesSummaryProps = {
-  poDetail: PresentationObjectDetail;
+  metric: ResultsValue;
 };
 
 export function DataValuesSummary(p: DataValuesSummaryProps) {
@@ -24,7 +23,7 @@ export function DataValuesSummary(p: DataValuesSummaryProps) {
       <div class="text-md font-700 pb-1">
         {t3({ en: "Metric", fr: "Indicateur", pt: "Métrica" })}
       </div>
-      <div class="text-sm">{p.poDetail.resultsValue.label}</div>
+      <div class="text-sm">{p.metric.label}</div>
     </div>
   );
 }

@@ -22,7 +22,6 @@ import { Match, Show, Switch, createMemo, createSignal } from "solid-js";
 import { AddUserForm } from "./add_users";
 import { BatchUploadUsersForm } from "./batch_upload_users_form";
 import { BulkEditPermissionsForm } from "./bulk_edit_permissions_form";
-import { BulkEditDefaultProjectPermissionsForm } from "./bulk_edit_default_project_permissions_form.tsx";
 import { User } from "./user";
 import { Table, TableColumn, BulkAction } from "panther";
 import { serverActions } from "~/server_actions";
@@ -93,7 +92,6 @@ export function InstanceUsers(p: Props) {
               user={keyedUser}
               thisLoggedInUserEmail={p.thisLoggedInUserEmail}
               close={() => setSelectedUser(undefined)}
-              projects={instanceState.projects}
             />
           );
         }}
@@ -433,16 +431,6 @@ function UserTable(p: {
     });
   }
 
-  async function handleBulkEditDefaultProjectPermissions(
-    selectedUsers: UserTableData[],
-  ) {
-    const emails = selectedUsers.map((u) => u.email);
-    await openComponent({
-      element: BulkEditDefaultProjectPermissionsForm,
-      props: { emails },
-    });
-  }
-
   function handleBulkDownloadCSV(selectedUsers: UserTableData[]) {
     const csv = new Csv({
       colHeaders: ["email", "is_global_admin"],
@@ -494,16 +482,6 @@ function UserTable(p: {
             intent: "primary" as const,
             outline: true,
             onClick: handleBulkEditPermissions,
-          },
-          {
-            label: t3({
-              en: "Edit default project permissions",
-              fr: "Modifier les permissions de projet par défaut",
-              pt: "Editar permissões de projeto predefinidas",
-            }),
-            intent: "primary" as const,
-            outline: true,
-            onClick: handleBulkEditDefaultProjectPermissions,
           },
         ]
       : []),

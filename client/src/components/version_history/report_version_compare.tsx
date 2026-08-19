@@ -27,7 +27,6 @@ import {
 export function ReportVersionCompare(
   p: AlertComponentProps<
     {
-      projectId: string;
       reportId: string;
       versionId: string;
       currentBody: string;
@@ -38,7 +37,6 @@ export function ReportVersionCompare(
   const lineage = createQuery(
     () =>
       serverActions.getReportVersionLineage({
-        projectId: p.projectId,
         report_id: p.reportId,
         version_id: p.versionId,
       }),

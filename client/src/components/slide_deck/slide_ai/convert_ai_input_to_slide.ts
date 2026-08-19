@@ -14,20 +14,24 @@ import type {
   FigureBundle,
   AiSlideInput,
   MetricWithStatus,
+  PackageScope,
   SlideDeckConfig,
 } from "lib";
 import { slideConfigSchema, getAllSlideFontVariants, PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
 import { buildStyleForSlide } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { buildFigureInputs } from "~/generate_visualization/mod";
 import { resolveFigureFromMetric } from "./resolve_figure_from_metric";
-import { resolveFigureFromVisualization } from "./resolve_figure_from_visualization";
 import { createIdGeneratorForLayout } from "~/components/slide_deck/_id_generation";
 
 /**
- * Convert AI input (blocks[]) to storage format (LayoutNode<ContentBlock>)
+ * Convert AI input (blocks[]) to storage format (LayoutNode<ContentBlock>).
+ *
+ * Figures resolve under the caller's PackageScope — the deck the slide is
+ * destined for (D3/D4). There is no from_visualization input any more: a
+ * visualization is not a thing the model can point at.
  */
 export async function convertAiInputToSlide(
-  projectId: string,
+  scope: PackageScope,
   slideInput: AiSlideInput,
   metrics: MetricWithStatus[],
   deckConfig: SlideDeckConfig,
@@ -53,26 +57,11 @@ export async function convertAiInputToSlide(
       continue;
     }
 
-    // Handle figure input types
-    if (block.type === "from_visualization") {
-      try {
-        const figureBlock = await resolveFigureFromVisualization(
-          projectId,
-          block,
-        );
-        resolvedBlocks.push(figureBlock);
-      } catch (err) {
-        const errMsg = err instanceof Error ? err.message : String(err);
-        throw new Error(
-          `Failed to resolve visualization "${block.visualizationId}"${
-            block.replicant ? ` with replicant "${block.replicant}"` : ""
-          }. Check that the visualization exists and the replicant is valid. Original error: ${errMsg}`,
-        );
-      }
-    } else if (block.type === "from_metric") {
+    // The ONE figure input: metric + preset, resolved under `scope`.
+    if (block.type === "from_metric") {
       try {
         const figureBlock = await resolveFigureFromMetric(
-          projectId,
+          scope,
           block,
           metrics,
         );
@@ -83,7 +72,6 @@ export async function convertAiInputToSlide(
           `Failed to create figure from metric "${block.metricId}" with preset "${block.vizPresetId}": ${errMsg}`,
         );
       }
-      // } else if (block.type === "custom") {
     } else {
       throw new Error("Bad input figure type");
     }

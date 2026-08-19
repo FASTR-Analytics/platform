@@ -32,7 +32,7 @@ export function formatNigeriaAdminAreaLabel(label: string): string {
 // unchanged. The raw value/id is never touched — only the displayed label.
 //
 // THE choke point every replicant display surface routes through (picker,
-// figure captions via withReplicant, dashboard groups, slide/dashboard modals),
+// figure captions via withReplicant, slide and report figure modals),
 // which is why BLANK_SENTINEL is resolved here rather than at each call site.
 // The possible-values query sets label === id for the sentinel, and callers
 // holding only a raw replicant value pass that value as the label, so matching

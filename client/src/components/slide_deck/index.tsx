@@ -1,17 +1,24 @@
 import {
-  type ProjectState,
+  type PackageScope,
+  type ProductSummary,
+  type RunAuthoringContext,
   type Slide,
   type SlideDeckConfig,
   getStartingConfigForSlideDeck,
+  productScope,
   t3,
 } from "lib";
-import { instanceState } from "~/state/instance/t1_store";
-import { EditorComponentProps, getEditorWrapper, openComponent } from "panther";
+import { instanceState, productById } from "~/state/instance/t1_store";
+import {
+  EditorComponentProps,
+  getEditorWrapper,
+  openComponent,
+} from "panther";
 import { createEffect, createSignal, onCleanup, onMount } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { _SLIDE_CACHE } from "~/state/project/t2_slides";
-import { getSlideDeckDetailFromCacheOrFetch } from "~/state/project/t2_slide_decks";
-import { projectState } from "~/state/project/t1_store";
+import { getSlideFromCacheOrFetch } from "~/state/products/t2_slides";
+import { getSlideDeckDetailFromCacheOrFetch } from "~/state/products/t2_slide_deck_detail";
+import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
 import { DownloadSlideDeck } from "./download_slide_deck";
 import { ShareSlideDeck } from "./share_slide_deck";
 import { SlideEditor } from "./slide_editor";
@@ -21,31 +28,29 @@ import {
   SlideDeckSettings,
   type SlideDeckSettingsProps,
 } from "./slide_deck_settings";
-import {
-  projectAIViewController,
-  restoreProjectAIView,
-  type ProjectAIViewState,
-} from "../project_ai/ai_views";
+import { copilotViewController } from "../copilot/ai_views";
 import { snapshotForSlideEditor } from "~/components/_editor_snapshot";
 import { pendingSlideOpen, setPendingSlideOpen } from "~/state/t4_ui";
-import { setCollabAvatar, setCollabView } from "~/state/project/collab";
+import { setCollabAvatar, setCollabView } from "~/state/instance/collab";
 import { clerk } from "~/components/LoggedInWrapper";
 import { VersionHistoryEditor } from "../version_history";
+import { ProductSettings } from "~/components/products/product_settings";
 
-type SlideDeckModalReturn = undefined;
+type SlideDeckEditorReturn = undefined;
 
-type Props = EditorComponentProps<
-  {
-    projectState: ProjectState;
-    deckId: string;
-    reportLabel: string;
-    returnToContext?: ProjectAIViewState;
-  },
-  SlideDeckModalReturn
->;
+type Props = EditorComponentProps<{ productId: string }, SlideDeckEditorReturn>;
 
-export function ProjectAiSlideDeck(p: Props) {
-  const projectId = p.projectState.id;
+// The deck editor takes ONE thing: the product id (D16). Everything else —
+// label, package, scope — is read LIVE from the T1 products row, so a reattach
+// or scope change (from this header's own Settings entry, from the products
+// page, or by a collaborator) moves the deck's figure data and authoring
+// context together, and lights the D4 stale badges without a remount.
+export function SlideDeckEditor(p: Props) {
+  const product = (): ProductSummary | undefined => productById(p.productId);
+  const scope = (): PackageScope | undefined => {
+    const prod = product();
+    return prod === undefined ? undefined : productScope(prod);
+  };
 
   async function handleClose() {
     p.close(undefined);
@@ -55,47 +60,55 @@ export function ProjectAiSlideDeck(p: Props) {
   const [slideIds, setSlideIds] = createSignal<string[]>([]);
   const [isLoading, setIsLoading] = createSignal(true);
   const [selectedSlideIds, setSelectedSlideIds] = createSignal<string[]>([]);
-  const [deckLabel, setDeckLabel] = createSignal(p.reportLabel);
   const [deckConfig, setDeckConfig] = createSignal<SlideDeckConfig>(
-    getStartingConfigForSlideDeck(p.reportLabel),
+    getStartingConfigForSlideDeck(product()?.label ?? ""),
   );
+  // The product run's authoring context (immutable T2, keyed by the LIVE runId
+  // — so a reattach re-resolves it rather than reusing the old package's).
+  const [authoringContext, setAuthoringContext] = createSignal<
+    RunAuthoringContext | undefined
+  >();
 
-  // The collab socket is owned by ProjectSSEBoundary (project-scoped). Here we
-  // only advertise that this user is currently viewing this deck.
+  const deckLabel = () => product()?.label ?? "";
+
+  // The collab socket is instance-wide and owned by the shell. Here we only
+  // advertise that this user is currently inside this product.
   onMount(() => {
     setCollabAvatar(clerk.user?.imageUrl);
-    setCollabView({ deckId: p.deckId });
+    setCollabView({ deckId: p.productId });
   });
 
   onCleanup(() => {
-    if (p.returnToContext) restoreProjectAIView(p.returnToContext);
-    else projectAIViewController.setView("viewing_slide_decks");
-    // Returning to the deck list: no longer "in" a deck.
+    copilotViewController.setView("viewing_products");
+    // Returning to the products page: no longer "in" a product.
     setCollabView({});
   });
 
-  // Single fetch path: first run loads the deck (and then sets the AI
-  // context), subsequent runs are SSE-driven refetches on version flips.
-  let aiContextSet = false;
+  // Single fetch path: first run loads the deck (and then sets the copilot
+  // view), subsequent runs are SSE-driven refetches on version flips.
+  let copilotViewSet = false;
   createEffect(() => {
-    const _deckUpdate = projectState.lastUpdated.slide_decks[p.deckId];
+    const _deckUpdate = instanceState.lastUpdated.products[p.productId];
     const controller = new AbortController();
     onCleanup(() => controller.abort());
     async function load() {
-      const res = await getSlideDeckDetailFromCacheOrFetch(projectId, p.deckId);
+      const res = await getSlideDeckDetailFromCacheOrFetch(p.productId);
       if (controller.signal.aborted) return;
       if (res.success) {
         setSlideIds(res.data.slideIds);
-        setDeckLabel(res.data.label);
         setDeckConfig(res.data.config);
       }
       setIsLoading(false);
-      if (!aiContextSet) {
-        aiContextSet = true;
-        projectAIViewController.setView(
+      if (!copilotViewSet) {
+        copilotViewSet = true;
+        copilotViewController.setView(
           "editing_slide_deck",
-          { deckId: p.deckId, deckLabel: deckLabel() },
+          { deckId: p.productId, deckLabel: deckLabel() },
           {
+            // The pair is read through this accessor, never baked in — that is
+            // what keeps the copilot pointed at the product's CURRENT package
+            // when it is reattached mid-thread (D15).
+            getScope: () => scope() ?? { runId: "", adminArea2: null },
             getDeckConfig: () => deckConfig(),
             getSlideIds: () => slideIds(),
             getSelectedSlideIds: () => selectedSlideIds(),
@@ -106,10 +119,28 @@ export function ProjectAiSlideDeck(p: Props) {
     load();
   });
 
+  // The authoring context follows the LIVE runId: a reattach swaps the whole
+  // metric/preset catalog the insert-figure wizard and the update actions
+  // author against. Immutable by identity, so this is a cache hit after the
+  // first read of any given package.
+  createEffect(() => {
+    const runId = scope()?.runId;
+    if (runId === undefined) return;
+    const controller = new AbortController();
+    onCleanup(() => controller.abort());
+    void (async () => {
+      const res = await getRunAuthoringContextFromCacheOrFetch(runId);
+      if (controller.signal.aborted) return;
+      if (res.success) setAuthoringContext(res.data);
+    })();
+  });
+
   return (
-    <ProjectAiSlideDeckInner
-      projectState={p.projectState}
-      deckId={p.deckId}
+    <SlideDeckEditorInner
+      productId={p.productId}
+      product={product()}
+      scope={scope()}
+      authoringContext={authoringContext()}
       deckLabel={deckLabel()}
       deckConfig={deckConfig()}
       slideIds={slideIds()}
@@ -120,9 +151,11 @@ export function ProjectAiSlideDeck(p: Props) {
   );
 }
 
-function ProjectAiSlideDeckInner(p: {
-  projectState: ProjectState;
-  deckId: string;
+function SlideDeckEditorInner(p: {
+  productId: string;
+  product: ProductSummary | undefined;
+  scope: PackageScope | undefined;
+  authoringContext: RunAuthoringContext | undefined;
   deckLabel: string;
   deckConfig: SlideDeckConfig;
   slideIds: string[];
@@ -138,16 +171,10 @@ function ProjectAiSlideDeckInner(p: {
   const { openEditor: openHistoryEditor, EditorWrapper: HistoryEditorWrapper } =
     getEditorWrapper();
 
-  // Editor state
-  const [editingSlideId, setEditingSlideId] = createSignal<
-    string | undefined
-  >();
-
   async function handleOpenSettings() {
     await openSettingsEditor<SlideDeckSettingsProps, "AFTER_DELETE">({
       element: SlideDeckSettings,
       props: {
-        projectId: p.projectState.id,
         config: p.deckConfig,
         heading: t3({
           en: "Slide deck settings",
@@ -166,8 +193,7 @@ function ProjectAiSlideDeckInner(p: {
         }),
         saveConfig: (config) =>
           serverActions.updateSlideDeckConfig({
-            projectId: p.projectState.id,
-            deck_id: p.deckId,
+            deck_id: p.productId,
             config,
           }),
         onSaved: async () => {},
@@ -175,13 +201,21 @@ function ProjectAiSlideDeckInner(p: {
     });
   }
 
+  // The ONE product settings surface (D16) — label, folder, package, scope.
+  // Shared with the products page card menu; never duplicated here.
+  async function handleOpenProductSettings() {
+    const prod = p.product;
+    if (!prod) return;
+    await openComponent({
+      element: ProductSettings,
+      props: { product: prod },
+    });
+  }
+
   async function download() {
     const _res = await openComponent({
       element: DownloadSlideDeck,
-      props: {
-        projectId: p.projectState.id,
-        deckId: p.deckId,
-      },
+      props: { deckId: p.productId },
     });
   }
 
@@ -189,9 +223,8 @@ function ProjectAiSlideDeckInner(p: {
     await openHistoryEditor({
       element: VersionHistoryEditor,
       props: {
-        projectId: p.projectState.id,
         kind: "deck" as const,
-        docId: p.deckId,
+        docId: p.productId,
         currentLabel: p.deckLabel,
       },
     });
@@ -201,9 +234,10 @@ function ProjectAiSlideDeckInner(p: {
     await openComponent({
       element: ShareSlideDeck,
       props: {
-        projectId: p.projectState.id,
-        deckId: p.deckId,
+        deckId: p.productId,
         deckLabel: p.deckLabel,
+        // The instance roster: with the project tier gone there is no
+        // narrower recipient list (D2).
         userEmails: instanceState.users.map((u) => u.email),
       },
     });
@@ -213,8 +247,7 @@ function ProjectAiSlideDeckInner(p: {
     await openComponent({
       element: SlidePresenter,
       props: {
-        projectId: p.projectState.id,
-        deckId: p.deckId,
+        deckId: p.productId,
         slideIds: p.slideIds,
         deckConfig: p.deckConfig,
       },
@@ -222,46 +255,27 @@ function ProjectAiSlideDeckInner(p: {
   }
 
   async function handleEditSlide(slideId: string) {
-    const cached = await _SLIDE_CACHE.get({
-      projectId: p.projectState.id,
-      slideId,
-    });
-    let slide: Slide;
-    let lastUpdated: string;
+    const scope = p.scope;
+    const context = p.authoringContext;
+    if (!scope || !context) return;
 
-    if (!cached.data) {
-      const res = await serverActions.getSlide({
-        projectId: p.projectState.id,
-        slide_id: slideId,
-      });
-      if (!res.success) return;
-      slide = res.data.slide;
-      lastUpdated = res.data.lastUpdated;
-    } else {
-      slide = cached.data.slide;
-      lastUpdated = cached.data.lastUpdated;
-    }
-
-    setEditingSlideId(slideId);
+    const res = await getSlideFromCacheOrFetch(slideId);
+    if (!res.success) return;
 
     await openEditor({
       element: SlideEditor,
       props: {
-        projectId: p.projectState.id,
-        deckId: p.deckId,
+        productId: p.productId,
         deckLabel: p.deckLabel,
-        slideId: slideId,
-        lastUpdated: lastUpdated,
-        slide,
-        returnToContext: projectAIViewController.current(),
-        ...snapshotForSlideEditor({
-          projectState: p.projectState,
-          deckConfig: p.deckConfig,
-        }),
+        slideId,
+        lastUpdated: res.data.lastUpdated,
+        slide: res.data.slide,
+        scope,
+        authoringContext: context,
+        returnToContext: copilotViewController.current(),
+        ...snapshotForSlideEditor({ deckConfig: p.deckConfig }),
       },
     });
-
-    setEditingSlideId(undefined);
   }
 
   // Tour catalogue replay: once the deck has loaded, open its first slide of
@@ -275,20 +289,9 @@ function ProjectAiSlideDeckInner(p: {
     setPendingSlideOpen(null);
     void (async () => {
       for (const slideId of slideIds) {
-        const cached = await _SLIDE_CACHE.get({
-          projectId: p.projectState.id,
-          slideId,
-        });
-        let slide = cached.data?.slide;
-        if (!slide) {
-          const res = await serverActions.getSlide({
-            projectId: p.projectState.id,
-            slide_id: slideId,
-          });
-          if (!res.success) continue;
-          slide = res.data.slide;
-        }
-        if (slide.type === wanted) {
+        const res = await getSlideFromCacheOrFetch(slideId);
+        if (!res.success) continue;
+        if (res.data.slide.type === wanted) {
           void handleEditSlide(slideId);
           return;
         }
@@ -301,8 +304,9 @@ function ProjectAiSlideDeckInner(p: {
       <SettingsEditorWrapper>
         <EditorWrapper>
           <SlideList
-            projectState={p.projectState}
-            deckId={p.deckId}
+            productId={p.productId}
+            scope={p.scope}
+            authoringContext={p.authoringContext}
             slideIds={p.slideIds}
             isLoading={p.isLoading}
             setSelectedSlideIds={p.setSelectedSlideIds}
@@ -310,6 +314,7 @@ function ProjectAiSlideDeckInner(p: {
             deckLabel={p.deckLabel}
             handleClose={p.handleClose}
             handleOpenSettings={handleOpenSettings}
+            handleOpenProductSettings={handleOpenProductSettings}
             download={download}
             share={share}
             present={present}

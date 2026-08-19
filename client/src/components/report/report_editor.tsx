@@ -12,7 +12,7 @@ import {
 import type { Awareness } from "y-protocols/awareness";
 import * as Y from "yjs";
 import type { FigureBlock, ImageBlock } from "lib";
-import type { ReportEditorSelection } from "~/components/project_ai/types";
+import type { ReportEditorSelection } from "~/components/copilot/types";
 import { embedWidgets, type EmbedResolver } from "./figure_widget_extension";
 import { rebaseProposedEdits, type SkippedRange } from "./rebase_edits";
 import { darkMode } from "~/state/t4_ui";

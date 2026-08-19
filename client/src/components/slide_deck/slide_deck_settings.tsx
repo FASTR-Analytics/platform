@@ -29,7 +29,6 @@ import { LogoSectionEditor } from "~/components/_shared/logo_section_editor";
 import { StylePreview } from "./style_editor/StylePreview.tsx";
 
 export type SlideDeckSettingsProps = {
-  projectId: string;
   config: SlideDeckConfig;
   heading: string;
   nameLabel: string;

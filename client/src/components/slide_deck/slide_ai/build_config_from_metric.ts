@@ -7,7 +7,7 @@ import type {
 } from "lib";
 
 import { convertPeriodValue, deriveConfigFromVizPreset } from "lib";
-import { validatePresetOverrides } from "~/components/project_ai/ai_tools/validators/content_validators";
+import { validatePresetOverrides } from "~/components/copilot/ai_tools/validators/content_validators";
 import { validateValuesFilter } from "~/generate_visualization/mod";
 import { getSnapshotInstanceLocalization } from "~/state/instance/t1_store";
 

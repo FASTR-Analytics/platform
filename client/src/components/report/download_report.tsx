@@ -15,7 +15,6 @@ import { exportReportAsWord } from "~/exports/export_report_as_word";
 export function DownloadReport(
   p: EditorComponentProps<
     {
-      projectId: string;
       reportId: string;
     },
     undefined
@@ -37,8 +36,8 @@ export function DownloadReport(
 
     const res =
       format === "word"
-        ? await exportReportAsWord(p.projectId, p.reportId, progress)
-        : await exportReportAsPdf(p.projectId, p.reportId, progress);
+        ? await exportReportAsWord(p.reportId, progress)
+        : await exportReportAsPdf(p.reportId, progress);
     if (res.success === false) {
       setErr(res.err);
       setPct(0);

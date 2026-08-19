@@ -1,7 +1,7 @@
 import { findRootTextField } from "lib";
 import { TextArea } from "panther";
 import { Show } from "solid-js";
-import type { SlideSession } from "~/state/project/collab";
+import type { SlideSession } from "~/state/instance/collab";
 import { CollabMarkdownEditor } from "./collab_markdown_editor";
 
 // A single root-level slide text field (a title / header / etc.). When live

@@ -1,59 +1,22 @@
-import {
-  t3,
-  type ModuleId,
-  type ProjectSummary,
-  type RunGenerationStep1Result,
-} from "lib";
-import { Card, Checkbox, Input } from "panther";
+import { t3, type ModuleId, type RunGenerationStep1Result } from "lib";
+import { Card, Input } from "panther";
 import { For, Show } from "solid-js";
 import { moduleLabel } from "~/components/_shared/results_package/status";
-import { instanceState } from "~/state/instance/t1_store";
 
 type Props = {
   families: RunGenerationStep1Result;
   chosenModuleIds: ModuleId[];
   label: string;
   setLabel: (v: string) => void;
-  attachTargets: Record<string, boolean>;
-  setAttachTarget: (projectId: string, v: boolean) => void;
 };
 
-// A project can only receive a package while it is ready and unlocked; the
-// launch route re-checks the same rule, since the selection predates it.
-function attachIneligibleReason(project: ProjectSummary): string | undefined {
-  if (project.status === "copying") {
-    return t3({ en: "Being copied", fr: "Copie en cours", pt: "A ser copiado" });
-  }
-  if (project.status === "pending_deletion") {
-    return t3({
-      en: "Scheduled for deletion",
-      fr: "Suppression programmée",
-      pt: "Eliminação programada",
-    });
-  }
-  if (project.isLocked) {
-    return t3({
-      en: "Project is locked",
-      fr: "Le projet est verrouillé",
-      pt: "O projeto está bloqueado",
-    });
-  }
-  return undefined;
-}
-
-// Step 3 — confirm: label, selection summary, attach targets. Attach-at-
-// launch: the selected projects are repointed inside the publish transaction
-// when generation succeeds. Selection defaults to none — a package can
-// equally be attached later from a project's Results package tab, and a
-// failed generation leaves every project on its current package. There is
-// no pre-launch compatibility report (the run does not exist yet);
-// robustness comes from the typed not-in-run / unavailable render states.
+// Step 3 — confirm: label and selection summary. There are no attach targets:
+// a generation PRODUCES a package, and products point at it afterwards from
+// their own settings (D5). That also means a failed generation moves nothing,
+// and there is nothing to pre-flight here — robustness comes from the typed
+// not-in-run / unavailable render states, and from the per-figure stale badge
+// once a product does reattach.
 export function StepConfirm(p: Props) {
-  function projectCheckboxLabel(project: ProjectSummary): string {
-    const reason = attachIneligibleReason(project);
-    return reason === undefined ? project.label : `${project.label} — ${reason}`;
-  }
-
   return (
     <div class="ui-spy">
       <h3 class="ui-text-heading">
@@ -101,46 +64,6 @@ export function StepConfirm(p: Props) {
         </ul>
       </Card>
 
-      <Card
-        header={t3({
-          en: "Attach to projects",
-          fr: "Rattacher aux projets",
-          pt: "Anexar a projetos",
-        })}
-      >
-        <div class="ui-spy-sm">
-          <div class="text-base-content-muted text-sm">
-            {t3({
-              en: "These projects switch to the new package when generation succeeds. Optional — you can also attach it later from a project's Results package tab.",
-              fr: "Ces projets basculeront vers le nouveau paquet lorsque la génération aura réussi. Facultatif — vous pouvez aussi le rattacher plus tard depuis l'onglet Paquet de résultats d'un projet.",
-              pt: "Estes projetos passam a usar o novo pacote quando a geração for concluída com êxito. Opcional — também o pode anexar mais tarde no separador Pacote de resultados de um projeto.",
-            })}
-          </div>
-          <Show
-            when={instanceState.projects.length > 0}
-            fallback={
-              <div class="text-base-content-muted text-sm">
-                {t3({
-                  en: "No projects available",
-                  fr: "Aucun projet disponible",
-                  pt: "Nenhum projeto disponível",
-                })}
-              </div>
-            }
-          >
-            <For each={instanceState.projects}>
-              {(project) => (
-                <Checkbox
-                  label={projectCheckboxLabel(project)}
-                  checked={p.attachTargets[project.id] === true}
-                  onChange={(v) => p.setAttachTarget(project.id, v)}
-                  disabled={attachIneligibleReason(project) !== undefined}
-                />
-              )}
-            </For>
-          </Show>
-        </div>
-      </Card>
 
       <div class="text-base-content-muted text-sm">
         {t3({

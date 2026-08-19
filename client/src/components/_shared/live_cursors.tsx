@@ -10,7 +10,7 @@ import {
   Show,
 } from "solid-js";
 import { Portal } from "solid-js/web";
-import { liveConnectionIds } from "~/state/project/collab";
+import { liveConnectionIds } from "~/state/instance/collab";
 
 // =============================================================================
 // Figma-style live cursors — shared broadcaster + overlay
@@ -44,7 +44,7 @@ import { liveConnectionIds } from "~/state/project/collab";
 // teardown, a connection the server dropped whose state has not yet aged out
 // of the ~30s sweep) — each of which would otherwise draw its own arrow. So
 // the identity stamped into the "user" field (email + connectionId, from
-// state/project/collab.ts) gates rendering three ways: states from MY OWN
+// state/instance/collab.ts) gates rendering three ways: states from MY OWN
 // email never render (my other tabs are me, not a peer), states whose
 // connectionId is no longer in presence never render (the server deregisters
 // a closed socket and rebroadcasts within a round trip — far faster than the
@@ -79,11 +79,11 @@ export type PointerAwarenessState = {
         x: number;
         y: number;
       }
-    // Project tab pages ([data-page-cursor-surface] element): x normalized
-    // 0..1 of the surface element's width, y in content px (scrollTop-
-    // compensated). scope = tab (+ folder/grouping selection). Rides the
-    // PROJECT-level awareness, not a doc session.
-    | { surface: "page"; scope: string; x: number; y: number }
+    // (There is no "page" surface: list-page cursors rode the project-level
+    // page-awareness relay, which is gone from the wire protocol with the
+    // project tier — D8. Every remaining surface belongs to a document
+    // session.)
+    //
     // A named CHROME region of any surface family ([data-cursor-zone]
     // element: header bars, side panels, the area around a canvas). Zones
     // are per-user resizable/collapsible, so each is its own coordinate
@@ -456,7 +456,7 @@ export function createPointerBroadcast(opts: {
   }
   // hideWhileTyping (see the option doc). Capture phase so editor components
   // that stopPropagation can't mask keystrokes (same rationale as the idle
-  // detector in state/project/collab.ts) — hence the explicit exclusions:
+  // detector in state/instance/collab.ts) — hence the explicit exclusions:
   // the cursor-chat input, and the "/" that may be about to OPEN the chat
   // (mirrors CursorChatInput.onDocKeyDown's hijack condition; hiding the
   // pointer there would hide the very bubble the user is opening).
@@ -595,7 +595,7 @@ type CursorSprite = {
   chat?: string;
 };
 
-/** The identity `applySessionUser` (state/project/collab.ts) stamps into the
+/** The identity `applySessionUser` (state/instance/collab.ts) stamps into the
  *  shared "user" awareness field. `email`/`connectionId` are absent only until
  *  that client's first presence_state lands. */
 type CursorUser = {

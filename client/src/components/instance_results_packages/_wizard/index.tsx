@@ -194,9 +194,6 @@ function WizardInner(p: InnerProps) {
       pt: "Pacote de resultados",
     })} ${new Date().toISOString().slice(0, 10)}`,
   );
-  const [attachTargets, setAttachTargets] = createStore<
-    Record<string, boolean>
-  >({});
 
   const stepperData = createMemo(() => ({
     dataValid: families.hmis || families.hfa || families.iceh,
@@ -238,13 +235,9 @@ function WizardInner(p: InnerProps) {
           }),
         };
       }
-      const targets = unwrap(attachTargets);
       const values = unwrap(paramValues);
       return await serverActions.launchRunGeneration({
         label: trimmed,
-        attachTargetProjectIds: instanceState.projects
-          .filter((project) => targets[project.id] === true)
-          .map((project) => project.id),
         step1Result: { ...unwrap(families) },
         step2Result: {
           gitRef: p.options.gitRef,
@@ -330,8 +323,6 @@ function WizardInner(p: InnerProps) {
             chosenModuleIds={chosen().map((o) => o.id)}
             label={label()}
             setLabel={setLabel}
-            attachTargets={attachTargets}
-            setAttachTarget={(id, v) => setAttachTargets(id, v)}
           />
           <StateHolderFormError state={launch.state()} />
         </Show>

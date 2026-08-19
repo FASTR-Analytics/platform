@@ -20,6 +20,7 @@ import { _SERVER_HOST, serverActions } from "~/server_actions";
 import { ReportFigureEmbed } from "../report/ReportFigureEmbed";
 import { REPORT_MARKDOWN_STYLE } from "../report/report_markdown_style";
 import { CopyVersionModal } from "./copy_version_modal";
+import { productById } from "~/state/instance/t1_store";
 import {
   buildAuthorNames,
   DiffLegend,
@@ -35,7 +36,6 @@ type PreviewMode = "edits" | "preview";
 // report View mode, but embed tokens resolve against the version's SNAPSHOT
 // figure/image registries, so the preview shows the document as it was then.
 export function ReportVersionPreview(p: {
-  projectId: string;
   reportId: string;
   versionId: string;
   /** The version immediately BEFORE this one — the session-edits view diffs
@@ -49,7 +49,6 @@ export function ReportVersionPreview(p: {
   const version = createQuery(
     () =>
       serverActions.getReportVersion({
-        projectId: p.projectId,
         report_id: p.reportId,
         version_id: p.versionId,
       }),
@@ -104,7 +103,6 @@ export function ReportVersionPreview(p: {
     await openComponent({
       element: ReportVersionCompare,
       props: {
-        projectId: p.projectId,
         reportId: p.reportId,
         versionId: v.id,
         currentBody: p.getCurrentBody?.() ?? "",
@@ -126,7 +124,6 @@ export function ReportVersionPreview(p: {
       return;
     }
     const res = await serverActions.restoreReportVersion({
-      projectId: p.projectId,
       report_id: p.reportId,
       version_id: v.id,
     });
@@ -144,11 +141,13 @@ export function ReportVersionPreview(p: {
         header: t3({ en: "Restore as copy", fr: "Restaurer comme copie", pt: "Restaurar como cópia" }),
         initialLabel: `${v.label} (${new Date(v.createdAt).toLocaleDateString()})`,
         save: (label: string) =>
+          // Restore-as-copy creates a NEW product, so it needs a folder: the
+          // source product's, which is where the user is looking.
           serverActions.copyReportVersion({
-            projectId: p.projectId,
             report_id: p.reportId,
             version_id: p.versionId,
             label,
+            folderId: productById(p.reportId)?.folderId ?? null,
           }),
       },
     });
@@ -192,7 +191,6 @@ export function ReportVersionPreview(p: {
             }
           >
             <SessionEdits
-              projectId={p.projectId}
               reportId={p.reportId}
               version={v}
               previousVersionId={p.previousVersionId}
@@ -224,7 +222,6 @@ export function ReportVersionPreview(p: {
 // one immediately before it. The oldest version diffs against an empty
 // document — the session that created the report.
 function SessionEdits(p: {
-  projectId: string;
   reportId: string;
   version: ReportVersionDetail;
   previousVersionId?: string;
@@ -243,7 +240,6 @@ function SessionEdits(p: {
         return { success: true as const, data: { body: "", figures: {}, images: {} } };
       }
       const res = await serverActions.getReportVersion({
-        projectId: p.projectId,
         report_id: p.reportId,
         version_id: p.previousVersionId,
       });

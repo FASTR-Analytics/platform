@@ -1,5 +1,5 @@
 import { getSlideTitle, type Slide } from "lib";
-import { getSlideFromCacheOrFetch } from "~/state/project/t2_slides";
+import { getSlideFromCacheOrFetch } from "~/state/products/t2_slides";
 import { extractBlocksFromLayout } from "./extract_blocks_from_layout";
 
 function getContentSummary(slide: Slide): string {
@@ -24,8 +24,7 @@ function getContentSummary(slide: Slide): string {
 }
 
 export async function getDeckSummaryForAI(
-  projectId: string,
-  slideIds: string[]
+  slideIds: string[],
 ): Promise<string> {
   const lines: string[] = [
     "CURRENT SLIDES",
@@ -40,7 +39,7 @@ export async function getDeckSummaryForAI(
   } else {
     for (let i = 0; i < slideIds.length; i++) {
       const slideId = slideIds[i];
-      const res = await getSlideFromCacheOrFetch(projectId, slideId);
+      const res = await getSlideFromCacheOrFetch(slideId);
 
       if (!res.success) {
         lines.push(`  ${slideId}: [Failed to load: ${res.err}]`);

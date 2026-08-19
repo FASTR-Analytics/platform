@@ -9,13 +9,12 @@ import {
 } from "panther";
 import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
-import { projectState } from "~/state/project/t1_store";
-import { getSlideDeckDetailFromCacheOrFetch } from "~/state/project/t2_slide_decks";
-import { getSlideFromCacheOrFetch } from "~/state/project/t2_slides";
+import { instanceState } from "~/state/instance/t1_store";
+import { getSlideDeckDetailFromCacheOrFetch } from "~/state/products/t2_slide_deck_detail";
+import { getSlideFromCacheOrFetch } from "~/state/products/t2_slides";
 
 type Props = EditorComponentProps<
   {
-    projectId: string;
     deckId: string;
     slideIds: string[];
     deckConfig: SlideDeckConfig;
@@ -85,16 +84,15 @@ export function SlidePresenter(p: Props) {
     if (pages().has(id)) {
       return;
     }
-    const renderedAt = projectState.lastUpdated.slides[id];
+    const renderedAt = instanceState.lastUpdated.slides[id];
     setPage(id, { status: "loading", msg: loadingMsg() }, renderedAt);
 
-    const res = await getSlideFromCacheOrFetch(p.projectId, id);
+    const res = await getSlideFromCacheOrFetch(id);
     if (!res.success) {
       setPage(id, { status: "error", err: res.err }, renderedAt);
       return;
     }
     const renderRes = await convertSlideToPageInputs(
-      p.projectId,
       res.data.slide,
       i,
       p.deckConfig,
@@ -115,14 +113,11 @@ export function SlidePresenter(p: Props) {
   // Live co-editing: refetch the slide-id list when a peer changes the deck,
   // and clamp the index in case the deck shrank.
   createEffect(() => {
-    const _bump = projectState.lastUpdated.slide_decks[p.deckId];
+    const _bump = instanceState.lastUpdated.products[p.deckId];
     const controller = new AbortController();
     onCleanup(() => controller.abort());
     async function load() {
-      const res = await getSlideDeckDetailFromCacheOrFetch(
-        p.projectId,
-        p.deckId,
-      );
+      const res = await getSlideDeckDetailFromCacheOrFetch(p.deckId);
       if (controller.signal.aborted || !res.success) {
         return;
       }
@@ -136,7 +131,7 @@ export function SlidePresenter(p: Props) {
   // preload effect above re-renders whichever evicted slides are still needed.
   createEffect(() => {
     const stale = [...pages()].filter(
-      ([id, entry]) => projectState.lastUpdated.slides[id] !== entry.renderedAt,
+      ([id, entry]) => instanceState.lastUpdated.slides[id] !== entry.renderedAt,
     );
     if (stale.length === 0) {
       return;

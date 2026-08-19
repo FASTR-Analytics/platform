@@ -1,4 +1,4 @@
-import { t3, TC } from "lib";
+import { t3 } from "lib";
 import {
   Button,
   Icon,
@@ -7,9 +7,6 @@ import {
   type IconName,
 } from "panther";
 import { Show, createSignal, type JSX } from "solid-js";
-import { type TourCatalogueEntry } from "./catalogue";
-
-export type TourArea = TourCatalogueEntry["area"];
 
 export type TourCategory = {
   id: string;
@@ -17,73 +14,18 @@ export type TourCategory = {
   iconName: IconName;
 };
 
-// App tab order with the tab nav's own icons, so the sidebar reads as the
-// app's areas.
-export function getAreaItems(): {
-  area: TourArea;
-  heading: string;
-  iconName: IconName;
-}[] {
-  return [
-    {
-      area: "reports",
-      heading: t3({ en: "Reports", fr: "Rapports", pt: "Relatórios" }),
-      iconName: "report",
-    },
-    {
-      area: "decks",
-      heading: t3({
-        en: "Slide decks",
-        fr: "Présentations",
-        pt: "Apresentações",
-      }),
-      iconName: "presentation",
-    },
-    {
-      area: "dashboards",
-      heading: t3({
-        en: "Dashboards",
-        fr: "Tableaux de bord",
-        pt: "Painéis",
-      }),
-      iconName: "layoutDashboard",
-    },
-    {
-      area: "visualizations",
-      heading: t3({
-        en: "Visualizations",
-        fr: "Visualisations",
-        pt: "Visualizações",
-      }),
-      iconName: "chart",
-    },
-    {
-      area: "results_package",
-      heading: t3({
-        en: "Results package",
-        fr: "Paquet de résultats",
-        pt: "Pacote de resultados",
-      }),
-      iconName: "package",
-    },
-    { area: "settings", heading: t3(TC.settings), iconName: "settings" },
-  ];
-}
-
-// Shared shell for the two Tours modals: xl modal, category sidebar on the
-// left, the selected category's tour rows on the right. The category list and
-// each category's content come from the caller (per-project facts in-project;
-// cross-project qualification plus the instance tours at instance level).
+// Presentation shell for the Tours modal: xl modal, category sidebar on the
+// left, the selected category's tour rows on the right. Both the category list
+// and each category's content come from the caller.
 export function TourCatalogueFrame(p: {
   categories: TourCategory[];
-  initialCategory?: string;
   loading: boolean;
   loadingText: string;
   close: () => void;
   renderCategory: (categoryId: string) => JSX.Element;
 }) {
   const [selectedCategory, setSelectedCategory] = createSignal<string>(
-    p.initialCategory ?? p.categories[0]?.id ?? "",
+    p.categories[0]?.id ?? "",
   );
   return (
     <ModalContainer
@@ -143,15 +85,13 @@ export function TourCatalogueFrame(p: {
 }
 
 // One tour row; the caller supplies seen/availability state, the reason shown
-// when unavailable, an optional detail line (e.g. which project a play opens),
-// and the Play handler.
+// when unavailable, and the Play handler.
 export function TourRow(p: {
   label: string;
   description: string;
   seen: boolean;
   available: boolean;
   reason: string;
-  detail?: JSX.Element;
   onPlay: () => void;
 }) {
   return (
@@ -173,7 +113,6 @@ export function TourRow(p: {
           </span>
         </div>
         <div class="text-base-content-muted mt-1 text-sm">{p.description}</div>
-        {p.detail}
         <Show when={!p.available}>
           <div class="text-base-content-muted mt-1 text-sm italic">
             {p.reason}

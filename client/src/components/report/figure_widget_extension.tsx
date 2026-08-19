@@ -21,7 +21,7 @@ export type EmbedResolver = {
   getFigure: (id: string) => FigureBlock | undefined;
   getImage: (id: string) => ImageBlock | undefined;
   assetUrl: (imgFile: string) => string;
-  // Clicking an embed selects it (opens the left-side editor, dashboard-style).
+  // Clicking an embed selects it (opens the left-side editor).
   onSelectEmbed: (kind: EmbedKind, id: string) => void;
   getSelectedId: () => string | undefined;
 };

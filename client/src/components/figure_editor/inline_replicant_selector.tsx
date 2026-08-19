@@ -1,39 +1,30 @@
-import { DisaggregationOption } from "lib";
-import { StateHolderWrapper, createQuery } from "panther";
-import { getPODetailFromCacheorFetch } from "~/state/project/t2_presentation_objects";
-import { ReplicateByOptionsPresentationObjectSelect } from "~/components/ReplicateByOptions";
+import { DisaggregationOption, PackageScope, PresentationObjectConfig, ResultsValue } from "lib";
+import { ReplicateByOptionsSelect } from "./replicate_by_options";
 
 type Props = {
-  projectId: string;
-  presentationObjectId: string;
+  scope: PackageScope;
+  metric: ResultsValue;
+  config: PresentationObjectConfig;
   replicateBy: DisaggregationOption;
   selectedValue: string;
   onChange: (value: string, allOptions?: string[]) => void;
 };
 
+// A labelled replicant Select for hosts that already hold the figure's metric
+// and config — no detail fetch, because there is no row to fetch (D3).
 export function InlineReplicantSelector(p: Props) {
-  const poDetail = createQuery(async () => {
-    return await getPODetailFromCacheorFetch(
-      p.projectId,
-      p.presentationObjectId,
-    );
-  }, "Loading...");
-
   return (
-    <StateHolderWrapper state={poDetail.state()}>
-      {(keyedPoDetail) => (
-        <div class="">
-          <div class="pb-1 text-sm">{"Replicant"}</div>
-          <ReplicateByOptionsPresentationObjectSelect
-            replicateBy={p.replicateBy}
-            config={keyedPoDetail.config}
-            poDetail={keyedPoDetail}
-            selectedReplicantValue={p.selectedValue}
-            setSelectedReplicant={p.onChange}
-            fullWidth
-          />
-        </div>
-      )}
-    </StateHolderWrapper>
+    <div class="">
+      <div class="pb-1 text-sm">{"Replicant"}</div>
+      <ReplicateByOptionsSelect
+        scope={p.scope}
+        metric={p.metric}
+        config={p.config}
+        replicateBy={p.replicateBy}
+        selectedReplicantValue={p.selectedValue}
+        setSelectedReplicant={p.onChange}
+        fullWidth
+      />
+    </div>
   );
 }

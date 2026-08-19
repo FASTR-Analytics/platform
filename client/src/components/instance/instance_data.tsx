@@ -14,6 +14,7 @@ import { AdminAreaLabels } from "../structure/admin_area_labels";
 import { FamilyConfiguration } from "../structure/family_configuration";
 import { HfaWeights } from "../structure/hfa_weights";
 import { GeoJsonManager } from "../instance_geojson/geojson_manager";
+import { AiContextForm } from "./ai_context_form";
 import {
   instanceState,
   maxDepth,
@@ -65,6 +66,10 @@ export function InstanceData(p: Props) {
 
   async function openDhis2Credentials() {
     await openComponent({ element: Dhis2ManageConnection, props: {} });
+  }
+
+  async function openAiContext() {
+    await openComponent({ element: AiContextForm, props: {} });
   }
 
   return (
@@ -228,6 +233,35 @@ export function InstanceData(p: Props) {
                                 </div>
                               )}
                             </For>
+                          </div>
+                        </Show>
+                      </div>
+                    </Card>
+                  </Show>
+                  <Show when={canConfigureSettings()}>
+                    <Card onClick={openAiContext}>
+                      <div class="ui-spy-sm">
+                        <div class="font-700 pb-2 text-sm">
+                          {t3({
+                            en: "AI context",
+                            fr: "Contexte IA",
+                            pt: "Contexto de IA",
+                          })}
+                        </div>
+                        <Show
+                          when={instanceState.aiContext.trim().length > 0}
+                          fallback={
+                            <div class="text-base-content-muted text-xs">
+                              {t3({
+                                en: "Not set",
+                                fr: "Non défini",
+                                pt: "Não definido",
+                              })}
+                            </div>
+                          }
+                        >
+                          <div class="text-base-content-muted line-clamp-3 text-xs">
+                            {instanceState.aiContext}
                           </div>
                         </Show>
                       </div>

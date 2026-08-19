@@ -1,7 +1,7 @@
 import type { Awareness } from "y-protocols/awareness";
 import type * as Y from "yjs";
 import { CollabMarkdownEditor as SharedCollabMarkdownEditor } from "~/components/_shared/collab_markdown_editor";
-import { projectState } from "~/state/project/t1_store";
+import { canEditProducts } from "~/state/instance/t1_store";
 
 // Slide-editor wrapper around the shared CollabMarkdownEditor: injects the
 // slide-deck configure permission so the two slide call sites (collab_text_field,
@@ -19,8 +19,7 @@ export function CollabMarkdownEditor(p: {
     <SharedCollabMarkdownEditor
       yText={p.yText}
       awareness={p.awareness}
-      canEdit={projectState.thisUserPermissions.can_configure_slide_decks &&
-        !projectState.isLocked}
+      canEdit={canEditProducts()}
       onTextChange={p.onTextChange}
       height={p.height}
       plain={p.plain}

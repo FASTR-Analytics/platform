@@ -1,4 +1,10 @@
-import { ReplicantValueOverride, t3 } from "lib";
+import {
+  PackageScope,
+  PresentationObjectConfig,
+  ReplicantValueOverride,
+  ResultsValue,
+  t3,
+} from "lib";
 import {
   FigureInputs,
   FigureHolder,
@@ -6,19 +12,23 @@ import {
   StateHolder,
 } from "panther";
 import { Match, Switch, createEffect, createSignal } from "solid-js";
-import { projectState, runVersionKey } from "~/state/project/t1_store";
-import { getPOFigureInputsFromCacheOrFetch_AsyncGenerator } from "~/state/project/t2_presentation_objects";
-import { NotAvailableBox } from "./NotAvailableBox";
+import { getFigureInputsFromCacheOrFetch_AsyncGenerator } from "~/state/products/t2_figure_data";
+import { NotAvailableBox } from "../NotAvailableBox";
 
 type Props = {
-  projectId: string;
-  presentationObjectId: string;
+  scope: PackageScope;
+  metric: ResultsValue;
+  config: PresentationObjectConfig;
   onClick?: () => void;
   shapeType: "ideal" | "force-aspect-video";
-  repliantOverride?: ReplicantValueOverride;
+  replicantOverride?: ReplicantValueOverride;
 };
 
-export function PresentationObjectMiniDisplay(p: Props) {
+// A live thumbnail of `{ metricId, config }` resolved under one PackageScope —
+// the preset gallery, the Explore cards, any small preview that is not the
+// editor. There is no per-id detail read behind it any more: a figure is not a
+// row (D3), so the caller supplies the metric from the run's authoring context.
+export function FigureMiniDisplay(p: Props) {
   const [figureInputs, setFigureInputs] = createSignal<
     StateHolder<FigureInputs>
   >({
@@ -30,17 +40,23 @@ export function PresentationObjectMiniDisplay(p: Props) {
     }),
   });
 
-  // Monotonic run id: two effect re-runs (PO last_updated bursts) race their
-  // generator loops, and the older one can commit its stale state last — the
-  // guard sits INSIDE the loop because the generator yields multiple times
-  // (same idiom as visualization_editor_inner's itemsFetchRunId).
+  // Monotonic run id: two effect re-runs race their generator loops, and the
+  // older one can commit its stale state last — the guard sits INSIDE the loop
+  // because the generator yields multiple times (same idiom as the editor's
+  // itemsFetchRunId).
   let fetchRunId = 0;
-  async function attemptGetFigureInputs() {
+  async function attemptGetFigureInputs(
+    scope: PackageScope,
+    metric: ResultsValue,
+    config: PresentationObjectConfig,
+    replicantOverride: ReplicantValueOverride | undefined,
+  ) {
     const runId = ++fetchRunId;
-    const iter = getPOFigureInputsFromCacheOrFetch_AsyncGenerator(
-      p.projectId,
-      p.presentationObjectId,
-      p.repliantOverride,
+    const iter = getFigureInputsFromCacheOrFetch_AsyncGenerator(
+      scope,
+      metric,
+      config,
+      replicantOverride,
     );
     for await (const state of iter) {
       if (runId !== fetchRunId) {
@@ -50,17 +66,21 @@ export function PresentationObjectMiniDisplay(p: Props) {
     }
   }
 
+  // Tracked reads before the first await. The pair is part of the cache's
+  // UNIQUENESS key, not a version key, so re-reading it here is the whole
+  // invalidation story: a reattach moves the entry, this effect re-runs, and
+  // the thumbnail refetches under the new package.
   createEffect(() => {
-    void projectState.lastUpdated.presentation_objects[p.presentationObjectId];
-    // Tracked version-key read so mounted thumbnails refetch when a different
-    // run is attached (the caches this renders through version on it, and
-    // cache-internal reads are untracked).
-    runVersionKey(projectState);
-    attemptGetFigureInputs();
+    attemptGetFigureInputs(
+      { runId: p.scope.runId, adminArea2: p.scope.adminArea2 },
+      p.metric,
+      p.config,
+      p.replicantOverride,
+    );
   });
 
   return (
-    <PresentationObjectMiniDisplayStateHolderWrapper
+    <FigureMiniDisplayStateHolderWrapper
       state={figureInputs()}
       shapeType={p.shapeType}
       onClick={p.onClick}
@@ -69,16 +89,16 @@ export function PresentationObjectMiniDisplay(p: Props) {
 }
 
 // Render an ALREADY-RESOLVED FigureInputs as a thumbnail — identical rendering
-// to the presentation-object mini display (zoom, aspect-video, table-aware
-// height, NotAvailableBox errors), but for snapshotted figures that have no
-// live presentation-object id (e.g. dashboard items).
+// to the live mini display (zoom, aspect-video, table-aware height,
+// NotAvailableBox errors), but for snapshotted figures (a stored bundle in a
+// slide card, a version preview) that resolve nothing at display time.
 export function FigureThumbnail(p: {
   figureInputs: FigureInputs;
   shapeType?: "ideal" | "force-aspect-video";
   onClick?: () => void;
 }) {
   return (
-    <PresentationObjectMiniDisplayStateHolderWrapper
+    <FigureMiniDisplayStateHolderWrapper
       state={{ status: "ready", data: p.figureInputs }}
       shapeType={p.shapeType ?? "force-aspect-video"}
       onClick={p.onClick}
@@ -86,7 +106,7 @@ export function FigureThumbnail(p: {
   );
 }
 
-type PresentationObjectMiniDisplayStateHolderWrapperProps = {
+type FigureMiniDisplayStateHolderWrapperProps = {
   state: StateHolder<FigureInputs>;
   onErrorButton?:
     | {
@@ -101,8 +121,8 @@ type PresentationObjectMiniDisplayStateHolderWrapperProps = {
   shapeType: "ideal" | "force-aspect-video";
 };
 
-function PresentationObjectMiniDisplayStateHolderWrapper(
-  p: PresentationObjectMiniDisplayStateHolderWrapperProps,
+function FigureMiniDisplayStateHolderWrapper(
+  p: FigureMiniDisplayStateHolderWrapperProps,
 ) {
   return (
     <Switch>

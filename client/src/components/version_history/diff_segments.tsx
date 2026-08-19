@@ -1,6 +1,6 @@
 import { presenceColorForKey, t3, type VersionEditor } from "lib";
 import { For } from "solid-js";
-import { projectState } from "~/state/project/t1_store";
+import { instanceState } from "~/state/instance/t1_store";
 import { darkMode } from "~/state/t4_ui";
 import type { DiffSegment } from "./version_diff";
 
@@ -18,10 +18,12 @@ const tintAlpha = () => (darkMode() ? "80" : "33");
 // Shared pieces of the diff views (compare-with-current modal + the
 // session-edits view inside the version preview).
 
-/** Display name for a stored editor — prefers the live project-user record
- *  over the name captured at edit time (people get renamed; emails don't). */
+/** Display name for a stored editor — prefers the live INSTANCE roster record
+ *  over the name captured at edit time (people get renamed; emails don't).
+ *  The roster is instance-wide now: with the project tier gone there is no
+ *  narrower set of users a product's editors could come from (D2). */
 export function editorDisplayName(e: VersionEditor): string {
-  const known = projectState.projectUsers.find((u) => u.email === e.email);
+  const known = instanceState.users.find((u) => u.email === e.email);
   const liveName = known
     ? `${known.firstName ?? ""} ${known.lastName ?? ""}`.trim()
     : "";

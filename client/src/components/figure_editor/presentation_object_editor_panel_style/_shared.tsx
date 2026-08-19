@@ -1,11 +1,11 @@
-import { PresentationObjectConfig, PresentationObjectDetail, t3 } from "lib";
+import { PresentationObjectConfig, ResultsValue, t3 } from "lib";
 import { Checkbox, LabelHolder, Slider } from "panther";
 import { Show } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
 import { StyleRevealGroup } from "./_style_components";
 
 type SharedTopProps = {
-  poDetail: PresentationObjectDetail;
+  metric: ResultsValue;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
   usingCells: () => boolean;

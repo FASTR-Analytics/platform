@@ -4,13 +4,13 @@ import { createSignal, createEffect, Show } from "solid-js";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { getQueryStateFromApiResponse, PageHolder, StateHolder, type PageInputs } from "panther";
 import { PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
-import { getSlideFromCacheOrFetch } from "~/state/project/t2_slides";
-import { projectState } from "~/state/project/t1_store";
+import { getSlideFromCacheOrFetch } from "~/state/products/t2_slides";
+import { instanceState, productById } from "~/state/instance/t1_store";
 
 const _defaultConfig = getStartingConfigForSlideDeck("");
 
 type Props = {
-  projectId: string;
+  /** A deck product's id IS its deck id. */
   deckId: string;
   slideId: string;
 };
@@ -23,14 +23,15 @@ export function SlideDeckThumbnail(p: Props) {
 
   let fetchRunId = 0;
   createEffect(async () => {
-    projectState.lastUpdated.slide_decks[p.deckId];
-    projectState.lastUpdated.slides[p.slideId];
-    const deck = projectState.slideDecks.find((d) => d.id === p.deckId);
-    const config = deck?.config ?? _defaultConfig;
+    instanceState.lastUpdated.products[p.deckId];
+    instanceState.lastUpdated.slides[p.slideId];
+    const deck = productById(p.deckId);
+    const config =
+      deck?.type === "slide_deck" ? deck.config : _defaultConfig;
     trackDeep(config);
     const runId = ++fetchRunId;
 
-    const res = await getSlideFromCacheOrFetch(p.projectId, p.slideId);
+    const res = await getSlideFromCacheOrFetch(p.slideId);
     if (runId !== fetchRunId) return;
 
     if (!res.success) {
@@ -38,7 +39,7 @@ export function SlideDeckThumbnail(p: Props) {
       return;
     }
 
-    const renderRes = await convertSlideToPageInputs(p.projectId, res.data.slide, undefined, config);
+    const renderRes = await convertSlideToPageInputs(res.data.slide, undefined, config);
     if (runId !== fetchRunId) return;
     setPageInputs(getQueryStateFromApiResponse(renderRes));
   });

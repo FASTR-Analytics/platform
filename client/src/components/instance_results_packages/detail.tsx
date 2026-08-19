@@ -73,7 +73,7 @@ export function RunCatalogDetailPane(p: {
         pt: "Não é possível eliminar enquanto estiver fixado",
       });
     }
-    if (p.run.attachedProjects.length > 0) {
+    if (p.run.attachedProducts.length > 0) {
       return t3({
         en: "Cannot delete while in use",
         fr: "Suppression impossible tant qu'il est utilisé",
@@ -95,22 +95,17 @@ export function RunCatalogDetailPane(p: {
     () => serverActions.deleteRun({ run_id: p.run.id }),
   );
 
-  // Pin / unpin (SYSTEM_08 "The pinned package + followers"): an explicit
-  // act on a ready package. Pinning physically repoints every project that
-  // follows the pin, so the confirm lists them first and the result reports
-  // which moved, were skipped (locked) or failed — and whether a later
-  // pin-move superseded this one midway. Unpin is run-keyed and moves
-  // nothing. No refetch on success: the pin push + catalogue nonce update the
+  // Pin / unpin: an explicit act on a ready package. The pin moves NO product
+  // row — there are no followers (D5 overrules the SYSTEM_08 follower model).
+  // It serves exactly three things: the /mcp door, the Explore tab's default
+  // package, and the DEFAULT package for a NEW product. So the confirm has
+  // nothing to list and the result has nothing to report but whether the flag
+  // landed. No refetch on success: the pin push + catalogue nonce update the
   // store, and both badges/buttons derive from `instanceState.pinnedRunId`.
   const isPinned = () => p.run.id === instanceState.pinnedRunId;
 
   const pinPackage = createButtonAction(
     async () => {
-      const followersRes = await serverActions.listFollowPinnedProjects({});
-      if (followersRes.success === false) {
-        return followersRes;
-      }
-      const followers = followersRes.data;
       const ok = await openConfirm({
         title: t3({
           en: "Pin this results package?",
@@ -121,43 +116,18 @@ export function RunCatalogDetailPane(p: {
           <div class="ui-spy-sm">
             <div>
               {t3({
-                en: "It becomes the instance's pinned package.",
-                fr: "Il devient le paquet épinglé de l'instance.",
-                pt: "Passa a ser o pacote fixado da instância.",
+                en: "It becomes the instance's pinned package: the default for new products, the Explore tab's starting package, and what the MCP connector reads.",
+                fr: "Il devient le paquet épinglé de l'instance : la valeur par défaut des nouveaux produits, le paquet de départ de l'onglet Explorer et ce que lit le connecteur MCP.",
+                pt: "Passa a ser o pacote fixado da instância: a predefinição para novos produtos, o pacote inicial do separador Explorar e o que o conector MCP lê.",
               })}
             </div>
-            <Show
-              when={followers.length > 0}
-              fallback={
-                <div>
-                  {t3({
-                    en: "No project follows the pinned package, so no project is switched.",
-                    fr: "Aucun projet ne suit le paquet épinglé, donc aucun projet n'est basculé.",
-                    pt: "Nenhum projeto segue o pacote fixado, pelo que nenhum projeto é mudado.",
-                  })}
-                </div>
-              }
-            >
-              <div>
-                {t3({
-                  en: "These projects follow the pinned package and are switched to it now:",
-                  fr: "Ces projets suivent le paquet épinglé et y sont basculés maintenant :",
-                  pt: "Estes projetos seguem o pacote fixado e mudam para ele agora:",
-                })}
-              </div>
-              <ul class="list-disc pl-5">
-                <For each={followers}>
-                  {(f) => (
-                    <li>
-                      {f.label}
-                      <Show when={f.isLocked}>
-                        {` (${t3({ en: "locked — skipped", fr: "verrouillé — ignoré", pt: "bloqueado — ignorado" })})`}
-                      </Show>
-                    </li>
-                  )}
-                </For>
-              </ul>
-            </Show>
+            <div>
+              {t3({
+                en: "Existing products are not moved. Each one keeps the package it is attached to until someone reattaches it.",
+                fr: "Les produits existants ne sont pas déplacés. Chacun conserve son paquet jusqu'à ce que quelqu'un le rattache.",
+                pt: "Os produtos existentes não são movidos. Cada um mantém o seu pacote até alguém o reatribuir.",
+              })}
+            </div>
           </div>
         ),
         confirmButtonLabel: t3({ en: "Pin", fr: "Épingler", pt: "Fixar" }),
@@ -168,55 +138,23 @@ export function RunCatalogDetailPane(p: {
       return await serverActions.pinResultsPackage({ run_id: p.run.id });
     },
     async (result: PinResultsPackageResult | null) => {
-      if (result === null) {
+      if (result === null || result.pinned) {
         return;
       }
-      const lines: string[] = [];
-      if (result.repointed.length > 0) {
-        lines.push(
-          `${t3({ en: "Projects updated", fr: "Projets mis à jour", pt: "Projetos atualizados" })}: ${result.repointed.join(", ")}`,
-        );
-      }
-      if (result.skippedLocked.length > 0) {
-        lines.push(
-          `${t3({ en: "Skipped (locked)", fr: "Ignorés (verrouillés)", pt: "Ignorados (bloqueados)" })}: ${result.skippedLocked.join(", ")}`,
-        );
-      }
-      if (result.failed.length > 0) {
-        lines.push(
-          `${t3({ en: "Failed to update", fr: "Échec de la mise à jour", pt: "Falha ao atualizar" })}: ${result.failed.join(", ")}`,
-        );
-      }
-      if (result.supersededMidway) {
-        lines.push(
-          t3({
-            en: "The pinned package was changed again while projects were being switched; the newer pin takes over.",
-            fr: "Le paquet épinglé a de nouveau changé pendant le basculement des projets ; le nouvel épinglage prend le relais.",
-            pt: "O pacote fixado foi alterado novamente enquanto os projetos eram mudados; a fixação mais recente prevalece.",
-          }),
-        );
-      }
-      if (lines.length === 0) {
-        lines.push(
-          t3({
-            en: "No project follows the pinned package, so no project was switched.",
-            fr: "Aucun projet ne suit le paquet épinglé, donc aucun projet n'a été basculé.",
-            pt: "Nenhum projeto segue o pacote fixado, pelo que nenhum projeto foi mudado.",
-          }),
-        );
-      }
+      // Not pinned means another pin-move or an unpin landed first — the
+      // newer act wins, and the admin needs to know their click did not.
       await openAlert({
         title: t3({
-          en: "Package pinned",
-          fr: "Paquet épinglé",
-          pt: "Pacote fixado",
+          en: "Pin not applied",
+          fr: "Épinglage non appliqué",
+          pt: "Fixação não aplicada",
         }),
-        text: (
-          <div class="ui-spy-sm">
-            <For each={lines}>{(line) => <div>{line}</div>}</For>
-          </div>
-        ),
-        intent: result.failed.length > 0 ? "danger" : undefined,
+        text: t3({
+          en: "The pinned package changed while this request was running; the newer pin takes over.",
+          fr: "Le paquet épinglé a changé pendant l'exécution de cette requête ; le nouvel épinglage prend le relais.",
+          pt: "O pacote fixado mudou enquanto este pedido decorria; a fixação mais recente prevalece.",
+        }),
+        intent: "danger",
       });
     },
   );
@@ -281,16 +219,16 @@ export function RunCatalogDetailPane(p: {
 
   const usageLine = (
     <Show
-      when={p.run.attachedProjects.length > 0}
+      when={p.run.attachedProducts.length > 0}
       fallback={
         <div
           class="ui-text-caption"
           data-tour="instance-results-packages-usage"
         >
           {t3({
-            en: "Not attached to any project",
-            fr: "Rattaché à aucun projet",
-            pt: "Não anexado a nenhum projeto",
+            en: "Not used by any product",
+            fr: "Utilisé par aucun produit",
+            pt: "Não utilizado por nenhum produto",
           })}
         </div>
       }
@@ -299,7 +237,7 @@ export function RunCatalogDetailPane(p: {
         <span class="font-700">
           {t3({ en: "In use by", fr: "Utilisé par", pt: "Em uso por" })}:
         </span>{" "}
-        {p.run.attachedProjects.map((project) => project.label).join(", ")}
+        {p.run.attachedProducts.map((product) => product.label).join(", ")}
       </Callout>
     </Show>
   );

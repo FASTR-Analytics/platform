@@ -4,7 +4,6 @@ import {
   IneffectiveDisaggregator,
   IneffectiveReason,
   PresentationObjectConfig,
-  PresentationObjectDetail,
   ResultsValue,
   TC,
   getNextAvailableDisaggregationDisplayOption,
@@ -21,7 +20,7 @@ import { SetStoreFunction } from "solid-js/store";
 import { getDisplayDisaggregationLabel } from "~/state/instance/_util_disaggregation_label";
 
 type DisaggregationSectionProps = {
-  poDetail: PresentationObjectDetail;
+  metric: ResultsValue;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
   allDisaggregationOptions: ResultsValue["disaggregationOptions"];
@@ -41,7 +40,7 @@ export function DisaggregationSection(p: DisaggregationSectionProps) {
         {t3({ en: "Display (disaggregate)", fr: "Affichage (désagréger)", pt: "Apresentação (desagregar)" })}
       </div>
 
-      <Show when={p.poDetail.resultsValue.valueProps.length > 1}>
+      <Show when={p.metric.valueProps.length > 1}>
         <Show
           when={p.hasMultipleValueProps}
           fallback={
@@ -71,7 +70,7 @@ export function DisaggregationSection(p: DisaggregationSectionProps) {
         {(disOpt) => (
           <DisaggregationOption
             disOpt={disOpt}
-            poDetail={p.poDetail}
+            metric={p.metric}
             tempConfig={p.tempConfig}
             setTempConfig={p.setTempConfig}
             singleValueDims={p.singleValueDims}
@@ -135,7 +134,7 @@ function DataValuesDisaggregation(p: DataValuesDisaggregationProps) {
 
 type DisaggregationOptionProps = {
   disOpt: DisaggregationSectionProps["allDisaggregationOptions"][number];
-  poDetail: PresentationObjectDetail;
+  metric: ResultsValue;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
   singleValueDims: ReadonlySet<DisaggregationOptionValue>;
@@ -180,7 +179,7 @@ function DisaggregationOption(p: DisaggregationOptionProps) {
         {(ineff) => (
           <div class="">
             <Checkbox
-              label={t3(getDisplayDisaggregationLabel(p.disOpt.value, p.poDetail.resultsValue.datasetFamily))}
+              label={t3(getDisplayDisaggregationLabel(p.disOpt.value, p.metric.datasetFamily))}
               checked={false}
               disabled={true}
               onChange={() => {}}
@@ -194,7 +193,7 @@ function DisaggregationOption(p: DisaggregationOptionProps) {
       <Match when={!p.disOpt.isRequired}>
         <div class="ui-spy-sm">
           <Checkbox
-            label={t3(getDisplayDisaggregationLabel(p.disOpt.value, p.poDetail.resultsValue.datasetFamily))}
+            label={t3(getDisplayDisaggregationLabel(p.disOpt.value, p.metric.datasetFamily))}
             checked={p.tempConfig.d.disaggregateBy.some(
               (d) => d.disOpt === p.disOpt.value,
             )}
@@ -202,7 +201,7 @@ function DisaggregationOption(p: DisaggregationOptionProps) {
               if (checked) {
                 const disDisplayOpt =
                   getNextAvailableDisaggregationDisplayOption(
-                    p.poDetail.resultsValue,
+                    p.metric,
                     p.tempConfig,
                     p.disOpt.value,
                     p.effectiveValueProps,
@@ -229,7 +228,7 @@ function DisaggregationOption(p: DisaggregationOptionProps) {
                 <DisaggregationOptionSettings
                   disOpt={p.disOpt}
                   keyedDis={keyedDis}
-                  poDetail={p.poDetail}
+                  metric={p.metric}
                   tempConfig={p.tempConfig}
                   setTempConfig={p.setTempConfig}
                 />
@@ -244,7 +243,7 @@ function DisaggregationOption(p: DisaggregationOptionProps) {
             label={
               <div class="flex flex-wrap items-center gap-x-1">
                 <span class="">
-                  {t3(getDisplayDisaggregationLabel(p.disOpt.value, p.poDetail.resultsValue.datasetFamily))}
+                  {t3(getDisplayDisaggregationLabel(p.disOpt.value, p.metric.datasetFamily))}
                 </span>
                 <span class="text-xs">
                   (
@@ -281,7 +280,7 @@ function DisaggregationOption(p: DisaggregationOptionProps) {
                 <DisaggregationOptionSettings
                   disOpt={p.disOpt}
                   keyedDis={keyedDis}
-                  poDetail={p.poDetail}
+                  metric={p.metric}
                   tempConfig={p.tempConfig}
                   setTempConfig={p.setTempConfig}
                 />
@@ -297,7 +296,7 @@ function DisaggregationOption(p: DisaggregationOptionProps) {
 type DisaggregationOptionSettingsProps = {
   disOpt: DisaggregationSectionProps["allDisaggregationOptions"][number];
   keyedDis: PresentationObjectConfig["d"]["disaggregateBy"][number];
-  poDetail: PresentationObjectDetail;
+  metric: ResultsValue;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
 };
@@ -327,7 +326,7 @@ function DisaggregationOptionSettings(p: DisaggregationOptionSettingsProps) {
           is explicable. */}
       <Show when={isRollupCandidateDimension(p.tempConfig, p.keyedDis)}>
         <Show
-          when={isRollupEligibleResultsValue(p.poDetail.resultsValue)}
+          when={isRollupEligibleResultsValue(p.metric)}
           fallback={
             <div class="flex flex-col items-end">
               <Checkbox

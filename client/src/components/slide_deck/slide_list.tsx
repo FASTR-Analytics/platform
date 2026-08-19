@@ -1,7 +1,8 @@
 import {
   t3,
   TC,
-  type ProjectState,
+  type PackageScope,
+  type RunAuthoringContext,
   type Slide,
   type SlideDeckConfig,
   getDefaultCoverSlide,
@@ -17,6 +18,8 @@ import {
   MenuTriggerWrapper,
   Slider,
   createDeleteAction,
+  openAlert,
+  openComponent,
 } from "panther";
 import SortableVendor, {
   SortableJs,
@@ -25,13 +28,25 @@ import { createEffect, createSignal, on, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { SlideCard } from "./slide_card";
 import { PresenceAvatars } from "./presence_avatars";
-import { otherPeers } from "~/state/project/collab";
+import { otherPeers } from "~/state/instance/collab";
 import { setShowAi, showAi } from "~/state/t4_ui";
-import { projectAIViewController } from "~/components/project_ai/ai_views";
+import { copilotViewController } from "~/components/copilot/ai_views";
+import { CopySlidesToDeckModal } from "./copy_slides_to_deck_modal";
+import {
+  collectDeckStaleFigures,
+  updateAllDeckFigures,
+} from "./deck_stale_figures";
+import {
+  ProductScopeBadge,
+  UpdateAllFiguresButton,
+} from "~/components/figure_editor/stale_figure_badge";
 
 type Props = {
-  projectState: ProjectState;
-  deckId: string;
+  productId: string;
+  /** The product's pair, live from T1. undefined only while the row is
+   *  in flight (a just-created product, or a reconnecting SSE). */
+  scope: PackageScope | undefined;
+  authoringContext: RunAuthoringContext | undefined;
   slideIds: string[];
   isLoading: boolean;
   deckLabel: string;
@@ -39,6 +54,7 @@ type Props = {
   onEditSlide: (slideId: string) => Promise<void>;
   handleClose: () => Promise<void>;
   handleOpenSettings: () => Promise<void>;
+  handleOpenProductSettings: () => Promise<void>;
   download: () => Promise<void>;
   share: () => Promise<void>;
   present: () => Promise<void>;
@@ -57,7 +73,7 @@ export function SlideList(p: Props) {
   function updateSelection(newSelected: Set<string>) {
     setSelectedIds(newSelected);
     p.setSelectedSlideIds(Array.from(newSelected));
-    projectAIViewController.notify("selected_slides", {
+    copilotViewController.notify("selected_slides", {
       slideIds: Array.from(newSelected),
     });
   }
@@ -66,7 +82,7 @@ export function SlideList(p: Props) {
     setSelectedIds(new Set<string>());
     setLastSelectedIndex(null);
     p.setSelectedSlideIds([]);
-    projectAIViewController.notify("selected_slides", { slideIds: [] });
+    copilotViewController.notify("selected_slides", { slideIds: [] });
     document.querySelectorAll(".sortable-selected").forEach((el) => {
       SortableJs.utils.deselect(el);
     });
@@ -240,8 +256,7 @@ export function SlideList(p: Props) {
       confirmText,
       () =>
         serverActions.deleteSlides({
-          projectId: p.projectState.id,
-          deck_id: p.deckId,
+          deck_id: p.productId,
           slideIds: slideIdsToDelete,
         }),
       () => {
@@ -265,8 +280,7 @@ export function SlideList(p: Props) {
       : [slideId];
 
     const res = await serverActions.duplicateSlides({
-      projectId: p.projectState.id,
-      deck_id: p.deckId,
+      deck_id: p.productId,
       slideIds: slideIdsToDuplicate,
     });
 
@@ -333,8 +347,7 @@ export function SlideList(p: Props) {
     if (movedIds.length === 0 || !targetPosition) return;
 
     const res = await serverActions.moveSlides({
-      projectId: p.projectState.id,
-      deck_id: p.deckId,
+      deck_id: p.productId,
       slideIds: movedIds,
       position: targetPosition,
     });
@@ -368,8 +381,7 @@ export function SlideList(p: Props) {
     const afterSlideId = "after" in position ? position.after : null;
 
     const res = await serverActions.createSlide({
-      projectId: p.projectState.id,
-      deck_id: p.deckId,
+      deck_id: p.productId,
       position,
       slide,
     });
@@ -408,6 +420,94 @@ export function SlideList(p: Props) {
     },
   ];
 
+  // ── Stale figures (D4) ──────────────────────────────────────────────────────
+  // Recomputed whenever the deck's slide set changes or the product is
+  // reattached / rescoped. The slides are already in the per-slide cache
+  // (the cards render from it), so this is a walk, not a fetch storm.
+  const [staleCount, setStaleCount] = createSignal(0);
+  const [updatingFigures, setUpdatingFigures] = createSignal(false);
+
+  // Monotonic run id: the walk awaits per slide, so two rapid re-runs (a
+  // reattach while slides are still loading) race — the older one must not
+  // commit its count last.
+  let staleScanId = 0;
+  createEffect(() => {
+    const scope = p.scope;
+    const slideIds = [...p.slideIds];
+    const scanId = ++staleScanId;
+    if (!scope) {
+      setStaleCount(0);
+      return;
+    }
+    const pair: PackageScope = {
+      runId: scope.runId,
+      adminArea2: scope.adminArea2,
+    };
+    void (async () => {
+      const stale = await collectDeckStaleFigures(slideIds, pair);
+      if (scanId !== staleScanId) return;
+      setStaleCount(stale.length);
+    })();
+  });
+
+  async function rescanStaleFigures() {
+    const scope = p.scope;
+    if (!scope) return;
+    const scanId = ++staleScanId;
+    const stale = await collectDeckStaleFigures([...p.slideIds], {
+      runId: scope.runId,
+      adminArea2: scope.adminArea2,
+    });
+    if (scanId !== staleScanId) return;
+    setStaleCount(stale.length);
+  }
+
+  async function updateAllFigures() {
+    const scope = p.scope;
+    const context = p.authoringContext;
+    if (!scope || !context) return;
+    setUpdatingFigures(true);
+    const res = await updateAllDeckFigures(
+      [...p.slideIds],
+      { runId: scope.runId, adminArea2: scope.adminArea2 },
+      context,
+    );
+    setUpdatingFigures(false);
+    await rescanStaleFigures();
+    if (res.failures.length > 0) {
+      // Never blocking: the figures that could not move keep their old bundle
+      // and their own per-figure reason in the slide editor.
+      await openAlert({
+        text: t3({
+          en: `Updated ${res.updated} figure(s). ${res.failures.length} could not be updated — open the slide to see why.`,
+          fr: `${res.updated} figure(s) mise(s) à jour. ${res.failures.length} n'ont pas pu l'être — ouvrez la diapositive pour voir pourquoi.`,
+          pt: `${res.updated} figura(s) atualizada(s). ${res.failures.length} não puderam ser atualizadas — abra o diapositivo para ver porquê.`,
+        }),
+      });
+    }
+  }
+
+  // The only cross-product figure reuse there is (D3): copy whole slides,
+  // bundles verbatim. Enabled only with a selection.
+  async function copyToDeck() {
+    const slideIds = Array.from(selectedIds());
+    if (slideIds.length === 0) return;
+    const res = await openComponent({
+      element: CopySlidesToDeckModal,
+      props: { sourceDeckId: p.productId, slideIds },
+    });
+    if (!res) return;
+    clearSelection();
+    await openAlert({
+      text: t3({
+        en: `Copied ${res.newSlideIds.length} slide(s).`,
+        fr: `${res.newSlideIds.length} diapositive(s) copiée(s).`,
+        pt: `${res.newSlideIds.length} diapositivo(s) copiado(s).`,
+      }),
+      intent: "success",
+    });
+  }
+
   const menuItems = (): MenuItem[] => [
     {
       label: t3(TC.download),
@@ -420,16 +520,36 @@ export function SlideList(p: Props) {
       onClick: () => p.share(),
     },
     {
+      label:
+        selectedIds().size > 0
+          ? t3({
+            en: `Copy ${selectedIds().size} slide(s) to deck…`,
+            fr: `Copier ${selectedIds().size} diapositive(s) vers une présentation…`,
+            pt: `Copiar ${selectedIds().size} diapositivo(s) para apresentação…`,
+          })
+          : t3({
+            en: "Copy to deck…",
+            fr: "Copier vers une présentation…",
+            pt: "Copiar para apresentação…",
+          }),
+      icon: "copy",
+      disabled: selectedIds().size === 0,
+      onClick: () => copyToDeck(),
+    },
+    {
       label: t3({ en: "Version history", fr: "Historique des versions", pt: "Histórico de versões" }),
       icon: "rotate",
       onClick: () => p.openVersionHistory(),
     },
-    // { type: "divider" },
-    // {
-    //   label: "Batch edit visualizations",
-    //   icon: "pencil",
-    //   onClick: () => {},
-    // },
+    {
+      label: t3({
+        en: "Product settings (package, scope, folder)",
+        fr: "Paramètres du produit (package, portée, dossier)",
+        pt: "Definições do produto (pacote, âmbito, pasta)",
+      }),
+      icon: "settings",
+      onClick: () => p.handleOpenProductSettings(),
+    },
   ];
 
   return (
@@ -442,8 +562,19 @@ export function SlideList(p: Props) {
           onBack={() => p.handleClose()}
         >
           <div class="ui-gap-sm flex items-center">
+            {/* Which package and scope this product serves from (D16) — the
+                thing every figure in it resolves under, and the reference the
+                stale count is measured against. */}
+            <Show when={p.scope} keyed>
+              {(keyedScope) => <ProductScopeBadge scope={keyedScope} />}
+            </Show>
+            <UpdateAllFiguresButton
+              count={staleCount()}
+              busy={updatingFigures()}
+              onClick={updateAllFigures}
+            />
             <PresenceAvatars
-              peers={otherPeers().filter((pe) => pe.deckId === p.deckId)}
+              peers={otherPeers().filter((pe) => pe.deckId === p.productId)}
             />
             <Show when={p.slideIds.length > 0}>
               <div class="w-32">
@@ -503,7 +634,6 @@ export function SlideList(p: Props) {
     >
       <div
         class="ui-pad bg-base-200 h-full w-full overflow-auto"
-        data-page-cursor-surface={`deck:${p.deckId}`}
         onClick={(e) => {
           // Clear selection when clicking outside slide cards
           const target = e.target as HTMLElement;
@@ -563,8 +693,7 @@ export function SlideList(p: Props) {
                 sortableSlideItems().findIndex((i) => i.id === item.id);
               return (
                 <SlideCard
-                  projectId={p.projectState.id}
-                  deckId={p.deckId}
+                  deckId={p.productId}
                   slideId={item.id}
                   index={index()}
                   isSelected={selectedIds().has(item.id)}

@@ -1,4 +1,4 @@
-import { ItemsHolderResultsObject, t3, TC } from "lib";
+import { ItemsHolderResultsObject, PackageScope, t3, TC } from "lib";
 import {
   Button,
   Csv,
@@ -9,15 +9,18 @@ import {
   TableFromCsv,
   createQuery,
 } from "panther";
-import { createMemo, Match, Show, Switch } from "solid-js";
+import { createMemo, Match, Switch } from "solid-js";
 import { _SERVER_HOST } from "~/server_actions";
 import { serverActions } from "~/server_actions";
 
+// The RAW results file behind a metric, read straight from the run directory
+// under the caller's PackageScope (D7). Scoped, not national: the read applies
+// the same area filter the figure queries do, so an AA2 product's raw preview
+// shows that product's rows — which is what the project lens used to supply.
 export function ViewResultsObject(
   p: EditorComponentProps<
     {
-      projectId: string;
-      runId: string | null;
+      scope: PackageScope;
       moduleId: string;
       resultsObjectId: string;
     },
@@ -27,9 +30,10 @@ export function ViewResultsObject(
   // Query state
 
   const items = createQuery<ItemsHolderResultsObject>(async () => {
-    return await serverActions.getResultsObjectItems({
-      projectId: p.projectId,
+    return await serverActions.getRunResultsObjectItems({
+      run_id: p.scope.runId,
       results_object_id: p.resultsObjectId,
+      adminArea2: p.scope.adminArea2,
     });
   }, t3({ en: "Loading results file...", fr: "Chargement du fichier de résultats...", pt: "A carregar o ficheiro de resultados..." }));
 
@@ -43,18 +47,14 @@ export function ViewResultsObject(
           subheading={p.resultsObjectId}
         >
           <div class="ui-gap-sm flex items-center">
-            <Show when={p.runId} keyed>
-              {(keyedRunId) => (
-                <Button
-                  href={`${_SERVER_HOST}/${keyedRunId}/outputs/${p.moduleId}/${p.resultsObjectId}?t=${Date.now()}`}
-                  intent="success"
-                  download={p.resultsObjectId}
-                  iconName="download"
-                >
-                  {t3(TC.download)}
-                </Button>
-              )}
-            </Show>
+            <Button
+              href={`${_SERVER_HOST}/${p.scope.runId}/outputs/${p.moduleId}/${p.resultsObjectId}?t=${Date.now()}`}
+              intent="success"
+              download={p.resultsObjectId}
+              iconName="download"
+            >
+              {t3(TC.download)}
+            </Button>
             <Button iconName="refresh" onClick={items.fetch} />
           </div>
         </HeadingBar>

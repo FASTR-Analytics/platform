@@ -9,9 +9,9 @@ import { Show } from "solid-js";
 import { _SERVER_HOST } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 
-// Results-package status display, shared by the instance catalogue and the
-// project's Results package surface — the same run shown from two places
-// must read identically.
+// Results-package status display, shared by every surface that lists or
+// explores a package — the same run shown from two places must read
+// identically.
 
 // Who may explore what a package CONTAINS (Tim's ruling 2026-08-18): a
 // package is instance-level data, so the instance data bits decide, whichever
@@ -78,7 +78,7 @@ export function RunStatusBadge(p: { status: RunCatalogStatus }) {
 }
 
 // The instance's pinned package (SYSTEM_08) — same mark wherever a
-// package is listed: catalogue sidebar + detail, project card + picker.
+// package is listed: catalogue sidebar + detail, product settings picker.
 export function PinnedBadge() {
   return (
     <Badge intent="primary" variant="solid">

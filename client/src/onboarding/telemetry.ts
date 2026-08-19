@@ -1,6 +1,5 @@
 import type { TourManagerEvent } from "@njwse/roadtrip";
 import { serverActions } from "~/server_actions";
-import { projectState } from "~/state/project/t1_store";
 
 // Every tour manager reports here (roadtrip's onEvent). Only start / finish /
 // abort are sent — the server records one user_logs row per event under
@@ -10,7 +9,6 @@ import { projectState } from "~/state/project/t1_store";
 // the run got. Fire-and-forget — telemetry must never surface in the UI.
 export function reportTourEvent(e: TourManagerEvent): void {
   if (e.type === "step") return;
-  const projectId = projectState.isReady && projectState.id ? projectState.id : undefined;
   const body = {
     tourId: e.tourId,
     event: e.type,
@@ -19,7 +17,6 @@ export function reportTourEvent(e: TourManagerEvent): void {
     ...(e.type === "abort"
       ? { stepIndex: e.stepIndex, stepId: e.stepId, reason: e.reason }
       : {}),
-    ...(projectId ? { projectId } : {}),
   };
   serverActions.recordTourEvent(body).catch(() => {});
 }

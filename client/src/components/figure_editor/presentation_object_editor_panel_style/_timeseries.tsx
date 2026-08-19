@@ -2,7 +2,7 @@ import {
   type IndicatorFormat,
   PeriodOption,
   PresentationObjectConfig,
-  PresentationObjectDetail,
+  ResultsValue,
   get_PERIOD_OPTION_MAP,
   t3,
 } from "lib";
@@ -19,7 +19,7 @@ import { ChartLikeControls } from "./_chart_like_controls";
 import { StyleRevealGroup, StyleSection } from "./_style_components";
 
 type Props = {
-  poDetail: PresentationObjectDetail;
+  metric: ResultsValue;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
   editCustomSeriesStyles: () => Promise<void>;
@@ -39,7 +39,7 @@ type TimeseriesMode =
 
 export function TimeseriesStyleControls(p: Props) {
   const periodRadioOptions = () => {
-    return p.poDetail.resultsValue.disaggregationOptions
+    return p.metric.disaggregationOptions
       .filter(
         (d) =>
           d.value === "period_id" ||
@@ -476,7 +476,7 @@ export function TimeseriesStyleControls(p: Props) {
             </>
           </StyleSection>
           <ChartLikeControls
-            poDetail={p.poDetail}
+            metric={p.metric}
             tempConfig={p.tempConfig}
             setTempConfig={p.setTempConfig}
             editCustomSeriesStyles={p.editCustomSeriesStyles}

@@ -6,7 +6,7 @@ import { render } from "solid-js/web";
 // Collab connection banner — "Connection lost — reconnecting…" / "Live again"
 // =============================================================================
 //
-// The collab WebSocket client (state/project/collab.ts) reports its connection
+// The collab WebSocket client (state/instance/collab.ts) reports its connection
 // transitions here; this module renders a small top-center pill so a user whose
 // editors have silently fallen back to single-user mode KNOWS their edits are
 // not syncing. States:

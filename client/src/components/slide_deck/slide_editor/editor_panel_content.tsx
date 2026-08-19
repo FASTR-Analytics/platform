@@ -4,6 +4,9 @@ import type {
   ContentSlideSplit,
   ContentSlideSplitFill,
   FigureBlock,
+  FigureBundle,
+  PackageScope,
+  RunAuthoringContext,
   TextBlock,
   TextSizeKey,
   ImageBlock,
@@ -30,11 +33,17 @@ import { convertBlockType } from "../slide_transforms/convert_block_type";
 import { MarkdownGuide } from "~/components/_markdown_guide";
 import { CollabMarkdownEditor } from "./collab_markdown_editor";
 import { CollabTextField } from "./collab_text_field";
-import type { SlideSession } from "~/state/project/collab";
+import type { SlideSession } from "~/state/instance/collab";
+import { StaleFigureBadge } from "~/components/figure_editor/stale_figure_badge";
+import { canEditProducts } from "~/state/instance/t1_store";
 import type * as Y from "yjs";
 
 type Props = {
-  projectId: string;
+  scope: PackageScope;
+  authoringContext: RunAuthoringContext;
+  staleFigureBundle: FigureBundle | undefined;
+  figureUpdateError: string | undefined;
+  onUpdateFigure: () => Promise<void>;
   tempSlide: ContentSlide;
   setTempSlide: SetStoreFunction<any>;
   selectedBlockId: string | undefined;
@@ -49,8 +58,7 @@ type Props = {
   setContentTab: Setter<"slide" | "block">;
   onShowLayoutMenu: (x: number, y: number) => void;
   onEditVisualization: () => void;
-  onSelectVisualization: () => void;
-  onCreateVisualization: () => void;
+  onInsertFigure: () => void;
   showHeaderLogosByDefault: boolean;
   showFooterLogosByDefault: boolean;
   hasGlobalFooterText: boolean;
@@ -691,34 +699,50 @@ export function SlideEditorPanelContent(p: Props) {
                         const hasBundle = () => block().bundle !== undefined;
                         return (
                           <div class="ui-gap-sm flex flex-col">
+                            {/* D4: this figure came from a different package
+                                or scope than the product now serves from.
+                                Shown, never blocking — a mixed-package deck is
+                                a deliberate state. */}
+                            <Show when={p.staleFigureBundle} keyed>
+                              {(keyedBundle) => (
+                                <StaleFigureBadge
+                                  bundle={keyedBundle}
+                                  scope={p.scope}
+                                  authoringContext={p.authoringContext}
+                                  onUpdated={() => void p.onUpdateFigure()}
+                                  canEdit={canEditProducts()}
+                                />
+                              )}
+                            </Show>
+                            <Show when={p.figureUpdateError} keyed>
+                              {(keyedErr) => (
+                                <div class="text-danger text-xs">{keyedErr}</div>
+                              )}
+                            </Show>
                             <Show when={hasBundle()}>
                               <Button onClick={() => p.onEditVisualization()}>
                                 {t3({
-                                  en: "Edit Visualization",
-                                  fr: "Modifier la visualisation",
-                                  pt: "Editar visualização",
+                                  en: "Edit figure",
+                                  fr: "Modifier la figure",
+                                  pt: "Editar figura",
                                 })}
                               </Button>
                             </Show>
-                            <Button onClick={() => p.onSelectVisualization()}>
+                            {/* ONE authoring path (D3): the product run's
+                                presets and the metric wizard. There is no
+                                visualization to pick. */}
+                            <Button onClick={() => p.onInsertFigure()}>
                               {hasBundle()
                                 ? t3({
-                                    en: "Switch Visualization",
-                                    fr: "Changer de visualisation",
-                                    pt: "Trocar visualização",
+                                    en: "Replace figure…",
+                                    fr: "Remplacer la figure…",
+                                    pt: "Substituir figura…",
                                   })
                                 : t3({
-                                    en: "Select Visualization",
-                                    fr: "Sélectionner la visualisation",
-                                    pt: "Selecionar visualização",
+                                    en: "Insert figure…",
+                                    fr: "Insérer une figure…",
+                                    pt: "Inserir figura…",
                                   })}
-                            </Button>
-                            <Button onClick={() => p.onCreateVisualization()}>
-                              {t3({
-                                en: "Create New Visualization",
-                                fr: "Créer une nouvelle visualisation",
-                                pt: "Criar nova visualização",
-                              })}
                             </Button>
                             <Show when={hasBundle()}>
                               <Button
@@ -731,9 +755,9 @@ export function SlideEditorPanelContent(p: Props) {
                                 }
                               >
                                 {t3({
-                                  en: "Remove Visualization",
-                                  fr: "Supprimer la visualisation",
-                                  pt: "Remover visualização",
+                                  en: "Remove figure",
+                                  fr: "Supprimer la figure",
+                                  pt: "Remover figura",
                                 })}
                               </Button>
                             </Show>

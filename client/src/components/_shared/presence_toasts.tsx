@@ -90,21 +90,19 @@ function PresenceToastHost() {
 
 // ── Join/leave detection ──────────────────────────────────────────────────────
 
-type Scope = { key: string; kind: "deck" | "report" | "po" } | null;
+// Presence is keyed by PRODUCT (D8), so a scope is a deck or a report — the
+// standalone visualization room is gone with the visualization product (D3).
+type Scope = { key: string; kind: "deck" | "report" } | null;
 
 function scopeFromView(view: {
   deckId?: string;
   reportId?: string;
-  poId?: string;
 }): Scope {
   if (view.deckId) {
     return { key: `deck:${view.deckId}`, kind: "deck" };
   }
   if (view.reportId) {
     return { key: `report:${view.reportId}`, kind: "report" };
-  }
-  if (view.poId) {
-    return { key: `po:${view.poId}`, kind: "po" };
   }
   return null;
 }
@@ -113,13 +111,10 @@ function inScope(peer: PresenceEntry, scope: NonNullable<Scope>): boolean {
   if (scope.kind === "deck") {
     return `deck:${peer.deckId}` === scope.key;
   }
-  if (scope.kind === "report") {
-    return `report:${peer.reportId}` === scope.key;
-  }
-  return `po:${peer.poId}` === scope.key;
+  return `report:${peer.reportId}` === scope.key;
 }
 
-function joinedLabel(kind: "deck" | "report" | "po"): string {
+function joinedLabel(kind: "deck" | "report"): string {
   if (kind === "deck") {
     return t3({
       en: "joined this deck",
@@ -127,21 +122,14 @@ function joinedLabel(kind: "deck" | "report" | "po"): string {
       pt: "entrou nesta apresentação",
     });
   }
-  if (kind === "report") {
-    return t3({
-      en: "joined this report",
-      fr: "a rejoint ce rapport",
-      pt: "entrou neste relatório",
-    });
-  }
   return t3({
-    en: "joined this visualization",
-    fr: "a rejoint cette visualisation",
-    pt: "entrou nesta visualização",
+    en: "joined this report",
+    fr: "a rejoint ce rapport",
+    pt: "entrou neste relatório",
   });
 }
 
-function leftLabel(kind: "deck" | "report" | "po"): string {
+function leftLabel(kind: "deck" | "report"): string {
   if (kind === "deck") {
     return t3({
       en: "left this deck",
@@ -149,17 +137,10 @@ function leftLabel(kind: "deck" | "report" | "po"): string {
       pt: "saiu desta apresentação",
     });
   }
-  if (kind === "report") {
-    return t3({
-      en: "left this report",
-      fr: "a quitté ce rapport",
-      pt: "saiu deste relatório",
-    });
-  }
   return t3({
-    en: "left this visualization",
-    fr: "a quitté cette visualisation",
-    pt: "saiu desta visualização",
+    en: "left this report",
+    fr: "a quitté ce rapport",
+    pt: "saiu deste relatório",
   });
 }
 
@@ -184,7 +165,7 @@ function clearPendingLeaves(): void {
 export function notifyPresenceToasts(
   peers: PresenceEntry[],
   selfConnectionId: string | null,
-  view: { deckId?: string; reportId?: string; poId?: string },
+  view: { deckId?: string; reportId?: string },
 ): void {
   const scope = scopeFromView(view);
   if (!scope) {

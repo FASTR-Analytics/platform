@@ -1,8 +1,7 @@
 import {
   PresentationObjectConfig,
-  PresentationObjectDetail,
   type PresenceEntry,
-  ProjectState,
+  ResultsValue,
   ResultsValueInfoForPresentationObject,
   getEffectivePOConfig,
   resolveEffectiveFormat,
@@ -21,8 +20,7 @@ import {
 } from "./presentation_object_editor_panel_text";
 
 type Props = {
-  projectStateSnapshot: ProjectState;
-  poDetail: PresentationObjectDetail;
+  metric: ResultsValue;
   resultsValueInfo: ResultsValueInfoForPresentationObject;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
@@ -84,7 +82,7 @@ export function PresentationObjectEditorPanel(p: Props) {
   const effectivePOConfigResult = () => {
     return getEffectivePOConfig(p.tempConfig, {
       dateRange: resolvedPeriodBounds(),
-      valueProps: p.poDetail.resultsValue.valueProps,
+      valueProps: p.metric.valueProps,
       singleValueDims: singleValueDims(),
     });
   };
@@ -95,7 +93,7 @@ export function PresentationObjectEditorPanel(p: Props) {
   // percent indicator is the intended behavior.
   const effectiveFormat = () =>
     resolveEffectiveFormat({
-      metricFormatAs: p.poDetail.resultsValue.formatAs,
+      metricFormatAs: p.metric.formatAs,
       config: p.tempConfig,
       // `?? {}`: a stale IndexedDB metric_info payload from before the field
       // existed must degrade (numeric fallback), not throw. Dev has no deploy
@@ -139,8 +137,7 @@ export function PresentationObjectEditorPanel(p: Props) {
         <Switch>
           <Match when={tab() === "data"}>
             <PresentationObjectEditorPanelData
-              projectStateSnapshot={p.projectStateSnapshot}
-              poDetail={p.poDetail}
+              metric={p.metric}
               resultsValueInfo={p.resultsValueInfo}
               tempConfig={p.tempConfig}
               setTempConfig={p.setTempConfig}
@@ -153,8 +150,7 @@ export function PresentationObjectEditorPanel(p: Props) {
           </Match>
           <Match when={tab() === "style"}>
             <PresentationObjectEditorPanelStyle
-              projectId={p.projectStateSnapshot.id}
-              poDetail={p.poDetail}
+              metric={p.metric}
               resultsValueInfo={p.resultsValueInfo}
               tempConfig={p.tempConfig}
               setTempConfig={p.setTempConfig}
@@ -165,8 +161,7 @@ export function PresentationObjectEditorPanel(p: Props) {
           </Match>
           <Match when={tab() === "text"}>
             <PresentationObjectEditorPanelText
-              projectId={p.projectStateSnapshot.id}
-              poDetail={p.poDetail}
+              metric={p.metric}
               tempConfig={p.tempConfig}
               setTempConfig={p.setTempConfig}
               captionCollab={p.captionCollab}

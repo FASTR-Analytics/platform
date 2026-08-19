@@ -1,4 +1,3 @@
-import { useSearchParams } from "@solidjs/router";
 import {
   TC,
   compareDottedVersions,
@@ -20,7 +19,6 @@ import {
   MenuTriggerWrapper,
   PopoverMenuProvider,
   TooltipProvider,
-  getFirstString,
   openComponent,
   type IconName,
   type ListItem,
@@ -32,25 +30,19 @@ import { EmailOptInModal } from "~/components/email_opt_in_modal";
 import { OrganisationModal } from "~/components/organisation_modal";
 import { WhatsNewFeedModal, WhatsNewModal } from "~/components/whats_new_modal";
 import { serverActions } from "~/server_actions";
+import { Explore } from "~/components/explore";
 import { InstanceAssets } from "~/components/instance/instance_assets";
 import { InstanceData } from "~/components/instance/instance_data";
-import { InstanceProjects } from "~/components/instance/instance_projects";
 import { InstanceResultsPackages } from "~/components/instance_results_packages";
 import { InstanceUsers } from "~/components/instance/instance_users";
+import { Products } from "~/components/products";
 import { instanceState } from "~/state/instance/t1_store";
-import Project from "../project";
 import { FeedbackForm, type FeedbackType } from "./feedback_form";
 import { InstanceMetaForm } from "./instance_meta_form";
 import { ProfileForm } from "./profile";
-import { TourCatalogueInstanceModal } from "~/onboarding/tour_catalogue_instance_modal";
-import { setupInstanceTours } from "~/onboarding";
-
-type InstanceTab =
-  | "projects"
-  | "data"
-  | "results_packages"
-  | "assets"
-  | "users";
+import { TourCatalogueModal } from "~/onboarding/tour_catalogue_modal";
+import { setupTours } from "~/onboarding";
+import type { InstanceTab } from "~/onboarding/catalogue";
 
 // Generation is instance-admin only (can_configure_data — the same guard the
 // run_generation routes use).
@@ -70,9 +62,14 @@ function wideNavItems(): {
 }[] {
   const items: { id: InstanceTab; label: string; iconName: IconName }[] = [
     {
-      id: "projects",
-      label: t3({ en: "Projects", fr: "Projets", pt: "Projetos" }),
+      id: "products",
+      label: t3({ en: "Products", fr: "Produits", pt: "Produtos" }),
       iconName: "folder",
+    },
+    {
+      id: "explore",
+      label: t3({ en: "Explore", fr: "Explorer", pt: "Explorar" }),
+      iconName: "chart",
     },
   ];
   if (
@@ -130,8 +127,7 @@ type Props = {
 };
 
 export default function Instance(p: Props) {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [_tab, setTab] = createSignal<InstanceTab>("projects");
+  const [_tab, setTab] = createSignal<InstanceTab>("products");
 
   const p_ = () => instanceState.currentUserPermissions;
   const a_ = () => instanceState.currentUserIsGlobalAdmin;
@@ -141,26 +137,22 @@ export default function Instance(p: Props) {
     const perms = p_();
     const canData = admin || perms.can_view_data || perms.can_configure_data;
     const canUsers = admin || perms.can_configure_users || perms.can_view_users;
-    if (t === "data" && !canData) return "projects";
-    if (t === "results_packages" && !canConfigureData()) return "projects";
-    if (t === "users" && !canUsers) return "projects";
+    if (t === "data" && !canData) return "products";
+    if (t === "results_packages" && !canConfigureData()) return "products";
+    if (t === "users" && !canUsers) return "products";
     return t;
   };
 
-  // First-visit tours for the instance tabs. The predicate keeps them from
-  // firing while a project page covers the instance UI.
-  const instanceTourManager = setupInstanceTours({
+  // First-visit tours for every page and editor (one manager, this shell).
+  const tourManager = setupTours({
     currentTab: tab,
-    instanceVisible: () =>
-      !getFirstString(searchParams.p) && instanceState.currentUserApproved,
+    instanceVisible: () => instanceState.currentUserApproved,
   });
 
-  // post-login modals — wait until user is approved; skip inside a project.
-  // Runs ONCE per signed-in user: the effect's reactive deps (searchParams,
-  // approval store) re-fire it on every return from a project, which would
-  // otherwise re-open the modals and displace whatever the alert slot holds.
+  // post-login modals — wait until user is approved. Runs ONCE per signed-in
+  // user: the approval store re-fires the effect, which would otherwise
+  // re-open the modals and displace whatever the alert slot holds.
   createEffect(() => {
-    if (getFirstString(searchParams.p)) return;
     if (!instanceState.currentUserApproved) return;
     if (!clerk.user) return;
     if (postLoginRanForUserId === clerk.user.id) return;
@@ -200,13 +192,9 @@ export default function Instance(p: Props) {
 
   async function openTours() {
     await openComponent({
-      element: TourCatalogueInstanceModal,
+      element: TourCatalogueModal,
       props: {
-        projects: instanceState.projects
-          .filter((project) => project.status === "ready")
-          .map((project) => ({ id: project.id, label: project.label })),
-        openProject: (projectId: string) => setSearchParams({ p: projectId }),
-        instanceManager: instanceTourManager,
+        manager: tourManager,
         openInstanceTab: setTab,
       },
     });
@@ -215,9 +203,6 @@ export default function Instance(p: Props) {
   return (
     <>
       <Switch>
-        <Match when={getFirstString(searchParams.p)} keyed>
-          {(projectId) => <Project projectId={projectId} />}
-        </Match>
         <Match when={true}>
           <FrameTop
             panelChildren={
@@ -316,21 +301,15 @@ export default function Instance(p: Props) {
                       data-tour="instance-topbar-help"
                       items={() => {
                         const items: MenuItem[] = [];
-                        if (
-                          instanceState.projects.some(
-                            (project) => project.status === "ready",
-                          )
-                        ) {
-                          items.push({
-                            label: t3({
-                              en: "Guided tours",
-                              fr: "Visites guidées",
-                              pt: "Visitas guiadas",
-                            }),
-                            icon: "slideshow",
-                            onClick: () => void openTours(),
-                          });
-                        }
+                        items.push({
+                          label: t3({
+                            en: "Guided tours",
+                            fr: "Visites guidées",
+                            pt: "Visitas guiadas",
+                          }),
+                          icon: "slideshow",
+                          onClick: () => void openTours(),
+                        });
                         items.push({
                           label: t3({
                             en: "Ask for help",
@@ -402,6 +381,9 @@ export default function Instance(p: Props) {
               }
             >
               <Switch>
+                <Match when={tab() === "explore"}>
+                  <Explore />
+                </Match>
                 <Match
                   when={
                     tab() === "data" &&
@@ -434,11 +416,7 @@ export default function Instance(p: Props) {
                   />
                 </Match>
                 <Match when={true}>
-                  <InstanceProjects
-                    canCreateProjects={
-                      instanceState.currentUserPermissions.can_create_projects
-                    }
-                  />
+                  <Products />
                 </Match>
               </Switch>
             </Show>

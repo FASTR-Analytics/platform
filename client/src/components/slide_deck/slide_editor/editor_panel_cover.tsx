@@ -2,7 +2,7 @@ import type { CoverSlide, LogoVisibility } from "lib";
 import { t3 } from "lib";
 import { Select } from "panther";
 import { SetStoreFunction } from "solid-js/store";
-import type { SlideSession } from "~/state/project/collab";
+import type { SlideSession } from "~/state/instance/collab";
 import { CollabTextField } from "./collab_text_field";
 import { TextStylePopover } from "./TextStylePopover.tsx";
 

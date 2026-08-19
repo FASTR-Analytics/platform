@@ -1,40 +1,22 @@
 import { unwrap } from "solid-js/store";
-import type { PresentationObjectConfig, ProjectState, ResultsValue, SlideDeckConfig } from "lib";
-import { instanceState } from "~/state/instance/t1_store";
+import type { SlideDeckConfig } from "lib";
 
-function snap<T>(value: T): T {
-  return structuredClone(unwrap(value));
-}
-
-type VizSnapshotBase = {
-  projectStateSnapshot: ProjectState;
-  instanceDetailSnapshot: ReturnType<typeof snap<typeof instanceState>>;
-};
-
-type VizSnapshotWithData = VizSnapshotBase & {
-  configSnapshot: PresentationObjectConfig;
-  resultsValueSnapshot: ResultsValue;
-};
-
-export function snapshotForVizEditor(p: { projectState: ProjectState; config: PresentationObjectConfig; resultsValue: ResultsValue }): VizSnapshotWithData;
-export function snapshotForVizEditor(p: { projectState: ProjectState }): VizSnapshotBase;
-export function snapshotForVizEditor(p: { projectState: ProjectState; config?: PresentationObjectConfig; resultsValue?: ResultsValue }) {
-  const result: Record<string, unknown> = {
-    projectStateSnapshot: snap(p.projectState),
-    instanceDetailSnapshot: snap(instanceState),
-  };
-  if (p.config !== undefined) result.configSnapshot = snap(p.config);
-  if (p.resultsValue !== undefined) result.resultsValueSnapshot = snap(p.resultsValue);
-  return result;
-}
-
-export function snapshotForSlideEditor(p: {
-  projectState: ProjectState;
-  deckConfig: SlideDeckConfig;
-}) {
+// What an editor overlay freezes at open — and, more importantly, what it does
+// NOT (D16 / §2.5).
+//
+// The PackageScope is deliberately absent: editors read it LIVE from the T1
+// products row, and the authoring context from the immutable T2 cache keyed by
+// that live runId. Reattaching a product or changing its scope while an editor
+// is open therefore moves the figure data AND the metric/preset catalog
+// together, and lights the D4 stale badges. Freezing the pair here is exactly
+// the bug that would hide.
+//
+// What must not move under an open slide editor is the DECK's own presentation
+// config: the editor renders and measures the page against it, so a concurrent
+// deck-level style change would re-flow the canvas under the user's cursor
+// mid-edit. That is the one thing snapshotted.
+export function snapshotForSlideEditor(p: { deckConfig: SlideDeckConfig }) {
   return {
-    projectStateSnapshot: snap(p.projectState),
-    instanceDetailSnapshot: snap(instanceState),
-    deckConfigSnapshot: snap(p.deckConfig),
+    deckConfigSnapshot: structuredClone(unwrap(p.deckConfig)),
   };
 }

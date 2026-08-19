@@ -1,14 +1,29 @@
-import type { Slide, CoverSlide, SectionSlide, ContentSlide } from "lib";
+import type {
+  Slide,
+  CoverSlide,
+  SectionSlide,
+  ContentSlide,
+  FigureBundle,
+  PackageScope,
+  RunAuthoringContext,
+} from "lib";
 import { OpenEditorProps } from "panther";
 import { Match, Setter, Switch } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
 import { SlideEditorPanelCover } from "./editor_panel_cover";
 import { SlideEditorPanelSection } from "./editor_panel_section";
 import { SlideEditorPanelContent } from "./editor_panel_content";
-import type { SlideSession } from "~/state/project/collab";
+import type { SlideSession } from "~/state/instance/collab";
 
 type Props = {
-  projectId: string;
+  scope: PackageScope;
+  authoringContext: RunAuthoringContext;
+  /** Set ⇔ the SELECTED block is a figure resolved under a different pair. */
+  staleFigureBundle: FigureBundle | undefined;
+  /** Why the last update attempt on the selected figure failed (D4: the reason
+   *  is shown on the figure, never as a modal that loses which one it was). */
+  figureUpdateError: string | undefined;
+  onUpdateFigure: () => Promise<void>;
   tempSlide: Slide;
   setTempSlide: SetStoreFunction<Slide>;
   selectedBlockId: string | undefined;
@@ -23,8 +38,7 @@ type Props = {
   setContentTab: Setter<"slide" | "block">;
   onShowLayoutMenu: (x: number, y: number) => void;
   onEditVisualization: () => void;
-  onSelectVisualization: () => void;
-  onCreateVisualization: () => void;
+  onInsertFigure: () => void;
   showCoverLogosByDefault: boolean;
   showHeaderLogosByDefault: boolean;
   showFooterLogosByDefault: boolean;
@@ -56,7 +70,11 @@ export function SlideEditorPanel(p: Props) {
         </Match>
         <Match when={p.tempSlide.type === "content"}>
           <SlideEditorPanelContent
-            projectId={p.projectId}
+            scope={p.scope}
+            authoringContext={p.authoringContext}
+            staleFigureBundle={p.staleFigureBundle}
+            figureUpdateError={p.figureUpdateError}
+            onUpdateFigure={p.onUpdateFigure}
             tempSlide={p.tempSlide as ContentSlide}
             setTempSlide={p.setTempSlide}
             selectedBlockId={p.selectedBlockId}
@@ -69,8 +87,7 @@ export function SlideEditorPanel(p: Props) {
             setContentTab={p.setContentTab}
             onShowLayoutMenu={p.onShowLayoutMenu}
             onEditVisualization={p.onEditVisualization}
-            onSelectVisualization={p.onSelectVisualization}
-            onCreateVisualization={p.onCreateVisualization}
+            onInsertFigure={p.onInsertFigure}
             showHeaderLogosByDefault={p.showHeaderLogosByDefault}
             showFooterLogosByDefault={p.showFooterLogosByDefault}
             hasGlobalFooterText={p.hasGlobalFooterText}

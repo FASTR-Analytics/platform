@@ -2,6 +2,7 @@ import {
   createTourManager,
   type SolidTourManagerController,
 } from "@njwse/roadtrip/solid";
+import { createEffect } from "solid-js";
 import { clerkOnboardingStorage } from "./storage";
 import { reportTourEvent } from "./telemetry";
 import type { InstanceTab } from "./catalogue";
@@ -11,136 +12,50 @@ import {
   buildDeckEditorPresentTour,
   buildDeckEditorSettingsTour,
   buildDeckEditorSlidesTour,
-  buildDecksEditorTour,
-  buildDecksManageTour,
-  buildDecksOpenDeckTour,
-  buildDecksViewerTour,
+  buildExploreIntroTour,
+  buildProductsCardsTour,
+  buildProductsCreateTour,
+  buildProductsIntroTour,
   buildSlideContentTour,
   buildSlideCoverTour,
   buildSlideSectionTour,
   buildReportEditorFiguresTour,
   buildReportEditorHistoryTour,
   buildReportEditorIntroTour,
-  buildReportsEditorTour,
-  buildReportsManageTour,
-  buildReportsOpenReportTour,
-  buildReportsViewerTour,
-  buildResultsPackageExploreTour,
-  buildResultsPackageIntroTour,
-  buildResultsPackageSwitchTour,
-  buildSettingsIntroTour,
-  buildVizCardsTour,
-  buildVizCreateTour,
-  buildVizIntroTour,
-  buildDashboardsCardsTour,
-  buildDashboardsCreateTour,
-  buildDashboardsIntroTour,
-  buildDashboardEditorIntroTour,
-  buildDashboardEditorItemsTour,
-  buildVizEditorCreateTour,
-  buildVizEditorEditTour,
   buildInstanceAssetsTour,
   buildInstanceDataTour,
-  buildInstanceProjectsTour,
   buildInstanceResultsPackagesCatalogueTour,
   buildInstanceResultsPackagesTour,
   buildInstanceUsersTour,
   buildInstanceWelcomeTour,
   tourLabels,
 } from "./tours";
-import { instanceState } from "~/state/instance/t1_store";
-import { projectState } from "~/state/project/t1_store";
-import { canOpenProjectResultsPackageTab } from "~/components/project/project_results_package";
-import { projectAIViewController } from "~/components/project_ai/ai_views";
+import { canEditProducts, instanceState } from "~/state/instance/t1_store";
+import { copilotViewController } from "~/components/copilot/ai_views";
 import type { SlideType } from "lib";
 import {
-  deckGroupingMode,
-  deckSelectedGroup,
-  projectTab,
-  reportGroupingMode,
-  reportSelectedGroup,
-  vizGroupingMode,
-  vizSelectedGroup,
-  dashboardSortMode,
-  dashboardEditorOpen,
-  resultsPackageTabLoadCount,
+  pendingEditorOpen,
+  pendingTourReplay,
+  productsSelectedFolder,
+  productsTypeFilter,
+  setPendingTourReplay,
 } from "~/state/t4_ui";
 
-// Call from a component with a reactive owner (the project shell). Each
-// page's tour auto-starts on the user's first visit to that page; seen-flags
-// live in Clerk unsafeMetadata.onboarding (tour:<id> / tour:<group>), so once
-// per user across devices. A `pages` predicate must be true only while that
-// page is actually visible (tab active AND permission granted) — otherwise a
-// tour could fire, find no targets, and be marked seen invisibly.
+// ONE manager for the whole app: the instance shell is the only shell, and the
+// product editors are overlays rendered on top of it, so a single manager also
+// gives a single one-run-at-a-time lock — opening a deck mid-tour hands over
+// cleanly instead of two tours overlapping.
 //
-// The decks tour is split into parts with independent seen-flags: the viewer
-// part runs for everyone, the editor part is permission-gated, and the
-// deck-card parts are deferred until the project has decks. Parts eligible at
-// the same moment merge into one seamless run in this array order; a part
-// whose condition only holds later runs on the first visit where it does.
-// The editor overlays render on top of the still-mounted project shell, so
-// projectTab() stays "decks" inside them — the AI view is what actually tracks
-// where the user is. Tab pages must exclude the editing views, or a deck-list
-// tour could fire behind the editor.
-const currentView = () => projectAIViewController.current();
+// Each page's tour auto-starts on the user's first visit; seen-flags live in
+// Clerk unsafeMetadata.onboarding (tour:<id>), so once per user across devices.
+// A `pages` predicate must be true only while that page is actually visible
+// (tab active AND permission granted) — otherwise a tour could fire, find no
+// targets, and be marked seen invisibly. The editors keep the shell's tab on
+// "products", so the two page-level predicates exclude the editing views; the
+// copilot's view controller is what actually tracks where the user is.
+
+const currentView = () => copilotViewController.current();
 const isEditingView = () => currentView().id.startsWith("editing_");
-
-// Instance-level tabs (Projects / Data / Assets / Users / Settings). Called
-// from the instance shell, which passes its permission-normalized tab
-// accessor plus a visibility gate (approved AND not inside a project) so a
-// tour can never fire behind a project page.
-export function setupInstanceTours(opts: {
-  currentTab: () => InstanceTab;
-  instanceVisible: () => boolean;
-}): SolidTourManagerController {
-  const onTab = (tab: string) => () =>
-    opts.instanceVisible() && opts.currentTab() === tab;
-  return createTourManager({
-    storage: clerkOnboardingStorage,
-    labels: tourLabels(),
-    onEvent: reportTourEvent,
-    pages: {
-      "instance-projects": onTab("projects"),
-      "instance-data": onTab("data"),
-      "instance-results-packages": onTab("results_packages"),
-      "instance-assets": onTab("assets"),
-      "instance-users": onTab("users"),
-    },
-    watch: [() => instanceState.projects.length],
-    tours: [
-      // Ordered before the projects tour: on a brand-new user's first visit
-      // both are eligible on the landing tab and merge into one run, shell
-      // first.
-      { page: "instance-projects", tour: buildInstanceWelcomeTour() },
-      { page: "instance-projects", tour: buildInstanceProjectsTour() },
-      { page: "instance-data", tour: buildInstanceDataTour() },
-      {
-        page: "instance-results-packages",
-        tour: buildInstanceResultsPackagesTour(),
-      },
-      // Deferred until the instance actually holds a package: merges into the
-      // intro's run when a card is on screen, or starts on its own once the
-      // first generation's refetch lands (if the admin is still on the tab)
-      // or on the next visit.
-      {
-        page: "instance-results-packages",
-        when: () =>
-          document.querySelector(
-            '[data-tour="instance-results-packages-card"]',
-          ) !== null,
-        tour: buildInstanceResultsPackagesCatalogueTour(),
-      },
-      { page: "instance-assets", tour: buildInstanceAssetsTour() },
-      { page: "instance-users", tour: buildInstanceUsersTour() },
-    ],
-  });
-}
-
-const editingVizInMode = (mode: "edit" | "create" | "ephemeral") => {
-  const view = currentView();
-  return view.id === "editing_visualization" && view.params.mode === mode;
-};
-
 const editingSlideOfType = (type: SlideType) => {
   const view = currentView();
   return (
@@ -148,363 +63,148 @@ const editingSlideOfType = (type: SlideType) => {
   );
 };
 
-export function setupDeckTours(): SolidTourManagerController {
-  const hasDecks = () =>
-    projectState.projectModules.length > 0 &&
-    projectState.slideDecks.length > 0;
-  const deckCardOnScreen = () =>
-    document.querySelector('[data-tour="decks-deck-card"]') !== null;
-  const isEditor = () =>
-    projectState.thisUserPermissions.can_configure_slide_decks;
+// Called once from the instance shell, which passes its permission-normalized
+// tab accessor plus a visibility gate (approved) so a tour can never fire
+// behind the sign-in wall.
+export function setupTours(opts: {
+  currentTab: () => InstanceTab;
+  instanceVisible: () => boolean;
+}): SolidTourManagerController {
+  const onTab = (tab: InstanceTab) => () =>
+    opts.instanceVisible() && opts.currentTab() === tab;
+  const onProductsPage = () => onTab("products")() && !isEditingView();
+  const productCardOnScreen = () =>
+    document.querySelector('[data-tour="products-product-card"]') !== null;
   const slideCardOnScreen = () =>
     document.querySelector('[data-tour="deck-slide-card"]') !== null;
-  // The deck list, the deck editor and the per-slide-type tours share ONE
-  // manager so they also share its one-run-at-a-time lock — clicking a deck
-  // mid-tour hands over cleanly instead of two tours overlapping.
-  const tours = createTourManager({
+
+  const pages: Record<string, () => boolean> = {
+    products: onProductsPage,
+    explore: () => onTab("explore")() && !isEditingView(),
+    "instance-data": onTab("data"),
+    "instance-results-packages": onTab("results_packages"),
+    "instance-assets": onTab("assets"),
+    "instance-users": onTab("users"),
+    "deck-editor": () => currentView().id === "editing_slide_deck",
+    "slide-cover": () => editingSlideOfType("cover"),
+    "slide-section": () => editingSlideOfType("section"),
+    "slide-content": () => editingSlideOfType("content"),
+    "report-editor": () => currentView().id === "editing_report",
+  };
+
+  const tours = [
+    // Ordered before the products tours: on a brand-new user's first visit
+    // all three are eligible on the landing tab and merge into one run, shell
+    // first.
+    { page: "products", tour: buildInstanceWelcomeTour() },
+    { page: "products", tour: buildProductsIntroTour() },
+    { page: "products", when: canEditProducts, tour: buildProductsCreateTour() },
+    // Deferred until the instance holds a product: merges into the intro's run
+    // when a card is on screen, or starts on the first visit where one is.
+    {
+      page: "products",
+      when: productCardOnScreen,
+      tour: buildProductsCardsTour(),
+    },
+    { page: "explore", tour: buildExploreIntroTour() },
+    { page: "instance-data", tour: buildInstanceDataTour() },
+    {
+      page: "instance-results-packages",
+      tour: buildInstanceResultsPackagesTour(),
+    },
+    // Deferred until the instance actually holds a package: merges into the
+    // intro's run when a card is on screen, or starts on its own once the
+    // first generation's refetch lands (if the admin is still on the tab)
+    // or on the next visit.
+    {
+      page: "instance-results-packages",
+      when: () =>
+        document.querySelector('[data-tour="instance-results-packages-card"]') !==
+        null,
+      tour: buildInstanceResultsPackagesCatalogueTour(),
+    },
+    { page: "instance-assets", tour: buildInstanceAssetsTour() },
+    { page: "instance-users", tour: buildInstanceUsersTour() },
+    // Inside a deck: toolbar → slides → present → history → open Settings.
+    // Array order is merge order, so the two parts that end inside a
+    // full-region overlay come last (history hands back via its back button,
+    // and settings is the very end of the run).
+    { page: "deck-editor", tour: buildDeckEditorIntroTour() },
+    {
+      page: "deck-editor",
+      when: slideCardOnScreen,
+      tour: buildDeckEditorSlidesTour(),
+    },
+    {
+      page: "deck-editor",
+      when: () => document.querySelector("#deck-present-button") !== null,
+      tour: buildDeckEditorPresentTour(),
+    },
+    { page: "deck-editor", tour: buildDeckEditorHistoryTour() },
+    { page: "deck-editor", tour: buildDeckEditorSettingsTour() },
+    // Inside a slide: one tour per slide type, each running the first time the
+    // user edits a slide of that type.
+    { page: "slide-cover", tour: buildSlideCoverTour() },
+    { page: "slide-section", tour: buildSlideSectionTour() },
+    { page: "slide-content", tour: buildSlideContentTour() },
+    // Inside a report: the walkthrough, then the figure step once one is
+    // actually in the document, then history (which closes itself).
+    { page: "report-editor", tour: buildReportEditorIntroTour() },
+    {
+      page: "report-editor",
+      when: () => document.querySelector("[data-embed-id]") !== null,
+      tour: buildReportEditorFiguresTour(),
+    },
+    { page: "report-editor", tour: buildReportEditorHistoryTour() },
+  ];
+
+  const manager = createTourManager({
     storage: clerkOnboardingStorage,
     labels: tourLabels(),
     onEvent: reportTourEvent,
-    pages: {
-      decks: () =>
-        projectTab() === "decks" &&
-        projectState.thisUserPermissions.can_view_slide_decks &&
-        !isEditingView(),
-      "deck-editor": () => currentView().id === "editing_slide_deck",
-      "slide-cover": () => editingSlideOfType("cover"),
-      "slide-section": () => editingSlideOfType("section"),
-      "slide-content": () => editingSlideOfType("content"),
-    },
-    // extra re-check triggers so the deferred card tours can start mid-visit
-    // when decks/slides appear or the folder view changes
+    pages,
+    // Extra re-check triggers for the deferred parts, whose `when` gates read
+    // the DOM rather than reactive state.
     watch: [
-      () => projectState.slideDecks.length,
-      deckSelectedGroup,
-      deckGroupingMode,
+      () => instanceState.products.length,
+      () => instanceState.readyPackages.length,
+      productsSelectedFolder,
+      productsTypeFilter,
       () => {
         const view = currentView();
         return view.id === "editing_slide_deck"
           ? view.context.getSlideIds().length
-          : 0;
+          : view.id === "editing_report"
+            ? Object.keys(view.context.getFigures()).length
+            : 0;
       },
     ],
-    tours: [
-      {
-        page: "decks",
-        tour: buildDecksViewerTour(),
-      },
-      {
-        page: "decks",
-        when: () => hasDecks() && deckCardOnScreen(),
-        tour: buildDecksOpenDeckTour(),
-      },
-      {
-        page: "decks",
-        when: isEditor,
-        tour: buildDecksEditorTour(),
-      },
-      {
-        page: "decks",
-        when: () =>
-          isEditor() &&
-          !projectState.isLocked &&
-          hasDecks() &&
-          deckCardOnScreen(),
-        tour: buildDecksManageTour(),
-      },
-      // Inside a deck: toolbar → slides → open Settings. Array order is merge
-      // order, so the Settings part (which ends inside the settings overlay)
-      // always comes last.
-      {
-        page: "deck-editor",
-        tour: buildDeckEditorIntroTour(),
-      },
-      {
-        page: "deck-editor",
-        when: slideCardOnScreen,
-        tour: buildDeckEditorSlidesTour(),
-      },
-      {
-        page: "deck-editor",
-        when: () => document.querySelector("#deck-present-button") !== null,
-        tour: buildDeckEditorPresentTour(),
-      },
-      // Both of these end inside a full-region overlay, so each closes itself
-      // before the next begins: history hands back via its back button, and
-      // settings comes last.
-      {
-        page: "deck-editor",
-        tour: buildDeckEditorHistoryTour(),
-      },
-      {
-        page: "deck-editor",
-        tour: buildDeckEditorSettingsTour(),
-      },
-      // Inside a slide: one tour per slide type, each running the first time
-      // the user edits a slide of that type.
-      {
-        page: "slide-cover",
-        tour: buildSlideCoverTour(),
-      },
-      {
-        page: "slide-section",
-        tour: buildSlideSectionTour(),
-      },
-      {
-        page: "slide-content",
-        tour: buildSlideContentTour(),
-      },
-    ],
+    tours,
   });
-  return tours;
-}
 
-// Same layering as the decks tours: a viewer part for everyone, a
-// permission-gated editor part, and card parts deferred until a report is on
-// screen.
-export function setupReportTours(): SolidTourManagerController {
-  const hasReports = () => projectState.reports.length > 0;
-  const reportCardOnScreen = () =>
-    document.querySelector('[data-tour="reports-report-card"]') !== null;
-  const isEditor = () => projectState.thisUserPermissions.can_configure_reports;
-  const tours = createTourManager({
-    storage: clerkOnboardingStorage,
-    labels: tourLabels(),
-    onEvent: reportTourEvent,
-    pages: {
-      reports: () =>
-        projectTab() === "reports" &&
-        projectState.thisUserPermissions.can_view_reports &&
-        !isEditingView(),
-      "report-editor": () => currentView().id === "editing_report",
-    },
-    watch: [
-      () => projectState.reports.length,
-      reportSelectedGroup,
-      reportGroupingMode,
-      () => {
-        const view = currentView();
-        return view.id === "editing_report"
-          ? Object.keys(view.context.getFigures()).length
-          : 0;
-      },
-    ],
-    tours: [
-      {
-        page: "reports",
-        tour: buildReportsViewerTour(),
-      },
-      {
-        page: "reports",
-        when: () => hasReports() && reportCardOnScreen(),
-        tour: buildReportsOpenReportTour(),
-      },
-      {
-        page: "reports",
-        when: isEditor,
-        tour: buildReportsEditorTour(),
-      },
-      {
-        page: "reports",
-        when: () =>
-          isEditor() &&
-          !projectState.isLocked &&
-          hasReports() &&
-          reportCardOnScreen(),
-        tour: buildReportsManageTour(),
-      },
-      // Inside a report: the walkthrough, then the figure step once one is
-      // actually in the document, then history (which closes itself).
-      {
-        page: "report-editor",
-        tour: buildReportEditorIntroTour(),
-      },
-      {
-        page: "report-editor",
-        when: () => document.querySelector("[data-embed-id]") !== null,
-        tour: buildReportEditorFiguresTour(),
-      },
-      {
-        page: "report-editor",
-        tour: buildReportEditorHistoryTour(),
-      },
-    ],
+  // Replay chain. The catalogue modal sets `pendingTourReplay` and calls the
+  // entry's navigate(), which switches tab and — for the editor tours — asks
+  // the Products page to open a product. The editor is not mounted yet at that
+  // point, so the start waits here until the tour's own page is active.
+  // A replay whose product turns out to be a dead id is dropped: the Products
+  // page clears `pendingEditorOpen` once T1 is ready and the id is still
+  // absent, which leaves no page to wait for.
+  const pageForTour = new Map(tours.map((t) => [t.tour.id, t.page]));
+  createEffect(() => {
+    const tourId = pendingTourReplay();
+    if (tourId === null) return;
+    const page = pageForTour.get(tourId);
+    if (page === undefined) {
+      setPendingTourReplay(null);
+      return;
+    }
+    if (pages[page]()) {
+      setPendingTourReplay(null);
+      void manager.start(tourId);
+      return;
+    }
+    if (pendingEditorOpen() === null) setPendingTourReplay(null);
   });
-  return tours;
-}
 
-export function setupVisualizationTours(): SolidTourManagerController {
-  const cardOnScreen = () =>
-    document.querySelector('[data-tour="viz-card"]') !== null;
-  const canCreate = () =>
-    !projectState.isLocked && projectState.projectModules.length > 0;
-  return createTourManager({
-    storage: clerkOnboardingStorage,
-    labels: tourLabels(),
-    onEvent: reportTourEvent,
-    pages: {
-      visualizations: () =>
-        projectTab() === "visualizations" &&
-        projectState.thisUserPermissions.can_view_visualizations &&
-        !isEditingView(),
-      "viz-editor-create": () => editingVizInMode("create"),
-      "viz-editor-edit": () => editingVizInMode("edit"),
-    },
-    watch: [
-      () => projectState.visualizations.length,
-      () => projectState.projectModules.length,
-      vizSelectedGroup,
-      vizGroupingMode,
-    ],
-    tours: [
-      {
-        page: "visualizations",
-        tour: buildVizIntroTour(),
-      },
-      {
-        page: "visualizations",
-        when: cardOnScreen,
-        tour: buildVizCardsTour(),
-      },
-      {
-        page: "visualizations",
-        when: canCreate,
-        tour: buildVizCreateTour(),
-      },
-      {
-        page: "viz-editor-create",
-        tour: buildVizEditorCreateTour(),
-      },
-      {
-        page: "viz-editor-edit",
-        tour: buildVizEditorEditTour(),
-      },
-    ],
-  });
-}
-
-// The results package tab, in three parts. The intro (what a results package
-// is) runs for anyone who can see the tab and targets only the header, so it
-// is safe on a project with nothing attached yet. The explore part waits for
-// an attached package to actually be on screen, and the switch part for a
-// member who may repoint the project (the configure card is theirs alone).
-// Splitting rather than skipping steps matters because a tour that runs
-// against missing targets is still marked seen, and the user would never get
-// it later.
-//
-// The tab renders from project T1 (`attachedRun`), so its anchors exist on
-// mount; the tab bumps `resultsPackageTabLoadCount` on mount and resets it on
-// unmount, and the page counts as visible only while it is > 0 — the same
-// gate the fetch-driven version used, kept so a tour part is evaluated
-// against the drawn page.
-export function setupResultsPackageTours(): SolidTourManagerController {
-  const canAttach = () =>
-    instanceState.currentUserIsGlobalAdmin ||
-    projectState.thisUserPermissions.can_configure_visualizations;
-  const pickerOnScreen = () =>
-    document.querySelector('[data-tour="results-package-picker"]') !== null;
-  const attachedCardOnScreen = () =>
-    document.querySelector('[data-tour="results-package-attached"]') !== null;
-  return createTourManager({
-    storage: clerkOnboardingStorage,
-    labels: tourLabels(),
-    onEvent: reportTourEvent,
-    pages: {
-      "results-package": () =>
-        projectTab() === "results_package" &&
-        canOpenProjectResultsPackageTab() &&
-        !isEditingView() &&
-        resultsPackageTabLoadCount() > 0,
-    },
-    tours: [
-      {
-        page: "results-package",
-        tour: buildResultsPackageIntroTour(),
-      },
-      {
-        page: "results-package",
-        when: attachedCardOnScreen,
-        tour: buildResultsPackageExploreTour(),
-      },
-      {
-        page: "results-package",
-        when: () => canAttach() && !projectState.isLocked && pickerOnScreen(),
-        tour: buildResultsPackageSwitchTour(),
-      },
-    ],
-  });
-}
-
-export function setupSettingsTours(): SolidTourManagerController {
-  return createTourManager({
-    storage: clerkOnboardingStorage,
-    labels: tourLabels(),
-    onEvent: reportTourEvent,
-    pages: {
-      settings: () =>
-        projectTab() === "settings" &&
-        projectState.thisUserPermissions.can_configure_settings &&
-        !isEditingView(),
-    },
-    tours: [
-      {
-        page: "settings",
-        tour: buildSettingsIntroTour(),
-      },
-    ],
-  });
-}
-
-// The dashboards tab: intro for everyone, then the card and create parts once
-// each is actually possible. Creating uses the slide-deck configure permission.
-export function setupDashboardTours(): SolidTourManagerController {
-  return createTourManager({
-    storage: clerkOnboardingStorage,
-    labels: tourLabels(),
-    onEvent: reportTourEvent,
-    pages: {
-      dashboards: () =>
-        projectTab() === "dashboards" &&
-        projectState.thisUserPermissions.can_view_slide_decks &&
-        !isEditingView() &&
-        !dashboardEditorOpen(),
-      "dashboard-editor": () => dashboardEditorOpen() && !isEditingView(),
-    },
-    watch: [
-      () => projectState.dashboards.length,
-      dashboardSortMode,
-      dashboardEditorOpen,
-    ],
-    tours: [
-      {
-        page: "dashboards",
-        tour: buildDashboardsIntroTour(),
-      },
-      {
-        page: "dashboards",
-        when: () =>
-          document.querySelector('[data-tour="dashboards-card"]') !== null,
-        tour: buildDashboardsCardsTour(),
-      },
-      {
-        page: "dashboards",
-        when: () =>
-          projectState.thisUserPermissions.can_configure_slide_decks &&
-          !projectState.isLocked,
-        tour: buildDashboardsCreateTour(),
-      },
-      // Inside a dashboard. The intro ends inside the settings overlay, so the
-      // items part is ordered before it.
-      {
-        page: "dashboard-editor",
-        when: () =>
-          document.querySelector('[data-tour="dashboard-item-card"]') !== null,
-        tour: buildDashboardEditorItemsTour(),
-      },
-      {
-        page: "dashboard-editor",
-        tour: buildDashboardEditorIntroTour(),
-      },
-    ],
-  });
+  return manager;
 }

@@ -9,9 +9,6 @@ type Props = {
   config: LogoSectionConfig;
   customLogos: string[];
   onChange: (config: LogoSectionConfig) => void;
-  // Hide the slide-specific extras (show-by-default + size + spacing) — e.g. the
-  // dashboard, which renders logos at a fixed CSS box and has no per-logo sizing.
-  dontShowSizing?: boolean;
 };
 
 const SIZE_OPTIONS = [
@@ -39,7 +36,7 @@ export function LogoSectionEditor(p: Props) {
         customLogos={p.customLogos}
         onChange={(logos) => p.onChange({ ...p.config, selected: logos })}
       />
-      <Show when={hasLogos() && !p.dontShowSizing}>
+      <Show when={hasLogos()}>
         <div class="ui-spy-sm pt-2">
           <Checkbox
             label={t3({ en: "Show by default", fr: "Afficher par défaut", pt: "Mostrar por predefinição" })}

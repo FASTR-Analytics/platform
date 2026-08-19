@@ -20,9 +20,10 @@ type UserRow = { email: string };
 export function ShareSlideDeck(
   p: EditorComponentProps<
     {
-      projectId: string;
       deckId: string;
       deckLabel: string;
+      // The INSTANCE roster: with the project tier gone there is no narrower
+      // recipient list to offer (D2).
       userEmails: string[];
     },
     undefined
@@ -100,10 +101,8 @@ export function ShareSlideDeck(
     setErr("");
     setPct(0.02);
 
-    const pdfResult = await exportSlideDeckAsPdfBase64(
-      p.projectId,
-      p.deckId,
-      (v) => setPct(v * 0.8),
+    const pdfResult = await exportSlideDeckAsPdfBase64(p.deckId, (v: number) =>
+      setPct(v * 0.8),
     );
 
     if (pdfResult.success === false) {
@@ -115,7 +114,6 @@ export function ShareSlideDeck(
     setPct(0.85);
 
     const res = await serverActions.sendSlideDeckEmail({
-      projectId: p.projectId,
       recipients,
       message: message(),
       attachment: {
