@@ -43,10 +43,12 @@ import {
   productsOpenFolder,
   productsSortMode,
   productsTypeFilter,
+  productsViewMode,
   setPendingEditorOpen,
   setProductsOpenFolder,
   setProductsSortMode,
   setProductsTypeFilter,
+  setProductsViewMode,
   setShowAi,
   showAi,
 } from "~/state/t4_ui";
@@ -55,6 +57,7 @@ import { EditFolderModal } from "./edit_folder_modal";
 import { FolderCard } from "./folder_card";
 import { buildFolderMenu } from "./folder_menu";
 import { ancestors, childFolders, pathLabel } from "./folder_tree";
+import { ListView } from "./list_view";
 import { MoveToFolderModal } from "./move_to_folder_modal";
 import { ProductCard, productTypeLabel } from "./product_card";
 import { buildProductMenu } from "./product_menu";
@@ -552,6 +555,87 @@ export function Products() {
 
   const matchCount = () => visibleFolders().length + visibleProducts().length;
 
+  // One empty-state Switch for both views (§6).
+  function emptyState(): JSX.Element {
+    return (
+      <Switch>
+        <Match when={isSearching()}>
+          <div class="text-base-content-muted text-sm">
+            {t3({
+              en: "No matching products",
+              fr: "Aucun produit correspondant",
+              pt: "Nenhum produto correspondente",
+            })}
+          </div>
+        </Match>
+        <Match
+          when={
+            location() === null &&
+            visibleFolders().length === 0 &&
+            instanceState.products.length === 0 &&
+            canEditProducts()
+          }
+        >
+          <Card
+            header={t3({
+              en: "Start here",
+              fr: "Commencer ici",
+              pt: "Comece aqui",
+            })}
+            class="col-span-2"
+          >
+            <div class="ui-spy-sm">
+              <div class="text-base-content-muted text-sm">
+                {t3({
+                  en: "A product is a slide deck or a report. Create one and the editor opens straight away.",
+                  fr: "Un produit est une présentation ou un rapport. Créez-en un et l'éditeur s'ouvre immédiatement.",
+                  pt: "Um produto é uma apresentação ou um relatório. Crie um e o editor abre de imediato.",
+                })}
+              </div>
+              {createButtons}
+            </div>
+          </Card>
+        </Match>
+        <Match when={visibleFolders().length > 0}>
+          <div class="text-base-content-muted text-sm">
+            {t3({
+              en: "No products here yet",
+              fr: "Aucun produit ici pour le moment",
+              pt: "Ainda não há produtos aqui",
+            })}
+          </div>
+        </Match>
+        <Match when={location() !== null}>
+          <div class="text-base-content-muted ui-spy-sm text-sm">
+            <div>
+              {t3({
+                en: "This folder is empty",
+                fr: "Ce dossier est vide",
+                pt: "Esta pasta está vazia",
+              })}
+            </div>
+            <div>
+              {t3({
+                en: "Move products or folders in from their menu, or create something new here.",
+                fr: "Déplacez des produits ou des dossiers ici depuis leur menu, ou créez-en de nouveaux ici.",
+                pt: "Mova produtos ou pastas para aqui a partir do seu menu, ou crie algo novo aqui.",
+              })}
+            </div>
+          </div>
+        </Match>
+        <Match when={true}>
+          <div class="text-base-content-muted text-sm">
+            {t3({
+              en: "No products here yet",
+              fr: "Aucun produit ici pour le moment",
+              pt: "Ainda não há produtos aqui",
+            })}
+          </div>
+        </Match>
+      </Switch>
+    );
+  }
+
   const createButtons = (
     <div class="ui-gap-sm flex items-center">
       <Show when={!canCreateProduct()}>
@@ -652,6 +736,35 @@ export function Products() {
                     setProductsSortMode(v === "label" ? "label" : "recent")
                   }
                 />
+                <ButtonGroup
+                  data-tour="products-view-mode"
+                  value={productsViewMode()}
+                  onChange={(v) =>
+                    setProductsViewMode(v === "list" ? "list" : "grid")
+                  }
+                  items={[
+                    {
+                      id: "grid",
+                      label: "",
+                      iconName: "layoutGrid",
+                      labelText: t3({
+                        en: "Grid view",
+                        fr: "Vue en grille",
+                        pt: "Vista em grelha",
+                      }),
+                    },
+                    {
+                      id: "list",
+                      label: "",
+                      iconName: "clearAll",
+                      labelText: t3({
+                        en: "List view",
+                        fr: "Vue en liste",
+                        pt: "Vista em lista",
+                      }),
+                    },
+                  ]}
+                />
               </div>
             }
           >
@@ -689,129 +802,78 @@ export function Products() {
           </HeadingBar>
         }
       >
-        <div
-          class="ui-gap ui-pad grid h-full w-full grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start items-start overflow-auto"
-          data-tour="products-items"
-          onClick={() => selection.clear()}
-        >
-          <For each={visibleFolders()}>
-            {(folder) => (
-              <FolderCard
-                folder={folder}
-                folderCount={folderCounts(folder.id).folderCount}
-                productCount={folderCounts(folder.id).productCount}
-                searchPath={
-                  isSearching()
-                    ? folder.parentId === null
-                      ? t3({
-                          en: "Top level",
-                          fr: "Niveau supérieur",
-                          pt: "Nível superior",
-                        })
-                      : pathLabel(instanceState.folders, folder.parentId)
-                    : null
-                }
-                onOpen={() => openFolder(folder.id)}
-                onMenu={(e) => handleFolderMenu(e, folder)}
-              />
-            )}
-          </For>
-          <For
-            each={visibleProducts()}
-            fallback={
-              <Switch>
-                <Match when={isSearching()}>
-                  <div class="text-base-content-muted text-sm">
-                    {t3({
-                      en: "No matching products",
-                      fr: "Aucun produit correspondant",
-                      pt: "Nenhum produto correspondente",
-                    })}
-                  </div>
-                </Match>
-                <Match
-                  when={
-                    location() === null &&
-                    visibleFolders().length === 0 &&
-                    instanceState.products.length === 0 &&
-                    canEditProducts()
-                  }
-                >
-                  <Card
-                    header={t3({
-                      en: "Start here",
-                      fr: "Commencer ici",
-                      pt: "Comece aqui",
-                    })}
-                    class="col-span-2"
-                  >
-                    <div class="ui-spy-sm">
-                      <div class="text-base-content-muted text-sm">
-                        {t3({
-                          en: "A product is a slide deck or a report. Create one and the editor opens straight away.",
-                          fr: "Un produit est une présentation ou un rapport. Créez-en un et l'éditeur s'ouvre immédiatement.",
-                          pt: "Um produto é uma apresentação ou um relatório. Crie um e o editor abre de imediato.",
-                        })}
-                      </div>
-                      {createButtons}
-                    </div>
-                  </Card>
-                </Match>
-                <Match when={visibleFolders().length > 0}>
-                  <div class="text-base-content-muted text-sm">
-                    {t3({
-                      en: "No products here yet",
-                      fr: "Aucun produit ici pour le moment",
-                      pt: "Ainda não há produtos aqui",
-                    })}
-                  </div>
-                </Match>
-                <Match when={location() !== null}>
-                  <div class="text-base-content-muted ui-spy-sm text-sm">
-                    <div>
-                      {t3({
-                        en: "This folder is empty",
-                        fr: "Ce dossier est vide",
-                        pt: "Esta pasta está vazia",
-                      })}
-                    </div>
-                    <div>
-                      {t3({
-                        en: "Move products or folders in from their menu, or create something new here.",
-                        fr: "Déplacez des produits ou des dossiers ici depuis leur menu, ou créez-en de nouveaux ici.",
-                        pt: "Mova produtos ou pastas para aqui a partir do seu menu, ou crie algo novo aqui.",
-                      })}
-                    </div>
-                  </div>
-                </Match>
-                <Match when={true}>
-                  <div class="text-base-content-muted text-sm">
-                    {t3({
-                      en: "No products here yet",
-                      fr: "Aucun produit ici pour le moment",
-                      pt: "Ainda não há produtos aqui",
-                    })}
-                  </div>
-                </Match>
-              </Switch>
-            }
-          >
-            {(product) => (
-              <ProductCard
-                product={product}
-                selected={selection.isSelected(product.id)}
-                onSelectToggle={(e) => selection.handleClick(product.id, e)}
-                onOpen={(e) => {
-                  e?.stopPropagation();
-                  selection.handleClick(product.id, e, () =>
-                    openProduct(product),
-                  );
-                }}
-                onContextMenu={(e) => handleContextMenu(e, product)}
-              />
-            )}
-          </For>
-        </div>
+        <Switch>
+          <Match when={productsViewMode() === "grid"}>
+            <div
+              class="ui-gap ui-pad grid h-full w-full grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start items-start overflow-auto"
+              data-tour="products-items"
+              onClick={() => selection.clear()}
+            >
+              <For each={visibleFolders()}>
+                {(folder) => (
+                  <FolderCard
+                    folder={folder}
+                    folderCount={folderCounts(folder.id).folderCount}
+                    productCount={folderCounts(folder.id).productCount}
+                    searchPath={
+                      isSearching()
+                        ? folder.parentId === null
+                          ? t3({
+                              en: "Top level",
+                              fr: "Niveau supérieur",
+                              pt: "Nível superior",
+                            })
+                          : pathLabel(instanceState.folders, folder.parentId)
+                        : null
+                    }
+                    onOpen={() => openFolder(folder.id)}
+                    onMenu={(e) => handleFolderMenu(e, folder)}
+                  />
+                )}
+              </For>
+              <For each={visibleProducts()} fallback={emptyState()}>
+                {(product) => (
+                  <ProductCard
+                    product={product}
+                    selected={selection.isSelected(product.id)}
+                    onSelectToggle={(e) => selection.handleClick(product.id, e)}
+                    onOpen={(e) => {
+                      e?.stopPropagation();
+                      selection.handleClick(product.id, e, () =>
+                        openProduct(product),
+                      );
+                    }}
+                    onContextMenu={(e) => handleContextMenu(e, product)}
+                  />
+                )}
+              </For>
+            </div>
+          </Match>
+          <Match when={productsViewMode() === "list"}>
+            <ListView
+              folders={visibleFolders()}
+              products={visibleProducts()}
+              searching={isSearching()}
+              sortMode={productsSortMode()}
+              onSortMode={setProductsSortMode}
+              isSelected={(id) => selection.isSelected(id)}
+              onToggleSelect={(id) => selection.toggle(id)}
+              onRowClick={(product, e) => {
+                e.stopPropagation();
+                selection.handleClick(product.id, e, () =>
+                  openProduct(product),
+                );
+              }}
+              onRowOpen={(product) => void openProduct(product)}
+              onOpenFolder={openFolder}
+              onProductMenu={(e, product) => handleContextMenu(e, product)}
+              onFolderMenu={(e, folder) => handleFolderMenu(e, folder)}
+              folderCounts={folderCounts}
+              onBackgroundClick={() => selection.clear()}
+              fallback={emptyState()}
+            />
+          </Match>
+        </Switch>
       </FrameTop>
     </ProductEditorWrapper>
   );

@@ -17,8 +17,8 @@ export function productTypeLabel(type: ProductType): string {
 // The package a product serves from, by LABEL. Ready-package labels are
 // approved-user data and ride the instance channel for exactly this (D8); a
 // product attached to a package that has left the ready list still shows
-// something honest rather than a blank.
-function packageLabel(runId: string): string {
+// something honest rather than a blank. Shared with the list view.
+export function packageLabel(runId: string): string {
   const pkg = instanceState.readyPackages.find((r) => r.id === runId);
   return (
     pkg?.label ??
