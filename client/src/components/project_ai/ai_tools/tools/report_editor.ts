@@ -174,7 +174,11 @@ export function getClientToolsForReportEditor(
         const format = view.params.format;
         const body = ctx.getBody();
         const readStyleName = view.params.customStyle
-          ? `CUSTOM "${view.params.customStyle.label}"`
+          ? `CUSTOM "${view.params.customStyle.label}"${
+            view.params.customStyle.referenceCss?.trim()
+              ? " with reference stylesheet"
+              : " (prose brief only — no reference stylesheet)"
+          }`
           : view.params.htmlStyle && view.params.htmlStyle !== "default"
           ? view.params.htmlStyle.toUpperCase()
           : undefined;
