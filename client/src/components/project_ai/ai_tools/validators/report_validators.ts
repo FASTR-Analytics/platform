@@ -5,6 +5,7 @@ import {
   type ImageBlock,
   newHtmlDefect,
   type ReportFormat,
+  type ReportHtmlStyle,
   validateHtmlFragment,
 } from "lib";
 import { AIToolFailure } from "panther";
@@ -78,6 +79,30 @@ export function validateReportBodyForFormat(
       `${defect}. Close every element (</div>, </p>, </section> …) and re-propose.`,
     );
   }
+}
+
+// Backstop for the "Editorial" style (rewrite_report only): the design brief
+// rides the view instructions, but a prompt alone gets under-weighted against
+// the user's content ask — observed on testing: default and editorial reports
+// came out near-identical. A whole-body rewrite of an editorial report without
+// a real stylesheet is therefore rejected, so the model self-corrects instead
+// of shipping a plain document.
+const MIN_EDITORIAL_STYLE_CHARS = 400;
+
+export function validateEditorialHasStylesheet(
+  body: string,
+  format: ReportFormat,
+  htmlStyle: ReportHtmlStyle | undefined,
+): void {
+  if (format !== "html" || htmlStyle !== "editorial") return;
+  const m = /<style\b[^>]*>([\s\S]*?)<\/style\s*>/i.exec(body);
+  const css = m?.[1]?.trim() ?? "";
+  if (css.length >= MIN_EDITORIAL_STYLE_CHARS) return;
+  throw new AIToolFailure(
+    `This report's style is "EDITORIAL": a full-body rewrite must be a fully designed page — a complete <style> block (fonts via @import, :root tokens, masthead, cards, tables) plus the markup that uses it, as described in the Design brief in your instructions. The proposed body has ${
+      css.length === 0 ? "no <style> block" : `only ${css.length} chars of CSS`
+    }. Re-propose with the full design. (Only if the user EXPLICITLY asked for an unstyled document, tell them this report was created with the Editorial style and suggest a Platform-default report instead.)`,
+  );
 }
 
 // An in-place text edit (replace_text) may legitimately span tag boundaries, so

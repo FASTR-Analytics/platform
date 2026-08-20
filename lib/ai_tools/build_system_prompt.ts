@@ -379,12 +379,23 @@ export function getEditingReportInstructions(
 - ALWAYS call get_report_editor first: it returns the current body, the format, and a headings index (each heading's 1-based line, level, and the exact line range + mode of its section).
 - You may only reference figure/image ids that already exist; do not invent embed ids. Use **insert_figure** to add a new figure from a visualization or metric.`;
   if (format === "html") {
+    // Editorial reports: the style statement leads (a trailing brief gets
+    // under-weighted against the user's content prompt — observed on
+    // testing: default and editorial produced near-identical output until
+    // the user demanded styling explicitly), and the brief follows at the
+    // end. The rewrite_report validator backstops this: an editorial body
+    // without a real stylesheet is rejected before staging.
+    const styleBanner = htmlStyle === "editorial"
+      ? `\n\n**THIS REPORT'S STYLE IS "EDITORIAL".** Whenever you write or restructure this report (rewrite_report, or a rewrite_section that adds new material), produce a FULLY DESIGNED magazine-style page — with the same visual ambition you would bring to a standalone HTML page in a normal Claude conversation: complete stylesheet, designed masthead, cards, typographic hierarchy. Do this on the first write, without being asked. A plainly-styled document is WRONG for this report. The design language to use is in the "Design brief" section at the end of these instructions.`
+      : "";
     const styleSection = htmlStyle === "editorial"
       ? `\n\n${REPORT_EDITORIAL_BRIEF}`
       : "";
-    return `# Current View: Editing Report "${reportLabel}" (HTML format)
+    return `# Current View: Editing Report "${reportLabel}" (HTML format${
+      htmlStyle === "editorial" ? ", Editorial style" : ""
+    })
 
-The user is editing a long-form report whose body is **HTML** (not markdown) with embedded live figures.
+The user is editing a long-form report whose body is **HTML** (not markdown) with embedded live figures.${styleBanner}
 
 ${common}
 
