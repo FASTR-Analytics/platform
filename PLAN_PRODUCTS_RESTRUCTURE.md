@@ -1,10 +1,27 @@
 # PLAN — Products restructure: dissolve projects; products = decks + reports
 
-Status: PLAN, not built. **All work happens on the branch
+**Status 2026-08-19: BUILT. Phases 0–3 are complete on
+`tim-branch-restructure` (30 commits); Phase 4 (rollout) has not started.**
+`deno task typecheck` (server + client + `lint:systems`), `deno task test`,
+`./validate_migrations`, `./validate_queries` and `./validate_protocols` are
+all green, the fleet dry-run passes on the dev instance, and the migration has
+been RUN against the dev database — 11 projects → 15 products, matching the
+dry-run's plan exactly. The app runs on the migrated data. What remains is §4's
+last four gates and the §5 runbook, all of which need real infrastructure —
+see the per-item marks in those two sections. `main` receives the branch as one
+merge once they are green.
+
+Two defects have been found by using the app that no gate caught, both fixed:
+`getRollupRowLabel` read a global store instead of the bundle's own scope (so
+an export of an AA2 product's figure labelled its roll-up row "National"), and
+the two create buttons shared one `createButtonAction`, whose request-id guard
+discarded all but the most recent click's callback. Expect more of this class:
+the automated surface is clean, so what is left is behavioural.
+
+**All work happens on the branch
 `tim-branch-restructure` — every commit of Phases 1–3, the docs, the rigs and
-the ops scripts — never on `main`; `main` receives it as one merge after the
-§4 gates are green. The single exception is the §0 hotfix, which is
-independent of the restructure and ships on `main` first.** First written
+the ops scripts — never on `main`. The single exception is the §0 hotfix, which
+was independent of the restructure and shipped on `main` first.** First written
 2026-08-19 from VISION_RESTRUCTURED_APP.md after a repo-only homework sweep
 (11 subsystem inventories, a completeness pass, a five-lens adversarial review
 and a second-round verification; the migration mechanism in D9 was EXECUTED
@@ -849,11 +866,24 @@ misfiled), `server/runs/module_config.ts` (the two module helpers),
 
 ## 3. Work breakdown
 
+**Phases 1, 2 and 3 are all DONE.** The detail below is kept as the record of
+what was built and why; a fresh reader wanting the CURRENT shape should read
+the SYSTEM docs, which were rewritten against the finished code and whose file
+manifests `lint:systems` enforces. Nothing in §3 remains to be done.
+
+Deviations from the plan that were ruled during the build are recorded inline
+where they occurred (§2.4's `ReadyPackage`, §2.6's multi-select key, §2.10's
+paths, D12's `synthesize_run` / `pg_export`). Two additional facts a fresh
+agent needs: `issueFor` landed as `figurePackageIssueFor` in
+`lib/figure_package_issue.ts` and gained a second entry point
+(`figurePackageIssueForMetrics`) so the client can answer from the authoring
+context rather than a manifest it never holds; and
+`server/routes/caches/visualizations.ts` survives — it holds the three live
+run-keyed caches, only `_PO_DETAIL_CACHE` died.
+
 Every phase is built and committed on `tim-branch-restructure` (never on
-`main`). Phases are ordered so the branch reaches a runnable prototype at the
-end of Phase 2 (server + client typecheck green, dev DB consolidated).
-Commits on the branch may be WIP; the MERGE into `main` is what must be
-greenfield-equivalent, and it happens only after every §4 gate is green.
+`main`). Commits on the branch may be WIP; the MERGE into `main` is what must
+be greenfield-equivalent, and it happens only after every §4 gate is green.
 
 ### Phase 1 — Server (typecheck target: `deno check main.ts server/tests/*.ts` green)
 
@@ -993,27 +1023,53 @@ green, dev DB consolidated by 080, app runs against it.
 
 ## 4. Gates (all must be green before merge; the last four before deploy)
 
-- `deno task typecheck` (server + client + `lint:systems`); `deno task test`.
-- `./validate_migrations` (main only).
-- Appendix A harness re-run with the final 079 DDL: fresh path, live path,
-  historical shapes — zero statement errors, before == after.
-- `./validate_queries` (re-based rig).
-- Fresh-postgres boot (000→081 + transforms) completes.
+- **[GREEN]** `deno task typecheck` (server + client + `lint:systems`); `deno task test` (13/13).
+- **[GREEN]** `./validate_migrations` (main only).
+- **[GREEN, superseded]** the Appendix A harness. Replaced by a stronger check
+  that was EXECUTED: a throwaway postgres seeded with the pre-restructure base
+  + all 78 legacy migrations, plus TWO project databases seeded byte-identically
+  (simulating `copyProject`'s `WITH TEMPLATE`), run through 000→079→080→081.
+  Folders merged per D10, 7 id collisions re-minted with the full reference
+  surface rewritten (incl. deck-version slide ids and `slide_editors` keys),
+  all four figure surfaces stamped, and the migrated schema dump came out
+  BYTE-IDENTICAL to a fresh `_main_database.sql`.
+- **[GREEN]** `./validate_queries` — 76 cases, re-based on parquet + manifest
+  fixtures; 13 of them new and all about scope.
+- **[GREEN]** Fresh-postgres boot (000→081 + transforms) completes, exit 0.
+All five greps below are **[GREEN]**. The surviving hits are the deliberate
+keeps named in each line, plus the SQL verb "re-project" and the three comments
+naming the legacy `sandbox/{projectId}` dirs, which are real artefacts still on
+the runs volume until `purge_legacy_dbs` clears them.
+
 - `grep -rn "projectId\|requiresProject\|state/project/\|Project-Id" client/src lib server main.ts` → 0 (excluding `server/db/migrations/**`).
 - `grep -rni "dashboard\|presentation_objects\|visualization_folder\|po_rooms\|follow_pinned\|followPinned" client/src lib server main.ts` → 0 outside `server/db/migrations/**` and the figure-config vocabulary (`PresentationObjectConfig`, `getRunPresentationObjectItems`, `normalize_po_config`, … — §8).
 - `grep -rli "projet\|projeto" client/src lib client/public/info` → 0 (excluding "projection").
 - `grep -rni "project" client/src lib server main.ts client/public/info | grep -vi "projection"` reviewed to zero outside `server/db/migrations/**` (000/080/081 and `consolidation/plan.ts` necessarily say it). Known residue excluded: `lib/help/help_targets.generated.ts` until the docs-site rewrite.
 - `git ls-files | grep -i "project\|dashboard"` → 0 excluding `server/db/migrations/**`, `panther/**` (map projections), `_archive_*/**`.
-- 080 executed against the dev DB; the app opens every migrated product; version restore works; a reattach shows stale badges and "Update" re-resolves.
-- `validate_consolidation.ts` — zero FAIL fleet-wide (read-only); the `pending_deletion`, central-reporting, viewer-only-user, dropped-visualization / dropped-dashboard (incl. public) counts REVIEWED per instance (D2, D3, D11).
-- `restore_main` rehearsed once on testing-tim.
-- `./deploy_testing` to testing-tim (1 project) BEFORE the fleet; then one multi-project instance before the rest.
+- **[GREEN]** 080 executed against the dev DB: 11 projects → 15 products
+  (4 decks / 11 reports), 7 folders, 26 slides, 5 versions, 0 id remaps —
+  matching the dry-run's plan exactly, which is what D13's shared planning core
+  exists to guarantee. The app runs on the migrated data. Tim's own use of it
+  is the browser verification and is not a plan item.
+- **[PENDING — needs the fleet]** `validate_consolidation.ts` zero FAIL
+  fleet-wide (read-only); the `pending_deletion`, central-reporting,
+  viewer-only-user, dropped-visualization / dropped-dashboard (incl. public)
+  counts REVIEWED per instance (D2, D3, D11). Passes on the dev instance:
+  10 visualizations (all user-authored) and 7 dashboards (6 public) deleted,
+  8 of 9 users become full editors.
+- **[PENDING — needs testing-tim]** `restore_main` rehearsed once.
+- **[PENDING]** `./deploy_testing` to testing-tim BEFORE the fleet; then one
+  multi-product instance before the rest.
 
 ---
 
 ## 5. Rollout runbook + rollback
 
-1. Ship §0 (sweep deletion) as its own patch on `main` first (your go).
+**Step 1 is DONE; steps 2–8 have not started.** Everything below needs real
+infrastructure and is Tim's to trigger.
+
+1. ~~Ship §0 (sweep deletion) as its own patch on `main` first.~~ **DONE** —
+   shipped on both `main` and the branch (`25871ed4`).
 2. Fleet dry-run (D13); fix and repeat until zero FAIL; act on the
    `pending_deletion` and central-reporting lists (D11); read the
    dropped-visualization / dropped-dashboard counts and the viewer-only-user
@@ -1103,6 +1159,23 @@ transform signature), PROTOCOL_APP_QUERY_RIG (re-based rig),
 PROTOCOL_APP_DEVELOPMENT (chain links 6–7), PROTOCOL_APP_UI_CONVENTIONS
 (`project_data.tsx`, darkMode API), PROTOCOL_APP_WORKER_ROUTINES (dead worker
 names), PROTOCOL_APP_AI_TOOLS, USER_GUIDE_MCP.
+
+---
+
+## 7b. Small things left open at hand-off
+
+Two known bits of residue, both cosmetic, neither blocking:
+
+- **`showEditingPulse` is dead UI.** The server still stamps `isEditing` and it
+  does real work (suppressing idle dimming), but nothing passes the prop —
+  D8 removed the list-page cards that rendered it. Delete the prop.
+- One comment breadcrumb survives at
+  `client/src/components/figure_editor/visualization_editor_inner.tsx:257`, and
+  `client/src/app.css:33` still names the long-deleted `dark_mode_figures.ts`.
+
+Also unresolved, and Tim's call rather than a defect: `./validate_queries` used
+to take two minutes and now takes ~2s, so it could reasonably join
+`deno task typecheck` and become part of the `./deploy` gate.
 
 ---
 
