@@ -31,10 +31,10 @@ docs_absorbed:
 # S12 — Products & Folders
 
 **A product is a slide deck or a report.** This system owns the `products`
-registry every cross-type operation goes through, the flat `folders` level over
-it, the two per-type detail families, the Drive-like page they live on, and the
-SendGrid email egress. The render/export engines themselves are S10's; S12 owns
-the artifacts, their storage, and the export *triggers*.
+registry every cross-type operation goes through, the nested `folders` tree
+over it, the two per-type detail families, the file-explorer page they live on,
+and the SendGrid email egress. The render/export engines themselves are S10's;
+S12 owns the artifacts, their storage, and the export *triggers*.
 
 ## Scope
 
@@ -95,21 +95,53 @@ reports download. Every other exit is a signed-in export.
 
 ## The Products page
 
-One Drive-like page, [components/products/index.tsx](client/src/components/products/index.tsx)
-(~650 LOC), reading `instanceState.products` and `instanceState.folders`
-straight from T1 — the SSE channel keeps both current, so the page has no list
-route to call. `FrameLeftResizable` sidebar of folder groups (two pseudo-groups:
-"All products" and "General" = un-foldered) with right-click rename/delete;
-type-filter chips; 3+-character search; one sort preference
-(`sortBySortMode`, client-side, not a server ORDER BY); a mixed card grid
-(`product_card.tsx` — type icon, package label + scope badge, last updated) and
-`createSelectionController` over the **plain product id**. One id namespace and
-cross-type batch routes mean there is nothing to dispatch per type: multi-select
-feeds `moveProductsToFolder` / `deleteProducts` / per-product `duplicateProduct`
-directly.
+One file-explorer page, [components/products/index.tsx](client/src/components/products/index.tsx),
+reading `instanceState.products` and `instanceState.folders` straight from T1 —
+the SSE channel keeps both current, so the page has no list route to call. The
+main pane is a **location-based explorer**: the location is ONE folder id
+(`productsOpenFolder`, `null` = the root), persisted in localStorage alongside
+the view mode; the path is derived by walking `parentId`, never stored (D12).
+Folders sit alongside products and clicking one navigates into it.
+[folder_tree.ts](client/src/components/products/folder_tree.ts) holds the pure
+derivations — children, ancestors, path labels, descendant sets, and the
+pickers' flat full-path option list — each walk cycle-safe via a visited set.
+The breadcrumb keeps the root crumb, collapses the middle into a `…` menu, and
+recovers truncated labels via `title` (D13).
+
+Two views over one model, toggled in the header by `productsViewMode`: the card
+grid (`product_card.tsx` — type icon, package label + scope badge, last
+updated — and `folder_card.tsx`) and a hand-built list
+([list_view.tsx](client/src/components/products/list_view.tsx) — a sanctioned
+exception to PROTOCOL_UI_COMPONENTS rule 4: a navigation surface whose rows
+open editors and mix two entity kinds, not a data grid; one CSS grid template
+shared by header and rows). The type-filter chips filter **products only** —
+folders are always visible in a location, though their counts (DIRECT children
+only, D16) reflect the filter (D1). Search (3+ characters) is **global and
+flat**: it escapes the location and shows matching folders then products from
+anywhere in the tree, each with its path (D2). One sort vocabulary
+(`sortBySortMode`) drives both the header `Select` and the list view's
+clickable Name / Last updated column headers (D6); folders sort by the same
+mode and always come first, never interleaved (D7).
+
+`createSelectionController` runs over the **plain product id** — folders are
+never multi-selectable or part of a batch (D3); a folder acts through its own
+menu. One menu builder per kind
+([product_menu.ts](client/src/components/products/product_menu.ts) /
+[folder_menu.ts](client/src/components/products/folder_menu.ts)) serves the
+grid tiles, the list rows and right-click alike, and carries D14's interim
+move affordances — **Move into ▸** (this location's folders, capped at 10,
+then More…), **Move up to "parent"**, **Move to top level**, **Move to
+folder…** — with no drag-and-drop (D4) and no batch action bar (D8;
+multi-select actions stay in the menu). The full picker (`MoveToFolderModal`)
+moves a product batch or ONE folder and lists flat full paths sorted by path,
+"No folder" first, with a moved folder's own subtree excluded (D15). One id
+namespace and cross-type batch routes mean there is nothing to dispatch per
+type: multi-select feeds `moveProductsToFolder` / `deleteProducts` /
+per-product `duplicateProduct` directly.
 
 **Create is two buttons, no modal.** "New deck" / "New report" call
-`createProduct({type, folderId})`; the server mints the localized label
+`createProduct({type, folderId})` with the explorer's current location as the
+folder; the server mints the localized label
 ("Untitled deck" / "Untitled report"), resolves `run_id` from the pin INSIDE the
 insert (`INSERT … SELECT … FROM runs WHERE pinned AND status='ready'` — no
 read-then-write window) and inserts the detail row in the same transaction, then
@@ -132,11 +164,25 @@ request the tours and the copilot use, so there is one opener and one place that
 waits for hydration; an id still absent once the store `isReady` is a dead link
 and the request is dropped.
 
-**Folders** are flat, few, and have **no GET route**: `listFolders` rides the
-SSE `starting` payload and `folders_updated`. Deleting one frees its products
-(`folder_id = NULL`) and returns the freed ids so the route can emit
-`products_upserted` for them beside the folder list — the rows changed, so they
-need their own version bump.
+**Folders nest** via one nullable `parent_id` — an adjacency list (D9: no
+`ltree`, no closure table, and specifically no stored path string, which a
+rename would rewrite across every descendant; paths are derived on the client,
+where the whole list already lives). There is **no depth cap** (D17) — the
+acyclic invariant is the only structural rule, and the server enforces it: a
+move is `updateFolder` (label, colour and parent are one metadata write), and
+a move into the folder itself or any of its descendants is refused INSIDE the
+move transaction by a recursive-CTE walk up from the target, returned as the
+typed `FOLDER_CYCLE` failure through the envelope, never a throw (D10 — the
+pickers' excluded targets are a courtesy; path-id-is-the-authority holds).
+Folders are few and have **no GET route**: `listFolders` rides the SSE
+`starting` payload and `folders_updated`. **Deleting a folder reparents one
+level and never cascades** (D11): child folders and products move up to the
+deleted folder's parent (the root if it had none) — a cascade would put every
+deck, report and saved version in the subtree behind one confirm with no
+trash — and the freed product ids come back so the route can emit
+`products_upserted` for them beside the folder list, the rows having changed.
+Nesting **overturns D1 of [PLAN_PRODUCTS_RESTRUCTURE.md](PLAN_PRODUCTS_RESTRUCTURE.md)**,
+which ruled folders flat; that ruling is superseded.
 
 **Delete is hard, and rooms close with it.** `deleteProducts` reads the batch's
 types BEFORE the delete (a transient read failure aborts rather than leaving

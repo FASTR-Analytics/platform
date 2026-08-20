@@ -339,6 +339,12 @@ The four migrations that carry the consolidation, in order:
 - `081_drop_project_layer.sql` — drops the shells, the log `project_id` columns
   and the per-project user columns.
 
+After the consolidation chain:
+
+- `082_folder_nesting.sql` — adds `folders.parent_id` (self-referencing,
+  `ON DELETE SET NULL` as a backstop only — the delete path reparents
+  explicitly) plus its index, giving folders unlimited nesting (S12).
+
 SQL migrations must be idempotent because `_main_database.sql` represents
 current state and a new database gets base + all migrations — patterns and the
 golden rule are in

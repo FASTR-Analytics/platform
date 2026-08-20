@@ -108,7 +108,7 @@ approval unlocks the whole `starting` payload at once.
 | Immutable per session | `instanceName`, `instanceLanguage`, `instanceCalendar`, `instanceFiscalYear`, `countryIso3` (all env-sourced)                              | `starting` only              | —                                       |
 | Instance config       | `structureSchemaHmis`, `structureSchemaHfa`, `adminAreaLabels`, `dhis2ConnectionUrl`, `aiContext`                                           | `config_updated`             | —                                       |
 | Products              | `products` (full `ProductSummary[]`)                                                                                                       | `products_upserted` (per row) / `products_deleted` | `lastUpdated.products[id]` |
-| Folders               | `folders` (full `Folder[]`)                                                                                                                | `folders_updated`            | —                                       |
+| Folders               | `folders` (full `Folder[]` — `{id, label, color, parentId, lastUpdated}`; the tree is derived client-side)                                 | `folders_updated`            | —                                       |
 | Ready packages        | `readyPackages` (`{id, label, createdAt}[]`)                                                                                               | `starting` + `runs_catalog_updated` refetch | —                        |
 | Per-entity timestamps | `lastUpdated` — `{ products, slides }`, each `Record<id, ts>`                                                                              | `products_upserted` (products) / `last_updated` (slides) | `lastUpdated[table][id]` |
 | Users                 | `users` (full `OtherUser[]`)                                                                                                               | `users_updated`              | —                                       |
@@ -400,7 +400,8 @@ Run-keyed: a package's script / log bytes and a failed run's file listing
 | Connection monitor                | `t4_connection_monitor.ts`    | module-level signals                           |
 
 `t4_ui.ts` holds: the Products page's `productsSortMode` /
-`productsTypeFilter` / `productsSelectedFolder` (localStorage-persisted),
+`productsTypeFilter` / `productsOpenFolder` / `productsViewMode`
+(localStorage-persisted),
 Explore's ephemeral `exploreRunId` / `exploreAdminArea2` (signals only —
 deliberately not persisted), the `schemePref` appearance preference, `showAi`,
 `fitWithin`, and the three request signals the tours and deep links use
