@@ -1,14 +1,18 @@
 import { useSearchParams } from "@solidjs/router";
-import { t3, TC, type ProductSummary, type ProductType } from "lib";
+import {
+  t3,
+  TC,
+  type Folder,
+  type ProductSummary,
+  type ProductType,
+} from "lib";
 import {
   Button,
   ButtonGroup,
   Card,
-  FrameLeftResizable,
   FrameTop,
   HeadingBar,
   Select,
-  SelectList,
   createButtonAction,
   createDeleteAction,
   createSelectionController,
@@ -25,10 +29,12 @@ import {
   Match,
   Show,
   Switch,
+  batch,
   createEffect,
   createMemo,
   createSignal,
   onMount,
+  type JSX,
 } from "solid-js";
 import { copilotViewController } from "~/components/copilot/ai_views";
 import { ReportEditor } from "~/components/report";
@@ -51,25 +57,15 @@ import {
 } from "~/state/t4_ui";
 import { DuplicateProductsModal } from "./duplicate_products_modal";
 import { EditFolderModal } from "./edit_folder_modal";
+import { FolderCard } from "./folder_card";
+import { ancestors, childFolders, pathLabel } from "./folder_tree";
 import { MoveToFolderModal } from "./move_to_folder_modal";
 import { ProductCard, productTypeLabel } from "./product_card";
 import { ProductSettings } from "./product_settings";
 
-// Sidebar sentinels. `productsOpenFolder` stores null for "All products"
-// and a real uuid for a folder, so "un-foldered" needs a name of its own.
-const _ALL_PRODUCTS = "_all";
-const _GENERAL = "_general";
-
-// The type-filter chips store null for "both", so the chip group needs the
-// same treatment.
+// The type-filter chips store null for "both", so the chip group needs a
+// sentinel of its own.
 const _ALL_TYPES = "_all_types";
-
-type GroupOption = {
-  value: string;
-  label: string;
-  count: number;
-  color: string | null;
-};
 
 export function Products() {
   const { openEditor: openProductEditor, EditorWrapper: ProductEditorWrapper } =
@@ -124,68 +120,33 @@ export function Products() {
     void openProduct(product);
   });
 
-  const filteredBySearchAndType = createMemo(() => {
-    const products = instanceState.products;
-    const typeFilter = productsTypeFilter();
-    const search = searchText();
-    const byType =
-      typeFilter === null
-        ? products
-        : products.filter((x) => x.type === typeFilter);
-    if (search.length < 3) return byType;
-    const searchLower = search.toLowerCase();
-    return byType.filter((x) => x.label.toLowerCase().includes(searchLower));
-  });
+  // The explorer's location: null = the root, an id = inside that folder
+  // (D12). The path is derived, never stored.
+  const location = () => productsOpenFolder();
 
-  const groupOptions = createMemo((): GroupOption[] => {
-    const products = filteredBySearchAndType();
-    return [
-      {
-        value: _ALL_PRODUCTS,
-        label: t3({
-          en: "All products",
-          fr: "Tous les produits",
-          pt: "Todos os produtos",
-        }),
-        count: products.length,
-        color: null,
-      },
-      {
-        value: _GENERAL,
-        label: t3(TC.general),
-        count: products.filter((x) => x.folderId === null).length,
-        color: null,
-      },
-      ...instanceState.folders.map((folder) => ({
-        value: folder.id,
-        label: folder.label,
-        count: products.filter((x) => x.folderId === folder.id).length,
-        color: folder.color,
-      })),
-    ];
-  });
-
-  const selectedGroup = () => productsOpenFolder() ?? _ALL_PRODUCTS;
-
-  // A folder deleted elsewhere (or by another user) must not leave the grid
-  // showing nothing with no way back.
+  // A folder deleted elsewhere (or by another user) must not strand the
+  // explorer inside a location that no longer exists (D5). Gated on isReady so
+  // the persisted location survives hydration.
   createEffect(() => {
-    const groups = groupOptions();
-    const current = selectedGroup();
-    if (!groups.some((g) => g.value === current)) {
+    const loc = productsOpenFolder();
+    if (loc === null || !instanceState.isReady) return;
+    if (!instanceState.folders.some((f) => f.id === loc)) {
       setProductsOpenFolder(null);
     }
   });
 
-  const visibleProducts = createMemo(() => {
-    const products = filteredBySearchAndType();
-    const group = selectedGroup();
-    const selected =
-      group === _ALL_PRODUCTS
-        ? products
-        : group === _GENERAL
-          ? products.filter((x) => x.folderId === null)
-          : products.filter((x) => x.folderId === group);
+  const isSearching = () => searchText().length >= 3;
+
+  // Search is global and flat (D2): it escapes the location and matches
+  // folders and products from anywhere in the tree. The chips filter products
+  // only — folders are always visible in a location (D1).
+  const visibleFolders = createMemo(() => {
+    const folders = instanceState.folders;
+    const selected = isSearching()
+      ? folders.filter((f) =>
+          f.label.toLowerCase().includes(searchText().toLowerCase()),
+        )
+      : childFolders(folders, location());
     return sortBySortMode(
       selected,
       productsSortMode(),
@@ -193,6 +154,45 @@ export function Products() {
       (x) => x.lastUpdated,
     );
   });
+
+  const visibleProducts = createMemo(() => {
+    const products = instanceState.products;
+    const typeFilter = productsTypeFilter();
+    const byType =
+      typeFilter === null
+        ? products
+        : products.filter((x) => x.type === typeFilter);
+    const selected = isSearching()
+      ? byType.filter((x) =>
+          x.label.toLowerCase().includes(searchText().toLowerCase()),
+        )
+      : byType.filter((x) => x.folderId === location());
+    return sortBySortMode(
+      selected,
+      productsSortMode(),
+      (x) => x.label,
+      (x) => x.lastUpdated,
+    );
+  });
+
+  // A folder tile's counts are its DIRECT children only (D16); the product
+  // half reflects the type filter (D1).
+  function folderCounts(folderId: string): {
+    folderCount: number;
+    productCount: number;
+  } {
+    const typeFilter = productsTypeFilter();
+    return {
+      folderCount: instanceState.folders.filter(
+        (f) => f.parentId === folderId,
+      ).length,
+      productCount: instanceState.products.filter(
+        (x) =>
+          x.folderId === folderId &&
+          (typeFilter === null || x.type === typeFilter),
+      ).length,
+    };
+  }
 
   const selection = createSelectionController<string>({
     ids: () => visibleProducts().map((x) => x.id),
@@ -204,11 +204,17 @@ export function Products() {
     return instanceState.products.filter((x) => ids.has(x.id));
   }
 
-  // The folder a NEW product lands in: whatever the sidebar is showing, unless
-  // that is one of the two pseudo-groups.
-  function currentFolderId(): string | null {
-    const group = selectedGroup();
-    return group === _ALL_PRODUCTS || group === _GENERAL ? null : group;
+  function openFolder(folderId: string | null) {
+    batch(() => {
+      setProductsOpenFolder(folderId);
+      selection.clear();
+      if (isSearching()) setSearchText("");
+    });
+  }
+
+  function goToParent() {
+    const current = instanceState.folders.find((f) => f.id === location());
+    openFolder(current?.parentId ?? null);
   }
 
   // A new product's package is the pin, resolved server-side (D5), so with no
@@ -243,7 +249,7 @@ export function Products() {
     () =>
       serverActions.createProduct({
         type: "slide_deck",
-        folderId: currentFolderId(),
+        folderId: location(),
       }),
     openCreatedProduct,
   );
@@ -252,7 +258,7 @@ export function Products() {
     () =>
       serverActions.createProduct({
         type: "report",
-        folderId: currentFolderId(),
+        folderId: location(),
       }),
     openCreatedProduct,
   );
@@ -363,12 +369,7 @@ export function Products() {
     });
   }
 
-  function handleFolderContextMenu(e: MouseEvent, folderId: string) {
-    e.preventDefault();
-    e.stopPropagation();
-    const folder = instanceState.folders.find((f) => f.id === folderId);
-    if (!folder) return;
-
+  function handleFolderMenu(e: MouseEvent, folder: Folder) {
     const items: MenuItem[] = [
       {
         label: t3({
@@ -394,11 +395,11 @@ export function Products() {
         onClick: async () => {
           const deleteAction = createDeleteAction(
             t3({
-              en: "Are you sure you want to delete this folder? Its products move to General.",
-              fr: "Êtes-vous sûr de vouloir supprimer ce dossier ? Ses produits seront déplacés dans Général.",
-              pt: "Tem a certeza de que pretende eliminar esta pasta? Os seus produtos serão movidos para Geral.",
+              en: "Are you sure you want to delete this folder? Its contents move up one level.",
+              fr: "Êtes-vous sûr de vouloir supprimer ce dossier ? Son contenu remonte d'un niveau.",
+              pt: "Tem a certeza de que pretende eliminar esta pasta? O seu conteúdo sobe um nível.",
             }),
-            () => serverActions.deleteFolder({ folder_id: folderId }),
+            () => serverActions.deleteFolder({ folder_id: folder.id }),
             () => {},
           );
           await deleteAction.click();
@@ -411,29 +412,6 @@ export function Products() {
     });
   }
 
-  function renderGroupOption(item: ListItem<string>) {
-    const opt = groupOptions().find((g) => g.value === item.id);
-    if (!opt) return <span>{item.label}</span>;
-    const isUserFolder = !item.id.startsWith("_");
-    return (
-      <div
-        class="flex items-center gap-2"
-        onContextMenu={
-          isUserFolder ? (e) => handleFolderContextMenu(e, item.id) : undefined
-        }
-      >
-        <div
-          class="h-2.5 w-2.5 flex-none rounded-full"
-          style={{
-            "background-color": opt.color ?? getColor({ key: "base300" }),
-          }}
-        />
-        <span class="flex-1 truncate">{opt.label}</span>
-        <span class="ui-text-caption">({opt.count})</span>
-      </div>
-    );
-  }
-
   const typeFilterItems = (): ListItem<string>[] => [
     {
       id: _ALL_TYPES,
@@ -442,6 +420,122 @@ export function Products() {
     { id: "slide_deck", label: productTypeLabel("slide_deck") },
     { id: "report", label: productTypeLabel("report") },
   ];
+
+  // ── Breadcrumb (D13): root kept, middle collapsed into a menu, truncated
+  // labels recoverable via title. ──
+
+  function crumbButton(folder: Folder): JSX.Element {
+    return (
+      <button
+        type="button"
+        class="ui-focusable max-w-40 cursor-pointer truncate text-base-content-muted hover:text-base-content"
+        title={folder.label}
+        onClick={() => openFolder(folder.id)}
+      >
+        {folder.label}
+      </button>
+    );
+  }
+
+  function crumbSeparator(): JSX.Element {
+    return <span class="text-base-content-faint flex-none">›</span>;
+  }
+
+  function openMiddleCrumbsMenu(e: MouseEvent, middle: Folder[]) {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    showMenu({
+      anchor: {
+        x: rect.x,
+        y: rect.y,
+        width: rect.width,
+        height: rect.height,
+      },
+      items: middle.map((f) => ({
+        label: f.label,
+        icon: "folder" as const,
+        onClick: () => openFolder(f.id),
+      })),
+    });
+  }
+
+  const currentFolder = () =>
+    instanceState.folders.find((f) => f.id === location());
+
+  const heading = (): string | JSX.Element => {
+    if (isSearching()) {
+      return t3({
+        en: "Search results",
+        fr: "Résultats de recherche",
+        pt: "Resultados da pesquisa",
+      });
+    }
+    const folder = currentFolder();
+    const productsLabel = t3({
+      en: "Products",
+      fr: "Produits",
+      pt: "Produtos",
+    });
+    if (folder === undefined) {
+      return productsLabel;
+    }
+    const trail = ancestors(instanceState.folders, folder.id);
+    const collapsed = trail.length > 2;
+    return (
+      <div
+        class="ui-gap-sm flex min-w-0 items-center"
+        data-tour="products-breadcrumb"
+      >
+        <button
+          type="button"
+          class="ui-focusable cursor-pointer text-base-content-muted hover:text-base-content"
+          onClick={() => openFolder(null)}
+        >
+          {productsLabel}
+        </button>
+        <Show
+          when={collapsed}
+          fallback={
+            <For each={trail}>
+              {(ancestor) => (
+                <>
+                  {crumbSeparator()}
+                  {crumbButton(ancestor)}
+                </>
+              )}
+            </For>
+          }
+        >
+          {crumbSeparator()}
+          {crumbButton(trail[0])}
+          {crumbSeparator()}
+          <button
+            type="button"
+            class="ui-focusable cursor-pointer text-base-content-muted hover:text-base-content"
+            onClick={(e) => openMiddleCrumbsMenu(e, trail.slice(1, -1))}
+          >
+            …
+          </button>
+          {crumbSeparator()}
+          {crumbButton(trail[trail.length - 1])}
+        </Show>
+        {crumbSeparator()}
+        <div
+          class="ui-gap-sm flex min-w-0 items-center"
+          title={folder.label}
+        >
+          <div
+            class="h-2.5 w-2.5 flex-none rounded-full"
+            style={{
+              "background-color": folder.color ?? getColor({ key: "base300" }),
+            }}
+          />
+          <span class="max-w-40 truncate">{folder.label}</span>
+        </div>
+      </div>
+    );
+  };
+
+  const matchCount = () => visibleFolders().length + visibleProducts().length;
 
   const createButtons = (
     <div class="ui-gap-sm flex items-center">
@@ -489,11 +583,23 @@ export function Products() {
         panelChildren={
           <HeadingBar
             data-tour="products-header"
-            heading={t3({
-              en: "Products",
-              fr: "Produits",
-              pt: "Produtos",
-            })}
+            heading={heading()}
+            subheading={
+              isSearching()
+                ? t3({
+                    en: `${matchCount()} results`,
+                    fr: `${matchCount()} résultats`,
+                    pt: `${matchCount()} resultados`,
+                  })
+                : undefined
+            }
+            onBack={
+              isSearching()
+                ? () => setSearchText("")
+                : location() !== null
+                  ? goToParent
+                  : undefined
+            }
             searchText={searchText()}
             setSearchText={setSearchText}
             centerChildren={
@@ -535,7 +641,26 @@ export function Products() {
             }
           >
             <div class="ui-gap-sm flex items-center">
-              <Show when={canEditProducts()}>{createButtons}</Show>
+              <Show when={canEditProducts()}>
+                <Button
+                  data-tour="products-new-folder"
+                  iconName="plus"
+                  outline
+                  onClick={() =>
+                    void openComponent({
+                      element: EditFolderModal,
+                      props: { folder: undefined, parentId: location() },
+                    })
+                  }
+                >
+                  {t3({
+                    en: "New folder",
+                    fr: "Nouveau dossier",
+                    pt: "Nova pasta",
+                  })}
+                </Button>
+                {createButtons}
+              </Show>
               <Show when={!showAi()}>
                 <Button
                   onClick={() => setShowAi(true)}
@@ -549,125 +674,129 @@ export function Products() {
           </HeadingBar>
         }
       >
-        <FrameLeftResizable
-          startingWidth={180}
-          minWidth={170}
-          maxWidth={300}
-          panelChildren={
-            <div class="flex h-full w-full flex-col" data-tour="products-folders">
-              <div class="ui-pad flex-1 overflow-auto">
-                <SelectList
-                  items={groupOptions().map((g) => ({
-                    id: g.value,
-                    label: g.label,
-                  }))}
-                  value={selectedGroup()}
-                  onChange={(v) =>
-                    setProductsOpenFolder(v === _ALL_PRODUCTS ? null : v)
-                  }
-                  renderItem={renderGroupOption}
-                  fullWidth
-                />
-                <Show when={canEditProducts()}>
-                  <div class="py-3">
-                    <Button
-                      size="sm"
-                      outline
-                      iconName="plus"
-                      onClick={() =>
-                        void openComponent({
-                          element: EditFolderModal,
-                          props: {
-                            folder: undefined,
-                            parentId: currentFolderId(),
-                          },
-                        })
-                      }
-                    >
-                      {t3({
-                        en: "New folder",
-                        fr: "Nouveau dossier",
-                        pt: "Nova pasta",
-                      })}
-                    </Button>
-                  </div>
-                </Show>
-              </div>
-            </div>
-          }
+        <div
+          class="ui-gap ui-pad grid h-full w-full grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start items-start overflow-auto"
+          data-tour="products-items"
+          onClick={() => selection.clear()}
         >
-          <div
-            class="ui-gap ui-pad grid h-full w-full grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start items-start overflow-auto"
-            data-tour="products-grid"
-            onClick={() => selection.clear()}
-          >
-            <For
-              each={visibleProducts()}
-              fallback={
-                <Switch>
-                  <Match when={searchText().length >= 3}>
-                    <div class="text-base-content-muted text-sm">
-                      {t3({
-                        en: "No matching products",
-                        fr: "Aucun produit correspondant",
-                        pt: "Nenhum produto correspondente",
-                      })}
-                    </div>
-                  </Match>
-                  <Match
-                    when={
-                      instanceState.products.length === 0 && canEditProducts()
-                    }
+          <For each={visibleFolders()}>
+            {(folder) => (
+              <FolderCard
+                folder={folder}
+                folderCount={folderCounts(folder.id).folderCount}
+                productCount={folderCounts(folder.id).productCount}
+                searchPath={
+                  isSearching()
+                    ? folder.parentId === null
+                      ? t3({
+                          en: "Top level",
+                          fr: "Niveau supérieur",
+                          pt: "Nível superior",
+                        })
+                      : pathLabel(instanceState.folders, folder.parentId)
+                    : null
+                }
+                onOpen={() => openFolder(folder.id)}
+                onMenu={(e) => handleFolderMenu(e, folder)}
+              />
+            )}
+          </For>
+          <For
+            each={visibleProducts()}
+            fallback={
+              <Switch>
+                <Match when={isSearching()}>
+                  <div class="text-base-content-muted text-sm">
+                    {t3({
+                      en: "No matching products",
+                      fr: "Aucun produit correspondant",
+                      pt: "Nenhum produto correspondente",
+                    })}
+                  </div>
+                </Match>
+                <Match
+                  when={
+                    location() === null &&
+                    visibleFolders().length === 0 &&
+                    instanceState.products.length === 0 &&
+                    canEditProducts()
+                  }
+                >
+                  <Card
+                    header={t3({
+                      en: "Start here",
+                      fr: "Commencer ici",
+                      pt: "Comece aqui",
+                    })}
+                    class="col-span-2"
                   >
-                    <Card
-                      header={t3({
-                        en: "Start here",
-                        fr: "Commencer ici",
-                        pt: "Comece aqui",
-                      })}
-                      class="col-span-2"
-                    >
-                      <div class="ui-spy-sm">
-                        <div class="text-base-content-muted text-sm">
-                          {t3({
-                            en: "A product is a slide deck or a report. Create one and the editor opens straight away.",
-                            fr: "Un produit est une présentation ou un rapport. Créez-en un et l'éditeur s'ouvre immédiatement.",
-                            pt: "Um produto é uma apresentação ou um relatório. Crie um e o editor abre de imediato.",
-                          })}
-                        </div>
-                        {createButtons}
+                    <div class="ui-spy-sm">
+                      <div class="text-base-content-muted text-sm">
+                        {t3({
+                          en: "A product is a slide deck or a report. Create one and the editor opens straight away.",
+                          fr: "Un produit est une présentation ou un rapport. Créez-en un et l'éditeur s'ouvre immédiatement.",
+                          pt: "Um produto é uma apresentação ou um relatório. Crie um e o editor abre de imediato.",
+                        })}
                       </div>
-                    </Card>
-                  </Match>
-                  <Match when={true}>
-                    <div class="text-base-content-muted text-sm">
+                      {createButtons}
+                    </div>
+                  </Card>
+                </Match>
+                <Match when={visibleFolders().length > 0}>
+                  <div class="text-base-content-muted text-sm">
+                    {t3({
+                      en: "No products here yet",
+                      fr: "Aucun produit ici pour le moment",
+                      pt: "Ainda não há produtos aqui",
+                    })}
+                  </div>
+                </Match>
+                <Match when={location() !== null}>
+                  <div class="text-base-content-muted ui-spy-sm text-sm">
+                    <div>
                       {t3({
-                        en: "No products here yet",
-                        fr: "Aucun produit ici pour le moment",
-                        pt: "Ainda não há produtos aqui",
+                        en: "This folder is empty",
+                        fr: "Ce dossier est vide",
+                        pt: "Esta pasta está vazia",
                       })}
                     </div>
-                  </Match>
-                </Switch>
-              }
-            >
-              {(product) => (
-                <ProductCard
-                  product={product}
-                  selected={selection.isSelected(product.id)}
-                  onSelectToggle={(e) => selection.handleClick(product.id, e)}
-                  onOpen={(e) => {
-                    e?.stopPropagation();
-                    selection.handleClick(product.id, e, () =>
-                      openProduct(product),
-                    );
-                  }}
-                  onContextMenu={(e) => handleContextMenu(e, product)}
-                />
-              )}
-            </For>
-          </div>
-        </FrameLeftResizable>
+                    <div>
+                      {t3({
+                        en: "Move products or folders in from their menu, or create something new here.",
+                        fr: "Déplacez des produits ou des dossiers ici depuis leur menu, ou créez-en de nouveaux ici.",
+                        pt: "Mova produtos ou pastas para aqui a partir do seu menu, ou crie algo novo aqui.",
+                      })}
+                    </div>
+                  </div>
+                </Match>
+                <Match when={true}>
+                  <div class="text-base-content-muted text-sm">
+                    {t3({
+                      en: "No products here yet",
+                      fr: "Aucun produit ici pour le moment",
+                      pt: "Ainda não há produtos aqui",
+                    })}
+                  </div>
+                </Match>
+              </Switch>
+            }
+          >
+            {(product) => (
+              <ProductCard
+                product={product}
+                selected={selection.isSelected(product.id)}
+                onSelectToggle={(e) => selection.handleClick(product.id, e)}
+                onOpen={(e) => {
+                  e?.stopPropagation();
+                  selection.handleClick(product.id, e, () =>
+                    openProduct(product),
+                  );
+                }}
+                onContextMenu={(e) => handleContextMenu(e, product)}
+              />
+            )}
+          </For>
+        </div>
       </FrameTop>
     </ProductEditorWrapper>
   );
