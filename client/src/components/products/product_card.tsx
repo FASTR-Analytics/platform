@@ -1,6 +1,5 @@
 import { t3, type ProductSummary, type ProductType } from "lib";
-import { Badge, Card, Icon, type IconName } from "panther";
-import { Show } from "solid-js";
+import { Card, Icon, type IconName } from "panther";
 import { instanceState } from "~/state/instance/t1_store";
 
 export const PRODUCT_TYPE_ICONS: Record<ProductType, IconName> = {
@@ -55,29 +54,15 @@ export function ProductCard(p: Props) {
         </div>
       }
     >
-      <div class="ui-spy-sm">
-        <div class="ui-gap-sm flex flex-wrap items-center">
-          <Badge intent="base-200">{productTypeLabel(p.product.type)}</Badge>
-          <Badge>{packageLabel(p.product.runId)}</Badge>
-          <Show
-            when={p.product.adminArea2}
-            fallback={
-              <Badge intent="base-200">
-                {t3({ en: "National", fr: "National", pt: "Nacional" })}
-              </Badge>
-            }
-          >
-            {(area) => <Badge intent="neutral">{area()}</Badge>}
-          </Show>
-        </div>
-        <div class="ui-text-caption">
-          {t3({
-            en: "Updated",
-            fr: "Modifié",
-            pt: "Atualizado",
-          })}{" "}
-          {new Date(p.product.lastUpdated).toLocaleDateString()}
-        </div>
+      {/* ONE caption line, mirroring the folder tile's counts line, so the
+          two kinds of tile share a height. The pair the product serves from
+          is the load-bearing info (D8); type is the header icon, and the
+          updated date lives in the list view. */}
+      <div class="ui-text-caption truncate">
+        {packageLabel(p.product.runId)}
+        {" · "}
+        {p.product.adminArea2 ??
+          t3({ en: "National", fr: "National", pt: "Nacional" })}
       </div>
     </Card>
   );

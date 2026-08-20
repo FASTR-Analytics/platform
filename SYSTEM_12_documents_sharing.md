@@ -109,8 +109,9 @@ The breadcrumb keeps the root crumb, collapses the middle into a `…` menu, and
 recovers truncated labels via `title` (D13).
 
 Two views over one model, toggled in the header by `productsViewMode`: the card
-grid (`product_card.tsx` — type icon, package label + scope badge, last
-updated — and `folder_card.tsx`) and a hand-built list
+grid (`product_card.tsx` — type icon + one "package · scope" caption, so
+product and folder tiles share a height — and `folder_card.tsx`) and a
+hand-built list
 ([list_view.tsx](client/src/components/products/list_view.tsx) — a sanctioned
 exception to PROTOCOL_UI_COMPONENTS rule 4: a navigation surface whose rows
 open editors and mix two entity kinds, not a data grid; one CSS grid template
