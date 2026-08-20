@@ -57,6 +57,7 @@ export type DBFolder = {
   id: string;
   label: string;
   color: string | null;
+  parent_id: string | null;
   last_updated: string;
 };
 

@@ -54,6 +54,7 @@ export function MoveToFolderModal(p: AlertComponentProps<Props, ReturnType>) {
         const createRes = await serverActions.createFolder({
           label,
           color: newFolderColor(),
+          parentId: null,
         });
         if (!createRes.success) {
           return createRes;

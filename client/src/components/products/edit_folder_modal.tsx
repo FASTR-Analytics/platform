@@ -12,6 +12,9 @@ import { serverActions } from "~/server_actions";
 type Props = {
   // undefined = create.
   folder: Folder | undefined;
+  // Where a CREATED folder lands (the explorer's current location); ignored on
+  // edit — a move goes through the move menu, not this modal.
+  parentId: string | null;
 };
 
 type ReturnType = { lastUpdated: string } | undefined;
@@ -37,12 +40,17 @@ export function EditFolderModal(p: AlertComponentProps<Props, ReturnType>) {
       }
       const folder = p.folder;
       if (folder === undefined) {
-        return serverActions.createFolder({ label, color: tempColor() });
+        return serverActions.createFolder({
+          label,
+          color: tempColor(),
+          parentId: p.parentId,
+        });
       }
       return serverActions.updateFolder({
         folder_id: folder.id,
         label,
         color: tempColor(),
+        parentId: folder.parentId,
       });
     },
     (data) => {

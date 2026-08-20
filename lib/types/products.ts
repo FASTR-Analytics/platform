@@ -5,7 +5,8 @@
 // `products` is the registry every cross-type operation goes through (list,
 // folder move, delete, package reattach, "in use by", id namespace); the
 // per-type detail tables hang off it by the same id
-// (PLAN_PRODUCTS_RESTRUCTURE D1). Folders are the one flat organising level.
+// (PLAN_PRODUCTS_RESTRUCTURE D1). Folders nest via `parentId` (adjacency
+// list); a product lives in exactly one folder or none.
 //
 // Every approved user is a full editor of every product (D2). `createdBy` is
 // recorded so the later owner/sharing model has its join key; nothing reads it
@@ -25,6 +26,9 @@ export type Folder = {
   id: string;
   label: string;
   color: string | null;
+  // NULL = a root-level folder. The path is derived by walking up, never
+  // stored.
+  parentId: string | null;
   lastUpdated: string;
 };
 

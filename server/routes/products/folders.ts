@@ -15,8 +15,10 @@ import { defineRoute } from "../route-helpers.ts";
 
 export const routesFolders = new Hono();
 
-// Folders are the one flat organising level over products (D1), guarded by
-// requireApprovedUser() like the products themselves (D2).
+// Folders nest via parent_id (D9), guarded by requireApprovedUser() like the
+// products themselves (D2). A move is updateFolder; the DB layer refuses
+// cycles with the typed FOLDER_CYCLE failure, which returns through the
+// envelope below before any notify fires.
 
 // Folders are few and change rarely, so the whole list rides every change —
 // the per-row treatment products need buys nothing here.
@@ -32,7 +34,12 @@ defineRoute(
   "createFolder",
   requireApprovedUser(),
   async (c, { body }) => {
-    const res = await createFolder(c.var.mainDb, body.label, body.color);
+    const res = await createFolder(
+      c.var.mainDb,
+      body.label,
+      body.color,
+      body.parentId,
+    );
     if (!res.success) {
       return c.json(res);
     }
@@ -53,6 +60,7 @@ defineRoute(
       params.folder_id,
       body.label,
       body.color,
+      body.parentId,
     );
     if (!res.success) {
       return c.json(res);
@@ -74,8 +82,9 @@ defineRoute(
       return c.json(res);
     }
 
-    // The folder's products are un-foldered, not deleted — their rows changed,
-    // so they need their own products_upserted alongside the folder list.
+    // The folder's products move up one level, not deleted — their rows
+    // changed, so they need their own products_upserted alongside the folder
+    // list.
     await notifyFolders(c.var.mainDb);
     await notifyProductsUpserted(c.var.mainDb, res.data.freedProductIds);
 

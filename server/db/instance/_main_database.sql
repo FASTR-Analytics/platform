@@ -110,8 +110,11 @@ CREATE TABLE folders (
   id text PRIMARY KEY NOT NULL,        -- uuid
   label text NOT NULL,
   color text,
+  parent_id text REFERENCES folders(id) ON DELETE SET NULL,  -- NULL = root
   last_updated text NOT NULL
 );
+
+CREATE INDEX idx_folders_parent_id ON folders(parent_id);
 
 CREATE TABLE products (
   id text PRIMARY KEY NOT NULL,        -- 4-char nanoid (legacy 3-char kept)

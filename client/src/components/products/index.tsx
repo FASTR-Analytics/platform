@@ -378,7 +378,10 @@ export function Products() {
         }),
         icon: "pencil",
         onClick: () =>
-          void openComponent({ element: EditFolderModal, props: { folder } }),
+          void openComponent({
+            element: EditFolderModal,
+            props: { folder, parentId: folder.parentId },
+          }),
       },
       {
         label: t3({
@@ -574,7 +577,10 @@ export function Products() {
                       onClick={() =>
                         void openComponent({
                           element: EditFolderModal,
-                          props: { folder: undefined },
+                          props: {
+                            folder: undefined,
+                            parentId: currentFolderId(),
+                          },
                         })
                       }
                     >
