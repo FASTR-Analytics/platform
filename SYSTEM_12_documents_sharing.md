@@ -10,6 +10,7 @@ globs:
   - client/src/components/layout_editor/**
   - client/src/components/project/add_deck.tsx
   - client/src/components/project/add_report.tsx
+  - client/src/components/project/report_style_picker.tsx
   - client/src/components/project/duplicate_deck_modal.tsx
   - client/src/components/project/duplicate_report_modal.tsx
   - client/src/components/project/edit_deck_folder_modal.tsx
@@ -194,7 +195,16 @@ reports additionally carry `htmlStyle?` — one of the `REPORT_HTML_STYLES`
 presets (default, editorial, swiss, bauhaus, blueprint, broadsheet, risograph,
 artdeco, japanese, monochrome, terminal, brutalist; also fixed at creation,
 also total via `getReportHtmlStyle`) — it changes ONLY the S13 AI authoring
-brief, never the render path; `updateReportConfig` re-imposes both
+brief, never the render path. Creation is a two-step wizard (panther has ONE
+alert slot, so the steps can't stack — `attemptAddReport` in
+[project_reports.tsx](client/src/components/project/project_reports.tsx) owns
+the loop): the form creates markdown directly but closes with a draft for
+html ("Next"), then
+[report_style_picker.tsx](client/src/components/project/report_style_picker.tsx)
+shows a tile grid of hand-authored CSS mini-report mockups (real Google Fonts
+loaded on open, greeked bars for language-neutrality — deliberate impressions,
+not AI output) and owns the html `createReport` call; Back re-opens the form
+seeded with the draft; `updateReportConfig` re-imposes both
 stored fields; duplicate / copy-from-version carry `config`. Embeds are per-format tokens — markdown
 `![caption](figure:<uuid>)` / `![caption](image:<uuid>)`, html
 `<img src="figure:<uuid>" alt="caption">` (other attributes are the author's

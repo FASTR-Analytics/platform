@@ -25,6 +25,7 @@ import {
 } from "panther";
 import { For, Show, createEffect, createSignal } from "solid-js";
 import { AddReportForm } from "./add_report";
+import { ReportStylePicker } from "./report_style_picker";
 import { EditReportFolderModal } from "./edit_report_folder_modal";
 import { MoveReportToFolderModal } from "./move_report_to_folder_modal";
 import { DuplicateReportModal } from "./duplicate_report_modal";
@@ -424,26 +425,56 @@ export function ProjectReports(p: ExtendedProps) {
     );
   };
 
+  // Create-report wizard: form → (HTML only) style picker → open the new
+  // report. The loop lives here because panther has one alert slot — the
+  // picker can't stack on the form, so Back closes the picker and re-opens
+  // the form seeded with the draft. Esc/backdrop anywhere cancels the wizard.
   async function attemptAddReport() {
     const group = reportSelectedGroup();
     const currentFolderId =
       reportGroupingMode() === "folders" && group && !group.startsWith("_")
         ? group
         : null;
-    const res = await openComponent({
-      element: AddReportForm,
-      props: {
-        projectId: projectState.id,
-        folders: projectState.reportFolders,
-        currentFolderId,
-      },
-    });
-    if (res === undefined) {
-      return;
+    let draft: { label: string; folderId: string | null } | undefined;
+    let newReportId: string | undefined;
+    for (;;) {
+      const formRes = await openComponent({
+        element: AddReportForm,
+        props: {
+          projectId: projectState.id,
+          folders: projectState.reportFolders,
+          currentFolderId,
+          initial: draft,
+        },
+      });
+      if (formRes === undefined) {
+        return;
+      }
+      if ("created" in formRes) {
+        newReportId = formRes.created.newReportId;
+        break;
+      }
+      draft = formRes.next;
+      const picked = await openComponent({
+        element: ReportStylePicker,
+        props: {
+          projectId: projectState.id,
+          label: draft.label,
+          folderId: draft.folderId,
+        },
+      });
+      if (picked === undefined) {
+        return;
+      }
+      if ("back" in picked) {
+        continue;
+      }
+      newReportId = picked.newReportId;
+      break;
     }
-    const report = projectState.reports.find((r) => r.id === res.newReportId);
+    const report = projectState.reports.find((r) => r.id === newReportId);
     await openReport(
-      res.newReportId,
+      newReportId,
       report?.label || t3({ en: "Report", fr: "Rapport", pt: "Relatório" }),
     );
   }
