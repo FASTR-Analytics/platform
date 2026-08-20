@@ -11,6 +11,7 @@ globs:
   - client/src/components/project/add_deck.tsx
   - client/src/components/project/add_report.tsx
   - client/src/components/project/report_style_picker.tsx
+  - client/src/components/project/report_style_editor.tsx
   - client/src/components/project/duplicate_deck_modal.tsx
   - client/src/components/project/duplicate_report_modal.tsx
   - client/src/components/project/edit_deck_folder_modal.tsx
@@ -35,9 +36,11 @@ globs:
   - lib/types/_slide_deck_config.ts
   - lib/types/dashboard.ts
   - lib/types/reports.ts
+  - lib/types/report_styles.ts
   - lib/report_sections.ts
   - lib/types/slides.ts
   - server/db/instance/dashboard_slugs.ts
+  - server/db/instance/report_styles.ts
   - server/db/project/dashboards.ts
   - server/db/project/move_slides.ts
   - server/db/project/report_folders.ts
@@ -204,7 +207,19 @@ html ("Next"), then
 shows a tile grid of hand-authored CSS mini-report mockups (real Google Fonts
 loaded on open, greeked bars for language-neutrality — deliberate impressions,
 not AI output) and owns the html `createReport` call; Back re-opens the form
-seeded with the draft; `updateReportConfig` re-imposes both
+seeded with the draft. **Custom styles**: user-authored briefs live in the
+MAIN-db `report_styles` table (075; visibility per style — this/selected
+projects via a `project_ids` JSON list, or NULL = instance-wide;
+[server/db/instance/report_styles.ts](server/db/instance/report_styles.ts),
+CRUD on the reports routes, mutations `can_configure_reports` + logged). They
+render in the picker as color-skinned generic tiles and are created/edited via
+[report_style_editor.tsx](client/src/components/project/report_style_editor.tsx)
+(a wizard step; delete lives there because openConfirm would replace the picker
+modal). A report snapshots `{id,label,brief,colors}` into `config.customStyle`
+at creation (server-resolved + visibility-checked); the editor prefers the LIVE
+library brief when the style still exists and is visible (live ref + snapshot
+fallback), and `updateReportConfig` re-imposes the stored snapshot. S13's
+"Save this report's style…" distillation writes into this library; `updateReportConfig` re-imposes both
 stored fields; duplicate / copy-from-version carry `config`. Embeds are per-format tokens — markdown
 `![caption](figure:<uuid>)` / `![caption](image:<uuid>)`, html
 `<img src="figure:<uuid>" alt="caption">` (other attributes are the author's

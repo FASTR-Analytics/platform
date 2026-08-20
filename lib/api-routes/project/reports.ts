@@ -5,7 +5,9 @@ import {
   reportConfigSchema,
   reportFiguresSchema,
   reportImagesSchema,
+  reportStyleBodySchema,
 } from "../../types/mod.ts";
+import type { ReportCustomStyle } from "../../types/report_styles.ts";
 import type {
   ReportConfig,
   ReportDetail,
@@ -55,8 +57,45 @@ export const reportRouteRegistry = {
       ...folderBodyFields,
       format: z.enum(REPORT_FORMATS).optional(),
       htmlStyle: z.enum(REPORT_HTML_STYLES).optional(),
+      // A custom style from the library (main DB); the server resolves and
+      // snapshots it — wins over htmlStyle.
+      customStyleId: z.string().optional(),
     }),
     response: {} as { reportId: string; lastUpdated: string },
+    requiresProject: true,
+  }),
+
+  // ── Custom report styles (library rows live in the MAIN db; visibility is
+  // per style: this/selected projects or instance-wide) ──────────────────────
+
+  listReportStyles: route({
+    path: "/report_styles",
+    method: "GET",
+    response: {} as ReportCustomStyle[],
+    requiresProject: true,
+  }),
+
+  createReportStyle: route({
+    path: "/report_styles",
+    method: "POST",
+    body: reportStyleBodySchema,
+    response: {} as ReportCustomStyle,
+    requiresProject: true,
+  }),
+
+  updateReportStyle: route({
+    path: "/report_styles/:style_id",
+    method: "PUT",
+    params: z.object({ style_id: z.string() }),
+    body: reportStyleBodySchema,
+    response: {} as ReportCustomStyle,
+    requiresProject: true,
+  }),
+
+  deleteReportStyle: route({
+    path: "/report_styles/:style_id",
+    method: "DELETE",
+    params: z.object({ style_id: z.string() }),
     requiresProject: true,
   }),
 

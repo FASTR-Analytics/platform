@@ -5,7 +5,6 @@ import {
   type ImageBlock,
   newHtmlDefect,
   type ReportFormat,
-  type ReportHtmlStyle,
   validateHtmlFragment,
 } from "lib";
 import { AIToolFailure } from "panther";
@@ -92,16 +91,17 @@ const MIN_STYLED_CSS_CHARS = 400;
 export function validateStyledReportHasStylesheet(
   body: string,
   format: ReportFormat,
-  htmlStyle: ReportHtmlStyle | undefined,
+  // Preset name or custom style label; undefined = unstyled (default).
+  styleName: string | undefined,
 ): void {
-  if (format !== "html" || !htmlStyle || htmlStyle === "default") return;
+  if (format !== "html" || !styleName) return;
   const m = /<style\b[^>]*>([\s\S]*?)<\/style\s*>/i.exec(body);
   const css = m?.[1]?.trim() ?? "";
   if (css.length >= MIN_STYLED_CSS_CHARS) return;
   throw new AIToolFailure(
-    `This report's style is "${htmlStyle.toUpperCase()}": a full-body rewrite must be a fully designed page — a complete <style> block implementing the Design brief in your instructions, plus the markup that uses it. The proposed body has ${
+    `This report's style is "${styleName.toUpperCase()}": a full-body rewrite must be a fully designed page — a complete <style> block implementing the Design brief in your instructions, plus the markup that uses it. The proposed body has ${
       css.length === 0 ? "no <style> block" : `only ${css.length} chars of CSS`
-    }. Re-propose with the full design. (Only if the user EXPLICITLY asked for an unstyled document, tell them this report was created with the "${htmlStyle}" style and suggest a Platform-default report instead.)`,
+    }. Re-propose with the full design. (Only if the user EXPLICITLY asked for an unstyled document, tell them this report was created with the "${styleName}" style and suggest a Platform-default report instead.)`,
   );
 }
 

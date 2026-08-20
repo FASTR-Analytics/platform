@@ -5,6 +5,7 @@ import {
   type AuthorRun,
   buildReportPreview,
   type FigureBlock,
+  getReportCustomStyle,
   getReportFormat,
   getReportHtmlStyle,
   getStartingBodyForReport,
@@ -14,6 +15,7 @@ import {
   type ReportConfig,
   reportConfigSchema,
   type ReportDetail,
+  type ReportCustomStyleSnapshot,
   type ReportDocContent,
   type ReportFormat,
   type ReportHtmlStyle,
@@ -109,12 +111,13 @@ export async function createReport(
   folderId?: string | null,
   format: ReportFormat = "markdown",
   htmlStyle: ReportHtmlStyle = "default",
+  customStyle?: ReportCustomStyleSnapshot,
 ): Promise<APIResponseWithData<{ reportId: string; lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const reportId = await generateUniqueReportId(projectDb);
     const lastUpdated = new Date().toISOString();
 
-    const defaultConfig = getStartingConfigForReport(format, htmlStyle);
+    const defaultConfig = getStartingConfigForReport(format, htmlStyle, customStyle);
     const body = getStartingBodyForReport(label, format);
     await projectDb`
       INSERT INTO reports (id, label, body, figures, images, config, folder_id, last_updated)
@@ -391,11 +394,14 @@ export async function updateReportConfig(
     }
     const storedConfig = parseReportConfig(stored);
     const format = getReportFormat(storedConfig);
+    const storedCustom = getReportCustomStyle(storedConfig);
     const next: ReportConfig = {
       ...config,
       format,
       ...(format === "html"
-        ? { htmlStyle: getReportHtmlStyle(storedConfig) }
+        ? storedCustom
+          ? { customStyle: storedCustom }
+          : { htmlStyle: getReportHtmlStyle(storedConfig) }
         : {}),
     };
     await projectDb`

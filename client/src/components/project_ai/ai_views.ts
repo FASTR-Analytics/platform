@@ -99,6 +99,8 @@ export type EditingReportParams = {
   // Format and (html-only) style — fixed at creation, known before setView.
   format: ReportFormat;
   htmlStyle?: ReportHtmlStyle;
+  // Custom style, resolved live-vs-snapshot by the report editor (S12).
+  customStyle?: { label: string; brief: string };
 };
 // See ./types.ts for ReportEditProposal(Result) and ReportEditorSelection.
 export type EditingReportContext = {
@@ -173,7 +175,7 @@ export const projectAIViews = defineAIViews({
   editing_report: view<EditingReportParams, EditingReportContext>({
     label: (params) => params.reportLabel,
     instructions: (params, context) => {
-      const base = `${getEditingReportInstructions(params.reportLabel, params.format, params.htmlStyle)}\n\nreportId: ${params.reportId}`;
+      const base = `${getEditingReportInstructions(params.reportLabel, params.format, params.htmlStyle, params.customStyle)}\n\nreportId: ${params.reportId}`;
       const sel = context.getSelection();
       if (!sel) return base;
       if (sel.empty) {

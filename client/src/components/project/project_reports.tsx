@@ -26,6 +26,7 @@ import {
 import { For, Show, createEffect, createSignal } from "solid-js";
 import { AddReportForm } from "./add_report";
 import { ReportStylePicker } from "./report_style_picker";
+import { ReportStyleEditor } from "./report_style_editor";
 import { EditReportFolderModal } from "./edit_report_folder_modal";
 import { MoveReportToFolderModal } from "./move_report_to_folder_modal";
 import { DuplicateReportModal } from "./duplicate_report_modal";
@@ -455,26 +456,44 @@ export function ProjectReports(p: ExtendedProps) {
         break;
       }
       draft = formRes.next;
-      const picked = await openComponent({
-        element: ReportStylePicker,
-        props: {
-          projectId: projectState.id,
-          label: draft.label,
-          folderId: draft.folderId,
-        },
-      });
-      if (picked === undefined) {
-        return;
+      // Inner loop: the picker re-opens after each style-editor round trip
+      // (create/edit/delete a custom style), and "back" falls through to the
+      // outer loop, which re-opens the form seeded with the draft.
+      let backToForm = false;
+      while (!backToForm && newReportId === undefined) {
+        const picked = await openComponent({
+          element: ReportStylePicker,
+          props: {
+            projectId: projectState.id,
+            label: draft.label,
+            folderId: draft.folderId,
+          },
+        });
+        if (picked === undefined) {
+          return;
+        }
+        if ("back" in picked) {
+          backToForm = true;
+        } else if ("editStyle" in picked) {
+          await openComponent({
+            element: ReportStyleEditor,
+            props: {
+              projectId: projectState.id,
+              existing: picked.editStyle.style,
+            },
+          });
+        } else {
+          newReportId = picked.newReportId;
+        }
       }
-      if ("back" in picked) {
-        continue;
+      if (newReportId !== undefined) {
+        break;
       }
-      newReportId = picked.newReportId;
-      break;
     }
-    const report = projectState.reports.find((r) => r.id === newReportId);
+    const createdId = newReportId;
+    const report = projectState.reports.find((r) => r.id === createdId);
     await openReport(
-      newReportId,
+      createdId,
       report?.label || t3({ en: "Report", fr: "Rapport", pt: "Relatório" }),
     );
   }

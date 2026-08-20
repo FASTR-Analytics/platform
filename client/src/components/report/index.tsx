@@ -7,6 +7,7 @@ import {
   findReportBodyText,
   findReportEmbeds,
   findReportFigureConfigMap,
+  getReportCustomStyle,
   getReportFormat,
   getReportHtmlStyle,
   type ImageBlock,
@@ -148,8 +149,9 @@ export function ProjectReport(p: Props) {
   // The body format — fixed at creation, read from config before anything
   // parses tokens (the orphan prune, the editor language, the AI view).
   const [format, setFormat] = createSignal<ReportFormat>("markdown");
-  // Only consumed by the AI view params (the editorial authoring brief).
+  // Only consumed by the AI view params (the styled authoring brief).
   let htmlStyle: ReturnType<typeof getReportHtmlStyle> = "default";
+  let customStyle: { label: string; brief: string } | undefined;
   const [figures, setFigures] = createSignal<Record<string, FigureBlock>>({});
   const [images, setImages] = createSignal<Record<string, ImageBlock>>({});
   // HTML preview: figure rasters (content-keyed blob URLs) live here so they
@@ -562,6 +564,19 @@ export function ProjectReport(p: Props) {
       setLabel(res.data.label);
       setFormat(getReportFormat(res.data.config));
       htmlStyle = getReportHtmlStyle(res.data.config);
+      // Custom style: live ref + snapshot fallback (S12) — prefer the CURRENT
+      // library brief when the style still exists and is visible here, so
+      // tuning a style once benefits every report using it; the creation-time
+      // snapshot keeps deleted/hidden styles working.
+      const snap = getReportCustomStyle(res.data.config);
+      if (snap) {
+        customStyle = { label: snap.label, brief: snap.brief };
+        const live = await serverActions.listReportStyles({ projectId });
+        if (live.success) {
+          const cur = live.data.find((st) => st.id === snap.id);
+          if (cur) customStyle = { label: cur.label, brief: cur.brief };
+        }
+      }
       setBody(res.data.body);
       setLastUpdated(res.data.lastUpdated);
 
@@ -652,7 +667,13 @@ export function ProjectReport(p: Props) {
 
     projectAIViewController.setView(
       "editing_report",
-      { reportId: p.reportId, reportLabel: label(), format: format(), htmlStyle },
+      {
+        reportId: p.reportId,
+        reportLabel: label(),
+        format: format(),
+        htmlStyle,
+        customStyle,
+      },
       {
         getBody: () => body(),
         getFigures: () => figures(),

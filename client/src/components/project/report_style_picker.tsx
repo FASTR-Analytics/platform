@@ -1,15 +1,17 @@
 import {
+  type ReportCustomStyle,
   type ReportHtmlStyle,
   t3,
 } from "lib";
 import {
   type AlertComponentProps,
   Button,
+  Icon,
   ModalContainer,
   StateHolderFormError,
   type StateHolderFormAction,
 } from "panther";
-import { createSignal, For, onMount } from "solid-js";
+import { createSignal, For, onMount, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 
 // Step 2 of the create-report wizard for HTML reports (project_reports.tsx owns
@@ -21,7 +23,16 @@ import { serverActions } from "~/server_actions";
 // body text so tiles stay language-neutral. Create happens HERE (style is
 // fixed at creation); Back returns {back} so the wizard reopens the form.
 
-export type ReportStylePickerResult = { newReportId: string } | { back: true };
+export type ReportStylePickerResult =
+  | { newReportId: string }
+  | { back: true }
+  // Open the style editor (new when style is absent) — the wizard loop in
+  // project_reports.tsx runs it and re-opens this picker after.
+  | { editStyle: { style?: ReportCustomStyle } };
+
+type Sel =
+  | { kind: "preset"; value: ReportHtmlStyle }
+  | { kind: "custom"; style: ReportCustomStyle };
 
 type Props = AlertComponentProps<
   { projectId: string; label: string; folderId: string | null },
@@ -208,6 +219,51 @@ function StyleMock(p: { style: ReportHtmlStyle }) {
   );
 }
 
+// A custom style's tile: the generic skeleton skinned by the style's three
+// stored colors (page/ink/accent) via CSS custom properties.
+function CustomStyleMock(p2: { style: ReportCustomStyle }) {
+  const c = p2.style.colors;
+  return (
+    <div
+      class="rsp rsp-customx"
+      aria-hidden="true"
+      style={c
+        ? { "--ct-page": c.page, "--ct-ink": c.ink, "--ct-accent": c.accent }
+        : undefined}
+    >
+      <div class="rsp-page">
+        <i class="rsp-seal" />
+        <div class="rsp-eyebrow">2026 · 08</div>
+        <div class="rsp-title">
+          {t3({ en: "Report", fr: "Rapport", pt: "Relatório" })}
+        </div>
+        <i class="rsp-rule" />
+        <div class="rsp-body">
+          <div class="rsp-col">
+            <i class="rsp-bar" style={{ width: "92%" }} />
+            <i class="rsp-bar" style={{ width: "78%" }} />
+            <i class="rsp-bar" style={{ width: "85%" }} />
+            <i class="rsp-bar" style={{ width: "60%" }} />
+          </div>
+          <div class="rsp-stat">84%</div>
+        </div>
+        <div class="rsp-chart">
+          <i style={{ height: "45%" }} />
+          <i style={{ height: "72%" }} />
+          <i style={{ height: "58%" }} />
+          <i style={{ height: "90%" }} />
+          <i style={{ height: "65%" }} />
+        </div>
+        <div class="rsp-table">
+          <i class="rsp-th" />
+          <i class="rsp-tr" />
+          <i class="rsp-tr" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Hand-authored impressions of each design language (see the AI briefs in
 // lib/ai_tools/build_system_prompt.ts REPORT_STYLE_BRIEFS — palettes and type
 // choices mirror them). Tuning a tile = editing its block here.
@@ -353,25 +409,56 @@ const MOCK_CSS = `
 .rsp-brutalist .rsp-chart i{background:#000;border-radius:0;}
 .rsp-brutalist .rsp-chart i:nth-child(3){background:#FFFF00;border:1px solid #000;}
 .rsp-brutalist .rsp-th{background:#000;}.rsp-brutalist .rsp-tr{background:#ddd;}
+
+.rsp-customx .rsp-page{background:var(--ct-page,#fff);color:var(--ct-ink,#222);}
+.rsp-customx .rsp-eyebrow{color:color-mix(in srgb,var(--ct-ink,#222) 55%,var(--ct-page,#fff));}
+.rsp-customx .rsp-rule{background:var(--ct-accent,#888);height:2.5px;}
+.rsp-customx .rsp-bar{background:color-mix(in srgb,var(--ct-ink,#222) 22%,var(--ct-page,#fff));}
+.rsp-customx .rsp-stat{color:var(--ct-accent,#555);}
+.rsp-customx .rsp-chart i{background:var(--ct-accent,#9db8cc);}
+.rsp-customx .rsp-th{background:color-mix(in srgb,var(--ct-ink,#222) 35%,var(--ct-page,#fff));}
+.rsp-customx .rsp-tr{background:color-mix(in srgb,var(--ct-ink,#222) 12%,var(--ct-page,#fff));}
 `;
 
 export function ReportStylePicker(p: Props) {
-  const [selected, setSelected] = createSignal<ReportHtmlStyle | undefined>();
+  const [selected, setSelected] = createSignal<Sel | undefined>();
+  const [customStyles, setCustomStyles] = createSignal<ReportCustomStyle[]>([]);
   const [saveState, setSaveState] = createSignal<StateHolderFormAction>({
     status: "ready",
   });
 
-  onMount(ensureFonts);
+  onMount(() => {
+    ensureFonts();
+    void (async () => {
+      const res = await serverActions.listReportStyles({
+        projectId: p.projectId,
+      });
+      if (res.success) setCustomStyles(res.data);
+    })();
+  });
 
-  async function create(style: ReportHtmlStyle | undefined) {
-    if (!style || saveState().status === "loading") return;
+  function isSelected(sel: Sel): boolean {
+    const cur = selected();
+    if (!cur) return false;
+    if (cur.kind === "preset" && sel.kind === "preset") {
+      return cur.value === sel.value;
+    }
+    if (cur.kind === "custom" && sel.kind === "custom") {
+      return cur.style.id === sel.style.id;
+    }
+    return false;
+  }
+
+  async function create(sel: Sel | undefined) {
+    if (!sel || saveState().status === "loading") return;
     setSaveState({ status: "loading" });
     const res = await serverActions.createReport({
       projectId: p.projectId,
       label: p.label,
       folderId: p.folderId,
       format: "html",
-      htmlStyle: style,
+      htmlStyle: sel.kind === "preset" ? sel.value : undefined,
+      customStyleId: sel.kind === "custom" ? sel.style.id : undefined,
     });
     if (!res.success) {
       setSaveState({ status: "error", err: res.err });
@@ -422,27 +509,87 @@ export function ReportStylePicker(p: Props) {
         </div>
         <div class="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
           <For each={STYLE_OPTIONS}>
-            {(opt) => (
-              <button
-                type="button"
-                class="ui-focusable group rounded-md p-1.5 text-left"
-                classList={{
-                  "ring-primary ring-2": selected() === opt.value,
-                  "hover:bg-base-200": selected() !== opt.value,
-                }}
-                onClick={() => setSelected(opt.value)}
-                onDblClick={() => void create(opt.value)}
-              >
-                <StyleMock style={opt.value} />
-                <div class="text-base-content mt-1.5 text-sm font-semibold">
-                  {opt.label()}
-                </div>
-                <div class="text-base-content-muted text-xs leading-snug">
-                  {opt.description()}
-                </div>
-              </button>
-            )}
+            {(opt) => {
+              const sel: Sel = { kind: "preset", value: opt.value };
+              return (
+                <button
+                  type="button"
+                  class="ui-focusable group rounded-md p-1.5 text-left"
+                  classList={{
+                    "ring-primary ring-2": isSelected(sel),
+                    "hover:bg-base-200": !isSelected(sel),
+                  }}
+                  onClick={() => setSelected(sel)}
+                  onDblClick={() => void create(sel)}
+                >
+                  <StyleMock style={opt.value} />
+                  <div class="text-base-content mt-1.5 text-sm font-semibold">
+                    {opt.label()}
+                  </div>
+                  <div class="text-base-content-muted text-xs leading-snug">
+                    {opt.description()}
+                  </div>
+                </button>
+              );
+            }}
           </For>
+          <For each={customStyles()}>
+            {(style) => {
+              const sel: Sel = { kind: "custom", style };
+              return (
+                <button
+                  type="button"
+                  class="ui-focusable group relative rounded-md p-1.5 text-left"
+                  classList={{
+                    "ring-primary ring-2": isSelected(sel),
+                    "hover:bg-base-200": !isSelected(sel),
+                  }}
+                  onClick={() => setSelected(sel)}
+                  onDblClick={() => void create(sel)}
+                >
+                  <CustomStyleMock style={style} />
+                  <div class="text-base-content mt-1.5 flex items-center gap-1.5 text-sm font-semibold">
+                    <span class="min-w-0 truncate">{style.label}</span>
+                    <span class="bg-base-300 text-base-content rounded px-1 text-[10px] font-normal">
+                      {t3({ en: "custom", fr: "perso", pt: "próprio" })}
+                    </span>
+                  </div>
+                  <div class="text-base-content-muted text-xs leading-snug">
+                    {style.description}
+                  </div>
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    class="bg-base-100 hover:bg-base-200 absolute top-3 right-3 rounded border p-1"
+                    title={t3({ en: "Edit style", fr: "Modifier le style", pt: "Editar estilo" })}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      p.close({ editStyle: { style } });
+                    }}
+                  >
+                    <Icon iconName="pencil" class="h-3.5 w-3.5" />
+                  </span>
+                </button>
+              );
+            }}
+          </For>
+          <button
+            type="button"
+            class="ui-focusable border-base-300 text-base-content-muted hover:bg-base-200 flex min-h-[190px] flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed p-1.5"
+            onClick={() => p.close({ editStyle: {} })}
+          >
+            <Icon iconName="plus" class="h-6 w-6" />
+            <span class="text-sm font-semibold">
+              {t3({ en: "New custom style", fr: "Nouveau style personnalisé", pt: "Novo estilo personalizado" })}
+            </span>
+            <span class="px-3 text-center text-xs leading-snug">
+              {t3({
+                en: "Write your own design brief, or start from a preset's",
+                fr: "Écrivez votre propre guide de style, ou partez d'un préréglage",
+                pt: "Escreva o seu próprio guia de estilo, ou parta de uma predefinição",
+              })}
+            </span>
+          </button>
         </div>
         <StateHolderFormError state={saveState()} />
       </div>

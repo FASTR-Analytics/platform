@@ -25,6 +25,8 @@ import {
   type Accessor,
 } from "solid-js";
 import { projectAIViewController } from "./ai_views";
+import type { EditingReportContext, EditingReportParams } from "./ai_views";
+import { SaveReportStyleModal } from "./save_report_style";
 import { setShowAi } from "~/state/t4_ui";
 import { serverActions } from "~/server_actions";
 import { useAIDocuments, AIDocumentList } from "./ai_documents";
@@ -217,6 +219,32 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
     }
   };
 
+  // The AI pane is view-agnostic; this one item is gated on being inside an
+  // HTML report editor (any style — plain reports are worth saving too once
+  // the user has styled them by hand).
+  function currentHtmlReport():
+    | { params: EditingReportParams; context: EditingReportContext }
+    | undefined {
+    const v = projectAIViewController.current();
+    if (v.id !== "editing_report") return undefined;
+    const params = v.params as EditingReportParams;
+    if (params.format !== "html") return undefined;
+    return { params, context: v.context as EditingReportContext };
+  }
+
+  async function openSaveReportStyle() {
+    const cur = currentHtmlReport();
+    if (!cur) return;
+    await openComponent({
+      element: SaveReportStyleModal,
+      props: {
+        projectId: projectState.id,
+        reportLabel: cur.params.reportLabel,
+        body: cur.context.getBody(),
+      },
+    });
+  }
+
   const menuItems = (): MenuItem[] => [
     {
       label: t3({
@@ -261,6 +289,22 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
       onClick: p.aiDocs.openSelector,
       disabled: isLoading(),
     },
+    // HTML report open → offer to distill its ACTUAL styling into a reusable
+    // custom style (save_report_style.tsx).
+    ...(currentHtmlReport()
+      ? [
+        {
+          label: t3({
+            en: "Save this report's style…",
+            fr: "Enregistrer le style de ce rapport…",
+            pt: "Guardar o estilo deste relatório…",
+          }),
+          icon: "save",
+          onClick: openSaveReportStyle,
+          disabled: isLoading(),
+        } satisfies MenuItem,
+      ]
+      : []),
     {
       type: "divider",
     },

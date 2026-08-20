@@ -173,9 +173,14 @@ export function getClientToolsForReportEditor(
           : [`## Figures: none`];
         const format = view.params.format;
         const body = ctx.getBody();
+        const readStyleName = view.params.customStyle
+          ? `CUSTOM "${view.params.customStyle.label}"`
+          : view.params.htmlStyle && view.params.htmlStyle !== "default"
+          ? view.params.htmlStyle.toUpperCase()
+          : undefined;
         const styleNote = format === "html"
-          ? view.params.htmlStyle && view.params.htmlStyle !== "default"
-            ? ` · Style: ${view.params.htmlStyle.toUpperCase()} (full-body rewrites must be fully designed pages — see the Design brief in your instructions)`
+          ? readStyleName
+            ? ` · Style: ${readStyleName} (full-body rewrites must be fully designed pages — see the Design brief in your instructions)`
             : ` · Style: default`
           : "";
         return [
@@ -423,7 +428,11 @@ export function getClientToolsForReportEditor(
           const format = view.params.format;
           validateReportBodyLength(input.body);
           validateReportBodyForFormat(input.body, format);
-          validateStyledReportHasStylesheet(input.body, format, view.params.htmlStyle);
+          const styleName = view.params.customStyle?.label ??
+            (view.params.htmlStyle && view.params.htmlStyle !== "default"
+              ? view.params.htmlStyle
+              : undefined);
+          validateStyledReportHasStylesheet(input.body, format, styleName);
           validateReportTokensResolve(
             input.body,
             ctx.getFigures(),

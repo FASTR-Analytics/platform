@@ -9,6 +9,7 @@
 // =============================================================================
 
 import { z } from "zod";
+import { reportStyleColorsSchema } from "./report_styles.ts";
 import type { ImageBlock } from "./slides.ts";
 import type { FigureBlock } from "./_figure_bundle.ts";
 import { figureBlockSchema, imageBlockSchema } from "./_slide_config.ts";
@@ -40,13 +41,33 @@ export type ReportHtmlStyle = (typeof REPORT_HTML_STYLES)[number];
 
 // ── Config (v1: format only; no per-report styling) ──────────────────────────
 
+// Snapshot of a custom style taken at creation (live ref + snapshot fallback:
+// the id resolves the live library brief while the style exists and is visible
+// to the project; otherwise this copy keeps working).
+export type ReportCustomStyleSnapshot = {
+  id: string;
+  label: string;
+  brief: string;
+  colors?: { page: string; ink: string; accent: string } | null;
+};
+
+const reportCustomStyleSnapshotSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  brief: z.string(),
+  colors: reportStyleColorsSchema.nullable().optional(),
+});
+
 export type ReportConfig = {
   // Reserved for future per-report theming / header-footer.
   version?: number;
   // Fixed at creation. Absent ⇒ markdown (reports predate the field).
   format?: ReportFormat;
-  // Fixed at creation; html only. Absent ⇒ default.
+  // Fixed at creation; html only. Absent ⇒ default. Ignored when customStyle
+  // is present.
   htmlStyle?: ReportHtmlStyle;
+  // Fixed at creation; html only. Wins over htmlStyle.
+  customStyle?: ReportCustomStyleSnapshot;
 };
 
 export const reportConfigSchema = z
@@ -54,16 +75,19 @@ export const reportConfigSchema = z
     version: z.number().optional(),
     format: z.enum(REPORT_FORMATS).optional(),
     htmlStyle: z.enum(REPORT_HTML_STYLES).optional(),
+    customStyle: reportCustomStyleSnapshotSchema.optional(),
   })
   .passthrough();
 
 export function getStartingConfigForReport(
   format: ReportFormat = "markdown",
   htmlStyle: ReportHtmlStyle = "default",
+  customStyle?: ReportCustomStyleSnapshot,
 ): ReportConfig {
-  return format === "html"
-    ? { version: 1, format, htmlStyle }
-    : { version: 1, format };
+  if (format !== "html") return { version: 1, format };
+  return customStyle
+    ? { version: 1, format, customStyle }
+    : { version: 1, format, htmlStyle };
 }
 
 // Total: the stored config is a raw JSON cast on the server, so anything that
@@ -72,6 +96,16 @@ export function getReportFormat(
   config: ReportConfig | null | undefined,
 ): ReportFormat {
   return config?.format === "html" ? "html" : "markdown";
+}
+
+// Total, same rationale as getReportFormat. undefined = no custom style.
+export function getReportCustomStyle(
+  config: ReportConfig | null | undefined,
+): ReportCustomStyleSnapshot | undefined {
+  const c = config?.customStyle;
+  return c && typeof c.id === "string" && typeof c.brief === "string"
+    ? c
+    : undefined;
 }
 
 // Total, same rationale as getReportFormat.

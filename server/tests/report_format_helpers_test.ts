@@ -66,6 +66,29 @@ Deno.test("every declared html style round-trips through the config schema", () 
   }
 });
 
+Deno.test("custom style snapshot round-trips through the config schema and wins over the preset field", async () => {
+  const snap = {
+    id: "11111111-2222-4333-8444-555555555555",
+    label: "House Style",
+    brief: "**Fonts** ...",
+    colors: { page: "#FFFFFF", ink: "#111111", accent: "#B03F35" },
+  };
+  const cfg = getStartingConfigForReport("html", "editorial", snap);
+  const parsed = reportConfigSchema.parse(cfg);
+  assertEquals(parsed.customStyle, snap);
+  assertEquals("htmlStyle" in parsed, false);
+  const { getEditingReportInstructions } = await import(
+    "../../lib/ai_tools/build_system_prompt.ts"
+  );
+  const ins = getEditingReportInstructions("X", "html", "default", {
+    label: snap.label,
+    brief: snap.brief,
+  });
+  assert(ins.includes('THIS REPORT\'S STYLE IS "HOUSE STYLE"'));
+  assert(ins.includes("## Design brief: House Style"));
+  assert(ins.includes("static markup only"));
+});
+
 Deno.test("every styled preset briefs the AI (banner + design brief + shared constraints); default does not", async () => {
   const { getEditingReportInstructions } = await import(
     "../../lib/ai_tools/build_system_prompt.ts"

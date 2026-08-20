@@ -349,7 +349,7 @@ type StyledReportStyle = Exclude<ReportHtmlStyle, "default">;
 const REPORT_STYLE_SHARED_CONSTRAINTS =
   `**Hard constraints (every style)**: static markup only — no <script> (stripped; do NOT emit JS-built content) and no <link> (load fonts via @import inside the <style> block). Inline <svg> is allowed for ornament and small sparklines. Close every element; prefix ids (sec-…). Responsive via auto-fit grids or a single column; break-inside:avoid on cards and figures for print. Figure embeds render as white-background PNG <img>s that keep your class/style/id — design their containers accordingly.`;
 
-const REPORT_STYLE_BRIEFS: Record<
+export const REPORT_STYLE_BRIEFS: Record<
   StyledReportStyle,
   { name: string; brief: string }
 > = {
@@ -512,6 +512,7 @@ export function getEditingReportInstructions(
   reportLabel: string,
   format: ReportFormat = "markdown",
   htmlStyle: ReportHtmlStyle = "default",
+  customStyle?: { label: string; brief: string },
 ): string {
   const common = `## How editing works
 
@@ -527,7 +528,11 @@ export function getEditingReportInstructions(
     // the user demanded styling explicitly), and the brief follows at the
     // end. The rewrite_report validator backstops this: a styled body
     // without a real stylesheet is rejected before staging.
-    const styled = htmlStyle !== "default"
+    // A custom style (user-authored library brief, resolved live with a
+    // creation-time snapshot as fallback - S12) wins over the preset field.
+    const styled = customStyle
+      ? { name: customStyle.label, brief: customStyle.brief }
+      : htmlStyle !== "default"
       ? REPORT_STYLE_BRIEFS[htmlStyle]
       : undefined;
     const styleBanner = styled

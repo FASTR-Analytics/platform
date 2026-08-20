@@ -34,10 +34,19 @@ import {
   reportContentHash,
 } from "../../collab/version_capture.ts";
 import {
+  type ReportCustomStyleSnapshot,
   reportFiguresSchema,
   reportImagesSchema,
+  reportStyleVisibleToProject,
   stripTombstoneRuns,
 } from "lib";
+import {
+  createReportStyle,
+  deleteReportStyle,
+  getReportStyle,
+  listReportStylesForProject,
+  updateReportStyle,
+} from "../../db/instance/report_styles.ts";
 import { requireProjectPermission } from "../../project_auth.ts";
 import { log } from "../../middleware/logging.ts";
 import { notifyLastUpdated } from "../../task_management/mod.ts";
@@ -75,12 +84,36 @@ defineRoute(
   ),
   log("createReport"),
   async (c, { body }) => {
+    // A custom style is resolved server-side (authoritative visibility check)
+    // and snapshotted into the report's config (live ref + snapshot fallback).
+    let customStyle: ReportCustomStyleSnapshot | undefined;
+    if (body.format === "html" && body.customStyleId) {
+      const styleRes = await getReportStyle(c.var.mainDb, body.customStyleId);
+      if (!styleRes.success) {
+        return c.json(styleRes);
+      }
+      if (
+        !reportStyleVisibleToProject(styleRes.data, c.var.ppk.projectId)
+      ) {
+        return c.json({
+          success: false as const,
+          err: "This style is not available to this project",
+        });
+      }
+      customStyle = {
+        id: styleRes.data.id,
+        label: styleRes.data.label,
+        brief: styleRes.data.brief,
+        colors: styleRes.data.colors,
+      };
+    }
     const res = await createReport(
       c.var.ppk.projectDb,
       body.label,
       body.folderId,
       body.format,
       body.htmlStyle,
+      customStyle,
     );
     if (!res.success) {
       return c.json(res);
@@ -698,6 +731,63 @@ defineRoute(
       notifyProjectReportsUpdated(c.var.ppk.projectId, reportsRes.data);
     }
 
+    return c.json(res);
+  },
+);
+
+// ── Custom report styles (library rows in the MAIN db — SYSTEM_12) ──────────
+
+defineRoute(
+  routesReports,
+  "listReportStyles",
+  requireProjectPermission("can_view_reports"),
+  async (c) => {
+    const res = await listReportStylesForProject(
+      c.var.mainDb,
+      c.var.ppk.projectId,
+    );
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesReports,
+  "createReportStyle",
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_reports",
+  ),
+  log("createReportStyle"),
+  async (c, { body }) => {
+    const res = await createReportStyle(c.var.mainDb, body);
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesReports,
+  "updateReportStyle",
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_reports",
+  ),
+  log("updateReportStyle"),
+  async (c, { params, body }) => {
+    const res = await updateReportStyle(c.var.mainDb, params.style_id, body);
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesReports,
+  "deleteReportStyle",
+  requireProjectPermission(
+    { preventAccessToLockedProjects: true },
+    "can_configure_reports",
+  ),
+  log("deleteReportStyle"),
+  async (c, { params }) => {
+    const res = await deleteReportStyle(c.var.mainDb, params.style_id);
     return c.json(res);
   },
 );

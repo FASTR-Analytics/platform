@@ -318,11 +318,18 @@ five staged text tools (`rewrite_report {body}`, `rewrite_section {newBody}`,
 They are **format-aware** (S12: a report body is markdown or html, fixed at
 creation; the `editing_report` view params carry `format` + `htmlStyle` and
 `getEditingReportInstructions(label, format, htmlStyle)` has an html authoring
-branch — every non-default style appends its `REPORT_STYLE_BRIEFS` entry, a
-prescriptive design language (fonts via `@import`, palette, structural devices,
-figure treatment; shared sanitizer constraints ride once at the end) that the
-model writes its own stylesheet from, led by a top-of-instructions banner and
-backstopped by `validateStyledReportHasStylesheet` on `rewrite_report`):
+branch — every non-default style appends its `REPORT_STYLE_BRIEFS` entry or,
+for a CUSTOM style (S12's main-db library), the report's live-resolved brief:
+a prescriptive design language (fonts via `@import`, palette, structural
+devices, figure treatment; shared sanitizer constraints ride once at the end)
+that the model writes its own stylesheet from, led by a top-of-instructions
+banner and backstopped by `validateStyledReportHasStylesheet` on
+`rewrite_report`. The AI pane's kebab menu offers "Save this report's style…"
+inside an HTML report
+([save_report_style.tsx](client/src/components/project_ai/save_report_style.tsx)):
+a one-shot Sonnet call on the governed project proxy distills the report's
+actual body/CSS into a preset-shaped brief + tile colors, reviewed in the S12
+style editor before it enters the library):
 tokens are built/parsed through the lib helpers, `get_report_editor` prints
 the format plus a headings index (1-based line + the exact section range and
 `wrapper <tag>`/`flat` mode from `lib/report_sections.ts`), `rewrite_section`
