@@ -38,6 +38,7 @@ import {
   pendingTourReplay,
   productsOpenFolder,
   productsTypeFilter,
+  productsViewMode,
   setPendingTourReplay,
 } from "~/state/t4_ui";
 
@@ -74,7 +75,7 @@ export function setupTours(opts: {
     opts.instanceVisible() && opts.currentTab() === tab;
   const onProductsPage = () => onTab("products")() && !isEditingView();
   const productCardOnScreen = () =>
-    document.querySelector('[data-tour="products-product-card"]') !== null;
+    document.querySelector('[data-tour="products-item"]') !== null;
   const slideCardOnScreen = () =>
     document.querySelector('[data-tour="deck-slide-card"]') !== null;
 
@@ -170,6 +171,7 @@ export function setupTours(opts: {
       () => instanceState.readyPackages.length,
       productsOpenFolder,
       productsTypeFilter,
+      productsViewMode,
       () => {
         const view = currentView();
         return view.id === "editing_slide_deck"

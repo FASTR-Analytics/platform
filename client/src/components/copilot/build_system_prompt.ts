@@ -55,7 +55,7 @@ export function buildSystemPromptForContext(
     "",
     "# Products",
     "",
-    "A product is a slide deck or a report. Each one is filed in a folder and attached to exactly one results package at one scope; every figure inside it is resolved under that pair.",
+    "A product is a slide deck or a report. Each one is filed in a nested folder and attached to exactly one results package at one scope; every figure inside it is resolved under that pair.",
     "",
     `**Slide decks:** ${deckCount} (use get_available_slide_decks for details)`,
     `**Reports:** ${reportCount} (use get_available_reports for details)`,
@@ -89,7 +89,7 @@ export function buildSystemPromptForContext(
 export function getViewingProductsInstructions(): string {
   return `# Current View: Products
 
-The user is browsing their products — slide decks and reports — in folders.
+The user is browsing their products — slide decks and reports — in nested folders.
 
 ## Primary Tools (most relevant here)
 

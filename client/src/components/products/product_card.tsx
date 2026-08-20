@@ -41,7 +41,7 @@ type Props = {
 export function ProductCard(p: Props) {
   return (
     <Card
-      data-tour="products-product-card"
+      data-tour="products-item"
       selected={p.selected}
       onSelectToggle={p.onSelectToggle}
       onClick={p.onOpen}

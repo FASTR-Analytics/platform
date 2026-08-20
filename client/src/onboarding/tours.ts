@@ -77,31 +77,46 @@ export function buildProductsIntroTour(): TourDefinition {
       },
       {
         id: "folders",
-        target: tourTarget("products-folders"),
+        target: tourTarget("products-items"),
         title: t3({
           en: "Browse by folder",
           fr: "Parcourir par dossier",
           pt: "Navegar por pasta",
         }),
         body: t3({
-          en: "Folders are the one way products are grouped — pick one here, or stay on All products to see everything. The counts show how many products each folder contains.",
-          fr: "Les dossiers sont le seul niveau de regroupement des produits — choisissez-en un ici, ou restez sur Tous les produits pour tout voir. Les nombres indiquent combien de produits chaque dossier contient.",
-          pt: "As pastas são o único nível de agrupamento dos produtos — escolha uma aqui, ou fique em Todos os produtos para ver tudo. Os números indicam quantos produtos cada pasta contém.",
+          en: "Folders and products share one view. Click a folder to go inside it, and use the breadcrumb in the header to come back out. Folders can hold other folders.",
+          fr: "Les dossiers et les produits partagent une même vue. Cliquez sur un dossier pour y entrer, et utilisez le fil d'Ariane dans l'en-tête pour en ressortir. Les dossiers peuvent contenir d'autres dossiers.",
+          pt: "As pastas e os produtos partilham uma única vista. Clique numa pasta para entrar nela, e use o caminho no cabeçalho para voltar a sair. As pastas podem conter outras pastas.",
         }),
-        placement: "right",
+        placement: "top",
+      },
+      {
+        id: "view-mode",
+        target: tourTarget("products-view-mode"),
+        title: t3({
+          en: "Grid or list",
+          fr: "Grille ou liste",
+          pt: "Grelha ou lista",
+        }),
+        body: t3({
+          en: "Switch between the card grid and a compact list. Both show the same folders and products.",
+          fr: "Basculez entre la grille de cartes et une liste compacte. Les deux montrent les mêmes dossiers et produits.",
+          pt: "Alterne entre a grelha de cartões e uma lista compacta. Ambas mostram as mesmas pastas e produtos.",
+        }),
+        placement: "bottom",
       },
       {
         id: "grid",
-        target: tourTarget("products-grid"),
+        target: tourTarget("products-items"),
         title: t3({
           en: "Your products",
           fr: "Vos produits",
           pt: "Os seus produtos",
         }),
         body: t3({
-          en: "Every product in the selected folder appears here, with the results package it reads from and the area it covers.",
-          fr: "Tous les produits du dossier sélectionné apparaissent ici, avec le paquet de résultats dont ils se servent et la zone qu'ils couvrent.",
-          pt: "Todos os produtos da pasta selecionada aparecem aqui, com o pacote de resultados de que se servem e a área que abrangem.",
+          en: "Every product in the current location appears here, with the results package it reads from and the area it covers.",
+          fr: "Tous les produits de l'emplacement actuel apparaissent ici, avec le paquet de résultats dont ils se servent et la zone qu'ils couvrent.",
+          pt: "Todos os produtos da localização atual aparecem aqui, com o pacote de resultados de que se servem e a área que abrangem.",
         }),
         placement: "top",
       },
@@ -147,18 +162,18 @@ export function buildProductsCreateTour(): TourDefinition {
       },
       {
         id: "new-folder",
-        target: tourTarget("products-folders"),
+        target: tourTarget("products-new-folder"),
         title: t3({
           en: "Organise with folders",
           fr: "Organisez avec des dossiers",
           pt: "Organize com pastas",
         }),
         body: t3({
-          en: "New folder adds one, and right-clicking a folder lets you rename it, change its colour, or delete it. Deleting a folder never deletes the products inside it.",
-          fr: "Nouveau dossier en ajoute un, et un clic droit sur un dossier permet de le renommer, de changer sa couleur ou de le supprimer. Supprimer un dossier ne supprime jamais les produits qu'il contient.",
-          pt: "Nova pasta acrescenta uma, e clicar com o botão direito numa pasta permite mudar o nome, alterar a cor ou eliminá-la. Eliminar uma pasta nunca elimina os produtos que contém.",
+          en: "New folder adds one in the current location. Every folder tile or row has a menu — right-click it — to rename it, move it with Move into, or delete it. Deleting a folder never deletes what is inside: everything moves up one level.",
+          fr: "Nouveau dossier en ajoute un à l'emplacement actuel. Chaque carte ou ligne de dossier a un menu — clic droit — pour le renommer, le déplacer avec Déplacer dans, ou le supprimer. Supprimer un dossier ne supprime jamais son contenu : tout remonte d'un niveau.",
+          pt: "Nova pasta acrescenta uma na localização atual. Cada cartão ou linha de pasta tem um menu — clique com o botão direito — para mudar o nome, movê-la com Mover para dentro de, ou eliminá-la. Eliminar uma pasta nunca elimina o seu conteúdo: tudo sobe um nível.",
         }),
-        placement: "right",
+        placement: "bottom",
       },
     ],
   };
@@ -174,7 +189,7 @@ export function buildProductsCardsTour(): TourDefinition {
     steps: [
       {
         id: "open-product",
-        target: tourTarget("products-product-card"),
+        target: tourTarget("products-item"),
         title: t3({
           en: "Open a product",
           fr: "Ouvrir un produit",
@@ -190,7 +205,7 @@ export function buildProductsCardsTour(): TourDefinition {
       },
       {
         id: "product-actions",
-        target: tourTarget("products-product-card"),
+        target: tourTarget("products-item"),
         title: t3({
           en: "Manage products",
           fr: "Gérer les produits",

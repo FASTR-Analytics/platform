@@ -132,6 +132,7 @@ export function ListView(p: Props) {
         {(folder) => (
           <div
             class={`${_ROW_GRID} ui-hoverable-base-100 ui-focusable group border-b`}
+            data-tour="products-item"
             role="button"
             tabindex="0"
             onClick={(e) => {
@@ -193,6 +194,7 @@ export function ListView(p: Props) {
               "border-primary bg-primary-subtle": p.isSelected(product.id),
               "ui-hoverable-base-100": !p.isSelected(product.id),
             }}
+            data-tour="products-item"
             role="button"
             tabindex="0"
             onClick={(e) => {
