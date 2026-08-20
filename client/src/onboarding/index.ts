@@ -36,7 +36,7 @@ import type { SlideType } from "lib";
 import {
   pendingEditorOpen,
   pendingTourReplay,
-  productsSelectedFolder,
+  productsOpenFolder,
   productsTypeFilter,
   setPendingTourReplay,
 } from "~/state/t4_ui";
@@ -168,7 +168,7 @@ export function setupTours(opts: {
     watch: [
       () => instanceState.products.length,
       () => instanceState.readyPackages.length,
-      productsSelectedFolder,
+      productsOpenFolder,
       productsTypeFilter,
       () => {
         const view = currentView();

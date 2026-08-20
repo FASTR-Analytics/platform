@@ -49,19 +49,29 @@ export function setProductsTypeFilter(type: ProductType | null) {
   setProductsTypeFilterInternal(type);
 }
 
-// null = "All products" (the folder sidebar's root row), not "unfoldered".
-const storedProductsSelectedFolder = localStorage.getItem(
-  "productsSelectedFolder",
-);
-export const [productsSelectedFolder, setProductsSelectedFolderInternal] =
-  createSignal<string | null>(storedProductsSelectedFolder);
-export function setProductsSelectedFolder(folderId: string | null) {
+// null = the root; a folder id = inside that folder (D12).
+const storedProductsOpenFolder = localStorage.getItem("productsOpenFolder");
+export const [productsOpenFolder, setProductsOpenFolderInternal] = createSignal<
+  string | null
+>(storedProductsOpenFolder);
+export function setProductsOpenFolder(folderId: string | null) {
   if (folderId === null) {
-    localStorage.removeItem("productsSelectedFolder");
+    localStorage.removeItem("productsOpenFolder");
   } else {
-    localStorage.setItem("productsSelectedFolder", folderId);
+    localStorage.setItem("productsOpenFolder", folderId);
   }
-  setProductsSelectedFolderInternal(folderId);
+  setProductsOpenFolderInternal(folderId);
+}
+
+export type ProductsViewMode = "grid" | "list";
+const storedProductsViewMode = localStorage.getItem(
+  "productsViewMode",
+) as ProductsViewMode | null;
+export const [productsViewMode, setProductsViewModeInternal] =
+  createSignal<ProductsViewMode>(storedProductsViewMode ?? "grid");
+export function setProductsViewMode(mode: ProductsViewMode) {
+  localStorage.setItem("productsViewMode", mode);
+  setProductsViewModeInternal(mode);
 }
 
 // ============================================================================
@@ -88,42 +98,6 @@ export const [navCollapsed, setNavCollapsedInternal] = createSignal<boolean>(
 export function setNavCollapsed(collapsed: boolean) {
   localStorage.setItem("navCollapsed", String(collapsed));
   setNavCollapsedInternal(collapsed);
-}
-
-// Consolidated updater — one entry point for the copilot's view tools, so a
-// tool never reaches past this file into individual setters.
-export type ProductsViewStateUpdates = {
-  productsSortMode?: ProductSortMode;
-  productsTypeFilter?: ProductType | null;
-  productsSelectedFolder?: string | null;
-  fitWithin?: "fit-within" | "fit-width";
-  showAi?: boolean;
-  headerOrContent?: "slideHeader" | "content";
-  policyHeaderOrContent?: "policyHeaderFooter" | "content";
-};
-
-export function updateProductsView(updates: ProductsViewStateUpdates) {
-  if (updates.productsSortMode !== undefined) {
-    setProductsSortMode(updates.productsSortMode);
-  }
-  if (updates.productsTypeFilter !== undefined) {
-    setProductsTypeFilter(updates.productsTypeFilter);
-  }
-  if (updates.productsSelectedFolder !== undefined) {
-    setProductsSelectedFolder(updates.productsSelectedFolder);
-  }
-  if (updates.fitWithin !== undefined) {
-    setFitWithin(updates.fitWithin);
-  }
-  if (updates.showAi !== undefined) {
-    setShowAi(updates.showAi);
-  }
-  if (updates.headerOrContent !== undefined) {
-    setHeaderOrContent(updates.headerOrContent);
-  }
-  if (updates.policyHeaderOrContent !== undefined) {
-    setPolicyHeaderOrContent(updates.policyHeaderOrContent);
-  }
 }
 
 // ============================================================================

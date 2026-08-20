@@ -39,11 +39,11 @@ import { canEditProducts, instanceState } from "~/state/instance/t1_store";
 import {
   _PRODUCT_QUERY_PARAM,
   pendingEditorOpen,
-  productsSelectedFolder,
+  productsOpenFolder,
   productsSortMode,
   productsTypeFilter,
   setPendingEditorOpen,
-  setProductsSelectedFolder,
+  setProductsOpenFolder,
   setProductsSortMode,
   setProductsTypeFilter,
   setShowAi,
@@ -55,7 +55,7 @@ import { MoveToFolderModal } from "./move_to_folder_modal";
 import { ProductCard, productTypeLabel } from "./product_card";
 import { ProductSettings } from "./product_settings";
 
-// Sidebar sentinels. `productsSelectedFolder` stores null for "All products"
+// Sidebar sentinels. `productsOpenFolder` stores null for "All products"
 // and a real uuid for a folder, so "un-foldered" needs a name of its own.
 const _ALL_PRODUCTS = "_all";
 const _GENERAL = "_general";
@@ -165,7 +165,7 @@ export function Products() {
     ];
   });
 
-  const selectedGroup = () => productsSelectedFolder() ?? _ALL_PRODUCTS;
+  const selectedGroup = () => productsOpenFolder() ?? _ALL_PRODUCTS;
 
   // A folder deleted elsewhere (or by another user) must not leave the grid
   // showing nothing with no way back.
@@ -173,7 +173,7 @@ export function Products() {
     const groups = groupOptions();
     const current = selectedGroup();
     if (!groups.some((g) => g.value === current)) {
-      setProductsSelectedFolder(null);
+      setProductsOpenFolder(null);
     }
   });
 
@@ -563,7 +563,7 @@ export function Products() {
                   }))}
                   value={selectedGroup()}
                   onChange={(v) =>
-                    setProductsSelectedFolder(v === _ALL_PRODUCTS ? null : v)
+                    setProductsOpenFolder(v === _ALL_PRODUCTS ? null : v)
                   }
                   renderItem={renderGroupOption}
                   fullWidth
