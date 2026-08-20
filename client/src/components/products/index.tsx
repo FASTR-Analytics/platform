@@ -1,11 +1,5 @@
 import { useSearchParams } from "@solidjs/router";
-import {
-  t3,
-  TC,
-  type Folder,
-  type ProductSummary,
-  type ProductType,
-} from "lib";
+import { t3, type Folder, type ProductSummary, type ProductType } from "lib";
 import {
   Button,
   ButtonGroup,
@@ -19,6 +13,7 @@ import {
   getColor,
   getEditorWrapper,
   getFirstString,
+  openAlert,
   openComponent,
   showMenu,
   type ListItem,
@@ -58,9 +53,11 @@ import {
 import { DuplicateProductsModal } from "./duplicate_products_modal";
 import { EditFolderModal } from "./edit_folder_modal";
 import { FolderCard } from "./folder_card";
+import { buildFolderMenu } from "./folder_menu";
 import { ancestors, childFolders, pathLabel } from "./folder_tree";
 import { MoveToFolderModal } from "./move_to_folder_modal";
 import { ProductCard, productTypeLabel } from "./product_card";
+import { buildProductMenu } from "./product_menu";
 import { ProductSettings } from "./product_settings";
 
 // The type-filter chips store null for "both", so the chip group needs a
@@ -274,12 +271,46 @@ export function Products() {
     await openComponent({
       element: MoveToFolderModal,
       props: {
-        productIds: batchProducts(product).map((x) => x.id),
-        currentFolderId: product.folderId,
+        target: {
+          kind: "products" as const,
+          productIds: batchProducts(product).map((x) => x.id),
+          currentFolderId: product.folderId,
+        },
+        parentId: location(),
         folders: instanceState.folders,
       },
     });
     selection.clear();
+  }
+
+  // D14 quick moves — no modal, so failures surface through openAlert (the
+  // modal path gets this from createFormAction).
+  async function quickMoveProducts(
+    product: ProductSummary,
+    folderId: string | null,
+  ) {
+    const productIds = batchProducts(product).map((x) => x.id);
+    const res = await serverActions.moveProductsToFolder({
+      productIds,
+      folderId,
+    });
+    if (!res.success) {
+      await openAlert({ title: "Error", text: res.err, intent: "danger" });
+      return;
+    }
+    selection.clear();
+  }
+
+  async function quickMoveFolder(folder: Folder, parentId: string | null) {
+    const res = await serverActions.updateFolder({
+      folder_id: folder.id,
+      label: folder.label,
+      color: folder.color,
+      parentId,
+    });
+    if (!res.success) {
+      await openAlert({ title: "Error", text: res.err, intent: "danger" });
+    }
   }
 
   async function handleDuplicate(product: ProductSummary) {
@@ -313,102 +344,86 @@ export function Products() {
     await deleteAction.click();
   }
 
+  function productMenuItems(product: ProductSummary): MenuItem[] {
+    return buildProductMenu({
+      product,
+      batch: batchProducts(product),
+      folders: instanceState.folders,
+      location: location(),
+      onSettings: () => void openSettings(product),
+      onMoveToFolder: () => void handleMoveToFolder(product),
+      onDuplicate: () => void handleDuplicate(product),
+      onDelete: () => void handleDelete(product),
+      onMoveTo: (folderId) => void quickMoveProducts(product, folderId),
+    });
+  }
+
   function handleContextMenu(e: MouseEvent, product: ProductSummary) {
     e.preventDefault();
-    const count = selection.selectedCount();
-    const isMultiSelect = selection.isSelected(product.id) && count > 1;
-
-    const items: MenuItem[] = [
-      {
-        label: t3(TC.settings),
-        icon: "settings",
-        onClick: () => void openSettings(product),
-      },
-      {
-        label: isMultiSelect
-          ? t3({
-              en: `Move ${count} products to folder...`,
-              fr: `Déplacer ${count} produits vers un dossier...`,
-              pt: `Mover ${count} produtos para uma pasta...`,
-            })
-          : t3({
-              en: "Move to folder...",
-              fr: "Déplacer vers un dossier...",
-              pt: "Mover para uma pasta...",
-            }),
-        icon: "folder",
-        onClick: () => void handleMoveToFolder(product),
-      },
-      {
-        label: isMultiSelect
-          ? t3({
-              en: `Duplicate ${count} products...`,
-              fr: `Dupliquer ${count} produits...`,
-              pt: `Duplicar ${count} produtos...`,
-            })
-          : t3({ en: "Duplicate...", fr: "Dupliquer...", pt: "Duplicar..." }),
-        icon: "copy",
-        onClick: () => void handleDuplicate(product),
-      },
-      {
-        label: isMultiSelect
-          ? t3({
-              en: `Delete ${count} products`,
-              fr: `Supprimer ${count} produits`,
-              pt: `Eliminar ${count} produtos`,
-            })
-          : t3(TC.delete),
-        icon: "trash",
-        intent: "danger",
-        onClick: () => void handleDelete(product),
-      },
-    ];
     showMenu({
       anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 },
-      items,
+      items: productMenuItems(product),
+    });
+  }
+
+  async function handleDeleteFolder(folder: Folder) {
+    const folderCount = instanceState.folders.filter(
+      (f) => f.parentId === folder.id,
+    ).length;
+    const allProductCount = instanceState.products.filter(
+      (x) => x.folderId === folder.id,
+    ).length;
+    const parent = instanceState.folders.find((f) => f.id === folder.parentId);
+    // Delete reparents one level, never cascades (D11) — the confirmation
+    // carries the DIRECT counts and where the contents land.
+    const confirmText =
+      parent === undefined
+        ? t3({
+            en: `Delete "${folder.label}"? Its ${folderCount} ${folderCount === 1 ? "folder" : "folders"} and ${allProductCount} ${allProductCount === 1 ? "product" : "products"} move to the top level.`,
+            fr: `Supprimer « ${folder.label} » ? Ses ${folderCount} ${folderCount === 1 ? "dossier" : "dossiers"} et ${allProductCount} ${allProductCount === 1 ? "produit" : "produits"} seront déplacés au niveau supérieur.`,
+            pt: `Eliminar "${folder.label}"? As suas ${folderCount} ${folderCount === 1 ? "pasta" : "pastas"} e ${allProductCount} ${allProductCount === 1 ? "produto" : "produtos"} serão movidos para o nível superior.`,
+          })
+        : t3({
+            en: `Delete "${folder.label}"? Its ${folderCount} ${folderCount === 1 ? "folder" : "folders"} and ${allProductCount} ${allProductCount === 1 ? "product" : "products"} move to "${parent.label}".`,
+            fr: `Supprimer « ${folder.label} » ? Ses ${folderCount} ${folderCount === 1 ? "dossier" : "dossiers"} et ${allProductCount} ${allProductCount === 1 ? "produit" : "produits"} seront déplacés vers « ${parent.label} ».`,
+            pt: `Eliminar "${folder.label}"? As suas ${folderCount} ${folderCount === 1 ? "pasta" : "pastas"} e ${allProductCount} ${allProductCount === 1 ? "produto" : "produtos"} serão movidos para "${parent.label}".`,
+          });
+    const deleteAction = createDeleteAction(
+      confirmText,
+      () => serverActions.deleteFolder({ folder_id: folder.id }),
+      () => {},
+    );
+    await deleteAction.click();
+  }
+
+  function folderMenuItems(folder: Folder): MenuItem[] {
+    return buildFolderMenu({
+      folder,
+      folders: instanceState.folders,
+      location: location(),
+      onMoveTo: (parentId) => void quickMoveFolder(folder, parentId),
+      onMoveToFolder: () =>
+        void openComponent({
+          element: MoveToFolderModal,
+          props: {
+            target: { kind: "folder" as const, folder },
+            parentId: location(),
+            folders: instanceState.folders,
+          },
+        }),
+      onEdit: () =>
+        void openComponent({
+          element: EditFolderModal,
+          props: { folder, parentId: folder.parentId },
+        }),
+      onDelete: () => void handleDeleteFolder(folder),
     });
   }
 
   function handleFolderMenu(e: MouseEvent, folder: Folder) {
-    const items: MenuItem[] = [
-      {
-        label: t3({
-          en: "Rename / Change color...",
-          fr: "Renommer / Changer la couleur...",
-          pt: "Mudar o nome / Alterar a cor...",
-        }),
-        icon: "pencil",
-        onClick: () =>
-          void openComponent({
-            element: EditFolderModal,
-            props: { folder, parentId: folder.parentId },
-          }),
-      },
-      {
-        label: t3({
-          en: "Delete folder",
-          fr: "Supprimer le dossier",
-          pt: "Eliminar pasta",
-        }),
-        icon: "trash",
-        intent: "danger",
-        onClick: async () => {
-          const deleteAction = createDeleteAction(
-            t3({
-              en: "Are you sure you want to delete this folder? Its contents move up one level.",
-              fr: "Êtes-vous sûr de vouloir supprimer ce dossier ? Son contenu remonte d'un niveau.",
-              pt: "Tem a certeza de que pretende eliminar esta pasta? O seu conteúdo sobe um nível.",
-            }),
-            () => serverActions.deleteFolder({ folder_id: folder.id }),
-            () => {},
-          );
-          await deleteAction.click();
-        },
-      },
-    ];
     showMenu({
       anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 },
-      items,
+      items: folderMenuItems(folder),
     });
   }
 

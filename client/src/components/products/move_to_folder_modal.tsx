@@ -10,12 +10,21 @@ import {
 } from "panther";
 import { Show, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
+import { folderPathOptions } from "./folder_tree";
 
 const _NO_FOLDER = "_none";
 
 type Props = {
-  productIds: string[];
-  currentFolderId: string | null;
+  // What is being moved: a batch of products, or one folder (D3 — folders are
+  // never part of a batch). A folder's illegal targets — itself and its own
+  // subtree — are excluded from the list; the server's cycle guard remains the
+  // authority (D10).
+  target:
+    | { kind: "products"; productIds: string[]; currentFolderId: string | null }
+    | { kind: "folder"; folder: Folder };
+  // The explorer's current location — where the inline "create new folder"
+  // path creates its folder.
+  parentId: string | null;
   folders: Folder[];
 };
 
@@ -23,15 +32,24 @@ type ReturnType = { lastUpdated: string } | undefined;
 
 export function MoveToFolderModal(p: AlertComponentProps<Props, ReturnType>) {
   const [selectedFolderId, setSelectedFolderId] = createSignal<string>(
-    p.currentFolderId ?? _NO_FOLDER,
+    (p.target.kind === "products"
+      ? p.target.currentFolderId
+      : p.target.folder.parentId) ?? _NO_FOLDER,
   );
   const [isCreatingFolder, setIsCreatingFolder] = createSignal(false);
   const [newFolderLabel, setNewFolderLabel] = createSignal("");
   const [newFolderColor, setNewFolderColor] = createSignal("#3b82f6");
 
+  // Full paths, sorted by path, "No folder" first (D15). Panther options carry
+  // no disabled state, so a moved folder's own subtree is excluded outright.
   const folderOptions = () => [
     { value: _NO_FOLDER, label: t3(TC.general) },
-    ...p.folders.map((f) => ({ value: f.id, label: f.label })),
+    ...folderPathOptions(p.folders, {
+      disabledSubtree:
+        p.target.kind === "folder" ? p.target.folder.id : undefined,
+    })
+      .filter((opt) => !opt.disabled)
+      .map((opt) => ({ value: opt.value, label: opt.label })),
   ];
 
   const save = createFormAction(
@@ -54,7 +72,7 @@ export function MoveToFolderModal(p: AlertComponentProps<Props, ReturnType>) {
         const createRes = await serverActions.createFolder({
           label,
           color: newFolderColor(),
-          parentId: null,
+          parentId: p.parentId,
         });
         if (!createRes.success) {
           return createRes;
@@ -65,10 +83,22 @@ export function MoveToFolderModal(p: AlertComponentProps<Props, ReturnType>) {
         folderId = selected === _NO_FOLDER ? null : selected;
       }
 
+      if (p.target.kind === "folder") {
+        // A folder move is updateFolder — label, colour and parent are one
+        // metadata write; an illegal target comes back as the server's typed
+        // FOLDER_CYCLE failure through the envelope.
+        return serverActions.updateFolder({
+          folder_id: p.target.folder.id,
+          label: p.target.folder.label,
+          color: p.target.folder.color,
+          parentId: folderId,
+        });
+      }
+
       // One batch call, not one per product: the folder move is a single
       // cross-type product operation (D1).
       return serverActions.moveProductsToFolder({
-        productIds: p.productIds,
+        productIds: p.target.productIds,
         folderId,
       });
     },
@@ -77,18 +107,26 @@ export function MoveToFolderModal(p: AlertComponentProps<Props, ReturnType>) {
     },
   );
 
-  const header = () =>
-    p.productIds.length > 1
+  const header = () => {
+    if (p.target.kind === "folder") {
+      return t3({
+        en: `Move "${p.target.folder.label}"`,
+        fr: `Déplacer « ${p.target.folder.label} »`,
+        pt: `Mover "${p.target.folder.label}"`,
+      });
+    }
+    return p.target.productIds.length > 1
       ? t3({
-          en: `Move ${p.productIds.length} products to folder`,
-          fr: `Déplacer ${p.productIds.length} produits vers un dossier`,
-          pt: `Mover ${p.productIds.length} produtos para uma pasta`,
+          en: `Move ${p.target.productIds.length} products to folder`,
+          fr: `Déplacer ${p.target.productIds.length} produits vers un dossier`,
+          pt: `Mover ${p.target.productIds.length} produtos para uma pasta`,
         })
       : t3({
           en: "Move to folder",
           fr: "Déplacer vers un dossier",
           pt: "Mover para uma pasta",
         });
+  };
 
   return (
     <AlertFormHolder
