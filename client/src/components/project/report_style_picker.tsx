@@ -553,6 +553,19 @@ export function ReportStylePicker(p: Props) {
                     <span class="bg-base-300 text-base-content rounded px-1 text-[10px] font-normal">
                       {t3({ en: "custom", fr: "perso", pt: "próprio" })}
                     </span>
+                    <Show when={style.referenceCss}>
+                      {/* Carries the source report's stylesheet — high fidelity. */}
+                      <span
+                        class="bg-success/15 text-success rounded px-1 text-[10px] font-normal"
+                        title={t3({
+                          en: "Includes the source report's exact stylesheet",
+                          fr: "Inclut la feuille de style exacte du rapport source",
+                          pt: "Inclui a folha de estilos exata do relatório de origem",
+                        })}
+                      >
+                        CSS
+                      </span>
+                    </Show>
                   </div>
                   <div class="text-base-content-muted text-xs leading-snug">
                     {style.description}
