@@ -97,8 +97,10 @@ export function ListView(p: Props) {
   const dateLabel = (iso: string) => new Date(iso).toLocaleDateString();
 
   return (
+    // Horizontal padding only, mirroring the grid's inset: an x-only pad
+    // keeps the sticky header flush at top-0 with no scroll-through gap.
     <div
-      class="h-full w-full overflow-auto"
+      class="ui-pad-x h-full w-full overflow-auto"
       data-tour="products-items"
       onClick={() => p.onBackgroundClick()}
     >
