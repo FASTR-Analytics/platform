@@ -48,6 +48,7 @@ export type ReportCustomStyleSnapshot = {
   id: string;
   label: string;
   brief: string;
+  referenceCss?: string | null;
   colors?: { page: string; ink: string; accent: string } | null;
 };
 
@@ -55,6 +56,7 @@ const reportCustomStyleSnapshotSchema = z.object({
   id: z.string(),
   label: z.string(),
   brief: z.string(),
+  referenceCss: z.string().nullable().optional(),
   colors: reportStyleColorsSchema.nullable().optional(),
 });
 

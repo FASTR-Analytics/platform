@@ -100,7 +100,7 @@ export type EditingReportParams = {
   format: ReportFormat;
   htmlStyle?: ReportHtmlStyle;
   // Custom style, resolved live-vs-snapshot by the report editor (S12).
-  customStyle?: { label: string; brief: string };
+  customStyle?: { label: string; brief: string; referenceCss?: string | null };
 };
 // See ./types.ts for ReportEditProposal(Result) and ReportEditorSelection.
 export type EditingReportContext = {

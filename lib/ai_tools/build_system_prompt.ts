@@ -512,7 +512,7 @@ export function getEditingReportInstructions(
   reportLabel: string,
   format: ReportFormat = "markdown",
   htmlStyle: ReportHtmlStyle = "default",
-  customStyle?: { label: string; brief: string },
+  customStyle?: { label: string; brief: string; referenceCss?: string | null },
 ): string {
   const common = `## How editing works
 
@@ -530,8 +530,25 @@ export function getEditingReportInstructions(
     // without a real stylesheet is rejected before staging.
     // A custom style (user-authored library brief, resolved live with a
     // creation-time snapshot as fallback - S12) wins over the preset field.
+    // A distilled style carries the source report's ACTUAL stylesheet — the
+    // highest-fidelity encoding of the design. The model must REUSE it, not
+    // re-derive CSS from the prose brief (that was tried; it drifts).
+    const refCss = customStyle?.referenceCss?.trim();
     const styled = customStyle
-      ? { name: customStyle.label, brief: customStyle.brief }
+      ? {
+        name: customStyle.label,
+        brief: refCss
+          ? `${customStyle.brief}
+
+### Reference stylesheet — REUSE THIS CSS
+
+The stylesheet below is the style's canonical implementation, taken verbatim from the report this style was saved from. When you write or restructure this report, START from this CSS: include it (essentially verbatim — you may prune rules for components you don't use and add rules for ones you need) in the report's <style> block, and write markup that uses ITS class names and structure. Do not re-invent a stylesheet from the prose above; the prose describes how to USE these classes.
+
+\`\`\`css
+${refCss}
+\`\`\``
+          : customStyle.brief,
+      }
       : htmlStyle !== "default"
       ? REPORT_STYLE_BRIEFS[htmlStyle]
       : undefined;
