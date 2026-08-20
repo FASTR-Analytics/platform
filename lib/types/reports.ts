@@ -19,9 +19,23 @@ export const REPORT_FORMATS = ["markdown", "html"] as const;
 export type ReportFormat = (typeof REPORT_FORMATS)[number];
 
 // HTML-only presentation style — changes ONLY the AI's authoring brief (no
-// seed/render difference): "editorial" briefs the model on the magazine-style
-// design language; "default" keeps styling minimal.
-export const REPORT_HTML_STYLES = ["default", "editorial"] as const;
+// seed/render difference): each styled preset briefs the model on one design
+// language (REPORT_STYLE_BRIEFS in lib/ai_tools/build_system_prompt.ts);
+// "default" keeps styling minimal.
+export const REPORT_HTML_STYLES = [
+  "default",
+  "editorial",
+  "swiss",
+  "bauhaus",
+  "blueprint",
+  "broadsheet",
+  "risograph",
+  "artdeco",
+  "japanese",
+  "monochrome",
+  "terminal",
+  "brutalist",
+] as const;
 export type ReportHtmlStyle = (typeof REPORT_HTML_STYLES)[number];
 
 // ── Config (v1: format only; no per-report styling) ──────────────────────────
@@ -64,7 +78,10 @@ export function getReportFormat(
 export function getReportHtmlStyle(
   config: ReportConfig | null | undefined,
 ): ReportHtmlStyle {
-  return config?.htmlStyle === "editorial" ? "editorial" : "default";
+  const v = config?.htmlStyle;
+  return v && (REPORT_HTML_STYLES as readonly string[]).includes(v)
+    ? v
+    : "default";
 }
 
 export function getStartingBodyForReport(

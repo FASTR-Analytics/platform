@@ -318,9 +318,11 @@ five staged text tools (`rewrite_report {body}`, `rewrite_section {newBody}`,
 They are **format-aware** (S12: a report body is markdown or html, fixed at
 creation; the `editing_report` view params carry `format` + `htmlStyle` and
 `getEditingReportInstructions(label, format, htmlStyle)` has an html authoring
-branch — the "editorial" style appends `REPORT_EDITORIAL_BRIEF`, a prescriptive
-design language (IBM Plex via `@import`, token palette, masthead/cards/badges)
-the model writes its own stylesheet from):
+branch — every non-default style appends its `REPORT_STYLE_BRIEFS` entry, a
+prescriptive design language (fonts via `@import`, palette, structural devices,
+figure treatment; shared sanitizer constraints ride once at the end) that the
+model writes its own stylesheet from, led by a top-of-instructions banner and
+backstopped by `validateStyledReportHasStylesheet` on `rewrite_report`):
 tokens are built/parsed through the lib helpers, `get_report_editor` prints
 the format plus a headings index (1-based line + the exact section range and
 `wrapper <tag>`/`flat` mode from `lib/report_sections.ts`), `rewrite_section`

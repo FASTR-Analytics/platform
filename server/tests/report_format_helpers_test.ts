@@ -4,12 +4,13 @@
 //
 // Run: deno test -A server/tests/report_format_helpers_test.ts
 
-import { assertEquals, assertStrictEquals } from "@std/assert";
+import { assert, assertEquals, assertStrictEquals } from "@std/assert";
 import {
   buildReportEmbedToken,
   buildReportPreview,
   getReportHtmlStyle,
   getStartingConfigForReport,
+  REPORT_HTML_STYLES,
   reportConfigSchema,
   decodeReportHtmlEntities,
   escapeReportHtml,
@@ -55,6 +56,40 @@ Deno.test("getReportHtmlStyle is total; the style is stored only for html config
   const md = getStartingConfigForReport("markdown", "editorial");
   assertEquals("htmlStyle" in md, false);
   assertEquals(getStartingConfigForReport("html").htmlStyle, "default");
+});
+
+Deno.test("every declared html style round-trips through the config schema", () => {
+  for (const style of REPORT_HTML_STYLES) {
+    const cfg = getStartingConfigForReport("html", style);
+    assertEquals(reportConfigSchema.parse(cfg).htmlStyle, style);
+    assertEquals(getReportHtmlStyle(cfg), style);
+  }
+});
+
+Deno.test("every styled preset briefs the AI (banner + design brief + shared constraints); default does not", async () => {
+  const { getEditingReportInstructions } = await import(
+    "../../lib/ai_tools/build_system_prompt.ts"
+  );
+  for (const style of REPORT_HTML_STYLES) {
+    const ins = getEditingReportInstructions("X", "html", style);
+    if (style === "default") {
+      assertEquals(ins.includes("Design brief"), false);
+      assertEquals(ins.includes("THIS REPORT'S STYLE IS"), false);
+    } else {
+      assert(ins.includes("THIS REPORT'S STYLE IS"), `${style}: banner missing`);
+      assert(ins.includes("## Design brief:"), `${style}: brief missing`);
+      assert(
+        ins.includes("static markup only"),
+        `${style}: shared constraints missing`,
+      );
+      assert(
+        ins.includes("**Figures**"),
+        `${style}: figure treatment missing`,
+      );
+    }
+  }
+  const md = getEditingReportInstructions("X", "markdown", "editorial");
+  assertEquals(md.includes("Design brief"), false);
 });
 
 Deno.test("starting body per format", () => {

@@ -190,9 +190,11 @@ payload and SSE pushes only (same for report folders).
 `{version, format?}`) + `folder_id`. **Format is fixed at creation**
 (`createReport` body `format`, the Create-report form's radio); absent ⇒
 markdown (`getReportFormat` is total — the stored config is a raw cast); html
-reports additionally carry `htmlStyle?: "default" | "editorial"` (also fixed at
-creation, also total via `getReportHtmlStyle`) — it changes ONLY the S13 AI
-authoring brief, never the render path; `updateReportConfig` re-imposes both
+reports additionally carry `htmlStyle?` — one of the `REPORT_HTML_STYLES`
+presets (default, editorial, swiss, bauhaus, blueprint, broadsheet, risograph,
+artdeco, japanese, monochrome, terminal, brutalist; also fixed at creation,
+also total via `getReportHtmlStyle`) — it changes ONLY the S13 AI authoring
+brief, never the render path; `updateReportConfig` re-imposes both
 stored fields; duplicate / copy-from-version carry `config`. Embeds are per-format tokens — markdown
 `![caption](figure:<uuid>)` / `![caption](image:<uuid>)`, html
 `<img src="figure:<uuid>" alt="caption">` (other attributes are the author's

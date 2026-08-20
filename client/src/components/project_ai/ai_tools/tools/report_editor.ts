@@ -34,7 +34,7 @@ import { resolveFigureFromMetric } from "~/components/slide_deck/slide_ai/resolv
 import { formatFigureConfigForAI } from "./_internal/format_figure_config_for_ai";
 import { validateMetricInputs } from "../validators/content_validators";
 import {
-  validateEditorialHasStylesheet,
+  validateStyledReportHasStylesheet,
   validateReportBodyDelta,
   validateReportBodyForFormat,
   validateReportBodyLength,
@@ -174,8 +174,8 @@ export function getClientToolsForReportEditor(
         const format = view.params.format;
         const body = ctx.getBody();
         const styleNote = format === "html"
-          ? view.params.htmlStyle === "editorial"
-            ? ` · Style: EDITORIAL (full-body rewrites must be fully designed pages — see the Design brief in your instructions)`
+          ? view.params.htmlStyle && view.params.htmlStyle !== "default"
+            ? ` · Style: ${view.params.htmlStyle.toUpperCase()} (full-body rewrites must be fully designed pages — see the Design brief in your instructions)`
             : ` · Style: default`
           : "";
         return [
@@ -423,7 +423,7 @@ export function getClientToolsForReportEditor(
           const format = view.params.format;
           validateReportBodyLength(input.body);
           validateReportBodyForFormat(input.body, format);
-          validateEditorialHasStylesheet(input.body, format, view.params.htmlStyle);
+          validateStyledReportHasStylesheet(input.body, format, view.params.htmlStyle);
           validateReportTokensResolve(
             input.body,
             ctx.getFigures(),
