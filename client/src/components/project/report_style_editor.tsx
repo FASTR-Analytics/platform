@@ -2,6 +2,7 @@ import {
   REPORT_CUSTOM_BRIEF_MAX,
   REPORT_HTML_STYLES,
   REPORT_STYLE_BRIEFS,
+  REPORT_STYLE_REFERENCE_CSS_MAX,
   type ReportCustomStyle,
   type ReportHtmlStyle,
   type ReportStyleColors,
@@ -43,6 +44,7 @@ type Props = AlertComponentProps<
       label: string;
       description: string;
       brief: string;
+      referenceCss: string | null;
       colors: ReportStyleColors | null;
     };
   },
@@ -62,6 +64,7 @@ export function ReportStyleEditor(p: Props) {
   const [label, setLabel] = createSignal(base?.label ?? "");
   const [description, setDescription] = createSignal(base?.description ?? "");
   const [brief, setBrief] = createSignal(base?.brief ?? "");
+  const [referenceCss, setReferenceCss] = createSignal(base?.referenceCss ?? "");
   const [colors, setColors] = createSignal<ReportStyleColors>(
     base?.colors ?? DEFAULT_COLORS,
   );
@@ -130,6 +133,9 @@ export function ReportStyleEditor(p: Props) {
       label: label().trim(),
       description: description().trim(),
       brief: brief(),
+      referenceCss: referenceCss().trim()
+        ? referenceCss().slice(0, REPORT_STYLE_REFERENCE_CSS_MAX)
+        : null,
       colors: colors(),
       projectIds: projectIdsForSave(),
     };
@@ -248,6 +254,23 @@ export function ReportStyleEditor(p: Props) {
               en: "Fonts (via @import), palette, structure (masthead, sections, cards, tables), figure treatment…",
               fr: "Polices (via @import), palette, structure (manchette, sections, cartes, tableaux), traitement des figures…",
               pt: "Tipos de letra (via @import), paleta, estrutura (cabeçalho, secções, cartões, tabelas), tratamento das figuras…",
+            })}
+          />
+          <TextArea
+            label={t3({
+              en: "Reference CSS (optional) — the exact stylesheet the AI reuses; the brief describes how to use its classes",
+              fr: "CSS de référence (optionnel) — la feuille de style exacte que l'IA réutilise ; le guide décrit l'usage de ses classes",
+              pt: "CSS de referência (opcional) — a folha de estilos exata que a IA reutiliza; o guia descreve como usar as suas classes",
+            })}
+            value={referenceCss()}
+            onChange={setReferenceCss}
+            rows={6}
+            mono
+            fullWidth
+            placeholder={t3({
+              en: "Filled automatically when saving a style from a report. Without it, the AI writes CSS from the brief alone (less faithful).",
+              fr: "Rempli automatiquement quand le style est enregistré depuis un rapport. Sans lui, l'IA écrit le CSS à partir du guide seul (moins fidèle).",
+              pt: "Preenchido automaticamente ao guardar um estilo a partir de um relatório. Sem ele, a IA escreve o CSS apenas a partir do guia (menos fiel).",
             })}
           />
           <div class="flex items-center gap-2">

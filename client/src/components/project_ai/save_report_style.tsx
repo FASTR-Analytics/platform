@@ -1,5 +1,6 @@
 import {
   REPORT_CUSTOM_BRIEF_MAX,
+  REPORT_STYLE_REFERENCE_CSS_MAX,
   type ReportStyleColors,
   t3,
 } from "lib";
@@ -27,8 +28,24 @@ type Seed = {
   label: string;
   description: string;
   brief: string;
+  referenceCss: string | null;
   colors: ReportStyleColors | null;
 };
+
+// The style's canonical implementation is the report's actual CSS — extracted
+// EXACTLY, in code (the AI only writes the prose brief + colors; prose alone
+// proved lossy: regenerated stylesheets never matched the source report).
+function extractStyleBlocks(body: string): string | null {
+  const out: string[] = [];
+  const re = /<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(body)) !== null) {
+    const css = m[1].trim();
+    if (css) out.push(css);
+  }
+  if (out.length === 0) return null;
+  return out.join("\n\n").slice(0, REPORT_STYLE_REFERENCE_CSS_MAX);
+}
 
 type Props = AlertComponentProps<
   { projectId: string; reportLabel: string; body: string },
@@ -43,11 +60,13 @@ const DISTILL_PROMPT =
 Return ONLY a JSON object (no code fences, no commentary), exactly this shape:
 {"label": "<short style name, 2-3 words>", "description": "<one sentence, max 140 chars>", "brief": "<the design brief, max 4000 chars>", "colors": {"page": "<hex>", "ink": "<hex>", "accent": "<hex>"}}
 
+The report's actual CSS is captured separately and will be handed to the AI verbatim as the stylesheet to REUSE — so do NOT paraphrase CSS rules into the brief. The brief's job is the MARKUP side: which classes exist and how to compose them.
+
 The brief must cover, in this order:
-**Fonts** — the exact Google Fonts @import line to put FIRST in the <style> block (never a <link> tag), and which family plays which role.
-**Palette** — the hex tokens with their roles (page ground, surfaces, text, accents).
-**Structure** — the reusable layout devices (masthead, section pattern, cards, tables, callouts, footer) described generically, NOT this report's content or topic.
-**Figures** — how figure images are framed and captioned (they render as white-background PNGs).
+**Fonts** — which family plays which role (the @import already lives in the captured CSS).
+**Palette** — the tokens/hexes and their roles, briefly (the values live in the CSS).
+**Structure** — the reusable layout devices and their CLASS NAMES: how a masthead, section, card grid, table, callout, footer is composed from the stylesheet's classes; which element carries which class. Generic — never this report's content or topic.
+**Figures** — how figure images are framed and captioned (they render as white-background PNGs), naming the classes to wrap them in.
 Restate the hard constraints: static markup only (no <script>, no <link>), inline <svg> allowed for ornament, break-inside:avoid on cards/figures for print.
 "colors" = the page background, the main text color, and the single most characteristic accent, as hex.
 
@@ -75,7 +94,7 @@ function parseDistilled(raw: string): Seed {
   const colors = c && hex(c.page) && hex(c.ink) && hex(c.accent)
     ? { page: hex(c.page)!, ink: hex(c.ink)!, accent: hex(c.accent)! }
     : null;
-  return { label, description, brief, colors };
+  return { label, description, brief, referenceCss: null, colors };
 }
 
 export function SaveReportStyleModal(p: Props) {
@@ -107,7 +126,9 @@ export function SaveReportStyleModal(p: Props) {
         .filter((b) => b.type === "text")
         .map((b) => (b as { text: string }).text)
         .join("");
-      setState({ status: "ready", seed: parseDistilled(text) });
+      const seed = parseDistilled(text);
+      seed.referenceCss = extractStyleBlocks(p.body);
+      setState({ status: "ready", seed });
     } catch (e) {
       setState({
         status: "error",

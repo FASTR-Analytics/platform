@@ -328,8 +328,10 @@ banner and backstopped by `validateStyledReportHasStylesheet` on
 inside an HTML report
 ([save_report_style.tsx](client/src/components/project_ai/save_report_style.tsx)):
 a one-shot Sonnet call on the governed project proxy distills the report's
-actual body/CSS into a preset-shaped brief + tile colors, reviewed in the S12
-style editor before it enters the library):
+markup patterns into a preset-shaped brief + tile colors, while the report's
+actual `<style>` CSS is extracted EXACTLY in code and stored as the style's
+reference stylesheet — injected verbatim into the instructions as the CSS to
+reuse; all reviewed in the S12 style editor before it enters the library):
 tokens are built/parsed through the lib helpers, `get_report_editor` prints
 the format plus a headings index (1-based line + the exact section range and
 `wrapper <tag>`/`flat` mode from `lib/report_sections.ts`), `rewrite_section`

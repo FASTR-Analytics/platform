@@ -151,7 +151,9 @@ export function ProjectReport(p: Props) {
   const [format, setFormat] = createSignal<ReportFormat>("markdown");
   // Only consumed by the AI view params (the styled authoring brief).
   let htmlStyle: ReturnType<typeof getReportHtmlStyle> = "default";
-  let customStyle: { label: string; brief: string } | undefined;
+  let customStyle:
+    | { label: string; brief: string; referenceCss?: string | null }
+    | undefined;
   const [figures, setFigures] = createSignal<Record<string, FigureBlock>>({});
   const [images, setImages] = createSignal<Record<string, ImageBlock>>({});
   // HTML preview: figure rasters (content-keyed blob URLs) live here so they
@@ -570,11 +572,21 @@ export function ProjectReport(p: Props) {
       // snapshot keeps deleted/hidden styles working.
       const snap = getReportCustomStyle(res.data.config);
       if (snap) {
-        customStyle = { label: snap.label, brief: snap.brief };
+        customStyle = {
+          label: snap.label,
+          brief: snap.brief,
+          referenceCss: snap.referenceCss,
+        };
         const live = await serverActions.listReportStyles({ projectId });
         if (live.success) {
           const cur = live.data.find((st) => st.id === snap.id);
-          if (cur) customStyle = { label: cur.label, brief: cur.brief };
+          if (cur) {
+            customStyle = {
+              label: cur.label,
+              brief: cur.brief,
+              referenceCss: cur.referenceCss,
+            };
+          }
         }
       }
       setBody(res.data.body);

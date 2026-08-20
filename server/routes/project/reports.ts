@@ -104,6 +104,7 @@ defineRoute(
         id: styleRes.data.id,
         label: styleRes.data.label,
         brief: styleRes.data.brief,
+        referenceCss: styleRes.data.referenceCss,
         colors: styleRes.data.colors,
       };
     }

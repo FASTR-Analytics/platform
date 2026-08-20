@@ -215,8 +215,11 @@ CRUD on the reports routes, mutations `can_configure_reports` + logged). They
 render in the picker as color-skinned generic tiles and are created/edited via
 [report_style_editor.tsx](client/src/components/project/report_style_editor.tsx)
 (a wizard step; delete lives there because openConfirm would replace the picker
-modal). A report snapshots `{id,label,brief,colors}` into `config.customStyle`
-at creation (server-resolved + visibility-checked); the editor prefers the LIVE
+modal). A style saved from a report also carries the source report's
+`<style>` CSS verbatim (`reference_css`, 076) — the prose brief alone proved
+lossy, so the AI is instructed to REUSE that stylesheet rather than re-derive
+one. A report snapshots `{id,label,brief,referenceCss,colors}` into
+`config.customStyle` at creation (server-resolved + visibility-checked); the editor prefers the LIVE
 library brief when the style still exists and is visible (live ref + snapshot
 fallback), and `updateReportConfig` re-imposes the stored snapshot. S13's
 "Save this report's style…" distillation writes into this library; `updateReportConfig` re-imposes both

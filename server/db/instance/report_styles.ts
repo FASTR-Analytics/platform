@@ -16,6 +16,7 @@ type DBReportStyle = {
   label: string;
   description: string;
   brief: string;
+  reference_css: string | null;
   colors: string | null;
   project_ids: string | null;
   last_updated: string;
@@ -27,6 +28,7 @@ function rowToStyle(r: DBReportStyle): ReportCustomStyle {
     label: r.label,
     description: r.description,
     brief: r.brief,
+    referenceCss: r.reference_css,
     colors: r.colors ? parseJsonOrThrow(r.colors) : null,
     projectIds: r.project_ids ? parseJsonOrThrow(r.project_ids) : null,
     lastUpdated: r.last_updated,
@@ -75,12 +77,13 @@ export async function createReportStyle(
     const id = crypto.randomUUID();
     const row = (
       await mainDb<DBReportStyle[]>`
-        INSERT INTO report_styles (id, label, description, brief, colors, project_ids)
+        INSERT INTO report_styles (id, label, description, brief, reference_css, colors, project_ids)
         VALUES (
           ${id},
           ${body.label.trim()},
           ${body.description.trim()},
           ${body.brief},
+          ${body.referenceCss},
           ${body.colors ? JSON.stringify(body.colors) : null},
           ${body.projectIds ? JSON.stringify(body.projectIds) : null}
         )
@@ -103,6 +106,7 @@ export async function updateReportStyle(
         SET label = ${body.label.trim()},
             description = ${body.description.trim()},
             brief = ${body.brief},
+            reference_css = ${body.referenceCss},
             colors = ${body.colors ? JSON.stringify(body.colors) : null},
             project_ids = ${body.projectIds ? JSON.stringify(body.projectIds) : null},
             last_updated = now()

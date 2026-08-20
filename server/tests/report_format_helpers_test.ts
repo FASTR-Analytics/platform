@@ -71,6 +71,7 @@ Deno.test("custom style snapshot round-trips through the config schema and wins 
     id: "11111111-2222-4333-8444-555555555555",
     label: "House Style",
     brief: "**Fonts** ...",
+    referenceCss: ":root { --ink: #0F2130 } .masthead { border-bottom: 1px solid }",
     colors: { page: "#FFFFFF", ink: "#111111", accent: "#B03F35" },
   };
   const cfg = getStartingConfigForReport("html", "editorial", snap);
@@ -83,10 +84,20 @@ Deno.test("custom style snapshot round-trips through the config schema and wins 
   const ins = getEditingReportInstructions("X", "html", "default", {
     label: snap.label,
     brief: snap.brief,
+    referenceCss: snap.referenceCss,
   });
   assert(ins.includes('THIS REPORT\'S STYLE IS "HOUSE STYLE"'));
   assert(ins.includes("## Design brief: House Style"));
   assert(ins.includes("static markup only"));
+  // The source report's CSS rides verbatim, framed as the stylesheet to REUSE.
+  assert(ins.includes("Reference stylesheet — REUSE THIS CSS"));
+  assert(ins.includes(".masthead { border-bottom: 1px solid }"));
+  // Without reference CSS the section is absent (prose-only styles).
+  const insNoCss = getEditingReportInstructions("X", "html", "default", {
+    label: snap.label,
+    brief: snap.brief,
+  });
+  assertEquals(insNoCss.includes("Reference stylesheet"), false);
 });
 
 Deno.test("every styled preset briefs the AI (banner + design brief + shared constraints); default does not", async () => {
