@@ -8,6 +8,7 @@ import {
   findReportEmbeds,
   findReportFigureConfigMap,
   getReportFormat,
+  getReportHtmlStyle,
   type ImageBlock,
   materializeReport,
   type PresentationObjectConfig,
@@ -147,6 +148,8 @@ export function ProjectReport(p: Props) {
   // The body format — fixed at creation, read from config before anything
   // parses tokens (the orphan prune, the editor language, the AI view).
   const [format, setFormat] = createSignal<ReportFormat>("markdown");
+  // Only consumed by the AI view params (the editorial authoring brief).
+  let htmlStyle: ReturnType<typeof getReportHtmlStyle> = "default";
   const [figures, setFigures] = createSignal<Record<string, FigureBlock>>({});
   const [images, setImages] = createSignal<Record<string, ImageBlock>>({});
   // HTML preview: figure rasters (content-keyed blob URLs) live here so they
@@ -558,6 +561,7 @@ export function ProjectReport(p: Props) {
     if (res.success) {
       setLabel(res.data.label);
       setFormat(getReportFormat(res.data.config));
+      htmlStyle = getReportHtmlStyle(res.data.config);
       setBody(res.data.body);
       setLastUpdated(res.data.lastUpdated);
 
@@ -648,7 +652,7 @@ export function ProjectReport(p: Props) {
 
     projectAIViewController.setView(
       "editing_report",
-      { reportId: p.reportId, reportLabel: label(), format: format() },
+      { reportId: p.reportId, reportLabel: label(), format: format(), htmlStyle },
       {
         getBody: () => body(),
         getFigures: () => figures(),

@@ -8,6 +8,9 @@ import { assertEquals, assertStrictEquals } from "@std/assert";
 import {
   buildReportEmbedToken,
   buildReportPreview,
+  getReportHtmlStyle,
+  getStartingConfigForReport,
+  reportConfigSchema,
   decodeReportHtmlEntities,
   escapeReportHtml,
   findReportEmbeds,
@@ -33,6 +36,25 @@ Deno.test("getReportFormat is total", () => {
     getReportFormat({ format: "HTML" as unknown as "html" }),
     "markdown",
   );
+});
+
+Deno.test("getReportHtmlStyle is total; the style is stored only for html configs", () => {
+  assertEquals(getReportHtmlStyle(undefined), "default");
+  assertEquals(getReportHtmlStyle({}), "default");
+  assertEquals(getReportHtmlStyle({ htmlStyle: "editorial" }), "editorial");
+  assertEquals(
+    getReportHtmlStyle({ htmlStyle: "EDITORIAL" as unknown as "editorial" }),
+    "default",
+  );
+  const html = getStartingConfigForReport("html", "editorial");
+  assertEquals(reportConfigSchema.parse(html), {
+    version: 1,
+    format: "html",
+    htmlStyle: "editorial",
+  });
+  const md = getStartingConfigForReport("markdown", "editorial");
+  assertEquals("htmlStyle" in md, false);
+  assertEquals(getStartingConfigForReport("html").htmlStyle, "default");
 });
 
 Deno.test("starting body per format", () => {

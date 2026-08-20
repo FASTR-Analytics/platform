@@ -46,6 +46,14 @@ Deno.test("keeps figure:/image: embed tokens with their attributes, data-line, c
   assertStringIncludes(out, `id="sec-intro"`);
 });
 
+Deno.test("keeps a <style> block whose first line is a Google-Fonts @import (the Editorial style's font path)", () => {
+  const css =
+    `@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap');\n` +
+    `:root { --ink: #0F2130 } body { font-family: 'IBM Plex Sans', sans-serif }`;
+  const out = clean(`<style>${css}</style><h1>T</h1>`);
+  assertStringIncludes(out, `<style>${css}</style>`);
+});
+
 Deno.test("keeps data: images, http(s) images/links, tables, details, svg (target is dropped — the preview intercepts links anyway)", () => {
   const out = clean(
     `<img src="data:image/png;base64,iVBORw0KGgo=" alt="d">` +

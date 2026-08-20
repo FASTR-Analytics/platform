@@ -80,6 +80,7 @@ defineRoute(
       body.label,
       body.folderId,
       body.format,
+      body.htmlStyle,
     );
     if (!res.success) {
       return c.json(res);

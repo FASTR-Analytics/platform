@@ -18,6 +18,12 @@ import { figureBlockSchema, imageBlockSchema } from "./_slide_config.ts";
 export const REPORT_FORMATS = ["markdown", "html"] as const;
 export type ReportFormat = (typeof REPORT_FORMATS)[number];
 
+// HTML-only presentation style — changes ONLY the AI's authoring brief (no
+// seed/render difference): "editorial" briefs the model on the magazine-style
+// design language; "default" keeps styling minimal.
+export const REPORT_HTML_STYLES = ["default", "editorial"] as const;
+export type ReportHtmlStyle = (typeof REPORT_HTML_STYLES)[number];
+
 // ── Config (v1: format only; no per-report styling) ──────────────────────────
 
 export type ReportConfig = {
@@ -25,19 +31,25 @@ export type ReportConfig = {
   version?: number;
   // Fixed at creation. Absent ⇒ markdown (reports predate the field).
   format?: ReportFormat;
+  // Fixed at creation; html only. Absent ⇒ default.
+  htmlStyle?: ReportHtmlStyle;
 };
 
 export const reportConfigSchema = z
   .object({
     version: z.number().optional(),
     format: z.enum(REPORT_FORMATS).optional(),
+    htmlStyle: z.enum(REPORT_HTML_STYLES).optional(),
   })
   .passthrough();
 
 export function getStartingConfigForReport(
   format: ReportFormat = "markdown",
+  htmlStyle: ReportHtmlStyle = "default",
 ): ReportConfig {
-  return { version: 1, format };
+  return format === "html"
+    ? { version: 1, format, htmlStyle }
+    : { version: 1, format };
 }
 
 // Total: the stored config is a raw JSON cast on the server, so anything that
@@ -46,6 +58,13 @@ export function getReportFormat(
   config: ReportConfig | null | undefined,
 ): ReportFormat {
   return config?.format === "html" ? "html" : "markdown";
+}
+
+// Total, same rationale as getReportFormat.
+export function getReportHtmlStyle(
+  config: ReportConfig | null | undefined,
+): ReportHtmlStyle {
+  return config?.htmlStyle === "editorial" ? "editorial" : "default";
 }
 
 export function getStartingBodyForReport(

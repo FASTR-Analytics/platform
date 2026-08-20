@@ -6,7 +6,7 @@ import {
 } from "../consts.ts";
 import type { InstanceState } from "../types/instance_sse.ts";
 import type { ProjectState } from "../types/project_sse.ts";
-import type { ReportFormat } from "../types/reports.ts";
+import type { ReportFormat, ReportHtmlStyle } from "../types/reports.ts";
 import { INFO_TOPICS } from "./info_catalog.ts";
 
 // ── Entry point ──
@@ -337,9 +337,39 @@ The user is browsing their long-form reports (documents with embedded live data 
 - HTML-format reports are created in the FASTR report editor (Create report → Format: HTML) and edited there with the AI`;
 }
 
+// The "Editorial" html style (chosen on the Create-report form, stored in
+// config, fixed at creation): a prescriptive design language the model writes
+// its own stylesheet from, so successive rewrites come out consistent. It is a
+// brief, not a CSS dump — generalized from the magazine-style reports the same
+// model produces unprompted, minus everything the sanitizer strips.
+const REPORT_EDITORIAL_BRIEF = `## Design brief: "Editorial" style
+
+This report should look like a designed editorial briefing, not a plain document. Write the full stylesheet yourself in the report's <style> block, following this design language:
+
+**Fonts** — first line of the <style> block (NOT a <link> tag — those are stripped):
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+Headlines: 'IBM Plex Sans Condensed' (600/700, tight tracking). Body: 'IBM Plex Sans'. Numbers, labels, eyebrows, badges: 'IBM Plex Mono' with font-variant-numeric: tabular-nums. Always give fallback stacks.
+
+**Tokens** — define on :root and use throughout:
+--ground:#E9EEF3 (page background); --surface:#FFFFFF (cards); --sunk:#DDE5EC; --ink:#0F2130; --muted:#5B6B7A; --faint:#8A98A5; --rule:#C9D5DF; accents --accent-a:#B03F35 (negative/alert), --accent-b:#14685A (positive/confirm), --accent-c:#9C6B0E (caution), --link:#2A6FA8.
+The page sits on --ground; content lives in --surface blocks with 1px solid var(--rule) and border-radius 8px. Body text ~16px/1.6 in --ink; secondary text in --muted.
+
+**Structure** (adapt to the content — not every report needs every part):
+- Masthead: mono uppercase eyebrow (report series · date) → big condensed headline, font-size clamp(32px,5vw,52px), letter-spacing -0.015em → muted standfirst ≤62ch → optionally a stat-tally strip (bordered flex row; big mono number over a small muted label per cell).
+- Sections: an h2 with a small mono count beside it, then a muted lede ≤66ch, then the content block.
+- Card grids: display:grid; grid-template-columns:repeat(auto-fill,minmax(330px,1fr)); each card a --surface panel with a 3px colored border-top (accent by category) and a matching uppercase mono badge.
+- A "how to read this" key box near the top when the report needs interpretation rules.
+- Data tables: condensed bold headers, hairline row rules, mono right-set numeric cells, small rounded mono "pill" labels for statuses.
+- A notes/caveats grid of small cards; a bordered footer with source and method in small --faint text.
+
+**Figures**: wrap every figure embed in <figure class="viz"> — a --surface card with a rule border, padding, and a small mono caption line; the figure <img> itself may carry classes for layout (e.g. two-up grids). Figure images render as white-background PNGs, so keep the card body white.
+
+**Hard constraints**: static markup only — no <script> (stripped; do NOT emit JS-built content), no <link> (use @import). Inline <svg> is allowed for small decorations or hand-drawn sparklines. Auto-fit grids for responsiveness; break-inside:avoid on cards and figures for print.`;
+
 export function getEditingReportInstructions(
   reportLabel: string,
   format: ReportFormat = "markdown",
+  htmlStyle: ReportHtmlStyle = "default",
 ): string {
   const common = `## How editing works
 
@@ -349,6 +379,9 @@ export function getEditingReportInstructions(
 - ALWAYS call get_report_editor first: it returns the current body, the format, and a headings index (each heading's 1-based line, level, and the exact line range + mode of its section).
 - You may only reference figure/image ids that already exist; do not invent embed ids. Use **insert_figure** to add a new figure from a visualization or metric.`;
   if (format === "html") {
+    const styleSection = htmlStyle === "editorial"
+      ? `\n\n${REPORT_EDITORIAL_BRIEF}`
+      : "";
     return `# Current View: Editing Report "${reportLabel}" (HTML format)
 
 The user is editing a long-form report whose body is **HTML** (not markdown) with embedded live figures.
@@ -362,7 +395,7 @@ ${common}
 - Avoid element ids that collide with document properties (title, body, images, links, forms, head, open, hidden, dir, action, method, name …) — they are stripped by the sanitizer. Prefix ids, e.g. id="sec-results".
 - Embed tokens are <img src="figure:<id>" alt="caption"> and <img src="image:<id>" alt="caption">, one per line on its own line. They render as an <img> that keeps your class/style/id, so you can lay figures out with your own CSS (e.g. class="two-up"). Hand-written <table>s for small summaries are fine; for data, prefer figures.
 - **Sections** (rewrite_section, the headings index): a section is EITHER the heading's wrapper element — when the heading (possibly inside a header <div>) is the first content of a <section>/<div> that holds no other heading of the same or higher level — OR, otherwise, the flat run of siblings from the heading to the next heading of the same/higher level. get_report_editor reports the mode ("wrapper <section id=…>" or "flat") and the exact line range for every heading. Your newBody replaces that WHOLE range: in wrapper mode it must start with the same wrapper tag (<section …> … </section>); in flat mode it starts with the heading.
-- For insert_figure in an HTML report, always pass afterHeading so the figure lands inside the right section.`;
+- For insert_figure in an HTML report, always pass afterHeading so the figure lands inside the right section.${styleSection}`;
   }
   return `# Current View: Editing Report "${reportLabel}"
 

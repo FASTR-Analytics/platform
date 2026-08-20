@@ -6,6 +6,7 @@ import {
   buildReportPreview,
   type FigureBlock,
   getReportFormat,
+  getReportHtmlStyle,
   getStartingBodyForReport,
   getStartingConfigForReport,
   type ImageBlock,
@@ -15,6 +16,7 @@ import {
   type ReportDetail,
   type ReportDocContent,
   type ReportFormat,
+  type ReportHtmlStyle,
   reportFiguresSchema,
   reportImagesSchema,
   type ReportSummary,
@@ -106,12 +108,13 @@ export async function createReport(
   label: string,
   folderId?: string | null,
   format: ReportFormat = "markdown",
+  htmlStyle: ReportHtmlStyle = "default",
 ): Promise<APIResponseWithData<{ reportId: string; lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const reportId = await generateUniqueReportId(projectDb);
     const lastUpdated = new Date().toISOString();
 
-    const defaultConfig = getStartingConfigForReport(format);
+    const defaultConfig = getStartingConfigForReport(format, htmlStyle);
     const body = getStartingBodyForReport(label, format);
     await projectDb`
       INSERT INTO reports (id, label, body, figures, images, config, folder_id, last_updated)
@@ -376,7 +379,8 @@ export async function updateReportConfig(
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
-    // The body format is fixed at creation — a config write can't flip it.
+    // The body format and its html style are fixed at creation — a config
+    // write can't flip them.
     const stored = (
       await projectDb<Pick<DBReport, "config">[]>`
         SELECT config FROM reports WHERE id = ${reportId}
@@ -385,9 +389,14 @@ export async function updateReportConfig(
     if (!stored) {
       throw new Error(REPORT_NOT_FOUND);
     }
+    const storedConfig = parseReportConfig(stored);
+    const format = getReportFormat(storedConfig);
     const next: ReportConfig = {
       ...config,
-      format: getReportFormat(parseReportConfig(stored)),
+      format,
+      ...(format === "html"
+        ? { htmlStyle: getReportHtmlStyle(storedConfig) }
+        : {}),
     };
     await projectDb`
       UPDATE reports

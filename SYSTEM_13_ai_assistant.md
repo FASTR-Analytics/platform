@@ -316,8 +316,11 @@ five staged text tools (`rewrite_report {body}`, `rewrite_section {newBody}`,
 `replace_text`, `insert_figure`, `replace_figure`) declare `approval.propose`
 ([report_editor.ts](client/src/components/project_ai/ai_tools/tools/report_editor.ts)).
 They are **format-aware** (S12: a report body is markdown or html, fixed at
-creation; the `editing_report` view params carry `format` and
-`getEditingReportInstructions(label, format)` has an html authoring branch):
+creation; the `editing_report` view params carry `format` + `htmlStyle` and
+`getEditingReportInstructions(label, format, htmlStyle)` has an html authoring
+branch — the "editorial" style appends `REPORT_EDITORIAL_BRIEF`, a prescriptive
+design language (IBM Plex via `@import`, token palette, masthead/cards/badges)
+the model writes its own stylesheet from):
 tokens are built/parsed through the lib helpers, `get_report_editor` prints
 the format plus a headings index (1-based line + the exact section range and
 `wrapper <tag>`/`flat` mode from `lib/report_sections.ts`), `rewrite_section`

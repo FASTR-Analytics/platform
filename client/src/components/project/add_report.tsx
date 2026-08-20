@@ -1,4 +1,10 @@
-import { type ReportFolder, type ReportFormat, t3, TC } from "lib";
+import {
+  type ReportFolder,
+  type ReportFormat,
+  type ReportHtmlStyle,
+  t3,
+  TC,
+} from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
@@ -7,7 +13,7 @@ import {
   Select,
   createFormAction,
 } from "panther";
-import { createSignal } from "solid-js";
+import { createSignal, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 
 // Format is fixed at creation (no later switch), so the choice lives here.
@@ -31,6 +37,7 @@ export function AddReportForm(
     p.currentFolderId ?? "_none",
   );
   const [tempFormat, setTempFormat] = createSignal<ReportFormat>("markdown");
+  const [tempHtmlStyle, setTempHtmlStyle] = createSignal<ReportHtmlStyle>("default");
 
   const folderOptions = () => [
     { value: "_none", label: t3(TC.general) },
@@ -49,6 +56,7 @@ export function AddReportForm(
         label: tempLabel().trim(),
         folderId,
         format: tempFormat(),
+        htmlStyle: tempFormat() === "html" ? tempHtmlStyle() : undefined,
       });
     },
     (data) => p.close({ newReportId: data.reportId }),
@@ -106,6 +114,37 @@ export function AddReportForm(
             },
           ]}
         />
+        <Show when={tempFormat() === "html"}>
+          <RadioGroup<ReportHtmlStyle>
+            label={t3({ en: "Style", fr: "Style", pt: "Estilo" })}
+            value={tempHtmlStyle()}
+            onChange={setTempHtmlStyle}
+            options={[
+              {
+                value: "default",
+                label: formatOption(
+                  t3({ en: "Platform default", fr: "Style par défaut", pt: "Estilo padrão" }),
+                  t3({
+                    en: "plain white page; the AI keeps styling minimal",
+                    fr: "page blanche sobre ; l'IA garde une mise en forme minimale",
+                    pt: "página branca simples; a IA mantém a formatação mínima",
+                  }),
+                ),
+              },
+              {
+                value: "editorial",
+                label: formatOption(
+                  t3({ en: "Editorial", fr: "Éditorial", pt: "Editorial" }),
+                  t3({
+                    en: "magazine-style layout — fonts, cards, badges; the AI designs the report",
+                    fr: "mise en page magazine — polices, cartes, badges ; l'IA conçoit le rapport",
+                    pt: "layout de revista — tipos de letra, cartões, distintivos; a IA desenha o relatório",
+                  }),
+                ),
+              },
+            ]}
+          />
+        </Show>
       </div>
     </AlertFormHolder>
   );

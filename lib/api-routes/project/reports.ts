@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   REPORT_FORMATS,
+  REPORT_HTML_STYLES,
   reportConfigSchema,
   reportFiguresSchema,
   reportImagesSchema,
@@ -53,6 +54,7 @@ export const reportRouteRegistry = {
     body: z.object({
       ...folderBodyFields,
       format: z.enum(REPORT_FORMATS).optional(),
+      htmlStyle: z.enum(REPORT_HTML_STYLES).optional(),
     }),
     response: {} as { reportId: string; lastUpdated: string },
     requiresProject: true,
