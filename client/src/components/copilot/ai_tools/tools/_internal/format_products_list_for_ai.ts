@@ -1,4 +1,5 @@
 import type { Folder, ProductSummary, ProductType, ReadyPackage } from "lib";
+import { pathLabel } from "~/components/products/folder_tree";
 
 const TYPE_LABEL: Record<ProductType, string> = {
   slide_deck: "SLIDE DECKS",
@@ -28,11 +29,13 @@ export function formatProductsListForAI(
   }
 
   for (const product of matching) {
-    const folder = folders.find((f) => f.id === product.folderId);
     const pkg = readyPackages.find((p) => p.id === product.runId);
     lines.push(`ID: ${product.id}`);
     lines.push(`Name: ${product.label}`);
-    lines.push(`Folder: ${folder ? folder.label : "General"}`);
+    // Folders nest, so the model sees the full path.
+    lines.push(
+      `Folder: ${product.folderId === null ? "No folder" : pathLabel(folders, product.folderId)}`,
+    );
     lines.push(`Results package: ${pkg ? pkg.label : product.runId}`);
     lines.push(
       `Scope: ${product.adminArea2 === null ? "national" : product.adminArea2}`,

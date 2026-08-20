@@ -15,6 +15,7 @@ import {
 } from "~/components/_shared/scope_picker";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
+import { folderPathOptions } from "./folder_tree";
 
 const _NO_FOLDER = "_none";
 
@@ -38,9 +39,13 @@ export function ProductSettings(p: AlertComponentProps<Props, ReturnType>) {
     scopeSelectionFromStored(p.product.adminArea2),
   );
 
+  // Full paths, sorted by path, "No folder" first (D15).
   const folderOptions = createMemo(() => [
-    { value: _NO_FOLDER, label: t3(TC.general) },
-    ...instanceState.folders.map((f) => ({ value: f.id, label: f.label })),
+    { value: _NO_FOLDER, label: t3(TC.noFolder) },
+    ...folderPathOptions(instanceState.folders, {}).map((opt) => ({
+      value: opt.value,
+      label: opt.label,
+    })),
   ]);
 
   // Captured at open, never derived from the current pick: an option list that

@@ -43,7 +43,7 @@ export function MoveToFolderModal(p: AlertComponentProps<Props, ReturnType>) {
   // Full paths, sorted by path, "No folder" first (D15). Panther options carry
   // no disabled state, so a moved folder's own subtree is excluded outright.
   const folderOptions = () => [
-    { value: _NO_FOLDER, label: t3(TC.general) },
+    { value: _NO_FOLDER, label: t3(TC.noFolder) },
     ...folderPathOptions(p.folders, {
       disabledSubtree:
         p.target.kind === "folder" ? p.target.folder.id : undefined,

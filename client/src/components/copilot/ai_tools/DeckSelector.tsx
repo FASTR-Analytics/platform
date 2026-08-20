@@ -1,6 +1,7 @@
 import { t3, TC, type Folder, type ProductSummary } from "lib";
 import { Button, Input, RadioGroup, Select, type SelectOption } from "panther";
 import { createMemo, createSignal, Show } from "solid-js";
+import { folderPathOptions } from "~/components/products/folder_tree";
 
 type Props = {
   decks: Extract<ProductSummary, { type: "slide_deck" }>[];
@@ -20,8 +21,11 @@ export function DeckSelector(p: Props) {
     if (p.folders.length === 0) return [];
     return [
       { value: "_all", label: t3({ en: "All folders", fr: "Tous les dossiers", pt: "Todas as pastas" }) },
-      { value: "_unfiled", label: t3(TC.general) },
-      ...p.folders.map((f) => ({ value: f.id, label: f.label })),
+      { value: "_unfiled", label: t3(TC.noFolder) },
+      ...folderPathOptions(p.folders, {}).map((opt) => ({
+        value: opt.value,
+        label: opt.label,
+      })),
     ];
   });
 

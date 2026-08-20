@@ -32,6 +32,7 @@ export const TC = {
   general: { en: "General", fr: "Général", pt: "Geral" },
   label: { en: "Label", fr: "Libellé", pt: "Etiqueta" },
   folder: { en: "Folder", fr: "Dossier", pt: "Pasta" },
+  noFolder: { en: "No folder", fr: "Aucun dossier", pt: "Sem pasta" },
   mustEnterName: {
     en: "You must enter a name",
     fr: "Vous devez saisir un nom",
