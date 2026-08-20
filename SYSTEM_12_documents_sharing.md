@@ -246,10 +246,10 @@ live on the `products` row. Embeds are markdown tokens
 text. Orphaned registry entries are pruned at load; deleting an embed removes
 only the token, so undo restores a working embed.
 
-**Summary derivation.** The product summary query deliberately never loads the
-heavy registries: the list card's `preview` (`buildReportPreview`) derives from
-`body` alone — up to 8 lines/300 chars, heading levels, figure/image counts by
-token regex. That matters more here than it did as a list route, because the
+**Summary derivation.** The product summary query loads no detail-table
+content at all — no config, no body, no registries. The report arm's one
+derived field is `hasEmbeds`, computed in SQL (`body LIKE` on the two embed
+tokens) so the body never crosses the DB boundary. That matters because the
 summary is re-read and re-broadcast on **every** `products_upserted`.
 
 **Editor** ([report/index.tsx](client/src/components/report/index.tsx), ~1,790

@@ -170,8 +170,9 @@ the cache-version index cannot disagree; `last_updated` is emitted for
 modules, metrics, indicator lists, HFA taxonomy, presets — is served by the
 immutable T2 `run_authoring_context` keyed by `runId` instead: a package's
 contents cannot change, so there is nothing to push. A product row carries only
-what a product IS (label, folder, package, scope, stamp) — no lock, no role, no
-follow-the-pin flag (D2/D5).
+what a product IS (label, folder, package, scope, stamp) plus one cheap
+per-type existence flag (`firstSlideId` / `hasEmbeds`) — no config, no body,
+no lock, no role, no follow-the-pin flag (D2/D5).
 
 ### The collab WS store — T1-adjacent
 

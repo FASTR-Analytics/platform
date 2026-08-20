@@ -604,8 +604,7 @@ Two files:
 and `get_overlay_image.ts`. One transform,
 `convertSlideToPageInputs(slide, slideIndex, config) →
 APIResponse<PageInputs>`, serves every call site — screen
-(`slide_editor/index.tsx`, `slide_card.tsx`, `slide_deck_thumbnail.tsx`,
-`slide_presenter.tsx`), the S16 version preview
+(`slide_editor/index.tsx`, `slide_card.tsx`, `slide_presenter.tsx`), the S16 version preview
 (`version_history/deck_version_preview.tsx`), AI previews
 (`copilot/ai_tools/DraftSlidePreview.tsx`, `ai_tools/tools/drafts.tsx`), and the
 three deck exports — so a slide renders byte-identically everywhere. It takes no

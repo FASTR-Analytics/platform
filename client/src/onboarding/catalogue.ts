@@ -55,7 +55,7 @@ const firstDeckHasSlides = () => {
 const firstReportHasEmbeds = () => {
   const first = reports()[0];
   if (first === undefined || first.type !== "report") return false;
-  return first.preview.figureCount + first.preview.imageCount > 0;
+  return first.hasEmbeds;
 };
 
 const reasonNoPageAccess = () =>

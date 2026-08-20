@@ -1,7 +1,6 @@
 import { Sql } from "postgres";
 import {
   type APIResponseWithData,
-  buildReportPreview,
   getStartingConfigForReport,
   getStartingConfigForSlideDeck,
   type ProductBase,
@@ -15,8 +14,8 @@ import {
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import { type DBProduct } from "../instance/_main_database_types.ts";
 import { generateUniqueProductId } from "../../utils/id_generation.ts";
-import { duplicateDeckDetail, parseDeckConfig } from "./slide_decks.ts";
-import { duplicateReportDetail, parseReportConfig } from "./reports.ts";
+import { duplicateDeckDetail } from "./slide_decks.ts";
+import { duplicateReportDetail } from "./reports.ts";
 
 /** LOAD-BEARING message: version capture (NOT_FOUND_ERRORS in
  *  server/collab/version_capture.ts) matches it EXACTLY to tell "row is gone
@@ -50,16 +49,13 @@ const COPY_SUFFIX: TranslatableString = {
   pt: "cópia",
 };
 
-// The summary row: the `products` registry plus the per-type slice each
-// family's list card needs. Crucially excludes `reports.figures`/`images`
-// (figureInputs snapshots) — the preview derives from `body` alone, so
-// loading them here would be pure waste on every list load and every
-// products_upserted re-broadcast.
+// The summary row: the `products` registry plus one cheap existence flag per
+// type. No detail-table content (configs, bodies, registries) ever crosses
+// the DB boundary here — the summary is re-read and re-broadcast on every
+// products_upserted, and `has_embeds` is computed in SQL where the body lives.
 type DBProductSummaryRow = DBProduct & {
   first_slide_id: string | null;
-  deck_config: string | null;
-  report_config: string | null;
-  report_body: string | null;
+  has_embeds: boolean | null;
 };
 
 function rowToProductBase(row: DBProduct): ProductBase {
@@ -82,14 +78,12 @@ function rowToProductSummary(row: DBProductSummaryRow): ProductSummary {
       ...base,
       type: "slide_deck",
       firstSlideId: row.first_slide_id,
-      config: parseDeckConfig(row.deck_config, row.label),
     };
   }
   return {
     ...base,
     type: "report",
-    config: parseReportConfig(row.report_config),
-    preview: buildReportPreview(row.report_body ?? ""),
+    hasEmbeds: row.has_embeds ?? false,
   };
 }
 
@@ -106,11 +100,8 @@ async function selectProductSummaries(
         SELECT s.id FROM slides s
         WHERE s.slide_deck_id = p.id ORDER BY s.sort_order LIMIT 1
       ) AS first_slide_id,
-      sd.config AS deck_config,
-      r.config AS report_config,
-      r.body AS report_body
+      (r.body LIKE '%](figure:%' OR r.body LIKE '%](image:%') AS has_embeds
     FROM products p
-    LEFT JOIN slide_decks sd ON sd.id = p.id
     LEFT JOIN reports r ON r.id = p.id
     ${productIds === null ? mainDb`` : mainDb`WHERE p.id = ANY(${productIds})`}
     ORDER BY p.last_updated DESC

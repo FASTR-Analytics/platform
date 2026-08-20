@@ -12,9 +12,7 @@
 // for access today.
 // =============================================================================
 
-import type { ReportConfig, ReportPreview } from "./reports.ts";
 import type { PackageScope } from "./scope.ts";
-import type { SlideDeckConfig } from "./slides.ts";
 
 export type ProductType = "slide_deck" | "report";
 
@@ -49,18 +47,17 @@ export type ProductBase = {
   lastUpdated: string;
 };
 
-// What the Products page renders and what rides the instance SSE channel. The
-// per-type slice is each family's existing list-card payload, unchanged.
+// What the Products page renders and what rides the instance SSE channel —
+// only what a product IS, plus one cheap per-type existence flag. Content
+// (configs, bodies, registries) stays behind the detail fetches.
 export type ProductSummary =
   | (ProductBase & {
       type: "slide_deck";
       firstSlideId: string | null;
-      config: SlideDeckConfig;
     })
   | (ProductBase & {
       type: "report";
-      config: ReportConfig;
-      preview: ReportPreview;
+      hasEmbeds: boolean;
     });
 
 export type ProductSortMode = "recent" | "label";

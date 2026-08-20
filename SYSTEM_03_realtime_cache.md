@@ -135,6 +135,18 @@ all Web Workers in the same process — which is how a background worker's
 progress reaches the main-thread SSE connection
 (PROTOCOL_APP_WORKER_ROUTINES.md).
 
+**Connect-payload cost (measured 2026-08-20).** A trimmed `ProductSummary` is
+~266 B on the wire (dev instance: 20 products = 5,322 B), so the products
+share of `starting` is negligible up to ~1,000 products (~250 KB). The SSE
+stream is NOT compressed: `Deno.serve` auto-gzips ordinary string-bodied JSON
+responses (verified ~100:1 on repetitive JSON; disabled only by
+`Cache-Control: no-transform`, which nothing sets — no compression middleware
+exists or is needed), but streamed bodies are exempt. If an instance ever
+reaches ~1,000–3,000 products, move the bulk `starting` fills to a one-shot
+fetch on connect (the `readyPackages` nonce idiom below) rather than gzipping
+the event stream, which buffers every subsequent event. At ~5,000+ the
+T1-resident list itself is the wrong model (paged/server-filtered route).
+
 **Message contract.** `InstanceSseMessage` (`lib/types/instance_sse.ts`) is a
 discriminated union keyed by `type`. The first message on any connection is
 always `{ type: "starting", data: InstanceState }`;
