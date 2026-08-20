@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { reportConfigSchema, reportFiguresSchema, reportImagesSchema } from "../../types/mod.ts";
+import {
+  REPORT_FORMATS,
+  reportConfigSchema,
+  reportFiguresSchema,
+  reportImagesSchema,
+} from "../../types/mod.ts";
 import type {
   ReportConfig,
   ReportDetail,
@@ -44,7 +49,11 @@ export const reportRouteRegistry = {
   createReport: route({
     path: "/reports",
     method: "POST",
-    body: z.object(folderBodyFields),
+    // format is fixed at creation; absent ⇒ markdown.
+    body: z.object({
+      ...folderBodyFields,
+      format: z.enum(REPORT_FORMATS).optional(),
+    }),
     response: {} as { reportId: string; lastUpdated: string },
     requiresProject: true,
   }),

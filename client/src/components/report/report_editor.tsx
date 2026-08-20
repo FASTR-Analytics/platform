@@ -3,6 +3,7 @@ import { EditorView, keymap } from "@codemirror/view";
 import { Compartment, EditorState } from "@codemirror/state";
 import { basicSetup } from "codemirror";
 import { markdown } from "@codemirror/lang-markdown";
+import { html } from "@codemirror/lang-html";
 import { redo as cmRedo, undo as cmUndo } from "@codemirror/commands";
 import { yCollab, yUndoManagerKeymap } from "y-codemirror.next";
 import {
@@ -12,7 +13,14 @@ import {
 } from "~/components/_shared/collab_markdown_editor";
 import type { Awareness } from "y-protocols/awareness";
 import * as Y from "yjs";
-import type { FigureBlock, ImageBlock } from "lib";
+import {
+  type FigureBlock,
+  findReportEmbeds,
+  type ImageBlock,
+  type ReportEmbedRef,
+  type ReportFormat,
+  rewriteReportEmbedToken,
+} from "lib";
 import type { ReportEditorSelection } from "~/components/project_ai/types";
 import { embedWidgets, type EmbedResolver } from "./figure_widget_extension";
 import { rebaseProposedEdits, type SkippedRange } from "./rebase_edits";
@@ -65,7 +73,8 @@ export type ReportEditorApi = {
   };
   // Remove an embed's token line (used when deleting a figure/image).
   removeEmbedToken: (kind: "figure" | "image", id: string) => void;
-  // Change an embed's caption (the markdown alt text in its token).
+  // Change an embed's caption (the token's caption/alt; the token's other
+  // attributes survive).
   setEmbedCaption: (
     kind: "figure" | "image",
     id: string,
@@ -93,6 +102,8 @@ export type ReportEditorApi = {
 
 type Props = {
   body: string;
+  // Fixed for the editor's lifetime (a report's format never changes).
+  format: ReportFormat;
   figures: Record<string, FigureBlock>;
   images: Record<string, ImageBlock>;
   assetUrl: (imgFile: string) => string;
@@ -198,7 +209,7 @@ export function ReportEditor(p: Props) {
         ...(collab ? [keymap.of([...yUndoManagerKeymap])] : []),
         basicSetup,
         ...darkMarkdownExtensions(),
-        markdown(),
+        p.format === "html" ? html() : markdown(),
         ...(p.canEdit()
           ? []
           : [EditorState.readOnly.of(true), EditorView.editable.of(false)]),
@@ -229,7 +240,7 @@ export function ReportEditor(p: Props) {
           },
         }),
         centerCompartment.of(centerTheme(p.centered(), 0)),
-        embedWidgets(resolver),
+        embedWidgets(resolver, p.format),
         EditorView.updateListener.of((u) => {
           if (u.docChanged) p.onBodyChange(u.state.doc.toString());
         }),
@@ -308,19 +319,35 @@ export function ReportEditor(p: Props) {
     return { applied: changes.length, skipped, firstAppliedLine };
   }
 
-  function findTokenLine(kind: "figure" | "image", id: string) {
+  // First token of (kind, id) in the live doc, with its line.
+  function findToken(
+    kind: "figure" | "image",
+    id: string,
+  ): { ref: ReportEmbedRef; ownsLine: boolean } | undefined {
     if (!view) return undefined;
-    const idx = view.state.doc.toString().indexOf(`(${kind}:${id})`);
-    if (idx < 0) return undefined;
-    return view.state.doc.lineAt(idx);
+    const doc = view.state.doc;
+    const ref = findReportEmbeds(doc.toString(), p.format).find(
+      (r) => r.kind === kind && r.id === id,
+    );
+    if (!ref) return undefined;
+    const line = doc.lineAt(ref.start);
+    const ownsLine = line.text.trim() === ref.raw.trim() &&
+      doc.lineAt(ref.end).number === line.number;
+    return { ref, ownsLine };
   }
 
+  // A token that owns its line goes with the line; an inline token goes alone.
   function removeEmbedToken(kind: "figure" | "image", id: string) {
     if (!view) return;
-    const line = findTokenLine(kind, id);
-    if (!line) return;
-    const to = Math.min(view.state.doc.length, line.to + 1);
-    view.dispatch({ changes: { from: line.from, to } });
+    const found = findToken(kind, id);
+    if (!found) return;
+    if (found.ownsLine) {
+      const line = view.state.doc.lineAt(found.ref.start);
+      const to = Math.min(view.state.doc.length, line.to + 1);
+      view.dispatch({ changes: { from: line.from, to } });
+      return;
+    }
+    view.dispatch({ changes: { from: found.ref.start, to: found.ref.end } });
   }
 
   function setEmbedCaption(
@@ -329,17 +356,13 @@ export function ReportEditor(p: Props) {
     caption: string,
   ) {
     if (!view) return;
-    const line = findTokenLine(kind, id);
-    if (!line) return;
-    const safe = caption
-      .replace(/[[\]\n\r]/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
+    const found = findToken(kind, id);
+    if (!found) return;
     view.dispatch({
       changes: {
-        from: line.from,
-        to: line.to,
-        insert: `![${safe}](${kind}:${id})`,
+        from: found.ref.start,
+        to: found.ref.end,
+        insert: rewriteReportEmbedToken(found.ref, { caption }, p.format),
       },
     });
   }

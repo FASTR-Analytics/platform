@@ -1,4 +1,11 @@
-import { ReportGroupingMode, ReportPreview, ReportSummary, t3, TC } from "lib";
+import {
+  getReportFormat,
+  ReportGroupingMode,
+  ReportPreview,
+  ReportSummary,
+  t3,
+  TC,
+} from "lib";
 import {
   Button,
   createSelectionController,
@@ -562,8 +569,13 @@ export function ProjectReports(p: ExtendedProps) {
                   class="row-span-2 grid min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-subgrid gap-y-1"
                   data-tour="reports-report-card"
                 >
-                  <div class="font-400 text-base-content pointer-events-none pb-1 text-xs italic select-none">
-                    {report.label}
+                  <div class="font-400 text-base-content pointer-events-none flex items-baseline gap-1.5 pb-1 text-xs italic select-none">
+                    <span class="min-w-0 truncate">{report.label}</span>
+                    <Show when={getReportFormat(report.config) === "html"}>
+                      <span class="bg-base-300 text-base-content rounded px-1 text-[10px] not-italic">
+                        HTML
+                      </span>
+                    </Show>
                   </div>
                   <Card
                     pad="none"

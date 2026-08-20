@@ -5,6 +5,7 @@ import type {
   FigureBlock,
   ImageBlock,
   PresentationObjectConfig,
+  ReportFormat,
   ResultsValue,
   Slide,
   SlideDeckConfig,
@@ -94,6 +95,8 @@ export type EditingVisualizationContext = {
 export type EditingReportParams = {
   reportId: string;
   reportLabel: string;
+  // The body format — fixed at creation, known before setView.
+  format: ReportFormat;
 };
 // See ./types.ts for ReportEditProposal(Result) and ReportEditorSelection.
 export type EditingReportContext = {
@@ -168,7 +171,7 @@ export const projectAIViews = defineAIViews({
   editing_report: view<EditingReportParams, EditingReportContext>({
     label: (params) => params.reportLabel,
     instructions: (params, context) => {
-      const base = `${getEditingReportInstructions(params.reportLabel)}\n\nreportId: ${params.reportId}`;
+      const base = `${getEditingReportInstructions(params.reportLabel, params.format)}\n\nreportId: ${params.reportId}`;
       const sel = context.getSelection();
       if (!sel) return base;
       if (sel.empty) {

@@ -31,6 +31,8 @@ export default defineConfig({
       jspdf: path.resolve(__dirname, "node_modules/jspdf"),
       papaparse: path.resolve(__dirname, "node_modules/papaparse"),
       zod: path.resolve(__dirname, "node_modules/zod"),
+      "@lezer/common": path.resolve(__dirname, "node_modules/@lezer/common"),
+      "@lezer/html": path.resolve(__dirname, "node_modules/@lezer/html"),
       yjs: path.resolve(__dirname, "node_modules/yjs"),
       "fractional-indexing": path.resolve(
         __dirname,

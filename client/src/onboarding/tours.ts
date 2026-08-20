@@ -904,9 +904,9 @@ export function buildReportEditorIntroTour(): TourDefinition {
           pt: "Escreva aqui",
         }),
         body: t3({
-          en: "This is the report's text, written in Markdown — # for a heading, ** ** for bold, - for a list. Visualizations appear as blocks you can click.",
-          fr: "Voici le texte du rapport, écrit en Markdown — # pour un titre, ** ** pour du gras, - pour une liste. Les visualisations apparaissent sous forme de blocs cliquables.",
-          pt: "Este é o texto do relatório, escrito em Markdown — # para um título, ** ** para negrito, - para uma lista. As visualizações aparecem como blocos que pode clicar.",
+          en: "This is the report's text, written in Markdown (# for a heading, ** ** for bold, - for a list) or in HTML, depending on the format chosen when the report was created. Visualizations appear as blocks you can click.",
+          fr: "Voici le texte du rapport, écrit en Markdown (# pour un titre, ** ** pour du gras, - pour une liste) ou en HTML, selon le format choisi à la création du rapport. Les visualisations apparaissent sous forme de blocs cliquables.",
+          pt: "Este é o texto do relatório, escrito em Markdown (# para um título, ** ** para negrito, - para uma lista) ou em HTML, conforme o formato escolhido ao criar o relatório. As visualizações aparecem como blocos que pode clicar.",
         }),
         placement: "right",
       },

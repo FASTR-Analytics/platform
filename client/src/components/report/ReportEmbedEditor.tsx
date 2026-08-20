@@ -1,4 +1,4 @@
-import type { FigureBlock, ImageBlock } from "lib";
+import type { FigureBlock, ImageBlock, ReportFormat } from "lib";
 import { t3 } from "lib";
 import { Button, Input } from "panther";
 import {
@@ -12,6 +12,7 @@ import {
 } from "solid-js";
 import { FileUploadSelector } from "~/components/_file_upload_selector";
 import { MarkdownGuide } from "~/components/_markdown_guide";
+import { HtmlGuide } from "./html_guide";
 
 // The currently-selected report embed (report-specific — no Dashboard naming).
 export type SelectedReportEmbed =
@@ -20,6 +21,7 @@ export type SelectedReportEmbed =
 
 type Props = {
   embed: SelectedReportEmbed | undefined;
+  format: ReportFormat;
   canConfigure: boolean;
   onUpdateCaption: (id: string, caption: string) => void;
   // figure
@@ -210,7 +212,9 @@ export function ReportEmbedEditor(p: Props) {
       </Show>
       <Show when={p.canConfigure}>
         <div class="ui-pad mt-auto border-t">
-          <MarkdownGuide />
+          <Show when={p.format === "html"} fallback={<MarkdownGuide />}>
+            <HtmlGuide />
+          </Show>
         </div>
       </Show>
     </div>

@@ -1,11 +1,13 @@
 import { AIToolFailure, createAITool } from "@timroberton/panther";
 import { z } from "zod";
-import type { ReportSummary } from "../types/mod.ts";
+import { getReportFormat, type ReportSummary } from "../types/mod.ts";
 import type { AIToolEnv } from "./env.ts";
 
 function formatReportsListForAI(reports: ReportSummary[]): string {
   if (reports.length === 0) return "No reports exist yet.";
-  return reports.map((r) => `- ${r.label} (id: ${r.id})`).join("\n");
+  return reports
+    .map((r) => `- ${r.label} (id: ${r.id}, format: ${getReportFormat(r.config)})`)
+    .join("\n");
 }
 
 export function getSharedToolsForReports(
@@ -16,7 +18,8 @@ export function getSharedToolsForReports(
   return [
     createAITool({
       name: "get_available_reports",
-      description: "Get a list of all reports with their IDs and labels.",
+      description:
+        "Get a list of all reports with their IDs, labels and body format (markdown or html).",
       inputSchema: z.object({}),
       handler: async () => formatReportsListForAI(reports),
       inProgressLabel: "Getting available reports...",
@@ -28,7 +31,7 @@ export function getSharedToolsForReports(
     createAITool({
       name: "get_report",
       description:
-        "Get the full markdown body and the embedded figure/image ids of a report. Call this before discussing or editing an existing report.",
+        "Get the full body (markdown or html — the header states which) and the embedded figure/image ids of a report. Call this before discussing or editing an existing report.",
       inputSchema: z.object({ reportId: z.string() }),
       handler: async (input) => {
         const res = await env.serverActions.getReportDetail({
@@ -38,10 +41,11 @@ export function getSharedToolsForReports(
         if (!res.success) throw new AIToolFailure(res.err);
         const figureIds = Object.keys(res.data.figures);
         const imageIds = Object.keys(res.data.images);
+        const format = getReportFormat(res.data.config);
         return [
-          `# Report: ${res.data.label} (id: ${res.data.id})`,
+          `# Report: ${res.data.label} (id: ${res.data.id}, format: ${format})`,
           ``,
-          `## Body (markdown)`,
+          `## Body (${format})`,
           res.data.body,
           ``,
           `## Figures: ${
@@ -65,7 +69,7 @@ export function getSharedToolsForReports(
     createAITool({
       name: "create_report",
       description:
-        "Create a new report with a label and a markdown body. Use markdown headings, paragraphs, bold/italic, lists, blockquotes, and tables. Do NOT embed raw HTML or figure/image tokens (figures are added later in the report editor). The user opens the report in the editor to review and edit it — never show a report preview in the chat.",
+        "Create a new MARKDOWN report with a label and a markdown body. Use markdown headings, paragraphs, bold/italic, lists, blockquotes, and tables. Do NOT embed raw HTML or figure/image tokens (figures are added later in the report editor). HTML-format reports cannot be created here — they are created in the FASTR report editor (Create report → Format: HTML). The user opens the report in the editor to review and edit it — never show a report preview in the chat.",
       inputSchema: z.object({
         label: z.string(),
         markdown: z.string(),

@@ -33,7 +33,7 @@ export async function buildReportImageMap(
   return map;
 }
 
-async function loadImageEntry(
+export async function loadImageEntry(
   url: string,
 ): Promise<{ dataUrl: string; width: number; height: number } | undefined> {
   // Any failure (fetch, read, decode) returns undefined so the image is simply

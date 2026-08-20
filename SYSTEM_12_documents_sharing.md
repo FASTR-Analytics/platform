@@ -34,6 +34,7 @@ globs:
   - lib/types/_slide_deck_config.ts
   - lib/types/dashboard.ts
   - lib/types/reports.ts
+  - lib/report_sections.ts
   - lib/types/slides.ts
   - server/db/instance/dashboard_slugs.ts
   - server/db/project/dashboards.ts
@@ -51,6 +52,9 @@ globs:
   - server/routes/project/slide_decks.ts
   - server/routes/project/slides.ts
   - server/routes/public/dashboard.ts
+  - server/tests/report_format_helpers_test.ts
+  - server/tests/report_html_sanitize_test.ts
+  - server/tests/report_sections_test.ts
   - server/utils/id_generation.ts
 docs_absorbed:
 ---
@@ -180,26 +184,69 @@ payload and SSE pushes only (same for report folders).
 
 ## Reports
 
-**One-row model.** `reports` = `label` + `body` (markdown) + `figures` /
-`images` (JSON registries `Record<id, Block>` — validated by the **strict**
-`figureBlockSchema` at both route and DB) + `config` (v1 passthrough
-`{version}`) + `folder_id`. Embeds are markdown tokens
-`![caption](figure:<uuid>)` / `![caption](image:<uuid>)`; the caption IS the
-alt text. Orphaned registry entries are pruned at load; deleting an embed
-removes only the token, so undo restores a working embed.
+**One-row model.** `reports` = `label` + `body` (markdown **or html**) +
+`figures` / `images` (JSON registries `Record<id, Block>` — validated by the
+**strict** `figureBlockSchema` at both route and DB) + `config` (passthrough
+`{version, format?}`) + `folder_id`. **Format is fixed at creation**
+(`createReport` body `format`, the Create-report form's radio); absent ⇒
+markdown (`getReportFormat` is total — the stored config is a raw cast);
+`updateReportConfig` re-imposes the stored format; duplicate / copy-from-version
+carry `config`. Embeds are per-format tokens — markdown
+`![caption](figure:<uuid>)` / `![caption](image:<uuid>)`, html
+`<img src="figure:<uuid>" alt="caption">` (other attributes are the author's
+and survive every rewrite) — the caption IS the alt text. **Every token
+read/write goes through the format-aware helpers in
+[lib/types/reports.ts](lib/types/reports.ts)** (`findReportEmbeds`,
+`parseReportEmbedLine`, `buildReportEmbedToken`, `rewriteReportEmbedToken`,
+`replaceReportEmbedTokens`); the load-time orphan prune uses the loosest
+`referencedReportEmbedIds(body, "any")` substring scan (over-retention is
+harmless, a miss deletes a figure). Deleting an embed removes only the token, so
+undo restores a working embed.
 
 **Summary derivation.** `getAllReports` deliberately never loads the heavy
-registries; the list card's `preview` (`buildReportPreview`) derives from the
-body alone — up to 8 lines/300 chars, heading levels, figure/image counts by
-token regex.
+registries; the list card's `preview` (`buildReportPreview(body, format)`)
+derives from the body alone — up to 8 lines/300 chars, heading levels,
+figure/image counts via `findReportEmbeds`; the card shows an "HTML" badge for
+html reports.
 
-**Editor** ([report/index.tsx](client/src/components/report/index.tsx), ~1,620
-LOC): CodeMirror 6 with an embed-widget extension (a line that is exactly one
-token renders as an atomic block widget), three modes edit/split/view, and
-line-anchored bidirectional scroll sync (`data-line` anchors, echo-loop
-guard, figure-settle ResizeObserver window). The left panel inserts/edits
-embeds (figures resolve through the same S10 funnel as dashboards). View
-mode and both exports share `REPORT_MARKDOWN_STYLE`.
+**HTML format.** Rendering = DOMPurify with the pure-data
+`REPORT_PURIFY_CONFIG` (lib; `FORCE_BODY`, explicit `FORBID_TAGS`, the default
+URI regexp plus the `figure:`/`image:` schemes — pinned by
+`server/tests/report_html_sanitize_test.ts` on jsdom) → materialize embeds →
+base CSS ([report_html.ts](client/src/components/report/report_html.ts), the
+one builder for preview, version-history preview, `.html` download and
+print). The editor preview is a `sandbox="allow-same-origin"` srcdoc iframe
+([report_html_preview.tsx](client/src/components/report/report_html_preview.tsx))
+— scripts browser-blocked, the report's `<style>` scoped to its own document,
+blob:/asset URLs load because the frame keeps the parent origin; in-page
+`#` links scroll in-frame, everything else opens a new tab; pointer events are
+re-dispatched on the iframe element so live cursors / click-to-deselect work.
+Figures are PNG rasters (`getFigureAsCanvas` at `FIGURE_EXPORT_WIDTH_PX` → blob
+URL) from a **content-keyed** cache
+([report_figure_raster.ts](client/src/components/report/report_figure_raster.ts):
+`metricId|snapshotAt|canonicalJson(config)`, NOT object identity — collab
+materializes fresh block objects on every remote update), serial with a frame
+yield, pending → placeholder, failure → "Missing visualization". Structural
+operations (headings index, `rewrite_section`'s wrapper/flat sections, line
+anchors, well-formedness incl. unclosed elements) all read one `@lezer/html`
+tree in [lib/report_sections.ts](lib/report_sections.ts)
+(`server/tests/report_sections_test.ts`). Exports: markdown → PDF/Word as
+before; html → standalone `.html` (figures as data URLs, images inlined) or a
+hidden `allow-same-origin allow-modals` print frame
+([export_report_as_html.ts](client/src/exports/export_report_as_html.ts)).
+
+**Editor** ([report/index.tsx](client/src/components/report/index.tsx), ~1,700
+LOC): CodeMirror 6 (`lang-markdown` or `lang-html` per format) with an
+embed-widget extension (a line that is exactly one token renders as an atomic
+block widget), three modes edit/split/view, and line-anchored bidirectional
+scroll sync over a `PreviewSurface` adapter
+([scroll_sync.ts](client/src/components/report/scroll_sync.ts): `divSurface`
+for the markdown card, `iframeSurface` for the html frame; `data-line`
+anchors, echo-loop guard, figure-settle ResizeObserver window; the html pane
+aligns when its surface becomes ready, not on the next frame). The left panel
+inserts/edits embeds (figures resolve through the same S10 funnel as
+dashboards). Markdown View mode and both markdown exports share
+`REPORT_MARKDOWN_STYLE`.
 
 **Autosave protocol** (no-room path — once a collab session becomes ready the
 800ms REST autosave is turned off for good and edits flow over the WS, S16):

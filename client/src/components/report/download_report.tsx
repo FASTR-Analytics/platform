@@ -1,4 +1,4 @@
-import { t3, TC } from "lib";
+import { type ReportFormat, t3, TC } from "lib";
 import {
   Button,
   EditorComponentProps,
@@ -11,19 +11,30 @@ import {
 import { Show, createSignal } from "solid-js";
 import { exportReportAsPdf } from "~/exports/export_report_as_pdf";
 import { exportReportAsWord } from "~/exports/export_report_as_word";
+import {
+  exportReportAsHtml,
+  printReportHtml,
+} from "~/exports/export_report_as_html";
+
+type ExportKind = "pdf" | "word" | "html" | "print";
 
 export function DownloadReport(
   p: EditorComponentProps<
     {
       projectId: string;
       reportId: string;
+      // Absent ⇒ markdown (PDF / Word); html gets the .html / print options.
+      format?: ReportFormat;
     },
     undefined
   >,
 ) {
+  const isHtml = p.format === "html";
   const [pct, setPct] = createSignal<number>(0);
   const [err, setErr] = createSignal<string>("");
-  const [exportFormat, setExportFormat] = createSignal<string>("pdf");
+  const [exportFormat, setExportFormat] = createSignal<ExportKind>(
+    isHtml ? "html" : "pdf",
+  );
 
   function progress(pct: number) {
     setPct(pct);
@@ -35,10 +46,13 @@ export function DownloadReport(
     await new Promise((res) => setTimeout(res, 0));
     const format = exportFormat();
 
-    const res =
-      format === "word"
-        ? await exportReportAsWord(p.projectId, p.reportId, progress)
-        : await exportReportAsPdf(p.projectId, p.reportId, progress);
+    const res = format === "word"
+      ? await exportReportAsWord(p.projectId, p.reportId, progress)
+      : format === "html"
+      ? await exportReportAsHtml(p.projectId, p.reportId, progress)
+      : format === "print"
+      ? await printReportHtml(p.projectId, p.reportId, progress)
+      : await exportReportAsPdf(p.projectId, p.reportId, progress);
     if (res.success === false) {
       setErr(res.err);
       setPct(0);
@@ -46,6 +60,22 @@ export function DownloadReport(
     }
     p.close(undefined);
   }
+
+  const options = isHtml
+    ? [
+      {
+        value: "html" as const,
+        label: t3({ en: "HTML file (.html)", fr: "Fichier HTML (.html)", pt: "Ficheiro HTML (.html)" }),
+      },
+      {
+        value: "print" as const,
+        label: t3({ en: "Print / save as PDF", fr: "Imprimer / enregistrer en PDF", pt: "Imprimir / guardar como PDF" }),
+      },
+    ]
+    : [
+      { value: "pdf" as const, label: t3({ en: "PDF", fr: "PDF", pt: "PDF" }) },
+      { value: "word" as const, label: t3({ en: "Word (.docx)", fr: "Word (.docx)", pt: "Word (.docx)" }) },
+    ];
 
   return (
     <ModalContainer
@@ -74,14 +104,20 @@ export function DownloadReport(
       }
     >
       <div class="ui-spy-sm">
-        <RadioGroup
-          options={[
-            { value: "pdf", label: t3({ en: "PDF", fr: "PDF", pt: "PDF" }) },
-            { value: "word", label: t3({ en: "Word (.docx)", fr: "Word (.docx)", pt: "Word (.docx)" }) },
-          ]}
+        <RadioGroup<ExportKind>
+          options={options}
           value={exportFormat()}
           onChange={setExportFormat}
         />
+        <Show when={isHtml}>
+          <div class="text-base-content-muted text-xs">
+            {t3({
+              en: "The HTML file is self-contained (figures embedded as images). Print opens your browser's print dialog, where you can save as PDF.",
+              fr: "Le fichier HTML est autonome (figures intégrées en images). Imprimer ouvre la boîte de dialogue d'impression du navigateur, où vous pouvez enregistrer en PDF.",
+              pt: "O ficheiro HTML é autónomo (figuras incorporadas como imagens). Imprimir abre a caixa de diálogo de impressão do navegador, onde pode guardar como PDF.",
+            })}
+          </div>
+        </Show>
       </div>
       <Show when={pct() > 0}>
         <div class="ui-spy-sm">

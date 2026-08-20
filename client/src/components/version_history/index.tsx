@@ -3,6 +3,7 @@ import {
   presenceColorForKey,
   t3,
   type VersionEditor,
+  type ReportFormat,
 } from "lib";
 import {
   Button,
@@ -44,6 +45,8 @@ type Props = EditorComponentProps<
     currentLabel: string;
     /** Report only: live body accessor for "Compare with current". */
     getCurrentBody?: () => string;
+    /** Report only: the report's body format (absent ⇒ markdown). */
+    reportFormat?: ReportFormat;
   },
   undefined
 >;
@@ -259,6 +262,7 @@ export function VersionHistoryEditor(p: Props) {
                 previousVersionId={previousVersionId(versionId)}
                 canRestore={canRestore()}
                 getCurrentBody={p.getCurrentBody}
+                format={p.reportFormat ?? "markdown"}
                 onRestored={() => p.close(undefined)}
               />
             </Show>

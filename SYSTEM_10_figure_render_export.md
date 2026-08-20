@@ -607,7 +607,7 @@ style builders and the CF editor).
 
 ## The export engine (client/src/exports)
 
-13 files, ~1.1k LOC, no barrel (callers import files directly). Every heavy
+14 files, ~1.3k LOC, no barrel (callers import files directly). Every heavy
 engine is panther-side — `PageRenderer`,
 `createPdfRenderContextWithFontsBrowser`, `pagesToPptxBrowser`,
 `markdownToPdfBrowser` / `markdownToWordBrowser` — the app files are
@@ -619,7 +619,7 @@ eight entries return `APIResponse` envelopes (never throw), take a
 | ---------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Slide deck | PDF (download), PDF-base64 (email), PPTX  | fetch deck detail + per-slide `_SLIDE_CACHE` → `convertSlideToPageInputs` → PageRenderer into jsPDF (deck-family fonts only) or `pagesToPptxBrowser`; 1400×788                                                                                                                                       |
 | Dashboard  | PDF, PPTX, XLSX, single-figure PNG        | fetch-free: `buildDashboardExportModel(PublicDashboardBundle)` flattens groups to per-member figures → `prepareFigures` render-validates each at 200px + white-bakes → per-figure pages (PDF 1200-wide, ideal-height, portrait/landscape flip; PPTX 1200×675) or one XLSX sheet per **table** figure |
-| Report     | PDF, Word                                 | fetch report detail → hydrate figure/image maps keyed by literal `figure:<id>` / `image:<id>` tokens → `markdownTo{Pdf,Word}Browser` (PDF 1000×1414 with page numbers)                                                                                                                               |
+| Report     | markdown: PDF, Word · html: HTML, print   | markdown: fetch report detail → hydrate figure/image maps keyed by literal `figure:<id>` / `image:<id>` tokens → `markdownTo{Pdf,Word}Browser` (PDF 1000×1414 with page numbers). html (`export_report_as_html.ts`, S12's format): the same sanitize→materialize→base-CSS builder as the editor preview with figures as `getFigureAsDataUrlBrowser` PNGs at 1920 and images inlined → standalone `.html` via `saveAs`, or a hidden `sandbox="allow-same-origin allow-modals"` frame → `print()` |
 | Single viz | PNG, table CSV, data CSV, JSON definition | in the editor (`visualization_editor_inner.tsx`, outside `exports/`): transient bundle → `getFigureAsCanvas` at `FIGURE_EXPORT_WIDTH_PX` 1920; multi-replicant download disabled                                                                                                                     |
 
 The email exit is the only non-download path: `ShareSlideDeck` →

@@ -6,6 +6,7 @@ import {
 } from "../consts.ts";
 import type { InstanceState } from "../types/instance_sse.ts";
 import type { ProjectState } from "../types/project_sse.ts";
+import type { ReportFormat } from "../types/reports.ts";
 import { INFO_TOPICS } from "./info_catalog.ts";
 
 // ── Entry point ──
@@ -320,32 +321,54 @@ The user is browsing their slide decks.
 export function getViewingReportsInstructions(): string {
   return `# Current View: Reports Library
 
-The user is browsing their long-form reports (markdown documents with embedded live data figures).
+The user is browsing their long-form reports (documents with embedded live data figures). A report's body is either **markdown** or **HTML** — fixed when the report is created (get_report states which).
 
 ## Primary Tools (most relevant here)
 
-**get_available_reports** - List all reports
-**get_report** - Get a report's full markdown body + embedded figure/image ids
-**create_report** - Create a new report from a markdown body
+**get_available_reports** - List all reports (with each report's format)
+**get_report** - Get a report's full body + embedded figure/image ids
+**create_report** - Create a new MARKDOWN report from a markdown body
 
 ## Actions
 
 - Help explore existing reports
 - Draft a new report (use create_report with well-structured markdown: headings, paragraphs, lists, tables)
-- Do NOT put raw HTML in report bodies; for live data tables/charts, the user inserts figures via the editor`;
+- Do NOT put raw HTML in markdown report bodies; for live data tables/charts, the user inserts figures via the editor
+- HTML-format reports are created in the FASTR report editor (Create report → Format: HTML) and edited there with the AI`;
 }
 
-export function getEditingReportInstructions(reportLabel: string): string {
+export function getEditingReportInstructions(
+  reportLabel: string,
+  format: ReportFormat = "markdown",
+): string {
+  const common = `## How editing works
+
+- Every TEXT edit you propose is STAGED as a diff the user accepts or rejects — nothing is applied silently. Make focused, well-scoped edits.
+- **Figure edits are different from text edits.** update_report_figure applies straight to the live preview and saves — it is NOT staged as a diff (the figure's body token doesn't change). Body/text edits and figure inserts ARE staged for accept/reject.
+- Prefer **rewrite_section** for targeted changes; use **replace_text** for small/sentence-level edits; use **rewrite_report** only for whole-document restructures.
+- ALWAYS call get_report_editor first: it returns the current body, the format, and a headings index (each heading's 1-based line, level, and the exact line range + mode of its section).
+- You may only reference figure/image ids that already exist; do not invent embed ids. Use **insert_figure** to add a new figure from a visualization or metric.`;
+  if (format === "html") {
+    return `# Current View: Editing Report "${reportLabel}" (HTML format)
+
+The user is editing a long-form report whose body is **HTML** (not markdown) with embedded live figures.
+
+${common}
+
+## Writing HTML for this report
+
+- Write BODY-ONLY markup: no <!DOCTYPE>, <html>, <head> or <body> tags. Every element must be closed (</div>, </p>, </section> …) — a body with stray or missing close tags is rejected before it is staged.
+- A <style> block anywhere in the body applies to the whole report document (the report renders in its own page, isolated from the app). The page is a white ~56rem-wide column with browser-default typography unless your CSS says otherwise. Web images and @import'ed fonts are allowed; <link>, <script>, <iframe>, <form> controls and event handlers are stripped.
+- Avoid element ids that collide with document properties (title, body, images, links, forms, head, open, hidden, dir, action, method, name …) — they are stripped by the sanitizer. Prefix ids, e.g. id="sec-results".
+- Embed tokens are <img src="figure:<id>" alt="caption"> and <img src="image:<id>" alt="caption">, one per line on its own line. They render as an <img> that keeps your class/style/id, so you can lay figures out with your own CSS (e.g. class="two-up"). Hand-written <table>s for small summaries are fine; for data, prefer figures.
+- **Sections** (rewrite_section, the headings index): a section is EITHER the heading's wrapper element — when the heading (possibly inside a header <div>) is the first content of a <section>/<div> that holds no other heading of the same or higher level — OR, otherwise, the flat run of siblings from the heading to the next heading of the same/higher level. get_report_editor reports the mode ("wrapper <section id=…>" or "flat") and the exact line range for every heading. Your newBody replaces that WHOLE range: in wrapper mode it must start with the same wrapper tag (<section …> … </section>); in flat mode it starts with the heading.
+- For insert_figure in an HTML report, always pass afterHeading so the figure lands inside the right section.`;
+  }
   return `# Current View: Editing Report "${reportLabel}"
 
 The user is editing a long-form report (markdown body + embedded live figures).
 
-## How editing works
-
-- Every TEXT edit you propose is STAGED as a diff the user accepts or rejects — nothing is applied silently. Make focused, well-scoped edits.
-- **Figure edits are different from text edits.** update_report_figure applies straight to the live preview and saves — it is NOT staged as a diff (the figure's body token doesn't change). Body/text edits and figure inserts ARE staged for accept/reject.
-- Prefer **rewrite_section** for targeted changes; use **rewrite_report** only for whole-document restructures.
-- You may only reference figure/image ids that already exist; do not invent embed ids. Use **insert_figure** to add a new figure from a visualization.
+${common}
 - Use clean markdown (headings, paragraphs, lists, tables); never raw HTML. For data tables, prefer inserting a figure.`;
 }
 

@@ -18,6 +18,7 @@ export * from "./get_disaggregator_display_prop.ts";
 export * from "./get_fetch_config_from_po.ts";
 export * from "./resolve_effective_format.ts";
 export * from "./resolve_figure_calendar.ts";
+export * from "./report_sections.ts";
 export * from "./group_metrics.ts";
 export * from "./h_users.ts";
 export * from "./help/mod.ts";

@@ -1,15 +1,20 @@
 import {
+  buildReportEmbedToken,
   canonicalJson,
   COLLAB_NO_EDIT_PERMISSION,
   type FigureBlock,
   type FigureBundle,
   findReportBodyText,
+  findReportEmbeds,
   findReportFigureConfigMap,
+  getReportFormat,
   type ImageBlock,
   materializeReport,
   type PresentationObjectConfig,
   type ProjectState,
+  referencedReportEmbedIds,
   type ReportDocContent,
+  type ReportFormat,
   type ResultsValue,
   t3,
 } from "lib";
@@ -86,7 +91,16 @@ import { ReportImagePicker } from "./report_image_picker";
 import { ReportMarkdownDiff } from "./ReportMarkdownDiff";
 import { ReportFigureEmbed } from "./ReportFigureEmbed";
 import { DownloadReport } from "./download_report";
-import { lineToPreviewTop, previewTopToLine } from "./scroll_sync";
+import {
+  divSurface,
+  isSurfaceAtBottom,
+  lineToPreviewTop,
+  type PreviewSurface,
+  previewTopToLine,
+  scrollSurfaceToBottom,
+} from "./scroll_sync";
+import { ReportHtmlPreview } from "./report_html_preview";
+import { createFigureRasterCache } from "./report_figure_raster";
 import { VersionHistoryEditor } from "../version_history";
 
 type EmbedKind = "figure" | "image";
@@ -109,30 +123,6 @@ const AUTOSAVE_MS = 800;
 // pad the editor reserves so its centered column lines up with the View preview.
 const SIDEBAR_WIDTH_PX = 240;
 
-// Captions live inside ![caption](src) — strip chars that would break the token.
-function sanitizeCaption(s: string): string {
-  return s
-    .replace(/[[\]\n\r]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-const EMBED_TOKEN_RE = /!\[[^\]]*\]\((figure|image):([^)\s]+)\)/g;
-function referencedEmbedIds(body: string): {
-  figures: Set<string>;
-  images: Set<string>;
-} {
-  const figures = new Set<string>();
-  const images = new Set<string>();
-  EMBED_TOKEN_RE.lastIndex = 0;
-  let m: RegExpExecArray | null;
-  while ((m = EMBED_TOKEN_RE.exec(body)) !== null) {
-    if (m[1] === "figure") figures.add(m[2]);
-    else images.add(m[2]);
-  }
-  return { figures, images };
-}
-
 export function ProjectReport(p: Props) {
   const projectId = p.projectState.id;
   const { openEditor: openInnerEditor, EditorWrapper: InnerEditorWrapper } =
@@ -154,8 +144,20 @@ export function ProjectReport(p: Props) {
   const [isLoading, setIsLoading] = createSignal(true);
   const [label, setLabel] = createSignal(p.reportLabel);
   const [body, setBody] = createSignal("");
+  // The body format — fixed at creation, read from config before anything
+  // parses tokens (the orphan prune, the editor language, the AI view).
+  const [format, setFormat] = createSignal<ReportFormat>("markdown");
   const [figures, setFigures] = createSignal<Record<string, FigureBlock>>({});
   const [images, setImages] = createSignal<Record<string, ImageBlock>>({});
+  // HTML preview: figure rasters (content-keyed blob URLs) live here so they
+  // survive Edit↔Split remounts; rasterTick re-renders the frame as they land.
+  const [rasterTick, setRasterTick] = createSignal(0);
+  const rasters = createFigureRasterCache(() => setRasterTick((t) => t + 1));
+  // The live preview surface, for the peer-selection overlay (an iframe's
+  // embeds are not reachable by querySelector from the parent document).
+  const [previewSurface, setPreviewSurface] = createSignal<
+    PreviewSurface | undefined
+  >();
   // The lastUpdated we last saw from the server — round-tripped for optimistic
   // concurrency (PLAN_REPORTS.md §4).
   const [lastUpdated, setLastUpdated] = createSignal<string>("");
@@ -221,11 +223,11 @@ export function ProjectReport(p: Props) {
             if (targetAtBottom) editorApi?.scrollToBottom();
             else editorApi?.scrollToLine(targetLine);
           }
-          if (previewMounted && previewEl) {
-            if (targetAtBottom) scrollElToBottom(previewEl);
-            else previewEl.scrollTop = lineToPreviewTop(previewEl, targetLine);
-            armFigureSettle();
-          }
+          // The HTML preview's surface arrives asynchronously (srcdoc load) —
+          // HtmlPreviewPane aligns when ReportHtmlPreview hands it the surface;
+          // here `preview` is only set for the markdown pane, whose surface
+          // exists synchronously at mount.
+          if (previewMounted && preview) alignPreviewToTarget();
         }),
       );
     }),
@@ -310,8 +312,9 @@ export function ProjectReport(p: Props) {
   // scroll event, which must not re-drive the other. Cleared on the next rAF
   // because programmatic scrollTop writes dispatch their scroll event async.
   let syncing = false;
-  // The preview's scroll container — set on preview mount, cleared on unmount.
-  let previewEl: HTMLDivElement | undefined;
+  // The preview surface (markdown: the scrolling div; html: the iframe
+  // document) — set when the pane is ready, cleared on unmount.
+  let preview: PreviewSurface | undefined;
 
   // Figure-settle (§7): figures measure their height a few frames after mount, so
   // a one-shot align can land before they settle. While armed (and the user
@@ -348,32 +351,30 @@ export function ProjectReport(p: Props) {
 
   // The preview's ResizeObserver calls this as figure heights settle.
   function onPreviewResize() {
-    if (!settleArmed || !settleUntouched || !previewEl) return;
+    if (!settleArmed || !settleUntouched || !preview) return;
     bumpQuiet();
     const next = targetAtBottom
-      ? previewEl.scrollHeight - previewEl.clientHeight
-      : lineToPreviewTop(previewEl, targetLine);
-    if (Math.abs(next - previewEl.scrollTop) < 1) return; // skip no-ops
+      ? preview.scrollHeight() - preview.clientHeight()
+      : lineToPreviewTop(preview, targetLine);
+    if (Math.abs(next - preview.scrollTop()) < 1) return; // skip no-ops
     syncing = true; // §7: must not masquerade as a user scroll
-    previewEl.scrollTop = next;
+    preview.setScrollTop(next);
     requestAnimationFrame(() => (syncing = false));
+  }
+
+  // Put the preview at targetLine (or the bottom) and arm figure-settle — the
+  // mode-switch / AI-accept / surface-ready alignment.
+  function alignPreviewToTarget() {
+    if (!preview) return;
+    if (targetAtBottom) scrollSurfaceToBottom(preview);
+    else preview.setScrollTop(lineToPreviewTop(preview, targetLine));
+    armFigureSettle();
   }
 
   // First genuine user gesture in the preview ends the settle window (one-shot).
   function onPreviewUserGesture() {
     settleUntouched = false;
     disarmSettle();
-  }
-
-  // Scrollable AND at the end (a non-scrollable pane isn't "at bottom").
-  function isElAtBottom(el: HTMLElement) {
-    return (
-      el.scrollHeight > el.clientHeight + 1 &&
-      el.scrollTop + el.clientHeight >= el.scrollHeight - 2
-    );
-  }
-  function scrollElToBottom(el: HTMLElement) {
-    el.scrollTop = el.scrollHeight - el.clientHeight;
   }
 
   // Editor scrolled (fires in Edit + Split). In Split, drive the preview.
@@ -383,19 +384,19 @@ export function ProjectReport(p: Props) {
     if (line === undefined) return;
     targetLine = line;
     targetAtBottom = editorApi?.isAtBottom() ?? false;
-    if (mode() === "split" && previewEl) {
+    if (mode() === "split" && preview) {
       syncing = true;
-      if (targetAtBottom) scrollElToBottom(previewEl);
-      else previewEl.scrollTop = lineToPreviewTop(previewEl, line);
+      if (targetAtBottom) scrollSurfaceToBottom(preview);
+      else preview.setScrollTop(lineToPreviewTop(preview, line));
       requestAnimationFrame(() => (syncing = false));
     }
   }
 
   // Preview scrolled (fires in View + Split). In Split, drive the editor.
   function onPreviewScroll() {
-    if (syncing || !previewEl) return;
-    targetLine = previewTopToLine(previewEl);
-    targetAtBottom = isElAtBottom(previewEl);
+    if (syncing || !preview) return;
+    targetLine = previewTopToLine(preview);
+    targetAtBottom = isSurfaceAtBottom(preview);
     if (mode() === "split") {
       syncing = true;
       if (targetAtBottom) editorApi?.scrollToBottom();
@@ -503,12 +504,13 @@ export function ProjectReport(p: Props) {
     }
   });
 
-  // Caption for an embed = the markdown alt text in its token.
+  // Caption for an embed = its token's caption/alt (first occurrence).
   function captionForId(kind: EmbedKind, id: string): string {
-    const re = new RegExp(
-      `!\\[([^\\]]*)\\]\\(${kind}:${id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\)`,
+    return (
+      findReportEmbeds(body(), format()).find(
+        (r) => r.kind === kind && r.id === id,
+      )?.caption ?? ""
     );
-    return re.exec(body())?.[1] ?? "";
   }
 
   const selectedEmbedDetail = createMemo<SelectedReportEmbed | undefined>(
@@ -555,11 +557,14 @@ export function ProjectReport(p: Props) {
     });
     if (res.success) {
       setLabel(res.data.label);
+      setFormat(getReportFormat(res.data.config));
       setBody(res.data.body);
       setLastUpdated(res.data.lastUpdated);
 
-      // Prune orphan registry entries at load (PLAN_REPORTS.md §11).
-      const refs = referencedEmbedIds(res.data.body);
+      // Prune orphan registry entries at load (PLAN_REPORTS.md §11). The
+      // loosest scan ("any": both token syntaxes and anything looser) — a
+      // kept orphan is harmless, a missed reference deletes a figure.
+      const refs = referencedReportEmbedIds(res.data.body, "any");
       const prunedFigures = Object.fromEntries(
         Object.entries(res.data.figures).filter(([id]) => refs.figures.has(id)),
       );
@@ -643,7 +648,7 @@ export function ProjectReport(p: Props) {
 
     projectAIViewController.setView(
       "editing_report",
-      { reportId: p.reportId, reportLabel: label() },
+      { reportId: p.reportId, reportLabel: label(), format: format() },
       {
         getBody: () => body(),
         getFigures: () => figures(),
@@ -677,6 +682,7 @@ export function ProjectReport(p: Props) {
                   oldText: baseBody,
                   newText: proposal.newBody,
                   summary: proposal.summary,
+                  format: format(),
                   signal,
                 },
               }).then((accepted) => accepted === true),
@@ -782,10 +788,7 @@ export function ProjectReport(p: Props) {
       queueMicrotask(() =>
         requestAnimationFrame(() => {
           editorApi?.scrollToLine(changedLine);
-          if (previewEl) {
-            previewEl.scrollTop = lineToPreviewTop(previewEl, changedLine);
-            armFigureSettle();
-          }
+          alignPreviewToTarget();
         }),
       );
     }
@@ -794,6 +797,7 @@ export function ProjectReport(p: Props) {
 
   onCleanup(() => {
     mounted = false;
+    rasters.dispose();
     const s = session();
     if (collabFatal()) {
       // The report/room is gone — nothing to flush to.
@@ -1075,7 +1079,7 @@ export function ProjectReport(p: Props) {
       projectState.visualizations.find((v) => v.id === sel.visualizationId)
         ?.label ?? "";
     editorApi?.insertEmbedOnNewLine(
-      `![${sanitizeCaption(vizLabel)}](figure:${id})`,
+      buildReportEmbedToken(format(), "figure", id, vizLabel),
     );
     setSelectedEmbed({ kind: "figure", id });
   }
@@ -1092,7 +1096,7 @@ export function ProjectReport(p: Props) {
     setImages(next);
     await persistImages(next);
     editorApi?.insertEmbedOnNewLine(
-      `![${sanitizeCaption(picked.alt)}](image:${id})`,
+      buildReportEmbedToken(format(), "image", id, picked.alt),
     );
     setSelectedEmbed({ kind: "image", id });
   }
@@ -1259,7 +1263,7 @@ export function ProjectReport(p: Props) {
   async function download() {
     await openComponent({
       element: DownloadReport,
-      props: { projectId, reportId: p.reportId },
+      props: { projectId, reportId: p.reportId, format: format() },
     });
   }
 
@@ -1273,44 +1277,53 @@ export function ProjectReport(p: Props) {
           docId: p.reportId,
           currentLabel: label(),
           getCurrentBody: body,
+          reportFormat: format(),
         },
       }),
     );
   }
 
-  // The HTML preview pane (View & Split). Owns its scroll-sync lifecycle: it
-  // registers previewEl, an rAF-throttled scroll listener, a ResizeObserver on
-  // the content (figure-settle, §7), and user-gesture latches — all torn down on
-  // unmount, since the pane unmounts in Edit.
-  const ReportPreviewPane = () => {
-    let contentEl: HTMLDivElement | undefined;
+  // The preview pane (View & Split) owns its scroll-sync lifecycle: it attaches
+  // the surface (an rAF-throttled scroll listener, a content ResizeObserver for
+  // figure-settle §7, user-gesture latches) — all torn down on unmount, since
+  // the pane unmounts in Edit. Markdown: the surface is the scrolling div,
+  // ready synchronously at mount. HTML: the surface is the iframe document,
+  // ready only after the srcdoc loads — the pane aligns to targetLine at that
+  // moment (a next-frame alignment from the mode effect would find no anchors).
+  function attachPreviewSurface(surface: PreviewSurface): () => void {
     let scrollRAF = 0;
+    const onScroll = () => {
+      if (scrollRAF) return;
+      scrollRAF = requestAnimationFrame(() => {
+        scrollRAF = 0;
+        onPreviewScroll();
+      });
+    };
+    const offs = [
+      surface.on("scroll", onScroll),
+      surface.on("wheel", onPreviewUserGesture),
+      surface.on("pointerdown", onPreviewUserGesture),
+      surface.observeContent(() => onPreviewResize()),
+    ];
+    preview = surface;
+    setPreviewSurface(() => surface);
+    return () => {
+      if (scrollRAF) cancelAnimationFrame(scrollRAF);
+      for (const off of offs) off();
+      disarmSettle();
+      preview = undefined;
+      setPreviewSurface(undefined);
+    };
+  }
+
+  const MarkdownPreviewPane = () => {
+    let paneEl: HTMLDivElement | undefined;
+    let contentEl: HTMLDivElement | undefined;
     onMount(() => {
-      const el = previewEl;
-      if (!el) return;
+      if (!paneEl) return;
       settleUntouched = true;
       settleArmed = false;
-      const onScroll = () => {
-        if (scrollRAF) return;
-        scrollRAF = requestAnimationFrame(() => {
-          scrollRAF = 0;
-          onPreviewScroll();
-        });
-      };
-      el.addEventListener("scroll", onScroll, { passive: true });
-      el.addEventListener("wheel", onPreviewUserGesture, { passive: true });
-      el.addEventListener("pointerdown", onPreviewUserGesture);
-      const ro = new ResizeObserver(() => onPreviewResize());
-      if (contentEl) ro.observe(contentEl);
-      onCleanup(() => {
-        if (scrollRAF) cancelAnimationFrame(scrollRAF);
-        el.removeEventListener("scroll", onScroll);
-        el.removeEventListener("wheel", onPreviewUserGesture);
-        el.removeEventListener("pointerdown", onPreviewUserGesture);
-        ro.disconnect();
-        disarmSettle();
-        previewEl = undefined;
-      });
+      onCleanup(attachPreviewSurface(divSurface(paneEl, contentEl)));
     });
     return (
       <div
@@ -1318,7 +1331,7 @@ export function ProjectReport(p: Props) {
         classList={{ "border-l": mode() === "split" }}
         data-report-cursor="preview-pane"
         data-tour="report-preview-pane"
-        ref={(el) => (previewEl = el)}
+        ref={(el) => (paneEl = el)}
       >
         <div
           class="bg-base-100 md-dark-adapt shadow-floating mx-auto min-h-full w-full max-w-4xl rounded px-6 py-10"
@@ -1334,6 +1347,46 @@ export function ProjectReport(p: Props) {
       </div>
     );
   };
+
+  const HtmlPreviewPane = () => {
+    let detach: (() => void) | undefined;
+    onMount(() => {
+      settleUntouched = true;
+      settleArmed = false;
+    });
+    onCleanup(() => detach?.());
+    return (
+      <div
+        class="min-h-0 flex-1 overflow-hidden px-8 py-10"
+        classList={{ "border-l": mode() === "split" }}
+        data-report-cursor="preview-pane"
+        data-tour="report-preview-pane"
+      >
+        <ReportHtmlPreview
+          class="shadow-floating mx-auto block h-full w-full max-w-4xl rounded border-0 bg-white"
+          body={body()}
+          title={label()}
+          figures={figures()}
+          images={images()}
+          assetUrl={assetUrl}
+          rasters={rasters}
+          rasterVersion={rasterTick()}
+          lineAnchors
+          forwardPointer
+          dataReportCursor="preview-content"
+          onSurface={(surface) => {
+            detach?.();
+            detach = attachPreviewSurface(surface);
+            alignPreviewToTarget();
+          }}
+          onReady={() => armFigureSettle()}
+        />
+      </div>
+    );
+  };
+
+  const ReportPreviewPane = () =>
+    format() === "html" ? <HtmlPreviewPane /> : <MarkdownPreviewPane />;
 
   // The content area (banners + CM editor + preview + diff), shared by both
   // modes. The CM editor stays mounted in View too — AI accept applies via its
@@ -1401,6 +1454,7 @@ export function ProjectReport(p: Props) {
           >
             <ReportEditor
               body={body()}
+              format={format()}
               figures={figures()}
               images={images()}
               assetUrl={assetUrl}
@@ -1556,6 +1610,7 @@ export function ProjectReport(p: Props) {
               >
                 <ReportEmbedEditor
                   embed={selectedEmbedDetail()}
+                  format={format()}
                   canConfigure={canConfigure() && mode() !== "view"}
                   onUpdateCaption={handleUpdateCaption}
                   onEditFigure={handleEdit}
@@ -1582,6 +1637,7 @@ export function ProjectReport(p: Props) {
       <ReportPeerSelectionOverlay
         reportId={p.reportId}
         suppressed={panesCovered() > 0}
+        previewSurface={previewSurface}
       />
     </InnerEditorWrapper>
   );
@@ -1601,6 +1657,10 @@ export function ProjectReport(p: Props) {
 function ReportPeerSelectionOverlay(p: {
   reportId: string;
   suppressed: boolean;
+  // The live preview surface: embeds inside the HTML preview's iframe are
+  // located through it (parent-viewport rects), and its internal scroll —
+  // invisible to the window's capture listener — re-measures the boxes.
+  previewSurface: () => PreviewSurface | undefined;
 }) {
   const [tick, setTick] = createSignal(0);
   const bump = () => setTick((t) => t + 1);
@@ -1614,6 +1674,11 @@ function ReportPeerSelectionOverlay(p: {
       clearInterval(sweep);
     });
   });
+  createEffect(() => {
+    const surface = p.previewSurface();
+    if (!surface) return;
+    onCleanup(surface.on("scroll", bump));
+  });
 
   const boxes = () => {
     tick();
@@ -1622,12 +1687,23 @@ function ReportPeerSelectionOverlay(p: {
       (peer) => peer.reportId === p.reportId && peer.selectedBlockId,
     );
     if (peers.length === 0) return [];
+    const surface = p.previewSurface();
     const panes = [
-      document.querySelector('[data-report-cursor="code-pane"]'),
-      document.querySelector('[data-report-cursor="preview-pane"]'),
-    ].filter((el): el is Element => {
-      if (!el) return false;
-      const r = el.getBoundingClientRect();
+      {
+        el: document.querySelector('[data-report-cursor="code-pane"]'),
+        find: (pane: Element, id: string) =>
+          pane.querySelector(`[data-embed-id="${id}"]`)?.getBoundingClientRect(),
+      },
+      {
+        el: document.querySelector('[data-report-cursor="preview-pane"]'),
+        find: (pane: Element, id: string) =>
+          surface
+            ? surface.findEmbedRect(id)
+            : pane.querySelector(`[data-embed-id="${id}"]`)?.getBoundingClientRect(),
+      },
+    ].filter((pane): pane is { el: Element; find: typeof pane.find } => {
+      if (!pane.el) return false;
+      const r = pane.el.getBoundingClientRect();
       return r.width > 0 && r.height > 0;
     });
     if (panes.length === 0) return [];
@@ -1644,16 +1720,14 @@ function ReportPeerSelectionOverlay(p: {
     // In Split an embed can anchor in both panes — one box in each.
     const byTarget = new Map<string, (typeof out)[number]>();
     for (const [paneIdx, pane] of panes.entries()) {
-      const paneRect = pane.getBoundingClientRect();
+      const paneRect = pane.el.getBoundingClientRect();
       for (const peer of peers) {
         const id = peer.selectedBlockId!;
         const key = `${paneIdx}:${id}`;
         let entry = byTarget.get(key);
         if (!entry) {
-          const el = pane.querySelector(`[data-embed-id="${id}"]`);
-          if (!el) continue;
-          const r = el.getBoundingClientRect();
-          if (r.width === 0 || r.height === 0) continue;
+          const r = pane.find(pane.el, id);
+          if (!r || r.width === 0 || r.height === 0) continue;
           // Clip to the pane's viewport so a scrolled-away embed's border
           // doesn't float over the header or the neighbouring pane.
           const top = Math.max(r.top, paneRect.top);

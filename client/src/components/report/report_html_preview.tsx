@@ -1,0 +1,157 @@
+import type { FigureBlock, ImageBlock } from "lib";
+import { createEffect, on, onCleanup } from "solid-js";
+import {
+  buildReportBodyNodes,
+  interceptReportLinks,
+  renderReportBodyHtml,
+  wrapReportDocument,
+} from "./report_html";
+import type { FigureRasterCache } from "./report_figure_raster";
+import { iframeSurface, type PreviewSurface } from "./scroll_sync";
+
+// The rendered HTML report: a `sandbox="allow-same-origin"` srcdoc iframe
+// (scripts browser-blocked; the report's own <style>/@page/vh work natively and
+// stay scoped to the frame; blob: rasters and asset URLs load because the frame
+// keeps the parent origin). The body is re-rendered in place — sanitize →
+// materialize embeds → replaceChildren — debounced for typing, immediately for
+// registry/raster changes.
+//
+// Lifecycle contract with the host: `onSurface(surface)` fires once the frame
+// has loaded AND its first render has landed (the host aligns scroll there —
+// the srcdoc document loads asynchronously, so a next-frame alignment would
+// find no anchors); `onReady()` fires after every render (the host arms
+// figure-settle). Pointer events are re-dispatched on the iframe element in the
+// parent document (offset by the frame rect) so live cursors and the pane's
+// click-to-deselect keep working over the frame.
+
+type Props = {
+  body: string;
+  title: string;
+  figures: Record<string, FigureBlock>;
+  images: Record<string, ImageBlock>;
+  assetUrl: (imgFile: string) => string;
+  rasters: FigureRasterCache;
+  // Bumped by the host when a raster lands → immediate re-render.
+  rasterVersion: number;
+  lineAnchors: boolean;
+  forwardPointer?: boolean;
+  onSurface?: (surface: PreviewSurface) => void;
+  onReady?: () => void;
+  class?: string;
+  // e.g. "preview-content" — the live-cursor surface anchor (report_cursors).
+  dataReportCursor?: string;
+};
+
+const BODY_DEBOUNCE_MS = 120;
+
+export function ReportHtmlPreview(p: Props) {
+  let iframe!: HTMLIFrameElement;
+  let surface: PreviewSurface | undefined;
+  let renderTimer: ReturnType<typeof setTimeout> | undefined;
+  const cleanups: (() => void)[] = [];
+
+  function render() {
+    const doc = iframe.contentDocument;
+    if (!doc?.body) return;
+    const html = renderReportBodyHtml(p.body, { lineAnchors: p.lineAnchors });
+    const frag = buildReportBodyNodes(
+      doc,
+      html,
+      (id) => {
+        const fb = p.figures[id];
+        return fb ? p.rasters.get(id, fb) : { state: "missing" };
+      },
+      (id) => {
+        const ib = p.images[id];
+        return ib ? p.assetUrl(ib.imgFile) : undefined;
+      },
+    );
+    doc.body.replaceChildren(frag);
+    p.onReady?.();
+  }
+
+  function scheduleRender(delayMs: number) {
+    if (!surface) return; // pre-load: onLoad renders
+    if (renderTimer) clearTimeout(renderTimer);
+    if (delayMs === 0) {
+      renderTimer = undefined;
+      render();
+      return;
+    }
+    renderTimer = setTimeout(() => {
+      renderTimer = undefined;
+      render();
+    }, delayMs);
+  }
+
+  function forward(type: "pointermove" | "pointerdown" | "click") {
+    return (e: MouseEvent) => {
+      const r = iframe.getBoundingClientRect();
+      const init: PointerEventInit = {
+        bubbles: true,
+        cancelable: false,
+        clientX: e.clientX + r.left,
+        clientY: e.clientY + r.top,
+        button: e.button,
+        buttons: e.buttons,
+      };
+      const pe = e as PointerEvent;
+      const ev = type === "click" ? new MouseEvent("click", init) : new PointerEvent(type, {
+        ...init,
+        pointerId: pe.pointerId ?? 1,
+        pointerType: pe.pointerType ?? "mouse",
+        isPrimary: true,
+      });
+      iframe.dispatchEvent(ev);
+    };
+  }
+
+  function onLoad() {
+    const doc = iframe.contentDocument;
+    if (!doc?.body) return;
+    surface = iframeSurface(iframe);
+    cleanups.push(
+      interceptReportLinks(doc, (href) => {
+        window.open(href, "_blank", "noopener");
+      }),
+    );
+    if (p.forwardPointer) {
+      for (const type of ["pointermove", "pointerdown", "click"] as const) {
+        const h = forward(type);
+        doc.addEventListener(type, h, { passive: true });
+        cleanups.push(() => doc.removeEventListener(type, h));
+      }
+    }
+    render();
+    p.onSurface?.(surface);
+  }
+
+  // Typing → debounced; registry / raster changes → immediate.
+  createEffect(on(() => p.body, () => scheduleRender(BODY_DEBOUNCE_MS), { defer: true }));
+  createEffect(
+    on(
+      () => [p.figures, p.images, p.rasterVersion, p.lineAnchors] as const,
+      () => scheduleRender(0),
+      { defer: true },
+    ),
+  );
+
+  onCleanup(() => {
+    if (renderTimer) clearTimeout(renderTimer);
+    for (const c of cleanups) c();
+    cleanups.length = 0;
+    surface = undefined;
+  });
+
+  return (
+    <iframe
+      ref={iframe}
+      class={p.class}
+      title={p.title}
+      sandbox="allow-same-origin"
+      srcdoc={wrapReportDocument({ title: p.title, bodyHtml: "" })}
+      data-report-cursor={p.dataReportCursor}
+      onLoad={onLoad}
+    />
+  );
+}

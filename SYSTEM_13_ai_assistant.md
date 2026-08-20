@@ -312,9 +312,25 @@ the report contract
 [ai_views.ts](client/src/components/project_ai/ai_views.ts).
 
 **Report edits are never silent** — they ride panther's approval lifecycle. The
-five staged text tools (`rewrite_report`, `rewrite_section`, `replace_text`,
-`insert_figure`, `replace_figure`) declare `approval.propose`
-([report_editor.ts](client/src/components/project_ai/ai_tools/tools/report_editor.ts)):
+five staged text tools (`rewrite_report {body}`, `rewrite_section {newBody}`,
+`replace_text`, `insert_figure`, `replace_figure`) declare `approval.propose`
+([report_editor.ts](client/src/components/project_ai/ai_tools/tools/report_editor.ts)).
+They are **format-aware** (S12: a report body is markdown or html, fixed at
+creation; the `editing_report` view params carry `format` and
+`getEditingReportInstructions(label, format)` has an html authoring branch):
+tokens are built/parsed through the lib helpers, `get_report_editor` prints
+the format plus a headings index (1-based line + the exact section range and
+`wrapper <tag>`/`flat` mode from `lib/report_sections.ts`), `rewrite_section`
+splices that range (wrapper mode insists `newBody` starts with the wrapper
+tag), `insert_figure.afterHeading` lands after the heading's header block, and
+the validators
+([report_validators.ts](client/src/components/project_ai/ai_tools/validators/report_validators.ts))
+reject wrong-syntax tokens (with the correct spelling), doctype/html/head/body
+wrappers and non-well-formed html (incl. unclosed elements) for whole bodies
+and section fragments, and — for `replace_text`, which may legitimately span
+tag boundaries — only an edit that ADDS defects (`newHtmlDefect` delta). The
+shared `create_report` stays markdown-only; `get_report`/`get_available_reports`
+state each report's format:
 `proposeEdit` stages the CodeMirror diff as the `customProposalUI`, an
 identical-body proposal short-circuits to panther's `{skip}` (a normal
 no-decision result), `stillValid` guards a stale accept against a torn-down

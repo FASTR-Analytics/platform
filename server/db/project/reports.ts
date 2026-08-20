@@ -5,6 +5,8 @@ import {
   type AuthorRun,
   buildReportPreview,
   type FigureBlock,
+  getReportFormat,
+  getStartingBodyForReport,
   getStartingConfigForReport,
   type ImageBlock,
   parseJsonOrThrow,
@@ -12,6 +14,7 @@ import {
   reportConfigSchema,
   type ReportDetail,
   type ReportDocContent,
+  type ReportFormat,
   reportFiguresSchema,
   reportImagesSchema,
   type ReportSummary,
@@ -53,14 +56,17 @@ export async function getAllReports(
 
     return {
       success: true,
-      data: reports.map((r) => ({
-        id: r.id,
-        label: r.label,
-        folderId: r.folder_id,
-        config: parseReportConfig(r),
-        preview: buildReportPreview(r.body),
-        lastUpdated: r.last_updated,
-      })),
+      data: reports.map((r) => {
+        const config = parseReportConfig(r);
+        return {
+          id: r.id,
+          label: r.label,
+          folderId: r.folder_id,
+          config,
+          preview: buildReportPreview(r.body, getReportFormat(config)),
+          lastUpdated: r.last_updated,
+        };
+      }),
     };
   });
 }
@@ -99,13 +105,14 @@ export async function createReport(
   projectDb: Sql,
   label: string,
   folderId?: string | null,
+  format: ReportFormat = "markdown",
 ): Promise<APIResponseWithData<{ reportId: string; lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const reportId = await generateUniqueReportId(projectDb);
     const lastUpdated = new Date().toISOString();
 
-    const defaultConfig = getStartingConfigForReport();
-    const body = `# ${label}\n\n`;
+    const defaultConfig = getStartingConfigForReport(format);
+    const body = getStartingBodyForReport(label, format);
     await projectDb`
       INSERT INTO reports (id, label, body, figures, images, config, folder_id, last_updated)
       VALUES (${reportId}, ${label}, ${body}, '{}', '{}', ${JSON.stringify(reportConfigSchema.parse(defaultConfig))}, ${folderId ?? null}, ${lastUpdated})
@@ -369,9 +376,22 @@ export async function updateReportConfig(
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
+    // The body format is fixed at creation — a config write can't flip it.
+    const stored = (
+      await projectDb<Pick<DBReport, "config">[]>`
+        SELECT config FROM reports WHERE id = ${reportId}
+      `
+    ).at(0);
+    if (!stored) {
+      throw new Error(REPORT_NOT_FOUND);
+    }
+    const next: ReportConfig = {
+      ...config,
+      format: getReportFormat(parseReportConfig(stored)),
+    };
     await projectDb`
       UPDATE reports
-      SET config = ${JSON.stringify(reportConfigSchema.parse(config))}, last_updated = ${lastUpdated}
+      SET config = ${JSON.stringify(reportConfigSchema.parse(next))}, last_updated = ${lastUpdated}
       WHERE id = ${reportId}
     `;
     return { success: true, data: { lastUpdated } };

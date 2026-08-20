@@ -240,6 +240,11 @@ const darkMarkdownHighlight = HighlightStyle.define([
   { tag: tags.emphasis, fontStyle: "italic" },
   { tag: tags.strong, fontWeight: "bold" },
   { tag: tags.strikethrough, textDecoration: "line-through" },
+  // HTML-format reports (lang-html) — otherwise monochrome in dark mode.
+  { tag: [tags.tagName, tags.angleBracket], color: "var(--color-primary)" },
+  { tag: tags.attributeName, color: "var(--color-neutral)" },
+  { tag: tags.attributeValue, color: "var(--color-success)" },
+  { tag: tags.comment, color: "var(--color-neutral)", fontStyle: "italic" },
 ]);
 
 // Reads the darkMode signal — call inside a tracked scope (the effect that

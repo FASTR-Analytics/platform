@@ -2,7 +2,8 @@ import { MergeView } from "@codemirror/merge";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
-import { t3 } from "lib";
+import { html } from "@codemirror/lang-html";
+import { type ReportFormat, t3 } from "lib";
 import { type AlertComponentProps, Button, ModalContainer } from "panther";
 import { onCleanup, onMount } from "solid-js";
 
@@ -11,6 +12,8 @@ type Props = AlertComponentProps<
     oldText: string;
     newText: string;
     summary?: string;
+    // Syntax highlighting; absent ⇒ markdown.
+    format?: ReportFormat;
     // Set when staged via the approval lifecycle's customProposalUI override
     // (report_editor's propose-edit tools): aborts on an EXTERNAL resolution
     // (Stop) — this UI's cleanup obligation is to close itself, since
@@ -42,7 +45,7 @@ export function ReportMarkdownDiff(p: Props) {
     const base = [
       EditorView.editable.of(false),
       EditorState.readOnly.of(true),
-      markdown(),
+      p.format === "html" ? html() : markdown(),
       EditorView.lineWrapping,
       EditorView.theme({
         ".cm-content": { padding: "8px 12px" },

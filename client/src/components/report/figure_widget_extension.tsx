@@ -12,7 +12,13 @@ import {
 } from "@codemirror/state";
 import { render } from "solid-js/web";
 import { Match, Show, Switch } from "solid-js";
-import { type FigureBlock, type ImageBlock, t3 } from "lib";
+import {
+  type FigureBlock,
+  type ImageBlock,
+  parseReportEmbedLine,
+  type ReportFormat,
+  t3,
+} from "lib";
 import { ReportFigureEmbed } from "./ReportFigureEmbed";
 
 export type EmbedKind = "figure" | "image";
@@ -25,9 +31,6 @@ export type EmbedResolver = {
   onSelectEmbed: (kind: EmbedKind, id: string) => void;
   getSelectedId: () => string | undefined;
 };
-
-// A line that is exactly a single embed token: ![caption](figure:id) / ![alt](image:id)
-const LINE_TOKEN_RE = /^!\[([^\]]*)\]\((figure|image):([^)\s]+)\)$/;
 
 class EmbedWidget extends WidgetType {
   constructor(
@@ -142,24 +145,26 @@ class EmbedWidget extends WidgetType {
   }
 }
 
+// A line that is exactly one embed token (per format — lib parseReportEmbedLine)
+// renders as an atomic block widget.
 function buildEmbedDecorations(
   state: EditorState,
   resolver: EmbedResolver,
+  format: ReportFormat,
 ): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>();
   for (let i = 1; i <= state.doc.lines; i++) {
     const line = state.doc.line(i);
-    const m = LINE_TOKEN_RE.exec(line.text.trim());
-    if (!m) continue;
-    const [, caption, kind, id] = m;
+    const parsed = parseReportEmbedLine(line.text, format);
+    if (!parsed) continue;
     builder.add(
       line.from,
       line.to,
       Decoration.replace({
         widget: new EmbedWidget(
-          kind as "figure" | "image",
-          id,
-          caption,
+          parsed.kind,
+          parsed.id,
+          parsed.caption,
           resolver,
         ),
         block: true,
@@ -171,13 +176,18 @@ function buildEmbedDecorations(
 
 // Block decorations MUST be provided directly via a StateField (not a view
 // plugin) — see EditorView.decorations facet docs.
-export function embedWidgets(resolver: EmbedResolver): Extension {
+export function embedWidgets(
+  resolver: EmbedResolver,
+  format: ReportFormat,
+): Extension {
   const field = StateField.define<DecorationSet>({
     create(state) {
-      return buildEmbedDecorations(state, resolver);
+      return buildEmbedDecorations(state, resolver, format);
     },
     update(deco, tr) {
-      return tr.docChanged ? buildEmbedDecorations(tr.state, resolver) : deco;
+      return tr.docChanged
+        ? buildEmbedDecorations(tr.state, resolver, format)
+        : deco;
     },
     provide: (f) => EditorView.decorations.from(f),
   });

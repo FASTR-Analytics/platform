@@ -79,6 +79,7 @@ defineRoute(
       c.var.ppk.projectDb,
       body.label,
       body.folderId,
+      body.format,
     );
     if (!res.success) {
       return c.json(res);
