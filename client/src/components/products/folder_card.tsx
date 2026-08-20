@@ -40,13 +40,11 @@ export function FolderCard(p: Props) {
       }}
       header={
         <div class="ui-gap-sm flex items-center">
-          <div
-            class="h-2.5 w-2.5 flex-none rounded-full"
-            style={{
-              "background-color": p.folder.color ?? getColor({ key: "base300" }),
-            }}
-          />
-          <span class="text-base-content-muted inline-block w-4 flex-none">
+          {/* The folder's colour is the icon itself, as in the list row. */}
+          <span
+            class="inline-block w-4 flex-none"
+            style={{ color: p.folder.color ?? getColor({ key: "base300" }) }}
+          >
             <Icon iconName="folder" />
           </span>
           <span class="flex-1 truncate">{p.folder.label}</span>
