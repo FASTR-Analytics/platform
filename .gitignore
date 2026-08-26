@@ -1,5 +1,6 @@
 # Instance data
 _example_instance_dir/
+_example_instance_dir*
 secrets/
 
 # Environment files

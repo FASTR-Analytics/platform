@@ -103,6 +103,16 @@ export const MODULE_REGISTRY = [
     prerequisites: [],
     github: { owner: "FASTR-Analytics", repo: "modules", path: "m010" },
   },
+  {
+    id: "m011",
+    label: {
+      en: "M11. Bayesian disruption detection (LI model)",
+      fr: "M11. Détection bayésienne des perturbations (modèle LI)",
+      pt: "M11. Deteção bayesiana de perturbações (modelo LI)",
+    },
+    prerequisites: ["m002"],
+    github: { owner: "FASTR-Analytics", repo: "modules", path: "m011" },
+  },
 ] as const;
 
 export type ModuleId = (typeof MODULE_REGISTRY)[number]["id"];
