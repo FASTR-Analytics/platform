@@ -169,19 +169,19 @@ export type DisplayRegistry = {
 // MESSAGE STYLE TYPES
 ////////////////////////////////////////////////////////////////////////////////
 
-export type MessageBackgroundColor =
-  | "bg-primary/10"
-  | "bg-base-200"
-  | "bg-success/20";
-
-export type MessageTextColor =
-  | "text-primary"
-  | "text-base-content"
-  | "text-success";
+// A bubble is a non-interactive communication surface, so it wears an intent
+// wash (bg-{intent}-subtle + text-{intent}-subtle-content) — the same recipe
+// as Callout, chosen from the five color intents. Defaults: assistant =
+// primary, user = neutral.
+export type MessageIntent =
+  | "primary"
+  | "neutral"
+  | "success"
+  | "warning"
+  | "danger";
 
 export type MessageStyle = {
-  background?: MessageBackgroundColor;
-  text?: MessageTextColor;
+  intent?: MessageIntent;
 };
 
 export type MessageStyles = {

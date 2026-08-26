@@ -8,7 +8,7 @@ import type { CustomMarkdownStyleOptions, ImageMap } from "../deps.ts";
 import { createMarkdownIt } from "../deps.ts";
 import {
   deriveMarkdownCssVars,
-  MARKDOWN_BASE_STYLES,
+  markdownClasses,
 } from "../utils/markdown_tailwind.ts";
 
 type Props = {
@@ -62,7 +62,7 @@ export function MarkdownPresentation(p: Props) {
   return (
     <div
       ref={containerRef}
-      class={MARKDOWN_BASE_STYLES}
+      class={markdownClasses(p.style)}
       style={allStyles()}
       innerHTML={htmlContent()}
     />

@@ -24,6 +24,7 @@ import {
   type VizGraphNodeInfoFunc,
 } from "./deps.ts";
 import type {
+  AreaDiffPair,
   ArrowheadFitFallback,
   GenericAreaStyleOptions,
   GenericBarStyleOptions,
@@ -290,6 +291,7 @@ export type CustomFigureStyleOptions = {
       joinAcrossGaps?: boolean;
       diff?: {
         enabled?: boolean;
+        pairs?: AreaDiffPair[];
       };
     };
     errorBars?: {

@@ -839,6 +839,15 @@ export type GenericAreaStyle = {
   fillColorAdjustmentStrategy: ColorAdjustmentStrategy;
 };
 
+// One diff-shaded pair: fills between series a and b (`series: [a, b]`)
+// wherever the emit condition holds. Areas are styled via the areas func with
+// i_series = a for "over" areas (a above b) and i_series = b for "under"
+// areas. Pairs render in order: an earlier pair paints beneath a later one.
+export type AreaDiffPair = {
+  series: [number, number];
+  emit: "over" | "under" | "both";
+};
+
 export function getAreaStyleFunc(
   _sf: number,
   _c: CustomFigureStyleOptions,

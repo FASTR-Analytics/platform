@@ -46,6 +46,12 @@ export type VizGraphViewProps = {
   // resizes (content reflows like a width-fitted figure). The camera
   // re-fits after each reflow until the user pans or zooms.
   fitToWidth?: boolean;
+  // Re-center and fit the camera after EVERY relayout (model or options
+  // change) — unconditionally, unlike fitToWidth's re-fit, which yields once
+  // the user pans or zooms. Content replacing an empty canvas snaps into
+  // place (no transition, instant fit); later changes glide. For
+  // editor-style consumers where each edit should land centered.
+  refitOnChange?: boolean;
   selected?: string[];
   onSelect?: (ids: string[]) => void;
   onReady?: (api: VizGraphViewApi) => void;

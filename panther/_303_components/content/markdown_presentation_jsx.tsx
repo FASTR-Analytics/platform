@@ -12,7 +12,7 @@ import type {
 } from "../../_105_markdown/mod.ts";
 import {
   deriveMarkdownCssVars,
-  MARKDOWN_BASE_STYLES,
+  markdownClasses,
 } from "../utils/markdown_tailwind.ts";
 
 export type MarkdownImageRenderer = (
@@ -45,7 +45,7 @@ export function MarkdownPresentationJsx(p: Props) {
   });
 
   return (
-    <div class={MARKDOWN_BASE_STYLES} style={allStyles()}>
+    <div class={markdownClasses(p.style)} style={allStyles()}>
       <ElementsRenderer
         elements={parsedDoc().items}
         images={p.images}

@@ -3,6 +3,6 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export * from "./live_query.ts";
-export * from "./query.ts";
-export * from "./types.ts";
+export type { IdentityProvider } from "../_113_identity/mod.ts";
+export { createClerkClient } from "@clerk/backend";
+export type { ClerkClient } from "@clerk/backend";

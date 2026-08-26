@@ -28,6 +28,7 @@ import type {
   VizGraphNodeInfo,
 } from "./deps.ts";
 import type {
+  AreaDiffPair,
   ArrowheadFitFallback,
   CascadeArrowStyle,
   ConfidenceBandStyle,
@@ -470,6 +471,7 @@ export type MergedContentStyle = {
     joinAcrossGaps: boolean;
     diff: {
       enabled: boolean;
+      pairs: AreaDiffPair[];
     };
   };
   errorBars: MergedErrorBarStyle;

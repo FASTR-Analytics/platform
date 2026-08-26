@@ -5,24 +5,23 @@
 
 import type { CustomMarkdownStyleOptions } from "../../deps.ts";
 import type { DisplayItem, MessageStyle } from "../../_core/types.ts";
-import {
-  deriveMarkdownCssVars,
-  MARKDOWN_BASE_STYLES,
-  md,
-} from "./_markdown_utils.ts";
+import { deriveMarkdownCssVars, markdownClasses } from "../../deps.ts";
+import { md } from "./_markdown_utils.ts";
+import { messageWashClasses } from "./_message_wash.ts";
 
 export function AssistantCompletedTextRenderer(p: {
   item: Extract<DisplayItem, { type: "assistant_text" }>;
   markdownStyle?: CustomMarkdownStyleOptions;
   messageStyle?: MessageStyle;
 }) {
-  const bg = p.messageStyle?.background ?? "bg-primary-subtle";
-  const text = p.messageStyle?.text ?? "text-primary";
+  const wash = messageWashClasses(p.messageStyle?.intent ?? "primary");
 
   return (
     <div class="w-fit max-w-full">
       <div
-        class={`py-4 w-fit max-w-full rounded text-sm ${bg} ${text} ${MARKDOWN_BASE_STYLES}`}
+        class={`py-4 w-fit max-w-full rounded text-sm ${wash} ${
+          markdownClasses(p.markdownStyle)
+        }`}
         style={deriveMarkdownCssVars(p.markdownStyle)}
         innerHTML={md.render(p.item.text)}
       />

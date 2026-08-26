@@ -134,6 +134,7 @@ export function AIChat(p: Props) {
           displayItems={displayItems()}
           isLoading={isLoading()}
           isStreaming={isStreaming()}
+          awaitingDecision={pendingUserAction()}
           currentStreamingText={currentStreamingText()}
           serverToolLabel={serverToolLabel()}
           queuedTexts={queuedMessages()}

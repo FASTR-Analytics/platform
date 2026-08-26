@@ -46,7 +46,7 @@ export function createQuery<T>(
     const thisRequestId = ++requestId;
 
     setter(
-      loadingMsg
+      loadingMsg !== undefined
         ? { status: "loading", msg: loadingMsg }
         : { status: "loading" },
     );

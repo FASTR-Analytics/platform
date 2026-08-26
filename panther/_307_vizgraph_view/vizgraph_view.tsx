@@ -31,7 +31,7 @@ import type { TransitionFrame } from "./_internal/transition.ts";
 import { arrowheadPath, shaftPath } from "./_internal/edge_paint.ts";
 
 const DEFAULT_TRANSITION_MS = 500;
-const CAMERA_ANIMATION_MS = 300;
+const CAMERA_ANIMATION_MS = 600;
 const MIN_SCALE = 0.1;
 const MAX_SCALE = 4;
 const ZOOM_INTENSITY = 0.0015;
@@ -55,7 +55,15 @@ export function VizGraphView(p: VizGraphViewProps) {
 
   const [camera, setCamera] = createSignal({ x: 0, y: 0, scale: 1 });
   const [internalSelected, setInternalSelected] = createSignal<string[]>([]);
-  const selectedIds = createMemo(() => p.selected ?? internalSelected());
+  // All reactive deps read before any of them decides anything, here and in
+  // every tracked computation below (PROTOCOL_UI_SOLIDJS rule 3): a dep read
+  // only behind a conditional drops out of the dependency set on the runs
+  // that skip it.
+  const selectedIds = createMemo(() => {
+    const external = p.selected;
+    const internal = internalSelected();
+    return external ?? internal;
+  });
   const [frame, setFrame] = createSignal<TransitionFrame>({
     geometry: EMPTY_GEOMETRY,
     opacities: undefined,
@@ -90,19 +98,23 @@ export function VizGraphView(p: VizGraphViewProps) {
   let resizeTimer: ReturnType<typeof setTimeout> | undefined;
 
   // undefined = a required async input (font gate, viewport width) is not
-  // available yet; the layout effect waits for it.
+  // available yet; the layout effect waits for it. Runs inside the layout
+  // effect's tracking scope, so every reactive dep is read up front, before
+  // any conditional or early return (rule 3).
   function resolvedOptions(): LayoutOptions | undefined {
+    const measureNodeContent = p.measureNodeContent;
+    const fitToWidth = p.fitToWidth ?? false;
+    const m = measurer();
+    const w = fitWidth();
     const options: LayoutOptions = { ...p.layoutOptions };
-    if (p.measureNodeContent !== undefined) {
-      const m = measurer();
+    if (measureNodeContent !== undefined) {
       if (m === undefined) {
         return undefined;
       }
       options.measureNode = (id, maxWidth) =>
-        m.measureElement(() => p.measureNodeContent!(id), maxWidth);
+        m.measureElement(() => measureNodeContent(id), maxWidth);
     }
-    if (p.fitToWidth) {
-      const w = fitWidth();
+    if (fitToWidth) {
       if (w === undefined || w <= 0) {
         return undefined;
       }
@@ -111,32 +123,48 @@ export function VizGraphView(p: VizGraphViewProps) {
     return options;
   }
 
-  // ONE layout effect: first resolvable input set lays out without prior and
-  // fits the camera; later changes relayout with prior = what is currently
-  // displayed (survivors barely move) and run the two-phase transition.
+  // ONE layout effect: the first resolvable input set — and any layout whose
+  // PRIOR geometry is empty — lays out without prior, swaps the frame in with
+  // no transition, and fits the camera instantly (an empty prior has nothing
+  // on screen to move, and animating from the unfitted origin camera reads as
+  // the graph flying in from the top-left). Later changes relayout with
+  // prior = what is currently displayed (survivors barely move) and run the
+  // two-phase transition.
   createEffect(() => {
     const model = p.model;
+    const refitOnChange = p.refitOnChange ?? false;
+    const fitToWidth = p.fitToWidth ?? false;
+    const durationMs = p.transitionMs ?? DEFAULT_TRANSITION_MS;
     const options = resolvedOptions();
     if (options === undefined) {
       return;
     }
     const current = untrack(frame).geometry;
-    if (!laidOut) {
+    const priorEmpty = Object.keys(current.nodes).length === 0;
+    if (!laidOut || priorEmpty) {
       laidOut = true;
-      setFrame({ geometry: layout(model, options), opacities: undefined });
-      fitInitialIfPossible();
+      const geometry = layout(model, options);
+      setFrame({ geometry, opacities: undefined });
+      if (refitOnChange || (fitToWidth && !userMovedCamera)) {
+        setCameraForFit(false, geometry.bounds);
+      } else {
+        fitInitialIfPossible();
+      }
       return;
     }
     const next = layout(model, { ...options, prior: current });
-    runTransition(current, next);
-    if (p.fitToWidth && !userMovedCamera) {
+    runTransition(current, next, durationMs);
+    if (refitOnChange || (fitToWidth && !userMovedCamera)) {
       setCameraForFit(true, next.bounds);
     }
   });
 
-  function runTransition(from: Geometry, to: Geometry): void {
+  function runTransition(
+    from: Geometry,
+    to: Geometry,
+    durationMs: number,
+  ): void {
     const version = ++transitionVersion;
-    const durationMs = p.transitionMs ?? DEFAULT_TRANSITION_MS;
     if (durationMs <= 0) {
       setFrame({ geometry: to, opacities: undefined });
       return;
@@ -172,6 +200,8 @@ export function VizGraphView(p: VizGraphViewProps) {
     if (vw === 0 || vh === 0 || bounds.w === 0 || bounds.h === 0) {
       return;
     }
+    // A fit that lands is what "fitted" means — every caller shares the flag.
+    hasFitted = true;
     const scale = Math.min(
       MAX_SCALE,
       Math.max(
@@ -206,16 +236,18 @@ export function VizGraphView(p: VizGraphViewProps) {
       bounds.w > 0 && bounds.h > 0
     ) {
       setCameraForFit(false);
-      hasFitted = true;
     }
   }
 
+  // Imperative (api.focus): reads are UNTRACKED so calling it from inside a
+  // consumer's effect never subscribes that effect to this view's internals —
+  // the same rule animateCameraTo follows.
   function focusNode(nodeId: string): void {
-    const node = frame().geometry.nodes[nodeId];
+    const node = untrack(frame).geometry.nodes[nodeId];
     if (node === undefined) {
       return;
     }
-    const c = camera();
+    const c = untrack(camera);
     const vw = viewportEl.clientWidth;
     const vh = viewportEl.clientHeight;
     animateCameraTo({
@@ -229,7 +261,11 @@ export function VizGraphView(p: VizGraphViewProps) {
     target: { x: number; y: number; scale: number },
   ): void {
     const version = ++cameraVersion;
-    const start = camera();
+    // UNTRACKED: this runs inside the layout effect (setCameraForFit), and
+    // the animation writes `camera` every frame — a tracked read here feeds
+    // the effect its own output and the relayout/animation restarts forever
+    // (the camera creeps to its target asymptotically instead of animating).
+    const start = untrack(camera);
     const startTime = performance.now();
     function step(now: number): void {
       if (version !== cameraVersion) {
@@ -355,7 +391,7 @@ export function VizGraphView(p: VizGraphViewProps) {
       select: (ids) => emitSelect(ids),
       focus: (nodeId) => focusNode(nodeId),
       fit: () => setCameraForFit(true),
-      getGeometry: () => frame().geometry,
+      getGeometry: () => untrack(frame).geometry,
     };
     p.onReady?.(api);
     onCleanup(() => {

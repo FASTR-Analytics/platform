@@ -109,6 +109,12 @@ export type MCPToolDef = {
   // camelCase per the MCP spec (panther's input_schema is the Anthropic SDK
   // spelling).
   inputSchema: Record<string, unknown>;
+  // Serialized schema for the tool's structuredContent, already wrapped by
+  // the uniform { result: … } rule (see mcp_server). Present exactly when
+  // the tool declares an outputSchema — the spec (2025-06-18) makes a
+  // declared output schema oblige conforming structured results, so the two
+  // are populated together or not at all.
+  outputSchema?: Record<string, unknown>;
   // Spec-designated untrusted hints. kind "read" → readOnlyHint: true; kind
   // "write" is NOT mapped to destructiveHint (mutating ≠ destroying, and the
   // hint already defaults appropriately for non-read-only tools). What
@@ -123,7 +129,14 @@ export type MCPElicitDecision =
   | { action: "cancel" };
 
 export type MCPCallOutcome =
-  | { type: "complete"; text: string; isError: boolean }
+  | {
+    type: "complete";
+    text: string;
+    isError: boolean;
+    // The structured twin of text, already wrapped { result: … } — adapters
+    // serialize it as the result's structuredContent verbatim.
+    structuredContent?: Record<string, unknown>;
+  }
   | {
     // Approval needed: the adapter delivers this elicitation in its era's
     // shape, then resumes with the decision and the opaque requestState.

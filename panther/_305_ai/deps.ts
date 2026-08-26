@@ -86,7 +86,7 @@ export {
   Button,
   deriveMarkdownCssVars,
   Icon,
-  MARKDOWN_BASE_STYLES,
+  markdownClasses,
   ModalContainer,
   openConfirm,
   Select,

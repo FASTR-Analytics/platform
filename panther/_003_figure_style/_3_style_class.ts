@@ -1414,6 +1414,11 @@ export class CustomFigureStyle {
             g.content?.areas?.diff?.enabled,
             d.content.areas.diff.enabled,
           ),
+          pairs: m(
+            c.content?.areas?.diff?.pairs,
+            g.content?.areas?.diff?.pairs,
+            d.content.areas.diff.pairs,
+          ),
         },
       },
       errorBars: {

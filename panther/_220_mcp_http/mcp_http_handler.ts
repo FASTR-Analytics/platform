@@ -171,6 +171,20 @@ function textResult(text: string, isError: boolean): CallToolResult {
   return { content: [{ type: "text", text }], isError };
 }
 
+// A complete outcome mapped whole: the text block always, plus the core's
+// pre-wrapped structuredContent when the tool declares an output schema.
+function completeResult(
+  outcome: Extract<MCPCallOutcome, { type: "complete" }>,
+): CallToolResult {
+  return {
+    content: [{ type: "text", text: outcome.text }],
+    isError: outcome.isError,
+    ...(outcome.structuredContent !== undefined
+      ? { structuredContent: outcome.structuredContent }
+      : {}),
+  };
+}
+
 // Same funnel shape as the stdio adapter: MCPRequestError crosses the wire
 // as a JSON-RPC error with its code; everything else is left to the SDK's
 // own internal-error handling.
@@ -367,7 +381,7 @@ export function createMCPHttpHandler<TPrincipal>(
         requestState: outcome.requestState,
       });
     }
-    return textResult(outcome.text, outcome.isError);
+    return completeResult(outcome);
   };
 
   // One SDK Server wired to the principal's core. Built per legacy session
@@ -470,7 +484,7 @@ export function createMCPHttpHandler<TPrincipal>(
               "Unexpected second input_required outcome",
             );
           }
-          return textResult(outcome.text, outcome.isError);
+          return completeResult(outcome);
         } catch (error) {
           throw toProtocolError(error);
         }

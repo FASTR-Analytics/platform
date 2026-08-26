@@ -11,35 +11,40 @@ See `PROTOCOL_UI_SOLIDJS.md` for reactivity rules.
    rule and rationale: `PROTOCOL_UI_SOLIDJS.md` rule 5
 2. **createQuery for one-shot fetches** — Runs queryFunc once on mount; no
    reactivity
-3. **createEffect for reactive fetches** — Long-lived views that must react to
-   changing inputs or server updates
-4. **createFormAction for form submissions** — Validation inside, returns
+3. **createLiveQuery for op-backed live reads** — Views of server state that
+   emits change events (an ops registry with a notify hub): thunk + subscription
+   → `StateHolder`, silent refetch on poke and on reconnect. Never hand-wire the
+   signal + refetch + subscribe triple
+4. **createEffect for reactive fetches** — Long-lived views that must react to
+   changing INPUTS (an id, a filter) when no change event exists for the data
+5. **createFormAction for form submissions** — Validation inside, returns
    success/error
-5. **createButtonAction for simple actions** — Delete, refresh, discrete
+6. **createButtonAction for simple actions** — Delete, refresh, discrete
    commands
-6. **createDeleteAction for deletions** — Confirmation dialog + action + refetch
-7. **StateHolderWrapper for rendering** — Handles loading/error/ready states
-8. **Use `StateHolder` for loading state** — Via `createQuery` (one-shot) or
-   `createSignal<StateHolder<T>>` + `createEffect` (reactive). Never raw
-   `loading`/`error`/`data` signals
-9. **Validation inside actions** — Return `{ success: false, err }` for failures
-10. **Don't flash loading on incremental refetches** — When refetching the same
-    entity in `createEffect`, leave stale data visible until the new data
-    arrives
-11. **Guard overlapping async effects** — An async effect that can re-run while
+7. **createDeleteAction for deletions** — Confirmation dialog + action + refetch
+8. **StateHolderWrapper for rendering** — Handles loading/error/ready states
+9. **Use `StateHolder` for loading state** — Via `createQuery` /
+   `createLiveQuery`, or `createSignal<StateHolder<T>>` + `createEffect`
+   (reactive). Never raw `loading`/`error`/`data` signals
+10. **Validation inside actions** — Return `{ success: false, err }` for
+    failures
+11. **Don't flash loading on incremental refetches** — When refetching the same
+    entity, leave stale data visible until the new data arrives
+    (`createLiveQuery` does this for pokes; hand-rolled effects must too)
+12. **Guard overlapping async effects** — An async effect that can re-run while
     a previous run is still awaiting must drop stale completions (request-id
-    guard). `createQuery` does this internally; hand-rolled effects must do it
-    themselves
+    guard). `createQuery` does this internally, `createLiveQuery` serializes
+    refetches outright; hand-rolled effects must do it themselves
 
 ## Read Modes
 
 Every read of server-derived state is either **live** or **snapshot**. Picking
 the wrong one is the source of most state bugs.
 
-| Mode         | Behavior                                                             | Tools                                                     |
-| ------------ | -------------------------------------------------------------------- | --------------------------------------------------------- |
-| **Live**     | Subscribes to changes. View stays in sync.                           | Reactive reads in JSX / `createEffect` / `createMemo`     |
-| **Snapshot** | Captures state at a moment in time. View ignores subsequent changes. | `createQuery`, `unwrap()`, cache `.get()` from async code |
+| Mode         | Behavior                                                             | Tools                                                                    |
+| ------------ | -------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| **Live**     | Subscribes to changes. View stays in sync.                           | `createLiveQuery`; reactive reads in JSX / `createEffect` / `createMemo` |
+| **Snapshot** | Captures state at a moment in time. View ignores subsequent changes. | `createQuery`, `unwrap()`, cache `.get()` from async code                |
 
 **When in doubt, prefer live.** A view that should have stayed in sync but used
 a snapshot read goes silently stale — the worst failure mode. A live read where
@@ -49,8 +54,9 @@ Choose by **view lifetime**:
 
 - **Short-lived** (picker modal, dropdown that closes after selection) →
   `createQuery` is fine
-- **Long-lived** (editor, list, dashboard) → `createEffect` watching a version
-  signal
+- **Long-lived** (editor, list, dashboard) → `createLiveQuery` when the data is
+  op-backed (server change events exist); otherwise `createEffect` watching a
+  version signal
 
 ## Patterns
 
@@ -71,11 +77,36 @@ const query = createQuery(
 </StateHolderWrapper>;
 ```
 
-### Reactive Data (live)
+### Live Op-Backed Data (createLiveQuery)
 
-For long-lived views, or when inputs change, use `createEffect` watching a
-version signal. The effect re-runs when any tracked read changes; refetch
-happens automatically.
+For long-lived views of server state that emits change events. The subscription
+delivers pokes (`{ name }` — never payloads); the query refetches silently on
+every matching poke and on every (re)connect, so the view stays in sync with
+writes from ANY surface (another user, the AI, an MCP client) with no
+missed-change window and no loading flash after first mount. Refetches are
+serialized internally (a mid-flight poke queues exactly one follow-up), and
+`await refetch()` resolves after fresh data lands.
+
+```tsx
+const items = createLiveQuery(
+  () => opClient.ops.listItems({ projectId }),
+  eventsConnection,
+  { ops: ["createItem", "deleteItem"] }, // omit to refetch on every event
+);
+
+<StateHolderWrapper state={items.state()}>
+  {(data) => <Content data={data} />}
+</StateHolderWrapper>;
+```
+
+The connection (one per scope context, not per view) is opened by the owning
+layout/shell and closed on cleanup; views only attach.
+
+### Reactive Data (live inputs)
+
+When the INPUTS change (an id, a filter) and no change event exists for the
+data, use `createEffect` watching a version signal. The effect re-runs when any
+tracked read changes; refetch happens automatically.
 
 ```tsx
 const [data, setData] = createSignal<StateHolder<MyData>>({
@@ -368,8 +399,12 @@ new data arrives.
 - [ ] No `createResource` / `<Suspense>` / `createAsync` (hard ban — see
       `PROTOCOL_UI_SOLIDJS.md`)
 - [ ] One-shot fetches use `createQuery`
-- [ ] Reactive fetches use `createEffect` + `createSignal<StateHolder<T>>`
-- [ ] No signal reads inside `createQuery`'s `queryFunc` (they are not tracked)
+- [ ] Op-backed live views use `createLiveQuery` (no hand-wired signal +
+      refetch + subscribe triple)
+- [ ] Reactive input-driven fetches use `createEffect` +
+      `createSignal<StateHolder<T>>`
+- [ ] No signal reads inside `createQuery`'s or `createLiveQuery`'s `queryFunc`
+      (they are not tracked)
 - [ ] Form submissions use `createFormAction`
 - [ ] Delete actions use `createDeleteAction`
 - [ ] Loading/error states use `StateHolderWrapper`

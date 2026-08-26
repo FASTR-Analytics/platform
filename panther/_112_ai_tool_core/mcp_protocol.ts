@@ -221,6 +221,9 @@ export function createMCPConnection(
     sendResult(id, {
       content: [{ type: "text", text: outcome.text }],
       isError: outcome.isError,
+      ...(outcome.structuredContent !== undefined
+        ? { structuredContent: outcome.structuredContent }
+        : {}),
     });
   };
 

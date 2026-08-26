@@ -9,6 +9,8 @@
 // staged-proposal lifecycle, the readiness gate, the error funnel. A consumer
 // entry is ~50 lines of composition with zero protocol code.
 
+import { z } from "./deps.ts";
+import type { zType } from "./deps.ts";
 import type {
   AIToolWithMetadata,
   ErasedApprovalConfig,
@@ -93,8 +95,29 @@ function stringifyToolOutput(output: unknown): string {
   return typeof output === "string" ? output : (JSON.stringify(output) ?? "");
 }
 
-function completeText(text: string): MCPCallOutcome {
-  return { type: "complete", text, isError: false };
+// The MCP wrapper rule: structuredContent must be a JSON OBJECT and tool
+// outputs are arbitrary JSON (arrays included), so every tool wraps
+// UNIFORMLY — structuredContent is { result: <output> } and the advertised
+// outputSchema wraps identically. One rule for every tool; clients never
+// switch per shape. The text block still carries the serialized output (the
+// spec's backwards-compat SHOULD).
+function wrappedOutputSchema(schema: zType.ZodType): Record<string, unknown> {
+  return z.toJSONSchema(z.object({ result: schema }), { io: "output" });
+}
+
+function wrappedStructured(
+  structured: unknown,
+): Record<string, unknown> | undefined {
+  return structured === undefined ? undefined : { result: structured };
+}
+
+function completeText(
+  text: string,
+  structuredContent?: Record<string, unknown>,
+): MCPCallOutcome {
+  return structuredContent === undefined
+    ? { type: "complete", text, isError: false }
+    : { type: "complete", text, isError: false, structuredContent };
 }
 
 function completeError(text: string): MCPCallOutcome {
@@ -359,11 +382,19 @@ export function buildMCPServerCore(
       continue;
     }
     // parse() is the "input validation is the backstop" promise for
-    // model-supplied ids. createAITool always provides it; a hand-constructed
-    // tool without it would hand propose/commit unvalidated input.
-    if (typeof tool.sdkTool.parse !== "function") {
+    // model-supplied ids. createAITool provides it unless the tool declares
+    // `validation: "internal"` — its runner then owns refusal AND logging
+    // (e.g. an ops kernel validating the same schema and recording the
+    // attempt), so raw input must reach it: a pre-parse here would answer
+    // invalid calls before any provenance could see them. Either way the
+    // promise is boot-visible, never silently waived; a hand-constructed
+    // tool with neither would hand propose/commit unvalidated input.
+    if (
+      typeof tool.sdkTool.parse !== "function" &&
+      tool.metadata.validation !== "internal"
+    ) {
       throw new Error(
-        `createMCPServer: tool "${name}" has no parse() — every exposed tool must validate its input (build tools with createAITool, or provide parse).`,
+        `createMCPServer: tool "${name}" has no parse() — every exposed tool must validate its input (build tools with createAITool, provide parse, or declare validation: "internal").`,
       );
     }
     if (!TOOL_NAME_PATTERN.test(name)) {
@@ -549,6 +580,9 @@ export function buildMCPServerCore(
         string,
         unknown
       >,
+      ...(tool.metadata.outputSchema !== undefined
+        ? { outputSchema: wrappedOutputSchema(tool.metadata.outputSchema) }
+        : {}),
       annotations: tool.metadata.kind === "read"
         ? { readOnlyHint: true }
         : undefined,
@@ -560,6 +594,9 @@ export function buildMCPServerCore(
     commit: () => Promise<unknown> | unknown,
     stillValid: (() => boolean) | undefined,
     withAuditHeader: boolean,
+    // Whether the tool declares an outputSchema — commit's raw return then
+    // rides as structuredContent beside the text.
+    emitStructured: boolean,
   ): Promise<MCPCallOutcome> => {
     // stillValid is load-bearing here, not a nicety: real wall-clock time
     // passes between propose and commit, which is never true in the chat. A
@@ -581,6 +618,7 @@ export function buildMCPServerCore(
       const text = stringifyToolOutput(output);
       return completeText(
         withAuditHeader ? renderAuditHeader(preview) + text : text,
+        emitStructured ? wrappedStructured(output) : undefined,
       );
     } catch (error) {
       return completeFromThrow(error);
@@ -592,6 +630,7 @@ export function buildMCPServerCore(
     approval: ErasedApprovalConfig,
     input: unknown,
     clientCanElicit: boolean,
+    emitStructured: boolean,
   ): Promise<MCPCallOutcome> => {
     let proposal: ProposalResult<unknown>;
     try {
@@ -658,6 +697,7 @@ export function buildMCPServerCore(
         proposal.commit,
         proposal.stillValid,
         true,
+        emitStructured,
       );
     }
     return completeError(
@@ -717,9 +757,22 @@ export function buildMCPServerCore(
       }
       const approval = tool.metadata.approval;
       if (approval) {
-        return runApproval(name, approval, input, opts.clientCanElicit);
+        return runApproval(
+          name,
+          approval,
+          input,
+          opts.clientCanElicit,
+          tool.metadata.outputSchema !== undefined,
+        );
       }
       try {
+        if (tool.sdkTool.runStructured) {
+          const { text, structured } = await tool.sdkTool.runStructured(
+            input,
+            poisonView(name),
+          );
+          return completeText(text, wrappedStructured(structured));
+        }
         const text = tool.sdkTool.runWithView
           ? await tool.sdkTool.runWithView(input, poisonView(name))
           : await tool.sdkTool.run(input);
@@ -799,6 +852,7 @@ export function buildMCPServerCore(
         entry.commit,
         entry.stillValid,
         false,
+        tool.metadata.outputSchema !== undefined,
       );
     },
 
