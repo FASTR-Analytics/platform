@@ -26,6 +26,7 @@ type Props = {
   showCoverageMode: boolean;
   showPercentChangeMode: boolean;
   showDisruptionsMode: boolean;
+  showDisruptionsModeV2: boolean;
   /** Format the figure's values will actually be written in (resolved from the
    *  draft config — HFA metrics all declare "number"). */
   effectiveFormatAs: IndicatorFormat;
@@ -35,7 +36,8 @@ type TimeseriesMode =
   | "standard"
   | "coverage"
   | "percent-change"
-  | "disruptions";
+  | "disruptions"
+  | "disruptions-v2";
 
 export function TimeseriesStyleControls(p: Props) {
   const periodRadioOptions = () => {
@@ -56,6 +58,7 @@ export function TimeseriesStyleControls(p: Props) {
     if (p.tempConfig.s.specialCoverageChart) return "coverage";
     if (p.tempConfig.s.specialBarChart) return "percent-change";
     if (p.tempConfig.s.specialDisruptionsChart) return "disruptions";
+    if (p.tempConfig.s.specialDisruptionsChartV2) return "disruptions-v2";
     return "standard";
   };
 
@@ -63,6 +66,7 @@ export function TimeseriesStyleControls(p: Props) {
     p.setTempConfig("s", "specialCoverageChart", v === "coverage");
     p.setTempConfig("s", "specialBarChart", v === "percent-change");
     p.setTempConfig("s", "specialDisruptionsChart", v === "disruptions");
+    p.setTempConfig("s", "specialDisruptionsChartV2", v === "disruptions-v2");
     if (v === "coverage") {
       p.setTempConfig("d", "timeseriesGrouping", "year" as PeriodOption);
       p.setTempConfig("s", "content", "lines");
@@ -76,6 +80,10 @@ export function TimeseriesStyleControls(p: Props) {
     }
     if (v === "disruptions") {
       p.setTempConfig("s", "content", "lines-area");
+      p.setTempConfig("s", "hideLegend", false);
+    }
+    if (v === "disruptions-v2") {
+      p.setTempConfig("s", "content", "lines");
       p.setTempConfig("s", "hideLegend", false);
     }
   };
@@ -111,6 +119,16 @@ export function TimeseriesStyleControls(p: Props) {
           en: "Special disruptions chart",
           fr: "Graphique de perturbations spécial",
           pt: "Gráfico de perturbações especial",
+        }),
+      });
+    }
+    if (p.showDisruptionsModeV2 || mode() === "disruptions-v2") {
+      opts.push({
+        value: "disruptions-v2",
+        label: t3({
+          en: "Special disruptions chart (Bayesian)",
+          fr: "Graphique de perturbations spécial (bayésien)",
+          pt: "Gráfico de perturbações especial (bayesiano)",
         }),
       });
     }
@@ -301,6 +319,101 @@ export function TimeseriesStyleControls(p: Props) {
                   en: "Invert red/green for surplus/disruptions",
                   fr: "Inverser rouge/vert pour excédents/perturbations",
                   pt: "Inverter vermelho/verde para excedentes/perturbações",
+                })}
+                checked={p.tempConfig.s.diffInverted}
+                onChange={(v) => p.setTempConfig("s", "diffInverted", v)}
+              />
+            </>
+          </StyleSection>
+          <StyleSection label={t3({ en: "Labels", fr: "Étiquettes", pt: "Rótulos" })}>
+            <>
+              <Checkbox
+                checked={p.tempConfig.s.showDataLabelsLineCharts}
+                onChange={(v) =>
+                  p.setTempConfig("s", "showDataLabelsLineCharts", v)
+                }
+                label={t3({
+                  en: "Show data labels",
+                  fr: "Afficher les étiquettes de données",
+                  pt: "Mostrar rótulos de dados",
+                })}
+              />
+              <Show
+                when={
+                  p.tempConfig.s.showDataLabelsLineCharts &&
+                  p.effectiveFormatAs !== "rate_per_10k"
+                }
+              >
+                <StyleRevealGroup>
+                  <RadioGroup
+                    label={t3({ en: "Decimal places", fr: "Décimales", pt: "Casas decimais" })}
+                    options={getSelectOptions(["0", "1", "2", "3"])}
+                    value={String(p.tempConfig.s.decimalPlaces)}
+                    onChange={(v) =>
+                      p.setTempConfig(
+                        "s",
+                        "decimalPlaces",
+                        Number(v) as 0 | 1 | 2 | 3,
+                      )
+                    }
+                    horizontal
+                  />
+                </StyleRevealGroup>
+              </Show>
+            </>
+          </StyleSection>
+          <StyleSection label={t3({ en: "Axis", fr: "Axe", pt: "Eixo" })}>
+            <>
+              <Show when={p.effectiveFormatAs === "percent"}>
+                <Checkbox
+                  label={t3({
+                    en: "Force y-axis max of 100%",
+                    fr: "Forcer le maximum de l'axe Y à 100 %",
+                    pt: "Forçar máximo do eixo Y de 100%",
+                  })}
+                  checked={p.tempConfig.s.forceYMax1}
+                  onChange={(v) => p.setTempConfig("s", "forceYMax1", v)}
+                />
+              </Show>
+              <Checkbox
+                label={t3({
+                  en: "Allow auto y-axis min",
+                  fr: "Autoriser le minimum automatique de l'axe Y",
+                  pt: "Permitir mínimo automático do eixo Y",
+                })}
+                checked={p.tempConfig.s.forceYMinAuto}
+                onChange={(v) => p.setTempConfig("s", "forceYMinAuto", v)}
+              />
+              <Checkbox
+                label={t3({
+                  en: "Allow individual row limits",
+                  fr: "Autoriser des limites par ligne",
+                  pt: "Permitir limites por linha",
+                })}
+                checked={p.tempConfig.s.allowIndividualRowLimits}
+                onChange={(v) =>
+                  p.setTempConfig("s", "allowIndividualRowLimits", v)
+                }
+              />
+            </>
+          </StyleSection>
+        </Match>
+        <Match when={mode() === "disruptions-v2"}>
+          <StyleSection label={t3({ en: "Display", fr: "Affichage", pt: "Exibição" })}>
+            <>
+              <RadioGroup
+                label={t3({ en: "Period", fr: "Période", pt: "Período" })}
+                options={periodRadioOptions()}
+                value={p.tempConfig.d.timeseriesGrouping}
+                onChange={(v) =>
+                  p.setTempConfig("d", "timeseriesGrouping", v as PeriodOption)
+                }
+              />
+              <Checkbox
+                label={t3({
+                  en: "Invert red/green for surplus/deficit",
+                  fr: "Inverser rouge/vert pour excédent/déficit",
+                  pt: "Inverter vermelho/verde para excedente/défice",
                 })}
                 checked={p.tempConfig.s.diffInverted}
                 onChange={(v) => p.setTempConfig("s", "diffInverted", v)}

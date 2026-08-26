@@ -215,7 +215,8 @@ write the global `t3`/`getCalendar`/`getLanguage` singletons.
   comes from `bundle.localization.calendar`.
 - **Timeseries period axis** is the one string panther formats itself, and it
   reads its calendar from the **figure style** (`style.xPeriodAxis.calendar`,
-  set by the four `get_style_from_po/_{1..4}` builders) — so it's a calendar
+  set by the timeseries builders `get_style_from_po/_{1..4}` and
+  `_6_disruptions_v2`) — so it's a calendar
   concern handled by the same bundle thread, **not** a new `TimeseriesInputs`
   prop or a `FigureInputs`-shape change (panther's period formatting is
   calendar-only, no language).
@@ -275,8 +276,8 @@ adapters (26/23 LOC) that delegate to them.
 `buildFigureInputs` derives every figure's `style` through one dispatcher,
 `getStyleFromPresentationObject`
 ([get_style_from_po.ts](client/src/generate_visualization/get_style_from_po.ts)),
-which delegates to five per-mode builders (`get_style_from_po/_1_standard.ts` …
-`_5_scorecard.ts`). Each builder returns a **complete**
+which delegates to six per-mode builders (`get_style_from_po/_1_standard.ts` …
+`_6_disruptions_v2.ts`). Each builder returns a **complete**
 `CustomFigureStyleOptions` — mode-specific values hardcoded, shared layout
 deliberately duplicated for explicitness; common helpers (text style, table
 layout/cells, map regions, pie slices, the standard series/map color funcs) live
@@ -328,14 +329,15 @@ checks in
 the single home for mode gating (its per-metric `canUse*` arrays decide whether
 the editor shows a mode's toggle). Dispatch priority in
 `getStyleFromPresentationObject`: scorecard → coverage → percent-change →
-disruptions → standard.
+disruptions → disruptions-v2 → standard.
 
-| Mode           | Flag (`config.s`)         | Gate (`d.type`) | Metrics                  | Builder behavior                                                                                                        |
-| -------------- | ------------------------- | --------------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
-| Coverage       | `specialCoverageChart`    | timeseries      | m4-01-01, m6-01/02/03-01 | hardcoded series colors (black / red / grey), forced points with `toPct0` last-value labels                             |
-| Percent change | `specialBarChart`         | timeseries      | m3-01-01                 | red/green bar coloring + signed value labels from period-to-period diff vs `specialBarChartDiffThreshold` (default 0.1) |
-| Disruptions    | `specialDisruptionsChart` | timeseries      | m3-02/03/04/05-01        | red/green diff areas, solid-vs-dashed lines distinguishing the two series                                               |
-| Scorecard      | `specialScorecardTable`   | table           | m8-01-01                 | full table style driven by `indicatorMetadata` (`_5_scorecard.ts`)                                                      |
+| Mode           | Flag (`config.s`)           | Gate (`d.type`) | Metrics                  | Builder behavior                                                                                                             |
+| -------------- | --------------------------- | --------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| Coverage       | `specialCoverageChart`      | timeseries      | m4-01-01, m6-01/02/03-01 | hardcoded series colors (black / red / grey), forced points with `toPct0` last-value labels                                  |
+| Percent change | `specialBarChart`           | timeseries      | m3-01-01                 | red/green bar coloring + signed value labels from period-to-period diff vs `specialBarChartDiffThreshold` (default 0.1)      |
+| Disruptions    | `specialDisruptionsChart`   | timeseries      | m3-02/03/04/05-01        | red/green diff areas, solid-vs-dashed lines distinguishing the two series                                                    |
+| Disruptions V2 | `specialDisruptionsChartV2` | timeseries      | m11-01-01/02             | grey credible band + green/red exceedance via panther `areas.diff.pairs` on the wide 4-series shape (`_6_disruptions_v2.ts`) |
+| Scorecard      | `specialScorecardTable`     | table           | m8-01-01                 | full table style driven by `indicatorMetadata` (`_5_scorecard.ts`)                                                           |
 
 Legacy `diffAreas` configs are converted to `specialDisruptionsChart` by the
 po_config data transform (Block 9 — S2's machinery); no render or UI adapter
@@ -398,17 +400,19 @@ decided by WHAT it is formatting, never by a flag:
   clamp, the pie completion envelope, the scale legend. The collapse is lossy
   by nature and must never reach an individual value.
 
-Surfaces that legitimately take `axisFormat` alone: the four special chart
-modes (`_2_coverage.ts`, `_3_percent_change.ts`, `_4_disruptions.ts`, and the
-percent-change bars), because every metric gated into them (m3/m4/m6) is
-constant-format, so `axisFormat` equals the declaration. Pie slice labels are
+Surfaces that legitimately take `axisFormat` alone: the five special chart
+modes (`_2_coverage.ts`, `_3_percent_change.ts`, `_4_disruptions.ts`,
+`_6_disruptions_v2.ts`, and the percent-change bars), because every metric
+gated into them (m3/m4/m6/m11) is constant-format, so `axisFormat` equals the
+declaration. Pie slice labels are
 also not per-value — a slice label is `label share%`, a fraction of the pie's
 denominator, never a raw value — and the doughnut centre label is formatted
 inside panther from the slice sum.
 
 Consumers re-check the RESOLVED format, not stored flags: `forceYMax1` applies
 `max: 1` only when `axisFormat` is percent (`_1_standard.ts` ×2,
-`_2_coverage.ts`, `_3_percent_change.ts`, `_4_disruptions.ts`), the same
+`_2_coverage.ts`, `_3_percent_change.ts`, `_4_disruptions.ts`,
+`_6_disruptions_v2.ts`), the same
 pattern as `isPieCompletionMode` — an `"indicator"` metric's format is
 filter-sensitive, so a stranded flag degrades to auto instead of clamping
 counts at 1.
@@ -732,8 +736,9 @@ the in-app dashboard editor builds the same bundle type but has no export entry
   visualizations, editor previews and exports are unchanged. Series colors were
   deliberately left out: the next step is a `"deck-primary"` color scale that
   returns `deckStyle.colorPreset.primary`. Note the semantic colors in
-  `_2_coverage`/`_3_percent_change`/`_4_disruptions` (good/bad/neutral,
-  survey/projected) are intentionally NOT theme-routed — they carry meaning.
+  `_2_coverage`/`_3_percent_change`/`_4_disruptions`/`_6_disruptions_v2`
+  (good/bad/neutral, survey/projected) are intentionally NOT theme-routed —
+  they carry meaning.
 
 ### FigureBundle deferred phases (from the retired follow-ons plan)
 

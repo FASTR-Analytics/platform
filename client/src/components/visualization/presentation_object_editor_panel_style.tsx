@@ -12,6 +12,7 @@ import { CustomSeriesStyles } from "~/components/forms_editors/custom_series_sty
 import {
   canUseSpecialCoverageChart,
   canUseSpecialDisruptionsChart,
+  canUseSpecialDisruptionsChartV2,
   canUseSpecialPercentChangeChart,
   canUseSpecialScorecardTable,
 } from "~/generate_visualization/special_chart_checks";
@@ -43,6 +44,7 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
   const showCoverageMode = () => canUseSpecialCoverageChart(metricId());
   const showPercentChangeMode = () => canUseSpecialPercentChangeChart(metricId());
   const showDisruptionsMode = () => canUseSpecialDisruptionsChart(metricId());
+  const showDisruptionsModeV2 = () => canUseSpecialDisruptionsChartV2(metricId());
   const showScorecardMode = () => canUseSpecialScorecardTable(metricId());
 
   // n is a survey concept and is counted over facility rows, so the server only
@@ -91,6 +93,7 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
             showCoverageMode={showCoverageMode()}
             showPercentChangeMode={showPercentChangeMode()}
             showDisruptionsMode={showDisruptionsMode()}
+            showDisruptionsModeV2={showDisruptionsModeV2()}
             effectiveFormatAs={p.effectiveFormatAs}
           />
         </Match>

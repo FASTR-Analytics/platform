@@ -66,6 +66,8 @@ const presentationObjectConfigSStrict = z
     specialBarChartDataLabels: z.enum(["all-values", "threshold-values"]),
     specialCoverageChart: z.boolean(),
     specialDisruptionsChart: z.boolean(),
+    // Optional for the same reason as showNValues below. Read as `?? false`.
+    specialDisruptionsChartV2: z.boolean().optional(),
     specialScorecardTable: z.boolean(),
     verticalTickLabels: z.boolean(),
     horizontal: z.boolean().optional(),

@@ -17,6 +17,14 @@ export const SPECIAL_DISRUPTIONS_CHART_METRICS = [
   "m3-05-01",
 ];
 
+// Deliberately NOT in ALLOW_NEGATIVE_SCALE_VALUES_METRICS: unlike M3's
+// expected-volume model, the M11 NegBin model and its credible bounds are
+// non-negative by construction.
+export const SPECIAL_DISRUPTIONS_CHART_V2_METRICS = [
+  "m11-01-01",
+  "m11-01-02",
+];
+
 export const SPECIAL_SCORECARD_TABLE_METRICS = ["m8-01-01"];
 
 // Metrics whose displayed values can be NEGATIVE. Their value axis resolves its
@@ -77,6 +85,10 @@ export function canUseSpecialDisruptionsChart(metricId: string): boolean {
   return SPECIAL_DISRUPTIONS_CHART_METRICS.includes(metricId);
 }
 
+export function canUseSpecialDisruptionsChartV2(metricId: string): boolean {
+  return SPECIAL_DISRUPTIONS_CHART_V2_METRICS.includes(metricId);
+}
+
 export function canUseSpecialScorecardTable(metricId: string): boolean {
   return SPECIAL_SCORECARD_TABLE_METRICS.includes(metricId);
 }
@@ -96,4 +108,8 @@ export function isSpecialCoverageChartActive(config: PresentationObjectConfig): 
 
 export function isSpecialDisruptionsChartActive(config: PresentationObjectConfig): boolean {
   return config.s.specialDisruptionsChart === true && config.d.type === "timeseries";
+}
+
+export function isSpecialDisruptionsChartV2Active(config: PresentationObjectConfig): boolean {
+  return config.s.specialDisruptionsChartV2 === true && config.d.type === "timeseries";
 }

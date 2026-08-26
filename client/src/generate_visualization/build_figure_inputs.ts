@@ -39,6 +39,7 @@ import { getMapJsonDataConfigFromPresentationObjectConfig } from "./get_data_con
 import { getAdminAreaLevelFromMapConfig } from "./get_admin_area_level_from_config";
 import {
   isSpecialDisruptionsChartActive,
+  isSpecialDisruptionsChartV2Active,
   isSpecialScorecardTableActive,
   metricAllowsNegativeScale,
 } from "./special_chart_checks";
@@ -78,6 +79,21 @@ export function buildFigureInputs(
     throw new Error(
       "Disruptions chart needs both data values (actual and expected). Add the second data value, or turn off disruptions mode.",
     );
+  }
+
+  // The V2 chart's diff pairs address series by POSITION, which under "--v" is
+  // the effective value-props order — a filtered subset would silently pair
+  // the wrong series. Require the full m011 shape exactly.
+  if (isSpecialDisruptionsChartV2Active(config)) {
+    const required = ["observed", "expected", "ppi_lwr", "ppi_upr"];
+    if (
+      effectiveValueProps.length !== required.length ||
+      required.some((p, i) => effectiveValueProps[i] !== p)
+    ) {
+      throw new Error(
+        "Disruptions chart needs all four data values (observed, expected, lower and upper bounds). Clear the data value filter, or turn off disruptions mode.",
+      );
+    }
   }
 
   if (effectiveConfig.d.type === "timeseries") {

@@ -12,10 +12,12 @@ import { buildCoverageChartStyle } from "./get_style_from_po/_2_coverage";
 import { buildPercentChangeChartStyle } from "./get_style_from_po/_3_percent_change";
 import { buildDisruptionsChartStyle } from "./get_style_from_po/_4_disruptions";
 import { buildScorecardStyle } from "./get_style_from_po/_5_scorecard";
+import { buildDisruptionsChartV2Style } from "./get_style_from_po/_6_disruptions_v2";
 import {
   isSpecialBarChartActive,
   isSpecialCoverageChartActive,
   isSpecialDisruptionsChartActive,
+  isSpecialDisruptionsChartV2Active,
   isSpecialScorecardTableActive,
 } from "./special_chart_checks";
 
@@ -38,7 +40,7 @@ export function getStyleFromPresentationObject(
       deckStyle,
     );
   }
-  // The special chart modes are all constant-format metrics (m3/m4/m6), so
+  // The special chart modes are all constant-format metrics (m3/m4/m6/m11), so
   // their declaration IS the axis format and nothing they draw is per-value.
   const formatAs = effectiveFormat.axisFormat;
   if (isSpecialCoverageChartActive(config)) {
@@ -49,6 +51,9 @@ export function getStyleFromPresentationObject(
   }
   if (isSpecialDisruptionsChartActive(config)) {
     return buildDisruptionsChartStyle(config, formatAs, calendar, allowNegativeScale, deckStyle);
+  }
+  if (isSpecialDisruptionsChartV2Active(config)) {
+    return buildDisruptionsChartV2Style(config, formatAs, calendar, deckStyle);
   }
   return buildStandardStyle(
     config,

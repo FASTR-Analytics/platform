@@ -38,6 +38,7 @@
     "jsr:@zip-js/zip-js@*": "2.8.26",
     "npm:@anthropic-ai/sdk@0.110": "0.110.0_zod@4.4.3",
     "npm:@clerk/backend@^2.29.2": "2.33.3",
+    "npm:@clerk/backend@^3.16.11": "3.16.11",
     "npm:@codemirror/lang-markdown@6": "6.5.0",
     "npm:@codemirror/merge@6": "6.11.2",
     "npm:@codemirror/state@6": "6.5.2",
@@ -216,8 +217,16 @@
     "@clerk/backend@2.33.3": {
       "integrity": "sha512-cgkFVEYFG2nZn4QDuYBhiAwPtMdo8Yj7DAtq/SBQ5C/ainh3uxNRDgUj4bFn52qJkWLiCkraYJIw1b8dEUbUBg==",
       "dependencies": [
-        "@clerk/shared",
+        "@clerk/shared@3.47.5",
         "@clerk/types",
+        "standardwebhooks",
+        "tslib"
+      ]
+    },
+    "@clerk/backend@3.16.11": {
+      "integrity": "sha512-fHfqNhqCywv1orN8Ug2VlYJQZcPMmzFmlTb5/kCMFhxJsV9yaDTf8BADiUO9WgTx3s+nKOx5an4t4h7aHM42MA==",
+      "dependencies": [
+        "@clerk/shared@4.30.0",
         "standardwebhooks",
         "tslib"
       ]
@@ -228,16 +237,25 @@
         "csstype",
         "dequal",
         "glob-to-regexp",
-        "js-cookie",
+        "js-cookie@3.0.5",
         "std-env",
         "swr"
       ],
       "scripts": true
     },
+    "@clerk/shared@4.30.0": {
+      "integrity": "sha512-T+b/LES4qRuMom0xZKqOEnfZc67ZYjLIL8cTvEyf5F5u82zTnG7UL22rc3tVNyfh7/p2Mg4+LarT7IoZqyhjkw==",
+      "dependencies": [
+        "@tanstack/query-core",
+        "dequal",
+        "glob-to-regexp",
+        "js-cookie@3.0.7"
+      ]
+    },
     "@clerk/types@4.101.23": {
       "integrity": "sha512-t5ypYYDkT5TPaNIDjLnYk9GpkJgwNTBiS7h6FuUTjoySQtf7amNDS1A1eOu7NOcVpqiSeKg+0wzGxxcre00kMA==",
       "dependencies": [
-        "@clerk/shared"
+        "@clerk/shared@3.47.5"
       ]
     },
     "@codemirror/autocomplete@6.20.0": {
@@ -408,8 +426,8 @@
     "@hono/clerk-auth@3.1.1_hono@4.12.14": {
       "integrity": "sha512-wOQaxxaBsVPSNDajUkhpv+9QWwpzLp//Kjr2H3seTgbCmskhPG356GbQjH7/sjQHcgAQKnwCc0cPk4iWCIr24A==",
       "dependencies": [
-        "@clerk/backend",
-        "@clerk/shared",
+        "@clerk/backend@2.33.3",
+        "@clerk/shared@3.47.5",
         "hono"
       ]
     },
@@ -521,6 +539,9 @@
     },
     "@stablelib/base64@1.0.1": {
       "integrity": "sha512-1bnPQqSxSuc3Ii6MhBysoWCg58j97aUjuCSZrGSmDxNqtytIi0k8utUenAwTZN4V5mXXYGsVUI9zeBqy+jBOSQ=="
+    },
+    "@tanstack/query-core@5.102.3": {
+      "integrity": "sha512-5O2VEceonqC4uaTLUGglb0hgPouWCJ4K1ykVWyeV8aThhdNCzwpwu01bYoaRNJ9mgFUXS7Kf9utJ46ysT8m+bw=="
     },
     "@types/node@22.12.0": {
       "integrity": "sha512-Fll2FZ1riMjNmlmJOdAyY5pUbkftXslB5DgEzlIuNaiWhXd00FhWxVC/r4yV/4wBb9JfImTu+jiSvXTkJ7F/gA==",
@@ -715,6 +736,9 @@
     },
     "js-cookie@3.0.5": {
       "integrity": "sha512-cEiJEAEoIbWfCZYKWhVwFuvPX1gETRYPw6LlaTKoxD3s2AkXzkCjnp6h0V77ozyqj0jakteJ4YqDJT830+lVGw=="
+    },
+    "js-cookie@3.0.7": {
+      "integrity": "sha512-z/wZZgDrkNV1eA0ULjM/F9/50Ya8fbzgKneSpoPsXSGd0KnpdtHfOZWK+GcwLk+EZbS4F9RBhU+K2RgzuDaItw=="
     },
     "json-schema-to-ts@3.1.1": {
       "integrity": "sha512-+DWg8jCJG2TEnpy7kOm/7/AxaYoaRbjVB4LFZLySZlWn8exGs3A4OLJR966cVvU26N7X9TWxl+Jsw7dzAqKT6g==",
@@ -1471,6 +1495,7 @@
           "jsr:@std/path@0.217.0",
           "jsr:@std/yaml@1.0.5",
           "npm:@anthropic-ai/sdk@0.110",
+          "npm:@clerk/backend@^3.16.11",
           "npm:@codemirror/lang-markdown@6",
           "npm:@codemirror/merge@6",
           "npm:@codemirror/state@6",

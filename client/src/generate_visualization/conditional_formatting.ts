@@ -19,10 +19,12 @@ import {
   type FigureLocalization,
 } from "lib";
 import { compileCfToLegend } from "./conditional_formatting/compile";
+import { BAND_GREY } from "./get_style_from_po/_6_disruptions_v2";
 import {
   isSpecialBarChartActive,
   isSpecialCoverageChartActive,
   isSpecialDisruptionsChartActive,
+  isSpecialDisruptionsChartV2Active,
   isSpecialScorecardTableActive,
 } from "./special_chart_checks";
 
@@ -163,6 +165,30 @@ export function getLegendFromConfig(
       },
       { label: pickLang(language, { en: "Surplus", fr: "Excédent", pt: "Excedente" }), color: _CF_GREEN },
       { label: pickLang(language, { en: "Disruption", fr: "Perturbation", pt: "Perturbação" }), color: _CF_RED },
+    ];
+  }
+  if (isSpecialDisruptionsChartV2Active(config)) {
+    const surplusColor = config.s.diffInverted ? _CF_RED : _CF_GREEN;
+    const deficitColor = config.s.diffInverted ? _CF_GREEN : _CF_RED;
+    return [
+      { label: pickLang(language, { en: "Observed", fr: "Observé", pt: "Observado" }), color: "#000000", pointStyle: "as-line" },
+      {
+        label: pickLang(language, { en: "Expected", fr: "Attendu", pt: "Esperado" }),
+        color: "#000000",
+        pointStyle: "as-line",
+        lineDash: "dashed",
+        lineStrokeWidthScaleFactor: 0.5,
+      },
+      {
+        label: pickLang(language, {
+          en: "95% credible interval",
+          fr: "Intervalle de crédibilité à 95%",
+          pt: "Intervalo de credibilidade de 95%",
+        }),
+        color: BAND_GREY,
+      },
+      { label: pickLang(language, { en: "Surplus", fr: "Excédent", pt: "Excedente" }), color: surplusColor },
+      { label: pickLang(language, { en: "Deficit", fr: "Déficit", pt: "Défice" }), color: deficitColor },
     ];
   }
   const cf = selectCf(config.s);
