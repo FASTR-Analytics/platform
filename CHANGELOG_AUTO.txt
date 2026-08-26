@@ -1,3 +1,5 @@
+[1.67.6] [user] [added] - New Bayesian disruption detection module (LI model) now available
+[1.67.6] [admin] [added] - New module available: Bayesian disruption detection (LI model)
 [1.67.5] [user] [changed] - AI assistant now gives more accurate period coverage descriptions for metrics
 [1.67.5] [user] [fixed] - AI assistant validates filters before fetching data, catching errors faster
 [1.67.5] [admin] [fixed] - AI now validates metric filters before fetching data, failing faster on bad queries
