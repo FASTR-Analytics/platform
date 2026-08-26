@@ -1,3 +1,11 @@
+[TBD] [user] [added] - New Bayesian disruptions chart mode for supported metrics
+[TBD] [user] [added] - Legend showing observed, expected, credible interval, surplus, and deficit
+[TBD] [user] [added] - Option to invert red/green colors for surplus/deficit on Bayesian disruptions chart
+[TBD] [user] [added] - Display, label, and axis controls for Bayesian disruptions chart
+[TBD] [admin] [added] - New Bayesian disruptions chart mode for M11 metrics
+[TBD] [admin] [added] - Legend shows observed, expected, credible interval, surplus, and deficit
+[TBD] [admin] [added] - Option to invert red/green colors for surplus/deficit on Bayesian disruptions chart
+[TBD] [admin] [added] - Display, label, and axis style controls for Bayesian disruptions chart
 [1.67.6] [user] [added] - New Bayesian disruption detection module (LI model) now available
 [1.67.6] [admin] [added] - New module available: Bayesian disruption detection (LI model)
 [1.67.5] [user] [changed] - AI assistant now gives more accurate period coverage descriptions for metrics
