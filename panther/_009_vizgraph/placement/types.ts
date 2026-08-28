@@ -26,12 +26,19 @@ export type PlacementPass = {
 export type PlacementPlan = PlacementPass[];
 
 // The clearance every pass must keep between two order-adjacent nodes:
-// nodeGap plus whatever group-box padding each side reserves (PNode pads —
-// M6). With no groups this is exactly nodeGap.
+// the base gap plus whatever group-box padding each side reserves (PNode
+// pads — M6). The base gap is dummy-aware: two dummies are edge lanes in a
+// cable run and take the track-scale trackGap; any pair with a real box on
+// either side keeps the box-scale nodeGap (the house look stays loose
+// between boxes, and the first lane keeps full breathing room against
+// content). With no groups and no dummies this is exactly nodeGap.
 export function requiredGap(
   above: PNode,
   below: PNode,
   spacing: ResolvedSpacing,
 ): number {
-  return spacing.nodeGap + above.padBottom + below.padTop;
+  const base = above.isDummy && below.isDummy
+    ? spacing.trackGap
+    : spacing.nodeGap;
+  return base + above.padBottom + below.padTop;
 }
