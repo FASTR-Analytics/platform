@@ -3,11 +3,11 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-// Registry → _112 AI tools, registry → MCP tools, and registry → headless
-// catalog. All are a filter + map over the SAME declarations the server
-// boots (panterra R5: exposure is derived; there is no second allowlist to
-// drift). Each surface derives from its own declaration: the in-app AI
-// list from `exposure.ai`, the MCP list from `exposure.headless`.
+// Registry → _112 AI tools and registry → MCP tools. Both are a filter +
+// map over the SAME declarations the server boots (panterra R5: exposure is
+// derived; there is no second allowlist to drift). Each surface derives
+// from its own declaration: the in-app AI list from `exposure.ai`, the MCP
+// list from `exposure.headless`.
 
 import { AIToolFailure, createAITool } from "./deps.ts";
 import type { AIToolWithMetadata, APIResponseWithData } from "./deps.ts";
@@ -163,24 +163,4 @@ export function opsApprovalExempt<TReg extends OpRegistry>(
       op.exposure.headless === true
     )
     .map(([name]) => name);
-}
-
-// The derived headless surface: which ops an MCP server exposes, and which
-// are held back with their declared reasons (reported, never silent — the
-// same discipline as _112's non-headless tool drop).
-export function opsHeadlessCatalog<TReg extends OpRegistry>(
-  registry: TReg,
-): { exposed: string[]; dropped: { name: string; reason: string }[] } {
-  const exposed: string[] = [];
-  const dropped: { name: string; reason: string }[] = [];
-  for (
-    const [name, op] of Object.entries(registry as Record<string, OpContract>)
-  ) {
-    if (op.exposure.headless === true) {
-      exposed.push(name);
-    } else {
-      dropped.push({ name, reason: op.exposure.headless.excluded });
-    }
-  }
-  return { exposed, dropped };
 }

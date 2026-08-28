@@ -14,25 +14,29 @@
 // through a single authorize → validate → execute → log → emit sequence,
 // and projected to every surface — the RPC HTTP door (POST /api/op/<name>),
 // the generated typed client, the in-app AI tools (_112 lifecycle), and the
-// derived headless/MCP catalog. Designed in the panterra repo
+// derived headless/MCP tools. Designed in the panterra repo
 // (PLAN_OPS_KERNEL.md there; requirements R1–R14, wire = decision 15).
 
 export { defineOps } from "./define.ts";
-export { createOpKernel, stableStringify } from "./kernel.ts";
+export { createOpKernel } from "./kernel.ts";
 export { createOpHttpHandler } from "./http.ts";
-export { createOpClient, createOpRunner } from "./client.ts";
+export { callWithApproval, createOpClient, createOpRunner } from "./client.ts";
 export { createOpEventHub, createOpEventsHandler } from "./notify.ts";
 export { connectOpEvents } from "./notify_client.ts";
 export {
   opsApprovalExempt,
-  opsHeadlessCatalog,
   opsToAITools,
   opsToMCPTools,
 } from "./projections.ts";
 export { OpFailure } from "./types.ts";
 export { zOpCatalogEntry, zOpProvenanceRecord } from "./schemas.ts";
 
-export type { OpDispatchOpts, OpKernel, OpKernelConfig } from "./kernel.ts";
+export type {
+  OpDispatchOpts,
+  OpKernel,
+  OpKernelConfig,
+  OpOffContractRecord,
+} from "./kernel.ts";
 export type { OpHttpHandlerConfig } from "./http.ts";
 export type {
   OpEventHub,
@@ -46,6 +50,7 @@ export type {
 } from "./notify_client.ts";
 export type {
   NavOpImpls,
+  OpApprovalFlowData,
   OpCallOpts,
   OpClient,
   OpClientConfig,

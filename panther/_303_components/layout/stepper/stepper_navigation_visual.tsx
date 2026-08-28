@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { For } from "solid-js";
+import { For, Show } from "solid-js";
 import type { Stepper } from "./get_stepper.ts";
 import { Button } from "../../form_inputs/mod.ts";
 
@@ -64,7 +64,7 @@ export function StepperNavigationVisual(p: StepperNavigationVisualProps) {
     return `${baseClasses} bg-base-300`;
   };
 
-  const formatter = p.stepLabelFormatter ?? String;
+  const formatter = (step: number) => (p.stepLabelFormatter ?? String)(step);
 
   return (
     <div class="ui-gap flex items-center">
@@ -84,9 +84,9 @@ export function StepperNavigationVisual(p: StepperNavigationVisualProps) {
               >
                 {formatter(step)}
               </button>
-              {index() < p.stepper.getAllSteps().length - 1 && (
+              <Show when={index() < p.stepper.getAllSteps().length - 1}>
                 <div class={getConnectorClasses(step)} />
-              )}
+              </Show>
             </>
           )}
         </For>

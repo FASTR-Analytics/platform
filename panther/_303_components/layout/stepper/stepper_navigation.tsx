@@ -12,7 +12,7 @@ interface StepperNavigationProps {
 }
 
 export function StepperNavigation(p: StepperNavigationProps) {
-  const formatter = p.stepLabelFormatter ?? String;
+  const formatter = (step: number) => (p.stepLabelFormatter ?? String)(step);
 
   return (
     <div class="ui-gap-sm flex items-center">

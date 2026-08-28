@@ -128,36 +128,34 @@ export function Button(p: ButtonProps) {
       </Show>
       {/* Icon & Text */}
       <Show when={p.children && p.iconName}>
-        <Show
-          when={iconPos() === "left"}
-          fallback={
-            <>
-              <span
-                class="relative inline-flex min-h-[var(--ui-form-content-h-em)] items-center data-[loading=true]:invisible"
-                data-loading={isLoading()}
-              >
-                {p.children}
-              </span>
-              <IconRenderer
-                iconName={p.iconName}
-                invisible={isLoading()}
-                size={p.size}
-              />
-            </>
-          }
-        >
-          <IconRenderer
-            iconName={p.iconName}
-            invisible={isLoading()}
-            size={p.size}
-          />
-          <span
-            class="relative inline-flex min-h-[var(--ui-form-content-h-em)] items-center data-[loading=true]:invisible"
-            data-loading={isLoading()}
-          >
-            {p.children}
-          </span>
-        </Show>
+        <Switch>
+          <Match when={iconPos() === "left"}>
+            <IconRenderer
+              iconName={p.iconName}
+              invisible={isLoading()}
+              size={p.size}
+            />
+            <span
+              class="relative inline-flex min-h-[var(--ui-form-content-h-em)] items-center data-[loading=true]:invisible"
+              data-loading={isLoading()}
+            >
+              {p.children}
+            </span>
+          </Match>
+          <Match when={iconPos() === "right"}>
+            <span
+              class="relative inline-flex min-h-[var(--ui-form-content-h-em)] items-center data-[loading=true]:invisible"
+              data-loading={isLoading()}
+            >
+              {p.children}
+            </span>
+            <IconRenderer
+              iconName={p.iconName}
+              invisible={isLoading()}
+              size={p.size}
+            />
+          </Match>
+        </Switch>
       </Show>
       {/* Only Text */}
       <Show when={p.children && !p.iconName}>

@@ -9,7 +9,7 @@
 // (panterra R2/R3). The kernel is transport-free by construction: no
 // Request, no path, no framework type appears in any signature here.
 
-import { z } from "./deps.ts";
+import { stableStringify, z } from "./deps.ts";
 import type { Guard, ProposalPreview, QueryState } from "./deps.ts";
 import { OpFailure } from "./types.ts";
 import type {
@@ -68,6 +68,23 @@ export type OpKernelConfig<
 
 export type OpDispatchOpts = { proposalKey?: string };
 
+// A declared off-contract mutation's provenance (e.g. a multipart upload
+// route that cannot fit the JSON envelope): the caller shapes the record,
+// the kernel keeps the funnel discipline. identity is the resolved identity
+// — the kernel applies its own identityKey, so an off-contract record joins
+// the same parity key as dispatched ops. There is no op contract here, so
+// no redact list applies: truncation only. Emission stays the caller's line
+// (ordering after commit is theirs by nature).
+export type OpOffContractRecord<TIdentity> = {
+  op: string;
+  kind: Exclude<OpKind, "nav">;
+  surface: OpSurface;
+  identity: TIdentity;
+  args?: unknown;
+  outcome: OpProvenanceOutcome;
+  startedAt: number;
+};
+
 export type OpKernel<TIdentity> = {
   dispatch: (
     name: string,
@@ -77,6 +94,9 @@ export type OpKernel<TIdentity> = {
     opts?: OpDispatchOpts,
   ) => Promise<OpOutcome>;
   catalog: () => OpCatalogEntry[];
+  // Writes an off-contract record through the SAME funnel as dispatch: arg
+  // truncation, sink-guard (a failing sink never throws).
+  logOffContract: (record: OpOffContractRecord<TIdentity>) => void;
 };
 
 export function createOpKernel<
@@ -306,6 +326,18 @@ export function createOpKernel<
     }
   }
 
+  function logOffContract(record_: OpOffContractRecord<TIdentity>): void {
+    record(
+      record_.op,
+      record_.kind,
+      record_.identity,
+      record_.surface,
+      redactAndTruncate(record_.args, undefined, maxArgChars),
+      record_.outcome,
+      record_.startedAt,
+    );
+  }
+
   function catalog(): OpCatalogEntry[] {
     return Object.entries(ops).map(([name, op]) => ({
       name,
@@ -325,7 +357,7 @@ export function createOpKernel<
     }));
   }
 
-  return { dispatch, catalog };
+  return { dispatch, catalog, logOffContract };
 }
 
 // The streaming half of validateOutputs: every ready frame claims the
@@ -501,24 +533,6 @@ function validateRegistry<TIdentity>(
 ////////////////////////////////////////////////////////////////////////////////
 // HELPERS
 ////////////////////////////////////////////////////////////////////////////////
-
-// Key-order-independent serialization: the approval argsKey must treat
-// { a, b } and { b, a } as the same proposal.
-export function stableStringify(value: unknown): string {
-  if (value === null || typeof value !== "object") {
-    return JSON.stringify(value) ?? "undefined";
-  }
-  if (Array.isArray(value)) {
-    return `[${value.map(stableStringify).join(",")}]`;
-  }
-  const entries = Object.entries(value as Record<string, unknown>)
-    .filter(([, v]) => v !== undefined)
-    .sort(([a], [b]) => a.localeCompare(b));
-  return `{${
-    entries.map(([k, v]) => `${JSON.stringify(k)}:${stableStringify(v)}`)
-      .join(",")
-  }}`;
-}
 
 function redactAndTruncate(
   args: unknown,

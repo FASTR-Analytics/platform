@@ -3,6 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+export { stableStringify } from "../_000_utils/mod.ts";
 export type {
   APIResponseWithData,
   QueryState,

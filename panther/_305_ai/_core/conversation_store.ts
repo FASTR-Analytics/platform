@@ -4,7 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type { MessageParam, Usage } from "../deps.ts";
-import { createSignal } from "solid-js";
+import { batch, createSignal } from "solid-js";
 import type { ChatState, DisplayItem } from "./types.ts";
 import type { ProposalPreview } from "../deps.ts";
 import {
@@ -186,25 +186,26 @@ export function clearConversationStore(conversationId: string): void {
     const [, setUsageHistory] = store.usageHistory;
     const [, setServerToolLabel] = store.serverToolLabel;
 
-    setMessages([]);
-    setDisplayItems([]);
-    setIsLoading(false);
-    setIsStreaming(false);
-    setIsProcessingTools(false);
-    setError(null);
-    setUsage(null);
-    setCurrentStreamingText(undefined);
-    setUsageHistory([]);
-    setServerToolLabel(undefined);
-
-    store.approvedTools[1]([]);
-
     // Queued messages are dropped; their senders' promises resolve at drop
     // (await means "the attempt finished"). activeTurn is NOT touched — a
     // running turn nulls it in its own finally.
     const [queued, setQueued] = store.queuedMessages;
     const entries = queued();
-    setQueued([]);
+
+    batch(() => {
+      setMessages([]);
+      setDisplayItems([]);
+      setIsLoading(false);
+      setIsStreaming(false);
+      setIsProcessingTools(false);
+      setError(null);
+      setUsage(null);
+      setCurrentStreamingText(undefined);
+      setUsageHistory([]);
+      setServerToolLabel(undefined);
+      store.approvedTools[1]([]);
+      setQueued([]);
+    });
     for (const entry of entries) entry.resolve();
 
     // Also clear persisted data

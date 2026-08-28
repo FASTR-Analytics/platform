@@ -187,6 +187,7 @@ export function FigureHolder(p: Props) {
     const _height = p.height;
     const _sizing = p.sizing;
     const _resolution = p.resolution;
+    const _schemeProp = p.scheme;
     const _scheme = effectiveScheme();
     if (loaded && inputs) {
       const rect = div.getBoundingClientRect();
@@ -249,15 +250,16 @@ export function FigureHolder(p: Props) {
       data-flexToContainer={p.height === "flex"}
     >
       <Show when={err()}>
-        {p.renderError
-          ? (
-            p.renderError(err())
-          )
-          : (
+        <Show
+          when={p.renderError}
+          fallback={
             <div class="ui-pad text-danger pointer-events-none absolute text-xs">
               {err()}
             </div>
-          )}
+          }
+        >
+          {(renderError) => renderError()(err())}
+        </Show>
       </Show>
       <canvas ref={canvas!} id={p.canvasElementId} class="w-full" />
     </div>

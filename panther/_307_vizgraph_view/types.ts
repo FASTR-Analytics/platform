@@ -12,6 +12,8 @@ import type {
   NodeGeom,
 } from "./deps.ts";
 
+// Fields are live getters — read them where reactivity is wanted; don't
+// snapshot-destructure.
 export type VizGraphViewNodeInfo = {
   id: string;
   geom: NodeGeom;
@@ -22,6 +24,13 @@ export type VizGraphViewNodeInfo = {
 // same operations a human triggers by clicking are callable from code, so an
 // app's AI can drive the graph like a human. Handed to the parent via
 // onReady; selection stays controlled through selected/onSelect.
+// Camera-follow policy (_302_panzoom): a content change always refits and
+// re-arms following, gesture or not; a gesture or focus()/panTo holds the
+// frame only between changes; fit() re-arms resize-tracking. The view lays
+// out to its viewport width, so a resize becomes a content change once the
+// debounced reflow lands — after a gesture, a resize still ends fitted, via
+// that path. focus() before the view has a size is a deliberate no-op, not a
+// deferred request.
 export type VizGraphViewApi = {
   select: (ids: string[]) => void;
   focus: (nodeId: string) => void;
@@ -31,6 +40,9 @@ export type VizGraphViewApi = {
 
 export type VizGraphViewProps = {
   model: GraphModel;
+  // The view always lays out to its viewport width (fit: {width}, reflowing
+  // on resize); an explicit `fit` here PINS the layout width instead —
+  // reproducible geometry independent of the window (fixtures, tests).
   layoutOptions?: Omit<LayoutOptions, "prior">;
   nodeContent?: (node: VizGraphViewNodeInfo) => JSX.Element;
   // Sizes UNSIZED model nodes by measuring live DOM content: the view owns a
@@ -42,16 +54,6 @@ export type VizGraphViewProps = {
   measureNodeContent?: (nodeId: string) => JSX.Element;
   // Web fonts the measurer must await before the first layout.
   measureFonts?: FontInfo[];
-  // Relayout with fit: {width: viewport width} whenever the viewport
-  // resizes (content reflows like a width-fitted figure). The camera
-  // re-fits after each reflow until the user pans or zooms.
-  fitToWidth?: boolean;
-  // Re-center and fit the camera after EVERY relayout (model or options
-  // change) — unconditionally, unlike fitToWidth's re-fit, which yields once
-  // the user pans or zooms. Content replacing an empty canvas snaps into
-  // place (no transition, instant fit); later changes glide. For
-  // editor-style consumers where each edit should land centered.
-  refitOnChange?: boolean;
   selected?: string[];
   onSelect?: (ids: string[]) => void;
   onReady?: (api: VizGraphViewApi) => void;

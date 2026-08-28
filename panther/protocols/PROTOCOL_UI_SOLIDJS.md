@@ -32,13 +32,19 @@ keep the codebase uniform and reviewable.
 7. **Props as `p`** — Name the props parameter `p`, never `props`
 8. **Function declarations** — Not arrow functions for components
 9. **Batch writes in event handlers** — Wrap multiple signal writes in `batch()`
-   in event handlers and in code after an `await`. Solid already batches
-   automatically inside `createEffect`, `onMount`, and store setters — `batch()`
-   there is a no-op; don't add it or flag its absence
+   in event handlers, in code after an `await`, and in other callbacks Solid
+   does not auto-batch (ResizeObserver, requestAnimationFrame, stream/observer
+   listeners). Wrap only contiguous, synchronous, write-only spans — never a
+   span containing `return` (it would only exit the batch callback) or `await`.
+   Solid already batches automatically inside `createEffect`, `onMount`, and
+   store setters — `batch()` there is a no-op; don't add it or flag its absence
 10. **Peer branches use `<Match>`, not `fallback`** — `<Show fallback>` is only
     for genuinely subordinate content (loading / empty / absent). Equal
     alternatives use `<Switch>` with an explicit `when` on each `<Match>` —
-    never relegate a peer to `fallback` or a `when={true}` catch-all
+    never relegate a peer to `fallback` or a `when={true}` catch-all. A
+    two-state value (glyph, class, label) is one element with a ternary prop —
+    not a rendering branch; this rule applies only when the branches render
+    different structure
 
 Vendored third-party files (e.g. `solid_sortablejs_vendored.tsx`) are exempt
 from this protocol — don't flag or modify them.
@@ -258,7 +264,11 @@ function handleSelect(item: Item) {
 **Why:** `batch()` collapses multiple signal writes into a single downstream
 update. Solid already auto-batches inside `createEffect`, `onMount`, and store
 setters — `batch()` there is redundant; don't add it or flag its absence. It
-matters in event handlers and in code after an `await`.
+matters in event handlers, in code after an `await`, and in any other callback
+Solid does not auto-batch (ResizeObserver, requestAnimationFrame, stream
+listeners). Nesting is fine (a batched helper called inside a batched handler
+coalesces into the outer batch), and parent callbacks like `p.onChange` may sit
+inside a batch — their writes coalesce too.
 
 ## Checklist
 
@@ -279,4 +289,5 @@ Style-severity:
 - [ ] (style) `<Show fallback>` only for subordinate content; equal branches use
       `<Switch>`/`<Match>` with an explicit `when` on each
 - [ ] (style) Components use function declarations
-- [ ] (style) Multi-signal writes in event handlers wrapped in `batch()`
+- [ ] (style) Multi-signal writes in event handlers and other non-auto-batched
+      callbacks wrapped in `batch()`

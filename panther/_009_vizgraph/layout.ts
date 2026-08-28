@@ -15,7 +15,11 @@ import type { GraphModel, GroupIn } from "./types_model.ts";
 import type { LayoutOptions, ResolvedSpacing } from "./types_options.ts";
 import { resolveSpacing } from "./types_options.ts";
 import { buildGraphIndex } from "./_internal/graph_index.ts";
-import { buildPriorIndex } from "./stability.ts";
+import {
+  adoptPriorOrder,
+  buildOrderRecord,
+  buildPriorIndex,
+} from "./stability.ts";
 import { collapseFolded } from "./transform/collapse.ts";
 import {
   assignGroupPads,
@@ -70,7 +74,13 @@ export function layout(model: GraphModel, options?: LayoutOptions): Geometry {
   for (const [nodeId, chain] of groupIndex.chainByNodeId) {
     proper.innermostGroupByNodeId.set(nodeId, chain[0]);
   }
-  orderStage(proper);
+  // Hard stickiness (stability.ts): a prior that exactly covers this model
+  // pins the ordering verbatim (sweeps skipped); otherwise the prior-seeded
+  // sweeps run. Contiguity runs either way — idempotent on an adopted
+  // ordering, and it re-sorts when only group membership changed.
+  if (!adoptPriorOrder(proper, options?.prior?.order)) {
+    orderStage(proper);
+  }
   enforceGroupContiguity(proper, groupIndex);
   assignGroupPads(proper, groupIndex, spacing);
   // The port-gap floor grows fixed-size nodes here, before any stage reads
@@ -78,8 +88,8 @@ export function layout(model: GraphModel, options?: LayoutOptions): Geometry {
   // heights change under fit-width budgets).
   applyPortGapFloor(proper, spacing);
   const plan = resolvePlan(collapsed, options);
-  sizeStage(proper, index, options, spacing, prior, warnings, plan);
-  coordsStage(proper, spacing, prior, plan);
+  sizeStage(proper, index, options, spacing, warnings, plan);
+  coordsStage(proper, spacing, plan);
   const edges = routeStage(proper, options, spacing);
 
   const nodes: Record<string, NodeGeom> = {};
@@ -140,6 +150,7 @@ export function layout(model: GraphModel, options?: LayoutOptions): Geometry {
     groups,
     hitAreas: [],
     warnings,
+    order: buildOrderRecord(proper),
   };
 }
 

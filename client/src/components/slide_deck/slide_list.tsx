@@ -107,14 +107,12 @@ export function SlideList(p: Props) {
   function handleSlideClick(
     index: number,
     slideId: string,
-    event: MouseEvent,
+    event: MouseEvent | undefined,
     isCircleClick: boolean,
   ) {
     if (isCircleClick) {
-      event.stopPropagation();
-
       // Cmd/Ctrl + circle click: toggle this item in multi-select
-      if (event.metaKey || event.ctrlKey) {
+      if (event?.metaKey || event?.ctrlKey) {
         const newSelected = new Set(selectedIds());
         if (newSelected.has(slideId)) {
           newSelected.delete(slideId);
@@ -128,7 +126,7 @@ export function SlideList(p: Props) {
       }
 
       // Shift + circle click: range selection
-      if (event.shiftKey && lastSelectedIndex() !== null) {
+      if (event?.shiftKey && lastSelectedIndex() !== null) {
         event.preventDefault();
         const newSelected = new Set(selectedIds());
         const start = Math.min(lastSelectedIndex()!, index);
@@ -159,7 +157,7 @@ export function SlideList(p: Props) {
     }
 
     // Cmd/Meta + click on card body toggles
-    if (event.metaKey || event.ctrlKey) {
+    if (event?.metaKey || event?.ctrlKey) {
       const newSelected = new Set(selectedIds());
       if (newSelected.has(slideId)) {
         newSelected.delete(slideId);
@@ -174,7 +172,7 @@ export function SlideList(p: Props) {
     }
 
     // Shift + click on card body does range selection
-    if (event.shiftKey && lastSelectedIndex() !== null) {
+    if (event?.shiftKey && lastSelectedIndex() !== null) {
       event.preventDefault();
       const newSelected = new Set(selectedIds());
       const start = Math.min(lastSelectedIndex()!, index);

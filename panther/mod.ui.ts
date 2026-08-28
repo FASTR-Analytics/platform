@@ -103,12 +103,14 @@ export * from "./_150_figure_schema/mod.ts";
 //////////////////////
 
 export * from "./_301_util_funcs/mod.ts";
+export * from "./_302_panzoom/mod.ts";
 export * from "./_302_query/mod.ts";
 export * from "./_303_components/mod.ts";
 export * from "./_304_actions/mod.ts";
 export * from "./_305_ai/mod.ts";
 export * from "./_306_text_editor/mod.ts";
 export * from "./_307_vizgraph_view/mod.ts";
+export * from "./_308_clerk_ui/mod.ts";
 
 /////////////////////
 //                 //

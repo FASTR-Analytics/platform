@@ -15,3 +15,8 @@ export type {
   ClerkOAuthUser,
   ClerkSessionProviderConfig,
 } from "./clerk_identity.ts";
+export { createOAuthDiscoveryHandler } from "./oauth_discovery.ts";
+export type {
+  OAuthDiscoveryConfig,
+  OAuthDiscoveryHandler,
+} from "./oauth_discovery.ts";

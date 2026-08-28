@@ -3,7 +3,16 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { createSignal, createUniqueId, For, type JSX, Show } from "solid-js";
+import {
+  batch,
+  createSignal,
+  createUniqueId,
+  For,
+  type JSX,
+  Match,
+  Show,
+  Switch,
+} from "solid-js";
 import { Color } from "../deps.ts";
 import type { PopoverPosition } from "../special_state/popover_menu.tsx";
 
@@ -309,10 +318,12 @@ export function ColorPicker(p: ColorPickerProps) {
   }
 
   function handleHexInput(value: string) {
-    setHexInput(value);
-    if (isValidHex(value)) {
-      p.onChange(normalizeHex(value));
-    }
+    batch(() => {
+      setHexInput(value);
+      if (isValidHex(value)) {
+        p.onChange(normalizeHex(value));
+      }
+    });
   }
 
   const displayHex = () => hexInput() ?? p.value ?? "";
@@ -367,9 +378,8 @@ export function ColorPicker(p: ColorPickerProps) {
         style={{ "position-anchor": anchorName } as JSX.CSSProperties}
       >
         <div class="bg-base-100 overflow-hidden rounded border p-2 shadow-floating">
-          <Show
-            when={isTailwind() || isSlideBackgrounds()}
-            fallback={
+          <Switch>
+            <Match when={!isTailwind() && !isSlideBackgrounds()}>
               <div class="grid grid-cols-6 gap-1">
                 <For each={colors()}>
                   {(color) => (
@@ -382,41 +392,44 @@ export function ColorPicker(p: ColorPickerProps) {
                   )}
                 </For>
               </div>
-            }
-          >
-            <div class="flex gap-0.5">
-              <For
-                each={isTailwind() ? TAILWIND_COLORS : SLIDE_BACKGROUND_COLORS}
-              >
-                {(col) => (
-                  <div class="flex flex-col gap-0.5">
-                    <For each={col}>
-                      {(color) => (
-                        <ColorSwatch
-                          color={color}
-                          selected={p.value != null &&
-                            color.toLowerCase() === p.value.toLowerCase()}
-                          onClick={handleColorSelect}
-                        />
-                      )}
-                    </For>
-                  </div>
-                )}
-              </For>
-              <div class="flex flex-col gap-0.5">
-                <ColorSwatch
-                  color="#ffffff"
-                  selected={p.value?.toLowerCase() === "#ffffff"}
-                  onClick={handleColorSelect}
-                />
-                <ColorSwatch
-                  color="#000000"
-                  selected={p.value?.toLowerCase() === "#000000"}
-                  onClick={handleColorSelect}
-                />
+            </Match>
+            <Match when={isTailwind() || isSlideBackgrounds()}>
+              <div class="flex gap-0.5">
+                <For
+                  each={isTailwind()
+                    ? TAILWIND_COLORS
+                    : SLIDE_BACKGROUND_COLORS}
+                >
+                  {(col) => (
+                    <div class="flex flex-col gap-0.5">
+                      <For each={col}>
+                        {(color) => (
+                          <ColorSwatch
+                            color={color}
+                            selected={p.value != null &&
+                              color.toLowerCase() === p.value.toLowerCase()}
+                            onClick={handleColorSelect}
+                          />
+                        )}
+                      </For>
+                    </div>
+                  )}
+                </For>
+                <div class="flex flex-col gap-0.5">
+                  <ColorSwatch
+                    color="#ffffff"
+                    selected={p.value?.toLowerCase() === "#ffffff"}
+                    onClick={handleColorSelect}
+                  />
+                  <ColorSwatch
+                    color="#000000"
+                    selected={p.value?.toLowerCase() === "#000000"}
+                    onClick={handleColorSelect}
+                  />
+                </div>
               </div>
-            </div>
-          </Show>
+            </Match>
+          </Switch>
           <Show when={p.extraColors && p.extraColors.length > 0}>
             <div class="my-1.5 border-t" />
             <div class="flex gap-1">

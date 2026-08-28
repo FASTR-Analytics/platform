@@ -5,6 +5,7 @@
 
 import {
   type Accessor,
+  batch,
   createEffect,
   createMemo,
   createSignal,
@@ -79,8 +80,10 @@ export function createSelectionController<T extends string>(
   function commit(next: readonly T[]) {
     const wanted = new Set(next);
     const ordered = o.ids().filter((id) => wanted.has(id));
-    if (!controlled) setInternal(ordered);
-    o.onSelectionChange?.(ordered);
+    batch(() => {
+      if (!controlled) setInternal(ordered);
+      o.onSelectionChange?.(ordered);
+    });
   }
 
   const isSelected = (id: T) => selectedIds().includes(id);
@@ -107,8 +110,10 @@ export function createSelectionController<T extends string>(
   }
 
   function clear() {
-    setLastIndex(null);
-    commit([]);
+    batch(() => {
+      setLastIndex(null);
+      commit([]);
+    });
   }
 
   function selectAll() {
@@ -140,19 +145,23 @@ export function createSelectionController<T extends string>(
     const index = o.ids().indexOf(id);
 
     if (!isMulti) {
-      if (mode === "single-optional" && isSelected(id)) {
-        commit([]);
-      } else {
-        commit([id]);
-      }
-      setLastIndex(index);
+      batch(() => {
+        if (mode === "single-optional" && isSelected(id)) {
+          commit([]);
+        } else {
+          commit([id]);
+        }
+        setLastIndex(index);
+      });
       onOpen?.();
       return;
     }
 
     if (event?.metaKey || event?.ctrlKey) {
-      toggle(id);
-      setLastIndex(index);
+      batch(() => {
+        toggle(id);
+        setLastIndex(index);
+      });
       return;
     }
     if (event?.shiftKey && lastIndex() !== null) {
@@ -165,12 +174,14 @@ export function createSelectionController<T extends string>(
       onOpen();
       return;
     }
-    if (isSelected(id)) {
-      commit(selectedIds().filter((x) => x !== id));
-    } else {
-      commit([id]);
-    }
-    setLastIndex(index);
+    batch(() => {
+      if (isSelected(id)) {
+        commit(selectedIds().filter((x) => x !== id));
+      } else {
+        commit([id]);
+      }
+      setLastIndex(index);
+    });
   }
 
   function computeMove(oldIds: T[], newIds: T[]): MoveOp<T> | undefined {

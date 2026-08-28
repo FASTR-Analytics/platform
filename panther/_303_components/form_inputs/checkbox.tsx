@@ -51,7 +51,7 @@ export function Checkbox(p: CheckboxProps) {
         <Match when={typeof p.label === "string"}>
           <span class="select-none">{p.label}</span>
         </Match>
-        <Match when>{p.label}</Match>
+        <Match when={typeof p.label !== "string"}>{p.label}</Match>
       </Switch>
     </label>
   );

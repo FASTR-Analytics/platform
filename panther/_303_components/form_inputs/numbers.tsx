@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { createSignal } from "solid-js";
+import { batch, createSignal } from "solid-js";
 import type { Intent } from "../types.ts";
 import { Input } from "./input.tsx";
 import { Select } from "./select.tsx";
@@ -33,9 +33,11 @@ export function NumberInput(p: NumberInputProps) {
   const displayValue = () => (isFocused() ? text() : String(p.value));
 
   const handleFocus = () => {
-    setIsFocused(true);
-    setText(String(p.value));
-    setInvalid(false);
+    batch(() => {
+      setIsFocused(true);
+      setText(String(p.value));
+      setInvalid(false);
+    });
   };
 
   const handleBlur = () => {
@@ -54,8 +56,10 @@ export function NumberInput(p: NumberInputProps) {
     if (p.min !== undefined && clamped < p.min) clamped = p.min;
     if (p.max !== undefined && clamped > p.max) clamped = p.max;
 
-    setInvalid(false);
-    p.onChange(clamped);
+    batch(() => {
+      setInvalid(false);
+      p.onChange(clamped);
+    });
   };
 
   return (

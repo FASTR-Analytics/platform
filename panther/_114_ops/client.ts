@@ -9,7 +9,11 @@
 // tools share, so there is no privileged AI path. Both are derived from the
 // same contract objects the server boots, so a divergence is unwritable.
 
-import type { APIResponseWithData, QueryState } from "./deps.ts";
+import type {
+  APIResponseWithData,
+  ProposalPreview,
+  QueryState,
+} from "./deps.ts";
 import type {
   NavOpNameOf,
   OpApprovalCallData,
@@ -157,6 +161,63 @@ export function createOpClient<TReg extends OpRegistry>(
   ) as OpClient<TReg>["ops"];
 
   return { ops: typed, call };
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// THE APPROVAL FLOW (human UI half of the proposal lifecycle)
+////////////////////////////////////////////////////////////////////////////////
+
+// What a driven approval flow resolves to: committed with the result, or
+// declined by the human. Failures (including a proposal that expired before
+// the confirm — the kernel's TTL) ride the envelope's success: false.
+export type OpApprovalFlowData<T> =
+  | { status: "committed"; result: T }
+  | { status: "declined" };
+
+// Drives an approval-op client method through the full lifecycle: propose
+// (keyless call) → present(preview) to the human → confirm with the staged
+// key. `present` is the UI seam — framework-free here; solid apps pass
+// _305's openProposalPreview (the two are ONE idiom: this owns the state
+// machine, that owns the rendering). The confirm re-sends the SAME args
+// value: the kernel's argsKey is a stable stringify of the validated args,
+// so a key commits only what its preview showed. A declined preview makes
+// no second call and nothing commits.
+export async function callWithApproval<TArgs, TOutput>(
+  call: (
+    args: TArgs,
+    opts?: { proposalKey?: string },
+  ) => Promise<APIResponseWithData<OpApprovalCallData<TOutput>>>,
+  args: TArgs,
+  opts: {
+    present: (preview: ProposalPreview) => boolean | Promise<boolean>;
+  },
+): Promise<APIResponseWithData<OpApprovalFlowData<TOutput>>> {
+  const proposed = await call(args);
+  if (!proposed.success) {
+    return proposed;
+  }
+  if (proposed.data.status !== "pending") {
+    // The op did not enter the approval flow: either the kernel committed it
+    // directly (it is no longer approval-gated — a stale-bundle deploy skew)
+    // or it returned a final result. There is no preview to present; hand the
+    // payload back as final rather than driving a confirm over a missing
+    // preview.
+    return { success: true, data: proposed.data };
+  }
+  const accepted = await opts.present(proposed.data.preview);
+  if (!accepted) {
+    return { success: true, data: { status: "declined" } };
+  }
+  const committed = await call(args, {
+    proposalKey: proposed.data.proposalKey,
+  });
+  if (!committed.success) {
+    return committed;
+  }
+  if (committed.data.status !== "committed") {
+    return { success: false, err: "Unexpected confirm response" };
+  }
+  return { success: true, data: committed.data };
 }
 
 ////////////////////////////////////////////////////////////////////////////////

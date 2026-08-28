@@ -97,8 +97,13 @@ export function buildTransitionFrame(
       edges,
       lanes: to.lanes,
       groups: to.groups,
-      hitAreas: [],
+      // The settled target's hit areas and order record: mid-tween positions
+      // never matched either geometry, so the target is the only coherent
+      // answer — and carrying `to.order` keeps a mid-tween relayout's prior
+      // adoptable (relayout idempotence).
+      hitAreas: to.hitAreas,
       warnings: to.warnings,
+      order: to.order,
     },
     opacities,
   };

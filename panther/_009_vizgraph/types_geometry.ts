@@ -15,7 +15,16 @@ export type Geometry = {
   groups: Record<string, GroupGeom>;
   hitAreas: HitArea[];
   warnings: LayoutWarning[];
+  // The stability record: the full stage-3 ordering, one sequence per layer —
+  // real nodes by id, long-edge dummies as { edge } tokens. Consumed by
+  // options.prior (when it exactly covers the model, the ordering is adopted
+  // verbatim — relayout idempotence); never needed for rendering. NodeGeom.seq
+  // alone under-determines the ordering (dummy positions are load-bearing for
+  // placement and routing), which is why this exists.
+  order: OrderEntry[][];
 };
+
+export type OrderEntry = string | { edge: string };
 
 export type NodeGeom = Rect & {
   layer: number;

@@ -346,24 +346,20 @@ type SortIconProps<T> = {
   sortConfig: () => SortConfig | null;
 };
 
-const SortIcon = <T,>(p: SortIconProps<T>) => {
+function SortIcon<T>(p: SortIconProps<T>) {
+  const isActive = () => p.sortConfig()?.key === p.column.key;
+  const isAsc = () => p.sortConfig()?.direction === "asc";
+
   return (
     <Show when={p.column.sortable}>
       <span class="text-base-content ml-1 inline-block">
-        {(() => {
-          const config = p.sortConfig();
-          const isActive = config?.key === p.column.key;
-          const isAsc = config?.direction === "asc";
-
-          if (isActive) {
-            return isAsc ? "↑" : "↓";
-          }
-          return <span class="opacity-40">↕</span>;
-        })()}
+        <span classList={{ "opacity-40": !isActive() }}>
+          {isActive() ? (isAsc() ? "↑" : "↓") : "↕"}
+        </span>
       </span>
     </Show>
   );
-};
+}
 
 type TableRowProps<T, K extends keyof T = keyof T> = {
   item: T;
@@ -376,9 +372,9 @@ type TableRowProps<T, K extends keyof T = keyof T> = {
   padding: { px: string; py: string };
 };
 
-const TableRow = <T extends AnyRow, K extends keyof T = keyof T>(
+function TableRow<T extends AnyRow, K extends keyof T = keyof T>(
   p: TableRowProps<T, K>,
-) => {
+) {
   const key = () => p.item[p.keyField];
 
   const rowClasses = () => {
@@ -439,7 +435,7 @@ const TableRow = <T extends AnyRow, K extends keyof T = keyof T>(
       </For>
     </tr>
   );
-};
+}
 
 type GroupedRowsProps<T, K extends keyof T = keyof T> = {
   processedData: ProcessedData<T>;
@@ -452,12 +448,12 @@ type GroupedRowsProps<T, K extends keyof T = keyof T> = {
   padding: { px: string; py: string };
 };
 
-const GroupedRows = <
+function GroupedRows<
   T extends AnyRow,
   K extends keyof T = keyof T,
 >(
   p: GroupedRowsProps<T, K>,
-) => {
+) {
   return (
     <Show when={p.processedData.isGrouped}>
       <For each={p.processedData.groups}>
@@ -490,4 +486,4 @@ const GroupedRows = <
       </For>
     </Show>
   );
-};
+}

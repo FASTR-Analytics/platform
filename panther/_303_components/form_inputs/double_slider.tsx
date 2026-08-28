@@ -20,7 +20,7 @@ type DoubleSliderProps = {
 };
 
 export function DoubleSlider(p: DoubleSliderProps) {
-  const minDiff = p.minDifference ?? 0;
+  const minDiff = () => p.minDifference ?? 0;
 
   // Calculate the fill bar position and width
   const fillStyle = createMemo(() => {
@@ -39,14 +39,14 @@ export function DoubleSlider(p: DoubleSliderProps) {
 
   function handleLowChange(newValue: number) {
     // Ensure low value doesn't exceed (max - minDifference)
-    const maxAllowedLow = p.max - minDiff;
+    const maxAllowedLow = p.max - minDiff();
     const constrainedValue = Math.min(newValue, maxAllowedLow);
 
     batch(() => {
       p.onChangeLow(constrainedValue);
       // Push high value up if needed to maintain minimum difference
-      if (constrainedValue + minDiff > p.valueHigh) {
-        p.onChangeHigh(constrainedValue + minDiff);
+      if (constrainedValue + minDiff() > p.valueHigh) {
+        p.onChangeHigh(constrainedValue + minDiff());
       }
     });
 
@@ -55,14 +55,14 @@ export function DoubleSlider(p: DoubleSliderProps) {
 
   function handleHighChange(newValue: number) {
     // Ensure high value doesn't go below (min + minDifference)
-    const minAllowedHigh = p.min + minDiff;
+    const minAllowedHigh = p.min + minDiff();
     const constrainedValue = Math.max(newValue, minAllowedHigh);
 
     batch(() => {
       p.onChangeHigh(constrainedValue);
       // Push low value down if needed to maintain minimum difference
-      if (constrainedValue - minDiff < p.valueLow) {
-        p.onChangeLow(constrainedValue - minDiff);
+      if (constrainedValue - minDiff() < p.valueLow) {
+        p.onChangeLow(constrainedValue - minDiff());
       }
     });
 

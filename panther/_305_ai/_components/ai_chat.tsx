@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  batch,
   type Component,
   createSignal,
   type JSX,
@@ -67,8 +68,10 @@ export function AIChat(p: Props) {
   const [inputValue, setInputValue] = createSignal("");
 
   const handleStop = () => {
-    clearQueue();
-    stopGeneration();
+    batch(() => {
+      clearQueue();
+      stopGeneration();
+    });
   };
 
   let scrollContainer: HTMLDivElement | undefined;
@@ -105,8 +108,10 @@ export function AIChat(p: Props) {
     const hasUnresolvedTools = lastMessageHasUnresolvedToolUse(msgs);
 
     if (isLoading() || isProcessingTools() || hasUnresolvedTools) {
-      enqueueMessage(message);
-      if (isProcessingTools()) clearInProgressItems();
+      batch(() => {
+        enqueueMessage(message);
+        if (isProcessingTools()) clearInProgressItems();
+      });
     } else {
       sendMessage(message);
     }

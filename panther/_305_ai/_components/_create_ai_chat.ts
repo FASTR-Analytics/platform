@@ -3,7 +3,13 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { createContext, createEffect, createMemo, useContext } from "solid-js";
+import {
+  batch,
+  createContext,
+  createEffect,
+  createMemo,
+  useContext,
+} from "solid-js";
 import { Anthropic } from "../deps.ts";
 import type {
   AnthropicModelConfig,
@@ -591,10 +597,12 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
           if (text.trim()) displayMessages.push(userMsg);
         }
 
-        setTMessages([...tMessages(), ...built]);
-        for (const msg of displayMessages) {
-          processMessageForDisplayTo(ts, msg);
-        }
+        batch(() => {
+          setTMessages([...tMessages(), ...built]);
+          for (const msg of displayMessages) {
+            processMessageForDisplayTo(ts, msg);
+          }
+        });
 
         // Update title from first message
         if (isFirstMessage && texts[0]?.trim() && conversationsContext) {
@@ -605,9 +613,11 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
         }
       }
 
-      ts.isLoading[1](true);
-      ts.isStreaming[1](true);
-      setTCurrentStreamingText(undefined);
+      batch(() => {
+        ts.isLoading[1](true);
+        ts.isStreaming[1](true);
+        setTCurrentStreamingText(undefined);
+      });
 
       await streamWithToolLoop(turn, tMessages());
       if (turn.abort.signal.aborted) {
@@ -628,18 +638,20 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
         }
       } else {
         const errorDetails = err instanceof Error ? err.message : String(err);
-        ts.error[1](errorDetails);
-        ts.isStreaming[1](false);
-        setTCurrentStreamingText(undefined);
-        ts.serverToolLabel[1](undefined);
-        addDisplayItemsTo(ts, [
-          {
-            type: "tool_error",
-            toolName: "system",
-            errorMessage: getUserFacingErrorMessage(err),
-            errorDetails,
-          },
-        ]);
+        batch(() => {
+          ts.error[1](errorDetails);
+          ts.isStreaming[1](false);
+          setTCurrentStreamingText(undefined);
+          ts.serverToolLabel[1](undefined);
+          addDisplayItemsTo(ts, [
+            {
+              type: "tool_error",
+              toolName: "system",
+              errorMessage: getUserFacingErrorMessage(err),
+              errorDetails,
+            },
+          ]);
+        });
       }
     } finally {
       if (turn.abort.signal.aborted) {
@@ -664,11 +676,13 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
         restoreInteractions();
       }
       turn.activeStream = null;
-      ts.isLoading[1](false);
-      ts.isStreaming[1](false);
-      setTCurrentStreamingText(undefined);
-      ts.serverToolLabel[1](undefined);
-      ts.isProcessingTools[1](false);
+      batch(() => {
+        ts.isLoading[1](false);
+        ts.isStreaming[1](false);
+        setTCurrentStreamingText(undefined);
+        ts.serverToolLabel[1](undefined);
+        ts.isProcessingTools[1](false);
+      });
 
       // Save conversation state after turn completes — the finally-only
       // save is load-bearing for the no-dangling-tool_use invariant (never
@@ -1211,10 +1225,12 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
 
     // Subscribe to text events
     stream.on("text", (text) => {
-      // Clear server tool label when text starts streaming
-      ts.serverToolLabel[1](undefined);
-      const prev = ts.currentStreamingText[0]();
-      ts.currentStreamingText[1]((prev ?? "") + text);
+      batch(() => {
+        // Clear server tool label when text starts streaming
+        ts.serverToolLabel[1](undefined);
+        const prev = ts.currentStreamingText[0]();
+        ts.currentStreamingText[1]((prev ?? "") + text);
+      });
     });
 
     // Subscribe to stream events to detect server tool usage and text block boundaries
@@ -1242,8 +1258,10 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
 
     // Update usage
     if (finalMessage.usage) {
-      ts.usage[1](finalMessage.usage);
-      ts.usageHistory[1]([...ts.usageHistory[0](), finalMessage.usage]);
+      batch(() => {
+        ts.usage[1](finalMessage.usage);
+        ts.usageHistory[1]([...ts.usageHistory[0](), finalMessage.usage]);
+      });
     }
 
     // Carry the latest container id forward — a continuation response may
@@ -1257,14 +1275,16 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     };
 
     const updatedMessages = [...currentMessages, assistantMsg];
-    ts.messages[1](updatedMessages);
-    turn.modelAssistantAppended = true;
-    processMessageForDisplayTo(ts, assistantMsg);
+    batch(() => {
+      ts.messages[1](updatedMessages);
+      turn.modelAssistantAppended = true;
+      processMessageForDisplayTo(ts, assistantMsg);
 
-    // Clear streaming state immediately after message is processed
-    ts.isStreaming[1](false);
-    ts.currentStreamingText[1](undefined);
-    ts.serverToolLabel[1](undefined);
+      // Clear streaming state immediately after message is processed
+      ts.isStreaming[1](false);
+      ts.currentStreamingText[1](undefined);
+      ts.serverToolLabel[1](undefined);
+    });
 
     // Stop-reason → next-action mapping is pure logic in turn_logic.ts.
     const continuation = classifyTurnContinuation(
@@ -1283,20 +1303,22 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
         finalMessage.content as ContentBlock[],
         `Tool execution stopped: ${continuation.message}`,
       );
-      if (cancelled.length > 0) {
-        ts.messages[1]([
-          ...updatedMessages,
-          { role: "user", content: cancelled },
+      batch(() => {
+        if (cancelled.length > 0) {
+          ts.messages[1]([
+            ...updatedMessages,
+            { role: "user", content: cancelled },
+          ]);
+        }
+        addDisplayItemsTo(ts, [
+          {
+            type: "system_notice",
+            noticeType: continuation.noticeType,
+            message: continuation.message,
+            details: continuation.details,
+          },
         ]);
-      }
-      addDisplayItemsTo(ts, [
-        {
-          type: "system_notice",
-          noticeType: continuation.noticeType,
-          message: continuation.message,
-          details: continuation.details,
-        },
-      ]);
+      });
       return;
     }
 
@@ -1304,8 +1326,10 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     // iteration limit is reached — re-send with the assistant turn appended
     // to resume where it left off.
     if (continuation.kind === "resume-pause-turn") {
-      ts.isStreaming[1](true);
-      ts.currentStreamingText[1](undefined);
+      batch(() => {
+        ts.isStreaming[1](true);
+        ts.currentStreamingText[1](undefined);
+      });
       await streamWithToolLoop(turn, updatedMessages, depth + 1);
       return;
     }
@@ -1317,28 +1341,30 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       const trimmed = trimDanglingServerToolUse(
         finalMessage.content as ContentBlock[],
       );
-      if (trimmed.length < (finalMessage.content as ContentBlock[]).length) {
-        // The API rejects an assistant message with empty content — if every
-        // block was a dangling server_tool_use, persist a placeholder text
-        // instead (same pattern as the abort "[Stopped]" message).
-        ts.messages[1]([
-          ...currentMessages,
+      batch(() => {
+        if (trimmed.length < (finalMessage.content as ContentBlock[]).length) {
+          // The API rejects an assistant message with empty content — if every
+          // block was a dangling server_tool_use, persist a placeholder text
+          // instead (same pattern as the abort "[Stopped]" message).
+          ts.messages[1]([
+            ...currentMessages,
+            {
+              role: "assistant",
+              content: trimmed.length > 0
+                ? trimmed
+                : "[Stopped: too many turn continuations]",
+            },
+          ]);
+        }
+        addDisplayItemsTo(ts, [
           {
-            role: "assistant",
-            content: trimmed.length > 0
-              ? trimmed
-              : "[Stopped: too many turn continuations]",
+            type: "system_notice",
+            noticeType: continuation.noticeType,
+            message: continuation.message,
+            details: continuation.details,
           },
         ]);
-      }
-      addDisplayItemsTo(ts, [
-        {
-          type: "system_notice",
-          noticeType: continuation.noticeType,
-          message: continuation.message,
-          details: continuation.details,
-        },
-      ]);
+      });
       return;
     }
 
@@ -1347,24 +1373,26 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       // stopping — a persisted conversation ending in an assistant turn
       // with unresolved tool_use blocks is rejected by the API on every
       // subsequent send, permanently breaking the conversation.
-      ts.messages[1]([
-        ...updatedMessages,
-        {
-          role: "user",
-          content: buildCancelledToolResults(
-            finalMessage.content as ContentBlock[],
-            "Tool execution stopped: too many tool calls in one turn",
-          ),
-        },
-      ]);
-      addDisplayItemsTo(ts, [
-        {
-          type: "system_notice",
-          noticeType: continuation.noticeType,
-          message: continuation.message,
-          details: continuation.details,
-        },
-      ]);
+      batch(() => {
+        ts.messages[1]([
+          ...updatedMessages,
+          {
+            role: "user",
+            content: buildCancelledToolResults(
+              finalMessage.content as ContentBlock[],
+              "Tool execution stopped: too many tool calls in one turn",
+            ),
+          },
+        ]);
+        addDisplayItemsTo(ts, [
+          {
+            type: "system_notice",
+            noticeType: continuation.noticeType,
+            message: continuation.message,
+            details: continuation.details,
+          },
+        ]);
+      });
       return;
     }
 
@@ -1588,14 +1616,16 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       const queueEntries = ts.queuedMessages[0]();
       const queuedTexts = queueEntries.map((q) => q.text);
       if (queueEntries.length > 0) {
-        ts.queuedMessages[1]([]);
-        turn.resolveOnFinish.push(...queueEntries.map((q) => q.resolve));
-        addDisplayItemsTo(
-          ts,
-          queuedTexts
-            .filter((text) => text.trim())
-            .map((text) => ({ type: "user_text", text: text.trim() })),
-        );
+        batch(() => {
+          ts.queuedMessages[1]([]);
+          turn.resolveOnFinish.push(...queueEntries.map((q) => q.resolve));
+          addDisplayItemsTo(
+            ts,
+            queuedTexts
+              .filter((text) => text.trim())
+              .map((text) => ({ type: "user_text", text: text.trim() })),
+          );
+        });
       }
 
       const toolResultMsg = buildToolResultUserMessage(allResults, queuedTexts);
@@ -1606,8 +1636,10 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
       if (turn.abort.signal.aborted) return;
 
       // Continue streaming with tool results (recursive call)
-      ts.isStreaming[1](true);
-      ts.currentStreamingText[1](undefined);
+      batch(() => {
+        ts.isStreaming[1](true);
+        ts.currentStreamingText[1](undefined);
+      });
       await streamWithToolLoop(turn, messagesWithToolResults, depth + 1);
     }
   }

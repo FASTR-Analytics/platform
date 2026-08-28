@@ -1494,7 +1494,7 @@
     fill: none;
   }
   .ui-vizgraph-node {
-    @apply absolute;
+    @apply block h-full w-full;
   }
   .ui-vizgraph-node-selected {
     outline: 2px solid var(--color-primary);

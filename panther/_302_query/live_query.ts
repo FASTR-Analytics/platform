@@ -7,6 +7,7 @@ import { type Accessor, createSignal, onCleanup } from "solid-js";
 import {
   type APIResponseWithData,
   getQueryStateFromApiResponse,
+  isDeepEqual,
   type QueryState,
 } from "./deps.ts";
 
@@ -33,7 +34,9 @@ export type LiveQuery<T> = {
  * disconnected AND the initial fetch-vs-subscribe race, so there is no
  * missed-change window. Loading state appears on the first fetch only;
  * afterwards stale data stays visible until fresh data lands
- * (stale-while-revalidate).
+ * (stale-while-revalidate). A refetch that returns structurally identical
+ * data notifies no subscriber: content-identical results keep the previous
+ * state object (isDeepEqual), so the signal never fires.
  *
  * Refetches are serialized: a poke landing mid-fetch queues exactly one
  * follow-up run, so out-of-order completion is structurally impossible
@@ -62,6 +65,17 @@ export function createLiveQuery<T>(
 ): LiveQuery<T> {
   const [state, setState] = createSignal<QueryState<T>>(loadingState());
 
+  // Structural suppression: a refetch that returns content-identical data
+  // (the reconnect refetch, a poke that changed nothing this query reads)
+  // keeps the PREVIOUS state object, so the signal never fires and no
+  // downstream memo or effect re-runs (e.g. a full canvas relayout) for no
+  // change. Done here rather than via the signal's `equals` option because
+  // solid's server build ignores `equals` — this way the reference-stability
+  // contract holds in every build.
+  function commit(next: QueryState<T>): void {
+    setState((prev) => isDeepEqual(prev, next) ? prev : next);
+  }
+
   let requestId = 0;
   let inFlight: Promise<void> | undefined;
   let queued: Promise<void> | undefined;
@@ -75,16 +89,16 @@ export function createLiveQuery<T>(
   async function execute(silent: boolean): Promise<void> {
     const thisRequestId = ++requestId;
     if (!silent) {
-      setState(loadingState());
+      commit(loadingState());
     }
     try {
       const res = await queryFunc();
       if (thisRequestId === requestId) {
-        setState(getQueryStateFromApiResponse(res));
+        commit(getQueryStateFromApiResponse(res));
       }
     } catch (err) {
       if (thisRequestId === requestId) {
-        setState({
+        commit({
           status: "error",
           err: err instanceof Error ? err.message : String(err),
         });

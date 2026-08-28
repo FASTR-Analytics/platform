@@ -100,7 +100,10 @@ const DEFAULT_DRAG_STYLE: EditableHoverStyle = {
 };
 
 export function PageHolder(p: Props) {
-  // Auto-detect interactive mode from callbacks
+  // Auto-detect interactive mode from callbacks. Mount-time contract:
+  // interactive mode is fixed at mount (it decides the overlay canvas,
+  // listeners, and cleanup). Supply handlers unconditionally; remount
+  // (keyed <Show>) to switch modes.
   const needsInteractive = !!(
     p.onClick ||
     p.onContextMenu ||
@@ -225,6 +228,15 @@ export function PageHolder(p: Props) {
       (rect.height * p.pageWidthDu) / p.pageHeightDu,
     );
   }
+
+  // Aspect/fit props feed the letterbox math; recompute dw when they change,
+  // not just on container resizes.
+  createEffect(() => {
+    const _fw = p.fitWithin;
+    const _w = p.pageWidthDu;
+    const _h = p.pageHeightDu;
+    setDisplayedW(readDisplayedW());
+  });
 
   onMount(() => {
     mainCanvasTrackingId = trackCanvas(mainCanvas, "PageHolder-main");
@@ -558,10 +570,12 @@ export function PageHolder(p: Props) {
   }
 
   function handlePointerLeave() {
-    setIsCanvasHovered(false);
-    if (!dragState()) {
-      setCurrentHit(undefined);
-    }
+    batch(() => {
+      setIsCanvasHovered(false);
+      if (!dragState()) {
+        setCurrentHit(undefined);
+      }
+    });
   }
 
   let justFinishedDrag = false;
@@ -612,20 +626,24 @@ export function PageHolder(p: Props) {
           <Match when={p.simpleError}>
             <div class="absolute inset-0 flex items-center justify-center">
               <div class="bg-danger text-base-100 pointer-events-none p-1 text-xs">
-                <Show when={err()}>Config error</Show>
-                <Show when={!err()}>Layout overflow</Show>
+                <Switch>
+                  <Match when={err()}>Config error</Match>
+                  <Match when={!err()}>Layout overflow</Match>
+                </Switch>
               </div>
             </div>
           </Match>
-          <Match when>
+          <Match when={!p.simpleError}>
             <div class="ui-pad absolute left-0 top-0">
               <div class="ui-pad ui-spy-sm bg-danger text-base-100 pointer-events-none text-xs">
-                <Show when={err()}>
-                  <div class="">{err()}</div>
-                </Show>
-                <Show when={!err()}>
-                  <div class="">Content exceeds available space</div>
-                </Show>
+                <Switch>
+                  <Match when={err()}>
+                    <div class="">{err()}</div>
+                  </Match>
+                  <Match when={!err()}>
+                    <div class="">Content exceeds available space</div>
+                  </Match>
+                </Switch>
               </div>
             </div>
           </Match>

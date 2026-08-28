@@ -5,17 +5,17 @@
 
 import type { PNode, ProperGraph } from "../_internal/pipeline_types.ts";
 import type { ResolvedSpacing } from "../types_options.ts";
-import type { PriorIndex } from "../stability.ts";
 
 // The placement-pass architecture (DOC_VIZGRAPH_PLACEMENT.md): a pass is ONE
 // quality strategy. It may adjust PNode.y ONLY — never order, layer, or
 // size — and must preserve in-layer order, required separation, and
-// determinism. Schedules (PlacementPlan) are data, resolved by the stage-4
-// runner; the loose-vs-compact taste dial is pass parameters, never
-// separate code paths.
+// determinism. Passes never see options.prior — placement is a pure
+// function of ordering + sizes (stickiness is stage-3's; stability.ts).
+// Schedules (PlacementPlan) are data, resolved by the stage-4 runner; the
+// loose-vs-compact taste dial is pass parameters, never separate code
+// paths.
 export type PassContext = {
   spacing: ResolvedSpacing;
-  prior: PriorIndex | undefined;
 };
 
 export type PlacementPass = {

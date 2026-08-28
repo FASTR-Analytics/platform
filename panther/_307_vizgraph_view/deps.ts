@@ -13,16 +13,17 @@ export type {
   NodeGeom,
   PathSpec,
 } from "../_009_vizgraph/mod.ts";
+export { FIT_PADDING_PX, PanZoomSvg } from "../_302_panzoom/mod.ts";
+export type { PanZoomApi } from "../_302_panzoom/mod.ts";
 export {
-  batch,
   createEffect,
   createMemo,
+  createSelector,
   createSignal,
-  createUniqueId,
   For,
-  on,
   onCleanup,
   onMount,
+  Show,
   untrack,
 } from "solid-js";
 export type { JSX } from "solid-js";

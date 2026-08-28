@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { createMemo, For, Show } from "solid-js";
+import { createMemo, For, Match, Show, Switch } from "solid-js";
 import {
   createArray,
   type Csv,
@@ -97,19 +97,19 @@ export function TableFromCsv(p: Props) {
           </For>
         </tbody>
       </table>
-      <Show
-        when={p.knownTotalCount > 100}
-        fallback={
+      <Switch>
+        <Match when={p.knownTotalCount > 100}>
+          <div class="ui-text-small sticky left-0 px-3 py-2 text-left font-mono">
+            ...and {toNum0(p.knownTotalCount - 100)} more rows.{" "}
+            {toNum0(p.knownTotalCount)} rows in total.
+          </div>
+        </Match>
+        <Match when={p.knownTotalCount <= 100}>
           <div class="ui-text-small sticky left-0 px-3 py-2 text-left font-mono">
             {toNum0(p.knownTotalCount)} rows
           </div>
-        }
-      >
-        <div class="ui-text-small sticky left-0 px-3 py-2 text-left font-mono">
-          ...and {toNum0(p.knownTotalCount - 100)} more rows.{" "}
-          {toNum0(p.knownTotalCount)} rows in total.
-        </div>
-      </Show>
+        </Match>
+      </Switch>
     </div>
   );
 }

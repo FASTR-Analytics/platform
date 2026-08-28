@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export { Coordinates, RectCoordsDims } from "../_001_geometry/mod.ts";
+export type { Pt } from "../_001_geometry/mod.ts";
 export { Z_INDEX } from "../_001_render_system/mod.ts";
 export type {
   Arrowhead,
@@ -51,6 +52,5 @@ export type {
   NodeMeasurer,
   PathCommand,
   PathSpec,
-  Pt,
   Spacing,
 } from "../_009_vizgraph/mod.ts";

@@ -3,6 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+export { isDeepEqual } from "../_000_utils/mod.ts";
 export { getQueryStateFromApiResponse } from "../_111_api_contract/mod.ts";
 export type {
   APIResponseNoData,

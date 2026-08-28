@@ -11,7 +11,6 @@ import type {
   NodeMeasurer,
   ResolvedSpacing,
 } from "../types_options.ts";
-import type { PriorIndex } from "../stability.ts";
 import type { PlacementPlan } from "../placement/types.ts";
 import { coordsStage } from "./_4_coords.ts";
 import { applyPortGapFloor, computeGutterTotal } from "./_5_route.ts";
@@ -37,7 +36,6 @@ export function sizeStage(
   index: GraphIndex,
   options: LayoutOptions | undefined,
   spacing: ResolvedSpacing,
-  prior: PriorIndex | undefined,
   warnings: LayoutWarning[],
   plan?: PlacementPlan,
 ): void {
@@ -87,7 +85,6 @@ export function sizeStage(
       measure,
       options,
       spacing,
-      prior,
       plan,
     );
 
@@ -96,7 +93,7 @@ export function sizeStage(
     // thrown, and the caller's min-width probe sees the same floor. The
     // floor is computed at COMPACT gaps (layerGapRange.min) — the true
     // minimum, matching what pressure can actually reach.
-    coordsStage(proper, spacing, prior, plan);
+    coordsStage(proper, spacing, plan);
     const gutterAtMin = computeGutterTotal(proper, options, {
       ...spacing,
       layerGap: spacing.layerGapRange.min,
@@ -138,7 +135,6 @@ function allocateWidths(
   measure: NodeMeasurer | undefined,
   options: LayoutOptions | undefined,
   spacing: ResolvedSpacing,
-  prior: PriorIndex | undefined,
   plan: PlacementPlan | undefined,
 ): void {
   const layerCount = proper.layers.length;
@@ -169,7 +165,7 @@ function allocateWidths(
 
   let prevGutterAtIdeal = -1;
   for (let round = 0; round < MAX_FIT_ROUNDS; round++) {
-    coordsStage(proper, spacing, prior, plan);
+    coordsStage(proper, spacing, plan);
     // gutterTotal is linear in layerGap (each interior gutter carries it as
     // base pad), so measure once at ideal and derive the compressed values
     // arithmetically. Track bundles depend on y only — gap-independent.

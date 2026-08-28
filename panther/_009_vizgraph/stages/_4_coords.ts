@@ -4,7 +4,6 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type { ProperGraph } from "../_internal/pipeline_types.ts";
-import type { PriorIndex } from "../stability.ts";
 import type { GraphModel } from "../types_model.ts";
 import type { LayoutOptions, ResolvedSpacing } from "../types_options.ts";
 import type { PassContext, PlacementPlan } from "../placement/types.ts";
@@ -53,10 +52,9 @@ export function resolvePlan(
 export function coordsStage(
   proper: ProperGraph,
   spacing: ResolvedSpacing,
-  prior: PriorIndex | undefined,
   plan: PlacementPlan = BUDGE_PLAN,
 ): void {
-  const ctx: PassContext = { spacing, prior };
+  const ctx: PassContext = { spacing };
   for (const pass of plan) {
     pass.run(proper, ctx);
   }

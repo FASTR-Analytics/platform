@@ -30,9 +30,9 @@ export function TabsNavigation<T extends string = string, M = never>(
   p: TabsNavigationProps<T, M>,
 ) {
   const [dataAttrs] = splitDataAttrs(p);
-  const isVertical = p.vertical === true;
-  const isCollapsed = () => p.collapsed === true && isVertical;
-  const isCollapsible = p.collapsible === true && isVertical;
+  const isVertical = () => p.vertical === true;
+  const isCollapsed = () => p.collapsed === true && isVertical();
+  const isCollapsible = () => p.collapsible === true && isVertical();
 
   const isActive = (id: T) => id === p.value;
 
@@ -41,7 +41,7 @@ export function TabsNavigation<T extends string = string, M = never>(
   };
 
   const getTabClasses = (id: T) => {
-    if (!isVertical) {
+    if (!isVertical()) {
       // Horizontal tabs render their own bottom border, which overlaps the
       // container's continuous underline (see containerClasses + rowClasses
       // below for the -mb-px trick). Active tab covers with primary; inactive
@@ -76,16 +76,19 @@ export function TabsNavigation<T extends string = string, M = never>(
     item.labelText ??
       (typeof item.label === "string" ? item.label : String(item.id));
 
-  const formatter = p.tabLabelFormatter ?? labelString;
+  const formatter = (item: ListItem<T, M>) =>
+    (p.tabLabelFormatter ?? labelString)(item);
 
-  const containerClasses = !isVertical
-    ? "bg-base-100 w-full border-b"
-    : "bg-base-100 flex w-full flex-col h-full";
+  const containerClasses = () =>
+    !isVertical()
+      ? "bg-base-100 w-full border-b"
+      : "bg-base-100 flex w-full flex-col h-full";
 
   // Horizontal: -mb-px pulls the tab row up 1px so each tab's border-b-2
   // sits on top of the container's border-b — continuous underline with
   // the active tab's primary border overlaying it.
-  const rowClasses = !isVertical ? "-mb-px flex" : "flex-1 overflow-y-auto";
+  const rowClasses = () =>
+    !isVertical() ? "-mb-px flex" : "flex-1 overflow-y-auto";
 
   const getDotClasses = (intent: Intent) => {
     const base = "h-2 w-2 rounded-full flex-none";
@@ -139,7 +142,7 @@ export function TabsNavigation<T extends string = string, M = never>(
           </span>
         </div>
         <Show when={badge !== undefined}>
-          <span classList={{ "flex-none": isVertical }}>
+          <span classList={{ "flex-none": isVertical() }}>
             <Badge intent="base-300">{badge}</Badge>
           </span>
         </Show>
@@ -151,8 +154,8 @@ export function TabsNavigation<T extends string = string, M = never>(
   };
 
   return (
-    <div {...dataAttrs} class={containerClasses}>
-      <div class={rowClasses}>
+    <div {...dataAttrs} class={containerClasses()}>
+      <div class={rowClasses()}>
         <For each={p.items}>
           {(item) => {
             return (
@@ -188,7 +191,7 @@ export function TabsNavigation<T extends string = string, M = never>(
       </div>
 
       {/* Collapse toggle button - styled as icon button with outline */}
-      <Show when={isCollapsible}>
+      <Show when={isCollapsible()}>
         <div
           class="flex items-center py-4"
           classList={{

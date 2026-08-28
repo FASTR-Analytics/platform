@@ -123,13 +123,7 @@ export function CollapsibleSection(p: CollapsibleSectionProps) {
         </Show>
         <Show when={!local.hideChevron} keyed>
           <div class="h-[1.25em] w-[1.25em]">
-            <Show
-              when={isOpen()}
-              fallback={<Icon iconName="chevronRight" />}
-              keyed
-            >
-              <Icon iconName="chevronDown" />
-            </Show>
+            <Icon iconName={isOpen() ? "chevronDown" : "chevronRight"} />
           </div>
         </Show>
       </div>

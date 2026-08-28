@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  batch,
   createSignal,
   For,
   type JSX,
@@ -139,16 +140,20 @@ export function showMenuAtPoint(
 }
 
 export function hideMenu(): void {
-  subMenuPopoverRef?.hidePopover();
-  setSubMenuState(undefined);
-  popoverRef?.hidePopover();
-  setMenuState(undefined);
+  batch(() => {
+    subMenuPopoverRef?.hidePopover();
+    setSubMenuState(undefined);
+    popoverRef?.hidePopover();
+    setMenuState(undefined);
+  });
 }
 
 // For testing
 export function _resetMenuState(): void {
-  setMenuState(undefined);
-  setSubMenuState(undefined);
+  batch(() => {
+    setMenuState(undefined);
+    setSubMenuState(undefined);
+  });
 }
 
 // =============================================================================
