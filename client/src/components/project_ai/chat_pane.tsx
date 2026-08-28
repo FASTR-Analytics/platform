@@ -147,9 +147,17 @@ type ConsolidatedChatPaneProps = {
 };
 
 export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
-  const { updateConfig, getConfig, conversationId, isLoading, sendMessage } =
-    createAIChat();
+  const {
+    updateConfig,
+    getConfig,
+    conversationId,
+    isLoading,
+    sendMessage,
+    messages,
+  } = createAIChat();
   const conversations = useConversations();
+
+  p.aiDocs.bind(conversationId, messages);
 
   let scrollToBottom: ((force?: boolean) => void) | null = null;
 
@@ -448,8 +456,9 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
       </div>
 
       <AIDocumentList
-        documents={p.aiDocs.documents()}
-        onRemove={p.aiDocs.removeDocument}
+        sent={p.aiDocs.sentDocs()}
+        pending={p.aiDocs.pending()}
+        onRemovePending={p.aiDocs.removePendingAttachment}
       />
 
       <div class="flex-1 overflow-hidden">
