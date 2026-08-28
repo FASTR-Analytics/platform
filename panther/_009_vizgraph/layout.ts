@@ -29,7 +29,7 @@ import {
 } from "./transform/derive.ts";
 import { rankStage } from "./stages/_1_rank.ts";
 import { properizeStage } from "./stages/_2_properize.ts";
-import { orderStage } from "./stages/_3_order.ts";
+import { finishOrdering, orderStage } from "./stages/_3_order.ts";
 import { sizeStage } from "./stages/_3_5_size.ts";
 import { coordsStage, resolvePlan } from "./stages/_4_coords.ts";
 import {
@@ -82,6 +82,7 @@ export function layout(model: GraphModel, options?: LayoutOptions): Geometry {
     orderStage(proper);
   }
   enforceGroupContiguity(proper, groupIndex);
+  finishOrdering(proper, groupIndex, warnings);
   assignGroupPads(proper, groupIndex, spacing);
   // The port-gap floor grows fixed-size nodes here, before any stage reads
   // heights; stage [3½] re-applies it after every re-measure (measured

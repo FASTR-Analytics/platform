@@ -65,11 +65,15 @@ export function buildGroupIndex(model: GraphModel): GroupIndex {
 
 // Stage-3 companion — the group-contiguity re-sort policy
 // (DOC_VIZGRAPH_ORDERING.md): re-sort each layer so group members are
-// CONTIGUOUS, hierarchically — compare two nodes by the barycenter (mean
-// current order) of their containing unit at each nesting depth, outermost
-// first; nodes and dummies outside a group are their own unit. Runs once
-// after the crossing sweeps: groups may cost crossings, contiguity wins
-// (decorative-groups contract).
+// CONTIGUOUS, hierarchically — compare two REAL nodes by the barycenter
+// (mean current order) of their containing unit at each nesting depth,
+// outermost first; ungrouped real nodes are their own unit. Dummies are
+// TRANSPARENT: never members, never expelled — each keeps its sweep-chosen
+// slot by re-anchoring to the real node that precedes it (dummies above the
+// first real node stay at the layer head), so pass-through edges thread
+// group spans instead of detouring around whole columns. Runs once after
+// the crossing sweeps: groups may cost crossings among real nodes,
+// contiguity wins (decorative-groups contract).
 export function enforceGroupContiguity(
   proper: ProperGraph,
   groupIndex: GroupIndex,
@@ -81,13 +85,15 @@ export function enforceGroupContiguity(
     if (layer.length < 2) {
       continue;
     }
-    // Outermost-first group path per pnode; [] for dummies and ungrouped.
+    const reals = layer.filter((pnode) => !pnode.isDummy);
+    if (reals.length < 2) {
+      continue;
+    }
+    // Outermost-first group path per real node; [] for ungrouped.
     const paths = new Map<PNode, string[]>();
     let hasGrouped = false;
-    for (const pnode of layer) {
-      const chain = pnode.isDummy
-        ? undefined
-        : groupIndex.chainByNodeId.get(pnode.id);
+    for (const pnode of reals) {
+      const chain = groupIndex.chainByNodeId.get(pnode.id);
       const path = chain === undefined ? [] : [...chain].reverse();
       if (path.length > 0) {
         hasGrouped = true;
@@ -97,8 +103,23 @@ export function enforceGroupContiguity(
     if (!hasGrouped) {
       continue;
     }
-    const bary = new Map<string, { sum: number; count: number }>();
+    // Dummy anchors, recorded before the reals move.
+    const headDummies: PNode[] = [];
+    const trailingDummies = new Map<PNode, PNode[]>();
+    let lastReal: PNode | undefined;
     for (const pnode of layer) {
+      if (!pnode.isDummy) {
+        lastReal = pnode;
+      } else if (lastReal === undefined) {
+        headDummies.push(pnode);
+      } else {
+        const list = trailingDummies.get(lastReal) ?? [];
+        list.push(pnode);
+        trailingDummies.set(lastReal, list);
+      }
+    }
+    const bary = new Map<string, { sum: number; count: number }>();
+    for (const pnode of reals) {
       const path = paths.get(pnode)!;
       for (let depth = 0; depth < path.length; depth++) {
         const key = `${depth}|${path[depth]}`;
@@ -120,7 +141,7 @@ export function enforceGroupContiguity(
       }
       return pnode.order;
     };
-    layer.sort((a, b) => {
+    reals.sort((a, b) => {
       for (let depth = 0;; depth++) {
         const ua = unitId(a, depth);
         const ub = unitId(b, depth);
@@ -133,8 +154,18 @@ export function enforceGroupContiguity(
         return unitBary(a, depth) - unitBary(b, depth) || ua.localeCompare(ub);
       }
     });
-    layer.forEach((pnode, i) => {
-      pnode.order = i;
+    let i = 0;
+    for (const pnode of headDummies) {
+      layer[i++] = pnode;
+    }
+    for (const real of reals) {
+      layer[i++] = real;
+      for (const dummy of trailingDummies.get(real) ?? []) {
+        layer[i++] = dummy;
+      }
+    }
+    layer.forEach((pnode, k) => {
+      pnode.order = k;
     });
   }
 }

@@ -196,6 +196,7 @@ export const DEFAULT_PRICING: ModelPricing = {
 // active models kept out of the UI dropdown and custom model names used
 // with proxy backends (the AnthropicModel union is deliberately open).
 export const RETIRED_MODEL_IDS: string[] = [
+  "claude-opus-4-1-20250805",
   "claude-sonnet-4-20250514",
   "claude-opus-4-20250514",
   "claude-3-7-sonnet-20250219",

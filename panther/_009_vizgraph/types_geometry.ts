@@ -77,7 +77,8 @@ export type LayoutWarningCode =
   | "missing-layer"
   | "missing-measurer"
   | "fit-width-exceeded"
-  | "unsupported-option";
+  | "unsupported-option"
+  | "ordering-finish-cap";
 
 export type LayoutWarning = {
   code: LayoutWarningCode;
