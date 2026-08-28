@@ -1,10 +1,10 @@
-[TBD] [user] [changed] - Attached PDF documents are now tracked per conversation
-[TBD] [user] [changed] - Previously sent documents can no longer be accidentally removed
-[TBD] [user] [fixed] - Document selector opens faster without a loading spinner
-[TBD] [admin] [changed] - AI document attachments are now per-conversation instead of per-project
-[TBD] [admin] [changed] - Previously sent AI documents can no longer be accidentally removed
-[TBD] [admin] [internal] - Removed unused server endpoints for retrieving and deleting AI files
-[TBD] [admin] [internal] - Removed legacy data migration scripts for metrics and module definitions
+[1.68.0] [user] [changed] - Attached PDF documents are now tracked per conversation
+[1.68.0] [user] [changed] - Previously sent documents can no longer be accidentally removed
+[1.68.0] [user] [fixed] - Document selector opens faster without a loading spinner
+[1.68.0] [admin] [changed] - AI document attachments are now per-conversation instead of per-project
+[1.68.0] [admin] [changed] - Previously sent AI documents can no longer be accidentally removed
+[1.68.0] [admin] [internal] - Removed unused server endpoints for retrieving and deleting AI files
+[1.68.0] [admin] [internal] - Removed legacy data migration scripts for metrics and module definitions
 [1.67.7] [user] [added] - New Bayesian disruptions chart mode for supported metrics
 [1.67.7] [user] [added] - Legend showing observed, expected, credible interval, surplus, and deficit
 [1.67.7] [user] [added] - Option to invert red/green colors for surplus/deficit on Bayesian disruptions chart
