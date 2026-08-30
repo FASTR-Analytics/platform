@@ -111,6 +111,19 @@ export function centerY(pnode: PNode): number {
   return pnode.y + pnode.h / 2;
 }
 
+// The one track-x definition: track i in gutter g sits at baseX plus
+// (i + ½) pitches, the pitch widened by the gutter's max thickness. Step 6.6
+// builds paths from it; the stage film draws steps 6.4–6.5 through the SAME
+// function so the strip cannot show tracks the engine wouldn't route.
+export function trackXOf(
+  trackBaseX: number[],
+  gutterThickness: number[],
+  spacing: { trackGap: number },
+): (g: number, i: number) => number {
+  return (g, i) =>
+    trackBaseX[g] + (i + 0.5) * (spacing.trackGap + gutterThickness[g]);
+}
+
 // The y levels an edge passes through: from-port, each dummy, to-port.
 export function edgeLevels(redge: REdge): number[] {
   return [

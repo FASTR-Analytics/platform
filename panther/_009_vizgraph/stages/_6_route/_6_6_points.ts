@@ -13,6 +13,7 @@ import {
   portPoint,
   sideX,
   STRAIGHT_EPS,
+  trackXOf,
 } from "./route_shared.ts";
 
 // Step 6.6 — path construction: every REdge becomes its EdgeGeom (self loop,
@@ -26,9 +27,7 @@ export const pointsStep: PipelineStep = {
     const spacing = state.spacing;
     const options = state.options;
     const cornerRadius = options?.cornerRadius ?? DEFAULT_CORNER_RADIUS;
-    const trackX = (g: number, i: number): number =>
-      route.trackBaseX![g] +
-      (i + 0.5) * (spacing.trackGap + route.gutterThickness![g]);
+    const trackX = trackXOf(route.trackBaseX!, route.gutterThickness!, spacing);
     const channelY = route.channelY ?? new Map<REdge, number>();
 
     const edges: Record<string, EdgeGeom> = {};
