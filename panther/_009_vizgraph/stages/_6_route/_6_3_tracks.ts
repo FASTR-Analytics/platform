@@ -245,10 +245,63 @@ function alignFanColumns(normals: TrackItem[]): void {
     if (!safe) {
       continue;
     }
+    // Crossing guard (2026-08-30, the workplace injury_exposure defect): the
+    // re-anchor serves ONE endpoint's fan, but a hop terminal at both ends
+    // belongs to two fans (fanOfItem: "to" wins), and moving it outward can
+    // invert port-order vs track-order at the OTHER end — an entry-run
+    // crossing the overlap check above cannot see. Accept the proposal only
+    // if it does not increase the gutter's entry-run crossing count; the
+    // packer's assignment (always valid) stands otherwise.
+    const currentIdx = (it: TrackItem): number => it.redge.trackIdx[it.hopIdx];
+    const proposedIdx = (it: TrackItem): number =>
+      proposed.get(it) ?? currentIdx(it);
+    if (
+      entryRunCrossings(normals, proposedIdx) >
+        entryRunCrossings(normals, currentIdx)
+    ) {
+      continue;
+    }
     for (const [it, t] of proposed) {
       it.redge.trackIdx[it.hopIdx] = t;
     }
   }
+}
+
+// Within-gutter entry-run crossings under a track assignment: item A's
+// vertical run crosses item B's LEFT stub (the horizontal at leftY from the
+// gutter's left boundary to B's track) iff A's track is left of B's and
+// leftY falls strictly inside A's span; symmetrically for RIGHT stubs. This
+// is the complete within-gutter crossing class a track permutation can
+// change: parallel horizontals never cross, same-x verticals are the
+// collision domain, and straight-through/around runs cross verticals
+// independently of which track a normal holds.
+function entryRunCrossings(
+  items: TrackItem[],
+  idxOf: (item: TrackItem) => number,
+): number {
+  let count = 0;
+  for (const a of items) {
+    const ia = idxOf(a);
+    for (const b of items) {
+      if (a === b) {
+        continue;
+      }
+      const ib = idxOf(b);
+      if (
+        ia < ib && a.lo + STRAIGHT_EPS < b.leftY &&
+        b.leftY < a.hi - STRAIGHT_EPS
+      ) {
+        count++;
+      }
+      if (
+        ia > ib && a.lo + STRAIGHT_EPS < b.rightY &&
+        b.rightY < a.hi - STRAIGHT_EPS
+      ) {
+        count++;
+      }
+    }
+  }
+  return count;
 }
 
 // The compressed fan a normal hop terminates in, if any: the hop adjacent to
