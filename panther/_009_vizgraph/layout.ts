@@ -7,91 +7,27 @@ import type {
   EdgeGeom,
   Geometry,
   GroupGeom,
-  LayoutWarning,
   NodeGeom,
   Rect,
 } from "./types_geometry.ts";
 import type { GraphModel, GroupIn } from "./types_model.ts";
-import type { LayoutOptions, ResolvedSpacing } from "./types_options.ts";
-import { resolveSpacing } from "./types_options.ts";
-import { buildGraphIndex } from "./_internal/graph_index.ts";
-import {
-  adoptPriorOrder,
-  buildOrderRecord,
-  buildPriorIndex,
-} from "./stability.ts";
-import { collapseFolded } from "./transform/collapse.ts";
-import {
-  assignGroupPads,
-  buildGroupIndex,
-  deriveGroupGeoms,
-  enforceGroupContiguity,
-} from "./transform/derive.ts";
-import { rankStage } from "./stages/_1_rank.ts";
-import { properizeStage } from "./stages/_2_properize.ts";
-import { finishOrdering, orderStage } from "./stages/_3_order.ts";
-import { sizeStage } from "./stages/_3_5_size.ts";
-import { coordsStage, resolvePlan } from "./stages/_4_coords.ts";
-import {
-  applyPortGapFloor,
-  DEFAULT_CORNER_RADIUS,
-  routeStage,
-} from "./stages/_5_route.ts";
+import type { LayoutOptions } from "./types_options.ts";
+import { buildOrderRecord } from "./stability.ts";
+import { deriveGroupGeoms } from "./transform/derive.ts";
+import { createPipelineState, runPipeline } from "./pipeline.ts";
+import { DEFAULT_CORNER_RADIUS } from "./stages/_6_route/route_shared.ts";
 
-// The staged pipeline (DOC_VIZGRAPH_ARCHITECTURE.md stage pipeline). M1 spine: rank → properize
-// (dummy chains) → iterative ordering → budged coords → polyline routing.
-// Ports/tracks (M2), stability (M3), sizing/fit (M4.5, stage [3½]), lanes
-// (M5), and groups (M6: [T] collapse + contiguity + pads + derived boxes)
-// extend these stages behind the same Geometry contract.
+// [T] transform + the six numbered stages (pipeline.ts — the sequence is
+// data there, shared with the stage film), then [7] assembly: node/group
+// geoms, bounds, and the stability order record
+// (DOC_VIZGRAPH_ARCHITECTURE.md stage pipeline).
 export function layout(model: GraphModel, options?: LayoutOptions): Geometry {
-  const warnings: LayoutWarning[] = [];
-  const spacing: ResolvedSpacing = resolveSpacing(options?.spacing);
-
-  // [T] folding is a pre-layout model transform — stages only ever see the
-  // flat visible graph (DOC_VIZGRAPH_ARCHITECTURE.md decision log).
-  const collapsed = collapseFolded(model);
-  const groupIndex = buildGroupIndex(collapsed);
-  const index = buildGraphIndex(collapsed);
-
-  if (options?.orientation === "top-bottom") {
-    warnings.push({
-      code: "unsupported-option",
-      message:
-        'orientation "top-bottom" is not implemented yet; using "left-right"',
-    });
-  }
-  if (index.danglingEdges.length > 0) {
-    warnings.push({
-      code: "dangling-edge",
-      message: "Edges referencing unknown nodes were skipped",
-      ids: index.danglingEdges.map((e) => e.id),
-    });
-  }
-
-  const prior = buildPriorIndex(options?.prior);
-  const rank = rankStage(index, options, warnings);
-  const proper = properizeStage(index, rank, prior);
-  for (const [nodeId, chain] of groupIndex.chainByNodeId) {
-    proper.innermostGroupByNodeId.set(nodeId, chain[0]);
-  }
-  // Hard stickiness (stability.ts): a prior that exactly covers this model
-  // pins the ordering verbatim (sweeps skipped); otherwise the prior-seeded
-  // sweeps run. Contiguity runs either way — idempotent on an adopted
-  // ordering, and it re-sorts when only group membership changed.
-  if (!adoptPriorOrder(proper, options?.prior?.order)) {
-    orderStage(proper);
-  }
-  enforceGroupContiguity(proper, groupIndex);
-  finishOrdering(proper, groupIndex, warnings);
-  assignGroupPads(proper, groupIndex, spacing);
-  // The port-gap floor grows fixed-size nodes here, before any stage reads
-  // heights; stage [3½] re-applies it after every re-measure (measured
-  // heights change under fit-width budgets).
-  applyPortGapFloor(proper, spacing);
-  const plan = resolvePlan(collapsed, options);
-  sizeStage(proper, index, options, spacing, warnings, plan);
-  coordsStage(proper, spacing, plan);
-  const edges = routeStage(proper, options, spacing);
+  const state = createPipelineState(model, options);
+  runPipeline(state);
+  const proper = state.proper!;
+  const rank = state.rank!;
+  const edges = state.edges!;
+  const collapsed = state.collapsed;
 
   const nodes: Record<string, NodeGeom> = {};
   for (const layer of proper.layers) {
@@ -129,13 +65,13 @@ export function layout(model: GraphModel, options?: LayoutOptions): Geometry {
     }
   }
   const groups = deriveGroupGeoms(
-    groupIndex,
+    state.groupIndex,
     nodes,
     edges,
     collapsed.edges,
     new Set(foldedGroupById.keys()),
     foldedGroupById,
-    spacing,
+    state.spacing,
     options?.cornerRadius ?? DEFAULT_CORNER_RADIUS,
   );
 
@@ -150,7 +86,7 @@ export function layout(model: GraphModel, options?: LayoutOptions): Geometry {
     lanes: {},
     groups,
     hitAreas: [],
-    warnings,
+    warnings: state.warnings,
     order: buildOrderRecord(proper),
   };
 }

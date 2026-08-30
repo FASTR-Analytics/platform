@@ -62,7 +62,7 @@ export type Spacing = {
 };
 
 // Engine-internal: layerGap/portGap resolved to the effective number for the
-// current pressure state (stage [3½] lowers layerGap within layerGapRange;
+// current pressure state (stage 4 lowers layerGap within layerGapRange;
 // portGap resolves to its ideal — the floor is read from portGapRange by the
 // port-gap floor and by assignPorts' compression).
 export type ResolvedSpacing = Omit<Spacing, "layerGap" | "portGap"> & {

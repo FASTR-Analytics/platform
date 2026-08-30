@@ -3,19 +3,39 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { PNode, ProperGraph } from "../_internal/pipeline_types.ts";
+import type {
+  PipelineStep,
+  PNode,
+  ProperGraph,
+} from "../_internal/pipeline_types.ts";
 import type { GraphIndex } from "../_internal/graph_index.ts";
 import type { PriorIndex } from "../stability.ts";
+import type { GroupIndex } from "../transform/derive.ts";
 import type { RankResult } from "./_1_rank.ts";
+
+export const properizeStep: PipelineStep = {
+  id: "2",
+  name: "properize",
+  run: (state) => {
+    state.proper = properizeStage(
+      state.index,
+      state.rank!,
+      state.prior,
+      state.groupIndex,
+    );
+  },
+};
 
 // Stage 2: make the graph proper. Long edges become chains of zero-size dummy
 // nodes (one per crossed layer, internal ids only); same-layer edges are
-// extracted here — they skip ordering/coords as edges and re-enter at routing
-// (their endpoints still participate as nodes).
+// extracted here — they skip ordering/placement as edges and re-enter at
+// routing (their endpoints still participate as nodes). Also records each
+// real node's innermost group, which placement's adopt-isolates reads.
 export function properizeStage(
   index: GraphIndex,
   rank: RankResult,
   prior: PriorIndex | undefined,
+  groupIndex: GroupIndex,
 ): ProperGraph {
   const layerCount = rank.layerValueByIndex.length;
   const layers: PNode[][] = Array.from({ length: layerCount }, () => []);
@@ -46,7 +66,7 @@ export function properizeStage(
       id: node.id,
       isDummy: false,
       isBackwardDummy: false,
-      // Unsized nodes are placeholders until stage [3½] measures them.
+      // Unsized nodes are placeholders until stage 4 measures them.
       w: node.size?.w ?? 0,
       h: node.size?.h ?? 0,
       layerIndex,
@@ -112,13 +132,18 @@ export function properizeStage(
     });
   }
 
+  const innermostGroupByNodeId = new Map<string, string>();
+  for (const [nodeId, chain] of groupIndex.chainByNodeId) {
+    innermostGroupByNodeId.set(nodeId, chain[0]);
+  }
+
   return {
     layers,
     pnodeByRealId,
     chainByEdgeId,
     sameLayerEdges,
     crossLayerEdges,
-    innermostGroupByNodeId: new Map(),
+    innermostGroupByNodeId,
   };
 }
 

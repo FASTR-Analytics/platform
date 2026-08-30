@@ -7,10 +7,19 @@ import type { LayoutWarning } from "../types_geometry.ts";
 import type { LayoutOptions } from "../types_options.ts";
 import { resolveLayers } from "../_internal/graph_index.ts";
 import type { GraphIndex } from "../_internal/graph_index.ts";
+import type { PipelineStep } from "../_internal/pipeline_types.ts";
 
 export type RankResult = {
   layerIndexByNodeId: Map<string, number>;
   layerValueByIndex: number[];
+};
+
+export const rankStep: PipelineStep = {
+  id: "1",
+  name: "rank",
+  run: (state) => {
+    state.rank = rankStage(state.index, state.options, state.warnings);
+  },
 };
 
 // Stage 1: layer assignment. Author-supplied layers are the primary mode;

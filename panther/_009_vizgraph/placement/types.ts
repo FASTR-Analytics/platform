@@ -11,7 +11,7 @@ import type { ResolvedSpacing } from "../types_options.ts";
 // size — and must preserve in-layer order, required separation, and
 // determinism. Passes never see options.prior — placement is a pure
 // function of ordering + sizes (stickiness is stage-3's; stability.ts).
-// Schedules (PlacementPlan) are data, resolved by the stage-4 runner; the
+// Schedules (PlacementPlan) are data, resolved by the stage-5 runner; the
 // loose-vs-compact taste dial is pass parameters, never separate code
 // paths.
 export type PassContext = {
