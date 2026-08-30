@@ -2,9 +2,13 @@
 
 Status: DIRECTION RULED 2026-08-30 (Tim); final design is written AFTER
 [PLAN_1a](PLAN_1a_INDICATOR_RESTRUCTURE.md) +
-[PLAN_1b](PLAN_1b_POPULATION_STORE.md) ship and settle. This file records
-the ruled end state and the known mechanics so the interim m012 state never
-reads as permanent.
+[PLAN_1b](PLAN_1b_POPULATION_STORE.md) ship. **Concrete trigger — not
+"when things settle"**: the first production project repoints to an
+m012-bearing package AND its migrated indicators verify against the old
+m008 values (1b's validation-target list). When that happens, writing
+this plan's final design becomes the next piece of module work, ahead of
+any new module feature. This file records the ruled end state and the
+known mechanics so the interim m012 state never reads as permanent.
 
 Repos: app = `/Users/timroberton/projects/apps/wb-fastr`; modules =
 `/Users/timroberton/projects/apps/wb-fastr-modules`.

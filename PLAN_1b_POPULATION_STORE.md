@@ -31,13 +31,17 @@ writer stays in
    once anything reads it. Rates over stocks are therefore annualised —
    labels/AI descriptions say so; per-period rates over stocks are not
    expressible and not offered.
-4. **m012's generation step gains population_rate rows**: numerator
-   ingredients as for any derived row, plus person-years in an ingredient
-   slot; the multiplier is baked into the catalog expression
-   (`num / person_years * multiplier`). These rows are ALWAYS area×month —
-   population is area-keyed — so under a facility-grain 1a ruling they
-   simply carry no facility id and facility-keyed groupings naturally
-   exclude them; no query-engine rule needed.
+4. **m012's generation step gains population_rate rows**: the
+   `numeratorExpression`'s ingredients as for any derived row, plus
+   person-years assigned by the STEP to its own ingredient slot (the
+   authored expression never names it — 1a §1.2); the step composes the
+   final catalog expression `num / person_years * multiplier`. These rows
+   are ALWAYS area×month — population is area-keyed. NOTE (verified,
+   1a §2.2): rows with NULL facility cells are NOT dropped by the engine —
+   they fold into a "(Blank)" group — so if 1a rules facility grain, the
+   explicit omit-population_rate-rows-under-facility-groupings rule from
+   1a §2.2 ships here with the rows. Under area grain there is no
+   mixed-grain state and no rule.
 5. Old m008 packages are frozen-plane and keep rendering their own
    scorecards; nothing here touches them.
 

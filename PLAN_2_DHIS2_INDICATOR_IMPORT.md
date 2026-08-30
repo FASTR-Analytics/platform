@@ -1,12 +1,12 @@
 # PLAN — DHIS2 auto-import of calculated indicators + population
 
-Status: DESIGN RULED 2026-08-19 (split out of
-[PLAN_1_COMMON_INDICATOR_TYPES.md](PLAN_1_COMMON_INDICATOR_TYPES.md) on
-2026-08-28), nothing built. This file is the tracking home for the work.
-Delete it when both items below close.
+Status: DESIGN RULED 2026-08-19 (split out of the since-superseded
+PLAN_1_COMMON_INDICATOR_TYPES.md on 2026-08-28), nothing built. This file
+is the tracking home for the work. Delete it when both items below close.
 
-Prerequisite: BOTH phases of
-[PLAN_1_COMMON_INDICATOR_TYPES.md](PLAN_1_COMMON_INDICATOR_TYPES.md) — this plan
+Prerequisite: the ONE combined release of
+[PLAN_1a_INDICATOR_RESTRUCTURE.md](PLAN_1a_INDICATOR_RESTRUCTURE.md) +
+[PLAN_1b_POPULATION_STORE.md](PLAN_1b_POPULATION_STORE.md) — this plan
 authors `derived` and `population_rate` commons and writes to the population
 store, none of which exist before that plan lands. Governing principle is
 SYSTEM_05 "Ruling — the additivity principle": nothing non-additive is ever

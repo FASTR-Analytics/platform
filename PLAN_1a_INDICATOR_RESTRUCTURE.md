@@ -13,7 +13,7 @@ are green. 1a is testable alone first, on a testing instance
 sees the in-between state where migrated `population_rate` rows evaluate
 nowhere.
 
-**Two rulings needed BEFORE build** (§2). Everything else is decided.
+**Three rulings needed BEFORE build** (§2). Everything else is decided.
 
 Repos: app = `/Users/timroberton/projects/apps/wb-fastr` (all relative paths
 below); modules = `/Users/timroberton/projects/apps/wb-fastr-modules`
@@ -61,8 +61,13 @@ post-aggregation recipe plus catalog-supplied per-indicator presentation.
    - `derived` — an ARBITRARY expression over 1..N other commons (base or
      derived; chaining allowed; cycles and a depth cap rejected at authoring
      AND at capture). Evaluated post-aggregation from the run catalog.
-   - `population_rate` — expression over commons ÷ (population type ×
-     multiplier). The TYPE, model, and migration land in 1a; its evaluation
+   - `population_rate` — STRUCTURED definition: `{numeratorExpression`
+     (grammar of item 3, over commons ONLY — it never names the population
+     term), `populationType`, `multiplier}`. The generation step assigns
+     the person-years denominator to its own ingredient slot and composes
+     the final catalog expression itself, so the §1.3 validator, the
+     8-ingredient cap, and the chain-flattener need no population
+     carve-out. The TYPE, model, and migration land in 1a; evaluation
      (population ingredients in the m012 file) lands in 1b. Area×month
      grain always.
    - `composite` (row-wise pre-aggregation conditionals) — DEFERRED, out of
@@ -111,6 +116,20 @@ post-aggregation recipe plus catalog-supplied per-indicator presentation.
    match. Editor/UI surface a single "value" series for this metric (no
    ingredient-prop picker); `__n_*` is not emitted (HMIS family).
    The scorecard becomes a preset on this metric.
+   **Cross-indicator pooling is impossible by declaration**: `m12-01-01`
+   declares `requiredDisaggregationOptions: ["indicator_common_id"]`, and
+   required options are already enforced server-side as GROUPBYS with a
+   hard error — `findMissingRequiredGroupBys`
+   (`server/run_query/run_read.ts:576`, rejected in
+   `server/run_query/run_data_reads.ts:69-81`; `indicator_common_id` is
+   not in the exemption list, `lib/disaggregation_labels.ts:148-162`). A
+   filter does NOT satisfy the guard — grouping is mandatory — so every
+   aggregated row the expression step sees is keyed by exactly one
+   indicator, ingredient slots never mix across indicators, and no new
+   shape rule is needed. One added validation, cheap because the module
+   type is in hand: fetches against an `indicator_values` RO reject any
+   `values[].func` other than SUM (hand-crafted-request guard; app clients
+   never send otherwise).
 7. **Filters, replicants, possible values: NO new code.** Derived and
    population-rate ids are real distinct values of `indicator_common_id` in
    the data. Per-indicator format/thresholds resolve at render time from
@@ -150,7 +169,17 @@ post-aggregation recipe plus catalog-supplied per-indicator presentation.
    existence. Ten-line harness: `getModuleSummariesFromManifest` over a
    manifest containing m007+m008 renders. The `m007/`/`m008/` directories
    stay in wb-fastr-modules until confirmed unneeded (delete no earlier
-   than 1c).
+   than 1c). Nigeria's `nhmis_timely_and_data` still waits for the
+   DEFERRED `composite` type (§1.2) — and it CANNOT be an unhandled
+   migration row: the `calculated_indicators` schema is strictly
+   numerator + a three-way denom union
+   (`lib/types/indicators.ts:109-126`), so a row-wise composite cannot
+   exist in the migration's input.
+   **The PO deletion is a user-visible loss and is OWNED here**: every
+   configured m7-\*/m8-01-01 scorecard visualization is deleted, not
+   migrated — users rebuild from the m12-01-01 scorecard preset. Whether
+   to instead repoint m8-01-01 POs to m12-01-01 (feasible-looking: same
+   dims; `quarter_id` derives from `period_id`) is open ruling §2.3.
 10. **Migration in ONE pass** (collision policy verbatim from the prior
     plan; fleet checked read-only 2026-08-30):
     - *Identity alias* (denom `none`, num = own id — Ethiopia ×4: `anc4`,
@@ -220,13 +249,27 @@ post-aggregation recipe plus catalog-supplied per-indicator presentation.
 2. **Row grain**: area×month (m008 parity; small file; no facility-level
    disaggregation of indicator values) vs facility×month (facility columns
    available; file size ≈ `M2_adjusted_data` × a per-indicator factor).
-   `population_rate` rows are area×month regardless (1b).
+   `population_rate` rows are area×month regardless (1b). **Verified fact
+   that bears on this ruling**: the engine does NOT drop rows whose grouped
+   dimension cell is NULL — it folds them into a real, selectable
+   "(Blank)" group (`blankFoldedRef`/`blankPredicate`,
+   `server/server_only_funcs_presentation_objects/query_helpers.ts:48-84`).
+   So under facility grain, the area-grain population_rate rows grouped by
+   a facility column would surface as a "(Blank)" group, not vanish —
+   facility grain therefore requires an explicit read-path rule (omit
+   population_rate rows when any facility column is grouped), which is new
+   engine-adjacent code. Area grain avoids the mixed-grain state entirely.
+3. **m8-01-01 scorecard POs: delete (rebuild from preset) or repoint to
+   m12-01-01.** The deletion is the ruled default carried from the prior
+   plan (§1.9 owns the loss); a repoint migration looks feasible (same
+   dims, `quarter_id` derives from `period_id`) but is real work and needs
+   a config-compatibility check against stored m8 configs before ruling.
 
 ## 3. Build — app
 
 - `lib/types/indicators.ts`: `CommonIndicator` gains `type` + `definition`
   (`{type:"base"} | {type:"derived"; expression} | {type:"population_rate";
-  expression; populationType; multiplier}`), `format_as`, thresholds?,
+  numeratorExpression; populationType; multiplier}`), `format_as`, thresholds?,
   `group_label`, `sort_order`. `CalculatedIndicator` and
   `lib/types/calculated_indicator_id.ts` go. `IndicatorMetadata` gains
   optional `type`/`expression`/slot-map fields (catalog v2).
@@ -282,8 +325,11 @@ post-aggregation recipe plus catalog-supplied per-indicator presentation.
 - Client: `indicator_manager_hmis/` — `indicators_manager.tsx` rewritten;
   one commons table with a Type column; editor branches by type (base =
   mappings; derived = expression editor with live validation; population
-  rate = expression + population type + multiplier — the 1b store feeds
-  its pickers); sort modal generalised (needs a commons
+  rate = numerator expression + population type + multiplier — the 1b
+  store feeds its pickers). The expression editor's cap error names the
+  FLATTENED ingredient set that blew the 8-cap (chaining two 5-ingredient
+  deriveds fails in a way users won't otherwise predict). Sort modal
+  generalised (needs a commons
   `reorderIndicators` route — none exists today); `calculated_*` files
   deleted; axis order from catalog sort (`get_data_config_from_po.ts`).
 - Docs (same commit as the code they describe): SYSTEM_05 — rewrite the
