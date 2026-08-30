@@ -385,12 +385,13 @@ pointers only. Consequences that follow from it and are ruled with it:
   `postAggregationExpression`, its ingredients being row-restricted sums —
   `SUM(count) FILTER (WHERE indicator_common_id = 'anc4')` — and its
   expression coming from the run's indicator catalog). Derived ids are hosted
-  on every metric declared `formatAs: "indicator"` over `indicator_common_id`
-  (no new schema flag; the loader enforces SUM + no metric-wide PAE), and
-  there is ONE such metric in the HMIS family, over adjusted counts, with the
-  scorecard as a preset. Definitions are snapshotted into the run manifest,
+  on every QUALIFYING fetch, computed at the results-object level (amended
+  2026-08-30: RO has `indicator_common_id`, all-SUM values, no metric-wide
+  PAE — the engine never sees the metric); `formatAs: "indicator"` stays the
+  metric-level formatting fact, and there is ONE such metric in the HMIS
+  family, over adjusted counts, with the scorecard as a preset. Definitions are snapshotted into the run manifest,
   so a package stays standalone and an edit still means a new run. Tracking
-  home: PLAN_COMMON_INDICATOR_TYPES.md.
+  home: PLAN_1_COMMON_INDICATOR_TYPES.md.
   Population-denominated rates are a distinct type because their grain is
   area×month, not facility×month; population lives in its own store (see
   S8's population section) and is expanded stock→flow (interpolated annual ÷

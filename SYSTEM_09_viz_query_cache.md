@@ -102,8 +102,10 @@ metric has a post-aggregation expression, else filtered `valueProps` ×
 (Target model, ruled 2026-08-19 in S5's "additivity principle": derived
 common indicators are evaluated by THIS mechanism with row-restricted
 ingredients (`SUM(col) FILTER (WHERE indicator_common_id = …)`) and a
-catalog-supplied expression, on `formatAs: "indicator"` metrics — not built;
-PLAN_COMMON_INDICATOR_TYPES.md.)
+catalog-supplied expression, on qualifying fetches — qualification is
+RO-level (amended 2026-08-30: `indicator_common_id` column + all-SUM values
++ no metric-wide PAE), while `formatAs: "indicator"` stays the metric-level
+formatting fact — not built; PLAN_1_COMMON_INDICATOR_TYPES.md.)
 
 **The replicant pin and the options/items split.** `getFiltersWithReplicant`
 appends

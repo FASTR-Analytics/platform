@@ -71,8 +71,6 @@ server/db/migrations/
 ├── project/               # SQL migrations - project DBs
 └── data_transforms/       # JSON data transforms - one file per type
     ├── po_config.ts
-    ├── module_definition.ts
-    ├── metric.ts
     ├── slide_deck_config.ts
     ├── slide_config.ts
     ├── dashboard_config.ts
@@ -375,9 +373,6 @@ Before INSERT/UPDATE, validate against Zod schema. Invalid data cannot enter the
 |-------------------------------|---------------------------------------------|---------------------------------------------------------------------------------------------------------------|-----------------------------------|
 | `presentation_objects.config` | `server/db/project/presentation_objects.ts` | `addPresentationObject`, `updatePresentationObjectConfig`, `batchUpdatePresentationObjectsPeriodFilter`       | `presentationObjectConfigSchema`  |
 | `presentation_objects.config` | `server/db/project/presentation_objects.ts` | `duplicatePresentationObject`                                                                                 | (copies validated row)            |
-| `presentation_objects.config` | `server/db/project/modules.ts`              | `installModule`, `updateModuleDefinition`                                                                     | `presentationObjectConfigSchema`  |
-| `modules.module_definition`   | `server/db/project/modules.ts`              | `installModule`, `updateModuleDefinition`                                                                     | `moduleDefinitionInstalledSchema` |
-| `metrics.*`                   | `server/db/project/modules.ts`              | `installModule`, `updateModuleDefinition`                                                                     | `metricStrict`                    |
 | `slide_decks.config`          | `server/db/project/slide_decks.ts`          | `createSlideDeck`, `duplicateSlideDeck`, `updateSlideDeckConfig`                                              | `slideDeckConfigSchema`           |
 | `slides.config`               | `server/db/project/slides.ts`               | `createSlide`, `updateSlide`                                                                                  | `slideConfigSchema`               |
 | `instance_config.*`           | `server/db/instance/config.ts`              | `setStructureSchema`, `updateAdminAreaLabelsConfig`                                                           | Type-specific schemas             |
