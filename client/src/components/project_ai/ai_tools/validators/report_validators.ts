@@ -105,10 +105,13 @@ export function validateStyledReportHasStylesheet(
   );
 }
 
-// Backstop for custom styles that carry a reference stylesheet: a full-body
-// rewrite that uses NONE of the stylesheet's class names has ignored it (the
-// exact failure observed live — the model invented an unrelated design).
-// Low-false-positive by design: one shared class name passes.
+// Backstop for custom styles that carry a reference stylesheet. The
+// instruction is "include the stylesheet essentially verbatim" — so when the
+// sheet IS included, all of its class names appear in the body (inside the
+// <style> block if nowhere else) and this passes trivially. Requiring a HIGH
+// fraction therefore effectively enforces inclusion: observed live, a body
+// sharing only one incidental name ("eyebrow") while inventing a whole new
+// design must be rejected.
 export function validateReferenceCssReuse(
   body: string,
   format: ReportFormat,
@@ -121,12 +124,15 @@ export function validateReferenceCssReuse(
   let m: RegExpExecArray | null;
   while ((m = re.exec(referenceCss)) !== null) classNames.add(m[1]);
   if (classNames.size === 0) return;
-  for (const name of classNames) {
-    if (body.includes(name)) return;
-  }
-  const sample = [...classNames].slice(0, 8).join(", ");
+  const present = [...classNames].filter((name) => body.includes(name));
+  const required = Math.max(1, Math.ceil(classNames.size * 0.7));
+  if (present.length >= required) return;
+  const missing = [...classNames]
+    .filter((name) => !body.includes(name))
+    .slice(0, 10)
+    .join(", ");
   throw new AIToolFailure(
-    `This report's style "${styleName}" carries a reference stylesheet, but the proposed body uses NONE of its class names (${sample}, …). Include that stylesheet in your <style> block and write markup with ITS classes — including the wrapper element if the rules are scoped under one (e.g. a body-wrapping <div class="${[...classNames][0]}">). Do not invent a new design.`,
+    `This report's style "${styleName}" carries a reference stylesheet, but the proposed body only uses ${present.length} of its ${classNames.size} class names — it looks like you wrote a NEW design instead of reusing the stylesheet (missing e.g.: ${missing}). COPY the reference stylesheet into your <style> block first (essentially verbatim), then write markup using ITS classes — including the wrapper element if the rules are scoped under one (a body-wrapping element carrying that class). Do not rename its classes or invent a parallel design.`,
   );
 }
 
