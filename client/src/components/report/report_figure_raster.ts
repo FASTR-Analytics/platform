@@ -79,8 +79,13 @@ export function createFigureRasterCache(
       const fi = buildFigureInputs(bundle);
       const style = new CustomFigureStyle(fi.style);
       await loadFontsWithTimeout(style.getFontsToRegister());
+      // Transparent raster: the report style's CSS paints whatever sits
+      // behind the figure (flat color, texture, gradient) — the base
+      // stylesheet gives embeds a white default, so unstyled reports look
+      // unchanged. Chart ink is dark, so styles must keep light grounds
+      // behind figures (the briefs say so).
       const canvas = getFigureAsCanvas(
-        figureInputsForDownload(fi, false, false),
+        figureInputsForDownload(fi, true, false),
         FIGURE_EXPORT_WIDTH_PX,
       );
       const blob = await new Promise<Blob | null>((res) =>

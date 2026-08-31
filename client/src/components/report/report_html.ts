@@ -37,7 +37,9 @@ body {
   color: #1a1a1a;
 }
 img { max-width: 100%; height: auto; }
-img[data-embed-kind] { display: block; }
+/* Figure rasters are TRANSPARENT PNGs; white here is the safe default and a
+   report's own CSS overrides it to inject the style's background. */
+img[data-embed-kind] { display: block; background: #ffffff; }
 table { border-collapse: collapse; }
 .report-embed-pending {
   display: flex; align-items: center; justify-content: center;
@@ -50,6 +52,8 @@ table { border-collapse: collapse; }
   body { max-width: none; padding: 0; }
   img, table, figure, .report-embed-pending { break-inside: avoid; }
 }
+/* Styled reports depend on their backgrounds surviving print. */
+*, *::before, *::after { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 `;
 
 export function wrapReportDocument(p: {

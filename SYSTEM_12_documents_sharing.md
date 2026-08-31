@@ -195,8 +195,8 @@ payload and SSE pushes only (same for report folders).
 (`createReport` body `format`, the Create-report form's radio); absent ⇒
 markdown (`getReportFormat` is total — the stored config is a raw cast); html
 reports additionally carry `htmlStyle?` — one of the `REPORT_HTML_STYLES`
-presets (default, editorial, swiss, bauhaus, blueprint, broadsheet, risograph,
-artdeco, japanese, monochrome, terminal, brutalist; also fixed at creation,
+presets (default, minimal, corporate, ministry, classic, executive, clinical,
+editorial, swiss, monochrome; also fixed at creation,
 also total via `getReportHtmlStyle`) — it changes ONLY the S13 AI authoring
 brief, never the render path. Creation is a two-step wizard (panther has ONE
 alert slot, so the steps can't stack — `attemptAddReport` in
@@ -253,8 +253,10 @@ print). The editor preview is a `sandbox="allow-same-origin"` srcdoc iframe
 blob:/asset URLs load because the frame keeps the parent origin; in-page
 `#` links scroll in-frame, everything else opens a new tab; pointer events are
 re-dispatched on the iframe element so live cursors / click-to-deselect work.
-Figures are PNG rasters (`getFigureAsCanvas` at `FIGURE_EXPORT_WIDTH_PX` → blob
-URL) from a **content-keyed** cache
+Figures are TRANSPARENT PNG rasters (`getFigureAsCanvas` at
+`FIGURE_EXPORT_WIDTH_PX` → blob URL; the base CSS defaults the embed `<img>`
+background to white and a style's own CSS overrides it — that is how styles
+inject their backgrounds into platform-made viz) from a **content-keyed** cache
 ([report_figure_raster.ts](client/src/components/report/report_figure_raster.ts):
 `metricId|snapshotAt|canonicalJson(config)`, NOT object identity — collab
 materializes fresh block objects on every remote update), serial with a frame
