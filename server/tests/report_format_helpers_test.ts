@@ -66,6 +66,15 @@ Deno.test("every declared html style round-trips through the config schema", () 
   }
 });
 
+Deno.test("a retired htmlStyle value fails the schema — the reports data transform must drop it (boot fail-stop otherwise)", () => {
+  const stored = { version: 1, format: "html", htmlStyle: "bauhaus" };
+  assertEquals(reportConfigSchema.safeParse(stored).success, false);
+  // The transform's repair: drop the retired key → parses; readers see default.
+  const { htmlStyle: _retired, ...repaired } = stored;
+  assertEquals(reportConfigSchema.safeParse(repaired).success, true);
+  assertEquals(getReportHtmlStyle(stored as never), "default");
+});
+
 Deno.test("custom style snapshot round-trips through the config schema and wins over the preset field", async () => {
   const snap = {
     id: "11111111-2222-4333-8444-555555555555",
