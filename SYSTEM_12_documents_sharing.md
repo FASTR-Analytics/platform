@@ -196,7 +196,8 @@ payload and SSE pushes only (same for report folders).
 markdown (`getReportFormat` is total — the stored config is a raw cast); html
 reports additionally carry `htmlStyle?` — one of the `REPORT_HTML_STYLES`
 presets (default, minimal, corporate, ministry, classic, executive, clinical,
-editorial, swiss, monochrome; also fixed at creation,
+editorial, swiss, monochrome, bauhaus, blueprint, broadsheet, risograph,
+artdeco, japanese, terminal, brutalist; also fixed at creation,
 also total via `getReportHtmlStyle`) — it changes ONLY the S13 AI authoring
 brief, never the render path. Creation is a two-step wizard (panther has ONE
 alert slot, so the steps can't stack — `attemptAddReport` in
