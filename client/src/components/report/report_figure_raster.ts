@@ -29,11 +29,20 @@ import { buildFigureInputs } from "~/generate_visualization/mod";
 import { figureInputsForDownload } from "~/exports/_dashboard_export_model";
 import type { FigureRasterState } from "./report_html";
 
-// Chart ink for dark report styles: rasters are transparent, so the style's
-// CSS paints the panel behind a figure — but the chart's own text/axes/grid
-// default to dark ink and would vanish on a dark panel. A theme flips them to
-// the style's light ink at raster time; series colors stay as configured.
+// Chart ink: rasters are transparent, so the report's CSS paints the ground
+// behind a figure — but the chart's own text/axes/grid default to dark ink and
+// would vanish on a dark ground. The PREVIEW detects each figure's actual
+// ground (report_html_preview) and requests a light-ink raster only where the
+// ground is dark; these palettes say WHICH light ink a style uses. Series
+// colors stay as configured.
 export type FigureInkTheme = { text: string; axis: string; grid: string };
+
+// Fallback light ink for dark grounds in styles without their own palette.
+export const GENERIC_LIGHT_INK: FigureInkTheme = {
+  text: "#E6E9ED",
+  axis: "#9AA7B4",
+  grid: "#3A4653",
+};
 
 const PRESET_INK_THEMES: Partial<Record<ReportHtmlStyle, FigureInkTheme>> = {
   terminal: { text: "#9BB39F", axis: "#5E7A66", grid: "#223129" },
@@ -55,9 +64,9 @@ function mixHex(a: string, b: string, t: number): string {
   return `#${c.map((v) => v.toString(16).padStart(2, "0")).join("")}`;
 }
 
-// Which ink to raster with, given the report's style. Custom styles derive
-// from their tile colors when the page is dark (ink text, axis/grid mixed
-// toward the page); light styles return undefined (default dark ink).
+// The style's light-ink palette, used when a figure's detected ground is
+// dark. Custom styles with a dark tile page derive from their tile colors;
+// everything else falls back to GENERIC_LIGHT_INK at the point of use.
 export function figureInkThemeForStyle(
   htmlStyle: ReportHtmlStyle,
   customColors: ReportStyleColors | null | undefined,
@@ -114,15 +123,21 @@ export function applyInkTheme<T extends { style?: Record<string, unknown> }>(
 }
 
 export type FigureRasterCache = {
-  // Current state for the figure; a first call for new content starts the
-  // rasterization and returns "pending" (onReady fires when it lands).
-  get: (id: string, block: FigureBlock) => FigureRasterState;
+  // Current state for the figure AT the given ink; a first call for a new
+  // (content, ink) pair starts the rasterization and returns "pending"
+  // (onReady fires when it lands). `ink` undefined = default dark ink.
+  get: (
+    id: string,
+    block: FigureBlock,
+    ink?: FigureInkTheme,
+  ) => FigureRasterState;
   dispose: () => void;
 };
 
 type Entry = {
   state: FigureRasterState;
   block: FigureBlock;
+  ink: FigureInkTheme | undefined;
 };
 
 export function figureRasterKey(block: FigureBlock): string | undefined {
@@ -133,9 +148,6 @@ export function figureRasterKey(block: FigureBlock): string | undefined {
 
 export function createFigureRasterCache(
   onReady: () => void,
-  // Read at raster time (the report's style is known only after its config
-  // loads, which is before any raster is requested).
-  getInkTheme?: () => FigureInkTheme | undefined,
 ): FigureRasterCache {
   const keyMemo = new WeakMap<FigureBlock, string>();
   const entries = new Map<string, Entry>();
@@ -175,7 +187,7 @@ export function createFigureRasterCache(
       // behind figures (the briefs say so).
       const themed = applyInkTheme(
         figureInputsForDownload(fi, true, false),
-        getInkTheme?.(),
+        entry.ink,
       );
       const canvas = getFigureAsCanvas(themed, FIGURE_EXPORT_WIDTH_PX);
       const blob = await new Promise<Blob | null>((res) =>
@@ -216,9 +228,10 @@ export function createFigureRasterCache(
   }
 
   return {
-    get(id, block) {
-      const key = keyOf(block);
-      if (key === undefined) return { state: "missing" };
+    get(id, block, ink) {
+      const contentKey = keyOf(block);
+      if (contentKey === undefined) return { state: "missing" };
+      const key = `${contentKey}|ink:${ink ? ink.text + ink.axis : "dark"}`;
       const prevKey = keyById.get(id);
       const prev = prevKey !== undefined ? entries.get(prevKey) : undefined;
       const aspect = prev?.state.state === "ready"
@@ -230,7 +243,7 @@ export function createFigureRasterCache(
       }
       const existing = entries.get(key);
       if (existing) return existing.state;
-      const entry: Entry = { state: { state: "pending", aspect }, block };
+      const entry: Entry = { state: { state: "pending", aspect }, block, ink };
       entries.set(key, entry);
       queue.push(key);
       void pump();

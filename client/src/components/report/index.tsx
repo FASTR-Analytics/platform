@@ -163,13 +163,10 @@ export function ProjectReport(p: Props) {
   // HTML preview: figure rasters (content-keyed blob URLs) live here so they
   // survive Edit↔Split remounts; rasterTick re-renders the frame as they land.
   const [rasterTick, setRasterTick] = createSignal(0);
-  // Dark styles raster charts with light ink (set once the config loads,
-  // before any raster is requested).
+  // The style's light-ink palette — used by the preview for figures whose
+  // detected ground is dark (set once the config loads).
   let inkTheme: FigureInkTheme | undefined;
-  const rasters = createFigureRasterCache(
-    () => setRasterTick((t) => t + 1),
-    () => inkTheme,
-  );
+  const rasters = createFigureRasterCache(() => setRasterTick((t) => t + 1));
   // The live preview surface, for the peer-selection overlay (an iframe's
   // embeds are not reachable by querySelector from the parent document).
   const [previewSurface, setPreviewSurface] = createSignal<
@@ -1420,6 +1417,7 @@ export function ProjectReport(p: Props) {
           assetUrl={assetUrl}
           rasters={rasters}
           rasterVersion={rasterTick()}
+          lightInk={inkTheme}
           lineAnchors
           forwardPointer
           dataReportCursor="preview-content"

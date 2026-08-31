@@ -258,11 +258,15 @@ Figures are TRANSPARENT PNG rasters (`getFigureAsCanvas` at
 `FIGURE_EXPORT_WIDTH_PX` → blob URL; embed `<img>`s carry NO default
 background, so whatever the report paints behind a figure — page color,
 texture, image, panel — shows through automatically, and a style sets a
-figure background only for a distinct card; dark styles additionally get a
-**figure ink theme** — Terminal/Blueprint presets, or a custom style whose tile
-page color is dark — flipping chart text/axes/grid to light at raster time via
-`figureInkThemeForStyle`/`applyInkTheme`, applied in preview, version-history
-and export paths alike) from a **content-keyed** cache
+figure background only for a distinct card. Chart ink follows each figure's
+DETECTED ground, not the style: the preview measures the effective computed
+background behind every embed (`isDarkGroundBehind` — first opaque color up
+the ancestor chain; probe pass → measure → re-render) and requests a
+light-ink raster only on dark grounds (`figureInkThemeForStyle` palette per
+style, `GENERIC_LIGHT_INK` fallback, `applyInkTheme` at raster time); the
+`.html`/print export measures grounds by mounting the sanitized document in a
+hidden iframe (`measureFigureGrounds`); ink is part of the raster key) from a
+**content-keyed** cache
 ([report_figure_raster.ts](client/src/components/report/report_figure_raster.ts):
 `metricId|snapshotAt|canonicalJson(config)`, NOT object identity — collab
 materializes fresh block objects on every remote update), serial with a frame

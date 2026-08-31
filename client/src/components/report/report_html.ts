@@ -90,6 +90,9 @@ export function renderReportBodyHtml(
 export type FigureRasterState =
   | { state: "ready"; url: string; width: number; height: number }
   | { state: "pending"; aspect?: number }
+  // Preview-only: keep the author's <img> in place (1px transparent src) so
+  // the figure's REAL ground can be measured before an ink is chosen.
+  | { state: "probe" }
   | { state: "missing" };
 
 const EMBED_SRC_RE = /^(figure|image):(.+)$/;
@@ -154,6 +157,15 @@ export function materializeReportEmbeds(
       continue;
     }
     const r = resolveFigure(id);
+    if (r.state === "probe") {
+      img.setAttribute(
+        "src",
+        "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==",
+      );
+      img.setAttribute("data-embed-id", id);
+      img.setAttribute("data-embed-kind", "figure");
+      continue;
+    }
     if (r.state === "ready") {
       img.setAttribute("src", r.url);
       img.setAttribute("width", String(r.width));
@@ -196,6 +208,76 @@ export function buildReportBodyNodes(
   tpl.innerHTML = sanitizedHtml;
   materializeReportEmbeds(tpl.content, resolveFigure, resolveImage);
   return tpl.content;
+}
+
+// ── Figure ground detection ─────────────────────────────────────────────────
+// Rasters are transparent and charts default to dark ink, so ink must follow
+// the ACTUAL ground the report's CSS paints behind each figure — a per-style
+// guess proved wrong the moment a generated body used a light card in a dark
+// style (near-white ink on white). Walk the element's own computed background
+// up through its ancestors; the first opaque color decides.
+
+function parseCssColor(
+  v: string,
+): { r: number; g: number; b: number; a: number } | undefined {
+  const m = /^rgba?\(([^)]+)\)$/.exec(v.trim());
+  if (!m) return undefined;
+  const parts = m[1].split(",").map((x) => parseFloat(x));
+  if (parts.length < 3 || parts.some((x) => Number.isNaN(x))) return undefined;
+  return { r: parts[0], g: parts[1], b: parts[2], a: parts[3] ?? 1 };
+}
+
+export function isDarkGroundBehind(el: Element): boolean {
+  const win = el.ownerDocument.defaultView;
+  if (!win) return false;
+  let node: Element | null = el;
+  while (node) {
+    const c = parseCssColor(win.getComputedStyle(node).backgroundColor);
+    if (c && c.a >= 0.5) {
+      const luminance = (0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b) / 255;
+      return luminance < 0.45;
+    }
+    node = node.parentElement;
+  }
+  return false; // base CSS paints the page white
+}
+
+// Export path: the standalone document is built inert (no computed styles), so
+// grounds are measured by mounting the sanitized document — figure tokens
+// still as their <img src="figure:…"> elements — in a hidden same-origin
+// iframe. Returns figure id → dark ground.
+export function measureFigureGrounds(
+  fullHtml: string,
+): Promise<Map<string, boolean>> {
+  return new Promise((resolve) => {
+    const frame = document.createElement("iframe");
+    frame.setAttribute("sandbox", "allow-same-origin");
+    frame.setAttribute("aria-hidden", "true");
+    frame.style.cssText =
+      "position:fixed;left:-10000px;top:0;width:900px;height:600px;border:0;visibility:hidden;";
+    frame.onload = () => {
+      const out = new Map<string, boolean>();
+      try {
+        const doc = frame.contentDocument;
+        if (doc) {
+          for (
+            const img of Array.from(
+              doc.querySelectorAll<HTMLImageElement>("img"),
+            )
+          ) {
+            const m = EMBED_SRC_RE.exec((img.getAttribute("src") ?? "").trim());
+            if (!m || m[1] !== "figure") continue;
+            out.set(m[2], isDarkGroundBehind(img));
+          }
+        }
+      } finally {
+        frame.remove();
+        resolve(out);
+      }
+    };
+    frame.srcdoc = fullHtml;
+    document.body.appendChild(frame);
+  });
 }
 
 // Print/export: lazy images may never load off-screen.
