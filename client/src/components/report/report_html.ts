@@ -37,9 +37,10 @@ body {
   color: #1a1a1a;
 }
 img { max-width: 100%; height: auto; }
-/* Figure rasters are TRANSPARENT PNGs; white here is the safe default and a
-   report's own CSS overrides it to inject the style's background. */
-img[data-embed-kind] { display: block; background: #ffffff; }
+/* Figure rasters are TRANSPARENT PNGs with no default background — whatever
+   the report paints behind them (page color, texture, image, panel) shows
+   through. A style that wants a distinct card sets a background in its CSS. */
+img[data-embed-kind] { display: block; }
 table { border-collapse: collapse; }
 .report-embed-pending {
   display: flex; align-items: center; justify-content: center;

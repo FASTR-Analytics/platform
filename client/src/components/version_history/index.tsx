@@ -21,6 +21,7 @@ import { PresenceAvatars } from "../slide_deck/presence_avatars";
 import { DeckVersionPreview } from "./deck_version_preview";
 import { editorDisplayName } from "./diff_segments";
 import { ReportVersionPreview } from "./report_version_preview";
+import type { FigureInkTheme } from "../report/report_figure_raster";
 
 export type VersionHistoryKind = "report" | "deck";
 
@@ -47,6 +48,8 @@ type Props = EditorComponentProps<
     getCurrentBody?: () => string;
     /** Report only: the report's body format (absent ⇒ markdown). */
     reportFormat?: ReportFormat;
+    /** Report only: chart ink for dark styles (report_figure_raster). */
+    figureInkTheme?: FigureInkTheme;
   },
   undefined
 >;
@@ -263,6 +266,7 @@ export function VersionHistoryEditor(p: Props) {
                 canRestore={canRestore()}
                 getCurrentBody={p.getCurrentBody}
                 format={p.reportFormat ?? "markdown"}
+                figureInkTheme={p.figureInkTheme}
                 onRestored={() => p.close(undefined)}
               />
             </Show>

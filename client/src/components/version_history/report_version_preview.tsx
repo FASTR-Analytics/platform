@@ -22,7 +22,10 @@ import { _SERVER_HOST, serverActions } from "~/server_actions";
 import { ReportFigureEmbed } from "../report/ReportFigureEmbed";
 import { REPORT_MARKDOWN_STYLE } from "../report/report_markdown_style";
 import { ReportHtmlPreview } from "../report/report_html_preview";
-import { createFigureRasterCache } from "../report/report_figure_raster";
+import {
+  createFigureRasterCache,
+  type FigureInkTheme,
+} from "../report/report_figure_raster";
 import { CopyVersionModal } from "./copy_version_modal";
 import {
   buildAuthorNames,
@@ -50,6 +53,7 @@ export function ReportVersionPreview(p: {
   getCurrentBody?: () => string;
   /** The report's body format (fixed at creation; every version shares it). */
   format: ReportFormat;
+  figureInkTheme?: FigureInkTheme;
   onRestored: () => void;
 }) {
   const version = createQuery(
@@ -200,7 +204,7 @@ export function ReportVersionPreview(p: {
                   </div>
                 }
               >
-                <HtmlVersionPreview version={v} />
+                <HtmlVersionPreview version={v} inkTheme={p.figureInkTheme} />
               </Show>
             }
           >
@@ -237,9 +241,15 @@ export function ReportVersionPreview(p: {
 // Read-only render of an HTML-format version — the same sandboxed-iframe
 // funnel as the report's View mode, against the version's SNAPSHOT registries,
 // with its own raster cache (disposed with the pane).
-function HtmlVersionPreview(p: { version: ReportVersionDetail }) {
+function HtmlVersionPreview(p: {
+  version: ReportVersionDetail;
+  inkTheme?: FigureInkTheme;
+}) {
   const [rasterTick, setRasterTick] = createSignal(0);
-  const rasters = createFigureRasterCache(() => setRasterTick((t) => t + 1));
+  const rasters = createFigureRasterCache(
+    () => setRasterTick((t) => t + 1),
+    () => p.inkTheme,
+  );
   onCleanup(() => rasters.dispose());
   return (
     <div class="bg-base-200 min-h-0 flex-1 overflow-hidden px-8 py-10">

@@ -17,6 +17,8 @@ import {
   canonicalJson,
   type FigureBlock,
   FIGURE_EXPORT_WIDTH_PX,
+  type ReportHtmlStyle,
+  type ReportStyleColors,
 } from "lib";
 import {
   CustomFigureStyle,
@@ -26,6 +28,90 @@ import {
 import { buildFigureInputs } from "~/generate_visualization/mod";
 import { figureInputsForDownload } from "~/exports/_dashboard_export_model";
 import type { FigureRasterState } from "./report_html";
+
+// Chart ink for dark report styles: rasters are transparent, so the style's
+// CSS paints the panel behind a figure — but the chart's own text/axes/grid
+// default to dark ink and would vanish on a dark panel. A theme flips them to
+// the style's light ink at raster time; series colors stay as configured.
+export type FigureInkTheme = { text: string; axis: string; grid: string };
+
+const PRESET_INK_THEMES: Partial<Record<ReportHtmlStyle, FigureInkTheme>> = {
+  terminal: { text: "#9BB39F", axis: "#5E7A66", grid: "#223129" },
+  blueprint: { text: "#E7F0F7", axis: "#7FA6C6", grid: "#2E5B85" },
+};
+
+function hexRgb(hex: string): [number, number, number] | undefined {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return undefined;
+  const n = parseInt(m[1], 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+function mixHex(a: string, b: string, t: number): string {
+  const ra = hexRgb(a);
+  const rb = hexRgb(b);
+  if (!ra || !rb) return a;
+  const c = ra.map((v, i) => Math.round(v + (rb[i] - v) * t));
+  return `#${c.map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+}
+
+// Which ink to raster with, given the report's style. Custom styles derive
+// from their tile colors when the page is dark (ink text, axis/grid mixed
+// toward the page); light styles return undefined (default dark ink).
+export function figureInkThemeForStyle(
+  htmlStyle: ReportHtmlStyle,
+  customColors: ReportStyleColors | null | undefined,
+): FigureInkTheme | undefined {
+  if (customColors) {
+    const rgb = hexRgb(customColors.page);
+    if (!rgb) return undefined;
+    const luminance = (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) /
+      255;
+    if (luminance >= 0.45) return undefined;
+    return {
+      text: customColors.ink,
+      axis: mixHex(customColors.ink, customColors.page, 0.35),
+      grid: mixHex(customColors.ink, customColors.page, 0.75),
+    };
+  }
+  return PRESET_INK_THEMES[htmlStyle];
+}
+
+// Merge the theme into FigureInputs.style (touched paths only; explicit
+// per-element colors from the figure's own config still win over text.base).
+export function applyInkTheme<T extends { style?: Record<string, unknown> }>(
+  fi: T,
+  theme: FigureInkTheme | undefined,
+): T {
+  if (!theme) return fi;
+  const style = (fi.style ?? {}) as {
+    text?: { base?: Record<string, unknown> };
+    grid?: Record<string, unknown>;
+    table?: Record<string, unknown>;
+  };
+  return {
+    ...fi,
+    style: {
+      ...style,
+      text: {
+        ...style.text,
+        base: { ...style.text?.base, color: theme.text },
+      },
+      grid: {
+        ...style.grid,
+        axisColor: theme.axis,
+        gridColor: theme.grid,
+      },
+      table: {
+        ...style.table,
+        headerBorderColor: theme.axis,
+        gridLineColor: theme.grid,
+        borderColor: theme.axis,
+        colHeaderBackgroundColor: "none",
+      },
+    },
+  };
+}
 
 export type FigureRasterCache = {
   // Current state for the figure; a first call for new content starts the
@@ -47,6 +133,9 @@ export function figureRasterKey(block: FigureBlock): string | undefined {
 
 export function createFigureRasterCache(
   onReady: () => void,
+  // Read at raster time (the report's style is known only after its config
+  // loads, which is before any raster is requested).
+  getInkTheme?: () => FigureInkTheme | undefined,
 ): FigureRasterCache {
   const keyMemo = new WeakMap<FigureBlock, string>();
   const entries = new Map<string, Entry>();
@@ -84,10 +173,11 @@ export function createFigureRasterCache(
       // stylesheet gives embeds a white default, so unstyled reports look
       // unchanged. Chart ink is dark, so styles must keep light grounds
       // behind figures (the briefs say so).
-      const canvas = getFigureAsCanvas(
+      const themed = applyInkTheme(
         figureInputsForDownload(fi, true, false),
-        FIGURE_EXPORT_WIDTH_PX,
+        getInkTheme?.(),
       );
+      const canvas = getFigureAsCanvas(themed, FIGURE_EXPORT_WIDTH_PX);
       const blob = await new Promise<Blob | null>((res) =>
         canvas.toBlob(res, "image/png")
       );

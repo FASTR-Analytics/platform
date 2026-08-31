@@ -347,7 +347,7 @@ The user is browsing their long-form reports (documents with embedded live data 
 type StyledReportStyle = Exclude<ReportHtmlStyle, "default">;
 
 const REPORT_STYLE_SHARED_CONSTRAINTS =
-  `**Hard constraints (every style)**: static markup only — no <script> (stripped; do NOT emit JS-built content) and no <link> (load fonts via @import inside the <style> block). Inline <svg> is allowed for ornament and small sparklines. Close every element; prefix ids (sec-…). Responsive via auto-fit grids or a single column; break-inside:avoid on cards and figures for print. Figure embeds render as TRANSPARENT PNG <img>s that keep your class/style/id; the base stylesheet defaults their background to white, and your CSS may override it to blend figures into your design — but keep the ground behind charts LIGHT (chart ink is dark).`;
+  `**Hard constraints (every style)**: static markup only — no <script> (stripped; do NOT emit JS-built content) and no <link> (load fonts via @import inside the <style> block). Inline <svg> is allowed for ornament and small sparklines. Close every element; prefix ids (sec-…). Responsive via auto-fit grids or a single column; break-inside:avoid on cards and figures for print. Figure embeds render as TRANSPARENT PNG <img>s that keep your class/style/id — whatever your design paints behind them (page color, texture, panel) shows through automatically; set a background on the figure only when you want a distinct card. On LIGHT pages the ground behind charts stays light (chart ink is dark); dark styles (Terminal, Blueprint, or a custom style with a dark page color) automatically raster charts with LIGHT ink, so there let the dark ground show through or use a dark panel — never a white card.`;
 
 export const REPORT_STYLE_BRIEFS: Record<
   StyledReportStyle,
@@ -504,7 +504,7 @@ blueprint: {
 
 **Devices**: a faint drafting grid on the page via repeating-linear-gradient (1px lines every ~24px at low opacity); 1px solid light borders with small corner tick marks on every panel; dashed rules as dividers; sections labelled like sheet zones ("SECTION A — COVERAGE"); mono annotation callouts with leader-line dashes; a title block in the footer laid out like a drawing sheet's — project, date, sheet no., scale — as a small bordered table.
 
-**Figures**: this is the signature move — each figure is a PLATE: a white card (keep it light — chart ink is dark) inside a light border with corner ticks, labelled "FIG. 01 — <CAPTION>" in mono uppercase above or below.`,
+**Figures**: this is the signature move — each figure is a PLATE: a panel in the lighter blueprint blue #1B4A78 (charts raster with light ink for this style — do NOT use a white card) inside a light border with corner ticks, labelled "FIG. 01 — <CAPTION>" in mono uppercase above or below. Give the figure <img> background: #1B4A78 in CSS.`,
   },
 broadsheet: {
     name: "Broadsheet",
@@ -569,7 +569,7 @@ terminal: {
 
 **Devices**: section headers as commands — "$ fastr report --section coverage" in green, output following; or banner style "== 02 · COVERAGE ==" padded with = signs; 1px solid borders with a small label breaking the top edge (fieldset/legend idiom) to fake box-drawing frames; status tags in brackets — [OK] green, [WARN] amber, [FAIL] inverted; tables as aligned CLI output (mono makes columns line up; hairline row rules); key-value readouts as "metric ........: value" dot-leader lines; a blinking block cursor after the final line via a CSS keyframe animation.
 
-**Figures**: white "screenshot" cards (keep them light — chart ink is dark) with a slim terminal title bar above — dark strip, green mono filename ("anc1_coverage.png"), three small circles left.`,
+**Figures**: dark "screenshot" cards matching the panel color #121A15 (charts raster with light phosphor-friendly ink for this style — do NOT use white cards; give the figure <img> background: #121A15 in CSS) with a slim terminal title bar above — a darker strip, green mono filename ("anc1_coverage.png"), three small circles left.`,
   },
 brutalist: {
     name: "Brutalist",

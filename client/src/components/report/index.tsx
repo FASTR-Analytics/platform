@@ -102,7 +102,11 @@ import {
   scrollSurfaceToBottom,
 } from "./scroll_sync";
 import { ReportHtmlPreview } from "./report_html_preview";
-import { createFigureRasterCache } from "./report_figure_raster";
+import {
+  createFigureRasterCache,
+  type FigureInkTheme,
+  figureInkThemeForStyle,
+} from "./report_figure_raster";
 import { VersionHistoryEditor } from "../version_history";
 
 type EmbedKind = "figure" | "image";
@@ -159,7 +163,13 @@ export function ProjectReport(p: Props) {
   // HTML preview: figure rasters (content-keyed blob URLs) live here so they
   // survive Edit↔Split remounts; rasterTick re-renders the frame as they land.
   const [rasterTick, setRasterTick] = createSignal(0);
-  const rasters = createFigureRasterCache(() => setRasterTick((t) => t + 1));
+  // Dark styles raster charts with light ink (set once the config loads,
+  // before any raster is requested).
+  let inkTheme: FigureInkTheme | undefined;
+  const rasters = createFigureRasterCache(
+    () => setRasterTick((t) => t + 1),
+    () => inkTheme,
+  );
   // The live preview surface, for the peer-selection overlay (an iframe's
   // embeds are not reachable by querySelector from the parent document).
   const [previewSurface, setPreviewSurface] = createSignal<
@@ -571,6 +581,7 @@ export function ProjectReport(p: Props) {
       // tuning a style once benefits every report using it; the creation-time
       // snapshot keeps deleted/hidden styles working.
       const snap = getReportCustomStyle(res.data.config);
+      inkTheme = figureInkThemeForStyle(htmlStyle, snap?.colors);
       if (snap) {
         customStyle = {
           label: snap.label,
@@ -1315,6 +1326,7 @@ export function ProjectReport(p: Props) {
           currentLabel: label(),
           getCurrentBody: body,
           reportFormat: format(),
+          figureInkTheme: inkTheme,
         },
       }),
     );
