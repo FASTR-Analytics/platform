@@ -544,6 +544,8 @@ export function getEditingReportInstructions(
 
 The stylesheet below is the style's canonical implementation, taken verbatim from the report this style was saved from. When you write or restructure this report, START from this CSS: include it (essentially verbatim — you may prune rules for components you don't use and add rules for ones you need) in the report's <style> block, and write markup that uses ITS class names and structure. Do not re-invent a stylesheet from the prose above; the prose describes how to USE these classes.
 
+IMPORTANT — scoping: if these rules are scoped under a wrapper class (selectors like ".cs2 h2", ".report-x .panel"), you MUST wrap the entire report body in that wrapper element (e.g. <div class="cs2"> … </div>) or none of the styling will apply.
+
 \`\`\`css
 ${refCss}
 \`\`\``

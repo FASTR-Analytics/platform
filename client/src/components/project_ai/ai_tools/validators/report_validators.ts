@@ -105,6 +105,31 @@ export function validateStyledReportHasStylesheet(
   );
 }
 
+// Backstop for custom styles that carry a reference stylesheet: a full-body
+// rewrite that uses NONE of the stylesheet's class names has ignored it (the
+// exact failure observed live — the model invented an unrelated design).
+// Low-false-positive by design: one shared class name passes.
+export function validateReferenceCssReuse(
+  body: string,
+  format: ReportFormat,
+  referenceCss: string | null | undefined,
+  styleName: string | undefined,
+): void {
+  if (format !== "html" || !referenceCss?.trim() || !styleName) return;
+  const classNames = new Set<string>();
+  const re = /\.([A-Za-z_][\w-]*)/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(referenceCss)) !== null) classNames.add(m[1]);
+  if (classNames.size === 0) return;
+  for (const name of classNames) {
+    if (body.includes(name)) return;
+  }
+  const sample = [...classNames].slice(0, 8).join(", ");
+  throw new AIToolFailure(
+    `This report's style "${styleName}" carries a reference stylesheet, but the proposed body uses NONE of its class names (${sample}, …). Include that stylesheet in your <style> block and write markup with ITS classes — including the wrapper element if the rules are scoped under one (e.g. a body-wrapping <div class="${[...classNames][0]}">). Do not invent a new design.`,
+  );
+}
+
 // An in-place text edit (replace_text) may legitimately span tag boundaries, so
 // the FRAGMENT can't be validated — the resulting body must simply not be worse
 // than before (a body the user wrote may already carry defects).
