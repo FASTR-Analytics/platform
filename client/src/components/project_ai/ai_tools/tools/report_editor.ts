@@ -34,6 +34,7 @@ import { resolveFigureFromMetric } from "~/components/slide_deck/slide_ai/resolv
 import { formatFigureConfigForAI } from "./_internal/format_figure_config_for_ai";
 import { validateMetricInputs } from "../validators/content_validators";
 import {
+  validateReferenceCssReuse,
   validateStyledReportHasStylesheet,
   validateReportBodyDelta,
   validateReportBodyForFormat,
@@ -437,6 +438,12 @@ export function getClientToolsForReportEditor(
               ? view.params.htmlStyle
               : undefined);
           validateStyledReportHasStylesheet(input.body, format, styleName);
+          validateReferenceCssReuse(
+            input.body,
+            format,
+            view.params.customStyle?.referenceCss,
+            view.params.customStyle?.label,
+          );
           validateReportTokensResolve(
             input.body,
             ctx.getFigures(),

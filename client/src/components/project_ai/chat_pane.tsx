@@ -324,11 +324,31 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
         pt: "Ver prompt do sistema",
       }),
       icon: "code",
-      onClick: () =>
+      onClick: () => {
+        // The per-view instructions (design briefs, editing rules) are NOT in
+        // the cached system prompt — they ride each message as an ephemeral
+        // section. Show them first so "is the brief actually reaching the
+        // model?" is answerable by eye.
+        const parts = projectAIViewController._turnSectionParts();
+        const viewBlock = [
+          "# PER-TURN VIEW SECTION (attached to your next message; not part of the cached system prompt below)",
+          `View: ${parts.view.id}${parts.view.label ? ` — ${parts.view.label}` : ""}`,
+          "",
+          parts.viewInstructions ?? "(this view delivers no instructions)",
+        ].join("\n");
+        const sp = p.getSystemPrompt();
         openComponent<AIChatSystemPromptPanelProps, void>({
           element: AIChatSystemPromptPanel,
-          props: { systemPrompt: p.getSystemPrompt() },
-        }),
+          props: {
+            systemPrompt: [
+              { type: "text" as const, text: viewBlock },
+              ...(typeof sp === "string"
+                ? [{ type: "text" as const, text: sp }]
+                : sp),
+            ],
+          },
+        });
+      },
     },
     {
       label: t3({
