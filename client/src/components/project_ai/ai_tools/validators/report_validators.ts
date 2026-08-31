@@ -126,14 +126,62 @@ export function validateReferenceCssReuse(
   if (classNames.size === 0) return;
   const present = [...classNames].filter((name) => body.includes(name));
   const required = Math.max(1, Math.ceil(classNames.size * 0.7));
-  if (present.length >= required) return;
-  const missing = [...classNames]
-    .filter((name) => !body.includes(name))
-    .slice(0, 10)
-    .join(", ");
-  throw new AIToolFailure(
-    `This report's style "${styleName}" carries a reference stylesheet, but the proposed body only uses ${present.length} of its ${classNames.size} class names — it looks like you wrote a NEW design instead of reusing the stylesheet (missing e.g.: ${missing}). COPY the reference stylesheet into your <style> block first (essentially verbatim), then write markup using ITS classes — including the wrapper element if the rules are scoped under one (a body-wrapping element carrying that class). Do not rename its classes or invent a parallel design.`,
+  if (present.length < required) {
+    const missing = [...classNames]
+      .filter((name) => !body.includes(name))
+      .slice(0, 10)
+      .join(", ");
+    throw new AIToolFailure(
+      `This report's style "${styleName}" carries a reference stylesheet, but the proposed body only uses ${present.length} of its ${classNames.size} class names — it looks like you wrote a NEW design instead of reusing the stylesheet (missing e.g.: ${missing}). COPY the reference stylesheet into your <style> block first (essentially verbatim), then write markup using ITS classes — including the wrapper element if the rules are scoped under one (a body-wrapping element carrying that class). Do not rename its classes or invent a parallel design.`,
+    );
+  }
+
+  // Inclusion is not application (observed live: the sheet shipped verbatim
+  // inside <style>, satisfying the name check, while the MARKUP used none of
+  // it — and with a wrapper-scoped sheet that renders as a completely foreign
+  // design). Check the markup with the style blocks stripped.
+  const markup = body.replace(/<style\b[^>]*>[\s\S]*?<\/style\s*>/gi, "");
+
+  // Dominant scoping wrapper: the leading class shared by most rule preludes.
+  const preludeCounts = new Map<string, number>();
+  let preludes = 0;
+  for (const rule of referenceCss.split("}")) {
+    const prelude = rule.split("{")[0];
+    const lm = /^\s*\.([A-Za-z_][\w-]*)/.exec(prelude);
+    if (!lm) continue;
+    preludes++;
+    preludeCounts.set(lm[1], (preludeCounts.get(lm[1]) ?? 0) + 1);
+  }
+  const dominant = [...preludeCounts.entries()].sort((a, b) => b[1] - a[1])[0];
+  if (dominant && preludes >= 3 && dominant[1] / preludes >= 0.6) {
+    const wrapper = dominant[0];
+    const esc = wrapper.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const carriesWrapper = new RegExp(
+      `class\\s*=\\s*["'][^"']*\\b${esc}\\b`,
+    );
+    if (!carriesWrapper.test(markup)) {
+      throw new AIToolFailure(
+        `The reference stylesheet for style "${styleName}" scopes its rules under ".${wrapper}" — every selector needs an ancestor with that class, so WITHOUT a wrapping element the whole stylesheet does nothing and the report renders in a different design. Wrap the ENTIRE body content (after the <style> block) in an element with class="${wrapper}" and keep your markup inside it.`,
+      );
+    }
+  }
+
+  // And the markup must actually USE a reasonable share of the classes —
+  // shipping the stylesheet while styling nothing with it is the same failure.
+  const usedInMarkup = [...classNames].filter((name) => markup.includes(name));
+  const requiredInMarkup = Math.min(
+    classNames.size,
+    Math.max(2, Math.ceil(classNames.size * 0.25)),
   );
+  if (usedInMarkup.length < requiredInMarkup) {
+    const unused = [...classNames]
+      .filter((name) => !markup.includes(name))
+      .slice(0, 10)
+      .join(", ");
+    throw new AIToolFailure(
+      `The reference stylesheet for style "${styleName}" is included, but the MARKUP barely uses its classes (${usedInMarkup.length} of ${classNames.size}; unused e.g.: ${unused}). Write the report's elements WITH these classes (eyebrow/heading/panel/list/figure treatments as the stylesheet defines them) instead of unclassed or differently-named markup — otherwise the design does not apply.`,
+    );
+  }
 }
 
 // An in-place text edit (replace_text) may legitimately span tag boundaries, so
