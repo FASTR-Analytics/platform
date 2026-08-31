@@ -18,10 +18,12 @@ import { loadImageEntry } from "./_report_export_maps";
 import {
   applyInkTheme,
   figureInkThemeForStyle,
+  GENERIC_LIGHT_INK,
 } from "~/components/report/report_figure_raster";
 import {
   buildReportBodyNodes,
   type FigureRasterState,
+  measureFigureGrounds,
   sanitizeReportHtml,
   stripLazyLoading,
   wrapReportDocument,
@@ -37,10 +39,17 @@ export async function buildStandaloneReportHtml(
   progress: (pct: number) => void,
 ): Promise<string> {
   const figureEntries = Object.entries(detail.figures);
-  const inkTheme = figureInkThemeForStyle(
+  // Ink follows each figure's ACTUAL ground (same rule as the preview): the
+  // sanitized document — figure tokens still raw — is mounted in a hidden
+  // iframe to measure computed backgrounds before any rasterization.
+  const sanitized = sanitizeReportHtml(detail.body);
+  const darkGrounds = await measureFigureGrounds(
+    wrapReportDocument({ title: detail.label, bodyHtml: sanitized }),
+  );
+  const lightInk = figureInkThemeForStyle(
     getReportHtmlStyle(detail.config),
     getReportCustomStyle(detail.config)?.colors,
-  );
+  ) ?? GENERIC_LIGHT_INK;
   const rasters = new Map<string, FigureRasterState>();
   let done = 0;
   for (const [id, block] of figureEntries) {
@@ -49,10 +58,13 @@ export async function buildStandaloneReportHtml(
       if (!bundle) throw new Error("no bundle");
       const fi = buildFigureInputs(bundle);
       await loadFontsWithTimeout(new CustomFigureStyle(fi.style).getFontsToRegister());
-      // Transparent, like the preview rasters — the style's CSS owns the
-      // figure background (base CSS defaults it to white).
+      // Transparent, like the preview rasters — the report's CSS owns what
+      // shows behind the figure; light ink only on a detected dark ground.
       const r = await getFigureAsDataUrlBrowser(
-        applyInkTheme(figureInputsForDownload(fi, true, false), inkTheme),
+        applyInkTheme(
+          figureInputsForDownload(fi, true, false),
+          darkGrounds.get(id) ? lightInk : undefined,
+        ),
         FIGURE_EXPORT_WIDTH_PX,
       );
       rasters.set(id, { state: "ready", url: r.dataUrl, width: r.width, height: r.height });
@@ -73,7 +85,7 @@ export async function buildStandaloneReportHtml(
   // until the user opens the file.
   const frag = buildReportBodyNodes(
     document,
-    sanitizeReportHtml(detail.body),
+    sanitized,
     (id) => rasters.get(id) ?? { state: "missing" },
     (id) => imageUrls.get(id),
   );

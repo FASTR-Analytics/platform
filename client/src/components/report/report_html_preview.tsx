@@ -3,10 +3,15 @@ import { createEffect, on, onCleanup } from "solid-js";
 import {
   buildReportBodyNodes,
   interceptReportLinks,
+  isDarkGroundBehind,
   renderReportBodyHtml,
   wrapReportDocument,
 } from "./report_html";
-import type { FigureRasterCache } from "./report_figure_raster";
+import {
+  type FigureInkTheme,
+  type FigureRasterCache,
+  GENERIC_LIGHT_INK,
+} from "./report_figure_raster";
 import { iframeSurface, type PreviewSurface } from "./scroll_sync";
 
 // The rendered HTML report: a `sandbox="allow-same-origin"` srcdoc iframe
@@ -33,6 +38,9 @@ type Props = {
   rasters: FigureRasterCache;
   // Bumped by the host when a raster lands → immediate re-render.
   rasterVersion: number;
+  // The style's light-ink palette for figures whose DETECTED ground is dark
+  // (generic fallback applies when absent).
+  lightInk?: FigureInkTheme;
   lineAnchors: boolean;
   forwardPointer?: boolean;
   onSurface?: (surface: PreviewSurface) => void;
@@ -50,6 +58,18 @@ export function ReportHtmlPreview(p: Props) {
   let renderTimer: ReturnType<typeof setTimeout> | undefined;
   const cleanups: (() => void)[] = [];
 
+  // Ink follows each figure's ACTUAL ground: an unmeasured figure renders as
+  // a probe (the author's <img> with a transparent pixel) for one pass; after
+  // insertion the grounds are measured from computed styles and a changed/new
+  // measurement triggers an immediate re-render that requests the raster with
+  // the right ink. Measurements are per figure id and re-checked every render,
+  // so CSS edits that flip a ground re-ink the chart.
+  const darkGroundById = new Map<string, boolean>();
+
+  function inkFor(id: string): FigureInkTheme | undefined {
+    return darkGroundById.get(id) ? (p.lightInk ?? GENERIC_LIGHT_INK) : undefined;
+  }
+
   function render() {
     const doc = iframe.contentDocument;
     if (!doc?.body) return;
@@ -59,7 +79,9 @@ export function ReportHtmlPreview(p: Props) {
       html,
       (id) => {
         const fb = p.figures[id];
-        return fb ? p.rasters.get(id, fb) : { state: "missing" };
+        if (!fb) return { state: "missing" };
+        if (!darkGroundById.has(id)) return { state: "probe" };
+        return p.rasters.get(id, fb, inkFor(id));
       },
       (id) => {
         const ib = p.images[id];
@@ -67,6 +89,23 @@ export function ReportHtmlPreview(p: Props) {
       },
     );
     doc.body.replaceChildren(frag);
+    let groundsChanged = false;
+    for (
+      const el of Array.from(
+        doc.querySelectorAll('[data-embed-kind="figure"]'),
+      )
+    ) {
+      const id = el.getAttribute("data-embed-id");
+      if (!id) continue;
+      const dark = isDarkGroundBehind(el);
+      if (darkGroundById.get(id) !== dark) {
+        darkGroundById.set(id, dark);
+        groundsChanged = true;
+      }
+    }
+    if (groundsChanged) {
+      scheduleRender(0);
+    }
     p.onReady?.();
   }
 

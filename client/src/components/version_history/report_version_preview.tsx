@@ -246,10 +246,7 @@ function HtmlVersionPreview(p: {
   inkTheme?: FigureInkTheme;
 }) {
   const [rasterTick, setRasterTick] = createSignal(0);
-  const rasters = createFigureRasterCache(
-    () => setRasterTick((t) => t + 1),
-    () => p.inkTheme,
-  );
+  const rasters = createFigureRasterCache(() => setRasterTick((t) => t + 1));
   onCleanup(() => rasters.dispose());
   return (
     <div class="bg-base-200 min-h-0 flex-1 overflow-hidden px-8 py-10">
@@ -262,6 +259,7 @@ function HtmlVersionPreview(p: {
         assetUrl={(imgFile) => `${_SERVER_HOST}/${imgFile}`}
         rasters={rasters}
         rasterVersion={rasterTick()}
+        lightInk={p.inkTheme}
         lineAnchors={false}
       />
     </div>
