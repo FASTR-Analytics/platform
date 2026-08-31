@@ -66,7 +66,7 @@ The brief must cover, in this order:
 **Fonts** — which family plays which role (the @import already lives in the captured CSS).
 **Palette** — the tokens/hexes and their roles, briefly (the values live in the CSS).
 **Structure** — the reusable layout devices and their CLASS NAMES: how a masthead, section, card grid, table, callout, footer is composed from the stylesheet's classes; which element carries which class. Generic — never this report's content or topic.
-**Figures** — how figure images are framed and captioned (they render as white-background PNGs), naming the classes to wrap them in.
+**Figures** — how figure images are framed and captioned (they render as transparent PNGs over a white default background your CSS may override), naming the classes to wrap them in.
 Restate the hard constraints: static markup only (no <script>, no <link>), inline <svg> allowed for ornament, break-inside:avoid on cards/figures for print.
 "colors" = the page background, the main text color, and the single most characteristic accent, as hex.
 

@@ -35,8 +35,10 @@ export async function buildStandaloneReportHtml(
       if (!bundle) throw new Error("no bundle");
       const fi = buildFigureInputs(bundle);
       await loadFontsWithTimeout(new CustomFigureStyle(fi.style).getFontsToRegister());
+      // Transparent, like the preview rasters — the style's CSS owns the
+      // figure background (base CSS defaults it to white).
       const r = await getFigureAsDataUrlBrowser(
-        figureInputsForDownload(fi, false, false),
+        figureInputsForDownload(fi, true, false),
         FIGURE_EXPORT_WIDTH_PX,
       );
       rasters.set(id, { state: "ready", url: r.dataUrl, width: r.width, height: r.height });

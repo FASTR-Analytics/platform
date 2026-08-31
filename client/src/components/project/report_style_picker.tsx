@@ -55,6 +55,66 @@ export const STYLE_OPTIONS: {
       }),
   },
   {
+    value: "minimal",
+    label: () => t3({ en: "Minimal", fr: "Minimal", pt: "Minimalista" }),
+    description: () =>
+      t3({
+        en: "Generous whitespace, hairline rules, one quiet accent — no boxes.",
+        fr: "Beaucoup d'espace, filets fins, un seul accent discret — sans encadrés.",
+        pt: "Muito espaço em branco, filetes finos, um acento discreto — sem caixas.",
+      }),
+  },
+  {
+    value: "corporate",
+    label: () => t3({ en: "Corporate", fr: "Institutionnel", pt: "Corporativo" }),
+    description: () =>
+      t3({
+        en: "Navy headings, KPI band, blue-ruled sections — the briefing classic.",
+        fr: "Titres marine, bandeau d'indicateurs, sections soulignées de bleu.",
+        pt: "Títulos azul-marinho, faixa de KPIs, secções com regra azul.",
+      }),
+  },
+  {
+    value: "ministry",
+    label: () => t3({ en: "Ministry", fr: "Ministériel", pt: "Ministerial" }),
+    description: () =>
+      t3({
+        en: "Formal government document — centered title, numbered sections, ruled tables.",
+        fr: "Document officiel — titre centré, sections numérotées, tableaux à filets.",
+        pt: "Documento oficial — título centrado, secções numeradas, tabelas com grelha.",
+      }),
+  },
+  {
+    value: "classic",
+    label: () => t3({ en: "Classic", fr: "Classique", pt: "Clássico" }),
+    description: () =>
+      t3({
+        en: "Serif prose, numbered figures, footnoted sources — a well-set report.",
+        fr: "Prose en serif, figures numérotées, sources en notes — un rapport soigné.",
+        pt: "Prosa serifada, figuras numeradas, fontes em notas — um relatório cuidado.",
+      }),
+  },
+  {
+    value: "executive",
+    label: () => t3({ en: "Executive", fr: "Exécutif", pt: "Executivo" }),
+    description: () =>
+      t3({
+        en: "Compact and decision-oriented — stat tiles, tight columns, action list.",
+        fr: "Compact et orienté décision — tuiles de chiffres, colonnes serrées, actions.",
+        pt: "Compacto e orientado à decisão — mosaicos de números, colunas densas, ações.",
+      }),
+  },
+  {
+    value: "clinical",
+    label: () => t3({ en: "Clinical", fr: "Clinique", pt: "Clínico" }),
+    description: () =>
+      t3({
+        en: "Calm teal accents, key-message panels, status pills — public-health idiom.",
+        fr: "Accents sarcelle, encadrés de messages clés, pastilles de statut.",
+        pt: "Acentos verde-azulado, painéis de mensagens-chave, etiquetas de estado.",
+      }),
+  },
+  {
     value: "editorial",
     label: () => t3({ en: "Editorial", fr: "Éditorial", pt: "Editorial" }),
     description: () =>
@@ -75,66 +135,6 @@ export const STYLE_OPTIONS: {
       }),
   },
   {
-    value: "bauhaus",
-    label: () => t3({ en: "Bauhaus", fr: "Bauhaus", pt: "Bauhaus" }),
-    description: () =>
-      t3({
-        en: "Primary-color geometry — blocks, circles and bars as ornament.",
-        fr: "Géométrie en couleurs primaires — blocs, cercles et barres en ornement.",
-        pt: "Geometria em cores primárias — blocos, círculos e barras como ornamento.",
-      }),
-  },
-  {
-    value: "blueprint",
-    label: () => t3({ en: "Blueprint", fr: "Blueprint", pt: "Blueprint" }),
-    description: () =>
-      t3({
-        en: "White line-work on blueprint blue; every figure a numbered plate.",
-        fr: "Tracés blancs sur bleu de plan ; chaque figure devient une planche numérotée.",
-        pt: "Traços brancos sobre azul de planta; cada figura é uma prancha numerada.",
-      }),
-  },
-  {
-    value: "broadsheet",
-    label: () => t3({ en: "Broadsheet", fr: "Journal grand format", pt: "Jornal de grande formato" }),
-    description: () =>
-      t3({
-        en: "Newspaper front page — masthead, columns, kickers, drop caps.",
-        fr: "Une de journal — manchette, colonnes, surtitres, lettrines.",
-        pt: "Primeira página de jornal — cabeçalho, colunas, antetítulos, capitulares.",
-      }),
-  },
-  {
-    value: "risograph",
-    label: () => t3({ en: "Risograph", fr: "Risographie", pt: "Risografia" }),
-    description: () =>
-      t3({
-        en: "Two-ink zine print — paper tint, offset shadows, stamped labels.",
-        fr: "Impression deux encres façon zine — papier teinté, ombres décalées, tampons.",
-        pt: "Impressão a duas tintas estilo zine — papel tingido, sombras desalinhadas, carimbos.",
-      }),
-  },
-  {
-    value: "artdeco",
-    label: () => t3({ en: "Art deco", fr: "Art déco", pt: "Art déco" }),
-    description: () =>
-      t3({
-        en: "1920s programme — symmetric, gilded rules and ornaments, small caps.",
-        fr: "Programme années 1920 — symétrie, filets et ornements dorés, petites capitales.",
-        pt: "Programa anos 1920 — simetria, filetes e ornamentos dourados, versaletes.",
-      }),
-  },
-  {
-    value: "japanese",
-    label: () => t3({ en: "Japanese minimal", fr: "Minimalisme japonais", pt: "Minimalismo japonês" }),
-    description: () =>
-      t3({
-        en: "Extreme whitespace, quiet type, a single vermilion seal.",
-        fr: "Espace blanc extrême, typographie discrète, un unique sceau vermillon.",
-        pt: "Espaço em branco extremo, tipografia discreta, um único selo vermelhão.",
-      }),
-  },
-  {
     value: "monochrome",
     label: () => t3({ en: "Monochrome ink", fr: "Encre monochrome", pt: "Tinta monocromática" }),
     description: () =>
@@ -144,33 +144,13 @@ export const STYLE_OPTIONS: {
         pt: "Preto puro sobre branco — os gráficos tornam-se a única cor da página.",
       }),
   },
-  {
-    value: "terminal",
-    label: () => t3({ en: "Terminal", fr: "Terminal", pt: "Terminal" }),
-    description: () =>
-      t3({
-        en: "Phosphor green on near-black, monospace everything, CLI furniture.",
-        fr: "Vert phosphore sur quasi-noir, tout en chasse fixe, habillage type console.",
-        pt: "Verde fósforo sobre quase preto, tudo monoespaçado, elementos de consola.",
-      }),
-  },
-  {
-    value: "brutalist",
-    label: () => t3({ en: "Brutalist", fr: "Brutaliste", pt: "Brutalista" }),
-    description: () =>
-      t3({
-        en: "Raw and loud — harsh borders, hard shadows, highlighter yellow.",
-        fr: "Brut et criard — bordures dures, ombres franches, jaune surligneur.",
-        pt: "Cru e ruidoso — margens duras, sombras rígidas, amarelo marcador.",
-      }),
-  },
 ];
 
 // Loaded once, on first modal open; cached by the browser after that. Only the
 // weights the tiles actually render.
 const FONTS_LINK_ID = "report-style-picker-fonts";
 const FONTS_HREF =
-  "https://fonts.googleapis.com/css2?family=Archivo:wght@900&family=Archivo+Narrow:wght@700&family=Cormorant+Garamond&family=IBM+Plex+Mono&family=IBM+Plex+Sans&family=IBM+Plex+Sans+Condensed:wght@700&family=Inter:wght@400;900&family=JetBrains+Mono:wght@400;700&family=Libre+Franklin:wght@300;900&family=Marcellus&family=Oswald:wght@500&family=Playfair+Display:wght@900&family=Shippori+Mincho:wght@700&family=Source+Serif+4&family=Space+Grotesk:wght@500;700&family=Space+Mono&family=Zen+Kaku+Gothic+New&display=swap";
+  "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&family=IBM+Plex+Sans&family=IBM+Plex+Sans+Condensed:wght@700&family=Inter:wght@400;700;800;900&family=Libre+Franklin:wght@300;900&family=Public+Sans:wght@400;700&family=Source+Sans+3:wght@400;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,700&display=swap";
 
 function ensureFonts() {
   if (document.getElementById(FONTS_LINK_ID)) return;
@@ -285,6 +265,68 @@ const MOCK_CSS = `
 .rsp-th{height:5px;background:#e3e3e3;}
 .rsp-tr{height:3px;background:#efefef;}
 
+.rsp-minimal .rsp-page{font-family:'Inter',system-ui,sans-serif;color:#1B2430;gap:8px;padding:16px;}
+.rsp-minimal .rsp-eyebrow{color:#5C6672;}
+.rsp-minimal .rsp-title{font-size:15px;font-weight:700;}
+.rsp-minimal .rsp-rule{height:1px;background:#E5E8EC;}
+.rsp-minimal .rsp-bar{background:#E5E8EC;}
+.rsp-minimal .rsp-stat{color:#3B5B7E;font-weight:700;}
+.rsp-minimal .rsp-chart i{background:#3B5B7E;border-radius:1px;}
+.rsp-minimal .rsp-th{background:#D7DDE3;height:3px;}.rsp-minimal .rsp-tr{background:#EFF1F4;}
+
+.rsp-corporate .rsp-page{font-family:'Source Sans 3',system-ui,sans-serif;color:#222B36;}
+.rsp-corporate .rsp-eyebrow{color:#5C6672;}
+.rsp-corporate .rsp-title{color:#1F4E79;font-weight:700;font-size:16px;}
+.rsp-corporate .rsp-rule{height:3px;background:#2E75B6;}
+.rsp-corporate .rsp-body{background:#EEF3F8;border-top:3px solid #1F4E79;border-radius:3px;padding:6px 8px;}
+.rsp-corporate .rsp-bar{background:#C9D7E4;}
+.rsp-corporate .rsp-stat{color:#1F4E79;font-weight:700;}
+.rsp-corporate .rsp-chart i{background:#2E75B6;}
+.rsp-corporate .rsp-th{background:#1F4E79;}.rsp-corporate .rsp-tr{background:#E4ECF3;}
+
+.rsp-ministry .rsp-page{font-family:'Source Sans 3',system-ui,sans-serif;color:#1A1A1A;align-items:center;text-align:center;}
+.rsp-ministry .rsp-eyebrow{color:#555;letter-spacing:.2em;}
+.rsp-ministry .rsp-title{font-family:'Source Serif 4',Georgia,serif;color:#0F2B46;font-weight:700;font-size:14.5px;border-top:1px solid #0F2B46;border-bottom:1px solid #0F2B46;padding:3px 12px;box-shadow:0 3px 0 -2px #0F2B46, 0 -3px 0 -2px #0F2B46;}
+.rsp-ministry .rsp-rule{display:none;}
+.rsp-ministry .rsp-body{width:100%;text-align:left;}
+.rsp-ministry .rsp-bar{background:#D8D8D8;}
+.rsp-ministry .rsp-stat{font-family:'Source Serif 4',serif;color:#0F2B46;}
+.rsp-ministry .rsp-chart{width:100%;border:1px solid #8A8A8A;padding:3px 5px;}
+.rsp-ministry .rsp-chart i{background:#0F2B46;border-radius:0;}
+.rsp-ministry .rsp-table{width:100%;border:1px solid #8A8A8A;padding:2px;gap:2px;}
+.rsp-ministry .rsp-th{background:#B9BFC6;}.rsp-ministry .rsp-tr{background:#E9EBED;}
+
+.rsp-classic .rsp-page{font-family:'Source Serif 4',Georgia,serif;color:#2B2B2B;gap:7px;}
+.rsp-classic .rsp-eyebrow{font-variant:small-caps;letter-spacing:.14em;color:#666;}
+.rsp-classic .rsp-title{font-weight:700;font-size:15px;}
+.rsp-classic .rsp-rule{height:1px;background:#CCC;}
+.rsp-classic .rsp-bar{background:#DDD;height:3px;}
+.rsp-classic .rsp-stat{color:#7B2D26;}
+.rsp-classic .rsp-chart{border-top:1px solid #CCC;border-bottom:1px solid #CCC;padding:4px 8px;}
+.rsp-classic .rsp-chart i{background:#5A5A5A;border-radius:0;}
+.rsp-classic .rsp-th{background:#CCC;height:2px;}.rsp-classic .rsp-tr{background:#EBEBEB;}
+
+.rsp-executive .rsp-page{font-family:'Inter',system-ui,sans-serif;color:#1E293B;gap:5px;padding:11px 13px;}
+.rsp-executive .rsp-eyebrow{color:#64748B;font-weight:700;}
+.rsp-executive .rsp-title{font-weight:800;font-size:14px;}
+.rsp-executive .rsp-rule{display:none;}
+.rsp-executive .rsp-body{background:#E8F4F6;border-left:2.5px solid #0E7490;padding:5px 8px;border-radius:2px;}
+.rsp-executive .rsp-bar{background:#CBD5E1;height:3px;}
+.rsp-executive .rsp-stat{font-weight:800;color:#0E7490;font-size:16px;}
+.rsp-executive .rsp-chart{min-height:20px;}
+.rsp-executive .rsp-chart i{background:#0E7490;}
+.rsp-executive .rsp-th{background:#1E293B;height:3px;}.rsp-executive .rsp-tr{background:#EDF1F5;}
+
+.rsp-clinical .rsp-page{font-family:'Public Sans',system-ui,sans-serif;color:#21303A;}
+.rsp-clinical .rsp-eyebrow{color:#5B6B76;}
+.rsp-clinical .rsp-title{color:#0F766E;font-weight:700;font-size:15px;border-left:3.5px solid #0F766E;padding-left:7px;}
+.rsp-clinical .rsp-rule{height:1px;background:#DCE4E8;}
+.rsp-clinical .rsp-body{background:#E6F2F0;border-left:3px solid #0F766E;border-radius:2px;padding:5px 8px;}
+.rsp-clinical .rsp-bar{background:#CBD9D6;}
+.rsp-clinical .rsp-stat{color:#0F766E;font-weight:700;}
+.rsp-clinical .rsp-chart i{background:#0F766E;}
+.rsp-clinical .rsp-th{background:#BFD8D4;}.rsp-clinical .rsp-tr{background:#EAF3F1;}
+
 .rsp-editorial .rsp-page{background:#E9EEF3;color:#0F2130;font-family:'IBM Plex Sans',system-ui,sans-serif;}
 .rsp-editorial .rsp-eyebrow{font-family:'IBM Plex Mono',monospace;color:#8A98A5;}
 .rsp-editorial .rsp-title{font-family:'IBM Plex Sans Condensed',sans-serif;letter-spacing:-.01em;}
@@ -307,78 +349,6 @@ const MOCK_CSS = `
 .rsp-swiss .rsp-chart i:nth-child(4){background:#E30613;}
 .rsp-swiss .rsp-th{background:#111;height:3px;}.rsp-swiss .rsp-tr{background:#e6e6e6;}
 
-.rsp-bauhaus .rsp-page{background:#F5F1E8;color:#1A1A1A;font-family:'Space Grotesk',sans-serif;position:relative;}
-.rsp-bauhaus .rsp-seal{display:block;position:absolute;top:10px;right:12px;width:13px;height:13px;background:#F0B429;border-radius:50%;}
-.rsp-bauhaus .rsp-title{font-family:'Archivo',sans-serif;font-weight:900;text-transform:uppercase;font-size:15px;}
-.rsp-bauhaus .rsp-eyebrow{color:#D02E26;font-weight:700;}
-.rsp-bauhaus .rsp-rule{height:5px;background:#1F5CA9;}
-.rsp-bauhaus .rsp-bar{background:#d8d2c4;}
-.rsp-bauhaus .rsp-stat{font-family:'Archivo',sans-serif;font-weight:900;color:#D02E26;}
-.rsp-bauhaus .rsp-chart i{border-radius:0;}
-.rsp-bauhaus .rsp-chart i:nth-child(odd){background:#D02E26;}
-.rsp-bauhaus .rsp-chart i:nth-child(2){background:#1F5CA9;}
-.rsp-bauhaus .rsp-chart i:nth-child(4){background:#F0B429;}
-.rsp-bauhaus .rsp-th{background:#1A1A1A;}.rsp-bauhaus .rsp-tr{background:#e4ddcd;}
-
-.rsp-blueprint .rsp-page{background:#123B63;color:#E7F0F7;font-family:'IBM Plex Mono',monospace;background-image:repeating-linear-gradient(0deg,rgba(231,240,247,.07) 0 1px,transparent 1px 14px),repeating-linear-gradient(90deg,rgba(231,240,247,.07) 0 1px,transparent 1px 14px);}
-.rsp-blueprint .rsp-eyebrow{color:#7FA6C6;}
-.rsp-blueprint .rsp-title{font-family:'Archivo Narrow',sans-serif;text-transform:uppercase;letter-spacing:.06em;font-size:14px;}
-.rsp-blueprint .rsp-rule{background:#7FA6C6;height:1px;border-bottom:1px dashed #7FA6C6;background:transparent;}
-.rsp-blueprint .rsp-bar{background:rgba(231,240,247,.35);}
-.rsp-blueprint .rsp-stat{color:#E7F0F7;}
-.rsp-blueprint .rsp-chart{background:#fff;border:1px solid #E7F0F7;padding:4px 6px;outline:1px solid #7FA6C6;outline-offset:2px;}
-.rsp-blueprint .rsp-chart i{background:#123B63;border-radius:0;}
-.rsp-blueprint .rsp-th{background:rgba(231,240,247,.5);}.rsp-blueprint .rsp-tr{background:rgba(231,240,247,.2);}
-
-.rsp-broadsheet .rsp-page{background:#FAF7F0;color:#1C1C1C;font-family:'Source Serif 4',serif;align-items:center;text-align:center;}
-.rsp-broadsheet .rsp-eyebrow{font-family:'Oswald',sans-serif;text-transform:uppercase;color:#575757;}
-.rsp-broadsheet .rsp-title{font-family:'Playfair Display',serif;font-weight:900;font-size:20px;border-top:1px solid #1C1C1C;border-bottom:1px solid #1C1C1C;padding:2px 10px;}
-.rsp-broadsheet .rsp-rule{display:none;}
-.rsp-broadsheet .rsp-body{width:100%;text-align:left;}
-.rsp-broadsheet .rsp-col{column-gap:8px;}
-.rsp-broadsheet .rsp-bar{background:#cfc9ba;}
-.rsp-broadsheet .rsp-stat{font-family:'Playfair Display',serif;}
-.rsp-broadsheet .rsp-chart{width:100%;border:1px solid #1C1C1C;padding:3px 5px;background:#fff;}
-.rsp-broadsheet .rsp-chart i{background:#57534a;}
-.rsp-broadsheet .rsp-table{width:100%;}
-.rsp-broadsheet .rsp-th{background:#d9d2c1;}.rsp-broadsheet .rsp-tr{background:#eae4d5;}
-
-.rsp-risograph .rsp-page{background:#F7F3E8;color:#1D3159;font-family:'Space Grotesk',sans-serif;}
-.rsp-risograph .rsp-eyebrow{font-family:'Space Mono',monospace;border:1px solid #1D3159;display:inline-block;align-self:flex-start;padding:1px 4px;transform:rotate(-2deg);}
-.rsp-risograph .rsp-title{font-weight:700;color:#0078BF;text-shadow:1.5px 1.5px 0 #FF48B0;}
-.rsp-risograph .rsp-rule{height:3px;background:#0078BF;border-radius:2px;}
-.rsp-risograph .rsp-bar{background:#b9c6e0;}
-.rsp-risograph .rsp-stat{color:#FF48B0;font-weight:700;}
-.rsp-risograph .rsp-chart{background:#fff;border:2px solid #0078BF;border-radius:6px;box-shadow:3px 3px 0 #FF48B0;padding:4px 6px;}
-.rsp-risograph .rsp-chart i{background:#0078BF;}
-.rsp-risograph .rsp-chart i:nth-child(even){background:#FF48B0;}
-.rsp-risograph .rsp-th{background:#f3c9e2;}.rsp-risograph .rsp-tr{background:#cfe4f2;}
-
-.rsp-artdeco .rsp-page{background:#F5EFE0;color:#191714;font-family:'Cormorant Garamond',serif;align-items:center;text-align:center;}
-.rsp-artdeco .rsp-eyebrow{font-family:'Marcellus',serif;letter-spacing:.2em;color:#B08D3E;}
-.rsp-artdeco .rsp-title{font-family:'Marcellus',serif;font-weight:400;text-transform:uppercase;letter-spacing:.18em;font-size:14px;}
-.rsp-artdeco .rsp-rule{width:60%;height:1px;background:#B08D3E;box-shadow:0 2.5px 0 #B08D3E;}
-.rsp-artdeco .rsp-body{width:88%;}
-.rsp-artdeco .rsp-bar{background:#d8cfb8;}
-.rsp-artdeco .rsp-stat{color:#B08D3E;font-family:'Marcellus',serif;}
-.rsp-artdeco .rsp-chart{width:88%;border:1px solid #B08D3E;outline:1px solid #B08D3E;outline-offset:2px;padding:4px 6px;background:#fff;}
-.rsp-artdeco .rsp-chart i{background:#1F3A2E;}
-.rsp-artdeco .rsp-table{width:88%;}
-.rsp-artdeco .rsp-th{background:#B08D3E;height:2px;}.rsp-artdeco .rsp-tr{background:#e4dcc6;}
-
-.rsp-japanese .rsp-page{background:#FBFAF7;color:#2B2B28;font-family:'Zen Kaku Gothic New',sans-serif;padding:18px 16px;gap:10px;position:relative;}
-.rsp-japanese .rsp-seal{display:block;position:absolute;top:16px;right:16px;width:9px;height:9px;background:#C73E2E;}
-.rsp-japanese .rsp-eyebrow{display:none;}
-.rsp-japanese .rsp-title{font-family:'Shippori Mincho',serif;font-size:13px;font-weight:700;}
-.rsp-japanese .rsp-rule{display:none;}
-.rsp-japanese .rsp-body{padding-top:4px;}
-.rsp-japanese .rsp-col{gap:6px;}
-.rsp-japanese .rsp-bar{background:#e4e2db;height:2.5px;}
-.rsp-japanese .rsp-stat{font-weight:400;font-size:13px;color:#8C8A84;}
-.rsp-japanese .rsp-chart{padding:4px 18px;justify-content:center;gap:7px;}
-.rsp-japanese .rsp-chart i{background:#c8c6bd;max-width:9px;}
-.rsp-japanese .rsp-table{display:none;}
-
 .rsp-monochrome .rsp-page{font-family:'Libre Franklin',sans-serif;color:#000;gap:7px;}
 .rsp-monochrome .rsp-eyebrow{color:#666;}
 .rsp-monochrome .rsp-title{font-weight:900;font-size:19px;background:#000;color:#fff;padding:1px 6px;align-self:flex-start;}
@@ -387,28 +357,6 @@ const MOCK_CSS = `
 .rsp-monochrome .rsp-stat{font-weight:900;font-size:16px;}
 .rsp-monochrome .rsp-chart i{background:#000;border-radius:0;}
 .rsp-monochrome .rsp-th{background:#000;}.rsp-monochrome .rsp-tr{background:#e8e8e8;}
-
-.rsp-terminal .rsp-page{background:#0C0F0D;color:#9BB39F;font-family:'JetBrains Mono',monospace;}
-.rsp-terminal .rsp-eyebrow{color:#33FF66;}
-.rsp-terminal .rsp-eyebrow::before{content:"$ ";}
-.rsp-terminal .rsp-title{color:#33FF66;font-size:13px;font-weight:700;}
-.rsp-terminal .rsp-rule{height:1px;background:#1E3A2A;}
-.rsp-terminal .rsp-bar{background:#1E3A2A;}
-.rsp-terminal .rsp-stat{color:#33FF66;}
-.rsp-terminal .rsp-chart{background:#fff;border:1px solid #1E3A2A;padding:4px 6px;}
-.rsp-terminal .rsp-chart i{background:#14532d;border-radius:0;}
-.rsp-terminal .rsp-th{background:#1E3A2A;}.rsp-terminal .rsp-tr{background:#15231a;}
-
-.rsp-brutalist .rsp-page{font-family:Arial,Helvetica,sans-serif;color:#000;border:3px solid #000;margin:5px 9px 9px 5px;height:calc(100% - 14px);box-shadow:4px 4px 0 #000;background:#fff;}
-.rsp-brutalist .rsp-eyebrow{color:#000;font-weight:700;}
-.rsp-brutalist .rsp-title{font-size:18px;text-transform:uppercase;background:#FFFF00;align-self:flex-start;padding:0 4px;}
-.rsp-brutalist .rsp-rule{height:3px;background:#000;}
-.rsp-brutalist .rsp-bar{background:#bbb;border-radius:0;}
-.rsp-brutalist .rsp-stat{text-decoration:underline;font-size:16px;}
-.rsp-brutalist .rsp-chart{border:3px solid #000;padding:3px 5px;}
-.rsp-brutalist .rsp-chart i{background:#000;border-radius:0;}
-.rsp-brutalist .rsp-chart i:nth-child(3){background:#FFFF00;border:1px solid #000;}
-.rsp-brutalist .rsp-th{background:#000;}.rsp-brutalist .rsp-tr{background:#ddd;}
 
 .rsp-customx .rsp-page{background:var(--ct-page,#fff);color:var(--ct-ink,#222);}
 .rsp-customx .rsp-eyebrow{color:color-mix(in srgb,var(--ct-ink,#222) 55%,var(--ct-page,#fff));}

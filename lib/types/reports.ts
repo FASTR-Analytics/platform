@@ -25,17 +25,15 @@ export type ReportFormat = (typeof REPORT_FORMATS)[number];
 // "default" keeps styling minimal.
 export const REPORT_HTML_STYLES = [
   "default",
+  "minimal",
+  "corporate",
+  "ministry",
+  "classic",
+  "executive",
+  "clinical",
   "editorial",
   "swiss",
-  "bauhaus",
-  "blueprint",
-  "broadsheet",
-  "risograph",
-  "artdeco",
-  "japanese",
   "monochrome",
-  "terminal",
-  "brutalist",
 ] as const;
 export type ReportHtmlStyle = (typeof REPORT_HTML_STYLES)[number];
 
