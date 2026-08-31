@@ -255,9 +255,14 @@ blob:/asset URLs load because the frame keeps the parent origin; in-page
 `#` links scroll in-frame, everything else opens a new tab; pointer events are
 re-dispatched on the iframe element so live cursors / click-to-deselect work.
 Figures are TRANSPARENT PNG rasters (`getFigureAsCanvas` at
-`FIGURE_EXPORT_WIDTH_PX` → blob URL; the base CSS defaults the embed `<img>`
-background to white and a style's own CSS overrides it — that is how styles
-inject their backgrounds into platform-made viz) from a **content-keyed** cache
+`FIGURE_EXPORT_WIDTH_PX` → blob URL; embed `<img>`s carry NO default
+background, so whatever the report paints behind a figure — page color,
+texture, image, panel — shows through automatically, and a style sets a
+figure background only for a distinct card; dark styles additionally get a
+**figure ink theme** — Terminal/Blueprint presets, or a custom style whose tile
+page color is dark — flipping chart text/axes/grid to light at raster time via
+`figureInkThemeForStyle`/`applyInkTheme`, applied in preview, version-history
+and export paths alike) from a **content-keyed** cache
 ([report_figure_raster.ts](client/src/components/report/report_figure_raster.ts):
 `metricId|snapshotAt|canonicalJson(config)`, NOT object identity — collab
 materializes fresh block objects on every remote update), serial with a frame

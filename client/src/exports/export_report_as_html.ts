@@ -1,4 +1,10 @@
-import { type APIResponseNoData, FIGURE_EXPORT_WIDTH_PX, type ReportDetail } from "lib";
+import {
+  type APIResponseNoData,
+  FIGURE_EXPORT_WIDTH_PX,
+  getReportCustomStyle,
+  getReportHtmlStyle,
+  type ReportDetail,
+} from "lib";
 import {
   CustomFigureStyle,
   getFigureAsDataUrlBrowser,
@@ -9,6 +15,10 @@ import { _SERVER_HOST, serverActions } from "~/server_actions";
 import { buildFigureInputs } from "~/generate_visualization/mod";
 import { figureInputsForDownload } from "./_dashboard_export_model";
 import { loadImageEntry } from "./_report_export_maps";
+import {
+  applyInkTheme,
+  figureInkThemeForStyle,
+} from "~/components/report/report_figure_raster";
 import {
   buildReportBodyNodes,
   type FigureRasterState,
@@ -27,6 +37,10 @@ export async function buildStandaloneReportHtml(
   progress: (pct: number) => void,
 ): Promise<string> {
   const figureEntries = Object.entries(detail.figures);
+  const inkTheme = figureInkThemeForStyle(
+    getReportHtmlStyle(detail.config),
+    getReportCustomStyle(detail.config)?.colors,
+  );
   const rasters = new Map<string, FigureRasterState>();
   let done = 0;
   for (const [id, block] of figureEntries) {
@@ -38,7 +52,7 @@ export async function buildStandaloneReportHtml(
       // Transparent, like the preview rasters — the style's CSS owns the
       // figure background (base CSS defaults it to white).
       const r = await getFigureAsDataUrlBrowser(
-        figureInputsForDownload(fi, true, false),
+        applyInkTheme(figureInputsForDownload(fi, true, false), inkTheme),
         FIGURE_EXPORT_WIDTH_PX,
       );
       rasters.set(id, { state: "ready", url: r.dataUrl, width: r.width, height: r.height });
