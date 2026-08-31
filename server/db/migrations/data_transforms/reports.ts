@@ -14,6 +14,7 @@
 // =============================================================================
 
 import {
+  REPORT_HTML_STYLES,
   reportConfigSchema,
   reportFiguresSchema,
   reportImagesSchema,
@@ -80,6 +81,19 @@ export async function migrateReports(
         transformFigureBlock(block as FigureBlockMut);
         transformFigureBlockToBundle(block as FigureBlockMut, localization, null);
       }
+    }
+
+    // Block 2: retired html style presets (2026-08-31 — the artistic set was
+    // replaced by the professional set). A stored value outside the current
+    // enum reads as "default" everywhere at runtime (getReportHtmlStyle is
+    // total), so drop the key instead of failing the boot validation. The
+    // skip gate above routes these rows here automatically: an invalid enum
+    // value fails safeParse, so no forced gate is needed.
+    if (
+      typeof config.htmlStyle === "string" &&
+      !(REPORT_HTML_STYLES as readonly string[]).includes(config.htmlStyle)
+    ) {
+      delete config.htmlStyle;
     }
 
     // Throws if the row is still invalid after every transform (including
