@@ -95,6 +95,11 @@ export function ReportHtmlPreview(p: Props) {
         doc.querySelectorAll('[data-embed-kind="figure"]'),
       )
     ) {
+      // ONLY real <img> elements (the probe or a finished raster — both carry
+      // the author's CSS). The pending placeholder is a div with our own
+      // light-grey background: measuring it reads the placeholder, flips the
+      // ground to "light", and oscillates raster inks forever.
+      if (el.tagName !== "IMG") continue;
       const id = el.getAttribute("data-embed-id");
       if (!id) continue;
       const dark = isDarkGroundBehind(el);
