@@ -34,6 +34,14 @@ export const REPORT_HTML_STYLES = [
   "editorial",
   "swiss",
   "monochrome",
+  "bauhaus",
+  "blueprint",
+  "broadsheet",
+  "risograph",
+  "artdeco",
+  "japanese",
+  "terminal",
+  "brutalist",
 ] as const;
 export type ReportHtmlStyle = (typeof REPORT_HTML_STYLES)[number];
 

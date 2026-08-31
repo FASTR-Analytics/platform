@@ -67,7 +67,7 @@ Deno.test("every declared html style round-trips through the config schema", () 
 });
 
 Deno.test("a retired htmlStyle value fails the schema — the reports data transform must drop it (boot fail-stop otherwise)", () => {
-  const stored = { version: 1, format: "html", htmlStyle: "bauhaus" };
+  const stored = { version: 1, format: "html", htmlStyle: "vaporwave" };
   assertEquals(reportConfigSchema.safeParse(stored).success, false);
   // The transform's repair: drop the retired key → parses; readers see default.
   const { htmlStyle: _retired, ...repaired } = stored;
