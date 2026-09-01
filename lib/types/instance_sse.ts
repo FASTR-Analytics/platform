@@ -78,7 +78,7 @@ export type InstanceState = {
     commonIndicators: number;
     rawIndicators: number;
     hfaIndicators: number;
-    calculatedIndicators: number;
+    derivedIndicators: number;
   };
   datasetsWithData: DatasetType[];
   datasetVersions: { hmis?: number; hfa?: number };
@@ -95,10 +95,14 @@ export type InstanceState = {
   hfaCacheHash: string;
   icehCacheHash: string;
 
-  // Cache versioning (regular fields, read by dataset caches as version keys)
+  // Cache versioning (regular fields, read by dataset caches as version keys).
+  // Two indicator stamps, split in PLAN_1a §1.13: the full one moves whenever
+  // ANY common indicator changes and keys the indicator manager; the base one
+  // moves only when the extract-relevant rows change, so editing a derived or
+  // population-rate definition costs the HMIS datatable caches nothing.
   indicatorMappingsVersion: string;
+  baseIndicatorMappingsVersion: string;
   hfaIndicatorsVersion: string;
-  calculatedIndicatorsVersion: string;
 
   // Per-connection current user (populated by server in starting message,
   // re-derived on users_updated — different for each connected client)
@@ -136,11 +140,11 @@ export type InstanceIndicatorsSummary = {
     commonIndicators: number;
     rawIndicators: number;
     hfaIndicators: number;
-    calculatedIndicators: number;
+    derivedIndicators: number;
   };
   indicatorMappingsVersion: string;
+  baseIndicatorMappingsVersion: string;
   hfaIndicatorsVersion: string;
-  calculatedIndicatorsVersion: string;
 };
 
 export type InstanceDatasetsSummary = {

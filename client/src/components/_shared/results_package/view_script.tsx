@@ -1,4 +1,4 @@
-import { t3, type ModuleId } from "lib";
+import { t3 } from "lib";
 import {
   EditorComponentProps,
   FrameTop,
@@ -15,7 +15,8 @@ export function ViewScript(
   p: EditorComponentProps<
     {
       runId: string;
-      moduleId: ModuleId;
+      // Read plane: a manifest module id, as text (PLAN_1a §0 clause 3).
+      moduleId: string;
       moduleLabel: string;
     },
     undefined

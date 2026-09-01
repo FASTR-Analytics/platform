@@ -68,7 +68,12 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // "15": project AA2 scope (PLAN_1_PROJECT_AA2_SCOPE) — payloads are computed
 // under the project's scope and the keys gain a scopeToken segment; "14"
 // entries were keyed without it.
-const PO_CACHE_VERSION = "16";
+// "17": the common-indicator restructure (PLAN_1a). Manifest schema v6
+// rewrites indicators[] in place under the SAME runId — legacy catalogs gain
+// sort_order, which axis order now comes from — and the items payload for a
+// catalog-evaluated results object is a computed `value` where "16" entries
+// hold raw ingredient columns.
+const PO_CACHE_VERSION = "17";
 
 // The immutable run id replaces the data-version dimensions (PLAN_RESULTS_RUNS
 // §2.5): it is the uniqueness scope for the three data caches — two projects
@@ -109,8 +114,11 @@ export const _PO_DETAIL_CACHE = new TimCacheC<
   // place under the SAME runId, so the prefix is the only thing that can
   // retire entries sourced from the pre-transform manifest. v7: manifest
   // schema v4 (declared format) — payloads embed resultsValue.formatAs, which
-  // the v4 rewrite flips for the 8 pre-declaration metrics.
->("po_detail_v8", {
+  // the v4 rewrite flips for the 8 pre-declaration metrics. v9: manifest
+  // schema v6 (PLAN_1a) — resultsValue gained catalogExpressionEvaluation,
+  // which decides how the client compiles the fetch config, and v8 entries
+  // carry it as absent.
+>("po_detail_v9", {
   uniquenessHashFromParams: (params) =>
     [params.projectId, params.presentationObjectId].join("|"),
   versionHashFromParams: (params) =>

@@ -18,15 +18,16 @@ export type DatasetInProject =
     };
 
 // Capture is always the full dataset (PLAN_FULL_CAPTURE_GENERATION). Legacy
-// packages may carry extra `windowing` (HMIS), `facilityColumnsConfig` or
-// `maxAdminArea` keys in their stored info JSON — inert, nothing reads them.
+// packages may carry extra `windowing` (HMIS), `facilityColumnsConfig`,
+// `maxAdminArea` or `calculatedIndicatorsVersion` keys in their stored info
+// JSON — inert, nothing reads them.
 export type DatasetHmisInfoInProject = {
   version: DatasetHmisVersion;
   totalRows?: number;
   // Metadata snapshots for staleness detection
   structureLastUpdated?: string;
   indicatorMappingsVersion?: string;
-  calculatedIndicatorsVersion?: string;
+  baseIndicatorMappingsVersion?: string;
 };
 
 export type DatasetHfaInfoInProject = {

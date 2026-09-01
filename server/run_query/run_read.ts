@@ -8,10 +8,10 @@ import {
   getEnabledOptionalFacilityColumns,
   getHfaIndicatorMeasure,
   getStartingModuleConfigSelections,
-  getValidatedModuleId,
   metricAIDescriptionInstalled,
   parseInstalledModuleDefinition,
   parsePresentationObjectConfig,
+  catalogExpressionEvaluationStrict,
   postAggregationExpressionStrict,
   projectScopeToken,
   throwIfErrWithData,
@@ -25,12 +25,12 @@ import {
   type HfaIndicatorType,
   type HfaTaxonomyForAI,
   type IndicatorMetadata,
+  toIndicatorMetadataDisplay,
   type InstalledModuleSummary,
   type InstalledModuleWithConfigSelections,
   type ItemsHolderPresentationObject,
   type ItemsHolderResultsObject,
   type MetricWithStatus,
-  type ModuleId,
   type PeriodBounds,
   type PeriodOption,
   type PresentationObjectDetail,
@@ -67,6 +67,10 @@ import {
   getPossibleValuesCore,
 } from "../server_only_funcs_presentation_objects/get_possible_values.ts";
 import { getPresentationObjectItemsCore } from "../server_only_funcs_presentation_objects/get_presentation_object_items.ts";
+import {
+  applyCatalogExpressionsToItems,
+  getCatalogEvaluationForResultsObject,
+} from "./catalog_expression_items.ts";
 import {
   buildResultsValueInfo,
   indicatorFormatsFrom,
@@ -353,10 +357,6 @@ const icehIndicatorRow = z.object({
   category: z.string(),
   sort_order: z.number(),
 });
-const indicatorRow = z.object({
-  indicator_common_id: z.string().nullable(),
-  indicator_common_label: z.string().nullable(),
-});
 // The input-mirror readers need only identity + manifest, so the wizard can
 // call them on a run it just built (before any read context exists).
 export type RunInputSource = { runId: string; manifest: RunManifest };
@@ -383,19 +383,6 @@ export function getProjectDatasetsFromManifest(
     info: d.info,
     dateExported: d.lastUpdated,
   } as DatasetInProject));
-}
-
-export async function getCommonIndicatorsFromManifestInputs(
-  ctx: RunInputSource,
-): Promise<{ id: string; label: string }[]> {
-  const rows = await readInputRows(ctx, "indicators.json", indicatorRow);
-  return rows
-    .flatMap((r) =>
-      r.indicator_common_id && r.indicator_common_label
-        ? [{ id: r.indicator_common_id, label: r.indicator_common_label }]
-        : []
-    )
-    .sort((a, b) => a.label.localeCompare(b.label));
 }
 
 export async function getIcehIndicatorsFromManifestInputs(
@@ -546,6 +533,11 @@ export function enrichMetricFromManifest(
           JSON.parse(metric.post_aggregation_expression),
         )
       : undefined,
+    catalogExpressionEvaluation: metric.catalog_expression_evaluation
+      ? catalogExpressionEvaluationStrict.parse(
+        JSON.parse(metric.catalog_expression_evaluation),
+      )
+      : undefined,
     valueLabelReplacements: metric.value_label_replacements
       ? z
           .record(z.string(), z.string())
@@ -624,7 +616,7 @@ export function getModuleSummariesFromManifest(
     .map<InstalledModuleSummary>((mod) => {
       const def = parseInstalledModuleDefinition(mod.moduleDefinition);
       return {
-        id: getValidatedModuleId(mod.id),
+        id: mod.id,
         label: def.label,
         hasParameters: (def.configRequirements?.parameters?.length ?? 0) > 0,
         lastRunAt: mod.lastRunAt,
@@ -658,7 +650,7 @@ export function getMetricsWithStatusFromManifest(
         statusReason: available
           ? undefined
           : (stamp?.reason ?? "No availability stamp in this run"),
-        moduleId: metric.module_id as ModuleId,
+        moduleId: metric.module_id,
         vizPresets: metric.viz_presets
           ? z.array(vizPresetInstalled).parse(JSON.parse(metric.viz_presets))
           : undefined,
@@ -679,7 +671,7 @@ export function getModuleWithConfigSelectionsFromManifest(
   return {
     success: true,
     data: {
-      id: getValidatedModuleId(mod.id),
+      id: mod.id,
       label: def.label,
       configSelections: mod.configSelections
         ? parseModuleConfigSelections(mod.configSelections)
@@ -923,12 +915,15 @@ export async function getPresentationObjectItemsFromRun(
     effectiveFetchConfig,
     datasetFamily,
   );
+  const catalog = getIndicatorMetadataFromRun(ctx, ro.moduleId);
   const res = await getPresentationObjectItemsCore(
     {
       execute: executorFor(ctx, resultsObjectId),
       columnExists: columnExistsFor(ctx, resultsObjectId),
+      // Display fields only — an indicator's evaluation is a generation fact
+      // used just below, never something a client or a stored figure carries.
       getIndicatorMetadata: () =>
-        Promise.resolve(getIndicatorMetadataFromRun(ctx, ro.moduleId)),
+        Promise.resolve(toIndicatorMetadataDisplay(catalog)),
     },
     resultsObjectId,
     getResultsObjectTableName(resultsObjectId),
@@ -937,6 +932,20 @@ export async function getPresentationObjectItemsFromRun(
     firstPeriodOption,
     versionInfoFor(ctx, ro.moduleId),
   );
+  // Post-aggregation catalog evaluation (PLAN_1a §1.6): the engine returned
+  // SUMmed ingredient columns for main AND roll-up rows; each row's own
+  // indicator expression turns them into one `value`.
+  const catalogEvaluation = getCatalogEvaluationForResultsObject(
+    ctx.manifest,
+    resultsObjectId,
+  );
+  if (res.success && catalogEvaluation !== undefined && res.data.status === "ok") {
+    res.data.items = applyCatalogExpressionsToItems(
+      res.data.items,
+      catalog,
+      catalogEvaluation.ingredientProps,
+    );
+  }
   // The echo is the REQUEST: restore the caller's fetchConfig onto the
   // holder — the scope rides separately as the version-info scopeToken.
   if (res.success && scopeFilters.length !== 0) {

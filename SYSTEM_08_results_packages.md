@@ -561,8 +561,7 @@ the format, the invariants and the schema version live here. Types:
     facilities_hmis.parquet         ← the join side of facility-column queries
     facilities_hfa.parquet
     indicators.json                 ← dictionary/snapshot content (what used to
-    calculated_indicators_snapshot.json   live in 12 project mirror tables)
-    hfa_*_snapshot.json
+    hfa_*_snapshot.json                   live in 12 project mirror tables)
     iceh_indicators_snapshot.json
     assets/<name>                   ← pinned copies of consumed instance assets
   outputs/<moduleId>/               ← one execution workspace per module
@@ -634,12 +633,30 @@ version stamps the generation consumed; the module and metric catalogs as the in
 (so existing parsers apply unchanged); pinned asset names + hashes; and the §3.7
 memoization fields (`inputKey` per module, content hashes per output file).
 
-**`manifestSchemaVersion` gates every read**, currently `5`
-(`RUN_MANIFEST_SCHEMA_VERSION`; v5 = `facilityColumnsConfig` split into the
-per-family `structureSchemaHmis`/`structureSchemaHfa` slots, pure copy in
+**`manifestSchemaVersion` gates every read**, currently `6`
+(`RUN_MANIFEST_SCHEMA_VERSION`; v6 = the common-indicator restructure —
+`indicators[]` catalog entries gained `sort_order` (backfilled for legacy
+packages, and the read path's axis order now comes from it) plus the
+`type`/`expression`/`slot_map` evaluation fields, a new top-level
+`commonIndicators` list replaced the read path's per-request read of the
+indicators mirror, and `metrics[].catalog_expression_evaluation` is carried
+forward as null, transform block 4; v5 = `facilityColumnsConfig` split into
+the per-family `structureSchemaHmis`/`structureSchemaHfa` slots, pure copy in
 transform block 3; v4 = `metrics[].format_as` became the three-way declared
 format and the 8 pre-declaration metric rows were rewritten to
-`"indicator"`). Invariant 1's immutability covers package
+`"indicator"`).
+
+**The indicators mirror has two writer formats and one reader contract.** v1
+(pre-restructure packages) carries id + label only, with a separate
+`calculated_indicators_snapshot.json` beside it; v2 carries the WHOLE common
+dictionary, resolved — type, flattened expression, slot map, presentation and
+sort. `server/runs/indicator_catalog.ts` is the only reader of either, at
+finalize and transform time only, and discriminates on the `type` field that
+only v2 rows have (the v1 schema REJECTS a row carrying `type`, so a drifted
+v2 row fail-stops instead of silently dropping its expressions). The read
+path never opens the indicators mirror — the ICEH and HFA snapshot readers
+still open theirs per request (see the mirror-tolerance open item below).
+Invariant 1's immutability covers package
 **outputs**; the manifest is a derived descriptor and **is transformed forward
 in place** (`server/runs/manifest_transform.ts`), because a schema change would
 otherwise orphan every existing package and regenerating mints a new `runId`.
@@ -747,14 +764,18 @@ Full build narrative + rulings: PLAN_RESULTS_RUNS Status sections.
 
 **Parameterization**
 (`server/server_only_funcs/get_script_with_parameters*.ts`). Dispatch on
-`scriptGenerationType`: `calculated_indicators`, `hfa`, or default inline
-substitution; every generator takes a required per-caller `datasetsDirPath` (the
-run pipeline passes `"../../inputs/datasets"`). Markers replaced via
-`str.replaceAll`: `COUNTRY_ISO3`, dataset/RO dataSource `replacementString`s,
-config params by type. The 4-input-type block is **triplicated** across the
-generators, and the default/HFA generators wrap values in single quotes
-**without escaping** (only the calculated-indicators path validates identifiers)
-— these strings execute as real R; hardening + factoring is an Open item below.
+`scriptGenerationType`: `hfa` (a fully generated script) or default inline
+substitution; every generator takes a required per-caller `datasetsDirPath`
+(the run pipeline passes `"../../inputs/datasets"`). Markers replaced via
+`str.replaceAll`: `COUNTRY_ISO3`, `INDICATOR_INGREDIENTS` (m012's ingredient
+table as a tribble literal — see m012 below), dataSource `replacementString`s
+(dataset and results-object), and config params by type. **Every substituted
+value is single-line**, and must stay so: `replaceAll` rewrites the token
+wherever it appears INCLUDING inside a comment, and a multi-line value would
+put its later lines outside that comment and break the parse. The
+4-input-type block is **duplicated** across the generators, and both wrap
+values in single quotes **without escaping** — these strings execute as real
+R; hardening + factoring is an Open item below.
 
 **HFA variant emission** (2026-08-04; authoring plane in S5). Indicators
 assigned a variant group emit one extra wide column per (indicator, item),
@@ -826,29 +847,67 @@ only filter) or `.duckdb-spill`. The planned end state is to rename that one
 directory, and the `SANDBOX_DIR_PATH*` vars with it, to runs once Phase 4
 removes the legacy dirs.
 
-## population.csv (the M8 scorecard input)
+## m012 — indicator values
+
+`m012` is an ordinary `template` R module (PLAN_1a §1.5): a static, reviewable
+`script.R` in wb-fastr-modules, executed by `runRScript` like every other
+module. There is no `indicator_values` generation type, no generated script
+text and no second executor — the dictionary reaches the module as DATA, not
+as code.
+
+It declares `prerequisites: ["m002"]` and ONE dataSource: m002's
+`M2_adjusted_data.csv`. Its second input, the ingredient table, is not a
+dataSource and not a file: the app substitutes it into `script.R` as an R
+`tribble` literal in place of the `INDICATOR_INGREDIENTS` token
+(`buildIndicatorIngredientsRLiteral` in `lib/common_indicator_catalog.ts`),
+the same channel as `COUNTRY_ISO3` and every module parameter. The R sums the
+selected count column across facilities to admin area × month × indicator,
+joins the ingredient table, and pivots each indicator's ingredients into
+`ing1..ing8` of `M12_indicator_values.csv`. It never parses an expression —
+the table names the columns.
+
+**An ingredient with no data is not an error.** A base common with no mapped
+raw indicators gets no slot map at capture and contributes no row, and one
+whose rows are simply absent from this dataset leaves `NA` after the pivot,
+which the evaluator turns into NULL. Failing instead would abort generation on
+every instance that does not collect one of the 14 seeded default indicators.
+
+**Memoization needs no declared input class for it.** The literal lands in
+`scriptText`, which `computeModuleKey` already hashes, so an expression edit
+re-runs m012 by construction. The literal's rows are sorted by
+`(indicator_common_id, slot)` precisely so that a display-only reorder of the
+dictionary does NOT change the script and does not force a re-run.
+
+The wide `ing1..ing8` layout is m008's shipped `numerator`/`denominator` shape
+generalised from two columns to eight. It is what makes expression-over-sums
+exact at every grouping: `m12-01-01` requires `indicator_common_id` as a GROUP
+BY, so a row only ever carries ONE indicator and a long-format row could never
+hold the ingredients its own formula needs. m012 is deliberately temporary —
+it folds into a redefined m003 in PLAN_1c.
+
+## population.csv
 
 Target model (ruled 2026-08-19, S5 "additivity principle", not yet built): a
 first-class instance population store, CSV then DHIS2 writers, expanded
 stock→flow into the run inputs at capture; this section describes today.
 
-`population.csv` is consumed only by **M8** (`m008`, the catalog-driven
-scorecard module, `scriptGenerationType: calculated_indicators`, authored in
-wb-fastr-modules). It reaches the sandbox as an **asset**
-(`assetsToImport: ["population.csv"]`, copied from `_ASSETS_DIR_PATH` in step 4
-above), not a dataSource; there is no upload-time validation — a malformed file
-fails at module-run time. When no calculated indicator uses a `population`
-denominator, the file is read but ignored (a harmless placeholder). This format
-informs S5's admin-area granularity but is owned here.
+`population.csv` was consumed only by **M8**, which is dropped (PLAN_1a
+§1.11) — today NO module imports it. Population-rate indicators exist in the
+dictionary but are not evaluated until PLAN_1b lands the store; this section
+is the record of the file format that store must accept. M8 received it as an
+**asset** (`assetsToImport: ["population.csv"]`, copied from
+`_ASSETS_DIR_PATH` in step 4 above), not a dataSource, with no upload-time
+validation — a malformed file failed at module-run time. This format informs
+S5's admin-area granularity but is owned here.
 
 Columns: `admin_area_2` / `admin_area_3` / `admin_area_4` (each optional, but at
 least one must match the HMIS data's granularity; an `admin_area_1` column is
 silently dropped), `year`, `population_type`, `count` (required). A legacy
 `period_id` column (e.g. `202301`) is auto-converted to `year` (first four
 digits). The `population_type` ids — authoritative list in
-`lib/types/indicators.ts` `POPULATION_TYPES`, enforced for calculated- indicator
-denominators via `assertValidPopulationType`; the R script itself pivots
-whatever values are present:
+`lib/types/indicators.ts` `POPULATION_TYPES`, the same vocabulary a
+population-rate indicator's `populationType` draws from; M8's R script itself
+pivoted whatever values were present:
 
 | ID                 | Description                       |
 | ------------------ | --------------------------------- |
@@ -868,11 +927,13 @@ extrapolation beyond the data — capped at **±1 year** past the available rang
 ## Open items
 
 - **Harden the R-source interpolation.** The default and HFA script generators
-  wrap config `text`/`select`/`number` values in single quotes with no escaping
-  (only the calculated-indicators path validates identifiers), and the
-  4-input-type substitution block is triplicated — validate-by-type or escape
-  every value, and factor the block so quoting can't drift
-  (`server/server_only_funcs/get_script_with_parameters*.ts`).
+  wrap config `text`/`select`/`number` values in single quotes with no
+  escaping — nothing validates or escapes these values anywhere (the retired
+  calculated-indicators generator was the only path that validated its
+  identifiers; m012's ingredient literal escapes its ids, but the parameter
+  channel does not) — and the 4-input-type substitution block is triplicated.
+  Validate-by-type or escape every value, and factor the block so quoting
+  can't drift (`server/server_only_funcs/get_script_with_parameters*.ts`).
 - **Naming drift:** `instantiateIntegrateUploadedDataWorker` breaks the
   `instantiate<Name>Worker` factory pattern; the worker preambles differ in
   their `console.error` prefix (converges under enforcement item 8).

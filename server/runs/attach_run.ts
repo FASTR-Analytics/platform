@@ -13,7 +13,6 @@ import {
 } from "../db/instance/run_generation.ts";
 import {
   getAllPresentationObjectsWithVirtualDefaults,
-  getCommonIndicatorsFromManifestInputs,
   getMetricsWithStatusFromManifest,
   getModuleSummariesFromManifest,
   getIcehIndicatorsFromManifestInputs,
@@ -66,7 +65,7 @@ export async function buildRunAttachedManifestPayload(
     projectModules: getModuleSummariesFromManifest(runCtx.manifest),
     metrics: getMetricsWithStatusFromManifest(runCtx.manifest),
     projectDatasets: getProjectDatasetsFromManifest(runCtx.manifest),
-    commonIndicators: await getCommonIndicatorsFromManifestInputs(runCtx),
+    commonIndicators: runCtx.manifest.commonIndicators,
     icehIndicators: await getIcehIndicatorsFromManifestInputs(runCtx),
   };
 }

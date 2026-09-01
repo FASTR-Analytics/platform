@@ -22,7 +22,11 @@ import type { IndicatorMetadata } from "./indicators.ts";
 // consumes it), and there is no shared adminAreaLabels key (every admin-label
 // consumer reads live instance state). Pure copy in manifest_transform
 // block 3.
-export const RUN_MANIFEST_SCHEMA_VERSION = 5;
+// 6: the common-indicator restructure (PLAN_1a). indicators[] catalog entries
+// gained sort_order plus the type/expression/slot_map evaluation fields, and a
+// new top-level `commonIndicators` list replaced the read path's per-request
+// read of the indicators input mirror. Manifest transform block 4.
+export const RUN_MANIFEST_SCHEMA_VERSION = 6;
 
 // Typed against DatasetType so the enum cannot drift from the union.
 export const runDatasetFamilySchema: z.ZodType<DatasetType> = z.enum([
@@ -88,6 +92,7 @@ export const runMetricSchema = z.object({
   required_disaggregation_options: z.string(),
   value_label_replacements: z.string().nullable(),
   post_aggregation_expression: z.string().nullable(),
+  catalog_expression_evaluation: z.string().nullable(),
   results_object_id: z.string(),
   ai_description: z.string().nullable(),
   viz_presets: z.string().nullable(),
@@ -152,6 +157,9 @@ export const runIndicatorMetadataSchema: z.ZodType<IndicatorMetadata> = z
     threshold_yellow: z.number().optional(),
     group_label: z.string().optional(),
     sort_order: z.number().optional(),
+    type: z.enum(["base", "derived", "population_rate"]).optional(),
+    expression: z.string().optional(),
+    slot_map: z.record(z.string(), z.string()).optional(),
   });
 
 export const runModuleIndicatorsSchema = z.object({
@@ -159,6 +167,18 @@ export const runModuleIndicatorsSchema = z.object({
   indicators: z.array(runIndicatorMetadataSchema),
 });
 export type RunModuleIndicators = z.infer<typeof runModuleIndicatorsSchema>;
+
+// The instance's common indicator dictionary as the project shell shows it
+// (id + label, label-sorted). Stamped at finalize from the run's own
+// indicators mirror, and by manifest transform block 4 for older packages.
+// Before v6 the read path re-opened that mirror on every request; this field
+// is that derivation moved to where every other package fact already lives —
+// SYSTEM_08's "the read path parses the manifest only".
+export const runCommonIndicatorSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+});
+export type RunCommonIndicator = z.infer<typeof runCommonIndicatorSchema>;
 
 export const runProvenanceSchema = z.enum(["synthetic-backfill", "wizard"]);
 export type RunProvenance = z.infer<typeof runProvenanceSchema>;
@@ -189,6 +209,7 @@ export const runManifestSchema = z.object({
   resultsObjects: z.array(runResultsObjectSchema),
   metricAvailability: z.array(runMetricAvailabilitySchema),
   indicators: z.array(runModuleIndicatorsSchema),
+  commonIndicators: z.array(runCommonIndicatorSchema),
 
   // Relative paths (from the run dir root) of every input file the run
   // carries — facilities parquet, dictionary/snapshot JSONs.

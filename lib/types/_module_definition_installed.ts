@@ -11,7 +11,15 @@ import { z } from "zod";
 // Module-specific atoms
 // ============================================================================
 
-export const scriptGenerationType = z.enum(["template", "hfa", "calculated_indicators"]);
+// "calculated_indicators" is retired from authoring (it is absent from the
+// GitHub enum) but stays here forever: module definitions are stored verbatim
+// as JSON in packages and in the project DB, and stored vocabulary never
+// shrinks. It is inert data — no dispatch arm reads it.
+export const scriptGenerationType = z.enum([
+  "template",
+  "hfa",
+  "calculated_indicators",
+]);
 
 export const dataSourceDataset = z.object({
   sourceType: z.literal("dataset"),

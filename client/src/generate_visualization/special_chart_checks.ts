@@ -25,7 +25,10 @@ export const SPECIAL_DISRUPTIONS_CHART_V2_METRICS = [
   "m11-01-02",
 ];
 
-export const SPECIAL_SCORECARD_TABLE_METRICS = ["m8-01-01"];
+// m8-01-01 is kept although m008 is dropped (PLAN_1a §0 clause 2): stored
+// vocabulary never shrinks, and a frozen figure saved before the drop still
+// carries that metric id in its bundle. It is inert data here, not a code path.
+export const SPECIAL_SCORECARD_TABLE_METRICS = ["m12-01-01", "m8-01-01"];
 
 // Metrics whose displayed values can be NEGATIVE. Their value axis resolves its
 // minimum with "auto-zero" (fit below 0 when the data goes there, otherwise

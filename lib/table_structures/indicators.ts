@@ -23,6 +23,42 @@ export const _COMMON_INDICATORS: { value: string; label: string }[] = [
   { value: "ipd", label: t3({ en: "Inpatient visit", fr: "Hospitalisation", pt: "Internamento" }) },
 ];
 
-export function get_INDICATOR_COMMON_IDS_IN_SORT_ORDER(): string[] {
-  return _COMMON_INDICATORS.map((d) => d.value);
+// WRITE-SIDE ONLY. `_COMMON_INDICATORS` above is the fresh-instance seed, and
+// this is the sort_order backfill rule for dictionaries that predate the
+// column (PLAN_1a §1.9): seeded commons keep the seed order, remaining base
+// commons follow alphabetically, and the migrated catalog rows keep their own
+// order at the end. Instance migration 079 applies the same rule to the live
+// dictionary; this applies it to a legacy package's input mirrors, whose only
+// order was the catalog snapshot's.
+//
+// A calculated id that is ALSO a base id keeps the base position — that is the
+// identity-alias case, and the merged catalog entry sits where the indicator
+// has always sat.
+//
+// Nothing on the READ path consults either export: axis order comes from the
+// package's own catalog, never from a hardcoded list.
+export function backfillCommonIndicatorSortOrder(args: {
+  baseIds: string[];
+  calculatedIdsInCatalogOrder: string[];
+}): Map<string, number> {
+  const seedPosition = new Map(
+    _COMMON_INDICATORS.map((d, i) => [d.value, i]),
+  );
+  const orderedBase = [...new Set(args.baseIds)].sort(
+    (a, b) =>
+      (seedPosition.get(a) ?? Number.MAX_SAFE_INTEGER) -
+        (seedPosition.get(b) ?? Number.MAX_SAFE_INTEGER) ||
+      a.localeCompare(b),
+  );
+  const sortOrderById = new Map<string, number>();
+  let next = 0;
+  for (const id of orderedBase) {
+    sortOrderById.set(id, ++next);
+  }
+  for (const id of args.calculatedIdsInCatalogOrder) {
+    if (!sortOrderById.has(id)) {
+      sortOrderById.set(id, ++next);
+    }
+  }
+  return sortOrderById;
 }

@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import {
+  parseInstalledModuleDefinition,
   type CompareProjectsData,
   type CompareProjectsModule,
 } from "lib";
@@ -39,6 +40,8 @@ defineRoute(
               );
               modules.push({
                 id: mod.id,
+                label: parseInstalledModuleDefinition(mod.moduleDefinition)
+                  .label,
                 lastRunAt: mod.lastRunAt ?? "",
                 lastRunGitRef: mod.lastRunGitRef ?? undefined,
                 parameters: config.parameterDefinitions.map((def) => ({

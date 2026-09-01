@@ -23,7 +23,7 @@ import {
   withReplicant,
   type DeckStyleContext,
   type IndicatorFormat,
-  type IndicatorMetadata,
+  type IndicatorMetadataDisplay,
 } from "lib";
 import { getLegendFromConfig } from "./conditional_formatting";
 import { scaleLegendFormat } from "./conditional_formatting/compile";
@@ -56,6 +56,7 @@ export function buildFigureInputs(
   const geoJson = resolveGeoJson(geo, config);
 
   const indicatorLabelReplacements = indicatorMetadataToLabelMap(indicatorMetadata);
+  const indicatorSortOrder = buildIndicatorIdOrder(indicatorMetadata);
 
   const effectiveFormat = resolveEffectiveFormatFromItems({
     metricFormatAs: resultsValue.formatAs,
@@ -102,6 +103,7 @@ export function buildFigureInputs(
       effectiveConfig,
       effectiveValueProps,
       indicatorLabelReplacements,
+      indicatorSortOrder,
       localization,
       items,
     );
@@ -133,6 +135,7 @@ export function buildFigureInputs(
           effectiveConfig,
           effectiveValueProps,
           indicatorLabelReplacements,
+          indicatorSortOrder,
           localization,
           items,
           customSortHeaders,
@@ -164,6 +167,7 @@ export function buildFigureInputs(
             effectiveConfig,
             effectiveValueProps,
             indicatorLabelReplacements,
+            indicatorSortOrder,
             localization,
             items,
           ),
@@ -180,6 +184,7 @@ export function buildFigureInputs(
           effectiveConfig,
           effectiveValueProps,
           indicatorLabelReplacements,
+          indicatorSortOrder,
           localization,
           items,
         ),
@@ -207,6 +212,7 @@ export function buildFigureInputs(
       effectiveConfig,
       effectiveValueProps,
       indicatorLabelReplacements,
+      indicatorSortOrder,
     );
     // panther expects numeric values for the color scale; items are string-typed
     // in the bundle, so parse numeric strings to numbers here.
@@ -241,6 +247,7 @@ export function buildFigureInputs(
       effectiveConfig,
       effectiveValueProps,
       indicatorLabelReplacements,
+      indicatorSortOrder,
       localization,
       effectiveFormat.axisFormat,
       items,
@@ -335,7 +342,20 @@ function withDateRange(
     .replaceAll("INTERVALO_DE_DATAS", d);
 }
 
-function buildIndicatorSortOrder(metadata: IndicatorMetadata[]): string[] {
+// The package catalog's own order, ids only — what every indicator axis sorts
+// by (PLAN_1a §1.9). Entries with no stamped order follow, by id, so a mixed
+// catalog is still deterministic.
+function buildIndicatorIdOrder(metadata: IndicatorMetadataDisplay[]): string[] {
+  return [...metadata]
+    .sort(
+      (a, b) =>
+        (a.sort_order ?? Number.MAX_SAFE_INTEGER) -
+          (b.sort_order ?? Number.MAX_SAFE_INTEGER) || a.id.localeCompare(b.id),
+    )
+    .map((m) => m.id);
+}
+
+function buildIndicatorSortOrder(metadata: IndicatorMetadataDisplay[]): string[] {
   return [...metadata]
     .filter((m) => m.sort_order !== undefined)
     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))

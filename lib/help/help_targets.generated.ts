@@ -110,7 +110,7 @@ export const HELP_TARGETS = {
     page: "admin-guide/data-hfa",
     anchor: { en: "time-points", fr: "points-temporels" },
     title: { en: "Time points", fr: "Points temporels" },
-    summary: { en: "HFA data is organized by time points rather than continuous periods. Each import creates a new time point with the label you specified. After importing, use Manage time points to edit labels, adjust…", fr: "Les données HFA sont organisées par points temporels plutôt que par périodes continues. Chaque importation crée un nouveau point temporel portant le libellé que vous avez indiqué. Après…" },
+    summary: { en: "HFA data is organized by time points rather than continuous periods. Before importing data, create your time points on the HFA Time Points page. Each time point has a label and a calendar period…", fr: "Les données HFA sont organisées par points temporels plutôt que par périodes continues. Avant d'importer des données, créez vos points temporels sur la page Points temporels HFA. Chaque point…" },
   },
   "hmis-csv": {
     page: "admin-guide/data-hmis",
@@ -132,9 +132,9 @@ export const HELP_TARGETS = {
   },
   "ind-calculated": {
     page: "admin-guide/indicators",
-    anchor: { en: "calculated-indicators", fr: "indicateurs-calculés" },
-    title: { en: "Calculated indicators", fr: "Indicateurs calculés" },
-    summary: { en: "Derived metrics that combine multiple indicators - like coverage rates - use calculated indicators. Each specifies a numerator (which common indicator), a denominator (another indicator, population…", fr: "Les mesures dérivées qui combinent plusieurs indicateurs - comme les taux de couverture - utilisent des indicateurs calculés. Chacun spécifie un numérateur (quel indicateur commun), un dénominateur…" },
+    anchor: { en: "derived-indicators", fr: "indicateurs-dérivés" },
+    title: { en: "Derived indicators", fr: "Indicateurs dérivés" },
+    summary: { en: "Every common indicator has a type, chosen in the same editor. A base indicator is defined by the raw indicators mapped to it, which are summed. A derived indicator is defined by a formula over other…", fr: "Chaque indicateur commun possède un type, choisi dans le même éditeur. Un indicateur de base est défini par les indicateurs bruts qui lui sont associés, dont les valeurs sont additionnées. Un…" },
   },
   "ind-common": {
     page: "admin-guide/indicators",
@@ -176,7 +176,7 @@ export const HELP_TARGETS = {
     page: "admin-guide/structure",
     anchor: { en: "health-facilities", fr: "établissements-de-santé" },
     title: { en: "Health facilities", fr: "Établissements de santé" },
-    summary: { en: "Facilities are the health service delivery points where data is collected. Each facility belongs to one admin area and can have optional attributes: facility type (hospital, health center,…", fr: "Les établissements sont les points de prestation de services de santé où les données sont collectées. Chaque établissement appartient à une zone administrative et peut comporter des attributs…" },
+    summary: { en: "FASTR maintains two separate facility registries: one for HMIS facilities and one for HFA facilities. Both registries share the same admin area hierarchy, but each has its own import flow and its own…", fr: "FASTR maintient deux registres d'établissements distincts : l'un pour les établissements SNIS et l'autre pour les établissements Enquêtes FOSA. Les deux registres partagent la même hiérarchie de…" },
   },
   "struct-geojson": {
     page: "admin-guide/structure",
@@ -218,7 +218,7 @@ export const HELP_TARGETS = {
     page: "user-guide/projects",
     anchor: { en: "opening-a-project", fr: "ouvrir-un-projet" },
     title: { en: "Opening a project", fr: "Ouvrir un projet" },
-    summary: { en: "When you sign in to FASTR, you'll see a list of projects you have access to. Click any project name to open it. The project view has a navigation sidebar on the left with tabs for different sections…", fr: "Lorsque vous vous connectez à FASTR, vous voyez la liste des projets auxquels vous avez accès. Cliquez sur le nom d'un projet pour l'ouvrir. La vue du projet comporte une barre de navigation à gauche…" },
+    summary: { en: "When you sign in to FASTR, you'll see a list of projects you have access to. The list can be sorted by name or by recently updated using the sort control at the top. Click any project name to open…", fr: "Lorsque vous vous connectez à FASTR, vous voyez la liste des projets auxquels vous avez accès. La liste peut être triée par nom ou par récemment mis à jour à l'aide du contrôle de tri en haut.…" },
   },
   "users-add": {
     page: "admin-guide/users",

@@ -471,8 +471,8 @@ export function InstanceData(p: Props) {
                       </Show>
                       <Show
                         when={
-                          instanceState.indicators.calculatedIndicators > 0 &&
-                          instanceState.indicators.calculatedIndicators
+                          instanceState.indicators.derivedIndicators > 0 &&
+                          instanceState.indicators.derivedIndicators
                         }
                         keyed
                       >
@@ -481,9 +481,9 @@ export function InstanceData(p: Props) {
                             <div class="ui-gap flex justify-between">
                               <span>
                                 {t3({
-                                  en: "Calculated indicators",
-                                  fr: "Indicateurs calculés",
-                                  pt: "Indicadores calculados",
+                                  en: "Derived indicators",
+                                  fr: "Indicateurs dérivés",
+                                  pt: "Indicadores derivados",
                                 })}
                                 :
                               </span>

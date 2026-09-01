@@ -1,6 +1,3 @@
-import { t3 } from "../translate/t-func.ts";
-import { CountryCodes } from "./instance.ts";
-
 export const MODULE_REGISTRY = [
   {
     id: "m001",
@@ -63,27 +60,6 @@ export const MODULE_REGISTRY = [
     github: { owner: "FASTR-Analytics", repo: "modules", path: "m006" },
   },
   {
-    id: "m007",
-    label: {
-      en: "M7. Scorecard",
-      fr: "M7. Scorecard",
-      pt: "M7. Scorecard",
-    },
-    prerequisites: ["m002"],
-    github: { owner: "FASTR-Analytics", repo: "modules", path: "m007" },
-    allowedCountries: [CountryCodes.Nigeria],
-  },
-  {
-    id: "m008",
-    label: {
-      en: "M8. Scorecard (Catalog-Driven)",
-      fr: "M8. Scorecard (piloté par catalogue)",
-      pt: "M8. Scorecard (orientado por catálogo)",
-    },
-    prerequisites: ["m002"],
-    github: { owner: "FASTR-Analytics", repo: "modules", path: "m008" },
-  },
-  {
     id: "m009",
     label: {
       en: "M9. ICEH Survey Data Analysis",
@@ -113,6 +89,16 @@ export const MODULE_REGISTRY = [
     prerequisites: ["m002"],
     github: { owner: "FASTR-Analytics", repo: "modules", path: "m011" },
   },
+  {
+    id: "m012",
+    label: {
+      en: "M12. Indicator values",
+      fr: "M12. Valeurs des indicateurs",
+      pt: "M12. Valores dos indicadores",
+    },
+    prerequisites: ["m002"],
+    github: { owner: "FASTR-Analytics", repo: "modules", path: "m012" },
+  },
 ] as const;
 
 export type ModuleId = (typeof MODULE_REGISTRY)[number]["id"];
@@ -122,34 +108,10 @@ export type ModuleRegistryEntry = {
   label: { en: string; fr: string };
   prerequisites: readonly ModuleId[];
   github: { owner: string; repo: string; path: string };
-  allowedCountries?: readonly string[];
 };
 
 export function getValidatedModuleId(id: string): ModuleId {
   const entry = MODULE_REGISTRY.find((m) => m.id === id);
   if (!entry) throw new Error(`Unknown module id: ${id}`);
   return entry.id;
-}
-
-export function isModuleAllowedForCountry(
-  m: ModuleRegistryEntry,
-  countryIso3: string | undefined,
-): boolean {
-  if (!m.allowedCountries || m.allowedCountries.length === 0) return true;
-  if (!countryIso3) return false;
-  return m.allowedCountries.includes(countryIso3);
-}
-
-export function getPossibleModules(countryIso3: string | undefined): {
-  id: ModuleId;
-  label: string;
-  prerequisiteModules: string[];
-}[] {
-  return MODULE_REGISTRY.filter((m) =>
-    isModuleAllowedForCountry(m, countryIso3),
-  ).map((m) => ({
-    id: m.id,
-    label: t3(m.label),
-    prerequisiteModules: [...m.prerequisites],
-  }));
 }

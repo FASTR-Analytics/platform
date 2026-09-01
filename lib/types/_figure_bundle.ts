@@ -12,7 +12,7 @@
 // =============================================================================
 
 import { z } from "zod";
-import type { IndicatorMetadata } from "./indicators.ts";
+import type { IndicatorMetadataDisplay } from "./indicators.ts";
 import type { PeriodBounds } from "./presentation_objects.ts";
 import type { ResultsValueForVisualization } from "./modules.ts";
 import { presentationObjectConfigSchema } from "./_presentation_object_config.ts";
@@ -44,7 +44,10 @@ export const indicatorMetadataSchema = z.strictObject({
   group_label: z.string().optional(),
   sort_order: z.number().optional(),
 });
-const _im: Required<IndicatorMetadata> = {
+// A stored figure freezes DISPLAY metadata only — the evaluation fields on a
+// catalog entry are deliberately absent from this type, so a bundle can never
+// carry them into the strictObject above (PLAN_1a §1.5).
+const _im: Required<IndicatorMetadataDisplay> = {
   id: "",
   label: "",
   format_as: "number",

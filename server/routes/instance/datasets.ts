@@ -99,14 +99,16 @@ defineRoute(
     // Valkey layer that used to shield it (ds_hmis_v2) was deleted along with
     // its liabilities: the mid-run cache-bypass dance and the prefix-bump
     // obligation on every payload-shape change. Client-side caching remains —
-    // the T2 IndexedDB cache keys on versionId + indicatorMappingsVersion,
+    // the T2 IndexedDB cache keys on versionId + baseIndicatorMappingsVersion,
     // which only flip at run end (running-run versions are hidden from
     // readers — see getVersionsForDatasetHmis), and the client bypasses it
-    // while a run is active, so mid-run reads stay live end to end.
+    // while a run is active, so mid-run reads stay live end to end. The BASE
+    // stamp, not the full one: a derived indicator's definition changes
+    // nothing about this datatable (PLAN_1a §1.13).
     const res = await getDatasetHmisItemsForDisplay(
       c.var.mainDb,
       body.versionId,
-      body.indicatorMappingsVersion,
+      body.baseIndicatorMappingsVersion,
       body.rawOrCommonIndicators,
       body.structureSchema,
     );

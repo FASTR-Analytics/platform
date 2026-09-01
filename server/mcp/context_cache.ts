@@ -25,7 +25,6 @@ import { buildInstanceState } from "../task_management/build_instance_state.ts";
 import { headlessAppFetch } from "../headless_app.ts";
 import { getRunManifestCached } from "../runs/manifest_cache.ts";
 import {
-  getCommonIndicatorsFromManifestInputs,
   getHfaTaxonomyFromManifestInputs,
   getIcehIndicatorsFromManifestInputs,
   getMetricsWithStatusFromManifest,
@@ -281,7 +280,7 @@ export async function resolvePackageContext(
   const grounding: PackageGrounding = {
     calendar: manifest.calendar,
     datasets: getProjectDatasetsFromManifest(manifest),
-    commonIndicators: await getCommonIndicatorsFromManifestInputs(runInputs),
+    commonIndicators: manifest.commonIndicators,
     icehIndicators,
     periodCoverage: packagePeriodCoverage(manifest),
   };

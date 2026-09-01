@@ -59,6 +59,28 @@ export function getFetchConfigFromPresentationObjectConfig(
     ? getFiltersWithoutReplicant(config)
     : getFiltersWithReplicant(config);
 
+  // A catalog-evaluated metric (PLAN_1a §1.6): the wire carries the declared
+  // ingredient columns, SUMmed; the server applies each indicator's own
+  // expression to the aggregated row and returns one `value`. Structurally the
+  // same wire/display split a PAE metric has, but DECLARED — and like that
+  // path, valuesFilter never applies (the ingredients are not user-facing
+  // props; the metric's valueProps are ["value"]).
+  if (resultsValue.catalogExpressionEvaluation) {
+    return {
+      success: true,
+      data: {
+        values: resultsValue.catalogExpressionEvaluation.ingredientProps.map(
+          (prop) => ({ prop, func: "SUM" as const }),
+        ),
+        postAggregationExpression: undefined,
+        groupBys,
+        filters,
+        periodFilter: config.d.periodFilter,
+        rollupDim,
+      },
+    };
+  }
+
   if (resultsValue.postAggregationExpression) {
     const rvPAE = resultsValue.postAggregationExpression;
     return {

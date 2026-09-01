@@ -77,18 +77,9 @@ export async function getHfaIndicatorsVersion(mainDb: Sql): Promise<string> {
   return result[0]?.version ?? "none";
 }
 
-export async function getCalculatedIndicatorsVersion(
-  mainDb: Sql,
-): Promise<string> {
-  const result = await mainDb<{ version: string | null }[]>`
-    SELECT MD5(
-      COALESCE((SELECT MAX(updated_at) FROM calculated_indicators)::text, '') || '|' ||
-      (SELECT COUNT(*) FROM calculated_indicators)::text
-    ) as version
-  `;
-  return result[0]?.version ?? "none";
-}
-
+// The full dictionary stamp: every common indicator row, whatever its type,
+// plus the raws and mappings. Keys the indicator manager's cache and rides the
+// SSE summary.
 export async function getIndicatorMappingsVersion(
   mainDb: Sql,
 ): Promise<string> {
@@ -98,6 +89,25 @@ export async function getIndicatorMappingsVersion(
       COALESCE((SELECT MAX(updated_at) FROM indicators_raw)::text, '') || '|' ||
       COALESCE((SELECT MAX(updated_at) FROM indicator_mappings)::text, '') || '|' ||
       (SELECT COUNT(*) FROM indicators)::text || '|' ||
+      (SELECT COUNT(*) FROM indicators_raw)::text || '|' ||
+      (SELECT COUNT(*) FROM indicator_mappings)::text
+    ) as version
+  `;
+  return result[0]?.version ?? "none";
+}
+
+// The base-only stamp: the rows an HMIS extract is actually built from
+// (PLAN_1a §1.13). Editing a derived or population-rate definition does not
+// move it, so the datatable caches it keys never churn on a formula edit.
+export async function getBaseIndicatorMappingsVersion(
+  mainDb: Sql,
+): Promise<string> {
+  const result = await mainDb<{ version: string | null }[]>`
+    SELECT MD5(
+      COALESCE((SELECT MAX(updated_at) FROM indicators WHERE definition_type = 'base')::text, '') || '|' ||
+      COALESCE((SELECT MAX(updated_at) FROM indicators_raw)::text, '') || '|' ||
+      COALESCE((SELECT MAX(updated_at) FROM indicator_mappings)::text, '') || '|' ||
+      (SELECT COUNT(*) FROM indicators WHERE definition_type = 'base')::text || '|' ||
       (SELECT COUNT(*) FROM indicators_raw)::text || '|' ||
       (SELECT COUNT(*) FROM indicator_mappings)::text
     ) as version
@@ -124,11 +134,14 @@ export async function getInstanceUsers(mainDb: Sql): Promise<OtherUser[]> {
 export async function getInstanceIndicatorsSummary(
   mainDb: Sql,
 ): Promise<InstanceIndicatorsSummary> {
+  // Base rows only, so the two tiles stay disjoint: derivedIndicators below
+  // counts everything non-base, and the pair partitions the dictionary the
+  // way the two tables used to.
   const commonIndicators =
     (
       await mainDb<
         { count: number }[]
-      >`SELECT COUNT(*) as count FROM indicators`
+      >`SELECT COUNT(*) as count FROM indicators WHERE definition_type = 'base'`
     )[0]?.count ?? 0;
   const rawIndicators =
     (
@@ -142,26 +155,26 @@ export async function getInstanceIndicatorsSummary(
         { count: number }[]
       >`SELECT COUNT(*) as count FROM hfa_indicators`
     )[0]?.count ?? 0;
-  const calculatedIndicators =
+  const derivedIndicators =
     (
       await mainDb<
         { count: number }[]
-      >`SELECT COUNT(*) as count FROM calculated_indicators`
+      >`SELECT COUNT(*) as count FROM indicators WHERE definition_type <> 'base'`
     )[0]?.count ?? 0;
   const indicatorMappingsVersion = await getIndicatorMappingsVersion(mainDb);
+  const baseIndicatorMappingsVersion =
+    await getBaseIndicatorMappingsVersion(mainDb);
   const hfaIndicatorsVersion = await getHfaIndicatorsVersion(mainDb);
-  const calculatedIndicatorsVersion =
-    await getCalculatedIndicatorsVersion(mainDb);
   return {
     indicators: {
       commonIndicators,
       rawIndicators,
       hfaIndicators,
-      calculatedIndicators,
+      derivedIndicators,
     },
     indicatorMappingsVersion,
+    baseIndicatorMappingsVersion,
     hfaIndicatorsVersion,
-    calculatedIndicatorsVersion,
   };
 }
 

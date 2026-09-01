@@ -100,8 +100,24 @@ export async function getMetricDataForAI(
   // AI data: a total row mixed into the long-form rows would invite double
   // counting in the model's sums. Callers that mirror a viz with the roll-up
   // enabled must say so in the context text (see format_viz_editor_for_ai).
-  const fetchConfig: GenericLongFormFetchConfig =
-    metric.postAggregationExpression
+  const fetchConfig: GenericLongFormFetchConfig = metric
+      .catalogExpressionEvaluation
+    // A catalog-evaluated metric (PLAN_1a §1.6): the wire carries the declared
+    // ingredient columns, SUMmed, and the server returns one computed `value`.
+    // Its valueProps are ["value"], which is NOT a column of the results
+    // object, so without this branch every query is rejected by the §1.7
+    // guard. Same wire/display split as the PAE branch below.
+    ? {
+      values: metric.catalogExpressionEvaluation.ingredientProps.map(
+        (prop) => ({ prop, func: "SUM" as const }),
+      ),
+      groupBys: uniqueDisaggregations,
+      filters: filters,
+      periodFilter,
+      postAggregationExpression: undefined,
+      rollupDim: undefined,
+    }
+    : metric.postAggregationExpression
       ? {
         values: metric.postAggregationExpression.ingredientValues,
         groupBys: uniqueDisaggregations,

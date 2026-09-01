@@ -370,10 +370,13 @@ values are the metric's own quantity and the format is a constant everywhere
 (m10-02 don't-know RATES stay percent on count questions; m9-02-01 CIX/SII
 stays number). `"indicator"` means the values ARE the displayed indicator's own
 quantity, so format is a per-value fact carried by `IndicatorMetadata.format_as`
-— HFA per `getHfaIndicatorMeasure`, calculated indicators per their required
-three-way field, ICEH alike. The declared metrics today: m7-01-01/02/03,
-m8-01-01, m10-01-01/02, m10-03-01/02, frozen in `INDICATOR_FORMAT_METRIC_IDS`
-(lib) — see "Repair and normalization" below.
+— HFA per `getHfaIndicatorMeasure`, HMIS commons per each indicator's own
+`format_as`, ICEH alike. `INDICATOR_FORMAT_METRIC_IDS` (lib) is the frozen
+REPAIR list for metrics that predate the declaration — m7-01-01/02/03,
+m8-01-01, m10-01-01/02, m10-03-01/02. It keeps the m7/m8 ids although those
+modules are dropped: stored blobs still name them, and stored vocabulary never
+shrinks. It never grows — a metric authored now declares `"indicator"` itself,
+as `m12-01-01` does. See "Repair and normalization" below.
 
 `resolveEffectiveFormat` (config-based, pre-query, for the editor) and
 `resolveEffectiveFormatFromItems` (render twin over a stored `FigureBundle`)
@@ -453,8 +456,7 @@ the decimals — the fewest (≤3) that print the scaled value EXACTLY, decided 
 value. Every rate LABEL follows `formatRateAuto`: the scale axis (via panther's
 `tickLabelFormatter` escape, since panther's `format` field is two-way), data
 labels, the scale legend (`scaleLegendFormat`), the threshold legend, the CF
-editor preview (`buildAutoValueFormatter`) and the calculated-indicator
-editor's live preview. The one deliberate non-label exception: the AI CSV
+editor preview (`buildAutoValueFormatter`). The one deliberate non-label exception: the AI CSV
 (`format_metric_data_for_ai.ts`) emits rates at a fixed `toFixed(2)` — a CSV
 column wants a stable width, not per-value decimals. The `s.decimalPlaces` knob
 does NOT apply to rates — it defaults to 0 and would print `1` beside an axis

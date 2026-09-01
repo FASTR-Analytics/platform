@@ -28,7 +28,6 @@ import {
 } from "../postgres/mod.ts";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import {
-  getCommonIndicatorsFromManifestInputs,
   getHfaTaxonomyFromManifestInputs,
   getIcehIndicatorsFromManifestInputs,
   getMetricsWithStatusFromManifest,
@@ -86,7 +85,7 @@ export async function getProjectDetail(
         projectModules = getModuleSummariesFromManifest(manifest);
         metrics = getMetricsWithStatusFromManifest(manifest);
         datasetsInProject = getProjectDatasetsFromManifest(manifest);
-        commonIndicators = await getCommonIndicatorsFromManifestInputs(runCtx);
+        commonIndicators = manifest.commonIndicators;
         icehIndicators = await getIcehIndicatorsFromManifestInputs(runCtx);
         hfaTaxonomy = await getHfaTaxonomyFromManifestInputs(
           runCtx,

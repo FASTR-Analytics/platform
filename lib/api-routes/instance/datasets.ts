@@ -163,7 +163,7 @@ export const datasetRouteRegistry = {
     method: "POST",
     body: z.object({
       versionId: z.number(),
-      indicatorMappingsVersion: z.string(),
+      baseIndicatorMappingsVersion: z.string(),
       rawOrCommonIndicators: z.enum(["raw", "common"]),
       structureSchema: structureSchemaSchema,
     }),

@@ -3,17 +3,127 @@ import {
   APIResponseNoData,
   APIResponseWithData,
   type BatchIndicator,
+  buildExpressionDictionary,
+  type CommonIndicator,
+  type CommonIndicatorDefinition,
   describeNewIndicatorIdIssue,
+  type ExpressionDictionaryEntry,
   getNewIndicatorIdIssue,
+  IndicatorExpressionError,
   type InstanceIndicatorDetails,
+  MAX_INDICATOR_EXPRESSION_INGREDIENTS,
+  MAX_POPULATION_RATE_NUMERATOR_INGREDIENTS,
+  type PopulationType,
+  resolveIndicatorExpression,
 } from "lib";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
 import { resolveAssetFilePath } from "./assets.ts";
 import { readCsvFile } from "@timroberton/panther";
 
+// The stored shape of one common indicator. `expression` carries a derived
+// indicator's formula and a population rate's NUMERATOR expression;
+// definition_type says which (PLAN_1a §1.2).
+export type DBIndicatorCommon = {
+  indicator_common_id: string;
+  indicator_common_label: string;
+  is_default: boolean;
+  definition_type: "base" | "derived" | "population_rate";
+  expression: string | null;
+  population_type: PopulationType | null;
+  population_multiplier: number | null;
+  format_as: "percent" | "number" | "rate_per_10k";
+  threshold_direction: "higher_is_better" | "lower_is_better" | null;
+  threshold_green: number | null;
+  threshold_yellow: number | null;
+  group_label: string;
+  sort_order: number;
+};
+
+const COMMON_INDICATOR_COLUMNS =
+  `indicator_common_id, indicator_common_label, is_default, definition_type, expression, population_type, population_multiplier, format_as, threshold_direction, threshold_green, threshold_yellow, group_label, sort_order`;
+
+export function dbRowToCommonIndicator(row: DBIndicatorCommon): CommonIndicator {
+  return {
+    indicator_common_id: row.indicator_common_id,
+    indicator_common_label: row.indicator_common_label,
+    is_default: row.is_default,
+    definition: dbRowToDefinition(row),
+    format_as: row.format_as,
+    thresholds: row.threshold_direction === null
+      ? null
+      : {
+        direction: row.threshold_direction,
+        green: row.threshold_green!,
+        yellow: row.threshold_yellow!,
+      },
+    group_label: row.group_label,
+    sort_order: row.sort_order,
+  };
+}
+
+function dbRowToDefinition(row: DBIndicatorCommon): CommonIndicatorDefinition {
+  switch (row.definition_type) {
+    case "base":
+      return { type: "base" };
+    case "derived":
+      return { type: "derived", expression: row.expression! };
+    case "population_rate":
+      return {
+        type: "population_rate",
+        numeratorExpression: row.expression!,
+        populationType: row.population_type!,
+        multiplier: row.population_multiplier!,
+      };
+  }
+}
+
+type DefinitionFields = {
+  definition_type: CommonIndicatorDefinition["type"];
+  expression: string | null;
+  population_type: PopulationType | null;
+  population_multiplier: number | null;
+};
+
+function definitionFields(
+  definition: CommonIndicatorDefinition,
+): DefinitionFields {
+  switch (definition.type) {
+    case "base":
+      return {
+        definition_type: "base",
+        expression: null,
+        population_type: null,
+        population_multiplier: null,
+      };
+    case "derived":
+      return {
+        definition_type: "derived",
+        expression: definition.expression,
+        population_type: null,
+        population_multiplier: null,
+      };
+    case "population_rate":
+      return {
+        definition_type: "population_rate",
+        expression: definition.numeratorExpression,
+        population_type: definition.populationType,
+        population_multiplier: definition.multiplier,
+      };
+  }
+}
+
 // =============================================================================
 // READ OPERATIONS
 // =============================================================================
+
+export async function getCommonIndicators(
+  mainDb: Sql,
+): Promise<CommonIndicator[]> {
+  const rows = await mainDb.unsafe<DBIndicatorCommon[]>(
+    `SELECT ${COMMON_INDICATOR_COLUMNS} FROM indicators ORDER BY sort_order, indicator_common_id`,
+  );
+  return rows.map(dbRowToCommonIndicator);
+}
 
 // Get all indicators with their mappings
 export async function getIndicatorsWithMappings(
@@ -21,29 +131,24 @@ export async function getIndicatorsWithMappings(
 ): Promise<APIResponseWithData<InstanceIndicatorDetails>> {
   return await tryCatchDatabaseAsync(async () => {
     // Get all common indicators with their raw ID mappings aggregated
-    const commonIndicatorsResult = await mainDb<
-      {
-        indicator_common_id: string;
-        indicator_common_label: string;
-        is_default: boolean;
-        raw_indicator_ids: string | null;
-      }[]
-    >`
-      SELECT 
-        i.indicator_common_id,
-        i.indicator_common_label,
-        i.is_default,
+    const commonIndicatorsResult = await mainDb.unsafe<
+      (DBIndicatorCommon & { raw_indicator_ids: string | null })[]
+    >(`
+      SELECT
+        ${
+      COMMON_INDICATOR_COLUMNS.split(", ").map((c) => `i.${c}`).join(", ")
+    },
         STRING_AGG(im.indicator_raw_id, ',') as raw_indicator_ids
       FROM indicators i
       LEFT JOIN indicator_mappings im ON i.indicator_common_id = im.indicator_common_id
-      GROUP BY i.indicator_common_id, i.indicator_common_label, i.is_default
-      ORDER BY i.indicator_common_id
-    `;
+      GROUP BY ${
+      COMMON_INDICATOR_COLUMNS.split(", ").map((c) => `i.${c}`).join(", ")
+    }
+      ORDER BY i.sort_order, i.indicator_common_id
+    `);
 
     const commonIndicators = commonIndicatorsResult.map((row) => ({
-      indicator_common_id: row.indicator_common_id,
-      indicator_common_label: row.indicator_common_label,
-      is_default: row.is_default,
+      ...dbRowToCommonIndicator(row),
       raw_indicator_ids: row.raw_indicator_ids
         ? row.raw_indicator_ids.split(",")
         : [],
@@ -89,14 +194,97 @@ export async function getIndicatorsWithMappings(
 // COMMON INDICATOR OPERATIONS
 // =============================================================================
 
+// The authoring validator (PLAN_1a §1.2): an expression may only name commons
+// that resolve to `base` or `derived`, may not cycle or nest too deep, and
+// must flatten to no more ingredients than a results row can carry. Enforced
+// HERE, where the user is; run capture enforces the same rules again where the
+// data is. `pendingDefinitions` overrides what the dictionary says about the
+// rows being written, so a cycle is judged against the state the write would
+// produce.
+async function checkDefinitionsResolve(
+  mainDb: Sql,
+  pendingDefinitions: Map<string, CommonIndicatorDefinition>,
+): Promise<string | undefined> {
+  const stored = await mainDb.unsafe<
+    { indicator_common_id: string; definition_type: string; expression: string | null }[]
+  >(`SELECT indicator_common_id, definition_type, expression FROM indicators`);
+  const entries = new Map<string, ExpressionDictionaryEntry>(
+    stored.map((r) => [r.indicator_common_id, {
+      id: r.indicator_common_id,
+      type: r.definition_type as ExpressionDictionaryEntry["type"],
+      expression: r.expression,
+    }]),
+  );
+  for (const [id, definition] of pendingDefinitions) {
+    entries.set(id, {
+      id,
+      type: definition.type,
+      expression: definition.type === "base"
+        ? null
+        : definition.type === "derived"
+        ? definition.expression
+        : definition.numeratorExpression,
+    });
+  }
+  const dictionary = buildExpressionDictionary([...entries.values()]);
+  for (const [id, definition] of pendingDefinitions) {
+    if (definition.type === "base") continue;
+    try {
+      resolveIndicatorExpression({
+        ownId: id,
+        source: definition.type === "derived"
+          ? definition.expression
+          : definition.numeratorExpression,
+        dictionary,
+        maxIngredients: definition.type === "derived"
+          ? MAX_INDICATOR_EXPRESSION_INGREDIENTS
+          : MAX_POPULATION_RATE_NUMERATOR_INGREDIENTS,
+      });
+    } catch (e) {
+      if (e instanceof IndicatorExpressionError) return e.message;
+      throw e;
+    }
+  }
+  // A write can also break an indicator that is not itself being written —
+  // retyping a common to population_rate, or repointing it at a new
+  // expression, invalidates every chain that runs through it.
+  for (const entry of entries.values()) {
+    if (entry.type === "base" || pendingDefinitions.has(entry.id)) continue;
+    try {
+      resolveIndicatorExpression({
+        ownId: entry.id,
+        source: entry.expression ?? "",
+        dictionary,
+        maxIngredients: entry.type === "derived"
+          ? MAX_INDICATOR_EXPRESSION_INGREDIENTS
+          : MAX_POPULATION_RATE_NUMERATOR_INGREDIENTS,
+      });
+    } catch (e) {
+      if (e instanceof IndicatorExpressionError) {
+        return `This change would break ${
+          JSON.stringify(entry.id)
+        }: ${e.message}`;
+      }
+      throw e;
+    }
+  }
+  return undefined;
+}
+
+export type NewCommonIndicator = {
+  indicator_common_id: string;
+  indicator_common_label: string;
+  mapped_raw_ids: string[];
+  definition: CommonIndicatorDefinition;
+  format_as: CommonIndicator["format_as"];
+  thresholds: CommonIndicator["thresholds"];
+  group_label: string;
+};
+
 // Create multiple common indicators with raw indicator mappings
 export async function createIndicatorsCommon(
   mainDb: Sql,
-  indicators: Array<{
-    indicator_common_id: string;
-    indicator_common_label: string;
-    mapped_raw_ids: string[];
-  }>,
+  indicators: NewCommonIndicator[],
 ): Promise<
   APIResponseWithData<{ created: number; failed: number; errors: string[] }>
 > {
@@ -157,18 +345,54 @@ export async function createIndicatorsCommon(
       }
     }
 
+    const definitionErr = await checkDefinitionsResolve(
+      mainDb,
+      new Map(
+        indicators.map((i) => [i.indicator_common_id, i.definition]),
+      ),
+    );
+    if (definitionErr) {
+      return { success: false, err: definitionErr };
+    }
+
+    const nextSortOrder = (
+      await mainDb<{ next: number }[]>`
+        SELECT COALESCE(MAX(sort_order), 0) + 1 AS next FROM indicators
+      `
+    )[0].next;
+
     // All-or-nothing: one failed item aborts the whole Postgres transaction
     // (every later statement fails with "transaction is aborted"), so
     // per-item catch-and-continue can never deliver partial success. The
     // rethrow decorates the error with the item that caused it.
     await mainDb.begin(async (sql) => {
+      let sortOrder = nextSortOrder;
       for (const indicator of indicators) {
         try {
+          const d = definitionFields(indicator.definition);
           await sql`
-            INSERT INTO indicators (indicator_common_id, indicator_common_label, is_default, updated_at)
-            VALUES (${indicator.indicator_common_id}, ${indicator.indicator_common_label}, FALSE, CURRENT_TIMESTAMP)
+            INSERT INTO indicators (
+              indicator_common_id, indicator_common_label, is_default,
+              definition_type, expression, population_type, population_multiplier,
+              format_as, threshold_direction, threshold_green, threshold_yellow,
+              group_label, sort_order, updated_at
+            )
+            VALUES (
+              ${indicator.indicator_common_id}, ${indicator.indicator_common_label}, FALSE,
+              ${d.definition_type}, ${d.expression}, ${d.population_type}, ${d.population_multiplier},
+              ${indicator.format_as},
+              ${indicator.thresholds?.direction ?? null},
+              ${indicator.thresholds?.green ?? null},
+              ${indicator.thresholds?.yellow ?? null},
+              ${indicator.group_label}, ${sortOrder++}, CURRENT_TIMESTAMP
+            )
           `;
-          for (const rawId of indicator.mapped_raw_ids) {
+          // Only a base indicator is defined by mappings (the same rule
+          // updateIndicatorCommon applies on a retype).
+          const rawIds = indicator.definition.type === "base"
+            ? indicator.mapped_raw_ids
+            : [];
+          for (const rawId of rawIds) {
             await sql`
               INSERT INTO indicator_mappings (indicator_raw_id, indicator_common_id, updated_at)
               VALUES (${rawId}, ${indicator.indicator_common_id}, CURRENT_TIMESTAMP)
@@ -195,12 +419,18 @@ export async function createIndicatorsCommon(
 export async function updateIndicatorCommon(
   mainDb: Sql,
   oldIndicatorCommonId: string,
-  newIndicatorCommonId: string,
-  indicatorCommonLabel: string,
-  mappedRawIds: string[],
+  update: {
+    indicator_common_id: string;
+    indicator_common_label: string;
+    mapped_raw_ids: string[];
+    definition: CommonIndicatorDefinition;
+    format_as: CommonIndicator["format_as"];
+    thresholds: CommonIndicator["thresholds"];
+    group_label: string;
+  },
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    if (oldIndicatorCommonId !== newIndicatorCommonId) {
+    if (oldIndicatorCommonId !== update.indicator_common_id) {
       return {
         success: false,
         err:
@@ -208,32 +438,75 @@ export async function updateIndicatorCommon(
       };
     }
 
+    const definitionErr = await checkDefinitionsResolve(
+      mainDb,
+      new Map([[oldIndicatorCommonId, update.definition]]),
+    );
+    if (definitionErr) {
+      return { success: false, err: definitionErr };
+    }
+
+    // Only a base indicator is defined by mappings. A retype to derived or
+    // population_rate drops them rather than leaving orphaned rows that no
+    // extract would ever read again.
+    const rawIds = update.definition.type === "base"
+      ? update.mapped_raw_ids
+      : [];
+
+    const d = definitionFields(update.definition);
+
     await mainDb.begin(async (sql) => {
-      // Update the common indicator
       await sql`
         UPDATE indicators
         SET
-          indicator_common_id = ${newIndicatorCommonId},
-          indicator_common_label = ${indicatorCommonLabel},
+          indicator_common_label = ${update.indicator_common_label},
+          definition_type = ${d.definition_type},
+          expression = ${d.expression},
+          population_type = ${d.population_type},
+          population_multiplier = ${d.population_multiplier},
+          format_as = ${update.format_as},
+          threshold_direction = ${update.thresholds?.direction ?? null},
+          threshold_green = ${update.thresholds?.green ?? null},
+          threshold_yellow = ${update.thresholds?.yellow ?? null},
+          group_label = ${update.group_label},
           updated_at = CURRENT_TIMESTAMP
         WHERE indicator_common_id = ${oldIndicatorCommonId}
       `;
 
       // Delete existing mappings
       await sql`
-        DELETE FROM indicator_mappings 
+        DELETE FROM indicator_mappings
         WHERE indicator_common_id = ${oldIndicatorCommonId}
       `;
 
       // Create new mappings
-      for (const rawId of mappedRawIds) {
+      for (const rawId of rawIds) {
         await sql`
           INSERT INTO indicator_mappings (indicator_raw_id, indicator_common_id, updated_at)
-          VALUES (${rawId}, ${newIndicatorCommonId}, CURRENT_TIMESTAMP)
+          VALUES (${rawId}, ${oldIndicatorCommonId}, CURRENT_TIMESTAMP)
         `;
       }
     });
 
+    return { success: true };
+  });
+}
+
+export async function reorderCommonIndicators(
+  mainDb: Sql,
+  order: string[],
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    await mainDb.begin(async (sql) => {
+      for (let i = 0; i < order.length; i++) {
+        await sql`
+          UPDATE indicators
+          SET sort_order = ${i + 1},
+              updated_at = CURRENT_TIMESTAMP
+          WHERE indicator_common_id = ${order[i]}
+        `;
+      }
+    });
     return { success: true };
   });
 }
@@ -277,37 +550,48 @@ export async function deleteIndicatorCommon(
       };
     }
 
-    // Friendlier than the ON DELETE RESTRICT foreign-key error
-    const blockingCalculated = await mainDb<
-      {
-        calculated_indicator_id: string;
-        num_indicator_id: string;
-        denom_indicator_id: string | null;
-      }[]
-    >`
-      SELECT calculated_indicator_id, num_indicator_id, denom_indicator_id
-      FROM calculated_indicators
-      WHERE num_indicator_id = ANY(${indicatorCommonIds})
-         OR denom_indicator_id = ANY(${indicatorCommonIds})
-      ORDER BY calculated_indicator_id
-    `;
-    if (blockingCalculated.length > 0) {
-      const requestedIds = new Set(indicatorCommonIds);
-      const details = blockingCalculated.map((row) => {
-        const usedIds = [
-          ...new Set(
-            [row.num_indicator_id, row.denom_indicator_id].filter(
-              (id): id is string => id !== null && requestedIds.has(id),
-            ),
-          ),
-        ];
-        return `${row.calculated_indicator_id} (uses ${usedIds.join(", ")})`;
-      });
+    // The delete guard, re-expressed over expressions: a common indicator
+    // named by another common's formula cannot go. Resolving each surviving
+    // definition against the post-delete dictionary is what makes the check
+    // exact — an id used only deep inside a chain blocks the delete just as a
+    // directly-named one does.
+    const remaining = await mainDb.unsafe<
+      { indicator_common_id: string; definition_type: string; expression: string | null }[]
+    >(`SELECT indicator_common_id, definition_type, expression FROM indicators`);
+    const requestedIds = new Set(indicatorCommonIds);
+    const survivors = remaining.filter(
+      (r) => !requestedIds.has(r.indicator_common_id),
+    );
+    const dictionary = buildExpressionDictionary(
+      survivors.map((r) => ({
+        id: r.indicator_common_id,
+        type: r.definition_type as ExpressionDictionaryEntry["type"],
+        expression: r.expression,
+      })),
+    );
+    const blocked: string[] = [];
+    for (const survivor of survivors) {
+      if (survivor.definition_type === "base") continue;
+      try {
+        resolveIndicatorExpression({
+          ownId: survivor.indicator_common_id,
+          source: survivor.expression ?? "",
+          dictionary,
+          maxIngredients: survivor.definition_type === "population_rate"
+            ? MAX_POPULATION_RATE_NUMERATOR_INGREDIENTS
+            : MAX_INDICATOR_EXPRESSION_INGREDIENTS,
+        });
+      } catch (e) {
+        if (!(e instanceof IndicatorExpressionError)) throw e;
+        blocked.push(`${survivor.indicator_common_id} (${e.message})`);
+      }
+    }
+    if (blocked.length > 0) {
       return {
         success: false,
         err:
-          `Cannot delete common indicators referenced by calculated indicators: ${
-            details.join("; ")
+          `Cannot delete common indicators that other indicators are defined from: ${
+            blocked.join("; ")
           }`,
       };
     }
@@ -687,6 +971,26 @@ export async function batchUploadIndicators(
       };
     }
 
+    // A CSV row defines a BASE common (id, label, raw mappings). An id that is
+    // currently derived or population_rate cannot take that definition — the
+    // upsert would attach mappings to a formula (updateIndicatorCommon's rule,
+    // enforced here too). Checked against the live table in BOTH modes: the
+    // replace-all wipe deliberately keeps non-base rows.
+    const csvIds = parsedBatchIndicators.map((b) => b.indicator_common_id);
+    const nonBase = await mainDb<{ indicator_common_id: string }[]>`
+      SELECT indicator_common_id FROM indicators
+      WHERE indicator_common_id = ANY(${csvIds})
+        AND definition_type <> 'base'
+    `;
+    if (nonBase.length > 0) {
+      return {
+        success: false,
+        err: `These ids are derived or population-rate indicators, which are defined by an expression, not by raw mappings: ${
+          nonBase.map((r) => r.indicator_common_id).join(", ")
+        }. Edit or delete them in the indicator manager first.`,
+      };
+    }
+
     // Process the batch indicators in a transaction
     await mainDb.begin(async (sql) => {
       // If replaceAllExisting is true, delete all existing indicators and mappings first
@@ -701,22 +1005,33 @@ export async function batchUploadIndicators(
           DELETE FROM indicators_raw
         `;
 
-        // Delete all non-default common indicators
+        // Delete all non-default BASE common indicators. Derived and
+        // population-rate rows are definitions, not data mappings, and a CSV
+        // of ids and raw mappings has nothing to say about them.
         await sql`
           DELETE FROM indicators
-          WHERE is_default = FALSE
+          WHERE is_default = FALSE AND definition_type = 'base'
         `;
       }
+
+      // New rows sort after everything that exists (CSV order preserved);
+      // an update keeps the row's place. Without this the column DEFAULT 0
+      // would put every uploaded common ahead of the seeded ones.
+      let sortOrder = (
+        await sql<{ next: number }[]>`
+          SELECT COALESCE(MAX(sort_order), 0) + 1 AS next FROM indicators
+        `
+      )[0].next;
 
       for (const batch of parsedBatchIndicators) {
         const rawIds = batch.rawIds;
 
         // Insert or update the common indicator
         await sql`
-          INSERT INTO indicators (indicator_common_id, indicator_common_label, is_default, updated_at)
-          VALUES (${batch.indicator_common_id}, ${batch.indicator_common_label}, FALSE, CURRENT_TIMESTAMP)
-          ON CONFLICT (indicator_common_id) 
-          DO UPDATE SET 
+          INSERT INTO indicators (indicator_common_id, indicator_common_label, is_default, sort_order, updated_at)
+          VALUES (${batch.indicator_common_id}, ${batch.indicator_common_label}, FALSE, ${sortOrder++}, CURRENT_TIMESTAMP)
+          ON CONFLICT (indicator_common_id)
+          DO UPDATE SET
             indicator_common_label = EXCLUDED.indicator_common_label,
             updated_at = CURRENT_TIMESTAMP
         `;
@@ -744,6 +1059,31 @@ export async function batchUploadIndicators(
               updated_at = CURRENT_TIMESTAMP
           `;
         }
+      }
+
+      // A wipe can strip a base common that some derived indicator's formula
+      // still names. That used to surface as a foreign-key error from the
+      // retired calculated_indicators table; it stays a loud abort.
+      const survivors = await sql<
+        { indicator_common_id: string; definition_type: string; expression: string | null }[]
+      >`SELECT indicator_common_id, definition_type, expression FROM indicators`;
+      const dictionary = buildExpressionDictionary(
+        survivors.map((r) => ({
+          id: r.indicator_common_id,
+          type: r.definition_type as ExpressionDictionaryEntry["type"],
+          expression: r.expression,
+        })),
+      );
+      for (const survivor of survivors) {
+        if (survivor.definition_type === "base") continue;
+        resolveIndicatorExpression({
+          ownId: survivor.indicator_common_id,
+          source: survivor.expression ?? "",
+          dictionary,
+          maxIngredients: survivor.definition_type === "population_rate"
+            ? MAX_POPULATION_RATE_NUMERATOR_INGREDIENTS
+            : MAX_INDICATOR_EXPRESSION_INGREDIENTS,
+        });
       }
     });
 

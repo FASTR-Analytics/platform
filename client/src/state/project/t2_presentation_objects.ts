@@ -58,7 +58,10 @@ export const _PO_DETAIL_CACHE = createReactiveCache<
   },
   PresentationObjectDetail
 >({
-  name: "po_detail",
+  // v2: resultsValue gained catalogExpressionEvaluation (PLAN_1a). A shape
+  // change bumps the name — the run-keyed version hash does not move on a
+  // deploy.
+  name: "po_detail_v2",
   uniquenessKeys: (params) => [params.projectId, params.presentationObjectId],
   // Folds the run key: the payload embeds run-derived resultsValue
   // (PLAN_RESULTS_RUNS §2.5), mirroring the server po_detail version hash.
@@ -80,7 +83,9 @@ export const _PO_ITEMS_CACHE = createReactiveCache<
   },
   ItemsHolderPresentationObject
 >({
-  name: "po_items",
+  // v2: indicator axis order now comes solely from catalog sort_order
+  // (PLAN_1a) — stale items would sort alphabetically with no error.
+  name: "po_items_v2",
   uniquenessKeys: (params) => [
     params.projectId,
     params.resultsObjectId,

@@ -29,7 +29,7 @@ const _DATASET_HMIS_DISPLAY_INFO_CACHE = createReactiveCache<
     rawOrCommonIndicators: IndicatorType;
     structureSchema: StructureSchema;
     versionId: number;
-    indicatorMappingsVersion: string;
+    baseIndicatorMappingsVersion: string;
     structureLastUpdated: string | undefined;
   },
   ItemsHolderDatasetHmisDisplay
@@ -45,7 +45,7 @@ const _DATASET_HMIS_DISPLAY_INFO_CACHE = createReactiveCache<
   // the admin tree without any other key moving; the undefined case (no
   // structure yet) is guarded with an explicit token
   versionKey: (params, _pds) =>
-    `${params.versionId}_${params.indicatorMappingsVersion}_${
+    `${params.versionId}_${params.baseIndicatorMappingsVersion}_${
       params.structureLastUpdated ?? "no-structure"
     }`,
   pdsNotRequired: true,
@@ -54,7 +54,7 @@ const _DATASET_HMIS_DISPLAY_INFO_CACHE = createReactiveCache<
 export async function getDatasetHmisDisplayInfoFromCacheOrFetch(
   rawOrCommonIndicators: IndicatorType,
   versionId: number,
-  indicatorMappingsVersion: string,
+  baseIndicatorMappingsVersion: string,
   structureSchema: StructureSchema,
   structureLastUpdated: string | undefined,
   hmisImportRunActive: boolean,
@@ -66,7 +66,7 @@ export async function getDatasetHmisDisplayInfoFromCacheOrFetch(
     return await serverActions.getDatasetHmisDisplayInfo({
       rawOrCommonIndicators,
       versionId,
-      indicatorMappingsVersion,
+      baseIndicatorMappingsVersion,
       structureSchema,
     });
   }
@@ -75,7 +75,7 @@ export async function getDatasetHmisDisplayInfoFromCacheOrFetch(
     rawOrCommonIndicators,
     structureSchema,
     versionId,
-    indicatorMappingsVersion,
+    baseIndicatorMappingsVersion,
     structureLastUpdated,
   });
 
@@ -86,7 +86,7 @@ export async function getDatasetHmisDisplayInfoFromCacheOrFetch(
   const newPromise = serverActions.getDatasetHmisDisplayInfo({
     rawOrCommonIndicators,
     versionId,
-    indicatorMappingsVersion,
+    baseIndicatorMappingsVersion,
     structureSchema,
   });
 
@@ -96,7 +96,7 @@ export async function getDatasetHmisDisplayInfoFromCacheOrFetch(
       rawOrCommonIndicators,
       structureSchema,
       versionId,
-      indicatorMappingsVersion,
+      baseIndicatorMappingsVersion,
       structureLastUpdated,
     },
     version,

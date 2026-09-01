@@ -2,7 +2,6 @@ import { Sql } from "postgres";
 import {
   type DBHfaIndicator,
   type DBIndicator_IN_PROJECT,
-  getAllCalculatedIndicatorsFromSnapshot,
   getAllIcehIndicatorsFromSnapshot,
 } from "../db/mod.ts";
 import {
@@ -148,19 +147,5 @@ export async function getIndicatorMetadata(
     }
   }
 
-  const snapshot = await getAllCalculatedIndicatorsFromSnapshot(projectDb);
-  const metadataById = new Map(metadata.map((m) => [m.id, m]));
-  for (const ci of snapshot) {
-    metadataById.set(ci.calculated_indicator_id, {
-      id: ci.calculated_indicator_id,
-      label: ci.label,
-      format_as: ci.format_as,
-      threshold_direction: ci.threshold_direction,
-      threshold_green: ci.threshold_green,
-      threshold_yellow: ci.threshold_yellow,
-      group_label: ci.group_label,
-      sort_order: ci.sort_order,
-    });
-  }
-  return Array.from(metadataById.values());
+  return metadata;
 }

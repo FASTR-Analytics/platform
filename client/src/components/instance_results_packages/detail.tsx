@@ -1,5 +1,4 @@
 import {
-  getValidatedModuleId,
   t3,
   TC,
   type PinResultsPackageResult,
@@ -230,7 +229,9 @@ export function RunCatalogDetailPane(p: {
       element,
       props: {
         runId: p.run.id,
-        moduleId: getValidatedModuleId(moduleId),
+        // Read plane: a manifest module id is plain text here (PLAN_1a §0
+        // clause 3).
+        moduleId,
         moduleLabel: moduleLabel(moduleId),
       },
     });

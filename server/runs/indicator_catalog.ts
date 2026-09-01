@@ -19,6 +19,7 @@
 
 import { z } from "zod";
 import {
+  backfillCommonIndicatorSortOrder,
   composeHfaIndicatorLabel,
   getDatasetTypes,
   getHfaIndicatorMeasure,
@@ -53,10 +54,39 @@ const icehIndicatorRow = z.object({
   sort_order: z.number(),
 });
 
-const indicatorRow = z.object({
+// indicators.json has TWO writer formats and ONE reader contract (PLAN_1a
+// §1.10). v1 (pre-restructure packages): id + label only, with a separate
+// calculated_indicators_snapshot.json beside it. v2 (this release onwards):
+// the whole common dictionary, resolved — type, flattened expression, slot
+// map, presentation and sort. The discriminator is the `type` field, which
+// only v2 rows carry — and v1 REJECTS a row carrying it (the z.never()),
+// so a drifted v2 row fails the union and raises RunInputRowSchemaError
+// (fail-stop, per the doctrine below) instead of silently parsing as v1 and
+// dropping every expression and slot map.
+const indicatorRowV1 = z.object({
   indicator_common_id: z.string().nullable(),
   indicator_common_label: z.string().nullable(),
+  type: z.never().optional(),
 });
+
+const indicatorRowV2 = z.object({
+  indicator_common_id: z.string(),
+  indicator_common_label: z.string(),
+  type: z.enum(["base", "derived", "population_rate"]),
+  expression: z.string().nullable(),
+  slot_map: z.record(z.string(), z.string()).nullable(),
+  population_type: z.string().nullable(),
+  population_multiplier: z.number().nullable(),
+  format_as: z.enum(["percent", "number", "rate_per_10k"]),
+  threshold_direction: z.enum(["higher_is_better", "lower_is_better"])
+    .nullable(),
+  threshold_green: z.number().nullable(),
+  threshold_yellow: z.number().nullable(),
+  group_label: z.string(),
+  sort_order: z.number(),
+});
+
+const indicatorRow = z.union([indicatorRowV2, indicatorRowV1]);
 
 const calculatedIndicatorRow = z.object({
   calculated_indicator_id: z.string(),
@@ -98,6 +128,24 @@ export async function buildRunIndicatorCatalog(
     });
   }
   return catalog;
+}
+
+// The manifest's `commonIndicators` field (PLAN_1a §1.9): the instance's
+// common indicator dictionary as the project shell shows it. Derived HERE,
+// once — at finalize from a v2 mirror, and by manifest transform block 4 from
+// a legacy package's v1 mirror — so the read path never opens a mirror again.
+// Label-sorted, matching the per-request derivation it replaces.
+export async function buildRunCommonIndicators(
+  readRows: RunInputRowsReader,
+): Promise<{ id: string; label: string }[]> {
+  const rows = await readRows("indicators.json", indicatorRow);
+  return rows
+    .flatMap((row) =>
+      row.indicator_common_id && row.indicator_common_label
+        ? [{ id: row.indicator_common_id, label: row.indicator_common_label }]
+        : []
+    )
+    .sort((a, b) => a.label.localeCompare(b.label));
 }
 
 async function deriveIndicatorMetadata(
@@ -178,8 +226,39 @@ async function deriveIndicatorMetadata(
     return metadata;
   }
 
-  const rawIndicators = await readRows("indicators.json", indicatorRow);
-  for (const ind of rawIndicators) {
+  const indicatorRows = await readRows("indicators.json", indicatorRow);
+
+  // ── v2: the mirror already IS the catalog ────────────────────────────────
+  if (indicatorRows.length > 0 && "type" in indicatorRows[0]) {
+    return (indicatorRows as z.infer<typeof indicatorRowV2>[])
+      .toSorted(
+        (a, b) =>
+          a.sort_order - b.sort_order ||
+          a.indicator_common_id.localeCompare(b.indicator_common_id),
+      )
+      .map((row) => ({
+        id: row.indicator_common_id,
+        label: row.indicator_common_label,
+        format_as: row.format_as,
+        ...(row.threshold_direction === null ? {} : {
+          threshold_direction: row.threshold_direction,
+          threshold_green: row.threshold_green ?? undefined,
+          threshold_yellow: row.threshold_yellow ?? undefined,
+        }),
+        group_label: row.group_label,
+        sort_order: row.sort_order,
+        type: row.type,
+        ...(row.expression === null ? {} : { expression: row.expression }),
+        ...(row.slot_map === null ? {} : { slot_map: row.slot_map }),
+      }));
+  }
+
+  // ── v1: id + label, plus the separate calculated snapshot ────────────────
+  // Content is reproduced EXACTLY as it always was (a calculated row overrides
+  // a base row of the same id, so this merges by id rather than appending);
+  // the only addition is sort_order, backfilled by the shared rule so a
+  // legacy package's axes order the way the live dictionary now does.
+  for (const ind of indicatorRows as z.infer<typeof indicatorRowV1>[]) {
     if (ind.indicator_common_id && ind.indicator_common_label) {
       metadata.push({
         id: ind.indicator_common_id,
@@ -187,9 +266,6 @@ async function deriveIndicatorMetadata(
       });
     }
   }
-
-  // Calculated indicators override a raw indicator of the same id, so this
-  // merges by id rather than appending.
   const snapshot = (
     await readRows(
       "calculated_indicators_snapshot.json",
@@ -213,7 +289,17 @@ async function deriveIndicatorMetadata(
       sort_order: ci.sort_order,
     });
   }
-  return Array.from(metadataById.values());
+  const sortOrderById = backfillCommonIndicatorSortOrder({
+    baseIds: metadata.map((m) => m.id),
+    calculatedIdsInCatalogOrder: snapshot.map((ci) =>
+      ci.calculated_indicator_id
+    ),
+  });
+  return Array.from(metadataById.values())
+    .map((m) => ({ ...m, sort_order: sortOrderById.get(m.id) ?? m.sort_order }))
+    .toSorted((a, b) =>
+      (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.id.localeCompare(b.id)
+    );
 }
 
 function isHfaScriptGeneration(moduleDefinition: string): boolean {

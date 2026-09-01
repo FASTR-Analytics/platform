@@ -339,6 +339,15 @@ export const postAggregationExpressionStrict = z.object({
   expression: z.string(),
 });
 
+// Declared catalog evaluation (PLAN_1a §1.6) — the wire/display split that
+// PAE metrics have, but declared rather than inferred. The named ingredient
+// props are SUM-aggregated on the wire; the server then applies each
+// indicator's own catalog expression to the aggregated row and returns one
+// `value` column, which is why such a metric's valueProps stay ["value"].
+export const catalogExpressionEvaluationStrict = z.object({
+  ingredientProps: z.array(z.string()).min(1),
+});
+
 export const metricStrict = z.object({
   id: z.string(),
   label: z.string(),
@@ -349,6 +358,7 @@ export const metricStrict = z.object({
   requiredDisaggregationOptions: z.array(disaggregationOption),
   valueLabelReplacements: z.record(z.string(), z.string()).nullable(),
   postAggregationExpression: postAggregationExpressionStrict.nullable(),
+  catalogExpressionEvaluation: catalogExpressionEvaluationStrict.nullable(),
   resultsObjectId: z.string(),
   aiDescription: metricAIDescriptionInstalledStrict.nullable(),
   vizPresets: z.array(vizPresetInstalledStrict),
@@ -377,6 +387,9 @@ export type RelativePeriodFilter = Exclude<
 export type ValueFunc = z.infer<typeof valueFuncStrict>;
 export type PostAggregationExpression = z.infer<
   typeof postAggregationExpressionStrict
+>;
+export type CatalogExpressionEvaluation = z.infer<
+  typeof catalogExpressionEvaluationStrict
 >;
 export type VizPresetTextConfig = z.infer<
   typeof vizPresetTextConfigInstalledStrict

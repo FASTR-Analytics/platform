@@ -39,6 +39,7 @@ import {
 } from "../exposed_env_vars.ts";
 import { deriveAvailableDisaggregationOptions } from "./disaggregation_availability.ts";
 import {
+  buildRunCommonIndicators,
   buildRunIndicatorCatalog,
   runDirInputRowsReader,
 } from "./indicator_catalog.ts";
@@ -276,6 +277,12 @@ ${moduleIds === null ? projectDb`` : projectDb`WHERE module_id = ANY(${moduleIds
     runMetrics = metrics.map((m) => ({
       ...m,
       datasetFamily: familyByModuleId.get(m.module_id) ?? null,
+      // Not selected, because the project `metrics` table has no such column
+      // and correctly never will — metrics[] is generation-only provenance, so
+      // a field that did not exist when these rows were written is carried
+      // forward as null rather than synthesized. Manifest transform block 4
+      // does exactly this for packages written before v6.
+      catalog_expression_evaluation: null,
     }));
     moduleDefinitions = modules.map((m) => ({
       id: m.id,
@@ -480,10 +487,12 @@ SELECT dataset_type, info, last_updated FROM datasets
   // Stamped here, at finalize, from the mirrors just written into tmpDir —
   // the same function the manifest transform recomputes with, so a package
   // built now and a package transformed forward carry an identical catalog.
+  const inputRowsReader = runDirInputRowsReader(tmpDir, inputFiles);
   const indicators = await buildRunIndicatorCatalog(
     runModules,
-    runDirInputRowsReader(tmpDir, inputFiles),
+    inputRowsReader,
   );
+  const commonIndicators = await buildRunCommonIndicators(inputRowsReader);
 
   const manifest: RunManifest = {
     manifestSchemaVersion: RUN_MANIFEST_SCHEMA_VERSION,
@@ -513,6 +522,7 @@ SELECT dataset_type, info, last_updated FROM datasets
     resultsObjects: runResultsObjects,
     metricAvailability,
     indicators,
+    commonIndicators,
     inputFiles,
   };
   runManifestSchema.parse(manifest);

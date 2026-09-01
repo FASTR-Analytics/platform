@@ -27,7 +27,6 @@ export {
   datasetsVersionFromManifest,
   enrichMetricFromManifest,
   getDatasetFamilyFromRun,
-  getCommonIndicatorsFromManifestInputs,
   getHfaTaxonomyFromManifestInputs,
   getIcehIndicatorsFromManifestInputs,
   getIndicatorMetadataFromRun,

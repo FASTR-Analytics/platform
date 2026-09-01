@@ -108,13 +108,6 @@ export type DBProjectUserRole = {
 
 // Structure
 
-export type DBIndicator = {
-  indicator_common_id: string;
-  indicator_common_label: string;
-  is_default: boolean;
-  updated_at: string;
-};
-
 export type DBIndicatorRaw = {
   indicator_raw_id: string;
   indicator_raw_label: string;

@@ -273,6 +273,9 @@ function buildRunMetrics(resolved: ResolvedRunModule[]): RunMetric[] {
         post_aggregation_expression: m.postAggregationExpression
           ? JSON.stringify(m.postAggregationExpression)
           : null,
+        catalog_expression_evaluation: m.catalogExpressionEvaluation
+          ? JSON.stringify(m.catalogExpressionEvaluation)
+          : null,
         results_object_id: m.resultsObjectId,
         ai_description: m.aiDescription ? JSON.stringify(m.aiDescription) : null,
         viz_presets: JSON.stringify(m.vizPresets),

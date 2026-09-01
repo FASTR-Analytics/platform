@@ -13,15 +13,15 @@ globs:
   - client/src/state/instance/t2_geojson.ts
   - client/src/state/instance/t2_indicators.ts
   - client/src/state/instance/t2_structure.ts
+  - lib/common_indicator_catalog.ts
   - lib/hfa_indicator_labels.ts
   - lib/hfa_r_code_analysis.ts
-  - lib/types/calculated_indicator_id.ts
+  - lib/indicator_expression/**
   - lib/types/geojson_maps.ts
   - lib/types/hfa_types.ts
   - lib/types/iceh_strats.ts
   - lib/types/indicators.ts
   - lib/types/structure.ts
-  - server/db/instance/calculated_indicators.ts
   - server/db/instance/config.ts
   - server/db/instance/geojson_maps.ts
   - server/db/instance/hfa_facility_weights.ts
@@ -30,7 +30,6 @@ globs:
   - server/db/instance/instance.ts
   - server/db/instance/structure.ts
   - server/geojson/**
-  - server/routes/instance/calculated_indicators.ts
   - server/routes/instance/geojson_maps.ts
   - server/routes/instance/hfa_indicators.ts
   - server/routes/instance/hfa_time_points.ts
@@ -51,9 +50,12 @@ retired DOC_IMPORT_PIPELINE.
 
 Boundaries: dataset stage→integrate is **S6** (it validates against S5's
 dictionaries and facilities); the DHIS2 HTTP adapter is **S7** (S5 calls it
-for org units); module runs that EXECUTE the HFA indicator R code and the
-calculated-indicator definitions are **S8**; the query pipeline that joins
-facilities/geojson at render time is **S9**. Projects never read this
+for org units); module runs that EXECUTE the HFA indicator R code and
+materialise common-indicator ingredients (m012) are **S8**; the query
+pipeline that joins facilities/geojson at render time — and applies each
+indicator's catalog expression after aggregation — is **S9**. Common
+indicator DEFINITIONS (base mappings, derived expressions, population
+rates) are S5's dictionary, snapshotted into each package at capture. Projects never read this
 system live — everything crosses into project DBs via attach-time snapshots
 (S6's seam).
 
@@ -247,9 +249,10 @@ Raw ids are S6's staging validation surface; `dataset_hmis` stores raw ids
 across mapped raws) happens at project attach. New ids are charset-checked
 (no `, ; :` — they corrupt the STRING_AGG read projection and the CSV
 round-trip); existing ids are grandfathered. Common-indicator deletion
-refuses with a listing when calculated indicators reference the id
-(`calculated_indicators.num/denom_indicator_id` have ON DELETE RESTRICT
-FKs — migrations 019/024). Batch creates are all-or-nothing (one
+refuses with a listing when another common's expression still needs the id.
+The guard is exact rather than a direct-reference scan: it re-resolves every
+surviving definition against the post-delete dictionary, so an id used only
+deep inside a chain blocks the delete too. Batch creates are all-or-nothing (one
 transaction; the failing item is named in the error).
 
 **HFA** has two disjoint namespaces that are easy to conflate:
@@ -360,16 +363,13 @@ same `with()`. Filter-variable missingness stays an explicit branch, because
 `M10_hfa_response_status.csv` no longer share a denominator — a facility can
 hold a determinate 0 while its per-variable status reads `missing`.
 
-**Calculated indicators** reference common ids (FK RESTRICT both
-directions) and carry the strictest id grammar
-(`^[a-z][a-z0-9_]{0,63}$` — interpolated into generated R and emitted as
-synthetic `indicator_common_id` values in results). Denominator = none |
-another common indicator | population type × multiplier
-(`assertValidPopulationType` at the write boundary). Snapshotted per
-project at HMIS attach; attach refuses if a referenced common is absent
-from the data. The client editor pre-checks that a chosen
-numerator/denominator common id satisfies the calculated grammar (commons
-are free text, so not all are usable — a structural mismatch, not a bug).
+**Derived and population-rate commons** are defined by an expression over
+other commons. There is no separate id grammar: an identifier is written
+bare when it matches `^[a-z][a-z0-9_]*$` and `[in brackets]` otherwise, so
+every common id is usable regardless of charset. `assertValidPopulationType`
+guards the population term at the write boundary. The catalog is resolved at
+HMIS capture (`resolveCommonIndicatorCatalog`), which refuses the whole
+capture with a listing when any flattened ingredient is absent from the data.
 
 **Ruling — the additivity principle (Tim, 2026-08-19; the target model,
 not yet built).** *The pipeline only ever stores, adjusts, and aggregates
@@ -378,24 +378,39 @@ those counts, evaluated after aggregation. Nothing non-additive is ever
 stored as data.* This is the ONE authoritative statement; S6/S8/S9 carry
 pointers only. Consequences that follow from it and are ruled with it:
 
-- Calculated indicators collapse into common indicators. A common indicator
-  has a `type`: `base` (mapping to raws, SUM at extract; the only type
-  m001/m002 ever see) or `derived` (an expression over other commons,
-  evaluated by S9 AFTER aggregation: the SAME evaluator as the metric-wide
-  `postAggregationExpression`, its ingredients being row-restricted sums —
-  `SUM(count) FILTER (WHERE indicator_common_id = 'anc4')` — and its
-  expression coming from the run's indicator catalog). Derived ids are hosted
-  on every QUALIFYING fetch, computed at the results-object level (amended
-  2026-08-30: RO has `indicator_common_id`, all-SUM values, no metric-wide
-  PAE — the engine never sees the metric); `formatAs: "indicator"` stays the
-  metric-level formatting fact, and there is ONE such metric in the HMIS
-  family, over adjusted counts, with the scorecard as a preset. Definitions are snapshotted into the run manifest,
-  so a package stays standalone and an edit still means a new run. Tracking
-  home: PLAN_1_COMMON_INDICATOR_TYPES.md.
-  Population-denominated rates are a distinct type because their grain is
-  area×month, not facility×month; population lives in its own store (see
-  S8's population section) and is expanded stock→flow (interpolated annual ÷
-  12 per month) at run capture, so downstream it sums like any count.
+- Calculated indicators collapsed into common indicators (BUILT, PLAN_1a).
+  A common indicator has a `type`:
+  - `base` — mapping to raws, SUM at extract; the only type m001/m002 ever
+    see, and the only type the HMIS extract carries (the extract joins
+    `definition_type = 'base'`).
+  - `derived` — an ARBITRARY expression over other commons, base or derived
+    (`+ - * /`, parentheses, literals, `abs`/`coalesce`/`nullif`; chained by
+    substitution, cycles and depth rejected). Never negotiable down to
+    numerator/denominator.
+  - `population_rate` — a numerator expression over commons ONLY, divided by
+    person-years of a named population and scaled. Its grain is area×month,
+    not facility×month; population lives in its own store (S8) and is
+    expanded stock→flow at run capture, so downstream it sums like any
+    count. Type and migration are built; evaluation ships with PLAN_1b.
+
+  **Generation decides what the numbers are made of; the query only
+  aggregates and applies the formula.** At generation the expression is
+  FLATTENED to base commons, each base is assigned an ingredient slot, and
+  m012 materialises those slots as `ing1..ing8` on one row per indicator ×
+  month × finest area. Any grouping re-sums the ingredients (always valid —
+  they are additive counts) and the expression is applied AFTER aggregation,
+  which is what makes the result exact at every grouping. Expressions are
+  CATALOG DATA evaluated by a pure TypeScript evaluator
+  (`lib/indicator_expression/`) — never emitted as SQL, never accepted from
+  the wire. Query-time synthesis of derived indicators was evaluated and
+  REJECTED in every variant (PLAN_1a §1.14).
+
+  The catalog is snapshotted into the run's `indicators.json` mirror at
+  capture, so a package stays standalone and an edit still means a new run.
+  The authoring validator (`checkDefinitionsResolve`) enforces the same
+  rules at the write boundary that capture enforces at the data boundary,
+  including on rows the write does not touch: retyping a common to
+  `population_rate` is refused when a chain runs through it.
 - Presentation fields (`format_as`, thresholds, group, sort) live on the
   common indicator; `format_as` is DISPLAY, the `type` carries pipeline
   semantics — "percent" is not a pipeline property, "is a ratio of counts"
@@ -406,8 +421,10 @@ pointers only. Consequences that follow from it and are ruled with it:
   a `derived` common; a yearly denominator DE routes to the population
   store. Expressions it cannot decompose (`R{}`, `OUG{}`, `C{}`, program
   indicators, `d2:` functions) are refused, not approximated.
-- The scorecard is a table preset over a count metric with derived ids on
-  display; it is not a module (`m008` retires under this model).
+- The scorecard is a table preset on `m12-01-01`; it is not a module of its
+  own (`m007` and `m008` are dropped, and visualizations over their four
+  metric ids are deleted by project migration 040 — a user-visible loss that
+  is OWNED: a configured scorecard is rebuilt from the preset in one click).
 
 **ICEH** stratifiers (`lib/types/iceh_strats.ts`) are a hardcoded
 compile-time dictionary mapping raw survey stratum labels to normalized
@@ -516,12 +533,13 @@ Every config mutation re-reads all configs and pushes one consolidated
 
 - T2 caches: facilities keyed
   `family + structureLastUpdated + hashStructureSchema(family schema)`;
-  indicators/calculated keyed on the T1 version stamps
-  (`indicatorMappingsVersion` = MD5 over MAX(updated_at)+counts of the
-  three HMIS tables; `calculatedIndicatorsVersion`; `hfaIndicatorsVersion`;
-  HFA dictionary rides `hfaCacheHash`). `indicatorMappingsVersion` is also
-  a cache-key component for HMIS dataset views — mapping edits implicitly
-  invalidate them.
+  indicators keyed on the T1 version stamps. There are TWO indicator stamps
+  (PLAN_1a §1.13), both MD5 over MAX(updated_at)+counts of the three HMIS
+  tables: `indicatorMappingsVersion` covers EVERY common indicator row and
+  keys the indicator manager, while `baseIndicatorMappingsVersion` counts
+  only `definition_type = 'base'` rows and is what the HMIS datatable views
+  key on — so editing a derived or population-rate definition costs those
+  caches nothing. `hfaIndicatorsVersion` and `hfaCacheHash` are unchanged.
 - The structure wizard: server owns the step number (every save writes
   `step`; the client fetcher jumps the stepper on each silent refetch).
   Errors render as a dismissible banner over navigable steps (re-saving

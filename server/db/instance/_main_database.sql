@@ -309,11 +309,60 @@ CREATE INDEX idx_facilities_hfa_facility_ownership ON facilities_hfa(facility_ow
 -- INDICATORS
 -- ============================================================================
 
+-- A common indicator carries what it IS and how it is presented. `expression`
+-- holds a derived indicator's formula and a population rate's NUMERATOR
+-- expression; definition_type decides which population columns must be set.
 CREATE TABLE indicators (
   indicator_common_id text PRIMARY KEY NOT NULL,
   indicator_common_label text NOT NULL,
   is_default boolean NOT NULL DEFAULT FALSE,
-  updated_at timestamptz DEFAULT CURRENT_TIMESTAMP
+
+  definition_type text NOT NULL DEFAULT 'base',
+  expression text,
+  population_type text,
+  population_multiplier real,
+
+  format_as text NOT NULL DEFAULT 'number',
+  threshold_direction text,
+  threshold_green real,
+  threshold_yellow real,
+  group_label text NOT NULL DEFAULT '',
+  sort_order integer NOT NULL DEFAULT 0,
+
+  updated_at timestamptz DEFAULT CURRENT_TIMESTAMP,
+
+  CONSTRAINT indicators_definition_type_check
+    CHECK (definition_type IN ('base', 'derived', 'population_rate')),
+
+  CONSTRAINT indicators_definition_fields_check CHECK (
+    (definition_type = 'base'
+       AND expression IS NULL
+       AND population_type IS NULL
+       AND population_multiplier IS NULL)
+    OR
+    (definition_type = 'derived'
+       AND expression IS NOT NULL
+       AND population_type IS NULL
+       AND population_multiplier IS NULL)
+    OR
+    (definition_type = 'population_rate'
+       AND expression IS NOT NULL
+       AND population_type IS NOT NULL
+       AND population_multiplier IS NOT NULL)
+  ),
+
+  CONSTRAINT indicators_format_as_check
+    CHECK (format_as IN ('percent', 'number', 'rate_per_10k')),
+
+  CONSTRAINT indicators_threshold_fields_check CHECK (
+    (threshold_direction IS NULL
+       AND threshold_green IS NULL
+       AND threshold_yellow IS NULL)
+    OR
+    (threshold_direction IN ('higher_is_better', 'lower_is_better')
+       AND threshold_green IS NOT NULL
+       AND threshold_yellow IS NOT NULL)
+  )
 );
 
 CREATE TABLE indicators_raw (
@@ -667,53 +716,6 @@ CREATE TABLE hfa_indicator_variant_code (
   item_id TEXT NOT NULL REFERENCES hfa_indicator_variant_items(id) ON UPDATE CASCADE ON DELETE CASCADE,
   r_code TEXT NOT NULL DEFAULT '',
   PRIMARY KEY (var_name, time_point, item_id)
-);
-
--- ============================================================================
--- CALCULATED INDICATORS
--- ============================================================================
-
-CREATE TABLE calculated_indicators (
-  calculated_indicator_id     TEXT PRIMARY KEY NOT NULL,
-  label                      TEXT NOT NULL UNIQUE,
-  group_label                TEXT NOT NULL DEFAULT '',
-  sort_order                 INTEGER NOT NULL DEFAULT 0,
-
-  num_indicator_id           TEXT NOT NULL,
-  denom_kind                 TEXT NOT NULL,
-  denom_indicator_id         TEXT,
-  denom_population_type      TEXT,
-  denom_population_multiplier REAL,
-
-  format_as                  TEXT NOT NULL DEFAULT 'percent' CHECK (format_as IN ('percent', 'number', 'rate_per_10k')),
-
-  threshold_direction        TEXT NOT NULL DEFAULT 'higher_is_better' CHECK (threshold_direction IN ('higher_is_better', 'lower_is_better')),
-  threshold_green            REAL NOT NULL,
-  threshold_yellow           REAL NOT NULL,
-
-  updated_at                 TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-  CONSTRAINT calculated_indicators_check CHECK (denom_kind IN ('none', 'indicator', 'population')),
-
-  CONSTRAINT calculated_indicators_denom_fields_check CHECK (
-    (denom_kind = 'none'
-       AND denom_indicator_id IS NULL
-       AND denom_population_type IS NULL
-       AND denom_population_multiplier IS NULL)
-    OR
-    (denom_kind = 'indicator'
-       AND denom_indicator_id IS NOT NULL
-       AND denom_population_type IS NULL
-       AND denom_population_multiplier IS NULL)
-    OR
-    (denom_kind = 'population'
-       AND denom_indicator_id IS NULL
-       AND denom_population_type IS NOT NULL
-       AND denom_population_multiplier IS NOT NULL)
-  ),
-
-  FOREIGN KEY (num_indicator_id) REFERENCES indicators(indicator_common_id) ON DELETE RESTRICT,
-  FOREIGN KEY (denom_indicator_id) REFERENCES indicators(indicator_common_id) ON DELETE RESTRICT
 );
 
 -- ============================================================================

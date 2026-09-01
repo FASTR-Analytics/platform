@@ -2,7 +2,11 @@ import { z } from "zod";
 import { AssetInfo } from "./assets.ts";
 import type { GeoJsonMapSummary } from "./geojson_maps.ts";
 import type { DatasetType } from "./datasets.ts";
-import type { IndicatorMetadata, IndicatorType } from "./indicators.ts";
+import type {
+  IndicatorMetadata,
+  IndicatorMetadataDisplay,
+  IndicatorType,
+} from "./indicators.ts";
 import type { ProjectUserPermissions, UserPermissions } from "./permissions.ts";
 import type { HfaWeightsCoverage } from "./structure.ts";
 import type { JsonArrayItem } from "./_figure_bundle.ts";
@@ -513,7 +517,10 @@ export type ItemsHolderPresentationObject =
     | {
       status: "ok";
       items: JsonArrayItem[];
-      indicatorMetadata: IndicatorMetadata[];
+      // Display fields only: an indicator's evaluation (type, expression,
+      // slot map) is a generation fact the server computes values with, and
+      // never reaches a client or a stored figure snapshot.
+      indicatorMetadata: IndicatorMetadataDisplay[];
     }
     | {
       status: "too_many_items";

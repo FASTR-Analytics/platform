@@ -35,7 +35,7 @@ export function InstanceDatasetHmis(p: Props) {
       element: DeleteData,
       props: {
         hmisVersionId: versionId,
-        indicatorMappingsVersion: instanceState.indicatorMappingsVersion,
+        baseIndicatorMappingsVersion: instanceState.baseIndicatorMappingsVersion,
         structureSchema: structureSchemaForFamily("hmis"),
       },
     });
@@ -140,8 +140,8 @@ export function InstanceDatasetHmis(p: Props) {
               {(versionId) => (
                 <DatasetItemsHolder
                   versionId={versionId}
-                  indicatorMappingsVersion={
-                    instanceState.indicatorMappingsVersion
+                  baseIndicatorMappingsVersion={
+                    instanceState.baseIndicatorMappingsVersion
                   }
                   structureSchema={structureSchemaForFamily("hmis")}
                 />

@@ -10,6 +10,7 @@ import {
   _PO_ITEMS_CACHE,
 } from "../routes/caches/visualizations.ts";
 import { RequestQueue } from "../utils/request_queue.ts";
+import { getCatalogEvaluationForResultsObject } from "./catalog_expression_items.ts";
 import {
   findMissingRequiredGroupBys,
   getModuleIdForMetricFromRun,
@@ -78,6 +79,43 @@ export async function readRunItems(
         missingRequired.join(", ")
       }`,
     };
+  }
+
+  // Guards on a catalog-evaluated results object (PLAN_1a §1.7) — validations
+  // of a DECLARED fact, never inference. Its value comes from applying each
+  // indicator's own catalog expression to SUMmed ingredient columns, so a
+  // request may only ever ask for those columns, summed, with no expression of
+  // its own. App clients never send anything else; this guards hand-crafted
+  // requests, and the PAE one is a real bypass without it (fetch-config
+  // validation accepts a post-aggregation expression unconditionally).
+  const catalogEvaluation = getCatalogEvaluationForResultsObject(
+    runCtx.manifest,
+    body.resultsObjectId,
+  );
+  if (catalogEvaluation !== undefined) {
+    if (body.fetchConfig.postAggregationExpression !== undefined) {
+      return {
+        success: false,
+        err:
+          "This results object computes its value from the indicator catalog; a post-aggregation expression cannot be supplied",
+      };
+    }
+    const declared = new Set(catalogEvaluation.ingredientProps);
+    for (const value of body.fetchConfig.values) {
+      if (value.func !== "SUM") {
+        return {
+          success: false,
+          err:
+            `This results object only supports SUM over its ingredient columns (got ${value.func} on ${value.prop})`,
+        };
+      }
+      if (!declared.has(value.prop)) {
+        return {
+          success: false,
+          err: `Not an ingredient column of this results object: ${value.prop}`,
+        };
+      }
+    }
   }
 
   const cacheKey = {

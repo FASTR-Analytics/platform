@@ -1,5 +1,4 @@
 import {
-  MODULE_REGISTRY,
   t3,
   TC,
   type CompareProjectsData,
@@ -50,6 +49,29 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
     moduleId: string,
   ): CompareProjectsModule | undefined {
     return projects()[projectIndex].modules.find((m) => m.id === moduleId);
+  }
+
+  // The rows are the modules the compared PACKAGES actually contain, not the
+  // registry's (PLAN_1a §0 clause 3): a package is read as data, so a module
+  // that has since left the registry must still show its column. Label comes
+  // from the package too; ordering is by id, which is the registry's own
+  // ordering for every module that is still in it.
+  function comparedModules(): string[] {
+    const ids = new Set<string>();
+    for (const project of projects()) {
+      for (const mod of project.modules) {
+        ids.add(mod.id);
+      }
+    }
+    return [...ids].sort((a, b) => a.localeCompare(b));
+  }
+
+  function comparedModuleLabel(moduleId: string): string {
+    for (const project of projects()) {
+      const mod = project.modules.find((m) => m.id === moduleId);
+      if (mod) return mod.label;
+    }
+    return moduleId;
   }
 
   function allParameterKeys(
@@ -138,21 +160,21 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
           </tr>
         </thead>
         <tbody>
-          <For each={MODULE_REGISTRY}>
-            {(registryMod) => {
-              const params = allParameterKeys(registryMod.id);
+          <For each={comparedModules()}>
+            {(comparedModuleId) => {
+              const params = allParameterKeys(comparedModuleId);
               const anyInstalled = projects().some((proj) =>
-                proj.modules.some((m) => m.id === registryMod.id),
+                proj.modules.some((m) => m.id === comparedModuleId),
               );
               return (
                 <>
                   <tr class="bg-base-200 border-b">
                     <td class="ui-pad-sm font-700 bg-base-200 sticky left-0">
-                      {t3(registryMod.label)}
+                      {comparedModuleLabel(comparedModuleId)}
                     </td>
                     <For each={projects()}>
                       {(_, i) => {
-                        const mod = getModule(i(), registryMod.id);
+                        const mod = getModule(i(), comparedModuleId);
                         return (
                           <td class="ui-pad-sm">
                             <Show
@@ -170,7 +192,7 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
                     <tr class="border-b">
                       <td
                         class={rowHeaderClass(
-                          registryMod.id,
+                          comparedModuleId,
                           (m) => m.lastRunGitRef,
                         )}
                       >
@@ -182,11 +204,11 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
                       </td>
                       <For each={projects()}>
                         {(_, i) => {
-                          const mod = getModule(i(), registryMod.id);
+                          const mod = getModule(i(), comparedModuleId);
                           return (
                             <td
                               class={rowCellClass(
-                                registryMod.id,
+                                comparedModuleId,
                                 (m) => m.lastRunGitRef,
                                 "ui-pad-sm font-mono text-xs",
                               )}
@@ -205,7 +227,7 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
                       </td>
                       <For each={projects()}>
                         {(_, i) => {
-                          const mod = getModule(i(), registryMod.id);
+                          const mod = getModule(i(), comparedModuleId);
                           return (
                             <td class="ui-pad-sm text-xs">
                               {mod?.lastRunAt ? (
@@ -223,7 +245,7 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
                         <tr class="border-b">
                           <td
                             class={rowHeaderClass(
-                              registryMod.id,
+                              comparedModuleId,
                               (m) =>
                                 m.parameters.find(
                                   (pa) =>
@@ -236,7 +258,7 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
                           </td>
                           <For each={projects()}>
                             {(_, i) => {
-                              const mod = getModule(i(), registryMod.id);
+                              const mod = getModule(i(), comparedModuleId);
                               const value = mod?.parameters.find(
                                 (pa) =>
                                   pa.replacementString ===
@@ -253,7 +275,7 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
                               return (
                                 <td
                                   class={rowCellClass(
-                                    registryMod.id,
+                                    comparedModuleId,
                                     getParamValue,
                                     "ui-pad-sm text-xs",
                                   )}

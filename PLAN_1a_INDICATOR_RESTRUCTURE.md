@@ -1,9 +1,14 @@
 # PLAN_1a — Indicator restructure (typed commons, arbitrary expressions, m012, m007/m008 drop)
 
-Status: DESIGN RULED 2026-08-30 (Tim). Amended same day after a
+Status: **BUILT 2026-09-01, all gates green — see §5 for the verified
+state and §6 for the release steps that remain.** Design ruled 2026-08-30
+(Tim). Amended same day after a
 code-verified review round (every claim in it was independently verified
-against code before adoption). Nothing built. **All design decisions are
-made — there are no open rulings.** This file, with
+against code before adoption), then amended again 2026-08-30 (Tim) to
+make m012 an ORDINARY R MODULE rather than an app-executed DuckDB step
+(§1.5, §1.14 item 6 — the reversal and its reasons are recorded there so
+they are not re-litigated). **All design decisions are made — there are
+no open rulings.** This file, with
 [PLAN_1b_POPULATION_STORE.md](PLAN_1b_POPULATION_STORE.md) and
 [PLAN_1c_MODULE_CLEANUP.md](PLAN_1c_MODULE_CLEANUP.md), replaced the
 deleted `PLAN_1_COMMON_INDICATOR_TYPES.md`, whose query-time "hosting"
@@ -17,7 +22,17 @@ Repos: app = `/Users/timroberton/projects/apps/wb-fastr` (all relative
 paths below); modules = `/Users/timroberton/projects/apps/wb-fastr-modules`
 (authored `_metrics/*.ts` etc.; `deno task build` there regenerates
 `definition.json`; its `.validation/` schema copy re-syncs with the app's).
-Deploy order: app first, then modules push.
+Deploy order: **modules push FIRST, app second** — and the modules push must
+NOT yet delete the `m007/` and `m008/` directories (that deletion is 1c).
+The app's metric schema requires `catalogExpressionEvaluation`, so a deployed
+new app cannot parse a pre-push `definition.json` at all; conversely the
+currently-deployed app still resolves every registry entry, including m007 and
+m008, in one `Promise.all` that throws on the first failure
+(`server/runs/generation_wizard_reads.ts`), so a push that removed those
+directories would take the generation wizard down from the other side. Pushing
+modules first with both directories intact is a no-op for the old app (it
+strips the unknown metric field), m012 is simply not offered until the app
+lands, and an app rollback afterwards stays safe.
 
 ## 0. The two principles
 
@@ -86,33 +101,117 @@ question in this plan is answered by one of them — never case-by-case:
    zero-guarded. Fully arbitrary expressions are a HARD requirement —
    3+ ingredients, any operator mix; never negotiate this down to
    numerator/denominator forms.
+   **Id charset.** Bracket quoting has no escape, so `[` and `]` are
+   FORBIDDEN in an indicator id (`getNewIndicatorIdIssue`,
+   `lib/types/indicators.ts`, which today bans only `,;:`), and instance
+   migration 079 `RAISE`s with a listing on any legacy id carrying one.
+   Verified read-only across all 40 fleet instances 2026-09-01: no
+   `indicator_common_id`, `calculated_indicator_id` or `indicator_raw_id`
+   contains `[ ] " \`, so the guard costs no rename anywhere
+   (`central-testing` has no `indicators` table at all, per §1.12).
+   An escape rule was REJECTED: the grammar is typed by admins, and a
+   permanent escape tax buys a character with no legitimate use in an id.
+   Two neighbours of the same class, neither needing a ruling: a numeric
+   literal must be written back in plain decimal, never via `String()`
+   (which emits `1e-7` for `0.0000001` and `1e+21` for large values —
+   neither re-parses), and an id equal to `abs`/`coalesce`/`nullif` must
+   be bracket-quoted by `writeIdentifier`, not emitted bare. Every one of
+   these is the same failure: authoring accepts it, generation stores it,
+   and the read path throws re-parsing its own output.
 4. **Presentation fields on commons**: `format_as`
    (`percent|number|rate_per_10k`; base = `number`), thresholds?,
    `group_label`, `sort_order`.
-5. **m012 — the indicator-values module (new, app-executed).**
-   `scriptGenerationType: "indicator_values"`: the "script" is a DuckDB
-   SQL step run by the generation pipeline in-process (no Docker, no R;
-   the R surface is isolated to `runRScript` in
-   `worker_routines/generate_run/execute_module.ts`, untouched). Depends
-   on m002. One results object `INDICATOR_VALUES`:
-   `indicator_common_id, period_id, admin_area_2..4, ing1..ing8` —
-   **area×month grain, uniformly** (rows summed across facilities at the
-   finest admin level; NO `facility_id`, no facility columns; facility
-   analysis stays on m3-01-01 and the quality metrics; m008 parity, so no
-   shipped capability is lost). One row per indicator × month × finest
-   area, ingredient slots per the catalog's slot-map; base rows put their
-   count in `ing1`. **One adjustment basis**, a module config selection
-   at generation defaulting from the instance count-variable setting —
-   adjustment-scenario comparison stays m3-01-01's job; a different basis
-   means regenerating, the system's normal lifecycle. The step fails the
-   generation loudly on any unresolvable ingredient. Frictions ruled:
-   the step's script artifact is `___script___.sql` (file name is a total
-   function of the declared module type; `_MODULE_SCRIPT_FILE_NAME` in
-   `server/exposed_env_vars.ts` becomes that function, and
-   `server/runs/package_internals.ts` serves it); the memo key keeps
-   folding `R_DOCKER_IMAGE_TAG` (`computeModuleKey`,
-   `worker_routines/generate_run/resolve_reuse.ts:192`) — spurious m012
-   re-runs on image bumps are accepted, the step is trivial.
+5. **m012 — the indicator-values module (new, an ORDINARY R MODULE).**
+   `scriptGenerationType: "template"`, exactly like m003 and m011: a
+   static, reviewable `script.R` in the modules repo, executed by
+   `runRScript` like every other module. **No new generation type, no
+   generated script text, no DuckDB step, no second script-artifact file
+   name** — `indicator_values` does not exist in either module-definition
+   schema, `_MODULE_SCRIPT_FILE_NAME` stays a constant, and
+   `server/runs/package_internals.ts` is untouched.
+   - **Prerequisites: `["m002"]`, and nothing else.** `dataSources` is a
+     single `results_object` entry, `M2_adjusted_data.csv` from m002 —
+     no HMIS dataset source (M2's output carries everything m012 needs).
+     m002's own prerequisite on m001 is m002's business.
+   - One results object, id `M12_indicator_values.csv` (results-object
+     ids are file names — m008's is `M8_output_scorecard.csv`), columns
+     `indicator_common_id, period_id, admin_area_2..4, ing1..ing8` —
+     **area×month grain, uniformly** (rows summed across facilities at
+     the finest admin level; NO `facility_id`, no facility columns;
+     facility analysis stays on m3-01-01 and the quality metrics; m008
+     parity, so no shipped capability is lost). One row per indicator ×
+     month × finest area, ingredient slots per the catalog's slot-map;
+     base rows put their count in `ing1`. This wide layout IS m008's
+     shipped `numerator`/`denominator` shape generalised from two columns
+     to eight, and it is what makes expression-over-sums exact at every
+     grouping: `indicator_common_id` is a required GROUP BY (§1.8), so a
+     row only ever carries ONE indicator, and a long-format row could
+     never hold the ingredients its own formula needs.
+   - **The ingredient table is SUBSTITUTED INTO the script as a data
+     literal — there is no second input and no new vocabulary anywhere.**
+     `script.R` carries the token `INDICATOR_INGREDIENTS`, and
+     `getScriptWithParameters`
+     (`server/server_only_funcs/get_script_with_parameters.ts`) replaces it
+     with an R tribble of
+     `indicator_common_id, slot, ingredient_common_id` rows built from the
+     resolved catalog — ONE `replaceAll`, beside the `COUNTRY_ISO3` line
+     that already does exactly this for every module. No file in `inputs/`,
+     no `dataSources` member, no staging step, no `assetsToImport` change:
+     m012 keeps `dataSources` as the single `results_object` entry above
+     and `assetsToImport: []`.
+     - The emitter is a pure function in `lib/`, and it ESCAPES `\` and
+       `"` when writing an id into an R string literal, exactly as
+       `csvCell` escapes for CSV. Combined with the §1.3 id-charset rule,
+       no dictionary content can break the script.
+     - **The literal is SINGLE-LINE, and every substituted value must
+       stay so.** Substitution is a `replaceAll` over the whole script, so
+       it also rewrites the token where a COMMENT mentions it; a
+       multi-line value puts its second line onward outside that comment
+       and the script no longer parses. Every pre-existing substitution
+       (`COUNTRY_ISO3`, each parameter, each dataset path) is single-line
+       for the same reason — this is a property of the mechanism, not a
+       style choice.
+     - Rows are emitted **sorted by `(indicator_common_id, slot)`**, never
+       in catalog order. Sort order is a display preference and must not
+       reach a memo key (the roll-up-position lesson, CLAUDE.md), and this
+       is the whole of what keeps a reorder from re-running the module.
+     - The flattening and slot assignment stay in TypeScript, where the
+       expression library lives: **R never parses an expression**, it only
+       sums the columns the literal names. §0's ruling is untouched — this
+       generates DATA into a static, reviewable script, never logic
+       (§1.14).
+   - **The memo key needs NOTHING added.** The dictionary rides in
+     `scriptText`, which `computeModuleKey`
+     (`worker_routines/generate_run/resolve_reuse.ts`) already hashes, so
+     "edit an indicator → regenerate" re-runs m012 by construction and
+     "edit a label" or "reorder" does not. The run package stores the
+     SUBSTITUTED script, so what actually executed stays reviewable per
+     run.
+   - **One adjustment basis**, a module `select` parameter with the four
+     `count_final_*` options and `defaultValue: "count_final_outliers"`,
+     matching m003's `SELECTEDCOUNT` (correction of record: there is no
+     instance-level count-variable setting — verified, nothing in
+     `server/`, `lib/` or `client/` defines one). Adjustment-scenario
+     comparison stays m3-01-01's job; a different basis means
+     regenerating, the system's normal lifecycle.
+   - **"Unresolvable" means an EXPRESSION naming something the data cannot
+     supply, and it fails loudly in TypeScript at capture (§2, run
+     capture), before R ever runs. A base common that simply has no data
+     is NOT that** — it is omitted from the ingredient table and produces
+     no rows, and any expression over it yields NULL (§4). The distinction
+     is load-bearing: `server/db_startup.ts` seeds all 14
+     `_COMMON_INDICATORS` on every instance whether or not the country
+     maps them, so treating an unmapped base common as a failure would
+     block generation on essentially every instance in the fleet.
+     Concretely, `resolveCommonIndicatorCatalog` emits an ingredient row
+     for a `base` common ONLY when it is in `baseIdsInData` (the same set
+     the derived/population_rate check already uses), and m012's
+     `script.R` carries **no** "ingredient has no data" `stop()` — its
+     join and pivot already yield `NA`, which is the correct answer.
+   - The memo key keeps folding `R_DOCKER_IMAGE_TAG` (`computeModuleKey`,
+     `worker_routines/generate_run/resolve_reuse.ts:192`) — spurious m012
+     re-runs on image bumps are accepted, as they are for every other
+     module.
 6. **One metric `m12-01-01`, `formatAs: "indicator"`, with a DECLARED
    evaluation variant** in the metric schema (github + installed): it
    names the ingredient props that travel on the wire and declares that
@@ -129,13 +228,17 @@ question in this plan is answered by one of them — never case-by-case:
    metric, and `SPECIAL_SCORECARD_TABLE_METRICS`
    (`client/src/generate_visualization/special_chart_checks.ts:29`) gains
    `m12-01-01` — while keeping `m8-01-01` for frozen figures (§0 clause 2).
-7. **Server-side guards on `indicator_values` ROs — validations of a
-   declared type, never inference** (the RO's module type is a manifest
-   lookup via `getModuleIdForResultsObjectFromRun`): reject any
-   client-sent `postAggregationExpression` (PAE acceptance is otherwise
-   unconditional — `lib/validate_fetch_config.ts:286-291` — so this is a
-   real bypass without the guard), any `values[].func` other than SUM,
-   and any prop outside the declared ingredient set.
+7. **Server-side guards on catalog-evaluated ROs — validations of a
+   DECLARED fact, never inference.** With `indicator_values` gone as a
+   generation type (§1.5), the trigger is the METRIC declaration itself:
+   an RO is catalog-evaluated iff a metric over it declares
+   `catalogExpressionEvaluation` (§1.6) — a manifest lookup over
+   `manifest.metrics`, not a module-type lookup and not a shape guess, so
+   §0 clause 4 holds unchanged. On such an RO: reject any client-sent
+   `postAggregationExpression` (PAE acceptance is otherwise unconditional
+   — `lib/validate_fetch_config.ts:286-291` — so this is a real bypass
+   without the guard), any `values[].func` other than SUM, and any prop
+   outside the declared ingredient set.
 8. **Cross-indicator pooling is impossible by declaration**: `m12-01-01`
    declares `requiredDisaggregationOptions: ["indicator_common_id"]`, and
    required options are enforced server-side as GROUPBYS with a hard
@@ -185,8 +288,9 @@ question in this plan is answered by one of them — never case-by-case:
      v2 mirror to use clean field names — nothing on the read path opens
      it.
    - The version stamp itself is the rollback story for ALL new
-     vocabulary (the `indicator_values` enum value, the metric evaluation
-     field): a rolled-back server sees version 6 and refuses gracefully
+     vocabulary (the metric's `catalogExpressionEvaluation` field and the
+     v2 mirror rows; there is no new generation-type enum value to roll
+     back, §1.5): a rolled-back server sees version 6 and refuses gracefully
      ("written by a newer server", `server/runs/manifest_cache.ts:28-34`)
      instead of blank projects (the `projects.ts:84-102` catch) and
      uncaught 500s (`routes/instance/run_generation.ts:209`,
@@ -298,6 +402,37 @@ question in this plan is answered by one of them — never case-by-case:
     RESULTS at any grain; **and read-path fallbacks or vintage
     conditionals of any kind** — where an old package lacks something,
     the v6 transform supplies it (§0 clause 1).
+    Also REJECTED (2026-08-30, Tim, reversing the first cut of §1.5):
+    **m012 as an app-executed DuckDB SQL step, and generated module
+    LOGIC.** A module's logic belongs in the modules repo, versioned by
+    gitRef, pinned per run, reviewable and changeable by the people who
+    own the methodology without an app deploy. The retired design's own
+    precedent is the argument against it: `calculated_indicators` script
+    generation emitted ~25 lines of R text PER catalog row, so a
+    40-indicator instance ran a ~1000-line machine-written script nobody
+    reviewed. Swapping generated R for generated SQL keeps that shape and
+    adds a second executor, a second script-artifact file name, a
+    generation-type enum member in two schemas, and a
+    `package_internals.ts` change — to save a container start. It also
+    makes PLAN_1c harder: m012 folds into m003, and R→R is a merge where
+    DuckDB-step→R is a rewrite.
+    **The line this draws, and it is the one that has always been drawn:
+    generated LOGIC is rejected; a generated DATA LITERAL substituted into
+    an otherwise static, hand-written script is not** (ruled 2026-09-01,
+    Tim). Every module already receives substituted data — `COUNTRY_ISO3`,
+    every `select`/`text` parameter, every dataset path — and m012's
+    ingredient tribble (§1.5) is one more of those: the join, group-by and
+    pivot are identical in every country and live in the modules repo,
+    and R still never parses an expression. This is also what the SQL step
+    got for free and what a separate ingredient FILE would have had to pay
+    for explicitly — the dictionary rides in `scriptText`, which
+    `computeModuleKey` already hashes, so no declared input class exists
+    to get wrong. Three delivery mechanisms were weighed and the other two
+    REJECTED (do not re-litigate): a new `dataSources` `dictionary` member
+    with a path substituted into the script, and staging a generated file
+    through `assetsToImport`. Both add one enum member plus its branches
+    in the schemas, the substituter, the reuse hasher and the workspace
+    writer; the literal adds one `replaceAll` and nothing else.
 15. **m012 is DELIBERATELY TEMPORARY** — it folds into a redefined m003
     in [PLAN_1c](PLAN_1c_MODULE_CLEANUP.md) (trigger recorded there).
     Nothing new hard-codes m12 ids beyond ordinary PO/preset storage.
@@ -333,15 +468,20 @@ question in this plan is answered by one of them — never case-by-case:
   query selects ALL commons (drops the EXISTS filter); ingredient
   resolution check (cycle/depth-aware) replaces the flat num/denom check;
   v2 mirror writer; snapshot writer deleted.
-- Generation: `resolve_modules.ts` / `pipeline.ts` dispatcher arm for
-  `indicator_values` executing the DuckDB step into the module's
-  `outputs/` workspace (same finalize, RO stamping, memoization
-  discipline; script artifact per §1.5).
+- Generation: NO dispatcher arm, no new executor, no new input file, no
+  new declared vocabulary — m012 is a `template` R module and runs down
+  the existing path. The ONLY change is one line in
+  `get_script_with_parameters.ts` replacing `INDICATOR_INGREDIENTS` with
+  an R tribble built from the resolved catalog, beside the
+  `COUNTRY_ISO3` line that already does this (§1.5). `prepare_inputs.ts`,
+  `pipeline.ts`, `execute_module.ts`, `resolve_reuse.ts` and
+  `resolve_modules.ts` are UNTOUCHED by the ingredient table; finalize, RO
+  stamping and memoization discipline are untouched throughout.
 - Manifest: `RUN_MANIFEST_SCHEMA_VERSION` 5→6; transform block 4 per
   §1.9; finalize stamps `commonIndicators` + catalog sort; delete
   `getCommonIndicatorsFromManifestInputs` and repoint its consumers.
 - Read path: the catalog-expression evaluation step in
-  `getPresentationObjectItemsFromRun` for `indicator_values` ROs (main +
+  `getPresentationObjectItemsFromRun` for catalog-evaluated ROs (main +
   roll-up rows; emits `value`, drops ingredients); the §1.7 guards; the
   §1.11 registry-free reading (server + client + types).
 - Client: `indicator_manager_hmis/` rewritten (one commons table with
@@ -355,20 +495,40 @@ question in this plan is answered by one of them — never case-by-case:
   updates; note no UI currently consumes it) and site-doc prose updated.
 - Docs (same commit as the code): SYSTEM_05 (additivity-ruling
   consequences rewritten to this model; dictionaries section), SYSTEM_08
-  (m012 execution, v6 + block 4, `commonIndicators` field, mirror v2,
+  (m012 as an ordinary R module + its staged ingredient table and memo
+  input, v6 + block 4, `commonIndicators` field, mirror v2,
   read-path-parses-manifest-only progress), SYSTEM_09 (short
-  `indicator_values` post-aggregation note; §1.8 authoring invariant),
+  catalog-expression post-aggregation note; §1.8 authoring invariant),
   SYSTEM_10 (calculated-indicator formatting mentions), SYSTEM_06 file
   inventory, PROTOCOL_APP_STATE (stamp split + T2 rows), lint:systems.
 
-## 3. Build — modules (lockstep, APP FIRST)
+## 3. Build — modules (lockstep, MODULES FIRST — see Repos, above)
 
-`m012/`: `_core.ts` (`indicator_values`, depends on m002, the
-adjustment-basis config selection), `_results_objects.ts` (§1.5 columns),
-`_metrics/m12-01-01.ts` (declared evaluation, required
-`indicator_common_id`, aiDescription, vizPresets incl. scorecard).
-`deno task build`; `.validation/` re-sync; push after app deploy. m003 and
-m011 untouched.
+`m012/`:
+
+- `_core.ts` — `scriptGenerationType: "template"`, `prerequisites:
+  ["m002"]` and nothing else, `dataSources` a single `results_object`
+  entry for `M2_adjusted_data.csv`, `assetsToImport: []`.
+- `_parameters.ts` — `SELECTEDCOUNT`, the four `count_final_*` options,
+  `defaultValue: "count_final_outliers"` (m003's parameter, verbatim).
+- `script.R` — STATIC and reviewable, in dplyr/readr/tidyr like every
+  other module: read `M2_adjusted_data.csv`, take the ingredient table
+  from the `INDICATOR_INGREDIENTS` token (the app substitutes a tribble
+  literal there, §1.5), sum the selected count column to
+  admin_area_2/3/4 × `period_id` × `indicator_common_id`, then join the
+  ingredient table and pivot each indicator's ingredients into
+  `ing1..ing8`. It never parses an expression — the table names the
+  columns. Unused slots are written as `NA`. It carries **no** guard on
+  an ingredient having no data (§1.5): the join and pivot already yield
+  `NA`, which is the answer.
+- `_results_objects.ts` — §1.5 columns.
+- `_metrics/m12-01-01.ts` — declared `catalogExpressionEvaluation`,
+  `valueProps: ["value"]`, required `indicator_common_id`, aiDescription,
+  vizPresets incl. scorecard.
+
+`deno task build`; `.validation/` re-sync; **push BEFORE the app deploy,
+keeping `m007/` and `m008/` in place** (see Repos, above). m003 and m011
+untouched.
 
 ## 4. Verification (automated gates only)
 
@@ -376,7 +536,13 @@ m011 untouched.
 expression-lib harnesses via `deno run --allow-all -c deno.json` (grammar,
 NULL, ÷0, chaining, cycles, cap-after-flattening, type-rejected
 ingredients); a generation harness (fixture dictionary + adjusted counts →
-expected `INDICATOR_VALUES` rows through the real step); a transform
+expected `INDICATOR_VALUES` rows through m012's REAL `script.R`, run with
+the local `Rscript` — verified present, R 4.3.2 with dplyr/readr/tidyr, and
+the same binary the dev generation path invokes when `_IS_PRODUCTION` is
+false); a memoization check over `computeModuleKey` (an indicator
+expression edit changes m012's key; a label edit and a reorder do NOT —
+§1.5's sorted-rows requirement is what makes the second half true); a
+transform
 harness (a v5 fixture manifest → v6: sort stamped, `commonIndicators`
 stamped, byte-stable on re-run); an items harness through the real read
 path over a testing package (derived by district/quarter, roll-up
@@ -384,3 +550,79 @@ re-evaluation, filter to a derived id, missing ingredient ⇒ NULL, chained
 derived, rejected PAE/func/prop requests ⇒ 400). `./validate_queries`
 stays green UNTOUCHED — the engine does not change; if it goes red, this
 plan was violated.
+
+## 5. Status (2026-09-01): BUILT, verified, no code work outstanding
+
+The full §2/§3 build is in the working trees of both repos, including
+every correction from the 2026-09-01 implementation review (the
+substituted-tribble mechanism, the expression round-trip fixes,
+client-cache name bumps `instance_indicators_v2`/`po_detail_v2`/
+`po_items_v2`, authoring-integrity guards, and all ride-alongs). The
+design questions that review raised are RULED and folded into §1.3, §1.5,
+§1.14, §3 and Repos above. §0–§4 plus this section are the complete
+current description; nothing in this plan is unfinished code work.
+
+Verified 2026-09-01, all green in one pass:
+
+- App repo: `deno task typecheck` (incl. `lint:systems`),
+  `./validate_migrations`, `./validate_queries` — all exit 0.
+- Modules repo: `deno task build` exits 0 (10 authored modules; see the
+  m007/m008 ruling below).
+- The §4 harnesses were executed against the real code, not stubs: the
+  generation path through m012's actual `script.R` under local Rscript
+  (an unmapped base common does not abort; facilities are summed away;
+  ingredients land in their slot-map slots), the read path through
+  `applyCatalogExpressionsToItems` (per-area values, NULL on a missing
+  ingredient, and a roll-up row evaluates the formula over SUMMED
+  ingredients — 65/230 = 28.26%, not the 27.5 mean of rates), the
+  expression round-trip (every writer output re-parses: extreme numeric
+  literals via the AST's `raw` field, `[bracket-quoted]` ids, the
+  reserved names `abs`/`coalesce`/`nullif`; ids containing `[` or `]`
+  rejected at authoring; a multiplicative substitution chain rejected at
+  the 1000-node cap `MAX_INDICATOR_EXPRESSION_NODES`), and the v1
+  indicators-mirror schema rejecting a row that carries `type` (so a
+  drifted v2 row fail-stops instead of degrading). Harnesses are session
+  artifacts, deliberately not kept; §4 says how to rebuild each.
+
+**m007/m008 — RULED 2026-09-01. CLOSED. Do not re-raise.** The `m007/`
+and `m008/` directories STAY in the modules repo, byte-frozen at HEAD,
+until [PLAN_1c](PLAN_1c_MODULE_CLEANUP.md) deletes them. Reason: every
+still-deployed pre-restructure app resolves its WHOLE registry — m007
+and m008 included — from the repo's HEAD at wizard time
+(`server/runs/generation_wizard_reads.ts` on the old app), so removing
+them before the fleet runs the new app takes the old generation wizard
+down. They are FROZEN ARTIFACTS, not authored modules:
+`build_definitions.ts` skips them via `FROZEN_MODULE_DIRS` (their
+sources no longer validate under the current authoring schema — m008's
+`calculated_indicators` generation type left the GitHub enum in §1.11,
+by design), and PLAN_1c deletes the directories and that skip list in
+one commit. Never rebuild them, never edit them, never delete them
+before 1c.
+
+## 6. What remains: release steps only, in order
+
+1. **Commit, both repos plus the site** (Tim's call). Everything is
+   uncommitted: the app working tree, the modules working tree (m012,
+   schema re-sync, build guard; `git status` shows m007/m008 clean), and
+   three site files in
+   `/Users/timroberton/projects/apps/wb-fastr-site/src/content/docs/`
+   (`admin-guide/indicators.md`, `fr/admin-guide/indicators.md`, and the
+   `help#` prefix fix in `fr/admin-guide/data-hmis.md`). The site must
+   deploy with the app whenever it does — the regenerated help-button
+   anchors (`derived-indicators`) point into it.
+2. **Testing instance any time**: 1a is testable alone via
+   `./deploy_testing` with throwaway generated packages (Release
+   stipulation, top of this file).
+3. **The modules push can go first at any point** — with m007/m008
+   intact it is a no-op for deployed old apps (they strip the unknown
+   metric field; m012 is simply not offered until the new app lands).
+   The new app CANNOT deploy before it (Repos section, top of file).
+4. **Production ships ONLY as one release with 1b**
+   ([PLAN_1b_POPULATION_STORE.md](PLAN_1b_POPULATION_STORE.md), NOT yet
+   built — that plan is the next unit of work). Order on release day:
+   modules push first, app second; a later app rollback stays safe
+   (§1.9's version stamp).
+5. **After the fleet runs the new app**:
+   [PLAN_1c](PLAN_1c_MODULE_CLEANUP.md) — delete m007/m008 +
+   `FROZEN_MODULE_DIRS`, fold m012 into m003.
+

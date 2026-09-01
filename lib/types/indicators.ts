@@ -12,10 +12,7 @@ export type InstanceIndicatorDetails = {
   rawIndicators: RawIndicatorWithMappings[];
 };
 
-export type CommonIndicatorWithMappings = {
-  indicator_common_id: string;
-  indicator_common_label: string;
-  is_default: boolean;
+export type CommonIndicatorWithMappings = CommonIndicator & {
   raw_indicator_ids: string[]; // Array of mapped raw IDs
 };
 
@@ -41,7 +38,11 @@ export type NewIndicatorIdIssue =
 
 // Applies to NEWLY created ids only (never to existing stored ids). Commas,
 // semicolons, and colons corrupt the STRING_AGG/split round-trip and the CSV
-// import re-split. Dots stay legal (DHIS2 operand ids contain them).
+// import re-split. Square brackets break the expression grammar's [quoted
+// identifier] form, which has no escape (PLAN_1a §1.3) — one rule for common
+// AND raw ids, since raw ids have no use for brackets either. Instance
+// migration 079 guards stored ids the same way. Dots stay legal (DHIS2
+// operand ids contain them).
 export function getNewIndicatorIdIssue(
   id: string,
 ): NewIndicatorIdIssue | undefined {
@@ -51,7 +52,7 @@ export function getNewIndicatorIdIssue(
   if (id.trim() !== id) {
     return "untrimmed";
   }
-  if (/[,;:]/.test(id)) {
+  if (/[,;:[\]]/.test(id)) {
     return "forbidden_chars";
   }
   if (id.length > INDICATOR_ID_MAX_LENGTH) {
@@ -67,14 +68,14 @@ export function describeNewIndicatorIdIssue(issue: NewIndicatorIdIssue): string 
     case "untrimmed":
       return "must not have leading or trailing whitespace";
     case "forbidden_chars":
-      return "must not contain commas, semicolons, or colons";
+      return "must not contain commas, semicolons, colons, or square brackets";
     case "too_long":
       return `must be at most ${INDICATOR_ID_MAX_LENGTH} characters`;
   }
 }
 
 // ============================================================================
-// Calculated indicators
+// Common indicator definitions
 // ============================================================================
 
 export const POPULATION_TYPES = [
@@ -106,23 +107,77 @@ export const POPULATION_TYPES = [
 
 export type PopulationType = (typeof POPULATION_TYPES)[number]["id"];
 
-export type CalculatedIndicator = {
-  calculated_indicator_id: string;
-  label: string;
+export function isValidPopulationType(value: string): value is PopulationType {
+  return POPULATION_TYPES.some((pt) => pt.id === value);
+}
+
+export function assertValidPopulationType(
+  value: string,
+  fieldName: string,
+): asserts value is PopulationType {
+  if (!isValidPopulationType(value)) {
+    const validTypes = POPULATION_TYPES.map((pt) => pt.id).join(", ");
+    throw new Error(
+      `Invalid ${fieldName}: ${JSON.stringify(value)}. ` +
+        `Must be one of: ${validTypes}.`,
+    );
+  }
+}
+
+// What a common indicator IS (PLAN_1a §1.2). Generation decides what the
+// numbers are made of; the query only aggregates and applies the formula.
+//
+//   base            — mapped raw indicators, summed at extract. No formula.
+//   derived         — an arbitrary expression over other commons (base or
+//                     derived; chained by substitution). Its additive
+//                     ingredients travel on the results row and the
+//                     expression is applied AFTER aggregation.
+//   population_rate — a numerator expression over commons ONLY (it never
+//                     names the population term), divided by person-years of
+//                     the named population and scaled. Generation assigns
+//                     person-years its own ingredient slot and composes the
+//                     final catalog expression, so nothing downstream carries
+//                     a population carve-out.
+export type CommonIndicatorDefinition =
+  | { type: "base" }
+  | { type: "derived"; expression: string }
+  | {
+    type: "population_rate";
+    numeratorExpression: string;
+    populationType: PopulationType;
+    multiplier: number;
+  };
+
+export type CommonIndicatorType = CommonIndicatorDefinition["type"];
+
+export const COMMON_INDICATOR_TYPES: readonly CommonIndicatorType[] = [
+  "base",
+  "derived",
+  "population_rate",
+] as const;
+
+export function isCommonIndicatorType(
+  value: string,
+): value is CommonIndicatorType {
+  return (COMMON_INDICATOR_TYPES as readonly string[]).includes(value);
+}
+
+// Traffic-light thresholds. Absent means the indicator is never coloured.
+export type CommonIndicatorThresholds = {
+  direction: "higher_is_better" | "lower_is_better";
+  green: number;
+  yellow: number;
+};
+
+export type CommonIndicator = {
+  indicator_common_id: string;
+  indicator_common_label: string;
+  is_default: boolean;
+  definition: CommonIndicatorDefinition;
+  format_as: IndicatorFormat;
+  thresholds: CommonIndicatorThresholds | null;
   group_label: string;
   sort_order: number;
-
-  num_indicator_id: string;
-  denom:
-    | { kind: "none" }
-    | { kind: "indicator"; indicator_id: string }
-    | { kind: "population"; population_type: PopulationType; multiplier: number };
-
-  format_as: "percent" | "number" | "rate_per_10k";
-
-  threshold_direction: "higher_is_better" | "lower_is_better";
-  threshold_green: number;
-  threshold_yellow: number;
 };
 
 // ============================================================================
@@ -245,10 +300,37 @@ export type IndicatorMetadata = {
   threshold_yellow?: number;
   group_label?: string;
   sort_order?: number;
+  // Common-indicator evaluation, stamped for HMIS dictionaries only
+  // (PLAN_1a §1.5). `expression` is the FLATTENED formula — every identifier
+  // in it is a base common indicator, and `slot_map` says which ingredient
+  // column of an indicator_values row carries that base indicator's sum. A
+  // `base` indicator's expression is its own single slot. Absent on every
+  // other family's catalog entries, and on a `population_rate` whose person-
+  // years term the package does not carry.
+  type?: CommonIndicatorType;
+  expression?: string;
+  slot_map?: Record<string, string>;
 };
 
-export function indicatorMetadataToLabelMap(
+// What a figure needs in order to DISPLAY an indicator. The evaluation fields
+// are generation facts the server computes values with; they never travel to a
+// client and are never frozen into a stored figure snapshot, so the wire type
+// omits them and the compiler enforces the projection.
+export type IndicatorMetadataDisplay = Omit<
+  IndicatorMetadata,
+  "type" | "expression" | "slot_map"
+>;
+
+export function toIndicatorMetadataDisplay(
   metadata: IndicatorMetadata[],
+): IndicatorMetadataDisplay[] {
+  return metadata.map(({ type: _t, expression: _e, slot_map: _s, ...rest }) =>
+    rest
+  );
+}
+
+export function indicatorMetadataToLabelMap(
+  metadata: IndicatorMetadataDisplay[],
 ): Record<string, string> {
   const map: Record<string, string> = {};
   for (const m of metadata) {

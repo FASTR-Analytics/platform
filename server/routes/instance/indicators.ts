@@ -1,5 +1,10 @@
 import { Hono } from "hono";
 import {
+  assertValidPopulationType,
+  type CommonIndicatorDefinition,
+  isCommonIndicatorType,
+} from "lib";
+import {
   batchUploadIndicators,
   batchUploadRawIndicators,
   createIndicatorsCommon,
@@ -8,6 +13,8 @@ import {
   deleteIndicatorRaw,
   getIndicatorsWithMappings,
   getInstanceIndicatorsSummary,
+  type NewCommonIndicator,
+  reorderCommonIndicators,
   updateIndicatorCommon,
   updateIndicatorRaw,
 } from "../../db/mod.ts";
@@ -17,6 +24,49 @@ import { notifyInstanceIndicatorsUpdated } from "../../task_management/notify_in
 import { defineRoute } from "../route-helpers.ts";
 
 export const routesIndicators = new Hono();
+
+// The definition arrives already shape-checked by the route registry's Zod
+// body schema; the one thing left to narrow is the population type, whose
+// vocabulary lives in lib rather than the wire schema. The expression grammar
+// itself is validated in the DB layer against the live dictionary, because
+// only there is the full set of commons available.
+function narrowCommonIndicatorDefinition(
+  raw: { type: string } & Record<string, unknown>,
+): CommonIndicatorDefinition {
+  if (!isCommonIndicatorType(raw.type)) {
+    throw new Error(`Unknown indicator type: ${raw.type}`);
+  }
+  if (raw.type === "base") {
+    return { type: "base" };
+  }
+  if (raw.type === "derived") {
+    return { type: "derived", expression: String(raw.expression) };
+  }
+  const populationType = String(raw.populationType);
+  assertValidPopulationType(populationType, "populationType");
+  return {
+    type: "population_rate",
+    numeratorExpression: String(raw.numeratorExpression),
+    populationType,
+    multiplier: Number(raw.multiplier),
+  };
+}
+
+function toNewCommonIndicator(
+  raw: Record<string, unknown>,
+): NewCommonIndicator {
+  return {
+    indicator_common_id: String(raw.indicator_common_id),
+    indicator_common_label: String(raw.indicator_common_label),
+    mapped_raw_ids: raw.mapped_raw_ids as string[],
+    definition: narrowCommonIndicatorDefinition(
+      raw.definition as { type: string } & Record<string, unknown>,
+    ),
+    format_as: raw.format_as as NewCommonIndicator["format_as"],
+    thresholds: (raw.thresholds ?? null) as NewCommonIndicator["thresholds"],
+    group_label: String(raw.group_label),
+  };
+}
 
 // GET /indicators - Get all indicators with their mappings
 defineRoute(
@@ -72,7 +122,14 @@ defineRoute(
       }
     }
 
-    const res = await createIndicatorsCommon(c.var.mainDb, body.indicators);
+    let indicators: NewCommonIndicator[];
+    try {
+      indicators = body.indicators.map(toNewCommonIndicator);
+    } catch (err) {
+      return c.json({ success: false, err: (err as Error).message });
+    }
+
+    const res = await createIndicatorsCommon(c.var.mainDb, indicators);
     if (res.success) {
       notifyInstanceIndicatorsUpdated(
         await getInstanceIndicatorsSummary(c.var.mainDb),
@@ -89,25 +146,35 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("updateCommonIndicator"),
   async (c, { body }) => {
-    if (
-      !body.old_indicator_common_id ||
-      !body.new_indicator_common_id ||
-      !body.indicator_common_label ||
-      !Array.isArray(body.mapped_raw_ids)
-    ) {
-      return c.json({
-        success: false,
-        err: "old_indicator_common_id, new_indicator_common_id, indicator_common_label, and mapped_raw_ids are required",
-      });
+    let indicator: NewCommonIndicator;
+    try {
+      indicator = toNewCommonIndicator(body.indicator);
+    } catch (err) {
+      return c.json({ success: false, err: (err as Error).message });
     }
 
     const res = await updateIndicatorCommon(
       c.var.mainDb,
       body.old_indicator_common_id,
-      body.new_indicator_common_id,
-      body.indicator_common_label,
-      body.mapped_raw_ids,
+      indicator,
     );
+    if (res.success) {
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
+    }
+    return c.json(res);
+  },
+);
+
+// POST /indicators/reorder - Set the dictionary's display order
+defineRoute(
+  routesIndicators,
+  "reorderCommonIndicators",
+  requireGlobalPermission("can_configure_data"),
+  log("reorderCommonIndicators"),
+  async (c, { body }) => {
+    const res = await reorderCommonIndicators(c.var.mainDb, body.order);
     if (res.success) {
       notifyInstanceIndicatorsUpdated(
         await getInstanceIndicatorsSummary(c.var.mainDb),

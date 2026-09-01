@@ -21,7 +21,6 @@ import {
   getRollupDimension,
   getRollupLabelContext,
   getRollupPosition,
-  get_INDICATOR_COMMON_IDS_IN_SORT_ORDER,
   type IndicatorFormat,
   isPieCompletionMode,
   isRollupActive,
@@ -249,9 +248,15 @@ function getPeriodAxisSort(prop: string | undefined): HeaderSortConfig | undefin
 //   8. Everything else is alphabetical by displayed label, sentinel-pinned
 //      when the roll-up is active (the pins are id-keyed no-ops on axes
 //      without sentinel rows).
+// `indicatorSortOrder` is the ATTACHED PACKAGE's catalog order — the ids of
+// its indicator catalog, in the order the instance's dictionary put them
+// (PLAN_1a §1.9). It replaces a hardcoded 14-id list that could only ever
+// order the seeded indicators, and it is unconditional: a package always
+// carries a catalog, so there is no vintage branch and no fallback.
 export function getAxisSort(
   config: PresentationObjectConfig,
   axisProp: DisaggregationOption | "--v" | undefined,
+  indicatorSortOrder: string[],
   scorecardSortHeaders?: string[],
 ): HeaderSortConfig | undefined {
   if (axisProp === undefined || axisProp === "--v") {
@@ -274,7 +279,7 @@ export function getAxisSort(
     return { byIdOrder: scorecardSortHeaders };
   }
   if (axisProp === "indicator_common_id") {
-    return { byIdOrder: get_INDICATOR_COMMON_IDS_IN_SORT_ORDER() };
+    return { byIdOrder: indicatorSortOrder };
   }
   return getRollupAwareSort(config);
 }
@@ -284,6 +289,7 @@ export function getTimeseriesJsonDataConfigFromPresentationObjectConfig(
   config: PresentationObjectConfig,
   effectiveValueProps: string[],
   indicatorLabelReplacements: Record<string, string>,
+  indicatorSortOrder: string[],
   localization: Pick<FigureLocalization, "language" | "countryIso3">,
   jsonArray?: any[],
 ): TimeseriesJsonDataConfig {
@@ -310,10 +316,10 @@ export function getTimeseriesJsonDataConfigFromPresentationObjectConfig(
     laneProp,
     tierProp,
     sort: {
-      series: getAxisSort(config, seriesProp),
-      lane: getAxisSort(config, laneProp),
-      tier: getAxisSort(config, tierProp),
-      pane: getAxisSort(config, paneProp),
+      series: getAxisSort(config, seriesProp, indicatorSortOrder),
+      lane: getAxisSort(config, laneProp, indicatorSortOrder),
+      tier: getAxisSort(config, tierProp, indicatorSortOrder),
+      pane: getAxisSort(config, paneProp, indicatorSortOrder),
     },
     labelReplacements: buildLabelReplacements(
       resultsValue,
@@ -331,6 +337,7 @@ export function getTableJsonDataConfigFromPresentationObjectConfig(
   config: PresentationObjectConfig,
   effectiveValueProps: string[],
   indicatorLabelReplacements: Record<string, string>,
+  indicatorSortOrder: string[],
   localization: FigureLocalization,
   jsonArray?: any[],
   customSortHeaders?: string[],
@@ -370,10 +377,10 @@ export function getTableJsonDataConfigFromPresentationObjectConfig(
     rowGroupProp,
     nProps,
     sort: {
-      colGroup: getAxisSort(config, colGroupProp, customSortHeaders),
-      col: getAxisSort(config, colProp, customSortHeaders),
-      rowGroup: getAxisSort(config, rowGroupProp, customSortHeaders),
-      row: getAxisSort(config, rowProp, customSortHeaders),
+      colGroup: getAxisSort(config, colGroupProp, indicatorSortOrder, customSortHeaders),
+      col: getAxisSort(config, colProp, indicatorSortOrder, customSortHeaders),
+      rowGroup: getAxisSort(config, rowGroupProp, indicatorSortOrder, customSortHeaders),
+      row: getAxisSort(config, rowProp, indicatorSortOrder, customSortHeaders),
     },
     // The total row must not stretch auto conditional-formatting domains.
     liveDomainExcludeIds: isRollupActive(config) ? ROLLUP_PIN_IDS : undefined,
@@ -393,6 +400,7 @@ function getChartJsonDataConfig(
   config: PresentationObjectConfig,
   effectiveValueProps: string[],
   indicatorLabelReplacements: Record<string, string>,
+  indicatorSortOrder: string[],
   localization: FigureLocalization,
   jsonArray?: any[],
 ): ChartOVJsonDataConfig {
@@ -424,11 +432,11 @@ function getChartJsonDataConfig(
       // natural order (2026-08-09 ruling), so it maps to undefined + the
       // dispatcher's sort; asc/desc (an explicit value ranking) pass through
       // below and panther ignores sort.indicator entirely.
-      indicator: getAxisSort(config, indicatorPropRaw),
-      series: getAxisSort(config, seriesProp),
-      lane: getAxisSort(config, laneProp),
-      tier: getAxisSort(config, tierProp),
-      pane: getAxisSort(config, paneProp),
+      indicator: getAxisSort(config, indicatorPropRaw, indicatorSortOrder),
+      series: getAxisSort(config, seriesProp, indicatorSortOrder),
+      lane: getAxisSort(config, laneProp, indicatorSortOrder),
+      tier: getAxisSort(config, tierProp, indicatorSortOrder),
+      pane: getAxisSort(config, paneProp, indicatorSortOrder),
     },
     sortIndicatorValues: config.s.sortIndicatorValues === "none"
       ? undefined
@@ -449,11 +457,12 @@ export function getChartOVJsonDataConfigFromPresentationObjectConfig(
   config: PresentationObjectConfig,
   effectiveValueProps: string[],
   indicatorLabelReplacements: Record<string, string>,
+  indicatorSortOrder: string[],
   localization: FigureLocalization,
   jsonArray?: any[],
 ): ChartOVJsonDataConfig {
   return {
-    ...getChartJsonDataConfig(resultsValue, config, effectiveValueProps, indicatorLabelReplacements, localization, jsonArray),
+    ...getChartJsonDataConfig(resultsValue, config, effectiveValueProps, indicatorLabelReplacements, indicatorSortOrder, localization, jsonArray),
     membership: { indicator: "unbalanced", lane: "unbalanced" },
     proportional: { bands: true, panes: true },
   };
@@ -478,6 +487,7 @@ export function getPieJsonDataConfigFromPresentationObjectConfig(
   config: PresentationObjectConfig,
   effectiveValueProps: string[],
   indicatorLabelReplacements: Record<string, string>,
+  indicatorSortOrder: string[],
   localization: Pick<FigureLocalization, "language" | "countryIso3">,
   effectiveFormatAs: IndicatorFormat,
   jsonArray?: any[],
@@ -501,11 +511,11 @@ export function getPieJsonDataConfigFromPresentationObjectConfig(
     sort: {
       // Slices sort applies under "none" only (panther gates sort.series on
       // sortSeriesValues); the Pies repeat axis is always sorted.
-      series: getAxisSort(config, seriesProp),
-      indicator: getAxisSort(config, indicatorProp),
-      pane: getAxisSort(config, paneProp),
-      tier: getAxisSort(config, tierProp),
-      lane: getAxisSort(config, laneProp),
+      series: getAxisSort(config, seriesProp, indicatorSortOrder),
+      indicator: getAxisSort(config, indicatorProp, indicatorSortOrder),
+      pane: getAxisSort(config, paneProp, indicatorSortOrder),
+      tier: getAxisSort(config, tierProp, indicatorSortOrder),
+      lane: getAxisSort(config, laneProp, indicatorSortOrder),
     },
     sortSeriesValues: config.s.sortIndicatorValues,
     groupSmallSlices: config.s.pieGroupSmallSlices
@@ -530,11 +540,12 @@ export function getChartOHJsonDataConfigFromPresentationObjectConfig(
   config: PresentationObjectConfig,
   effectiveValueProps: string[],
   indicatorLabelReplacements: Record<string, string>,
+  indicatorSortOrder: string[],
   localization: FigureLocalization,
   jsonArray?: any[],
 ): ChartOHJsonDataConfig {
   return {
-    ...getChartJsonDataConfig(resultsValue, config, effectiveValueProps, indicatorLabelReplacements, localization, jsonArray),
+    ...getChartJsonDataConfig(resultsValue, config, effectiveValueProps, indicatorLabelReplacements, indicatorSortOrder, localization, jsonArray),
     membership: { indicator: "unbalanced", tier: "unbalanced" },
     proportional: { bands: true, panes: true },
   };

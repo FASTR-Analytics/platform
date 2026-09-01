@@ -6,7 +6,11 @@
 // getEffectiveRollupDimension (in get_fetch_config_from_po.ts) — see the doc
 // comment there for the contract.
 
-import type { PostAggregationExpression, ValueFunc } from "./types/_metric_installed.ts";
+import type {
+  CatalogExpressionEvaluation,
+  PostAggregationExpression,
+  ValueFunc,
+} from "./types/_metric_installed.ts";
 
 export const ADMIN_LEVELS = [
   "admin_area_2",
@@ -80,14 +84,19 @@ export function rollupSentinelForDimension(dim: RollupDimension): string {
 export type RollupEligibilityInputs = {
   valueFunc: ValueFunc;
   postAggregationExpression?: PostAggregationExpression | null;
+  catalogExpressionEvaluation?: CatalogExpressionEvaluation | null;
   hasFacilityLevelRows?: boolean;
 };
 
 // The roll-up re-aggregates a metric's rows across the collapsed dimension's
 // values, so it is only offered when that re-aggregation is meaningful:
 // - additive value funcs (SUM/COUNT);
-// - identity values whose ratio is recomputed after the union via a
-//   post-aggregation expression;
+// - identity values whose ratio is recomputed after the union — either via a
+//   metric-wide post-aggregation expression, or, for a catalog-evaluated
+//   metric, via each row's own indicator expression over its summed
+//   ingredients (PLAN_1a §1.6). Both are the same case: the ingredients are
+//   additive, so the roll-up row's formula is applied to correctly summed
+//   parts rather than averaging finished ratios;
 // - AVG over FACILITY-LEVEL rows (raw observations — re-averaging over any
 //   collapsed scope is the correctly weighted statistic).
 // Excluded: bare identity (pre-aggregated percentages/rates), AVG over
@@ -99,6 +108,7 @@ export function isRollupEligibleResultsValue(
 ): boolean {
   return (
     !!rv.postAggregationExpression ||
+    !!rv.catalogExpressionEvaluation ||
     rv.valueFunc === "SUM" ||
     rv.valueFunc === "COUNT" ||
     (rv.valueFunc === "AVG" && rv.hasFacilityLevelRows === true)

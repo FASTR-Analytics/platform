@@ -49,7 +49,7 @@ const EMPTY_INSTANCE_STATE: InstanceState = {
     commonIndicators: 0,
     rawIndicators: 0,
     hfaIndicators: 0,
-    calculatedIndicators: 0,
+    derivedIndicators: 0,
   },
   datasetsWithData: [],
   datasetVersions: {},
@@ -61,8 +61,8 @@ const EMPTY_INSTANCE_STATE: InstanceState = {
   hfaCacheHash: "",
   icehCacheHash: "",
   indicatorMappingsVersion: "",
+  baseIndicatorMappingsVersion: "",
   hfaIndicatorsVersion: "",
-  calculatedIndicatorsVersion: "",
   currentUserEmail: "",
   currentUserApproved: false,
   currentUserIsGlobalAdmin: false,
@@ -86,10 +86,6 @@ export { instanceState };
 // ============================================================================
 // Snapshot-read getters (for caches and async code) — named getSnapshot*
 // ============================================================================
-
-export function getSnapshotInstanceCountryIso3(): string | undefined {
-  return unwrap(instanceState).countryIso3;
-}
 
 export function getSnapshotInstanceLocalization(): FigureLocalization {
   const s = unwrap(instanceState);
@@ -211,11 +207,11 @@ export function updateInstanceIndicators(
 ): void {
   setInstanceState("indicators", reconcile(data.indicators));
   setInstanceState("indicatorMappingsVersion", data.indicatorMappingsVersion);
-  setInstanceState("hfaIndicatorsVersion", data.hfaIndicatorsVersion);
   setInstanceState(
-    "calculatedIndicatorsVersion",
-    data.calculatedIndicatorsVersion,
+    "baseIndicatorMappingsVersion",
+    data.baseIndicatorMappingsVersion,
   );
+  setInstanceState("hfaIndicatorsVersion", data.hfaIndicatorsVersion);
 }
 
 export function updateInstanceDatasets(data: InstanceDatasetsSummary): void {

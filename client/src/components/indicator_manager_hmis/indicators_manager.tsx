@@ -1,10 +1,10 @@
 import {
   t3,
   TC,
+  type CommonIndicatorType,
   type CommonIndicatorWithMappings,
   type InstanceIndicatorDetails,
   type RawIndicatorWithMappings,
-  type CalculatedIndicator,
   type Dhis2RunCredentialsSource,
 } from "lib";
 import {
@@ -28,16 +28,13 @@ import {
 import { Show, createEffect, createMemo, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
-import {
-  getIndicatorsFromCacheOrFetch,
-  getCalculatedIndicatorsFromCacheOrFetch,
-} from "~/state/instance/t2_indicators";
+import { getIndicatorsFromCacheOrFetch } from "~/state/instance/t2_indicators";
 import { Dhis2CredentialsForm } from "../forms_editors/dhis2_credentials_form";
 import { EditIndicatorCommonForm } from "./_edit_indicator_common";
 import { EditIndicatorRawForm } from "./_edit_indicator_raw";
 import { BatchUploadForm } from "./batch_upload_form";
 import { Dhis2IndicatorSelectForm } from "./dhis2_indicator_select_form";
-import { CalculatedIndicatorsTable } from "./calculated_indicators_table";
+import { SortIndicatorsModal } from "./sort_indicators_modal";
 
 type Props = {
   backToInstance: () => void;
@@ -57,19 +54,11 @@ export function IndicatorsManager(p: Props) {
     }),
   });
 
-  const [calculatedIndicators, setCalculatedIndicators] = createSignal<
-    StateHolder<CalculatedIndicator[]>
-  >({
-    status: "loading",
-    msg: t3({
-      en: "Loading calculated indicators...",
-      fr: "Chargement des indicateurs calculés...",
-      pt: "A carregar os indicadores calculados...",
-    }),
-  });
-
-  const [tab, setTab] = createSignal<"common" | "raw" | "calculated">("common");
-  const tabItems: ListItem<"common" | "raw" | "calculated">[] = [
+  // One dictionary, one table (PLAN_1a §1.1): base, derived and
+  // population-rate indicators are all common indicators and differ only by a
+  // Type column, so the separate "Calculated indicators" tab is gone.
+  const [tab, setTab] = createSignal<"common" | "raw">("common");
+  const tabItems: ListItem<"common" | "raw">[] = [
     {
       id: "common",
       label: t3({ en: "Common Indicators", fr: "Indicateurs communs", pt: "Indicadores comuns" }),
@@ -77,10 +66,6 @@ export function IndicatorsManager(p: Props) {
     {
       id: "raw",
       label: t3({ en: "Raw DHIS2 Indicators", fr: "Indicateurs DHIS2", pt: "Indicadores DHIS2" }),
-    },
-    {
-      id: "calculated",
-      label: t3({ en: "Calculated indicators", fr: "Indicateurs calculés", pt: "Indicadores calculados" }),
     },
   ];
 
@@ -97,21 +82,6 @@ export function IndicatorsManager(p: Props) {
       return;
     }
     setIndicators(getQueryStateFromApiResponse(res));
-  });
-
-  let calculatedIndicatorsRequestId = 0;
-  createEffect(async () => {
-    const version = instanceState.calculatedIndicatorsVersion;
-    if (!version) {
-      return;
-    }
-    const requestId = ++calculatedIndicatorsRequestId;
-    setCalculatedIndicators({ status: "loading" });
-    const res = await getCalculatedIndicatorsFromCacheOrFetch(version);
-    if (requestId !== calculatedIndicatorsRequestId) {
-      return;
-    }
-    setCalculatedIndicators(getQueryStateFromApiResponse(res));
   });
 
   function handleDownloadCommonCsv(
@@ -252,22 +222,6 @@ export function IndicatorsManager(p: Props) {
                 )}
               </StateHolderWrapper>
             </Show>
-            <Show when={tab() === "calculated"}>
-              <StateHolderWrapper state={indicators()} noPad>
-                {(keyedIndicators) => (
-                  <StateHolderWrapper state={calculatedIndicators()} noPad>
-                    {(calculatedList) => (
-                      <div class="h-full">
-                        <CalculatedIndicatorsTable
-                          calculatedIndicators={calculatedList}
-                          commonIndicators={keyedIndicators.commonIndicators}
-                        />
-                      </div>
-                    )}
-                  </StateHolderWrapper>
-                )}
-              </StateHolderWrapper>
-            </Show>
           </div>
         </FrameTop>
       </FrameTop>
@@ -288,6 +242,31 @@ export function IndicatorsManager(p: Props) {
 //                                                                                                                                                                    //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+function commonIndicatorTypeLabel(type: CommonIndicatorType): string {
+  switch (type) {
+    case "base":
+      return t3({ en: "Base", fr: "De base", pt: "Base" });
+    case "derived":
+      return t3({ en: "Derived", fr: "Dérivé", pt: "Derivado" });
+    case "population_rate":
+      return t3({
+        en: "Population rate",
+        fr: "Taux de population",
+        pt: "Taxa populacional",
+      });
+  }
+}
+
+// What the indicator is made of: raw mappings for a base indicator, the
+// formula itself for everything else. One derivation for display AND sort.
+function definedByText(indicator: CommonIndicatorWithMappings): string {
+  return indicator.definition.type === "base"
+    ? indicator.raw_indicator_ids.join(", ")
+    : indicator.definition.type === "derived"
+    ? indicator.definition.expression
+    : `(${indicator.definition.numeratorExpression}) / ${indicator.definition.populationType}`;
+}
+
 function CommonIndicatorsTable(p: {
   commonIndicators: CommonIndicatorWithMappings[];
   rawIndicators: RawIndicatorWithMappings[];
@@ -298,6 +277,7 @@ function CommonIndicatorsTable(p: {
       element: EditIndicatorCommonForm,
       props: {
         rawIndicators: p.rawIndicators,
+        commonIndicators: p.commonIndicators,
       },
     });
   }
@@ -307,8 +287,16 @@ function CommonIndicatorsTable(p: {
       element: EditIndicatorCommonForm,
       props: {
         rawIndicators: p.rawIndicators,
+        commonIndicators: p.commonIndicators,
         existingCommonIndicator: indicator,
       },
+    });
+  }
+
+  async function handleSortIndicators() {
+    await openComponent({
+      element: SortIndicatorsModal,
+      props: { commonIndicators: p.commonIndicators },
     });
   }
 
@@ -386,6 +374,16 @@ function CommonIndicatorsTable(p: {
       sortable: true,
     },
     {
+      key: "definition",
+      header: t3({ en: "Type", fr: "Type", pt: "Tipo" }),
+      sortable: true,
+      sortValue: (indicator) =>
+        commonIndicatorTypeLabel(indicator.definition.type),
+      render: (indicator) => (
+        <span class="">{commonIndicatorTypeLabel(indicator.definition.type)}</span>
+      ),
+    },
+    {
       key: "is_default",
       header: t3({ en: "Default", fr: "Par défaut", pt: "Predefinição" }),
       sortable: true,
@@ -395,10 +393,11 @@ function CommonIndicatorsTable(p: {
     },
     {
       key: "raw_indicator_ids",
-      header: t3({ en: "Mapped To", fr: "Associé à", pt: "Associado a" }),
+      header: t3({ en: "Defined by", fr: "Défini par", pt: "Definido por" }),
       sortable: true,
+      sortValue: (indicator) => definedByText(indicator),
       render: (indicator) => (
-        <div class="font-mono">{indicator.raw_indicator_ids.join(", ")}</div>
+        <div class="font-mono">{definedByText(indicator)}</div>
       ),
     },
   ];
@@ -461,6 +460,13 @@ function CommonIndicatorsTable(p: {
             intent="neutral"
           >
             {t3({ en: "Download CSV", fr: "Télécharger le CSV", pt: "Transferir o CSV" })}
+          </Button>
+          <Button
+            onClick={handleSortIndicators}
+            iconName="gripVertical"
+            intent="neutral"
+          >
+            {t3({ en: "Sort", fr: "Trier", pt: "Ordenar" })}
           </Button>
           <Button
             onClick={handleCreateIndicator}

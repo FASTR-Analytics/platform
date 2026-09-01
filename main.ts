@@ -35,7 +35,6 @@ import { routesHfaIndicators } from "./server/routes/instance/hfa_indicators.ts"
 import { routesHfaTimePoints } from "./server/routes/instance/hfa_time_points.ts";
 import { routesIceh } from "./server/routes/instance/iceh.ts";
 import { routesIndicators } from "./server/routes/instance/indicators.ts";
-import { routesCalculatedIndicators } from "./server/routes/instance/calculated_indicators.ts";
 import { routesIndicatorsDhis2 } from "./server/routes/instance/indicators_dhis2.ts";
 import { routesInstance } from "./server/routes/instance/instance.ts";
 import { routesRunGeneration } from "./server/routes/instance/run_generation.ts";
@@ -215,7 +214,6 @@ app.route("/", routesHfaIndicators);
 app.route("/", routesHfaTimePoints);
 app.route("/", routesIceh);
 app.route("/", routesIndicators);
-app.route("/", routesCalculatedIndicators);
 app.route("/", routesIndicatorsDhis2);
 app.route("/", routesInstanceModules);
 app.route("/", routesModules);

@@ -19,6 +19,15 @@
 //   3. facilityColumnsConfig → per-family structureSchemaHmis/Hfa slots
 //      (schema v5) — the structure family split (PLAN_2). Pure copy, no
 //      recompute, no parquet read.
+//   4. commonIndicators stamped from the package's own indicators mirror, and
+//      metrics[].catalog_expression_evaluation defaulted to null (schema v6)
+//      — the common-indicator restructure (PLAN_1a §1.9). Note what this
+//      block does NOT do: it never patches indicators[]. Block 1 recomputes
+//      that catalog unconditionally on every forced pass through
+//      buildRunIndicatorCatalog, and the v6 additions to it (sort_order for
+//      legacy packages, the type/expression/slot_map fields) live inside that
+//      one derivation. A second derivation here would be wiped and re-applied
+//      on every future bump.
 //
 // =============================================================================
 
@@ -32,6 +41,7 @@ import {
 import { z } from "zod";
 import { join } from "@std/path";
 import {
+  buildRunCommonIndicators,
   buildRunIndicatorCatalog,
   runDirInputRowsReader,
   RunInputReadError,
@@ -131,6 +141,25 @@ async function transformRunManifest(
     delete m.facilityColumnsConfig;
   }
   m.manifestSchemaVersion = 5;
+
+  // 4. commonIndicators + metrics[].catalog_expression_evaluation. The first
+  //    is a recompute from the package's own indicators mirror through the
+  //    SAME function finalize stamps with — it moves the last per-request
+  //    mirror read off the read path. The second is not a recompute at all:
+  //    metrics[] is generation-only provenance, so a field that did not exist
+  //    when the package was written is carried forward as null, never
+  //    synthesized. Both are idempotent.
+  m.commonIndicators = await buildRunCommonIndicators(
+    runDirInputRowsReader(runDir, z.array(z.string()).parse(m.inputFiles ?? [])),
+  );
+  if (Array.isArray(m.metrics)) {
+    for (const metric of m.metrics as Record<string, unknown>[]) {
+      if (metric.catalog_expression_evaluation === undefined) {
+        metric.catalog_expression_evaluation = null;
+      }
+    }
+  }
+  m.manifestSchemaVersion = 6;
 
   const validated = runManifestSchema.parse(m);
   // The schema deliberately accepts ANY integer version — it has to, so a

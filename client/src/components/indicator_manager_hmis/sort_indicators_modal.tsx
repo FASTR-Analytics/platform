@@ -5,40 +5,46 @@ import {
   createFormAction,
 } from "panther";
 import { createSignal } from "solid-js";
-import { t3, type CalculatedIndicator } from "lib";
+import { t3, type CommonIndicatorWithMappings } from "lib";
 import { serverActions } from "~/server_actions";
 
+// One order for the whole common dictionary (PLAN_1a §1.9): it is what every
+// indicator axis in every figure sorts by, so base and derived indicators sort
+// together in one list rather than each type having its own.
 type Props = AlertComponentProps<
-  { calculatedIndicators: CalculatedIndicator[] },
+  { commonIndicators: CommonIndicatorWithMappings[] },
   undefined
 >;
 
-export function SortCalculatedIndicatorsModal(p: Props) {
+export function SortIndicatorsModal(p: Props) {
   const [items, setItems] = createSignal(
-    [...p.calculatedIndicators]
-      .sort((a, b) => a.sort_order - b.sort_order)
-      .map((ci) => ({ id: ci.calculated_indicator_id, label: ci.label })),
+    [...p.commonIndicators]
+      .sort(
+        (a, b) =>
+          a.sort_order - b.sort_order ||
+          a.indicator_common_id.localeCompare(b.indicator_common_id),
+      )
+      .map((ind) => ({
+        id: ind.indicator_common_id,
+        label: ind.indicator_common_label,
+      })),
   );
 
   const save = createFormAction(
     async () => {
       const order = items().map((i) => i.id);
-      const res = await serverActions.reorderCalculatedIndicators({ order });
-      if (!res.success) {
-        return { success: false, err: res.err };
-      }
-      return { success: true };
+      return await serverActions.reorderCommonIndicators({ order });
     },
     () => p.close(undefined),
   );
 
   return (
     <AlertFormHolder
-      formId="sort-calculated-indicators-form"
+      formId="sort-indicators-form"
       header={t3({
-        en: "Sort calculated indicators",
-        fr: "Trier les indicateurs calculés",
-        pt: "Ordenar os indicadores calculados",
+        en: "Sort indicators",
+        fr: "Trier les indicateurs",
+        pt: "Ordenar os indicadores",
       })}
       savingState={save.state()}
       saveFunc={save.click}

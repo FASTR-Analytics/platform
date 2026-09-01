@@ -9,23 +9,24 @@ import {
 import {
   APIResponseNoData,
   APIResponseWithData,
+  CommonIndicatorCatalogError,
+  type CommonIndicatorCatalogRow,
   getEnabledOptionalFacilityColumns,
   StructureSchema,
   isValidPeriodId,
+  resolveCommonIndicatorCatalog,
   throwIfErrWithData,
-  type CalculatedIndicator,
   type DatasetHmisInfoInProject,
   type DatasetType,
 } from "lib";
-import { DBIndicator } from "../instance/_main_database_types.ts";
-import { getCalculatedIndicators } from "../instance/calculated_indicators.ts";
+import { getCommonIndicators } from "../instance/indicators.ts";
 import {
   getStructureSchema,
 } from "../instance/config.ts";
 import { getCurrentDatasetHmisVersion } from "../instance/dataset_hmis.ts";
 import { assertNoRunningDatasetHmisImportRun } from "../instance/dataset_hmis_import_runs.ts";
 import {
-  getCalculatedIndicatorsVersion,
+  getBaseIndicatorMappingsVersion,
   getIndicatorMappingsVersion,
 } from "../instance/instance.ts";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
@@ -100,49 +101,12 @@ export type ProjectFacilityRow = {
 export type DatasetHmisRunCapture = {
   info: DatasetHmisInfoInProject;
   lastUpdated: string;
-  indicators: {
-    indicator_common_id: string;
-    indicator_common_label: string;
-  }[];
+  // The v2 `indicators.json` mirror: the WHOLE common dictionary, resolved.
+  // (v1 carried only the commons that had mappings, and a separate calculated
+  // snapshot beside it.)
+  indicators: CommonIndicatorCatalogRow[];
   facilities: ProjectFacilityRow[];
-  calculatedIndicators: CalculatedIndicator[];
 };
-
-// The calculated_indicators_snapshot row shape (denormalized denom) — shared
-// by the project-DB apply above and the run input JSON export.
-export function calculatedIndicatorToSnapshotRow(ci: CalculatedIndicator): {
-  calculated_indicator_id: string;
-  label: string;
-  group_label: string;
-  sort_order: number;
-  num_indicator_id: string;
-  denom_kind: string;
-  denom_indicator_id: string | null;
-  denom_population_type: string | null;
-  denom_population_multiplier: number | null;
-  format_as: string;
-  threshold_direction: string;
-  threshold_green: number;
-  threshold_yellow: number;
-} {
-  return {
-    calculated_indicator_id: ci.calculated_indicator_id,
-    label: ci.label,
-    group_label: ci.group_label,
-    sort_order: ci.sort_order,
-    num_indicator_id: ci.num_indicator_id,
-    denom_kind: ci.denom.kind,
-    denom_indicator_id: ci.denom.kind === "indicator" ? ci.denom.indicator_id : null,
-    denom_population_type:
-      ci.denom.kind === "population" ? ci.denom.population_type : null,
-    denom_population_multiplier:
-      ci.denom.kind === "population" ? ci.denom.multiplier : null,
-    format_as: ci.format_as,
-    threshold_direction: ci.threshold_direction,
-    threshold_green: ci.threshold_green,
-    threshold_yellow: ci.threshold_yellow,
-  };
-}
 
 export async function computeDatasetHmisRunCapture(
   mainDb: Sql,
@@ -229,19 +193,15 @@ export async function computeDatasetHmisRunCapture(
       : undefined;
 
     const indicatorMappingsVersion = await getIndicatorMappingsVersion(mainDb);
-
-    const calculatedIndicatorsVersion =
-      await getCalculatedIndicatorsVersion(mainDb);
-    const resCalculatedIndicators = await getCalculatedIndicators(mainDb);
-    throwIfErrWithData(resCalculatedIndicators);
-    const calculatedIndicators = resCalculatedIndicators.data;
+    const baseIndicatorMappingsVersion =
+      await getBaseIndicatorMappingsVersion(mainDb);
 
     const info: DatasetHmisInfoInProject = {
       version,
       totalRows,
       structureLastUpdated,
       indicatorMappingsVersion,
-      calculatedIndicatorsVersion,
+      baseIndicatorMappingsVersion,
     };
 
     if (onProgress) await onProgress(0.5, "Exporting data to CSV...");
@@ -249,37 +209,38 @@ export async function computeDatasetHmisRunCapture(
     await mainDb.unsafe(`
 COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADER true, FREEZE false)
 `);
-    const indicators = await mainDb<DBIndicator[]>`
-SELECT i.* FROM indicators i
-WHERE EXISTS (
-  SELECT 1 FROM indicator_mappings im
-  WHERE im.indicator_common_id = i.indicator_common_id
-)
-    `;
 
-    const indicatorIdsInData = new Set(
-      indicators.map((ind) => ind.indicator_common_id)
+    // The mirror carries the WHOLE dictionary — a derived indicator's own row
+    // is what makes the package standalone. The extract, by contrast, is base
+    // rows only, so the base commons with mappings are exactly the ingredients
+    // any expression may draw on.
+    const commonIndicators = await getCommonIndicators(mainDb);
+    const baseIdsInData = new Set(
+      (
+        await mainDb<{ indicator_common_id: string }[]>`
+          SELECT DISTINCT i.indicator_common_id
+          FROM indicators i
+          INNER JOIN indicator_mappings im
+            ON im.indicator_common_id = i.indicator_common_id
+          WHERE i.definition_type = 'base'
+        `
+      ).map((r) => r.indicator_common_id),
     );
-    const calculatedIndicatorsWithMissingData: string[] = [];
-    for (const ci of calculatedIndicators) {
-      if (!indicatorIdsInData.has(ci.num_indicator_id)) {
-        calculatedIndicatorsWithMissingData.push(
-          `Calculated indicator '${ci.calculated_indicator_id}' requires numerator '${ci.num_indicator_id}' which is not in the data`
-        );
-      }
-      if (
-        ci.denom.kind === "indicator" &&
-        !indicatorIdsInData.has(ci.denom.indicator_id)
-      ) {
-        calculatedIndicatorsWithMissingData.push(
-          `Calculated indicator '${ci.calculated_indicator_id}' requires denominator '${ci.denom.indicator_id}' which is not in the data`
-        );
-      }
-    }
-    if (calculatedIndicatorsWithMissingData.length > 0) {
+
+    let indicators: CommonIndicatorCatalogRow[];
+    try {
+      indicators = resolveCommonIndicatorCatalog(
+        commonIndicators,
+        baseIdsInData,
+      );
+    } catch (e) {
+      if (!(e instanceof CommonIndicatorCatalogError)) throw e;
       return {
         success: false,
-        err: `Cannot add data to project. The following calculated indicators reference indicators that don't exist in your data:\n\n${calculatedIndicatorsWithMissingData.join("\n")}\n\nPlease edit or remove these calculated indicators, or ensure your data includes the required indicators.`,
+        err:
+          `Cannot generate results from this dictionary. The following indicators cannot be computed:\n\n${
+            e.problems.join("\n")
+          }\n\nEdit or remove these indicators, or ensure your data includes the indicators they are computed from.`,
       };
     }
 
@@ -292,12 +253,8 @@ WHERE EXISTS (
       data: {
         info,
         lastUpdated: new Date().toISOString(),
-        indicators: indicators.map((ind) => ({
-          indicator_common_id: ind.indicator_common_id,
-          indicator_common_label: ind.indicator_common_label,
-        })),
+        indicators,
         facilities,
-        calculatedIndicators,
       },
     };
   });
@@ -375,7 +332,8 @@ function getDatasetHmisExportStatement(
   // Use CTEs for clarity - explicitly showing the aggregation from raw to common IDs
   const statement = `
 WITH aggregated AS (
-  -- Step 1: Aggregate raw indicators to common IDs
+  -- Step 1: Aggregate raw indicators to common IDs. BASE commons only —
+  -- everything else is a formula over these, computed downstream.
   SELECT
     d.facility_id,
     im.indicator_common_id,
@@ -383,6 +341,9 @@ WITH aggregated AS (
     SUM(d.count) as count
   FROM dataset_hmis d
   INNER JOIN indicator_mappings im ON d.indicator_raw_id = im.indicator_raw_id
+  INNER JOIN indicators i
+    ON i.indicator_common_id = im.indicator_common_id
+   AND i.definition_type = 'base'
   GROUP BY
     d.facility_id,
     im.indicator_common_id,

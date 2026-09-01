@@ -2,7 +2,7 @@ import { join } from "@std/path";
 import type { Sql } from "postgres";
 import {
   throwIfErrWithData,
-  type CalculatedIndicator,
+  type CommonIndicatorCatalogRow,
   type DatasetType,
   type HfaIndicator,
   type HfaIndicatorCode,
@@ -11,7 +11,6 @@ import {
   type RunGenerationStep1Result,
 } from "lib";
 import {
-  calculatedIndicatorToSnapshotRow,
   computeDatasetHfaRunCapture,
   computeDatasetHmisRunCapture,
   computeDatasetIcehRunCapture,
@@ -65,7 +64,10 @@ export type PreparedRunInputs = {
     // assignments ride hfaIndicators' variantGroupId.
     hfaVariantCode: HfaIndicatorVariantCode[];
     hfaSentinelRows: HfaSentinelRow[];
-    calculatedIndicators: CalculatedIndicator[];
+    // The resolved common-indicator catalog, from the HMIS capture. m012's
+    // ingredient table is built from it and substituted into its script
+    // (PLAN_1a §1.5); empty when the run carries no HMIS family.
+    commonIndicatorCatalog: CommonIndicatorCatalogRow[];
   };
 };
 
@@ -108,7 +110,7 @@ export async function prepareRunInputs(
     hfaIndicatorCode: [],
     hfaVariantCode: [],
     hfaSentinelRows: [],
-    calculatedIndicators: [],
+    commonIndicatorCatalog: [],
   };
 
   if (step1.hmis) {
@@ -124,21 +126,22 @@ export async function prepareRunInputs(
       lastUpdated: capture.lastUpdated,
       info: capture.info,
     });
+    // The v2 indicators mirror: the WHOLE common dictionary, resolved
+    // (PLAN_1a §1.10). The separate calculated_indicators_snapshot.json that
+    // used to sit beside it is gone — one writer, one catalog contract.
     await writeInputJson(tmpDir, "indicators.json", capture.indicators);
     extraInputFiles.push("inputs/indicators.json");
-    await writeInputJson(
-      tmpDir,
-      "calculated_indicators_snapshot.json",
-      capture.calculatedIndicators.map(calculatedIndicatorToSnapshotRow),
-    );
-    extraInputFiles.push("inputs/calculated_indicators_snapshot.json");
+    // The resolved catalog is also a SCRIPT-GENERATION input: m012's
+    // ingredient table is substituted into its script as a data literal
+    // (PLAN_1a §1.5), so nothing is written to inputs/ for it and no
+    // memoization input class exists — the literal rides in scriptText.
+    scriptInputs.commonIndicatorCatalog = capture.indicators;
     await writeFacilitiesParquet(tmpDir, "facilities_hmis", capture.facilities);
     extraInputFiles.push("inputs/facilities_hmis.parquet");
     facilitiesTables.push({
       tableName: "facilities_hmis",
       columns: FACILITY_PARQUET_COLUMNS,
     });
-    scriptInputs.calculatedIndicators = capture.calculatedIndicators;
   }
 
   if (step1.hfa) {

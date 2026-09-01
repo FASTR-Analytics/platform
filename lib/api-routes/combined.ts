@@ -7,7 +7,6 @@ import { hfaIndicatorRouteRegistry } from "./instance/hfa_indicators.ts";
 import { hfaTimePointRouteRegistry } from "./instance/hfa_time_points.ts";
 import { icehRouteRegistry } from "./instance/iceh.ts";
 import { indicatorRouteRegistry } from "./instance/indicators.ts";
-import { calculatedIndicatorRouteRegistry } from "./instance/calculated_indicators.ts";
 import { indicatorsDhis2RouteRegistry } from "./instance/indicators_dhis2.ts";
 import { instanceRouteRegistry } from "./instance/instance.ts";
 import { instanceModuleRouteRegistry } from "./instance/modules.ts";
@@ -44,7 +43,6 @@ export const routeRegistryIndividualCount =
   Object.keys(hfaTimePointRouteRegistry).length +
   Object.keys(icehRouteRegistry).length +
   Object.keys(indicatorRouteRegistry).length +
-  Object.keys(calculatedIndicatorRouteRegistry).length +
   Object.keys(indicatorsDhis2RouteRegistry).length +
   Object.keys(instanceRouteRegistry).length +
   Object.keys(instanceModuleRouteRegistry).length +
@@ -79,7 +77,6 @@ export const routeRegistry = {
   ...hfaTimePointRouteRegistry,
   ...icehRouteRegistry,
   ...indicatorRouteRegistry,
-  ...calculatedIndicatorRouteRegistry,
   ...indicatorsDhis2RouteRegistry,
   ...instanceRouteRegistry,
   ...instanceModuleRouteRegistry,

@@ -455,9 +455,34 @@ is family-branched on the module definition (`getDatasetFamily`: HFA by
 four `hfa_*_snapshot` tables (indicator labels composed via
 `composeHfaIndicatorLabel`, measure kind via `getHfaIndicatorMeasure`); ICEH
 reads the ICEH snapshot + static `ICEH_STRAT_INFO`; HMIS reads project
-`indicators` + the calculated-indicators snapshot (snapshot wins by id). The
-result rides inside items holders and labels possible values — it is
-dataset-derived, which is why the caches version on `datasetsVersion`.
+`indicators`. The result rides inside items holders and labels possible
+values — it is dataset-derived, which is why the caches version on
+`datasetsVersion`. On the RUN path the catalog is a manifest lookup
+(`getIndicatorMetadataFromRun`), and only its DISPLAY fields cross the wire:
+`toIndicatorMetadataDisplay` strips the evaluation fields below, so nothing
+generation-only is frozen into a stored figure bundle.
+
+**Catalog-expression post-aggregation.** A results object is
+catalog-evaluated iff a metric over it declares `catalogExpressionEvaluation`
+— a manifest lookup over `manifest.metrics`, never a shape guess. The client
+compiles the declared ingredient props into all-SUM `values`; the engine runs
+ordinary SQL; and `getPresentationObjectItemsFromRun` then applies each row's
+own indicator expression from the run catalog, emitting one `value` and
+dropping the ingredients. It runs over MAIN and ROLL-UP rows alike, which is
+what makes a national total a real rate rather than a mean of rates. The
+engine itself is untouched: no SQL emission, no PAE machinery change.
+Three guards protect the contract server-side (`readRunItems`): a
+client-sent `postAggregationExpression` is rejected (fetch-config validation
+accepts one unconditionally, so this is a real bypass without the guard), as
+is any `values[].func` other than SUM or any prop outside the declared set.
+
+AUTHORING INVARIANT (twin of the required-groupBy one): every metric over a
+catalog-evaluated results object must declare the SAME ingredient props, and
+must require `indicator_common_id`. The required-dims guard is the
+INTERSECTION across all metrics sharing a results object, so one metric
+omitting it dissolves the guard for all of them — and the guard is what makes
+cross-indicator pooling impossible, since every aggregated row the evaluator
+sees is then keyed by exactly one indicator.
 
 **Blank values.** A row whose disaggregation cell is NULL or whitespace-only is
 a real group — `GROUP BY` emits it — so it must also be a nameable filter

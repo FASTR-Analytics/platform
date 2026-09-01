@@ -146,13 +146,6 @@ function generateScript(
       );
     }
   }
-  if (detail.scriptGenerationType === "calculated_indicators") {
-    if (inputs.calculatedIndicators.length === 0) {
-      throw new Error(
-        "No calculated indicators in the project snapshot — the HMIS data prepare step did not produce them",
-      );
-    }
-  }
   return getScriptWithParameters(
     detail,
     configSelections,
@@ -162,8 +155,8 @@ function generateScript(
     inputs.hfaIndicators,
     inputs.hfaIndicatorCode,
     inputs.hfaVariantCode,
-    inputs.calculatedIndicators,
     inputs.hfaSentinelRows,
     inputs.hfaTimePointOrder,
+    inputs.commonIndicatorCatalog,
   );
 }

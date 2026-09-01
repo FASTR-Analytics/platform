@@ -3,7 +3,6 @@ import {
   groupMetricsByModule,
   type MetricWithStatus,
   type InstalledModuleSummary,
-  type ModuleId,
   type MetricGroup,
 } from "lib";
 import { FrameLeft } from "panther";
@@ -19,9 +18,9 @@ type Props = {
 };
 
 export function Step1Metric(p: Props) {
-  const [selectedModule, setSelectedModule] = createSignal<ModuleId | "all">(
-    "all",
-  );
+  // Module ids on the read plane are plain strings from the manifest ("all" =
+  // no filter) — ModuleId is a generation-plane type (PLAN_1a §0 clause 3).
+  const [selectedModule, setSelectedModule] = createSignal<string>("all");
 
   const metricsByModule = createMemo(() =>
     groupMetricsByModule(p.metrics, p.modules),

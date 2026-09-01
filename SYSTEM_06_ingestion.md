@@ -30,7 +30,6 @@ globs:
   - server/db/instance/dataset_hmis_scheduled_imports.ts
   - server/db/instance/dataset_iceh.ts
   - server/db/instance/dataset_iceh_import_runs.ts
-  - server/db/project/calculated_indicators_snapshot.ts
   - server/db/project/datasets_in_project_hfa.ts
   - server/db/project/datasets_in_project_hmis.ts
   - server/db/project/datasets_in_project_iceh.ts
@@ -383,10 +382,13 @@ writing `datasets(dataset_type, info, last_updated)` + snapshot tables.
 Attach concurrency is an in-memory `_datasetLocks` set keyed
 `{projectId}_{datasetType}` in the route.
 
-- Snapshot tables are the metadata twins of the CSVs:
-  `calculated_indicators_snapshot` (HMIS), `hfa_indicator*_snapshot` (HFA,
-  service-category-scoped), `iceh_indicators_snapshot`. Modules read
+- Snapshot tables are the metadata twins of the CSVs: `hfa_indicator*_snapshot`
+  (HFA, service-category-scoped), `iceh_indicators_snapshot`. Modules read
   `../datasets/{type}.csv`; PO metadata and module runs read the snapshots.
+  The HMIS twin is no longer a project table: the common dictionary is
+  resolved at capture and written into the run as the `indicators.json`
+  mirror (PLAN_1a §1.10). The frozen `calculated_indicators_snapshot` table
+  is read by nothing and drops with PLAN_RESULTS_RUNS Phase 4.
 - **Project-level attach/staleness UI is gone** (PLAN_RESULTS_RUNS item 5):
   datasets reach a project only as results-package run inputs — the wizard's
   choose-data step drives the same attach/export functions

@@ -11,6 +11,7 @@ export function getMapJsonDataConfigFromPresentationObjectConfig(
   config: PresentationObjectConfig,
   effectiveValueProps: string[],
   indicatorLabelReplacements: Record<string, string>,
+  indicatorSortOrder: string[],
 ): MapJsonDataConfig {
   if (config.d.type !== "map") {
     throw new Error("Bad config type");
@@ -37,9 +38,9 @@ export function getMapJsonDataConfigFromPresentationObjectConfig(
     // dims sorts on raw values — which is what the map displays, keeping sort
     // key and display consistent.
     sort: {
-      pane: getAxisSort(config, paneProp),
-      tier: getAxisSort(config, tierProp),
-      lane: getAxisSort(config, laneProp),
+      pane: getAxisSort(config, paneProp, indicatorSortOrder),
+      tier: getAxisSort(config, tierProp, indicatorSortOrder),
+      lane: getAxisSort(config, laneProp, indicatorSortOrder),
     },
   };
 

@@ -1,9 +1,4 @@
-import {
-  getValidatedModuleId,
-  t3,
-  type RunDetail,
-  type RunListingItem,
-} from "lib";
+import { t3, type RunDetail, type RunListingItem } from "lib";
 import {
   Button,
   Card,
@@ -58,7 +53,10 @@ export function ResultsPackageView(p: {
       element,
       props: {
         runId: p.run.id,
-        moduleId: getValidatedModuleId(moduleId),
+        // Read plane: the id comes from the package's own manifest and is
+        // read as text, so a module that has left the registry — or one from
+        // a newer app — is still browsable (PLAN_1a §0 clause 3).
+        moduleId,
         moduleLabel: moduleLabel(moduleId),
       },
     });
@@ -235,7 +233,7 @@ function ModuleCard(p: {
                     iconName="download"
                     href={runOutputFileHref(
                       p.runId,
-                      getValidatedModuleId(p.module.moduleId),
+                      p.module.moduleId,
                       file.name,
                     )}
                     download={file.name}

@@ -29,11 +29,11 @@ const translatableStringGithub = z.object({
   pt: z.string().optional(),
 });
 
-const scriptGenerationTypeGithub = z.enum([
-  "template",
-  "hfa",
-  "calculated_indicators",
-]);
+// "calculated_indicators" is gone from the AUTHORING vocabulary (PLAN_1a
+// §1.11): the module that used it is dropped, and its replacement m012 is an
+// ordinary "template" R module. The installed enum keeps the value, because
+// stored module-definition blobs parse forever.
+const scriptGenerationTypeGithub = z.enum(["template", "hfa"]);
 
 const dataSourceDatasetGithub = z.object({
   sourceType: z.literal("dataset"),
@@ -97,6 +97,16 @@ const postAggregationExpressionGithub = z.object({
     }),
   ),
   expression: z.string(),
+});
+
+// Declared catalog evaluation (PLAN_1a §1.6). A metric that declares it reads
+// an indicator_values results object: the named ingredient props are what
+// travels on the wire (SUM-aggregated, one column each), and the server then
+// applies each indicator's OWN catalog expression to the aggregated row,
+// returning a single `value` column. The metric's valueProps stay ["value"] —
+// the ingredients are never a user-facing prop picker.
+const catalogExpressionEvaluationGithub = z.object({
+  ingredientProps: z.array(z.string()).min(1),
 });
 
 const presentationOptionGithub = z.enum([
@@ -310,6 +320,7 @@ const metricDefinitionGithub = z.object({
   requiredDisaggregationOptions: z.array(disaggregationOptionGithub),
   valueLabelReplacements: z.record(z.string(), z.string()),
   postAggregationExpression: postAggregationExpressionGithub.nullable(),
+  catalogExpressionEvaluation: catalogExpressionEvaluationGithub.nullable(),
   resultsObjectId: z.string(),
   aiDescription: metricAIDescriptionGithub.nullable(),
   importantNotes: translatableStringGithub.nullable(),
@@ -449,6 +460,9 @@ export type PeriodOption = z.infer<typeof periodOptionGithub>;
 export type DisaggregationOption = z.infer<typeof disaggregationOptionGithub>;
 export type PostAggregationExpression = z.infer<
   typeof postAggregationExpressionGithub
+>;
+export type CatalogExpressionEvaluation = z.infer<
+  typeof catalogExpressionEvaluationGithub
 >;
 export type VizPresetTextConfig = z.infer<
   typeof vizPresetTextConfigGithubStrict
