@@ -1,12 +1,16 @@
 import {
+  buildFastrReportCss,
   buildReportEmbedToken,
   canonicalJson,
   COLLAB_NO_EDIT_PERMISSION,
+  FASTR_THEME_TOKENS,
+  type FastrReportTheme,
   type FigureBlock,
   type FigureBundle,
   findReportBodyText,
   findReportEmbeds,
   findReportFigureConfigMap,
+  getFastrReportTheme,
   getReportCustomStyle,
   getReportFormat,
   getReportHtmlStyle,
@@ -15,8 +19,10 @@ import {
   type PresentationObjectConfig,
   type ProjectState,
   referencedReportEmbedIds,
+  type ReportConfig,
   type ReportDocContent,
   type ReportFormat,
+  type ReportStyleColors,
   type ResultsValue,
   t3,
 } from "lib";
@@ -33,6 +39,7 @@ import {
   MarkdownPresentationJsx,
   openAlert,
   openComponent,
+  Select,
 } from "panther";
 import {
   createEffect,
@@ -56,6 +63,7 @@ import {
   type ReportSession,
   setCollabView,
 } from "~/state/project/collab";
+import { fastrThemeOptions } from "~/components/_shared/fastr_theme_labels";
 import { PresenceAvatars } from "~/components/slide_deck/presence_avatars";
 import { ReportEditorCursors } from "~/components/_shared/cursors/report_cursors";
 import { addLastUpdatedListener } from "~/state/project/t1_sse";
@@ -155,6 +163,9 @@ export function ProjectReport(p: Props) {
   const [format, setFormat] = createSignal<ReportFormat>("markdown");
   // Only consumed by the AI view params (the styled authoring brief).
   let htmlStyle: ReturnType<typeof getReportHtmlStyle> = "default";
+  // The config as loaded — re-sent whole on a theme change so no sibling field
+  // is dropped (updateReportConfig re-imposes format and style, not the rest).
+  let loadedConfig: ReportConfig = {};
   let customStyle:
     | { label: string; brief: string; referenceCss?: string | null }
     | undefined;
@@ -164,8 +175,22 @@ export function ProjectReport(p: Props) {
   // survive Edit↔Split remounts; rasterTick re-renders the frame as they land.
   const [rasterTick, setRasterTick] = createSignal(0);
   // The style's light-ink palette — used by the preview for figures whose
-  // detected ground is dark (set once the config loads).
-  let inkTheme: FigureInkTheme | undefined;
+  // detected ground is dark. A signal, not a let: a FASTR Markdown report can
+  // be re-themed at any time, which moves the palette.
+  const [inkTheme, setInkTheme] = createSignal<FigureInkTheme | undefined>();
+  // FASTR Markdown theming. Unlike htmlStyle this is changeable after creation
+  // — the body carries no CSS, so nothing can be invalidated by a re-theme.
+  const [fastrTheme, setFastrTheme] = createSignal<FastrReportTheme>("default");
+  // A custom style contributes only its palette to a fastr report (its
+  // reference_css targets AI-authored class names, not fm-*).
+  const [fastrColors, setFastrColors] = createSignal<
+    ReportStyleColors | undefined
+  >();
+  const themeCss = createMemo(() =>
+    format() === "fastr"
+      ? buildFastrReportCss(fastrTheme(), fastrColors())
+      : undefined
+  );
   const rasters = createFigureRasterCache(() => setRasterTick((t) => t + 1));
   // The live preview surface, for the peer-selection overlay (an iframe's
   // embeds are not reachable by querySelector from the parent document).
@@ -578,7 +603,25 @@ export function ProjectReport(p: Props) {
       // tuning a style once benefits every report using it; the creation-time
       // snapshot keeps deleted/hidden styles working.
       const snap = getReportCustomStyle(res.data.config);
-      inkTheme = figureInkThemeForStyle(htmlStyle, snap?.colors);
+      loadedConfig = res.data.config;
+      const loadedFormat = getReportFormat(res.data.config);
+      if (loadedFormat === "fastr") {
+        const theme = getFastrReportTheme(res.data.config);
+        setFastrTheme(theme);
+        setFastrColors(snap?.colors ?? undefined);
+        // fastr grounds come from the theme, not from an AI-written stylesheet:
+        // hand the ink deriver the palette the page actually paints with.
+        const tok = FASTR_THEME_TOKENS[theme];
+        setInkTheme(
+          figureInkThemeForStyle("default", snap?.colors ?? {
+            page: tok.page,
+            ink: tok.ink,
+            accent: tok.accent,
+          }),
+        );
+      } else {
+        setInkTheme(figureInkThemeForStyle(htmlStyle, snap?.colors));
+      }
       if (snap) {
         customStyle = {
           label: snap.label,
@@ -1007,6 +1050,42 @@ export function ProjectReport(p: Props) {
     return false;
   }
 
+  // FASTR Markdown re-theming. Safe on a live report because the theme is not
+  // in the body: nothing the user typed can be invalidated, and every peer
+  // picks the new theme up on their next load. Optimistic, reverted on failure.
+  function applyFastrTheme(theme: FastrReportTheme) {
+    setFastrTheme(theme);
+    const tok = FASTR_THEME_TOKENS[theme];
+    setInkTheme(
+      figureInkThemeForStyle("default", fastrColors() ?? {
+        page: tok.page,
+        ink: tok.ink,
+        accent: tok.accent,
+      }),
+    );
+  }
+
+  async function changeFastrTheme(theme: FastrReportTheme) {
+    const previous = fastrTheme();
+    if (theme === previous) return;
+    applyFastrTheme(theme);
+    setSaveStatus("saving");
+    const res = await serverActions.updateReportConfig({
+      projectId,
+      report_id: p.reportId,
+      config: { ...loadedConfig, fastrTheme: theme },
+    });
+    if (!res.success) {
+      applyFastrTheme(previous);
+      setSaveError(res.err);
+      setSaveStatus("error");
+      return;
+    }
+    loadedConfig = { ...loadedConfig, fastrTheme: theme };
+    bumpLastUpdated(res.data.lastUpdated);
+    markSaved();
+  }
+
   async function persistImages(next: Record<string, ImageBlock>) {
     // Live collab: see persistFigures — including the skip set, or this push
     // re-diffs an open figure modal's config from the host's stale copy.
@@ -1123,7 +1202,7 @@ export function ProjectReport(p: Props) {
     const vizLabel =
       projectState.visualizations.find((v) => v.id === sel.visualizationId)
         ?.label ?? "";
-    editorApi?.insertEmbedOnNewLine(
+    editorApi?.insertBlockOnNewLine(
       buildReportEmbedToken(format(), "figure", id, vizLabel),
     );
     setSelectedEmbed({ kind: "figure", id });
@@ -1140,7 +1219,7 @@ export function ProjectReport(p: Props) {
     const next = { ...images(), [id]: block };
     setImages(next);
     await persistImages(next);
-    editorApi?.insertEmbedOnNewLine(
+    editorApi?.insertBlockOnNewLine(
       buildReportEmbedToken(format(), "image", id, picked.alt),
     );
     setSelectedEmbed({ kind: "image", id });
@@ -1323,7 +1402,8 @@ export function ProjectReport(p: Props) {
           currentLabel: label(),
           getCurrentBody: body,
           reportFormat: format(),
-          figureInkTheme: inkTheme,
+          reportFastrThemeCss: themeCss(),
+          figureInkTheme: inkTheme(),
         },
       }),
     );
@@ -1417,7 +1497,9 @@ export function ProjectReport(p: Props) {
           assetUrl={assetUrl}
           rasters={rasters}
           rasterVersion={rasterTick()}
-          lightInk={inkTheme}
+          lightInk={inkTheme()}
+          format={format()}
+          themeCss={themeCss()}
           lineAnchors
           forwardPointer
           dataReportCursor="preview-content"
@@ -1432,8 +1514,10 @@ export function ProjectReport(p: Props) {
     );
   };
 
+  // FASTR Markdown renders through the html funnel (compiled markdown +
+  // theme stylesheet), so only plain markdown takes panther's IR renderer.
   const ReportPreviewPane = () =>
-    format() === "html" ? <HtmlPreviewPane /> : <MarkdownPreviewPane />;
+    format() === "markdown" ? <MarkdownPreviewPane /> : <HtmlPreviewPane />;
 
   // The content area (banners + CM editor + preview + diff), shared by both
   // modes. The CM editor stays mounted in View too — AI accept applies via its
@@ -1577,6 +1661,20 @@ export function ProjectReport(p: Props) {
               }
             >
               <div class="ui-gap-sm flex items-center">
+                {/* FASTR Markdown carries no CSS in its body, so re-theming is
+                    safe at any time — unlike an html report's style, which is
+                    fixed at creation because the body IS the design. */}
+                <Show when={format() === "fastr" && canEditBody()}>
+                  <div data-tour="report-fastr-theme">
+                    <Select<FastrReportTheme>
+                      size="sm"
+                      outline
+                      value={fastrTheme()}
+                      options={fastrThemeOptions()}
+                      onChange={changeFastrTheme}
+                    />
+                  </div>
+                </Show>
                 {/* Who else is currently in THIS report (live presence). */}
                 <PresenceAvatars
                   peers={otherPeers().filter(
@@ -1667,6 +1765,8 @@ export function ProjectReport(p: Props) {
                   onDelete={handleDelete}
                   onInsertFigure={insertFigure}
                   onInsertImage={insertImage}
+                  onInsertBlock={(snippet) =>
+                    editorApi?.insertBlockOnNewLine(snippet)}
                 />
               </div>
             ) : null

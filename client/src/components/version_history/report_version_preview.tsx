@@ -53,6 +53,10 @@ export function ReportVersionPreview(p: {
   getCurrentBody?: () => string;
   /** The report's body format (fixed at creation; every version shares it). */
   format: ReportFormat;
+  /** fastr only: the CURRENT theme stylesheet. The theme is not part of a
+   *  version snapshot (it lives in config, not the body), so an old version
+   *  renders in whatever theme the report wears today. */
+  fastrThemeCss?: string;
   figureInkTheme?: FigureInkTheme;
   onRestored: () => void;
 }) {
@@ -191,7 +195,7 @@ export function ReportVersionPreview(p: {
             when={mode() === "edits"}
             fallback={
               <Show
-                when={p.format === "html"}
+                when={p.format !== "markdown"}
                 fallback={
                   <div class="bg-base-200 min-h-0 flex-1 overflow-auto px-8 py-10">
                     <div class="bg-base-100 md-dark-adapt mx-auto min-h-full w-full max-w-4xl rounded px-6 py-10 shadow-floating">
@@ -204,7 +208,12 @@ export function ReportVersionPreview(p: {
                   </div>
                 }
               >
-                <HtmlVersionPreview version={v} inkTheme={p.figureInkTheme} />
+                <HtmlVersionPreview
+                  version={v}
+                  format={p.format}
+                  themeCss={p.fastrThemeCss}
+                  inkTheme={p.figureInkTheme}
+                />
               </Show>
             }
           >
@@ -243,6 +252,8 @@ export function ReportVersionPreview(p: {
 // with its own raster cache (disposed with the pane).
 function HtmlVersionPreview(p: {
   version: ReportVersionDetail;
+  format: ReportFormat;
+  themeCss?: string;
   inkTheme?: FigureInkTheme;
 }) {
   const [rasterTick, setRasterTick] = createSignal(0);
@@ -260,6 +271,8 @@ function HtmlVersionPreview(p: {
         rasters={rasters}
         rasterVersion={rasterTick()}
         lightInk={p.inkTheme}
+        format={p.format}
+        themeCss={p.themeCss}
         lineAnchors={false}
       />
     </div>

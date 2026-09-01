@@ -23,6 +23,7 @@ import {
 } from "lib";
 import type { ReportEditorSelection } from "~/components/project_ai/types";
 import { embedWidgets, type EmbedResolver } from "./figure_widget_extension";
+import { fastrContainerFences } from "./fastr_fence_extension";
 import { rebaseProposedEdits, type SkippedRange } from "./rebase_edits";
 import { darkMode } from "~/state/t4_ui";
 
@@ -52,8 +53,9 @@ function centerTheme(centered: boolean, padRight: number) {
 }
 
 export type ReportEditorApi = {
-  // Insert an embed token on its own line at the current cursor.
-  insertEmbedOnNewLine: (token: string) => void;
+  // Insert text as its own block at the current cursor — an embed token, or
+  // a FASTR Markdown block snippet from the format guide.
+  insertBlockOnNewLine: (token: string) => void;
   // Apply an accepted AI proposal by REBASING it over whatever changed while
   // it was under review: the proposal's hunks (baseBody -> newBody) are mapped
   // onto the live doc; hunks whose text a collaborator concurrently edited are
@@ -209,7 +211,10 @@ export function ReportEditor(p: Props) {
         ...(collab ? [keymap.of([...yUndoManagerKeymap])] : []),
         basicSetup,
         ...darkMarkdownExtensions(),
+        // FASTR Markdown is markdown to CodeMirror; the `:::` fences get
+        // their own line decoration on top.
         p.format === "html" ? html() : markdown(),
+        ...(p.format === "fastr" ? fastrContainerFences() : []),
         ...(p.canEdit()
           ? []
           : [EditorState.readOnly.of(true), EditorView.editable.of(false)]),
@@ -274,7 +279,7 @@ export function ReportEditor(p: Props) {
     }
   }
 
-  function insertEmbedOnNewLine(token: string) {
+  function insertBlockOnNewLine(token: string) {
     if (!view) return;
     const sel = view.state.selection.main;
     const line = view.state.doc.lineAt(sel.from);
@@ -467,7 +472,7 @@ export function ReportEditor(p: Props) {
     buildView(collab);
 
     p.ref?.({
-      insertEmbedOnNewLine,
+      insertBlockOnNewLine,
       applyRebasedBody,
       removeEmbedToken,
       setEmbedCaption,

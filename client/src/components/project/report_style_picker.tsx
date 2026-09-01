@@ -1,5 +1,8 @@
 import {
+  FASTR_REPORT_THEMES,
+  type FastrReportTheme,
   type ReportCustomStyle,
+  type ReportFormat,
   type ReportHtmlStyle,
   t3,
 } from "lib";
@@ -13,8 +16,18 @@ import {
 } from "panther";
 import { createSignal, For, onMount, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
+import {
+  fastrThemeCaption,
+  fastrThemeLabel,
+} from "~/components/_shared/fastr_theme_labels";
+import {
+  FastrCustomThemeMock,
+  FastrThemeMock,
+  FastrThemeMockStyles,
+} from "./fastr_theme_mock";
 
-// Step 2 of the create-report wizard for HTML reports (project_reports.tsx owns
+// Step 2 of the create-report wizard for HTML and FASTR Markdown reports
+// (project_reports.tsx owns
 // the loop — panther has ONE alert slot, so this modal cannot stack on the
 // form; the form closes with a draft and this opens next). Tile grid of every
 // style preset with a hand-authored CSS mini-report mockup per tile — a
@@ -32,10 +45,18 @@ export type ReportStylePickerResult =
 
 type Sel =
   | { kind: "preset"; value: ReportHtmlStyle }
+  // FASTR Markdown: a real stylesheet, not an AI brief.
+  | { kind: "theme"; value: FastrReportTheme }
   | { kind: "custom"; style: ReportCustomStyle };
 
 type Props = AlertComponentProps<
-  { projectId: string; label: string; folderId: string | null },
+  {
+    projectId: string;
+    label: string;
+    folderId: string | null;
+    // "html" (AI style briefs) or "fastr" (real theme stylesheets).
+    format: ReportFormat;
+  },
   ReportStylePickerResult
 >;
 
@@ -543,6 +564,8 @@ const MOCK_CSS = `
 `;
 
 export function ReportStylePicker(p: Props) {
+  // FASTR Markdown picks a real stylesheet; html picks an AI design brief.
+  const isFastr = p.format === "fastr";
   const [selected, setSelected] = createSignal<Sel | undefined>();
   const [customStyles, setCustomStyles] = createSignal<ReportCustomStyle[]>([]);
   const [saveState, setSaveState] = createSignal<StateHolderFormAction>({
@@ -550,7 +573,8 @@ export function ReportStylePicker(p: Props) {
   });
 
   onMount(() => {
-    ensureFonts();
+    // The html tiles' typefaces; the fastr tiles carry their own @imports.
+    if (!isFastr) ensureFonts();
     void (async () => {
       const res = await serverActions.listReportStyles({
         projectId: p.projectId,
@@ -563,6 +587,9 @@ export function ReportStylePicker(p: Props) {
     const cur = selected();
     if (!cur) return false;
     if (cur.kind === "preset" && sel.kind === "preset") {
+      return cur.value === sel.value;
+    }
+    if (cur.kind === "theme" && sel.kind === "theme") {
       return cur.value === sel.value;
     }
     if (cur.kind === "custom" && sel.kind === "custom") {
@@ -578,8 +605,9 @@ export function ReportStylePicker(p: Props) {
       projectId: p.projectId,
       label: p.label,
       folderId: p.folderId,
-      format: "html",
+      format: p.format,
       htmlStyle: sel.kind === "preset" ? sel.value : undefined,
+      fastrTheme: sel.kind === "theme" ? sel.value : undefined,
       customStyleId: sel.kind === "custom" ? sel.style.id : undefined,
     });
     if (!res.success) {
@@ -592,11 +620,17 @@ export function ReportStylePicker(p: Props) {
   return (
     <ModalContainer
       width="2xl"
-      title={t3({
-        en: `Choose a style for “${p.label}”`,
-        fr: `Choisissez un style pour « ${p.label} »`,
-        pt: `Escolha um estilo para “${p.label}”`,
-      })}
+      title={isFastr
+        ? t3({
+          en: `Choose a theme for “${p.label}”`,
+          fr: `Choisissez un thème pour « ${p.label} »`,
+          pt: `Escolha um tema para “${p.label}”`,
+        })
+        : t3({
+          en: `Choose a style for “${p.label}”`,
+          fr: `Choisissez un style pour « ${p.label} »`,
+          pt: `Escolha um estilo para “${p.label}”`,
+        })}
       leftButtons={
         // eslint-disable-next-line jsx-key
         [
@@ -620,17 +654,55 @@ export function ReportStylePicker(p: Props) {
         ]
       }
     >
-      <style>{MOCK_CSS}</style>
+      <Show when={isFastr} fallback={<style>{MOCK_CSS}</style>}>
+        <FastrThemeMockStyles customStyles={customStyles()} />
+      </Show>
       <div class="ui-spy-sm">
         <div class="text-base-content-muted text-sm">
-          {t3({
-            en: "The style guides how the AI designs this report — fixed at creation. Previews are an impression of each style; the AI writes the real layout.",
-            fr: "Le style guide la conception du rapport par l'IA — fixé à la création. Les aperçus donnent une impression de chaque style ; l'IA écrit la mise en page réelle.",
-            pt: "O estilo orienta como a IA desenha este relatório — fixado na criação. As pré-visualizações são uma impressão de cada estilo; a IA escreve o layout real.",
-          })}
+          <Show
+            when={isFastr}
+            fallback={t3({
+              en: "The style guides how the AI designs this report — fixed at creation. Previews are an impression of each style; the AI writes the real layout.",
+              fr: "Le style guide la conception du rapport par l'IA — fixé à la création. Les aperçus donnent une impression de chaque style ; l'IA écrit la mise en page réelle.",
+              pt: "O estilo orienta como a IA desenha este relatório — fixado na criação. As pré-visualizações são uma impressão de cada estilo; a IA escreve o layout real.",
+            })}
+          >
+            {t3({
+              en: "The theme is the report's real stylesheet — these previews are exactly what you get. You can change it later from the report.",
+              fr: "Le thème est la feuille de style réelle du rapport — ces aperçus sont exactement ce que vous obtiendrez. Vous pourrez en changer plus tard depuis le rapport.",
+              pt: "O tema é a folha de estilos real do relatório — estas pré-visualizações são exatamente o que vai obter. Pode alterá-lo mais tarde a partir do relatório.",
+            })}
+          </Show>
         </div>
         <div class="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
-          <For each={STYLE_OPTIONS}>
+          <Show when={isFastr}>
+            <For each={FASTR_REPORT_THEMES}>
+              {(theme) => {
+                const sel: Sel = { kind: "theme", value: theme };
+                return (
+                  <button
+                    type="button"
+                    class="ui-focusable group rounded-md p-1.5 text-left"
+                    classList={{
+                      "ring-primary ring-2": isSelected(sel),
+                      "hover:bg-base-200": !isSelected(sel),
+                    }}
+                    onClick={() => setSelected(sel)}
+                    onDblClick={() => void create(sel)}
+                  >
+                    <FastrThemeMock theme={theme} />
+                    <div class="text-base-content mt-1.5 text-sm font-semibold">
+                      {fastrThemeLabel(theme)}
+                    </div>
+                    <div class="text-base-content-muted text-xs leading-snug">
+                      {fastrThemeCaption(theme)}
+                    </div>
+                  </button>
+                );
+              }}
+            </For>
+          </Show>
+          <For each={isFastr ? [] : STYLE_OPTIONS}>
             {(opt) => {
               const sel: Sel = { kind: "preset", value: opt.value };
               return (
@@ -669,13 +741,15 @@ export function ReportStylePicker(p: Props) {
                   onClick={() => setSelected(sel)}
                   onDblClick={() => void create(sel)}
                 >
-                  <CustomStyleMock style={style} />
+                  <Show when={isFastr} fallback={<CustomStyleMock style={style} />}>
+                    <FastrCustomThemeMock style={style} />
+                  </Show>
                   <div class="text-base-content mt-1.5 flex items-center gap-1.5 text-sm font-semibold">
                     <span class="min-w-0 truncate">{style.label}</span>
                     <span class="bg-base-300 text-base-content rounded px-1 text-[10px] font-normal">
                       {t3({ en: "custom", fr: "perso", pt: "próprio" })}
                     </span>
-                    <Show when={style.referenceCss}>
+                    <Show when={style.referenceCss && !isFastr}>
                       {/* Carries the source report's stylesheet — high fidelity. */}
                       <span
                         class="bg-success/15 text-success rounded px-1 text-[10px] font-normal"
@@ -708,9 +782,12 @@ export function ReportStylePicker(p: Props) {
               );
             }}
           </For>
+          {/* A custom style is an AI design brief; for fastr only its palette
+              is used, so it is offered but not authored here. */}
           <button
             type="button"
             class="ui-focusable border-base-300 text-base-content-muted hover:bg-base-200 flex min-h-[190px] flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed p-1.5"
+            classList={{ hidden: isFastr }}
             onClick={() => p.close({ editStyle: {} })}
           >
             <Icon iconName="plus" class="h-6 w-6" />
@@ -726,6 +803,15 @@ export function ReportStylePicker(p: Props) {
             </span>
           </button>
         </div>
+        <Show when={isFastr && customStyles().length > 0}>
+          <div class="text-base-content-muted text-xs">
+            {t3({
+              en: "A saved style contributes only its colours here — its design brief guides the AI in HTML reports, and its stylesheet targets markup FASTR Markdown does not produce.",
+              fr: "Un style enregistré n'apporte ici que ses couleurs — son guide de style oriente l'IA dans les rapports HTML, et sa feuille de style vise un balisage que FASTR Markdown ne produit pas.",
+              pt: "Um estilo guardado contribui aqui apenas com as suas cores — o seu guia de estilo orienta a IA nos relatórios HTML, e a sua folha de estilos visa marcação que o FASTR Markdown não produz.",
+            })}
+          </div>
+        </Show>
         <StateHolderFormError state={saveState()} />
       </div>
     </ModalContainer>

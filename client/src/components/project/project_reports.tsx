@@ -1,5 +1,6 @@
 import {
   getReportFormat,
+  type ReportFormat,
   ReportGroupingMode,
   ReportPreview,
   ReportSummary,
@@ -436,7 +437,13 @@ export function ProjectReports(p: ExtendedProps) {
       reportGroupingMode() === "folders" && group && !group.startsWith("_")
         ? group
         : null;
-    let draft: { label: string; folderId: string | null } | undefined;
+    let draft:
+      | {
+        label: string;
+        folderId: string | null;
+        format: Exclude<ReportFormat, "markdown">;
+      }
+      | undefined;
     let newReportId: string | undefined;
     for (;;) {
       const formRes = await openComponent({
@@ -467,6 +474,7 @@ export function ProjectReports(p: ExtendedProps) {
             projectId: projectState.id,
             label: draft.label,
             folderId: draft.folderId,
+            format: draft.format,
           },
         });
         if (picked === undefined) {
@@ -621,9 +629,11 @@ export function ProjectReports(p: ExtendedProps) {
                 >
                   <div class="font-400 text-base-content pointer-events-none flex items-baseline gap-1.5 pb-1 text-xs italic select-none">
                     <span class="min-w-0 truncate">{report.label}</span>
-                    <Show when={getReportFormat(report.config) === "html"}>
+                    <Show when={getReportFormat(report.config) !== "markdown"}>
                       <span class="bg-base-300 text-base-content rounded px-1 text-[10px] not-italic">
-                        HTML
+                        {getReportFormat(report.config) === "html"
+                          ? "HTML"
+                          : "FASTR"}
                       </span>
                     </Show>
                   </div>

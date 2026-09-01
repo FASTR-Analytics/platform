@@ -34,6 +34,7 @@ import { resolveFigureFromMetric } from "~/components/slide_deck/slide_ai/resolv
 import { formatFigureConfigForAI } from "./_internal/format_figure_config_for_ai";
 import { validateMetricInputs } from "../validators/content_validators";
 import {
+  validateFastrContainers,
   validateReferenceCssReuse,
   validateStyledReportHasStylesheet,
   validateReportBodyDelta,
@@ -188,15 +189,20 @@ export function getClientToolsForReportEditor(
             ? ` · Style: ${readStyleName} (full-body rewrites must be fully designed pages — see the Design brief in your instructions)`
             : ` · Style: default`
           : "";
+        const formatLabel = format === "fastr" ? "FASTR Markdown" : format;
         return [
           `# REPORT EDITOR: ${view.params.reportLabel}`,
-          `Format: ${format}${styleNote}${
+          `Format: ${formatLabel}${styleNote}${
             format === "html"
               ? ` — embed tokens are ${buildReportEmbedToken("html", "figure", "<id>", "caption")}`
               : ""
+          }${
+            format === "fastr"
+              ? " — the theme supplies the design; never write CSS or a <style> block"
+              : ""
           }`,
           ``,
-          `## Current body (${format})`,
+          `## Current body (${formatLabel})`,
           body,
           ``,
           ...formatHeadingsIndex(findReportHeadings(body, format), format),
@@ -433,6 +439,7 @@ export function getClientToolsForReportEditor(
           const format = view.params.format;
           validateReportBodyLength(input.body);
           validateReportBodyForFormat(input.body, format);
+          validateFastrContainers(input.body, format);
           const styleName = view.params.customStyle?.label ??
             (view.params.htmlStyle && view.params.htmlStyle !== "default"
               ? view.params.htmlStyle
@@ -501,6 +508,7 @@ export function getClientToolsForReportEditor(
             throw new AIToolFailure(result.error);
           }
           validateReportBodyLength(result.newBody);
+          validateFastrContainers(result.newBody, format);
           validateReportTokensResolve(
             result.newBody,
             ctx.getFigures(),
@@ -557,6 +565,7 @@ export function getClientToolsForReportEditor(
             throw new AIToolFailure(result.error);
           }
           validateReportBodyLength(result.newBody);
+          validateFastrContainers(result.newBody, format);
           validateReportBodyDelta(base, result.newBody, format);
           validateReportTokensResolve(
             result.newBody,

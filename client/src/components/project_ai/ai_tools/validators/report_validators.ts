@@ -3,6 +3,7 @@ import {
   type FigureBlock,
   findReportEmbeds,
   type ImageBlock,
+  listFastrContainerDefects,
   newHtmlDefect,
   type ReportFormat,
   validateHtmlFragment,
@@ -28,7 +29,9 @@ export function validateReportTokensResolve(
   if (wrong) {
     const example = buildReportEmbedToken(format, "figure", "<id>", "caption");
     throw new AIToolFailure(
-      `This report's body is ${format.toUpperCase()}, but the edit contains a ${
+      `This report's body is ${
+        format === "fastr" ? "FASTR MARKDOWN" : format.toUpperCase()
+      }, but the edit contains a ${
         format === "html" ? "markdown" : "HTML"
       } embed token ("${wrong[0].slice(0, 60)}"). Write embed tokens as ${example} (one per line).`,
     );
@@ -78,6 +81,28 @@ export function validateReportBodyForFormat(
       `${defect}. Close every element (</div>, </p>, </section> …) and re-propose.`,
     );
   }
+}
+
+// FASTR Markdown: an unbalanced or misspelt `:::` fence renders as a block
+// that swallows the rest of the document (an unclosed container runs to EOF),
+// so it is caught before staging rather than shown to the user as a diff.
+// No-op for the other formats.
+export function validateFastrContainers(
+  body: string,
+  format: ReportFormat,
+): void {
+  if (format !== "fastr") return;
+  const defects = listFastrContainerDefects(body);
+  if (defects.length === 0) return;
+  const shown = defects
+    .slice(0, 5)
+    .map((d) => `line ${d.line}: ${d.message}`)
+    .join("\n");
+  throw new AIToolFailure(
+    `The proposed body has ${defects.length} block problem${
+      defects.length === 1 ? "" : "s"
+    }:\n${shown}\nEvery \`:::\` block except \`stat\` must be closed by a bare \`:::\` line, and block names must be ones the format defines. Fix and re-propose.`,
+  );
 }
 
 // Backstop for the styled presets (rewrite_report only): the design brief

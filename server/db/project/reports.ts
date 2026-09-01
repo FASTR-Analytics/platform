@@ -8,6 +8,7 @@ import {
   getReportCustomStyle,
   getReportFormat,
   getReportHtmlStyle,
+  type FastrReportTheme,
   getStartingBodyForReport,
   getStartingConfigForReport,
   type ImageBlock,
@@ -112,12 +113,18 @@ export async function createReport(
   format: ReportFormat = "markdown",
   htmlStyle: ReportHtmlStyle = "default",
   customStyle?: ReportCustomStyleSnapshot,
+  fastrTheme: FastrReportTheme = "default",
 ): Promise<APIResponseWithData<{ reportId: string; lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const reportId = await generateUniqueReportId(projectDb);
     const lastUpdated = new Date().toISOString();
 
-    const defaultConfig = getStartingConfigForReport(format, htmlStyle, customStyle);
+    const defaultConfig = getStartingConfigForReport(
+      format,
+      htmlStyle,
+      customStyle,
+      fastrTheme,
+    );
     const body = getStartingBodyForReport(label, format);
     await projectDb`
       INSERT INTO reports (id, label, body, figures, images, config, folder_id, last_updated)
@@ -382,8 +389,10 @@ export async function updateReportConfig(
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
-    // The body format and its html style are fixed at creation — a config
-    // write can't flip them.
+    // The body format and the report's STYLE are fixed at creation — a config
+    // write can't flip them. (A fastr report's THEME is not a fixture: it
+    // carries no CSS in the body, so the editor may change it, and it rides in
+    // through the incoming config like any other passthrough field.)
     const stored = (
       await projectDb<Pick<DBReport, "config">[]>`
         SELECT config FROM reports WHERE id = ${reportId}
@@ -402,6 +411,8 @@ export async function updateReportConfig(
         ? storedCustom
           ? { customStyle: storedCustom }
           : { htmlStyle: getReportHtmlStyle(storedConfig) }
+        : format === "fastr" && storedCustom
+        ? { customStyle: storedCustom }
         : {}),
     };
     await projectDb`

@@ -48,6 +48,8 @@ type Props = EditorComponentProps<
     getCurrentBody?: () => string;
     /** Report only: the report's body format (absent ⇒ markdown). */
     reportFormat?: ReportFormat;
+    /** Report only, fastr format: the current theme stylesheet. */
+    reportFastrThemeCss?: string;
     /** Report only: chart ink for dark styles (report_figure_raster). */
     figureInkTheme?: FigureInkTheme;
   },
@@ -266,6 +268,7 @@ export function VersionHistoryEditor(p: Props) {
                 canRestore={canRestore()}
                 getCurrentBody={p.getCurrentBody}
                 format={p.reportFormat ?? "markdown"}
+                fastrThemeCss={p.reportFastrThemeCss}
                 figureInkTheme={p.figureInkTheme}
                 onRestored={() => p.close(undefined)}
               />

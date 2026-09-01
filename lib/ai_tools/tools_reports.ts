@@ -19,7 +19,7 @@ export function getSharedToolsForReports(
     createAITool({
       name: "get_available_reports",
       description:
-        "Get a list of all reports with their IDs, labels and body format (markdown or html).",
+        "Get a list of all reports with their IDs, labels and body format (markdown, fastr or html).",
       inputSchema: z.object({}),
       handler: async () => formatReportsListForAI(reports),
       inProgressLabel: "Getting available reports...",
@@ -69,7 +69,7 @@ export function getSharedToolsForReports(
     createAITool({
       name: "create_report",
       description:
-        "Create a new MARKDOWN report with a label and a markdown body. Use markdown headings, paragraphs, bold/italic, lists, blockquotes, and tables. Do NOT embed raw HTML or figure/image tokens (figures are added later in the report editor). HTML-format reports cannot be created here — they are created in the FASTR report editor (Create report → Format: HTML). The user opens the report in the editor to review and edit it — never show a report preview in the chat.",
+        "Create a new MARKDOWN report with a label and a markdown body. Use markdown headings, paragraphs, bold/italic, lists, blockquotes, and tables. Do NOT embed raw HTML or figure/image tokens (figures are added later in the report editor). HTML and FASTR Markdown reports cannot be created here — they are created in the FASTR report editor (Create report → Format). The user opens the report in the editor to review and edit it — never show a report preview in the chat.",
       inputSchema: z.object({
         label: z.string(),
         markdown: z.string(),

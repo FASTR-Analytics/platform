@@ -315,10 +315,10 @@ the report contract
 five staged text tools (`rewrite_report {body}`, `rewrite_section {newBody}`,
 `replace_text`, `insert_figure`, `replace_figure`) declare `approval.propose`
 ([report_editor.ts](client/src/components/project_ai/ai_tools/tools/report_editor.ts)).
-They are **format-aware** (S12: a report body is markdown or html, fixed at
+They are **format-aware** (S12: a report body is markdown, FASTR Markdown or html, fixed at
 creation; the `editing_report` view params carry `format` + `htmlStyle` and
-`getEditingReportInstructions(label, format, htmlStyle)` has an html authoring
-branch — every non-default style appends its `REPORT_STYLE_BRIEFS` entry or,
+`getEditingReportInstructions(label, format, htmlStyle)` has an html and a
+FASTR Markdown authoring branch — every non-default style appends its `REPORT_STYLE_BRIEFS` entry or,
 for a CUSTOM style (S12's main-db library), the report's live-resolved brief:
 a prescriptive design language (fonts via `@import`, palette, structural
 devices, figure treatment; shared sanitizer constraints ride once at the end)
@@ -355,6 +355,20 @@ reports save failure (`update_report_figure` — no diff, the figure's body toke
 doesn't change).
 
 **Validate-before-commit.** `update_figure` (slide editor, deck level),
+The **FASTR Markdown branch is the inverse of the html one**: there the model
+designs and CSS is its output; here the design already exists as a real theme
+stylesheet, so the brief is `FASTR_MD_SYNTAX_DOC`
+([lib/fastr_markdown_spec.ts](lib/fastr_markdown_spec.ts) — the ONE reference,
+also rendered by the in-editor guide, so the two cannot drift) plus an explicit
+"never write CSS, a `<style>` block or raw layout HTML; reach for a block
+instead" — such markup would be INERT and would break the user's ability to
+re-theme. The brief deliberately never NAMES the theme: it is changeable at any
+time, so a name in the view params would go stale. `validateFastrContainers`
+([report_validators.ts](client/src/components/project_ai/ai_tools/validators/report_validators.ts))
+rejects an unbalanced or misspelt `:::` before staging — an unclosed container
+runs to EOF — and it checks the SPLICED result, not the fragment, so a locally
+balanced `newBody` that unbalances the document is still caught.
+
 `update_report_figure`, and `update_viz_config` share one pipeline —
 `applyFigureConfigPatch` → `validateFigureConfigEdit` (pure config checks:
 slots, field liveness, roll-up structure, pre-write collision) →

@@ -87,7 +87,9 @@ defineRoute(
     // A custom style is resolved server-side (authoritative visibility check)
     // and snapshotted into the report's config (live ref + snapshot fallback).
     let customStyle: ReportCustomStyleSnapshot | undefined;
-    if (body.format === "html" && body.customStyleId) {
+    if (
+      (body.format === "html" || body.format === "fastr") && body.customStyleId
+    ) {
       const styleRes = await getReportStyle(c.var.mainDb, body.customStyleId);
       if (!styleRes.success) {
         return c.json(styleRes);
@@ -115,6 +117,7 @@ defineRoute(
       body.format,
       body.htmlStyle,
       customStyle,
+      body.fastrTheme,
     );
     if (!res.success) {
       return c.json(res);

@@ -14,6 +14,10 @@ import {
   decodeReportHtmlEntities,
   type ReportFormat,
 } from "./types/reports.ts";
+import {
+  isFastrLeafBlock,
+  parseContainerFence,
+} from "./fastr_markdown_blocks.ts";
 
 export type ReportSectionMode = "flat" | "wrapper";
 
@@ -238,26 +242,67 @@ function markdownSectionEndLine(
   lines: string[],
   headingLine: number,
   level: number,
+  eligible?: boolean[],
 ): number {
   for (let i = headingLine + 1; i < lines.length; i++) {
+    if (eligible && !eligible[i]) continue;
     const m = MD_HEADING_LEVEL_RE.exec(lines[i]);
     if (m && m[1].length <= level) return i;
   }
   return lines.length;
 }
 
-function markdownHeadings(body: string): ReportHeading[] {
+// FASTR Markdown only: lines that are neither inside a fenced code block nor
+// inside a `:::` container. A heading nested in a tiles grid is decoration, not
+// a document section — indexing it would let rewrite_section splice a section
+// that starts mid-container and ends outside it, tearing the block apart.
+// Plain markdown keeps its historical every-line scan untouched.
+export function fastrTopLevelLineMask(lines: string[]): boolean[] {
+  const mask: boolean[] = [];
+  let codeFence: string | undefined;
+  let depth = 0;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    const cf = /^([`~]{3,})/.exec(trimmed);
+    if (codeFence !== undefined) {
+      mask.push(false);
+      if (cf && trimmed.startsWith(codeFence)) codeFence = undefined;
+      continue;
+    }
+    if (cf) {
+      codeFence = cf[1];
+      mask.push(false);
+      continue;
+    }
+    const fence = parseContainerFence(line);
+    if (fence === undefined) {
+      mask.push(depth === 0);
+      continue;
+    }
+    mask.push(false);
+    if (fence.kind === "open") {
+      if (!isFastrLeafBlock(fence.name)) depth++;
+    } else if (depth > 0) {
+      depth--;
+    }
+  }
+  return mask;
+}
+
+function markdownHeadings(body: string, containerAware: boolean): ReportHeading[] {
   const lines = body.split("\n");
+  const eligible = containerAware ? fastrTopLevelLineMask(lines) : undefined;
   const starts: number[] = [0];
   for (let i = 0; i < lines.length - 1; i++) {
     starts.push(starts[i] + lines[i].length + 1);
   }
   const out: ReportHeading[] = [];
   for (let i = 0; i < lines.length; i++) {
+    if (eligible && !eligible[i]) continue;
     const m = MD_HEADING_RE.exec(lines[i]);
     if (!m) continue;
     const level = m[1].length;
-    const end = markdownSectionEndLine(lines, i, level);
+    const end = markdownSectionEndLine(lines, i, level, eligible);
     let last = end - 1;
     while (last > i && lines[last].trim() === "") last--;
     out.push({
@@ -284,7 +329,7 @@ export function findReportHeadings(
   body: string,
   format: ReportFormat,
 ): ReportHeading[] {
-  if (format === "markdown") return markdownHeadings(body);
+  if (format !== "html") return markdownHeadings(body, format === "fastr");
   const lines = new LineIndex(body);
   return collectHtmlHeadings(body).map((h) => ({
     level: h.level,
@@ -383,10 +428,15 @@ export function spliceReportSection(
   );
   if ("error" in picked) return picked;
   const h = picked.heading;
-  if (format === "markdown") {
+  if (format !== "html") {
     const lines = body.split("\n");
     const start = h.line - 1;
-    const end = markdownSectionEndLine(lines, start, h.level);
+    const end = markdownSectionEndLine(
+      lines,
+      start,
+      h.level,
+      format === "fastr" ? fastrTopLevelLineMask(lines) : undefined,
+    );
     const replLines = replacement.replace(/\n+$/, "").split("\n");
     return {
       newBody: [
@@ -429,10 +479,14 @@ export function insertAfterReportHeading(
     error:
       `No section with heading "${h}" found. Call get_report_editor to see exact headings, or omit afterHeading to append at the end.`,
   });
-  if (format === "markdown") {
+  if (format !== "html") {
     if (headingText) {
       const lines = body.split("\n");
+      const eligible = format === "fastr"
+        ? fastrTopLevelLineMask(lines)
+        : undefined;
       for (let i = 0; i < lines.length; i++) {
+        if (eligible && !eligible[i]) continue;
         const m = MD_HEADING_RE.exec(lines[i]);
         if (m && headingMatches(m[2], headingText)) {
           return {

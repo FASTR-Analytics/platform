@@ -14,7 +14,9 @@
 import DOMPurify from "dompurify";
 import {
   injectReportHtmlLineAnchors,
+  renderFastrMarkdownToHtml,
   REPORT_PURIFY_CONFIG,
+  type ReportFormat,
   t3,
 } from "lib";
 
@@ -57,31 +59,48 @@ table { border-collapse: collapse; }
 *, *::before, *::after { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 `;
 
+// FASTR Markdown reports carry no CSS of their own — their whole design is the
+// theme stylesheet, which therefore has to be part of the document. It goes in
+// its own <style> AFTER the base sheet (so it wins) and is marked so the
+// preview can swap it in place when the theme changes.
+export const FASTR_THEME_STYLE_ATTR = "data-fm-theme";
+
 export function wrapReportDocument(p: {
   title: string;
   bodyHtml: string;
+  themeCss?: string;
 }): string {
   const title = p.title
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;");
+  const theme = p.themeCss
+    ? `\n<style ${FASTR_THEME_STYLE_ATTR}>${p.themeCss}</style>`
+    : "";
   return `<!doctype html>
 <html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${title}</title>
-<style>${REPORT_BASE_CSS}</style>
+<style>${REPORT_BASE_CSS}</style>${theme}
 </head>
 <body>${p.bodyHtml}</body>
 </html>`;
 }
 
-// Inject line anchors (preview only) → sanitize.
+// html: inject line anchors (preview only) → sanitize.
+// fastr: compile the markdown (anchors come from markdown-it's token.map) →
+// sanitize. Both land in the same funnel from here on.
 export function renderReportBodyHtml(
   body: string,
-  opts: { lineAnchors: boolean },
+  opts: { lineAnchors: boolean; format?: ReportFormat },
 ): string {
+  if (opts.format === "fastr") {
+    return sanitizeReportHtml(
+      renderFastrMarkdownToHtml(body, { lineAnchors: opts.lineAnchors }),
+    );
+  }
   return sanitizeReportHtml(
     opts.lineAnchors ? injectReportHtmlLineAnchors(body) : body,
   );
