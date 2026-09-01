@@ -34,6 +34,20 @@ export const FASTR_BLOCK_SNIPPETS: { name: FastrBlockName; snippet: string }[] =
       snippet:
         `:::quote{cite="Dr N. Kamara, DHMT"}\nThe data finally matches what we see in the facilities.\n:::`,
     },
+    {
+      name: "band",
+      snippet:
+        `:::band{tone=dark}\n## Where the system is failing\nThree regions have never reported on time.\n:::`,
+    },
+    {
+      name: "cover",
+      snippet:
+        `:::cover{tone=dark}\n# Quarterly review\nMinistry of Health · Q3 2026\n:::`,
+    },
+    {
+      name: "report",
+      snippet: `:::report{background=muted width=wide}`,
+    },
   ];
 
 // English, model-facing. Kept terse: the model already knows markdown, so this
@@ -69,9 +83,48 @@ Blocks (open with \`:::name{attributes}\`, close with a bare \`:::\`):
   A pull quote — larger and set apart from body text.
   :::
 
+  :::band{tone=dark}
+  A FULL-BLEED section: its background runs edge to edge while the text stays
+  in the column. The strongest device you have — use it to mark the two or
+  three moments in a report that matter.
+  :::
+
+  :::cover{tone=dark}
+  # A title page
+  Full-height, and it starts a new page when printed.
+  :::
+
+  :::report{background=muted width=normal|wide|full}
+
+Backgrounds — say the ROLE, not the colour:
+
+  tone = default | muted | accent | solid | dark | inverse | gradient
+
+  Every block takes \`tone\`, and so does \`:::report\` (as \`background=\`).
+  Each theme maps the six tones to its own palette, so \`tone=dark\` is the
+  theme's dark and stays readable when the user switches themes. Prefer a tone.
+
+  \`tone=gradient\` is the theme's own accent-into-dark sweep — reach for it
+  before writing a gradient by hand, because it re-themes with everything else.
+
+  Literals are available and DO NOT follow a theme switch, so use one only when
+  the user asks for that exact colour, gradient or image:
+    \`bg="#0b3d2e"\`
+    \`bg="linear-gradient(180deg,#0b3d2e,#0a2a20)"\`  (radial/conic/repeating too)
+    \`bg=image:<id>\` with \`overlay=dark|light|none\`
+  Text ink flips automatically from the background's luminance (for a gradient,
+  the mean of its colour stops); \`ink=light|dark\` overrides it, which a
+  full-range light-to-dark sweep needs since no single ink reads at both ends.
+
+Figures take a width: ![caption](figure:<id>){width=wide} overhangs the text
+column, \`width=full\` goes edge to edge.
+
 Rules:
-- \`stat\` is a ONE-LINE block: it takes no closing \`:::\`. Every other block
-  must be closed.
+- \`stat\` and \`report\` are ONE-LINE blocks: they take no closing \`:::\`.
+  Every other block must be closed.
+- \`report\` is the document header — put it on the first line, once.
+- \`band\` and \`cover\` are TOP-LEVEL sections; nesting one inside a card or a
+  column cannot bleed correctly.
 - Blocks nest: \`card\` belongs inside \`tiles\`, \`col\` inside \`columns\`.
   A stat reads well inside a card or a column.
 - Attribute values with spaces need quotes; a bare word is a flag.

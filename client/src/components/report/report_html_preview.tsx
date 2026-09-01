@@ -1,4 +1,9 @@
-import type { FigureBlock, ImageBlock, ReportFormat } from "lib";
+import {
+  type FigureBlock,
+  type ImageBlock,
+  readFastrDocumentSettings,
+  type ReportFormat,
+} from "lib";
 import { createEffect, on, onCleanup } from "solid-js";
 import {
   buildReportBodyNodes,
@@ -101,6 +106,13 @@ export function ReportHtmlPreview(p: Props) {
     const doc = iframe.contentDocument;
     if (!doc?.body) return;
     syncThemeCss(doc);
+    // `:::report` is part of the body, so it is re-read on every render and
+    // lands on <html> (see wrapReportDocument) rather than the text column.
+    const docSettings = p.format === "fastr"
+      ? readFastrDocumentSettings(p.body)
+      : undefined;
+    doc.documentElement.className = docSettings?.className ?? "";
+    doc.documentElement.setAttribute("style", docSettings?.style ?? "");
     const html = renderReportBodyHtml(p.body, {
       lineAnchors: p.lineAnchors,
       format: p.format,
