@@ -23,6 +23,8 @@ function blockLabel(name: FastrBlockName): string {
       return t3({ en: "Full-width band", fr: "Bandeau pleine largeur", pt: "Faixa de largura total" });
     case "cover":
       return t3({ en: "Cover page", fr: "Page de couverture", pt: "Página de capa" });
+    case "steps":
+      return t3({ en: "Numbered steps", fr: "Étapes numérotées", pt: "Passos numerados" });
     case "report":
       return t3({ en: "Page setup", fr: "Mise en page", pt: "Configuração da página" });
     case "card":
@@ -74,6 +76,12 @@ function blockCaption(name: FastrBlockName): string {
         en: "A full-height title page",
         fr: "Une page de titre pleine hauteur",
         pt: "Uma página de título de altura total",
+      });
+    case "steps":
+      return t3({
+        en: "A process list that numbers itself",
+        fr: "Une liste d'étapes qui se numérote seule",
+        pt: "Uma lista de passos que se numera sozinha",
       });
     case "report":
       return t3({

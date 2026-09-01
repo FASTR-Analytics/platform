@@ -45,6 +45,11 @@ export const FASTR_BLOCK_SNIPPETS: { name: FastrBlockName; snippet: string }[] =
         `:::cover{tone=dark}\n# Quarterly review\nMinistry of Health · Q3 2026\n:::`,
     },
     {
+      name: "steps",
+      snippet:
+        `:::steps\nInvestigate the two weakest regions first.\n\nDocument what the strongest region changed.\n\nRe-read this once a full year of data is in.\n:::`,
+    },
+    {
       name: "report",
       snippet: `:::report{background=muted width=wide}`,
     },
@@ -89,9 +94,16 @@ Blocks (open with \`:::name{attributes}\`, close with a bare \`:::\`):
   three moments in a report that matter.
   :::
 
-  :::cover{tone=dark}
+  :::cover{tone=dark kicker="Ministry of Health · Q3 2026" sub="Prepared for the quarterly review"}
   # A title page
-  Full-height, and it starts a new page when printed.
+  :::
+  \`kicker\` is the small letterspaced line above the title, \`sub\` the
+  rule-topped standfirst below it. Both also work on \`band\`.
+
+  :::steps
+  One paragraph per step. They are numbered automatically.
+
+  Insert or reorder a step and the numbering follows.
   :::
 
   :::report{background=muted width=normal|wide|full}
@@ -118,6 +130,30 @@ Backgrounds — say the ROLE, not the colour:
 
 Figures take a width: ![caption](figure:<id>){width=wide} overhangs the text
 column, \`width=full\` goes edge to edge.
+
+Composing a report — this matters as much as the syntax:
+
+  A plain run of headings and paragraphs will render correctly and look
+  ordinary. The blocks are what make a report read as DESIGNED, and a report
+  that uses none of them wastes the format. Unless the user asks for something
+  plainer, build to roughly this shape:
+
+  - OPEN with \`:::cover\`, carrying a kicker and a sub. It is the masthead.
+  - Put the two or three headline numbers in a \`:::tiles\` row of \`:::stat\`
+    blocks. Give the one that matters most \`tone=solid\` so it reads as the
+    finding, not one of three.
+  - Mark the two or three TURNING POINTS of the argument with \`:::band\`.
+    A band is the strongest device you have; three is a rhythm, seven is noise.
+  - When the story has two sides — gaining and slipping, before and after,
+    what changed and what did not — put them in \`:::columns\` and give the
+    two columns DIFFERENT tones. The contrast does the explaining.
+  - Recommendations and next steps belong in \`:::steps\`, not a bare list.
+  - Caveats, definitions and sources belong in \`:::callout\`.
+  - CLOSE with a short \`:::band{tone=inverse}\` — a colophon line.
+
+  Vary the tones so consecutive blocks differ, and keep ordinary analysis in
+  ordinary paragraphs: a report where everything is a block has no emphasis
+  left. Aim for roughly one block per two or three paragraphs of prose.
 
 Rules:
 - \`stat\` and \`report\` are ONE-LINE blocks: they take no closing \`:::\`.

@@ -685,3 +685,21 @@ Deno.test("all 18 themes build, and every html style name now has one", async ()
   const themes = new Set<string>(FASTR_REPORT_THEMES);
   assertEquals(REPORT_HTML_STYLES.filter((s) => !themes.has(s)), []);
 });
+
+// The scope rewriter runs line-by-line over each theme's extraCss. A comment
+// line preceding a rule once swallowed that rule's selector (the negated class
+// matched newlines), leaving it unscoped so a picker tile repainted the whole
+// app. Comments are ordinary in the themes now, so this is pinned per theme.
+Deno.test("a comment in a theme's extraCss does not unscope the next rule", () => {
+  for (const theme of FASTR_REPORT_THEMES) {
+    const css = buildFastrReportCss(theme, undefined, ".tile", {
+      omitFontImport: true,
+    });
+    for (const line of css.split("\n")) {
+      assert(
+        !/^\.fm-[\w-]+[^{]*\{/.test(line),
+        `${theme} leaks an unscoped rule: ${line}`,
+      );
+    }
+  }
+});

@@ -11,6 +11,7 @@
 // brief that teaches the block vocabulary.
 // =============================================================================
 
+import { cssColorLuminance } from "./fastr_markdown_blocks.ts";
 import {
   FASTR_SEMANTIC_COLORS,
   FASTR_THEME_TOKENS,
@@ -41,6 +42,21 @@ function semanticVarsCss(scheme: "light" | "dark"): string {
 
 const ON_DARK_GROUND = semanticVarsCss("dark");
 const ON_LIGHT_GROUND = semanticVarsCss("light");
+
+// An accent is a GROUND colour first; using it as TEXT only works when it
+// separates from the surface it sits on. Brutalist's #ffff00 on a near-white
+// stat tile is invisible — so the stat value and the default callout rule are
+// painted with --fm-accent-text, which falls back to the ink when the accent
+// cannot carry text. Computed rather than hand-judged per theme, so it also
+// protects future themes and a custom style's colour override.
+const MIN_TEXT_SEPARATION = 0.25;
+
+function accentTextFor(accent: string, surface: string, ink: string): string {
+  const a = cssColorLuminance(accent);
+  const s = cssColorLuminance(surface);
+  if (a === undefined || s === undefined) return accent;
+  return Math.abs(a - s) < MIN_TEXT_SEPARATION ? ink : accent;
+}
 
 export function buildFastrThemeVarsCss(
   tokens: FastrThemeTokens,
@@ -73,6 +89,7 @@ export function buildFastrThemeVarsCss(
   --fm-tone-dark-ink: ${tokens.toneDarkInk};
   --fm-solid-bg: ${accent};
   --fm-inverse-bg: ${ink};
+  --fm-accent-text: ${accentTextFor(accent, tokens.surfaceAlt, ink)};
 ${semanticVarsCss(tokens.scheme)}
 }`;
 }
@@ -167,7 +184,7 @@ ${d}.fm-callout__title {
   color: var(--fm-callout-color);
   margin-bottom: 0.35em;
 }
-${d}.fm-callout--note { --fm-callout-color: var(--fm-accent); }
+${d}.fm-callout--note { --fm-callout-color: var(--fm-accent-text); }
 ${d}.fm-callout--info { --fm-callout-color: var(--fm-info); }
 ${d}.fm-callout--success { --fm-callout-color: var(--fm-success); }
 ${d}.fm-callout--warning { --fm-callout-color: var(--fm-warning); }
@@ -213,7 +230,7 @@ ${d}.fm-stat__value {
   font-weight: var(--fm-heading-weight);
   letter-spacing: var(--fm-heading-tracking);
   line-height: 1.05;
-  color: var(--fm-accent);
+  color: var(--fm-accent-text);
 }
 ${d}.fm-stat__label {
   font-size: 0.85em;
@@ -342,6 +359,14 @@ ${d}.fm-tone--inverse {
   --fm-surface-alt: color-mix(in srgb, var(--fm-page) 16%, transparent);
 ${ON_DARK_GROUND}
 }
+/* A theme may paint a heading WITH the accent (a highlighter mark). On a ground
+   that is already the accent, that renders the heading invisible — so any
+   accent ground clears it. Discovered as a blank yellow cover. */
+${d}.fm-tone--solid h1, ${d}.fm-tone--solid h2, ${d}.fm-tone--solid h3,
+${d}.fm-card--accent h1, ${d}.fm-card--accent h2, ${d}.fm-card--accent h3 {
+  background: none;
+  padding-inline: 0;
+}
 /* The historical card flag is the old spelling of tone=solid. */
 ${d}.fm-card--accent {
   background: var(--fm-solid-bg);
@@ -392,7 +417,7 @@ ${d}.fm-band {
 ${d}.fm-band > :first-child { margin-top: 0; }
 ${d}.fm-band > :last-child { margin-bottom: 0; }
 ${d}.fm-cover {
-  min-height: 78vh;
+  min-height: min(72vh, 34rem);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -400,6 +425,53 @@ ${d}.fm-cover {
   break-after: page;
 }
 ${d}.fm-cover h1 { font-size: 3em; }
+/* Masthead lines: the kicker sits above the title, the dek below a rule. */
+${d}.fm-kicker {
+  font-family: var(--fm-font-heading);
+  font-size: 0.75em;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--fm-ink-muted);
+  margin-bottom: 0.9em;
+}
+${d}.fm-dek {
+  margin-top: 1em;
+  padding-top: 0.7em;
+  border-top: var(--fm-border-width) solid currentColor;
+  font-size: 0.95em;
+  font-weight: 700;
+}
+
+/* ── Steps: a numbered process list ───────────────────────────────────────── */
+/* The numbers are a CSS counter, so the author writes plain paragraphs and
+   never renumbers by hand when a step is inserted. */
+${d}.fm-steps {
+  counter-reset: fm-step;
+  margin: 1.6em 0;
+  border: var(--fm-border-width) solid var(--fm-border);
+  border-radius: var(--fm-radius);
+  background: var(--fm-surface);
+}
+${d}.fm-steps > * {
+  counter-increment: fm-step;
+  position: relative;
+  margin: 0;
+  padding: 1em 1.2em 1em 4.2em;
+  border-bottom: 1px solid var(--fm-border);
+}
+${d}.fm-steps > :last-child { border-bottom: none; }
+${d}.fm-steps > *::before {
+  content: counter(fm-step, decimal-leading-zero);
+  position: absolute;
+  left: 1.2em;
+  top: 1em;
+  font-family: var(--fm-font-heading);
+  font-weight: 700;
+  font-size: 0.85em;
+  line-height: 1.5;
+  color: var(--fm-accent-text);
+}
 
 /* ── Image backgrounds (resolved from the image registry at render time) ──── */
 ${d}.fm-has-bgimage {
@@ -493,8 +565,11 @@ export function buildFastrReportCss(
     : scope === ""
     ? tokens.extraCss
     // Scoped tiles need the theme's own rules scoped too; extraCss is written
-    // one selector-list per line, which keeps this rewrite honest.
-    : tokens.extraCss.replace(/^([^@\s][^{]*)\{/gm, (_m, sel: string) =>
+    // one selector-list per line, which keeps this rewrite honest. The class
+    // excludes a NEWLINE as well as a brace: `[^{]` matches newlines, so a
+    // comment line swallowed the selector on the line after it and left that
+    // rule unscoped — caught by the leak test, invisible in the output.
+    : tokens.extraCss.replace(/^([^@\s][^{\n]*)\{/gm, (_m, sel: string) =>
       `${
         sel
           .split(",")
