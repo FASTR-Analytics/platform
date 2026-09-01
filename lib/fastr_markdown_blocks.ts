@@ -27,6 +27,7 @@ export const FASTR_BLOCK_NAMES = [
   "quote",
   "band",
   "cover",
+  "steps",
   "report",
 ] as const;
 export type FastrBlockName = (typeof FASTR_BLOCK_NAMES)[number];
@@ -253,6 +254,12 @@ function parseColorChannels(
   const parts = m[1].split(/[,\s/]+/).filter((x) => x.length > 0).map(parseFloat);
   if (parts.length < 3 || parts.some((x) => Number.isNaN(x))) return undefined;
   return { r: parts[0], g: parts[1], b: parts[2] };
+}
+
+// Exported for the stylesheet builder, which has to decide at build time
+// whether a theme's accent can serve as TEXT on that theme's own surface.
+export function cssColorLuminance(v: string): number | undefined {
+  return luminanceOf(v);
 }
 
 function luminanceOf(v: string): number | undefined {
@@ -544,19 +551,30 @@ function blockShapeFor(
       };
     }
     // A full-bleed section: it escapes the text column entirely, which is the
-    // single device that most makes a report read as designed.
+    // single device that most makes a report read as designed. `kicker` and
+    // `sub` are the masthead lines above and below the title — the small
+    // letterspaced line and the rule-topped standfirst.
     case "band":
       return {
         tag: "section",
         className: "fm-band",
-        leadingHtml: "",
-        trailingHtml: "",
+        leadingHtml: titleHtml("fm-kicker", attrText(attrs, "kicker")),
+        trailingHtml: titleHtml("fm-dek", attrText(attrs, "sub")),
       };
     // A title page — full bleed and tall, and it breaks the page in print.
     case "cover":
       return {
         tag: "section",
         className: "fm-band fm-cover",
+        leadingHtml: titleHtml("fm-kicker", attrText(attrs, "kicker")),
+        trailingHtml: titleHtml("fm-dek", attrText(attrs, "sub")),
+      };
+    // A numbered process list. The numbers come from a CSS counter, so the
+    // author writes plain paragraphs and never renumbers by hand.
+    case "steps":
+      return {
+        tag: "div",
+        className: "fm-steps",
         leadingHtml: "",
         trailingHtml: "",
       };

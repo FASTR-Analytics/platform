@@ -304,7 +304,9 @@ you type is what you get. Syntax primitives are pure and Deno-testable in
 [lib/report_fastr_markdown.ts](lib/report_fastr_markdown.ts) is the markdown-it
 compiler (one generic block rule, depth-counted so `:::tiles`/`:::card`/`:::`
 nests at the same marker length; `stat` is a LEAF block taking no close). Blocks:
-`callout` (5 kinds), `tiles`/`card`, `stat`, `columns`/`col`, `quote`; an
+`callout` (5 kinds), `tiles`/`card`, `stat`, `columns`/`col`, `quote`, `band`,
+`cover` (both taking `kicker`/`sub` masthead lines) and `steps` (a process list
+numbered by a CSS counter, so inserting a step never renumbers by hand); an
 unknown name still groups its content (a typo must never swallow the document)
 and is reported as a defect. Two things the html format cannot do, because we
 own the renderer: `data-line` anchors come from markdown-it's own `token.map`
@@ -397,6 +399,28 @@ classes go on **`<html>`** — the page ground has to reach past the centred
 column, so `body` is transparent and only the root carries it. `background`
 takes either a tone name or a literal; resolving which BEFORE the colour path is
 load-bearing (`background=muted` once emitted `background-color: muted`).
+
+**How a theme carries a design language.** A token block sets the palette and
+type; the theme's `extraCss` is what makes it recognisable, and it is NOT
+optional garnish — a theme with three rules of its own renders correctly and
+reads ordinary. Measured against the html-format brief (where the model writes
+~150 lines of bespoke CSS per report), a thin theme is exactly the gap. Each
+theme now carries 15-25 rules covering the same six devices — `h2` rule,
+`.fm-figure` frame + caption treatment, `.fm-stat`, `.fm-quote`, `.fm-steps`
+and the table — because those are what change how a report READS. The scope
+rewriter runs line by line over `extraCss`, so a rule must keep its whole
+selector list on one line: `[^{]` matches newlines, and a comment line
+therefore swallowed the selector after it and left that rule unscoped (a picker
+tile repainting the whole app — invisible in output, caught by the leak test).
+
+**Two rules that are not obvious from the token model.** An accent is a GROUND
+colour: using it as TEXT only works where it separates from the surface beneath.
+Brutalist's `#ffff00` on a near-white stat tile is invisible, so
+`--fm-accent-text` is computed at build time (luminance separation < 0.25 falls
+back to the ink) and used wherever the accent is type. And a theme that paints a
+heading WITH the accent — brutalist's highlighter `h1` — renders it invisible on
+a ground that is already the accent, so any accent ground clears the heading
+background.
 
 **Editor** ([report/index.tsx](client/src/components/report/index.tsx), ~1,700
 LOC): CodeMirror 6 (`lang-markdown` or `lang-html` per format) with an
