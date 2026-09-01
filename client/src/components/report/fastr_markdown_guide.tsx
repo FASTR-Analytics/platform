@@ -19,6 +19,12 @@ function blockLabel(name: FastrBlockName): string {
       return t3({ en: "Columns", fr: "Colonnes", pt: "Colunas" });
     case "quote":
       return t3({ en: "Pull quote", fr: "Citation en exergue", pt: "Citação em destaque" });
+    case "band":
+      return t3({ en: "Full-width band", fr: "Bandeau pleine largeur", pt: "Faixa de largura total" });
+    case "cover":
+      return t3({ en: "Cover page", fr: "Page de couverture", pt: "Página de capa" });
+    case "report":
+      return t3({ en: "Page setup", fr: "Mise en page", pt: "Configuração da página" });
     case "card":
     case "col":
       return name;
@@ -57,6 +63,24 @@ function blockCaption(name: FastrBlockName): string {
         fr: "Une citation détachée du texte",
         pt: "Uma citação destacada do texto",
       });
+    case "band":
+      return t3({
+        en: "A coloured section running edge to edge",
+        fr: "Une section colorée d'un bord à l'autre",
+        pt: "Uma secção colorida de bordo a bordo",
+      });
+    case "cover":
+      return t3({
+        en: "A full-height title page",
+        fr: "Une page de titre pleine hauteur",
+        pt: "Uma página de título de altura total",
+      });
+    case "report":
+      return t3({
+        en: "Page background and column width, set once at the top",
+        fr: "Fond de page et largeur de colonne, définis une fois en haut",
+        pt: "Fundo da página e largura da coluna, definidos uma vez no topo",
+      });
     case "card":
     case "col":
       return "";
@@ -94,9 +118,9 @@ export function FastrMarkdownGuide(p: { onInsert?: (snippet: string) => void }) 
       </For>
       <div class="text-base-content-muted pt-1 text-xs">
         {t3({
-          en: "Close every block with ::: on its own line (a statistic is one line and needs no close). The look comes from the report's theme — you never write CSS.",
-          fr: "Fermez chaque bloc par ::: sur sa propre ligne (une statistique tient sur une ligne et n'a pas besoin de fermeture). L'apparence vient du thème du rapport — vous n'écrivez jamais de CSS.",
-          pt: "Feche cada bloco com ::: numa linha própria (uma estatística ocupa uma linha e não precisa de fecho). O aspeto vem do tema do relatório — nunca escreve CSS.",
+          en: "Close every block with ::: on its own line (a statistic and page setup are one line and need no close). Add tone=muted, accent, solid, dark, inverse or gradient to any block for a background that follows the theme.",
+          fr: "Fermez chaque bloc par ::: sur sa propre ligne (une statistique et la mise en page tiennent sur une ligne, sans fermeture). Ajoutez tone=muted, accent, solid, dark, inverse ou gradient à n'importe quel bloc pour un fond qui suit le thème.",
+          pt: "Feche cada bloco com ::: numa linha própria (uma estatística e a configuração da página ocupam uma linha e não precisam de fecho). Adicione tone=muted, accent, solid, dark, inverse ou gradient a qualquer bloco para um fundo que segue o tema.",
         })}
       </div>
     </div>

@@ -206,3 +206,38 @@ Deno.test("markup in a FASTR block attribute is escaped, not executed", () => {
   assertStringIncludes(out, "&lt;img src=x onerror=alert(1)&gt;");
   assert(!/<img\b/.test(out));
 });
+
+// The literal-background escape hatch only works if the sanitizer keeps an
+// inline standard declaration and the data attribute the client resolves.
+Deno.test("keeps FASTR block backgrounds: inline colour and data-bg-image", () => {
+  const out = clean(
+    renderFastrMarkdownToHtml(
+      `:::band{bg="#0b3d2e"}\ndark band\n:::\n\n` +
+        `:::band{bg=image:${ID}}\nphoto band\n:::\n\n` +
+        `:::band{tone=dark}\ntoned band\n:::\n`,
+      { lineAnchors: false },
+    ),
+  );
+  assertStringIncludes(out, "background-color: #0b3d2e");
+  assertStringIncludes(out, `data-bg-image="image:${ID}"`);
+  assertStringIncludes(out, "fm-has-bgimage");
+  assertStringIncludes(out, "fm-overlay fm-overlay--dark");
+  assertStringIncludes(out, "fm-ink--light");
+  assertStringIncludes(out, "fm-tone fm-tone--dark");
+  assertStringIncludes(out, "<section class=");
+});
+
+// Gradients are the one background html reports could paint that a tone cannot,
+// so the whole feature rests on DOMPurify keeping the inline shorthand.
+Deno.test("keeps a gradient background in the inline style", () => {
+  const out = clean(
+    renderFastrMarkdownToHtml(
+      ':::band{bg="linear-gradient(180deg,#0b3d2e,#0a2a20)"}\nsweep\n:::\n\n' +
+        ":::cover{tone=gradient}\n# T\n:::\n",
+      { lineAnchors: false },
+    ),
+  );
+  assertStringIncludes(out, "linear-gradient(180deg,#0b3d2e,#0a2a20)");
+  assertStringIncludes(out, "fm-ink--light");
+  assertStringIncludes(out, "fm-tone fm-tone--gradient");
+});

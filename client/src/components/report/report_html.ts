@@ -13,6 +13,7 @@
 
 import DOMPurify from "dompurify";
 import {
+  escapeReportHtml,
   injectReportHtmlLineAnchors,
   renderFastrMarkdownToHtml,
   REPORT_PURIFY_CONFIG,
@@ -69,6 +70,11 @@ export function wrapReportDocument(p: {
   title: string;
   bodyHtml: string;
   themeCss?: string;
+  // FASTR Markdown `:::report` settings. They go on <html>, not <body>: the
+  // page ground has to reach past the centred text column, and --fm-measure
+  // has to be in scope for the full-bleed bands inside body.
+  documentClass?: string;
+  documentStyle?: string;
 }): string {
   const title = p.title
     .replaceAll("&", "&amp;")
@@ -77,8 +83,12 @@ export function wrapReportDocument(p: {
   const theme = p.themeCss
     ? `\n<style ${FASTR_THEME_STYLE_ATTR}>${p.themeCss}</style>`
     : "";
+  const docAttrs = [
+    p.documentClass ? ` class="${escapeReportHtml(p.documentClass)}"` : "",
+    p.documentStyle ? ` style="${escapeReportHtml(p.documentStyle)}"` : "",
+  ].join("");
   return `<!doctype html>
-<html>
+<html${docAttrs}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -215,6 +225,25 @@ export function materializeReportEmbeds(
   }
 }
 
+// FASTR Markdown block backgrounds: `bg=image:<id>` compiles to
+// data-bg-image="image:<id>" on the block, resolved here against the SAME image
+// registry as an inline embed. The source token stays in the body text, so the
+// load-time orphan prune's loose scan keeps the asset alive.
+export function materializeReportBackgrounds(
+  root: ParentNode,
+  resolveImage: (id: string) => string | undefined,
+): void {
+  for (
+    const el of Array.from(root.querySelectorAll<HTMLElement>("[data-bg-image]"))
+  ) {
+    const m = EMBED_SRC_RE.exec((el.getAttribute("data-bg-image") ?? "").trim());
+    if (!m || m[1] !== "image") continue;
+    const url = resolveImage(m[2]);
+    if (!url) continue;
+    el.style.backgroundImage = `url("${url.replaceAll('"', "%22")}")`;
+  }
+}
+
 // Sanitized html → live nodes in `doc` with embeds materialized. Building in a
 // <template> keeps everything inert (no CSS/loads) until the caller adopts it.
 export function buildReportBodyNodes(
@@ -226,6 +255,7 @@ export function buildReportBodyNodes(
   const tpl = doc.createElement("template");
   tpl.innerHTML = sanitizedHtml;
   materializeReportEmbeds(tpl.content, resolveFigure, resolveImage);
+  materializeReportBackgrounds(tpl.content, resolveImage);
   return tpl.content;
 }
 

@@ -108,7 +108,12 @@ function MockContent() {
       <h2>{t3({ en: "Findings", fr: "Constats", pt: "Constatações" })}</h2>
       <i class="fmt-bar" style={{ width: "96%" }} />
       <i class="fmt-bar" style={{ width: "88%" }} />
-      <i class="fmt-bar" style={{ width: "62%" }} />
+      {/* The theme's own dark ground — the thing a full-width band paints, and
+          the clearest difference between one theme's dark and another's. */}
+      <div class="fm-band fm-tone fm-tone--dark">
+        <i class="fmt-bar" style={{ width: "70%" }} />
+        <i class="fmt-bar" style={{ width: "48%" }} />
+      </div>
     </>
   );
 }

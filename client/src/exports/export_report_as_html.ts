@@ -7,6 +7,7 @@ import {
   getReportCustomStyle,
   getReportFormat,
   getReportHtmlStyle,
+  readFastrDocumentSettings,
   type ReportDetail,
   renderFastrMarkdownToHtml,
 } from "lib";
@@ -62,8 +63,17 @@ export async function buildStandaloneReportHtml(
       renderFastrMarkdownToHtml(detail.body, { lineAnchors: false }),
     )
     : sanitizeReportHtml(detail.body);
+  const docSettings = isFastr
+    ? readFastrDocumentSettings(detail.body)
+    : undefined;
   const darkGrounds = await measureFigureGrounds(
-    wrapReportDocument({ title: detail.label, bodyHtml: sanitized, themeCss }),
+    wrapReportDocument({
+      title: detail.label,
+      bodyHtml: sanitized,
+      themeCss,
+      documentClass: docSettings?.className,
+      documentStyle: docSettings?.style,
+    }),
   );
   const fastrTokens = FASTR_THEME_TOKENS[fastrTheme];
   const lightInk = (isFastr
@@ -125,6 +135,8 @@ export async function buildStandaloneReportHtml(
     title: detail.label,
     bodyHtml: holder.innerHTML,
     themeCss,
+    documentClass: docSettings?.className,
+    documentStyle: docSettings?.style,
   });
 }
 

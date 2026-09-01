@@ -12,6 +12,7 @@
 // =============================================================================
 
 import {
+  FASTR_SEMANTIC_COLORS,
   FASTR_THEME_TOKENS,
   type FastrReportTheme,
   type FastrThemeColorOverride,
@@ -25,6 +26,21 @@ function selectors(scope: string): { root: string; d: string; vars: string } {
     ? { root: "html, body", d: "", vars: ":root" }
     : { root: scope, d: `${scope} `, vars: scope };
 }
+
+// Callout kinds and stat deltas mean something, so they are not part of the
+// palette — but a fixed light-page set is unreadable on a dark theme, and on a
+// dark BAND inside a light theme. One block, emitted at the root from the
+// theme's scheme and re-emitted by every rule that establishes a dark ground.
+function semanticVarsCss(scheme: "light" | "dark"): string {
+  const c = FASTR_SEMANTIC_COLORS[scheme];
+  return `  --fm-info: ${c.info};
+  --fm-success: ${c.success};
+  --fm-warning: ${c.warning};
+  --fm-danger: ${c.danger};`;
+}
+
+const ON_DARK_GROUND = semanticVarsCss("dark");
+const ON_LIGHT_GROUND = semanticVarsCss("light");
 
 export function buildFastrThemeVarsCss(
   tokens: FastrThemeTokens,
@@ -53,6 +69,11 @@ export function buildFastrThemeVarsCss(
   --fm-heading-case: ${tokens.headingCase};
   --fm-measure: ${tokens.measure};
   --fm-callout-color: ${accent};
+  --fm-tone-dark: ${tokens.toneDark};
+  --fm-tone-dark-ink: ${tokens.toneDarkInk};
+  --fm-solid-bg: ${accent};
+  --fm-inverse-bg: ${ink};
+${semanticVarsCss(tokens.scheme)}
 }`;
 }
 
@@ -64,7 +85,12 @@ ${root} {
   color: var(--fm-ink);
   font-family: var(--fm-font-body);
 }
-${d}body { max-width: var(--fm-measure); }
+/* The PAGE ground lives on <html>, not <body>: a full-bleed band is a body
+   child that escapes the column with a viewport-width negative margin, and
+   document-level settings (:::report) are applied to <html> so they cover the
+   whole page rather than just the text column. overflow-x on the root absorbs
+   the scrollbar width that 100vw would otherwise overflow by. */
+${d}body { max-width: var(--fm-measure); background: transparent; }
 ${d}h1, ${d}h2, ${d}h3, ${d}h4, ${d}h5, ${d}h6 {
   font-family: var(--fm-font-heading);
   font-weight: var(--fm-heading-weight);
@@ -142,10 +168,10 @@ ${d}.fm-callout__title {
   margin-bottom: 0.35em;
 }
 ${d}.fm-callout--note { --fm-callout-color: var(--fm-accent); }
-${d}.fm-callout--info { --fm-callout-color: #2563eb; }
-${d}.fm-callout--success { --fm-callout-color: #15803d; }
-${d}.fm-callout--warning { --fm-callout-color: #b45309; }
-${d}.fm-callout--danger { --fm-callout-color: #b91c1c; }
+${d}.fm-callout--info { --fm-callout-color: var(--fm-info); }
+${d}.fm-callout--success { --fm-callout-color: var(--fm-success); }
+${d}.fm-callout--warning { --fm-callout-color: var(--fm-warning); }
+${d}.fm-callout--danger { --fm-callout-color: var(--fm-danger); }
 
 /* ── Tiles & cards ────────────────────────────────────────────────────────── */
 ${d}.fm-tiles {
@@ -165,13 +191,6 @@ ${d}.fm-card {
   padding: 1em 1.1em;
 }
 ${d}.fm-card > :last-child { margin-bottom: 0; }
-${d}.fm-card--accent {
-  background: var(--fm-accent);
-  border-color: var(--fm-accent);
-  color: var(--fm-accent-ink);
-}
-${d}.fm-card--accent .fm-card__title,
-${d}.fm-card--accent a { color: var(--fm-accent-ink); }
 ${d}.fm-card__title {
   font-family: var(--fm-font-heading);
   font-weight: 700;
@@ -209,9 +228,18 @@ ${d}.fm-stat__delta {
   padding: 0.1em 0.45em;
   border-radius: 999px;
 }
-${d}.fm-stat__delta--up { color: #15803d; background: rgba(21, 128, 61, 0.12); }
-${d}.fm-stat__delta--down { color: #b91c1c; background: rgba(185, 28, 28, 0.12); }
-${d}.fm-stat__delta--flat { color: var(--fm-ink-muted); background: rgba(0, 0, 0, 0.06); }
+${d}.fm-stat__delta--up {
+  color: var(--fm-success);
+  background: color-mix(in srgb, var(--fm-success) 16%, transparent);
+}
+${d}.fm-stat__delta--down {
+  color: var(--fm-danger);
+  background: color-mix(in srgb, var(--fm-danger) 16%, transparent);
+}
+${d}.fm-stat__delta--flat {
+  color: var(--fm-ink-muted);
+  background: color-mix(in srgb, var(--fm-ink) 8%, transparent);
+}
 
 /* ── Columns ──────────────────────────────────────────────────────────────── */
 ${d}.fm-columns {
@@ -252,18 +280,189 @@ ${d}.fm-quote__cite {
 
 /* Unknown block name — still groups its content rather than swallowing it. */
 ${d}.fm-block { margin: 1.2em 0; }
+
+/* ── Tones: grounds by ROLE ───────────────────────────────────────────────── */
+/* A tone re-scopes the ink TOKENS rather than setting color directly, so every
+   descendant that reads --fm-ink (headings, muted labels, borders, rules)
+   follows the ground automatically. That is also why a dark band re-inks its
+   charts: the raster ground probe reads the computed background behind the
+   figure, which these rules paint. */
+/* The colour must be re-declared here, not just the token: an element inherits
+   its parent's COMPUTED colour, which was resolved against the root ink before
+   this block re-scoped --fm-ink. Headings re-resolve it (they set colour
+   explicitly); paragraphs would otherwise stay dark on a dark band. */
+${d}.fm-tone { background: var(--fm-surface); color: var(--fm-ink); }
+${d}.fm-tone--muted { background: var(--fm-surface-alt); }
+${d}.fm-tone--accent {
+  background: color-mix(in srgb, var(--fm-accent) 12%, var(--fm-page));
+}
+${d}.fm-tone--solid {
+  background: var(--fm-solid-bg);
+  --fm-ink: var(--fm-accent-ink);
+  --fm-ink-muted: color-mix(in srgb, var(--fm-accent-ink) 72%, transparent);
+  --fm-border: color-mix(in srgb, var(--fm-accent-ink) 30%, transparent);
+  --fm-accent: var(--fm-accent-ink);
+  --fm-callout-color: var(--fm-accent-ink);
+  --fm-surface: color-mix(in srgb, var(--fm-accent-ink) 14%, transparent);
+  --fm-surface-alt: color-mix(in srgb, var(--fm-accent-ink) 20%, transparent);
+${ON_DARK_GROUND}
+}
+${d}.fm-tone--dark {
+  background: var(--fm-tone-dark);
+  --fm-ink: var(--fm-tone-dark-ink);
+  --fm-accent: var(--fm-tone-dark-ink);
+  --fm-callout-color: var(--fm-tone-dark-ink);
+  --fm-ink-muted: color-mix(in srgb, var(--fm-tone-dark-ink) 70%, transparent);
+  --fm-border: color-mix(in srgb, var(--fm-tone-dark-ink) 26%, transparent);
+  --fm-surface: color-mix(in srgb, var(--fm-tone-dark-ink) 10%, transparent);
+  --fm-surface-alt: color-mix(in srgb, var(--fm-tone-dark-ink) 16%, transparent);
+${ON_DARK_GROUND}
+}
+/* Reads --fm-tone-dark and --fm-solid-bg, neither of which it redefines — see
+   the structural test guarding that rule. */
+${d}.fm-tone--gradient {
+  background: linear-gradient(160deg, var(--fm-tone-dark), var(--fm-solid-bg));
+  --fm-ink: var(--fm-tone-dark-ink);
+  --fm-accent: var(--fm-tone-dark-ink);
+  --fm-callout-color: var(--fm-tone-dark-ink);
+  --fm-ink-muted: color-mix(in srgb, var(--fm-tone-dark-ink) 70%, transparent);
+  --fm-border: color-mix(in srgb, var(--fm-tone-dark-ink) 26%, transparent);
+  --fm-surface: color-mix(in srgb, var(--fm-tone-dark-ink) 10%, transparent);
+  --fm-surface-alt: color-mix(in srgb, var(--fm-tone-dark-ink) 16%, transparent);
+${ON_DARK_GROUND}
+}
+${d}.fm-tone--inverse {
+  background: var(--fm-inverse-bg);
+  --fm-ink: var(--fm-page);
+  --fm-accent: var(--fm-page);
+  --fm-callout-color: var(--fm-page);
+  --fm-ink-muted: color-mix(in srgb, var(--fm-page) 70%, transparent);
+  --fm-border: color-mix(in srgb, var(--fm-page) 26%, transparent);
+  --fm-surface: color-mix(in srgb, var(--fm-page) 10%, transparent);
+  --fm-surface-alt: color-mix(in srgb, var(--fm-page) 16%, transparent);
+${ON_DARK_GROUND}
+}
+/* The historical card flag is the old spelling of tone=solid. */
+${d}.fm-card--accent {
+  background: var(--fm-solid-bg);
+  border-color: var(--fm-solid-bg);
+  --fm-ink: var(--fm-accent-ink);
+  --fm-ink-muted: color-mix(in srgb, var(--fm-accent-ink) 72%, transparent);
+  --fm-accent: var(--fm-accent-ink);
+  --fm-callout-color: var(--fm-accent-ink);
+  color: var(--fm-accent-ink);
+${ON_DARK_GROUND}
+}
+${d}.fm-card--accent .fm-card__title,
+${d}.fm-card--accent a { color: var(--fm-accent-ink); }
+
+/* ── Literal ink (a bg colour's luminance decides it when not given) ──────── */
+${d}.fm-ink--light {
+  --fm-ink: #ffffff;
+  --fm-accent: #ffffff;
+  --fm-callout-color: #ffffff;
+  --fm-ink-muted: rgba(255, 255, 255, 0.72);
+  --fm-border: rgba(255, 255, 255, 0.26);
+  --fm-surface: rgba(255, 255, 255, 0.10);
+  --fm-surface-alt: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+${ON_DARK_GROUND}
+}
+${d}.fm-ink--dark {
+  --fm-ink: #111111;
+  --fm-accent: #111111;
+  --fm-callout-color: #111111;
+  --fm-ink-muted: rgba(17, 17, 17, 0.68);
+  --fm-border: rgba(17, 17, 17, 0.22);
+  --fm-surface: rgba(17, 17, 17, 0.05);
+  --fm-surface-alt: rgba(17, 17, 17, 0.09);
+  color: #111111;
+${ON_LIGHT_GROUND}
+}
+
+/* ── Full-bleed sections ──────────────────────────────────────────────────── */
+/* The band spans the viewport (its own margins cancel the centred column) and
+   then insets its CONTENT back to the column, so text stays aligned with the
+   rest of the document while the ground runs edge to edge. */
+${d}.fm-band {
+  display: block;
+  margin: 2.5em calc(50% - 50vw);
+  padding: 2.5em max(1.5rem, calc((100vw - var(--fm-measure)) / 2 + 1.5rem));
+}
+${d}.fm-band > :first-child { margin-top: 0; }
+${d}.fm-band > :last-child { margin-bottom: 0; }
+${d}.fm-cover {
+  min-height: 78vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  margin-top: -2.5rem;
+  break-after: page;
+}
+${d}.fm-cover h1 { font-size: 3em; }
+
+/* ── Image backgrounds (resolved from the image registry at render time) ──── */
+${d}.fm-has-bgimage {
+  position: relative;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  isolation: isolate;
+}
+${d}.fm-has-bgimage > * { position: relative; z-index: 1; }
+${d}.fm-overlay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+${d}.fm-overlay--dark::before { background: rgba(0, 0, 0, 0.55); }
+${d}.fm-overlay--light::before { background: rgba(255, 255, 255, 0.72); }
+
+/* ── Figure widths ────────────────────────────────────────────────────────── */
+${d}.fm-figure--wide {
+  margin-inline: max(-4rem, calc((100% - 100vw) / 2 + 1.5rem));
+}
+${d}.fm-figure--full {
+  margin: 2em calc(50% - 50vw);
+}
+${d}.fm-figure--full .fm-figure__caption {
+  padding-inline: max(1.5rem, calc((100vw - var(--fm-measure)) / 2 + 1.5rem));
+}
+
+/* ── Document header (:::report) — applied to <html> ──────────────────────── */
+${d}.fm-doc--wide { --fm-measure: 74rem; }
+${d}.fm-doc--full { --fm-measure: 100rem; }
+${scope === "" ? "" : `
+/* Scoped context (a picker tile): the viewport is not the page, so a band must
+   not try to bleed to it — it fills its container instead. */
+${d}.fm-band { margin-inline: 0; padding-inline: 1.4em; }
+${d}.fm-cover { min-height: 0; }
+${d}.fm-figure--wide, ${d}.fm-figure--full { margin-inline: 0; }
+`}
 `;
 }
 
 // Narrow panes (the split-view preview) and print both need the grids to
 // collapse; scoped tiles keep their layout at any size.
+// Only for a real document: a band's 100vw would otherwise overflow by the
+// scrollbar width, and the page ground has to reach past the text column.
+const DOCUMENT_ROOT_CSS = `
+html { overflow-x: hidden; }
+`;
+
 const RESPONSIVE_CSS = `
 @media (max-width: 640px) {
   .fm-tiles, .fm-columns { grid-template-columns: minmax(0, 1fr) !important; }
   .fm-col--span2, .fm-col--span3, .fm-col--span4 { grid-column: auto; }
+  .fm-figure--wide { margin-inline: 0; }
 }
 @media print {
   .fm-card, .fm-callout, .fm-stat, .fm-figure { break-inside: avoid; }
+  /* The print box has no viewport to bleed into; keep bands on the page. */
+  .fm-band, .fm-figure--full { margin-inline: 0; }
+  .fm-cover { min-height: 0; padding-block: 6em; }
 }
 `;
 
@@ -312,6 +511,7 @@ export function buildFastrReportCss(
     buildFastrThemeVarsCss(tokens, scope, colors),
     buildFastrStructureCss(scope),
     extra,
+    scope === "" ? DOCUMENT_ROOT_CSS : "",
     scope === "" ? RESPONSIVE_CSS : "",
   ].filter((s) => s.trim().length > 0).join("\n");
 }

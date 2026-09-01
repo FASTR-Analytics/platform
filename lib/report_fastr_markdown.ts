@@ -21,7 +21,9 @@ import MarkdownIt from "markdown-it";
 import {
   containerHtmlFor,
   type FastrContainerAttrs,
+  figureWidthClass,
   isFastrLeafBlock,
+  parseContainerAttrs,
   parseContainerFence,
 } from "./fastr_markdown_blocks.ts";
 import { escapeReportHtml } from "./types/reports.ts";
@@ -29,6 +31,7 @@ import { escapeReportHtml } from "./types/reports.ts";
 type ContainerMeta = { name: string; attrs: FastrContainerAttrs };
 
 const EMBED_SRC_RE = /^(figure|image):/;
+const ATTR_BLOCK_RE = /^\s*\{[^}]*\}\s*$/;
 
 export function createFastrMarkdownIt(): MarkdownIt {
   const md = new MarkdownIt({
@@ -116,14 +119,19 @@ export function createFastrMarkdownIt(): MarkdownIt {
     const token = tokens[idx];
     const meta = token.meta as ContainerMeta;
     const h = containerHtmlFor(meta.name, meta.attrs);
+    if (h.silent) return "";
     const line = token.attrGet("data-line");
     const anchor = line === null ? "" : ` data-line="${escapeReportHtml(line)}"`;
-    return `<${h.tag} class="${h.className}"${anchor}>\n${h.leadingHtml}`;
+    const style = h.style === ""
+      ? ""
+      : ` style="${escapeReportHtml(h.style)}"`;
+    return `<${h.tag} class="${h.className}"${style}${h.extraAttrs}${anchor}>\n${h.leadingHtml}`;
   };
 
   md.renderer.rules.fm_container_close = (tokens, idx) => {
     const meta = tokens[idx].meta as ContainerMeta;
     const h = containerHtmlFor(meta.name, meta.attrs);
+    if (h.silent) return "";
     return `${h.trailingHtml}</${h.tag}>\n`;
   };
 
@@ -141,11 +149,24 @@ export function createFastrMarkdownIt(): MarkdownIt {
           k.type !== "softbreak" &&
           !(k.type === "text" && k.content.trim().length === 0),
       );
-      if (kids.length !== 1 || kids[0].type !== "image") continue;
+      // Either the image alone, or the image followed by an `{…}` attribute
+      // block — markdown-it has no attribute syntax, so the trailing text is
+      // claimed here and removed rather than rendered.
+      const attrText = kids.length === 2 && kids[1].type === "text"
+        ? ATTR_BLOCK_RE.exec(kids[1].content)?.[0]
+        : undefined;
+      if (kids.length !== 1 && attrText === undefined) continue;
+      if (kids[0].type !== "image") continue;
       if (!EMBED_SRC_RE.test(kids[0].attrGet("src") ?? "")) continue;
 
       toks[i].tag = "figure";
       toks[i].attrJoin("class", "fm-figure");
+      if (attrText !== undefined) {
+        kids[1].content = "";
+        inline.children = [kids[0]];
+        const widthClass = figureWidthClass(parseContainerAttrs(attrText));
+        if (widthClass !== "") toks[i].attrJoin("class", widthClass.trim());
+      }
       toks[i + 2].tag = "figure";
 
       const caption = state.md.renderer

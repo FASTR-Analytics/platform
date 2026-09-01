@@ -62,6 +62,7 @@ globs:
   - server/routes/project/slide_decks.ts
   - server/routes/project/slides.ts
   - server/routes/public/dashboard.ts
+  - server/tests/report_fastr_markdown_test.ts
   - server/tests/report_format_helpers_test.ts
   - server/tests/report_html_sanitize_test.ts
   - server/tests/report_sections_test.ts
@@ -314,7 +315,19 @@ is made safe by the same DOMPurify pass, not by the compiler.
 
 **Themes** ([lib/types/report_fastr_themes.ts](lib/types/report_fastr_themes.ts),
 [lib/report_fastr_css.ts](lib/report_fastr_css.ts)): ONE structure sheet plus a
-per-theme token block (10 presets), projected into `--fm-*` custom properties;
+per-theme token block — **18 presets, one per `REPORT_HTML_STYLES` name**, so a
+report can be moved between formats without losing its look. A theme is ~700
+chars of tokens plus 0-195 chars of its own rules against a shared 12k sheet,
+which is why every block, tone and background added since landed on all of them
+at once. Two are DARK pages (blueprint, terminal), and that is what forced the
+callout/delta colours out of the sheet: they carry MEANING so they cannot come
+from the palette, but a fixed light-page set is unreadable on a dark ground.
+Each theme declares `scheme: "light" | "dark"` which picks
+`FASTR_SEMANTIC_COLORS`, and every rule that establishes a dark ground
+(`tone=solid|dark|gradient|inverse`, `fm-ink--light`, `fm-card--accent`)
+re-emits the dark set locally — pinned by a test, since the first attempt
+missed `fm-tone--dark` and nothing else would have caught it. Tokens are
+projected into `--fm-*` custom properties;
 `buildFastrReportCss(theme, colors?, scope?, opts?)` is a pure string builder, so
 the same call serves the preview, the export AND the creation picker's tiles —
 which therefore show the real design, not an impression. Everything is in `em`
@@ -332,6 +345,58 @@ fence are NOT indexed, so `rewrite_section` can never splice a section that
 starts mid-block. Exports: `.html` + print, same builder as html; PDF/Word are
 deliberately absent because panther's markdown IR cannot represent the blocks
 and would silently drop every one.
+
+**Backgrounds and page-level design.** The format's answer to "everything html
+reports can do" is to name the ROLE, not the value. Every block takes
+`tone = default|muted|accent|solid|dark|inverse`, resolved once in `surfaceFor`
+([lib/fastr_markdown_blocks.ts](lib/fastr_markdown_blocks.ts)); each theme maps
+the six to its own palette (`toneDark`/`toneDarkInk` are real per-theme values,
+so Ministry's dark band is deep green and Swiss's is black), and a re-theme
+keeps every band readable. A tone re-scopes the `--fm-ink*`/`--fm-accent`/
+`--fm-border` TOKENS on the block so descendants follow — including the figure
+rasters, whose ground probe reads the computed background these rules paint.
+**Two traps, both found live and both now pinned by a structural test:** a rule
+may not read a custom property it also redefines (`background: var(--fm-accent)`
+beside `--fm-accent: …` resolved against the override and rendered a solid card
+white-on-white — hence `--fm-solid-bg`/`--fm-inverse-bg`), and a tone must
+re-declare `color`, not only the token, because an element inherits its parent's
+COMPUTED colour (paragraphs stayed dark on a dark band while headings, which set
+colour explicitly, did not).
+
+`:::band` is the full-bleed section — the device that most makes a report read as
+designed. It escapes the centred column with `margin: … calc(50% - 50vw)` and
+insets its content back to `--fm-measure`; `html { overflow-x: hidden }` absorbs
+the scrollbar width, and `@media print` drops the bleed. `:::cover` is a band
+that is tall and `break-after: page`. Scoped sheets (picker tiles) neutralise the
+bleed, since there the viewport is not the page. Figures take
+`{width=wide|full}` — markdown-it has no attribute syntax, so the `fm_figures`
+core rule claims a trailing `{…}` text child and removes it.
+
+**Escape hatch** (documented as theme-breaking, and the editor guide says so):
+`bg=` emits an inline STANDARD declaration — never a custom property, which
+DOMPurify does not reliably keep — resolved by `safeCssBackground`: either a
+colour (`safeCssColor`, hex/rgb/hsl/curated-name allowlist) as
+`background-color`, or a gradient (`safeCssGradient` — the four gradient
+functions only, a character set that cannot express a second declaration,
+balanced parens, and an explicit ban on `url(`/`var(`/`image(`/`element(`/
+`attr(`) as the `background` shorthand. `tone=gradient` is the theme-safe
+equivalent. `ink=light|dark` overrides the ink otherwise derived from the
+background's luminance — for a gradient, the MEAN of its colour stops, since a
+full-range sweep has no ink that reads at both ends. A `bg` value that is none
+of these is a reported defect, not a silent no-op (it was the latter, and an
+author saw no background and no reason why).
+`bg=image:<id>` compiles to `data-bg-image="image:<id>"`, resolved against the
+image registry by `materializeReportBackgrounds` — the source token stays in the
+body text, which is what keeps the loose orphan-prune scan from deleting the
+asset — with an `overlay` scrim defaulting to dark.
+
+**`:::report{background= width=}`** is the document header: read straight from
+the body by `readFastrDocumentSettings` (so page-level design is versioned and
+diffed with the document, not hidden in config), it renders nothing, and its
+classes go on **`<html>`** — the page ground has to reach past the centred
+column, so `body` is transparent and only the root carries it. `background`
+takes either a tone name or a literal; resolving which BEFORE the colour path is
+load-bearing (`background=muted` once emitted `background-color: muted`).
 
 **Editor** ([report/index.tsx](client/src/components/report/index.tsx), ~1,700
 LOC): CodeMirror 6 (`lang-markdown` or `lang-html` per format) with an
