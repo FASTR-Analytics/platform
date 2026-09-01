@@ -1,4 +1,4 @@
-import { type ReportFormat, t3, TC } from "lib";
+import { type ReportFormat, reportRendersAsHtml, t3, TC } from "lib";
 import {
   Button,
   EditorComponentProps,
@@ -23,17 +23,19 @@ export function DownloadReport(
     {
       projectId: string;
       reportId: string;
-      // Absent ⇒ markdown (PDF / Word); html gets the .html / print options.
+      // Absent ⇒ markdown (PDF / Word). html and fastr both render through the
+      // html funnel, so they get the .html / print options instead — panther's
+      // markdown IR cannot represent either one's markup.
       format?: ReportFormat;
     },
     undefined
   >,
 ) {
-  const isHtml = p.format === "html";
+  const rendersAsHtml = reportRendersAsHtml(p.format ?? "markdown");
   const [pct, setPct] = createSignal<number>(0);
   const [err, setErr] = createSignal<string>("");
   const [exportFormat, setExportFormat] = createSignal<ExportKind>(
-    isHtml ? "html" : "pdf",
+    rendersAsHtml ? "html" : "pdf",
   );
 
   function progress(pct: number) {
@@ -61,7 +63,7 @@ export function DownloadReport(
     p.close(undefined);
   }
 
-  const options = isHtml
+  const options = rendersAsHtml
     ? [
       {
         value: "html" as const,
@@ -109,7 +111,7 @@ export function DownloadReport(
           value={exportFormat()}
           onChange={setExportFormat}
         />
-        <Show when={isHtml}>
+        <Show when={rendersAsHtml}>
           <div class="text-base-content-muted text-xs">
             {t3({
               en: "The HTML file is self-contained (figures embedded as images). Print opens your browser's print dialog, where you can save as PDF.",

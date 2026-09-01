@@ -9,15 +9,32 @@
 // =============================================================================
 
 import { z } from "zod";
+import {
+  FASTR_REPORT_THEMES,
+  type FastrReportTheme,
+  isFastrReportTheme,
+} from "./report_fastr_themes.ts";
 import { reportStyleColorsSchema } from "./report_styles.ts";
+import { t3 } from "../translate/t-func.ts";
 import type { ImageBlock } from "./slides.ts";
 import type { FigureBlock } from "./_figure_bundle.ts";
 import { figureBlockSchema, imageBlockSchema } from "./_slide_config.ts";
 
 // ── Format ───────────────────────────────────────────────────────────────────
 
-export const REPORT_FORMATS = ["markdown", "html"] as const;
+// "fastr" = FASTR Markdown: markdown plus the `:::` container blocks
+// (lib/fastr_markdown_blocks.ts), rendered through a real theme stylesheet
+// (lib/report_fastr_css.ts) into the same html funnel. It is markdown-shaped
+// everywhere it matters — embed tokens, headings, sections — so every helper
+// below that asks `format === "html"` is already correct for it.
+export const REPORT_FORMATS = ["markdown", "html", "fastr"] as const;
 export type ReportFormat = (typeof REPORT_FORMATS)[number];
+
+// The two formats that render through the sanitize → iframe → .html/print
+// pipeline rather than panther's markdown IR.
+export function reportRendersAsHtml(format: ReportFormat): boolean {
+  return format === "html" || format === "fastr";
+}
 
 // HTML-only presentation style — changes ONLY the AI's authoring brief (no
 // seed/render difference): each styled preset briefs the model on one design
@@ -74,8 +91,12 @@ export type ReportConfig = {
   // Fixed at creation; html only. Absent ⇒ default. Ignored when customStyle
   // is present.
   htmlStyle?: ReportHtmlStyle;
-  // Fixed at creation; html only. Wins over htmlStyle.
+  // Fixed at creation; html/fastr. For html it wins over htmlStyle; for fastr
+  // only its colors are used (see getReportCustomStyle callers).
   customStyle?: ReportCustomStyleSnapshot;
+  // fastr only. UNLIKE htmlStyle this is changeable at any time — a FASTR
+  // Markdown body carries no CSS, so re-theming can never invalidate it.
+  fastrTheme?: FastrReportTheme;
 };
 
 export const reportConfigSchema = z
@@ -84,6 +105,7 @@ export const reportConfigSchema = z
     format: z.enum(REPORT_FORMATS).optional(),
     htmlStyle: z.enum(REPORT_HTML_STYLES).optional(),
     customStyle: reportCustomStyleSnapshotSchema.optional(),
+    fastrTheme: z.enum(FASTR_REPORT_THEMES).optional(),
   })
   .passthrough();
 
@@ -91,19 +113,28 @@ export function getStartingConfigForReport(
   format: ReportFormat = "markdown",
   htmlStyle: ReportHtmlStyle = "default",
   customStyle?: ReportCustomStyleSnapshot,
+  fastrTheme: FastrReportTheme = "default",
 ): ReportConfig {
+  if (format === "fastr") {
+    return customStyle
+      ? { version: 1, format, fastrTheme, customStyle }
+      : { version: 1, format, fastrTheme };
+  }
   if (format !== "html") return { version: 1, format };
   return customStyle
     ? { version: 1, format, customStyle }
     : { version: 1, format, htmlStyle };
 }
 
-// Total: the stored config is a raw JSON cast on the server, so anything that
-// isn't exactly "html" is markdown.
+// Total: the stored config is a raw JSON cast on the server, so an unknown
+// value (an older client, a retired format) reads as markdown.
 export function getReportFormat(
   config: ReportConfig | null | undefined,
 ): ReportFormat {
-  return config?.format === "html" ? "html" : "markdown";
+  const v = config?.format;
+  return v !== undefined && (REPORT_FORMATS as readonly string[]).includes(v)
+    ? v
+    : "markdown";
 }
 
 // Total, same rationale as getReportFormat. undefined = no custom style.
@@ -114,6 +145,14 @@ export function getReportCustomStyle(
   return c && typeof c.id === "string" && typeof c.brief === "string"
     ? c
     : undefined;
+}
+
+// Total, same rationale as getReportFormat.
+export function getFastrReportTheme(
+  config: ReportConfig | null | undefined,
+): FastrReportTheme {
+  const v = config?.fastrTheme;
+  return isFastrReportTheme(v) ? v : "default";
 }
 
 // Total, same rationale as getReportFormat.
@@ -130,9 +169,51 @@ export function getStartingBodyForReport(
   label: string,
   format: ReportFormat,
 ): string {
-  return format === "html"
-    ? `<h1>${escapeReportHtml(label)}</h1>\n`
-    : `# ${label}\n\n`;
+  if (format === "html") return `<h1>${escapeReportHtml(label)}</h1>\n`;
+  // FASTR Markdown seeds a working example of the two blocks people reach for
+  // first — the format's syntax is only discoverable if something demonstrates
+  // it, and an empty file teaches nothing.
+  if (format === "fastr") {
+    return `# ${label}
+
+${
+      t3({
+        en: "Write your introduction here.",
+        fr: "Rédigez votre introduction ici.",
+        pt: "Escreva a sua introdução aqui.",
+      })
+    }
+
+:::callout{kind=note title="${
+      t3({
+        en: "Key finding",
+        fr: "Constat principal",
+        pt: "Principal conclusão",
+      })
+    }"}
+${
+      t3({
+        en: "Replace this with the point that matters most.",
+        fr: "Remplacez ceci par le point le plus important.",
+        pt: "Substitua isto pelo ponto mais importante.",
+      })
+    }
+:::
+
+:::tiles{cols=3}
+:::stat{value="64%" label="${
+      t3({ en: "Coverage", fr: "Couverture", pt: "Cobertura" })
+    }" delta="+3pp" dir=up}
+:::stat{value="82%" label="${
+      t3({ en: "Completeness", fr: "Complétude", pt: "Integralidade" })
+    }" delta="-1pp" dir=down}
+:::stat{value="91%" label="${
+      t3({ en: "Timeliness", fr: "Ponctualité", pt: "Pontualidade" })
+    }" dir=flat}
+:::
+`;
+  }
+  return `# ${label}\n\n`;
 }
 
 // ── HTML text helpers ────────────────────────────────────────────────────────
@@ -565,12 +646,17 @@ function htmlPreviewLines(body: string): ReportPreviewLine[] {
   return lines;
 }
 
-function markdownPreviewLines(body: string): ReportPreviewLine[] {
+function markdownPreviewLines(
+  body: string,
+  skipContainerFences: boolean,
+): ReportPreviewLine[] {
   const lines: ReportPreviewLine[] = [];
   let chars = 0;
   for (const raw of body.split("\n")) {
     if (lines.length >= PREVIEW_MAX_LINES || chars >= PREVIEW_MAX_CHARS) break;
     if (/^\s*!\[[^\]]*\]\((figure|image):/.test(raw)) continue; // skip embed lines
+    // FASTR Markdown `:::` fences are structure, not text.
+    if (skipContainerFences && /^\s*:{3,}/.test(raw)) continue;
     const headingMatch = raw.match(/^\s*(#{1,6})\s+(.*)$/);
     const text = stripInlineMarkdown(
       headingMatch ? headingMatch[2] : raw.replace(/^\s*(>|[-*+])\s+/, ""),
@@ -594,7 +680,7 @@ export function buildReportPreview(
   const imageCount = refs.length - figureCount;
   const lines = format === "html"
     ? htmlPreviewLines(body)
-    : markdownPreviewLines(body);
+    : markdownPreviewLines(body, format === "fastr");
   return { lines, figureCount, imageCount };
 }
 

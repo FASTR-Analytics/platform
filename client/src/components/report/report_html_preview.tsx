@@ -1,7 +1,8 @@
-import type { FigureBlock, ImageBlock } from "lib";
+import type { FigureBlock, ImageBlock, ReportFormat } from "lib";
 import { createEffect, on, onCleanup } from "solid-js";
 import {
   buildReportBodyNodes,
+  FASTR_THEME_STYLE_ATTR,
   interceptReportLinks,
   isDarkGroundBehind,
   renderReportBodyHtml,
@@ -32,6 +33,10 @@ import { iframeSurface, type PreviewSurface } from "./scroll_sync";
 type Props = {
   body: string;
   title: string;
+  // "html" (the body IS the markup) or "fastr" (markdown compiled to markup).
+  format: ReportFormat;
+  // fastr only: the theme stylesheet, swapped in place when the user re-themes.
+  themeCss?: string;
   figures: Record<string, FigureBlock>;
   images: Record<string, ImageBlock>;
   assetUrl: (imgFile: string) => string;
@@ -70,10 +75,36 @@ export function ReportHtmlPreview(p: Props) {
     return darkGroundById.get(id) ? (p.lightInk ?? GENERIC_LIGHT_INK) : undefined;
   }
 
+  // The theme sheet lives in the frame's <head>, not the srcdoc, so a theme
+  // change re-skins the document without reloading the frame (which would drop
+  // the surface, the scroll position and every blob: raster).
+  function syncThemeCss(doc: Document) {
+    const existing = doc.head.querySelector<HTMLStyleElement>(
+      `style[${FASTR_THEME_STYLE_ATTR}]`,
+    );
+    const css = p.themeCss ?? "";
+    if (css.length === 0) {
+      existing?.remove();
+      return;
+    }
+    if (existing) {
+      if (existing.textContent !== css) existing.textContent = css;
+      return;
+    }
+    const el = doc.createElement("style");
+    el.setAttribute(FASTR_THEME_STYLE_ATTR, "");
+    el.textContent = css;
+    doc.head.appendChild(el);
+  }
+
   function render() {
     const doc = iframe.contentDocument;
     if (!doc?.body) return;
-    const html = renderReportBodyHtml(p.body, { lineAnchors: p.lineAnchors });
+    syncThemeCss(doc);
+    const html = renderReportBodyHtml(p.body, {
+      lineAnchors: p.lineAnchors,
+      format: p.format,
+    });
     const frag = buildReportBodyNodes(
       doc,
       html,
@@ -174,7 +205,14 @@ export function ReportHtmlPreview(p: Props) {
   createEffect(on(() => p.body, () => scheduleRender(BODY_DEBOUNCE_MS), { defer: true }));
   createEffect(
     on(
-      () => [p.figures, p.images, p.rasterVersion, p.lineAnchors] as const,
+      () =>
+        [
+          p.figures,
+          p.images,
+          p.rasterVersion,
+          p.lineAnchors,
+          p.themeCss,
+        ] as const,
       () => scheduleRender(0),
       { defer: true },
     ),

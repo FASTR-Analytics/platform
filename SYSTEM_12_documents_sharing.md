@@ -10,6 +10,7 @@ globs:
   - client/src/components/layout_editor/**
   - client/src/components/project/add_deck.tsx
   - client/src/components/project/add_report.tsx
+  - client/src/components/project/fastr_theme_mock.tsx
   - client/src/components/project/report_style_picker.tsx
   - client/src/components/project/report_style_editor.tsx
   - client/src/components/project/duplicate_deck_modal.tsx
@@ -36,8 +37,13 @@ globs:
   - lib/types/_slide_deck_config.ts
   - lib/types/dashboard.ts
   - lib/types/reports.ts
+  - lib/types/report_fastr_themes.ts
   - lib/types/report_styles.ts
   - lib/report_sections.ts
+  - lib/fastr_markdown_blocks.ts
+  - lib/fastr_markdown_spec.ts
+  - lib/report_fastr_css.ts
+  - lib/report_fastr_markdown.ts
   - lib/types/slides.ts
   - server/db/instance/dashboard_slugs.ts
   - server/db/instance/report_styles.ts
@@ -188,12 +194,17 @@ payload and SSE pushes only (same for report folders).
 
 ## Reports
 
-**One-row model.** `reports` = `label` + `body` (markdown **or html**) +
+**One-row model.** `reports` = `label` + `body` (markdown, **FASTR Markdown**
+or **html**) +
 `figures` / `images` (JSON registries `Record<id, Block>` — validated by the
 **strict** `figureBlockSchema` at both route and DB) + `config` (passthrough
 `{version, format?}`) + `folder_id`. **Format is fixed at creation**
 (`createReport` body `format`, the Create-report form's radio); absent ⇒
-markdown (`getReportFormat` is total — the stored config is a raw cast); html
+markdown (`getReportFormat` is total — the stored config is a raw cast — and an
+unknown value reads as markdown, which is what makes adding a format a
+no-migration change). `reportRendersAsHtml(format)` names the two formats that
+go through the sanitize → iframe → `.html`/print funnel (html, fastr) rather
+than panther's markdown IR. html
 reports additionally carry `htmlStyle?` — one of the `REPORT_HTML_STYLES`
 presets (default, minimal, corporate, ministry, classic, executive, clinical,
 editorial, swiss, monochrome, bauhaus, blueprint, broadsheet, risograph,
@@ -202,13 +213,16 @@ also total via `getReportHtmlStyle`) — it changes ONLY the S13 AI authoring
 brief, never the render path. Creation is a two-step wizard (panther has ONE
 alert slot, so the steps can't stack — `attemptAddReport` in
 [project_reports.tsx](client/src/components/project/project_reports.tsx) owns
-the loop): the form creates markdown directly but closes with a draft for
-html ("Next"), then
+the loop): the form creates markdown directly but closes with a draft carrying
+the chosen format for the two styled ones ("Next"), then
 [report_style_picker.tsx](client/src/components/project/report_style_picker.tsx)
-shows a tile grid of hand-authored CSS mini-report mockups (real Google Fonts
-loaded on open, greeked bars for language-neutrality — deliberate impressions,
-not AI output) and owns the html `createReport` call; Back re-opens the form
-seeded with the draft. **Custom styles**: user-authored briefs live in the
+owns the `createReport` call; Back re-opens the form seeded with the draft.
+The picker is format-aware: for html it shows hand-authored CSS mini-report
+mockups (real Google Fonts loaded on open, greeked bars for
+language-neutrality — deliberate impressions, because the real output is AI
+output and unknowable); for fastr it renders the REAL theme sheet over the REAL
+`fm-*` markup, scoped per tile
+([fastr_theme_mock.tsx](client/src/components/project/fastr_theme_mock.tsx)). **Custom styles**: user-authored briefs live in the
 MAIN-db `report_styles` table (075; visibility per style — this/selected
 projects via a `project_ids` JSON list, or NULL = instance-wide;
 [server/db/instance/report_styles.ts](server/db/instance/report_styles.ts),
@@ -279,18 +293,65 @@ before; html → standalone `.html` (figures as data URLs, images inlined) or a
 hidden `allow-same-origin allow-modals` print frame
 ([export_report_as_html.ts](client/src/exports/export_report_as_html.ts)).
 
+**FASTR Markdown format.** Markdown's ergonomics with HTML's look: the body is
+CommonMark plus `:::` container blocks, and the design is a REAL hand-authored
+stylesheet rather than an AI brief — so the format needs no AI at all, and what
+you type is what you get. Syntax primitives are pure and Deno-testable in
+[lib/fastr_markdown_blocks.ts](lib/fastr_markdown_blocks.ts)
+(`parseContainerFence`, `parseContainerAttrs`, `containerHtmlFor` — the
+`fm-*` class taxonomy is defined ONCE there — and `listFastrContainerDefects`);
+[lib/report_fastr_markdown.ts](lib/report_fastr_markdown.ts) is the markdown-it
+compiler (one generic block rule, depth-counted so `:::tiles`/`:::card`/`:::`
+nests at the same marker length; `stat` is a LEAF block taking no close). Blocks:
+`callout` (5 kinds), `tiles`/`card`, `stat`, `columns`/`col`, `quote`; an
+unknown name still groups its content (a typo must never swallow the document)
+and is reported as a defect. Two things the html format cannot do, because we
+own the renderer: `data-line` anchors come from markdown-it's own `token.map`
+(so scroll sync points at MARKDOWN lines and `injectReportHtmlLineAnchors` is
+not used), and an embed alone on a line becomes a `<figure>` + `<figcaption>`
+from its alt text — captions for free. Raw HTML passes through the compiler and
+is made safe by the same DOMPurify pass, not by the compiler.
+
+**Themes** ([lib/types/report_fastr_themes.ts](lib/types/report_fastr_themes.ts),
+[lib/report_fastr_css.ts](lib/report_fastr_css.ts)): ONE structure sheet plus a
+per-theme token block (10 presets), projected into `--fm-*` custom properties;
+`buildFastrReportCss(theme, colors?, scope?, opts?)` is a pure string builder, so
+the same call serves the preview, the export AND the creation picker's tiles —
+which therefore show the real design, not an impression. Everything is in `em`
+so a tile shrinks the whole sheet by dropping its root font-size. `@import` must
+LEAD a sheet, hence `fastrAllFontImportsCss()` + `omitFontImport` for the
+concatenated multi-theme tile sheet. **The theme is changeable after creation**
+(unlike `htmlStyle`) — the body carries no CSS, so nothing can be invalidated;
+the editor's theme `Select` writes `config.fastrTheme` through
+`updateReportConfig`, which re-imposes format and (for both styled formats) the
+custom-style snapshot but lets the theme through. A custom `report_styles` row
+contributes only its `colors` here — its `reference_css` targets AI-authored
+class names, not `fm-*`. Sections are the markdown `#`-line scan with a
+top-level mask (`fastrTopLevelLineMask`): headings inside a container or a code
+fence are NOT indexed, so `rewrite_section` can never splice a section that
+starts mid-block. Exports: `.html` + print, same builder as html; PDF/Word are
+deliberately absent because panther's markdown IR cannot represent the blocks
+and would silently drop every one.
+
 **Editor** ([report/index.tsx](client/src/components/report/index.tsx), ~1,700
 LOC): CodeMirror 6 (`lang-markdown` or `lang-html` per format) with an
 embed-widget extension (a line that is exactly one token renders as an atomic
 block widget), three modes edit/split/view, and line-anchored bidirectional
 scroll sync over a `PreviewSurface` adapter
 ([scroll_sync.ts](client/src/components/report/scroll_sync.ts): `divSurface`
-for the markdown card, `iframeSurface` for the html frame; `data-line`
+for the markdown card, `iframeSurface` for the html/fastr frame; `data-line`
 anchors, echo-loop guard, figure-settle ResizeObserver window; the html pane
 aligns when its surface becomes ready, not on the next frame). The left panel
 inserts/edits embeds (figures resolve through the same S10 funnel as
 dashboards). Markdown View mode and both markdown exports share
-`REPORT_MARKDOWN_STYLE`.
+`REPORT_MARKDOWN_STYLE`. FASTR Markdown reuses the html editing surface wholesale
+— `markdown()` as the CodeMirror language plus a line decoration for the `:::`
+fences ([fastr_fence_extension.ts](client/src/components/report/fastr_fence_extension.ts)),
+the same iframe preview (the theme sheet lives in a `<style data-fm-theme>` in
+the frame HEAD so a re-theme never reloads the frame, which would drop the
+surface, the scroll position and every blob: raster), and a guide panel whose
+block rows INSERT via `insertBlockOnNewLine`
+([fastr_markdown_guide.tsx](client/src/components/report/fastr_markdown_guide.tsx)).
 
 **Autosave protocol** (no-room path — once a collab session becomes ready the
 800ms REST autosave is turned off for good and edits flow over the WS, S16):

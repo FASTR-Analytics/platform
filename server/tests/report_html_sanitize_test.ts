@@ -14,6 +14,7 @@ import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import { JSDOM } from "npm:jsdom@^26.1.0";
 import createDOMPurify from "dompurify";
 import { REPORT_PURIFY_CONFIG } from "../../lib/types/reports.ts";
+import { renderFastrMarkdownToHtml } from "../../lib/report_fastr_markdown.ts";
 
 const window = new JSDOM("").window;
 const purify = createDOMPurify(window as unknown as Window & typeof globalThis);
@@ -138,4 +139,70 @@ Deno.test("the ALLOWED_URI_REGEXP is DOMPurify's default plus the two embed sche
   assertEquals(REPORT_PURIFY_CONFIG.ALLOWED_URI_REGEXP.test("javascript:alert(1)"), false);
   assertEquals(REPORT_PURIFY_CONFIG.ALLOWED_URI_REGEXP.test("vbscript:x"), false);
   assertEquals(REPORT_PURIFY_CONFIG.ALLOWED_URI_REGEXP.test("blob:https://x/uuid"), false);
+});
+
+// FASTR Markdown compiles to markup that goes through this same sanitizer, so
+// the format only works if its taxonomy classes and figure/figcaption
+// structure survive — the theme stylesheet has nothing to hook onto otherwise.
+Deno.test("keeps everything FASTR Markdown compiles to", () => {
+  const out = clean(
+    renderFastrMarkdownToHtml(
+      `# Title\n\n` +
+        `:::callout{kind=warning title="Caveat"}\ntext\n:::\n\n` +
+        `:::tiles{cols=3}\n:::card{title="A" accent}\nx\n:::\n` +
+        `:::stat{value="64%" label="ANC4" delta="+3pp" dir=up}\n:::\n\n` +
+        `:::columns{cols=2}\n:::col{span=2}\n![Cap](figure:${ID})\n:::\n:::\n\n` +
+        `:::quote{cite="Someone"}\nq\n:::\n`,
+      { lineAnchors: true },
+    ),
+  );
+  for (
+    const cls of [
+      "fm-callout fm-callout--warning",
+      "fm-callout__title",
+      "fm-tiles fm-tiles--3",
+      "fm-card fm-card--accent",
+      "fm-card__title",
+      "fm-stat__value",
+      "fm-stat__delta fm-stat__delta--up",
+      "fm-columns fm-columns--2",
+      "fm-col fm-col--span2",
+      "fm-figure",
+      "fm-figure__caption",
+      "fm-quote",
+      "fm-quote__cite",
+    ]
+  ) {
+    assertStringIncludes(out, cls);
+  }
+  assertStringIncludes(out, `<blockquote class="fm-quote"`);
+  assertStringIncludes(out, `src="figure:${ID}"`);
+  assertStringIncludes(out, `data-line="0"`);
+});
+
+// The compiler passes raw HTML through (an escape hatch for power users); the
+// sanitizer, not the compiler, is what makes that safe.
+Deno.test("strips scripts that reach the sanitizer through FASTR Markdown", () => {
+  const out = clean(
+    renderFastrMarkdownToHtml(
+      `<script>alert(1)</script>\n\n<img src=x onerror=alert(1)>\n\n:::callout\nok\n:::\n`,
+      { lineAnchors: false },
+    ),
+  );
+  assert(!out.includes("<script"));
+  assert(!out.includes("onerror"));
+  assertStringIncludes(out, "fm-callout");
+});
+
+// A block attribute is TEXT: it is entity-escaped by the compiler, so markup
+// written there is inert rather than sanitized away — it shows as characters.
+Deno.test("markup in a FASTR block attribute is escaped, not executed", () => {
+  const out = clean(
+    renderFastrMarkdownToHtml(
+      `:::callout{title="<img src=x onerror=alert(1)>"}\nok\n:::\n`,
+      { lineAnchors: false },
+    ),
+  );
+  assertStringIncludes(out, "&lt;img src=x onerror=alert(1)&gt;");
+  assert(!/<img\b/.test(out));
 });

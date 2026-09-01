@@ -12,6 +12,7 @@ import {
 } from "solid-js";
 import { FileUploadSelector } from "~/components/_file_upload_selector";
 import { MarkdownGuide } from "~/components/_markdown_guide";
+import { FastrMarkdownGuide } from "./fastr_markdown_guide";
 import { HtmlGuide } from "./html_guide";
 
 // The currently-selected report embed (report-specific — no Dashboard naming).
@@ -34,6 +35,8 @@ type Props = {
   // nothing selected → offer inserts here (insert and edit are mutually exclusive)
   onInsertFigure: () => void;
   onInsertImage: () => void;
+  // FASTR Markdown only: insert a block snippet from the format guide.
+  onInsertBlock?: (snippet: string) => void;
 };
 
 // Ever-present left panel for editing the selected embed — same UX as the slide
@@ -212,9 +215,14 @@ export function ReportEmbedEditor(p: Props) {
       </Show>
       <Show when={p.canConfigure}>
         <div class="ui-pad mt-auto border-t">
-          <Show when={p.format === "html"} fallback={<MarkdownGuide />}>
-            <HtmlGuide />
-          </Show>
+          <Switch fallback={<MarkdownGuide />}>
+            <Match when={p.format === "html"}>
+              <HtmlGuide />
+            </Match>
+            <Match when={p.format === "fastr"}>
+              <FastrMarkdownGuide onInsert={p.onInsertBlock} />
+            </Match>
+          </Switch>
         </div>
       </Show>
     </div>

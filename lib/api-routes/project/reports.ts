@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  FASTR_REPORT_THEMES,
   REPORT_FORMATS,
   REPORT_HTML_STYLES,
   reportConfigSchema,
@@ -57,8 +58,12 @@ export const reportRouteRegistry = {
       ...folderBodyFields,
       format: z.enum(REPORT_FORMATS).optional(),
       htmlStyle: z.enum(REPORT_HTML_STYLES).optional(),
+      // fastr only. Unlike htmlStyle this is a starting point, not a fixture —
+      // the report editor can change it later.
+      fastrTheme: z.enum(FASTR_REPORT_THEMES).optional(),
       // A custom style from the library (main DB); the server resolves and
-      // snapshots it — wins over htmlStyle.
+      // snapshots it — wins over htmlStyle for html, and contributes its
+      // palette for fastr.
       customStyleId: z.string().optional(),
     }),
     response: {} as { reportId: string; lastUpdated: string },

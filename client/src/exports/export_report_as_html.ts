@@ -1,9 +1,14 @@
 import {
   type APIResponseNoData,
+  buildFastrReportCss,
+  FASTR_THEME_TOKENS,
   FIGURE_EXPORT_WIDTH_PX,
+  getFastrReportTheme,
   getReportCustomStyle,
+  getReportFormat,
   getReportHtmlStyle,
   type ReportDetail,
+  renderFastrMarkdownToHtml,
 } from "lib";
 import {
   CustomFigureStyle,
@@ -29,27 +34,51 @@ import {
   wrapReportDocument,
 } from "~/components/report/report_html";
 
-// HTML-format reports: the standalone .html file and print-to-PDF. Same
-// builder as the editor preview (sanitize → materialize embeds → base CSS),
-// with figures as PNG data URLs and images inlined so the file is
-// self-contained (web images/fonts the author referenced stay external).
+// The standalone .html file and print-to-PDF, for BOTH html-format reports
+// (the body is the markup) and FASTR Markdown (the body compiles to markup and
+// the theme stylesheet rides along in the document head). Same builder as the
+// editor preview (sanitize → materialize embeds → base CSS), with figures as
+// PNG data URLs and images inlined so the file is self-contained (web
+// images/fonts the author referenced stay external).
 
 export async function buildStandaloneReportHtml(
   detail: ReportDetail,
   progress: (pct: number) => void,
 ): Promise<string> {
   const figureEntries = Object.entries(detail.figures);
+  const format = getReportFormat(detail.config);
+  const isFastr = format === "fastr";
+  const customColors = getReportCustomStyle(detail.config)?.colors;
+  const fastrTheme = getFastrReportTheme(detail.config);
+  const themeCss = isFastr
+    ? buildFastrReportCss(fastrTheme, customColors ?? undefined)
+    : undefined;
   // Ink follows each figure's ACTUAL ground (same rule as the preview): the
   // sanitized document — figure tokens still raw — is mounted in a hidden
-  // iframe to measure computed backgrounds before any rasterization.
-  const sanitized = sanitizeReportHtml(detail.body);
+  // iframe to measure computed backgrounds before any rasterization. For fastr
+  // the ground is painted by the theme sheet, so it must be in that document.
+  const sanitized = isFastr
+    ? sanitizeReportHtml(
+      renderFastrMarkdownToHtml(detail.body, { lineAnchors: false }),
+    )
+    : sanitizeReportHtml(detail.body);
   const darkGrounds = await measureFigureGrounds(
-    wrapReportDocument({ title: detail.label, bodyHtml: sanitized }),
+    wrapReportDocument({ title: detail.label, bodyHtml: sanitized, themeCss }),
   );
-  const lightInk = figureInkThemeForStyle(
-    getReportHtmlStyle(detail.config),
-    getReportCustomStyle(detail.config)?.colors,
-  ) ?? GENERIC_LIGHT_INK;
+  const fastrTokens = FASTR_THEME_TOKENS[fastrTheme];
+  const lightInk = (isFastr
+    ? figureInkThemeForStyle(
+      "default",
+      customColors ?? {
+        page: fastrTokens.page,
+        ink: fastrTokens.ink,
+        accent: fastrTokens.accent,
+      },
+    )
+    : figureInkThemeForStyle(
+      getReportHtmlStyle(detail.config),
+      customColors,
+    )) ?? GENERIC_LIGHT_INK;
   const rasters = new Map<string, FigureRasterState>();
   let done = 0;
   for (const [id, block] of figureEntries) {
@@ -92,7 +121,11 @@ export async function buildStandaloneReportHtml(
   stripLazyLoading(frag);
   const holder = document.createElement("template");
   holder.content.append(frag);
-  return wrapReportDocument({ title: detail.label, bodyHtml: holder.innerHTML });
+  return wrapReportDocument({
+    title: detail.label,
+    bodyHtml: holder.innerHTML,
+    themeCss,
+  });
 }
 
 export async function exportReportAsHtml(

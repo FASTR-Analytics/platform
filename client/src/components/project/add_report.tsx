@@ -10,16 +10,22 @@ import {
 import { createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 
-// Step 1 of the create-report wizard. Markdown creates directly from here; for
-// HTML the button becomes "Next" and this closes with a draft — the parent
-// (project_reports.tsx) then opens ReportStylePicker, which owns the create
-// (style is fixed at creation, and panther has one alert slot, so the picker
-// cannot stack on top of this modal). `initial` re-seeds the form when the
-// user comes Back from the picker.
+// Step 1 of the create-report wizard. Markdown creates directly from here; the
+// two styled formats (HTML, FASTR Markdown) turn the button into "Next" and
+// close with a draft — the parent (project_reports.tsx) then opens
+// ReportStylePicker, which owns the create (panther has one alert slot, so the
+// picker cannot stack on top of this modal). `initial` re-seeds the form when
+// the user comes Back from the picker.
 
 export type AddReportFormResult =
   | { created: { newReportId: string } }
-  | { next: { label: string; folderId: string | null } };
+  | {
+    next: {
+      label: string;
+      folderId: string | null;
+      format: Exclude<ReportFormat, "markdown">;
+    };
+  };
 
 function formatOption(label: string, caption: string) {
   return (
@@ -36,7 +42,11 @@ export function AddReportForm(
       projectId: string;
       folders: ReportFolder[];
       currentFolderId: string | null;
-      initial?: { label: string; folderId: string | null };
+      initial?: {
+        label: string;
+        folderId: string | null;
+        format: Exclude<ReportFormat, "markdown">;
+      };
     },
     AddReportFormResult
   >,
@@ -46,7 +56,9 @@ export function AddReportForm(
     p.initial ? (p.initial.folderId ?? "_none") : (p.currentFolderId ?? "_none"),
   );
   const [tempFormat, setTempFormat] = createSignal<ReportFormat>(
-    p.initial ? "html" : "markdown",
+    // Markdown stays the default — adding a format changes nothing for anyone
+    // who was already creating reports. (One line to flip if that changes.)
+    p.initial?.format ?? "markdown",
   );
   const [saveState, setSaveState] = createSignal<StateHolderFormAction>({
     status: "ready",
@@ -64,9 +76,10 @@ export function AddReportForm(
       return;
     }
     const folderId = tempFolderId() === "_none" ? null : tempFolderId();
-    if (tempFormat() === "html") {
-      // Style comes next — nothing is created yet.
-      p.close({ next: { label, folderId } });
+    const format = tempFormat();
+    if (format !== "markdown") {
+      // Style/theme comes next — nothing is created yet.
+      p.close({ next: { label, folderId, format } });
       return;
     }
     setSaveState({ status: "loading" });
@@ -96,11 +109,13 @@ export function AddReportForm(
       saveFunc={handleSave}
       cancelFunc={() => p.close(undefined)}
       saveButtonText={
-        tempFormat() === "html"
-          ? t3({ en: "Next", fr: "Suivant", pt: "Seguinte" })
-          : undefined
+        tempFormat() === "markdown"
+          ? undefined
+          : t3({ en: "Next", fr: "Suivant", pt: "Seguinte" })
       }
-      saveButtonIconName={tempFormat() === "html" ? "chevronRight" : undefined}
+      saveButtonIconName={
+        tempFormat() === "markdown" ? undefined : "chevronRight"
+      }
     >
       <div class="ui-spy">
         <Input
@@ -134,13 +149,24 @@ export function AddReportForm(
               ),
             },
             {
+              value: "fastr",
+              label: formatOption(
+                t3({ en: "FASTR Markdown", fr: "Markdown FASTR", pt: "Markdown FASTR" }),
+                t3({
+                  en: "simple text plus callouts, tiles and columns, in a designed theme you pick next",
+                  fr: "texte simple plus encadrés, tuiles et colonnes, dans un thème choisi à l'étape suivante",
+                  pt: "texto simples mais destaques, mosaicos e colunas, num tema escolhido a seguir",
+                }),
+              ),
+            },
+            {
               value: "html",
               label: formatOption(
                 t3({ en: "HTML", fr: "HTML", pt: "HTML" }),
                 t3({
-                  en: "custom layout and styling; choose a style next",
-                  fr: "mise en page et styles personnalisés ; choix du style à l'étape suivante",
-                  pt: "layout e estilos personalizados; escolha o estilo a seguir",
+                  en: "written by the AI; the most freedom, the least hand-editable",
+                  fr: "rédigé par l'IA ; le plus de liberté, le moins modifiable à la main",
+                  pt: "escrito pela IA; mais liberdade, menos editável à mão",
                 }),
               ),
             },

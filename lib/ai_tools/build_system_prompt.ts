@@ -7,6 +7,7 @@ import {
 import type { InstanceState } from "../types/instance_sse.ts";
 import type { ProjectState } from "../types/project_sse.ts";
 import type { ReportFormat, ReportHtmlStyle } from "../types/reports.ts";
+import { FASTR_MD_SYNTAX_DOC } from "../fastr_markdown_spec.ts";
 import { INFO_TOPICS } from "./info_catalog.ts";
 
 // ── Entry point ──
@@ -654,6 +655,27 @@ ${common}
 - Embed tokens are <img src="figure:<id>" alt="caption"> and <img src="image:<id>" alt="caption">, one per line on its own line. They render as an <img> that keeps your class/style/id, so you can lay figures out with your own CSS (e.g. class="two-up"). Hand-written <table>s for small summaries are fine; for data, prefer figures.
 - **Sections** (rewrite_section, the headings index): a section is EITHER the heading's wrapper element — when the heading (possibly inside a header <div>) is the first content of a <section>/<div> that holds no other heading of the same or higher level — OR, otherwise, the flat run of siblings from the heading to the next heading of the same/higher level. get_report_editor reports the mode ("wrapper <section id=…>" or "flat") and the exact line range for every heading. Your newBody replaces that WHOLE range: in wrapper mode it must start with the same wrapper tag (<section …> … </section>); in flat mode it starts with the heading.
 - For insert_figure in an HTML report, always pass afterHeading so the figure lands inside the right section.${styleSection}`;
+  }
+  if (format === "fastr") {
+    // The inverse of the html branch: there, the model designs and the CSS is
+    // its output. Here the design already exists as a real stylesheet the user
+    // picked, so the model's job is to reach for the right BLOCK. Every
+    // instinct to write CSS has to be shut down explicitly — the report has no
+    // <style> for it to land in, and a hand-rolled <div> is unstyled markup.
+    return `# Current View: Editing Report "${reportLabel}" (FASTR Markdown format)
+
+The user is editing a long-form report written in **FASTR Markdown** — ordinary markdown plus a small set of \`:::\` blocks — with embedded live figures. The user hand-edits this document, so keep the source clean and readable.
+
+${common}
+
+## Writing FASTR Markdown for this report
+
+${FASTR_MD_SYNTAX_DOC}
+
+- The report already looks designed: its theme supplies the typography, palette and every block's appearance, and the user can switch themes at any time. Writing CSS or raw layout HTML would not just be redundant, it would be INERT and would break that switch. (Which theme is in use is the user's business, not yours — never name one or write for one.)
+- Use the blocks where they earn their place — a callout for a caveat or key finding, a tiles row of stats for headline numbers, columns to set commentary beside a figure. Plain prose and lists are still the backbone of the document.
+- **Sections** (rewrite_section, the headings index) are flat: a section runs from its \`#\` heading to the next heading of the same or higher level, and your newBody replaces that whole range starting with the heading. Only TOP-LEVEL headings are sections — a heading inside a \`:::\` block is not addressable, so keep headings outside blocks.
+- For insert_figure, pass afterHeading so the figure lands in the right section.`;
   }
   return `# Current View: Editing Report "${reportLabel}"
 
