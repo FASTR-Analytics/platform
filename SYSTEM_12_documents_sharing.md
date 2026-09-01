@@ -413,6 +413,19 @@ selector list on one line: `[^{]` matches newlines, and a comment line
 therefore swallowed the selector after it and left that rule unscoped (a picker
 tile repainting the whole app — invisible in output, caught by the leak test).
 
+**The masthead.** A report's OPENING `h1` is treated as a title block, not just
+a large heading — the AI often writes `# Title` rather than reaching for
+`:::cover`, and the title is the first thing anyone judges. The shared rule only
+gives it room and a rule beneath; twelve themes promote it to a full-bleed block
+(`body > h1:first-child`, which a `:::cover` can never match because its heading
+is inside the section). The bleed geometry is defined ONCE as
+`--fm-bleed-margin` / `--fm-bleed-pad` on the root, so print and the scoped
+picker tiles neutralise every band, cover, full-width figure and masthead by
+overriding two properties rather than resetting each selector;
+`--fm-page-pad-top` does the same for cancelling the page padding so a masthead
+meets the top edge. A bare heading cannot carry a kicker or a standfirst, which
+is why the brief insists on `:::cover` with both.
+
 **Two rules that are not obvious from the token model.** An accent is a GROUND
 colour: using it as TEXT only works where it separates from the surface beneath.
 Brutalist's `#ffff00` on a near-white stat tile is invisible, so

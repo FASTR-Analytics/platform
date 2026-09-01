@@ -138,7 +138,12 @@ Composing a report — this matters as much as the syntax:
   that uses none of them wastes the format. Unless the user asks for something
   plainer, build to roughly this shape:
 
-  - OPEN with \`:::cover\`, carrying a kicker and a sub. It is the masthead.
+  - OPEN with \`:::cover\`. Do this on EVERY report unless the user asks for
+    something plain. Always give it a \`kicker\` and a \`sub\`: the kicker is
+    the provenance line (country, system, bulletin number) and the sub is the
+    standfirst (what is measured, over what period). A bare \`# Heading\` still
+    renders as a title block, but it cannot carry either line, and those two
+    lines are most of what makes a report look published rather than typed.
   - Put the two or three headline numbers in a \`:::tiles\` row of \`:::stat\`
     blocks. Give the one that matters most \`tone=solid\` so it reads as the
     finding, not one of three.

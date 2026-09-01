@@ -703,3 +703,23 @@ Deno.test("a comment in a theme's extraCss does not unscope the next rule", () =
     }
   }
 });
+
+// The stylesheet and theme files are one giant template literal each, so a
+// backtick inside a CSS comment ends the string and the parse error lands
+// somewhere unrelated. Bitten three times; pinned here.
+Deno.test("no stray backtick inside the CSS template literals", async () => {
+  for (
+    const rel of ["../../lib/report_fastr_css.ts", "../../lib/types/report_fastr_themes.ts"]
+  ) {
+    const src = await Deno.readTextFile(new URL(rel, import.meta.url));
+    for (const [i, line] of src.split("\n").entries()) {
+      if (!line.includes("`")) continue;
+      // A line-comment sits outside the literal and may quote code freely.
+      if (line.trim().startsWith("//")) continue;
+      assert(
+        !/\/\*[^*]*`/.test(line) && !/^\s+\*.*`/.test(line),
+        `${rel}:${i + 1} has a backtick inside a block comment: ${line.trim()}`,
+      );
+    }
+  }
+});

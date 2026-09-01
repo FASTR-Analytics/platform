@@ -101,6 +101,15 @@ ${root} {
   background: var(--fm-page);
   color: var(--fm-ink);
   font-family: var(--fm-font-body);
+  /* Full-bleed geometry, defined ONCE: a band cancels the centred column with
+     a viewport-width negative margin, then insets its own content back to the
+     measure. Print and the scoped picker tiles have no viewport to bleed into,
+     so they neutralise the pair here rather than resetting each selector. */
+  --fm-bleed-margin: calc(50% - 50vw);
+  --fm-bleed-pad: max(1.5rem, calc((100vw - var(--fm-measure)) / 2 + 1.5rem));
+  /* REPORT_BASE_CSS pads the page; a masthead cancels that padding to meet the
+     top edge, which is what separates a title BLOCK from a large heading. */
+  --fm-page-pad-top: 2.5rem;
 }
 /* The PAGE ground lives on <html>, not <body>: a full-bleed band is a body
    child that escapes the column with a viewport-width negative margin, and
@@ -411,10 +420,13 @@ ${ON_LIGHT_GROUND}
    rest of the document while the ground runs edge to edge. */
 ${d}.fm-band {
   display: block;
-  margin: 2.5em calc(50% - 50vw);
-  padding: 2.5em max(1.5rem, calc((100vw - var(--fm-measure)) / 2 + 1.5rem));
+  margin: 2.5em var(--fm-bleed-margin);
+  padding: 2.5em var(--fm-bleed-pad);
 }
 ${d}.fm-band > :first-child { margin-top: 0; }
+/* A ticker strip under a masthead is one device, not two: consecutive bands
+   sit flush rather than showing the page between them. */
+${d}.fm-band + .fm-band { margin-top: 0; }
 ${d}.fm-band > :last-child { margin-bottom: 0; }
 ${d}.fm-cover {
   min-height: min(72vh, 34rem);
@@ -473,6 +485,20 @@ ${d}.fm-steps > *::before {
   color: var(--fm-accent-text);
 }
 
+/* ── Masthead ─────────────────────────────────────────────────────────────── */
+/* An author who simply writes a top-level heading should still get a title
+   block, so the document's OPENING h1 is treated as a masthead. A cover block
+   puts its h1 inside the section, so the two can never both apply. Themes that
+   want a full-bleed block promote it with the bleed properties; the shared rule
+   only gives it room and a rule beneath. */
+${d}body > h1:first-child {
+  margin-top: 0;
+  margin-bottom: 1em;
+  padding-bottom: 0.4em;
+  border-bottom: var(--fm-border-width) solid var(--fm-border);
+}
+${d}body > h1:first-child + p { font-size: 1.05em; }
+
 /* ── Image backgrounds (resolved from the image registry at render time) ──── */
 ${d}.fm-has-bgimage {
   position: relative;
@@ -497,21 +523,22 @@ ${d}.fm-figure--wide {
   margin-inline: max(-4rem, calc((100% - 100vw) / 2 + 1.5rem));
 }
 ${d}.fm-figure--full {
-  margin: 2em calc(50% - 50vw);
+  margin: 2em var(--fm-bleed-margin);
 }
 ${d}.fm-figure--full .fm-figure__caption {
-  padding-inline: max(1.5rem, calc((100vw - var(--fm-measure)) / 2 + 1.5rem));
+  padding-inline: var(--fm-bleed-pad);
 }
 
 /* ── Document header (:::report) — applied to <html> ──────────────────────── */
 ${d}.fm-doc--wide { --fm-measure: 74rem; }
 ${d}.fm-doc--full { --fm-measure: 100rem; }
 ${scope === "" ? "" : `
-/* Scoped context (a picker tile): the viewport is not the page, so a band must
-   not try to bleed to it — it fills its container instead. */
-${d}.fm-band { margin-inline: 0; padding-inline: 1.4em; }
+/* Scoped context (a picker tile): the viewport is not the page, so nothing may
+   bleed to it — the geometry is neutralised at the root and every band, cover
+   and full-width figure follows. */
+${scope} { --fm-bleed-margin: 0; --fm-bleed-pad: 1.4em; }
 ${d}.fm-cover { min-height: 0; }
-${d}.fm-figure--wide, ${d}.fm-figure--full { margin-inline: 0; }
+${d}.fm-figure--wide { margin-inline: 0; }
 `}
 `;
 }
@@ -533,7 +560,7 @@ const RESPONSIVE_CSS = `
 @media print {
   .fm-card, .fm-callout, .fm-stat, .fm-figure { break-inside: avoid; }
   /* The print box has no viewport to bleed into; keep bands on the page. */
-  .fm-band, .fm-figure--full { margin-inline: 0; }
+  :root { --fm-bleed-margin: 0; --fm-bleed-pad: 1.5rem; --fm-page-pad-top: 0rem; }
   .fm-cover { min-height: 0; padding-block: 6em; }
 }
 `;
