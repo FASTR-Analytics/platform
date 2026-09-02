@@ -14,12 +14,27 @@ import {
 import type { Awareness } from "y-protocols/awareness";
 import * as Y from "yjs";
 import {
+  type EditResult,
+  fastrContainerStackUpTo,
+  fastrOpenFenceOnLine,
+  type FastrFencePatch,
+  type FastrInkRole,
+  type FastrOpenFence,
   type FigureBlock,
   findReportEmbeds,
   type ImageBlock,
+  type InlineMarkState,
+  inlineMarkStateAt,
+  insertLinkEdit,
   type ReportEmbedRef,
   type ReportFormat,
   rewriteReportEmbedToken,
+  setHeadingLevelEdit,
+  setInlineRoleEdit,
+  tableSnippet,
+  toggleInlineDelimiters,
+  toggleLinePrefixEdit,
+  updateContainerFenceLine,
 } from "lib";
 import type { ReportEditorSelection } from "~/components/project_ai/types";
 import { embedWidgets, type EmbedResolver } from "./figure_widget_extension";
@@ -84,6 +99,20 @@ export type ReportEditorApi = {
   ) => void;
   // Current text selection / cursor (surfaced to the AI).
   getSelection: () => ReportEditorSelection;
+  // ── FASTR Markdown toolbar ────────────────────────────────────────────────
+  // Rewrite the open fence at `line` (1-based); undefined or "" deletes a key.
+  // The line is explicit rather than "wherever the cursor is" so the toolbar
+  // can tone an OUTER block while the caret sits inside one of its cards.
+  setBlockAttrs: (line: number, patch: FastrFencePatch) => void;
+  // Wrap/unwrap the selection: ("**","**"), ("*","*"), ("`","`").
+  toggleInlineMark: (before: string, after: string) => void;
+  // `[phrase]{.danger}`; undefined clears the mark around the selection.
+  setInlineRole: (role: FastrInkRole | undefined) => void;
+  // 0 = paragraph, 1..6 = heading, across every line the selection touches.
+  setHeadingLevel: (level: number) => void;
+  toggleLinePrefix: (kind: "bullet" | "ordered" | "quote") => void;
+  insertLink: () => void;
+  insertTable: (cols: number, rows: number) => void;
   // Undo/redo the body — the toolbar's counterpart to the editor's own
   // Ctrl+Z/Ctrl+Shift+Z (per-user under collab, local history otherwise).
   undo: () => void;
@@ -127,7 +156,25 @@ type Props = {
   // collab this is required — a view-only user's keystrokes would otherwise
   // enter the shared doc, be rejected server-side, and silently diverge them.
   canEdit: () => boolean;
+  // FASTR Markdown only: where the caret is, structurally, so the toolbar can
+  // show the block it is inside and that block's own controls. Fires on cursor
+  // moves as well as edits, but only when something the toolbar renders has
+  // actually changed.
+  onContextChange?: (ctx: ReportBlockContext) => void;
   ref?: (api: ReportEditorApi) => void;
+};
+
+export type ReportBlockContext = {
+  // Blocks ENCLOSING the caret line, innermost last.
+  stack: FastrOpenFence[];
+  // The open fence ON the caret line itself. Leaf blocks (`stat`, `report`)
+  // carry no closing fence and so never appear on the stack — this is the only
+  // way the toolbar can reach them.
+  fenceHere: FastrOpenFence | undefined;
+  // 1-based.
+  line: number;
+  hasSelection: boolean;
+  marks: InlineMarkState;
 };
 
 export function ReportEditor(p: Props) {
@@ -192,6 +239,9 @@ export function ReportEditor(p: Props) {
   // props say) and again when the collab binding appears or the edit permission
   // flips — preserving scroll position and (clamped) selection across the swap.
   // Known cost: the local undo history resets on a rebuild.
+  // Fixed for the editor's lifetime, like the format it reads.
+  const isFastr = p.format === "fastr";
+
   function buildView(collab: { yText: Y.Text; awareness: Awareness } | undefined) {
     const prevScroll = view?.scrollDOM.scrollTop;
     const prevSel = view?.state.selection.main;
@@ -248,6 +298,11 @@ export function ReportEditor(p: Props) {
         embedWidgets(resolver, p.format),
         EditorView.updateListener.of((u) => {
           if (u.docChanged) p.onBodyChange(u.state.doc.toString());
+          // Push, not poll: a timer would still be wrong between ticks, and
+          // this is exact and free. Guarded inside emitContext.
+          if (isFastr && (u.docChanged || u.selectionSet)) {
+            emitContext(u.state, u.docChanged);
+          }
         }),
         ...(collab && undoMgr
           ? [
@@ -277,6 +332,12 @@ export function ReportEditor(p: Props) {
         },
       });
     }
+    // So the toolbar has a context on first paint and after every rebuild —
+    // the selection dispatch above does not always produce a selectionSet.
+    if (isFastr) {
+      ctxKey = "";
+      emitContext(view.state, true);
+    }
   }
 
   function insertBlockOnNewLine(token: string) {
@@ -295,6 +356,117 @@ export function ReportEditor(p: Props) {
       scrollIntoView: true,
     });
     view.focus();
+  }
+
+  // ── FASTR Markdown toolbar ─────────────────────────────────────────────────
+
+  function setBlockAttrs(lineNumber: number, patch: FastrFencePatch) {
+    if (!view || lineNumber < 1 || lineNumber > view.state.doc.lines) return;
+    const line = view.state.doc.line(lineNumber);
+    const next = updateContainerFenceLine(line.text, patch);
+    if (next === undefined || next === line.text) return;
+    // One line, one transaction — under yCollab this becomes a delete+insert
+    // confined to that line, so it merges with a peer typing anywhere else.
+    // Deliberately no view.focus(): the user is still inside a popover picking
+    // a second option, and pulling focus back mid-interaction closes it.
+    view.dispatch({ changes: { from: line.from, to: line.to, insert: next } });
+  }
+
+  // Every text action lands as ONE transaction, which is what makes the
+  // offsets (all measured pre-transaction) valid and the collab ops minimal.
+  function applyEdit(r: EditResult) {
+    if (!view || r.changes.length === 0) return;
+    view.dispatch({
+      changes: r.changes,
+      selection: r.selection,
+      scrollIntoView: true,
+    });
+    view.focus();
+  }
+
+  function selectionRange(): { doc: string; from: number; to: number } | undefined {
+    if (!view) return undefined;
+    const sel = view.state.selection.main;
+    return { doc: view.state.doc.toString(), from: sel.from, to: sel.to };
+  }
+
+  function toggleInlineMark(before: string, after: string) {
+    const s = selectionRange();
+    if (s) applyEdit(toggleInlineDelimiters(s.doc, s.from, s.to, before, after));
+  }
+
+  function setInlineRole(role: FastrInkRole | undefined) {
+    const s = selectionRange();
+    if (s) applyEdit(setInlineRoleEdit(s.doc, s.from, s.to, role));
+  }
+
+  function setHeadingLevel(level: number) {
+    const s = selectionRange();
+    if (s) applyEdit(setHeadingLevelEdit(s.doc, s.from, s.to, level));
+  }
+
+  function toggleLinePrefix(kind: "bullet" | "ordered" | "quote") {
+    const s = selectionRange();
+    if (s) applyEdit(toggleLinePrefixEdit(s.doc, s.from, s.to, kind));
+  }
+
+  function insertLink() {
+    const s = selectionRange();
+    if (s) applyEdit(insertLinkEdit(s.doc, s.from, s.to));
+  }
+
+  function insertTable(cols: number, rows: number) {
+    insertBlockOnNewLine(tableSnippet(cols, rows));
+  }
+
+  // The stack walk is cheap (a regex per line, and iterLines never
+  // materialises the document) but the SIGNAL write downstream is not: a fresh
+  // context object per arrow key re-renders the toolbar continuously while
+  // typing and can close an open popover. So cache the walk by line, and emit
+  // only when something the toolbar actually renders has changed.
+  let ctxStackLine = -1;
+  let ctxStack: FastrOpenFence[] = [];
+  let ctxKey = "";
+
+  function emitContext(state: EditorState, docChanged: boolean) {
+    if (!p.onContextChange) return;
+    const sel = state.selection.main;
+    const line = state.doc.lineAt(sel.head);
+    if (docChanged || line.number !== ctxStackLine) {
+      ctxStackLine = line.number;
+      ctxStack = fastrContainerStackUpTo(state.doc.iterLines(1, line.number));
+    }
+    const fenceHere = fastrOpenFenceOnLine(line.text, line.number);
+    const marks = inlineMarkStateAt(
+      line.text,
+      sel.from - line.from,
+      sel.to - line.from,
+    );
+    // The stack's ATTRS are part of the key, not just its shape: re-toning an
+    // enclosing block while the caret sits in one of its children changes only
+    // that outer fence, so a name+line key would suppress the update and leave
+    // the toolbar showing the tone you just replaced.
+    const key = `${line.number}|${!sel.empty}|${line.text}|${
+      JSON.stringify(marks)
+    }|${
+      ctxStack
+        .map((f) => `${f.name}${f.line}${JSON.stringify(f.attrs)}`)
+        .join(">")
+    }`;
+    if (key === ctxKey) return;
+    ctxKey = key;
+    const ctx: ReportBlockContext = {
+      stack: ctxStack,
+      fenceHere,
+      line: line.number,
+      hasSelection: !sel.empty,
+      marks,
+    };
+    // Out of the CodeMirror update. A synchronous signal write here re-renders
+    // the toolbar mid-update, and anything in that render that touches the
+    // view throws "Calls to EditorView.update are not allowed while an update
+    // is in progress".
+    queueMicrotask(() => p.onContextChange?.(ctx));
   }
 
   // See the ReportEditorApi doc comment. Reads the LIVE doc (not the body
@@ -477,6 +649,13 @@ export function ReportEditor(p: Props) {
       removeEmbedToken,
       setEmbedCaption,
       getSelection,
+      setBlockAttrs,
+      toggleInlineMark,
+      setInlineRole,
+      setHeadingLevel,
+      toggleLinePrefix,
+      insertLink,
+      insertTable,
       undo,
       redo,
       refresh,

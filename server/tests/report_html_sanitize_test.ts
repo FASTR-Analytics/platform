@@ -241,3 +241,16 @@ Deno.test("keeps a gradient background in the inline style", () => {
   assertStringIncludes(out, "fm-ink--light");
   assertStringIncludes(out, "fm-tone fm-tone--gradient");
 });
+
+// FASTR Markdown's inline role marks compile to `<span class="fm-mark …">`, and
+// REPORT_PURIFY_CONFIG is a DENYLIST — no ALLOWED_TAGS, no ALLOWED_ATTR — so
+// they survive by default rather than by permission. Pinned here because a
+// future tightening to an allowlist would strip every marked phrase in every
+// report with no error anywhere.
+Deno.test("keeps FASTR inline role marks", () => {
+  const out = clean(
+    `<p>Coverage <span class="fm-mark fm-mark--danger">fell 12 points</span>.</p>`,
+  );
+  assertStringIncludes(out, `<span class="fm-mark fm-mark--danger">`);
+  assertStringIncludes(out, `fell 12 points`);
+});

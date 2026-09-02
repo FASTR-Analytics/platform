@@ -21,7 +21,10 @@ import MarkdownIt from "markdown-it";
 import {
   containerHtmlFor,
   type FastrContainerAttrs,
+  type FastrInkRole,
   figureWidthClass,
+  inkRoleClass,
+  isFastrInkRole,
   isFastrLeafBlock,
   parseContainerAttrs,
   parseContainerFence,
@@ -29,6 +32,10 @@ import {
 import { escapeReportHtml } from "./types/reports.ts";
 
 type ContainerMeta = { name: string; attrs: FastrContainerAttrs };
+type MarkMeta = { role: FastrInkRole };
+
+// The `{.role}` that must follow the closing bracket, with nothing between.
+const MARK_ROLE_RE = /^\{\.([a-z][a-z0-9-]*)\}/;
 
 const EMBED_SRC_RE = /^(figure|image):/;
 const ATTR_BLOCK_RE = /^\s*\{[^}]*\}\s*$/;
@@ -114,6 +121,44 @@ export function createFastrMarkdownIt(): MarkdownIt {
     },
     { alt: ["paragraph", "reference", "blockquote", "list"] },
   );
+
+  // ── `[text]{.danger}` → a role-coloured span ───────────────────────────────
+  // Registered BEFORE `link` so we get first refusal on `[`. Everything that
+  // is not `]` immediately followed by `{.<known role>}` returns false and
+  // falls straight through to the real link rule, so ordinary links, reference
+  // links and `![cap](figure:id){width=wide}` are untouched — and an unknown
+  // role renders as the author's literal text rather than being swallowed.
+  md.inline.ruler.before("link", "fm_mark", (state, silent) => {
+    if (state.src.charCodeAt(state.pos) !== 0x5B /* [ */) return false;
+    const labelStart = state.pos + 1;
+    // markdown-it's own helper, so nested brackets behave exactly as in a link.
+    const labelEnd = state.md.helpers.parseLinkLabel(state, state.pos, false);
+    if (labelEnd < 0) return false;
+    const m = MARK_ROLE_RE.exec(state.src.slice(labelEnd + 1));
+    if (!m || !isFastrInkRole(m[1])) return false;
+    if (silent) return true;
+
+    const oldPos = state.pos;
+    const oldMax = state.posMax;
+    state.pos = labelStart;
+    state.posMax = labelEnd;
+    state.push("fm_mark_open", "span", 1).meta = { role: m[1] };
+    // Tokenize the label so `[**bold** phrase]{.danger}` keeps its emphasis.
+    state.md.inline.tokenize(state);
+    state.push("fm_mark_close", "span", -1);
+    state.pos = labelEnd + 1 + m[0].length;
+    state.posMax = oldMax;
+    if (state.pos > oldMax) {
+      state.pos = oldPos;
+      state.posMax = oldMax;
+      return false;
+    }
+    return true;
+  });
+
+  md.renderer.rules.fm_mark_open = (tokens, idx) =>
+    `<span class="${inkRoleClass((tokens[idx].meta as MarkMeta).role)}">`;
+  md.renderer.rules.fm_mark_close = () => "</span>";
 
   md.renderer.rules.fm_container_open = (tokens, idx) => {
     const token = tokens[idx];

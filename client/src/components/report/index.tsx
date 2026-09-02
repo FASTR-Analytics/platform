@@ -89,9 +89,11 @@ import { AddVisualization } from "../project/add_visualization";
 import { snapshotForVizEditor } from "../_editor_snapshot";
 import {
   EDITOR_PANE_MAX_REM,
+  type ReportBlockContext,
   ReportEditor,
   type ReportEditorApi,
 } from "./report_editor";
+import { ReportToolbar } from "./report_toolbar";
 import { REPORT_MARKDOWN_STYLE } from "./report_markdown_style";
 import {
   ReportEmbedEditor,
@@ -181,6 +183,11 @@ export function ProjectReport(p: Props) {
   // FASTR Markdown theming. Unlike htmlStyle this is changeable after creation
   // — the body carries no CSS, so nothing can be invalidated by a re-theme.
   const [fastrTheme, setFastrTheme] = createSignal<FastrReportTheme>("default");
+  // Where the caret is, structurally — pushed by the editor on cursor moves and
+  // edits, and read only by the toolbar.
+  const [blockContext, setBlockContext] = createSignal<
+    ReportBlockContext | undefined
+  >();
   // A custom style contributes only its palette to a fastr report (its
   // reference_css targets AI-authored class names, not fm-*).
   const [fastrColors, setFastrColors] = createSignal<
@@ -1606,6 +1613,7 @@ export function ProjectReport(p: Props) {
                   : undefined;
               }}
               canEdit={canEditBody}
+              onContextChange={setBlockContext}
               ref={(api) => (editorApi = api)}
             />
           </div>
@@ -1737,6 +1745,18 @@ export function ProjectReport(p: Props) {
                 </Show>
               </div>
             </HeadingBar>
+            {/* The formatting strip. A second row rather than more controls in
+                the HeadingBar's right slot, which already carries seven and is
+                anchored by onboarding tour steps. FrameTop's panel sizes to its
+                content, so the strip just grows the header. */}
+            <Show when={mode() !== "view" && canEditBody() && format() === "fastr"}>
+              <ReportToolbar
+                api={() => editorApi}
+                context={blockContext}
+                theme={fastrTheme}
+                colors={fastrColors}
+              />
+            </Show>
           </div>
         }
       >

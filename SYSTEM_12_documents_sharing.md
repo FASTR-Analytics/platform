@@ -41,6 +41,7 @@ globs:
   - lib/types/report_styles.ts
   - lib/report_sections.ts
   - lib/fastr_markdown_blocks.ts
+  - lib/fastr_markdown_edits.ts
   - lib/fastr_markdown_spec.ts
   - lib/report_fastr_css.ts
   - lib/report_fastr_markdown.ts
@@ -365,6 +366,23 @@ re-declare `color`, not only the token, because an element inherits its parent's
 COMPUTED colour (paragraphs stayed dark on a dark band while headings, which set
 colour explicitly, did not).
 
+Inline, `[fell 12 points]{.danger}` colours a WORD or phrase by the same
+principle — a markdown-it inline rule registered before `link`, so anything that
+is not `]` immediately followed by `{.<known role>}` falls through to the real
+link rule and an unknown role stays the author's literal text. It compiles to
+`<span class="fm-mark fm-mark--danger">`, which survives DOMPurify because
+`REPORT_PURIFY_CONFIG` is a denylist (pinned by a test, since a future tightening
+to an allowlist would strip every mark silently). The rule reads the semantic
+token ON the span rather than through a `--fm-mark-*` alias, which is what makes
+the six existing dark-ground rules work for marks with no rule of their own: an
+alias declared at `:root` would substitute at computed-value time and inherit the
+SUBSTITUTED colour. On a ground that is already that hue the mark returns to the
+ground's ink — colour the text or the panel, never both. And where a theme's
+accent cannot carry text (brutalist's yellow, or Minimal and Monochrome where the
+accent IS the ink), `--fm-accent-text` degrades to ink by design, so those themes
+mark with weight instead: a control that silently does nothing is worse than one
+that does something modest.
+
 `:::band` is the full-bleed section — the device that most makes a report read as
 designed. It escapes the centred column with `margin: … calc(50% - 50vw)` and
 insets its content back to `--fm-measure`; `html { overflow-x: hidden }` absorbs
@@ -430,7 +448,24 @@ is why the brief insists on `:::cover` with both.
 colour: using it as TEXT only works where it separates from the surface beneath.
 Brutalist's `#ffff00` on a near-white stat tile is invisible, so
 `--fm-accent-text` is computed at build time (luminance separation < 0.25 falls
-back to the ink) and used wherever the accent is type. And a theme that paints a
+back to the ink) and used wherever the accent is type — the stat value, the note
+callout's rule, the step numbers, several themes' `h2`. Because that fallback is
+chosen against the theme's OWN surface, every ground that re-scopes
+`--fm-accent` must re-scope `--fm-accent-text` too, or a `tone=dark` tile shows
+a black number on black; a structural test enforces the pair. A tone on a
+`tiles` or `columns` grid also gets padding, since a grid has none of its own
+and the ground would otherwise show only through the gaps between tiles.
+
+Four of the tones — `danger`, `warning`, `success`, `info` — are MEANING grounds
+rather than palette entries. They reuse the semantic colours the callout kinds
+and stat deltas already carry, and are deliberately the SAME strong colour in
+every theme: a danger tile is a saturated red panel on a white page and on a
+near-black one, because "this is the bad news" is not a thing a theme should be
+free to reinterpret. Every tone rule doubles its class (`.fm-tone.fm-tone--dark`,
+specificity 0,2,0) so it outranks any background a THEME sets on the same
+element — brutalist paints `.fm-callout` white, which at equal specificity beat
+`.fm-tone--danger` and left white type on a white callout.
+And a theme that paints a
 heading WITH the accent — brutalist's highlighter `h1` — renders it invisible on
 a ground that is already the accent, so any accent ground clears the heading
 background.
@@ -454,6 +489,46 @@ the frame HEAD so a re-theme never reloads the frame, which would drop the
 surface, the scroll position and every blob: raster), and a guide panel whose
 block rows INSERT via `insertBlockOnNewLine`
 ([fastr_markdown_guide.tsx](client/src/components/report/fastr_markdown_guide.tsx)).
+
+**The formatting toolbar** ([report_toolbar.tsx](client/src/components/report/report_toolbar.tsx),
+FASTR only) is a second row inside the same `FrameTop` panel as the `HeadingBar`
+— that panel is `flex-none overflow-auto` and sizes to content, so a strip just
+grows the header, and the `HeadingBar`'s slots (already seven controls, anchored
+by onboarding tour steps) stay untouched. Two halves. The left acts on TEXT
+(bold/italic/code, heading level, lists, link, table, role marks) through pure
+functions in [lib/fastr_markdown_edits.ts](lib/fastr_markdown_edits.ts) that
+return pre-transaction, disjoint, ascending changes for ONE dispatch — in `lib/`
+because `server/tests/` cannot import from `client/src`, and the fiddly rules
+(delimiters go inside the selection's whitespace; a heading or list never
+touches a `:::` fence or a code line; ordered lists renumber from the top) are
+settled by test rather than by clicking. The right half appears only when the
+caret is inside a block and rewrites THAT block's opening fence via
+`updateContainerFenceLine`, whose contract is that a patch changing nothing
+returns the author's line byte for byte — otherwise every click churns the
+version-history diff and emits Y.Text ops into everyone else's session. The
+block under the caret comes from `fastrContainerStackUpTo` plus a separate
+`fenceHere` for the caret's own line, which is the only way the leaf blocks
+(`:::stat`, `:::report`, which carry no closing fence and so never enter the
+stack) are reachable at all. Tone and role swatches render the REAL scoped
+stylesheet rather than a colour computed in JS — `fm-tone--accent` is a
+`color-mix` — and the scope root paints `--fm-page`/`--fm-ink`, so a swatch
+shows the document's colours whatever the app's own theme is doing.
+
+**The one real hazard is the cursor→Solid feedback loop.** The context is pushed
+from inside a CodeMirror `updateListener`, i.e. mid-update; a synchronous signal
+write there re-renders the toolbar mid-update and anything in that render that
+touches the view throws *"Calls to EditorView.update are not allowed while an
+update is in progress"* — on some keystroke pattern in production, not in the
+first ten minutes. Hence `queueMicrotask` on the emit, a cached stack keyed by
+line number, and a `key` string so an arrow-key storm within one line produces
+no re-render at all. The toolbar must never call the editor API during render,
+only from an `onClick`.
+
+Three walkers now share one code-fence-aware scan (`scanContainerLines`): the
+defect lister, `fastrTopLevelLineMask` and the container stack. They keep their
+own depth/stack/defect logic, which genuinely differs — what they must not keep
+is a private copy of the loop, because a drifting copy mis-nests a whole
+document in silence.
 
 **Autosave protocol** (no-room path — once a collab session becomes ready the
 800ms REST autosave is turned off for good and edits flow over the WS, S16):
