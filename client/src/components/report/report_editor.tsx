@@ -38,6 +38,10 @@ import {
 } from "lib";
 import type { ReportEditorSelection } from "~/components/project_ai/types";
 import { embedWidgets, type EmbedResolver } from "./figure_widget_extension";
+import {
+  FM_LIVE_SCOPE_CLASS,
+  livePreviewExtensions,
+} from "./live_preview_extension";
 import { fastrContainerFences } from "./fastr_fence_extension";
 import { rebaseProposedEdits, type SkippedRange } from "./rebase_edits";
 import { darkMode } from "~/state/t4_ui";
@@ -161,6 +165,11 @@ type Props = {
   // moves as well as edits, but only when something the toolbar renders has
   // actually changed.
   onContextChange?: (ctx: ReportBlockContext) => void;
+  // FASTR only: Edit mode's Obsidian-style surface — regions render as their
+  // true themed HTML, inline syntax conceals, the editor paints the document
+  // page. Toggled at runtime (Edit <-> Split) via a compartment, so flipping it
+  // preserves undo, scroll, selection and the collab binding.
+  livePreview?: () => boolean;
   ref?: (api: ReportEditorApi) => void;
 };
 
@@ -192,6 +201,8 @@ export function ReportEditor(p: Props) {
   // Without collab the view falls back to basicSetup's local history.
   let yUndoMgr: Y.UndoManager | undefined;
   const centerCompartment = new Compartment();
+  const livePreviewCompartment = new Compartment();
+  let lastLiveKey = "";
 
   // Pad the centered column to the right by the sidebar width so it lines up with
   // the View preview — but only when the pane is wide enough to fit the column
@@ -242,6 +253,28 @@ export function ReportEditor(p: Props) {
   // Fixed for the editor's lifetime, like the format it reads.
   const isFastr = p.format === "fastr";
 
+  function liveExtensions(
+    on: boolean,
+    collab: { yText: Y.Text; awareness: Awareness } | undefined,
+  ) {
+    return on
+      ? livePreviewExtensions(resolver, collab)
+      : [...darkMarkdownExtensions(), embedWidgets(resolver, p.format)];
+  }
+
+  // Runtime Edit <-> Split flip, mirroring applyCenterTheme: reconfigure the
+  // compartment and toggle the document-surface scope class, never rebuild.
+  function applyLivePreview(on: boolean) {
+    const key = String(on);
+    if (!view || key === lastLiveKey) return;
+    lastLiveKey = key;
+    parent.classList.toggle(FM_LIVE_SCOPE_CLASS, on);
+    const collab = p.collab?.();
+    view.dispatch({
+      effects: livePreviewCompartment.reconfigure(liveExtensions(on, collab)),
+    });
+  }
+
   function buildView(collab: { yText: Y.Text; awareness: Awareness } | undefined) {
     const prevScroll = view?.scrollDOM.scrollTop;
     const prevSel = view?.state.selection.main;
@@ -260,7 +293,7 @@ export function ReportEditor(p: Props) {
         // yCollab's per-user undo takes precedence over basicSetup's keymap.
         ...(collab ? [keymap.of([...yUndoManagerKeymap])] : []),
         basicSetup,
-        ...darkMarkdownExtensions(),
+        ...(isFastr ? [] : darkMarkdownExtensions()),
         // FASTR Markdown is markdown to CodeMirror; the `:::` fences get
         // their own line decoration on top.
         p.format === "html" ? html() : markdown(),
@@ -295,7 +328,17 @@ export function ReportEditor(p: Props) {
           },
         }),
         centerCompartment.of(centerTheme(p.centered(), 0)),
-        embedWidgets(resolver, p.format),
+        // For fastr, this slot toggles between the live-preview surface (Edit)
+        // and the classic source view (Split) via a compartment, so flipping
+        // modes preserves undo, scroll, selection and the collab binding. The
+        // dark markdown highlighter lives in the OFF branch: live preview is a
+        // light DOCUMENT even in a dark app. Other formats keep the plain
+        // embed widgets, untouched.
+        ...(isFastr
+          ? [livePreviewCompartment.of(
+            liveExtensions(p.livePreview?.() ?? false, collab),
+          )]
+          : [embedWidgets(resolver, p.format)]),
         EditorView.updateListener.of((u) => {
           if (u.docChanged) p.onBodyChange(u.state.doc.toString());
           // Push, not poll: a timer would still be wrong between ticks, and
@@ -335,6 +378,9 @@ export function ReportEditor(p: Props) {
     // So the toolbar has a context on first paint and after every rebuild —
     // the selection dispatch above does not always produce a selectionSet.
     if (isFastr) {
+      const liveOn = p.livePreview?.() ?? false;
+      lastLiveKey = String(liveOn);
+      parent.classList.toggle(FM_LIVE_SCOPE_CLASS, liveOn);
       ctxKey = "";
       emitContext(view.state, true);
     }
@@ -664,6 +710,12 @@ export function ReportEditor(p: Props) {
       isAtBottom,
       scrollToBottom,
     });
+  });
+
+  // Edit <-> Split flips the live-preview surface without a rebuild.
+  createEffect(() => {
+    const on = p.livePreview?.() ?? false;
+    if (isFastr) applyLivePreview(on);
   });
 
   // Rebuild when the collab binding appears (plain -> live upgrade shortly

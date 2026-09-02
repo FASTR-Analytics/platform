@@ -30,6 +30,7 @@ import {
 } from "../../lib/fastr_markdown_blocks.ts";
 import { renderFastrMarkdownToHtml } from "../../lib/report_fastr_markdown.ts";
 import {
+  buildFastrEditorSurfaceCss,
   buildFastrReportCss,
   fastrAllFontImportsCss,
 } from "../../lib/report_fastr_css.ts";
@@ -1017,4 +1018,20 @@ Deno.test("the model-facing brief documents the marks it is allowed to write", (
   for (const role of FASTR_INK_ROLES) {
     assertStringIncludes(FASTR_MD_SYNTAX_DOC, `.${role}`);
   }
+});
+
+Deno.test("the editor surface sheet is scope-prefixed and token-driven", () => {
+  const css = buildFastrEditorSurfaceCss(".fm-live-scope");
+  for (const line of css.split("\n")) {
+    if (!/\{$/.test(line.trim()) || !line.includes(".cm-")) continue;
+    assert(
+      line.trimStart().startsWith(".fm-live-scope "),
+      `unscoped editor-surface rule: ${line.trim()}`,
+    );
+  }
+  // The heading scale mirrors the structure sheet, so Edit shows print sizes.
+  assertStringIncludes(css, ".cm-fm-h1");
+  assertStringIncludes(css, "font-size: 2.15em");
+  assertStringIncludes(css, "var(--fm-font-heading)");
+  assertStringIncludes(css, ".cm-fm-link");
 });
