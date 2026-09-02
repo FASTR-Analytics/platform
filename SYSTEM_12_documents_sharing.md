@@ -542,10 +542,22 @@ Edit mode is an Obsidian-style surface — still CodeMirror on the same Y.Text
 the editor's Lezer tree is commonmark and carries no Table nodes) collapse into
 block widgets holding their TRUE render: the slice through
 `renderFastrMarkdownToHtml`, sanitized, styled by the scoped theme sheet, with
-live `ReportFigureEmbed`s mounted inside. **Reveal is derived, not stored**: a
-region the selection touches opens for editing, and click-to-reveal is one
-selection dispatch, collapse-on-leave the same derivation on the next
-selection change — remote yCollab transactions can never desync it. A revealed
+live `ReportFigureEmbed`s mounted inside. **Nothing reveals its source any more — every block edits IN PLACE in its
+rendered form.** Pressing a paragraph, list item or heading inside a rendered
+widget swaps THAT ELEMENT (only) to its raw source line(s) — inline markdown
+stays authorable — while the block's layout stays rendered around it;
+Enter/blur commits one dispatch and the widget re-renders, Escape restores.
+Table cells map through their row's data-line anchor + column index, and a
+commit rebuilds the row line. Stats edit their value/label/delta as before.
+All these editors activate on MOUSEDOWN (the browser decides what a press
+selects at mousedown; a click-time activation leaves a non-editable island
+that gets whole-widget-selected), and widget presses on non-editable areas
+claim the mousedown with preventDefault, parking the caret for the toolbar —
+shown as the widget's accent ring, since there is no source view to open.
+Split is the raw-source surface. The revealed-region machinery
+(buildRevealedRegion: chrome widgets, per-line grounds, the box layer for
+revealed frames) is retained but unreachable by pointer — the historical
+derivation: A revealed
 region shows NO syntax at all: it decomposes into chrome (the fence lines,
 replaced by the block's real header — a callout's title bar, a band's kicker —
 and a silent end cap, each painted on the block's own ground), rendered leaves
@@ -565,7 +577,15 @@ cannot drift; nested frames inset by depth. The scroller gets
 `isolation: isolate`: CM's below-layers carry negative z-index, and only a
 stacking context guarantees they paint above the page ground. Collapsed
 widgets are `flow-root` with no padding, so the render's own margins provide
-the preview's block rhythm.
+the preview's block rhythm. The editor is a bounded SHEET like View, not a
+full-pane wash: the page ground lives on `.cm-content` only (min-height 100%,
+`FM_PAGE_PAD_X` horizontal padding folded into the box layer's math), with the
+scope root's structure background overridden back to transparent so the pane
+around the sheet stays app chrome. The document's opening h1 line carries
+`cm-fm-masthead`, and the host extracts the theme sheet's own
+`body > h1:first-child` rules and re-targets them at that class — each theme's
+real masthead (Swiss's black band included) applies to the EDITABLE line, with
+a trailing rule stripping the flow margins a .cm-line must never carry.
 Only LAYOUT-FREE sheet classes may be reused per line (the tone rules and the
 callout-kind custom-prop setters); the structural block classes carry margins
 that would repeat on every line. **The structure guard** (a

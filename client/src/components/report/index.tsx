@@ -206,12 +206,70 @@ export function ProjectReport(p: Props) {
   // runs its computation eagerly at creation, so putting it above fastrColors
   // was a temporal-dead-zone crash on every report open ("Cannot access 'M'
   // before initialization" in the minified build).
-  const liveSurfaceCss = createMemo(() =>
-    [
-      buildFastrReportCss(fastrTheme(), fastrColors(), `.${FM_LIVE_SCOPE_CLASS}`),
-      buildFastrEditorSurfaceCss(`.${FM_LIVE_SCOPE_CLASS}`),
-    ].join("\n")
-  );
+  const liveSurfaceCss = createMemo(() => {
+    // The :root prefix is LOAD-BEARING: app.css themes CodeMirror app-wide
+    // with ":root .cm-editor …" selectors written to outrank CM's own theme
+    // classes — activeLine tint, caret and selection colours. Those must not
+    // reach into the live-preview document (the tint painted over the
+    // masthead's band; a dark-app caret is white and vanishes on the light
+    // sheet), so every live rule matches that specificity and wins on order.
+    const scope = `:root .${FM_LIVE_SCOPE_CLASS}`;
+    const themed = buildFastrReportCss(fastrTheme(), fastrColors(), scope);
+    // The measure, at the IFRAME's scale (16px root) — the app's own root
+    // font-size differs, and a rem-resolved measure would shear the whole
+    // sheet geometry away from View.
+    const measure = FASTR_THEME_TOKENS[fastrTheme()]?.measure ?? "44rem";
+    const measurePx = measure.endsWith("rem")
+      ? `${parseFloat(measure) * 16}px`
+      : measure;
+    // The editor's first heading line carries cm-fm-masthead; re-target the
+    // theme's own body > h1:first-child masthead rules at it, so Swiss's
+    // black band (and every other theme's masthead) applies to the EDITABLE
+    // line. Appended after the surface sheet, whose .cm-fm-masthead rule
+    // then strips the flow margins a .cm-line must never carry.
+    // Re-target the theme's own heading rules at the editor's line classes:
+    // the masthead (body > h1:first-child) and plain h2-h6 accents (Swiss's
+    // black top rule, Ministry's serif colour). Margins are then neutralised
+    // by the trailing rule — a .cm-line may carry borders and padding but
+    // never margins.
+    const escaped = scope.replaceAll(".", "\\.");
+    const retargeted = (themed.match(/[^{}]+\{[^}]*\}/g) ?? [])
+      .map((rule) => {
+        let out = rule
+          .replaceAll(`${scope} > h1:first-child`, `${scope} .cm-fm-masthead`)
+          .replaceAll(`${scope} body > h1:first-child`, `${scope} .cm-fm-masthead`);
+        for (let n = 2; n <= 6; n++) {
+          out = out.replace(
+            new RegExp(`(^|,)(\\s*)${escaped} h${n}(?=\\s*[,{])`, "gm"),
+            `$1$2${scope} .cm-fm-h${n}`,
+          );
+        }
+        // Blockquote styling (border, muted ink, padding) applies per line —
+        // contiguous quote lines stack into a continuous bar.
+        out = out.replace(
+          new RegExp(`(^|,)(\\s*)${escaped} blockquote(?=\\s*[,{])`, "gm"),
+          `$1$2${scope} .cm-fm-bq`,
+        );
+        // Only rules a replacement actually changed belong in the extra
+        // sheet; copying the rest would re-fight the cascade.
+        return out === rule ? "" : out;
+      })
+      .filter((rule) => rule.length > 0)
+      .join("\n");
+    return [
+      themed,
+      // After `themed`, whose vars block also sets --fm-measure.
+      `${scope} { --fm-measure: ${measurePx}; }`,
+      buildFastrEditorSurfaceCss(scope),
+      retargeted,
+      `${scope} .cm-line.cm-fm-masthead, ${scope} .cm-line.cm-fm-h2, ${scope} .cm-line.cm-fm-h3,
+${scope} .cm-line.cm-fm-h4, ${scope} .cm-line.cm-fm-h5, ${scope} .cm-line.cm-fm-h6, ${scope} .cm-line.cm-fm-bq {
+  margin: 0 !important; width: auto !important; text-decoration: none;
+}
+${scope} .cm-line.cm-fm-masthead { caret-color: var(--fm-page); }
+${scope} .cm-fm-masthead *, ${scope} .cm-fm-h2 *, ${scope} .cm-fm-h3 * { text-decoration: none !important; }`,
+    ].join("\n");
+  });
   const rasters = createFigureRasterCache(() => setRasterTick((t) => t + 1));
   // The live preview surface, for the peer-selection overlay (an iframe's
   // embeds are not reachable by querySelector from the parent document).
