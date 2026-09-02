@@ -185,15 +185,6 @@ export function ProjectReport(p: Props) {
   // FASTR Markdown theming. Unlike htmlStyle this is changeable after creation
   // — the body carries no CSS, so nothing can be invalidated by a re-theme.
   const [fastrTheme, setFastrTheme] = createSignal<FastrReportTheme>("default");
-  // The live-preview document surface: the full theme sheet scoped to the
-  // editor wrapper plus the token->CodeMirror mapping. One <style> element,
-  // re-rendered on theme change.
-  const liveSurfaceCss = createMemo(() =>
-    [
-      buildFastrReportCss(fastrTheme(), fastrColors(), `.${FM_LIVE_SCOPE_CLASS}`),
-      buildFastrEditorSurfaceCss(`.${FM_LIVE_SCOPE_CLASS}`),
-    ].join("\n")
-  );
   // Where the caret is, structurally — pushed by the editor on cursor moves and
   // edits, and read only by the toolbar.
   const [blockContext, setBlockContext] = createSignal<
@@ -208,6 +199,18 @@ export function ProjectReport(p: Props) {
     format() === "fastr"
       ? buildFastrReportCss(fastrTheme(), fastrColors())
       : undefined
+  );
+  // The live-preview document surface: the full theme sheet scoped to the
+  // editor wrapper plus the token->CodeMirror mapping. One <style> element,
+  // re-rendered on theme change. Declared AFTER the signals it reads — a memo
+  // runs its computation eagerly at creation, so putting it above fastrColors
+  // was a temporal-dead-zone crash on every report open ("Cannot access 'M'
+  // before initialization" in the minified build).
+  const liveSurfaceCss = createMemo(() =>
+    [
+      buildFastrReportCss(fastrTheme(), fastrColors(), `.${FM_LIVE_SCOPE_CLASS}`),
+      buildFastrEditorSurfaceCss(`.${FM_LIVE_SCOPE_CLASS}`),
+    ].join("\n")
   );
   const rasters = createFigureRasterCache(() => setRasterTick((t) => t + 1));
   // The live preview surface, for the peer-selection overlay (an iframe's
