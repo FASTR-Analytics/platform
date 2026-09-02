@@ -343,7 +343,12 @@ reject wrong-syntax tokens (with the correct spelling), doctype/html/head/body
 wrappers and non-well-formed html (incl. unclosed elements) for whole bodies
 and section fragments, and — for `replace_text`, which may legitimately span
 tag boundaries — only an edit that ADDS defects (`newHtmlDefect` delta). The
-shared `create_report` stays markdown-only; `get_report`/`get_available_reports`
+shared `create_report` creates FASTR Markdown reports (format `fastr`, optional
+starting theme): its description embeds `FASTR_MD_SYNTAX_DOC` verbatim so the
+blocks are in context wherever the tool is callable (any chat view, the MCP
+host), and its propose rejects container defects
+(`listFastrContainerDefects`) and figure/image embed tokens (a new report has
+no ids) via the `{invalid}` proposal result. `get_report`/`get_available_reports`
 state each report's format:
 `proposeEdit` stages the CodeMirror diff as the `customProposalUI`, an
 identical-body proposal short-circuits to panther's `{skip}` (a normal
