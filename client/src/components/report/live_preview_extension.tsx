@@ -27,6 +27,8 @@ import {
   Decoration,
   type DecorationSet,
   EditorView,
+  layer,
+  RectangleMarker,
   ViewPlugin,
   type ViewUpdate,
   WidgetType,
@@ -46,6 +48,9 @@ import type { Awareness } from "y-protocols/awareness";
 import * as Y from "yjs";
 import {
   FASTR_TONES,
+  FM_BOX_GAP,
+  FM_BOX_INSET,
+  FM_BOX_PAD_BOTTOM,
   type FastrLiveRegion,
   type FastrOpenFence,
   fastrLiveRegions,
@@ -70,6 +75,8 @@ import { ReportFigureEmbed } from "./ReportFigureEmbed";
 // The scope class the host puts on the editor wrapper and passes to
 // buildFastrReportCss / buildFastrEditorSurfaceCss. One name, three users.
 export const FM_LIVE_SCOPE_CLASS = "fm-live-scope";
+
+
 
 // ── Region ranges ────────────────────────────────────────────────────────────
 
@@ -115,7 +122,8 @@ class RegionWidget extends WidgetType {
     // Vertical PADDING, never margins: CodeMirror measures the widget's box
     // for vertical layout and margins fall outside it, desyncing cursor
     // positions below (the embedWidgets rule).
-    dom.className = "fm-live-region w-full cursor-text py-2";
+    dom.className = "fm-live-region w-full cursor-text";
+    dom.style.display = "flow-root";
     dom.contentEditable = "false";
     dom.setAttribute("data-region-line", String(this.startLine));
     dom.setAttribute("data-region-end", String(this.endLine));
@@ -295,30 +303,66 @@ const CALLOUT_KINDS = new Set(["note", "info", "success", "warning", "danger"]);
 // Only LAYOUT-FREE classes from the scoped sheet are reused per line: the tone
 // rules and the callout-kind custom-prop setters. Structural block classes
 // (.fm-callout, .fm-card) carry margins that would repeat on every line.
-function frameLineMeta(
-  frame: FastrOpenFence | undefined,
-): { cls: string; style?: string } {
-  let cls = "cm-fm-revealed";
-  if (!frame) return { cls };
+function validTone(attrs: FastrOpenFence["attrs"]): string | undefined {
+  const tone = attrs["tone"];
+  if (
+    typeof tone === "string" &&
+    (FASTR_TONES as readonly string[]).includes(tone.toLowerCase()) &&
+    tone.toLowerCase() !== "default"
+  ) return tone.toLowerCase();
+  return undefined;
+}
+
+// The REAL sheet classes for a frame's box, or undefined when the preview
+// draws no box either (an untoned tiles grid is transparent there too).
+// Absolutely-positioned layer elements ignore margins, which is exactly why
+// the structural classes are safe HERE and never on a .cm-line.
+function boxClassesFor(frame: FastrOpenFence): string | undefined {
   const attrs = frame.attrs;
+  let cls = "";
   if (frame.name === "callout") {
     const kind = typeof attrs["kind"] === "string" && CALLOUT_KINDS.has(attrs["kind"])
       ? attrs["kind"]
       : "note";
-    cls += ` cm-fm-revealed--callout fm-callout--${kind}`;
+    cls = `fm-callout fm-callout--${kind}`;
+  } else if (frame.name === "card") {
+    cls = attrs["accent"] !== undefined ? "fm-card fm-card--accent" : "fm-card";
+  } else if (frame.name === "quote") {
+    cls = "fm-quote";
   }
-  if (frame.name === "card") cls += " cm-fm-revealed--card";
+  const tone = validTone(attrs);
+  if (tone !== undefined) cls = `${cls} fm-tone fm-tone--${tone}`.trim();
+  return cls.length === 0 ? undefined : cls;
+}
+
+function frameLineMeta(
+  frame: FastrOpenFence | undefined,
+  depth = 0,
+): { cls: string; style?: string } {
+  let cls = `cm-fm-revealed cm-fm-d${Math.min(Math.max(depth, 0), 4)}`;
+  if (!frame) return { cls };
+  const attrs = frame.attrs;
   if (frame.name === "quote") cls += " cm-fm-quote-line";
-  const toneAttr = attrs["tone"];
-  if (
-    typeof toneAttr === "string" &&
-    (FASTR_TONES as readonly string[]).includes(toneAttr.toLowerCase()) &&
-    toneAttr.toLowerCase() !== "default"
-  ) {
-    return { cls: `${cls} fm-tone fm-tone--${toneAttr.toLowerCase()}` };
+  const boxed = boxClassesFor(frame) !== undefined;
+  const tone = validTone(attrs);
+  if (tone !== undefined) {
+    // The tone class re-scopes the ink tokens; the BOX paints the ground, so
+    // the line's own background goes transparent or it would sit over the
+    // box's borders.
+    return {
+      cls: `${cls} fm-tone fm-tone--${tone}`,
+      style: "background: transparent",
+    };
   }
+  if (frame.name === "callout") {
+    const kind = typeof attrs["kind"] === "string" && CALLOUT_KINDS.has(attrs["kind"])
+      ? attrs["kind"]
+      : "note";
+    cls += ` fm-callout--${kind}`;
+  }
+  if (boxed) return { cls };
   // A literal FLAT colour paints the lines directly (a gradient would repeat
-  // per line as stripes, so it falls back to the surface wash).
+  // per line as stripes).
   const bg = attrs["bg"] ?? attrs["background"];
   if (typeof bg === "string") {
     const color = safeCssColor(bg);
@@ -411,20 +455,25 @@ function chromeRoot(view: EditorView, line1: number): HTMLElement {
 // callout or card title, a kicker — or nothing at all (a tiles grid has no
 // header when rendered, so it has none here either).
 class ChromeOpenWidget extends WidgetType {
-  constructor(readonly fence: FastrOpenFence, readonly sourceLine: string) {
+  constructor(
+    readonly fence: FastrOpenFence,
+    readonly sourceLine: string,
+    readonly depth: number,
+  ) {
     super();
   }
   override eq(other: ChromeOpenWidget): boolean {
     return other.sourceLine === this.sourceLine &&
-      other.fence.line === this.fence.line;
+      other.fence.line === this.fence.line && other.depth === this.depth;
   }
   override toDOM(view: EditorView): HTMLElement {
     const dom = chromeRoot(view, this.fence.line);
-    // The chrome carries its own block's ground — a toned callout's title bar
-    // must sit on the tone, not on the page.
-    const meta = frameLineMeta(this.fence);
-    dom.className += ` ${meta.cls} cm-fm-revealed-first`;
-    if (meta.style) dom.style.cssText += ";" + meta.style;
+    // Transparent root: the page shows through the gap above the box, and the
+    // BOX (layer) paints the ground behind the title. The inner wrapper takes
+    // the frame's classes with its background inlined away, so the tone and
+    // kind CUSTOM PROPERTIES still re-scope the title's colour without
+    // painting a second ground over the box's border.
+    dom.className += ` cm-fm-chrome-open cm-fm-d${Math.min(this.depth, 4)}`;
     const attrs = this.fence.attrs;
     const text = (k: string) =>
       typeof attrs[k] === "string" ? (attrs[k] as string) : undefined;
@@ -434,7 +483,11 @@ class ChromeOpenWidget extends WidgetType {
         ? attrs["kind"]
         : "note";
       const wrap = document.createElement("div");
-      if (this.fence.name === "callout") wrap.className = `fm-callout--${kind}`;
+      const meta = frameLineMeta(this.fence, this.depth);
+      wrap.className = this.fence.name === "callout"
+        ? `${meta.cls} fm-callout--${kind}`
+        : meta.cls;
+      wrap.style.background = "transparent";
       const t = document.createElement("div");
       t.className = this.fence.name === "callout"
         ? "fm-callout__title"
@@ -452,6 +505,10 @@ class ChromeOpenWidget extends WidgetType {
       dom.appendChild(wrap);
     } else if (this.fence.name === "band" || this.fence.name === "cover") {
       const kicker = text("kicker") ?? "";
+      const wrap = document.createElement("div");
+      wrap.className = frameLineMeta(this.fence, this.depth).cls;
+      wrap.style.background = "transparent";
+      dom.appendChild(wrap);
       const k = document.createElement("div");
       k.className = "fm-kicker";
       k.textContent = kicker;
@@ -463,7 +520,7 @@ class ChromeOpenWidget extends WidgetType {
         kicker,
         t3({ en: "Kicker…", fr: "Surtitre…", pt: "Antetítulo…" }),
       );
-      dom.appendChild(k);
+      wrap.appendChild(k);
     }
     return dom;
   }
@@ -475,26 +532,19 @@ class ChromeOpenWidget extends WidgetType {
 // The close fence: nothing to show — the ground's last content line carries
 // the bottom padding and radius.
 class ChromeCapWidget extends WidgetType {
-  constructor(
-    readonly line1: number,
-    readonly frame: FastrOpenFence | undefined,
-  ) {
+  constructor(readonly line1: number, readonly depth: number) {
     super();
   }
   override eq(other: ChromeCapWidget): boolean {
-    return other.line1 === this.line1 &&
-      other.frame?.line === this.frame?.line;
+    return other.line1 === this.line1 && other.depth === this.depth;
   }
   override toDOM(view: EditorView): HTMLElement {
     const dom = chromeRoot(view, this.line1);
-    const meta = frameLineMeta(this.frame);
-    dom.className += ` ${meta.cls} cm-fm-revealed-last`;
-    if (meta.style) dom.style.cssText += ";" + meta.style;
-    dom.style.height = "0.35rem";
+    dom.className += ` cm-fm-chrome-cap cm-fm-d${Math.min(this.depth, 4)}`;
     return dom;
   }
   override get estimatedHeight(): number {
-    return 6;
+    return FM_BOX_GAP + FM_BOX_PAD_BOTTOM;
   }
 }
 
@@ -537,15 +587,28 @@ function buildRevealedRegion(
   r: RegionRange,
   builder: RangeSetBuilder<Decoration>,
   protectedLines: ProtectedLine[],
+  boxes: BoxInfo[],
   resolver: EmbedResolver,
 ) {
   const region = r.region;
   const sliceLines = state.sliceDoc(r.from, r.to).split("\n");
-  const stack: (FastrOpenFence | undefined)[] = [];
+  type OpenFrame = {
+    fence: FastrOpenFence | undefined;
+    depth: number;
+    boxClasses: string | undefined;
+    openLine1: number;
+  };
+  const stack: OpenFrame[] = [];
   type Item =
-    | { kind: "chrome-open" | "leaf" | "embed"; line1: number }
-    | { kind: "chrome-close"; line1: number; frame: FastrOpenFence | undefined }
-    | { kind: "text"; line1: number; frame: FastrOpenFence | undefined };
+    | { kind: "chrome-open"; line1: number; depth: number }
+    | { kind: "chrome-close"; line1: number; depth: number }
+    | { kind: "leaf" | "embed"; line1: number }
+    | {
+      kind: "text";
+      line1: number;
+      frame: FastrOpenFence | undefined;
+      depth: number;
+    };
   const items: Item[] = [];
   for (const sc of scanContainerLines(sliceLines)) {
     const line1 = region.startLine + sc.index + 1;
@@ -553,21 +616,56 @@ function buildRevealedRegion(
       if (isFastrLeafBlock(sc.fence.name)) {
         items.push({ kind: "leaf", line1 });
       } else {
-        items.push({ kind: "chrome-open", line1 });
-        stack.push(fastrOpenFenceOnLine(sc.text, line1));
+        const fence = fastrOpenFenceOnLine(sc.text, line1);
+        const depth = stack.length + 1;
+        items.push({ kind: "chrome-open", line1, depth });
+        stack.push({
+          fence,
+          depth,
+          boxClasses: fence ? boxClassesFor(fence) : undefined,
+          openLine1: line1,
+        });
       }
       continue;
     }
     if (!sc.inCode && sc.fence?.kind === "close") {
-      items.push({ kind: "chrome-close", line1, frame: stack[stack.length - 1] });
-      stack.pop();
+      const frame = stack.pop();
+      items.push({ kind: "chrome-close", line1, depth: frame?.depth ?? 1 });
+      if (frame?.boxClasses !== undefined) {
+        boxes.push({
+          openLine1: frame.openLine1,
+          endLine1: line1,
+          capped: true,
+          classes: frame.boxClasses,
+          depth: frame.depth,
+        });
+      }
       continue;
     }
     if (!sc.inCode && isFastrEmbedLine(sc.text)) {
       items.push({ kind: "embed", line1 });
       continue;
     }
-    items.push({ kind: "text", line1, frame: stack[stack.length - 1] });
+    const top = stack[stack.length - 1];
+    items.push({
+      kind: "text",
+      line1,
+      frame: top?.fence,
+      depth: top?.depth ?? 0,
+    });
+  }
+  // Unclosed frames (the block rule runs them to EOF): their box runs to the
+  // region's last line, with no cap gap below.
+  for (const frame of stack) {
+    if (frame.boxClasses !== undefined) {
+      boxes.push({
+        openLine1: frame.openLine1,
+        endLine1: region.endLine + 1,
+        capped: false,
+        classes: frame.boxClasses,
+        depth: frame.depth,
+      });
+    }
   }
 
   const protect = (line1: number) => {
@@ -591,7 +689,7 @@ function buildRevealedRegion(
             line.from,
             line.to,
             Decoration.replace({
-              widget: new ChromeOpenWidget(fence, line.text),
+              widget: new ChromeOpenWidget(fence, line.text, item.depth),
               block: true,
             }),
           );
@@ -604,7 +702,7 @@ function buildRevealedRegion(
           line.from,
           line.to,
           Decoration.replace({
-            widget: new ChromeCapWidget(item.line1, item.frame),
+            widget: new ChromeCapWidget(item.line1, item.depth),
             block: true,
           }),
         );
@@ -646,9 +744,7 @@ function buildRevealedRegion(
         protect(item.line1);
         break;
       case "text": {
-        const meta = frameLineMeta(item.frame);
-        // Run boundaries: first/last of a run of consecutive text lines with
-        // the same innermost frame — they carry the ground's corners/padding.
+        const meta = frameLineMeta(item.frame, item.depth);
         const prev = items[i - 1];
         const next = items[i + 1];
         // Chrome, leaves and embeds continue their block's ground; only a
@@ -680,6 +776,21 @@ type LiveState = {
   // Fence/leaf lines of REVEALED regions plus the whole span of every region:
   // what the transaction filter consults to refuse user edits into structure.
   protectedLines: ProtectedLine[];
+  // One BOX per box-worthy revealed frame, drawn by the layer below the text:
+  // the block's REAL sheet classes, so the theme's borders, radius and shadow
+  // match the preview exactly.
+  boxes: BoxInfo[];
+};
+
+type BoxInfo = {
+  // 1-based line of the open fence and of the line the box ends on (the cap,
+  // or the region's last line when unclosed).
+  openLine1: number;
+  endLine1: number;
+  capped: boolean;
+  classes: string;
+  // 1 = the region's own block; children nest deeper and inset accordingly.
+  depth: number;
 };
 
 type ProtectedLine = {
@@ -699,6 +810,7 @@ function buildLiveState(
   const ranges = cached ?? regionRanges(state);
   const builder = new RangeSetBuilder<Decoration>();
   const protectedLines: ProtectedLine[] = [];
+  const boxes: BoxInfo[] = [];
   for (const r of ranges) {
     // Derived reveal: a region the selection touches opens for editing IN
     // PLACE, still looking like the block. Fence lines never show as syntax —
@@ -709,7 +821,7 @@ function buildLiveState(
     // recorded as PROTECTED: a transaction filter refuses user edits that
     // touch them, so the attrs are reachable only through the toolbar.
     if (selectionTouches(state, r.from, r.to)) {
-      buildRevealedRegion(state, r, builder, protectedLines, resolver);
+      buildRevealedRegion(state, r, builder, protectedLines, boxes, resolver);
       continue;
     }
     protectedLines.push({
@@ -730,7 +842,7 @@ function buildLiveState(
       );
     builder.add(r.from, r.to, Decoration.replace({ widget, block: true }));
   }
-  return { ranges, deco: builder.finish(), protectedLines };
+  return { ranges, deco: builder.finish(), protectedLines, boxes };
 }
 
 export function liveRegionExtensions(resolver: EmbedResolver): Extension[] {
@@ -774,7 +886,54 @@ export function liveRegionExtensions(resolver: EmbedResolver): Extension[] {
     return blocked ? [] : tr;
   });
 
-  return [field, guard];
+  // The boxes: one absolutely-positioned element per box-worthy revealed
+  // frame, drawn BELOW the text by a layer (the mechanism selection
+  // backgrounds use). It carries the block's REAL sheet classes, so the
+  // theme's borders, radius and shadows match the preview exactly — and
+  // because a layer element is absolutely positioned, the structural classes'
+  // margins are inert here.
+  const boxLayer = layer({
+    above: false,
+    class: "cm-fm-box-layer",
+    update: (u) =>
+      u.docChanged || u.selectionSet || u.geometryChanged || u.viewportChanged,
+    markers(view) {
+      const boxes = view.state.field(field).boxes;
+      if (boxes.length === 0) return [];
+      const scrollRect = view.scrollDOM.getBoundingClientRect();
+      const base = {
+        left: scrollRect.left - view.scrollDOM.scrollLeft,
+        top: scrollRect.top - view.scrollDOM.scrollTop,
+      };
+      const contentRect = view.contentDOM.getBoundingClientRect();
+      const out: RectangleMarker[] = [];
+      for (const b of boxes) {
+        if (
+          b.openLine1 > view.state.doc.lines ||
+          b.endLine1 > view.state.doc.lines
+        ) continue;
+        const openBlock = view.lineBlockAt(view.state.doc.line(b.openLine1).from);
+        const endBlock = view.lineBlockAt(view.state.doc.line(b.endLine1).from);
+        const top = openBlock.top + view.documentTop - base.top + FM_BOX_GAP;
+        const bottom = endBlock.bottom + view.documentTop - base.top -
+          (b.capped ? FM_BOX_GAP : 0);
+        if (bottom <= top) continue;
+        const inset = (b.depth - 1) * FM_BOX_INSET;
+        out.push(
+          new RectangleMarker(
+            `cm-fm-box ${b.classes}`,
+            contentRect.left - base.left + inset,
+            top,
+            contentRect.width - 2 * inset,
+            bottom - top,
+          ),
+        );
+      }
+      return out;
+    },
+  });
+
+  return [field, guard, boxLayer];
 }
 
 // ── Surface lines (heading scale) ────────────────────────────────────────────
