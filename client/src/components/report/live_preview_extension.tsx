@@ -33,9 +33,11 @@ import {
 } from "@codemirror/view";
 import {
   type EditorState,
+  EditorState as CMEditorState,
   type Extension,
   RangeSetBuilder,
   StateField,
+  Transaction,
 } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
 import { render } from "solid-js/web";
@@ -45,9 +47,13 @@ import * as Y from "yjs";
 import {
   FASTR_TONES,
   type FastrLiveRegion,
+  type FastrOpenFence,
   fastrLiveRegions,
+  fastrOpenFenceOnLine,
   isDarkCssColor,
+  isFastrEmbedLine,
   isFastrInkRole,
+  isFastrLeafBlock,
   renderFastrMarkdownToHtml,
   safeCssColor,
   scanContainerLines,
@@ -270,32 +276,39 @@ class PageSetupWidget extends WidgetType {
   }
 }
 
-// ── Revealed-region styling ──────────────────────────────────────────────────
-// The classes a revealed region's LINES carry. Only layout-free classes from
-// the scoped sheet are reused here: the tone rules (background + token
-// re-scopes + color) and the callout-kind rules (a --fm-callout-color setter)
-// carry no margins or padding, so they are safe per line — the structural
-// block classes (.fm-callout, .fm-card) are NOT, and must never be applied to
-// a .cm-line. Values are validated against the lib constants before becoming
-// class names or inline style.
+// ── Revealed regions: structured in-place editing ────────────────────────────
+// A revealed region never shows `:::` syntax. Its lines decompose into:
+//   • chrome  — the fences, rendered as the block's real header (a callout's
+//     title bar, a band's kicker) and a silent end cap; PROTECTED from typing.
+//   • leaves  — stat lines, fully rendered (they are pure attrs); PROTECTED.
+//   • embeds  — figure/image lines, rendered live; PROTECTED (captions are
+//     edited in the left panel).
+//   • text    — everything else: ordinary editable lines painted with the
+//     INNERMOST enclosing block's ground.
+// The caret may sit on a protected line (that is how the toolbar targets the
+// fence), but a user edit that touches one is refused by the transaction
+// filter below — the attrs are reachable only through specialised controls.
 
 const CALLOUT_KINDS = new Set(["note", "info", "success", "warning", "danger"]);
 
-function revealedRegionMeta(
-  region: FastrLiveRegion,
+// Only LAYOUT-FREE classes from the scoped sheet are reused per line: the tone
+// rules and the callout-kind custom-prop setters. Structural block classes
+// (.fm-callout, .fm-card) carry margins that would repeat on every line.
+function frameLineMeta(
+  frame: FastrOpenFence | undefined,
 ): { cls: string; style?: string } {
   let cls = "cm-fm-revealed";
-  const fence = region.fence;
-  if (!fence) return { cls };
-  const attrs = fence.attrs;
-  if (fence.name === "callout") {
-    const kind = typeof attrs["kind"] === "string" &&
-        CALLOUT_KINDS.has(attrs["kind"])
+  if (!frame) return { cls };
+  const attrs = frame.attrs;
+  if (frame.name === "callout") {
+    const kind = typeof attrs["kind"] === "string" && CALLOUT_KINDS.has(attrs["kind"])
       ? attrs["kind"]
       : "note";
     cls += ` cm-fm-revealed--callout fm-callout--${kind}`;
   }
-  const toneAttr = fence.name === "report" ? attrs["background"] : attrs["tone"];
+  if (frame.name === "card") cls += " cm-fm-revealed--card";
+  if (frame.name === "quote") cls += " cm-fm-quote-line";
+  const toneAttr = attrs["tone"];
   if (
     typeof toneAttr === "string" &&
     (FASTR_TONES as readonly string[]).includes(toneAttr.toLowerCase()) &&
@@ -309,9 +322,8 @@ function revealedRegionMeta(
   if (typeof bg === "string") {
     const color = safeCssColor(bg);
     if (color !== undefined) {
-      const dark = isDarkCssColor(color);
       return {
-        cls: dark ? `${cls} fm-ink--light` : cls,
+        cls: isDarkCssColor(color) ? `${cls} fm-ink--light` : cls,
         style: `background-color: ${color}`,
       };
     }
@@ -319,30 +331,248 @@ function revealedRegionMeta(
   return { cls };
 }
 
-// ── The region field ─────────────────────────────────────────────────────────
+function chromeRoot(view: EditorView, line1: number): HTMLElement {
+  const dom = document.createElement("div");
+  // flow-root contains the sheet classes' own margins — a block widget must
+  // never let a child margin escape its box (the CM measurement rule).
+  dom.className = "cm-fm-chrome w-full";
+  dom.style.display = "flow-root";
+  dom.contentEditable = "false";
+  dom.addEventListener("click", () => {
+    // Caret onto the (hidden) fence line: typing there is refused by the
+    // guard, but the toolbar reads the caret and shows this block's controls.
+    view.dispatch({ selection: { anchor: view.state.doc.line(line1).from } });
+    view.focus();
+  });
+  return dom;
+}
 
-type LiveState = { ranges: RegionRange[]; deco: DecorationSet };
+// An open fence's visible face: the chrome the RENDER gives that fence — a
+// callout or card title, a kicker — or nothing at all (a tiles grid has no
+// header when rendered, so it has none here either).
+class ChromeOpenWidget extends WidgetType {
+  constructor(readonly fence: FastrOpenFence, readonly sourceLine: string) {
+    super();
+  }
+  override eq(other: ChromeOpenWidget): boolean {
+    return other.sourceLine === this.sourceLine &&
+      other.fence.line === this.fence.line;
+  }
+  override toDOM(view: EditorView): HTMLElement {
+    const dom = chromeRoot(view, this.fence.line);
+    // The chrome carries its own block's ground — a toned callout's title bar
+    // must sit on the tone, not on the page.
+    const meta = frameLineMeta(this.fence);
+    dom.className += ` ${meta.cls} cm-fm-revealed-first`;
+    if (meta.style) dom.style.cssText += ";" + meta.style;
+    const attrs = this.fence.attrs;
+    const text = (k: string) =>
+      typeof attrs[k] === "string" ? (attrs[k] as string) : undefined;
+    if (this.fence.name === "callout" || this.fence.name === "card") {
+      const title = text("title");
+      if (title !== undefined && title.length > 0) {
+        const kind = typeof attrs["kind"] === "string" && CALLOUT_KINDS.has(attrs["kind"])
+          ? attrs["kind"]
+          : "note";
+        const wrap = document.createElement("div");
+        if (this.fence.name === "callout") wrap.className = `fm-callout--${kind}`;
+        const t = document.createElement("div");
+        t.className = this.fence.name === "callout"
+          ? "fm-callout__title"
+          : "fm-card__title";
+        t.textContent = title;
+        wrap.appendChild(t);
+        dom.appendChild(wrap);
+      }
+    } else if (this.fence.name === "band" || this.fence.name === "cover") {
+      const kicker = text("kicker");
+      if (kicker !== undefined && kicker.length > 0) {
+        const k = document.createElement("div");
+        k.className = "fm-kicker";
+        k.textContent = kicker;
+        dom.appendChild(k);
+      }
+    }
+    return dom;
+  }
+  override get estimatedHeight(): number {
+    return 24;
+  }
+}
 
-function buildLiveState(
+// The close fence: nothing to show — the ground's last content line carries
+// the bottom padding and radius.
+class ChromeCapWidget extends WidgetType {
+  constructor(
+    readonly line1: number,
+    readonly frame: FastrOpenFence | undefined,
+  ) {
+    super();
+  }
+  override eq(other: ChromeCapWidget): boolean {
+    return other.line1 === this.line1 &&
+      other.frame?.line === this.frame?.line;
+  }
+  override toDOM(view: EditorView): HTMLElement {
+    const dom = chromeRoot(view, this.line1);
+    const meta = frameLineMeta(this.frame);
+    dom.className += ` ${meta.cls} cm-fm-revealed-last`;
+    if (meta.style) dom.style.cssText += ";" + meta.style;
+    dom.style.height = "0.35rem";
+    return dom;
+  }
+  override get estimatedHeight(): number {
+    return 6;
+  }
+}
+
+// A leaf line (a stat) is pure attributes, so it is never text-edited — it
+// renders exactly as the document renders it and is driven by the toolbar.
+class LeafRenderWidget extends WidgetType {
+  constructor(readonly source: string, readonly line1: number) {
+    super();
+  }
+  override eq(other: LeafRenderWidget): boolean {
+    return other.source === this.source && other.line1 === this.line1;
+  }
+  override toDOM(view: EditorView): HTMLElement {
+    const dom = chromeRoot(view, this.line1);
+    dom.innerHTML = sanitizeReportHtml(
+      renderFastrMarkdownToHtml(this.source, { lineAnchors: false }),
+    );
+    return dom;
+  }
+  override get estimatedHeight(): number {
+    return 110;
+  }
+}
+
+function buildRevealedRegion(
   state: EditorState,
+  r: RegionRange,
+  builder: RangeSetBuilder<Decoration>,
+  protectedLines: ProtectedLine[],
   resolver: EmbedResolver,
-  cached?: RegionRange[],
-): LiveState {
-  const ranges = cached ?? regionRanges(state);
-  const builder = new RangeSetBuilder<Decoration>();
-  for (const r of ranges) {
-    // Derived reveal: a region the selection touches shows its source. This
-    // maps through remote transactions for free and cannot desync. The source
-    // is NOT bare text, though — the region's lines keep the block's ground
-    // (tone, callout accent, literal colour), so editing feels like editing
-    // the element in place; only the fence lines drop to dimmed syntax.
-    if (selectionTouches(state, r.from, r.to)) {
-      const meta = revealedRegionMeta(r.region);
-      for (let n = r.region.startLine; n <= r.region.endLine; n++) {
-        const line = state.doc.line(n + 1);
+) {
+  const region = r.region;
+  const sliceLines = state.sliceDoc(r.from, r.to).split("\n");
+  const stack: (FastrOpenFence | undefined)[] = [];
+  type Item =
+    | { kind: "chrome-open" | "leaf" | "embed"; line1: number }
+    | { kind: "chrome-close"; line1: number; frame: FastrOpenFence | undefined }
+    | { kind: "text"; line1: number; frame: FastrOpenFence | undefined };
+  const items: Item[] = [];
+  for (const sc of scanContainerLines(sliceLines)) {
+    const line1 = region.startLine + sc.index + 1;
+    if (!sc.inCode && sc.fence?.kind === "open") {
+      if (isFastrLeafBlock(sc.fence.name)) {
+        items.push({ kind: "leaf", line1 });
+      } else {
+        items.push({ kind: "chrome-open", line1 });
+        stack.push(fastrOpenFenceOnLine(sc.text, line1));
+      }
+      continue;
+    }
+    if (!sc.inCode && sc.fence?.kind === "close") {
+      items.push({ kind: "chrome-close", line1, frame: stack[stack.length - 1] });
+      stack.pop();
+      continue;
+    }
+    if (!sc.inCode && isFastrEmbedLine(sc.text)) {
+      items.push({ kind: "embed", line1 });
+      continue;
+    }
+    items.push({ kind: "text", line1, frame: stack[stack.length - 1] });
+  }
+
+  const protect = (line1: number) => {
+    const line = state.doc.line(line1);
+    protectedLines.push({
+      from: line.from,
+      to: line.to,
+      regionFrom: r.from,
+      regionTo: r.to,
+    });
+  };
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const line = state.doc.line(item.line1);
+    switch (item.kind) {
+      case "chrome-open": {
+        const fence = fastrOpenFenceOnLine(line.text, item.line1);
+        if (fence) {
+          builder.add(
+            line.from,
+            line.to,
+            Decoration.replace({
+              widget: new ChromeOpenWidget(fence, line.text),
+              block: true,
+            }),
+          );
+        }
+        protect(item.line1);
+        break;
+      }
+      case "chrome-close":
+        builder.add(
+          line.from,
+          line.to,
+          Decoration.replace({
+            widget: new ChromeCapWidget(item.line1, item.frame),
+            block: true,
+          }),
+        );
+        protect(item.line1);
+        break;
+      case "leaf": {
+        // A stat renders exactly as the document renders it. `:::report`
+        // renders SILENT, which would leave an invisible protected line —
+        // the page-setup chip stands in for it, here as when collapsed.
+        const isReport = fastrOpenFenceOnLine(line.text, item.line1)?.name === "report";
+        builder.add(
+          line.from,
+          line.to,
+          Decoration.replace({
+            widget: isReport
+              ? new PageSetupWidget(line.text, item.line1 - 1)
+              : new LeafRenderWidget(line.text, item.line1),
+            block: true,
+          }),
+        );
+        protect(item.line1);
+        break;
+      }
+      case "embed":
+        builder.add(
+          line.from,
+          line.to,
+          Decoration.replace({
+            widget: new RegionWidget(
+              "embed",
+              line.text,
+              item.line1 - 1,
+              item.line1 - 1,
+              resolver,
+            ),
+            block: true,
+          }),
+        );
+        protect(item.line1);
+        break;
+      case "text": {
+        const meta = frameLineMeta(item.frame);
+        // Run boundaries: first/last of a run of consecutive text lines with
+        // the same innermost frame — they carry the ground's corners/padding.
+        const prev = items[i - 1];
+        const next = items[i + 1];
+        // Chrome, leaves and embeds continue their block's ground; only a
+        // text line under a DIFFERENT frame (or the region edge) breaks it.
+        const continues = (o: Item | undefined) =>
+          o !== undefined && !(o.kind === "text" && o.frame !== item.frame);
         let cls = meta.cls;
-        if (n === r.region.startLine) cls += " cm-fm-revealed-first";
-        if (n === r.region.endLine) cls += " cm-fm-revealed-last";
+        if (!continues(prev)) cls += " cm-fm-revealed-first";
+        if (!continues(next)) cls += " cm-fm-revealed-last";
         builder.add(
           line.from,
           line.from,
@@ -351,9 +581,58 @@ function buildLiveState(
             ...(meta.style ? { attributes: { style: meta.style } } : {}),
           }),
         );
+        break;
       }
+    }
+  }
+}
+
+// ── The region field ─────────────────────────────────────────────────────────
+
+type LiveState = {
+  ranges: RegionRange[];
+  deco: DecorationSet;
+  // Fence/leaf lines of REVEALED regions plus the whole span of every region:
+  // what the transaction filter consults to refuse user edits into structure.
+  protectedLines: ProtectedLine[];
+};
+
+type ProtectedLine = {
+  from: number;
+  to: number;
+  // The enclosing region's span — a user change that swallows the WHOLE
+  // region is a clean block delete and stays allowed.
+  regionFrom: number;
+  regionTo: number;
+};
+
+function buildLiveState(
+  state: EditorState,
+  resolver: EmbedResolver,
+  cached?: RegionRange[],
+): LiveState {
+  const ranges = cached ?? regionRanges(state);
+  const builder = new RangeSetBuilder<Decoration>();
+  const protectedLines: ProtectedLine[] = [];
+  for (const r of ranges) {
+    // Derived reveal: a region the selection touches opens for editing IN
+    // PLACE, still looking like the block. Fence lines never show as syntax —
+    // the open fence becomes the block's real chrome (a callout's title bar,
+    // a kicker) and the close fence a silent end cap; leaf lines (stats) and
+    // embeds stay fully rendered; only the prose lines are editable text,
+    // painted with the innermost block's ground. The fence and leaf lines are
+    // recorded as PROTECTED: a transaction filter refuses user edits that
+    // touch them, so the attrs are reachable only through the toolbar.
+    if (selectionTouches(state, r.from, r.to)) {
+      buildRevealedRegion(state, r, builder, protectedLines, resolver);
       continue;
     }
+    protectedLines.push({
+      from: r.from,
+      to: r.to,
+      regionFrom: r.from,
+      regionTo: r.to,
+    });
     const source = state.sliceDoc(r.from, r.to);
     const widget = r.region.kind === "leaf" && r.region.fence?.name === "report"
       ? new PageSetupWidget(source, r.region.startLine)
@@ -366,11 +645,11 @@ function buildLiveState(
       );
     builder.add(r.from, r.to, Decoration.replace({ widget, block: true }));
   }
-  return { ranges, deco: builder.finish() };
+  return { ranges, deco: builder.finish(), protectedLines };
 }
 
-export function liveRegionField(resolver: EmbedResolver) {
-  return StateField.define<LiveState>({
+export function liveRegionExtensions(resolver: EmbedResolver): Extension[] {
+  const field = StateField.define<LiveState>({
     create(state) {
       return buildLiveState(state, resolver);
     },
@@ -381,9 +660,36 @@ export function liveRegionField(resolver: EmbedResolver) {
       }
       return value;
     },
-    provide: (f) =>
-      EditorView.decorations.from(f, (v) => v.deco),
+    provide: (f) => EditorView.decorations.from(f, (v) => v.deco),
   });
+
+  // The structure guard: USER edits (typing, deleting, pasting — anything
+  // carrying a userEvent annotation) may not touch a protected line, so the
+  // fences and their attrs are only reachable through the toolbar and other
+  // specialised controls. Everything programmatic — the toolbar's
+  // setBlockAttrs, the AI's rebased hunks, remote yCollab transactions —
+  // carries no userEvent and passes untouched. One exception: a change that
+  // swallows an ENTIRE region (fences and all) is a clean block delete and
+  // stays a legitimate user gesture.
+  const guard = CMEditorState.transactionFilter.of((tr) => {
+    if (!tr.docChanged) return tr;
+    if (!tr.annotation(Transaction.userEvent)) return tr;
+    const prot = tr.startState.field(field).protectedLines;
+    if (prot.length === 0) return tr;
+    let blocked = false;
+    tr.changes.iterChangedRanges((fromA, toA) => {
+      if (blocked) return;
+      for (const pr of prot) {
+        if (toA < pr.from || fromA > pr.to) continue;
+        if (fromA <= pr.regionFrom && toA >= pr.regionTo) continue;
+        blocked = true;
+        return;
+      }
+    });
+    return blocked ? [] : tr;
+  });
+
+  return [field, guard];
 }
 
 // ── Surface lines (heading scale) ────────────────────────────────────────────
@@ -694,7 +1000,7 @@ export function livePreviewExtensions(
   collab?: PresenceDeps,
 ): Extension[] {
   return [
-    liveRegionField(resolver),
+    ...liveRegionExtensions(resolver),
     surfaceLineField,
     concealPlugin,
     livePreviewTheme,
