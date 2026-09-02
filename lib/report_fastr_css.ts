@@ -796,6 +796,21 @@ ${d}.cm-fm-quote-line { font-style: italic; font-size: 1.1em; }
    (title bar, kicker) on the block's own ground, and a thin end cap. The
    syntax never shows in Edit mode — attrs are toolbar territory. */
 ${d}.cm-fm-chrome { cursor: pointer; }
+/* Click-to-edit labels in chrome: a text cursor and a quiet dotted underline
+   on hover say "this is editable"; an empty label shows its placeholder so a
+   cleared title can always be brought back. */
+${d}.cm-fm-attr { cursor: text; }
+${d}.cm-fm-attr:hover { text-decoration: underline dotted; text-underline-offset: 3px; }
+${d}.cm-fm-attr:focus {
+  outline: none;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+${d}.cm-fm-attr:empty::before {
+  content: attr(data-placeholder);
+  color: var(--fm-ink-muted);
+  font-style: italic;
+}
 /* The document is the ground; the code-editor affordances step back. */
 ${d}.cm-cursor, ${d}.cm-dropCursor { border-left-color: var(--fm-ink); }
 ${d}.cm-activeLine { background: transparent; }

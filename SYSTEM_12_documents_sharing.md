@@ -561,7 +561,12 @@ part of a collapsed region), so the `{...}` attrs are reachable only through
 the toolbar; programmatic transactions (setBlockAttrs, AI rebase, remote
 yCollab) carry no userEvent and pass, and a user change swallowing an ENTIRE
 region is a clean block delete and stays allowed. The caret may still SIT on a
-protected line — that is how the toolbar targets a fence. The
+protected line — that is how the toolbar targets a fence. The chrome's LABELS
+edit in place: clicking a callout/card title, a band/cover kicker, or a stat's
+value/label/delta turns that element contentEditable (Enter/blur commits an
+`updateContainerFenceLine` patch — no userEvent, so the guard passes it;
+Escape reverts), and an empty label renders as a muted placeholder so a
+cleared title can always be brought back. The
 regions are deliberately NOT atomic ranges (unlike `embedWidgets`) — arrowing
 into a hidden region reveals it in the same transaction. In live mode the
 region extension SUBSUMES `embedWidgets` (two block replaces on one range is
