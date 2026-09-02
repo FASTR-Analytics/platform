@@ -42,6 +42,7 @@ globs:
   - lib/report_sections.ts
   - lib/fastr_markdown_blocks.ts
   - lib/fastr_markdown_edits.ts
+  - lib/fastr_live_regions.ts
   - lib/fastr_markdown_spec.ts
   - lib/report_fastr_css.ts
   - lib/report_fastr_markdown.ts
@@ -63,6 +64,8 @@ globs:
   - server/routes/project/slide_decks.ts
   - server/routes/project/slides.ts
   - server/routes/public/dashboard.ts
+  - server/tests/fastr_live_regions_test.ts
+  - server/tests/fastr_markdown_edits_test.ts
   - server/tests/report_fastr_markdown_test.ts
   - server/tests/report_format_helpers_test.ts
   - server/tests/report_html_sanitize_test.ts
@@ -529,6 +532,43 @@ defect lister, `fastrTopLevelLineMask` and the container stack. They keep their
 own depth/stack/defect logic, which genuinely differs — what they must not keep
 is a private copy of the loop, because a drifting copy mis-nests a whole
 document in silence.
+
+**Live preview** ([live_preview_extension.tsx](client/src/components/report/live_preview_extension.tsx),
+[lib/fastr_live_regions.ts](lib/fastr_live_regions.ts)): for FASTR reports,
+Edit mode is an Obsidian-style surface — still CodeMirror on the same Y.Text
+(collab, per-user undo and the toolbar untouched), but decorated. Top-level
+`:::` regions, tables and embed lines (the pure region mapper, built on
+`scanContainerLines`; tables by a conservative delimiter-row heuristic because
+the editor's Lezer tree is commonmark and carries no Table nodes) collapse into
+block widgets holding their TRUE render: the slice through
+`renderFastrMarkdownToHtml`, sanitized, styled by the scoped theme sheet, with
+live `ReportFigureEmbed`s mounted inside. **Reveal is derived, not stored**: a
+region the selection touches is simply not replaced, so click-to-reveal is one
+selection dispatch, collapse-on-leave is the same derivation on the next
+selection change, and remote yCollab transactions can never desync it. The
+regions are deliberately NOT atomic ranges (unlike `embedWidgets`) — arrowing
+into a hidden region reveals it in the same transaction. In live mode the
+region extension SUBSUMES `embedWidgets` (two block replaces on one range is
+undefined behaviour); the compartment's OFF branch restores `embedWidgets` +
+the dark markdown highlighter for Split, and other formats never get the
+compartment at all. Inline syntax (heading marks, emphasis, code, link URLs,
+`[x]{.role}` by regex — Lezer doesn't know it) conceals off-cursor via a
+viewport ViewPlugin; heading lines get `cm-fm-hN` classes from a whole-doc
+StateField because font size changes line HEIGHT and height-affecting
+decorations must exist off-screen. The editor wrapper carries
+`fm-live-scope`, and one host-rendered `<style>` (the scoped theme sheet +
+`buildFastrEditorSurfaceCss`, font import leading) themes both the widgets and
+the editor's own text — a theme switch re-renders that element and never
+touches CodeMirror, which is why `RegionWidget.eq` keys on the source slice
+only. The document stays light in a dark app (documents-stay-light); a
+`:::report` line renders as a "Page setup" chip because its true render is
+silent and an invisible widget would make the line unfindable. Peer carets
+inside a collapsed region have no text to sit in, so an awareness-driven
+plugin paints the peer's colour and name on the widget instead (relative
+positions resolved with the `yCaretHygiene` ownership check; DOM-only writes,
+never a dispatch). Accepted fidelity difference: scoped sheets neutralise the
+100vw bleed, so bands render editor-width in Edit — Split/View remain the true
+page.
 
 **Autosave protocol** (no-room path — once a collab session becomes ready the
 800ms REST autosave is turned off for good and edits flow over the WS, S16):

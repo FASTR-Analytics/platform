@@ -716,3 +716,53 @@ export function buildFastrReportCss(
     scope === "" ? RESPONSIVE_CSS : "",
   ].filter((s) => s.trim().length > 0).join("\n");
 }
+
+// ── Live-preview editor surface ──────────────────────────────────────────────
+// Edit mode paints the EDITOR as the themed document page. The widgets inside
+// it are styled by the scoped structure sheet (buildFastrReportCss with the
+// same scope); this builder covers the part that sheet cannot reach — the
+// editor's own text, which CodeMirror renders as .cm-line divs rather than
+// semantic elements. The conceal layer tags lines and spans with cm-fm-*
+// classes, and these rules map the theme's tokens onto them, mirroring the
+// structure sheet's heading scale so a heading in Edit is the size it will
+// print at. Values are token references, so a theme switch re-renders one
+// style element and never touches the editor.
+export function buildFastrEditorSurfaceCss(scope: string): string {
+  const d = `${scope} `;
+  const headings = [
+    { cls: "cm-fm-h1", size: "2.15em" },
+    { cls: "cm-fm-h2", size: "1.55em" },
+    { cls: "cm-fm-h3", size: "1.2em" },
+    { cls: "cm-fm-h4", size: "1em" },
+    { cls: "cm-fm-h5", size: "1em" },
+    { cls: "cm-fm-h6", size: "1em" },
+  ].map(({ cls, size }) =>
+    `${d}.${cls} {
+  font-family: var(--fm-font-heading);
+  font-weight: var(--fm-heading-weight);
+  letter-spacing: var(--fm-heading-tracking);
+  text-transform: var(--fm-heading-case);
+  font-size: ${size};
+  line-height: 1.3;
+}`
+  ).join("\n");
+  return `${headings}
+${d}.cm-fm-code {
+  font-family: ui-monospace, monospace;
+  font-size: 0.9em;
+  background: var(--fm-surface-alt);
+  border-radius: var(--fm-radius);
+  padding: 0.05em 0.3em;
+}
+${d}.cm-fm-link {
+  color: var(--fm-accent-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+${d}.cm-fm-bullet { color: var(--fm-accent-text); }
+/* The document is the ground; the code-editor affordances step back. */
+${d}.cm-cursor, ${d}.cm-dropCursor { border-left-color: var(--fm-ink); }
+${d}.cm-activeLine { background: transparent; }
+${d}.cm-content ::selection { background: color-mix(in srgb, var(--fm-accent) 25%, transparent); }
+${d}.cm-selectionBackground { background: color-mix(in srgb, var(--fm-accent) 25%, transparent) !important; }`;
+}

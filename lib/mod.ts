@@ -20,6 +20,7 @@ export * from "./resolve_effective_format.ts";
 export * from "./resolve_figure_calendar.ts";
 export * from "./report_sections.ts";
 export * from "./fastr_markdown_edits.ts";
+export * from "./fastr_live_regions.ts";
 export * from "./fastr_markdown_blocks.ts";
 export * from "./fastr_markdown_spec.ts";
 export * from "./report_fastr_css.ts";

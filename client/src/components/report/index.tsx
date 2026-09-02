@@ -1,4 +1,5 @@
 import {
+  buildFastrEditorSurfaceCss,
   buildFastrReportCss,
   buildReportEmbedToken,
   canonicalJson,
@@ -94,6 +95,7 @@ import {
   type ReportEditorApi,
 } from "./report_editor";
 import { ReportToolbar } from "./report_toolbar";
+import { FM_LIVE_SCOPE_CLASS } from "./live_preview_extension";
 import { REPORT_MARKDOWN_STYLE } from "./report_markdown_style";
 import {
   ReportEmbedEditor,
@@ -183,6 +185,15 @@ export function ProjectReport(p: Props) {
   // FASTR Markdown theming. Unlike htmlStyle this is changeable after creation
   // — the body carries no CSS, so nothing can be invalidated by a re-theme.
   const [fastrTheme, setFastrTheme] = createSignal<FastrReportTheme>("default");
+  // The live-preview document surface: the full theme sheet scoped to the
+  // editor wrapper plus the token->CodeMirror mapping. One <style> element,
+  // re-rendered on theme change.
+  const liveSurfaceCss = createMemo(() =>
+    [
+      buildFastrReportCss(fastrTheme(), fastrColors(), `.${FM_LIVE_SCOPE_CLASS}`),
+      buildFastrEditorSurfaceCss(`.${FM_LIVE_SCOPE_CLASS}`),
+    ].join("\n")
+  );
   // Where the caret is, structurally — pushed by the editor on cursor moves and
   // edits, and read only by the toolbar.
   const [blockContext, setBlockContext] = createSignal<
@@ -1590,6 +1601,14 @@ export function ProjectReport(p: Props) {
                 : undefined
             }
           >
+            {/* Live preview: the theme sheet, scoped to the editor wrapper, so
+                widgets AND the editor's own text carry the document's design.
+                A theme switch re-renders this one element; the editor is never
+                touched. The font import leads the sheet (an @import after
+                other rules is dropped by CSS). */}
+            <Show when={format() === "fastr"}>
+              <style>{liveSurfaceCss()}</style>
+            </Show>
             <ReportEditor
               body={body()}
               format={format()}
@@ -1614,6 +1633,7 @@ export function ProjectReport(p: Props) {
               }}
               canEdit={canEditBody}
               onContextChange={setBlockContext}
+              livePreview={() => format() === "fastr" && mode() === "edit"}
               ref={(api) => (editorApi = api)}
             />
           </div>
