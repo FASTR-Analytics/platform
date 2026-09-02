@@ -43,6 +43,10 @@ export type FastrLiveRegion = {
 // strip them before asking the embed parser (whose line form is anchored).
 const TRAILING_ATTRS_RE = /\s*\{[^}]*\}\s*$/;
 
+export function isFastrEmbedLine(text: string): boolean {
+  return isEmbedLine(text);
+}
+
 function isEmbedLine(text: string): boolean {
   const t = text.trim().replace(TRAILING_ATTRS_RE, "");
   return t.length > 0 && parseReportEmbedLine(t, "fastr") !== undefined;

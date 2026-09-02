@@ -543,15 +543,25 @@ the editor's Lezer tree is commonmark and carries no Table nodes) collapse into
 block widgets holding their TRUE render: the slice through
 `renderFastrMarkdownToHtml`, sanitized, styled by the scoped theme sheet, with
 live `ReportFigureEmbed`s mounted inside. **Reveal is derived, not stored**: a
-region the selection touches is simply not replaced, so click-to-reveal is one
-selection dispatch, collapse-on-leave is the same derivation on the next
-selection change, and remote yCollab transactions can never desync it. A
-revealed region is not bare source: its lines keep the block's ground — the
-tone class, the callout kind's accent, a literal flat colour, or the surface
-wash — while the fence lines drop to dimmed mono, so editing reads as editing
-the element in place. Only LAYOUT-FREE sheet classes may be reused per line
-(the tone rules and the callout-kind custom-prop setters); the structural
-block classes carry margins that would repeat on every line. The
+region the selection touches opens for editing, and click-to-reveal is one
+selection dispatch, collapse-on-leave the same derivation on the next
+selection change — remote yCollab transactions can never desync it. A revealed
+region shows NO syntax at all: it decomposes into chrome (the fence lines,
+replaced by the block's real header — a callout's title bar, a band's kicker —
+and a silent end cap, each painted on the block's own ground), rendered leaves
+(a stat is pure attrs, so it renders exactly and is driven by the toolbar; a
+revealed `:::report` line keeps its page-setup chip), rendered embeds, and
+editable TEXT lines carrying the innermost enclosing block's ground per line.
+Only LAYOUT-FREE sheet classes may be reused per line (the tone rules and the
+callout-kind custom-prop setters); the structural block classes carry margins
+that would repeat on every line. **The structure guard** (a
+`transactionFilter`) refuses any USER edit — anything carrying a `userEvent`
+annotation — that touches a protected line (fences, leaves, embeds, or any
+part of a collapsed region), so the `{...}` attrs are reachable only through
+the toolbar; programmatic transactions (setBlockAttrs, AI rebase, remote
+yCollab) carry no userEvent and pass, and a user change swallowing an ENTIRE
+region is a clean block delete and stays allowed. The caret may still SIT on a
+protected line — that is how the toolbar targets a fence. The
 regions are deliberately NOT atomic ranges (unlike `embedWidgets`) — arrowing
 into a hidden region reveals it in the same transaction. In live mode the
 region extension SUBSUMES `embedWidgets` (two block replaces on one range is

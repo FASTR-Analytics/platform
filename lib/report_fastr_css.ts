@@ -780,14 +780,22 @@ ${d}.cm-fm-revealed-last {
   padding-bottom: 0.35rem;
 }
 ${d}.cm-fm-revealed--callout { border-left: 4px solid var(--fm-callout-color); }
-/* The fence lines are syntax, not content — visible so the block stays
-   hand-editable, quiet so the content leads. Colour, not opacity: opacity
-   would dim the ground the line is painting. */
-${d}.cm-fm-revealed.cm-fm-fence {
-  color: var(--fm-ink-muted);
-  font-family: ui-monospace, monospace;
-  font-size: 0.78em;
+${d}.cm-fm-revealed--card {
+  background: var(--fm-surface);
+  border-left: var(--fm-border-width) solid var(--fm-border);
+  border-right: var(--fm-border-width) solid var(--fm-border);
 }
+${d}.cm-fm-revealed--card.cm-fm-revealed-first {
+  border-top: var(--fm-border-width) solid var(--fm-border);
+}
+${d}.cm-fm-revealed--card.cm-fm-revealed-last {
+  border-bottom: var(--fm-border-width) solid var(--fm-border);
+}
+${d}.cm-fm-quote-line { font-style: italic; font-size: 1.1em; }
+/* Chrome widgets replace the fence lines entirely: the block's real header
+   (title bar, kicker) on the block's own ground, and a thin end cap. The
+   syntax never shows in Edit mode — attrs are toolbar territory. */
+${d}.cm-fm-chrome { cursor: pointer; }
 /* The document is the ground; the code-editor affordances step back. */
 ${d}.cm-cursor, ${d}.cm-dropCursor { border-left-color: var(--fm-ink); }
 ${d}.cm-activeLine { background: transparent; }
