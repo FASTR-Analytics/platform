@@ -11,7 +11,12 @@ import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import {
   containerHtmlFor,
   FASTR_BLOCK_NAMES,
+  FASTR_INK_ROLES,
   FASTR_TONES,
+  fastrContainerStackUpTo,
+  fastrOpenFenceOnLine,
+  serializeContainerFence,
+  updateContainerFenceLine,
   isDarkCssColor,
   isFastrLeafBlock,
   listFastrContainerDefects,
@@ -721,5 +726,295 @@ Deno.test("no stray backtick inside the CSS template literals", async () => {
         `${rel}:${i + 1} has a backtick inside a block comment: ${line.trim()}`,
       );
     }
+  }
+});
+
+// --fm-accent-text is the accent made safe as TYPE (it falls back to the ink
+// when the accent cannot carry text on the theme's surface). A ground that
+// re-scopes --fm-accent must re-scope it too, or the stat value, the step
+// numbers and several themes' h2 keep the ground-less fallback and disappear —
+// a black number on a black tile.
+Deno.test("any ground that re-scopes the accent re-scopes the accent TEXT too", () => {
+  const css = buildFastrReportCss("default");
+  for (const [, selector, block] of css.matchAll(/(\.fm-[\w-]+)\s*\{([^}]*)\}/g)) {
+    if (!/--fm-accent\s*:/.test(block)) continue;
+    assert(
+      /--fm-accent-text\s*:/.test(block),
+      `${selector} re-scopes --fm-accent but not --fm-accent-text`,
+    );
+  }
+});
+
+// The meaning grounds are a fixed strong colour in every theme (a danger tile is
+// a red panel on a white page and on a near-black one), so they are pinned to
+// the light-scheme semantic values with white type.
+Deno.test("the meaning tones are the semantic colours, in every theme", () => {
+  for (const name of ["danger", "warning", "success", "info"] as const) {
+    assert((FASTR_TONES as readonly string[]).includes(name));
+    assertStringIncludes(
+      containerHtmlFor("stat", { tone: name }).className,
+      `fm-tone fm-tone--${name}`,
+    );
+    for (const theme of ["brutalist", "terminal", "japanese"] as const) {
+      const block = new RegExp(`\\.fm-tone--${name} \\{([^}]*)\\}`)
+        .exec(buildFastrReportCss(theme))?.[1] ?? "";
+      assertStringIncludes(block, `background: ${FASTR_SEMANTIC_COLORS.light[name]};`);
+      assertStringIncludes(block, "--fm-ink: #ffffff;");
+    }
+  }
+});
+
+// A tone paints a ground, so it must outrank any background a THEME sets on the
+// same element. Brutalist paints `.fm-callout` white; at equal specificity its
+// rule (loaded later) beat `.fm-tone--danger` and the callout went white on
+// white. Every tone rule that sets a background doubles its class to win.
+Deno.test("a tone outranks a theme's own background", () => {
+  const css = buildFastrReportCss("brutalist");
+  for (const [, selector, block] of css.matchAll(/^(\.fm-tone[\w.-]*) \{([^}]*)\}/gm)) {
+    if (!/(^|;|\s)background\s*:/.test(block)) continue;
+    // Two class tokens = specificity 0,2,0, which beats a theme's single-class
+    // element rule regardless of source order.
+    assert(
+      (selector.match(/\./g) ?? []).length >= 2,
+      `${selector} paints a ground but does not outrank theme CSS`,
+    );
+  }
+});
+
+// ── Fence rewriting: the toolbar's contract with the author's source ─────────
+
+import {
+  FASTR_BLOCK_SNIPPETS,
+  FASTR_MD_SYNTAX_DOC,
+} from "../../lib/fastr_markdown_spec.ts";
+
+function openFenceLines(): string[] {
+  const out: string[] = [];
+  for (const { snippet } of FASTR_BLOCK_SNIPPETS) {
+    for (const line of snippet.split("\n")) {
+      const f = parseContainerFence(line);
+      if (f?.kind === "open") out.push(line);
+    }
+  }
+  return out;
+}
+
+// The guarantee the whole toolbar rests on. A click that changes nothing must
+// rewrite nothing — otherwise every interaction churns the version-history
+// diff and emits Y.Text ops into everyone else's collab session.
+Deno.test("a no-op patch returns the author's line byte for byte", () => {
+  const lines = openFenceLines();
+  assert(lines.length >= 8, "expected the snippets to cover the blocks");
+  for (const line of lines) {
+    assertEquals(updateContainerFenceLine(line, {}), line);
+  }
+});
+
+Deno.test("a fence survives a serialize round-trip semantically", () => {
+  for (const line of openFenceLines()) {
+    const f = parseContainerFence(line);
+    assert(f?.kind === "open");
+    const back = parseContainerFence(
+      serializeContainerFence(f.name, f.attrs, f.markerLength),
+    );
+    assertEquals(back, f, `round-trip lost something: ${line}`);
+  }
+});
+
+Deno.test("a patch edits in place and leaves everything else alone", () => {
+  const line = `:::callout{kind=warning title="Data caveat"}`;
+  assertEquals(
+    updateContainerFenceLine(line, { tone: "danger" }),
+    `:::callout{kind=warning title="Data caveat" tone=danger}`,
+  );
+  assertEquals(
+    updateContainerFenceLine(line, { kind: "danger" }),
+    `:::callout{kind=danger title="Data caveat"}`,
+  );
+  // A removal takes its separator with it, or the line grows double spaces.
+  assertEquals(
+    updateContainerFenceLine(line, { title: undefined }),
+    ":::callout{kind=warning}",
+  );
+  // Removing the last attribute removes the braces too.
+  assertEquals(
+    updateContainerFenceLine(line, { kind: undefined, title: undefined }),
+    ":::callout",
+  );
+  // And adding to a bare fence creates them.
+  assertEquals(
+    updateContainerFenceLine(":::steps", { tone: "muted" }),
+    ":::steps{tone=muted}",
+  );
+  // Indent and marker length are the author's, not ours.
+  assertEquals(
+    updateContainerFenceLine("  ::::tiles{cols=3}", { cols: "4" }),
+    "  ::::tiles{cols=4}",
+  );
+  // A close fence is not an open fence.
+  assertEquals(updateContainerFenceLine(":::", { tone: "dark" }), undefined);
+});
+
+Deno.test("a value is quoted only as much as it needs, and can always be re-parsed", () => {
+  const quoted = (v: string) => {
+    const line = updateContainerFenceLine(":::card", { title: v })!;
+    const f = parseContainerFence(line);
+    assert(f?.kind === "open", `unparseable: ${line}`);
+    return { line, value: f.attrs.title };
+  };
+  assertEquals(quoted("wide").line, ":::card{title=wide}");
+  assertEquals(quoted("two words").line, `:::card{title="two words"}`);
+  // No escape mechanism in the parser, so a double quote flips to single.
+  assertEquals(quoted(`He said "no"`).line, `:::card{title='He said "no"'}`);
+  // Both quote characters cannot round-trip; a substituted glyph beats a fence
+  // that no longer parses, which would swallow the author's whole block.
+  assertEquals(quoted(`it's "fine"`).value, "it's ”fine”");
+  // A `}` would terminate FENCE_RE's attribute group early.
+  assertEquals(quoted("a}b").value, "ab");
+});
+
+// ── The container stack ──────────────────────────────────────────────────────
+
+Deno.test("the stack reports the blocks enclosing a line", () => {
+  const lines = [
+    ":::tiles{cols=3}", // 1
+    ':::card{title="A"}', // 2
+    "text", // 3
+  ];
+  assertEquals(
+    fastrContainerStackUpTo(lines).map((f) => `${f.name}@${f.line}`),
+    ["tiles@1", "card@2"],
+  );
+});
+
+Deno.test("a leaf block never enters the stack", () => {
+  // `:::stat` carries no closing fence, so pushing it would mis-nest every
+  // line after it — the stat's own line is reached through fenceHere instead.
+  const lines = [":::tiles{cols=3}", ':::stat{value="64%"}', "after"];
+  assertEquals(fastrContainerStackUpTo(lines).map((f) => f.name), ["tiles"]);
+  assertEquals(fastrOpenFenceOnLine(lines[1], 2)?.name, "stat");
+});
+
+Deno.test("fences inside a code block are literal text", () => {
+  const lines = ["```", ":::band{tone=dark}", "```", "after"];
+  assertEquals(fastrContainerStackUpTo(lines), []);
+});
+
+Deno.test("an unclosed block stays open and a stray close does not underflow", () => {
+  assertEquals(fastrContainerStackUpTo([":::band"]).map((f) => f.name), ["band"]);
+  assertEquals(fastrContainerStackUpTo([":::", ":::", ":::quote"]).map((f) => f.name), [
+    "quote",
+  ]);
+});
+
+Deno.test("all three walkers agree about one document", () => {
+  // The scanner is shared; this is the guard that keeps them sharing it.
+  const body = [
+    ":::tiles{cols=2}",
+    ':::stat{value="1"}',
+    ":::card",
+    "```",
+    ":::band",
+    "```",
+    ":::",
+    ":::",
+    "tail",
+  ].join("\n");
+  assertEquals(listFastrContainerDefects(body), []);
+  assertEquals(fastrContainerStackUpTo(body.split("\n")), []);
+});
+
+// ── Inline role marks ────────────────────────────────────────────────────────
+
+Deno.test("a role mark becomes a span, and nested markup survives", () => {
+  const html = renderFastrMarkdownToHtml("A [fell **12**]{.danger} B", {
+    lineAnchors: false,
+  });
+  assertStringIncludes(
+    html,
+    `<span class="fm-mark fm-mark--danger">fell <strong>12</strong></span>`,
+  );
+});
+
+Deno.test("a mark never swallows a link, an image or an unknown role", () => {
+  const r = (s: string) => renderFastrMarkdownToHtml(s, { lineAnchors: false });
+  // Falls through to the real link rule.
+  assertStringIncludes(r("[x](https://e.example)"), `<a href="https://e.example">x</a>`);
+  // The figure width syntax fires on `!`, so the mark rule never sees it.
+  assertStringIncludes(r("![Cap](figure:abc){width=wide}"), "fm-figure--wide");
+  // An unknown role is the author's literal text, not a swallowed phrase.
+  assertStringIncludes(r("[x]{.wat}"), "[x]{.wat}");
+  // Escapes and code spans win, as they do for every other inline construct.
+  assertStringIncludes(r("\\[x]{.danger}"), "[x]{.danger}");
+  assertStringIncludes(r("`[x]{.danger}`"), "<code>[x]{.danger}</code>");
+});
+
+Deno.test("every role has a rule reading the right token, in every theme", () => {
+  // Exhaustive over the constant, so a new role cannot ship without CSS.
+  const expected: Record<string, string> = {
+    accent: "var(--fm-accent-text)",
+    muted: "var(--fm-ink-muted)",
+    danger: "var(--fm-danger)",
+    warning: "var(--fm-warning)",
+    success: "var(--fm-success)",
+    info: "var(--fm-info)",
+  };
+  for (const theme of FASTR_REPORT_THEMES) {
+    const css = buildFastrReportCss(theme);
+    for (const role of FASTR_INK_ROLES) {
+      const m = new RegExp(
+        `\\.fm-mark\\.fm-mark--${role} \\{[^}]*color: ([^;]+);`,
+      ).exec(css);
+      assert(m, `${theme}: no rule for .fm-mark--${role}`);
+      assertEquals(m[1], expected[role], `${theme}: .fm-mark--${role}`);
+    }
+  }
+});
+
+Deno.test("a hue mark on a ground that IS that hue returns to the ground's ink", () => {
+  // Otherwise `[x]{.danger}` inside `tone=danger` is pale red on saturated
+  // red — the same class of bug the accent-on-accent fixes closed.
+  const css = buildFastrReportCss("brutalist");
+  const grounds = [
+    "fm-tone--danger",
+    "fm-tone--warning",
+    "fm-tone--success",
+    "fm-tone--info",
+    "fm-tone--solid",
+    "fm-card--accent",
+  ];
+  for (const ground of grounds) {
+    for (const role of ["danger", "warning", "success", "info"]) {
+      const sel = `.${ground} .fm-mark--${role}`;
+      const at = css.indexOf(sel);
+      assert(at !== -1, `no neutraliser for ${sel}`);
+      // It must come AFTER the base rule, or equal specificity resolves wrong.
+      assert(
+        at > css.indexOf(`.fm-mark.fm-mark--${role} {`),
+        `${sel} is emitted before the base rule it must beat`,
+      );
+    }
+  }
+});
+
+Deno.test("an accent mark is never a no-op, even where the accent cannot be text", () => {
+  // Brutalist's yellow degrades to ink by design, so those themes mark with
+  // weight instead — a control that silently does nothing is worse than one
+  // that does something modest.
+  for (const theme of FASTR_REPORT_THEMES) {
+    const css = buildFastrReportCss(theme);
+    assertStringIncludes(css, "--fm-mark-accent-weight:");
+  }
+  assertStringIncludes(buildFastrReportCss("brutalist"), "--fm-mark-accent-weight: 700");
+  assertStringIncludes(
+    buildFastrReportCss("corporate"),
+    "--fm-mark-accent-weight: inherit",
+  );
+});
+
+Deno.test("the model-facing brief documents the marks it is allowed to write", () => {
+  assertStringIncludes(FASTR_MD_SYNTAX_DOC, "{.danger}");
+  for (const role of FASTR_INK_ROLES) {
+    assertStringIncludes(FASTR_MD_SYNTAX_DOC, `.${role}`);
   }
 });

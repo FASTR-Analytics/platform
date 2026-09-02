@@ -599,6 +599,9 @@ export type ReportSummary = {
 function stripInlineMarkdown(s: string): string {
   return s
     .replace(/!\[[^\]]*\]\([^)]*\)/g, " ") // drop image/embed tokens
+    // FASTR role marks → the phrase. Before the link rule, which would not
+    // match `{…}` and would leave the whole thing as raw syntax on the card.
+    .replace(/\[([^\]]*)\]\{\.[a-z][a-z0-9-]*\}/g, "$1")
     .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1") // links → link text
     .replace(/[*_`~]/g, "") // emphasis / code markers
     .replace(/\s+/g, " ")

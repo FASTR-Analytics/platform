@@ -111,10 +111,16 @@ Blocks (open with \`:::name{attributes}\`, close with a bare \`:::\`):
 Backgrounds — say the ROLE, not the colour:
 
   tone = default | muted | accent | solid | dark | inverse | gradient
+       | danger | warning | success | info
 
   Every block takes \`tone\`, and so does \`:::report\` (as \`background=\`).
   Each theme maps the six tones to its own palette, so \`tone=dark\` is the
   theme's dark and stays readable when the user switches themes. Prefer a tone.
+
+  The last four are MEANING grounds — a saturated red, amber, green or blue
+  panel with white type, the same colours the callout kinds use. Reach for
+  \`tone=danger\` when a tile IS the bad news; it stays coherent across themes
+  in a way \`bg="#c62828"\` cannot.
 
   \`tone=gradient\` is the theme's own accent-into-dark sweep — reach for it
   before writing a gradient by hand, because it re-themes with everything else.
@@ -127,6 +133,17 @@ Backgrounds — say the ROLE, not the colour:
   Text ink flips automatically from the background's luminance (for a gradient,
   the mean of its colour stops); \`ink=light|dark\` overrides it, which a
   full-range light-to-dark sweep needs since no single ink reads at both ends.
+
+Colouring a WORD or PHRASE — again, say the role, not the colour:
+
+  Completeness [fell 12 points]{.danger} while ANC4 [rose 4pp]{.success}.
+
+  Roles: \`.accent .muted .danger .warning .success .info\` — the same meanings
+  the callout kinds and tones carry, so a marked phrase survives a re-theme.
+  On a ground that is already that colour (inside \`tone=danger\`, or a solid
+  accent card) the mark returns to the ground's ink: colour the text, or the
+  panel, never both. Use it sparingly — a sentence with three colours in it
+  has none.
 
 Figures take a width: ![caption](figure:<id>){width=wide} overhangs the text
 column, \`width=full\` goes edge to edge.

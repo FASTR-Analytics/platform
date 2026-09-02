@@ -131,8 +131,37 @@ export const FASTR_TONES = [
   // The theme's own accent-into-dark sweep — a gradient you do not have to
   // spell out, and the only one that survives a re-theme.
   "gradient",
+  // The four MEANING grounds. They reuse the semantic colours the callout kinds
+  // and stat deltas already carry, so "this is the bad news" is a role rather
+  // than a colour — and unlike bg="#c62828" it stays coherent across themes.
+  "danger",
+  "warning",
+  "success",
+  "info",
 ] as const;
 export type FastrTone = (typeof FASTR_TONES)[number];
+
+// Inline colour roles — `[fell 12 points]{.danger}`. Same principle as the
+// tones one level up: the author names a ROLE, the theme owns the colour, so a
+// marked phrase survives a re-theme. `fm-mark`, NOT `fm-ink--*`: that prefix
+// already belongs to the block-level ink=light|dark override.
+export const FASTR_INK_ROLES = [
+  "accent",
+  "muted",
+  "danger",
+  "warning",
+  "success",
+  "info",
+] as const;
+export type FastrInkRole = (typeof FASTR_INK_ROLES)[number];
+
+export function isFastrInkRole(v: string): v is FastrInkRole {
+  return (FASTR_INK_ROLES as readonly string[]).includes(v);
+}
+
+export function inkRoleClass(role: FastrInkRole): string {
+  return `fm-mark fm-mark--${role}`;
+}
 
 const INK_MODES = ["light", "dark"] as const;
 const OVERLAY_MODES = ["dark", "light", "none"] as const;
@@ -622,6 +651,51 @@ export function containerHtmlFor(
   };
 }
 
+// ── The shared walk ──────────────────────────────────────────────────────────
+
+const CODE_FENCE_RE = /^([`~]{3,})/;
+
+export type FastrScannedLine = {
+  // 0-based index into the input.
+  index: number;
+  text: string;
+  // Inside a fenced code block — INCLUDING the opening and closing fence lines
+  // themselves. A `:::` in there is literal text, not a container.
+  inCode: boolean;
+  // Parsed only when the line is not in a code block.
+  fence: FastrContainerFence | undefined;
+};
+
+// The one code-fence-aware walk over a body. Three consumers need the same
+// "is this line literal text?" answer and the same fence parse — the defect
+// lister, the top-level line mask (report_sections.ts) and the container stack.
+// They keep their own depth/stack/defect logic, which genuinely differs; what
+// they must NOT keep is a private copy of this loop, because a drifting copy
+// mis-nests an entire document in silence.
+//
+// `Iterable<string>` rather than `string[]` so CodeMirror can pass
+// `doc.iterLines(1, n)` and never materialise the document as a string.
+export function* scanContainerLines(
+  lines: Iterable<string>,
+): Generator<FastrScannedLine> {
+  let codeFence: string | undefined;
+  let index = 0;
+  for (const text of lines) {
+    const trimmed = text.trim();
+    const cf = CODE_FENCE_RE.exec(trimmed);
+    if (codeFence !== undefined) {
+      if (cf && trimmed.startsWith(codeFence)) codeFence = undefined;
+      yield { index, text, inCode: true, fence: undefined };
+    } else if (cf) {
+      codeFence = cf[1];
+      yield { index, text, inCode: true, fence: undefined };
+    } else {
+      yield { index, text, inCode: false, fence: parseContainerFence(text) };
+    }
+    index++;
+  }
+}
+
 // ── Defects ──────────────────────────────────────────────────────────────────
 
 export type FastrContainerDefect = {
@@ -630,29 +704,13 @@ export type FastrContainerDefect = {
   message: string;
 };
 
-const CODE_FENCE_RE = /^([`~]{3,})/;
-
 // Unclosed containers, stray closes and unknown block names. Fences inside a
 // fenced code block are literal text and are skipped.
 export function listFastrContainerDefects(body: string): FastrContainerDefect[] {
   const defects: FastrContainerDefect[] = [];
   const open: { name: string; line: number }[] = [];
-  let codeFence: string | undefined;
-  const lines = body.split("\n");
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const trimmed = line.trim();
-    const cf = CODE_FENCE_RE.exec(trimmed);
-    if (codeFence !== undefined) {
-      if (cf && trimmed.startsWith(codeFence)) codeFence = undefined;
-      continue;
-    }
-    if (cf) {
-      codeFence = cf[1];
-      continue;
-    }
-    const fence = parseContainerFence(line);
-    if (!fence) continue;
+  for (const { index: i, inCode, fence } of scanContainerLines(body.split("\n"))) {
+    if (inCode || !fence) continue;
     if (fence.kind === "close") {
       if (open.length === 0) {
         defects.push({
@@ -713,4 +771,188 @@ export function listFastrContainerDefects(body: string): FastrContainerDefect[] 
     });
   }
   return defects;
+}
+
+// ── Container stack + fence rewriting ────────────────────────────────────────
+// What the editor toolbar stands on: "which block is my cursor in", and
+// "change one attribute on that block's opening fence without disturbing
+// anything else the author wrote on that line".
+
+export type FastrOpenFence = {
+  name: string;
+  attrs: FastrContainerAttrs;
+  // 1-based.
+  line: number;
+  markerLength: number;
+  // Leading whitespace, so a rewrite can put the line back where it was.
+  indent: string;
+};
+
+function openFenceFrom(
+  text: string,
+  fence: FastrContainerFence,
+  line: number,
+): FastrOpenFence | undefined {
+  if (fence.kind !== "open") return undefined;
+  return {
+    name: fence.name,
+    attrs: fence.attrs,
+    line,
+    markerLength: fence.markerLength,
+    indent: text.slice(0, text.length - text.trimStart().length),
+  };
+}
+
+// The open fence ON this line, if it is one. Leaf blocks never appear on the
+// stack below, so this is the only way `:::stat` and `:::report` are reachable.
+export function fastrOpenFenceOnLine(
+  text: string,
+  line: number,
+): FastrOpenFence | undefined {
+  const fence = parseContainerFence(text);
+  return fence === undefined ? undefined : openFenceFrom(text, fence, line);
+}
+
+// The blocks still OPEN after walking `lines` — innermost last. Pass the
+// document prefix you care about (lines 1..N-1 to ask what encloses line N).
+// Leaf blocks are never pushed, exactly as listFastrContainerDefects treats
+// them: they carry no closing fence, so pushing one mis-nests the rest of the
+// document.
+export function fastrContainerStackUpTo(
+  lines: Iterable<string>,
+): FastrOpenFence[] {
+  const open: FastrOpenFence[] = [];
+  for (const { index, text, inCode, fence } of scanContainerLines(lines)) {
+    if (inCode || fence === undefined) continue;
+    if (fence.kind === "close") {
+      open.pop();
+      continue;
+    }
+    if (isFastrLeafBlock(fence.name)) continue;
+    open.push(openFenceFrom(text, fence, index + 1)!);
+  }
+  return open;
+}
+
+// Values that need no quoting. Deliberately narrow: it covers every value the
+// blocks actually take (`3`, `up`, `wide`, `#0b3d2e`, `50%`) and quotes the
+// rest rather than guessing.
+const BARE_ATTR_VALUE_RE = /^[A-Za-z0-9_.:#%+\-\/]+$/;
+
+export function serializeAttrValue(value: string): string {
+  // A fence is one line and FENCE_RE's `\{[^}]*\}` cannot survive a `}`.
+  const clean = value.replace(/[}\r\n]/g, "");
+  if (BARE_ATTR_VALUE_RE.test(clean)) return clean;
+  if (!clean.includes('"')) return `"${clean}"`;
+  if (!clean.includes("'")) return `'${clean}'`;
+  // ATTR_RE has no escape mechanism, so a value carrying both quote characters
+  // cannot round-trip. A substituted curly quote beats a fence that no longer
+  // parses — that would swallow the author's whole block.
+  return `"${clean.replace(/"/g, "”")}"`;
+}
+
+function attrPairText(key: string, value: string | true): string {
+  return value === true ? key : `${key}=${serializeAttrValue(value)}`;
+}
+
+// `{kind=warning title="Data caveat" accent}` — "" when nothing survives.
+// A bare `true` emits the flag alone; an empty string drops the key, so
+// clearing a title is "delete the attribute", not `title=""`.
+export function serializeContainerAttrs(attrs: FastrContainerAttrs): string {
+  const parts: string[] = [];
+  for (const [key, value] of Object.entries(attrs)) {
+    if (value === "") continue;
+    parts.push(attrPairText(key, value));
+  }
+  return parts.length === 0 ? "" : `{${parts.join(" ")}}`;
+}
+
+export function serializeContainerFence(
+  name: string,
+  attrs: FastrContainerAttrs = {},
+  markerLength = 3,
+): string {
+  return `${":".repeat(Math.max(3, markerLength))}${name}${
+    serializeContainerAttrs(attrs)
+  }`;
+}
+
+type RawAttr = { key: string; start: number; end: number };
+
+// Each attribute's key and its span within the `{…}` interior, in source order.
+function rawAttrSpans(inner: string): RawAttr[] {
+  const out: RawAttr[] = [];
+  const re = new RegExp(ATTR_RE.source, "g");
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(inner)) !== null) {
+    if (m[0].length === 0) {
+      re.lastIndex++;
+      continue;
+    }
+    out.push({
+      key: m[1].toLowerCase(),
+      start: m.index,
+      end: m.index + m[0].length,
+    });
+  }
+  return out;
+}
+
+export type FastrFencePatch = Record<string, string | true | undefined>;
+
+// Rewrite ONE open-fence line. Untouched attributes keep their exact source
+// spelling and position; `undefined` or "" deletes a key; a new key is
+// appended. Returns undefined when the line is not an open fence.
+//
+// This is what keeps the format hand-editable under a GUI: a patch of `{}` is
+// byte-identical to its input, so a toolbar click never rewrites the author's
+// quoting, never churns the version-history diff, and never turns a one-word
+// change into a whole-line replacement in a collab session.
+export function updateContainerFenceLine(
+  line: string,
+  patch: FastrFencePatch,
+): string | undefined {
+  const trimmed = line.trim();
+  const m = FENCE_RE.exec(trimmed);
+  if (!m || m[2] === undefined) return undefined;
+  const indent = line.slice(0, line.length - line.trimStart().length);
+  const raw = m[3] ?? "";
+  const head = raw.length === 0 ? trimmed : trimmed.slice(0, trimmed.indexOf("{"));
+  const inner = raw.length === 0 ? "" : raw.slice(1, -1);
+
+  const spans = rawAttrSpans(inner);
+  const seen = new Set(spans.map((s) => s.key));
+  let changed = false;
+  let next = inner;
+  // Back to front, so earlier spans keep their offsets.
+  for (let i = spans.length - 1; i >= 0; i--) {
+    const span = spans[i];
+    if (!(span.key in patch)) continue;
+    const value = patch[span.key];
+    if (value === undefined || value === "") {
+      // Swallow the separator in front of the attribute too, or the removal
+      // leaves a double space behind.
+      const from = i === 0 ? span.start : spans[i - 1].end;
+      next = next.slice(0, from) + next.slice(span.end);
+      changed = true;
+      continue;
+    }
+    const replacement = attrPairText(span.key, value);
+    if (replacement === next.slice(span.start, span.end)) continue;
+    next = next.slice(0, span.start) + replacement + next.slice(span.end);
+    changed = true;
+  }
+  const added: string[] = [];
+  for (const [key, value] of Object.entries(patch)) {
+    const k = key.toLowerCase();
+    if (seen.has(k) || value === undefined || value === "") continue;
+    added.push(attrPairText(k, value));
+    changed = true;
+  }
+  // Nothing to do — hand back the author's exact line. This is the guarantee
+  // the toolbar rests on: a click that changes nothing rewrites nothing, so
+  // no diff, no Y.Text op, no churn in anyone else's collab session.
+  if (!changed) return line;
+  const body = [next.trim(), ...added].filter((s) => s.length > 0).join(" ");
+  return `${indent}${head.trimEnd()}${body.length === 0 ? "" : `{${body}}`}`;
 }

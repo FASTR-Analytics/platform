@@ -16,7 +16,7 @@ import {
 } from "./types/reports.ts";
 import {
   isFastrLeafBlock,
-  parseContainerFence,
+  scanContainerLines,
 } from "./fastr_markdown_blocks.ts";
 
 export type ReportSectionMode = "flat" | "wrapper";
@@ -259,22 +259,14 @@ function markdownSectionEndLine(
 // Plain markdown keeps its historical every-line scan untouched.
 export function fastrTopLevelLineMask(lines: string[]): boolean[] {
   const mask: boolean[] = [];
-  let codeFence: string | undefined;
   let depth = 0;
-  for (const line of lines) {
-    const trimmed = line.trim();
-    const cf = /^([`~]{3,})/.exec(trimmed);
-    if (codeFence !== undefined) {
-      mask.push(false);
-      if (cf && trimmed.startsWith(codeFence)) codeFence = undefined;
-      continue;
-    }
-    if (cf) {
-      codeFence = cf[1];
+  // One entry per line, so the scanner must yield every line — including the
+  // code-fence lines themselves, which are never eligible.
+  for (const { inCode, fence } of scanContainerLines(lines)) {
+    if (inCode) {
       mask.push(false);
       continue;
     }
-    const fence = parseContainerFence(line);
     if (fence === undefined) {
       mask.push(depth === 0);
       continue;
