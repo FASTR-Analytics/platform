@@ -58,6 +58,7 @@ import {
   safeCssColor,
   scanContainerLines,
   t3,
+  updateContainerFenceLine,
 } from "lib";
 import {
   materializeReportBackgrounds,
@@ -331,6 +332,65 @@ function frameLineMeta(
   return { cls };
 }
 
+// Click-to-edit for a text-valued attr shown in chrome (a title, a kicker, a
+// stat's value/label/delta). The element becomes contentEditable on click;
+// Enter or blur commits the new text as a fence patch — the same
+// updateContainerFenceLine path the toolbar uses, so an unchanged value
+// rewrites nothing — and Escape reverts. The commit dispatch carries no
+// userEvent, so the structure guard lets it through: this IS the specialised
+// way to edit what typing cannot reach.
+function attachAttrEditor(
+  el: HTMLElement,
+  view: EditorView,
+  line1: number,
+  attr: string,
+  original: string,
+  placeholder: string,
+) {
+  el.classList.add("cm-fm-attr");
+  el.setAttribute("data-placeholder", placeholder);
+  el.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (el.isContentEditable) return;
+    // Caret onto the fence line (no focus steal) so the toolbar shows this
+    // block's controls while the label is being edited.
+    if (line1 <= view.state.doc.lines) {
+      view.dispatch({
+        selection: { anchor: view.state.doc.line(line1).from },
+      });
+    }
+    try {
+      el.contentEditable = "plaintext-only";
+    } catch {
+      el.contentEditable = "true";
+    }
+    el.focus();
+  });
+  const commit = () => {
+    const next = (el.textContent ?? "").replace(/\s+/g, " ").trim();
+    el.contentEditable = "false";
+    if (next === original.trim()) return;
+    if (line1 > view.state.doc.lines) return;
+    const line = view.state.doc.line(line1);
+    const patched = updateContainerFenceLine(line.text, { [attr]: next });
+    if (patched === undefined || patched === line.text) return;
+    view.dispatch({
+      changes: { from: line.from, to: line.to, insert: patched },
+    });
+  };
+  el.addEventListener("blur", commit);
+  el.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      el.blur();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      el.textContent = original;
+      el.blur();
+    }
+  });
+}
+
 function chromeRoot(view: EditorView, line1: number): HTMLElement {
   const dom = document.createElement("div");
   // flow-root contains the sheet classes' own margins — a block widget must
@@ -369,29 +429,41 @@ class ChromeOpenWidget extends WidgetType {
     const text = (k: string) =>
       typeof attrs[k] === "string" ? (attrs[k] as string) : undefined;
     if (this.fence.name === "callout" || this.fence.name === "card") {
-      const title = text("title");
-      if (title !== undefined && title.length > 0) {
-        const kind = typeof attrs["kind"] === "string" && CALLOUT_KINDS.has(attrs["kind"])
-          ? attrs["kind"]
-          : "note";
-        const wrap = document.createElement("div");
-        if (this.fence.name === "callout") wrap.className = `fm-callout--${kind}`;
-        const t = document.createElement("div");
-        t.className = this.fence.name === "callout"
-          ? "fm-callout__title"
-          : "fm-card__title";
-        t.textContent = title;
-        wrap.appendChild(t);
-        dom.appendChild(wrap);
-      }
+      const title = text("title") ?? "";
+      const kind = typeof attrs["kind"] === "string" && CALLOUT_KINDS.has(attrs["kind"])
+        ? attrs["kind"]
+        : "note";
+      const wrap = document.createElement("div");
+      if (this.fence.name === "callout") wrap.className = `fm-callout--${kind}`;
+      const t = document.createElement("div");
+      t.className = this.fence.name === "callout"
+        ? "fm-callout__title"
+        : "fm-card__title";
+      t.textContent = title;
+      attachAttrEditor(
+        t,
+        view,
+        this.fence.line,
+        "title",
+        title,
+        t3({ en: "Title…", fr: "Titre…", pt: "Título…" }),
+      );
+      wrap.appendChild(t);
+      dom.appendChild(wrap);
     } else if (this.fence.name === "band" || this.fence.name === "cover") {
-      const kicker = text("kicker");
-      if (kicker !== undefined && kicker.length > 0) {
-        const k = document.createElement("div");
-        k.className = "fm-kicker";
-        k.textContent = kicker;
-        dom.appendChild(k);
-      }
+      const kicker = text("kicker") ?? "";
+      const k = document.createElement("div");
+      k.className = "fm-kicker";
+      k.textContent = kicker;
+      attachAttrEditor(
+        k,
+        view,
+        this.fence.line,
+        "kicker",
+        kicker,
+        t3({ en: "Kicker…", fr: "Surtitre…", pt: "Antetítulo…" }),
+      );
+      dom.appendChild(k);
     }
     return dom;
   }
@@ -440,6 +512,19 @@ class LeafRenderWidget extends WidgetType {
     dom.innerHTML = sanitizeReportHtml(
       renderFastrMarkdownToHtml(this.source, { lineAnchors: false }),
     );
+    // The stat's own text edits in place — each piece maps to its attr.
+    const attrs = fastrOpenFenceOnLine(this.source, this.line1)?.attrs ?? {};
+    const pieces: [string, string, string][] = [
+      ["fm-stat__value", "value", "0"],
+      ["fm-stat__label", "label", t3({ en: "Label…", fr: "Libellé…", pt: "Rótulo…" })],
+      ["fm-stat__delta", "delta", ""],
+    ];
+    for (const [cls, attr, placeholder] of pieces) {
+      const el = dom.querySelector<HTMLElement>(`.${cls}`);
+      if (!el) continue;
+      const original = typeof attrs[attr] === "string" ? (attrs[attr] as string) : "";
+      attachAttrEditor(el, view, this.line1, attr, original, placeholder);
+    }
     return dom;
   }
   override get estimatedHeight(): number {
