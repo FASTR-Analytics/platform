@@ -59,6 +59,7 @@ import {
   isFastrEmbedLine,
   isFastrInkRole,
   isFastrLeafBlock,
+  parseContainerFence,
   renderFastrMarkdownToHtml,
   safeCssColor,
   scanContainerLines,
@@ -80,15 +81,41 @@ export const FM_LIVE_SCOPE_CLASS = "fm-live-scope";
 
 // ── Region ranges ────────────────────────────────────────────────────────────
 
-type RegionRange = { region: FastrLiveRegion; from: number; to: number };
+type RegionRange = {
+  region: FastrLiveRegion;
+  from: number;
+  to: number;
+  // Whether the region contains any editable TEXT line (prose, card content,
+  // table rows). A region without one — a tiles row of stats, a lone embed,
+  // the page-setup line — NEVER reveals: its labels edit in place and its
+  // attrs belong to the toolbar, so opening the source only breaks the
+  // layout for nothing.
+  hasText: boolean;
+};
 
 function regionRanges(state: EditorState): RegionRange[] {
   return fastrLiveRegions(state.doc.iterLines(1, state.doc.lines + 1)).map(
-    (region) => ({
-      region,
-      from: state.doc.line(region.startLine + 1).from,
-      to: state.doc.line(region.endLine + 1).to,
-    }),
+    (region) => {
+      const from = state.doc.line(region.startLine + 1).from;
+      const to = state.doc.line(region.endLine + 1).to;
+      let hasText = false;
+      for (
+        const sc of scanContainerLines(
+          state.sliceDoc(from, to).split("\n"),
+        )
+      ) {
+        if (sc.inCode) {
+          hasText = true;
+          break;
+        }
+        if (sc.fence !== undefined) continue;
+        if (isFastrEmbedLine(sc.text)) continue;
+        if (sc.text.trim().length === 0) continue;
+        hasText = true;
+        break;
+      }
+      return { region, from, to, hasText };
+    },
   );
 }
 
@@ -105,6 +132,7 @@ class RegionWidget extends WidgetType {
     readonly startLine: number,
     readonly endLine: number,
     readonly resolver: EmbedResolver,
+    readonly active = false,
   ) {
     super();
   }
@@ -114,7 +142,7 @@ class RegionWidget extends WidgetType {
     // touches the editor; a remote edit inside the region changes the source
     // and re-creates just this widget.
     return other.kind === this.kind && other.source === this.source &&
-      other.startLine === this.startLine;
+      other.startLine === this.startLine && other.active === this.active;
   }
 
   override toDOM(view: EditorView): HTMLElement {
@@ -122,7 +150,9 @@ class RegionWidget extends WidgetType {
     // Vertical PADDING, never margins: CodeMirror measures the widget's box
     // for vertical layout and margins fall outside it, desyncing cursor
     // positions below (the embedWidgets rule).
-    dom.className = "fm-live-region w-full cursor-text";
+    dom.className = this.active
+      ? "fm-live-region fm-live-region--active w-full cursor-text"
+      : "fm-live-region w-full cursor-text";
     dom.style.display = "flow-root";
     dom.contentEditable = "false";
     dom.setAttribute("data-region-line", String(this.startLine));
@@ -186,21 +216,111 @@ class RegionWidget extends WidgetType {
       for (const d of disposers) d();
     };
 
-    dom.addEventListener("click", (e) => {
-      const target = e.target as HTMLElement;
-      const embed = target.closest<HTMLElement>("[data-embed-id]");
-      if (embed) {
-        e.stopPropagation();
-        this.resolver.onSelectEmbed(
-          (embed.getAttribute("data-embed-kind") ?? "figure") as
-            | "figure"
-            | "image",
-          embed.getAttribute("data-embed-id") ?? "",
+    // Everything inside the render edits IN PLACE — the block never has to
+    // reveal its source to be edited.
+    const sourceLines = this.source.split("\n");
+    for (
+      const statEl of Array.from(
+        dom.querySelectorAll<HTMLElement>(".fm-stat[data-line]"),
+      )
+    ) {
+      const rel = Number(statEl.getAttribute("data-line"));
+      const text = sourceLines[rel];
+      if (!Number.isFinite(rel) || text === undefined) continue;
+      attachStatEditors(statEl, view, this.startLine + rel + 1, text, false);
+    }
+    // Prose: paragraphs, list items and headings swap to their raw source
+    // lines on press, keeping the block's layout around them.
+    for (
+      const textEl of Array.from(
+        dom.querySelectorAll<HTMLElement>(
+          "p[data-line], li[data-line], h1[data-line], h2[data-line], h3[data-line], h4[data-line], h5[data-line], h6[data-line]",
+        ),
+      )
+    ) {
+      if (textEl.closest(".fm-stat") || textEl.querySelector("img")) continue;
+      const rel = Number(textEl.getAttribute("data-line"));
+      if (!Number.isFinite(rel) || sourceLines[rel] === undefined) continue;
+      attachTextEditor(textEl, view, this.startLine, sourceLines, rel);
+    }
+    // Block chrome text — the callout/card TITLE, a band's kicker and dek, a
+    // quote's citation — edits in place through the fence-attr path (the same
+    // editors the stats use). A container element's data-line IS its opening
+    // fence line. When a titled block has no title yet, an ACTIVE widget
+    // (caret inside) grows a ghost title row to click into — idle widgets
+    // stay exactly as the preview renders them.
+    const CHROME_ATTRS: [string, string, string, string, boolean][] = [
+      ["fm-callout", "fm-callout__title", "title", t3({ en: "Title…", fr: "Titre…", pt: "Título…" }), true],
+      ["fm-card", "fm-card__title", "title", t3({ en: "Title…", fr: "Titre…", pt: "Título…" }), true],
+      ["fm-band", "fm-kicker", "kicker", t3({ en: "Kicker…", fr: "Surtitre…", pt: "Antetítulo…" }), true],
+      ["fm-cover", "fm-kicker", "kicker", t3({ en: "Kicker…", fr: "Surtitre…", pt: "Antetítulo…" }), true],
+      ["fm-band", "fm-dek", "sub", t3({ en: "Subtitle…", fr: "Sous-titre…", pt: "Subtítulo…" }), false],
+      ["fm-cover", "fm-dek", "sub", t3({ en: "Subtitle…", fr: "Sous-titre…", pt: "Subtítulo…" }), false],
+      ["fm-quote", "fm-quote__cite", "cite", t3({ en: "Source…", fr: "Source…", pt: "Fonte…" }), false],
+    ];
+    for (
+      const container of Array.from(
+        dom.querySelectorAll<HTMLElement>("[data-line]"),
+      )
+    ) {
+      const rel = Number(container.getAttribute("data-line"));
+      const text = sourceLines[rel];
+      if (!Number.isFinite(rel) || text === undefined) continue;
+      const fence = fastrOpenFenceOnLine(text, this.startLine + rel + 1);
+      if (!fence) continue;
+      for (const [rootCls, childCls, attr, placeholder, ghost] of CHROME_ATTRS) {
+        if (!container.classList.contains(rootCls)) continue;
+        let el = container.querySelector<HTMLElement>(`:scope > .${childCls}`);
+        if (!el && ghost && this.active) {
+          el = document.createElement("div");
+          el.className = childCls;
+          container.prepend(el);
+        }
+        if (!el || (el as unknown as { _wired?: boolean })._wired) continue;
+        (el as unknown as { _wired?: boolean })._wired = true;
+        const original = typeof fence.attrs[attr] === "string"
+          ? (fence.attrs[attr] as string)
+          : "";
+        attachAttrEditor(
+          el,
+          view,
+          this.startLine + rel + 1,
+          attr,
+          original,
+          placeholder,
+          false,
         );
+      }
+    }
+    // Table cells: the row line carries the anchor; the cell's position in
+    // the row is its column.
+    for (
+      const rowEl of Array.from(
+        dom.querySelectorAll<HTMLElement>("tr[data-line]"),
+      )
+    ) {
+      const rel = Number(rowEl.getAttribute("data-line"));
+      if (!Number.isFinite(rel)) continue;
+      const cells = Array.from(rowEl.querySelectorAll<HTMLElement>("td, th"));
+      cells.forEach((cell, i) =>
+        attachCellEditor(cell, view, this.startLine + rel + 1, i)
+      );
+    }
+
+    // MOUSEDOWN, not click, and with the default prevented: the browser's
+    // native behaviour on pressing a contentEditable=false island is to
+    // select the WHOLE island — and if a micro-drag swallows the click, that
+    // full-widget highlight would stick. Claiming the press parks the caret
+    // immediately and no native selection ever starts. Labels and figures
+    // keep their own behaviour.
+    dom.addEventListener("mousedown", (e) => {
+      const target = e.target as HTMLElement;
+      if (target.closest(".cm-fm-attr") || target.closest("[data-embed-id]")) {
         return;
       }
-      // Whole-region reveal, caret on the clicked line. data-line values are
-      // region-relative (the renderer saw only the slice).
+      e.preventDefault();
+      // Caret on the clicked line. data-line values are region-relative
+      // (the renderer saw only the slice).
       const anchorEl = target.closest<HTMLElement>("[data-line]");
       const rel = anchorEl ? Number(anchorEl.getAttribute("data-line")) : NaN;
       const fallback = this.kind === "container"
@@ -219,6 +339,20 @@ class RegionWidget extends WidgetType {
         scrollIntoView: true,
       });
       view.focus();
+    });
+    dom.addEventListener("click", (e) => {
+      const embed = (e.target as HTMLElement).closest<HTMLElement>(
+        "[data-embed-id]",
+      );
+      if (embed) {
+        e.stopPropagation();
+        this.resolver.onSelectEmbed(
+          (embed.getAttribute("data-embed-kind") ?? "figure") as
+            | "figure"
+            | "image",
+          embed.getAttribute("data-embed-id") ?? "",
+        );
+      }
     });
     return dom;
   }
@@ -390,15 +524,24 @@ function attachAttrEditor(
   attr: string,
   original: string,
   placeholder: string,
+  // In a COLLAPSED widget the caret must stay put: parking it on the line
+  // would reveal the region and destroy this editor mid-edit.
+  moveCaret = true,
 ) {
   el.classList.add("cm-fm-attr");
   el.setAttribute("data-placeholder", placeholder);
-  el.addEventListener("click", (e) => {
+  // Activation happens on MOUSEDOWN, before the browser decides what the
+  // press selects: a label that only becomes editable on click is still a
+  // non-editable island at that moment, so the browser would select the
+  // WHOLE surrounding widget (visibly, when the press lands mid-edit of
+  // another label). Editable by the time the default runs, the press just
+  // places the caret where it landed.
+  el.addEventListener("mousedown", (e) => {
     e.stopPropagation();
     if (el.isContentEditable) return;
     // Caret onto the fence line (no focus steal) so the toolbar shows this
     // block's controls while the label is being edited.
-    if (line1 <= view.state.doc.lines) {
+    if (moveCaret && line1 <= view.state.doc.lines) {
       view.dispatch({
         selection: { anchor: view.state.doc.line(line1).from },
       });
@@ -410,6 +553,9 @@ function attachAttrEditor(
     }
     el.focus();
   });
+  // Clicks stay inside the label — the widget's own handlers (reveal, embed
+  // select) must not see them.
+  el.addEventListener("click", (e) => e.stopPropagation());
   const commit = () => {
     const next = (el.textContent ?? "").replace(/\s+/g, " ").trim();
     el.contentEditable = "false";
@@ -435,6 +581,177 @@ function attachAttrEditor(
   });
 }
 
+// A stat's value/label/delta edit in place wherever the stat renders — in
+// the revealed leaf widget AND inside a collapsed region's grid, so a tiles
+// row of stats never needs to break its layout to be edited.
+function attachStatEditors(
+  root: HTMLElement,
+  view: EditorView,
+  line1: number,
+  lineText: string,
+  moveCaret: boolean,
+) {
+  const attrs = fastrOpenFenceOnLine(lineText, line1)?.attrs ?? {};
+  const pieces: [string, string, string][] = [
+    ["fm-stat__value", "value", "0"],
+    ["fm-stat__label", "label", t3({ en: "Label…", fr: "Libellé…", pt: "Rótulo…" })],
+    ["fm-stat__delta", "delta", ""],
+  ];
+  for (const [cls, attr, placeholder] of pieces) {
+    const el = root.querySelector<HTMLElement>(`.${cls}`);
+    if (!el) continue;
+    const original = typeof attrs[attr] === "string" ? (attrs[attr] as string) : "";
+    attachAttrEditor(el, view, line1, attr, original, placeholder, moveCaret);
+  }
+}
+
+// In-place editing for a rendered TEXT element (p, li, headings inside
+// blocks): on press, the element's content swaps to the RAW source of its
+// line(s) — inline markdown stays authorable — while the surrounding block
+// keeps its rendered form. Enter/blur commits (a changed text is one
+// dispatch; the widget re-renders), Escape restores the rendered content.
+function attachTextEditor(
+  el: HTMLElement,
+  view: EditorView,
+  regionStartLine: number,
+  sourceLines: string[],
+  rel: number,
+) {
+  // A paragraph may span consecutive source lines (breaks render as <br>).
+  let endRel = rel;
+  if (el.tagName === "P") {
+    while (
+      endRel + 1 < sourceLines.length &&
+      sourceLines[endRel + 1].trim().length > 0 &&
+      parseContainerFence(sourceLines[endRel + 1]) === undefined &&
+      !isFastrEmbedLine(sourceLines[endRel + 1])
+    ) endRel++;
+  }
+  const original = sourceLines.slice(rel, endRel + 1).join("\n");
+  el.classList.add("cm-fm-text-edit");
+  el.addEventListener("mousedown", (e) => {
+    e.stopPropagation();
+    if (el.isContentEditable) return;
+    (el as unknown as { _rendered: string })._rendered = el.innerHTML;
+    el.textContent = original;
+    try {
+      el.contentEditable = "plaintext-only";
+    } catch {
+      el.contentEditable = "true";
+    }
+    el.focus();
+    // Caret at the end — the swap changed the text under the press, so a
+    // precise position is not meaningful.
+    const sel = window.getSelection();
+    if (sel) {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      range.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+  });
+  el.addEventListener("click", (e) => e.stopPropagation());
+  const restore = () => {
+    el.contentEditable = "false";
+    const rendered = (el as unknown as { _rendered?: string })._rendered;
+    if (rendered !== undefined) el.innerHTML = rendered;
+  };
+  el.addEventListener("blur", () => {
+    if (!el.isContentEditable) return;
+    const next = (el.textContent ?? "").replace(/\r/g, "");
+    if (next === original) {
+      restore();
+      return;
+    }
+    el.contentEditable = "false";
+    const doc = view.state.doc;
+    const line1 = regionStartLine + rel + 1;
+    const endLine1 = regionStartLine + endRel + 1;
+    if (endLine1 > doc.lines) return;
+    view.dispatch({
+      changes: {
+        from: doc.line(line1).from,
+        to: doc.line(endLine1).to,
+        insert: next,
+      },
+    });
+  });
+  el.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      el.blur();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      el.textContent = original;
+      restore();
+    }
+  });
+}
+
+// Table cells edit in place: the row's source line is split on pipes, the
+// pressed cell swaps to its raw text, and a commit rebuilds the row line.
+function attachCellEditor(
+  el: HTMLElement,
+  view: EditorView,
+  rowLine1: number,
+  cellIndex: number,
+) {
+  el.classList.add("cm-fm-text-edit");
+  const cellsOf = (text: string) => {
+    const trimmed = text.trim();
+    const inner = trimmed.replace(/^\|/, "").replace(/\|$/, "");
+    return inner.split("|").map((c) => c.trim());
+  };
+  el.addEventListener("mousedown", (e) => {
+    e.stopPropagation();
+    if (el.isContentEditable) return;
+    if (rowLine1 > view.state.doc.lines) return;
+    const cells = cellsOf(view.state.doc.line(rowLine1).text);
+    (el as unknown as { _rendered: string })._rendered = el.innerHTML;
+    el.textContent = cells[cellIndex] ?? "";
+    try {
+      el.contentEditable = "plaintext-only";
+    } catch {
+      el.contentEditable = "true";
+    }
+    el.focus();
+  });
+  el.addEventListener("click", (e) => e.stopPropagation());
+  el.addEventListener("blur", () => {
+    if (!el.isContentEditable) return;
+    el.contentEditable = "false";
+    if (rowLine1 > view.state.doc.lines) return;
+    const line = view.state.doc.line(rowLine1);
+    const cells = cellsOf(line.text);
+    const next = (el.textContent ?? "").replace(/[\r\n|]/g, " ").trim();
+    if (next === (cells[cellIndex] ?? "")) {
+      const rendered = (el as unknown as { _rendered?: string })._rendered;
+      if (rendered !== undefined) el.innerHTML = rendered;
+      return;
+    }
+    cells[cellIndex] = next;
+    view.dispatch({
+      changes: {
+        from: line.from,
+        to: line.to,
+        insert: `| ${cells.join(" | ")} |`,
+      },
+    });
+  });
+  el.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === "Tab") {
+      e.preventDefault();
+      el.blur();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      el.contentEditable = "false";
+      const rendered = (el as unknown as { _rendered?: string })._rendered;
+      if (rendered !== undefined) el.innerHTML = rendered;
+    }
+  });
+}
+
 function chromeRoot(view: EditorView, line1: number): HTMLElement {
   const dom = document.createElement("div");
   // flow-root contains the sheet classes' own margins — a block widget must
@@ -442,9 +759,12 @@ function chromeRoot(view: EditorView, line1: number): HTMLElement {
   dom.className = "cm-fm-chrome w-full";
   dom.style.display = "flow-root";
   dom.contentEditable = "false";
-  dom.addEventListener("click", () => {
-    // Caret onto the (hidden) fence line: typing there is refused by the
-    // guard, but the toolbar reads the caret and shows this block's controls.
+  dom.addEventListener("mousedown", (e) => {
+    if ((e.target as HTMLElement).closest(".cm-fm-attr")) return;
+    // Prevent the browser island-selecting the widget; park the caret on the
+    // (hidden) fence line instead — typing there is refused by the guard, but
+    // the toolbar reads the caret and shows this block's controls.
+    e.preventDefault();
     view.dispatch({ selection: { anchor: view.state.doc.line(line1).from } });
     view.focus();
   });
@@ -562,19 +882,7 @@ class LeafRenderWidget extends WidgetType {
     dom.innerHTML = sanitizeReportHtml(
       renderFastrMarkdownToHtml(this.source, { lineAnchors: false }),
     );
-    // The stat's own text edits in place — each piece maps to its attr.
-    const attrs = fastrOpenFenceOnLine(this.source, this.line1)?.attrs ?? {};
-    const pieces: [string, string, string][] = [
-      ["fm-stat__value", "value", "0"],
-      ["fm-stat__label", "label", t3({ en: "Label…", fr: "Libellé…", pt: "Rótulo…" })],
-      ["fm-stat__delta", "delta", ""],
-    ];
-    for (const [cls, attr, placeholder] of pieces) {
-      const el = dom.querySelector<HTMLElement>(`.${cls}`);
-      if (!el) continue;
-      const original = typeof attrs[attr] === "string" ? (attrs[attr] as string) : "";
-      attachAttrEditor(el, view, this.line1, attr, original, placeholder);
-    }
+    attachStatEditors(dom, view, this.line1, this.source, true);
     return dom;
   }
   override get estimatedHeight(): number {
@@ -811,6 +1119,30 @@ function buildLiveState(
   const builder = new RangeSetBuilder<Decoration>();
   const protectedLines: ProtectedLine[] = [];
   const boxes: BoxInfo[] = [];
+  // The masthead's hidden "# " prefix: a user edit may not splice into it
+  // blind (a full-line selection still deletes the heading cleanly). Its BAND
+  // is a layer box at depth 0 — full sheet width, flush to the top — because
+  // a .cm-line can never escape the content padding the way View's full-bleed
+  // masthead does; the line paints the same ground inside it seamlessly.
+  const mast = mastheadLine(state);
+  if (mast) {
+    const m = HEADING_LINE_RE.exec(mast.text);
+    if (m) {
+      protectedLines.push({
+        from: mast.from,
+        to: mast.from + m[0].length,
+        regionFrom: mast.from,
+        regionTo: mast.to,
+      });
+      boxes.push({
+        openLine1: mast.number,
+        endLine1: mast.number,
+        capped: false,
+        classes: "cm-fm-masthead cm-fm-box-masthead",
+        depth: 0,
+      });
+    }
+  }
   for (const r of ranges) {
     // Derived reveal: a region the selection touches opens for editing IN
     // PLACE, still looking like the block. Fence lines never show as syntax —
@@ -820,10 +1152,13 @@ function buildLiveState(
     // painted with the innermost block's ground. The fence and leaf lines are
     // recorded as PROTECTED: a transaction filter refuses user edits that
     // touch them, so the attrs are reachable only through the toolbar.
-    if (selectionTouches(state, r.from, r.to)) {
-      buildRevealedRegion(state, r, builder, protectedLines, boxes, resolver);
-      continue;
-    }
+    const touched = selectionTouches(state, r.from, r.to);
+    // No region reveals its source any more: every block edits IN PLACE in
+    // its rendered form (paragraph/cell/label editors below), so the caret
+    // inside a region shows as the widget's active ring. Split remains the
+    // raw-source view. buildRevealedRegion is kept for a possible explicit
+    // keyboard-driven source mode.
+    void buildRevealedRegion;
     protectedLines.push({
       from: r.from,
       to: r.to,
@@ -839,6 +1174,9 @@ function buildLiveState(
         r.region.startLine,
         r.region.endLine,
         resolver,
+        // A text-free region with the caret inside stays rendered — the ring
+        // is its only sign of selection, since there is no source to show.
+        touched,
       );
     builder.add(r.from, r.to, Decoration.replace({ widget, block: true }));
   }
@@ -906,6 +1244,9 @@ export function liveRegionExtensions(resolver: EmbedResolver): Extension[] {
         top: scrollRect.top - view.scrollDOM.scrollTop,
       };
       const contentRect = view.contentDOM.getBoundingClientRect();
+      // The sheet's text inset is computed CSS (the bleed-pad formula) — read
+      // it rather than duplicating the calculation in pixels.
+      const padX = parseFloat(getComputedStyle(view.contentDOM).paddingLeft) || 0;
       const out: RectangleMarker[] = [];
       for (const b of boxes) {
         if (
@@ -914,11 +1255,15 @@ export function liveRegionExtensions(resolver: EmbedResolver): Extension[] {
         ) continue;
         const openBlock = view.lineBlockAt(view.state.doc.line(b.openLine1).from);
         const endBlock = view.lineBlockAt(view.state.doc.line(b.endLine1).from);
-        const top = openBlock.top + view.documentTop - base.top + FM_BOX_GAP;
+        const isMasthead = b.depth === 0;
+        const top = isMasthead
+          // Flush to the sheet's top, covering the content offset too.
+          ? 0
+          : openBlock.top + view.documentTop - base.top + FM_BOX_GAP;
         const bottom = endBlock.bottom + view.documentTop - base.top -
           (b.capped ? FM_BOX_GAP : 0);
         if (bottom <= top) continue;
-        const inset = (b.depth - 1) * FM_BOX_INSET;
+        const inset = isMasthead ? 0 : padX + (b.depth - 1) * FM_BOX_INSET;
         out.push(
           new RectangleMarker(
             `cm-fm-box ${b.classes}`,
@@ -951,17 +1296,47 @@ const surfaceLineField = StateField.define<DecorationSet>({
   provide: (f) => EditorView.decorations.from(f),
 });
 
+const LIST_LINE_RE = /^\s*(?:[-*+]|\d+\.)\s/;
+
 function buildSurfaceLines(state: EditorState): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>();
   // scanContainerLines flags code-fence interiors, where a # line is content.
+  let firstContent = true;
   for (const { index, text, inCode } of scanContainerLines(
     state.doc.iterLines(1, state.doc.lines + 1),
   )) {
     if (inCode) continue;
-    const m = HEADING_LINE_RE.exec(text);
-    if (!m) continue;
     const from = state.doc.line(index + 1).from;
-    builder.add(from, from, Decoration.line({ class: `cm-fm-h${m[1].length}` }));
+    const blank = text.trim().length === 0;
+    if (blank) {
+      // A blank source line is View's paragraph margin (1em), not a full
+      // text line — shrink it or every seam runs ~60% taller than View.
+      builder.add(from, from, Decoration.line({ class: "cm-fm-blank" }));
+      continue;
+    }
+    const m = HEADING_LINE_RE.exec(text);
+    // The document's OPENING h1 is the masthead, exactly as the renderer
+    // promotes body > h1:first-child — the host re-targets the theme's
+    // masthead rules onto this class.
+    const isMasthead = firstContent && m !== null && m[1].length === 1;
+    firstContent = false;
+    if (m) {
+      builder.add(
+        from,
+        from,
+        Decoration.line({
+          class: `cm-fm-h${m[1].length}${isMasthead ? " cm-fm-masthead" : ""}`,
+        }),
+      );
+      continue;
+    }
+    if (LIST_LINE_RE.test(text)) {
+      builder.add(from, from, Decoration.line({ class: "cm-fm-li" }));
+      continue;
+    }
+    if (/^\s*>\s?/.test(text)) {
+      builder.add(from, from, Decoration.line({ class: "cm-fm-bq" }));
+    }
   }
   return builder.finish();
 }
@@ -969,6 +1344,26 @@ function buildSurfaceLines(state: EditorState): DecorationSet {
 // ── Inline conceal ───────────────────────────────────────────────────────────
 
 const ROLE_MARK_RE = /\[([^\]]*)\]\{\.([a-z][a-z0-9-]*)\}/g;
+
+// A thematic break renders as the theme's own rule (the hr element picks up
+// the scoped sheet), revealing its --- source only while the caret touches it.
+class HrWidget extends WidgetType {
+  override toDOM(): HTMLElement {
+    const dom = document.createElement("div");
+    dom.className = "w-full";
+    dom.style.display = "flow-root";
+    dom.contentEditable = "false";
+    dom.appendChild(document.createElement("hr"));
+    return dom;
+  }
+  override eq(): boolean {
+    return true;
+  }
+  override get estimatedHeight(): number {
+    return 34;
+  }
+}
+const HR = new HrWidget();
 
 class BulletWidget extends WidgetType {
   override toDOM(): HTMLElement {
@@ -1008,7 +1403,12 @@ function buildConceal(view: EditorView): DecorationSet {
           case "ATXHeading4":
           case "ATXHeading5":
           case "ATXHeading6": {
-            if (revealed(node.from, node.to)) return;
+            // The masthead NEVER shows its syntax — it must look exactly like
+            // the rendered title block even while the caret is on it (the
+            // atomic range and structure guard keep the hidden prefix safe).
+            const isMast = node.name === "ATXHeading1" &&
+              mastheadLine(state)?.from === state.doc.lineAt(node.from).from;
+            if (!isMast && revealed(node.from, node.to)) return;
             const mark = node.node.getChild("HeaderMark");
             if (mark) {
               add(
@@ -1043,7 +1443,19 @@ function buildConceal(view: EditorView): DecorationSet {
             return;
           }
           case "Link": {
+            // A bracket followed by {.role} is a ROLE MARK, not a link — the
+            // Lezer grammar still tokenizes the shortcut-reference form, and
+            // claiming it here would both paint link styling and knock out
+            // the role conceal's tail in the overlap dedupe below.
+            const tail = state.sliceDoc(node.to, Math.min(node.to + 24, state.doc.length));
+            const roleTail = /^\{\.([a-z][a-z0-9-]*)\}/.exec(tail);
+            if (roleTail && isFastrInkRole(roleTail[1])) return;
             if (revealed(node.from, node.to)) return;
+            // Only a REAL link (with a URL) conceals and takes link styling.
+            // Lezer also tokenizes bare [bracketed text] as a shortcut
+            // reference; with no definition the renderer leaves it literal,
+            // so the editor must too.
+            if (!node.node.getChild("URL")) return;
             const marks = node.node.getChildren("LinkMark");
             if (marks.length >= 2) {
               // [label](url) → show only the label, styled as a link.
@@ -1056,6 +1468,26 @@ function buildConceal(view: EditorView): DecorationSet {
               );
               add(marks[1].from, node.to, conceal);
             }
+            return;
+          }
+          case "HorizontalRule": {
+            if (revealed(node.from, node.to)) return;
+            add(
+              node.from,
+              node.to,
+              Decoration.replace({ widget: HR, block: false }),
+            );
+            return;
+          }
+          case "QuoteMark": {
+            // The `>` of a plain markdown quote; the line class supplies the
+            // preview's blockquote indent.
+            if (revealed(node.from, node.to)) return;
+            add(
+              node.from,
+              Math.min(node.to + 1, state.doc.length),
+              conceal,
+            );
             return;
           }
           case "ListMark": {
@@ -1113,20 +1545,52 @@ function buildConceal(view: EditorView): DecorationSet {
   return builder.finish();
 }
 
-const concealPlugin = ViewPlugin.fromClass(
-  class {
-    decorations: DecorationSet;
-    constructor(view: EditorView) {
-      this.decorations = buildConceal(view);
+class ConcealPluginValue {
+  decorations: DecorationSet;
+  // The masthead's hidden "# " — atomic so the caret skips over it rather
+  // than sitting invisibly inside; the structure guard protects it from
+  // blind typing.
+  atomic: DecorationSet;
+  constructor(view: EditorView) {
+    [this.decorations, this.atomic] = buildConcealSets(view);
+  }
+  update(u: ViewUpdate) {
+    if (u.docChanged || u.selectionSet || u.viewportChanged) {
+      [this.decorations, this.atomic] = buildConcealSets(u.view);
     }
-    update(u: ViewUpdate) {
-      if (u.docChanged || u.selectionSet || u.viewportChanged) {
-        this.decorations = buildConceal(u.view);
-      }
+  }
+}
+
+function buildConcealSets(view: EditorView): [DecorationSet, DecorationSet] {
+  const deco = buildConceal(view);
+  const atomicBuilder = new RangeSetBuilder<Decoration>();
+  const line = mastheadLine(view.state);
+  if (line) {
+    const m = HEADING_LINE_RE.exec(line.text);
+    if (m) {
+      atomicBuilder.add(line.from, line.from + m[0].length, Decoration.replace({}));
     }
-  },
-  { decorations: (v) => v.decorations },
-);
+  }
+  return [deco, atomicBuilder.finish()];
+}
+
+// The first non-blank line, when it is an h1 — the masthead.
+function mastheadLine(state: EditorState) {
+  for (let i = 1; i <= state.doc.lines; i++) {
+    const line = state.doc.line(i);
+    if (line.text.trim().length === 0) continue;
+    return HEADING_LINE_RE.exec(line.text)?.[1].length === 1 ? line : undefined;
+  }
+  return undefined;
+}
+
+const concealPlugin = ViewPlugin.fromClass(ConcealPluginValue, {
+  decorations: (v) => v.decorations,
+  provide: (plugin) =>
+    EditorView.atomicRanges.of((view) =>
+      view.plugin(plugin)?.atomic ?? Decoration.none
+    ),
+});
 
 // ── Peer presence on collapsed regions ───────────────────────────────────────
 // yCollab draws remote carets in TEXT; a caret inside a collapsed region has
@@ -1226,14 +1690,12 @@ function regionPresencePlugin(deps: PresenceDeps): Extension {
 
 const livePreviewTheme = EditorView.theme({
   ".cm-content": {
-    maxWidth: "var(--fm-measure)",
     fontFamily: "var(--fm-font-body)",
     color: "var(--fm-ink)",
     fontSize: "16px",
     lineHeight: "1.55",
     caretColor: "var(--fm-ink)",
   },
-  ".cm-scroller": { background: "var(--fm-page)" },
   ".cm-gutters": { display: "none" },
 });
 

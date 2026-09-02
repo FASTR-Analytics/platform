@@ -733,9 +733,52 @@ export function buildFastrReportCss(
 export const FM_BOX_GAP = 16;
 export const FM_BOX_PAD_BOTTOM = 10;
 export const FM_BOX_INSET = 14;
+// The sheet's horizontal page padding (the preview body's 1.5rem), shared with
+// the box layer so blocks sit inside the page edge exactly as in View.
+export const FM_PAGE_PAD_X = 24;
 
 export function buildFastrEditorSurfaceCss(scope: string): string {
   const d = `${scope} `;
+  // The SHEET: the page ground lives on the content column only — the pane
+  // around it stays app chrome, exactly like View's bounded page. The scope
+  // root's own structure background is overridden back to transparent (this
+  // sheet is appended last, so the tie resolves here).
+  const sheet = `${scope} { background: transparent; }
+/* The SHEET is the scroller, mirroring View where the sheet is the iframe:
+   capped at the iframe's 56rem (896px at ITS 16px root — the host pins
+   --fm-measure to px the same way), centered, painted with the page ground.
+   The ground must live HERE and not on .cm-content: the box layer draws at
+   negative z, and an in-flow element's background would paint OVER it —
+   a scroller's own background paints below its negative-z children. */
+${d}.cm-scroller {
+  background: var(--fm-page);
+  /* The scroller is a flex item: without an explicit width, auto margins
+     would shrink it to fit content. */
+  width: 100%;
+  max-width: 896px;
+  margin-inline: auto;
+}
+${d}.cm-content {
+  background: transparent;
+  box-sizing: border-box;
+  width: 100%;
+  /* View's bleed-pad formula, with the sheet standing in for the viewport:
+     % resolves against the scroller, so narrow windows match View too. */
+  padding: 0 max(24px, calc((100% - var(--fm-measure)) / 2 + 24px)) 4rem;
+}
+/* The leading h1 is the document's MASTHEAD. The host appends a copy of the
+   theme sheet with the body > h1:first-child selectors re-targeted at this
+   class, so each theme's real masthead treatment applies; this rule then
+   neutralises the flow properties a .cm-line must never carry. */
+${d}.cm-line.cm-fm-masthead {
+  margin: 0 !important;
+  width: auto !important;
+  text-decoration: none;
+  /* The masthead ground is the theme's ink — the caret must flip with it. */
+  caret-color: var(--fm-page);
+}
+${d}.cm-fm-masthead * { text-decoration: none !important; }
+`;
   const headings = [
     { cls: "cm-fm-h1", size: "2.15em" },
     { cls: "cm-fm-h2", size: "1.55em" },
@@ -753,7 +796,8 @@ export function buildFastrEditorSurfaceCss(scope: string): string {
   line-height: 1.3;
 }`
   ).join("\n");
-  return `${headings}
+  return `${sheet}
+${headings}
 ${d}.cm-fm-code {
   font-family: ui-monospace, monospace;
   font-size: 0.9em;
@@ -761,12 +805,16 @@ ${d}.cm-fm-code {
   border-radius: var(--fm-radius);
   padding: 0.05em 0.3em;
 }
-${d}.cm-fm-link {
+/* The markdown highlight style underlines anything Lezer tokenizes as a
+   link — including bare [bracketed text] the renderer leaves literal. Only
+   REAL links (given cm-fm-link by the conceal layer) may underline. */
+${d}.cm-line * { text-decoration: none; }
+${d}.cm-line .cm-fm-link, ${d}.cm-fm-link {
   color: var(--fm-accent-text);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-${d}.cm-fm-bullet { color: var(--fm-accent-text); }
+${d}.cm-fm-bullet { color: var(--fm-ink); }
 /* A revealed region keeps LOOKING like the block while its source is edited:
    the lines carry the block's ground (a tone class, a callout accent, or the
    default surface wash) and the fence lines drop to dimmed syntax. Only
@@ -783,6 +831,26 @@ ${d}.cm-fm-d2 { padding-inline: calc(0.9rem + ${FM_BOX_INSET}px); }
 ${d}.cm-fm-d3 { padding-inline: calc(0.9rem + ${FM_BOX_INSET * 2}px); }
 ${d}.cm-fm-d4 { padding-inline: calc(0.9rem + ${FM_BOX_INSET * 3}px); }
 ${d}.cm-fm-quote-line { font-style: italic; font-size: 1.1em; }
+/* View's vertical rhythm, rebuilt from line boxes: a blank source line stands
+   in for the 1em paragraph margin (a full text line would run ~60% taller),
+   headings carry their margins as PADDING (line decorations may never carry
+   margins), and list lines take the ul indent. */
+${d}.cm-fm-blank { font-size: 0.65em; }
+/* Widgets render REAL html inside .cm-content, which is white-space:pre-wrap
+   (CodeMirror needs it for the text). Inherited into a widget, every newline
+   the renderer emits between tags becomes a phantom line box — two extra
+   lines in every callout, one after every grid. Rendered content collapses
+   whitespace exactly like the preview does. */
+${d}.fm-live-region, ${d}.cm-fm-chrome { white-space: normal; }
+${d}.cm-fm-h1:not(.cm-fm-masthead) { padding-top: 0.5em; padding-bottom: 0.2em; }
+${d}.cm-fm-h2 { padding-top: 0.8em; padding-bottom: 0.25em; }
+${d}.cm-fm-h3, ${d}.cm-fm-h4, ${d}.cm-fm-h5, ${d}.cm-fm-h6 { padding-top: 0.7em; padding-bottom: 0.2em; }
+${d}.cm-fm-li { padding-left: 1.4em; }
+/* A plain markdown blockquote takes the theme's own blockquote treatment —
+   the host retargets those rules onto this class, margins neutralised. */
+/* A concealed role mark's label can sit inside what Lezer tokenized as a
+   shortcut-reference link; the highlight style's underline is noise there. */
+${d}.fm-mark { text-decoration: none !important; }
 /* The box layer carries a NEGATIVE z-index (CodeMirror's below-text layers
    all do). A negative-z child only paints above its ancestor's background
    when that ancestor is a stacking context — isolate the scroller so the
@@ -793,9 +861,29 @@ ${d}.cm-fm-box {
   box-sizing: border-box;
   pointer-events: none;
   /* The structural classes carry flow margins; an absolutely positioned box
-     must not let them shift it off its measured rectangle. */
-  margin: 0;
+     must not let them shift it off its measured rectangle. Important, because
+     the retargeted theme rules land later in the sheet. */
+  margin: 0 !important;
 }
+/* Breathing room under the band — View's masthead margin, as line padding.
+   Pixels, not em: the line after the band is usually a shrunken blank line,
+   whose small font would starve an em value. */
+${d}.cm-fm-masthead + .cm-line { padding-top: 56px; }
+/* The retargeted masthead rule brings the full-bleed padding formula, which
+   has no viewport to work against in the editor — pin the title to the
+   sheet's own padding instead (important: that rule lands later). */
+${d}.cm-line.cm-fm-masthead {
+  /* The content padding IS the bleed-pad now, so the title needs none of
+     its own — the retargeted rule's viewport-based formula is overridden. */
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+/* A collapsed widget's render carries the preview's own block margins; the
+   editor ALSO spends a blank source line and the box gap on that seam, so the
+   widget's outer margins are clamped or blocks drift twice as far apart in
+   Edit as in View. */
+${d}.fm-live-region > *:first-child { margin-top: 0.2em !important; }
+${d}.fm-live-region > *:last-child { margin-bottom: 0.2em !important; }
 /* GAP above the box is page-side; the extra 8px is interior headroom so the
    title clears the box's own top border (the box starts at +GAP exactly). */
 ${d}.cm-fm-chrome-open { padding-top: ${FM_BOX_GAP + 8}px; padding-bottom: 0.2rem; }
@@ -808,6 +896,17 @@ ${d}.cm-fm-chrome-cap {
    (title bar, kicker) on the block's own ground, and a thin end cap. The
    syntax never shows in Edit mode — attrs are toolbar territory. */
 ${d}.cm-fm-chrome { cursor: pointer; }
+/* A text-free region (stats, embeds) never reveals; when the caret is inside
+   it, this ring is the selection's only visible sign. */
+/* An in-place text editor keeps its element's rendered box; the dotted
+   underline marks the editable surface, as on the labels. */
+${d}.cm-fm-text-edit { cursor: text; }
+${d}.cm-fm-text-edit:hover { text-decoration: underline dotted; text-underline-offset: 3px; }
+${d}.cm-fm-text-edit:focus { outline: 1px dashed var(--fm-accent-text); outline-offset: 2px; text-decoration: none; }
+${d}.fm-live-region--active {
+  outline: 2px solid var(--fm-accent-text);
+  outline-offset: 2px;
+}
 /* Click-to-edit labels in chrome: a text cursor and a quiet dotted underline
    on hover say "this is editable"; an empty label shows its placeholder so a
    cleared title can always be brought back. */
