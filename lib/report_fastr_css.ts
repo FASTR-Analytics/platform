@@ -727,6 +727,13 @@ export function buildFastrReportCss(
 // structure sheet's heading scale so a heading in Edit is the size it will
 // print at. Values are token references, so a theme switch re-renders one
 // style element and never touches the editor.
+// Revealed-box geometry, in PIXELS: the layer that draws the boxes computes
+// rectangles, and the padding rules below are emitted from the same numbers so
+// the box and the lines it sits behind cannot drift apart.
+export const FM_BOX_GAP = 16;
+export const FM_BOX_PAD_BOTTOM = 10;
+export const FM_BOX_INSET = 14;
+
 export function buildFastrEditorSurfaceCss(scope: string): string {
   const d = `${scope} `;
   const headings = [
@@ -765,33 +772,38 @@ ${d}.cm-fm-bullet { color: var(--fm-accent-text); }
    default surface wash) and the fence lines drop to dimmed syntax. Only
    layout-free sheet classes are reused per line — never the structural block
    classes, whose margins would repeat on every line. */
-${d}.cm-fm-revealed {
-  background: var(--fm-surface);
-  padding-inline: 0.75rem;
-}
-${d}.cm-fm-revealed-first {
-  border-top-left-radius: var(--fm-radius);
-  border-top-right-radius: var(--fm-radius);
-  padding-top: 0.35rem;
-}
-${d}.cm-fm-revealed-last {
-  border-bottom-left-radius: var(--fm-radius);
-  border-bottom-right-radius: var(--fm-radius);
-  padding-bottom: 0.35rem;
-}
-${d}.cm-fm-revealed--callout { border-left: 4px solid var(--fm-callout-color); }
-${d}.cm-fm-revealed--card {
-  background: var(--fm-surface);
-  border-left: var(--fm-border-width) solid var(--fm-border);
-  border-right: var(--fm-border-width) solid var(--fm-border);
-}
-${d}.cm-fm-revealed--card.cm-fm-revealed-first {
-  border-top: var(--fm-border-width) solid var(--fm-border);
-}
-${d}.cm-fm-revealed--card.cm-fm-revealed-last {
-  border-bottom: var(--fm-border-width) solid var(--fm-border);
-}
+/* The revealed box model: the LAYER draws each block's box with the block's
+   real sheet classes (borders, radius, shadow — the preview's own look); the
+   lines only inset their text into it. Backgrounds live on the box, not the
+   lines, so nothing ever paints over a border. */
+${d}.cm-fm-revealed-first { padding-top: 0.35rem; }
+${d}.cm-fm-revealed-last { padding-bottom: 0.35rem; }
+${d}.cm-fm-d1, ${d}.cm-fm-d2, ${d}.cm-fm-d3, ${d}.cm-fm-d4 { padding-inline: 0.9rem; }
+${d}.cm-fm-d2 { padding-inline: calc(0.9rem + ${FM_BOX_INSET}px); }
+${d}.cm-fm-d3 { padding-inline: calc(0.9rem + ${FM_BOX_INSET * 2}px); }
+${d}.cm-fm-d4 { padding-inline: calc(0.9rem + ${FM_BOX_INSET * 3}px); }
 ${d}.cm-fm-quote-line { font-style: italic; font-size: 1.1em; }
+/* The box layer carries a NEGATIVE z-index (CodeMirror's below-text layers
+   all do). A negative-z child only paints above its ancestor's background
+   when that ancestor is a stacking context — isolate the scroller so the
+   boxes can never fall behind the page ground. */
+${d}.cm-scroller { isolation: isolate; }
+${d}.cm-fm-box {
+  position: absolute;
+  box-sizing: border-box;
+  pointer-events: none;
+  /* The structural classes carry flow margins; an absolutely positioned box
+     must not let them shift it off its measured rectangle. */
+  margin: 0;
+}
+/* GAP above the box is page-side; the extra 8px is interior headroom so the
+   title clears the box's own top border (the box starts at +GAP exactly). */
+${d}.cm-fm-chrome-open { padding-top: ${FM_BOX_GAP + 8}px; padding-bottom: 0.2rem; }
+${d}.cm-fm-chrome-cap {
+  height: ${FM_BOX_PAD_BOTTOM}px;
+  padding-bottom: ${FM_BOX_GAP}px;
+  box-sizing: content-box;
+}
 /* Chrome widgets replace the fence lines entirely: the block's real header
    (title bar, kicker) on the block's own ground, and a thin end cap. The
    syntax never shows in Edit mode — attrs are toolbar territory. */

@@ -551,7 +551,21 @@ replaced by the block's real header — a callout's title bar, a band's kicker �
 and a silent end cap, each painted on the block's own ground), rendered leaves
 (a stat is pure attrs, so it renders exactly and is driven by the toolbar; a
 revealed `:::report` line keeps its page-setup chip), rendered embeds, and
-editable TEXT lines carrying the innermost enclosing block's ground per line.
+editable TEXT lines. The block's VISUAL BOX — background, the theme's real
+borders, radius, shadow — is drawn by a CodeMirror layer (`above: false`, the
+selection-background mechanism): one absolutely-positioned element per
+box-worthy frame carrying the block's REAL sheet classes, which is safe
+precisely because absolute positioning makes the structural classes' margins
+inert. Lines inside a boxed frame paint NO background of their own (a line
+ground would sit over the box's border) — a tone class stays on the line for
+its ink-token re-scoping with `background: transparent` inlined. The layer's
+pixel geometry (`FM_BOX_GAP`/`FM_BOX_PAD_BOTTOM`/`FM_BOX_INSET`, exported from
+report_fastr_css.ts) is shared with the emitted padding rules so box and lines
+cannot drift; nested frames inset by depth. The scroller gets
+`isolation: isolate`: CM's below-layers carry negative z-index, and only a
+stacking context guarantees they paint above the page ground. Collapsed
+widgets are `flow-root` with no padding, so the render's own margins provide
+the preview's block rhythm.
 Only LAYOUT-FREE sheet classes may be reused per line (the tone rules and the
 callout-kind custom-prop setters); the structural block classes carry margins
 that would repeat on every line. **The structure guard** (a
