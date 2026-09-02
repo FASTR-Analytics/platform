@@ -43,10 +43,13 @@ import { Show } from "solid-js";
 import type { Awareness } from "y-protocols/awareness";
 import * as Y from "yjs";
 import {
+  FASTR_TONES,
   type FastrLiveRegion,
   fastrLiveRegions,
+  isDarkCssColor,
   isFastrInkRole,
   renderFastrMarkdownToHtml,
+  safeCssColor,
   scanContainerLines,
   t3,
 } from "lib";
@@ -267,6 +270,55 @@ class PageSetupWidget extends WidgetType {
   }
 }
 
+// ── Revealed-region styling ──────────────────────────────────────────────────
+// The classes a revealed region's LINES carry. Only layout-free classes from
+// the scoped sheet are reused here: the tone rules (background + token
+// re-scopes + color) and the callout-kind rules (a --fm-callout-color setter)
+// carry no margins or padding, so they are safe per line — the structural
+// block classes (.fm-callout, .fm-card) are NOT, and must never be applied to
+// a .cm-line. Values are validated against the lib constants before becoming
+// class names or inline style.
+
+const CALLOUT_KINDS = new Set(["note", "info", "success", "warning", "danger"]);
+
+function revealedRegionMeta(
+  region: FastrLiveRegion,
+): { cls: string; style?: string } {
+  let cls = "cm-fm-revealed";
+  const fence = region.fence;
+  if (!fence) return { cls };
+  const attrs = fence.attrs;
+  if (fence.name === "callout") {
+    const kind = typeof attrs["kind"] === "string" &&
+        CALLOUT_KINDS.has(attrs["kind"])
+      ? attrs["kind"]
+      : "note";
+    cls += ` cm-fm-revealed--callout fm-callout--${kind}`;
+  }
+  const toneAttr = fence.name === "report" ? attrs["background"] : attrs["tone"];
+  if (
+    typeof toneAttr === "string" &&
+    (FASTR_TONES as readonly string[]).includes(toneAttr.toLowerCase()) &&
+    toneAttr.toLowerCase() !== "default"
+  ) {
+    return { cls: `${cls} fm-tone fm-tone--${toneAttr.toLowerCase()}` };
+  }
+  // A literal FLAT colour paints the lines directly (a gradient would repeat
+  // per line as stripes, so it falls back to the surface wash).
+  const bg = attrs["bg"] ?? attrs["background"];
+  if (typeof bg === "string") {
+    const color = safeCssColor(bg);
+    if (color !== undefined) {
+      const dark = isDarkCssColor(color);
+      return {
+        cls: dark ? `${cls} fm-ink--light` : cls,
+        style: `background-color: ${color}`,
+      };
+    }
+  }
+  return { cls };
+}
+
 // ── The region field ─────────────────────────────────────────────────────────
 
 type LiveState = { ranges: RegionRange[]; deco: DecorationSet };
@@ -279,9 +331,29 @@ function buildLiveState(
   const ranges = cached ?? regionRanges(state);
   const builder = new RangeSetBuilder<Decoration>();
   for (const r of ranges) {
-    // Derived reveal: a region the selection touches stays raw source. This
-    // maps through remote transactions for free and cannot desync.
-    if (selectionTouches(state, r.from, r.to)) continue;
+    // Derived reveal: a region the selection touches shows its source. This
+    // maps through remote transactions for free and cannot desync. The source
+    // is NOT bare text, though — the region's lines keep the block's ground
+    // (tone, callout accent, literal colour), so editing feels like editing
+    // the element in place; only the fence lines drop to dimmed syntax.
+    if (selectionTouches(state, r.from, r.to)) {
+      const meta = revealedRegionMeta(r.region);
+      for (let n = r.region.startLine; n <= r.region.endLine; n++) {
+        const line = state.doc.line(n + 1);
+        let cls = meta.cls;
+        if (n === r.region.startLine) cls += " cm-fm-revealed-first";
+        if (n === r.region.endLine) cls += " cm-fm-revealed-last";
+        builder.add(
+          line.from,
+          line.from,
+          Decoration.line({
+            class: cls,
+            ...(meta.style ? { attributes: { style: meta.style } } : {}),
+          }),
+        );
+      }
+      continue;
+    }
     const source = state.sliceDoc(r.from, r.to);
     const widget = r.region.kind === "leaf" && r.region.fence?.name === "report"
       ? new PageSetupWidget(source, r.region.startLine)

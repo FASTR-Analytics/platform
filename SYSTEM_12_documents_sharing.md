@@ -545,7 +545,13 @@ block widgets holding their TRUE render: the slice through
 live `ReportFigureEmbed`s mounted inside. **Reveal is derived, not stored**: a
 region the selection touches is simply not replaced, so click-to-reveal is one
 selection dispatch, collapse-on-leave is the same derivation on the next
-selection change, and remote yCollab transactions can never desync it. The
+selection change, and remote yCollab transactions can never desync it. A
+revealed region is not bare source: its lines keep the block's ground — the
+tone class, the callout kind's accent, a literal flat colour, or the surface
+wash — while the fence lines drop to dimmed mono, so editing reads as editing
+the element in place. Only LAYOUT-FREE sheet classes may be reused per line
+(the tone rules and the callout-kind custom-prop setters); the structural
+block classes carry margins that would repeat on every line. The
 regions are deliberately NOT atomic ranges (unlike `embedWidgets`) — arrowing
 into a hidden region reveals it in the same transaction. In live mode the
 region extension SUBSUMES `embedWidgets` (two block replaces on one range is

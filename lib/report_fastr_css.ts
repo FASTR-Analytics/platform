@@ -760,6 +760,34 @@ ${d}.cm-fm-link {
   text-underline-offset: 2px;
 }
 ${d}.cm-fm-bullet { color: var(--fm-accent-text); }
+/* A revealed region keeps LOOKING like the block while its source is edited:
+   the lines carry the block's ground (a tone class, a callout accent, or the
+   default surface wash) and the fence lines drop to dimmed syntax. Only
+   layout-free sheet classes are reused per line — never the structural block
+   classes, whose margins would repeat on every line. */
+${d}.cm-fm-revealed {
+  background: var(--fm-surface);
+  padding-inline: 0.75rem;
+}
+${d}.cm-fm-revealed-first {
+  border-top-left-radius: var(--fm-radius);
+  border-top-right-radius: var(--fm-radius);
+  padding-top: 0.35rem;
+}
+${d}.cm-fm-revealed-last {
+  border-bottom-left-radius: var(--fm-radius);
+  border-bottom-right-radius: var(--fm-radius);
+  padding-bottom: 0.35rem;
+}
+${d}.cm-fm-revealed--callout { border-left: 4px solid var(--fm-callout-color); }
+/* The fence lines are syntax, not content — visible so the block stays
+   hand-editable, quiet so the content leads. Colour, not opacity: opacity
+   would dim the ground the line is painting. */
+${d}.cm-fm-revealed.cm-fm-fence {
+  color: var(--fm-ink-muted);
+  font-family: ui-monospace, monospace;
+  font-size: 0.78em;
+}
 /* The document is the ground; the code-editor affordances step back. */
 ${d}.cm-cursor, ${d}.cm-dropCursor { border-left-color: var(--fm-ink); }
 ${d}.cm-activeLine { background: transparent; }
