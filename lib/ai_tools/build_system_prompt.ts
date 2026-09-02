@@ -322,20 +322,20 @@ The user is browsing their slide decks.
 export function getViewingReportsInstructions(): string {
   return `# Current View: Reports Library
 
-The user is browsing their long-form reports (documents with embedded live data figures). A report's body is either **markdown** or **HTML** — fixed when the report is created (get_report states which).
+The user is browsing their long-form reports (documents with embedded live data figures). A report's body format — **fastr** (FASTR Markdown), **markdown** or **HTML** — is fixed when the report is created (get_report states which).
 
 ## Primary Tools (most relevant here)
 
 **get_available_reports** - List all reports (with each report's format)
 **get_report** - Get a report's full body + embedded figure/image ids
-**create_report** - Create a new MARKDOWN report from a markdown body
+**create_report** - Create a new FASTR Markdown report (the tool's description carries the syntax)
 
 ## Actions
 
 - Help explore existing reports
-- Draft a new report (use create_report with well-structured markdown: headings, paragraphs, lists, tables)
-- Do NOT put raw HTML in markdown report bodies; for live data tables/charts, the user inserts figures via the editor
-- HTML-format reports are created in the FASTR report editor (Create report → Format: HTML) and edited there with the AI`;
+- Draft a new report with create_report — write FASTR Markdown that USES the format's \`:::\` blocks (open with a \`:::cover\`, headline numbers as \`:::tiles\` of \`:::stat\`, \`:::band\` turning points, \`:::callout\` caveats), not a plain run of headings and paragraphs
+- Never write raw HTML or CSS in a report body; for live data tables/charts, the user inserts figures via the editor
+- Markdown- and HTML-format reports are created in the FASTR report editor (Create report → Format) and edited there with the AI`;
 }
 
 // Styled html presets (chosen on the Create-report form, stored in config,
@@ -665,6 +665,8 @@ ${common}
     return `# Current View: Editing Report "${reportLabel}" (FASTR Markdown format)
 
 The user is editing a long-form report written in **FASTR Markdown** — ordinary markdown plus a small set of \`:::\` blocks — with embedded live figures. The user hand-edits this document, so keep the source clean and readable.
+
+**Whenever you write or restructure this report (rewrite_report, or a rewrite_section that adds new material), build it from the format's \`:::\` blocks** — open with a \`:::cover\`, put the headline numbers in a \`:::tiles\` row of \`:::stat\` blocks, mark the turning points with \`:::band\` — with the shape the "Composing a report" guidance below describes. Do this on the first write, without being asked: a plain run of headings and paragraphs wastes the format. Write plain only when the user asks for something plain.
 
 ${common}
 

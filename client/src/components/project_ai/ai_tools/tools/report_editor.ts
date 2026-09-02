@@ -147,7 +147,7 @@ export function getClientToolsForReportEditor(
       viewRegistry: projectAIViews,
       name: "get_report_editor",
       description:
-        "Get the report's current body (markdown or HTML — stated in the output), a headings index (each heading's line and the exact section range rewrite_section would replace), a one-line index of each embedded figure (id, metric, type, caption, active replicant), and the embedded image ids (live editor state, including unsaved changes). ALWAYS call this first before proposing edits. For a figure's full config (available replicant values, slots, filters) call get_report_figure.",
+        "Get the report's current body (markdown, FASTR Markdown or HTML — stated in the output), a headings index (each heading's line and the exact section range rewrite_section would replace), a one-line index of each embedded figure (id, metric, type, caption, active replicant), and the embedded image ids (live editor state, including unsaved changes). ALWAYS call this first before proposing edits. For a figure's full config (available replicant values, slots, filters) call get_report_figure.",
       inputSchema: z.object({}),
       availableIn: ["editing_report"],
       kind: "read",
@@ -429,7 +429,7 @@ export function getClientToolsForReportEditor(
       viewRegistry: projectAIViews,
       name: "rewrite_report",
       description:
-        "Propose a full rewrite of the report body, written in the report's format (markdown or HTML — see get_report_editor). The user reviews a diff and accepts or rejects — nothing is applied silently. Keep all existing figure/image tokens you want to retain; you may only reference figure/image ids that already exist. HTML bodies must be body-only, well-formed markup.",
+        "Propose a full rewrite of the report body, written in the report's format (markdown, FASTR Markdown or HTML — see get_report_editor). The user reviews a diff and accepts or rejects — nothing is applied silently. Keep all existing figure/image tokens you want to retain; you may only reference figure/image ids that already exist. HTML bodies must be body-only, well-formed markup.",
       inputSchema: z.object({ body: z.string() }),
       availableIn: ["editing_report"],
       kind: "write",
