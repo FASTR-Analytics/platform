@@ -434,18 +434,17 @@ selector list on one line: `[^{]` matches newlines, and a comment line
 therefore swallowed the selector after it and left that rule unscoped (a picker
 tile repainting the whole app — invisible in output, caught by the leak test).
 
-**The masthead.** A report's OPENING `h1` is treated as a title block, not just
-a large heading — the AI often writes `# Title` rather than reaching for
-`:::cover`, and the title is the first thing anyone judges. The shared rule only
-gives it room and a rule beneath; twelve themes promote it to a full-bleed block
-(`body > h1:first-child`, which a `:::cover` can never match because its heading
-is inside the section). The bleed geometry is defined ONCE as
-`--fm-bleed-margin` / `--fm-bleed-pad` on the root, so print and the scoped
-picker tiles neutralise every band, cover, full-width figure and masthead by
-overriding two properties rather than resetting each selector;
-`--fm-page-pad-top` does the same for cancelling the page padding so a masthead
-meets the top edge. A bare heading cannot carry a kicker or a standfirst, which
-is why the brief insists on `:::cover` with both.
+**No masthead.** A top-level `h1` is deliberately NOT special — the title page
+is `:::cover`'s job (ruled 2026-09-03; the earlier `body > h1:first-child`
+masthead treatment, one shared rule plus twelve per-theme full-bleed
+promotions, was removed with it). The only concession is standard typography:
+`body > :where(:first-child)` drops the document's first top margin, at zero
+specificity so a first-child cover/band still wins with its own negative bleed
+margin. The bleed geometry is defined ONCE as `--fm-bleed-margin` /
+`--fm-bleed-pad` on the root, so print and the scoped picker tiles neutralise
+every band, cover and full-width figure by overriding two properties rather
+than resetting each selector. A bare heading cannot carry a kicker or a
+standfirst, which is why the brief insists on `:::cover` with both.
 
 **Two rules that are not obvious from the token model.** An accent is a GROUND
 colour: using it as TEXT only works where it separates from the surface beneath.
@@ -481,24 +480,32 @@ scroll sync over a `PreviewSurface` adapter
 ([scroll_sync.ts](client/src/components/report/scroll_sync.ts): `divSurface`
 for the markdown card, `iframeSurface` for the html/fastr frame; `data-line`
 anchors, echo-loop guard, figure-settle ResizeObserver window; the html pane
-aligns when its surface becomes ready, not on the next frame). The left panel
-inserts/edits embeds (figures resolve through the same S10 funnel as
-dashboards). Markdown View mode and both markdown exports share
+aligns when its surface becomes ready, not on the next frame). Embed insert/edit controls
+(`ReportEmbedControls`) ride the header strip — the left sidebar panel and the
+format guide panels were removed 2026-09-03 (the toolbar's Insert menu owns
+block insertion; figures resolve through the same S10 funnel as dashboards).
+Markdown View mode and both markdown exports share
 `REPORT_MARKDOWN_STYLE`. FASTR Markdown reuses the html editing surface wholesale
 — `markdown()` as the CodeMirror language plus a line decoration for the `:::`
-fences ([fastr_fence_extension.ts](client/src/components/report/fastr_fence_extension.ts)),
-the same iframe preview (the theme sheet lives in a `<style data-fm-theme>` in
+fences ([fastr_fence_extension.ts](client/src/components/report/fastr_fence_extension.ts))
+and the same iframe preview (the theme sheet lives in a `<style data-fm-theme>` in
 the frame HEAD so a re-theme never reloads the frame, which would drop the
-surface, the scroll position and every blob: raster), and a guide panel whose
-block rows INSERT via `insertBlockOnNewLine`
-([fastr_markdown_guide.tsx](client/src/components/report/fastr_markdown_guide.tsx)).
+surface, the scroll position and every blob: raster).
 
 **The formatting toolbar** ([report_toolbar.tsx](client/src/components/report/report_toolbar.tsx),
-FASTR only) is a second row inside the same `FrameTop` panel as the `HeadingBar`
-— that panel is `flex-none overflow-auto` and sizes to content, so a strip just
-grows the header, and the `HeadingBar`'s slots (already seven controls, anchored
-by onboarding tour steps) stay untouched. Two halves. The left acts on TEXT
-(bold/italic/code, heading level, lists, link, table, role marks) through pure
+FASTR only) sits inside the same `FrameTop` panel as the `HeadingBar`
+— that panel is `flex-none overflow-auto` and sizes to content, so the strip
+just grows the header, and the `HeadingBar`'s slots (already seven controls,
+anchored by onboarding tour steps) stay untouched. It is laid out like Google
+Docs: a MENU row (Insert and Page are dropdown menus — Insert carries the
+blocks, link, table and the embed pickers; Page carries the hidden `:::report`
+header's width/background/ink) above ONE persistent toolbar row (text style,
+bold/italic/code, text colour, lists). The toolbar row adapts to the last
+click: a selected embed's controls REPLACE the text controls (as selecting an
+image does in Google Docs), and a block segment (fence chip + attributes +
+tone + literal + ink) APPENDS while the caret is inside a `:::` block. The
+hidden `:::report` fence is never a block target — the Page menu owns it.
+Text actions go through pure
 functions in [lib/fastr_markdown_edits.ts](lib/fastr_markdown_edits.ts) that
 return pre-transaction, disjoint, ascending changes for ONE dispatch — in `lib/`
 because `server/tests/` cannot import from `client/src`, and the fiddly rules
@@ -577,15 +584,31 @@ cannot drift; nested frames inset by depth. The scroller gets
 `isolation: isolate`: CM's below-layers carry negative z-index, and only a
 stacking context guarantees they paint above the page ground. Collapsed
 widgets are `flow-root` with no padding, so the render's own margins provide
-the preview's block rhythm. The editor is a bounded SHEET like View, not a
-full-pane wash: the page ground lives on `.cm-content` only (min-height 100%,
-`FM_PAGE_PAD_X` horizontal padding folded into the box layer's math), with the
-scope root's structure background overridden back to transparent so the pane
-around the sheet stays app chrome. The document's opening h1 line carries
-`cm-fm-masthead`, and the host extracts the theme sheet's own
-`body > h1:first-child` rules and re-targets them at that class — each theme's
-real masthead (Swiss's black band included) applies to the EDITABLE line, with
-a trailing rule stripping the flow margins a .cm-line must never carry.
+the preview's block rhythm. The editor is a bounded SHEET, not a
+full-pane wash: the page ground lives on `.cm-scroller`, capped at `--fm-sheet`
+(max(896px, measure + 48px) — the host reads the `:::report{width=…}` header
+live via `readFastrDocumentSettings` and widens the measure/sheet for
+wide/full documents), with the scope root's structure background overridden
+back to transparent so the pane around the sheet stays app chrome. Full-bleed
+geometry is re-aimed at the sheet: the scoped structure sheet's tile
+neutralisation is overridden so `--fm-bleed-margin`/`--fm-bleed-pad` reach the
+sheet's edges — pinned to the MEASURED content padding by a small plugin
+(`sheetBleedVars`), because a calc from `--fm-sheet` overshoots by half the
+vertical scrollbar and a band then pokes out of the sheet. The centering
+theme's `padding-right` (sidebar alignment) is neutralised on the sheet and
+replaced by a half-pad left shift (`--fm-center-pad`), so the pad can never
+shrink the sheet's content area. The base editor theme's 56rem `.cm-content`
+cap is lifted under the scope (wide/full must outgrow it). The
+`:::report` document ground (`background=`/`bg`/`ink`) is painted by
+`docGroundPlugin`: it applies the header's surface classes and style to the
+scroller — the scoped fm-tone--*/fm-has-bg/fm-ink--* rules then style the
+sheet exactly as they style View's `<html>`, dark-ground ink re-scoping
+included — dropping the `fm-doc--*` width classes (their rem measures would
+re-shear the px pin) and removing everything it applied on destroy so Split
+is never tinted. Heading lines carry `cm-fm-h1`…`h6`, and the host
+re-targets the theme sheet's own `h2`…`h6` rules at those classes (an h1 is a
+plain heading — no masthead), with a trailing rule stripping the flow margins
+a .cm-line must never carry.
 Only LAYOUT-FREE sheet classes may be reused per line (the tone rules and the
 callout-kind custom-prop setters); the structural block classes carry margins
 that would repeat on every line. **The structure guard** (a
@@ -606,24 +629,34 @@ into a hidden region reveals it in the same transaction. In live mode the
 region extension SUBSUMES `embedWidgets` (two block replaces on one range is
 undefined behaviour); the compartment's OFF branch restores `embedWidgets` +
 the dark markdown highlighter for Split, and other formats never get the
-compartment at all. Inline syntax (heading marks, emphasis, code, link URLs,
-`[x]{.role}` by regex — Lezer doesn't know it) conceals off-cursor via a
-viewport ViewPlugin; heading lines get `cm-fm-hN` classes from a whole-doc
-StateField because font size changes line HEIGHT and height-affecting
-decorations must exist off-screen. The editor wrapper carries
+compartment at all. Inline syntax (heading marks, emphasis, code, link URLs) conceals
+off-cursor via a viewport ViewPlugin. `[x]{.role}` marks (by regex — Lezer
+doesn't know them) NEVER reveal: the phrase stays a coloured phrase with the
+caret inside it, the hidden markers are atomic so the caret steps over them,
+and the toolbar owns applying/clearing the role. Toolbar text actions reach
+selections inside widget text islands through a selection MIRROR
+(`selectionchange` → CM selection, alive only while an island is active);
+because that mirror flips the region active — a widget rebuild that would
+destroy the island mid-edit — island activation parks the CM selection into
+the region FIRST and then activates the POST-rebuild element (found by
+`data-line`, activated via its `_fmActivate` hook). Heading lines get
+`cm-fm-hN` classes from a whole-doc StateField because font size changes line
+HEIGHT and height-affecting decorations must exist off-screen. The editor wrapper carries
 `fm-live-scope`, and one host-rendered `<style>` (the scoped theme sheet +
 `buildFastrEditorSurfaceCss`, font import leading) themes both the widgets and
 the editor's own text — a theme switch re-renders that element and never
 touches CodeMirror, which is why `RegionWidget.eq` keys on the source slice
 only. The document stays light in a dark app (documents-stay-light); a
-`:::report` line renders as a "Page setup" chip because its true render is
-silent and an invisible widget would make the line unfindable. Peer carets
+`:::report` line is fully HIDDEN (zero-height widget, atomic so the caret
+skips it) — findable through the toolbar's Page setup popover, which edits
+the fence from anywhere via `setBlockAttrs` (or `insertPageSetup` when the
+document has no header yet). Peer carets
 inside a collapsed region have no text to sit in, so an awareness-driven
 plugin paints the peer's colour and name on the widget instead (relative
 positions resolved with the `yCaretHygiene` ownership check; DOM-only writes,
-never a dispatch). Accepted fidelity difference: scoped sheets neutralise the
-100vw bleed, so bands render editor-width in Edit — Split/View remain the true
-page.
+never a dispatch). Bands and covers bleed to the SHEET's edges in Edit (the re-aimed
+bleed vars above); Split/View remain the true page, where the bleed is the
+viewport.
 
 **Autosave protocol** (no-room path — once a collab session becomes ready the
 800ms REST autosave is turned off for good and edits flow over the WS, S16):

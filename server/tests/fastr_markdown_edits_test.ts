@@ -1,5 +1,6 @@
 import { assert, assertEquals } from "@std/assert";
 import {
+  applyTableCellAction,
   type EditResult,
   inlineMarkStateAt,
   insertLinkEdit,
@@ -211,4 +212,45 @@ Deno.test("the active state reads the line's heading level and list kind", () =>
   assertEquals(inlineMarkStateAt("- item", 3, 3).list, "bullet");
   assertEquals(inlineMarkStateAt("2. item", 4, 4).list, "ordered");
   assertEquals(inlineMarkStateAt("plain", 2, 2).list, undefined);
+});
+
+Deno.test("table cell actions rebuild the table around the clicked cell", () => {
+  const table = ["| A | B |", "| --- | --- |", "| a1 | b1 |", "| a2 | b2 |"];
+  assertEquals(applyTableCellAction(table, 2, 0, "insertRowBelow"), [
+    "| A | B |",
+    "| --- | --- |",
+    "| a1 | b1 |",
+    "|  |  |",
+    "| a2 | b2 |",
+  ]);
+  // Above the header lands as the first body row.
+  assertEquals(applyTableCellAction(table, 0, 0, "insertRowAbove")?.[2], "|  |  |");
+  assertEquals(applyTableCellAction(table, 3, 1, "insertColRight", "New column"), [
+    "| A | B | New column |",
+    "| --- | --- | --- |",
+    "| a1 | b1 |  |",
+    "| a2 | b2 |  |",
+  ]);
+  assertEquals(
+    applyTableCellAction(table, 2, 1, "insertColLeft", "New column")?.[0],
+    "| A | New column | B |",
+  );
+  assertEquals(applyTableCellAction(table, 2, 0, "deleteRow"), [
+    "| A | B |",
+    "| --- | --- |",
+    "| a2 | b2 |",
+  ]);
+  // The header and delimiter rows are not deletable.
+  assertEquals(applyTableCellAction(table, 0, 0, "deleteRow"), undefined);
+  assertEquals(applyTableCellAction(table, 2, 0, "deleteCol"), [
+    "| B |",
+    "| --- |",
+    "| b1 |",
+    "| b2 |",
+  ]);
+  // The last column is not deletable (delete the table instead).
+  assertEquals(
+    applyTableCellAction(["| A |", "| --- |", "| a |"], 2, 0, "deleteCol"),
+    undefined,
+  );
 });

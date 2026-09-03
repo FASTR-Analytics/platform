@@ -35,6 +35,7 @@ import { formatFigureConfigForAI } from "./_internal/format_figure_config_for_ai
 import { validateMetricInputs } from "../validators/content_validators";
 import {
   validateFastrContainers,
+  validateFastrNewLiteralBackgrounds,
   validateReferenceCssReuse,
   validateStyledReportHasStylesheet,
   validateReportBodyDelta,
@@ -430,7 +431,12 @@ export function getClientToolsForReportEditor(
       name: "rewrite_report",
       description:
         "Propose a full rewrite of the report body, written in the report's format (markdown, FASTR Markdown or HTML — see get_report_editor). The user reviews a diff and accepts or rejects — nothing is applied silently. Keep all existing figure/image tokens you want to retain; you may only reference figure/image ids that already exist. HTML bodies must be body-only, well-formed markup.",
-      inputSchema: z.object({ body: z.string() }),
+      inputSchema: z.object({
+        body: z.string(),
+        allowLiteralColors: z.boolean().optional().describe(
+          "FASTR Markdown only. Set true ONLY when the user explicitly asked for specific literal colours, gradients or image backgrounds (bg=...). Without it, newly-added literal bg= values are rejected — use tones, which follow the theme.",
+        ),
+      }),
       availableIn: ["editing_report"],
       kind: "write",
       approval: {
@@ -440,6 +446,12 @@ export function getClientToolsForReportEditor(
           validateReportBodyLength(input.body);
           validateReportBodyForFormat(input.body, format);
           validateFastrContainers(input.body, format);
+          validateFastrNewLiteralBackgrounds(
+            input.body,
+            ctx.getBody(),
+            format,
+            input.allowLiteralColors,
+          );
           const styleName = view.params.customStyle?.label ??
             (view.params.htmlStyle && view.params.htmlStyle !== "default"
               ? view.params.htmlStyle
@@ -489,6 +501,9 @@ export function getClientToolsForReportEditor(
         sectionHeading: z.string(),
         newBody: z.string(),
         occurrenceIndex: z.number().int().positive().optional(),
+        allowLiteralColors: z.boolean().optional().describe(
+          "FASTR Markdown only. Set true ONLY when the user explicitly asked for specific literal colours, gradients or image backgrounds (bg=...). Without it, newly-added literal bg= values are rejected — use tones, which follow the theme.",
+        ),
       }),
       availableIn: ["editing_report"],
       kind: "write",
@@ -509,6 +524,12 @@ export function getClientToolsForReportEditor(
           }
           validateReportBodyLength(result.newBody);
           validateFastrContainers(result.newBody, format);
+          validateFastrNewLiteralBackgrounds(
+            result.newBody,
+            ctx.getBody(),
+            format,
+            input.allowLiteralColors,
+          );
           validateReportTokensResolve(
             result.newBody,
             ctx.getFigures(),
@@ -547,6 +568,9 @@ export function getClientToolsForReportEditor(
         oldText: z.string(),
         newText: z.string(),
         occurrenceIndex: z.number().int().positive().optional(),
+        allowLiteralColors: z.boolean().optional().describe(
+          "FASTR Markdown only. Set true ONLY when the user explicitly asked for specific literal colours, gradients or image backgrounds (bg=...). Without it, newly-added literal bg= values are rejected — use tones, which follow the theme.",
+        ),
       }),
       availableIn: ["editing_report"],
       kind: "write",
@@ -566,6 +590,12 @@ export function getClientToolsForReportEditor(
           }
           validateReportBodyLength(result.newBody);
           validateFastrContainers(result.newBody, format);
+          validateFastrNewLiteralBackgrounds(
+            result.newBody,
+            base,
+            format,
+            input.allowLiteralColors,
+          );
           validateReportBodyDelta(base, result.newBody, format);
           validateReportTokensResolve(
             result.newBody,

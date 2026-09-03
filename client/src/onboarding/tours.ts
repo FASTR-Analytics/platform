@@ -929,20 +929,21 @@ export function buildReportEditorIntroTour(): TourDefinition {
       },
       {
         id: "embed-panel",
-        target: tourTarget("report-embed-panel"),
+        target: tourTarget("report-insert-buttons"),
         title: t3({
           en: "Visualizations and images",
           fr: "Visualisations et images",
           pt: "Visualizações e imagens",
         }),
         body: t3({
-          en: "Insert a visualization or an image from this panel. Click one already in the report and this panel switches to editing it — caption, swapping it for another, or removing it.",
-          fr: "Insérez une visualisation ou une image depuis ce panneau. Cliquez sur un élément déjà dans le rapport et ce panneau passe à sa modification — légende, remplacement ou suppression.",
-          pt: "Insira uma visualização ou uma imagem a partir deste painel. Clique num elemento já presente no relatório e este painel passa a editá-lo — legenda, substituição ou remoção.",
+          en: "Insert a visualization or an image from here. Click one already in the report and these controls switch to editing it — swapping it for another, or removing it.",
+          fr: "Insérez une visualisation ou une image depuis ici. Cliquez sur un élément déjà dans le rapport et ces contrôles passent à sa modification — remplacement ou suppression.",
+          pt: "Insira uma visualização ou uma imagem a partir daqui. Clique num elemento já presente no relatório e estes controlos passam a editá-lo — substituição ou remoção.",
         }),
-        placement: "right",
+        placement: "bottom",
         when: () =>
-          document.querySelector('[data-tour="report-embed-panel"]') !== null,
+          document.querySelector('[data-tour="report-insert-buttons"]') !==
+            null,
       },
       {
         id: "save-status",

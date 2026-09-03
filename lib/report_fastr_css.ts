@@ -159,9 +159,6 @@ ${root} {
      so they neutralise the pair here rather than resetting each selector. */
   --fm-bleed-margin: calc(50% - 50vw);
   --fm-bleed-pad: max(1.5rem, calc((100vw - var(--fm-measure)) / 2 + 1.5rem));
-  /* REPORT_BASE_CSS pads the page; a masthead cancels that padding to meet the
-     top edge, which is what separates a title BLOCK from a large heading. */
-  --fm-page-pad-top: 2.5rem;
 }
 /* The PAGE ground lives on <html>, not <body>: a full-bleed band is a body
    child that escapes the column with a viewport-width negative margin, and
@@ -584,19 +581,12 @@ ${d}.fm-steps > *::before {
   color: var(--fm-accent-text);
 }
 
-/* ── Masthead ─────────────────────────────────────────────────────────────── */
-/* An author who simply writes a top-level heading should still get a title
-   block, so the document's OPENING h1 is treated as a masthead. A cover block
-   puts its h1 inside the section, so the two can never both apply. Themes that
-   want a full-bleed block promote it with the bleed properties; the shared rule
-   only gives it room and a rule beneath. */
-${d}body > h1:first-child {
-  margin-top: 0;
-  margin-bottom: 1em;
-  padding-bottom: 0.4em;
-  border-bottom: var(--fm-border-width) solid var(--fm-border);
-}
-${d}body > h1:first-child + p { font-size: 1.05em; }
+/* A top-level h1 is deliberately NOT special: the title page is :::cover's
+   job, and an opening # heading is just a heading. The only concession is
+   standard typography — the document's first element drops its top margin.
+   :where() keeps the rule at zero specificity so a first-child cover/band
+   still wins with its own negative bleed margin. */
+${d}body > :where(:first-child) { margin-top: 0; }
 
 /* ── Image backgrounds (resolved from the image registry at render time) ──── */
 ${d}.fm-has-bgimage {
@@ -659,7 +649,7 @@ const RESPONSIVE_CSS = `
 @media print {
   .fm-card, .fm-callout, .fm-stat, .fm-figure { break-inside: avoid; }
   /* The print box has no viewport to bleed into; keep bands on the page. */
-  :root { --fm-bleed-margin: 0; --fm-bleed-pad: 1.5rem; --fm-page-pad-top: 0rem; }
+  :root { --fm-bleed-margin: 0; --fm-bleed-pad: 1.5rem; }
   .fm-cover { min-height: 0; padding-block: 6em; }
 }
 `;
@@ -755,29 +745,44 @@ ${d}.cm-scroller {
   /* The scroller is a flex item: without an explicit width, auto margins
      would shrink it to fit content. */
   width: 100%;
-  max-width: 896px;
+  max-width: var(--fm-sheet, 896px);
   margin-inline: auto;
+  /* The centering theme pads the scroller right to align the column past the
+     app's floating sidebar. On the SHEET that padding would shrink the content
+     area and paint the ground under the sidebar — neutralise it and take the
+     same final position by shifting the centred sheet left by half the pad
+     (the host mirrors the pad into --fm-center-pad). */
+  padding-right: 0 !important;
+  position: relative;
+  left: calc(var(--fm-center-pad, 0px) / -2);
 }
 ${d}.cm-content {
   background: transparent;
   box-sizing: border-box;
   width: 100%;
+  /* The base editor theme caps the writing column at 56rem; on the sheet the
+     column is the measure, owned by the padding formula below — a wide/full
+     document must outgrow that cap. */
+  max-width: none;
   /* View's bleed-pad formula, with the sheet standing in for the viewport:
      % resolves against the scroller, so narrow windows match View too. */
   padding: 0 max(24px, calc((100% - var(--fm-measure)) / 2 + 24px)) 4rem;
 }
-/* The leading h1 is the document's MASTHEAD. The host appends a copy of the
-   theme sheet with the body > h1:first-child selectors re-targeted at this
-   class, so each theme's real masthead treatment applies; this rule then
-   neutralises the flow properties a .cm-line must never carry. */
-${d}.cm-line.cm-fm-masthead {
-  margin: 0 !important;
-  width: auto !important;
-  text-decoration: none;
-  /* The masthead ground is the theme's ink — the caret must flip with it. */
-  caret-color: var(--fm-page);
+/* buildFastrReportCss neutralises all bleed under a scope (a picker tile has
+   no page to bleed into). The editor DOES have a page — the sheet — so these
+   later rules re-aim the two bleed properties at the sheet's edges: a band or
+   cover runs edge to edge of the sheet and its text returns to the measure,
+   View's exact geometry with the sheet standing in for the viewport. The
+   host sets --fm-sheet (max(896px, measure + 48px), honouring the
+   :::report width). */
+${scope} {
+  --fm-bleed-margin: calc((var(--fm-measure) - var(--fm-sheet, 896px)) / 2 - 24px);
+  --fm-bleed-pad: calc((var(--fm-sheet, 896px) - var(--fm-measure)) / 2 + 24px);
 }
-${d}.cm-fm-masthead * { text-decoration: none !important; }
+${d}.fm-cover { min-height: min(72vh, 544px); }
+${d}.fm-figure--wide {
+  margin-inline: max(-4rem, calc((100% - var(--fm-sheet, 896px)) / 2 + 1.5rem));
+}
 `;
   const headings = [
     { cls: "cm-fm-h1", size: "2.15em" },
@@ -842,7 +847,7 @@ ${d}.cm-fm-blank { font-size: 0.65em; }
    lines in every callout, one after every grid. Rendered content collapses
    whitespace exactly like the preview does. */
 ${d}.fm-live-region, ${d}.cm-fm-chrome { white-space: normal; }
-${d}.cm-fm-h1:not(.cm-fm-masthead) { padding-top: 0.5em; padding-bottom: 0.2em; }
+${d}.cm-fm-h1 { padding-top: 0.5em; padding-bottom: 0.2em; }
 ${d}.cm-fm-h2 { padding-top: 0.8em; padding-bottom: 0.25em; }
 ${d}.cm-fm-h3, ${d}.cm-fm-h4, ${d}.cm-fm-h5, ${d}.cm-fm-h6 { padding-top: 0.7em; padding-bottom: 0.2em; }
 ${d}.cm-fm-li { padding-left: 1.4em; }
@@ -851,6 +856,10 @@ ${d}.cm-fm-li { padding-left: 1.4em; }
 /* A concealed role mark's label can sit inside what Lezer tokenized as a
    shortcut-reference link; the highlight style's underline is noise there. */
 ${d}.fm-mark { text-decoration: none !important; }
+/* Syntax hidden inside an ACTIVE text island (the leading heading marker,
+   role-mark wrappers): display:none keeps it out of the visual flow while
+   textContent still carries it, so a commit round-trips byte-identically. */
+${d}.cm-fm-island-syntax { display: none; }
 /* The box layer carries a NEGATIVE z-index (CodeMirror's below-text layers
    all do). A negative-z child only paints above its ancestor's background
    when that ancestor is a stacking context — isolate the scroller so the
@@ -864,19 +873,6 @@ ${d}.cm-fm-box {
      must not let them shift it off its measured rectangle. Important, because
      the retargeted theme rules land later in the sheet. */
   margin: 0 !important;
-}
-/* Breathing room under the band — View's masthead margin, as line padding.
-   Pixels, not em: the line after the band is usually a shrunken blank line,
-   whose small font would starve an em value. */
-${d}.cm-fm-masthead + .cm-line { padding-top: 56px; }
-/* The retargeted masthead rule brings the full-bleed padding formula, which
-   has no viewport to work against in the editor — pin the title to the
-   sheet's own padding instead (important: that rule lands later). */
-${d}.cm-line.cm-fm-masthead {
-  /* The content padding IS the bleed-pad now, so the title needs none of
-     its own — the retargeted rule's viewport-based formula is overridden. */
-  padding-left: 0 !important;
-  padding-right: 0 !important;
 }
 /* A collapsed widget's render carries the preview's own block margins; the
    editor ALSO spends a blank source line and the box gap on that seam, so the

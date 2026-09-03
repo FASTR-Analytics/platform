@@ -108,6 +108,9 @@ export type ReportEditorApi = {
   // The line is explicit rather than "wherever the cursor is" so the toolbar
   // can tone an OUTER block while the caret sits inside one of its cards.
   setBlockAttrs: (line: number, patch: FastrFencePatch) => void;
+  // Create the `:::report` page-setup header (first line) when the document
+  // lacks one — the toolbar's Page setup control targets it from anywhere.
+  insertPageSetup: (patch: FastrFencePatch) => void;
   // Wrap/unwrap the selection: ("**","**"), ("*","*"), ("`","`").
   toggleInlineMark: (before: string, after: string) => void;
   // `[phrase]{.danger}`; undefined clears the mark around the selection.
@@ -225,6 +228,10 @@ export function ReportEditor(p: Props) {
     view.dispatch({
       effects: centerCompartment.reconfigure(centerTheme(centered, pad)),
     });
+    // The live-preview sheet ignores the scroller padding (it would shrink the
+    // sheet's content area and paint the ground asymmetrically) and instead
+    // re-centres itself shifted left by half the pad — same final position.
+    view.scrollDOM.style.setProperty("--fm-center-pad", `${pad}px`);
   }
 
   // Read the registries/selection live (Solid props are reactive getters) so a
@@ -416,6 +423,12 @@ export function ReportEditor(p: Props) {
     // Deliberately no view.focus(): the user is still inside a popover picking
     // a second option, and pulling focus back mid-interaction closes it.
     view.dispatch({ changes: { from: line.from, to: line.to, insert: next } });
+  }
+
+  function insertPageSetup(patch: FastrFencePatch) {
+    if (!view) return;
+    const line = updateContainerFenceLine(":::report", patch) ?? ":::report";
+    view.dispatch({ changes: { from: 0, to: 0, insert: `${line}\n` } });
   }
 
   // Every text action lands as ONE transaction, which is what makes the
@@ -696,6 +709,7 @@ export function ReportEditor(p: Props) {
       setEmbedCaption,
       getSelection,
       setBlockAttrs,
+      insertPageSetup,
       toggleInlineMark,
       setInlineRole,
       setHeadingLevel,

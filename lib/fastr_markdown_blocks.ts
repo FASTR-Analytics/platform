@@ -773,6 +773,37 @@ export function listFastrContainerDefects(body: string): FastrContainerDefect[] 
   return defects;
 }
 
+// Every `bg=`/`background=` whose value is a LITERAL — a colour, gradient or
+// image, anything but a tone name. Literals deliberately do not follow a theme
+// switch, so the AI write tools gate on this list: a model that reaches for
+// one without the user having asked for an exact colour is steered back to
+// tones. (Whether a literal value is a VALID background is
+// listFastrContainerDefects' business, not this one's.)
+export type FastrLiteralBackground = {
+  // 1-based.
+  line: number;
+  value: string;
+};
+
+export function listFastrLiteralBackgrounds(
+  body: string,
+): FastrLiteralBackground[] {
+  const literals: FastrLiteralBackground[] = [];
+  for (
+    const { index: i, inCode, fence } of scanContainerLines(body.split("\n"))
+  ) {
+    if (inCode || fence?.kind !== "open") continue;
+    const bgAttr = fence.attrs["bg"] ?? fence.attrs["background"];
+    if (
+      typeof bgAttr === "string" && bgAttr.length > 0 &&
+      !(FASTR_TONES as readonly string[]).includes(bgAttr.toLowerCase())
+    ) {
+      literals.push({ line: i + 1, value: bgAttr });
+    }
+  }
+  return literals;
+}
+
 // ── Container stack + fence rewriting ────────────────────────────────────────
 // What the editor toolbar stands on: "which block is my cursor in", and
 // "change one attribute on that block's opening fence without disturbing

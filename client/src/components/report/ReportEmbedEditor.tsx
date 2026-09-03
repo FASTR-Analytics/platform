@@ -1,4 +1,4 @@
-import type { FigureBlock, ImageBlock, ReportFormat } from "lib";
+import type { FigureBlock, ImageBlock } from "lib";
 import { t3 } from "lib";
 import { Button, Input } from "panther";
 import {
@@ -11,18 +11,54 @@ import {
   Switch,
 } from "solid-js";
 import { FileUploadSelector } from "~/components/_file_upload_selector";
-import { MarkdownGuide } from "~/components/_markdown_guide";
-import { FastrMarkdownGuide } from "./fastr_markdown_guide";
-import { HtmlGuide } from "./html_guide";
 
 // The currently-selected report embed (report-specific — no Dashboard naming).
 export type SelectedReportEmbed =
   | { kind: "figure"; id: string; caption: string; figureBlock: FigureBlock }
   | { kind: "image"; id: string; caption: string; imageBlock: ImageBlock };
 
-type Props = {
+// The insert buttons — the toolbar's Insert tab (fastr) or the plain strip
+// (markdown/html) render these; the editing controls live separately below.
+export function ReportInsertEmbedButtons(p: {
+  canConfigure: boolean;
+  onInsertFigure: () => void;
+  onInsertImage: () => void;
+}) {
+  return (
+    <Show when={p.canConfigure}>
+      <div
+        class="ui-gap-sm flex items-center"
+        data-tour="report-insert-buttons"
+      >
+        <Button
+          size="sm"
+          outline
+          onBackground="base-100"
+          iconName="chart"
+          onClick={() => p.onInsertFigure()}
+        >
+          {t3({
+            en: "Insert visualization",
+            fr: "Insérer une visualisation",
+            pt: "Inserir visualização",
+          })}
+        </Button>
+        <Button
+          size="sm"
+          outline
+          onBackground="base-100"
+          iconName="photo"
+          onClick={() => p.onInsertImage()}
+        >
+          {t3({ en: "Insert image", fr: "Insérer une image", pt: "Inserir imagem" })}
+        </Button>
+      </div>
+    </Show>
+  );
+}
+
+type ControlsProps = {
   embed: SelectedReportEmbed | undefined;
-  format: ReportFormat;
   canConfigure: boolean;
   onUpdateCaption: (id: string, caption: string) => void;
   // figure
@@ -32,17 +68,12 @@ type Props = {
   // image
   onChangeImageFile: (id: string, imgFile: string) => void;
   onDelete: () => void;
-  // nothing selected → offer inserts here (insert and edit are mutually exclusive)
-  onInsertFigure: () => void;
-  onInsertImage: () => void;
-  // FASTR Markdown only: insert a block snippet from the format guide.
-  onInsertBlock?: (snippet: string) => void;
 };
 
-// Ever-present left panel for editing the selected embed — same UX as the slide
-// editor's block panel: figure controls for a figure, image-file controls for an
-// image, caption + delete for both.
-export function ReportEmbedEditor(p: Props) {
+// The selected embed's controls, as a horizontal top-bar segment: figure
+// actions for a figure, file + alt text for an image, delete for both.
+// Renders nothing when no embed is selected.
+export function ReportEmbedControls(p: ControlsProps) {
   const [captionDraft, setCaptionDraft] = createSignal("");
   let debounce: ReturnType<typeof setTimeout> | undefined;
 
@@ -77,50 +108,8 @@ export function ReportEmbedEditor(p: Props) {
   }
 
   return (
-    <div class="flex h-full w-full flex-col overflow-auto">
-      <Show
-        when={p.embed}
-        fallback={
-          <Show
-            when={p.canConfigure}
-            fallback={
-              <div class="ui-pad text-base-content-muted text-sm">
-                {t3({
-                  en: "Click a visualization or image to edit it.",
-                  fr: "Cliquez sur une visualisation ou une image pour la modifier.",
-                  pt: "Clique numa visualização ou imagem para a editar.",
-                })}
-              </div>
-            }
-          >
-            <div
-              class="ui-pad ui-spy-sm flex flex-col"
-              data-tour="report-insert-buttons"
-            >
-              <Button
-                outline
-                iconName="chart"
-                fullWidth
-                onClick={() => p.onInsertFigure()}
-              >
-                {t3({
-                  en: "Insert visualization",
-                  fr: "Insérer une visualisation",
-                  pt: "Inserir visualização",
-                })}
-              </Button>
-              <Button
-                outline
-                iconName="photo"
-                fullWidth
-                onClick={() => p.onInsertImage()}
-              >
-                {t3({ en: "Insert image", fr: "Insérer une image", pt: "Inserir imagem" })}
-              </Button>
-            </div>
-          </Show>
-        }
-      >
+    <Show when={p.canConfigure && p.embed !== undefined}>
+      <Show when={p.embed}>
         {(embed) => {
           // Narrow the discriminated union once, no per-use casts.
           const figureBlock = () => {
@@ -132,99 +121,78 @@ export function ReportEmbedEditor(p: Props) {
             return e.kind === "image" ? e.imageBlock : undefined;
           };
           return (
-            <div class="ui-pad ui-spy">
-              <Show when={p.canConfigure}>
-                <Switch>
-                  <Match when={figureBlock()}>
-                    {(fb) => (
-                      <div class="ui-gap-sm flex flex-col">
-                        <Show when={fb().bundle !== undefined}>
-                          <Button onClick={() => p.onEditFigure()}>
-                            {t3({
-                              en: "Edit visualization",
-                              fr: "Modifier la visualisation",
-                              pt: "Editar visualização",
-                            })}
-                          </Button>
-                        </Show>
-                        <Button onClick={() => p.onSwitchFigure()}>
+            <div class="ui-gap-sm flex flex-wrap items-center">
+              <Switch>
+                <Match when={figureBlock()}>
+                  {(fb) => (
+                    <>
+                      <Show when={fb().bundle !== undefined}>
+                        <Button size="sm" onClick={() => p.onEditFigure()}>
                           {t3({
-                            en: "Switch visualization",
-                            fr: "Changer de visualisation",
-                            pt: "Mudar de visualização",
+                            en: "Edit visualization",
+                            fr: "Modifier la visualisation",
+                            pt: "Editar visualização",
                           })}
                         </Button>
-                        <Button onClick={() => p.onCreateFigure()}>
-                          {t3({
-                            en: "New visualization",
-                            fr: "Nouvelle visualisation",
-                            pt: "Nova visualização",
-                          })}
-                        </Button>
-                      </div>
-                    )}
-                  </Match>
-                  <Match when={imageBlock()}>
-                    {(ib) => (
-                      <div class="ui-spy">
-                        <FileUploadSelector
-                          buttonLabel={t3({
-                            en: "Upload image",
-                            fr: "Téléverser une image",
-                            pt: "Carregar imagem",
-                          })}
-                          selectLabel={t3({
-                            en: "Image file",
-                            fr: "Fichier image",
-                            pt: "Ficheiro de imagem",
-                          })}
-                          filter={(a) => a.isImage}
-                          value={ib().imgFile}
-                          onChange={(v) => p.onChangeImageFile(embed().id, v)}
-                          fullWidth
-                        />
+                      </Show>
+                      <Button size="sm" outline onClick={() => p.onSwitchFigure()}>
+                        {t3({
+                          en: "Switch",
+                          fr: "Changer",
+                          pt: "Mudar",
+                        })}
+                      </Button>
+                      <Button size="sm" outline onClick={() => p.onCreateFigure()}>
+                        {t3({
+                          en: "New",
+                          fr: "Nouvelle",
+                          pt: "Nova",
+                        })}
+                      </Button>
+                    </>
+                  )}
+                </Match>
+                <Match when={imageBlock()}>
+                  {(ib) => (
+                    <>
+                      <FileUploadSelector
+                        buttonLabel={t3({
+                          en: "Upload image",
+                          fr: "Téléverser une image",
+                          pt: "Carregar imagem",
+                        })}
+                        selectLabel={t3({
+                          en: "Image file",
+                          fr: "Fichier image",
+                          pt: "Ficheiro de imagem",
+                        })}
+                        filter={(a) => a.isImage}
+                        value={ib().imgFile}
+                        onChange={(v) => p.onChangeImageFile(embed().id, v)}
+                      />
+                      <div class="w-56">
                         <Input
-                          label={t3({
-                            en: "Alt text for screen readers (optional)",
-                            fr: "Texte alternatif pour lecteurs d'écran (facultatif)",
-                            pt: "Texto alternativo para leitores de ecrã (opcional)",
+                          placeholder={t3({
+                            en: "Alt text for screen readers",
+                            fr: "Texte alternatif pour lecteurs d'écran",
+                            pt: "Texto alternativo para leitores de ecrã",
                           })}
                           value={captionDraft()}
                           onChange={onCaptionInput}
                           fullWidth
                         />
                       </div>
-                    )}
-                  </Match>
-                </Switch>
-                <div class="pt-2">
-                  <Button intent="danger" outline onClick={() => p.onDelete()}>
-                    {embed().kind === "figure"
-                      ? t3({
-                          en: "Delete visualization",
-                          fr: "Supprimer la visualisation",
-                          pt: "Eliminar visualização",
-                        })
-                      : t3({ en: "Delete image", fr: "Supprimer l'image", pt: "Eliminar imagem" })}
-                  </Button>
-                </div>
-              </Show>
+                    </>
+                  )}
+                </Match>
+              </Switch>
+              <Button size="sm" intent="danger" outline onClick={() => p.onDelete()}>
+                {t3({ en: "Delete", fr: "Supprimer", pt: "Eliminar" })}
+              </Button>
             </div>
           );
         }}
       </Show>
-      <Show when={p.canConfigure}>
-        <div class="ui-pad mt-auto border-t">
-          <Switch fallback={<MarkdownGuide />}>
-            <Match when={p.format === "html"}>
-              <HtmlGuide />
-            </Match>
-            <Match when={p.format === "fastr"}>
-              <FastrMarkdownGuide onInsert={p.onInsertBlock} />
-            </Match>
-          </Switch>
-        </div>
-      </Show>
-    </div>
+    </Show>
   );
 }
