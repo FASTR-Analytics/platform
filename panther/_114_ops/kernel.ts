@@ -82,6 +82,9 @@ export type OpOffContractRecord<TIdentity> = {
   identity: TIdentity;
   args?: unknown;
   outcome: OpProvenanceOutcome;
+  // The mutation's scope value, when the caller emits a scoped event beside
+  // this record — provenance and the poke should agree here too.
+  scope?: string;
   startedAt: number;
 };
 
@@ -145,9 +148,11 @@ export function createOpKernel<
     args: unknown,
     outcome: OpProvenanceOutcome,
     startedAt: number,
+    scope?: string,
   ): void {
     try {
       config.provenance.sink({
+        id: crypto.randomUUID(),
         at: new Date(now()).toISOString(),
         identityKey: config.identityKey(identity),
         op,
@@ -155,6 +160,7 @@ export function createOpKernel<
         surface,
         args,
         outcome,
+        ...(scope === undefined ? {} : { scope }),
         durationMs: now() - startedAt,
       });
     } catch (cause) {
@@ -179,8 +185,8 @@ export function createOpKernel<
       return { kind: "notfound", err: `Unknown operation "${name}"` };
     }
     const kind = op.kind;
-    const rec = (args: unknown, outcome: OpProvenanceOutcome) =>
-      record(name, kind, identity, surface, args, outcome, startedAt);
+    const rec = (args: unknown, outcome: OpProvenanceOutcome, scope?: string) =>
+      record(name, kind, identity, surface, args, outcome, startedAt, scope);
 
     // 1. Authorize (the guard judges an already-resolved identity; a throw
     //    is "cannot judge" → 503, per _113).
@@ -307,7 +313,7 @@ export function createOpKernel<
           };
         }
       }
-      rec(recArgs, "ok");
+      rec(recArgs, "ok", scope);
       if (op.kind === "write") {
         config.emit?.(
           scope === undefined
@@ -335,6 +341,7 @@ export function createOpKernel<
       redactAndTruncate(record_.args, undefined, maxArgChars),
       record_.outcome,
       record_.startedAt,
+      record_.scope,
     );
   }
 

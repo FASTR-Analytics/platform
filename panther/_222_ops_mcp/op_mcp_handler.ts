@@ -37,6 +37,7 @@
 
 import {
   createMCPHttpHandler,
+  digestOpRecords,
   opsApprovalExempt,
   opsToMCPTools,
 } from "./deps.ts";
@@ -44,6 +45,7 @@ import type {
   APIResponseWithData,
   CreateMCPHttpHandlerOptions,
   IdentityProvider,
+  OpAwarenessSource,
   OpKernel,
   OpOutcome,
   OpRegistry,
@@ -62,13 +64,20 @@ export type OpMCPHandlerConfig<TIdentity> = {
   // hand-plumbed URL. Structural on purpose: the door is provider-agnostic
   // (a PAT-authenticated deployment passes no discovery at all).
   discovery?: { resourceMetadataUrl: (req: Request) => string };
+  // Awareness (panterra vision goal 4): when set, every complete tools/call
+  // result carries a digest of what OTHER actors and surfaces changed since
+  // this conversation's last call — derived from the provenance log, keyed
+  // by MCP session (principal as fallback), own actions excluded. A fresh
+  // conversation baselines silently: aware of the future, not the past.
+  awareness?: OpAwarenessSource;
   // _220's operational knobs (allowedOrigins, session caps, TTLs, …),
   // passed through so a consumer needing them never bypasses the wrapper —
   // there must never be two ways to build the door. The identity-seam slots
-  // are excluded: they are this door's own wiring.
+  // are excluded: they are this door's own wiring, and decorateResult is
+  // the awareness seam's.
   http?: Omit<
     CreateMCPHttpHandlerOptions<TIdentity>,
-    "authenticate" | "principalKey" | "resourceMetadataUrl"
+    "authenticate" | "principalKey" | "resourceMetadataUrl" | "decorateResult"
   >;
 };
 
@@ -93,6 +102,51 @@ function toEnvelope(outcome: OpOutcome): APIResponseWithData<unknown> {
     default:
       return { success: false, err: outcome.err };
   }
+}
+
+// Awareness cursors: one per MCP conversation (session id when the wire
+// carries one, principal key otherwise), bounded FIFO. The value is the id
+// of the newest record this conversation has been told about (or has
+// baselined past).
+const MAX_AWARENESS_CURSORS = 1000;
+
+function buildAwarenessDecorator<TIdentity>(
+  source: OpAwarenessSource,
+  identityKey: (identity: TIdentity) => string,
+): (ctx: {
+  principal: TIdentity;
+  sessionId?: string;
+}) => Promise<string | null> {
+  const cursors = new Map<string, string>();
+  return async (ctx) => {
+    const principalKey = identityKey(ctx.principal);
+    const key = ctx.sessionId ?? principalKey;
+    const cursor = cursors.get(key);
+    if (cursor === undefined) {
+      const latest = await source.latestRecordId();
+      if (latest !== null) {
+        if (cursors.size >= MAX_AWARENESS_CURSORS) {
+          const oldest = cursors.keys().next().value;
+          if (oldest !== undefined) {
+            cursors.delete(oldest);
+          }
+        }
+        cursors.set(key, latest);
+      }
+      return null;
+    }
+    const records = await source.recordsSince(cursor);
+    if (records.length === 0) {
+      return null;
+    }
+    cursors.set(key, records[records.length - 1].id);
+    const digest = digestOpRecords(records, {
+      exclude: (r) => r.surface === "mcp" && r.identityKey === principalKey,
+    });
+    return digest === null
+      ? null
+      : `[What changed since your last call — other users and surfaces]\n${digest}`;
+  };
 }
 
 export function createOpMCPHandler<TIdentity>(
@@ -123,6 +177,14 @@ export function createOpMCPHandler<TIdentity>(
     ...config.http,
     authenticate: (req) => config.provider.resolve(req),
     principalKey: (identity) => config.provider.identityKey(identity),
+    ...(config.awareness !== undefined
+      ? {
+        decorateResult: buildAwarenessDecorator(
+          config.awareness,
+          (identity: TIdentity) => config.provider.identityKey(identity),
+        ),
+      }
+      : {}),
     ...(config.discovery !== undefined
       ? {
         resourceMetadataUrl: (req: Request) =>

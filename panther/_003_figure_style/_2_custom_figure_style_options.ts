@@ -19,13 +19,13 @@ import {
   type TableCellInfoFunc,
   type TableHeaderInfoFunc,
   type TickLabelFormatterOption,
-  type ValuesColorFunc,
   type VizGraphEdgeInfoFunc,
   type VizGraphNodeInfoFunc,
 } from "./deps.ts";
 import type {
   AreaDiffPair,
   ArrowheadFitFallback,
+  FigureValuesColorFunc,
   GenericAreaStyleOptions,
   GenericBarStyleOptions,
   GenericCascadeArrowStyleOptions,
@@ -45,7 +45,7 @@ import type { LegendPosition } from "./types.ts";
 
 export type CustomFigureStyleOptions = {
   seriesColorFunc?: ChartSeriesInfoFunc<ColorKeyOrString>;
-  valuesColorFunc?: ValuesColorFunc;
+  valuesColorFunc?: FigureValuesColorFunc;
 
   ///////////////////////////////////////////
   //  ________                     __      //

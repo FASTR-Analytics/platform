@@ -48,9 +48,9 @@ import {
   msOrNone,
   msPadding,
   type TextInfo,
-  type ValuesColorFunc,
 } from "./deps.ts";
 import {
+  type FigureValuesColorFunc,
   getAreaStyleFunc,
   getBarStyleFunc,
   getCascadeArrowStyleFunc,
@@ -346,7 +346,7 @@ export class CustomFigureStyle {
     };
   }
 
-  getValuesColorFunc(): ValuesColorFunc {
+  getValuesColorFunc(): FigureValuesColorFunc {
     return m(
       this._c.valuesColorFunc,
       this._g.valuesColorFunc,

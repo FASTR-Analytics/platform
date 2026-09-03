@@ -22,13 +22,13 @@ import {
   type TableHeaderInfoFunc,
   toPct0,
   typed,
-  type ValuesColorFunc,
   type VizGraphEdgeInfoFunc,
   type VizGraphNodeInfoFunc,
 } from "./deps.ts";
 import type {
   AreaDiffPair,
   ArrowheadFitFallback,
+  FigureValuesColorFunc,
   GenericAreaStyle,
   GenericBarStyle,
   GenericCascadeArrowStyle,
@@ -97,7 +97,7 @@ const _DS = {
     key: "baseContent",
   })),
 
-  valuesColorFunc: typed<ValuesColorFunc>((v, min, max) => {
+  valuesColorFunc: typed<FigureValuesColorFunc>((v, min, max) => {
     if (v === undefined) return "#f0f0f0";
     const t = normalizeTo01(v, min, max);
     return Color.scaledPct(

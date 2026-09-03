@@ -35,6 +35,7 @@ export const zOpCatalogEntry: zType.ZodType<OpCatalogEntry> = z.object({
 });
 
 export const zOpProvenanceRecord: zType.ZodType<OpProvenanceRecord> = z.object({
+  id: z.string(),
   at: z.string(),
   identityKey: z.string(),
   op: z.string(),
@@ -45,6 +46,7 @@ export const zOpProvenanceRecord: zType.ZodType<OpProvenanceRecord> = z.object({
   // undefined-valued key — a required `args` would break the advertised
   // schema on every wire that carries a denial.
   args: z.unknown().optional(),
+  scope: z.string().optional(),
   outcome: z.union([
     z.literal("ok"),
     z.literal("proposed"),

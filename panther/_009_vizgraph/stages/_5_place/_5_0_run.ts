@@ -18,6 +18,7 @@ import { straighten } from "../../placement/straighten.ts";
 import { compaction } from "../../placement/compact.ts";
 import { adoptIsolates } from "../../placement/adopt_isolates.ts";
 import { brandesKoepf } from "../../placement/brandes_koepf.ts";
+import { voidBound } from "../../placement/void_bound.ts";
 
 // Stage 5: y-placement as a SCHEDULE of quality passes — this file is a thin
 // runner; the strategies, their contract, and the catalog live in
@@ -32,12 +33,15 @@ const BUDGE_PLAN: PlacementPlan = [
   straighten(),
   compaction(),
   adoptIsolates(),
+  voidBound(),
 ];
 
 // coordinateMode selects the schedule (M7): the default budge plan, or
 // Brandes-Köpf + adopt-isolates (BK never sees same-layer edges, so
 // same-layer-only isolates still need adopting). constraints.align biases
-// BK's alignment choice; hints.align follows at lower precedence.
+// BK's alignment choice; hints.align follows at lower precedence. Both
+// schedules end on void-bound: the whitespace invariant is a property of
+// the drawing, not of a coordinate strategy.
 export function resolvePlan(
   model: GraphModel,
   options: LayoutOptions | undefined,
@@ -47,7 +51,7 @@ export function resolvePlan(
       ...(model.constraints?.align ?? []),
       ...(model.hints?.align ?? []),
     ];
-    return [brandesKoepf({ alignClasses }), adoptIsolates()];
+    return [brandesKoepf({ alignClasses }), adoptIsolates(), voidBound()];
   }
   return BUDGE_PLAN;
 }

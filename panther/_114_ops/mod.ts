@@ -23,6 +23,12 @@ export { createOpHttpHandler } from "./http.ts";
 export { callWithApproval, createOpClient, createOpRunner } from "./client.ts";
 export { createOpEventHub, createOpEventsHandler } from "./notify.ts";
 export { connectOpEvents } from "./notify_client.ts";
+export { createOpAwarenessTracker, digestOpRecords } from "./awareness.ts";
+export type {
+  OpAwarenessSource,
+  OpAwarenessTracker,
+  OpDigestOptions,
+} from "./awareness.ts";
 export {
   opsApprovalExempt,
   opsToAITools,

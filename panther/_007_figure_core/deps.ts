@@ -17,7 +17,7 @@ export {
 } from "../_000_utils/mod.ts";
 export type { CalendarType, Language, PeriodType } from "../_000_utils/mod.ts";
 export { getColor } from "../_001_color/mod.ts";
-export type { ColorKeyOrString, ValuesColorFunc } from "../_001_color/mod.ts";
+export type { ColorKeyOrString } from "../_001_color/mod.ts";
 export { getAdjustedFont } from "../_001_font/mod.ts";
 export type { TextInfoUnkeyed } from "../_001_font/mod.ts";
 export {
@@ -84,6 +84,7 @@ export type {
   CascadeArrowStyle,
   CustomFigureStyleOptions,
   DataLabelStyle,
+  FigureValuesColorFunc,
   LabelCollisionConfig,
   MergedCascadeArrowStyle,
   MergedChartStyleBase,

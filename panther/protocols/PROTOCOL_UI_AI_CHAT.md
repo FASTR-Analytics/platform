@@ -72,6 +72,25 @@ is the rulebook a consumer app must follow.
     source (`typeof` checks or injection) and probe the built host by
     constructing every factory under plain Deno
 
+## Ops-projected surfaces
+
+A chat surface whose tools are a projection of an ops registry
+(`opsToAITools(ops, { run })` over panther `_114_ops`) satisfies this protocol
+differently, by construction:
+
+- Rule 1 holds: `opsToAITools` builds every tool through `createAITool`
+  internally — nothing is hand-built.
+- Rule 7's mechanism moves: approval is declared per op in the registry
+  (`approval` / `approvalExempt`, boot-enforced by the kernel) and the
+  projection carries it, so the chat config declares NO `approvalPolicy` —
+  declaring one there would be a second, driftable copy of the registry's
+  policy.
+- Rules 2–4 and 14 (view registry, controller, `availableIn` gating) apply only
+  when the surface ALSO has view-gated tools; a pure ops projection has none and
+  omits the controller.
+- Rule 13 still applies verbatim: `validateAIChatConfig(config)` runs on the
+  real assembled config under `import.meta.env.DEV`.
+
 ## Do / Don't
 
 ### View gating

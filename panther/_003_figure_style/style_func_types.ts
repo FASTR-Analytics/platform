@@ -40,9 +40,29 @@ import type { CustomFigureStyleOptions } from "./_2_custom_figure_style_options.
 
 // Color sentinels accepted wherever per-element colors are configured:
 // SERIES_COLOR_SENTINEL resolves through the per-series palette (seriesColorFunc);
-// VALUES_COLOR_SENTINEL resolves through valuesColorFunc(val, valueMin, valueMax).
+// VALUES_COLOR_SENTINEL resolves through the figure-wide valuesColorFunc slot.
 export const SERIES_COLOR_SENTINEL = 666;
 export const VALUES_COLOR_SENTINEL = 777;
+
+// The figure-wide magnitude slot. It receives the element being coloured —
+// the element's own Info, so a rule can be chosen by identity (this cell's
+// row, this bar's indicator, this region's pane) while the colour stays a
+// function of the value. Returning undefined declines: the resolution site
+// then falls through as if no sentinel were set (bars and points take their
+// series colour; table cells and map regions take "none"). Legend sampling
+// (resolveAutoScaleLegend) calls it with no element; an element-dependent
+// function should decline there, and the figure supplies an explicit legend.
+// min/max are figure-global, not per element.
+//
+// A header-free ValuesColorFunc (_001_color) is assignable to this slot as-is.
+export type ValueColorElement = TableCellInfo | ChartValueInfo | MapRegionInfo;
+
+export type FigureValuesColorFunc = (
+  value: number | undefined,
+  min: number,
+  max: number,
+  element?: ValueColorElement,
+) => ColorKeyOrString | undefined;
 
 // A content block's `func` is authored three ways: an options object (one flat
 // override for every element), a function of the element's info (a per-element
@@ -507,7 +527,12 @@ export function getTableCellStyleFunc(
     return {
       backgroundColor: backgroundColor === VALUES_COLOR_SENTINEL &&
           info.valueAsNumber !== undefined
-        ? valuesColorFunc(info.valueAsNumber, info.valueMin, info.valueMax)
+        ? valuesColorFunc(
+          info.valueAsNumber,
+          info.valueMin,
+          info.valueMax,
+          info,
+        ) ?? "none"
         : backgroundColor === VALUES_COLOR_SENTINEL
         ? "none"
         : backgroundColor,
@@ -610,7 +635,8 @@ export function getPointStyleFunc(
     const oRadius = oc?.radius ?? og?.radius;
     const oStrokeWidth = oc?.strokeWidth ?? og?.strokeWidth;
     const resolvedColor = color === VALUES_COLOR_SENTINEL
-      ? valuesColorFunc(info.val, info.valueMin, info.valueMax)
+      ? valuesColorFunc(info.val, info.valueMin, info.valueMax, info) ??
+        seriesColorFunc(info)
       : color === SERIES_COLOR_SENTINEL
       ? seriesColorFunc(info)
       : color;
@@ -704,7 +730,8 @@ export function getBarStyleFunc(
     const og = gf?.(info);
     const color = oc?.fillColor ?? og?.fillColor ?? dColor;
     const resolvedFillColor = color === VALUES_COLOR_SENTINEL
-      ? valuesColorFunc(info.val, info.valueMin, info.valueMax)
+      ? valuesColorFunc(info.val, info.valueMin, info.valueMax, info) ??
+        seriesColorFunc(info)
       : color === SERIES_COLOR_SENTINEL
       ? seriesColorFunc(info)
       : color;
@@ -1315,7 +1342,8 @@ export function getMapRegionStyleFunc(
     const strokeColor = oc?.strokeColor ?? og?.strokeColor ?? dStrokeColor;
     const oStrokeWidth = oc?.strokeWidth ?? og?.strokeWidth;
     const resolvedFillColor = fillColor === VALUES_COLOR_SENTINEL
-      ? valuesColorFunc(info.value, info.valueMin, info.valueMax)
+      ? valuesColorFunc(info.value, info.valueMin, info.valueMax, info) ??
+        "none"
       : fillColor;
     const dl = resolveDataLabelInstance(
       dDataLabel,

@@ -21,7 +21,11 @@ See `PROTOCOL_UI_SOLIDJS.md` for reactivity rules.
    success/error
 6. **createButtonAction for simple actions** — Delete, refresh, discrete
    commands
-7. **createDeleteAction for deletions** — Confirmation dialog + action + refetch
+7. **createDeleteAction for deletions** — Confirmation dialog + action +
+   refetch. Exception, by design: a delete behind an ops-registry approval gate
+   uses `callWithApproval` + `openProposalPreview` instead — the server-computed
+   preview IS the confirmation, so a client-side confirm dialog would be a
+   second, weaker copy of it
 8. **StateHolderWrapper for rendering** — Handles loading/error/ready states
 9. **Use `StateHolder` for loading state** — Via `createQuery` /
    `createLiveQuery`, or `createSignal<StateHolder<T>>` + `createEffect`
@@ -406,7 +410,8 @@ new data arrives.
 - [ ] No signal reads inside `createQuery`'s or `createLiveQuery`'s `queryFunc`
       (they are not tracked)
 - [ ] Form submissions use `createFormAction`
-- [ ] Delete actions use `createDeleteAction`
+- [ ] Delete actions use `createDeleteAction` (or `callWithApproval` when the op
+      is approval-gated)
 - [ ] Loading/error states use `StateHolderWrapper`
 - [ ] Validation happens inside action functions
 - [ ] No raw `loading`/`error`/`data` signal trios

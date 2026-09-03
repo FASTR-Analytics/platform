@@ -44,8 +44,8 @@ export {
 export { PANTHER_COLORS } from "./tim_colors.ts";
 export type { ColorKeyOrString, KeyColors } from "./types.ts";
 export {
-  divergingColorFunc,
-  sequentialColorFunc,
+  type ThresholdBoundary,
   thresholdColorFunc,
+  type ThresholdColorFuncOptions,
   type ValuesColorFunc,
 } from "./value_color_funcs.ts";

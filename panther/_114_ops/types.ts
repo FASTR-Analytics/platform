@@ -167,6 +167,10 @@ export type OpProvenanceOutcome =
   | `failed:${string}`;
 
 export type OpProvenanceRecord = {
+  // Kernel-stamped at record creation (every path funnels through the one
+  // record() helper, off-contract included): records are events, and events
+  // are self-identifying — `at` alone collides within a millisecond.
+  id: string;
   at: string;
   identityKey: string;
   op: string;
@@ -175,6 +179,10 @@ export type OpProvenanceRecord = {
   // Absent on denied/invalid records (nothing unvalidated is ever recorded).
   args?: unknown;
   outcome: OpProvenanceOutcome;
+  // The committed write's scope VALUE (the impl-returned one the change
+  // event carries) — present exactly when a scoped write reached "ok", so
+  // provenance and the poke agree on where a change landed.
+  scope?: string;
   durationMs: number;
 };
 

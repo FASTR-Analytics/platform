@@ -101,6 +101,15 @@ export type CreateMCPHttpHandlerOptions<TPrincipal> = {
   // SSE comment-frame keepalive interval for legacy wire sessions,
   // SDK-owned. Default: the SDK's 15s. 0 disables.
   keepAliveMs?: number;
+  // Awareness seam: when set, every COMPLETE tools/call result gains one
+  // extra text block from this hook (null/empty → none). It never runs for
+  // input_required rounds, and a hook throw never breaks the result — the
+  // undecorated result ships. sessionId is present when the wire carries
+  // one; key per-conversation state on it, falling back to the principal.
+  decorateResult?: (ctx: {
+    principal: TPrincipal;
+    sessionId?: string;
+  }) => Promise<string | null>;
 };
 
 type SessionEntry = {
@@ -384,6 +393,37 @@ export function createMCPHttpHandler<TPrincipal>(
     return completeResult(outcome);
   };
 
+  // The decorateResult hook, applied to COMPLETE results only (an
+  // input_required round is a question, not an answer). Fail-open by
+  // design: a throwing hook ships the undecorated result — awareness may
+  // never break a tool call.
+  const decorated = async (
+    entry: CoreEntry<TPrincipal>,
+    sessionId: string | undefined,
+    result: CallToolResult | ReturnType<typeof inputRequired>,
+  ): Promise<CallToolResult | ReturnType<typeof inputRequired>> => {
+    const hook = opts.decorateResult;
+    const content = (result as CallToolResult).content;
+    if (hook === undefined || !Array.isArray(content)) {
+      return result;
+    }
+    try {
+      const extra = await hook({
+        principal: entry.principal,
+        ...(sessionId === undefined ? {} : { sessionId }),
+      });
+      if (extra === null || extra === "") {
+        return result;
+      }
+      return {
+        ...(result as CallToolResult),
+        content: [...content, { type: "text", text: extra }],
+      };
+    } catch {
+      return result;
+    }
+  };
+
   // One SDK Server wired to the principal's core. Built per legacy session
   // and per modern request — both thin shells over the same core, so the
   // eras cannot drift.
@@ -452,7 +492,11 @@ export function createMCPHttpHandler<TPrincipal>(
             const outcome = await core.callTool(name, args, {
               clientCanElicit,
             });
-            return outcomeToCallResult(outcome);
+            return await decorated(
+              entry,
+              ctx.sessionId,
+              outcomeToCallResult(outcome),
+            );
           }
           // Resume round: the elicitation answer (or the client's retry)
           // re-entered the handler. requestState is the staged-proposal
@@ -484,7 +528,11 @@ export function createMCPHttpHandler<TPrincipal>(
               "Unexpected second input_required outcome",
             );
           }
-          return completeResult(outcome);
+          return await decorated(
+            entry,
+            ctx.sessionId,
+            completeResult(outcome),
+          );
         } catch (error) {
           throw toProtocolError(error);
         }
