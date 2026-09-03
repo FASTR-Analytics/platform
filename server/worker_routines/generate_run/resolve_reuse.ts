@@ -1,13 +1,10 @@
 import type { Sql } from "postgres";
-import {
-  getAssetToImportName,
-  type DatasetType,
-  type RunModule,
-} from "lib";
+import { getAssetToImportName, type RunModule } from "lib";
 import { getRunManifestCached, runDirPath } from "../../runs/mod.ts";
 import { resolveAssetFilePath } from "../../db/instance/assets.ts";
 import { R_DOCKER_IMAGE_TAG } from "./r_docker_image.ts";
 import { computeModuleInputKey, sha256HexOfFile } from "./input_key.ts";
+import { POPULATION_FILE_NAME, type RunInputHashes } from "./prepare_inputs.ts";
 import type { ResolvedRunModule } from "./resolve_modules.ts";
 
 // §3.7 memoized generation (PLAN_RESULTS_RUNS item 3, re-cut by Q-C). A
@@ -144,16 +141,16 @@ function matchedOutputHashes(
 // re-run.
 export async function computeModuleInputs(
   mod: ResolvedRunModule,
-  datasetExtractHashes: Map<DatasetType, string>,
+  inputHashes: RunInputHashes,
   upstreamOutputHashes: Map<string, Record<string, string>>,
   assetHashCache: Map<string, string>,
 ): Promise<{ name: string; sha256: string }[]> {
   const moduleId = mod.moduleId;
-  const inputHashes: { name: string; sha256: string }[] = [];
+  const inputs: { name: string; sha256: string }[] = [];
   for (const asset of mod.detail.assetsToImport) {
     const assetName = getAssetToImportName(asset);
     if (typeof asset !== "string") {
-      inputHashes.push({ name: `assets/${assetName}`, sha256: asset.sha256 });
+      inputs.push({ name: `assets/${assetName}`, sha256: asset.sha256 });
       continue;
     }
     let sha256 = assetHashCache.get(assetName);
@@ -169,17 +166,26 @@ export async function computeModuleInputs(
       }
       assetHashCache.set(assetName, sha256);
     }
-    inputHashes.push({ name: `assets/${assetName}`, sha256 });
+    inputs.push({ name: `assets/${assetName}`, sha256 });
   }
   for (const source of mod.detail.dataSources) {
     if (source.sourceType === "dataset") {
-      const sha256 = datasetExtractHashes.get(source.datasetType);
+      const sha256 = inputHashes.datasets.get(source.datasetType);
       if (sha256 === undefined) {
         throw new Error(
           `No ${source.datasetType} extract in this run for module ${moduleId}`,
         );
       }
-      inputHashes.push({ name: `datasets/${source.datasetType}.csv`, sha256 });
+      inputs.push({ name: `datasets/${source.datasetType}.csv`, sha256 });
+    } else if (source.sourceType === "population") {
+      // The person-years file is a real input: a population edit must re-run
+      // the module, and an unchanged store must not (PLAN_1b).
+      if (inputHashes.population === null) {
+        throw new Error(
+          `No population file in this run for module ${moduleId} (it needs the hmis dataset)`,
+        );
+      }
+      inputs.push({ name: POPULATION_FILE_NAME, sha256: inputHashes.population });
     }
   }
   for (const upstreamId of [...upstreamIdsFor(mod)].sort()) {
@@ -190,10 +196,10 @@ export async function computeModuleInputs(
       );
     }
     for (const [fileName, sha256] of Object.entries(hashes)) {
-      inputHashes.push({ name: `${upstreamId}/${fileName}`, sha256 });
+      inputs.push({ name: `${upstreamId}/${fileName}`, sha256 });
     }
   }
-  return inputHashes;
+  return inputs;
 }
 
 export function computeModuleKey(
@@ -220,7 +226,7 @@ export function computeModuleKey(
 export async function planReuse(
   resolved: ResolvedRunModule[],
   search: ReuseSearch,
-  datasetExtractHashes: Map<DatasetType, string>,
+  inputHashes: RunInputHashes,
   assetHashCache: Map<string, string>,
 ): Promise<Set<string>> {
   const planned = new Set<string>();
@@ -231,7 +237,7 @@ export async function planReuse(
     try {
       inputs = await computeModuleInputs(
         mod,
-        datasetExtractHashes,
+        inputHashes,
         plannedHashes,
         assetHashCache,
       );

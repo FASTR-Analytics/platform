@@ -78,82 +78,28 @@ export function describeNewIndicatorIdIssue(issue: NewIndicatorIdIssue): string 
 // Common indicator definitions
 // ============================================================================
 
-export const POPULATION_TYPES = [
-  {
-    id: "total_population",
-    label: { en: "Total population", fr: "Population totale" },
-  },
-  {
-    id: "u5",
-    label: { en: "Under 5 population", fr: "Population des moins de 5 ans" },
-  },
-  {
-    id: "u1",
-    label: { en: "Under 1 population", fr: "Population des moins de 1 an" },
-  },
-  {
-    id: "wra",
-    label: {
-      en: "Women of reproductive age (15-49)",
-      fr: "Femmes en âge de procréer (15-49)",
-    },
-  },
-  { id: "births", label: { en: "Expected births", fr: "Naissances attendues" } },
-  {
-    id: "pregnancies",
-    label: { en: "Expected pregnancies", fr: "Grossesses attendues" },
-  },
-] as const satisfies readonly { id: string; label: TranslatableString }[];
-
-export type PopulationType = (typeof POPULATION_TYPES)[number]["id"];
-
-export function isValidPopulationType(value: string): value is PopulationType {
-  return POPULATION_TYPES.some((pt) => pt.id === value);
-}
-
-export function assertValidPopulationType(
-  value: string,
-  fieldName: string,
-): asserts value is PopulationType {
-  if (!isValidPopulationType(value)) {
-    const validTypes = POPULATION_TYPES.map((pt) => pt.id).join(", ");
-    throw new Error(
-      `Invalid ${fieldName}: ${JSON.stringify(value)}. ` +
-        `Must be one of: ${validTypes}.`,
-    );
-  }
-}
-
-// What a common indicator IS (PLAN_1a §1.2). Generation decides what the
-// numbers are made of; the query only aggregates and applies the formula.
+// What a common indicator IS (PLAN_1a §1.2, PLAN_1c). Generation decides what
+// the numbers are made of; the query only aggregates and applies the formula.
 //
-//   base            — mapped raw indicators, summed at extract. No formula.
-//   derived         — an arbitrary expression over other commons (base or
-//                     derived; chained by substitution). Its additive
-//                     ingredients travel on the results row and the
-//                     expression is applied AFTER aggregation.
-//   population_rate — a numerator expression over commons ONLY (it never
-//                     names the population term), divided by person-years of
-//                     the named population and scaled. Generation assigns
-//                     person-years its own ingredient slot and composes the
-//                     final catalog expression, so nothing downstream carries
-//                     a population carve-out.
+//   base    — mapped raw indicators, summed at extract. No formula. A count,
+//             so its format is always `number`.
+//   derived — an arbitrary expression over other commons (base or derived;
+//             chained by substitution) and population terms. Its additive
+//             ingredients travel on the results row and the expression is
+//             applied AFTER aggregation. A population term is written
+//             `[population:<type>]`, where `<type>` is an id in the instance's
+//             `population_types` table (lib/types/population.ts); it is a
+//             leaf ingredient exactly like a base common, carrying that
+//             population's person-years.
 export type CommonIndicatorDefinition =
   | { type: "base" }
-  | { type: "derived"; expression: string }
-  | {
-    type: "population_rate";
-    numeratorExpression: string;
-    populationType: PopulationType;
-    multiplier: number;
-  };
+  | { type: "derived"; expression: string };
 
 export type CommonIndicatorType = CommonIndicatorDefinition["type"];
 
 export const COMMON_INDICATOR_TYPES: readonly CommonIndicatorType[] = [
   "base",
   "derived",
-  "population_rate",
 ] as const;
 
 export function isCommonIndicatorType(
@@ -302,11 +248,11 @@ export type IndicatorMetadata = {
   sort_order?: number;
   // Common-indicator evaluation, stamped for HMIS dictionaries only
   // (PLAN_1a §1.5). `expression` is the FLATTENED formula — every identifier
-  // in it is a base common indicator, and `slot_map` says which ingredient
-  // column of an indicator_values row carries that base indicator's sum. A
-  // `base` indicator's expression is its own single slot. Absent on every
-  // other family's catalog entries, and on a `population_rate` whose person-
-  // years term the package does not carry.
+  // in it is a base common indicator or a `population:<type>` term, and
+  // `slot_map` says which ingredient column of an indicator_values row
+  // carries that ingredient's sum. A `base` indicator's expression is its own
+  // single slot. Absent on every other family's catalog entries, and on a
+  // base common the extract has no counts for.
   type?: CommonIndicatorType;
   expression?: string;
   slot_map?: Record<string, string>;

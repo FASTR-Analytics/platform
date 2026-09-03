@@ -5,6 +5,7 @@ import type {
   InstanceConfig,
   InstanceDatasetsSummary,
   InstanceIndicatorsSummary,
+  InstancePopulationSummary,
   InstanceState,
   InstanceStructureSummary,
   AssetInfo,
@@ -49,7 +50,6 @@ const EMPTY_INSTANCE_STATE: InstanceState = {
     commonIndicators: 0,
     rawIndicators: 0,
     hfaIndicators: 0,
-    derivedIndicators: 0,
   },
   datasetsWithData: [],
   datasetVersions: {},
@@ -60,6 +60,9 @@ const EMPTY_INSTANCE_STATE: InstanceState = {
   hfaTimePoints: [],
   hfaCacheHash: "",
   icehCacheHash: "",
+  populationTypes: [],
+  populationCoverage: [],
+  populationLastUpdated: undefined,
   indicatorMappingsVersion: "",
   baseIndicatorMappingsVersion: "",
   hfaIndicatorsVersion: "",
@@ -227,6 +230,14 @@ export function updateInstanceDatasets(data: InstanceDatasetsSummary): void {
   setInstanceState("hfaTimePoints", reconcile(data.hfaTimePoints));
   setInstanceState("hfaCacheHash", data.hfaCacheHash);
   setInstanceState("icehCacheHash", data.icehCacheHash);
+}
+
+export function updateInstancePopulation(
+  data: InstancePopulationSummary,
+): void {
+  setInstanceState("populationTypes", reconcile(data.populationTypes));
+  setInstanceState("populationCoverage", reconcile(data.populationCoverage));
+  setInstanceState("populationLastUpdated", data.populationLastUpdated);
 }
 
 // ============================================================================

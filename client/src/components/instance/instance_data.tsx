@@ -14,6 +14,7 @@ import { AdminAreaLabels } from "../structure/admin_area_labels";
 import { FamilyConfiguration } from "../structure/family_configuration";
 import { HfaWeights } from "../structure/hfa_weights";
 import { GeoJsonManager } from "../instance_geojson/geojson_manager";
+import { PopulationManager } from "../instance_population/population_manager";
 import {
   instanceState,
   maxDepth,
@@ -134,6 +135,11 @@ export function InstanceData(p: Props) {
       <Match when={selectedDataSource() === "geojson_hmis"}>
         <GeoJsonManager
           family="hmis"
+          backToInstance={() => setSelectedDatasource(undefined)}
+        />
+      </Match>
+      <Match when={selectedDataSource() === "population"}>
+        <PopulationManager
           backToInstance={() => setSelectedDatasource(undefined)}
         />
       </Match>
@@ -469,31 +475,6 @@ export function InstanceData(p: Props) {
                           </div>
                         )}
                       </Show>
-                      <Show
-                        when={
-                          instanceState.indicators.derivedIndicators > 0 &&
-                          instanceState.indicators.derivedIndicators
-                        }
-                        keyed
-                      >
-                        {(keyedNumber) => (
-                          <div class="ui-spy-sm text-success text-xs">
-                            <div class="ui-gap flex justify-between">
-                              <span>
-                                {t3({
-                                  en: "Derived indicators",
-                                  fr: "Indicateurs dérivés",
-                                  pt: "Indicadores derivados",
-                                })}
-                                :
-                              </span>
-                              <span class="font-mono">
-                                {toNum0(keyedNumber)}
-                              </span>
-                            </div>
-                          </div>
-                        )}
-                      </Show>
                     </div>
                   </Card>
                   <Card
@@ -555,6 +536,51 @@ export function InstanceData(p: Props) {
                             pt: "Níveis configurados",
                           })}
                           : {geojsonLevels("hmis").join(", ")}
+                        </div>
+                      </Show>
+                    </div>
+                  </Card>
+                  <Card onClick={() => setSelectedDatasource("population")}>
+                    <div class="ui-spy-sm">
+                      <div class="font-700 pb-2 text-sm">
+                        {t3({
+                          en: "Population",
+                          fr: "Population",
+                          pt: "População",
+                        })}
+                      </div>
+                      <Show
+                        when={instanceState.populationCoverage.length > 0}
+                        fallback={
+                          <div class="text-danger text-xs">
+                            {t3({
+                              en: "No population figures",
+                              fr: "Aucun chiffre de population",
+                              pt: "Sem valores de população",
+                            })}
+                          </div>
+                        }
+                      >
+                        <div class="ui-spy-sm text-success text-xs">
+                          <div class="ui-gap flex justify-between">
+                            <span>
+                              {t3({
+                                en: "Population types with figures",
+                                fr: "Types de population renseignés",
+                                pt: "Tipos de população com valores",
+                              })}
+                              :
+                            </span>
+                            <span class="font-mono">
+                              {toNum0(
+                                new Set(
+                                  instanceState.populationCoverage.map((c) =>
+                                    c.populationType
+                                  ),
+                                ).size,
+                              )}
+                            </span>
+                          </div>
                         </div>
                       </Show>
                     </div>

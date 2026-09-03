@@ -10,12 +10,14 @@ import {
 import {
   getScriptWithParametersHfa,
   type HfaSentinelRow,
+  populationFilePathLiteral,
 } from "./get_script_with_parameters_hfa.ts";
 
 // datasetsDirPath = where the generated script finds dataset extract CSVs,
 // relative to the module's working directory. A module workspace is
 // runs/{runId}/outputs/{moduleId} (§2.1 run layout), so it reads
 // "../../inputs/datasets".
+
 export function getScriptWithParameters(
   moduleDefinition: ModuleDefinitionInstalled,
   configSelections: ModuleConfigSelections,
@@ -75,6 +77,8 @@ export function getScriptWithParameters(
         ds.replacementString,
         `'${datasetsDirPath}/${ds.datasetType}.csv'`
       );
+    } else if (ds.sourceType === "population") {
+      str = str.replaceAll(ds.replacementString, populationFilePathLiteral(datasetsDirPath));
     } else {
       str = str.replaceAll(
         ds.replacementString,

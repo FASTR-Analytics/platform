@@ -67,6 +67,13 @@ export async function resolveRunModules(
             `Module ${moduleId} needs ${source.datasetType} data, which is not included in this results package`,
           );
         }
+      } else if (source.sourceType === "population") {
+        // The person-years file is written with the HMIS capture.
+        if (!familySet.has("hmis")) {
+          throw new Error(
+            `Module ${moduleId} needs population data, which accompanies the hmis dataset — not included in this results package`,
+          );
+        }
       } else if (!selectedIds.has(source.moduleId)) {
         throw new Error(
           `Module ${moduleId} reads outputs of ${source.moduleId}, which is not in the selection`,

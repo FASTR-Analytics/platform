@@ -86,7 +86,7 @@ export async function runGenerationPipeline(
   const planned = await planReuse(
     resolved,
     reuseSearch,
-    prepared.datasetExtractHashes,
+    prepared.inputHashes,
     assetHashCache,
   );
   for (const mod of resolved) {
@@ -105,7 +105,7 @@ export async function runGenerationPipeline(
     progress.currentModuleId = mod.moduleId;
     const inputs = await computeModuleInputs(
       mod,
-      prepared.datasetExtractHashes,
+      prepared.inputHashes,
       upstreamOutputHashes,
       assetHashCache,
     );
@@ -168,6 +168,7 @@ export async function runGenerationPipeline(
         metrics: buildRunMetrics(resolved),
         datasets: prepared.datasets,
         facilitiesTables: prepared.facilitiesTables,
+        population: prepared.population,
       },
       backfillSourceProjectId: null,
       attachTargetProjectIds: std.attachTargetProjectIds,

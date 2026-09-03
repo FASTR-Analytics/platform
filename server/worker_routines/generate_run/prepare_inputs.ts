@@ -1,6 +1,10 @@
 import { join } from "@std/path";
 import type { Sql } from "postgres";
 import {
+  listMonthlyPeriodIds,
+  personYearsForMonth,
+  populationCoveredYears,
+  populationTypesReferencedBySlotMaps,
   throwIfErrWithData,
   type CommonIndicatorCatalogRow,
   type DatasetType,
@@ -9,12 +13,16 @@ import {
   type HfaIndicatorVariantCode,
   type RunDataset,
   type RunGenerationStep1Result,
+  type RunPopulation,
 } from "lib";
 import {
   computeDatasetHfaRunCapture,
   computeDatasetHmisRunCapture,
   computeDatasetIcehRunCapture,
   dbRowToHfaIndicator,
+  getPopulationAnchors,
+  listHmisStructureAreas,
+  populationAreaKey,
   PROJECT_FACILITY_COLUMN_NAMES,
   type DatasetCsvTarget,
   type ProjectFacilityRow,
@@ -42,10 +50,22 @@ import type { HfaSentinelRow } from "../../server_only_funcs/get_script_with_par
 // and they feed script generation. A family not selected in step 1 simply
 // has no extract and no manifest entry.
 
+// The content hashes of the run's prepared input files — module inputKey
+// ingredients (resolve_reuse.ts), one per declared data source kind.
+export type RunInputHashes = {
+  // sha256 of each extract CSV, by family.
+  datasets: Map<DatasetType, string>;
+  // sha256 of inputs/population.csv; null when the run has no HMIS family
+  // (the file is written on every HMIS capture, header-only if nothing
+  // needs it).
+  population: string | null;
+};
+
 export type PreparedRunInputs = {
   selectedFamilies: DatasetType[];
-  // sha256 of each extract CSV, by family — module inputKey ingredients.
-  datasetExtractHashes: Map<DatasetType, string>;
+  inputHashes: RunInputHashes;
+  // The manifest's `population` stamp (PLAN_1b ruling 4).
+  population: RunPopulation | null;
   // Relative paths (from the run dir root) for the manifest's inputFiles.
   extraInputFiles: string[];
   // Manifest `datasets` entries, built from the captures (the project
@@ -102,6 +122,8 @@ export async function prepareRunInputs(
   const selectedFamilies: DatasetType[] = [];
   const datasets: RunDataset[] = [];
   const extraInputFiles: string[] = [];
+  let population: RunPopulation | null = null;
+  let populationHash: string | null = null;
   const facilitiesTables: { tableName: string; columns: ExportedColumn[] }[] =
     [];
   const scriptInputs: PreparedRunInputs["scriptInputs"] = {
@@ -142,6 +164,14 @@ export async function prepareRunInputs(
       tableName: "facilities_hmis",
       columns: FACILITY_PARQUET_COLUMNS,
     });
+    // The person-years file (PLAN_1b ruling 4) — written on EVERY HMIS
+    // capture so a module declaring the population source always has its
+    // input; header-only when no expression in the catalog names a population.
+    population = await writePopulationPersonYears(mainDb, tmpDir, capture);
+    populationHash = await sha256HexOfFile(
+      runInputFilePath(tmpDir, POPULATION_FILE_NAME),
+    );
+    extraInputFiles.push(`inputs/${POPULATION_FILE_NAME}`);
   }
 
   if (step1.hfa) {
@@ -270,12 +300,137 @@ export async function prepareRunInputs(
 
   return {
     selectedFamilies,
-    datasetExtractHashes,
+    inputHashes: { datasets: datasetExtractHashes, population: populationHash },
+    population,
     extraInputFiles,
     datasets,
     facilitiesTables,
     scriptInputs,
   };
+}
+
+export const POPULATION_FILE_NAME = "population.csv";
+
+// Annual population stock → monthly person-years, for every population type
+// the resolved catalog's slot maps reference (PLAN_1c ruling 5 — the
+// expression IS the declaration), over the extract's months, at the
+// structure's finest level (m012's grain). Format, permanent once written:
+// admin_area_2..N, period_id, population_type, person_years.
+//
+// Coverage failure is loud and deliberate (PLAN_1b ruling 6): a package that
+// cannot compute what the dictionary declares is a failed generation, not a
+// quietly thinner one. Every structure area at the finest level must hold
+// anchors that cover every month of the extract, within ±1 year of
+// extrapolation; anything less names the Population page.
+async function writePopulationPersonYears(
+  mainDb: Sql,
+  tmpDir: string,
+  capture: {
+    indicators: CommonIndicatorCatalogRow[];
+    periodRange: { min: number; max: number };
+    adminDepth: number;
+  },
+): Promise<RunPopulation> {
+  const level = capture.adminDepth;
+  const populationTypes = populationTypesReferencedBySlotMaps(
+    capture.indicators.flatMap((row) =>
+      row.slot_map === null ? [] : [row.slot_map]
+    ),
+  );
+  const periodIds = listMonthlyPeriodIds(
+    capture.periodRange.min,
+    capture.periodRange.max,
+  );
+  const firstYear = Math.floor(capture.periodRange.min / 100);
+  const lastYear = Math.floor(capture.periodRange.max / 100);
+  const areaColumns = ["admin_area_2", "admin_area_3", "admin_area_4"].slice(
+    0,
+    level - 1,
+  );
+  const lines = [
+    [...areaColumns, "period_id", "population_type", "person_years"].join(","),
+  ];
+
+  if (populationTypes.length > 0) {
+    const areas = await listHmisStructureAreas(mainDb, level);
+    const problems: string[] = [];
+    for (const populationType of populationTypes) {
+      const anchorsByArea = await getPopulationAnchors(
+        mainDb,
+        populationType,
+        level,
+      );
+      const uncovered: string[] = [];
+      for (const area of areas) {
+        const names = [
+          area.admin_area_1,
+          area.admin_area_2,
+          area.admin_area_3,
+          area.admin_area_4,
+        ];
+        const anchors = anchorsByArea.get(populationAreaKey(names));
+        const covered = anchors === undefined
+          ? null
+          : populationCoveredYears(anchors);
+        if (
+          covered === null || covered.firstYear > firstYear ||
+          covered.lastYear < lastYear
+        ) {
+          uncovered.push(
+            names.slice(1, level).join(" > ") +
+              (covered === null
+                ? " (no figures)"
+                : ` (covers ${covered.firstYear}–${covered.lastYear})`),
+          );
+          continue;
+        }
+        for (const periodId of periodIds) {
+          const personYears = personYearsForMonth(
+            anchors!,
+            Math.floor(periodId / 100),
+            periodId % 100,
+          );
+          lines.push(
+            [
+              ...names.slice(1, level).map(csvCell),
+              String(periodId),
+              csvCell(populationType),
+              String(personYears),
+            ].join(","),
+          );
+        }
+      }
+      if (uncovered.length > 0) {
+        problems.push(
+          `Population "${populationType}" at admin area level ${level} does not cover ${firstYear}–${lastYear} (±1 year of extrapolation) for ${uncovered.length} of ${areas.length} areas: ${
+            uncovered.slice(0, 10).join("; ")
+          }${uncovered.length > 10 ? "; …" : ""}`,
+        );
+      }
+    }
+    if (problems.length > 0) {
+      throw new Error(
+        `Cannot generate results: the population store does not cover the data. Upload the missing figures on the instance Population page (annual figures per area at level ${level}, one row per area × year × population type).\n\n${
+          problems.join("\n")
+        }`,
+      );
+    }
+  }
+
+  await Deno.writeTextFile(
+    runInputFilePath(tmpDir, POPULATION_FILE_NAME),
+    lines.join("\n") + "\n",
+  );
+  return {
+    adminAreaLevel: level,
+    populationTypes,
+    firstPeriodId: capture.periodRange.min,
+    lastPeriodId: capture.periodRange.max,
+  };
+}
+
+function csvCell(value: string): string {
+  return /[",\n\r]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value;
 }
 
 async function writeInputJson(

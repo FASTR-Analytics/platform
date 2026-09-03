@@ -54,9 +54,9 @@ export function IndicatorsManager(p: Props) {
     }),
   });
 
-  // One dictionary, one table (PLAN_1a §1.1): base, derived and
-  // population-rate indicators are all common indicators and differ only by a
-  // Type column, so the separate "Calculated indicators" tab is gone.
+  // One dictionary, one table (PLAN_1a §1.1): base and derived indicators
+  // are all common indicators and differ only by a Type column, so the
+  // separate "Calculated indicators" tab is gone.
   const [tab, setTab] = createSignal<"common" | "raw">("common");
   const tabItems: ListItem<"common" | "raw">[] = [
     {
@@ -248,23 +248,15 @@ function commonIndicatorTypeLabel(type: CommonIndicatorType): string {
       return t3({ en: "Base", fr: "De base", pt: "Base" });
     case "derived":
       return t3({ en: "Derived", fr: "Dérivé", pt: "Derivado" });
-    case "population_rate":
-      return t3({
-        en: "Population rate",
-        fr: "Taux de population",
-        pt: "Taxa populacional",
-      });
   }
 }
 
 // What the indicator is made of: raw mappings for a base indicator, the
-// formula itself for everything else. One derivation for display AND sort.
+// formula itself for a derived one. One derivation for display AND sort.
 function definedByText(indicator: CommonIndicatorWithMappings): string {
   return indicator.definition.type === "base"
     ? indicator.raw_indicator_ids.join(", ")
-    : indicator.definition.type === "derived"
-    ? indicator.definition.expression
-    : `(${indicator.definition.numeratorExpression}) / ${indicator.definition.populationType}`;
+    : indicator.definition.expression;
 }
 
 function CommonIndicatorsTable(p: {

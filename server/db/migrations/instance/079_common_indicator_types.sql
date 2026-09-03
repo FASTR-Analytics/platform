@@ -1,12 +1,13 @@
 -- ============================================================================
--- Typed common indicators (PLAN_1a §1.12) — calculated_indicators folds INTO
--- indicators, and the three dictionaries become three.
+-- Typed common indicators (PLAN_1a §1.12, PLAN_1c) — calculated_indicators
+-- folds INTO indicators.
 --
--- A common indicator now carries what it IS (base / derived / population_rate)
--- plus how it is presented. `expression` holds a derived indicator's formula
--- and a population rate's NUMERATOR expression; which of the population
--- columns must be set is decided by definition_type, exactly as the retired
--- calculated_indicators table decided its denom_* columns by denom_kind.
+-- A common indicator now carries what it IS (base / derived) plus how it is
+-- presented. `expression` holds a derived indicator's formula, which may
+-- divide by a population term written `[population:<type>]` — a type in the
+-- population_types vocabulary migration 080 creates and seeds. The text
+-- merely names the type; the app resolves it at save and at capture, so this
+-- migration does not touch the store and needs no FK.
 --
 -- The one-pass data move classifies every calculated_indicators row:
 --   identity alias   (denom none, num = own id)  → presentation fields land on
@@ -14,8 +15,15 @@
 --   ratio on its own numerator's id              → derived, id suffixed _rate
 --   alias of another common (denom none)         → single-ingredient derived
 --   indicator denominator                        → derived, num / denom
---   population denominator                       → population_rate
+--   population denominator                       → derived,
+--                                                  (num) / ([population:p] * f)
 --   anything else that collides                  → RAISE, with the listing
+--
+-- The population branch is m008-faithful (PLAN_1c ruling 4): m008 computed
+-- denominator = population × fraction × 1/12, and the 1/12 is exactly the
+-- person-years expansion the run performs, so dividing the numerator by the
+-- person-years term scaled by the fraction yields the ratio m008 produced.
+-- `format_as` carries across unchanged — it is display-only.
 --
 -- sort_order backfill (the authority for the rule is
 -- backfillCommonIndicatorSortOrder in lib/table_structures/indicators.ts,
@@ -67,8 +75,6 @@ END $$;
 ALTER TABLE indicators
   ADD COLUMN IF NOT EXISTS definition_type TEXT NOT NULL DEFAULT 'base',
   ADD COLUMN IF NOT EXISTS expression TEXT,
-  ADD COLUMN IF NOT EXISTS population_type TEXT,
-  ADD COLUMN IF NOT EXISTS population_multiplier REAL,
   ADD COLUMN IF NOT EXISTS format_as TEXT NOT NULL DEFAULT 'number',
   ADD COLUMN IF NOT EXISTS threshold_direction TEXT,
   ADD COLUMN IF NOT EXISTS threshold_green REAL,
@@ -82,27 +88,16 @@ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'indicators_definition_type_check'
   ) THEN
     ALTER TABLE indicators ADD CONSTRAINT indicators_definition_type_check
-      CHECK (definition_type IN ('base', 'derived', 'population_rate'));
+      CHECK (definition_type IN ('base', 'derived'));
   END IF;
 
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint WHERE conname = 'indicators_definition_fields_check'
   ) THEN
     ALTER TABLE indicators ADD CONSTRAINT indicators_definition_fields_check CHECK (
-      (definition_type = 'base'
-         AND expression IS NULL
-         AND population_type IS NULL
-         AND population_multiplier IS NULL)
+      (definition_type = 'base' AND expression IS NULL)
       OR
-      (definition_type = 'derived'
-         AND expression IS NOT NULL
-         AND population_type IS NULL
-         AND population_multiplier IS NULL)
-      OR
-      (definition_type = 'population_rate'
-         AND expression IS NOT NULL
-         AND population_type IS NOT NULL
-         AND population_multiplier IS NOT NULL)
+      (definition_type = 'derived' AND expression IS NOT NULL)
     );
   END IF;
 
@@ -136,7 +131,9 @@ DECLARE
   v_new_id TEXT;
   v_num TEXT;
   v_den TEXT;
+  v_fraction TEXT;
   v_collisions TEXT[] := ARRAY[]::TEXT[];
+  v_bad_population TEXT[] := ARRAY[]::TEXT[];
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.tables
@@ -226,15 +223,49 @@ BEGIN
         ci.group_label, ci.sort_order, CURRENT_TIMESTAMP
       );
     ELSE
+      IF ci.denom_population_type IS NULL
+         OR ci.denom_population_multiplier IS NULL
+         OR ci.denom_population_multiplier <= 0 THEN
+        v_bad_population := v_bad_population ||
+          format('%s (population type %s, multiplier %s)',
+                 ci.calculated_indicator_id,
+                 COALESCE(ci.denom_population_type, 'NULL'),
+                 COALESCE(ci.denom_population_multiplier::TEXT, 'NULL'));
+        CONTINUE;
+      END IF;
+      -- The fraction as a plain decimal literal: the expression grammar reads
+      -- [0-9]+(\.[0-9]+)? only, never an exponent. The column is REAL, so it
+      -- goes through its shortest round-trip text (0.04, not
+      -- 0.039999999105930328) into an exact numeric before formatting; FM
+      -- keeps the digits and leaves a bare trailing '.' for a whole number —
+      -- trailing zeros go first, then that '.'. A fraction too small to
+      -- survive ten decimals would format to '0' and is refused below.
+      v_fraction := regexp_replace(
+        regexp_replace(
+          to_char((ci.denom_population_multiplier::TEXT)::NUMERIC,
+                  'FM999999990.9999999999'),
+          '0+$', ''),
+        '\.$', '');
+      IF v_fraction = '' OR v_fraction = '0' THEN
+        v_bad_population := v_bad_population ||
+          format('%s (multiplier %s is too small to write as a decimal literal)',
+                 ci.calculated_indicator_id, ci.denom_population_multiplier);
+        CONTINUE;
+      END IF;
       INSERT INTO indicators (
         indicator_common_id, indicator_common_label, is_default,
-        definition_type, expression, population_type, population_multiplier,
+        definition_type, expression,
         format_as, threshold_direction, threshold_green, threshold_yellow,
         group_label, sort_order, updated_at
       ) VALUES (
         v_new_id, ci.label, FALSE,
-        'population_rate', v_num,
-        ci.denom_population_type, ci.denom_population_multiplier,
+        'derived',
+        '(' || v_num || ') / '
+          || CASE WHEN ci.denom_population_multiplier = 1
+               THEN '[population:' || ci.denom_population_type || ']'
+               ELSE '([population:' || ci.denom_population_type || '] * '
+                    || v_fraction || ')'
+             END,
         ci.format_as, ci.threshold_direction, ci.threshold_green, ci.threshold_yellow,
         ci.group_label, ci.sort_order, CURRENT_TIMESTAMP
       );
@@ -245,6 +276,12 @@ BEGIN
     RAISE EXCEPTION
       'Cannot fold calculated indicators into the common dictionary — id collisions: %',
       array_to_string(v_collisions, '; ');
+  END IF;
+
+  IF array_length(v_bad_population, 1) > 0 THEN
+    RAISE EXCEPTION
+      'Cannot fold population-denominated calculated indicators — the population type or multiplier is missing or not positive: %',
+      array_to_string(v_bad_population, '; ');
   END IF;
 END $$;
 

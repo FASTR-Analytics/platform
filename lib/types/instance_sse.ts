@@ -6,6 +6,11 @@ import type { UserPermissions } from "./permissions.ts";
 import type { GeoJsonMapSummary } from "./geojson_maps.ts";
 import type { InstanceCalendar, InstanceConfigAdminAreaLabels, InstanceFiscalYear, OtherUser, StructureFamilyCounts, StructureSchema } from "./instance.ts";
 import type { ProjectSummary } from "./projects.ts";
+import type {
+  InstancePopulationSummary,
+  PopulationCoverage,
+  PopulationTypeInfo,
+} from "./population.ts";
 import type { RunCatalogItem, RunProgress } from "./run_generation.ts";
 import type { HfaWeightsCoverage } from "./structure.ts";
 
@@ -78,7 +83,6 @@ export type InstanceState = {
     commonIndicators: number;
     rawIndicators: number;
     hfaIndicators: number;
-    derivedIndicators: number;
   };
   datasetsWithData: DatasetType[];
   datasetVersions: { hmis?: number; hfa?: number };
@@ -94,12 +98,19 @@ export type InstanceState = {
   hfaTimePoints: HfaTimePoint[];
   hfaCacheHash: string;
   icehCacheHash: string;
+  // The population store (PLAN_1b): its type vocabulary (the indicator
+  // editor's picker), per-(type, level) coverage against the HMIS structure
+  // (the manager page and the Data card), and the stamp that keys the T2
+  // rows cache. One event, `population_updated`, carries all three.
+  populationTypes: PopulationTypeInfo[];
+  populationCoverage: PopulationCoverage[];
+  populationLastUpdated: string | undefined;
 
   // Cache versioning (regular fields, read by dataset caches as version keys).
   // Two indicator stamps, split in PLAN_1a §1.13: the full one moves whenever
   // ANY common indicator changes and keys the indicator manager; the base one
-  // moves only when the extract-relevant rows change, so editing a derived or
-  // population-rate definition costs the HMIS datatable caches nothing.
+  // moves only when the extract-relevant rows change, so editing a derived
+  // definition costs the HMIS datatable caches nothing.
   indicatorMappingsVersion: string;
   baseIndicatorMappingsVersion: string;
   hfaIndicatorsVersion: string;
@@ -140,7 +151,6 @@ export type InstanceIndicatorsSummary = {
     commonIndicators: number;
     rawIndicators: number;
     hfaIndicators: number;
-    derivedIndicators: number;
   };
   indicatorMappingsVersion: string;
   baseIndicatorMappingsVersion: string;
@@ -197,4 +207,5 @@ export type InstanceSseMessage =
   | { type: "structure_updated"; data: InstanceStructureSummary }
   | { type: "indicators_updated"; data: InstanceIndicatorsSummary }
   | { type: "datasets_updated"; data: InstanceDatasetsSummary }
+  | { type: "population_updated"; data: InstancePopulationSummary }
   | { type: "error"; data: { message: string } };

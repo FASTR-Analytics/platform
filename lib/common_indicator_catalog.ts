@@ -9,9 +9,9 @@
 //
 // This is where "generation decides what the numbers are made of" happens: a
 // derived indicator's expression is FLATTENED here, so the row names nothing
-// but base commons, and each of those is assigned the ingredient column its
-// value will travel in. Everything downstream just sums columns and applies a
-// formula.
+// but leaves — base commons and `population:<type>` terms — and each of those
+// is assigned the ingredient column its value will travel in. Everything
+// downstream just sums columns and applies a formula.
 //
 // =============================================================================
 
@@ -20,7 +20,6 @@ import {
   buildIngredientSlotMap,
   IndicatorExpressionError,
   MAX_INDICATOR_EXPRESSION_INGREDIENTS,
-  MAX_POPULATION_RATE_NUMERATOR_INGREDIENTS,
   resolveIndicatorExpression,
   writeIdentifier,
   writeIndicatorExpression,
@@ -29,21 +28,21 @@ import type {
   CommonIndicator,
   CommonIndicatorType,
   IndicatorFormat,
-  PopulationType,
 } from "./types/indicators.ts";
+import {
+  parsePopulationIngredientId,
+  populationIngredientId,
+} from "./types/population.ts";
 
 // One row of the v2 `indicators.json` mirror. `expression` is flattened and
-// `slot_map` names the ingredient column of each base common it uses; a
-// population rate carries neither until its person-years term exists
-// (PLAN_1b), only the pieces its final expression is composed from.
+// `slot_map` names the ingredient column of each leaf it uses — a base common
+// or a `population:<type>` term, in first-appearance order, no slot special.
 export type CommonIndicatorCatalogRow = {
   indicator_common_id: string;
   indicator_common_label: string;
   type: CommonIndicatorType;
   expression: string | null;
   slot_map: Record<string, string> | null;
-  population_type: PopulationType | null;
-  population_multiplier: number | null;
   format_as: IndicatorFormat;
   threshold_direction: "higher_is_better" | "lower_is_better" | null;
   threshold_green: number | null;
@@ -62,22 +61,29 @@ export class CommonIndicatorCatalogError extends Error {
 // counts for (i.e. that have raw mappings). An expression that reaches outside
 // it would silently evaluate to NULL everywhere, so it fails the capture
 // instead — the same guard the retired numerator/denominator check performed,
-// now aware of chains.
+// now aware of chains. `populationTypeIds` is the store's vocabulary: a
+// `population:<type>` term resolves iff it names one. Whether the store
+// COVERS the data for that type is the person-years expansion's check at
+// prepare time (PLAN_1b ruling 6), not this one.
 export function resolveCommonIndicatorCatalog(
   commons: CommonIndicator[],
   baseIdsInData: Set<string>,
+  populationTypeIds: string[],
 ): CommonIndicatorCatalogRow[] {
-  const dictionary = buildExpressionDictionary(
-    commons.map((c) => ({
+  const dictionary = buildExpressionDictionary([
+    ...commons.map((c) => ({
       id: c.indicator_common_id,
       type: c.definition.type,
       expression: c.definition.type === "base"
         ? null
-        : c.definition.type === "derived"
-        ? c.definition.expression
-        : c.definition.numeratorExpression,
+        : c.definition.expression,
     })),
-  );
+    ...populationTypeIds.map((id) => ({
+      id: populationIngredientId(id),
+      type: "population" as const,
+      expression: null,
+    })),
+  ]);
 
   const problems: string[] = [];
   const rows: CommonIndicatorCatalogRow[] = [];
@@ -85,7 +91,7 @@ export function resolveCommonIndicatorCatalog(
   for (const common of commons) {
     const base: Omit<
       CommonIndicatorCatalogRow,
-      "type" | "expression" | "slot_map" | "population_type" | "population_multiplier"
+      "type" | "expression" | "slot_map"
     > = {
       indicator_common_id: common.indicator_common_id,
       indicator_common_label: common.indicator_common_label,
@@ -115,28 +121,18 @@ export function resolveCommonIndicatorCatalog(
         slot_map: hasData
           ? buildIngredientSlotMap([common.indicator_common_id])
           : null,
-        population_type: null,
-        population_multiplier: null,
       });
       continue;
     }
-
-    const definition = common.definition;
-    const source = definition.type === "population_rate"
-      ? definition.numeratorExpression
-      : definition.expression;
-    const maxIngredients = definition.type === "population_rate"
-      ? MAX_POPULATION_RATE_NUMERATOR_INGREDIENTS
-      : MAX_INDICATOR_EXPRESSION_INGREDIENTS;
 
     let ingredientIds: string[];
     let flattened: string;
     try {
       const resolved = resolveIndicatorExpression({
         ownId: common.indicator_common_id,
-        source,
+        source: common.definition.expression,
         dictionary,
-        maxIngredients,
+        maxIngredients: MAX_INDICATOR_EXPRESSION_INGREDIENTS,
       });
       ingredientIds = resolved.ingredientIds;
       flattened = writeIndicatorExpression(resolved.ast);
@@ -146,7 +142,9 @@ export function resolveCommonIndicatorCatalog(
       continue;
     }
 
-    const missing = ingredientIds.filter((id) => !baseIdsInData.has(id));
+    const missing = ingredientIds.filter((id) =>
+      parsePopulationIngredientId(id) === null && !baseIdsInData.has(id)
+    );
     if (missing.length > 0) {
       problems.push(
         `Indicator '${common.indicator_common_id}' is computed from ${
@@ -160,28 +158,11 @@ export function resolveCommonIndicatorCatalog(
       continue;
     }
 
-    if (definition.type === "population_rate") {
-      // Its final expression divides by person-years, which this release does
-      // not yet carry into a package (PLAN_1b). The definition travels; the
-      // evaluation does not.
-      rows.push({
-        ...base,
-        type: "population_rate",
-        expression: null,
-        slot_map: null,
-        population_type: definition.populationType,
-        population_multiplier: definition.multiplier,
-      });
-      continue;
-    }
-
     rows.push({
       ...base,
       type: "derived",
       expression: flattened,
       slot_map: buildIngredientSlotMap(ingredientIds),
-      population_type: null,
-      population_multiplier: null,
     });
   }
 
@@ -195,9 +176,10 @@ export function resolveCommonIndicatorCatalog(
 // script in place of its INDICATOR_INGREDIENTS token (PLAN_1a §1.5). This is
 // the WHOLE contract between the resolved catalog and the module that
 // materialises ingredient columns — the module sums the columns this names and
-// never parses an expression. An indicator the package cannot evaluate (a
-// population rate with no person-years term yet, a base common with no data)
-// has no slot map and contributes no rows.
+// never parses an expression. An indicator the package cannot evaluate (a base
+// common with no data) has no slot map and contributes no rows. A slot row
+// naming a `population:<type>` pseudo-ingredient is read by the module from
+// the run's person-years file under that same id.
 //
 // Rows are sorted by (indicator, slot) and NEVER left in catalog order: the
 // literal lands in `scriptText`, which `computeModuleKey` hashes, so catalog

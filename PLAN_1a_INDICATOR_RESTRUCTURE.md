@@ -1,7 +1,13 @@
 # PLAN_1a — Indicator restructure (typed commons, arbitrary expressions, m012, m007/m008 drop)
 
 Status: **BUILT 2026-09-01, all gates green — see §5 for the verified
-state and §6 for the release steps that remain.** Design ruled 2026-08-30
+state and §6 for the release steps that remain.** **AMENDED 2026-09-02 by
+[PLAN_1c_POPULATION_IN_EXPRESSIONS.md](PLAN_1c_POPULATION_IN_EXPRESSIONS.md)
+(ships in the same release): the `population_rate` type in §1.2, the
+multiplier, and the population branch of §1.12 are superseded — a
+population type is an expression ingredient `[population:<type>]`, and
+`format_as` is display-only with base forced to `number` (§1.4). Where
+this file and PLAN_1c disagree, PLAN_1c wins.** Design ruled 2026-08-30
 (Tim). Amended same day after a
 code-verified review round (every claim in it was independently verified
 against code before adoption), then amended again 2026-08-30 (Tim) to
@@ -10,7 +16,7 @@ make m012 an ORDINARY R MODULE rather than an app-executed DuckDB step
 they are not re-litigated). **All design decisions are made — there are
 no open rulings.** This file, with
 [PLAN_1b_POPULATION_STORE.md](PLAN_1b_POPULATION_STORE.md) and
-[PLAN_1c_MODULE_CLEANUP.md](PLAN_1c_MODULE_CLEANUP.md), replaced the
+[PLAN_1e_MODULE_CLEANUP.md](PLAN_1e_MODULE_CLEANUP.md), replaced the
 deleted `PLAN_1_COMMON_INDICATOR_TYPES.md`, whose query-time "hosting"
 mechanism is REJECTED (§1.14).
 
@@ -77,7 +83,10 @@ question in this plan is answered by one of them — never case-by-case:
 
 1. **Three dictionaries stay**; `calculated_indicators` folds INTO
    `indicators`.
-2. **Types on a common indicator:**
+2. **Types on a common indicator:** *(amended by PLAN_1c (2026-09-02):
+   two types only — `population_rate` is gone; a population is the
+   expression ingredient `[population:<type>]`, an ordinary leaf under the
+   uniform 8-slot cap.)*
    - `base` — defined by mappings (SUM of mapped raws at extract). No
      expression. The only type m001/m002 ever see.
    - `derived` — an ARBITRARY expression over 1..8 other commons (base or
@@ -120,7 +129,9 @@ question in this plan is answered by one of them — never case-by-case:
    and the read path throws re-parsing its own output.
 4. **Presentation fields on commons**: `format_as`
    (`percent|number|rate_per_10k`; base = `number`), thresholds?,
-   `group_label`, `sort_order`.
+   `group_label`, `sort_order`. *(amended by PLAN_1c (2026-09-02):
+   `format_as` is display-only and the SOLE scale; base is FORCED to
+   `number` by the editor and the server, derived chooses freely.)*
 5. **m012 — the indicator-values module (new, an ORDINARY R MODULE).**
    `scriptGenerationType: "template"`, exactly like m003 and m011: a
    static, reviewable `script.R` in the modules repo, executed by
@@ -355,6 +366,9 @@ question in this plan is answered by one of them — never case-by-case:
       `calculated_indicators` schema is strictly num + three-way denom
       (`lib/types/indicators.ts:109-126`).
 12. **Migration in ONE pass** (fleet checked read-only 2026-08-30):
+    *(amended by PLAN_1c (2026-09-02): the population branch writes
+    `derived` with `(num) / ([population:p] * f)`, m008-faithful; 079/080
+    are unreleased and were rewritten, not followed by a compat step.)*
     - *Identity alias* (denom `none`, num = own id — ethiopia `anc4`,
       `pnc1_2days`, `anc1_under12weeks`, `anc8`): presentation fields
       onto the base common; calculated row dropped.
@@ -414,7 +428,7 @@ question in this plan is answered by one of them — never case-by-case:
     adds a second executor, a second script-artifact file name, a
     generation-type enum member in two schemas, and a
     `package_internals.ts` change — to save a container start. It also
-    makes PLAN_1c harder: m012 folds into m003, and R→R is a merge where
+    makes PLAN_1e harder: m012 folds into m003, and R→R is a merge where
     DuckDB-step→R is a rewrite.
     **The line this draws, and it is the one that has always been drawn:
     generated LOGIC is rejected; a generated DATA LITERAL substituted into
@@ -434,12 +448,16 @@ question in this plan is answered by one of them — never case-by-case:
     in the schemas, the substituter, the reuse hasher and the workspace
     writer; the literal adds one `replaceAll` and nothing else.
 15. **m012 is DELIBERATELY TEMPORARY** — it folds into a redefined m003
-    in [PLAN_1c](PLAN_1c_MODULE_CLEANUP.md) (trigger recorded there).
+    in [PLAN_1e](PLAN_1e_MODULE_CLEANUP.md) (trigger recorded there).
     Nothing new hard-codes m12 ids beyond ordinary PO/preset storage.
     m003, m011, the SQL builders, and the fetch wire are UNTOUCHED by
     this plan.
 
 ## 2. Build — app
+
+*(amended by PLAN_1c (2026-09-02): the `population_rate` member, its
+fields and columns, and `MAX_POPULATION_RATE_NUMERATOR_INGREDIENTS` were
+deleted everywhere; the editor gained the expression palette.)*
 
 - `lib/types/indicators.ts`: `CommonIndicator.type` + `definition`
   (`{type:"base"} | {type:"derived"; expression} |
@@ -586,7 +604,7 @@ Verified 2026-09-01, all green in one pass:
 
 **m007/m008 — RULED 2026-09-01. CLOSED. Do not re-raise.** The `m007/`
 and `m008/` directories STAY in the modules repo, byte-frozen at HEAD,
-until [PLAN_1c](PLAN_1c_MODULE_CLEANUP.md) deletes them. Reason: every
+until [PLAN_1e](PLAN_1e_MODULE_CLEANUP.md) deletes them. Reason: every
 still-deployed pre-restructure app resolves its WHOLE registry — m007
 and m008 included — from the repo's HEAD at wizard time
 (`server/runs/generation_wizard_reads.ts` on the old app), so removing
@@ -595,9 +613,9 @@ down. They are FROZEN ARTIFACTS, not authored modules:
 `build_definitions.ts` skips them via `FROZEN_MODULE_DIRS` (their
 sources no longer validate under the current authoring schema — m008's
 `calculated_indicators` generation type left the GitHub enum in §1.11,
-by design), and PLAN_1c deletes the directories and that skip list in
+by design), and PLAN_1e deletes the directories and that skip list in
 one commit. Never rebuild them, never edit them, never delete them
-before 1c.
+before 1e.
 
 ## 6. What remains: release steps only, in order
 
@@ -618,11 +636,11 @@ before 1c.
    metric field; m012 is simply not offered until the new app lands).
    The new app CANNOT deploy before it (Repos section, top of file).
 4. **Production ships ONLY as one release with 1b**
-   ([PLAN_1b_POPULATION_STORE.md](PLAN_1b_POPULATION_STORE.md), NOT yet
-   built — that plan is the next unit of work). Order on release day:
+   ([PLAN_1b_POPULATION_STORE.md](PLAN_1b_POPULATION_STORE.md), BUILT
+   2026-09-02 — its own §Status has the verified state). Order on release day:
    modules push first, app second; a later app rollback stays safe
    (§1.9's version stamp).
 5. **After the fleet runs the new app**:
-   [PLAN_1c](PLAN_1c_MODULE_CLEANUP.md) — delete m007/m008 +
+   [PLAN_1e](PLAN_1e_MODULE_CLEANUP.md) — delete m007/m008 +
    `FROZEN_MODULE_DIRS`, fold m012 into m003.
 

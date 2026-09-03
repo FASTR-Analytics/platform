@@ -103,6 +103,7 @@ projects. `isReady` resets on project _switch_ but NOT on same-project reconnect
 | HMIS dataset summary  | `datasetsWithData`, `datasetVersions.hmis`, `hmisNVersions`, `hmisImportRunActive`, `hmisImportRunsQueued`, `hmisScheduledImportAttention` | `datasets_updated`           | `datasetVersions.hmis` + structure hash |
 | HFA dataset summary   | `datasetsWithData`, `datasetVersions.hfa`, `hfaTimePoints`, `hfaCacheHash`                                                                 | `datasets_updated`           | `hfaCacheHash`                          |
 | ICEH dataset summary  | `icehCacheHash`                                                                                                                            | `datasets_updated`           | `icehCacheHash`                         |
+| Population store      | `populationTypes` (the vocabulary), `populationCoverage` (per type × level vs the HMIS structure), `populationLastUpdated`                  | `population_updated`         | `populationLastUpdated`                 |
 | Current user          | `currentUserEmail`, `currentUserApproved`, `currentUserIsGlobalAdmin`, `currentUserPermissions`                                            | `users_updated` (re-derived) | —                                       |
 
 **Per-connection fields:** `currentUser*` are per-user, re-derived by finding
@@ -243,7 +244,7 @@ All use `createReactiveCache` with `pdsNotRequired: true`, except GeoJSON.
 
 | Data                               | File                        | Version key(s)                                                       |
 | ---------------------------------- | --------------------------- | -------------------------------------------------------------------- |
-| HMIS display items (data rows)     | `instance/t2_datasets.ts`   | `datasetVersions.hmis` + `baseIndicatorMappingsVersion` (base rows only — a derived/population-rate edit changes nothing here) + `structureLastUpdated` (HMIS schema hash in uniqueness keys) |
+| HMIS display items (data rows)     | `instance/t2_datasets.ts`   | `datasetVersions.hmis` + `baseIndicatorMappingsVersion` (base rows only — a derived edit changes nothing here) + `structureLastUpdated` (HMIS schema hash in uniqueness keys) |
 | HFA display items (data rows)      | `instance/t2_datasets.ts`   | `hfaCacheHash`                                                       |
 | ICEH display items (data rows)     | `instance/t2_datasets.ts`   | `icehCacheHash`                                                      |
 | HFA dictionary (variable metadata) | `instance/t2_datasets.ts`   | `hfaCacheHash`                                                       |
@@ -251,6 +252,7 @@ All use `createReactiveCache` with `pdsNotRequired: true`, except GeoJSON.
 | HFA indicator full list            | `instance/t2_indicators.ts` | `hfaIndicatorsVersion`                                               |
 | Structure items (facility/admin)   | `instance/t2_structure.ts`  | `family` + `structureLastUpdated` + `hashStructureSchema(family)`    |
 | GeoJSON map data                   | `instance/t2_geojson.ts`    | `uploadedAt` per (family, admin level)                               |
+| Population rows                    | `instance/t2_population.ts` | `populationLastUpdated` (bumped by every store write)                |
 | Results-package detail (settings + files per module) | `instance/t2_runs.ts` | `[runId]` + constant `"immutable"` — immutable-by-identity like `t2_images`; never invalidated (a ready run dir never changes) |
 
 - **HMIS special case:** the display cache is bypassed entirely (no read, no

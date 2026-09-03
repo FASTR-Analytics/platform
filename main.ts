@@ -43,6 +43,7 @@ import { routesUpload } from "./server/routes/instance/upload.ts";
 import { routesUsers } from "./server/routes/instance/users.ts";
 import { routesBackups } from "./server/routes/instance/backups.ts";
 import { routesGeoJsonMaps } from "./server/routes/instance/geojson_maps.ts";
+import { routesPopulation } from "./server/routes/instance/population.ts";
 import { routesInstanceModules } from "./server/routes/instance/modules.ts";
 import { routesInstanceSSE } from "./server/routes/instance/instance-sse.ts";
 
@@ -207,6 +208,7 @@ app.route("/", routesRunGeneration);
 app.route("/", routesBackups);
 app.route("/", routesAssets);
 app.route("/", routesGeoJsonMaps);
+app.route("/", routesPopulation);
 app.route("/", routesUpload);
 app.route("/", routesDatasets);
 app.route("/", routesDhis2Credentials);

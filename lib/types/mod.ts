@@ -17,6 +17,7 @@ export * from "./datasets_in_project.ts";
 export * from "./disaggregation_options.ts";
 export * from "./hfa_types.ts";
 export * from "./indicators.ts";
+export * from "./population.ts";
 export * from "./instance.ts";
 export * from "./instance_sse.ts";
 export * from "./_metric_installed.ts";

@@ -3,17 +3,12 @@ import type { InstanceIndicatorDetails } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
 // What a common indicator IS (PLAN_1a §1.2). The expression grammar itself is
-// checked server-side against the live dictionary — the shape check here only
-// says which fields each type carries.
+// checked server-side against the live dictionary and the population store —
+// the shape check here only says which fields each type carries. The
+// base→number format rule lives in the DB layer too, where the type is known.
 const commonIndicatorDefinitionSchema = z.union([
   z.object({ type: z.literal("base") }),
   z.object({ type: z.literal("derived"), expression: z.string() }),
-  z.object({
-    type: z.literal("population_rate"),
-    numeratorExpression: z.string(),
-    populationType: z.string(),
-    multiplier: z.number(),
-  }),
 ]);
 
 const commonIndicatorThresholdsSchema = z

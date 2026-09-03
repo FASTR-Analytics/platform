@@ -19,9 +19,11 @@
 //   3. facilityColumnsConfig → per-family structureSchemaHmis/Hfa slots
 //      (schema v5) — the structure family split (PLAN_2). Pure copy, no
 //      recompute, no parquet read.
-//   4. commonIndicators stamped from the package's own indicators mirror, and
-//      metrics[].catalog_expression_evaluation defaulted to null (schema v6)
-//      — the common-indicator restructure (PLAN_1a §1.9). Note what this
+//   4. commonIndicators stamped from the package's own indicators mirror,
+//      metrics[].catalog_expression_evaluation defaulted to null, and the
+//      `population` stamp defaulted to null (schema v6) — the
+//      common-indicator restructure (PLAN_1a §1.9) and the population store
+//      (PLAN_1b), one release. Note what this
 //      block does NOT do: it never patches indicators[]. Block 1 recomputes
 //      that catalog unconditionally on every forced pass through
 //      buildRunIndicatorCatalog, and the v6 additions to it (sort_order for
@@ -142,13 +144,15 @@ async function transformRunManifest(
   }
   m.manifestSchemaVersion = 5;
 
-  // 4. commonIndicators + metrics[].catalog_expression_evaluation. The first
-  //    is a recompute from the package's own indicators mirror through the
-  //    SAME function finalize stamps with — it moves the last per-request
-  //    mirror read off the read path. The second is not a recompute at all:
-  //    metrics[] is generation-only provenance, so a field that did not exist
-  //    when the package was written is carried forward as null, never
-  //    synthesized. Both are idempotent.
+  // 4. commonIndicators + metrics[].catalog_expression_evaluation +
+  //    population. The first is a recompute from the package's own indicators
+  //    mirror through the SAME function finalize stamps with — it moves the
+  //    last per-request mirror read off the read path. The other two are not
+  //    recomputes at all: metrics[] and the person-years stamp are
+  //    generation-only provenance, so a field that did not exist when the
+  //    package was written is carried forward as null, never synthesized
+  //    (a pre-1b package has no inputs/population.csv, and the stamp says
+  //    so). All three are idempotent.
   m.commonIndicators = await buildRunCommonIndicators(
     runDirInputRowsReader(runDir, z.array(z.string()).parse(m.inputFiles ?? [])),
   );
@@ -158,6 +162,9 @@ async function transformRunManifest(
         metric.catalog_expression_evaluation = null;
       }
     }
+  }
+  if (m.population === undefined) {
+    m.population = null;
   }
   m.manifestSchemaVersion = 6;
 

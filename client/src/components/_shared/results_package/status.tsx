@@ -101,15 +101,15 @@ export function ModuleProgressChip(p: {
 }) {
   return (
     <Badge intent={MODULE_PROGRESS_INTENT[p.status]}>
-      {p.label}
-      <Show when={p.status === "running"}>
-        {" "}
-        <span class="animate-pulse">●</span>
-      </Show>
-      <Show when={p.status === "reused"}>
-        {" "}
-        ({t3({ en: "reused", fr: "réutilisé", pt: "reutilizado" })})
-      </Show>
+      <span class="inline-flex items-center gap-1">
+        {p.label}
+        <Show when={p.status === "running"}>
+          <span class="animate-pulse">●</span>
+        </Show>
+        <Show when={p.status === "reused"}>
+          <span>({t3({ en: "reused", fr: "réutilisé", pt: "reutilizado" })})</span>
+        </Show>
+      </span>
     </Badge>
   );
 }

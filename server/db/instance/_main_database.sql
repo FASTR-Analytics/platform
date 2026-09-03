@@ -309,9 +309,20 @@ CREATE INDEX idx_facilities_hfa_facility_ownership ON facilities_hfa(facility_ow
 -- INDICATORS
 -- ============================================================================
 
+-- The population type vocabulary (PLAN_1b ruling 1): user-extensible, seeded
+-- with the six FASTR defaults by instance migration 080. A derived indicator's
+-- expression names a type as `[population:<type>]`; the app checks the
+-- reference at write and at capture, and refuses to delete a type in use.
+CREATE TABLE population_types (
+  id text PRIMARY KEY NOT NULL,
+  label text NOT NULL,
+  updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 -- A common indicator carries what it IS and how it is presented. `expression`
--- holds a derived indicator's formula and a population rate's NUMERATOR
--- expression; definition_type decides which population columns must be set.
+-- holds a derived indicator's formula (which may name a population type as
+-- `[population:<type>]`; the app validates the reference, there is no FK)
+-- and is NULL for a base one.
 CREATE TABLE indicators (
   indicator_common_id text PRIMARY KEY NOT NULL,
   indicator_common_label text NOT NULL,
@@ -319,8 +330,6 @@ CREATE TABLE indicators (
 
   definition_type text NOT NULL DEFAULT 'base',
   expression text,
-  population_type text,
-  population_multiplier real,
 
   format_as text NOT NULL DEFAULT 'number',
   threshold_direction text,
@@ -332,23 +341,12 @@ CREATE TABLE indicators (
   updated_at timestamptz DEFAULT CURRENT_TIMESTAMP,
 
   CONSTRAINT indicators_definition_type_check
-    CHECK (definition_type IN ('base', 'derived', 'population_rate')),
+    CHECK (definition_type IN ('base', 'derived')),
 
   CONSTRAINT indicators_definition_fields_check CHECK (
-    (definition_type = 'base'
-       AND expression IS NULL
-       AND population_type IS NULL
-       AND population_multiplier IS NULL)
+    (definition_type = 'base' AND expression IS NULL)
     OR
-    (definition_type = 'derived'
-       AND expression IS NOT NULL
-       AND population_type IS NULL
-       AND population_multiplier IS NULL)
-    OR
-    (definition_type = 'population_rate'
-       AND expression IS NOT NULL
-       AND population_type IS NOT NULL
-       AND population_multiplier IS NOT NULL)
+    (definition_type = 'derived' AND expression IS NOT NULL)
   ),
 
   CONSTRAINT indicators_format_as_check
@@ -384,6 +382,26 @@ CREATE INDEX idx_indicator_mappings_common_id ON indicator_mappings(indicator_co
 CREATE INDEX idx_indicator_mappings_raw_id ON indicator_mappings(indicator_raw_id);
 CREATE INDEX idx_indicator_mappings_updated_at ON indicator_mappings(updated_at DESC);
 CREATE INDEX idx_indicator_mappings_raw_common ON indicator_mappings(indicator_raw_id, indicator_common_id);
+
+-- The population store (PLAN_1b ruling 1): annual figures per admin area ×
+-- year × type, at the level the row was uploaded for. Names match the HMIS
+-- structure tables (validated at upload, never FK'd — a structure re-import
+-- must not silently delete population; a stale row is caught by the coverage
+-- check at generation). Levels coarser than `admin_area_level` carry the
+-- full path; finer columns carry ''.
+CREATE TABLE population (
+  population_type text NOT NULL REFERENCES population_types (id) ON DELETE CASCADE,
+  admin_area_level integer NOT NULL CHECK (admin_area_level IN (2, 3, 4)),
+  admin_area_1 text NOT NULL,
+  admin_area_2 text NOT NULL,
+  admin_area_3 text NOT NULL DEFAULT '',
+  admin_area_4 text NOT NULL DEFAULT '',
+  year integer NOT NULL,
+  count double precision NOT NULL CHECK (count >= 0),
+  PRIMARY KEY (population_type, admin_area_level, admin_area_1, admin_area_2, admin_area_3, admin_area_4, year)
+);
+
+CREATE INDEX idx_population_type_level ON population(population_type, admin_area_level);
 
 -- ============================================================================
 -- FACILITY AND AA UPLOAD AND IMPORT TRACKING

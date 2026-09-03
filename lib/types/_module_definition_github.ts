@@ -48,9 +48,21 @@ const dataSourceResultsObjectGithub = z.object({
   moduleId: z.string(),
 });
 
+// The run's person-years file (inputs/population.csv, PLAN_1b ruling 4):
+// monthly person-years per population type at the HMIS structure's finest
+// admin level, expanded at capture from the instance population store. It is
+// not a dataset family — it accompanies the HMIS family and is written on
+// every HMIS capture (header-only when no expression names a population), so a
+// module declaring it needs the hmis dataset in the run and nothing else.
+const dataSourcePopulationGithub = z.object({
+  sourceType: z.literal("population"),
+  replacementString: z.string(),
+});
+
 const dataSourceGithub = z.discriminatedUnion("sourceType", [
   dataSourceDatasetGithub,
   dataSourceResultsObjectGithub,
+  dataSourcePopulationGithub,
 ]);
 
 const moduleParameterInputGithub = z.discriminatedUnion("inputType", [

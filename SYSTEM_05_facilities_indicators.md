@@ -8,19 +8,23 @@ globs:
   - client/src/components/indicator_manager_hmis/**
   - client/src/components/instance_geojson/**
   - client/src/components/instance_hfa_time_points/**
+  - client/src/components/instance_population/**
   - client/src/components/structure/**
   - client/src/components/structure_import/**
   - client/src/state/instance/t2_geojson.ts
   - client/src/state/instance/t2_indicators.ts
+  - client/src/state/instance/t2_population.ts
   - client/src/state/instance/t2_structure.ts
   - lib/common_indicator_catalog.ts
   - lib/hfa_indicator_labels.ts
   - lib/hfa_r_code_analysis.ts
   - lib/indicator_expression/**
+  - lib/population_person_years.ts
   - lib/types/geojson_maps.ts
   - lib/types/hfa_types.ts
   - lib/types/iceh_strats.ts
   - lib/types/indicators.ts
+  - lib/types/population.ts
   - lib/types/structure.ts
   - server/db/instance/config.ts
   - server/db/instance/geojson_maps.ts
@@ -28,6 +32,7 @@ globs:
   - server/db/instance/hfa_indicators.ts
   - server/db/instance/indicators.ts
   - server/db/instance/instance.ts
+  - server/db/instance/population.ts
   - server/db/instance/structure.ts
   - server/geojson/**
   - server/routes/instance/geojson_maps.ts
@@ -35,6 +40,7 @@ globs:
   - server/routes/instance/hfa_time_points.ts
   - server/routes/instance/indicators.ts
   - server/routes/instance/instance.ts
+  - server/routes/instance/population.ts
   - server/routes/instance/structure.ts
   - server/server_only_funcs_importing/**
 docs_absorbed:
@@ -363,13 +369,22 @@ same `with()`. Filter-variable missingness stays an explicit branch, because
 `M10_hfa_response_status.csv` no longer share a denominator — a facility can
 hold a determinate 0 while its per-variable status reads `missing`.
 
-**Derived and population-rate commons** are defined by an expression over
-other commons. There is no separate id grammar: an identifier is written
+**Derived commons** are defined by an expression over other commons and
+population terms. There is no separate id grammar: an identifier is written
 bare when it matches `^[a-z][a-z0-9_]*$` and `[in brackets]` otherwise, so
-every common id is usable regardless of charset. `assertValidPopulationType`
-guards the population term at the write boundary. The catalog is resolved at
-HMIS capture (`resolveCommonIndicatorCatalog`), which refuses the whole
-capture with a listing when any flattened ingredient is absent from the data.
+every common id is usable regardless of charset. A population term is the
+identifier `population:<type>` (always bracketed — `:` is outside the bare
+charset and forbidden in indicator ids), which resolves iff `<type>` is a row
+of `population_types` (the Population store below); it is a leaf like a base
+common, takes an ordinary ingredient slot in first-appearance order, and
+counts toward the uniform 8-slot cap (PLAN_1c). The dictionary the resolver
+works from is the commons PLUS one `population` entry per store type, at
+authoring (`checkDefinitionsResolve`, which names the Population page for an
+unknown type) and at HMIS capture (`resolveCommonIndicatorCatalog`, which
+refuses the whole capture with a listing when any flattened ingredient
+indicator is absent from the data — population coverage is the person-years
+expansion's check, S8). Raw indicator ids are NOT ingredients: the extract
+and m001/m002 are per COMMON indicator, so a raw has no column to sum.
 
 **Ruling — the additivity principle (Tim, 2026-08-19; the target model,
 not yet built).** *The pipeline only ever stores, adjusts, and aggregates
@@ -386,12 +401,14 @@ pointers only. Consequences that follow from it and are ruled with it:
   - `derived` — an ARBITRARY expression over other commons, base or derived
     (`+ - * /`, parentheses, literals, `abs`/`coalesce`/`nullif`; chained by
     substitution, cycles and depth rejected). Never negotiable down to
-    numerator/denominator.
-  - `population_rate` — a numerator expression over commons ONLY, divided by
-    person-years of a named population and scaled. Its grain is area×month,
-    not facility×month; population lives in its own store (S8) and is
-    expanded stock→flow at run capture, so downstream it sums like any
-    count. Type and migration are built; evaluation ships with PLAN_1b.
+    numerator/denominator. It may divide by a population term
+    `[population:<type>]` — person-years of that population, whose grain is
+    area×month, not facility×month: population lives in the instance
+    Population store (below) and is expanded stock→flow at run capture (S8),
+    so downstream it sums like any count. `format_as` is display-only and
+    the sole scale — there is no value-level multiplier (PLAN_1c §0 records
+    the defect that rule fixes); a `base` common is a count and is forced
+    to `number`, a `derived` one chooses freely.
 
   **Generation decides what the numbers are made of; the query only
   aggregates and applies the formula.** At generation the expression is
@@ -409,8 +426,8 @@ pointers only. Consequences that follow from it and are ruled with it:
   capture, so a package stays standalone and an edit still means a new run.
   The authoring validator (`checkDefinitionsResolve`) enforces the same
   rules at the write boundary that capture enforces at the data boundary,
-  including on rows the write does not touch: retyping a common to
-  `population_rate` is refused when a chain runs through it.
+  including on rows the write does not touch: repointing a common at a new
+  expression is refused when it breaks a chain that runs through it.
 - Presentation fields (`format_as`, thresholds, group, sort) live on the
   common indicator; `format_as` is DISPLAY, the `type` carries pipeline
   semantics — "percent" is not a pipeline property, "is a ratio of counts"
@@ -445,6 +462,50 @@ from the previous latest round. Time-point routes notify the **datasets**
 SSE channel (they are upload-gating state), and rename/delete additionally
 bump `structure_last_updated` + notify structure because of the weights
 cascades.
+
+## Population store
+
+**What it is (PLAN_1b, 2026-09-02).** Annual population STOCKS per admin
+area × year × population type, in the main DB: `population_types` (id,
+label — user-extensible; seeded with the six FASTR defaults by instance
+migration 080, and the ONLY vocabulary an expression's `[population:<type>]`
+term may name — referenced from expressions, not from a typed field; no FK,
+the resolver checks it at save and at capture, PLAN_1c) and `population`
+(type, `admin_area_level` 2–4,
+the full `admin_area_1..4` name path with `''` below the level, year,
+count ≥ 0; PK over all of them). Names match the HMIS structure tables but
+are deliberately NOT FK'd: a structure re-import must not silently delete
+population, and a stale row is caught by the coverage check at generation.
+There is no per-project copy and no dataset family — population accompanies
+the HMIS family into a results package (S8 "population.csv"). Nothing was
+imported from the retired `population.csv` asset (Tim, 2026-08-30):
+instances re-enter figures through the validated page.
+
+**Writes** (`server/db/instance/population.ts`, routes
+`server/routes/instance/population.ts`, all `can_configure_data`):
+fixed-column CSV import (`admin_area_2 [admin_area_3 [admin_area_4]], year,
+population_type, count`, optional `admin_area_1`; the level is the deepest
+admin column present; every area path must exist in `admin_areas_hmis_L`,
+every type must exist, no duplicate keys, ≤ the family's `adminDepth`;
+problems reject the whole file with a numbered listing) — rows UPSERT by
+key, so a later file adds years or corrects figures; per-(type, level)
+delete; delete-all; type create (indicator-id charset rule — the id is
+written into R literals and CSV) / relabel / delete (refused with a listing
+while ANY stored derived expression names it — the guard re-parses every
+expression and checks identifiers, the way common-indicator deletion
+re-resolves survivors; the type's rows cascade). Every write stamps
+`population_last_updated` in `instance_config`.
+
+**Reads.** `population_updated` SSE carries the vocabulary, the
+per-(type, level) coverage against the HMIS structure (`complete` = every
+structure area × every stored year has a row — exactly what generation
+needs) and the stamp; the T1 store holds all three
+(`populationTypes`/`populationCoverage`/`populationLastUpdated`), the
+indicator editor's population picker and legend read the vocabulary from T1, and the manager
+page (`client/src/components/instance_population/`) fetches the rows through
+a T2 cache keyed on the stamp. Export is CSV in the import format. At
+generation, `getPopulationAnchors` reads one (type, level) as per-area
+anchors for the person-years expansion (S8).
 
 ## Geojson boundaries
 
@@ -538,8 +599,18 @@ Every config mutation re-reads all configs and pushes one consolidated
   tables: `indicatorMappingsVersion` covers EVERY common indicator row and
   keys the indicator manager, while `baseIndicatorMappingsVersion` counts
   only `definition_type = 'base'` rows and is what the HMIS datatable views
-  key on — so editing a derived or population-rate definition costs those
-  caches nothing. `hfaIndicatorsVersion` and `hfaCacheHash` are unchanged.
+  key on — so editing a derived definition costs those caches nothing.
+  `hfaIndicatorsVersion` and `hfaCacheHash` are unchanged.
+- The common-indicator editor's expression palette (PLAN_1c ruling 7;
+  storage unchanged, no alias layer): two "Insert …" pickers above the
+  formula box — indicators (label-searchable, commons only, never the one
+  being edited) and populations (from T1 `populationTypes`) — insert the
+  correctly WRITTEN identifier (`writeIdentifier`) at the caret; a live
+  legend under the box lists every identifier the formula references with
+  its label, kind (indicator / population) and a "not found" mark, driven by
+  the same resolver the form validates with, and shows the annualisation
+  caption whenever a population term is present. The bracket form is
+  something a user sees, not something they must type.
 - The structure wizard: server owns the step number (every save writes
   `step`; the client fetcher jumps the stepper on each silent refetch).
   Errors render as a dismissible banner over navigable steps (re-saving

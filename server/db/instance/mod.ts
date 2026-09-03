@@ -16,6 +16,7 @@ export * from "./structure.ts";
 export * from "./rename_user_email.ts";
 export * from "./users.ts";
 export * from "./geojson_maps.ts";
+export * from "./population.ts";
 export * from "./hfa_facility_weights.ts";
 export * from "./hfa_indicators.ts";
 export * from "./custom_prompts.ts";

@@ -158,7 +158,7 @@ a `queue: []` + `ReadableStream` controller; **project** uses a
 **The notify catalog (normative).** Every broadcast to the two SSE channels goes
 through a typed wrapper — never `postMessage` directly.
 `server/task_management/notify_instance_updated.ts` exposes
-`notifyInstanceUpdate(message)` plus twelve wrappers, one per
+`notifyInstanceUpdate(message)` plus thirteen wrappers, one per
 `InstanceSseMessage` type: `notifyInstanceConfigUpdated` (`config_updated`),
 `notifyInstanceProjectsLastUpdated` (`projects_last_updated`),
 `notifyInstanceUsersUpdated` (`users_updated`), `notifyInstanceAssetsUpdated`
@@ -166,6 +166,10 @@ through a typed wrapper — never `postMessage` directly.
 `notifyInstanceStructureUpdated` (`structure_updated`),
 `notifyInstanceIndicatorsUpdated` (`indicators_updated`),
 `notifyInstanceDatasetsUpdated` (`datasets_updated`),
+`notifyInstancePopulationUpdated` (`population_updated` — the population
+store's type vocabulary, per-(type, level) coverage and
+`population_last_updated` stamp, fired by every write to either store table;
+S5 "Population store"),
 `notifyInstanceRunsCatalogUpdated` (`runs_catalog_updated` — a data-free
 NONCE, `crypto.randomUUID()`: a timestamp collided when two mutations landed
 in the same millisecond and the client store's equality guard dropped the

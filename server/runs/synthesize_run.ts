@@ -1,6 +1,7 @@
 import { join } from "@std/path";
 import type { Sql } from "postgres";
 import {
+  catalogExpressionEvaluationStrict,
   getAssetToImportName,
   getDatasetFamily,
   postAggregationExpressionStrict,
@@ -17,6 +18,7 @@ import {
   type RunMetric,
   type RunMetricAvailability,
   type RunModule,
+  type RunPopulation,
   type RunProvenance,
   type RunResultsObject,
   type RunSummary,
@@ -99,6 +101,9 @@ export type RunBuildSource =
     datasets: RunDataset[];
     // Input mirrors/facilities the caller already wrote into the tmp dir.
     facilitiesTables: RunFacilitiesTable[];
+    // The person-years file the caller wrote (null without an HMIS
+    // capture); a backfill never has one.
+    population: RunPopulation | null;
   };
 
 export type RunBuildOptions = {
@@ -523,6 +528,7 @@ SELECT dataset_type, info, last_updated FROM datasets
     metricAvailability,
     indicators,
     commonIndicators,
+    population: src.kind === "captured" ? src.population : null,
     inputFiles,
   };
   runManifestSchema.parse(manifest);
@@ -678,7 +684,7 @@ async function readParquetQueryMetadata(parquetPath: string): Promise<{
   return { columns, columnNames, physicalTimeColumn, rowCount, periodBounds };
 }
 
-function computeMetricAvailability(
+export function computeMetricAvailability(
   metric: RunMetric,
   resultsObjects: RunResultsObject[],
 ): RunMetricAvailability {
@@ -695,14 +701,7 @@ function computeMetricAvailability(
     return unavailable("results object has no rows");
   }
   const columnNames = new Set(ro.columns.map((c) => c.name));
-  const pae = metric.post_aggregation_expression
-    ? postAggregationExpressionStrict.parse(
-        JSON.parse(metric.post_aggregation_expression),
-      )
-    : undefined;
-  const neededProps = pae
-    ? pae.ingredientValues.map((v) => v.prop)
-    : (JSON.parse(metric.value_props) as string[]);
+  const neededProps = requiredPhysicalProps(metric);
   const missingProps = neededProps.filter((p) => !columnNames.has(p));
   if (missingProps.length > 0) {
     return unavailable(
@@ -721,4 +720,22 @@ function computeMetricAvailability(
     );
   }
   return { metricId: metric.id, status: "available", reason: null };
+}
+
+// The columns a metric reads from the parquet. A catalog-evaluated metric's
+// `value` is synthesized at read time from its ingredient columns, and a
+// post-aggregation metric's props are its ingredients; only a plain metric
+// reads its value props directly.
+function requiredPhysicalProps(metric: RunMetric): string[] {
+  if (metric.catalog_expression_evaluation) {
+    return catalogExpressionEvaluationStrict.parse(
+      JSON.parse(metric.catalog_expression_evaluation),
+    ).ingredientProps;
+  }
+  if (metric.post_aggregation_expression) {
+    return postAggregationExpressionStrict
+      .parse(JSON.parse(metric.post_aggregation_expression))
+      .ingredientValues.map((v) => v.prop);
+  }
+  return JSON.parse(metric.value_props) as string[];
 }

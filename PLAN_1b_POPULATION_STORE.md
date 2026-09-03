@@ -1,7 +1,15 @@
 # PLAN_1b — Population store + population_rate evaluation
 
-Status: DESIGN RULED 2026-08-30 (Tim); amended same day after the
-code-verified review round. Nothing built. **ONE RELEASE with
+Status: **BUILT 2026-09-02, all gates green — see §Status at the end.**
+**AMENDED the same day by
+[PLAN_1c_POPULATION_IN_EXPRESSIONS.md](PLAN_1c_POPULATION_IN_EXPRESSIONS.md)
+(not yet built, same release): ruling 5's `num / person_years *
+multiplier` composition was wrong — the migrated multipliers are m008's
+denominator fractions — and is replaced by population terms written
+directly in expressions. The store, the person-years file, the coverage
+check and m012's contract stand; where this file and PLAN_1c disagree,
+PLAN_1c wins.** Design ruled 2026-08-30 (Tim); amended same day after the
+code-verified review round. **ONE RELEASE with
 [PLAN_1a_INDICATOR_RESTRUCTURE.md](PLAN_1a_INDICATOR_RESTRUCTURE.md)** —
 1a migrates population-denominated calculated indicators to type
 `population_rate`; this plan makes them evaluate. Nothing ships until both
@@ -48,7 +56,10 @@ writer stays in
    population rates ride m012's file as ordinary rows. Rates over stocks
    are annualised — labels/AI descriptions say so; per-period rates over
    stocks are not expressible and not offered.
-5. **m012's generation step gains population_rate rows**: the
+5. *(amended by PLAN_1c (2026-09-02): no composition and no multiplier —
+   `[population:<type>]` is written in the expression itself and takes an
+   ordinary slot; the run's needed types are read off the slot maps.)*
+   **m012's generation step gains population_rate rows**: the
    `numeratorExpression`'s ingredient sums as for any derived row (at
    most 7 — 1a §1.2), plus person-years assigned BY THE STEP to the
    eighth slot; the step composes the final catalog expression
@@ -98,3 +109,65 @@ population-denominated indicators (ethiopia `skilled_deliv`; kenya
 `htn_new_per_10000`, `diabetes_new_per_10000`; somaliland ×1) — checked
 against their old m008 scorecard values, expecting small mid-year-anchor
 shifts only.
+
+## Status (2026-09-02): BUILT, verified, no code work outstanding
+
+Everything in §Build is in the working trees of the app, the modules repo
+(m012's `population` data source + `script.R`, the metric's annualisation
+text, `.validation/` re-sync, `deno task build` green) and the site
+(`admin-guide/indicators.md` en + fr). Uncommitted in all three; the
+release steps are PLAN_1a §6, unchanged.
+
+What was built, where the plan left a choice:
+
+- **Store shape.** `population_types` (id, label, seeded by migration 080
+  with the six defaults; `indicators.population_type` is an FK into it —
+  the compile-time `POPULATION_TYPES` catalog is deleted) and `population`
+  (type, `admin_area_level` 2–4, full `admin_area_1..4` name path, year,
+  count). Names are validated against `admin_areas_hmis_L` at upload but
+  NOT FK'd (a structure re-import must not silently delete population).
+- **Upload semantics.** Fixed columns (`admin_area_2 [admin_area_3
+  [admin_area_4]], year, population_type, count`, optional `admin_area_1`);
+  the deepest admin column sets the level; rows UPSERT by key, with
+  per-(type, level) and delete-all removal. Types are user-extensible on
+  the same page (create / relabel / delete; delete refused while an
+  indicator names the type).
+- **Person-years file.** `inputs/population.csv` (admin_area_2..N,
+  period_id, population_type, person_years) written on EVERY HMIS capture
+  — header-only when no population rate in the catalog needs it — so m012
+  can declare it unconditionally as a new `population` dataSource kind
+  (github + installed schemas), whose content hash enters the module
+  inputKey like a dataset extract. Coverage is checked per structure area
+  at the family's `adminDepth` (the finest level = m012's grain): every
+  area must hold anchors whose years ±1 cover the extract's years, else
+  generation fails naming the Population page and the first ten areas.
+- **Composition.** *(amended by PLAN_1c (2026-09-02): superseded — the
+  catalog no longer composes anything; the population term is an ordinary
+  ingredient of the stored expression.)* `resolveCommonIndicatorCatalog` composes a population
+  rate's expression `(numerator) / [population:<type>] * multiplier` with
+  the pseudo-ingredient in `ing8`; m012's R binds the person-years rows in
+  under that same `population:<type>` id, so the join, the evaluator and
+  the read path have no population branch. `writeNumberLiteral` writes the
+  multiplier in plain decimal (§1.3's `String()` trap).
+- **Manifest.** v6 (unreleased, so amended rather than bumped) gained a
+  `population` stamp `{adminAreaLevel, populationTypes, firstPeriodId,
+  lastPeriodId} | null`; transform block 4 carries null forward.
+- **Annualisation** is stated in the editor caption under the multiplier
+  and in `m12-01-01`'s AI interpretation + caveats.
+
+Verified 2026-09-02, all green in one pass: `deno task typecheck` (server +
+client + `lint:systems`), `./validate_migrations`, `./validate_queries`
+(63/63, engine untouched), modules `deno task build`. Harnesses executed
+against the real code, deliberately not kept (§Verification says how to
+rebuild each): the person-years library (mid-month linear interpolation,
+geometric ±1y extrapolation, flat single/zero anchors, twelve months summing
+to the annual stock, the coverage window, plain-decimal literals
+re-parsing); the composed population-rate row (expression text, `ing8`,
+evaluation 120/240×1000 = 500, NULL on missing or zero person-years, the
+single-line ingredient literal); m012's REAL `script.R` under local Rscript
+with a person-years fixture (rates per area, base rows carrying no `ing8`,
+and a roll-up over SUMMED ingredients giving 116.67 rather than the 100
+mean of 150 and 50); and the manifest transform (a pre-stamp v6 and a v5
+both come out stamped null and byte-stable on re-run; a stamped v6 is left
+alone). The fleet validation targets above are a post-deploy check on the
+testing instance, not a gate.

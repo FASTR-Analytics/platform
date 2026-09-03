@@ -12,8 +12,7 @@ import {
   IndicatorExpressionError,
   type InstanceIndicatorDetails,
   MAX_INDICATOR_EXPRESSION_INGREDIENTS,
-  MAX_POPULATION_RATE_NUMERATOR_INGREDIENTS,
-  type PopulationType,
+  populationIngredientId,
   resolveIndicatorExpression,
 } from "lib";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
@@ -21,16 +20,13 @@ import { resolveAssetFilePath } from "./assets.ts";
 import { readCsvFile } from "@timroberton/panther";
 
 // The stored shape of one common indicator. `expression` carries a derived
-// indicator's formula and a population rate's NUMERATOR expression;
-// definition_type says which (PLAN_1a §1.2).
+// indicator's formula and is NULL for a base one (PLAN_1a §1.2).
 export type DBIndicatorCommon = {
   indicator_common_id: string;
   indicator_common_label: string;
   is_default: boolean;
-  definition_type: "base" | "derived" | "population_rate";
+  definition_type: "base" | "derived";
   expression: string | null;
-  population_type: PopulationType | null;
-  population_multiplier: number | null;
   format_as: "percent" | "number" | "rate_per_10k";
   threshold_direction: "higher_is_better" | "lower_is_better" | null;
   threshold_green: number | null;
@@ -40,7 +36,7 @@ export type DBIndicatorCommon = {
 };
 
 const COMMON_INDICATOR_COLUMNS =
-  `indicator_common_id, indicator_common_label, is_default, definition_type, expression, population_type, population_multiplier, format_as, threshold_direction, threshold_green, threshold_yellow, group_label, sort_order`;
+  `indicator_common_id, indicator_common_label, is_default, definition_type, expression, format_as, threshold_direction, threshold_green, threshold_yellow, group_label, sort_order`;
 
 export function dbRowToCommonIndicator(row: DBIndicatorCommon): CommonIndicator {
   return {
@@ -67,21 +63,12 @@ function dbRowToDefinition(row: DBIndicatorCommon): CommonIndicatorDefinition {
       return { type: "base" };
     case "derived":
       return { type: "derived", expression: row.expression! };
-    case "population_rate":
-      return {
-        type: "population_rate",
-        numeratorExpression: row.expression!,
-        populationType: row.population_type!,
-        multiplier: row.population_multiplier!,
-      };
   }
 }
 
 type DefinitionFields = {
   definition_type: CommonIndicatorDefinition["type"];
   expression: string | null;
-  population_type: PopulationType | null;
-  population_multiplier: number | null;
 };
 
 function definitionFields(
@@ -89,27 +76,50 @@ function definitionFields(
 ): DefinitionFields {
   switch (definition.type) {
     case "base":
-      return {
-        definition_type: "base",
-        expression: null,
-        population_type: null,
-        population_multiplier: null,
-      };
+      return { definition_type: "base", expression: null };
     case "derived":
-      return {
-        definition_type: "derived",
-        expression: definition.expression,
-        population_type: null,
-        population_multiplier: null,
-      };
-    case "population_rate":
-      return {
-        definition_type: "population_rate",
-        expression: definition.numeratorExpression,
-        population_type: definition.populationType,
-        population_multiplier: definition.multiplier,
-      };
+      return { definition_type: "derived", expression: definition.expression };
   }
+}
+
+// `format_as` is display-only and the sole scale (PLAN_1c ruling 3). A base
+// indicator is a count, so it is always a number; a derived one chooses.
+function formatRuleError(
+  definition: CommonIndicatorDefinition,
+  formatAs: CommonIndicator["format_as"],
+): string | undefined {
+  return definition.type === "base" && formatAs !== "number"
+    ? "A base indicator is a count and is always formatted as a number"
+    : undefined;
+}
+
+// The live expression dictionary: every common indicator, plus every
+// population type under its `population:<type>` ingredient id.
+async function loadExpressionDictionaryEntries(
+  sql: Sql,
+): Promise<ExpressionDictionaryEntry[]> {
+  const stored = await sql<
+    {
+      indicator_common_id: string;
+      definition_type: "base" | "derived";
+      expression: string | null;
+    }[]
+  >`SELECT indicator_common_id, definition_type, expression FROM indicators`;
+  const populationTypes = await sql<{ id: string }[]>`
+    SELECT id FROM population_types
+  `;
+  return [
+    ...stored.map((r) => ({
+      id: r.indicator_common_id,
+      type: r.definition_type,
+      expression: r.expression,
+    })),
+    ...populationTypes.map((r) => ({
+      id: populationIngredientId(r.id),
+      type: "population" as const,
+      expression: null,
+    })),
+  ];
 }
 
 // =============================================================================
@@ -205,25 +215,16 @@ async function checkDefinitionsResolve(
   mainDb: Sql,
   pendingDefinitions: Map<string, CommonIndicatorDefinition>,
 ): Promise<string | undefined> {
-  const stored = await mainDb.unsafe<
-    { indicator_common_id: string; definition_type: string; expression: string | null }[]
-  >(`SELECT indicator_common_id, definition_type, expression FROM indicators`);
+  // The resolver reports an unknown `population:<type>` term itself, naming
+  // the Population page — the store's types are ordinary dictionary entries.
   const entries = new Map<string, ExpressionDictionaryEntry>(
-    stored.map((r) => [r.indicator_common_id, {
-      id: r.indicator_common_id,
-      type: r.definition_type as ExpressionDictionaryEntry["type"],
-      expression: r.expression,
-    }]),
+    (await loadExpressionDictionaryEntries(mainDb)).map((e) => [e.id, e]),
   );
   for (const [id, definition] of pendingDefinitions) {
     entries.set(id, {
       id,
       type: definition.type,
-      expression: definition.type === "base"
-        ? null
-        : definition.type === "derived"
-        ? definition.expression
-        : definition.numeratorExpression,
+      expression: definition.type === "base" ? null : definition.expression,
     });
   }
   const dictionary = buildExpressionDictionary([...entries.values()]);
@@ -232,13 +233,9 @@ async function checkDefinitionsResolve(
     try {
       resolveIndicatorExpression({
         ownId: id,
-        source: definition.type === "derived"
-          ? definition.expression
-          : definition.numeratorExpression,
+        source: definition.expression,
         dictionary,
-        maxIngredients: definition.type === "derived"
-          ? MAX_INDICATOR_EXPRESSION_INGREDIENTS
-          : MAX_POPULATION_RATE_NUMERATOR_INGREDIENTS,
+        maxIngredients: MAX_INDICATOR_EXPRESSION_INGREDIENTS,
       });
     } catch (e) {
       if (e instanceof IndicatorExpressionError) return e.message;
@@ -246,18 +243,16 @@ async function checkDefinitionsResolve(
     }
   }
   // A write can also break an indicator that is not itself being written —
-  // retyping a common to population_rate, or repointing it at a new
-  // expression, invalidates every chain that runs through it.
+  // repointing a common at a new expression invalidates every chain that
+  // runs through it.
   for (const entry of entries.values()) {
-    if (entry.type === "base" || pendingDefinitions.has(entry.id)) continue;
+    if (entry.type !== "derived" || pendingDefinitions.has(entry.id)) continue;
     try {
       resolveIndicatorExpression({
         ownId: entry.id,
         source: entry.expression ?? "",
         dictionary,
-        maxIngredients: entry.type === "derived"
-          ? MAX_INDICATOR_EXPRESSION_INGREDIENTS
-          : MAX_POPULATION_RATE_NUMERATOR_INGREDIENTS,
+        maxIngredients: MAX_INDICATOR_EXPRESSION_INGREDIENTS,
       });
     } catch (e) {
       if (e instanceof IndicatorExpressionError) {
@@ -345,6 +340,19 @@ export async function createIndicatorsCommon(
       }
     }
 
+    for (const indicator of indicators) {
+      const formatErr = formatRuleError(
+        indicator.definition,
+        indicator.format_as,
+      );
+      if (formatErr) {
+        return {
+          success: false,
+          err: `${indicator.indicator_common_id}: ${formatErr}`,
+        };
+      }
+    }
+
     const definitionErr = await checkDefinitionsResolve(
       mainDb,
       new Map(
@@ -373,13 +381,13 @@ export async function createIndicatorsCommon(
           await sql`
             INSERT INTO indicators (
               indicator_common_id, indicator_common_label, is_default,
-              definition_type, expression, population_type, population_multiplier,
+              definition_type, expression,
               format_as, threshold_direction, threshold_green, threshold_yellow,
               group_label, sort_order, updated_at
             )
             VALUES (
               ${indicator.indicator_common_id}, ${indicator.indicator_common_label}, FALSE,
-              ${d.definition_type}, ${d.expression}, ${d.population_type}, ${d.population_multiplier},
+              ${d.definition_type}, ${d.expression},
               ${indicator.format_as},
               ${indicator.thresholds?.direction ?? null},
               ${indicator.thresholds?.green ?? null},
@@ -438,6 +446,11 @@ export async function updateIndicatorCommon(
       };
     }
 
+    const formatErr = formatRuleError(update.definition, update.format_as);
+    if (formatErr) {
+      return { success: false, err: formatErr };
+    }
+
     const definitionErr = await checkDefinitionsResolve(
       mainDb,
       new Map([[oldIndicatorCommonId, update.definition]]),
@@ -446,9 +459,9 @@ export async function updateIndicatorCommon(
       return { success: false, err: definitionErr };
     }
 
-    // Only a base indicator is defined by mappings. A retype to derived or
-    // population_rate drops them rather than leaving orphaned rows that no
-    // extract would ever read again.
+    // Only a base indicator is defined by mappings. A retype to derived
+    // drops them rather than leaving orphaned rows that no extract would
+    // ever read again.
     const rawIds = update.definition.type === "base"
       ? update.mapped_raw_ids
       : [];
@@ -462,8 +475,6 @@ export async function updateIndicatorCommon(
           indicator_common_label = ${update.indicator_common_label},
           definition_type = ${d.definition_type},
           expression = ${d.expression},
-          population_type = ${d.population_type},
-          population_multiplier = ${d.population_multiplier},
           format_as = ${update.format_as},
           threshold_direction = ${update.thresholds?.direction ?? null},
           threshold_green = ${update.thresholds?.green ?? null},
@@ -555,35 +566,24 @@ export async function deleteIndicatorCommon(
     // definition against the post-delete dictionary is what makes the check
     // exact — an id used only deep inside a chain blocks the delete just as a
     // directly-named one does.
-    const remaining = await mainDb.unsafe<
-      { indicator_common_id: string; definition_type: string; expression: string | null }[]
-    >(`SELECT indicator_common_id, definition_type, expression FROM indicators`);
     const requestedIds = new Set(indicatorCommonIds);
-    const survivors = remaining.filter(
-      (r) => !requestedIds.has(r.indicator_common_id),
+    const survivors = (await loadExpressionDictionaryEntries(mainDb)).filter(
+      (e) => !requestedIds.has(e.id),
     );
-    const dictionary = buildExpressionDictionary(
-      survivors.map((r) => ({
-        id: r.indicator_common_id,
-        type: r.definition_type as ExpressionDictionaryEntry["type"],
-        expression: r.expression,
-      })),
-    );
+    const dictionary = buildExpressionDictionary(survivors);
     const blocked: string[] = [];
     for (const survivor of survivors) {
-      if (survivor.definition_type === "base") continue;
+      if (survivor.type !== "derived") continue;
       try {
         resolveIndicatorExpression({
-          ownId: survivor.indicator_common_id,
+          ownId: survivor.id,
           source: survivor.expression ?? "",
           dictionary,
-          maxIngredients: survivor.definition_type === "population_rate"
-            ? MAX_POPULATION_RATE_NUMERATOR_INGREDIENTS
-            : MAX_INDICATOR_EXPRESSION_INGREDIENTS,
+          maxIngredients: MAX_INDICATOR_EXPRESSION_INGREDIENTS,
         });
       } catch (e) {
         if (!(e instanceof IndicatorExpressionError)) throw e;
-        blocked.push(`${survivor.indicator_common_id} (${e.message})`);
+        blocked.push(`${survivor.id} (${e.message})`);
       }
     }
     if (blocked.length > 0) {
@@ -972,10 +972,10 @@ export async function batchUploadIndicators(
     }
 
     // A CSV row defines a BASE common (id, label, raw mappings). An id that is
-    // currently derived or population_rate cannot take that definition — the
-    // upsert would attach mappings to a formula (updateIndicatorCommon's rule,
-    // enforced here too). Checked against the live table in BOTH modes: the
-    // replace-all wipe deliberately keeps non-base rows.
+    // currently derived cannot take that definition — the upsert would attach
+    // mappings to a formula (updateIndicatorCommon's rule, enforced here
+    // too). Checked against the live table in BOTH modes: the replace-all
+    // wipe deliberately keeps derived rows.
     const csvIds = parsedBatchIndicators.map((b) => b.indicator_common_id);
     const nonBase = await mainDb<{ indicator_common_id: string }[]>`
       SELECT indicator_common_id FROM indicators
@@ -985,7 +985,7 @@ export async function batchUploadIndicators(
     if (nonBase.length > 0) {
       return {
         success: false,
-        err: `These ids are derived or population-rate indicators, which are defined by an expression, not by raw mappings: ${
+        err: `These ids are derived indicators, which are defined by an expression, not by raw mappings: ${
           nonBase.map((r) => r.indicator_common_id).join(", ")
         }. Edit or delete them in the indicator manager first.`,
       };
@@ -1005,9 +1005,9 @@ export async function batchUploadIndicators(
           DELETE FROM indicators_raw
         `;
 
-        // Delete all non-default BASE common indicators. Derived and
-        // population-rate rows are definitions, not data mappings, and a CSV
-        // of ids and raw mappings has nothing to say about them.
+        // Delete all non-default BASE common indicators. Derived rows are
+        // definitions, not data mappings, and a CSV of ids and raw mappings
+        // has nothing to say about them.
         await sql`
           DELETE FROM indicators
           WHERE is_default = FALSE AND definition_type = 'base'
@@ -1064,25 +1064,15 @@ export async function batchUploadIndicators(
       // A wipe can strip a base common that some derived indicator's formula
       // still names. That used to surface as a foreign-key error from the
       // retired calculated_indicators table; it stays a loud abort.
-      const survivors = await sql<
-        { indicator_common_id: string; definition_type: string; expression: string | null }[]
-      >`SELECT indicator_common_id, definition_type, expression FROM indicators`;
-      const dictionary = buildExpressionDictionary(
-        survivors.map((r) => ({
-          id: r.indicator_common_id,
-          type: r.definition_type as ExpressionDictionaryEntry["type"],
-          expression: r.expression,
-        })),
-      );
+      const survivors = await loadExpressionDictionaryEntries(sql);
+      const dictionary = buildExpressionDictionary(survivors);
       for (const survivor of survivors) {
-        if (survivor.definition_type === "base") continue;
+        if (survivor.type !== "derived") continue;
         resolveIndicatorExpression({
-          ownId: survivor.indicator_common_id,
+          ownId: survivor.id,
           source: survivor.expression ?? "",
           dictionary,
-          maxIngredients: survivor.definition_type === "population_rate"
-            ? MAX_POPULATION_RATE_NUMERATOR_INGREDIENTS
-            : MAX_INDICATOR_EXPRESSION_INGREDIENTS,
+          maxIngredients: MAX_INDICATOR_EXPRESSION_INGREDIENTS,
         });
       }
     });

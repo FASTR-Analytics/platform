@@ -11,12 +11,20 @@ import {
   normalizeRLogicalOperators,
   serialiseMultiMembershipValues,
 } from "lib";
+import { dirname, join } from "@std/path/posix";
 import {
   extractDependenciesFromCode,
   buildUnionDependencyGraph,
   topologicalSort,
   formatCycles,
 } from "./hfa_dependency_analyzer.ts";
+
+// The run's person-years file (PLAN_1b) sits beside the datasets dir, at
+// inputs/population.csv — one file, written by prepare_inputs on every HMIS
+// capture. Quoted like a dataset path; shared by both generators.
+export function populationFilePathLiteral(datasetsDirPath: string): string {
+  return `'${join(dirname(datasetsDirPath), "population.csv")}'`;
+}
 
 // Per-variable sentinel classification captured at import time
 // (PLAN_HFA_FEATURES.md), propagated to the project snapshot and
@@ -697,6 +705,11 @@ export function getScriptWithParametersHfa(
       str = str.replaceAll(
         ds.replacementString,
         `'${datasetsDirPath}/${ds.datasetType}.csv'`,
+      );
+    } else if (ds.sourceType === "population") {
+      str = str.replaceAll(
+        ds.replacementString,
+        populationFilePathLiteral(datasetsDirPath),
       );
     } else {
       str = str.replaceAll(

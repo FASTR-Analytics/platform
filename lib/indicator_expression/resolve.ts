@@ -8,9 +8,10 @@
 // is (PLAN_1a §1.2).
 //
 // Flattening is substitution: a `derived` ingredient is replaced by its own
-// expression, recursively, until the expression names nothing but `base`
-// commons. Those base commons ARE the ingredients that travel as ing1..ingN
-// on a results row, which is why the cap is measured AFTER flattening.
+// expression, recursively, until the expression names nothing but leaves —
+// `base` commons and `population:<type>` terms. Those leaves ARE the
+// ingredients that travel as ing1..ingN on a results row, which is why the
+// cap is measured AFTER flattening.
 //
 // =============================================================================
 
@@ -19,14 +20,10 @@ import {
   type ExpressionNode,
   parseIndicatorExpression,
 } from "./parse.ts";
+import { parsePopulationIngredientId } from "../types/population.ts";
 
 // The results object carries eight ingredient slots (PLAN_1a §1.5).
 export const MAX_INDICATOR_EXPRESSION_INGREDIENTS = 8;
-
-// A population rate's person-years term takes the eighth slot, so its
-// numerator expression may flatten to at most seven.
-export const MAX_POPULATION_RATE_NUMERATOR_INGREDIENTS =
-  MAX_INDICATOR_EXPRESSION_INGREDIENTS - 1;
 
 // Substitution depth: how many `derived`-on-`derived` links a chain may have.
 export const MAX_INDICATOR_EXPRESSION_DEPTH = 8;
@@ -40,11 +37,12 @@ export const MAX_INDICATOR_EXPRESSION_DEPTH = 8;
 // limits put a legitimate expression orders of magnitude below it.
 export const MAX_INDICATOR_EXPRESSION_NODES = 1000;
 
+// `population` entries are the store's types under their `population:<type>`
+// ingredient id (populationIngredientId) — leaves, like `base`.
 export type ExpressionDictionaryEntry = {
   id: string;
-  type: "base" | "derived" | "population_rate";
-  // `derived`: the expression. `population_rate`: its numerator expression.
-  // `base`: null.
+  type: "base" | "derived" | "population";
+  // `derived`: the expression. `base` and `population`: null.
   expression: string | null;
 };
 
@@ -53,9 +51,10 @@ export type ExpressionDictionary = Map<string, ExpressionDictionaryEntry>;
 export class IndicatorExpressionError extends Error {}
 
 export type ResolvedIndicatorExpression = {
-  // The flattened AST — every identifier is a `base` common indicator id.
+  // The flattened AST — every identifier is a `base` common indicator id or
+  // a `population:<type>` term.
   ast: ExpressionNode;
-  // Those base ids, in first-appearance order. This IS the slot order.
+  // Those leaf ids, in first-appearance order. This IS the slot order.
   ingredientIds: string[];
 };
 
@@ -96,19 +95,16 @@ export function resolveIndicatorExpression(args: {
         const entry = dictionary.get(node.name);
         if (entry === undefined) {
           throw new IndicatorExpressionError(
-            `${describeChain(chain)} names ${
-              JSON.stringify(node.name)
-            }, which is not a common indicator`,
+            parsePopulationIngredientId(node.name) === null
+              ? `${describeChain(chain)} names ${
+                JSON.stringify(node.name)
+              }, which is not a common indicator`
+              : `${describeChain(chain)} names ${
+                JSON.stringify(node.name)
+              }, which is not a population type — add it on the Population page`,
           );
         }
-        if (entry.type === "population_rate") {
-          throw new IndicatorExpressionError(
-            `${describeChain(chain)} names ${
-              JSON.stringify(node.name)
-            }, which is a population rate — an expression may only use base or derived indicators`,
-          );
-        }
-        if (entry.type === "base") {
+        if (entry.type === "base" || entry.type === "population") {
           return node;
         }
         if (chain.includes(node.name)) {
@@ -153,7 +149,10 @@ export function resolveIndicatorExpression(args: {
 
   const ast = substitute(parseExpressionOf(ownId, source), [ownId]);
   const ingredientIds = collectIdentifiers(ast);
-  if (ingredientIds.length === 0) {
+  // A population-only expression would be a rate with no numerator.
+  if (
+    ingredientIds.every((id) => parsePopulationIngredientId(id) !== null)
+  ) {
     throw new IndicatorExpressionError(
       "An expression must use at least one common indicator",
     );

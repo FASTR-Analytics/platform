@@ -51,7 +51,7 @@ const HEADING = {
 // has no project context. On launch the run owns its whole lifecycle and
 // progress arrives over instance SSE on the Results packages surface.
 export function ResultsPackageWizard(
-  p: AlertComponentProps<Record<never, never>, undefined>,
+  p: AlertComponentProps<Record<never, never>, string>,
 ) {
   const query = createQuery(
     async () => {
@@ -113,7 +113,7 @@ export function ResultsPackageWizard(
 type InnerProps = {
   options: RunGenerationModuleOptions;
   defaults: RunGenerationDefaults;
-  close: (v: undefined) => void;
+  close: (v: string | undefined) => void;
 };
 
 function WizardInner(p: InnerProps) {
@@ -255,8 +255,8 @@ function WizardInner(p: InnerProps) {
         },
       });
     },
-    async () => {
-      p.close(undefined);
+    async (data) => {
+      p.close(data.runId);
     },
   );
 

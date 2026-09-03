@@ -5,6 +5,7 @@ import type {
   InstanceConfig,
   InstanceDatasetsSummary,
   InstanceIndicatorsSummary,
+  InstancePopulationSummary,
   InstanceSseMessage,
   InstanceStructureSummary,
   OtherUser,
@@ -77,6 +78,14 @@ export function notifyInstanceIndicatorsUpdated(data: InstanceIndicatorsSummary)
 
 export function notifyInstanceDatasetsUpdated(data: InstanceDatasetsSummary) {
   notifyInstanceUpdate({ type: "datasets_updated", data });
+}
+
+// The population store's vocabulary + coverage + stamp (PLAN_1b), fired by
+// every write to either of its tables.
+export function notifyInstancePopulationUpdated(
+  data: InstancePopulationSummary,
+) {
+  notifyInstanceUpdate({ type: "population_updated", data });
 }
 
 // The catalogue's T1 signal (the projects_last_updated pattern): a data-free

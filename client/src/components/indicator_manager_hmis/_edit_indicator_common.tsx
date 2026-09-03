@@ -1,7 +1,9 @@
 // Create/update one common indicator. The form branches on what the indicator
-// IS (PLAN_1a §1.2): a base indicator is defined by its raw mappings, a
-// derived one by an expression over other commons, and a population rate by a
-// numerator expression plus the population term to divide by.
+// IS (PLAN_1a §1.2, PLAN_1c): a base indicator is defined by its raw mappings
+// and is always a number; a derived one by a formula over other commons and
+// population terms, with a free display format. The palette below the
+// formula inserts correctly written identifiers, and the legend names every
+// identifier the formula references.
 import {
   AlertComponentProps,
   AlertFormHolder,
@@ -17,19 +19,24 @@ import {
   t3,
   TC,
   buildExpressionDictionary,
+  collectIdentifiers,
   type CommonIndicatorDefinition,
   type CommonIndicatorType,
   type CommonIndicatorWithMappings,
+  type ExpressionDictionaryEntry,
   getNewIndicatorIdIssue,
   IndicatorExpressionError,
   MAX_INDICATOR_EXPRESSION_INGREDIENTS,
-  MAX_POPULATION_RATE_NUMERATOR_INGREDIENTS,
-  POPULATION_TYPES,
-  type PopulationType,
+  parseIndicatorExpression,
+  parsePopulationIngredientId,
+  type PopulationCoverage,
+  populationIngredientId,
   type RawIndicatorWithMappings,
   resolveIndicatorExpression,
+  writeIdentifier,
 } from "lib";
 import { serverActions } from "~/server_actions";
+import { instanceState } from "~/state/instance/t1_store";
 
 const TYPE_OPTIONS: { value: CommonIndicatorType; label: string }[] = [
   {
@@ -43,17 +50,9 @@ const TYPE_OPTIONS: { value: CommonIndicatorType; label: string }[] = [
   {
     value: "derived",
     label: t3({
-      en: "Derived — a formula over other indicators",
-      fr: "Dérivé — une formule sur d'autres indicateurs",
-      pt: "Derivado — uma fórmula sobre outros indicadores",
-    }),
-  },
-  {
-    value: "population_rate",
-    label: t3({
-      en: "Population rate — a formula divided by population",
-      fr: "Taux de population — une formule divisée par la population",
-      pt: "Taxa populacional — uma fórmula dividida pela população",
+      en: "Derived — a formula over other indicators and populations",
+      fr: "Dérivé — une formule sur d'autres indicateurs et des populations",
+      pt: "Derivado — uma fórmula sobre outros indicadores e populações",
     }),
   },
 ];
@@ -74,6 +73,51 @@ const FORMAT_OPTIONS = [
   },
 ];
 
+type LegendRow = {
+  identifier: string;
+  kind: "indicator" | "population";
+  label: string | undefined;
+  // Population rows only: what the store holds for the type, so the author
+  // sees a gap here rather than at generation (which is where it is
+  // enforced — PLAN_1b ruling 6). Display only; never a save rule.
+  coverage?: { text: string; empty: boolean };
+};
+
+function populationCoverageSummary(
+  populationType: string,
+  coverage: PopulationCoverage[],
+): { text: string; empty: boolean } {
+  const rows = coverage
+    .filter((c) => c.populationType === populationType)
+    .sort((a, b) => a.adminAreaLevel - b.adminAreaLevel);
+  if (rows.length === 0) {
+    return {
+      empty: true,
+      text: t3({
+        en: "no population data uploaded",
+        fr: "aucune donnée de population téléversée",
+        pt: "nenhum dado de população carregado",
+      }),
+    };
+  }
+  return {
+    empty: false,
+    text: rows
+      .map((c) =>
+        `L${c.adminAreaLevel} ${c.firstYear}–${c.lastYear} ${
+          c.complete
+            ? t3({ en: "complete", fr: "complet", pt: "completo" })
+            : t3({
+              en: `${c.areaCount} of ${c.structureAreaCount} areas`,
+              fr: `${c.areaCount} zones sur ${c.structureAreaCount}`,
+              pt: `${c.areaCount} de ${c.structureAreaCount} áreas`,
+            })
+        }`
+      )
+      .join("; "),
+  };
+}
+
 export function EditIndicatorCommonForm(
   p: AlertComponentProps<
     {
@@ -86,6 +130,7 @@ export function EditIndicatorCommonForm(
 ) {
   const mode = p.existingCommonIndicator ? "update" : "create";
   const existing = p.existingCommonIndicator;
+  let formulaHolder: HTMLDivElement | undefined;
 
   const [indicatorCommonId, setIndicatorCommonId] = createSignal(
     existing?.indicator_common_id || "",
@@ -102,19 +147,7 @@ export function EditIndicatorCommonForm(
   const [expression, setExpression] = createSignal(
     existing?.definition.type === "derived"
       ? existing.definition.expression
-      : existing?.definition.type === "population_rate"
-      ? existing.definition.numeratorExpression
       : "",
-  );
-  const [populationType, setPopulationType] = createSignal<PopulationType>(
-    existing?.definition.type === "population_rate"
-      ? existing.definition.populationType
-      : "total_population",
-  );
-  const [multiplier, setMultiplier] = createSignal(
-    existing?.definition.type === "population_rate"
-      ? String(existing.definition.multiplier)
-      : "1",
   );
   const [formatAs, setFormatAs] = createSignal(
     existing?.format_as ?? "number",
@@ -133,26 +166,25 @@ export function EditIndicatorCommonForm(
     String(existing?.thresholds?.yellow ?? 0),
   );
 
+  const ownId = () => indicatorCommonId().trim() || "__new__";
+
   function currentDefinition(): CommonIndicatorDefinition {
     if (type() === "derived") {
       return { type: "derived", expression: expression().trim() };
     }
-    if (type() === "population_rate") {
-      return {
-        type: "population_rate",
-        numeratorExpression: expression().trim(),
-        populationType: populationType(),
-        multiplier: Number(multiplier()),
-      };
-    }
     return { type: "base" };
   }
 
+  // The other commons a formula may name — never the indicator being edited.
+  const otherCommons = createMemo(() =>
+    p.commonIndicators.filter((c) => c.indicator_common_id !== ownId())
+  );
+
   // Live validation against the same rules the server enforces — the editor
   // states them where the user is, capture states them again where the data
-  // is. Ingredients must resolve to base or derived commons, chains may not
-  // cycle, and the flattened set must fit the ingredient slots a results row
-  // carries; the message names the flattened set when it does not.
+  // is. Ingredients must resolve to commons or population types, chains may
+  // not cycle, and the flattened set must fit the ingredient slots a results
+  // row carries; the message names the flattened set when it does not.
   const expressionError = createMemo<string | undefined>(() => {
     if (type() === "base") return undefined;
     const source = expression().trim();
@@ -163,36 +195,27 @@ export function EditIndicatorCommonForm(
         pt: "É necessária uma fórmula",
       });
     }
-    const ownId = indicatorCommonId().trim() || "__new__";
-    const entries = p.commonIndicators
-      .filter((c) => c.indicator_common_id !== ownId)
-      .map((c) => ({
+    const entries: ExpressionDictionaryEntry[] = [
+      ...otherCommons().map((c) => ({
         id: c.indicator_common_id,
         type: c.definition.type,
         expression: c.definition.type === "derived"
           ? c.definition.expression
-          : c.definition.type === "population_rate"
-          ? c.definition.numeratorExpression
           : null,
-      }));
-    const definition = currentDefinition();
-    entries.push({
-      id: ownId,
-      type: definition.type,
-      expression: definition.type === "derived"
-        ? definition.expression
-        : definition.type === "population_rate"
-        ? definition.numeratorExpression
-        : null,
-    });
+      })),
+      ...instanceState.populationTypes.map((pt) => ({
+        id: populationIngredientId(pt.id),
+        type: "population" as const,
+        expression: null,
+      })),
+      { id: ownId(), type: "derived", expression: source },
+    ];
     try {
       resolveIndicatorExpression({
-        ownId,
+        ownId: ownId(),
         source,
         dictionary: buildExpressionDictionary(entries),
-        maxIngredients: type() === "population_rate"
-          ? MAX_POPULATION_RATE_NUMERATOR_INGREDIENTS
-          : MAX_INDICATOR_EXPRESSION_INGREDIENTS,
+        maxIngredients: MAX_INDICATOR_EXPRESSION_INGREDIENTS,
       });
       return undefined;
     } catch (e) {
@@ -201,6 +224,65 @@ export function EditIndicatorCommonForm(
         : String(e instanceof Error ? e.message : e);
     }
   });
+
+  // Every identifier the formula names, with what it resolves to. Empty while
+  // the formula does not parse (the error above says why).
+  const legend = createMemo<LegendRow[]>(() => {
+    const source = expression().trim();
+    if (type() === "base" || source === "") return [];
+    let ids: string[];
+    try {
+      ids = collectIdentifiers(parseIndicatorExpression(source));
+    } catch {
+      return [];
+    }
+    return ids.map((id) => {
+      const populationType = parsePopulationIngredientId(id);
+      if (populationType !== null) {
+        return {
+          identifier: writeIdentifier(id),
+          kind: "population",
+          label: instanceState.populationTypes.find((pt) =>
+            pt.id === populationType
+          )?.label,
+          coverage: populationCoverageSummary(
+            populationType,
+            instanceState.populationCoverage,
+          ),
+        };
+      }
+      return {
+        identifier: writeIdentifier(id),
+        kind: "indicator",
+        label: otherCommons().find((c) => c.indicator_common_id === id)
+          ?.indicator_common_label,
+      };
+    });
+  });
+
+  const legendNamesPopulation = createMemo(() =>
+    legend().some((row) => row.kind === "population")
+  );
+
+  // Inserts at the formula input's caret (appends when the input has never
+  // been focused), padded so the identifier never fuses with its neighbours.
+  function insertIdentifier(id: string) {
+    const el = formulaHolder?.querySelector("input") ?? null;
+    const current = expression();
+    const start = el?.selectionStart ?? current.length;
+    const end = el?.selectionEnd ?? current.length;
+    const before = current.slice(0, start);
+    const after = current.slice(end);
+    const text = (before === "" || /[\s(]$/.test(before) ? "" : " ") +
+      writeIdentifier(id) +
+      (after === "" || /^[\s)]/.test(after) ? "" : " ");
+    setExpression(before + text + after);
+    if (el) {
+      el.focus();
+      const caret = before.length + text.length;
+      el.setSelectionRange(caret, caret);
+    }
+  }
 
   function addMappedRawId() {
     setMappedRawIds([...mappedRawIds(), ""]);
@@ -261,26 +343,6 @@ export function EditIndicatorCommonForm(
         return { success: false, err: exprErr };
       }
 
-      // Number("") is 0, so an empty field must be rejected before parsing —
-      // and a zero or negative multiplier makes every rate meaningless.
-      if (type() === "population_rate") {
-        const multiplierValue = Number(multiplier().trim());
-        if (
-          multiplier().trim() === "" ||
-          !Number.isFinite(multiplierValue) ||
-          multiplierValue <= 0
-        ) {
-          return {
-            success: false,
-            err: t3({
-              en: "Multiplier must be a positive number",
-              fr: "Le multiplicateur doit être un nombre positif",
-              pt: "O multiplicador deve ser um número positivo",
-            }),
-          };
-        }
-      }
-
       if (thresholdsOn()) {
         const greenValue = thresholdGreen().trim();
         const yellowValue = thresholdYellow().trim();
@@ -307,7 +369,10 @@ export function EditIndicatorCommonForm(
           ? getUnique(mappedRawIds().filter((id) => id.trim() !== ""))
           : [],
         definition: currentDefinition(),
-        format_as: formatAs() as "percent" | "number" | "rate_per_10k",
+        // A base indicator is a count: its format is always a number.
+        format_as: type() === "base"
+          ? "number" as const
+          : formatAs() as "percent" | "number" | "rate_per_10k",
         thresholds: thresholdsOn()
           ? {
             direction: thresholdDirection() as
@@ -426,66 +491,146 @@ export function EditIndicatorCommonForm(
         </div>
       </Show>
 
-      <Show when={type() !== "base"}>
-        <Input
-          label={type() === "population_rate"
-            ? t3({
-              en: "Numerator formula",
-              fr: "Formule du numérateur",
-              pt: "Fórmula do numerador",
-            })
-            : t3({ en: "Formula", fr: "Formule", pt: "Fórmula" })}
-          value={expression()}
-          onChange={setExpression}
-          fullWidth
-          mono
-        />
+      <Show when={type() === "derived"}>
+        <div class="ui-gap-sm flex items-end">
+          <SelectSearch
+            label={t3({
+              en: "Insert indicator",
+              fr: "Insérer un indicateur",
+              pt: "Inserir indicador",
+            })}
+            value={undefined}
+            onChange={insertIdentifier}
+            placeholder={t3({
+              en: "Search indicators...",
+              fr: "Rechercher des indicateurs...",
+              pt: "Pesquisar indicadores...",
+            })}
+            options={otherCommons().map((c) => ({
+              value: c.indicator_common_id,
+              label: `${c.indicator_common_label} (${c.indicator_common_id})`,
+            }))}
+            fullWidth
+          />
+          <SelectSearch
+            label={t3({
+              en: "Insert population",
+              fr: "Insérer une population",
+              pt: "Inserir população",
+            })}
+            value={undefined}
+            onChange={(id) => insertIdentifier(populationIngredientId(id))}
+            placeholder={t3({
+              en: "Search populations...",
+              fr: "Rechercher des populations...",
+              pt: "Pesquisar populações...",
+            })}
+            options={instanceState.populationTypes.map((pt) => ({
+              value: pt.id,
+              label: `${pt.label} (${pt.id})${
+                populationCoverageSummary(
+                    pt.id,
+                    instanceState.populationCoverage,
+                  ).empty
+                  ? ` — ${
+                    t3({
+                      en: "no data",
+                      fr: "aucune donnée",
+                      pt: "sem dados",
+                    })
+                  }`
+                  : ""
+              }`,
+            }))}
+            fullWidth
+          />
+        </div>
+        <div ref={formulaHolder}>
+          <Input
+            label={t3({ en: "Formula", fr: "Formule", pt: "Fórmula" })}
+            value={expression()}
+            onChange={setExpression}
+            fullWidth
+            mono
+          />
+        </div>
         <div class="ui-text-caption text-xs">
           {t3({
-            en: "Use + - * / and parentheses over other indicator IDs, e.g. anc4 / anc1. Wrap an ID in [brackets] if it is not all lowercase letters, digits and underscores. abs(), coalesce() and nullif() are available.",
-            fr: "Utilisez + - * / et des parenthèses sur d'autres ID d'indicateurs, par ex. anc4 / anc1. Mettez un ID entre [crochets] s'il ne contient pas uniquement des minuscules, des chiffres et des tirets bas. abs(), coalesce() et nullif() sont disponibles.",
-            pt: "Utilize + - * / e parênteses sobre outros IDs de indicadores, por ex. anc4 / anc1. Coloque um ID entre [parênteses retos] se não for composto apenas por minúsculas, dígitos e sublinhados. abs(), coalesce() e nullif() estão disponíveis.",
+            en: "Use + - * / and parentheses over other indicators and populations, e.g. anc4 / anc1 or anc4 / [population:pregnancies]. abs(), coalesce() and nullif() are available.",
+            fr: "Utilisez + - * / et des parenthèses sur d'autres indicateurs et des populations, par ex. anc4 / anc1 ou anc4 / [population:pregnancies]. abs(), coalesce() et nullif() sont disponibles.",
+            pt: "Utilize + - * / e parênteses sobre outros indicadores e populações, por ex. anc4 / anc1 ou anc4 / [population:pregnancies]. abs(), coalesce() e nullif() estão disponíveis.",
           })}
         </div>
         <Show when={expressionError()}>
           {(err) => <div class="text-danger text-xs">{err()}</div>}
         </Show>
-      </Show>
-
-      <Show when={type() === "population_rate"}>
+        <Show when={legend().length > 0}>
+          <div class="ui-spy-sm">
+            <For each={legend()}>
+              {(row) => (
+                <div class="ui-gap-sm flex items-baseline text-xs">
+                  <span class="font-mono">{row.identifier}</span>
+                  <span class="text-base-content-muted">
+                    {row.kind === "population"
+                      ? t3({
+                        en: "population",
+                        fr: "population",
+                        pt: "população",
+                      })
+                      : t3({
+                        en: "indicator",
+                        fr: "indicateur",
+                        pt: "indicador",
+                      })}
+                  </span>
+                  <Show
+                    when={row.label}
+                    fallback={
+                      <span class="text-danger">
+                        {t3({
+                          en: "not found",
+                          fr: "introuvable",
+                          pt: "não encontrado",
+                        })}
+                      </span>
+                    }
+                  >
+                    {(label) => <span>{label()}</span>}
+                  </Show>
+                  <Show when={row.coverage}>
+                    {(coverage) => (
+                      <span
+                        class={coverage().empty
+                          ? "text-danger"
+                          : "text-base-content-muted"}
+                      >
+                        {coverage().text}
+                      </span>
+                    )}
+                  </Show>
+                </div>
+              )}
+            </For>
+            <Show when={legendNamesPopulation()}>
+              <div class="ui-text-caption text-xs">
+                {t3({
+                  en: "A population term is person-years (annual population × months / 12), so a value divided by it is annualised: a monthly or quarterly value reads as a rate per year. Population figures come from the instance Population page.",
+                  fr: "Un terme de population représente des personnes-années (population annuelle × mois / 12) : une valeur divisée par ce terme est donc annualisée, et une valeur mensuelle ou trimestrielle se lit comme un taux annuel. Les chiffres de population proviennent de la page Population de l'instance.",
+                  pt: "Um termo de população são pessoas-ano (população anual × meses / 12), pelo que um valor dividido por ele é anualizado: um valor mensal ou trimestral lê-se como uma taxa anual. Os valores de população provêm da página População da instância.",
+                })}
+              </div>
+            </Show>
+          </div>
+        </Show>
         <Select
-          label={t3({
-            en: "Population",
-            fr: "Population",
-            pt: "População",
-          })}
-          value={populationType()}
-          onChange={(v) => setPopulationType(v as PopulationType)}
-          options={POPULATION_TYPES.map((pt) => ({
-            value: pt.id,
-            label: t3(pt.label),
-          }))}
-          fullWidth
-        />
-        <Input
-          label={t3({
-            en: "Population multiplier",
-            fr: "Multiplicateur de population",
-            pt: "Multiplicador da população",
-          })}
-          value={multiplier()}
-          onChange={setMultiplier}
+          label={t3({ en: "Format", fr: "Format", pt: "Formato" })}
+          value={formatAs()}
+          onChange={setFormatAs}
+          options={FORMAT_OPTIONS}
           fullWidth
         />
       </Show>
 
-      <Select
-        label={t3({ en: "Format", fr: "Format", pt: "Formato" })}
-        value={formatAs()}
-        onChange={setFormatAs}
-        options={FORMAT_OPTIONS}
-        fullWidth
-      />
       <Input
         label={t3({ en: "Group", fr: "Groupe", pt: "Grupo" })}
         value={groupLabel()}

@@ -4,6 +4,7 @@ import {
   getInstanceDatasetsSummary,
   getInstanceDetail,
   getInstanceIndicatorsSummary,
+  getInstancePopulationSummary,
 } from "../db/mod.ts";
 import {
   getPinnedRunId,
@@ -35,6 +36,7 @@ export async function buildInstanceState(
 
   const datasetsSummary = await getInstanceDatasetsSummary(mainDb);
   const indicatorsSummary = await getInstanceIndicatorsSummary(mainDb);
+  const populationSummary = await getInstancePopulationSummary(mainDb);
 
   const users = res.data.users;
   const me = users.find((u) => u.email === globalUser.email);
@@ -100,6 +102,7 @@ export async function buildInstanceState(
     hfaWeights: res.data.hfaWeights,
     ...indicatorsSummary,
     ...datasetsSummary,
+    ...populationSummary,
     currentUserEmail: globalUser.email,
     currentUserApproved: !!me,
     currentUserIsGlobalAdmin: me?.isGlobalAdmin ?? false,

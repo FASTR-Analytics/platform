@@ -304,6 +304,23 @@ export function writeIdentifier(name: string): string {
     : `[${name}]`;
 }
 
+// A number the grammar will read back. The tokenizer accepts plain decimals
+// only (`[0-9]+(\.[0-9]+)?`), so this never goes through String(), which
+// emits `1e-7` / `1e+21` for extreme values (PLAN_1a §1.3). Negative values
+// carry a leading `-`, which re-parses as a negation of the literal.
+export function writeNumberLiteral(value: number): string {
+  if (!Number.isFinite(value)) {
+    throw new Error(`Cannot write ${value} as an expression literal`);
+  }
+  const sign = value < 0 ? "-" : "";
+  const abs = Math.abs(value);
+  if (abs >= 1e21) {
+    return `${sign}${BigInt(Math.round(abs)).toString()}`;
+  }
+  const text = abs.toFixed(20);
+  return `${sign}${text.replace(/\.?0+$/, "")}`;
+}
+
 // Canonical text for an AST — fully parenthesised at every binary node, so a
 // substituted sub-expression can never be re-associated by its host's
 // precedence.

@@ -167,7 +167,12 @@ entry is `{ id, label, prerequisites, github: { owner, repo, path } }`.
 Both branches run `moduleDefinitionGithubSchema.safeParse` (throws listing
 `path: message` issues — invalid `definition.json` fails at fetch time, no
 silent normalization; value props in the reserved `SAMPLE_N_PREFIX` namespace
-are also rejected here) and `stripFrontmatter` on the script.
+are also rejected here) and `stripFrontmatter` on the script — everything
+above the first line starting with `#---` is dropped, so a script's header
+holds local-development defaults for the token names only and the body
+uses the tokens inline (the modules repo's DOC_MODULES.md "script.R" states
+the rule; m012 shipped its real assignments above the marker and failed in
+the sandbox, fixed 2026-09-02).
 `fetchModuleFiles(id, pinnedGitRef)` fetches at an exact commit when the run
 pipeline re-resolves the wizard's pinned refs (undefined = HEAD), and caches
 definition-declared pinned repo assets content-addressed (`repo_assets.ts`).
@@ -491,6 +496,22 @@ ready (C2 ruling, 2026-08-16). A READY run is rendered by that shared view,
 identically to the project tab (2026-08-18 — the earlier "diverges by design"
 ruling is superseded).
 
+**Prune** (`instance_results_packages/_prune.tsx` + `_prune_plan.ts`, ruled
+2026-09-03) is the bulk form of the guarded delete: one rule — remove every
+package not in use (not pinned, no project pointing at it, not generating;
+`planPrune` derives the set from the same T1 facts the sidebar shows and the
+confirm lists what goes and what stays with its reason) — then the SAME
+single `deleteRun` route, called in turn from the client with a progress
+bar and a per-package outcome list. No batch route: the guard is already
+per-package and atomic, each delete pushes the catalogue nonce so the
+sidebar shrinks live, and a guard refusal mid-list (a project attached
+between confirm and that package's turn) is an outcome by label, never an
+abort. There is no "delete all" — the pin is removed only by the explicit
+unpin on the detail pane. Further rules (keep-latest; all-except-pinned,
+which must first repoint attached projects onto the pin via
+`attachFollowerToPinnedRun` with locked projects skipped) are one more
+`PruneRule` member each, and the last needs its own instance route.
+
 ## Project Admin Area 2 scope (PLAN_1_PROJECT_AA2_SCOPE, shipped 2026-08-12)
 
 A project IS either a **national project** or a **single-AA2 project**
@@ -563,6 +584,8 @@ the format, the invariants and the schema version live here. Types:
     indicators.json                 ← dictionary/snapshot content (what used to
     hfa_*_snapshot.json                   live in 12 project mirror tables)
     iceh_indicators_snapshot.json
+    population.csv                  ← monthly person-years per population type
+                                      (every HMIS capture; see "population.csv")
     assets/<name>                   ← pinned copies of consumed instance assets
   outputs/<moduleId>/               ← one execution workspace per module
     ___script___.R                  ← the exact script that ran
@@ -639,8 +662,11 @@ memoization fields (`inputKey` per module, content hashes per output file).
 packages, and the read path's axis order now comes from it) plus the
 `type`/`expression`/`slot_map` evaluation fields, a new top-level
 `commonIndicators` list replaced the read path's per-request read of the
-indicators mirror, and `metrics[].catalog_expression_evaluation` is carried
-forward as null, transform block 4; v5 = `facilityColumnsConfig` split into
+indicators mirror, `metrics[].catalog_expression_evaluation` is carried
+forward as null, and the `population` stamp (PLAN_1b — the person-years file
+a wizard generation wrote: admin level, population types, month range) is
+carried forward as null for packages without one, transform block 4; v5 =
+`facilityColumnsConfig` split into
 the per-family `structureSchemaHmis`/`structureSchemaHfa` slots, pure copy in
 transform block 3; v4 = `metrics[].format_as` became the three-way declared
 format and the 8 pre-declaration metric rows were rewritten to
@@ -769,7 +795,9 @@ substitution; every generator takes a required per-caller `datasetsDirPath`
 (the run pipeline passes `"../../inputs/datasets"`). Markers replaced via
 `str.replaceAll`: `COUNTRY_ISO3`, `INDICATOR_INGREDIENTS` (m012's ingredient
 table as a tribble literal — see m012 below), dataSource `replacementString`s
-(dataset and results-object), and config params by type. **Every substituted
+(dataset, results-object, and `population` → the quoted path of
+`inputs/population.csv`, `populationFilePathLiteral`), and config params by
+type. **Every substituted
 value is single-line**, and must stay so: `replaceAll` rewrites the token
 wherever it appears INCLUDING inside a comment, and a multi-line value would
 put its later lines outside that comment and break the parse. The
@@ -855,16 +883,23 @@ module. There is no `indicator_values` generation type, no generated script
 text and no second executor — the dictionary reaches the module as DATA, not
 as code.
 
-It declares `prerequisites: ["m002"]` and ONE dataSource: m002's
-`M2_adjusted_data.csv`. Its second input, the ingredient table, is not a
+It declares `prerequisites: ["m002"]` and TWO dataSources: m002's
+`M2_adjusted_data.csv` and the `population` source — the run's person-years
+file (below), whose content hash enters the module's inputKey exactly like a
+dataset extract, so a population edit re-runs m012 and an unchanged store
+does not. Its third input, the ingredient table, is not a
 dataSource and not a file: the app substitutes it into `script.R` as an R
 `tribble` literal in place of the `INDICATOR_INGREDIENTS` token
 (`buildIndicatorIngredientsRLiteral` in `lib/common_indicator_catalog.ts`),
 the same channel as `COUNTRY_ISO3` and every module parameter. The R sums the
 selected count column across facilities to admin area × month × indicator,
-joins the ingredient table, and pivots each indicator's ingredients into
-`ing1..ing8` of `M12_indicator_values.csv`. It never parses an expression —
-the table names the columns.
+binds the person-years rows in under the pseudo-indicator id
+`population:<type>` (the same id the ingredient table names wherever an
+expression's population term was assigned a slot — the two halves of one
+contract, `populationIngredientId` in `lib/types/population.ts`), joins the ingredient
+table, and pivots each indicator's ingredients into `ing1..ing8` of
+`M12_indicator_values.csv`. It never parses an expression — the table names
+the columns.
 
 **An ingredient with no data is not an error.** A base common with no mapped
 raw indicators gets no slot map at capture and contributes no row, and one
@@ -883,46 +918,50 @@ generalised from two columns to eight. It is what makes expression-over-sums
 exact at every grouping: `m12-01-01` requires `indicator_common_id` as a GROUP
 BY, so a row only ever carries ONE indicator and a long-format row could never
 hold the ingredients its own formula needs. m012 is deliberately temporary —
-it folds into a redefined m003 in PLAN_1c.
+it folds into a redefined m003 in PLAN_1e.
 
-## population.csv
+## population.csv — the person-years file
 
-Target model (ruled 2026-08-19, S5 "additivity principle", not yet built): a
-first-class instance population store, CSV then DHIS2 writers, expanded
-stock→flow into the run inputs at capture; this section describes today.
+The run's `inputs/population.csv` (PLAN_1b ruling 4, built 2026-09-02) is
+the population store (S5 "Population store") expanded stock→flow at
+capture. Written by `prepare_inputs.ts` (`writePopulationPersonYears`) on
+**every** HMIS capture: columns `admin_area_2..N` (N = the HMIS family's
+`adminDepth` — m012's grain, so a population row is area×month like
+every other row), `period_id`, `population_type`, `person_years`. One row
+per structure area × extract month × population type, for exactly the
+types the resolved catalog's slot maps reference under the `population:`
+prefix (`populationTypesReferencedBySlotMaps` — there is no column and no
+declaration, the expression IS the declaration, PLAN_1c ruling 5);
+**header-only** when none does. This is what lets m012 declare the file
+unconditionally: it is the `population` dataSource kind (github + installed
+schemas, `sourceType: "population"`), substituted as the quoted path and
+hashed into the module inputKey (`computeModuleInputs`), so a population
+edit re-runs m012 and an unchanged store does not. The manifest's
+`population` stamp records level, types and month range (null when the
+package carries no file). The format is permanent once written.
 
-`population.csv` was consumed only by **M8**, which is dropped (PLAN_1a
-§1.11) — today NO module imports it. Population-rate indicators exist in the
-dictionary but are not evaluated until PLAN_1b lands the store; this section
-is the record of the file format that store must accept. M8 received it as an
-**asset** (`assetsToImport: ["population.csv"]`, copied from
-`_ASSETS_DIR_PATH` in step 4 above), not a dataSource, with no upload-time
-validation — a malformed file failed at module-run time. This format informs
-S5's admin-area granularity but is owned here.
+**The math** (`lib/population_person_years.ts`, pure): an annual figure is
+a STOCK anchored at mid-year; a month's population is read at its own
+mid-point — linear between anchors, geometric growth-rate extrapolation
+outside them (flat for a single anchor or a zero count), never more than
+±1 calendar year beyond the anchored years; person-years = population/12.
+Twelve months of person-years sum to the annual stock, which is why the
+rows are additive and a rate over them is **annualised** (a monthly
+numerator over a month's person-years reads as a per-year rate — stated in
+the editor caption and `m12-01-01`'s AI text). Mid-year anchoring is a
+deliberate change from m008's January-1 anchoring.
 
-Columns: `admin_area_2` / `admin_area_3` / `admin_area_4` (each optional, but at
-least one must match the HMIS data's granularity; an `admin_area_1` column is
-silently dropped), `year`, `population_type`, `count` (required). A legacy
-`period_id` column (e.g. `202301`) is auto-converted to `year` (first four
-digits). The `population_type` ids — authoritative list in
-`lib/types/indicators.ts` `POPULATION_TYPES`, the same vocabulary a
-population-rate indicator's `populationType` draws from; M8's R script itself
-pivoted whatever values were present:
+**Coverage failure is loud and deliberate** (ruling 6): every structure
+area at level N must hold anchors covering the extract's years; otherwise
+the capture throws, naming the Population page, the type, the level, the
+needed years and the first ten uncovered areas. A package that cannot
+compute what the dictionary declares is a failed generation, not a quietly
+thinner one — this replaces m008's silent dropping of uncovered periods.
 
-| ID                 | Description                       |
-| ------------------ | --------------------------------- |
-| `total_population` | Total population                  |
-| `u5`               | Under 5 population                |
-| `u1`               | Under 1 population                |
-| `wra`              | Women of reproductive age (15–49) |
-| `births`           | Expected births                   |
-| `pregnancies`      | Expected pregnancies              |
-
-The script joins population to HMIS at the **finest common admin level**, and
-derives monthly values from the annual ones: linear interpolation between
-adjacent years (annual values anchored at January 1), geometric growth-rate
-extrapolation beyond the data — capped at **±1 year** past the available range
-(periods outside that are dropped with a message).
+The retired per-instance `population.csv` **asset** (m008's input, no
+validation, contents per country unknown) was NOT imported by migration 080
+(Tim, 2026-08-30): instances re-enter figures through the validated page,
+and the old files die with m008 in PLAN_1e.
 
 ## Open items
 
@@ -937,8 +976,6 @@ extrapolation beyond the data — capped at **±1 year** past the available rang
 - **Naming drift:** `instantiateIntegrateUploadedDataWorker` breaks the
   `instantiate<Name>Worker` factory pattern; the worker preambles differ in
   their `console.error` prefix (converges under enforcement item 8).
-- **population.csv has no pre-upload validation** — headers/types are only
-  checked by R at run time.
 - **Read-path mirror tolerance, two files** — `readInputRows` (`run_read.ts`)
   yields `[]` for any mirror absent from `manifest.inputFiles`, which for the
   two HFA variant snapshots (`hfa_indicator_variant_groups_snapshot.json`,

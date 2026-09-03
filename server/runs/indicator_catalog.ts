@@ -72,11 +72,9 @@ const indicatorRowV1 = z.object({
 const indicatorRowV2 = z.object({
   indicator_common_id: z.string(),
   indicator_common_label: z.string(),
-  type: z.enum(["base", "derived", "population_rate"]),
+  type: z.enum(["base", "derived"]),
   expression: z.string().nullable(),
   slot_map: z.record(z.string(), z.string()).nullable(),
-  population_type: z.string().nullable(),
-  population_multiplier: z.number().nullable(),
   format_as: z.enum(["percent", "number", "rate_per_10k"]),
   threshold_direction: z.enum(["higher_is_better", "lower_is_better"])
     .nullable(),

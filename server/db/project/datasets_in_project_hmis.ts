@@ -20,6 +20,7 @@ import {
   type DatasetType,
 } from "lib";
 import { getCommonIndicators } from "../instance/indicators.ts";
+import { getPopulationTypes } from "../instance/population.ts";
 import {
   getStructureSchema,
 } from "../instance/config.ts";
@@ -106,6 +107,11 @@ export type DatasetHmisRunCapture = {
   // snapshot beside it.)
   indicators: CommonIndicatorCatalogRow[];
   facilities: ProjectFacilityRow[];
+  // The extract's month range and the structure's finest admin level — what
+  // the person-years expansion (prepare_inputs) needs to know which months
+  // and which areas every referenced population must cover.
+  periodRange: { min: number; max: number };
+  adminDepth: number;
 };
 
 export async function computeDatasetHmisRunCapture(
@@ -232,6 +238,7 @@ COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADE
       indicators = resolveCommonIndicatorCatalog(
         commonIndicators,
         baseIdsInData,
+        (await getPopulationTypes(mainDb)).map((t) => t.id),
       );
     } catch (e) {
       if (!(e instanceof CommonIndicatorCatalogError)) throw e;
@@ -255,6 +262,8 @@ COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADE
         lastUpdated: new Date().toISOString(),
         indicators,
         facilities,
+        periodRange: { min: minPeriod, max: maxPeriod },
+        adminDepth: resStructureSchema.data.adminDepth,
       },
     };
   });

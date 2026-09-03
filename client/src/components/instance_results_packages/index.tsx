@@ -20,6 +20,7 @@ import {
 } from "solid-js";
 import { createStore } from "solid-js/store";
 import { PinnedBadge } from "~/components/_shared/results_package/status";
+import { PruneResultsPackages } from "./_prune";
 import { ResultsPackageWizard } from "./_wizard";
 import { RunCatalogDetailPane } from "./detail";
 import { ModuleDefaultsEditor } from "./module_defaults";
@@ -42,8 +43,22 @@ import { instanceState } from "~/state/instance/t1_store";
 export function InstanceResultsPackages() {
   const { openEditor, EditorWrapper } = getEditorWrapper();
 
+  // A launched run is pinned before it reaches the listing: the SSE refetch
+  // lands it moments later and the selection is already waiting for it.
   async function openWizard(): Promise<void> {
-    await openComponent({ element: ResultsPackageWizard, props: {} });
+    const launchedRunId = await openComponent({
+      element: ResultsPackageWizard,
+      props: {},
+    });
+    if (launchedRunId !== undefined) {
+      setSelectedId(launchedRunId);
+    }
+  }
+
+  // Prune needs nothing back: the sidebar shrinks over SSE and the pin
+  // effect re-selects when the selected run vanishes.
+  async function openPrune(): Promise<void> {
+    await openComponent({ element: PruneResultsPackages, props: {} });
   }
 
   async function openModuleDefaults(): Promise<void> {
@@ -146,6 +161,16 @@ export function InstanceResultsPackages() {
                     fr: "Paramètres par défaut des modules",
                     pt: "Predefinições dos módulos",
                   })}
+                </Button>
+                <Button
+                  data-tour="instance-results-packages-prune"
+                  onClick={openPrune}
+                  outline
+                  onBackground="base-200"
+                  iconName="trash"
+                  disabled={instanceState.runsCatalog.length === 0}
+                >
+                  {t3({ en: "Prune", fr: "Élaguer", pt: "Limpar" })}
                 </Button>
                 <Button
                   data-tour="instance-results-packages-generate"

@@ -22,10 +22,15 @@ import type { IndicatorMetadata } from "./indicators.ts";
 // consumes it), and there is no shared adminAreaLabels key (every admin-label
 // consumer reads live instance state). Pure copy in manifest_transform
 // block 3.
-// 6: the common-indicator restructure (PLAN_1a). indicators[] catalog entries
-// gained sort_order plus the type/expression/slot_map evaluation fields, and a
-// new top-level `commonIndicators` list replaced the read path's per-request
-// read of the indicators input mirror. Manifest transform block 4.
+// 6: the common-indicator restructure (PLAN_1a) + the population store
+// (PLAN_1b, PLAN_1c), one release. indicators[] catalog entries gained
+// sort_order plus the type/expression/slot_map evaluation fields (type is
+// base | derived; a population term is an ordinary `population:<type>`
+// ingredient in the slot map, never a field of its own), a new top-level
+// `commonIndicators` list replaced the read path's per-request read of the
+// indicators input mirror, and `population` stamps the person-years file a
+// wizard generation wrote (null for packages that carry none). Manifest
+// transform block 4.
 export const RUN_MANIFEST_SCHEMA_VERSION = 6;
 
 // Typed against DatasetType so the enum cannot drift from the union.
@@ -157,7 +162,7 @@ export const runIndicatorMetadataSchema: z.ZodType<IndicatorMetadata> = z
     threshold_yellow: z.number().optional(),
     group_label: z.string().optional(),
     sort_order: z.number().optional(),
-    type: z.enum(["base", "derived", "population_rate"]).optional(),
+    type: z.enum(["base", "derived"]).optional(),
     expression: z.string().optional(),
     slot_map: z.record(z.string(), z.string()).optional(),
   });
@@ -179,6 +184,20 @@ export const runCommonIndicatorSchema = z.object({
   label: z.string(),
 });
 export type RunCommonIndicator = z.infer<typeof runCommonIndicatorSchema>;
+
+// The person-years file a wizard generation wrote to inputs/population.csv
+// (PLAN_1b ruling 4): which population types it carries, at which HMIS admin
+// level, over which months. Generation-only provenance — null when the
+// package carries no such file (a pre-1b package, a backfill, or a run
+// without the HMIS family). The file's format is permanent once written:
+// admin_area_2..N, period_id, population_type, person_years.
+export const runPopulationSchema = z.object({
+  adminAreaLevel: z.number().int(),
+  populationTypes: z.array(z.string()),
+  firstPeriodId: z.number().int(),
+  lastPeriodId: z.number().int(),
+});
+export type RunPopulation = z.infer<typeof runPopulationSchema>;
 
 export const runProvenanceSchema = z.enum(["synthetic-backfill", "wizard"]);
 export type RunProvenance = z.infer<typeof runProvenanceSchema>;
@@ -210,9 +229,11 @@ export const runManifestSchema = z.object({
   metricAvailability: z.array(runMetricAvailabilitySchema),
   indicators: z.array(runModuleIndicatorsSchema),
   commonIndicators: z.array(runCommonIndicatorSchema),
+  population: runPopulationSchema.nullable(),
 
   // Relative paths (from the run dir root) of every input file the run
-  // carries — facilities parquet, dictionary/snapshot JSONs.
+  // carries — facilities parquet, dictionary/snapshot JSONs, the
+  // person-years file.
   inputFiles: z.array(z.string()),
 });
 export type RunManifest = z.infer<typeof runManifestSchema>;

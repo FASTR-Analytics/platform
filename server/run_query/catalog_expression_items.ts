@@ -73,9 +73,10 @@ export const CATALOG_EXPRESSION_VALUE_PROP = "value";
 const INDICATOR_ID_COLUMN = "indicator_common_id";
 
 // Rewrites rows in place of the ingredient columns: one `value`, ingredients
-// dropped. A row whose indicator has no catalog expression (a population rate
-// whose person-years term this package does not carry) yields a null value —
-// the same as any other ingredient that is not there.
+// dropped. A row whose indicator has no catalog expression (a base common the
+// extract had no counts for) yields a null value — the same as any other
+// ingredient that is not there. A population term is an ordinary ingredient
+// here: its person-years travel in whichever slot the catalog assigned it.
 export function applyCatalogExpressionsToItems(
   items: JsonArrayItem[],
   catalog: IndicatorMetadata[],

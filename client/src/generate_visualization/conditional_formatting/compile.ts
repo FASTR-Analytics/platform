@@ -71,7 +71,7 @@ export function compileCfToValuesColorFunc(
       return thresholdColorFunc(
         cf.cutoffs,
         cf.buckets.map((b) => b.color),
-        cf.noDataColor,
+        { noDataColor: cf.noDataColor },
       );
   }
 }

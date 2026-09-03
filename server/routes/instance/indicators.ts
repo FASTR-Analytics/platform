@@ -1,9 +1,5 @@
 import { Hono } from "hono";
-import {
-  assertValidPopulationType,
-  type CommonIndicatorDefinition,
-  isCommonIndicatorType,
-} from "lib";
+import { type CommonIndicatorDefinition, isCommonIndicatorType } from "lib";
 import {
   batchUploadIndicators,
   batchUploadRawIndicators,
@@ -26,10 +22,10 @@ import { defineRoute } from "../route-helpers.ts";
 export const routesIndicators = new Hono();
 
 // The definition arrives already shape-checked by the route registry's Zod
-// body schema; the one thing left to narrow is the population type, whose
-// vocabulary lives in lib rather than the wire schema. The expression grammar
-// itself is validated in the DB layer against the live dictionary, because
-// only there is the full set of commons available.
+// body schema. The expression — its grammar, its indicators and its
+// population terms — is validated in the DB layer against the live
+// dictionary and the population store, because only there is the full
+// vocabulary available.
 function narrowCommonIndicatorDefinition(
   raw: { type: string } & Record<string, unknown>,
 ): CommonIndicatorDefinition {
@@ -39,17 +35,7 @@ function narrowCommonIndicatorDefinition(
   if (raw.type === "base") {
     return { type: "base" };
   }
-  if (raw.type === "derived") {
-    return { type: "derived", expression: String(raw.expression) };
-  }
-  const populationType = String(raw.populationType);
-  assertValidPopulationType(populationType, "populationType");
-  return {
-    type: "population_rate",
-    numeratorExpression: String(raw.numeratorExpression),
-    populationType,
-    multiplier: Number(raw.multiplier),
-  };
+  return { type: "derived", expression: String(raw.expression) };
 }
 
 function toNewCommonIndicator(

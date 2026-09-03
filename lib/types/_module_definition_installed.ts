@@ -34,9 +34,16 @@ export const dataSourceResultsObject = z.object({
   moduleId: z.string(),
 });
 
+// The run's person-years file — see dataSourcePopulationGithub.
+export const dataSourcePopulation = z.object({
+  sourceType: z.literal("population"),
+  replacementString: z.string(),
+});
+
 export const dataSource = z.discriminatedUnion("sourceType", [
   dataSourceDataset,
   dataSourceResultsObject,
+  dataSourcePopulation,
 ]);
 
 export const moduleParameterInput = z.discriminatedUnion("inputType", [
@@ -129,6 +136,7 @@ export type ScriptGenerationType = z.infer<typeof scriptGenerationType>;
 export type DataSource = z.infer<typeof dataSource>;
 export type DataSourceDataset = z.infer<typeof dataSourceDataset>;
 export type DataSourceResultsObject = z.infer<typeof dataSourceResultsObject>;
+export type DataSourcePopulation = z.infer<typeof dataSourcePopulation>;
 export type ModuleParameter = z.infer<typeof moduleParameter>;
 export type RepoAssetToImport = z.infer<typeof repoAssetToImport>;
 export type AssetToImport = z.infer<typeof assetToImport>;

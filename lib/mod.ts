@@ -22,6 +22,7 @@ export * from "./group_metrics.ts";
 export * from "./h_users.ts";
 export * from "./help/mod.ts";
 export * from "./common_indicator_catalog.ts";
+export * from "./population_person_years.ts";
 export * from "./indicator_expression/mod.ts";
 export * from "./indicator_format_metrics.ts";
 export * from "./key_colors.ts";

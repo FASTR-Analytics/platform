@@ -20,6 +20,7 @@ import {
   updateInstanceStructure,
   updateInstanceIndicators,
   updateInstanceDatasets,
+  updateInstancePopulation,
   updateCurrentUser,
   updateProjectsLastUpdated,
 } from "./t1_store";
@@ -168,6 +169,9 @@ export function connectInstanceSSE(): void {
         break;
       case "datasets_updated":
         updateInstanceDatasets(msg.data);
+        break;
+      case "population_updated":
+        updateInstancePopulation(msg.data);
         break;
       case "run_progress":
         for (const listener of runProgressListeners) {

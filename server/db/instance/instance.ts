@@ -97,8 +97,8 @@ export async function getIndicatorMappingsVersion(
 }
 
 // The base-only stamp: the rows an HMIS extract is actually built from
-// (PLAN_1a §1.13). Editing a derived or population-rate definition does not
-// move it, so the datatable caches it keys never churn on a formula edit.
+// (PLAN_1a §1.13). Editing a derived definition does not move it, so the
+// datatable caches it keys never churn on a formula edit.
 export async function getBaseIndicatorMappingsVersion(
   mainDb: Sql,
 ): Promise<string> {
@@ -134,14 +134,11 @@ export async function getInstanceUsers(mainDb: Sql): Promise<OtherUser[]> {
 export async function getInstanceIndicatorsSummary(
   mainDb: Sql,
 ): Promise<InstanceIndicatorsSummary> {
-  // Base rows only, so the two tiles stay disjoint: derivedIndicators below
-  // counts everything non-base, and the pair partitions the dictionary the
-  // way the two tables used to.
   const commonIndicators =
     (
       await mainDb<
         { count: number }[]
-      >`SELECT COUNT(*) as count FROM indicators WHERE definition_type = 'base'`
+      >`SELECT COUNT(*) as count FROM indicators`
     )[0]?.count ?? 0;
   const rawIndicators =
     (
@@ -155,12 +152,6 @@ export async function getInstanceIndicatorsSummary(
         { count: number }[]
       >`SELECT COUNT(*) as count FROM hfa_indicators`
     )[0]?.count ?? 0;
-  const derivedIndicators =
-    (
-      await mainDb<
-        { count: number }[]
-      >`SELECT COUNT(*) as count FROM indicators WHERE definition_type <> 'base'`
-    )[0]?.count ?? 0;
   const indicatorMappingsVersion = await getIndicatorMappingsVersion(mainDb);
   const baseIndicatorMappingsVersion =
     await getBaseIndicatorMappingsVersion(mainDb);
@@ -170,7 +161,6 @@ export async function getInstanceIndicatorsSummary(
       commonIndicators,
       rawIndicators,
       hfaIndicators,
-      derivedIndicators,
     },
     indicatorMappingsVersion,
     baseIndicatorMappingsVersion,

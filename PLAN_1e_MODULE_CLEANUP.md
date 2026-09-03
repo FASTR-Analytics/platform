@@ -1,9 +1,15 @@
-# PLAN_1c — Module cleanup (m003 becomes the indicators module; disruptions → m011)
+# PLAN_1e — Module cleanup (m003 becomes the indicators module; disruptions → m011)
 
 Status: DIRECTION RULED 2026-08-30 (Tim); facts corrected same day after
-the code-verified review round. Final design is written AFTER
+the code-verified review round. Renumbered from 1c on 2026-09-02 when
+[PLAN_1c](PLAN_1c_POPULATION_IN_EXPRESSIONS.md) was inserted ahead of it,
+and from 1d on 2026-09-03 when
+[PLAN_1d](PLAN_1d_INDICATOR_THRESHOLDS_AS_CF_SOURCE.md) was pulled ahead
+of it into the 1a+1b+1c release. Final design is written AFTER
 [PLAN_1a](PLAN_1a_INDICATOR_RESTRUCTURE.md) +
-[PLAN_1b](PLAN_1b_POPULATION_STORE.md) ship. **Concrete trigger**: the
+[PLAN_1b](PLAN_1b_POPULATION_STORE.md) +
+[PLAN_1c](PLAN_1c_POPULATION_IN_EXPRESSIONS.md) +
+[PLAN_1d](PLAN_1d_INDICATOR_THRESHOLDS_AS_CF_SOURCE.md) ship. **Concrete trigger**: the
 first production project repoints to an m012-bearing package AND its
 migrated indicators verify against the old m008 values (1b's
 validation-target list). When that happens, writing this plan's final
@@ -31,9 +37,10 @@ combination build on (both OUT of scope here).
    m12-\* → m3-\* vocabulary change happens ONCE, here: a project
    migration UPDATEs `presentation_objects.metric_id` by EXPLICIT literal
    id pairs (never a pattern sweep — `4f0dd3dc`); frozen FigureBundles
-   are self-contained and untouched; `special_chart_checks.ts` lists gain
-   the m3 successor ids (stored vocabulary keeps the m12 ids per 1a §0
-   clause 2); MCP/playbook id mentions update in the same change. Old
+   are self-contained and untouched; no `special_chart_checks.ts` list
+   names an m12 id once PLAN_1d deletes `SPECIAL_SCORECARD_TABLE_METRICS`
+   (verify with a grep at final design); MCP/playbook id mentions update
+   in the same change. Old
    m012-bearing packages keep rendering — reading is registry-free after
    1a.
 2. **Volumes continuity.** m3-01-01 stays the volumes metric, untouched,
