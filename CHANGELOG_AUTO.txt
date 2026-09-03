@@ -1,3 +1,39 @@
+[TBD] [user] [added] - Common indicators can now be "Derived" with a formula over other indicators and populations
+[TBD] [user] [added] - Formula editor with searchable palette to insert indicator and population references
+[TBD] [user] [added] - Live formula validation and legend showing referenced indicators and populations
+[TBD] [user] [added] - Display format option (number, percent, rate per 10,000) for derived indicators
+[TBD] [user] [added] - Conditional formatting thresholds can be set directly on common indicators
+[TBD] [user] [added] - Population management page for importing, viewing, and deleting population figures
+[TBD] [user] [added] - CSV import for population figures by admin area, year, and population type
+[TBD] [user] [added] - Population types editor to create, rename, and delete population types
+[TBD] [user] [added] - Population coverage summary shown on the instance data overview card
+[TBD] [user] [added] - Bulk prune button to delete all unused results packages at once
+[TBD] [user] [added] - "Indicator" conditional formatting mode that colours each value by its own indicator's rule
+[TBD] [user] [added] - Sort button for common indicators to reorder them in one unified list
+[TBD] [user] [changed] - Base and derived indicators are now managed in one table instead of separate tabs
+[TBD] [user] [changed] - "Calculated indicators" tab removed; its functionality is merged into common indicators
+[TBD] [user] [changed] - Indicator ID validation now also disallows square brackets
+[TBD] [user] [changed] - Results packages from modules no longer in the system can still be viewed and downloaded
+[TBD] [user] [changed] - Newly generated results package is automatically selected in the sidebar
+[TBD] [user] [fixed] - Module progress badges no longer have inconsistent spacing between label and status dot
+[TBD] [admin] [added] - Common indicators now support a "derived" type with formula definitions
+[TBD] [admin] [added] - Derived indicators can reference other indicators and population terms in formulas
+[TBD] [admin] [added] - Display format option (number, percent, rate per 10,000) for derived indicators
+[TBD] [admin] [added] - Conditional formatting thresholds can be set per indicator in the dictionary
+[TBD] [admin] [added] - New Population management page for uploading and viewing population figures
+[TBD] [admin] [added] - Population types can be created, renamed, and deleted from the instance
+[TBD] [admin] [added] - CSV import for population figures by admin area, year, and population type
+[TBD] [admin] [added] - Population coverage summary shown on the instance data overview card
+[TBD] [admin] [added] - Bulk prune button to delete all unused results packages at once
+[TBD] [admin] [added] - Sort button for common indicators to reorder them in one unified list
+[TBD] [admin] [added] - "Indicator" conditional formatting source uses each indicator's own rule
+[TBD] [admin] [added] - Newly generated results packages are automatically selected in the sidebar
+[TBD] [admin] [changed] - Calculated indicators tab removed; derived indicators are now part of common indicators
+[TBD] [admin] [changed] - Indicator IDs now also disallow square brackets
+[TBD] [admin] [changed] - Results packages from modules no longer in the registry remain fully browsable
+[TBD] [admin] [changed] - Common indicator editor dialog is wider with a two-column layout
+[TBD] [admin] [fixed] - Module progress badges no longer shift layout when status text changes
+[TBD] [admin] [fixed] - Style preview now updates reliably when color theme settings change
 [1.68.0] [user] [changed] - Attached PDF documents are now tracked per conversation
 [1.68.0] [user] [changed] - Previously sent documents can no longer be accidentally removed
 [1.68.0] [user] [fixed] - Document selector opens faster without a loading spinner
