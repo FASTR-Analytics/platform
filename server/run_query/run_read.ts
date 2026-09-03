@@ -46,7 +46,6 @@ import {
   getResultsObjectTableName,
   tryCatchDatabaseAsync,
 } from "../db/utils.ts";
-import { inferMostGranularTimePeriodColumn } from "../db/project/metric_enricher.ts";
 import { parseModuleConfigSelections } from "../db/project/modules.ts";
 import {
   getRunManifestCached,
@@ -59,44 +58,35 @@ import {
   runResultsObjectParquetPath,
 } from "../runs/run_paths.ts";
 import {
-  computeFacilityContext,
-  facilitiesTableForFamily,
-} from "../server_only_funcs_presentation_objects/get_query_context.ts";
-import {
   buildMinimalFetchConfig,
+  buildResultsValueInfo,
+  buildWhereClause,
+  computeFacilityContext,
+  detectNeededPeriodColumns,
+  facilitiesTableForFamily,
   getPossibleValuesCore,
-} from "../server_only_funcs_presentation_objects/get_possible_values.ts";
-import { getPresentationObjectItemsCore } from "../server_only_funcs_presentation_objects/get_presentation_object_items.ts";
+  getPresentationObjectItemsCore,
+  indicatorFormatsFrom,
+  indicatorRulesFrom,
+  needsPeriodCTEFor,
+  type QueryContext,
+  type RunVersionInfo,
+  type SqlRowsExecutor,
+} from "../server_only_funcs_presentation_objects/mod.ts";
 import {
   applyCatalogExpressionsToItems,
   getCatalogEvaluationForResultsObject,
 } from "./catalog_expression_items.ts";
-import {
-  buildResultsValueInfo,
-  indicatorFormatsFrom,
-  indicatorRulesFrom,
-} from "../server_only_funcs_presentation_objects/get_results_value_info.ts";
-import {
-  detectNeededPeriodColumns,
-  needsPeriodCTEFor,
-} from "../server_only_funcs_presentation_objects/period_helpers.ts";
-import { buildWhereClause } from "../server_only_funcs_presentation_objects/query_helpers.ts";
-import type {
-  QueryContext,
-  SqlRowsExecutor,
-} from "../server_only_funcs_presentation_objects/types.ts";
 import { executeSqlOverParquet, type ParquetView } from "./duckdb_executor.ts";
 import {
   findVirtualDefault,
   VIRTUAL_DEFAULT_LAST_UPDATED,
 } from "./virtual_defaults.ts";
 
-// The run read path (PLAN_RESULTS_RUNS Status, model point 3): every function
-// here consults ONLY the attached immutable run — manifest for metadata (no
-// probes), parquet for data. The SQL builders and status logic are the SAME
-// code the Postgres path uses; only the context source and the executor differ
-// (§2.4). The Postgres read functions stay in-tree solely as the parity rig's
-// baseline until demolition.
+// The run read path: every function here consults ONLY the attached immutable
+// run — manifest for metadata (no probes), parquet for data. The SQL builders
+// and status logic live in server_only_funcs_presentation_objects/ and take
+// the query context and the executor from here.
 
 export type RunReadContext = {
   runId: string;
@@ -183,15 +173,6 @@ export async function getRunReadContextForRun(
       err: `Results run unavailable: ${e instanceof Error ? e.message : e}`,
     };
   }
-}
-
-// Same format as the legacy per-request getDatasetsVersion, but from the
-// manifest's frozen stamps — carried in holders for provenance.
-export function datasetsVersionFromManifest(manifest: RunManifest): string {
-  return [...manifest.datasets]
-    .sort((a, b) => (a.datasetType < b.datasetType ? -1 : 1))
-    .map((d) => `${d.datasetType}:${d.lastUpdated}`)
-    .join(",");
 }
 
 function findResultsObject(
@@ -294,8 +275,7 @@ function buildQueryContextFromManifest(
     neededPeriodColumns,
     calendar: manifest.calendar,
   });
-  // Mirrors buildQueryContext's getTextColumnNames: both sides of the join,
-  // from the manifest stamps instead of information_schema probes.
+  // Both sides of the join, from the manifest's column-type stamps.
   const textColumns = new Set(
     ro.columns.filter((c) => c.duckDbType === "VARCHAR").map((c) => c.name),
   );
@@ -505,8 +485,8 @@ export function getIndicatorMetadataFromRun(
 
 // ── Metric resolution from the manifest ──────────────────────────────────────
 
-// Mirrors enrichMetric (metric_enricher.ts) with the manifest stamps standing
-// in for the live column probes.
+// A manifest metric row → the ResultsValue the client works with, with the
+// disaggregation options from the results object's finalize-time stamp.
 export function enrichMetricFromManifest(
   metric: RunMetric,
   ro: RunResultsObject | undefined,
@@ -555,6 +535,16 @@ export function enrichMetricFromManifest(
       : undefined,
     importantNotes: metric.important_notes ?? undefined,
   };
+}
+
+function inferMostGranularTimePeriodColumn(
+  disaggregationOptions: ResultsValue["disaggregationOptions"],
+): PeriodOption | undefined {
+  const disOpts = disaggregationOptions.map((d) => d.value);
+  if (disOpts.includes("period_id")) return "period_id";
+  if (disOpts.includes("quarter_id")) return "quarter_id";
+  if (disOpts.includes("year")) return "year";
+  return undefined;
 }
 
 // Server-side requiredness guard for the type-erased items request: the
@@ -703,16 +693,14 @@ export function getModuleIdForMetricFromRun(
   return ctx.manifest.metrics.find((m) => m.id === metricId)?.module_id;
 }
 
-export function getRunVersionInfo(
-  ctx: RunReadContext,
-  moduleId: string,
-): {
-  moduleLastRun: string;
-  datasetsVersion: string;
-  runId: string;
-  scopeToken: string;
-} {
-  return versionInfoFor(ctx, moduleId);
+export function getRunVersionInfo(ctx: RunReadContext): RunVersionInfo {
+  return { runId: ctx.runId, scopeToken: ctx.scopeToken };
+}
+
+// The "module has not run" guard, read off the manifest: a module absent from
+// the run, or present without a run stamp, has no data to serve.
+export function moduleHasRun(ctx: RunReadContext, moduleId: string): boolean {
+  return findModule(ctx.manifest, moduleId)?.lastRunAt != null;
 }
 
 // PO row (authored content) stays on the project DB; only the resultsValue
@@ -778,16 +766,6 @@ SELECT * FROM presentation_objects WHERE id = ${presentationObjectId}
     };
     return { success: true, data: presObj };
   });
-}
-
-function versionInfoFor(ctx: RunReadContext, moduleId: string) {
-  const mod = findModule(ctx.manifest, moduleId);
-  return {
-    moduleLastRun: mod?.lastRunAt ?? "unknown",
-    datasetsVersion: datasetsVersionFromManifest(ctx.manifest),
-    runId: ctx.runId,
-    scopeToken: ctx.scopeToken,
-  };
 }
 
 // ── Project scope (PLAN_1_PROJECT_AA2_SCOPE §3) ──────────────────────────────
@@ -920,7 +898,6 @@ export async function getPresentationObjectItemsFromRun(
   const res = await getPresentationObjectItemsCore(
     {
       execute: executorFor(ctx, resultsObjectId),
-      columnExists: columnExistsFor(ctx, resultsObjectId),
       // Display fields only — an indicator's evaluation is a generation fact
       // used just below, never something a client or a stored figure carries.
       getIndicatorMetadata: () =>
@@ -931,7 +908,7 @@ export async function getPresentationObjectItemsFromRun(
     queryContext,
     effectiveFetchConfig,
     firstPeriodOption,
-    versionInfoFor(ctx, ro.moduleId),
+    getRunVersionInfo(ctx),
   );
   // Post-aggregation catalog evaluation (PLAN_1a §1.6): the engine returned
   // SUMmed ingredient columns for main AND roll-up rows; each row's own
@@ -1030,7 +1007,7 @@ export async function getResultsValueInfoFromRun(
     metricId,
     resultsObjectId,
     resultsValue.datasetFamily,
-    versionInfoFor(ctx, moduleId),
+    getRunVersionInfo(ctx),
     ro?.periodBounds ?? undefined,
     resultsValue.disaggregationOptions.map((d) => d.value),
     indicatorFormatsFrom(indicatorMetadata),

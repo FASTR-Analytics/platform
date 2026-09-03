@@ -2,7 +2,7 @@ import {
   type IndicatorFormat,
   PeriodOption,
   PresentationObjectConfig,
-  PresentationObjectDetail,
+  PresentationObjectEditorDetail,
   get_PERIOD_OPTION_MAP,
   t3,
 } from "lib";
@@ -19,7 +19,7 @@ import { ChartLikeControls } from "./_chart_like_controls";
 import { StyleRevealGroup, StyleSection } from "./_style_components";
 
 type Props = {
-  poDetail: PresentationObjectDetail;
+  poDetail: PresentationObjectEditorDetail;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
   editCustomSeriesStyles: () => Promise<void>;

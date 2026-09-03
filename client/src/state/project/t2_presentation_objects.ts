@@ -35,8 +35,9 @@ export const _METRIC_INFO_CACHE = createReactiveCache<
   ResultsValueInfoForPresentationObject
 >({
   // v2: payload gained indicatorRules (PLAN_1d) — a shape change bumps the
-  // name, as for po_detail below.
-  name: "metric_info_v2",
+  // name, as for po_detail below. v3: payload dropped the
+  // moduleLastRun/datasetsVersion pair (PLAN_RESULTS_RUNS ruling 4).
+  name: "metric_info_v3",
   uniquenessKeys: (params) => [
     params.projectId,
     params.metricId,
@@ -87,8 +88,9 @@ export const _PO_ITEMS_CACHE = createReactiveCache<
 >({
   // v2: indicator axis order now comes solely from catalog sort_order
   // (PLAN_1a) — stale items would sort alphabetically with no error.
-  // v3: indicatorMetadata carries `thresholds` rules (PLAN_1d).
-  name: "po_items_v3",
+  // v3: indicatorMetadata carries `thresholds` rules (PLAN_1d). v4: payload
+  // dropped the moduleLastRun/datasetsVersion pair (PLAN_RESULTS_RUNS ruling 4).
+  name: "po_items_v4",
   uniquenessKeys: (params) => [
     params.projectId,
     params.resultsObjectId,
@@ -243,10 +245,7 @@ export async function* getPOFigureInputsFromCacheOrFetch_AsyncGenerator(
       localization: getSnapshotInstanceLocalization(),
       metricId: resultsValue.id,
       snapshotAt: "",
-      provenance: {
-        moduleLastRun: ih.moduleLastRun,
-        datasetsVersion: ih.datasetsVersion,
-      },
+      provenance: { runId: ih.runId },
     });
     yield { status: "ready" as const, data: fi };
   } catch (e) {
@@ -399,7 +398,7 @@ export async function resolveDefaultReplicant(
 
 export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator(
   projectId: string,
-  poDetail: PresentationObjectDetail,
+  poDetail: Pick<PresentationObjectDetail, "projectId" | "resultsValue">,
   config: PresentationObjectConfig,
 ): AsyncGenerator<
   StateHolder<{
@@ -515,7 +514,7 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
 
 export async function getPresentationObjectItemsFromCacheOrFetch(
   projectId: string,
-  poDetail: PresentationObjectDetail,
+  poDetail: Pick<PresentationObjectDetail, "projectId" | "resultsValue">,
   config: PresentationObjectConfig,
 ): Promise<
   APIResponseWithData<{

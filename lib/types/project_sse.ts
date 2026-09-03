@@ -4,7 +4,7 @@ import type { ProjectUser } from "./instance.ts";
 import type { InstalledModuleSummary, MetricWithStatus } from "./modules.ts";
 import type { ProjectUserPermissions } from "./permissions.ts";
 import type { PresentationObjectSummary } from "./presentation_objects.ts";
-import type { LastUpdateTableName } from "./project_dirty_states.ts";
+import type { LastUpdateTableName } from "./last_updated_tables.ts";
 import type { SlideDeckFolder, SlideDeckSummary } from "./slides.ts";
 import type { ReportFolder, ReportSummary } from "./reports.ts";
 import type { RunListingItem } from "./run_generation.ts";

@@ -4,7 +4,7 @@ import {
   FIGURE_EXPORT_WIDTH_PX,
   ItemsHolderPresentationObject,
   PresentationObjectConfig,
-  PresentationObjectDetail,
+  PresentationObjectEditorDetail,
   ProjectState,
   ResultsValueInfoForPresentationObject,
   canonicalJson,
@@ -124,7 +124,7 @@ const NON_TEXT_INPUT_TYPES = new Set([
 type InnerProps = {
   mode: "edit" | "create" | "ephemeral";
   projectStateSnapshot: ProjectState;
-  poDetail: PresentationObjectDetail;
+  poDetail: PresentationObjectEditorDetail;
   resultsValueInfo: ResultsValueInfoForPresentationObject;
   returnToContext?: ProjectAIViewState;
   /** Ephemeral mode only: live co-editing of the figure inside the host doc. */

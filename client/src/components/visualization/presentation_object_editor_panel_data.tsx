@@ -3,7 +3,7 @@ import {
   FILTER_ONLY_DISAGGREGATION_OPTIONS,
   IneffectiveDisaggregator,
   PresentationObjectConfig,
-  PresentationObjectDetail,
+  PresentationObjectEditorDetail,
   ProjectState,
   ResultsValueInfoForPresentationObject,
 } from "lib";
@@ -18,7 +18,7 @@ import { HelpButton } from "../HelpButton";
 
 type Props = {
   projectStateSnapshot: ProjectState;
-  poDetail: PresentationObjectDetail;
+  poDetail: PresentationObjectEditorDetail;
   resultsValueInfo: ResultsValueInfoForPresentationObject;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;

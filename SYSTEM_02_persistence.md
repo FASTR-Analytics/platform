@@ -357,9 +357,9 @@ PROTOCOL_APP_MIGRATIONS data-transform (one deploy, no offline script).
   frozen `localization`, all three fields from the instance env —
   `_INSTANCE_LANGUAGE`/`_INSTANCE_CALENDAR`/`_INSTANCE_COUNTRY_ISO3` — threaded
   through every project sweep, so backfilled figures carry the real country
-  (drives admin-area relabelling at render). `provenance.moduleLastRun`
-  is best-effort (= `snapshotAt`); the Phase-4 stale-flag is therefore
-  approximate for backfilled figures (accepted).
+  (drives admin-area relabelling at render). `provenance` is
+  `{ runId: null }`: a pre-bundle figure predates the runs model, so its run
+  is unknowable and never invented (the snapshot time is not the run time).
 - **Invalid config fails fast.** A missing/invalid `source.config` **throws**
   rather than producing a silent blank (which would masquerade as "empty" past
   `figureBlockSchema`), so the dry-run surfaces it by id.
@@ -390,14 +390,13 @@ PROTOCOL_APP_MIGRATIONS data-transform (one deploy, no offline script).
   block 2 for run manifests. The declaration itself is
   [SYSTEM_10](SYSTEM_10_figure_render_export.md)'s.
 
-### The mandatory pre-deploy dry-run gate
+### The pre-deploy dry-run gate (passed; tool retired)
 
-[validate_figure_bundle_backfill.ts](validate_figure_bundle_backfill.ts) (repo
-root) runs the exact reshape + round-trip in **read-only** mode against every
-instance's DBs before the cutover: per-outcome counts (in-place ok / timeseries
-round-trip ok / FAIL / already-bundle / empty) and the identity of every
-failure. The cutover deploys only when it is clean (zero round-trip failures) on
-all instances. Result of the gate: **36/36 instances, 17,142 figures, 0 FAILs.**
+A read-only repo-root script ran the exact reshape + round-trip against every
+instance's DBs before the cutover (per-outcome counts and the identity of every
+failure). Result: **36/36 instances, 17,142 figures, 0 FAILs.** The script was
+deleted on 2026-09-04 with the results-runs Phase 4 sweep — a passed one-time
+gate is history, not tooling.
 
 ## File & naming conventions
 

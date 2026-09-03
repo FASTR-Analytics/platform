@@ -47,8 +47,8 @@ admin-area labels and the per-family `structureSchemaSchema` /
 `structureColumnsFromSchema` + `hashStructureSchema` (S5's config surface); `GlobalUser`/`ProjectUser`/`OtherUser`/user-log types + the dev-mode
 user factories (S1/S15); generic table-column and CSV-import wizard types
 (`CsvDetails`, `Mappings`, `Conflicts` — S5/S6); and the `ItemsHolder*` payload
-types, including `ItemsHolderPresentationObject` whose fields are cache-version
-ingredients (S9 — the `datasetsVersion` doc-comment there is load-bearing).
+types, including `ItemsHolderPresentationObject` whose `runId` + `scopeToken`
+are the cache identity (S9) and the figure's provenance (S10).
 
 **`lib/consts.ts`** — the constants grab-bag: `COUNTRY_ISO3_TO_LABEL` +
 `getCountryLabel` (all tiers); `DEFAULT_ANTHROPIC_MODEL` (S13);

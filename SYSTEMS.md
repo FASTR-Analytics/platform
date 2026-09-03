@@ -65,11 +65,9 @@ list.)
 | `server/server_only_types/mod.ts`                                       | S8    | S1, S3, S9        | 20 lines, three systems — physical-split candidate    |
 | `server/routes/instance/instance.ts` · `server/db/instance/instance.ts` | S5    | S15, S6           | config routes + meta/projects/disk + dataset versions |
 | `_file_upload_selector.tsx` · `_uppy_file_upload.ts`                    | S4    | S6, S5, S12, S15  | shared upload primitives                              |
-| `server/db/project/results_objects.ts`                                  | S8    | S9                | frozen `ro_*` read = the parity rig oracle            |
 | `client/src/components/_shared/results_package/**`                      | S8    | S12               | S8 content under S12's `_shared/**` glob              |
 | `client/src/components/instance/instance_data.tsx`                      | S6    | S5                | data-tab switchboard mounting S5 managers             |
 | `server/db/instance/config.ts`                                          | S5    | S6, S9            | instance config parameterizes ELT + generated SQL     |
-| `lib/types/project_dirty_states.ts`                                     | S3    | —                 | now only `LastUpdateTableName` — rename me            |
 | `server/db/project/reports.ts` · `slides.ts` · `slide_decks.ts`         | S12   | S16, S2           | S16 collab checkpoints + version columns              |
 | `server/routes/project/reports.ts` · `slide_decks.ts` · `slides.ts`     | S12   | S16               | S16 room chokepoints + version-history routes         |
 | `server/routes/instance/health.ts`                                      | S15   | S17               | unauthenticated endpoints dump the user_logs tables   |

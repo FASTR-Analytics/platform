@@ -60,7 +60,10 @@ export type PresentationObjectInReportInfo = {
   selectedReplicantValue: string;
 };
 
-export type PresentationObjectDetail = {
+// The authored row plus its resolved resultsValue — what the visualization
+// editor and its panels work on. The create/ephemeral editors synthesize one
+// with no run behind it, which is why it carries no run identity.
+export type PresentationObjectEditorDetail = {
   id: string;
   projectId: string;
   lastUpdated: string;
@@ -69,13 +72,17 @@ export type PresentationObjectDetail = {
   config: PresentationObjectConfig;
   isDefault: boolean;
   folderId: string | null;
+};
+
+// The served detail: the editor detail plus the run identity it was resolved
+// under.
+export type PresentationObjectDetail = PresentationObjectEditorDetail & {
   // The run resultsValue was resolved from — folded into the po_detail cache
-  // version (PLAN_RESULTS_RUNS §2.5). Absent only from the parity rig's
-  // Postgres baseline, which never enters the caches.
-  runId?: string;
+  // version (PLAN_RESULTS_RUNS §2.5).
+  runId: string;
   // The project scope the payload was computed under (projectScopeToken) —
   // folded into cache versions beside runId (PLAN_1_PROJECT_AA2_SCOPE §4).
-  scopeToken?: string;
+  scopeToken: string;
 };
 
 export type PeriodBounds = {
@@ -112,16 +119,10 @@ export type ResultsValueInfoForPresentationObject = {
   // The metric's dataset family — selects which family's structure schema
   // labels its facility columns. Absent for iceh/unknown-family metrics.
   datasetFamily?: DatasetType;
-  moduleLastRun: string;
-  // Freshness of the dataset(s) feeding indicator metadata, which labels the
-  // cached disaggregation values. Rewritten on dataset integration (bumps
-  // datasets.last_updated) independently of moduleLastRun, so the cache versions
-  // on it too. Carried here so parseData can reproduce the version hash.
-  datasetsVersion: string;
   // See ItemsHolderPresentationObject.runId (PLAN_RESULTS_RUNS §2.5).
-  runId?: string;
+  runId: string;
   // See PresentationObjectDetail.scopeToken.
-  scopeToken?: string;
+  scopeToken: string;
   periodBounds?: PeriodBounds;
   disaggregationPossibleValues: {
     [key in DisaggregationOption]?: DisaggregationPossibleValuesStatus;
@@ -149,15 +150,10 @@ export type ReplicantOptionsForPresentationObject =
     resultsObjectId: string;
     replicateBy: DisaggregationOption;
     fetchConfig: GenericLongFormFetchConfig;
-    moduleLastRun: string;
-    // Replicant value labels come from indicator metadata, rewritten on dataset
-    // integration (bumps datasets.last_updated) independently of moduleLastRun, so
-    // the cache versions on it too. Carried here so parseData can reproduce it.
-    datasetsVersion: string;
     // See ItemsHolderPresentationObject.runId (PLAN_RESULTS_RUNS §2.5).
-    runId?: string;
+    runId: string;
     // See PresentationObjectDetail.scopeToken.
-    scopeToken?: string;
+    scopeToken: string;
   }
   & (
     | {

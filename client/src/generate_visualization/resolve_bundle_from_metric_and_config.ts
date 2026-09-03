@@ -47,7 +47,6 @@ export async function resolveBundleFromMetricAndConfig(
       metricId: metric.id,
       resultsObjectId: metric.resultsObjectId,
       mostGranularTimePeriodColumnInResultsFile: metric.mostGranularTimePeriodColumnInResultsFile,
-      moduleLastRun: "", // matches the current from_metric adapter; provenance is informational
       resultsValueForViz: {
         formatAs: metric.formatAs,
         valueProps: metric.valueProps,

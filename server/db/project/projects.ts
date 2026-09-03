@@ -927,27 +927,6 @@ export async function copyProjectInBackground(
       newProjectId,
     )} WITH TEMPLATE ${dedicatedDb(sourceProjectId)}`;
 
-    const sourceSandboxDir = join(_SANDBOX_DIR_PATH, sourceProjectId);
-    const destSandboxDir = join(_SANDBOX_DIR_PATH, newProjectId);
-    try {
-      const sourceExists = await Deno.stat(sourceSandboxDir);
-      if (sourceExists.isDirectory) {
-        await Deno.mkdir(destSandboxDir, { recursive: true });
-        const copyCommand = new Deno.Command("cp", {
-          args: ["-r", sourceSandboxDir + "/.", destSandboxDir],
-        });
-        const { success } = await copyCommand.output();
-        if (!success) {
-          throw new Error("Failed to copy sandbox directory");
-        }
-        await Deno.chmod(destSandboxDir, 0o777);
-      }
-    } catch (e) {
-      if (!(e instanceof Deno.errors.NotFound)) {
-        throw e;
-      }
-    }
-
     // Project copy = authored-content clone + same run pointer
     // (PLAN_RESULTS_RUNS §2.8): runs are immutable instance-level artifacts,
     // so the copy attaches to the source's run (cache sharing is run-keyed

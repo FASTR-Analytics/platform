@@ -42,7 +42,7 @@ export type ProjectDetail = {
   // national. Scopes every run read server-side (PLAN_1_PROJECT_AA2_SCOPE).
   adminArea2: string | null;
   // The immutable results run this project serves from (projects.run_id);
-  // null = no run attached — data reads error until one is synthesized/attached.
+  // null = no run attached — data reads error until one is attached.
   attachedRunId: string | null;
   // Its catalogue row, for the project T1 store (see ProjectState.attachedRun).
   attachedRun: RunListingItem | null;

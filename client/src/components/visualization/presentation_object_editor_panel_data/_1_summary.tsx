@@ -2,7 +2,7 @@ import {
   DisaggregationDisplayOption,
   DisaggregationOption,
   PresentationObjectConfig,
-  PresentationObjectDetail,
+  PresentationObjectEditorDetail,
   PresentationOption,
   ResultsValue,
   VIZ_TYPE_CONFIG,
@@ -15,7 +15,7 @@ import { batch } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
 
 type DataValuesSummaryProps = {
-  poDetail: PresentationObjectDetail;
+  poDetail: PresentationObjectEditorDetail;
 };
 
 export function DataValuesSummary(p: DataValuesSummaryProps) {

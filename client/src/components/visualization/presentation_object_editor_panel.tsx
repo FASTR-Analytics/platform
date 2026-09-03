@@ -1,6 +1,6 @@
 import {
   PresentationObjectConfig,
-  PresentationObjectDetail,
+  PresentationObjectEditorDetail,
   type PresenceEntry,
   ProjectState,
   ResultsValueInfoForPresentationObject,
@@ -22,7 +22,7 @@ import {
 
 type Props = {
   projectStateSnapshot: ProjectState;
-  poDetail: PresentationObjectDetail;
+  poDetail: PresentationObjectEditorDetail;
   resultsValueInfo: ResultsValueInfoForPresentationObject;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;

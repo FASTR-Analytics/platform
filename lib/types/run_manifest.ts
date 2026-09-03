@@ -6,8 +6,7 @@ import type { DatasetType } from "./datasets.ts";
 import type { IndicatorMetadata } from "./indicators.ts";
 
 // The run manifest (PLAN_RESULTS_RUNS §2.2) — written once by the finalize
-// step of a generation (wizard, or the backfill synthesizer), the ONLY thing
-// readers consult at query time. Precomputed, never probed: every fact the
+// step of a generation, the ONLY thing readers consult at query time. Precomputed, never probed: every fact the
 // read path used to discover via per-request column probes is stamped here.
 // Identity is in the artifact: runId required, and no projectId or any other
 // instance FK inside run files (§9 layer rule).
@@ -49,10 +48,10 @@ export const runPhysicalTimeColumnSchema = z.enum([
 ]);
 
 // Per results object: the post-normalization schema of the query parquet
-// (outputs/{moduleId}/{roId}.parquet) plus the query metadata
-// enrichMetric/getQueryContext currently probe for. hasParquet=false marks
-// file-only results objects and modules that have not run (no query store,
-// exactly as they are excluded from Postgres today).
+// (outputs/{moduleId}/{roId}.parquet) plus the query metadata the read path
+// needs (column set and types, time column, period bounds, availability), all
+// stamped at finalize so reads never probe. hasParquet=false marks file-only
+// results objects and modules that have not run (no query store).
 export const runResultsObjectSchema = z.object({
   id: z.string(),
   moduleId: z.string(),
@@ -69,9 +68,9 @@ export type RunResultsObject = z.infer<typeof runResultsObjectSchema>;
 // Module catalog entry — the installed definition verbatim (raw JSON string,
 // exactly as the project-DB modules table stores it, so existing parsers
 // apply unchanged). inputKey/outputFileHashes are the §3.7 memoization
-// fields: schema-present from the first manifest, computed only by real
-// wizard generation; synthesized backfill runs carry null and are never
-// reuse sources.
+// fields: schema-present from the first manifest, computed by generation;
+// packages synthesized during the 2026-08 fleet cutover carry null and are
+// never reuse sources.
 export const runModuleSchema = z.object({
   id: z.string(),
   moduleDefinition: z.string(),
@@ -83,9 +82,9 @@ export const runModuleSchema = z.object({
 });
 export type RunModule = z.infer<typeof runModuleSchema>;
 
-// Metric catalog entry — the project-DB metrics row verbatim (snake_case
-// field names kept so ResultsValue construction reuses the DBMetric path),
-// plus the build-time datasetFamily stamp (camelCase marks it as derived at
+// Metric catalog entry — the module definition's metric row verbatim
+// (snake_case field names are the definition's own vocabulary), plus the
+// build-time datasetFamily stamp (camelCase marks it as derived at
 // finalize via getDatasetFamily, not a DB column; null = no single family).
 export const runMetricSchema = z.object({
   datasetFamily: runDatasetFamilySchema.nullable(),
@@ -243,8 +242,8 @@ export type RunManifest = z.infer<typeof runManifestSchema>;
 //
 // Run identity (Q-A ruling): an instance-generated run has no source
 // project, so there is no sourceProjectId. `backfillSourceProjectId` is
-// stamped by the backfill synthesizer and ONLY by it — the rig gates a
-// project iff its attached run is that project's own backfill run.
+// stored vocabulary: packages synthesized during the 2026-08 fleet cutover
+// carry the project they were synthesized from; generation writes null.
 // `attachTargetProjectIds` is the wizard's launch-time attach selection: the
 // projects the publish transaction repoints, and the key the launch
 // concurrency guard uses.

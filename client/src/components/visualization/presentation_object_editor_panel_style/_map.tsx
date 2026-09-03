@@ -1,7 +1,7 @@
 import {
   type IndicatorFormat,
   PresentationObjectConfig,
-  PresentationObjectDetail,
+  PresentationObjectEditorDetail,
   selectCf,
   t3,
 } from "lib";
@@ -14,7 +14,7 @@ import { ConditionalFormattingEditor } from "../conditional_formatting_editor";
 import { StyleRevealGroup, StyleSection } from "./_style_components";
 
 type Props = {
-  poDetail: PresentationObjectDetail;
+  poDetail: PresentationObjectEditorDetail;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
   /** Format the figure's values will actually be written in (resolved from the

@@ -372,29 +372,27 @@ callback re-parses the new bytes).
   schema hash in the uniqueness keys; HFA/ICEH use server-provided cache
   hashes from the T1 SSE store.
 
-## Project attach/snapshot seam
+## Run capture seam
 
-Attach = wipe + re-export, per family: validate and capture staleness
-metadata FIRST (hash-after-export could mask a concurrent instance import),
-then `removeDatasetFromProject`, then COPY main-DB data to
-`{SANDBOX}/{projectId}/datasets/{type}.csv`, then one projectDb transaction
-writing `datasets(dataset_type, info, last_updated)` + snapshot tables.
-Attach concurrency is an in-memory `_datasetLocks` set keyed
-`{projectId}_{datasetType}` in the route.
+Datasets reach a project only as results-package run inputs: the wizard's
+choose-data step drives the per-family capture functions
+(`computeDataset*RunCapture` in `server/db/project/datasets_in_project_*.ts`,
+called from `generate_run/prepare_inputs.ts`). Each capture validates and
+records the staleness metadata FIRST (hash-after-export could mask a
+concurrent instance import), then `COPY`s main-DB data to the run's tmp dir
+(`DatasetCsvTarget` names the SAME file by its Postgres-container path and its
+Deno path), and returns the rows the run mirrors into its inputs plus the
+dataset version stamps the manifest records. No project table is written.
 
-- Snapshot tables are the metadata twins of the CSVs: `hfa_indicator*_snapshot`
-  (HFA, service-category-scoped), `iceh_indicators_snapshot`. Modules read
-  `../datasets/{type}.csv`; PO metadata and module runs read the snapshots.
-  The HMIS twin is no longer a project table: the common dictionary is
-  resolved at capture and written into the run as the `indicators.json`
-  mirror (PLAN_1a §1.10). The frozen `calculated_indicators_snapshot` table
-  is read by nothing and drops with PLAN_RESULTS_RUNS Phase 4.
-- **Project-level attach/staleness UI is gone** (PLAN_RESULTS_RUNS item 5):
-  datasets reach a project only as results-package run inputs — the wizard's
-  choose-data step drives the same attach/export functions
-  (`generate_run/prepare_inputs.ts`), and the run captures dataset version
-  stamps in its manifest. The dirty cascade and the per-dataset staleness
-  indicators died with the Data tab.
+- The run's input mirrors are the metadata twins of the CSVs:
+  `hfa_*_snapshot.json` (HFA, service-category-scoped),
+  `iceh_indicators_snapshot.json`, and `indicators.json` (the whole common
+  dictionary, resolved at capture). Modules read `../datasets/{type}.csv`; PO
+  metadata reads the manifest's indicator catalog, built from the mirrors at
+  finalize. The frozen project-DB `calculated_indicators_snapshot` table is
+  read by nothing and drops with PLAN_RESULTS_RUNS Phase 4.
+- **Project-level attach/staleness UI is gone**: the dirty cascade and the
+  per-dataset staleness indicators died with the Data tab.
 
 ## Traps
 

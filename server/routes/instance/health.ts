@@ -42,8 +42,7 @@ routesHealth.get("/health_check", async (c) => {
     DBProject[]
   >`SELECT id, label FROM projects ORDER BY LOWER(label)`;
 
-  // A generation in flight = a 'generating' row in the runs catalog (the
-  // legacy per-module running map died with the dirty machine).
+  // A generation in flight = a 'generating' row in the runs catalog.
   const hasRunningModules =
     Number(
       (

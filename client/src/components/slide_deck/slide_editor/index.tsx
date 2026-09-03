@@ -827,16 +827,7 @@ export function SlideEditor(p: Props) {
 
           const newItemsRes = await getPresentationObjectItemsFromCacheOrFetch(
             p.projectId,
-            {
-              id: "",
-              projectId: p.projectId,
-              lastUpdated: "",
-              label: "Ephemeral",
-              resultsValue: resultsValue,
-              config: newConfig,
-              isDefault: false,
-              folderId: null,
-            },
+            { projectId: p.projectId, resultsValue },
             newConfig,
           );
 
@@ -935,16 +926,7 @@ export function SlideEditor(p: Props) {
 
       const newItemsRes = await getPresentationObjectItemsFromCacheOrFetch(
         p.projectId,
-        {
-          id: "",
-          projectId: p.projectId,
-          lastUpdated: "",
-          label: "Ephemeral",
-          resultsValue,
-          config,
-          isDefault: false,
-          folderId: null,
-        },
+        { projectId: p.projectId, resultsValue },
         config,
       );
 

@@ -157,9 +157,8 @@ export type CompareProjectsModuleParameter = {
   value: string;
 };
 
-// Sourced from each project's attached results package manifest. The
-// dirty-state and per-half definition stamps died with the dirty machine —
-// a package records one generation, at one module git ref.
+// Sourced from each project's attached results package manifest — a package
+// records one generation, at one module git ref.
 export type CompareProjectsModule = {
   id: string;
   label: string;

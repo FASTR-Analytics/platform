@@ -3,7 +3,7 @@ import {
   formatReplicantLabelForDisplay,
   getFetchConfigFromPresentationObjectConfig,
   PresentationObjectConfig,
-  PresentationObjectDetail,
+  PresentationObjectEditorDetail,
   ReplicantOptionsForPresentationObject,
   t3,
   TC,
@@ -61,7 +61,7 @@ function cleanedReplicantSelectOptions(
 type ReplicateByOptionsPresentationObjectProps = {
   replicateBy: DisaggregationOption;
   config: PresentationObjectConfig;
-  poDetail: PresentationObjectDetail;
+  poDetail: PresentationObjectEditorDetail;
   selectedReplicantValue: string | undefined;
   setSelectedReplicant: (v: string, allOptions?: string[]) => void;
   fullWidth?: boolean;

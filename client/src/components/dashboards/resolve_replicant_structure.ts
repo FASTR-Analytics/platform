@@ -41,7 +41,7 @@ export async function resolveReplicantStructure(
   // Enumerate the in-scope replicant options. excludeReplicantFilter drops the
   // auto-pin (the currently-previewed value) but KEEPS the user's filterBy — so a
   // replicant filtered to a subset returns exactly that subset. The server now
-  // honors the self-column filter (get_possible_values no longer self-strips), so
+  // honors the self-column filter (possible_values_core no longer self-strips), so
   // this MUST exclude the pin or the "UNSELECTED" sentinel would empty the list.
   const fcRes = getFetchConfigFromPresentationObjectConfig(
     resultsValue,

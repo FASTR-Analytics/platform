@@ -1,9 +1,8 @@
 export {
   buildRunPackageIntoTmp,
   readCsvHeaders,
-  synthesizeRunForProject,
   type RunBuildOptions,
-} from "./synthesize_run.ts";
+} from "./build_run_package.ts";
 export {
   attachRunToProject,
   buildRunAttachedManifestPayload,
@@ -18,11 +17,7 @@ export {
 } from "./pin_run.ts";
 export { deriveAvailableDisaggregationOptions } from "./disaggregation_availability.ts";
 export { getRunGenerationModuleOptions } from "./generation_wizard_reads.ts";
-export {
-  exportPgTableToParquet,
-  exportRowsToParquet,
-  type ExportedColumn,
-} from "./pg_export.ts";
+export { exportRowsToParquet, type ExportedColumn } from "./pg_export.ts";
 export {
   evictRunFromManifestCache,
   getRunManifestCached,

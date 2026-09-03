@@ -2,6 +2,7 @@ import {
   type FigureBundle,
   PresentationObjectConfig,
   PresentationObjectDetail,
+  PresentationObjectEditorDetail,
   ProjectState,
   ResultsValue,
   ResultsValueInfoForPresentationObject,
@@ -212,7 +213,7 @@ function VisualizationEditorCreate(p: CreateModeProps) {
     t3(TC.loading),
   );
 
-  const syntheticPoDetail: PresentationObjectDetail = {
+  const syntheticPoDetail: PresentationObjectEditorDetail = {
     id: "",
     projectId: p.projectId,
     lastUpdated: "",
@@ -252,7 +253,7 @@ function VisualizationEditorEphemeral(p: EphemeralModeProps) {
     t3(TC.loading),
   );
 
-  const syntheticPoDetail: PresentationObjectDetail = {
+  const syntheticPoDetail: PresentationObjectEditorDetail = {
     id: "",
     projectId: p.projectId,
     lastUpdated: "",

@@ -1,6 +1,4 @@
-import type { Sql } from "postgres";
-import { detectColumnExists, detectHasPeriodId } from "../db/utils.ts";
-import { getCalendar, type PeriodBounds, type PeriodOption } from "lib";
+import type { PeriodBounds, PeriodOption } from "lib";
 import {
   buildPeriodCTESelectColumns,
   needsPeriodCTEFor,
@@ -11,11 +9,9 @@ import {
 } from "./period_helpers.ts";
 import type { SqlRowsExecutor } from "./types.ts";
 
-// Split into a pure query builder + an engine-agnostic core so the Postgres
-// path and the runs path (DuckDB over parquet) execute the SAME SQL string.
-// The Postgres wrapper keeps the old on-demand column detection for callers
-// that pass no context; the runs path always passes a full context from the
-// manifest and never probes.
+// A pure query builder plus an engine-agnostic core: the SQL string is built
+// from the manifest-derived period context (never probed) and executed
+// through the injected executor.
 
 export function buildPeriodBoundsQuery(
   tableName: string,
@@ -108,40 +104,4 @@ export async function getPeriodBoundsCore(
     return { min: Number(res.min_bound), max: Number(res.max_bound) };
   }
   return undefined;
-}
-
-// Postgres wrapper. Callers with no filters (whereStatements = []) pass
-// undefined ctx: their WHERE can never reference a derived column, so no CTE
-// is ever needed and hasPeriodId/hasQuarterId are detected on demand.
-export async function getPeriodBounds(
-  projectDb: Sql,
-  tableName: string,
-  whereStatements: string[],
-  firstPeriodOption: PeriodOption | undefined,
-  periodCtx: PeriodCTEContext | undefined,
-): Promise<PeriodBounds | undefined> {
-  if (!firstPeriodOption) return undefined;
-
-  let ctx = periodCtx;
-  if (ctx === undefined) {
-    const hasPeriodId = await detectHasPeriodId(projectDb, tableName);
-    const hasQuarterId =
-      !hasPeriodId &&
-      firstPeriodOption !== "period_id" &&
-      (await detectColumnExists(projectDb, tableName, "quarter_id"));
-    ctx = {
-      hasPeriodId,
-      hasQuarterId,
-      neededPeriodColumns: new Set<DynamicPeriodColumn>(),
-      calendar: getCalendar(),
-    };
-  }
-
-  return await getPeriodBoundsCore(
-    (sql) => projectDb.unsafe(sql),
-    tableName,
-    whereStatements,
-    firstPeriodOption,
-    ctx,
-  );
 }

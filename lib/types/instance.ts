@@ -498,19 +498,12 @@ export type ItemsHolderPresentationObject =
   & {
     resultsObjectId: string;
     fetchConfig: GenericLongFormFetchConfig;
-    moduleLastRun: string;
-    // Freshness of the dataset(s) feeding this module's indicator metadata.
-    // indicatorMetadata is rewritten on dataset integration (which bumps
-    // datasets.last_updated) independently of moduleLastRun, so the cache must
-    // version on this too. Carried in the holder so parseData can reproduce it.
-    datasetsVersion: string;
     // The immutable run this payload was served from — the cache identity
-    // (PLAN_RESULTS_RUNS §2.5). Absent only from the parity rig's Postgres
-    // baseline, which never enters the caches.
-    runId?: string;
+    // (PLAN_RESULTS_RUNS §2.5) and the figure's provenance (ruling 4).
+    runId: string;
     // The project scope the payload was computed under (projectScopeToken) —
     // folded into cache versions beside runId (PLAN_1_PROJECT_AA2_SCOPE §4).
-    scopeToken?: string;
+    scopeToken: string;
     dateRange: PeriodBounds | undefined;
   }
   & (

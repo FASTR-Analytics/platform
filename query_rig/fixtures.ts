@@ -1,8 +1,12 @@
 import type { PeriodOption } from "lib";
 
+// A results object's declared column types, in the module-authoring
+// vocabulary (createTableStatementPossibleColumns; NUMERIC lands as DOUBLE in
+// the parquet). The types are load-bearing: shouldFoldBlank gates on the
+// column actually being text.
 export type RoColumn = {
   name: string;
-  type: "text" | "integer" | "double precision";
+  type: "TEXT" | "INTEGER" | "NUMERIC";
 };
 
 export type HfaSnapshots = {
@@ -94,13 +98,13 @@ export const F1_HMIS_MONTHLY: Fixture = {
     { facility_id: "f5", admin_area_1: "Country", admin_area_2: "A2_south", admin_area_3: "A3_delta", admin_area_4: "A4_w5", facility_type: "health_post" },
   ],
   roColumns: [
-    { name: "facility_id", type: "text" },
-    { name: "period_id", type: "integer" },
-    { name: "admin_area_2", type: "text" },
-    { name: "admin_area_3", type: "text" },
-    { name: "indicator_common_id", type: "text" },
-    { name: "source_indicator", type: "text" },
-    { name: "value", type: "double precision" },
+    { name: "facility_id", type: "TEXT" },
+    { name: "period_id", type: "INTEGER" },
+    { name: "admin_area_2", type: "TEXT" },
+    { name: "admin_area_3", type: "TEXT" },
+    { name: "indicator_common_id", type: "TEXT" },
+    { name: "source_indicator", type: "TEXT" },
+    { name: "value", type: "NUMERIC" },
   ],
   roRows: [
     { facility_id: "f1", period_id: 202401, admin_area_2: "A2_north", admin_area_3: "A3_alpha", indicator_common_id: "anc1", source_indicator: "dhis2", value: 10 },
@@ -166,13 +170,13 @@ export const F2_HFA_SERVICE_CATS: Fixture = {
   facilityColumns: { ...ALL_FACILITY_COLUMNS_OFF, includeTypes: true },
   facilities: HFA_FACILITIES,
   roColumns: [
-    { name: "facility_id", type: "text" },
-    { name: "time_point", type: "text" },
-    { name: "hfa_indicator", type: "text" },
-    { name: "hfa_category", type: "text" },
-    { name: "hfa_service_category", type: "text" },
-    { name: "admin_area_2", type: "text" },
-    { name: "value", type: "double precision" },
+    { name: "facility_id", type: "TEXT" },
+    { name: "time_point", type: "TEXT" },
+    { name: "hfa_indicator", type: "TEXT" },
+    { name: "hfa_category", type: "TEXT" },
+    { name: "hfa_service_category", type: "TEXT" },
+    { name: "admin_area_2", type: "TEXT" },
+    { name: "value", type: "NUMERIC" },
   ],
   roRows: [
     { facility_id: "h1", time_point: "baseline", hfa_indicator: "ind_a", hfa_category: "cat_1", hfa_service_category: "rmnch|nutrition", admin_area_2: "A2_north", value: 10 },
@@ -202,7 +206,7 @@ export const F3_HFA_TIMEPOINT_INTEGER: Fixture = {
   moduleId: "m_hfa_int",
   resultsObjectId: "cccccccc-dddd-eeee-ffff-000000000000",
   roColumns: F2_HFA_SERVICE_CATS.roColumns.map((c) =>
-    c.name === "time_point" ? { ...c, type: "integer" } : c
+    c.name === "time_point" ? { ...c, type: "INTEGER" } : c
   ),
   roRows: F2_HFA_SERVICE_CATS.roRows.map((r) => ({
     ...r,
@@ -239,12 +243,12 @@ export const F4_HMIS_RATIO: Fixture = {
     { facility_id: "r2", admin_area_1: "Country", admin_area_2: "A2_south", admin_area_3: "A3_gamma", admin_area_4: "A4_w3", facility_type: "clinic" },
   ],
   roColumns: [
-    { name: "facility_id", type: "text" },
-    { name: "admin_area_2", type: "text" },
-    { name: "period_id", type: "integer" },
-    { name: "num", type: "double precision" },
-    { name: "den", type: "double precision" },
-    { name: "value", type: "double precision" },
+    { name: "facility_id", type: "TEXT" },
+    { name: "admin_area_2", type: "TEXT" },
+    { name: "period_id", type: "INTEGER" },
+    { name: "num", type: "NUMERIC" },
+    { name: "den", type: "NUMERIC" },
+    { name: "value", type: "NUMERIC" },
   ],
   roRows: [
     { facility_id: "r1", admin_area_2: "A2_north", period_id: 202401, num: 60, den: 200, value: 10 },
@@ -267,9 +271,9 @@ export const F5_HMIS_AREA_ONLY: Fixture = {
   facilityColumns: { ...ALL_FACILITY_COLUMNS_OFF },
   facilities: [],
   roColumns: [
-    { name: "admin_area_2", type: "text" },
-    { name: "period_id", type: "integer" },
-    { name: "value", type: "double precision" },
+    { name: "admin_area_2", type: "TEXT" },
+    { name: "period_id", type: "INTEGER" },
+    { name: "value", type: "NUMERIC" },
   ],
   roRows: [
     { admin_area_2: "A2_north", period_id: 202401, value: 10 },
@@ -296,10 +300,10 @@ export const F6_HMIS_QUARTERLY: Fixture = {
     { facility_id: "q2", admin_area_1: "Country", admin_area_2: "A2_south", admin_area_3: "A3_gamma", admin_area_4: "A4_w3", facility_type: null },
   ],
   roColumns: [
-    { name: "facility_id", type: "text" },
-    { name: "admin_area_2", type: "text" },
-    { name: "quarter_id", type: "integer" },
-    { name: "value", type: "double precision" },
+    { name: "facility_id", type: "TEXT" },
+    { name: "admin_area_2", type: "TEXT" },
+    { name: "quarter_id", type: "INTEGER" },
+    { name: "value", type: "NUMERIC" },
   ],
   roRows: [
     { facility_id: "q1", admin_area_2: "A2_north", quarter_id: 20241, value: 10 },
@@ -323,10 +327,10 @@ export const F7_HMIS_YEARLY: Fixture = {
     { facility_id: "y2", admin_area_1: "Country", admin_area_2: "A2_south", admin_area_3: "A3_gamma", admin_area_4: "A4_w3", facility_type: null },
   ],
   roColumns: [
-    { name: "facility_id", type: "text" },
-    { name: "admin_area_2", type: "text" },
-    { name: "year", type: "integer" },
-    { name: "value", type: "double precision" },
+    { name: "facility_id", type: "TEXT" },
+    { name: "admin_area_2", type: "TEXT" },
+    { name: "year", type: "INTEGER" },
+    { name: "value", type: "NUMERIC" },
   ],
   roRows: [
     { facility_id: "y1", admin_area_2: "A2_north", year: 2023, value: 10 },
@@ -362,10 +366,10 @@ export const F8_HFA_FACILITY_BLANKS: Fixture = {
     { facility_id: "e2", admin_area_1: "Country", admin_area_2: "A2_north", admin_area_3: "A3_beta", admin_area_4: "A4_w2", facility_type: null },
   ],
   roColumns: [
-    { name: "facility_id", type: "text" },
-    { name: "hfa_service_category", type: "text" },
-    { name: "admin_area_2", type: "text" },
-    { name: "value", type: "double precision" },
+    { name: "facility_id", type: "TEXT" },
+    { name: "hfa_service_category", type: "TEXT" },
+    { name: "admin_area_2", type: "TEXT" },
+    { name: "value", type: "NUMERIC" },
   ],
   roRows: [
     { facility_id: "e1", hfa_service_category: "rmnch", admin_area_2: "A2_north", value: 10 },
@@ -410,10 +414,10 @@ export const F9_HMIS_OPTION_CAP: Fixture = {
   facilityColumns: { ...ALL_FACILITY_COLUMNS_OFF },
   facilities: [],
   roColumns: [
-    { name: "admin_area_2", type: "text" },
-    { name: "source_indicator", type: "text" },
-    { name: "target_population", type: "text" },
-    { name: "value", type: "double precision" },
+    { name: "admin_area_2", type: "TEXT" },
+    { name: "source_indicator", type: "TEXT" },
+    { name: "target_population", type: "TEXT" },
+    { name: "value", type: "NUMERIC" },
   ],
   roRows: CAP_ROWS,
   indicators: [],
@@ -446,9 +450,9 @@ export const F10_HFA_AREA_ONLY: Fixture = {
   facilityColumns: { ...ALL_FACILITY_COLUMNS_OFF },
   facilities: [],
   roColumns: [
-    { name: "admin_area_2", type: "text" },
-    { name: "time_point", type: "text" },
-    { name: "value", type: "double precision" },
+    { name: "admin_area_2", type: "TEXT" },
+    { name: "time_point", type: "TEXT" },
+    { name: "value", type: "NUMERIC" },
   ],
   roRows: [
     { admin_area_2: "A2_north", time_point: "baseline", value: 10 },
@@ -476,12 +480,12 @@ export const F11_HFA_VARIANTS: Fixture = {
   facilityColumns: { ...ALL_FACILITY_COLUMNS_OFF },
   facilities: HFA_FACILITIES,
   roColumns: [
-    { name: "facility_id", type: "text" },
-    { name: "time_point", type: "text" },
-    { name: "hfa_indicator", type: "text" },
-    { name: "hfa_variant_item", type: "text" },
-    { name: "hfa_category", type: "text" },
-    { name: "value", type: "double precision" },
+    { name: "facility_id", type: "TEXT" },
+    { name: "time_point", type: "TEXT" },
+    { name: "hfa_indicator", type: "TEXT" },
+    { name: "hfa_variant_item", type: "TEXT" },
+    { name: "hfa_category", type: "TEXT" },
+    { name: "value", type: "NUMERIC" },
   ],
   roRows: [
     { facility_id: "h1", time_point: "baseline", hfa_indicator: "vacc", hfa_variant_item: "campaign", hfa_category: "cat_1", value: 10 },
@@ -514,10 +518,10 @@ export const F12_HMIS_SCORECARD: Fixture = {
   facilityColumns: { ...ALL_FACILITY_COLUMNS_OFF },
   facilities: [],
   roColumns: [
-    { name: "admin_area_2", type: "text" },
-    { name: "period_id", type: "integer" },
-    { name: "numerator", type: "double precision" },
-    { name: "denominator", type: "double precision" },
+    { name: "admin_area_2", type: "TEXT" },
+    { name: "period_id", type: "INTEGER" },
+    { name: "numerator", type: "NUMERIC" },
+    { name: "denominator", type: "NUMERIC" },
   ],
   roRows: [
     { admin_area_2: "A2_north", period_id: 202401, numerator: 10, denominator: 20 },
@@ -550,9 +554,9 @@ export const F13_HFA_DIVERGENT_SCHEMA: Fixture = {
     { facility_id: "d3", admin_area_1: "Country", admin_area_2: "A2_south", admin_area_3: "A2_south", admin_area_4: "A2_south", facility_type: "hospital" },
   ],
   roColumns: [
-    { name: "facility_id", type: "text" },
-    { name: "admin_area_2", type: "text" },
-    { name: "value", type: "double precision" },
+    { name: "facility_id", type: "TEXT" },
+    { name: "admin_area_2", type: "TEXT" },
+    { name: "value", type: "NUMERIC" },
   ],
   roRows: [
     { facility_id: "d1", admin_area_2: "A2_north", value: 10 },

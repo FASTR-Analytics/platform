@@ -16,8 +16,9 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // then the caches resume hitting normally.
 // "2": quarter_id format YYYY0Q → YYYYQ — pre-cutover results held 6-digit
 // quarters that the new renderer (panther) rejects.
-// "3": replicant-options now honor the self-column subset filter (get_possible_values
-// no longer self-strips), so previously-cached full-value-set payloads are stale.
+// "3": replicant-options now honor the self-column subset filter (the
+// possible-values core no longer self-strips), so previously-cached
+// full-value-set payloads are stale.
 // "4": replicant-options now resolve RELATIVE period filters to exact bounds
 // (and re-anchor from_month) like the items query — previously-cached lists
 // for relative-filtered configs span all time.
@@ -47,7 +48,7 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // entries cached in that window hold pre-batch payloads under "9".
 // "11": the pinned option comparator changed from Intl.Collator (ICU —
 // itself runtime-version-dependent, defeating the pin) to a hand-rolled
-// code-point/numeric comparator in get_possible_values.ts — cached option
+// code-point/numeric comparator in possible_values_core.ts — cached option
 // lists hold the old ICU order where the two disagree (leading
 // space/punctuation, accented values).
 // "12": two changes shipping together. resultsValueInfo gained
@@ -78,13 +79,15 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // IndicatorMetadataDisplay[] in the new shape, metric_info gained
 // `indicatorRules` beside `indicatorFormats` — and manifest schema v6 was
 // rewritten in place under the SAME runId; "17" entries hold the old shape.
-const PO_CACHE_VERSION = "18";
+// "19" (2026-09-04): the write-only freshness pair (moduleLastRun,
+// datasetsVersion) left every data payload (PLAN_RESULTS_RUNS ruling 4) —
+// the run id IS the provenance; "18" entries carry the old shape.
+const PO_CACHE_VERSION = "19";
 
 // The immutable run id replaces the data-version dimensions (PLAN_RESULTS_RUNS
 // §2.5): it is the uniqueness scope for the three data caches — two projects
 // attached to the same run share entries — and is folded into po_detail's
-// version (its payload embeds run-derived resultsValue). Payloads missing a
-// runId (the parity rig's Postgres baseline) are never stored. The scopeToken
+// version (its payload embeds run-derived resultsValue). The scopeToken
 // (projectScopeToken) rides beside it: payloads are computed under the
 // project's AA2 scope, so two projects share entries only when they share
 // BOTH run and scope. Required on the uniqueness side so every exists/read
@@ -131,7 +134,7 @@ export const _PO_DETAIL_CACHE = new TimCacheC<
   versionHashFromParams: (params) =>
     `${params.presentationObjectLastUpdated}|${params.runId}|${params.scopeToken}`,
   parseData: (res) => {
-    if (res.success === false || res.data.runId === undefined) {
+    if (res.success === false) {
       return {
         shouldStore: false,
         uniquenessHash: "",
@@ -141,9 +144,8 @@ export const _PO_DETAIL_CACHE = new TimCacheC<
     return {
       shouldStore: true,
       uniquenessHash: [res.data.projectId, res.data.id].join("|"),
-      versionHash: `${res.data.lastUpdated}|${res.data.runId}|${
-        res.data.scopeToken ?? "none"
-      }`,
+      versionHash:
+        `${res.data.lastUpdated}|${res.data.runId}|${res.data.scopeToken}`,
     };
   },
 });
@@ -167,11 +169,7 @@ export const _PO_ITEMS_CACHE = new TimCacheC<
     ].join("|"),
   versionHashFromParams: () => PO_CACHE_VERSION,
   parseData: (res) => {
-    if (
-      res.success === false ||
-      res.data.runId === undefined ||
-      res.data.scopeToken === undefined
-    ) {
+    if (res.success === false) {
       return {
         shouldStore: false,
         uniquenessHash: "",
@@ -209,8 +207,6 @@ export const _METRIC_INFO_CACHE = new TimCacheC<
     // "cannot enumerate" fallback until the next run. Serve it, never store it.
     if (
       res.success === false ||
-      res.data.runId === undefined ||
-      res.data.scopeToken === undefined ||
       Object.values(res.data.disaggregationPossibleValues).some(
         (s) => s.status === "error",
       )
@@ -255,11 +251,7 @@ export const _REPLICANT_OPTIONS_CACHE = new TimCacheC<
   },
   versionHashFromParams: () => PO_CACHE_VERSION,
   parseData: (res) => {
-    if (
-      res.success === false ||
-      res.data.runId === undefined ||
-      res.data.scopeToken === undefined
-    ) {
+    if (res.success === false) {
       return {
         shouldStore: false,
         uniquenessHash: "",

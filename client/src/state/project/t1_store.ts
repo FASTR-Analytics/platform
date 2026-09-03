@@ -49,7 +49,6 @@ const EMPTY_PROJECT_STATE: ProjectState = {
     dashboards: {},
     dashboard_items: {},
     datasets: {},
-    modules: {},
     presentation_objects: {},
     slide_decks: {},
     slides: {},
@@ -208,14 +207,11 @@ export function runVersionKey(pds: ProjectState): string {
 // payload carries the runId + scopeToken it was actually computed against, so
 // an in-flight response landing after a package repoint OR a scope change can
 // be told apart from one that belongs under the key it was requested with.
-// undefined is the parity rig's Postgres baseline, which must never be cached
-// — hence the explicit false rather than a "no_run_attached" fallback.
 export function responseRunVersionMatches(
-  data: { runId?: string; scopeToken?: string },
+  data: { runId: string; scopeToken: string },
   runKey: string,
 ): boolean {
-  return data.runId !== undefined && data.scopeToken !== undefined &&
-    `${data.runId}~${data.scopeToken}` === runKey;
+  return `${data.runId}~${data.scopeToken}` === runKey;
 }
 
 export { projectState };

@@ -150,30 +150,21 @@ export async function runGenerationPipeline(
   }
   progress.currentModuleId = null;
 
-  // ONE finalize (§3.8): wholesale manifest + inputs capture via the shared
-  // package builder. Under the no-dual-write model (Phase 3 re-cut ruling 5)
-  // the catalog is handed to the builder from THIS generation's resolved
-  // definitions — no project-DB round trip — and the input mirrors were
-  // written by prepare.
+  // ONE finalize (§3.8): wholesale manifest + inputs capture via the package
+  // builder. The catalog is handed to the builder from THIS generation's
+  // resolved definitions and the input mirrors were written by prepare.
   const { manifest, summary } = await buildRunPackageIntoTmp(
     mainDb,
     std.runId,
     tmpDir,
     {
       label: std.label,
-      provenance: "wizard",
-      source: {
-        kind: "captured",
-        modules: buildRunModules(resolved, memo),
-        metrics: buildRunMetrics(resolved),
-        datasets: prepared.datasets,
-        facilitiesTables: prepared.facilitiesTables,
-        population: prepared.population,
-      },
-      backfillSourceProjectId: null,
+      modules: buildRunModules(resolved, memo),
+      metrics: buildRunMetrics(resolved),
+      datasets: prepared.datasets,
+      facilitiesTables: prepared.facilitiesTables,
+      population: prepared.population,
       attachTargetProjectIds: std.attachTargetProjectIds,
-      moduleMemo: memo,
-      moduleCsvDir: (moduleId) => join(tmpDir, "outputs", moduleId),
       extraInputFiles: prepared.extraInputFiles,
     },
   );

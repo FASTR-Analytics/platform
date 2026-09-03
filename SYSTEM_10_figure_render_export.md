@@ -131,13 +131,15 @@ FigureBundle = {
                                            // run manifest's indicator catalog
                                            // (server/runs/indicator_catalog.ts); the traffic-light
                                            // pair stored bundles carried was converted into
-                                           // `thresholds` by the _figure_block sweep (PLAN_1d)
+                                           // `thresholds` by the _figure_block sweep (2026-09-03)
   dateRange?: PeriodBounds;                // {min,max}: DATE_RANGE caption text + earliest/latest point
   geo?: GeoRef;                            // maps only — {kind:"level"} | {kind:"data"} (see Geo)
   localization: { language; calendar; countryIso3 }; // REQUIRED, frozen — see Localization
   metricId: string;                        // re-query pointer for "Update data" ONLY (never render)
   snapshotAt: string;
-  provenance: { moduleLastRun; datasetsVersion }; // freshness fingerprint (both free from ItemsHolder)
+  provenance: { runId: string | null };     // the results package the items came from (free from
+                                           // ItemsHolder); null = pre-runs capture or backfill,
+                                           // never invented
 };
 ```
 
@@ -784,32 +786,23 @@ The P1+P2 refactor shipped 2026-06-13; the architecture is documented above and
 in [S9](SYSTEM_09_viz_query_cache.md), [S12](SYSTEM_12_documents_sharing.md),
 [S2](SYSTEM_02_persistence.md). Two slices were explicitly deferred:
 
-- **Provenance wiring + the stale-badge / "Update data" UI.** The bundle already
-  reserves room: `provenance` carries `moduleLastRun` and `datasetsVersion`
-  (both free from the ItemsHolder). The rest: wire the two import timestamps
-  (`instanceDataImportedAt`, `projectDataAddedAt`) as optional provenance fields
-  — the metric → source-datasets → import-time path is a multi-hop join not yet
-  traced and may need a column rather than just a read (verify
-  `datasets_in_project_*` is even timestamped; owners S5/S6 for the timestamps,
-  S9 to capture them). Then a **stale badge with no re-query**: compare the
-  bundle's captured `(moduleLastRun, datasetsVersion)` against values the client
-  already holds cheaply (module summaries carry `lastRunAt`; `datasetsVersion`
-  is instance metadata) — a diff is a badge, zero per-figure queries. Semantics:
-  it flags "the data _version_ moved", not "values definitely changed", which is
-  exactly right for an update nudge; backfilled figures have an approximate
-  `moduleLastRun` (= `snapshotAt`) so their badge is best-effort until first
-  re-capture. Then an **"Update data" action** (S12 UI + S9 re-query): re-run
-  the same live query the editor runs (`config` + `metricId`) → fresh items →
-  reassemble the bundle (re-derive `dateRange`, re-capture `provenance`, bump
-  `snapshotAt`); per-figure, "Update all" is the same call in a loop; it stays
-  an explicit user action to preserve the publish-time freeze. Edge: a figure
-  whose metric is uninstalled in-project can't re-query, so the action disables
-  ("source unavailable") — being un-updatable ≠ un-migratable. **Re-spec this
-  against [PLAN_RESULTS_RUNS.md](PLAN_RESULTS_RUNS.md) before building it:**
-  under runs, "needs update?" collapses to "the project's attached run ≠ the
-  latest run", a manifest comparison rather than a per-figure provenance diff,
-  and the two import timestamps come off the run manifest's inputs record for
-  free. Building the provenance-diff version first would be wasted work.
+- **Stale badge + "Update data" on `bundle.provenance.runId`.** A bundle
+  records the results package its items were read from
+  (`provenance: { runId }`, free from the ItemsHolder; `null` for bundles
+  captured before the runs model or backfilled from pre-bundle figures — the
+  run is unknowable there and is never invented). "Needs update?" is therefore
+  `bundle.provenance.runId !== project.attachedRunId` — one comparison against
+  the T1 store, zero per-figure queries; `null` reads as "unknown, offer
+  update", not "stale". It flags "the package moved", not "values definitely
+  changed", which is exactly right for an update nudge. Then an **"Update
+  data" action** (S12 UI + S9 re-query): re-run the same live query the editor
+  runs (`config` + `metricId`) → fresh items → reassemble the bundle
+  (re-derive `dateRange`, re-stamp `provenance.runId`, bump `snapshotAt`);
+  per-figure, "Update all" is the same call in a loop; it stays an explicit
+  user action to preserve the publish-time freeze. Edge: a figure whose metric
+  is not in the attached package can't re-query, so the action disables
+  ("source unavailable") — being un-updatable ≠ un-migratable. Deferred
+  ([PLAN_RESULTS_RUNS.md](PLAN_RESULTS_RUNS.md) §5).
 - **The Visualization rename** (Phase 5, optional). Rename presentation object →
   Visualization end-to-end: the `presentation_objects` table,
   `/presentation_objects` routes, `PresentationObjectConfig`,

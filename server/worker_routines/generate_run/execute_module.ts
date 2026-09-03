@@ -33,10 +33,8 @@ import type { ResolvedRunModule } from "./resolve_modules.ts";
 // ReuseSourceMissingError and the pipeline falls back to a real run (fails
 // closed).
 //
-// There is no legacy-plane dual-write: under the Phase 3 re-cut (ruling 5)
-// a generation writes ONLY into the run. Rollback is a hosting-level volume
-// restore, and the frozen ro_* tables serve solely as the parity rig's
-// oracle for backfill-provenance runs.
+// A generation writes ONLY into the run — no project-DB table is touched.
+// Rollback is a hosting-level volume restore.
 
 export class ReuseSourceMissingError extends Error {}
 

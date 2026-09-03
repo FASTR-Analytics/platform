@@ -44,6 +44,7 @@ import {
   getRawPeriodBoundsFromRun,
   getRunReadContext,
   getRunVersionInfo,
+  moduleHasRun,
   readRunItems,
   readRunResultsValueInfo,
   resultsValueInfoQueue,
@@ -51,11 +52,9 @@ import {
 } from "../../run_query/mod.ts";
 
 // Every data read in this file serves from the project's attached immutable
-// run (PLAN_RESULTS_RUNS): manifest for all metadata, DuckDB over the run's
-// parquet for all data queries, caches keyed on the runId. A project with no
-// run attached errors loudly until its backfill synthesis / first generation
-// completes. The Postgres read functions stay in-tree solely as the parity
-// rig's baseline.
+// run: manifest for all metadata, DuckDB over the run's parquet for all data
+// queries, caches keyed on the runId. A project with no run attached errors
+// loudly until its first generation completes.
 
 export const routesPresentationObjects = new Hono();
 
@@ -549,7 +548,7 @@ defineRoute(
   requireProjectPermission("can_view_visualizations"),
   async (c, { body }) => {
     // body is attacker-controllable and flows into generated SQL via
-    // getPossibleValues (replicateBy → column ref) and the fetchConfig filters.
+    // getPossibleValuesFromRun (replicateBy → column ref) and the fetchConfig filters.
     const fetchConfig = body.fetchConfig as GenericLongFormFetchConfig;
     validateFetchConfig(fetchConfig);
     if (!isValidDisaggregationOption(body.replicateBy)) {
@@ -579,13 +578,13 @@ defineRoute(
         err: `Unknown results object: ${body.resultsObjectId}`,
       });
     }
-    const versionInfo = getRunVersionInfo(runCtx, moduleId);
-    if (versionInfo.moduleLastRun === "unknown") {
+    if (!moduleHasRun(runCtx, moduleId)) {
       return c.json({
         success: false,
         err: "Module not found or has not run yet",
       });
     }
+    const versionInfo = getRunVersionInfo(runCtx);
 
     console.log(
       `[SERVER] Replicant Options ${body.resultsObjectId.slice(
