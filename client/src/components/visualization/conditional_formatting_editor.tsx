@@ -1,14 +1,12 @@
 import {
   type ConditionalFormatting,
   type ConditionalFormattingScale,
-  type DisplayedRule,
   LEGACY_CF_PRESET_IDS,
   LEGACY_CF_PRESETS,
   type LegacyCfPresetId,
   bucketLabels,
   getLanguage,
   type IndicatorFormat,
-  legendBucketOrder,
   scaleValueForFormat,
   t3,
   type ThresholdDirection,
@@ -30,7 +28,7 @@ import {
   type SelectOption,
   Slider,
 } from "panther";
-import { For, Index, Show } from "solid-js";
+import { Index, Show } from "solid-js";
 import { buildAutoValueFormatter } from "~/generate_visualization/conditional_formatting/compile";
 import { StyleRevealGroup } from "./presentation_object_editor_panel_style/_style_components";
 
@@ -40,10 +38,10 @@ type Props = {
   formatAs: IndicatorFormat;
   decimalPlaces: number;
   allowNegative?: boolean;
-  // Present only for an "indicator" metric (its values are each indicator's
-  // own quantity): offers the `indicator` source and lists the displayed
-  // indicators' own rules read-only beside it.
-  indicatorSource?: DisplayedRule[];
+  // True only for an "indicator" metric (its values are each indicator's own
+  // quantity): offers the `indicator` source. What that source shows is the
+  // figure's own legend — nothing is listed here.
+  offerIndicatorSource: boolean;
 };
 
 type Mode = ConditionalFormatting["type"];
@@ -71,7 +69,7 @@ export function ConditionalFormattingEditor(p: Props) {
 
   const modeItems = () => [
     { id: "none" as const, label: t3({ en: "Off", fr: "Désactivé", pt: "Desativado" }) },
-    ...(p.indicatorSource
+    ...(p.offerIndicatorSource
       ? [{
         id: "indicator" as const,
         label: t3({ en: "Indicator", fr: "Indicateur", pt: "Indicador" }),
@@ -92,8 +90,14 @@ export function ConditionalFormattingEditor(p: Props) {
         onChange={handleModeChange}
         size="sm"
       />
-      <Show when={cf().type === "indicator" && p.indicatorSource}>
-        {(rules) => <IndicatorRulesListing rules={rules()} />}
+      <Show when={cf().type === "indicator"}>
+        <div class="text-base-content-muted text-xs">
+          {t3({
+            en: "Each value is coloured by its own indicator's rule, set in the instance indicator dictionary. The figure's legend shows the bands.",
+            fr: "Chaque valeur est colorée selon la règle de son propre indicateur, définie dans le dictionnaire d'indicateurs de l'instance. La légende de la figure montre les tranches.",
+            pt: "Cada valor é colorido pela regra do seu próprio indicador, definida no dicionário de indicadores da instância. A legenda da figura mostra as faixas.",
+          })}
+        </div>
       </Show>
       <Show when={cf().type === "scale"}>
         <ScalePanel
@@ -115,64 +119,6 @@ export function ConditionalFormattingEditor(p: Props) {
         />
       </Show>
     </div>
-  );
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Indicator source — the displayed indicators' own rules, read-only
-////////////////////////////////////////////////////////////////////////////////
-
-function IndicatorRulesListing(p: { rules: DisplayedRule[] }) {
-  return (
-    <StyleRevealGroup>
-      <div class="text-base-content-muted text-xs">
-        {t3({
-          en: "Each value is coloured by its own indicator's rule, set in the instance indicator dictionary.",
-          fr: "Chaque valeur est colorée selon la règle de son propre indicateur, définie dans le dictionnaire d'indicateurs de l'instance.",
-          pt: "Cada valor é colorido pela regra do seu próprio indicador, definida no dicionário de indicadores da instância.",
-        })}
-      </div>
-      <Show
-        when={p.rules.length > 0}
-        fallback={
-          <div class="text-base-content-muted text-xs">
-            {t3({
-              en: "None of the displayed indicators has a rule.",
-              fr: "Aucun des indicateurs affichés n'a de règle.",
-              pt: "Nenhum dos indicadores apresentados tem uma regra.",
-            })}
-          </div>
-        }
-      >
-        <For each={p.rules}>
-          {({ rule, formatAs }) => {
-            const labels = () =>
-              bucketLabels(
-                rule,
-                buildAutoValueFormatter(rule.cutoffs, formatAs),
-                getLanguage(),
-              );
-            return (
-              <div class="flex flex-col gap-1">
-                <For each={legendBucketOrder(rule)}>
-                  {(i) => (
-                    <div class="flex items-center gap-2">
-                      <span
-                        class="inline-block h-4 w-4 flex-none rounded border"
-                        style={{ "background-color": colorToString(rule.buckets[i].color) }}
-                      />
-                      <span class="text-base-content-muted text-xs">
-                        {labels()[i]}
-                      </span>
-                    </div>
-                  )}
-                </For>
-              </div>
-            );
-          }}
-        </For>
-      </Show>
-    </StyleRevealGroup>
   );
 }
 
@@ -426,7 +372,8 @@ export function ThresholdsPanel(p: {
     const buckets = p.cf.buckets.map((b, j) => {
       if (j !== i) return b;
       const { label: _old, ...rest } = b;
-      return label.trim() === "" ? rest : { ...rest, label };
+      const trimmed = label.trim().replace(/\s+/g, " ");
+      return trimmed === "" ? rest : { ...rest, label: trimmed };
     });
     update({ buckets });
   };

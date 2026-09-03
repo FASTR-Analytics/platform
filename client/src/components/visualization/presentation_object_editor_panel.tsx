@@ -159,7 +159,6 @@ export function PresentationObjectEditorPanel(p: Props) {
               effectiveConfig={effectivePOConfigResult().config}
               effectiveValueProps={effectivePOConfigResult().effectiveValueProps}
               effectiveFormatAs={effectiveFormat().axisFormat}
-              displayedIndicatorRules={effectiveFormat().displayedRules}
             />
           </Match>
           <Match when={tab() === "text"}>

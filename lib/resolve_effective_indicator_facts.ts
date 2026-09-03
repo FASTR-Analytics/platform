@@ -200,10 +200,11 @@ function firstDeclared<T>(
   return undefined;
 }
 
-// The distinct rules on display, in first-appearance order. Two rules are the
-// same when count, colours, labels, cutoffs AND the owning indicator's format
-// all agree — colours-and-labels alone would let one indicator's cutoffs
-// print as universal. An un-enumerable display has no rules.
+// The distinct rules on display, in first-appearance order — distinct by
+// CONTENT (format, direction, cutoffs, buckets), which is only a dedupe. What
+// the legend shows for them is the consumer's reconciliation (one item per
+// colour, meanings merged; compile.ts indicatorLegend), never a per-rule
+// listing. An un-enumerable display has no rules.
 function distinctDisplayedRules(
   displayedIds: string[] | undefined,
   lookup: FactsLookup,

@@ -12,11 +12,11 @@ import {
 import {
   bucketLabels,
   type ConditionalFormatting,
+  deriveBucketLabels,
   type DisplayedRule,
   type EffectiveIndicatorFacts,
   type IndicatorFormat,
   legendBucketOrder,
-  pickLang,
   thresholdBoundary,
   thresholdBucketIndex,
   type ThresholdsRule,
@@ -187,33 +187,96 @@ function ruleLegend(
 }
 
 // The `indicator` legend is DERIVED from the displayed indicators' rules,
-// never authored on the figure. Unanimous → that rule's list, formatted in
-// its owner's format (never the figure's axisFormat, which collapses to
-// `number` for a mixed table). Differing → the distinct colour swatches with a
-// "varies by indicator" note. No rules → no legend.
+// never authored on the figure, and it is always ONE list: one item per
+// distinct colour, best bucket first in the first rule's order, labelled with
+// every distinct meaning that colour carries across the rules (joined with
+// " / "). Rules that share colours and labels merge whatever their cutoffs —
+// a legend maps colour to meaning, and the house-style scorecard is exactly
+// this case. An unlabelled bucket's derived text carries its cutoff, in the
+// rule's OWN format (never the figure's axisFormat, which collapses to
+// `number` for a mixed table); where rules of one shape disagree on a cutoff
+// the text prints the range ("≥ 50%–80%") rather than one rule's number. No
+// rules → no legend.
 function indicatorLegend(
   displayedRules: DisplayedRule[],
   language: Language,
 ): LegendItem[] | undefined {
   if (displayedRules.length === 0) return undefined;
-  if (displayedRules.length === 1) {
-    const { rule, formatAs } = displayedRules[0];
-    return ruleLegend(rule, formatAs, language);
-  }
-  const colors = new Map<string, LegendItem["color"]>();
-  for (const { rule } of displayedRules) {
+  const labelsByRule = deriveLabelsWithRanges(displayedRules, language);
+  const order: string[] = [];
+  const colorOf = new Map<string, LegendItem["color"]>();
+  const meanings = new Map<string, string[]>();
+  displayedRules.forEach(({ rule }, r) => {
     for (const i of legendBucketOrder(rule)) {
       const color = rule.buckets[i].color;
-      colors.set(JSON.stringify(color), color);
+      const key = JSON.stringify(color);
+      if (!colorOf.has(key)) {
+        colorOf.set(key, color);
+        meanings.set(key, []);
+        order.push(key);
+      }
+      const list = meanings.get(key)!;
+      const label = labelsByRule[r][i];
+      if (!list.includes(label)) list.push(label);
+    }
+  });
+  return order.map((key) => ({
+    color: colorOf.get(key)!,
+    label: meanings.get(key)!.join(" / "),
+  }));
+}
+
+// Bucket labels per displayed rule. Rules of one SHAPE (format, direction,
+// colour sequence) are derived together, so an unlabelled bucket whose cutoff
+// differs between them reads as a range instead of the first rule's number.
+function deriveLabelsWithRanges(
+  displayedRules: DisplayedRule[],
+  language: Language,
+): string[][] {
+  const groups = new Map<string, number[]>();
+  displayedRules.forEach(({ rule, formatAs }, r) => {
+    const key = JSON.stringify([
+      formatAs,
+      rule.direction ?? "higher-is-better",
+      rule.buckets.map((b) => b.color),
+    ]);
+    groups.set(key, [...(groups.get(key) ?? []), r]);
+  });
+  const out: string[][] = [];
+  for (const members of groups.values()) {
+    const rules = members.map((r) => displayedRules[r]);
+    const { rule, formatAs } = rules[0];
+    const lo = rule.cutoffs.map((_, i) =>
+      Math.min(...rules.map((d) => d.rule.cutoffs[i]))
+    );
+    const hi = rule.cutoffs.map((_, i) =>
+      Math.max(...rules.map((d) => d.rule.cutoffs[i]))
+    );
+    const base = buildAutoValueFormatter([...lo, ...hi], formatAs);
+    // A range prints its unit once ("50–70%", not "50%–70%").
+    const range = (a: number, b: number) => {
+      const lo = base(a);
+      const hi = base(b);
+      const unit = lo.match(/[^\d.,]+$/)?.[0] ?? "";
+      return unit !== "" && hi.endsWith(unit)
+        ? `${lo.slice(0, -unit.length)}–${hi}`
+        : `${lo}–${hi}`;
+    };
+    const fmt = (v: number) => {
+      const i = rule.cutoffs.indexOf(v);
+      return i < 0 || lo[i] === hi[i] ? base(v) : range(lo[i], hi[i]);
+    };
+    const derived = deriveBucketLabels(
+      rule.cutoffs,
+      fmt,
+      language,
+      rule.direction ?? "higher-is-better",
+    );
+    for (const r of members) {
+      out[r] = displayedRules[r].rule.buckets.map((b, i) =>
+        b.label ?? derived[i]
+      );
     }
   }
-  const note = pickLang(language, {
-    en: "varies by indicator",
-    fr: "varie selon l'indicateur",
-    pt: "varia consoante o indicador",
-  });
-  return [...colors.values()].map((color, i) => ({
-    label: i === 0 ? note : "",
-    color,
-  }));
+  return out;
 }

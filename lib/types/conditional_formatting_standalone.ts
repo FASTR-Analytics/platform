@@ -10,9 +10,16 @@ const colorKeyOrStringSchema = z.union([
   z.object({ key: z.string() }),
 ]);
 
+// A label is stored trimmed with inner whitespace collapsed, and an empty one
+// is absent: the legend merges rules by label text, so two authors' spacing
+// must never read as two meanings.
 const thresholdBucketSchema = z.object({
   color: colorKeyOrStringSchema,
-  label: z.string().optional(),
+  label: z
+    .string()
+    .transform((s) => s.trim().replace(/\s+/g, " "))
+    .transform((s) => (s === "" ? undefined : s))
+    .optional(),
 });
 
 // A thresholds rule on its own — what a common indicator carries (DB JSON

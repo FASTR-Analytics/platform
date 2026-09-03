@@ -1,5 +1,4 @@
 import {
-  type DisplayedRule,
   type IndicatorFormat,
   PresentationObjectConfig,
   PresentationObjectDetail,
@@ -21,8 +20,8 @@ type Props = {
   /** Format the figure's values will actually be written in (resolved from the
    *  draft config — HFA metrics all declare "number"). */
   effectiveFormatAs: IndicatorFormat;
-  /** Present for an "indicator" metric: the displayed indicators' own rules. */
-  indicatorCfSource: DisplayedRule[] | undefined;
+  /** True for an "indicator" metric: the `indicator` CF source is offered. */
+  offerIndicatorCfSource: boolean;
 };
 
 export function MapStyleControls(p: Props) {
@@ -80,7 +79,7 @@ export function MapStyleControls(p: Props) {
           formatAs={p.effectiveFormatAs}
           decimalPlaces={p.tempConfig.s.decimalPlaces}
           allowNegative={metricAllowsNegativeScale(p.poDetail.resultsValue.id)}
-          indicatorSource={p.indicatorCfSource}
+          offerIndicatorSource={p.offerIndicatorCfSource}
         />
       </StyleSection>
       <StyleSection label={t3({ en: "Labels", fr: "Étiquettes", pt: "Rótulos" })}>
