@@ -3,6 +3,7 @@ import {
   createSlide,
   deleteSlides,
   duplicateSlides,
+  getAllSlideDecks,
   getSlide,
   getSlides,
   moveSlides,
@@ -26,6 +27,7 @@ import {
 import { log } from "../../middleware/logging.ts";
 import { requireProjectPermission } from "../../project_auth.ts";
 import { notifyLastUpdated } from "../../task_management/mod.ts";
+import { notifyProjectSlideDecksUpdated } from "../../task_management/notify_project_v2.ts";
 import { defineRoute } from "../route-helpers.ts";
 
 export const routesSlides = new Hono();
@@ -93,6 +95,10 @@ defineRoute(
       [params.deck_id],
       res.data.lastUpdated,
     );
+    const decksRes = await getAllSlideDecks(c.var.ppk.projectDb);
+    if (decksRes.success) {
+      notifyProjectSlideDecksUpdated(c.var.ppk.projectId, decksRes.data);
+    }
 
     return c.json(res);
   },
@@ -237,6 +243,10 @@ defineRoute(
       [params.deck_id],
       lastUpdated,
     );
+    const decksRes = await getAllSlideDecks(c.var.ppk.projectDb);
+    if (decksRes.success) {
+      notifyProjectSlideDecksUpdated(c.var.ppk.projectId, decksRes.data);
+    }
 
     return c.json({
       success: true,
@@ -294,6 +304,10 @@ defineRoute(
       [params.deck_id],
       res.data.lastUpdated,
     );
+    const decksRes = await getAllSlideDecks(c.var.ppk.projectDb);
+    if (decksRes.success) {
+      notifyProjectSlideDecksUpdated(c.var.ppk.projectId, decksRes.data);
+    }
 
     return c.json(res);
   },
@@ -335,6 +349,10 @@ defineRoute(
       [params.deck_id],
       res.data.lastUpdated,
     );
+    const decksRes = await getAllSlideDecks(c.var.ppk.projectDb);
+    if (decksRes.success) {
+      notifyProjectSlideDecksUpdated(c.var.ppk.projectId, decksRes.data);
+    }
 
     return c.json(res);
   },
