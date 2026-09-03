@@ -30,7 +30,7 @@ import {
   type SelectOption,
   Slider,
 } from "panther";
-import { For, Show } from "solid-js";
+import { For, Index, Show } from "solid-js";
 import { buildAutoValueFormatter } from "~/generate_visualization/conditional_formatting/compile";
 import { StyleRevealGroup } from "./presentation_object_editor_panel_style/_style_components";
 
@@ -489,11 +489,14 @@ export function ThresholdsPanel(p: {
         horizontal
       />
       <div class="flex flex-col gap-1.5">
-        <For each={p.cf.buckets.slice().reverse()}>
+        {/* Index, not For: every edit maps the buckets into new objects, and
+            For keys rows by identity, so a keystroke in a label input would
+            remount its row and drop focus. Index keeps rows by position. */}
+        <Index each={p.cf.buckets.slice().reverse()}>
           {(bucket, j) => {
             // Display order is reversed: highest-values bucket at top.
             // origI maps display index back to the stored bucket index.
-            const origI = () => p.cf.buckets.length - 1 - j();
+            const origI = () => p.cf.buckets.length - 1 - j;
             const cutoffIdx = () => origI() - 1;
             // Both bounds are the format's, not universal: only a percent has
             // a natural floor (0, or -1 when the metric is signed) and a
@@ -528,7 +531,7 @@ export function ThresholdsPanel(p: {
                   </Show>
                 </div>
                 <ColorPicker
-                  value={colorToString(bucket.color)}
+                  value={colorToString(bucket().color)}
                   onChange={(v) => setBucketColor(origI(), v)}
                   colorSet="standard"
                 />
@@ -542,7 +545,7 @@ export function ThresholdsPanel(p: {
                 >
                   <div class="flex-1">
                     <Input
-                      value={bucket.label ?? ""}
+                      value={bucket().label ?? ""}
                       onChange={(v) => setBucketLabel(origI(), v)}
                       placeholder={labels()[origI()]}
                       fullWidth
@@ -563,7 +566,7 @@ export function ThresholdsPanel(p: {
               </div>
             );
           }}
-        </For>
+        </Index>
         <button
           type="button"
           class="cursor-pointer text-base-content-muted hover:text-base-content self-start text-xs underline"
