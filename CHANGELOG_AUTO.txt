@@ -1,3 +1,5 @@
+[1.69.2] [user] [fixed] - Slide deck changes now update in real time for all viewers
+[1.69.2] [admin] [added] - Slide deck changes now update collaborators in real time
 [1.69.1] [user] [changed] - Indicator colour mode now shows legend bands on the figure itself
 [1.69.1] [user] [fixed] - Typing in colour band label fields no longer loses keyboard focus
 [1.69.1] [user] [fixed] - Extra spaces in colour band labels are now automatically cleaned up
