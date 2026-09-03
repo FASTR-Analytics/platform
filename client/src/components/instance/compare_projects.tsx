@@ -130,8 +130,7 @@ function ComparisonTable(p: { data: CompareProjectsData }) {
     return isInconsistent(moduleId, getValue) ? `${base} bg-danger-subtle` : base;
   }
 
-  // A module is either in the project's attached results package or it isn't;
-  // dirty state died with the dirty machine (PLAN_RESULTS_RUNS item 5).
+  // A module is either in the project's attached results package or it isn't.
   function inPackageBadge() {
     return (
       <span class="bg-success-subtle text-success-subtle-content rounded px-1.5 py-0.5 text-xs">

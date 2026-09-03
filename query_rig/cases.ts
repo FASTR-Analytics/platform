@@ -613,9 +613,9 @@ const EXPLICIT_CASES: Case[] = [
     expect: {
       status: "ok",
       rows: [
-        { facility_type: "hospital", facility_id: "4" },
-        { facility_type: "clinic", facility_id: "3" },
-        { facility_type: "health_post", facility_id: "1" },
+        { facility_type: "hospital", facility_id: 4 },
+        { facility_type: "clinic", facility_id: 3 },
+        { facility_type: "health_post", facility_id: 1 },
       ],
     },
   },
@@ -635,9 +635,9 @@ const EXPLICIT_CASES: Case[] = [
     expect: {
       status: "ok",
       rows: [
-        { facility_type: "hospital", facility_id: "3", __n_facility_id: 2 },
-        { facility_type: "clinic", facility_id: "4", __n_facility_id: 2 },
-        { facility_type: "health_post", facility_id: "1", __n_facility_id: 1 },
+        { facility_type: "hospital", facility_id: 3, __n_facility_id: 2 },
+        { facility_type: "clinic", facility_id: 4, __n_facility_id: 2 },
+        { facility_type: "health_post", facility_id: 1, __n_facility_id: 1 },
       ],
     },
   },
@@ -751,7 +751,7 @@ const EXPLICIT_CASES: Case[] = [
     entry: "possibleValues",
     disOpt: "source_indicator",
     fetchConfig: { ...base(), groupBys: [] },
-    // The WHOLE order is ours: get_possible_values re-sorts in TS with a
+    // The WHOLE order is ours: possible_values_core re-sorts in TS with a
     // hand-rolled comparator (code point over a case-folded diacritic-stripped
     // key, numeric digit runs), so neither the DB image's collation nor the
     // host runtime's ICU version may move these. " x" sorts FIRST — the

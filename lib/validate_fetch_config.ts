@@ -10,7 +10,7 @@ import { GenericLongFormFetchConfig } from "./types/presentation_objects.ts";
 
 // Every field below is interpolated into SQL run via projectDb.unsafe (see
 // server_only_funcs_presentation_objects/query_helpers.ts and
-// get_possible_values.ts). The app client only ever sends closed-vocabulary
+// possible_values_core.ts). The app client only ever sends closed-vocabulary
 // values, but the route body is attacker-controllable, so these are the SQL
 // injection guards — type-shape alone is NOT enough.
 
@@ -168,12 +168,12 @@ export const FILTER_ONLY_DISAGGREGATION_OPTIONS: ReadonlySet<string> =
 // Columns whose cell value is a delimiter-joined SET of ids
 // ("rmnch|nutrition"). Filtering is set membership (string_to_array overlap,
 // OR-of-many), and possible values are the unnested single ids.
-// Consumed: buildWhereClause, getPossibleValues.
+// Consumed: buildWhereClause, getPossibleValuesCore.
 export const MULTI_MEMBERSHIP_FILTER_COLUMNS: ReadonlySet<string> =
   new Set(["hfa_service_category"]);
 
 // THE delimiter for multi-membership set encoding. TS sites use the helpers
-// below; SQL sites (buildWhereClause, getPossibleValues) interpolate this
+// below; SQL sites (buildWhereClause, getPossibleValuesCore) interpolate this
 // const into string_to_array — SQL cannot call the TS helpers, so the const
 // is the single point of consistency across both worlds.
 export const MULTI_MEMBERSHIP_DELIMITER = "|";
@@ -343,7 +343,7 @@ export function validateFetchConfig(
   // re-aggregates across the collapsed dimension, which is only meaningful for
   // additive funcs, post-aggregation ingredients (recomputed after the union),
   // or AVG over facility-level rows. AVG's facility-rows condition needs the
-  // table and is enforced in getPresentationObjectItems; here we reject the
+  // table and is enforced in getPresentationObjectItemsCore; here we reject the
   // funcs that are never eligible. App clients never send these; this guards
   // hand-crafted requests.
   if (

@@ -1,9 +1,4 @@
-import { Sql } from "postgres";
-import {
-  detectColumnExists,
-  getResultsObjectTableName,
-  tryCatchDatabaseAsync,
-} from "../db/mod.ts";
+import { tryCatchDatabaseAsync } from "../db/mod.ts";
 import {
   APIResponseWithData,
   BLANK_SENTINEL,
@@ -11,12 +6,8 @@ import {
   GenericLongFormFetchConfig,
   MULTI_MEMBERSHIP_DELIMITER,
   MULTI_MEMBERSHIP_FILTER_COLUMNS,
-  type DatasetType,
 } from "lib";
-import {
-  buildQueryContext,
-  facilitiesTableForFamily,
-} from "./get_query_context.ts";
+import { facilitiesTableForFamily } from "./facility_context.ts";
 import {
   blankFoldedRef,
   buildWhereClause,
@@ -33,10 +24,10 @@ import type { QueryContext, SqlRowsExecutor } from "./types.ts";
 
 const DYNAMIC_PERIOD_COLUMNS = ["year", "month", "quarter_id"] as const;
 
-// Deterministic option ordering, pinned in TS (PLAN_RESULTS_RUNS §2.4 delta
-// 3): Postgres orders text by DB collation, DuckDB by binary — so the SQL
-// ORDER BY (kept for a stable LIMIT cutoff) is re-sorted here with ONE
-// defined comparator, making both engines emit identical lists.
+// Deterministic option ordering, pinned in TS: DuckDB orders text by binary
+// code point, so the SQL ORDER BY (kept for a stable LIMIT cutoff) is
+// re-sorted here with ONE defined comparator that does not depend on the
+// engine or its collation.
 //
 // Hand-rolled, NOT Intl.Collator: ICU tailoring shifts across runtime
 // upgrades (a Deno bump reordered a leading-space value relative to "dhis2"),
@@ -87,51 +78,7 @@ export type PossibleValuesDeps = {
   columnExists: (tableName: string, columnName: string) => Promise<boolean>;
 };
 
-// Postgres wrapper — probes and executes on the project DB.
-export async function getPossibleValues(
-  projectDb: Sql,
-  resultsObjectId: string,
-  datasetFamily: DatasetType | undefined,
-  disaggregationOption: DisaggregationOption,
-  mainDb: Sql,
-  labelMap: Map<string, string>,
-  filters?: GenericLongFormFetchConfig["filters"],
-  periodFilterExactBounds?: {
-    min: number;
-    max: number;
-  },
-): Promise<APIResponseWithData<{ id: string; label: string }[]>> {
-  return await tryCatchDatabaseAsync(async () => {
-    const tableName = getResultsObjectTableName(resultsObjectId);
-    const fetchConfig = buildMinimalFetchConfig(
-      disaggregationOption,
-      filters ?? [],
-      periodFilterExactBounds,
-    );
-    const queryContext = await buildQueryContext(
-      mainDb,
-      projectDb,
-      tableName,
-      fetchConfig,
-      datasetFamily,
-    );
-    return await getPossibleValuesCore(
-      {
-        execute: (sql) => projectDb.unsafe(sql),
-        columnExists: (table, column) =>
-          detectColumnExists(projectDb, table, column),
-      },
-      queryContext,
-      tableName,
-      disaggregationOption,
-      labelMap,
-      filters ?? [],
-      periodFilterExactBounds,
-    );
-  });
-}
-
-// Build minimal fetchConfig to leverage buildQueryContext / buildWhereClause
+// Build minimal fetchConfig to leverage the query-context builder / buildWhereClause
 export function buildMinimalFetchConfig(
   disaggregationOption: DisaggregationOption,
   filters: GenericLongFormFetchConfig["filters"],

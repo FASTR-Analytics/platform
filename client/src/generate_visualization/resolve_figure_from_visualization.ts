@@ -88,10 +88,7 @@ export async function resolveFigureBundleFromVizConfig(
     localization: getSnapshotInstanceLocalization(),
     metricId: resultsValue.id,
     snapshotAt: new Date().toISOString(),
-    provenance: {
-      moduleLastRun: ih.moduleLastRun,
-      datasetsVersion: ih.datasetsVersion,
-    },
+    provenance: { runId: ih.runId },
   };
 }
 
@@ -141,7 +138,7 @@ export function makeFigureBundleFromFetchedData(data: FetchedPOData): FigureBund
     localization: getSnapshotInstanceLocalization(),
     metricId: resultsValue.id,
     snapshotAt: new Date().toISOString(),
-    provenance: { moduleLastRun: ih.moduleLastRun, datasetsVersion: ih.datasetsVersion },
+    provenance: { runId: ih.runId },
   };
 }
 

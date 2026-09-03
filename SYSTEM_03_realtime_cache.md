@@ -12,7 +12,7 @@ globs:
   - client/src/state/project/t1_sse.tsx
   - client/src/state/project/t1_store.ts
   - lib/types/instance_sse.ts
-  - lib/types/project_dirty_states.ts
+  - lib/types/last_updated_tables.ts
   - lib/types/project_sse.ts
   - server/routes/instance/instance-sse.ts
   - server/routes/project/project-sse-v2.ts
@@ -55,8 +55,7 @@ collaboration WebSocket layer (live Yjs deltas, presence) is **S16**
 inside the same project boundary: its room checkpoints feed this system's
 triangle through the existing notify wrappers and post nothing new to the
 BroadcastChannels. Sub-file custody exceptions are in SYSTEMS.md §4.1
-(`lib/types/project_dirty_states.ts` is owned here, S8 mandatory reader;
-`t2_presentation_objects.ts` is owned by S9, this system a mandatory reader;
+(`t2_presentation_objects.ts` is owned by S9, this system a mandatory reader;
 `task_management/mod.ts` is S8's barrel and re-exports the notify hub).
 
 ## Contract
@@ -335,11 +334,10 @@ and each layer has a distinct job (PLAN_RESULTS_RUNS §2.5 re-keyed the data
 dimension onto the attached run):
 
 1. **Run/row version** — `presentationObjectLastUpdated` (PO edits) plus the
-   immutable `runId` (which run the data came from): the runId replaces the old
-   `moduleLastRun` + `datasetsVersion` dimensions — data never changes under a
-   run, only the pointer swaps.
+   immutable `runId` (which run the data came from) and the `scopeToken` —
+   data never changes under a run, only the pointer swaps.
 2. **`PO_CACHE_VERSION`** (`server/routes/caches/visualizations.ts`, currently
-   `"18"`, bump history in the adjacent comment) — a manually-bumped semantic
+   `"19"`, bump history in the adjacent comment) — a manually-bumped semantic
    version folded into the `versionHash` of the three query-shaped caches; bump
    it when the _generated SQL or payload semantics_ change so old entries miss
    without a prefix migration.

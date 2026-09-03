@@ -213,10 +213,9 @@ Implements §2 items 1–3 and 5:
   read `geojson_maps` (family-keyed after PLAN_2), write
   `inputs/geojson/{family}_level_N.geojson[.gz]`, stamp the manifest
   (additive-optional field carrying family + level + counts).
-- Backfill: `backfill_runs.ts` captures from live instance `geojson_maps` — a
-  **documented exception** to "backfill from frozen project data": the live
-  blob is exactly what those projects render today, so capturing it is
-  render-equivalent by definition.
+- Backfill: there is no backfill synthesizer any more (deleted 2026-09-04,
+  PLAN_RESULTS_RUNS Phase 4 step A); existing packages simply lack geojson
+  until regenerated.
 - Project-scoped serving route (resolve `projects.run_id` → run file), gzip +
   `Cache-Control: immutable`; client run-geo store keyed by runId.
 - Repoint `resolveGeoJson` in `build_figure_inputs.ts` and both capture sites;
@@ -343,9 +342,9 @@ inherits them:
    smaller; Cameroon L3 is ~20 MB plain and copied into EVERY package under
    the no-links rule, with no parquet payoff coming) vs plain for
    package-explorer transparency. *Recommendation: gzip.*
-3. **Backfill capture exception.** Confirm `backfill_runs.ts` may capture from
-   live instance `geojson_maps` (render-equivalent; documented exception) vs
-   backfilled packages simply lacking geojson. *Recommendation: capture.*
+3. **Backfill capture exception — MOOT (2026-09-04).** The backfill
+   synthesizer was deleted (PLAN_RESULTS_RUNS Phase 4 step A); packages
+   generated before this plan lands simply lack geojson until regenerated.
 4. **Efficiency scope.** Double-serialize fix + instance-path compression now
    (cheap) vs deferred; simplification in or out.
 

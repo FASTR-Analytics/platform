@@ -1,6 +1,6 @@
 import {
   PresentationObjectConfig,
-  PresentationObjectDetail,
+  PresentationObjectEditorDetail,
   ResultsValueInfoForPresentationObject,
   getDisaggregatorDisplayProp,
   type IndicatorFormat,
@@ -25,7 +25,7 @@ import { CustomValueOrderSection } from "./presentation_object_editor_panel_styl
 
 type Props = {
   projectId: string;
-  poDetail: PresentationObjectDetail;
+  poDetail: PresentationObjectEditorDetail;
   resultsValueInfo: ResultsValueInfoForPresentationObject;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;

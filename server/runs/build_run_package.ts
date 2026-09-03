@@ -19,7 +19,6 @@ import {
   type RunMetricAvailability,
   type RunModule,
   type RunPopulation,
-  type RunProvenance,
   type RunResultsObject,
   type RunSummary,
   type StructureSchema,
@@ -36,7 +35,6 @@ import { R_DOCKER_IMAGE_TAG } from "../worker_routines/generate_run/r_docker_ima
 import {
   _INSTANCE_CALENDAR,
   _INSTANCE_COUNTRY_ISO3,
-  _SANDBOX_DIR_PATH,
   _SERVER_VERSION,
 } from "../exposed_env_vars.ts";
 import { deriveAvailableDisaggregationOptions } from "./disaggregation_availability.ts";
@@ -45,137 +43,32 @@ import {
   buildRunIndicatorCatalog,
   runDirInputRowsReader,
 } from "./indicator_catalog.ts";
-import { exportPgTableToParquet } from "./pg_export.ts";
-import {
-  runDirPath,
-  runInputFilePath,
-  runManifestPath,
-  runResultsObjectParquetPath,
-  runTmpDirPath,
-} from "./run_paths.ts";
+import { runManifestPath, runResultsObjectParquetPath } from "./run_paths.ts";
 
-// The run-package builder, shared by its two writers (PLAN_RESULTS_RUNS
-// §3.8): the backfill synthesizer here, and the wizard pipeline's finalize
-// (server/worker_routines/generate_run/), which calls buildRunPackageIntoTmp
-// with the run's own outputs as the CSV source. The builder captures inputs
-// (mirror JSONs, facilities parquet, declared assets), builds each results
-// object's normalized query parquet, stamps metric availability, and writes
-// the manifest — all inside runs/.tmp-{runId}; the caller owns the atomic
-// rename and the catalog-row/pointer transaction.
-//
-// The synthesizer (Status, model point 5) mints a runId and builds from the
-// project's current sandbox CSVs + project-DB catalog + captured instance
-// config. Copy, not move — sandbox and Postgres are untouched, so the
-// migration is additive and the previous image still functions. Synthesized
-// runs carry no memoization fields and are never reuse sources.
-
-// getIndicatorMetadata's read surface, exported verbatim as inputs/<table>.json.
-const INPUT_MIRROR_TABLES = [
-  "indicators",
-  "calculated_indicators_snapshot",
-  "hfa_indicators_snapshot",
-  "hfa_indicator_categories_snapshot",
-  "hfa_indicator_sub_categories_snapshot",
-  "hfa_indicator_service_categories_snapshot",
-  "iceh_indicators_snapshot",
-];
-
-const INPUT_FACILITIES_TABLES = ["facilities_hmis", "facilities_hfa"];
-
-// Where the builder gets the catalog + input mirrors. Under the
-// no-dual-write model (Phase 3 re-cut ruling 5) a wizard generation never
-// writes to a project DB, so it hands the builder everything it captured;
-// the backfill synthesizer still reads the (frozen) project plane.
-export type RunBuildSource =
-  | {
-    kind: "project_db";
-    projectDb: Sql;
-    projectId: string;
-    // Restrict the captured catalog to these modules; null = all of them.
-    moduleIds: string[] | null;
-  }
-  | {
-    kind: "captured";
-    modules: RunModule[];
-    metrics: RunMetric[];
-    datasets: RunDataset[];
-    // Input mirrors/facilities the caller already wrote into the tmp dir.
-    facilitiesTables: RunFacilitiesTable[];
-    // The person-years file the caller wrote (null without an HMIS
-    // capture); a backfill never has one.
-    population: RunPopulation | null;
-  };
+// The run-package builder — the wizard pipeline's ONE finalize
+// (server/worker_routines/generate_run/pipeline.ts). The caller has already
+// written the run's inputs (dataset extracts, mirrors, facilities parquet,
+// person-years) and every module's raw output CSVs into runs/.tmp-{runId};
+// this builds each results object's normalized query parquet from
+// outputs/{moduleId}/{roId}, captures declared assets, stamps metric
+// availability and the indicator catalog, and writes the manifest. The caller
+// owns the atomic rename and the catalog-row/pointer transaction.
 
 export type RunBuildOptions = {
   label: string;
-  provenance: RunProvenance;
-  source: RunBuildSource;
-  // Run identity in the catalog summary (Q-A). Only the backfill
-  // synthesizer stamps a source project — it is what makes a run 1:1 with a
-  // project's frozen Postgres plane, which is the rig's gating rule.
-  // Wizard runs carry null and list their launch-time attach targets
-  // instead.
-  backfillSourceProjectId: string | null;
+  modules: RunModule[];
+  metrics: RunMetric[];
+  datasets: RunDataset[];
+  // Input mirrors/facilities the caller already wrote into the tmp dir.
+  facilitiesTables: RunFacilitiesTable[];
+  // The person-years file the caller wrote (null without an HMIS capture).
+  population: RunPopulation | null;
+  // Run identity in the catalog summary: the launch-time attach targets.
   attachTargetProjectIds: string[];
-  // §3.7 memoization fields per module — computed only by real wizard
-  // generation; synthesized runs carry null and are never reuse sources.
-  moduleMemo: Map<
-    string,
-    { inputKey: string; outputFileHashes: Record<string, string> }
-  > | null;
-  // Directory holding a module's raw {roId} CSVs: the project sandbox for
-  // synthesis, the run's own outputs/{moduleId} for the wizard finalize.
-  moduleCsvDir: (moduleId: string) => string;
   // Relative paths (from the run dir root) of input files the caller already
-  // placed in the tmp dir (the wizard's dataset extracts, twins, mirrors).
+  // placed in the tmp dir (dataset extracts, twins, mirrors).
   extraInputFiles: string[];
 };
-
-export async function synthesizeRunForProject(
-  mainDb: Sql,
-  projectDb: Sql,
-  projectId: string,
-  projectLabel: string,
-): Promise<{ runId: string }> {
-  const runId = crypto.randomUUID();
-  const tmpDir = runTmpDirPath(runId);
-  const t0 = performance.now();
-  try {
-    const { summary } = await buildRunPackageIntoTmp(
-      mainDb,
-      runId,
-      tmpDir,
-      {
-        label: projectLabel,
-        provenance: "synthetic-backfill",
-        source: { kind: "project_db", projectDb, projectId, moduleIds: null },
-        backfillSourceProjectId: projectId,
-        attachTargetProjectIds: [projectId],
-        moduleMemo: null,
-        moduleCsvDir: (moduleId) => join(_SANDBOX_DIR_PATH, projectId, moduleId),
-        extraInputFiles: [],
-      },
-    );
-    // Atomic publish: rename, then catalog row + pointer in one transaction.
-    await Deno.rename(tmpDir, runDirPath(runId));
-    await mainDb.begin(async (sql) => {
-      await sql`
-INSERT INTO runs (id, label, status, provenance, created_by, summary)
-VALUES (${runId}, ${projectLabel}, 'ready', 'synthetic-backfill', NULL, ${JSON.stringify(summary)})
-`;
-      await sql`UPDATE projects SET run_id = ${runId} WHERE id = ${projectId}`;
-    });
-    console.log(
-      `[runs] synthesized run ${runId} for project ${projectId} in ${
-        (performance.now() - t0).toFixed(0)
-      }ms`,
-    );
-    return { runId };
-  } catch (e) {
-    await Deno.remove(tmpDir, { recursive: true }).catch(() => {});
-    throw e;
-  }
-}
 
 export async function buildRunPackageIntoTmp(
   mainDb: Sql,
@@ -203,107 +96,14 @@ export async function buildRunPackageIntoTmp(
 
   await Deno.mkdir(join(tmpDir, "inputs"), { recursive: true });
 
-  const src = opts.source;
-  let runModules: RunModule[];
-  let runMetrics: RunMetric[];
-  // Installed definitions keyed by module id — the results-object catalog and
-  // the declared-asset capture below read them from either source.
-  let moduleDefinitions: {
-    id: string;
-    moduleDefinition: string;
-    lastRunAt: string | null;
-    lastRunGitRef: string | null;
-  }[];
-
-  if (src.kind === "captured") {
-    runModules = src.modules.map((m) => {
-      const memo = opts.moduleMemo?.get(m.id);
-      return {
-        ...m,
-        inputKey: memo?.inputKey ?? m.inputKey,
-        outputFileHashes: memo?.outputFileHashes ?? m.outputFileHashes,
-      };
-    });
-    runMetrics = src.metrics;
-    moduleDefinitions = runModules.map((m) => ({
-      id: m.id,
-      moduleDefinition: m.moduleDefinition,
-      lastRunAt: m.lastRunAt,
-      lastRunGitRef: m.lastRunGitRef,
-    }));
-  } else {
-    const { projectDb, moduleIds } = src;
-    const modules = await projectDb<
-      {
-        id: string;
-        module_definition: string;
-        config_selections: string | null;
-        last_run_at: string | null;
-        last_run_git_ref: string | null;
-      }[]
-    >`
-SELECT id, module_definition, config_selections, last_run_at, last_run_git_ref
-FROM modules
-${moduleIds === null ? projectDb`` : projectDb`WHERE id = ANY(${moduleIds})`}
-`;
-    if (moduleIds !== null) {
-      const present = new Set(modules.map((m) => m.id));
-      const missing = moduleIds.filter((id) => !present.has(id));
-      if (missing.length > 0) {
-        throw new Error(
-          `run modules missing from project catalog: ${missing.join(", ")}`,
-        );
-      }
-    }
-    runModules = modules.map((m) => {
-      const memo = opts.moduleMemo?.get(m.id);
-      return {
-        id: m.id,
-        moduleDefinition: m.module_definition,
-        configSelections: m.config_selections,
-        lastRunAt: m.last_run_at,
-        lastRunGitRef: m.last_run_git_ref,
-        inputKey: memo?.inputKey ?? null,
-        outputFileHashes: memo?.outputFileHashes ?? null,
-      };
-    });
-
-    const metrics = await projectDb<Omit<RunMetric, "datasetFamily">[]>`
-SELECT id, module_id, label, variant_label, value_func, format_as, value_props,
-  required_disaggregation_options, value_label_replacements,
-  post_aggregation_expression, results_object_id, ai_description, viz_presets,
-  hide, important_notes
-FROM metrics
-${moduleIds === null ? projectDb`` : projectDb`WHERE module_id = ANY(${moduleIds})`}
-`;
-    const familyByModuleId = new Map(
-      modules.map((m) => [m.id, getDatasetFamily(m.module_definition) ?? null]),
-    );
-    runMetrics = metrics.map((m) => ({
-      ...m,
-      datasetFamily: familyByModuleId.get(m.module_id) ?? null,
-      // Not selected, because the project `metrics` table has no such column
-      // and correctly never will — metrics[] is generation-only provenance, so
-      // a field that did not exist when these rows were written is carried
-      // forward as null rather than synthesized. Manifest transform block 4
-      // does exactly this for packages written before v6.
-      catalog_expression_evaluation: null,
-    }));
-    moduleDefinitions = modules.map((m) => ({
-      id: m.id,
-      moduleDefinition: m.module_definition,
-      lastRunAt: m.last_run_at,
-      lastRunGitRef: m.last_run_git_ref,
-    }));
-  }
+  const { modules: runModules, metrics: runMetrics } = opts;
 
   // Results-object catalog from the installed definitions; actual schema and
-  // query metadata from the normalized parquet built into the run — copied
-  // from the sandbox's ingest shadow-write when fresh, else rebuilt from the
-  // raw CSV. A per-RO build failure degrades that RO to hasParquet=false
-  // (metric stamped unavailable) rather than failing the whole run.
+  // query metadata from the normalized parquet built from the module's raw
+  // CSV. A per-RO build failure degrades that RO to hasParquet=false (metric
+  // stamped unavailable) rather than failing the whole run.
   const runResultsObjects: RunResultsObject[] = [];
-  for (const mod of moduleDefinitions) {
+  for (const mod of runModules) {
     // The module's own family selects which structure schema governs its
     // facility columns (iceh/unknown → none)
     const moduleFamilySchema = schemaByFamily(
@@ -334,9 +134,7 @@ ${moduleIds === null ? projectDb`` : projectDb`WHERE module_id = ANY(${moduleIds
         runResultsObjects.push(noQueryData);
         continue;
       }
-      // A never-run module has no query data even when the sandbox holds
-      // leftover CSVs from a previous install (uninstall keeps files but
-      // drops the Postgres tables — the run must match, not resurrect).
+      // A module that never ran has no query data.
       if (mod.lastRunAt === null) {
         runResultsObjects.push(noQueryData);
         continue;
@@ -344,7 +142,7 @@ ${moduleIds === null ? projectDb`` : projectDb`WHERE module_id = ANY(${moduleIds
       const parquetPath = runResultsObjectParquetPath(tmpDir, mod.id, ro.id);
       try {
         const ready = await buildResultsObjectParquet(
-          join(opts.moduleCsvDir(mod.id), ro.id),
+          join(tmpDir, "outputs", mod.id, ro.id),
           parquetPath,
           ro.createTableStatementPossibleColumns,
           moduleFamilySchema,
@@ -383,22 +181,20 @@ ${moduleIds === null ? projectDb`` : projectDb`WHERE module_id = ANY(${moduleIds
     computeMetricAvailability(metric, runResultsObjects),
   );
 
-  // Input mirrors: dictionary/snapshot tables as JSON, facilities as parquet.
-  // Caller-placed inputs (the wizard's dataset extracts) are recorded first.
+  // Caller-placed inputs (dataset extracts, mirrors, facilities parquet) are
+  // recorded first; captured assets follow.
   const inputFiles: string[] = [...opts.extraInputFiles];
 
   // Pinned assets (§6.2): every asset the installed modules declare, copied
   // into inputs/assets/ and hashed into the manifest. Instance-uploaded
-  // assets come from the Assets dir (the current file is the best available
-  // stand-in at synthesis time for what the module read); pinned repo assets
-  // come from the content-addressed cache, which is exact. A missing asset
-  // degrades loudly (the module already ran) rather than failing the
-  // backfill. The wizard finalize inherits this capture with the same layout.
+  // assets come from the Assets dir; pinned repo assets come from the
+  // content-addressed cache, which is exact. A missing asset degrades loudly
+  // (the module already ran) rather than failing the generation.
   const declaredAssets = new Map<
     string,
     { asset: AssetToImport; moduleId: string; gitRef: string | null }
   >();
-  for (const mod of moduleDefinitions) {
+  for (const mod of runModules) {
     const def = JSON.parse(mod.moduleDefinition) as {
       assetsToImport?: AssetToImport[];
     };
@@ -438,56 +234,8 @@ ${moduleIds === null ? projectDb`` : projectDb`WHERE module_id = ANY(${moduleIds
     assets.push({ fileName, sha256 });
     inputFiles.push(`inputs/assets/${fileName}`);
   }
-  // Input mirrors + facilities parquet + dataset stamps: the captured source
-  // already wrote its own into the tmp dir (prepare_inputs), so only the
-  // project_db source exports them here.
-  let facilitiesTables: RunFacilitiesTable[];
-  let datasets: RunDataset[];
-  if (src.kind === "captured") {
-    facilitiesTables = src.facilitiesTables;
-    datasets = src.datasets;
-  } else {
-    const { projectDb } = src;
-    facilitiesTables = [];
-    for (const tableName of INPUT_MIRROR_TABLES) {
-      const exists = (
-        await projectDb<{ n: string }[]>`
-SELECT count(*) AS n FROM information_schema.tables
-WHERE table_schema = 'public' AND table_name = ${tableName}
-`
-      )[0];
-      if (Number(exists.n) === 0) continue;
-      const rows = await projectDb.unsafe(`SELECT * FROM "${tableName}"`);
-      const fileName = `${tableName}.json`;
-      await Deno.writeTextFile(
-        runInputFilePath(tmpDir, fileName),
-        JSON.stringify([...rows]),
-      );
-      inputFiles.push(`inputs/${fileName}`);
-    }
-    for (const tableName of INPUT_FACILITIES_TABLES) {
-      const fileName = `${tableName}.parquet`;
-      const columns = await exportPgTableToParquet(
-        projectDb,
-        tableName,
-        runInputFilePath(tmpDir, fileName),
-      );
-      if (columns !== undefined) {
-        inputFiles.push(`inputs/${fileName}`);
-        facilitiesTables.push({ tableName, columns });
-      }
-    }
-    const datasetRows = await projectDb<
-      { dataset_type: string; info: string; last_updated: string }[]
-    >`
-SELECT dataset_type, info, last_updated FROM datasets
-`;
-    datasets = datasetRows.map((d) => ({
-      datasetType: d.dataset_type,
-      lastUpdated: d.last_updated,
-      info: JSON.parse(d.info),
-    }));
-  }
+
+  const { facilitiesTables, datasets } = opts;
 
   // Stamped here, at finalize, from the mirrors just written into tmpDir —
   // the same function the manifest transform recomputes with, so a package
@@ -504,7 +252,7 @@ SELECT dataset_type, info, last_updated FROM datasets
     runId,
     createdAt: new Date().toISOString(),
     label: opts.label,
-    provenance: opts.provenance,
+    provenance: "wizard",
     appVersion: _SERVER_VERSION,
     rImageTag: R_DOCKER_IMAGE_TAG,
     calendar: _INSTANCE_CALENDAR,
@@ -528,7 +276,7 @@ SELECT dataset_type, info, last_updated FROM datasets
     metricAvailability,
     indicators,
     commonIndicators,
-    population: src.kind === "captured" ? src.population : null,
+    population: opts.population,
     inputFiles,
   };
   runManifestSchema.parse(manifest);
@@ -539,16 +287,15 @@ SELECT dataset_type, info, last_updated FROM datasets
 
   const summary: RunSummary = {
     manifestSchemaVersion: RUN_MANIFEST_SCHEMA_VERSION,
-    provenance: opts.provenance,
-    backfillSourceProjectId: opts.backfillSourceProjectId,
+    provenance: "wizard",
+    backfillSourceProjectId: null,
     attachTargetProjectIds: opts.attachTargetProjectIds,
     moduleIds: runModules.map((m) => m.id),
     metricCount: runMetrics.length,
     totalRowCount: runResultsObjects.reduce((sum, ro) => sum + ro.rowCount, 0),
-    // The manifest above is the last file either writer produces, so the tmp
-    // dir is complete here — the catalogue's disk column is stamped once, at
-    // the only moment the package's contents are final and still immutable
-    // afterwards.
+    // The manifest above is the last file written, so the tmp dir is complete
+    // here — the catalogue's disk column is stamped once, at the only moment
+    // the package's contents are final and still immutable afterwards.
     diskSizeBytes: await sumFileSizes(tmpDir),
   };
   return { manifest, summary };
@@ -567,43 +314,24 @@ async function sumFileSizes(dir: string): Promise<number> {
   return total;
 }
 
-async function statOrUndefined(path: string): Promise<Deno.FileInfo | undefined> {
-  try {
-    return await Deno.stat(path);
-  } catch (e) {
-    if (e instanceof Deno.errors.NotFound) return undefined;
-    throw e;
-  }
-}
-
-// Returns true when a servable parquet exists at parquetPath after this call.
-// The sandbox raw CSV is the source of truth: the sandbox's ingest-written
-// sibling parquet is copied when it is at least as fresh as its CSV, else the
-// parquet is rebuilt from the CSV with the four finalize normalizations. A
-// sandbox parquet without a CSV (pruned raw output) still serves.
+// Returns true when a servable parquet exists at parquetPath after this call:
+// the module's raw CSV is rebuilt into parquet with the four finalize
+// normalizations; no CSV means the module produced no rows for this object.
 async function buildResultsObjectParquet(
-  sandboxCsvPath: string,
+  csvPath: string,
   parquetPath: string,
   declaredColumns: Record<string, string>,
   facilityConfig: StructureSchema | undefined,
 ): Promise<boolean> {
-  const sandboxParquetPath = `${sandboxCsvPath}.parquet`;
-  const csvStat = await statOrUndefined(sandboxCsvPath);
-  const sandboxParquetStat = await statOrUndefined(sandboxParquetPath);
-  if (csvStat === undefined) {
-    if (sandboxParquetStat === undefined) return false;
-    await Deno.copyFile(sandboxParquetPath, parquetPath);
-    return true;
+  try {
+    await Deno.stat(csvPath);
+  } catch (e) {
+    if (e instanceof Deno.errors.NotFound) return false;
+    throw e;
   }
-  const csvMtime = csvStat.mtime?.getTime() ?? 0;
-  const sandboxParquetMtime = sandboxParquetStat?.mtime?.getTime() ?? -1;
-  if (sandboxParquetStat !== undefined && sandboxParquetMtime >= csvMtime) {
-    await Deno.copyFile(sandboxParquetPath, parquetPath);
-    return true;
-  }
-  const csvHeaders = await readCsvHeaders(sandboxCsvPath);
+  const csvHeaders = await readCsvHeaders(csvPath);
   await writeNormalizedResultsObjectParquet({
-    csvPath: sandboxCsvPath,
+    csvPath,
     parquetPath,
     csvHeaders,
     declaredColumns,
@@ -684,7 +412,7 @@ async function readParquetQueryMetadata(parquetPath: string): Promise<{
   return { columns, columnNames, physicalTimeColumn, rowCount, periodBounds };
 }
 
-export function computeMetricAvailability(
+function computeMetricAvailability(
   metric: RunMetric,
   resultsObjects: RunResultsObject[],
 ): RunMetricAvailability {

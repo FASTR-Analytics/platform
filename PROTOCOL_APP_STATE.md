@@ -149,13 +149,11 @@ other fields are identical across clients.
 | Reports               | `reports`, `reportFolders`                                                                            | `reports_updated` / `report_folders_updated`               | —                                  |
 | Dashboards            | `dashboards`                                                                                          | `dashboards_updated`                                       | —                                  |
 | Project users         | `projectUsers`                                                                                        | `project_users_updated`                                    | —                                  |
-| Module dirty states   | `moduleDirtyStates`, `moduleLastRun`, `moduleLastRunGitRef`                                           | `module_dirty_state`                                       | `moduleLastRun[moduleId]`          |
-| Any running           | `anyRunning`                                                                                          | `any_running`                                              | —                                  |
 | Per-entity timestamps | `lastUpdated` — nested `Record<LastUpdateTableName, Record<string, string>>`                          | `last_updated`                                             | `lastUpdated[tableName][entityId]` |
 | Current user          | `currentUserEmail` (`starting` only), `thisUserRole` (deprecated), `thisUserPermissions` (re-derived) | `project_users_updated`                                    | —                                  |
 
 The table-name list for `lastUpdated` has one source of truth:
-`LastUpdateTableName` in `lib/types/project_dirty_states.ts`.
+`LastUpdateTableName` in `lib/types/last_updated_tables.ts`.
 
 **`aiContext` quirk:** only the `updateProject` route sends `aiContext` in
 `project_config_updated`; routes that change just `isLocked` /
@@ -212,8 +210,8 @@ Two invalidation shapes with different loading-state semantics:
 
 Assignments: instance T2 = Variant A (exception: the ICEH display consumer uses
 the Variant B no-flash pattern); project per-entity caches = Variant B;
-`moduleLastRun`-keyed caches (PO items, metric info, replicant options) =
-Variant A — a module re-run changes all its outputs at once.
+run-keyed caches (PO items, metric info, replicant options; `runVersionKey`) =
+Variant A — attaching another package changes all their payloads at once.
 
 **Mandatory stale-response guard for Variant B** (not in panther): a rapid SSE
 burst — two version flips before the first fetch resolves — lets the older
@@ -267,10 +265,10 @@ All use `createReactiveCache` with `pdsNotRequired: true`, except GeoJSON.
 | Data                          | File                                 | Version key(s)                                           | Variant |
 | ----------------------------- | ------------------------------------ | -------------------------------------------------------- | ------- |
 | Dashboard detail (with items) | `project/t2_dashboards.ts`           | `lastUpdated.dashboards[dashboardId]`                    | B       |
-| PO detail (config, metadata)  | `project/t2_presentation_objects.ts` | `lastUpdated.presentation_objects[poId]`                 | B       |
-| PO items (data rows)          | `project/t2_presentation_objects.ts` | `moduleLastRun[moduleId]` + `datasetsVersionKey`         | A       |
-| Metric info                   | `project/t2_presentation_objects.ts` | `moduleLastRun[moduleId]` + `datasetsVersionKey`         | A       |
-| Replicant options             | `project/t2_replicant_options.ts`    | `moduleLastRun[moduleId]` + `datasetsVersionKey`         | A       |
+| PO detail (config, metadata)  | `project/t2_presentation_objects.ts` | `lastUpdated.presentation_objects[poId]` + run key       | B       |
+| PO items (data rows)          | `project/t2_presentation_objects.ts` | `runVersionKey` (`attachedRunId~scopeToken`)             | A       |
+| Metric info                   | `project/t2_presentation_objects.ts` | `runVersionKey`                                          | A       |
+| Replicant options             | `project/t2_replicant_options.ts`    | `runVersionKey`                                          | A       |
 | Slide content                 | `project/t2_slides.ts`               | `lastUpdated.slides[slideId]`                            | B       |
 | Slide deck detail             | `project/t2_slide_decks.ts`          | `lastUpdated.slide_decks[deckId]`                        | B       |
 | Image blobs                   | `project/t2_images.ts`               | URL-keyed (`TimCacheD`, immutable, with failure backoff) | —       |
@@ -298,9 +296,10 @@ under either (exact match):
   `pds.lastUpdated.slide_decks[newDeckId] ?? "unknown"`.
 
 Caveat: the guard is exact-match only. Composite keys embedding the token (e.g.
-`` `unknown|<datasetsVersionKey>` `` from the `moduleLastRun`-keyed caches) ARE
-cached. Benign — when the module later runs, the version flips and the entry is
-never read again — but any new composite key must keep that self-correcting
+`` `unknown|<runVersionKey>` `` from the po_detail cache) ARE cached. Benign —
+when the entity's `last_updated` later arrives, the version flips and the
+entry is never read again — but any new composite key must keep that
+self-correcting
 property.
 
 ### Heavy entity detail — always through a cache

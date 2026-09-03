@@ -1,13 +1,8 @@
 import { ensureDir } from "@std/fs";
-import { dirname, join } from "@std/path";
+import { dirname } from "@std/path";
 import { assertNotUndefined } from "@timroberton/panther";
 import { Sql } from "postgres";
 import {
-  _SANDBOX_DIR_PATH,
-  _SANDBOX_DIR_PATH_POSTGRES_INTERNAL,
-} from "../../exposed_env_vars.ts";
-import {
-  APIResponseNoData,
   APIResponseWithData,
   CommonIndicatorCatalogError,
   type CommonIndicatorCatalogRow,
@@ -17,7 +12,6 @@ import {
   resolveCommonIndicatorCatalog,
   throwIfErrWithData,
   type DatasetHmisInfoInProject,
-  type DatasetType,
 } from "lib";
 import { getCommonIndicators } from "../instance/indicators.ts";
 import { getPopulationTypes } from "../instance/population.ts";
@@ -32,21 +26,18 @@ import {
 } from "../instance/instance.ts";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
 
-// Where a dataset attach writes its extract CSV, per caller (the item-4
-// per-caller pattern, extended to the COPY TO by work item 7): the Postgres
-// server executes `COPY … TO postgresPath` (a path inside the Postgres
-// container), and denoPath is the SAME file as this process sees it. The
-// two must resolve to one file through the container mounts. createProject
-// passes the sandbox pair (the legacy dual-write plane); the run pipeline
-// passes the run tmp dir pair and mirrors the extract back into the sandbox.
+// Where a dataset capture writes its extract CSV: the Postgres server executes
+// `COPY … TO postgresPath` (a path inside the Postgres container), and
+// denoPath is the SAME file as this process sees it. The two must resolve to
+// one file through the container mounts; the run pipeline passes the run tmp
+// dir pair.
 export type DatasetCsvTarget = {
   postgresPath: string;
   denoPath: string;
 };
 
 // Ensures the target's parent dir exists and is writable by the Postgres
-// container user before `COPY … TO` runs (same 0o777 the sandbox datasets
-// dir has always used).
+// container user before `COPY … TO` runs.
 export async function ensureDatasetCsvTargetDir(
   csvTarget: DatasetCsvTarget,
 ): Promise<void> {
@@ -267,63 +258,6 @@ COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADE
       },
     };
   });
-}
-
-export async function removeDatasetFromProject(
-  projectDb: Sql,
-  projectId: string,
-  datasetType: DatasetType
-): Promise<APIResponseNoData> {
-  return await tryCatchDatabaseAsync(async () => {
-    // Fully clear the per-dataset-type tables so "disable" actually disables.
-    // The code order matters for HFA: snapshot-code FKs into snapshot-indicators.
-    await projectDb.begin((sql) => [
-      sql`DELETE FROM datasets WHERE dataset_type = ${datasetType}`,
-      ...(datasetType === "hmis"
-        ? [
-            sql`DELETE FROM indicators`,
-            sql`DELETE FROM facilities_hmis`,
-            sql`DELETE FROM calculated_indicators_snapshot`,
-          ]
-        : datasetType === "hfa"
-          ? [
-              sql`DELETE FROM hfa_indicator_code_snapshot`,
-              sql`DELETE FROM hfa_indicators_snapshot`,
-              sql`DELETE FROM hfa_indicator_sub_categories_snapshot`,
-              sql`DELETE FROM hfa_indicator_categories_snapshot`,
-              sql`DELETE FROM hfa_indicator_service_categories_snapshot`,
-              sql`DELETE FROM indicators_hfa`,
-              sql`DELETE FROM facilities_hfa`,
-            ]
-          : datasetType === "iceh"
-            ? [sql`DELETE FROM iceh_indicators_snapshot`]
-            : []),
-    ]);
-    try {
-      const datasetFilePath = getDatasetFilePath(projectId, datasetType);
-      await Deno.remove(datasetFilePath);
-    } catch {
-      //
-    }
-    return { success: true };
-  });
-}
-
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-
-export function getDatasetFilePath(
-  projectId: string,
-  datasetType: DatasetType
-): string {
-  return join(_SANDBOX_DIR_PATH, projectId, "datasets", `${datasetType}.csv`);
 }
 
 function getDatasetHmisExportStatement(

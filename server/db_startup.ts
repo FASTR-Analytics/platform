@@ -119,8 +119,7 @@ ${userInserts}
   // .tmp- dir, never a readable run — sweep the debris at boot, and mark any
   // 'generating' catalog rows failed (their worker died with the previous
   // process). Projects without a run serve the typed "no run attached" state
-  // until the backfill synthesizer (synthesize_run.ts) or a wizard generation
-  // attaches one.
+  // until a generation attaches one.
   await Deno.mkdir(_RUNS_DIR_PATH, { recursive: true });
   await sweepAbandonedTmpRunDirs();
   await resetDuckDbSpillDir();

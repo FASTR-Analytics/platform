@@ -22,7 +22,9 @@ export const _REPLICANT_OPTIONS_CACHE = createReactiveCache<
   },
   ReplicantOptionsForPresentationObject
 >({
-  name: "replicant_options",
+  // v2: payload dropped the moduleLastRun/datasetsVersion pair (PLAN_RESULTS_RUNS
+  // ruling 4) — a shape change bumps the name, as for po_detail.
+  name: "replicant_options_v2",
   uniquenessKeys: (params) => [
     params.projectId,
     params.resultsObjectId,

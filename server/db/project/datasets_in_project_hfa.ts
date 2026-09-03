@@ -156,7 +156,7 @@ export async function computeDatasetHfaRunCapture(
     // columns (ownership/type/custom) are intentionally excluded here: the
     // R script has no computational use for them, and chart disaggregation
     // by these attributes is served entirely by a query-time join against
-    // facilities_hfa (see metric_enricher.ts / cte_manager.ts), not by
+    // facilities_hfa (see cte_manager.ts), not by
     // values carried through the module's own dataset export.
     const exportStatement = `
 SELECT

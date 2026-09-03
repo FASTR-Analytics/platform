@@ -18,6 +18,7 @@ import {
   getPresentationObjectItemsFromRun,
   getResultsValueInfoFromRun,
   getRunVersionInfo,
+  moduleHasRun,
   type RunReadContext,
 } from "./run_read.ts";
 
@@ -62,10 +63,10 @@ export async function readRunItems(
       err: `Unknown results object: ${body.resultsObjectId}`,
     };
   }
-  const versionParams = getRunVersionInfo(runCtx, moduleId);
-  if (versionParams.moduleLastRun === "unknown") {
+  if (!moduleHasRun(runCtx, moduleId)) {
     return { success: false, err: "Module not found or has not run yet" };
   }
+  const versionParams = getRunVersionInfo(runCtx);
 
   const missingRequired = findMissingRequiredGroupBys(
     runCtx,
@@ -178,10 +179,10 @@ export async function readRunResultsValueInfo(
   if (moduleId === undefined) {
     return { success: false, err: `Unknown metric: ${metricId}` };
   }
-  const versionParams = getRunVersionInfo(runCtx, moduleId);
-  if (versionParams.moduleLastRun === "unknown") {
+  if (!moduleHasRun(runCtx, moduleId)) {
     return { success: false, err: "Module not found or has not run yet" };
   }
+  const versionParams = getRunVersionInfo(runCtx);
 
   console.log(`${tag}: REQUEST received`);
   const cacheKey = {

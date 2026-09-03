@@ -6,7 +6,7 @@ import {
   PeriodBounds,
   periodFilterHasBounds,
   PresentationObjectConfig,
-  PresentationObjectDetail,
+  PresentationObjectEditorDetail,
   ResultsValue,
   getCalendar,
   t3,
@@ -55,7 +55,7 @@ function periodToYear(v: number): number {
 }
 
 type FiltersProps = {
-  poDetail: PresentationObjectDetail;
+  poDetail: PresentationObjectEditorDetail;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
   resultsValueInfo: ResultsValueInfoForPresentationObject;
@@ -124,7 +124,7 @@ export function Filters(p: FiltersProps) {
 }
 
 type DataValuesFilterProps = {
-  poDetail: PresentationObjectDetail;
+  poDetail: PresentationObjectEditorDetail;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
 };

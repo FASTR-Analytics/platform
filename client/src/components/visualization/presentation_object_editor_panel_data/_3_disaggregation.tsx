@@ -4,7 +4,7 @@ import {
   IneffectiveDisaggregator,
   IneffectiveReason,
   PresentationObjectConfig,
-  PresentationObjectDetail,
+  PresentationObjectEditorDetail,
   ResultsValue,
   TC,
   getNextAvailableDisaggregationDisplayOption,
@@ -21,7 +21,7 @@ import { SetStoreFunction } from "solid-js/store";
 import { getDisplayDisaggregationLabel } from "~/state/instance/_util_disaggregation_label";
 
 type DisaggregationSectionProps = {
-  poDetail: PresentationObjectDetail;
+  poDetail: PresentationObjectEditorDetail;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
   allDisaggregationOptions: ResultsValue["disaggregationOptions"];
@@ -135,7 +135,7 @@ function DataValuesDisaggregation(p: DataValuesDisaggregationProps) {
 
 type DisaggregationOptionProps = {
   disOpt: DisaggregationSectionProps["allDisaggregationOptions"][number];
-  poDetail: PresentationObjectDetail;
+  poDetail: PresentationObjectEditorDetail;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
   singleValueDims: ReadonlySet<DisaggregationOptionValue>;
@@ -297,7 +297,7 @@ function DisaggregationOption(p: DisaggregationOptionProps) {
 type DisaggregationOptionSettingsProps = {
   disOpt: DisaggregationSectionProps["allDisaggregationOptions"][number];
   keyedDis: PresentationObjectConfig["d"]["disaggregateBy"][number];
-  poDetail: PresentationObjectDetail;
+  poDetail: PresentationObjectEditorDetail;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
 };

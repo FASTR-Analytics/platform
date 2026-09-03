@@ -127,9 +127,11 @@ export const figureBundleSchema = z.strictObject({
   localization: figureLocalizationSchema,
   metricId: z.string(),
   snapshotAt: z.string(),
+  // The results package the items were read from; null for bundles captured
+  // before the runs model or backfilled from pre-bundle figures (the run is
+  // unknowable there and is never invented).
   provenance: z.strictObject({
-    moduleLastRun: z.string(),
-    datasetsVersion: z.string(),
+    runId: z.string().nullable(),
   }),
 });
 

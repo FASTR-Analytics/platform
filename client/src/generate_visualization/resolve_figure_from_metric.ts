@@ -20,7 +20,6 @@ export type MetricInputsForBundle = {
   metricId: string;
   resultsObjectId: string;
   mostGranularTimePeriodColumnInResultsFile: PeriodOption | undefined;
-  moduleLastRun: string;
   resultsValueForViz: ResultsValueForVisualization;
   datasetFamily: DatasetType | undefined;
   fetchConfig: GenericLongFormFetchConfig;
@@ -31,7 +30,7 @@ export async function resolveFigureBundleFromMetric(
   inputs: MetricInputsForBundle,
   config: PresentationObjectConfig,
 ): Promise<FigureBundle> {
-  const { metricId, resultsObjectId, mostGranularTimePeriodColumnInResultsFile, moduleLastRun, resultsValueForViz, datasetFamily, fetchConfig } = inputs;
+  const { metricId, resultsObjectId, mostGranularTimePeriodColumnInResultsFile, resultsValueForViz, datasetFamily, fetchConfig } = inputs;
 
   const { data, version } = await _PO_ITEMS_CACHE.get({
     projectId,
@@ -89,10 +88,7 @@ export async function resolveFigureBundleFromMetric(
     localization: getSnapshotInstanceLocalization(),
     metricId,
     snapshotAt: new Date().toISOString(),
-    provenance: {
-      moduleLastRun,
-      datasetsVersion: itemsHolder.datasetsVersion,
-    },
+    provenance: { runId: itemsHolder.runId },
   };
 
   // Validate at construction so the render (buildFigureInputs) and save

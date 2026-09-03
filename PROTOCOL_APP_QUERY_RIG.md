@@ -11,18 +11,24 @@
 
 ## What it is
 
-`./validate_queries` stands up a throwaway Postgres, loads the **real** base
-schema files, seeds declarative fixtures, and runs the **production** query
-machinery in `server/server_only_funcs_presentation_objects/` against them.
-Config → SQL → real rows. Nothing is mocked and there is no test seam: the
-entry points already take `Sql` handles as parameters, so the rig just hands
-them connections to its own container.
+`./validate_queries` builds a **real results package** per declarative fixture
+— the fixture's rows written as the module's raw output CSV, then the
+**production** parquet writer and package builder
+(`buildRunPackageIntoTmp`) produce the parquet and the manifest into a
+throwaway runs directory — and runs the **production** run read path
+(`server/run_query/run_read.ts`: `getPresentationObjectItemsFromRun`,
+`getPossibleValuesFromRun`, `getResultsValueInfoFromRun`) against it over a
+national-scope `RunReadContext`. Config → SQL → DuckDB over parquet → real
+rows: the engine production serves from, not a stand-in. Nothing is mocked and
+there is no test seam. A throwaway Postgres survives only for what the package
+builder reads from the MAIN database (the per-family structure schema rows in
+`instance_config`).
 
 ```bash
-./validate_queries            # ~6s: container up, 12 fixtures, 60 cases
+./validate_queries            # ~10s: container up, 13 packages built, 63 cases
 ```
 
-(~6s once the `postgres:17.4` image is cached locally; the first run pulls it.)
+(once the `postgres:17.4` image is cached locally; the first run pulls it.)
 
 Also offered as an optional prompt in `./deploy`, next to migration validation.
 **Not** in `deno task typecheck` — not because it is slow, but because it needs
@@ -32,11 +38,11 @@ typechecks itself before running, since `query_rig/` sits outside
 
 | File | Role |
 | --- | --- |
-| `validate_queries` | container lifecycle, env, invokes the runner |
-| `query_rig/mod.ts` | runner: prepare fixtures, loop cases, summarise |
+| `validate_queries` | container + runs-dir lifecycle, env, invokes the runner |
+| `query_rig/mod.ts` | runner: build packages, loop cases, summarise |
 | `query_rig/cases.ts` | **the case table** — where you add coverage |
-| `query_rig/fixtures.ts` | F1–F10 |
-| `query_rig/seed.ts` | fixture → SQL |
+| `query_rig/fixtures.ts` | F1–F13 |
+| `query_rig/build_package.ts` | fixture → structure-schema rows + results package + `RunReadContext` |
 | `query_rig/harness.ts` | connections, schema loading, multiset compare |
 
 ## Adding a case
@@ -79,9 +85,11 @@ seed from a dump: it can't be committed and it makes assertions drift. The one
 exception is F9, which generates 501 rows because the behaviour under test _is_
 a 500-row boundary; generate rather than enumerate when the count is the point.
 
-`ro_*` tables are dynamic in production (built by run_module from CSV headers),
-so each fixture declares `roColumns` **with explicit types**. The types are
-load-bearing, not decoration — see the F2/F3 pair below.
+A results object's parquet schema comes from the module's declared
+`createTableStatementPossibleColumns` (types are declared, never inferred), so
+each fixture declares `roColumns` **with explicit types** in that authoring
+vocabulary (`TEXT` / `INTEGER` / `NUMERIC`, the last landing as `DOUBLE`). The
+types are load-bearing, not decoration — see the F2/F3 pair below.
 
 ## Rules that keep the rig honest
 
@@ -91,9 +99,9 @@ comparing. Option lists are the exception — there, order _is_ the assertion.
 
 **Assert what our code guarantees, not what the database happens to do.** The
 `possibleValues` cases pin the sentinel in the **last** position because TS puts
-it there; the relative order of the named values is Postgres collation under the
-pinned `postgres:17.4` image. If a base-image bump reshuffles those, it is a
-collation change, not a regression.
+it there; the relative order of the named values is DuckDB's under the pinned
+`@duckdb/node-api` version. If a DuckDB bump reshuffles those, it is an engine
+ordering change, not a regression.
 
 **Design numbers so a wrong implementation cannot coincidentally pass.** The
 roll-up PAE case uses 60/200 and 20/800 precisely because mean-of-ratios
@@ -102,8 +110,12 @@ numbers would have proved nothing.
 
 **Reproduce the route's sequence, not just the query function.**
 `validateFetchConfig` runs in the **handler**, not inside
-`getPresentationObjectItems` — the runner calls it explicitly. Skip it and every
-SQL-safety case silently becomes a no-op.
+`getPresentationObjectItemsFromRun` — the runner calls it explicitly. Skip it
+and every SQL-safety case silently becomes a no-op.
+
+**Calendar is a run input.** The read path takes it from the manifest, never
+from the env global, so a case's `calendar` is applied by handing the read
+function a context whose manifest copy says so (`contextFor` in `mod.ts`).
 
 **Never encode behaviour you have not judged.** When a case fails, the default
 assumption is that the _code_ is wrong, not the expectation. Only pin observed
@@ -117,10 +129,18 @@ reason. Two live examples:
   not bless the silence.
 - The `quarter_id` + calendar-filter block in `getPeriodFilterExactBounds` looks
   dead and is not. Deleting it turns "show all data" into `no_data_available`.
+- `COUNT(...)` values are **numbers** on the wire. The rig's Postgres era pinned
+  them as strings (`"4"`) because postgres.js serialises bigint as text; DuckDB
+  returns them as numbers, which is what production has served since the runs
+  cutover. Found on 2026-09-04 when the rig moved onto the run read path — the
+  two cases were corrected, and this is the class of gap the move exists to
+  expose.
 
 **Prove a new guard's case can fail.** Passing tests prove nothing on their own.
 Temporarily break the mechanism, confirm the case goes red, then restore.
-Verified controls so far:
+Verified controls so far (the failure texts were recorded on the rig's Postgres
+era, 2026-08; DuckDB words the same failures differently — the case that goes
+red is the control, not the text):
 
 | Break | Expected failure |
 | --- | --- |

@@ -197,13 +197,17 @@ const _INDICATOR_METADATA_KEYS = new Set([
 // would skip forever: the formatAs flip (a bundle whose resultsValue still
 // says "number"/"percent" for a listed metric parses cleanly under the 3-way
 // schema), the scorecard flag (strip mode swallows it from the embedded
-// config), and the traffic-light metadata keys (likewise). String-scans the
-// raw row like rawJsonNeedsForcedTransform; keeps firing for rows that
-// contain a listed metric after the flip, which the no-op write guard absorbs.
+// config), the traffic-light metadata keys (likewise), and the old provenance
+// pair (the strictObject WOULD reject it, but the forced gate is the rule, not
+// an inference about strictness). String-scans the raw row like
+// rawJsonNeedsForcedTransform; keeps firing for rows that contain a listed
+// metric after the flip, which the no-op write guard absorbs.
 export function rawJsonNeedsFigureBlockTransform(raw: string): boolean {
   return (
     raw.includes('"specialScorecardTable"') ||
     raw.includes('"threshold_direction"') ||
+    raw.includes('"moduleLastRun"') ||
+    raw.includes('"datasetsVersion"') ||
     INDICATOR_FORMAT_METRIC_IDS.some((id) =>
       raw.includes(`"metricId":"${id}"`)
     )
@@ -319,6 +323,20 @@ export function transformFigureBlock(block: FigureBlockMut): void {
   if (block.figureInputs) {
     transformFigureInputs(block.figureInputs);
   }
+
+  // Block: provenance became the run identity (PLAN_RESULTS_RUNS ruling 4).
+  // A bundle carrying the old freshness pair was captured before the runs
+  // model; the run it came from is unknowable, so provenance is null — never
+  // invented.
+  if (
+    bundle &&
+    bundle.provenance &&
+    typeof bundle.provenance === "object" &&
+    ("moduleLastRun" in bundle.provenance ||
+      "datasetsVersion" in bundle.provenance)
+  ) {
+    bundle.provenance = { runId: null };
+  }
 }
 
 // ── P2 bundle conversion ──────────────────────────────────────────────────────
@@ -408,9 +426,9 @@ function buildBundleFromFigureInputs(
     metricId,
     snapshotAt,
     indicatorMetadata,
-    // moduleLastRun: best-effort (snapshot time ≠ run time; Phase 4 stale-flag
-    // will be inaccurate for backfilled figures — acceptable for P2).
-    provenance: { moduleLastRun: snapshotAt, datasetsVersion: "" },
+    // A pre-bundle figure predates the runs model: its run is unknowable and
+    // is never invented (the snapshot time is not the run time).
+    provenance: { runId: null },
   };
 
   // chart/table/map: extract items from jsonArray

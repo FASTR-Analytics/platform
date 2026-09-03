@@ -2,7 +2,7 @@ import {
   findFigureCaptionText,
   type CaptionTextKey,
   PresentationObjectConfig,
-  PresentationObjectDetail,
+  PresentationObjectEditorDetail,
   t3,
 } from "lib";
 import { TextArea } from "panther";
@@ -24,7 +24,7 @@ export type VizCaptionCollab = {
 
 type Props = {
   projectId: string;
-  poDetail: PresentationObjectDetail;
+  poDetail: PresentationObjectEditorDetail;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
   captionCollab?: VizCaptionCollab;

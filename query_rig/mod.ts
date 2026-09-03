@@ -2,47 +2,49 @@ import type { Sql } from "postgres";
 import { BLANK_SENTINEL, setCalendar, validateFetchConfig } from "lib";
 import { getSingleValueDimsFromPossibleValues } from "lib";
 import {
-  getIndicatorMetadata,
-  getPossibleValues,
-  getPresentationObjectItems,
-  getResultsValueInfoForPresentationObject,
-} from "../server/server_only_funcs_presentation_objects/mod.ts";
+  getIndicatorMetadataFromRun,
+  getPossibleValuesFromRun,
+  getPresentationObjectItemsFromRun,
+  getResultsValueInfoFromRun,
+  type RunReadContext,
+} from "../server/run_query/mod.ts";
 import { CASES, type Case } from "./cases.ts";
 import { ALL_FIXTURES, type Fixture } from "./fixtures.ts";
-import {
-  connect,
-  createDatabase,
-  loadSchemaFile,
-  rowsMatch,
-  type Failure,
-} from "./harness.ts";
-import { seedInstance, seedProject } from "./seed.ts";
+import { createDatabase, loadSchemaFile, rowsMatch, type Failure } from "./harness.ts";
+import { buildFixturePackage, seedInstance } from "./build_package.ts";
 
 const REPO = new URL("..", import.meta.url).pathname;
 const INSTANCE_SCHEMA = `${REPO}server/db/instance/_main_database.sql`;
-const PROJECT_SCHEMA = `${REPO}server/db/project/_project_database.sql`;
+// The wrapper script points this at a throwaway directory it removes on exit.
+const RUNS_DIR = Deno.env.get("QUERY_RIG_RUNS_DIR")!;
 
 type Prepared = {
   fixture: Fixture;
   mainDb: Sql;
-  projectDb: Sql;
+  ctx: RunReadContext;
   labelMap: Map<string, string>;
 };
 
 async function prepare(fx: Fixture): Promise<Prepared> {
   const mainDb = await createDatabase(`qr_${fx.name}_main`);
-  const projectDb = await createDatabase(`qr_${fx.name}_project`);
   await loadSchemaFile(mainDb, INSTANCE_SCHEMA);
-  await loadSchemaFile(projectDb, PROJECT_SCHEMA);
   await seedInstance(mainDb, fx);
-  await seedProject(projectDb, fx);
+  const ctx = await buildFixturePackage(mainDb, fx, RUNS_DIR);
 
   // Built the same way the replicant-options route builds it, so the rig
-  // exercises getIndicatorMetadata rather than stubbing labels.
-  const metadata = await getIndicatorMetadata(projectDb, fx.moduleId);
+  // exercises the manifest's indicator catalog rather than stubbing labels.
+  const metadata = getIndicatorMetadataFromRun(ctx, fx.moduleId);
   const labelMap = new Map(metadata.map((m) => [m.id, m.label]));
 
-  return { fixture: fx, mainDb, projectDb, labelMap };
+  return { fixture: fx, mainDb, ctx, labelMap };
+}
+
+// Calendar is a run input: the read path takes it from the manifest, never
+// from the env global. A case that flips the calendar reads the same package
+// through a context whose manifest says so.
+function contextFor(c: Case, p: Prepared): RunReadContext {
+  const calendar = c.calendar ?? "gregorian";
+  return { ...p.ctx, manifest: { ...p.ctx.manifest, calendar } };
 }
 
 function describe(v: unknown): string {
@@ -53,12 +55,10 @@ async function runPossibleValues(
   c: Case,
   p: Prepared
 ): Promise<Failure | undefined> {
-  const res = await getPossibleValues(
-    p.projectDb,
+  const res = await getPossibleValuesFromRun(
+    contextFor(c, p),
     p.fixture.resultsObjectId,
-    p.fixture.family,
     c.disOpt!,
-    p.mainDb,
     p.labelMap,
     c.fetchConfig.filters
   );
@@ -102,13 +102,7 @@ async function runMetricInfo(
     return { case: c.name, detail: `fixture "${p.fixture.name}" has no metric` };
   }
 
-  const res = await getResultsValueInfoForPresentationObject(
-    p.mainDb,
-    p.projectDb,
-    metricId,
-    "2026-01-01T00:00:00.000Z",
-    "ds-v1"
-  );
+  const res = await getResultsValueInfoFromRun(contextFor(c, p), metricId);
   if (!res.success) {
     return { case: c.name, detail: `expected metric info, got error: ${res.err}` };
   }
@@ -158,20 +152,17 @@ async function runCase(c: Case, p: Prepared): Promise<Failure | undefined> {
   }
 
   // Reproduce the route's sequence. validateFetchConfig lives in the handler,
-  // not in getPresentationObjectItems, so calling the query function alone
-  // would silently skip the imperative SQL-safety guard. (The Zod boundary
-  // schema is the other half and is deliberately out of the rig's scope.)
-  let res: Awaited<ReturnType<typeof getPresentationObjectItems>>;
+  // not in the read function, so calling the read function alone would
+  // silently skip the imperative SQL-safety guard. (The Zod boundary schema is
+  // the other half and is deliberately out of the rig's scope.)
+  let res: Awaited<ReturnType<typeof getPresentationObjectItemsFromRun>>;
   try {
     validateFetchConfig(c.fetchConfig);
-    res = await getPresentationObjectItems(
-      p.mainDb,
-      p.projectDb,
+    res = await getPresentationObjectItemsFromRun(
+      contextFor(c, p),
       p.fixture.resultsObjectId,
       c.fetchConfig,
-      p.fixture.firstPeriodOption,
-      "2026-01-01T00:00:00.000Z",
-      "ds-v1"
+      p.fixture.firstPeriodOption
     );
   } catch (e) {
     res = { success: false, err: e instanceof Error ? e.message : String(e) };
@@ -252,7 +243,6 @@ for (const c of CASES) {
 
 for (const p of prepared.values()) {
   await p.mainDb.end();
-  await p.projectDb.end();
 }
 
 console.log("");
@@ -266,3 +256,6 @@ if (failures.length > 0) {
 }
 
 console.log(green(`All ${passed} cases passed`));
+// DuckDB's native handles keep the event loop alive after the last case; a CLI
+// that has printed its verdict exits explicitly.
+Deno.exit(0);

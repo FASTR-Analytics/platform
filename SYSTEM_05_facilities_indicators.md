@@ -207,8 +207,10 @@ rows are names, and the name is the join key everywhere (S9 maps, geojson
 `area_id`). Duplicate names within a level are therefore ambiguous — the
 wizard warns but cannot fix. The two registries' name-spaces are
 independent and are never reconciled (migration 076; the legacy shared
-`admin_areas_1..4` tables are frozen, readerless, and dropped by
-PLAN_REMOVE_OLD_STRUCTURE_TABLES.md). Project AA2 scope is deliberately
+`admin_areas_1..4` tables and the global `max_admin_area` /
+`facility_columns` config rows were kept frozen and readerless as the
+rollback path, then dropped by instance migration 081 once a rollback
+across 076 was ruled out, 2026-09-03). Project AA2 scope is deliberately
 registry-agnostic: the name is matched against whichever registry each
 results object belongs to, at read time.
 
@@ -378,7 +380,7 @@ identifier `population:<type>` (always bracketed — `:` is outside the bare
 charset and forbidden in indicator ids), which resolves iff `<type>` is a row
 of `population_types` (the Population store below); it is a leaf like a base
 common, takes an ordinary ingredient slot in first-appearance order, and
-counts toward the uniform 8-slot cap (PLAN_1c). The dictionary the resolver
+counts toward the uniform 8-slot cap. The dictionary the resolver
 works from is the commons PLUS one `population` entry per store type, at
 authoring (`checkDefinitionsResolve`, which names the Population page for an
 unknown type) and at HMIS capture (`resolveCommonIndicatorCatalog`, which
@@ -394,7 +396,8 @@ those counts, evaluated after aggregation. Nothing non-additive is ever
 stored as data.* This is the ONE authoritative statement; S6/S8/S9 carry
 pointers only. Consequences that follow from it and are ruled with it:
 
-- Calculated indicators collapsed into common indicators (BUILT, PLAN_1a).
+- Calculated indicators collapsed into common indicators (shipped 1.69.0,
+  2026-09-03).
   A common indicator has a `type`:
   - `base` — mapping to raws, SUM at extract; the only type m001/m002 ever
     see, and the only type the HMIS extract carries (the extract joins
@@ -407,8 +410,11 @@ pointers only. Consequences that follow from it and are ruled with it:
     area×month, not facility×month: population lives in the instance
     Population store (below) and is expanded stock→flow at run capture (S8),
     so downstream it sums like any count. `format_as` is display-only and
-    the sole scale — there is no value-level multiplier (PLAN_1c §0 records
-    the defect that rule fixes); a `base` common is a count and is forced
+    the sole scale — there is no value-level multiplier (ruled 2026-09-02:
+    a value multiplier beside a display scale double-counted — 10,000 ×
+    per-10k — and the multipliers migrated from m008 were its DENOMINATOR
+    fractions, so a migrated rate was off by 1/fraction², about 625× at
+    0.04); a `base` common is a count and is forced
     to `number`, a `derived` one chooses freely.
 
   **Generation decides what the numbers are made of; the query only
@@ -421,7 +427,19 @@ pointers only. Consequences that follow from it and are ruled with it:
   CATALOG DATA evaluated by a pure TypeScript evaluator
   (`lib/indicator_expression/`) — never emitted as SQL, never accepted from
   the wire. Query-time synthesis of derived indicators was evaluated and
-  REJECTED in every variant (PLAN_1a §1.14).
+  REJECTED in every variant (2026-08-30, each evaluated against code; do
+  not re-litigate): request-shape inference and declared-hosting fetchConfig
+  fields; a flat one-entry-per-indicator series catalog with an id-only wire
+  (per-row expressions and GROUP BY are mutually exclusive in one SELECT,
+  replicant machinery is dimension-shaped, id explosion breaks the fleet
+  metric-id contract); num/den-only expressions; expressions on the wire or
+  in SQL; metric identity on the wire; materialising expression RESULTS at
+  any grain; read-path fallbacks or vintage conditionals of any kind (an old
+  package is upgraded by the manifest transform, S8); and generated module
+  LOGIC — m012 as an app-executed DuckDB step or as generated R. The line
+  that IS allowed: a generated DATA LITERAL substituted into a static,
+  hand-written script (m012's ingredient tribble, S8), the same channel as
+  `COUNTRY_ISO3` and every module parameter.
 
   The catalog is snapshotted into the run's `indicators.json` mirror at
   capture, so a package stays standalone and an edit still means a new run.
@@ -475,12 +493,12 @@ cascades.
 
 ## Population store
 
-**What it is (PLAN_1b, 2026-09-02).** Annual population STOCKS per admin
+**What it is (ruled 2026-08-30, built 2026-09-02).** Annual population STOCKS per admin
 area × year × population type, in the main DB: `population_types` (id,
 label — user-extensible; seeded with the six FASTR defaults by instance
 migration 080, and the ONLY vocabulary an expression's `[population:<type>]`
 term may name — referenced from expressions, not from a typed field; no FK,
-the resolver checks it at save and at capture, PLAN_1c) and `population`
+the resolver checks it at save and at capture) and `population`
 (type, `admin_area_level` 2–4,
 the full `admin_area_1..4` name path with `''` below the level, year,
 count ≥ 0; PK over all of them). Names match the HMIS structure tables but
@@ -605,13 +623,13 @@ Every config mutation re-reads all configs and pushes one consolidated
 - T2 caches: facilities keyed
   `family + structureLastUpdated + hashStructureSchema(family schema)`;
   indicators keyed on the T1 version stamps. There are TWO indicator stamps
-  (PLAN_1a §1.13), both MD5 over MAX(updated_at)+counts of the three HMIS
+  (split 2026-09-01), both MD5 over MAX(updated_at)+counts of the three HMIS
   tables: `indicatorMappingsVersion` covers EVERY common indicator row and
   keys the indicator manager, while `baseIndicatorMappingsVersion` counts
   only `definition_type = 'base'` rows and is what the HMIS datatable views
   key on — so editing a derived definition costs those caches nothing.
   `hfaIndicatorsVersion` and `hfaCacheHash` are unchanged.
-- The common-indicator editor's expression palette (PLAN_1c ruling 7;
+- The common-indicator editor's expression palette (ruled 2026-09-02;
   storage unchanged, no alias layer): two "Insert …" pickers above the
   formula box — indicators (label-searchable, commons only, never the one
   being edited) and populations (from T1 `populationTypes`) — insert the

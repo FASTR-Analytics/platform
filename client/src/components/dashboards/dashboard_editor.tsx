@@ -242,16 +242,7 @@ export function DashboardEditor(p: Props) {
   > {
     const itemsRes = await getPresentationObjectItemsFromCacheOrFetch(
       p.projectId,
-      {
-        id: "",
-        projectId: p.projectId,
-        lastUpdated: "",
-        label: "Ephemeral",
-        resultsValue,
-        config,
-        isDefault: false,
-        folderId: null,
-      },
+      { projectId: p.projectId, resultsValue },
       config,
     );
     if (!itemsRes.success || itemsRes.data.ih.status !== "ok") {

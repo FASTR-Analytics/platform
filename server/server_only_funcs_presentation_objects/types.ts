@@ -7,12 +7,20 @@ import type {
 } from "lib";
 import type { DynamicPeriodColumn } from "./period_helpers.ts";
 
-// The engine seam (PLAN_RESULTS_RUNS §2.4): cores build one SQL string and
-// execute it through this; the Postgres wrapper passes projectDb.unsafe, the
-// runs wrapper passes the DuckDB-over-parquet executor.
+// The engine seam: cores build one SQL string and execute it through this —
+// the run read path (server/run_query/run_read.ts) supplies the
+// DuckDB-over-parquet executor.
 export type SqlRowsExecutor = (
   sql: string,
 ) => Promise<Record<string, unknown>[]>;
+
+// The run identity every data payload carries (PLAN_RESULTS_RUNS ruling 4):
+// the immutable run it was served from and the project scope it was computed
+// under. Cache keys and the client's response guard compare exactly these.
+export type RunVersionInfo = {
+  runId: string;
+  scopeToken: string;
+};
 
 /**
  * Configuration for building queries

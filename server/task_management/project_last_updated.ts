@@ -22,7 +22,6 @@ export async function getProjectLastUpdatedState(
         dashboards: {},
         dashboard_items: {},
         datasets: {},
-        modules: {},
         presentation_objects: {},
         slide_decks: {},
         slides: {},
@@ -43,18 +42,6 @@ SELECT dataset_type, last_updated FROM datasets
 `;
         for (const rawDataset of rawDatasets) {
           state.lastUpdated.datasets[rawDataset.dataset_type] = rawDataset.last_updated;
-        }
-      } else if (tableName === "modules") {
-        const rawItems = await ppk.projectDb<
-          {
-            id: string;
-            presentation_def_updated_at: string | null;
-          }[]
-        >`
-SELECT id, presentation_def_updated_at FROM modules
-`;
-        for (const rawItem of rawItems) {
-          state.lastUpdated[tableName][rawItem.id] = rawItem.presentation_def_updated_at ?? "";
         }
       } else {
         const rawItems = await ppk.projectDb<

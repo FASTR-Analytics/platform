@@ -10,8 +10,6 @@ globs:
   - lib/get_fetch_config_from_po.ts
   - lib/sample_n.ts
   - lib/validate_fetch_config.ts
-  - server/db/project/metric_enricher.ts
-  - server/db/project/results_value_resolver.ts
   - server/routes/caches/dataset.ts
   - server/routes/caches/visualizations.ts
   - server/routes/project/cache_status.ts
@@ -22,19 +20,15 @@ globs:
 
 # S9 — Visualization Query & Cache Service
 
-> **2026-07-10, branch `results-runs` (updated at the 2026-07-28 main merge):**
-> this system is mid-migration to the results-package read path
-> (PLAN_RESULTS_RUNS — its Status + merge-execution sections are the
-> authoritative model + deploy phasing). Known drift in this doc until the
-> Phase-4 rewrite: the S9 hot functions are now core+wrapper with an injected
-> executor (`server/run_query/run_read.ts` is the ONLY serving read path — there
-> is no runtime flag; the pg wrappers survive solely as the parity rig's
-> baseline until demolition); caches are run-keyed — the
-> `moduleLastRun`/`datasetsVersion` dimensions and key tables below are STALE,
-> see SYSTEM_03's cache catalog for the live keying (`PO_CACHE_VERSION` is "18",
-> `po_detail_v10`), which is also authoritative for the stale `po_detail_v2` /
-> `PO_CACHE_VERSION "5"` table and paragraph further down this file; calendar threads via `QueryContext`, not `getCalendar()` at
-> the call sites.
+> **2026-09-04 (PLAN_RESULTS_RUNS Phase 4 step C):** the Postgres read path
+> is gone. `server/run_query/run_read.ts` is the only read path; the SQL cores
+> in `server_only_funcs_presentation_objects/` take their `QueryContext` from
+> the manifest and their executor from DuckDB over the run's parquet. Caches
+> are run-keyed — SYSTEM_03's cache catalog is authoritative for the live
+> keying (`PO_CACHE_VERSION` is "19", `po_detail_v10`), including over the
+> stale `po_detail_v2` / `PO_CACHE_VERSION "5"` table and paragraph further
+> down this file; calendar threads via `QueryContext`, not `getCalendar()` at
+> the call sites. The full post-runs rewrite of this doc is Phase 4 step E.
 
 PO config → fetch-config contract → DuckDB SQL over the project's attached
 results package → run-keyed cached payloads, on both tiers. **This system does
@@ -50,17 +44,19 @@ error statuses, cache hash hardening, race guards); what remains is in Open
 items below.
 
 This system's SQL behaviour is covered by `./validate_queries` — declarative
-fixtures on a throwaway Postgres running the production query functions. Adding
-a case is one literal in `query_rig/cases.ts`; the recipe and the rules that
-keep it honest are [PROTOCOL_APP_QUERY_RIG.md](PROTOCOL_APP_QUERY_RIG.md).
+fixtures built into real results packages by the production builder and read
+through the production run read path (DuckDB over parquet, the engine
+production serves from; moved off a throwaway-Postgres stand-in on 2026-09-04,
+which exposed that `COUNT` values are numbers on the wire, not the strings the
+Postgres era had pinned). Adding a case is one literal in
+`query_rig/cases.ts`; the recipe and the rules that keep it honest are
+[PROTOCOL_APP_QUERY_RIG.md](PROTOCOL_APP_QUERY_RIG.md).
 
 Boundaries: the Valkey `TimCacheC` class, SSE, and the
 `last_updated → SSE → version-hash` triangle are **S3**; `buildFigureInputs` and
 everything after `FigureInputs` is **S10**; the editor UI is **S11**; the
 results package this system queries — parquet, manifest and metric catalog — is
-produced by **S8**, and the frozen `ro_*` tables it still reads as the parity
-rig's baseline are S8-owned too (`db/project/results_objects.ts`, with S9 a
-mandatory reader); `facilities_hmis`/`facilities_hfa` and the instance
+produced by **S8**; `facilities_hmis`/`facilities_hfa` and the instance
 facility-columns config are **S5**. Sub-file custody:
 `routes/project/presentation_objects.ts` and `t2_presentation_objects.ts` are
 S9-owned with S11/S3/S10 as readers (SYSTEMS.md §4.1).
@@ -74,8 +70,8 @@ PresentationObjectConfig + ResultsValue                       (client, lib)
 GenericLongFormFetchConfig  ──hashFetchConfig──►  cache identity (both tiers)
     │ POST /presentation_object_items   (Zod schema + validateFetchConfig)
     ▼
-getPresentationObjectItems                                    (server)
-    │ buildQueryContext → getPeriodBounds → getPeriodFilterExactBounds
+readRunItems → getPresentationObjectItemsFromRun              (server)
+    │ buildQueryContextFromManifest → getPeriodBoundsCore → getPeriodFilterExactBounds
     │ buildCombinedQuery:  CTEManager → main ∪ rollup → PAE wrap → WITH → LIMIT
     ▼
 projectDb.unsafe(sql)  →  ItemsHolderPresentationObject
@@ -242,7 +238,7 @@ through `CTEManager`.
   `"rmnch|nutrition"`). `buildWhereClause`'s first branch turns a filter on such
   a column into set-membership overlap —
   `string_to_array(UPPER(col), '|') && ARRAY['VAL', …]` (OR-of-many) — instead
-  of exact-match; `getPossibleValues` unnests it
+  of exact-match; `getPossibleValuesCore` unnests it
   (`unnest(string_to_array(col, '|'))`, `ORDER BY` the `disaggregation_value`
   alias since an SRF can't repeat in ORDER BY) so filter chips offer single
   category ids, not composites. The delimiter and the encode/decode helpers
@@ -250,7 +246,7 @@ through `CTEManager`.
   lib next to the registries. `PO_CACHE_VERSION` bumped "4"→"5" for the
   filter-semantics change.
 - **Status envelope**
-  ([get_presentation_object_items.ts](server/server_only_funcs_presentation_objects/get_presentation_object_items.ts)):
+  ([presentation_object_items_core.ts](server/server_only_funcs_presentation_objects/presentation_object_items_core.ts)):
   runs inside `tryCatchDatabaseAsync`, fetches `MAX_ITEMS + 1` rows
   (`MAX_ITEMS = 20000`) as an N+1 overflow probe. `> MAX_ITEMS` →
   `too_many_items`; `0` rows or unresolvable bounds on a time-carrying metric →
@@ -298,28 +294,34 @@ instance calendar. `detectNeededPeriodColumns` scans groupBys, filters, and both
 periodFilter forms for derived-column references.
 
 **`QueryContext`**
-([get_query_context.ts](server/server_only_funcs_presentation_objects/get_query_context.ts)):
-`hasPeriodId` / `hasQuarterId` (mutually exclusive, probed via
-`detectColumnExists`), `neededPeriodColumns`, and
+([types.ts](server/server_only_funcs_presentation_objects/types.ts), built by
+`buildQueryContextFromManifest` in
+[run_read.ts](server/run_query/run_read.ts) from the manifest's column stamps
+— never probed): `hasPeriodId` / `hasQuarterId` (mutually exclusive),
+`hasFacilityId`, `textColumns` (the VARCHAR columns of the results object and,
+when joined, of the family facilities parquet — gates the blank fold),
+`neededPeriodColumns`, and
 `needsPeriodCTE = (hasPeriodId && needed.size > 0) || (hasQuarterId &&
 needed.has("year"))`
 — the quarter branch keys on `year` specifically because `quarter_id` itself is
-physical there. It also computes the facility-join inputs:
-`enabledFacilityColumns` from the instance config,
+physical there. Its facility slice comes from `computeFacilityContext`
+([facility_context.ts](server/server_only_funcs_presentation_objects/facility_context.ts)):
+`enabledFacilityColumns` from the manifest's per-family structure schema,
 `requestedOptionalFacilityColumns` = requested ∩ enabled, `needsFacilityJoin`,
-and the facility/non-facility filter split (`getPeriodBounds` is called with
-only the non-facility filters — it queries the bare `ro_*` table).
+and the facility/non-facility filter split (`getPeriodBoundsCore` is called
+with only the non-facility filters — it queries the bare `ro_*` view).
 
-**`getPeriodBounds`**
-([get_period_bounds.ts](server/server_only_funcs_presentation_objects/get_period_bounds.ts))
+**`getPeriodBoundsCore`**
+([period_bounds_core.ts](server/server_only_funcs_presentation_objects/period_bounds_core.ts))
 returns `{min, max}` of the metric's physical column (or derived year), choosing
-the SELECT by `firstPeriodOption` = `mostGranularTimePeriodColumnInResultsFile`.
-Its CTE gate and body come from the same single-source helpers as the main query
-(`needsPeriodCTEFor` / `buildPeriodCTESelectColumns` in period_helpers.ts);
-callers pass their query context, or `undefined` when they pass no filters (a
-WHERE-less bounds query never needs a CTE). When the year branch reads
-`MIN/MAX(year)` off the CTE, `year` is forced into the CTE's derived columns
-even if no filter referenced it.
+the SELECT by `firstPeriodOption` = the results object's stamped
+`physicalTimeColumn`. Its CTE gate and body come from the same single-source
+helpers as the main query (`needsPeriodCTEFor` / `buildPeriodCTESelectColumns`
+in period_helpers.ts); callers pass the period slice of their query context.
+When the year branch reads `MIN/MAX(year)` off the CTE, `year` is forced into
+the CTE's derived columns even if no filter referenced it. The no-filter bounds
+the value-info path and the replicant-options route need are the manifest's
+`periodBounds` stamp (`getRawPeriodBoundsFromRun`), not a query.
 
 **Period filters.** `PeriodFilter = RelativePeriodFilter | BoundedPeriodFilter`
 (strict discriminated union, each type carrying exactly its own fields).
@@ -361,22 +363,21 @@ query pipeline.
 
 ## Disaggregation options
 
-**Enrichment** ([metric_enricher.ts](server/db/project/metric_enricher.ts))
-converts a `DBMetric` row into a `ResultsValue` fresh on every read — nothing
-persisted. Module authors declare only `requiredDisaggregationOptions`;
-availability is discovered by column-probing (`detectColumnExists`) in three
-phases:
+**Enrichment** (`enrichMetricFromManifest`,
+[run_read.ts](server/run_query/run_read.ts)) converts a manifest metric row
+into a `ResultsValue` on every read — nothing persisted. Module authors declare
+only `requiredDisaggregationOptions`; availability is the results object's
+`availableDisaggregationOptions` stamp, derived at finalize by
+`deriveAvailableDisaggregationOptions`
+([server/runs/disaggregation_availability.ts](server/runs/disaggregation_availability.ts))
+from the parquet's column set in three phases:
 
-1. **Physical columns** from a fixed probe list: admin areas 2–4, indicator
-   columns (`indicator_common_id`, `source_indicator`, `target_population`,
-   `ratio_type`), denominators, HFA columns (`hfa_indicator`,
-   `hfa_variant_item`, `hfa_category`, `hfa_sub_category`,
-   `hfa_service_category`, `time_point`), ICEH columns
-   (`iceh_indicator`, `strat`, `level`). `PHYSICAL_DISAGGREGATION_COLUMNS` is
-   shared with `deriveAvailableDisaggregationOptions`
-   ([server/runs/disaggregation_availability.ts](server/runs/disaggregation_availability.ts)),
-   which stamps the manifest at finalize — one edit serves the live probe and
-   the run stamp.
+1. **Physical columns** from `PHYSICAL_DISAGGREGATION_COLUMNS`: admin areas
+   2–4, indicator columns (`indicator_common_id`, `source_indicator`,
+   `target_population`, `ratio_type`), denominators, HFA columns
+   (`hfa_indicator`, `hfa_variant_item`, `hfa_category`, `hfa_sub_category`,
+   `hfa_service_category`, `time_point`), ICEH columns (`iceh_indicator`,
+   `strat`, `level`).
 
    `hfa_variant_item` (2026-08-04) is a **plain groupable dimension** in no
    special registry (`FILTER_ONLY_…`, `MULTI_MEMBERSHIP_…`, `INTEGER_…`) —
@@ -388,14 +389,15 @@ phases:
    at the end would default the no-preset table to time_point=col /
    item=rowGroup instead of the headline indicator-row × item-col cross.
 2. **Facility columns**, double-gated: the table must have `facility_id` AND the
-   instance facility config must enable each column (`includeTypes`,
-   `includeOwnership`, `includeCustom1..5`). Labels are display-only and not
-   consulted. `facility_name` is deliberately **not** a disaggregation option —
-   it is import/display metadata (toggled by `includeNames`, supplied by DHIS2
-   `displayName`), never a grouping dimension. Removed from
-   `ALL_DISAGGREGATION_OPTIONS` 2026-07-26, so the enricher's omission is now
-   enforced by the type system rather than by convention; `buildQueryContext`
-   derives its facility-column narrowing as
+   family's structure schema — frozen in the manifest as `structureSchemaHmis`
+   / `structureSchemaHfa` at generation — must enable each column
+   (`includeTypes`, `includeOwnership`, `includeCustom1..5`). Labels are
+   display-only and not consulted. `facility_name` is deliberately **not** a
+   disaggregation option — it is import/display metadata (toggled by
+   `includeNames`, supplied by DHIS2 `displayName`), never a grouping
+   dimension. Removed from `ALL_DISAGGREGATION_OPTIONS` 2026-07-26, so the
+   omission is enforced by the type system rather than by convention;
+   `computeFacilityContext` derives its facility-column narrowing as
    `Extract<OptionalFacilityColumn,
    DisaggregationOption>`.
 3. **Time columns**, priority-branched: `period_id` → all four time options;
@@ -406,17 +408,17 @@ Each option gets `allowedPresentationOptions` from
 `["table", "chart"]` — excluded from timeseries, maps and pies, which
 deliberately aggregate over the period selection; `time_point` additionally
 allows `map` and `pie` — survey rounds are few, discrete, and never pooled, so
-they take a display slot like any other dimension). The enricher also derives
-`hasFacilityLevelRows` (= table has `facility_id`; drives AVG roll-up
-eligibility) and `mostGranularTimePeriodColumnInResultsFile` (inferred from the
-options just built, priority period > quarter > year; `undefined` = no time
-dimension, a first-class state handled by guards everywhere — no timeseries
-option, no period filter UI). `resolveMetricById`
-([results_value_resolver.ts](server/db/project/results_value_resolver.ts)) is
-the lookup wrapper (metric row → `enrichMetric` → `{resultsValue, moduleId}`).
+they take a display slot like any other dimension). The enrichment also carries
+`hasFacilityLevelRows` (= the results object's `hasFacilityId` stamp; drives
+AVG roll-up eligibility) and `mostGranularTimePeriodColumnInResultsFile`
+(inferred from the options, priority period > quarter > year; `undefined` = no
+time dimension, a first-class state handled by guards everywhere — no
+timeseries option, no period filter UI). `resolveMetricFromRun` is the lookup
+wrapper (manifest metric → `enrichMetricFromManifest` →
+`{resultsValue, moduleId}`).
 
 **Possible values**
-([get_possible_values.ts](server/server_only_funcs_presentation_objects/get_possible_values.ts))
+([possible_values_core.ts](server/server_only_funcs_presentation_objects/possible_values_core.ts))
 runs
 `SELECT DISTINCT <col> AS disaggregation_value … ORDER BY … LIMIT
 REPLICANT_OPTIONS_QUERY_LIMIT`
@@ -448,19 +450,14 @@ Per-option statuses (`DisaggregationPossibleValuesStatus`): `ok` (with values),
 message — both the metric-info path and the replicant-options route surface
 resolver failures as this status).
 
-**`getIndicatorMetadata`**
-([get_indicator_metadata.ts](server/server_only_funcs_presentation_objects/get_indicator_metadata.ts))
-is family-branched on the module definition (`getDatasetFamily`: HFA by
-`scriptGenerationType`, else the single declared dataset type): HFA reads the
-four `hfa_*_snapshot` tables (indicator labels composed via
-`composeHfaIndicatorLabel`, measure kind via `getHfaIndicatorMeasure`); ICEH
-reads the ICEH snapshot + static `ICEH_STRAT_INFO`; HMIS reads project
-`indicators`. The result rides inside items holders and labels possible
-values — it is dataset-derived, which is why the caches version on
-`datasetsVersion`. On the RUN path the catalog is a manifest lookup
-(`getIndicatorMetadataFromRun`), and only its DISPLAY fields cross the wire:
-`toIndicatorMetadataDisplay` strips the evaluation fields below, so nothing
-generation-only is frozen into a stored figure bundle.
+**Indicator metadata** is a manifest lookup (`getIndicatorMetadataFromRun`):
+the per-module catalog stamped at finalize by `buildRunIndicatorCatalog`
+([server/runs/indicator_catalog.ts](server/runs/indicator_catalog.ts)) from the
+run's own captured inputs, family-branched on the module definition — so it is
+frozen with the package, and the run id is its version. Only its DISPLAY
+fields cross the wire: `toIndicatorMetadataDisplay` strips the evaluation
+fields below, so nothing generation-only is frozen into a stored figure
+bundle. It rides inside items holders and labels possible values.
 
 **Catalog-expression post-aggregation.** A results object is
 catalog-evaluated iff a metric over it declares `catalogExpressionEvaluation`
@@ -582,7 +579,7 @@ the AI editor tool:
   population-blind mean). Bare identity and MIN/MAX are never eligible.
   Enforcement is split: `validateFetchConfig` rejects never-eligible funcs
   (table-blind); the AVG↔`facility_id` half needs table access and is checked in
-  `getPresentationObjectItems`.
+  `getPresentationObjectItemsCore`.
 
 **The client chooses the collapsed dimension; the server obeys.** `rollupDim` is
 baked into the fetch config; the server must never recompute it from raw
@@ -706,9 +703,9 @@ match. scopeToken is **required** on the uniqueness-param types (an optional
 would compile and silently mis-key — the `cache_status.ts` exists-probe was
 the site this was designed to force) and rides as the **trailing** segment so
 the `${runId}|`/`${runId}::` prefix scans in `delete_run.ts` and
-`cache_status.ts` (roId parsed at segment index 1) keep working. Payloads
-missing `runId` OR `scopeToken` are never stored (the parity rig's Postgres
-baseline).
+`cache_status.ts` (roId parsed at segment index 1) keep working. Both are
+REQUIRED on every data payload (`RunVersionInfo`) — the run id is also the
+figure's provenance.
 
 Payloads carry the key ingredients (`runId`, `scopeToken`, and for po_detail
 `lastUpdated`) so `parseData` can reproduce the version hash byte-identically
@@ -717,22 +714,23 @@ mismatch silently no-ops the cache. Error envelopes are never stored
 (`shouldStore: false`).
 
 Two invalidation knobs, one rule each: **`PO_CACHE_VERSION`** (currently
-"18") is folded into the version hash — bump it when a code change alters the
+"19") is folded into the version hash — bump it when a code change alters the
 _meaning_ of a cached payload without any data change (full history in the
-comment block above the constant; "18" is the thresholds-as-CF-source
-shape). **The key prefix** (`po_detail` → `po_detail_v10`) — bump it when the payload
+comment block above the constant; "19" is the payload shape without the
+write-only freshness pair — `runId` + `scopeToken` are the whole identity).
+**The key prefix** (`po_detail` → `po_detail_v10`) — bump it when the payload
 _shape_ changes (the version hash only tracks row `last_updated` + run +
 scope, so a deploy adding a field would keep serving old-shape payloads for
 unmodified rows). The `po_detail` hit path additionally
 re-parses `config` through `presentationObjectConfigSchema` so pre-deploy Valkey
 entries get legacy-shape adaptation the DB read path would have applied.
 
-Known systemic gap: none of the four version hashes folds the instance
-**facility-columns config**, which changes both the option list and the
-generated SQL — a config toggle serves stale figures/options until the next
-module/dataset bump (N1, HIGH; deferred to
-[PLAN_RESULTS_RUNS.md](PLAN_RESULTS_RUNS.md) — the decided fix is capture into
-the immutable results-run manifest, not a cross-DB version fold).
+The instance **facility-columns config** is not a cache dimension and needs
+none: the manifest freezes the per-family structure schema
+(`structureSchemaHmis` / `structureSchemaHfa`) at generation, every read
+derives its enabled facility columns from that stamp, and every key carries the
+run id — a config toggle changes nothing about an existing package (the next
+generation captures it). This closed N1 (2026-09-04).
 
 Concurrency: `RequestQueue`s (items 10, info/replicant 15) bound concurrent DB
 work against the 20-connection pool; the cache check happens _before_ queueing;
@@ -815,9 +813,10 @@ bundle freezes:
   (`{formatAs, valueProps,
   valueLabelReplacements?}`) verbatim; the build is
   type-proven to read no fourth metric field (gate in S10).
-- **Provenance is free**: `moduleLastRun` + `datasetsVersion` already ride in
-  every `ItemsHolder`, so the bundle captures them at zero cost — the basis for
-  a future stale-flag without per-figure re-query.
+- **Provenance is free**: `runId` rides in every `ItemsHolder`, so the bundle
+  captures it at zero cost (`provenance: { runId }`) — the basis for a stale
+  badge that compares it to the project's attached run without per-figure
+  re-query (S10 open item).
 
 ## Traps
 
@@ -837,11 +836,11 @@ bundle freezes:
   inner query and re-alias in the wrapper. Non-PAE fetches have no wrapper
   layer to re-alias in — `validateFetchConfig` rejects the shape (the driver's
   row object would silently clobber the group key with the aggregate).
-- **`getPossibleValues` still hand-writes its `WITH` strings** (shared
+- **`getPossibleValuesCore` still hand-writes its `WITH` strings** (shared
   derivation expressions and correct family gating, but its own string assembly
   — the last CTE-shape duplicate). New CTE construction goes through
-  `CTEManager` or the shared `period_helpers` builders (which `getPeriodBounds`
-  now uses).
+  `CTEManager` or the shared `period_helpers` builders (which
+  `getPeriodBoundsCore` uses).
 - **Derived `month` is text** (`LPAD`, `"03"`) — it filters through the escaped
   `UPPER` text path, never numeric coercion. That routing is what the PERIOD
   exclusion in `buildWhereClause`'s numeric branch protects: `month` is not a
@@ -880,8 +879,7 @@ bundle freezes:
   kept). Collapsing them merges all panes into one figure.
 - **Version-hash byte-identity**: `versionHashFromParams` and `parseData` (and
   their client `versionKey` twins) must produce identical strings from params
-  and from the payload — that's why holders carry `moduleLastRun` +
-  `datasetsVersion`.
+  and from the payload — that's why holders carry `runId` + `scopeToken`.
 - **Stale configs fail silent**: a stored config referencing a
   no-longer-available disOpt (e.g. facility column turned off) renders with it
   silently omitted; no error surface exists.
@@ -895,11 +893,6 @@ Remaining after the 2026-07-06 fix batch (the adversarial review record was
 PLAN_S9_QUERY_CACHE_FIXES.md, deleted when its fixes landed; refuted findings
 F2/F8b and dropped F4 are stated as facts in the prose where relevant):
 
-- **N1 [HIGH, deferred]** — facility-columns config absent from all four PO
-  cache version keys (server + client): a config toggle serves stale
-  figures/option lists until the next module/dataset bump. Decided fix = capture
-  into the results-run manifest, covered by run-ID cache keys —
-  [PLAN_RESULTS_RUNS.md](PLAN_RESULTS_RUNS.md) §8.
 - **F8a [LOW, parked]** — Ethiopian last-full-quarter ternary has identical
   branches
   ([get_fetch_config_from_po.ts:224](lib/get_fetch_config_from_po.ts#L224));
@@ -909,30 +902,6 @@ F2/F8b and dropped F4 are stated as facts in the prose where relevant):
 - **F8c [LOW, deferred]** — `ds_hfa` in-memory `VersionParams.hash` vs persisted
   payload `cacheHash` naming divergence; payload rename is the STOP line (three
   persistence layers).
-- **Duplicate resolution round-trips:**
-  `resultsObjectId → module_id →
-  last_run_at` is queried in the route AND
-  re-queried inside `getPresentationObjectItems`; `modules.module_definition` is
-  fetched+parsed separately by `getDatasetFamilyForModule` and
-  `getIndicatorMetadata`; the replicant-options route now adds its own
-  time-column probes. One canonical resolution pass would remove several queries
-  per cold request.
-- **Table n-values: the `datasetFamily` enrichment must be redone in the run
-  manifest.** The HFA sample-size feature adds `datasetFamily` to
-  [metric_enricher.ts](server/db/project/metric_enricher.ts) purely so the
-  editor can hide the toggle where it would do nothing (the renderer self-gates
-  on whether `__n_*` keys are present in the items, so nothing else depends on
-  it). Under [PLAN_RESULTS_RUNS.md](PLAN_RESULTS_RUNS.md) §2.4 the probe-based
-  enricher is deleted outright — `enrichMetric` becomes a manifest lookup — so
-  this field has to move to the manifest's per-metric stamp at finalize. Small,
-  but it is real rework that lands with the runs merge, not before it. The
-  server half (the `__n_*` aggregate columns in `buildAggregateColumns`) needs
-  no rework: it rides the shared SQL builders through the engine seam. One
-  DuckDB caveat if the runs rollout happens after this ships — n-values
-  introduce `COUNT(DISTINCT …) FILTER (WHERE …)`, and the runs plan's §2.4
-  dialect inventory explicitly recorded `FILTER` as _absent_ from the S9 SQL
-  surface, so that construct needs a parity check in the golden-diff rig.
-
 Standing decoupling items (from the systems review):
 
 - **Split the `presentation_objects.ts` route** (query endpoints vs CRUD; see

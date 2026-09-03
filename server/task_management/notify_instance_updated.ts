@@ -95,8 +95,7 @@ export function notifyInstancePopulationUpdated(
 // catalogue mutation — launch (incl. its row-created-then-failed path),
 // delete, worker finalize/fail/crash, attach/repoint, and the
 // projects.run_id/label movers (project force-delete, copy completion,
-// rename). The backfill synthesizer is a separate process, so its runs
-// surface on the next reconnect instead (plan ruling 2).
+// rename).
 //
 // The value is a NONCE, not a timestamp: two mutations in the same
 // millisecond minted identical ISO strings, and the client store's equality

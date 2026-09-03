@@ -10,6 +10,7 @@
 //
 // Run: deno run --allow-read --allow-run lint_systems.ts
 
+import { existsSync } from "jsr:@std/fs@^1/exists";
 import { globToRegExp } from "jsr:@std/path@^1/glob-to-regexp";
 
 const ROOT = new URL("./", import.meta.url).pathname;
@@ -98,11 +99,13 @@ async function trackedFiles(): Promise<string[]> {
     stdout: "piped",
   });
   const { stdout } = await cmd.output();
+  // Tracked AND present: a file deleted in the working tree (not yet
+  // committed) is no longer anyone's to claim.
   return new TextDecoder()
     .decode(stdout)
     .split("\n")
     .map((l) => l.trim())
-    .filter((l) => l && !l.endsWith(".d.ts"));
+    .filter((l) => l && !l.endsWith(".d.ts") && existsSync(ROOT + l));
 }
 
 function ownersOf(file: string, systems: SystemDef[]): SystemDef[] {

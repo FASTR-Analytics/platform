@@ -1006,16 +1006,7 @@ export function ProjectReport(p: Props) {
   > {
     const itemsRes = await getPresentationObjectItemsFromCacheOrFetch(
       projectId,
-      {
-        id: "",
-        projectId,
-        lastUpdated: "",
-        label: "Ephemeral",
-        resultsValue,
-        config,
-        isDefault: false,
-        folderId: null,
-      },
+      { projectId, resultsValue },
       config,
     );
     if (!itemsRes.success || itemsRes.data.ih.status !== "ok") {

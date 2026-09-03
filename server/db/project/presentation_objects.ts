@@ -7,21 +7,15 @@ import {
   getReplicateByProp,
   parseJsonOrThrow,
   presentationObjectConfigSchema,
-  throwIfErrWithData,
   type APIResponseWithData,
   type DerivedDefaultVisualization,
   type PresentationObjectConfig,
-  type PresentationObjectDetail,
   type PresentationObjectSummary,
 } from "lib";
-import {
-  getResultsObjectTableName,
-  tryCatchDatabaseAsync,
-} from "./../utils.ts";
+import { tryCatchDatabaseAsync } from "./../utils.ts";
 import {
   type DBPresentationObject,
 } from "./_project_database_types.ts";
-import { resolveMetricById } from "./results_value_resolver.ts";
 import { generateUniquePresentationObjectId } from "../../utils/id_generation.ts";
 
 export type AddPresentationObjectParams = {
@@ -156,43 +150,6 @@ ORDER BY po.is_default_visualization DESC, po.sort_order, LOWER(po.label)
   });
 }
 
-export async function getPresentationObjectDetail(
-  projectId: string,
-  projectDb: Sql,
-  presentationObjectId: string,
-  mainDb: Sql,
-): Promise<APIResponseWithData<PresentationObjectDetail>> {
-  return await tryCatchDatabaseAsync(async () => {
-    const rawPresObj = (
-      await projectDb<DBPresentationObject[]>`
-SELECT * FROM presentation_objects WHERE id = ${presentationObjectId}
-`
-    ).at(0);
-    if (rawPresObj === undefined) {
-      throw new Error("No presentation object with this id");
-    }
-
-    const resResultsValue = await resolveMetricById(
-      mainDb,
-      projectDb,
-      rawPresObj.metric_id,
-    );
-    throwIfErrWithData(resResultsValue);
-
-    const presObj: PresentationObjectDetail = {
-      id: rawPresObj.id,
-      projectId,
-      resultsValue: resResultsValue.data.resultsValue,
-      lastUpdated: rawPresObj.last_updated,
-      label: rawPresObj.label,
-      config: parsePresentationObjectConfig(rawPresObj.config),
-      isDefault: rawPresObj.is_default_visualization,
-      folderId: rawPresObj.folder_id,
-    };
-    return { success: true, data: presObj };
-  });
-}
-
 export async function updatePresentationObjectLabel(
   projectDb: Sql,
   presentationObjectId: string,
@@ -297,7 +254,7 @@ WHERE id = ${presentationObjectId}
 // ── Collab (visualization editor) room support ──────────────────────────────
 
 // Lightweight config loader for the collab room's load() — the room needs only
-// the config (no resultsValue/mainDb resolution like getPresentationObjectDetail).
+// the config (no resultsValue resolution like getPresentationObjectDetailFromRun).
 // Returns null (inside a success) when the row is absent; carries isDefault so
 // the room deps can refuse to open a room for a read-only default visualization.
 export async function getPresentationObjectConfigRow(
