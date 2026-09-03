@@ -74,6 +74,7 @@ import {
 import {
   buildResultsValueInfo,
   indicatorFormatsFrom,
+  indicatorRulesFrom,
 } from "../server_only_funcs_presentation_objects/get_results_value_info.ts";
 import {
   detectNeededPeriodColumns,
@@ -1033,6 +1034,7 @@ export async function getResultsValueInfoFromRun(
     ro?.periodBounds ?? undefined,
     resultsValue.disaggregationOptions.map((d) => d.value),
     indicatorFormatsFrom(indicatorMetadata),
+    indicatorRulesFrom(indicatorMetadata),
     (disOpt) => getPossibleValuesFromRun(ctx, resultsObjectId, disOpt, labelMap, []),
   );
 }

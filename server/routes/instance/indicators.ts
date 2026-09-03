@@ -50,7 +50,6 @@ function toNewCommonIndicator(
     ),
     format_as: raw.format_as as NewCommonIndicator["format_as"],
     thresholds: (raw.thresholds ?? null) as NewCommonIndicator["thresholds"],
-    group_label: String(raw.group_label),
   };
 }
 

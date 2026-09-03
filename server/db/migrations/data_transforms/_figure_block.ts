@@ -28,6 +28,7 @@ import {
   isRollupActive,
   presentationObjectConfigSchema,
   ROLLUP_PIN_IDS,
+  trafficLightThresholdsToRule,
 } from "lib";
 import {
   getPeriodIdFromTime,
@@ -181,27 +182,72 @@ export function warnIfFigureInputsStale(
   }
 }
 
-// Known IndicatorMetadata fields — any other key is a legacy field to strip.
+// Known IndicatorMetadataDisplay fields — any other key is a legacy field to
+// strip (after conversion below).
 const _INDICATOR_METADATA_KEYS = new Set([
   "id",
   "label",
   "format_as",
-  "threshold_direction",
-  "threshold_green",
-  "threshold_yellow",
+  "thresholds",
   "group_label",
   "sort_order",
 ]);
 
-// Forced skip-gate for the formatAs flip: a bundle whose resultsValue still
+// Forced skip-gate for the figure-block transforms that a parse-only gate
+// would skip forever: the formatAs flip (a bundle whose resultsValue still
 // says "number"/"percent" for a listed metric parses cleanly under the 3-way
-// schema, so a parse-only gate would skip it forever. String-scans the raw
-// row like rawJsonNeedsForcedTransform; keeps firing for rows that contain a
-// listed metric after the flip, which the no-op write guard absorbs.
-export function rawJsonNeedsIndicatorFormatFlip(raw: string): boolean {
-  return INDICATOR_FORMAT_METRIC_IDS.some((id) =>
-    raw.includes(`"metricId":"${id}"`)
+// schema), the scorecard flag (strip mode swallows it from the embedded
+// config), and the traffic-light metadata keys (likewise). String-scans the
+// raw row like rawJsonNeedsForcedTransform; keeps firing for rows that
+// contain a listed metric after the flip, which the no-op write guard absorbs.
+export function rawJsonNeedsFigureBlockTransform(raw: string): boolean {
+  return (
+    raw.includes('"specialScorecardTable"') ||
+    raw.includes('"threshold_direction"') ||
+    INDICATOR_FORMAT_METRIC_IDS.some((id) =>
+      raw.includes(`"metricId":"${id}"`)
+    )
   );
+}
+
+// The traffic-light pair a pre-PLAN_1d metadata entry carries → the rule it
+// meant (lib trafficLightThresholdsToRule, the same conversion migration 079
+// runs on the dictionary). Runs BEFORE the allow-list strip, on both the
+// pre-P2 source metadata and the post-P2 bundle metadata.
+function convertIndicatorMetadataEntry(m: unknown): unknown {
+  if (m === null || typeof m !== "object") return m;
+  const entry = { ...(m as Record<string, unknown>) };
+  const direction = entry.threshold_direction;
+  if (direction === "higher_is_better" || direction === "lower_is_better") {
+    const formatAs = entry.format_as;
+    entry.thresholds = trafficLightThresholdsToRule(
+      {
+        direction,
+        green: Number(entry.threshold_green ?? 0),
+        yellow: Number(entry.threshold_yellow ?? 0),
+      },
+      formatAs === "percent" || formatAs === "rate_per_10k"
+        ? formatAs
+        : "number",
+      _INSTANCE_LANGUAGE,
+    );
+  }
+  delete entry.threshold_direction;
+  delete entry.threshold_green;
+  delete entry.threshold_yellow;
+  return entry;
+}
+
+function cleanIndicatorMetadataEntry(m: unknown): unknown {
+  const converted = convertIndicatorMetadataEntry(m);
+  if (converted === null || typeof converted !== "object") return converted;
+  const cleaned: Record<string, unknown> = {};
+  for (const key of _INDICATOR_METADATA_KEYS) {
+    if (key in (converted as Record<string, unknown>)) {
+      cleaned[key] = (converted as Record<string, unknown>)[key];
+    }
+  }
+  return cleaned;
 }
 
 export function transformFigureBlock(block: FigureBlockMut): void {
@@ -249,23 +295,25 @@ export function transformFigureBlock(block: FigureBlockMut): void {
     (bundle.resultsValue as Record<string, unknown>).formatAs = "indicator";
   }
 
-  // Block: strip legacy fields from source.indicatorMetadata (e.g. "decimal_places"
-  // from older app versions). indicatorMetadataSchema is strict; cleaning happens
-  // here (in the transform layer) so the bundle builder receives clean data.
+  // Block: convert then strip legacy fields from source.indicatorMetadata
+  // (the traffic-light pair → `thresholds`; "decimal_places" from older app
+  // versions). indicatorMetadataSchema is strict; cleaning happens here (in
+  // the transform layer) so the bundle builder receives clean data.
   if (
     block.source?.type === "from_data" &&
     Array.isArray(block.source.indicatorMetadata)
   ) {
-    block.source.indicatorMetadata = block.source.indicatorMetadata.map((m) => {
-      if (m === null || typeof m !== "object") return m;
-      const cleaned: Record<string, unknown> = {};
-      for (const key of _INDICATOR_METADATA_KEYS) {
-        if (key in (m as Record<string, unknown>)) {
-          cleaned[key] = (m as Record<string, unknown>)[key];
-        }
-      }
-      return cleaned;
-    });
+    block.source.indicatorMetadata = block.source.indicatorMetadata.map(
+      cleanIndicatorMetadataEntry,
+    );
+  }
+
+  // Post-P2 blocks: the bundle's frozen metadata gets the same conversion —
+  // its strictObject schema rejects the old keys rather than stripping them.
+  if (bundle && Array.isArray(bundle.indicatorMetadata)) {
+    bundle.indicatorMetadata = bundle.indicatorMetadata.map(
+      cleanIndicatorMetadataEntry,
+    );
   }
 
   if (block.figureInputs) {

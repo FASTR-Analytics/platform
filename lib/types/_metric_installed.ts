@@ -233,7 +233,6 @@ export const configSStrict = z
     specialCoverageChart: z.boolean(),
     specialDisruptionsChart: z.boolean(),
     specialDisruptionsChartV2: z.boolean(),
-    specialScorecardTable: z.boolean(),
     verticalTickLabels: z.boolean(),
     horizontal: z.boolean().optional(),
     allowVerticalColHeaders: z.boolean(),

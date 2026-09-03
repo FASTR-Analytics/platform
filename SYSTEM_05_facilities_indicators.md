@@ -16,6 +16,7 @@ globs:
   - client/src/state/instance/t2_population.ts
   - client/src/state/instance/t2_structure.ts
   - lib/common_indicator_catalog.ts
+  - lib/traffic_light_rule.ts
   - lib/hfa_indicator_labels.ts
   - lib/hfa_r_code_analysis.ts
   - lib/indicator_expression/**
@@ -428,10 +429,19 @@ pointers only. Consequences that follow from it and are ruled with it:
   rules at the write boundary that capture enforces at the data boundary,
   including on rows the write does not touch: repointing a common at a new
   expression is refused when it breaks a chain that runs through it.
-- Presentation fields (`format_as`, thresholds, group, sort) live on the
+- Presentation fields (`format_as`, `thresholds`, `sort_order`) live on the
   common indicator; `format_as` is DISPLAY, the `type` carries pipeline
   semantics — "percent" is not a pipeline property, "is a ratio of counts"
-  is.
+  is. `thresholds` is a general conditional-formatting rule
+  (`ThresholdsRule` as JSON text, like every JSON column: cutoffs in STORED
+  units, buckets with colour and optional label, direction —
+  `thresholdsRuleSchema` validates it at the API boundary and on every
+  read), or NULL. The instance editor edits it with
+  the same `ThresholdsPanel` the figure CF editor uses, in display units
+  (S10 owns how a figure consumes it as the `indicator` CF source). Legacy
+  packages' `calculated_indicators_snapshot.json` traffic-light pairs are
+  converted into rules at derive time by `lib/traffic_light_rule.ts` — the
+  same conversion migration 079 ran on the dictionary.
 - DHIS2 percent indicators are never imported as values. The importer
   decomposes `numerator`/`denominator` (already on `DHIS2Indicator`) into
   data-element operands → raws → base commons, and authors the indicator as

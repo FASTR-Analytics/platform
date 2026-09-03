@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { structureColumnsSchema } from "./instance.ts";
 import { disaggregationOption } from "./_metric_installed.ts";
+import { thresholdsRuleSchema } from "./conditional_formatting.ts";
 import type { DatasetType } from "./datasets.ts";
 import type { IndicatorMetadata } from "./indicators.ts";
 
@@ -29,8 +30,9 @@ import type { IndicatorMetadata } from "./indicators.ts";
 // ingredient in the slot map, never a field of its own), a new top-level
 // `commonIndicators` list replaced the read path's per-request read of the
 // indicators input mirror, and `population` stamps the person-years file a
-// wizard generation wrote (null for packages that carry none). Manifest
-// transform block 4.
+// wizard generation wrote (null for packages that carry none). A catalog
+// entry's traffic-light pair became a general `thresholds` rule (PLAN_1d,
+// same release). Manifest transform block 4.
 export const RUN_MANIFEST_SCHEMA_VERSION = 6;
 
 // Typed against DatasetType so the enum cannot drift from the union.
@@ -156,10 +158,7 @@ export const runIndicatorMetadataSchema: z.ZodType<IndicatorMetadata> = z
     id: z.string(),
     label: z.string(),
     format_as: z.enum(["percent", "number", "rate_per_10k"]).optional(),
-    threshold_direction: z.enum(["higher_is_better", "lower_is_better"])
-      .optional(),
-    threshold_green: z.number().optional(),
-    threshold_yellow: z.number().optional(),
+    thresholds: thresholdsRuleSchema.optional(),
     group_label: z.string().optional(),
     sort_order: z.number().optional(),
     type: z.enum(["base", "derived"]).optional(),

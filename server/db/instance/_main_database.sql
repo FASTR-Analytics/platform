@@ -322,7 +322,10 @@ CREATE TABLE population_types (
 -- A common indicator carries what it IS and how it is presented. `expression`
 -- holds a derived indicator's formula (which may name a population type as
 -- `[population:<type>]`; the app validates the reference, there is no FK)
--- and is NULL for a base one.
+-- and is NULL for a base one. `thresholds` is the indicator's own
+-- conditional-formatting rule as JSON text (lib thresholdsRuleSchema:
+-- cutoffs in stored units, buckets with colour + label, direction), NULL
+-- when it has none.
 CREATE TABLE indicators (
   indicator_common_id text PRIMARY KEY NOT NULL,
   indicator_common_label text NOT NULL,
@@ -332,10 +335,7 @@ CREATE TABLE indicators (
   expression text,
 
   format_as text NOT NULL DEFAULT 'number',
-  threshold_direction text,
-  threshold_green real,
-  threshold_yellow real,
-  group_label text NOT NULL DEFAULT '',
+  thresholds text,  -- JSON: ThresholdsRule (nullable)
   sort_order integer NOT NULL DEFAULT 0,
 
   updated_at timestamptz DEFAULT CURRENT_TIMESTAMP,
@@ -350,17 +350,7 @@ CREATE TABLE indicators (
   ),
 
   CONSTRAINT indicators_format_as_check
-    CHECK (format_as IN ('percent', 'number', 'rate_per_10k')),
-
-  CONSTRAINT indicators_threshold_fields_check CHECK (
-    (threshold_direction IS NULL
-       AND threshold_green IS NULL
-       AND threshold_yellow IS NULL)
-    OR
-    (threshold_direction IN ('higher_is_better', 'lower_is_better')
-       AND threshold_green IS NOT NULL
-       AND threshold_yellow IS NOT NULL)
-  )
+    CHECK (format_as IN ('percent', 'number', 'rate_per_10k'))
 );
 
 CREATE TABLE indicators_raw (

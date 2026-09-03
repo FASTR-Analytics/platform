@@ -8,24 +8,29 @@ import {
   AlertComponentProps,
   AlertFormHolder,
   Button,
+  createFormAction,
+  getUnique,
   Input,
+  LabelHolder,
   Select,
   SelectSearch,
-  getUnique,
-  createFormAction,
+  TextArea,
 } from "panther";
-import { For, Show, createMemo, createSignal } from "solid-js";
+import { createMemo, createSignal, For, Show } from "solid-js";
 import {
-  t3,
-  TC,
+  _CF_LIGHTER_GREEN,
+  _CF_LIGHTER_RED,
+  _CF_LIGHTER_YELLOW,
   buildExpressionDictionary,
   collectIdentifiers,
   type CommonIndicatorDefinition,
   type CommonIndicatorType,
   type CommonIndicatorWithMappings,
   type ExpressionDictionaryEntry,
+  getLanguage,
   getNewIndicatorIdIssue,
   IndicatorExpressionError,
+  type IndicatorFormat,
   MAX_INDICATOR_EXPRESSION_INGREDIENTS,
   parseIndicatorExpression,
   parsePopulationIngredientId,
@@ -33,10 +38,35 @@ import {
   populationIngredientId,
   type RawIndicatorWithMappings,
   resolveIndicatorExpression,
+  t3,
+  TC,
+  type ThresholdsRule,
+  thresholdsRuleSchema,
+  trafficLightLabels,
+  unscaleValueForFormat,
   writeIdentifier,
 } from "lib";
+import { ThresholdsPanel } from "~/components/visualization/conditional_formatting_editor";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
+
+// The rule a fresh "Set" starts from: three traffic-light bands at 70 / 80 in
+// the indicator's own display units, labelled in the UI language.
+function defaultIndicatorRule(formatAs: IndicatorFormat): ThresholdsRule {
+  const labels = trafficLightLabels(getLanguage());
+  return {
+    cutoffs: [
+      unscaleValueForFormat(70, formatAs),
+      unscaleValueForFormat(80, formatAs),
+    ],
+    buckets: [
+      { color: _CF_LIGHTER_RED, label: labels.red },
+      { color: _CF_LIGHTER_YELLOW, label: labels.yellow },
+      { color: _CF_LIGHTER_GREEN, label: labels.green },
+    ],
+    direction: "higher-is-better",
+  };
+}
 
 const TYPE_OPTIONS: { value: CommonIndicatorType; label: string }[] = [
   {
@@ -103,16 +133,17 @@ function populationCoverageSummary(
   return {
     empty: false,
     text: rows
-      .map((c) =>
-        `L${c.adminAreaLevel} ${c.firstYear}–${c.lastYear} ${
-          c.complete
-            ? t3({ en: "complete", fr: "complet", pt: "completo" })
-            : t3({
-              en: `${c.areaCount} of ${c.structureAreaCount} areas`,
-              fr: `${c.areaCount} zones sur ${c.structureAreaCount}`,
-              pt: `${c.areaCount} de ${c.structureAreaCount} áreas`,
-            })
-        }`
+      .map(
+        (c) =>
+          `L${c.adminAreaLevel} ${c.firstYear}–${c.lastYear} ${
+            c.complete
+              ? t3({ en: "complete", fr: "complet", pt: "completo" })
+              : t3({
+                  en: `${c.areaCount} of ${c.structureAreaCount} areas`,
+                  fr: `${c.areaCount} zones sur ${c.structureAreaCount}`,
+                  pt: `${c.areaCount} de ${c.structureAreaCount} áreas`,
+                })
+          }`,
       )
       .join("; "),
   };
@@ -149,22 +180,13 @@ export function EditIndicatorCommonForm(
       ? existing.definition.expression
       : "",
   );
-  const [formatAs, setFormatAs] = createSignal(
-    existing?.format_as ?? "number",
+  const [formatAs, setFormatAs] = createSignal(existing?.format_as ?? "number");
+  const [thresholds, setThresholds] = createSignal<ThresholdsRule | null>(
+    existing?.thresholds ?? null,
   );
-  const [groupLabel, setGroupLabel] = createSignal(existing?.group_label ?? "");
-  const [thresholdsOn, setThresholdsOn] = createSignal(
-    existing?.thresholds != null,
-  );
-  const [thresholdDirection, setThresholdDirection] = createSignal(
-    existing?.thresholds?.direction ?? "higher_is_better",
-  );
-  const [thresholdGreen, setThresholdGreen] = createSignal(
-    String(existing?.thresholds?.green ?? 0),
-  );
-  const [thresholdYellow, setThresholdYellow] = createSignal(
-    String(existing?.thresholds?.yellow ?? 0),
-  );
+  // A base indicator is a count: its format is always a number.
+  const effectiveFormatAs = (): IndicatorFormat =>
+    type() === "base" ? "number" : formatAs();
 
   const ownId = () => indicatorCommonId().trim() || "__new__";
 
@@ -177,7 +199,7 @@ export function EditIndicatorCommonForm(
 
   // The other commons a formula may name — never the indicator being edited.
   const otherCommons = createMemo(() =>
-    p.commonIndicators.filter((c) => c.indicator_common_id !== ownId())
+    p.commonIndicators.filter((c) => c.indicator_common_id !== ownId()),
   );
 
   // Live validation against the same rules the server enforces — the editor
@@ -199,9 +221,8 @@ export function EditIndicatorCommonForm(
       ...otherCommons().map((c) => ({
         id: c.indicator_common_id,
         type: c.definition.type,
-        expression: c.definition.type === "derived"
-          ? c.definition.expression
-          : null,
+        expression:
+          c.definition.type === "derived" ? c.definition.expression : null,
       })),
       ...instanceState.populationTypes.map((pt) => ({
         id: populationIngredientId(pt.id),
@@ -242,8 +263,8 @@ export function EditIndicatorCommonForm(
         return {
           identifier: writeIdentifier(id),
           kind: "population",
-          label: instanceState.populationTypes.find((pt) =>
-            pt.id === populationType
+          label: instanceState.populationTypes.find(
+            (pt) => pt.id === populationType,
           )?.label,
           coverage: populationCoverageSummary(
             populationType,
@@ -261,19 +282,20 @@ export function EditIndicatorCommonForm(
   });
 
   const legendNamesPopulation = createMemo(() =>
-    legend().some((row) => row.kind === "population")
+    legend().some((row) => row.kind === "population"),
   );
 
   // Inserts at the formula input's caret (appends when the input has never
   // been focused), padded so the identifier never fuses with its neighbours.
   function insertIdentifier(id: string) {
-    const el = formulaHolder?.querySelector("input") ?? null;
+    const el = formulaHolder?.querySelector("textarea") ?? null;
     const current = expression();
     const start = el?.selectionStart ?? current.length;
     const end = el?.selectionEnd ?? current.length;
     const before = current.slice(0, start);
     const after = current.slice(end);
-    const text = (before === "" || /[\s(]$/.test(before) ? "" : " ") +
+    const text =
+      (before === "" || /[\s(]$/.test(before) ? "" : " ") +
       writeIdentifier(id) +
       (after === "" || /^[\s)]/.test(after) ? "" : " ");
     setExpression(before + text + after);
@@ -343,46 +365,28 @@ export function EditIndicatorCommonForm(
         return { success: false, err: exprErr };
       }
 
-      if (thresholdsOn()) {
-        const greenValue = thresholdGreen().trim();
-        const yellowValue = thresholdYellow().trim();
-        if (
-          greenValue === "" || yellowValue === "" ||
-          !Number.isFinite(Number(greenValue)) ||
-          !Number.isFinite(Number(yellowValue))
-        ) {
-          return {
-            success: false,
-            err: t3({
-              en: "Thresholds must be numbers",
-              fr: "Les seuils doivent être des nombres",
-              pt: "Os limiares devem ser números",
-            }),
-          };
-        }
+      const rule = thresholds();
+      if (rule && !thresholdsRuleSchema.safeParse(rule).success) {
+        return {
+          success: false,
+          err: t3({
+            en: "Thresholds must be ascending numbers",
+            fr: "Les seuils doivent être des nombres croissants",
+            pt: "Os limiares devem ser números crescentes",
+          }),
+        };
       }
 
       const indicator = {
         indicator_common_id: commonId,
         indicator_common_label: label,
-        mapped_raw_ids: type() === "base"
-          ? getUnique(mappedRawIds().filter((id) => id.trim() !== ""))
-          : [],
+        mapped_raw_ids:
+          type() === "base"
+            ? getUnique(mappedRawIds().filter((id) => id.trim() !== ""))
+            : [],
         definition: currentDefinition(),
-        // A base indicator is a count: its format is always a number.
-        format_as: type() === "base"
-          ? "number" as const
-          : formatAs() as "percent" | "number" | "rate_per_10k",
-        thresholds: thresholdsOn()
-          ? {
-            direction: thresholdDirection() as
-              | "higher_is_better"
-              | "lower_is_better",
-            green: Number(thresholdGreen()),
-            yellow: Number(thresholdYellow()),
-          }
-          : null,
-        group_label: groupLabel().trim(),
+        format_as: effectiveFormatAs(),
+        thresholds: rule,
       };
 
       if (mode === "create") {
@@ -401,36 +405,41 @@ export function EditIndicatorCommonForm(
   return (
     <AlertFormHolder
       formId="indicator-form"
-      header={mode === "create"
-        ? t3({
-          en: "Add Common Indicator",
-          fr: "Ajouter un indicateur commun",
-          pt: "Adicionar indicador comum",
-        })
-        : t3({
-          en: "Update Common Indicator",
-          fr: "Mettre à jour l'indicateur commun",
-          pt: "Atualizar indicador comum",
-        })}
+      header={
+        mode === "create"
+          ? t3({
+              en: "Add Common Indicator",
+              fr: "Ajouter un indicateur commun",
+              pt: "Adicionar indicador comum",
+            })
+          : t3({
+              en: "Update Common Indicator",
+              fr: "Mettre à jour l'indicateur commun",
+              pt: "Atualizar indicador comum",
+            })
+      }
       savingState={save.state()}
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
+      width="xl"
     >
-      <Input
-        label={t3({ en: "Common ID", fr: "ID commun", pt: "ID comum" })}
-        value={indicatorCommonId()}
-        onChange={setIndicatorCommonId}
-        fullWidth
-        autoFocus={mode === "create"}
-        mono
-        disabled={mode === "update"}
-      />
-      <Input
-        label={t3(TC.label)}
-        value={indicatorLabel()}
-        onChange={setIndicatorLabel}
-        fullWidth
-      />
+      <div class="ui-gap grid grid-cols-[repeat(auto-fit,minmax(16rem,1fr))]">
+        <Input
+          label={t3({ en: "Common ID", fr: "ID commun", pt: "ID comum" })}
+          value={indicatorCommonId()}
+          onChange={setIndicatorCommonId}
+          fullWidth
+          autoFocus={mode === "create"}
+          mono
+          disabled={mode === "update"}
+        />
+        <Input
+          label={t3(TC.label)}
+          value={indicatorLabel()}
+          onChange={setIndicatorLabel}
+          fullWidth
+        />
+      </div>
       <Select
         label={t3({ en: "Type", fr: "Type", pt: "Tipo" })}
         value={type()}
@@ -439,264 +448,259 @@ export function EditIndicatorCommonForm(
         fullWidth
       />
 
-      <Show when={type() === "base"}>
+      <div class="ui-gap grid grid-cols-[repeat(auto-fit,minmax(24rem,1fr))] items-start">
         <div class="ui-spy-sm">
           <div class="font-700 text-base-content text-sm">
-            {t3({
-              en: "Mapped DHIS2 Indicators (JSON IDs)",
-              fr: "Indicateurs DHIS2 associés (ID JSON)",
-              pt: "Indicadores DHIS2 associados (ID JSON)",
-            })}
+            {t3({ en: "Definition", fr: "Définition", pt: "Definição" })}
           </div>
-          <For each={mappedRawIds()}>
-            {(rawId, index) => (
-              <div class="ui-gap-sm flex items-center">
-                <SelectSearch
-                  value={rawId || undefined}
-                  onChange={(value) => updateMappedRawId(index(), value)}
-                  placeholder={t3({
-                    en: "Select DHIS2 indicator...",
-                    fr: "Sélectionner un indicateur DHIS2...",
-                    pt: "Selecionar um indicador DHIS2...",
-                  })}
-                  options={p.rawIndicators.map((raw) => ({
-                    value: raw.raw_indicator_id,
-                    label: `${raw.raw_indicator_id} ~ ${raw.raw_indicator_label}`,
-                  }))}
-                  fullWidth
-                />
+
+          <Show when={type() === "base"}>
+            <div class="ui-spy-sm">
+              <div class="ui-text-caption text-xs">
+                {t3({
+                  en: "Mapped DHIS2 Indicators (JSON IDs)",
+                  fr: "Indicateurs DHIS2 associés (ID JSON)",
+                  pt: "Indicadores DHIS2 associados (ID JSON)",
+                })}
+              </div>
+              <For each={mappedRawIds()}>
+                {(rawId, index) => (
+                  <div class="ui-gap-sm flex items-center">
+                    <SelectSearch
+                      value={rawId || undefined}
+                      onChange={(value) => updateMappedRawId(index(), value)}
+                      placeholder={t3({
+                        en: "Select DHIS2 indicator...",
+                        fr: "Sélectionner un indicateur DHIS2...",
+                        pt: "Selecionar um indicador DHIS2...",
+                      })}
+                      options={p.rawIndicators.map((raw) => ({
+                        value: raw.raw_indicator_id,
+                        label: `${raw.raw_indicator_id} ~ ${raw.raw_indicator_label}`,
+                      }))}
+                      fullWidth
+                    />
+                    <Button
+                      intent="danger"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        removeMappedRawId(index());
+                      }}
+                      iconName="trash"
+                      outline
+                    />
+                  </div>
+                )}
+              </For>
+              <div class="">
                 <Button
-                  intent="danger"
+                  intent="success"
                   onClick={(e) => {
                     e.preventDefault();
-                    removeMappedRawId(index());
+                    addMappedRawId();
                   }}
-                  iconName="trash"
+                  iconName="plus"
                   outline
                 />
               </div>
-            )}
-          </For>
-          <div class="">
-            <Button
-              intent="success"
-              onClick={(e) => {
-                e.preventDefault();
-                addMappedRawId();
-              }}
-              iconName="plus"
-              outline
-            />
-          </div>
-        </div>
-      </Show>
+            </div>
+          </Show>
 
-      <Show when={type() === "derived"}>
-        <div class="ui-gap-sm flex items-end">
-          <SelectSearch
-            label={t3({
-              en: "Insert indicator",
-              fr: "Insérer un indicateur",
-              pt: "Inserir indicador",
-            })}
-            value={undefined}
-            onChange={insertIdentifier}
-            placeholder={t3({
-              en: "Search indicators...",
-              fr: "Rechercher des indicateurs...",
-              pt: "Pesquisar indicadores...",
-            })}
-            options={otherCommons().map((c) => ({
-              value: c.indicator_common_id,
-              label: `${c.indicator_common_label} (${c.indicator_common_id})`,
-            }))}
-            fullWidth
-          />
-          <SelectSearch
-            label={t3({
-              en: "Insert population",
-              fr: "Insérer une population",
-              pt: "Inserir população",
-            })}
-            value={undefined}
-            onChange={(id) => insertIdentifier(populationIngredientId(id))}
-            placeholder={t3({
-              en: "Search populations...",
-              fr: "Rechercher des populations...",
-              pt: "Pesquisar populações...",
-            })}
-            options={instanceState.populationTypes.map((pt) => ({
-              value: pt.id,
-              label: `${pt.label} (${pt.id})${
-                populationCoverageSummary(
-                    pt.id,
-                    instanceState.populationCoverage,
-                  ).empty
-                  ? ` — ${
-                    t3({
-                      en: "no data",
-                      fr: "aucune donnée",
-                      pt: "sem dados",
-                    })
-                  }`
-                  : ""
-              }`,
-            }))}
-            fullWidth
-          />
-        </div>
-        <div ref={formulaHolder}>
-          <Input
-            label={t3({ en: "Formula", fr: "Formule", pt: "Fórmula" })}
-            value={expression()}
-            onChange={setExpression}
-            fullWidth
-            mono
-          />
-        </div>
-        <div class="ui-text-caption text-xs">
-          {t3({
-            en: "Use + - * / and parentheses over other indicators and populations, e.g. anc4 / anc1 or anc4 / [population:pregnancies]. abs(), coalesce() and nullif() are available.",
-            fr: "Utilisez + - * / et des parenthèses sur d'autres indicateurs et des populations, par ex. anc4 / anc1 ou anc4 / [population:pregnancies]. abs(), coalesce() et nullif() sont disponibles.",
-            pt: "Utilize + - * / e parênteses sobre outros indicadores e populações, por ex. anc4 / anc1 ou anc4 / [population:pregnancies]. abs(), coalesce() e nullif() estão disponíveis.",
-          })}
-        </div>
-        <Show when={expressionError()}>
-          {(err) => <div class="text-danger text-xs">{err()}</div>}
-        </Show>
-        <Show when={legend().length > 0}>
-          <div class="ui-spy-sm">
-            <For each={legend()}>
-              {(row) => (
-                <div class="ui-gap-sm flex items-baseline text-xs">
-                  <span class="font-mono">{row.identifier}</span>
-                  <span class="text-base-content-muted">
-                    {row.kind === "population"
-                      ? t3({
-                        en: "population",
-                        fr: "population",
-                        pt: "população",
-                      })
-                      : t3({
-                        en: "indicator",
-                        fr: "indicateur",
-                        pt: "indicador",
-                      })}
-                  </span>
-                  <Show
-                    when={row.label}
-                    fallback={
-                      <span class="text-danger">
-                        {t3({
-                          en: "not found",
-                          fr: "introuvable",
-                          pt: "não encontrado",
-                        })}
-                      </span>
-                    }
-                  >
-                    {(label) => <span>{label()}</span>}
-                  </Show>
-                  <Show when={row.coverage}>
-                    {(coverage) => (
-                      <span
-                        class={coverage().empty
-                          ? "text-danger"
-                          : "text-base-content-muted"}
-                      >
-                        {coverage().text}
-                      </span>
+          <Show when={type() === "derived"}>
+            <div ref={formulaHolder}>
+              <TextArea
+                label={t3({ en: "Formula", fr: "Formule", pt: "Fórmula" })}
+                value={expression()}
+                onChange={setExpression}
+                rows={3}
+                fullWidth
+                mono
+              />
+            </div>
+            <div class="ui-text-caption text-xs">
+              {t3({
+                en: "Use + - * / and parentheses over other indicators and populations, e.g. anc4 / anc1 or anc4 / [population:pregnancies]. abs(), coalesce() and nullif() are available.",
+                fr: "Utilisez + - * / et des parenthèses sur d'autres indicateurs et des populations, par ex. anc4 / anc1 ou anc4 / [population:pregnancies]. abs(), coalesce() et nullif() sont disponibles.",
+                pt: "Utilize + - * / e parênteses sobre outros indicadores e populações, por ex. anc4 / anc1 ou anc4 / [population:pregnancies]. abs(), coalesce() e nullif() estão disponíveis.",
+              })}
+            </div>
+            <Show when={expressionError()}>
+              {(err) => <div class="text-danger text-xs">{err()}</div>}
+            </Show>
+            <div class="ui-gap-sm flex items-end">
+              <SelectSearch
+                label={t3({
+                  en: "Insert indicator",
+                  fr: "Insérer un indicateur",
+                  pt: "Inserir indicador",
+                })}
+                value={undefined}
+                onChange={insertIdentifier}
+                placeholder={t3({
+                  en: "Search indicators...",
+                  fr: "Rechercher des indicateurs...",
+                  pt: "Pesquisar indicadores...",
+                })}
+                options={otherCommons().map((c) => ({
+                  value: c.indicator_common_id,
+                  label: `${c.indicator_common_label} (${c.indicator_common_id})`,
+                }))}
+                fullWidth
+              />
+              <SelectSearch
+                label={t3({
+                  en: "Insert population",
+                  fr: "Insérer une population",
+                  pt: "Inserir população",
+                })}
+                value={undefined}
+                onChange={(id) => insertIdentifier(populationIngredientId(id))}
+                placeholder={t3({
+                  en: "Search populations...",
+                  fr: "Rechercher des populations...",
+                  pt: "Pesquisar populações...",
+                })}
+                options={instanceState.populationTypes.map((pt) => ({
+                  value: pt.id,
+                  label: `${pt.label} (${pt.id})${
+                    populationCoverageSummary(
+                      pt.id,
+                      instanceState.populationCoverage,
+                    ).empty
+                      ? ` — ${t3({
+                          en: "no data",
+                          fr: "aucune donnée",
+                          pt: "sem dados",
+                        })}`
+                      : ""
+                  }`,
+                }))}
+                fullWidth
+              />
+            </div>
+            <Show when={legend().length > 0}>
+              <LabelHolder
+                label={t3({
+                  en: "Included indicators",
+                  fr: "Indicateurs inclus",
+                  pt: "Indicadores incluídos",
+                })}
+              >
+                <div class="ui-spy-sm ui-pad-sm rounded border">
+                  <For each={legend()}>
+                    {(row) => (
+                      <div class="ui-gap-sm flex items-baseline text-xs">
+                        <span class="font-mono">{row.identifier}</span>
+                        <span class="text-base-content-muted">
+                          {row.kind === "population"
+                            ? t3({
+                                en: "population",
+                                fr: "population",
+                                pt: "população",
+                              })
+                            : t3({
+                                en: "indicator",
+                                fr: "indicateur",
+                                pt: "indicador",
+                              })}
+                        </span>
+                        <Show
+                          when={row.label}
+                          fallback={
+                            <span class="text-danger">
+                              {t3({
+                                en: "not found",
+                                fr: "introuvable",
+                                pt: "não encontrado",
+                              })}
+                            </span>
+                          }
+                        >
+                          {(label) => <span>{label()}</span>}
+                        </Show>
+                        <Show when={row.coverage}>
+                          {(coverage) => (
+                            <span
+                              class={
+                                coverage().empty
+                                  ? "text-danger"
+                                  : "text-base-content-muted"
+                              }
+                            >
+                              {coverage().text}
+                            </span>
+                          )}
+                        </Show>
+                      </div>
                     )}
+                  </For>
+                  <Show when={legendNamesPopulation()}>
+                    <div class="ui-text-caption text-xs">
+                      {t3({
+                        en: "A population term is person-years (annual population × months / 12), so a value divided by it is annualised: a monthly or quarterly value reads as a rate per year. Population figures come from the instance Population page.",
+                        fr: "Un terme de population représente des personnes-années (population annuelle × mois / 12) : une valeur divisée par ce terme est donc annualisée, et une valeur mensuelle ou trimestrielle se lit comme un taux annuel. Les chiffres de population proviennent de la page Population de l'instance.",
+                        pt: "Um termo de população são pessoas-ano (população anual × meses / 12), pelo que um valor dividido por ele é anualizado: um valor mensal ou trimestral lê-se como uma taxa anual. Os valores de população provêm da página População da instância.",
+                      })}
+                    </div>
                   </Show>
                 </div>
-              )}
-            </For>
-            <Show when={legendNamesPopulation()}>
-              <div class="ui-text-caption text-xs">
-                {t3({
-                  en: "A population term is person-years (annual population × months / 12), so a value divided by it is annualised: a monthly or quarterly value reads as a rate per year. Population figures come from the instance Population page.",
-                  fr: "Un terme de population représente des personnes-années (population annuelle × mois / 12) : une valeur divisée par ce terme est donc annualisée, et une valeur mensuelle ou trimestrielle se lit comme un taux annuel. Les chiffres de population proviennent de la page Population de l'instance.",
-                  pt: "Um termo de população são pessoas-ano (população anual × meses / 12), pelo que um valor dividido por ele é anualizado: um valor mensal ou trimestral lê-se como uma taxa anual. Os valores de população provêm da página População da instância.",
-                })}
-              </div>
+              </LabelHolder>
             </Show>
+          </Show>
+        </div>
+
+        <div class="ui-spy-sm">
+          <div class="font-700 text-base-content text-sm">
+            {t3({ en: "Display", fr: "Affichage", pt: "Apresentação" })}
           </div>
-        </Show>
-        <Select
-          label={t3({ en: "Format", fr: "Format", pt: "Formato" })}
-          value={formatAs()}
-          onChange={setFormatAs}
-          options={FORMAT_OPTIONS}
-          fullWidth
-        />
-      </Show>
-
-      <Input
-        label={t3({ en: "Group", fr: "Groupe", pt: "Grupo" })}
-        value={groupLabel()}
-        onChange={setGroupLabel}
-        fullWidth
-      />
-
-      <Select
-        label={t3({
-          en: "Traffic-light thresholds",
-          fr: "Seuils feu tricolore",
-          pt: "Limiares tipo semáforo",
-        })}
-        value={thresholdsOn() ? "on" : "off"}
-        onChange={(v) => setThresholdsOn(v === "on")}
-        options={[
-          { value: "off", label: t3({ en: "None", fr: "Aucun", pt: "Nenhum" }) },
-          {
-            value: "on",
-            label: t3({ en: "Set", fr: "Définis", pt: "Definidos" }),
-          },
-        ]}
-        fullWidth
-      />
-      <Show when={thresholdsOn()}>
-        <Select
-          label={t3({
-            en: "Direction",
-            fr: "Direction",
-            pt: "Direção",
-          })}
-          value={thresholdDirection()}
-          onChange={setThresholdDirection}
-          options={[
-            {
-              value: "higher_is_better",
-              label: t3({
-                en: "Higher is better",
-                fr: "Plus élevé est meilleur",
-                pt: "Mais alto é melhor",
-              }),
-            },
-            {
-              value: "lower_is_better",
-              label: t3({
-                en: "Lower is better",
-                fr: "Plus bas est meilleur",
-                pt: "Mais baixo é melhor",
-              }),
-            },
-          ]}
-          fullWidth
-        />
-        <Input
-          label={t3({ en: "Green at", fr: "Vert à", pt: "Verde em" })}
-          value={thresholdGreen()}
-          onChange={setThresholdGreen}
-          fullWidth
-        />
-        <Input
-          label={t3({ en: "Yellow at", fr: "Jaune à", pt: "Amarelo em" })}
-          value={thresholdYellow()}
-          onChange={setThresholdYellow}
-          fullWidth
-        />
-      </Show>
+          <Select
+            label={t3({ en: "Format", fr: "Format", pt: "Formato" })}
+            value={effectiveFormatAs()}
+            onChange={setFormatAs}
+            options={FORMAT_OPTIONS}
+            disabled={type() === "base"}
+            fullWidth
+          />
+          <Select
+            label={t3({
+              en: "Conditional formatting rule",
+              fr: "Règle de mise en forme conditionnelle",
+              pt: "Regra de formatação condicional",
+            })}
+            value={thresholds() ? "on" : "off"}
+            onChange={(v) =>
+              setThresholds(
+                v === "on"
+                  ? (thresholds() ?? defaultIndicatorRule(effectiveFormatAs()))
+                  : null,
+              )
+            }
+            options={[
+              {
+                value: "off",
+                label: t3({ en: "None", fr: "Aucune", pt: "Nenhuma" }),
+              },
+              {
+                value: "on",
+                label: t3({ en: "Set", fr: "Définie", pt: "Definida" }),
+              },
+            ]}
+            fullWidth
+          />
+          <Show when={thresholds()}>
+            {(rule) => (
+              <ThresholdsPanel
+                cf={rule()}
+                onChange={setThresholds}
+                formatAs={effectiveFormatAs()}
+                decimalPlaces={0}
+                showLabels={true}
+                showPresets={false}
+              />
+            )}
+          </Show>
+        </div>
+      </div>
     </AlertFormHolder>
   );
 }

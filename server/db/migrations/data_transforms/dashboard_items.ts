@@ -17,7 +17,7 @@ import type { Sql } from "postgres";
 import { type MigrationStats, rawJsonNeedsForcedTransform } from "./po_config.ts";
 import {
   type FigureBlockMut,
-  rawJsonNeedsIndicatorFormatFlip,
+  rawJsonNeedsFigureBlockTransform,
   transformFigureBlock,
   transformFigureBlockToBundle,
   getTransformLocalization,
@@ -44,7 +44,7 @@ export async function migrateDashboardItems(
     if (
       dashboardFigureBlockSchema.safeParse(figureBlock).success &&
       !rawJsonNeedsForcedTransform(row.figure_block) &&
-      !rawJsonNeedsIndicatorFormatFlip(row.figure_block)
+      !rawJsonNeedsFigureBlockTransform(row.figure_block)
     ) {
       continue;
     }

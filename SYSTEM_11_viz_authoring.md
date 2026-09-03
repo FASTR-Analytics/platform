@@ -358,13 +358,6 @@ parent (the slide modal's "All replicants (N)" count).
 
 ## Open items
 
-- **CF-editor unit convention for `rate_per_10k`** — the conditional-
-  formatting editor's cutoff/domain inputs take raw stored values (bare
-  rates, e.g. `0.00025`) while every rendered surface writes the ×10,000
-  scaled count. Whether the editor should accept per-10,000 units and scale
-  on save needs a ruling; unreachable today (no `"indicator"` metric surface
-  resolves `rate_per_10k` in practice), noted while fixing the rate
-  formatters (PLAN_EFFECTIVE_FORMAT F9).
 - **Batch edit-common-properties uses the first viz's period bounds** for a
   heterogeneous selection — a shared periodFilter may be format-mismatched for
   other metrics and later fail the schema refine.

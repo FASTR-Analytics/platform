@@ -9,6 +9,7 @@ import {
   type IndicatorMetadata,
   PeriodBounds,
   ResultsValueInfoForPresentationObject,
+  type ThresholdsRule,
   throwIfErrWithData,
 } from "lib";
 import { getPeriodBounds } from "./get_period_bounds.ts";
@@ -66,6 +67,7 @@ export async function getResultsValueInfoForPresentationObject(
       periodBounds,
       disaggregationOptions,
       indicatorFormatsFrom(indicatorMetadata),
+      indicatorRulesFrom(indicatorMetadata),
       (disOpt) =>
         getPossibleValues(
           projectDb,
@@ -89,6 +91,7 @@ export async function buildResultsValueInfo(
   periodBounds: PeriodBounds | undefined,
   disaggregationOptions: DisaggregationOption[],
   indicatorFormats: Record<string, IndicatorFormat>,
+  indicatorRules: Record<string, ThresholdsRule>,
   getValuesForOption: (
     disOpt: DisaggregationOption,
   ) => Promise<APIResponseWithData<{ id: string; label: string }[]>>,
@@ -142,6 +145,7 @@ export async function buildResultsValueInfo(
         periodBounds,
         disaggregationPossibleValues,
         indicatorFormats,
+        indicatorRules,
       },
     };
   });
@@ -149,7 +153,7 @@ export async function buildResultsValueInfo(
 
 // The subset of IndicatorMetadata that declares a format. Entries without one
 // (HFA categories, raw HMIS indicators) are omitted rather than defaulted —
-// resolveEffectiveFormat treats an absent id as "says nothing", which is not
+// resolveEffectiveIndicatorFacts treats an absent id as "says nothing", which is not
 // the same as "says number".
 export function indicatorFormatsFrom(
   metadata: IndicatorMetadata[],
@@ -161,4 +165,17 @@ export function indicatorFormatsFrom(
     }
   }
   return formats;
+}
+
+// The rules twin: the subset that declares a CF rule.
+export function indicatorRulesFrom(
+  metadata: IndicatorMetadata[],
+): Record<string, ThresholdsRule> {
+  const rules: Record<string, ThresholdsRule> = {};
+  for (const m of metadata) {
+    if (m.thresholds !== undefined) {
+      rules[m.id] = m.thresholds;
+    }
+  }
+  return rules;
 }

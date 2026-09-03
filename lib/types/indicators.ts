@@ -1,5 +1,6 @@
 import { capitalizeFirstLetter } from "@timroberton/panther";
 import type { TranslatableString } from "../translate/types.ts";
+import type { ThresholdsRule } from "./conditional_formatting.ts";
 
 // ============================================================================
 // Indicator Types
@@ -108,21 +109,17 @@ export function isCommonIndicatorType(
   return (COMMON_INDICATOR_TYPES as readonly string[]).includes(value);
 }
 
-// Traffic-light thresholds. Absent means the indicator is never coloured.
-export type CommonIndicatorThresholds = {
-  direction: "higher_is_better" | "lower_is_better";
-  green: number;
-  yellow: number;
-};
-
+// A common indicator's presentation: its display format and, optionally, a
+// conditional-formatting rule (cutoffs in STORED units, buckets with colour and
+// label, direction). A figure whose CF source is `indicator` colours each value
+// by its own indicator's rule; null means the indicator is never coloured.
 export type CommonIndicator = {
   indicator_common_id: string;
   indicator_common_label: string;
   is_default: boolean;
   definition: CommonIndicatorDefinition;
   format_as: IndicatorFormat;
-  thresholds: CommonIndicatorThresholds | null;
-  group_label: string;
+  thresholds: ThresholdsRule | null;
   sort_order: number;
 };
 
@@ -241,9 +238,10 @@ export type IndicatorMetadata = {
   id: string;
   label: string;
   format_as?: IndicatorFormat;
-  threshold_direction?: "higher_is_better" | "lower_is_better";
-  threshold_green?: number;
-  threshold_yellow?: number;
+  // The indicator's own CF rule (common indicators only). The `indicator` CF
+  // source resolves it per value through EffectiveIndicatorFacts.ruleForValue.
+  thresholds?: ThresholdsRule;
+  // The HFA/ICEH category carrier; a common indicator never sets it.
   group_label?: string;
   sort_order?: number;
   // Common-indicator evaluation, stamped for HMIS dictionaries only

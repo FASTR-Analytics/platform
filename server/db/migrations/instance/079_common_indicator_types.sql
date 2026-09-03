@@ -23,7 +23,28 @@
 -- denominator = population × fraction × 1/12, and the 1/12 is exactly the
 -- person-years expansion the run performs, so dividing the numerator by the
 -- person-years term scaled by the fraction yields the ratio m008 produced.
--- `format_as` carries across unchanged — it is display-only.
+-- `format_as` carries across unchanged — it is display-only — except onto a
+-- base common, which is a count and stays `number` (the app refuses any
+-- other format for a base; copying `percent` made the row un-editable).
+--
+-- Thresholds (PLAN_1d ruling 12): the catalog's traffic-light pair
+-- (direction + green + yellow, in DISPLAY units) becomes the indicator's
+-- conditional-formatting rule — JSON text `{cutoffs, buckets, direction}`
+-- (every JSON column in this schema is text, parsed by the app) with
+-- cutoffs in STORED units (divided by the row's own format: 100 for percent,
+-- 10,000 for rate_per_10k) and the three bucket colours + labels the
+-- scorecard printed, in the instance language (transaction-local GUC
+-- `fastr.instance_language`, set by the migration runner; absent under
+-- ./validate_migrations, so it defaults to English):
+--   higher_is_better {green, yellow} → cutoffs [yellow, green],
+--                                       buckets [red, yellow, green]
+--   lower_is_better  {green, yellow} → cutoffs [green, yellow],
+--                                       buckets [green, yellow, red]
+-- Nothing ever enforced yellow < green, so a degenerate pair (equal or
+-- inverted) becomes a TWO-bucket rule at the green cutoff — the yellow band
+-- was unreachable for such a row, so this is the faithful conversion. The
+-- same conversion in TypeScript (lib/traffic_light_rule.ts) serves legacy
+-- packages and stored figure snapshots; the two must agree.
 --
 -- sort_order backfill (the authority for the rule is
 -- backfillCommonIndicatorSortOrder in lib/table_structures/indicators.ts,
@@ -76,10 +97,7 @@ ALTER TABLE indicators
   ADD COLUMN IF NOT EXISTS definition_type TEXT NOT NULL DEFAULT 'base',
   ADD COLUMN IF NOT EXISTS expression TEXT,
   ADD COLUMN IF NOT EXISTS format_as TEXT NOT NULL DEFAULT 'number',
-  ADD COLUMN IF NOT EXISTS threshold_direction TEXT,
-  ADD COLUMN IF NOT EXISTS threshold_green REAL,
-  ADD COLUMN IF NOT EXISTS threshold_yellow REAL,
-  ADD COLUMN IF NOT EXISTS group_label TEXT NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS thresholds TEXT,
   ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0;
 
 DO $$
@@ -108,19 +126,6 @@ BEGIN
       CHECK (format_as IN ('percent', 'number', 'rate_per_10k'));
   END IF;
 
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint WHERE conname = 'indicators_threshold_fields_check'
-  ) THEN
-    ALTER TABLE indicators ADD CONSTRAINT indicators_threshold_fields_check CHECK (
-      (threshold_direction IS NULL
-         AND threshold_green IS NULL
-         AND threshold_yellow IS NULL)
-      OR
-      (threshold_direction IN ('higher_is_better', 'lower_is_better')
-         AND threshold_green IS NOT NULL
-         AND threshold_yellow IS NOT NULL)
-    );
-  END IF;
 END $$;
 
 -- ── The one-pass data move ──────────────────────────────────────────────────
@@ -134,6 +139,14 @@ DECLARE
   v_fraction TEXT;
   v_collisions TEXT[] := ARRAY[]::TEXT[];
   v_bad_population TEXT[] := ARRAY[]::TEXT[];
+  v_lang TEXT;
+  v_red JSON;
+  v_yellow JSON;
+  v_green JSON;
+  v_green_at NUMERIC;
+  v_yellow_at NUMERIC;
+  v_rule JSON;
+  v_thresholds TEXT;
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.tables
@@ -142,9 +155,65 @@ BEGIN
     RETURN;
   END IF;
 
+  v_lang := COALESCE(current_setting('fastr.instance_language', true), 'en');
+  -- Colours = _CF_LIGHTER_RED / _CF_LIGHTER_YELLOW / _CF_LIGHTER_GREEN
+  -- (lib/key_colors.ts); labels = what the scorecard legend printed.
+  v_red := json_build_object('color', '#F7BCBC', 'label',
+    CASE v_lang WHEN 'fr' THEN 'Pas en bonne voie'
+                WHEN 'pt' THEN 'Fora do bom caminho'
+                ELSE 'Not on track' END);
+  v_yellow := json_build_object('color', '#FAE9B7', 'label',
+    CASE v_lang WHEN 'fr' THEN 'Progrès nécessaire'
+                WHEN 'pt' THEN 'Progresso necessário'
+                ELSE 'Progress needed' END);
+  v_green := json_build_object('color', '#A9DFBF', 'label',
+    CASE v_lang WHEN 'fr' THEN 'En bonne voie'
+                WHEN 'pt' THEN 'No bom caminho'
+                ELSE 'On track' END);
+
   FOR ci IN
     SELECT * FROM calculated_indicators ORDER BY sort_order, calculated_indicator_id
   LOOP
+    -- The row's rule, from its traffic-light pair (header). REAL goes through
+    -- its shortest round-trip text into an exact numeric before the divide.
+    IF ci.threshold_direction IS NULL THEN
+      v_thresholds := NULL;
+    ELSE
+      v_green_at := (ci.threshold_green::TEXT)::NUMERIC
+        / CASE ci.format_as WHEN 'percent' THEN 100
+                            WHEN 'rate_per_10k' THEN 10000
+                            ELSE 1 END;
+      v_yellow_at := (ci.threshold_yellow::TEXT)::NUMERIC
+        / CASE ci.format_as WHEN 'percent' THEN 100
+                            WHEN 'rate_per_10k' THEN 10000
+                            ELSE 1 END;
+      IF ci.threshold_direction = 'higher_is_better' THEN
+        IF v_yellow_at < v_green_at THEN
+          v_rule := json_build_object(
+            'cutoffs', json_build_array(v_yellow_at::FLOAT8, v_green_at::FLOAT8),
+            'buckets', json_build_array(v_red, v_yellow, v_green),
+            'direction', 'higher-is-better');
+        ELSE
+          v_rule := json_build_object(
+            'cutoffs', json_build_array(v_green_at::FLOAT8),
+            'buckets', json_build_array(v_red, v_green),
+            'direction', 'higher-is-better');
+        END IF;
+      ELSE
+        IF v_green_at < v_yellow_at THEN
+          v_rule := json_build_object(
+            'cutoffs', json_build_array(v_green_at::FLOAT8, v_yellow_at::FLOAT8),
+            'buckets', json_build_array(v_green, v_yellow, v_red),
+            'direction', 'lower-is-better');
+        ELSE
+          v_rule := json_build_object(
+            'cutoffs', json_build_array(v_green_at::FLOAT8),
+            'buckets', json_build_array(v_green, v_red),
+            'direction', 'lower-is-better');
+        END IF;
+      END IF;
+      v_thresholds := v_rule::TEXT;
+    END IF;
     -- Identifiers are written bare when the grammar allows it, [bracketed]
     -- otherwise — including the reserved function names, which would re-parse
     -- as "must be called" if written bare (writeIdentifier,
@@ -158,15 +227,13 @@ BEGIN
 
     IF ci.denom_kind = 'none' AND ci.num_indicator_id = ci.calculated_indicator_id THEN
       -- Identity alias: the catalog row said nothing the base common cannot
-      -- say itself. Its presentation moves across; the row goes. The LABEL
+      -- say itself. Its rule moves across (in the units m008 displayed it
+      -- in, i.e. divided by ci.format_as); the row goes. The LABEL
       -- deliberately does not move — a common indicator's label is what every
-      -- other module's charts already show.
+      -- other module's charts already show — and neither does the format: a
+      -- base common is a count.
       UPDATE indicators SET
-        format_as = ci.format_as,
-        threshold_direction = ci.threshold_direction,
-        threshold_green = ci.threshold_green,
-        threshold_yellow = ci.threshold_yellow,
-        group_label = ci.group_label,
+        thresholds = v_thresholds,
         updated_at = CURRENT_TIMESTAMP
       WHERE indicator_common_id = ci.calculated_indicator_id;
       RAISE NOTICE '[079] identity alias folded into base common: %',
@@ -195,13 +262,11 @@ BEGIN
       INSERT INTO indicators (
         indicator_common_id, indicator_common_label, is_default,
         definition_type, expression,
-        format_as, threshold_direction, threshold_green, threshold_yellow,
-        group_label, sort_order, updated_at
+        format_as, thresholds, sort_order, updated_at
       ) VALUES (
         v_new_id, ci.label, FALSE,
         'derived', v_num,
-        ci.format_as, ci.threshold_direction, ci.threshold_green, ci.threshold_yellow,
-        ci.group_label, ci.sort_order, CURRENT_TIMESTAMP
+        ci.format_as, v_thresholds, ci.sort_order, CURRENT_TIMESTAMP
       );
       RAISE NOTICE '[079] alias of another common became a derived indicator: %', v_new_id;
     ELSIF ci.denom_kind = 'indicator' THEN
@@ -214,13 +279,11 @@ BEGIN
       INSERT INTO indicators (
         indicator_common_id, indicator_common_label, is_default,
         definition_type, expression,
-        format_as, threshold_direction, threshold_green, threshold_yellow,
-        group_label, sort_order, updated_at
+        format_as, thresholds, sort_order, updated_at
       ) VALUES (
         v_new_id, ci.label, FALSE,
         'derived', '(' || v_num || ' / ' || v_den || ')',
-        ci.format_as, ci.threshold_direction, ci.threshold_green, ci.threshold_yellow,
-        ci.group_label, ci.sort_order, CURRENT_TIMESTAMP
+        ci.format_as, v_thresholds, ci.sort_order, CURRENT_TIMESTAMP
       );
     ELSE
       IF ci.denom_population_type IS NULL
@@ -255,8 +318,7 @@ BEGIN
       INSERT INTO indicators (
         indicator_common_id, indicator_common_label, is_default,
         definition_type, expression,
-        format_as, threshold_direction, threshold_green, threshold_yellow,
-        group_label, sort_order, updated_at
+        format_as, thresholds, sort_order, updated_at
       ) VALUES (
         v_new_id, ci.label, FALSE,
         'derived',
@@ -266,8 +328,7 @@ BEGIN
                ELSE '([population:' || ci.denom_population_type || '] * '
                     || v_fraction || ')'
              END,
-        ci.format_as, ci.threshold_direction, ci.threshold_green, ci.threshold_yellow,
-        ci.group_label, ci.sort_order, CURRENT_TIMESTAMP
+        ci.format_as, v_thresholds, ci.sort_order, CURRENT_TIMESTAMP
       );
     END IF;
   END LOOP;

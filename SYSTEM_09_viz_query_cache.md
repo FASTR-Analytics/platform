@@ -31,8 +31,8 @@ globs:
 > is no runtime flag; the pg wrappers survive solely as the parity rig's
 > baseline until demolition); caches are run-keyed — the
 > `moduleLastRun`/`datasetsVersion` dimensions and key tables below are STALE,
-> see SYSTEM_03's cache catalog for the live keying (`PO_CACHE_VERSION` is "13",
-> `po_detail_v7`), which is also authoritative for the stale `po_detail_v2` /
+> see SYSTEM_03's cache catalog for the live keying (`PO_CACHE_VERSION` is "18",
+> `po_detail_v10`), which is also authoritative for the stale `po_detail_v2` /
 > `PO_CACHE_VERSION "5"` table and paragraph further down this file; calendar threads via `QueryContext`, not `getCalendar()` at
 > the call sites.
 
@@ -693,7 +693,7 @@ inversion in Open items):
 
 | Cache            | Uniqueness                                                              | Version hash                        |
 | ---------------- | ----------------------------------------------------------------------- | ----------------------------------- |
-| `po_detail_v7`   | project + po id                                                         | `poLastUpdated\|runId\|scopeToken`  |
+| `po_detail_v10`  | project + po id                                                         | `poLastUpdated\|runId\|scopeToken`  |
 | `po_items`       | runId + resultsObject + `hashFetchConfig` + scopeToken                  | `PO_CACHE_VERSION`                  |
 | `metric_info`    | runId + metric + scopeToken                                             | `PO_CACHE_VERSION`                  |
 | `replicant_opts` | runId + resultsObject + replicateBy + `hashFetchConfig` + scopeToken    | `PO_CACHE_VERSION`                  |
@@ -717,10 +717,10 @@ mismatch silently no-ops the cache. Error envelopes are never stored
 (`shouldStore: false`).
 
 Two invalidation knobs, one rule each: **`PO_CACHE_VERSION`** (currently
-"15") is folded into the version hash — bump it when a code change alters the
+"18") is folded into the version hash — bump it when a code change alters the
 _meaning_ of a cached payload without any data change (full history in the
-comment block above the constant; "15" is the AA2-scope key change). **The
-key prefix** (`po_detail` → `po_detail_v7`) — bump it when the payload
+comment block above the constant; "18" is the thresholds-as-CF-source
+shape). **The key prefix** (`po_detail` → `po_detail_v10`) — bump it when the payload
 _shape_ changes (the version hash only tracks row `last_updated` + run +
 scope, so a deploy adding a field would keep serving old-shape payloads for
 unmodified rows). The `po_detail` hit path additionally

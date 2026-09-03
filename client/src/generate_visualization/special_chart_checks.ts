@@ -25,11 +25,6 @@ export const SPECIAL_DISRUPTIONS_CHART_V2_METRICS = [
   "m11-01-02",
 ];
 
-// m8-01-01 is kept although m008 is dropped (PLAN_1a §0 clause 2): stored
-// vocabulary never shrinks, and a frozen figure saved before the drop still
-// carries that metric id in its bundle. It is inert data here, not a code path.
-export const SPECIAL_SCORECARD_TABLE_METRICS = ["m12-01-01", "m8-01-01"];
-
 // Metrics whose displayed values can be NEGATIVE. Their value axis resolves its
 // minimum with "auto-zero" (fit below 0 when the data goes there, otherwise
 // anchor at 0) instead of flooring at 0 — which draws negative values outside
@@ -92,15 +87,7 @@ export function canUseSpecialDisruptionsChartV2(metricId: string): boolean {
   return SPECIAL_DISRUPTIONS_CHART_V2_METRICS.includes(metricId);
 }
 
-export function canUseSpecialScorecardTable(metricId: string): boolean {
-  return SPECIAL_SCORECARD_TABLE_METRICS.includes(metricId);
-}
-
 // "Is X mode currently active?" — controls rendering behavior
-export function isSpecialScorecardTableActive(config: PresentationObjectConfig): boolean {
-  return config.s.specialScorecardTable === true && config.d.type === "table";
-}
-
 export function isSpecialBarChartActive(config: PresentationObjectConfig): boolean {
   return config.s.specialBarChart === true && config.d.type === "timeseries";
 }

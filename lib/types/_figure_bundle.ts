@@ -16,6 +16,7 @@ import type { IndicatorMetadataDisplay } from "./indicators.ts";
 import type { PeriodBounds } from "./presentation_objects.ts";
 import type { ResultsValueForVisualization } from "./modules.ts";
 import { presentationObjectConfigSchema } from "./_presentation_object_config.ts";
+import { thresholdsRuleSchema } from "./conditional_formatting.ts";
 import { ALL_INSTANCE_FISCAL_YEARS } from "./instance.ts";
 
 // ── Sub-schemas (matching existing lib types exactly) ────────────────────────
@@ -37,10 +38,7 @@ export const indicatorMetadataSchema = z.strictObject({
   id: z.string(),
   label: z.string(),
   format_as: z.enum(["percent", "number", "rate_per_10k"]).optional(),
-  threshold_direction: z.enum(["higher_is_better", "lower_is_better"])
-    .optional(),
-  threshold_green: z.number().optional(),
-  threshold_yellow: z.number().optional(),
+  thresholds: thresholdsRuleSchema.optional(),
   group_label: z.string().optional(),
   sort_order: z.number().optional(),
 });
@@ -51,9 +49,12 @@ const _im: Required<IndicatorMetadataDisplay> = {
   id: "",
   label: "",
   format_as: "number",
-  threshold_direction: "higher_is_better",
-  threshold_green: 0,
-  threshold_yellow: 0,
+  thresholds: {
+    cutoffs: [],
+    buckets: [{ color: "", label: "" }],
+    direction: "higher-is-better",
+    noDataColor: "",
+  },
   group_label: "",
   sort_order: 0,
 };

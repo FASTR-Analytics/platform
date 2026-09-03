@@ -1475,10 +1475,9 @@ export function VisualizationEditorInner(p: InnerProps) {
                               // conditional-formatting threshold bucket's color:
                               // reconcile fires only the leaf `s.cfThresholdBuckets
                               // [i].color`, which a shallow top-level read misses).
-                              // JSON.stringify recursively reads every nested
-                              // property, subscribing to all of them.
-                              void JSON.stringify(tempConfig.s);
-                              void JSON.stringify(tempConfig.t);
+                              // Same primitive as the fetch effect above.
+                              trackStore(tempConfig.s);
+                              trackStore(tempConfig.t);
                               if (
                                 _type === "timeseries" &&
                                 keyedItemsHolder.ih.status === "ok" &&

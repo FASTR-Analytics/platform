@@ -24,6 +24,7 @@ import {
   writeIdentifier,
   writeIndicatorExpression,
 } from "./indicator_expression/mod.ts";
+import type { ThresholdsRule } from "./types/conditional_formatting.ts";
 import type {
   CommonIndicator,
   CommonIndicatorType,
@@ -44,10 +45,7 @@ export type CommonIndicatorCatalogRow = {
   expression: string | null;
   slot_map: Record<string, string> | null;
   format_as: IndicatorFormat;
-  threshold_direction: "higher_is_better" | "lower_is_better" | null;
-  threshold_green: number | null;
-  threshold_yellow: number | null;
-  group_label: string;
+  thresholds: ThresholdsRule | null;
   sort_order: number;
 };
 
@@ -96,10 +94,7 @@ export function resolveCommonIndicatorCatalog(
       indicator_common_id: common.indicator_common_id,
       indicator_common_label: common.indicator_common_label,
       format_as: common.format_as,
-      threshold_direction: common.thresholds?.direction ?? null,
-      threshold_green: common.thresholds?.green ?? null,
-      threshold_yellow: common.thresholds?.yellow ?? null,
-      group_label: common.group_label,
+      thresholds: common.thresholds,
       sort_order: common.sort_order,
     };
 

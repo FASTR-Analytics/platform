@@ -180,10 +180,9 @@ function getCustomOrderSort(
 // period axis wrong:
 //   - "by-label" compares the text getDateLabelReplacements produced, so a
 //     month axis reads Apr, Feb, Jan, Jun.
-//   - { byIdOrder: indicatorIds } (the scorecard order, applied to every axis)
-//     matches no period id, so every header ties at POSITIVE_INFINITY and falls
-//     through to sortByIdOrder's localeCompare(label) tie-break — identically
-//     alphabetical.
+//   - { byIdOrder: indicatorIds } matches no period id, so every header ties
+//     at POSITIVE_INFINITY and falls through to sortByIdOrder's
+//     localeCompare(label) tie-break — identically alphabetical.
 //
 // The order is a RULE, not an id list derived from the rows. Stored figures are
 // FigureBundles rebuilt through buildFigureInputs at every render (nothing
@@ -229,23 +228,16 @@ function getPeriodAxisSort(prop: string | undefined): HeaderSortConfig | undefin
 //      value-props dimension.
 //   3. The user's customValueOrder wins (an explicit choice beats every rule,
 //      chronology included), with the roll-up sentinel folded in by
-//      getCustomOrderSort. Suppressed in scorecard mode, whose
-//      customSortHeaders own whole-table ordering.
+//      getCustomOrderSort.
 //   4. Period dims are chronological, always — see getPeriodAxisSort for why
 //      fixed-width ids make plain "by-id" chronological.
-//   5. The rolled-up dimension is alphabetical with the sentinel pinned —
-//      checked before the scorecard base so a scorecard's rolled axis keeps
-//      its pin. Dimension-keyed, so a duplicate disOpt entry on another axis
-//      pins there too (it reads the same grid column, sentinel included).
-//   6. Scorecard mode: every remaining axis gets the whole-table
-//      customSortHeaders byIdOrder. Deliberately a spray, not
-//      indicator-axis-only: buildIndicatorSortOrder emits [id, label] pairs
-//      so it matches whichever axis carries indicator ids OR labels, and
-//      non-matching axes fall into the by-label tie-break.
-//   7. indicator_common_id gets the catalog order on whichever axis it
+//   5. The rolled-up dimension is alphabetical with the sentinel pinned.
+//      Dimension-keyed, so a duplicate disOpt entry on another axis pins
+//      there too (it reads the same grid column, sentinel included).
+//   6. indicator_common_id gets the catalog order on whichever axis it
 //      occupies. hfa/iceh indicator dims stay by-label — no client-side
 //      catalog order exists for them.
-//   8. Everything else is alphabetical by displayed label, sentinel-pinned
+//   7. Everything else is alphabetical by displayed label, sentinel-pinned
 //      when the roll-up is active (the pins are id-keyed no-ops on axes
 //      without sentinel rows).
 // `indicatorSortOrder` is the ATTACHED PACKAGE's catalog order — the ids of
@@ -257,14 +249,11 @@ export function getAxisSort(
   config: PresentationObjectConfig,
   axisProp: DisaggregationOption | "--v" | undefined,
   indicatorSortOrder: string[],
-  scorecardSortHeaders?: string[],
 ): HeaderSortConfig | undefined {
   if (axisProp === undefined || axisProp === "--v") {
     return undefined;
   }
-  const customOrder = scorecardSortHeaders
-    ? undefined
-    : getCustomOrderForAxis(config, axisProp);
+  const customOrder = getCustomOrderForAxis(config, axisProp);
   if (customOrder) {
     return getCustomOrderSort(config, customOrder, axisProp);
   }
@@ -274,9 +263,6 @@ export function getAxisSort(
   }
   if (isRollupActive(config) && getRollupDimension(config) === axisProp) {
     return getRollupAwareSort(config);
-  }
-  if (scorecardSortHeaders) {
-    return { byIdOrder: scorecardSortHeaders };
   }
   if (axisProp === "indicator_common_id") {
     return { byIdOrder: indicatorSortOrder };
@@ -340,7 +326,6 @@ export function getTableJsonDataConfigFromPresentationObjectConfig(
   indicatorSortOrder: string[],
   localization: FigureLocalization,
   jsonArray?: any[],
-  customSortHeaders?: string[],
 ): TableJsonDataConfig {
   if (config.d.type !== "table") {
     throw new Error("Bad config type");
@@ -377,10 +362,10 @@ export function getTableJsonDataConfigFromPresentationObjectConfig(
     rowGroupProp,
     nProps,
     sort: {
-      colGroup: getAxisSort(config, colGroupProp, indicatorSortOrder, customSortHeaders),
-      col: getAxisSort(config, colProp, indicatorSortOrder, customSortHeaders),
-      rowGroup: getAxisSort(config, rowGroupProp, indicatorSortOrder, customSortHeaders),
-      row: getAxisSort(config, rowProp, indicatorSortOrder, customSortHeaders),
+      colGroup: getAxisSort(config, colGroupProp, indicatorSortOrder),
+      col: getAxisSort(config, colProp, indicatorSortOrder),
+      rowGroup: getAxisSort(config, rowGroupProp, indicatorSortOrder),
+      row: getAxisSort(config, rowProp, indicatorSortOrder),
     },
     // The total row must not stretch auto conditional-formatting domains.
     liveDomainExcludeIds: isRollupActive(config) ? ROLLUP_PIN_IDS : undefined,

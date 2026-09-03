@@ -1,4 +1,5 @@
 import {
+  type DisplayedRule,
   type IndicatorFormat,
   PresentationObjectConfig,
   PresentationObjectDetail,
@@ -18,6 +19,7 @@ type Props = {
   /** Format the figure's values will actually be written in (resolved from the
    *  draft config — HFA metrics all declare "number"). */
   effectiveFormatAs: IndicatorFormat;
+  indicatorCfSource: DisplayedRule[] | undefined;
 };
 
 export function ChartStyleControls(p: Props) {
@@ -170,6 +172,7 @@ export function ChartStyleControls(p: Props) {
         editCustomSeriesStyles={p.editCustomSeriesStyles}
         isColorOverridden={() => false}
         effectiveFormatAs={p.effectiveFormatAs}
+        indicatorCfSource={p.indicatorCfSource}
       />
     </>
   );

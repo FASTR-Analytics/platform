@@ -14,6 +14,7 @@ import {
   ALL_DISAGGREGATION_OPTIONS,
   type DisaggregationOption,
 } from "./disaggregation_options.ts";
+import type { ThresholdsRule } from "./conditional_formatting.ts";
 import type { DatasetType } from "./datasets.ts";
 import type { IndicatorFormat } from "./indicators.ts";
 import type { ResultsValue } from "./modules.ts";
@@ -126,7 +127,7 @@ export type ResultsValueInfoForPresentationObject = {
     [key in DisaggregationOption]?: DisaggregationPossibleValuesStatus;
   };
   // Indicator id → its own value format, for every indicator the metric's
-  // module knows about. The input resolveEffectiveFormat needs, delivered
+  // module knows about. The input resolveEffectiveIndicatorFacts needs, delivered
   // pre-query so the editor can resolve a figure's format from its config
   // alone.
   //
@@ -135,6 +136,10 @@ export type ResultsValueInfoForPresentationObject = {
   // dimension came back `too_many_values`, and a filterBy can still name
   // specific indicators on such a dimension. A flat map has no such hole.
   indicatorFormats: Record<string, IndicatorFormat>;
+  // Indicator id → its own CF rule, for every indicator that declares one.
+  // Flat beside indicatorFormats for the same reason; the other input the
+  // config-based facts resolver needs (ruleForValue, displayedRules).
+  indicatorRules: Record<string, ThresholdsRule>;
 };
 
 // Discriminated union for replicant option states
@@ -588,6 +593,13 @@ export function getStartingConfigForPresentationObject(
     s: {
       ...DEFAULT_S_CONFIG,
       content: VIZ_TYPE_CONFIG[presentationOption].defaultContent,
+      // An "indicator" metric's values are each indicator's own quantity, so
+      // a new figure colours by each indicator's own rule from the start. No
+      // catalog is at hand here; an indicator with no rule simply renders
+      // uncoloured with no legend.
+      ...(resultsValue.formatAs === "indicator"
+        ? { cfMode: "indicator" as const }
+        : {}),
     },
     t: DEFAULT_T_CONFIG,
   };

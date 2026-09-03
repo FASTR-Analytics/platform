@@ -8,8 +8,9 @@ globs:
   - client/src/state/project/t2_images.ts
   - lib/brand_presets.ts
   - lib/indicator_format_metrics.ts
+  - lib/indicator_value_scale.ts
   - lib/key_colors.ts
-  - lib/resolve_effective_format.ts
+  - lib/resolve_effective_indicator_facts.ts
   - lib/resolve_figure_calendar.ts
   - lib/types/_figure_bundle.ts
   - lib/types/_slide_fonts.ts
@@ -125,11 +126,12 @@ FigureBundle = {
   items: Record<string, string | number | null>[]; // FROZEN queried rows (post replicant-resolution)
   resultsValue: ResultsValueForVisualization; // {formatAs, valueProps, valueLabelReplacements?}
                                            // — the EXISTING type, verbatim (see gate below)
-  indicatorMetadata: IndicatorMetadata[];  // label replacements + scorecard sort + per-indicator formats
-                                           // (8-field existing type). Sourced from the run manifest's
-                                           // indicator catalog — the DB-era derivation moved into
-                                           // server/runs/indicator_catalog.ts VERBATIM (audited: no
-                                           // repair, so stored bundles needed no metadata sweep)
+  indicatorMetadata: IndicatorMetadataDisplay[]; // label replacements + catalog sort + per-indicator
+                                           // formats and CF rules (`thresholds`). Sourced from the
+                                           // run manifest's indicator catalog
+                                           // (server/runs/indicator_catalog.ts); the traffic-light
+                                           // pair stored bundles carried was converted into
+                                           // `thresholds` by the _figure_block sweep (PLAN_1d)
   dateRange?: PeriodBounds;                // {min,max}: DATE_RANGE caption text + earliest/latest point
   geo?: GeoRef;                            // maps only — {kind:"level"} | {kind:"data"} (see Geo)
   localization: { language; calendar; countryIso3 }; // REQUIRED, frozen — see Localization
@@ -300,7 +302,7 @@ the table data config
 ([get_data_config_from_po.ts](client/src/generate_visualization/get_data_config_from_po.ts)):
 `{ <valueProp>: __n_<valueProp> }` whenever the toggle is on. The display half
 is `getTableColHeadersContent` in `_0_common.ts`, wired into `_1_standard.ts`
-only — scorecard tables are out of scope.
+(every table renders through it).
 
 - **Column item headers only.** panther fires the header `textFormatter` for
   col-GROUP headers as well, with a span-wide digest, so the formatter gates on
@@ -328,8 +330,10 @@ checks in
 [special_chart_checks.ts](client/src/generate_visualization/special_chart_checks.ts),
 the single home for mode gating (its per-metric `canUse*` arrays decide whether
 the editor shows a mode's toggle). Dispatch priority in
-`getStyleFromPresentationObject`: scorecard → coverage → percent-change →
-disruptions → disruptions-v2 → standard.
+`getStyleFromPresentationObject`: coverage → percent-change → disruptions →
+disruptions-v2 → standard. Every mode is a hardcoded rendering of a specific
+constant-format metric; "colour each value by its own indicator's rule" is
+NOT a mode but the `indicator` conditional-formatting source (below).
 
 | Mode           | Flag (`config.s`)           | Gate (`d.type`) | Metrics                  | Builder behavior                                                                                                             |
 | -------------- | --------------------------- | --------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
@@ -337,7 +341,6 @@ disruptions → disruptions-v2 → standard.
 | Percent change | `specialBarChart`           | timeseries      | m3-01-01                 | red/green bar coloring + signed value labels from period-to-period diff vs `specialBarChartDiffThreshold` (default 0.1)      |
 | Disruptions    | `specialDisruptionsChart`   | timeseries      | m3-02/03/04/05-01        | red/green diff areas, solid-vs-dashed lines distinguishing the two series                                                    |
 | Disruptions V2 | `specialDisruptionsChartV2` | timeseries      | m11-01-01/02             | grey credible band + green/red exceedance via panther `areas.diff.pairs` on the wide 4-series shape (`_6_disruptions_v2.ts`) |
-| Scorecard      | `specialScorecardTable`     | table           | m8-01-01                 | full table style driven by `indicatorMetadata` (`_5_scorecard.ts`)                                                           |
 
 Legacy `diffAreas` configs are converted to `specialDisruptionsChart` by the
 po_config data transform (Block 9 — S2's machinery); no render or UI adapter
@@ -352,17 +355,41 @@ forces the hidden properties to safe defaults on every mode switch (e.g.
 `barsStacked=false`). The renderer builders hardcode those same values as the
 safety net for saved configs never touched via the UI.
 
+**Conditional formatting: four sources, one paint path.** `cfMode` selects
+`none`, `scale`, `thresholds` (a figure-level `ThresholdsRule`) or
+`indicator` ("each value's colour and legend come from its own indicator's
+rule", `IndicatorMetadata.thresholds`). All of them paint through the SAME
+mechanism: the content sites (`getTableCellsContent`, `getMapRegionsContent`,
+the bars branch of `_1_standard.ts`) emit panther's value-colour sentinel and
+`compileCfToValuesColorFunc` (`conditional_formatting/compile.ts`) compiles
+the source into ONE figure-wide `FigureValuesColorFunc`. Only the `indicator`
+source reads the element it is handed: its headers walk the id chain to
+`ruleForValue`, and a value whose indicator has no rule returns `undefined` —
+panther's decline, rendered as "none" on a cell or region and as the series
+colour on a bar. THE boundary rule (an exact cutoff belongs to the better
+side; diverging rules ignore direction) is `thresholdBucketIndex` in
+`lib/types/conditional_formatting.ts`, honoured by colour (panther's
+`boundary` option), label (`bucketLabels`), legend and AI text alike. A
+"scorecard" is simply a table whose source is `indicator` (m012's preset).
+
 **Legends.** `getLegendFromConfig`
 ([conditional_formatting.ts](client/src/generate_visualization/conditional_formatting.ts))
 returns the hardcoded per-mode `LegendInput` for active special modes (localized
 from the figure's `FigureLocalization` — EN/FR/PT), and otherwise falls through
-to the user-facing conditional-formatting compile path (`selectCf` +
-`compileCfToLegend` in `conditional_formatting/compile.ts`).
+to the conditional-formatting compile path (`selectCf` + `compileCfToLegend`),
+emitted ONLY for figures that paint CF (`figurePaintsCf`: table, map, bars) so
+a stray `cf*` state never replaces the categorical series legend of lines,
+points or slices. A `thresholds` legend lists buckets best-first
+(`legendBucketOrder`) with authored labels or the derived wording. The
+`indicator` legend is DERIVED, never authored: unanimous displayed rules
+(`displayedRules`, keyed on cutoffs + colours + labels + the owner's format) →
+that rule's list in its owner's format; differing → the distinct swatches with
+a "varies by indicator" note; none → no legend.
 
-**Effective format.** Split on purpose, one authoritative site each: THE
-resolution RULE is the file header of
-[resolve_effective_format.ts](lib/resolve_effective_format.ts); what follows is
-the WIRING map — which surface takes which of the two answers, and why.
+**Effective indicator facts.** Split on purpose, one authoritative site each:
+THE resolution RULE is the file header of
+[resolve_effective_indicator_facts.ts](lib/resolve_effective_indicator_facts.ts);
+what follows is the WIRING map — which surface takes which answer, and why.
 
 Every metric DECLARES its format source (`formatAs: "percent" | "number" |
 "indicator"`, authored in `wb-fastr-modules`). `"percent"`/`"number"` mean the
@@ -378,17 +405,25 @@ modules are dropped: stored blobs still name them, and stored vocabulary never
 shrinks. It never grows — a metric authored now declares `"indicator"` itself,
 as `m12-01-01` does. See "Repair and normalization" below.
 
-`resolveEffectiveFormat` (config-based, pre-query, for the editor) and
-`resolveEffectiveFormatFromItems` (render twin over a stored `FigureBundle`)
-both return `{ axisFormat, formatForValue(ids) }`. Which one a consumer wants is
-decided by WHAT it is formatting, never by a flag:
+`resolveEffectiveIndicatorFacts` (config-based, pre-query, for the editor;
+takes the `indicatorFormats` + `indicatorRules` maps of the metric-info
+payload) and `resolveEffectiveIndicatorFactsFromItems` (render twin over a
+stored `FigureBundle`) both return `{ axisFormat, formatForValue(ids),
+declaredFormatForValue(ids), ruleForValue(ids), displayedRules }`. Which one a
+consumer wants is decided by WHAT it is doing, never by a flag:
 
-- `formatForValue(ids)` — THE source for any individual value. Every surface
-  that writes one number calls it: table cells (`getTableCellsContent`),
+- `ruleForValue(ids)` — THE source for a value's CF rule under the `indicator`
+  source (`compileCfToValuesColorFunc`): the same id chains as the format, the
+  same first-DECLARING stopping rule; an all-`undefined` chain (the indicator
+  pinned by `filterBy`) resolves to the sole displayed indicator's rule, and an
+  indicator that declares no rule is never coloured by a neighbour's.
+- `formatForValue(ids)` — THE source for any individual value's format. Every
+  surface that writes one number calls it: table cells (`getTableCellsContent`),
   chart/timeseries data labels (`_1_standard.ts`), map regions
-  (`getMapRegionsContent`), scorecard cells (`_5_scorecard.ts`). The caller
-  passes the ids that identify the value, most specific first, through the two
-  shared helpers `getIndicatorIdsForCell` / `getIndicatorIdsForChartValue`, and
+  (`getMapRegionsContent`). The caller
+  passes the ids that identify the value, most specific first, through the
+  shared helpers `getIndicatorIdsForCell` / `getIndicatorIdsForChartValue` /
+  `getIndicatorIdsForMapRegion`, and
   the first id that DECLARES a format wins — not the first id found, because
   the catalog deliberately carries label-only entries (HFA categories and
   variant items, ICEH strat codes, raw common indicators) that would otherwise
@@ -449,9 +484,10 @@ value to 6 decimals — ×10,000 on a stored fraction otherwise redisplays the
 "3" the user just typed as `2.9999999999999996`.
 
 **`rate_per_10k`** is stored as a bare rate and written as a per-10,000 count.
-Two rules, each with one implementation: `scaleValueForFormat` owns the
-scaling (×100 for percent, ×10,000 for rate — `formatIndicatorValue` and the
-scorecard's threshold comparison both go through it), and `formatRateAuto` owns
+Two rules, each with one implementation: `scaleValueForFormat` /
+`unscaleValueForFormat` (`lib/indicator_value_scale.ts`) own the scaling (×100
+for percent, ×10,000 for rate — `formatIndicatorValue`, the CF and indicator
+editors' inputs and the AI text all go through it), and `formatRateAuto` owns
 the decimals — the fewest (≤3) that print the scaled value EXACTLY, decided per
 value. Every rate LABEL follows `formatRateAuto`: the scale axis (via panther's
 `tickLabelFormatter` escape, since panther's `format` field is two-way), data
@@ -673,7 +709,7 @@ the in-app dashboard editor builds the same bundle type but has no export entry
 
 - Sample sizes, deliberately deferred out of v1 (each is app-side only — panther
   already supports all of them): row and group headers, per-cell display via
-  `TableCellInfo.sampleN`, scorecard mode, and AI-tool exposure of
+  `TableCellInfo.sampleN`, and AI-tool exposure of
   `s.showNValues` (no `s` field is AI-editable today). If a per-cell formatter
   is ever added, `getTableExportAoa` hand-builds its cell infos and would need
   to source them from panther, the way it now sources header labels.

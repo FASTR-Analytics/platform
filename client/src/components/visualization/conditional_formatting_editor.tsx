@@ -1,13 +1,19 @@
 import {
   type ConditionalFormatting,
   type ConditionalFormattingScale,
-  type ConditionalFormattingThresholds,
+  type DisplayedRule,
   LEGACY_CF_PRESET_IDS,
   LEGACY_CF_PRESETS,
   type LegacyCfPresetId,
-  deriveBucketLabels,
+  bucketLabels,
+  getLanguage,
   type IndicatorFormat,
+  legendBucketOrder,
+  scaleValueForFormat,
   t3,
+  type ThresholdDirection,
+  type ThresholdsRule,
+  unscaleValueForFormat,
 } from "lib";
 import {
   Button,
@@ -16,6 +22,7 @@ import {
   ColorPicker,
   type ColorKeyOrString,
   type ContinuousScaleConfig,
+  Input,
   NumberInput,
   PercentSelect,
   RadioGroup,
@@ -33,11 +40,14 @@ type Props = {
   formatAs: IndicatorFormat;
   decimalPlaces: number;
   allowNegative?: boolean;
+  // Present only for an "indicator" metric (its values are each indicator's
+  // own quantity): offers the `indicator` source and lists the displayed
+  // indicators' own rules read-only beside it.
+  indicatorSource?: DisplayedRule[];
 };
 
-type Mode = "none" | "scale" | "thresholds";
+type Mode = ConditionalFormatting["type"];
 
-const NO_DATA_DEFAULT_THRESHOLDS = "#ffffff";
 const NO_DATA_DEFAULT_SCALE = "#f0f0f0";
 
 export function ConditionalFormattingEditor(p: Props) {
@@ -48,6 +58,10 @@ export function ConditionalFormattingEditor(p: Props) {
       p.onChange({ type: "none" });
       return;
     }
+    if (mode === "indicator") {
+      p.onChange({ type: "indicator" });
+      return;
+    }
     if (mode === "scale") {
       p.onChange(cf().type === "scale" ? cf() : defaultScaleCf());
       return;
@@ -55,21 +69,32 @@ export function ConditionalFormattingEditor(p: Props) {
     p.onChange(cf().type === "thresholds" ? cf() : defaultThresholdsCf());
   };
 
+  const modeItems = () => [
+    { id: "none" as const, label: t3({ en: "Off", fr: "Désactivé", pt: "Desativado" }) },
+    ...(p.indicatorSource
+      ? [{
+        id: "indicator" as const,
+        label: t3({ en: "Indicator", fr: "Indicateur", pt: "Indicador" }),
+      }]
+      : []),
+    { id: "scale" as const, label: t3({ en: "Scale", fr: "Échelle", pt: "Escala" }) },
+    {
+      id: "thresholds" as const,
+      label: t3({ en: "Thresholds", fr: "Seuils", pt: "Limiares" }),
+    },
+  ];
+
   return (
     <div class="ui-spy-sm">
       <ButtonGroup<Mode>
-        items={[
-          { id: "none", label: t3({ en: "Off", fr: "Désactivé", pt: "Desativado" }) },
-          { id: "scale", label: t3({ en: "Scale", fr: "Échelle", pt: "Escala" }) },
-          {
-            id: "thresholds",
-            label: t3({ en: "Thresholds", fr: "Seuils", pt: "Limiares" }),
-          },
-        ]}
+        items={modeItems()}
         value={cf().type}
         onChange={handleModeChange}
         size="sm"
       />
+      <Show when={cf().type === "indicator" && p.indicatorSource}>
+        {(rules) => <IndicatorRulesListing rules={rules()} />}
+      </Show>
       <Show when={cf().type === "scale"}>
         <ScalePanel
           cf={cf() as ConditionalFormattingScale}
@@ -80,14 +105,74 @@ export function ConditionalFormattingEditor(p: Props) {
       </Show>
       <Show when={cf().type === "thresholds"}>
         <ThresholdsPanel
-          cf={cf() as ConditionalFormattingThresholds}
-          onChange={p.onChange}
+          cf={cf() as ThresholdsRule}
+          onChange={(rule) => p.onChange({ type: "thresholds", ...rule })}
           formatAs={p.formatAs}
           decimalPlaces={p.decimalPlaces}
           allowNegative={p.allowNegative}
+          showLabels={false}
+          showPresets={true}
         />
       </Show>
     </div>
+  );
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Indicator source — the displayed indicators' own rules, read-only
+////////////////////////////////////////////////////////////////////////////////
+
+function IndicatorRulesListing(p: { rules: DisplayedRule[] }) {
+  return (
+    <StyleRevealGroup>
+      <div class="text-base-content-muted text-xs">
+        {t3({
+          en: "Each value is coloured by its own indicator's rule, set in the instance indicator dictionary.",
+          fr: "Chaque valeur est colorée selon la règle de son propre indicateur, définie dans le dictionnaire d'indicateurs de l'instance.",
+          pt: "Cada valor é colorido pela regra do seu próprio indicador, definida no dicionário de indicadores da instância.",
+        })}
+      </div>
+      <Show
+        when={p.rules.length > 0}
+        fallback={
+          <div class="text-base-content-muted text-xs">
+            {t3({
+              en: "None of the displayed indicators has a rule.",
+              fr: "Aucun des indicateurs affichés n'a de règle.",
+              pt: "Nenhum dos indicadores apresentados tem uma regra.",
+            })}
+          </div>
+        }
+      >
+        <For each={p.rules}>
+          {({ rule, formatAs }) => {
+            const labels = () =>
+              bucketLabels(
+                rule,
+                buildAutoValueFormatter(rule.cutoffs, formatAs),
+                getLanguage(),
+              );
+            return (
+              <div class="flex flex-col gap-1">
+                <For each={legendBucketOrder(rule)}>
+                  {(i) => (
+                    <div class="flex items-center gap-2">
+                      <span
+                        class="inline-block h-4 w-4 flex-none rounded border"
+                        style={{ "background-color": colorToString(rule.buckets[i].color) }}
+                      />
+                      <span class="text-base-content-muted text-xs">
+                        {labels()[i]}
+                      </span>
+                    </div>
+                  )}
+                </For>
+              </div>
+            );
+          }}
+        </For>
+      </Show>
+    </StyleRevealGroup>
   );
 }
 
@@ -271,17 +356,20 @@ function ScalePanel(p: {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Thresholds panel
+// Thresholds panel — shared by the figure CF editor and the instance
+// indicator editor. Presents DISPLAY units, stores STORED units.
 ////////////////////////////////////////////////////////////////////////////////
 
 const CUSTOM_PRESET_VALUE = "__custom__";
 
-function ThresholdsPanel(p: {
-  cf: ConditionalFormattingThresholds;
-  onChange: (v: ConditionalFormatting) => void;
+export function ThresholdsPanel(p: {
+  cf: ThresholdsRule;
+  onChange: (v: ThresholdsRule) => void;
   formatAs: IndicatorFormat;
   decimalPlaces: number;
   allowNegative?: boolean;
+  showLabels: boolean;
+  showPresets: boolean;
 }) {
   const matchedPreset = (): LegacyCfPresetId | undefined => {
     for (const id of LEGACY_CF_PRESET_IDS) {
@@ -308,10 +396,13 @@ function ThresholdsPanel(p: {
   const applyPreset = (id: string) => {
     if (id === CUSTOM_PRESET_VALUE) return;
     const preset = LEGACY_CF_PRESETS[id as LegacyCfPresetId];
-    if (preset) p.onChange(preset.value);
+    if (preset) {
+      const { type: _type, ...rule } = preset.value;
+      p.onChange(rule);
+    }
   };
 
-  const update = (patch: Partial<ConditionalFormattingThresholds>) => {
+  const update = (patch: Partial<ThresholdsRule>) => {
     p.onChange({ ...p.cf, ...patch });
   };
 
@@ -328,6 +419,15 @@ function ThresholdsPanel(p: {
 
   const setBucketColor = (i: number, color: string) => {
     const buckets = p.cf.buckets.map((b, j) => (j === i ? { ...b, color } : b));
+    update({ buckets });
+  };
+
+  const setBucketLabel = (i: number, label: string) => {
+    const buckets = p.cf.buckets.map((b, j) => {
+      if (j !== i) return b;
+      const { label: _old, ...rest } = b;
+      return label.trim() === "" ? rest : { ...rest, label };
+    });
     update({ buckets });
   };
 
@@ -351,26 +451,28 @@ function ThresholdsPanel(p: {
     update({ buckets: nextBuckets, cutoffs: nextCutoffs });
   };
 
-  const direction = (): "higher-is-better" | "lower-is-better" =>
+  const direction = (): ThresholdDirection =>
     p.cf.direction ?? "higher-is-better";
 
   const labels = () =>
-    deriveBucketLabels(
-      p.cf.cutoffs,
+    bucketLabels(
+      p.cf,
       buildAutoValueFormatter(p.cf.cutoffs, p.formatAs),
-      direction(),
+      getLanguage(),
     );
 
   return (
     <StyleRevealGroup>
-      <Select
-        label={t3({ en: "Preset", fr: "Préréglage", pt: "Predefinição" })}
-        value={matchedPreset() ?? CUSTOM_PRESET_VALUE}
-        options={presetOptions()}
-        onChange={applyPreset}
-        fullWidth
-      />
-      <RadioGroup<"higher-is-better" | "lower-is-better">
+      <Show when={p.showPresets}>
+        <Select
+          label={t3({ en: "Preset", fr: "Préréglage", pt: "Predefinição" })}
+          value={matchedPreset() ?? CUSTOM_PRESET_VALUE}
+          options={presetOptions()}
+          onChange={applyPreset}
+          fullWidth
+        />
+      </Show>
+      <RadioGroup<ThresholdDirection>
         label={t3({ en: "Direction", fr: "Direction", pt: "Direção" })}
         options={[
           {
@@ -383,9 +485,7 @@ function ThresholdsPanel(p: {
           },
         ]}
         value={direction()}
-        onChange={(v) =>
-          update({ direction: v as "higher-is-better" | "lower-is-better" })
-        }
+        onChange={(v) => update({ direction: v as ThresholdDirection })}
         horizontal
       />
       <div class="flex flex-col gap-1.5">
@@ -432,9 +532,23 @@ function ThresholdsPanel(p: {
                   onChange={(v) => setBucketColor(origI(), v)}
                   colorSet="standard"
                 />
-                <span class="text-base-content-muted text-xs">
-                  {labels()[origI()]}
-                </span>
+                <Show
+                  when={p.showLabels}
+                  fallback={
+                    <span class="text-base-content-muted text-xs">
+                      {labels()[origI()]}
+                    </span>
+                  }
+                >
+                  <div class="flex-1">
+                    <Input
+                      value={bucket.label ?? ""}
+                      onChange={(v) => setBucketLabel(origI(), v)}
+                      placeholder={labels()[origI()]}
+                      fullWidth
+                    />
+                  </div>
+                </Show>
                 <Show when={p.cf.buckets.length > 2}>
                   <div class="ml-auto">
                     <Button
@@ -491,10 +605,10 @@ function ValueInput(p: {
         <div class="flex flex-col">
           <NumberInput
             label={p.label}
-            value={scaleForInput(p.value, p.formatAs)}
-            onChange={(v) => p.onChange(unscaleFromInput(v, p.formatAs))}
-            min={p.min === undefined ? undefined : scaleForInput(p.min, p.formatAs)}
-            max={p.max === undefined ? undefined : scaleForInput(p.max, p.formatAs)}
+            value={scaleValueForFormat(p.value, p.formatAs)}
+            onChange={(v) => p.onChange(unscaleValueForFormat(v, p.formatAs))}
+            min={p.min === undefined ? undefined : scaleValueForFormat(p.min, p.formatAs)}
+            max={p.max === undefined ? undefined : scaleValueForFormat(p.max, p.formatAs)}
           />
           {/* The active unit must be VISIBLE: an "indicator" metric's
               axisFormat is filter-sensitive, so this control can silently
@@ -522,19 +636,6 @@ function ValueInput(p: {
   );
 }
 
-// Mirrors formatRateAuto's scaling on the way in and out — the control shows
-// per-10,000 counts because that is what the axis, the labels and the legend
-// all show. Rounded to 6 decimals: ×10000 on a stored fraction accumulates
-// float error (0.0003 → 2.9999999999999996) that NumberInput's String() would
-// otherwise display verbatim in the box the user just typed "3" into.
-function scaleForInput(v: number, formatAs: IndicatorFormat): number {
-  return formatAs === "rate_per_10k" ? Math.round(v * 10000 * 1e6) / 1e6 : v;
-}
-
-function unscaleFromInput(v: number, formatAs: IndicatorFormat): number {
-  return formatAs === "rate_per_10k" ? v / 10000 : v;
-}
-
 function defaultScaleCf(): ConditionalFormattingScale {
   return {
     type: "scale",
@@ -544,7 +645,7 @@ function defaultScaleCf(): ConditionalFormattingScale {
   };
 }
 
-function defaultThresholdsCf(): ConditionalFormattingThresholds {
+function defaultThresholdsCf(): ConditionalFormatting {
   return LEGACY_CF_PRESETS["fmt-90-80"].value;
 }
 
@@ -622,10 +723,7 @@ function colorToString(c: ColorKeyOrString): string {
   return "#cccccc";
 }
 
-function thresholdsEqual(
-  a: ConditionalFormattingThresholds,
-  b: ConditionalFormattingThresholds,
-): boolean {
+function thresholdsEqual(a: ThresholdsRule, b: ThresholdsRule): boolean {
   if (a.cutoffs.length !== b.cutoffs.length) return false;
   if (a.buckets.length !== b.buckets.length) return false;
   for (let i = 0; i < a.cutoffs.length; i++) {

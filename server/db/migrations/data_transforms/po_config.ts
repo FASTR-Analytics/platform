@@ -44,6 +44,8 @@
 //     disaggregateBy entry (rollup/rollupPosition), delete the d-level fields
 // 26. Fill missing timeseriesGrouping for timeseries configs from the
 //     bounded periodFilter's periodOption (hint-only; see block comment)
+// 27. specialScorecardTable → cfMode "indicator" (delete the flag); the
+//     scorecard table mode became the `indicator` CF source (PLAN_1d)
 //
 // =============================================================================
 
@@ -399,7 +401,6 @@ export function transformConfigS(
       s.specialBarChartDataLabels = "all-values";
     }
     if (!("specialCoverageChart" in s)) s.specialCoverageChart = false;
-    if (!("specialScorecardTable" in s)) s.specialScorecardTable = false;
     if (!("allowVerticalColHeaders" in s)) s.allowVerticalColHeaders = false;
     if (!("forceYMinAuto" in s)) s.forceYMinAuto = false;
     if (!("nColsInCellDisplay" in s)) s.nColsInCellDisplay = "auto";
@@ -409,9 +410,15 @@ export function transformConfigS(
   // Block 17: Rename content "areas" → "lines-area"
   if (s.content === "areas") s.content = "lines-area";
 
-  // Block 19: Ensure specialScorecardTable exists (full configs only)
-  if (fillDefaults && !("specialScorecardTable" in s)) {
-    s.specialScorecardTable = false;
+  // Block 27: the scorecard table mode → the `indicator` CF source (PLAN_1d).
+  // A former scorecard ALWAYS gets the explicit source, whether or not any
+  // displayed indicator carries a rule: it is what the figure meant, and a
+  // cell whose indicator has no rule renders uncoloured — which is what the
+  // scorecard did for it. Unguarded by fillDefaults so preset-shaped partial
+  // `s` blobs get the rename too; the key is deleted in every shape.
+  if ("specialScorecardTable" in s) {
+    if (s.specialScorecardTable === true) s.cfMode = "indicator";
+    delete s.specialScorecardTable;
   }
 }
 
@@ -426,6 +433,7 @@ export function configNeedsForcedTransform(
   config: Record<string, unknown>,
 ): boolean {
   const d = (config.d ?? {}) as Record<string, unknown>;
+  const s = (config.s ?? {}) as Record<string, unknown>;
   // Block 26's target also passes safeParse (timeseriesGrouping is optional in
   // the schema); force only when the fill would actually apply (hint present),
   // so an unfixable row doesn't trigger a rewrite every boot.
@@ -440,7 +448,8 @@ export function configNeedsForcedTransform(
     "includeNationalForAdminArea2" in d ||
     "includeNationalPosition" in d ||
     "includeAdminAreaRollup" in d ||
-    "adminAreaRollupPosition" in d
+    "adminAreaRollupPosition" in d ||
+    "specialScorecardTable" in s
   );
 }
 
@@ -456,7 +465,8 @@ export function rawJsonNeedsForcedTransform(raw: string): boolean {
     raw.includes('"includeNationalForAdminArea2"') ||
     raw.includes('"includeNationalPosition"') ||
     raw.includes('"includeAdminAreaRollup"') ||
-    raw.includes('"adminAreaRollupPosition"')
+    raw.includes('"adminAreaRollupPosition"') ||
+    raw.includes('"specialScorecardTable"')
   );
 }
 

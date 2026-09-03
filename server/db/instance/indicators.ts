@@ -14,13 +14,17 @@ import {
   MAX_INDICATOR_EXPRESSION_INGREDIENTS,
   populationIngredientId,
   resolveIndicatorExpression,
+  type ThresholdsRule,
+  thresholdsRuleSchema,
 } from "lib";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
 import { resolveAssetFilePath } from "./assets.ts";
 import { readCsvFile } from "@timroberton/panther";
 
 // The stored shape of one common indicator. `expression` carries a derived
-// indicator's formula and is NULL for a base one (PLAN_1a §1.2).
+// indicator's formula and is NULL for a base one (PLAN_1a §1.2). `thresholds`
+// is the CF rule as JSON text (every JSON column is text: JSON.parse on read,
+// JSON.stringify on write — SYSTEM_02), validated by the lib schema here.
 export type DBIndicatorCommon = {
   indicator_common_id: string;
   indicator_common_label: string;
@@ -28,15 +32,12 @@ export type DBIndicatorCommon = {
   definition_type: "base" | "derived";
   expression: string | null;
   format_as: "percent" | "number" | "rate_per_10k";
-  threshold_direction: "higher_is_better" | "lower_is_better" | null;
-  threshold_green: number | null;
-  threshold_yellow: number | null;
-  group_label: string;
+  thresholds: string | null;
   sort_order: number;
 };
 
 const COMMON_INDICATOR_COLUMNS =
-  `indicator_common_id, indicator_common_label, is_default, definition_type, expression, format_as, threshold_direction, threshold_green, threshold_yellow, group_label, sort_order`;
+  `indicator_common_id, indicator_common_label, is_default, definition_type, expression, format_as, thresholds, sort_order`;
 
 export function dbRowToCommonIndicator(row: DBIndicatorCommon): CommonIndicator {
   return {
@@ -45,16 +46,15 @@ export function dbRowToCommonIndicator(row: DBIndicatorCommon): CommonIndicator 
     is_default: row.is_default,
     definition: dbRowToDefinition(row),
     format_as: row.format_as,
-    thresholds: row.threshold_direction === null
+    thresholds: row.thresholds === null
       ? null
-      : {
-        direction: row.threshold_direction,
-        green: row.threshold_green!,
-        yellow: row.threshold_yellow!,
-      },
-    group_label: row.group_label,
+      : thresholdsRuleSchema.parse(JSON.parse(row.thresholds)),
     sort_order: row.sort_order,
   };
+}
+
+function thresholdsToDb(thresholds: ThresholdsRule | null): string | null {
+  return thresholds === null ? null : JSON.stringify(thresholds);
 }
 
 function dbRowToDefinition(row: DBIndicatorCommon): CommonIndicatorDefinition {
@@ -273,7 +273,6 @@ export type NewCommonIndicator = {
   definition: CommonIndicatorDefinition;
   format_as: CommonIndicator["format_as"];
   thresholds: CommonIndicator["thresholds"];
-  group_label: string;
 };
 
 // Create multiple common indicators with raw indicator mappings
@@ -382,17 +381,14 @@ export async function createIndicatorsCommon(
             INSERT INTO indicators (
               indicator_common_id, indicator_common_label, is_default,
               definition_type, expression,
-              format_as, threshold_direction, threshold_green, threshold_yellow,
-              group_label, sort_order, updated_at
+              format_as, thresholds, sort_order, updated_at
             )
             VALUES (
               ${indicator.indicator_common_id}, ${indicator.indicator_common_label}, FALSE,
               ${d.definition_type}, ${d.expression},
               ${indicator.format_as},
-              ${indicator.thresholds?.direction ?? null},
-              ${indicator.thresholds?.green ?? null},
-              ${indicator.thresholds?.yellow ?? null},
-              ${indicator.group_label}, ${sortOrder++}, CURRENT_TIMESTAMP
+              ${thresholdsToDb(indicator.thresholds)},
+              ${sortOrder++}, CURRENT_TIMESTAMP
             )
           `;
           // Only a base indicator is defined by mappings (the same rule
@@ -434,7 +430,6 @@ export async function updateIndicatorCommon(
     definition: CommonIndicatorDefinition;
     format_as: CommonIndicator["format_as"];
     thresholds: CommonIndicator["thresholds"];
-    group_label: string;
   },
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
@@ -476,10 +471,7 @@ export async function updateIndicatorCommon(
           definition_type = ${d.definition_type},
           expression = ${d.expression},
           format_as = ${update.format_as},
-          threshold_direction = ${update.thresholds?.direction ?? null},
-          threshold_green = ${update.thresholds?.green ?? null},
-          threshold_yellow = ${update.thresholds?.yellow ?? null},
-          group_label = ${update.group_label},
+          thresholds = ${thresholdsToDb(update.thresholds)},
           updated_at = CURRENT_TIMESTAMP
         WHERE indicator_common_id = ${oldIndicatorCommonId}
       `;

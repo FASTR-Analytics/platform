@@ -1,4 +1,5 @@
 import {
+  type DisplayedRule,
   type IndicatorFormat,
   PresentationObjectConfig,
   PresentationObjectDetail,
@@ -22,6 +23,8 @@ type Props = {
   /** Format the figure's values will actually be written in (resolved from the
    *  draft config — HFA metrics all declare "number"). */
   effectiveFormatAs: IndicatorFormat;
+  /** Present for an "indicator" metric: the displayed indicators' own rules. */
+  indicatorCfSource: DisplayedRule[] | undefined;
 };
 
 export function ChartLikeControls(p: Props) {
@@ -191,6 +194,7 @@ export function ChartLikeControls(p: Props) {
             formatAs={p.effectiveFormatAs}
             decimalPlaces={p.tempConfig.s.decimalPlaces}
             allowNegative={metricAllowsNegativeScale(p.poDetail.resultsValue.id)}
+            indicatorSource={p.indicatorCfSource}
           />
         </StyleSection>
       </Show>

@@ -26,13 +26,13 @@ import {
   getAbcQualScale,
   getAbcQualScale2,
   type DeckStyleContext,
-  type EffectiveFormat,
+  type EffectiveIndicatorFacts,
   type IndicatorFormat,
-  type IndicatorMetadata,
   getSlideFontInfo,
   isPieCompletionMode,
   isRollupActive,
   ROLLUP_PIN_IDS,
+  scaleValueForFormat,
 } from "lib";
 import { PresentationObjectConfig, selectCf } from "lib";
 
@@ -143,8 +143,8 @@ function structuralColor(
   return deckStyle ? deckStyle.colorPreset[slot] : { key: slot };
 }
 
-// Text colour for CF-coloured cells, shared by standard CF and the scorecard
-// so both respect a deck's colour preset.
+// Text colour for CF-coloured cells, whatever the CF source, so every one
+// respects a deck's colour preset.
 export function getCfCellTextColorStrategy(
   deckStyle: DeckStyleContext | undefined,
 ) {
@@ -155,10 +155,9 @@ export function getCfCellTextColorStrategy(
 }
 
 // The CF table look — white gridlines, no outer border, tightened header
-// padding — applies whenever cells carry conditional-formatting backgrounds.
-// `cfOn` is passed in because config.s alone cannot answer that: standard
-// tables colour cells via user CF (selectCf), scorecards via per-indicator
-// metadata thresholds. The two are the same look and must not drift apart.
+// padding — applies whenever cells carry conditional-formatting backgrounds,
+// from any CF source (a figure-level scale or thresholds rule, or each
+// indicator's own rule).
 export function getTableLayoutStyle(
   config: PresentationObjectConfig,
   deckStyle: DeckStyleContext | undefined,
@@ -187,12 +186,8 @@ export function getTableLayoutStyle(
 // assigns display options in order, so a three-dimension table lands its
 // indicator dimension on rowGroup.
 //
-// The LIST is shared with the scorecard; the stopping rule is not.
-// formatForValue stops at the first id declaring `format_as`,
-// getThresholdMetaForCell at the first declaring `threshold_direction`, so the
-// two could in principle resolve different indicators for the same cell. No
-// per-module catalog mixes entries where the two declarations diverge, so this
-// is unreachable today.
+// The same list feeds formatForValue and ruleForValue, each stopping at the
+// first id that DECLARES its fact.
 export function getIndicatorIdsForCell(
   effectiveValueProps: string[],
   info: Pick<
@@ -209,30 +204,9 @@ export function getIndicatorIdsForCell(
   ];
 }
 
-// The metadata entry a cell takes its threshold colouring from: the first id
-// along the chain whose entry actually DECLARES a threshold direction. Not the
-// first entry found — the catalog deliberately carries label-only entries (HFA
-// categories and variant items, ICEH strat codes, raw common indicators), so a
-// bare column header would otherwise mask the row indicator beside it.
-export function getThresholdMetaForCell(
-  metadataById: Map<string, IndicatorMetadata>,
-  effectiveValueProps: string[],
-  info: Pick<
-    TableCellInfo,
-    "colHeader" | "rowHeader" | "colGroupHeader" | "rowGroupHeader"
-  >,
-): IndicatorMetadata | undefined {
-  for (const id of getIndicatorIdsForCell(effectiveValueProps, info)) {
-    if (id === undefined) continue;
-    const meta = metadataById.get(id);
-    if (meta?.threshold_direction !== undefined) return meta;
-  }
-  return undefined;
-}
-
 export function getTableCellsContent(
   config: PresentationObjectConfig,
-  effectiveFormat: EffectiveFormat,
+  effectiveFormat: EffectiveIndicatorFacts,
   effectiveValueProps: string[],
   deckStyle: DeckStyleContext | undefined,
 ) {
@@ -293,20 +267,6 @@ export function getTableColHeadersContent(config: PresentationObjectConfig) {
       return `${info.label} (n=${toNum0(info.sampleN.max)})`;
     },
   };
-}
-
-// THE displayed magnitude of a stored value. Percent values are stored as
-// fractions and rates as bare rates, but everything a reader sees — and every
-// threshold a user types — is in the scaled units. Panther's percent formatter
-// applies the ×100 itself; it has no per-10,000 format at all, which is why
-// the rate scaling lives on this side. One site for both conventions.
-export function scaleValueForFormat(
-  value: number,
-  formatAs: IndicatorFormat,
-): number {
-  if (formatAs === "percent") return value * 100;
-  if (formatAs === "rate_per_10k") return value * 10000;
-  return value;
 }
 
 // THE 3-way value formatter. "rate_per_10k" formats as a number after scaling.
@@ -403,7 +363,7 @@ export function getIndicatorIdsForMapRegion(
 
 export function getMapRegionsContent(
   config: PresentationObjectConfig,
-  effectiveFormat: EffectiveFormat,
+  effectiveFormat: EffectiveIndicatorFacts,
   effectiveValueProps: string[],
   deckStyle: DeckStyleContext | undefined,
 ) {

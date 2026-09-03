@@ -47,11 +47,6 @@ const NOTE_SORTED_BY_VALUE: TranslatableString = {
   fr: "Non appliqué lorsque trié par valeur",
   pt: "Não aplicado quando ordenado por valor",
 };
-const NOTE_SCORECARD: TranslatableString = {
-  en: "Not applied in scorecard mode",
-  fr: "Non appliqué en mode tableau de bord",
-  pt: "Não aplicado no modo de tabela de pontuação",
-};
 const NOTE_NO_SLOT: TranslatableString = {
   en: "Not applied — no display position",
   fr: "Non appliqué — pas de position d'affichage",
@@ -83,20 +78,13 @@ export function CustomValueOrderSection(p: Props) {
 
   // Why a saved order would be inert for this dimension right now, or
   // undefined when it applies. Mirrors the precedence rules in
-  // get_data_config_from_po.ts: scorecard customSortHeaders owns table
-  // ordering; asc/desc value sorting beats the header sort on the chart
-  // indicator axis and pie slices; a dim sharing the multi-value-props slot
-  // occupies no axis. With duplicate disOpt entries the order applies if ANY
-  // occupied axis honors it.
+  // get_data_config_from_po.ts: asc/desc value sorting beats the header sort
+  // on the chart indicator axis and pie slices; a dim sharing the
+  // multi-value-props slot occupies no axis. With duplicate disOpt entries
+  // the order applies if ANY occupied axis honors it.
   const getInertNote = (
     disOpt: DisaggregationOption,
   ): TranslatableString | undefined => {
-    if (
-      p.tempConfig.d.type === "table" &&
-      p.tempConfig.s.specialScorecardTable
-    ) {
-      return NOTE_SCORECARD;
-    }
     const entries = p.tempConfig.d.disaggregateBy.filter(
       (d) => d.disOpt === disOpt && d.disDisplayOpt !== "replicant",
     );

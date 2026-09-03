@@ -34,7 +34,9 @@ export const _METRIC_INFO_CACHE = createReactiveCache<
   },
   ResultsValueInfoForPresentationObject
 >({
-  name: "metric_info",
+  // v2: payload gained indicatorRules (PLAN_1d) — a shape change bumps the
+  // name, as for po_detail below.
+  name: "metric_info_v2",
   uniquenessKeys: (params) => [
     params.projectId,
     params.metricId,
@@ -85,7 +87,8 @@ export const _PO_ITEMS_CACHE = createReactiveCache<
 >({
   // v2: indicator axis order now comes solely from catalog sort_order
   // (PLAN_1a) — stale items would sort alphabetically with no error.
-  name: "po_items_v2",
+  // v3: indicatorMetadata carries `thresholds` rules (PLAN_1d).
+  name: "po_items_v3",
   uniquenessKeys: (params) => [
     params.projectId,
     params.resultsObjectId,

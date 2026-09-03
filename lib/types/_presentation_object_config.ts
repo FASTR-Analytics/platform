@@ -68,7 +68,6 @@ const presentationObjectConfigSStrict = z
     specialDisruptionsChart: z.boolean(),
     // Optional for the same reason as showNValues below. Read as `?? false`.
     specialDisruptionsChartV2: z.boolean().optional(),
-    specialScorecardTable: z.boolean(),
     verticalTickLabels: z.boolean(),
     horizontal: z.boolean().optional(),
     allowVerticalColHeaders: z.boolean(),

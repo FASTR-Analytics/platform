@@ -52,7 +52,7 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // space/punctuation, accented values).
 // "12": two changes shipping together. resultsValueInfo gained
 // `indicatorFormats` (indicator id → its own value format), the pre-query
-// input resolveEffectiveFormat needs — the payload SHAPE changed for
+// input the effective-format resolver needs — the payload SHAPE changed for
 // unmodified rows, which version hashes don't track, and a metric_info entry
 // cached under "11" has no such field. And manifest schema v3 stamped the
 // indicator catalog, making the manifest a code dimension these three caches
@@ -73,7 +73,12 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // sort_order, which axis order now comes from — and the items payload for a
 // catalog-evaluated results object is a computed `value` where "16" entries
 // hold raw ingredient columns.
-const PO_CACHE_VERSION = "17";
+// "18" (2026-09-03): thresholds as a CF source (PLAN_1d). The indicator
+// catalog's traffic-light pair became a `thresholds` rule — po_items carries
+// IndicatorMetadataDisplay[] in the new shape, metric_info gained
+// `indicatorRules` beside `indicatorFormats` — and manifest schema v6 was
+// rewritten in place under the SAME runId; "17" entries hold the old shape.
+const PO_CACHE_VERSION = "18";
 
 // The immutable run id replaces the data-version dimensions (PLAN_RESULTS_RUNS
 // §2.5): it is the uniqueness scope for the three data caches — two projects
@@ -117,8 +122,10 @@ export const _PO_DETAIL_CACHE = new TimCacheC<
   // the v4 rewrite flips for the 8 pre-declaration metrics. v9: manifest
   // schema v6 (PLAN_1a) — resultsValue gained catalogExpressionEvaluation,
   // which decides how the client compiles the fetch config, and v8 entries
-  // carry it as absent.
->("po_detail_v9", {
+  // carry it as absent. v10: the PO config's `cfMode` enum gained
+  // "indicator" and lost `specialScorecardTable` (PLAN_1d) — a v9 payload
+  // embeds the pre-transform config.
+>("po_detail_v10", {
   uniquenessHashFromParams: (params) =>
     [params.projectId, params.presentationObjectId].join("|"),
   versionHashFromParams: (params) =>

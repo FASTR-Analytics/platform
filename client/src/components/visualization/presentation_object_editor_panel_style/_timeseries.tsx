@@ -1,4 +1,5 @@
 import {
+  type DisplayedRule,
   type IndicatorFormat,
   PeriodOption,
   PresentationObjectConfig,
@@ -30,6 +31,7 @@ type Props = {
   /** Format the figure's values will actually be written in (resolved from the
    *  draft config — HFA metrics all declare "number"). */
   effectiveFormatAs: IndicatorFormat;
+  indicatorCfSource: DisplayedRule[] | undefined;
 };
 
 type TimeseriesMode =
@@ -595,6 +597,7 @@ export function TimeseriesStyleControls(p: Props) {
             editCustomSeriesStyles={p.editCustomSeriesStyles}
             isColorOverridden={() => false}
             effectiveFormatAs={p.effectiveFormatAs}
+            indicatorCfSource={p.indicatorCfSource}
           />
         </Match>
       </Switch>

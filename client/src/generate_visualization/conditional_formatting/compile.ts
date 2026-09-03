@@ -1,18 +1,32 @@
 import {
   buildAutoFormatter,
+  type FigureValuesColorFunc,
+  type Language,
   type LegendInput,
   type LegendItem,
   resolveAutoScaleLegend,
   thresholdColorFunc,
-  type ValuesColorFunc,
+  type ValueColorElement,
   valuesColorScale,
 } from "panther";
 import {
+  bucketLabels,
   type ConditionalFormatting,
-  deriveBucketLabels,
+  type DisplayedRule,
+  type EffectiveIndicatorFacts,
   type IndicatorFormat,
+  legendBucketOrder,
+  pickLang,
+  thresholdBoundary,
+  thresholdBucketIndex,
+  type ThresholdsRule,
 } from "lib";
-import { formatRateAuto } from "../get_style_from_po/_0_common";
+import {
+  formatRateAuto,
+  getIndicatorIdsForCell,
+  getIndicatorIdsForChartValue,
+  getIndicatorIdsForMapRegion,
+} from "../get_style_from_po/_0_common";
 
 // Auto-decimal formatter over a known set of values, 3-way. percent/number
 // size their decimals from the list (the fewest that keep it distinct);
@@ -52,9 +66,20 @@ export function scaleLegendFormat(
   return { format: formatAs };
 }
 
+// The figure-wide value-colour slot. Every CF source compiles to ONE function
+// here; the content sites (table cells, bars, map regions) only ever emit
+// panther's value-colour sentinel. `scale` and `thresholds` ignore the
+// element. `indicator` reads it: the element's headers walk the app's id
+// chain to the value's own indicator rule, and a value whose indicator has no
+// rule returns undefined — panther's decline, which a table cell or map
+// region renders as "none" and a bar as its series colour. Legend sampling
+// calls with no element and gets undefined too (the `indicator` legend is
+// derived by compileCfToLegend, never sampled).
 export function compileCfToValuesColorFunc(
   cf: ConditionalFormatting,
-): ValuesColorFunc | undefined {
+  facts: EffectiveIndicatorFacts,
+  effectiveValueProps: string[],
+): FigureValuesColorFunc | undefined {
   switch (cf.type) {
     case "none":
       return undefined;
@@ -71,14 +96,41 @@ export function compileCfToValuesColorFunc(
       return thresholdColorFunc(
         cf.cutoffs,
         cf.buckets.map((b) => b.color),
-        { noDataColor: cf.noDataColor },
+        { noDataColor: cf.noDataColor, boundary: thresholdBoundary(cf) },
       );
+    case "indicator":
+      return (value, _min, _max, element) => {
+        if (element === undefined) return undefined;
+        const rule = facts.ruleForValue(
+          indicatorIdsForElement(effectiveValueProps, element),
+        );
+        if (rule === undefined) return undefined;
+        const i = thresholdBucketIndex(rule, value);
+        return i === undefined ? undefined : rule.buckets[i].color;
+      };
   }
+}
+
+// The three Info shapes are structurally distinct: only a map region has a
+// featureId, only a chart value has a series index.
+function indicatorIdsForElement(
+  effectiveValueProps: string[],
+  element: ValueColorElement,
+): (string | undefined)[] {
+  if ("featureId" in element) {
+    return getIndicatorIdsForMapRegion(effectiveValueProps, element);
+  }
+  if ("i_series" in element) {
+    return getIndicatorIdsForChartValue(effectiveValueProps, element);
+  }
+  return getIndicatorIdsForCell(effectiveValueProps, element);
 }
 
 export function compileCfToLegend(
   cf: ConditionalFormatting,
   formatAs: IndicatorFormat,
+  facts: EffectiveIndicatorFacts,
+  language: Language,
 ): LegendInput | undefined {
   switch (cf.type) {
     case "none":
@@ -109,16 +161,59 @@ export function compileCfToLegend(
 
       return resolveAutoScaleLegend(autoConfig, colorFunc, domain);
     }
-    case "thresholds": {
-      const fmt = buildAutoValueFormatter(cf.cutoffs, formatAs);
-      const labels = deriveBucketLabels(cf.cutoffs, fmt, cf.direction);
-      return cf.buckets
-        .map((bucket, i) => ({
-          label: labels[i],
-          color: bucket.color,
-        }))
-        .reverse();
-    }
+    case "thresholds":
+      return ruleLegend(cf, formatAs, language);
+    case "indicator":
+      return indicatorLegend(facts.displayedRules, language);
   }
 }
 
+// One rule's bucket list, best bucket first, labels from the buckets and the
+// derived wording (in the rule's OWN format) for unlabelled ones.
+function ruleLegend(
+  rule: ThresholdsRule,
+  formatAs: IndicatorFormat,
+  language: Language,
+): LegendItem[] {
+  const labels = bucketLabels(
+    rule,
+    buildAutoValueFormatter(rule.cutoffs, formatAs),
+    language,
+  );
+  return legendBucketOrder(rule).map((i) => ({
+    label: labels[i],
+    color: rule.buckets[i].color,
+  }));
+}
+
+// The `indicator` legend is DERIVED from the displayed indicators' rules,
+// never authored on the figure. Unanimous → that rule's list, formatted in
+// its owner's format (never the figure's axisFormat, which collapses to
+// `number` for a mixed table). Differing → the distinct colour swatches with a
+// "varies by indicator" note. No rules → no legend.
+function indicatorLegend(
+  displayedRules: DisplayedRule[],
+  language: Language,
+): LegendItem[] | undefined {
+  if (displayedRules.length === 0) return undefined;
+  if (displayedRules.length === 1) {
+    const { rule, formatAs } = displayedRules[0];
+    return ruleLegend(rule, formatAs, language);
+  }
+  const colors = new Map<string, LegendItem["color"]>();
+  for (const { rule } of displayedRules) {
+    for (const i of legendBucketOrder(rule)) {
+      const color = rule.buckets[i].color;
+      colors.set(JSON.stringify(color), color);
+    }
+  }
+  const note = pickLang(language, {
+    en: "varies by indicator",
+    fr: "varie selon l'indicateur",
+    pt: "varia consoante o indicador",
+  });
+  return [...colors.values()].map((color, i) => ({
+    label: i === 0 ? note : "",
+    color,
+  }));
+}

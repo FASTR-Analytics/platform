@@ -64,11 +64,10 @@ function reverseThreeTier(
   };
 }
 
-// 7-bucket diverging presets. Note: legacy used a mix of `<` and `>` so exact-
-// boundary values could land in a neighbouring bucket; panther's
-// thresholdColorFunc uses `<` uniformly, so values at a positive cutoff shift
-// one bucket versus legacy. Acceptable because cutoffs are round numbers and
-// real data rarely hits them exactly.
+// 7-bucket diverging presets. Symmetric around zero, so the boundary rule is
+// "up" (`<` at every cutoff) whatever the direction — see thresholdBoundary in
+// types/conditional_formatting.ts. The legacy renderer mixed `<` and `>`, so a
+// value exactly on a positive cutoff sits one bucket higher than it did then.
 function divergingSevenBucket(
   small: number,
   mid: number,

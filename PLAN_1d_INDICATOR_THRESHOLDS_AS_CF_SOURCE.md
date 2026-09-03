@@ -1,9 +1,38 @@
 # PLAN_1d — An indicator carries a conditional-formatting rule; figures use it as a CF source (the scorecard table mode goes)
 
-Status: **RULED 2026-09-02 (Tim); code-verified pre-flight 2026-09-03
-folded in (four review agents + spot checks); second pre-flight
+Status: **BUILT 2026-09-03, all gates green, uncommitted in the working
+trees of app + modules.** Verified: `deno task typecheck` (server + client
++ lint:systems); `./validate_migrations` (83 instance / 42 project,
+idempotent, base parity); `./validate_queries` (63/63); modules
+`./vendor_schema` + `deno task build` + `deno task typecheck` +
+`validate_definitions.ts`, vendored files diff-identical,
+`specialScorecardTable` only in m007/m008, m012 preset carries
+`"cfMode": "indicator"`; app grep for the flag hits only the po_config /
+_figure_block transform strings; §5.6 transform harness (po_config Block
+27 full + partial + flag-false + idempotent + both skip-gates; _figure_block
+pre-P2 and post-P2 conversion, group_label retained, strict-parses,
+idempotent, raw scan); §5.7 migration-semantics harness on postgres:15
+under GUC `fr` and with the GUC unset (the five fixture rows → the
+ruling-12 rules with float cutoffs `[0.7, 0.8]` / `[0.001, 0.002]`, three
+degenerate rows → two buckets at green, FR then EN labels, identity alias
+leaves the base at `number`, old columns + CHECK gone, new CHECK rejects a
+non-object — since corrected: the column is TEXT, no CHECK, and the
+harness asserts no json/jsonb column exists in the database); §5.8 colour
+oracle (48 truth-table cells reproduced by
+`thresholdBucketIndex` over `trafficLightThresholdsToRule`; every legacy
+preset and every m001/m002 preset cutoff lands in the bucket its label
+names; symmetric ignores direction); §5.9 round trips; §5.11 resolver (all
+three chains, label-only never masks, count never borrows, filter-pinned
+single/two/count, displayedRules dedupe, too_many_values, constant-format
+metric); §5.12 lib half (legend order both directions, authored + derived
+labels, PT symmetric wording); §5.13 AI text (percent and rate strings
+exact). Client render pieces gated by the client typecheck (§5.14). The
+harness files live in the session scratchpad, not the repo.
+
+Previous status: RULED 2026-09-02 (Tim); code-verified pre-flight
+2026-09-03 folded in (four review agents + spot checks); second pre-flight
 2026-09-03 folded in (panther prerequisite BUILT + synced; m007/m008 out
-of scope by ruling; 9(vi)/9(vii) collapsed). NOT BUILT.** The indicator's
+of scope by ruling; 9(vi)/9(vii) collapsed). The indicator's
 thresholds become a general `ConditionalFormattingThresholds` rule with
 per-bucket labels, and the figure-level `indicator` CF source means "each
 value uses its own indicator's rule". No open rulings. Sequencing
@@ -106,11 +135,12 @@ replace the categorical series legend.
    `deriveBucketLabels` text. **Stored shape (ruled 2026-09-03): the rule
    is stored WITHOUT the union discriminator.** `ThresholdsRule =
    { cutoffs, buckets, direction, noDataColor? }` is the thing an
-   indicator carries (DB JSONB, catalog row, manifest entry, API body),
+   indicator carries (DB JSON text — every JSON column in this app is
+   `text`, never `jsonb` — catalog row, manifest entry, API body),
    and the figure-level union member is
    `ConditionalFormattingThresholds = { type: "thresholds" } & ThresholdsRule`.
    A `type` field means nothing in a dictionary row, and the migration
-   composes the JSONB without one. `deriveBucketLabels` takes a
+   composes the JSON without one. `deriveBucketLabels` takes a
    `language` argument and resolves its symmetric wording with `pickLang`
    (today it calls ambient `t3`); every caller passes the figure's
    `bundle.localization.language` at render and the UI language in the
@@ -478,11 +508,13 @@ replace the categorical series legend.
   (`./validate_migrations` diffs base-then-migrations against base; the
   two cannot move separately — 079's four write sites reference the
   columns). `server/db/migrations/instance/079_common_indicator_types.sql`:
-  `ADD COLUMN IF NOT EXISTS thresholds JSONB` replaces the three threshold
-  columns; no `group_label`; `indicators_threshold_fields_check` replaced
-  by `CHECK (thresholds IS NULL OR jsonb_typeof(thresholds) = 'object')`;
-  the identity-alias `UPDATE` and the three `INSERT`s compose the JSONB
-  rule inline per ruling 12 from `ci.*` on the same row. The identity-alias
+  `ADD COLUMN IF NOT EXISTS thresholds TEXT` (JSON text, like every JSON
+  column in both schemas — there is no `jsonb` column in this app and none
+  is introduced) replaces the three threshold columns; no `group_label`;
+  `indicators_threshold_fields_check` dropped with them (text JSON columns
+  carry no CHECK; the lib schema validates on read and at the API
+  boundary); the identity-alias `UPDATE` and the three `INSERT`s compose
+  the rule's JSON text inline per ruling 12 from `ci.*` on the same row. The identity-alias
   branch stops copying `ci.format_as` onto a base common (a base is forced
   to `number` by 1c's `formatRuleError`; copying `percent` made the row
   un-editable) — thresholds still cross, divided by `ci.format_as` because
@@ -604,9 +636,10 @@ replace the categorical series legend.
    `(lower, 20, 10, number)`, `(NULL)` → ruling-12 rules: cutoffs
    `[0.7, 0.8]` and `[0.001, 0.002]`, the three degenerate rows →
    two-bucket rules at the green cutoff, FR labels seeded, NULL stays
-   NULL; hex colours equal `_CF_LIGHTER_*`; the stored JSONB carries no
-   `type` key (ruling 1); old columns, `group_label` and the old CHECK
-   absent; new CHECK rejects a non-object. An identity-alias row with
+   NULL; hex colours equal `_CF_LIGHTER_*`; the stored JSON text carries
+   no `type` key (ruling 1); old columns, `group_label` and the old CHECK
+   absent; the column is `text` and no `json`/`jsonb` column exists in the
+   database. An identity-alias row with
    `format_as = 'percent'` leaves the base common at `number`. A second
    run with the GUC unset seeds EN labels.
 8. Colour oracle: capture `getScorecardCutoffColor`'s truth table BEFORE

@@ -5,7 +5,7 @@ import {
   ProjectState,
   ResultsValueInfoForPresentationObject,
   getEffectivePOConfig,
-  resolveEffectiveFormat,
+  resolveEffectiveIndicatorFacts,
   getPeriodFilterExactBounds,
   getSingleValueDimsFromPossibleValues,
   t3,
@@ -94,13 +94,11 @@ export function PresentationObjectEditorPanel(p: Props) {
   // so no refetch is involved: a control appearing the instant a filter pins a
   // percent indicator is the intended behavior.
   const effectiveFormat = () =>
-    resolveEffectiveFormat({
+    resolveEffectiveIndicatorFacts({
       metricFormatAs: p.poDetail.resultsValue.formatAs,
       config: p.tempConfig,
-      // `?? {}`: a stale IndexedDB metric_info payload from before the field
-      // existed must degrade (numeric fallback), not throw. Dev has no deploy
-      // purge, so such payloads linger there.
-      indicatorFormats: p.resultsValueInfo.indicatorFormats ?? {},
+      indicatorFormats: p.resultsValueInfo.indicatorFormats,
+      indicatorRules: p.resultsValueInfo.indicatorRules,
       possibleValues: p.resultsValueInfo.disaggregationPossibleValues,
     });
 
@@ -161,6 +159,7 @@ export function PresentationObjectEditorPanel(p: Props) {
               effectiveConfig={effectivePOConfigResult().config}
               effectiveValueProps={effectivePOConfigResult().effectiveValueProps}
               effectiveFormatAs={effectiveFormat().axisFormat}
+              displayedIndicatorRules={effectiveFormat().displayedRules}
             />
           </Match>
           <Match when={tab() === "text"}>

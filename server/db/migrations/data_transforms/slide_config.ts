@@ -37,7 +37,7 @@ import type { Sql } from "postgres";
 import {
   type FigureLocalizationForTransform,
   type SlideLayoutNodeLike,
-  rawJsonNeedsIndicatorFormatFlip,
+  rawJsonNeedsFigureBlockTransform,
   transformFigureBlock,
   transformFigureBlockToBundle,
   warnIfFigureInputsStale,
@@ -190,7 +190,7 @@ export async function migrateSlideConfigs(
     if (
       slideConfigSchema.safeParse(config).success &&
       !rawJsonNeedsForcedTransform(row.config) &&
-      !rawJsonNeedsIndicatorFormatFlip(row.config)
+      !rawJsonNeedsFigureBlockTransform(row.config)
     ) {
       continue;
     }

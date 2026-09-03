@@ -10,11 +10,12 @@ const _INDICATORS_CACHE = createReactiveCache<
   { indicatorMappingsVersion: string },
   InstanceIndicatorDetails
 >({
-  // v2: payload gained definition/format_as/thresholds/group_label/sort_order
-  // (PLAN_1a). The name is the client's cache-prefix lever: the version hash
-  // cannot invalidate a pure shape change, so a changed payload shape bumps
-  // the name, exactly as a server Valkey prefix would.
-  name: "instance_indicators_v2",
+  // v2: payload gained definition/format_as/thresholds/sort_order (PLAN_1a).
+  // v3: thresholds became a CF rule and group_label went (PLAN_1d). The name
+  // is the client's cache-prefix lever: the version hash cannot invalidate a
+  // pure shape change, so a changed payload shape bumps the name, exactly as
+  // a server Valkey prefix would.
+  name: "instance_indicators_v3",
   uniquenessKeys: () => ["indicators"],
   versionKey: (params) => params.indicatorMappingsVersion,
   pdsNotRequired: true,

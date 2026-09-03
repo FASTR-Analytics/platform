@@ -18,10 +18,11 @@ import {
   getSingleValueDimsFromItems,
   indicatorMetadataToLabelMap,
   pickLang,
-  resolveEffectiveFormatFromItems,
+  resolveEffectiveIndicatorFactsFromItems,
   selectCf,
   withReplicant,
   type DeckStyleContext,
+  type EffectiveIndicatorFacts,
   type IndicatorFormat,
   type IndicatorMetadataDisplay,
 } from "lib";
@@ -40,7 +41,6 @@ import { getAdminAreaLevelFromMapConfig } from "./get_admin_area_level_from_conf
 import {
   isSpecialDisruptionsChartActive,
   isSpecialDisruptionsChartV2Active,
-  isSpecialScorecardTableActive,
   metricAllowsNegativeScale,
 } from "./special_chart_checks";
 import { getGeoJsonSync } from "~/state/instance/t2_geojson";
@@ -58,12 +58,14 @@ export function buildFigureInputs(
   const indicatorLabelReplacements = indicatorMetadataToLabelMap(indicatorMetadata);
   const indicatorSortOrder = buildIndicatorIdOrder(indicatorMetadata);
 
-  const effectiveFormat = resolveEffectiveFormatFromItems({
+  const effectiveFormat = resolveEffectiveIndicatorFactsFromItems({
     metricFormatAs: resultsValue.formatAs,
     config,
     items,
     indicatorMetadata,
   });
+  const legend = () =>
+    getLegendFromConfig(config, effectiveFormat.axisFormat, effectiveFormat, localization);
 
   const allowNegativeScale = metricAllowsNegativeScale(bundle.metricId);
 
@@ -117,15 +119,12 @@ export function buildFigureInputs(
       caption: withDateRange(withReplicant(config.t.caption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       subCaption: withDateRange(withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       footnote: withDateRange(withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
-      style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, indicatorMetadata, allowNegativeScale, effectiveValueProps),
-      legend: getLegendFromConfig(config, effectiveFormat.axisFormat, localization),
+      style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, allowNegativeScale, effectiveValueProps),
+      legend: legend(),
     };
   }
 
   if (effectiveConfig.d.type === "table") {
-    const customSortHeaders = isSpecialScorecardTableActive(config)
-      ? buildIndicatorSortOrder(indicatorMetadata)
-      : undefined;
     return {
       figureType: "table",
       data: {
@@ -138,14 +137,13 @@ export function buildFigureInputs(
           indicatorSortOrder,
           localization,
           items,
-          customSortHeaders,
         ),
       },
       caption: withDateRange(withReplicant(config.t.caption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       subCaption: withDateRange(withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       footnote: withDateRange(withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
-      style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, indicatorMetadata, allowNegativeScale, effectiveValueProps),
-      legend: getLegendFromConfig(config, effectiveFormat.axisFormat, localization),
+      style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, allowNegativeScale, effectiveValueProps),
+      legend: legend(),
     };
   }
 
@@ -154,8 +152,8 @@ export function buildFigureInputs(
       caption: withDateRange(withReplicant(config.t.caption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       subCaption: withDateRange(withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       footnote: withDateRange(withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
-      style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, indicatorMetadata, allowNegativeScale, effectiveValueProps),
-      legend: getLegendFromConfig(config, effectiveFormat.axisFormat, localization),
+      style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, allowNegativeScale, effectiveValueProps),
+      legend: legend(),
     };
     if (effectiveConfig.s.horizontal) {
       return {
@@ -236,8 +234,8 @@ export function buildFigureInputs(
       caption: withDateRange(withReplicant(config.t.caption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       subCaption: withDateRange(withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       footnote: withDateRange(withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
-      style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, indicatorMetadata, allowNegativeScale, effectiveValueProps),
-      legend: config.s.hideLegend ? undefined : buildMapAutoLegend(config, effectiveFormat.axisFormat, localization),
+      style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, allowNegativeScale, effectiveValueProps),
+      legend: config.s.hideLegend ? undefined : buildMapAutoLegend(config, effectiveFormat, localization),
     };
   }
 
@@ -263,7 +261,7 @@ export function buildFigureInputs(
       caption: withDateRange(withReplicant(config.t.caption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       subCaption: withDateRange(withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       footnote: withDateRange(withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
-      style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, indicatorMetadata, allowNegativeScale, effectiveValueProps),
+      style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, allowNegativeScale, effectiveValueProps),
       // Never pass an explicit legend: CF is unwired for slices (they color
       // via the series sentinel), so a cf* state carried over from a
       // chart/map conversion would show threshold/scale colors that appear
@@ -292,14 +290,17 @@ function resolveGeoJson(
   return getGeoJsonSync(geo.family ?? "hmis", level) ?? undefined;
 }
 
+// A map's legend: a bucket list for the two rule-based sources, else the
+// gradient/stepped scale legend over the live or fixed domain.
 function buildMapAutoLegend(
   config: PresentationObjectConfig,
-  formatAs: IndicatorFormat,
+  facts: EffectiveIndicatorFacts,
   localization: Pick<FigureLocalization, "language">,
 ) {
   const cf = selectCf(config.s);
-  if (cf.type === "thresholds") {
-    return getLegendFromConfig(config, formatAs, localization);
+  const formatAs: IndicatorFormat = facts.axisFormat;
+  if (cf.type === "thresholds" || cf.type === "indicator") {
+    return getLegendFromConfig(config, formatAs, facts, localization);
   }
   const noData = {
     color: "#f0f0f0",
@@ -355,10 +356,4 @@ function buildIndicatorIdOrder(metadata: IndicatorMetadataDisplay[]): string[] {
     .map((m) => m.id);
 }
 
-function buildIndicatorSortOrder(metadata: IndicatorMetadataDisplay[]): string[] {
-  return [...metadata]
-    .filter((m) => m.sort_order !== undefined)
-    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-    .flatMap((m) => [m.id, m.label]);
-}
 

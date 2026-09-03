@@ -1,4 +1,5 @@
 import {
+  type DisplayedRule,
   PresentationObjectConfig,
   PresentationObjectDetail,
   ResultsValueInfoForPresentationObject,
@@ -14,7 +15,6 @@ import {
   canUseSpecialDisruptionsChart,
   canUseSpecialDisruptionsChartV2,
   canUseSpecialPercentChangeChart,
-  canUseSpecialScorecardTable,
 } from "~/generate_visualization/special_chart_checks";
 import { SharedControlsTop } from "./presentation_object_editor_panel_style/_shared";
 import { TimeseriesStyleControls } from "./presentation_object_editor_panel_style/_timeseries";
@@ -36,6 +36,8 @@ type Props = {
    *  from the draft config, not the metric's stored formatAs, which is
    *  "number" for every HFA metric regardless of what it displays. */
   effectiveFormatAs: IndicatorFormat;
+  /** The displayed indicators' own CF rules, resolved from the draft config. */
+  displayedIndicatorRules: DisplayedRule[];
 };
 
 export function PresentationObjectEditorPanelStyle(p: Props) {
@@ -45,7 +47,13 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
   const showPercentChangeMode = () => canUseSpecialPercentChangeChart(metricId());
   const showDisruptionsMode = () => canUseSpecialDisruptionsChart(metricId());
   const showDisruptionsModeV2 = () => canUseSpecialDisruptionsChartV2(metricId());
-  const showScorecardMode = () => canUseSpecialScorecardTable(metricId());
+  // The `indicator` CF source is offered only where the values are each
+  // indicator's own quantity — the metric's declared formatAs, never the
+  // resolved axis format.
+  const indicatorCfSource = (): DisplayedRule[] | undefined =>
+    p.poDetail.resultsValue.formatAs === "indicator"
+      ? p.displayedIndicatorRules
+      : undefined;
 
   // n is a survey concept and is counted over facility rows, so the server only
   // emits it for HFA metrics whose results table has facility_id. Offering the
@@ -95,6 +103,7 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
             showDisruptionsMode={showDisruptionsMode()}
             showDisruptionsModeV2={showDisruptionsModeV2()}
             effectiveFormatAs={p.effectiveFormatAs}
+            indicatorCfSource={indicatorCfSource()}
           />
         </Match>
         <Match when={p.tempConfig.d.type === "chart"}>
@@ -104,6 +113,7 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
             setTempConfig={p.setTempConfig}
             editCustomSeriesStyles={editCustomSeriesStyles}
             effectiveFormatAs={p.effectiveFormatAs}
+            indicatorCfSource={indicatorCfSource()}
           />
         </Match>
         <Match when={p.tempConfig.d.type === "table"}>
@@ -111,9 +121,9 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
             poDetail={p.poDetail}
             tempConfig={p.tempConfig}
             setTempConfig={p.setTempConfig}
-            showScorecardMode={showScorecardMode()}
             showNValuesToggle={showNValuesToggle()}
             effectiveFormatAs={p.effectiveFormatAs}
+            indicatorCfSource={indicatorCfSource()}
           />
         </Match>
         <Match when={p.tempConfig.d.type === "map"}>
@@ -122,6 +132,7 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
             tempConfig={p.tempConfig}
             setTempConfig={p.setTempConfig}
             effectiveFormatAs={p.effectiveFormatAs}
+            indicatorCfSource={indicatorCfSource()}
           />
         </Match>
         <Match when={p.tempConfig.d.type === "pie"}>

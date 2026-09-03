@@ -5,7 +5,7 @@ import {
 } from "panther";
 import {
   type DeckStyleContext,
-  type EffectiveFormat,
+  type EffectiveIndicatorFacts,
   PresentationObjectConfig,
   selectCf,
 } from "lib";
@@ -27,7 +27,7 @@ import { getAdminAreaLevelFromMapConfig } from "../get_admin_area_level_from_con
 
 export function buildStandardStyle(
   config: PresentationObjectConfig,
-  effectiveFormat: EffectiveFormat,
+  effectiveFormat: EffectiveIndicatorFacts,
   calendar: CalendarType,
   deckStyle: DeckStyleContext | undefined,
   allowNegativeScale: boolean,
@@ -164,7 +164,11 @@ export function buildStandardStyle(
       slices: getPieSlicesContent(config),
     },
     table: getTableLayoutStyle(config, deckStyle, cfOn),
-    valuesColorFunc: compileCfToValuesColorFunc(cf),
+    valuesColorFunc: compileCfToValuesColorFunc(
+      cf,
+      effectiveFormat,
+      effectiveValueProps,
+    ),
     map:
       config.d.type === "map"
         ? {

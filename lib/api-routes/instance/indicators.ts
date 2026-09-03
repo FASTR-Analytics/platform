@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { thresholdsRuleSchema } from "../../types/conditional_formatting.ts";
 import type { InstanceIndicatorDetails } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
@@ -11,22 +12,15 @@ const commonIndicatorDefinitionSchema = z.union([
   z.object({ type: z.literal("derived"), expression: z.string() }),
 ]);
 
-const commonIndicatorThresholdsSchema = z
-  .object({
-    direction: z.enum(["higher_is_better", "lower_is_better"]),
-    green: z.number(),
-    yellow: z.number(),
-  })
-  .nullable();
-
+// The rule's shape rules (ascending cutoffs, one more bucket than cutoffs,
+// stored units) are the schema's refinements; the route only narrows.
 const commonIndicatorItemSchema = z.object({
   indicator_common_id: z.string(),
   indicator_common_label: z.string(),
   mapped_raw_ids: z.array(z.string()),
   definition: commonIndicatorDefinitionSchema,
   format_as: z.enum(["percent", "number", "rate_per_10k"]),
-  thresholds: commonIndicatorThresholdsSchema,
-  group_label: z.string(),
+  thresholds: thresholdsRuleSchema.nullable(),
 });
 
 const rawIndicatorItemSchema = z.object({

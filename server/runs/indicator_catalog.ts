@@ -29,7 +29,10 @@ import {
   type IndicatorMetadata,
   type RunModule,
   type RunModuleIndicators,
+  thresholdsRuleSchema,
+  trafficLightThresholdsToRule,
 } from "lib";
+import { _INSTANCE_LANGUAGE } from "../exposed_env_vars.ts";
 import { runInputFilePath } from "./run_paths.ts";
 
 const hfaIndicatorRow = z.object({
@@ -76,16 +79,15 @@ const indicatorRowV2 = z.object({
   expression: z.string().nullable(),
   slot_map: z.record(z.string(), z.string()).nullable(),
   format_as: z.enum(["percent", "number", "rate_per_10k"]),
-  threshold_direction: z.enum(["higher_is_better", "lower_is_better"])
-    .nullable(),
-  threshold_green: z.number().nullable(),
-  threshold_yellow: z.number().nullable(),
-  group_label: z.string(),
+  thresholds: thresholdsRuleSchema.nullable(),
   sort_order: z.number(),
 });
 
 const indicatorRow = z.union([indicatorRowV2, indicatorRowV1]);
 
+// The v1 snapshot's shape is FROZEN — a legacy package format, read as it was
+// written: a traffic-light pair in DISPLAY units per row, converted into a
+// rule at derive time (trafficLightThresholdsToRule).
 const calculatedIndicatorRow = z.object({
   calculated_indicator_id: z.string(),
   label: z.string(),
@@ -238,12 +240,7 @@ async function deriveIndicatorMetadata(
         id: row.indicator_common_id,
         label: row.indicator_common_label,
         format_as: row.format_as,
-        ...(row.threshold_direction === null ? {} : {
-          threshold_direction: row.threshold_direction,
-          threshold_green: row.threshold_green ?? undefined,
-          threshold_yellow: row.threshold_yellow ?? undefined,
-        }),
-        group_label: row.group_label,
+        ...(row.thresholds === null ? {} : { thresholds: row.thresholds }),
         sort_order: row.sort_order,
         type: row.type,
         ...(row.expression === null ? {} : { expression: row.expression }),
@@ -280,9 +277,15 @@ async function deriveIndicatorMetadata(
       id: ci.calculated_indicator_id,
       label: ci.label,
       format_as: ci.format_as,
-      threshold_direction: ci.threshold_direction,
-      threshold_green: ci.threshold_green,
-      threshold_yellow: ci.threshold_yellow,
+      thresholds: trafficLightThresholdsToRule(
+        {
+          direction: ci.threshold_direction,
+          green: ci.threshold_green,
+          yellow: ci.threshold_yellow,
+        },
+        ci.format_as,
+        _INSTANCE_LANGUAGE,
+      ),
       group_label: ci.group_label,
       sort_order: ci.sort_order,
     });

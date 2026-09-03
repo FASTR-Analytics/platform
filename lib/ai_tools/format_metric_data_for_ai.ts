@@ -14,6 +14,13 @@ import type {
 } from "../types/mod.ts";
 import type { TranslatableString } from "../translate/types.ts";
 import { ICEH_STRAT_INFO } from "../types/iceh_strats.ts";
+import {
+  bucketLabels,
+  isSymmetricAroundZero,
+  legendBucketOrder,
+  type ThresholdsRule,
+} from "../types/conditional_formatting.ts";
+import { scaleValueForFormat } from "../indicator_value_scale.ts";
 import { INDICATOR_DISAGGREGATION_OPTIONS } from "../types/disaggregation_options.ts";
 import { inferPeriodFormatFromValue } from "../types/_metric_installed.ts";
 import { getFiltersWithReplicant } from "../get_fetch_config_from_po.ts";
@@ -367,8 +374,10 @@ function formatItemsAsMarkdown(
               : undefined;
             const notes = [
               ...(format ? [format] : []),
-              ...(meta ? [formatIndicatorThresholds(meta)] : []),
-            ].filter((n) => n !== "");
+              ...(meta?.thresholds
+                ? [formatIndicatorThresholds(meta.thresholds, meta.format_as ?? "number")]
+                : []),
+            ];
             if (meta?.label && meta.label !== val) {
               return notes.length > 0
                 ? `${val} (${meta.label} — ${notes.join("; ")})`
@@ -428,39 +437,47 @@ function formatItemsAsMarkdown(
   return lines.join("\n");
 }
 
-// "higher is better; green ≥ 80, yellow ≥ 50 (in % points)" from what the
-// indicator declares; "" when it declares nothing. Mirrors the scorecard's
-// cutoff rule (client _5_scorecard.ts getScorecardCutoffColor): thresholds
-// are compared against the DISPLAY-scaled value — percent as 0-100 points,
-// rate_per_10k as counts per 10,000 — inclusive toward green in both
-// directions (higher_is_better → ≥, lower_is_better → ≤). The CSV prints
-// percent values as 0-1 fractions, so the unit is spelled out.
-function formatIndicatorThresholds(meta: IndicatorMetadata): string {
-  const parts: string[] = [];
-  if (meta.threshold_direction) {
-    parts.push(
-      meta.threshold_direction === "higher_is_better"
-        ? "higher is better"
-        : "lower is better",
-    );
-  }
-  const cmp = meta.threshold_direction === "lower_is_better" ? "≤" : "≥";
-  const bands: string[] = [];
-  if (meta.threshold_green !== undefined) {
-    bands.push(`green ${cmp} ${meta.threshold_green}`);
-  }
-  if (meta.threshold_yellow !== undefined) {
-    bands.push(`yellow ${cmp} ${meta.threshold_yellow}`);
-  }
-  if (bands.length > 0) {
-    const unit = meta.format_as === "percent"
-      ? " (in % points; the CSV shows 0-1 fractions)"
-      : meta.format_as === "rate_per_10k"
-      ? " (per 10,000)"
-      : "";
-    parts.push(bands.join(", ") + unit);
-  }
-  return parts.join("; ");
+// "higher is better; On track ≥ 80%; Progress needed ≥ 70%; Not on track
+// < 70%" from the indicator's own CF rule: every bucket, best first, with the
+// bound that admits it under THE boundary rule (thresholdBucketIndex — an
+// authored label gets its operator and cutoff appended; an unlabelled bucket
+// prints the derived wording, which already carries them). Cutoffs are
+// printed in DISPLAY units — percent points, counts per 10,000 — while the
+// CSV prints percent values as 0-1 fractions, so the unit is spelled out.
+export function formatIndicatorThresholds(
+  rule: ThresholdsRule,
+  formatAs: IndicatorFormat,
+): string {
+  const fmt = (v: number) => {
+    const scaled = scaleValueForFormat(v, formatAs);
+    return formatAs === "percent" ? `${scaled}%` : String(scaled);
+  };
+  const labels = bucketLabels(rule, fmt, "en");
+  const direction = rule.direction ?? "higher-is-better";
+  const symmetric = isSymmetricAroundZero(rule.cutoffs);
+  const n = rule.buckets.length;
+  const bandText = (i: number): string => {
+    const authored = rule.buckets[i].label;
+    if (authored === undefined || symmetric) return labels[i];
+    if (direction === "lower-is-better") {
+      return i === n - 1
+        ? `${authored} > ${fmt(rule.cutoffs[i - 1])}`
+        : `${authored} ≤ ${fmt(rule.cutoffs[i])}`;
+    }
+    return i === 0
+      ? `${authored} < ${fmt(rule.cutoffs[0])}`
+      : `${authored} ≥ ${fmt(rule.cutoffs[i - 1])}`;
+  };
+  const bands = legendBucketOrder(rule).map(bandText);
+  const unit = formatAs === "percent"
+    ? " (the CSV shows 0-1 fractions)"
+    : formatAs === "rate_per_10k"
+    ? " (per 10,000)"
+    : "";
+  const head = symmetric
+    ? []
+    : [direction === "lower-is-better" ? "lower is better" : "higher is better"];
+  return [...head, bands.join("; ") + unit].join("; ");
 }
 
 // Ids that DECLARE a format, bucketed by it, in first-seen format order. Ids

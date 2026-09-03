@@ -165,11 +165,15 @@ When a transform block renames or deletes a key, the sweep gate must force the
 transform for rows still carrying the old key. See
 `configNeedsForcedTransform` / `rawJsonNeedsForcedTransform` in
 `data_transforms/po_config.ts` (used by the po_config, dashboard_items,
-reports, slide_config, metric, and module_definition sweeps — first for the
-`includeNational*` → `adminAreaRollup*` rename, then for the
+reports and slide_config sweeps — first for the `includeNational*` →
+`adminAreaRollup*` rename, then for the
 `includeAdminAreaRollup`/`adminAreaRollupPosition` → per-entry
-`rollup`/`rollupPosition` move). Add new legacy keys to those helpers whenever
-a rename/delete block is added. Embedded configs are covered because
+`rollup`/`rollupPosition` move, then for the `specialScorecardTable` →
+`cfMode: "indicator"` conversion), plus `rawJsonNeedsFigureBlockTransform` in
+`_figure_block.ts` for the keys the figure-block transforms rewrite. There is
+no metric or module-definition sweep: installed definitions are stored
+parsed, and module presets reach the client from the run manifest. Add new
+legacy keys to those helpers whenever a rename/delete block is added. Embedded configs are covered because
 `transformFigureBlock` runs `transformPOConfigData` on BOTH `source.config`
 and `bundle.config` — without the bundle half, the sweep's re-parse would
 strip a legacy key from a bundle instead of migrating it.

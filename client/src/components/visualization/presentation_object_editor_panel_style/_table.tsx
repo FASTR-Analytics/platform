@@ -1,4 +1,5 @@
 import {
+  type DisplayedRule,
   type IndicatorFormat,
   PresentationObjectConfig,
   PresentationObjectDetail,
@@ -17,50 +18,17 @@ type Props = {
   poDetail: PresentationObjectDetail;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
-  showScorecardMode: boolean;
   showNValuesToggle: boolean;
   /** Format the figure's values will actually be written in (resolved from the
    *  draft config — HFA metrics all declare "number"). */
   effectiveFormatAs: IndicatorFormat;
+  /** Present for an "indicator" metric: the displayed indicators' own rules. */
+  indicatorCfSource: DisplayedRule[] | undefined;
 };
 
-type TableMode = "standard" | "scorecard";
-
 export function TableStyleControls(p: Props) {
-  const mode = (): TableMode => {
-    if (p.tempConfig.s.specialScorecardTable) return "scorecard";
-    return "standard";
-  };
-
-  const setMode = (v: TableMode) => {
-    p.setTempConfig("s", "specialScorecardTable", v === "scorecard");
-  };
-
-  const modeOptions = () => {
-    const opts: { value: string; label: string }[] = [
-      { value: "standard", label: t3({ en: "Standard", fr: "Standard", pt: "Padrão" }) },
-    ];
-    if (p.showScorecardMode || mode() === "scorecard") {
-      opts.push({
-        value: "scorecard",
-        label: t3({ en: "Scorecard table", fr: "Tableau de bord", pt: "Tabela de pontuação" }),
-      });
-    }
-    return opts;
-  };
-
   return (
     <>
-      <Show when={modeOptions().length > 1}>
-        <div class="ui-pad bg-base-200 rounded border">
-          <RadioGroup
-            label={t3({ en: "Table mode", fr: "Mode de tableau", pt: "Modo de tabela" })}
-            options={modeOptions()}
-            value={mode()}
-            onChange={(v) => setMode(v as TableMode)}
-          />
-        </div>
-      </Show>
       <StyleSection label={t3({ en: "Display", fr: "Affichage", pt: "Apresentação" })}>
         <>
           <Checkbox
@@ -72,7 +40,7 @@ export function TableStyleControls(p: Props) {
             checked={p.tempConfig.s.allowVerticalColHeaders}
             onChange={(v) => p.setTempConfig("s", "allowVerticalColHeaders", v)}
           />
-          <Show when={p.showNValuesToggle && !p.tempConfig.s.specialScorecardTable}>
+          <Show when={p.showNValuesToggle}>
             <Checkbox
               label={t3({
                 en: "Show sample sizes in column headers",
@@ -83,12 +51,7 @@ export function TableStyleControls(p: Props) {
               onChange={(v) => p.setTempConfig("s", "showNValues", v)}
             />
           </Show>
-          <Show
-            when={
-              !p.tempConfig.s.specialScorecardTable &&
-              p.effectiveFormatAs !== "rate_per_10k"
-            }
-          >
+          <Show when={p.effectiveFormatAs !== "rate_per_10k"}>
             <div class="pt-0.5"></div>
             <RadioGroup
               label={t3({ en: "Decimal places", fr: "Décimales", pt: "Casas decimais" })}
@@ -104,7 +67,7 @@ export function TableStyleControls(p: Props) {
               horizontal
             />
           </Show>
-          <Show when={p.tempConfig.s.specialScorecardTable || selectCf(p.tempConfig.s).type !== "none"}>
+          <Show when={selectCf(p.tempConfig.s).type !== "none"}>
             <div class="pt-0.5"></div>
             <Checkbox
               checked={p.tempConfig.s.hideLegend}
@@ -114,23 +77,22 @@ export function TableStyleControls(p: Props) {
           </Show>
         </>
       </StyleSection>
-      <Show when={!p.tempConfig.s.specialScorecardTable}>
-        <StyleSection
-          label={t3({
-            en: "Conditional formatting",
-            fr: "Mise en forme conditionnelle",
-            pt: "Formatação condicional",
-          })}
-        >
-          <ConditionalFormattingEditor
-            value={selectCf(p.tempConfig.s)}
-            onChange={(cf) => applyCfToTempConfig(p.setTempConfig, cf)}
-            formatAs={p.effectiveFormatAs}
-            decimalPlaces={p.tempConfig.s.decimalPlaces}
-            allowNegative={metricAllowsNegativeScale(p.poDetail.resultsValue.id)}
-          />
-        </StyleSection>
-      </Show>
+      <StyleSection
+        label={t3({
+          en: "Conditional formatting",
+          fr: "Mise en forme conditionnelle",
+          pt: "Formatação condicional",
+        })}
+      >
+        <ConditionalFormattingEditor
+          value={selectCf(p.tempConfig.s)}
+          onChange={(cf) => applyCfToTempConfig(p.setTempConfig, cf)}
+          formatAs={p.effectiveFormatAs}
+          decimalPlaces={p.tempConfig.s.decimalPlaces}
+          allowNegative={metricAllowsNegativeScale(p.poDetail.resultsValue.id)}
+          indicatorSource={p.indicatorCfSource}
+        />
+      </StyleSection>
     </>
   );
 }
