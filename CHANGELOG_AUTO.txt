@@ -1,3 +1,12 @@
+[TBD] [user] [changed] - Indicator colour mode now shows legend bands on the figure itself
+[TBD] [user] [fixed] - Typing in colour band label fields no longer loses keyboard focus
+[TBD] [user] [fixed] - Extra spaces in colour band labels are now automatically cleaned up
+[TBD] [user] [changed] - Legend for indicator colouring merges shared colours across indicators into one clear list
+[TBD] [admin] [changed] - Indicator conditional formatting legend now merges shared colours across indicators
+[TBD] [admin] [changed] - Legend shows combined labels when multiple indicators share a colour band
+[TBD] [admin] [changed] - Legend displays cutoff ranges when indicators differ in thresholds but share the same shape
+[TBD] [admin] [fixed] - Typing in a bucket label no longer causes the input to lose focus
+[TBD] [admin] [fixed] - Extra spaces in bucket labels are now automatically collapsed and trimmed
 [1.69.0] [user] [added] - Common indicators can now be "Derived" with a formula over other indicators and populations
 [1.69.0] [user] [added] - Formula editor with searchable palette to insert indicator and population references
 [1.69.0] [user] [added] - Live formula validation and legend showing referenced indicators and populations
