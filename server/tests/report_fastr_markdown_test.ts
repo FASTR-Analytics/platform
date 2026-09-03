@@ -20,6 +20,7 @@ import {
   isDarkCssColor,
   isFastrLeafBlock,
   listFastrContainerDefects,
+  listFastrLiteralBackgrounds,
   parseContainerAttrs,
   parseContainerFence,
   isDarkCssBackground,
@@ -172,6 +173,33 @@ Deno.test("a stray close and an unknown block name are defects", () => {
   const unknown = listFastrContainerDefects(":::wat\ny\n:::\n");
   assertEquals(unknown.length, 1);
   assertStringIncludes(unknown[0].message, "Unknown block");
+});
+
+Deno.test("listFastrLiteralBackgrounds finds literals, never tones", () => {
+  const md = [
+    ":::report{background=muted}",
+    ":::band{tone=dark}",
+    "x",
+    ":::",
+    ':::card{bg="#0b3d2e"}',
+    "y",
+    ":::",
+    ':::cover{background="linear-gradient(180deg,#111,#222)"}',
+    "# t",
+    ":::",
+    ":::callout{bg=image:abc overlay=dark}",
+    "z",
+    ":::",
+    "```",
+    ':::card{bg="#ffffff"}',
+    "```",
+  ].join("\n");
+  assertEquals(listFastrLiteralBackgrounds(md), [
+    { line: 5, value: "#0b3d2e" },
+    { line: 8, value: "linear-gradient(180deg,#111,#222)" },
+    { line: 11, value: "image:abc" },
+  ]);
+  assertEquals(listFastrLiteralBackgrounds(":::band{tone=danger}\nx\n:::\n"), []);
 });
 
 Deno.test("fences inside a code block are literal text", () => {
@@ -685,11 +713,12 @@ Deno.test("every rule that darkens the ground re-points the semantic colours", (
   );
 });
 
-Deno.test("all 18 themes build, and every html style name now has one", async () => {
-  assertEquals(FASTR_REPORT_THEMES.length, 18);
+Deno.test("all 17 themes build, and every html style name has one bar retired themes", async () => {
+  assertEquals(FASTR_REPORT_THEMES.length, 17);
   const { REPORT_HTML_STYLES } = await import("../../lib/types/reports.ts");
   const themes = new Set<string>(FASTR_REPORT_THEMES);
-  assertEquals(REPORT_HTML_STYLES.filter((s) => !themes.has(s)), []);
+  // blueprint retired 2026-09-03 (fastr theme removed; the html style stays).
+  assertEquals(REPORT_HTML_STYLES.filter((s) => !themes.has(s)), ["blueprint"]);
 });
 
 // The scope rewriter runs line-by-line over each theme's extraCss. A comment

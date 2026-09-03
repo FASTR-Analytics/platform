@@ -347,8 +347,15 @@ shared `create_report` creates FASTR Markdown reports (format `fastr`, optional
 starting theme): its description embeds `FASTR_MD_SYNTAX_DOC` verbatim so the
 blocks are in context wherever the tool is callable (any chat view, the MCP
 host), and its propose rejects container defects
-(`listFastrContainerDefects`) and figure/image embed tokens (a new report has
-no ids) via the `{invalid}` proposal result. `get_report`/`get_available_reports`
+(`listFastrContainerDefects`), figure/image embed tokens (a new report has
+no ids) and literal `bg=` backgrounds (`listFastrLiteralBackgrounds` — tones
+re-theme, literals don't; the `allowLiteralColors` input is the deliberate
+escape hatch for when the user asked for exact colours) via the `{invalid}`
+proposal result. The editor's fastr write tools (`rewrite_report`,
+`rewrite_section`, `replace_text`) carry the same gate delta-based
+(`validateFastrNewLiteralBackgrounds`): only literals whose value is not
+already in the current body trip it, so user-sanctioned colours survive
+rewrites. `get_report`/`get_available_reports`
 state each report's format:
 `proposeEdit` stages the CodeMirror diff as the `customProposalUI`, an
 identical-body proposal short-circuits to panther's `{skip}` (a normal

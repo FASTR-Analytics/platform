@@ -46,7 +46,9 @@ import { render } from "solid-js/web";
 import { Show } from "solid-js";
 import type { Awareness } from "y-protocols/awareness";
 import * as Y from "yjs";
+import { hideMenu, type MenuItem, showMenu } from "panther";
 import {
+  applyTableCellAction,
   FASTR_TONES,
   FM_BOX_GAP,
   FM_BOX_INSET,
@@ -60,6 +62,7 @@ import {
   isFastrInkRole,
   isFastrLeafBlock,
   parseContainerFence,
+  readFastrDocumentSettings,
   renderFastrMarkdownToHtml,
   safeCssColor,
   scanContainerLines,
@@ -153,6 +156,11 @@ class RegionWidget extends WidgetType {
     dom.className = this.active
       ? "fm-live-region fm-live-region--active w-full cursor-text"
       : "fm-live-region w-full cursor-text";
+    // Presses inside the widget stopPropagation (cells, islands, the press
+    // claim below), which starves panther's document-level menu dismiss — so
+    // an open context menu is closed HERE, in the capture phase, before any
+    // child handler can swallow the event.
+    dom.addEventListener("mousedown", () => hideMenu(), true);
     dom.style.display = "flow-root";
     dom.contentEditable = "false";
     dom.setAttribute("data-region-line", String(this.startLine));
@@ -302,9 +310,10 @@ class RegionWidget extends WidgetType {
       const rel = Number(rowEl.getAttribute("data-line"));
       if (!Number.isFinite(rel)) continue;
       const cells = Array.from(rowEl.querySelectorAll<HTMLElement>("td, th"));
-      cells.forEach((cell, i) =>
-        attachCellEditor(cell, view, this.startLine + rel + 1, i)
-      );
+      cells.forEach((cell, i) => {
+        attachCellEditor(cell, view, this.startLine + rel + 1, i);
+        attachCellContextMenu(cell, view, this.startLine + rel + 1, i);
+      });
     }
 
     // MOUSEDOWN, not click, and with the default prevented: the browser's
@@ -383,8 +392,11 @@ function missingNote(kind: string, id: string): HTMLElement {
   return el;
 }
 
-// `:::report` renders nothing (silent), so its widget is an honest chip — an
-// invisible widget would make the line unfindable forever.
+// `:::report` renders nothing in View, and in Edit its settings are edited
+// from the toolbar's Page setup control — so the line is fully hidden here,
+// and an atomic range (provided by the region field) makes the caret skip
+// over it rather than sit invisibly on it. The empty div still anchors the
+// presence overlay and geometry queries.
 class PageSetupWidget extends WidgetType {
   constructor(readonly source: string, readonly startLine: number) {
     super();
@@ -392,30 +404,16 @@ class PageSetupWidget extends WidgetType {
   override eq(other: PageSetupWidget): boolean {
     return other.source === this.source;
   }
-  override toDOM(view: EditorView): HTMLElement {
+  override toDOM(): HTMLElement {
     const dom = document.createElement("div");
-    dom.className = "fm-live-region w-full cursor-pointer py-1";
+    dom.className = "h-0 w-full overflow-hidden";
     dom.contentEditable = "false";
     dom.setAttribute("data-region-line", String(this.startLine));
     dom.setAttribute("data-region-end", String(this.startLine));
-    const chip = document.createElement("span");
-    chip.className =
-      "inline-block rounded border px-2 py-0.5 font-mono text-xs opacity-60";
-    chip.textContent = `⚙ ${
-      t3({ en: "Page setup", fr: "Mise en page", pt: "Configuração da página" })
-    } · ${this.source.trim()}`;
-    dom.appendChild(chip);
-    dom.addEventListener("click", () => {
-      view.dispatch({
-        selection: { anchor: view.state.doc.line(this.startLine + 1).from },
-        scrollIntoView: true,
-      });
-      view.focus();
-    });
     return dom;
   }
   override get estimatedHeight(): number {
-    return 34;
+    return 0;
   }
 }
 
@@ -629,11 +627,68 @@ function attachTextEditor(
   }
   const original = sourceLines.slice(rel, endRel + 1).join("\n");
   el.classList.add("cm-fm-text-edit");
-  el.addEventListener("mousedown", (e) => {
-    e.stopPropagation();
-    if (el.isContentEditable) return;
+  // The editing surface is the raw source, but the syntax the toolbar OWNS
+  // stays invisible while editing: the leading heading marker and role-mark
+  // wrappers are swapped in as display:none spans (textContent still includes
+  // them, so a commit round-trips byte-identically and the selection mirror's
+  // Range-based offsets stay source offsets), and the marked phrase keeps its
+  // real colour. Emphasis/code/link syntax stays visible — it is typed.
+  const renderEditableSource = () => {
+    el.textContent = "";
+    const hiddenSpan = (t: string) => {
+      const s = document.createElement("span");
+      s.className = "cm-fm-island-syntax";
+      s.textContent = t;
+      return s;
+    };
+    // Emphasis runs: same-length `*` fences, content not space-flanked (so a
+    // list bullet or a lone `*` in prose never matches). The markers hide,
+    // the content styles — inside role phrases too.
+    const EMPH_RE = /(\*{3}|\*{2}|\*)(?!\s)([^*]*?)(?<!\s)\1/g;
+    const appendWithEmphasis = (parent: ParentNode, text: string) => {
+      EMPH_RE.lastIndex = 0;
+      let last = 0;
+      let m: RegExpExecArray | null;
+      while ((m = EMPH_RE.exec(text)) !== null) {
+        parent.append(document.createTextNode(text.slice(last, m.index)));
+        parent.append(hiddenSpan(m[1]));
+        const styled = document.createElement("span");
+        if (m[1].length >= 2) styled.style.fontWeight = "700";
+        if (m[1].length !== 2) styled.style.fontStyle = "italic";
+        styled.textContent = m[2];
+        parent.append(styled);
+        parent.append(hiddenSpan(m[1]));
+        last = m.index + m[0].length;
+      }
+      parent.append(document.createTextNode(text.slice(last)));
+    };
+    const frag = document.createDocumentFragment();
+    let rest = original;
+    const hm = /^(#{1,6} )/.exec(rest);
+    if (hm && /^H[1-6]$/.test(el.tagName)) {
+      frag.append(hiddenSpan(hm[1]));
+      rest = rest.slice(hm[1].length);
+    }
+    ROLE_MARK_RE.lastIndex = 0;
+    let last = 0;
+    let m: RegExpExecArray | null;
+    while ((m = ROLE_MARK_RE.exec(rest)) !== null) {
+      if (!isFastrInkRole(m[2])) continue;
+      appendWithEmphasis(frag, rest.slice(last, m.index));
+      frag.append(hiddenSpan("["));
+      const marked = document.createElement("span");
+      marked.className = `fm-mark fm-mark--${m[2]}`;
+      appendWithEmphasis(marked, m[1]);
+      frag.append(marked);
+      frag.append(hiddenSpan(`]{.${m[2]}}`));
+      last = m.index + m[0].length;
+    }
+    appendWithEmphasis(frag, rest.slice(last));
+    el.append(frag);
+  };
+  const activate = () => {
     (el as unknown as { _rendered: string })._rendered = el.innerHTML;
-    el.textContent = original;
+    renderEditableSource();
     try {
       el.contentEditable = "plaintext-only";
     } catch {
@@ -650,9 +705,72 @@ function attachTextEditor(
       sel.removeAllRanges();
       sel.addRange(range);
     }
+  };
+  (el as unknown as { _fmActivate?: () => void })._fmActivate = activate;
+  el.addEventListener("mousedown", (e) => {
+    e.stopPropagation();
+    if (el.isContentEditable) return;
+    e.preventDefault();
+    // Park the CM selection inside the region FIRST: the flip to active
+    // rebuilds the widget DOM, so the island must be activated on the
+    // POST-flip element — activating this one would put a contentEditable on
+    // a node the rebuild is about to throw away (the selection mirror would
+    // otherwise trigger that same rebuild mid-edit and kill the island).
+    const doc = view.state.doc;
+    const line1 = regionStartLine + rel + 1;
+    if (line1 > doc.lines) return;
+    view.dispatch({ selection: { anchor: doc.line(line1).from } });
+    const host = view.contentDOM.querySelector(
+      `[data-region-line="${regionStartLine}"]`,
+    );
+    const target = host
+      ? [...host.querySelectorAll<HTMLElement>(`[data-line="${rel}"]`)].find(
+        (n) => n.tagName === el.tagName,
+      )
+      : undefined;
+    ((target ?? el) as unknown as { _fmActivate?: () => void })
+      ._fmActivate?.();
   });
   el.addEventListener("click", (e) => e.stopPropagation());
+  // Mirror the island's DOM selection into the CM selection while editing:
+  // the toolbar's text actions (role colour, bold, italic) read the CM
+  // selection, and without the mirror they would act on wherever the caret
+  // was parked instead of what the user actually selected in this island.
+  const mirrorSelection = () => {
+    if (!el.isContentEditable) return;
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || !el.contains(sel.anchorNode)) return;
+    const doc = view.state.doc;
+    const line1 = regionStartLine + rel + 1;
+    const endLine1 = regionStartLine + endRel + 1;
+    if (endLine1 > doc.lines) return;
+    const base = doc.line(line1).from;
+    const max = doc.line(endLine1).to;
+    const offsetOf = (node: Node, offset: number) => {
+      const r = document.createRange();
+      r.selectNodeContents(el);
+      try {
+        r.setEnd(node, offset);
+      } catch {
+        return 0;
+      }
+      return r.toString().length;
+    };
+    const anchor = Math.min(base + offsetOf(sel.anchorNode!, sel.anchorOffset), max);
+    const head = Math.min(base + offsetOf(sel.focusNode!, sel.focusOffset), max);
+    const cur = view.state.selection.main;
+    if (cur.anchor === anchor && cur.head === head) return;
+    view.dispatch({ selection: { anchor, head } });
+  };
+  // Document-level, so it must live exactly as long as the island is ACTIVE —
+  // widgets rebuild on every regional keystroke, and a listener left behind
+  // would accumulate one copy per rebuild.
+  const stopMirror = () =>
+    document.removeEventListener("selectionchange", mirrorSelection);
+  el.addEventListener("focus", () =>
+    document.addEventListener("selectionchange", mirrorSelection));
   const restore = () => {
+    stopMirror();
     el.contentEditable = "false";
     const rendered = (el as unknown as { _rendered?: string })._rendered;
     if (rendered !== undefined) el.innerHTML = rendered;
@@ -664,6 +782,7 @@ function attachTextEditor(
       restore();
       return;
     }
+    stopMirror();
     el.contentEditable = "false";
     const doc = view.state.doc;
     const line1 = regionStartLine + rel + 1;
@@ -686,6 +805,126 @@ function attachTextEditor(
       el.textContent = original;
       restore();
     }
+  });
+}
+
+// The cell's right-click menu — the Google Docs table set, through the same
+// showMenu system the project lists use. Table bounds are re-derived from the
+// live doc at menu time (the clicked row could sit inside a container region,
+// so the REGION's bounds are not the table's).
+function attachCellContextMenu(
+  el: HTMLElement,
+  view: EditorView,
+  rowLine1: number,
+  cellIndex: number,
+) {
+  const isTableRow = (text: string) =>
+    text.trim().length > 0 && text.includes("|") &&
+    parseContainerFence(text) === undefined;
+  el.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const doc = view.state.doc;
+    if (rowLine1 > doc.lines) return;
+    let start1 = rowLine1;
+    while (start1 > 1 && isTableRow(doc.line(start1 - 1).text)) start1--;
+    let end1 = rowLine1;
+    while (end1 < doc.lines && isTableRow(doc.line(end1 + 1).text)) end1++;
+    const rowRel = rowLine1 - start1;
+    const colCount = doc.line(start1).text.split("|").length - 2;
+
+    const applyAction = (action: Parameters<typeof applyTableCellAction>[3]) => {
+      const lines: string[] = [];
+      for (let l = start1; l <= end1; l++) lines.push(doc.line(l).text);
+      const next = applyTableCellAction(
+        lines,
+        rowRel,
+        cellIndex,
+        action,
+        t3({ en: "New column", fr: "Nouvelle colonne", pt: "Nova coluna" }),
+      );
+      if (next === undefined) return;
+      view.dispatch({
+        changes: {
+          from: doc.line(start1).from,
+          to: doc.line(end1).to,
+          insert: next.join("\n"),
+        },
+      });
+    };
+
+    const items: MenuItem[] = [
+      ...(rowRel >= 2
+        ? [{
+          label: t3({
+            en: "Insert row above",
+            fr: "Insérer une ligne au-dessus",
+            pt: "Inserir linha acima",
+          }),
+          onClick: () => applyAction("insertRowAbove"),
+        }]
+        : []),
+      {
+        label: t3({
+          en: "Insert row below",
+          fr: "Insérer une ligne en dessous",
+          pt: "Inserir linha abaixo",
+        }),
+        onClick: () => applyAction("insertRowBelow"),
+      },
+      {
+        label: t3({
+          en: "Insert column left",
+          fr: "Insérer une colonne à gauche",
+          pt: "Inserir coluna à esquerda",
+        }),
+        onClick: () => applyAction("insertColLeft"),
+      },
+      {
+        label: t3({
+          en: "Insert column right",
+          fr: "Insérer une colonne à droite",
+          pt: "Inserir coluna à direita",
+        }),
+        onClick: () => applyAction("insertColRight"),
+      },
+      ...(rowRel >= 2
+        ? [{
+          label: t3({
+            en: "Delete row",
+            fr: "Supprimer la ligne",
+            pt: "Eliminar linha",
+          }),
+          onClick: () => applyAction("deleteRow"),
+        }]
+        : []),
+      ...(colCount > 1
+        ? [{
+          label: t3({
+            en: "Delete column",
+            fr: "Supprimer la colonne",
+            pt: "Eliminar coluna",
+          }),
+          onClick: () => applyAction("deleteCol"),
+        }]
+        : []),
+      {
+        label: t3({
+          en: "Delete table",
+          fr: "Supprimer le tableau",
+          pt: "Eliminar tabela",
+        }),
+        onClick: () => {
+          const from = doc.line(start1).from;
+          const to = Math.min(doc.line(end1).to + 1, doc.length);
+          view.dispatch({ changes: { from, to, insert: "" } });
+        },
+      },
+    ];
+    showMenu({
+      anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 },
+      items,
+    });
   });
 }
 
@@ -1088,6 +1327,9 @@ type LiveState = {
   // the block's REAL sheet classes, so the theme's borders, radius and shadow
   // match the preview exactly.
   boxes: BoxInfo[];
+  // The hidden `:::report` line(s): atomic, so the caret skips the invisible
+  // page-setup rather than landing on it.
+  atomic: DecorationSet;
 };
 
 type BoxInfo = {
@@ -1119,30 +1361,7 @@ function buildLiveState(
   const builder = new RangeSetBuilder<Decoration>();
   const protectedLines: ProtectedLine[] = [];
   const boxes: BoxInfo[] = [];
-  // The masthead's hidden "# " prefix: a user edit may not splice into it
-  // blind (a full-line selection still deletes the heading cleanly). Its BAND
-  // is a layer box at depth 0 — full sheet width, flush to the top — because
-  // a .cm-line can never escape the content padding the way View's full-bleed
-  // masthead does; the line paints the same ground inside it seamlessly.
-  const mast = mastheadLine(state);
-  if (mast) {
-    const m = HEADING_LINE_RE.exec(mast.text);
-    if (m) {
-      protectedLines.push({
-        from: mast.from,
-        to: mast.from + m[0].length,
-        regionFrom: mast.from,
-        regionTo: mast.to,
-      });
-      boxes.push({
-        openLine1: mast.number,
-        endLine1: mast.number,
-        capped: false,
-        classes: "cm-fm-masthead cm-fm-box-masthead",
-        depth: 0,
-      });
-    }
-  }
+  const atomicRanges: { from: number; to: number }[] = [];
   for (const r of ranges) {
     // Derived reveal: a region the selection touches opens for editing IN
     // PLACE, still looking like the block. Fence lines never show as syntax —
@@ -1166,7 +1385,15 @@ function buildLiveState(
       regionTo: r.to,
     });
     const source = state.sliceDoc(r.from, r.to);
-    const widget = r.region.kind === "leaf" && r.region.fence?.name === "report"
+    const isPageSetup = r.region.kind === "leaf" &&
+      r.region.fence?.name === "report";
+    if (isPageSetup) {
+      atomicRanges.push({
+        from: r.from,
+        to: Math.min(r.to + 1, state.doc.length),
+      });
+    }
+    const widget = isPageSetup
       ? new PageSetupWidget(source, r.region.startLine)
       : new RegionWidget(
         r.region.kind,
@@ -1180,7 +1407,17 @@ function buildLiveState(
       );
     builder.add(r.from, r.to, Decoration.replace({ widget, block: true }));
   }
-  return { ranges, deco: builder.finish(), protectedLines, boxes };
+  const atomicBuilder = new RangeSetBuilder<Decoration>();
+  for (const a of atomicRanges) {
+    atomicBuilder.add(a.from, a.to, Decoration.replace({}));
+  }
+  return {
+    ranges,
+    deco: builder.finish(),
+    protectedLines,
+    boxes,
+    atomic: atomicBuilder.finish(),
+  };
 }
 
 export function liveRegionExtensions(resolver: EmbedResolver): Extension[] {
@@ -1195,7 +1432,10 @@ export function liveRegionExtensions(resolver: EmbedResolver): Extension[] {
       }
       return value;
     },
-    provide: (f) => EditorView.decorations.from(f, (v) => v.deco),
+    provide: (f) => [
+      EditorView.decorations.from(f, (v) => v.deco),
+      EditorView.atomicRanges.of((view) => view.state.field(f).atomic),
+    ],
   });
 
   // The structure guard: USER edits (typing, deleting, pasting — anything
@@ -1255,15 +1495,11 @@ export function liveRegionExtensions(resolver: EmbedResolver): Extension[] {
         ) continue;
         const openBlock = view.lineBlockAt(view.state.doc.line(b.openLine1).from);
         const endBlock = view.lineBlockAt(view.state.doc.line(b.endLine1).from);
-        const isMasthead = b.depth === 0;
-        const top = isMasthead
-          // Flush to the sheet's top, covering the content offset too.
-          ? 0
-          : openBlock.top + view.documentTop - base.top + FM_BOX_GAP;
+        const top = openBlock.top + view.documentTop - base.top + FM_BOX_GAP;
         const bottom = endBlock.bottom + view.documentTop - base.top -
           (b.capped ? FM_BOX_GAP : 0);
         if (bottom <= top) continue;
-        const inset = isMasthead ? 0 : padX + (b.depth - 1) * FM_BOX_INSET;
+        const inset = padX + (b.depth - 1) * FM_BOX_INSET;
         out.push(
           new RectangleMarker(
             `cm-fm-box ${b.classes}`,
@@ -1301,7 +1537,6 @@ const LIST_LINE_RE = /^\s*(?:[-*+]|\d+\.)\s/;
 function buildSurfaceLines(state: EditorState): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>();
   // scanContainerLines flags code-fence interiors, where a # line is content.
-  let firstContent = true;
   for (const { index, text, inCode } of scanContainerLines(
     state.doc.iterLines(1, state.doc.lines + 1),
   )) {
@@ -1315,18 +1550,11 @@ function buildSurfaceLines(state: EditorState): DecorationSet {
       continue;
     }
     const m = HEADING_LINE_RE.exec(text);
-    // The document's OPENING h1 is the masthead, exactly as the renderer
-    // promotes body > h1:first-child — the host re-targets the theme's
-    // masthead rules onto this class.
-    const isMasthead = firstContent && m !== null && m[1].length === 1;
-    firstContent = false;
     if (m) {
       builder.add(
         from,
         from,
-        Decoration.line({
-          class: `cm-fm-h${m[1].length}${isMasthead ? " cm-fm-masthead" : ""}`,
-        }),
+        Decoration.line({ class: `cm-fm-h${m[1].length}` }),
       );
       continue;
     }
@@ -1378,7 +1606,10 @@ class BulletWidget extends WidgetType {
 }
 const BULLET = new BulletWidget();
 
-function buildConceal(view: EditorView): DecorationSet {
+function buildConceal(
+  view: EditorView,
+  atomicOut: { from: number; to: number }[],
+): DecorationSet {
   const { state } = view;
   const conceal = Decoration.replace({});
   const ranges: { from: number; to: number; deco: Decoration; replace: boolean }[] =
@@ -1403,27 +1634,28 @@ function buildConceal(view: EditorView): DecorationSet {
           case "ATXHeading4":
           case "ATXHeading5":
           case "ATXHeading6": {
-            // The masthead NEVER shows its syntax — it must look exactly like
-            // the rendered title block even while the caret is on it (the
-            // atomic range and structure guard keep the hidden prefix safe).
-            const isMast = node.name === "ATXHeading1" &&
-              mastheadLine(state)?.from === state.doc.lineAt(node.from).from;
-            if (!isMast && revealed(node.from, node.to)) return;
+            // Heading markers NEVER reveal (same rule as role marks): the
+            // toolbar owns heading levels, so the `#` stays hidden with the
+            // caret on the line, and the atomic range makes the caret skip
+            // it — with the nice side effect that Backspace at the text
+            // start removes the whole marker (heading -> paragraph).
             const mark = node.node.getChild("HeaderMark");
             if (mark) {
-              add(
-                mark.from,
-                Math.min(mark.to + 1, node.to),
-                conceal,
-              );
+              const to = Math.min(mark.to + 1, node.to);
+              add(mark.from, to, conceal);
+              atomicOut.push({ from: mark.from, to });
             }
             return;
           }
           case "StrongEmphasis":
           case "Emphasis": {
-            if (revealed(node.from, node.to)) return;
+            // Emphasis markers NEVER reveal (same rule as headings and role
+            // marks): the toolbar owns bold/italic, the styled text is the
+            // display, and the atomic markers keep the caret out of the
+            // invisible syntax.
             for (const mark of node.node.getChildren("EmphasisMark")) {
               add(mark.from, mark.to, conceal);
+              atomicOut.push({ from: mark.from, to: mark.to });
             }
             return;
           }
@@ -1508,6 +1740,10 @@ function buildConceal(view: EditorView): DecorationSet {
     // `[x]{.role}` is FASTR syntax the Lezer grammar doesn't know — regex over
     // the visible text, skipping code (the tree query above would be costly
     // per match; code spans render the syntax anyway, which is correct).
+    // Role markers NEVER reveal: the phrase stays a coloured phrase even with
+    // the caret inside it (the toolbar owns applying/clearing the role), and
+    // the hidden markers are ATOMIC so the caret steps over them instead of
+    // sitting invisibly inside.
     const text = state.sliceDoc(from, to);
     ROLE_MARK_RE.lastIndex = 0;
     let m: RegExpExecArray | null;
@@ -1515,7 +1751,6 @@ function buildConceal(view: EditorView): DecorationSet {
       if (!isFastrInkRole(m[2])) continue;
       const start = from + m.index;
       const end = start + m[0].length;
-      if (revealed(start, end)) continue;
       // Inside code spans/fences the renderer keeps the syntax literal, so
       // the conceal must too.
       const nodeAt = syntaxTree(state).resolveInner(start, 1);
@@ -1529,6 +1764,8 @@ function buildConceal(view: EditorView): DecorationSet {
         false,
       );
       add(start + 1 + m[1].length, end, conceal);
+      atomicOut.push({ from: start, to: start + 1 });
+      atomicOut.push({ from: start + 1 + m[1].length, to: end });
     }
   }
   ranges.sort((a, b) => a.from - b.from || a.to - b.to);
@@ -1547,9 +1784,8 @@ function buildConceal(view: EditorView): DecorationSet {
 
 class ConcealPluginValue {
   decorations: DecorationSet;
-  // The masthead's hidden "# " — atomic so the caret skips over it rather
-  // than sitting invisibly inside; the structure guard protects it from
-  // blind typing.
+  // Concealed role markers — atomic so the caret skips over the invisible
+  // syntax rather than sitting inside it.
   atomic: DecorationSet;
   constructor(view: EditorView) {
     [this.decorations, this.atomic] = buildConcealSets(view);
@@ -1562,26 +1798,12 @@ class ConcealPluginValue {
 }
 
 function buildConcealSets(view: EditorView): [DecorationSet, DecorationSet] {
-  const deco = buildConceal(view);
-  const atomicBuilder = new RangeSetBuilder<Decoration>();
-  const line = mastheadLine(view.state);
-  if (line) {
-    const m = HEADING_LINE_RE.exec(line.text);
-    if (m) {
-      atomicBuilder.add(line.from, line.from + m[0].length, Decoration.replace({}));
-    }
-  }
-  return [deco, atomicBuilder.finish()];
-}
-
-// The first non-blank line, when it is an h1 — the masthead.
-function mastheadLine(state: EditorState) {
-  for (let i = 1; i <= state.doc.lines; i++) {
-    const line = state.doc.line(i);
-    if (line.text.trim().length === 0) continue;
-    return HEADING_LINE_RE.exec(line.text)?.[1].length === 1 ? line : undefined;
-  }
-  return undefined;
+  const atomic: { from: number; to: number }[] = [];
+  const deco = buildConceal(view, atomic);
+  const builder = new RangeSetBuilder<Decoration>();
+  atomic.sort((a, b) => a.from - b.from);
+  for (const r of atomic) builder.add(r.from, r.to, Decoration.replace({}));
+  return [deco, builder.finish()];
 }
 
 const concealPlugin = ViewPlugin.fromClass(ConcealPluginValue, {
@@ -1701,6 +1923,112 @@ const livePreviewTheme = EditorView.theme({
 
 // ── Assembly ─────────────────────────────────────────────────────────────────
 
+// The sheet-bleed variables, measured rather than derived: the surface sheet's
+// calc assumes the scroller's full border box, but the vertical scrollbar eats
+// into it, so a calc-derived bleed margin overshoots the real content padding
+// by half the scrollbar and a band pokes out of the sheet (spawning a
+// horizontal scrollbar). The content padding is the ground truth — read it and
+// pin the two bleed properties to it as an inline style, which also tracks the
+// clamped padding of a narrow pane for free.
+const sheetBleedVars = ViewPlugin.fromClass(
+  class {
+    private last = -1;
+    constructor(view: EditorView) {
+      this.schedule(view);
+    }
+    update(u: ViewUpdate) {
+      if (u.geometryChanged || u.viewportChanged || u.docChanged) {
+        this.schedule(u.view);
+      }
+    }
+    schedule(view: EditorView) {
+      view.requestMeasure({
+        read: () =>
+          parseFloat(getComputedStyle(view.contentDOM).paddingLeft) || 0,
+        write: (pad) => {
+          if (pad === this.last) return;
+          this.last = pad;
+          view.scrollDOM.style.setProperty("--fm-bleed-margin", `${-pad}px`);
+          view.scrollDOM.style.setProperty("--fm-bleed-pad", `${pad}px`);
+        },
+      });
+    }
+  },
+);
+
+// The `:::report` document ground, painted on the sheet. View hangs the
+// header's classes/style on the iframe <html>; the sheet's equivalent is the
+// scroller: given the same classes, the scoped structure rules (fm-tone--*,
+// fm-has-bg, fm-ink--*) style it exactly as they style View's page — the ink
+// re-scoping a dark ground needs then cascades into lines and widgets for
+// free. The width classes are deliberately dropped: the host pins the measure
+// in px, and the rem-based fm-doc--wide rule would re-shear it against the
+// app's root font size. Everything applied is tracked and removed on destroy,
+// so flipping to Split leaves no tint behind.
+function docGroundPlugin(resolver: EmbedResolver) {
+  return ViewPlugin.fromClass(
+    class {
+      private classes: string[] = [];
+      private styleProps: string[] = [];
+      private key: string | undefined;
+      constructor(private view: EditorView) {
+        this.apply();
+      }
+      update(u: ViewUpdate) {
+        if (u.docChanged) this.apply();
+      }
+      destroy() {
+        this.clear();
+      }
+      private clear() {
+        const el = this.view.scrollDOM;
+        for (const c of this.classes) el.classList.remove(c);
+        for (const p of this.styleProps) el.style.removeProperty(p);
+        this.classes = [];
+        this.styleProps = [];
+      }
+      private apply() {
+        // The header must be the document's first content line by the
+        // format's rules; the slice keeps the per-keystroke rescan cheap.
+        const settings = readFastrDocumentSettings(
+          this.view.state.doc.sliceString(0, 4096),
+        );
+        const key =
+          `${settings.className}|${settings.style}|${settings.extraAttrs}`;
+        if (key === this.key) return;
+        this.key = key;
+        this.clear();
+        const el = this.view.scrollDOM;
+        this.classes = settings.className
+          .split(/\s+/)
+          .filter((c) => c.length > 0 && !c.startsWith("fm-doc"));
+        for (const c of this.classes) el.classList.add(c);
+        const colon = settings.style.indexOf(":");
+        if (colon > 0) {
+          const prop = settings.style.slice(0, colon).trim();
+          const value = settings.style
+            .slice(colon + 1)
+            .replace(/;\s*$/, "")
+            .trim();
+          el.style.setProperty(prop, value);
+          this.styleProps.push(prop);
+        }
+        const img = /data-bg-image="image:([^"]+)"/.exec(settings.extraAttrs);
+        if (img) {
+          const entry = resolver.getImage(img[1]);
+          if (entry) {
+            el.style.setProperty(
+              "background-image",
+              `url("${resolver.assetUrl(entry.imgFile).replaceAll('"', "%22")}")`,
+            );
+            this.styleProps.push("background-image");
+          }
+        }
+      }
+    },
+  );
+}
+
 export function livePreviewExtensions(
   resolver: EmbedResolver,
   collab?: PresenceDeps,
@@ -1710,6 +2038,8 @@ export function livePreviewExtensions(
     surfaceLineField,
     concealPlugin,
     livePreviewTheme,
+    sheetBleedVars,
+    docGroundPlugin(resolver),
     ...(collab ? [regionPresencePlugin(collab)] : []),
   ];
 }

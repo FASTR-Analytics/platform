@@ -5,7 +5,10 @@ import {
   getReportFormat,
   type ReportSummary,
 } from "../types/mod.ts";
-import { listFastrContainerDefects } from "../fastr_markdown_blocks.ts";
+import {
+  listFastrContainerDefects,
+  listFastrLiteralBackgrounds,
+} from "../fastr_markdown_blocks.ts";
 import { FASTR_MD_SYNTAX_DOC } from "../fastr_markdown_spec.ts";
 import type { AIToolEnv } from "./env.ts";
 
@@ -88,6 +91,9 @@ ${FASTR_MD_SYNTAX_DOC}`,
         theme: z.enum(FASTR_REPORT_THEMES).optional().describe(
           "Starting visual theme. Omit for the default; set one only when the user asks for a particular look. The user can switch themes at any time in the editor.",
         ),
+        allowLiteralColors: z.boolean().optional().describe(
+          "Set true ONLY when the user explicitly asked for specific literal colours, gradients or image backgrounds (bg=...). Without it, literal bg= values are rejected — use tones, which follow the theme.",
+        ),
       }),
       approval: {
         propose: (input) => {
@@ -103,10 +109,28 @@ ${FASTR_MD_SYNTAX_DOC}`,
               }:\n${shown}\nEvery \`:::\` block except \`stat\` and \`report\` must be closed by a bare \`:::\` line, and block names must be ones the format defines. Fix and re-propose.`,
             };
           }
-          if (/\]\((figure|image):/.test(input.markdown)) {
+          if (
+            /\]\((figure|image):/.test(input.markdown) ||
+            listFastrLiteralBackgrounds(input.markdown).some((l) =>
+              l.value.startsWith("image:")
+            )
+          ) {
             return {
               invalid:
-                "The report is new, so no figure or image ids exist yet — remove the figure/image embed tokens. The user inserts live figures later in the report editor.",
+                "The report is new, so no figure or image ids exist yet — remove the figure/image embed tokens and any bg=image: backgrounds. The user inserts live figures later in the report editor.",
+            };
+          }
+          const literals = listFastrLiteralBackgrounds(input.markdown);
+          if (literals.length > 0 && !input.allowLiteralColors) {
+            const shown = literals
+              .slice(0, 5)
+              .map((l) => `line ${l.line}: bg=${l.value}`)
+              .join("\n");
+            return {
+              invalid:
+                `The body uses ${literals.length} literal background colour${
+                  literals.length === 1 ? "" : "s"
+                }:\n${shown}\nLiterals do not follow a theme switch — replace them with tones (tone=muted|accent|solid|dark|inverse|gradient|danger|warning|success|info), which each theme maps to its own palette. Only if the user explicitly asked for these exact colours, re-propose unchanged with allowLiteralColors: true.`,
             };
           }
           return {

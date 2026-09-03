@@ -17,9 +17,13 @@ import {
   getReportHtmlStyle,
   type ImageBlock,
   materializeReport,
+  type FastrFencePatch,
+  fastrOpenFenceOnLine,
   type PresentationObjectConfig,
   type ProjectState,
+  readFastrDocumentSettings,
   referencedReportEmbedIds,
+  scanContainerLines,
   type ReportConfig,
   type ReportDocContent,
   type ReportFormat,
@@ -32,8 +36,6 @@ import {
   Button,
   ButtonGroup,
   type EditorComponentProps,
-  FrameLeft,
-  FrameLeftResizable,
   FrameTop,
   getEditorWrapper,
   HeadingBar,
@@ -98,7 +100,8 @@ import { ReportToolbar } from "./report_toolbar";
 import { FM_LIVE_SCOPE_CLASS } from "./live_preview_extension";
 import { REPORT_MARKDOWN_STYLE } from "./report_markdown_style";
 import {
-  ReportEmbedEditor,
+  ReportEmbedControls,
+  ReportInsertEmbedButtons,
   type SelectedReportEmbed,
 } from "./ReportEmbedEditor";
 import { ReportImagePicker } from "./report_image_picker";
@@ -136,10 +139,6 @@ type Props = EditorComponentProps<
 >;
 
 const AUTOSAVE_MS = 800;
-
-// Left sidebar (embed editor) width — same in Edit & Split. Also the right-side
-// pad the editor reserves so its centered column lines up with the View preview.
-const SIDEBAR_WIDTH_PX = 240;
 
 export function ProjectReport(p: Props) {
   const projectId = p.projectState.id;
@@ -200,6 +199,31 @@ export function ProjectReport(p: Props) {
       ? buildFastrReportCss(fastrTheme(), fastrColors())
       : undefined
   );
+  // The `:::report{width=...}` header widens the Edit sheet exactly as it
+  // widens the page in View. A string memo, so keystrokes anywhere else in
+  // the document never rebuild the surface sheet.
+  const liveDocWidth = createMemo(() =>
+    /fm-doc--(wide|full)/.exec(readFastrDocumentSettings(body()).className)
+      ?.[1] ?? "normal"
+  );
+  // The `:::report` fence itself, for the toolbar's Page setup control — the
+  // line is invisible in the editor, so the toolbar edits it from anywhere.
+  const pageSetupFence = createMemo(() => {
+    for (
+      const { index, text, inCode, fence } of scanContainerLines(
+        body().split("\n"),
+      )
+    ) {
+      if (inCode || fence?.kind !== "open" || fence.name !== "report") continue;
+      return fastrOpenFenceOnLine(text, index + 1);
+    }
+    return undefined;
+  });
+  function patchPageSetup(patch: FastrFencePatch) {
+    const fence = pageSetupFence();
+    if (fence) editorApi?.setBlockAttrs(fence.line, patch);
+    else editorApi?.insertPageSetup(patch);
+  }
   // The live-preview document surface: the full theme sheet scoped to the
   // editor wrapper plus the token->CodeMirror mapping. One <style> element,
   // re-rendered on theme change. Declared AFTER the signals it reads — a memo
@@ -210,35 +234,37 @@ export function ProjectReport(p: Props) {
     // The :root prefix is LOAD-BEARING: app.css themes CodeMirror app-wide
     // with ":root .cm-editor …" selectors written to outrank CM's own theme
     // classes — activeLine tint, caret and selection colours. Those must not
-    // reach into the live-preview document (the tint painted over the
-    // masthead's band; a dark-app caret is white and vanishes on the light
-    // sheet), so every live rule matches that specificity and wins on order.
+    // reach into the live-preview document (the tint painted over toned
+    // grounds; a dark-app caret is white and vanishes on the light sheet),
+    // so every live rule matches that specificity and wins on order.
     const scope = `:root .${FM_LIVE_SCOPE_CLASS}`;
     const themed = buildFastrReportCss(fastrTheme(), fastrColors(), scope);
     // The measure, at the IFRAME's scale (16px root) — the app's own root
     // font-size differs, and a rem-resolved measure would shear the whole
-    // sheet geometry away from View.
-    const measure = FASTR_THEME_TOKENS[fastrTheme()]?.measure ?? "44rem";
-    const measurePx = measure.endsWith("rem")
-      ? `${parseFloat(measure) * 16}px`
-      : measure;
-    // The editor's first heading line carries cm-fm-masthead; re-target the
-    // theme's own body > h1:first-child masthead rules at it, so Swiss's
-    // black band (and every other theme's masthead) applies to the EDITABLE
-    // line. Appended after the surface sheet, whose .cm-fm-masthead rule
-    // then strips the flow margins a .cm-line must never carry.
-    // Re-target the theme's own heading rules at the editor's line classes:
-    // the masthead (body > h1:first-child) and plain h2-h6 accents (Swiss's
-    // black top rule, Ministry's serif colour). Margins are then neutralised
-    // by the trailing rule — a .cm-line may carry borders and padding but
-    // never margins.
+    // sheet geometry away from View. width=wide/full mirror the sheet's
+    // .fm-doc--wide/full measures (74rem/100rem).
+    const docWidth = liveDocWidth();
+    const measure = docWidth === "wide"
+      ? "74rem"
+      : docWidth === "full"
+      ? "100rem"
+      : FASTR_THEME_TOKENS[fastrTheme()]?.measure ?? "44rem";
+    const measurePxN = measure.endsWith("rem")
+      ? parseFloat(measure) * 16
+      : parseFloat(measure);
+    const measurePx = `${measurePxN}px`;
+    // The sheet must hold the measure plus View's 24px body padding a side;
+    // 896px is View's default 56rem page cap.
+    const sheetPx = `${Math.max(896, measurePxN + 48)}px`;
+    // Re-target the theme's own heading rules at the editor's line classes —
+    // h1 underlines/centring, h2-h6 accents (Swiss's black top rule,
+    // Ministry's serif colour). Margins are then neutralised by the trailing
+    // rule — a .cm-line may carry borders and padding but never margins.
     const escaped = scope.replaceAll(".", "\\.");
     const retargeted = (themed.match(/[^{}]+\{[^}]*\}/g) ?? [])
       .map((rule) => {
-        let out = rule
-          .replaceAll(`${scope} > h1:first-child`, `${scope} .cm-fm-masthead`)
-          .replaceAll(`${scope} body > h1:first-child`, `${scope} .cm-fm-masthead`);
-        for (let n = 2; n <= 6; n++) {
+        let out = rule;
+        for (let n = 1; n <= 6; n++) {
           out = out.replace(
             new RegExp(`(^|,)(\\s*)${escaped} h${n}(?=\\s*[,{])`, "gm"),
             `$1$2${scope} .cm-fm-h${n}`,
@@ -259,15 +285,14 @@ export function ProjectReport(p: Props) {
     return [
       themed,
       // After `themed`, whose vars block also sets --fm-measure.
-      `${scope} { --fm-measure: ${measurePx}; }`,
+      `${scope} { --fm-measure: ${measurePx}; --fm-sheet: ${sheetPx}; }`,
       buildFastrEditorSurfaceCss(scope),
       retargeted,
-      `${scope} .cm-line.cm-fm-masthead, ${scope} .cm-line.cm-fm-h2, ${scope} .cm-line.cm-fm-h3,
+      `${scope} .cm-line.cm-fm-h1, ${scope} .cm-line.cm-fm-h2, ${scope} .cm-line.cm-fm-h3,
 ${scope} .cm-line.cm-fm-h4, ${scope} .cm-line.cm-fm-h5, ${scope} .cm-line.cm-fm-h6, ${scope} .cm-line.cm-fm-bq {
   margin: 0 !important; width: auto !important; text-decoration: none;
 }
-${scope} .cm-line.cm-fm-masthead { caret-color: var(--fm-page); }
-${scope} .cm-fm-masthead *, ${scope} .cm-fm-h2 *, ${scope} .cm-fm-h3 * { text-decoration: none !important; }`,
+${scope} .cm-fm-h1 *, ${scope} .cm-fm-h2 *, ${scope} .cm-fm-h3 * { text-decoration: none !important; }`,
     ].join("\n");
   });
   const rasters = createFigureRasterCache(() => setRasterTick((t) => t + 1));
@@ -1681,11 +1706,6 @@ ${scope} .cm-fm-masthead *, ${scope} .cm-fm-h2 *, ${scope} .cm-fm-h3 * { text-de
               selectedId={() => selectedEmbed()?.id}
               onScroll={onEditorScroll}
               centered={() => mode() === "edit"}
-              // In Edit, reserve the sidebar's width on the right so the centered
-              // column lands at the window centre — same placement as the View
-              // preview (where the sidebar is collapsed). Scrollbar stays at the
-              // pane edge (padding is inside the scroller).
-              centerPadRight={() => SIDEBAR_WIDTH_PX}
               collab={() => {
                 const s = session();
                 return collabReady() && s
@@ -1829,34 +1849,51 @@ ${scope} .cm-fm-masthead *, ${scope} .cm-fm-h2 *, ${scope} .cm-fm-h3 * { text-de
             {/* The formatting strip. A second row rather than more controls in
                 the HeadingBar's right slot, which already carries seven and is
                 anchored by onboarding tour steps. FrameTop's panel sizes to its
-                content, so the strip just grows the header. */}
+                content, so the strip just grows the header. The embed controls
+                (insert visualization/image; the selected embed's actions) ride
+                the same row — the left sidebar they used to live in is gone. */}
             <Show when={mode() !== "view" && canEditBody() && format() === "fastr"}>
               <ReportToolbar
                 api={() => editorApi}
                 context={blockContext}
                 theme={fastrTheme}
                 colors={fastrColors}
+                pageSetup={pageSetupFence}
+                onPatchPageSetup={patchPageSetup}
+                embedKind={() => selectedEmbed()?.kind}
+                embedControls={
+                  <ReportEmbedControls
+                    embed={selectedEmbedDetail()}
+                    canConfigure={canConfigure() && mode() !== "view"}
+                    onUpdateCaption={handleUpdateCaption}
+                    onEditFigure={handleEdit}
+                    onSwitchFigure={handleSwitch}
+                    onCreateFigure={handleCreate}
+                    onChangeImageFile={handleChangeImageFile}
+                    onDelete={handleDelete}
+                  />
+                }
+                canInsertEmbeds={() => canConfigure() && mode() !== "view"}
+                onInsertFigure={insertFigure}
+                onInsertImage={insertImage}
               />
             </Show>
-          </div>
-        }
-      >
-        {/* One always-mounted frame: the sidebar collapses (isShown=false) in
-            View only — it's available in Edit & Split (both show the CM editor,
-            where embeds are selected). MainArea stays mounted across the toggle —
-            the CM editor and figure widgets never remount (no re-hydration
-            flicker; undo and scroll preserved). */}
-        <FrameLeft
-          panelChildren={
-            mode() !== "view" ? (
+            <Show
+              when={mode() !== "view" && format() !== "fastr" && canConfigure()}
+            >
               <div
-                class="flex h-full flex-col"
-                style={{ width: `${SIDEBAR_WIDTH_PX}px` }}
-                data-tour="report-embed-panel"
+                class="ui-pad-sm ui-gap flex flex-wrap items-center border-t"
+                data-cursor-zone="header"
               >
-                <ReportEmbedEditor
+                <Show when={selectedEmbed() === undefined}>
+                  <ReportInsertEmbedButtons
+                    canConfigure={canConfigure() && mode() !== "view"}
+                    onInsertFigure={insertFigure}
+                    onInsertImage={insertImage}
+                  />
+                </Show>
+                <ReportEmbedControls
                   embed={selectedEmbedDetail()}
-                  format={format()}
                   canConfigure={canConfigure() && mode() !== "view"}
                   onUpdateCaption={handleUpdateCaption}
                   onEditFigure={handleEdit}
@@ -1864,17 +1901,13 @@ ${scope} .cm-fm-masthead *, ${scope} .cm-fm-h2 *, ${scope} .cm-fm-h3 * { text-de
                   onCreateFigure={handleCreate}
                   onChangeImageFile={handleChangeImageFile}
                   onDelete={handleDelete}
-                  onInsertFigure={insertFigure}
-                  onInsertImage={insertImage}
-                  onInsertBlock={(snippet) =>
-                    editorApi?.insertBlockOnNewLine(snippet)}
                 />
               </div>
-            ) : null
-          }
-        >
-          <MainArea />
-        </FrameLeft>
+            </Show>
+          </div>
+        }
+      >
+        <MainArea />
       </FrameTop>
       <ReportEditorCursors
         reportId={p.reportId}

@@ -23,7 +23,6 @@ export const FASTR_REPORT_THEMES = [
   "monochrome",
   // The artistic set, matching the html style briefs of the same names.
   "bauhaus",
-  "blueprint",
   "broadsheet",
   "risograph",
   "artdeco",
@@ -205,14 +204,6 @@ h2 { color: var(--fm-accent-text); }
 .fm-steps > *::before { color: var(--fm-accent-text); }
 thead th { background: var(--fm-accent); color: var(--fm-accent-ink); }
 th, td { padding: 0.6em 0.8em; }
-
-body > h1:first-child {
-  margin: calc(-1 * var(--fm-page-pad-top)) var(--fm-bleed-margin) 1.8em;
-  padding: 1.3em var(--fm-bleed-pad) 1.1em;
-  background: var(--fm-tone-dark);
-  color: var(--fm-tone-dark-ink);
-  border-bottom: none;
-}
 `,
   },
   ministry: {
@@ -242,7 +233,7 @@ body > h1:first-child {
 h1 { text-align: center; }
 h2 { color: var(--fm-accent-text); border-bottom: 2px solid var(--fm-border); padding-bottom: 0.25em; }
 .fm-stat__value { font-family: var(--fm-font-heading); }
-/* Official-document furniture: centred masthead, ruled tables, serif plates. */
+/* Official-document furniture: ruled tables, serif plates. */
 .fm-figure { border: 1px solid var(--fm-border); padding: 1em; background: var(--fm-surface); }
 .fm-figure__caption { font-family: var(--fm-font-heading); font-size: 0.8em; }
 .fm-quote { border-left-color: var(--fm-accent); font-family: var(--fm-font-heading); font-size: 1.05em; }
@@ -322,13 +313,6 @@ h2 { border-bottom: 1px solid var(--fm-accent); padding-bottom: 0.2em; }
 .fm-steps > *::before { font-family: var(--fm-font-heading); font-size: 1.1em; color: var(--fm-accent-text); }
 thead th { border-bottom: 1px solid var(--fm-accent); font-family: var(--fm-font-heading); }
 .fm-kicker { letter-spacing: 0.35em; }
-
-body > h1:first-child {
-  margin: calc(-1 * var(--fm-page-pad-top)) var(--fm-bleed-margin) 1.8em;
-  padding: 1.1em var(--fm-bleed-pad) 0.9em;
-  border-top: 1px solid var(--fm-accent);
-  border-bottom: 1px solid var(--fm-accent);
-}
 `,
   },
   clinical: {
@@ -404,14 +388,6 @@ h2 { text-transform: uppercase; letter-spacing: 0.08em; font-size: 1.25em; borde
 .fm-steps > *::before { font-family: var(--fm-font-heading); }
 thead th { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.85em; }
 .fm-kicker { letter-spacing: 0.3em; }
-
-body > h1:first-child {
-  margin: calc(-1 * var(--fm-page-pad-top)) var(--fm-bleed-margin) 1.6em;
-  padding: 0.7em var(--fm-bleed-pad) 0.5em;
-  border-top: 6px solid var(--fm-ink);
-  border-bottom: 1px solid var(--fm-ink);
-  font-size: 3.1em;
-}
 `,
   },
   swiss: {
@@ -453,16 +429,6 @@ h2 { border-top: 4px solid var(--fm-ink); padding-top: 0.35em; text-transform: u
 table { border-top: 4px solid var(--fm-ink); border-bottom: 4px solid var(--fm-ink); }
 thead th { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.8em; }
 .fm-kicker { letter-spacing: 0.3em; }
-
-body > h1:first-child {
-  margin: calc(-1 * var(--fm-page-pad-top)) var(--fm-bleed-margin) 1.6em;
-  padding: 1.4em var(--fm-bleed-pad) 1em;
-  background: var(--fm-ink);
-  color: var(--fm-page);
-  border-bottom: none;
-  font-size: 3em;
-  line-height: 0.95;
-}
 `,
   },
   monochrome: {
@@ -498,14 +464,6 @@ h2 { border-bottom: 3px solid var(--fm-ink); padding-bottom: 0.25em; }
 .fm-steps > * { padding-left: 4.2em; }
 .fm-steps > *::before { background: var(--fm-ink); color: var(--fm-page); padding: 0.1em 0.45em; left: 1em; }
 thead th { background: var(--fm-ink); color: var(--fm-page); border-bottom: none; }
-
-body > h1:first-child {
-  margin: calc(-1 * var(--fm-page-pad-top)) var(--fm-bleed-margin) 1.6em;
-  padding: 1.2em var(--fm-bleed-pad) 1em;
-  background: var(--fm-ink);
-  color: var(--fm-page);
-  border-bottom: none;
-}
 `,
   },
   bauhaus: {
@@ -547,66 +505,6 @@ h2 { color: #1f5ca9; }
 .fm-steps > *::before { background: #1f5ca9; color: #fff; border-radius: 999px; width: 2em; height: 2em; display: grid; place-items: center; left: 1em; top: 0.85em; }
 thead th { background: var(--fm-accent); color: var(--fm-accent-ink); }
 th, td { border: 2px solid var(--fm-ink); }
-
-body > h1:first-child {
-  margin: calc(-1 * var(--fm-page-pad-top)) var(--fm-bleed-margin) 1.6em;
-  padding: 1.2em var(--fm-bleed-pad) 0.9em;
-  background: var(--fm-accent);
-  color: var(--fm-accent-ink);
-  border-bottom: 10px solid var(--fm-ink);
-}
-`,
-  },
-  blueprint: {
-    scheme: "dark",
-    fontImport: googleFonts(
-      "family=IBM+Plex+Mono:wght@400;600&family=Archivo+Narrow:wght@600;700",
-    ),
-    fontBody: `"IBM Plex Mono", ui-monospace, monospace`,
-    fontHeading: `"Archivo Narrow", ${SYSTEM_SANS}`,
-    page: "#123b63",
-    surface: "#17456f",
-    surfaceAlt: "#0e3253",
-    ink: "#e7f0f7",
-    inkMuted: "#a7c2d8",
-    accent: "#7fa6c6",
-    accentInk: "#0b2742",
-    border: "#4d7ba3",
-    radius: "0px",
-    borderWidth: "1px",
-    headingWeight: "700",
-    headingTracking: "0.06em",
-    headingCase: "uppercase",
-    measure: "56rem",
-    toneDark: "#0b2742",
-    toneDarkInk: "#e7f0f7",
-    extraCss: `
-html {
-  background-image:
-    repeating-linear-gradient(0deg, rgba(231, 240, 247, 0.13) 0 1px, transparent 1px 20px),
-    repeating-linear-gradient(90deg, rgba(231, 240, 247, 0.13) 0 1px, transparent 1px 20px);
-}
-hr { border-top-style: dashed; }
-/* A drafting sheet: everything is a dashed annotation on the grid. */
-h2 { border-bottom: 1px dashed var(--fm-border); padding-bottom: 0.3em; }
-.fm-card, .fm-callout { border-style: dashed; }
-.fm-stat { border: 1px dashed var(--fm-border); background: none; border-radius: 0; }
-.fm-stat__label { text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.72em; }
-.fm-figure { border: 1px dashed var(--fm-border); padding: 1em; background: rgba(0, 0, 0, 0.15); }
-.fm-figure__caption { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.72em; }
-.fm-quote { border: 1px dashed var(--fm-border); border-left-width: 4px; padding: 1em 1.2em; color: var(--fm-ink); }
-.fm-steps { border-style: dashed; background: rgba(0, 0, 0, 0.15); }
-.fm-steps > * { border-bottom-style: dashed; }
-.fm-steps > *::before { color: var(--fm-accent-text); }
-th, td { border-bottom: 1px dashed var(--fm-border); }
-thead th { border-bottom: 1px solid var(--fm-ink); text-transform: uppercase; letter-spacing: 0.08em; }
-.fm-kicker { letter-spacing: 0.3em; }
-
-body > h1:first-child {
-  margin: calc(-1 * var(--fm-page-pad-top)) var(--fm-bleed-margin) 1.6em;
-  padding: 1.3em var(--fm-bleed-pad) 1.1em;
-  border-bottom: 1px dashed var(--fm-border);
-}
 `,
   },
   broadsheet: {
@@ -652,13 +550,6 @@ h2 { text-align: center; border-bottom: 3px double var(--fm-ink); padding-bottom
 thead th { border-bottom: 3px double var(--fm-ink); font-variant: small-caps; }
 .fm-cover { text-align: center; }
 .fm-kicker { letter-spacing: 0.35em; }
-
-body > h1:first-child {
-  margin: calc(-1 * var(--fm-page-pad-top)) var(--fm-bleed-margin) 1.6em;
-  padding: 0.5em var(--fm-bleed-pad) 0.4em;
-  border-top: 1px solid var(--fm-ink);
-  border-bottom: 3px double var(--fm-ink);
-}
 `,
   },
   risograph: {
@@ -694,12 +585,6 @@ h1, h2 { color: #0078bf; text-shadow: 3px 3px 0 var(--fm-accent); }
 .fm-steps { border: 2px solid #0078bf; box-shadow: 5px 5px 0 var(--fm-accent); }
 .fm-steps > *::before { color: #0078bf; }
 thead th { background: #0078bf; color: #fff; }
-
-body > h1:first-child {
-  margin: calc(-1 * var(--fm-page-pad-top)) var(--fm-bleed-margin) 1.8em;
-  padding: 1.2em var(--fm-bleed-pad) 1em;
-  border-bottom: 3px solid #0078bf;
-}
 `,
   },
   artdeco: {
@@ -743,13 +628,6 @@ h2 { text-align: center; border-bottom: 3px double var(--fm-accent); padding-bot
 thead th { border-bottom: 3px double var(--fm-accent); text-transform: uppercase; letter-spacing: 0.14em; font-size: 0.8em; }
 .fm-cover { text-align: center; }
 .fm-kicker { letter-spacing: 0.45em; }
-
-body > h1:first-child {
-  margin: calc(-1 * var(--fm-page-pad-top)) var(--fm-bleed-margin) 1.8em;
-  padding: 1.2em var(--fm-bleed-pad) 1em;
-  border-top: 3px double var(--fm-accent);
-  border-bottom: 3px double var(--fm-accent);
-}
 `,
   },
   japanese: {
@@ -831,12 +709,6 @@ h1, h2, h3 { color: var(--fm-accent); }
 .fm-steps > *::before { content: "[" counter(fm-step, decimal-leading-zero) "]"; color: var(--fm-accent); }
 th, td { border-bottom: 1px dashed var(--fm-border); }
 thead th { border-bottom: 1px solid var(--fm-accent); color: var(--fm-accent); }
-
-body > h1:first-child {
-  margin: calc(-1 * var(--fm-page-pad-top)) var(--fm-bleed-margin) 1.6em;
-  padding: 1.2em var(--fm-bleed-pad) 1em;
-  border-bottom: 1px solid var(--fm-accent);
-}
 `,
   },
   brutalist: {
@@ -907,17 +779,6 @@ thead th { background: var(--fm-accent); text-transform: uppercase; letter-spaci
 .fm-dek { border-top-width: 4px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--fm-ink); }
 .fm-band .fm-kicker, .fm-band .fm-dek { color: inherit; }
 a { text-decoration: underline; text-underline-offset: 3px; }
-
-/* The opening title is the masthead: a full-bleed acid block. */
-body > h1:first-child {
-  display: block;
-  margin: calc(-1 * var(--fm-page-pad-top)) var(--fm-bleed-margin) 1.6em;
-  padding: 1.5em var(--fm-bleed-pad) 1.1em;
-  border-bottom: 6px solid var(--fm-ink);
-  font-size: 3.2em;
-  line-height: 0.94;
-  letter-spacing: -0.03em;
-}
 `,
   },
 };

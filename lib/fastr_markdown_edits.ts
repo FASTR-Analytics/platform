@@ -354,6 +354,85 @@ export function insertLinkEdit(
   };
 }
 
+// ── Table cell actions (the cell's right-click menu) ─────────────────────────
+// Structural edits on a markdown table, addressed by the clicked cell: the
+// Google Docs set. Rows are 0-based WITHIN the table (0 = header, 1 = the
+// delimiter row, 2+ = body). Returns the rebuilt table lines, or undefined
+// when the action does not apply (deleting the header, deleting the last
+// column) — the caller hides those menu items, this is the backstop.
+
+export type TableCellAction =
+  | "insertRowAbove"
+  | "insertRowBelow"
+  | "insertColLeft"
+  | "insertColRight"
+  | "deleteRow"
+  | "deleteCol";
+
+function tableRowCells(text: string): string[] {
+  const inner = text.trim().replace(/^\|/, "").replace(/\|$/, "");
+  return inner.split("|").map((c) => c.trim());
+}
+
+function tableRowLine(cells: string[]): string {
+  return `| ${cells.join(" | ")} |`;
+}
+
+export function applyTableCellAction(
+  tableLines: string[],
+  rowRel: number,
+  cellIndex: number,
+  action: TableCellAction,
+  // What an inserted column's HEADER cell says (the caller localizes it);
+  // body cells always arrive empty.
+  newColumnHeader = "",
+): string[] | undefined {
+  if (tableLines.length < 2) return undefined;
+  const rows = tableLines.map(tableRowCells);
+  const cols = rows[0].length;
+  const emptyRow = () => Array.from({ length: cols }, () => "");
+
+  switch (action) {
+    case "insertRowAbove": {
+      // Above the header or the delimiter means "first body row".
+      const at = Math.max(rowRel, 2);
+      rows.splice(at, 0, emptyRow());
+      break;
+    }
+    case "insertRowBelow": {
+      const at = rowRel <= 1 ? 2 : rowRel + 1;
+      rows.splice(at, 0, emptyRow());
+      break;
+    }
+    case "deleteRow": {
+      if (rowRel <= 1 || rowRel >= rows.length) return undefined;
+      rows.splice(rowRel, 1);
+      break;
+    }
+    case "insertColLeft":
+    case "insertColRight": {
+      const at = Math.max(
+        0,
+        Math.min(cols, action === "insertColLeft" ? cellIndex : cellIndex + 1),
+      );
+      rows.forEach((cells, r) => {
+        const fill = r === 1 ? "---" : r === 0 ? newColumnHeader : "";
+        while (cells.length < at) cells.push(r === 1 ? "---" : "");
+        cells.splice(at, 0, fill);
+      });
+      break;
+    }
+    case "deleteCol": {
+      if (cols <= 1) return undefined;
+      rows.forEach((cells) => {
+        if (cellIndex < cells.length) cells.splice(cellIndex, 1);
+      });
+      break;
+    }
+  }
+  return rows.map(tableRowLine);
+}
+
 export function tableSnippet(cols: number, rows: number): string {
   const c = Math.max(1, Math.min(6, cols));
   const r = Math.max(1, Math.min(20, rows));

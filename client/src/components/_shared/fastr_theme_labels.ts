@@ -28,8 +28,6 @@ export function fastrThemeLabel(theme: FastrReportTheme): string {
       return t3({ en: "Monochrome", fr: "Monochrome", pt: "Monocromático" });
     case "bauhaus":
       return t3({ en: "Bauhaus", fr: "Bauhaus", pt: "Bauhaus" });
-    case "blueprint":
-      return t3({ en: "Blueprint", fr: "Plan", pt: "Projeto" });
     case "broadsheet":
       return t3({ en: "Broadsheet", fr: "Grand format", pt: "Formato grande" });
     case "risograph":
@@ -112,12 +110,6 @@ export function fastrThemeCaption(theme: FastrReportTheme): string {
         en: "Geometric, heavy rules, primary red",
         fr: "Géométrique, filets épais, rouge primaire",
         pt: "Geométrico, filetes espessos, vermelho primário",
-      });
-    case "blueprint":
-      return t3({
-        en: "Dark page, monospace, drafting grid",
-        fr: "Page sombre, chasse fixe, grille technique",
-        pt: "Página escura, monoespaçada, grelha técnica",
       });
     case "broadsheet":
       return t3({

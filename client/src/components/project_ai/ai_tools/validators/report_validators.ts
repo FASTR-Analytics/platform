@@ -4,6 +4,7 @@ import {
   findReportEmbeds,
   type ImageBlock,
   listFastrContainerDefects,
+  listFastrLiteralBackgrounds,
   newHtmlDefect,
   type ReportFormat,
   validateHtmlFragment,
@@ -102,6 +103,39 @@ export function validateFastrContainers(
     `The proposed body has ${defects.length} block problem${
       defects.length === 1 ? "" : "s"
     }:\n${shown}\nEvery \`:::\` block except \`stat\` must be closed by a bare \`:::\` line, and block names must be ones the format defines. Fix and re-propose.`,
+  );
+}
+
+// FASTR Markdown: literal `bg=` values deliberately do not follow a theme
+// switch, and the model reaches for them despite the brief saying tones
+// (observed on testing: an AI-drafted report full of hex backgrounds). Gated
+// on the DELTA — literals whose value already appears in the current body were
+// sanctioned by the user (set manually or previously accepted) and pass, so a
+// rewrite never trips over the document's own history. The escape hatch is a
+// deliberate input: the model re-proposes with allowLiteralColors: true only
+// when the user actually asked for those exact colours.
+export function validateFastrNewLiteralBackgrounds(
+  newBody: string,
+  baseBody: string,
+  format: ReportFormat,
+  allowLiteralColors: boolean | undefined,
+): void {
+  if (format !== "fastr" || allowLiteralColors) return;
+  const sanctioned = new Set(
+    listFastrLiteralBackgrounds(baseBody).map((l) => l.value),
+  );
+  const added = listFastrLiteralBackgrounds(newBody).filter(
+    (l) => !sanctioned.has(l.value),
+  );
+  if (added.length === 0) return;
+  const shown = added
+    .slice(0, 5)
+    .map((l) => `line ${l.line}: bg=${l.value}`)
+    .join("\n");
+  throw new AIToolFailure(
+    `The proposal adds ${added.length} literal background colour${
+      added.length === 1 ? "" : "s"
+    }:\n${shown}\nLiterals do not follow a theme switch — use tones (tone=muted|accent|solid|dark|inverse|gradient|danger|warning|success|info), which each theme maps to its own palette. Only if the user explicitly asked for these exact colours, re-propose unchanged with allowLiteralColors: true.`,
   );
 }
 

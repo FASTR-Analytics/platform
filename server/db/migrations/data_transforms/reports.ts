@@ -14,6 +14,7 @@
 // =============================================================================
 
 import {
+  FASTR_REPORT_THEMES,
   REPORT_HTML_STYLES,
   reportConfigSchema,
   reportFiguresSchema,
@@ -94,6 +95,17 @@ export async function migrateReports(
       !(REPORT_HTML_STYLES as readonly string[]).includes(config.htmlStyle)
     ) {
       delete config.htmlStyle;
+    }
+
+    // Block 3: retired fastr themes (2026-09-03 — blueprint removed). Same
+    // mechanics as Block 2: an out-of-enum value fails safeParse and routes
+    // the row here; dropping the key falls the report back to the default
+    // theme (the theme is a starting point, changeable in the editor).
+    if (
+      typeof config.fastrTheme === "string" &&
+      !(FASTR_REPORT_THEMES as readonly string[]).includes(config.fastrTheme)
+    ) {
+      delete config.fastrTheme;
     }
 
     // Throws if the row is still invalid after every transform (including
