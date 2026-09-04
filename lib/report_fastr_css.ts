@@ -551,6 +551,169 @@ ${d}.fm-dek {
   font-weight: 700;
 }
 
+/* ── Cover layouts (layout=) ──────────────────────────────────────────────── */
+/* The layout is the cover's COMPOSITION; the tone is its ground, so every
+   layout works on every tone. Each keeps the masthead lines as DIRECT children
+   of the cover (the editor's kicker/dek islands depend on that) and is written
+   in em, so the Insert menu's thumbnails shrink it faithfully. Two classes
+   outrank a theme's own .fm-cover { text-align } whatever the sheet order. */
+
+${d}.fm-cover.fm-cover--poster h1, ${d}.fm-cover.fm-cover--spine h1,
+${d}.fm-cover.fm-cover--split h1, ${d}.fm-cover.fm-cover--minimal h1,
+${d}.fm-cover.fm-cover--block h1 { text-align: left; }
+${d}.fm-cover.fm-cover--centered h1, ${d}.fm-cover.fm-cover--frame h1 {
+  text-align: center;
+}
+
+/* Centred: everything on the axis; the sub's rule becomes a short centred bar. */
+${d}.fm-cover.fm-cover--centered {
+  align-items: center;
+  text-align: center;
+}
+${d}.fm-cover.fm-cover--centered h1 { font-size: 3.6em; max-width: 14em; }
+${d}.fm-cover.fm-cover--centered .fm-dek {
+  border-top: none;
+  padding-top: 0;
+  max-width: 34em;
+}
+${d}.fm-cover.fm-cover--centered .fm-dek::before {
+  content: "";
+  display: block;
+  width: 3em;
+  height: 0.2em;
+  margin: 0 auto 1em;
+  background: currentColor;
+}
+
+/* Poster: an accent bar at the head, the title set huge and pushed to the foot. */
+${d}.fm-cover.fm-cover--poster {
+  justify-content: flex-end;
+  text-align: left;
+}
+${d}.fm-cover.fm-cover--poster::before {
+  content: "";
+  display: block;
+  width: 5em;
+  height: 0.6em;
+  margin-bottom: auto;
+  background: var(--fm-accent);
+}
+${d}.fm-cover.fm-cover--poster h1 {
+  font-size: 4.4em;
+  line-height: 0.98;
+  letter-spacing: -0.02em;
+  max-width: 11em;
+  margin-top: 0.4em;
+}
+${d}.fm-cover.fm-cover--poster .fm-dek { max-width: 40em; }
+
+/* Spine: a bound edge — an accent rule down the whole left side, the text
+   hanging off it. The rule sits OUTSIDE the column so the text stays aligned. */
+${d}.fm-cover.fm-cover--spine {
+  text-align: left;
+  border-left: 0.6em solid var(--fm-accent);
+  padding-left: calc(var(--fm-bleed-pad) - 0.6em);
+}
+${d}.fm-cover.fm-cover--spine .fm-kicker { color: var(--fm-accent-text); }
+${d}.fm-cover.fm-cover--spine .fm-dek {
+  border-top: none;
+  padding-top: 0;
+  border-left: 0.15em solid currentColor;
+  padding-left: 1em;
+  max-width: 36em;
+}
+
+/* Frame: a double hairline rule inset from the edges, the words centred in
+   it — the printed report cover. The frame follows the theme's rule weight. */
+${d}.fm-cover.fm-cover--frame {
+  position: relative;
+  align-items: center;
+  text-align: center;
+  padding-block: 4.5em;
+}
+${d}.fm-cover.fm-cover--frame::before {
+  content: "";
+  position: absolute;
+  inset: 1.4em max(1.4em, calc(var(--fm-bleed-pad) - 1.6em));
+  border: var(--fm-border-width) solid currentColor;
+  outline: var(--fm-border-width) solid currentColor;
+  outline-offset: 0.35em;
+  pointer-events: none;
+}
+${d}.fm-cover.fm-cover--frame h1 { max-width: 14em; }
+${d}.fm-cover.fm-cover--frame .fm-dek {
+  border-top: none;
+  padding-top: 0;
+  font-size: 0.8em;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  max-width: 34em;
+}
+
+/* Split: the kicker across the head, then the title left and the sub right
+   on a vertical rule, both at the foot — an editorial spread. */
+${d}.fm-cover.fm-cover--split {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  column-gap: 3em;
+  align-items: end;
+  align-content: space-between;
+  text-align: left;
+}
+${d}.fm-cover.fm-cover--split .fm-kicker {
+  grid-column: 1 / -1;
+  align-self: start;
+  margin-bottom: 3em;
+}
+${d}.fm-cover.fm-cover--split h1 {
+  grid-column: 1;
+  margin: 0;
+  font-size: 3.4em;
+  line-height: 1.02;
+}
+${d}.fm-cover.fm-cover--split > p { grid-column: 1; }
+${d}.fm-cover.fm-cover--split .fm-dek {
+  grid-column: 2;
+  margin-top: 0;
+  border-top: none;
+  padding-top: 0;
+  border-left: var(--fm-border-width) solid currentColor;
+  padding-left: 1.2em;
+  font-weight: 400;
+}
+
+/* Minimal: top-set and quiet — a smaller title, the sub in muted ink, a
+   hairline foot instead of a ground. */
+${d}.fm-cover.fm-cover--minimal {
+  justify-content: flex-start;
+  text-align: left;
+  padding-top: 5em;
+  border-bottom: var(--fm-border-width) solid var(--fm-border);
+}
+${d}.fm-cover.fm-cover--minimal h1 { font-size: 2.6em; max-width: 18em; }
+${d}.fm-cover.fm-cover--minimal .fm-kicker { color: var(--fm-accent-text); }
+${d}.fm-cover.fm-cover--minimal .fm-dek {
+  border-top: none;
+  padding-top: 0;
+  font-weight: 400;
+  color: var(--fm-ink-muted);
+  max-width: 36em;
+}
+
+/* Block: the title set as a solid block of the accent. On a solid ground the
+   block would vanish into it, so that tone keeps the plain title. */
+${d}.fm-cover.fm-cover--block { text-align: left; }
+${d}.fm-cover.fm-cover--block:not(.fm-tone--solid) h1 {
+  align-self: flex-start;
+  background: var(--fm-solid-bg);
+  color: var(--fm-accent-ink);
+  padding: 0.18em 0.45em;
+  max-width: 14em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+${d}.fm-cover.fm-cover--block .fm-dek { max-width: 36em; }
+
 /* ── Steps: a numbered process list ───────────────────────────────────────── */
 /* The numbers are a CSS counter, so the author writes plain paragraphs and
    never renumbers by hand when a step is inserted. */
@@ -579,6 +742,76 @@ ${d}.fm-steps > *::before {
   font-size: 0.85em;
   line-height: 1.5;
   color: var(--fm-accent-text);
+}
+
+/* ── Numbered sections (report numbering=sections) ────────────────────────── */
+/* Only TOP-LEVEL headings are numbered: a heading inside a block is not a
+   document section (the format's own rule), so a band or a card can hold one
+   without disturbing the sequence. The counters live on the document root,
+   which is where readFastrDocumentSettings puts the class. */
+${d}.fm-doc--numbered { counter-reset: fm-sec 0; }
+${d}.fm-doc--numbered body > h2 {
+  counter-increment: fm-sec;
+  counter-reset: fm-sub 0;
+}
+${d}.fm-doc--numbered body > h2::before {
+  content: counter(fm-sec) ". ";
+  color: var(--fm-accent-text);
+}
+${d}.fm-doc--numbered body > h3 { counter-increment: fm-sub; }
+${d}.fm-doc--numbered body > h3::before {
+  content: counter(fm-sec) "." counter(fm-sub) " ";
+  color: var(--fm-accent-text);
+}
+
+/* ── Table of contents ────────────────────────────────────────────────────── */
+/* The list is the document's own outline (the renderer fills it in), so the
+   only job here is to make it read as a contents page: a quiet panel, the
+   levels stepped by indent, the entries as plain ink rather than links. */
+${d}.fm-toc {
+  display: block;
+  margin: 1.6em 0;
+  padding: 1.2em 1.4em;
+  border: var(--fm-border-width) solid var(--fm-border);
+  border-radius: var(--fm-radius);
+  background: var(--fm-surface);
+}
+${d}.fm-toc__title {
+  font-family: var(--fm-font-heading);
+  font-weight: var(--fm-heading-weight);
+  letter-spacing: var(--fm-heading-tracking);
+  text-transform: var(--fm-heading-case);
+  font-size: 0.85em;
+  margin-bottom: 0.7em;
+  color: var(--fm-accent-text);
+}
+${d}.fm-toc__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  counter-reset: none;
+}
+${d}.fm-toc__item {
+  margin: 0;
+  padding: 0.25em 0;
+  border-bottom: 1px solid var(--fm-border);
+}
+${d}.fm-toc__item:last-child { border-bottom: none; }
+${d}.fm-toc__item--2 { padding-left: 1.2em; }
+${d}.fm-toc__item--3 { padding-left: 2.4em; font-size: 0.95em; }
+${d}.fm-toc__item--4, ${d}.fm-toc__item--5, ${d}.fm-toc__item--6 {
+  padding-left: 3.6em;
+  font-size: 0.95em;
+}
+${d}.fm-toc__item a {
+  color: var(--fm-ink);
+  text-decoration: none;
+  border-bottom: none;
+}
+${d}.fm-toc__item a:hover { color: var(--fm-accent-text); }
+${d}.fm-toc__empty {
+  color: var(--fm-ink-muted);
+  font-style: italic;
 }
 
 /* A top-level h1 is deliberately NOT special: the title page is :::cover's
@@ -629,6 +862,44 @@ ${scope} { --fm-bleed-margin: 0; --fm-bleed-pad: 1.4em; }
 ${d}.fm-cover { min-height: 0; }
 ${d}.fm-figure--wide { margin-inline: 0; }
 `}
+`;
+}
+
+// The Insert menu's cover thumbnails: real fm-cover markup under the toolbar's
+// scoped sheet, shrunk by a small font-size (the sheet is em throughout) and
+// made to FILL a fixed tile — under a scope the cover has no page to bleed
+// into and no height, and the tile is its page.
+export function buildFastrCoverTileCss(scope: string): string {
+  // The tile element carries BOTH the scope class and fm-cover-tile, so these
+  // are compound selectors on one element, not descendant ones.
+  const d = `${scope}.fm-cover-tile`;
+  return `
+${d} {
+  position: relative;
+  height: 0;
+  padding-bottom: 75%;
+  overflow: hidden;
+  font-size: 5px;
+  line-height: 1.4;
+  border-radius: 4px;
+  background: var(--fm-page);
+  color: var(--fm-ink);
+  font-family: var(--fm-font-body);
+  pointer-events: none;
+}
+${d} .fm-cover {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 2.4em 2.6em;
+  break-after: auto;
+}
+${d} .fm-cover.fm-cover--spine { padding-left: 2em; }
+${d} .fm-cover.fm-cover--frame::before { inset: 1.2em; }
+${d} .fm-cover.fm-cover--minimal { padding-top: 3em; }
 `;
 }
 
@@ -841,6 +1112,18 @@ ${d}.cm-fm-quote-line { font-style: italic; font-size: 1.1em; }
    headings carry their margins as PADDING (line decorations may never carry
    margins), and list lines take the ul indent. */
 ${d}.cm-fm-blank { font-size: 0.65em; }
+/* View's document opens flush with its first block: leading blank lines are
+   not content there, and the body first-child rule drops its top margin (a cover
+   even pulls itself up). The editor's page must open the same way, or every
+   report starts with a strip of bare page ground above its cover. */
+${d}.cm-line.cm-fm-lead { height: 0; font-size: 0; line-height: 0; overflow: hidden; }
+${d}.cm-line.cm-fm-first { padding-top: 0 !important; margin-top: 0 !important; }
+/* Section numbers on the editor's own heading lines (the rendered document
+   uses a CSS counter; a cm-line is not a real heading). */
+${d}.cm-fm-secnum { color: var(--fm-accent-text); }
+/* Two classes: the general first-child clamp below is a later rule of equal
+   weight, and would otherwise win the tie. */
+${d}.fm-live-region.fm-live-region--first > *:first-child { margin-top: 0 !important; }
 /* Widgets render REAL html inside .cm-content, which is white-space:pre-wrap
    (CodeMirror needs it for the text). Inherited into a widget, every newline
    the renderer emits between tags becomes a phantom line box — two extra
@@ -856,6 +1139,9 @@ ${d}.cm-fm-li { padding-left: 1.4em; }
 /* A concealed role mark's label can sit inside what Lezer tokenized as a
    shortcut-reference link; the highlight style's underline is noise there. */
 ${d}.fm-mark { text-decoration: none !important; }
+/* …except an explicit underline mark, which must survive that strip (and
+   the heading strip the host adds) at the same strength. */
+${d}.fm-mark.fm-mark--u { text-decoration: underline !important; text-underline-offset: 2px; }
 /* Syntax hidden inside an ACTIVE text island (the leading heading marker,
    role-mark wrappers): display:none keeps it out of the visual flow while
    textContent still carries it, so a commit round-trips byte-identically. */
@@ -892,17 +1178,13 @@ ${d}.cm-fm-chrome-cap {
    (title bar, kicker) on the block's own ground, and a thin end cap. The
    syntax never shows in Edit mode — attrs are toolbar territory. */
 ${d}.cm-fm-chrome { cursor: pointer; }
-/* A text-free region (stats, embeds) never reveals; when the caret is inside
-   it, this ring is the selection's only visible sign. */
 /* An in-place text editor keeps its element's rendered box; the dotted
    underline marks the editable surface, as on the labels. */
 ${d}.cm-fm-text-edit { cursor: text; }
 ${d}.cm-fm-text-edit:hover { text-decoration: underline dotted; text-underline-offset: 3px; }
 ${d}.cm-fm-text-edit:focus { outline: 1px dashed var(--fm-accent-text); outline-offset: 2px; text-decoration: none; }
-${d}.fm-live-region--active {
-  outline: 2px solid var(--fm-accent-text);
-  outline-offset: 2px;
-}
+/* No ring on the active region: blocks look exactly as View renders them even
+   with the caret inside (the class still drives ghost placeholders). */
 /* Click-to-edit labels in chrome: a text cursor and a quiet dotted underline
    on hover say "this is editable"; an empty label shows its placeholder so a
    cleared title can always be brought back. */

@@ -309,7 +309,22 @@ you type is what you get. Syntax primitives are pure and Deno-testable in
 compiler (one generic block rule, depth-counted so `:::tiles`/`:::card`/`:::`
 nests at the same marker length; `stat` is a LEAF block taking no close). Blocks:
 `callout` (5 kinds), `tiles`/`card`, `stat`, `columns`/`col`, `quote`, `band`,
-`cover` (both taking `kicker`/`sub` masthead lines) and `steps` (a process list
+`contents` (a LEAF: a table of contents whose content is the DOCUMENT, not
+the author's lines — `fastrDocumentOutline` in fastr_markdown_blocks is the
+one authority, skipping code fences and a cover's title page, and
+`renderFastrTocHtml` the one markup, so the renderer's `fm_toc` core rule and
+the editor's leaf widget cannot drift; the core rule also stamps `id=` on the
+heading tokens with the same slug function, only when the document has a
+contents block, and the slug is spent even for headings the depth omits so a
+deeper `depth=` never renumbers anchors. In the editor an entry cannot
+navigate, so a click parks the CARET on its heading; the widget's eq keys on
+the serialized outline, so it re-renders when a heading changes and not on any
+other edit),
+`cover` (both taking `kicker`/`sub` masthead lines; a cover also takes
+`layout=classic|centered|poster|spine|frame|split|minimal|block`, the
+compositions `FASTR_COVER_LAYOUTS` in fastr_markdown_blocks names and the
+`.fm-cover--*` rules in report_fastr_css draw — every layout on every tone,
+masthead lines kept as DIRECT children for the editor's islands) and `steps` (a process list
 numbered by a CSS counter, so inserting a step never renumbers by hand); an
 unknown name still groups its content (a typo must never swallow the document)
 and is reported as a defect. Two things the html format cannot do, because we
@@ -498,14 +513,88 @@ FASTR only) sits inside the same `FrameTop` panel as the `HeadingBar`
 just grows the header, and the `HeadingBar`'s slots (already seven controls,
 anchored by onboarding tour steps) stay untouched. It is laid out like Google
 Docs: a MENU row (Insert and Page are dropdown menus — Insert carries the
-blocks, link, table and the embed pickers; Page carries the hidden `:::report`
-header's width/background/ink) above ONE persistent toolbar row (text style,
-bold/italic/code, text colour, lists). The toolbar row adapts to the last
+blocks, link, table and the embed pickers, with Table, Stat, Tiles and Columns
+opening hover flyouts that pick a size — a rows×columns grid, a 1–4 row that
+writes a `:::tiles` grid of stats or cards or a `:::columns` block; Page
+carries the hidden `:::report`
+header's width/background/ink) above ONE persistent toolbar row — Google Docs'
+PILL: a rounded tinted strip of flat buttons in thin-divided groups (undo/redo,
+text style, bold/italic/underline — underline is the mark attribute
+`[x]{underline}`, since markdown has none — a − N + text-size stepper (which shows the RENDERED
+size measured at the caret when no explicit mark is set), text colour with its
+colour bar, lists), dropdowns marked by a chevron; for FASTR the report header
+drops its own undo/redo pair. The toolbar row adapts to the last
 click: a selected embed's controls REPLACE the text controls (as selecting an
-image does in Google Docs), and a block segment (fence chip + attributes +
-tone + literal + ink) APPENDS while the caret is inside a `:::` block. The
-hidden `:::report` fence is never a block target — the Page menu owns it.
-Text actions go through pure
+image does in Google Docs), and a block segment (fence chip + attributes + a
+combined Background menu + ink) APPENDS while the caret is inside a `:::`
+block. Background is ONE menu for both ground kinds — the theme's tones as
+preset swatches on top, the literal colour grid + hex field below — and keeps
+them mutually exclusive in a single fence rewrite, because a literal wins over
+a tone in the renderer and a stale one must not linger; the Page menu embeds
+the same panel for the document background. Text colour is the SAME shape
+(`InkPanel`): the ink roles as preset swatches on top, the literal grid and
+hex field below (`LiteralColours`, shared with the ground panel); a literal
+writes `[x]{color=#hex}` — `color=` is a fourth mark attribute, gated by
+`safeCssColor`, serialised after the role — and role and colour are one
+choice: `setInlineRoleEdit`/`setInlineColorEdit` each drop the other. The Page menu carries the document THEME (the header's select survives only
+where there is no toolbar, i.e. View), the background panel (tones, literal
+colours and a PHOTO ground — `bg=image:<id>` with its overlay, the image
+picked or uploaded through the host's own registry so the body-scan prune
+keeps it), a NUMBERED SECTIONS toggle
+(`numbering=sections` → `fm-doc--numbered`, a CSS counter on `body > h2/h3`
+ONLY, since a heading inside a block is not a section — the editor's own
+heading lines are cm-lines rather than real headings and a viewport-scoped
+counter would renumber on scroll, so `buildSurfaceLines` computes the same
+numbers doc-wide as widgets, and docGroundPlugin deliberately keeps `fm-doc*`
+classes off the scroller so the two can never both fire) and DOCUMENT DETAILS
+(words, headings, visualizations, images, last saved). The printed SHEET is
+deliberately NOT a control: `:::report` still accepts
+`pagesize`/`orientation`/`margin` and `fastrPageRuleCss` still writes the
+`@page` rule the .html export, the print frame and the emailed PDF use, but
+nothing in the UI or the AI brief sets them, so a report prints A4 portrait
+with normal margins unless a body says otherwise by hand. Theme and Background
+are hover FLYOUTS — `MenuFlyout`, the pure-CSS row-plus-panel the Insert pickers
+already used and now share. The theme flyout's tiles are drawn from
+`FASTR_THEME_TOKENS` (page, ink, accent, dark tone, heading face) rather than
+from scoped copies of every theme's stylesheet, which would be ~17 sheets in
+a dropdown. The menu
+row opens with a FILE menu (Google Docs' shape): Download… (the host's
+`DownloadReport` modal — the header's Download button hides while the toolbar
+shows it), Email this file… (`share_report.tsx`, the slide deck's share modal
+for a report: the attachment is always a PDF, built in memory by
+`exports/export_report_attachment.ts` — markdown through panther's vector
+renderer, html/fastr through `rasterize_report_document.ts`, which mounts the
+standalone document in a hidden iframe sized to the PRINTABLE AREA (so `vh`
+blocks like a cover match the sheet), rasterizes it and cuts it into pages at
+top-level block boundaries, a cover taking a full sheet of its own ground.
+Two html2canvas facts are load-bearing: `foreignObjectRendering` is required
+(the default text path drops the SPACES between words on these fonts), and
+every `color(srgb …)` — how Chrome serializes the theme's `color-mix()` — must
+be rewritten to rgba() first or it throws on an unsupported colour function.
+The `sendReportEmail` route carries the attachment's MIME type), Rename… (`rename_report_modal.tsx` →
+`updateReportLabel`; the host's heading follows at once) and Make a copy…
+(the project list's `DuplicateReportModal`, seeded with the current label and
+folder). The
+Insert menu's Cover page row opens a thumbnail flyout (`CoverPicker`): one
+tile per `FASTR_COVER_PRESETS` entry (a layout on the ground that shows it
+best), each the REAL cover markup under the toolbar's scoped theme sheet plus
+`buildFastrCoverTileCss` (a fixed 4:3 box the cover fills absolutely, em-scaled
+by a 5px font), so a tile is what the insert will look like in the current
+theme; the block segment's Layout control changes the composition afterwards.
+The hidden `:::report` fence is never a block target — the Page menu owns it.
+Right-clicking a table cell, a stat tile, a card, a column or a step opens
+panther's `showMenu` (rows/columns for tables; add-before/after, a Columns
+submenu and delete for tiles, cards and columns — the grid's column count
+follows the child count while it fits, and a card's or column's whole block
+moves as one, via `applyTilesChildAction`; add-before/after and delete for
+steps via `applyStepsChildAction`, where a step is any DIRECT child of
+`:::steps` — a paragraph's blank-separated run, or a nested block whole —
+and deleting the only step removes the block). The Insert menu's Stat, Tiles,
+Columns and Steps rows open the same count flyout as Table (`TilesPicker`,
+1–4 across; 1–8 steps). Enter inside a step's island makes the NEXT step
+rather than committing: the text after the caret (or a placeholder) becomes a
+new blank-separated paragraph and its island is activated with the
+placeholder selected, one dispatch. Text actions go through pure
 functions in [lib/fastr_markdown_edits.ts](lib/fastr_markdown_edits.ts) that
 return pre-transaction, disjoint, ascending changes for ONE dispatch — in `lib/`
 because `server/tests/` cannot import from `client/src`, and the fiddly rules
@@ -630,16 +719,42 @@ region extension SUBSUMES `embedWidgets` (two block replaces on one range is
 undefined behaviour); the compartment's OFF branch restores `embedWidgets` +
 the dark markdown highlighter for Split, and other formats never get the
 compartment at all. Inline syntax (heading marks, emphasis, code, link URLs) conceals
-off-cursor via a viewport ViewPlugin. `[x]{.role}` marks (by regex — Lezer
-doesn't know them) NEVER reveal: the phrase stays a coloured phrase with the
-caret inside it, the hidden markers are atomic so the caret steps over them,
-and the toolbar owns applying/clearing the role. Toolbar text actions reach
-selections inside widget text islands through a selection MIRROR
+off-cursor via a viewport ViewPlugin. `[x]{.role}` / `[x]{size=12}` marks (by
+regex — Lezer doesn't know them; `parseFastrMarkAttrs` in lib is THE parser,
+shared with the renderer and the toolbar, role and size combinable in either
+order) NEVER reveal: the phrase stays styled with the caret inside it, the
+hidden markers are atomic so the caret steps over them, and the toolbar owns
+the attributes. The mark's LABEL styling (role class + `font-size`) lives in
+the whole-doc surface StateField, not the conceal plugin — a size changes
+line height, which viewport-scoped decorations must not. An inline action
+invoked with NOTHING selected acts on the word under the caret (the
+word-processor convention) and refuses structural lines outright — fences,
+code, embed lines — because the caret is parked ON the fence whenever a
+block's chrome was clicked, and the old insert-a-bare-pair-at-caret both left
+invisible atomic junk and corrupted fences (`wordAround` in
+fastr_markdown_edits owns this). A mark edit over a range that overlaps
+EXISTING marks never nests them (nesting is unrenderable): the range absorbs
+any mark it cuts into and is rebuilt as flat segments — each existing mark's
+attrs patched, plain text newly marked, same-attr neighbours merged — so
+re-sizing a partly-sized phrase yields one mark and an inner role survives as
+its own segment (`rewriteRangeMarks`); selections split per line and at table
+pipes, so a label can never swallow a cell boundary. Toolbar text actions reach
+selections inside widget text islands AND table cell islands through a
+selection MIRROR
 (`selectionchange` → CM selection, alive only while an island is active);
+cell islands park the caret at the cell's content inside the row line first
+(same park-then-activate), which is also what gives the toolbar the table's
+context on the first click;
 because that mirror flips the region active — a widget rebuild that would
 destroy the island mid-edit — island activation parks the CM selection into
 the region FIRST and then activates the POST-rebuild element (found by
-`data-line`, activated via its `_fmActivate` hook). Heading lines get
+`data-line`, activated via its `_fmActivate` hook). The document opens FLUSH, as View does: blank lines above the first visible
+block (View renders none) collapse to zero height via `cm-fm-lead`, the first
+visible plain line loses its top padding (`cm-fm-first`) and the first region
+carries `fm-live-region--first`, whose two-class rule beats the general
+first-child margin clamp — otherwise every report began with a strip of bare
+page ground above its cover. An all-blank document keeps its clickable lines
+(there is no first visible block to flush against). Heading lines get
 `cm-fm-hN` classes from a whole-doc StateField because font size changes line
 HEIGHT and height-affecting decorations must exist off-screen. The editor wrapper carries
 `fm-live-scope`, and one host-rendered `<style>` (the scoped theme sheet +

@@ -1,6 +1,8 @@
 import {
   FASTR_BLOCK_SNIPPETS,
   FASTR_INK_ROLES,
+  FASTR_REPORT_THEMES,
+  FASTR_THEME_TOKENS,
   FASTR_TONES,
   type FastrBlockName,
   type FastrFencePatch,
@@ -9,9 +11,22 @@ import {
   type FastrReportTheme,
   type FastrThemeColorOverride,
   type FastrTone,
+  buildFastrCoverTileCss,
   buildFastrReportCss,
+  coverSnippet,
+  FASTR_COVER_LAYOUTS,
+  FASTR_COVER_PRESETS,
+  FASTR_TOC_DEFAULT_DEPTH,
+  type FastrCoverPreset,
   isFastrBlockName,
+  cardTilesSnippet,
+  columnsSnippet,
+  renderFastrMarkdownToHtml,
+  statTilesSnippet,
+  STEPS_MAX_PICK,
+  stepsSnippet,
   t3,
+  TILES_MAX_COLS,
 } from "lib";
 import {
   createMemo,
@@ -19,12 +34,16 @@ import {
   createUniqueId,
   For,
   type JSX,
+  Match,
   onCleanup,
   Show,
+  Switch,
 } from "solid-js";
-import { Button, ColorPicker } from "panther";
+import { Button, COLOR_SETS, Icon } from "panther";
+import { fastrThemeLabel } from "~/components/_shared/fastr_theme_labels";
 import {
   fastrBlockLabel,
+  fastrCoverLayoutLabel,
   fastrRoleLabel,
   fastrToneLabel,
 } from "~/components/_shared/fastr_block_labels";
@@ -39,9 +58,14 @@ import type { ReportBlockContext, ReportEditorApi } from "./report_editor";
 // text.
 //
 // Every control writes a role name, never a colour; the one exception is the
-// literal background picker, which says so. Panther has no bold/italic/heading
-// glyph in its IconName union and cannot be modified here, so those buttons use
+// literal background picker, which says so. The toolbar row is Google Docs'
+// PILL: one rounded tinted strip of flat buttons (hover tint, primary-subtle
+// fill when active) in thin-divided groups, dropdowns marked by a chevron,
+// text size as a − N + stepper. Panther has no bold/italic/heading glyph in
+// its IconName union and cannot be modified here, so those buttons use
 // letterforms — the same answer the slide editor's TextStylePopover reached.
+// No inline-code button: reports have no use for it (backticks still render
+// if typed; the toggle stays in the editor API).
 
 type Props = {
   api: () => ReportEditorApi | undefined;
@@ -52,6 +76,18 @@ type Props = {
   // line itself is invisible in the editor (its widget is hidden and atomic).
   pageSetup: () => FastrOpenFence | undefined;
   onPatchPageSetup: (patch: FastrFencePatch) => void;
+  // The document's THEME — the whole design, so it belongs in the Page menu
+  // beside the background rather than in the header's crowded right slot.
+  onSelectTheme: (theme: FastrReportTheme) => void;
+  // Pick or upload an image to use as the PAGE ground; resolves to its id.
+  onPickPageImage: () => Promise<string | undefined>;
+  documentStats: () => {
+    words: number;
+    headings: number;
+    figures: number;
+    images: number;
+    lastSaved: string;
+  };
   // Embeds: inserts ride the Insert menu; a selected embed's controls replace
   // the toolbar row (slot, so the toolbar stays embed-agnostic).
   embedKind: () => "figure" | "image" | undefined;
@@ -59,6 +95,12 @@ type Props = {
   canInsertEmbeds: () => boolean;
   onInsertFigure: () => void;
   onInsertImage: () => void;
+  // The File menu's actions — whole-document operations the host owns (they
+  // open modals over the editor), so the toolbar only names them.
+  onDownload: () => void;
+  onEmail: () => void;
+  onRename: () => void;
+  onDuplicate: () => void;
 };
 
 // Blocks whose fence the toolbar offers to edit, and the enumerated attributes
@@ -137,11 +179,27 @@ function choiceControlsFor(name: FastrBlockName): ChoiceControl[] {
       }];
     // `report` is unreachable here — its line is hidden and atomic, and the
     // Page menu edits it instead.
+    case "cover":
+      return [{
+        attr: "layout",
+        label: t3({ en: "Layout", fr: "Mise en page", pt: "Disposição" }),
+        fallback: "classic",
+        options: FASTR_COVER_LAYOUTS.map((l) => ({
+          value: l,
+          label: fastrCoverLayoutLabel(l),
+        })),
+      }];
+    case "contents":
+      return [{
+        attr: "depth",
+        label: t3({ en: "Depth", fr: "Profondeur", pt: "Profundidade" }),
+        fallback: String(FASTR_TOC_DEFAULT_DEPTH),
+        options: counts(4),
+      }];
     case "report":
     case "card":
     case "quote":
     case "band":
-    case "cover":
     case "steps":
       return [];
   }
@@ -177,6 +235,14 @@ export function ReportToolbar(p: Props) {
     if (t) p.api()?.setBlockAttrs(t.line, { [attr]: value });
   }
 
+  // Ground changes touch BOTH attrs (tone and bg are mutually exclusive — a
+  // literal wins over a tone in the renderer, so a stale one must not linger)
+  // in ONE fence rewrite: one Y.Text op, one undo entry.
+  function patchGround(attrs: FastrFencePatch) {
+    const t = target();
+    if (t) p.api()?.setBlockAttrs(t.line, attrs);
+  }
+
   function attrValue(attr: string): string | undefined {
     const v = target()?.attrs[attr];
     return typeof v === "string" ? v : v === true ? "" : undefined;
@@ -191,7 +257,7 @@ export function ReportToolbar(p: Props) {
   const swatchCss = createMemo(() =>
     buildFastrReportCss(p.theme(), p.colors(), `.${scopeClass}`, {
       omitFontImport: true,
-    })
+    }) + buildFastrCoverTileCss(`.${scopeClass}`)
   );
 
   // Page-setup attribute accessors — the `:::report` fence's attrs, with the
@@ -217,6 +283,28 @@ export function ReportToolbar(p: Props) {
       : undefined;
   };
 
+  // The page ground as an image: `bg=image:<id>`.
+  const psImageId = (): string | undefined => {
+    const bg = psAttr("bg") ?? psAttr("background");
+    const m = bg === undefined ? null : /^image:(.+)$/.exec(bg.trim());
+    return m ? m[1] : undefined;
+  };
+
+  // The size the box shows: an explicit mark's size, else the RENDERED size
+  // measured at the caret (rounded, as Google Docs shows whole points).
+  const shownSize = (): number | undefined => {
+    const explicit = marks()?.size;
+    if (explicit !== undefined) return explicit;
+    const measured = p.context()?.fontSizePt;
+    return measured === undefined ? undefined : Math.round(measured);
+  };
+  // Step from what the box shows, so + on a 26pt heading gives 27, never 13.
+  const stepSize = (delta: number) => {
+    const cur = shownSize() ?? 12;
+    const next = Math.max(1, Math.min(400, Math.round((cur + delta) * 10) / 10));
+    p.api()?.setInlineSize(next);
+  };
+
   const headingStyleFace = () => {
     const level = marks()?.headingLevel ?? 0;
     return level === 0
@@ -225,11 +313,60 @@ export function ReportToolbar(p: Props) {
   };
 
   return (
-    <div class="border-t" data-cursor-zone="header" data-tour="report-format-toolbar">
+    <div data-cursor-zone="header" data-tour="report-format-toolbar">
       <style>{swatchCss()}</style>
 
       {/* ── Menu row, Google Docs style ────────────────────────────────── */}
       <div class="flex flex-wrap items-center gap-1 px-2 pt-0.5">
+        {/* File: the whole-document operations, as in Google Docs' File
+            menu. Download moved here from the header. */}
+        <Popover
+          menu
+          label={t3({ en: "File", fr: "Fichier", pt: "Ficheiro" })}
+          title={t3({ en: "File", fr: "Fichier", pt: "Ficheiro" })}
+        >
+          {(close) => (
+            <div class="ui-spy-sm flex w-56 flex-col">
+              <PopoverRow
+                active={false}
+                onClick={() => {
+                  p.onDownload();
+                  close();
+                }}
+              >
+                {t3({ en: "Download…", fr: "Télécharger…", pt: "Transferir…" })}
+              </PopoverRow>
+              <PopoverRow
+                active={false}
+                onClick={() => {
+                  p.onEmail();
+                  close();
+                }}
+              >
+                {t3({ en: "Email this file…", fr: "Envoyer par email…", pt: "Enviar por email…" })}
+              </PopoverRow>
+              <MenuDivider />
+              <PopoverRow
+                active={false}
+                onClick={() => {
+                  p.onRename();
+                  close();
+                }}
+              >
+                {t3({ en: "Rename…", fr: "Renommer…", pt: "Mudar o nome…" })}
+              </PopoverRow>
+              <PopoverRow
+                active={false}
+                onClick={() => {
+                  p.onDuplicate();
+                  close();
+                }}
+              >
+                {t3({ en: "Make a copy…", fr: "Créer une copie…", pt: "Criar uma cópia…" })}
+              </PopoverRow>
+            </div>
+          )}
+        </Popover>
         <Popover
           menu
           label={t3({ en: "Insert", fr: "Insérer", pt: "Inserir" })}
@@ -240,15 +377,95 @@ export function ReportToolbar(p: Props) {
             <div class="ui-spy-sm flex w-56 flex-col">
               <For each={FASTR_BLOCK_SNIPPETS.filter((r) => r.name !== "report")}>
                 {(row) => (
-                  <PopoverRow
-                    active={false}
-                    onClick={() => {
-                      p.api()?.insertBlockOnNewLine(row.snippet);
-                      close();
-                    }}
+                  <Switch
+                    fallback={
+                      <PopoverRow
+                        active={false}
+                        onClick={() => {
+                          p.api()?.insertBlockOnNewLine(row.snippet);
+                          close();
+                        }}
+                      >
+                        {fastrBlockLabel(row.name)}
+                      </PopoverRow>
+                    }
                   >
-                    {fastrBlockLabel(row.name)}
-                  </PopoverRow>
+                  {/* Cover page opens a flyout of the cover compositions,
+                      each thumbnail the REAL cover under the current theme. */}
+                  <Match when={row.name === "cover"}>
+                    <MenuFlyout label={fastrBlockLabel(row.name)}>
+                      <CoverPicker
+                          scopeClass={scopeClass}
+                          onPick={(preset) => {
+                            p.api()?.insertBlockOnNewLine(
+                              coverSnippet(preset, {
+                                kicker: t3({
+                                  en: "Organisation · Period",
+                                  fr: "Organisation · Période",
+                                  pt: "Organização · Período",
+                                }),
+                                title: t3({
+                                  en: "Report title",
+                                  fr: "Titre du rapport",
+                                  pt: "Título do relatório",
+                                }),
+                                sub: t3({
+                                  en: "What this report covers, and for whom",
+                                  fr: "Ce que couvre ce rapport, et pour qui",
+                                  pt: "O que este relatório cobre, e para quem",
+                                }),
+                              }),
+                            );
+                          close();
+                        }}
+                      />
+                    </MenuFlyout>
+                  </Match>
+                  <Match
+                    when={row.name === "stat" || row.name === "tiles" ||
+                      row.name === "columns" || row.name === "steps"}
+                  >
+                    {/* Stat, the card grid, Columns and Steps open a count
+                        flyout, like Table's grid: hover picks how many
+                        (across, or steps down), a click inserts the block. */}
+                    <MenuFlyout label={fastrBlockLabel(row.name)}>
+                      <TilesPicker
+                          max={row.name === "steps" ? STEPS_MAX_PICK : undefined}
+                          caption={row.name === "steps"
+                            ? (n) =>
+                              n === 1
+                                ? t3({ en: "1 step", fr: "1 étape", pt: "1 passo" })
+                                : `${n} ${t3({ en: "steps", fr: "étapes", pt: "passos" })}`
+                            : undefined}
+                          onPick={(n) => {
+                            p.api()?.insertBlockOnNewLine(
+                              row.name === "stat"
+                                ? statTilesSnippet(
+                                  n,
+                                  t3({ en: "Stat", fr: "Chiffre", pt: "Indicador" }),
+                                )
+                                : row.name === "tiles"
+                                ? cardTilesSnippet(
+                                  n,
+                                  t3({ en: "Card", fr: "Carte", pt: "Cartão" }),
+                                  t3({ en: "Text", fr: "Texte", pt: "Texto" }),
+                                )
+                                : row.name === "columns"
+                                ? columnsSnippet(
+                                  n,
+                                  t3({ en: "Text", fr: "Texte", pt: "Texto" }),
+                                )
+                                : stepsSnippet(
+                                  n,
+                                  t3({ en: "Step", fr: "Étape", pt: "Passo" }),
+                                ),
+                            );
+                          close();
+                        }}
+                      />
+                    </MenuFlyout>
+                  </Match>
+                  </Switch>
                 )}
               </For>
               <MenuDivider />
@@ -262,25 +479,15 @@ export function ReportToolbar(p: Props) {
                 {t3({ en: "Link", fr: "Lien", pt: "Ligação" })}
               </PopoverRow>
               {/* Table opens a grid picker flyout, Google Docs style: hover
-                  sets the size, a click inserts. Pure CSS hover keeps the
-                  flyout up while the pointer is on the row or the grid (the
-                  flyout is a child of the row wrapper, flush at left-full). */}
-              <div class="group relative">
-                <PopoverRow active={false} onClick={() => {}}>
-                  <span class="flex-1">
-                    {t3({ en: "Table", fr: "Tableau", pt: "Tabela" })}
-                  </span>
-                  <span class="text-base-content-muted">▸</span>
-                </PopoverRow>
-                <div class="absolute top-0 left-full hidden pl-1 group-hover:block">
-                  <TableGridPicker
-                    onPick={(cols, rows) => {
-                      p.api()?.insertTable(cols, rows);
-                      close();
-                    }}
-                  />
-                </div>
-              </div>
+                  sets the size, a click inserts. */}
+              <MenuFlyout label={t3({ en: "Table", fr: "Tableau", pt: "Tabela" })}>
+                <TableGridPicker
+                  onPick={(cols, rows) => {
+                    p.api()?.insertTable(cols, rows);
+                    close();
+                  }}
+                />
+              </MenuFlyout>
               <Show when={p.canInsertEmbeds()}>
                 <MenuDivider />
                 <PopoverRow
@@ -317,94 +524,131 @@ export function ReportToolbar(p: Props) {
         >
           {(close) => (
             <div class="ui-spy-sm flex w-56 flex-col">
-              <div class="text-base-content-muted text-xs font-700">
-                {t3({ en: "Width", fr: "Largeur", pt: "Largura" })}
-              </div>
-              <For
-                each={[
-                  { value: "normal", label: t3({ en: "Normal", fr: "Normale", pt: "Normal" }) },
-                  { value: "wide", label: t3({ en: "Wide", fr: "Large", pt: "Larga" }) },
-                  { value: "full", label: t3({ en: "Full", fr: "Pleine", pt: "Completa" }) },
-                ]}
+              {/* Theme and Background open flyouts, the way Insert's pickers
+                  do: the menu stays one short list of names. */}
+              <MenuFlyout label={t3({ en: "Theme", fr: "Thème", pt: "Tema" })}>
+                {/* A FASTR body carries no CSS, so re-theming is safe at any
+                    time. Each tile is the theme's own palette and heading
+                    face, drawn straight from its tokens. */}
+                <div class="bg-base-100 ui-pad-sm shadow-floating max-h-80 w-64 overflow-y-auto rounded border">
+                  <div class="grid grid-cols-2 gap-1">
+                    <For each={FASTR_REPORT_THEMES}>
+                      {(theme) => (
+                        <button
+                          type="button"
+                          class="ui-hoverable-base-200 flex flex-col gap-1 rounded p-1 text-left"
+                          classList={{ "bg-primary-subtle": p.theme() === theme }}
+                          onClick={() => {
+                            p.onSelectTheme(theme);
+                            close();
+                          }}
+                        >
+                          <ThemeChip theme={theme} />
+                          <span class="truncate text-xs">
+                            {fastrThemeLabel(theme)}
+                          </span>
+                        </button>
+                      )}
+                    </For>
+                  </div>
+                </div>
+              </MenuFlyout>
+              <MenuFlyout
+                label={t3({ en: "Background", fr: "Fond", pt: "Fundo" })}
               >
-                {(o) => (
-                  <PopoverRow
-                    active={(psAttr("width") ?? "normal") === o.value}
-                    onClick={() => {
+                <div class="bg-base-100 ui-pad-sm shadow-floating rounded border">
+                  <GroundPanel
+                    scopeClass={scopeClass}
+                    tone={psTone()}
+                    literal={psLiteral()}
+                    onTone={(tone) =>
                       p.onPatchPageSetup({
-                        width: o.value === "normal" ? undefined : o.value,
-                      });
-                    }}
-                  >
-                    {o.label}
-                  </PopoverRow>
-                )}
-              </For>
-              <div class="text-base-content-muted pt-2 text-xs font-700">
-                {t3({ en: "Background", fr: "Fond", pt: "Fundo" })}
-              </div>
+                        background: tone === "default" ? undefined : tone,
+                        bg: undefined,
+                      })}
+                    onLiteral={(color) =>
+                      p.onPatchPageSetup({ bg: color, background: undefined })}
+                    onPick={close}
+                  />
+                  {/* A PHOTO as the page ground, with the overlay that keeps
+                      text legible on it — the format's `bg=image:<id>`. */}
+                  <div class="border-base-300 mt-2 border-t pt-2">
+                    <div class="text-base-content-muted pb-1 text-xs">
+                      {t3({ en: "Image", fr: "Image", pt: "Imagem" })}
+                    </div>
+                    <div class="ui-gap-sm flex items-center">
+                      <Button
+                        size="sm"
+                        outline
+                        iconName="photo"
+                        onClick={async () => {
+                          const id = await p.onPickPageImage();
+                          if (id === undefined) return;
+                          p.onPatchPageSetup({
+                            bg: `image:${id}`,
+                            background: undefined,
+                          });
+                          close();
+                        }}
+                      >
+                        {t3({ en: "Choose…", fr: "Choisir…", pt: "Escolher…" })}
+                      </Button>
+                      <Show when={psImageId() !== undefined}>
+                        <Button
+                          size="sm"
+                          outline
+                          intent="danger"
+                          iconName="trash"
+                          onClick={() => {
+                            p.onPatchPageSetup({ bg: undefined, overlay: undefined });
+                            close();
+                          }}
+                        />
+                      </Show>
+                    </div>
+                    <Show when={psImageId() !== undefined}>
+                      <div class="text-base-content-muted pt-2 pb-1 text-xs">
+                        {t3({ en: "Overlay", fr: "Voile", pt: "Sobreposição" })}
+                      </div>
+                      <For each={["dark", "light", "none"] as const}>
+                        {(mode) => (
+                          <PopoverRow
+                            active={(psAttr("overlay") ?? "dark") === mode}
+                            onClick={() => p.onPatchPageSetup({ overlay: mode })}
+                          >
+                            {mode === "dark"
+                              ? t3({ en: "Darken", fr: "Assombrir", pt: "Escurecer" })
+                              : mode === "light"
+                              ? t3({ en: "Lighten", fr: "Éclaircir", pt: "Clarear" })
+                              : t3({ en: "None", fr: "Aucun", pt: "Nenhuma" })}
+                          </PopoverRow>
+                        )}
+                      </For>
+                    </Show>
+                  </div>
+                </div>
+              </MenuFlyout>
               <PopoverRow
-                active={psTone() === "default"}
-                onClick={() => {
-                  p.onPatchPageSetup({ background: undefined, bg: undefined });
-                }}
+                active={psAttr("numbering") === "sections"}
+                onClick={() =>
+                  p.onPatchPageSetup({
+                    numbering: psAttr("numbering") === "sections" ? undefined : "sections",
+                  })}
               >
-                {t3({ en: "Default", fr: "Par défaut", pt: "Predefinido" })}
-              </PopoverRow>
-              <For each={FASTR_TONES}>
-                {(tone) => (
-                  <PopoverRow
-                    active={psTone() === tone}
-                    onClick={() => {
-                      p.onPatchPageSetup({ background: tone, bg: undefined });
-                    }}
-                  >
-                    <span class={`${scopeClass} mr-2`}>
-                      <ToneSwatch tone={tone} />
-                    </span>
-                    {fastrToneLabel(tone)}
-                  </PopoverRow>
-                )}
-              </For>
-              {/* A literal colour. Says outright that it stops re-theming. */}
-              <div class="ui-gap-sm flex items-center pt-1">
-                <ColorPicker
-                  size="sm"
-                  allowCustomHex
-                  position="bottom-start"
-                  value={psLiteral() ?? ""}
-                  onChange={(color) =>
-                    p.onPatchPageSetup({ bg: color, background: undefined })}
-                />
-                <Show when={psLiteral() !== undefined}>
-                  <Button
-                    size="sm"
-                    outline
-                    onBackground="base-100"
-                    onClick={() =>
-                      p.onPatchPageSetup({ bg: undefined, background: undefined })}
-                  >
-                    {t3({ en: "Clear colour", fr: "Effacer la couleur", pt: "Limpar cor" })}
-                  </Button>
+                <span class="flex-1">
+                  {t3({ en: "Numbered sections", fr: "Sections numérotées", pt: "Secções numeradas" })}
+                </span>
+                <Show when={psAttr("numbering") === "sections"}>
+                  <Icon iconName="check" class="h-3.5 w-3.5" />
                 </Show>
-              </div>
-              <div class="text-base-content-muted pt-2 text-xs font-700">
-                {t3({ en: "Ink", fr: "Encre", pt: "Tinta" })}
-              </div>
-              <For each={[undefined, "light", "dark"] as const}>
-                {(mode) => (
-                  <PopoverRow
-                    active={psAttr("ink") === mode ||
-                      (mode === undefined && psAttr("ink") === undefined)}
-                    onClick={() => {
-                      p.onPatchPageSetup({ ink: mode });
-                      close();
-                    }}
-                  >
-                    {inkFace(mode)}
-                  </PopoverRow>
-                )}
-              </For>
+              </PopoverRow>
+              <MenuFlyout
+                label={t3({ en: "Document details", fr: "Détails du document", pt: "Detalhes do documento" })}
+              >
+                <div class="bg-base-100 ui-pad-sm shadow-floating w-56 rounded border">
+                  <DetailRows stats={p.documentStats()} />
+                </div>
+              </MenuFlyout>
             </div>
           )}
         </Popover>
@@ -413,7 +657,8 @@ export function ReportToolbar(p: Props) {
       {/* ── The toolbar row: text controls, block segment, or the selected
              embed's controls (which replace the text controls, as selecting
              an image does in Google Docs) ─────────────────────────────────── */}
-      <div class="ui-pad-sm ui-gap flex flex-wrap items-center pt-1">
+      <div class="px-2 pt-1 pb-2">
+        <div class="bg-base-200 flex flex-wrap items-center gap-0.5 rounded-full px-3 py-1">
         <Show
           when={p.embedKind() === undefined}
           fallback={
@@ -422,9 +667,28 @@ export function ReportToolbar(p: Props) {
             </div>
           }
         >
-          <div class="ui-gap-sm flex items-center">
+          {/* Undo / redo lead the pill, as in Google Docs. The report
+              header carries its own pair for the other formats only. */}
+          <div class="flex items-center gap-0.5">
+            <ToolButton
+              label={t3({ en: "Undo", fr: "Annuler", pt: "Anular" })}
+              onClick={() => p.api()?.undo()}
+            >
+              <Icon iconName="undo" class="h-4 w-4" />
+            </ToolButton>
+            <ToolButton
+              label={t3({ en: "Redo", fr: "Rétablir", pt: "Refazer" })}
+              onClick={() => p.api()?.redo()}
+            >
+              <Icon iconName="redo" class="h-4 w-4" />
+            </ToolButton>
+          </div>
+
+          <Divider />
+
+          <div class="flex items-center gap-0.5">
             <Popover
-              label={headingStyleFace()}
+              label={<span class="w-24 truncate text-left">{headingStyleFace()}</span>}
               title={t3({ en: "Text style", fr: "Style de texte", pt: "Estilo de texto" })}
             >
               {(close) => (
@@ -451,85 +715,166 @@ export function ReportToolbar(p: Props) {
 
           <Divider />
 
-          <div class="ui-gap-sm flex items-center">
-            <MarkButton
+          <div class="flex items-center gap-0.5">
+            <ToolButton
               active={() => marks()?.bold === true}
               onClick={() => p.api()?.toggleInlineMark("**", "**")}
               label={t3({ en: "Bold", fr: "Gras", pt: "Negrito" })}
             >
               <span class="font-700">B</span>
-            </MarkButton>
-            <MarkButton
+            </ToolButton>
+            <ToolButton
               active={() => marks()?.italic === true}
               onClick={() => p.api()?.toggleInlineMark("*", "*")}
               label={t3({ en: "Italic", fr: "Italique", pt: "Itálico" })}
             >
               <span class="italic">I</span>
-            </MarkButton>
-            <MarkButton
-              active={() => marks()?.code === true}
-              onClick={() => p.api()?.toggleInlineMark("`", "`")}
-              label={t3({ en: "Code", fr: "Code", pt: "Código" })}
+            </ToolButton>
+            <ToolButton
+              active={() => marks()?.underline === true}
+              onClick={() => p.api()?.setInlineUnderline(marks()?.underline !== true)}
+              label={t3({ en: "Underline", fr: "Souligné", pt: "Sublinhado" })}
             >
-              <span class="font-mono">{"<>"}</span>
-            </MarkButton>
+              <span class="underline">U</span>
+            </ToolButton>
+            {/* Text size — `[phrase]{size=N}`, points like a word processor,
+                as Google Docs' − N + stepper. With no explicit mark the box
+                shows the size the text actually RENDERS at (measured from the
+                DOM by the editor, so a theme's heading scale is honoured), and
+                the stepper steps from that. */}
+            <div class="flex items-center">
+              <ToolButton
+                label={t3({
+                  en: "Decrease text size",
+                  fr: "Réduire la taille du texte",
+                  pt: "Diminuir o tamanho do texto",
+                })}
+                onClick={() => stepSize(-1)}
+              >
+                <Icon iconName="minus" class="h-3.5 w-3.5" />
+              </ToolButton>
+              <Popover
+                chevron={false}
+                label={
+                  <span class="bg-base-100 inline-block w-8 rounded border text-center text-xs leading-5">
+                    {shownSize() ?? "–"}
+                  </span>
+                }
+                title={t3({
+                  en: "Text size",
+                  fr: "Taille du texte",
+                  pt: "Tamanho do texto",
+                })}
+              >
+              {(close) => {
+                const apply = (raw: string) => {
+                  const n = Number(raw);
+                  if (!Number.isFinite(n) || n < 1 || n > 400) return;
+                  p.api()?.setInlineSize(Math.round(n * 10) / 10);
+                  close();
+                };
+                return (
+                  <div class="ui-spy-sm flex w-28 flex-col">
+                    <PopoverRow
+                      active={marks()?.size === undefined}
+                      onClick={() => {
+                        p.api()?.setInlineSize(undefined);
+                        close();
+                      }}
+                    >
+                      {t3({ en: "Default", fr: "Par défaut", pt: "Predefinido" })}
+                    </PopoverRow>
+                    <For each={[8, 9, 10, 11, 12, 14, 18, 24, 36]}>
+                      {(n) => (
+                        <PopoverRow
+                          active={marks()?.size === n}
+                          onClick={() => {
+                            p.api()?.setInlineSize(n);
+                            close();
+                          }}
+                        >
+                          {String(n)}
+                        </PopoverRow>
+                      )}
+                    </For>
+                    <input
+                      type="number"
+                      min="1"
+                      max="400"
+                      step="0.5"
+                      class="mt-1 w-full rounded border px-2 py-1 text-sm"
+                      placeholder={t3({ en: "Custom", fr: "Autre", pt: "Outro" })}
+                      value={shownSize() ?? ""}
+                      // Enter only — a blur-apply would fire (and close the
+                      // panel) before a preset row's own click could land.
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") apply(e.currentTarget.value);
+                      }}
+                    />
+                  </div>
+                );
+              }}
+            </Popover>
+              <ToolButton
+                label={t3({
+                  en: "Increase text size",
+                  fr: "Augmenter la taille du texte",
+                  pt: "Aumentar o tamanho do texto",
+                })}
+                onClick={() => stepSize(1)}
+              >
+                <Icon iconName="plus" class="h-3.5 w-3.5" />
+              </ToolButton>
+            </div>
             <Popover
+              chevron={false}
               label={
                 <span class={scopeClass}>
-                  <span class={roleClassOf(marks()?.role)}>A</span>
+                  {/* border-current: the bar under the A takes the role's
+                      own colour — or the literal — as Google Docs' colour
+                      button does. */}
+                  <span
+                    class={`${
+                      roleClassOf(marks()?.role)
+                    } border-b-2 border-current px-0.5 font-600 leading-none`}
+                    style={marks()?.color !== undefined ? { color: marks()?.color } : undefined}
+                  >
+                    A
+                  </span>
                 </span>
               }
               title={t3({ en: "Text colour", fr: "Couleur du texte", pt: "Cor do texto" })}
             >
               {(close) => (
-                <div class="ui-spy-sm flex flex-col">
-                  <PopoverRow
-                    active={marks()?.role === undefined}
-                    onClick={() => {
-                      p.api()?.setInlineRole(undefined);
-                      close();
-                    }}
-                  >
-                    {t3({ en: "None", fr: "Aucune", pt: "Nenhuma" })}
-                  </PopoverRow>
-                  <For each={FASTR_INK_ROLES}>
-                    {(role) => (
-                      <PopoverRow
-                        active={marks()?.role === role}
-                        onClick={() => {
-                          p.api()?.setInlineRole(role);
-                          close();
-                        }}
-                      >
-                        <span class={`${scopeClass} mr-2 inline-block`}>
-                          <span class={`fm-mark fm-mark--${role}`}>Aa</span>
-                        </span>
-                        {fastrRoleLabel(role)}
-                      </PopoverRow>
-                    )}
-                  </For>
-                </div>
+                <InkPanel
+                  scopeClass={scopeClass}
+                  role={marks()?.role}
+                  literal={marks()?.color}
+                  onRole={(role) => p.api()?.setInlineRole(role)}
+                  onLiteral={(color) => p.api()?.setInlineColor(color)}
+                  onPick={close}
+                />
               )}
             </Popover>
           </div>
 
           <Divider />
 
-          <div class="ui-gap-sm flex items-center">
-            <MarkButton
+          <div class="flex items-center gap-0.5">
+            <ToolButton
               active={() => marks()?.list === "bullet"}
               onClick={() => p.api()?.toggleLinePrefix("bullet")}
               label={t3({ en: "Bulleted list", fr: "Liste à puces", pt: "Lista com marcas" })}
             >
               <span>•</span>
-            </MarkButton>
-            <MarkButton
+            </ToolButton>
+            <ToolButton
               active={() => marks()?.list === "ordered"}
               onClick={() => p.api()?.toggleLinePrefix("ordered")}
               label={t3({ en: "Numbered list", fr: "Liste numérotée", pt: "Lista numerada" })}
             >
               <span class="text-xs">1.</span>
-            </MarkButton>
+            </ToolButton>
           </div>
 
           {/* The block under the cursor — its fence attributes append here. */}
@@ -538,10 +883,10 @@ export function ReportToolbar(p: Props) {
               <>
                 <Divider />
                 <div
-                  class="ui-gap-sm flex flex-wrap items-center"
+                  class="flex flex-wrap items-center gap-0.5"
                   data-tour="report-block-controls"
                 >
-                  <code class="bg-base-200 text-base-content-muted shrink-0 rounded px-1.5 py-0.5 font-mono text-xs">
+                  <code class="bg-base-100 text-base-content-muted shrink-0 rounded-full border px-2 py-0.5 font-mono text-xs">
                     :::{block().name}
                   </code>
 
@@ -587,91 +932,56 @@ export function ReportToolbar(p: Props) {
                     )}
                   </Show>
 
-                  {/* Tone — a role, so it re-themes with everything else. */}
+                  {/* One background menu: tone presets over literal colours.
+                      The trigger swatch shows whichever ground is active. */}
                   <Popover
                     label={
                       <span class="flex items-center gap-1.5">
-                        <span class={scopeClass}>
-                          <span
-                            class={`fm-tone fm-tone--${
-                              attrValue(toneAttrFor(block().name)) ?? "default"
-                            } inline-block h-3.5 w-3.5 rounded-full`}
-                          />
-                        </span>
-                        {t3({ en: "Tone", fr: "Ton", pt: "Tom" })}
+                        <Show
+                          when={attrValue("bg")}
+                          fallback={
+                            <span class={scopeClass}>
+                              <span
+                                class={`fm-tone fm-tone--${
+                                  attrValue(toneAttrFor(block().name)) ?? "default"
+                                } inline-block h-3.5 w-3.5 rounded-full`}
+                              />
+                            </span>
+                          }
+                        >
+                          {(bg) => (
+                            <span
+                              class="inline-block h-3.5 w-3.5 rounded-full border"
+                              style={{ "background-color": bg() }}
+                            />
+                          )}
+                        </Show>
+                        {t3({ en: "Background", fr: "Fond", pt: "Fundo" })}
                       </span>
                     }
-                    title={t3({ en: "Tone", fr: "Ton", pt: "Tom" })}
+                    title={t3({ en: "Background", fr: "Fond", pt: "Fundo" })}
                   >
                     {(close) => (
-                      <div class="ui-spy-sm flex w-56 flex-col">
-                        <For each={FASTR_TONES}>
-                          {(tone) => (
-                            <PopoverRow
-                              active={(attrValue(toneAttrFor(block().name)) ?? "default") ===
-                                tone}
-                              onClick={() => {
-                                patch(
-                                  toneAttrFor(block().name),
-                                  tone === "default" ? undefined : tone,
-                                );
-                                close();
-                              }}
-                            >
-                              <span class={`${scopeClass} mr-2`}>
-                                <ToneSwatch tone={tone} />
-                              </span>
-                              {fastrToneLabel(tone)}
-                            </PopoverRow>
-                          )}
-                        </For>
-                      </div>
-                    )}
-                  </Popover>
-
-                  {/* A literal colour. Says outright that it stops re-theming. */}
-                  <ColorPicker
-                    size="sm"
-                    allowCustomHex
-                    position="bottom-start"
-                    value={attrValue("bg") ?? ""}
-                    onChange={(color) => patch("bg", color)}
-                  />
-                  <Show when={attrValue("bg") !== undefined}>
-                    <Button
-                      size="sm"
-                      outline
-                      onBackground="base-100"
-                      onClick={() => patch("bg", undefined)}
-                    >
-                      {t3({ en: "Clear colour", fr: "Effacer la couleur", pt: "Limpar cor" })}
-                    </Button>
-                  </Show>
-
-                  {/* Ink is a legibility override, not a colour. */}
-                  <Popover
-                    label={`${t3({ en: "Ink", fr: "Encre", pt: "Tinta" })}: ${
-                      inkFace(attrValue("ink"))
-                    }`}
-                    title={t3({ en: "Ink", fr: "Encre", pt: "Tinta" })}
-                  >
-                    {(close) => (
-                      <div class="ui-spy-sm flex flex-col">
-                        <For each={[undefined, "light", "dark"] as const}>
-                          {(mode) => (
-                            <PopoverRow
-                              active={attrValue("ink") === mode ||
-                                (mode === undefined && attrValue("ink") === undefined)}
-                              onClick={() => {
-                                patch("ink", mode);
-                                close();
-                              }}
-                            >
-                              {inkFace(mode)}
-                            </PopoverRow>
-                          )}
-                        </For>
-                      </div>
+                      <GroundPanel
+                        scopeClass={scopeClass}
+                        tone={attrValue("bg") !== undefined
+                          ? "literal"
+                          : attrValue(toneAttrFor(block().name)) ?? "default"}
+                        literal={attrValue("bg")}
+                        onTone={(tone) =>
+                          patchGround({
+                            [toneAttrFor(block().name)]: tone === "default"
+                              ? undefined
+                              : tone,
+                            bg: undefined,
+                          })}
+                        onLiteral={(color) =>
+                          patchGround({
+                            [toneAttrFor(block().name)]: undefined,
+                            bg: color,
+                          })}
+                        onPick={close}
+                      />
                     )}
                   </Popover>
                 </div>
@@ -679,6 +989,7 @@ export function ReportToolbar(p: Props) {
             )}
           </Show>
         </Show>
+        </div>
       </div>
     </div>
   );
@@ -690,6 +1001,171 @@ export function ReportToolbar(p: Props) {
 // column can't usefully hold more.
 const TABLE_PICKER_COLS = 6;
 const TABLE_PICKER_ROWS = 8;
+
+// The count picker (stat tiles, cards, columns — or steps): one row of
+// cells, hover extends the highlighted run from the left, click inserts that
+// many. Grids read "N across"; a caller with another noun passes `caption`.
+function TilesPicker(p: {
+  onPick: (n: number) => void;
+  max?: number;
+  caption?: (n: number) => string;
+}) {
+  const [hover, setHover] = createSignal(1);
+  const caption = (n: number) =>
+    p.caption ? p.caption(n) : `${n} ${t3({ en: "across", fr: "en largeur", pt: "lado a lado" })}`;
+  return (
+    <div class="bg-base-100 ui-pad-sm shadow-floating rounded border">
+      <div class="flex gap-0.5">
+        <For each={Array.from({ length: p.max ?? TILES_MAX_COLS }, (_, i) => i + 1)}>
+          {(n) => (
+            <button
+              type="button"
+              class="h-6 w-6 rounded-[2px] border"
+              classList={{
+                "bg-primary-subtle border-primary": n <= hover(),
+                "bg-base-200 border-base-300": n > hover(),
+              }}
+              onMouseEnter={() => setHover(n)}
+              onClick={() => p.onPick(n)}
+            />
+          )}
+        </For>
+      </div>
+      <div class="text-base-content-muted pt-1 text-center text-xs">
+        {caption(hover())}
+      </div>
+    </div>
+  );
+}
+
+// A menu row that opens a panel to its right on hover — the Insert menu's
+// picker pattern (pure CSS, so the flyout stays up while the pointer travels
+// over the row or the panel, both children of this wrapper).
+function MenuFlyout(p: { label: string; children: JSX.Element }) {
+  return (
+    <div class="group relative">
+      <PopoverRow active={false} onClick={() => {}}>
+        <span class="flex-1">{p.label}</span>
+        <span class="text-base-content-muted">▸</span>
+      </PopoverRow>
+      <div class="absolute top-0 left-full hidden pl-1 group-hover:block">
+        {p.children}
+      </div>
+    </div>
+  );
+}
+
+// Word count and the rest — what people open a File or Page menu looking for.
+function DetailRows(p: {
+  stats: {
+    words: number;
+    headings: number;
+    figures: number;
+    images: number;
+    lastSaved: string;
+  };
+}) {
+  const rows = () => [
+    { label: t3({ en: "Words", fr: "Mots", pt: "Palavras" }), value: String(p.stats.words) },
+    { label: t3({ en: "Headings", fr: "Titres", pt: "Títulos" }), value: String(p.stats.headings) },
+    {
+      label: t3({ en: "Visualizations", fr: "Visualisations", pt: "Visualizações" }),
+      value: String(p.stats.figures),
+    },
+    { label: t3({ en: "Images", fr: "Images", pt: "Imagens" }), value: String(p.stats.images) },
+    ...(p.stats.lastSaved
+      ? [{
+        label: t3({ en: "Last saved", fr: "Dernier enregistrement", pt: "Última gravação" }),
+        value: p.stats.lastSaved,
+      }]
+      : []),
+  ];
+  return (
+    <div class="flex flex-col gap-1 text-xs">
+      <For each={rows()}>
+        {(row) => (
+          <div class="flex items-center gap-3">
+            <span class="text-base-content-muted flex-1">{row.label}</span>
+            <span class="font-mono">{row.value}</span>
+          </div>
+        )}
+      </For>
+    </div>
+  );
+}
+
+// A theme at a glance: its page, ink and accent, in its own heading face.
+// Drawn from the tokens rather than the stylesheet, so the flyout costs no
+// scoped copy of every theme's CSS.
+function ThemeChip(p: { theme: FastrReportTheme }) {
+  const tok = () => FASTR_THEME_TOKENS[p.theme];
+  return (
+    <span
+      class="border-base-300 flex h-10 w-full items-center gap-1 overflow-hidden rounded border px-1.5"
+      style={{ background: tok().page, color: tok().ink }}
+    >
+      <span
+        class="text-sm leading-none"
+        style={{ "font-family": tok().fontHeading, "font-weight": tok().headingWeight }}
+      >
+        Aa
+      </span>
+      <span class="flex flex-1 flex-col gap-0.5">
+        <span
+          class="block h-1 w-full rounded-full"
+          style={{ background: tok().accent }}
+        />
+        <span
+          class="block h-1 w-3/4 rounded-full"
+          style={{ background: tok().inkMuted }}
+        />
+      </span>
+      <span
+        class="h-5 w-2 rounded-sm"
+        style={{ background: tok().toneDark }}
+      />
+    </span>
+  );
+}
+
+// The cover picker: one tile per composition, each the real cover markup
+// rendered under the toolbar's scoped theme sheet (buildFastrCoverTileCss
+// shrinks and fills it), so a tile IS what the insert will look like in the
+// current theme — a re-theme re-renders the tiles with everything else.
+function CoverPicker(p: {
+  scopeClass: string;
+  onPick: (preset: FastrCoverPreset) => void;
+}) {
+  const tileText = () => ({
+    kicker: t3({ en: "Ministry · 2026", fr: "Ministère · 2026", pt: "Ministério · 2026" }),
+    title: t3({ en: "Report title", fr: "Titre du rapport", pt: "Título" }),
+    sub: t3({ en: "What this report covers", fr: "Ce que couvre ce rapport", pt: "O que este relatório cobre" }),
+  });
+  return (
+    <div class="bg-base-100 ui-pad-sm shadow-floating w-80 rounded border">
+      <div class="grid grid-cols-2 gap-2">
+        <For each={FASTR_COVER_PRESETS}>
+          {(preset) => (
+            <button
+              type="button"
+              class="ui-hoverable-base-200 flex flex-col gap-1 rounded p-1 text-left"
+              onClick={() => p.onPick(preset)}
+            >
+              <div
+                class={`fm-cover-tile border-base-300 w-full border ${p.scopeClass}`}
+                innerHTML={renderFastrMarkdownToHtml(
+                  coverSnippet(preset, tileText()),
+                  { lineAnchors: false },
+                )}
+              />
+              <div class="text-xs">{fastrCoverLayoutLabel(preset.layout)}</div>
+            </button>
+          )}
+        </For>
+      </div>
+    </div>
+  );
+}
 
 function TableGridPicker(p: { onPick: (cols: number, rows: number) => void }) {
   const [hover, setHover] = createSignal({ c: 1, r: 1 });
@@ -730,57 +1206,207 @@ function TableGridPicker(p: { onPick: (cols: number, rows: number) => void }) {
   );
 }
 
-function inkFace(mode: string | undefined): string {
-  return mode === "light"
-    ? t3({ en: "Light", fr: "Claire", pt: "Clara" })
-    : mode === "dark"
-    ? t3({ en: "Dark", fr: "Sombre", pt: "Escura" })
-    : t3({ en: "Auto", fr: "Auto", pt: "Auto" });
-}
 
 function roleClassOf(role: FastrInkRole | undefined): string {
   return role === undefined ? "" : `fm-mark fm-mark--${role}`;
 }
 
-// A tone is a ground, so the swatch is the ground: the real rule, painted on
-// the theme's own page colour.
-function ToneSwatch(p: { tone: FastrTone }) {
+// The combined ground panel: the theme's TONES as preset swatches on top —
+// roles, so they re-theme with the document — above the literal colour grid
+// (the same "standard" set panther's ColorPicker showed) and a hex field for
+// anything else. Tone swatches paint the REAL scoped rule (fm-tone--accent is
+// a color-mix JS cannot reproduce); the "default" tone doubles as the clear.
+// `onPick` fires after any swatch click so a popover caller can close; live
+// hex typing deliberately does not fire it.
+function GroundPanel(p: {
+  scopeClass: string;
+  tone: string; // "default" | a tone name | "literal"
+  literal: string | undefined;
+  onTone: (tone: FastrTone) => void;
+  onLiteral: (color: string) => void;
+  onPick?: () => void;
+}) {
   return (
-    <span
-      class={`fm-tone fm-tone--${p.tone} inline-flex h-5 w-8 items-center justify-center rounded text-[10px]`}
-    >
-      Aa
-    </span>
+    <div class="flex w-56 flex-col">
+      <div class="text-base-content-muted pb-1 text-xs">
+        {t3({ en: "Theme tones", fr: "Tons du thème", pt: "Tons do tema" })}
+      </div>
+      <div class="grid grid-cols-6 gap-1">
+        <For each={FASTR_TONES}>
+          {(tone) => (
+            <button
+              type="button"
+              class="ui-focusable h-6 cursor-pointer overflow-hidden rounded"
+              classList={{
+                "ring-2 ring-primary": p.literal === undefined && p.tone === tone,
+              }}
+              title={fastrToneLabel(tone)}
+              onClick={() => {
+                p.onTone(tone);
+                p.onPick?.();
+              }}
+            >
+              <span class={`${p.scopeClass} block h-full w-full`}>
+                <span
+                  class={`fm-tone fm-tone--${tone} flex h-full w-full items-center justify-center text-[10px]`}
+                >
+                  Aa
+                </span>
+              </span>
+            </button>
+          )}
+        </For>
+      </div>
+      <LiteralColours literal={p.literal} onLiteral={p.onLiteral} onPick={p.onPick} />
+    </div>
   );
 }
 
+// The text colour panel — the same shape as the ground panel: the theme's
+// INK ROLES as preset swatches on top (they re-theme with the document; the
+// first swatch is "none", the ground's own ink), the literal grid and hex
+// field below. Role swatches paint the REAL scoped rule.
+function InkPanel(p: {
+  scopeClass: string;
+  role: FastrInkRole | undefined;
+  literal: string | undefined;
+  onRole: (role: FastrInkRole | undefined) => void;
+  onLiteral: (color: string) => void;
+  onPick?: () => void;
+}) {
+  const presets: (FastrInkRole | undefined)[] = [undefined, ...FASTR_INK_ROLES];
+  return (
+    <div class="flex w-56 flex-col">
+      <div class="text-base-content-muted pb-1 text-xs">
+        {t3({ en: "Theme colours", fr: "Couleurs du thème", pt: "Cores do tema" })}
+      </div>
+      <div class="grid grid-cols-7 gap-1">
+        <For each={presets}>
+          {(role) => (
+            <button
+              type="button"
+              class="ui-focusable h-6 cursor-pointer overflow-hidden rounded border"
+              classList={{
+                "ring-2 ring-primary": p.literal === undefined && p.role === role,
+              }}
+              title={role === undefined
+                ? t3({ en: "None", fr: "Aucune", pt: "Nenhuma" })
+                : fastrRoleLabel(role)}
+              onClick={() => {
+                p.onRole(role);
+                p.onPick?.();
+              }}
+            >
+              <span class={`${p.scopeClass} flex h-full w-full items-center justify-center text-[11px]`}>
+                <span class={`${roleClassOf(role)} font-600`}>Aa</span>
+              </span>
+            </button>
+          )}
+        </For>
+      </div>
+      <LiteralColours literal={p.literal} onLiteral={p.onLiteral} onPick={p.onPick} />
+    </div>
+  );
+}
+
+// The literal half of both panels. The caption says outright that these
+// stop re-theming.
+function LiteralColours(p: {
+  literal: string | undefined;
+  onLiteral: (color: string) => void;
+  onPick?: () => void;
+}) {
+  const [hexInput, setHexInput] = createSignal<string | null>(null);
+  const displayHex = () => hexInput() ?? p.literal ?? "";
+  const hexIsValid = () => {
+    const h = hexInput();
+    return h === null || h === "" || isValidHex(h);
+  };
+  return (
+    <>
+      <div class="text-base-content-muted pt-2 pb-1 text-xs">
+        {t3({ en: "Fixed colours", fr: "Couleurs fixes", pt: "Cores fixas" })}
+      </div>
+      <div class="grid grid-cols-6 gap-1">
+        <For each={COLOR_SETS.standard}>
+          {(color) => (
+            <button
+              type="button"
+              class="ui-focusable h-6 cursor-pointer rounded border"
+              classList={{
+                "ring-2 ring-primary": p.literal !== undefined &&
+                  p.literal.toLowerCase() === color.toLowerCase(),
+              }}
+              style={{ "background-color": color }}
+              title={color}
+              onClick={() => {
+                p.onLiteral(color);
+                p.onPick?.();
+              }}
+            />
+          )}
+        </For>
+      </div>
+      <input
+        type="text"
+        class="mt-2 w-full rounded border px-2 py-1 font-mono text-xs"
+        classList={{ "border-danger": !hexIsValid() }}
+        placeholder="#hex"
+        value={displayHex()}
+        onInput={(e) => {
+          const v = e.currentTarget.value;
+          setHexInput(v);
+          if (isValidHex(v)) p.onLiteral(normalizeHex(v));
+        }}
+        onFocus={() => setHexInput(p.literal ?? "")}
+        onBlur={() => setHexInput(null)}
+      />
+    </>
+  );
+}
+
+function isValidHex(hex: string): boolean {
+  return /^#?([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(hex);
+}
+
+function normalizeHex(hex: string): string {
+  let h = hex.trim();
+  if (!h.startsWith("#")) h = "#" + h;
+  if (h.length === 4) h = "#" + h[1] + h[1] + h[2] + h[2] + h[3] + h[3];
+  return h.toLowerCase();
+}
+
 function Divider() {
-  return <div class="bg-base-300 h-4 w-px" />;
+  return <div class="bg-base-300 mx-1 h-4 w-px" />;
 }
 
 function MenuDivider() {
   return <div class="bg-base-300 my-1 h-px w-full" />;
 }
 
-// A toolbar toggle: filled when active, outlined when not. The panther-native
-// form of the slide editor's letterform flip, so it keeps ui-focusable and the
-// disabled treatment for free.
-function MarkButton(p: {
-  active: () => boolean;
+// A flat pill button, as in Google Docs: a hover tint only, a primary-subtle
+// fill while its state is active. Letterforms stand in for the glyphs
+// panther's IconName lacks (bold, italic, lists).
+function ToolButton(p: {
+  active?: () => boolean;
   onClick: () => void;
   label: string;
   children: JSX.Element;
 }) {
   return (
-    <Button
-      size="sm"
-      outline={!p.active()}
-      onBackground={p.active() ? undefined : "base-100"}
-      ariaLabel={p.label}
+    <button
+      type="button"
+      class="ui-focusable flex h-7 min-w-7 items-center justify-center rounded px-1.5 text-sm"
+      classList={{
+        "bg-primary-subtle text-primary": p.active?.() === true,
+        "ui-hoverable-base-300": p.active?.() !== true,
+      }}
+      aria-label={p.label}
+      title={p.label}
       onClick={p.onClick}
     >
       {p.children}
-    </Button>
+    </button>
   );
 }
 
@@ -791,11 +1417,13 @@ function MarkButton(p: {
 // panther's own menus): an inline-absolute panel is clipped by the header and
 // out-stacked by the editor sheet's own stacking contexts, no z-index wins.
 // `menu` renders the trigger as a plain menu-bar item (the Google Docs menu
-// row) instead of an outlined toolbar button.
+// row) instead of a flat pill button with a dropdown chevron (`chevron`
+// false drops the chevron, for the colour and size boxes).
 function Popover(p: {
   label: JSX.Element;
   title: string;
   menu?: boolean;
+  chevron?: boolean;
   tour?: string;
   children: (close: () => void) => JSX.Element;
 }) {
@@ -828,15 +1456,19 @@ function Popover(p: {
       <Show
         when={p.menu}
         fallback={
-          <Button
-            size="sm"
-            outline
-            onBackground="base-100"
-            ariaLabel={p.title}
+          <button
+            type="button"
+            class="ui-focusable ui-hoverable-base-300 flex h-7 items-center gap-1 rounded px-2 text-sm"
+            aria-label={p.title}
+            title={p.title}
+            data-tour={p.tour}
             onClick={toggle}
           >
             {p.label}
-          </Button>
+            <Show when={p.chevron !== false}>
+              <Icon iconName="chevronDown" class="text-base-content-muted h-3 w-3" />
+            </Show>
+          </button>
         }
       >
         <button

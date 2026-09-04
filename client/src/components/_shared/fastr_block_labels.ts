@@ -1,5 +1,6 @@
 import {
   type FastrBlockName,
+  type FastrCoverLayout,
   type FastrInkRole,
   type FastrTone,
   t3,
@@ -41,11 +42,23 @@ export function fastrBlockLabel(name: FastrBlockName): string {
         fr: "Page de couverture",
         pt: "Página de capa",
       });
+    case "contents":
+      return t3({
+        en: "Table of contents",
+        fr: "Table des matières",
+        pt: "Índice",
+      });
     case "steps":
       return t3({
         en: "Numbered steps",
         fr: "Étapes numérotées",
         pt: "Passos numerados",
+      });
+    case "contents":
+      return t3({
+        en: "Table of contents",
+        fr: "Table des matières",
+        pt: "Índice",
       });
     case "report":
       return t3({ en: "Page setup", fr: "Mise en page", pt: "Configuração da página" });
@@ -106,9 +119,15 @@ export function fastrBlockCaption(name: FastrBlockName): string {
         fr: "Une liste d'étapes qui se numérote seule",
         pt: "Uma lista de passos que se numera sozinha",
       });
+    case "contents":
+      return t3({
+        en: "The document's headings, listed and linked",
+        fr: "Les titres du document, listés et liés",
+        pt: "Os títulos do documento, listados e ligados",
+      });
     case "report":
       return t3({
-        en: "Page background and column width, set once at the top",
+        en: "The page background, set once at the top",
         fr: "Fond de page et largeur de colonne, définis une fois en haut",
         pt: "Fundo da página e largura da coluna, definidos uma vez no topo",
       });
@@ -161,5 +180,28 @@ export function fastrRoleLabel(role: FastrInkRole): string {
       return t3({ en: "Good news", fr: "Bonne nouvelle", pt: "Boas notícias" });
     case "info":
       return t3({ en: "Note", fr: "Remarque", pt: "Nota" });
+  }
+}
+
+// The cover compositions (`layout=`), named for the picker's tiles and the
+// block segment's Layout control.
+export function fastrCoverLayoutLabel(layout: FastrCoverLayout): string {
+  switch (layout) {
+    case "classic":
+      return t3({ en: "Classic", fr: "Classique", pt: "Clássica" });
+    case "centered":
+      return t3({ en: "Centred", fr: "Centrée", pt: "Centrada" });
+    case "poster":
+      return t3({ en: "Poster", fr: "Affiche", pt: "Cartaz" });
+    case "spine":
+      return t3({ en: "Spine", fr: "Dos relié", pt: "Lombada" });
+    case "frame":
+      return t3({ en: "Framed", fr: "Encadrée", pt: "Emoldurada" });
+    case "split":
+      return t3({ en: "Split", fr: "Double page", pt: "Dividida" });
+    case "minimal":
+      return t3({ en: "Minimal", fr: "Minimale", pt: "Minimalista" });
+    case "block":
+      return t3({ en: "Block title", fr: "Titre en bloc", pt: "Título em bloco" });
   }
 }

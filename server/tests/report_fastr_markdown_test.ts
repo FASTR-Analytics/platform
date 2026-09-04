@@ -10,7 +10,9 @@
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import {
   containerHtmlFor,
+  fastrDocumentOutline,
   FASTR_BLOCK_NAMES,
+  FASTR_COVER_LAYOUTS,
   FASTR_INK_ROLES,
   FASTR_TONES,
   fastrContainerStackUpTo,
@@ -23,6 +25,8 @@ import {
   listFastrLiteralBackgrounds,
   parseContainerAttrs,
   parseContainerFence,
+  parseFastrMarkAttrs,
+  serializeFastrMarkAttrs,
   isDarkCssBackground,
   readFastrDocumentSettings,
   safeCssBackground,
@@ -31,10 +35,15 @@ import {
 } from "../../lib/fastr_markdown_blocks.ts";
 import { renderFastrMarkdownToHtml } from "../../lib/report_fastr_markdown.ts";
 import {
+  buildFastrCoverTileCss,
   buildFastrEditorSurfaceCss,
   buildFastrReportCss,
   fastrAllFontImportsCss,
 } from "../../lib/report_fastr_css.ts";
+import {
+  coverSnippet,
+  FASTR_COVER_PRESETS,
+} from "../../lib/fastr_markdown_edits.ts";
 import {
   FASTR_REPORT_THEMES,
   FASTR_SEMANTIC_COLORS,
@@ -126,13 +135,11 @@ Deno.test("containerHtmlFor: attribute text is entity-escaped", () => {
   assert(!h.leadingHtml.includes("<script>"));
 });
 
-Deno.test("stat and report are leaf blocks: one line, no closing fence", () => {
-  assert(isFastrLeafBlock("stat"));
-  assert(isFastrLeafBlock("report"));
+Deno.test("stat, contents and report are leaf blocks: one line, no closing fence", () => {
+  const leaves = ["stat", "contents", "report"];
+  for (const name of leaves) assert(isFastrLeafBlock(name));
   for (const name of FASTR_BLOCK_NAMES) {
-    if (name !== "stat" && name !== "report") {
-      assert(!isFastrLeafBlock(name));
-    }
+    if (!leaves.includes(name)) assert(!isFastrLeafBlock(name));
   }
   const html = render(`:::stat{value="64%" label="ANC4" delta="+3pp" dir=up}\n`);
   assertStringIncludes(html, `<div class="fm-stat"`);
@@ -463,6 +470,90 @@ Deno.test("bg=image resolves through the image registry, not the stylesheet", ()
   assert(referencedReportEmbedIds(body, "any").images.has("abc-123"));
 });
 
+Deno.test("the document header carries print setup and section numbering", () => {
+  // Defaults, with no header at all.
+  const bare = readFastrDocumentSettings("# Hi\n");
+  assertEquals(bare.page, { size: "a4", orientation: "portrait", margin: "normal" });
+  assertStringIncludes(bare.pageCss, "@page { size: 210mm 297mm; margin: 18mm; }");
+  assertEquals(bare.className, "");
+  // Landscape letter with wide margins, and numbering on.
+  const set = readFastrDocumentSettings(
+    ":::report{pagesize=letter orientation=landscape margin=wide numbering=sections}\n",
+  );
+  assertEquals(set.page, { size: "letter", orientation: "landscape", margin: "wide" });
+  assertStringIncludes(set.pageCss, "@page { size: 279mm 216mm; margin: 28mm; }");
+  assertStringIncludes(set.className, "fm-doc--numbered");
+  // Junk values fall back rather than reaching the stylesheet.
+  const junk = readFastrDocumentSettings(
+    ":::report{pagesize=poster orientation=sideways margin=huge numbering=all}\n",
+  );
+  assertEquals(junk.page, { size: "a4", orientation: "portrait", margin: "normal" });
+  assert(!junk.className.includes("fm-doc--numbered"));
+  // The numbering rules exist, and count only top-level headings.
+  const css = buildFastrReportCss("default");
+  assertStringIncludes(css, ".fm-doc--numbered body > h2::before");
+  assertStringIncludes(css, ".fm-doc--numbered body > h3::before");
+  assert(!css.includes(".fm-doc--numbered h2::before"));
+});
+
+Deno.test("a table of contents is built from the document's own headings", () => {
+  const body = [
+    ":::cover{tone=dark}",
+    "# Report title",
+    ":::",
+    "",
+    ':::contents{title="Contents" depth=2}',
+    "",
+    "## Overview",
+    "",
+    "### Detail",
+    "",
+    "## Findings",
+    "",
+    ":::band{tone=dark}",
+    "## Findings",
+    ":::",
+    "",
+    "```",
+    "## Not a heading",
+    "```",
+  ].join("\n");
+  const html = renderFastrMarkdownToHtml(body, { lineAnchors: false });
+  assertStringIncludes(html, '<nav class="fm-toc">');
+  assertStringIncludes(html, '<div class="fm-toc__title">Contents</div>');
+  // The cover's title is the title page, not a section; a code fence is text;
+  // the depth leaves h3 out; a repeated heading still links to its OWN one.
+  assert(!html.includes(">Report title</a>"));
+  assert(!html.includes("Not a heading</a>"));
+  assert(!html.includes(">Detail</a>"));
+  assertStringIncludes(html, '<a href="#fm-overview" data-toc-line="7">Overview</a>');
+  assertStringIncludes(html, '<a href="#fm-findings" data-toc-line="11">Findings</a>');
+  assertStringIncludes(html, '<a href="#fm-findings-2" data-toc-line="14">Findings</a>');
+  // Every link has its heading: the ids come from the same slug function.
+  assertStringIncludes(html, '<h2 id="fm-overview">Overview</h2>');
+  assertStringIncludes(html, '<h2 id="fm-findings-2">Findings</h2>');
+  // An h3 that the list skipped still carries its anchor, so raising the
+  // depth later cannot renumber the slugs.
+  assertStringIncludes(html, '<h3 id="fm-detail">Detail</h3>');
+  // A document with no contents block keeps its plain headings.
+  assertStringIncludes(
+    renderFastrMarkdownToHtml("## Overview\n", { lineAnchors: false }),
+    "<h2>Overview</h2>",
+  );
+  // Inline syntax is stripped from an entry, and an empty document says so.
+  assertEquals(
+    fastrDocumentOutline("## The [big]{.danger} **drop**\n")[0].text,
+    "The big drop",
+  );
+  assertStringIncludes(
+    renderFastrMarkdownToHtml(":::contents\n", { lineAnchors: false }),
+    '<div class="fm-toc__empty">',
+  );
+  // The block is a LEAF: one line, no closing fence, and no defect.
+  assert(isFastrLeafBlock("contents"));
+  assertEquals(listFastrContainerDefects(":::contents\n\n## A\n").length, 0);
+});
+
 Deno.test("bands and covers are full-bleed sections", () => {
   const html = render(":::band{tone=dark}\n## Failing\ntext\n:::\n");
   assertStringIncludes(html, '<section class="fm-band fm-tone fm-tone--dark"');
@@ -470,6 +561,43 @@ Deno.test("bands and covers are full-bleed sections", () => {
   assertStringIncludes(
     render(":::cover{tone=solid}\n# T\n:::\n"),
     "fm-band fm-cover",
+  );
+});
+
+Deno.test("a cover's layout is a class the sheet styles; classic is the bare cover", () => {
+  assertStringIncludes(
+    render(":::cover{tone=dark layout=poster}\n# T\n:::\n"),
+    '<section class="fm-band fm-cover fm-cover--poster fm-tone fm-tone--dark"',
+  );
+  // Classic and an unknown layout both leave the class alone, so existing
+  // covers render byte for byte.
+  assertStringIncludes(render(":::cover{layout=classic}\n# T\n:::\n"), '<section class="fm-band fm-cover"');
+  assertStringIncludes(render(":::cover{layout=swirly}\n# T\n:::\n"), '<section class="fm-band fm-cover"');
+  // The masthead lines stay direct children whatever the layout (the editor's
+  // kicker/dek islands depend on it).
+  const html = render(':::cover{layout=split kicker="K" sub="S"}\n# T\n:::\n');
+  assertStringIncludes(html, '<div class="fm-kicker">K</div><h1>T</h1>');
+  assertStringIncludes(html, '<div class="fm-dek">S</div></section>');
+  // Every layout the renderer accepts has rules in the sheet, plain and scoped.
+  for (const layout of FASTR_COVER_LAYOUTS) {
+    if (layout === "classic") continue;
+    assertStringIncludes(buildFastrReportCss("default"), `.fm-cover.fm-cover--${layout}`);
+    assertStringIncludes(buildFastrReportCss("swiss", undefined, ".t"), `.t .fm-cover.fm-cover--${layout}`);
+  }
+  // The thumbnail sheet fills the tile and knows every preset's layout.
+  const tile = buildFastrCoverTileCss(".s");
+  assertStringIncludes(tile, ".s.fm-cover-tile .fm-cover {");
+  for (const preset of FASTR_COVER_PRESETS) {
+    assert((FASTR_COVER_LAYOUTS as readonly string[]).includes(preset.layout));
+  }
+  // The preset snippet: fallbacks stay off the fence, quotes are kept safe.
+  assertEquals(
+    coverSnippet({ layout: "poster", tone: "solid" }, { kicker: 'Say "hi"', title: "T", sub: "S" }),
+    `:::cover{tone=solid layout=poster kicker="Say 'hi'" sub="S"}\n# T\n:::`,
+  );
+  assertEquals(
+    coverSnippet({ layout: "classic", tone: "default" }, { kicker: "K", title: "T", sub: "S" }),
+    ':::cover{kicker="K" sub="S"}\n# T\n:::',
   );
 });
 
@@ -496,11 +624,11 @@ Deno.test("a literal document background carries its own ink", () => {
 });
 
 Deno.test("no :::report means no document settings, and code fences are literal", () => {
-  assertEquals(readFastrDocumentSettings("# T\n"), {
-    className: "",
-    style: "",
-    extraAttrs: "",
-  });
+  const bare = readFastrDocumentSettings("# T\n");
+  assertEquals(
+    { className: bare.className, style: bare.style, extraAttrs: bare.extraAttrs },
+    { className: "", style: "", extraAttrs: "" },
+  );
   assertEquals(
     readFastrDocumentSettings("```\n:::report{width=full}\n```\n").className,
     "",
@@ -977,6 +1105,73 @@ Deno.test("a mark never swallows a link, an image or an unknown role", () => {
   // Escapes and code spans win, as they do for every other inline construct.
   assertStringIncludes(r("\\[x]{.danger}"), "[x]{.danger}");
   assertStringIncludes(r("`[x]{.danger}`"), "<code>[x]{.danger}</code>");
+});
+
+Deno.test("size marks: points, decimals, role combos, and malformed = literal", () => {
+  const r = (s: string) => renderFastrMarkdownToHtml(s, { lineAnchors: false });
+  assertStringIncludes(
+    r("[x]{size=18}"),
+    `<span class="fm-mark" style="font-size:18pt">x</span>`,
+  );
+  assertStringIncludes(
+    r("[x]{size=10.5}"),
+    `<span class="fm-mark" style="font-size:10.5pt">x</span>`,
+  );
+  // Role + size combine, in either order, into one span (role class + style).
+  assertStringIncludes(
+    r("[x]{.danger size=14}"),
+    `<span class="fm-mark fm-mark--danger" style="font-size:14pt">x</span>`,
+  );
+  assertStringIncludes(
+    r("[x]{size=14 .danger}"),
+    `<span class="fm-mark fm-mark--danger" style="font-size:14pt">x</span>`,
+  );
+  // Out of range, non-numeric, duplicated, or junk-laden = the author's
+  // literal text, exactly like an unknown role.
+  assertStringIncludes(r("[x]{size=0}"), "[x]{size=0}");
+  assertStringIncludes(r("[x]{size=401}"), "[x]{size=401}");
+  assertStringIncludes(r("[x]{size=big}"), "[x]{size=big}");
+  assertStringIncludes(r("[x]{size=12 size=14}"), "[x]{size=12 size=14}");
+  assertStringIncludes(r("[x]{size=12 wat}"), "[x]{size=12 wat}");
+  assertStringIncludes(r("`[x]{size=12}`"), "<code>[x]{size=12}</code>");
+});
+
+Deno.test("underline marks, alone and combined", () => {
+  const r = (s: string) => renderFastrMarkdownToHtml(s, { lineAnchors: false });
+  assertStringIncludes(
+    r("[x]{underline}"),
+    `<span class="fm-mark fm-mark--u" style="text-decoration:underline">x</span>`,
+  );
+  assertStringIncludes(
+    r("[x]{.success size=14 underline}"),
+    `<span class="fm-mark fm-mark--success fm-mark--u" style="font-size:14pt;text-decoration:underline">x</span>`,
+  );
+  assertStringIncludes(r("[x]{underline underline}"), "[x]{underline underline}");
+  assertStringIncludes(r("[x]{underlined}"), "[x]{underlined}");
+});
+
+Deno.test("literal colour marks: any safe colour, alone or with size/underline", () => {
+  const r = (s: string) => renderFastrMarkdownToHtml(s, { lineAnchors: false });
+  assertStringIncludes(
+    r("[x]{color=#c62828}"),
+    `<span class="fm-mark" style="color:#c62828">x</span>`,
+  );
+  assertStringIncludes(
+    r("[x]{color=crimson size=14 underline}"),
+    `<span class="fm-mark fm-mark--u" style="color:crimson;font-size:14pt;text-decoration:underline">x</span>`,
+  );
+  // A hand-written role + colour still renders (the toolbar never writes both).
+  assertStringIncludes(
+    r("[x]{.danger color=#000}"),
+    `<span class="fm-mark fm-mark--danger" style="color:#000">x</span>`,
+  );
+  // Anything safeCssColor refuses, or a duplicate, is literal text.
+  assertStringIncludes(r("[x]{color=url(x)}"), "[x]{color=url(x)}");
+  assertStringIncludes(r("[x]{color=muted}"), "[x]{color=muted}");
+  assertStringIncludes(r("[x]{color=#123;x}"), "[x]{color=#123;x}");
+  assertStringIncludes(r("[x]{color=#111 color=#222}"), "[x]{color=#111 color=#222}");
+  assertEquals(parseFastrMarkAttrs(".info color=#abc size=10"), { role: "info", color: "#abc", size: 10 });
+  assertEquals(serializeFastrMarkAttrs({ role: "info", color: "#abc", size: 10 }), "{.info color=#abc size=10}");
 });
 
 Deno.test("every role has a rule reading the right token, in every theme", () => {

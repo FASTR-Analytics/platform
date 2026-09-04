@@ -13,8 +13,9 @@
 //     collapse-on-leave is the same derivation on the next selection change.
 //     Deliberately NOT atomic (unlike embedWidgets): arrowing into a hidden
 //     region reveals it in the same transaction, caret on real text.
-//   • Inline conceal: heading/emphasis/code/link markup and `[x]{.role}` marks
-//     hide off-cursor and reveal when the selection touches the construct.
+//   • Inline conceal: heading/emphasis/code/link markup and `[x]{.role}` /
+//     `[x]{size=12}` marks hide off-cursor and reveal when the selection
+//     touches the construct.
 //   • Surface lines: heading lines get cm-fm-hN classes so the theme's type
 //     scale applies in the editor (buildFastrEditorSurfaceCss).
 //
@@ -37,6 +38,7 @@ import {
   type EditorState,
   EditorState as CMEditorState,
   type Extension,
+  type Range,
   RangeSetBuilder,
   StateField,
   Transaction,
@@ -49,6 +51,8 @@ import * as Y from "yjs";
 import { hideMenu, type MenuItem, showMenu } from "panther";
 import {
   applyTableCellAction,
+  applyStepsChildAction,
+  applyTilesChildAction,
   FASTR_TONES,
   FM_BOX_GAP,
   FM_BOX_INSET,
@@ -56,17 +60,26 @@ import {
   type FastrLiveRegion,
   type FastrOpenFence,
   fastrLiveRegions,
+  fastrDocumentOutline,
+  fastrMarkClass,
+  fastrMarkStyle,
+  fastrTocOptions,
   fastrOpenFenceOnLine,
   isDarkCssColor,
   isFastrEmbedLine,
-  isFastrInkRole,
   isFastrLeafBlock,
   parseContainerFence,
+  parseFastrMarkAttrs,
   readFastrDocumentSettings,
   renderFastrMarkdownToHtml,
   safeCssColor,
   scanContainerLines,
   t3,
+  TILES_MAX_COLS,
+  renderFastrTocHtml,
+  type StepsChildAction,
+  stepsChildInfo,
+  tilesChildInfo,
   updateContainerFenceLine,
 } from "lib";
 import {
@@ -136,6 +149,10 @@ class RegionWidget extends WidgetType {
     readonly endLine: number,
     readonly resolver: EmbedResolver,
     readonly active = false,
+    // The document's FIRST visible block: View gives it no top margin (a
+    // cover even pulls itself up), so the editor must not open with a strip
+    // of page ground above it either.
+    readonly first = false,
   ) {
     super();
   }
@@ -145,7 +162,8 @@ class RegionWidget extends WidgetType {
     // touches the editor; a remote edit inside the region changes the source
     // and re-creates just this widget.
     return other.kind === this.kind && other.source === this.source &&
-      other.startLine === this.startLine && other.active === this.active;
+      other.startLine === this.startLine && other.active === this.active &&
+      other.first === this.first;
   }
 
   override toDOM(view: EditorView): HTMLElement {
@@ -153,9 +171,12 @@ class RegionWidget extends WidgetType {
     // Vertical PADDING, never margins: CodeMirror measures the widget's box
     // for vertical layout and margins fall outside it, desyncing cursor
     // positions below (the embedWidgets rule).
-    dom.className = this.active
-      ? "fm-live-region fm-live-region--active w-full cursor-text"
-      : "fm-live-region w-full cursor-text";
+    dom.className = [
+      "fm-live-region",
+      this.active ? "fm-live-region--active" : "",
+      this.first ? "fm-live-region--first" : "",
+      "w-full cursor-text",
+    ].filter((c) => c.length > 0).join(" ");
     // Presses inside the widget stopPropagation (cells, islands, the press
     // claim below), which starves panther's document-level menu dismiss — so
     // an open context menu is closed HERE, in the capture phase, before any
@@ -235,7 +256,18 @@ class RegionWidget extends WidgetType {
       const rel = Number(statEl.getAttribute("data-line"));
       const text = sourceLines[rel];
       if (!Number.isFinite(rel) || text === undefined) continue;
-      attachStatEditors(statEl, view, this.startLine + rel + 1, text, false);
+      attachStatEditors(
+        statEl,
+        view,
+        this.startLine + rel + 1,
+        text,
+        this.active,
+        () =>
+          view.contentDOM.querySelector<HTMLElement>(
+            `[data-region-line="${this.startLine}"] .fm-stat[data-line="${rel}"]`,
+          ),
+      );
+      attachTilesChildContextMenu(statEl, view, this.startLine + rel + 1);
     }
     // Prose: paragraphs, list items and headings swap to their raw source
     // lines on press, keeping the block's layout around them.
@@ -250,6 +282,17 @@ class RegionWidget extends WidgetType {
       const rel = Number(textEl.getAttribute("data-line"));
       if (!Number.isFinite(rel) || sourceLines[rel] === undefined) continue;
       attachTextEditor(textEl, view, this.startLine, sourceLines, rel);
+    }
+    // A step is any DIRECT child of a steps block (a paragraph, mostly): its
+    // right-click adds a step either side or removes it.
+    for (
+      const stepEl of Array.from(
+        dom.querySelectorAll<HTMLElement>(".fm-steps > [data-line]"),
+      )
+    ) {
+      const rel = Number(stepEl.getAttribute("data-line"));
+      if (!Number.isFinite(rel) || sourceLines[rel] === undefined) continue;
+      attachStepsChildContextMenu(stepEl, view, this.startLine + rel + 1);
     }
     // Block chrome text — the callout/card TITLE, a band's kicker and dek, a
     // quote's citation — edits in place through the fence-attr path (the same
@@ -276,6 +319,9 @@ class RegionWidget extends WidgetType {
       if (!Number.isFinite(rel) || text === undefined) continue;
       const fence = fastrOpenFenceOnLine(text, this.startLine + rel + 1);
       if (!fence) continue;
+      if (fence.name === "card" || fence.name === "col") {
+        attachTilesChildContextMenu(container, view, this.startLine + rel + 1);
+      }
       for (const [rootCls, childCls, attr, placeholder, ghost] of CHROME_ATTRS) {
         if (!container.classList.contains(rootCls)) continue;
         let el = container.querySelector<HTMLElement>(`:scope > .${childCls}`);
@@ -289,6 +335,7 @@ class RegionWidget extends WidgetType {
         const original = typeof fence.attrs[attr] === "string"
           ? (fence.attrs[attr] as string)
           : "";
+        const startLine = this.startLine;
         attachAttrEditor(
           el,
           view,
@@ -296,7 +343,10 @@ class RegionWidget extends WidgetType {
           attr,
           original,
           placeholder,
-          false,
+          () =>
+            view.contentDOM.querySelector<HTMLElement>(
+              `[data-region-line="${startLine}"] [data-line="${rel}"] > .${childCls}`,
+            ),
         );
       }
     }
@@ -310,8 +360,16 @@ class RegionWidget extends WidgetType {
       const rel = Number(rowEl.getAttribute("data-line"));
       if (!Number.isFinite(rel)) continue;
       const cells = Array.from(rowEl.querySelectorAll<HTMLElement>("td, th"));
+      const startLine = this.startLine;
       cells.forEach((cell, i) => {
-        attachCellEditor(cell, view, this.startLine + rel + 1, i);
+        attachCellEditor(cell, view, this.startLine + rel + 1, i, () => {
+          const row = view.contentDOM.querySelector<HTMLElement>(
+            `[data-region-line="${startLine}"] tr[data-line="${rel}"]`,
+          );
+          return row
+            ? Array.from(row.querySelectorAll<HTMLElement>("td, th"))[i]
+            : undefined;
+        });
         attachCellContextMenu(cell, view, this.startLine + rel + 1, i);
       });
     }
@@ -522,12 +580,30 @@ function attachAttrEditor(
   attr: string,
   original: string,
   placeholder: string,
-  // In a COLLAPSED widget the caret must stay put: parking it on the line
-  // would reveal the region and destroy this editor mid-edit.
-  moveCaret = true,
+  // Finds this element's equivalent after a widget rebuild: parking the caret
+  // flips the region active, which recreates the widget DOM (ghost pieces
+  // included), so activation must land on the POST-rebuild element.
+  locate?: () => HTMLElement | null | undefined,
 ) {
   el.classList.add("cm-fm-attr");
   el.setAttribute("data-placeholder", placeholder);
+  const activate = () => {
+    try {
+      el.contentEditable = "plaintext-only";
+    } catch {
+      el.contentEditable = "true";
+    }
+    el.focus();
+    const sel = window.getSelection();
+    if (sel) {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      range.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+  };
+  (el as unknown as { _fmAttrActivate?: () => void })._fmAttrActivate = activate;
   // Activation happens on MOUSEDOWN, before the browser decides what the
   // press selects: a label that only becomes editable on click is still a
   // non-editable island at that moment, so the browser would select the
@@ -537,19 +613,20 @@ function attachAttrEditor(
   el.addEventListener("mousedown", (e) => {
     e.stopPropagation();
     if (el.isContentEditable) return;
-    // Caret onto the fence line (no focus steal) so the toolbar shows this
-    // block's controls while the label is being edited.
-    if (moveCaret && line1 <= view.state.doc.lines) {
+    // Park the caret on the fence line FIRST (no focus steal): the toolbar
+    // reads its block context from the selection, so the block's controls
+    // (tone, ink, the stat's pieces) appear on the very FIRST click — then
+    // activate whatever now stands where this element did, since the park
+    // may have rebuilt the widget.
+    if (line1 <= view.state.doc.lines) {
       view.dispatch({
         selection: { anchor: view.state.doc.line(line1).from },
       });
     }
-    try {
-      el.contentEditable = "plaintext-only";
-    } catch {
-      el.contentEditable = "true";
-    }
-    el.focus();
+    const next = locate?.() ?? el;
+    if (next !== el) e.preventDefault();
+    ((next as unknown as { _fmAttrActivate?: () => void })._fmAttrActivate ??
+      activate)();
   });
   // Clicks stay inside the label — the widget's own handlers (reveal, embed
   // select) must not see them.
@@ -581,25 +658,63 @@ function attachAttrEditor(
 
 // A stat's value/label/delta edit in place wherever the stat renders — in
 // the revealed leaf widget AND inside a collapsed region's grid, so a tiles
-// row of stats never needs to break its layout to be edited.
+// row of stats never needs to break its layout to be edited. When the region
+// is ACTIVE, the pieces the stat does not carry yet appear as ghost
+// placeholders to click into (the same affordance a titleless callout or a
+// kickerless cover gets), inserted in the renderer's value→label→delta order.
 function attachStatEditors(
   root: HTMLElement,
   view: EditorView,
   line1: number,
   lineText: string,
-  moveCaret: boolean,
+  active = false,
+  locateRoot?: () => HTMLElement | null | undefined,
 ) {
   const attrs = fastrOpenFenceOnLine(lineText, line1)?.attrs ?? {};
-  const pieces: [string, string, string][] = [
-    ["fm-stat__value", "value", "0"],
-    ["fm-stat__label", "label", t3({ en: "Label…", fr: "Libellé…", pt: "Rótulo…" })],
-    ["fm-stat__delta", "delta", ""],
+  const dir = typeof attrs["dir"] === "string" ? attrs["dir"] : "flat";
+  const pieces: [string, string, string, string][] = [
+    [
+      "fm-stat__value",
+      "value",
+      t3({ en: "Value…", fr: "Valeur…", pt: "Valor…" }),
+      "fm-stat__value",
+    ],
+    [
+      "fm-stat__label",
+      "label",
+      t3({ en: "Label…", fr: "Libellé…", pt: "Rótulo…" }),
+      "fm-stat__label",
+    ],
+    [
+      "fm-stat__delta",
+      "delta",
+      t3({ en: "Change…", fr: "Évolution…", pt: "Variação…" }),
+      `fm-stat__delta fm-stat__delta--${dir}`,
+    ],
   ];
-  for (const [cls, attr, placeholder] of pieces) {
-    const el = root.querySelector<HTMLElement>(`.${cls}`);
+  let prev: HTMLElement | undefined;
+  for (const [cls, attr, placeholder, ghostClass] of pieces) {
+    let el = root.querySelector<HTMLElement>(`.${cls}`);
+    if (!el && active) {
+      el = document.createElement("div");
+      el.className = ghostClass;
+      if (prev) prev.after(el);
+      else root.prepend(el);
+    }
     if (!el) continue;
+    prev = el;
     const original = typeof attrs[attr] === "string" ? (attrs[attr] as string) : "";
-    attachAttrEditor(el, view, line1, attr, original, placeholder, moveCaret);
+    attachAttrEditor(
+      el,
+      view,
+      line1,
+      attr,
+      original,
+      placeholder,
+      locateRoot === undefined
+        ? undefined
+        : () => locateRoot()?.querySelector<HTMLElement>(`.${cls}`),
+    );
   }
 }
 
@@ -669,18 +784,23 @@ function attachTextEditor(
       frag.append(hiddenSpan(hm[1]));
       rest = rest.slice(hm[1].length);
     }
-    ROLE_MARK_RE.lastIndex = 0;
+    MARK_RE.lastIndex = 0;
     let last = 0;
     let m: RegExpExecArray | null;
-    while ((m = ROLE_MARK_RE.exec(rest)) !== null) {
-      if (!isFastrInkRole(m[2])) continue;
+    while ((m = MARK_RE.exec(rest)) !== null) {
+      const attrs = parseFastrMarkAttrs(m[2]);
+      if (!attrs) continue;
       appendWithEmphasis(frag, rest.slice(last, m.index));
       frag.append(hiddenSpan("["));
       const marked = document.createElement("span");
-      marked.className = `fm-mark fm-mark--${m[2]}`;
+      marked.className = fastrMarkClass(attrs);
+      if (attrs.color !== undefined) marked.style.color = attrs.color;
+      if (attrs.size !== undefined) marked.style.fontSize = `${attrs.size}pt`;
+      if (attrs.underline === true) marked.style.textDecoration = "underline";
       appendWithEmphasis(marked, m[1]);
       frag.append(marked);
-      frag.append(hiddenSpan(`]{.${m[2]}}`));
+      // m[2] verbatim, so textContent stays byte-identical to the source.
+      frag.append(hiddenSpan(`]{${m[2]}}`));
       last = m.index + m[0].length;
     }
     appendWithEmphasis(frag, rest.slice(last));
@@ -710,6 +830,9 @@ function attachTextEditor(
   el.addEventListener("mousedown", (e) => {
     e.stopPropagation();
     if (el.isContentEditable) return;
+    // A right-click is for the context menu: never swap to source under it
+    // (and the region root must not rebuild the widget under it either).
+    if (e.button !== 0) return;
     e.preventDefault();
     // Park the CM selection inside the region FIRST: the flip to active
     // rebuilds the widget DOM, so the island must be activated on the
@@ -796,10 +919,63 @@ function attachTextEditor(
       },
     });
   });
+  // Enter inside a step: a NEW step, the way Enter in a list makes a new
+  // item. The text after the caret becomes the next step — a placeholder
+  // when there is none, since an empty paragraph would not render and there
+  // would be nothing to click — and that step's island is activated with the
+  // placeholder selected, so typing replaces it. ONE dispatch commits this
+  // step's text and adds the next.
+  const splitStep = () => {
+    const doc = view.state.doc;
+    const line1 = regionStartLine + rel + 1;
+    const endLine1 = regionStartLine + endRel + 1;
+    if (endLine1 > doc.lines) {
+      el.blur();
+      return;
+    }
+    const text = (el.textContent ?? "").replace(/\r/g, "");
+    let at = text.length;
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && sel.focusNode && el.contains(sel.focusNode)) {
+      const r = document.createRange();
+      r.selectNodeContents(el);
+      try {
+        r.setEnd(sel.focusNode, sel.focusOffset);
+        at = r.toString().length;
+      } catch {
+        // An unreachable focus node: split at the end.
+      }
+    }
+    const label = t3({ en: "New step", fr: "Nouvelle étape", pt: "Novo passo" });
+    const before = text.slice(0, at).trimEnd() || label;
+    const after = text.slice(at).trimStart();
+    stopMirror();
+    el.contentEditable = "false";
+    const from = doc.line(line1).from;
+    view.dispatch({
+      changes: { from, to: doc.line(endLine1).to, insert: `${before}\n\n${after || label}` },
+      selection: { anchor: from + before.length + 2 },
+    });
+    const newRel = rel + before.split("\n").length + 1;
+    const host = view.contentDOM.querySelector(
+      `[data-region-line="${regionStartLine}"]`,
+    );
+    const target = host?.querySelector<HTMLElement>(`p[data-line="${newRel}"]`);
+    if (!target) return;
+    (target as unknown as { _fmActivate?: () => void })._fmActivate?.();
+    const next = window.getSelection();
+    if (!next) return;
+    if (after) next.collapse(target, 0);
+    else next.selectAllChildren(target);
+  };
   el.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      el.blur();
+      if (el.tagName === "P" && el.parentElement?.classList.contains("fm-steps")) {
+        splitStep();
+      } else {
+        el.blur();
+      }
     } else if (e.key === "Escape") {
       e.preventDefault();
       el.textContent = original;
@@ -808,10 +984,120 @@ function attachTextEditor(
   });
 }
 
+// Right-click on a step: a step either side, delete it — panther's showMenu,
+// same as tiles. A paragraph inside `:::steps` IS a step (the renderer
+// numbers the block's direct children), so this menu and Enter are the only
+// chrome a step needs (applyStepsChildAction).
+function attachStepsChildContextMenu(
+  el: HTMLElement,
+  view: EditorView,
+  line1: number,
+) {
+  el.addEventListener("contextmenu", (e) => {
+    if (!stepsChildInfo(view.state.doc.toString(), line1)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const run = (action: StepsChildAction) => {
+      // A step still being typed in commits first (its blur is a dispatch),
+      // so the action reads the document the author sees.
+      const active = document.activeElement;
+      if (
+        active instanceof HTMLElement && active.isContentEditable &&
+        el.closest(".fm-live-region")?.contains(active)
+      ) active.blur();
+      const r = applyStepsChildAction(
+        view.state.doc.toString(),
+        line1,
+        action,
+        t3({ en: "New step", fr: "Nouvelle étape", pt: "Novo passo" }),
+      );
+      if (r.changes.length > 0) view.dispatch({ changes: r.changes });
+    };
+    const items: MenuItem[] = [
+      {
+        label: t3({ en: "Add step before", fr: "Ajouter une étape avant", pt: "Adicionar passo antes" }),
+        onClick: () => run("insertBefore"),
+      },
+      {
+        label: t3({ en: "Add step after", fr: "Ajouter une étape après", pt: "Adicionar passo depois" }),
+        onClick: () => run("insertAfter"),
+      },
+      { type: "divider" as const },
+      {
+        label: t3({ en: "Delete step", fr: "Supprimer l'étape", pt: "Eliminar passo" }),
+        intent: "danger" as const,
+        onClick: () => run("delete"),
+      },
+    ];
+    showMenu({
+      anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 },
+      items,
+    });
+  });
+}
+
 // The cell's right-click menu — the Google Docs table set, through the same
 // showMenu system the project lists use. Table bounds are re-derived from the
 // live doc at menu time (the clicked row could sit inside a container region,
 // so the REGION's bounds are not the table's).
+// Right-click on a stat tile, a card or a column: add a sibling either side,
+// pick the grid's column count, delete it — panther's showMenu, same as
+// table cells.
+// The column count follows the child count while it fits
+// (applyTilesChildAction).
+function attachTilesChildContextMenu(
+  el: HTMLElement,
+  view: EditorView,
+  line1: number,
+) {
+  el.addEventListener("contextmenu", (e) => {
+    const doc = view.state.doc.toString();
+    const info = tilesChildInfo(doc, line1);
+    if (!info) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const labels = {
+      tile: t3({ en: "New tile", fr: "Nouvelle tuile", pt: "Novo mosaico" }),
+      card: t3({ en: "New card", fr: "Nouvelle carte", pt: "Novo cartão" }),
+      body: t3({ en: "Text", fr: "Texte", pt: "Texto" }),
+    };
+    const run = (action: Parameters<typeof applyTilesChildAction>[2]) => {
+      const r = applyTilesChildAction(doc, line1, action, labels);
+      if (r.changes.length > 0) view.dispatch({ changes: r.changes });
+    };
+    const noun = info.kind === "stat"
+      ? { before: t3({ en: "Add tile before", fr: "Ajouter une tuile avant", pt: "Adicionar mosaico antes" }),
+          after: t3({ en: "Add tile after", fr: "Ajouter une tuile après", pt: "Adicionar mosaico depois" }),
+          remove: t3({ en: "Delete tile", fr: "Supprimer la tuile", pt: "Eliminar mosaico" }) }
+      : info.kind === "card"
+      ? { before: t3({ en: "Add card before", fr: "Ajouter une carte avant", pt: "Adicionar cartão antes" }),
+          after: t3({ en: "Add card after", fr: "Ajouter une carte après", pt: "Adicionar cartão depois" }),
+          remove: t3({ en: "Delete card", fr: "Supprimer la carte", pt: "Eliminar cartão" }) }
+      : { before: t3({ en: "Add column before", fr: "Ajouter une colonne avant", pt: "Adicionar coluna antes" }),
+          after: t3({ en: "Add column after", fr: "Ajouter une colonne après", pt: "Adicionar coluna depois" }),
+          remove: t3({ en: "Delete column", fr: "Supprimer la colonne", pt: "Eliminar coluna" }) };
+    const items: MenuItem[] = [
+      { label: noun.before, onClick: () => run("insertBefore") },
+      { label: noun.after, onClick: () => run("insertAfter") },
+      ...(info.grid
+        ? [{
+          label: t3({ en: "Columns", fr: "Colonnes", pt: "Colunas" }),
+          subMenu: Array.from({ length: TILES_MAX_COLS }, (_, i) => ({
+            label: `${i + 1}${info.grid?.cols === i + 1 ? " ✓" : ""}`,
+            onClick: () => run({ cols: i + 1 }),
+          })),
+        } satisfies MenuItem]
+        : []),
+      { type: "divider" as const },
+      { label: noun.remove, intent: "danger" as const, onClick: () => run("delete") },
+    ];
+    showMenu({
+      anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 },
+      items,
+    });
+  });
+}
+
 function attachCellContextMenu(
   el: HTMLElement,
   view: EditorView,
@@ -930,21 +1216,74 @@ function attachCellContextMenu(
 
 // Table cells edit in place: the row's source line is split on pipes, the
 // pressed cell swaps to its raw text, and a commit rebuilds the row line.
+// The raw `|`-separated segments of a table row, WITH their offsets in the
+// line — cellSlices(text)[i].raw.trim() is exactly what the cell island shows,
+// and the offset is what lets the selection mirror map island positions onto
+// doc positions inside the row line.
+function cellSlices(text: string): { start: number; raw: string }[] {
+  const parts = text.split("|");
+  const out: { start: number; raw: string }[] = [];
+  let pos = 0;
+  for (const raw of parts) {
+    out.push({ start: pos, raw });
+    pos += raw.length + 1;
+  }
+  const trimmed = text.trim();
+  let arr = out;
+  if (trimmed.startsWith("|")) arr = arr.slice(1);
+  if (trimmed.endsWith("|") && arr.length > 0) arr = arr.slice(0, -1);
+  return arr;
+}
+
 function attachCellEditor(
   el: HTMLElement,
   view: EditorView,
   rowLine1: number,
   cellIndex: number,
+  locate?: () => HTMLElement | undefined,
 ) {
   el.classList.add("cm-fm-text-edit");
-  const cellsOf = (text: string) => {
-    const trimmed = text.trim();
-    const inner = trimmed.replace(/^\|/, "").replace(/\|$/, "");
-    return inner.split("|").map((c) => c.trim());
+  const cellsOf = (text: string) => cellSlices(text).map((c) => c.raw.trim());
+  // Doc offset of this cell's trimmed content, and its length — the mirror's
+  // coordinate frame. Recomputed per call: the row line moves as the doc does.
+  const contentRange = (): { from: number; len: number } | undefined => {
+    if (rowLine1 > view.state.doc.lines) return undefined;
+    const line = view.state.doc.line(rowLine1);
+    const slice = cellSlices(line.text)[cellIndex];
+    if (!slice) return undefined;
+    const lead = slice.raw.length - slice.raw.trimStart().length;
+    return { from: line.from + slice.start + lead, len: slice.raw.trim().length };
   };
-  el.addEventListener("mousedown", (e) => {
-    e.stopPropagation();
-    if (el.isContentEditable) return;
+  // Mirror the island's DOM selection into the CM selection while editing, so
+  // the toolbar's text actions (size, colour, bold) act on what is selected
+  // IN THE CELL — same contract as attachTextEditor's mirror. The island is
+  // plain text (no hidden spans), so Range lengths are cell offsets directly.
+  const mirrorSelection = () => {
+    if (!el.isContentEditable) return;
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || !el.contains(sel.anchorNode)) return;
+    const range = contentRange();
+    if (!range) return;
+    const offsetOf = (node: Node, offset: number) => {
+      const r = document.createRange();
+      r.selectNodeContents(el);
+      try {
+        r.setEnd(node, offset);
+      } catch {
+        return 0;
+      }
+      return r.toString().length;
+    };
+    const clamp = (n: number) => Math.max(0, Math.min(n, range.len));
+    const anchor = range.from + clamp(offsetOf(sel.anchorNode!, sel.anchorOffset));
+    const head = range.from + clamp(offsetOf(sel.focusNode!, sel.focusOffset));
+    const cur = view.state.selection.main;
+    if (cur.anchor === anchor && cur.head === head) return;
+    view.dispatch({ selection: { anchor, head } });
+  };
+  const stopMirror = () =>
+    document.removeEventListener("selectionchange", mirrorSelection);
+  const activate = () => {
     if (rowLine1 > view.state.doc.lines) return;
     const cells = cellsOf(view.state.doc.line(rowLine1).text);
     (el as unknown as { _rendered: string })._rendered = el.innerHTML;
@@ -955,9 +1294,27 @@ function attachCellEditor(
       el.contentEditable = "true";
     }
     el.focus();
+    document.addEventListener("selectionchange", mirrorSelection);
+  };
+  (el as unknown as { _fmCellActivate?: () => void })._fmCellActivate = activate;
+  el.addEventListener("mousedown", (e) => {
+    e.stopPropagation();
+    if (el.isContentEditable) return;
+    e.preventDefault();
+    // Park the CM caret at the cell's content FIRST (the active flip rebuilds
+    // the widget), then activate the POST-rebuild cell — the same
+    // park-then-activate the text islands and attr editors use. The park is
+    // what shows the toolbar this table's context on the first click.
+    const range = contentRange();
+    if (!range) return;
+    view.dispatch({ selection: { anchor: range.from } });
+    const target = locate?.();
+    ((target ?? el) as unknown as { _fmCellActivate?: () => void })
+      ._fmCellActivate?.();
   });
   el.addEventListener("click", (e) => e.stopPropagation());
   el.addEventListener("blur", () => {
+    stopMirror();
     if (!el.isContentEditable) return;
     el.contentEditable = "false";
     if (rowLine1 > view.state.doc.lines) return;
@@ -984,6 +1341,7 @@ function attachCellEditor(
       el.blur();
     } else if (e.key === "Escape") {
       e.preventDefault();
+      stopMirror();
       el.contentEditable = "false";
       const rendered = (el as unknown as { _rendered?: string })._rendered;
       if (rendered !== undefined) el.innerHTML = rendered;
@@ -1109,15 +1467,69 @@ class ChromeCapWidget extends WidgetType {
 
 // A leaf line (a stat) is pure attributes, so it is never text-edited — it
 // renders exactly as the document renders it and is driven by the toolbar.
+// A `:::contents` block's content is the document, so its widget needs a key
+// that changes exactly when the outline does.
+function tocOutlineKey(doc: string, fence: FastrOpenFence | undefined): string {
+  const { title, depth } = fastrTocOptions(fence?.attrs ?? {});
+  return `${title ?? ""}|${depth}|` +
+    fastrDocumentOutline(doc, depth)
+      .map((it) => `${it.level}:${it.line}:${it.text}`)
+      .join("\n");
+}
+
 class LeafRenderWidget extends WidgetType {
-  constructor(readonly source: string, readonly line1: number) {
+  // `outline` is set only for `:::contents`, whose content is the DOCUMENT
+  // rather than its own line — serialized so eq re-renders the list exactly
+  // when a heading changes, and never for an edit elsewhere.
+  constructor(
+    readonly source: string,
+    readonly line1: number,
+    readonly outline = "",
+  ) {
     super();
   }
   override eq(other: LeafRenderWidget): boolean {
-    return other.source === this.source && other.line1 === this.line1;
+    return other.source === this.source && other.line1 === this.line1 &&
+      other.outline === this.outline;
   }
   override toDOM(view: EditorView): HTMLElement {
     const dom = chromeRoot(view, this.line1);
+    const fence = fastrOpenFenceOnLine(this.source, this.line1);
+    if (fence?.name === "contents") {
+      // The renderer's own markup, from the same builder — but fed the live
+      // document, so the editor shows the contents the report will have.
+      const { title, depth } = fastrTocOptions(fence.attrs);
+      const items = fastrDocumentOutline(view.state.doc.toString(), depth);
+      const nav = document.createElement("nav");
+      nav.className = "fm-toc";
+      nav.innerHTML = sanitizeReportHtml(renderFastrTocHtml(items, {
+        title,
+        empty: t3({
+          en: "No headings yet",
+          fr: "Aucun titre pour l'instant",
+          pt: "Ainda sem títulos",
+        }),
+      }));
+      dom.append(nav);
+      // An anchor cannot navigate inside the editor, so an entry puts the
+      // CARET on its heading instead — the document's own outline, clickable.
+      nav.addEventListener("mousedown", (e) => {
+        const a = (e.target as HTMLElement).closest<HTMLElement>("[data-toc-line]");
+        if (!a) return;
+        const line1 = Number(a.getAttribute("data-toc-line"));
+        if (!Number.isFinite(line1) || line1 < 1 || line1 > view.state.doc.lines) {
+          return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        view.dispatch({
+          selection: { anchor: view.state.doc.line(line1).from },
+          scrollIntoView: true,
+        });
+        view.focus();
+      });
+      return dom;
+    }
     dom.innerHTML = sanitizeReportHtml(
       renderFastrMarkdownToHtml(this.source, { lineAnchors: false }),
     );
@@ -1266,7 +1678,16 @@ function buildRevealedRegion(
           Decoration.replace({
             widget: isReport
               ? new PageSetupWidget(line.text, item.line1 - 1)
-              : new LeafRenderWidget(line.text, item.line1),
+              : new LeafRenderWidget(
+                line.text,
+                item.line1,
+                fastrOpenFenceOnLine(line.text, item.line1)?.name === "contents"
+                  ? tocOutlineKey(
+                    state.doc.toString(),
+                    fastrOpenFenceOnLine(line.text, item.line1),
+                  )
+                  : "",
+              ),
             block: true,
           }),
         );
@@ -1352,12 +1773,26 @@ type ProtectedLine = {
   regionTo: number;
 };
 
+// The first line the reader actually SEES: the `:::report` header renders
+// nothing and leading blank lines are View's non-content, so both are skipped.
+// Returns undefined for a document with nothing in it yet.
+function firstVisibleLine(state: EditorState): number | undefined {
+  for (let n = 1; n <= state.doc.lines; n++) {
+    const text = state.doc.line(n).text;
+    if (text.trim().length === 0) continue;
+    if (fastrOpenFenceOnLine(text, n)?.name === "report") continue;
+    return n;
+  }
+  return undefined;
+}
+
 function buildLiveState(
   state: EditorState,
   resolver: EmbedResolver,
   cached?: RegionRange[],
 ): LiveState {
   const ranges = cached ?? regionRanges(state);
+  const firstLine = firstVisibleLine(state);
   const builder = new RangeSetBuilder<Decoration>();
   const protectedLines: ProtectedLine[] = [];
   const boxes: BoxInfo[] = [];
@@ -1393,8 +1828,16 @@ function buildLiveState(
         to: Math.min(r.to + 1, state.doc.length),
       });
     }
+    const isToc = r.region.kind === "leaf" &&
+      r.region.fence?.name === "contents";
     const widget = isPageSetup
       ? new PageSetupWidget(source, r.region.startLine)
+      : isToc
+      ? new LeafRenderWidget(
+        source,
+        r.region.startLine + 1,
+        tocOutlineKey(state.doc.toString(), r.region.fence),
+      )
       : new RegionWidget(
         r.region.kind,
         source,
@@ -1404,6 +1847,7 @@ function buildLiveState(
         // A text-free region with the caret inside stays rendered — the ring
         // is its only sign of selection, since there is no source to show.
         touched,
+        firstLine !== undefined && r.region.startLine + 1 === firstLine,
       );
     builder.add(r.from, r.to, Decoration.replace({ widget, block: true }));
   }
@@ -1534,44 +1978,131 @@ const surfaceLineField = StateField.define<DecorationSet>({
 
 const LIST_LINE_RE = /^\s*(?:[-*+]|\d+\.)\s/;
 
+// `1. ` / `1.1 ` in front of a numbered section. The rendered document gets
+// these from a CSS counter on `body > h2`; the editor's own heading lines are
+// cm-lines rather than real headings, so the same numbers are computed here —
+// doc-wide, since a viewport-scoped counter would count only what is on
+// screen and renumber as you scroll.
+class SectionNumberWidget extends WidgetType {
+  constructor(readonly text: string) {
+    super();
+  }
+  override eq(other: SectionNumberWidget): boolean {
+    return other.text === this.text;
+  }
+  override toDOM(): HTMLElement {
+    const dom = document.createElement("span");
+    dom.className = "cm-fm-secnum";
+    dom.textContent = this.text;
+    dom.contentEditable = "false";
+    return dom;
+  }
+}
+
 function buildSurfaceLines(state: EditorState): DecorationSet {
-  const builder = new RangeSetBuilder<Decoration>();
+  const ranges: Range<Decoration>[] = [];
+  // Section numbering is a document setting; a heading inside a block is not
+  // a section, so only depth-0 headings count (the CSS rule is body > hN).
+  const numbered = readFastrDocumentSettings(state.doc.sliceString(0, 4096))
+    .className.includes("fm-doc--numbered");
+  let depth = 0;
+  let sec = 0;
+  let sub = 0;
+  // Blank lines ABOVE the first visible block render nothing in View, so they
+  // must not open the editor with a strip of page ground. Only collapsed when
+  // there IS content below them — an all-blank document keeps its clickable
+  // lines.
+  const firstLine = firstVisibleLine(state);
   // scanContainerLines flags code-fence interiors, where a # line is content.
-  for (const { index, text, inCode } of scanContainerLines(
+  for (const { index, text, inCode, fence } of scanContainerLines(
     state.doc.iterLines(1, state.doc.lines + 1),
   )) {
     if (inCode) continue;
+    if (fence) {
+      // Leaf fences (a stat, the header, a contents block) open nothing.
+      if (fence.kind === "open") {
+        if (!isFastrLeafBlock(fence.name)) depth++;
+      } else {
+        depth = Math.max(0, depth - 1);
+      }
+    }
     const from = state.doc.line(index + 1).from;
     const blank = text.trim().length === 0;
     if (blank) {
       // A blank source line is View's paragraph margin (1em), not a full
       // text line — shrink it or every seam runs ~60% taller than View.
-      builder.add(from, from, Decoration.line({ class: "cm-fm-blank" }));
-      continue;
-    }
-    const m = HEADING_LINE_RE.exec(text);
-    if (m) {
-      builder.add(
-        from,
-        from,
-        Decoration.line({ class: `cm-fm-h${m[1].length}` }),
+      ranges.push(
+        Decoration.line({
+          class: firstLine !== undefined && index + 1 < firstLine
+            ? "cm-fm-blank cm-fm-lead"
+            : "cm-fm-blank",
+        }).range(from),
       );
       continue;
     }
-    if (LIST_LINE_RE.test(text)) {
-      builder.add(from, from, Decoration.line({ class: "cm-fm-li" }));
-      continue;
+    if (index + 1 === firstLine) {
+      ranges.push(Decoration.line({ class: "cm-fm-first" }).range(from));
     }
-    if (/^\s*>\s?/.test(text)) {
-      builder.add(from, from, Decoration.line({ class: "cm-fm-bq" }));
+    const m = HEADING_LINE_RE.exec(text);
+    if (m) {
+      ranges.push(
+        Decoration.line({ class: `cm-fm-h${m[1].length}` }).range(from),
+      );
+      const level = m[1].length;
+      if (numbered && depth === 0 && (level === 2 || level === 3)) {
+        if (level === 2) {
+          sec++;
+          sub = 0;
+        } else {
+          sub++;
+        }
+        ranges.push(
+          Decoration.widget({
+            widget: new SectionNumberWidget(
+              level === 2 ? `${sec}. ` : `${sec}.${sub} `,
+            ),
+            side: -1,
+          }).range(from),
+        );
+      }
+    } else if (LIST_LINE_RE.test(text)) {
+      ranges.push(Decoration.line({ class: "cm-fm-li" }).range(from));
+    } else if (/^\s*>\s?/.test(text)) {
+      ranges.push(Decoration.line({ class: "cm-fm-bq" }).range(from));
+    }
+    // `[x]{.role}` / `[x]{size=12}` label styling — here and not in the
+    // conceal plugin because a font-size changes LINE HEIGHT, and
+    // height-affecting decorations must exist for off-screen lines or scroll
+    // estimates jitter (the same rule that puts heading classes here). The
+    // conceal plugin hides the markers; this styles the phrase between them.
+    MARK_RE.lastIndex = 0;
+    let mm: RegExpExecArray | null;
+    while ((mm = MARK_RE.exec(text)) !== null) {
+      const attrs = parseFastrMarkAttrs(mm[2]);
+      // Mark decorations may not be empty — a bare `[]{.role}` styles nothing.
+      if (!attrs || mm[1].length === 0) continue;
+      // Inside inline code the renderer keeps the syntax literal, so the
+      // styling must too (same check the conceal makes).
+      const nodeAt = syntaxTree(state).resolveInner(from + mm.index, 1);
+      if (/Code/.test(nodeAt.name)) continue;
+      ranges.push(
+        Decoration.mark({
+          class: fastrMarkClass(attrs),
+          attributes: fastrMarkStyle(attrs) === ""
+            ? undefined
+            : { style: fastrMarkStyle(attrs) },
+        }).range(from + mm.index + 1, from + mm.index + 1 + mm[1].length),
+      );
     }
   }
-  return builder.finish();
+  return Decoration.set(ranges, true);
 }
 
 // ── Inline conceal ───────────────────────────────────────────────────────────
 
-const ROLE_MARK_RE = /\[([^\]]*)\]\{\.([a-z][a-z0-9-]*)\}/g;
+// `[label]{…}` — parseFastrMarkAttrs decides whether the braces make it a
+// mark (role, size, or both); anything else stays literal text.
+const MARK_RE = /\[([^\]]*)\]\{([^}]*)\}/g;
 
 // A thematic break renders as the theme's own rule (the hr element picks up
 // the scoped sheet), revealing its --- source only while the caret touches it.
@@ -1675,13 +2206,14 @@ function buildConceal(
             return;
           }
           case "Link": {
-            // A bracket followed by {.role} is a ROLE MARK, not a link — the
-            // Lezer grammar still tokenizes the shortcut-reference form, and
-            // claiming it here would both paint link styling and knock out
-            // the role conceal's tail in the overlap dedupe below.
-            const tail = state.sliceDoc(node.to, Math.min(node.to + 24, state.doc.length));
-            const roleTail = /^\{\.([a-z][a-z0-9-]*)\}/.exec(tail);
-            if (roleTail && isFastrInkRole(roleTail[1])) return;
+            // A bracket followed by a mark block ({.role}, {size=12}) is a
+            // MARK, not a link — the Lezer grammar still tokenizes the
+            // shortcut-reference form, and claiming it here would both paint
+            // link styling and knock out the mark conceal's tail in the
+            // overlap dedupe below.
+            const tail = state.sliceDoc(node.to, Math.min(node.to + 40, state.doc.length));
+            const markTail = /^\{([^}]*)\}/.exec(tail);
+            if (markTail && parseFastrMarkAttrs(markTail[1])) return;
             if (revealed(node.from, node.to)) return;
             // Only a REAL link (with a URL) conceals and takes link styling.
             // Lezer also tokenizes bare [bracketed text] as a shortcut
@@ -1737,18 +2269,20 @@ function buildConceal(
       },
     });
 
-    // `[x]{.role}` is FASTR syntax the Lezer grammar doesn't know — regex over
-    // the visible text, skipping code (the tree query above would be costly
-    // per match; code spans render the syntax anyway, which is correct).
-    // Role markers NEVER reveal: the phrase stays a coloured phrase even with
-    // the caret inside it (the toolbar owns applying/clearing the role), and
-    // the hidden markers are ATOMIC so the caret steps over them instead of
-    // sitting invisibly inside.
+    // `[x]{.role}` / `[x]{size=12}` is FASTR syntax the Lezer grammar doesn't
+    // know — regex over the visible text, skipping code (the tree query above
+    // would be costly per match; code spans render the syntax anyway, which
+    // is correct). Mark markers NEVER reveal: the phrase stays styled even
+    // with the caret inside it (the toolbar owns the attributes), and the
+    // hidden markers are ATOMIC so the caret steps over them instead of
+    // sitting invisibly inside. The label's own styling (class + font-size)
+    // lives in surfaceLineField, NOT here: a size changes LINE HEIGHT, and
+    // height-affecting decorations must exist for off-screen lines too.
     const text = state.sliceDoc(from, to);
-    ROLE_MARK_RE.lastIndex = 0;
+    MARK_RE.lastIndex = 0;
     let m: RegExpExecArray | null;
-    while ((m = ROLE_MARK_RE.exec(text)) !== null) {
-      if (!isFastrInkRole(m[2])) continue;
+    while ((m = MARK_RE.exec(text)) !== null) {
+      if (!parseFastrMarkAttrs(m[2])) continue;
       const start = from + m.index;
       const end = start + m[0].length;
       // Inside code spans/fences the renderer keeps the syntax literal, so
@@ -1756,13 +2290,6 @@ function buildConceal(
       const nodeAt = syntaxTree(state).resolveInner(start, 1);
       if (/Code/.test(nodeAt.name)) continue;
       add(start, start + 1, conceal);
-      add(
-        start + 1,
-        start + 1 + m[1].length,
-        // The REAL mark classes — the scoped theme sheet styles them.
-        Decoration.mark({ class: `fm-mark fm-mark--${m[2]}` }),
-        false,
-      );
       add(start + 1 + m[1].length, end, conceal);
       atomicOut.push({ from: start, to: start + 1 });
       atomicOut.push({ from: start + 1 + m[1].length, to: end });

@@ -73,6 +73,7 @@ export async function buildStandaloneReportHtml(
       themeCss,
       documentClass: docSettings?.className,
       documentStyle: docSettings?.style,
+      pageCss: docSettings?.pageCss,
     }),
   );
   const fastrTokens = FASTR_THEME_TOKENS[fastrTheme];
@@ -137,6 +138,7 @@ export async function buildStandaloneReportHtml(
     themeCss,
     documentClass: docSettings?.className,
     documentStyle: docSettings?.style,
+    pageCss: docSettings?.pageCss,
   });
 }
 
