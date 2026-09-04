@@ -12,6 +12,7 @@ import {
   findReportEmbeds,
   findReportFigureConfigMap,
   getFastrReportTheme,
+  fastrDocumentOutline,
   getReportCustomStyle,
   getReportFormat,
   getReportHtmlStyle,
@@ -108,6 +109,10 @@ import { ReportImagePicker } from "./report_image_picker";
 import { ReportMarkdownDiff } from "./ReportMarkdownDiff";
 import { ReportFigureEmbed } from "./ReportFigureEmbed";
 import { DownloadReport } from "./download_report";
+import { RenameReportModal } from "./rename_report_modal";
+import { ShareReport } from "./share_report";
+import { DuplicateReportModal } from "~/components/project/duplicate_report_modal";
+import { instanceState } from "~/state/instance/t1_store";
 import {
   divSurface,
   isSurfaceAtBottom,
@@ -292,7 +297,8 @@ export function ProjectReport(p: Props) {
 ${scope} .cm-line.cm-fm-h4, ${scope} .cm-line.cm-fm-h5, ${scope} .cm-line.cm-fm-h6, ${scope} .cm-line.cm-fm-bq {
   margin: 0 !important; width: auto !important; text-decoration: none;
 }
-${scope} .cm-fm-h1 *, ${scope} .cm-fm-h2 *, ${scope} .cm-fm-h3 * { text-decoration: none !important; }`,
+${scope} .cm-fm-h1 *, ${scope} .cm-fm-h2 *, ${scope} .cm-fm-h3 * { text-decoration: none !important; }
+${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-h3 .fm-mark--u { text-decoration: underline !important; }`,
     ].join("\n");
   });
   const rasters = createFigureRasterCache(() => setRasterTick((t) => t + 1));
@@ -1190,6 +1196,37 @@ ${scope} .cm-fm-h1 *, ${scope} .cm-fm-h2 *, ${scope} .cm-fm-h3 * { text-decorati
     markSaved();
   }
 
+  // What the Page menu's Document details panel shows. Cheap enough to
+  // recompute on demand: the body is already in a signal.
+  const documentStats = () => {
+    const text = body();
+    const words = text
+      .replace(/```[\s\S]*?```/g, " ")
+      .replace(/^:::.*$/gm, " ")
+      .replace(/[#*_>`|\[\]{}]/g, " ")
+      .split(/\s+/)
+      .filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
+    return {
+      words,
+      headings: fastrDocumentOutline(text, 6).length,
+      figures: Object.keys(figures()).length,
+      images: Object.keys(images()).length,
+      lastSaved: lastSavedAt(),
+    };
+  };
+
+  // The page ground as an IMAGE: pick (or upload) one, register it like any
+  // report image so the prune keeps it, and hand the id back for the fence.
+  async function pickPageImage(): Promise<string | undefined> {
+    const picked = await openComponent({ element: ReportImagePicker, props: {} });
+    if (!picked) return undefined;
+    const id = crypto.randomUUID();
+    const next = { ...images(), [id]: { type: "image", imgFile: picked.imgFile } as ImageBlock };
+    setImages(next);
+    await persistImages(next);
+    return id;
+  }
+
   async function persistImages(next: Record<string, ImageBlock>) {
     // Live collab: see persistFigures — including the skip set, or this push
     // re-diffs an open figure modal's config from the host's stale copy.
@@ -1495,6 +1532,54 @@ ${scope} .cm-fm-h1 *, ${scope} .cm-fm-h2 *, ${scope} .cm-fm-h3 * { text-decorati
     });
   }
 
+  // The File menu's whole-document actions (FASTR toolbar). Rename updates
+  // the heading here at once; the route's report-list broadcast catches the
+  // sidebar. A copy lands in the list, the current report stays open.
+  async function renameReport() {
+    const res = await openComponent({
+      element: RenameReportModal,
+      props: { projectId, reportId: p.reportId, currentLabel: label() },
+    });
+    if (res) setLabel(res.label);
+  }
+
+  async function duplicateReport() {
+    const summary = p.projectState.reports.find((r) => r.id === p.reportId);
+    await openComponent({
+      element: DuplicateReportModal,
+      props: {
+        projectId,
+        reportDetails: [{
+          id: p.reportId,
+          label: `${label()} (${t3({ en: "copy", fr: "copie", pt: "cópia" })})`,
+          folderId: summary?.folderId ?? null,
+        }],
+        folders: p.projectState.reportFolders,
+      },
+    });
+  }
+
+  async function emailReport() {
+    await openComponent({
+      element: ShareReport,
+      props: {
+        projectId,
+        reportId: p.reportId,
+        reportLabel: label(),
+        userEmails: instanceState.users.map((u) => u.email),
+      },
+    });
+  }
+
+  // The FASTR toolbar carries a File menu (Download lives there); the header
+  // keeps its Download button for every other case — View, and the markdown
+  // and html formats, which have no toolbar.
+  // `format` starts at its markdown default and only becomes the real format
+  // once getReportDetail resolves, so BOTH strips wait for the load — a fastr
+  // report used to flash the markdown strip's insert buttons on open.
+  const fileMenuShown = () =>
+    !isLoading() && mode() !== "view" && canEditBody() && format() === "fastr";
+
   async function openVersionHistory() {
     await withPanesCovered(
       openInnerEditor({
@@ -1773,7 +1858,9 @@ ${scope} .cm-fm-h1 *, ${scope} .cm-fm-h2 *, ${scope} .cm-fm-h3 * { text-decorati
                 {/* FASTR Markdown carries no CSS in its body, so re-theming is
                     safe at any time — unlike an html report's style, which is
                     fixed at creation because the body IS the design. */}
-                <Show when={format() === "fastr" && canEditBody()}>
+                {/* The FASTR toolbar's Page menu owns the theme; the header
+                    keeps this select for the cases with no toolbar (View). */}
+                <Show when={format() === "fastr" && canEditBody() && !fileMenuShown()}>
                   <div data-tour="report-fastr-theme">
                     <Select<FastrReportTheme>
                       size="sm"
@@ -1805,8 +1892,9 @@ ${scope} .cm-fm-h1 *, ${scope} .cm-fm-h2 *, ${scope} .cm-fm-h3 * { text-decorati
                   <span>{saveIndicator().text}</span>
                 </div>
                 {/* Undo/redo the body text. Hidden in View (the editor is
-                    hidden there, so there is nothing to undo into). */}
-                <Show when={mode() !== "view" && canEditBody()}>
+                    hidden there, so there is nothing to undo into) — and for
+                    FASTR the toolbar pill carries the pair, Google Docs style. */}
+                <Show when={mode() !== "view" && canEditBody() && format() !== "fastr"}>
                   <Button
                     outline
                     iconName="undo"
@@ -1826,14 +1914,16 @@ ${scope} .cm-fm-h1 *, ${scope} .cm-fm-h2 *, ${scope} .cm-fm-h3 * { text-decorati
                 >
                   {t3({ en: "History", fr: "Historique", pt: "Histórico" })}
                 </Button>
-                <Button
-                  id="report-download-button"
-                  outline
-                  iconName="download"
-                  onClick={download}
-                >
-                  {t3({ en: "Download", fr: "Télécharger", pt: "Transferir" })}
-                </Button>
+                <Show when={!fileMenuShown()}>
+                  <Button
+                    id="report-download-button"
+                    outline
+                    iconName="download"
+                    onClick={download}
+                  >
+                    {t3({ en: "Download", fr: "Télécharger", pt: "Transferir" })}
+                  </Button>
+                </Show>
                 <Show when={!showAi()}>
                   <Button
                     id="report-ai-button"
@@ -1852,14 +1942,21 @@ ${scope} .cm-fm-h1 *, ${scope} .cm-fm-h2 *, ${scope} .cm-fm-h3 * { text-decorati
                 content, so the strip just grows the header. The embed controls
                 (insert visualization/image; the selected embed's actions) ride
                 the same row — the left sidebar they used to live in is gone. */}
-            <Show when={mode() !== "view" && canEditBody() && format() === "fastr"}>
+            <Show when={fileMenuShown()}>
               <ReportToolbar
                 api={() => editorApi}
+                onDownload={download}
+                onEmail={emailReport}
+                onRename={renameReport}
+                onDuplicate={duplicateReport}
                 context={blockContext}
                 theme={fastrTheme}
                 colors={fastrColors}
                 pageSetup={pageSetupFence}
                 onPatchPageSetup={patchPageSetup}
+                onSelectTheme={changeFastrTheme}
+                onPickPageImage={pickPageImage}
+                documentStats={documentStats}
                 embedKind={() => selectedEmbed()?.kind}
                 embedControls={
                   <ReportEmbedControls
@@ -1879,7 +1976,8 @@ ${scope} .cm-fm-h1 *, ${scope} .cm-fm-h2 *, ${scope} .cm-fm-h3 * { text-decorati
               />
             </Show>
             <Show
-              when={mode() !== "view" && format() !== "fastr" && canConfigure()}
+              when={!isLoading() && mode() !== "view" && format() !== "fastr" &&
+                canConfigure()}
             >
               <div
                 class="ui-pad-sm ui-gap flex flex-wrap items-center border-t"

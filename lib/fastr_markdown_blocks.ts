@@ -28,6 +28,7 @@ export const FASTR_BLOCK_NAMES = [
   "band",
   "cover",
   "steps",
+  "contents",
   "report",
 ] as const;
 export type FastrBlockName = (typeof FASTR_BLOCK_NAMES)[number];
@@ -35,7 +36,11 @@ export type FastrBlockName = (typeof FASTR_BLOCK_NAMES)[number];
 // Leaf blocks are written as ONE line and take no closing fence — a stat is its
 // attributes, and `report` is the document header, so demanding a `:::` after
 // either is pure friction.
-export const FASTR_LEAF_BLOCK_NAMES: readonly string[] = ["stat", "report"];
+export const FASTR_LEAF_BLOCK_NAMES: readonly string[] = [
+  "stat",
+  "contents",
+  "report",
+];
 
 export function isFastrBlockName(name: string): name is FastrBlockName {
   return (FASTR_BLOCK_NAMES as readonly string[]).includes(name);
@@ -161,6 +166,106 @@ export function isFastrInkRole(v: string): v is FastrInkRole {
 
 export function inkRoleClass(role: FastrInkRole): string {
   return `fm-mark fm-mark--${role}`;
+}
+
+// The `{…}` attribute block a `[text]` span can carry: a colour role, a point
+// size, an underline, in any combination and order — `{.danger}`,
+// `{size=12}`, `{underline}`, `{.danger size=12 underline}`. This is THE
+// parser for that block: the renderer, the editor's conceal/island layers and
+// the toolbar all call it, so they cannot disagree about what is a mark.
+// `undefined` means "not a mark" and the caller leaves the author's text
+// literal — exactly how an unknown role behaved before sizes existed.
+// Underline is a mark attribute rather than `<u>` because markdown has no
+// underline and this way it inherits everything the marks already do.
+export type FastrMarkAttrs = {
+  role?: FastrInkRole;
+  // A literal colour (`color=#c62828`) — the same trade as a literal `bg=`:
+  // any colour, at the price of not following a theme switch. The toolbar
+  // keeps role and colour mutually exclusive; the parser accepts both so a
+  // hand-written mark never turns into literal text over it.
+  color?: string;
+  size?: number;
+  underline?: true;
+};
+
+export function isEmptyFastrMarkAttrs(a: FastrMarkAttrs): boolean {
+  return a.role === undefined && a.color === undefined && a.size === undefined &&
+    a.underline !== true;
+}
+
+export function sameFastrMarkAttrs(a: FastrMarkAttrs, b: FastrMarkAttrs): boolean {
+  return a.role === b.role && a.color === b.color && a.size === b.size &&
+    (a.underline === true) === (b.underline === true);
+}
+
+// Points, like a word processor — `size=12` reads as "12pt text". Bounds are
+// Google Docs' own (1–400); anything outside is not a mark.
+const MARK_SIZE_RE = /^size=(\d{1,3}(?:\.\d)?)$/;
+
+export function parseFastrMarkAttrs(
+  inner: string,
+): FastrMarkAttrs | undefined {
+  const items = inner.trim().split(/\s+/).filter((s) => s.length > 0);
+  if (items.length === 0) return undefined;
+  const out: FastrMarkAttrs = {};
+  for (const item of items) {
+    if (item.startsWith(".")) {
+      const role = item.slice(1);
+      if (out.role !== undefined || !isFastrInkRole(role)) return undefined;
+      out.role = role;
+      continue;
+    }
+    if (item === "underline") {
+      if (out.underline !== undefined) return undefined;
+      out.underline = true;
+      continue;
+    }
+    if (item.startsWith("color=")) {
+      // safeCssColor is the one gate for colours in a style attribute; the
+      // item has no whitespace by construction, so rgb() with spaces is not
+      // writable here — hex and named colours are the form the toolbar writes.
+      const color = safeCssColor(item.slice("color=".length));
+      if (color === undefined || out.color !== undefined) return undefined;
+      out.color = color;
+      continue;
+    }
+    const m = MARK_SIZE_RE.exec(item);
+    if (!m || out.size !== undefined) return undefined;
+    const size = Number(m[1]);
+    if (size < 1 || size > 400) return undefined;
+    out.size = size;
+  }
+  return out;
+}
+
+// Canonical form, role first: `{.danger size=12 underline}`. Empty attrs are
+// the caller's cue to unwrap the mark entirely, never to write `{}`.
+export function serializeFastrMarkAttrs(attrs: FastrMarkAttrs): string {
+  const parts: string[] = [];
+  if (attrs.role !== undefined) parts.push(`.${attrs.role}`);
+  if (attrs.color !== undefined) parts.push(`color=${attrs.color}`);
+  if (attrs.size !== undefined) parts.push(`size=${attrs.size}`);
+  if (attrs.underline === true) parts.push("underline");
+  return `{${parts.join(" ")}}`;
+}
+
+// `fm-mark--u` rides along with the inline style: the editor surface strips
+// text-decoration from marks with !important (the highlighter underlines
+// bracketed text), so the underline needs a class the sheet can re-assert
+// at the same strength.
+export function fastrMarkClass(attrs: FastrMarkAttrs): string {
+  const base = attrs.role !== undefined ? inkRoleClass(attrs.role) : "fm-mark";
+  return attrs.underline === true ? `${base} fm-mark--u` : base;
+}
+
+// The colour passed safeCssColor, the size is a validated number and
+// underline a fixed declaration, so the style cannot smuggle anything.
+export function fastrMarkStyle(attrs: FastrMarkAttrs): string {
+  const parts: string[] = [];
+  if (attrs.color !== undefined) parts.push(`color:${attrs.color}`);
+  if (attrs.size !== undefined) parts.push(`font-size:${attrs.size}pt`);
+  if (attrs.underline === true) parts.push("text-decoration:underline");
+  return parts.join(";");
 }
 
 const INK_MODES = ["light", "dark"] as const;
@@ -395,18 +500,71 @@ export function surfaceFor(attrs: FastrContainerAttrs): FastrSurface {
 
 const DOC_WIDTHS = ["normal", "wide", "full"] as const;
 
+// ── Print setup (`:::report`) ────────────────────────────────────────────────
+
+export const FASTR_PAGE_SIZES = ["a4", "letter", "legal"] as const;
+export type FastrPageSize = (typeof FASTR_PAGE_SIZES)[number];
+export const FASTR_PAGE_ORIENTATIONS = ["portrait", "landscape"] as const;
+export type FastrPageOrientation = (typeof FASTR_PAGE_ORIENTATIONS)[number];
+export const FASTR_PAGE_MARGINS = ["narrow", "normal", "wide"] as const;
+export type FastrPageMargin = (typeof FASTR_PAGE_MARGINS)[number];
+
+export type FastrPageSetup = {
+  size: FastrPageSize;
+  orientation: FastrPageOrientation;
+  margin: FastrPageMargin;
+};
+
+export const FASTR_PAGE_MARGIN_MM: Record<FastrPageMargin, number> = {
+  narrow: 10,
+  normal: 18,
+  wide: 28,
+};
+
+// The printed sheet, in mm — what `@page { size }` names.
+const PAGE_SIZE_MM: Record<FastrPageSize, [number, number]> = {
+  a4: [210, 297],
+  letter: [216, 279],
+  legal: [216, 356],
+};
+
+// The `@page` rule the export and the print frame carry. The browser's own
+// print dialog still owns headers, footers and page numbers — CSS cannot
+// switch those on — so this sets the sheet and the margins only.
+export function fastrPageRuleCss(page: FastrPageSetup): string {
+  const [w, h] = PAGE_SIZE_MM[page.size];
+  const [width, height] = page.orientation === "landscape" ? [h, w] : [w, h];
+  return `@page { size: ${width}mm ${height}mm; margin: ${
+    FASTR_PAGE_MARGIN_MM[page.margin]
+  }mm; }`;
+}
+
 export type FastrDocumentSettings = {
   // Classes for <body> — the document ground, ink and column width.
   className: string;
   style: string;
   extraAttrs: string;
+  // The printed sheet, and the `@page` rule that expresses it.
+  page: FastrPageSetup;
+  pageCss: string;
 };
 
 // The `:::report{...}` header, read straight from the body so page-level design
 // is versioned and diffed with the document rather than living in config.
 // First occurrence wins; fences inside code blocks are literal text.
 export function readFastrDocumentSettings(body: string): FastrDocumentSettings {
-  const empty = { className: "", style: "", extraAttrs: "" };
+  const defaultPage: FastrPageSetup = {
+    size: "a4",
+    orientation: "portrait",
+    margin: "normal",
+  };
+  const empty = {
+    className: "",
+    style: "",
+    extraAttrs: "",
+    page: defaultPage,
+    pageCss: fastrPageRuleCss(defaultPage),
+  };
   let codeFence: string | undefined;
   for (const line of body.split("\n")) {
     const trimmed = line.trim();
@@ -437,10 +595,32 @@ export function readFastrDocumentSettings(body: string): FastrDocumentSettings {
         : {}),
     });
     const width = oneOf(attrs, "width", DOC_WIDTHS, "normal");
+    // `numbering=sections` numbers the TOP-LEVEL headings through a CSS
+    // counter — a heading inside a block is not a document section, which is
+    // the format's own rule, so nesting one never disturbs the sequence.
+    const numbered = oneOf(attrs, "numbering", ["none", "sections"], "none") ===
+      "sections";
+    const page: FastrPageSetup = {
+      size: oneOf(attrs, "pagesize", FASTR_PAGE_SIZES, "a4") as FastrPageSize,
+      orientation: oneOf(
+        attrs,
+        "orientation",
+        FASTR_PAGE_ORIENTATIONS,
+        "portrait",
+      ) as FastrPageOrientation,
+      margin: oneOf(attrs, "margin", FASTR_PAGE_MARGINS, "normal") as FastrPageMargin,
+    };
     return {
-      className: ["fm-doc", `fm-doc--${width}`, ...surface.classes].join(" "),
+      className: [
+        "fm-doc",
+        `fm-doc--${width}`,
+        ...(numbered ? ["fm-doc--numbered"] : []),
+        ...surface.classes,
+      ].join(" "),
       style: surface.style,
       extraAttrs: surface.extraAttrs,
+      page,
+      pageCss: fastrPageRuleCss(page),
     };
   }
   return empty;
@@ -488,6 +668,21 @@ function titleHtml(cls: string, text: string | undefined): string {
 }
 
 const CALLOUT_KINDS = ["note", "info", "success", "warning", "danger"] as const;
+
+// The cover compositions the stylesheet knows (`.fm-cover--<layout>`); the
+// Insert menu's cover picker and the block segment's Layout control both read
+// this list, so a layout cannot exist in one and not the other.
+export const FASTR_COVER_LAYOUTS = [
+  "classic",
+  "centered",
+  "poster",
+  "spine",
+  "frame",
+  "split",
+  "minimal",
+  "block",
+] as const;
+export type FastrCoverLayout = (typeof FASTR_COVER_LAYOUTS)[number];
 const STAT_DIRS = ["up", "down", "flat"] as const;
 
 // Per-block markup, BEFORE the shared surface attributes are folded in.
@@ -591,12 +786,28 @@ function blockShapeFor(
         trailingHtml: titleHtml("fm-dek", attrText(attrs, "sub")),
       };
     // A title page — full bleed and tall, and it breaks the page in print.
-    case "cover":
+    // `layout` picks its composition (the stylesheet's fm-cover--* rules);
+    // classic is the bare class, so existing covers render byte-identically.
+    case "cover": {
+      const layout = oneOf(attrs, "layout", FASTR_COVER_LAYOUTS, "classic");
       return {
         tag: "section",
-        className: "fm-band fm-cover",
+        className: layout === "classic"
+          ? "fm-band fm-cover"
+          : `fm-band fm-cover fm-cover--${layout}`,
         leadingHtml: titleHtml("fm-kicker", attrText(attrs, "kicker")),
         trailingHtml: titleHtml("fm-dek", attrText(attrs, "sub")),
+      };
+    }
+    // A table of contents. The renderer replaces the empty nav with the
+    // document's own outline (fastrDocumentOutline + renderFastrTocHtml); an
+    // author's `:::contents` line carries nothing but its attributes.
+    case "contents":
+      return {
+        tag: "nav",
+        className: "fm-toc",
+        leadingHtml: "",
+        trailingHtml: "",
       };
     // A numbered process list. The numbers come from a CSS counter, so the
     // author writes plain paragraphs and never renumbers by hand.
@@ -649,6 +860,120 @@ export function containerHtmlFor(
     extraAttrs: surface.extraAttrs,
     silent: false,
   };
+}
+
+// ── Table of contents ────────────────────────────────────────────────────────
+
+export type FastrTocItem = {
+  // 1..6, as written.
+  level: number;
+  // The heading's words, with inline syntax removed.
+  text: string;
+  // The anchor the heading carries and the entry links to.
+  slug: string;
+  // 1-based source line, so the editor can put the caret on the heading.
+  line: number;
+};
+
+// The deepest heading level a table of contents shows unless asked otherwise.
+export const FASTR_TOC_DEFAULT_DEPTH = 3;
+
+const HEADING_SOURCE_RE = /^(#{1,6})\s+(.*)$/;
+
+// A heading's words without the inline syntax: emphasis and code delimiters
+// go, a `[phrase]{…}` mark keeps its phrase, a link keeps its label.
+export function fastrPlainInlineText(text: string): string {
+  return text
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/\[([^\]]*)\]\{[^}]*\}/g, "$1")
+    .replace(/(\*{1,3}|_{1,3}|`+)/g, "")
+    .trim();
+}
+
+// A stable anchor. `seen` makes repeated headings unique in document order,
+// so two "Findings" sections never link to the same place.
+export function fastrTocSlug(text: string, seen: Map<string, number>): string {
+  const base = fastrPlainInlineText(text)
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+  const stem = base.length > 0 ? base : "section";
+  const n = (seen.get(stem) ?? 0) + 1;
+  seen.set(stem, n);
+  return n === 1 ? `fm-${stem}` : `fm-${stem}-${n}`;
+}
+
+// Every heading a table of contents lists. Headings inside a `:::cover` are
+// the title page, not sections, so they are skipped; a heading in a code
+// fence is literal text. Levels deeper than `depth` are left out.
+export function fastrDocumentOutline(
+  body: string,
+  depth = FASTR_TOC_DEFAULT_DEPTH,
+): FastrTocItem[] {
+  const items: FastrTocItem[] = [];
+  const seen = new Map<string, number>();
+  // Depth of open containers, and the depth at which a cover opened.
+  let open = 0;
+  let coverAt: number | undefined;
+  for (const { index, text, inCode, fence } of scanContainerLines(body.split("\n"))) {
+    if (inCode) continue;
+    if (fence) {
+      if (fence.kind === "open") {
+        if (isFastrLeafBlock(fence.name)) continue;
+        open++;
+        if (fence.name === "cover" && coverAt === undefined) coverAt = open;
+        continue;
+      }
+      if (coverAt !== undefined && open === coverAt) coverAt = undefined;
+      open = Math.max(0, open - 1);
+      continue;
+    }
+    const m = HEADING_SOURCE_RE.exec(text);
+    if (!m || coverAt !== undefined) continue;
+    const level = m[1].length;
+    // The slug is spent even for a skipped level, so a heading's anchor never
+    // depends on which depth the table of contents happens to show.
+    const slug = fastrTocSlug(m[2], seen);
+    if (level > depth) continue;
+    items.push({ level, text: fastrPlainInlineText(m[2]), slug, line: index + 1 });
+  }
+  return items;
+}
+
+// The markup both the renderer and the editor widget emit. An empty outline
+// still renders the frame, so an author who inserts the block before writing
+// any headings sees something rather than nothing.
+export function renderFastrTocHtml(
+  items: FastrTocItem[],
+  opts: { title?: string; empty?: string } = {},
+): string {
+  const title = opts.title === undefined || opts.title.length === 0
+    ? ""
+    : `<div class="fm-toc__title">${escapeReportHtml(opts.title)}</div>`;
+  const body = items.length === 0
+    ? `<div class="fm-toc__empty">${
+      escapeReportHtml(opts.empty ?? "No headings yet")
+    }</div>`
+    : `<ol class="fm-toc__list">${
+      items.map((it) =>
+        `<li class="fm-toc__item fm-toc__item--${it.level}"><a href="#${
+          escapeReportHtml(it.slug)
+        }" data-toc-line="${it.line}">${escapeReportHtml(it.text)}</a></li>`
+      ).join("")
+    }</ol>`;
+  return `${title}${body}`;
+}
+
+// `:::contents{title="Contents" depth=3}` — what the block asked for.
+export function fastrTocOptions(
+  attrs: FastrContainerAttrs,
+): { title: string | undefined; depth: number } {
+  const depthText = attrText(attrs, "depth");
+  const depth = depthText !== undefined && /^[1-6]$/.test(depthText)
+    ? Number(depthText)
+    : FASTR_TOC_DEFAULT_DEPTH;
+  return { title: attrText(attrs, "title"), depth };
 }
 
 // ── The shared walk ──────────────────────────────────────────────────────────

@@ -50,8 +50,12 @@ export const FASTR_BLOCK_SNIPPETS: { name: FastrBlockName; snippet: string }[] =
         `:::steps\nInvestigate the two weakest regions first.\n\nDocument what the strongest region changed.\n\nRe-read this once a full year of data is in.\n:::`,
     },
     {
+      name: "contents",
+      snippet: `:::contents{title="Contents" depth=2}`,
+    },
+    {
       name: "report",
-      snippet: `:::report{background=muted width=wide}`,
+      snippet: `:::report{background=muted}`,
     },
   ];
 
@@ -94,11 +98,20 @@ Blocks (open with \`:::name{attributes}\`, close with a bare \`:::\`):
   three moments in a report that matter.
   :::
 
-  :::cover{tone=dark kicker="Ministry of Health · Q3 2026" sub="Prepared for the quarterly review"}
+  :::cover{tone=dark layout=classic kicker="Ministry of Health · Q3 2026" sub="Prepared for the quarterly review"}
   # A title page
   :::
   \`kicker\` is the small letterspaced line above the title, \`sub\` the
   rule-topped standfirst below it. Both also work on \`band\`.
+  \`layout\` picks the cover's COMPOSITION, the tone its ground:
+    classic   left-set masthead (the default)
+    centered  everything on the axis, a short centred rule over the sub
+    poster    an accent bar at the head, the title set huge at the foot
+    spine     a bound edge — an accent rule down the left, text hanging off it
+    frame     a double hairline frame, the words centred inside it
+    split     title left, sub right on a vertical rule — a spread
+    minimal   top-set and quiet, a hairline foot
+    block     the title set as a solid block of the accent
 
   :::steps
   One paragraph per step. They are numbered automatically.
@@ -106,7 +119,14 @@ Blocks (open with \`:::name{attributes}\`, close with a bare \`:::\`):
   Insert or reorder a step and the numbering follows.
   :::
 
-  :::report{background=muted width=normal|wide|full}
+  :::contents{title="Contents" depth=2}
+  A table of contents, built from the document's own headings — you write
+  nothing inside it. \`depth\` is the deepest heading level listed (default
+  3), and a cover's title is never an entry. One line, no closing \`:::\`.
+
+  :::report{background=muted numbering=sections}
+  The document header. \`numbering=sections\` numbers the TOP-LEVEL headings
+  (1., 1.1) — a heading inside a block is not a section, so it is skipped.
 
 Backgrounds — say the ROLE, not the colour:
 
@@ -144,6 +164,22 @@ Colouring a WORD or PHRASE — again, say the role, not the colour:
   accent card) the mark returns to the ground's ink: colour the text, or the
   panel, never both. Use it sparingly — a sentence with three colours in it
   has none.
+
+  A literal colour is available on the same span — \`[text]{color=#c62828}\`
+  (hex or a named colour) — and, like a literal \`bg=\`, it does NOT follow a
+  theme switch. Use one only when the user asks for that exact colour.
+
+Sizing a WORD or PHRASE — points, like a word processor:
+
+  The headline number was [64%]{size=18}, [up from 58%]{size=10 .muted}.
+
+  \`size=1\` to \`size=400\`, decimals allowed (\`size=10.5\`); combine with a
+  role in either order. A literal size does NOT rescale with the theme the way
+  headings do — prefer headings for structure and sizes for emphasis.
+
+Underlining — the same span, since markdown has no underline of its own:
+
+  The [only]{underline} district to improve, [and by a lot]{.success underline}.
 
 Figures take a width: ![caption](figure:<id>){width=wide} overhangs the text
 column, \`width=full\` goes edge to edge.

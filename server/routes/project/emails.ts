@@ -123,6 +123,55 @@ defineRoute(
 
 defineRoute(
   routesEmails,
+  "sendReportEmail",
+  requireProjectPermission("can_view_reports"),
+  log("sendReportEmail"),
+  async (c, { body }) => {
+    const { recipients, message, reportLabel, attachment } = body;
+
+    const userEmail = c.var.globalUser.email;
+
+    const plainText = `${message}\n\n---\nThis email was sent via FASTR Analytics on behalf of ${userEmail}.`;
+
+    const html = `
+<div style="font-family: sans-serif; color: #333;">
+  <p>${escapeHtml(message).replace(/\n/g, "<br>")}</p>
+  <hr style="border: none; border-top: 1px solid #ddd; margin: 24px 0;" />
+  <p style="font-size: 12px; color: #888;">
+    This email was sent via <strong>FASTR Analytics</strong> on behalf of ${escapeHtml(userEmail)}.
+  </p>
+</div>`.trim();
+
+    const failed: string[] = [];
+
+    for (const recipient of recipients) {
+      const ok = await sendEmail({
+        to: recipient,
+        subject: `${reportLabel} — report from FASTR Analytics`,
+        plainText,
+        html,
+        attachments: [{
+          content: attachment.content,
+          filename: attachment.filename,
+          mimeType: attachment.mimeType,
+        }],
+      });
+      if (!ok) failed.push(recipient);
+    }
+
+    if (failed.length > 0) {
+      return c.json({
+        success: true,
+        data: { sent: false, failedRecipients: failed },
+      });
+    }
+
+    return c.json({ success: true, data: { sent: true } });
+  },
+);
+
+defineRoute(
+  routesEmails,
   "sendHelpEmail",
   requireGlobalPermission(),
   log("sendHelpEmail"),

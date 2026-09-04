@@ -30,7 +30,10 @@ import {
   type ReportFormat,
   rewriteReportEmbedToken,
   setHeadingLevelEdit,
+  setInlineColorEdit,
   setInlineRoleEdit,
+  setInlineSizeEdit,
+  setInlineUnderlineEdit,
   tableSnippet,
   toggleInlineDelimiters,
   toggleLinePrefixEdit,
@@ -115,6 +118,14 @@ export type ReportEditorApi = {
   toggleInlineMark: (before: string, after: string) => void;
   // `[phrase]{.danger}`; undefined clears the mark around the selection.
   setInlineRole: (role: FastrInkRole | undefined) => void;
+  // `[phrase]{color=#c62828}` — a literal that does not re-theme; replaces
+  // any role. undefined clears role and colour alike.
+  setInlineColor: (color: string | undefined) => void;
+  // `[phrase]{size=12}` (points); undefined clears the size. Role and size
+  // share the wrapper, so setting one preserves the other.
+  setInlineSize: (size: number | undefined) => void;
+  // `[phrase]{underline}` on/off — markdown has no underline of its own.
+  setInlineUnderline: (on: boolean) => void;
   // 0 = paragraph, 1..6 = heading, across every line the selection touches.
   setHeadingLevel: (level: number) => void;
   toggleLinePrefix: (kind: "bullet" | "ordered" | "quote") => void;
@@ -187,6 +198,12 @@ export type ReportBlockContext = {
   line: number;
   hasSelection: boolean;
   marks: InlineMarkState;
+  // The RENDERED font size at the caret, in points, measured from the DOM —
+  // the theme's own rule for that line or island, whatever it is (an h1 is
+  // ~26pt in the default theme, 2.8em in Swiss) — so the toolbar's size box
+  // always shows a number and its stepper steps from the real size, never
+  // from an assumed body size. Undefined only when nothing is measurable.
+  fontSizePt: number | undefined;
 };
 
 export function ReportEditor(p: Props) {
@@ -459,6 +476,21 @@ export function ReportEditor(p: Props) {
     if (s) applyEdit(setInlineRoleEdit(s.doc, s.from, s.to, role));
   }
 
+  function setInlineColor(color: string | undefined) {
+    const s = selectionRange();
+    if (s) applyEdit(setInlineColorEdit(s.doc, s.from, s.to, color));
+  }
+
+  function setInlineSize(size: number | undefined) {
+    const s = selectionRange();
+    if (s) applyEdit(setInlineSizeEdit(s.doc, s.from, s.to, size));
+  }
+
+  function setInlineUnderline(on: boolean) {
+    const s = selectionRange();
+    if (s) applyEdit(setInlineUnderlineEdit(s.doc, s.from, s.to, on));
+  }
+
   function setHeadingLevel(level: number) {
     const s = selectionRange();
     if (s) applyEdit(setHeadingLevelEdit(s.doc, s.from, s.to, level));
@@ -487,10 +519,45 @@ export function ReportEditor(p: Props) {
   let ctxStack: FastrOpenFence[] = [];
   let ctxKey = "";
 
+  // The element whose computed font-size IS the caret's rendered size: the
+  // focused text island when one is active (its DOM selection node, so a
+  // styled span inside it counts), else CodeMirror's own node at the
+  // position — a mark span, or the line with its theme class. 1pt = 4/3 px.
+  function measureFontSizePt(pos: number): number | undefined {
+    const v = view;
+    if (!v) return undefined;
+    let el: Element | null = null;
+    const active = document.activeElement;
+    if (
+      active instanceof HTMLElement && active.isContentEditable &&
+      active.classList.contains("cm-fm-text-edit") && v.dom.contains(active)
+    ) {
+      const sel = window.getSelection();
+      const node = sel && sel.rangeCount > 0 && active.contains(sel.anchorNode)
+        ? sel.anchorNode
+        : active;
+      el = node instanceof Element ? node : node?.parentElement ?? active;
+    } else {
+      try {
+        const { node } = v.domAtPos(pos);
+        el = node instanceof Element ? node : node.parentElement;
+      } catch {
+        return undefined;
+      }
+    }
+    if (!el) return undefined;
+    const px = parseFloat(getComputedStyle(el).fontSize);
+    return Number.isFinite(px) && px > 0 ? px * 0.75 : undefined;
+  }
+
   function emitContext(state: EditorState, docChanged: boolean) {
     if (!p.onContextChange) return;
     const sel = state.selection.main;
-    const line = state.doc.lineAt(sel.head);
+    // A selection is described by where it STARTS: a triple-clicked heading
+    // runs to the start of the next line, and describing that head would
+    // report the blank line below — "Normal text", body size — for a heading.
+    const pos = sel.empty ? sel.head : sel.from;
+    const line = state.doc.lineAt(pos);
     if (docChanged || line.number !== ctxStackLine) {
       ctxStackLine = line.number;
       ctxStack = fastrContainerStackUpTo(state.doc.iterLines(1, line.number));
@@ -499,7 +566,8 @@ export function ReportEditor(p: Props) {
     const marks = inlineMarkStateAt(
       line.text,
       sel.from - line.from,
-      sel.to - line.from,
+      // Clamped to this line: the selection may run on past its end.
+      Math.min(sel.to, line.to) - line.from,
     );
     // The stack's ATTRS are part of the key, not just its shape: re-toning an
     // enclosing block while the caret sits in one of its children changes only
@@ -507,7 +575,7 @@ export function ReportEditor(p: Props) {
     // the toolbar showing the tone you just replaced.
     const key = `${line.number}|${!sel.empty}|${line.text}|${
       JSON.stringify(marks)
-    }|${
+    }|${measureFontSizePt(pos) ?? "?"}|${
       ctxStack
         .map((f) => `${f.name}${f.line}${JSON.stringify(f.attrs)}`)
         .join(">")
@@ -520,6 +588,7 @@ export function ReportEditor(p: Props) {
       line: line.number,
       hasSelection: !sel.empty,
       marks,
+      fontSizePt: measureFontSizePt(pos),
     };
     // Out of the CodeMirror update. A synchronous signal write here re-renders
     // the toolbar mid-update, and anything in that render that touches the
@@ -712,6 +781,9 @@ export function ReportEditor(p: Props) {
       insertPageSetup,
       toggleInlineMark,
       setInlineRole,
+      setInlineColor,
+      setInlineSize,
+      setInlineUnderline,
       setHeadingLevel,
       toggleLinePrefix,
       insertLink,

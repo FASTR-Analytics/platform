@@ -20,22 +20,35 @@
 import MarkdownIt from "markdown-it";
 import {
   containerHtmlFor,
+  fastrDocumentOutline,
   type FastrContainerAttrs,
-  type FastrInkRole,
+  type FastrTocItem,
+  fastrMarkClass,
+  type FastrMarkAttrs,
+  fastrMarkStyle,
   figureWidthClass,
-  inkRoleClass,
-  isFastrInkRole,
   isFastrLeafBlock,
   parseContainerAttrs,
   parseContainerFence,
+  parseFastrMarkAttrs,
+  fastrTocOptions,
+  fastrTocSlug,
+  renderFastrTocHtml,
 } from "./fastr_markdown_blocks.ts";
 import { escapeReportHtml } from "./types/reports.ts";
 
-type ContainerMeta = { name: string; attrs: FastrContainerAttrs };
-type MarkMeta = { role: FastrInkRole };
+type ContainerMeta = {
+  name: string;
+  attrs: FastrContainerAttrs;
+  // Set by the fm_toc core rule on a `:::contents` token: the document's
+  // outline, already trimmed to the depth that block asked for.
+  toc?: FastrTocItem[];
+};
+type MarkMeta = FastrMarkAttrs;
 
-// The `{.role}` that must follow the closing bracket, with nothing between.
-const MARK_ROLE_RE = /^\{\.([a-z][a-z0-9-]*)\}/;
+// The `{…}` that must follow the closing bracket, with nothing between;
+// parseFastrMarkAttrs decides whether its contents make it a mark.
+const MARK_ATTR_RE = /^\{([^}]*)\}/;
 
 const EMBED_SRC_RE = /^(figure|image):/;
 const ATTR_BLOCK_RE = /^\s*\{[^}]*\}\s*$/;
@@ -122,27 +135,29 @@ export function createFastrMarkdownIt(): MarkdownIt {
     { alt: ["paragraph", "reference", "blockquote", "list"] },
   );
 
-  // ── `[text]{.danger}` → a role-coloured span ───────────────────────────────
+  // ── `[text]{.danger}` / `[text]{size=12}` → a styled span ──────────────────
   // Registered BEFORE `link` so we get first refusal on `[`. Everything that
-  // is not `]` immediately followed by `{.<known role>}` returns false and
-  // falls straight through to the real link rule, so ordinary links, reference
-  // links and `![cap](figure:id){width=wide}` are untouched — and an unknown
-  // role renders as the author's literal text rather than being swallowed.
+  // is not `]` immediately followed by a `{…}` parseFastrMarkAttrs accepts
+  // returns false and falls straight through to the real link rule, so
+  // ordinary links, reference links and `![cap](figure:id){width=wide}` are
+  // untouched — and an unknown role or malformed size renders as the author's
+  // literal text rather than being swallowed.
   md.inline.ruler.before("link", "fm_mark", (state, silent) => {
     if (state.src.charCodeAt(state.pos) !== 0x5B /* [ */) return false;
     const labelStart = state.pos + 1;
     // markdown-it's own helper, so nested brackets behave exactly as in a link.
     const labelEnd = state.md.helpers.parseLinkLabel(state, state.pos, false);
     if (labelEnd < 0) return false;
-    const m = MARK_ROLE_RE.exec(state.src.slice(labelEnd + 1));
-    if (!m || !isFastrInkRole(m[1])) return false;
+    const m = MARK_ATTR_RE.exec(state.src.slice(labelEnd + 1));
+    const attrs = m ? parseFastrMarkAttrs(m[1]) : undefined;
+    if (!m || !attrs) return false;
     if (silent) return true;
 
     const oldPos = state.pos;
     const oldMax = state.posMax;
     state.pos = labelStart;
     state.posMax = labelEnd;
-    state.push("fm_mark_open", "span", 1).meta = { role: m[1] };
+    state.push("fm_mark_open", "span", 1).meta = attrs;
     // Tokenize the label so `[**bold** phrase]{.danger}` keeps its emphasis.
     state.md.inline.tokenize(state);
     state.push("fm_mark_close", "span", -1);
@@ -156,8 +171,13 @@ export function createFastrMarkdownIt(): MarkdownIt {
     return true;
   });
 
-  md.renderer.rules.fm_mark_open = (tokens, idx) =>
-    `<span class="${inkRoleClass((tokens[idx].meta as MarkMeta).role)}">`;
+  md.renderer.rules.fm_mark_open = (tokens, idx) => {
+    const attrs = tokens[idx].meta as MarkMeta;
+    const style = fastrMarkStyle(attrs);
+    return `<span class="${fastrMarkClass(attrs)}"${
+      style === "" ? "" : ` style="${escapeReportHtml(style)}"`
+    }>`;
+  };
   md.renderer.rules.fm_mark_close = () => "</span>";
 
   md.renderer.rules.fm_container_open = (tokens, idx) => {
@@ -170,7 +190,14 @@ export function createFastrMarkdownIt(): MarkdownIt {
     const style = h.style === ""
       ? ""
       : ` style="${escapeReportHtml(h.style)}"`;
-    return `<${h.tag} class="${h.className}"${style}${h.extraAttrs}${anchor}>\n${h.leadingHtml}`;
+    // A table of contents is the one block whose CONTENT is the document
+    // rather than the author's lines: the fm_toc rule left the outline on the
+    // token, and the same builder the editor's widget uses turns it into the
+    // list (leaf block — the close rule emits the tag and nothing else).
+    const inner = meta.name === "contents"
+      ? renderFastrTocHtml(meta.toc ?? [], fastrTocOptions(meta.attrs))
+      : h.leadingHtml;
+    return `<${h.tag} class="${h.className}"${style}${h.extraAttrs}${anchor}>\n${inner}`;
   };
 
   md.renderer.rules.fm_container_close = (tokens, idx) => {
@@ -226,6 +253,52 @@ export function createFastrMarkdownIt(): MarkdownIt {
         toks.splice(i + 2, 0, cap);
         i++;
       }
+    }
+    return true;
+  });
+
+  // ── Table of contents ──────────────────────────────────────────────────────
+  // The outline comes from the SOURCE (fastrDocumentOutline, shared with the
+  // editor so a heading's anchor is the same in both), and the heading tokens
+  // are given the ids it links to. Only when the document actually contains a
+  // `:::contents` block, so an ordinary report's html is unchanged.
+  md.core.ruler.after("inline", "fm_toc", (state) => {
+    const contents = state.tokens.filter(
+      (t) => t.type === "fm_container_open" &&
+        (t.meta as ContainerMeta | undefined)?.name === "contents",
+    );
+    if (contents.length === 0) return true;
+    const src = state.src ?? "";
+    // Deepest depth any block asked for: one id pass serves them all.
+    const outline = fastrDocumentOutline(src, 6);
+    for (const token of contents) {
+      const meta = token.meta as ContainerMeta & { toc?: typeof outline };
+      const { depth } = fastrTocOptions(meta.attrs);
+      meta.toc = outline.filter((it) => it.level <= depth);
+    }
+    // Ids, in document order — the same slug function, so they match.
+    const seen = new Map<string, number>();
+    let coverDepth = 0;
+    let inCover = false;
+    for (const token of state.tokens) {
+      if (token.type === "fm_container_open") {
+        const name = (token.meta as ContainerMeta | undefined)?.name;
+        if (name === "contents" || name === "report") continue;
+        coverDepth++;
+        if (name === "cover" && !inCover) inCover = true;
+        continue;
+      }
+      if (token.type === "fm_container_close") {
+        const name = (token.meta as ContainerMeta | undefined)?.name;
+        if (name === "contents" || name === "report") continue;
+        coverDepth = Math.max(0, coverDepth - 1);
+        if (coverDepth === 0) inCover = false;
+        continue;
+      }
+      if (token.type !== "heading_open" || inCover) continue;
+      const inline = state.tokens[state.tokens.indexOf(token) + 1];
+      const text = inline?.type === "inline" ? inline.content : "";
+      token.attrSet("id", fastrTocSlug(text, seen));
     }
     return true;
   });

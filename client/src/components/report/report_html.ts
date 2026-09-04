@@ -75,6 +75,9 @@ export function wrapReportDocument(p: {
   // has to be in scope for the full-bleed bands inside body.
   documentClass?: string;
   documentStyle?: string;
+  // The FASTR `@page` rule (sheet size, orientation, margins). The print
+  // dialog still owns headers and page numbers; CSS cannot switch those on.
+  pageCss?: string;
 }): string {
   const title = p.title
     .replaceAll("&", "&amp;")
@@ -87,13 +90,14 @@ export function wrapReportDocument(p: {
     p.documentClass ? ` class="${escapeReportHtml(p.documentClass)}"` : "",
     p.documentStyle ? ` style="${escapeReportHtml(p.documentStyle)}"` : "",
   ].join("");
+  const pageRule = p.pageCss ? `\n<style>${p.pageCss}</style>` : "";
   return `<!doctype html>
 <html${docAttrs}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${title}</title>
-<style>${REPORT_BASE_CSS}</style>${theme}
+<style>${REPORT_BASE_CSS}</style>${theme}${pageRule}
 </head>
 <body>${p.bodyHtml}</body>
 </html>`;
