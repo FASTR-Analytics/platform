@@ -802,7 +802,7 @@ in [S9](SYSTEM_09_viz_query_cache.md), [S12](SYSTEM_12_documents_sharing.md),
   user action to preserve the publish-time freeze. Edge: a figure whose metric
   is not in the attached package can't re-query, so the action disables
   ("source unavailable") — being un-updatable ≠ un-migratable. Deferred
-  ([PLAN_RESULTS_RUNS.md](PLAN_RESULTS_RUNS.md) §5).
+  (results-runs follow-on, not a precondition of anything).
 - **The Visualization rename** (Phase 5, optional). Rename presentation object →
   Visualization end-to-end: the `presentation_objects` table,
   `/presentation_objects` routes, `PresentationObjectConfig`,

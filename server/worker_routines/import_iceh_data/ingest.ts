@@ -8,7 +8,7 @@ import {
   type IcehStrat,
   normalizeIcehStrat,
 } from "lib";
-import { _SANDBOX_DIR_PATH } from "../../exposed_env_vars.ts";
+import { _RUNS_DIR_PATH } from "../../exposed_env_vars.ts";
 import { readXlsxFileAsSheets } from "../../server_only_funcs_csvs/read_xlsx_raw.ts";
 
 // The ICEH ingest internals (PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase C),
@@ -41,7 +41,7 @@ async function readIcehZip(zipFilePath: string): Promise<IcehZipContents> {
   }
 
   const tempXlsxPath = join(
-    _SANDBOX_DIR_PATH,
+    _RUNS_DIR_PATH,
     `iceh_indicators_${Date.now()}.xlsx`,
   );
   await Deno.writeFile(tempXlsxPath, xlsxData);

@@ -22,7 +22,7 @@ one continuous workstream (same five `getGeoJsonSync` sites, same
 no such gate — they can run anytime, including in parallel with PLAN_1/2.
 
 **Rewritten 2026-08-06** around the landed results-runs model
-([PLAN_RESULTS_RUNS.md](PLAN_RESULTS_RUNS.md), built 2026-07-30; format spec =
+(built 2026-07-30, closed 2026-09-04; format spec =
 [SYSTEM_08_results_packages.md](SYSTEM_08_results_packages.md)). The pre-runs
 version of this plan — project-DB `geojson_by_level` table, cache-fold
 workstream, full WS-LIFECYCLE — is in git history (pre-2026-08-06). What

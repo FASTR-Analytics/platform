@@ -274,9 +274,9 @@ exactly that.)
 
 **3. The boot sweep enumerates the `runs` catalogue, never the filesystem.**
 
-The runs volume is shared and heterogeneous: legacy `{projectId}` sandbox dirs
-(left entirely alone — Phase 4 owns removing them), published-failed dirs,
-`.tmp-` dirs, `.duckdb-spill`, loose `restore_*.sql.gz`. Catalogue enumeration
+The runs volume is heterogeneous: package dirs, published-failed dirs,
+`.tmp-` dirs, `.duckdb-spill`, loose scratch files (`restore_*.sql.gz`,
+`iceh_indicators_*.xlsx`). Catalogue enumeration
 excludes all of them by construction and preserves the ruling that justified
 sharing the directory: *every consumer addresses a NAMED entry.* Statuses
 `generating` and `failed` are excluded too — those definitionally have no
@@ -467,9 +467,28 @@ END $$;
 ### Other Rules
 
 - Update live schema files too (`_main_database.sql`, `_project_database.sql`)
-- Don't rewrite old migrations — fix forward
+- Don't rewrite old migrations — fix forward (one exception, below)
 - **Always run `./validate_migrations` after adding or modifying SQL migrations**
 - SQL-safety (parameterize values, whitelist identifiers, `.unsafe()` on trusted-internal input only) is owned by [SYSTEM_02_persistence.md](SYSTEM_02_persistence.md) — migration files are repo-authored SQL run via `.unsafe()`, so never build them from runtime input
+
+**Dropping a table that older migrations touch.** A fresh database loads the
+base schema and then replays EVERY migration, and `./validate_migrations`
+requires that replay to leave the schema byte-identical. So a table can only
+leave the base schema if every older migration that creates, alters or
+updates it (or a table with a foreign key to it) survives a replay on a base
+that never had it. Migration-owned tables (created by an earlier migration
+with `IF NOT EXISTS`, no foreign key to a base-owned table) need nothing:
+the old migration re-creates them and the drop migration removes them. A
+base-owned table, or anything referencing one, needs every such statement
+wrapped in a table-existence guard —
+`DO $$ BEGIN IF EXISTS (SELECT 1 FROM information_schema.tables WHERE
+table_schema = 'public' AND table_name = '…') THEN … END IF; END $$;` — so
+the fresh replay never creates the plane and the drop is a no-op there.
+This is the one sanctioned edit of an applied migration: every instance has
+already applied those files and the runner never re-fires them, so
+production behaviour is unchanged. Precedent:
+`041_drop_frozen_results_plane.sql` (2026-09-04) and the guards it added to
+`002`, `005`, `006`, `009` (both), `010`, `012`, `013`, `039`.
 
 **Use SQL migrations for:** Adding columns, creating tables, adding indexes, constraints.
 

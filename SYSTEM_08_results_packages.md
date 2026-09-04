@@ -39,9 +39,10 @@ Versioned R modules end-to-end: GitHub fetch → validate → wizard-configured
 whole-DAG generation into an immutable **results package** (a run directory) →
 Docker/R execution → finalize (parquet + manifest) → publish and attach to
 projects. There is no second write plane: the `ro_*` dual-write was
-deleted with PLAN_RESULTS_RUNS Phase 3 item 0, and what survives of Postgres
-results is FROZEN rows nothing writes and nothing reads, dropped in Phase 4
-([PLAN_RESULTS_RUNS.md](PLAN_RESULTS_RUNS.md)).
+deleted with the results-runs Phase 3 (2026-07-30), and the frozen Postgres
+results plane it left behind was dropped from the base schema and every
+project DB by migration `041_drop_frozen_results_plane.sql` (Phase 4,
+2026-09-04).
 
 Renamed from "Module System" on 2026-07-30: modules are now an INPUT to this
 system rather than its subject. What it owns, and what the old name hid, is the
@@ -54,8 +55,9 @@ DOC_TASK_EXECUTION_DIRTY_STATE + DOC_WORKER_ROUTINES + DOC_MODULE_EXECUTION +
 DOC_MODULE_UPDATES + DOC_POPULATION_CSV) — then the PLAN_RESULTS_RUNS merge
 (2026-07-28) replaced the execution model, and Phase 3's user-model core
 (items 0–5, closing 2026-07-30) replaced the entry points and deleted the
-dual-write; the sections below were reconciled to that tree, and the full
-post-runs rewrite of this doc is PLAN_RESULTS_RUNS Phase 4.
+dual-write; the sections below were reconciled to that tree, and Phase 4
+(2026-09-04) removed the last Postgres results-plane remnants and renamed
+the sandbox directory to runs.
 
 Boundaries: the write-a-worker **recipe** (folder pairing, READY handshake,
 preamble, spawn-site listeners, teardown rules, report-back mechanisms) is
@@ -151,7 +153,7 @@ re-litigate; the package-format invariants below are their file-level twins):
 ## Loading (`server/module_loader/load_module.ts`)
 
 Loading is read-only and side-effect-free: fetch, validate, translate — no DB,
-no sandbox. `MODULE_REGISTRY` (`lib/types/module_registry.ts`) is static; each
+no run directory. `MODULE_REGISTRY` (`lib/types/module_registry.ts`) is static; each
 entry is `{ id, label, prerequisites, github: { owner, repo, path } }`.
 `MODULE_SOURCE = _IS_PRODUCTION ? "github" : "local"`:
 
@@ -171,8 +173,8 @@ are also rejected here) and `stripFrontmatter` on the script — everything
 above the first line starting with `#---` is dropped, so a script's header
 holds local-development defaults for the token names only and the body
 uses the tokens inline (the modules repo's DOC_MODULES.md "script.R" states
-the rule; m012 shipped its real assignments above the marker and failed in
-the sandbox, fixed 2026-09-02).
+the rule; m012 shipped its real assignments above the marker and failed at
+execution, fixed 2026-09-02).
 `fetchModuleFiles(id, pinnedGitRef)` fetches at an exact commit when the run
 pipeline re-resolves the wizard's pinned refs (undefined = HEAD), and caches
 definition-declared pinned repo assets content-addressed (`repo_assets.ts`).
@@ -190,28 +192,25 @@ manifest presets, PLAN_RESULTS_RUNS item 5b,
 
 ## What is left of install & the project-DB catalog
 
-The per-project install/update/rerun surface is GONE (deleted by the wizard
-deploy): no install/uninstall/preview/update routes, no `compare_definitions.ts`
-change matrix, no per-module rerun. Phase 3 then deleted the WRITERS of the
-project-DB catalog too — item 0 the per-module dual-write
-(`upsertModuleCatalogForGeneratedRun`, the `ro_*` COPY, the
-`defaultPresentationObjects: []` compat key), item 1 the `installModule` call in
-project creation, which left the function itself an orphan (deleted here, item
-5). What survives in `db/project/modules.ts` is two things, neither a catalog
-write path: `prepareModuleDefinitionForStorage` (the installed monolingual
-blob, now built straight into the manifest by `generate_run/pipeline.ts`) and
-`parseModuleConfigSelections`. Nothing reads or polices the frozen project
-tables at boot any more: the orphan-module / orphaned-PO sweeps and the
-`metrics_columns` / `module_definition` transforms were deleted on 2026-08-19
-because they judged live visualizations against a table no code writes — the
-orphaned-PO sweep deleted every visualization in any project created after
-the dual-write ended.
-
-So the `modules` / `results_objects` / `metrics` rows and the `ro_*` tables in
-every project DB are **frozen**: written by images before the cutover, read by
-nothing (the last raw-rows pg reader, `db/project/results_objects.ts`, was
-deleted with PLAN_1_PROJECT_AA2_SCOPE §7), and dropped in Phase 4. Nothing in
-the serving path consults them — a project serves entirely from its attached
+Nothing. The history, in order: the wizard deploy deleted the per-project
+install/update/rerun surface (no install/uninstall/preview/update routes, no
+`compare_definitions.ts` change matrix, no per-module rerun); the results-runs
+Phase 3 (2026-07-30) deleted the WRITERS of the project-DB catalog (the
+per-module dual-write with its `ro_*` COPY, the `installModule` call in
+project creation); the boot sweeps and transforms that judged live
+visualizations against those tables went on 2026-08-19 (the orphaned-PO sweep
+had deleted every visualization in any project created after the dual-write
+ended); the last pg reader went with PLAN_1_PROJECT_AA2_SCOPE §7; and Phase 4
+(migration `041_drop_frozen_results_plane.sql`, 2026-09-04) dropped the tables
+themselves — `modules`, `results_objects`, `metrics`,
+`calculated_indicators_snapshot`, `global_last_updated` and every `ro_*`
+table — from the base schema and every project DB. The older migrations that
+created or altered those tables are guarded on table existence so a fresh DB
+never creates them (PROTOCOL_APP_MIGRATIONS.md, SQL Migrations). What
+survives in `db/project/modules.ts` is not a catalog write path:
+`prepareModuleDefinitionForStorage` (the installed monolingual blob, built
+straight into the manifest by `generate_run/pipeline.ts`) and
+`parseModuleConfigSelections`. A project serves entirely from its attached
 run's manifest and parquet.
 
 `routes/project/modules.ts` is read-only and, since Phase 3 item 3, holds only
@@ -786,7 +785,7 @@ copy: a project is attached only once a run is ready, so it never has a live
 view of a generation (C2 ruling, 2026-08-16). Completion goes via
 `RUN_GENERATION_ENDED_CHANNEL` + `notifyProjectRunAttached`. Stages: prepare
 (dataset extracts COPY'd by Postgres directly into the run tmp dir via
-`RUNS_DIR_PATH_POSTGRES_INTERNAL` — nothing is mirrored back to the sandbox;
+`RUNS_DIR_PATH_POSTGRES_INTERNAL` — nothing is mirrored anywhere else;
 capture is always the FULL dataset per family — entire period range, all
 indicators/admin areas/facility types/ownerships, every HFA service category
 (Tim's ruling 2026-08-03: the R scripts need the full dataset to compute
@@ -876,24 +875,23 @@ family would need it depth-aware); both are fixed in the next modules-repo
 cycle.
 
 **Path namespaces** — R runs in a container (prod) and Postgres `COPY`
-reads/writes from its own container's filesystem, so both the sandbox and the
-runs dir have three views each: `_SANDBOX_DIR_PATH` /
-`_SANDBOX_DIR_PATH_EXTERNAL` / `_SANDBOX_DIR_PATH_POSTGRES_INTERNAL`, and
-`RUNS_DIR_PATH` / `RUNS_DIR_PATH_EXTERNAL` / `RUNS_DIR_PATH_POSTGRES_INTERNAL`.
-Getting these crossed silently breaks either R execution or the `COPY`.
+reads/writes from its own container's filesystem, so the runs dir has three
+views: `RUNS_DIR_PATH` / `RUNS_DIR_PATH_EXTERNAL` /
+`RUNS_DIR_PATH_POSTGRES_INTERNAL` (`server/exposed_env_vars.ts`; container
+path `/app/runs`; boot fail-stops on a missing var). Getting these crossed
+silently breaks either R execution or the `COPY`.
 
-**The runs paths ARE the sandbox paths** — plain aliases, same directory, flat,
-not a subdir, with no `RUNS_DIR_PATH` env var anywhere (Tim's ruling
-2026-07-30, `server/exposed_env_vars.ts`). That
-directory is already mounted into both the app and the Postgres containers on
-every instance and is already world-writable, so a results package needs no new
-volume, compose change, chmod or env var. Packages therefore sit as `{runId}`
-dirs beside the legacy `{projectId}` sandbox dirs, which is safe because nothing
-enumerates that directory as a homogeneous set: every consumer addresses a named
-entry — a `{projectId}` dir, the `.tmp-{runId}` prefix (`sweepAbandonedTmpRunDirs`'s
-only filter) or `.duckdb-spill`. The planned end state is to rename that one
-directory, and the `SANDBOX_DIR_PATH*` vars with it, to runs once Phase 4
-removes the legacy dirs.
+**The runs directory holds packages** — flat `{runId}` dirs. The host
+directory must be mounted at `/app/runs` in BOTH the app container and the
+Postgres container (the `COPY TO` path is resolved inside Postgres); an env
+rename without both mounts boots green and then loses every package or fails
+every generation at the first `COPY`. Beside the packages live only `.tmp-{runId}`
+(in-flight generation; `sweepAbandonedTmpRunDirs`'s only filter),
+`.duckdb-spill`, and loose scratch files (restore dumps, ICEH xlsx). It was
+the module-execution sandbox until Phase 4 (2026-09-04) renamed it and ops
+deleted the legacy `{projectId}` dirs; the app neither creates nor reads
+those. Nothing enumerates the directory as a homogeneous set: every consumer
+addresses a named entry.
 
 ## m012 — indicator values
 
@@ -983,6 +981,18 @@ validation, contents per country unknown) was NOT imported by migration 080
 (Tim, 2026-08-30): instances re-enter figures through the validated page,
 and the old files die with m008 in PLAN_1e.
 
+## Backups and packages
+
+Backups are pure pg dumps; run directories are never backed up (Tim's ruling
+2026-09-04). A package is a derived artefact that regeneration reproduces, so
+a backup channel carrying tens of GB per package was rejected. A restore never
+touches `projects.run_id`: a project restored onto an instance that lacks its
+package shows the typed "results run unavailable" state
+(`getRunReadContext*` in `server/run_query/run_read.ts`) until an editor
+attaches another package or an admin regenerates. There is no GC of any kind,
+so nothing can delete a run a backup refers to; the catalogue's guarded hard
+delete already refuses any run a project points at.
+
 ## Open items
 
 - **Harden the R-source interpolation.** The default and HFA script generators
@@ -1014,13 +1024,6 @@ and the old files die with m008 in PLAN_1e.
   repo push, since `requiredDisaggregationOptions` is validated at definition
   fetch and an unknown value makes m010 fail to load entirely) is its
   forward-direction twin.
-- **Phase 4 demolition (PLAN_RESULTS_RUNS):** steps A–C landed 2026-09-04 —
-  the rollout rigs are deleted, `./validate_queries` builds real packages and
-  runs the DuckDB read path, the Postgres read path and the write-only
-  freshness fingerprints are gone. What remains is step D: dropping the frozen
-  plane itself (the `ro_*` tables and the project-DB `modules` /
-  `results_objects` / `metrics` catalog) and the `sandbox` → `runs` rename.
-  Full S8 rewrite lands then.
 - **No links in a run dir — ever** (Tim's ironclad rule 2026-07-30, reversing
   PLAN_RESULTS_RUNS Q-C's hardlink-dedup amendment and restoring §3.7's
   original "copy, never link"). Every file in a results package is an unlinked
@@ -1037,3 +1040,9 @@ and the old files die with m008 in PLAN_1e.
   three systems).
 - **Dead code (zero importers):** `fetchRawScript` in
   `server/github/fetch_module.ts`.
+- **Deferred after the results-runs Phase 4 (additive; none is a
+  precondition of anything):** a queryable run-inputs UI; scheduled
+  generation with an explicit `autoPinOnSuccess`; the UI luxuries (Regenerate
+  shortcut, newer-run badge, detach, per-run rename); parquet-native R
+  scripts in the modules repo and then dropping raw CSVs from runs; the
+  public-dashboard `countryIso3` from the bundle and live-read asset images.

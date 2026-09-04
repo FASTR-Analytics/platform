@@ -133,10 +133,10 @@ ${userInserts}
 // The manifest data transform (PROTOCOL_APP_MIGRATIONS § "Run Manifest
 // Transforms") — the same pattern as the JSON transforms below, applied to a
 // file. It enumerates the `runs`
-// CATALOGUE and never the filesystem: the runs volume is shared with legacy
-// {projectId} sandbox dirs, published-failed dirs (deliberately manifest-less)
-// and .duckdb-spill, none of which are packages, and every consumer addresses a
-// NAMED entry.
+// CATALOGUE and never the filesystem: the runs volume also holds
+// published-failed dirs (deliberately manifest-less), `.tmp-` dirs,
+// .duckdb-spill and loose scratch files, none of which are packages, and
+// every consumer addresses a NAMED entry.
 //
 // A missing or unparseable manifest is OPERATIONAL, not a code defect, and must
 // not fail boot: backups are pg dumps, so a restore brings catalogue rows back

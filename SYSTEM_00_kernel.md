@@ -68,7 +68,7 @@ read once here into a `_`-prefixed export, and nothing else may call
 `Deno.env.get` (zero raw call sites remain outside this file as of
 2026-08-03; keep it that way). ~55 server files import it. Required vars fail
 fast at import time with a named error; optional ones default. The domains it
-carries: instance identity/language/ calendar, sandbox + assets paths (S8/S4),
+carries: instance identity/language/ calendar, runs + assets paths (S8/S4),
 Postgres coords (S2), Valkey URL + client origins + port (S3/S1), Anthropic +
 token limits (S13), SendGrid/status/central-server secrets (S15), DHIS2 tuning +
 credentials-encryption key (S6/S7), auth flags (S1), deploy metadata, module

@@ -93,12 +93,12 @@ split into their own list).
   row with `status='copying'` and copies all role rows; the route then fires
   `copyProjectInBackground` unawaited (registry `timeoutMs` 600s):
   `pg_terminate_backend` on the source DB (kills live sessions — Open item),
-  `CREATE DATABASE … WITH TEMPLATE`, sandbox `cp -r`, flip to `ready`. Failure
+  `CREATE DATABASE … WITH TEMPLATE`, flip to `ready`. Failure
   cleanup deletes roles + registry row + `DROP DATABASE IF EXISTS`.
 - **Delete** is soft: `status='pending_deletion'`,
   `deletion_scheduled_at = NOW() + 30 days` (admin-only route). **Restore**
   flips it back. **Force-delete** and the daily **purge** cron run the same
-  terminate → `DROP DATABASE … WITH (FORCE)` → sandbox `rm` → registry DELETE
+  terminate → `DROP DATABASE … WITH (FORCE)` → registry DELETE
   block (duplicated line-for-line — Open item).
 - **Lock** flips `is_locked`; enforcement is S1's
   `preventAccessToLockedProjects`. **Central reporting**: at most one
@@ -139,12 +139,15 @@ endpoints; and client UI sections (`currentUserIsHUser`). The same file carries
 
 ## Backups
 
+Backups are pure pg dumps; run directories are never backed up, and a restore
+never touches `projects.run_id` (Tim's ruling 2026-09-04 — [SYSTEM_08](SYSTEM_08_results_packages.md)
+"Backups and packages" owns the consequences).
 Create/list/download are **pure proxies** to
 `https://status-api.fastr-analytics.org/api/servers/${_INSTANCE_ID}/…` with
 double auth (caller's Clerk bearer forwarded verbatim + `status-api-key`
 header); backup mechanics live off-instance. Only **restore** runs on-instance
 (`restoreBackup`, `can_restore_backups` + `preventAccessToLockedProjects`):
-source = status-api download or base64 `fileData` upload → gunzip in the sandbox
+source = status-api download or base64 `fileData` upload → gunzip in the runs directory
 → terminate/DROP/CREATE the project DB →
 `docker exec -i ${_INSTANCE_ID}-postgres psql` with the dump piped to stdin →
 `runProjectMigrations` so an older dump upgrades immediately. The restore-body
@@ -201,12 +204,12 @@ per-project `last_activity_at` in the project listing, and the dead
 
 ## Disk autonomics
 
-[server/utils/disk_space.ts](server/utils/disk_space.ts). `df` on the sandbox
+[server/utils/disk_space.ts](server/utils/disk_space.ts). `df` on the runs
 volume; **fail-open** — if `df` fails (macOS dev, GNU flags absent) every gate
 returns ok. Four gates: new project (500 MB free), module run (200 MB; called
 from the S8 run iterator), dataset attach (`pg_total_relation_size × 1.5`
 CSV-export headroom; hmis/hfa only — no iceh entry, Open item), project copy
-(`pg_database_size` + sandbox `du`). Every gate first calls
+(`pg_database_size`). Every gate first calls
 `maybeRequestVolumeResize`: at ≥90% used it fires `POST …/volumes/resize` on the
 status-api (`targetSizeGB =
 ceil(used/0.80)`) and a SendGrid alert to two

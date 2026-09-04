@@ -105,60 +105,36 @@ if (
 // Directory Paths
 ///////////////////////////////////////////////////////////////////////////////
 
-export const _SANDBOX_DIR_PATH = Deno.env.get("SANDBOX_DIR_PATH")!;
-if (_SANDBOX_DIR_PATH === undefined) {
-  throw new Error("Could not get SANDBOX_DIR_PATH env variable");
+// The runs directory holds the immutable results packages
+// (SYSTEM_08_results_packages.md) and is seen from three places: the Deno
+// process reads/writes packages at _RUNS_DIR_PATH; the R container mounts a
+// package's tmp dir during generation via _EXTERNAL (host path); the Postgres
+// container writes COPY TO dataset extracts directly into that tmp dir via
+// _POSTGRES_INTERNAL, so it must see the same directory. Nothing treats its
+// entries as a homogeneous set: every consumer addresses a NAMED entry — a
+// package's UUID dir, the `.tmp-{runId}` prefix (the boot sweep's only
+// filter), `.duckdb-spill`, or a loose scratch file.
+export const _RUNS_DIR_PATH = Deno.env.get("RUNS_DIR_PATH")!;
+if (_RUNS_DIR_PATH === undefined) {
+  throw new Error("Could not get RUNS_DIR_PATH env variable");
 }
 
-export const _SANDBOX_DIR_PATH_EXTERNAL = Deno.env.get(
-  "SANDBOX_DIR_PATH_EXTERNAL",
-)!;
-if (_SANDBOX_DIR_PATH_EXTERNAL === undefined) {
-  throw new Error("Could not get SANDBOX_DIR_PATH_EXTERNAL env variable");
+export const _RUNS_DIR_PATH_EXTERNAL = Deno.env.get("RUNS_DIR_PATH_EXTERNAL")!;
+if (_RUNS_DIR_PATH_EXTERNAL === undefined) {
+  throw new Error("Could not get RUNS_DIR_PATH_EXTERNAL env variable");
 }
 
-export const _SANDBOX_DIR_PATH_POSTGRES_INTERNAL = Deno.env.get(
-  "SANDBOX_DIR_PATH_POSTGRES_INTERNAL",
+export const _RUNS_DIR_PATH_POSTGRES_INTERNAL = Deno.env.get(
+  "RUNS_DIR_PATH_POSTGRES_INTERNAL",
 )!;
-if (_SANDBOX_DIR_PATH_POSTGRES_INTERNAL === undefined) {
-  throw new Error(
-    "Could not get SANDBOX_DIR_PATH_POSTGRES_INTERNAL env variable",
-  );
+if (_RUNS_DIR_PATH_POSTGRES_INTERNAL === undefined) {
+  throw new Error("Could not get RUNS_DIR_PATH_POSTGRES_INTERNAL env variable");
 }
 
 export const _ASSETS_DIR_PATH = Deno.env.get("ASSETS_DIR_PATH")!;
 if (_ASSETS_DIR_PATH === undefined) {
   throw new Error("Could not get ASSETS_DIR_PATH env variable");
 }
-
-// Immutable results-package directories (PLAN_RESULTS_RUNS §2.1), with the
-// same three path namespaces as the sandbox (binding decision 4): the Deno
-// process reads/writes packages at _RUNS_DIR_PATH; the R container mounts a
-// package's tmp dir during generation via _EXTERNAL (host path); the Postgres
-// container writes COPY TO dataset extracts directly into that tmp dir via
-// _POSTGRES_INTERNAL, so it must see the same directory.
-//
-// **Packages live IN the sandbox directory** (Tim's ruling 2026-07-30) — the
-// same directory, flat, not a subdir. It is already mounted into BOTH the app
-// and the Postgres containers on every instance and already world-writable, so
-// a results package needs no new volume, compose change, chmod or env var.
-// There is no separate runs path to configure and no way for the two to
-// disagree; these three names exist because the code that stores packages
-// should say what it stores, not repeat the directory's legacy name.
-//
-// Sharing one directory is safe because nothing treats its entries as a
-// homogeneous set: every consumer addresses a NAMED entry — a `{projectId}`
-// dir, the `.tmp-{runId}` prefix (the boot sweep's only filter), or
-// `.duckdb-spill`. Package dirs are freshly minted UUIDs, so they can never
-// collide with a project id.
-//
-// End state: once Phase 4 removes the legacy per-project dirs, this directory
-// holds only packages and both it and the `SANDBOX_DIR_PATH*` vars get renamed
-// to runs — at which point these three aliases collapse into them.
-export const _RUNS_DIR_PATH = _SANDBOX_DIR_PATH;
-export const _RUNS_DIR_PATH_EXTERNAL = _SANDBOX_DIR_PATH_EXTERNAL;
-export const _RUNS_DIR_PATH_POSTGRES_INTERNAL =
-  _SANDBOX_DIR_PATH_POSTGRES_INTERNAL;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Database Configuration

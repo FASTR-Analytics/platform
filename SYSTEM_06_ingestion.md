@@ -389,8 +389,8 @@ dataset version stamps the manifest records. No project table is written.
   `iceh_indicators_snapshot.json`, and `indicators.json` (the whole common
   dictionary, resolved at capture). Modules read `../datasets/{type}.csv`; PO
   metadata reads the manifest's indicator catalog, built from the mirrors at
-  finalize. The frozen project-DB `calculated_indicators_snapshot` table is
-  read by nothing and drops with PLAN_RESULTS_RUNS Phase 4.
+  finalize. The project-DB `calculated_indicators_snapshot` table was dropped
+  by migration 041 (2026-09-04).
 - **Project-level attach/staleness UI is gone**: the dirty cascade and the
   per-dataset staleness indicators died with the Data tab.
 

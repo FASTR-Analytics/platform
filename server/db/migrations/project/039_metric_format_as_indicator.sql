@@ -33,14 +33,24 @@ BEGIN
   END IF;
 END $$;
 
-UPDATE metrics SET format_as = 'indicator'
-WHERE id IN (
-  'm7-01-01',
-  'm7-01-02',
-  'm7-01-03',
-  'm8-01-01',
-  'm10-01-01',
-  'm10-01-02',
-  'm10-03-01',
-  'm10-03-02'
-) AND format_as <> 'indicator';
+-- Guarded on the metrics table: absent on a fresh DB since 041 (the DO block
+-- above already no-ops when metrics has no constraint to relax).
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'metrics'
+  ) THEN
+    UPDATE metrics SET format_as = 'indicator'
+    WHERE id IN (
+      'm7-01-01',
+      'm7-01-02',
+      'm7-01-03',
+      'm8-01-01',
+      'm10-01-01',
+      'm10-01-02',
+      'm10-03-01',
+      'm10-03-02'
+    ) AND format_as <> 'indicator';
+  END IF;
+END $$;

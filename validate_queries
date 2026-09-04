@@ -60,9 +60,9 @@ export INSTANCE_CALENDAR="gregorian"
 # Not NGA: Nigeria triggers format_nigeria_admin_label's special-case admin-area
 # label cleaning, which would silently shift query-case expectations.
 export ISO_COUNTRY_CODE="KEN"
-export SANDBOX_DIR_PATH="$RUNS_DIR"
-export SANDBOX_DIR_PATH_EXTERNAL="$RUNS_DIR"
-export SANDBOX_DIR_PATH_POSTGRES_INTERNAL="$RUNS_DIR"
+export RUNS_DIR_PATH="$RUNS_DIR"
+export RUNS_DIR_PATH_EXTERNAL="$RUNS_DIR"
+export RUNS_DIR_PATH_POSTGRES_INTERNAL="$RUNS_DIR"
 export QUERY_RIG_RUNS_DIR="$RUNS_DIR"
 export ASSETS_DIR_PATH="/tmp/query_rig/assets"
 export DATABASE_FOLDER="/tmp/query_rig/databases"

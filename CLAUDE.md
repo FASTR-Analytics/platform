@@ -72,7 +72,7 @@ wb-fastr/
 ├── panther/                   # External UI/viz library (DO NOT MODIFY)
 └── _example_instance_dir/     # Instance data (git-ignored)
     ├── databases/             # PostgreSQL data files
-    ├── sandbox/               # Results packages + module execution workspace
+    ├── runs/                  # Results packages
     ├── valkey/                # Valkey data
     └── assets/                # Uploaded files
 ```
@@ -210,7 +210,7 @@ wb-fastr/
 cd client && npm install && cd ..
 
 # Create instance directory (if not exists)
-mkdir -p _example_instance_dir/{databases,sandbox,assets,valkey}
+mkdir -p _example_instance_dir/{databases,runs,assets,valkey}
 
 # Configure environment
 cp .env.example .env
@@ -477,7 +477,7 @@ Key variables (see `.env.example`):
 - `CLERK_SECRET_KEY` - Authentication
 - `PG_PASSWORD` - PostgreSQL connection
 - `ANTHROPIC_API_KEY` - AI features
-- `SANDBOX_DIR_PATH` - Module execution workspace
+- `RUNS_DIR_PATH` - Results packages directory
 - `ASSETS_DIR_PATH` - File uploads
 - `ISO_COUNTRY_CODE` - REQUIRED: the instance's country, an ISO3 code or
   `SOMALILAND`; boot fail-stops without it

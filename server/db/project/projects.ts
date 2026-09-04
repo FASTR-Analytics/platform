@@ -1,4 +1,3 @@
-import { join } from "@std/path";
 import {
   APIResponseNoData,
   APIResponseWithData,
@@ -14,7 +13,6 @@ import {
   type ProjectUserRoleType,
 } from "lib";
 import { Sql } from "postgres";
-import { _SANDBOX_DIR_PATH } from "../../exposed_env_vars.ts";
 import {
   DBProject,
   DBUser,
@@ -444,15 +442,6 @@ export async function forceDeleteProject(
       await dedicatedDb.end();
     }
 
-    const sandboxDir = join(_SANDBOX_DIR_PATH, projectId);
-    try {
-      await Deno.remove(sandboxDir, { recursive: true });
-    } catch (e) {
-      if (!(e instanceof Deno.errors.NotFound)) {
-        throw e;
-      }
-    }
-
     await mainDb`DELETE FROM projects WHERE id = ${projectId}`;
     return { success: true };
   });
@@ -487,15 +476,6 @@ export async function purgeExpiredProjects(mainDb: Sql): Promise<number> {
         await dedicatedDb`DROP DATABASE IF EXISTS ${dedicatedDb(project.id)} WITH (FORCE)`;
       } finally {
         await dedicatedDb.end();
-      }
-
-      const sandboxDir = join(_SANDBOX_DIR_PATH, project.id);
-      try {
-        await Deno.remove(sandboxDir, { recursive: true });
-      } catch (e) {
-        if (!(e instanceof Deno.errors.NotFound)) {
-          throw e;
-        }
       }
 
       await mainDb`DELETE FROM projects WHERE id = ${project.id}`;

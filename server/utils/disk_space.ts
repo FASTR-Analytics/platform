@@ -1,7 +1,7 @@
 import { Sql } from "postgres";
 import {
   _INSTANCE_ID,
-  _SANDBOX_DIR_PATH,
+  _RUNS_DIR_PATH,
   _SEND_GRID_API,
   _STATUS_API_KEY,
   _VOLUME_NAME,
@@ -15,7 +15,7 @@ interface DiskStats {
 async function getDiskStats(): Promise<DiskStats | null> {
   try {
     const cmd = new Deno.Command("df", {
-      args: ["--block-size=1", "--output=avail,size", _SANDBOX_DIR_PATH],
+      args: ["--block-size=1", "--output=avail,size", _RUNS_DIR_PATH],
       stdout: "piped",
       stderr: "piped",
     });

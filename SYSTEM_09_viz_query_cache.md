@@ -28,7 +28,7 @@ globs:
 > keying (`PO_CACHE_VERSION` is "19", `po_detail_v10`), including over the
 > stale `po_detail_v2` / `PO_CACHE_VERSION "5"` table and paragraph further
 > down this file; calendar threads via `QueryContext`, not `getCalendar()` at
-> the call sites. The full post-runs rewrite of this doc is Phase 4 step E.
+> the call sites.
 
 PO config → fetch-config contract → DuckDB SQL over the project's attached
 results package → run-keyed cached payloads, on both tiers. **This system does

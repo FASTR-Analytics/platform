@@ -301,8 +301,8 @@ server has verified-current schema and stored-JSON shapes. The sequence:
    (`po_config`, `slide_deck_config`, `slide_config`, `reports`,
    `dashboard_config`, `dashboard_items`), each in its own transaction,
    fail-stop; plus the explicitly-`TEMPORARY` dashboard-slug backfill that
-   self-identifies in the file. No boot step reads or polices the frozen
-   project `modules` / `metrics` tables (SYSTEM_08).
+   self-identifies in the file. No boot step touches results: the project-DB
+   results plane was dropped by migration 041 (SYSTEM_08).
 
 SQL migrations must be idempotent because the base schema files
 (`_main_database.sql`, `_project_database.sql`) represent current state and new
@@ -310,7 +310,10 @@ databases get base + all migrations — patterns and the golden rule are in
 [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md).
 `./validate_migrations` (repo root) verifies the two paths converge by diffing
 schemas in a throwaway `postgres:15` Docker container; run it after touching any
-SQL migration.
+SQL migration. The one sanctioned edit of an applied migration is the
+table-existence guard that lets a base-owned table leave the base schema
+(the protocol's "Dropping a table that older migrations touch"; applied to
+nine project migrations on 2026-09-04).
 
 ### Backup / restore mechanics
 
@@ -321,6 +324,11 @@ via `docker exec` on the postgres container, then `runProjectMigrations` on the
 restored DB so an older dump is brought up to current schema immediately. The
 JSON data transforms do **not** run until the next server restart, and the fresh
 pool opened for the migration re-run is never `.end()`ed (both Open items).
+Backups are pure pg dumps: a restore never touches `projects.run_id` and never
+brings a results package back — a project whose package is absent on this
+instance shows the typed "results run unavailable" state until an editor
+attaches another package or an admin regenerates (Tim's ruling 2026-09-04;
+[SYSTEM_08](SYSTEM_08_results_packages.md) "Backups and packages").
 
 ## FigureBundle backfill — the boot-time cutover (shipped 2026-06-13)
 
