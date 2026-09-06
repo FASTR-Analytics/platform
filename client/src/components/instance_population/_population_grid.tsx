@@ -1,6 +1,8 @@
 import {
+  ADMIN_AREA_COLUMNS,
   POPULATION_TYPES,
   populationTypeLabel,
+  populationYearRangeLabel,
   t3,
   TC,
   type PopulationGridArea,
@@ -86,13 +88,6 @@ export function PopulationGrid(p: Props) {
   );
 }
 
-const ADMIN_AREA_COLUMNS = [
-  "admin_area_1",
-  "admin_area_2",
-  "admin_area_3",
-  "admin_area_4",
-] as const;
-
 function gridCsv(
   level: PopulationLevel,
   years: number[],
@@ -157,11 +152,7 @@ function PopulationTypeGrid(p: {
     if (c === undefined || c.yearCount === 0) {
       parts.push(t3({ en: "no data", fr: "aucune donnée", pt: "sem dados" }));
     } else {
-      parts.push(
-        c.firstYear === c.lastYear
-          ? `${c.firstYear}`
-          : `${c.firstYear}–${c.lastYear}`,
-      );
+      parts.push(populationYearRangeLabel(c));
       parts.push(
         t3({
           en: `${toNum0(c.areaCount)} of ${toNum0(c.structureAreaCount)} areas`,

@@ -1,4 +1,5 @@
 import {
+  ADMIN_AREA_COLUMNS,
   POPULATION_TYPES,
   populationTypeLabel,
   t3,
@@ -109,8 +110,7 @@ export function PopulationImportForm(p: { close: (p: unknown) => void }) {
   const currentLevelLabel = () => levelLabel(currentLevel());
   const columnList = () =>
     [
-      ...["admin_area_1", "admin_area_2", "admin_area_3", "admin_area_4"]
-        .slice(0, currentLevel()),
+      ...ADMIN_AREA_COLUMNS.slice(0, currentLevel()),
       "year",
       "population_type",
       "count",

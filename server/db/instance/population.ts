@@ -1,5 +1,6 @@
 import { Sql } from "postgres";
 import {
+  ADMIN_AREA_COLUMNS,
   type APIResponseNoData,
   type APIResponseWithData,
   collectIdentifiers,
@@ -35,13 +36,6 @@ const POPULATION_LAST_UPDATED_KEY = "population_last_updated";
 
 // Keep batches well under Postgres's 65,534-parameter limit (8 params/row)
 const INSERT_BATCH_SIZE = 4000;
-
-const ADMIN_AREA_COLUMNS = [
-  "admin_area_1",
-  "admin_area_2",
-  "admin_area_3",
-  "admin_area_4",
-] as const;
 
 const POPULATION_LEVEL_KEY = "population_level";
 

@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { ADMIN_AREA_COLUMNS } from "lib";
 import {
   deleteAllPopulation,
   deletePopulationTypeData,
@@ -115,13 +116,13 @@ routesPopulation.get(
   log("exportPopulationCsv"),
   async (c) => {
     const { level, rows } = await getPopulationExportRows(c.var.mainDb);
-    const areaColumns = ["admin_area_1", "admin_area_2", "admin_area_3", "admin_area_4"]
-      .slice(0, level ?? 2);
+    const columnCount = level ?? 2;
+    const areaColumns = ADMIN_AREA_COLUMNS.slice(0, columnCount);
     const header = [...areaColumns, "year", "population_type", "count"];
     const lines = [header.join(",")];
     for (const r of rows) {
       const names = [r.admin_area_1, r.admin_area_2, r.admin_area_3, r.admin_area_4]
-        .slice(0, level ?? 2);
+        .slice(0, columnCount);
       lines.push(
         [...names, String(r.year), r.population_type, String(r.count)]
           .map(csvCell)

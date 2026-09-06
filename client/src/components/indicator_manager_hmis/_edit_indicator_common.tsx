@@ -38,6 +38,7 @@ import {
   POPULATION_TYPE_IDS,
   populationIngredientId,
   populationTypeLabel,
+  populationYearRangeLabel,
   type RawIndicatorWithMappings,
   resolveIndicatorExpression,
   t3,
@@ -130,9 +131,7 @@ function populationCoverageSummary(
       }),
     };
   }
-  const years = c.firstYear === c.lastYear
-    ? `${c.firstYear}`
-    : `${c.firstYear}–${c.lastYear}`;
+  const years = populationYearRangeLabel(c);
   if (c.complete) {
     return {
       empty: false,

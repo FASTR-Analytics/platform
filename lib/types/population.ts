@@ -153,6 +153,13 @@ export type PopulationImportResult = {
 // help text. Level = the deepest admin_area_N column present; the columns
 // below it must all be present too. admin_area_1 is optional and, when
 // present, must match the structure's level-1 name for that area.
+export const ADMIN_AREA_COLUMNS = [
+  "admin_area_1",
+  "admin_area_2",
+  "admin_area_3",
+  "admin_area_4",
+] as const;
+
 export const POPULATION_CSV_REQUIRED_COLUMNS = [
   "admin_area_2",
   "year",

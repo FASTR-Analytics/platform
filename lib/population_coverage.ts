@@ -6,6 +6,7 @@
 // completeness.
 
 import type {
+  PopulationCoverage,
   PopulationLevel,
   PopulationYearCoverage,
 } from "./types/population.ts";
@@ -27,6 +28,14 @@ export function populationDisplayPath(
   level: PopulationLevel,
 ): string {
   return names.slice(1, level).join(" / ");
+}
+
+export function populationYearRangeLabel(
+  c: Pick<PopulationCoverage, "firstYear" | "lastYear">,
+): string {
+  return c.firstYear === c.lastYear
+    ? `${c.firstYear}`
+    : `${c.firstYear}–${c.lastYear}`;
 }
 
 export type PopulationYearCount = { year: number; areasWithData: number };

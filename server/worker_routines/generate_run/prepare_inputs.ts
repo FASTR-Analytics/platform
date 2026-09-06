@@ -1,6 +1,7 @@
 import { join } from "@std/path";
 import type { Sql } from "postgres";
 import {
+  ADMIN_AREA_COLUMNS,
   listMonthlyPeriodIds,
   parsePopulationLevel,
   personYearsForMonth,
@@ -353,10 +354,7 @@ async function writePopulationPersonYears(
   );
   const firstYear = Math.floor(capture.periodRange.min / 100);
   const lastYear = Math.floor(capture.periodRange.max / 100);
-  const areaColumns = ["admin_area_2", "admin_area_3", "admin_area_4"].slice(
-    0,
-    level === null ? 0 : level - 1,
-  );
+  const areaColumns = ADMIN_AREA_COLUMNS.slice(1, level === null ? 1 : level);
   const lines = [
     [...areaColumns, "period_id", "population_type", "person_years"].join(","),
   ];
