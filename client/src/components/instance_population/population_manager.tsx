@@ -88,7 +88,7 @@ export function PopulationManager(p: Props) {
         <FrameRight
           panelChildren={
             <Show when={canConfigure()}>
-              <div class="ui-pad ui-spy flex h-full w-64 flex-col overflow-auto">
+              <div class="ui-pad ui-spy flex h-full w-72 flex-col overflow-auto">
                 <LevelSetting locked={hasData()} />
                 <div class="border-t" />
                 <Button
@@ -99,7 +99,7 @@ export function PopulationManager(p: Props) {
                 >
                   {t3({
                     en: "Import population data",
-                    fr: "Importer des données de population",
+                    fr: "Importer des données",
                     pt: "Importar dados de população",
                   })}
                 </Button>
@@ -131,8 +131,8 @@ export function PopulationManager(p: Props) {
                   >
                     {t3({
                       en: "Delete all population data",
-                      fr: "Supprimer toutes les données de population",
-                      pt: "Eliminar todos os dados de população",
+                      fr: "Supprimer toutes les données",
+                      pt: "Eliminar todos os dados",
                     })}
                   </Button>
                 </Show>

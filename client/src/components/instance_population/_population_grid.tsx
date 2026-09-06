@@ -53,8 +53,8 @@ export function PopulationGrid(p: Props) {
   const activeType = createMemo(
     () =>
       selectedType() ??
-        POPULATION_TYPES.find((t) => coverageFor(t.id) !== undefined)?.id ??
-        POPULATION_TYPES[0].id,
+      POPULATION_TYPES.find((t) => coverageFor(t.id) !== undefined)?.id ??
+      POPULATION_TYPES[0].id,
   );
   const tabItems = createMemo<ListItem<string>[]>(() =>
     POPULATION_TYPES.map((t) => {
@@ -62,13 +62,14 @@ export function PopulationGrid(p: Props) {
       return {
         id: t.id,
         label: t3(t.label),
-        dot: coverage === undefined
-          ? undefined
-          : coverage.complete
-          ? "success"
-          : "danger",
+        dot:
+          coverage === undefined
+            ? undefined
+            : coverage.complete
+              ? "success"
+              : "danger",
       };
-    })
+    }),
   );
 
   return (
@@ -122,7 +123,10 @@ function gridCsv(
   return new Csv({ aoa, colHeaders });
 }
 
-function PopulationTypeGrid(p: { populationType: string; canConfigure: boolean }) {
+function PopulationTypeGrid(p: {
+  populationType: string;
+  canConfigure: boolean;
+}) {
   const typeLabel = () => t3(populationTypeLabel(p.populationType));
   const coverage = () =>
     instanceState.populationCoverage.find(
@@ -180,10 +184,10 @@ function PopulationTypeGrid(p: { populationType: string; canConfigure: boolean }
         c.complete
           ? t3({ en: "complete", fr: "complet", pt: "completo" })
           : t3({
-            en: `incomplete: ${c.incompleteYears.join(", ")}`,
-            fr: `incomplet : ${c.incompleteYears.join(", ")}`,
-            pt: `incompleto: ${c.incompleteYears.join(", ")}`,
-          }),
+              en: `incomplete: ${c.incompleteYears.join(", ")}`,
+              fr: `incomplet : ${c.incompleteYears.join(", ")}`,
+              pt: `incompleto: ${c.incompleteYears.join(", ")}`,
+            }),
       );
     }
     return parts.filter((s) => s !== "").join(" · ");
@@ -233,7 +237,7 @@ function PopulationTypeGrid(p: { populationType: string; canConfigure: boolean }
           <Show
             when={data.populationLevel !== null && data.years.length > 0}
             fallback={
-              <div class="ui-pad">
+              <div class="ui-pad text-base-content-faint">
                 {t3({
                   en: "No data for this population type",
                   fr: "Aucune donnée pour ce type de population",
@@ -244,8 +248,7 @@ function PopulationTypeGrid(p: { populationType: string; canConfigure: boolean }
           >
             <Show when={data.populationLevel} keyed>
               {(level) => {
-                const structureAreas = () =>
-                  data.areas.filter((a) => !a.stale);
+                const structureAreas = () => data.areas.filter((a) => !a.stale);
                 const staleAreas = () => data.areas.filter((a) => a.stale);
                 return (
                   <div class="flex h-full w-full flex-col">
