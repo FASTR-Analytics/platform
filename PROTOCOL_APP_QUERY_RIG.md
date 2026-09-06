@@ -1,9 +1,9 @@
-# PROTOCOL — App: The Query Test Rig
+# PROTOCOL (App): The Query Test Rig
 
 > **App-specific authoring protocol** (not panther's cross-project
-> `PROTOCOL_*`). This is the _recipe_ — read it when **adding a case** to the
+> `PROTOCOL_*`). This is the _recipe_. Read it when **adding a case** to the
 > S9 query rig or changing SQL assembly. The query pipeline's ownership and
-> architecture belong to **S9** — see `SYSTEM_09_viz_query_cache.md`; this file
+> architecture belong to **S9**: see `SYSTEM_09_viz_query_cache.md`; this file
 > is the how-to. Sibling rig: `./validate_migrations`
 > (`PROTOCOL_APP_MIGRATIONS.md`).
 
@@ -11,11 +11,11 @@
 
 ## What it is
 
-`./validate_queries` builds a **real results package** per declarative fixture
-— the fixture's rows written as the module's raw output CSV, then the
+`./validate_queries` builds a **real results package** per declarative fixture.
+The fixture's rows are written as the module's raw output CSV, then the
 **production** parquet writer and package builder
 (`buildRunPackageIntoTmp`) produce the parquet and the manifest into a
-throwaway runs directory — and runs the **production** run read path
+throwaway runs directory. It then runs the **production** run read path
 (`server/run_query/run_read.ts`: `getPresentationObjectItemsFromRun`,
 `getPossibleValuesFromRun`, `getResultsValueInfoFromRun`) against it over a
 national-scope `RunReadContext`. Config → SQL → DuckDB over parquet → real
@@ -31,7 +31,7 @@ builder reads from the MAIN database (the per-family structure schema rows in
 (once the `postgres:17.4` image is cached locally; the first run pulls it.)
 
 Also offered as an optional prompt in `./deploy`, next to migration validation.
-**Not** in `deno task typecheck` — not because it is slow, but because it needs
+**Not** in `deno task typecheck`, not because it is slow, but because it needs
 a running Docker daemon, and the typecheck gate must work without one. The rig
 typechecks itself before running, since `query_rig/` sits outside
 `lint_systems`' tracked globs.
@@ -40,14 +40,14 @@ typechecks itself before running, since `query_rig/` sits outside
 | --- | --- |
 | `validate_queries` | container + runs-dir lifecycle, env, invokes the runner |
 | `query_rig/mod.ts` | runner: build packages, loop cases, summarise |
-| `query_rig/cases.ts` | **the case table** — where you add coverage |
+| `query_rig/cases.ts` | **the case table**, where you add coverage |
 | `query_rig/fixtures.ts` | F1–F13 |
 | `query_rig/build_package.ts` | fixture → structure-schema rows + results package + `RunReadContext` |
 | `query_rig/harness.ts` | connections, schema loading, multiset compare |
 
 ## Adding a case
 
-Add a row to `CASES` in `query_rig/cases.ts`. That is the whole operation —
+Add a row to `CASES` in `query_rig/cases.ts`. That is the whole operation:
 one literal, one place to look.
 
 ```ts
@@ -66,7 +66,7 @@ one literal, one place to look.
 - `expect` is one of `{status:"ok", rows}`, `{status:"no_data_available" |
   "too_many_items"}`, `{values}` (option lists, **ordered**), `{dimStatus}` (one
   dimension's option-list status), or `{err}` (substring match).
-- `calendar: "ethiopian"` flips `setCalendar()` for that case —
+- `calendar: "ethiopian"` flips `setCalendar()` for that case:
   `getQuarterIdExpression` emits different SQL per calendar.
 - `entry: "possibleValues"` with `disOpt` runs the option-list query instead of
   the items query, reusing `fetchConfig.filters` as the filter set.
@@ -78,9 +78,9 @@ one literal, one place to look.
 
 ## Adding a fixture
 
-Only when no existing fixture can express the shape — a different physical time
+Only when no existing fixture can express the shape: a different physical time
 column, a missing `facility_id`, a different **column type**. Fixtures are
-synthetic and small — 2–8 hand-designed rows sitting on semantic edges. Never
+synthetic and small: 2–8 hand-designed rows sitting on semantic edges. Never
 seed from a dump: it can't be committed and it makes assertions drift. The one
 exception is F9, which generates 501 rows because the behaviour under test _is_
 a 500-row boundary; generate rather than enumerate when the count is the point.
@@ -89,13 +89,13 @@ A results object's parquet schema comes from the module's declared
 `createTableStatementPossibleColumns` (types are declared, never inferred), so
 each fixture declares `roColumns` **with explicit types** in that authoring
 vocabulary (`TEXT` / `INTEGER` / `NUMERIC`, the last landing as `DOUBLE`). The
-types are load-bearing, not decoration — see the F2/F3 pair below.
+types are load-bearing, not decoration. See the F2/F3 pair below.
 
 ## Rules that keep the rig honest
 
 **Rows compare as a multiset.** The queries carry no `ORDER BY`, so
 sequence comparison is flaky by construction. `harness.ts` canonicalises before
-comparing. Option lists are the exception — there, order _is_ the assertion.
+comparing. Option lists are the exception: there, order _is_ the assertion.
 
 **Assert what our code guarantees, not what the database happens to do.** The
 `possibleValues` cases pin the sentinel in the **last** position because TS puts
@@ -110,7 +110,7 @@ numbers would have proved nothing.
 
 **Reproduce the route's sequence, not just the query function.**
 `validateFetchConfig` runs in the **handler**, not inside
-`getPresentationObjectItemsFromRun` — the runner calls it explicitly. Skip it
+`getPresentationObjectItemsFromRun`. The runner calls it explicitly. Skip it
 and every SQL-safety case silently becomes a no-op.
 
 **Calendar is a run input.** The read path takes it from the manifest, never
@@ -122,7 +122,7 @@ assumption is that the _code_ is wrong, not the expectation. Only pin observed
 behaviour after confirming it is intended, and say so in a comment with the
 reason. Two live examples:
 
-- `rollupDim` absent from `groupBys` does not error —
+- `rollupDim` absent from `groupBys` does not error:
   `buildRollupQuery` returns `null` and the roll-up row is
   silently omitted. Intended: those checks are the SQL-safety boundary, and the
   client owns the collapse decision (S9). The case pins the contract; it does
@@ -132,14 +132,14 @@ reason. Two live examples:
 - `COUNT(...)` values are **numbers** on the wire. The rig's Postgres era pinned
   them as strings (`"4"`) because postgres.js serialises bigint as text; DuckDB
   returns them as numbers, which is what production has served since the runs
-  cutover. Found on 2026-09-04 when the rig moved onto the run read path — the
+  cutover. Found on 2026-09-04 when the rig moved onto the run read path. The
   two cases were corrected, and this is the class of gap the move exists to
   expose.
 
 **Prove a new guard's case can fail.** Passing tests prove nothing on their own.
 Temporarily break the mechanism, confirm the case goes red, then restore.
 Verified controls so far (the failure texts were recorded on the rig's Postgres
-era, 2026-08; DuckDB words the same failures differently — the case that goes
+era, 2026-08; DuckDB words the same failures differently: the case that goes
 red is the control, not the text):
 
 | Break | Expected failure |
@@ -157,7 +157,7 @@ red is the control, not the text):
 | drop the PERIOD exclusion from the numeric filter gate | month-filter case: derived TEXT month misrouted to `month IN (2)` |
 
 Check `git status` on the file first and restore by copy if it has uncommitted
-changes — `git checkout` would discard parallel work.
+changes. `git checkout` would discard parallel work.
 
 ## The fixtures
 
@@ -165,21 +165,21 @@ changes — `git checkout` would discard parallel work.
 | --- | --- | --- |
 | `hmis_monthly` (F1) | HMIS, physical `period_id`, facility rows | general grouping, blank-fold specimens (`NULL`, spaces, tab, and the `'x'`/`' x'` pair), derived month/quarter/year |
 | `hfa_service_cats` (F2) | HFA, `hfa_service_category` pipe-joined sets, `time_point` **text** | multi-membership, blank fold on text |
-| `hfa_timepoint_integer` (F3) | F2 with `time_point` **integer** | the type gate — see below |
+| `hfa_timepoint_integer` (F3) | F2 with `time_point` **integer** | the type gate, see below |
 | `hmis_ratio` (F4) | facility rows + `num`/`den` | PAE roll-up, AVG eligibility (allowed) |
 | `hmis_area_only` (F5) | pre-aggregated areas, **no** `facility_id` | AVG eligibility (refused) |
 | `hmis_quarterly` (F6) | physical `quarter_id` | derives `year`, never `month` |
 | `hmis_yearly` (F7) | physical `year` | derives nothing |
 | `hfa_facility_blanks` (F8) | NULL facility cell + a results row with no facilities row | the fold reaches joined facility columns, from both blank origins; single-member set column |
 | `hmis_option_cap` (F9) | 500 named + blank / 501 named | the option-list cap counts NAMED values only |
-| `hfa_area_only` (F10) | HFA, pre-aggregated area rows, **no** `facility_id` | the table-aware half of the sample-n gate — the family check alone would emit `COUNT(DISTINCT facility_id)` against a table without the column |
+| `hfa_area_only` (F10) | HFA, pre-aggregated area rows, **no** `facility_id` | the table-aware half of the sample-n gate. The family check alone would emit `COUNT(DISTINCT facility_id)` against a table without the column |
 | `hfa_variants` (F11) | HFA, `hfa_variant_item` plain TEXT physical column, parent in `hfa_indicator` | the generic physical-column path for group-by / filter / option lists on the variants dimension |
-| `hmis_scorecard` (F12) | `denominator` is BOTH a PAE ingredient and a disaggregation option | the PAE groupBy/value-prop collision (`paeCollidingGroupBys`) — den=20 spans two rows so raw-binding (40/20 = 2) diverges from the correct aggregate binding (40/40 = 1) |
+| `hmis_scorecard` (F12) | `denominator` is BOTH a PAE ingredient and a disaggregation option | the PAE groupBy/value-prop collision (`paeCollidingGroupBys`): den=20 spans two rows so raw-binding (40/20 = 2) diverges from the correct aggregate binding (40/40 = 1) |
 
 **F2/F3 are a minimal pair and the rig's central argument.** They differ in one
 thing: `time_point`'s declared column type. The blank fold emits `btrim()` and
 returns a text sentinel from its `CASE`, both of which Postgres rejects on a
-numeric column — so a name-only gate turns working visualizations into a hard
+numeric column, so a name-only gate turns working visualizations into a hard
 SQL error. Results-column types are authored per module, so the same
 disaggregation option genuinely is text in one instance and integer in another.
 No SQL-string assertion can see this class of bug; only execution can.
@@ -192,6 +192,6 @@ byte-identity (a pure assertion needing no DB); the route-level Zod schema
 
 ## Anti-cruft contract
 
-One rig, one case table. No `Deno.test`, no `deno task test` — a plain loop with
+One rig, one case table. No `Deno.test`, no `deno task test`: a plain loop with
 a pass/fail summary, so there is no gravity well for stray unit tests to
 accumulate in. Coverage grows by adding rows, not files.

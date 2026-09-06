@@ -1,7 +1,7 @@
-# PROTOCOL — App: Writing a Worker Routine
+# PROTOCOL (App): Writing a Worker Routine
 
 > **App-specific authoring protocol** (not panther's cross-project
-> `PROTOCOL_*`). This is the _recipe_ — read it when **adding or changing a
+> `PROTOCOL_*`). This is the _recipe_. Read it when **adding or changing a
 > background worker routine**. The machinery's ownership and architecture belong
 > to the SYSTEM files: the running-tasks map, dirty machine, and `task_ended`
 > semantics are **S8** (`SYSTEM_08_results_packages.md`); what the dataset workers
@@ -42,7 +42,7 @@ instantiateXxxWorker(payload)
 
 Each routine is a folder under `server/worker_routines/` with two files:
 
-- `instantiate_worker.ts` — exports
+- `instantiate_worker.ts`: exports
   `instantiate<Name>Worker(payload):
   Worker`, a one-liner over the generic
   factory:
@@ -65,11 +65,11 @@ Each routine is a folder under `server/worker_routines/` with two files:
 
   (`server/worker_routines/instantiate_worker_generic.ts`.) Never `new
   Worker`
-  directly and post immediately — the host must not post the payload until the
+  directly and post immediately. The host must not post the payload until the
   worker says it's listening, or the post races module load.
 
-- `worker.ts` — the worker entry point, opening with the standard preamble
-  (hand-copied into every routine — copy it verbatim, don't improvise):
+- `worker.ts`: the worker entry point, opening with the standard preamble
+  (hand-copied into every routine, so copy it verbatim, don't improvise):
 
   ```ts
   (self as unknown as Worker).onmessage = (e) => {
@@ -107,8 +107,8 @@ lost. Don't reason from one to the other.
 
 ### 3. Attach the spawn-site listeners
 
-**Every spawn site attaches an `error` listener with `e.preventDefault()`** —
-without it, `reportError` propagates as an unhandled rejection and exits the
+**Every spawn site attaches an `error` listener with `e.preventDefault()`.**
+Without it, `reportError` propagates as an unhandled rejection and exits the
 whole server process (verified on Deno 2.5.3 and 2.6.4). The listener records
 the error completion, clears the tracker, and terminates the worker. Spawn sites
 today: `task_management/trigger_runnable_tasks.ts` (module runs),
@@ -140,22 +140,22 @@ contexts). Create dedicated pools via the worker factories
 (`server/db/postgres/worker_connections.ts`, uncached, `prepare: false`):
 `createWorkerReadConnection(id)` for read work,
 `createBulkImportConnection("main")` for bulk staging/integration inserts.
-**Every exit path must `.end()` them** — a `finally` holding only `.end()` calls
-is fine (connection teardown only — never `self.close()` there). On a crash path
-the host's terminate drops whatever the worker didn't end — acceptable, since
-the isolate dies with its sockets.
+**Every exit path must `.end()` them.** A `finally` holding only `.end()` calls
+is fine (connection teardown only, never `self.close()` there). On a crash path
+the host's terminate drops whatever the worker didn't end, which is acceptable
+since the isolate dies with its sockets.
 
 ### 5. Pick the report-back mechanism
 
-- **(A) `task_ended` broadcast** — when completion should chain dependent work.
+- **(A) `task_ended` broadcast**, when completion should chain dependent work.
   The module worker posts an `EndingTaskData`
   (`{ projectId, moduleId, runToken, successOrError }`) to
   `BroadcastChannel("task_ended")`; a decoupled listener in
   `set_module_clean.ts` flips the DB row, clears the map entry, terminates, and
   re-triggers dependents. Crashes reach the same handler via the spawn site's
-  `error` listener with `successOrError: "error"` — the worker's catch does
+  `error` listener with `successOrError: "error"`: the worker's catch does
   `reportError` only, no broadcast. S8 owns these semantics.
-- **(B) `postMessage("COMPLETED")` + status row** — a single tracked job the
+- **(B) `postMessage("COMPLETED")` + status row**, for a single tracked job the
   caller awaits. The worker writes progress/terminal state into its run/ attempt
   row (`status` JSON + denormalized `status_type` enum) for client polling, and
   finishes with `self.postMessage("COMPLETED")`; the caller-attached listeners
@@ -167,16 +167,16 @@ enum; the results-package catalogue reacts to instance-SSE
 
 ### 6. Register a tracker, and clear it on every terminal path
 
-- **`worker_store.ts`** — at most one live worker per import family:
+- **`worker_store.ts`**: at most one live worker per import family:
   `Map<WorkerKey, Worker>` with `WorkerKey = "hmis" | "hfa" | "hmis_dhis2_run"`
   (extend the union when adding a family), `setWorker` / `getWorker` /
   `clearWorker`. `clearWorker` is compare-and-delete (deletes only if the stored
   worker IS this worker), so a stale worker's late error/COMPLETED event cannot
   clobber a successor under the same key. The caller checks `getWorker(key)`
   before starting and refuses if one is in flight.
-- **The running-tasks map** (module runs) — keyed `projectId` + `moduleId` with
+- **The running-tasks map** (module runs): keyed `projectId` + `moduleId` with
   a per-run `runToken`; claim → attach → guaranteed
-  `removeRunningModule`/`releaseClaimedModule`. Owned by S8 — new module-run
+  `removeRunningModule`/`releaseClaimedModule`. Owned by S8: new module-run
   completion paths go through `handleModuleTaskEnded`, nothing else.
 
 An unterminated completed worker leaks its isolate and threads for the life of
@@ -200,28 +200,28 @@ the process; a worker that dies without clearing its tracker blocks future work.
   `run` self-closes. Don't rely on one worker handling multiple payloads.
 - **Don't diverge the preamble.** It's copy-pasted per routine; subtle drift
   (READY string, error semantics) is a latent bug. Today only the
-  `console.error` prefix varies — keep it that way until item 8 factors it.
-- **The progress writer is a second connection — a run transaction must
+  `console.error` prefix varies. Keep it that way until item 8 factors it.
+- **The progress writer is a second connection, and a run transaction must
   never wait on it while holding the run row.** `createThrottledProgressWriter`
   updates the run row (`… WHERE id AND status='running'`) on the worker's
   read connection. Inside a `begin(...)`, any statement touching the run row
   (`version_id`, counters, the completion flip) holds that row's lock until
   COMMIT; a progress write issued after it blocks on that lock. If the
-  transaction then AWAITED the write, the two waited on each other forever —
+  transaction then AWAITED the write, the two waited on each other forever.
   Postgres cannot detect it (the holder is idle-in-transaction), and Ghana
   sat wedged 4 days (2026-08-12). Two defences, in order: (1) the writer is
-  non-blocking and coalescing — it NEVER blocks the caller, so a blocked
+  non-blocking and coalescing: it NEVER blocks the caller, so a blocked
   write just lands after COMMIT (harmless: every progress write is
   status-guarded and every terminal flip NULLs progress); (2) inside a run
   transaction the run-row write is still the LAST statement, after the final
-  `onProgress`, so the lock is held only for the final instant —
+  `onProgress`, so the lock is held only for the final instant.
   HFA/ICEH/CSV's guarded in-transaction completion flip is the model. Both
   assume the run-row pool is `max ≥ 2` (a max=1 pool wedges on pool
   starvation instead). Worker connections carry
   `idle_in_transaction_session_timeout` (5 min) as the generic backstop for
   the whole idle-in-transaction class; when it fires, `begin` rejects AND the
   still-running transaction callback crashes the worker on its next statement
-  (postgres.js `nextWrite` on a dead socket) — the host crash listener is the
+  (postgres.js `nextWrite` on a dead socket). The host crash listener is the
   expected exit, not a bug.
 
 ## Checklist
@@ -230,7 +230,7 @@ the process; a worker that dies without clearing its tracker blocks future work.
       `instantiateWorker`) + `worker.ts` (standard preamble + `run`; no
       `self.close()` except the `alreadyRunning` guard)
 - [ ] Spawn site attaches `error` (with `e.preventDefault()`) + `message`
-      listeners — mandatory for both report-back models
+      listeners, mandatory for both report-back models
 - [ ] `createWorkerReadConnection` / `createBulkImportConnection`; `.end()` on
       every exit path (a `finally` may hold `.end()` calls only)
 - [ ] Report-back matches the need: `task_ended` (chains work) or

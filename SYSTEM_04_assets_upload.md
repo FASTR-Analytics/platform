@@ -12,28 +12,28 @@ globs:
 docs_absorbed:
 ---
 
-# S4 — Assets & Upload
+# S4: Assets & Upload
 
-The file-upload front door — a hand-rolled TUS resumable-upload server, the
-instance asset store it lands files in, and the client upload primitives —
+The file-upload front door: a hand-rolled TUS resumable-upload server, the
+instance asset store it lands files in, and the client upload primitives,
 shared by every feature that ingests a file. Written fresh from code 2026-07-17
-(first review cycle, review-only — no DOC_* absorbed).
+(first review cycle, review-only, no DOC_* absorbed).
 
 Boundaries: **serving** the stored bytes back out is S1's static middleware
 (`server/middleware/static.ts`, three extension-scoped tiers; downloads hit
 `GET /<fileName>` at root): image extensions are public unauthenticated
-(dashboard logos), data-file extensions (`.csv`/`.xlsx`/`.xls`/`.zip` —
+(dashboard logos), data-file extensions (`.csv`/`.xlsx`/`.xls`/`.zip`:
 import-wizard inputs live here, raw facility-level health data) require
 `can_view_data` OR `can_configure_data` (the assets page's own gate; admins
 pass), and everything else is behind bare `requireGlobalPermission()`. Asset
-*names* stay visible to all authenticated users (the SSE starting payload) —
-only the bytes are gated. What consumers **do** with an uploaded file is
+*names* stay visible to all authenticated users (the SSE starting payload).
+Only the bytes are gated. What consumers **do** with an uploaded file is
 theirs: the dataset import wizards are S6; structure/geojson/HFA-weights/
 indicator batch uploads are S5; report images and embeds are S12; batch user
 upload is S15; module runs read `assetsToImport` (e.g. `population.csv`) out of
 the assets dir at execution time (S8). S13's AI documents do **not** pass
-through here — they multipart-POST to the S13-owned `/ai/files` proxy. The
-`upload.ts` routes are raw Hono by design (custom TUS headers/handshake) — one
+through here. They multipart-POST to the S13-owned `/ai/files` proxy. The
+`upload.ts` routes are raw Hono by design (custom TUS headers/handshake), one
 of S1's enumerated off-registry endpoints; `assets.ts` is normal
 registry/`defineRoute`.
 
@@ -45,7 +45,7 @@ A minimal implementation of the TUS 1.0.0 resumable protocol (extensions:
 | Route                   | Guard                               | Role                                           |
 | ----------------------- | ----------------------------------- | ---------------------------------------------- |
 | `POST /upload`          | `requireGlobalPermission()` + `log` | create upload, return `Location: /upload/<id>` |
-| `GET /upload/:id`       | **none — deliberate**               | TUS HEAD resume check (`Upload-Offset`)        |
+| `GET /upload/:id`       | **none, deliberate**                | TUS HEAD resume check (`Upload-Offset`)        |
 | `PATCH /upload/:id`     | `requireGlobalPermission()` + `log` | append chunk at `Upload-Offset`                |
 | `DELETE /upload/:id`    | `requireGlobalPermission()` + `log` | cancel + remove temp file                      |
 | `OPTIONS /upload(/:id)` | none                                | CORS preflight, advertises the extensions      |
@@ -54,22 +54,22 @@ State is an **in-memory `Map`** of
 `{ id, filename, size, offset, createdAt,
 metadata, uploaderEmail }`; bytes
 stream into `<_ASSETS_DIR_PATH>/.tus-uploads/<uuid>`. A server restart forgets
-the map — the client's next HEAD gets a 404 and Uppy restarts the upload from
-zero (graceful, not resumed). Uploads older than 24 h are swept — but only map
+the map. The client's next HEAD gets a 404 and Uppy restarts the upload from
+zero (graceful, not resumed). Uploads older than 24 h are swept, but only map
 entries, and only when a new POST arrives (Open items).
 
 **The HEAD-via-GET quirk (load-bearing).** The resume check is registered with
 `.get()`, NOT `.on("HEAD", …)`: Hono's dispatch converts HEAD to GET before
 route matching, so a HEAD-registered route never matches, and without a `.get()`
 handler the request would fall through to `main.ts`'s catch-all redirect and
-break the protocol. It is also **unauthenticated by design** — the TUS client
+break the protocol. It is also **unauthenticated by design**: the TUS client
 probes upload status before it has credentials attached; the route leaks nothing
 but offset/length of a random UUID.
 
 **Filename safety.** The TUS `Upload-Metadata` filename is attacker-controllable
 and is later joined onto `_ASSETS_DIR_PATH`: `sanitizeUploadFilename` strips
 every path component and Windows separator, falling back to a generated name.
-The read-side twin is `resolveAssetFilePath` in `db/instance/assets.ts` — every
+The read-side twin is `resolveAssetFilePath` in `db/instance/assets.ts`. Every
 join of a client-supplied name onto the assets dir must go through it (it
 rejects separators and `..`).
 
@@ -83,8 +83,8 @@ carries `X-Upload-Complete` / `X-Upload-Filename`.
 (PLAN_IMPORT_FILE_INPUT_UNIFICATION). There is no wizard-temp TUS mode:
 every upload takes the asset path above, and the S6 wizards name their
 inputs by asset `fileName` (upload a new file or pick an existing one via
-`_file_upload_selector.tsx`). Import inputs persist after the run — nothing
-deletes them at finalize — and are managed on the assets page like any other
+`_file_upload_selector.tsx`). Import inputs persist after the run (nothing
+deletes them at finalize) and are managed on the assets page like any other
 asset.
 
 **Deferred-read integrity (`AssetFilePin` + `resolveAssetFileOrThrow`).** An
@@ -97,7 +97,7 @@ pin (`{size, mtimeMs}`, `lib/types/assets.ts`) on the run config; every
 deferred read (spawn sites, including across queue waits and review holds)
 re-checks the stored pin, so an overwrite-after-launch fails loudly instead
 of silently ingesting unpreviewed bytes. Stateless wizard-step reads pass
-`null` — they always want current bytes.
+`null`: they always want current bytes.
 
 ## The asset store (`db/instance/assets.ts` + `routes/instance/assets.ts`)
 
@@ -116,19 +116,19 @@ are admin-delete-only); admins delete anything. Deletion removes the file
 
 ## Client primitives
 
-- **`_uppy_file_upload.ts`** — `createUppyInstance(config)`: Uppy Dashboard
-  modal + TUS plugin (5 MB chunks, retry delays 0/1s/3s/5s, `withCredentials`,
-  `storeFingerprintForResuming: false` — resume works within one attempt, not
-  across page loads). Restrictions carry only `maxNumberOfFiles` (default 1; `0`
-  = unlimited, as the instance-assets page uses) — no type/size caps (Open
-  items). State is cleared on every modal open/close; `cleanupUppy` clears +
-  destroys on unmount.
-- **`_file_upload_selector.tsx`** — the shared upload-or-pick control: a
+- **`_uppy_file_upload.ts`** exports `createUppyInstance(config)`: Uppy
+  Dashboard modal + TUS plugin (5 MB chunks, retry delays 0/1s/3s/5s,
+  `withCredentials`, `storeFingerprintForResuming: false`, so resume works
+  within one attempt, not across page loads). Restrictions carry only
+  `maxNumberOfFiles` (default 1; `0` = unlimited, as the instance-assets page
+  uses). There are no type/size caps (Open items). State is cleared on every
+  modal open/close; `cleanupUppy` clears + destroys on unmount.
+- **`_file_upload_selector.tsx`** is the shared upload-or-pick control: a
   filtered `Select` over `instanceState.assets` plus an upload button. After a
   _new_ file uploads it shows "Processing upload…" and waits for the asset to
   appear in the T1 store via SSE before selecting it (re-uploads of an existing
   name select immediately). Used by the S5/S6/S12 wizards.
-- **`instance/instance_assets.tsx`** — the Assets admin page: type tabs
+- **`instance/instance_assets.tsx`** is the Assets admin page: type tabs
   (CSV/Excel/Images/ZIP/Other), size/modified/owner columns, per-row download
   (root-path `GET`, S1 static serve) and delete; delete buttons and the
   admin-only bulk delete mirror the server's ownership rule.
@@ -136,40 +136,40 @@ are admin-delete-only); admins delete anything. Deletion removes the file
 ## Contract
 
 One upload front door: anything that ingests a user file goes through TUS + the
-assets dir — don't add parallel upload endpoints (S13's Anthropic files proxy is
+assets dir. Don't add parallel upload endpoints (S13's Anthropic files proxy is
 the deliberate exception). Client-supplied asset names never touch the
 filesystem except through `sanitizeUploadFilename` (write) /
-`resolveAssetFilePath` (read). The asset list is filesystem-derived — a file
+`resolveAssetFilePath` (read). The asset list is filesystem-derived: a file
 placed in `_ASSETS_DIR_PATH` by any means IS an asset; `asset_metadata` is
 ownership annotation, not a registry.
 
 ## Open items
 
-- **Upload size/type caps** — the client Uppy config restricts only
+- **Upload size/type caps.** The client Uppy config restricts only
   `maxNumberOfFiles` (no `allowedFileTypes`/`maxFileSize`), and the server
   accepts any `Upload-Length` with no MIME/size check. Needs a per-file-type
   policy ruling first: these primitives also carry large dataset CSVs, so a
   blanket cap can't be picked from the geojson case alone.
-- **TUS temp-file sweep** — orphan cleanup only walks the in-memory upload Map
+- **TUS temp-file sweep.** Orphan cleanup only walks the in-memory upload Map
   and only on a new POST; temp files from crashed/restarted servers have no map
   entry and accumulate in `.tus-uploads` forever. Sweep the directory by mtime
   instead.
-- **Any user can overwrite any asset** — RULED accepted
+- **Any user can overwrite any asset.** RULED accepted
   (PLAN_IMPORT_FILE_INPUT_UNIFICATION §4.3, no versioning): completion
   `rename`s over an existing same-named file, last write wins, and the
   ownership upsert transfers delete rights to the overwriter. Launched import
   runs are protected by the byte pin; pre-launch, wizards re-parse on every
   upload. Files that feed module runs (`population.csv`) remain the known
   sharp corner.
-- **Same-name-overwrite residual windows — RULED accepted (Tim,
+- **Same-name-overwrite residual windows: RULED accepted (Tim,
   2026-08-07).** The byte pin covers launch→spawn only; the wizard-session
   window, the spawn→worker-open window, and bare-auth upload overwriting a
   read-gated file are all accepted residual risk (small trusted teams; worst
   case is a discardable bad import). Do not raise again.
-- **Zero-key guards throughout** — upload, list, and the delete route all use
+- **Zero-key guards throughout.** Upload, list, and the delete route all use
   bare `requireGlobalPermission()` ("any authenticated user"); S1's rule is to
   be deliberate about that. A `can_configure_data`-style key may fit.
 - **Cruft:** `deleteAssets`' handler re-checks
-  `Array.isArray(body.assetFileNames)` — the registry schema
+  `Array.isArray(body.assetFileNames)`, though the registry schema
   (`z.array(z.string())`) already guarantees it; the `onBeforeRequest` no-op
   hook in `_uppy_file_upload.ts`.

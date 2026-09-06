@@ -49,7 +49,7 @@ globs:
 docs_absorbed:
 ---
 
-# S11 — Visualization Authoring UI
+# S11: Visualization Authoring UI
 
 The live PO editor (edit/create/ephemeral modes), the visualization library, and
 PO CRUD with conflict resolution.
@@ -65,11 +65,11 @@ The `globs:` frontmatter above is the lint-enforced manifest
 `project_visualizations.tsx` + `project_metrics.tsx` + folder modals;
 forms_editors viz modals; server PO/folder CRUD
 (`db/project/{presentation_objects,visualization_folders}.ts` + the
-`visualization_folders` route file — the `presentation_objects` route file is
+`visualization_folders` route file: the `presentation_objects` route file is
 S9-owned, S11 a mandatory reader); lib config semantics
 (`normalize_po_config.ts`, `convert_visualization_type.ts`, the PO config type
 families, the conditional-formatting family). S11 is also a mandatory reader of
-`t2_presentation_objects.ts` (S9-owned — SYSTEMS.md §4.1); `withReplicant` lives
+`t2_presentation_objects.ts` (S9-owned, SYSTEMS.md §4.1); `withReplicant` lives
 in kernel-owned `lib/utils.ts` (S00).
 
 ## Contract
@@ -78,9 +78,9 @@ The three-mode editor (notably _ephemeral_ mode) is the authoring surface
 dashboards/slides/reports plug into; the AI plugs in via AIContext mutators, not
 ephemeral mode. The save path normalizes client-side and enforces the
 `expectedLastUpdated` conflict protocol; default visualizations are
-server-protected against update/delete. Reactivity is deep-tracked at both sites
-— the refetch effect (`trackStore(tempConfig.d)`) and the figureInputs memo
-(`JSON.stringify` over `tempConfig.s`/`.t`) — so new config fields need no
+server-protected against update/delete. Reactivity is deep-tracked at both
+sites, the refetch effect (`trackStore(tempConfig.d)`) and the figureInputs
+memo (`JSON.stringify` over `tempConfig.s`/`.t`), so new config fields need no
 wiring at either; the hand-enumerated dependency lists that used to live there
 (and regressed twice in one day) were deliberately removed. Do not add one back.
 
@@ -109,21 +109,21 @@ and the wizard flows.
 
 **Snapshot isolation.**
 [\_editor_snapshot.ts](client/src/components/_editor_snapshot.ts):
-`snap = structuredClone(unwrap(value))` — unwrap escapes the store proxy,
+`snap = structuredClone(unwrap(value))`: unwrap escapes the store proxy,
 structuredClone severs aliasing, so the open editor is frozen against live store
 churn and editor writes can't mutate the store. All 8 `snapshotForVizEditor`
 callers pass `projectStateSnapshot`; inside, the draft is cloned again
 (`createStore(structuredClone(poDetail.config))`). (`instanceDetailSnapshot` is
-emitted at every site but has zero consumers — Open item.)
+emitted at every site but has zero consumers. Open item.)
 
 ## Draft state & the refetch contract
 
 - **`tempConfig`** is a Solid store cloned from `poDetail.config`. The panel
   writes through **`manuallyUpdateTempConfig`**, which forwards to
   `setTempConfig` then fires `notifyAI({type: "edited_viz_locally"})`. Raw
-  `setTempConfig` is reserved for (a) the replicant auto-resolution commit-back
-  — wrapped in the `isAutoResolvingReplicant` flag so `needsSave` doesn't treat
-  it as a user edit — and (b) the AIContext registration (AI writes mark dirty
+  `setTempConfig` is reserved for (a) the replicant auto-resolution commit-back,
+  wrapped in the `isAutoResolvingReplicant` flag so `needsSave` doesn't treat
+  it as a user edit, and (b) the AIContext registration (AI writes mark dirty
   but don't echo an interaction back to the AI).
 - **`needsSave`**: a `trackStore(tempConfig)` effect (deep-tracks the whole
   store), skipping first run and auto-resolution; cleared only on successful
@@ -134,7 +134,7 @@ emitted at every site but has zero consumers — Open item.)
   `trackStore(tempConfig.d)` plus a tracked `runVersionKey` read so the preview
   refetches when module output changes mid-edit. The trackStore replaced a
   hand-maintained dependency list that regressed twice in one day when fields
-  moved between nesting levels — every current and future `d` field is
+  moved between nesting levels. Every current and future `d` field is
   fetch-tracked automatically. Superseded fetches are dropped via a monotonic
   `itemsFetchRunId`.
 - **The figureInputs memo** (inner, ~:1403) deep-tracks ALL of `tempConfig.s`
@@ -142,8 +142,8 @@ emitted at every site but has zero consumers — Open item.)
   nested property, including in-place-reconciled collaborator edits). Net
   contract: `d.*` changes refetch; `s.*`/`t.*` changes re-render locally only.
 - The items generator auto-resolves an unset/invalid replicant to the first
-  valid option (`resolveDefaultReplicant`) on a **fresh config copy** — it never
-  mutates the passed unwrapped store — and the editor commits the resolved value
+  valid option (`resolveDefaultReplicant`) on a **fresh config copy** (it never
+  mutates the passed unwrapped store) and the editor commits the resolved value
   back into the draft, guarded on inequality.
 - Preview guards before render: duplicate display-slot check
   (`hasDuplicateDisaggregatorDisplayOptions` on the effective config), "You must
@@ -154,9 +154,9 @@ emitted at every site but has zero consumers — Open item.)
 
 - **Normalization is client-side only.** `getConfigForSave()` =
   `normalizePOConfigForStorage(unwrap(tempConfig), resultsValue)`; the server
-  route only re-parses via `presentationObjectConfigSchema.parse` — it does not
-  normalize. Save-as-new normalizes a second time (idempotent — this also covers
-  the AI draft-preview path, which opens the same modal).
+  route only re-parses via `presentationObjectConfigSchema.parse`. It does not
+  normalize. Save-as-new normalizes a second time (idempotent, and it also
+  covers the AI draft-preview path, which opens the same modal).
 - **Conflict protocol.** `saveFunc` posts
   `expectedLastUpdated =
   lastKnownServerTimestamp()`; the server
@@ -185,7 +185,7 @@ create/ephemeral), getTempConfig, setTempConfig}`;
 S13 tools (`ai_tools/tools/visualization_editor.tsx`) read the live draft
 (`get_viz_editor`) and write through `update_viz_config`, whose input schema is
 **derived from the storage schemas** and whose validation runs entirely before
-any store write (a throw means nothing changed); the AI has **no save path** —
+any store write (a throw means nothing changed); the AI has **no save path**:
 persistence is exclusively the human Save button. `project_visualizations`,
 `project_metrics`, and the slide editor pass `returnToContext`; the dashboard
 and report editors don't (Open item).
@@ -197,33 +197,33 @@ rendered at the canonical frame supersampled to `FIGURE_EXPORT_WIDTH_PX` 1920
 (not the on-screen reflow canvas); formatted table CSV via S10's
 `getTableExportAoa` with BOM; underlying-data CSV (re-queries items); JSON
 definition; a results-file viewer. The multi-replicant branch is disabled
-(`allReplicants` hard-coded false — Open item). The JSON definition serializes
-`p.poDetail.config` — the open-time snapshot — so it exports the pre-edit config
+(`allReplicants` hard-coded false, Open item). The JSON definition serializes
+`p.poDetail.config`, the open-time snapshot, so it exports the pre-edit config
 even right after a save (Open item).
 
 ## The add-visualization wizard
 
-`AddVisualization` is a 3-step stepper — **Metric** (module sidebar +
+`AddVisualization` is a 3-step stepper: **Metric** (module sidebar +
 `MetricCard` grid; a card is selectable only when single-variant and
 `status === "ready"`; multi-variant metrics render per-variant chips) →
 **Presets** (`PresetSelector`: one live-rendered `PresetPreview` per
 `metric.vizPresets` entry + an always-appended `CUSTOM_OPTION` card; selecting a
 real preset skips step 3) → **Configure** (five `TypeCard`s gated by
-`get_PRESENTATION_SELECT_OPTIONS` — timeseries needs a period column, map needs
+`get_PRESENTATION_SELECT_OPTIONS`: timeseries needs a period column, map needs
 an admin-level disaggregation; table/chart/pie are always offered; required
 disaggregations are checked+disabled; `FILTER_ONLY_DISAGGREGATION_OPTIONS`
 excluded). Preset saves resolve `t` TranslatableStrings via `t3` **at creation
-time** — stored PO text fields are plain strings. Custom saves go through
+time**. Stored PO text fields are plain strings. Custom saves go through
 `getStartingConfigForPresentationObject` (type defaults from `VIZ_TYPE_CONFIG`,
 display slots assigned via `getNextAvailableDisaggregationDisplayOption`). **The
-wizard never persists** — it closes with `{label, resultsValue, config}` and its
+wizard never persists**. It closes with `{label, resultsValue, config}` and its
 five callers decide: library/metrics open the editor in create mode;
 dashboard/report/slide editors build a figure block directly.
 
 ## The library page
 
 `ProjectVisualizations` (Pattern C list page) + `PresentationObjectPanelDisplay`
-(995 LOC — group sidebar + card grid):
+(995 LOC, group sidebar + card grid):
 
 - **Grouping modes** `folders | module | metric | flat`, persisted in `t4_ui`
   signals (`vizGroupingMode`, `vizSelectedGroup`, `vizSortMode`,
@@ -233,9 +233,9 @@ dashboard/report/slide editors build a figure block directly.
   module/metric/variant per mode.
 - **Selection & bulk ops** via panther `createSelectionController` (selection
   changes notify the AI): move-to-folder, edit-common-properties (batch
-  period-filter — uses the FIRST viz's period bounds for the whole selection,
+  period-filter: uses the FIRST viz's period bounds for the whole selection,
   Open item), create-slides (blocked for multi-select with replicants),
-  duplicate, delete (parallel per-id). Folder CRUD (rename/color/delete — delete
+  duplicate, delete (parallel per-id). Folder CRUD (rename/color/delete: delete
   moves POs to General via FK `ON DELETE SET NULL`).
 - **Card components:** `PresentationObjectMiniDisplay` = live thumbnail
   (versioned on `lastUpdated.presentation_objects[id]`, monotonic run-id guard,
@@ -253,7 +253,7 @@ duplicate (copies the raw config string verbatim, never default), list
 strict-parses every row), detail (rebuilds `resultsValue` via metric
 resolution), label/config/delete with default-viz refusals, the batch
 period-filter transaction (pre-checks and refuses default rows), and
-`getVisualizationsListForAI` — S13-serving code living in this S11 file (its
+`getVisualizationsListForAI`, S13-serving code living in this S11 file (its
 sole caller is `routes/project/ai_tools.ts`). Folder CRUD in
 `db/project/visualization_folders.ts` + 6 routes in
 [routes/project/visualization_folders.ts](server/routes/project/visualization_folders.ts),
@@ -264,7 +264,7 @@ all guarded `can_configure_visualizations` with `preventAccessToLockedProjects`.
 - **`normalizePOConfigForStorage`**: drops empty `filterBy` entries, collapses
   empty `valuesFilter`, canonicalizes the roll-up off-state to _both entry
   fields absent_ (`rollup`/`rollupPosition` kept only on the entry the
-  `getEffectiveRollupDimension` gate selects). Deliberately save-time-only — the
+  `getEffectiveRollupDimension` gate selects). Deliberately save-time-only: the
   editor does not eagerly clear the flag on transient gate closures.
 - **`getEffectivePOConfig`**: filters ineffective disaggregators with four
   recorded reasons (`filtered_to_one_value`, `single_value`, `single_period`,
@@ -277,7 +277,7 @@ all guarded `can_configure_visualizations` with `preventAccessToLockedProjects`.
   display slots through `VIZ_TYPE_CONFIG[newType].disDisplayOptFallbacks`,
   re-adds required disaggregations, resets content/style to type defaults.
   `usedOpts` is seeded with the destination's `defaultValuesDisDisplayOpt`
-  BEFORE remapping — so a type's default values slot must not be a target of its
+  BEFORE remapping, so a type's default values slot must not be a target of its
   own fallbacks, or the fallback is dead on arrival and the dimension gets
   shunted by the collision escape. This is why pie's values default is `cell`,
   not `series` (its `mapArea` fallback points at `series`, so a converted map's
@@ -292,11 +292,11 @@ all guarded `can_configure_visualizations` with `preventAccessToLockedProjects`.
   conversion, since five coverage indicators repeat a mark, they do not
   partition a whole.
 - **The pie type**: slices are panther's series axis and `indicator` is
-  panther's repeat dimension — N pies tiled INSIDE each sub-chart, costing no
+  panther's repeat dimension: N pies tiled INSIDE each sub-chart, costing no
   disaggregation axis (slots: `series` = Slices, `indicator` = Pies,
   `cell` = Grid, `row`/`col`, `replicant`). `s.sortIndicatorValues` is REUSED as
-  pie's slice sort (`sortSeriesValues`), which is why pie's `styleResets` —
-  unlike map's — do not reset it (resets apply on switching TO a type and would
+  pie's slice sort (`sortSeriesValues`), which is why pie's `styleResets`,
+  unlike map's, do not reset it (resets apply on switching TO a type and would
   wipe the sort on every entry). Both the `series` and
   `indicator` axes route through the `getAxisSort` dispatcher, which gives
   `indicator_common_id` the dictionary order on whichever axis it occupies. Four optional `s` fields: `pieInnerRadiusRatio`
@@ -306,20 +306,20 @@ all guarded `can_configure_visualizations` with `preventAccessToLockedProjects`.
   `pieCompletionMode` and `pieShowCenterValue`. Roll-up is excluded
   (`isRollupCandidateDimension`), CF is not offered (slices color via the series
   sentinel, not the values sentinel), calendar time dims are never offered, and
-  `time_point` is allowed (survey rounds take a display slot — one pie per round
-  — never pooled, same exception as map).
+  `time_point` is allowed (survey rounds take a display slot, one pie per round,
+  never pooled, same exception as map).
 - **Completion pies**: `isPieCompletionMode(config, effectiveFormatAs)` in
-  `presentation_objects.ts` is THE gate — the data config's
+  `presentation_objects.ts` is THE gate: the data config's
   `total: PIE_COMPLETION_TOTAL` and the style's `centerLabel` must both consult
   it, or the hole reports a share against a denominator the geometry never used.
   The envelope is `1`, not `100`: percent values are 0-1 fractions app-wide. It
   is checked against the EFFECTIVE format, so a flag stranded by a format change
   degrades to a plain cell-sum pie rather than drawing every count as a sliver.
   The editor's "Show each value against 100%" checkbox is gated on that same
-  effective format, not on the metric's stored `formatAs` — gating on the
+  effective format, not on the metric's stored `formatAs`. Gating on the
   stored value is what made the toggle unreachable for every HFA pie back when
   HFA metrics declared `"number"` (they now declare `"indicator"`; the
-  effective format resolves per display — SYSTEM_10 § Effective format).
+  effective format resolves per display, SYSTEM_10 § Effective format).
   Without it panther defaults to `total: "sum"` (each pie normalized by its own
   slices). The unfilled arc is panther's `remainder` track; slice data labels
   drop the series name when the slice axis carries the
@@ -328,16 +328,16 @@ all guarded `can_configure_visualizations` with `preventAccessToLockedProjects`.
 - **PO config schema** (`_presentation_object_config.ts`): `d` = `configDStrict`
   (shared with the module-authoring repo), `s` = all-required flat style incl.
   the `cf*` fields, `t` = six plain-string/number fields. Reads are strict-throw
-  (`parsePresentationObjectConfig`) — no permissive fallback. Duplicate display
+  (`parsePresentationObjectConfig`), no permissive fallback. Duplicate display
   slots are allowed in storage; the UI warns and blocks render.
 - **Conditional formatting**: storage = 16 flat `cf*` fields
   (`conditional_formatting_standalone.ts`, vendored to wb-fastr-modules);
   semantics = the `ConditionalFormatting` union with `selectCf` (flat→union) /
   `flattenCf` (union→flat) bridges and display-time `deriveBucketLabels`. The
   editor works purely on the union; `applyCfToTempConfig` fans the flat fields
-  into batched store writes. `legacy_cf_presets.ts` maps the 9 legacy preset ids
-  — consumed by the S2 po_config transform (Blocks 5/6) and as the thresholds
-  editor's preset dropdown.
+  into batched store writes. `legacy_cf_presets.ts` maps the 9 legacy preset
+  ids, consumed by the S2 po_config transform (Blocks 5/6) and as the
+  thresholds editor's preset dropdown.
 - **Replicant helpers**: `getReplicateByProp` is the filter-aware single source
   of truth for "active replicant" (safe on raw config);
   `getDisaggregatorDisplayProp` / `hasDuplicateDisaggregatorDisplayOptions` are
@@ -359,23 +359,23 @@ parent (the slide modal's "All replicants (N)" count).
 ## Open items
 
 - **Batch edit-common-properties uses the first viz's period bounds** for a
-  heterogeneous selection — a shared periodFilter may be format-mismatched for
+  heterogeneous selection: a shared periodFilter may be format-mismatched for
   other metrics and later fail the schema refine.
 - **AI-created unfiled vizzes are invisible in folders mode** (excluded from
   `_defaults`/`_unfiled`, absent from user folders); user-folder counts
   inconsistently don't exclude `createdByAI`. Intentionality needs a ruling.
-- **AI context not restored after dashboard/report ephemeral edits** — both omit
+- **AI context not restored after dashboard/report ephemeral edits**: both omit
   `returnToContext`, so closing resets to `viewing_visualizations` while the
   user is still inside the report/dashboard editor (overlaps the parked
   view-mode-tools refactor).
-- **JSON-definition download exports the open-time config** — after a save it
+- **JSON-definition download exports the open-time config**: after a save it
   still serializes the pre-edit `p.poDetail.config`.
 - **Edit-mode close type hole**: edit-mode "Save as new" closes with `{created}`
   (outside `EditModeReturn`); benign today, unenforced contract.
-- **Duplicate cold fetch of PO detail in edit mode** — two concurrent
+- **Duplicate cold fetch of PO detail in edit mode**: two concurrent
   `getPODetailFromCacheorFetch` calls; the reactive-cache inflight dedupe is
   check-then-set, so a cold open can double-fetch.
-- **Custom value orders are never pruned — ruling pending.**
+- **Custom value orders are never pruned: ruling pending.**
   `normalizePOConfigForStorage` canonicalizes roll-up flags at save but does not
   touch `s.customValueOrder`, so entries survive for dimensions that were
   removed from the display and ids the data no longer returns. Current behavior
@@ -394,7 +394,7 @@ parent (the slide modal's "All replicants (N)" count).
   `instanceDetailSnapshot` (cloned at all 9 sites, read nowhere); the
   `allReplicants` download branch.
 - **Stale white-fill comment**: inner:555-558 claims `getFigureAsCanvas` fills
-  white pending a panther flag — current panther no longer fills; verify
+  white pending a panther flag. Current panther no longer fills; verify
   transparent PNG end-to-end and update or delete.
 - **Duplicated ~45-line fetch effect** in the two `ReplicateByOptions*`
   components; `MetricsByModule` type duplicated in `project_metrics.tsx`.

@@ -28,24 +28,24 @@ globs:
   - server/tests/mcp_tools_source_header_test.ts
 ---
 
-# S13 — AI Copilot & Usage Governance
+# S13: AI Copilot & Usage Governance
 
 The Anthropic proxies with token-limit governance, plus the browser-side
 copilot: 42 client-executed tools mutating app state only through the live view
 context of panther's view registry. Reviewed against code 2026-07-07 (first
 review cycle; absorbed and deleted DOC_AI_PROXY_AND_USAGE_GOVERNANCE and
-DOC_AI_TOOL_SCHEMAS — the authoring recipe from the latter now lives in
+DOC_AI_TOOL_SCHEMAS, the authoring recipe from the latter now lives in
 [PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md)); AI-surface prose
 re-verified 2026-07-22 after both assistants adopted panther's
 views/gating/interactions/approval system. Two same-day fix batches
 (governance + panther turn-logic, then the client-copilot findings) are folded
 into the prose; remaining triaged findings are in Open items below.
 
-Boundaries: the chat engine — request shaping, turn/continuation logic,
-tool-execution loop, display registry, conversation persistence — is panther's
+Boundaries: the chat engine (request shaping, turn/continuation logic,
+tool-execution loop, display registry, conversation persistence) is panther's
 `_305_ai` + `_110_ai_types` (vendored; fixes land in the panther repo and
 re-sync). Guards themselves are **S1**; the daily token counters are columns on
-`users` (`db/instance/users.ts` is S1-owned with S13 a mandatory reader —
+`users` (`db/instance/users.ts` is S1-owned with S13 a mandatory reader, per
 SYSTEMS.md §4.1). The unguarded health routes that surface usage are **S15**.
 The HFA indicator-manager assistant client
 (`client/src/components/indicator_manager_hfa/ai/**`) is an **S5-owned
@@ -60,21 +60,21 @@ the query pipeline the data tools call is **S9**.
    Anthropic Messages API; the server forwards to Anthropic, enforces token
    limits, logs usage, and streams the response straight back. All model calls
    traverse a proxy; nothing else server-side talks to Anthropic.
-2. **Tools run over the same serverActions the human UI uses** — in the browser
+2. **Tools run over the same serverActions the human UI uses**, in the browser
    SPA, or headlessly at the remote MCP endpoint (`server/mcp/`, mounted at
-   `/mcp`) — so the AI inherits the user's permissions for free (Clerk session
+   `/mcp`), so the AI inherits the user's permissions for free (Clerk session
    in the SPA, personal access token at `/mcp`, whose actions dispatch
-   in-process through the full PAT middleware chain — see S1) and can never do
+   in-process through the full PAT middleware chain, see S1) and can never do
    what the user can't. **Two classes of tool, one env seam** (2026-08-19):
    `lib/ai_tools` holds exactly the tools BOTH surfaces expose (metrics ×2,
-   methodology docs ×2, `get_info`) over `AIToolEnv` — a package data source
+   methodology docs ×2, `get_info`) over `AIToolEnv`: a package data source
    bound at construction (items, value info; no project or run id ever
    crosses the seam or appears in a schema). Shared tool OUTPUT states only
    what both surfaces can act on: `from_metric` authoring guidance is the SPA
    prompt's and block schema's contract, never a shared formatter's; the
    metrics listing keeps its per-metric presets (grain, filters, replicant
    requirement) as reference data about the metric. `get_info` topics are
-   inputs, split by location like tools: `INFO_TOPICS` (lib, shared —
+   inputs, split by location like tools: `INFO_TOPICS` (lib, shared:
    `iceh`) and the client's `SPA_INFO_TOPICS` (shared + the equity-profile
    report recipe); each surface passes its ONE list to both
    `getSharedToolsForInfo` and `buildSystemPrompt`, so tool whitelist and
@@ -82,14 +82,14 @@ the query pipeline the data tools call is **S9**.
    projectId)`,
    cache-backed, the attached package resolved from project T1 at call time;
    `ClientAIToolEnv` adds the module script/logs/settings getters and the
-   project-content getters) and concatenates its own client tools (module
-   internals ×4 — `/mcp` is for seeing results, ruled 2026-08-19 — project
-   content — visualizations, slide decks, reports, `get_slide` — plus
-   editors, navigation, drafts) in
-   [build_tools.ts](client/src/components/project_ai/build_tools.ts); `/mcp`
+   project-content getters) and concatenates its own client tools in
+   [build_tools.ts](client/src/components/project_ai/build_tools.ts): module
+   internals ×4 (`/mcp` is for seeing results, ruled 2026-08-19), project
+   content (visualizations, slide decks, reports, `get_slide`), plus
+   editors, navigation, drafts. `/mcp`
    binds the instance's **pinned** results package (national scope, run-keyed
    instance routes, gate = instance `can_view_data`) and exposes only the shared
-   tools + `get_overview` — 6 read-only tools, no `projectId`, no writes.
+   tools + `get_overview`: 6 read-only tools, no `projectId`, no writes.
    **Interpretation context rides the shared reads, not extra tools**
    (2026-08-19): `get_metric_data` fetches value info beside the items and
    states the metric's full period coverage plus, per indicator in the
@@ -97,7 +97,7 @@ the query pipeline the data tools call is **S9**.
    display units, mirroring the scorecard's inclusive cutoff rule);
    `buildInstanceContextSections` states the instance calendar and
    `buildPackageGroundingSections` the package's period coverage (finest
-   physical time column; `/mcp` only — the SPA holds no manifest). Nothing
+   physical time column; `/mcp` only, since the SPA holds no manifest). Nothing
    about modules, provenance, or unavailable metrics goes into the AI
    context: it does not help read a metric (Tim 2026-08-19). A separate
    indicator-dictionary tool was considered and dropped as redundant.
@@ -107,46 +107,46 @@ the query pipeline the data tools call is **S9**.
    panther's `bindAITool` because panther caches a principal's tool set per
    core. The catalog is fixed per process: a client sees a catalog change only
    when it re-lists (a chat client: refresh the connector's tools, or a new
-   conversation — neither claude.ai nor Claude Code reliably re-lists on a new
-   conversation alone), and the server does not advertise `listChanged` (panther
-   ruling, DOC_AI_CHAT §Headless tools). So results are self-identifying
+   conversation, though neither claude.ai nor Claude Code reliably re-lists on
+   a new conversation alone), and the server does not advertise `listChanged`
+   (panther ruling, DOC_AI_CHAT §Headless tools). So results are self-identifying
    instead: every package-tool result starts with a
    `Source: results package "<label>" (generated <createdAt>)` line naming the
    run it read (`withSourceHeader` in `context_cache.ts`, applied where run and
-   session tools meet — never in `lib/ai_tools`, which stays surface-agnostic;
+   session tools meet, never in `lib/ai_tools`, which stays surface-agnostic;
    failures pass through unheadered), and `serverInfo.version` reports the
    deployed `SERVER_VERSION` (hygiene: no client re-lists on it). A client's
    re-list behaviour is observed from panther's per-request stderr line,
    `[panther mcp] fastr: <era> <method> …`; `./mcp_probe <origin> --info` shows
    the handshake. The system prompt splits the same way: shared grounding blocks
    in `lib/ai_tools/build_system_prompt.ts`, each surface assembling its own
-   context — the SPA's assembled prompt is byte-stable across navigation
+   context. The SPA's assembled prompt is byte-stable across navigation
    (prompt-cache breakpoint).
-3. **Editors expose live mutators via the view registry's context** — each
+3. **Editors expose live mutators via the view registry's context**: each
    editing view's live context carries the editor's store getters/setters
    ([ai_views.ts](client/src/components/project_ai/ai_views.ts)), so the AI
    edits exactly the same in-memory editor state the user is looking at, never a
    parallel copy.
 4. **Anthropic shapes in, Anthropic shapes out.** The proxies return
    Anthropic-shaped bodies and errors (not the `APIResponse` envelope) because
-   the client Anthropic SDK parses them — the enumerated exception to the
+   the client Anthropic SDK parses them, the enumerated exception to the
    envelope rule (S1).
 5. **AI input schemas derive from storage schemas** (`configDStrict` et al.) so
-   AI-built configs are storage-compatible by construction — see
+   AI-built configs are storage-compatible by construction. See
    [PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md).
 
 ## The proxies
 
 One shared handler,
-[anthropic_messages_proxy.ts](server/routes/anthropic_messages_proxy.ts) —
-governance, usage logging, and beta policy live there so the two mounts cannot
-drift — behind two thin raw Hono routes (deliberately outside the S1 route
+[anthropic_messages_proxy.ts](server/routes/anthropic_messages_proxy.ts)
+(governance, usage logging, and beta policy live there so the two mounts cannot
+drift), behind two thin raw Hono routes (deliberately outside the S1 route
 registry), mounted in [main.ts:145-147](main.ts#L145-L147):
 
 |                        | Project proxy                                                                                                              | Instance proxy                                                                                                  |
 | ---------------------- | -------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | Route                  | `POST /ai/v1/messages` ([ai_proxy.ts](server/routes/project/ai_proxy.ts))                                                  | `POST /ai-instance/v1/messages` ([ai_proxy.ts](server/routes/instance/ai_proxy.ts))                             |
-| Guard                  | `requireProjectPermission()` — **no specific permission**; any approved project member can spend tokens                    | `requireGlobalPermission("can_configure_data")`                                                                 |
+| Guard                  | `requireProjectPermission()` with **no specific permission**; any approved project member can spend tokens                 | `requireGlobalPermission("can_configure_data")`                                                                 |
 | Usage log `project_id` | `ppk.projectId`                                                                                                            | `null`                                                                                                          |
 | Client                 | project copilot ([defaults.ts:22](client/src/components/project_ai/ai_configs/defaults.ts#L22), sends `Project-Id` header) | HFA indicator-manager assistant ([sdk_client.ts](client/src/components/indicator_manager_hfa/ai/sdk_client.ts)) |
 
@@ -164,7 +164,7 @@ The shared flow:
 4. **Beta headers**: `files-api-2025-04-14` computed when any message carries a
    `document` block, merged with client-supplied `anthropic-beta` values
    **filtered through the `FORWARDABLE_BETAS` allowlist** (web-fetch, files-api,
-   structured-outputs — the set panther actually sends; SDK ≥0.110 sends betas
+   structured-outputs: the set panther actually sends; SDK ≥0.110 sends betas
    via the header, not the body). Unknown client betas are dropped so users
    can't enable cost-changing betas under the same token limits.
 5. `fetch(_ANTHROPIC_API_URL)`, `anthropic-version: 2023-06-01`. The SDK's
@@ -175,23 +175,23 @@ The shared flow:
    input/cache token counts; `message_delta.usage` is **cumulative** for the
    whole response and overrides every non-null field (server-tool turns run
    multiple internal sampling iterations and only the delta carries the true
-   input totals — assign, never add). Accounting settles exactly once via an
+   input totals: assign, never add). Accounting settles exactly once via an
    idempotent `settle()` wired to both `flush()` (graceful completion) and the
-   transformer's `cancel()` hook (client abort — Stop button, tab close), so
+   transformer's `cancel()` hook (client abort: Stop button, tab close), so
    aborted streams log their partial counts instead of nothing. (Deno's
-   `Transformer` lib type predates `cancel`; the runtime honors it — empirically
+   `Transformer` lib type predates `cancel`; the runtime honors it, empirically
    verified.)
 8. **Non-streaming**: parse `data.usage`, same log + increments.
-9. Increment amount is `inputTokens + outputTokens` only — cache tokens are
+9. Increment amount is `inputTokens + outputTokens` only. Cache tokens are
    logged but never counted against limits (an implicit policy; Open items). The
    daily increment runs even for `unlimitedAi` users (tracked, never enforced);
-   the weekly increment is skipped for them — be deliberate about which counters
+   the weekly increment is skipped for them. Be deliberate about which counters
    unlimited users should affect.
 
 **Governance storage.** Daily counter = columns on `users`
 ([users.ts:279-311](server/db/instance/users.ts#L279-L311), S1 seam): the read
 compares the stored date to today in JS UTC, the write uses Postgres
-`CURRENT_DATE` — identical only while the DB session runs UTC. Weekly counter =
+`CURRENT_DATE`, identical only while the DB session runs UTC. Weekly counter =
 `instance_weekly_token_usage` upserted on `date_trunc('week', CURRENT_DATE)`
 ([ai_usage_logs.ts:4-20](server/db/instance/ai_usage_logs.ts#L4-L20)). Per-call
 rows = `ai_usage_logs` (email, nullable project_id, model, 4 token counts).
@@ -203,7 +203,7 @@ membership or `users.unlimited_ai`
 `_WEEKLY_TOKEN_LIMIT` are `parseInt`-or-`null`, with a boot-time throw on an
 unparseable value ([exposed_env_vars.ts:142](server/exposed_env_vars.ts#L142));
 `null` = disabled. All logging and increments are `.catch(() => {})`
-fire-and-forget — accounting is best-effort, not transactional, and the limits
+fire-and-forget. Accounting is best-effort, not transactional, and the limits
 are check-before / increment-after, so concurrent requests can overshoot: a
 courtesy bound, not a hard one.
 
@@ -218,18 +218,18 @@ envelope shape on the surface: guard rejections are `{success:false, err}` at
 
 **Health surfacing (S15).** `GET /ai_usage` (full `SELECT *`, optional `since`),
 `/ai_weekly_usage`, `/ai_limit_hits`
-([health.ts:168-186](server/routes/instance/health.ts#L168-L186)) — health
+([health.ts:168-186](server/routes/instance/health.ts#L168-L186)). Health
 routes are public by design, but `/ai_usage` returns per-user emails and
 per-call behavior, unbounded (Open items).
 
 ## The Files proxy
 
-[ai_files.ts](server/routes/project/ai_files.ts) — three raw routes, all
+[ai_files.ts](server/routes/project/ai_files.ts): three raw routes, all
 `requireProjectPermission()`, proxying the Anthropic Files API with the
 files-api beta header. `POST /ai/files` is **not** a client-upload passthrough:
 the body is `{assetFilename}`, the server reads that file from the instance
 assets dir on disk (traversal-guarded via `resolveAssetFilePath`) and multiparts
-it to Anthropic — hardcoded as `application/pdf` regardless of actual type
+it to Anthropic, hardcoded as `application/pdf` regardless of actual type
 (:45). `GET`/`DELETE
 /ai/files/:file_id` pass through by id with no scoping of
 ids to the project. Uploaded files are referenced as `document` blocks in later
@@ -241,7 +241,7 @@ ids to the project. Uploaded files are referenced as `document` blocks in later
 whole project UI (inside `ProjectSSEBoundary`, remounted per project via keyed
 `?p=` match, so the captured `projectId` is safe). It builds one panther
 `AIChatProvider` config (index.tsx:110-119), validated in dev by panther's
-no-mount construction check — both assistants call
+no-mount construction check: both assistants call
 `validateAIChatConfig(config)` under `import.meta.env.DEV` at config assembly
 ([index.tsx:121-123](client/src/components/project_ai/index.tsx#L121-L123); HFA
 [ai/index.tsx:37-39](client/src/components/indicator_manager_hfa/ai/index.tsx#L37-L39)):
@@ -261,16 +261,16 @@ no-mount construction check — both assistants call
   settings panel exposes model + max_tokens (`adjustable`; `allowedModels`:
   opus-4-8, opus-4-6, sonnet-4-6, haiku-4-5,
   [chat_pane.tsx:156](client/src/components/project_ai/chat_pane.tsx#L156)); the
-  allowlist is client-side only — the proxy forwards any `model` verbatim (Open
+  allowlist is client-side only. The proxy forwards any `model` verbatim (Open
   items).
-- **builtInTools** = `{webSearch: true, webFetch: true}` — Anthropic server-side
+- **builtInTools** = `{webSearch: true, webFetch: true}`: Anthropic server-side
   tools, resolved per model by panther (dynamic `_20260209` variants on 4.6+,
   basic + beta header otherwise). Currently unrestricted: no `max_uses` /
   `allowed_domains` / `max_content_tokens` (Open items).
-- **scope** = `projectId` — keys panther's conversation registry (IndexedDB) and
+- **scope** = `projectId`: keys panther's conversation registry (IndexedDB) and
   persisted settings (`panther-ai-settings-{projectId}`).
-- **system** = `buildSystemPromptForContext` memo (byte-stable across navigation
-  — below); **getDocumentRefs** from `useAIDocuments`; **viewController** =
+- **system** = `buildSystemPromptForContext` memo (byte-stable across navigation,
+  see below); **getDocumentRefs** from `useAIDocuments`; **viewController** =
   `projectAIViewController` (below).
 
 The chat pane (`ConsolidatedChatPane`,
@@ -279,7 +279,7 @@ in a `FrameRightResizable` panel toggled by `showAi()` (T4 UI state) and
 registers three custom renderers, keyed to panther's `DisplayRegistry`:
 `toolError`, `systemNotice` (refusals/truncation/context-exceeded/ continuation
 caps arrive as `system_notice` items), and `userText`
-(`SaveableUserTextRenderer` — adds save-to-prompt-library, strips ephemeral
+(`SaveableUserTextRenderer`: adds save-to-prompt-library, strips ephemeral
 markers from display).
 
 **The view registry.**
@@ -297,13 +297,13 @@ typed `Record<TabOption, …>` makes a forgotten new tab a typecheck failure), a
 the four editors call `setView` on mount and
 `restoreProjectAIView(returnToContext)` on close (the nested-editor stack).
 Per-view `instructions` (default ephemeral delivery) carry what used to be the
-per-mode prompt switch plus the live bits the old mode string exposed — entity
+per-mode prompt switch plus the live bits the old mode string exposed: entity
 ids (deckId/slideId/vizId/reportId), the deck's selected slide ids, and the
 report editor's CodeMirror selection preview
 ([ai_views.ts:147-181](client/src/components/project_ai/ai_views.ts#L147-L181)).
 The engine delivers them as typed ephemeral sections stored on the turn (view
 label → view instructions → interactions digest), rendered as one `<<<[…]>>>`
-block on the latest carrier only — a write-only wire, one format for every
+block on the latest carrier only: a write-only wire, one format for every
 model.
 
 **Interactions and echo suppression.**
@@ -314,9 +314,9 @@ pendingInteractions queue + `reduceInteractions` pipeline. Producers call
 presentation_objects / slide_decks →
 [index.tsx:75-108](client/src/components/project_ai/index.tsx#L75-L108)) and the
 editors/selection UIs (`edited_*_locally`, `selected_*`, and
-`draft_added_to_deck` — the accepted-draft signal the model would otherwise
+`draft_added_to_deck`, the accepted-draft signal the model would otherwise
 never hear, since the write's own SSE echo is marked as an AI edit). The engine
-owns the transactional drain at turn creation (restored on a failed send —
+owns the transactional drain at turn creation (restored on a failed send, so
 entries are never lost or double-delivered) and the reduction pipeline
 (`relevantIn` / per-entry `filter` / coalesce per id), plus a coalesced
 `__navigation` line. The old "SSE echoes the AI's own tool edits" defect is
@@ -324,11 +324,11 @@ fixed in the general case: every persist-path write tool marks `slide:`/`deck:`
 echo keys via `markAIEdit`, so the AI's own server writes are dropped at drain
 (TTL-scoped, either-order); `visualization_updated` carries a `viz:` echo key,
 but no copilot tool persists a presentation object directly (viz edits stay
-in-editor via `setTempConfig`) — the collab-checkpoint residual is in Open
+in-editor via `setTempConfig`). The collab-checkpoint residual is in Open
 items. Because the controller is a module singleton, `Project` calls
 `clearInteractionLog()` at mount
-([project/index.tsx:70-75](client/src/components/project/index.tsx#L70-L75)) —
-the keyed `?p=` match remounts it per project switch, and without the clear the
+([project/index.tsx:70-75](client/src/components/project/index.tsx#L70-L75)).
+The keyed `?p=` match remounts it per project switch, and without the clear the
 previous project's retained actions would arrive in the new project's first
 digest as fake user activity.
 
@@ -345,28 +345,28 @@ viz editor), navigation, and draft previews. Every tool declares a `kind`
 **Gating is declarative.** The editor tools are standalone
 `createAITool({viewRegistry: projectAIViews, availableIn: […]})` declarations:
 the engine refuses out-of-view _executions_ before the handler runs (all tools
-stay in the API request — definitions are cached prompt prefix), and it injects
+stay in the API request: definitions are cached prompt prefix), and it injects
 the live view state (params + context) into the handler, typed to the declared
-views — the ~23 hand-rolled `aiContext()` mode guards are deleted. Two
+views. The ~23 hand-rolled `aiContext()` mode guards are deleted. Two
 deliberate exceptions: `get_slide` omits `availableIn` (reads by explicit
-slideId from any view — the historical guard-bypass made explicit,
+slideId from any view, the historical guard-bypass made explicit,
 [slides.tsx:84-87](client/src/components/project_ai/ai_tools/tools/slides.tsx#L84-L87));
 and `switch_tab` keeps an in-handler soft-return family guard (`availableIn` is
 whitelist-only, so an enumerated list would silently drift when a view is added,
-and a throw would flip the refusal to `is_error`) — it stamps
+and a throw would flip the refusal to `is_error`). It stamps
 `markAINavigation()` before the tab write so the resulting `setView` is
 attributed AI-origin and dropped from the digest
 ([navigation.ts](client/src/components/project_ai/ai_tools/tools/navigation.ts)).
 
-The editing views' contexts carry the live-mutator closures the old union did —
+The editing views' contexts carry the live-mutator closures the old union did:
 `getTempConfig`/`setTempConfig` (viz editor), `getTempSlide`/`setTempSlide`
 (slide editor), `getDeckConfig`/`getSlideIds`/`getSelectedSlideIds` (deck), and
 the report contract
 (`getBody`/`getFigures`/`getImages`/`getSelection`/`proposeEdit`/
-`applyFigureUpdate`) — see
+`applyFigureUpdate`). See
 [ai_views.ts](client/src/components/project_ai/ai_views.ts).
 
-**Report edits are never silent** — they ride panther's approval lifecycle. The
+**Report edits are never silent**: they ride panther's approval lifecycle. The
 five staged text tools (`rewrite_report`, `rewrite_section`, `replace_text`,
 `insert_figure`, `replace_figure`) declare `approval.propose`
 ([report_editor.ts](client/src/components/project_ai/ai_tools/tools/report_editor.ts)):
@@ -376,28 +376,28 @@ no-decision result), `stillValid` guards a stale accept against a torn-down
 editor, and `commit` rebases over concurrent collaborator edits (reporting
 skipped hunks); leaving the view auto-declines via `availableIn`.
 `applyFigureUpdate` is the stable-id figure path that persists directly and
-reports save failure (`update_report_figure` — no diff, the figure's body token
+reports save failure (`update_report_figure`: no diff, the figure's body token
 doesn't change).
 
 **Validate-before-commit.** `update_figure` (slide editor, deck level),
-`update_report_figure`, and `update_viz_config` share one pipeline —
+`update_report_figure`, and `update_viz_config` share one pipeline:
 `applyFigureConfigPatch` → `validateFigureConfigEdit` (pure config checks:
 slots, field liveness, roll-up structure, pre-write collision) →
 `validateMetricInputs` (live data) → `describeFigureConfigPatchEffect` (the
-per-field leave-one-out change report in the success message) — _before_ any
+per-field leave-one-out change report in the success message), _before_ any
 store write, so a throw provably means "nothing changed". Pure config checks
 live beside the pipeline in `client/src/generate_visualization/` (S10's glob,
-deliberately — they are S13 machinery); fetched-data checks stay in
+deliberately: they are S13 machinery); fetched-data checks stay in
 `validators/content_validators.ts`. The accepted-but-inert-patch rule (Type 1 /
 Type 2) is stated once, in [PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md).
 
 **Tool freshness rests on store aliasing, not reactivity.** The tools array is
-built exactly once at wrapper setup (index.tsx:42-57) — panther registers
+built exactly once at wrapper setup (index.tsx:42-57). Panther registers
 `config.tools` into its `ToolRegistry` once at chat construction, so a rebuilt
 array would never reach the chat anyway. Handlers stay fresh only because they
 close over Solid store proxies that are updated in place via `reconcile`.
 Anything evaluated at tool-_build_ time is frozen at mount (e.g. a
-`completionMessage` template literal) — keep such reads out of tool
+`completionMessage` template literal). Keep such reads out of tool
 construction. The invariant is documented at the build site.
 
 ## Tool input schemas
@@ -406,7 +406,7 @@ The architecture half of the schema story (the authoring recipe is
 [PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md)):
 
 - **AI schemas derive from storage schemas.** `configDStrict`
-  ([lib/types/_metric_installed.ts:160](lib/types/_metric_installed.ts#L160) — a
+  ([lib/types/_metric_installed.ts:160](lib/types/_metric_installed.ts#L160), a
   strip-mode `z.object` despite the name; `filterBy[].values` and `valuesFilter`
   carry `.min(1)`) is the source of truth. Two derived surfaces exist, both in
   [ai_input.ts](lib/types/ai_input.ts): `AiMetricQuerySchema`
@@ -415,10 +415,10 @@ The architecture half of the schema story (the authoring recipe is
   `update_figure`/`update_report_figure`; the viz editor's
   `AiVizConfigUpdateSchema` is `.extend()` of the base patch schema (adds
   `type` + `timeseriesGrouping`), not a third copy. The documented exception
-  pattern (`startDate`/`endDate` — and the patch schemas' open-ended
-  `periodFilter {min?, max?}`, where an omitted max stores `from_month` "to
-  present" — instead of the full `periodFilter` union, converted against the
-  metric's most-granular time column) is preserved everywhere.
+  pattern (`startDate`/`endDate` instead of the full `periodFilter` union,
+  converted against the metric's most-granular time column) is preserved
+  everywhere, as is the patch schemas' open-ended `periodFilter {min?, max?}`,
+  where an omitted max stores `from_month` "to present".
 - **Layer-1 enforcement lives in panther**: `createAITool` re-parses input
   inside `run()` and converts a ZodError to `AIToolFailure`
   ([tool_helpers.ts:434-446](panther/_305_ai/_core/tool_helpers.ts#L434-L446));
@@ -426,8 +426,8 @@ The architecture half of the schema story (the authoring recipe is
   self-corrects
   ([tool_engine.ts:333-343](panther/_305_ai/_core/tool_engine.ts#L333-L343)).
   **The failure channel** (authority: DOC_AI_CHAT.md "Failure channel", panther
-  repo root): handlers throw `AIToolFailure` for ANY anticipated failure — bad
-  id, missing referent, failed server call — with the message as the complete
+  repo root): handlers throw `AIToolFailure` for ANY anticipated failure (bad
+  id, missing referent, failed server call) with the message as the complete
   user-presentable record (clean display, no stack; ~92 sites across the copilot
   tools); plain `Error` is reserved for genuine bugs (full-stack display).
   Handlers must throw, never return error strings.
@@ -445,30 +445,30 @@ between AI input shapes and stored `Slide`/`FigureBundle` shapes; deck-level and
 editor-level tools call the same resolvers, so behavior is identical:
 
 - [build_config_from_metric.ts](client/src/components/slide_deck/slide_ai/build_config_from_metric.ts)
-  — AiFigureFromMetric → `PresentationObjectConfig`: preset spread over
+  converts AiFigureFromMetric → `PresentationObjectConfig`: preset spread over
   defaults, AI overrides applied (filters gated by `preset.allowedFilters`,
   startDate/endDate → `custom` periodFilter via `convertPeriodValue`).
 - [resolve_figure_from_metric.ts](client/src/components/slide_deck/slide_ai/resolve_figure_from_metric.ts)
   /
   [resolve_figure_from_visualization.ts](client/src/components/slide_deck/slide_ai/resolve_figure_from_visualization.ts)
-  — the AI adapters over the shared bundle resolvers; AI paths get _strict_
+  are the AI adapters over the shared bundle resolvers; AI paths get _strict_
   replicant validation (`assertReplicantValid` throws) where non-AI callers keep
   the lenient auto-default.
 - [convert_ai_input_to_slide.ts](client/src/components/slide_deck/slide_ai/convert_ai_input_to_slide.ts)
-  — AiSlideInput → stored `Slide`: resolve blocks, `optimizePageLayout` at the
-  canonical page frame, re-attach bundles, and `slideConfigSchema.parse` the
-  result (validate-at-construction — the add-to-deck ZodError lesson).
+  converts AiSlideInput → stored `Slide`: resolve blocks, `optimizePageLayout`
+  at the canonical page frame, re-attach bundles, and `slideConfigSchema.parse`
+  the result (validate-at-construction, the add-to-deck ZodError lesson).
 - [get_slide_with_updated_blocks.ts](client/src/components/slide_deck/slide_ai/get_slide_with_updated_blocks.ts)
-  — targeted block replacement preserving what the AI schema can't express (text
+  is targeted block replacement preserving what the AI schema can't express (text
   styles, node-level layout overrides);
   [layout_spec_helpers.ts](client/src/components/slide_deck/slide_ai/layout_spec_helpers.ts)
-  — `LayoutSpec` (rows/12-col spans, `normalizeSpans` enforces sum-to-12) ↔
+  is `LayoutSpec` (rows/12-col spans, `normalizeSpans` enforces sum-to-12) ↔
   `LayoutNode`;
   [extract_blocks_from_layout.ts](client/src/components/slide_deck/slide_ai/extract_blocks_from_layout.ts)
-  — `simplifySlideForAI`, the model-facing slide view;
+  is `simplifySlideForAI`, the model-facing slide view;
   [get_deck_summary.ts](client/src/components/slide_deck/slide_ai/get_deck_summary.ts)
-  — deck outline for `get_deck` (slides read through `getSlideFromCacheOrFetch`,
-  so a fresh session's first call sees content).
+  is the deck outline for `get_deck` (slides read through
+  `getSlideFromCacheOrFetch`, so a fresh session's first call sees content).
 
 ## System prompt, documents, prompt library
 
@@ -485,7 +485,7 @@ primary-tool pointers) are composed by the view registry
 ([ai_views.ts](client/src/components/project_ai/ai_views.ts)) and delivered
 ephemerally per turn, and the hand-typed tool list was replaced by panther's
 `buildToolCatalog(tools)`, composed ONCE at
-[index.tsx:59-62](client/src/components/project_ai/index.tsx#L59-L62) — cache
+[index.tsx:59-62](client/src/components/project_ai/index.tsx#L59-L62). Cache
 rule: never pass `currentView` there (view-grouped ordering would bust the
 breakpoint on every navigation). Viewable via the chat menu; the debug panel
 ([ai_debug_panel.tsx](client/src/components/project_ai/ai_debug_panel.tsx))
@@ -495,28 +495,28 @@ guard, S9).
 
 **Documents.** `useAIDocuments` keeps `{assetFilename, anthropicFileId}` pairs
 per project in IndexedDB
-([t4_ai_documents.ts](client/src/state/project/t4_ai_documents.ts) — T4:
+([t4_ai_documents.ts](client/src/state/project/t4_ai_documents.ts), T4:
 per-browser, no server copy, no invalidation when the underlying asset is
 replaced). The selector modal lists instance PDF assets and uploads new
 selections through `POST /ai/files`; `getDocumentRefs` feeds panther, which
 attaches each configured document to the next user message the conversation
-hasn't yet sent it in — mid-conversation attach works. Removing a document also
+hasn't yet sent it in, so mid-conversation attach works. Removing a document also
 best-effort DELETEs the Anthropic-side file; the remaining lifecycle gap is
 asset replacement, which the IndexedDB pairing never notices (Open items).
 
 **Prompt library.** Shared prompts fetched at open from the GitHub
 `fastr-resource-hub` (`prompts.md`/`prompts_fr.md`, cache-busted; parsed by
 [parse_prompts.ts](client/src/components/project_ai/ai_prompt_library/parse_prompts.ts))
-plus custom prompts — user-scoped and country-scoped rows in the main DB
+plus custom prompts, user-scoped and country-scoped rows in the main DB
 ([lib/types/custom_prompts.ts](lib/types/custom_prompts.ts); registry routes
 [custom_prompts.ts](server/routes/instance/custom_prompts.ts)). Reads return
 country-scoped ∪ own user-scoped; create stamps a server UUID + `createdBy`;
 update/delete require author-or-admin in SQL. Because
 `requireGlobalPermission()` with zero permissions never checks `approved`, every
 handler rejects unapproved users itself, and creating or re-scoping a prompt to
-`"country"` — a prompt-injection surface offered to every user's copilot — is
-admin-only. `created_by` is FK-cascade on user delete — deleting a user silently
-deletes their country-scoped prompts too.
+`"country"` (a prompt-injection surface offered to every user's copilot) is
+admin-only. `created_by` is FK-cascade on user delete, so deleting a user
+silently deletes their country-scoped prompts too.
 
 `ai_tools.ts` ([routes/project/ai_tools.ts](server/routes/project/ai_tools.ts))
 is the one registry-based route in this system: `getVisualizationsListForAI`.
@@ -527,7 +527,7 @@ Synced 2026-07-07 (commits 62ed6c03/ca3ae868, SDK 0.71 → 0.110) and repeatedly
 since. As of 2026-07-22 both assistants also depend on the engine's
 views/gating/interactions/approval surface (`defineAIViews`,
 `createAIViewController`, `defineAIInteractions`, `availableIn` gating,
-`approval.propose`, `buildToolCatalog`, `validateAIChatConfig`) — the consumer
+`approval.propose`, `buildToolCatalog`, `validateAIChatConfig`). The consumer
 rulebook is the vendored
 [PROTOCOL_UI_AI_CHAT.md](panther/protocols/PROTOCOL_UI_AI_CHAT.md); the full
 contract doc is DOC_AI_CHAT.md at the panther repo root (not vendored). The
@@ -550,10 +550,10 @@ parts S13 relies on, verified this cycle:
 - **Built-in server tools**
   ([builtin_tools.ts](panther/_305_ai/_core/builtin_tools.ts)):
   webSearch/webFetch resolved per model; on non-dynamic models the basic
-  variants + `web-fetch-2025-09-10` beta — which only works because the proxy
+  variants + `web-fetch-2025-09-10` beta, which only works because the proxy
   forwards allowlisted client beta headers.
 - **Every continuation round is a separate proxy POST**, so each round is
-  independently limit-gated and logged — the multi-turn design has no unlogged
+  independently limit-gated and logged. The multi-turn design has no unlogged
   turns; the remaining accounting gap is server-tool request fees (Open items).
 - `one_shot.ts` (`callAI`/`callAIStructured`) exists in the barrel but has
   **zero consumers in this app**.
@@ -564,19 +564,19 @@ parts S13 relies on, verified this cycle:
 assistant: same panther engine, own conversation scope (`hfa-indicators`), own
 SDK client pointed at `/ai-instance` (no `Project-Id`; duplicates the
 429-localizing fetch wrapper), same model config shape, **no built-in web
-tools**. Structural differences from the copilot: no view registry — every write
+tools**. Structural differences from the copilot: no view registry, so every write
 goes straight to serverActions. Its six write tools declare `approval.propose`
 with `presentation: "modal"` (panther owns the propose → modal diff → commit
 lifecycle; the old hand-rolled `confirmChain` serializer is deleted), and the
 config sets `approvalPolicy: { requireForKind: "write", requireKind: true }`
-([ai/index.tsx:34](client/src/components/indicator_manager_hfa/ai/index.tsx#L34))
-— a write tool without approval, or any tool without a `kind`, fails at
+([ai/index.tsx:34](client/src/components/indicator_manager_hfa/ai/index.tsx#L34)).
+A write tool without approval, or any tool without a `kind`, fails at
 construction. Every anticipated failure throws `AIToolFailure` (zero
 plain-`Error` throws in
-[tools.ts](client/src/components/indicator_manager_hfa/ai/tools.ts) — the
+[tools.ts](client/src/components/indicator_manager_hfa/ai/tools.ts), the
 failure-channel ruling above). The system prompt deliberately embeds no live
 state (the model reads through tools, avoiding staleness with its own edits).
-Write commits do whole-object load → propose → save, last write wins — the
+Write commits do whole-object load → propose → save, last write wins: the
 app-wide concurrency model, deliberate (a re-read-after-confirm refactor was
 rejected 2026-07-07 as an inconsistent outlier). Its hand-written schemas comply
 with the S13 conventions (storage field names, throw-don't-catch, no
@@ -587,24 +587,24 @@ directory; its tool semantics are S5's.
 
 - **The proxy is a body-verbatim forwarder.** Anything panther's shaping adds
   (mid-conversation system messages, new SSE event types) passes through
-  untouched — but the _usage parser_ reads specific event shapes
+  untouched, but the _usage parser_ reads specific event shapes
   (`message_start`/`message_delta`); an Anthropic event-shape change silently
   zeroes logged usage. New betas panther starts sending must be added to
   `FORWARDABLE_BETAS` or they are silently dropped.
 - **Governance changes go in `anthropic_messages_proxy.ts`**, never in the two
-  mount files — they are deliberately logic-free.
-- **Don't wrap proxy responses in `APIResponse`** — the client SDK parses
+  mount files, which are deliberately logic-free.
+- **Don't wrap proxy responses in `APIResponse`**: the client SDK parses
   Anthropic shapes. Equally: don't let new failure paths fall to `app.onError`,
   which returns an envelope at HTTP 200 the SDK can't parse.
 - **Tools are registered once at pane mount.** Handler freshness depends on
   closing over reconciled store proxies; values computed at build time freeze. A
   refactor that _replaces_ a projectState array instead of reconciling it
   freezes the AI's world with no error.
-- **`z.strictObject` and `strict: true` are banned in tool schemas** — see
+- **`z.strictObject` and `strict: true` are banned in tool schemas**. See
   PROTOCOL_APP_AI_TOOLS.md.
 - **Token limits are token-denominated, not dollar-denominated.** Cache tokens
   don't count, model price varies 10× and is client-chosen, server-tool fees are
-  flat-rate per invocation — treat the limits as volume brakes, not budget
+  flat-rate per invocation. Treat the limits as volume brakes, not budget
   enforcement, until the Open items below are decided.
 
 ## Open items
@@ -618,43 +618,43 @@ panther modelConfig/labels/cap-pause items, and the client-copilot findings
 `update_viz_config` live-data validation, `switch_tab` reports, `get_deck`
 fetch-on-miss, tools-reactivity memo removal, ai_files env/URL cleanup,
 Anthropic-shaped thrown errors, CORS header enumeration, and the LOW hygiene
-tail). The HFA whole-object read-modify-write finding was **rejected** — it
+tail). The HFA whole-object read-modify-write finding was **rejected**: it
 matches the app-wide last-write-wins model (see the satellite section).
 Remaining:
 
 **Governance policy (decisions, not bugs)**
 
 - **[MED] Cache tokens excluded from limit counting** while panther now
-  guarantees cache breakpoints on every request — most long-conversation input
+  guarantees cache breakpoints on every request, so most long-conversation input
   is limit-free. Decide the policy (count at a weight, or state it's
   intentional).
-- **[MED] No server-side model allowlist** — the proxy forwards any `model`; the
+- **[MED] No server-side model allowlist**: the proxy forwards any `model`; the
   client list is advisory. Per-token price varies ~10× under the same numeric
   limits.
-- **[MED] Server-tool request fees invisible** — `server_tool_use` counts are
+- **[MED] Server-tool request fees invisible**: `server_tool_use` counts are
   neither logged (needs an `ai_usage_logs` column/migration) nor bounded
   (`max_uses` unset).
-- **[LOW] Check-before/increment-after race** — concurrent requests overshoot
+- **[LOW] Check-before/increment-after race**: concurrent requests overshoot
   limits by ~concurrency × max_tokens; acceptable for a courtesy limit, stated
   here so it's deliberate.
 - **[LOW]** Daily-counter date compared in JS UTC but written with Postgres
-  `CURRENT_DATE` — drifts if the DB isn't UTC.
+  `CURRENT_DATE`, which drifts if the DB isn't UTC.
 
 **Security / access**
 
-- **[MED] `webFetch` unrestricted in a health-data app** — prompt-injected
+- **[MED] `webFetch` unrestricted in a health-data app**: prompt-injected
   exfiltration via `web_fetch` to attacker URLs; Anthropic's own guidance is
   domain allowlisting. Configure `allowed_domains`/`max_uses`.
 - **[MED] Public `/ai_usage`** returns per-user emails + per-call behavior,
   unbounded full-table scan; the other health routes expose aggregates. Decide
   the exception or add guard/limit.
-- **[LOW] Files-API ids unscoped** — any project member can GET/DELETE any file
+- **[LOW] Files-API ids unscoped**: any project member can GET/DELETE any file
   under the instance key. **[LOW]** Upload hardcodes `application/pdf` for all
   assets.
 
 **Client copilot**
 
-- **[MED] Documents never invalidate on asset replace** — the per-browser
+- **[MED] Documents never invalidate on asset replace**: the per-browser
   IndexedDB `{assetFilename, anthropicFileId}` pairing keeps serving the old
   Anthropic file after the underlying instance asset is replaced (removal now
   cleans up server-side; replace is the remaining stale/orphan path).
@@ -663,33 +663,33 @@ Remaining:
   collab checkpoints persist AI `setTempSlide`/`setTempConfig` edits and notify
   `slides`/`presentation_objects`, echoing back unmarked as "Edited slide X" /
   "Visualization X updated". Marking those keys would also suppress genuine
-  co-editor actions on the same slide/viz — a design question (per-origin echo
+  co-editor actions on the same slide/viz, a design question (per-origin echo
   keys? checkpoint-carried origin?), not a missing mark; predates the
   interactions migration.
 
 **HFA satellite (fixes are S5's to land; contract is S13's)**
 
-- **[MED-LOW] `set_hfa_indicator_code` partial application** — sequential
+- **[MED-LOW] `set_hfa_indicator_code` partial application**: sequential
   per-indicator saves; a mid-loop failure leaves earlier saves applied while the
   error implies none were.
 - **Indicator-assistant hardening** (S–M, from the retired HFA plan). The first
-  pass is shipped — self-contained assistant in
+  pass is shipped: a self-contained assistant in
   [client/src/components/indicator_manager_hfa/ai/](client/src/components/indicator_manager_hfa/ai/),
   instance proxy
   [server/routes/instance/ai_proxy.ts](server/routes/instance/ai_proxy.ts), all
   three tool tiers with a per-write confirm gate. Remaining, in priority order:
-  (1) **the visual-diff review UX** — `system_prompt.ts:46` promises writes are
+  (1) **the visual-diff review UX**: `system_prompt.ts:46` promises writes are
   shown "with a diff", but they render as plain-text summary lines in a confirm
   dialog; build the diff/accept preview or fix the prompt to match (top gap).
-  (2) **Taxonomy editing** — the assistant can assign categories but cannot
+  (2) **Taxonomy editing**: the assistant can assign categories but cannot
   create or rename them; decide whether that stays manual. (3) No
   per-conversation cost cap (only the shared instance/user token limits) and
   `max_tokens` is hardcoded. (4) `inspect_hfa_variable` loads the whole dataset
-  display then filters client-side — fine now, unbounded at scale. (5) No tests
+  display then filters client-side: fine now, unbounded at scale. (5) No tests
   and no telemetry on tool accept/reject rate. (6) Graduation from the
   `hfa-ai-testing` label/deploy to production.
 
-**Surface gaps — read-projection ≠ write-schema ≠ stored-shape**
+**Surface gaps: read-projection ≠ write-schema ≠ stored-shape**
 
 From the 2026-06-24 read-only audit that hunted the bug _class_ behind the
 slide-figure replicant bug. Every item below is one shape:
@@ -706,8 +706,8 @@ The fix principle everywhere is **drive the read-projection and the write-schema
 from the stored schema**. Closed since the audit: the text-block `style` drop
 (now merged in `getSlideWithUpdatedBlocks`), the `chartType='table'`
 hallucinated field in three tool descriptions, and the `replace_figure` caption
-clobber (a caption override rewrites every embed of the id — the tool input has
-no occurrence selector, so it is now stated in the tool description and the
+clobber (a caption override rewrites every embed of the id, and the tool input
+has no occurrence selector, so it is now stated in the tool description and the
 embed count is surfaced in the proposal summary). Remaining:
 
 - **[HIGH] Filter/disaggregation VALUES are undiscoverable for common
@@ -717,17 +717,17 @@ embed count is surfaced in the proposal summary). Remaining:
   `facility_type`, `facility_ownership`, `indicator_common_id` (non-HFA),
   `denominator`, `target_population` etc., no tool returns the valid values. The
   data exists server-side (`disaggregationPossibleValues`) and
-  `validateMetricInputs` already fetches it — but only to _reject_ a bad guess
+  `validateMetricInputs` already fetches it, but only to _reject_ a bad guess
   after the fact. So to set a `filters` array the AI must guess and learn valid
   values from validation-error strings: the replicant "binary-reduction" pattern
-  generalized. Fix direction: a discovery surface — either a
+  generalized. Fix direction: a discovery surface, either a
   `get_dimension_values(metricId, disOpt)` tool (lazy, scales) or a bounded
   value list folded into the metric-list formatter. Note `get_metric_data`
   already lists values for dimensions you _disaggregate_ by (capped at 20); the
   gap is _filter-only_ dimensions.
 - **[HIGH as a cluster] Slide/report STYLE surface is invisible and
   uneditable.** Same root cause, different fields. **Images:** no image input
-  schema at all — the AI cannot create, edit or read image blocks and resolvers
+  schema at all: the AI cannot create, edit or read image blocks and resolvers
   reject the type; `ImageBlock` carries `imgFile` + `style` but read-back shows
   only `Image: <imgFile>`, and reports have no image tool either. **Slide-level
   style:** cover/section/content carry `footer`, `subHeader`,
@@ -742,16 +742,16 @@ embed count is surfaced in the proposal summary). Remaining:
   (`PresentationObjectSummary` omits them), degrading the AI's clone-vs-build
   decision.
 - **[MED]** `get_metric_data` hard-codes `rollupDim: undefined`, so explored
-  data differs from a roll-up-enabled figure — and the disclosure lives in a
+  data differs from a roll-up-enabled figure, and the disclosure lives in a
   different tool's formatter.
 - **[MED] Value ordering is entirely outside the AI's reach.**
   `s.customValueOrder` (S11) is the first `s` field that aliases something users
-  routinely ask the AI for — the order values appear in. No read-projection
+  routinely ask the AI for: the order values appear in. No read-projection
   surfaces it, and `applyFigureConfigPatch` leaves `config.s` untouched by
   design (only a `type` change rewrites it), while the write schemas carry no
   sort field at all. Two consequences: the AI cannot honor "put X first", and a
   saved custom order silently outranks the axis order the AI reads back, so its
-  description of a figure can disagree with what renders — the
+  description of a figure can disagree with what renders, the
   accepted-but-inert class (PROTOCOL_APP_AI_TOOLS.md), reached without any patch
   being applied. Fix direction: project the order in the viz read-projection,
   and either admit an ordering verb or have `validateFigureConfigEdit`
@@ -766,20 +766,20 @@ embed count is surfaced in the proposal summary). Remaining:
   **[LOW]**
   `sanitizeCaption` silently strips brackets/newlines from report captions with
   no feedback (mangles e.g. "95% CI [0.4, 0.6]").
-- **[MED, reuse/quality — not a bug] Unify the figure-RESOLUTION cores.** AI
+- **[MED, reuse/quality, not a bug] Unify the figure-RESOLUTION cores.** AI
   figure create/edit already share replicant validation (`assertReplicantValid`,
   applied uniformly, no flags). Still split: two functions do "config → fetch
   items → capture geo → assemble FigureBundle" with different item-fetch
-  mechanics — `resolveFigureBundleFromMetric` (caller precomputes the
+  mechanics: `resolveFigureBundleFromMetric` (caller precomputes the
   fetchConfig) and `resolveFigureBundleFromVizConfig` (items fetch auto-defaults
-  the replicant) — plus a third assembler, `makeFigureBundleFromFetchedData`.
+  the replicant), plus a third assembler, `makeFigureBundleFromFetchedData`.
   Goal: one `resolveFigureBundle(source, config)` used by every
   create/edit/render path, with the metric-vs-PO difference reduced to how the
   source is produced. The friction to design around is the two item-fetch routes
   (`_PO_ITEMS_CACHE` with a precomputed fetchConfig vs
   `getPresentationObjectItemsFromCacheOrFetch`, which runs
-  `resolveDefaultReplicant`). Higher blast radius — dashboards, public and
-  reports all render through the PO core — so it wants its own scoped refactor
+  `resolveDefaultReplicant`). Higher blast radius (dashboards, public and
+  reports all render through the PO core), so it wants its own scoped refactor
   and review pass, not improvisation.
 
 This inventory is also the **spine of a SYSTEM_13 restructuring**: organize this
