@@ -523,7 +523,7 @@ The store holds ONE level for every type: the import is refused until the
 level is set and refuses a file whose columns are at any other level;
 changing the setting is refused while any row exists ("delete all
 population data first"); delete-all keeps the setting. Migration 083
-backfilled the key from the rows where they existed. It is also the
+cleared rows stored before the setting existed. It is also the
 analysis level of m012's indicator values for EVERY indicator (S8
 "population.csv"): coarser levels derive by summation and nothing exists
 below it, which the setting's own explanation states. Lowering the HMIS
