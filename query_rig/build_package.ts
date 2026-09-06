@@ -13,7 +13,7 @@ import type { RunReadContext } from "../server/run_query/mod.ts";
 import type { Fixture } from "./fixtures.ts";
 
 // Both per-family schema rows are seeded, and the OTHER family's row is
-// deliberately DIVERGENT — different depth, every flag inverted — so any
+// deliberately DIVERGENT (different depth, every flag inverted) so any
 // engine path that picks the wrong family's row breaks a case instead of
 // coincidentally passing. The package builder stamps the manifest's
 // structureSchema{Hmis,Hfa} from these rows.
@@ -39,10 +39,10 @@ export async function seedInstance(mainDb: Sql, fx: Fixture): Promise<void> {
   `;
 }
 
-// Builds a REAL results package for the fixture — the module's raw output CSV
+// Builds a REAL results package for the fixture: the module's raw output CSV
 // through the production parquet writer, the facilities parquet and indicator
 // mirrors through the production input writers' contracts, the manifest
-// through the production builder — and returns the national-scope read
+// through the production builder, and returns the national-scope read
 // context the production read functions take. Nothing is mocked.
 export async function buildFixturePackage(
   mainDb: Sql,

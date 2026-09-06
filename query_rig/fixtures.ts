@@ -35,7 +35,7 @@ export type Fixture = {
   name: string;
   family: "hmis" | "hfa";
   // Seeded into the family's structure_schema_{family} row alongside the
-  // flags. Not consumed by the query engine (ruling 4: flags only) — it makes
+  // flags. Not consumed by the query engine (ruling 4: flags only). It makes
   // the seeded row a valid StructureSchema.
   adminDepth: 1 | 2 | 3 | 4;
   moduleId: string;
@@ -47,7 +47,7 @@ export type Fixture = {
   roRows: Record<string, string | number | null>[];
   indicators: { indicator_common_id: string; indicator_common_label: string }[];
   hfaSnapshots?: HfaSnapshots;
-  // Only needed by `metricInfo` cases — that entry resolves a metric row and
+  // Only needed by `metricInfo` cases: that entry resolves a metric row and
   // enriches it into a ResultsValue.
   metric?: {
     id: string;
@@ -71,11 +71,11 @@ const ALL_FACILITY_COLUMNS_OFF = {
   includeCustom5: false,
 };
 
-// F1 — HMIS, physical period_id (YYYYMM), facility-level rows.
+// F1: HMIS, physical period_id (YYYYMM), facility-level rows.
 //
 // source_indicator is the blank-fold specimen: it carries NULL, a spaces-only
 // cell, a tab-only cell, and the pair 'x' / ' x'. The pair is what proves the
-// fold detects blankness without rewriting non-blank values — collapsing ' x'
+// fold detects blankness without rewriting non-blank values: collapsing ' x'
 // onto 'x' is the original defect in a new form.
 //
 // Sums by admin_area_2: A2_north = 35, A2_south = 17.
@@ -153,7 +153,7 @@ const HFA_FACILITIES: Record<string, string | null>[] = [
   { facility_id: "h5", admin_area_1: "Country", admin_area_2: "A2_south", admin_area_3: "A3_delta", admin_area_4: "A4_w5", facility_type: "health_post" },
 ];
 
-// F2 — HFA, hfa_service_category carrying pipe-joined SETS, time_point TEXT.
+// F2: HFA, hfa_service_category carrying pipe-joined SETS, time_point TEXT.
 //
 // Sums: by service-category membership rmnch = 41, malaria = 4.
 // By time_point: baseline = 26, midline = 26, blank (NULL + spaces) = 4.
@@ -193,7 +193,7 @@ export const F2_HFA_SERVICE_CATS: Fixture = {
   firstPeriodOption: undefined,
 };
 
-// F3 — F2 with ONE thing changed: time_point is declared `integer`.
+// F3: F2 with ONE thing changed: time_point is declared `integer`.
 //
 // This pair is the whole point of the shouldFoldBlank type gate. The fold emits
 // btrim() and returns a text sentinel from its CASE; Postgres rejects both on a
@@ -225,7 +225,7 @@ function hmisModule(): Record<string, unknown> {
   };
 }
 
-// F4 — facility-level rows with ratio ingredients, sized so that a recomputed
+// F4: facility-level rows with ratio ingredients, sized so that a recomputed
 // roll-up ratio and a mean-of-ratios give visibly different answers:
 //   recomputed 80/1000 = 0.08   vs   mean of (0.3, 0.025) = 0.1625
 // AVG(value) is also meaningful here because rows are raw facility
@@ -258,7 +258,7 @@ export const F4_HMIS_RATIO: Fixture = {
   firstPeriodOption: "period_id",
 };
 
-// F5 — pre-aggregated area rows, NO facility_id. Exists to prove the
+// F5: pre-aggregated area rows, NO facility_id. Exists to prove the
 // table-aware half of the roll-up gate: AVG over rows that are already area
 // summaries is a population-blind mean, so it must be refused.
 export const F5_HMIS_AREA_ONLY: Fixture = {
@@ -283,7 +283,7 @@ export const F5_HMIS_AREA_ONLY: Fixture = {
   firstPeriodOption: "period_id",
 };
 
-// F6 / F7 — the other two period scenarios. A results table has at most ONE
+// F6 / F7: the other two period scenarios. A results table has at most ONE
 // physical time column (S8 drops the redundant ones), so each scenario needs
 // its own fixture: quarter_id can derive `year` but not `month`, and a
 // year-only table derives nothing.
@@ -341,14 +341,14 @@ export const F7_HMIS_YEARLY: Fixture = {
   firstPeriodOption: "year",
 };
 
-// F8 — the two DIFFERENT origins of a blank facility cell, plus a
+// F8: the two DIFFERENT origins of a blank facility cell, plus a
 // multi-membership column holding exactly one member.
 //
 // `textColumns` spans the results table AND the joined facilities table, so the
 // fold reaches facility columns. A blank there arrives two ways: a facilities
 // row whose column is NULL (e2), and a results row whose facility_id matches no
 // facilities row at all, where the LEFT JOIN manufactures the NULL (e_missing).
-// Both must land in ONE __BLANK group — that is precisely why NULL and blank
+// Both must land in ONE __BLANK group: that is precisely why NULL and blank
 // fold together rather than becoming two options.
 export const F8_HFA_FACILITY_BLANKS: Fixture = {
   name: "hfa_facility_blanks",
@@ -374,7 +374,7 @@ export const F8_HFA_FACILITY_BLANKS: Fixture = {
   roRows: [
     { facility_id: "e1", hfa_service_category: "rmnch", admin_area_2: "A2_north", value: 10 },
     { facility_id: "e2", hfa_service_category: "rmnch", admin_area_2: "A2_north", value: 20 },
-    // No facilities row for e_missing — the LEFT JOIN yields NULL.
+    // No facilities row for e_missing: the LEFT JOIN yields NULL.
     { facility_id: "e_missing", hfa_service_category: "rmnch", admin_area_2: "A2_south", value: 5 },
   ],
   indicators: [],
@@ -390,10 +390,10 @@ export const F8_HFA_FACILITY_BLANKS: Fixture = {
   firstPeriodOption: undefined,
 };
 
-// F9 — the replicant-options cap boundary. The cap counts NAMED values, and
+// F9: the replicant-options cap boundary. The cap counts NAMED values, and
 // the query budget is MAX + 2, so the sentinel can neither displace a named
 // value nor tip a dimension holding exactly MAX into too_many_values (which
-// would make the filter disappear — the very failure the blank fold prevents).
+// would make the filter disappear, the very failure the blank fold prevents).
 //
 //   source_indicator  : 500 named + a blank  → ok  (blank does not count)
 //   target_population : 501 named            → too_many_values
@@ -432,11 +432,11 @@ export const F9_HMIS_OPTION_CAP: Fixture = {
   firstPeriodOption: undefined,
 };
 
-// F10 — HFA rows already aggregated to area level, so NO facility_id. Exists to
+// F10: HFA rows already aggregated to area level, so NO facility_id. Exists to
 // prove the table-aware half of the sample-n gate: n counts distinct facilities,
 // and emitting the aggregate over a table without the column is not a wrong
 // number but a hard SQL error ("column facility_id does not exist"). The
-// family check alone would not catch this — F10 is HFA.
+// family check alone would not catch this: F10 is HFA.
 export const F10_HFA_AREA_ONLY: Fixture = {
   name: "hfa_area_only",
   family: "hfa",
@@ -462,7 +462,7 @@ export const F10_HFA_AREA_ONLY: Fixture = {
   firstPeriodOption: undefined,
 };
 
-// F11 — the HFA variants RO shape: hfa_variant_item is a plain TEXT NOT NULL
+// F11: the HFA variants RO shape: hfa_variant_item is a plain TEXT NOT NULL
 // physical column (never in the special registries), hfa_indicator carries the
 // PARENT indicator, and each parent's rows span only its own group's items.
 // Exercises the generic physical-column path for group-by / filter / option
@@ -500,7 +500,7 @@ export const F11_HFA_VARIANTS: Fixture = {
   firstPeriodOption: undefined,
 };
 
-// F12 — the ethiopia v2b shape (m8 scorecard): `denominator` is BOTH a PAE
+// F12: the ethiopia v2b shape (m8 scorecard): `denominator` is BOTH a PAE
 // ingredient (`value = numerator / denominator` over SUM ingredients) and a
 // disaggregation option. The inner query then emits the grouped column and a
 // same-named aggregate alias, which the PAE wrapper must disambiguate
@@ -532,10 +532,10 @@ export const F12_HMIS_SCORECARD: Fixture = {
   firstPeriodOption: "period_id",
 };
 
-// F13 — the family-split divergence specimen: an HFA fixture at depth 2 with
+// F13: the family-split divergence specimen: an HFA fixture at depth 2 with
 // includeTypes ON, while seedInstance seeds the OTHER family's row with a
 // different depth AND inverted flags (so hmis carries includeTypes OFF here).
-// The facility_type cases only pass if the engine picked the HFA row — reading
+// The facility_type cases only pass if the engine picked the HFA row: reading
 // the hmis row would drop the facility join and kill the option/group-by.
 export const F13_HFA_DIVERGENT_SCHEMA: Fixture = {
   name: "hfa_divergent_schema",

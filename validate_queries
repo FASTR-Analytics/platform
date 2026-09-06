@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# S9 query test rig — builds a REAL results package per declarative fixture
+# S9 query test rig: builds a REAL results package per declarative fixture
 # (the production parquet writer + package builder) into a throwaway runs
 # directory and runs the PRODUCTION run read path in ./server against it.
 # A throwaway Postgres serves only what the package builder reads from the
@@ -51,7 +51,7 @@ done
 
 # Importing server/db/mod.ts pulls in exposed_env_vars.ts, which reads Deno.env
 # at module load and throws on anything missing. These are dummies pointing at
-# the throwaway container — the real .env is deliberately NOT sourced, so the
+# the throwaway container: the real .env is deliberately NOT sourced, so the
 # rig cannot reach a live database even by accident.
 export INSTANCE_NAME="query_rig"
 export INSTANCE_ID="query_rig"

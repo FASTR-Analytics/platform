@@ -69,14 +69,14 @@ command -v docker >/dev/null 2>&1 || { echo "ERROR: docker not found!"; exit 1; 
 command -v git >/dev/null 2>&1 || { echo "ERROR: git not found!"; exit 1; }
 
 # Find crane (used to push from the WSL distro's network instead of the
-# Docker Desktop VM, whose upload path is throttled ~5x — measured 0.5 MB/s
+# Docker Desktop VM, whose upload path is throttled ~5x: measured 0.5 MB/s
 # vs 2.4 MB/s on 2026-07-02, turning a ~30s push into ~10 min)
 CRANE=$(command -v crane 2>/dev/null || true)
 if [ -z "$CRANE" ] && [ -x "$HOME/.local/bin/crane" ]; then
     CRANE="$HOME/.local/bin/crane"
 fi
 if [ -z "$CRANE" ]; then
-    echo "WARNING: crane not found — falling back to 'docker push', which is"
+    echo "WARNING: crane not found, falling back to 'docker push', which is"
     echo "slow on machines where Docker Desktop throttles VM upload."
     echo "Install: https://github.com/google/go-containerregistry/releases"
 fi
@@ -92,8 +92,8 @@ if ! docker info 2>/dev/null | grep -q "Username:"; then
     echo "Run 'docker login' if needed."
 fi
 
-# Always run protocol validation (fast, no Docker needed). A failure — real
-# violations or the validator itself erroring — can be consciously overridden.
+# Always run protocol validation (fast, no Docker needed). A failure (real
+# violations, or the validator itself erroring) can be consciously overridden.
 if ! "$SCRIPT_DIR/validate_protocols"; then
     echo "WARNING: Protocol validation failed (violations, or the validator itself errored)."
     echo "Continue deploy anyway? (y/n)"
@@ -267,7 +267,7 @@ fi
 # each push. This means the remote is almost always 1 commit ahead by the
 # time we deploy again. We auto-rebase over changelog-only commits, but abort
 # if there are any other unexpected commits on the remote.
-# Skip this check for ad-hoc deploys — they intentionally diverge from main.
+# Skip this check for ad-hoc deploys: they intentionally diverge from main.
 if [ "$ADHOC_MODE" = "false" ]; then
     git fetch origin main
     LOCAL=$(git rev-parse HEAD)

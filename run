@@ -3,7 +3,7 @@
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # VALKEY_URL is set in .env, and the server retries a missing Valkey forever
-# instead of booting — so make sure it is up rather than hanging on it.
+# instead of booting, so make sure it is up rather than hanging on it.
 if ! docker exec valkey-local valkey-cli ping >/dev/null 2>&1; then
   echo "Starting Valkey..."
   "$SCRIPT_DIR/valkey_run" >/dev/null

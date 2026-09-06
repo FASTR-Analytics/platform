@@ -17,7 +17,7 @@ export type Case = {
   expect:
     | { status: "ok"; rows: Record<string, unknown>[] }
     | { status: "no_data_available" | "too_many_items" }
-    // Ordered — the blank sentinel must land LAST, which SQL cannot do under
+    // Ordered: the blank sentinel must land LAST, which SQL cannot do under
     // SELECT DISTINCT, so it is moved in TS.
     | { values: { id: string; label: string }[] }
     // One dimension's option-list status off the metric-info payload.
@@ -43,8 +43,8 @@ function base(): Omit<GenericLongFormFetchConfig, "groupBys"> {
   };
 }
 
-// Generated matrix. Year derivation must NOT vary by calendar — only the
-// quarter expression is calendar-dependent (getQuarterIdExpression) — so this
+// Generated matrix. Year derivation must NOT vary by calendar: only the
+// quarter expression is calendar-dependent (getQuarterIdExpression), so this
 // asserts invariance across all three period scenarios. A change that made the
 // year branch calendar-aware would light up six cases at once.
 const YEAR_INVARIANT: { fixture: string; rows: Record<string, unknown>[] }[] = [
@@ -122,7 +122,7 @@ const EXPLICIT_CASES: Case[] = [
       groupBys: ["admin_area_2"],
       filters: [{ disOpt: "hfa_service_category", values: ["rmnch"] }],
     },
-    // h1 and h2 contribute, over 4 rows — n is facilities, not rows.
+    // h1 and h2 contribute, over 4 rows: n is facilities, not rows.
     expect: {
       status: "ok",
       rows: [{ admin_area_2: "A2_north", value: 41, __n_value: 2 }],
@@ -321,7 +321,7 @@ const EXPLICIT_CASES: Case[] = [
   },
   {
     // Without a PAE there is no wrapper layer to disambiguate, and the row
-    // object would silently clobber the group value with the aggregate —
+    // object would silently clobber the group value with the aggregate:
     // validateFetchConfig rejects the shape at the boundary.
     name: "non-PAE disaggregated by its own value prop → rejected at the boundary",
     fixture: "hmis_scorecard",
@@ -337,7 +337,7 @@ const EXPLICIT_CASES: Case[] = [
   {
     // The replicant round-trip on a NUMERIC dimension: replicating (or
     // filtering) by denominator sends its own values back as a filter, which
-    // the text path would turn into UPPER(numeric) — a hard SQL error on both
+    // the text path would turn into UPPER(numeric): a hard SQL error on both
     // engines. Pins buildWhereClause's numeric branch.
     name: "filter on a numeric dimension takes the numeric path, not UPPER()",
     fixture: "hmis_scorecard",
@@ -358,8 +358,8 @@ const EXPLICIT_CASES: Case[] = [
   },
   {
     // The UNSELECTED replicant sentinel can never match a numeric column;
-    // the numeric branch drops it and emits FALSE — the same zero-match
-    // outcome the text path gives it — rather than interpolating NaN.
+    // the numeric branch drops it and emits FALSE (the same zero-match
+    // outcome the text path gives it) rather than interpolating NaN.
     name: "non-numeric filter value on a numeric dimension matches nothing",
     fixture: "hmis_scorecard",
     fetchConfig: {
@@ -376,7 +376,7 @@ const EXPLICIT_CASES: Case[] = [
   },
   {
     // Derived month is LPAD TEXT and not a physical column, so it is absent
-    // from textColumns — the numeric branch's PERIOD exclusion is what keeps
+    // from textColumns: the numeric branch's PERIOD exclusion is what keeps
     // it on the text path (`month IN (3)` breaks on text = integer).
     name: "month filter stays on the text path despite being absent from textColumns",
     fixture: "hmis_monthly",
@@ -428,7 +428,7 @@ const EXPLICIT_CASES: Case[] = [
       rollupDim: "admin_area_2",
     },
     // buildRollupQuery returns null rather than throwing: the server's
-    // isAdminLevel/groupBys.includes checks are SQL-safety, not policy — the
+    // isAdminLevel/groupBys.includes checks are SQL-safety, not policy: the
     // client owns the collapse decision. Result is the plain grouping with no
     // __NATIONAL row.
     expect: {
@@ -558,7 +558,7 @@ const EXPLICIT_CASES: Case[] = [
       postAggregationExpression: "rate = num/den",
       rollupDim: "facility_type",
     },
-    // Mean of ratios would be 0.1625; the correct recomputation is 80/1000 —
+    // Mean of ratios would be 0.1625; the correct recomputation is 80/1000:
     // the same invariant as the admin PAE case, but collapsing the facility
     // CTE column.
     expect: {
@@ -595,7 +595,7 @@ const EXPLICIT_CASES: Case[] = [
   // ── Value prop facility_id + facility-column join (the Ghana shape) ───────
   //
   // The facility CTE joins in a facility_id of the same name, so every value
-  // reference must be table-qualified — unqualified COUNT(facility_id) is
+  // reference must be table-qualified: unqualified COUNT(facility_id) is
   // "ambiguous column reference" on both engines. Found by the Ghana parity
   // rig 2026-08-10; the corpus lacked this shape.
   {
@@ -608,7 +608,7 @@ const EXPLICIT_CASES: Case[] = [
     },
     // Record counts: hospital = f1(2)+f4(2), clinic = f2(1)+f3(2),
     // health_post = f5(1). Counts are STRINGS: COUNT returns bigint, which the
-    // driver hands back untransformed — pre-existing behavior for every COUNT
+    // driver hands back untransformed: pre-existing behavior for every COUNT
     // metric (only the __n_* columns carry a ::int cast), pinned not blessed.
     expect: {
       status: "ok",
@@ -628,7 +628,7 @@ const EXPLICIT_CASES: Case[] = [
       groupBys: ["facility_type"],
     },
     // The plain-values sample-n path emits FILTER (WHERE facility_id IS NOT
-    // NULL), which is the latent sibling of the aggregate ambiguity — this is
+    // NULL), which is the latent sibling of the aggregate ambiguity: this is
     // the only shape that reaches it with the join present. Record counts:
     // hospital = h1(2)+h4(1), clinic = h2(2)+h3(2), health_post = h5(1); n is
     // distinct facilities.
@@ -754,10 +754,10 @@ const EXPLICIT_CASES: Case[] = [
     // The WHOLE order is ours: possible_values_core re-sorts in TS with a
     // hand-rolled comparator (code point over a case-folded diacritic-stripped
     // key, numeric digit runs), so neither the DB image's collation nor the
-    // host runtime's ICU version may move these. " x" sorts FIRST — the
+    // host runtime's ICU version may move these. " x" sorts FIRST: the
     // leading space (0x20) precedes every letter by code point. (The previous
     // expectation encoded DB-collation order, and the Intl.Collator that
-    // replaced it flipped this pair across a Deno upgrade — both were
+    // replaced it flipped this pair across a Deno upgrade: both were
     // environment-dependent, which is what the comparator now forbids.) The
     // sentinel is moved last by TS regardless.
     expect: {
@@ -846,7 +846,7 @@ const EXPLICIT_CASES: Case[] = [
   //
   // The contract: n = distinct facilities contributing, HFA only, and only
   // where the results table has facility_id. Every other case in this file
-  // doubles as coverage of the last two clauses — an HMIS expectation that
+  // doubles as coverage of the last two clauses: an HMIS expectation that
   // grew an __n_value column would fail on the exact-shape compare.
   {
     name: "n counts distinct FACILITIES, not rows",
@@ -933,11 +933,11 @@ const EXPLICIT_CASES: Case[] = [
   },
   {
     // from_month means "to present": the stored max is schema-mandated but
-    // ignored at query time — the upper bound re-anchors to the live data's
+    // ignored at query time: the upper bound re-anchors to the live data's
     // max. Stored figure configs can now carry this filter type (the AI patch
     // schema's open-ended periodFilter), so pin the semantics: max says
     // 202402, the data reaches 202403, and 202403 is included.
-    name: "from_month ignores its stored max — range extends to the live data max",
+    name: "from_month ignores its stored max, range extends to the live data max",
     fixture: "hmis_monthly",
     fetchConfig: {
       ...base(),
@@ -958,7 +958,7 @@ const EXPLICIT_CASES: Case[] = [
     // only relative option for year data is "Last year", stored as
     // last_n_months(12), and {min: max, max} is exactly what it means. Module
     // presets on annual metrics (m006/m009) rely on the same collapse.
-    name: "year table: last_n_months means 'Last year' — collapses to latest year",
+    name: "year table: last_n_months means 'Last year', collapses to latest year",
     fixture: "hmis_yearly",
     fetchConfig: {
       ...base(),
@@ -970,12 +970,12 @@ const EXPLICIT_CASES: Case[] = [
   {
     // Same collapse for a bounded from_month: min 2023 is discarded, latest
     // year only. Judged acceptable 2026-08-03 because the state is
-    // near-unreachable — the AI patch path rejects open-ended filters on year
+    // near-unreachable: the AI patch path rejects open-ended filters on year
     // granularity (applyFigureConfigPatch), the UI never offers from_month
     // for year data, and no module has ever changed a metric's granularity
     // (the drift class the quarter_id block degrades for). If the engine is
     // ever made type-aware, this case must go red and be re-judged.
-    name: "year table: from_month min is discarded — latest year only",
+    name: "year table: from_month min is discarded, latest year only",
     fixture: "hmis_yearly",
     fetchConfig: {
       ...base(),

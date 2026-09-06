@@ -13,7 +13,7 @@ See [SYSTEM_08_results_packages.md](../SYSTEM_08_results_packages.md).
 | `timroberton/comb:wb-hmis-r-linux` | prod | `--platform linux/amd64`, pushed |
 | `timroberton/comb:wb-hmis-r-local` | dev  | host arch, local only            |
 
-Both are built from the same `Dockerfile` — only the platform/tag differ. The
+Both are built from the same `Dockerfile`: only the platform/tag differ. The
 image selected at runtime is `_DOCKER_IMAGE_TIDYVERSE_4_0_2` in
 [run_module_iterator.ts](../server/worker_routines/run_module/run_module_iterator.ts)
 (`_IS_PRODUCTION ? …-r-linux : …-r-local`).
