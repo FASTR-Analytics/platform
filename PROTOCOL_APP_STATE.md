@@ -103,7 +103,7 @@ reconnect. Stale data stays visible while reconnecting.
 | HMIS dataset summary  | `datasetsWithData`, `datasetVersions.hmis`, `hmisNVersions`, `hmisImportRunActive`, `hmisImportRunsQueued`, `hmisScheduledImportAttention` | `datasets_updated`           | `datasetVersions.hmis` + structure hash |
 | HFA dataset summary   | `datasetsWithData`, `datasetVersions.hfa`, `hfaTimePoints`, `hfaCacheHash`                                                                 | `datasets_updated`           | `hfaCacheHash`                          |
 | ICEH dataset summary  | `icehCacheHash`                                                                                                                            | `datasets_updated`           | `icehCacheHash`                         |
-| Population store      | `populationLevel` (level of the stored rows, null = empty), `populationTypes` (the vocabulary), `populationCoverage` (per type vs the HMIS structure at that level), `populationLastUpdated` | `population_updated`         | `populationLastUpdated`                 |
+| Population store      | `populationLevel` (the setting, null until set), `populationRowCount`, `populationCoverage` (per type vs the HMIS structure at that level), `populationLastUpdated` | `population_updated`         | `populationLastUpdated`                 |
 | Current user          | `currentUserEmail`, `currentUserApproved`, `currentUserIsGlobalAdmin`, `currentUserPermissions`                                            | `users_updated` (re-derived) | none                                    |
 
 **Per-connection fields:** `currentUser*` are per-user, re-derived by finding

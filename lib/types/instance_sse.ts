@@ -10,7 +10,6 @@ import type {
   InstancePopulationSummary,
   PopulationCoverage,
   PopulationLevel,
-  PopulationTypeInfo,
 } from "./population.ts";
 import type { RunCatalogItem, RunProgress } from "./run_generation.ts";
 import type { HfaWeightsCoverage } from "./structure.ts";
@@ -99,14 +98,13 @@ export type InstanceState = {
   hfaTimePoints: HfaTimePoint[];
   hfaCacheHash: string;
   icehCacheHash: string;
-  // The population store: the level of the stored rows (null = empty store;
-  // "has data" everywhere is `populationLevel !== null`), the type
-  // vocabulary (the indicator editor's picker), per-type coverage against
-  // the HMIS structure at that level (the manager page and the Data card),
-  // and the stamp that keys the T2 type-store cache. One event,
-  // `population_updated`, carries all four.
+  // The population store: the population level setting (null until set),
+  // the stored row count ("has data" everywhere is `populationRowCount > 0`),
+  // per-type coverage against the HMIS structure at that level (the manager
+  // page and the Data card), and the stamp that keys the T2 type-grid cache.
+  // One event, `population_updated`, carries all four.
   populationLevel: PopulationLevel | null;
-  populationTypes: PopulationTypeInfo[];
+  populationRowCount: number;
   populationCoverage: PopulationCoverage[];
   populationLastUpdated: string | undefined;
 

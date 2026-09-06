@@ -14,6 +14,7 @@ import {
   MAX_INDICATOR_EXPRESSION_INGREDIENTS,
   populationIngredientId,
   resolveIndicatorExpression,
+  POPULATION_TYPE_IDS,
   type ThresholdsRule,
   thresholdsRuleSchema,
 } from "lib";
@@ -105,17 +106,14 @@ async function loadExpressionDictionaryEntries(
       expression: string | null;
     }[]
   >`SELECT indicator_common_id, definition_type, expression FROM indicators`;
-  const populationTypes = await sql<{ id: string }[]>`
-    SELECT id FROM population_types
-  `;
   return [
     ...stored.map((r) => ({
       id: r.indicator_common_id,
       type: r.definition_type,
       expression: r.expression,
     })),
-    ...populationTypes.map((r) => ({
-      id: populationIngredientId(r.id),
+    ...POPULATION_TYPE_IDS.map((id) => ({
+      id: populationIngredientId(id),
       type: "population" as const,
       expression: null,
     })),

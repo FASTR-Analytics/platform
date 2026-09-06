@@ -17,17 +17,16 @@
 
 CREATE TABLE IF NOT EXISTS population_types (
   id text PRIMARY KEY NOT NULL,
-  label text NOT NULL,
   updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-INSERT INTO population_types (id, label) VALUES
-  ('total_population', 'Total population'),
-  ('u5', 'Under 5 population'),
-  ('u1', 'Under 1 population'),
-  ('wra', 'Women of reproductive age (15-49)'),
-  ('births', 'Expected births'),
-  ('pregnancies', 'Expected pregnancies')
+INSERT INTO population_types (id) VALUES
+  ('total_population'),
+  ('u5'),
+  ('u1'),
+  ('wra'),
+  ('births'),
+  ('pregnancies')
 ON CONFLICT (id) DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS population (

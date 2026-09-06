@@ -35,7 +35,9 @@ import {
   parseIndicatorExpression,
   parsePopulationIngredientId,
   type PopulationCoverage,
+  POPULATION_TYPE_IDS,
   populationIngredientId,
+  populationTypeLabel,
   type RawIndicatorWithMappings,
   resolveIndicatorExpression,
   t3,
@@ -142,8 +144,8 @@ function populationCoverageSummary(
     empty: false,
     text: t3({
       en: `${years}, ${c.areaCount} of ${c.structureAreaCount} areas; incomplete: ${shortYears}`,
-      fr: `${years}, ${c.areaCount} zones sur ${c.structureAreaCount} ; incomplet : ${shortYears}`,
-      pt: `${years}, ${c.areaCount} de ${c.structureAreaCount} áreas; incompleto: ${shortYears}`,
+      fr: `${years}, ${c.areaCount} unités sur ${c.structureAreaCount} ; incomplet : ${shortYears}`,
+      pt: `${years}, ${c.areaCount} de ${c.structureAreaCount} zonas; incompleto: ${shortYears}`,
     }),
   };
 }
@@ -223,8 +225,8 @@ export function EditIndicatorCommonForm(
         expression:
           c.definition.type === "derived" ? c.definition.expression : null,
       })),
-      ...instanceState.populationTypes.map((pt) => ({
-        id: populationIngredientId(pt.id),
+      ...POPULATION_TYPE_IDS.map((pt) => ({
+        id: populationIngredientId(pt),
         type: "population" as const,
         expression: null,
       })),
@@ -262,9 +264,7 @@ export function EditIndicatorCommonForm(
         return {
           identifier: writeIdentifier(id),
           kind: "population",
-          label: instanceState.populationTypes.find(
-            (pt) => pt.id === populationType,
-          )?.label,
+          label: t3(populationTypeLabel(populationType)),
           coverage: populationCoverageSummary(
             populationType,
             instanceState.populationCoverage,
@@ -559,11 +559,11 @@ export function EditIndicatorCommonForm(
                   fr: "Rechercher des populations...",
                   pt: "Pesquisar populações...",
                 })}
-                options={instanceState.populationTypes.map((pt) => ({
-                  value: pt.id,
-                  label: `${pt.label} (${pt.id})${
+                options={POPULATION_TYPE_IDS.map((pt) => ({
+                  value: pt,
+                  label: `${t3(populationTypeLabel(pt))} (${pt})${
                     populationCoverageSummary(
-                      pt.id,
+                      pt,
                       instanceState.populationCoverage,
                     ).empty
                       ? ` — ${t3({

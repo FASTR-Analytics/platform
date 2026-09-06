@@ -16,6 +16,7 @@
     "jsr:@std/bytes@^1.0.3": "1.0.4",
     "jsr:@std/csv@*": "1.0.3",
     "jsr:@std/csv@1.0.3": "1.0.3",
+    "jsr:@std/dotenv@*": "0.225.5",
     "jsr:@std/encoding@0.214": "0.214.0",
     "jsr:@std/encoding@0.217.0": "0.217.0",
     "jsr:@std/fmt@0.214": "0.214.0",
@@ -128,6 +129,9 @@
       "dependencies": [
         "jsr:@std/streams@^1.0.4"
       ]
+    },
+    "@std/dotenv@0.225.5": {
+      "integrity": "9ce6f9d0ec3311f74a32535aa1b8c62ed88b1ab91b7f0815797d77a6f60c922f"
     },
     "@std/encoding@0.214.0": {
       "integrity": "30a8713e1db22986c7e780555ffd2fefd1d4f9374d734bb41f5970f6c3352af5"

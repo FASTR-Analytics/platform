@@ -12,9 +12,9 @@ import {
   resolveCommonIndicatorCatalog,
   throwIfErrWithData,
   type DatasetHmisInfoInProject,
+  POPULATION_TYPE_IDS,
 } from "lib";
 import { getCommonIndicators } from "../instance/indicators.ts";
-import { getPopulationTypes } from "../instance/population.ts";
 import {
   getStructureSchema,
 } from "../instance/config.ts";
@@ -229,7 +229,7 @@ COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADE
       indicators = resolveCommonIndicatorCatalog(
         commonIndicators,
         baseIdsInData,
-        (await getPopulationTypes(mainDb)).map((t) => t.id),
+        POPULATION_TYPE_IDS,
       );
     } catch (e) {
       if (!(e instanceof CommonIndicatorCatalogError)) throw e;

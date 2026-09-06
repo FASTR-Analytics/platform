@@ -1,16 +1,14 @@
 import { Hono } from "hono";
 import {
-  createPopulationType,
   deleteAllPopulation,
-  deletePopulationType,
   deletePopulationTypeData,
   getInstancePopulationSummary,
   getPopulationExportRows,
-  getPopulationTypes,
+  getPopulationTemplate,
   getPopulationTypeStore,
   importPopulationCsv,
   previewPopulationCsv,
-  updatePopulationTypeLabel,
+  setPopulationLevel,
 } from "../../db/mod.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
@@ -21,57 +19,11 @@ export const routesPopulation = new Hono();
 
 defineRoute(
   routesPopulation,
-  "getPopulationTypes",
-  requireGlobalPermission(),
-  log("getPopulationTypes"),
-  async (c) => {
-    return c.json({ success: true, data: await getPopulationTypes(c.var.mainDb) });
-  },
-);
-
-defineRoute(
-  routesPopulation,
-  "createPopulationType",
+  "setPopulationLevel",
   requireGlobalPermission("can_configure_data"),
-  log("createPopulationType"),
+  log("setPopulationLevel"),
   async (c, { body }) => {
-    const res = await createPopulationType(c.var.mainDb, body.id, body.label);
-    if (res.success) {
-      notifyInstancePopulationUpdated(
-        await getInstancePopulationSummary(c.var.mainDb),
-      );
-    }
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesPopulation,
-  "updatePopulationType",
-  requireGlobalPermission("can_configure_data"),
-  log("updatePopulationType"),
-  async (c, { body }) => {
-    const res = await updatePopulationTypeLabel(
-      c.var.mainDb,
-      body.id,
-      body.label,
-    );
-    if (res.success) {
-      notifyInstancePopulationUpdated(
-        await getInstancePopulationSummary(c.var.mainDb),
-      );
-    }
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesPopulation,
-  "deletePopulationType",
-  requireGlobalPermission("can_configure_data"),
-  log("deletePopulationType"),
-  async (c, { body }) => {
-    const res = await deletePopulationType(c.var.mainDb, body.id);
+    const res = await setPopulationLevel(c.var.mainDb, body.level);
     if (res.success) {
       notifyInstancePopulationUpdated(
         await getInstancePopulationSummary(c.var.mainDb),
@@ -183,6 +135,32 @@ routesPopulation.get(
     return c.body(lines.join("\n"), 200, {
       "Content-Type": "text/csv; charset=utf-8",
       "Content-Disposition": 'attachment; filename="population.csv"',
+    });
+  },
+);
+
+// The import template for this instance: header at the population level, one
+// row per structure area × population type for the current year, count
+// blank. Refused while the level is unset, as the import is.
+routesPopulation.get(
+  "/population/template/csv",
+  requireGlobalPermission("can_configure_data"),
+  async (c) => {
+    const template = await getPopulationTemplate(
+      c.var.mainDb,
+      new Date().getFullYear(),
+    );
+    if (template === null) {
+      return c.text("Set the population level first", 400);
+    }
+    const { header, rows } = template;
+    const lines = [
+      header.join(","),
+      ...rows.map((r) => r.map(csvCell).join(",")),
+    ];
+    return c.body(lines.join("\n"), 200, {
+      "Content-Type": "text/csv; charset=utf-8",
+      "Content-Disposition": 'attachment; filename="population_template.csv"',
     });
   },
 );

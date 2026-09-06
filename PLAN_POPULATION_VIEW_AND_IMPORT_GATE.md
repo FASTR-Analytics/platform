@@ -1,11 +1,17 @@
 # PLAN: Population level inferred from the store, import preview, grid view
 
-Status: IMPLEMENTED 2026-09-06 (see PLAN_POPULATION_UI_REVIEW.md for the
-commits, the open verification step and the UI review). Not deleted because
-§8.4 (the end-to-end level-2 generation on dev) has not run: the dev
-dictionary refuses every HMIS capture (anc1, wer and aaaa depend on
-measles1, which has no raw mappings). The UI built under §6/R8 is being
-reviewed and reworked under the new plan.
+Status: IMPLEMENTED 2026-09-06, then revised the same day: the UI follows
+the facilities and weights pages (vertical type tabs, a `TableFromCsv` with
+one column per admin level then one per year); the type vocabulary is
+`POPULATION_TYPES` in the lib, no table; and ruling T1 is superseded: the
+population level is an explicit instance setting (`population_level`),
+required before the first import and locked while rows exist. Not
+deleted because §8.4 (the end-to-end level-2 generation on dev) has not
+run: the dev dictionary refuses every HMIS capture, because `anc1`, `wer`
+and `aaaa` depend on `measles1`, which has no raw indicator mapped to it.
+The fix is dev data, not code: map any raw indicator to `measles1` (or
+create a throwaway raw indicator mapped to it, run, then delete it), then
+run §8.4 and delete this file.
 
 Repos: app `/Users/timroberton/projects/apps/wb-fastr` (this repo); modules
 `/Users/timroberton/projects/apps/wb-fastr-modules` (m012 only); site

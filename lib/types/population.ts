@@ -3,26 +3,83 @@
 // =============================================================================
 //
 // Annual population counts per admin area × year × population type, kept in
-// the main DB and validated against the HMIS structure at import. The store
-// holds ONE admin level at a time: the population level is the level of the
-// stored rows (null while the store is empty), set by the first import and
-// changed only by deleting every value. It is also the analysis level of
-// m012's indicator values: the person-years file is written at that level and
-// nothing exists below it (SYSTEM_08 "population.csv").
+// the main DB and validated against the HMIS structure at import. The
+// population level is an explicit instance setting (`population_level` in
+// instance_config, null until set): every stored row is at it, the import is
+// refused until it is set, and changing it is refused while any row exists.
+// It is also the analysis level of m012's indicator values: the person-years
+// file is written at that level and nothing exists below it (SYSTEM_08
+// "population.csv").
 //
 // A derived common indicator's expression names a population type as the
 // ingredient `[population:<type>]`; at run capture the values of every type
 // the resolved catalog references are expanded into monthly person-years
-// (see lib/population_person_years.ts). Population types are user-extensible
-// rows (`population_types`), the only vocabulary an expression may name: no
-// typed field, no foreign key, the expression IS the reference.
+// (see lib/population_person_years.ts). The vocabulary is POPULATION_TYPES
+// below, fixed in code: no table, no typed field, the expression IS the
+// reference.
 //
 // =============================================================================
 
-export type PopulationTypeInfo = {
-  id: string;
-  label: string;
-};
+import type { TranslatableString } from "./_module_definition_github.ts";
+
+// The population type vocabulary: the only ids a CSV row, a formula's
+// `[population:<type>]` term or a package may name. Fixed in code, no table.
+export const POPULATION_TYPES = [
+  {
+    id: "total_population",
+    label: {
+      en: "Total population",
+      fr: "Population totale",
+      pt: "População total",
+    },
+  },
+  {
+    id: "u5",
+    label: {
+      en: "Under 5 population",
+      fr: "Population de moins de 5 ans",
+      pt: "População com menos de 5 anos",
+    },
+  },
+  {
+    id: "u1",
+    label: {
+      en: "Under 1 population",
+      fr: "Population de moins de 1 an",
+      pt: "População com menos de 1 ano",
+    },
+  },
+  {
+    id: "wra",
+    label: { en: "WRA (15-49)", fr: "FAP (15-49)", pt: "MIR (15-49)" },
+  },
+  {
+    id: "births",
+    label: {
+      en: "Expected births",
+      fr: "Naissances attendues",
+      pt: "Nascimentos esperados",
+    },
+  },
+  {
+    id: "pregnancies",
+    label: {
+      en: "Expected pregnancies",
+      fr: "Grossesses attendues",
+      pt: "Gravidezes esperadas",
+    },
+  },
+] as const satisfies readonly { id: string; label: TranslatableString }[];
+
+export type PopulationTypeId = (typeof POPULATION_TYPES)[number]["id"];
+
+export const POPULATION_TYPE_IDS: string[] = POPULATION_TYPES.map((t) => t.id);
+
+// Stored rows carry the id as text, so the lookup takes any string.
+export function populationTypeLabel(id: string): TranslatableString {
+  return POPULATION_TYPES.find((t) => t.id === id)?.label ??
+    { en: id, fr: id, pt: id };
+}
 
 export type PopulationLevel = 2 | 3 | 4;
 
@@ -48,17 +105,17 @@ export type PopulationCoverage = {
 
 export type InstancePopulationSummary = {
   populationLevel: PopulationLevel | null;
-  populationTypes: PopulationTypeInfo[];
+  populationRowCount: number;
   populationCoverage: PopulationCoverage[];
   // Bumped by every write to either table; keys the T2 type-store cache.
   populationLastUpdated: string | undefined;
 };
 
-// One grid row. Server-sorted: structure order, then stale areas by path.
+// One grid row: the area's names from admin_area_1 down to the population
+// level, one per column. Server-sorted: structure order, then stale areas
+// (no longer in the structure) by name.
 export type PopulationGridArea = {
-  // populationAreaKey of the full name path; identity only, never displayed.
-  key: string;
-  path: string;
+  names: string[];
   stale: boolean;
   cells: Record<string, number>;
 };

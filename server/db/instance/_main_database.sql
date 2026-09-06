@@ -309,16 +309,6 @@ CREATE INDEX idx_facilities_hfa_facility_ownership ON facilities_hfa(facility_ow
 -- INDICATORS
 -- ============================================================================
 
--- The population type vocabulary (PLAN_1b ruling 1): user-extensible, seeded
--- with the six FASTR defaults by instance migration 080. A derived indicator's
--- expression names a type as `[population:<type>]`; the app checks the
--- reference at write and at capture, and refuses to delete a type in use.
-CREATE TABLE population_types (
-  id text PRIMARY KEY NOT NULL,
-  label text NOT NULL,
-  updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
 -- A common indicator carries what it IS and how it is presented. `expression`
 -- holds a derived indicator's formula (which may name a population type as
 -- `[population:<type>]`; the app validates the reference, there is no FK)
@@ -380,7 +370,7 @@ CREATE INDEX idx_indicator_mappings_raw_common ON indicator_mappings(indicator_r
 -- check at generation). Levels coarser than `admin_area_level` carry the
 -- full path; finer columns carry ''.
 CREATE TABLE population (
-  population_type text NOT NULL REFERENCES population_types (id) ON DELETE CASCADE,
+  population_type text NOT NULL,
   admin_area_level integer NOT NULL CHECK (admin_area_level IN (2, 3, 4)),
   admin_area_1 text NOT NULL,
   admin_area_2 text NOT NULL,

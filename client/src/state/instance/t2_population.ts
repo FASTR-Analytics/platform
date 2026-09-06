@@ -14,8 +14,8 @@ const _POPULATION_TYPE_STORE_CACHE = createReactiveCache<
   },
   PopulationTypeStore
 >({
-  name: "instance_population_type_store",
-  uniquenessKeys: (params) => ["population_type_store", params.populationType],
+  name: "instance_population_type_grid",
+  uniquenessKeys: (params) => ["population_type_grid", params.populationType],
   versionKey: (params) =>
     `${params.populationLastUpdated ?? "no-population"}_${
       params.structureLastUpdated ?? "no-structure"

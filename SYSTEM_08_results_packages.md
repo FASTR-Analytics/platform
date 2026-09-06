@@ -945,8 +945,8 @@ The run's `inputs/population.csv` (built 2026-09-02; level rule
 stock→flow at capture. Written by `prepare_inputs.ts`
 (`writePopulationPersonYears`) on **every** HMIS capture: columns
 `admin_area_2..N`, `period_id`, `population_type`, `person_years`, where N
-is the **population level**: the store's level when it has rows, else the
-HMIS family's `adminDepth`. One row per structure area at that level ×
+is the **population level**: the instance's `population_level` setting
+when set (S5), else the HMIS family's `adminDepth`. One row per structure area at that level ×
 extract month × population type, for exactly the types the resolved
 catalog's slot maps reference under the `population:` prefix
 (`populationTypesReferencedBySlotMaps`: there is no column and no

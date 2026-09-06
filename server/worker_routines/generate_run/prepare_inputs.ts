@@ -337,10 +337,11 @@ async function writePopulationPersonYears(
     adminDepth: number;
   },
 ): Promise<RunPopulation> {
-  const storedLevel = await getPopulationLevel(mainDb);
-  // A depth-1 structure has no area below the country, so no population
-  // level exists: the header carries no area column and m012 stops.
-  const level: PopulationLevel | null = storedLevel ??
+  const populationLevel = await getPopulationLevel(mainDb);
+  // The instance's population level setting when set, else the data's own
+  // depth. A depth-1 structure has no area below the country, so no
+  // population level exists: the header carries no area column and m012 stops.
+  const level: PopulationLevel | null = populationLevel ??
     (capture.adminDepth >= 2 ? parsePopulationLevel(capture.adminDepth) : null);
   const populationTypes = populationTypesReferencedBySlotMaps(
     capture.indicators.flatMap((row) =>

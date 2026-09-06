@@ -2,7 +2,6 @@ import { z } from "zod";
 import type {
   PopulationImportPreview,
   PopulationImportResult,
-  PopulationTypeInfo,
   PopulationTypeStore,
 } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
@@ -10,27 +9,13 @@ import { route } from "../route-utils.ts";
 const populationTypeIdSchema = z.string().min(1);
 
 export const populationRouteRegistry = {
-  getPopulationTypes: route({
-    path: "/population/types",
-    method: "GET",
-    response: {} as PopulationTypeInfo[],
-  }),
-  createPopulationType: route({
-    path: "/population/types",
+  // Refused while any population row exists.
+  setPopulationLevel: route({
+    path: "/population/level",
     method: "POST",
-    body: z.object({ id: populationTypeIdSchema, label: z.string().min(1) }),
+    body: z.object({ level: z.union([z.literal(2), z.literal(3), z.literal(4)]) }),
   }),
-  updatePopulationType: route({
-    path: "/population/types/update",
-    method: "POST",
-    body: z.object({ id: populationTypeIdSchema, label: z.string().min(1) }),
-  }),
-  deletePopulationType: route({
-    path: "/population/types/delete",
-    method: "POST",
-    body: z.object({ id: populationTypeIdSchema }),
-  }),
-  // One type's figures as the grid shows them: structure areas down, years
+  // One type's values as the grid shows them: structure areas down, years
   // across, stale areas appended.
   getPopulationTypeStore: route({
     path: "/population/type_store",

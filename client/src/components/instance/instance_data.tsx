@@ -550,15 +550,26 @@ export function InstanceData(p: Props) {
                         })}
                       </div>
                       <Show
-                        when={instanceState.populationLevel}
+                        when={instanceState.populationRowCount > 0
+                          ? instanceState.populationLevel
+                          : null}
                         keyed
                         fallback={
                           <div class="text-danger text-xs">
-                            {t3({
-                              en: "No population data",
-                              fr: "Aucune donnée de population",
-                              pt: "Sem dados de população",
-                            })}
+                            <Show
+                              when={instanceState.populationLevel !== null}
+                              fallback={t3({
+                                en: "No population level set",
+                                fr: "Aucun niveau de population défini",
+                                pt: "Nenhum nível de população definido",
+                              })}
+                            >
+                              {t3({
+                                en: "No population data",
+                                fr: "Aucune donnée de população",
+                                pt: "Sem dados de população",
+                              })}
+                            </Show>
                           </div>
                         }
                       >

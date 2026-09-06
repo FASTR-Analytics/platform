@@ -378,8 +378,8 @@ population terms. There is no separate id grammar: an identifier is written
 bare when it matches `^[a-z][a-z0-9_]*$` and `[in brackets]` otherwise, so
 every common id is usable regardless of charset. A population term is the
 identifier `population:<type>` (always bracketed because `:` is outside the bare
-charset and forbidden in indicator ids), which resolves iff `<type>` is a row
-of `population_types` (the Population store below); it is a leaf like a base
+charset and forbidden in indicator ids), which resolves iff `<type>` is in
+`POPULATION_TYPES` (lib, fixed in code); it is a leaf like a base
 common, takes an ordinary ingredient slot in first-appearance order, and
 counts toward the uniform 8-slot cap. The dictionary the resolver
 works from is the commons PLUS one `population` entry per store type, at
@@ -494,13 +494,18 @@ cascades.
 
 ## Population store
 
+**The vocabulary** is `POPULATION_TYPES` in `lib/types/population.ts`: six
+ids with `{ en, fr, pt }` labels, fixed in code and read by the import, the
+formula resolver, the indicator editor and the page. No table (migration
+082 dropped `population_types` and the foreign key to it), so a common
+indicator formula is the same contract on
+every instance and the only thing that varies per instance is whether a
+type has data.
+
 **What it is (ruled 2026-08-30, built 2026-09-02; one level and the grid
-ruled 2026-09-06).** Annual population STOCKS per admin area × year ×
-population type, in the main DB: `population_types` (id, label,
-user-extensible; seeded with the six FASTR defaults by instance migration
-080, and the ONLY vocabulary an expression's `[population:<type>]` term may
-name, referenced from expressions, not from a typed field; no FK, the
-resolver checks it at save and at capture) and `population` (type,
+ruled 2026-09-06; vocabulary fixed in code 2026-09-06).** Annual population
+STOCKS per admin area × year × population type, in the main DB table
+`population` (type,
 `admin_area_level` 2–4, the full `admin_area_1..4` name path with `''`
 below the level, year, count ≥ 0; PK over all of them). Names match the
 HMIS structure tables but are deliberately NOT FK'd: a structure re-import
@@ -509,17 +514,21 @@ structure is STALE: counted and shown, never part of completeness. There is
 no per-project copy and no dataset family. Population accompanies the HMIS
 family into a results package (S8 "population.csv").
 
-**The population level.** The store holds ONE admin level at a time. The
-level IS the level of the stored rows (`getPopulationLevel`: `SELECT
-DISTINCT admin_area_level`; null for an empty store; more than one throws,
-the import being the only writer of new rows). There is no setting and no
-migration. The first import sets it from the file's columns; a later file at
-another level is refused while any row exists ("delete all population data first");
-deleting every value clears it. It is also the analysis level of m012's
-indicator values for EVERY indicator (S8 "population.csv"): coarser levels
-derive by summation and nothing exists below it, which the import preview
-states before the first import. Lowering the HMIS `adminDepth` below the
-stored level has no guard: m012's script stops at generation (S8).
+**The population level** (ruled 2026-09-06, replacing inference from the
+rows). An explicit instance setting, `population_level` in
+`instance_config` (`getPopulationLevel`; null until set), chosen on the
+Population page's right panel from AA2 to the HMIS `adminDepth`
+(`setPopulationLevel`, `POST /population/level`, `can_configure_data`).
+The store holds ONE level for every type: the import is refused until the
+level is set and refuses a file whose columns are at any other level;
+changing the setting is refused while any row exists ("delete all
+population data first"); delete-all keeps the setting. Migration 083
+backfilled the key from the rows where they existed. It is also the
+analysis level of m012's indicator values for EVERY indicator (S8
+"population.csv"): coarser levels derive by summation and nothing exists
+below it, which the setting's own explanation states. Lowering the HMIS
+`adminDepth` below the setting has no guard: m012's script stops at
+generation (S8).
 
 **Completeness** (`lib/population_coverage.ts`, pure: one rule, two data
 paths). Per type, over in-structure rows at the population level: complete
@@ -544,26 +553,30 @@ re-runs both, refuses unless `confirmIncomplete` when any touched type
 would be left incomplete, then UPSERTs by key inside a transaction that
 locks the table and re-reads the level, so two first imports at different
 levels cannot both see an empty store. Per-type delete
-(`deletePopulationTypeData`); delete-all; type create (indicator-id
-charset rule: the id is written into R literals and CSV) / relabel / delete
-(refused with a listing while ANY stored derived expression names it; the
-type's rows cascade). Every write stamps `population_last_updated` in
+(`deletePopulationTypeData`); delete-all. Every write stamps `population_last_updated` in
 `instance_config`.
 
-**Reads.** `population_updated` SSE carries the level, the vocabulary, the
-per-type coverage and the stamp (`InstancePopulationSummary`, spread into
-`InstanceState`; "has data" everywhere is `populationLevel !== null`).
+**Reads.** `population_updated` SSE carries the level setting, the stored
+row count, the per-type coverage and the stamp (`InstancePopulationSummary`,
+spread into `InstanceState`; "has data" everywhere is
+`populationRowCount > 0`).
 The two HMIS structure write routes (`deleteFamilyFacilities` and
 `structureStep4_ImportData`, hmis family only) emit it too, since coverage
 is measured against the structure. The manager page
-(`client/src/components/instance_population/`) is a grid per type
-(`getPopulationTypeStore`, `POST /population/type_store`, `can_view_data`:
-structure areas at the level in structure order, stale areas appended,
-years across), fetched through the T2 cache keyed on BOTH the population
-and structure stamps, with a per-type delete; the grid's layout is under
-review (PLAN_POPULATION_UI_REVIEW.md). The
-indicator editor's population picker and legend read the vocabulary and
-coverage from T1. Export is CSV in the import format, area columns to the
+(`client/src/components/instance_population/`) is laid out like the
+facilities and weights pages: heading bar with Download and the level as
+subheading, a right panel (the level setting, import, delete all), and the
+body. The
+body is a vertical tab per type on the left (a coverage dot per type) and,
+per type, a heading line (coverage text, per-type delete) over a panther
+`TableFromCsv` in the export CSV's column order: `admin_area_1` down to the
+population level, then one column per year, blank cells shown as ".". Its
+rows come from `getPopulationTypeStore` (`POST /population/type_store`,
+`can_view_data`: `names` per area at the level, structure order, stale
+areas appended and flagged) through the T2 cache keyed on BOTH the
+population and structure stamps; stale areas, when any, get a second table
+under the main one. The indicator editor's population picker and legend
+list `POPULATION_TYPES` with the coverage from T1. Export is CSV in the import format, area columns to the
 population level. At generation, `getPopulationAnchors` reads one type at
 the population level as per-area anchors for the person-years expansion
 (S8).

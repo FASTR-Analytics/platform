@@ -1,27 +1,33 @@
-// The values of one population type as a grid: structure areas at the
-// population level down (stale areas appended), years across. One vertical
-// tab per type on the left; the coverage line in the heading comes from T1,
-// the cells from the T2 type-store cache.
+// One population type at a time: a vertical tab per type on the left; on the
+// right its values as the app's other data pages show a dataset, a
+// TableFromCsv in the export CSV's column order (admin_area_1 down to the
+// population level, then one column per year). Structure areas fill the main
+// table; rows for areas no longer in the structure, when any, get their own
+// table below it. The coverage line comes from T1, the cells from the T2
+// type-grid cache.
 
 import {
+  POPULATION_TYPES,
+  populationTypeLabel,
   t3,
   TC,
   type PopulationGridArea,
+  type PopulationLevel,
   type PopulationTypeStore,
 } from "lib";
 import {
   Button,
+  Csv,
   FrameLeft,
   FrameTop,
   HeadingBar,
   StateHolderWrapper,
-  Table,
+  TableFromCsv,
   TabsNavigation,
   createDeleteAction,
   toNum0,
   type ListItem,
   type StateHolder,
-  type TableColumn,
 } from "panther";
 import { Show, createEffect, createMemo, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -43,21 +49,19 @@ export function PopulationGrid(p: Props) {
     );
   // The selection survives a vocabulary change only while its type exists;
   // otherwise the first type with data, else the first type.
-  const activeType = createMemo(() => {
-    const types = instanceState.populationTypes;
-    const selected = selectedType();
-    if (selected !== undefined && types.some((t) => t.id === selected)) {
-      return selected;
-    }
-    return (types.find((t) => coverageFor(t.id) !== undefined) ?? types.at(0))
-      ?.id;
-  });
+  // The first type with data until the user picks one.
+  const activeType = createMemo(
+    () =>
+      selectedType() ??
+        POPULATION_TYPES.find((t) => coverageFor(t.id) !== undefined)?.id ??
+        POPULATION_TYPES[0].id,
+  );
   const tabItems = createMemo<ListItem<string>[]>(() =>
-    instanceState.populationTypes.map((t) => {
+    POPULATION_TYPES.map((t) => {
       const coverage = coverageFor(t.id);
       return {
         id: t.id,
-        label: t.label,
+        label: t3(t.label),
         dot: coverage === undefined
           ? undefined
           : coverage.complete
@@ -70,11 +74,11 @@ export function PopulationGrid(p: Props) {
   return (
     <FrameLeft
       panelChildren={
-        <div class="h-full">
+        <div class="h-full w-64">
           <TabsNavigation
             vertical
             items={tabItems()}
-            value={activeType() ?? ""}
+            value={activeType()}
             onChange={setSelectedType}
           />
         </div>
@@ -92,12 +96,34 @@ export function PopulationGrid(p: Props) {
   );
 }
 
-// Mounted per type (the parent keys on it), so mount-time defaults are per
-// type.
+const ADMIN_AREA_COLUMNS = [
+  "admin_area_1",
+  "admin_area_2",
+  "admin_area_3",
+  "admin_area_4",
+] as const;
+
+function gridCsv(
+  level: PopulationLevel,
+  years: number[],
+  areas: PopulationGridArea[],
+): Csv<string> {
+  const colHeaders = [
+    ...ADMIN_AREA_COLUMNS.slice(0, level),
+    ...years.map(String),
+  ];
+  const aoa = areas.map((area) => [
+    ...area.names,
+    ...years.map((year) => {
+      const value = area.cells[String(year)];
+      return value === undefined ? "" : toNum0(value);
+    }),
+  ]);
+  return new Csv({ aoa, colHeaders });
+}
+
 function PopulationTypeGrid(p: { populationType: string; canConfigure: boolean }) {
-  const typeLabel = () =>
-    instanceState.populationTypes.find((t) => t.id === p.populationType)
-      ?.label ?? p.populationType;
+  const typeLabel = () => t3(populationTypeLabel(p.populationType));
   const coverage = () =>
     instanceState.populationCoverage.find(
       (c) => c.populationType === p.populationType,
@@ -160,56 +186,7 @@ function PopulationTypeGrid(p: { populationType: string; canConfigure: boolean }
           }),
       );
     }
-    if (c !== undefined && c.staleRowCount > 0) {
-      parts.push(
-        t3({
-          en: `${toNum0(c.staleRowCount)} rows for areas no longer in the structure`,
-          fr: `${toNum0(c.staleRowCount)} lignes pour des unités absentes de la structure`,
-          pt: `${toNum0(c.staleRowCount)} linhas de zonas que já não estão na estrutura`,
-        }),
-      );
-    }
     return parts.filter((s) => s !== "").join(" · ");
-  });
-
-  const areas = createMemo<PopulationGridArea[]>(() => {
-    const s = store();
-    return s.status === "ready" ? s.data.areas : [];
-  });
-
-  const columns = createMemo<TableColumn<PopulationGridArea>[]>(() => {
-    const s = store();
-    const years = s.status === "ready" ? s.data.years : [];
-    return [
-      {
-        key: "path",
-        header: levelLabel(),
-        render: (area) => (
-          <span classList={{ "text-base-content-muted": area.stale }}>
-            {area.path}
-            <Show when={area.stale}>
-              {" "}
-              {t3({
-                en: "(not in the structure)",
-                fr: "(absente de la structure)",
-                pt: "(fora da estrutura)",
-              })}
-            </Show>
-          </span>
-        ),
-      },
-      ...years.map((year): TableColumn<PopulationGridArea> => ({
-        key: String(year),
-        header: String(year),
-        alignH: "right",
-        render: (area) => {
-          const value = area.cells[String(year)];
-          return value === undefined
-            ? <span class="text-danger">·</span>
-            : <span class="font-mono">{toNum0(value)}</span>;
-        },
-      })),
-    ];
   });
 
   const deleteTypeData = createDeleteAction(
@@ -227,58 +204,95 @@ function PopulationTypeGrid(p: { populationType: string; canConfigure: boolean }
       }),
   );
 
+  const blankAsDot = (str: string) => (str === "" ? "." : str);
+
   return (
     <FrameTop
       panelChildren={
         <HeadingBar heading={typeLabel()} subheading={coverageText()}>
-          <div class="ui-gap flex items-center">
-            <Show when={p.canConfigure}>
-              <Button
-                iconName="trash"
-                intent="danger"
-                outline
-                size="sm"
-                onClick={deleteTypeData.click}
-              >
-                {t3({
-                  en: `Delete all “${typeLabel()}” data`,
-                  fr: `Supprimer toutes les données « ${typeLabel()} »`,
-                  pt: `Eliminar todos os dados «${typeLabel()}»`,
-                })}
-              </Button>
-            </Show>
-          </div>
+          <Show when={p.canConfigure}>
+            <Button
+              iconName="trash"
+              intent="danger"
+              outline
+              size="sm"
+              onClick={deleteTypeData.click}
+            >
+              {t3({
+                en: `Delete all “${typeLabel()}” data`,
+                fr: `Supprimer toutes les données « ${typeLabel()} »`,
+                pt: `Eliminar todos os dados «${typeLabel()}»`,
+              })}
+            </Button>
+          </Show>
         </HeadingBar>
       }
     >
-      <StateHolderWrapper state={store()} noPad>
+      <StateHolderWrapper state={store()}>
         {(data) => (
           <Show
-            when={data.years.length > 0}
+            when={data.populationLevel !== null && data.years.length > 0}
             fallback={
-              <div class="ui-pad text-base-content-muted text-sm">
+              <div class="ui-pad">
                 {t3({
-                  en: "No data for this population type.",
-                  fr: "Aucune donnée pour ce type de population.",
-                  pt: "Sem dados para este tipo de população.",
+                  en: "No data for this population type",
+                  fr: "Aucune donnée pour ce type de population",
+                  pt: "Sem dados para este tipo de população",
                 })}
               </div>
             }
           >
-            <div class="ui-pad h-full">
-              <Table
-                data={areas()}
-                columns={columns()}
-                keyField="key"
-                noRowsMessage={t3({
-                  en: "No areas",
-                  fr: "Aucune unité",
-                  pt: "Sem zonas",
-                })}
-                fitTableToAvailableHeight
-                paddingY="compact"
-              />
-            </div>
+            <Show when={data.populationLevel} keyed>
+              {(level) => {
+                const structureAreas = () =>
+                  data.areas.filter((a) => !a.stale);
+                const staleAreas = () => data.areas.filter((a) => a.stale);
+                return (
+                  <div class="flex h-full w-full flex-col">
+                    <div class="min-h-0 flex-1">
+                      <TableFromCsv
+                        csv={gridCsv(level, data.years, structureAreas())}
+                        knownTotalCount={structureAreas().length}
+                        maxRows={structureAreas().length}
+                        cellFormatter={blankAsDot}
+                        alignText="left"
+                        unsorted
+                      />
+                    </div>
+                    <Show when={staleAreas().length > 0}>
+                      <div class="flex h-72 flex-none flex-col border-t">
+                        <div class="ui-pad flex-none text-sm">
+                          <span class="font-700">
+                            {t3({
+                              en: "Areas no longer in the HMIS structure",
+                              fr: "Unités absentes de la structure SNIS",
+                              pt: "Zonas que já não estão na estrutura SNIS",
+                            })}
+                          </span>{" "}
+                          <span class="text-base-content-muted">
+                            {t3({
+                              en: "These rows are kept and exported but never count towards completeness.",
+                              fr: "Ces lignes sont conservées et exportées, mais ne comptent jamais pour la complétude.",
+                              pt: "Estas linhas são mantidas e exportadas, mas nunca contam para a completude.",
+                            })}
+                          </span>
+                        </div>
+                        <div class="min-h-0 flex-1">
+                          <TableFromCsv
+                            csv={gridCsv(level, data.years, staleAreas())}
+                            knownTotalCount={staleAreas().length}
+                            maxRows={staleAreas().length}
+                            cellFormatter={blankAsDot}
+                            alignText="left"
+                            unsorted
+                          />
+                        </div>
+                      </div>
+                    </Show>
+                  </div>
+                );
+              }}
+            </Show>
           </Show>
         )}
       </StateHolderWrapper>

@@ -3,11 +3,9 @@ import {
   type APIResponseNoData,
   type APIResponseWithData,
   collectIdentifiers,
-  describeNewIndicatorIdIssue,
-  getNewIndicatorIdIssue,
   type InstancePopulationSummary,
-  parseIndicatorExpression,
   parsePopulationLevel,
+  POPULATION_TYPE_IDS,
   type PopulationAnchor,
   POPULATION_CSV_REQUIRED_COLUMNS,
   POPULATION_PREVIEW_MISSING_AREAS_CAP,
@@ -22,7 +20,6 @@ import {
   type PopulationImportResult,
   populationIngredientId,
   type PopulationLevel,
-  type PopulationTypeInfo,
   type PopulationTypeStore,
 } from "lib";
 import { getCsvStreamComponents } from "../../server_only_funcs_csvs/get_csv_components_streaming_fast.ts";
@@ -61,144 +58,72 @@ function structureJoinCondition(level: PopulationLevel): string {
     .join(" AND ");
 }
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-export async function getPopulationTypes(
-  mainDb: Sql,
-): Promise<PopulationTypeInfo[]> {
-  return await mainDb<PopulationTypeInfo[]>`
-    SELECT id, label FROM population_types ORDER BY LOWER(label)
-  `;
-}
-
-export async function createPopulationType(
-  mainDb: Sql,
-  id: string,
-  label: string,
-): Promise<APIResponseNoData> {
-  return await tryCatchDatabaseAsync(async () => {
-    // Same charset rule as an indicator id: the id is written into m012's
-    // ingredient literal and the person-years CSV, and a ':' is what
-    // separates it from the `population:` prefix.
-    const issue = getNewIndicatorIdIssue(id);
-    if (issue !== undefined) {
-      return {
-        success: false,
-        err: `Population type id ${describeNewIndicatorIdIssue(issue)}`,
-      };
-    }
-    if (label.trim() === "") {
-      return { success: false, err: "Label must not be empty" };
-    }
-    const existing = await mainDb<{ id: string }[]>`
-      SELECT id FROM population_types WHERE id = ${id}
-    `;
-    if (existing.length > 0) {
-      return { success: false, err: `Population type "${id}" already exists` };
-    }
-    await mainDb.begin(async (sql) => {
-      await sql`
-        INSERT INTO population_types (id, label, updated_at)
-        VALUES (${id}, ${label.trim()}, CURRENT_TIMESTAMP)
-      `;
-      await stampPopulationLastUpdated(sql);
-    });
-    return { success: true };
-  });
-}
-
-export async function updatePopulationTypeLabel(
-  mainDb: Sql,
-  id: string,
-  label: string,
-): Promise<APIResponseNoData> {
-  return await tryCatchDatabaseAsync(async () => {
-    if (label.trim() === "") {
-      return { success: false, err: "Label must not be empty" };
-    }
-    const updated = await mainDb.begin(async (sql) => {
-      const rows = await sql`
-        UPDATE population_types
-        SET label = ${label.trim()}, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ${id}
-        RETURNING id
-      `;
-      if (rows.length > 0) await stampPopulationLastUpdated(sql);
-      return rows.length;
-    });
-    if (updated === 0) {
-      return { success: false, err: `Population type "${id}" does not exist` };
-    }
-    return { success: true };
-  });
-}
-
-// Refuses while any stored expression names the type as `[population:<id>]`,
-// the same re-parse the common-indicator delete guard performs; the type's
-// population rows go with it (ON DELETE CASCADE), and the client's confirm
-// dialog says so.
-export async function deletePopulationType(
-  mainDb: Sql,
-  id: string,
-): Promise<APIResponseNoData> {
-  return await tryCatchDatabaseAsync(async () => {
-    const derived = await mainDb<
-      { indicator_common_id: string; expression: string }[]
-    >`
-      SELECT indicator_common_id, expression FROM indicators
-      WHERE definition_type = 'derived'
-      ORDER BY indicator_common_id
-    `;
-    const ingredientId = populationIngredientId(id);
-    const users = derived
-      .filter((r) =>
-        collectIdentifiers(parseIndicatorExpression(r.expression)).includes(
-          ingredientId,
-        )
-      )
-      .map((r) => r.indicator_common_id);
-    if (users.length > 0) {
-      return {
-        success: false,
-        err: `Population type "${id}" is used in the formula of ${
-          users.join(", ")
-        }. Change those indicators first`,
-      };
-    }
-    const deleted = await mainDb.begin(async (sql) => {
-      const rows = await sql`
-        DELETE FROM population_types WHERE id = ${id} RETURNING id
-      `;
-      if (rows.length > 0) await stampPopulationLastUpdated(sql);
-      return rows.length;
-    });
-    if (deleted === 0) {
-      return { success: false, err: `Population type "${id}" does not exist` };
-    }
-    return { success: true };
-  });
-}
-
 // ── Level ─────────────────────────────────────────────────────────────────────
 
-// The level of the stored rows; null for an empty store. The import is the
-// only writer of new rows and refuses a second level, so more than one is an
-// invariant break worth a loud failure.
+const POPULATION_LEVEL_KEY = "population_level";
+
+// The instance's population level: an explicit setting, never inferred from
+// the rows. Null until set, and the import is refused until then. Every
+// stored row is at this level (the import enforces it, and a change is
+// refused while any row exists).
 export async function getPopulationLevel(
   sql: Sql,
 ): Promise<PopulationLevel | null> {
-  const rows = await sql<{ admin_area_level: number }[]>`
-    SELECT DISTINCT admin_area_level FROM population
+  const row = (
+    await sql<{ config_json_value: string }[]>`
+      SELECT config_json_value FROM instance_config
+      WHERE config_key = ${POPULATION_LEVEL_KEY}
+    `
+  ).at(0);
+  return row === undefined
+    ? null
+    : parsePopulationLevel(Number(JSON.parse(row.config_json_value)));
+}
+
+export async function getPopulationRowCount(sql: Sql): Promise<number> {
+  const [{ n }] = await sql<{ n: number }[]>`
+    SELECT COUNT(*)::int AS n FROM population
   `;
-  if (rows.length === 0) return null;
-  if (rows.length > 1) {
-    throw new Error(
-      `The population store holds rows at more than one admin area level (${
-        rows.map((r) => r.admin_area_level).join(", ")
-      })`,
-    );
-  }
-  return parsePopulationLevel(rows[0].admin_area_level);
+  return n;
+}
+
+// Capped at the HMIS adminDepth. Refused while any row exists: the rows are
+// at the current level, and a change means deleting them and importing
+// again at the new one.
+export async function setPopulationLevel(
+  mainDb: Sql,
+  level: PopulationLevel,
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    const resSchema = await getStructureSchema(mainDb, "hmis");
+    if (!resSchema.success) return { success: false, err: resSchema.err };
+    if (level > resSchema.data.adminDepth) {
+      return {
+        success: false,
+        err: `The HMIS structure only goes to admin area level ${resSchema.data.adminDepth}`,
+      };
+    }
+    const storedRows = await mainDb.begin(async (sql) => {
+      await sql`LOCK TABLE population IN SHARE ROW EXCLUSIVE MODE`;
+      const n = await getPopulationRowCount(sql);
+      if (n > 0) return n;
+      await sql`
+        INSERT INTO instance_config (config_key, config_json_value)
+        VALUES (${POPULATION_LEVEL_KEY}, ${JSON.stringify(level)})
+        ON CONFLICT (config_key)
+        DO UPDATE SET config_json_value = EXCLUDED.config_json_value
+      `;
+      await stampPopulationLastUpdated(sql);
+      return 0;
+    });
+    if (storedRows > 0) {
+      return {
+        success: false,
+        err: `Delete all population data first: ${storedRows} rows are stored at the current population level`,
+      };
+    }
+    return { success: true };
+  });
 }
 
 // ── Summary (T1) ──────────────────────────────────────────────────────────────
@@ -206,9 +131,9 @@ export async function getPopulationLevel(
 export async function getInstancePopulationSummary(
   mainDb: Sql,
 ): Promise<InstancePopulationSummary> {
-  const populationTypes = await getPopulationTypes(mainDb);
   const populationLevel = await getPopulationLevel(mainDb);
-  const populationCoverage = populationLevel === null
+  const populationRowCount = await getPopulationRowCount(mainDb);
+  const populationCoverage = populationLevel === null || populationRowCount === 0
     ? []
     : await computePopulationCoverage(mainDb, populationLevel);
   const stampRow = (
@@ -219,7 +144,7 @@ export async function getInstancePopulationSummary(
   ).at(0);
   return {
     populationLevel,
-    populationTypes,
+    populationRowCount,
     populationCoverage,
     populationLastUpdated: stampRow
       ? (JSON.parse(stampRow.config_json_value) as string)
@@ -325,7 +250,7 @@ function areaNames(row: PopulationAreaRow): string[] {
 }
 
 // One type's values as the grid shows them: every structure area at the
-// population level in structure order, then stale areas by path.
+// population level in structure order, then stale areas by name.
 export async function getPopulationTypeStore(
   mainDb: Sql,
   populationType: string,
@@ -356,21 +281,19 @@ export async function getPopulationTypeStore(
     const key = populationAreaKey(names);
     structureKeys.add(key);
     return {
-      key,
-      path: populationDisplayPath(names, level),
+      names: names.slice(0, level),
       stale: false,
       cells: cellsByKey.get(key) ?? {},
     };
   });
   const stale: PopulationGridArea[] = [...cellsByKey.keys()]
     .filter((key) => !structureKeys.has(key))
+    .sort()
     .map((key) => ({
-      key,
-      path: populationDisplayPath(namesByKey.get(key)!, level),
+      names: namesByKey.get(key)!.slice(0, level),
       stale: true,
       cells: cellsByKey.get(key)!,
-    }))
-    .sort((a, b) => a.path.localeCompare(b.path));
+    }));
   return {
     populationLevel: level,
     years: [...years].sort((a, b) => a - b),
@@ -398,6 +321,30 @@ export async function getPopulationExportRows(
              admin_area_4, year
   `;
   return { level, rows: rows.map((r) => ({ ...r, count: Number(r.count) })) };
+}
+
+// The import template: every HMIS structure area at the population level,
+// one row per population type for `year`, count blank for the user to fill.
+// Names come from the structure, so a filled template imports without a
+// name mismatch. Null while the level is unset.
+export async function getPopulationTemplate(
+  mainDb: Sql,
+  year: number,
+): Promise<{ header: string[]; rows: string[][] } | null> {
+  const level = await getPopulationLevel(mainDb);
+  if (level === null) return null;
+  const areaColumns = ADMIN_AREA_COLUMNS.slice(0, level);
+  const header = [...areaColumns, "year", "population_type", "count"];
+  const areas = await listHmisStructureAreas(mainDb, level);
+  const rows = areas.flatMap((a) =>
+    POPULATION_TYPE_IDS.map((populationType) => [
+      ...areaNames(a).slice(0, level),
+      String(year),
+      populationType,
+      "",
+    ])
+  );
+  return { header, rows };
 }
 
 // The values generation reads: one population type at the population level,
@@ -457,9 +404,9 @@ type ParsedPopulationCsv = { level: PopulationLevel; rows: PopulationStoreRow[] 
 
 function levelMismatchMessage(
   fileLevel: PopulationLevel,
-  storedLevel: PopulationLevel,
+  populationLevel: PopulationLevel,
 ): string {
-  return `The file is at admin area level ${fileLevel}, but the stored population data is at level ${storedLevel}. The store holds one level at a time: delete all population data first to change it.`;
+  return `The file is at admin area level ${fileLevel}, but this instance's population level is ${populationLevel}: the file needs the columns admin_area_1 to admin_area_${populationLevel}. To change the population level, delete all population data first.`;
 }
 
 // Fixed-column CSV (lib/types/population.ts POPULATION_CSV_REQUIRED_COLUMNS):
@@ -512,14 +459,18 @@ export async function parsePopulationCsv(
         err: `The file is at admin area level ${level}, but the HMIS structure only goes to level ${adminDepth}`,
       };
     }
-    const storedLevel = await getPopulationLevel(mainDb);
-    if (storedLevel !== null && storedLevel !== level) {
-      return { success: false, err: levelMismatchMessage(level, storedLevel) };
+    const populationLevel = await getPopulationLevel(mainDb);
+    if (populationLevel === null) {
+      return {
+        success: false,
+        err: "Set the population level on the Population page before importing",
+      };
+    }
+    if (level !== populationLevel) {
+      return { success: false, err: levelMismatchMessage(level, populationLevel) };
     }
 
-    const knownTypes = new Set(
-      (await getPopulationTypes(mainDb)).map((t) => t.id),
-    );
+    const knownTypes = new Set(POPULATION_TYPE_IDS);
     const structureAreas = await listHmisStructureAreas(mainDb, level);
     // Path below level 1 → the level-1 name, so a file without admin_area_1
     // resolves it (and one with it is checked against it).
@@ -564,7 +515,7 @@ export async function parsePopulationCsv(
       const level1 = level1ByPath.get(populationAreaKey(["", a2, a3, a4]));
       if (level1 === undefined) {
         problems.push(
-          `line ${line}: area "${[a2, a3, a4].filter((s) => s !== "").join(" > ")}" is not in the HMIS structure at level ${level}`,
+          `line ${line}: area "${[a2, a3, a4].filter((s) => s !== "").join(" / ")}" is not in the HMIS structure at level ${level}`,
         );
         return;
       }
@@ -734,13 +685,14 @@ export async function importPopulationCsv(
       };
     }
     const { level, rows } = parsed.data;
-    const conflictingLevel = await mainDb.begin(async (sql) => {
-      // Two first imports at different levels must not both see an empty
-      // store: the lock serialises writers, and the level is re-read under
-      // it.
+    const outcome = await mainDb.begin<
+      { written: true } | { written: false; level: PopulationLevel | null }
+    >(async (sql) => {
+      // The level is re-read under the lock so a setting change cannot slip
+      // between the parse and the write.
       await sql`LOCK TABLE population IN SHARE ROW EXCLUSIVE MODE`;
-      const storedLevel = await getPopulationLevel(sql);
-      if (storedLevel !== null && storedLevel !== level) return storedLevel;
+      const populationLevel = await getPopulationLevel(sql);
+      if (populationLevel !== level) return { written: false, level: populationLevel };
       for (let i = 0; i < rows.length; i += INSERT_BATCH_SIZE) {
         const batch = rows.slice(i, i + INSERT_BATCH_SIZE);
         await sql`
@@ -762,12 +714,14 @@ export async function importPopulationCsv(
         `;
       }
       await stampPopulationLastUpdated(sql);
-      return null;
+      return { written: true };
     });
-    if (conflictingLevel !== null) {
+    if (!outcome.written) {
       return {
         success: false,
-        err: levelMismatchMessage(level, conflictingLevel),
+        err: outcome.level === null
+          ? "Set the population level on the Population page before importing"
+          : levelMismatchMessage(level, outcome.level),
       };
     }
     return {

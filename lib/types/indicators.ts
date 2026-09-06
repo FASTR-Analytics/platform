@@ -88,8 +88,8 @@ export function describeNewIndicatorIdIssue(issue: NewIndicatorIdIssue): string 
 //             chained by substitution) and population terms. Its additive
 //             ingredients travel on the results row and the expression is
 //             applied AFTER aggregation. A population term is written
-//             `[population:<type>]`, where `<type>` is an id in the instance's
-//             `population_types` table (lib/types/population.ts); it is a
+//             `[population:<type>]`, where `<type>` is an id in
+//             POPULATION_TYPES (lib/types/population.ts); it is a
 //             leaf ingredient exactly like a base common, carrying that
 //             population's person-years.
 export type CommonIndicatorDefinition =

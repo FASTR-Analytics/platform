@@ -1,22 +1,26 @@
-// The instance Population page: the store's values as a grid per population
-// type against the HMIS structure at the population level, CSV import/export,
-// and the population type vocabulary.
+// The instance Population page, laid out like the facilities and weights
+// pages: heading bar with Download, a right panel of actions, and the stored
+// values as a table per population type against the HMIS structure at the
+// population level. The level is an explicit setting chosen in the right
+// panel before the first import and locked while any row exists.
 
-import { t3, TC } from "lib";
+import { parsePopulationLevel, t3, TC, type PopulationLevel } from "lib";
 import {
   Button,
   FrameRight,
   FrameTop,
   HeadingBar,
+  Select,
   createDeleteAction,
+  createFormAction,
   getEditorWrapper,
 } from "panther";
-import { Show } from "solid-js";
+import { Show, createSignal } from "solid-js";
 import { _SERVER_HOST, serverActions } from "~/server_actions";
+import { getAdminAreaLabel } from "~/state/instance/_util_disaggregation_label";
 import { instanceState } from "~/state/instance/t1_store";
 import { PopulationImportForm } from "./_import_form";
 import { PopulationGrid } from "./_population_grid";
-import { PopulationTypesEditor } from "./_population_types";
 
 type Props = {
   backToInstance: () => void;
@@ -29,25 +33,26 @@ export function PopulationManager(p: Props) {
     instanceState.currentUserIsGlobalAdmin ||
     instanceState.currentUserPermissions.can_configure_data;
 
-  const hasData = () => instanceState.populationLevel !== null;
+  const hasData = () => instanceState.populationRowCount > 0;
+  const levelIsSet = () => instanceState.populationLevel !== null;
   // An import validates every area against admin_areas_hmis_<level>.
   const hasHmisStructure = () =>
     (instanceState.structure?.hmis.adminArea2s ?? 0) > 0;
+  const levelLabel = () => {
+    const level = instanceState.populationLevel;
+    return level === null ? undefined : t3(getAdminAreaLabel(level));
+  };
 
   async function openImport() {
     await openEditor({ element: PopulationImportForm, props: {} });
   }
 
-  async function openTypes() {
-    await openEditor({ element: PopulationTypesEditor, props: {} });
-  }
-
   async function attemptDeleteAll() {
     const deleteAction = createDeleteAction(
       t3({
-        en: "Delete all population data? This also clears the population level; the next import sets it again.",
-        fr: "Supprimer toutes les données de population ? Le niveau de population est aussi effacé ; le prochain import le fixera de nouveau.",
-        pt: "Eliminar todos os dados de população? O nível de população também é apagado; a próxima importação volta a defini-lo.",
+        en: "Delete all population data, for every population type, year and area? The population level setting is kept.",
+        fr: "Supprimer toutes les données de population, pour tous les types, années et unités ? Le réglage du niveau de population est conservé.",
+        pt: "Eliminar todos os dados de população, para todos os tipos, anos e zonas? A definição do nível de população é mantida.",
       }),
       () => serverActions.deleteAllPopulation({}),
     );
@@ -66,6 +71,7 @@ export function PopulationManager(p: Props) {
               fr: "Population",
               pt: "População",
             })}
+            subheading={levelLabel()}
           >
             <Show when={hasData()}>
               <Button
@@ -83,24 +89,35 @@ export function PopulationManager(p: Props) {
           panelChildren={
             <Show when={canConfigure()}>
               <div class="ui-pad ui-spy flex h-full w-64 flex-col overflow-auto">
+                <LevelSetting locked={hasData()} />
+                <div class="border-t" />
                 <Button
                   onClick={openImport}
                   iconName="upload"
-                  disabled={!hasHmisStructure()}
+                  disabled={!levelIsSet() || !hasHmisStructure()}
                   fullWidth
                 >
                   {t3({
-                    en: "Import CSV",
-                    fr: "Importer un CSV",
-                    pt: "Importar CSV",
+                    en: "Import population data",
+                    fr: "Importer des données de population",
+                    pt: "Importar dados de população",
                   })}
                 </Button>
                 <Show when={!hasHmisStructure()}>
                   <div class="text-base-content-muted text-xs">
                     {t3({
-                      en: "Import the HMIS facility structure first: population data is validated against its admin areas.",
-                      fr: "Importez d'abord la structure des établissements SNIS : les données de population sont vérifiées par rapport à ses unités administratives.",
-                      pt: "Importe primeiro a estrutura de estabelecimentos SNIS: os valores são validados contra as suas zonas administrativas.",
+                      en: "Import the HMIS facilities first: every population row is checked against their admin areas.",
+                      fr: "Importez d'abord les établissements SNIS : chaque ligne de population est vérifiée par rapport à leurs unités administratives.",
+                      pt: "Importe primeiro os estabelecimentos SNIS: cada linha de população é verificada contra as suas zonas administrativas.",
+                    })}
+                  </div>
+                </Show>
+                <Show when={hasHmisStructure() && !levelIsSet()}>
+                  <div class="text-base-content-muted text-xs">
+                    {t3({
+                      en: "Choose the population level above before importing.",
+                      fr: "Choisissez le niveau de population ci-dessus avant d'importer.",
+                      pt: "Escolha o nível de população acima antes de importar.",
                     })}
                   </div>
                 </Show>
@@ -119,20 +136,18 @@ export function PopulationManager(p: Props) {
                     })}
                   </Button>
                 </Show>
-                <Button onClick={openTypes} iconName="pencil" fullWidth>
-                  {t3({
-                    en: "Manage population types",
-                    fr: "Gérer les types de population",
-                    pt: "Gerir os tipos de população",
-                  })}
-                </Button>
               </div>
             </Show>
           }
         >
           <Show
             when={hasData()}
-            fallback={<EmptyStore canConfigure={canConfigure()} />}
+            fallback={
+              <EmptyStore
+                canConfigure={canConfigure()}
+                levelIsSet={levelIsSet()}
+              />
+            }
           >
             <PopulationGrid canConfigure={canConfigure()} />
           </Show>
@@ -142,23 +157,108 @@ export function PopulationManager(p: Props) {
   );
 }
 
-function EmptyStore(p: { canConfigure: boolean }) {
+// The setting is a Select over AA2 to the HMIS adminDepth, disabled with the
+// reason while any row exists.
+function LevelSetting(p: { locked: boolean }) {
+  const depth = () => instanceState.structureSchemaHmis?.adminDepth ?? 1;
+  const options = () =>
+    ([2, 3, 4] as const)
+      .filter((level) => level <= depth())
+      .map((level) => ({
+        value: String(level),
+        label: t3(getAdminAreaLabel(level)),
+      }));
+  const [pending, setPending] = createSignal<PopulationLevel | undefined>(
+    undefined,
+  );
+  const save = createFormAction(async () => {
+    const level = pending();
+    if (level === undefined) return { success: true };
+    const res = await serverActions.setPopulationLevel({ level });
+    if (res.success) setPending(undefined);
+    return res;
+  });
+
   return (
-    <div class="ui-pad ui-spy-sm text-base-content-muted text-sm">
+    <div class="ui-spy-sm">
+      <Select
+        label={t3({
+          en: "Population level",
+          fr: "Niveau de population",
+          pt: "Nível de população",
+        })}
+        options={options()}
+        value={String(pending() ?? instanceState.populationLevel ?? "")}
+        onChange={(v) => setPending(parsePopulationLevel(Number(v)))}
+        placeholder={t3({
+          en: "Not set",
+          fr: "Non défini",
+          pt: "Não definido",
+        })}
+        disabled={p.locked || depth() < 2}
+        fullWidth
+      />
+      <Show when={pending() !== undefined && !p.locked}>
+        <Button
+          onClick={save.click}
+          state={save.state()}
+          intent="success"
+          size="sm"
+          fullWidth
+        >
+          {t3({
+            en: "Set population level",
+            fr: "Définir le niveau de population",
+            pt: "Definir o nível de população",
+          })}
+        </Button>
+      </Show>
+      <div class="text-base-content-muted text-xs">
+        <Show
+          when={p.locked}
+          fallback={t3({
+            en: "The admin area level of every population row, for every population type. Indicator values that use a population are computed at this level and nothing below it. It must be set before the first import.",
+            fr: "Le niveau administratif de chaque ligne de population, pour tous les types de population. Les valeurs d'indicateurs qui utilisent une population sont calculées à ce niveau et à rien en dessous. Il doit être défini avant le premier import.",
+            pt: "O nível administrativo de cada linha de população, para todos os tipos de população. Os valores de indicadores que usam uma população são calculados a este nível e a nada abaixo. Tem de ser definido antes da primeira importação.",
+          })}
+        >
+          {t3({
+            en: "Locked while population data is stored. To change the level, delete all population data first, then import again at the new level.",
+            fr: "Verrouillé tant que des données de population sont enregistrées. Pour changer le niveau, supprimez d'abord toutes les données de population, puis importez de nouveau au nouveau niveau.",
+            pt: "Bloqueado enquanto houver dados de população guardados. Para alterar o nível, elimine primeiro todos os dados de população e depois importe de novo ao novo nível.",
+          })}
+        </Show>
+      </div>
+    </div>
+  );
+}
+
+function EmptyStore(p: { canConfigure: boolean; levelIsSet: boolean }) {
+  return (
+    <div class="ui-pad ui-spy-sm">
       <div>
         {t3({
-          en: "No population data. Annual population counts per admin area feed the indicator formulas that divide by a population. The first import sets the population level: the admin area level of its rows, which every later import must match.",
-          fr: "Aucune donnée de population. Les effectifs annuels de population par unité administrative alimentent les formules d'indicateurs qui divisent par une population. Le premier import fixe le niveau de population : le niveau administratif de ses lignes, que chaque import suivant doit respecter.",
-          pt: "Sem dados de população. Os efetivos anuais de população por zona administrativa alimentam as fórmulas de indicadores que dividem por uma população. A primeira importação define o nível de população: o nível administrativo das suas linhas, que todas as importações seguintes têm de respeitar.",
+          en: "No population data imported",
+          fr: "Aucune donnée de population importée",
+          pt: "Nenhum dado de população importado",
         })}
       </div>
       <Show when={p.canConfigure}>
-        <div>
-          {t3({
-            en: "Import a CSV to add population data.",
-            fr: "Importez un CSV pour ajouter des données de population.",
-            pt: "Importe um CSV para adicionar dados de população.",
-          })}
+        <div class="text-base-content-muted text-sm">
+          <Show
+            when={p.levelIsSet}
+            fallback={t3({
+              en: "First choose the population level in the panel on the right: the admin area level at which every population type will be stored and at which indicators will be computed. Then import a CSV.",
+              fr: "Choisissez d'abord le niveau de population dans le panneau de droite : le niveau administratif auquel chaque type de population sera enregistré et auquel les indicateurs seront calculés. Importez ensuite un CSV.",
+              pt: "Escolha primeiro o nível de população no painel à direita: o nível administrativo ao qual todos os tipos de população serão guardados e ao qual os indicadores serão calculados. Depois importe um CSV.",
+            })}
+          >
+            {t3({
+              en: "Annual population counts per admin area, one CSV row per area, year and population type, at the population level chosen on the right.",
+              fr: "Effectifs annuels de population par unité administrative, une ligne CSV par unité, année et type de population, au niveau de population choisi à droite.",
+              pt: "Efetivos anuais de população por zona administrativa, uma linha CSV por zona, ano e tipo de população, ao nível de população escolhido à direita.",
+            })}
+          </Show>
         </div>
       </Show>
     </div>

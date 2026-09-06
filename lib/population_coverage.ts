@@ -25,13 +25,14 @@ export function populationAreaKey(names: readonly string[]): string {
   return names.join(AREA_KEY_SEPARATOR);
 }
 
-// Names from level 2 down to `level`, the way the page and import problems
-// show an area.
+// Names from level 2 down to `level` as one string, for messages that name
+// an area (import problems, the preview's missing areas, the generation
+// coverage error). The grid never shows a path: it has a column per level.
 export function populationDisplayPath(
   names: readonly string[],
   level: PopulationLevel,
 ): string {
-  return names.slice(1, level).join(" > ");
+  return names.slice(1, level).join(" / ");
 }
 
 export type PopulationYearCount = { year: number; areasWithData: number };

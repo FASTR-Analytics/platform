@@ -1,4 +1,6 @@
 import {
+  POPULATION_TYPES,
+  populationTypeLabel,
   t3,
   type PopulationImportPreview,
   type PopulationImportPreviewType,
@@ -17,7 +19,7 @@ import {
 } from "panther";
 import { For, Match, Show, Switch, batch, createSignal } from "solid-js";
 import { FileUploadSelector } from "~/components/_file_upload_selector";
-import { serverActions } from "~/server_actions";
+import { _SERVER_HOST, serverActions } from "~/server_actions";
 import { getAdminAreaLabel } from "~/state/instance/_util_disaggregation_label";
 import { instanceState } from "~/state/instance/t1_store";
 
@@ -104,8 +106,18 @@ export function PopulationImportForm(p: { close: (p: unknown) => void }) {
     });
   }
 
-  const typeIds = () => instanceState.populationTypes.map((t) => t.id);
   const levelLabel = (level: 2 | 3 | 4) => t3(getAdminAreaLabel(level));
+  // The form opens only once the level is set (the page gates the button).
+  const currentLevel = () => instanceState.populationLevel ?? 2;
+  const currentLevelLabel = () => levelLabel(currentLevel());
+  const columnList = () =>
+    [
+      ...["admin_area_1", "admin_area_2", "admin_area_3", "admin_area_4"]
+        .slice(0, currentLevel()),
+      "year",
+      "population_type",
+      "count",
+    ].join(", ");
 
   return (
     <FrameTop
@@ -165,15 +177,6 @@ export function PopulationImportForm(p: { close: (p: unknown) => void }) {
                       pt: `${toNum0(pv.rowsNew)} valores novos, ${toNum0(pv.rowsReplaced)} a substituir valores guardados.`,
                     })}
                   </div>
-                  <Show when={instanceState.populationLevel === null}>
-                    <div class="text-warning-subtle-content bg-warning-subtle ui-pad-sm rounded">
-                      {t3({
-                        en: `No population data is stored yet, so this import sets the population level to ${levelLabel(pv.populationLevel)}. Indicator values (M12) will then be held at that level for every indicator, with nothing below it.`,
-                        fr: `Aucune donnée de population n'est encore enregistrée : cet import fixe le niveau de population à ${levelLabel(pv.populationLevel)}. Les valeurs des indicateurs (M12) seront alors tenues à ce niveau pour tous les indicateurs, sans rien en dessous.`,
-                        pt: `Ainda não há dados de população guardados, por isso esta importação define o nível de população como ${levelLabel(pv.populationLevel)}. Os valores dos indicadores (M12) ficarão então a esse nível para todos os indicadores, sem nada abaixo.`,
-                      })}
-                    </div>
-                  </Show>
                 </div>
                 <For each={pv.types}>
                   {(type) => <PreviewTypeCoverage type={type} />}
@@ -223,32 +226,89 @@ export function PopulationImportForm(p: { close: (p: unknown) => void }) {
           </Match>
           <Match when={step() === "select"}>
             <div class="ui-spy">
-              <div class="text-base-content-muted ui-spy-sm text-sm">
-                <div>
+              <div class="ui-spy-sm text-sm">
+                <div class="font-700">
                   {t3({
-                    en: "One row per admin area × year × population type. Columns:",
-                    fr: "Une ligne par unité administrative × année × type de population. Colonnes :",
-                    pt: "Uma linha por zona administrativa × ano × tipo de população. Colunas:",
-                  })}
-                </div>
-                <div class="font-mono">
-                  admin_area_2, [admin_area_3, [admin_area_4,]] year,
-                  population_type, count
-                </div>
-                <div>
-                  {t3({
-                    en: "The deepest admin_area column present is the file's level. The store holds one level: the first import sets it, and a later file must be at the same level (delete all population data to change it). Area names must match the HMIS structure exactly; an optional admin_area_1 column is checked against it. Values for a type, area and year already in the store are replaced; everything else is kept.",
-                    fr: "La colonne admin_area la plus profonde présente est le niveau du fichier. Le magasin ne tient qu'un niveau : le premier import le fixe, et un fichier ultérieur doit être au même niveau (supprimez toutes les données de population pour le changer). Les noms d'unités doivent correspondre exactement à la structure SNIS ; une colonne admin_area_1 facultative est vérifiée par rapport à elle. Les valeurs déjà présentes pour un type, une unité et une année sont remplacées ; le reste est conservé.",
-                    pt: "A coluna admin_area mais profunda presente é o nível do ficheiro. O armazenamento tem um só nível: a primeira importação define-o, e um ficheiro posterior tem de estar ao mesmo nível (elimine todos os dados de população para o alterar). Os nomes das zonas têm de corresponder exatamente à estrutura SNIS; uma coluna admin_area_1 opcional é verificada contra ela. Os valores já existentes para um tipo, zona e ano são substituídos; tudo o resto é mantido.",
+                    en: `This instance's population level is ${currentLevelLabel()}.`,
+                    fr: `Le niveau de population de cette instance est ${currentLevelLabel()}.`,
+                    pt: `O nível de população desta instância é ${currentLevelLabel()}.`,
                   })}
                 </div>
                 <div>
                   {t3({
-                    en: "Population types:",
-                    fr: "Types de population :",
-                    pt: "Tipos de população:",
-                  })}{" "}
-                  <span class="font-mono">{typeIds().join(", ")}</span>
+                    en: "A CSV with one row per admin area at that level, year and population type. Columns:",
+                    fr: "Un CSV avec une ligne par unité administrative de ce niveau, année et type de population. Colonnes :",
+                    pt: "Um CSV com uma linha por zona administrativa desse nível, ano e tipo de população. Colunas:",
+                  })}
+                </div>
+                <div class="font-mono">{columnList()}</div>
+                <ul class="text-base-content-muted list-disc space-y-1 pl-5">
+                  <li>
+                    {t3({
+                      en: "Every population type is stored at the population level, so every file must have exactly these admin_area columns. To change the level, delete all population data first.",
+                      fr: "Chaque type de population est enregistré au niveau de population : chaque fichier doit donc avoir exactement ces colonnes admin_area. Pour changer le niveau, supprimez d'abord toutes les données de population.",
+                      pt: "Todos os tipos de população são guardados ao nível de população, por isso cada ficheiro tem de ter exatamente estas colunas admin_area. Para alterar o nível, elimine primeiro todos os dados de população.",
+                    })}
+                  </li>
+                  <li>
+                    {t3({
+                      en: "Area names must match the HMIS facility structure exactly. admin_area_1 may be left out.",
+                      fr: "Les noms d'unités doivent correspondre exactement à la structure des établissements SNIS. admin_area_1 peut être omise.",
+                      pt: "Os nomes das zonas têm de corresponder exatamente à estrutura de estabelecimentos SNIS. admin_area_1 pode ser omitida.",
+                    })}
+                  </li>
+                  <li>
+                    {t3({
+                      en: "year is a 4-digit year; count is the population for that year, a whole number of 0 or more.",
+                      fr: "year est une année à 4 chiffres ; count est la population de cette année, un nombre entier supérieur ou égal à 0.",
+                      pt: "year é um ano de 4 dígitos; count é a população desse ano, um número inteiro igual ou superior a 0.",
+                    })}
+                  </li>
+                  <li>
+                    {t3({
+                      en: "A row whose type, area and year are already stored replaces the stored value; everything else is kept.",
+                      fr: "Une ligne dont le type, l'unité et l'année sont déjà enregistrés remplace la valeur enregistrée ; le reste est conservé.",
+                      pt: "Uma linha cujo tipo, zona e ano já estão guardados substitui o valor guardado; tudo o resto é mantido.",
+                    })}
+                  </li>
+                </ul>
+                <div>
+                  {t3({
+                    en: "population_type is one of:",
+                    fr: "population_type est l'un de :",
+                    pt: "population_type é um de:",
+                  })}
+                </div>
+                <ul class="text-base-content-muted space-y-0.5 pl-5">
+                  <For each={POPULATION_TYPES}>
+                    {(type) => (
+                      <li>
+                        <span class="font-mono">{type.id}</span>
+                        <span>{": "}{t3(type.label)}</span>
+                      </li>
+                    )}
+                  </For>
+                </ul>
+                <div class="text-base-content-muted">
+                  {t3({
+                    en: "The template lists every admin area of this instance's HMIS structure at the population level, one row per population type for the current year, with count left blank. Fill in the counts, add rows for other years, and remove the types you do not have.",
+                    fr: "Le modèle liste chaque unité administrative de la structure SNIS de cette instance au niveau de population, une ligne par type de population pour l'année en cours, avec count laissé vide. Remplissez les effectifs, ajoutez des lignes pour les autres années et retirez les types que vous n'avez pas.",
+                    pt: "O modelo lista todas as zonas administrativas da estrutura SNIS desta instância ao nível de população, uma linha por tipo de população para o ano atual, com count em branco. Preencha os valores, acrescente linhas para outros anos e retire os tipos que não tem.",
+                  })}
+                </div>
+                <div>
+                  <Button
+                    iconName="download"
+                    href={`${_SERVER_HOST}/population/template/csv?t=${Date.now()}`}
+                    newTab
+                    outline
+                  >
+                    {t3({
+                      en: "Download template",
+                      fr: "Télécharger le modèle",
+                      pt: "Descarregar o modelo",
+                    })}
+                  </Button>
                 </div>
               </div>
               <FileUploadSelector
@@ -296,9 +356,7 @@ export function PopulationImportForm(p: { close: (p: unknown) => void }) {
 }
 
 function PreviewTypeCoverage(p: { type: PopulationImportPreviewType }) {
-  const label = () =>
-    instanceState.populationTypes.find((t) => t.id === p.type.populationType)
-      ?.label ?? p.type.populationType;
+  const label = () => t3(populationTypeLabel(p.type.populationType));
 
   const columns: TableColumn<PopulationYearCoverage>[] = [
     {
