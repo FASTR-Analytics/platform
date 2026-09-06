@@ -41,10 +41,11 @@ keep the codebase uniform and reviewable.
 10. **Peer branches use `<Match>`, not `fallback`**: `<Show fallback>` is only
     for genuinely subordinate content (loading / empty / absent). Equal
     alternatives use `<Switch>` with an explicit `when` on each `<Match>`: never
-    relegate a peer to `fallback` or a `when={true}` catch-all. A two-state
-    value (glyph, class, label) is one element with a ternary prop, not a
-    rendering branch; this rule applies only when the branches render different
-    structure
+    relegate a peer to `fallback` or a `when={true}` catch-all. A ternary may
+    choose a primitive prop value (a string, number, boolean, or token name),
+    such as `iconName={open() ? "chevron-up" : "chevron-down"}`. Neither arm may
+    be JSX or another ternary; that is a branch and uses the control flow
+    components. For classes, prefer `classList` over a ternary.
 
 Vendored third-party files (e.g. `solid_sortablejs_vendored.tsx`) are exempt
 from this protocol: don't flag or modify them.
