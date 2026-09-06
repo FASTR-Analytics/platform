@@ -1,4 +1,4 @@
-import { t3, type FacilityFamily } from "lib";
+import { ALL_ADMIN_AREA_LEVELS, t3, type AdminAreaLevel, type FacilityFamily } from "lib";
 import { Card, FrameTop, openComponent, toNum0 } from "panther";
 import { HeadingBar } from "panther";
 import { For, Match, Show, Switch, createSignal } from "solid-js";
@@ -53,11 +53,11 @@ export function InstanceData(p: Props) {
     ].filter(Boolean).length;
   };
 
-  const isAdminAreaLabelSet = (level: 2 | 3 | 4) =>
+  const isAdminAreaLabelSet = (level: AdminAreaLevel) =>
     !!instanceState.adminAreaLabels[`label${level}`];
 
   const hasCustomAdminAreaLabel = () =>
-    ([2, 3, 4] as const).some((level) => isAdminAreaLabelSet(level));
+    ALL_ADMIN_AREA_LEVELS.some((level) => isAdminAreaLabelSet(level));
 
   const geojsonLevels = (family: FacilityFamily) =>
     instanceState.geojsonMaps
@@ -209,7 +209,7 @@ export function InstanceData(p: Props) {
                         >
                           <div class="ui-spy-sm text-xs">
                             <For
-                              each={([2, 3, 4] as const).filter(
+                              each={ALL_ADMIN_AREA_LEVELS.filter(
                                 (level) => maxDepth() >= level,
                               )}
                             >
@@ -372,7 +372,7 @@ export function InstanceData(p: Props) {
                             {/* Admin areas are derived from these rows, so they
                                 are reported here rather than as their own card. */}
                             <For
-                              each={([2, 3, 4] as const).filter(
+                              each={ALL_ADMIN_AREA_LEVELS.filter(
                                 (level) =>
                                   structureSchemaForFamily("hmis").adminDepth >=
                                     level,
@@ -699,7 +699,7 @@ export function InstanceData(p: Props) {
                             {/* Admin areas are derived from these rows, so they
                                 are reported here rather than as their own card. */}
                             <For
-                              each={([2, 3, 4] as const).filter(
+                              each={ALL_ADMIN_AREA_LEVELS.filter(
                                 (level) =>
                                   structureSchemaForFamily("hfa").adminDepth >=
                                     level,

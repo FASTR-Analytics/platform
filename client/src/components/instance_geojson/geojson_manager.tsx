@@ -1,4 +1,10 @@
-import { type FacilityFamily, type GeoJsonMapSummary, t3 } from "lib";
+import {
+  type AdminAreaLevel,
+  type FacilityFamily,
+  type GeoJsonMapSummary,
+  parseAdminAreaLevel,
+  t3,
+} from "lib";
 import {
   Button,
   FrameTop,
@@ -43,7 +49,7 @@ export function GeoJsonManager(p: Props) {
     });
   }
 
-  async function handleEdit(family: FacilityFamily, level: 2 | 3 | 4) {
+  async function handleEdit(family: FacilityFamily, level: AdminAreaLevel) {
     await openEditor({
       element: GeoJsonEditModal,
       props: {
@@ -105,7 +111,7 @@ export function GeoJsonManager(p: Props) {
                 onClick={() =>
                   handleEdit(
                     p.family,
-                    item.adminAreaLevel as 2 | 3 | 4,
+                    parseAdminAreaLevel(item.adminAreaLevel),
                   )
                 }
               />

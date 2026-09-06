@@ -5,6 +5,7 @@
 // into monthly person-years (lib/population_person_years.ts).
 
 import type { TranslatableString } from "./_module_definition_github.ts";
+import type { AdminAreaLevel } from "./structure.ts";
 
 // The population type vocabulary: the only ids a CSV row, a formula's
 // `[population:<type>]` term or a package may name. Fixed in code, no table.
@@ -65,13 +66,6 @@ export function populationTypeLabel(id: string): TranslatableString {
     { en: id, fr: id, pt: id };
 }
 
-export type PopulationLevel = 2 | 3 | 4;
-
-export function parsePopulationLevel(value: number): PopulationLevel {
-  if (value === 2 || value === 3 || value === 4) return value;
-  throw new Error(`Not a population level: ${value}`);
-}
-
 // Per type, over the rows whose area is in the HMIS structure at the
 // population level. Complete iff the structure is non-empty, the type has an
 // in-structure row, and every year with one has one for every structure area.
@@ -88,7 +82,7 @@ export type PopulationCoverage = {
 };
 
 export type InstancePopulationSummary = {
-  populationLevel: PopulationLevel | undefined;
+  populationLevel: AdminAreaLevel | undefined;
   populationRowCount: number;
   populationCoverage: PopulationCoverage[];
   // Bumped by every store write and level change; keys the T2 type-store cache.
@@ -105,7 +99,7 @@ export type PopulationGridArea = {
 };
 
 export type PopulationTypeStore = {
-  populationLevel: PopulationLevel | undefined;
+  populationLevel: AdminAreaLevel | undefined;
   years: number[];
   areas: PopulationGridArea[];
 };
@@ -130,7 +124,7 @@ export type PopulationImportPreviewType = {
 // What the store looks like after the file is upserted, computed before any
 // write. `complete` covers every type the file touches.
 export type PopulationImportPreview = {
-  populationLevel: PopulationLevel;
+  populationLevel: AdminAreaLevel;
   populationTypes: string[];
   firstYear: number;
   lastYear: number;
@@ -143,7 +137,7 @@ export type PopulationImportPreview = {
 
 export type PopulationImportResult = {
   rowsImported: number;
-  populationLevel: PopulationLevel;
+  populationLevel: AdminAreaLevel;
   populationTypes: string[];
   firstYear: number;
   lastYear: number;

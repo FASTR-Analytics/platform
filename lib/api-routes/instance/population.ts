@@ -1,8 +1,9 @@
 import { z } from "zod";
-import type {
-  PopulationImportPreview,
-  PopulationImportResult,
-  PopulationTypeStore,
+import {
+  adminAreaLevelSchema,
+  type PopulationImportPreview,
+  type PopulationImportResult,
+  type PopulationTypeStore,
 } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
@@ -12,7 +13,7 @@ export const populationRouteRegistry = {
   setPopulationLevel: route({
     path: "/population/level",
     method: "POST",
-    body: z.object({ level: z.union([z.literal(2), z.literal(3), z.literal(4)]) }),
+    body: z.object({ level: adminAreaLevelSchema }),
   }),
   getPopulationTypeStore: route({
     path: "/population/type_store",

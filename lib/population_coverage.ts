@@ -5,11 +5,8 @@
 // at the population level is stale: counted, shown, never part of
 // completeness.
 
-import type {
-  PopulationCoverage,
-  PopulationLevel,
-  PopulationYearCoverage,
-} from "./types/population.ts";
+import type { PopulationCoverage, PopulationYearCoverage } from "./types/population.ts";
+import type { AdminAreaLevel } from "./types/structure.ts";
 
 // Written as a char code rather than a literal so the file stays text: NUL
 // can never be in a name Postgres stores, which is what makes it a safe
@@ -25,7 +22,7 @@ export function populationAreaKey(names: readonly string[]): string {
 // coverage error). The grid never shows a path: it has a column per level.
 export function populationDisplayPath(
   names: readonly string[],
-  level: PopulationLevel,
+  level: AdminAreaLevel,
 ): string {
   return names.slice(1, level).join(" / ");
 }

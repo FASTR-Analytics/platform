@@ -9,8 +9,8 @@ import type { ProjectSummary } from "./projects.ts";
 import type {
   InstancePopulationSummary,
   PopulationCoverage,
-  PopulationLevel,
 } from "./population.ts";
+import type { AdminAreaLevel } from "./structure.ts";
 import type { RunCatalogItem, RunProgress } from "./run_generation.ts";
 import type { HfaWeightsCoverage } from "./structure.ts";
 
@@ -100,7 +100,7 @@ export type InstanceState = {
   icehCacheHash: string;
   // The population store (SYSTEM_05 "Population store"); one event,
   // `population_updated`, carries all four. "Has data" is `populationRowCount > 0`.
-  populationLevel: PopulationLevel | undefined;
+  populationLevel: AdminAreaLevel | undefined;
   populationRowCount: number;
   populationCoverage: PopulationCoverage[];
   populationLastUpdated: string | undefined;

@@ -1,8 +1,26 @@
+import { z } from "zod";
 import { CsvDetails, OptionalFacilityColumn } from "./instance.ts";
 
 // Which facility registry an import targets. Admin areas are shared; each
 // family has its own facilities table and its own import flow.
 export type FacilityFamily = "hmis" | "hfa";
+
+// The admin area levels below the country that data can be held at; the
+// family's adminDepth caps which of them an instance uses.
+export const ALL_ADMIN_AREA_LEVELS = [2, 3, 4] as const;
+export type AdminAreaLevel = (typeof ALL_ADMIN_AREA_LEVELS)[number];
+export const adminAreaLevelSchema = z.literal(ALL_ADMIN_AREA_LEVELS);
+
+export function isAdminAreaLevel(value: number): value is AdminAreaLevel {
+  return ALL_ADMIN_AREA_LEVELS.some((level) => level === value);
+}
+
+export function parseAdminAreaLevel(value: number): AdminAreaLevel {
+  if (isAdminAreaLevel(value)) {
+    return value;
+  }
+  throw new Error(`Not an admin area level: ${value}`);
+}
 
 // The safe snapshot written to step_1_result once a structure import
 // confirms the connection: which stored instance DHIS2 connection (by URL)

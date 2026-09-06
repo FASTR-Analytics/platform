@@ -1,5 +1,6 @@
 import {
   ADMIN_AREA_COLUMNS,
+  type AdminAreaLevel,
   POPULATION_TYPES,
   populationTypeLabel,
   t3,
@@ -104,7 +105,7 @@ export function PopulationImportForm(p: { close: (p: unknown) => void }) {
     });
   }
 
-  const levelLabel = (level: 2 | 3 | 4) => t3(getAdminAreaLabel(level));
+  const levelLabel = (level: AdminAreaLevel) => t3(getAdminAreaLabel(level));
   // The form opens only once the level is set (the page gates the button).
   const currentLevel = () => instanceState.populationLevel ?? 2;
   const currentLevelLabel = () => levelLabel(currentLevel());

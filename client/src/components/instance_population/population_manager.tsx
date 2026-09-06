@@ -1,4 +1,10 @@
-import { parsePopulationLevel, t3, TC, type PopulationLevel } from "lib";
+import {
+  ALL_ADMIN_AREA_LEVELS,
+  parseAdminAreaLevel,
+  t3,
+  TC,
+  type AdminAreaLevel,
+} from "lib";
 import {
   Button,
   FrameRight,
@@ -156,13 +162,13 @@ export function PopulationManager(p: Props) {
 function LevelSetting(p: { locked: boolean }) {
   const depth = () => instanceState.structureSchemaHmis?.adminDepth ?? 1;
   const options = () =>
-    ([2, 3, 4] as const)
+    ALL_ADMIN_AREA_LEVELS
       .filter((level) => level <= depth())
       .map((level) => ({
         value: String(level),
         label: t3(getAdminAreaLabel(level)),
       }));
-  const [pending, setPending] = createSignal<PopulationLevel | undefined>(
+  const [pending, setPending] = createSignal<AdminAreaLevel | undefined>(
     undefined,
   );
   const save = createFormAction(async () => {
@@ -183,7 +189,7 @@ function LevelSetting(p: { locked: boolean }) {
         })}
         options={options()}
         value={String(pending() ?? instanceState.populationLevel ?? "")}
-        onChange={(v) => setPending(parsePopulationLevel(Number(v)))}
+        onChange={(v) => setPending(parseAdminAreaLevel(Number(v)))}
         placeholder={t3({
           en: "Not set",
           fr: "Non défini",

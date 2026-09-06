@@ -1,11 +1,11 @@
-import { t3, type FacilityFamily } from "lib";
+import { t3, type AdminAreaLevel, type FacilityFamily } from "lib";
 import { Button, Select, StateHolderFormError, createFormAction } from "panther";
 import { For, Show, createMemo, createSignal, onMount } from "solid-js";
 import { serverActions } from "~/server_actions";
 
 type Props = {
   family: FacilityFamily;
-  adminAreaLevel: 2 | 3 | 4;
+  adminAreaLevel: AdminAreaLevel;
   close: (p: unknown) => void;
 };
 

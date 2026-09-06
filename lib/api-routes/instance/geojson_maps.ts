@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { GeoJsonMapSummary } from "../../types/mod.ts";
+import { adminAreaLevelSchema, type GeoJsonMapSummary } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
 type Dhis2FeatureContext = {
@@ -26,8 +26,6 @@ const familyLevelParamsSchema = z.object({
   family: facilityFamilySchema,
   level: z.coerce.number(),
 });
-const adminAreaLevelSchema = z.union([z.literal(2), z.literal(3), z.literal(4)]);
-
 export const geojsonMapRouteRegistry = {
   getGeoJsonMaps: route({
     path: "/geojson-maps",

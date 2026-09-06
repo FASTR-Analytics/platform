@@ -6,7 +6,7 @@ import {
   t3,
   TC,
   type PopulationGridArea,
-  type PopulationLevel,
+  type AdminAreaLevel,
   type PopulationTypeStore,
 } from "lib";
 import {
@@ -89,7 +89,7 @@ export function PopulationGrid(p: Props) {
 }
 
 function gridCsv(
-  level: PopulationLevel,
+  level: AdminAreaLevel,
   years: number[],
   areas: PopulationGridArea[],
 ): Csv<string> {

@@ -3,7 +3,7 @@ import type { Sql } from "postgres";
 import {
   ADMIN_AREA_COLUMNS,
   listMonthlyPeriodIds,
-  parsePopulationLevel,
+  parseAdminAreaLevel,
   personYearsForMonth,
   populationAreaKey,
   populationCoveredYears,
@@ -15,7 +15,7 @@ import {
   type HfaIndicator,
   type HfaIndicatorCode,
   type HfaIndicatorVariantCode,
-  type PopulationLevel,
+  type AdminAreaLevel,
   type RunDataset,
   type RunGenerationStep1Result,
   type RunPopulation,
@@ -341,8 +341,8 @@ async function writePopulationPersonYears(
   // The header-only file falls back to the data's own depth. A depth-1
   // structure has no area below the country: the header carries no area
   // column and m012 stops.
-  const level: PopulationLevel | undefined = populationLevel ??
-    (capture.adminDepth >= 2 ? parsePopulationLevel(capture.adminDepth) : undefined);
+  const level: AdminAreaLevel | undefined = populationLevel ??
+    (capture.adminDepth >= 2 ? parseAdminAreaLevel(capture.adminDepth) : undefined);
   const populationTypes = populationTypesReferencedBySlotMaps(
     capture.indicators.flatMap((row) =>
       row.slot_map === null ? [] : [row.slot_map]

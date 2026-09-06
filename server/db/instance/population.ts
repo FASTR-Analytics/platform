@@ -5,7 +5,7 @@ import {
   type APIResponseWithData,
   collectIdentifiers,
   type InstancePopulationSummary,
-  parsePopulationLevel,
+  parseAdminAreaLevel,
   POPULATION_TYPE_IDS,
   type PopulationAnchor,
   POPULATION_CSV_REQUIRED_COLUMNS,
@@ -20,7 +20,7 @@ import {
   type PopulationImportPreviewType,
   type PopulationImportResult,
   populationIngredientId,
-  type PopulationLevel,
+  type AdminAreaLevel,
   type PopulationTypeStore,
 } from "lib";
 import { getCsvStreamComponents } from "../../server_only_funcs_csvs/get_csv_components_streaming_fast.ts";
@@ -42,7 +42,7 @@ const POPULATION_LEVEL_KEY = "population_level";
 // The population level setting (SYSTEM_05 "The population level").
 export async function getPopulationLevel(
   sql: Sql,
-): Promise<PopulationLevel | undefined> {
+): Promise<AdminAreaLevel | undefined> {
   const row = (
     await sql<{ config_json_value: string }[]>`
       SELECT config_json_value FROM instance_config
@@ -51,7 +51,7 @@ export async function getPopulationLevel(
   ).at(0);
   return row === undefined
     ? undefined
-    : parsePopulationLevel(Number(JSON.parse(row.config_json_value)));
+    : parseAdminAreaLevel(Number(JSON.parse(row.config_json_value)));
 }
 
 export async function getPopulationRowCount(sql: Sql): Promise<number> {
@@ -64,7 +64,7 @@ export async function getPopulationRowCount(sql: Sql): Promise<number> {
 // Refused while any row exists: the rows are at the current level.
 export async function setPopulationLevel(
   mainDb: Sql,
-  level: PopulationLevel,
+  level: AdminAreaLevel,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     const resSchema = await getStructureSchema(mainDb, "hmis");
@@ -124,7 +124,7 @@ export async function getInstancePopulationSummary(
 
 async function computePopulationCoverage(
   mainDb: Sql,
-  level: PopulationLevel,
+  level: AdminAreaLevel,
 ): Promise<PopulationCoverage[]> {
   const [{ n: structureAreaCount }] = await mainDb<{ n: number }[]>`
     SELECT COUNT(*)::int AS n FROM ${mainDb(structureTable(level))}
@@ -260,7 +260,7 @@ export type PopulationExportRow = PopulationAreaRow & {
 
 export async function getPopulationExportRows(
   mainDb: Sql,
-): Promise<{ level: PopulationLevel | undefined; rows: PopulationExportRow[] }> {
+): Promise<{ level: AdminAreaLevel | undefined; rows: PopulationExportRow[] }> {
   const level = await getPopulationLevel(mainDb);
   const rows = await mainDb<PopulationExportRow[]>`
     SELECT population_type, admin_area_1, admin_area_2, admin_area_3,
@@ -302,7 +302,7 @@ export async function getPopulationTemplate(
 export async function getPopulationAnchors(
   mainDb: Sql,
   populationType: string,
-  level: PopulationLevel,
+  level: AdminAreaLevel,
 ): Promise<Map<string, PopulationAnchor[]>> {
   const rows = await mainDb<(PopulationAreaRow & { year: number; count: number })[]>`
     SELECT admin_area_1, admin_area_2, admin_area_3, admin_area_4, year, count
@@ -325,7 +325,7 @@ export type StructureAreaPath = PopulationAreaRow;
 // Every HMIS structure area at `level`, full name path, finer columns ''.
 export async function listHmisStructureAreas(
   mainDb: Sql,
-  level: PopulationLevel,
+  level: AdminAreaLevel,
 ): Promise<StructureAreaPath[]> {
   const columns = ADMIN_AREA_COLUMNS.slice(0, level);
   const rows = await mainDb.unsafe<Record<string, string>[]>(
@@ -342,12 +342,12 @@ export async function listHmisStructureAreas(
 
 type PopulationStoreRow = PopulationAreaRow & {
   population_type: string;
-  admin_area_level: PopulationLevel;
+  admin_area_level: AdminAreaLevel;
   year: number;
   count: number;
 };
 
-type ParsedPopulationCsv = { level: PopulationLevel; rows: PopulationStoreRow[] };
+type ParsedPopulationCsv = { level: AdminAreaLevel; rows: PopulationStoreRow[] };
 
 // Fixed-column CSV (lib/types/population.ts POPULATION_CSV_REQUIRED_COLUMNS):
 // admin_area_2 [admin_area_3 [admin_area_4]], year, population_type, count,
@@ -382,7 +382,7 @@ export async function parsePopulationCsv(
         } (plus admin_area_3 / admin_area_4 for finer levels)`,
       };
     }
-    const level: PopulationLevel = columnIndex.has("admin_area_4")
+    const level: AdminAreaLevel = columnIndex.has("admin_area_4")
       ? 4
       : columnIndex.has("admin_area_3")
       ? 3
@@ -625,7 +625,7 @@ export async function importPopulationCsv(
     }
     const { level, rows } = parsed.data;
     const outcome = await mainDb.begin<
-      { written: true } | { written: false; level: PopulationLevel | undefined }
+      { written: true } | { written: false; level: AdminAreaLevel | undefined }
     >(async (sql) => {
       // The level is re-read under the lock so a setting change cannot slip
       // between the parse and the write.
@@ -705,11 +705,11 @@ export async function deleteAllPopulation(
 
 // Level-derived identifiers are interpolated as text; `level` is the closed
 // union, so nothing user-controlled reaches the SQL.
-function structureTable(level: PopulationLevel): string {
+function structureTable(level: AdminAreaLevel): string {
   return `admin_areas_hmis_${level}`;
 }
 
-function structureJoinCondition(level: PopulationLevel): string {
+function structureJoinCondition(level: AdminAreaLevel): string {
   return ADMIN_AREA_COLUMNS.slice(0, level)
     .map((c) => `a.${c} = p.${c}`)
     .join(" AND ");
@@ -736,8 +736,8 @@ function areaNames(row: PopulationAreaRow): string[] {
 }
 
 function levelMismatchMessage(
-  fileLevel: PopulationLevel,
-  populationLevel: PopulationLevel,
+  fileLevel: AdminAreaLevel,
+  populationLevel: AdminAreaLevel,
 ): string {
   return `The file is at admin area level ${fileLevel}, but this instance's population level is ${populationLevel}: the file needs the columns admin_area_1 to admin_area_${populationLevel}. To change the population level, delete all population data first.`;
 }

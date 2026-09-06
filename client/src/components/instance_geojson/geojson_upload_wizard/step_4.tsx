@@ -1,4 +1,4 @@
-import { t3 } from "lib";
+import { parseAdminAreaLevel, t3 } from "lib";
 import { Button, StateHolderFormError, createFormAction } from "panther";
 import { Show, createMemo, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -48,7 +48,7 @@ export function Step4(p: Props) {
         return { success: false, err: t3({ en: "No mappings defined", fr: "Aucun mappage défini", pt: "Nenhuma associação definida" }) };
       }
 
-      const adminAreaLevel = state.adminAreaLevel() as 2 | 3 | 4;
+      const adminAreaLevel = parseAdminAreaLevel(state.adminAreaLevel());
 
       if (state.source() === "file") {
         const res = await serverActions.saveGeoJsonMap({

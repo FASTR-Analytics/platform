@@ -1,4 +1,5 @@
 import {
+  ALL_ADMIN_AREA_LEVELS,
   t3,
   TC,
   type FacilityFamily,
@@ -56,7 +57,7 @@ function AdminAreaSummary(p: { family: FacilityFamily }) {
                 pt: "Zonas administrativas",
               })}
             </div>
-            <For each={([2, 3, 4] as const).filter((l) => depth() >= l)}>
+            <For each={ALL_ADMIN_AREA_LEVELS.filter((l) => depth() >= l)}>
               {(level) => (
                 <div class="ui-gap flex justify-between">
                   <span>{t3(getAdminAreaLabel(level))}:</span>

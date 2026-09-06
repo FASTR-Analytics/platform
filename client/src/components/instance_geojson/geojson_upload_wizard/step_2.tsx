@@ -1,4 +1,4 @@
-import { t3 } from "lib";
+import { ALL_ADMIN_AREA_LEVELS, t3 } from "lib";
 import { Button, Select, StateHolderFormError, createFormAction } from "panther";
 import { Show, createMemo, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -134,7 +134,7 @@ export function Step2(p: Props) {
   );
 
   const levelOptions = createMemo(() =>
-    ([2, 3, 4] as const)
+    ALL_ADMIN_AREA_LEVELS
       .filter(
         (level) => level <= structureSchemaForFamily(state.family).adminDepth,
       )

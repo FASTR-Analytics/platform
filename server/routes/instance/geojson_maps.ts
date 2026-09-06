@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import type { Dhis2Credentials } from "lib";
+import { type Dhis2Credentials, isAdminAreaLevel } from "lib";
 import {
   getGeoJsonMapSummaries,
   getGeoJsonForLevel,
@@ -105,7 +105,7 @@ defineRoute(
   log("saveGeoJsonMap"),
   async (c, { body }) => {
     const { family, adminAreaLevel, assetFileName, areaMatchProp, areaMapping } = body;
-    if (![2, 3, 4].includes(adminAreaLevel)) {
+    if (!isAdminAreaLevel(adminAreaLevel)) {
       return c.json({
         success: false,
         err: "Admin area level must be 2, 3, or 4",
@@ -175,7 +175,7 @@ defineRoute(
   requireGlobalPermission(),
   log("getAdminAreaOptionsForLevel"),
   async (c, { params }) => {
-    if (![2, 3, 4].includes(params.level)) {
+    if (!isAdminAreaLevel(params.level)) {
       return c.json({ success: false, err: "Level must be 2, 3, or 4" });
     }
     const res = await getAdminAreaOptionsForLevel(
@@ -192,7 +192,7 @@ defineRoute(
   "getGeoJsonForLevel",
   requireGlobalPermission(),
   async (c, { params }) => {
-    if (![2, 3, 4].includes(params.level)) {
+    if (!isAdminAreaLevel(params.level)) {
       return c.json({ success: false, err: "Level must be 2, 3, or 4" });
     }
     const res = await getGeoJsonForLevel(c.var.mainDb, params.family, params.level);
@@ -207,7 +207,7 @@ defineRoute(
   log("remapGeoJson"),
   async (c, { body }) => {
     const { family, adminAreaLevel, remapping } = body;
-    if (![2, 3, 4].includes(adminAreaLevel)) {
+    if (!isAdminAreaLevel(adminAreaLevel)) {
       return c.json({ success: false, err: "Admin area level must be 2, 3, or 4" });
     }
     if (!remapping || Object.keys(remapping).length === 0) {
@@ -404,7 +404,7 @@ defineRoute(
   async (c, { body }) => {
     const { dhis2Level, family, adminAreaLevel, areaMatchProp, areaMapping } = body;
 
-    if (![2, 3, 4].includes(adminAreaLevel)) {
+    if (!isAdminAreaLevel(adminAreaLevel)) {
       return c.json({ success: false, err: "Admin area level must be 2, 3, or 4" });
     }
     if (typeof dhis2Level !== "number" || dhis2Level < 1) {
