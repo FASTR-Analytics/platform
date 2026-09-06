@@ -276,6 +276,7 @@ here uses the registry.
 | `routes/public/dashboard.ts`                                          | S12   | Public/anonymous, mounted before the global `authMiddleware`                                                                                                                                                                                                                     |
 | `routes/instance/health.ts`                                           | S15   | Diagnostics; 13 routes, bare JSON, deliberately unauthenticated for external monitoring (exposure inventory is S15's contract)                                                                                                                                                   |
 | `routes/instance/structure.ts` (2 routes only)                        | S5    | CSV download `Response`s (facilities export, HFA weights export) inside an otherwise-registry file, guarded and logged, but raw                                                                                                                                                 |
+| `routes/instance/population.ts` (2 routes only)                       | S5    | CSV download `Response`s (population export, import template) inside an otherwise-registry file, guarded and logged, but raw                                                                                                                                                   |
 
 ## Access control
 

@@ -117,6 +117,7 @@ defineRoute(
 routesPopulation.get(
   "/population/export/csv",
   requireGlobalPermission("can_view_data"),
+  log("exportPopulationCsv"),
   async (c) => {
     const { level, rows } = await getPopulationExportRows(c.var.mainDb);
     const areaColumns = ["admin_area_1", "admin_area_2", "admin_area_3", "admin_area_4"]
@@ -145,6 +146,7 @@ routesPopulation.get(
 routesPopulation.get(
   "/population/template/csv",
   requireGlobalPermission("can_configure_data"),
+  log("exportPopulationTemplateCsv"),
   async (c) => {
     const template = await getPopulationTemplate(
       c.var.mainDb,
