@@ -1,6 +1,6 @@
 import type { InstanceSseMessage, RunProgress } from "lib";
 import { t3 } from "lib";
-import { Show, on, createEffect, type JSX } from "solid-js";
+import { Show, batch, on, createEffect, type JSX } from "solid-js";
 import { onMount, onCleanup, createSignal } from "solid-js";
 import { _SERVER_HOST, serverActions } from "~/server_actions";
 import { evictDeletedGeoJsonLevels, preloadGeoJson } from "~/state/instance/t2_geojson";
@@ -132,61 +132,63 @@ export function connectInstanceSSE(): void {
       return;
     }
 
-    switch (msg.type) {
-      case "starting":
-        initInstanceState(msg.data);
-        preloadGeoJson(msg.data.geojsonMaps);
-        break;
-      case "config_updated":
-        updateInstanceConfig(msg.data);
-        break;
-      case "projects_last_updated":
-        updateProjectsLastUpdated(msg.data);
-        break;
-      case "users_updated":
-        updateInstanceUsers(msg.data);
-        updateCurrentUser(msg.data.find((u) => u.email === instanceState.currentUserEmail));
-        break;
-      case "assets_updated":
-        updateInstanceAssets(msg.data);
-        break;
-      case "runs_catalog_updated":
-        updateRunsCatalogSignal(msg.data);
-        break;
-      case "pinned_run_updated":
-        updatePinnedRunId(msg.data.pinnedRunId);
-        break;
-      case "geojson_maps_updated":
-        updateInstanceGeoJsonMaps(msg.data);
-        evictDeletedGeoJsonLevels(msg.data);
-        preloadGeoJson(msg.data);
-        break;
-      case "structure_updated":
-        updateInstanceStructure(msg.data);
-        break;
-      case "indicators_updated":
-        updateInstanceIndicators(msg.data);
-        break;
-      case "datasets_updated":
-        updateInstanceDatasets(msg.data);
-        break;
-      case "population_updated":
-        updateInstancePopulation(msg.data);
-        break;
-      case "run_progress":
-        for (const listener of runProgressListeners) {
-          listener(msg.data.runId, msg.data.progress);
-        }
-        break;
-      case "r_script":
-        for (const listener of rScriptListeners) {
-          listener(msg.data.runId, msg.data.moduleId, msg.data.text);
-        }
-        break;
-      case "error":
-        console.error("Instance SSE error from server:", msg.data.message);
-        break;
-    }
+    batch(() => {
+      switch (msg.type) {
+        case "starting":
+          initInstanceState(msg.data);
+          preloadGeoJson(msg.data.geojsonMaps);
+          break;
+        case "config_updated":
+          updateInstanceConfig(msg.data);
+          break;
+        case "projects_last_updated":
+          updateProjectsLastUpdated(msg.data);
+          break;
+        case "users_updated":
+          updateInstanceUsers(msg.data);
+          updateCurrentUser(msg.data.find((u) => u.email === instanceState.currentUserEmail));
+          break;
+        case "assets_updated":
+          updateInstanceAssets(msg.data);
+          break;
+        case "runs_catalog_updated":
+          updateRunsCatalogSignal(msg.data);
+          break;
+        case "pinned_run_updated":
+          updatePinnedRunId(msg.data.pinnedRunId);
+          break;
+        case "geojson_maps_updated":
+          updateInstanceGeoJsonMaps(msg.data);
+          evictDeletedGeoJsonLevels(msg.data);
+          preloadGeoJson(msg.data);
+          break;
+        case "structure_updated":
+          updateInstanceStructure(msg.data);
+          break;
+        case "indicators_updated":
+          updateInstanceIndicators(msg.data);
+          break;
+        case "datasets_updated":
+          updateInstanceDatasets(msg.data);
+          break;
+        case "population_updated":
+          updateInstancePopulation(msg.data);
+          break;
+        case "run_progress":
+          for (const listener of runProgressListeners) {
+            listener(msg.data.runId, msg.data.progress);
+          }
+          break;
+        case "r_script":
+          for (const listener of rScriptListeners) {
+            listener(msg.data.runId, msg.data.moduleId, msg.data.text);
+          }
+          break;
+        case "error":
+          console.error("Instance SSE error from server:", msg.data.message);
+          break;
+      }
+    });
   };
 
   evtSource.onerror = () => {
