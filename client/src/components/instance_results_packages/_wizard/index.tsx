@@ -44,7 +44,7 @@ const HEADING = {
 };
 
 // The results-package LAUNCH wizard: an ephemeral modal (the Upload-CSV
-// pattern) — choose data, configure modules, confirm + launch. All state is
+// pattern): choose data, configure modules, confirm + launch. All state is
 // client-local until launch sends the whole configuration in one body;
 // nothing persists server-side before that, so abandoning the modal is a
 // no-op by construction. Generation is an instance-level act, so the wizard
@@ -119,7 +119,7 @@ type InnerProps = {
 function WizardInner(p: InnerProps) {
   const graph = buildModuleGraph(p.options);
 
-  // Step 1 — data. Seed: instance defaults, masked by what is uploaded.
+  // Step 1: data. Seed: instance defaults, masked by what is uploaded.
   const available = (family: DatasetType): boolean => {
     if (!instanceState.datasetsWithData.includes(family)) {
       return false;
@@ -132,12 +132,12 @@ function WizardInner(p: InnerProps) {
     iceh: p.defaults.step1?.iceh === true && available("iceh"),
   });
 
-  // Step 2 — modules. `selected` is what the user ticked; `chosen` is what
+  // Step 2: modules. `selected` is what the user ticked; `chosen` is what
   // launches: the dependency closure of every ticked module that is
   // offerable against the LIVE families (the user can go back to step 1).
   // Deriving the closure at read time is what keeps the launch payload
-  // closed under prerequisites whatever order families and ticks change in
-  // — a ticked module whose family is dropped simply falls out (and comes
+  // closed under prerequisites whatever order families and ticks change in:
+  // a ticked module whose family is dropped simply falls out (and comes
   // back with the family). Seed: instance defaults. Parameter values:
   // instance defaults beat definition defaults
   // (getMergedModuleConfigSelections).
@@ -186,7 +186,7 @@ function WizardInner(p: InnerProps) {
     )
   );
 
-  // Step 3 — confirm.
+  // Step 3: confirm.
   const [label, setLabel] = createSignal(
     `${t3({
       en: "Results package",

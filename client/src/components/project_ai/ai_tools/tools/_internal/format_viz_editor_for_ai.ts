@@ -62,7 +62,7 @@ export function formatVizEditorForAI(
     if (pf.filterType === "custom") {
       lines.push(`Period filter: ${inferPeriodFormatFromValue(pf.min) ?? "unknown"} from ${pf.min} to ${pf.max}`);
     } else if (pf.filterType === "from_month") {
-      // from_month discards its stored max at query time — the range extends
+      // from_month discards its stored max at query time: the range extends
       // to the latest data. Printing "to <max>" taught the model a fixed
       // upper bound the renderer ignores.
       lines.push(`Period filter: from ${pf.min} to present (extends automatically as new data lands)`);

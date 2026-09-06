@@ -578,7 +578,7 @@ async function assertVariantIntegrity(sql: Sql): Promise<void> {
 }
 
 // Changing/nulling an indicator's variant_group_id deletes its code rows whose
-// item is not in the new group — else stale code silently re-activates when the
+// item is not in the new group: else stale code silently re-activates when the
 // indicator is later reassigned to the old group.
 async function deleteOutOfGroupVariantCode(
   sql: Sql,
@@ -719,7 +719,7 @@ export async function updateHfaIndicatorVariantItem(
         SELECT group_id FROM hfa_indicator_variant_items WHERE id = ${oldId}
       `;
       // Moving an item to another group orphans its code rows (their parents
-      // are in the old group) — delete them before the move.
+      // are in the old group): delete them before the move.
       if (oldRows.length > 0 && oldRows[0].group_id !== item.groupId) {
         await sql`
           DELETE FROM hfa_indicator_variant_code WHERE item_id = ${oldId}
@@ -1115,7 +1115,7 @@ export async function importHfaIndicatorsWorkbook(
 
         // Upsert variant items, preserving existing order; new ones appended
         // within their group. Moving an item to another group orphans its code
-        // rows (their parents are in the old group) — delete them first.
+        // rows (their parents are in the old group): delete them first.
         const existingViRows = await sql<
           { id: string; group_id: string; sort_order: number }[]
         >`

@@ -49,7 +49,7 @@ class EmbedWidget extends WidgetType {
 
   override toDOM(view: EditorView): HTMLElement {
     const dom = document.createElement("div");
-    // Block widgets must NOT have vertical margins — CodeMirror measures the
+    // Block widgets must NOT have vertical margins: CodeMirror measures the
     // widget's box for vertical layout, and margins fall outside it, which
     // desyncs cursor positions below the widget. Use vertical PADDING instead.
     dom.className = "w-full p-4 select-none";
@@ -67,7 +67,7 @@ class EmbedWidget extends WidgetType {
       () => (
         <div
           class="ui-pad rounded border"
-          // Anchor for peer presence borders (ReportPeerSelectionOverlay) —
+          // Anchor for peer presence borders (ReportPeerSelectionOverlay):
           // the code-pane counterpart of the preview's data-embed-id divs.
           data-embed-id={this.id}
           classList={{
@@ -170,7 +170,7 @@ function buildEmbedDecorations(
 }
 
 // Block decorations MUST be provided directly via a StateField (not a view
-// plugin) — see EditorView.decorations facet docs.
+// plugin): see EditorView.decorations facet docs.
 export function embedWidgets(resolver: EmbedResolver): Extension {
   const field = StateField.define<DecorationSet>({
     create(state) {

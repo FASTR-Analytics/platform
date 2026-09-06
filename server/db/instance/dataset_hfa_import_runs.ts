@@ -25,7 +25,7 @@ import type { DBHfaImportRun } from "./_main_database_types.ts";
 
 // HFA import runs (PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase B): one row per
 // import, claimed by the partial unique index on status='running'. HFA is a
-// deliberately smaller machine than HMIS — no queue and no scheduler, so a
+// deliberately smaller machine than HMIS: no queue and no scheduler, so a
 // second launch while one runs is refused explicitly.
 
 function toRunSummary(row: DBHfaImportRun): HfaImportRunSummary {
@@ -87,7 +87,7 @@ async function assertHfaImportSlotFree(mainDb: Sql): Promise<void> {
   }
 }
 
-// The launch-time validations, all stateless — relocated from the deleted
+// The launch-time validations, all stateless: relocated from the deleted
 // step functions (create-attempt facility guard, step-1 XLSForm sheet check,
 // step-2 mapping cleaning + time-point existence). Returns the cleaned config
 // that gets stored on the run row.
@@ -329,7 +329,7 @@ export async function launchDatasetHfaCsvImportRun(
 }
 
 // needs_review resolution. "Integrate anyway" re-claims the slot (refused if
-// another import is running — HFA has no queue); "Discard" cancels and drops
+// another import is running: HFA has no queue); "Discard" cancels and drops
 // the surviving staging tables.
 export async function resolveDatasetHfaReview(
   mainDb: Sql,
@@ -404,7 +404,7 @@ export async function cancelDatasetHfaImportRun(
     }
     // The status flip comes FIRST and is conditional on the given runId: a
     // cancel aimed at an already-finished run (stale tab) must not touch the
-    // worker — it belongs to whatever run is actually running.
+    // worker: it belongs to whatever run is actually running.
     const updated = await mainDb`
       UPDATE hfa_import_runs
       SET status = 'cancelled', ended_at = now(), progress = NULL,

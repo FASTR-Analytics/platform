@@ -51,7 +51,7 @@ export function getFetchConfigFromPresentationObjectConfig(
     groupBys.push(config.d.timeseriesGrouping);
   }
 
-  // Collapsed dimension baked in client-side; the server obeys it — see
+  // Collapsed dimension baked in client-side; the server obeys it: see
   // getEffectiveRollupDimension.
   const rollupDim = getEffectiveRollupDimension(resultsValue, config);
 
@@ -62,7 +62,7 @@ export function getFetchConfigFromPresentationObjectConfig(
   // A catalog-evaluated metric (PLAN_1a §1.6): the wire carries the declared
   // ingredient columns, SUMmed; the server applies each indicator's own
   // expression to the aggregated row and returns one `value`. Structurally the
-  // same wire/display split a PAE metric has, but DECLARED — and like that
+  // same wire/display split a PAE metric has, but DECLARED: and like that
   // path, valuesFilter never applies (the ingredients are not user-facing
   // props; the metric's valueProps are ["value"]).
   if (resultsValue.catalogExpressionEvaluation) {
@@ -103,7 +103,7 @@ export function getFetchConfigFromPresentationObjectConfig(
   );
   // A valuesFilter can name props the metric doesn't have (e.g. a config
   // re-pointed to a different metric), leaving the intersection empty. An
-  // empty select list is never a valid query — without this guard the pg
+  // empty select list is never a valid query: without this guard the pg
   // builder emits syntax-invalid SQL while the run path returns a fake "ok"
   // with no value columns.
   if (values.length === 0) {
@@ -168,10 +168,10 @@ export function getPeriodFilterExactBounds(
   if (periodBounds === undefined) {
     return undefined;
   }
-  // The live data's format — bounds inherit it; the removed periodOption tag.
+  // The live data's format: bounds inherit it; the removed periodOption tag.
   const fmt = inferPeriodFormatFromValue(periodBounds.max);
   // Year data: every non-custom filter collapses to the latest year. This is
-  // the intended reading of every storable state — the UI offers year data
+  // the intended reading of every storable state: the UI offers year data
   // only "Last year" (stored as last_n_months) and "Custom", module presets
   // on annual metrics carry last_n_months/last_calendar_year meaning exactly
   // this, and the AI patch path rejects from_month for year granularity
@@ -179,7 +179,7 @@ export function getPeriodFilterExactBounds(
   // hmis_yearly period-filter cases; a drift arrival (a filter authored under
   // a finer granularity surviving a module re-run to annual) also collapses
   // here rather than degrading to full bounds like the quarter_id block below
-  // — acceptable because no module has ever changed a metric's granularity.
+  //: acceptable because no module has ever changed a metric's granularity.
   if (fmt === "year") {
     const max = periodBounds.max;
     return { min: max, max };
@@ -190,10 +190,10 @@ export function getPeriodFilterExactBounds(
   // config saved while the metric held period_id data still carries one after a
   // module re-run switches the table to quarter_id, and AI/hand-crafted configs
   // are not bound by the UI at all. Returning the raw bounds degrades to "no
-  // period filter" — all data, which is the safe reading.
+  // period filter": all data, which is the safe reading.
   //
   // Deleting it drops through to getLastFullYearBounds / getLastFullQuarterBounds,
-  // whose YYYYMM math on a YYYYQ value turns max 20244 into {20101, 20112} — a
+  // whose YYYYMM math on a YYYYQ value turns max 20244 into {20101, 20112}: a
   // range no quarter_id row can match, so "show everything" silently becomes
   // no_data_available. Verified by execution 2026-07-26.
   if (
@@ -320,7 +320,7 @@ function getLastFullQuarterBounds(
 }
 
 // Cache-uniqueness identity for a fetch config, on BOTH tiers (Valkey
-// po_items/replicant_opts and the client IndexedDB twins) — server and client
+// po_items/replicant_opts and the client IndexedDB twins): server and client
 // must stay byte-identical. Arrays are sorted so semantically-equal configs
 // hash equally: the values sort key includes func (prop alone left
 // same-prop/different-func pairs order-unstable), and filter values are
@@ -406,12 +406,12 @@ export function isRollupCandidateDimension(
 
 // The single dimension the roll-up collapses, or undefined if the roll-up
 // isn't active. The flag lives on the disaggregateBy entry (`rollup: true`);
-// EXACTLY ONE flagged entry must pass isRollupCandidateDimension — more than
+// EXACTLY ONE flagged entry must pass isRollupCandidateDimension: more than
 // one would require cross-product subtotals (2^n union branches), which is
 // deliberately not built; the schema still allows multiple flags so lifting
 // that limit later needs no storage migration. This is the single source of
 // truth for the config-shape gate: the server collapse (via the baked
-// `rollupDim`), the display label, and the axis pins all derive from it — the
+// `rollupDim`), the display label, and the axis pins all derive from it: the
 // server must NOT recompute the dimension from raw groupBys (those include
 // replicant levels, the wrong collapse target). Metric eligibility is layered
 // on top by getEffectiveRollupDimension.
@@ -427,7 +427,7 @@ export function getRollupDimension(
 }
 
 // getRollupDimension plus metric eligibility (isRollupEligibleResultsValue):
-// the gate used everywhere a ResultsValue is in scope — the UI checkbox, the
+// the gate used everywhere a ResultsValue is in scope: the UI checkbox, the
 // fetch-config builder, the save-time strip, and the AI editor tool.
 export function getEffectiveRollupDimension(
   resultsValue: RollupEligibilityInputs,
@@ -446,7 +446,7 @@ export function isRollupActive(config: PresentationObjectConfig): boolean {
   return getRollupDimension(config) !== undefined;
 }
 
-// The roll-up row's display position — from the flagged entry; display-only,
+// The roll-up row's display position: from the flagged entry; display-only,
 // never in the fetch config or the cache hash.
 export function getRollupPosition(
   config: PresentationObjectConfig,
@@ -464,13 +464,13 @@ export type RollupLabelContext =
   | { kind: "all_facilities" };
 
 // What the roll-up row's scope actually is, for labeling (row label + editor
-// checkbox), for a GIVEN dimension — the editor labels the checkbox of every
+// checkbox), for a GIVEN dimension: the editor labels the checkbox of every
 // candidate dimension, not just the flagged one. Admin precedence:
-// 1. pinned ("{Area} — All areas") — the FINEST coarser level pinned to one
+// 1. pinned ("{Area} — All areas"): the FINEST coarser level pinned to one
 //    value (replicant or single-value filter) names the row.
 // 2. national.
 // Facility dimensions are always "all_facilities".
-// FILTERS NEVER CHANGE THE LABEL (Tim 2026-07-28 — this removed an earlier
+// FILTERS NEVER CHANGE THE LABEL (Tim 2026-07-28: this removed an earlier
 // "All selected areas/facilities" subset kind): a filter is the AUTHOR's
 // context, not the READER's; the row states the figure's scope, and the
 // reader of a report filtered to some areas or facility types reads the total

@@ -18,7 +18,7 @@ import {
 } from "../exposed_env_vars.ts";
 
 /**
- * Builds a complete InstanceState for a given user — the instance-SSE
+ * Builds a complete InstanceState for a given user: the instance-SSE
  * `starting` payload, lifted verbatim from the SSE handler (PLAN_112 step 3)
  * so the /mcp context cache can ground on the same state. Pure extraction:
  * the SSE payload is byte-identical.
@@ -41,14 +41,14 @@ export async function buildInstanceState(
   const users = res.data.users;
   const me = users.find((u) => u.email === globalUser.email);
   // Roster fill mirrors the SSE forward filter (routes/instance/instance-sse.ts):
-  // an unapproved caller — absent from the roster — gets [] instead of every
+  // an unapproved caller, absent from the roster, gets [] instead of every
   // user's email, name and permission map. Their pending-approval screen has
   // no roster consumer, and the first `users_updated` naming them flows whole.
   const rosterForCaller = me === undefined ? [] : users;
 
   // Per-user fill, the `projects` pattern (Q-B: run labels must not fan
-  // out): entitled callers get the catalogue in the starting payload — a
-  // fresh-auth point-in-time response, like every field here — and everyone
+  // out): entitled callers get the catalogue in the starting payload, a
+  // fresh-auth point-in-time response, like every field here, and everyone
   // else gets []. After connect, runs_catalog_updated broadcasts only a
   // timestamp and entitled clients refetch via listRunCatalog (per-request
   // guard). The /mcp context cache inherits the same fill, which is correct.
@@ -63,7 +63,7 @@ export async function buildInstanceState(
       console.error(`buildInstanceState runsCatalog: ${runsRes.err}`);
     }
   }
-  // Every caller, entitled or not — the id alone is not gated (see the
+  // Every caller, entitled or not: the id alone is not gated (see the
   // field's doc in lib/types/instance_sse.ts). Degrades to null like the
   // catalogue above degrades to []: a read failure must not stop the
   // boundary from coming up.
@@ -92,7 +92,7 @@ export async function buildInstanceState(
     assets: res.data.assets,
     geojsonMaps: res.data.geojsonMaps,
     // Fresh nonce per connect: the client's boundary effect sees a changed
-    // value after every `starting` and refetches — DELIBERATE, the reconnect
+    // value after every `starting` and refetches: DELIBERATE, the reconnect
     // self-healing path (see the field's doc in lib/types/instance_sse.ts).
     runsCatalog,
     runsCatalogSignal: crypto.randomUUID(),

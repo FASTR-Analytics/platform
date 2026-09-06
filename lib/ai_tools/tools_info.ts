@@ -4,7 +4,7 @@ import type { InfoCatalogTopic } from "./info_catalog.ts";
 import type { ServerActionTransport } from "../server_actions/transport.ts";
 
 // On-demand reference docs. The caller passes the topics ITS surface exposes
-// (the shared INFO_TOPICS, plus SPA-only topics on the SPA) — the same list
+// (the shared INFO_TOPICS, plus SPA-only topics on the SPA): the same list
 // it hands buildSystemPrompt, so prompt and tool share one source of truth
 // with no fetch; only the markdown CONTENT is fetched on demand from
 // client/public/info/<topic>.md when a topic is actually requested. Matching

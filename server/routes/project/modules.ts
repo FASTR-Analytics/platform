@@ -11,8 +11,8 @@ import { log } from "../../middleware/logging.ts";
 export const routesModules = new Hono();
 
 // The raw results-object read of the project's ATTACHED run, for every
-// project member. Everything a package CONTAINS — per-module script, logs,
-// files, settings — is read run-keyed on the instance mount
+// project member. Everything a package CONTAINS: per-module script, logs,
+// files, settings: is read run-keyed on the instance mount
 // (routes/instance/run_generation.ts, instance data bits).
 
 defineRoute(

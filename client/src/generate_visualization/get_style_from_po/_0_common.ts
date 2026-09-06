@@ -126,14 +126,14 @@ export function getTextStyle(
   };
 }
 
-// Structural figure colors — grid lines, borders, label backgrounds, strokes.
+// Structural figure colors: grid lines, borders, label backgrounds, strokes.
 // Inside a deck they resolve against that deck's color preset so a figure obeys
 // the deck's theme; outside one they stay `{ key }` and resolve against
 // panther's global palette exactly as before. The no-deck branch is
 // byte-identical to the pre-theming output, which is the property that keeps
 // standalone visualizations, editor previews and exports visually unchanged.
 // Semantic colors (good/bad/neutral, survey/projected) are deliberately NOT
-// routed through here — they carry meaning, not theme.
+// routed through here: they carry meaning, not theme.
 type StructuralColorSlot = "base100" | "base300" | "baseContent";
 
 function structuralColor(
@@ -154,8 +154,8 @@ export function getCfCellTextColorStrategy(
   };
 }
 
-// The CF table look — white gridlines, no outer border, tightened header
-// padding — applies whenever cells carry conditional-formatting backgrounds,
+// The CF table look, white gridlines, no outer border, tightened header
+// padding, applies whenever cells carry conditional-formatting backgrounds,
 // from any CF source (a figure-level scale or thresholds rule, or each
 // indicator's own rule).
 export function getTableLayoutStyle(
@@ -238,7 +238,7 @@ export function getTableCellsContent(
  * Appends the sample size to each column header: "Northern (n=55)".
  *
  * v1 policy is item headers only. The formatter also fires for col-GROUP
- * headers, whose digest spans several columns, so the group gate is required —
+ * headers, whose digest spans several columns, so the group gate is required:
  * without it a group label reports the largest n under it as if it were its
  * own. Rows and cells are deliberately undecorated (panther supports both).
  *
@@ -249,7 +249,7 @@ export function getTableCellsContent(
  * unchanged. Zero is suppressed too: it is a real finite number to panther, but
  * "(n=0)" tells a reader nothing.
  *
- * Must be pure and deterministic — panther caches header widths by label.
+ * Must be pure and deterministic: panther caches header widths by label.
  */
 export function getTableColHeadersContent(config: PresentationObjectConfig) {
   if (!config.s.showNValues) {
@@ -290,7 +290,7 @@ export function formatIndicatorValue(
 //
 // One rule because a rate carries three properties none of the alternatives
 // respect together. The decimals knob cannot apply: it defaults to 0, and a
-// bare rate of 0.00012 is 1.2 per 10,000 — printing "1" beside an axis tick
+// bare rate of 0.00012 is 1.2 per 10,000: printing "1" beside an axis tick
 // reading 1.2 is the same number twice with different answers. A list-wide
 // auto count cannot apply either: it sizes to keep a list DISTINCT, so a
 // boundary of 0.25 rounds to "0.3" while the axis prints "0.25". Per value and
@@ -312,7 +312,7 @@ export function formatRateAuto(v: number): string {
 // Scale-axis tick labels for the same three formats. percent/number keep
 // panther's auto-decimal modes (sized from the resolved tick list);
 // rate_per_10k has no auto mode, so it goes through the formatter function
-// escape — which sees one tick at a time, exactly what formatRateAuto wants.
+// escape, which sees one tick at a time, exactly what formatRateAuto wants.
 export function getScaleTickLabelFormatter(
   formatAs: IndicatorFormat,
 ): TickLabelFormatterOption {
@@ -403,7 +403,7 @@ export function getMapRegionsContent(
   };
 }
 
-// Slice labels are always "label share%" regardless of the metric's formatAs —
+// Slice labels are always "label share%" regardless of the metric's formatAs:
 // a share is a fraction of the pie's denominator, never a raw value. The custom
 // textFormatter (only when labels are on) exists to honor s.decimalPlaces;
 // panther's built-in formatter auto-picks decimals.
@@ -434,7 +434,7 @@ export function getPieSlicesContent(config: PresentationObjectConfig) {
 // The doughnut hole's KPI number. "share" reads the value against the
 // completion pie's fixed envelope; "total" sums the slices, which is the only
 // meaningful reading when the denominator IS that sum. Gated on the same
-// isPieCompletionMode as the data config's `total` — disagreeing would report a
+// isPieCompletionMode as the data config's `total`: disagreeing would report a
 // share against a denominator the geometry never used. Panther suppresses it on
 // a pie with no hole, so no shape check is needed here.
 export function getPieCenterLabel(
@@ -445,7 +445,7 @@ export function getPieCenterLabel(
   return isPieCompletionMode(config, formatAs) ? "share" : "total";
 }
 
-// The header whose index drives series coloring (see getIndex below) — the
+// The header whose index drives series coloring (see getIndex below): the
 // sentinel check must look at the same axis the palette indexes.
 function getColorPropHeaderId(
   info: ChartSeriesInfo,

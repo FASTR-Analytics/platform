@@ -37,8 +37,8 @@ import { setResultsPackageTabLoadCount } from "~/state/t4_ui";
 // The project "Results package" surface (PLAN_RESULTS_RUNS Phase 3 item 4):
 // two halves with two permission models.
 //
-// The CONFIGURE card is the project's relationship with packages — which one
-// it serves from (the picker) and whether it follows the instance's pin — and
+// The CONFIGURE card is the project's relationship with packages, which one
+// it serves from (the picker) and whether it follows the instance's pin, and
 // is the editor's (`can_configure_visualizations`, or global admin). It
 // renders synchronously from T1 (`projectState.attachedRun`, `followPinned`,
 // `instanceState.pinnedRunId`); its one fetch is the picker's option list.
@@ -127,10 +127,10 @@ export function ProjectResultsPackage() {
 }
 
 // The picker + follow-pinned subscription. Options are every ready package
-// on the instance (T3 once per mount, editors only — the one genuinely
+// on the instance (T3 once per mount, editors only: the one genuinely
 // project-context read on this page). Two-step on purpose: a native <select>
 // flips before we can veto, and the compatibility modal must be able to
-// cancel — so the selection is local until "Use this package" confirms it.
+// cancel, so the selection is local until "Use this package" confirms it.
 // No refetch after a repoint: `run_attached` moves `attachedRunId` and the
 // candidate resets to it.
 function PackageSettings() {
@@ -207,7 +207,7 @@ function PackageSettings() {
   // project_config_updated) and the pin itself is instance T1
   // (`instanceState.pinnedRunId`), so nothing is refetched here: enabling may
   // also repoint the project, which arrives as run_attached. Subscribing
-  // before any package is pinned is allowed — the project moves once an admin
+  // before any package is pinned is allowed: the project moves once an admin
   // pins. The checkbox is keyed on a counter bumped when a save is refused,
   // because a controlled native checkbox has already flipped visually by then
   // and no store value changes to flip it back.
@@ -225,7 +225,7 @@ function PackageSettings() {
 
   // "Following, but not on the pin" is a real state (publish repointed this
   // project as a wizard attach target, it was locked while the pin moved, or
-  // its repoint failed) — surface it and offer the manual realign, which is
+  // its repoint failed): surface it and offer the manual realign, which is
   // just a manual attach TO the pin (that never clears the subscription).
   const behindPin = () =>
     projectState.followPinned &&
@@ -339,7 +339,7 @@ function AttachedPackageSummary(p: { run: RunListingItem }) {
 
 // Persistent scope-mismatch warning on the attached package (one mechanism,
 // two surfaces: same compatibility route as the pre-attach modal). Renders
-// nothing while loading or on error — this is a passive advisory, not a gate.
+// nothing while loading or on error: this is a passive advisory, not a gate.
 function AttachedScopeCoverageWarning(p: { runId: string }) {
   const report = createQuery(() =>
     serverActions.getResultsPackageCompatibility({

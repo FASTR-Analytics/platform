@@ -38,7 +38,7 @@ routesPublicDashboard.get("/api/d/:slug", async (c) => {
 
   // isPublic: true  → anyone can see it.
   // isPublic: false → only authenticated users can see it.
-  // NB: this must check the real Clerk session, not _BYPASS_AUTH — under
+  // NB: this must check the real Clerk session, not _BYPASS_AUTH: under
   // BYPASS_AUTH there is no session at all, so a not-public dashboard is hidden
   // from everyone in that mode (including the dev browser).
   if (!result.data.isPublic) {

@@ -101,8 +101,8 @@ function getContentPageInputs(
 }
 
 // A single content slide at thumbnail scale, for side-by-side theme comparison.
-// Content (not cover) because it exercises the most color surfaces at once —
-// background, body text, header/footer rules — so themes are distinguishable at
+// Content (not cover) because it exercises the most color surfaces at once:
+// background, body text, header/footer rules, so themes are distinguishable at
 // card size. Logos are deliberately not loaded: they are theme-invariant, and
 // loading them once per card would be N redundant fetches for zero signal.
 // PageHolder always lays out in zoom mode, so a narrow container just scales the
@@ -137,7 +137,7 @@ export function StylePreview(p: StylePreviewProps) {
 
   createEffect(() => {
     const config = p.config;
-    // `config` is the bare store root (untracked) — read getBackgroundDetail's
+    // `config` is the bare store root (untracked): read getBackgroundDetail's
     // actual inputs explicitly so the preview re-runs when they change
     const _overlay = config.overlay;
     trackStore(config.colorTheme);

@@ -5,7 +5,7 @@ import { clientAIToolEnvFor } from "../client_env";
 import { getVisualizationDataAsCSV } from "./_internal/format_visualization_data_for_ai";
 import { formatVisualizationsListForAI } from "./_internal/format_visualizations_list_for_ai";
 
-// Project content: the project's saved visualizations (SPA-only — the /mcp
+// Project content: the project's saved visualizations (SPA-only: the /mcp
 // surface has no project).
 export function getClientToolsForVisualizations(
   projectId: string,

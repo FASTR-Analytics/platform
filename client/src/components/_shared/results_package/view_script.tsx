@@ -8,7 +8,7 @@ import {
 } from "panther";
 import { serverActions } from "~/server_actions";
 
-// The R script this results package generated for one module — package
+// The R script this results package generated for one module: package
 // contents, read run-keyed wherever a package is explored (the catalogue, a
 // project's tab): one route, one guard (`can_view_data`).
 export function ViewScript(

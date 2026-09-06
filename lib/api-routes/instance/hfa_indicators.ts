@@ -83,7 +83,7 @@ const hfaVarNameSchema = hfaVarNameShapeSchema.refine(
 // immutable there (hfa_indicator_code's FK has no ON UPDATE CASCADE), so the
 // body carries the stored name back unchanged. Applying the reserved-word rule
 // to it would lock every indicator whose name predates the rule out of all
-// edits — and fail a whole bulk batch atomically. A genuine rename is still
+// edits: and fail a whole bulk batch atomically. A genuine rename is still
 // checked, by withRenameRule below.
 const hfaIndicatorEditSchema = z.object({
   varName: hfaVarNameShapeSchema,

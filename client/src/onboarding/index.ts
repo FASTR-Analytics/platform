@@ -70,7 +70,7 @@ import {
 // page's tour auto-starts on the user's first visit to that page; seen-flags
 // live in Clerk unsafeMetadata.onboarding (tour:<id> / tour:<group>), so once
 // per user across devices. A `pages` predicate must be true only while that
-// page is actually visible (tab active AND permission granted) — otherwise a
+// page is actually visible (tab active AND permission granted): otherwise a
 // tour could fire, find no targets, and be marked seen invisibly.
 //
 // The decks tour is split into parts with independent seen-flags: the viewer
@@ -79,7 +79,7 @@ import {
 // the same moment merge into one seamless run in this array order; a part
 // whose condition only holds later runs on the first visit where it does.
 // The editor overlays render on top of the still-mounted project shell, so
-// projectTab() stays "decks" inside them — the AI view is what actually tracks
+// projectTab() stays "decks" inside them: the AI view is what actually tracks
 // where the user is. Tab pages must exclude the editing views, or a deck-list
 // tour could fire behind the editor.
 const currentView = () => projectAIViewController.current();
@@ -159,7 +159,7 @@ export function setupDeckTours(): SolidTourManagerController {
   const slideCardOnScreen = () =>
     document.querySelector('[data-tour="deck-slide-card"]') !== null;
   // The deck list, the deck editor and the per-slide-type tours share ONE
-  // manager so they also share its one-run-at-a-time lock — clicking a deck
+  // manager so they also share its one-run-at-a-time lock: clicking a deck
   // mid-tour hands over cleanly instead of two tours overlapping.
   const tours = createTourManager({
     storage: clerkOnboardingStorage,
@@ -394,7 +394,7 @@ export function setupVisualizationTours(): SolidTourManagerController {
 //
 // The tab renders from project T1 (`attachedRun`), so its anchors exist on
 // mount; the tab bumps `resultsPackageTabLoadCount` on mount and resets it on
-// unmount, and the page counts as visible only while it is > 0 — the same
+// unmount, and the page counts as visible only while it is > 0: the same
 // gate the fetch-driven version used, kept so a tour part is evaluated
 // against the drawn page.
 export function setupResultsPackageTours(): SolidTourManagerController {

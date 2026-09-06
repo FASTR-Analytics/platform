@@ -89,8 +89,8 @@ const runProjectPurge = () => {
   const db = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
   purgeExpiredProjects(db)
     .then((purgedCount) => {
-      // The purge drops projects.run_id pointers — the catalogue's
-      // attachedProjects and delete-guard facts — so connected clients must
+      // The purge drops projects.run_id pointers: the catalogue's
+      // attachedProjects and delete-guard facts, so connected clients must
       // be signalled (forceDeleteProject's route fires the same pair). The
       // boot-time invocation notifies harmlessly: no clients are connected
       // yet.
@@ -105,7 +105,7 @@ runProjectPurge();
 setInterval(runProjectPurge, 24 * 60 * 60 * 1000);
 
 // DHIS2 auto-pull (PLAN_DHIS2_IMPORTER Phase 4): ~60 s tick draining queued
-// runs FIFO and firing due schedules — a minute-level tick, NOT one of the
+// runs FIFO and firing due schedules: a minute-level tick, NOT one of the
 // boot-anchored 24 h jobs above (a daily tick would usually miss a 01:15
 // Lagos window).
 startDhis2ImportScheduler();
@@ -122,7 +122,7 @@ app.use("/api/d/*", corsMiddleware);
 
 // Dashboards are readable anonymously only when public; not-public dashboards
 // require an authenticated user. Run Clerk here so the route can READ the
-// session — clerkMiddleware populates auth without rejecting anonymous requests.
+// session: clerkMiddleware populates auth without rejecting anonymous requests.
 //@ts-ignore - Clerk middleware types not fully compatible with Hono
 app.use("/api/d/*", authMiddleware);
 
@@ -131,14 +131,14 @@ app.route("/", routesPublicDashboard);
 
 // OAuth discovery for /mcp (PLAN_MCP_OAUTH). These are what a connector reads
 // BEFORE it has any credential, so they must sit ahead of the global Clerk
-// middleware — behind it they 401 and the Connect button spins forever.
+// middleware: behind it they 401 and the Connect button spins forever.
 app.route("/", routesOAuthMetadata);
 
 // Serve SPA HTML for public dashboard routes (before auth)
 try {
   const indexHtml = Deno.readTextFileSync("./client_dist/index.html");
   // These two shell serves are registered ahead of cacheMiddleware, so they
-  // never reach its no-cache branch for HTML — they set it themselves. Same
+  // never reach its no-cache branch for HTML: they set it themselves. Same
   // reason as there: a heuristically cached shell pins the browser to the
   // previous build's immutable bundles.
   const serveShell = (c: Context) => {
@@ -157,7 +157,7 @@ try {
 }
 
 // The /mcp endpoint (PLAN_112) authenticates with PATs inside the panther
-// adapter — the global Clerk middleware and CORS headers must not touch it.
+// adapter: the global Clerk middleware and CORS headers must not touch it.
 const isMcpPath = (path: string) => path === "/mcp" || path.startsWith("/mcp/");
 
 //@ts-ignore - Clerk middleware types not fully compatible with Hono
@@ -175,7 +175,7 @@ app.onError((err: unknown, c) => {
 });
 
 // Unmatched GETs 302 to "/" (the SPA fallback below), so only non-GET
-// requests reach this — in practice a client calling a route this server
+// requests reach this: in practice a client calling a route this server
 // build no longer has, i.e. a tab running pre-deploy JS. Return the
 // APIResponse envelope with the actual cause instead of Hono's bare
 // "404 Not Found", so the failure is diagnosable from the error modal.
@@ -242,7 +242,7 @@ app.route("/", routesOnboarding);
 // elicitation; Hono just hands it the raw Request.
 // CORS headers for browser-origin MCP clients. This endpoint authenticates by
 // bearer token and carries NO ambient cookie credentials, so a wildcard origin
-// is safe — and `Access-Control-Allow-Credentials` is deliberately NOT set (a
+// is safe, and `Access-Control-Allow-Credentials` is deliberately NOT set (a
 // browser can only read a response it explicitly attached the token to).
 // `Mcp-Session-Id` must be exposed or a browser client cannot read the session
 // the server issues on initialize.
@@ -285,7 +285,7 @@ app.get("*", (c) => {
 validateAllRoutesDefined();
 // Dev-only self-checks, fail-stop like the route validation above: the
 // structural headless-mount check, then the whole server test suite
-// (`deno task test` — a subprocess, because those tests need BYPASS_AUTH
+// (`deno task test`: a subprocess, because those tests need BYPASS_AUTH
 // cleared and their own module graph; ~2 s with --no-check, the tests'
 // typecheck being `deno task typecheck`'s job). Production boots skip both.
 if (_IS_DEV) {
@@ -294,7 +294,7 @@ if (_IS_DEV) {
 }
 
 // Process-level backstop for the serving phase. A single collaborative-editing
-// frame — or any other un-awaited async path — must never take down this
+// frame, or any other un-awaited async path, must never take down this
 // multi-tenant server. The known Yjs crash vectors are guarded at their source
 // (server/collab/doc_rooms.ts); these handlers are defense-in-depth so an
 // unforeseen throw degrades one request instead of every project. Both log
@@ -321,8 +321,8 @@ const shutdown = async () => {
   }, 8000);
   // Collab rooms first: dirty rooms hold up to CHECKPOINT_DEBOUNCE_MS of
   // typing that exists nowhere else, and the version flush below reads
-  // document content from the DB — so the rooms' checkpoints must land first.
-  // Both must finish BEFORE closeAllConnections() — they write through the pools.
+  // document content from the DB, so the rooms' checkpoints must land first.
+  // Both must finish BEFORE closeAllConnections(): they write through the pools.
   await flushAllRooms().catch((e) =>
     console.error("Room flush on shutdown failed:", e)
   );

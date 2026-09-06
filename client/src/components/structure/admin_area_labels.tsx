@@ -27,7 +27,7 @@ function withAdminSuffix(v: string, level: number): string | undefined {
 }
 
 // Admin area level NAMES are a country fact ("Region", "District"), shared by
-// both facility registries — the one structure setting that is deliberately
+// both facility registries: the one structure setting that is deliberately
 // not per-family. One editor, one stored value.
 export function AdminAreaLabels(p: Props) {
   const [adminLabel2, setAdminLabel2] = createSignal<string>(

@@ -7,7 +7,7 @@ import { instanceState } from "~/state/instance/t1_store";
 // Built as factories (not module-level constants) so t3() resolves after the
 // app language has been set.
 
-// Button labels shared by every tour — passed once per manager (roadtrip
+// Button labels shared by every tour: passed once per manager (roadtrip
 // merges them under any tour-specific labels) rather than per definition.
 export function tourLabels(): TourLabels {
   return {
@@ -144,7 +144,7 @@ export function buildDecksViewerTour(): TourDefinition {
 }
 
 // Deferred until the project actually has decks (entry-level `when` in
-// index.ts) — held back without being marked seen, so it runs on the first
+// index.ts): held back without being marked seen, so it runs on the first
 // decks visit where a deck exists, or merges into the intro run when decks
 // are already there.
 export function buildDecksOpenDeckTour(): TourDefinition {
@@ -308,7 +308,7 @@ export function buildReportsEditorTour(): TourDefinition {
   };
 }
 
-// Deferred like the deck-card tours — needs a report card on screen.
+// Deferred like the deck-card tours: needs a report card on screen.
 export function buildReportsManageTour(): TourDefinition {
   return {
     id: "reports-manage-reports",
@@ -469,7 +469,7 @@ export function buildDeckEditorSlidesTour(): TourDefinition {
   };
 }
 
-// Deferred until the Present button is on screen — it only renders once the
+// Deferred until the Present button is on screen: it only renders once the
 // deck has slides.
 export function buildDeckEditorPresentTour(): TourDefinition {
   return {
@@ -510,7 +510,7 @@ export function buildDeckEditorPresentTour(): TourDefinition {
 }
 
 // Walks the user into the version-history overlay via the overflow menu, then
-// back out again — the final advanceOn matters, because the overlay covers the
+// back out again: the final advanceOn matters, because the overlay covers the
 // toolbar that the settings part needs next.
 export function buildDeckEditorHistoryTour(): TourDefinition {
   return {
@@ -1233,7 +1233,7 @@ export function buildResultsPackageIntroTour(): TourDefinition {
 
 // Split from the intro rather than gated step-by-step: on a project with no
 // package attached yet these two targets do not exist, and a tour that runs
-// and skips its steps is still marked seen — the user would never get them
+// and skips its steps is still marked seen: the user would never get them
 // once a package IS attached.
 export function buildResultsPackageExploreTour(): TourDefinition {
   return {
@@ -1515,7 +1515,7 @@ export function buildDashboardsCreateTour(): TourDefinition {
 
 // Mirrors canConfigure() inside dashboard_editor.tsx. Step-level `when` runs
 // once when the tour starts, and the dashboard editor's content is still
-// loading then — so these gates must read state, never the DOM.
+// loading then, so these gates must read state, never the DOM.
 const canConfigureDashboards = () =>
   projectState.thisUserPermissions.can_configure_slide_decks &&
   !projectState.isLocked;
@@ -2154,7 +2154,7 @@ export function buildInstanceResultsPackagesTour(): TourDefinition {
 }
 
 // Split from the intro for the same reason as the project pair: a freshly
-// created instance holds no packages, so neither target exists — and a tour
+// created instance holds no packages, so neither target exists, and a tour
 // that runs against nothing still writes its seen-flag.
 export function buildInstanceResultsPackagesCatalogueTour(): TourDefinition {
   return {

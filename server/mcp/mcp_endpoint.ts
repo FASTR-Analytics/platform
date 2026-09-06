@@ -17,12 +17,12 @@ import { buildMcpToolsForPrincipal } from "./mcp_tools.ts";
 // panther adapter owns the wire (both protocol eras, sessions, elicitation);
 // the D3 thunk below binds one tool set per authenticated principal.
 //
-// Auth is the shared headless-credential seam (server/headless_auth.ts) — the
+// Auth is the shared headless-credential seam (server/headless_auth.ts): the
 // SAME resolver the per-dispatch middleware runs, which is what keeps a
 // connector from listing tools and then failing every real tool call. No token
 // or an unrecognized token → 401; backend failure → 503 (the adapter maps an
 // authenticate throw to 503). Under BYPASS_AUTH the hook degrades to the dev
-// identity exactly as the headless mount does — live smokes are only valid
+// identity exactly as the headless mount does: live smokes are only valid
 // auth-on.
 
 const INSTRUCTIONS = [
@@ -44,7 +44,7 @@ export const mcpHttpHandler = createMCPHttpHandler<McpPrincipal>({
   // approvalPolicy is a CONSTRUCTION-time check that refuses to build a
   // server where a kind:"write" tool has no approval block, so a write cannot
   // ship unguarded by omission. "delegate" is the mode such a write would run
-  // under — consent is the CLIENT's tool-permission prompt, not a second
+  // under: consent is the CLIENT's tool-permission prompt, not a second
   // in-protocol elicitation (which failed closed on clients that cannot
   // present it); propose() still runs in full and the preview rides the
   // result as an audit header.
@@ -56,7 +56,7 @@ export const mcpHttpHandler = createMCPHttpHandler<McpPrincipal>({
       return { token: "", email: "dev@offline.local" };
     }
     const authz = req.headers.get("Authorization") ?? "";
-    // A backend failure here throws — the adapter answers 503 (credentials not
+    // A backend failure here throws: the adapter answers 503 (credentials not
     // judged), distinct from the 401 for a bad token.
     const email = await resolveHeadlessCredentialEmail(authz);
     if (email === null) {
@@ -73,6 +73,6 @@ export const mcpHttpHandler = createMCPHttpHandler<McpPrincipal>({
   // from "Connect" to the Clerk consent screen. Derived per request from the
   // SAME helper that builds the document itself, so the pointer and its target
   // can never disagree about the resource identifier. A PAT client never sees
-  // this — it arrives already authenticated.
+  // this: it arrives already authenticated.
   resourceMetadataUrl: (req) => mcpResourceMetadataUrl(req),
 });

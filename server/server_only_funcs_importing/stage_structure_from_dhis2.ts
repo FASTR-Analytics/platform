@@ -166,7 +166,7 @@ export async function stageStructureFromDhis2V2(
   // without clobbering each other's staging data. Same-family double-staging is
   // gated by the status_type='importing' check in the step-3 wrapper; the
   // staging table is family-scoped so the residual race is benign (same attempt,
-  // same mappings → same result, deduped at integration). No advisory lock — the
+  // same mappings → same result, deduped at integration). No advisory lock: the
   // old pg_advisory_lock leaked because acquire and the finally-unlock ran on
   // different pooled mainDb connections, wedging the lock until restart.
   const stagingTableName = `temp_structure_staging_${family}`;
@@ -185,7 +185,7 @@ export async function stageStructureFromDhis2V2(
     const enabledOptionalColumns =
       getEnabledOptionalFacilityColumns(resStructureSchema.data);
     // DHIS2 only supplies facility_name (from displayName). Never stage the other
-    // metadata columns — integration writes exactly the staged columns, and a
+    // metadata columns: integration writes exactly the staged columns, and a
     // blank facility_type/ownership would wipe existing values.
     const dhis2OptionalColumns = enabledOptionalColumns.filter(
       (c) => c === "facility_name"

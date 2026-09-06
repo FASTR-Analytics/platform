@@ -166,10 +166,10 @@ export async function deleteFamilyFacilities(
     // Refusal guards and the deletes share one transaction so a concurrent
     // dataset import or structure import can't land rows between check and
     // delete. The family's schema row (structure_schema_{family}) deliberately
-    // survives — flags, labels and depth persist across delete + re-import.
+    // survives: flags, labels and depth persist across delete + re-import.
     return await mainDb.begin(async (sql): Promise<APIResponseNoData> => {
       // A running structure import for this family holds the staging table and
-      // will re-insert facilities on commit — refuse instead of racing it.
+      // will re-insert facilities on commit: refuse instead of racing it.
       const importing = await sql<{ count: number }[]>`
         SELECT COUNT(*) as count FROM structure_upload_attempts
         WHERE dataset_family = ${family} AND status_type = 'importing'
@@ -200,7 +200,7 @@ export async function deleteFamilyFacilities(
       }
 
       if (family === "hfa") {
-        // Weights would vanish via the ON DELETE CASCADE FK — refuse, like the
+        // Weights would vanish via the ON DELETE CASCADE FK: refuse, like the
         // replace_all integrate strategy does, instead of destroying them silently.
         const weightsCount = await sql<{ count: number }[]>`
           SELECT COUNT(*) as count FROM hfa_facility_weights
@@ -214,7 +214,7 @@ export async function deleteFamilyFacilities(
       }
 
       await sql`DELETE FROM ${sql(facilitiesTableForFacilityFamily(family))}`;
-      // The family's tree is now fully orphaned by construction — cleanup
+      // The family's tree is now fully orphaned by construction: cleanup
       // degenerates to a plain clear. The other family is untouchable.
       for (let i = 4; i >= 1; i--) {
         await sql`DELETE FROM ${sql(`admin_areas_${family}_${i}`)}`;
@@ -967,8 +967,8 @@ async function getStagedReviewContext(
   };
 }
 
-// Both review reads run over the DEDUPED view — identical to the ROW_NUMBER
-// subquery integrate uses — so the user reviews exactly the rows integration
+// Both review reads run over the DEDUPED view: identical to the ROW_NUMBER
+// subquery integrate uses, so the user reviews exactly the rows integration
 // will write. Ranking runs on original staged values (see integrate's overlay).
 function dedupedStagingFromClause(
   stagingTableName: string,
@@ -1083,7 +1083,7 @@ export async function getStructureStagedRecodeRows(
 // Display-only context for the review table: unmapped CSV columns are never
 // staged, so their values are joined in from the stored file at read time,
 // keyed by facility id. Duplicate file rows contribute all their distinct
-// non-empty values ("; "-joined) — richer for decision-making than the one
+// non-empty values ("; "-joined): richer for decision-making than the one
 // dedup-winner row. Keys on the returned rows are the encoded header refs.
 async function joinCsvContextColumns(
   rawUA: DBStructureUploadAttempt,
@@ -1166,7 +1166,7 @@ export async function setStructureRecodes(
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     // Drop empty per-column maps: { facility_type: {} } must not reach
-    // storage — it would render VALUES () at integrate.
+    // storage: it would render VALUES () at integrate.
     const normalized: StructureRecodes = {};
     let totalAssignments = 0;
     for (const [col, map] of Object.entries(recodes)) {
@@ -1232,7 +1232,7 @@ export async function structureStep4_ImportData(
   // Atomically claim the import slot, exactly like the step-3 stagers. The
   // step = 4 condition re-checks under the row lock that no re-staging or
   // re-configuration invalidated the staged data since we read it. RETURNING
-  // gives the staging result and recodes as they stand AT CLAIM TIME — the
+  // gives the staging result and recodes as they stand AT CLAIM TIME: the
   // pre-claim rawUA snapshot could be stale.
   const claimed = await mainDb<
     { step_3_result: string | null; recodes: string | null }[]

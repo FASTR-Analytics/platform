@@ -108,7 +108,7 @@ import {
   type ProjectAIViewState,
 } from "../project_ai/ai_views";
 
-// Input types with no native undo — they must not swallow the editor's Ctrl+Z.
+// Input types with no native undo: they must not swallow the editor's Ctrl+Z.
 const NON_TEXT_INPUT_TYPES = new Set([
   "radio",
   "checkbox",
@@ -188,7 +188,7 @@ export function VisualizationEditorInner(p: InnerProps) {
 
   // Sub-state updater
 
-  // Monotonic run id: a superseded fetch must not write its (stale) items —
+  // Monotonic run id: a superseded fetch must not write its (stale) items:
   // they'd be paired with the CURRENT config, which can disagree visibly
   // (e.g. a roll-up sentinel row rendering raw when the flag was re-toggled
   // off before the slower roll-up query resolved).
@@ -226,7 +226,7 @@ export function VisualizationEditorInner(p: InnerProps) {
         // Commit the auto-resolved replicant back into the draft so the selector
         // and the saved config match the rendered figure. resolveDefaultReplicant
         // (run inside the fetch) already validated the pick against the current
-        // filters — keep-if-still-valid, else fall back to the first option — so we
+        // filters (keep-if-still-valid, else fall back to the first option), so we
         // only reflect its result here. Guarded on inequality so it settles in one
         // extra (cache-hit) fetch and never loops. Raw setTempConfig (not the
         // manuallyUpdate wrapper): this is an auto-resolution, not a user edit.
@@ -345,7 +345,7 @@ export function VisualizationEditorInner(p: InnerProps) {
     return undefined;
   };
 
-  /** Ready AND live — collab is actually persisting / relaying right now.
+  /** Ready AND live: collab is actually persisting / relaying right now.
    *  collabSocketOpen() mirrors ws.readyState (same value) but is reactive, so
    *  the Live badge / save gating below track a socket drop; isLive() alone
    *  reads the raw socket, which no effect would re-run on. */
@@ -413,7 +413,7 @@ export function VisualizationEditorInner(p: InnerProps) {
   // Broadcast this user's pointer over the chart preview (normalized to the
   // preview canvas rect) and the settings panel (x normalized, y in content px
   // so it stays glued to the same control when the viewer scrolls). Scope keys
-  // isolate visualizations from each other — and from "slide" pointers riding
+  // isolate visualizations from each other, and from "slide" pointers riding
   // the same host awareness in ephemeral mode.
   const [panelTab, setPanelTab] = createSignal<"data" | "style" | "text">(
     "data", // matches the panel's initial tab
@@ -432,7 +432,7 @@ export function VisualizationEditorInner(p: InnerProps) {
   // ── "Who is on which tab" ────────────────────────────────────────────────────
   // Each participant stamps its active panel tab into the awareness field
   // "vizTab" (scope-gated like the cursors); the tab bar shows the matching
-  // peers' avatars per tab. Cleared on unmount — essential in ephemeral mode,
+  // peers' avatars per tab. Cleared on unmount: essential in ephemeral mode,
   // where the HOST session's awareness outlives this modal.
   createEffect(() => {
     const aw = collabTarget()?.awareness;
@@ -534,7 +534,7 @@ export function VisualizationEditorInner(p: InnerProps) {
   function handlePoError(message: string) {
     // Edit rejected on the socket's snapshot auth while the live store says
     // this user CAN edit: the socket is stale (permission granted after
-    // connect). Keep the session — the reconnect re-subscribes it and the
+    // connect). Keep the session: the reconnect re-subscribes it and the
     // resync pushes the rejected local ops.
     if (
       message === COLLAB_NO_EDIT_PERMISSION &&
@@ -545,7 +545,7 @@ export function VisualizationEditorInner(p: InnerProps) {
       return;
     }
     // Room discarded (e.g. the visualization was deleted elsewhere). Tear down
-    // the undo machinery BEFORE destroying the doc it points at — the document
+    // the undo machinery BEFORE destroying the doc it points at: the document
     // keydown handler stays attached until unmount, and Ctrl+Z would otherwise
     // drive undoMgr against a destroyed Y.Doc. Then drop the session so
     // isCollabLive() is false and the classic save UI returns.
@@ -566,7 +566,7 @@ export function VisualizationEditorInner(p: InnerProps) {
     undoMgr?.redo();
   }
   // Document-level so Ctrl+Z works regardless of what's focused (a wrapper's
-  // onKeyDown only fires for keydowns bubbling from a focused descendant — it
+  // onKeyDown only fires for keydowns bubbling from a focused descendant: it
   // misses the common case where focus is on the chart preview / page body,
   // which is why the button worked but the shortcut didn't). Leaves text-editing
   // contexts to their own undo: CodeMirror captions have a per-user undo keymap;
@@ -629,7 +629,7 @@ export function VisualizationEditorInner(p: InnerProps) {
         captureTimeout: 500,
       });
       // Undo/redo mutate the config map DIRECTLY (not via tempConfig), so
-      // reconcile those local changes back into the store — otherwise this
+      // reconcile those local changes back into the store: otherwise this
       // screen wouldn't reflect its own undo (peers would, via the relayed
       // update). Remote edits are handled by handlePoRemote; local pushes carry
       // session.localOrigin and need no reconcile (tempConfig is their source).
@@ -671,7 +671,7 @@ export function VisualizationEditorInner(p: InnerProps) {
       pushEffectPrimed = true;
       return;
     }
-    // untrack: liveness is a per-edit condition here, not a trigger — tracking
+    // untrack: liveness is a per-edit condition here, not a trigger: tracking
     // it would push the whole (possibly diverged) local config on socket
     // reconnect, clobbering peers' offline-window edits (2-way diff, not a
     // merge). Offline edits stay unshipped, same tradeoff as close().
@@ -696,14 +696,14 @@ export function VisualizationEditorInner(p: InnerProps) {
 
   let firstRunConfigChange = true;
   createEffect(() => {
-    // Deep-track the DATA config: any change under `d`, however nested —
-    // including collab leaf-updates arriving via reconcile — re-fetches the
+    // Deep-track the DATA config: any change under `d`, however nested
+    // (including collab leaf-updates arriving via reconcile), re-fetches the
     // preview. This replaced a hand-maintained dependency list that regressed
     // twice in one day when fields moved between nesting levels; trackStore
     // makes every current and future `d` field fetch-tracked automatically.
     // Fields excluded from the fetch-config hash (e.g. rollupPosition) resolve
     // as instant cache hits that rebuild the figure. `s`/`t` are deliberately
-    // NOT tracked here — style/caption edits re-render via the child memo
+    // NOT tracked here: style/caption edits re-render via the child memo
     // without a refetch. Must be called on the live store proxy: trackStore on
     // an unwrap()ed object silently no-ops (verified by execution 2026-07-28).
     trackStore(tempConfig.d);
@@ -986,7 +986,7 @@ export function VisualizationEditorInner(p: InnerProps) {
       return;
     }
     // Render the figure at the canonical 1000-DU frame, supersampled to a fixed
-    // export resolution — not the on-screen (reflow) canvas, which is only
+    // export resolution: not the on-screen (reflow) canvas, which is only
     // container width. (getFigureAsCanvas fills white, so the "transparent"
     // download option yields white until panther offers a transparent flag.)
     const canvas = getFigureAsCanvas(figureInputs, FIGURE_EXPORT_WIDTH_PX);
@@ -1042,7 +1042,7 @@ export function VisualizationEditorInner(p: InnerProps) {
         return;
       }
       // Sample sizes belong in an underlying-data export, but "__n_value" is
-      // an internal wire name — give the column a header a reader can read.
+      // an internal wire name: give the column a header a reader can read.
       const csv = Csv.fromObjects(
         res.data.ih.items.map((item) =>
           Object.fromEntries(
@@ -1079,7 +1079,7 @@ export function VisualizationEditorInner(p: InnerProps) {
     const newH = canvas.height + 2 * _PY;
     // Multi-replicant export is parked: the download modal hardcodes
     // allReplicants=false (download_presentation_object.tsx), so no branch
-    // exists here — reinstate both sides together if the feature returns.
+    // exists here: reinstate both sides together if the feature returns.
     const backCanvas = new OffscreenCanvas(newW, newH);
     const backCanvasCtx = backCanvas.getContext("2d")!;
     if (!res.transparent) {
@@ -1176,7 +1176,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                   >
                     {/* Live co-editing: edits already streamed into the host doc.
                         Back commits and lets the host do a final coherent rebuild
-                        (fresh items for the final config). No Cancel — streamed
+                        (fresh items for the final config). No Cancel: streamed
                         edits can't be discarded (use per-user undo). */}
                     <Button
                       iconName="chevronLeft"
@@ -1467,10 +1467,10 @@ export function VisualizationEditorInner(p: InnerProps) {
                                   }),
                                 };
                               }
-                              // Reactive dependency read — re-render on type change.
+                              // Reactive dependency read: re-render on type change.
                               const _type = tempConfig.d.type;
                               // Deep-track s and t so this render re-runs on ANY
-                              // nested change — including a collaborator's edit
+                              // nested change: including a collaborator's edit
                               // reconciled IN PLACE into a nested array (e.g. a
                               // conditional-formatting threshold bucket's color:
                               // reconcile fires only the leaf `s.cfThresholdBuckets

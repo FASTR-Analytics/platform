@@ -109,7 +109,7 @@ type LegendRow = {
   label: string | undefined;
   // Population rows only: what the store holds for the type, so the author
   // sees a gap here rather than at generation (which is where it is
-  // enforced — PLAN_1b ruling 6). Display only; never a save rule.
+  // enforced: PLAN_1b ruling 6). Display only; never a save rule.
   coverage?: { text: string; empty: boolean };
 };
 
@@ -197,12 +197,12 @@ export function EditIndicatorCommonForm(
     return { type: "base" };
   }
 
-  // The other commons a formula may name — never the indicator being edited.
+  // The other commons a formula may name: never the indicator being edited.
   const otherCommons = createMemo(() =>
     p.commonIndicators.filter((c) => c.indicator_common_id !== ownId()),
   );
 
-  // Live validation against the same rules the server enforces — the editor
+  // Live validation against the same rules the server enforces: the editor
   // states them where the user is, capture states them again where the data
   // is. Ingredients must resolve to commons or population types, chains may
   // not cycle, and the flattened set must fit the ingredient slots a results

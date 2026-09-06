@@ -76,7 +76,7 @@ function splitIcehCsv(csvText: string): {
   return { headerRow: rows[2], dataRows: rows.slice(3) };
 }
 
-// The zip preview for the wizard's upload step — served by the stateless
+// The zip preview for the wizard's upload step: served by the stateless
 // parse route; nothing is persisted.
 export async function parseIcehZipPreview(
   zipFilePath: string,
@@ -146,7 +146,7 @@ export type IcehValidDataRow = {
 };
 
 export type IcehStagedData = {
-  // Only the indicators (from indicators.xlsx) that have data rows — the set
+  // Only the indicators (from indicators.xlsx) that have data rows: the set
   // whose existing rows the cumulative merge replaces.
   indicators: IcehIndicatorRow[];
   validDataRows: IcehValidDataRow[];
@@ -312,7 +312,7 @@ export async function stageIcehZip(
 // cascades to their iceh_data rows); all others are kept, because the
 // upstream Retriever caps exports at 12 indicators. The completion flip lives
 // INSIDE the transaction, conditional on the run still being 'running', and
-// comes LAST — a cancel racing the commit either rolls the merge back whole
+// comes LAST: a cancel racing the commit either rolls the merge back whole
 // or arrives after the run is already 'complete' and no-ops.
 export async function integrateIcehData(args: {
   db: Sql;

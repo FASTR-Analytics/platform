@@ -5,13 +5,13 @@ import { clientAIToolEnvFor } from "../client_env";
 import { formatModulesListForAI } from "./_internal/format_modules_list_for_ai";
 import { formatModuleSettingsForAI } from "./_internal/format_module_settings_for_ai";
 
-// How the project's attached package was produced (SPA-only — the /mcp
+// How the project's attached package was produced (SPA-only: the /mcp
 // surface is for seeing results, not module internals). Which package is
 // never a model-facing input: the env resolves the project's attached run at
 // call time, so a mid-conversation repoint moves these tools with it. The
 // script/log/settings reads are the run-keyed package reads
 // (`getRunModuleScript`/`getRunModuleLogs`/`getRunModuleWithConfigSelections`,
-// instance data bits — Tim's ruling 2026-08-18: what a package contains is a
+// instance data bits: Tim's ruling 2026-08-18: what a package contains is a
 // function of the runId alone).
 export function getClientToolsForModules(
   projectId: string,

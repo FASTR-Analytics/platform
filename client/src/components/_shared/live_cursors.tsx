@@ -13,13 +13,13 @@ import { Portal } from "solid-js/web";
 import { liveConnectionIds } from "~/state/project/collab";
 
 // =============================================================================
-// Figma-style live cursors — shared broadcaster + overlay
+// Figma-style live cursors: shared broadcaster + overlay
 // =============================================================================
 //
 // Each collaborator's mouse pointer renders as a colored arrow + name chip on
 // the surfaces that support it (slide canvas, viz editor preview/panel). Rides
 // the existing per-session Yjs awareness (ephemeral, relayed, never persisted)
-// in its OWN field "pointer" — the fields "cursor" (yCollab text carets; nulled
+// in its OWN field "pointer": the fields "cursor" (yCollab text carets; nulled
 // on every CodeMirror blur) and "user" (identity; rewritten wholesale on every
 // presence_state) are reserved by existing machinery and must not be touched.
 //
@@ -27,7 +27,7 @@ import { liveConnectionIds } from "~/state/project/collab";
 // rects / panel content-px), never viewport px, so they survive different
 // window sizes, zoom and scroll positions. Cross-user drift on reflowing
 // surfaces (the viz panel is user-resizable, the chart preview reflows) is
-// accepted — cursors land approximately, not pixel-exactly, there.
+// accepted: cursors land approximately, not pixel-exactly, there.
 //
 // Liveness: y-protocols keeps connected peers alive automatically (internal
 // ~15s local-state renewal our WS handlers ship) and sweeps silent peers after
@@ -35,19 +35,19 @@ import { liveConnectionIds } from "~/state/project/collab";
 // own per-client last-move time (bumped only when the pointer CONTENT changes,
 // never trusting wire clocks) to fade the name chip after 4s and hide
 // connected-but-idle cursors after 30s. Moving your own mouse close to a
-// peer's cursor re-reveals its faded chip (HOVER_REVEAL_PX proximity — the
+// peer's cursor re-reveals its faded chip (HOVER_REVEAL_PX proximity: the
 // overlay is pointer-events-none, so never DOM hover).
 //
 // ONE CURSOR PER PERSON is an invariant of the overlay, not a hope about how
 // people browse. Awareness is keyed per CONNECTION, and a user legitimately
 // holds several (a second tab, a reconnect overlapping the old socket's
 // teardown, a connection the server dropped whose state has not yet aged out
-// of the ~30s sweep) — each of which would otherwise draw its own arrow. So
+// of the ~30s sweep): each of which would otherwise draw its own arrow. So
 // the identity stamped into the "user" field (email + connectionId, from
 // state/project/collab.ts) gates rendering three ways: states from MY OWN
 // email never render (my other tabs are me, not a peer), states whose
 // connectionId is no longer in presence never render (the server deregisters
-// a closed socket and rebroadcasts within a round trip — far faster than the
+// a closed socket and rebroadcasts within a round trip: far faster than the
 // awareness sweep), and whatever survives collapses to one sprite per email,
 // the most recently MOVED connection winning. The sender side backs this up:
 // tabbing or clicking away (visibilitychange, window blur, pointerleave)
@@ -62,7 +62,7 @@ import { liveConnectionIds } from "~/state/project/collab";
 export type PointerAwarenessState = {
   /** Monotonic per-tab CLICK counter, bumped on every primary-button press
    *  over the surface. Peers render an expanding ring ("click ripple") at
-   *  the pointer position whenever it increases — the counter (not a flag)
+   *  the pointer position whenever it increases: the counter (not a flag)
    *  makes repeat clicks at the same spot animate again. Optional so states
    *  from pre-feature clients stay valid. */
   click?: number;
@@ -89,7 +89,7 @@ export type PointerAwarenessState = {
     // are per-user resizable/collapsible, so each is its own coordinate
     // space (x normalized to the element width, y content-px) mapped against
     // the RECEIVER's copy of the same-named element. `scope` is whatever the
-    // owning wrapper's scope is (page scope, slideId, po:/fig:, reportId) —
+    // owning wrapper's scope is (page scope, slideId, po:/fig:, reportId):
     // it keeps zones from crossing between views that happen to share zone
     // names.
     | { surface: "zone"; scope: string; zone: string; x: number; y: number }
@@ -109,7 +109,7 @@ const HOVER_REVEAL_PX = 28;
 const IDLE_HIDE_MS = 30_000;
 const DEFAULT_MIN_INTERVAL_MS = 50;
 // The world can change UNDER a stationary pointer (an editor overlay opens
-// over the surface after a click, or closes back to it) — nothing fires a
+// over the surface after a click, or closes back to it): nothing fires a
 // pointer event, so the last broadcast state would linger on peers' screens.
 // A low-frequency revalidation recomputes at the last known position; the
 // JSON dedupe in send() makes the no-change case free.
@@ -118,7 +118,7 @@ const CHAT_LINGER_MS = 4_000;
 const CHAT_MAX_LEN = 120;
 const RIPPLE_MS = 600;
 const RIPPLE_SIZE_PX = 44;
-// Keys that are never "typing" on their own — a bare modifier press while
+// Keys that are never "typing" on their own: a bare modifier press while
 // mousing around must not hide the pointer (hideWhileTyping option).
 const MODIFIER_KEYS = new Set([
   "Shift",
@@ -130,7 +130,7 @@ const MODIFIER_KEYS = new Set([
   "ScrollLock",
 ]);
 
-// Evaluated once — dropping the transform transition makes positions snap
+// Evaluated once: dropping the transform transition makes positions snap
 // instead of glide, which is exactly what reduced-motion asks for.
 const REDUCED_MOTION =
   typeof globalThis.matchMedia === "function" &&
@@ -153,7 +153,7 @@ export function duToViewport(
   };
 }
 
-/** Viewport px → surface-space (DU) — mirrors panther's getCanvasCoords. */
+/** Viewport px → surface-space (DU): mirrors panther's getCanvasCoords. */
 export function viewportToDu(
   rect: RectLike,
   client: { x: number; y: number },
@@ -194,12 +194,12 @@ export function panelClientFromContent(
 //
 // Generic "pane + content element" geometry used by the page and report
 // surfaces. `paneEl` bounds/occludes (a scroll viewport or wrapper); coords
-// are measured against `contentEl` + its OWN scrollTop — one formula covers
+// are measured against `contentEl` + its OWN scrollTop: one formula covers
 // both a self-scrolling element (pass it as both args; scrollTop varies) and
 // a content div inside an ancestor scroller (scrollTop 0; its rect moves).
 
 /** Sender side: viewport point → content coords, or null when the point is
- *  outside the pane or the pane is covered (elementFromPoint containment —
+ *  outside the pane or the pane is covered (elementFromPoint containment:
  *  modals, editor overlays, zero-size hidden panes). */
 export function pointerFromPane(
   paneEl: Element,
@@ -304,7 +304,7 @@ export function zonePointerAt(
 }
 
 /** Receiver counterpart: map a zone pointer against OUR copy of that zone
- *  element (first visible match — hidden surfaces report zero rects). */
+ *  element (first visible match: hidden surfaces report zero rects). */
 export function acceptZonePointer(
   pointer: PointerAwarenessState,
   scope: string | undefined,
@@ -334,10 +334,10 @@ export function acceptZonePointer(
  * field. Document-level listeners (immune to the keyed re-creation of canvas
  * wrappers); rAF + min-interval throttled with a trailing send so the resting
  * position always ships; identical values (incl. repeated null) are never
- * re-sent — every setLocalStateField call is one WS message.
+ * re-sent: every setLocalStateField call is one WS message.
  */
 export function createPointerBroadcast(opts: {
-  /** Reactive — the session (and its awareness) may appear after mount. */
+  /** Reactive: the session (and its awareness) may appear after mount. */
   awareness: () => Awareness | undefined | null;
   /** When false, the pointer is cleared and stays cleared (e.g. modal open). */
   enabled: () => boolean;
@@ -348,7 +348,7 @@ export function createPointerBroadcast(opts: {
   /** Hide the local pointer from peers while the user is typing, until the
    *  mouse moves or clicks again. A stale arrow sitting wherever the mouse
    *  happens to rest reads as attention, but a typing user's attention is at
-   *  their text caret (which peers already see via yCollab) — so any real
+   *  their text caret (which peers already see via yCollab), so any real
    *  keystroke clears the pointer. Bare modifiers don't count, and neither
    *  does typing into the cursor-chat bubble (the bubble RIDES the pointer). */
   hideWhileTyping?: boolean;
@@ -361,7 +361,7 @@ export function createPointerBroadcast(opts: {
   let lastSendTime = 0;
   let lastSentJson: string | undefined;
   let lastSentAw: Awareness | undefined;
-  // Lifetime click counter — rides on every pointer state (see the type) so a
+  // Lifetime click counter: rides on every pointer state (see the type) so a
   // trailing move re-send after a click carries the same value and dedupes.
   let clickCount = 0;
   // hideWhileTyping state: set on a qualifying keystroke, cleared by any
@@ -438,7 +438,7 @@ export function createPointerBroadcast(opts: {
     schedule();
   }
   // Click ripple: bump the counter and ship IMMEDIATELY (a ping must not wait
-  // for the trailing throttle). Primary button only — context-menu clicks and
+  // for the trailing throttle). Primary button only: context-menu clicks and
   // middle-drags shouldn't ping peers.
   function onPointerDown(e: PointerEvent) {
     typingHidden = false;
@@ -456,7 +456,7 @@ export function createPointerBroadcast(opts: {
   }
   // hideWhileTyping (see the option doc). Capture phase so editor components
   // that stopPropagation can't mask keystrokes (same rationale as the idle
-  // detector in state/project/collab.ts) — hence the explicit exclusions:
+  // detector in state/project/collab.ts): hence the explicit exclusions:
   // the cursor-chat input, and the "/" that may be about to OPEN the chat
   // (mirrors CursorChatInput.onDocKeyDown's hijack condition; hiding the
   // pointer there would hide the very bubble the user is opening).
@@ -479,7 +479,7 @@ export function createPointerBroadcast(opts: {
     typingHidden = true;
     send(null);
   }
-  // Sender scrolling under a stationary pointer changes what it points AT —
+  // Sender scrolling under a stationary pointer changes what it points AT:
   // recompute from the stored client coords.
   function onScroll() {
     if (lastClientX !== undefined) {
@@ -498,7 +498,7 @@ export function createPointerBroadcast(opts: {
   }
   // Leaving the WINDOW is the same statement as leaving the tab: the mouse is
   // somewhere else entirely, so the arrow parked at its last position reads as
-  // attention that isn't there. visibilitychange alone misses this — a tab
+  // attention that isn't there. visibilitychange alone misses this: a tab
   // stays "visible" while another window (or another monitor) has focus, which
   // is exactly the side-by-side case where a user's second tab left a second
   // cursor on everyone's screen. Focus re-broadcasts the resting position
@@ -525,7 +525,7 @@ export function createPointerBroadcast(opts: {
     }
     // Revalidate under a stationary pointer (see REVALIDATE_MS): clears the
     // cursor within ~500ms when an overlay covers the surface, and restores
-    // it when the overlay closes — no mouse movement required.
+    // it when the overlay closes: no mouse movement required.
     const revalidate = setInterval(() => {
       if (lastClientX !== undefined) {
         fire();
@@ -612,7 +612,7 @@ function personKey(user: CursorUser): string {
   return user.email ?? `${user.name}\u0000${user.color}`;
 }
 
-/** True when an awareness state belongs to the SAME PERSON as this client —
+/** True when an awareness state belongs to the SAME PERSON as this client,
  *  i.e. one of their own other tabs, which must never render as a peer. */
 function isOwnIdentity(aw: Awareness, user: CursorUser): boolean {
   const mine = (aw.getLocalState()?.user as CursorUser | undefined)?.email;
@@ -636,7 +636,7 @@ function isGoneConnection(
 /**
  * Render remote collaborators' cursors. `accepts` both gates (wrong surface/
  * scope/tab → null) and maps a pointer into viewport px against the CALLER's
- * current layout — it reads live rects, so it must be cheap.
+ * current layout: it reads live rects, so it must be cheap.
  */
 export function LiveCursorsOverlay(p: {
   awareness: Awareness | undefined | null;
@@ -647,7 +647,7 @@ export function LiveCursorsOverlay(p: {
   // drives the chip fade and idle hide without any awareness traffic.
   const [tick, setTick] = createSignal(0);
   const bump = () => setTick((t) => t + 1);
-  // Local mouse position (rAF-throttled) — drives the hover-reveal of faded
+  // Local mouse position (rAF-throttled): drives the hover-reveal of faded
   // name chips. One signal write per frame at most; nothing while still.
   const [mouse, setMouse] = createSignal<{ x: number; y: number } | undefined>(
     undefined,
@@ -663,7 +663,7 @@ export function LiveCursorsOverlay(p: {
   // entry read as idle=0 made mount-time ghosts render forever, and deleting
   // on removal let a swept-then-re-announced background tab re-enter with a
   // fresh clock. With tombstones, the "reset only when content changed" rule
-  // below is the single arbiter — an arrow renders only if its pointer
+  // below is the single arbiter: an arrow renders only if its pointer
   // actually moved within IDLE_HIDE_MS, whatever the sender is doing.
   const moveInfo = new Map<number, { json: string; lastMoveAt: number }>();
 
@@ -719,10 +719,10 @@ export function LiveCursorsOverlay(p: {
     if (!aw) {
       return;
     }
-    // Baseline peers' click counters at attach — only INCREASES observed from
+    // Baseline peers' click counters at attach: only INCREASES observed from
     // here on ripple (a counter first seen mid-session is history, not a ping).
     // Baseline the idle clocks the same way: a state that already exists when
-    // the overlay attaches gets the standard IDLE_HIDE_MS window from NOW —
+    // the overlay attaches gets the standard IDLE_HIDE_MS window from NOW:
     // without this it had no moveInfo entry, read as idle=0, and a stale
     // cursor (owner walked away, tab still open+visible somewhere) rendered
     // indefinitely for anyone who mounted after its last movement.
@@ -777,7 +777,7 @@ export function LiveCursorsOverlay(p: {
         }
       }
       for (const id of changes.removed) {
-        // moveInfo is deliberately KEPT (tombstone — see its doc comment):
+        // moveInfo is deliberately KEPT (tombstone: see its doc comment):
         // if this client is re-announced with an unchanged pointer (throttled
         // background tab surviving a liveness sweep), the content-equality
         // check above must see the old clock, not a fresh one.
@@ -802,7 +802,7 @@ export function LiveCursorsOverlay(p: {
     }
     const live = liveConnectionIds();
     const now = performance.now();
-    // Keyed by person, not by connection — see personKey. When someone does
+    // Keyed by person, not by connection: see personKey. When someone does
     // hold two live connections (two tabs, or a reconnect racing the old
     // socket's teardown), the one that moved most recently wins: only one hand
     // is on a mouse, so the others are by definition stale. clientID breaks
@@ -895,7 +895,7 @@ export function LiveCursorsOverlay(p: {
                 height: `${RIPPLE_SIZE_PX}px`,
                 border: `2px solid ${r.color}`,
                 ...(REDUCED_MOTION
-                  ? // Static ring, gone on removal — no expansion motion.
+                  ? // Static ring, gone on removal: no expansion motion.
                     {
                       transform: "translate(-50%, -50%) scale(0.5)",
                       opacity: 0.6,
@@ -1011,7 +1011,7 @@ export function CursorChatInput(p: {
   }
   function close(commit: boolean) {
     // Re-entry guard: closing unmounts the focused input, which fires its own
-    // blur → close(true) again — by then the text is cleared and the second
+    // blur → close(true) again: by then the text is cleared and the second
     // pass would take the discard branch and kill the linger immediately.
     if (!open()) {
       return;

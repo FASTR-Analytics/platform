@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 // ============================================================================
-// Standalone CF schemas — vendored to wb-fastr-modules for validation.
+// Standalone CF schemas: vendored to wb-fastr-modules for validation.
 // No panther or translate dependencies. Keep in sync with conditional_formatting.ts.
 // ============================================================================
 
@@ -22,7 +22,7 @@ const thresholdBucketSchema = z.object({
     .optional(),
 });
 
-// A thresholds rule on its own — what a common indicator carries (DB JSON
+// A thresholds rule on its own: what a common indicator carries (DB JSON
 // text, catalog row, manifest entry, API body) and what the figure-level
 // `thresholds` source wraps. Cutoffs are in STORED units, ascending; one
 // bucket more than cutoffs. No `type` discriminator: that belongs to the

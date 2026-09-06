@@ -81,7 +81,7 @@ export function ProjectPermissionForm(p: AlertComponentProps<Props, undefined>) 
           permissions: perms,
         });
         if (!res.success) {
-          // User may not be on the project yet — add them first, then retry
+          // User may not be on the project yet: add them first, then retry
           const addRes = await serverActions.addProjectUserRole({
             projectId: p.projectId,
             email: p.email,

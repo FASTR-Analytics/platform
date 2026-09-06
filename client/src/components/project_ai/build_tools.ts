@@ -36,10 +36,10 @@ type BuildToolsParams = {
   reports: ReportSummary[];
 };
 
-// The copilot's tool set = the SHARED tools (lib/ai_tools — the same
+// The copilot's tool set = the SHARED tools (lib/ai_tools: the same
 // definitions the /mcp surface exposes, over the env bound to this project)
 // + the CLIENT tools (project content, editors, navigation, drafts). Array
-// order is the tool-catalog order and the catalog is a prompt-cache input —
+// order is the tool-catalog order and the catalog is a prompt-cache input:
 // keep it stable.
 export function buildToolsForContext(params: BuildToolsParams) {
   const { projectId, modules, metrics, icehIndicators, hfaTaxonomy, visualizations, slideDecks, reports } =

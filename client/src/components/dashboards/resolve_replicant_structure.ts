@@ -10,7 +10,7 @@ import { instanceState } from "~/state/instance/t1_store";
 import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/project/t2_presentation_objects";
 import { getReplicantOptionsFromCacheOrFetch } from "~/state/project/t2_replicant_options";
 
-// Answers ONLY "what replicant options exist for this config?" — it does NOT
+// Answers ONLY "what replicant options exist for this config?": it does NOT
 // decide standalone-item vs group (that is contextual: see the dashboard editor
 // reconciliation rule). Shared by add-time and edit-time so both derive the
 // replicant set the same way.
@@ -39,7 +39,7 @@ export async function resolveReplicantStructure(
   if (!resInfo.success) throw new Error(resInfo.err);
 
   // Enumerate the in-scope replicant options. excludeReplicantFilter drops the
-  // auto-pin (the currently-previewed value) but KEEPS the user's filterBy — so a
+  // auto-pin (the currently-previewed value) but KEEPS the user's filterBy, so a
   // replicant filtered to a subset returns exactly that subset. The server now
   // honors the self-column filter (possible_values_core no longer self-strips), so
   // this MUST exclude the pin or the "UNSELECTED" sentinel would empty the list.

@@ -2,9 +2,9 @@ import type { Context } from "hono";
 import { routeRegistry } from "lib";
 
 // Deny-by-default route allowlist for the internal headless app
-// (REVIEW_MCP_HOST_ARCHITECTURE.md §8; public mount retired by PLAN_112 D5 —
+// (REVIEW_MCP_HOST_ARCHITECTURE.md §8; public mount retired by PLAN_112 D5:
 // the /mcp endpoint dispatches into headlessApp in-process): a headless
-// credential can reach exactly the routes the /mcp tools need — the
+// credential can reach exactly the routes the /mcp tools need: the
 // run-keyed package reads (all read-only, all under the instance data bits),
 // a whoami, and the /info reference docs. A route added next year is
 // headless-closed until opted in here. Token mint/list/revoke and user/admin
@@ -20,12 +20,12 @@ import { routeRegistry } from "lib";
 // allowlist and the mount list are two lists; the check is what keeps them
 // one).
 export const HEADLESS_ALLOWED_ROUTE_NAMES = [
-  // getCurrentUser: not called by the lib tools — it is the parity test's
+  // getCurrentUser: not called by the lib tools, it is the parity test's
   // whoami probe (server/tests/pat_identity_parity_test.ts) and grants only
   // the caller's own identity.
   "getCurrentUser",
   // The run-keyed metric reads (S8 "one core, two lenses"; Tim's ruling
-  // 2026-08-18 — what a package contains is a function of the runId alone,
+  // 2026-08-18: what a package contains is a function of the runId alone,
   // gated on instance can_view_data). A leaked credential reaches exactly
   // what its user's own instance bits already reach in the UI; the /mcp
   // tools resolve the runId from the instance's pin at call time, never from
@@ -37,7 +37,7 @@ export const HEADLESS_ALLOWED_ROUTE_NAMES = [
 
 // Non-registry paths: the /info markdown docs (served by the headless app's
 // static handler). The SSE hydration patterns died with the local MCP host
-// (PLAN_112 D5) — the /mcp endpoint builds state server-side.
+// (PLAN_112 D5): the /mcp endpoint builds state server-side.
 const HEADLESS_ALLOWED_RAW: { method: string; pattern: RegExp }[] = [
   { method: "GET", pattern: /^\/info\/[A-Za-z0-9_-]+\.md$/ },
 ];

@@ -33,7 +33,7 @@ import { defineRoute } from "../route-helpers.ts";
 // Results-package wizard + catalogue (PLAN_RESULTS_RUNS item 2, re-cut by
 // Phase 3 items 1 and 3): the instance defaults store, the wizard's
 // module-options read, launch, the catalogue listing (instance-T1's fetch
-// half — pulled on the runs_catalog_updated timestamp signal), the guarded
+// half: pulled on the runs_catalog_updated timestamp signal), the guarded
 // hard delete, the ready-run detail and the per-module script/log/file
 // reads. Instance-admin gated (can_configure_data) except the package reads,
 // which sit under the instance data bits (see below). The wizard is an ephemeral modal: nothing is
@@ -106,7 +106,7 @@ defineRoute(
 );
 
 // Pin/unpin own their notifies (pin state + catalogue nonce, ordered around
-// the follower loop) — see server/runs/pin_run.ts.
+// the follower loop): see server/runs/pin_run.ts.
 defineRoute(
   routesRunGeneration,
   "pinResultsPackage",
@@ -140,7 +140,7 @@ defineRoute(
 );
 
 ///////////////////////////////////////////////////////////////////////////////
-// Per-module viewers over a run's outputs dir — the CATALOGUE's copy
+// Per-module viewers over a run's outputs dir: the CATALOGUE's copy
 ///////////////////////////////////////////////////////////////////////////////
 
 // Script/logs/files read from runs/{runId}/outputs/{moduleId} by the shared
@@ -148,7 +148,7 @@ defineRoute(
 // Mounted ONCE, run-keyed, under the instance data bits (Tim's ruling
 // 2026-08-18): a package is instance-level data, so `can_view_data` reads
 // its script/files/detail (and the outputs download mount in
-// middleware/static.ts) and `can_view_logs` reads its logs — the same guard
+// middleware/static.ts) and `can_view_logs` reads its logs: the same guard
 // whether the caller is the catalogue, a project's tab, an AI tool or MCP.
 
 defineRoute(

@@ -4,7 +4,7 @@ import type { InstanceIndicatorDetails } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
 // What a common indicator IS (PLAN_1a §1.2). The expression grammar itself is
-// checked server-side against the live dictionary and the population store —
+// checked server-side against the live dictionary and the population store:
 // the shape check here only says which fields each type carries. The
 // base→number format rule lives in the DB layer too, where the type is known.
 const commonIndicatorDefinitionSchema = z.union([

@@ -69,7 +69,7 @@ export function applyProjectSseMessage(msg: ProjectSseMessage): void {
     case "project_config_updated":
       setProjectState("label", msg.data.label);
       // The collab socket's server-side auth folds the lock in per connection
-      // (every edit permission is forced off while locked) — reconnect so a
+      // (every edit permission is forced off while locked): reconnect so a
       // live lock/unlock actually reaches open editors.
       if (projectState.isLocked !== msg.data.isLocked) {
         setProjectState("isLocked", msg.data.isLocked);
@@ -194,7 +194,7 @@ export function getSnapshotProjectState(): ProjectState {
 // version (PLAN_RESULTS_RUNS §2.5); "no_run_attached" is the typed empty
 // state (server reads error until a run is attached). Consumers inside a
 // createEffect must call this with the live `projectState` proxy before
-// their first await — getSnapshotProjectState is unwrapped, so
+// their first await: getSnapshotProjectState is unwrapped, so
 // cache-internal reads are NOT tracked.
 export function runVersionKey(pds: ProjectState): string {
   // `~` separator, not `|`: the po_detail version guard slices at the LAST

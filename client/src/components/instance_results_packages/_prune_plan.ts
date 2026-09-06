@@ -1,7 +1,7 @@
 import type { RunCatalogItem } from "lib";
 
 // The prune rule set (PLAN_PRUNE §0): one rule today. A new rule is one
-// more member here and one more branch in `planPrune` — the modal renders
+// more member here and one more branch in `planPrune`: the modal renders
 // whatever the plan says.
 export type PruneRule = "not_in_use";
 

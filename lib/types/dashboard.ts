@@ -126,7 +126,7 @@ export type PublicDashboardItem = {
   label: string;
   sortOrder: number;
   bundle: FigureBundle;
-  // Set for group members — the replicant this item represents.
+  // Set for group members: the replicant this item represents.
   replicantValue?: string;
 };
 

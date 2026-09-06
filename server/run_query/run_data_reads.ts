@@ -23,13 +23,13 @@ import {
 } from "./run_read.ts";
 
 // The two package-data reads a route serves, written once over a
-// RunReadContext and mounted twice — project lens (routes/project/
+// RunReadContext and mounted twice: project lens (routes/project/
 // presentation_objects.ts) and run lens (routes/instance/run_data.ts). Cache
 // check before the queue (a duplicate must not consume a slot), then the
 // expensive query under the shared concurrency limit. The queues are
 // module-level on purpose: the limit is per process, not per mount.
 
-// With 20 DB connections, allow 10 concurrent PO items queries — headroom
+// With 20 DB connections, allow 10 concurrent PO items queries: headroom
 // for auth and other lightweight queries.
 const poItemsQueue = new RequestQueue(10);
 // Lighter queries, still limited during burst loads. Exported because the
@@ -82,7 +82,7 @@ export async function readRunItems(
     };
   }
 
-  // Guards on a catalog-evaluated results object (PLAN_1a §1.7) — validations
+  // Guards on a catalog-evaluated results object (PLAN_1a §1.7): validations
   // of a DECLARED fact, never inference. Its value comes from applying each
   // indicator's own catalog expression to SUMmed ingredient columns, so a
   // request may only ever ask for those columns, summed, with no expression of

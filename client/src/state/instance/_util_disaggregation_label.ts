@@ -8,7 +8,7 @@ import {
 import { instanceState } from "./t1_store";
 
 // Display text for one VALUE of a disaggregation (a filter chip, a replicant
-// option) — as opposed to the dimension's own label below. Only the blank
+// option): as opposed to the dimension's own label below. Only the blank
 // sentinel needs resolving; every other id is served with its own label.
 export function getDisplayDisaggregationValueLabel(
   id: string,
@@ -37,7 +37,7 @@ export function getAdminAreaLabel(level: 1 | 2 | 3 | 4): TranslatableString {
   if (level === 1) {
     const custom = instanceState.adminAreaLabels.label1;
     if (custom) return { en: custom, fr: custom, pt: custom };
-    // AA1 is the country — but only call it that once the instance has named its
+    // AA1 is the country, but only call it that once the instance has named its
     // sub-levels; if all admin labels are still defaults, keep AA1 generic too.
     const anyOtherLabelSet =
       !!instanceState.adminAreaLabels.label2 ||

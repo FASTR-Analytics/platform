@@ -47,7 +47,7 @@ export function createWorkerConnection(
         : {}),
       // Backstop for the idle-in-transaction wedge class (PROTOCOL_APP_WORKER_
       // ROUTINES.md "Gotchas"): a worker backend idle INSIDE a transaction
-      // for this long is wedged, not working — terminate it so the run fails
+      // for this long is wedged, not working: terminate it so the run fails
       // loudly and the queue moves on. Never fires on a busy statement.
       idle_in_transaction_session_timeout: 5 * 60 * 1000,
     },

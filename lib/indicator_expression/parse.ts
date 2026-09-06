@@ -1,5 +1,5 @@
 // =============================================================================
-// Indicator expression grammar — tokenizer, parser, AST
+// Indicator expression grammar: tokenizer, parser, AST
 // =============================================================================
 //
 // The grammar a derived common indicator's definition is written in
@@ -36,7 +36,7 @@ export type ExpressionFunctionName =
 
 export const BARE_IDENTIFIER_PATTERN = /^[a-z][a-z0-9_]*$/;
 
-// Arity per function. `coalesce` is variadic with a floor of two — a one-
+// Arity per function. `coalesce` is variadic with a floor of two: a one-
 // argument coalesce is always the argument itself, so accepting it would only
 // hide an authoring mistake.
 const FUNCTION_ARITY: Record<
@@ -321,7 +321,7 @@ export function writeNumberLiteral(value: number): string {
   return `${sign}${text.replace(/\.?0+$/, "")}`;
 }
 
-// Canonical text for an AST — fully parenthesised at every binary node, so a
+// Canonical text for an AST: fully parenthesised at every binary node, so a
 // substituted sub-expression can never be re-associated by its host's
 // precedence.
 export function writeIndicatorExpression(node: ExpressionNode): string {

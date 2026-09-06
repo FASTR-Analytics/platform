@@ -170,7 +170,7 @@ export function InstanceData(p: Props) {
         >
           <div class="ui-pad overflow-auto">
             <div class="space-y-14">
-              {/* General — the one setting that is not per-registry */}
+              {/* General: the one setting that is not per-registry */}
               <div class="ui-spy">
                 <div class="ui-spy-sm">
                   <div class="font-700 text-lg">

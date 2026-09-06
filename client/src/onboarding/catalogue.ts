@@ -28,7 +28,7 @@ export type TourProjectFacts = {
   thisUserPermissions: ProjectUserPermissions;
   isLocked: boolean;
   /** The results package this project serves from, null if none is attached
-   *  yet — the attached-package tour has nothing to point at without one. */
+   *  yet: the attached-package tour has nothing to point at without one. */
   attachedRunId: string | null;
   projectModules: { id: string }[];
   metrics: { id: string; status: string }[];
@@ -55,7 +55,7 @@ export type TourCatalogueEntry = {
     | "settings";
   label: string;
   description: string;
-  /** State-only over the given facts. Do NOT probe the DOM here — the target
+  /** State-only over the given facts. Do NOT probe the DOM here: the target
    *  tab is usually unmounted (or another project entirely) when evaluated. */
   available: (f: TourProjectFacts) => boolean;
   /** Shown in place of the action when `available()` is false. */
@@ -124,7 +124,7 @@ const reasonNoPageAccess = (): TourReason => ({
   }),
 });
 // Modules come from the attached package's manifest, so a project with a
-// package but no modules is an unusual (generation-side) state — the common
+// package but no modules is an unusual (generation-side) state: the common
 // case, no package at all, is reasonNeedAttachedPackage and is always checked
 // first.
 const reasonNeedModule = (): TourReason => ({
@@ -545,7 +545,7 @@ export function getInstanceTourCatalogue(): InstanceTourCatalogueEntry[] {
 }
 
 // Built per call (not a module-scope const) so the t3 literals resolve in the
-// user's current language — the app language is set at runtime, after import.
+// user's current language: the app language is set at runtime, after import.
 export function getTourCatalogue(): TourCatalogueEntry[] {
   return [
     // ── Decks ────────────────────────────────────────────────────────────
@@ -918,7 +918,7 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "Travailler avec des figures intégrées. Ouvre votre premier rapport.",
         pt: "Trabalhar com figuras incorporadas. Abre o seu primeiro relatório.",
       }),
-      // Embedded figures render from the attached run — without a package the
+      // Embedded figures render from the attached run: without a package the
       // report opens but every figure fails to load.
       available: (f) =>
         perms(f).can_view_reports &&

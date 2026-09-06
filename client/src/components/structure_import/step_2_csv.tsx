@@ -161,7 +161,7 @@ export function Step2_Csv(p: Props) {
       </div>
 
       <div class="ui-spy-sm">
-        {/* facility_id — always required */}
+        {/* facility_id: always required */}
         <div class="flex h-12 items-center">
           <div class="w-72 flex-none">
             <Checkbox
@@ -186,7 +186,7 @@ export function Step2_Csv(p: Props) {
           </div>
         </div>
 
-        {/* Administrative areas — one all-or-nothing toggle */}
+        {/* Administrative areas: one all-or-nothing toggle */}
         <div class="ui-spy-sm">
           <Checkbox
             checked={enabled.admin}
@@ -230,7 +230,7 @@ export function Step2_Csv(p: Props) {
           </Show>
         </div>
 
-        {/* Optional metadata columns — each independently toggleable */}
+        {/* Optional metadata columns: each independently toggleable */}
         <For each={optionalCols}>
           {(col) => (
             <div class="flex h-12 items-center">

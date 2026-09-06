@@ -12,7 +12,7 @@ import type {
 // scope: the SPA binds a project (its attached package, its AA2 scope, its
 // cache-backed getters over the project routes); the /mcp surface binds the
 // instance's pinned package (national scope, run-keyed instance routes). The
-// tools never learn which — no project or run id crosses this seam, and none
+// tools never learn which: no project or run id crosses this seam, and none
 // appears in a tool schema. Getters the SPA-only tools need on top of these
 // (module script/logs/settings, project content: PO detail, slides,
 // replicant options, dimension labels) live on the client's ClientAIToolEnv

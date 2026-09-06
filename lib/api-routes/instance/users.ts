@@ -14,7 +14,7 @@ import { route } from "../route-utils.ts";
 
 const emailParamsSchema = z.object({ email: z.string() });
 
-// Closed key sets — these flow into `UPDATE users SET ${sql(permissions)}`, so the keys
+// Closed key sets: these flow into `UPDATE users SET ${sql(permissions)}`, so the keys
 // become column identifiers. Derived from the exhaustive permission constants and `.partial()`
 // (any subset is valid); strip mode drops any non-permission key a client might send, which
 // is what keeps an arbitrary column out of the SET clause.
@@ -41,7 +41,7 @@ export const userRouteRegistry = {
     response: {} as GlobalUser,
   }),
   // The caller's own accessible projects (PLAN_112: the /mcp get_projects
-  // tool) — admins/H_USERS see all (central-reporting gated to H_USERS),
+  // tool): admins/H_USERS see all (central-reporting gated to H_USERS),
   // others see projects where they hold >=1 can_* flag. Grants nothing beyond
   // what resolveProjectUserAccess would allow per project.
   getProjectsForUser: route({

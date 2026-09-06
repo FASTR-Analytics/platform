@@ -25,7 +25,7 @@ type Props = EditorComponentProps<
 >;
 
 // A function, not a const: t3 resolves eagerly against panther's language
-// global, which is only set during render — a module-scope const would freeze
+// global, which is only set during render: a module-scope const would freeze
 // to "en" at bundle-eval time.
 const loadingMsg = () =>
   t3({ en: "Loading...", fr: "Chargement...", pt: "A carregar..." });
@@ -212,7 +212,7 @@ export function SlidePresenter(p: Props) {
     setIsFullscreen(fs);
     if (!fs) {
       // Exited fullscreen. If the user did it via Escape (or browser chrome),
-      // that's a request to leave the presentation entirely — close it. Only a
+      // that's a request to leave the presentation entirely: close it. Only a
       // deliberate minimize-toggle keeps us open in windowed mode.
       if (toggledFullscreenOff) {
         toggledFullscreenOff = false;

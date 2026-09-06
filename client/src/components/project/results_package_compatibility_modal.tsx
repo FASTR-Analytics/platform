@@ -13,7 +13,7 @@ import { getDisplayDisaggregationLabel } from "~/state/instance/_util_disaggrega
 // The §2.6 compatibility report, shown before a project repoints at another
 // results package. Module evolution is per-package, so a swap is the one
 // moment a project's stored visualization configs can meet a different
-// catalog — this makes that informed rather than discovered afterwards.
+// catalog: this makes that informed rather than discovered afterwards.
 //
 // It never blocks: a package with issues is still attachable (the affected
 // visualizations render their typed unavailable states, which are never

@@ -20,7 +20,7 @@ type Props = {
   editCustomSeriesStyles: () => Promise<void>;
   isColorOverridden: () => boolean;
   /** Format the figure's values will actually be written in (resolved from the
-   *  draft config — HFA metrics all declare "number"). */
+   *  draft config: HFA metrics all declare "number"). */
   effectiveFormatAs: IndicatorFormat;
   /** True for an "indicator" metric: the `indicator` CF source is offered. */
   offerIndicatorCfSource: boolean;

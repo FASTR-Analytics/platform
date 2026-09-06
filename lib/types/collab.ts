@@ -1,11 +1,11 @@
 // =============================================================================
-// Collaborative editing — realtime protocol (WebSocket)
+// Collaborative editing: realtime protocol (WebSocket)
 // =============================================================================
 //
 // Transport: a per-project WebSocket at GET /project_collab/:project_id,
 // separate from the one-way server→client SSE channel. It carries
 // low-frequency presence (who is where, idle/editing state) plus three
-// parallel CRDT document-sync families — slide_*, report_*, po_* — kept as
+// parallel CRDT document-sync families (slide_*, report_*, po_*) kept as
 // separate message sets so each family's wire format stays byte-stable
 // across deploys.
 
@@ -22,9 +22,9 @@ import { z } from "zod";
  * update so a peer can clear them by omitting them. `selectedBlockId` is the
  * SELECTED ELEMENT id, contextualized by the doc fields: a slide layout-block
  * node id (with `slideId`), or a report figure/image embed id (with
- * `reportId`) — peers draw presence borders around it. `selectedTextTarget`
+ * `reportId`): peers draw presence borders around it. `selectedTextTarget`
  * is a panther text-primitive id (e.g. "coverTitle", "headerText") for the
- * root title/header fields — mutually exclusive with `selectedBlockId`.
+ * root title/header fields: mutually exclusive with `selectedBlockId`.
  */
 export type PresenceEntry = {
   connectionId: string;
@@ -74,15 +74,15 @@ export type CollabClientMessage =
   | { type: "slide_subscribe"; data: { slideId: string; stateVector: string } }
   | { type: "slide_update"; data: { slideId: string; update: string } }
   | { type: "slide_unsubscribe"; data: { slideId: string } }
-  // Yjs awareness (cursor/selection positions) — ephemeral, relayed not persisted.
+  // Yjs awareness (cursor/selection positions): ephemeral, relayed not persisted.
   | { type: "awareness_update"; data: { slideId: string; update: string } }
-  // Report CRDT sync — a parallel message family (rather than a generic
+  // Report CRDT sync: a parallel message family (rather than a generic
   // doc_* protocol) so the slide messages stay byte-identical across deploys.
   | { type: "report_subscribe"; data: { reportId: string; stateVector: string } }
   | { type: "report_update"; data: { reportId: string; update: string } }
   | { type: "report_unsubscribe"; data: { reportId: string } }
   | { type: "report_awareness_update"; data: { reportId: string; update: string } }
-  // Presentation-object (standalone visualization) CRDT sync — a third parallel
+  // Presentation-object (standalone visualization) CRDT sync: a third parallel
   // family, same rationale as report_* (keeps slide/report messages byte-stable).
   | { type: "po_subscribe"; data: { poId: string; stateVector: string } }
   | { type: "po_update"; data: { poId: string; update: string } }
@@ -90,15 +90,15 @@ export type CollabClientMessage =
   | { type: "po_awareness_update"; data: { poId: string; update: string } }
   // PROJECT-scoped Yjs awareness (no doc id): page-level live cursors on the
   // project tab pages, which have no doc room. Opaque relay to every other
-  // admitted connection in the project — presence-class visibility, never
+  // admitted connection in the project: presence-class visibility, never
   // persisted, never applied to any server doc.
   | { type: "project_awareness_update"; data: { update: string } }
   // Client-side liveness probe. The SERVER side of dead-peer detection is
-  // Deno's built-in protocol ping (idleTimeout — see project-collab.ts), but
+  // Deno's built-in protocol ping (idleTimeout: see project-collab.ts), but
   // browsers can neither see protocol pings nor send their own, so a client
   // whose path died silently would keep an OPEN-looking socket for minutes.
   // The client sends this on a timer and force-closes the socket when no
-  // traffic (the pong, or anything else) arrives back in time — dropping into
+  // traffic (the pong, or anything else) arrives back in time: dropping into
   // the normal reconnect + catch-up machinery. Server replies `pong`; never
   // required (older clients simply don't send it).
   | { type: "ping" };
@@ -107,7 +107,7 @@ export type CollabClientMessage =
 // Every frame arriving on the collab socket is schema-checked before any
 // handler touches it (project-collab.ts). Handlers dereference msg.data
 // directly, so without this a malformed frame threw into the process-level
-// error backstop; the length bounds also cap the amplification surface —
+// error backstop; the length bounds also cap the amplification surface:
 // presence fields are re-serialized to every project connection on every
 // presence change, and awareness frames relay to whole rooms.
 
@@ -115,7 +115,7 @@ export type CollabClientMessage =
 const collabIdSchema = z.string().min(1).max(64);
 /** Yjs state vectors are a few bytes per client that ever wrote to the doc. */
 const stateVectorSchema = z.string().max(128 * 1024);
-/** Doc updates legitimately carry multi-MB figure bundles — the 32 MiB frame
+/** Doc updates legitimately carry multi-MB figure bundles: the 32 MiB frame
  *  cap (project-collab.ts) is the real bound; this mirrors it. */
 const docUpdateSchema = z.string().max(32 * 1024 * 1024);
 /** Awareness = cursor/selection state: legitimately tiny. */
@@ -124,7 +124,7 @@ const awarenessUpdateSchema = z.string().max(64 * 1024);
 const elementIdSchema = z.string().max(256);
 
 /** avatarUrl renders as <img src> on every peer, so it must be a bounded https
- *  URL — and an invalid value degrades to "no avatar" (catch → undefined)
+ *  URL: and an invalid value degrades to "no avatar" (catch → undefined)
  *  rather than rejecting the whole presence frame. */
 const avatarUrlSchema = z
   .string()
@@ -221,7 +221,7 @@ export const COLLAB_NO_EDIT_PERMISSION = "No edit permission";
 /** Server → client messages.
  *
  *  The `*_error` families carry an optional `fatal` flag: fatal ⇔ the document
- *  (or its room) is GONE — deleted, replaced by a restore, or never existed —
+ *  (or its room) is GONE: deleted, replaced by a restore, or never existed,
  *  so the session must stop editing (further updates would be silently
  *  dropped). Non-fatal errors are per-operation rejections (no edit
  *  permission, malformed update) and the session stays usable. */
@@ -231,7 +231,7 @@ export type CollabServerMessage =
   // of pushing its pre-deploy Yjs docs into freshly re-seeded rooms.
   | { type: "hello"; data: { connectionId: string; serverVersion: string } }
   | { type: "presence_state"; data: { peers: PresenceEntry[] } }
-  // Connection-level rejection (e.g. over-sized or invalid frame) — the client
+  // Connection-level rejection (e.g. over-sized or invalid frame): the client
   // logs it; per-document failures use the families' own *_error messages.
   | { type: "error"; data: { message: string } }
   // CRDT document sync (Milestone 2). `stateVector` is the server room's current
@@ -248,7 +248,7 @@ export type CollabServerMessage =
   }
   // Yjs awareness relayed from another client in the room.
   | { type: "awareness"; data: { slideId: string; update: string } }
-  // Report CRDT sync (parallel family — see the client message note).
+  // Report CRDT sync (parallel family: see the client message note).
   | {
     type: "report_sync";
     data: { reportId: string; update: string; stateVector: string };
@@ -259,7 +259,7 @@ export type CollabServerMessage =
     data: { reportId: string; message: string; fatal?: boolean };
   }
   | { type: "report_awareness"; data: { reportId: string; update: string } }
-  // Presentation-object CRDT sync (parallel family — see the client message note).
+  // Presentation-object CRDT sync (parallel family: see the client message note).
   | {
     type: "po_sync";
     data: { poId: string; update: string; stateVector: string };
@@ -271,7 +271,7 @@ export type CollabServerMessage =
   // persistence saves are erroring (edits live only in the room doc until it
   // recovers), `failing: false` on recovery. Sent to every room member on each
   // transition, and to late joiners of a currently-failing room after their
-  // sync. Generic across the three families — docType is the room's family
+  // sync. Generic across the three families: docType is the room's family
   // ("slide" | "report" | "po").
   | {
     type: "doc_save_state";
@@ -280,7 +280,7 @@ export type CollabServerMessage =
   // Project-scoped awareness relayed from another connection (see the client
   // message counterpart above).
   | { type: "project_awareness"; data: { update: string } }
-  // Reply to a client `ping` (liveness probe — see the client message note).
+  // Reply to a client `ping` (liveness probe: see the client message note).
   // Carries no data: ANY received traffic proves the link, this just
   // guarantees there is some.
   | { type: "pong" };
@@ -296,7 +296,7 @@ const PRESENCE_PALETTE = [
   "#db2777",
 ];
 
-// Used when a peer's awareness state hasn't arrived yet (live_cursors.tsx) —
+// Used when a peer's awareness state hasn't arrived yet (live_cursors.tsx):
 // the palette's own blue entry, so the placeholder never clashes visually
 // once the real presence color lands.
 export const PRESENCE_FALLBACK_COLOR = PRESENCE_PALETTE[5];

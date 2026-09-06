@@ -24,20 +24,20 @@ import { attachFollowerToPinnedRun } from "./attach_run.ts";
 // The instance's pinned package (rulings: SYSTEM_08 "The pinned package
 // + followers"): the at-most-one package the instance blesses, and the ONE
 // thing that moves follow-pinned projects. Pinning is always an explicit
-// act — nothing auto-advances on a newly ready run, and unpin moves nothing.
+// act: nothing auto-advances on a newly ready run, and unpin moves nothing.
 //
 // Followers are PHYSICALLY repointed through attachFollowerToPinnedRun, one
 // call per project: the same pointer UPDATE as a manual attach plus a gate
 // on the target STILL being the pin, so a loop superseded by a later
 // pin-move or an unpin stops instead of moving projects onto a stale target
-// (and never touches the subscription flag — that is the manual picker's
+// (and never touches the subscription flag: that is the manual picker's
 // rule only). projects.run_id stays the single truth and cache identity;
 // there is no read-time "my run = whatever is pinned" indirection anywhere.
 // Locked projects are skipped (roster-time snapshot) and reported; a failed
 // follower is reported and the loop continues (it self-heals on the next
 // pin-move, or the project's own "switch to pinned" act). The pin push goes
 // out BEFORE the loop so every project tab reflects the new pin even if the
-// loop then partially fails; the catalogue nonce goes out ONCE after it —
+// loop then partially fails; the catalogue nonce goes out ONCE after it,
 // in a `finally`, because it is the only thing that moves attachedProjects
 // on every admin's catalogue.
 export async function pinRunAndRepointFollowers(
@@ -119,7 +119,7 @@ export async function unpinRun(
 
 // A project's follow toggle (SYSTEM_08 "Enabling follow attaches
 // immediately"): enabling attaches the current pin first when one is set and
-// differs — the flag is written only if that attach succeeds, so a project
+// differs: the flag is written only if that attach succeeds, so a project
 // is never "following" a package it failed to reach. Enabling with no pin,
 // or already on it, just sets the flag. Disabling moves nothing. After the
 // flag write the pin is re-read once: a pin-move that landed between the

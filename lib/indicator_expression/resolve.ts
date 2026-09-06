@@ -1,5 +1,5 @@
 // =============================================================================
-// Indicator expression resolution — type rules, cycles, flattening, the cap
+// Indicator expression resolution: type rules, cycles, flattening, the cap
 // =============================================================================
 //
 // One entry point, used by BOTH the authoring validator (the indicator editor,
@@ -8,7 +8,7 @@
 // is (PLAN_1a §1.2).
 //
 // Flattening is substitution: a `derived` ingredient is replaced by its own
-// expression, recursively, until the expression names nothing but leaves —
+// expression, recursively, until the expression names nothing but leaves:
 // `base` commons and `population:<type>` terms. Those leaves ARE the
 // ingredients that travel as ing1..ingN on a results row, which is why the
 // cap is measured AFTER flattening.
@@ -30,7 +30,7 @@ export const MAX_INDICATOR_EXPRESSION_DEPTH = 8;
 
 // Flattened SIZE: substitution is multiplicative (each derived link expands at
 // every occurrence), and neither the depth cap nor the ingredient cap bounds
-// the tree — the ingredient count is deduplicated, so a chain of wide
+// the tree: the ingredient count is deduplicated, so a chain of wide
 // expressions can flatten to megabytes carrying ONE ingredient. The flattened
 // text is stored in the manifest and re-parsed on every request, so it must be
 // bounded here, where the tree is built. 1000 is generous: the grammar's own
@@ -38,7 +38,7 @@ export const MAX_INDICATOR_EXPRESSION_DEPTH = 8;
 export const MAX_INDICATOR_EXPRESSION_NODES = 1000;
 
 // `population` entries are the store's types under their `population:<type>`
-// ingredient id (populationIngredientId) — leaves, like `base`.
+// ingredient id (populationIngredientId): leaves, like `base`.
 export type ExpressionDictionaryEntry = {
   id: string;
   type: "base" | "derived" | "population";
@@ -51,7 +51,7 @@ export type ExpressionDictionary = Map<string, ExpressionDictionaryEntry>;
 export class IndicatorExpressionError extends Error {}
 
 export type ResolvedIndicatorExpression = {
-  // The flattened AST — every identifier is a `base` common indicator id or
+  // The flattened AST: every identifier is a `base` common indicator id or
   // a `population:<type>` term.
   ast: ExpressionNode;
   // Those leaf ids, in first-appearance order. This IS the slot order.
@@ -65,7 +65,7 @@ export function buildExpressionDictionary(
 }
 
 // Flatten `source` against `dictionary`, enforcing every rule. `ownId` is the
-// indicator being defined — naming itself is the shortest cycle, and it is
+// indicator being defined: naming itself is the shortest cycle, and it is
 // reported as one.
 export function resolveIndicatorExpression(args: {
   ownId: string;

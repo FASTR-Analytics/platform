@@ -6,7 +6,7 @@ export type XlsFormVarInfo = {
   // Labels of the enclosing begin_group/begin_repeat rows, outermost first.
   // ODK matrix questions carry the stem on the group row and leave each child's
   // own label as a bare suffix ("Infrastructure"), so the group label is what
-  // makes the variable identifiable — `chal_01_b` and `chal_02_b` are both
+  // makes the variable identifiable: `chal_01_b` and `chal_02_b` are both
   // labelled "Infrastructure" and differ only by their group. Composed into the
   // stored dictionary label by qualifiedVarLabel().
   groupLabels: string[];
@@ -165,8 +165,8 @@ export const XLSFORM_LABEL_SEPARATOR = " — ";
 
 // The dictionary label for a variable: its immediate group's label followed by
 // its own. Without the group, matrix children are unidentifiable ("Infrastructure")
-// and often outright duplicated across matrices. Only the immediate group is used
-// — outer groups are section headings ("BLOCK B.2: CHALLENGES...") that add length
+// and often outright duplicated across matrices. Only the immediate group is used.
+// Outer groups are section headings ("BLOCK B.2: CHALLENGES...") that add length
 // without disambiguating.
 export function qualifiedVarLabel(v: XlsFormVarInfo): string {
   const parent = v.groupLabels.at(-1);

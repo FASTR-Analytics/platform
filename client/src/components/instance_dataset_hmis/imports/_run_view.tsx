@@ -34,7 +34,7 @@ export function Dhis2RunView(p: Props) {
     await cancelAction.click();
   }
 
-  // DHIS2 runs only reach this view, but progress is a by-source union —
+  // DHIS2 runs only reach this view, but progress is a by-source union:
   // narrow to the pairs variant.
   const dhis2Progress = () => {
     const progress = p.run.progress;

@@ -118,7 +118,7 @@ defineRoute(
   ),
   log("duplicatePresentationObject"),
   async (c, { params, body }) => {
-    // Duplicating a virtual default (item 5b) IS the customize path — resolve
+    // Duplicating a virtual default (item 5b) IS the customize path: resolve
     // the manifest projection so the copy materializes as a user row.
     const manifest = await getAttachedManifestOrNull(
       c.var.mainDb,
@@ -181,7 +181,7 @@ defineRoute(
     const runCtx = ctxRes.data;
 
     // Version key: the row's last_updated, or the constant sentinel for a
-    // virtual default (item 5b — no row exists; the run is immutable so the
+    // virtual default (item 5b: no row exists; the run is immutable so the
     // runId in the version is the whole identity).
     const poData = (
       await c.var.ppk.projectDb<{ last_updated: string }[]>`
@@ -339,7 +339,7 @@ defineRoute(
     }
     if (roomRes.status === "save_failed") {
       // The room applied the change (peers already see it) but could not
-      // persist it. Do NOT fall back to a direct DB write — the room owns
+      // persist it. Do NOT fall back to a direct DB write: the room owns
       // persistence and its next successful checkpoint would clobber it.
       return c.json({
         success: false as const,
@@ -386,7 +386,7 @@ defineRoute(
     // Virtual defaults have no row and must be refused BEFORE any live-room
     // application, so the room merges and the DB write always operate on the
     // same id set (the pre-runs version of this route partially applied a
-    // mixed batch to rooms and then errored — see PLAN_RESULTS_RUNS
+    // mixed batch to rooms and then errored: see PLAN_RESULTS_RUNS
     // "Inherited defect").
     const manifest = await getAttachedManifestOrNull(
       c.var.mainDb,
@@ -418,7 +418,7 @@ defineRoute(
         syncFigureConfigField(m, "d", "periodFilter", periodFilter),
       );
       // save_failed still counts as room-handled: the room absorbed the change
-      // (peers see it) and owns persisting it — a direct DB write here would
+      // (peers see it) and owns persisting it: a direct DB write here would
       // be clobbered by the room's next successful checkpoint.
       if (roomRes.status !== "no_room") {
         roomHandled.add(id);
@@ -459,7 +459,7 @@ defineRoute(
 
     if (saveFailedIds.length > 0) {
       // The rooms absorbed the change (peers already see it) but could not
-      // persist it — matching updatePresentationObjectConfig above, report
+      // persist it: matching updatePresentationObjectConfig above, report
       // the failure instead of claiming success with a synthetic timestamp.
       return c.json({
         success: false as const,
@@ -646,7 +646,7 @@ defineRoute(
 
         // Resolve the period filter to exact bounds the same way the items
         // query does, so relative filters ("last N months") narrow the option
-        // list too and from_month re-anchors to the live data — a bounded-only
+        // list too and from_month re-anchors to the live data: a bounded-only
         // read here would list values the filtered figure can never show. The
         // manifest stamp IS the no-filter bounds of the physical time column.
         let periodFilterExactBounds: PeriodBounds | undefined;

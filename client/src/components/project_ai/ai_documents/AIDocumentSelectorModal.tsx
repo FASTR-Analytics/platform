@@ -40,7 +40,7 @@ export function AIDocumentSelectorModal(
       a.fileName.toLowerCase().endsWith(".pdf"),
     );
 
-  // Include sent/pending filenames whose asset no longer exists — a selected
+  // Include sent/pending filenames whose asset no longer exists: a selected
   // value absent from the options is silently dropped by MultiSelect's next
   // onChange round-trip.
   const pdfOptions = createMemo(() => {
@@ -79,7 +79,7 @@ export function AIDocumentSelectorModal(
     async (e: MouseEvent) => {
       e.preventDefault();
 
-      // Sent docs cannot be un-sent — membership is save-invariant, so a
+      // Sent docs cannot be un-sent: membership is save-invariant, so a
       // deselected sent doc is simply ignored.
       const newPending = selectedFiles().filter(
         (f) => !p.sentFilenames.includes(f),

@@ -28,7 +28,7 @@ interface AdminAreaCounts {
  * workflows.
  *
  * Column scope is the staging table's own columns (= what was mapped at step 2),
- * discovered here — never the instance's enabled-columns config. Admin areas are
+ * discovered here, never the instance's enabled-columns config. Admin areas are
  * just mapped columns: present in staging iff mapped.
  */
 export async function integrateStructureFromStaging(
@@ -67,7 +67,7 @@ export async function integrateStructureFromStaging(
       );
     }
 
-    // Replace deletes the whole family first — refuse with a clear message if
+    // Replace deletes the whole family first, refuse with a clear message if
     // anything still references these facilities (a dataset, or HFA weights),
     // instead of failing at COMMIT with a raw FK error.
     if (strategy.type === "replace_all") {
@@ -151,7 +151,7 @@ export async function integrateStructureFromStaging(
 
       // Stamped inside the transaction: S6's staleness gates and the client
       // structure caches key on this, so it must commit atomically with the
-      // integrated data — a crash before any post-commit bookkeeping must not
+      // integrated data: a crash before any post-commit bookkeeping must not
       // leave an integrated structure unstamped.
       await sql`
         INSERT INTO instance_config (config_key, config_json_value)
@@ -188,7 +188,7 @@ export async function integrateStructureFromStaging(
 /**
  * The real column scope: the columns physically present in the staging table,
  * which the stager built from what the user mapped (CSV) or what the source
- * supplies (DHIS2). This is the authoritative source — not the enabled-columns
+ * supplies (DHIS2). This is the authoritative source, not the enabled-columns
  * config, which staging may not have materialized.
  */
 export async function getStagedColumns(
@@ -302,7 +302,7 @@ export function buildDedupOrderClause(writeColumns: string[]): string {
 /**
  * Review-step recodes are applied as a projection overlay: each recoded column
  * becomes `COALESCE(rc_col.val, col)` fed by a `LEFT JOIN (VALUES ...)` on
- * facility_id — the staging table is never mutated. The dedup ORDER BY keeps
+ * facility_id: the staging table is never mutated. The dedup ORDER BY keeps
  * referencing the raw column names, and window-clause references resolve to
  * INPUT columns (not select-list aliases), so ranking runs on ORIGINAL values:
  * the rn=1 winner the review UI showed is exactly the row integrated. Do not
@@ -457,9 +457,9 @@ async function updateExistingFacilities(
 /**
  * Deletes all of a family's facilities. replace_all's pre-check
  * (assertNoBlockingReferencesForReplace) already guarantees nothing references
- * them — no dataset rows, and no HFA sampling weights — so a plain delete is
+ * them, no dataset rows, and no HFA sampling weights, so a plain delete is
  * safe: no deferred FK and no weight stash/restore are needed. Returns rows
- * deleted. The family's admin tree is not touched here — the post-insert
+ * deleted. The family's admin tree is not touched here: the post-insert
  * cleanup sweeps it.
  */
 async function deleteAllFamilyFacilities(
@@ -546,7 +546,7 @@ export async function cleanupUnusedAdminAreas(
     family === "hmis" ? "facilities_hmis" : "facilities_hfa";
 
   // Delete unused admin areas in reverse order (4 -> 3 -> 2 -> 1).
-  // An admin area is "used" if the family's facilities table references it —
+  // An admin area is "used" if the family's facilities table references it:
   // every admin-area-keyed table added in future (e.g. population) must be
   // UNIONed in here per family, or its admin areas get cleaned up from under
   // it. This maintains the invariant that admin_areas_{family}_N exactly

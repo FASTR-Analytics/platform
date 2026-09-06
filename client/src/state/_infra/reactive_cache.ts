@@ -63,7 +63,7 @@ export type ReactiveCacheConfig<Params, Data> = {
    * So a run-keyed cache declares how to read that identity back off the
    * response, and `setPromise` refuses to store a payload whose identity does
    * not match the version its key was built from. The caller still gets the
-   * response — it just never becomes a cache entry it does not belong to.
+   * response: it just never becomes a cache entry it does not belong to.
    * This is the client half of the server caches' `parseData`, which
    * recomputes both hashes from the response for the same reason.
    */
@@ -148,7 +148,7 @@ export function createReactiveCache<Params, Data>(
     params: Params,
   ): Promise<{ data: Data | undefined; version: string; isInflight?: boolean }> {
     // Non-reactive snapshot (unwrap-based; safe in async contexts). Never
-    // undefined — the t1 store is always initialized; "no project open" is
+    // undefined: the t1 store is always initialized; "no project open" is
     // just the not-ready EMPTY_PROJECT_STATE.
     const pds = getSnapshotProjectState();
 
@@ -332,7 +332,7 @@ export function createReactiveCache<Params, Data>(
   }
 
   /** Clear entries matching a partial key prefix. Must be a STRICT prefix of
-   * the uniqueness keys — passing the complete key list matches nothing (full
+   * the uniqueness keys: passing the complete key list matches nothing (full
    * keys are followed by "::", not "|"); use clearEntry for that. */
   async function clearEntriesWithPrefix(partialKeys: (string | number | undefined)[]): Promise<void> {
     const prefix = hashKeys(partialKeys) + "|";

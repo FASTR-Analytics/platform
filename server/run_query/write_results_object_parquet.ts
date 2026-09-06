@@ -9,7 +9,7 @@ import {
 } from "./duckdb_executor.ts";
 
 // Builds the normalized query-store parquet for one results object from its
-// raw R output CSV — the finalize step of PLAN_RESULTS_RUNS §2.3. This is
+// raw R output CSV: the finalize step of PLAN_RESULTS_RUNS §2.3. This is
 // the ONLY ingest, so the four normalizations below are stated here once and
 // nothing shadows them:
 //   1. 'NA' → NULL (unquoted only, matching Postgres COPY)

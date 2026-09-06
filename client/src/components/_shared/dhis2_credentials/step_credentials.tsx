@@ -26,16 +26,16 @@ type Props = {
   onSaved: () => Promise<void>;
   // Caller-supplied, not hardcoded here: "continue without saving" only
   // means something when there's a Next step to continue to (the wizard).
-  // The standalone Manage Connection modal has no Next — not saving just
-  // discards what was typed — so it passes nothing.
+  // The standalone Manage Connection modal has no Next: not saving just
+  // discards what was typed, so it passes nothing.
   unsavedEditorHint?: JSX.Element;
 };
 
 // Step 1 body, shared by the HMIS import wizard and the standalone "Manage
-// connection" modal (manage_connection.tsx) — and, per PLAN_DHIS2_CREDENTIAL_
+// connection" modal (manage_connection.tsx), and, per PLAN_DHIS2_CREDENTIAL_
 // STORE_CONSOLIDATION, every other DHIS2 flow's credential editor. Overlay
 // rule: this component must never call openConfirm/openAlert/openComponent
-// (both hosts can be modals themselves) — the delete action below uses
+// (both hosts can be modals themselves): the delete action below uses
 // createFormAction with an inline confirm toggle, never createDeleteAction/
 // createButtonAction (both of which call openAlert on error internally).
 export function Dhis2StepCredentials(p: Props) {

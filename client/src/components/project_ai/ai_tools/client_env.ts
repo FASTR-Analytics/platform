@@ -26,10 +26,10 @@ import { getSnapshotProjectState } from "~/state/project/t1_store";
 // The SPA's injection of the shared AI-tool environment (lib/ai_tools/env.ts),
 // bound to ONE project at construction: cache-backed getters over the
 // project routes (so chat tool calls share cache entries with the interactive
-// UI), plus the SPA-only getters the client tools need — module internals
+// UI), plus the SPA-only getters the client tools need: module internals
 // (script, logs, settings), project content (PO detail, slides) and
 // figure-shaping helpers (replicant options, dimension labels). One env per
-// project, memoized — client code stays keyed by projectId and derives the
+// project, memoized: client code stays keyed by projectId and derives the
 // bound env at the lib boundary (`clientAIToolEnvFor(projectId)`), so
 // components and helpers that hold only a project id never thread an env.
 //
@@ -56,7 +56,7 @@ export type ClientAIToolEnv = AIToolEnv & {
     fetchConfig: GenericLongFormFetchConfig,
   ) => Promise<APIResponseWithData<ReplicantOptionsForPresentationObject>>;
   // Instance-level dimension display labels (admin-area names, facility
-  // columns). Facility-column labels are per family — pass the results
+  // columns). Facility-column labels are per family: pass the results
   // value's datasetFamily; undefined/iceh yields the generic defaults.
   getDimensionLabelConfig: (
     family: DatasetType | undefined,

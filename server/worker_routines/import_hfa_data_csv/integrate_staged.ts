@@ -4,7 +4,7 @@ import { dropHfaStagingTables, hfaStagingTableNames } from "./stage_csv.ts";
 
 // The integration internals relocated from the old integrate_hfa_data worker:
 // one transaction that stamps the time point and replaces its data +
-// dictionary wholesale. Semantics unchanged — only the table names (per-run),
+// dictionary wholesale. Semantics unchanged: only the table names (per-run),
 // the progress transport, and the in-transaction completion flip (see below)
 // differ. On success the run row is 'complete' when this returns.
 export async function integrateStagedHfaData(args: {

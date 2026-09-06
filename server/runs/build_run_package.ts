@@ -45,7 +45,7 @@ import {
 } from "./indicator_catalog.ts";
 import { runManifestPath, runResultsObjectParquetPath } from "./run_paths.ts";
 
-// The run-package builder — the wizard pipeline's ONE finalize
+// The run-package builder: the wizard pipeline's ONE finalize
 // (server/worker_routines/generate_run/pipeline.ts). The caller has already
 // written the run's inputs (dataset extracts, mirrors, facilities parquet,
 // person-years) and every module's raw output CSVs into runs/.tmp-{runId};
@@ -237,7 +237,7 @@ export async function buildRunPackageIntoTmp(
 
   const { facilitiesTables, datasets } = opts;
 
-  // Stamped here, at finalize, from the mirrors just written into tmpDir —
+  // Stamped here, at finalize, from the mirrors just written into tmpDir:
   // the same function the manifest transform recomputes with, so a package
   // built now and a package transformed forward carry an identical catalog.
   const inputRowsReader = runDirInputRowsReader(tmpDir, inputFiles);
@@ -258,7 +258,7 @@ export async function buildRunPackageIntoTmp(
     calendar: _INSTANCE_CALENDAR,
     countryIso3,
     // Per-family slot, stamped only for families whose facilities parquet
-    // made it into the package. The projection drops adminDepth — the
+    // made it into the package. The projection drops adminDepth: the
     // manifest carries flags + labels only (ruling: a field nothing on the
     // read path consumes must not exist in the file).
     structureSchemaHmis: facilitiesTables.some((t) => t.tableName === "facilities_hmis")
@@ -294,7 +294,7 @@ export async function buildRunPackageIntoTmp(
     metricCount: runMetrics.length,
     totalRowCount: runResultsObjects.reduce((sum, ro) => sum + ro.rowCount, 0),
     // The manifest above is the last file written, so the tmp dir is complete
-    // here — the catalogue's disk column is stamped once, at the only moment
+    // here: the catalogue's disk column is stamped once, at the only moment
     // the package's contents are final and still immutable afterwards.
     diskSizeBytes: await sumFileSizes(tmpDir),
   };

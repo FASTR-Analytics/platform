@@ -6,7 +6,7 @@ import { clientAIToolEnvFor } from "../client_env";
 
 // DELIBERATE availableIn omission: get_slide reads by explicit slideId and
 // works from any view (e.g. while editing a report that references deck
-// content) — this is the historical guard-bypass made explicit, not an
+// content): this is the historical guard-bypass made explicit, not an
 // accident.
 export function createGetSlideTool(
   projectId: string,

@@ -6,28 +6,28 @@ import type { PeriodBounds } from "../types/presentation_objects.ts";
 import { inferPeriodFormatFromValue } from "../types/_metric_installed.ts";
 import type { InfoCatalogTopic } from "./info_catalog.ts";
 
-// The shared halves of the AI system prompt — what both surfaces (the SPA
+// The shared halves of the AI system prompt: what both surfaces (the SPA
 // copilot and the /mcp get_overview) ground the model with. Each surface
 // assembles its own context section from these building blocks and its own
-// prose (the SPA: the project's name, viz/deck/report counts, aiContext —
+// prose (the SPA: the project's name, viz/deck/report counts, aiContext:
 // client/src/components/project_ai/build_system_prompt.ts; /mcp: the pinned
-// package — server/mcp/mcp_tools.ts), then hands it to buildSystemPrompt.
+// package: server/mcp/mcp_tools.ts), then hands it to buildSystemPrompt.
 //
 // The SPA's assembled prompt is BYTE-STABLE across navigation (per-view
 // instructions ride each view's instructions in ai_views.ts as an ephemeral
-// section, never baked in here) — the prompt-cache breakpoint depends on it.
+// section, never baked in here): the prompt-cache breakpoint depends on it.
 
 export type SystemPromptParts = {
   contextSection: string;
   toolCatalog: string;
-  // The get_info topics THIS surface exposes — the same list its
+  // The get_info topics THIS surface exposes: the same list its
   // getSharedToolsForInfo was built with, so the prompt never names a topic
   // the tool would refuse.
   infoTopics: InfoCatalogTopic[];
-  // "# Role and Purpose" body — what THIS surface's assistant is for.
+  // "# Role and Purpose" body: what THIS surface's assistant is for.
   roleAndPurpose: string;
   // Core principles this surface adds after the four shared ones (the SPA
-  // adds "ask when uncertain" — the ask_user_questions tool exists only
+  // adds "ask when uncertain": the ask_user_questions tool exists only
   // there).
   extraCorePrinciples: string[];
 };
@@ -183,10 +183,10 @@ export function buildInstanceContextSections(instance: InstanceState): string[] 
 // ── Package grounding: what ONE results package holds ──
 //
 // Derivable from either a project's state (its attached package) or a run
-// manifest (the pinned package on /mcp) — the caller maps to this shape.
+// manifest (the pinned package on /mcp): the caller maps to this shape.
 
 export type PackageGrounding = {
-  // The calendar the package's period ids are in — a package fact, captured
+  // The calendar the package's period ids are in: a package fact, captured
   // into the run manifest at finalize (`manifest.calendar`, never the env
   // global). The SPA's attached package was generated on this instance, so it
   // passes the instance calendar.
@@ -195,7 +195,7 @@ export type PackageGrounding = {
   commonIndicators: { id: string; label: string }[];
   icehIndicators: { id: string; label: string }[];
   // The package's overall period range at its finest time grain (null = no
-  // time-indexed results). Omitted when the caller cannot know it — the SPA
+  // time-indexed results). Omitted when the caller cannot know it: the SPA
   // holds no manifest client-side; /mcp reads it from the manifest.
   periodCoverage?: PeriodBounds | null;
 };

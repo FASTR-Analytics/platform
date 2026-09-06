@@ -241,7 +241,7 @@ export async function getInstanceDatasetsSummary(
     datasetsWithData.push("iceh");
   }
   const hmis = await getCurrentDatasetHmisMaxVersionId(mainDb);
-  // Running-run versions excluded, same as every version reader — see
+  // Running-run versions excluded, same as every version reader: see
   // getVersionsForDatasetHmis.
   const hmisNVersions =
     (

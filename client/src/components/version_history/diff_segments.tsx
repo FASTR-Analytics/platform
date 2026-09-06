@@ -5,11 +5,11 @@ import { darkMode } from "~/state/t4_ui";
 import type { DiffSegment } from "./version_diff";
 
 // Changes whose author is unknown (session fallback) get a neutral color
-// instead of a presence color. Shared with deck_version_preview.tsx — must
+// instead of a presence color. Shared with deck_version_preview.tsx: must
 // never drift between the two.
 export const UNKNOWN_COLOR = "#64748b";
 
-// The editors' translucent-selection convention is color + ~20% alpha — a
+// The editors' translucent-selection convention is color + ~20% alpha: a
 // soft pastel on light surfaces that all but vanishes over dark bases, so
 // dark mode tints at ~50% instead (the light text stays readable over the
 // vibrant presence palette at that strength).
@@ -18,7 +18,7 @@ const tintAlpha = () => (darkMode() ? "80" : "33");
 // Shared pieces of the diff views (compare-with-current modal + the
 // session-edits view inside the version preview).
 
-/** Display name for a stored editor — prefers the live project-user record
+/** Display name for a stored editor: prefers the live project-user record
  *  over the name captured at edit time (people get renamed; emails don't). */
 export function editorDisplayName(e: VersionEditor): string {
   const known = projectState.projectUsers.find((u) => u.email === e.email);
@@ -33,7 +33,7 @@ export function editorDisplayNames(editors: VersionEditor[]): string {
 }
 
 /** email -> display name map for authorship-run lookups: the session's
- *  editors plus any other emails appearing in the runs — writers AND deleters
+ *  editors plus any other emails appearing in the runs: writers AND deleters
  *  (resolved against the live project users, falling back to the email). */
 export function buildAuthorNames(
   editors: VersionEditor[],
@@ -90,7 +90,7 @@ export function DiffLegend() {
 }
 
 // Attribution phrasing: an exact author reads "Added by Alice"; a session
-// fallback with several editors reads "Added by one of: Alice, Bob" — the
+// fallback with several editors reads "Added by one of: Alice, Bob": the
 // ledger couldn't pin the individual, so don't pretend otherwise.
 function byLabel(who: string, exact: boolean | undefined): string {
   return !exact && who.includes(",")
@@ -118,7 +118,7 @@ function editedTitle(who?: string, exact?: boolean): string {
 
 /** The unified diff text: every change is tinted with its author's presence
  *  color (additions highlighted, removals additionally struck through), and
- *  hovering shows a caret-style name flag — the same little label the collab
+ *  hovering shows a caret-style name flag: the same little label the collab
  *  editors put above remote carets (y-codemirror's .cm-ySelectionInfo). */
 export function DiffSegments(p: { segments: DiffSegment[] }) {
   return (

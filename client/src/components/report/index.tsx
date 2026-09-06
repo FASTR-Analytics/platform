@@ -105,11 +105,11 @@ type Props = EditorComponentProps<
 
 const AUTOSAVE_MS = 800;
 
-// Left sidebar (embed editor) width — same in Edit & Split. Also the right-side
+// Left sidebar (embed editor) width: same in Edit & Split. Also the right-side
 // pad the editor reserves so its centered column lines up with the View preview.
 const SIDEBAR_WIDTH_PX = 240;
 
-// Captions live inside ![caption](src) — strip chars that would break the token.
+// Captions live inside ![caption](src): strip chars that would break the token.
 function sanitizeCaption(s: string): string {
   return s
     .replace(/[[\]\n\r]/g, " ")
@@ -138,7 +138,7 @@ export function ProjectReport(p: Props) {
   const { openEditor: openInnerEditor, EditorWrapper: InnerEditorWrapper } =
     getEditorWrapper();
   // Count of sub-editors (figure modal, pickers, version history) currently
-  // covering the panes. While > 0 the report cursor broadcaster is off — the
+  // covering the panes. While > 0 the report cursor broadcaster is off: the
   // figure modal broadcasts fig:-scoped pointers on this SAME session
   // awareness, and two broadcasters must not fight over the "pointer" field.
   const [panesCovered, setPanesCovered] = createSignal(0);
@@ -156,7 +156,7 @@ export function ProjectReport(p: Props) {
   const [body, setBody] = createSignal("");
   const [figures, setFigures] = createSignal<Record<string, FigureBlock>>({});
   const [images, setImages] = createSignal<Record<string, ImageBlock>>({});
-  // The lastUpdated we last saw from the server — round-tripped for optimistic
+  // The lastUpdated we last saw from the server: round-tripped for optimistic
   // concurrency (PLAN_REPORTS.md §4).
   const [lastUpdated, setLastUpdated] = createSignal<string>("");
   const [showConflictBanner, setShowConflictBanner] = createSignal(false);
@@ -170,13 +170,13 @@ export function ProjectReport(p: Props) {
   const [selectedEmbed, setSelectedEmbed] = createSignal<
     EmbedSelection | undefined
   >();
-  // Three modes — edit (CodeMirror only), split (editor + preview, the
+  // Three modes: edit (CodeMirror only), split (editor + preview, the
   // default), view (read-only HTML preview only). AI is mode-agnostic: the
   // editor stays mounted in every mode.
   const [mode, setMode] = createSignal<ReportMode>("split");
   // Live collab (Yjs). collabReady LATCHES at the first report_sync: from then
   // on the room's checkpoints own persistence and the REST autosave is off for
-  // good — even while disconnected (edits accumulate in the local doc and the
+  // good: even while disconnected (edits accumulate in the local doc and the
   // reconnect catch-up ships them; a parallel REST save would double-apply).
   const [collabReady, setCollabReady] = createSignal(false);
   // A FATAL collab error (report deleted / room gone): further edits would be
@@ -197,7 +197,7 @@ export function ProjectReport(p: Props) {
   let permErrorShown = false;
 
   // The figure-editor sidebar collapses in View, so clear the embed selection
-  // when entering View. The CM editor is visible in Edit & Split — re-measure it when it
+  // when entering View. The CM editor is visible in Edit & Split: re-measure it when it
   // (re)appears (e.g. coming back from View where it was hidden). Also align the
   // newly revealed pane to targetLine (§8 scroll-sync): when the editor reappears
   // after View, scroll it to targetLine; when the preview mounts after Edit,
@@ -231,7 +231,7 @@ export function ProjectReport(p: Props) {
     }),
   );
 
-  // Resolve an embed token to its live render — same funnel as the CM widget, so
+  // Resolve an embed token to its live render: same funnel as the CM widget, so
   // a figure/image looks identical in Edit and View. Plain markdown image URLs
   // return undefined → MarkdownPresentationJsx falls back to a plain <img>.
   function renderEmbed(
@@ -291,7 +291,7 @@ export function ProjectReport(p: Props) {
   // Suppresses the "user edited" AI notification while we apply an AI-accepted
   // edit through the editor (setBody also fires the CM change listener).
   let applyingProgrammaticEdit = false;
-  // stillValid()'s unmount half (see proposeEdit below) — flips false in
+  // stillValid()'s unmount half (see proposeEdit below): flips false in
   // onCleanup, before the view controller leaves editing_report. Checked ONLY at
   // accept time by panther's approval engine, so a stale accept auto-declines
   // instead of committing against a torn-down editor.
@@ -310,7 +310,7 @@ export function ProjectReport(p: Props) {
   // scroll event, which must not re-drive the other. Cleared on the next rAF
   // because programmatic scrollTop writes dispatch their scroll event async.
   let syncing = false;
-  // The preview's scroll container — set on preview mount, cleared on unmount.
+  // The preview's scroll container: set on preview mount, cleared on unmount.
   let previewEl: HTMLDivElement | undefined;
 
   // Figure-settle (§7): figures measure their height a few frames after mount, so
@@ -423,7 +423,7 @@ export function ProjectReport(p: Props) {
   }
 
   const saveIndicator = createMemo(() => {
-    // The report/room is gone (deleted, not found) — nothing persists anymore.
+    // The report/room is gone (deleted, not found): nothing persists anymore.
     if (collabFatal()) {
       return {
         text: t3({
@@ -437,7 +437,7 @@ export function ProjectReport(p: Props) {
     // Live collab supersedes the REST autosave states: edits stream to the
     // server continuously and the room checkpoints them.
     if (collabReady() && collabSocketOpen()) {
-      // Edits relay live, but the room's checkpoint saves are erroring — say
+      // Edits relay live, but the room's checkpoint saves are erroring: say
       // so rather than claiming "Live" while nothing persists.
       if (docSaveFailing("report", p.reportId)) {
         return {
@@ -538,7 +538,7 @@ export function ProjectReport(p: Props) {
 
   // Advertise which report this user has open, which embed they have
   // selected (peers draw a presence border around it in their preview), and
-  // which figure modal they are inside. One reactive effect — imperative
+  // which figure modal they are inside. One reactive effect: imperative
   // setCollabView calls elsewhere would fight it.
   createEffect(() => {
     setCollabView({
@@ -603,7 +603,7 @@ export function ProjectReport(p: Props) {
           }
           // Edit rejected on the socket's snapshot auth. If the live store
           // says this user CAN edit, the socket is stale (permission granted
-          // after connect) — reconnect to re-derive auth; the resync then
+          // after connect): reconnect to re-derive auth; the resync then
           // pushes the rejected local ops. Otherwise the user really is
           // read-only: say so once instead of silently dropping their edits.
           if (errMsg === COLLAB_NO_EDIT_PERMISSION) {
@@ -653,7 +653,7 @@ export function ProjectReport(p: Props) {
           // The base the proposal was computed from. Every proposing tool builds
           // newBody from getBody() with only synchronous work before calling
           // proposeEdit (from inside its own approval.propose), so body() here
-          // IS that base — captured for the rebase on accept (collaborators may
+          // IS that base: captured for the rebase on accept (collaborators may
           // edit while the diff is under review).
           const baseBody = body();
           if (proposal.newBody === baseBody) {
@@ -668,7 +668,7 @@ export function ProjectReport(p: Props) {
             },
             // Stages the SAME locking modal (openComponent backdrop) as before
             // migration; the signal aborts on an external resolution (Stop) and
-            // the modal closes itself (see ReportMarkdownDiff's signal prop) —
+            // the modal closes itself (see ReportMarkdownDiff's signal prop):
             // panther has no dismissal API for an already-open dialog otherwise.
             customProposalUI: (signal) =>
               openComponent({
@@ -684,12 +684,12 @@ export function ProjectReport(p: Props) {
             // that resolves "accepted" after this editor unmounted (or the AI
             // context moved on to something else while it was still mounted)
             // must NOT run commit against torn-down editor state. Checked only
-            // at accept — panther maps a false return to the standardized
+            // at accept: panther maps a false return to the standardized
             // stale/auto_declined outcome instead of calling commit.
             stillValid: () =>
               mounted &&
               projectAIViewController.current().id === "editing_report",
-            // Runs ONLY after an accepted, still-valid decision — same rebase-
+            // Runs ONLY after an accepted, still-valid decision: same rebase-
             // over-collaborator-edits + persist logic as before migration.
             commit: async () => {
               const skipped = await applyProposal(proposal, baseBody);
@@ -723,14 +723,14 @@ export function ProjectReport(p: Props) {
   ): Promise<SkippedRange[]> {
     if (prop.addFigures) {
       // Added before the body so an inserted token never dangles. If the
-      // token's hunk ends up skipped, the figure is orphaned — harmless (the
+      // token's hunk ends up skipped, the figure is orphaned: harmless (the
       // load-time prune removes unreferenced registry entries).
       const prev = figures();
       const next = { ...prev, ...prop.addFigures };
       setFigures(next);
       if (!(await persistFigures(next))) {
         // Don't apply a body whose tokens reference figures the server never
-        // got — that would surface as "Missing visualization" after reload.
+        // got: that would surface as "Missing visualization" after reload.
         setFigures(prev);
         throw new AIToolFailure(
           "The user ACCEPTED the edit, but saving its figure(s) to the server FAILED, so the edit was NOT applied. Tell the user to check their connection and try again.",
@@ -749,7 +749,7 @@ export function ProjectReport(p: Props) {
       saveTimer = undefined;
     }
     // Live collab persists via the room checkpoint (a REST save here would
-    // double-apply after a reconnect catch-up — same rule as the autosave).
+    // double-apply after a reconnect catch-up: same rule as the autosave).
     // Note body(), not prop.newBody: skipped hunks mean the actual text can
     // differ from the proposal.
     if (!collabReady()) {
@@ -774,7 +774,7 @@ export function ProjectReport(p: Props) {
     // Align both panes to the first APPLIED change so the accepted edit lands
     // on screen (same defer pattern as the mode-switch effect: let layout
     // settle first). firstAppliedLine is in current-doc coordinates from the
-    // rebase; absent when nothing applied (every hunk skipped) — don't move.
+    // rebase; absent when nothing applied (every hunk skipped): don't move.
     const changedLine = res.firstAppliedLine;
     if (changedLine !== undefined) {
       targetLine = changedLine;
@@ -796,7 +796,7 @@ export function ProjectReport(p: Props) {
     mounted = false;
     const s = session();
     if (collabFatal()) {
-      // The report/room is gone — nothing to flush to.
+      // The report/room is gone: nothing to flush to.
     } else if (!collabReady()) {
       // Collab never became ready: the REST autosave owns persistence.
       void flushBodySave();
@@ -824,7 +824,7 @@ export function ProjectReport(p: Props) {
         images: content.images,
       });
     }
-    // Live: nothing to flush — the room finalizes/checkpoints server-side.
+    // Live: nothing to flush, the room finalizes/checkpoints server-side.
     s?.close();
     setSession(null);
     removeLastUpdatedListener?.();
@@ -845,7 +845,7 @@ export function ProjectReport(p: Props) {
     const docContent = materializeReport(s.doc);
     if (!collabReady()) {
       // First sync. Push pre-sync local edits onto the shared doc only while
-      // it still equals the content this editor loaded — pushing over a
+      // it still equals the content this editor loaded: pushing over a
       // diverged doc would force it to our draft and delete another user's
       // edits. If peers got there first, adopt their state.
       const hasPendingLocal =
@@ -910,12 +910,12 @@ export function ProjectReport(p: Props) {
   function handleBodyChange(nextBody: string) {
     setBody(nextBody);
     // Let the AI know the body changed (skip AI-applied edits; while live,
-    // remote peer edits land here too — they equally invalidate the AI's read).
+    // remote peer edits land here too: they equally invalidate the AI's read).
     if (!applyingProgrammaticEdit) {
       projectAIViewController.notify("edited_report_locally");
     }
     // Live collab: edits stream into the shared doc via yCollab and the room
-    // checkpoints them — the REST autosave stays off (see collabReady note).
+    // checkpoints them: the REST autosave stays off (see collabReady note).
     if (collabReady()) return;
     setSaveStatus("unsaved");
     if (saveTimer) clearTimeout(saveTimer);
@@ -926,12 +926,12 @@ export function ProjectReport(p: Props) {
     next: Record<string, FigureBlock>,
   ): Promise<boolean> {
     // Live collab: the registry change flows through the shared doc (fresh
-    // object references — the callers' {...prev, [id]: block} spreads) and the
+    // object references: the callers' {...prev, [id]: block} spreads) and the
     // room checkpoint persists it.
     const s = session();
     if (collabReady() && s) {
       // While a figure's editor modal is open, the modal owns that figure's
-      // config live in the doc — don't let this registry push revert it.
+      // config live in the doc: don't let this registry push revert it.
       const editing = editingFigureId();
       s.pushRegistries(
         next,
@@ -959,7 +959,7 @@ export function ProjectReport(p: Props) {
   }
 
   async function persistImages(next: Record<string, ImageBlock>) {
-    // Live collab: see persistFigures — including the skip set, or this push
+    // Live collab: see persistFigures, including the skip set, or this push
     // re-diffs an open figure modal's config from the host's stale copy.
     const s = session();
     if (collabReady() && s) {
@@ -1271,7 +1271,7 @@ export function ProjectReport(p: Props) {
 
   // The HTML preview pane (View & Split). Owns its scroll-sync lifecycle: it
   // registers previewEl, an rAF-throttled scroll listener, a ResizeObserver on
-  // the content (figure-settle, §7), and user-gesture latches — all torn down on
+  // the content (figure-settle, §7), and user-gesture latches: all torn down on
   // unmount, since the pane unmounts in Edit.
   const ReportPreviewPane = () => {
     let contentEl: HTMLDivElement | undefined;
@@ -1327,7 +1327,7 @@ export function ProjectReport(p: Props) {
   };
 
   // The content area (banners + CM editor + preview + diff), shared by both
-  // modes. The CM editor stays mounted in View too — AI accept applies via its
+  // modes. The CM editor stays mounted in View too: AI accept applies via its
   // imperative setBody and body() updates flow through onBodyChange regardless
   // of mode (PLAN_REPORT_PREVIEW_TOGGLE.md §2). Only the left sidebar differs.
   const MainArea = () => (
@@ -1377,7 +1377,7 @@ export function ProjectReport(p: Props) {
             a locking modal (see proposeEdit), so nothing here is hidden for it. */}
         <div class="flex min-h-0 flex-1">
           {/* In Split, cap the editor pane to the editor's max content width
-              (column + gutter) so it doesn't stretch to half — the preview takes
+              (column + gutter) so it doesn't stretch to half: the preview takes
               the leftover. flex-1 still fills it in Edit and shrinks if narrow. */}
           <div
             class="min-h-0 flex-1"
@@ -1401,7 +1401,7 @@ export function ProjectReport(p: Props) {
               onScroll={onEditorScroll}
               centered={() => mode() === "edit"}
               // In Edit, reserve the sidebar's width on the right so the centered
-              // column lands at the window centre — same placement as the View
+              // column lands at the window centre: same placement as the View
               // preview (where the sidebar is collapsed). Scrollbar stays at the
               // pane edge (padding is inside the scroller).
               centerPadRight={() => SIDEBAR_WIDTH_PX}
@@ -1415,7 +1415,7 @@ export function ProjectReport(p: Props) {
               ref={(api) => (editorApi = api)}
             />
           </div>
-          {/* HTML preview — visible in View & Split. Unmounts in Edit, so its
+          {/* HTML preview: visible in View & Split. Unmounts in Edit, so its
               scroll/resize listeners are (re)established per mount (§7). */}
           <Show when={mode() !== "edit"}>
             <ReportPreviewPane />
@@ -1532,8 +1532,8 @@ export function ProjectReport(p: Props) {
         }
       >
         {/* One always-mounted frame: the sidebar collapses (isShown=false) in
-            View only — it's available in Edit & Split (both show the CM editor,
-            where embeds are selected). MainArea stays mounted across the toggle —
+            View only: it's available in Edit & Split (both show the CM editor,
+            where embeds are selected). MainArea stays mounted across the toggle:
             the CM editor and figure widgets never remount (no re-hydration
             flicker; undo and scroll preserved). */}
         <FrameLeft
@@ -1577,13 +1577,13 @@ export function ProjectReport(p: Props) {
   );
 }
 
-// Presence borders around report embeds — the report counterpart of the
+// Presence borders around report embeds: the report counterpart of the
 // slide editor's PeerSelectionOverlay: a colored border + name tags around
 // the figure/image each peer currently has selected (their embed selection,
 // broadcast via presence `selectedBlockId`). DOM-anchored in BOTH panes:
 // embeds are located by [data-embed-id] on the CM figure widgets (code pane)
 // and on the preview's rendered embeds, each clipped to its own pane's
-// visible viewport. The code pane is the primary anchor — it is what users
+// visible viewport. The code pane is the primary anchor: it is what users
 // see and click in Edit/Split, and it renders a widget for every token line,
 // whereas the markdown preview drops embeds that aren't blank-line-separated
 // (so a preview-only anchor silently misses them). A pane that is hidden
@@ -1631,7 +1631,7 @@ function ReportPeerSelectionOverlay(p: {
     }[] = [];
     // One box per embed per pane (not per peer): co-selectors share the box,
     // their name tags sit side by side (mirrors the slide editor's overlay).
-    // In Split an embed can anchor in both panes — one box in each.
+    // In Split an embed can anchor in both panes: one box in each.
     const byTarget = new Map<string, (typeof out)[number]>();
     for (const [paneIdx, pane] of panes.entries()) {
       const paneRect = pane.getBoundingClientRect();

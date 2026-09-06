@@ -34,7 +34,7 @@ export const _METRIC_INFO_CACHE = createReactiveCache<
   },
   ResultsValueInfoForPresentationObject
 >({
-  // v2: payload gained indicatorRules (PLAN_1d) — a shape change bumps the
+  // v2: payload gained indicatorRules (PLAN_1d): a shape change bumps the
   // name, as for po_detail below. v3: payload dropped the
   // moduleLastRun/datasetsVersion pair (PLAN_RESULTS_RUNS ruling 4).
   name: "metric_info_v3",
@@ -62,7 +62,7 @@ export const _PO_DETAIL_CACHE = createReactiveCache<
   PresentationObjectDetail
 >({
   // v2: resultsValue gained catalogExpressionEvaluation (PLAN_1a). A shape
-  // change bumps the name — the run-keyed version hash does not move on a
+  // change bumps the name: the run-keyed version hash does not move on a
   // deploy.
   name: "po_detail_v2",
   uniquenessKeys: (params) => [params.projectId, params.presentationObjectId],
@@ -87,7 +87,7 @@ export const _PO_ITEMS_CACHE = createReactiveCache<
   ItemsHolderPresentationObject
 >({
   // v2: indicator axis order now comes solely from catalog sort_order
-  // (PLAN_1a) — stale items would sort alphabetically with no error.
+  // (PLAN_1a): stale items would sort alphabetically with no error.
   // v3: indicatorMetadata carries `thresholds` rules (PLAN_1d). v4: payload
   // dropped the moduleLastRun/datasetsVersion pair (PLAN_RESULTS_RUNS ruling 4).
   name: "po_items_v4",
@@ -335,11 +335,11 @@ export type ResolveDefaultReplicantResult =
 // Resolve the replicant value to actually fetch with. Replicant presets ship with
 // `selectedReplicantValue: undefined` (the user picks the category after creation);
 // left unresolved, the fetch config filters on the "UNSELECTED" sentinel and returns
-// no rows. This defaults an unset/invalid value to the first valid option — matching
+// no rows. This defaults an unset/invalid value to the first valid option, matching
 // the interactive viz, and deliberately NOT the AI-slide path, which throws on an
 // unset value (see slide_ai/resolve_figure_from_metric.ts). Returns a FRESH config
 // copy when it changes the value and never mutates the input (the generator passes
-// the unwrapped live editor store — see the caller comment below).
+// the unwrapped live editor store: see the caller comment below).
 export async function resolveDefaultReplicant(
   projectId: string,
   resultsValue: ResultsValue,
@@ -351,7 +351,7 @@ export async function resolveDefaultReplicant(
     return { ok: true, config, fetchConfig: baseFetchConfig };
   }
   // Fetch the valid replicant values with the auto-pin EXCLUDED, the same way the
-  // selector (ReplicateByOptions) queries them — so both share the single
+  // selector (ReplicateByOptions) queries them, so both share the single
   // replicant-options cache entry instead of issuing two identical server queries.
   // excludeReplicantFilter drops only the appended pin (the current
   // selectedReplicantValue), KEEPING the user's filterBy; the server honors that
@@ -430,7 +430,7 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
     return;
   }
 
-  // The auto-selected replicant lives on a COPY yielded to the caller — never
+  // The auto-selected replicant lives on a COPY yielded to the caller: never
   // mutate the passed-in config: in the editor it is the unwrapped live store,
   // and a raw write would bypass notification and make the user's next click on
   // that same value a no-op (Solid's setter equality guard). resolveDefaultReplicant
@@ -439,7 +439,7 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
   // The mirror-image constraint also holds: the ALIASING is load-bearing. The
   // yielded holder's config shares `s`/`t` (and unchanged sub-objects) BY
   // REFERENCE with the live editor store, and the editor's style panel relies
-  // on that — its child memo re-reads `config.s` reactively without a refetch.
+  // on that: its child memo re-reads `config.s` reactively without a refetch.
   // Inserting a structuredClone or schema re-parse into this pass-through would
   // silently freeze style/caption editing (the memo would rebuild from a dead
   // snapshot). Copy-on-write only, never deep-copy.

@@ -63,12 +63,12 @@ function presenceRank(p: PresenceEntry): number {
   return (p.isEditing ? 2 : 0) + (p.idle ? 0 : 1);
 }
 
-/** Other PEOPLE in this project — one entry each, never one per connection.
+/** Other PEOPLE in this project: one entry each, never one per connection.
  *
  *  Presence is connection-keyed, but every consumer (avatars, viewer chips,
  *  "who has this open" borders, the AI busy-slide guard) is asking about
  *  people: a user with a second tab must not appear twice, and their own tabs
- *  must not appear at all — otherwise you see your own name as a collaborator
+ *  must not appear at all, otherwise you see your own name as a collaborator
  *  and the AI refuses to edit a slide because "you" have it open. Matches the
  *  join/leave toasts, which have always keyed on email, and the live-cursor
  *  overlay, which collapses the same way. */
@@ -98,17 +98,17 @@ export function otherPeers(): PresenceEntry[] {
 }
 
 /** Connection ids the server currently lists for this project (empty before
- *  presence arrives — treat that as "unknown", never as "nobody"). Reactive.
+ *  presence arrives: treat that as "unknown", never as "nobody"). Reactive.
  *  The cursor overlay uses it to drop awareness states whose connection is
  *  already gone: the server deregisters a connection and rebroadcasts presence
  *  the instant its socket closes, whereas the Yjs awareness liveness sweep
- *  needs ~30 s — long enough for a closed tab to keep a ghost cursor on
+ *  needs ~30 s, long enough for a closed tab to keep a ghost cursor on
  *  everyone's screen. */
 export function liveConnectionIds(): ReadonlySet<string> {
   return new Set(collabStore.peers.map((p) => p.connectionId));
 }
 
-// Reactive "is the collab socket open right now" — for UI (live/offline save
+// Reactive "is the collab socket open right now", for UI (live/offline save
 // indicators). Session isLive() reads the raw socket for save decisions; this
 // signal exists because ws.readyState isn't reactive.
 const [socketOpen, setSocketOpen] = createSignal(false);
@@ -159,8 +159,8 @@ export function docSaveFailing(
 // the network or tab plausibly comes back.
 //
 // The ONE exception is an authorization refusal: the server closes with
-// COLLAB_CLOSE_UNAUTHORIZED (4403) — or 1008, the standard policy-violation
-// code — for a condition no amount of retrying can change. Those stop the loop
+// COLLAB_CLOSE_UNAUTHORIZED (4403), or 1008, the standard policy-violation
+// code, for a condition no amount of retrying can change. Those stop the loop
 // (see `unauthorized`) instead of burning a request every 30s, and on every tab
 // refocus, forever.
 const RETRY_EXPONENT_CAP = 5;
@@ -177,7 +177,7 @@ let attempts = 0;
 let unauthorized = false;
 // Close-intent is tracked PER SOCKET, not as a module flag: a project switch
 // closes the old socket and immediately opens a new one, and the old socket's
-// onclose fires only later — a shared flag reset by openSocket would then read
+// onclose fires only later: a shared flag reset by openSocket would then read
 // "unintentional" and schedule a spurious duplicate reconnect.
 const intentionallyClosed = new WeakSet<WebSocket>();
 
@@ -209,7 +209,7 @@ type InternalSlideSession = {
   undoManager: Y.UndoManager;
   ready: boolean;
   onRemote: () => void;
-  /** `fatal` ⇔ the document/room is gone (deleted/replaced/not found) — the
+  /** `fatal` ⇔ the document/room is gone (deleted/replaced/not found): the
    *  editor must stop editing. See CollabServerMessage. */
   onError?: (message: string, fatal?: boolean) => void;
 };
@@ -219,21 +219,21 @@ const slideSessions = new Map<string, InternalSlideSession>();
 /** Handle to a live slide document, returned by openSlideSession. */
 export type SlideSession = {
   doc: Y.Doc;
-  /** Yjs awareness for this slide — carries local + remote cursor/selection. */
+  /** Yjs awareness for this slide: carries local + remote cursor/selection. */
   awareness: Awareness;
-  /** Transaction origin for this client's pushLocal writes — undoManager
+  /** Transaction origin for this client's pushLocal writes: undoManager
    *  tracks it, so undo/redo only ever affects this user's edits. */
   localOrigin: object;
   /** Per-user undo/redo stack for the whole slide doc. Tracks pushLocal
    *  writes (localOrigin), and every textbox's yCollab binding registers its
-   *  own sync origin here too — so the editor's undo buttons and in-textbox
+   *  own sync origin here too, so the editor's undo buttons and in-textbox
    *  Ctrl+Z pop the SAME unified history (text + structural edits). Remote
    *  peers' updates arrive under the server origin and are never tracked.
    *  Owned by the session: destroyed with it. */
   undoManager: Y.UndoManager;
   isReady: () => boolean;
   /**
-   * Ready AND the socket is currently open — i.e. collab is actually
+   * Ready AND the socket is currently open, i.e. collab is actually
    * persisting edits right now. False while disconnected even though local
    * edits still accumulate in the session doc (the reconnect catch-up ships
    * them IF a reconnect happens); closing the editor in that state must flush
@@ -276,7 +276,7 @@ function applySessionUser(awareness: Awareness): void {
     name: id.name,
     color: id.color,
     // Selection-highlight color: y-codemirror paints the peer's selected
-    // RANGE with this as the background, so it must be translucent — the
+    // RANGE with this as the background, so it must be translucent: the
     // opaque presence color would black out the selected text. "33" = ~20%
     // alpha on the hex color, matching the library's own fallback.
     colorLight: id.color + "33",
@@ -285,7 +285,7 @@ function applySessionUser(awareness: Awareness): void {
     // as awareness), and the cursor overlay needs them to guarantee one cursor
     // per PERSON: `email` collapses a user's other tabs (and hides their own
     // from themselves), `connectionId` lets a viewer drop states left behind by
-    // connections the server has already dropped — presence knows within one
+    // connections the server has already dropped: presence knows within one
     // round trip, the Yjs liveness sweep takes ~30 s.
     email: id.email,
     connectionId: id.connectionId,
@@ -306,7 +306,7 @@ function applySessionUser(awareness: Awareness): void {
 // maybeReloadOnServerVersionChange). socket.onopen re-subscribes every open
 // session BEFORE the `hello` frame carrying the version can possibly be seen,
 // so the server's *_sync answers keep arriving while the reload navigation is
-// still pending — and their two-way catch-up would push this tab's PRE-DEPLOY
+// still pending, and their two-way catch-up would push this tab's PRE-DEPLOY
 // Yjs docs into the freshly re-seeded rooms, which is exactly what the reload
 // exists to prevent. Muting the socket closes that window deterministically.
 let reloadingForServerVersion = false;
@@ -461,12 +461,12 @@ const reportSessions = new Map<string, InternalReportSession>();
 /** Handle to a live report document, returned by openReportSession. */
 export type ReportSession = {
   doc: Y.Doc;
-  /** Yjs awareness for this report — carries local + remote cursor/selection. */
+  /** Yjs awareness for this report: carries local + remote cursor/selection. */
   awareness: Awareness;
   isReady: () => boolean;
-  /** Ready AND the socket is currently open — see SlideSession.isLive. */
+  /** Ready AND the socket is currently open: see SlideSession.isLive. */
   isLive: () => boolean;
-  /** Diff full content onto the shared doc — first-sync merge only. */
+  /** Diff full content onto the shared doc: first-sync merge only. */
   pushLocal: (content: ReportDocContent) => void;
   /** Diff the figure/image registries onto the shared doc. `opts` lets a host
    *  with an open figure-editor modal exclude that figure's config (modal owns
@@ -616,15 +616,15 @@ const poSessions = new Map<string, InternalPoSession>();
 /** Handle to a live visualization config document, returned by openPoSession. */
 export type PoSession = {
   doc: Y.Doc;
-  /** The config root Y.Map — bind the editor form + caption CodeMirrors here. */
+  /** The config root Y.Map: bind the editor form + caption CodeMirrors here. */
   configMap: Y.Map<unknown>;
-  /** Yjs awareness for this visualization — local + remote carets/selection. */
+  /** Yjs awareness for this visualization: local + remote carets/selection. */
   awareness: Awareness;
-  /** Transaction origin for this client's local writes — pass to Y.UndoManager
+  /** Transaction origin for this client's local writes: pass to Y.UndoManager
    *  `trackedOrigins` so undo/redo only affects this user's edits. */
   localOrigin: object;
   isReady: () => boolean;
-  /** Ready AND the socket is currently open — see SlideSession.isLive. */
+  /** Ready AND the socket is currently open: see SlideSession.isLive. */
   isLive: () => boolean;
   /** Diff the editor's working config onto the shared doc (mergeable ops). */
   pushLocal: (config: PresentationObjectConfig) => void;
@@ -751,7 +751,7 @@ function handlePoServerMessage(msg: CollabServerMessage): boolean {
       setDocSaveFailing("po", msg.data.poId, false);
       Y.applyUpdate(s.doc, base64ToBytes(msg.data.update), SLIDE_REMOTE_ORIGIN);
       s.ready = true;
-      // Two-way sync: push anything the server is missing (guarded — a
+      // Two-way sync: push anything the server is missing (guarded: a
       // missing/malformed stateVector must not break onRemote).
       try {
         if (msg.data.stateVector) {
@@ -809,7 +809,7 @@ function handleReportServerMessage(msg: CollabServerMessage): boolean {
       Y.applyUpdate(s.doc, base64ToBytes(msg.data.update), SLIDE_REMOTE_ORIGIN);
       s.ready = true;
       // Two-way sync: push anything the server is missing (guarded like the
-      // slide path — a missing/malformed stateVector must not break onRemote).
+      // slide path: a missing/malformed stateVector must not break onRemote).
       try {
         if (msg.data.stateVector) {
           const diff = Y.encodeStateAsUpdate(
@@ -867,12 +867,12 @@ function handleSlideServerMessage(msg: CollabServerMessage): boolean {
       setDocSaveFailing("slide", msg.data.slideId, false);
       Y.applyUpdate(s.doc, base64ToBytes(msg.data.update), SLIDE_REMOTE_ORIGIN);
       s.ready = true;
-      // Two-way sync: push anything the server is missing — e.g. a local edit
+      // Two-way sync: push anything the server is missing, e.g. a local edit
       // whose slide_update was lost before this (re)connect (a switched viz that
       // updated locally but never reached the server). The diff carries just the
       // missing ops, not the whole doc; skip it when already in sync. Guarded:
-      // a slide_sync without a (valid) stateVector — e.g. an older server build
-      // during a deploy/rollback — must never break onRemote below.
+      // a slide_sync without a (valid) stateVector, e.g. an older server build
+      // during a deploy/rollback, must never break onRemote below.
       try {
         if (msg.data.stateVector) {
           const diff = Y.encodeStateAsUpdate(
@@ -947,15 +947,15 @@ function sendPresence(): void {
 
 // Deploy-boundary guard. A tab that stays open across a server update never
 // re-runs the mount-time version check (LoggedInWrapper), so it keeps running
-// OLD client code with OLD caches — and worse, its reconnect catch-up would
+// OLD client code with OLD caches, and worse, its reconnect catch-up would
 // push its pre-deploy Yjs docs back into the server's freshly re-seeded rooms
 // (the two-way sync ships "what the server is missing", which after a deploy
 // is exactly the stale state a crdt_state-nulling migration just discarded).
 // On the first hello carrying a NEW server version, force a reload instead:
 // the reloaded page runs the mount check against the SAME localStorage key,
-// which busts the IndexedDB caches — realtime teardown and cache bust ride
+// which busts the IndexedDB caches: realtime teardown and cache bust ride
 // one trigger. Edits made during the disconnection window are discarded
-// (the accepted close()-while-offline tradeoff — and exactly the merge a
+// (the accepted close()-while-offline tradeoff, and exactly the merge a
 // version boundary must not allow). The sessionStorage flag caps this at one
 // reload per seen version, so nothing can loop; localStorage itself is only
 // ever written by the mount check, keeping ownership in one place.
@@ -977,7 +977,7 @@ function maybeReloadOnServerVersionChange(serverVersion: string): void {
   reloadingForServerVersion = true;
   // …and CLOSE it, so session.isLive() reports false. Muting alone leaves
   // isLive() true (it reads ws.readyState), and both close-flush paths in the
-  // editors skip their explicit REST save while isLive() — so a reload that
+  // editors skip their explicit REST save while isLive(), so a reload that
   // never commits (browser Stop on a slow deploy-time load) would drop every
   // later edit while the editor still claimed "Live". Closing also drops this
   // tab's presence immediately instead of leaving peers a stale cursor until
@@ -1042,12 +1042,12 @@ function openSocket(projectId: string): void {
       maybeReloadOnServerVersionChange(msg.data.serverVersion);
     } else if (msg.type === "error") {
       // Connection-level rejection (e.g. an over-sized frame). The doc
-      // families carry their own *_error messages; this one is just logged —
+      // families carry their own *_error messages; this one is just logged:
       // the affected update is dropped and normal sync continues.
       console.warn("Collab server error:", msg.data.message);
     } else if (msg.type === "presence_state") {
       setCollabStore("peers", msg.data.peers);
-      // Our identity (name/color) may have just arrived — stamp it on any open
+      // Our identity (name/color) may have just arrived: stamp it on any open
       // session's awareness so remote peers see a labelled cursor.
       for (const s of slideSessions.values()) {
         applySessionUser(s.awareness);
@@ -1061,7 +1061,7 @@ function openSocket(projectId: string): void {
       if (projectAw) {
         applySessionUser(projectAw.awareness);
       }
-      // "Alice joined this deck" toasts — scoped to the doc I'm currently in.
+      // "Alice joined this deck" toasts: scoped to the doc I'm currently in.
       notifyPresenceToasts(msg.data.peers, collabStore.connectionId, view);
     } else if (msg.type === "project_awareness") {
       if (projectAw) {
@@ -1072,11 +1072,11 @@ function openSocket(projectId: string): void {
         );
       }
     } else if (msg.type === "doc_save_state") {
-      // Room checkpoint health — editors surface "not saving" instead of
+      // Room checkpoint health: editors surface "not saving" instead of
       // claiming "Live" while the server can't persist.
       setDocSaveFailing(msg.data.docType, msg.data.docId, msg.data.failing);
     } else if (msg.type === "pong") {
-      // Liveness only — receipt was already recorded above.
+      // Liveness only: receipt was already recorded above.
     } else if (
       !handleSlideServerMessage(msg) && !handleReportServerMessage(msg)
     ) {
@@ -1095,7 +1095,7 @@ function openSocket(projectId: string): void {
     }
     // A close code the server only sends when this user may never hold this
     // socket (not approved, no project access). Retrying cannot fix it, and the
-    // "reconnecting" banner would be both permanent and untrue — so stand down
+    // "reconnecting" banner would be both permanent and untrue, so stand down
     // silently. A later grant/removal calls forceCollabReconnect (t1_store),
     // which clears this and connects again.
     if (TERMINAL_CLOSE_CODES.has(event.code)) {
@@ -1132,7 +1132,7 @@ function scheduleReconnect(): void {
   }, delay);
 }
 
-// Reconnect NOW when the network or the tab plausibly came back — skips the
+// Reconnect NOW when the network or the tab plausibly came back: skips the
 // (up to 30s) backoff wait. Registered once for the module's lifetime; no-ops
 // when no project wants a connection or the socket is already up/connecting.
 function retryNow(): void {
@@ -1159,7 +1159,7 @@ document.addEventListener("visibilitychange", () => {
 // ── Idle detection ───────────────────────────────────────────────────────────
 // After IDLE_AFTER_MS without any input in this tab, presence broadcasts
 // idle=true (peers' avatar UIs dim this user); the next input broadcasts
-// idle=false immediately. Input tracking is purely local — nothing goes over
+// idle=false immediately. Input tracking is purely local: nothing goes over
 // the wire per mousemove, only the two transitions call sendPresence(), and
 // sendPresence() itself re-sends the current flag on every (re)connect.
 // Registered once for the module's lifetime, like the retryNow listeners.
@@ -1200,11 +1200,11 @@ setInterval(() => {
 // (idleTimeout: 30 in project-collab.ts). Browsers can neither observe
 // protocol pings nor send their own, so when the path dies silently under
 // this tab (NAT drop, server hard-kill, network switch) the socket keeps
-// LOOKING open for however long TCP takes to notice — editors claim "Live",
+// LOOKING open for however long TCP takes to notice: editors claim "Live",
 // session.isLive() misleads the close-flush logic, and edits stream into a
 // dead pipe. So: send an app-level ping on a timer, and if NO traffic at all
 // (the pong, or anything else) arrives back within the deadline, force-close
-// the socket — onclose (not marked intentional) then runs the normal
+// the socket: onclose (not marked intentional) then runs the normal
 // reconnect + Yjs catch-up. Worst-case detection ≈ interval + deadline.
 // Registered once for the module's lifetime, like the idle detector.
 
@@ -1238,7 +1238,7 @@ setInterval(() => {
 // The project tab pages have no doc room, so their live cursors ride a
 // dedicated PROJECT-scoped Awareness: local field writes relay opaquely to
 // every other admitted connection in the project (project_awareness_update /
-// project_awareness — presence-class visibility, never persisted). Field
+// project_awareness, presence-class visibility, never persisted). Field
 // registry is the same as the session awarenesses (pointer/pointerChat/user).
 // One instance per connectCollab, destroyed on disconnectCollab.
 
@@ -1313,7 +1313,7 @@ function hardClose(): void {
 /** Tear down and immediately re-open the collab socket. Needed when this
  *  user's project permissions (or the project lock) change while connected:
  *  the server snapshots authorization once per connection, so a live grant
- *  or revoke never reaches an open socket — a viewer-connected editor keeps
+ *  or revoke never reaches an open socket: a viewer-connected editor keeps
  *  getting non-fatal "No edit permission" rejections while its local doc
  *  diverges. Reconnecting re-derives auth server-side; onopen re-subscribes
  *  every open session and the two-way sync pushes any local ops the server
@@ -1333,7 +1333,7 @@ export function forceCollabReconnect(reason: string): void {
 
 // Self-heal for a "No edit permission" rejection that CONTRADICTS the client's
 // live permission state: the socket's snapshot auth is stale (the grant's SSE
-// event raced or was missed), so reconnect to re-derive it. Cooldown-guarded —
+// event raced or was missed), so reconnect to re-derive it. Cooldown-guarded:
 // if the server still rejects after a fresh connect, the disagreement is real
 // (client store wrong, not the socket) and looping reconnects would just churn.
 let lastStaleAuthReconnectAt = 0;
@@ -1361,7 +1361,7 @@ export function connectCollab(projectId: string): void {
   setCollabStore({ connectionId: null, peers: [] });
   setSaveFailingKeys(new Set<string>());
   createProjectAwareness();
-  // Initial connect (not a drop) — the banner stays hidden in this state; a
+  // Initial connect (not a drop): the banner stays hidden in this state; a
   // failure moves it to "reconnecting" via onclose.
   notifyCollabConnection("connecting");
   openSocket(projectId);
@@ -1373,7 +1373,7 @@ export function disconnectCollab(): void {
   // update handler → send), which must ship on the still-open socket so
   // peers clear our cursors instantly instead of waiting for the ~30s
   // liveness sweep. (A hard tab close still leaves that sweep as the
-  // fallback — nothing can be sent then.)
+  // fallback: nothing can be sent then.)
   for (const s of [...slideSessions.values()]) {
     destroySlideSession(s);
   }

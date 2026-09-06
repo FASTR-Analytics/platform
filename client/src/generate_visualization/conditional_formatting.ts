@@ -81,8 +81,8 @@ function getPeriodChangeTranslatableStrings(
   }
 }
 
-// The CF legend is emitted only for figures that PAINT conditional formatting
-// — table cells, map regions, bars — for every CF source. Lines, points and
+// The CF legend is emitted only for figures that PAINT conditional formatting,
+// table cells, map regions, bars, for every CF source. Lines, points and
 // pie slices never consult CF, and an explicit legend would replace the
 // categorical series legend panther derives for them.
 export function figurePaintsCf(config: PresentationObjectConfig): boolean {

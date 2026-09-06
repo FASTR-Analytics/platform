@@ -77,7 +77,7 @@ export function WhatsNewModal(
   onCleanup(() => document.removeEventListener("keydown", handleKeyDown));
 
   // Every page stays mounted (hidden when inactive) so the element that
-  // downloaded the media IS the element displayed — a detached prefetch
+  // downloaded the media IS the element displayed: a detached prefetch
   // can't guarantee that, because browsers deprioritise offscreen media and
   // a cached 206 isn't reliably reused by a different element.
   // `loadUpTo` staggers it: a page only gets its src once the previous one
@@ -190,7 +190,7 @@ function WhatsNewPageContent(p: {
   const layout = () => layoutOf(p.page);
   const showImage = () => layout().hasImage && !!p.page.imageUrl;
 
-  // A text-only page has nothing to wait for — release the queue immediately
+  // A text-only page has nothing to wait for: release the queue immediately
   onMount(() => {
     if (!showImage()) {
       p.onLoaded();
@@ -300,7 +300,7 @@ function WhatsNewMedia(p: {
   const src = () => (p.canLoad ? p.src : undefined);
   let videoRef: HTMLVideoElement | undefined;
 
-  // Nothing of ours to download for an embed — release the queue at once so
+  // Nothing of ours to download for an embed: release the queue at once so
   // later pages aren't held up waiting on a third-party player
   onMount(() => {
     if (isWhatsNewYouTube(p.src)) {
@@ -315,7 +315,7 @@ function WhatsNewMedia(p: {
   }
 
   // The queue advances on this page's load event, so a file that stalls (or
-  // an element that never reports) must not starve the pages behind it —
+  // an element that never reports) must not starve the pages behind it:
   // release the next page after a grace period regardless.
   createEffect(() => {
     if (!p.canLoad || loaded()) {
@@ -375,7 +375,7 @@ function WhatsNewMedia(p: {
         <Show when={!loaded()}>
           <div class="bg-base-200 absolute inset-0 rounded" />
         </Show>
-        {/* The player is mounted only while its page is visible — every page
+        {/* The player is mounted only while its page is visible: every page
             stays in the DOM, and N background YouTube iframes would be a
             heavy, pointless load */}
         <Show
@@ -395,7 +395,7 @@ function WhatsNewMedia(p: {
             </Show>
           }
         >
-          {/* Video appears as soon as it has a frame — no opacity ramp; fading
+          {/* Video appears as soon as it has a frame: no opacity ramp; fading
             in a video's first frame reads as sluggish, and by the time the
             page is shown the clip is already buffered in this very element */}
           <Show

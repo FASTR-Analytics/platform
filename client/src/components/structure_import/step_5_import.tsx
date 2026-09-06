@@ -42,7 +42,7 @@ export function Step5Import(p: Props) {
   >(undefined);
 
   // The orphan count is scoped to the family just imported, so the warning
-  // names that registry — otherwise an admin cannot tell which map to repair.
+  // names that registry: otherwise an admin cannot tell which map to repair.
   const registryLabel = () =>
     p.family === "hmis"
       ? t3({ en: "HMIS", fr: "SNIS", pt: "HMIS" })

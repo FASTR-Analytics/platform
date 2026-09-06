@@ -1,5 +1,5 @@
 // =============================================================================
-// Indicator expression evaluator — pure, post-aggregation
+// Indicator expression evaluator: pure, post-aggregation
 // =============================================================================
 //
 // The read path aggregates a derived indicator's additive ingredients with
@@ -10,7 +10,7 @@
 //
 // Semantics:
 //   - NULL propagates through every operator and through abs().
-//   - Division by zero yields NULL rather than Infinity/NaN — a zero
+//   - Division by zero yields NULL rather than Infinity/NaN: a zero
 //     denominator is "no rate here", not an error.
 //   - A non-finite result (an overflow from very large sums) yields NULL, so
 //     no NaN/Infinity can ever reach a figure.

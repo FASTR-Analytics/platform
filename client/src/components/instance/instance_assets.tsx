@@ -254,7 +254,7 @@ function AssetTable(p: {
         const canDelete =
           p.isAdmin || asset.uploaderEmail === p.currentUserEmail;
         // Data-file bytes are served only to data-permitted users (S1's
-        // static tier) — hide the button rather than let the browser save a
+        // static tier): hide the button rather than let the browser save a
         // 403 body to disk.
         const canDownload =
           !(asset.isCsv || asset.isXlsx || asset.isZip) ||

@@ -324,7 +324,7 @@ defineRoute(
       copyProjectInBackground(params.project_id, res.data.newProjectId)
         .then(() => {
           notifyInstanceProjectsLastUpdated(new Date().toISOString());
-          // The copy cloned the source's run_id — the run's attachedProjects
+          // The copy cloned the source's run_id: the run's attachedProjects
           // just gained a project.
           notifyInstanceRunsCatalogUpdated();
         })

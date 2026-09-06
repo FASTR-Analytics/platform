@@ -81,7 +81,7 @@ export function defineRoute<K extends keyof typeof routeRegistry>(
       try {
         rawBody = await c.req.json();
       } catch {
-        // No body or invalid JSON — validate {} like any other input
+        // No body or invalid JSON: validate {} like any other input
       }
       const bodySchema = (route as any).body;
       if (bodySchema instanceof z.ZodType) {

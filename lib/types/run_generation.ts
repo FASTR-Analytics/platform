@@ -6,16 +6,16 @@ import type { ModuleId } from "./module_registry.ts";
 import type { RunProvenance, RunSummary } from "./run_manifest.ts";
 
 // Results-package generation (PLAN_RESULTS_RUNS item 2, re-cut by Phase 3
-// item 1). Two surfaces: the LAUNCH wizard (an ephemeral modal — its step
+// item 1). Two surfaces: the LAUNCH wizard (an ephemeral modal, its step
 // results are client-local until launch sends them in one body; nothing is
 // persisted server-side before that) and the run pipeline (execution state
 // lives on the runs catalog row: runs.status + runs.progress). The wizard is
 // entered from the instance shell: generation is an instance-level act, and
 // a run attaches to projects rather than belonging to one.
 
-// Step 1 — choose data: plain family-inclusion checkboxes. Generation always
+// Step 1, choose data: plain family-inclusion checkboxes. Generation always
 // captures the FULL dataset per family (PLAN_FULL_CAPTURE_GENERATION ruling
-// 2026-08-03) — subsetting is a per-project attach-time concern, never a
+// 2026-08-03): subsetting is a per-project attach-time concern, never a
 // generation-time one.
 export const runGenerationStep1ResultSchema = z.object({
   hmis: z.boolean(),
@@ -26,7 +26,7 @@ export type RunGenerationStep1Result = z.infer<
   typeof runGenerationStep1ResultSchema
 >;
 
-// Step 2 — configure modules: definitions are resolved from the modules repo
+// Step 2, configure modules: definitions are resolved from the modules repo
 // at latest commit when the wizard opens; gitRef records that commit so the
 // run pipeline re-fetches the exact same definitions at launch.
 export const runGenerationStep2ResultSchema = z.object({
@@ -45,7 +45,7 @@ export type RunGenerationStep2Result = z.infer<
 // The instance defaults store (Q8, §3.5): the wizard's starting values,
 // written only by the module-defaults editor (S8 "Instance module defaults")
 // and kept in instance_config under
-// `run_generation_defaults`. Flat — one country per instance makes per-country
+// `run_generation_defaults`. Flat: one country per instance makes per-country
 // presets meaningless. Merge order in the wizard is instance defaults >
 // definition defaults; there is no manifest tier (the wizard is
 // instance-entered, so there is no anchor run). Unknown moduleIds in the
@@ -110,7 +110,7 @@ export type FollowPinnedProject = {
 
 // Outcome of a pin-move: which follow-pinned projects were physically
 // repointed, which were skipped because locked, which failed to attach
-// (project labels — the admin-facing summary), and whether the loop stopped
+// (project labels: the admin-facing summary), and whether the loop stopped
 // early because another pin-move or an unpin superseded it.
 export type PinResultsPackageResult = {
   repointed: string[];
@@ -120,7 +120,7 @@ export type PinResultsPackageResult = {
 };
 
 // The instance catalogue row (Phase 3 item 3): every run on the instance,
-// plus the projects currently pointing at it — which is both the "attached
+// plus the projects currently pointing at it: which is both the "attached
 // projects" column and the reason a run cannot be deleted.
 export type RunCatalogItem = RunListingItem & {
   attachedProjects: { id: string; label: string }[];
@@ -128,7 +128,7 @@ export type RunCatalogItem = RunListingItem & {
 
 // What one READY package contains, wherever it is explored: settings
 // resolved from the manifest's configSelections, files from the outputs dir.
-// Manifest-gated — generating/failed runs are served by the progress-derived
+// Manifest-gated: generating/failed runs are served by the progress-derived
 // UI instead. Immutable per runId (client T2, `state/instance/t2_runs.ts`).
 export type RunDetail = {
   modules: {
@@ -140,7 +140,7 @@ export type RunDetail = {
 
 // One module's raw output files inside a package. Named rather than inlined
 // because the same listing is served by two mounts under two permission
-// models — the instance catalogue by runId, a project by its own attached
+// models: the instance catalogue by runId, a project by its own attached
 // package (see server/runs/package_internals.ts).
 export type RunModuleFileListing = {
   files: { name: string; sizeBytes: number }[];
@@ -149,7 +149,7 @@ export type RunModuleFileListing = {
 // The §2.6 compatibility report (Phase 3 item 4): what a project's AUTHORED
 // visualizations would lose if it repointed at a candidate package, shown
 // before the repoint rather than discovered afterwards. Every answer is a
-// manifest lookup — no data queries.
+// manifest lookup: no data queries.
 //
 // Virtual default visualizations are excluded by construction: they are
 // projections of whichever package is attached, so they cannot be
@@ -180,7 +180,7 @@ export type ResultsPackageCompatibilityReport = {
   // Whether the package's facilities data contains the project's Admin Area 2
   // scope (PLAN_1_PROJECT_AA2_SCOPE §6). null = national project (nothing to
   // check); "no_facilities_data" = the package has no facilities parquet to
-  // check against (e.g. ICEH-only) — a distinct state, not "uncovered".
+  // check against (e.g. ICEH-only): a distinct state, not "uncovered".
   projectAdminArea2Coverage:
     | "covered"
     | "uncovered"
@@ -192,7 +192,7 @@ export type ResultsPackageCompatibilityReport = {
 
 // Worker-updated pipeline progress (runs.progress JSON), pushed on every
 // state change over BOTH project SSE (each attach target) and instance SSE
-// (the catalogue, filtered to can_configure_data — Q-B): a run launched with
+// (the catalogue, filtered to can_configure_data, see Q-B): a run launched with
 // no attach targets has no project channel at all. moduleOrder is execution
 // order; the reuse plan is readable from it (§3.7 UX: per-module
 // reused/will-run).

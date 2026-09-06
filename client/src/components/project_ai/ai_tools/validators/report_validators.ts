@@ -3,7 +3,7 @@ import { AIToolFailure } from "panther";
 
 const EMBED_TOKEN_RE = /!\[[^\]]*\]\((figure|image):([^)\s]+)\)/g;
 
-// Every figure:/image: token in the markdown must resolve in the registry — the
+// Every figure:/image: token in the markdown must resolve in the registry: the
 // AI may only reference existing embed ids (it does not create figures here).
 // Throws (the AI tool surfaces the message) so a broken token is never staged.
 export function validateReportTokensResolve(

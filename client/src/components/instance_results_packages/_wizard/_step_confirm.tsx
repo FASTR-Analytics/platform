@@ -41,9 +41,9 @@ function attachIneligibleReason(project: ProjectSummary): string | undefined {
   return undefined;
 }
 
-// Step 3 — confirm: label, selection summary, attach targets. Attach-at-
+// Step 3: confirm: label, selection summary, attach targets. Attach-at-
 // launch: the selected projects are repointed inside the publish transaction
-// when generation succeeds. Selection defaults to none — a package can
+// when generation succeeds. Selection defaults to none: a package can
 // equally be attached later from a project's Results package tab, and a
 // failed generation leaves every project on its current package. There is
 // no pre-launch compatibility report (the run does not exist yet);

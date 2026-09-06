@@ -183,7 +183,7 @@ export async function getGlobalUser(
 
 // Exported for the /mcp context cache (PLAN_112): it resolves a headless
 // caller's email to the same GlobalUser the middleware chain builds. Headless
-// callers carry no name claims — pass null/null, exactly as getGlobalUser's
+// callers carry no name claims: pass null/null, exactly as getGlobalUser's
 // headless branch does.
 export async function buildGlobalUserFromDb(
   email: string,

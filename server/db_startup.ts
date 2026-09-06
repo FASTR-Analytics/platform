@@ -89,7 +89,7 @@ ${userInserts}
       `[startup] Marked ${staleIcehRuns} ICEH import run(s) wedged mid-run by a previous shutdown`,
     );
   }
-  // Instance data transforms — on main database
+  // Instance data transforms: on main database
   await runInstanceDataTransforms(sqlMain);
 
   // Instance-level country, threaded into the figure backfill so backfilled
@@ -111,12 +111,12 @@ ${userInserts}
     await backfillDashboardSlugsToMain(sqlMain, projectDb, project.id);
     await runProjectMigrations(projectDb);
 
-    // Project data transforms — each in its own transaction
+    // Project data transforms: each in its own transaction
     await runProjectDataTransforms(project.id, projectDb, instanceCountryIso3);
   }
 
   // Results runs (PLAN_RESULTS_RUNS §2.6): a crashed generation leaves only a
-  // .tmp- dir, never a readable run — sweep the debris at boot, and mark any
+  // .tmp- dir, never a readable run: sweep the debris at boot, and mark any
   // 'generating' catalog rows failed (their worker died with the previous
   // process). Projects without a run serve the typed "no run attached" state
   // until a generation attaches one.
@@ -131,7 +131,7 @@ ${userInserts}
 }
 
 // The manifest data transform (PROTOCOL_APP_MIGRATIONS § "Run Manifest
-// Transforms") — the same pattern as the JSON transforms below, applied to a
+// Transforms"): the same pattern as the JSON transforms below, applied to a
 // file. It enumerates the `runs`
 // CATALOGUE and never the filesystem: the runs volume also holds
 // published-failed dirs (deliberately manifest-less), `.tmp-` dirs,
@@ -151,7 +151,7 @@ async function runRunManifestTransforms(mainDb: Sql): Promise<void> {
   // flipped any left over by a previous process). Sweeping them would warn on
   // every boot, forever, about a state that is working as designed. Excluding
   // by what a status IS NOT, so a status added later gets swept rather than
-  // silently skipped — a missed transform fails at read time, a spurious
+  // silently skipped: a missed transform fails at read time, a spurious
   // warning does not.
   const rows = await mainDb<{ id: string }[]>`
 SELECT id FROM runs WHERE status NOT IN ('generating', 'failed')
@@ -202,7 +202,7 @@ SELECT id FROM runs WHERE status NOT IN ('generating', 'failed')
   }
 }
 
-// Only the structure family (S5) still runs on upload attempts — every
+// Only the structure family (S5) still runs on upload attempts: every
 // dataset family is import runs (PLAN_DHIS2_IMPORTER_CONSOLIDATION).
 async function resetWedgedUploadAttempts(mainDb: Sql): Promise<void> {
   const message =

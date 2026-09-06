@@ -20,7 +20,7 @@ export const thresholdsRuleSchema =
   thresholdsRuleSchemaStandalone as unknown as ZodType<ThresholdsRule>;
 
 // ============================================================================
-// ConditionalFormatting — the reusable abstraction.
+// ConditionalFormatting: the reusable abstraction.
 // Panther-extractable. Callers work with this nested union; compile functions
 // switch on `.type` for type-safe branching.
 //
@@ -48,11 +48,11 @@ export type ThresholdBucket = { color: ColorKeyOrString; label?: string };
 // bucket than cutoffs; `label` is plain text, optional (an unlabelled bucket
 // prints the derived wording, bucketLabels). This is what a common indicator
 // carries (CommonIndicator.thresholds) and what the figure-level source wraps.
-//   direction — the semantic direction, which decides the ONE boundary rule
+//   direction: the semantic direction, which decides the ONE boundary rule
 //   (thresholdBucketIndex) and the label inclusivity:
 //     "higher-is-better" (default) → lowest bucket is "< X", highest is "≥ X".
 //     "lower-is-better" → lowest bucket is "≤ X", highest is "> X".
-//   Ignored for symmetric (diverging) cutoffs — those use "within" wording.
+//   Ignored for symmetric (diverging) cutoffs: those use "within" wording.
 export type ThresholdsRule = {
   cutoffs: number[];
   buckets: ThresholdBucket[];
@@ -136,7 +136,7 @@ function buildContinuousScaleConfig(s: CfStorage): ContinuousScaleConfig {
 
 // Pure projection: nested union → flat storage record. Used by the adapter
 // (to produce a plain JS object) and by writeCf (to drive Solid store
-// writes). Always returns a complete CfStorage — callers can merge it into
+// writes). Always returns a complete CfStorage: callers can merge it into
 // their target.
 export function flattenCf(cf: ConditionalFormatting): CfStorage {
   const base: CfStorage = { ...CF_STORAGE_DEFAULTS };
@@ -239,7 +239,7 @@ function stringifyColor(c: ColorKeyOrString): string {
 }
 
 // ============================================================================
-// THE boundary rule — one for colour, label, legend, AI text and harness.
+// THE boundary rule: one for colour, label, legend, AI text and harness.
 //
 // The boundary belongs to the BETTER side. higher-is-better: a value BELOW a
 // cutoff (strict `<`) falls in the bucket under it, so an exact cutoff goes
@@ -292,7 +292,7 @@ export function bucketLabels(
 }
 
 // ============================================================================
-// Bucket label derivation — the cutoffs drive the wording. If cutoffs are
+// Bucket label derivation: the cutoffs drive the wording. If cutoffs are
 // symmetric around zero (e.g. [-10, 10] or [-20, -10, 10, 20]) labels use
 // diverging wording ("More than X below", "Within X", "More than Y above").
 // Otherwise standard range wording ("< X", "X–Y", "≥ X"), with the operators
@@ -316,7 +316,7 @@ export function deriveBucketLabels(
 
 export function isSymmetricAroundZero(cutoffs: number[]): boolean {
   // Need at least one pair and an even count (so there's a middle bucket
-  // straddling zero — n buckets = n-1 cutoffs, odd n → even cutoffs).
+  // straddling zero: n buckets = n-1 cutoffs, odd n → even cutoffs).
   if (cutoffs.length < 2 || cutoffs.length % 2 !== 0) return false;
   const half = cutoffs.length / 2;
   for (let i = 0; i < half; i++) {

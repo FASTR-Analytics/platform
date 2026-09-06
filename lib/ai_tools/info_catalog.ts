@@ -4,7 +4,7 @@ export type InfoCatalogTopic = {
   description: string;
 };
 
-// The SHARED on-demand reference docs — topics both surfaces (SPA copilot,
+// The SHARED on-demand reference docs: topics both surfaces (SPA copilot,
 // /mcp) can act on. Each topic maps to a markdown file served as a static
 // asset at /info/<topic>.md (client/public/info/). A surface passes the list
 // it exposes to getSharedToolsForInfo (which whitelists the fetch path

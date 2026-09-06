@@ -38,7 +38,7 @@ type Viewer = typeof ViewScript | typeof ViewLogs | typeof ViewFiles;
 type OpenViewer = (element: Viewer, moduleId: string) => void;
 
 // The catalogue's detail pane (master–detail, PLAN ruling 1: instance surface
-// only). This is the ONLY surface that renders a non-ready run — the
+// only). This is the ONLY surface that renders a non-ready run: the
 // generating/failed bodies live here, because a project is attached only
 // once a run is ready and so never sees one. A READY run is rendered by the
 // shared ResultsPackageView, exactly as a project's tab renders it; this pane
@@ -51,8 +51,8 @@ export function RunCatalogDetailPane(p: {
 }) {
   const progress = () => p.liveProgress ?? p.run.progress;
 
-  // Guarded hard delete (fork ruling 3): ONE act — catalog row, files and
-  // cached results — with no archived state and no automatic GC. The server
+  // Guarded hard delete (fork ruling 3): ONE act (catalog row, files and
+  // cached results) with no archived state and no automatic GC. The server
   // refuses while a project points at the package or it is still generating;
   // the pane states the reason rather than hiding the button, so an
   // undeletable package is never a mystery. No refetch on success: the SSE
@@ -97,7 +97,7 @@ export function RunCatalogDetailPane(p: {
   // Pin / unpin (SYSTEM_08 "The pinned package + followers"): an explicit
   // act on a ready package. Pinning physically repoints every project that
   // follows the pin, so the confirm lists them first and the result reports
-  // which moved, were skipped (locked) or failed — and whether a later
+  // which moved, were skipped (locked) or failed, and whether a later
   // pin-move superseded this one midway. Unpin is run-keyed and moves
   // nothing. No refetch on success: the pin push + catalogue nonce update the
   // store, and both badges/buttons derive from `instanceState.pinnedRunId`.
@@ -362,12 +362,12 @@ export function RunCatalogDetailPane(p: {
                   errorDetail={progress()?.errorDetail ?? null}
                 />
                 {/* The module list comes from the stored progress, and viewers are
-                    offered only for modules that started — a pending module never
+                    offered only for modules that started: a pending module never
                     got a workspace. A crash/pipeline failure publishes the partial
                     workspace for inspection (no manifest, so there is no summary);
                     boot-interrupted and pre-worker-failed runs have NO directory at
                     all, so their viewers open onto the typed no-script/log/files
-                    states — accepted, degrades loudly. */}
+                    states: accepted, degrades loudly. */}
                 <Show when={progress()} keyed>
                   {(keyedProgress) => (
                     <For each={keyedProgress.moduleOrder}>

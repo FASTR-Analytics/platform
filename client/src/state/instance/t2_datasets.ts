@@ -35,7 +35,7 @@ const _DATASET_HMIS_DISPLAY_INFO_CACHE = createReactiveCache<
   ItemsHolderDatasetHmisDisplay
 >({
   name: "dataset_hmis_display_info",
-  // Include-flags hash only — labels are display-only and must not bust a
+  // Include-flags hash only: labels are display-only and must not bust a
   // data cache
   uniquenessKeys: (params) => {
     const schemaHash = hashStructureSchema(params.structureSchema);
@@ -60,7 +60,7 @@ export async function getDatasetHmisDisplayInfoFromCacheOrFetch(
   hmisImportRunActive: boolean,
 ) {
   // While a run is integrating per-pair, the data keeps changing under the
-  // settled version token — neither read nor store the IndexedDB cache
+  // settled version token: neither read nor store the IndexedDB cache
   // (mirrors the server's Valkey bypass; the token flips at run end).
   if (hmisImportRunActive) {
     return await serverActions.getDatasetHmisDisplayInfo({

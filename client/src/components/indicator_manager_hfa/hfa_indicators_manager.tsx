@@ -64,7 +64,7 @@ export function HfaIndicatorsManager(p: Props) {
 
   // Hoisted like selectedCategoryId below: the table remounts on every SSE
   // refetch (keyed StateHolderWrapper) and on tab switches; not a signal
-  // because nothing renders from it — Table reads it once on mount.
+  // because nothing renders from it: Table reads it once on mount.
   let indicatorsScrollTop = 0;
 
   const [searchText, setSearchText] = createSignal("");

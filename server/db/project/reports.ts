@@ -35,7 +35,7 @@ function parseReportConfig(report: Pick<DBReport, "config">): ReportConfig {
 }
 
 // Summary list: only the columns the summary needs. Crucially excludes the
-// heavy `figures`/`images` JSON (figureInputs snapshots) — the preview is
+// heavy `figures`/`images` JSON (figureInputs snapshots): the preview is
 // derived from `body` alone, so loading them here would be pure waste on every
 // list load and every `reports_updated` re-broadcast.
 type DBReportSummaryRow = Pick<
@@ -204,7 +204,7 @@ export async function updateReportImages(
 }
 
 // Read the persisted Yjs CRDT state for a report (collab rooms). Returns the
-// base64 state only if it is CURRENT — i.e. crdt_state_last_updated matches the
+// base64 state only if it is CURRENT: i.e. crdt_state_last_updated matches the
 // report's last_updated; otherwise the report was edited outside collab since
 // the state was saved, so the room must re-seed from body/figures/images.
 export async function getReportCrdtState(
@@ -237,11 +237,11 @@ export async function getReportCrdtState(
 }
 
 // Collab checkpoint: persist the materialized report content AND the Yjs CRDT
-// state atomically (collab is authoritative, so this always overwrites — no
+// state atomically (collab is authoritative, so this always overwrites: no
 // conflict check). crdt_state_last_updated is stamped equal to last_updated so
 // the state reads back as current until a non-collab edit bumps last_updated.
 // body_authors (per-character authorship ledger) rides the same stamp.
-// Plain write — POLICY LIVES IN THE CALLER (the report room's save closure in
+// Plain write: POLICY LIVES IN THE CALLER (the report room's save closure in
 // routes/project/project-collab.ts): `content.figures`/`content.images` must
 // already be schema-parsed, and `crdtTrusted` says whether the doc
 // materializes to exactly this content. Untrusted → crdt_state_last_updated
@@ -277,7 +277,7 @@ export async function saveReportCheckpoint(
   });
 }
 
-// The persisted authorship ledger — like crdt_state, trusted only while
+// The persisted authorship ledger: like crdt_state, trusted only while
 // crdt_state_last_updated matches last_updated (a non-collab write invalidates
 // the pair, and authorship of text written outside a room is unknown anyway).
 export async function getReportBodyAuthors(
@@ -314,11 +314,11 @@ export async function getReportBodyAuthors(
 }
 
 // After a version snapshot has captured the ledger's tombstones, the
-// PERSISTED copy must start the next window too — otherwise a later room
+// PERSISTED copy must start the next window too: otherwise a later room
 // re-adopts the old tombstones (a version insert doesn't bump last_updated,
 // so the stamp stays valid) and every later version re-freezes deletions from
 // long-closed sessions, misattributing removals. Strips tombstone runs from
-// body_authors IFF the row still carries the exact stamps we read — a
+// body_authors IFF the row still carries the exact stamps we read: a
 // concurrent checkpoint (which persists the in-memory ledger, already
 // compacted by the caller) simply wins and the guard makes this a no-op.
 export async function stripPersistedBodyAuthorTombstones(

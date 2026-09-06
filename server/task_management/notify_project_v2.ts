@@ -23,7 +23,7 @@ export function notifyProjectV2(
 }
 
 // The optional fields are sent ONLY by the writer that changed them (the
-// client applies each one when present) — PROTOCOL_APP_STATE "aiContext
+// client applies each one when present), PROTOCOL_APP_STATE "aiContext
 // quirk".
 export function notifyProjectConfigUpdated(
   projectId: string,

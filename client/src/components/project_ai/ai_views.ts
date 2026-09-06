@@ -37,18 +37,18 @@ import {
 } from "./build_system_prompt";
 
 ////////////////////////////////////////////////////////////////////////////////
-// PROJECT COPILOT — AI VIEW REGISTRY (Rung 3, PLAN_FUTURE_AI_ADOPTIONS.md)
+// PROJECT COPILOT: AI VIEW REGISTRY (Rung 3, PLAN_FUTURE_AI_ADOPTIONS.md)
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Replaces the 13-arm AIContext union's interpretation duty. TParams is the
 // serializable, model-visible half (view-label text, tool narrowing);
 // TContext is the live payload (editor store getters/setters) delivered to
-// tool handlers opaquely — mirrors the old AIContext* shapes 1:1, just split.
+// tool handlers opaquely: mirrors the old AIContext* shapes 1:1, just split.
 //
 // instructions carries what used to be build_system_prompt.ts's per-mode
 // `getModeInstructions` switch (still exported from there, verbatim content)
 // PLUS the two live bits that used to ride getEphemeralContext's mode string
-// (deck's selected slide ids; report editor's selection preview) — both
+// (deck's selected slide ids; report editor's selection preview): both
 // review-finding-1-safe: nothing here changes tool-handler behavior, only
 // where the text is assembled. instructionsDelivery stays the default
 // "ephemeral" everywhere: the `system` accessor (build_system_prompt.ts) no
@@ -81,7 +81,7 @@ export type EditingVisualizationParams = {
   vizId: string | null; // null for create/ephemeral modes without a persistent ID
   vizLabel: string;
   // vizId alone can't separate create from ephemeral (both are null), and the
-  // editor's UI differs by mode — ephemeral applies back to a host slide/report
+  // editor's UI differs by mode: ephemeral applies back to a host slide/report
   // instead of saving. Consumers (onboarding tours) need the distinction.
   mode: "edit" | "create" | "ephemeral";
 };
@@ -140,7 +140,7 @@ export const projectAIViews = defineAIViews({
   }),
   // The editing_* instructions each carry the entity IDS the old
   // getEphemeralContext mode string exposed (deckId / slideId / vizId /
-  // reportId) — ids are the model's cross-turn correlation handle (tools
+  // reportId): ids are the model's cross-turn correlation handle (tools
   // RETURN ids; labels are not unique), and the viz editor's "unsaved"
   // signal tells the model the draft has no persistent id yet.
   editing_slide_deck: view<EditingSlideDeckParams, EditingSlideDeckContext>({
@@ -181,7 +181,7 @@ export const projectAIViews = defineAIViews({
 });
 
 // Concise, UI-facing labels (chat-pane header subtext) for the nine
-// no-params viewing_* views — byte-identical to the pre-views
+// no-params viewing_* views: byte-identical to the pre-views
 // chat_pane.tsx titleSubtext() switch cases.
 function getViewingVisualizationsInstructionsLabel(): string {
   return t3({ en: "Visualizations", fr: "Visualisations", pt: "Visualizações" });
@@ -246,10 +246,10 @@ export const PROJECT_TAB_TO_VIEW: Record<
 // Restores a previously-captured view state verbatim (params + live
 // context), for the "returnToContext" stack pattern nested editors use today
 // (deck editor → slide editor → figure editor, etc.). A generic
-// `setView(state.id, state.params, state.context)` helper cannot typecheck —
+// `setView(state.id, state.params, state.context)` helper cannot typecheck:
 // TypeScript cannot correlate a discriminated union's fields through a
 // second generic call (the same reason views.ts's OWN setView takes
-// positional args instead of a state object) — but a manual switch narrows
+// positional args instead of a state object), but a manual switch narrows
 // `state` to each concrete member, so every branch below is fully typed with
 // no casts.
 export function restoreProjectAIView(state: ProjectAIViewState): void {

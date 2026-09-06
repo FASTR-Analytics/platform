@@ -33,7 +33,7 @@ defineRoute(
     // Data caches key on the attached run (PLAN_RESULTS_RUNS §2.5); a project
     // with no run attached has no data-cache entries by construction. The
     // metric → results-object map comes from that run's manifest, never the
-    // project catalog tables (Phase 3 re-cut ruling 5 — generation no longer
+    // project catalog tables (Phase 3 re-cut ruling 5: generation no longer
     // writes them, so they would report a stale mapping here).
     const projectRow = (
       await c.var.mainDb<{ run_id: string | null; admin_area_2: string | null }[]>`

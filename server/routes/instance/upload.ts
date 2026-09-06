@@ -174,14 +174,14 @@ routesUpload.post(
 //
 // Hono's internal dispatch converts all HEAD requests to GET before route matching
 // (see hono-base.js #dispatch method). This means:
-//   1. .on("HEAD", ...) routes NEVER match — the router never sees method "HEAD"
-//   2. .get() routes DO match HEAD requests — Hono dispatches HEAD as GET internally
+//   1. .on("HEAD", ...) routes NEVER match: the router never sees method "HEAD"
+//   2. .get() routes DO match HEAD requests: Hono dispatches HEAD as GET internally
 //   3. Hono automatically wraps the response with a null body for HEAD responses
 //   4. If no .get() handler exists, the request falls through to the catch-all
 //      app.get("*") redirect in main.ts, causing the TUS client to receive a 200
 //      with no Upload-Offset header, which breaks the TUS resume protocol
 //
-// No auth middleware is needed here — the TUS client sends HEAD to check upload
+// No auth middleware is needed here: the TUS client sends HEAD to check upload
 // status before sending data, and this must work without authentication.
 // The CORS Access-Control-Expose-Headers for Upload-Offset etc. are handled
 // by the global CORS middleware in server/middleware/cors.ts.

@@ -33,7 +33,7 @@ function familyLabel(family: FacilityFamily) {
     : t3({ en: "HFA facilities", fr: "Établissements Enquêtes FOSA", pt: "Estabelecimentos FOSA" });
 }
 
-// Admin areas are DERIVED from the facility rows — each facility carries its
+// Admin areas are DERIVED from the facility rows: each facility carries its
 // admin area path, and this registry's tree is exactly the distinct paths in
 // it. They are created and removed by facility imports alone, so they are
 // reported here rather than as a surface of their own.

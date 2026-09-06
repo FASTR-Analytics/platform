@@ -8,13 +8,13 @@ import {
   getPresentationObjectItemsFromCacheOrFetch,
 } from "~/state/project/t2_presentation_objects";
 
-// Plain input type — no AI imports needed.
+// Plain input type: no AI imports needed.
 // `type` is optional for callers that carry the discriminant from the AI input shape.
 export type VisualizationInput = { visualizationId: string; replicant?: string; type?: string };
 
 // Step 1 of resolving a figure from a saved visualization: fetch the PO and build
 // the config to resolve from (clone the stored config + apply the replicant
-// override). Shared by the render path and the AI authoring path — the AI path
+// override). Shared by the render path and the AI authoring path: the AI path
 // runs assertReplicantValid on this config BEFORE step 2.
 export async function getConfigForVisualization(
   projectId: string,
@@ -37,7 +37,7 @@ export async function getConfigForVisualization(
   return { poDetail: poDetailRes.data, config };
 }
 
-// Step 2: resolve a self-contained FigureBundle from a PO detail + config — fetch
+// Step 2: resolve a self-contained FigureBundle from a PO detail + config: fetch
 // items (the items fetch auto-defaults an unset replicant so a figure always
 // renders), capture geo, assemble. No replicant validation here; authoring paths
 // run assertReplicantValid on the config before calling this.
@@ -93,7 +93,7 @@ export async function resolveFigureBundleFromVizConfig(
 }
 
 // Render / interactive path: build the config from the viz, then resolve. Lenient
-// by composition — an unset replicant auto-defaults so a figure always shows. The
+// by composition: an unset replicant auto-defaults so a figure always shows. The
 // AI authoring path instead composes getConfigForVisualization → assertReplicantValid
 // → resolveFigureBundleFromVizConfig.
 export async function resolveFigureBundleFromVisualization(

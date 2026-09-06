@@ -61,7 +61,7 @@ export function getScriptWithParameters(
   str = str.replaceAll("COUNTRY_ISO3", `"${countryIso3 ?? "UNKNOWN"}"`);
 
   // The ingredient table travels as DATA substituted into an otherwise static
-  // script (PLAN_1a §1.5, §1.14) — the same channel as COUNTRY_ISO3 above and
+  // script (PLAN_1a §1.5, §1.14): the same channel as COUNTRY_ISO3 above and
   // every module parameter below, and the reason no memoization input class
   // exists for it: the literal lands in scriptText, which computeModuleKey
   // already hashes. Only m012 carries the token; for every other module this

@@ -53,7 +53,7 @@ type TempState = {
   code: TempCodeEntry[];
   // Per-item numerator code, keyed "timePoint / itemId". The server only
   // stores rows for the indicator's current group, and a confirmed group
-  // switch clears the old group's entries here too — otherwise switching back
+  // switch clears the old group's entries here too: otherwise switching back
   // would display deleted code as if it were still persisted.
   variantCode: Record<string, string>;
 };
@@ -544,7 +544,7 @@ function EditorInner(p: {
                   if (!confirmed) {
                     // The native select already displays the picked option and
                     // state never changed, so the value binding won't re-fire
-                    // on its own — the control would show the wrong group and
+                    // on its own: the control would show the wrong group and
                     // re-picking the displayed option would be a dead change
                     // event. A synchronous set-away-and-back re-runs the
                     // binding and snaps the DOM back (no dirty flag: net state

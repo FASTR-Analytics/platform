@@ -102,7 +102,7 @@ export function getClientToolsForVizEditor(
           }
         }
 
-        // Pure validation on a snapshot, BEFORE the remote value checks — so
+        // Pure validation on a snapshot, BEFORE the remote value checks, so
         // an obviously-invalid patch fails without a network round trip.
         const snapshot = structuredClone(unwrap(ctx.getTempConfig()));
         const candidate = applyFigureConfigPatch(snapshot, input, resultsValue, dataBounds);
@@ -141,7 +141,7 @@ export function getClientToolsForVizEditor(
         }
 
         // Re-read the temp config AFTER the awaits and apply/validate/write on
-        // the fresh value — a collaborator's field write landing during the
+        // the fresh value: a collaborator's field write landing during the
         // awaits must not be reverted by a stale whole-config write.
         const fresh = structuredClone(unwrap(ctx.getTempConfig()));
         const newConfig = applyFigureConfigPatch(fresh, input, resultsValue, dataBounds);

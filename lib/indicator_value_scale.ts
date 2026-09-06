@@ -2,7 +2,7 @@ import type { IndicatorFormat } from "./types/indicators.ts";
 
 // THE displayed magnitude of a stored value, and its inverse. Percent values
 // are stored as fractions and rates as bare rates, but everything a reader
-// sees — and every threshold a user types — is in the scaled units. Panther's
+// sees, and every threshold a user types, is in the scaled units. Panther's
 // percent formatter applies the ×100 itself; it has no per-10,000 format at
 // all, which is why the rate scaling lives on this side. One pair for both
 // conventions, used by the renderer, the editors and the AI text.

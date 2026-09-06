@@ -178,7 +178,7 @@ async function validateRunSelection(
     throw new Error("The selection contains no (indicator, month) pairs.");
   }
 
-  // Fail fast on indicators that don't exist — per-pair integration inserts
+  // Fail fast on indicators that don't exist: per-pair integration inserts
   // against an indicators_raw FK.
   const selectedIndicatorIds = Array.from(
     new Set(pairs.map((p) => p.indicatorRawId)),
@@ -298,7 +298,7 @@ export async function launchDatasetHmisDhis2ImportRun(
 
     // Read-guards for friendly errors; the atomic claim is the INSERT below
     // (partial unique index: at most one status='running' row). CSV imports
-    // share the same claim, so no cross-table guard exists — the race it
+    // share the same claim, so no cross-table guard exists: the race it
     // defended is structurally impossible.
     await assertNoRunningDatasetHmisImportRun(mainDb);
     if (getWorker("hmis") || getWorker("hmis_dhis2_run")) {
@@ -318,7 +318,7 @@ export async function launchDatasetHmisDhis2ImportRun(
     `;
     const runId = inserted[0].id;
 
-    // Inline credentials travel only in the worker message — never stored on
+    // Inline credentials travel only in the worker message: never stored on
     // the run row; stored credentials are decrypted inside the worker (C3).
     await spawnRunWorker(mainDb, { runId, credentialsSource, selection, onComplete });
 
@@ -326,7 +326,7 @@ export async function launchDatasetHmisDhis2ImportRun(
   });
 }
 
-// C6 — queue, not concurrent execution: a queued row is inert (no claim, no
+// C6: queue, not concurrent execution: a queued row is inert (no claim, no
 // worker) until the ~60 s scheduler tick drains it FIFO through
 // launchQueuedDatasetHmisImportRun once the import slot is free. Queued fires
 // are unattended, so they require stored credentials (a prompted plaintext
@@ -418,7 +418,7 @@ export async function refuseQueuedDatasetHmisImportRun(
   `;
 }
 
-// Claims a queued row by conditional UPDATE — the partial unique index on
+// Claims a queued row by conditional UPDATE: the partial unique index on
 // status='running' still arbitrates (a concurrent running row makes the
 // UPDATE throw, and the row simply stays queued for the next tick). Returns
 // false when the claim was not taken (row removed, or slot busy).
@@ -468,7 +468,7 @@ export async function launchQueuedDatasetHmisImportRun(
 // CSV IMPORT RUNS (PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase A)
 // ============================================================================
 
-// Validates the launch input and stamps the byte pin — the returned config is
+// Validates the launch input and stamps the byte pin: the returned config is
 // what gets stored on the run row.
 async function validateCsvRunConfig(
   mainDb: Sql,
@@ -661,7 +661,7 @@ export async function launchDatasetHmisCsvImportRun(
   });
 }
 
-// Explicit queueing while a run is active — inert row, drained FIFO by the
+// Explicit queueing while a run is active: inert row, drained FIFO by the
 // scheduler tick alongside queued DHIS2 runs. CSV fires need no credential
 // checks (the pinned asset is the whole input).
 export async function enqueueDatasetHmisCsvImportRun(
@@ -682,7 +682,7 @@ export async function enqueueDatasetHmisCsvImportRun(
   });
 }
 
-// Claims a queued CSV row by conditional UPDATE — the partial unique index
+// Claims a queued CSV row by conditional UPDATE: the partial unique index
 // still arbitrates. Returns false when the claim was not taken.
 export async function launchQueuedDatasetHmisCsvImportRun(
   mainDb: Sql,
@@ -717,7 +717,7 @@ export async function launchQueuedDatasetHmisCsvImportRun(
     });
   } catch (e) {
     // The claim WAS taken and spawnCsvRunWorker already failed it (pin
-    // mismatch, missing file) — report true so the caller's notify fires and
+    // mismatch, missing file): report true so the caller's notify fires and
     // clients drop the stale "queued" badge.
     console.error(
       `Queued CSV run ${args.runId} failed at spawn:`,
@@ -728,7 +728,7 @@ export async function launchQueuedDatasetHmisCsvImportRun(
 }
 
 // needs_review resolution. "Integrate anyway" re-claims the slot (or queues
-// explicitly behind a running import — the §2 ruled change: a hold never
+// explicitly behind a running import, the §2 ruled change: a hold never
 // blocks the lane); "Discard" cancels and drops the surviving staging table.
 export async function resolveDatasetHmisCsvReview(
   mainDb: Sql,
@@ -777,7 +777,7 @@ export async function resolveDatasetHmisCsvReview(
     };
 
     // Try to re-claim the slot directly; a unique violation (another import
-    // running) queues the run instead — the tick fires it when free.
+    // running) queues the run instead: the tick fires it when free.
     let claimedCount = 0;
     try {
       const claimed = await mainDb`
@@ -793,7 +793,7 @@ export async function resolveDatasetHmisCsvReview(
     }
     if (claimedCount === 0 || getWorker("hmis") || getWorker("hmis_dhis2_run")) {
       if (claimedCount > 0) {
-        // Claimed the row but a worker is mid-teardown — queue instead of
+        // Claimed the row but a worker is mid-teardown: queue instead of
         // racing it.
         await mainDb`
           UPDATE dataset_hmis_import_runs
@@ -833,7 +833,7 @@ export async function cancelDatasetHmisImportRun(
     if (!runRow) {
       throw new Error("This run does not exist.");
     }
-    // A queued row has no worker and no version — removing it is just a flip.
+    // A queued row has no worker and no version: removing it is just a flip.
     const removedFromQueue = await mainDb`
       UPDATE dataset_hmis_import_runs
       SET status = 'cancelled', ended_at = now(),
@@ -848,7 +848,7 @@ export async function cancelDatasetHmisImportRun(
     }
     // The status flip comes FIRST and is conditional on the given runId: a
     // cancel aimed at an already-finished run (stale tab, old list) must not
-    // touch the worker — it belongs to whatever run is actually running.
+    // touch the worker: it belongs to whatever run is actually running.
     const updated = await mainDb`
       UPDATE dataset_hmis_import_runs
       SET status = 'cancelled', ended_at = now(), progress = NULL,
@@ -862,7 +862,7 @@ export async function cancelDatasetHmisImportRun(
     // already committed keep their ledger rows (the point of per-pair units),
     // and a CSV run's single transaction rolls back whole. Between the flip
     // and the terminate the worker may still commit (counter increments are
-    // deliberately unguarded — finalize recomputes from them) but can never
+    // deliberately unguarded: finalize recomputes from them) but can never
     // resurrect the run: progress and completion writes are status-guarded.
     const workerKey = runRow.source === "csv" ? "hmis" : "hmis_dhis2_run";
     const worker = getWorker(workerKey);
@@ -879,7 +879,7 @@ export async function cancelDatasetHmisImportRun(
       await finalizeInterruptedDatasetHmisRunVersion(mainDb, runId);
     }
     // No scope-table drop here (DHIS2): the flip above already released the
-    // claim, so a successor run may have created its own scope table by now —
+    // claim, so a successor run may have created its own scope table by now:
     // dropping the fixed-name table here could destroy the successor's
     // snapshot. Every run drops-and-recreates it at start, so a leftover is
     // harmless.
@@ -892,11 +892,11 @@ export async function cancelDatasetHmisImportRun(
 // restart sweep) leaves its version row holding the mint-time placeholder
 // (0 rows, empty stats) while real dataset_hmis rows reference it. Reconcile
 // from what is actually on disk: the exact row count from dataset_hmis, the
-// per-pair stats from the ledger (per-pair failure detail also lives there —
+// per-pair stats from the ledger (per-pair failure detail also lives there:
 // failedFetches stays empty here). A version with zero succeeded pairs is
-// deleted outright — succeeded_pairs increments inside each pair's
+// deleted outright: succeeded_pairs increments inside each pair's
 // transaction, so zero means no dataset_hmis row and no ledger row
-// references the version — keeping the "no empty versions" ruling true on
+// references the version: keeping the "no empty versions" ruling true on
 // every exit path. Idempotent: recomputing a finalized version writes the
 // same values.
 export async function finalizeInterruptedDatasetHmisRunVersion(
@@ -904,7 +904,7 @@ export async function finalizeInterruptedDatasetHmisRunVersion(
   runId: number,
 ): Promise<void> {
   // Bounded retry: a cancel can race the first successful pair's in-flight
-  // COMMIT — we read succeeded_pairs = 0, take the delete branch, and the
+  // COMMIT: we read succeeded_pairs = 0, take the delete branch, and the
   // DELETE FK-aborts against the just-committed child rows. Re-reading then
   // sees the committed increment and takes the recompute branch instead.
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -946,7 +946,7 @@ export async function finalizeInterruptedDatasetHmisRunVersion(
         if (attempt < 2) {
           continue;
         }
-        // Still referenced with a zero counter — a state normal paths cannot
+        // Still referenced with a zero counter: a state normal paths cannot
         // produce (references and the counter commit in the same
         // transaction). Keep the version and reconcile it rather than
         // failing the caller (cancel/crash/sweep must always converge).
@@ -1039,7 +1039,7 @@ export async function markStaleRunningDatasetHmisImportRuns(
 }
 
 // Expands a run selection to its (indicator, month) pairs. Window enumeration
-// mirrors the run worker exactly — totals recorded at launch must equal the
+// mirrors the run worker exactly: totals recorded at launch must equal the
 // worker's work list.
 export function enumerateRunPairs(
   selection: Dhis2RunSelection,
@@ -1058,7 +1058,7 @@ export function enumerateRunPairs(
   }
   // Both bounds must be real period ids BEFORE the loop runs: the loop
   // visits every integer in the range, so an unbounded endPeriod (the Zod
-  // schema only checks int) would spin the event loop for the whole server —
+  // schema only checks int) would spin the event loop for the whole server:
   // the deleted DHIS2 wizard step carried this exact guard.
   if (
     !isValidPeriodId(selection.startPeriod) ||

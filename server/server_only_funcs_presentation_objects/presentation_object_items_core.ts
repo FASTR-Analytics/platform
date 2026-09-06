@@ -33,7 +33,7 @@ export async function getPresentationObjectItemsCore(
     // can't see (it has no table access): AVG without a post-aggregation
     // expression is only re-averageable when rows are raw facility
     // observations. Mirrors isRollupEligibleResultsValue; app clients never
-    // send this — guards hand-crafted requests.
+    // send this: guards hand-crafted requests.
     if (
       fetchConfig.rollupDim !== undefined &&
       fetchConfig.postAggregationExpression === undefined &&

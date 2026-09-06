@@ -1,5 +1,5 @@
 // ============================================================================
-// Module Definition — INSTALLED SHAPE (stored in modules.module_definition)
+// Module Definition: INSTALLED SHAPE (stored in modules.module_definition)
 //
 // This file contains ONLY the Zod schema for the stored blob.
 // Metrics are stored separately in the metrics table, not here.
@@ -14,7 +14,7 @@ import { z } from "zod";
 // "calculated_indicators" is retired from authoring (it is absent from the
 // GitHub enum) but stays here forever: module definitions are stored verbatim
 // as JSON in packages and in the project DB, and stored vocabulary never
-// shrinks. It is inert data — no dispatch arm reads it.
+// shrinks. It is inert data: no dispatch arm reads it.
 export const scriptGenerationType = z.enum([
   "template",
   "hfa",
@@ -34,7 +34,7 @@ export const dataSourceResultsObject = z.object({
   moduleId: z.string(),
 });
 
-// The run's person-years file — see dataSourcePopulationGithub.
+// The run's person-years file: see dataSourcePopulationGithub.
 export const dataSourcePopulation = z.object({
   sourceType: z.literal("population"),
   replacementString: z.string(),
@@ -121,7 +121,7 @@ export const moduleDefinitionInstalledStrict = z.object({
   script: z.string(),
   assetsToImport: z.array(assetToImport),
   resultsObjects: z.array(resultsObjectDefinitionInstalledStrict),
-  // defaultPresentationObjects was removed in PLAN_RESULTS_RUNS item 5b —
+  // defaultPresentationObjects was removed in PLAN_RESULTS_RUNS item 5b:
   // defaults are derived from metric viz presets, never stored. Old blobs
   // still carrying the key parse fine (strip mode).
 });

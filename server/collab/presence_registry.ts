@@ -71,7 +71,7 @@ export function updateConnectionPresence(
     poId: view.poId,
     editingFigureId: view.editingFigureId,
     idle: view.idle,
-    // Server-owned (markConnectionEditing) — a view update must not clear it.
+    // Server-owned (markConnectionEditing): a view update must not clear it.
     isEditing: conn.entry.isEditing,
   };
 }
@@ -79,7 +79,7 @@ export function updateConnectionPresence(
 /**
  * Stamp `isEditing` on a connection because it just applied a document update
  * (slide/report/po). Broadcasts only on the false→true transition; every call
- * re-arms the quiet-period timer whose expiry broadcasts the clear — so a
+ * re-arms the quiet-period timer whose expiry broadcasts the clear, so a
  * continuous typing burst costs two presence broadcasts total, not one per
  * keystroke batch.
  */
@@ -109,8 +109,8 @@ export function markConnectionEditing(
 }
 
 /** Force-close every connection authenticated as `email` (user email rename):
- *  the socket's authorization — including the email stamped into room-edit
- *  attribution — was frozen at connect time and cannot be patched in place, so
+ *  the socket's authorization, including the email stamped into room-edit
+ *  attribution, was frozen at connect time and cannot be patched in place, so
  *  the connection is closed and the client reconnects under its refreshed
  *  identity. Deregisters immediately (the socket's own close handler makes
  *  removeConnection a no-op later) and broadcasts each affected project. */
@@ -162,7 +162,7 @@ export function removeConnection(projectId: string, connectionId: string): void 
 }
 
 /** Relay a project-scoped Yjs awareness update (page-level live cursors) to
- *  every OTHER connection in the project. Opaque bytes — never decoded,
+ *  every OTHER connection in the project. Opaque bytes, never decoded,
  *  never persisted; same visibility class as presence broadcasts. */
 export function relayProjectAwareness(
   projectId: string,

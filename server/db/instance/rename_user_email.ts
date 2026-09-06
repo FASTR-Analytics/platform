@@ -19,7 +19,7 @@ import {
 // =============================================================================
 //
 // users.email is the PRIMARY KEY, referenced everywhere permissions, logs and
-// attribution live — so an email change is an account rename, not a column
+// attribution live, so an email change is an account rename, not a column
 // update. Every FK to users(email) is ON DELETE CASCADE with no ON UPDATE
 // CASCADE, which forces the shape of the main-DB rename: insert a copy of the
 // row under the new email, repoint every child row, then delete the old row
@@ -36,7 +36,7 @@ import {
 // Main DB
 // ---------------------------------------------------------------------------
 
-// FK children of users(email) — repointed in the transaction and asserted
+// FK children of users(email): repointed in the transaction and asserted
 // empty right before the old row is deleted, so a future FK added without
 // updating this list fails the rename loudly instead of letting the delete
 // cascade rows away silently.
@@ -49,7 +49,7 @@ const USERS_FK_CHILDREN = [
   { table: "asset_metadata", column: "uploader_email" },
 ] as const;
 
-/** Which of the two addresses exist as users here — drives the fleet
+/** Which of the two addresses exist as users here: drives the fleet
  *  orchestrator's dry-run preview and its decision to run the local rename. */
 export async function getUserEmailPresence(
   mainDb: Sql,
@@ -91,7 +91,7 @@ export async function renameUserEmailInMainDb(
       };
     }
     if (!oldRow) {
-      // Already renamed (e.g. a retried fleet run) — succeed without touching
+      // Already renamed (e.g. a retried fleet run): succeed without touching
       // the users row; the caller still runs the attribution sweeps.
       return { success: true, data: { changed: false, affectedRoleProjectIds: [] } };
     }
@@ -108,7 +108,7 @@ export async function renameUserEmailInMainDb(
       await sql`UPDATE user_logs SET user_email = ${newEmail} WHERE user_email = ${oldEmail}`;
       await sql`UPDATE user_logs_aggregate SET user_email = ${newEmail} WHERE user_email = ${oldEmail}`;
       await sql`UPDATE ai_usage_logs SET user_email = ${newEmail} WHERE user_email = ${oldEmail}`;
-      // Composite PK, no FK — rows under the new email may already exist
+      // Composite PK, no FK: rows under the new email may already exist
       // (leftovers of a previously-deleted account), so merge instead of a
       // blind UPDATE that could hit a unique violation.
       await sql`
@@ -137,7 +137,7 @@ export async function renameUserEmailInMainDb(
       await sql`DELETE FROM users WHERE email = ${oldEmail}`;
 
       // Written inside the transaction (keyed to the new email, which now
-      // exists) so machine-authenticated calls leave an audit row too — the
+      // exists) so machine-authenticated calls leave an audit row too: the
       // log() middleware's fire-and-forget insert has no valid user_email FK
       // target on that path.
       await sql`
@@ -168,7 +168,7 @@ export async function renameUserEmailInProjects(
   let projectsUpdated = 0;
   const projectsFailed: string[] = [];
   for (const project of projects) {
-    // A dedicated short-lived pool, NOT getPgConnectionFromCacheOrNew — the
+    // A dedicated short-lived pool, NOT getPgConnectionFromCacheOrNew: the
     // cache keeps every pool forever, and a fleet sweep must not permanently
     // add one 20-connection pool per project.
     const projectDb = getPgConnection(project.id);
@@ -234,7 +234,7 @@ async function renameEmailInLiveReportAuthors(
 
 /** Version snapshots are immutable once written, so plain UPDATEs are safe.
  *  The LIKE prefilter only skips rows the email cannot appear in ("_" in an
- *  email can over-match — harmless, the rewrite then reports unchanged). */
+ *  email can over-match: harmless, the rewrite then reports unchanged). */
 async function renameEmailInVersionRows(
   sql: Sql,
   oldEmail: string,

@@ -196,7 +196,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
         initialValues: current,
         // max_tokens is exposed so the truncation notice's "increase max
         // tokens in the AI settings" advice is actionable. The model list is
-        // panther's MODEL_OPTIONS — curated there, not per app.
+        // panther's MODEL_OPTIONS: curated there, not per app.
         adjustable: ["model", "max_tokens"],
       },
     });
@@ -375,7 +375,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
     }
   };
 
-  // The per-mode label switch moved onto the view registry (ai_views.ts) —
+  // The per-mode label switch moved onto the view registry (ai_views.ts):
   // the controller resolves the current view's label.
   const titleSubtext = () => projectAIViewController.currentLabel();
 

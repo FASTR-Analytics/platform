@@ -9,8 +9,8 @@ import { getReplicantOptionsFromCacheOrFetch } from "~/state/project/t2_replican
 
 // Strict replicant validation, shared by every path where the AI CREATES or EDITS
 // a figure (from_metric, from_visualization, update_figure). Throws with the
-// valid-value list when a figure has an active replicant but no — or an invalid —
-// selectedReplicantValue, so the AI gets a clear error instead of a silent
+// valid-value list when a figure has an active replicant but no selectedReplicantValue,
+// or an invalid one, so the AI gets a clear error instead of a silent
 // auto-default.
 //
 // The non-AI / interactive render paths deliberately do NOT call this: they

@@ -64,7 +64,7 @@ export async function migrateInstanceConfigs(tx: Sql): Promise<MigrationStats> {
     // Apply transforms
     transformStructureSchema(transformed);
 
-    // Validate against current schema — throws if invalid
+    // Validate against current schema: throws if invalid
     const validated = structureSchemaSchema.parse(transformed);
 
     // Write back

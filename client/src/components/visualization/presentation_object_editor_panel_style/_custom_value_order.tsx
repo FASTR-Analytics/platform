@@ -31,8 +31,8 @@ type Props = {
 };
 
 // One row per orderable dimension. A row stays visible whenever a stored
-// order exists — even when the dimension's values are unavailable
-// (too_many_values / error) or the dimension is no longer displayed — because
+// order exists, even when the dimension's values are unavailable
+// (too_many_values / error) or the dimension is no longer displayed, because
 // the stored order still applies at render and this row's clear button is the
 // only way to remove it (same trap the filters panel guards against).
 type OrderRow = {

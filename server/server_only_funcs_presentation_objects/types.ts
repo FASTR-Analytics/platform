@@ -7,7 +7,7 @@ import type {
 } from "lib";
 import type { DynamicPeriodColumn } from "./period_helpers.ts";
 
-// The engine seam: cores build one SQL string and execute it through this —
+// The engine seam: cores build one SQL string and execute it through this:
 // the run read path (server/run_query/run_read.ts) supplies the
 // DuckDB-over-parquet executor.
 export type SqlRowsExecutor = (
@@ -51,7 +51,7 @@ export interface QueryContext {
   // TEXT-typed columns across the results table AND the joined facilities
   // table, by bare column name. Gates the blank fold: its SQL is text-only
   // (trim, and a text sentinel in the CASE result), and disaggregation
-  // columns are not reliably text — module authors declare the type, so
+  // columns are not reliably text: module authors declare the type, so
   // `time_point` is integer in one instance here and text in another.
   textColumns: ReadonlySet<string>;
 }

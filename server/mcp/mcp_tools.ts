@@ -35,13 +35,13 @@ type AnyTool = AIToolWithMetadata<any>;
 ////////////////////////////////////////////////////////////////////////////////
 //
 // tools/list must answer statelessly, and panther builds a principal's tool
-// set ONCE per core (30 min idle TTL) — but the package behind the tools is
+// set ONCE per core (30 min idle TTL), but the package behind the tools is
 // the instance's pin, which can move mid-session. So each package tool is a
 // static outer tool (name/description/schema from a boot-time template
-// instantiated against a throwing env and empty catalogs — the factories are
+// instantiated against a throwing env and empty catalogs: the factories are
 // pure over their inputs and their schemas are static) that resolves the
 // CURRENT pinned-package context per call and delegates to the inner tool by
-// name (bindAITool). If a template handler ever runs, delegation failed —
+// name (bindAITool). If a template handler ever runs, delegation failed:
 // fail loudly.
 
 function templateThrow(): never {
@@ -79,7 +79,7 @@ export function buildMcpToolsForPrincipal(principal: McpPrincipal): AnyTool[] {
     handler: async () => {
       const instanceState = await resolveInstanceState(principal);
       const runId = await resolvePinnedRunId();
-      // The overview answers WITHOUT a pin — a connector still connects and
+      // The overview answers WITHOUT a pin: a connector still connects and
       // the model can explain what to do; every other tool fails typed.
       if (runId === null) {
         return [
@@ -116,7 +116,7 @@ export function buildMcpToolsForPrincipal(principal: McpPrincipal): AnyTool[] {
 
   // The 2 package tools, bound: the outer tool is the boot-time template
   // (static schema); resolve() runs per call, reads the pin, and hands back
-  // the inner tool from that package's context — authorization (instance
+  // the inner tool from that package's context, authorization (instance
   // can_view_data) runs inside resolvePackageContext on every cold resolve,
   // and every data access runs through the headless middleware chain
   // regardless.

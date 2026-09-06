@@ -444,7 +444,7 @@ export function ProjectSettings(p: Props) {
   );
 }
 
-// Scope edits are global-admin-only server-side (the updateProject class —
+// Scope edits are global-admin-only server-side (the updateProject class:
 // project identity, like label edits).
 function ProjectScopeForm(p: AlertComponentProps<void, boolean>) {
   const [tempScope, setTempScope] = createSignal<ProjectScopeSelection>(

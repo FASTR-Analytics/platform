@@ -14,9 +14,9 @@ import type { ClientAIToolEnv } from "../../client_env";
 // Renders a figure's stored config + the options needed to edit it, so the AI
 // can read back exactly what a figure shows (incl. the active replicant and the
 // per-dimension display slots) and patch it via update_figure. Reads the
-// injected dimension-label config for display labels — not pure, but
+// injected dimension-label config for display labels: not pure, but
 // slide-agnostic (reusable for reports).
-// `shownDateRange` is the FigureBundle's dateRange — the period range of the
+// `shownDateRange` is the FigureBundle's dateRange: the period range of the
 // items the figure actually displays, frozen at the last resolve. Callers hold
 // the bundle; pass bundle.dateRange (undefined when unresolved).
 export async function formatFigureConfigForAI(
@@ -120,7 +120,7 @@ export async function formatFigureConfigForAI(
         } from ${pf.min} to ${pf.max}`,
       );
     } else {
-      // Non-custom filters resolve against LIVE data at query time —
+      // Non-custom filters resolve against LIVE data at query time:
       // from_month discards its stored max ("to present"), relative types
       // re-anchor. A figure's items are frozen at the last resolve, so print
       // both truths: the filter's meaning and the range actually shown.

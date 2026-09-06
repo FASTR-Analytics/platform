@@ -40,7 +40,7 @@ import {
 
 // See the HMIS file's header note. computeDatasetHfaRunCapture does the
 // instance reads + COPY export and returns every captured row set. Capture
-// is always the FULL dataset — every service category's indicator
+// is always the FULL dataset: every service category's indicator
 // definitions and R code ship in the run (PLAN_FULL_CAPTURE_GENERATION
 // ruling 2026-08-03).
 
@@ -120,7 +120,7 @@ export async function computeDatasetHfaRunCapture(
     `
     ).filter((c) => indicatorVarNames.has(c.var_name));
 
-    // Staleness metadata — stored in datasets.info so the client can detect
+    // Staleness metadata: stored in datasets.info so the client can detect
     // when the project's export is behind the instance.
     const hfaTimePointRowsForHash = await mainDb<
       { label: string; sort_order: number; imported_at: string | null }[]
@@ -146,7 +146,7 @@ export async function computeDatasetHfaRunCapture(
 
     if (onProgress) await onProgress(0.5, "Exporting HFA data to CSV...");
 
-    // Admin columns up to the HFA registry's own depth — never a global max
+    // Admin columns up to the HFA registry's own depth: never a global max
     const adminAreaColumns = [];
     for (let i = 1; i <= resStructureSchema.data.adminDepth; i++) {
       adminAreaColumns.push(`admin_area_${i}`);
@@ -251,7 +251,7 @@ COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADE
       ORDER BY var_name
     `)) as Array<{ var_name: string; sample_values: string | null }>;
     // NOTE: `hfaIndicators` here are the raw HFA *survey variables* (var_name =
-    // fin_01a_a, hr_01, ...) drawn from hfa_data — a DIFFERENT namespace from the
+    // fin_01a_a, hr_01, ...) drawn from hfa_data: a DIFFERENT namespace from the
     // hfa_indicators *definition* ids (ind001, ...). The service-category scope
     // filters indicator DEFINITIONS + their code only; the available survey
     // variables must stay complete or indicator R code can't resolve them.

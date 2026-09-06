@@ -2,7 +2,7 @@ import type { DisaggregationOption, StructureColumns } from "lib";
 
 // The physical columns a results object may carry that are disaggregation
 // options in their own right. Availability is derived from the parquet's
-// stamped column set at finalize — never probed at read time.
+// stamped column set at finalize, never probed at read time.
 export const PHYSICAL_DISAGGREGATION_COLUMNS: DisaggregationOption[] = [
   "admin_area_2",
   "admin_area_3",

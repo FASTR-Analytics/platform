@@ -5,7 +5,7 @@ import { serverActions } from "~/server_actions";
 import { getAdminAreaLabel } from "~/state/instance/_util_disaggregation_label";
 
 // The picker's working state: "single with no area chosen yet" is a real
-// interim UI state (adminArea2 undefined) that callers must reject on save —
+// interim UI state (adminArea2 undefined) that callers must reject on save:
 // the stored value is always string | null (null = national).
 export type ProjectScopeSelection =
   | { mode: "national" }
@@ -70,7 +70,7 @@ export function ProjectScopePicker(p: Props) {
             // selection-dependent list would recreate every <option> node on
             // each pick and the browser resets the select to its first
             // option. The one entry that isn't in the structure list is the
-            // INITIAL stored value (a structure re-upload can orphan it —
+            // INITIAL stored value (a structure re-upload can orphan it:
             // cleanupUnusedAdminAreas); it stays visible and selectable
             // because a blank select whose next save rewrites the identity
             // is exactly what the "never silently cleared" ruling forbids.

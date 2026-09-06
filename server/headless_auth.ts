@@ -9,8 +9,8 @@ import {
   _CLERK_SECRET_KEY,
 } from "./exposed_env_vars.ts";
 
-// The headless credential seam (PLAN_MCP_OAUTH). Headless clients — Claude
-// Code with a PAT, claude.ai with a Clerk OAuth grant — carry no cookies, so
+// The headless credential seam (PLAN_MCP_OAUTH). Headless clients: Claude
+// Code with a PAT, claude.ai with a Clerk OAuth grant: carry no cookies, so
 // their identity is resolved from the Authorization header alone.
 //
 // There are exactly TWO judgment points, and both call this one function:
@@ -20,9 +20,9 @@ import {
 //
 // Verifying only at the door is not enough: an OAuth connector would connect
 // and list tools, then fail on every real tool dispatch. Because the credential
-// enters through this single seam, every property the dispatch path provides —
+// enters through this single seam, every property the dispatch path provides:
 // deny-by-default allowlist, identity parity with the cookie mount, revocation
-// reaching staged commits — extends to any credential type added here.
+// reaching staged commits: extends to any credential type added here.
 //
 // Contract: null means "not a valid headless credential" (callers answer 401);
 // a THROW means the backend could not judge the credential (callers answer
@@ -38,7 +38,7 @@ export async function resolveHeadlessCredentialEmail(
   }
   const token = authorizationHeader.slice(BEARER_PREFIX.length);
 
-  // PAT branch FIRST and unchanged — this is the regression surface for Claude
+  // PAT branch FIRST and unchanged: this is the regression surface for Claude
   // Code. One round trip both verifies the token and stamps last_used_at, so a
   // revoked PAT stops working on the very next dispatch.
   if (token.startsWith(PAT_PREFIX)) {
@@ -56,7 +56,7 @@ export async function resolveHeadlessCredentialEmail(
 // LOAD-BEARING, not an optimization. Clerk's OAuth auth object carries userId
 // but NO email, so resolving one costs a Backend API call (users.getUser), and
 // an opaque token costs a second one to verify. Every MCP tool call dispatches
-// several server actions, each re-presenting the credential — without this
+// several server actions, each re-presenting the credential: without this
 // cache a single tool call would burn a handful of rate-limited Clerk calls.
 //
 // The TTL is therefore doing two jobs at once: bounding cost, and bounding the
@@ -72,7 +72,7 @@ export async function resolveHeadlessCredentialEmail(
 // ACCEPTED, not overlooked: this means a flood of DISTINCT well-shaped tokens
 // (`oat_…` or JWT-shaped) costs one Clerk Backend API call each and can burn
 // the instance's rate limit, degrading OAuth auth to 503s. Unshaped garbage is
-// free — Clerk rejects it on the prefix with no network call — so this needs a
+// free: Clerk rejects it on the prefix with no network call, so this needs a
 // deliberate attacker. Negative caching would NOT fix it: the cache is keyed by
 // token, so an attacker who varies the token misses every time. The real
 // mitigation, if this ever matters, is request-rate limiting at the edge or a
@@ -108,7 +108,7 @@ function oauthEmailSet(token: string, email: string): void {
   }
 }
 
-// Clerk folds EVERY verification failure into a non-throwing signed-out state —
+// Clerk folds EVERY verification failure into a non-throwing signed-out state:
 // including "your secret key is wrong" and "the network is down". Mapping all
 // of those to null would answer 401 during a Clerk outage, and a 401 tells a
 // client its token is bad, so it discards a perfectly good grant and forces the
@@ -116,7 +116,7 @@ function oauthEmailSet(token: string, email: string): void {
 // direction: only reasons that unambiguously mean "this credential is bad"
 // resolve to null; anything else throws and becomes a 503 the client retries.
 const BAD_CREDENTIAL_REASONS: readonly string[] = [
-  // Clerk answered 404 — unknown, expired, or revoked token.
+  // Clerk answered 404: unknown, expired, or revoked token.
   "token-invalid",
   // A Bearer token that is not an OAuth access token at all. Note this costs
   // NO network call: Clerk short-circuits on the token prefix, so unshaped
@@ -133,7 +133,7 @@ const BAD_CREDENTIAL_REASONS: readonly string[] = [
 //    `token-verification-failed`, which is NOT in the list above and therefore
 //    throws → 503. An EXPIRED token would then make a client retry instead of
 //    refreshing, so every connector session wedges at token expiry. Do not fix
-//    by adding that reason to the list — that would misreport a JWKS outage as
+//    by adding that reason to the list, that would misreport a JWKS outage as
 //    a bad credential. The correct fix is a local `exp` pre-check for
 //    JWT-shaped tokens, mapping only genuine expiry to null.
 // 2. If OPAQUE: the SDK reads `revoked`/`expired` off the verified token record
@@ -204,7 +204,7 @@ async function resolveOAuthAccessTokenEmail(
   }
   const user = await client.users.getUser(userId);
 
-  // The PRIMARY email specifically — it is the same address Clerk puts in the
+  // The PRIMARY email specifically: it is the same address Clerk puts in the
   // session claim the cookie mount reads, which is what makes an OAuth caller
   // and a browser login resolve to the identical FASTR user. (Like the cookie
   // mount, this trusts Clerk's own primary-address handling; we do not re-check

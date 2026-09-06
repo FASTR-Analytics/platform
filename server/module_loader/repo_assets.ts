@@ -10,10 +10,10 @@ import { MODULE_SOURCE } from "./module_source.ts";
 // Content-addressed cache of pinned modules-repo assets (PLAN_RESULTS_RUNS
 // item 2 ruling, 2026-07-13; re-cut 2026-08-03): a definition's
 // {name, repoPath, sha256} entry is fetched from the modules repo at the SAME
-// gitRef the definition was resolved at — definition and data are read from
-// one commit and can never disagree — verified against sha256, and stored at
+// gitRef the definition was resolved at: definition and data are read from
+// one commit and can never disagree, verified against sha256, and stored at
 // {ASSETS_DIR}/repo_assets/{sha256}. Cache entries are immutable by
-// construction — a hit never refetches. In dev (local module source) the file
+// construction: a hit never refetches. In dev (local module source) the file
 // is read from the modules-repo working tree; a sha mismatch there means the
 // definition wasn't rebuilt after the data file changed, and fails loudly
 // either way. Module containers stay network-free: only the Deno process

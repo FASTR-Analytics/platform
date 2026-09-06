@@ -43,7 +43,7 @@ import {
 import { computeAttributedDiff } from "./version_diff";
 
 // Live canvases are expensive (panther warns around 12-14 mounted at once, and
-// the deck UI underneath this panel keeps its own) — page the grid at 6.
+// the deck UI underneath this panel keeps its own): page the grid at 6.
 const SLIDES_PER_PAGE = 6;
 
 type SlideBadge = {
@@ -58,7 +58,7 @@ type ElementRow = {
   color: string;
   oldText?: string;
   newText?: string;
-  /** Figure/image block snapshots — drive a before/after preview. */
+  /** Figure/image block snapshots: drive a before/after preview. */
   oldBlock?: ContentBlock;
   newBlock?: ContentBlock;
   authorLabel: string;
@@ -99,7 +99,7 @@ export function DeckVersionPreview(p: {
   projectId: string;
   deckId: string;
   versionId: string;
-  /** The version immediately BEFORE this one — session badges and ghosts
+  /** The version immediately BEFORE this one: session badges and ghosts
    *  diff against it. undefined = oldest version. */
   previousVersionId?: string;
   canRestore: boolean;
@@ -125,8 +125,8 @@ export function DeckVersionPreview(p: {
       if (!res.success) {
         return res;
       }
-      // A failed previous-version load is NOT the same as "oldest version" —
-      // conflating them would positively badge every slide "New — Added by …".
+      // A failed previous-version load is NOT the same as "oldest version":
+      // conflating them would positively badge every slide "New: Added by …".
       let prev: DeckVersionDetail | null = null;
       let prevFailed = false;
       if (p.previousVersionId) {
@@ -365,7 +365,7 @@ export function DeckVersionPreview(p: {
               });
         }
 
-        // The figure's caption (from either side's bundle) — with several viz
+        // The figure's caption (from either side's bundle): with several viz
         // blocks on one slide it says WHICH chart the row is about.
         function figureCaption(ch: SlideElementChange): string | undefined {
           for (const b of [ch.newBlock, ch.oldBlock]) {
@@ -397,7 +397,7 @@ export function DeckVersionPreview(p: {
                 sl?.elements?.[ch.key] ??
                 sl?.edited,
             );
-            // Exact deleters of text INSIDE the element — attributes the
+            // Exact deleters of text INSIDE the element: attributes the
             // removed spans of an edited row's mini diff. Marked exact only
             // for a single deleter (two deleters can't be told apart per span).
             const textDeleters = sl?.elementsTextDeleted?.[ch.key];
@@ -884,7 +884,7 @@ function ExpandedVersionSlideModal(
                           removedLabelExact: row.removedExact,
                           removedLabelEmail: row.removedEmail,
                           // Per-character runs (when the session ledger was
-                          // live) — exact per-span attribution via the ghost
+                          // live): exact per-span attribution via the ghost
                           // path, ahead of the label fallbacks above.
                           authors: row.authors,
                           names: row.authorNames,

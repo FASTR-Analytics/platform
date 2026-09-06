@@ -34,7 +34,7 @@ type RunListingRow = {
 };
 
 // summary/progress are stored JSON; a malformed blob degrades that field to
-// null rather than hiding the row — a run the catalogue cannot summarise is
+// null rather than hiding the row: a run the catalogue cannot summarise is
 // still a run an admin must be able to see and delete.
 function toRunListingItem(row: RunListingRow): RunListingItem {
   let summary: RunSummary | null = null;
@@ -63,7 +63,7 @@ function toRunListingItem(row: RunListingRow): RunListingItem {
 // The instance catalogue (Phase 3 item 3): every run on the instance, newest
 // first, each with the projects currently pointing at it. Those pointers are
 // both the "attached projects" column and the delete guard's subject, so
-// they come from projects.run_id — the serving pointer — never from the
+// they come from projects.run_id, the serving pointer, never from the
 // summary's launch-time attach selection, which says nothing about where a
 // run ended up.
 export async function listRunCatalog(
@@ -108,7 +108,7 @@ ORDER BY r.created_at DESC
 // delete; a refusal re-reads the row to say WHY. The caller
 // (server/runs/delete_run.ts) owns the run dir and cache purge and only runs
 // them once this returns deleted. The pinned refusal is a code guard by
-// necessity — a boolean column carries no FK protection the way
+// necessity: a boolean column carries no FK protection the way
 // projects.run_id does (SYSTEM_08 "Delete protection is a code guard").
 export async function deleteRunCatalogRow(
   mainDb: Sql,
@@ -162,7 +162,7 @@ FROM runs r WHERE r.id = ${runId}
   }
 }
 
-// One catalogue row by id — the `attachedRun` half of a project's
+// One catalogue row by id: the `attachedRun` half of a project's
 // starting/run_attached payloads (a run belongs to no project, so the row is
 // read from the runs table, never denormalised onto projects). null when no
 // such run: the typed absent state, not an error.
@@ -191,7 +191,7 @@ WHERE r.id = ${runId}
 
 // The picker's options: every ready package on the instance, newest first,
 // the attached one included (a Select lists its current value). A narrowing
-// of the instance catalogue rather than a different fact — the same rows,
+// of the instance catalogue rather than a different fact: the same rows,
 // without the catalogue's housekeeping columns, for a surface whose only act
 // is a repoint.
 export async function listAttachableRunsForProject(
@@ -216,11 +216,11 @@ ORDER BY r.created_at DESC
 }
 
 // The repoint itself: the publish transaction's pointer UPDATE minus the
-// status flip (§2.6 — swapping packages is an UPDATE plus an SSE notify).
+// status flip (§2.6: swapping packages is an UPDATE plus an SSE notify).
 //
 // The ready gate is IN the UPDATE, so a candidate cannot fail or be deleted
 // between the compatibility report and the write; the `projects.run_id` FK
-// (migration 065, no cascade) closes the other side of that race — a
+// (migration 065, no cascade) closes the other side of that race: a
 // concurrent delete of this run blocks on the FK's row lock and then hits its
 // own not-referenced guard. A refused write re-reads to say which reason.
 export async function setProjectAttachedRun(
@@ -270,16 +270,16 @@ SELECT status FROM runs WHERE id = ${runId}
 // Every pin write takes this transaction-scoped advisory lock, so pin-moves
 // and unpins serialize (last write wins) instead of the loser tripping the
 // partial unique index or an unpin silently missing a row its snapshot never
-// saw — verified by execution under READ COMMITTED.
+// saw: verified by execution under READ COMMITTED.
 const PINNED_RUN_ADVISORY_LOCK_KEY = 727402;
 
-// Pin-move: unpin-all then pin-target, in ONE transaction. Not one UPDATE —
+// Pin-move: unpin-all then pin-target, in ONE transaction. Not one UPDATE:
 // verified by execution: Postgres checks the partial unique index
 // (`runs_one_pinned`) per row as an UPDATE proceeds, so `SET pinned = (id =
 // $1) WHERE pinned OR id = $1` trips it whenever the new row is visited
 // before the old. The ready gate is IN the pinning UPDATE exactly as in
-// setProjectAttachedRun — a run that failed or was deleted between the click
-// and the write cannot become pinned — and a zero-row second UPDATE throws
+// setProjectAttachedRun: a run that failed or was deleted between the click
+// and the write cannot become pinned, and a zero-row second UPDATE throws
 // to roll the unpin back, so a bad target leaves the current pin untouched.
 // The re-read then says why.
 export async function setPinnedRun(
@@ -400,7 +400,7 @@ SELECT run_id FROM projects WHERE id = ${projectId}
   }
 }
 
-// The follower roster — for the pin-move loop and for the pin confirm. The
+// The follower roster: for the pin-move loop and for the pin confirm. The
 // loop skips locked projects (a roster-time snapshot; the lock refusal itself
 // is route middleware, not an attach-layer gate) and ones already on the
 // target.
@@ -434,8 +434,8 @@ ORDER BY label
 
 // The follower repoint: setProjectAttachedRun's UPDATE plus `r.pinned` in
 // the gate, so a pin-move loop that has been superseded (another pin-move
-// or an unpin landed while it was running) writes NOTHING and learns it —
-// "pin_moved" — instead of moving a project onto a package that is no
+// or an unpin landed while it was running) writes NOTHING and learns it:
+// "pin_moved": instead of moving a project onto a package that is no
 // longer the pin. Verified by execution: two overlapping loops cannot
 // leave a follower on the older target, whichever writes last.
 export async function setProjectAttachedRunIfPinned(
@@ -469,7 +469,7 @@ SELECT id FROM runs WHERE id = ${runId} AND pinned
   }
 }
 
-// The flag write only — the enable-time attach and the notify are
+// The flag write only: the enable-time attach and the notify are
 // server/runs/pin_run.ts's. Returns label + isLocked so the caller can push
 // project_config_updated without a second read (the updateProject pattern).
 export async function setProjectFollowPinned(
@@ -501,7 +501,7 @@ RETURNING label, is_locked
 // the "is this the pin?" test and the clear cannot straddle a pin-move.
 // data = the project's label + isLocked when the flag was actually cleared
 // (the caller pushes project_config_updated), null when nothing changed.
-// The follower loop never calls this — it repoints through
+// The follower loop never calls this: it repoints through
 // setProjectAttachedRunIfPinned.
 export async function clearFollowPinnedIfNotPin(
   mainDb: Sql,
@@ -558,7 +558,7 @@ VALUES (
 // The launch concurrency guard's DB half (the in-memory registry is the
 // synchronous half): the projects a generation would repoint at publish are
 // its attach targets, so a launch is refused while any selected target is
-// already a target of a generating run. Targets live in the summary JSON —
+// already a target of a generating run. Targets live in the summary JSON:
 // the catalog deliberately has no project columns.
 export async function getGeneratingRunIdForAttachTargets(
   mainDb: Sql,
@@ -583,7 +583,7 @@ WHERE status = 'generating'
 
 // Launch-time eligibility of the confirm step's attach selection: a target
 // must still exist, be 'ready' (not copying, not scheduled for deletion) and
-// be unlocked — the same set the wizard's multi-select offers, re-checked
+// be unlocked: the same set the wizard's multi-select offers, re-checked
 // because the selection is made before launch. Returns a display name per
 // ineligible target (its label, or the id when the project is gone).
 export async function getIneligibleAttachTargetNames(
@@ -618,7 +618,7 @@ UPDATE runs SET progress = ${JSON.stringify(progress)} WHERE id = ${runId}
 `;
 }
 
-// Ready-publish: exactly one transaction after the atomic rename — status
+// Ready-publish: exactly one transaction after the atomic rename: status
 // flip, final summary/progress, and the projects.run_id repoint of every
 // attach target together, so readers can never observe a ready run without
 // the pointers (or vice versa). Zero targets is normal: a run generated
@@ -652,7 +652,7 @@ WHERE id = ANY(${args.attachTargetProjectIds})
 
 // Marks a generation failed, stamping errorDetail (and the current module's
 // error status) into the stored progress. Returns the updated progress for
-// the SSE push; null when the run row is gone — or no longer 'generating':
+// the SSE push; null when the run row is gone, or no longer 'generating':
 // only a generating run can fail, so a post-publish exception in a caller
 // must never flip a published, attached run to 'failed' (delete would be
 // blocked "in use" with nothing able to restore 'ready').
@@ -698,7 +698,7 @@ RETURNING id
 }
 
 // Boot recovery: a 'generating' row at startup belongs to a worker that died
-// with the previous process — no .tmp dir survives the boot sweep, so the
+// with the previous process: no .tmp dir survives the boot sweep, so the
 // row is dead. Mark it failed so the catalog never shows a phantom
 // generation.
 export async function markInterruptedGeneratingRuns(mainDb: Sql): Promise<void> {

@@ -1,5 +1,5 @@
 // =============================================================================
-// The run's indicator catalog — ONE derivation, two callers
+// The run's indicator catalog: ONE derivation, two callers
 // =============================================================================
 //
 // Composes IndicatorMetadata per module from the run's input mirrors. Called
@@ -8,7 +8,7 @@
 // dir), so a stamped catalog and a recomputed one cannot disagree.
 //
 // The read path never calls it: getIndicatorMetadataFromRun is a manifest
-// lookup. That is the point — this used to run per request, re-reading 5–8
+// lookup. That is the point: this used to run per request, re-reading 5–8
 // JSONs and re-sorting them in TS to replicate the DB ORDER BYs it replaced.
 //
 // Whatever this reads becomes a permanent part of the package format
@@ -60,9 +60,9 @@ const icehIndicatorRow = z.object({
 // indicators.json has TWO writer formats and ONE reader contract (PLAN_1a
 // §1.10). v1 (pre-restructure packages): id + label only, with a separate
 // calculated_indicators_snapshot.json beside it. v2 (this release onwards):
-// the whole common dictionary, resolved — type, flattened expression, slot
+// the whole common dictionary, resolved: type, flattened expression, slot
 // map, presentation and sort. The discriminator is the `type` field, which
-// only v2 rows carry — and v1 REJECTS a row carrying it (the z.never()),
+// only v2 rows carry, and v1 REJECTS a row carrying it (the z.never()),
 // so a drifted v2 row fails the union and raises RunInputRowSchemaError
 // (fail-stop, per the doctrine below) instead of silently parsing as v1 and
 // dropping every expression and slot map.
@@ -85,7 +85,7 @@ const indicatorRowV2 = z.object({
 
 const indicatorRow = z.union([indicatorRowV2, indicatorRowV1]);
 
-// The v1 snapshot's shape is FROZEN — a legacy package format, read as it was
+// The v1 snapshot's shape is FROZEN: a legacy package format, read as it was
 // written: a traffic-light pair in DISPLAY units per row, converted into a
 // rule at derive time (trafficLightThresholdsToRule).
 const calculatedIndicatorRow = z.object({
@@ -132,8 +132,8 @@ export async function buildRunIndicatorCatalog(
 
 // The manifest's `commonIndicators` field (PLAN_1a §1.9): the instance's
 // common indicator dictionary as the project shell shows it. Derived HERE,
-// once — at finalize from a v2 mirror, and by manifest transform block 4 from
-// a legacy package's v1 mirror — so the read path never opens a mirror again.
+// once: at finalize from a v2 mirror, and by manifest transform block 4 from
+// a legacy package's v1 mirror, so the read path never opens a mirror again.
 // Label-sorted, matching the per-request derivation it replaces.
 export async function buildRunCommonIndicators(
   readRows: RunInputRowsReader,
@@ -311,18 +311,18 @@ function isHfaScriptGeneration(moduleDefinition: string): boolean {
   }
 }
 
-// The two failure classes of an input mirror, kept apart on purpose — they sit
+// The two failure classes of an input mirror, kept apart on purpose: they sit
 // on opposite sides of the PROTOCOL_APP_MIGRATIONS failure table.
 //
-// RunInputReadError: the BYTES are unavailable — the listed file is missing or
+// RunInputReadError: the BYTES are unavailable, the listed file is missing or
 // unreadable, or what is there is not valid JSON. That is an operational fault
 // of the package (half-restored backup, truncated write), not invalid data and
 // not a code defect. The boot/read path catches it and funnels it into the
-// `unreadable` outcome — package unavailable, boot proceeds.
+// `unreadable` outcome: package unavailable, boot proceeds.
 //
 // RunInputRowSchemaError: the bytes ARE valid JSON but do not match the row
-// schema this file's rows are read with. That is shape drift — a row schema in
-// this file changed without a migration — so it is a code defect and must
+// schema this file's rows are read with. That is shape drift: a row schema in
+// this file changed without a migration, so it is a code defect and must
 // fail-stop boot exactly as a manifest Zod failure does. Nothing catches it.
 export class RunInputReadError extends Error {
   constructor(fileName: string, cause: string) {
@@ -351,7 +351,7 @@ function describeIssues(issues: z.ZodIssue[]): string {
   return rest > 0 ? `${shown} (+${rest} more)` : shown;
 }
 
-// A reader over a package directory on disk — the writer's tmp dir or an
+// A reader over a package directory on disk: the writer's tmp dir or an
 // existing package. `inputFiles` is the manifest's own list, so a mirror the
 // package does not carry is skipped without a stat.
 export function runDirInputRowsReader(

@@ -10,7 +10,7 @@ import { _SERVER_HOST } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 
 // Results-package status display, shared by the instance catalogue and the
-// project's Results package surface — the same run shown from two places
+// project's Results package surface: the same run shown from two places
 // must read identically.
 
 // Who may explore what a package CONTAINS (Tim's ruling 2026-08-18): a
@@ -77,7 +77,7 @@ export function RunStatusBadge(p: { status: RunCatalogStatus }) {
   );
 }
 
-// The instance's pinned package (SYSTEM_08) — same mark wherever a
+// The instance's pinned package (SYSTEM_08): same mark wherever a
 // package is listed: catalogue sidebar + detail, project card + picker.
 export function PinnedBadge() {
   return (

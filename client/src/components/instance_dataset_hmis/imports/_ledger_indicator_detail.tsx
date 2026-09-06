@@ -135,7 +135,7 @@ export function ImportLedgerIndicatorDetail(
         }
         if (!row.item.importedAt) {
           // Backfill rows predate tracking; anything else with no timestamp
-          // has never successfully imported — leave the cell empty rather
+          // has never successfully imported: leave the cell empty rather
           // than implying a pre-tracking import.
           return row.item.source === "backfill" ? ledgerSourceLabel("backfill") : "";
         }

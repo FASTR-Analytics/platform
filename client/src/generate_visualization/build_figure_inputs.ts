@@ -46,7 +46,7 @@ import {
 import { getGeoJsonSync } from "~/state/instance/t2_geojson";
 
 // Builds FigureInputs from a FigureBundle. All locale reads come from
-// bundle.localization — no ambient singletons. Throws on bad input.
+// bundle.localization: no ambient singletons. Throws on bad input.
 export function buildFigureInputs(
   bundle: FigureBundle,
   deckStyle?: DeckStyleContext,
@@ -76,7 +76,7 @@ export function buildFigureInputs(
   });
 
   // The disruptions chart compares two data values (actual vs expected) as two
-  // series and shades the diff between them — a single data value has nothing to
+  // series and shades the diff between them: a single data value has nothing to
   // compare. Fail with a clear message rather than a cryptic render crash.
   if (isSpecialDisruptionsChartActive(config) && effectiveValueProps.length < 2) {
     throw new Error(
@@ -85,7 +85,7 @@ export function buildFigureInputs(
   }
 
   // The V2 chart's diff pairs address series by POSITION, which under "--v" is
-  // the effective value-props order — a filtered subset would silently pair
+  // the effective value-props order: a filtered subset would silently pair
   // the wrong series. Require the full m011 shape exactly.
   if (isSpecialDisruptionsChartV2Active(config)) {
     const required = ["observed", "expected", "ppi_lwr", "ppi_upr"];
@@ -195,7 +195,7 @@ export function buildFigureInputs(
     if (!geoJson) {
       const level = getAdminAreaLevelFromMapConfig(effectiveConfig);
       // Each facility registry carries its OWN boundaries, so the level alone
-      // no longer identifies the missing map — an instance can have an HMIS
+      // no longer identifies the missing map: an instance can have an HMIS
       // AA2 map and no HFA one, and the maps page would show "a level 2 map
       // exists" while this metric still cannot render.
       const registry = geo && geo.kind === "level" && geo.family === "hfa"
@@ -253,7 +253,7 @@ export function buildFigureInputs(
     // Transform eagerly (timeseries precedent) so transform-time throws
     // (negative values, missing "--v" assignment) surface here inside the
     // caller's catch rather than at measure time inside panther. The
-    // transform coerces string values itself — no numeric parse needed.
+    // transform coerces string values itself: no numeric parse needed.
     const d = getPieDataTransformed({ jsonArray: items, jsonDataConfig: j });
     return {
       figureType: "pie",
@@ -265,7 +265,7 @@ export function buildFigureInputs(
       // Never pass an explicit legend: CF is unwired for slices (they color
       // via the series sentinel), so a cf* state carried over from a
       // chart/map conversion would show threshold/scale colors that appear
-      // nowhere on the figure — and an explicit legend would suppress the
+      // nowhere on the figure, and an explicit legend would suppress the
       // categorical slice legend panther derives from series headers.
       legend: undefined,
     };
@@ -343,7 +343,7 @@ function withDateRange(
     .replaceAll("INTERVALO_DE_DATAS", d);
 }
 
-// The package catalog's own order, ids only — what every indicator axis sorts
+// The package catalog's own order, ids only: what every indicator axis sorts
 // by (PLAN_1a §1.9). Entries with no stamped order follow, by id, so a mixed
 // catalog is still deterministic.
 function buildIndicatorIdOrder(metadata: IndicatorMetadataDisplay[]): string[] {

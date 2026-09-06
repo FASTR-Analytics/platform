@@ -15,7 +15,7 @@ import { defineRoute } from "../route-helpers.ts";
 
 // The project's Results package surface (PLAN_RESULTS_RUNS Phase 3 item 4):
 // pick a different package after seeing the §2.6 compatibility report, and
-// subscribe to the instance's pin. Reading a package — what it contains — is
+// subscribe to the instance's pin. Reading a package, what it contains, is
 // NOT here: it is a function of the runId alone and lives on the run-keyed
 // instance mount under the instance data bits (routes/instance/
 // run_generation.ts, Tim's ruling 2026-08-18); the attached row itself rides
@@ -72,8 +72,8 @@ defineRoute(
       params.run_id,
     );
     if (res.success) {
-      // A repoint changes attachedProjects — the catalogue's delete-blocking
-      // column — so the instance listing must move too, and the project
+      // A repoint changes attachedProjects: the catalogue's delete-blocking
+      // column, so the instance listing must move too, and the project
       // cards' package badge (ProjectSummary.attachedRunId) with it.
       notifyInstanceRunsCatalogUpdated();
       notifyInstanceProjectsLastUpdated(new Date().toISOString());
@@ -82,7 +82,7 @@ defineRoute(
   },
 );
 
-// The follow toggle — the enable-time attach + realign live in
+// The follow toggle: the enable-time attach + realign live in
 // server/runs/pin_run.ts (SYSTEM_08 "Enabling follow attaches immediately").
 defineRoute(
   routesProjectResultsPackage,

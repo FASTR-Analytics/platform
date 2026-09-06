@@ -145,7 +145,7 @@ function transformOneLayoutNode(
       node.data = { type: "figure" };
     }
     // Blocks 4/5/9/10/12: figure-block transforms (source rename + snapshotAt,
-    // embedded PO config, figureInputs normalization) — shared with the
+    // embedded PO config, figureInputs normalization): shared with the
     // dashboard/report sweeps via _figure_block.ts.
     if (node.data.type === "figure") {
       transformFigureBlock(node.data);
@@ -183,7 +183,7 @@ export async function migrateSlideConfigs(
     const config = JSON.parse(row.config);
     const storedCanonical = JSON.stringify(config);
 
-    // Already valid? Skip — unless legacy keys (which safeParse silently
+    // Already valid? Skip: unless legacy keys (which safeParse silently
     // strips) still need the embedded-config rename. figureInputs drift is
     // covered by this same safeParse: figureBlockSchema validates figureInputs
     // against panther's zFigureInputs (lib/types figureInputsSchema).
@@ -227,7 +227,7 @@ export async function migrateSlideConfigs(
     // P2: figureInputs removed by transformFigureBlockToBundle; nothing to warn.
 
     // Throws if the row is still invalid after every transform (including
-    // figureInputs drift the upgrader does not fix) — the runner then refuses
+    // figureInputs drift the upgrader does not fix): the runner then refuses
     // to start the server. The warn above names the offending figure block.
     const validated = slideConfigSchema.parse(config);
 

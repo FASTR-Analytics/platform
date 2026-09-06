@@ -47,7 +47,7 @@ function throwSlideUpdateError(err: string): never {
 }
 
 // Situational redirect that used to live in the requireDeckContext gate
-// message — the uniform view-gate refusal drops it, so it rides each deck
+// message: the uniform view-gate refusal drops it, so it rides each deck
 // tool's DESCRIPTION instead (the cache-stable channel the model reads
 // before its first refusal).
 const DECK_LEVEL_NOTE =
@@ -78,7 +78,7 @@ export function getClientToolsForSlides(
       },
     }),
 
-    // The one non-view-gated slides tool — reads by explicit slideId from
+    // The one non-view-gated slides tool: reads by explicit slideId from
     // any view.
     createGetSlideTool(projectId, metrics),
 

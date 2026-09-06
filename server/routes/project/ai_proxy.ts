@@ -4,7 +4,7 @@ import { proxyAnthropicMessages } from "../anthropic_messages_proxy.ts";
 
 export const routesAiProxy = new Hono();
 
-// Project-level AI proxy — guard + usage attribution only; the passthrough,
+// Project-level AI proxy: guard + usage attribution only; the passthrough,
 // governance, and beta policy are in anthropic_messages_proxy.ts (shared
 // with the instance proxy).
 routesAiProxy.post("/v1/messages", requireProjectPermission(), async (c) => {

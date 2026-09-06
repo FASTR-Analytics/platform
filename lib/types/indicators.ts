@@ -40,7 +40,7 @@ export type NewIndicatorIdIssue =
 // Applies to NEWLY created ids only (never to existing stored ids). Commas,
 // semicolons, and colons corrupt the STRING_AGG/split round-trip and the CSV
 // import re-split. Square brackets break the expression grammar's [quoted
-// identifier] form, which has no escape (PLAN_1a §1.3) — one rule for common
+// identifier] form, which has no escape (PLAN_1a §1.3): one rule for common
 // AND raw ids, since raw ids have no use for brackets either. Instance
 // migration 079 guards stored ids the same way. Dots stay legal (DHIS2
 // operand ids contain them).
@@ -82,9 +82,9 @@ export function describeNewIndicatorIdIssue(issue: NewIndicatorIdIssue): string 
 // What a common indicator IS (PLAN_1a §1.2, PLAN_1c). Generation decides what
 // the numbers are made of; the query only aggregates and applies the formula.
 //
-//   base    — mapped raw indicators, summed at extract. No formula. A count,
+//   base   : mapped raw indicators, summed at extract. No formula. A count,
 //             so its format is always `number`.
-//   derived — an arbitrary expression over other commons (base or derived;
+//   derived: an arbitrary expression over other commons (base or derived;
 //             chained by substitution) and population terms. Its additive
 //             ingredients travel on the results row and the expression is
 //             applied AFTER aggregation. A population term is written
@@ -230,7 +230,7 @@ export interface DHIS2PagedResponse {
 
 // How an indicator's values are written. Wider than a metric's own `formatAs`,
 // whose value branch is percent/number (the third value, "indicator", DEFERS to
-// this type rather than naming a format) — a rate is only ever an
+// this type rather than naming a format): a rate is only ever an
 // indicator-level fact.
 export type IndicatorFormat = "percent" | "number" | "rate_per_10k";
 
@@ -245,7 +245,7 @@ export type IndicatorMetadata = {
   group_label?: string;
   sort_order?: number;
   // Common-indicator evaluation, stamped for HMIS dictionaries only
-  // (PLAN_1a §1.5). `expression` is the FLATTENED formula — every identifier
+  // (PLAN_1a §1.5). `expression` is the FLATTENED formula: every identifier
   // in it is a base common indicator or a `population:<type>` term, and
   // `slot_map` says which ingredient column of an indicator_values row
   // carries that ingredient's sum. A `base` indicator's expression is its own

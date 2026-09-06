@@ -29,7 +29,7 @@ export type CachedGeoJsonMetadata = {
 };
 
 // Save-side cache payload: the full FeatureCollection (~20 MB for a
-// 200-district country) — kept only so a re-save doesn't re-fetch.
+// 200-district country): kept only so a re-save doesn't re-fetch.
 export type CachedHeavyGeoJson = {
   fetchedAt: number;
   featureCollection: GeoJsonFeatureCollection;

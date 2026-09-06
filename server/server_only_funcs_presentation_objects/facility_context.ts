@@ -34,7 +34,7 @@ export function computeFacilityContext(
 > {
   // Filter requested columns against enabled columns.
   // Sources (groupBys, filters[].disOpt) are DisaggregationOption, which does
-  // not include "facility_name" — that column is import/display metadata
+  // not include "facility_name": that column is import/display metadata
   // (toggled by includeNames, supplied by DHIS2), never a grouping dimension.
   // Deriving the intersection rather than naming the excluded member keeps this
   // honest if either union changes.

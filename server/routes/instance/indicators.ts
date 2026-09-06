@@ -22,8 +22,8 @@ import { defineRoute } from "../route-helpers.ts";
 export const routesIndicators = new Hono();
 
 // The definition arrives already shape-checked by the route registry's Zod
-// body schema. The expression — its grammar, its indicators and its
-// population terms — is validated in the DB layer against the live
+// body schema. The expression: its grammar, its indicators and its
+// population terms: is validated in the DB layer against the live
 // dictionary and the population store, because only there is the full
 // vocabulary available.
 function narrowCommonIndicatorDefinition(

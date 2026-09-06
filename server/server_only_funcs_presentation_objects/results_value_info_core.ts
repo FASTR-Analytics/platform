@@ -13,7 +13,7 @@ import {
 import { exceedsMaxReplicantOptions } from "./consts.ts";
 import type { RunVersionInfo } from "./types.ts";
 
-// The status loop — one source for the ok / too_many_values /
+// The status loop: one source for the ok / too_many_values /
 // no_values_available / error thresholds.
 export async function buildResultsValueInfo(
   metricId: string,
@@ -84,7 +84,7 @@ export async function buildResultsValueInfo(
 }
 
 // The subset of IndicatorMetadata that declares a format. Entries without one
-// (HFA categories, raw HMIS indicators) are omitted rather than defaulted —
+// (HFA categories, raw HMIS indicators) are omitted rather than defaulted:
 // resolveEffectiveIndicatorFacts treats an absent id as "says nothing", which is not
 // the same as "says number".
 export function indicatorFormatsFrom(

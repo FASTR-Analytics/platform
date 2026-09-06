@@ -23,7 +23,7 @@ const clamp = (n: number, lo: number, hi: number) =>
 // Single source of truth for the editor's readable writing column and the pane
 // width it needs to show that column at full size. Shared by the CM theme
 // (.cm-content max-width), the Split pane cap (index.tsx), and the centering
-// threshold — so they can't drift apart.
+// threshold, so they can't drift apart.
 export const EDITOR_COLUMN_MAX_REM = 56;
 // The line-number gutter adds ~4rem; the pane must be this wide for the column
 // to reach EDITOR_COLUMN_MAX_REM.
@@ -58,7 +58,7 @@ export type ReportEditorApi = {
     applied: number;
     skipped: SkippedRange[];
     // 0-based line of the first applied change (current-doc coordinates,
-    // pre-transaction) — the caller scrolls there; undefined if nothing
+    // pre-transaction): the caller scrolls there; undefined if nothing
     // applied.
     firstAppliedLine: number | undefined;
   };
@@ -72,7 +72,7 @@ export type ReportEditorApi = {
   ) => void;
   // Current text selection / cursor (surfaced to the AI).
   getSelection: () => ReportEditorSelection;
-  // Undo/redo the body — the toolbar's counterpart to the editor's own
+  // Undo/redo the body: the toolbar's counterpart to the editor's own
   // Ctrl+Z/Ctrl+Shift+Z (per-user under collab, local history otherwise).
   undo: () => void;
   redo: () => void;
@@ -110,7 +110,7 @@ type Props = {
   // per-user undo). The view is rebuilt once when this appears.
   collab?: () => { yText: Y.Text; awareness: Awareness } | undefined;
   // Edit permission: false renders the editor read-only (in BOTH modes). Under
-  // collab this is required — a view-only user's keystrokes would otherwise
+  // collab this is required: a view-only user's keystrokes would otherwise
   // enter the shared doc, be rejected server-side, and silently diverge them.
   canEdit: () => boolean;
   ref?: (api: ReportEditorApi) => void;
@@ -133,7 +133,7 @@ export function ReportEditor(p: Props) {
   const centerCompartment = new Compartment();
 
   // Pad the centered column to the right by the sidebar width so it lines up with
-  // the View preview — but only when the pane is wide enough to fit the column
+  // the View preview, but only when the pane is wide enough to fit the column
   // plus that pad; below that threshold drop the pad to 0 so a tight pane uses
   // its full width. Reconfigures the compartment only when the value changes.
   function applyCenterTheme() {
@@ -176,14 +176,14 @@ export function ReportEditor(p: Props) {
 
   // (Re)build the EditorView. Called on mount (plain or collab, whichever the
   // props say) and again when the collab binding appears or the edit permission
-  // flips — preserving scroll position and (clamped) selection across the swap.
+  // flips: preserving scroll position and (clamped) selection across the swap.
   // Known cost: the local undo history resets on a rebuild.
   function buildView(collab: { yText: Y.Text; awareness: Awareness } | undefined) {
     const prevScroll = view?.scrollDOM.scrollTop;
     const prevSel = view?.state.selection.main;
     detachSelectionHover?.();
     detachSelectionHover = undefined;
-    // Destroy the view BEFORE its undo manager — the plugin's destroy hook
+    // Destroy the view BEFORE its undo manager: the plugin's destroy hook
     // deregisters itself from the manager it was built with.
     view?.destroy();
     yUndoMgr?.destroy();
@@ -214,7 +214,7 @@ export function ReportEditor(p: Props) {
           ".cm-scroller": { overflow: "auto" },
           ".cm-content, .cm-gutter": { minHeight: "100%" },
           // Cap the writing column (text + figure widgets, which render inside
-          // .cm-content) at a readable max width, left-aligned after the gutter —
+          // .cm-content) at a readable max width, left-aligned after the gutter:
           // leftover space falls on the right; the scrollbar stays at the pane
           // edge. flexGrow:0 stops CM stretching it; flexShrink:1 lets it narrow
           // in a tight split pane.
@@ -294,7 +294,7 @@ export function ReportEditor(p: Props) {
       currentBody,
     );
     // Changes are disjoint + ascending, so [0] is the topmost applied hunk.
-    // Read the line BEFORE dispatching — coordinates are pre-transaction.
+    // Read the line BEFORE dispatching: coordinates are pre-transaction.
     const firstAppliedLine = changes.length > 0
       ? view.state.doc.lineAt(changes[0].from).number - 1
       : undefined;
@@ -350,11 +350,11 @@ export function ReportEditor(p: Props) {
     };
   }
 
-  // Pops the same stack as Ctrl+Z — the collab manager when bound (this user's
+  // Pops the same stack as Ctrl+Z: the collab manager when bound (this user's
   // ops only), basicSetup's local history otherwise. Focus follows so the next
   // keystroke continues in the editor (the click moved focus to the button).
   // Covers the body text only: figure/image registry changes aren't in either
-  // history — same as the keyboard.
+  // history: same as the keyboard.
   function undo() {
     if (!view) return;
     if (yUndoMgr) yUndoMgr.undo();
@@ -479,7 +479,7 @@ export function ReportEditor(p: Props) {
     if (scrollRAF) cancelAnimationFrame(scrollRAF);
     ro?.disconnect();
     view?.destroy(); // removes scrollDOM (and its listener) with it
-    yUndoMgr?.destroy(); // after the view — see buildView
+    yUndoMgr?.destroy(); // after the view: see buildView
     yUndoMgr = undefined;
   });
 

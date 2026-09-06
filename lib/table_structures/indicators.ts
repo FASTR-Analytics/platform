@@ -31,7 +31,7 @@ export const _COMMON_INDICATORS: { value: string; label: string }[] = [
 // dictionary; this applies it to a legacy package's input mirrors, whose only
 // order was the catalog snapshot's.
 //
-// A calculated id that is ALSO a base id keeps the base position — that is the
+// A calculated id that is ALSO a base id keeps the base position: that is the
 // identity-alias case, and the merged catalog entry sits where the indicator
 // has always sat.
 //

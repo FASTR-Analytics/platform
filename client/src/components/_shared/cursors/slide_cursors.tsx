@@ -12,14 +12,14 @@ import {
 } from "../live_cursors";
 
 // =============================================================================
-// Live cursors on the slide editor canvas — "slide" surface
+// Live cursors on the slide editor canvas: "slide" surface
 // =============================================================================
 //
 // Surface glue only (coordinate mapping + scope gate); the engine is shared
 // (../live_cursors.tsx). Coordinates travel in slide DU space
 // (PAGE_WIDTH_DU × PAGE_HEIGHT_DU) so they land on the same slide CONTENT for
 // every viewer regardless of zoom/window size. The canvas is looked up by id
-// PER EVENT — it lives inside a keyed <Show> that recreates on edits, so
+// PER EVENT: it lives inside a keyed <Show> that recreates on edits, so
 // element refs would go stale. Rides the slide session's awareness; the host
 // editor disables/suppresses while a sub-editor modal covers the canvas (the
 // figure modal's own broadcaster takes over the shared "pointer" field).

@@ -1,7 +1,7 @@
 import { join } from "@std/path";
 import { writeParquetFromCsv } from "../run_query/mod.ts";
 
-// Writes in-memory rows (the wizard's dataset and facilities captures —
+// Writes in-memory rows (the wizard's dataset and facilities captures,
 // instance-DB subsets) to parquet with exact null fidelity: NULL is encoded
 // as an unquoted sentinel and every real value is quoted, so '' and 'NA' text
 // survive verbatim (allow_quoted_nulls=false on the DuckDB side).

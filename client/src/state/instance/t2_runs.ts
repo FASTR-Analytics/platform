@@ -5,7 +5,7 @@ import { createReactiveCache } from "../_infra/reactive_cache";
 // What a READY results package contains (per-module settings + files), keyed
 // by runId alone. Immutable-by-identity like `project/t2_images.ts`: a ready
 // run dir never changes and `ready` is terminal, so the version key is a
-// constant and nothing ever invalidates an entry — a deleted run's entry is
+// constant and nothing ever invalidates an entry: a deleted run's entry is
 // simply never read again. Bump the name whenever RunDetail changes shape
 // (CLAUDE.md: a cached payload's shape change needs a prefix bump).
 const _RUN_DETAIL_CACHE = createReactiveCache<{ runId: string }, RunDetail>({

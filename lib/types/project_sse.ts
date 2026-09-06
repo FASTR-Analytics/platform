@@ -31,18 +31,18 @@ export type ProjectState = {
   // The project's Admin Area 2 identity; null = national. Folded into the
   // client run version key so a scope change invalidates run-derived caches.
   adminArea2: string | null;
-  // The immutable results run this project serves from — the client-side
+  // The immutable results run this project serves from: the client-side
   // cache identity for all run-derived data (PLAN_RESULTS_RUNS §2.5);
   // null = no run attached (typed replacement for the "unknown" sentinel).
   attachedRunId: string | null;
-  // The attached run's catalogue row (label, provenance, summary) — the
+  // The attached run's catalogue row (label, provenance, summary): the
   // project tab's header renders from it with no fetch. A project attaches
   // only to a READY run and a ready row is immutable (the one moving fact,
   // pinned, is instance T1 `pinnedRunId`), so it is pushed once per attach
   // and on starting. Always paired with attachedRunId.
   attachedRun: RunListingItem | null;
   // Subscribed to the instance's pinned package: whenever the pin moves this
-  // project is physically repointed (never a read-time indirection —
+  // project is physically repointed (never a read-time indirection:
   // SYSTEM_08 "Followers are physically repointed, never indirected"). A
   // config bit like isLocked, pushed on project_config_updated.
   followPinned: boolean;
@@ -78,7 +78,7 @@ export type ProjectSseMessage =
   | { type: "starting"; data: ProjectState }
 
   // Results-package repoint (PLAN_RESULTS_RUNS item 2): the event when a
-  // ready run becomes the project's attached package — it carries the full
+  // ready run becomes the project's attached package: it carries the full
   // run-derived catalog (modules, metrics, datasets, indicators) so clients
   // re-key live without a reconnect. Generation telemetry (`run_progress`,
   // `r_script`) is instance-channel only: a project is attached only once
@@ -95,7 +95,7 @@ export type ProjectSseMessage =
         commonIndicators: { id: string; label: string }[];
         icehIndicators: { id: string; label: string; category: string }[];
         // Default visualizations are projections of the attached run (item
-        // 5b), so the visualizations list changes at repoint — server-built,
+        // 5b), so the visualizations list changes at repoint: server-built,
         // like every other list emission.
         visualizations: PresentationObjectSummary[];
       };
@@ -127,7 +127,7 @@ export type ProjectSseMessage =
   | { type: "dashboards_updated"; data: { dashboards: DashboardSummary[] } }
   | { type: "project_users_updated"; data: { projectUsers: ProjectUser[] } }
 
-  // Per-entity timestamps (kept — project caches use per-entity versioning)
+  // Per-entity timestamps (kept: project caches use per-entity versioning)
   | {
       type: "last_updated";
       data: { tableName: LastUpdateTableName; ids: string[]; lastUpdated: string };

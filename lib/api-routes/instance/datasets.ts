@@ -191,7 +191,7 @@ export const datasetRouteRegistry = {
     method: "GET",
     response: {} as DatasetHmisImportRunSummary[],
   }),
-  // Summary + the run_stats blob (per-pair failures, unknown ids) —
+  // Summary + the run_stats blob (per-pair failures, unknown ids):
   // fetched on demand from the History row click, never in the polled list.
   getDatasetHmisImportRunDetail: route({
     path: "/datasets/hmis/dhis2-runs/:run_id",
@@ -206,7 +206,7 @@ export const datasetRouteRegistry = {
     body: z.object({ runId: z.number().int() }),
   }),
 
-  // DHIS2 queue + scheduling (PLAN_DHIS2_IMPORTER Phase 4 — C3/C4/C6)
+  // DHIS2 queue + scheduling (PLAN_DHIS2_IMPORTER Phase 4: C3/C4/C6)
   enqueueDatasetHmisDhis2Run: route({
     path: "/datasets/hmis/dhis2-runs/enqueue",
     method: "POST",
@@ -238,7 +238,7 @@ export const datasetRouteRegistry = {
     body: z.object({ id: z.number().int() }),
   }),
 
-  // CSV import runs (config-on-client, run-on-server —
+  // CSV import runs (config-on-client, run-on-server:
   // PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase A). The wizard is client-local;
   // its file input is an ordinary instance asset (uploaded or picked), so
   // nothing persists server-side before launch.
@@ -255,7 +255,7 @@ export const datasetRouteRegistry = {
     response: {} as { runId: number },
   }),
   // Explicit queueing while a run is active (the client always asks the user
-  // first; queueing is never the silent default) — same fork as DHIS2.
+  // first; queueing is never the silent default): same fork as DHIS2.
   enqueueDatasetHmisCsvRun: route({
     path: "/datasets/hmis/csv-runs/enqueue",
     method: "POST",
@@ -288,7 +288,7 @@ export const datasetRouteRegistry = {
     body: z.object({ timePoint: z.string().optional() }),
   }),
 
-  // HFA import runs (config-on-client, run-on-server —
+  // HFA import runs (config-on-client, run-on-server:
   // PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase B). The wizard is client-local;
   // its file inputs are ordinary instance assets (uploaded or picked).
   // No queue and no scheduler: a second launch while one runs is refused.

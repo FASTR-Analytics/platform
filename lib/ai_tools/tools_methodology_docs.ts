@@ -57,7 +57,7 @@ export function getSharedToolsForMethodologyDocs() {
           );
         }
         // Encode PER SEGMENT: the fileName legitimately contains "/" (e.g.
-        // "fr/introduction.md"), but nothing else may escape the path — a
+        // "fr/introduction.md"), but nothing else may escape the path: a
         // raw "?"/"#" would inject into the URL.
         const url = `${GITHUB_API_BASE}/${
           input.fileName.split("/").map(encodeURIComponent).join("/")

@@ -95,7 +95,7 @@ export async function resolveFigureBundleFromMetric(
   // (slideConfigSchema.parse) paths can never disagree: a schema-invalid bundle
   // fails here, with the exact field named, instead of rendering in the preview
   // and throwing an opaque error only on add-to-deck. Return the original object
-  // (not the parsed copy) — pure validation, no clone/strip.
+  // (not the parsed copy): pure validation, no clone/strip.
   const validation = figureBundleSchema.safeParse(bundle);
   if (!validation.success) {
     const issue = validation.error.issues[0];

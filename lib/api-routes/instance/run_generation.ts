@@ -24,15 +24,15 @@ import { route } from "../route-utils.ts";
 // instance shell, instance-admin gated (can_configure_data) except the
 // package reads below: the wizard
 // is an ephemeral modal that persists nothing before launch, and a
-// generation belongs to no project — it attaches to the projects chosen at
+// generation belongs to no project: it attaches to the projects chosen at
 // launch.
 
 // A run's outputs dir holds one module's generated script, execution log and
 // raw CSVs. These reads are run-keyed and mounted ONCE (Tim's ruling
 // 2026-08-18, superseding the 2026-07-30 per-project mount): a package is
 // instance-level data, so what it contains is gated on the instance data
-// bits — `can_view_data` for detail/script/files/download, `can_view_logs`
-// for logs — wherever it is explored (the catalogue, a project's tab, the AI
+// bits: `can_view_data` for detail/script/files/download, `can_view_logs`
+// for logs, wherever it is explored (the catalogue, a project's tab, the AI
 // tools, MCP). Reader: server/runs/package_internals.ts.
 const runModuleParamsSchema = z.object({
   run_id: z.string(),
@@ -43,7 +43,7 @@ export const runGenerationRouteRegistry = {
   // The instance catalogue (item 3): every run, newest first, with the
   // projects currently attached to each. This is instance-T1's fetch half
   // (the `projects` pattern): `runs_catalog_updated` broadcasts a data-free
-  // timestamp, and each entitled client pulls the listing here — the guard
+  // timestamp, and each entitled client pulls the listing here: the guard
   // is evaluated per request, so run labels never ride the broadcast and
   // permission changes take effect live.
   listRunCatalog: route({
@@ -62,8 +62,8 @@ export const runGenerationRouteRegistry = {
   // The instance's pinned package (SYSTEM_08 "The pinned package
   // + followers"): an explicit act on a ready run that also physically
   // repoints every follow-pinned project; the response says which followers
-  // moved, were skipped (locked) or failed. Unpin is run-keyed — it clears
-  // the pin only if this run IS the pin — and moves nothing. The follower
+  // moved, were skipped (locked) or failed. Unpin is run-keyed: it clears
+  // the pin only if this run IS the pin, and moves nothing. The follower
   // listing feeds the pin confirm, so an admin sees who will move.
   pinResultsPackage: route({
     path: "/run_generation/run/:run_id/pin",
@@ -100,7 +100,7 @@ export const runGenerationRouteRegistry = {
     response: {} as RunModuleFileListing,
   }),
   // One module's configuration as generated (the manifest's
-  // configSelections, definition-typed) — the AI tools' get_module_settings
+  // configSelections, definition-typed): the AI tools' get_module_settings
   // read, on both the copilot and MCP.
   getRunModuleWithConfigSelections: route({
     path: "/run_generation/run/:run_id/module/:module_id/config_selections",
@@ -131,7 +131,7 @@ export const runGenerationRouteRegistry = {
   }),
   // What a READY run contains: per-module settings (resolved server-side
   // from the manifest's configSelections) + outputs-dir file listing.
-  // Manifest-gated — generating/failed runs use the progress-derived UI
+  // Manifest-gated: generating/failed runs use the progress-derived UI
   // instead. Immutable per runId (client T2, `state/instance/t2_runs.ts`).
   getRunDetail: route({
     path: "/run_generation/run/:run_id/detail",
@@ -160,9 +160,9 @@ export const runGenerationRouteRegistry = {
     response: {} as RunGenerationModuleOptions,
   }),
   // Launch: the wizard's whole configuration arrives here (the wizard is an
-  // ephemeral modal — nothing is persisted before this call); the route
+  // ephemeral modal: nothing is persisted before this call); the route
   // mints the runs catalog row (status 'generating') and spawns the
-  // generate_run worker. The run owns its whole lifecycle from this point —
+  // generate_run worker. The run owns its whole lifecycle from this point:
   // progress arrives over instance SSE (the catalogue) and project SSE
   // (run_progress / run_attached) for each attach target.
   launchRunGeneration: route({

@@ -34,7 +34,7 @@ export function inferPeriodFilter(
   endDate: number | undefined,
 ): { filterType: "custom"; min: number; max: number } | undefined {
   if (startDate == null || endDate == null) return undefined;
-  // The value self-identifies its format downstream — no periodOption needed.
+  // The value self-identifies its format downstream: no periodOption needed.
   return { filterType: "custom", min: startDate, max: endDate };
 }
 
@@ -67,9 +67,9 @@ export async function getMetricDataForAI(
 
   // ONE value-info read serves two purposes: validating the query's filters
   // and date range against the metric's real dimensions and bounds (fail
-  // fast, before the items query — a caller-supplied periodFilterOverride is
+  // fast, before the items query: a caller-supplied periodFilterOverride is
   // engine-typed, not a model input, and is not checked), and the "Period
-  // coverage" line — the metric's FULL range, independent of this query's
+  // coverage" line: the metric's FULL range, independent of this query's
   // filters, which lets the model tell "the data ends here" from "I didn't
   // ask for later periods". Context, not data: a failed read skips both
   // rather than failing the tool.
@@ -161,9 +161,9 @@ export async function getMetricDataForAI(
 
   // uniqueDisaggregations, not the model's own list: the required options were
   // merged into the QUERY, so they are real columns of the rows below. Passing
-  // the shorter list left the indicator dimension out of the Dimension Summary
-  // — the very place the "Format: varies by indicator" line promises the
-  // per-indicator formats are listed — and made the CSV treat it as a value
+  // the shorter list left the indicator dimension out of the Dimension Summary,
+  // the very place the "Format: varies by indicator" line promises the
+  // per-indicator formats are listed, and made the CSV treat it as a value
   // column instead of pivoting on it.
   return formatItemsAsMarkdown(
     itemsHolder,
@@ -398,7 +398,7 @@ function formatItemsAsMarkdown(
           // Over the cap the labels are dropped as noise, but on an "indicator"
           // metric the FORMATS cannot be: the header above tells the model that
           // percent values are 0-1 fractions and rates are pre-scaled, and
-          // without this the two are indistinguishable in the CSV — 0.853
+          // without this the two are indistinguishable in the CSV: 0.853
           // (85.3%) sits beside 4.20 (per 10,000) with nothing to tell them
           // apart. Grouped by format so the cost is O(formats), not O(values).
           if (metric.formatAs === "indicator") {
@@ -439,10 +439,10 @@ function formatItemsAsMarkdown(
 
 // "higher is better; On track ≥ 80%; Progress needed ≥ 70%; Not on track
 // < 70%" from the indicator's own CF rule: every bucket, best first, with the
-// bound that admits it under THE boundary rule (thresholdBucketIndex — an
+// bound that admits it under THE boundary rule (thresholdBucketIndex: an
 // authored label gets its operator and cutoff appended; an unlabelled bucket
 // prints the derived wording, which already carries them). Cutoffs are
-// printed in DISPLAY units — percent points, counts per 10,000 — while the
+// printed in DISPLAY units: percent points, counts per 10,000, while the
 // CSV prints percent values as 0-1 fractions, so the unit is spelled out.
 export function formatIndicatorThresholds(
   rule: ThresholdsRule,
@@ -530,7 +530,7 @@ function getDimensionStats(
 // The format of ONE row's value. A "percent"/"number" metric owns its format
 // and every row shares it; an "indicator" metric's rows are each in their own
 // indicator's format, read off the row's indicator dimension. Rows whose
-// indicator declares nothing fall back to "number" — the same honest answer
+// indicator declares nothing fall back to "number": the same honest answer
 // the renderer's collapse gives.
 function resolveItemFormat(
   metricFormatAs: MetricFormatAs,
@@ -553,7 +553,7 @@ function resolveItemFormat(
 // A CSV cell, in the units the model is told to read. percent stays a 0-1
 // fraction (3 decimals, so a sub-1% value survives); rate_per_10k is scaled to
 // its per-10,000 count, because a bare rate at ANY shared decimal count rounds
-// to 0.000 — the whole column read as zeros.
+// to 0.000: the whole column read as zeros.
 function formatIndicatorValueForCsv(
   val: unknown,
   formatAs: IndicatorFormat,
@@ -654,13 +654,13 @@ function pivotToWide(
 
   // Group items by row dimensions.
   //
-  // The joined string is ONLY a grouping key — the dimension values are carried
+  // The joined string is ONLY a grouping key: the dimension values are carried
   // alongside it, never recovered by splitting it back apart. Reconstructing
   // them with rowKey.split("|") was wrong in two ways, both of which emitted a
   // row with a different field count from the header, silently shifting every
   // column for a positional parser:
   //   - with NO row dimensions the key is "", and "".split("|") is [""], not
-  //     [] — so every row gained a leading empty field (9 headers, 10 values).
+  //     []: so every row gained a leading empty field (9 headers, 10 values).
   //   - a dimension VALUE containing "|" (e.g. a region label) split into two
   //     or more fields.
   const grouped = new Map<
@@ -732,7 +732,7 @@ function formatLongCSV(
 
 // A value plus its sample size, as one cell: "0.453 (n=120)". Dimension columns
 // have no n column and pass through unchanged. The count is written plain, with
-// no thousands separator — rows are joined on "," without quoting, so a grouped
+// no thousands separator: rows are joined on "," without quoting, so a grouped
 // number would break the column count.
 function formatValueWithN(
   item: JsonArrayItem,
@@ -772,7 +772,7 @@ export async function getDataFromConfig(
 
   // Fold in the replicant pin so the excerpt matches what the figure renders
   // (the figure's items are filtered to selectedReplicantValue). Only when a
-  // value is actually selected — otherwise getFiltersWithReplicant would pin the
+  // value is actually selected: otherwise getFiltersWithReplicant would pin the
   // "UNSELECTED" sentinel and return no rows (the viz editor's live config may
   // leave the replicant unresolved).
   const filters = config.d.selectedReplicantValue

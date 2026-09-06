@@ -1,5 +1,5 @@
 // =============================================================================
-// Person-years — annual population stock → monthly flow (PLAN_1b rulings 3, 4)
+// Person-years: annual population stock → monthly flow (PLAN_1b rulings 3, 4)
 // =============================================================================
 //
 // PURE. A population figure for a year is a STOCK, anchored at that year's
@@ -9,13 +9,13 @@
 //   - between two anchors: linear interpolation;
 //   - before the first / after the last: geometric extrapolation at the growth
 //     rate of the two nearest anchors (a single anchor extrapolates flat, and
-//     so does a pair with a zero count — a growth rate is undefined there);
+//     so does a pair with a zero count: a growth rate is undefined there);
 //   - never more than ±1 calendar year beyond the anchored years. A month
 //     outside that window is NOT covered, and generation refuses rather than
 //     thinning the package (ruling 6).
 //
-// Person-years for a month = that population / 12. They sum like a count —
-// twelve months of person-years are one year of population — which is what
+// Person-years for a month = that population / 12. They sum like a count:
+// twelve months of person-years are one year of population, which is what
 // lets a population term ride m012's file as ordinary additive rows and stay
 // exact at every grouping. A rate over a stock is therefore ANNUALISED: a
 // monthly numerator over a month's person-years reads as a per-year rate.
@@ -46,7 +46,7 @@ export function populationCoveredYears(
 }
 
 // The population at the mid-point of `year`/`month`, from anchors of any
-// order (deduplicated by year — the store's key already forbids duplicates).
+// order (deduplicated by year: the store's key already forbids duplicates).
 // Callers check coverage first; this function answers for any time point.
 export function interpolateMidYearPopulation(
   anchors: PopulationAnchor[],

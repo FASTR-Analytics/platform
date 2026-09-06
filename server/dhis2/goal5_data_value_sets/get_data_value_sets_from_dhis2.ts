@@ -19,15 +19,15 @@ export type DHIS2DataValueSetsResponse = {
 // ~1-2 s server think time + transfer, where the same data via the analytics
 // engine costs minutes-to-hours. children=true descends from the given org
 // units to facility level. A month with no data legitimately returns a body
-// with no dataValues key — that is an unambiguous empty, not a failure
+// with no dataValues key: that is an unambiguous empty, not a failure
 // (unlike analytics' missing "rows").
 //
-// Selection is period= — an opaque token the DHIS2 server interprets in ITS
+// Selection is period=: an opaque token the DHIS2 server interprets in ITS
 // OWN calendar, the same contract as analytics `pe:`. This is the only form
 // that works fleet-wide: a calendar-configured server (Ethiopia, 2.40.1,
 // calendar=ethiopian) does not read startDate/endDate as Gregorian dates, so
 // even a correctly-converted date range returns nothing there (lab E13,
-// 2026-07-15 — range 0 records on 12/12 data-bearing elements while period=
+// 2026-07-15, range 0 records on 12/12 data-bearing elements while period=
 // returned thousands, matching analytics per-facility 1,199/1,200 exact).
 export async function getDataValueSetsFromDHIS2(
   params: {
@@ -53,7 +53,7 @@ export async function getDataValueSetsFromDHIS2(
 }
 
 // Which of `ids` exist on a DHIS2 metadata endpoint (fields=id, chunked id:in
-// filters). Drives the fetch dispatcher's per-run classification — metadata is
+// filters). Drives the fetch dispatcher's per-run classification: metadata is
 // the source of truth, no stored type field to drift (PLAN_DHIS2_IMPORTER §4.4).
 export async function getExistingMetadataIds(
   endpoint: "dataElements" | "indicators" | "categoryOptionCombos",

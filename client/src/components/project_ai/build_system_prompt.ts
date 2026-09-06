@@ -12,9 +12,9 @@ import {
 import { SPA_INFO_TOPICS } from "./ai_tools/client_info_topics";
 
 // The copilot's system prompt: the shared grounding blocks (lib/ai_tools/
-// build_system_prompt.ts) plus the project's own prose — its name, what its
+// build_system_prompt.ts) plus the project's own prose: its name, what its
 // package holds, viz/deck/report counts, aiContext. BYTE-STABLE across
-// navigation: no view/mode argument — per-view instructions (below) ride
+// navigation: no view/mode argument. Per-view instructions (below) ride
 // each view's instructions in ai_views.ts as a per-turn ephemeral section,
 // so the prompt-cache breakpoint keeps hitting when the user just switches
 // tabs/editors.

@@ -1,8 +1,8 @@
 import type { AIToolEnv, ServerActionsType } from "lib";
 
 // The /mcp injection of the shared AI-tool environment (lib/ai_tools/env.ts),
-// bound to ONE results package — the instance's pinned package, resolved per
-// call by the context cache — at national scope. Every getter is the
+// bound to ONE results package: the instance's pinned package, resolved per
+// call by the context cache, at national scope. Every getter is the
 // run-keyed instance route it fronts (S8 "one core, two lenses"), dispatched
 // in-process through the headless middleware chain (the transport's
 // fetchImpl), so the caller's instance `can_view_data` is judged on every

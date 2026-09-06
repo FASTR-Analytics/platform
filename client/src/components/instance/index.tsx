@@ -52,7 +52,7 @@ type InstanceTab =
   | "assets"
   | "users";
 
-// Generation is instance-admin only (can_configure_data — the same guard the
+// Generation is instance-admin only (can_configure_data: the same guard the
 // run_generation routes use).
 function canConfigureData(): boolean {
   return (
@@ -155,7 +155,7 @@ export default function Instance(p: Props) {
       !getFirstString(searchParams.p) && instanceState.currentUserApproved,
   });
 
-  // post-login modals — wait until user is approved; skip inside a project.
+  // post-login modals: wait until user is approved; skip inside a project.
   // Runs ONCE per signed-in user: the effect's reactive deps (searchParams,
   // approval store) re-fire it on every return from a project, which would
   // otherwise re-open the modals and displace whatever the alert slot holds.
@@ -457,7 +457,7 @@ export default function Instance(p: Props) {
 // a high-water-mark version string in Clerk unsafeMetadata; brand-new users
 // are baselined without seeing a popup. Fetched posts also power the header
 // bell (unread dot + browsable feed). All module-level state is scoped to the
-// signed-in user's id — these signals outlive a same-tab user switch that
+// signed-in user's id: these signals outlive a same-tab user switch that
 // happens without a full page reload.
 const [whatsNewState, setWhatsNewState] = createSignal<{
   userId: string;
@@ -523,7 +523,7 @@ async function persistWhatsNewReadIds(ids: Set<string>, posts: WhatsNewPost[]) {
         whatsNewReadPostIds: pruned,
       },
     });
-    // Only on success — a failed write leaves the unread dot lit
+    // Only on success: a failed write leaves the unread dot lit
     setWhatsNewReadIds(new Set(pruned));
   } catch (err) {
     console.error("Failed to record whatsNewReadPostIds", err);

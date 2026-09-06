@@ -8,14 +8,14 @@ import {
 import { instanceState } from "~/state/instance/t1_store";
 
 // Kept as a PLAIN tool (PLAN_FUTURE_AI_ADOPTIONS.md feature 8, option 2): the
-// family guard below is deliberately a SOFT return, not a throw — a throw
-// would flip the refusal to is_error on the wire — and createNavigationTool's
+// family guard below is deliberately a SOFT return, not a throw: a throw
+// would flip the refusal to is_error on the wire, and createNavigationTool's
 // refusal channel is a hard AIToolFailure throw, so rewriting onto it would
 // change today's behavior. The `startsWith("editing_")` check must stay a
 // family test (not an enumerated availableIn whitelist), which would silently
 // drift when a view is added. markAINavigation() before updateProjectView
 // stamps the resulting setView (the tab effect in project/index.tsx) origin
-// "ai" so it drops from the __navigation digest — the tab switch is
+// "ai" so it drops from the __navigation digest: the tab switch is
 // synchronous (state/t4_ui.ts), so one mark before the call suffices.
 export function getClientToolsForNavigation() {
   return [
@@ -40,7 +40,7 @@ export function getClientToolsForNavigation() {
         if (projectAIViewController.current().id.startsWith("editing_")) {
           return "Cannot switch tabs - user is currently editing. Ask them to save/close first.";
         }
-        // Same gate as the tab bar and content Match (project/index.tsx) —
+        // Same gate as the tab bar and content Match (project/index.tsx):
         // switching a non-admin here would land them on a tab with no content.
         // Soft return, matching the editing guard above.
         if (

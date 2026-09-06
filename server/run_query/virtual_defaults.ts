@@ -15,11 +15,11 @@ import { getRunManifestCached } from "../runs/manifest_cache.ts";
 
 // Default visualizations are pure projections of the ATTACHED run's manifest
 // (PLAN_RESULTS_RUNS item 5b): every metric preset carrying
-// createDefaultVisualizationOnInstall, derived per read — no
+// createDefaultVisualizationOnInstall, derived per read: no
 // presentation_objects rows, no delete, no in-place edit ("edit" =
 // duplicate-to-customize). presentation_objects holds user-authored content
 // only. Their cache identity rides the runId; this constant stands in for the
-// row last_updated that no longer exists (strictly correct — the run is
+// row last_updated that no longer exists (strictly correct, the run is
 // immutable).
 
 export const VIRTUAL_DEFAULT_LAST_UPDATED = "virtual_default";
@@ -63,7 +63,7 @@ export function findVirtualDefault(
   );
 }
 
-// The attached run's manifest, or null when the project has no run — the
+// The attached run's manifest, or null when the project has no run: the
 // typed, expected no-defaults state. An attached-but-unreadable run degrades
 // to null here (loudly logged) so authored content stays reachable; the query
 // routes surface the run error properly.
@@ -108,7 +108,7 @@ function toSummary(d: DerivedDefaultVisualization): PresentationObjectSummary {
 }
 
 // THE listing seam (item 5b): every surface that serves the visualizations
-// list goes through here — a call site that uses the raw row function
+// list goes through here: a call site that uses the raw row function
 // silently drops the defaults. Virtual defaults first, then user rows,
 // reproducing the row path's ORDER BY is_default DESC, sort_order,
 // LOWER(label).

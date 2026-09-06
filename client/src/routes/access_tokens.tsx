@@ -12,11 +12,11 @@ import { LoggedInWrapper } from "~/components/LoggedInWrapper";
 import { serverActions } from "~/server_actions";
 
 // Standalone, unlisted personal-access-token panel (/access-tokens). Linked
-// from nowhere in the app on purpose — you reach it by knowing the URL — but
+// from nowhere in the app on purpose, you reach it by knowing the URL, but
 // everything behind it is the normal Clerk-gated self-service PAT API, so an
 // unauthenticated visitor just gets the login screen and a logged-in user can
 // only ever mint/list/revoke their OWN tokens. Tokens are for headless
-// clients (the MCP host — see USER_GUIDE_MCP.md); the value is shown once at
+// clients (the MCP host: see USER_GUIDE_MCP.md); the value is shown once at
 // mint and only its hash is stored.
 
 export default function AccessTokensPage() {

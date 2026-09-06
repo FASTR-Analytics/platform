@@ -24,7 +24,7 @@ import { readCsvFile } from "@timroberton/panther";
 // The stored shape of one common indicator. `expression` carries a derived
 // indicator's formula and is NULL for a base one (PLAN_1a §1.2). `thresholds`
 // is the CF rule as JSON text (every JSON column is text: JSON.parse on read,
-// JSON.stringify on write — SYSTEM_02), validated by the lib schema here.
+// JSON.stringify on write: SYSTEM_02), validated by the lib schema here.
 export type DBIndicatorCommon = {
   indicator_common_id: string;
   indicator_common_label: string;
@@ -216,7 +216,7 @@ async function checkDefinitionsResolve(
   pendingDefinitions: Map<string, CommonIndicatorDefinition>,
 ): Promise<string | undefined> {
   // The resolver reports an unknown `population:<type>` term itself, naming
-  // the Population page — the store's types are ordinary dictionary entries.
+  // the Population page: the store's types are ordinary dictionary entries.
   const entries = new Map<string, ExpressionDictionaryEntry>(
     (await loadExpressionDictionaryEntries(mainDb)).map((e) => [e.id, e]),
   );
@@ -242,7 +242,7 @@ async function checkDefinitionsResolve(
       throw e;
     }
   }
-  // A write can also break an indicator that is not itself being written —
+  // A write can also break an indicator that is not itself being written:
   // repointing a common at a new expression invalidates every chain that
   // runs through it.
   for (const entry of entries.values()) {
@@ -556,7 +556,7 @@ export async function deleteIndicatorCommon(
     // The delete guard, re-expressed over expressions: a common indicator
     // named by another common's formula cannot go. Resolving each surviving
     // definition against the post-delete dictionary is what makes the check
-    // exact — an id used only deep inside a chain blocks the delete just as a
+    // exact: an id used only deep inside a chain blocks the delete just as a
     // directly-named one does.
     const requestedIds = new Set(indicatorCommonIds);
     const survivors = (await loadExpressionDictionaryEntries(mainDb)).filter(
@@ -964,7 +964,7 @@ export async function batchUploadIndicators(
     }
 
     // A CSV row defines a BASE common (id, label, raw mappings). An id that is
-    // currently derived cannot take that definition — the upsert would attach
+    // currently derived cannot take that definition: the upsert would attach
     // mappings to a formula (updateIndicatorCommon's rule, enforced here
     // too). Checked against the live table in BOTH modes: the replace-all
     // wipe deliberately keeps derived rows.

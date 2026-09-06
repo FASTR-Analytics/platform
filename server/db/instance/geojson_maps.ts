@@ -117,7 +117,7 @@ export async function countOrphanedGeoJsonAreaIds(
     }
     const level = row.admin_area_level;
     // A map's area_ids are matched against the tree of the registry it was
-    // mapped from — never the other family's.
+    // mapped from: never the other family's.
     const existingRows = await mainDb<{ name: string }[]>`
       SELECT ${mainDb(`admin_area_${level}`)} as name
       FROM ${mainDb(`admin_areas_${row.facility_family}_${level}`)}`;

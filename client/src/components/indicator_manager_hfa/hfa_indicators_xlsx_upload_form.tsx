@@ -88,7 +88,7 @@ export function HfaIndicatorsXlsxUploadForm(p: Props) {
     if (!buf) return;
     const detected = detectHfaWorkbookShape(buf);
     if (!detected.ok) {
-      // Surface parse error on pick — keep on pick step with error shown
+      // Surface parse error on pick: keep on pick step with error shown
       setParseErr(detected.err);
       return;
     }

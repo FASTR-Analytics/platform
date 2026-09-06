@@ -29,7 +29,7 @@ import {
 import { ViewLogs } from "./view_logs";
 import { ViewScript } from "./view_script";
 
-// One READY results package, as it is explored ANYWHERE — the instance
+// One READY results package, as it is explored ANYWHERE: the instance
 // catalogue's detail pane and a project's Results package tab mount this
 // same component (Tim's ruling 2026-08-18: what a package contains is a
 // function of the runId alone, so it is read through one run-keyed mount and
@@ -41,7 +41,7 @@ import { ViewScript } from "./view_script";
 // itself (a project is attached only once a run is ready, so this view is
 // ready-only by construction); the project tab puts its scope warning in
 // `headerNote`. A project's tab and the catalogue therefore show a package
-// identically — the only reason to look at both is to check.
+// identically: the only reason to look at both is to check.
 export function ResultsPackageView(p: {
   run: RunListingItem;
   headerActions?: JSX.Element;
@@ -54,8 +54,8 @@ export function ResultsPackageView(p: {
       props: {
         runId: p.run.id,
         // Read plane: the id comes from the package's own manifest and is
-        // read as text, so a module that has left the registry — or one from
-        // a newer app — is still browsable (PLAN_1a §0 clause 3).
+        // read as text, so a module that has left the registry, or one from
+        // a newer app, is still browsable (PLAN_1a §0 clause 3).
         moduleId,
         moduleLabel: moduleLabel(moduleId),
       },
@@ -120,7 +120,7 @@ function ReadyModulesSection(p: {
 
   // A ready run whose manifest cannot be read (unreadable bytes, or written
   // by a newer server on a mixed-version fleet) must not lose the
-  // script/log viewers — they are exactly what diagnoses it. Fall back to
+  // script/log viewers: they are exactly what diagnoses it. Fall back to
   // the summary's module list, which lives in the DB row.
   return (
     <Switch>
@@ -279,7 +279,7 @@ function ModuleCard(p: {
 }
 
 // A failed run's errorDetail can be a wall of text (module-resolution or R
-// errors) — clamp it to a few lines, expandable on demand. Display-only:
+// errors): clamp it to a few lines, expandable on demand. Display-only:
 // the stored detail stays intact. Used by the catalogue's failed branch, the
 // one surface that renders a non-ready run.
 const ERROR_CLAMP_CHARS = 280;
@@ -318,7 +318,7 @@ export function FailedErrorDetail(p: { errorDetail: string | null }) {
 }
 
 // The package's provenance line: when it was made, by whom, how, and how much
-// disk it holds — read off the run's own record, not the viewer's
+// disk it holds: read off the run's own record, not the viewer's
 // relationship to it.
 export function ResultsPackageProvenanceLine(p: { run: RunListingItem }) {
   return (

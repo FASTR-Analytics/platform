@@ -19,7 +19,7 @@ import {
 // output must survive a needs_review hold across other imports running in
 // between, so every table (the final ready-for-integration table plus the
 // three throwaway intermediates) carries a _run_{runId} suffix. Dropped on
-// integrate/discard/sweep — this is what makes releasing the single-running
+// integrate/discard/sweep: this is what makes releasing the single-running
 // slot on needs_review safe.
 
 export function hmisCsvStagingTableNames(runId: number): {
@@ -56,11 +56,11 @@ export async function dropHmisCsvStagingTables(
   }
 }
 
-// The staging internals relocated from the old stage_hmis_data_csv worker —
+// The staging internals relocated from the old stage_hmis_data_csv worker:
 // stream the CSV into a raw table, dedup, validate facilities + indicators,
 // and build the final staging table. Semantics unchanged; only the table
 // names (per-run) and the progress transport (callback instead of attempt-row
-// writes) differ. Never throws on dropped rows — the caller's clean-condition
+// writes) differ. Never throws on dropped rows: the caller's clean-condition
 // gate decides what a nonzero drop count means.
 export async function stageHmisCsvIntoTables(args: {
   importDb: Sql;
@@ -198,7 +198,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
   const rowsAfterCsvValidation = tempCount[0]?.count || 0;
 
   if (rowsAfterCsvValidation === 0) {
-    // No staging content exists — this fails the run loudly (the caller's
+    // No staging content exists: this fails the run loudly (the caller's
     // error path drops the tables) rather than holding for review.
     throw new Error(
       `No valid data rows were found in the CSV (${rowsProcessed} rows processed): ` +

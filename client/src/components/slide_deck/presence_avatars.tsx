@@ -23,7 +23,7 @@ export function PresenceAvatars(p: {
   peers: PresenceEntry[];
   size?: Size;
   max?: number;
-  /** Show a pulsing "editing now" badge on peers actively applying edits —
+  /** Show a pulsing "editing now" badge on peers actively applying edits:
    *  enabled on list cards (deck/report/viz), where present ≠ editing. */
   showEditingPulse?: boolean;
 }) {

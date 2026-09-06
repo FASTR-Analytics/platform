@@ -162,7 +162,7 @@ export const FIGURE_EXPORT_WIDTH_PX = 1920;
 // The deck's zoom-frame geometry, in DUs. PAGE_WIDTH_DU is wider than the
 // default REFERENCE_WIDTH_DU (1000) for a roomier page without retuning styles.
 // One source of truth: every slide/page surface (PageHolder on screen, AI layout
-// optimization, and all deck exports) reads these — never recompute the aspect
+// optimization, and all deck exports) reads these: never recompute the aspect
 // inline. Screen and export stay in lockstep because they read the same values.
 export const PAGE_ASPECT = 9 / 16;
 export const PAGE_WIDTH_DU = 1400;
@@ -170,7 +170,7 @@ export const PAGE_HEIGHT_DU = Math.round(PAGE_WIDTH_DU * PAGE_ASPECT);
 
 // Slide markdown text-size scale. Text blocks store a semantic key
 // (slides.config); the editor offers these steps and the renderer maps the key
-// to a relFontSize multiplier on the base font. One source of truth — editor,
+// to a relFontSize multiplier on the base font. One source of truth: editor,
 // renderer, schema, and migration all read these. Retune sizing by editing the
 // numbers here, no data migration needed (the stored keys are stable).
 export const TEXT_SIZE_KEYS = [

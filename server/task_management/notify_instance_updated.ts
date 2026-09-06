@@ -89,17 +89,17 @@ export function notifyInstancePopulationUpdated(
 }
 
 // The catalogue's T1 signal (the projects_last_updated pattern): a data-free
-// signal broadcast — each entitled client refetches via listRunCatalog,
+// signal broadcast: each entitled client refetches via listRunCatalog,
 // whose guard is evaluated per request, so nothing sensitive rides the wire
 // and no per-connection filtering is needed. Fired by every in-process
-// catalogue mutation — launch (incl. its row-created-then-failed path),
+// catalogue mutation: launch (incl. its row-created-then-failed path),
 // delete, worker finalize/fail/crash, attach/repoint, and the
 // projects.run_id/label movers (project force-delete, copy completion,
 // rename).
 //
 // The value is a NONCE, not a timestamp: two mutations in the same
 // millisecond minted identical ISO strings, and the client store's equality
-// guard dropped the second write — the second refetch never fired. A nonce
+// guard dropped the second write: the second refetch never fired. A nonce
 // cannot collide, and needs no cross-context counter coordination (the
 // generate-run worker has its own module instance of this file, so a
 // monotonic counter would regress across contexts).
@@ -111,14 +111,14 @@ export function notifyInstanceRunsCatalogUpdated() {
 }
 
 // The pinned package moved or was cleared (SYSTEM_08 "The pinned package
-// + followers"). Plain unfiltered broadcast — a bare run id is not
+// + followers"). Plain unfiltered broadcast: a bare run id is not
 // sensitive, and it is the one field every Pinned badge derives from.
 // Callers ALSO re-nonce the catalogue (a pin-move moves attachedProjects).
 export function notifyInstancePinnedRunUpdated(pinnedRunId: string | null) {
   notifyInstanceUpdate({ type: "pinned_run_updated", data: { pinnedRunId } });
 }
 
-// Results-package generation telemetry, for the instance catalogue (Q-B) —
+// Results-package generation telemetry, for the instance catalogue (Q-B):
 // the ONLY channel it rides: a project is attached only once a run is
 // ready, so no project channel has a live view to feed. routesInstanceSSE
 // drops both messages for callers without can_configure_data (live filter).

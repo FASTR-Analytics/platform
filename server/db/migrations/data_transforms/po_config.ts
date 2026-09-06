@@ -212,7 +212,7 @@ export function transformConfigD(d: Record<string, unknown>): void {
 
   // Block 23: Convert quarter_id bounds YYYY0Q (6-digit) → YYYYQ (5-digit).
   // Targets bounded filters still tagged periodOption "quarter_id" (the tag exists
-  // in Phase 1, so this is unambiguous — relative filters had it stripped in
+  // in Phase 1, so this is unambiguous: relative filters had it stripped in
   // Block 4). Idempotent: the >= 100000 guard skips already-5-digit values.
   if (pf?.periodOption === "quarter_id") {
     const toFiveDigitQuarter = (v: unknown): unknown =>
@@ -237,15 +237,15 @@ export function transformConfigD(d: Record<string, unknown>): void {
   }
 
   // Block 25: Roll-up flag moves onto the disaggregateBy entry (facility
-  // roll-up generalization — see getRollupDimension in
+  // roll-up generalization: see getRollupDimension in
   // lib/get_fetch_config_from_po.ts). The old global boolean is unambiguous
   // because the old gate required exactly one admin level; the target entry is
   // chosen by replicating that gate. Latent flags are preserved: when the old
-  // gate is only TRANSIENTLY closed (single-value filter, replicant display —
+  // gate is only TRANSIENTLY closed (single-value filter, replicant display:
   // conditions the flag was designed to survive, see
   // normalizePOConfigForStorage) but exactly ONE admin-level entry exists, that
   // entry is tagged so the setting can reactivate exactly as before. With 0 or
-  // ambiguous 2+ admin entries the flag was inert AND ambiguous — dropped.
+  // ambiguous 2+ admin entries the flag was inert AND ambiguous: dropped.
   if ("includeAdminAreaRollup" in d || "adminAreaRollupPosition" in d) {
     if (d.includeAdminAreaRollup === true) {
       const ADMIN = new Set(["admin_area_2", "admin_area_3", "admin_area_4"]);
@@ -285,13 +285,13 @@ export function transformConfigD(d: Record<string, unknown>): void {
     delete d.adminAreaRollupPosition;
   }
 
-  // Block 26: Fill missing timeseriesGrouping for timeseries configs — the
+  // Block 26: Fill missing timeseriesGrouping for timeseries configs: the
   // schema has it optional but the fetch-config builder throws without it
   // (lib/get_fetch_config_from_po.ts), so such a config has been unrenderable
   // since 2026-04. Fill ONLY from the config's own bounded-filter granularity
   // hint: a blind default could contradict the metric's period granularity
   // (RO-granularity is hard-enforced), and the transform has no metric
-  // context. Hint absent → leave as-is (still schema-valid, still broken —
+  // context. Hint absent → leave as-is (still schema-valid, still broken:
   // fleet sweep 2026-08-10 found zero such rows).
   if (
     d.type === "timeseries" &&
@@ -308,7 +308,7 @@ export function transformConfigD(d: Record<string, unknown>): void {
 // fillDefaults: full PO configs require every s field, so missing fields are
 // filled with defaults. Viz presets' s is .partial() BY DESIGN (absent fields
 // inherit DEFAULT_S_CONFIG at viz-creation time, and several Block 16 fill
-// values deliberately differ from DEFAULT_S_CONFIG) — preset callers pass
+// values deliberately differ from DEFAULT_S_CONFIG): preset callers pass
 // fillDefaults: false so only renames/strips run, never the fills.
 export function transformConfigS(
   s: Record<string, unknown>,
@@ -413,7 +413,7 @@ export function transformConfigS(
   // Block 27: the scorecard table mode → the `indicator` CF source (PLAN_1d).
   // A former scorecard ALWAYS gets the explicit source, whether or not any
   // displayed indicator carries a rule: it is what the figure meant, and a
-  // cell whose indicator has no rule renders uncoloured — which is what the
+  // cell whose indicator has no rule renders uncoloured, which is what the
   // scorecard did for it. Unguarded by fillDefaults so preset-shaped partial
   // `s` blobs get the rename too; the key is deleted in every shape.
   if ("specialScorecardTable" in s) {
@@ -506,7 +506,7 @@ export async function migratePOConfigs(
   for (const row of rows) {
     const config = JSON.parse(row.config);
 
-    // Already valid? Skip — unless legacy keys (which safeParse silently
+    // Already valid? Skip: unless legacy keys (which safeParse silently
     // strips) still need the rename.
     if (
       presentationObjectConfigSchema.safeParse(config).success &&
@@ -517,7 +517,7 @@ export async function migratePOConfigs(
 
     const transformed = transformPOConfigData(config);
 
-    // Validate against current schema — throws if invalid
+    // Validate against current schema: throws if invalid
     const validated = presentationObjectConfigSchema.parse(transformed);
 
     // Write + update last_updated (invalidates cache)

@@ -28,7 +28,7 @@ type Props = {
   showDisruptionsMode: boolean;
   showDisruptionsModeV2: boolean;
   /** Format the figure's values will actually be written in (resolved from the
-   *  draft config — HFA metrics all declare "number"). */
+   *  draft config: HFA metrics all declare "number"). */
   effectiveFormatAs: IndicatorFormat;
   offerIndicatorCfSource: boolean;
 };

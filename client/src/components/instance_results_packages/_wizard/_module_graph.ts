@@ -8,7 +8,7 @@ import type {
 
 // Dependency closure (self + prerequisites + results-object source modules,
 // transitive), mirroring the resolve-stage validation. A dependency missing
-// from the options (e.g. country-filtered) leaves the closure incomplete —
+// from the options (e.g. country-filtered) leaves the closure incomplete:
 // an incomplete closure marks the module unofferable.
 export type ModuleGraph = {
   optionById: Map<ModuleId, RunGenerationModuleOption>;

@@ -29,7 +29,7 @@ export function formatNigeriaAdminAreaLabel(label: string): string {
 
 // Display-only cleaner for replicant labels. Only strips Nigeria admin-area
 // names; everything else (indicators, other countries) passes through
-// unchanged. The raw value/id is never touched — only the displayed label.
+// unchanged. The raw value/id is never touched: only the displayed label.
 //
 // THE choke point every replicant display surface routes through (picker,
 // figure captions via withReplicant, dashboard groups, slide/dashboard modals),

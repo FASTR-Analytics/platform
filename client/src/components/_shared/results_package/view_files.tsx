@@ -14,7 +14,7 @@ import { runOutputFileHref } from "./status";
 
 // Lists the actual files in the run's outputs/{moduleId} dir, with a download
 // per file. Used only for a FAILED run's started modules (the catalogue's
-// failed branch — a partial workspace with no manifest); a ready run's files
+// failed branch: a partial workspace with no manifest); a ready run's files
 // are listed inline by ResultsPackageView from the T2 detail. Listing and
 // download share the guard of every package read (`can_view_data`).
 export function ViewFiles(

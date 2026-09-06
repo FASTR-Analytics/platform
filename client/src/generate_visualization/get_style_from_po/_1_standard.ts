@@ -43,7 +43,7 @@ export function buildStandardStyle(
     : allowNegativeScale
     ? "auto-zero"
     : undefined;
-  // The shared scale axis and everything derived from it — tick labels, the
+  // The shared scale axis and everything derived from it: tick labels, the
   // forceYMax1 clamp, the pie completion envelope. These are the ONLY
   // legitimate uses of the collapsed format; every individual value below goes
   // through formatForValue instead.

@@ -20,7 +20,7 @@ export type DatasetInProject =
 // Capture is always the full dataset (PLAN_FULL_CAPTURE_GENERATION). Legacy
 // packages may carry extra `windowing` (HMIS), `facilityColumnsConfig`,
 // `maxAdminArea` or `calculatedIndicatorsVersion` keys in their stored info
-// JSON — inert, nothing reads them.
+// JSON: inert, nothing reads them.
 export type DatasetHmisInfoInProject = {
   version: DatasetHmisVersion;
   totalRows?: number;
@@ -34,9 +34,9 @@ export type DatasetHfaInfoInProject = {
   // Set on rows that predate staleness tracking (info was '{}'). Migration
   // 011 backfills this so the client has a single, explicit legacy branch.
   _legacy?: true;
-  // All snapshot fields are optional to match reality — legacy rows lack them
+  // All snapshot fields are optional to match reality: legacy rows lack them
   // and the client compares missing-vs-present uniformly. Legacy rows may
-  // carry an inert `facilityColumnsHash` key — nothing reads it.
+  // carry an inert `facilityColumnsHash` key: nothing reads it.
   hfaCacheHash?: string;
   hfaIndicatorsVersion?: string;
   structureLastUpdated?: string;

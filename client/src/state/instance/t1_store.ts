@@ -20,7 +20,7 @@ import type {
 // Store
 // ============================================================================
 
-// Hoisted so resetInstanceState can reconcile back to it — the instance
+// Hoisted so resetInstanceState can reconcile back to it: the instance
 // sibling of EMPTY_PROJECT_STATE. `isReady: false` included: a disconnect
 // must never leave the previous user's state renderable (Clerk cross-tab
 // user switch unmounts/remounts the boundary without a reload).
@@ -87,7 +87,7 @@ const [instanceState, setInstanceState] = createStore<InstanceState>(
 export { instanceState };
 
 // ============================================================================
-// Snapshot-read getters (for caches and async code) — named getSnapshot*
+// Snapshot-read getters (for caches and async code): named getSnapshot*
 // ============================================================================
 
 export function getSnapshotInstanceLocalization(): FigureLocalization {
@@ -138,7 +138,7 @@ export function maxDepth(): number {
 
 // Family-scoped surfaces that need a definite schema. The fallback matches
 // the seeded default (depth 4, all columns off) and only applies on an
-// instance whose schema row is missing — near-zero probability, guarded by
+// instance whose schema row is missing: near-zero probability, guarded by
 // the pre-deploy check.
 const FALLBACK_STRUCTURE_SCHEMA: StructureSchema = {
   adminDepth: 4,

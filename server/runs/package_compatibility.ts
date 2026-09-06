@@ -17,11 +17,11 @@ import { runDirPath, runInputFilePath } from "./run_paths.ts";
 // against a CANDIDATE package's manifest and say what would break, before the
 // repoint rather than after it. Module evolution is per-run, so a package
 // swap is the one moment a project's stored configs can meet a different
-// catalog — this is the surface that makes that informed instead of silent.
+// catalog: this is the surface that makes that informed instead of silent.
 //
 // Manifest lookups only, no data queries: every fact needed is stamped
 // (§2.2). The authored rows come from `getAllPresentationObjectsForProject`,
-// which is the user-authored table — virtual defaults are excluded by
+// which is the user-authored table: virtual defaults are excluded by
 // construction because they are projections of whichever package is attached.
 
 // Every dimension a stored config asks the package for: grouping, filtering
@@ -67,7 +67,7 @@ function issueFor(
   }
 
   // A metric whose results object carries no query parquet offers no
-  // dimensions at all, which is exactly what an empty option list says — the
+  // dimensions at all, which is exactly what an empty option list says: the
   // same conclusion the read path reaches, so no special case here.
   const ro = manifest.resultsObjects.find(
     (r) => r.id === metric.results_object_id,

@@ -11,7 +11,7 @@ import { routesUsers } from "./routes/instance/users.ts";
 // The headless app (REVIEW_MCP_HOST_ARCHITECTURE.md §8, retired as a public
 // mount by PLAN_112 D5): headless-credential-only auth + deny-by-default route
 // allowlist. Since the /mcp endpoint replaced the local MCP host, this app is
-// INTERNAL plumbing — the /mcp context builds per-principal server actions
+// INTERNAL plumbing: the /mcp context builds per-principal server actions
 // whose fetchImpl dispatches into it via headlessAppFetch below, so every tool
 // call runs the full headless middleware chain (credential verify, allowlist,
 // permissions, logging) exactly as a network caller would. Handlers are
@@ -19,7 +19,7 @@ import { routesUsers } from "./routes/instance/users.ts";
 // with the cookie mount is structural (pinned by
 // server/tests/pat_identity_parity).
 //
-// Only the route FILES containing allowlisted routes are registered — the
+// Only the route FILES containing allowlisted routes are registered: the
 // allowlist (middleware/headless_allowlist.ts) remains the authority on which
 // individual routes a headless caller can reach. Since 2026-08-19 those are
 // the run-keyed package reads (routes/instance/run_generation.ts) and the
@@ -56,9 +56,9 @@ export function headlessAppFetch(
   return Promise.resolve(headlessApp.request(input, init));
 }
 
-// Boot-time self-check (dev only — main.ts): every allowlisted route must be
+// Boot-time self-check (dev only: main.ts): every allowlisted route must be
 // MOUNTED above. The allowlist and the mount list are two hand-kept lists and
-// drifted once — allowlisted run-keyed reads whose route file was never
+// drifted once: allowlisted run-keyed reads whose route file was never
 // mounted 404'd silently through /mcp, because a 404 is a well-formed
 // response. Structural, not behavioural: it reads Hono's route table
 // (method + path pattern, exactly what defineRoute registers from the

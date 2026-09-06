@@ -95,7 +95,7 @@ export function DownloadDashboardModal(
 
   const isImageExport = () => format() === "png";
   const isXlsx = () => format() === "xlsx";
-  // Excel is an all-tables data export — scope is always "all".
+  // Excel is an all-tables data export: scope is always "all".
   const effectiveScope = (): Scope =>
     isImageExport() ? "current" : isXlsx() ? "all" : scope();
   const showScope = () => !isImageExport() && !isXlsx() && hasCurrent();

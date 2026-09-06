@@ -12,14 +12,14 @@ import { GenericLongFormFetchConfig } from "./types/presentation_objects.ts";
 // server_only_funcs_presentation_objects/query_helpers.ts and
 // possible_values_core.ts). The app client only ever sends closed-vocabulary
 // values, but the route body is attacker-controllable, so these are the SQL
-// injection guards — type-shape alone is NOT enough.
+// injection guards: type-shape alone is NOT enough.
 
 const DISAGGREGATION_OPTION_SET: ReadonlySet<string> = new Set(
   ALL_DISAGGREGATION_OPTIONS
 );
 
 // Value props are R-generated result-table column names (e.g. count_sum,
-// numerator) — always bare SQL identifiers.
+// numerator): always bare SQL identifiers.
 export const SQL_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 // Post-aggregation expressions are arithmetic over identifiers, e.g.
@@ -27,7 +27,7 @@ export const SQL_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 // "value = COALESCE(sum_val, avg_num / avg_weight)". Allow identifiers, the
 // arithmetic/grouping operators, comma, dot, equals and spaces; reject quotes,
 // semicolons, and anything else that could break out of the expression.
-// Charset alone is NOT sufficient — it still permits word-char subqueries
+// Charset alone is NOT sufficient: it still permits word-char subqueries
 // ("(select x from t)") and arbitrary function calls ("pg_sleep(60)", a DoS
 // vector). isSafePostAggregationExpression adds the structural rules below; use
 // it (not the bare charset) to validate a PAE.
@@ -50,11 +50,11 @@ const PAE_ALLOWED_FUNCS: ReadonlySet<string> = new Set([
  *   1. No two adjacent value tokens (identifier/number). Arithmetic always has
  *      an operator between operands, so this kills "select col", "from t", and
  *      every other subquery shape.
- *   2. Any identifier directly before "(" must be a whitelisted function — this
+ *   2. Any identifier directly before "(" must be a whitelisted function: this
  *      blocks arbitrary calls like pg_sleep(...) while allowing ABS/COALESCE.
  *   3. Exactly one "=". applyPostAggregationExpression splits on "=" and keeps
  *      only the first and last chunks, so "a = b = c" would silently drop the
- *      middle term — reject it here (also kills "=="), not mid-assembly where
+ *      middle term: reject it here (also kills "=="), not mid-assembly where
  *      a throw surfaces as a generic swallowed DB error.
  */
 export function isSafePostAggregationExpression(expr: string): boolean {
@@ -96,9 +96,9 @@ export function isValidDisaggregationOption(disOpt: string): boolean {
 
 // Filter columns whose values are Number()-coerced and interpolated bare
 // (buildWhereClause emits `col IN (n, …)`). Everything else takes the escaped
-// text path (`UPPER(col) IN ('…')`). NOT in this set: `month` — the derived
+// text path (`UPPER(col) IN ('…')`). NOT in this set: `month`, the derived
 // month column is zero-padded TEXT (`LPAD`, "03"), and Postgres has no
-// text = integer operator; `time_point` — an HFA text label.
+// text = integer operator; `time_point`: an HFA text label.
 export const INTEGER_FILTER_COLUMNS: ReadonlySet<string> = new Set([
   "year",
   "quarter_id",
@@ -106,7 +106,7 @@ export const INTEGER_FILTER_COLUMNS: ReadonlySet<string> = new Set([
 ]);
 
 // Guard for values destined for the bare-interpolated integer path: a
-// non-numeric value would emit `col IN (NaN)` — invalid SQL surfacing as a
+// non-numeric value would emit `col IN (NaN)`: invalid SQL surfacing as a
 // swallowed generic DB error instead of a clean validation failure.
 export function isValidIntegerFilterValue(v: string | number): boolean {
   return Number.isFinite(Number(v));
@@ -114,7 +114,7 @@ export function isValidIntegerFilterValue(v: string | number): boolean {
 
 // The route-boundary schema for a fetch config, co-located with the
 // imperative validateFetchConfig below so the two halves can't drift (both
-// mounts of the data reads — project and run-keyed — validate with this).
+// mounts of the data reads, project and run-keyed, validate with this).
 // SQL injection guards: these fields are interpolated into unsafe SQL.
 // groupBys / filters[].disOpt / replicateBy → closed enum (period options are
 // a subset); values[].prop → bare SQL identifier; postAggregationExpression →
@@ -134,7 +134,7 @@ export const genericLongFormFetchConfigSchema = z.object({
     }).superRefine((filter, ctx) => {
       // Mirror of the validateFetchConfig guard: integer-path columns are
       // Number()-coerced and bare-interpolated, so non-numeric values would
-      // emit `col IN (NaN)` — invalid SQL.
+      // emit `col IN (NaN)`: invalid SQL.
       if (!INTEGER_FILTER_COLUMNS.has(filter.disOpt)) return;
       filter.values.forEach((v, i) => {
         if (!isValidIntegerFilterValue(v)) {
@@ -174,7 +174,7 @@ export const MULTI_MEMBERSHIP_FILTER_COLUMNS: ReadonlySet<string> =
 
 // THE delimiter for multi-membership set encoding. TS sites use the helpers
 // below; SQL sites (buildWhereClause, getPossibleValuesCore) interpolate this
-// const into string_to_array — SQL cannot call the TS helpers, so the const
+// const into string_to_array: SQL cannot call the TS helpers, so the const
 // is the single point of consistency across both worlds.
 export const MULTI_MEMBERSHIP_DELIMITER = "|";
 
@@ -185,8 +185,8 @@ export const MULTI_MEMBERSHIP_DELIMITER = "|";
 // blanks), so they fold together rather than becoming two options.
 //
 // Uppercase so it passes through buildWhereClause's UPPER() comparison
-// unchanged. Same theoretical collision exposure as ROLLUP_SENTINEL — a
-// literal "__BLANK" in source data — accepted on the same grounds.
+// unchanged. Same theoretical collision exposure as ROLLUP_SENTINEL, a
+// literal "__BLANK" in source data, accepted on the same grounds.
 //
 // Interpolated into SQL by blankFoldedRef (query_helpers.ts) and matched
 // client-side for display; never stored.
@@ -197,7 +197,7 @@ export const BLANK_SENTINEL = "__BLANK";
 // (pickLang), UI chips from the ambient language (t3).
 //
 // "Blank", not "missing": "Missing" already means the count of facilities that
-// did not answer an HFA question — a data-quality claim about non-response.
+// did not answer an HFA question: a data-quality claim about non-response.
 // This is the display state of a cell, and it covers three different origins
 // (no value stored, nothing assigned, no matching facility row), so it names
 // what is observable rather than inferring a cause.
@@ -214,7 +214,7 @@ const PERIOD_DERIVED_TEXT_COLUMNS: ReadonlySet<string> = new Set(["month"]);
 
 // Whether a disaggregation column folds NULL/blank onto BLANK_SENTINEL.
 // Excluded: integer columns (no blank state), period-derived text, and
-// multi-membership columns — a blank cell there yields NO row from
+// multi-membership columns: a blank cell there yields NO row from
 // string_to_array('', '|') = {}, so there is nothing for the fold to catch.
 export function usesBlankSentinel(disOpt: string): boolean {
   return (
@@ -272,7 +272,7 @@ export function validateFetchConfig(
   // columns. With a PAE the builders disambiguate (paeCollidingGroupBys,
   // query_helpers.ts); without one there is no wrapper layer to re-alias in,
   // and the driver's row object would silently clobber the group value with
-  // the aggregate. No shipped non-PAE metric has this shape — fail loud.
+  // the aggregate. No shipped non-PAE metric has this shape: fail loud.
   if (fetchConfig.postAggregationExpression === undefined) {
     const valueProps = new Set(fetchConfig.values.map((v) => v.prop));
     for (const groupBy of fetchConfig.groupBys) {

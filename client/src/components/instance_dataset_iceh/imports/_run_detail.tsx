@@ -5,7 +5,7 @@ import { IcehStagingSummary } from "./_staging_summary";
 import { icehRunStatusLabel } from "./_status_label";
 
 // History click-through for an ICEH run: the run facts + the durable staging
-// diagnostics (the run row is ICEH's only import record — invariant 4).
+// diagnostics (the run row is ICEH's only import record: invariant 4).
 export function IcehRunDetail(
   p: EditorComponentProps<{ run: IcehImportRunSummary }, undefined>,
 ) {

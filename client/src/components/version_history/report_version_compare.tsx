@@ -23,7 +23,7 @@ import {
 // Unified one-page comparison between a version and the current document:
 // additions highlighted, removals struck through, and each changed section
 // attributed on hover to the editing session that made it (computed by
-// diffing the version's lineage — see version_diff.ts).
+// diffing the version's lineage: see version_diff.ts).
 export function ReportVersionCompare(
   p: AlertComponentProps<
     {

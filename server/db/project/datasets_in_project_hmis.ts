@@ -47,15 +47,15 @@ export async function ensureDatasetCsvTargetDir(
 }
 
 // computeDatasetHmisRunCapture does every instance-DB read, validation, and
-// the COPY TO export — and returns the captured rows the caller needs (run
+// the COPY TO export, and returns the captured rows the caller needs (run
 // input mirrors, script-generation inputs, manifest datasets info) WITHOUT
-// touching any project DB. Capture is always the FULL dataset — entire
+// touching any project DB. Capture is always the FULL dataset: entire
 // period range, all indicators, all admin areas, all facility
 // types/ownerships (PLAN_FULL_CAPTURE_GENERATION ruling 2026-08-03):
 // the R scripts need the full dataset to compute correctly, and per-project
 // subsetting is an attach-time query filter, never a generation input.
 
-// The facilities_{hmis,hfa} column set, in project-table order — the run's
+// The facilities_{hmis,hfa} column set, in project-table order: the run's
 // facilities parquet is built from these rows directly (no project table to
 // export from under the no-dual-write model).
 export const PROJECT_FACILITY_COLUMN_NAMES = [
@@ -98,7 +98,7 @@ export type DatasetHmisRunCapture = {
   // snapshot beside it.)
   indicators: CommonIndicatorCatalogRow[];
   facilities: ProjectFacilityRow[];
-  // The extract's month range and the structure's finest admin level — what
+  // The extract's month range and the structure's finest admin level: what
   // the person-years expansion (prepare_inputs) needs to know which months
   // and which areas every referenced population must cover.
   periodRange: { min: number; max: number };
@@ -115,12 +115,12 @@ export async function computeDatasetHmisRunCapture(
     // one would copy torn mid-run data into the project stamped with the
     // settled version id. Refuse up front (this also gives the clear error
     // on a first-ever import, when the only version row is still hidden).
-    // A run *launching* mid-export remains possible — that window existed
+    // A run *launching* mid-export remains possible, that window existed
     // pre-Phase-3 too (a CSV integrate commit could land mid-export) and
     // self-signals via the staleness marker at run end.
     await assertNoRunningDatasetHmisImportRun(mainDb);
 
-    // Validate BEFORE removing the existing attachment — a validation
+    // Validate BEFORE removing the existing attachment: a validation
     // failure after the remove would leave the project detached with
     // modules still clean and clients unnotified. The version is also the
     // staleness marker, so it must be captured before the export.
@@ -207,7 +207,7 @@ export async function computeDatasetHmisRunCapture(
 COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADER true, FREEZE false)
 `);
 
-    // The mirror carries the WHOLE dictionary — a derived indicator's own row
+    // The mirror carries the WHOLE dictionary: a derived indicator's own row
     // is what makes the package standalone. The extract, by contrast, is base
     // rows only, so the base commons with mappings are exactly the ingredients
     // any expression may draw on.
@@ -263,7 +263,7 @@ COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADE
 function getDatasetHmisExportStatement(
   structureSchema: StructureSchema
 ): string {
-  // Admin columns up to the HMIS registry's own depth — never a global max
+  // Admin columns up to the HMIS registry's own depth: never a global max
   const adminAreaColumns = [];
   for (let i = 1; i <= structureSchema.adminDepth; i++) {
     adminAreaColumns.push(`admin_area_${i}`);

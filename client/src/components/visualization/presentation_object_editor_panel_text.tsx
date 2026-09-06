@@ -17,7 +17,7 @@ export type VizCaptionCollab = {
   configMap: Y.Map<unknown>;
   awareness: Awareness;
   canEdit: () => boolean;
-  /** The viz editor's per-user undo stack — caption editors join it, so the
+  /** The viz editor's per-user undo stack: caption editors join it, so the
    *  editor's undo buttons cover caption typing too. */
   undoManager: () => Y.UndoManager | undefined;
 };

@@ -30,7 +30,7 @@ import {
 
 // Auto-decimal formatter over a known set of values, 3-way. percent/number
 // size their decimals from the list (the fewest that keep it distinct);
-// rate_per_10k does NOT — it follows formatRateAuto, the same per-value exact
+// rate_per_10k does NOT: it follows formatRateAuto, the same per-value exact
 // rule the scale axis uses, so a cutoff of 0.25 per 10k reads "0.25" in the
 // legend and "0.25" on the axis instead of being rounded to "0.3" by a
 // list-wide count.
@@ -46,13 +46,13 @@ export function buildAutoValueFormatter(
 
 // Scale legends take EITHER panther's two-way `format` (which builds an
 // auto-decimal formatter) or an explicit `labelFormatter` function, which wins.
-// rate_per_10k has no `format` value, so it goes through the function escape —
+// rate_per_10k has no `format` value, so it goes through the function escape:
 // the same escape the scale axis's tick labels use, which is why the legend and
 // the axis cannot drift apart by a factor of 10,000 OR by a decimal.
 //
 // It takes no boundary list because formatRateAuto needs none: a boundary list
 // was only ever there to size a shared decimal count, and a legend whose domain
-// is `auto` (the DEFAULT) has no boundaries to give — the [0, 1] stand-in it
+// is `auto` (the DEFAULT) has no boundaries to give: the [0, 1] stand-in it
 // used to get collapsed every rate tick to zero decimals, so 0 / 0.5 / 1 / 1.5
 // per 10k all labelled as "0", "1", "1", "2".
 export function scaleLegendFormat(
@@ -71,7 +71,7 @@ export function scaleLegendFormat(
 // panther's value-colour sentinel. `scale` and `thresholds` ignore the
 // element. `indicator` reads it: the element's headers walk the app's id
 // chain to the value's own indicator rule, and a value whose indicator has no
-// rule returns undefined — panther's decline, which a table cell or map
+// rule returns undefined: panther's decline, which a table cell or map
 // region renders as "none" and a bar as its series colour. Legend sampling
 // calls with no element and gets undefined too (the `indicator` legend is
 // derived by compileCfToLegend, never sampled).
@@ -190,7 +190,7 @@ function ruleLegend(
 // never authored on the figure, and it is always ONE list: one item per
 // distinct colour, best bucket first in the first rule's order, labelled with
 // every distinct meaning that colour carries across the rules (joined with
-// " / "). Rules that share colours and labels merge whatever their cutoffs —
+// " / "). Rules that share colours and labels merge whatever their cutoffs:
 // a legend maps colour to meaning, and the house-style scorecard is exactly
 // this case. An unlabelled bucket's derived text carries its cutoff, in the
 // rule's OWN format (never the figure's axisFormat, which collapses to

@@ -5,20 +5,20 @@ import { thresholdsRuleSchema } from "./conditional_formatting.ts";
 import type { DatasetType } from "./datasets.ts";
 import type { IndicatorMetadata } from "./indicators.ts";
 
-// The run manifest (PLAN_RESULTS_RUNS §2.2) — written once by the finalize
+// The run manifest (PLAN_RESULTS_RUNS §2.2): written once by the finalize
 // step of a generation, the ONLY thing readers consult at query time. Precomputed, never probed: every fact the
 // read path used to discover via per-request column probes is stamped here.
 // Identity is in the artifact: runId required, and no projectId or any other
 // instance FK inside run files (§9 layer rule).
 
-// 3: gained `indicators` — the per-module resolved indicator catalog, so the
+// 3: gained `indicators`, the per-module resolved indicator catalog, so the
 // read path stops re-deriving it from the input mirrors on every request.
 // 4: metrics[].format_as became the three-way declaration ("indicator" =
-// values carry the displayed indicator's own format) — the 8 pre-declaration
+// values carry the displayed indicator's own format): the 8 pre-declaration
 // metric rows are rewritten in place (manifest_transform block 2).
 // 5: facilityColumnsConfig split into per-family structureSchemaHmis /
 // structureSchemaHfa slots (null = family not in the package). Flags + labels
-// only — adminDepth is deliberately NOT carried (nothing on the read path
+// only: adminDepth is deliberately NOT carried (nothing on the read path
 // consumes it), and there is no shared adminAreaLabels key (every admin-label
 // consumer reads live instance state). Pure copy in manifest_transform
 // block 3.
@@ -65,7 +65,7 @@ export const runResultsObjectSchema = z.object({
 });
 export type RunResultsObject = z.infer<typeof runResultsObjectSchema>;
 
-// Module catalog entry — the installed definition verbatim (raw JSON string,
+// Module catalog entry: the installed definition verbatim (raw JSON string,
 // exactly as the project-DB modules table stores it, so existing parsers
 // apply unchanged). inputKey/outputFileHashes are the §3.7 memoization
 // fields: schema-present from the first manifest, computed by generation;
@@ -82,7 +82,7 @@ export const runModuleSchema = z.object({
 });
 export type RunModule = z.infer<typeof runModuleSchema>;
 
-// Metric catalog entry — the module definition's metric row verbatim
+// Metric catalog entry: the module definition's metric row verbatim
 // (snake_case field names are the definition's own vocabulary), plus the
 // build-time datasetFamily stamp (camelCase marks it as derived at
 // finalize via getDatasetFamily, not a DB column; null = no single family).
@@ -116,7 +116,7 @@ export const runMetricAvailabilitySchema = z.object({
 });
 export type RunMetricAvailability = z.infer<typeof runMetricAvailabilitySchema>;
 
-// Inputs record per dataset family — the version stamps and windowing the
+// Inputs record per dataset family: the version stamps and windowing the
 // project datasets table holds today (datasets.info), captured at finalize.
 export const runDatasetSchema = z.object({
   datasetType: z.string(),
@@ -127,7 +127,7 @@ export type RunDataset = z.infer<typeof runDatasetSchema>;
 
 // Pinned copy of an instance asset the run's modules declare (stored at
 // inputs/assets/{fileName}), hashed so the run records exactly which asset
-// bytes it consumed (§6.2 — assets are unversioned and mutable in place).
+// bytes it consumed (§6.2: assets are unversioned and mutable in place).
 export const runAssetSchema = z.object({
   fileName: z.string(),
   sha256: z.string(),
@@ -135,7 +135,7 @@ export const runAssetSchema = z.object({
 export type RunAsset = z.infer<typeof runAssetSchema>;
 
 // Post-export schema of a facilities input parquet (inputs/{tableName}.parquet)
-// — the join side of facility-column queries, stamped so the read path can
+//: the join side of facility-column queries, stamped so the read path can
 // build textColumns without probing the parquet.
 export const runFacilitiesTableSchema = z.object({
   tableName: z.string(),
@@ -143,7 +143,7 @@ export const runFacilitiesTableSchema = z.object({
 });
 export type RunFacilitiesTable = z.infer<typeof runFacilitiesTableSchema>;
 
-// Resolved indicator metadata per module — labels, formats, thresholds and
+// Resolved indicator metadata per module: labels, formats, thresholds and
 // sort order, composed at finalize from the input mirrors the module's dataset
 // family uses. Typed against IndicatorMetadata so the two cannot drift.
 //
@@ -175,7 +175,7 @@ export type RunModuleIndicators = z.infer<typeof runModuleIndicatorsSchema>;
 // (id + label, label-sorted). Stamped at finalize from the run's own
 // indicators mirror, and by manifest transform block 4 for older packages.
 // Before v6 the read path re-opened that mirror on every request; this field
-// is that derivation moved to where every other package fact already lives —
+// is that derivation moved to where every other package fact already lives:
 // SYSTEM_08's "the read path parses the manifest only".
 export const runCommonIndicatorSchema = z.object({
   id: z.string(),
@@ -185,7 +185,7 @@ export type RunCommonIndicator = z.infer<typeof runCommonIndicatorSchema>;
 
 // The person-years file a wizard generation wrote to inputs/population.csv
 // (PLAN_1b ruling 4): which population types it carries, at which HMIS admin
-// level, over which months. Generation-only provenance — null when the
+// level, over which months. Generation-only provenance: null when the
 // package carries no such file (a pre-1b package, a backfill, or a run
 // without the HMIS family). The file's format is permanent once written:
 // admin_area_2..N, period_id, population_type, person_years.
@@ -209,7 +209,7 @@ export const runManifestSchema = z.object({
   appVersion: z.string(),
   rImageTag: z.string().nullable(),
 
-  // Data semantics captured into the run at finalize — the adapter reads
+  // Data semantics captured into the run at finalize: the adapter reads
   // calendar from HERE, never from the env global (§2.4); the per-family
   // structure-schema slots are the dissolved N1 gap (§8 SNAP-1), null when
   // that family's facilities are not in the package.
@@ -230,13 +230,13 @@ export const runManifestSchema = z.object({
   population: runPopulationSchema.nullable(),
 
   // Relative paths (from the run dir root) of every input file the run
-  // carries — facilities parquet, dictionary/snapshot JSONs, the
+  // carries: facilities parquet, dictionary/snapshot JSONs, the
   // person-years file.
   inputFiles: z.array(z.string()),
 });
 export type RunManifest = z.infer<typeof runManifestSchema>;
 
-// Stored in the instance-DB runs catalog row (runs.summary) for listing —
+// Stored in the instance-DB runs catalog row (runs.summary) for listing:
 // DB-side, so project references are fine here (the layer rule only forbids
 // instance FKs inside run FILES).
 //
@@ -248,7 +248,7 @@ export type RunManifest = z.infer<typeof runManifestSchema>;
 // projects the publish transaction repoints, and the key the launch
 // concurrency guard uses.
 // `diskSizeBytes` is the package's total file size, summed by the shared
-// builder over the finished tmp dir — both writers stamp it, so every run
+// builder over the finished tmp dir: both writers stamp it, so every run
 // minted from Phase 3 item 3 onwards carries one. Null is a run written
 // before the stamp existed: displayed as unknown, never recomputed at read
 // time (a run dir is immutable, so a `du` fallback would only ever be a

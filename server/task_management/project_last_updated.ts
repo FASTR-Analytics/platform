@@ -10,7 +10,7 @@ export type ProjectLastUpdatedState = {
   lastUpdated: Record<LastUpdateTableName, Record<string, string>>;
 };
 
-// Per-entity last-updated snapshot for the initial SSE payload — the client's
+// Per-entity last-updated snapshot for the initial SSE payload: the client's
 // T2 caches version on these stamps.
 export async function getProjectLastUpdatedState(
   ppk: ProjectPk,

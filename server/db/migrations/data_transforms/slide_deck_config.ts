@@ -56,7 +56,7 @@ function isColorTooLight(hex: string): boolean {
   return l > 40;
 }
 
-// Old numeric sizing thresholds — what the editor wrote before the
+// Old numeric sizing thresholds: what the editor wrote before the
 // semantic-key migration. Frozen here; do not retune (the live render
 // values live in lib's LOGO_SIZE_TARGET_AREA / LOGO_SPACING_GAP_X).
 const OLD_SIZE_TARGET_AREA: Record<string, number> = {

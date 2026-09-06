@@ -27,7 +27,7 @@ import { serverActions } from "~/server_actions";
 // The instance's module-defaults editor (S8 "Instance module defaults"): the
 // ONE writer of the `run_generation_defaults` store, which pre-fills the
 // generation wizard (resume beats these defaults beats definition defaults).
-// Definitions are never stored — they are resolved live on open via the same
+// Definitions are never stored: they are resolved live on open via the same
 // read the wizard uses, and drift is absorbed by
 // getMergedModuleConfigSelections on the next read. Params render for EVERY
 // offerable module regardless of the default module set. The save is SPARSE
@@ -35,11 +35,11 @@ import { serverActions } from "~/server_actions";
 // this session (dirty-tracked per field), so a param no admin ever touched
 // is not stored and keeps following future definition-default changes,
 // while a stored value stays pinned until explicitly changed. Per-module
-// "Reset to definition defaults" is the unpin act — it drops the module's
+// "Reset to definition defaults" is the unpin act: it drops the module's
 // stored entry so every one of its params follows the definition again.
 // Stored entries
 // for modules not offerable here (country-filtered or removed) pass through
-// verbatim on save — the store tolerates unknown moduleIds by design — as
+// verbatim on save (the store tolerates unknown moduleIds by design), as
 // do stored keys a definition no longer declares.
 type Props = EditorComponentProps<Record<never, never>, undefined>;
 
@@ -136,7 +136,7 @@ function ModuleDefaultsInner(p: {
     ),
   );
 
-  // Both are read only at save time, so plain Sets — no reactivity needed.
+  // Both are read only at save time, so plain Sets: no reactivity needed.
   // Reset marks the module's stored entry for deletion; adjusting any of its
   // params afterwards resumes normal dirty-tracked saving from the
   // definition defaults the reset put in the form.

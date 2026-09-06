@@ -65,7 +65,7 @@ export async function getProjectDetail(
     }
     // EVERYTHING run-derived comes from the attached run's manifest and its
     // captured inputs (PLAN_RESULTS_RUNS item 5 / binding decision 5, extended
-    // by the Phase 3 re-cut ruling 5 — the project mirror/dataset tables are
+    // by the Phase 3 re-cut ruling 5: the project mirror/dataset tables are
     // no longer written by generation, so they are never read): no run
     // attached → typed empty lists. An attached-but-unreadable run degrades to
     // empty here (loudly logged) so authored content stays reachable; the
@@ -257,7 +257,7 @@ export async function getProjectDetail(
 ////////////////////////
 
 // A new project starts empty: no datasets, no modules, no results package
-// attached (the typed no-run state) — an admin generates a package from the
+// attached (the typed no-run state): an admin generates a package from the
 // instance shell and attaches it here. The old dataset export + installModule
 // writes are gone with the legacy plane (Phase 3 item 1): nothing read them
 // any more, and on a big instance they cost a multi-GB extract per project
@@ -448,7 +448,7 @@ export async function forceDeleteProject(
 }
 
 // Returns the number of projects actually purged so the caller (main.ts's
-// boot + 24h tick) can fire the projects/runs-catalogue notifies — the purge
+// boot + 24h tick) can fire the projects/runs-catalogue notifies: the purge
 // removes projects.run_id pointers, which are the catalogue's
 // attachedProjects and delete-guard facts, and clients would otherwise never
 // hear about it. The notify stays at the caller per the established split

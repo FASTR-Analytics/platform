@@ -4,7 +4,7 @@ import type { ReportSummary } from "lib";
 import { serverActions } from "~/server_actions";
 
 // Project content: the project's reports (SPA-only). create_report is the
-// copilot's one non-editor write — approval-gated.
+// copilot's one non-editor write: approval-gated.
 function formatReportsListForAI(reports: ReportSummary[]): string {
   if (reports.length === 0) return "No reports exist yet.";
   return reports.map((r) => `- ${r.label} (id: ${r.id})`).join("\n");
@@ -82,7 +82,7 @@ export function getClientToolsForReports(
                 } words of markdown`,
               },
             ],
-            // The body that would actually commit — consent must be to the
+            // The body that would actually commit: consent must be to the
             // content, not to a word count.
             diff: { before: "", after: input.markdown },
           },

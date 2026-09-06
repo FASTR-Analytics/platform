@@ -32,7 +32,7 @@ export type ResultsValue = {
   // Declared catalog evaluation (PLAN_1a §1.6). Present only on metrics over
   // an indicator_values results object: the fetch config sends these props as
   // SUM values, the server applies each indicator's catalog expression to the
-  // aggregated row, and the items come back with a single `value` column —
+  // aggregated row, and the items come back with a single `value` column:
   // which is why valueProps is ["value"] and no prop picker is offered.
   catalogExpressionEvaluation?: CatalogExpressionEvaluation;
   // The results table has a facility_id column, i.e. rows are raw facility
@@ -42,7 +42,7 @@ export type ResultsValue = {
   // for AVG metrics (isRollupEligibleResultsValue).
   hasFacilityLevelRows?: boolean;
   // The dataset family of the module that produced this metric. Optional for
-  // the same reason as above. UI affordance only — it decides whether the
+  // the same reason as above. UI affordance only: it decides whether the
   // editor offers the sample-size toggle (n is HFA-only); the renderer itself
   // self-gates on whether the items carry __n_* columns.
   datasetFamily?: DatasetType;
@@ -63,7 +63,7 @@ export type ResultsValue = {
 // The metric's declared format source. "percent"/"number": the values are the
 // metric's own quantity and the format is a constant. "indicator": the values
 // ARE the displayed indicator's own quantity, so format is a per-value fact
-// carried by the indicator catalog (IndicatorMetadata.format_as) — see
+// carried by the indicator catalog (IndicatorMetadata.format_as): see
 // lib/resolve_effective_format.ts.
 export type MetricFormatAs = "percent" | "number" | "indicator";
 
@@ -74,7 +74,7 @@ export type ResultsValueForVisualization = {
 };
 
 // Status comes from the attached run's finalize-computed availability stamps
-// (PLAN_RESULTS_RUNS §2.2) — readers never re-derive availability.
+// (PLAN_RESULTS_RUNS §2.2): readers never re-derive availability.
 export type MetricStatus = "ready" | "unavailable";
 
 export type MetricWithStatus = ResultsValue & {
@@ -86,12 +86,12 @@ export type MetricWithStatus = ResultsValue & {
 };
 
 // The attached run's module catalog entry as the client sees it (built from
-// the run manifest — no live project-DB state).
+// the run manifest: no live project-DB state).
 //
 // `id` is a plain string, on the READ PLANE rule (PLAN_1a §0 clause 3): a
 // package's module ids come from its own manifest and are read as text.
-// `ModuleId` is a generation-plane type — the wizard, module resolution and
-// the loader — and a package must stay readable when a module leaves the
+// `ModuleId` is a generation-plane type: the wizard, module resolution and
+// the loader, and a package must stay readable when a module leaves the
 // registry.
 export type InstalledModuleSummary = {
   id: string;
@@ -157,7 +157,7 @@ export type CompareProjectsModuleParameter = {
   value: string;
 };
 
-// Sourced from each project's attached results package manifest — a package
+// Sourced from each project's attached results package manifest: a package
 // records one generation, at one module git ref.
 export type CompareProjectsModule = {
   id: string;

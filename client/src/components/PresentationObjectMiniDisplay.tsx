@@ -31,7 +31,7 @@ export function PresentationObjectMiniDisplay(p: Props) {
   });
 
   // Monotonic run id: two effect re-runs (PO last_updated bursts) race their
-  // generator loops, and the older one can commit its stale state last — the
+  // generator loops, and the older one can commit its stale state last: the
   // guard sits INSIDE the loop because the generator yields multiple times
   // (same idiom as visualization_editor_inner's itemsFetchRunId).
   let fetchRunId = 0;
@@ -68,7 +68,7 @@ export function PresentationObjectMiniDisplay(p: Props) {
   );
 }
 
-// Render an ALREADY-RESOLVED FigureInputs as a thumbnail — identical rendering
+// Render an ALREADY-RESOLVED FigureInputs as a thumbnail: identical rendering
 // to the presentation-object mini display (zoom, aspect-video, table-aware
 // height, NotAvailableBox errors), but for snapshotted figures that have no
 // live presentation-object id (e.g. dashboard items).

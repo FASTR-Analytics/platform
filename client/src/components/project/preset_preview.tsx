@@ -48,7 +48,7 @@ export function PresetPreview(p: Props) {
   createEffect(() => {
     const preset = p.preset;
     const metric = p.metric;
-    // Tracked version-key read — fetchPreview's cache-internal reads are untracked
+    // Tracked version-key read: fetchPreview's cache-internal reads are untracked
     runVersionKey(projectState);
     const thisVersion = ++version;
     setState({ status: "loading" });

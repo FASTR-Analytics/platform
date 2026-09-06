@@ -104,7 +104,7 @@ export type InstanceDetail = {
   adminAreaLabels: InstanceConfigAdminAreaLabels;
   // The stored DHIS2 connection's URL, or null when none is configured. Rides
   // the instance payload (and the config SSE) rather than being fetched per
-  // page view — the Data page shows it as at-a-glance state.
+  // page view: the Data page shows it as at-a-glance state.
   dhis2ConnectionUrl: string | null;
   structure:
     | {
@@ -143,7 +143,7 @@ export type InstanceConfigAdminAreaLabels = z.infer<
 // The facility-columns portion of a family's structure schema: which optional
 // facility columns are enabled, plus their display labels. This is also the
 // per-family slot shape in the run manifest (adminDepth is deliberately NOT
-// carried there — nothing on the manifest read path consumes it).
+// carried there: nothing on the manifest read path consumes it).
 export const structureColumnsSchema = z.object({
   includeNames: z.boolean(),
   includeTypes: z.boolean(),
@@ -166,7 +166,7 @@ export type StructureColumns = z.infer<typeof structureColumnsSchema>;
 
 // Per-family structure configuration, stored as the instance_config rows
 // structure_schema_hmis / structure_schema_hfa. Seeded at instance creation;
-// row presence carries no meaning — behaviour gates key off the family
+// row presence carries no meaning: behaviour gates key off the family
 // TABLE's emptiness.
 export const structureSchemaSchema = structureColumnsSchema.extend({
   adminDepth: z.union([
@@ -180,7 +180,7 @@ export type StructureSchema = z.infer<typeof structureSchemaSchema>;
 
 // The manifest-slot projection: drops adminDepth EXPLICITLY (nothing on the
 // run read path consumes it, so it must not enter run files), then validates.
-// Same pattern as prepareModuleDefinitionForStorage — the narrowing is a
+// Same pattern as prepareModuleDefinitionForStorage: the narrowing is a
 // named function, never an implicit schema strip.
 export function structureColumnsFromSchema(
   schema: StructureSchema,
@@ -232,7 +232,7 @@ export function getEnabledOptionalFacilityColumns(
   return columns;
 }
 
-// Canonical string representation for staleness comparison — the include
+// Canonical string representation for staleness comparison: the include
 // flags ONLY. Labels are display-only and deliberately excluded so a label
 // rename never busts a data cache. Fixed key order so server and client
 // produce byte-identical output from equal configs.
@@ -498,10 +498,10 @@ export type ItemsHolderPresentationObject =
   & {
     resultsObjectId: string;
     fetchConfig: GenericLongFormFetchConfig;
-    // The immutable run this payload was served from — the cache identity
+    // The immutable run this payload was served from: the cache identity
     // (PLAN_RESULTS_RUNS §2.5) and the figure's provenance (ruling 4).
     runId: string;
-    // The project scope the payload was computed under (projectScopeToken) —
+    // The project scope the payload was computed under (projectScopeToken):
     // folded into cache versions beside runId (PLAN_1_PROJECT_AA2_SCOPE §4).
     scopeToken: string;
     dateRange: PeriodBounds | undefined;

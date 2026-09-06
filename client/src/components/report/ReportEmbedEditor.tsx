@@ -13,7 +13,7 @@ import {
 import { FileUploadSelector } from "~/components/_file_upload_selector";
 import { MarkdownGuide } from "~/components/_markdown_guide";
 
-// The currently-selected report embed (report-specific — no Dashboard naming).
+// The currently-selected report embed (report-specific: no Dashboard naming).
 export type SelectedReportEmbed =
   | { kind: "figure"; id: string; caption: string; figureBlock: FigureBlock }
   | { kind: "image"; id: string; caption: string; imageBlock: ImageBlock };
@@ -34,7 +34,7 @@ type Props = {
   onInsertImage: () => void;
 };
 
-// Ever-present left panel for editing the selected embed — same UX as the slide
+// Ever-present left panel for editing the selected embed: same UX as the slide
 // editor's block panel: figure controls for a figure, image-file controls for an
 // image, caption + delete for both.
 export function ReportEmbedEditor(p: Props) {

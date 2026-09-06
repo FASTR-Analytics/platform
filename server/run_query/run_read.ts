@@ -84,7 +84,7 @@ import {
 } from "./virtual_defaults.ts";
 
 // The run read path: every function here consults ONLY the attached immutable
-// run — manifest for metadata (no probes), parquet for data. The SQL builders
+// run: manifest for metadata (no probes), parquet for data. The SQL builders
 // and status logic live in server_only_funcs_presentation_objects/ and take
 // the query context and the executor from here.
 
@@ -100,8 +100,8 @@ export type RunReadContext = {
 };
 
 // The two lenses onto one read core. A read context is (run, scope): the
-// PROJECT lens resolves both from the project row — its attached run and its
-// AA2 — and is what every project-mounted data route uses; the RUN lens takes
+// PROJECT lens resolves both from the project row, its attached run and its
+// AA2, and is what every project-mounted data route uses; the RUN lens takes
 // the run id directly at national scope and is what the run-keyed instance
 // routes (and through them the pinned-package MCP surface) use. Everything
 // below the context is shared.
@@ -120,7 +120,7 @@ async function buildRunReadContext(
   };
 }
 
-// Resolves the project's attached run via projects.run_id — the one and only
+// Resolves the project's attached run via projects.run_id, the one and only
 // serving pointer. No run attached is a typed, expected state (projects await
 // their backfill synthesis or first wizard generation); a non-null pointer to
 // an unreadable run is an operational error surfaced loudly.
@@ -156,7 +156,7 @@ SELECT run_id, admin_area_2 FROM projects WHERE id = ${projectId}
 }
 
 // The run lens: an explicit run id at national scope. Accepts any run id the
-// caller is authorized to read (the instance data bits) — an unreadable or
+// caller is authorized to read (the instance data bits), an unreadable or
 // unknown run surfaces as the manifest read failing. The id is CALLER
 // supplied (a URL param) and becomes a path, so it is shape-checked first.
 export async function getRunReadContextForRun(
@@ -217,7 +217,7 @@ function executorFor(
 }
 
 // RO columns answer from the manifest stamp; anything else (facilities) is a
-// probe against the run's own parquet — still run-local, never live.
+// probe against the run's own parquet, still run-local, never live.
 function columnExistsFor(
   ctx: RunReadContext,
   resultsObjectId: string,
@@ -353,7 +353,7 @@ async function readInputRows<T>(
 }
 
 // The project-level dataset/indicator lists that T1 carries, all served from
-// the attached run's own inputs (PLAN_RESULTS_RUNS Phase 3 re-cut ruling 5 —
+// the attached run's own inputs (PLAN_RESULTS_RUNS Phase 3 re-cut ruling 5:
 // the project mirror tables are no longer written, so they are never read).
 
 export function getProjectDatasetsFromManifest(
@@ -471,7 +471,7 @@ function parseServiceCategoryIds(raw: unknown): string[] {
 // A manifest lookup, not a derivation: the catalog is stamped at finalize by
 // buildRunIndicatorCatalog (server/runs/indicator_catalog.ts) and recomputed
 // forward by manifest transform block 1. Nothing here re-reads the input
-// mirrors — the manifest's "precomputed, never probed" doctrine.
+// mirrors: the manifest's "precomputed, never probed" doctrine.
 //
 // An empty array for an unknown module is the same answer the derivation gave
 // (it returned early on a module missing from the catalog).
@@ -550,7 +550,7 @@ function inferMostGranularTimePeriodColumn(
 // Server-side requiredness guard for the type-erased items request: the
 // client sends only fetchConfig, so the viz type is unknown here and two
 // gaps are structural. Time-based required dims (restricted
-// allowedPresentationOptions) are exempt — a map legitimately omits
+// allowedPresentationOptions) are exempt: a map legitimately omits
 // time_point under current policy. And metrics sharing an RO may require
 // different dims (m9 strat/level), so only dims required by EVERY metric of
 // the RO are enforceable from the RO id alone. App clients and the AI tools
@@ -598,7 +598,7 @@ export function resolveMetricFromRun(
 
 // ── The run-derived catalog as the client sees it (T1 store) ─────────────────
 
-// The manifest module catalog → InstalledModuleSummary[], sorted by id — the
+// The manifest module catalog → InstalledModuleSummary[], sorted by id, the
 // project's modules ARE the attached run's modules (no live project-DB state).
 export function getModuleSummariesFromManifest(
   manifest: RunManifest,
@@ -781,15 +781,15 @@ export function evictRunFromScopeDerivationCache(runId: string): void {
   }
 }
 
-// An empty derivation must inject a never-matching sentinel — an empty
+// An empty derivation must inject a never-matching sentinel: an empty
 // `values` array is skipped by buildWhereClause and would show ALL data.
 const SCOPE_EMPTY_SENTINEL = "__SCOPE_EMPTY__";
 
 // The scope filter for one results object, decided per-RO from the manifest
-// column stamps at runtime (never from a baked list — a new module can add to
+// column stamps at runtime (never from a baked list, a new module can add to
 // the derivation surface). RO carries admin_area_2 → filter it directly; only
 // a child admin column → filter by the child values derived from the family
-// facilities parquet (matching by NAME — the duplicate-district collision is
+// facilities parquet (matching by NAME, the duplicate-district collision is
 // an accepted latent, see SYSTEM_08's ruling); no admin columns at all
 // (national ROs, ICEH) → unfiltered, which is the ruling's one blessed
 // unfiltered case.
@@ -801,7 +801,7 @@ const SCOPE_EMPTY_SENTINEL = "__SCOPE_EMPTY__";
 // otherwise show every area in the country inside a scoped project. Blank is
 // wrong visibly; national data under a regional heading is wrong silently.
 // The durable fix is those scripts emitting admin_area_2 (which puts them on
-// the direct-filter path and retires the derivation entirely) — tracked in
+// the direct-filter path and retires the derivation entirely), tracked in
 // the modules repo as PLAN_ADMIN_AREA_2_ON_ADMIN3_OUTPUTS.md. Packages are
 // immutable,
 // so this branch still guards every package generated before that lands.
@@ -898,7 +898,7 @@ export async function getPresentationObjectItemsFromRun(
   const res = await getPresentationObjectItemsCore(
     {
       execute: executorFor(ctx, resultsObjectId),
-      // Display fields only — an indicator's evaluation is a generation fact
+      // Display fields only: an indicator's evaluation is a generation fact
       // used just below, never something a client or a stored figure carries.
       getIndicatorMetadata: () =>
         Promise.resolve(toIndicatorMetadataDisplay(catalog)),
@@ -925,7 +925,7 @@ export async function getPresentationObjectItemsFromRun(
     );
   }
   // The echo is the REQUEST: restore the caller's fetchConfig onto the
-  // holder — the scope rides separately as the version-info scopeToken.
+  // holder: the scope rides separately as the version-info scopeToken.
   if (res.success && scopeFilters.length !== 0) {
     res.data.fetchConfig = fetchConfig;
   }
@@ -959,7 +959,7 @@ export async function getPossibleValuesFromRun(
     };
   }
   const datasetFamily = getDatasetFamilyFromRun(ctx, ro.moduleId);
-  // REASSIGN the param — it is consumed twice below (buildMinimalFetchConfig
+  // REASSIGN the param: it is consumed twice below (buildMinimalFetchConfig
   // AND the getPossibleValuesCore call); scoping only one would leave the
   // query context and the actual query disagreeing.
   filters = [...filters, ...(await computeScopeFilters(ctx, ro))];
@@ -1016,7 +1016,7 @@ export async function getResultsValueInfoFromRun(
   );
 }
 
-// Raw no-filter bounds for the replicant-options route — the manifest stamp
+// Raw no-filter bounds for the replicant-options route: the manifest stamp
 // IS the no-filter MIN/MAX of the physical time column.
 export function getRawPeriodBoundsFromRun(
   ctx: RunReadContext,
@@ -1042,7 +1042,7 @@ export async function getResultsObjectItemsFromRun(
     }
     const tableName = getResultsObjectTableName(resultsObjectId);
     const scopeFilters = await computeScopeFilters(ctx, ro);
-    // Scope columns are always text — route them down buildWhereClause's
+    // Scope columns are always text, route them down buildWhereClause's
     // UPPER/escape path (an empty textColumns set would send them down the
     // numeric branch, which compiles admin-area names to FALSE).
     const whereStatements = buildWhereClause(

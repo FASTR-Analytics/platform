@@ -10,7 +10,7 @@ import {
 // Light foundation + default panther-default-dark companion for on-screen
 // dark rendering (FigureHolder scopes it per render; exports stay light).
 // The remap opt-in flips module-authored near-black literal colors (the
-// "Actual"/"Expected" lines, coverage defaults) to the dark baseContent —
+// "Actual"/"Expected" lines, coverage defaults) to the dark baseContent:
 // they vanish on dark bases otherwise.
 setKeyColors(_KEY_COLORS, undefined, { remapNearBlackOnDark: true });
 setBaseText(BASE_TEXT_OPTIONS);

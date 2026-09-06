@@ -39,7 +39,7 @@ routesInstanceSSE.get(
       // exit via the abort signal: closing the controller makes reader.read()
       // return done. Without it the loop parks forever and the
       // BroadcastChannel subscription leaks. controller may still be null
-      // here (abort during build) — the aborted checks after the build and at
+      // here (abort during build): the aborted checks after the build and at
       // the top of the loop cover that window.
       stream.onAbort(() => {
         if (controller) {
@@ -54,7 +54,7 @@ routesInstanceSSE.get(
       try {
         // 1. Build initial state from database (while queuing any concurrent
         // messages). Extracted to buildInstanceState (PLAN_112 step 3) so the
-        // /mcp context cache grounds on the same state — payload unchanged.
+        // /mcp context cache grounds on the same state: payload unchanged.
         const res = await buildInstanceState(mainDb, globalUser);
         if (!res.success) {
           await stream.writeSSE({
@@ -81,16 +81,16 @@ routesInstanceSSE.get(
         });
 
         // Per-user message filter: this endpoint is guarded by
-        // requireGlobalPermission() — every logged-in user, approved or not.
+        // requireGlobalPermission(): every logged-in user, approved or not.
         // Two per-message rules, both LIVE (every `users_updated` passing
         // through the forward loop carries the full roster with permission
         // rows, and the connection's own email never changes, so re-finding
         // it in each roster is sufficient):
         //   - Q-B: `run_progress`/`r_script` (run labels, module ids, R error
-        //     detail) go to instance data admins only — a mid-session grant
+        //     detail) go to instance data admins only: a mid-session grant
         //     starts the stream, a revocation stops it, no reconnect.
         //   - Roster: an UNAPPROVED connection (its user absent from the
-        //     roster) gets `users_updated` rewritten to `[]` — the roster is
+        //     roster) gets `users_updated` rewritten to `[]`: the roster is
         //     an enumeration surface (emails, names, permission maps) with no
         //     consumer on the pending-approval screen. The moment the user
         //     appears in a roster payload, that same message flows through
@@ -152,7 +152,7 @@ routesInstanceSSE.get(
         }
       } catch (err) {
         // Generic on the wire: this connection may be an unapproved user, and
-        // buildInstanceState's summary reads are unwrapped — a raw driver
+        // buildInstanceState's summary reads are unwrapped: a raw driver
         // message must not reach the SSE stream. The real error goes to the
         // server log.
         console.error("[instance-sse] failed to build instance state:", err);

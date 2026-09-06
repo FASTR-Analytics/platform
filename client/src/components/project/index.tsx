@@ -187,7 +187,7 @@ function ProjectInner() {
     <AIProjectWrapper>
       <AIContextSync />
       {/* Page-level live cursors (renders into body portals; document-level
-          listeners — placement here is inert). */}
+          listeners: placement here is inert). */}
       <ProjectPageCursors />
       <ProjectEditorWrapper>
         <Show

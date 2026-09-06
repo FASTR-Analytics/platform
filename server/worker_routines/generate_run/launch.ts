@@ -31,12 +31,12 @@ import {
 
 // Host side of the run pipeline (PLAN_RESULTS_RUNS item 2): launch takes the
 // wizard's configuration in the request body (the wizard is an ephemeral
-// modal — nothing is persisted before this call), validates it, mints the
+// modal, nothing is persisted before this call), validates it, mints the
 // 'generating' catalog row, and spawns the worker; the run owns its whole
 // lifecycle from here.
 // Concurrency ruling (Phase 3 sub-fork d): generations run concurrently, but
 // a launch is refused while any of its ATTACH TARGETS is already the target
-// of a generating run — claimed in the same synchronous segment as the check
+// of a generating run, claimed in the same synchronous segment as the check
 // (run_module's claim pattern), with the catalog as the cross-restart
 // backstop. The host owns teardown: workers never self-close, and a crashed
 // worker's containers are removed by deterministic name.
@@ -141,7 +141,7 @@ export async function launchRunGeneration(
   }
 
   // Disk guard for the dataset extracts the prepare stage is about to export
-  // (re-pointed from the deleted per-project attach route — same threshold).
+  // (re-pointed from the deleted per-project attach route, same threshold).
   const selectedFamilies: string[] = [
     ...(step1Result.hmis ? ["hmis"] : []),
     ...(step1Result.hfa ? ["hfa"] : []),
@@ -221,7 +221,7 @@ export async function launchRunGeneration(
     });
     const entry = GENERATING_BY_RUN.get(runId);
     if (entry === undefined) {
-      // Superseded between claim and spawn — cannot happen while the claim
+      // Superseded between claim and spawn: cannot happen while the claim
       // above holds, but mirror the run_module attach guard anyway.
       worker.terminate();
       return targetAlreadyGenerating;
@@ -237,7 +237,7 @@ export async function launchRunGeneration(
       e instanceof Error ? e.message : String(e),
     ).catch(() => null);
     // The row may already exist (created then marked failed above), and the
-    // route's notify is success-gated — signal here so the failed row is not
+    // route's notify is success-gated: signal here so the failed row is not
     // invisible until reconnect. Harmless when the throw predates the row.
     notifyInstanceRunsCatalogUpdated();
     return {
@@ -250,7 +250,7 @@ export async function launchRunGeneration(
 
 // A crashed worker cannot clean up after itself: mark the run failed,
 // publish its partial workspace for inspection, and remove any containers it
-// may have started — terminating the worker only kills the `docker run` CLI
+// may have started: terminating the worker only kills the `docker run` CLI
 // client, never the container.
 async function handleGenerateRunWorkerCrash(runId: string): Promise<void> {
   const entry = GENERATING_BY_RUN.get(runId);
@@ -279,7 +279,7 @@ async function handleGenerateRunWorkerCrash(runId: string): Promise<void> {
     runId,
     "The generation worker crashed",
   );
-  // A crash bypasses the worker's own finalize-or-fail notify site — the row
+  // A crash bypasses the worker's own finalize-or-fail notify site: the row
   // just flipped generating→failed, so the T1 listing must move here too.
   notifyInstanceRunsCatalogUpdated();
   if (progress !== null) {

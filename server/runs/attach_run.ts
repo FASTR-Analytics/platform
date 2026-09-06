@@ -24,13 +24,13 @@ import {
 } from "../task_management/notify_project_v2.ts";
 import { getRunManifestCached } from "./manifest_cache.ts";
 
-// Attaching a package to a project — the pointer half of §2.6, shared by the
+// Attaching a package to a project: the pointer half of §2.6, shared by the
 // two acts that repoint: the generation publish (every attach target, inside
 // the publish transaction) and a project's own picker (Phase 3 item 4).
 //
 // The repoint EVENT is the interesting part: `run_attached` carries the full
 // run-derived catalog, because a package swap changes every fact the project
-// T1 store holds about its data — modules, metrics, datasets, indicators, and
+// T1 store holds about its data: modules, metrics, datasets, indicators, and
 // the visualizations list (virtual defaults are projections of the attached
 // run). Clients re-key off it without a reconnect.
 
@@ -91,7 +91,7 @@ export async function notifyRunAttachedForProject(
 
 // The picker's act: repoint, then push the same event a publish pushes. The
 // pointer write is gated on the package being ready and is the only thing
-// that can fail — everything after it is logged rather than rolled back: an
+// that can fail, everything after it is logged rather than rolled back: an
 // unreadable manifest after a successful repoint would mean the project is
 // attached to a broken package, which the read plane already reports
 // properly, and a failed subscription-clear leaves a follower one pin-move
@@ -99,7 +99,7 @@ export async function notifyRunAttachedForProject(
 //
 // A MANUAL attach to anything but the pinned package also ends a
 // follow-pinned subscription (SYSTEM_08 "Manual attach overrides the
-// subscription"). The pin-move loop does NOT come through here — it uses
+// subscription"). The pin-move loop does NOT come through here: it uses
 // attachFollowerToPinnedRun below, which has no auto-clear and is gated on
 // the target still being the pin.
 export async function attachRunToProject(
@@ -132,7 +132,7 @@ export async function attachRunToProject(
 
 // The pin-move loop's act, once per follower (pin_run.ts): the pointer write
 // is gated on `runId` STILL being the pin, so a loop superseded by another
-// pin-move or an unpin writes nothing and reports "pin_moved" — it never
+// pin-move or an unpin writes nothing and reports "pin_moved": it never
 // moves a project onto a package that stopped being the pin, and it never
 // touches the subscription.
 export async function attachFollowerToPinnedRun(

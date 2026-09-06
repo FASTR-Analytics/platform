@@ -3,13 +3,13 @@
 // =============================================================================
 //
 // PURE. Turns the instance's live common-indicator dictionary into the rows a
-// run's `indicators.json` input mirror carries — the snapshot every later
+// run's `indicators.json` input mirror carries: the snapshot every later
 // reader (finalize, the manifest transform, the read path) works from, so an
 // edit after generation cannot change what a package computes (PLAN_1a §1.10).
 //
 // This is where "generation decides what the numbers are made of" happens: a
 // derived indicator's expression is FLATTENED here, so the row names nothing
-// but leaves — base commons and `population:<type>` terms — and each of those
+// but leaves, base commons and `population:<type>` terms, and each of those
 // is assigned the ingredient column its value will travel in. Everything
 // downstream just sums columns and applies a formula.
 //
@@ -36,7 +36,7 @@ import {
 } from "./types/population.ts";
 
 // One row of the v2 `indicators.json` mirror. `expression` is flattened and
-// `slot_map` names the ingredient column of each leaf it uses — a base common
+// `slot_map` names the ingredient column of each leaf it uses: a base common
 // or a `population:<type>` term, in first-appearance order, no slot special.
 export type CommonIndicatorCatalogRow = {
   indicator_common_id: string;
@@ -58,7 +58,7 @@ export class CommonIndicatorCatalogError extends Error {
 // `baseIdsInData` is the set of base commons the extract can actually produce
 // counts for (i.e. that have raw mappings). An expression that reaches outside
 // it would silently evaluate to NULL everywhere, so it fails the capture
-// instead — the same guard the retired numerator/denominator check performed,
+// instead: the same guard the retired numerator/denominator check performed,
 // now aware of chains. `populationTypeIds` is the store's vocabulary: a
 // `population:<type>` term resolves iff it names one. Whether the store
 // COVERS the data for that type is the person-years expansion's check at
@@ -101,7 +101,7 @@ export function resolveCommonIndicatorCatalog(
     if (common.definition.type === "base") {
       // A base common the extract cannot produce counts for carries no
       // expression and no slot map: it contributes no ingredient row, m012
-      // emits nothing for it, and a read yields NULL — the same answer as any
+      // emits nothing for it, and a read yields NULL: the same answer as any
       // other missing ingredient (PLAN_1a §1.5). This is the ordinary case,
       // not a failure: db_startup seeds all 14 `_COMMON_INDICATORS` on every
       // instance whether or not the country maps them, so treating an
@@ -170,7 +170,7 @@ export function resolveCommonIndicatorCatalog(
 // The ingredient table as an R `tribble` literal, substituted into m012's
 // script in place of its INDICATOR_INGREDIENTS token (PLAN_1a §1.5). This is
 // the WHOLE contract between the resolved catalog and the module that
-// materialises ingredient columns — the module sums the columns this names and
+// materialises ingredient columns: the module sums the columns this names and
 // never parses an expression. An indicator the package cannot evaluate (a base
 // common with no data) has no slot map and contributes no rows. A slot row
 // naming a `population:<type>` pseudo-ingredient is read by the module from

@@ -58,7 +58,7 @@ function parseFacilityFamily(raw: string): FacilityFamily | undefined {
 defineRoute(
   routesStructure,
   "listAdminArea2s",
-  // Any authenticated user — feeds the project scope picker (see registry).
+  // Any authenticated user: feeds the project scope picker (see registry).
   requireGlobalPermission(),
   log("listAdminArea2s"),
   async (c) => {
@@ -503,7 +503,7 @@ defineRoute(
   },
 );
 
-// Weights CSV export — wide format: facility_id + one column per time point
+// Weights CSV export, wide format: facility_id + one column per time point
 routesStructure.get(
   "/structure/hfa_facility_weights/export/csv",
   requireGlobalPermission("can_view_data"),

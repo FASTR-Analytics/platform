@@ -14,11 +14,11 @@ import { getHfaTimePointOrder } from "../../db/mod.ts";
 import { getScriptWithParameters } from "../../server_only_funcs/get_script_with_parameters.ts";
 import type { PreparedRunInputs } from "./prepare_inputs.ts";
 
-// Stage 2 of the run pipeline — resolve (PLAN_RESULTS_RUNS item 2 / §3.7).
+// Stage 2 of the run pipeline: resolve (PLAN_RESULTS_RUNS item 2 / §3.7).
 // Re-fetches the exact definitions the wizard's step 2 recorded (pinned
 // gitRef), validates the selection is a closed DAG whose data sources are
 // all in the run, freezes parameter selections, and generates each module's
-// R script — the script text is an inputKey ingredient, so generation
+// R script: the script text is an inputKey ingredient, so generation
 // happens here, from the dataset captures prepare just produced.
 
 export type ResolvedRunModule = {
@@ -132,7 +132,7 @@ function sortByDependencies(modules: ResolvedRunModule[]): ResolvedRunModule[] {
 }
 
 // The script-generation inputs come from THIS run's dataset captures
-// (prepare_inputs), not from project snapshot tables — under the
+// (prepare_inputs), not from project snapshot tables: under the
 // no-dual-write model (Phase 3 re-cut ruling 5) nothing is written to a
 // project DB, and the captured rows are by construction the ones this run's
 // extracts were built from. Time-point order is instance-wide.

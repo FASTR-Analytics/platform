@@ -52,7 +52,7 @@ import { createIdGeneratorForLayout } from "~/components/slide_deck/_id_generati
 import { serverActions } from "~/server_actions";
 
 // Replace the bundle of one figure block in a content slide's layout, in place
-// (same blockId). Returns a fresh slide — never mutates the input.
+// (same blockId). Returns a fresh slide: never mutates the input.
 function replaceFigureBundleInLayout(
   slide: Extract<Slide, { type: "content" }>,
   blockId: string,
@@ -61,7 +61,7 @@ function replaceFigureBundleInLayout(
   function walk(node: LayoutNode<ContentBlock>): LayoutNode<ContentBlock> {
     if (node.type === "item") {
       // Spread-and-override: preserve node-level fields (style, alignV, minH,
-      // maxH) — only swap the block data. Reconstructing from a fixed field list
+      // maxH): only swap the block data. Reconstructing from a fixed field list
       // would silently drop the user's per-cell overrides on Save.
       return node.id === blockId ? { ...node, data: { type: "figure", bundle } } : node;
     }
@@ -400,7 +400,7 @@ export function getClientToolsForSlideEditor(
       kind: "write",
       handler: async (input, view) => {
         // metricId/type are not in the patch schema (silently stripped), so an
-        // all-unsupported patch arrives empty — reject it instead of
+        // all-unsupported patch arrives empty: reject it instead of
         // re-resolving the bundle unchanged and falsely reporting success.
         if (Object.keys(input.patch).length === 0) {
           throw new AIToolFailure(
@@ -457,8 +457,8 @@ export function getClientToolsForSlideEditor(
 
         // Pre-flight for a stored defect this tool cannot repair (the figure
         // patch schema carries no timeseriesGrouping): a grouping-less
-        // timeseries config — possible via 9 authored preset configs plus a
-        // human type switch — would otherwise hit lib's plain Error mid-resolve.
+        // timeseries config (possible via 9 authored preset configs plus a
+        // human type switch) would otherwise hit lib's plain Error mid-resolve.
         if (
           bundle.config.d.type === "timeseries" &&
           !bundle.config.d.timeseriesGrouping
@@ -505,7 +505,7 @@ export function getClientToolsForSlideEditor(
         });
 
         // Same value-validity check the editor + from_metric use: filter values
-        // and the period range must exist in the data. from_month counts too —
+        // and the period range must exist in the data. from_month counts too:
         // its min is a real bound the data must reach.
         const filters = newConfig.d.filterBy.length > 0 ? newConfig.d.filterBy : undefined;
         const periodFilter = newConfig.d.periodFilter && periodFilterHasBounds(newConfig.d.periodFilter)
@@ -518,7 +518,7 @@ export function getClientToolsForSlideEditor(
         const newBundle = await resolveBundleFromMetricAndConfig(projectId, metric, newConfig);
 
         // Slot-collision check needs the data's real dateRange (degeneracy) so it
-        // matches the renderer exactly — run it post-resolve, still before commit.
+        // matches the renderer exactly: run it post-resolve, still before commit.
         assertNoSlotCollision(newConfig, metric, newBundle.dateRange, newBundle.items);
 
         const updatedSlide = replaceFigureBundleInLayout(slide, input.blockId, newBundle);

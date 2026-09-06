@@ -41,14 +41,14 @@ import {
 
 // The /mcp endpoint reads the instance's PINNED results package (S8 "The
 // pinned package + followers"): every tool call resolves the pin, and this
-// cache is PURELY performance — correctness never depends on it. The pin is
+// cache is PURELY performance: correctness never depends on it. The pin is
 // read from the DB on EVERY call (never from the 30 s InstanceState copy), so
 // a pin-move is visible on the next call; the context behind a given
 // (token, runId) is what the cache holds. Keyed by token because a context
-// captures server actions bound to the building request's credential — a
+// captures server actions bound to the building request's credential, a
 // revoked token's context ages out in <=30 s and every dispatch through it
 // 401s immediately anyway. OAuth tokens rotate (~hourly), so their entries
-// die on rotation rather than by TTL — harmless, since the entry is a pure
+// die on rotation rather than by TTL: harmless, since the entry is a pure
 // cache.
 
 const CONTEXT_TTL_MS = 30_000;
@@ -63,14 +63,14 @@ export type McpPackageContext = {
   runId: string;
   run: RunListingItem;
   grounding: PackageGrounding;
-  // The shared metric tools, fully bound to this (principal, package) — the
+  // The shared metric tools, fully bound to this (principal, package): the
   // bound outer tools resolve their inner tool from this set by name, and
   // the overview's tool catalog renders from it.
   // deno-lint-ignore no-explicit-any
   sessionTools: AIToolWithMetadata<any>[];
 };
 
-// One key builder for every cache site — two hand-built keys drifted once
+// One key builder for every cache site: two hand-built keys drifted once
 // and an invalidation silently missed. The separator (NUL) cannot occur in
 // a token or a run id.
 const KEY_SEPARATOR = String.fromCharCode(0);
@@ -107,7 +107,7 @@ function cacheSet<T>(map: Map<string, CacheEntry<T>>, key: string, value: T) {
 }
 
 // The per-principal transport (PLAN_112 D4): every server action dispatches
-// in-process through headlessApp's full middleware chain — credential verify
+// in-process through headlessApp's full middleware chain: credential verify
 // (a PAT also gets its last-used stamp), deny-by-default allowlist, zod
 // validation, instance permissions, logging.
 export function buildPrincipalTransport(token: string): ServerActionTransport {
@@ -153,7 +153,7 @@ export async function resolveInstanceState(
 }
 
 // The pin, read now. null is a typed, expected state (a fresh instance, or
-// after unpin/delete) — get_overview renders it; every other tool fails with
+// after unpin/delete): get_overview renders it; every other tool fails with
 // NO_PIN_MESSAGE via requirePinnedPackageContext.
 export async function resolvePinnedRunId(): Promise<string | null> {
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
@@ -193,7 +193,7 @@ export function packagePeriodCoverage(
 }
 
 // Every package-tool result at /mcp starts with one provenance line naming
-// the run it read (label + generated timestamp — the same identity
+// the run it read (label + generated timestamp, the same identity
 // get_overview gives; no run id, which no tool accepts as input). The pin
 // can move between two calls of one conversation and a client may carry a
 // stale catalog, so results are self-identifying by construction. Failures
@@ -268,7 +268,7 @@ export async function resolvePackageContext(
   const run = runRes.data;
 
   // The same manifest-derived catalog getProjectDetail builds for a project's
-  // attached package (db/project/projects.ts) — one derivation, two callers.
+  // attached package (db/project/projects.ts): one derivation, two callers.
   const manifest = await getRunManifestCached(runId);
   const runInputs = { runId, manifest };
   const metrics = getMetricsWithStatusFromManifest(manifest);

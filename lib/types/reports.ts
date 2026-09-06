@@ -1,5 +1,5 @@
 // =============================================================================
-// Reports — long-form analytical documents (markdown body + figure/image
+// Reports: long-form analytical documents (markdown body + figure/image
 // registries). See PLAN_REPORTS.md. Figures/images reuse the slide FigureBlock /
 // ImageBlock types verbatim.
 // =============================================================================
@@ -27,9 +27,9 @@ export function getStartingConfigForReport(): ReportConfig {
 }
 
 // ── Embed registry write-validation ──────────────────────────────────────────
-// Reuses the slide figure/image block schemas verbatim — report figures/images
-// ARE slides' FigureBlock / ImageBlock (the strict figureBlockSchema — the bundle
-// is validated, not z.unknown — same as slides).
+// Reuses the slide figure/image block schemas verbatim: report figures/images
+// ARE slides' FigureBlock / ImageBlock (the strict figureBlockSchema, meaning the bundle
+// is validated, not z.unknown, same as slides).
 
 export const reportFiguresSchema = z.record(z.string(), figureBlockSchema);
 export const reportImagesSchema = z.record(z.string(), imageBlockSchema);
@@ -47,7 +47,7 @@ export type ReportFolder = {
 };
 
 // Cheap, server-computed preview shown on the report list card. Lives on the
-// (lightweight) summary so it rides the existing `reports_updated` SSE path — no
+// (lightweight) summary so it rides the existing `reports_updated` SSE path: no
 // per-card detail fetch. Derived entirely from the markdown body.
 export type ReportPreviewLine = { text: string; headingLevel: number }; // 0 = body
 

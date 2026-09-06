@@ -13,7 +13,7 @@ import type { AIToolEnv } from "./env.ts";
 // slide/report content validators are SPA-only and live in the client
 // (project_ai/ai_tools/validators/content_validators.ts); the two
 // primitives below are exported because that file's validatePresetOverrides
-// composes them — one filter validator and one date-range validator for
+// composes them: one filter validator and one date-range validator for
 // every startDate/endDate surface, never a second copy.
 
 function isPeriodIdValid(val: number): boolean {
@@ -77,14 +77,14 @@ export function validateAiMetricQuery(
 }
 
 // One date-range validator for every startDate/endDate surface
-// (get_metric_data queries AND from_metric preset overrides) — the two used
+// (get_metric_data queries AND from_metric preset overrides): the two used
 // to diverge, so an invalid period id one path rejected could reach a stored
 // figure config through the other.
 export function validateDateRange(
   startDate: number | undefined,
   endDate: number | undefined,
 ): void {
-  // One-sided input used to be silently ignored — the tool reported success
+  // One-sided input used to be silently ignored: the tool reported success
   // while the stored config / query carried no period filter at all (the
   // schema says "must be used together", but saying it is not enforcing it).
   if ((startDate != null) !== (endDate != null)) {
@@ -138,7 +138,7 @@ export function validateDateRange(
 
 // The fetching form, for callers that hold only an env (the edit paths). The
 // get_metric_data read already holds the value info for its coverage line and
-// calls validateMetricInputsAgainstValueInfo directly — one fetch, not two.
+// calls validateMetricInputsAgainstValueInfo directly: one fetch, not two.
 export async function validateMetricInputs(
   env: AIToolEnv,
   metricId: string,

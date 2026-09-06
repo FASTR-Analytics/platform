@@ -45,12 +45,12 @@ import type { GenerateRunStartData } from "./types.ts";
 // failed generation never replaces the serving run.
 //
 // Memoized generation (§3.7): the reuse plan resolves as the first stage
-// after resolve — per-module reused / will-run pushed to the progress view
+// after resolve: per-module reused / will-run pushed to the progress view
 // before anything executes. The plan is a pessimistic prediction; the loop
 // below makes the authoritative per-module decision from ACTUAL upstream
 // hashes, so a prediction can only be upgraded (pending → reused, when a
 // re-executed upstream produced byte-identical outputs), and the one
-// downgrade path — a base output file gone missing — falls back to a real
+// downgrade path, a base output file gone missing, falls back to a real
 // run with the status visibly correcting itself. Fails closed throughout.
 
 export async function runGenerationPipeline(
@@ -185,9 +185,9 @@ export async function runGenerationPipeline(
   // Final progress first: it is what tells the catalogue that this
   // generation is over, so it must not be gated on the per-target catalog
   // reads below (a run with no targets does none of them). Attach targets
-  // learn of the publish through `run_attached` alone — a project has no
+  // learn of the publish through `run_attached` alone: a project has no
   // live view of a generation (it is attached only once the run is ready).
-  // The run IS published from here on — a notify failure must never fail the
+  // The run IS published from here on: a notify failure must never fail the
   // generation (worker.ts's catch would flip a published, attached run to
   // 'failed'). Same class of post-write catch as attachRunToProject: log,
   // continue; the read plane reports a broken payload properly on its own.

@@ -20,13 +20,13 @@ import { ChangeEmailModal } from "./change_email_modal";
 import { serverActions } from "~/server_actions";
 import { createSignal, Show } from "solid-js";
 
-// The one panther dark palette — same source as the CSS pairs and the canvas
+// The one panther dark palette: same source as the CSS pairs and the canvas
 // dark companion.
 const DARK_THEME_COLORS = KEY_COLOR_THEMES["panther-default-dark"].colors;
 
 // Clerk's account window renders in its own portal with Clerk's own styling,
 // so the app's CSS tokens don't reach it. Pass dark appearance variables at
-// open time — evaluated per open, so it follows the scheme active when the
+// open time: evaluated per open, so it follows the scheme active when the
 // window is launched (including OS-driven "system" dark).
 function openClerkUserProfile() {
   clerk.openUserProfile(

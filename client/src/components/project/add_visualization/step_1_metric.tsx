@@ -19,7 +19,7 @@ type Props = {
 
 export function Step1Metric(p: Props) {
   // Module ids on the read plane are plain strings from the manifest ("all" =
-  // no filter) — ModuleId is a generation-plane type (PLAN_1a §0 clause 3).
+  // no filter): ModuleId is a generation-plane type (PLAN_1a §0 clause 3).
   const [selectedModule, setSelectedModule] = createSignal<string>("all");
 
   const metricsByModule = createMemo(() =>

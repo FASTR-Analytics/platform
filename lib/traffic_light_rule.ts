@@ -19,7 +19,7 @@ import type { IndicatorFormat } from "./types/indicators.ts";
 //     [red, yellow, green]; lower_is_better → cutoffs [green, yellow],
 //     buckets [green, yellow, red]. Cutoffs are unscaled into STORED units by
 //     the row's own format.
-//   Degenerate pairs (green == yellow, or inverted — nothing ever enforced
+//   Degenerate pairs (green == yellow, or inverted: nothing ever enforced
 //     the order): a TWO-bucket rule at the green cutoff. In the scorecard's
 //     truth table the yellow band was unreachable for such a row, so this is
 //     the faithful conversion.

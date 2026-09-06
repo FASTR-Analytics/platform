@@ -17,7 +17,7 @@ export type LedgerPeriodWindow = { min: number; max: number };
 
 type Props = {
   // Both reads are shell-owned (this tab is remounted on every silent
-  // runs/scheduling fetch, so it must not own queries — see the shell).
+  // runs/scheduling fetch, so it must not own queries: see the shell).
   ledger: StateHolder<DatasetHmisImportLedgerItem[]>;
   indicatorLabels: Map<string, string>;
   onOpenIndicator: (

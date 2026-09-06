@@ -82,7 +82,7 @@ if (_INSTANCE_FISCAL_YEAR !== "none" && _INSTANCE_CALENDAR !== "gregorian") {
 }
 
 // Country the instance reports on. Every instance HAS a country (Tim's ruling
-// 2026-08-06) — country-less is not a legitimate state, so this is required and
+// 2026-08-06): country-less is not a legitimate state, so this is required and
 // boot fail-stops without it. An ISO3 code, plus SOMALILAND: the one territory
 // FASTR reports on that has no ISO3 code. The value is interpolated into
 // generated R scripts as `${countryIso3}`.
@@ -111,7 +111,7 @@ if (
 // package's tmp dir during generation via _EXTERNAL (host path); the Postgres
 // container writes COPY TO dataset extracts directly into that tmp dir via
 // _POSTGRES_INTERNAL, so it must see the same directory. Nothing treats its
-// entries as a homogeneous set: every consumer addresses a NAMED entry — a
+// entries as a homogeneous set: every consumer addresses a NAMED entry: a
 // package's UUID dir, the `.tmp-{runId}` prefix (the boot sweep's only
 // filter), `.duckdb-spill`, or a loose scratch file.
 export const _RUNS_DIR_PATH = Deno.env.get("RUNS_DIR_PATH")!;
@@ -168,7 +168,7 @@ if (Number.isNaN(_PORT)) {
 
 /** Browser origins allowed to call this API with credentials (CLIENT_ORIGIN,
  *  comma-separated). Shared by the HTTP CORS middleware and the collab
- *  WebSocket's Origin allowlist (project-collab.ts) — WS handshakes are not
+ *  WebSocket's Origin allowlist (project-collab.ts): WS handshakes are not
  *  subject to CORS, so the socket enforces this list itself. */
 export const _CLIENT_ORIGINS = Deno.env.get("CLIENT_ORIGIN")?.split(",") || [
   "http://localhost:3000",
@@ -275,7 +275,7 @@ export const _BYPASS_AUTH = !!Deno.env.get("BYPASS_AUTH") && !_IS_PRODUCTION;
 // env itself and fails per-request, and a BYPASS_AUTH dev instance runs with
 // neither set. They are surfaced here for the headless OAuth resolver
 // (server/headless_auth.ts), which builds its own backend client and throws at
-// USE time — never at boot — if they are missing. The same applies to the
+// USE time, never at boot, if they are missing. The same applies to the
 // server's own Clerk Backend API calls (email-ownership checks in the
 // rename-email flow).
 export const _CLERK_SECRET_KEY = Deno.env.get("CLERK_SECRET_KEY") ?? "";

@@ -7,14 +7,14 @@
 // common indicator's expression names a population type as the ingredient
 // `[population:<type>]` (PLAN_1c); at run capture the figures of every type
 // the resolved catalog references are expanded into monthly person-years
-// (mid-year anchors, linear interpolation, ±1 year geometric extrapolation —
+// (mid-year anchors, linear interpolation, ±1 year geometric extrapolation:
 // see lib/population_person_years.ts) and written into the package, where
 // m012 treats them as one more additive ingredient.
 //
 // Population types are user-extensible rows (`population_types`), seeded with
 // the six FASTR defaults by instance migration 080. The table is the only
 // vocabulary: an expression resolves iff every population term it names is a
-// row in it, checked at authoring and at capture — there is no typed field
+// row in it, checked at authoring and at capture: there is no typed field
 // and no foreign key, the expression IS the reference.
 //
 // =============================================================================
@@ -25,7 +25,7 @@ export type PopulationTypeInfo = {
 };
 
 // Per (type, admin level): what the store holds, measured against the HMIS
-// structure at that level. `complete` is what generation will need — every
+// structure at that level. `complete` is what generation will need: every
 // structure area has a figure for every stored year.
 export type PopulationCoverage = {
   populationType: string;
@@ -81,7 +81,7 @@ export const POPULATION_CSV_REQUIRED_COLUMNS = [
 // m012's ingredient table and its ROWS. A ':' can never appear in a common
 // indicator id (getNewIndicatorIdIssue), so the pseudo-id cannot collide with
 // one; in an expression it is always [bracket-quoted]. m012's script.R
-// composes the same string (`paste0("population:", population_type)`) —
+// composes the same string (`paste0("population:", population_type)`):
 // the two sides of ONE contract.
 export const POPULATION_INGREDIENT_PREFIX = "population:";
 
@@ -96,7 +96,7 @@ export function parsePopulationIngredientId(id: string): string | null {
     : null;
 }
 
-// Every population type the resolved catalog's slot maps reference — what a
+// Every population type the resolved catalog's slot maps reference: what a
 // run's person-years file must carry (PLAN_1c ruling 5). Sorted, deduplicated.
 export function populationTypesReferencedBySlotMaps(
   slotMaps: Record<string, string>[],

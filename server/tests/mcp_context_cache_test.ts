@@ -2,7 +2,7 @@
 // pinned package 2026-08-19).
 //
 // WHY THIS EXISTS: the cache is keyed by (token, runId). The token half is
-// what makes revocation invalidation exact — every context captures server
+// what makes revocation invalidation exact: every context captures server
 // actions bound to the building request's credential, so two PATs for the
 // SAME user must never share a context (a revoked token's context must not
 // keep serving another token's calls). The pin is object IDENTITY: a cached
@@ -11,7 +11,7 @@
 //
 // Run on a machine with the dev database, auth ON (the dev .env sets
 // BYPASS_AUTH truthy; _BYPASS_AUTH is a !! check, so only an empty value
-// clears it — with it set, resolveGlobalUser short-circuits to the dev
+// clears it: with it set, resolveGlobalUser short-circuits to the dev
 // identity and the token half of the key is never exercised):
 //   BYPASS_AUTH= deno test -A --env-file server/tests/mcp_context_cache_test.ts
 
@@ -42,7 +42,7 @@ Deno.test("/mcp context cache: keyed by (token, runId) — same user, two PATs, 
     ON CONFLICT (email) DO UPDATE SET is_admin = TRUE
   `;
 
-  // Any READY package — the context build reads its real manifest.
+  // Any READY package: the context build reads its real manifest.
   const runs = await mainDb<{ id: string }[]>`
     SELECT id FROM runs WHERE status = 'ready' ORDER BY created_at DESC LIMIT 1
   `;
@@ -82,7 +82,7 @@ Deno.test("/mcp context cache: keyed by (token, runId) — same user, two PATs, 
       "a resolved context must carry the package's bound tools",
     );
 
-    // 2. Warm hit — same reference, so the cache is genuinely serving.
+    // 2. Warm hit: same reference, so the cache is genuinely serving.
     const second = await resolvePackageContext(principalA, runId);
     assertStrictEquals(
       second,
@@ -90,7 +90,7 @@ Deno.test("/mcp context cache: keyed by (token, runId) — same user, two PATs, 
       "second resolve should hit the cache and return the same object",
     );
 
-    // 3. THE PIN: the token is part of the key — a second PAT for the SAME
+    // 3. THE PIN: the token is part of the key: a second PAT for the SAME
     // user gets its own context.
     const bFirst = await resolvePackageContext(principalB, runId);
     assert(

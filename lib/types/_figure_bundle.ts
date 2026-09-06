@@ -1,5 +1,5 @@
 // =============================================================================
-// FigureBundle — the captured, self-contained figure artifact
+// FigureBundle: the captured, self-contained figure artifact
 // =============================================================================
 //
 // A FigureBundle freezes everything `buildFigureInputs` needs: config, queried
@@ -23,7 +23,7 @@ import { ALL_INSTANCE_FISCAL_YEARS } from "./instance.ts";
 // Runtime locks: parse a Required<T> so a new field in the source type causes
 // a compile error (Required forces the literal) and a parse failure here.
 
-// P2: z.strictObject — stored shape; unknown keys in a stored sub-object would
+// P2: z.strictObject, stored shape; unknown keys in a stored sub-object would
 // pass the skip-gate and be silently stripped on read (PROTOCOL_APP_MIGRATIONS
 // skip-gate gotcha). Strict mode catches that drift at boot.
 // geo.data stays z.unknown(): GeoJSON is an external stable spec, low drift risk.
@@ -42,7 +42,7 @@ export const indicatorMetadataSchema = z.strictObject({
   group_label: z.string().optional(),
   sort_order: z.number().optional(),
 });
-// A stored figure freezes DISPLAY metadata only — the evaluation fields on a
+// A stored figure freezes DISPLAY metadata only: the evaluation fields on a
 // catalog entry are deliberately absent from this type, so a bundle can never
 // carry them into the strictObject above (PLAN_1a §1.5).
 const _im: Required<IndicatorMetadataDisplay> = {
@@ -74,7 +74,7 @@ resultsValueForVisualizationSchema.parse(_rv);
 
 // Discriminated union: live editor passes level (derives GeoJSON from sync
 // cache); stored bundles (dashboards/slides/reports) embed the full GeoJSON.
-// family selects the registry's map; optional and additive — stored
+// family selects the registry's map; optional and additive: stored
 // {kind:"level"} bundles without it default to hmis at resolution (same
 // ruling as ResultsValue.datasetFamily absence), no force block needed.
 export const geoRefSchema = z.discriminatedUnion("kind", [
@@ -88,14 +88,14 @@ export const geoRefSchema = z.discriminatedUnion("kind", [
 
 // ── Localization (extracted so callers can type function params) ─────────────
 // countryIso3 is required (use "" when the instance has no country set) so
-// a stored bundle always carries a definite string — no silent omission.
+// a stored bundle always carries a definite string: no silent omission.
 
 export const figureLocalizationSchema = z.strictObject({
   language: z.enum(["en", "fr", "pt"]),
   calendar: z.enum(["gregorian", "ethiopian"]),
   countryIso3: z.string(),
   // Defaulted rather than required so bundles stored before this field existed
-  // still validate — they predate FY entirely, so "none" is the correct
+  // still validate: they predate FY entirely, so "none" is the correct
   // reading, not a guess.
   fiscalYear: z.enum(ALL_INSTANCE_FISCAL_YEARS).default("none"),
 });

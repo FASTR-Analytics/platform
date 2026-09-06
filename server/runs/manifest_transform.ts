@@ -12,16 +12,16 @@
 // before touching this.
 //
 // TRANSFORM BLOCKS:
-//   1. indicators[] — the per-module resolved indicator catalog (schema v3),
+//   1. indicators[]: the per-module resolved indicator catalog (schema v3),
 //      recomputed from the package's own input mirrors.
 //   2. metrics[].format_as → "indicator" for the 8 pre-declaration metrics
-//      (schema v4) — the declared-format migration (PLAN_EFFECTIVE_FORMAT).
+//      (schema v4): the declared-format migration (PLAN_EFFECTIVE_FORMAT).
 //   3. facilityColumnsConfig → per-family structureSchemaHmis/Hfa slots
-//      (schema v5) — the structure family split (PLAN_2). Pure copy, no
+//      (schema v5): the structure family split (PLAN_2). Pure copy, no
 //      recompute, no parquet read.
 //   4. commonIndicators stamped from the package's own indicators mirror,
 //      metrics[].catalog_expression_evaluation defaulted to null, and the
-//      `population` stamp defaulted to null (schema v6) — the
+//      `population` stamp defaulted to null (schema v6), the
 //      common-indicator restructure (PLAN_1a §1.9) and the population store
 //      (PLAN_1b), one release. Note what this
 //      block does NOT do: it never patches indicators[]. Block 1 recomputes
@@ -51,7 +51,7 @@ import {
 import { runManifestPath } from "./run_paths.ts";
 
 // A package directory can be missing, half-written, or written by a newer
-// server, and none of those are "invalid data" — only the last two rows of
+// server, and none of those are "invalid data": only the last two rows of
 // the protocol's failure table are code defects, and those throw.
 export type RunManifestOutcome =
   | { kind: "ok"; manifest: RunManifest; transformed: boolean }
@@ -69,7 +69,7 @@ function manifestNeedsForcedTransform(
   return manifest.manifestSchemaVersion !== RUN_MANIFEST_SCHEMA_VERSION;
 }
 
-// Blocks may READ anything under `runDir` and must never write to it — every
+// Blocks may READ anything under `runDir` and must never write to it: every
 // file a block reads becomes a permanent part of the package format.
 async function transformRunManifest(
   manifest: Record<string, unknown>,
@@ -80,13 +80,13 @@ async function transformRunManifest(
   // ─── TRANSFORM BLOCKS ──────────────────────────────────────────────────
   // New blocks go HERE, at the end, numbered sequentially, never reordered.
   // Each checks its own precondition, is idempotent, and STAMPS the version
-  // it produces — the stamp lives inside the block, so a missing block leaves
+  // it produces: the stamp lives inside the block, so a missing block leaves
   // the version behind and the assertion below catches it. Blocks run only
   // when the version gate forces the transform (they do NOT re-evaluate on a
   // boot where the manifest is already current), so fixing a bad derivation
   // requires a RUN_MANIFEST_SCHEMA_VERSION bump to reach existing packages.
 
-  // 1. indicators[] — the per-module resolved indicator catalog. A pure
+  // 1. indicators[]: the per-module resolved indicator catalog. A pure
   //    recompute from inputs/*.json through the SAME function the finalize
   //    writer uses, so this is not a second derivation that could drift.
   //    Unconditional rather than "only when absent": re-running the recompute
@@ -125,7 +125,7 @@ async function transformRunManifest(
   //    pure copy: every artefact in a legacy package (export CSVs, the
   //    availableDisaggregationOptions stamps, the manifest stamp) was built
   //    from that one global config, so copying it into each PRESENT family's
-  //    slot is exactly faithful — no stamp recompute, no parquet read, no
+  //    slot is exactly faithful, no stamp recompute, no parquet read, no
   //    behavioural change to any existing package. A family is present when
   //    its facilities parquet is in the package (facilitiesTables/inputFiles);
   //    absent families get null. Idempotent: copies only while the legacy key
@@ -146,7 +146,7 @@ async function transformRunManifest(
 
   // 4. commonIndicators + metrics[].catalog_expression_evaluation +
   //    population. The first is a recompute from the package's own indicators
-  //    mirror through the SAME function finalize stamps with — it moves the
+  //    mirror through the SAME function finalize stamps with: it moves the
   //    last per-request mirror read off the read path. The other two are not
   //    recomputes at all: metrics[] and the person-years stamp are
   //    generation-only provenance, so a field that did not exist when the
@@ -169,7 +169,7 @@ async function transformRunManifest(
   m.manifestSchemaVersion = 6;
 
   const validated = runManifestSchema.parse(m);
-  // The schema deliberately accepts ANY integer version — it has to, so a
+  // The schema deliberately accepts ANY integer version: it has to, so a
   // manifest from a newer server can be detected rather than rejected as
   // malformed. So the version is asserted separately: a manifest still below
   // the current version after every block ran means the block for that step
@@ -231,7 +231,7 @@ export async function transformRunManifestFile(
     transformed = await transformRunManifest(stored, runDir);
   } catch (e) {
     // F5: a listed input mirror whose bytes are unavailable is the same
-    // operational class as a missing manifest — degrade this package, keep
+    // operational class as a missing manifest: degrade this package, keep
     // booting. Everything else throws: a mirror that parses as JSON but not as
     // its row schema is drift (RunInputRowSchemaError), same as manifest
     // drift or a missing block. See RunInputReadError in indicator_catalog.ts.
@@ -257,7 +257,7 @@ function serializeRunManifest(manifest: RunManifest): string {
   return JSON.stringify(manifest, null, 2);
 }
 
-// Transform in memory, parse, THEN persist — there is nothing to restore from
+// Transform in memory, parse, THEN persist: there is nothing to restore from
 // if it fails. The pre-transform copy is what makes both a bad block and an
 // image rollback recoverable. The temp name is unique, never fixed, so two
 // writers can never share it; nothing sweeps a leftover temp MANIFEST
@@ -265,7 +265,7 @@ function serializeRunManifest(manifest: RunManifest): string {
 // finally.
 //
 // No lock, on this premise: `await dbStartUp()` is top-level in main.ts before
-// any serving begins, and every getRunManifestCached caller is main-realm — no
+// any serving begins, and every getRunManifestCached caller is main-realm: no
 // Web Worker reads a manifest. Re-check this if one ever does.
 async function persistRunManifest(
   runDir: string,

@@ -9,7 +9,7 @@ type Props = {
   config: LogoSectionConfig;
   customLogos: string[];
   onChange: (config: LogoSectionConfig) => void;
-  // Hide the slide-specific extras (show-by-default + size + spacing) — e.g. the
+  // Hide the slide-specific extras (show-by-default + size + spacing), e.g. the
   // dashboard, which renders logos at a fixed CSS box and has no per-logo sizing.
   dontShowSizing?: boolean;
 };

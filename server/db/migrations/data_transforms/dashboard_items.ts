@@ -39,7 +39,7 @@ export async function migrateDashboardItems(
   for (const row of rows) {
     const figureBlock = JSON.parse(row.figure_block) as FigureBlockMut;
 
-    // Already valid? Skip — unless legacy keys (which safeParse silently
+    // Already valid? Skip: unless legacy keys (which safeParse silently
     // strips from the embedded bundle.config) still need the rename.
     if (
       dashboardFigureBlockSchema.safeParse(figureBlock).success &&

@@ -39,7 +39,7 @@ import { writeParquetFromCsv } from "../../run_query/mod.ts";
 import { sha256HexOfFile } from "./input_key.ts";
 import type { HfaSentinelRow } from "../../server_only_funcs/get_script_with_parameters_hfa.ts";
 
-// Stage 1 of the run pipeline — prepare inputs (PLAN_RESULTS_RUNS item 2;
+// Stage 1 of the run pipeline: prepare inputs (PLAN_RESULTS_RUNS item 2;
 // COPY TO re-targeted by item 7, binding decision 4; project-DB writes
 // deleted by the Phase 3 re-cut, ruling 5). The dataset CAPTURE functions do
 // every instance-DB read plus the `COPY … TO` that writes each extract
@@ -50,7 +50,7 @@ import type { HfaSentinelRow } from "../../server_only_funcs/get_script_with_par
 // and they feed script generation. A family not selected in step 1 simply
 // has no extract and no manifest entry.
 
-// The content hashes of the run's prepared input files — module inputKey
+// The content hashes of the run's prepared input files: module inputKey
 // ingredients (resolve_reuse.ts), one per declared data source kind.
 export type RunInputHashes = {
   // sha256 of each extract CSV, by family.
@@ -150,13 +150,13 @@ export async function prepareRunInputs(
     });
     // The v2 indicators mirror: the WHOLE common dictionary, resolved
     // (PLAN_1a §1.10). The separate calculated_indicators_snapshot.json that
-    // used to sit beside it is gone — one writer, one catalog contract.
+    // used to sit beside it is gone: one writer, one catalog contract.
     await writeInputJson(tmpDir, "indicators.json", capture.indicators);
     extraInputFiles.push("inputs/indicators.json");
     // The resolved catalog is also a SCRIPT-GENERATION input: m012's
     // ingredient table is substituted into its script as a data literal
     // (PLAN_1a §1.5), so nothing is written to inputs/ for it and no
-    // memoization input class exists — the literal rides in scriptText.
+    // memoization input class exists: the literal rides in scriptText.
     scriptInputs.commonIndicatorCatalog = capture.indicators;
     await writeFacilitiesParquet(tmpDir, "facilities_hmis", capture.facilities);
     extraInputFiles.push("inputs/facilities_hmis.parquet");
@@ -164,7 +164,7 @@ export async function prepareRunInputs(
       tableName: "facilities_hmis",
       columns: FACILITY_PARQUET_COLUMNS,
     });
-    // The person-years file (PLAN_1b ruling 4) — written on EVERY HMIS
+    // The person-years file (PLAN_1b ruling 4), written on EVERY HMIS
     // capture so a module declaring the population source always has its
     // input; header-only when no expression in the catalog names a population.
     population = await writePopulationPersonYears(mainDb, tmpDir, capture);
@@ -312,7 +312,7 @@ export async function prepareRunInputs(
 export const POPULATION_FILE_NAME = "population.csv";
 
 // Annual population stock → monthly person-years, for every population type
-// the resolved catalog's slot maps reference (PLAN_1c ruling 5 — the
+// the resolved catalog's slot maps reference (PLAN_1c ruling 5, the
 // expression IS the declaration), over the extract's months, at the
 // structure's finest level (m012's grain). Format, permanent once written:
 // admin_area_2..N, period_id, population_type, person_years.
@@ -457,7 +457,7 @@ async function writeFacilitiesParquet(
 }
 
 // Explicit parquet schema for the extract twins (§2.3: declared types, never
-// inferred — facility ids and HFA values are TEXT that inference would
+// inferred: facility ids and HFA values are TEXT that inference would
 // mangle). Mirrors the Postgres types of the export statements'
 // columns: everything is an identifier/label except the few numeric columns
 // named here.

@@ -78,8 +78,8 @@ function nextScheduleOf(schedules: DatasetHmisScheduledImport[]): DatasetHmisSch
   return oneShots[0] ?? enabled.find((s) => s.kind === "recurring");
 }
 
-// The unified imports surface: a thin tab shell — Current / Future / History
-// / By indicator — plus one wizard per source (DHIS2 runs, CSV file runs).
+// The unified imports surface: a thin tab shell (Current / Future / History
+// / By indicator) plus one wizard per source (DHIS2 runs, CSV file runs).
 // The shell owns all data plumbing (the runs, scheduling, ledger and
 // indicator-label reads, the poll loop, the SSE wake-up effect) so a run
 // keeps progressing even while the user sits on a different tab. Nothing
@@ -135,7 +135,7 @@ export function DatasetHmisImports(p: Props) {
     void load();
   });
 
-  // Labels are a display-only enrichment for the ledger — degrade to blank
+  // Labels are a display-only enrichment for the ledger: degrade to blank
   // until ready rather than gating the table behind them.
   const indicators = createQuery(() => serverActions.getIndicators({}));
   const indicatorLabels = createMemo((): Map<string, string> => {
@@ -166,7 +166,7 @@ export function DatasetHmisImports(p: Props) {
     }
   });
 
-  // The scheduler tick acts server-side while this page may sit idle — the
+  // The scheduler tick acts server-side while this page may sit idle: the
   // SSE-pushed summary fields are the wake-up signal (review finding 6).
   createEffect(
     on(
@@ -275,7 +275,7 @@ export function DatasetHmisImports(p: Props) {
   }
 
   // The wizard reads schedulingQuery.state() to seed its initial signals
-  // (stored-connection toggle, credentials prefill) — the New-import button
+  // (stored-connection toggle, credentials prefill): the New-import button
   // waits for readiness so it never seeds from "not loaded yet".
   const schedulingReady = () => scheduling.state().status === "ready";
 

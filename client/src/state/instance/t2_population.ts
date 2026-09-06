@@ -3,7 +3,7 @@ import { serverActions } from "~/server_actions";
 import { createReactiveCache } from "../_infra/reactive_cache";
 
 // The population store's rows (the manager page's table), keyed by the
-// `population_last_updated` stamp every store write bumps — the
+// `population_last_updated` stamp every store write bumps: the
 // `stamp → population_updated SSE → cache` triangle.
 const _POPULATION_ROWS_CACHE = createReactiveCache<
   { populationLastUpdated: string },

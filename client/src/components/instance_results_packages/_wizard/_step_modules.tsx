@@ -26,12 +26,12 @@ type Props = {
   setParam: (id: ModuleId, key: string, value: string) => void;
 };
 
-// Step 2 — configure modules. Selection is DAG-aware, mirroring the
+// Step 2: configure modules. Selection is DAG-aware, mirroring the
 // resolve-stage validation: a checked module shows its whole dependency
 // closure checked (chosenIds is the closure-completed, offerability-masked
 // set the wizard derives), a module cannot be unchecked while a dependent is
 // checked, and a module whose closure needs data not chosen in step 1 is
-// disabled — with the note naming the missing family, since the user can go
+// disabled: with the note naming the missing family, since the user can go
 // back to step 1 and add it.
 export function StepModules(p: Props) {
   const familySet = createMemo(() => familiesOf(p.families));

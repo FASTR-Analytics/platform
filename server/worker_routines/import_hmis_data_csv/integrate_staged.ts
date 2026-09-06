@@ -4,7 +4,7 @@ import type { DatasetCsvStagingResult } from "lib";
 import { hmisCsvStagingTableNames } from "./stage_csv.ts";
 
 // The single-transaction CSV integration relocated from the old
-// integrate_hmis_data worker — semantics unchanged (version minted MAX(id)
+// integrate_hmis_data worker: semantics unchanged (version minted MAX(id)
 // inline, "absent = keep prior value" merge, ledger writes in the same
 // transaction). Only the staging-table name (per-run) and the run linkage
 // differ: version_id AND the completion flip land on the run row together as
@@ -80,7 +80,7 @@ export async function integrateStagedHmisCsvData(args: {
     await sql`SET LOCAL synchronous_commit = OFF`;
     await sql`SET LOCAL maintenance_work_mem = '512MB'`;
 
-    // Version id minted inside the transaction, right before its INSERT —
+    // Version id minted inside the transaction, right before its INSERT:
     // true MAX(id) inline (version READERS hide running-run versions and
     // must never mint).
     const maxRows = await sql<{ max_id: number | null }[]>`
@@ -109,7 +109,7 @@ export async function integrateStagedHmisCsvData(args: {
 
     onProgress(40);
 
-    // CSV merge — "absent = keep prior value" semantics are intended and
+    // CSV merge: "absent = keep prior value" semantics are intended and
     // must not change. Update existing rows first (faster than ON CONFLICT).
     const updateResult = await sql`
       UPDATE ${sql(datasetTableName)} dt
@@ -161,7 +161,7 @@ export async function integrateStagedHmisCsvData(args: {
       WHERE id = ${versionId}
     `;
 
-    // Import ledger in the same transaction — the ledger can never disagree
+    // Import ledger in the same transaction: the ledger can never disagree
     // with the data.
     const touchedPairs = (
       await sql<{ indicator_raw_id: string; period_id: number }[]>`

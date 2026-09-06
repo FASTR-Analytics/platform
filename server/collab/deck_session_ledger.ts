@@ -3,17 +3,17 @@
 // =============================================================================
 //
 // Deck versions attribute WHO edited per session; this ledger records WHICH
-// SLIDE each of them touched — the deck equivalent of the report body's
+// SLIDE each of them touched: the deck equivalent of the report body's
 // per-character authorship. Every slide-level write path reports here (collab
 // room edits via the slide room deps, HTTP routes for create/duplicate/
 // delete/move/update, deck settings/label), and the accumulated map is frozen
 // into the deck version when it is written (deck_versions.slide_editors),
-// then cleared — a version's ledger covers exactly "changes since the
+// then cleared: a version's ledger covers exactly "changes since the
 // previous version".
 //
 // In-memory only (there is no deck-level checkpoint row to persist it to): a
 // server restart loses the open session's per-slide detail and those versions
-// fall back to session-level attribution — same accepted class as the
+// fall back to session-level attribution, same accepted class as the
 // tracker's crash window. Best-effort by design.
 
 import type { DeckSlideEditors } from "lib";
@@ -41,7 +41,7 @@ const ledgers = new Map<string, DeckLedger>();
 //
 // INVARIANT: drainDeckLedger only pulls (and clears) element touches for
 // slides present in the deck ledger's `slides` map. That is safe because
-// every attributed element touch is paired with a recordSlideEdited — the
+// every attributed element touch is paired with a recordSlideEdited: the
 // slide-room deps' onEdit (project-collab.ts depsForSlide) fires it for
 // every attributed room edit, the same edits the observer records. An
 // element touch without that pairing would never drain and never clear.
@@ -97,7 +97,7 @@ function record(
 ): void {
   const touch = touchFor(ledgerFor(projectId, deckId), slideId);
   if (!touch) {
-    // SLIDE_CAP rejected this slide, so it can never appear in a drain — and
+    // SLIDE_CAP rejected this slide, so it can never appear in a drain, and
     // element touches (keyed by slide id alone) would then never clear,
     // leaking into whichever LATER session first records this slide and
     // attributing old-window edits to someone else's version. Drop them with
@@ -136,7 +136,7 @@ export function recordSlideRemoved(
 }
 
 /** Element-level touch from the slide-room observer ("field:header",
- *  "block:<id>", "layout", "props"). Keyed per slide — merged into the deck
+ *  "block:<id>", "layout", "props"). Keyed per slide: merged into the deck
  *  ledger's entry for that slide at drain time. `kind` classifies the op:
  *  "touched" (any edit), "added"/"removed" (structural), "textDeleted". */
 export function recordSlideElementTouch(
@@ -167,7 +167,7 @@ export function recordSlideElementTouch(
   }
 }
 
-/** Discard a slide's accumulated element touches — call when the slide row
+/** Discard a slide's accumulated element touches: call when the slide row
  *  is deleted or replaced (its room is being discarded). Element touches are
  *  keyed by slide id alone, so left behind they would drain into whichever
  *  LATER session first records a slide with this id (3-char ids get reused),
@@ -224,7 +224,7 @@ export function renameDeckLedgerEmails(oldEmail: string, newEmail: string): void
   }
 }
 
-/** Freeze + clear the deck's open session ledger — called when a version is
+/** Freeze + clear the deck's open session ledger: called when a version is
  *  written. Returns null when nothing was recorded. */
 export function drainDeckLedger(
   projectId: string,
@@ -283,7 +283,7 @@ export function drainDeckLedger(
   return result;
 }
 
-/** Merge a drained ledger back — used when the version insert that consumed
+/** Merge a drained ledger back: used when the version insert that consumed
  *  it failed, so the attribution retries with the next write. */
 export function restoreDeckLedger(
   projectId: string,

@@ -73,7 +73,7 @@ export async function getDatasetHmisDetail(
 // IndexedDB display cache, viz-query staleness hashes) assumes a visible
 // version id names a settled data state. Hiding the row until the run ends
 // makes the cache token flip exactly once, at run end. All version
-// READERS carry this exclusion; version-MINTING paths must not use them —
+// READERS carry this exclusion; version-MINTING paths must not use them:
 // they compute MAX(id) inline in their own transaction (run worker, CSV
 // integrate worker, windowed delete).
 export async function getVersionsForDatasetHmis(
@@ -115,7 +115,7 @@ export async function deleteAllDatasetHmisData(
   return await tryCatchDatabaseAsync(async () => {
     // A delete minting a version id while an integration is mid-transaction
     // can collide with the integration's MAX(id)+1 and roll back the whole
-    // merge at the end — refuse while an import run is running (CSV imports
+    // merge at the end: refuse while an import run is running (CSV imports
     // are runs too, so the single runs-table check covers every import).
     // The reverse direction (a run LAUNCHING mid-delete) is deliberately not
     // claimed against: a mint collision aborts exactly one side's transaction
@@ -141,7 +141,7 @@ export async function deleteAllDatasetHmisData(
       conditions.push(`indicator_raw_id IN (${indicatorList})`);
     }
 
-    // Build admin area facility subquery — AA3 takes priority over AA2
+    // Build admin area facility subquery: AA3 takes priority over AA2
     let facilitySubquery: string | undefined;
     const delAa3Items = windowing.adminArea3sToInclude ?? [];
     if (!(windowing.takeAllAdminArea3s ?? true) && delAa3Items.length > 0) {
@@ -171,7 +171,7 @@ export async function deleteAllDatasetHmisData(
 
     await mainDb.begin(async (sql) => {
       // Captured before the DELETE so the ledger reconcile below knows which
-      // (indicator, period) pairs to re-count — a facility-scoped deletion
+      // (indicator, period) pairs to re-count: a facility-scoped deletion
       // can leave a pair partially populated.
       const affectedPairs = (
         await sql.unsafe<{ indicator_raw_id: string; period_id: number }[]>(`
@@ -296,7 +296,7 @@ export async function getDatasetHmisItemsForDisplay(
 ): Promise<APIResponseWithData<ItemsHolderDatasetHmisDisplay>> {
   return await tryCatchDatabaseAsync(async () => {
     // Query common data used by both raw and common functions. The windowing
-    // tree is HMIS data's own registry tree — HFA areas are structurally gone.
+    // tree is HMIS data's own registry tree: HFA areas are structurally gone.
     const adminArea2s = (
       await mainDb<
         { admin_area_2: string }[]
@@ -372,7 +372,7 @@ async function getDatasetHmisItemsForDisplayRaw(
 ): Promise<APIResponseWithData<ItemsHolderDatasetHmisDisplay>> {
   return await tryCatchDatabaseAsync(async () => {
     // Ledger reads (~1,440 rows for Nigeria) instead of a GROUP BY scan over
-    // dataset_hmis (tens of millions of rows) — the ledger is maintained
+    // dataset_hmis (tens of millions of rows): the ledger is maintained
     // inside every integration/deletion transaction, so it always agrees.
     // n_records > 0 keeps display behavior identical: zero-count "checked,
     // empty" and error-only pairs are checklist information, not data cells.
@@ -456,7 +456,7 @@ async function getDatasetHmisItemsForDisplayCommon(
   return await tryCatchDatabaseAsync(async () => {
     // Ledger + mappings join instead of scanning dataset_hmis (see the raw
     // variant above). `count` is the summed raw record count per (common,
-    // period) — a facility reporting two raw indicators mapped to the same
+    // period): a facility reporting two raw indicators mapped to the same
     // common id counts twice, where the old per-facility aggregation counted
     // it once (PLAN_DHIS2_IMPORTER §6 ruled the join+SUM read).
     const vizItems = await mainDb<Record<string, string>[]>`
@@ -530,7 +530,7 @@ async function getDatasetHmisItemsForDisplayCommon(
 }
 
 
-// Reader — running-run versions excluded; see getVersionsForDatasetHmis.
+// Reader: running-run versions excluded; see getVersionsForDatasetHmis.
 // Never use for minting a version id.
 export async function getCurrentDatasetHmisMaxVersionId(
   mainDb: Sql
@@ -547,7 +547,7 @@ WHERE id NOT IN (
   return typeof maxId === "number" ? maxId : undefined;
 }
 
-// Reader — running-run versions excluded; see getVersionsForDatasetHmis.
+// Reader: running-run versions excluded; see getVersionsForDatasetHmis.
 export async function getCurrentDatasetHmisVersion(
   mainDb: Sql
 ): Promise<DatasetHmisVersion | undefined> {

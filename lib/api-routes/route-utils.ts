@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { APIResponseNoData, APIResponseWithData } from "../types/mod.ts";
 
 // Helper to define a route with type information.
-// params and body must be Zod schemas (z.ZodType) — phantom {} as T is no longer accepted.
+// params and body must be Zod schemas (z.ZodType): phantom {} as T is no longer accepted.
 // response remains a compile-time phantom ({} as T) by design.
 export function route<
   TPath extends string,

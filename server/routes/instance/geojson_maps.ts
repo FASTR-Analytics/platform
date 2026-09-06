@@ -31,13 +31,13 @@ import {
 
 // Guard before the unbounded readTextFile + JSON.parse: any authenticated
 // configure-data user could otherwise OOM the server with one huge upload.
-// The same cap bounds the DHIS2 .geojson response body below — an arbitrary
+// The same cap bounds the DHIS2 .geojson response body below: an arbitrary
 // URL is accepted as a "DHIS2 server" on loose evidence, so the response
 // must not be materialized unbounded either.
 const MAX_GEOJSON_FILE_BYTES = 100 * 1024 * 1024;
 
 // The heavy .geojson pull is ~20 MB / up to ~43 s for a 200-district country.
-// Generous timeout, and NO retries — a transient failure must not re-download
+// Generous timeout, and NO retries: a transient failure must not re-download
 // the payload up to 5× (the shared fetcher's default).
 const HEAVY_GEOJSON_FETCH = {
   timeoutMs: 180000,
@@ -86,7 +86,7 @@ defineRoute(
       const result = analyzeGeoJson(rawGeoJson);
       return c.json({ success: true, data: result });
     } catch (e) {
-      // JSON.parse SyntaxErrors embed a snippet of the file — never echo them
+      // JSON.parse SyntaxErrors embed a snippet of the file: never echo them
       if (e instanceof SyntaxError) {
         return c.json({ success: false, err: "File is not valid JSON/GeoJSON" });
       }
@@ -143,7 +143,7 @@ defineRoute(
         },
       });
     } catch (e) {
-      // JSON.parse SyntaxErrors embed a snippet of the file — never echo them
+      // JSON.parse SyntaxErrors embed a snippet of the file: never echo them
       if (e instanceof SyntaxError) {
         return c.json({ success: false, err: "File is not valid JSON/GeoJSON" });
       }
@@ -348,7 +348,7 @@ defineRoute(
       }
 
       const featureCount = cached.withGeometryCount;
-      // Units with no stored boundary — the .geojson endpoint OMITS them (it
+      // Units with no stored boundary: the .geojson endpoint OMITS them (it
       // does not return null-geometry features), so this is metadata total
       // minus the exact with-geometry count.
       const nullGeometryCount = cached.units.length - cached.withGeometryCount;
@@ -454,7 +454,7 @@ defineRoute(
       );
 
       // Never store an empty map. The mapping was built against the .json
-      // metadata but is applied against .geojson feature properties — if the
+      // metadata but is applied against .geojson feature properties: if the
       // match property is absent there, every feature is silently dropped.
       if (result.featureCount === 0) {
         return c.json({
@@ -469,7 +469,7 @@ defineRoute(
       if (res.success === false) {
         return c.json(res);
       }
-      // The save succeeded — drop both cache entries so a follow-up wizard
+      // The save succeeded: drop both cache entries so a follow-up wizard
       // run (e.g. after adding the missing boundaries in DHIS2 that the
       // unmatched count points at) fetches fresh data instead of silently
       // re-saving this payload for up to 15 minutes. The caches only need

@@ -226,7 +226,7 @@ defineRoute(
         contentType = "text/plain";
       }
 
-      // Binary download — not a JSON envelope; cast to satisfy RouteHandler return type.
+      // Binary download: not a JSON envelope; cast to satisfy RouteHandler return type.
       return new Response(fileContent, {
         headers: {
           "Content-Type": contentType,

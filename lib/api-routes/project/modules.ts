@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { ItemsHolderResultsObject } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
-// Everything a package CONTAINS — script, logs, files, settings — is read
+// Everything a package CONTAINS (script, logs, files, settings) is read
 // run-keyed on the instance mount (`runGenerationRouteRegistry`, Tim's ruling
 // 2026-08-18); this project mount keeps only the raw results-object read.
 

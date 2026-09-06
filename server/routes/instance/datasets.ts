@@ -98,10 +98,10 @@ defineRoute(
     // (~1.4k rows, not a dataset_hmis scan) the read costs a few ms, so the
     // Valkey layer that used to shield it (ds_hmis_v2) was deleted along with
     // its liabilities: the mid-run cache-bypass dance and the prefix-bump
-    // obligation on every payload-shape change. Client-side caching remains —
+    // obligation on every payload-shape change. Client-side caching remains:
     // the T2 IndexedDB cache keys on versionId + baseIndicatorMappingsVersion,
     // which only flip at run end (running-run versions are hidden from
-    // readers — see getVersionsForDatasetHmis), and the client bypasses it
+    // readers: see getVersionsForDatasetHmis), and the client bypasses it
     // while a run is active, so mid-run reads stay live end to end. The BASE
     // stamp, not the full one: a derived indicator's definition changes
     // nothing about this datatable (PLAN_1a §1.13).
@@ -129,7 +129,7 @@ defineRoute(
   log("launchDatasetHmisDhis2Run"),
   async (c, { body }) => {
     // Absent credentials = use the stored instance credentials (Phase 4 C3).
-    // Stored launches skip pre-validation — validating would decrypt the
+    // Stored launches skip pre-validation: validating would decrypt the
     // password in the host, and decryption is worker-only; bad stored
     // credentials fail the run loudly within seconds.
     let dhis2Url: string;
@@ -164,7 +164,7 @@ defineRoute(
       },
     });
     if (res.success) {
-      // Flip hmisImportRunActive on every connected client now — their
+      // Flip hmisImportRunActive on every connected client now: their
       // display caches must be bypassed for the run's duration.
       notifyInstanceDatasetsUpdated(
         await getInstanceDatasetsSummary(c.var.mainDb),
@@ -174,7 +174,7 @@ defineRoute(
   },
 );
 
-// C6 — explicit queueing while a run is active (the client always asks the
+// C6: explicit queueing while a run is active (the client always asks the
 // user first; queueing is never the silent default). Unattended when it
 // fires, so it requires stored credentials up front.
 defineRoute(
@@ -320,7 +320,7 @@ defineRoute(
       body.schedule,
     );
     if (res.success) {
-      // The edit clears the last-fire outcome — the instance-wide attention
+      // The edit clears the last-fire outcome: the instance-wide attention
       // banner must clear with it (review finding 5).
       notifyInstanceDatasetsUpdated(
         await getInstanceDatasetsSummary(c.var.mainDb),
@@ -368,7 +368,7 @@ defineRoute(
 /////////////////////////////
 
 // Stateless: parses headers from the named asset for the wizard's mappings
-// step — no pin check, the wizard always wants current bytes. Nothing is
+// step: no pin check, the wizard always wants current bytes. Nothing is
 // persisted by this call.
 defineRoute(
   routesDatasets,
@@ -409,7 +409,7 @@ defineRoute(
       },
     });
     if (res.success) {
-      // Flip hmisImportRunActive on every connected client now — their
+      // Flip hmisImportRunActive on every connected client now: their
       // display caches must be bypassed for the run's duration.
       notifyInstanceDatasetsUpdated(
         await getInstanceDatasetsSummary(c.var.mainDb),
@@ -545,7 +545,7 @@ defineRoute(
 /////////////////////////////
 
 // Stateless: parses the CSV headers from the named assets and checks the
-// XLSForm's sheets, for the wizard's mappings step — no pin check, the
+// XLSForm's sheets, for the wizard's mappings step: no pin check, the
 // wizard always wants current bytes. Nothing is persisted by this call.
 defineRoute(
   routesDatasets,

@@ -32,7 +32,7 @@ const DYNAMIC_PERIOD_COLUMNS = ["year", "month", "quarter_id"] as const;
 // Hand-rolled, NOT Intl.Collator: ICU tailoring shifts across runtime
 // upgrades (a Deno bump reordered a leading-space value relative to "dhis2"),
 // so an ICU comparator re-introduces exactly the environment-dependence this
-// sort exists to remove — host vs deployed-image Deno versions would emit
+// sort exists to remove: host vs deployed-image Deno versions would emit
 // different orders. Rules: digit runs compare numerically ("anc2" < "anc10");
 // everything else by code point over a case-folded, diacritic-stripped key
 // (French/accented admin-area ids sort with their base letter, not after
@@ -107,7 +107,7 @@ export async function getPossibleValuesCore(
   },
 ): Promise<APIResponseWithData<{ id: string; label: string }[]>> {
   return await tryCatchDatabaseAsync(async () => {
-    // Honor ALL filterBy entries, INCLUDING one on the queried column itself — so
+    // Honor ALL filterBy entries, INCLUDING one on the queried column itself, so
     // a replicant filtered to a subset returns exactly that subset. (The
     // filter-value-checkbox path passes no filters, so it is unaffected; the only
     // caller that passes filters is the replicant-options route, which sends the
@@ -307,7 +307,7 @@ LIMIT ${REPLICANT_OPTIONS_QUERY_LIMIT}`;
       disaggregation_value: string;
     }[];
 
-    // Blank-folded columns have no NULL/blank left to strip — those rows came
+    // Blank-folded columns have no NULL/blank left to strip: those rows came
     // back as BLANK_SENTINEL. The strip still applies to the columns the fold
     // skips (integer, period-derived, multi-membership), where a blank is not a
     // selectable group: an unnested empty set yields no member, and an integer
@@ -328,7 +328,7 @@ LIMIT ${REPLICANT_OPTIONS_QUERY_LIMIT}`;
     // DISTINCT (ORDER BY may only use expressions that appear in the select
     // list, and the sort key is a comparison against the alias), and the set is
     // capped at MAX_REPLICANT_OPTIONS so ordering it here is free. Leaving it
-    // where the collation put it — first, ahead of every lowercase value — made
+    // where the collation put it, first, ahead of every lowercase value, made
     // the blank cohort the auto-selected default replicant.
     const blankIndex = possibleValues.findIndex((v) => v.id === BLANK_SENTINEL);
     if (blankIndex >= 0) {

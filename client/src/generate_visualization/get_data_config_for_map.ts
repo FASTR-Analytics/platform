@@ -35,7 +35,7 @@ export function getMapJsonDataConfigFromPresentationObjectConfig(
     laneProp,
     labelReplacements: indicatorLabelReplacements,
     // Map labelReplacements carry only indicator labels, so by-label on other
-    // dims sorts on raw values — which is what the map displays, keeping sort
+    // dims sorts on raw values, which is what the map displays, keeping sort
     // key and display consistent.
     sort: {
       pane: getAxisSort(config, paneProp, indicatorSortOrder),

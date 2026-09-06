@@ -31,7 +31,7 @@ type Props = {
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
   effectiveConfig: PresentationObjectConfig;
   effectiveValueProps: string[];
-  /** The format the figure's values will actually be written in — resolved
+  /** The format the figure's values will actually be written in: resolved
    *  from the draft config, not the metric's stored formatAs, which is
    *  "number" for every HFA metric regardless of what it displays. */
   effectiveFormatAs: IndicatorFormat;
@@ -45,7 +45,7 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
   const showDisruptionsMode = () => canUseSpecialDisruptionsChart(metricId());
   const showDisruptionsModeV2 = () => canUseSpecialDisruptionsChartV2(metricId());
   // The `indicator` CF source is offered only where the values are each
-  // indicator's own quantity — the metric's declared formatAs, never the
+  // indicator's own quantity: the metric's declared formatAs, never the
   // resolved axis format.
   const offerIndicatorCfSource = () =>
     p.poDetail.resultsValue.formatAs === "indicator";

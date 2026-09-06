@@ -21,7 +21,7 @@ const broadcastEnded = new BroadcastChannel(RUN_GENERATION_ENDED_CHANNEL);
     console.error("Generate-run worker error:", error);
     // Surfaces to the host's error listener (launch.ts), which marks the run
     // failed, kills any containers, and terminates this worker. Never
-    // self.close() here — closing discards pending report-backs.
+    // self.close() here: closing discards pending report-backs.
     self.reportError(error);
   });
 };
@@ -70,9 +70,9 @@ async function run(std: GenerateRunStartData) {
 }
 
 // A failed generation never replaces the serving run: publish the partial
-// workspace for inspection (no manifest — see publishFailedRunDirOrSweep),
+// workspace for inspection (no manifest, see publishFailedRunDirOrSweep),
 // mark the catalog row failed (errorDetail into progress), push the final
-// progress over SSE. The attached run — if any — keeps serving untouched.
+// progress over SSE. The attached run, if any, keeps serving untouched.
 async function failGeneration(
   mainDb: Sql,
   std: GenerateRunStartData,

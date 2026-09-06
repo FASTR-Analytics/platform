@@ -32,8 +32,8 @@ import { instanceState } from "~/state/instance/t1_store";
 
 // The instance "Results packages" surface (PLAN_RESULTS_RUNS Phase 3 items 1
 // and 3): generation is an instance-level act, so this is both where the
-// launch wizard is entered — an ephemeral modal, nothing persisted before
-// launch — and the catalogue of every package the instance holds, as a
+// launch wizard is entered (an ephemeral modal, nothing persisted before
+// launch), and the catalogue of every package the instance holds, as a
 // master–detail (sidebar list + detail pane). The listing is T1
 // (`instanceState.runsCatalog`, pushed on every catalogue mutation), so this
 // surface has no component fetch of its own. A package attaches to projects
@@ -71,7 +71,7 @@ export function InstanceResultsPackages() {
   // Live generation state over instance SSE (Q-B ruling (a) and (e)):
   // progress patches the pane in place and the R line is keyed by RUN as
   // well as module, so two concurrent generations never overwrite each
-  // other's line. The listing itself is T1 — every catalogue mutation
+  // other's line. The listing itself is T1: every catalogue mutation
   // signals runs_catalog_updated and the SSE boundary refetches the store,
   // so this page never fetches the listing.
   const [liveProgress, setLiveProgress] = createSignal<
@@ -99,7 +99,7 @@ export function InstanceResultsPackages() {
   );
 
   // Selection is T5 and never jumps (ruling 4, amended): the effect PINS the
-  // newest run's id whenever nothing is pinned — first non-empty render, and
+  // newest run's id whenever nothing is pinned: first non-empty render, and
   // after the selected run is deleted (falling to newest was the ruled
   // behavior there). Without the pin, the derived fallback re-resolved to
   // another admin's freshly launched run and the keyed <Show> remounted the
@@ -118,7 +118,7 @@ export function InstanceResultsPackages() {
     instanceState.runsCatalog.find((r) => r.id === selectedId()) ??
     sortedRuns()[0];
 
-  // "Latest" is DERIVED — the newest ready package — never stored and never a
+  // "Latest" is DERIVED (the newest ready package), never stored and never a
   // consumer-facing pointer (SYSTEM_08 "Latest is derived, pinned is
   // stored"). The stored, explicit concept is the pin, read from the one
   // instance T1 field every surface uses (`instanceState.pinnedRunId`).

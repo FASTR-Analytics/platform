@@ -89,7 +89,7 @@ export function PresentationObjectEditorPanel(p: Props) {
     });
   };
 
-  // Resolved against tempConfig — the DRAFT, not the saved config — so the
+  // Resolved against tempConfig (the DRAFT, not the saved config), so the
   // percent-only controls react to the filter edit in progress. Config-based,
   // so no refetch is involved: a control appearing the instant a filter pins a
   // percent indicator is the intended behavior.

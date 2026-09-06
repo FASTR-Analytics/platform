@@ -610,7 +610,7 @@ export function PeriodFilterPeriodId(p: PeriodFilterPropsPeriodId) {
   const [needsSave, setNeedsSave] = createSignal<boolean>(false);
 
   // Mirror external changes (a collaborator's update reconciled into the
-  // config) into the local draft — but never clobber this user's own
+  // config) into the local draft, but never clobber this user's own
   // in-progress drag (needsSave). Without this the slider kept the value it
   // was CREATED with: reconcile updates the periodFilter object in place, so
   // the keyed <Show> above never recreates this component.

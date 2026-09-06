@@ -60,7 +60,7 @@ export type PresentationObjectInReportInfo = {
   selectedReplicantValue: string;
 };
 
-// The authored row plus its resolved resultsValue — what the visualization
+// The authored row plus its resolved resultsValue: what the visualization
 // editor and its panels work on. The create/ephemeral editors synthesize one
 // with no run behind it, which is why it carries no run identity.
 export type PresentationObjectEditorDetail = {
@@ -77,10 +77,10 @@ export type PresentationObjectEditorDetail = {
 // The served detail: the editor detail plus the run identity it was resolved
 // under.
 export type PresentationObjectDetail = PresentationObjectEditorDetail & {
-  // The run resultsValue was resolved from — folded into the po_detail cache
+  // The run resultsValue was resolved from: folded into the po_detail cache
   // version (PLAN_RESULTS_RUNS §2.5).
   runId: string;
-  // The project scope the payload was computed under (projectScopeToken) —
+  // The project scope the payload was computed under (projectScopeToken):
   // folded into cache versions beside runId (PLAN_1_PROJECT_AA2_SCOPE §4).
   scopeToken: string;
 };
@@ -116,7 +116,7 @@ export type DisaggregationPossibleValuesStatus =
 export type ResultsValueInfoForPresentationObject = {
   resultsObjectId: string;
   metricId: string;
-  // The metric's dataset family — selects which family's structure schema
+  // The metric's dataset family: selects which family's structure schema
   // labels its facility columns. Absent for iceh/unknown-family metrics.
   datasetFamily?: DatasetType;
   // See ItemsHolderPresentationObject.runId (PLAN_RESULTS_RUNS §2.5).
@@ -313,7 +313,7 @@ export const VIZ_TYPE_CONFIG: Record<
 // Legal display slots for the VALUE dimension, per type: the disaggregation
 // slots minus `replicant` (a figure replicates by a disaggregation, never by
 // its value props) and `mapArea` (the map's geography is a disaggregation's
-// job — values cannot be the areas). Derived, not a second table, so a new
+// job: values cannot be the areas). Derived, not a second table, so a new
 // presentation type or display option is a compile error here, not a
 // silently-skipped check.
 export function getValidValuesDisplayOptions(
@@ -326,7 +326,7 @@ export function getValidValuesDisplayOptions(
 
 // Whether the pie draws each value against a fixed 100% envelope (panther
 // `total: 1`, unfilled arc drawn as the remainder track) rather than against
-// the sum of its own slices. THE authoritative gate — the data config's `total`
+// the sum of its own slices. THE authoritative gate: the data config's `total`
 // and the style's `centerLabel` must agree, or the hole reports a share
 // computed against a denominator the geometry never used.
 //
@@ -633,7 +633,7 @@ export type GenericLongFormFetchConfig = {
   periodFilterExactBounds?: PeriodBounds;
   postAggregationExpression: string | undefined;
   // The dimension the roll-up collapses; presence = roll-up on. Baked in
-  // client-side by getEffectiveRollupDimension — the server obeys, never
+  // client-side by getEffectiveRollupDimension: the server obeys, never
   // recomputes it.
   rollupDim?: RollupDimension;
 };

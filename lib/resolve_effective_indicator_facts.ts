@@ -9,18 +9,18 @@ import type { MetricFormatAs } from "./types/modules.ts";
 import type { DisaggregationPossibleValuesStatus } from "./types/presentation_objects.ts";
 
 // ============================================================================
-// The one effective-indicator-facts resolver. Two catalog facts — an
-// indicator's FORMAT and its CF RULE — resolved per value through the same id
+// The one effective-indicator-facts resolver. Two catalog facts, an
+// indicator's FORMAT and its CF RULE, resolved per value through the same id
 // chain and the same stopping rule. Format has a DECLARED source:
 //
-// - `formatAs: "percent" | "number"` — the values are the metric's own
+// - `formatAs: "percent" | "number"`: the values are the metric's own
 //   quantity. The format is a constant: every value, axis and label uses it
 //   unconditionally, whatever indicators are on display. m10-02's don't-know
 //   RATES stay percent even on count questions; m9-02-01's CIX/SII stays
 //   number over percent indicators. Such a metric has no per-value rule: the
 //   values are not any indicator's own quantity, so no indicator's rule
 //   applies to them.
-// - `formatAs: "indicator"` — the values ARE the displayed indicator's own
+// - `formatAs: "indicator"`: the values ARE the displayed indicator's own
 //   quantity, so format AND rule are per-value facts carried by the indicator
 //   catalog (IndicatorMetadata.format_as / .thresholds). True of every
 //   indicator family: HFA (getHfaIndicatorMeasure), common indicators, ICEH.
@@ -29,27 +29,27 @@ import type { DisaggregationPossibleValuesStatus } from "./types/presentation_ob
 // answers, and which one a caller wants is decided by what it is doing, never
 // by a flag:
 //
-//   formatForValue(ids) — THE source for any individual value's format. The
+//   formatForValue(ids): THE source for any individual value's format. The
 //     caller passes the ids that identify the value (its headers, most
 //     specific first) and the first one that DECLARES a format wins.
-//   ruleForValue(ids) — THE source for any individual value's CF rule under
+//   ruleForValue(ids): THE source for any individual value's CF rule under
 //     the `indicator` source: the first id in the chain that DECLARES a rule.
 //     When the chain carries NO id at all (the indicator is pinned by
-//     filterBy — the one-indicator map or bar chart) and exactly one
+//     filterBy: the one-indicator map or bar chart) and exactly one
 //     indicator is displayed, that indicator's rule. An id that declares no
-//     rule — a count beside percents — is never coloured by a neighbour's.
-//   axisFormat — the collapsed format, ONLY for figure-wide decisions that
+//     rule, a count beside percents, is never coloured by a neighbour's.
+//   axisFormat: the collapsed format, ONLY for figure-wide decisions that
 //     cannot be per-value: a shared scale axis and the things derived from it.
-//   displayedRules — the distinct rules among the displayed indicators, each
+//   displayedRules: the distinct rules among the displayed indicators, each
 //     with its owning format, for the derived `indicator` legend.
 //
-// Which surface takes which, and why, is the wiring map in SYSTEM_10 — not
+// Which surface takes which, and why, is the wiring map in SYSTEM_10: not
 // restated here.
 //
 // The format collapse is lossy by nature (mixed indicators share one numeric
 // axis), which is exactly why it must never reach an individual value. A
 // single scalar plus a "format per cell?" boolean was the old shape, and it
-// forced every surface to re-derive the per-value truth for itself — or,
+// forced every surface to re-derive the per-value truth for itself: or,
 // mostly, to skip it and print a percentage as a bare fraction.
 //
 // Two entry points, one rule, in one file so they cannot drift.
@@ -63,7 +63,7 @@ import type { DisaggregationPossibleValuesStatus } from "./types/presentation_ob
 // so it enumerates disaggregated dimensions from the returned rows instead.
 // Only `axisFormat` and `displayedRules` can differ between them, and only for
 // an "indicator" metric whose possible-values status disagrees with the
-// actual rows — see SYSTEM_10.
+// actual rows: see SYSTEM_10.
 // ============================================================================
 
 export type DisplayedRule = { rule: ThresholdsRule; formatAs: IndicatorFormat };
@@ -118,7 +118,7 @@ export function resolveEffectiveIndicatorFacts(args: {
 
 // Render-side twin over a stored FigureBundle: pins (replicant, filterBy) come
 // from the frozen config, disaggregated dimensions are enumerated from the
-// returned rows, and facts come from bundle.indicatorMetadata — the FULL
+// returned rows, and facts come from bundle.indicatorMetadata: the FULL
 // module catalog, so a filter-pinned indicator is still visible.
 export function resolveEffectiveIndicatorFactsFromItems(args: {
   metricFormatAs: MetricFormatAs;
@@ -144,7 +144,7 @@ export function resolveEffectiveIndicatorFactsFromItems(args: {
 
 // A metric that owns its format: the declaration answers every question, so
 // the per-value sources ignore the ids they are handed. declaredFormatForValue
-// is never undefined here — the declaration IS the answer, so a surface with a
+// is never undefined here: the declaration IS the answer, so a surface with a
 // miss branch correctly never takes it. No rule ever applies (see header).
 function constantFacts(formatAs: "percent" | "number"): EffectiveIndicatorFacts {
   return {
@@ -161,7 +161,7 @@ function indicatorFacts(
   lookup: FactsLookup,
 ): EffectiveIndicatorFacts {
   const axisFormat = unanimousFormat(displayed, lookup);
-  // First id that DECLARES the fact — not the first id that happens to be in
+  // First id that DECLARES the fact: not the first id that happens to be in
   // the catalog. The catalog deliberately carries label-only entries (HFA
   // categories and variant items, ICEH strat codes, raw common indicators),
   // so stopping at the first entry found would let a fact-less column header
@@ -200,7 +200,7 @@ function firstDeclared<T>(
   return undefined;
 }
 
-// The distinct rules on display, in first-appearance order — distinct by
+// The distinct rules on display, in first-appearance order: distinct by
 // CONTENT (format, direction, cutoffs, buckets), which is only a dedupe. What
 // the legend shows for them is the consumer's reconciliation (one item per
 // colour, meanings merged; compile.ts indicatorLegend), never a per-rule
@@ -233,7 +233,7 @@ function displayedRuleKey(rule: ThresholdsRule, formatAs: IndicatorFormat): stri
   ]);
 }
 
-// The single format every displayed indicator agrees on, else "number" — the
+// The single format every displayed indicator agrees on, else "number": the
 // honest shared-axis answer for a mixed or un-enumerable display. Ids without
 // a declared format say nothing and are skipped rather than counted as
 // disagreement: the displayed set legitimately includes ids the catalog does
@@ -258,7 +258,7 @@ function unanimousFormat(
 }
 
 // The indicator-dimension values a figure actually puts on display. Candidates
-// come ONLY from indicator dimensions (INDICATOR_DISAGGREGATION_OPTIONS) — a
+// come ONLY from indicator dimensions (INDICATOR_DISAGGREGATION_OPTIONS): a
 // derived indicator named `anc1` must not collide with a `source_indicator`
 // value that happens to share the id.
 //
@@ -287,7 +287,7 @@ function getDisplayedIndicatorDimensionValues(
       // Returning undefined here (rather than falling through to enumeration)
       // is a latent behaviour change from the pre-per-value code, reachable
       // only with a metric carrying TWO indicator dimensions where the second
-      // is pinned in filterBy — no such metric exists. Recorded, deliberate.
+      // is pinned in filterBy: no such metric exists. Recorded, deliberate.
       const selected = config.d.selectedReplicantValue;
       if (selected === undefined || selected === "") return undefined;
       displayed.push(selected);

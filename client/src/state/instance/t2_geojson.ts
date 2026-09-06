@@ -11,7 +11,7 @@ type CacheEntry = {
   data: GeoJSONFeatureCollection;
 };
 
-// Keyed `${family}:${level}` — maps are per facility registry.
+// Keyed `${family}:${level}`: maps are per facility registry.
 const memoryCache = new Map<string, CacheEntry>();
 
 function cacheKey(family: FacilityFamily, level: number): string {
@@ -19,7 +19,7 @@ function cacheKey(family: FacilityFamily, level: number): string {
 }
 
 // Ruling: a results value without a stamped datasetFamily (packages
-// synthesized before the field existed) defaults to hmis — the migration
+// synthesized before the field existed) defaults to hmis: the migration
 // copies the legacy shared map to hmis whenever HMIS facilities exist, so
 // legacy viz keep rendering exactly as today. iceh has no facility registry
 // and takes the same default.

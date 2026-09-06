@@ -231,7 +231,7 @@ export function Step4Recode(p: Props) {
 
   // Option object identity must be stable across recomputes: Select renders
   // options with a referentially-keyed <For>, so fresh objects for unchanged
-  // values would recreate every <option> element — and removing the selected
+  // values would recreate every <option> element, and removing the selected
   // option resets the native select back to its first entry.
   const keepAsIsOption = {
     value: "",

@@ -134,7 +134,7 @@ async function run(payload: ImportHmisDataCsvWorkerPayload) {
 
     // ── Integrate leg ───────────────────────────────────────────────────
     // The completion flip happens INSIDE the merge transaction (see
-    // integrate_staged.ts) — a cancel racing the commit either rolls the merge
+    // integrate_staged.ts): a cancel racing the commit either rolls the merge
     // back whole or arrives after the run is already 'complete'.
     await integrateStagedHmisCsvData({
       importDb,

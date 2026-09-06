@@ -5,7 +5,7 @@ import type { AssetFilePin } from "./assets.ts";
 // ============================================================================
 
 // The zip preview served by the stateless parse route (the wizard's upload
-// step) — nothing is persisted by that call.
+// step): nothing is persisted by that call.
 export type IcehStep1Result = {
   zipFileName: string;
   indicatorCount: number;
@@ -18,7 +18,7 @@ export type IcehStep1Result = {
 
 // The staging diagnostics, durable on the run row. The three skipped-row
 // gates (unknown strat, invalid year, unknown indicator) hold the run in
-// needs_review; missing estimates never gate — "NA" estimates are a normal
+// needs_review; missing estimates never gate: "NA" estimates are a normal
 // feature of ICEH Retriever exports, not a mapping error.
 export type IcehStagingResult = {
   nRowsTotal: number;
@@ -38,7 +38,7 @@ export type IcehStagingResult = {
 // asset (the Retriever zip) named by fileName and byte-pinned at launch
 // validation (see AssetFilePin). skipReviewGate marks a needs_review run
 // resolved with "Integrate anyway": staging is in-memory, so the worker
-// re-runs the full ingest from the zip with the gate skipped —
+// re-runs the full ingest from the zip with the gate skipped:
 // deterministic, and seconds at ICEH scale.
 export type IcehRunConfig = {
   zipFileName: string;
@@ -49,7 +49,7 @@ export type IcehRunConfig = {
 // "needs_review" = staging skipped rows it cannot explain (unknown strat /
 // invalid year / unknown indicator); the run holds with its diagnostics and
 // RELEASES the single-running slot until the user integrates anyway or
-// discards. No "queued" — ICEH refuses a second launch explicitly.
+// discards. No "queued". ICEH refuses a second launch explicitly.
 export type IcehImportRunStatus =
   | "running"
   | "needs_review"

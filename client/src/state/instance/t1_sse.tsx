@@ -25,7 +25,7 @@ import {
   updateProjectsLastUpdated,
 } from "./t1_store";
 
-// Live results-package generation (Q-B): ephemeral execution state, not T1 —
+// Live results-package generation (Q-B): ephemeral execution state, not T1:
 // like the project channel's copies these go to listeners and never touch
 // the store. (The catalogue LISTING is T1 via the projects pattern:
 // `runs_catalog_updated` is a data-free timestamp and the boundary below
@@ -61,7 +61,7 @@ export function addInstanceRScriptListener(
 // Retries never give up: past the threshold the ladder keeps trying at the
 // capped delay forever (a dead connection would otherwise freeze T1 behind a
 // working-looking UI, with `isReady` never unset). The threshold only decides
-// when to SHOW the down state — the pre-ready failure screen and the
+// when to SHOW the down state: the pre-ready failure screen and the
 // post-ready "Reconnecting" banner both read `instanceSseDown`.
 const _FAILED_ATTEMPTS_BEFORE_SHOWING_DOWN = 5;
 const _BASE_RETRY_DELAY = 1000;
@@ -250,11 +250,11 @@ export function InstanceSSEBoundary(p: { children: JSX.Element }) {
   ));
 
   // Runs catalogue: same shape as the projects fetch above (the broadcast is
-  // a data-free nonce — run labels must not fan out, Q-B). Also tracks
+  // a data-free nonce: run labels must not fan out, Q-B). Also tracks
   // the user's OWN entitlement, so a mid-session grant fetches the catalogue
-  // and a revocation clears it — no reconnect needed. defer: true skips only
+  // and a revocation clears it: no reconnect needed. defer: true skips only
   // the mount-time run; the server stamps a FRESH nonce in every `starting`
-  // payload, so this refetches after every reconnect — DELIBERATE, the
+  // payload, so this refetches after every reconnect: DELIBERATE, the
   // self-healing path for backfill runs and missed signals (the payload fill
   // prevents an empty flash while it resolves).
   createEffect(on(
@@ -302,7 +302,7 @@ export function InstanceSSEBoundary(p: { children: JSX.Element }) {
       }
     >
       {/* Post-ready disconnect: stale-visible-while-reconnecting is the
-          documented instance behavior — a slim banner OVER the children, never
+          documented instance behavior, a slim banner OVER the children, never
           a replacement (isReady is never unset on a same-user reconnect). */}
       <Show when={connectionDown()}>
         <div class="bg-danger text-danger-content fixed inset-x-0 top-0 z-50 py-1 text-center text-sm">

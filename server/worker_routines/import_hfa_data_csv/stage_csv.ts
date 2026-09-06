@@ -62,12 +62,12 @@ export async function dropHfaStagingTables(
   }
 }
 
-// The staging internals relocated from the old stage_hfa_data_csv worker —
+// The staging internals relocated from the old stage_hfa_data_csv worker:
 // parse the XLSForm, stream the CSV wide→long with select_multiple expansion,
 // resolve duplicates, validate facilities, and build the data + dictionary
 // staging tables. Semantics unchanged; only the table names (per-run) and the
 // progress transport (callback instead of attempt-row writes) differ. Never
-// throws on dropped rows — the caller's clean-condition gate decides what a
+// throws on dropped rows: the caller's clean-condition gate decides what a
 // nonzero drop count means.
 export async function stageHfaCsvIntoTables(args: {
   importDb: Sql;
@@ -161,9 +161,9 @@ export async function stageHfaCsvIntoTables(args: {
     }
     return [varName];
   });
-  // Reject names that collide with how indicator R code is interpreted —
+  // Reject names that collide with how indicator R code is interpreted:
   // `and`/`or` operator aliases, R keywords, the common functions the
-  // identifier extractor filters — or with a column the module script owns
+  // identifier extractor filters, or with a column the module script owns
   // (`weight`, `time_point`, `facility_*`, ...). A survey variable named
   // `and`/`sum`/`if` would otherwise be silently rewritten or dropped, and one
   // named `weight`/`time_point` would collide with or shadow the script's own
@@ -236,7 +236,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
     rowBuffer = [];
   };
 
-  // Process CSV rows — wide to long, with select_multiple expansion. All
+  // Process CSV rows: wide to long, with select_multiple expansion. All
   // surviving (post-filter) rows are inserted, duplicates included; the
   // keep-set join below picks one row per facility.
   const scanTotals = await processFilteredRows(
@@ -309,7 +309,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
   const missingFacilityIdCount = scanTotals.nRowsMissingFacilityId;
   const nRowsFilteredOut = scanTotals.nRowsFilteredOut;
 
-  // Validate overrides against the post-filter duplicate structure — a stale
+  // Validate overrides against the post-filter duplicate structure: a stale
   // override (from an edited file or changed filters) fails staging loudly
   // rather than silently falling back to the rule.
   const overrideByFacility = new Map<string, number>();

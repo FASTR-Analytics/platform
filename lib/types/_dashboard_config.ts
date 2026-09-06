@@ -1,6 +1,6 @@
 // =============================================================================
-// Dashboard Item Figure Block — STORED SHAPE (dashboard_items.figure_block column)
-// Dashboard Layout — STORED SHAPE (dashboards.layout column)
+// Dashboard Item Figure Block: STORED SHAPE (dashboard_items.figure_block column)
+// Dashboard Layout: STORED SHAPE (dashboards.layout column)
 // =============================================================================
 
 import { z } from "zod";
@@ -23,7 +23,7 @@ export const dashboardLayoutSchema = z.discriminatedUnion("type", [
 
 export type DashboardLayoutFromSchema = z.infer<typeof dashboardLayoutSchema>;
 
-// ── Dashboard config — STORED SHAPE (dashboards.config column) ───────────────
+// ── Dashboard config: STORED SHAPE (dashboards.config column) ───────────────
 // Logos mirror the slide-deck pattern: identifiers are FASTR built-in logo
 // values or uploaded image asset filenames; URLs are resolved at render time.
 
@@ -32,7 +32,7 @@ const dashboardLogosConfigSchema = z.object({
   selected: z.array(z.string()),
   // "left" = far left (left of the title); "right" (default) = far right
   // (right of all header buttons). Logos render within a fixed max-h/max-w box
-  // (no per-dashboard size option — see DashboardLogos).
+  // (no per-dashboard size option: see DashboardLogos).
   placement: z.enum(["left", "right"]).optional(),
 });
 

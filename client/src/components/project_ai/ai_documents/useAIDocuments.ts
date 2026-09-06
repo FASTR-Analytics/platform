@@ -30,7 +30,7 @@ type UseAIDocumentsOptions = {
 
 // Constructed at the wrapper level (config.getDocumentRefs must exist before
 // AIChatProvider mounts) but the active conversation only exists inside the
-// provider — the chat pane late-binds its accessors via bind(). Sends can
+// provider: the chat pane late-binds its accessors via bind(). Sends can
 // only originate inside the provider, so binding always precedes the first
 // getDocumentRefs call.
 export function useAIDocuments(options: UseAIDocumentsOptions) {

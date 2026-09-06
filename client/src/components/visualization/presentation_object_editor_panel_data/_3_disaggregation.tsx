@@ -321,7 +321,7 @@ function DisaggregationOptionSettings(p: DisaggregationOptionSettingsProps) {
       />
       {/* The roll-up option appears on every dimension the roll-up could
           collapse (admin levels and facility columns passing the shape rules).
-          When the METRIC is ineligible (isRollupEligibleResultsValue — e.g.
+          When the METRIC is ineligible (isRollupEligibleResultsValue, e.g.
           pre-aggregated values that can't be summed/averaged), show the
           control disabled with a reason rather than hiding it, so the absence
           is explicable. */}
@@ -358,7 +358,7 @@ function DisaggregationOptionSettings(p: DisaggregationOptionSettingsProps) {
   );
 }
 
-// The checkbox label mirrors what the roll-up row will actually contain —
+// The checkbox label mirrors what the roll-up row will actually contain:
 // getRollupLabelContextForDimension is the same helper that labels the
 // rendered row. Pinned names the LEVEL, not the pinned value, because with a
 // replicant the value differs per replicant.
@@ -407,7 +407,7 @@ function RollupOptions(p: RollupOptionsProps) {
         checked={p.keyedDis.rollup === true}
         onChange={(v) => {
           if (v) {
-            // Phase-1 rule: one roll-up per viz — flagging this dimension
+            // Phase-1 rule: one roll-up per viz: flagging this dimension
             // clears any other entry's flag (the gate treats 2+ as inert).
             p.setTempConfig(
               "d",

@@ -14,7 +14,7 @@ import {
 } from "~/components/_shared/project_scope_picker";
 
 // A new project is a name plus a scope identity (national or a single Admin
-// Area 2 — PLAN_1_PROJECT_AA2_SCOPE): it starts with no results package
+// Area 2: PLAN_1_PROJECT_AA2_SCOPE): it starts with no results package
 // attached (the typed no-run state) and gets one from the Results package
 // tab, which is where datasets and modules now come from (PLAN_RESULTS_RUNS
 // Phase 3).

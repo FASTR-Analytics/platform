@@ -40,7 +40,7 @@ type Props = {
   allowNegative?: boolean;
   // True only for an "indicator" metric (its values are each indicator's own
   // quantity): offers the `indicator` source. What that source shows is the
-  // figure's own legend — nothing is listed here.
+  // figure's own legend: nothing is listed here.
   offerIndicatorSource: boolean;
 };
 
@@ -302,7 +302,7 @@ function ScalePanel(p: {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Thresholds panel — shared by the figure CF editor and the instance
+// Thresholds panel: shared by the figure CF editor and the instance
 // indicator editor. Presents DISPLAY units, stores STORED units.
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -447,8 +447,8 @@ export function ThresholdsPanel(p: {
             const cutoffIdx = () => origI() - 1;
             // Both bounds are the format's, not universal: only a percent has
             // a natural floor (0, or -1 when the metric is signed) and a
-            // natural ceiling (100%). A count or rate is unbounded either way
-            // — m9-02-01's SII values are negative by construction.
+            // natural ceiling (100%). A count or rate is unbounded either way:
+            // m9-02-01's SII values are negative by construction.
             const minVal = () =>
               cutoffIdx() > 0
                 ? p.cf.cutoffs[cutoffIdx() - 1]
@@ -533,7 +533,7 @@ export function ThresholdsPanel(p: {
 // One numeric control for a stored value, in the units the user READS it in.
 // Percent and rate_per_10k are both stored scaled-down (a fraction, a bare
 // rate) while every label beside the control is scaled up, so a raw
-// NumberInput on either one silently takes a value 100× / 10,000× off — the
+// NumberInput on either one silently takes a value 100× / 10,000× off: the
 // user types 0.8 for "80%" and stores 0.8 meaning 8,000%.
 //
 // `max` is optional and stays optional: a count or rate threshold has no
@@ -669,7 +669,7 @@ function serializeScale(state: ScaleEditorState): ContinuousScaleConfig {
 
 function colorToString(c: ColorKeyOrString): string {
   if (typeof c === "string") return c;
-  // key-based colors can't be previewed in a ColorPicker — show neutral swatch.
+  // key-based colors can't be previewed in a ColorPicker: show neutral swatch.
   return "#cccccc";
 }
 

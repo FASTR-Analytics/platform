@@ -8,7 +8,7 @@ type Props = {
   setFamily: (family: DatasetType, included: boolean) => void;
 };
 
-// Step 1 — choose data: plain family-inclusion checkboxes. Generation always
+// Step 1: choose data: plain family-inclusion checkboxes. Generation always
 // captures the FULL dataset per family (PLAN_FULL_CAPTURE_GENERATION);
 // per-project subsetting happens at attach time, never here.
 export function StepData(p: Props) {

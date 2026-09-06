@@ -12,7 +12,7 @@ import type { ResultsValueForVisualization } from "./types/modules.ts";
 // deliberately NOT filter-aware, for two different reasons:
 //   - getDisaggregatorDisplayProp / hasDuplicateDisaggregatorDisplayOptions are
 //     fed an already-effective config by their callers (build_figure_inputs, the
-//     editor panel) — adding filter-awareness would double-strip.
+//     editor panel): adding filter-awareness would double-strip.
 //   - getNextAvailableDisaggregationDisplayOption takes RAW config but is
 //     filter-agnostic by nature (only picks the next free display slot; never
 //     consults the replicant/filter). Leave it for THAT reason.
@@ -50,7 +50,7 @@ export function getDisaggregatorDisplayProp(
   return undefined;
 }
 
-// Returns the replicant disOpt ONLY when it is an *effective* replicant —
+// Returns the replicant disOpt ONLY when it is an *effective* replicant:
 // displayed as "replicant" AND not filtered to a single value (a replicant
 // filtered to one value is degenerate: one figure, no list, render as a plain
 // filter). Context-free (reads disaggregateBy + filterBy) → same answer on raw or

@@ -9,7 +9,7 @@ import {
   validateFilters,
 } from "lib";
 
-// Slide/report content validators — SPA-only (the copilot's authoring tools).
+// Slide/report content validators: SPA-only (the copilot's authoring tools).
 // The metric-query validators both surfaces run stay in lib/ai_tools
 // (validateAiMetricQuery, validateMetricInputs); validatePresetOverrides
 // composes lib's two primitives so there is one filter validator and one
@@ -21,7 +21,7 @@ const MARKDOWN_TABLE_PATTERNS = [
 ];
 
 function containsMarkdownTable(text: string): boolean {
-  // BOTH a multi-pipe row and a separator line — a lone piped line ("Region
+  // BOTH a multi-pipe row and a separator line: a lone piped line ("Region
   // A | Region B | Region C", quoted `a || b || c`) isn't a rendered table
   // and matching on it alone rejected legitimate prose.
   return MARKDOWN_TABLE_PATTERNS.every((pattern) => pattern.test(text));
@@ -57,8 +57,8 @@ export function validateSlideTotalWordCount(textBlocks: string[]): void {
 }
 
 // valuesFilter membership lives in
-// generate_visualization/validate_figure_config_edit.ts (validateValuesFilter)
-// — a pure config check, called by the shared edit validator and the
+// generate_visualization/validate_figure_config_edit.ts (validateValuesFilter):
+// a pure config check, called by the shared edit validator and the
 // from_metric create path.
 export function validatePresetOverrides(
   metricId: string,
