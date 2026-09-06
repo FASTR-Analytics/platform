@@ -39,10 +39,7 @@ defineRoute(
   requireGlobalPermission("can_view_data"),
   log("getPopulationTypeStore"),
   async (c, { body }) => {
-    return c.json({
-      success: true,
-      data: await getPopulationTypeStore(c.var.mainDb, body.populationType),
-    });
+    return c.json(await getPopulationTypeStore(c.var.mainDb, body.populationType));
   },
 );
 

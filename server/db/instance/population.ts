@@ -254,51 +254,56 @@ function areaNames(row: PopulationAreaRow): string[] {
 export async function getPopulationTypeStore(
   mainDb: Sql,
   populationType: string,
-): Promise<PopulationTypeStore> {
-  const level = await getPopulationLevel(mainDb);
-  if (level === null) return { populationLevel: null, years: [], areas: [] };
-  const structureAreas = await listHmisStructureAreas(mainDb, level);
-  const rows = await mainDb<(PopulationAreaRow & { year: number; count: number })[]>`
-    SELECT admin_area_1, admin_area_2, admin_area_3, admin_area_4, year, count
-    FROM population
-    WHERE population_type = ${populationType} AND admin_area_level = ${level}
-  `;
-  const cellsByKey = new Map<string, Record<string, number>>();
-  const namesByKey = new Map<string, string[]>();
-  const years = new Set<number>();
-  for (const r of rows) {
-    const names = areaNames(r);
-    const key = populationAreaKey(names);
-    const cells = cellsByKey.get(key) ?? {};
-    cells[String(r.year)] = Number(r.count);
-    cellsByKey.set(key, cells);
-    namesByKey.set(key, names);
-    years.add(r.year);
-  }
-  const structureKeys = new Set<string>();
-  const areas: PopulationGridArea[] = structureAreas.map((a) => {
-    const names = areaNames(a);
-    const key = populationAreaKey(names);
-    structureKeys.add(key);
+): Promise<APIResponseWithData<PopulationTypeStore>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const level = await getPopulationLevel(mainDb);
+    if (level === null) {
+      return { success: true, data: { populationLevel: null, years: [], areas: [] } };
+    }
+    const structureAreas = await listHmisStructureAreas(mainDb, level);
+    const rows = await mainDb<(PopulationAreaRow & { year: number; count: number })[]>`
+      SELECT admin_area_1, admin_area_2, admin_area_3, admin_area_4, year, count
+      FROM population
+      WHERE population_type = ${populationType} AND admin_area_level = ${level}
+    `;
+    const byKey = new Map<string, { names: string[]; cells: Record<string, number> }>();
+    const years = new Set<number>();
+    for (const r of rows) {
+      const names = areaNames(r);
+      const key = populationAreaKey(names);
+      const area = byKey.get(key) ?? { names, cells: {} };
+      area.cells[String(r.year)] = Number(r.count);
+      byKey.set(key, area);
+      years.add(r.year);
+    }
+    const structureKeys = new Set<string>();
+    const areas: PopulationGridArea[] = structureAreas.map((a) => {
+      const names = areaNames(a);
+      const key = populationAreaKey(names);
+      structureKeys.add(key);
+      return {
+        names: names.slice(0, level),
+        stale: false,
+        cells: byKey.get(key)?.cells ?? {},
+      };
+    });
+    const stale: PopulationGridArea[] = [...byKey.entries()]
+      .filter(([key]) => !structureKeys.has(key))
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(([, area]) => ({
+        names: area.names.slice(0, level),
+        stale: true,
+        cells: area.cells,
+      }));
     return {
-      names: names.slice(0, level),
-      stale: false,
-      cells: cellsByKey.get(key) ?? {},
+      success: true,
+      data: {
+        populationLevel: level,
+        years: [...years].sort((a, b) => a - b),
+        areas: [...areas, ...stale],
+      },
     };
   });
-  const stale: PopulationGridArea[] = [...cellsByKey.keys()]
-    .filter((key) => !structureKeys.has(key))
-    .sort()
-    .map((key) => ({
-      names: namesByKey.get(key)!.slice(0, level),
-      stale: true,
-      cells: cellsByKey.get(key)!,
-    }));
-  return {
-    populationLevel: level,
-    years: [...years].sort((a, b) => a - b),
-    areas: [...areas, ...stale],
-  };
 }
 
 export type PopulationExportRow = PopulationAreaRow & {
