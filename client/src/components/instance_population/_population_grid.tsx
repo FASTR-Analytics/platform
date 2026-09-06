@@ -228,8 +228,12 @@ function PopulationTypeGrid(p: {
           >
             <Show when={data.populationLevel} keyed>
               {(level) => {
-                const structureAreas = () => data.areas.filter((a) => !a.stale);
-                const staleAreas = () => data.areas.filter((a) => a.stale);
+                const structureAreas = createMemo(() =>
+                  data.areas.filter((a) => !a.stale),
+                );
+                const staleAreas = createMemo(() =>
+                  data.areas.filter((a) => a.stale),
+                );
                 return (
                   <div class="flex h-full w-full flex-col">
                     <div class="min-h-0 flex-1">

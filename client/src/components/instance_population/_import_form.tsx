@@ -178,26 +178,22 @@ export function PopulationImportForm(p: { close: (p: unknown) => void }) {
                 <For each={pv.types}>
                   {(type) => <PreviewTypeCoverage type={type} />}
                 </For>
-                <Show
-                  when={pv.complete}
-                  fallback={
-                    <div class="text-danger text-sm">
-                      {t3({
+                <div
+                  class="text-sm"
+                  classList={{ "text-success": pv.complete, "text-danger": !pv.complete }}
+                >
+                  {pv.complete
+                    ? t3({
+                        en: "After this import, every population type in the file is complete.",
+                        fr: "Après cet import, chaque type de population du fichier est complet.",
+                        pt: "Após esta importação, todos os tipos de população do ficheiro ficam completos.",
+                      })
+                    : t3({
                         en: "After this import, at least one population type would still be missing values for some areas or years. Generation needs every area at the population level covered for every population a formula uses.",
                         fr: "Après cet import, au moins un type de population manquerait encore de valeurs pour certaines unités ou années. La génération exige que chaque unité au niveau de population soit couverte pour chaque population utilisée par une formule.",
                         pt: "Após esta importação, pelo menos um tipo de população continuaria sem valores para algumas zonas ou anos. A geração exige que todas as zonas ao nível de população estejam cobertas para cada população usada numa fórmula.",
                       })}
-                    </div>
-                  }
-                >
-                  <div class="text-success text-sm">
-                    {t3({
-                      en: "After this import, every population type in the file is complete.",
-                      fr: "Après cet import, chaque type de population du fichier est complet.",
-                      pt: "Após esta importação, todos os tipos de população do ficheiro ficam completos.",
-                    })}
-                  </div>
-                </Show>
+                </div>
                 <StateHolderFormError state={runImport.state()} />
                 <div class="ui-gap-sm flex">
                   <Button
@@ -239,7 +235,7 @@ export function PopulationImportForm(p: { close: (p: unknown) => void }) {
                   })}
                 </div>
                 <div class="font-mono">{columnList()}</div>
-                <ul class="text-base-content-muted list-disc space-y-1 pl-5">
+                <ul class="text-base-content-muted ui-spy-sm list-disc pl-5">
                   <li>
                     {t3({
                       en: "Every population type is stored at the population level, so every file must have exactly these admin_area columns. To change the level, delete all population data first.",
@@ -276,7 +272,7 @@ export function PopulationImportForm(p: { close: (p: unknown) => void }) {
                     pt: "population_type é um de:",
                   })}
                 </div>
-                <ul class="text-base-content-muted space-y-0.5 pl-5">
+                <ul class="text-base-content-muted ui-spy-sm pl-5">
                   <For each={POPULATION_TYPES}>
                     {(type) => (
                       <li>
