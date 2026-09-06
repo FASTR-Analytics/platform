@@ -678,7 +678,8 @@ Every config mutation re-reads all configs and pushes one consolidated
 - The common-indicator editor's expression palette (ruled 2026-09-02;
   storage unchanged, no alias layer): two "Insert …" pickers above the
   formula box, indicators (label-searchable, commons only, never the one
-  being edited) and populations (from T1 `populationTypes`), insert the
+  being edited) and populations (`POPULATION_TYPES`, with the coverage
+  from T1 `populationCoverage`), insert the
   correctly WRITTEN identifier (`writeIdentifier`) at the caret; a live
   legend under the box lists every identifier the formula references with
   its label, kind (indicator / population) and a "not found" mark, driven by

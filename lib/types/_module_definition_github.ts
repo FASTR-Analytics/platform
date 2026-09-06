@@ -49,9 +49,9 @@ const dataSourceResultsObjectGithub = z.object({
 });
 
 // The run's person-years file (inputs/population.csv): monthly person-years
-// per population type at the instance's population level (the store's level,
-// else the HMIS depth), expanded at capture from the instance population
-// store. It is not a dataset family: it accompanies the HMIS family and is
+// per population type at the population level (SYSTEM_08 "population.csv"),
+// expanded at capture from the instance population store. It is not a
+// dataset family: it accompanies the HMIS family and is
 // written on every HMIS capture (header-only when no expression names a
 // population), so a module declaring it needs the hmis dataset in the run
 // and nothing else.

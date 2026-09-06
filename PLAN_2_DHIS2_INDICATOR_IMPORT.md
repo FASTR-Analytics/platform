@@ -7,7 +7,8 @@ is the tracking home for the work. Delete it when both items below close.
 Prerequisite (MET 2026-09-03, app 1.69.0): typed common indicators —
 `base` and `derived` with arbitrary expressions, population terms written
 as `[population:<type>]` inside a derived expression, and the instance
-population store (`population_types` + `population`, main DB). Rulings
+population store (`population`, main DB; the type vocabulary is
+`POPULATION_TYPES` in the lib). Rulings
 live in [SYSTEM_05](SYSTEM_05_facilities_indicators.md) ("Ruling — the
 additivity principle", "Population store"). Governing principle is that
 ruling: nothing non-additive is ever stored as data. There is no

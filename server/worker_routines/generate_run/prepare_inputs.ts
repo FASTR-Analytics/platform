@@ -317,10 +317,9 @@ export const POPULATION_FILE_NAME = "population.csv";
 
 // Annual population stock → monthly person-years, for every population type
 // the resolved catalog's slot maps reference (the expression IS the
-// declaration), over the extract's months, at the population level: the
-// store's level when it has rows, else the HMIS adminDepth. The header alone
-// sets m012's grain, so it is written at that level even when no type is
-// referenced (SYSTEM_08 "population.csv"). Format, permanent once written:
+// declaration), over the extract's months, at the population level (SYSTEM_08
+// "population.csv"). The header alone sets m012's grain, so it is written at
+// that level even when no type is referenced. Format, permanent once written:
 // admin_area_2..N, period_id, population_type, person_years.
 //
 // Coverage failure is loud and deliberate: a package that cannot compute what

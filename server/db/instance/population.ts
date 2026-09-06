@@ -533,7 +533,7 @@ export async function parsePopulationCsv(
       }
       if (!knownTypes.has(typeId)) {
         problems.push(
-          `line ${line}: unknown population type "${typeId}" (add it on the Population page first)`,
+          `line ${line}: unknown population type "${typeId}" (one of ${POPULATION_TYPE_IDS.join(", ")})`,
         );
         return;
       }
