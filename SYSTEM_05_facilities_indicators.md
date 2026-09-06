@@ -20,6 +20,7 @@ globs:
   - lib/hfa_indicator_labels.ts
   - lib/hfa_r_code_analysis.ts
   - lib/indicator_expression/**
+  - lib/population_coverage.ts
   - lib/population_person_years.ts
   - lib/types/geojson_maps.ts
   - lib/types/hfa_types.ts
@@ -493,47 +494,79 @@ cascades.
 
 ## Population store
 
-**What it is (ruled 2026-08-30, built 2026-09-02).** Annual population STOCKS per admin
-area × year × population type, in the main DB: `population_types` (id,
-label, user-extensible; seeded with the six FASTR defaults by instance
-migration 080, and the ONLY vocabulary an expression's `[population:<type>]`
-term may name, referenced from expressions, not from a typed field; no FK,
-the resolver checks it at save and at capture) and `population`
-(type, `admin_area_level` 2–4,
-the full `admin_area_1..4` name path with `''` below the level, year,
-count ≥ 0; PK over all of them). Names match the HMIS structure tables but
-are deliberately NOT FK'd: a structure re-import must not silently delete
-population, and a stale row is caught by the coverage check at generation.
-There is no per-project copy and no dataset family. Population accompanies
-the HMIS family into a results package (S8 "population.csv"). Nothing was
-imported from the retired `population.csv` asset (Tim, 2026-08-30):
-instances re-enter figures through the validated page.
+**What it is (ruled 2026-08-30, built 2026-09-02; one level and the grid
+ruled 2026-09-06).** Annual population STOCKS per admin area × year ×
+population type, in the main DB: `population_types` (id, label,
+user-extensible; seeded with the six FASTR defaults by instance migration
+080, and the ONLY vocabulary an expression's `[population:<type>]` term may
+name, referenced from expressions, not from a typed field; no FK, the
+resolver checks it at save and at capture) and `population` (type,
+`admin_area_level` 2–4, the full `admin_area_1..4` name path with `''`
+below the level, year, count ≥ 0; PK over all of them). Names match the
+HMIS structure tables but are deliberately NOT FK'd: a structure re-import
+must not silently delete population. A row whose area is no longer in the
+structure is STALE: counted and shown, never part of completeness. There is
+no per-project copy and no dataset family. Population accompanies the HMIS
+family into a results package (S8 "population.csv").
+
+**The population level.** The store holds ONE admin level at a time. The
+level IS the level of the stored rows (`getPopulationLevel`: `SELECT
+DISTINCT admin_area_level`; null for an empty store; more than one throws,
+the import being the only writer of new rows). There is no setting and no
+migration. The first import sets it from the file's columns; a later file at
+another level is refused while any row exists ("delete all population data first");
+deleting every value clears it. It is also the analysis level of m012's
+indicator values for EVERY indicator (S8 "population.csv"): coarser levels
+derive by summation and nothing exists below it, which the import preview
+states before the first import. Lowering the HMIS `adminDepth` below the
+stored level has no guard: m012's script stops at generation (S8).
+
+**Completeness** (`lib/population_coverage.ts`, pure: one rule, two data
+paths). Per type, over in-structure rows at the population level: complete
+iff the structure at that level is non-empty, the type has an in-structure
+row, and every year with one has one for every structure area;
+`incompleteYears` lists the shortfalls. The SSE summary feeds the rule
+per-year counts aggregated in SQL (`LEFT JOIN admin_areas_hmis_<L>` on the
+name columns); the import preview feeds it the store ∪ file rows.
 
 **Writes** (`server/db/instance/population.ts`, routes
-`server/routes/instance/population.ts`, all `can_configure_data`):
-fixed-column CSV import (`admin_area_2 [admin_area_3 [admin_area_4]], year,
+`server/routes/instance/population.ts`, all `can_configure_data`).
+Fixed-column CSV import (`admin_area_2 [admin_area_3 [admin_area_4]], year,
 population_type, count`, optional `admin_area_1`; the level is the deepest
-admin column present; every area path must exist in `admin_areas_hmis_L`,
-every type must exist, no duplicate keys, ≤ the family's `adminDepth`;
-problems reject the whole file with a numbered listing), rows UPSERT by
-key, so a later file adds years or corrects figures; per-(type, level)
-delete; delete-all; type create (indicator-id charset rule: the id is
-written into R literals and CSV) / relabel / delete (refused with a listing
-while ANY stored derived expression names it: the guard re-parses every
-expression and checks identifiers, the way common-indicator deletion
-re-resolves survivors; the type's rows cascade). Every write stamps
-`population_last_updated` in `instance_config`.
+admin column present, ≤ the family's `adminDepth` and = the stored level
+while rows exist; every area path must exist in `admin_areas_hmis_L`, every
+type must exist, no duplicate keys; problems reject the whole file with a
+numbered listing) runs in three server steps: `parsePopulationCsv` (the
+checks above), `previewPopulationImport` (read-only: store ∪ file by key,
+file wins; coverage per touched type; new and replaced row counts; served
+by the `previewPopulationCsv` route) and `importPopulationCsv`, which
+re-runs both, refuses unless `confirmIncomplete` when any touched type
+would be left incomplete, then UPSERTs by key inside a transaction that
+locks the table and re-reads the level, so two first imports at different
+levels cannot both see an empty store. Per-type delete
+(`deletePopulationTypeData`); delete-all; type create (indicator-id
+charset rule: the id is written into R literals and CSV) / relabel / delete
+(refused with a listing while ANY stored derived expression names it; the
+type's rows cascade). Every write stamps `population_last_updated` in
+`instance_config`.
 
-**Reads.** `population_updated` SSE carries the vocabulary, the
-per-(type, level) coverage against the HMIS structure (`complete` = every
-structure area × every stored year has a row, exactly what generation
-needs) and the stamp; the T1 store holds all three
-(`populationTypes`/`populationCoverage`/`populationLastUpdated`), the
-indicator editor's population picker and legend read the vocabulary from T1, and the manager
-page (`client/src/components/instance_population/`) fetches the rows through
-a T2 cache keyed on the stamp. Export is CSV in the import format. At
-generation, `getPopulationAnchors` reads one (type, level) as per-area
-anchors for the person-years expansion (S8).
+**Reads.** `population_updated` SSE carries the level, the vocabulary, the
+per-type coverage and the stamp (`InstancePopulationSummary`, spread into
+`InstanceState`; "has data" everywhere is `populationLevel !== null`).
+The two HMIS structure write routes (`deleteFamilyFacilities` and
+`structureStep4_ImportData`, hmis family only) emit it too, since coverage
+is measured against the structure. The manager page
+(`client/src/components/instance_population/`) is a grid per type
+(`getPopulationTypeStore`, `POST /population/type_store`, `can_view_data`:
+structure areas at the level in structure order, stale areas appended,
+years across), fetched through the T2 cache keyed on BOTH the population
+and structure stamps, with a per-type delete; the grid's layout is under
+review (PLAN_POPULATION_UI_REVIEW.md). The
+indicator editor's population picker and legend read the vocabulary and
+coverage from T1. Export is CSV in the import format, area columns to the
+population level. At generation, `getPopulationAnchors` reads one type at
+the population level as per-area anchors for the person-years expansion
+(S8).
 
 ## Geojson boundaries
 

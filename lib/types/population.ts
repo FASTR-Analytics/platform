@@ -1,21 +1,21 @@
 // =============================================================================
-// The instance population store (PLAN_1b)
+// The instance population store
 // =============================================================================
 //
-// Annual population figures per admin area × year × population type, kept in
-// the main DB and validated against the HMIS structure at upload. A derived
-// common indicator's expression names a population type as the ingredient
-// `[population:<type>]` (PLAN_1c); at run capture the figures of every type
-// the resolved catalog references are expanded into monthly person-years
-// (mid-year anchors, linear interpolation, ±1 year geometric extrapolation:
-// see lib/population_person_years.ts) and written into the package, where
-// m012 treats them as one more additive ingredient.
+// Annual population counts per admin area × year × population type, kept in
+// the main DB and validated against the HMIS structure at import. The store
+// holds ONE admin level at a time: the population level is the level of the
+// stored rows (null while the store is empty), set by the first import and
+// changed only by deleting every value. It is also the analysis level of
+// m012's indicator values: the person-years file is written at that level and
+// nothing exists below it (SYSTEM_08 "population.csv").
 //
-// Population types are user-extensible rows (`population_types`), seeded with
-// the six FASTR defaults by instance migration 080. The table is the only
-// vocabulary: an expression resolves iff every population term it names is a
-// row in it, checked at authoring and at capture: there is no typed field
-// and no foreign key, the expression IS the reference.
+// A derived common indicator's expression names a population type as the
+// ingredient `[population:<type>]`; at run capture the values of every type
+// the resolved catalog references are expanded into monthly person-years
+// (see lib/population_person_years.ts). Population types are user-extensible
+// rows (`population_types`), the only vocabulary an expression may name: no
+// typed field, no foreign key, the expression IS the reference.
 //
 // =============================================================================
 
@@ -24,49 +24,91 @@ export type PopulationTypeInfo = {
   label: string;
 };
 
-// Per (type, admin level): what the store holds, measured against the HMIS
-// structure at that level. `complete` is what generation will need: every
-// structure area has a figure for every stored year.
+export type PopulationLevel = 2 | 3 | 4;
+
+export function parsePopulationLevel(value: number): PopulationLevel {
+  if (value === 2 || value === 3 || value === 4) return value;
+  throw new Error(`Not a population level: ${value}`);
+}
+
+// Per type, over the rows whose area is in the HMIS structure at the
+// population level. Complete iff the structure is non-empty, the type has an
+// in-structure row, and every year with one has one for every structure area.
 export type PopulationCoverage = {
   populationType: string;
-  adminAreaLevel: number;
-  firstYear: number;
-  lastYear: number;
+  firstYear: number | null;
+  lastYear: number | null;
   yearCount: number;
   areaCount: number;
   structureAreaCount: number;
+  staleRowCount: number;
+  incompleteYears: number[];
   complete: boolean;
 };
 
 export type InstancePopulationSummary = {
+  populationLevel: PopulationLevel | null;
   populationTypes: PopulationTypeInfo[];
   populationCoverage: PopulationCoverage[];
-  // Bumped by every write to either table; keys the T2 rows cache.
+  // Bumped by every write to either table; keys the T2 type-store cache.
   populationLastUpdated: string | undefined;
 };
 
-// One stored row, as the manager page lists it (finest names only; coarser
-// levels carry "" in the unused columns).
-export type PopulationRow = {
-  populationType: string;
-  adminAreaLevel: number;
-  adminArea1: string;
-  adminArea2: string;
-  adminArea3: string;
-  adminArea4: string;
+// One grid row. Server-sorted: structure order, then stale areas by path.
+export type PopulationGridArea = {
+  // populationAreaKey of the full name path; identity only, never displayed.
+  key: string;
+  path: string;
+  stale: boolean;
+  cells: Record<string, number>;
+};
+
+export type PopulationTypeStore = {
+  populationLevel: PopulationLevel | null;
+  years: number[];
+  areas: PopulationGridArea[];
+};
+
+export const POPULATION_PREVIEW_MISSING_AREAS_CAP = 50;
+
+export type PopulationYearCoverage = {
   year: number;
-  count: number;
+  areasWithData: number;
+  missingCount: number;
+  missingAreas: string[];
+};
+
+export type PopulationImportPreviewType = {
+  populationType: string;
+  structureAreaCount: number;
+  years: PopulationYearCoverage[];
+  staleRowCount: number;
+  complete: boolean;
+};
+
+// What the store looks like after the file is upserted, computed before any
+// write. `complete` covers every type the file touches.
+export type PopulationImportPreview = {
+  populationLevel: PopulationLevel;
+  populationTypes: string[];
+  firstYear: number;
+  lastYear: number;
+  rowsInFile: number;
+  rowsNew: number;
+  rowsReplaced: number;
+  types: PopulationImportPreviewType[];
+  complete: boolean;
 };
 
 export type PopulationImportResult = {
   rowsImported: number;
-  adminAreaLevel: number;
+  populationLevel: PopulationLevel;
   populationTypes: string[];
   firstYear: number;
   lastYear: number;
 };
 
-// The CSV contract, shared by the upload validator and the manager page's
+// The CSV contract, shared by the import validator and the manager page's
 // help text. Level = the deepest admin_area_N column present; the columns
 // below it must all be present too. admin_area_1 is optional and, when
 // present, must match the structure's level-1 name for that area.
@@ -97,7 +139,7 @@ export function parsePopulationIngredientId(id: string): string | null {
 }
 
 // Every population type the resolved catalog's slot maps reference: what a
-// run's person-years file must carry (PLAN_1c ruling 5). Sorted, deduplicated.
+// run's person-years file must carry. Sorted, deduplicated.
 export function populationTypesReferencedBySlotMaps(
   slotMaps: Record<string, string>[],
 ): string[] {

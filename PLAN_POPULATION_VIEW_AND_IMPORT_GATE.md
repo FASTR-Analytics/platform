@@ -1,7 +1,11 @@
 # PLAN: Population level inferred from the store, import preview, grid view
 
-Status: DRAFT for Tim's sign-off (revised 2026-09-06). No implementation yet.
-Reviewed in two independent rounds; the substantive findings are folded in.
+Status: IMPLEMENTED 2026-09-06 (see PLAN_POPULATION_UI_REVIEW.md for the
+commits, the open verification step and the UI review). Not deleted because
+§8.4 (the end-to-end level-2 generation on dev) has not run: the dev
+dictionary refuses every HMIS capture (anc1, wer and aaaa depend on
+measles1, which has no raw mappings). The UI built under §6/R8 is being
+reviewed and reworked under the new plan.
 
 Repos: app `/Users/timroberton/projects/apps/wb-fastr` (this repo); modules
 `/Users/timroberton/projects/apps/wb-fastr-modules` (m012 only); site

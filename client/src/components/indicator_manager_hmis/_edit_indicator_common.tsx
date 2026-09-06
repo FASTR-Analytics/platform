@@ -117,10 +117,8 @@ function populationCoverageSummary(
   populationType: string,
   coverage: PopulationCoverage[],
 ): { text: string; empty: boolean } {
-  const rows = coverage
-    .filter((c) => c.populationType === populationType)
-    .sort((a, b) => a.adminAreaLevel - b.adminAreaLevel);
-  if (rows.length === 0) {
+  const c = coverage.find((row) => row.populationType === populationType);
+  if (c === undefined || c.yearCount === 0) {
     return {
       empty: true,
       text: t3({
@@ -130,22 +128,23 @@ function populationCoverageSummary(
       }),
     };
   }
+  const years = c.firstYear === c.lastYear
+    ? `${c.firstYear}`
+    : `${c.firstYear}–${c.lastYear}`;
+  if (c.complete) {
+    return {
+      empty: false,
+      text: `${years} ${t3({ en: "complete", fr: "complet", pt: "completo" })}`,
+    };
+  }
+  const shortYears = c.incompleteYears.join(", ");
   return {
     empty: false,
-    text: rows
-      .map(
-        (c) =>
-          `L${c.adminAreaLevel} ${c.firstYear}–${c.lastYear} ${
-            c.complete
-              ? t3({ en: "complete", fr: "complet", pt: "completo" })
-              : t3({
-                  en: `${c.areaCount} of ${c.structureAreaCount} areas`,
-                  fr: `${c.areaCount} zones sur ${c.structureAreaCount}`,
-                  pt: `${c.areaCount} de ${c.structureAreaCount} áreas`,
-                })
-          }`,
-      )
-      .join("; "),
+    text: t3({
+      en: `${years}, ${c.areaCount} of ${c.structureAreaCount} areas; incomplete: ${shortYears}`,
+      fr: `${years}, ${c.areaCount} zones sur ${c.structureAreaCount} ; incomplet : ${shortYears}`,
+      pt: `${years}, ${c.areaCount} de ${c.structureAreaCount} áreas; incompleto: ${shortYears}`,
+    }),
   };
 }
 

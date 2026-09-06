@@ -550,38 +550,46 @@ export function InstanceData(p: Props) {
                         })}
                       </div>
                       <Show
-                        when={instanceState.populationCoverage.length > 0}
+                        when={instanceState.populationLevel}
+                        keyed
                         fallback={
                           <div class="text-danger text-xs">
                             {t3({
-                              en: "No population figures",
-                              fr: "Aucun chiffre de population",
-                              pt: "Sem valores de população",
+                              en: "No population data",
+                              fr: "Aucune donnée de population",
+                              pt: "Sem dados de população",
                             })}
                           </div>
                         }
                       >
-                        <div class="ui-spy-sm text-success text-xs">
-                          <div class="ui-gap flex justify-between">
-                            <span>
-                              {t3({
-                                en: "Population types with figures",
-                                fr: "Types de population renseignés",
-                                pt: "Tipos de população com valores",
-                              })}
-                              :
-                            </span>
-                            <span class="font-mono">
-                              {toNum0(
-                                new Set(
-                                  instanceState.populationCoverage.map((c) =>
-                                    c.populationType
-                                  ),
-                                ).size,
-                              )}
-                            </span>
+                        {(level) => (
+                          <div class="ui-spy-sm text-success text-xs">
+                            <div class="ui-gap flex justify-between">
+                              <span>
+                                {t3({
+                                  en: "Population level",
+                                  fr: "Niveau de population",
+                                  pt: "Nível de população",
+                                })}
+                                :
+                              </span>
+                              <span>{t3(getAdminAreaLabel(level))}</span>
+                            </div>
+                            <div class="ui-gap flex justify-between">
+                              <span>
+                                {t3({
+                                  en: "Population types with data",
+                                  fr: "Types de population renseignés",
+                                  pt: "Tipos de população com dados",
+                                })}
+                                :
+                              </span>
+                              <span class="font-mono">
+                                {toNum0(instanceState.populationCoverage.length)}
+                              </span>
+                            </div>
                           </div>
-                        </div>
+                        )}
                       </Show>
                     </div>
                   </Card>

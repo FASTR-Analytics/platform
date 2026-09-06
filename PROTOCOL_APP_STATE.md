@@ -103,7 +103,7 @@ reconnect. Stale data stays visible while reconnecting.
 | HMIS dataset summary  | `datasetsWithData`, `datasetVersions.hmis`, `hmisNVersions`, `hmisImportRunActive`, `hmisImportRunsQueued`, `hmisScheduledImportAttention` | `datasets_updated`           | `datasetVersions.hmis` + structure hash |
 | HFA dataset summary   | `datasetsWithData`, `datasetVersions.hfa`, `hfaTimePoints`, `hfaCacheHash`                                                                 | `datasets_updated`           | `hfaCacheHash`                          |
 | ICEH dataset summary  | `icehCacheHash`                                                                                                                            | `datasets_updated`           | `icehCacheHash`                         |
-| Population store      | `populationTypes` (the vocabulary), `populationCoverage` (per type × level vs the HMIS structure), `populationLastUpdated`                  | `population_updated`         | `populationLastUpdated`                 |
+| Population store      | `populationLevel` (level of the stored rows, null = empty), `populationTypes` (the vocabulary), `populationCoverage` (per type vs the HMIS structure at that level), `populationLastUpdated` | `population_updated`         | `populationLastUpdated`                 |
 | Current user          | `currentUserEmail`, `currentUserApproved`, `currentUserIsGlobalAdmin`, `currentUserPermissions`                                            | `users_updated` (re-derived) | none                                    |
 
 **Per-connection fields:** `currentUser*` are per-user, re-derived by finding
@@ -250,7 +250,7 @@ All use `createReactiveCache` with `pdsNotRequired: true`, except GeoJSON.
 | HFA indicator full list            | `instance/t2_indicators.ts` | `hfaIndicatorsVersion`                                               |
 | Structure items (facility/admin)   | `instance/t2_structure.ts`  | `family` + `structureLastUpdated` + `hashStructureSchema(family)`    |
 | GeoJSON map data                   | `instance/t2_geojson.ts`    | `uploadedAt` per (family, admin level)                               |
-| Population rows                    | `instance/t2_population.ts` | `populationLastUpdated` (bumped by every store write)                |
+| Population type store (the grid)   | `instance/t2_population.ts` | `populationLastUpdated` (bumped by every store write) + `structureLastUpdated` (rows are laid out against the structure) |
 | Results-package detail (settings + files per module) | `instance/t2_runs.ts` | `[runId]` + constant `"immutable"`: immutable-by-identity like `t2_images`; never invalidated (a ready run dir never changes)  |
 
 - **HMIS special case:** the display cache is bypassed entirely (no read, no

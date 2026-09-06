@@ -1,8 +1,9 @@
 import { z } from "zod";
 import type {
+  PopulationImportPreview,
   PopulationImportResult,
-  PopulationRow,
   PopulationTypeInfo,
+  PopulationTypeStore,
 } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
@@ -29,24 +30,36 @@ export const populationRouteRegistry = {
     method: "POST",
     body: z.object({ id: populationTypeIdSchema }),
   }),
-  getPopulationRows: route({
-    path: "/population/rows",
-    method: "GET",
-    response: {} as PopulationRow[],
+  // One type's figures as the grid shows them: structure areas down, years
+  // across, stale areas appended.
+  getPopulationTypeStore: route({
+    path: "/population/type_store",
+    method: "POST",
+    body: z.object({ populationType: populationTypeIdSchema }),
+    response: {} as PopulationTypeStore,
   }),
+  // Read-only: what the store would look like after the file is upserted.
+  previewPopulationCsv: route({
+    path: "/population/import/preview",
+    method: "POST",
+    body: z.object({ assetFileName: z.string() }),
+    response: {} as PopulationImportPreview,
+  }),
+  // Refused when the upsert leaves a touched type incomplete unless
+  // confirmIncomplete is true: the preview is where the user sees why.
   importPopulationCsv: route({
     path: "/population/import",
     method: "POST",
-    body: z.object({ assetFileName: z.string() }),
+    body: z.object({
+      assetFileName: z.string(),
+      confirmIncomplete: z.boolean(),
+    }),
     response: {} as PopulationImportResult,
   }),
-  deletePopulationGroup: route({
-    path: "/population/delete_group",
+  deletePopulationTypeData: route({
+    path: "/population/delete_type_data",
     method: "POST",
-    body: z.object({
-      populationType: populationTypeIdSchema,
-      adminAreaLevel: z.number().int(),
-    }),
+    body: z.object({ populationType: populationTypeIdSchema }),
   }),
   deleteAllPopulation: route({
     path: "/population",

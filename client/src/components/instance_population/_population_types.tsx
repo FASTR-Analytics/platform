@@ -53,9 +53,9 @@ export function PopulationTypesEditor(p: { close: (p: unknown) => void }) {
         const deleteAction = createDeleteAction(
           {
             text: t3({
-              en: "Delete this population type? Any stored figures for it are deleted too. Indicators whose formula uses it must be changed first.",
-              fr: "Supprimer ce type de population ? Les chiffres enregistrés pour ce type seront aussi supprimés. Les indicateurs dont la formule l'utilise doivent d'abord être modifiés.",
-              pt: "Eliminar este tipo de população? Os valores guardados para ele também são eliminados. Os indicadores cuja fórmula o usa têm de ser alterados primeiro.",
+              en: "Delete this population type? Any stored population data for it is deleted too. Indicators whose formula uses it must be changed first.",
+              fr: "Supprimer ce type de population ? Les données de population enregistrées pour ce type seront aussi supprimées. Les indicateurs dont la formule l'utilise doivent d'abord être modifiés.",
+              pt: "Eliminar este tipo de população? Os dados de população guardados para ele também são eliminados. Os indicadores cuja fórmula o usa têm de ser alterados primeiro.",
             }),
             itemList: [`${item.label} (${item.id})`],
           },

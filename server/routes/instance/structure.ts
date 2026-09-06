@@ -6,6 +6,7 @@ import {
   deleteAllHfaFacilityWeights,
   deleteFamilyFacilities,
   getHfaFacilityWeightsItems,
+  getInstancePopulationSummary,
   getInstanceStructureSummary,
   importHfaFacilityWeights,
   deleteStructureUploadAttempt,
@@ -38,6 +39,7 @@ import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/userPermission.ts";
 import {
   notifyInstanceConfigUpdatedFromDb,
+  notifyInstancePopulationUpdated,
   notifyInstanceStructureUpdated,
 } from "../../task_management/notify_instance_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
@@ -96,6 +98,12 @@ defineRoute(
     if (res.success) {
       notifyInstanceStructureUpdated(await getInstanceStructureSummary(c.var.mainDb));
       await notifyInstanceConfigUpdatedFromDb(c.var.mainDb);
+      // Population coverage is measured against the HMIS structure.
+      if (family === "hmis") {
+        notifyInstancePopulationUpdated(
+          await getInstancePopulationSummary(c.var.mainDb),
+        );
+      }
     }
     return c.json(res);
   },
@@ -390,6 +398,12 @@ defineRoute(
       }
       notifyInstanceStructureUpdated(await getInstanceStructureSummary(c.var.mainDb));
       await notifyInstanceConfigUpdatedFromDb(c.var.mainDb);
+      // Population coverage is measured against the HMIS structure.
+      if (params.family === "hmis") {
+        notifyInstancePopulationUpdated(
+          await getInstancePopulationSummary(c.var.mainDb),
+        );
+      }
     }
     return c.json(res);
   },

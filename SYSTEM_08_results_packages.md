@@ -909,8 +909,9 @@ dataSource and not a file: the app substitutes it into `script.R` as an R
 `tribble` literal in place of the `INDICATOR_INGREDIENTS` token
 (`buildIndicatorIngredientsRLiteral` in `lib/common_indicator_catalog.ts`),
 the same channel as `COUNTRY_ISO3` and every module parameter. The R sums the
-selected count column across facilities to admin area × month × indicator,
-binds the person-years rows in under the pseudo-indicator id
+selected count column across facilities to admin area × month × indicator at
+the population level (the person-years file's admin columns, see
+"population.csv"), binds the person-years rows in under the pseudo-indicator id
 `population:<type>` (the same id the ingredient table names wherever an
 expression's population term was assigned a slot, the two halves of one
 contract, `populationIngredientId` in `lib/types/population.ts`), joins the ingredient
@@ -939,26 +940,44 @@ it folds into a redefined m003 in PLAN_1e.
 
 ## population.csv: the person-years file
 
-The run's `inputs/population.csv` (built 2026-09-02) is
-the population store (S5 "Population store") expanded stock→flow at
-capture. Written by `prepare_inputs.ts` (`writePopulationPersonYears`) on
-**every** HMIS capture: columns `admin_area_2..N` (N = the HMIS family's
-`adminDepth`, m012's grain, so a population row is area×month like
-every other row), `period_id`, `population_type`, `person_years`. One row
-per structure area × extract month × population type, for exactly the
-types the resolved catalog's slot maps reference under the `population:`
-prefix (`populationTypesReferencedBySlotMaps`: there is no column and no
-declaration, the expression IS the declaration);
-**header-only** when none does. This is what lets m012 declare the file
-unconditionally: it is the `population` dataSource kind (github + installed
-schemas, `sourceType: "population"`), substituted as the quoted path and
-hashed into the module inputKey (`computeModuleInputs`), so a population
-edit re-runs m012 and an unchanged store does not. The manifest's
-`population` stamp records level, types and month range (null when the
-package carries no file). The format is permanent once written.
+The run's `inputs/population.csv` (built 2026-09-02; level rule
+2026-09-06) is the population store (S5 "Population store") expanded
+stock→flow at capture. Written by `prepare_inputs.ts`
+(`writePopulationPersonYears`) on **every** HMIS capture: columns
+`admin_area_2..N`, `period_id`, `population_type`, `person_years`, where N
+is the **population level**: the store's level when it has rows, else the
+HMIS family's `adminDepth`. One row per structure area at that level ×
+extract month × population type, for exactly the types the resolved
+catalog's slot maps reference under the `population:` prefix
+(`populationTypesReferencedBySlotMaps`: there is no column and no
+declaration, the expression IS the declaration); **header-only** when none
+does, and the header alone sets m012's grain (below). This is what lets
+m012 declare the file unconditionally: it is the `population` dataSource
+kind (github + installed schemas, `sourceType: "population"`), substituted
+as the quoted path and hashed into the module inputKey
+(`computeModuleInputs`), so a population edit re-runs m012 and an unchanged
+store does not. The manifest's `population` stamp records level, types and
+month range (null when the package carries no file). The format is
+permanent once written.
 
-**The math** (`lib/population_person_years.ts`, pure): an annual figure is
-a STOCK anchored at mid-year; a month's population is read at its own
+**The population level is m012's grain for every indicator** (Tim,
+2026-09-06, confirmed after the cost was stated). m012 reads the file's
+admin columns first, sums M2's facility rows to those columns (a finer
+admin level in the data is summed away) and binds the person-years rows in.
+A level-2 instance therefore gets a level-2 `M12_indicator_values.csv` for
+every indicator, including ones whose formula never names a population, and
+m12-01-01 offers no `admin_area_3`/`admin_area_4` disaggregation or filter
+there (`deriveAvailableDisaggregationOptions` reads the columns present).
+A project whose authored visualisation groups or filters m012 by a level the
+package lacks learns it from the attach-time compatibility report
+(`dimensions_not_in_package`). If the data is coarser than the population
+level (the HMIS `adminDepth` was lowered after the import), m012's script
+stops with "the population level is deeper than the data": that is the only
+check, there is no capture-side pre-check. Modules that do not declare the
+population source are untouched.
+
+**The math** (`lib/population_person_years.ts`, pure): an annual population
+count is a STOCK anchored at mid-year; a month's population is read at its own
 mid-point: linear between anchors, geometric growth-rate extrapolation
 outside them (flat for a single anchor or a zero count), never more than
 ±1 calendar year beyond the anchored years; person-years = population/12.
@@ -969,7 +988,8 @@ the editor caption and `m12-01-01`'s AI text). Mid-year anchoring is a
 deliberate change from m008's January-1 anchoring.
 
 **Coverage failure is loud and deliberate** (ruling 6): every structure
-area at level N must hold anchors covering the extract's years; otherwise
+area at the population level must hold anchors covering the extract's
+years; otherwise
 the capture throws, naming the Population page, the type, the level, the
 needed years and the first ten uncovered areas. A package that cannot
 compute what the dictionary declares is a failed generation, not a quietly
@@ -977,7 +997,7 @@ thinner one. This replaces m008's silent dropping of uncovered periods.
 
 The retired per-instance `population.csv` **asset** (m008's input, no
 validation, contents per country unknown) was NOT imported by migration 080
-(Tim, 2026-08-30): instances re-enter figures through the validated page,
+(Tim, 2026-08-30): instances re-enter population data through the validated page,
 and the old files die with m008 in PLAN_1e.
 
 ## Backups and packages

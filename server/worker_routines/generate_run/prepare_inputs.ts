@@ -2,8 +2,11 @@ import { join } from "@std/path";
 import type { Sql } from "postgres";
 import {
   listMonthlyPeriodIds,
+  parsePopulationLevel,
   personYearsForMonth,
+  populationAreaKey,
   populationCoveredYears,
+  populationDisplayPath,
   populationTypesReferencedBySlotMaps,
   throwIfErrWithData,
   type CommonIndicatorCatalogRow,
@@ -11,6 +14,7 @@ import {
   type HfaIndicator,
   type HfaIndicatorCode,
   type HfaIndicatorVariantCode,
+  type PopulationLevel,
   type RunDataset,
   type RunGenerationStep1Result,
   type RunPopulation,
@@ -21,8 +25,8 @@ import {
   computeDatasetIcehRunCapture,
   dbRowToHfaIndicator,
   getPopulationAnchors,
+  getPopulationLevel,
   listHmisStructureAreas,
-  populationAreaKey,
   PROJECT_FACILITY_COLUMN_NAMES,
   type DatasetCsvTarget,
   type ProjectFacilityRow,
@@ -312,16 +316,18 @@ export async function prepareRunInputs(
 export const POPULATION_FILE_NAME = "population.csv";
 
 // Annual population stock → monthly person-years, for every population type
-// the resolved catalog's slot maps reference (PLAN_1c ruling 5, the
-// expression IS the declaration), over the extract's months, at the
-// structure's finest level (m012's grain). Format, permanent once written:
+// the resolved catalog's slot maps reference (the expression IS the
+// declaration), over the extract's months, at the population level: the
+// store's level when it has rows, else the HMIS adminDepth. The header alone
+// sets m012's grain, so it is written at that level even when no type is
+// referenced (SYSTEM_08 "population.csv"). Format, permanent once written:
 // admin_area_2..N, period_id, population_type, person_years.
 //
-// Coverage failure is loud and deliberate (PLAN_1b ruling 6): a package that
-// cannot compute what the dictionary declares is a failed generation, not a
-// quietly thinner one. Every structure area at the finest level must hold
-// anchors that cover every month of the extract, within ±1 year of
-// extrapolation; anything less names the Population page.
+// Coverage failure is loud and deliberate: a package that cannot compute what
+// the dictionary declares is a failed generation, not a quietly thinner one.
+// Every structure area at the population level must hold anchors that cover
+// every month of the extract, within ±1 year of extrapolation; anything less
+// names the Population page.
 async function writePopulationPersonYears(
   mainDb: Sql,
   tmpDir: string,
@@ -331,7 +337,11 @@ async function writePopulationPersonYears(
     adminDepth: number;
   },
 ): Promise<RunPopulation> {
-  const level = capture.adminDepth;
+  const storedLevel = await getPopulationLevel(mainDb);
+  // A depth-1 structure has no area below the country, so no population
+  // level exists: the header carries no area column and m012 stops.
+  const level: PopulationLevel | null = storedLevel ??
+    (capture.adminDepth >= 2 ? parsePopulationLevel(capture.adminDepth) : null);
   const populationTypes = populationTypesReferencedBySlotMaps(
     capture.indicators.flatMap((row) =>
       row.slot_map === null ? [] : [row.slot_map]
@@ -345,13 +355,18 @@ async function writePopulationPersonYears(
   const lastYear = Math.floor(capture.periodRange.max / 100);
   const areaColumns = ["admin_area_2", "admin_area_3", "admin_area_4"].slice(
     0,
-    level - 1,
+    level === null ? 0 : level - 1,
   );
   const lines = [
     [...areaColumns, "period_id", "population_type", "person_years"].join(","),
   ];
 
   if (populationTypes.length > 0) {
+    if (level === null) {
+      throw new Error(
+        "Cannot generate results: the dictionary names a population, but the HMIS structure has no admin areas below the country to hold population data.",
+      );
+    }
     const areas = await listHmisStructureAreas(mainDb, level);
     const problems: string[] = [];
     for (const populationType of populationTypes) {
@@ -377,9 +392,9 @@ async function writePopulationPersonYears(
           covered.lastYear < lastYear
         ) {
           uncovered.push(
-            names.slice(1, level).join(" > ") +
+            populationDisplayPath(names, level) +
               (covered === null
-                ? " (no figures)"
+                ? " (no data)"
                 : ` (covers ${covered.firstYear}–${covered.lastYear})`),
           );
           continue;
@@ -410,7 +425,7 @@ async function writePopulationPersonYears(
     }
     if (problems.length > 0) {
       throw new Error(
-        `Cannot generate results: the population store does not cover the data. Upload the missing figures on the instance Population page (annual figures per area at level ${level}, one row per area × year × population type).\n\n${
+        `Cannot generate results: the population store does not cover the data. Upload the missing population data on the instance Population page (annual counts per area at level ${level}, one row per area × year × population type).\n\n${
           problems.join("\n")
         }`,
       );
@@ -422,7 +437,7 @@ async function writePopulationPersonYears(
     lines.join("\n") + "\n",
   );
   return {
-    adminAreaLevel: level,
+    adminAreaLevel: level ?? capture.adminDepth,
     populationTypes,
     firstPeriodId: capture.periodRange.min,
     lastPeriodId: capture.periodRange.max,

@@ -60,6 +60,7 @@ const EMPTY_INSTANCE_STATE: InstanceState = {
   hfaTimePoints: [],
   hfaCacheHash: "",
   icehCacheHash: "",
+  populationLevel: null,
   populationTypes: [],
   populationCoverage: [],
   populationLastUpdated: undefined,
@@ -235,6 +236,7 @@ export function updateInstanceDatasets(data: InstanceDatasetsSummary): void {
 export function updateInstancePopulation(
   data: InstancePopulationSummary,
 ): void {
+  setInstanceState("populationLevel", data.populationLevel);
   setInstanceState("populationTypes", reconcile(data.populationTypes));
   setInstanceState("populationCoverage", reconcile(data.populationCoverage));
   setInstanceState("populationLastUpdated", data.populationLastUpdated);

@@ -183,11 +183,12 @@ export const runCommonIndicatorSchema = z.object({
 });
 export type RunCommonIndicator = z.infer<typeof runCommonIndicatorSchema>;
 
-// The person-years file a wizard generation wrote to inputs/population.csv
-// (PLAN_1b ruling 4): which population types it carries, at which HMIS admin
-// level, over which months. Generation-only provenance: null when the
-// package carries no such file (a pre-1b package, a backfill, or a run
-// without the HMIS family). The file's format is permanent once written:
+// The person-years file a wizard generation wrote to inputs/population.csv:
+// which population types it carries, at which admin level (the population
+// level: the store's level, else the HMIS adminDepth; m012's grain either
+// way), over which months. Generation-only provenance: null when the package
+// carries no such file (an older package, a backfill, or a run without the
+// HMIS family). The file's format is permanent once written:
 // admin_area_2..N, period_id, population_type, person_years.
 export const runPopulationSchema = z.object({
   adminAreaLevel: z.number().int(),
