@@ -28,13 +28,13 @@ export function PopulationManager(p: Props) {
     instanceState.currentUserPermissions.can_configure_data;
 
   const hasData = () => instanceState.populationRowCount > 0;
-  const levelIsSet = () => instanceState.populationLevel !== null;
+  const levelIsSet = () => instanceState.populationLevel !== undefined;
   // An import validates every area against admin_areas_hmis_<level>.
   const hasHmisStructure = () =>
     (instanceState.structure?.hmis.adminArea2s ?? 0) > 0;
   const levelLabel = () => {
     const level = instanceState.populationLevel;
-    return level === null ? undefined : t3(getAdminAreaLabel(level));
+    return level === undefined ? undefined : t3(getAdminAreaLabel(level));
   };
 
   async function openImport() {

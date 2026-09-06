@@ -100,7 +100,7 @@ export type InstanceState = {
   icehCacheHash: string;
   // The population store (SYSTEM_05 "Population store"); one event,
   // `population_updated`, carries all four. "Has data" is `populationRowCount > 0`.
-  populationLevel: PopulationLevel | null;
+  populationLevel: PopulationLevel | undefined;
   populationRowCount: number;
   populationCoverage: PopulationCoverage[];
   populationLastUpdated: string | undefined;

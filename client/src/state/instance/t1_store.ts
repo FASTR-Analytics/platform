@@ -60,7 +60,7 @@ const EMPTY_INSTANCE_STATE: InstanceState = {
   hfaTimePoints: [],
   hfaCacheHash: "",
   icehCacheHash: "",
-  populationLevel: null,
+  populationLevel: undefined,
   populationRowCount: 0,
   populationCoverage: [],
   populationLastUpdated: undefined,

@@ -516,7 +516,7 @@ family into a results package (S8 "population.csv").
 
 **The population level** (ruled 2026-09-06, replacing inference from the
 rows). An explicit instance setting, `population_level` in
-`instance_config` (`getPopulationLevel`; null until set), chosen on the
+`instance_config` (`getPopulationLevel`; undefined until set), chosen on the
 Population page's right panel from AA2 to the HMIS `adminDepth`
 (`setPopulationLevel`, `POST /population/level`, `can_configure_data`).
 The store holds ONE level for every type: the import is refused until the

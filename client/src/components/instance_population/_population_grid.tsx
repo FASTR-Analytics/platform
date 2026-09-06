@@ -143,7 +143,7 @@ function PopulationTypeGrid(p: {
 
   const levelLabel = () => {
     const level = instanceState.populationLevel;
-    return level === null ? "" : t3(getAdminAreaLabel(level));
+    return level === undefined ? "" : t3(getAdminAreaLabel(level));
   };
 
   const coverageText = createMemo(() => {
@@ -215,7 +215,7 @@ function PopulationTypeGrid(p: {
       <StateHolderWrapper state={store()}>
         {(data) => (
           <Show
-            when={data.populationLevel !== null && data.years.length > 0}
+            when={data.populationLevel !== undefined && data.years.length > 0}
             fallback={
               <div class="ui-pad text-base-content-faint">
                 {t3({

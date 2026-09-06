@@ -42,7 +42,7 @@ const POPULATION_LEVEL_KEY = "population_level";
 // The population level setting (SYSTEM_05 "The population level").
 export async function getPopulationLevel(
   sql: Sql,
-): Promise<PopulationLevel | null> {
+): Promise<PopulationLevel | undefined> {
   const row = (
     await sql<{ config_json_value: string }[]>`
       SELECT config_json_value FROM instance_config
@@ -50,7 +50,7 @@ export async function getPopulationLevel(
     `
   ).at(0);
   return row === undefined
-    ? null
+    ? undefined
     : parsePopulationLevel(Number(JSON.parse(row.config_json_value)));
 }
 
@@ -103,7 +103,7 @@ export async function getInstancePopulationSummary(
 ): Promise<InstancePopulationSummary> {
   const populationLevel = await getPopulationLevel(mainDb);
   const populationRowCount = await getPopulationRowCount(mainDb);
-  const populationCoverage = populationLevel === null || populationRowCount === 0
+  const populationCoverage = populationLevel === undefined || populationRowCount === 0
     ? []
     : await computePopulationCoverage(mainDb, populationLevel);
   const stampRow = (
@@ -176,8 +176,8 @@ async function computePopulationCoverage(
     );
     return {
       populationType,
-      firstYear: years.at(0)?.year ?? null,
-      lastYear: years.at(-1)?.year ?? null,
+      firstYear: years.at(0)?.year,
+      lastYear: years.at(-1)?.year,
       yearCount: years.length,
       areaCount: areaCountByType.get(populationType) ?? 0,
       structureAreaCount,
@@ -203,8 +203,8 @@ export async function getPopulationTypeStore(
 ): Promise<APIResponseWithData<PopulationTypeStore>> {
   return await tryCatchDatabaseAsync(async () => {
     const level = await getPopulationLevel(mainDb);
-    if (level === null) {
-      return { success: true, data: { populationLevel: null, years: [], areas: [] } };
+    if (level === undefined) {
+      return { success: true, data: { populationLevel: undefined, years: [], areas: [] } };
     }
     const structureAreas = await listHmisStructureAreas(mainDb, level);
     const rows = await mainDb<(PopulationAreaRow & { year: number; count: number })[]>`
@@ -260,7 +260,7 @@ export type PopulationExportRow = PopulationAreaRow & {
 
 export async function getPopulationExportRows(
   mainDb: Sql,
-): Promise<{ level: PopulationLevel | null; rows: PopulationExportRow[] }> {
+): Promise<{ level: PopulationLevel | undefined; rows: PopulationExportRow[] }> {
   const level = await getPopulationLevel(mainDb);
   const rows = await mainDb<PopulationExportRow[]>`
     SELECT population_type, admin_area_1, admin_area_2, admin_area_3,
@@ -275,13 +275,13 @@ export async function getPopulationExportRows(
 // The import template: every HMIS structure area at the population level,
 // one row per population type for `year`, count blank for the user to fill.
 // Names come from the structure, so a filled template imports without a
-// name mismatch. Null while the level is unset.
+// name mismatch. Undefined while the level is unset.
 export async function getPopulationTemplate(
   mainDb: Sql,
   year: number,
-): Promise<{ header: string[]; rows: string[][] } | null> {
+): Promise<{ header: string[]; rows: string[][] } | undefined> {
   const level = await getPopulationLevel(mainDb);
-  if (level === null) return null;
+  if (level === undefined) return undefined;
   const areaColumns = ADMIN_AREA_COLUMNS.slice(0, level);
   const header = [...areaColumns, "year", "population_type", "count"];
   const areas = await listHmisStructureAreas(mainDb, level);
@@ -400,7 +400,7 @@ export async function parsePopulationCsv(
       };
     }
     const populationLevel = await getPopulationLevel(mainDb);
-    if (populationLevel === null) {
+    if (populationLevel === undefined) {
       return {
         success: false,
         err: "Set the population level on the Population page before importing",
@@ -625,7 +625,7 @@ export async function importPopulationCsv(
     }
     const { level, rows } = parsed.data;
     const outcome = await mainDb.begin<
-      { written: true } | { written: false; level: PopulationLevel | null }
+      { written: true } | { written: false; level: PopulationLevel | undefined }
     >(async (sql) => {
       // The level is re-read under the lock so a setting change cannot slip
       // between the parse and the write.
@@ -658,7 +658,7 @@ export async function importPopulationCsv(
     if (!outcome.written) {
       return {
         success: false,
-        err: outcome.level === null
+        err: outcome.level === undefined
           ? "Set the population level on the Population page before importing"
           : levelMismatchMessage(level, outcome.level),
       };

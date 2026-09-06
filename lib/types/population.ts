@@ -77,8 +77,8 @@ export function parsePopulationLevel(value: number): PopulationLevel {
 // in-structure row, and every year with one has one for every structure area.
 export type PopulationCoverage = {
   populationType: string;
-  firstYear: number | null;
-  lastYear: number | null;
+  firstYear: number | undefined;
+  lastYear: number | undefined;
   yearCount: number;
   areaCount: number;
   structureAreaCount: number;
@@ -88,7 +88,7 @@ export type PopulationCoverage = {
 };
 
 export type InstancePopulationSummary = {
-  populationLevel: PopulationLevel | null;
+  populationLevel: PopulationLevel | undefined;
   populationRowCount: number;
   populationCoverage: PopulationCoverage[];
   // Bumped by every store write and level change; keys the T2 type-store cache.
@@ -105,7 +105,7 @@ export type PopulationGridArea = {
 };
 
 export type PopulationTypeStore = {
-  populationLevel: PopulationLevel | null;
+  populationLevel: PopulationLevel | undefined;
   years: number[];
   areas: PopulationGridArea[];
 };

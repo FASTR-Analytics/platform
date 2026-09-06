@@ -341,8 +341,8 @@ async function writePopulationPersonYears(
   // The header-only file falls back to the data's own depth. A depth-1
   // structure has no area below the country: the header carries no area
   // column and m012 stops.
-  const level: PopulationLevel | null = populationLevel ??
-    (capture.adminDepth >= 2 ? parsePopulationLevel(capture.adminDepth) : null);
+  const level: PopulationLevel | undefined = populationLevel ??
+    (capture.adminDepth >= 2 ? parsePopulationLevel(capture.adminDepth) : undefined);
   const populationTypes = populationTypesReferencedBySlotMaps(
     capture.indicators.flatMap((row) =>
       row.slot_map === null ? [] : [row.slot_map]
@@ -354,13 +354,13 @@ async function writePopulationPersonYears(
   );
   const firstYear = Math.floor(capture.periodRange.min / 100);
   const lastYear = Math.floor(capture.periodRange.max / 100);
-  const areaColumns = ADMIN_AREA_COLUMNS.slice(1, level === null ? 1 : level);
+  const areaColumns = ADMIN_AREA_COLUMNS.slice(1, level ?? 1);
   const lines = [
     [...areaColumns, "period_id", "population_type", "person_years"].join(","),
   ];
 
   if (populationTypes.length > 0) {
-    if (populationLevel === null) {
+    if (populationLevel === undefined) {
       throw new Error(
         "Cannot generate results: an indicator formula uses a population, but the population level is not set. Set it on the instance Population page and import population data before generating.",
       );

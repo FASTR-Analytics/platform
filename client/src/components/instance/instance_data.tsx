@@ -552,11 +552,11 @@ export function InstanceData(p: Props) {
                       <Show
                         when={instanceState.populationRowCount > 0
                           ? instanceState.populationLevel
-                          : null}
+                          : undefined}
                         keyed
                         fallback={
                           <div class="text-danger text-xs">
-                            {instanceState.populationLevel === null
+                            {instanceState.populationLevel === undefined
                               ? t3({
                                   en: "No population level set",
                                   fr: "Aucun niveau de population défini",

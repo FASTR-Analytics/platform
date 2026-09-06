@@ -146,7 +146,7 @@ routesPopulation.get(
       c.var.mainDb,
       new Date().getFullYear(),
     );
-    if (template === null) {
+    if (template === undefined) {
       return c.text("Set the population level first", 400);
     }
     const { header, rows } = template;
