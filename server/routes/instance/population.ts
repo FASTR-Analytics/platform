@@ -108,9 +108,7 @@ defineRoute(
   },
 );
 
-// CSV export in the import format, so a downloaded file re-imports as-is.
-// The area columns run to the population level; an empty store exports the
-// header only.
+// Import format, so a downloaded file re-imports as-is.
 routesPopulation.get(
   "/population/export/csv",
   requireGlobalPermission("can_view_data"),
@@ -137,9 +135,7 @@ routesPopulation.get(
   },
 );
 
-// The import template for this instance: header at the population level, one
-// row per structure area × population type for the current year, count
-// blank. Refused while the level is unset, as the import is.
+// Refused while the level is unset, as the import is.
 routesPopulation.get(
   "/population/template/csv",
   requireGlobalPermission("can_configure_data"),

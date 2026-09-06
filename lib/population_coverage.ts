@@ -1,14 +1,9 @@
-// =============================================================================
-// Population coverage against the HMIS structure (PURE)
-// =============================================================================
-//
-// One completeness rule, two data paths: the SSE summary feeds it per-year
-// counts aggregated in SQL (`populationCompleteness`), the import preview
-// feeds it the store ∪ file rows (`populationCoverage`). A row whose area is
-// not in the structure at the population level is STALE: counted, shown,
-// never part of completeness.
-//
-// =============================================================================
+// Population coverage against the HMIS structure, pure. One completeness
+// rule, two data paths: the SSE summary feeds it per-year counts aggregated
+// in SQL (`populationCompleteness`), the import preview feeds it the store ∪
+// file rows (`populationCoverage`). A row whose area is not in the structure
+// at the population level is stale: counted, shown, never part of
+// completeness.
 
 import type {
   PopulationLevel,
@@ -20,7 +15,6 @@ import type {
 // separator.
 const AREA_KEY_SEPARATOR = String.fromCharCode(0);
 
-// admin_area_1..4 names (unused levels "") → one lookup key.
 export function populationAreaKey(names: readonly string[]): string {
   return names.join(AREA_KEY_SEPARATOR);
 }

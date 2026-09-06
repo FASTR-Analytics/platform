@@ -1,9 +1,3 @@
-// The instance Population page, laid out like the facilities and weights
-// pages: heading bar with Download, a right panel of actions, and the stored
-// values as a table per population type against the HMIS structure at the
-// population level. The level is an explicit setting chosen in the right
-// panel before the first import and locked while any row exists.
-
 import { parsePopulationLevel, t3, TC, type PopulationLevel } from "lib";
 import {
   Button,

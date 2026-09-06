@@ -1,11 +1,3 @@
-// One population type at a time: a vertical tab per type on the left; on the
-// right its values as the app's other data pages show a dataset, a
-// TableFromCsv in the export CSV's column order (admin_area_1 down to the
-// population level, then one column per year). Structure areas fill the main
-// table; rows for areas no longer in the structure, when any, get their own
-// table below it. The coverage line comes from T1, the cells from the T2
-// type-grid cache.
-
 import {
   POPULATION_TYPES,
   populationTypeLabel,
@@ -47,9 +39,6 @@ export function PopulationGrid(p: Props) {
     instanceState.populationCoverage.find(
       (c) => c.populationType === populationType,
     );
-  // The selection survives a vocabulary change only while its type exists;
-  // otherwise the first type with data, else the first type.
-  // The first type with data until the user picks one.
   const activeType = createMemo(
     () =>
       selectedType() ??

@@ -98,11 +98,8 @@ export type InstanceState = {
   hfaTimePoints: HfaTimePoint[];
   hfaCacheHash: string;
   icehCacheHash: string;
-  // The population store: the population level setting (null until set),
-  // the stored row count ("has data" everywhere is `populationRowCount > 0`),
-  // per-type coverage against the HMIS structure at that level (the manager
-  // page and the Data card), and the stamp that keys the T2 type-grid cache.
-  // One event, `population_updated`, carries all four.
+  // The population store (SYSTEM_05 "Population store"); one event,
+  // `population_updated`, carries all four. "Has data" is `populationRowCount > 0`.
   populationLevel: PopulationLevel | null;
   populationRowCount: number;
   populationCoverage: PopulationCoverage[];

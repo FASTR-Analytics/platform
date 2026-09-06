@@ -27,10 +27,7 @@ import { tryCatchDatabaseAsync } from "../utils.ts";
 import { resolveAssetFilePath } from "./assets.ts";
 import { getStructureSchema } from "./config.ts";
 
-// The population store: annual population counts per admin area × year × population
-// type at ONE admin level (the population level, SYSTEM_05 "Population
-// store"), validated against the HMIS structure at import, plus the
-// user-extensible type vocabulary. Every write stamps
+// The population store (SYSTEM_05 "Population store"). Every write stamps
 // `population_last_updated` in instance_config, the one version key the SSE
 // summary and the client type-store cache read.
 
@@ -46,26 +43,9 @@ const ADMIN_AREA_COLUMNS = [
   "admin_area_4",
 ] as const;
 
-// Level-derived identifiers are interpolated as text; `level` is the closed
-// union, so nothing user-controlled reaches the SQL.
-function structureTable(level: PopulationLevel): string {
-  return `admin_areas_hmis_${level}`;
-}
-
-function structureJoinCondition(level: PopulationLevel): string {
-  return ADMIN_AREA_COLUMNS.slice(0, level)
-    .map((c) => `a.${c} = p.${c}`)
-    .join(" AND ");
-}
-
-// ── Level ─────────────────────────────────────────────────────────────────────
-
 const POPULATION_LEVEL_KEY = "population_level";
 
-// The instance's population level: an explicit setting, never inferred from
-// the rows. Null until set, and the import is refused until then. Every
-// stored row is at this level (the import enforces it, and a change is
-// refused while any row exists).
+// The population level setting (SYSTEM_05 "The population level").
 export async function getPopulationLevel(
   sql: Sql,
 ): Promise<PopulationLevel | null> {
@@ -87,9 +67,7 @@ export async function getPopulationRowCount(sql: Sql): Promise<number> {
   return n;
 }
 
-// Capped at the HMIS adminDepth. Refused while any row exists: the rows are
-// at the current level, and a change means deleting them and importing
-// again at the new one.
+// Refused while any row exists: the rows are at the current level.
 export async function setPopulationLevel(
   mainDb: Sql,
   level: PopulationLevel,
@@ -126,8 +104,6 @@ export async function setPopulationLevel(
   });
 }
 
-// ── Summary (T1) ──────────────────────────────────────────────────────────────
-
 export async function getInstancePopulationSummary(
   mainDb: Sql,
 ): Promise<InstancePopulationSummary> {
@@ -152,8 +128,6 @@ export async function getInstancePopulationSummary(
   };
 }
 
-// Per type: years and stale rows counted in SQL against the structure at the
-// population level, completeness decided by the shared rule.
 async function computePopulationCoverage(
   mainDb: Sql,
   level: PopulationLevel,
@@ -220,34 +194,12 @@ async function computePopulationCoverage(
   });
 }
 
-async function stampPopulationLastUpdated(sql: Sql): Promise<void> {
-  await sql`
-    INSERT INTO instance_config (config_key, config_json_value)
-    VALUES (${POPULATION_LAST_UPDATED_KEY}, ${
-    JSON.stringify(new Date().toISOString())
-  })
-    ON CONFLICT (config_key)
-    DO UPDATE SET config_json_value = EXCLUDED.config_json_value
-  `;
-}
-
-// ── Rows ──────────────────────────────────────────────────────────────────────
-
 type PopulationAreaRow = {
   admin_area_1: string;
   admin_area_2: string;
   admin_area_3: string;
   admin_area_4: string;
 };
-
-function areaNames(row: PopulationAreaRow): string[] {
-  return [
-    row.admin_area_1,
-    row.admin_area_2,
-    row.admin_area_3,
-    row.admin_area_4,
-  ];
-}
 
 // One type's values as the grid shows them: every structure area at the
 // population level in structure order, then stale areas by name.
@@ -312,8 +264,6 @@ export type PopulationExportRow = PopulationAreaRow & {
   count: number;
 };
 
-// Every stored row in import order, with the level that decides how many
-// area columns the CSV carries.
 export async function getPopulationExportRows(
   mainDb: Sql,
 ): Promise<{ level: PopulationLevel | null; rows: PopulationExportRow[] }> {
@@ -396,8 +346,6 @@ export async function listHmisStructureAreas(
   }));
 }
 
-// ── Import ────────────────────────────────────────────────────────────────────
-
 type PopulationStoreRow = PopulationAreaRow & {
   population_type: string;
   admin_area_level: PopulationLevel;
@@ -406,13 +354,6 @@ type PopulationStoreRow = PopulationAreaRow & {
 };
 
 type ParsedPopulationCsv = { level: PopulationLevel; rows: PopulationStoreRow[] };
-
-function levelMismatchMessage(
-  fileLevel: PopulationLevel,
-  populationLevel: PopulationLevel,
-): string {
-  return `The file is at admin area level ${fileLevel}, but this instance's population level is ${populationLevel}: the file needs the columns admin_area_1 to admin_area_${populationLevel}. To change the population level, delete all population data first.`;
-}
 
 // Fixed-column CSV (lib/types/population.ts POPULATION_CSV_REQUIRED_COLUMNS):
 // admin_area_2 [admin_area_3 [admin_area_4]], year, population_type, count,
@@ -666,9 +607,8 @@ export async function previewPopulationCsv(
   });
 }
 
-// Rows are UPSERTED by (type, level, area, year), so a later file adds years
-// or corrects values without re-supplying everything. Refused, unless
-// confirmed, when a touched type would be left incomplete.
+// Upsert by key, so a later file adds years or corrects values without
+// re-supplying everything.
 export async function importPopulationCsv(
   mainDb: Sql,
   assetFileName: string,
@@ -767,4 +707,43 @@ export async function deleteAllPopulation(
     });
     return { success: true };
   });
+}
+
+// Level-derived identifiers are interpolated as text; `level` is the closed
+// union, so nothing user-controlled reaches the SQL.
+function structureTable(level: PopulationLevel): string {
+  return `admin_areas_hmis_${level}`;
+}
+
+function structureJoinCondition(level: PopulationLevel): string {
+  return ADMIN_AREA_COLUMNS.slice(0, level)
+    .map((c) => `a.${c} = p.${c}`)
+    .join(" AND ");
+}
+
+async function stampPopulationLastUpdated(sql: Sql): Promise<void> {
+  await sql`
+    INSERT INTO instance_config (config_key, config_json_value)
+    VALUES (${POPULATION_LAST_UPDATED_KEY}, ${
+    JSON.stringify(new Date().toISOString())
+  })
+    ON CONFLICT (config_key)
+    DO UPDATE SET config_json_value = EXCLUDED.config_json_value
+  `;
+}
+
+function areaNames(row: PopulationAreaRow): string[] {
+  return [
+    row.admin_area_1,
+    row.admin_area_2,
+    row.admin_area_3,
+    row.admin_area_4,
+  ];
+}
+
+function levelMismatchMessage(
+  fileLevel: PopulationLevel,
+  populationLevel: PopulationLevel,
+): string {
+  return `The file is at admin area level ${fileLevel}, but this instance's population level is ${populationLevel}: the file needs the columns admin_area_1 to admin_area_${populationLevel}. To change the population level, delete all population data first.`;
 }

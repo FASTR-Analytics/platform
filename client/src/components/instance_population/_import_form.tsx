@@ -25,10 +25,7 @@ import { instanceState } from "~/state/instance/t1_store";
 
 type Step = "select" | "preview" | "done";
 
-// Fixed-column CSV import in three steps: pick a file, check it (the server
-// previews the store after the upsert, without writing), then import. An
-// import that leaves a touched type incomplete needs the explicit "Import
-// anyway", which the server enforces too.
+// Three steps: pick a file, check it (a server preview, no write), import.
 export function PopulationImportForm(p: { close: (p: unknown) => void }) {
   const [fileName, setFileName] = createSignal("");
   const [step, setStep] = createSignal<Step>("select");

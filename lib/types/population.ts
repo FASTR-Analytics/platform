@@ -1,24 +1,8 @@
-// =============================================================================
-// The instance population store
-// =============================================================================
-//
-// Annual population counts per admin area × year × population type, kept in
-// the main DB and validated against the HMIS structure at import. The
-// population level is an explicit instance setting (`population_level` in
-// instance_config, null until set): every stored row is at it, the import is
-// refused until it is set, and changing it is refused while any row exists.
-// It is also the analysis level of m012's indicator values: the person-years
-// file is written at that level and nothing exists below it (SYSTEM_08
-// "population.csv").
-//
-// A derived common indicator's expression names a population type as the
-// ingredient `[population:<type>]`; at run capture the values of every type
-// the resolved catalog references are expanded into monthly person-years
-// (see lib/population_person_years.ts). The vocabulary is POPULATION_TYPES
-// below, fixed in code: no table, no typed field, the expression IS the
-// reference.
-//
-// =============================================================================
+// The instance population store (SYSTEM_05 "Population store"): annual
+// counts per admin area × year × population type at the population level.
+// A derived common indicator names a type as the ingredient
+// `[population:<type>]`; at run capture every referenced type is expanded
+// into monthly person-years (lib/population_person_years.ts).
 
 import type { TranslatableString } from "./_module_definition_github.ts";
 
@@ -107,7 +91,7 @@ export type InstancePopulationSummary = {
   populationLevel: PopulationLevel | null;
   populationRowCount: number;
   populationCoverage: PopulationCoverage[];
-  // Bumped by every write to either table; keys the T2 type-store cache.
+  // Bumped by every store write and level change; keys the T2 type-store cache.
   populationLastUpdated: string | undefined;
 };
 
