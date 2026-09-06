@@ -72,7 +72,7 @@ target); per-step events are not sent. Seen-state in the modals reads the
 Solid manager's reactive `hasSeen()` (the instance modal falls back to the
 Clerk storage adapter for project tours, whose managers are not mounted
 there). Plus stewardship of the ~250-file `t3` call-site surface. Reviewed
-against code 2026-07-17 (first review cycle, review-only; absorbs
+against code (first review cycle, review-only; absorbs
 DOC_TRANSLATION + DOC_HELP_BUTTONS).
 
 Boundaries: the generic translation rules (`TranslatableString`, `t3` vs

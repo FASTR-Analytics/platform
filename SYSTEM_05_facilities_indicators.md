@@ -52,7 +52,7 @@ docs_absorbed:
 The instance-wide reference world everything joins against: facilities,
 admin areas, HFA sampling weights, geojson boundaries, the four indicator
 dictionaries, HFA time points, and instance config. Reviewed against code
-2026-07-02 (first review cycle; fixes landed in `ad6bd996`, `67870f28`,
+(first review cycle; fixes landed in `ad6bd996`, `67870f28`,
 `ffd83907`). This doc also absorbs the structure-ELT mechanics of the
 retired DOC_IMPORT_PIPELINE.
 
@@ -211,7 +211,7 @@ independent and are never reconciled (migration 076; the legacy shared
 `admin_areas_1..4` tables and the global `max_admin_area` /
 `facility_columns` config rows were kept frozen and readerless as the
 rollback path, then dropped by instance migration 081 once a rollback
-across 076 was ruled out, 2026-09-03). Project AA2 scope is deliberately
+across 076 was ruled out). Project AA2 scope is deliberately
 registry-agnostic: the name is matched against whichever registry each
 results object belongs to, at read time.
 
@@ -295,7 +295,7 @@ and later time points inherit the code via the create-time carry-forward.
 The default file is single-column positional (`r_code_1`), so with N time
 points the reconcile step offers apply-to-all / apply-to-one.
 
-**HFA variant groups** (2026-08-04) let one indicator carry a per-item
+**HFA variant groups** let one indicator carry a per-item
 response-option breakdown ("provides vaccination" × {campaign, routine,
 both}) without the items becoming indicators. Storage is one indicator row
 plus a sibling code table: `hfa_indicator_variant_groups` /
@@ -390,15 +390,14 @@ indicator is absent from the data. Population coverage is the person-years
 expansion's check, S8). Raw indicator ids are NOT ingredients: the extract
 and m001/m002 are per COMMON indicator, so a raw has no column to sum.
 
-**Ruling: the additivity principle (Tim, 2026-08-19; the target model,
-not yet built).** *The pipeline only ever stores, adjusts, and aggregates
+**Ruling: the additivity principle (the target model, not yet
+built).** *The pipeline only ever stores, adjusts, and aggregates
 additive facility-month counts. Anything non-additive is an expression over
 those counts, evaluated after aggregation. Nothing non-additive is ever
 stored as data.* This is the ONE authoritative statement; S6/S8/S9 carry
 pointers only. Consequences that follow from it and are ruled with it:
 
-- Calculated indicators collapsed into common indicators (shipped 1.69.0,
-  2026-09-03).
+- Calculated indicators collapsed into common indicators (shipped 1.69.0).
   A common indicator has a `type`:
   - `base`: mapping to raws, SUM at extract; the only type m001/m002 ever
     see, and the only type the HMIS extract carries (the extract joins
@@ -411,7 +410,7 @@ pointers only. Consequences that follow from it and are ruled with it:
     area×month, not facility×month: population lives in the instance
     Population store (below) and is expanded stock→flow at run capture (S8),
     so downstream it sums like any count. `format_as` is display-only and
-    the sole scale. There is no value-level multiplier (ruled 2026-09-02:
+    the sole scale. There is no value-level multiplier (ruled:
     a value multiplier beside a display scale double-counted (10,000 ×
     per-10k), and the multipliers migrated from m008 were its DENOMINATOR
     fractions, so a migrated rate was off by 1/fraction², about 625× at
@@ -428,7 +427,7 @@ pointers only. Consequences that follow from it and are ruled with it:
   CATALOG DATA evaluated by a pure TypeScript evaluator
   (`lib/indicator_expression/`), never emitted as SQL, never accepted from
   the wire. Query-time synthesis of derived indicators was evaluated and
-  REJECTED in every variant (2026-08-30, each evaluated against code; do
+  REJECTED in every variant (ruled, each evaluated against code; do
   not re-litigate): request-shape inference and declared-hosting fetchConfig
   fields; a flat one-entry-per-indicator series catalog with an id-only wire
   (per-row expressions and GROUP BY are mutually exclusive in one SELECT,
@@ -502,8 +501,7 @@ indicator formula is the same contract on
 every instance and the only thing that varies per instance is whether a
 type has data.
 
-**What it is (ruled 2026-08-30, built 2026-09-02; one level and the grid
-ruled 2026-09-06; vocabulary fixed in code 2026-09-06).** Annual population
+**What it is (ruled).** Annual population
 STOCKS per admin area × year × population type, in the main DB table
 `population` (type,
 `admin_area_level` 2–4, the full `admin_area_1..4` name path with `''`
@@ -514,8 +512,7 @@ structure is STALE: counted and shown, never part of completeness. There is
 no per-project copy and no dataset family. Population accompanies the HMIS
 family into a results package (S8 "population.csv").
 
-**The population level** (ruled 2026-09-06, replacing inference from the
-rows). An explicit instance setting, `population_level` in
+**The population level** (ruled). An explicit instance setting, `population_level` in
 `instance_config` (`getPopulationLevel`; undefined until set), chosen on the
 Population page's right panel from AA2 to the HMIS `adminDepth`
 (`setPopulationLevel`, `POST /population/level`, `can_configure_data`).
@@ -654,12 +651,12 @@ absent from a push. Consumers read via the deliberately non-reactive
 **Country is NOT here: it is `ISO_COUNTRY_CODE`**, an env var passed by the
 server-cli Docker run system and read once as `_INSTANCE_COUNTRY_ISO3`
 (`exposed_env_vars.ts`). It is **required**: boot fail-stops without it, because
-country-less is not a legitimate instance state (Tim's ruling 2026-08-06). The
+country-less is not a legitimate instance state (ruled). The
 accepted values are an ISO3 code or `SOMALILAND`, the one territory FASTR
 reports on that has no ISO3 code. The value is substituted into R module scripts
 as `COUNTRY_ISO3` and into caption/localization, which is why it is validated as
-a clean token rather than passed through. It was an editable instance setting
-until 2026-08-06; migration 074 deletes the dead `country_iso3` row.
+a clean token rather than passed through. It was an editable instance setting;
+migration 074 deletes the dead `country_iso3` row.
 
 Every config mutation re-reads all configs and pushes one consolidated
 `config_updated` SSE (`notifyConfigUpdated`). No Valkey at this layer.
@@ -668,14 +665,14 @@ Every config mutation re-reads all configs and pushes one consolidated
 
 - T2 caches: facilities keyed
   `family + structureLastUpdated + hashStructureSchema(family schema)`;
-  indicators keyed on the T1 version stamps. There are TWO indicator stamps
-  (split 2026-09-01), both MD5 over MAX(updated_at)+counts of the three HMIS
+  indicators keyed on the T1 version stamps. There are TWO indicator stamps,
+  both MD5 over MAX(updated_at)+counts of the three HMIS
   tables: `indicatorMappingsVersion` covers EVERY common indicator row and
   keys the indicator manager, while `baseIndicatorMappingsVersion` counts
   only `definition_type = 'base'` rows and is what the HMIS datatable views
   key on, so editing a derived definition costs those caches nothing.
   `hfaIndicatorsVersion` and `hfaCacheHash` are unchanged.
-- The common-indicator editor's expression palette (ruled 2026-09-02;
+- The common-indicator editor's expression palette (ruled;
   storage unchanged, no alias layer): two "Insert …" pickers above the
   formula box, indicators (label-searchable, commons only, never the one
   being edited) and populations (`POPULATION_TYPES`, with the coverage
@@ -751,7 +748,7 @@ Every config mutation re-reads all configs and pushes one consolidated
   English-only and rendered verbatim by the client, and need a mechanism
   (error codes or translatable errs), not per-string patching.
 - Geojson hardening remainder (the retired near-term plan's WS7-P2, mostly
-  closed 2026-07-06: 100 MB pre-parse cap `14790e39`, SHA-256 session-cache
+  closed: 100 MB pre-parse cap `14790e39`, SHA-256 session-cache
   keys `805f6b15`): `sampleValues` still returns ALL distinct values
   unbounded; the served payload is whole and double-encoded (also
   PLAN_3_GEOJSON_SNAPSHOT WS-EFFICIENCY); no deeper geometry validation
@@ -764,7 +761,7 @@ Every config mutation re-reads all configs and pushes one consolidated
   managers, structure viewers, wizards), part of the batch-by-batch PT
   rollout.
 
-### HFA variant groups: open questions (from the 2026-08-04 review cycle)
+### HFA variant groups: open questions
 
 Findings judged real but not fixed, and judgment calls left to Tim. All were
 raised by adversarial review of the shipped feature; none blocks it.

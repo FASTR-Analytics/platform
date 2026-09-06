@@ -35,7 +35,7 @@ store/cache infrastructure. One design idea carried through every layer: **every
 write bumps a version column; every read model, server Valkey entry or client
 IndexedDB entry, is keyed on that version, so invalidation is implicit (the
 next read misses) and nothing ever "clears a cache" on a normal write.**
-Reviewed against code 2026-07-16 (first review cycle, review-only; absorbs
+Reviewed against code (first review cycle, review-only; absorbs
 DOC_SSE_REALTIME + DOC_VALKEY_CACHE).
 
 Boundaries: the client _consumer_ rules (tiers, live/snapshot reads,
@@ -109,7 +109,7 @@ entitled client fetches `listRunCatalog` through its per-request guard, the
 same signal-plus-own-fetch shape as `projects_last_updated` → `/my_projects`,
 so nothing sensitive rides the broadcast and permission changes take
 effect live. The one other per-connection rule on the instance channel is
-the ROSTER (2026-08-16): a connection whose user is absent from the `users`
+the ROSTER: a connection whose user is absent from the `users`
 table (Clerk-authenticated but unapproved) receives `users: []` in
 `starting` and has every `users_updated` rewritten to `[]` in the forward
 loop, until a roster payload names them, at which point that message flows
@@ -208,7 +208,7 @@ list refetches off, so the list badge stays live).
 (The module-dirty-state / any-running / modules-updated / datasets-updated
 wrappers died with the dirty machine, PLAN_RESULTS_RUNS; run generation pushes
 `run_attached` instead.) Generation telemetry (`run_progress`, `r_script`) is
-INSTANCE-CHANNEL ONLY (C2 ruling, 2026-08-16): a project is attached only once
+INSTANCE-CHANNEL ONLY (C2 ruling): a project is attached only once
 a run is ready, so it has no live view of a generation and the former
 per-attach-target project copies were unrenderable. The project package tab
 keyed live progress by the ATTACHED run's id, which is never the generating
@@ -217,7 +217,7 @@ one. The generate_run emitters call `notifyInstanceRunProgress` /
 generation publish and a project's own package picker) and both go through
 `server/runs/attach_run.ts`, so the repoint event carries the same full
 run-derived catalog either way, including the run's catalogue row itself
-(`attachedRun`, 2026-08-18: read once per publish by
+(`attachedRun`: read once per publish by
 `buildRunAttachedManifestPayload`, and by `getProjectDetail` for `starting`),
 which is what lets the project package tab render with no fetch.
 
@@ -227,7 +227,7 @@ which is what lets the project package tab render with no fetch.
 re-exported via `task_management/mod.ts`) →
 `notifyProjectV2({ type:
 "last_updated", … })` directly. (The former
-`notifyProjectLastUpdatedV2` middle layer was collapsed 2026-08-03.) **Call
+`notifyProjectLastUpdatedV2` middle layer was collapsed.) **Call
 `notifyLastUpdated`** from routes.
 
 **The mutation recipe** (see `server/routes/project/reports.ts` for every
@@ -361,7 +361,7 @@ project-scoped: two projects attached to the same run share entries.
 
 Two key separators are live: `\|` (po family) and `::` (metric_info,
 replicant_opts). A sixth cache (`_FETCH_CACHE_DATASET_HMIS_ITEMS`,
-`ds_hmis`/`ds_hmis_v2`) was deleted 2026-07-15 (tombstone comment in
+`ds_hmis`/`ds_hmis_v2`) was deleted (tombstone comment in
 `dataset.ts`): once the HMIS display route's vizItems moved to the import
 ledger, the read shrank to ~1.4k rows and the cache's value no longer paid for
 its liabilities (mid-run bypass dance, prefix-bump obligation). The route

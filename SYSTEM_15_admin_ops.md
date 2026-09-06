@@ -116,8 +116,8 @@ split into their own list).
   all live editing is per-flag checkboxes/tri-states. `role` is hard-coded
   `'viewer'` in the INSERTs (except the creator's `'editor'`) and
   `ProjectUser.role` is marked "delete after implementing new system". The
-  flag-wiping `updateProjectUserRole` route + DB function were deleted
-  (2026-07-17); the stored `role` column and read-side plumbing remain (Open
+  flag-wiping `updateProjectUserRole` route + DB function were deleted;
+  the stored `role` column and read-side plumbing remain (Open
   item).
 - **Global-admin synthesis**: `getProjectUsers` synthesizes admins as
   editor-with-all-flags-true, never stored. The same synthesis block is
@@ -140,7 +140,7 @@ endpoints; and client UI sections (`currentUserIsHUser`). The same file carries
 ## Backups
 
 Backups are pure pg dumps; run directories are never backed up, and a restore
-never touches `projects.run_id` (Tim's ruling 2026-09-04: [SYSTEM_08](SYSTEM_08_results_packages.md)
+never touches `projects.run_id` (ruled: [SYSTEM_08](SYSTEM_08_results_packages.md)
 "Backups and packages" owns the consequences).
 Create/list/download are **pure proxies** to
 `https://status-api.fastr-analytics.org/api/servers/${_INSTANCE_ID}/…` with
@@ -187,7 +187,7 @@ these routes carry no guards, so all 13 health endpoints are public by design
     matching `_STATUS_API_KEY` (401 otherwise).
 13. `/dhis2-indicators-export`: full indicator dictionary + mappings.
 
-**Central export: RETIRED** (2026-07-13 ruling, PLAN_RESULTS_RUNS work item 6):
+**Central export: RETIRED** (ruled, PLAN_RESULTS_RUNS work item 6):
 `export_central.ts`, its `main.ts` mount, and the unused `CENTRAL_SERVER_SECRET`
 env var were deleted with the runs re-architecture; the central reporting hub
 was WIP and gated nothing. A future central hub streams run files instead of

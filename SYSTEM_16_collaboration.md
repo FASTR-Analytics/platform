@@ -18,7 +18,7 @@ _Google-Docs-style real-time co-editing for slide decks, reports, and
 visualizations (WebSocket transport, server-authoritative Yjs rooms, presence,
 live cursors), plus the version-history layer built on top: editing-session
 capture, per-character / per-slide / per-element attribution, and restore._
-Reviewed against code 2026-07-27 (absorbs DOC_SLIDE_COLLAB,
+Reviewed against code (absorbs DOC_SLIDE_COLLAB,
 DOC_SLIDE_COLLAB_FEATURES, DOC_VIZ_COLLAB, DOC_VERSION_HISTORY).
 
 ## Scope
@@ -120,7 +120,7 @@ avatar URL is self-reported).
   and page cursors are project-wide, and `PresenceEntry` carries identity plus
   opaque document ids, never labels or content, so a data-only or
   modules-only member joins presence and is refused every document family per
-  message. (Until 2026-07-30 admission required ANY of `can_view_slide_decks` /
+  message. (Formerly admission required ANY of `can_view_slide_decks` /
   `can_view_reports` / `can_view_visualizations`, which left every
   narrow-permission member (data-only, metrics-only, module operator, settings
   admin) in a permanent "Connection lost" retry loop.)
@@ -372,7 +372,7 @@ bindings [slide_rooms.ts](server/collab/slide_rooms.ts),
   retries on a 10 s timer; PERMANENT (schema validation: the same doc state
   fails identically forever) retries only on the next edit, never on a timer
   (a wedged PO room once burned ~6k log lines/day hot-retrying an input that
-  could never save, 2026-07-23). Failure logs are throttled to the first
+  could never save). Failure logs are throttled to the first
   attempt and every 30th.
 - **Close**: when the last connection unsubscribes (or its socket dies),
   `finalizeRoom` flushes a final checkpoint and destroys the room, unless a
@@ -507,7 +507,7 @@ strips it via `normalizePOConfigForStorage`.
 Schema-INVALID transients are instead dropped from the stored config at
 checkpoint via `dropStorageInvalidTransients`, without touching the doc: the
 strict parse used to throw on them, permanently wedging the room's checkpoint
-(observed in production 2026-07-23). Covered: a filter chip with all values
+(observed in production). Covered: a filter chip with all values
 un-ticked, an emptied `valuesFilter` (both min(1) in storage), and a bounded
 `periodFilter` (`custom`/`from_month`) whose min/max don't self-identify the
 same period format or aren't ordered (`periodFilterSchema`'s refine).
@@ -658,7 +658,7 @@ peer border appears only once text exists.
   stored content (dropped schema-invalid transients, parse-stripped keys).
   Restoring such a doc would make every editor open adopt a state that
   disagrees with the row, visibly "flipping" the document ~1s after open
-  (observed on a viz 2026-07-24). Trusted state therefore always materializes
+  (observed on a viz). Trusted state therefore always materializes
   to the row content, by construction. The validate/normalize/trust policy
   lives in the per-type save closures in `project-collab.ts`; the db
   checkpoint functions are plain writes.
@@ -1166,7 +1166,7 @@ overflow menu.
 ## Open items
 
 - **Roll-up toggles now merge at whole-array granularity in PO co-editing**
-  (2026-07-28, from the facility roll-up adversarial review). The roll-up flag
+  (from the facility roll-up adversarial review). The roll-up flag
   moved from d-level scalars into `disaggregateBy` entries, and the CRDT
   bridge (`lib/collab/figure_config_crdt.ts`) treats `disaggregateBy` as
   whole-array LWW, so a roll-up toggle can clobber (or be clobbered by) a
@@ -1174,7 +1174,7 @@ overflow menu.
   d-scalar merged independently. Accepted for now (same class as any two
   concurrent disaggregation edits); fix shape if taken up: per-entry keyed
   merge for `disaggregateBy`.
-- **Canonical roll-up form holds only on the explicit save path** (2026-08-03).
+- **Canonical roll-up form holds only on the explicit save path.**
   `normalizePOConfigForStorage` strips `rollup`/`rollupPosition` from every
   non-gate-selected `disaggregateBy` entry, but the PO checkpoint applies only
   `dropStorageInvalidTransients`, so collab-saved rows persist latent flags on
@@ -1200,7 +1200,7 @@ overflow menu.
   side is the app-level ping/pong watchdog in collab.ts (25 s ping, 10 s
   no-traffic deadline, then force-close into the normal reconnect path). The
   ON-HOLD note contradicted the Transport section of this same file and the
-  code; retired 2026-07-27.
+  code; retired.
 - ~~**Unguarded per-send broadcasts in `doc_rooms.ts`**~~ Mostly resolved, and
   the escalation it described is not reachable. The update fan-out, the
   awareness relay and `subscribeDoc`'s two sync sends all carry the per-send
@@ -1211,7 +1211,7 @@ overflow menu.
   all: the only mandated throw is `readyState === CONNECTING`, unreachable
   after the upgrade (verified empirically).
   The last two unguarded loops (`broadcastSaveState`, the error loop in
-  `closeRoomsForDoc`) were closed 2026-07-27 for symmetry: a throw in the
+  `closeRoomsForDoc`) were closed for symmetry: a throw in the
   former aborted `noteSaveFailure` before it armed the `CHECKPOINT_RETRY_MS`
   timer (dirty room, no retry, no log line until the last client left), and one
   in the latter would have skipped `rooms.delete` / `doc.destroy()` /
@@ -1234,9 +1234,8 @@ overflow menu.
   `dropStorageInvalidTransients*` are S16 changes in everything but the lint.
 
 - **[URGENT] Report registry edits are outside undo entirely, and collab is why.**
-  Absorbed from PLAN_REPORT_UNDO_REDO.md, deleted 2026-07-26. Its design was
-  written 2026-07-02, before the collab merge landed on 2026-07-21, and that
-  design no longer works. Recorded here rather than re-planned because the fix
+  Absorbed from PLAN_REPORT_UNDO_REDO.md, since deleted. Its design was
+  written before the collab merge landed, and that design no longer works. Recorded here rather than re-planned because the fix
   belongs to this system.
 
   **The state.** A report's body text is undoable; its figure and image

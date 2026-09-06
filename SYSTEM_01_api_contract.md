@@ -46,7 +46,7 @@ generates a typed server-action from it, and boot fails if the two sets diverge.
 Around that seam sit the `APIResponse` envelope, the request-scoped NDJSON
 streaming sub-protocol, the `log()` audit middleware, and the two
 permission-guard factories with the `Project-Id` scoping pipeline. Reviewed
-against code 2026-07-16 (first review cycle, review-only; absorbs
+against code (first review cycle, review-only; absorbs
 DOC_API_ROUTES + DOC_ACCESS_CONTROL).
 
 Boundaries: the add-a-route/add-a-guard **recipe** is
@@ -73,7 +73,7 @@ in SYSTEMS.md §4.1 (`main.ts` owned here, S2/S15/S12 readers;
 
 ## Contract
 
-265 registry routes (re-counted at the 2026-07-28 results-runs merge: the module
+265 registry routes (re-counted at the results-runs merge: the module
 install/update surface left, the run-generation registry arrived), zero direct
 client↔server imports; expected failures travel as HTTP 200 +
 `{ success: false, err }`, and only guards and validation emit real 4xx/5xx; the
@@ -354,7 +354,7 @@ OAuth auth object has no email, so each resolve costs a `users.getUser` call
 actions. Without it one tool call would burn a handful of rate-limited Clerk
 calls. Only successes are cached: a bad token can never occupy a slot.
 
-> **Caveat, unverified as of 2026-08-06.** The ~30 s window assumes Clerk issues
+> **Caveat, unverified.** The ~30 s window assumes Clerk issues
 > **opaque** (`oat_`) access tokens, which are verified through the Backend API
 > and therefore see revocation. If the OAuth application issues **JWT** access
 > tokens instead, `@clerk/backend` verifies them **locally against JWKS with no
@@ -409,7 +409,7 @@ LoggedInWrapper registers the browser transport (Clerk cookie, session refresh,
 reload on persistent 401) at module scope; the generated actions are identical
 wherever they run.
 
-**Transport registration doctrine** (amended 2026-08-06, PLAN_112 D4). The
+**Transport registration doctrine** (PLAN_112 D4). The
 prohibition that matters stands verbatim: **no server code ever calls
 `setServerActionTransport`.** A process-global registration would make the app
 server issue authenticated calls under whichever identity was registered last,
@@ -570,12 +570,12 @@ it's a hardcoded allowlist, and expanding its use spreads policy into code.
 - **Decoupling: `lib/h_users.ts` ships access-policy emails in the client
   bundle.** Semantically server-side access-control data; move it server-side
   (client gets a boolean where needed). Bridge-pass move.
-- **Startup guard-audit: considered and DECLINED (Tim, 2026-08-03).** A
+- **Startup guard-audit: considered and DECLINED (ruled).** A
   boot-time (or type-level) check that every `defineRoute` carries a guard or an
   explicit public marker was audited and rejected: the full registry has exactly
   one unguarded route (`getInstanceMeta`, deliberately public), so the rule
   stays convention + review. Do not re-propose without a new hole. (The old
-  health.ts-guards item closed 2026-07-17: the read surface is public-by-design
+  health.ts-guards item is closed: the read surface is public-by-design
   (SYSTEM_15's exposure inventory), and the mutating reset endpoint now
   requires the status-api key.)
 - **Decide the `authError` contract.** It is 401-only in reality (no 403 carries

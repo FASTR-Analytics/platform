@@ -77,7 +77,7 @@ de-log the `getCurrentUser` route.
 
 `log()` is **not** applied to every route (~180 of 267): coverage is a
 deliberate audit-value judgment, re-baselined against fleet-wide volume data
-2026-08-03 (all-history aggregate across 35 instances):
+(all-history aggregate across 35 instances):
 
 - **Logged**: instance-level admin/config/data mutations, project lifecycle,
   dataset import steps, user/permission changes, and audit-worthy document
@@ -87,7 +87,7 @@ deliberate audit-value judgment, re-baselined against fleet-wide volume data
   `getSlides`, …), high-frequency editor autosaves (`updateSlide`,
   `updateReportBody`, …: edit activity comes from the S16 session rows
   instead), and folder/move/reorder churn.
-- **Never log a client poll loop or per-render fetch.** The 2026-08-03 audit
+- **Never log a client poll loop or per-render fetch.** That audit
   found 85% of all rows ever written came from a handful of these
   (`getDatasetUploadStatus` alone was 44%); logging was removed from
   `getDatasetUploadStatus`, `getDatasetHmisDetail`, `getReplicantOptions`,

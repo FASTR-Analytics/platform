@@ -20,7 +20,7 @@ globs:
 
 # S9: Visualization Query & Cache Service
 
-> **2026-09-04 (PLAN_RESULTS_RUNS Phase 4 step C):** the Postgres read path
+> **PLAN_RESULTS_RUNS Phase 4 step C:** the Postgres read path
 > is gone. `server/run_query/run_read.ts` is the only read path; the SQL cores
 > in `server_only_funcs_presentation_objects/` take their `QueryContext` from
 > the manifest and their executor from DuckDB over the run's parquet. Caches
@@ -35,10 +35,10 @@ results package → run-keyed cached payloads, on both tiers. **This system does
 not define the package it reads**: the run-directory layout, the manifest
 contract and its schema version are S8's
 ([SYSTEM_08_results_packages.md](SYSTEM_08_results_packages.md), "The results
-package format"). Reviewed against code 2026-07-06 (first review cycle; absorbed
+package format"). Reviewed against code (first review cycle; absorbed
 and deleted DOC_PRESENTATION_OBJECT_QUERY_PIPELINE, DOC_period_column_handling,
 DOC_DISAGGREGATION_OPTIONS_HANDLING, DOC_ROLLUP_ROWS). The adversarial review's
-fix batch landed 2026-07-06 (commits `ce33e3f7…`: period-CTE unification, PAE
+fix batch landed (commits `ce33e3f7…`: period-CTE unification, PAE
 `=` guard, month/integer filter handling, replicant relative-filter resolution,
 error statuses, cache hash hardening, race guards); what remains is in Open
 items below.
@@ -46,7 +46,7 @@ items below.
 This system's SQL behaviour is covered by `./validate_queries`: declarative
 fixtures built into real results packages by the production builder and read
 through the production run read path (DuckDB over parquet, the engine
-production serves from; moved off a throwaway-Postgres stand-in on 2026-09-04,
+production serves from; moved off a throwaway-Postgres stand-in,
 which exposed that `COUNT` values are numbers on the wire, not the strings the
 Postgres era had pinned). Adding a case is one literal in
 `query_rig/cases.ts`; the recipe and the rules that keep it honest are
@@ -95,11 +95,11 @@ Built only by `getFetchConfigFromPresentationObjectConfig`
 timeseries config lacks it); `values` = the PAE's `ingredientValues` when the
 metric has a post-aggregation expression, else filtered `valueProps` ×
 `valueFunc`; roll-up dimension baked in via `getEffectiveRollupDimension`.
-(Target model, ruled 2026-08-19 in S5's "additivity principle": derived
+(Target model, ruled in S5's "additivity principle": derived
 common indicators are evaluated by THIS mechanism with row-restricted
 ingredients (`SUM(col) FILTER (WHERE indicator_common_id = …)`) and a
 catalog-supplied expression, on qualifying fetches. Qualification is
-RO-level (amended 2026-08-30: `indicator_common_id` column + all-SUM values
+RO-level (`indicator_common_id` column + all-SUM values
 + no metric-wide PAE), while `formatAs: "indicator"` stays the metric-level
 formatting fact. Not built; PLAN_1_COMMON_INDICATOR_TYPES.md.)
 
@@ -134,7 +134,7 @@ the route boundary (400) on BOTH mounts (project `getPresentationObjectItems`
 / `getReplicantOptions`, run-keyed `getRunPresentationObjectItems`); the
 imperative `validateFetchConfig` re-guards in the shared handler body. Both
 live in [validate_fetch_config.ts](lib/validate_fetch_config.ts) (the schema
-moved there 2026-08-19, co-located with the guard) and share the same
+moved there, co-located with the guard) and share the same
 primitives so they can't drift:
 
 | Raw-interpolated field                        | Made safe by                                                                                                                                                                                                   |
@@ -341,9 +341,9 @@ Calendar-based filter types are hidden in the UI for `quarter_id` data; the
 defensive `quarter_id`+calendar block in `getPeriodFilterExactBounds` is NOT
 dead: drift arrivals (a filter authored under `period_id` surviving a module
 re-run to `quarter_id`) and AI/hand-crafted configs reach it, and it degrades to
-full bounds (verified by execution 2026-07-26). Year-granularity data takes a
+full bounds (verified by execution). Year-granularity data takes a
 different, earlier exit: every non-custom filter collapses to the latest year,
-ruled intended 2026-08-03 (the UI's only relative option for year data is "Last
+ruled intended (the UI's only relative option for year data is "Last
 year", stored as `last_n_months(12)`, and module presets on annual metrics mean
 the same); the AI patch path rejects open-ended filters on year granularity so
 `from_month` cannot be authored onto annual data. Both pinned by rig cases (F7).
@@ -379,7 +379,7 @@ from the parquet's column set in three phases:
    `hfa_service_category`, `time_point`), ICEH columns (`iceh_indicator`,
    `strat`, `level`).
 
-   `hfa_variant_item` (2026-08-04) is a **plain groupable dimension** in no
+   `hfa_variant_item` is a **plain groupable dimension** in no
    special registry (`FILTER_ONLY_…`, `MULTI_MEMBERSHIP_…`, `INTEGER_…`). It
    follows `hfa_category` mechanics, not `hfa_service_category`: the generic
    physical path gives GROUP BY / filter / replicant / possible-values with zero
@@ -395,7 +395,7 @@ from the parquet's column set in three phases:
    display-only and not consulted. `facility_name` is deliberately **not** a
    disaggregation option: it is import/display metadata (toggled by
    `includeNames`, supplied by DHIS2 `displayName`), never a grouping
-   dimension. Removed from `ALL_DISAGGREGATION_OPTIONS` 2026-07-26, so the
+   dimension. Removed from `ALL_DISAGGREGATION_OPTIONS`, so the
    omission is enforced by the type system rather than by convention;
    `computeFacilityContext` derives its facility-column narrowing as
    `Extract<OptionalFacilityColumn,
@@ -605,8 +605,7 @@ prefix is applied, and the `__n_*` count over the collapsed scope is exactly
 the "all facilities" sample size.
 
 **Labels are scope words, never operation words** ("Total" would imply SUM),
-**and filters never change the label** (ruling 2026-07-28, removing an earlier
-"All selected areas/facilities" subset kind): a filter is the AUTHOR's context,
+**and filters never change the label** (ruled): a filter is the AUTHOR's context,
 not the READER's: the reader of a report filtered to some areas or facility
 types reads the total row as the total of what the figure shows.
 `getRollupLabelContextForDimension` resolves admin: **pinned** ("{Area} — All
@@ -657,7 +656,7 @@ never from a baked list, because a new module output can change the split:
   unguarded (it throws for iceh/undefined). An **empty derivation injects the
   `__SCOPE_EMPTY__` sentinel**: an empty values array is skipped by
   `buildWhereClause` and would show ALL data. Matching is by district NAME
-  (the collision caveat, SYSTEM_08). As of the prod sweep 2026-08-12 this
+  (the collision caveat, SYSTEM_08). As of the last prod sweep this
   reaches 7 RO names (M4/M5/M6 coverage/denominators/combined-results under
   historical numberings); 24 scope directly; 19 have no admin columns and
   pass unfiltered.
@@ -731,12 +730,12 @@ none: the manifest freezes the per-family structure schema
 (`structureSchemaHmis` / `structureSchemaHfa`) at generation, every read
 derives its enabled facility columns from that stamp, and every key carries the
 run id: a config toggle changes nothing about an existing package (the next
-generation captures it). This closed N1 (2026-09-04).
+generation captures it). This closed N1.
 
 Concurrency: `RequestQueue`s (items 10, info/replicant 15) bound concurrent DB
 work against the 20-connection pool; the cache check happens _before_ queueing;
 `setPromise` registers the in-flight promise so concurrent identical requests
-coalesce. Since 2026-08-19 the items and value-info handler bodies (cache
+coalesce. The items and value-info handler bodies (cache
 check → queue → `…FromRun` → `setPromise`) and their queues live ONCE in
 `server/run_query/run_data_reads.ts` and are mounted twice: the project
 routes here and the run-keyed instance routes (`getRunPresentationObjectItems`
@@ -749,7 +748,7 @@ value-info queue.
 singleton versioned on the server-computed HFA `cacheHash` (the in-memory
 `VersionParams.hash` vs payload `cacheHash` naming divergence is F8c: the
 payload field is persisted, do not rename it). The HMIS counterpart
-(`ds_hmis`/`ds_hmis_v2`) was deleted 2026-07-15: once vizItems moved to the
+(`ds_hmis`/`ds_hmis_v2`) was deleted: once vizItems moved to the
 import ledger the read became a few ms, so `getDatasetHmisDisplayInfo` computes
 live and only the client T2 IndexedDB cache remains (see
 [SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md)).
@@ -794,7 +793,7 @@ unwrapped live store; a raw write would bypass subscribers and turn the user's
 next identical click into a silent no-op). Promise-shaped wrappers
 (`getApiResponseFromGenerator`) serve non-streaming callers.
 
-## FigureBundle: the capture side (shipped 2026-06-13)
+## FigureBundle: the capture side
 
 S9's slice of the FigureBundle architecture; the bundle shape,
 `buildFigureInputs`, invariants, and localization live in
@@ -828,7 +827,7 @@ bundle freezes:
   happens before the `WITH` prepend so CTEs stay top-level; reordering breaks
   the SQL.
 - **A groupBy that is also a value prop needs disambiguation** (the m8
-  scorecard shape, ethiopia v2b 2026-08-12): the inner query emits the grouped
+  scorecard shape, ethiopia v2b): the inner query emits the grouped
   column AND a same-named aggregate alias, so the PAE wrapper's bare
   references are ambiguous: Postgres errors, DuckDB silently binds the RAW
   grouped value (served `SUM(num)/raw_den` until fixed; the correction shipped
@@ -890,7 +889,7 @@ bundle freezes:
 
 ## Open items
 
-Remaining after the 2026-07-06 fix batch (the adversarial review record was
+Remaining after the fix batch (the adversarial review record was
 PLAN_S9_QUERY_CACHE_FIXES.md, deleted when its fixes landed; refuted findings
 F2/F8b and dropped F4 are stated as facts in the prose where relevant):
 

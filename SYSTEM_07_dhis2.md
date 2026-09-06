@@ -15,7 +15,7 @@ base fetcher owning auth/timeout/retry, five `goalN_` endpoint groups
 id-existence for the S6 import dispatcher), two-phase connection
 validation with a never-throw user boundary, and the client credentials
 UX. No DB access anywhere in the system. It fetches and shapes; callers
-persist. Reviewed against code 2026-07-14 (first review cycle,
+persist. Reviewed against code (first review cycle,
 review-only; absorbs DOC_DHIS2_INTEGRATION).
 
 Boundaries: what happens to fetched data is the consumer's system:

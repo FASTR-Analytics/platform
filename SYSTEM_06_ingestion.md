@@ -51,7 +51,7 @@ DHIS2), HFA (CSV + XLSForm), and ICEH (zip), plus their wizards, the import-run
 state machines, and the per-project attach/snapshot seam. Every family is
 import runs (PLAN_DHIS2_IMPORTER_CONSOLIDATION Phases A–C); only the
 structure family (S5) still uses upload attempts. Reviewed against code
-2026-07-02 (fixes in `80a9996e`, `958132fd`, `b012ad3d`).
+(fixes in `80a9996e`, `958132fd`, `b012ad3d`).
 
 Structure/facility ELT (`server_only_funcs_importing/**`) is **S5**. The
 worker lifecycle (spawn, READY handshake, teardown) is
@@ -116,14 +116,14 @@ history). Shape:
   queued runs drain FIFO first, then due schedules (occurrence math per IANA
   timezone, 4 h grace at every cadence, deterministic per-row jitter,
   `last_fired_at` CAS idempotency). Recurring rows carry a `recurrence` JSON
-  union (migration 064): daily / weekly / monthly-nth-weekday-only (ruled
-  2026-07-25), each with an explicit anchor (weekly `firstRunDate`, monthly
+  union (migration 064): daily / weekly / monthly-nth-weekday-only (ruled),
+  each with an explicit anchor (weekly `firstRunDate`, monthly
   `anchorMonth`); occurrences are exact arithmetic from the anchor, never
   counted from the last fire; the weekly UI offers 1/2/4 weeks (server
   accepts 1–13). Schedules have no URL of their own: runs pin (the
   queued-run URL guard), policies follow the stored connection.
   Refusals/misses are loud (`last_outcome` + datasets-summary attention
-  flag). Two accepted limitations (2026-07-15): a crash between the CAS claim
+  flag). Two accepted limitations (ruled): a crash between the CAS claim
   and the outcome write silently consumes that occurrence, and
   rolling-window "current month" resolves from the server clock, not the
   schedule's timezone (≤hours of skew, self-correcting).
@@ -147,7 +147,7 @@ history). Shape:
   version row is minted lazily at the first successful pair
   (dataset_hmis.version_id is a NOT NULL FK; no empty versions) and its
   counts/staging_result are finalized at run end.
-- Shadow verification (`shadow_passed`) was removed 2026-07-24. DVS-analytics
+- Shadow verification (`shadow_passed`) was removed. DVS-analytics
   divergence is normal on real servers, so the gate aborted healthy first
   runs. dataValueSets is the source of truth; migration 063 dropped the
   column; older `run_stats` blobs may still carry a `shadow` key.
@@ -321,7 +321,7 @@ One imports surface per family, opened from a single `Imports` button in the
 dataset page's admin sidebar. The sidebar is the seam between the viewer
 and the imports layer: the SSE status flags (HMIS only: running / queued /
 attention), that one button, and `Delete data` (HFA also `Manage time
-points`); no wizard shortcuts, no heading (ruled 2026-08-17). The surface's toolbar owns
+points`); no wizard shortcuts, no heading (ruled). The surface's toolbar owns
 the actions; no attempt cards anywhere. The runs query polls every 2 s while
 a run is active, needs_review runs render as Current cards with the staging
 diagnostics + Integrate-anyway/Discard, History rows click through to a run
@@ -363,7 +363,7 @@ callback re-parses the new bytes).
   card plus History table; two-step wizard (upload zip + preview → review);
   needs_review cards show the skip counters/samples.
 - The old `ImportWizardShell` (`_import_wizard/`) descriptor machinery is
-  gone (2026-08-17): every wizard (the three import families and the
+  gone: every wizard (the three import families and the
   results-package wizard) is now an ephemeral modal.
 - Destructive data deletes require typing "yes please delete" in all three
   families.
@@ -390,7 +390,7 @@ dataset version stamps the manifest records. No project table is written.
   dictionary, resolved at capture). Modules read `../datasets/{type}.csv`; PO
   metadata reads the manifest's indicator catalog, built from the mirrors at
   finalize. The project-DB `calculated_indicators_snapshot` table was dropped
-  by migration 041 (2026-09-04).
+  by migration 041.
 - **Project-level attach/staleness UI is gone**: the dirty cascade and the
   per-dataset staleness indicators died with the Data tab.
 
@@ -407,7 +407,7 @@ dataset version stamps the manifest records. No project table is written.
 
 ## Open items (deferred findings + standing reform)
 
-- select_multiple missingness resolved 2026-07-06 (see Staging); data staged
+- select_multiple missingness resolved (see Staging); data staged
   before the change keeps the old explicit-`0` rows until re-imported.
 - DHIS2 credentials (password) remain plaintext at rest in `step_1_result` (API
   projection is redacted; at-rest encryption is a pending ruling, same item in

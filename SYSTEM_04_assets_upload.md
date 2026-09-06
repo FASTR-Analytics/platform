@@ -16,7 +16,7 @@ docs_absorbed:
 
 The file-upload front door: a hand-rolled TUS resumable-upload server, the
 instance asset store it lands files in, and the client upload primitives,
-shared by every feature that ingests a file. Written fresh from code 2026-07-17
+shared by every feature that ingests a file. Written fresh from code
 (first review cycle, review-only, no DOC_* absorbed).
 
 Boundaries: **serving** the stored bytes back out is S1's static middleware
@@ -161,8 +161,7 @@ ownership annotation, not a registry.
   runs are protected by the byte pin; pre-launch, wizards re-parse on every
   upload. Files that feed module runs (`population.csv`) remain the known
   sharp corner.
-- **Same-name-overwrite residual windows: RULED accepted (Tim,
-  2026-08-07).** The byte pin covers launch→spawn only; the wizard-session
+- **Same-name-overwrite residual windows: RULED accepted.** The byte pin covers launch→spawn only; the wizard-session
   window, the spawn→worker-open window, and bare-auth upload overwriting a
   read-gated file are all accepted residual risk (small trusted teams; worst
   case is a discardable bad import). Do not raise again.

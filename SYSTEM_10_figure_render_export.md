@@ -47,7 +47,7 @@ are pure-JSON FigureBundles rebuilt to transient `FigureInputs` at render by
 figure block across all three document surfaces; the legacy-block repair arm is
 S2's `_figure_block.ts` transform (co-reviewed).
 
-## FigureBundle architecture (shipped 2026-06-13)
+## FigureBundle architecture
 
 This is the authoritative record of the FigureBundle refactor. The two planning
 docs that drove it (`PLAN_FIGURE_BUNDLE.md` = vision,
@@ -131,7 +131,7 @@ FigureBundle = {
                                            // run manifest's indicator catalog
                                            // (server/runs/indicator_catalog.ts); the traffic-light
                                            // pair stored bundles carried was converted into
-                                           // `thresholds` by the _figure_block sweep (2026-09-03)
+                                           // `thresholds` by the _figure_block sweep
   dateRange?: PeriodBounds;                // {min,max}: DATE_RANGE caption text + earliest/latest point
   geo?: GeoRef;                            // maps only: {kind:"level"} | {kind:"data"} (see Geo)
   localization: { language; calendar; countryIso3 }; // REQUIRED, frozen, see Localization
@@ -474,7 +474,7 @@ does NOT refetch on a filter edit, since its cache keys on `(projectId,
 metricId, run)` only, which is exactly why the resolver is config-based and
 reacts to the draft config with no fetch.)
 
-RULED (2026-08-09): the CF editor's scaling factor stays `axisFormat`-driven
+RULED: the CF editor's scaling factor stays `axisFormat`-driven
 (cutoffs are figure-wide, so there is no per-value answer), even though the
 factor is therefore filter-sensitive on an `"indicator"` metric (add a percent
 indicator to a rate figure and the same stored `0.0005` box switches from
@@ -783,7 +783,7 @@ entry), and the viz editor's download modal. Dashboard exports sanitize filename
 
 ### FigureBundle deferred phases (from the retired follow-ons plan)
 
-The P1+P2 refactor shipped 2026-06-13; the architecture is documented above and
+The P1+P2 refactor has shipped; the architecture is documented above and
 in [S9](SYSTEM_09_viz_query_cache.md), [S12](SYSTEM_12_documents_sharing.md),
 [S2](SYSTEM_02_persistence.md). Two slices were explicitly deferred:
 

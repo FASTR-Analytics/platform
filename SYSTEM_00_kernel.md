@@ -18,7 +18,7 @@ multi-domain grab-bags, and the env nexus. S00 exists so these six have a
 custodian in the lint without pretending they form a subsystem: there is no
 kernel behavior to document, only shared surface. **Review them only alongside
 the consuming system; any change needs a cross-system check** (SYSTEMS.md §4.2).
-Written fresh from code 2026-07-17 (first review cycle, review-only, no DOC_*
+Written fresh from code (first review cycle, review-only, no DOC_*
 absorbed).
 
 ## The six files
@@ -65,8 +65,8 @@ title substitution, S9/S10 display), `encodeRawCsvHeader` (S6),
 
 **`server/exposed_env_vars.ts`** is the env nexus: every environment variable is
 read once here into a `_`-prefixed export, and nothing else may call
-`Deno.env.get` (zero raw call sites remain outside this file as of
-2026-08-03; keep it that way). ~55 server files import it. Required vars fail
+`Deno.env.get` (zero raw call sites remain outside this file;
+keep it that way). ~55 server files import it. Required vars fail
 fast at import time with a named error; optional ones default. The domains it
 carries: instance identity/language/ calendar, runs + assets paths (S8/S4),
 Postgres coords (S2), Valkey URL + client origins + port (S3/S1), Anthropic +

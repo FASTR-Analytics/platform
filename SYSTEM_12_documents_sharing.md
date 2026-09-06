@@ -302,7 +302,7 @@ modal, summary strip; `sidebar` layout (nav list, group members indented) or
 table-count for XLSX) is the **only** dashboard export entry. The in-app
 editor's outward path is just the public URL.
 
-## FigureBundle: the three storage surfaces (shipped 2026-06-13)
+## FigureBundle: the three storage surfaces
 
 This is S12's slice of the FigureBundle refactor; the full architecture
 (bundle shape, `buildFigureInputs`, the invariants, localization) lives in

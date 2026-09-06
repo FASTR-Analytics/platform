@@ -32,11 +32,11 @@ globs:
 
 The Anthropic proxies with token-limit governance, plus the browser-side
 copilot: 42 client-executed tools mutating app state only through the live view
-context of panther's view registry. Reviewed against code 2026-07-07 (first
+context of panther's view registry. Reviewed against code (first
 review cycle; absorbed and deleted DOC_AI_PROXY_AND_USAGE_GOVERNANCE and
 DOC_AI_TOOL_SCHEMAS, the authoring recipe from the latter now lives in
 [PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md)); AI-surface prose
-re-verified 2026-07-22 after both assistants adopted panther's
+re-verified after both assistants adopted panther's
 views/gating/interactions/approval system. Two same-day fix batches
 (governance + panther turn-logic, then the client-copilot findings) are folded
 into the prose; remaining triaged findings are in Open items below.
@@ -65,7 +65,7 @@ the query pipeline the data tools call is **S9**.
    `/mcp`), so the AI inherits the user's permissions for free (Clerk session
    in the SPA, personal access token at `/mcp`, whose actions dispatch
    in-process through the full PAT middleware chain, see S1) and can never do
-   what the user can't. **Two classes of tool, one env seam** (2026-08-19):
+   what the user can't. **Two classes of tool, one env seam**:
    `lib/ai_tools` holds exactly the tools BOTH surfaces expose (metrics ×2,
    methodology docs ×2, `get_info`) over `AIToolEnv`: a package data source
    bound at construction (items, value info; no project or run id ever
@@ -84,14 +84,14 @@ the query pipeline the data tools call is **S9**.
    `ClientAIToolEnv` adds the module script/logs/settings getters and the
    project-content getters) and concatenates its own client tools in
    [build_tools.ts](client/src/components/project_ai/build_tools.ts): module
-   internals ×4 (`/mcp` is for seeing results, ruled 2026-08-19), project
+   internals ×4 (`/mcp` is for seeing results, ruled), project
    content (visualizations, slide decks, reports, `get_slide`), plus
    editors, navigation, drafts. `/mcp`
    binds the instance's **pinned** results package (national scope, run-keyed
    instance routes, gate = instance `can_view_data`) and exposes only the shared
    tools + `get_overview`: 6 read-only tools, no `projectId`, no writes.
-   **Interpretation context rides the shared reads, not extra tools**
-   (2026-08-19): `get_metric_data` fetches value info beside the items and
+   **Interpretation context rides the shared reads, not extra tools**:
+   `get_metric_data` fetches value info beside the items and
    states the metric's full period coverage plus, per indicator in the
    Dimension Summary, label / format / direction / thresholds (thresholds in
    display units, mirroring the scorecard's inclusive cutoff rule);
@@ -99,7 +99,7 @@ the query pipeline the data tools call is **S9**.
    `buildPackageGroundingSections` the package's period coverage (finest
    physical time column; `/mcp` only, since the SPA holds no manifest). Nothing
    about modules, provenance, or unavailable metrics goes into the AI
-   context: it does not help read a metric (Tim 2026-08-19). A separate
+   context: it does not help read a metric (ruled). A separate
    indicator-dictionary tool was considered and dropped as redundant.
    The `/mcp` surface is stateless above the wire: the pin is read from the DB
    on every call (a pin-move is visible on the next call; `get_overview`
@@ -523,8 +523,8 @@ is the one registry-based route in this system: `getVisualizationsListForAI`.
 
 ## The panther engine (what this app depends on)
 
-Synced 2026-07-07 (commits 62ed6c03/ca3ae868, SDK 0.71 → 0.110) and repeatedly
-since. As of 2026-07-22 both assistants also depend on the engine's
+First synced at commits 62ed6c03/ca3ae868 (SDK 0.71 → 0.110) and repeatedly
+since. Both assistants also depend on the engine's
 views/gating/interactions/approval surface (`defineAIViews`,
 `createAIViewController`, `defineAIInteractions`, `availableIn` gating,
 `approval.propose`, `buildToolCatalog`, `validateAIChatConfig`). The consumer
@@ -578,7 +578,7 @@ failure-channel ruling above). The system prompt deliberately embeds no live
 state (the model reads through tools, avoiding staleness with its own edits).
 Write commits do whole-object load → propose → save, last write wins: the
 app-wide concurrency model, deliberate (a re-read-after-confirm refactor was
-rejected 2026-07-07 as an inconsistent outlier). Its hand-written schemas comply
+rejected as an inconsistent outlier). Its hand-written schemas comply
 with the S13 conventions (storage field names, throw-don't-catch, no
 strictObject / strict:true). S13 convention changes must be checked against this
 directory; its tool semantics are S5's.
@@ -609,7 +609,7 @@ directory; its tool semantics are S5's.
 
 ## Open items
 
-Triaged findings from the 2026-07-07 review. Two same-day fix batches closed the
+Triaged findings from the first review cycle. Two same-day fix batches closed the
 governance HIGHs (delta-based usage parsing, cancel-hook accounting, beta
 allowlist, NaN boot validation, shared-handler extraction), the custom-prompts
 gate, the truncation brick (panther turn-logic + max_tokens raise/expose), the
@@ -659,7 +659,7 @@ Remaining:
   Anthropic file after the underlying instance asset is replaced (removal now
   cleans up server-side; replace is the remaining stale/orphan path).
 - **[LOW]** Residual SSE self-echo under live collab only (the general case was
-  fixed 2026-07-22 by `markAIEdit` echo keys on every persist-path write tool):
+  fixed by `markAIEdit` echo keys on every persist-path write tool):
   collab checkpoints persist AI `setTempSlide`/`setTempConfig` edits and notify
   `slides`/`presentation_objects`, echoing back unmarked as "Edited slide X" /
   "Visualization X updated". Marking those keys would also suppress genuine
@@ -691,7 +691,7 @@ Remaining:
 
 **Surface gaps: read-projection ≠ write-schema ≠ stored-shape**
 
-From the 2026-06-24 read-only audit that hunted the bug _class_ behind the
+From the read-only audit that hunted the bug _class_ behind the
 slide-figure replicant bug. Every item below is one shape:
 
 > The AI's **read-projections** (`simplifySlideForAI`, `get_report_editor`, the

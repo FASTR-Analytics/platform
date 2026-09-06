@@ -24,7 +24,7 @@ factories and their pools, the canonical `Sql`-first DB-function shape with its
 single error funnel, the **SQL-safety boundary** (this file is the normative
 owner of that rule), and the schema lifecycle: fail-stop boot running SQL
 migrations then JSON data transforms, plus backup/restore mechanics. Reviewed
-against code 2026-07-16 (first review cycle, review-only; absorbs
+against code (first review cycle, review-only; absorbs
 DOC_DB_ACCESS_LAYER).
 
 Boundaries: the migration/schema-change **recipe** (transform blocks, skip-gate
@@ -138,7 +138,7 @@ with no options, and `getPgConnection` never reads `options.readonly`: no
 connection can write freely, and the flag merely **doubles** the pooled
 connections per database (a `_READ_ONLY` and a `_READ_AND_WRITE` entry, up to 20
 each, so size Postgres `max_connections` accordingly). Treat the parameter as
-cache-namespacing, not a safety boundary (ruled 2026-08-03: it stays
+cache-namespacing, not a safety boundary (ruled: it stays
 namespacing-only, because making it real would break legitimate writes on
 `READ_ONLY`-pooled connections, e.g. `getGlobalUser`'s open-access insert).
 
@@ -261,7 +261,7 @@ RAW .unsafe(sql) → trusted-internal input ONLY         (closed unions / module
   **only** sanctioned manual escaper for Postgres-bound SQL, used for
   hand-built `VALUES` tuples in the bulk paths (HFA/HMIS/structure staging,
   `db_startup`, S9 filter values). No call site may inline its own
-  `''`-doubling (the last inline sites were consolidated 2026-08-03).
+  `''`-doubling.
   `escapeSqlLiteral` (`server/run_query/duckdb_executor.ts`) is its DuckDB-side
   twin.
 - **`.unsafe()`** runs raw SQL with no parameterization. There are ~20 call
@@ -314,7 +314,7 @@ schemas in a throwaway `postgres:15` Docker container; run it after touching any
 SQL migration. The one sanctioned edit of an applied migration is the
 table-existence guard that lets a base-owned table leave the base schema
 (the protocol's "Dropping a table that older migrations touch"; applied to
-nine project migrations on 2026-09-04).
+nine project migrations).
 
 ### Backup / restore mechanics
 
@@ -328,10 +328,10 @@ pool opened for the migration re-run is never `.end()`ed (both Open items).
 Backups are pure pg dumps: a restore never touches `projects.run_id` and never
 brings a results package back: a project whose package is absent on this
 instance shows the typed "results run unavailable" state until an editor
-attaches another package or an admin regenerates (Tim's ruling 2026-09-04;
+attaches another package or an admin regenerates (ruled;
 [SYSTEM_08](SYSTEM_08_results_packages.md) "Backups and packages").
 
-## FigureBundle backfill: the boot-time cutover (shipped 2026-06-13)
+## FigureBundle backfill: the boot-time cutover
 
 This is S2's slice of the FigureBundle refactor; the bundle shape and the render
 side live in [SYSTEM_10](SYSTEM_10_figure_render_export.md). S2 owns the
@@ -404,7 +404,7 @@ PROTOCOL_APP_MIGRATIONS data-transform (one deploy, no offline script).
 A read-only repo-root script ran the exact reshape + round-trip against every
 instance's DBs before the cutover (per-outcome counts and the identity of every
 failure). Result: **36/36 instances, 17,142 figures, 0 FAILs.** The script was
-deleted on 2026-09-04 with the results-runs Phase 4 sweep: a passed one-time
+deleted with the results-runs Phase 4 sweep: a passed one-time
 gate is history, not tooling.
 
 ## File & naming conventions
