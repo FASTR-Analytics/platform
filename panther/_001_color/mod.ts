@@ -39,6 +39,8 @@ export {
   type PaletteOption,
   PANTHER_PALETTES,
   type QualitativePaletteName,
+  type ResolvedScale,
+  resolveScale,
   type SequentialPaletteName,
 } from "./palettes.ts";
 export { PANTHER_COLORS } from "./tim_colors.ts";

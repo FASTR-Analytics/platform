@@ -57,6 +57,7 @@ export const Z_INDEX = {
   SIMPLEVIZ_ARROW: 490, // Behind boxes by default
   SIMPLEVIZ_BOX: 500,
   // VizGraph defaults
+  VIZGRAPH_LANE: 470, // Lane bands behind group boxes
   VIZGRAPH_UNFOLDED_GROUP: 480, // Group boxes behind edges and nodes
   VIZGRAPH_EDGE: 490, // Behind nodes by default
   VIZGRAPH_NODE: 500,
@@ -450,6 +451,21 @@ export type VizGraphUnfoldedGroupPrimitive = BasePrimitive & {
   };
 };
 
+// A lane box (M5): the full-height band behind a lane's columns, header text
+// left-aligned in the row the engine reserved.
+export type VizGraphLanePrimitive = BasePrimitive & {
+  type: "vizgraph-lane";
+  meta: {
+    laneId: string;
+  };
+  rcd: RectCoordsDims;
+  rectStyle: RectStyle;
+  text?: {
+    mText: MeasuredText;
+    position: Coordinates;
+  };
+};
+
 // Orthogonal edge route with rounded corners (cubic segments) and optional
 // arrowheads.
 export type VizGraphEdgePrimitive = BasePrimitive & {
@@ -782,6 +798,7 @@ export type Primitive =
   | ArrowPrimitive
   // VizGraph primitives
   | VizGraphNodePrimitive
+  | VizGraphLanePrimitive
   | VizGraphUnfoldedGroupPrimitive
   | VizGraphEdgePrimitive
   // Sankey primitives

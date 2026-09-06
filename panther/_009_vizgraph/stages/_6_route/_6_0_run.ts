@@ -61,6 +61,7 @@ export function computeGutterTotal(
       trackCounts,
       gutterThickness,
       spacing,
+      proper.laneBoundaries,
     );
   }
   return total;

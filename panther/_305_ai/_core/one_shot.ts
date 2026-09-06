@@ -45,7 +45,7 @@ const MAX_CLIENT_TOOL_ITERATIONS = 24;
 // TYPES
 ////////////////////////////////////////////////////////////////////////////////
 
-export interface CallAIConfig {
+export type CallAIConfig = {
   sdkClient: Anthropic;
   // Model defaults live in panther (DEFAULT_MODEL_CONFIG) — omit entirely to
   // track them; pass a partial only for a genuinely call-specific override.
@@ -56,20 +56,20 @@ export interface CallAIConfig {
   // deno-lint-ignore no-explicit-any
   tools?: AIToolWithMetadata<any>[];
   builtInTools?: BuiltInToolsConfig;
-}
+};
 
-export interface CallAIResult {
+export type CallAIResult = {
   content: ContentBlock[];
   stopReason: string | null;
   usage: Usage;
   messages: MessageParam[];
-}
+};
 
-export interface CallAIStructuredResult<T> extends CallAIResult {
+export type CallAIStructuredResult<T> = CallAIResult & {
   // null when the model refused or the output failed schema validation —
   // check stopReason ("refusal", "max_tokens") before retrying.
   data: T | null;
-}
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 // STRUCTURED ONE-SHOT

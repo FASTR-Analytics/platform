@@ -78,7 +78,10 @@ export type LayoutWarningCode =
   | "missing-measurer"
   | "fit-width-exceeded"
   | "unsupported-option"
-  | "ordering-finish-cap";
+  | "ordering-finish-cap"
+  | "span-violated"
+  | "lane-order"
+  | "shape-demoted";
 
 export type LayoutWarning = {
   code: LayoutWarningCode;

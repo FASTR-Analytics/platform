@@ -3,13 +3,13 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-// createMCPHttpHandler (PLAN_112, D2/D3): serve a _112 MCPServerCore over
+// createMCPHttpHandler: serve a _112 MCPServerCore over
 // streamable HTTP on the official MCP SDK v2 wire layer. The SDK owns the
 // wire (era classification, sessions, SSE, keepalive, the legacy
 // input-required shim); panther owns the semantics (headless filter, approval
 // driver, staged-proposal security, serialized dispatch) via the core seam.
 //
-// Wiring facts, live-proven against Claude Code 2.1.219 (2026-08-06):
+// Wiring facts:
 // - Legacy (2025-era) serving MUST be sessionful for elicitation: the
 //   client's elicitation answer arrives as a separate POST correlated only by
 //   Mcp-Session-Id, and the SDK's stateless legacy fallback fails such tools
@@ -21,7 +21,7 @@
 //   inputResponses, on a modern one the client retries with them. The
 //   re-entry maps 1:1 onto the core's resumeToolCall.
 //
-// Isolation (D3): one core per authenticated principal, cached with idle TTL
+// Isolation: one core per authenticated principal, cached with idle TTL
 // + LRU cap. Staged proposal ids never leave the principal's core, so
 // cross-principal resume is structurally impossible; core eviction clears
 // staging. Sessions are principal-bound: a session id presented with a
@@ -89,7 +89,7 @@ export type CreateMCPHttpHandlerOptions<TPrincipal> = {
   // (a JSON-dumped principal routinely carries the bearer token).
   principalKey?: (principal: TPrincipal) => string;
   // Idle eviction for principal cores (staging dies with the core; the next
-  // request transparently rebuilds). Defaults per PLAN_112 D8.
+  // request transparently rebuilds).
   coreIdleTtlMs?: number;
   maxCores?: number;
   // Legacy wire sessions per principal (resource bounding — PAT auth is the
@@ -338,7 +338,7 @@ export function createMCPHttpHandler<TPrincipal>(
       existing.lastUsed = now;
       return existing;
     }
-    // Thunk-form tools resolve here, once per principal core (D3). A
+    // Thunk-form tools resolve here, once per principal core. A
     // construction throw surfaces as a clean per-request error.
     const core = buildMCPServerCore(
       config as CreateMCPServerConfig,

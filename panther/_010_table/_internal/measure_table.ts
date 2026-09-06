@@ -706,9 +706,8 @@ export function computeAutoColumnMins(
   return mins;
 }
 
-// "equal"/undefined always divides evenly, exactly as before this field
-// existed — a caller that never touches columnWidths sees byte-identical
-// output forever, immune to any future change in what "auto" means.
+// "equal"/undefined always divides evenly: a caller that never touches
+// columnWidths is immune to any change in what "auto" means.
 export function resolveColumnWidths(
   rc: RenderContext,
   d: TableDataTransformed,

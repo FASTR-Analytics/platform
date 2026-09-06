@@ -4,8 +4,8 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 // The browser-side projections of the registry: a generated typed caller
-// (every entry is POST /api/op/<name> — panterra R14: no hand-written fetch
-// wrappers), and the runner — the ONE entry point human UI controls and AI
+// (every entry is POST /api/op/<name>; no hand-written fetch wrappers), and
+// the runner, the ONE entry point human UI controls and AI
 // tools share, so there is no privileged AI path. Both are derived from the
 // same contract objects the server boots, so a divergence is unwritable.
 

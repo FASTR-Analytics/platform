@@ -8,8 +8,6 @@ import type { IconComponent, IconName } from "./icon_types.ts";
 
 // Tabler Icons (https://tabler.io/icons) -- MIT licensed. See TABLER_LICENSE.txt.
 // Stroked line glyphs on a 24 viewBox (vs Phosphor's filled 256 viewBox).
-// Individual *Icon exports are a legacy surface; prefer <Icon iconName> /
-// IconRenderer, which honour the active icon set.
 
 function TablerWrapper(
   p: { class?: string; children: JSX.Element },

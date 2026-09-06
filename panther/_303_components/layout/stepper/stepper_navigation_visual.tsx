@@ -7,11 +7,11 @@ import { For, Show } from "solid-js";
 import type { Stepper } from "./get_stepper.ts";
 import { Button } from "../../form_inputs/mod.ts";
 
-interface StepperNavigationVisualProps {
+type StepperNavigationVisualProps = {
   stepper: Stepper;
   onStepClick?: (step: number) => void;
   stepLabelFormatter?: (step: number) => string;
-}
+};
 
 export function StepperNavigationVisual(p: StepperNavigationVisualProps) {
   const handleStepClick = (step: number) => {

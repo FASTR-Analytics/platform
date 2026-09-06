@@ -18,7 +18,7 @@ const MAX_TRANSPOSE_PASSES = 4;
 // from stage 2's initial order (prior-layout position → given seq → input
 // order). The ordering contract + policy catalog live in
 // DOC_VIZGRAPH_ORDERING.md — behavioral ordering changes land as cataloged
-// policies (PLAN_VIZGRAPH architecture toll).
+// policies (the architecture toll, DOC_VIZGRAPH_ORDERING.md).
 export const sweepsStep: PipelineStep = {
   id: "3.1",
   name: "sweeps",

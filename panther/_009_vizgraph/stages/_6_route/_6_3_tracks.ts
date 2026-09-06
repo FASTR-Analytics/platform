@@ -46,19 +46,37 @@ export function maxThicknessPerGutter(
 }
 
 // One gutter's full width: interior gutters carry layerGap as the base
-// margin (half each side of the track bundle); the outermost two are
-// zero-width unless tracks live there. Track pitch widens by the gutter's
-// max edge thickness so thick edges on adjacent tracks keep trackGap clear.
+// margin (half each side of the track bundle), plus laneGap where the gutter
+// is a span boundary (a lane or span group starts or ends there); the
+// outermost two are zero-width unless tracks live there. Track pitch widens
+// by the gutter's max edge thickness so thick edges on adjacent tracks keep
+// trackGap clear.
 export function gutterReserve(
   g: number,
   layerCount: number,
   trackCounts: number[],
   gutterThickness: number[],
   spacing: ResolvedSpacing,
+  laneBoundaries: boolean[],
 ): number {
-  const basePad = g === 0 || g === layerCount ? 0 : spacing.layerGap / 2;
+  const basePad = gutterBasePad(g, layerCount, spacing, laneBoundaries);
   return basePad * 2 +
     trackCounts[g] * (spacing.trackGap + gutterThickness[g]);
+}
+
+// Half the gutter's base margin — what sits on each side of its track
+// bundle. Adding laneGap only at boundary gutters keeps every other gutter's
+// arithmetic byte-identical to the span-free engine (+0 is exact).
+export function gutterBasePad(
+  g: number,
+  layerCount: number,
+  spacing: ResolvedSpacing,
+  laneBoundaries: boolean[],
+): number {
+  if (g === 0 || g === layerCount) {
+    return 0;
+  }
+  return (spacing.layerGap + (laneBoundaries[g] ? spacing.laneGap : 0)) / 2;
 }
 
 // Interval packing per gutter, re-expressed from viz-positions

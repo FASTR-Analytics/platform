@@ -15,7 +15,8 @@ import { buildGraphIndex } from "./_internal/graph_index.ts";
 import { buildPriorIndex } from "./stability.ts";
 import { collapseFolded } from "./transform/collapse.ts";
 import { buildGroupIndex } from "./transform/derive.ts";
-import { rankStep } from "./stages/_1_rank.ts";
+import { buildRegionIndex } from "./_internal/regions.ts";
+import { rankSteps } from "./stages/_1_rank/_1_0_run.ts";
 import { properizeStep } from "./stages/_2_properize.ts";
 import { orderSteps } from "./stages/_3_order/_3_0_run.ts";
 import { sizeSteps } from "./stages/_4_size/_4_0_run.ts";
@@ -39,12 +40,14 @@ export function createPipelineState(
 ): PipelineState {
   const collapsed = collapseFolded(model);
   const index = buildGraphIndex(collapsed);
+  const groupIndex = buildGroupIndex(collapsed);
   const state: PipelineState = {
     collapsed,
     options,
     spacing: resolveSpacing(options?.spacing),
     warnings: [],
-    groupIndex: buildGroupIndex(collapsed),
+    groupIndex,
+    regions: buildRegionIndex(collapsed, groupIndex),
     index,
     prior: buildPriorIndex(options?.prior),
     plan: resolvePlan(collapsed, options),
@@ -63,15 +66,28 @@ export function createPipelineState(
       ids: index.danglingEdges.map((e) => e.id),
     });
   }
+  const demoted = (collapsed.groups ?? [])
+    .filter((g) => g.shape === "rect" && g.zone !== true)
+    .map((g) => g.id);
+  if (demoted.length > 0) {
+    state.warnings.push({
+      code: "shape-demoted",
+      message:
+        'shape "rect" needs zone (a rectangle over a non-exclusive group would swallow bystanders); drawn as hug',
+      ids: demoted,
+    });
+  }
   return state;
 }
 
-// The six numbered stages in execution order. Stages 1 and 2 are single
-// steps; 3, 4, and 6 list their step files; 5 expands the RESOLVED placement
-// schedule (so its step count and names are schedule-dependent by design).
+// The six numbered stages in execution order. Stage 2 is a single step; 1,
+// 3, 4, and 6 list their step files (1.2 is gated on span regions, 1.3 on
+// zone regions); 5 expands the RESOLVED placement schedule (so its step
+// count and names are schedule-dependent by design — zone models carry a
+// zone-reserve step before void-bound).
 export function buildPipeline(state: PipelineState): PipelineStage[] {
   return [
-    { stage: 1, name: "rank", steps: [rankStep] },
+    { stage: 1, name: "rank", steps: rankSteps() },
     { stage: 2, name: "properize", steps: [properizeStep] },
     { stage: 3, name: "order", steps: orderSteps() },
     { stage: 4, name: "size", steps: sizeSteps() },

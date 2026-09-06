@@ -148,8 +148,7 @@ function isShallowMiddle(
     Math.min(radius[k], radius[k + 1]) >= halfM;
 }
 
-// Closed-ring variant for group hug outlines (PLAN item: the primitive
-// type's anticipated rectilinear `outline`): every vertex is a corner —
+// Closed-ring variant for group hug outlines: every vertex is a corner,
 // corners[i] belongs to points[i], the last→first segment is implied. Same
 // per-corner geometry as pathRenderCommands (radius clamped to half of each
 // adjacent segment, quadratic curve through the vertex; the turn direction

@@ -5,12 +5,18 @@
 
 // The ops kernel: boot-time registry validation (every check that would
 // otherwise be a silent per-site omission) and the single dispatch sequence
-// authorize → validate → execute → log → emit that EVERY surface enters
-// (panterra R2/R3). The kernel is transport-free by construction: no
-// Request, no path, no framework type appears in any signature here.
+// authorize → validate → authorize resource → execute → log → emit that
+// EVERY surface enters. The kernel is transport-free by
+// construction: no Request, no path, no framework type appears in any
+// signature here.
 
 import { stableStringify, z } from "./deps.ts";
-import type { Guard, ProposalPreview, QueryState } from "./deps.ts";
+import type {
+  Guard,
+  GuardDecision,
+  ProposalPreview,
+  QueryState,
+} from "./deps.ts";
 import { OpFailure } from "./types.ts";
 import type {
   OpCatalogEntry,
@@ -23,6 +29,7 @@ import type {
   OpProvenanceOutcome,
   OpProvenanceRecord,
   OpRegistry,
+  OpResourceGuard,
   OpScoped,
   OpSurface,
 } from "./types.ts";
@@ -36,35 +43,45 @@ const DEFAULT_MAX_ARG_CHARS = 2_000;
 
 export type OpKernelConfig<
   TAuth extends string,
-  TReg extends OpRegistry<TAuth>,
+  TResource extends string,
+  TReg extends OpRegistry<TAuth, TResource>,
   TIdentity,
-> = {
-  ops: TReg;
-  impls: OpImpls<TReg, TIdentity>;
-  // The app's policy vocabulary mapped to _113 guards — the ONLY place
-  // policy data becomes decisions. Boot fails on an uncovered value.
-  guards: Record<TAuth, Guard<TIdentity>>;
-  // Provenance subject (_113's parity join): same person, any credential
-  // type, same key.
-  identityKey: (identity: TIdentity) => string;
-  provenance: {
-    // A throwing sink is caught and logged — it never breaks the response.
-    sink: (record: OpProvenanceRecord) => void;
-    maxArgChars?: number;
-  };
-  // Conformance check: validate every result (and every streaming ready
-  // frame) against the op's declared output schema after execute.
-  // CHECK-ONLY — the parse result is discarded, never substituted, so the
-  // flag can never change what the wire carries. Kernel-wide on purpose:
-  // per-op opt-out is the per-site-omission anti-pattern this module exists
-  // to close. Default false; a dev deployment turns it on.
-  validateOutputs?: boolean;
-  // Called after a write COMMITS. Reads never emit.
-  emit?: (event: OpChangeEvent) => void;
-  proposalTtlMs?: number;
-  // Injectable clock for tests.
-  now?: () => number;
-};
+> =
+  & {
+    ops: TReg;
+    impls: OpImpls<TReg, TIdentity>;
+    // The app's policy vocabulary mapped to _113 guards — the ONLY place
+    // policy data becomes decisions. Boot fails on an uncovered value.
+    guards: Record<TAuth, Guard<TIdentity>>;
+    // Provenance subject (_113's parity join): same person, any credential
+    // type, same key.
+    identityKey: (identity: TIdentity) => string;
+    provenance: {
+      // A throwing sink is caught and logged — it never breaks the response.
+      sink: (record: OpProvenanceRecord) => void;
+      maxArgChars?: number;
+    };
+    // Conformance check: validate every result (and every streaming ready
+    // frame) against the op's declared output schema after execute.
+    // CHECK-ONLY — the parse result is discarded, never substituted, so the
+    // flag can never change what the wire carries. Kernel-wide on purpose:
+    // per-op opt-out is the per-site-omission anti-pattern this module exists
+    // to close. Default false; a dev deployment turns it on.
+    validateOutputs?: boolean;
+    // Called after a write COMMITS. Reads never emit.
+    emit?: (event: OpChangeEvent) => void;
+    proposalTtlMs?: number;
+    // Injectable clock for tests.
+    now?: () => number;
+  }
+  & (
+    // The app's resource-policy vocabulary mapped to arg-aware guards, the
+    // same way as `guards` — required exactly when the registry declares a
+    // resource policy (a missing map is a compile error like a missing
+    // identity guard; boot re-checks for erased callers).
+    [TResource] extends [never] ? { resourceGuards?: never }
+      : { resourceGuards: Record<TResource, OpResourceGuard<TIdentity>> }
+  );
 
 export type OpDispatchOpts = { proposalKey?: string };
 
@@ -104,20 +121,30 @@ export type OpKernel<TIdentity> = {
 
 export function createOpKernel<
   TAuth extends string,
-  TReg extends OpRegistry<TAuth>,
+  TReg extends OpRegistry<TAuth, TResource>,
   TIdentity,
->(config: OpKernelConfig<TAuth, TReg, TIdentity>): OpKernel<TIdentity> {
+  // Inferred from resourceGuards; absent, it is never — and a registry that
+  // declares a resource then fails to satisfy OpRegistry<TAuth, never>.
+  TResource extends string = never,
+>(
+  config: OpKernelConfig<TAuth, TResource, TReg, TIdentity>,
+): OpKernel<TIdentity> {
   const ops = config.ops as Record<string, OpContract>;
-  const impls = config.impls as Record<string, {
+  const impls = config.impls as unknown as Record<string, {
+    resource?: (args: unknown, ctx: OpCtx<TIdentity>) => unknown;
     preview?: (args: unknown, ctx: OpCtx<TIdentity>) => unknown;
     execute: (args: unknown, ctx: OpCtx<TIdentity>) => unknown;
   }>;
   const guards = config.guards as Record<string, Guard<TIdentity>>;
+  const resourceGuards = (config.resourceGuards ?? {}) as Record<
+    string,
+    OpResourceGuard<TIdentity>
+  >;
   const now = config.now ?? Date.now;
   const proposalTtlMs = config.proposalTtlMs ?? DEFAULT_PROPOSAL_TTL_MS;
   const maxArgChars = config.provenance.maxArgChars ?? DEFAULT_MAX_ARG_CHARS;
 
-  validateRegistry(ops, impls, guards);
+  validateRegistry(ops, impls, guards, resourceGuards);
 
   // Approval staging: proposalKey → the exact op + args it previewed AND the
   // identity that previewed them, so a confirm can never commit anything but
@@ -164,7 +191,7 @@ export function createOpKernel<
         durationMs: now() - startedAt,
       });
     } catch (cause) {
-      // R7: a failed log write must never break the response.
+      // A failed log write must never break the response.
       console.error(`Provenance sink failed for op "${op}":`, cause);
     }
   }
@@ -199,7 +226,7 @@ export function createOpKernel<
       return { kind: "unavailable", err: "Authorization service unavailable" };
     }
     if (!decision.allow) {
-      // Denials ARE provenance (R7.4) — but carry no args: nothing
+      // Denials ARE provenance, but carry no args: nothing
       // unvalidated is ever recorded.
       rec(undefined, `denied:${decision.reason}`);
       return { kind: "denied", err: decision.reason };
@@ -214,7 +241,56 @@ export function createOpKernel<
     const args = parsed.data;
     const recArgs = redactAndTruncate(args, op.redact, maxArgChars);
 
-    // 3. Approval lifecycle (writes declared approval: true).
+    // 3. Authorize the RESOURCE (ops declaring a resource policy): the impl's
+    //    resolver names what this call touches — from the validated args,
+    //    with a store lookup when the input is an opaque id — and the
+    //    resource guard judges identity against it. Runs on EVERY dispatch,
+    //    the approval commit leg included (access revoked between preview
+    //    and commit → denied). A resource denial records the validated args:
+    //    they name the resource attempted.
+    const ctx: OpCtx<TIdentity> & { resource?: string } = { identity, surface };
+    if (op.resource !== undefined) {
+      let resource: string;
+      try {
+        resource = await (impl.resource as (
+          a: unknown,
+          c: OpCtx<TIdentity>,
+        ) => string | Promise<string>)(args, ctx);
+      } catch (cause) {
+        return failedOutcome(name, cause, rec, recArgs);
+      }
+      if (typeof resource !== "string" || resource === "") {
+        // An erased caller's resolver that returned nothing lied at the step
+        // that matters — fail here, not later in the scope contract.
+        return failedOutcome(
+          name,
+          new Error(`op "${name}" resolver did not return a resource`),
+          rec,
+          recArgs,
+        );
+      }
+      let resourceDecision: GuardDecision;
+      try {
+        resourceDecision = await resourceGuards[op.resource](
+          identity,
+          resource,
+        );
+      } catch (cause) {
+        console.error(`Resource guard for op "${name}" threw:`, cause);
+        rec(recArgs, "failed:resource guard unavailable");
+        return {
+          kind: "unavailable",
+          err: "Authorization service unavailable",
+        };
+      }
+      if (!resourceDecision.allow) {
+        rec(recArgs, `denied:${resourceDecision.reason}`);
+        return { kind: "denied", err: resourceDecision.reason };
+      }
+      ctx.resource = resource;
+    }
+
+    // 4. Approval lifecycle (writes declared approval: true).
     if (op.approval === true) {
       if (opts?.proposalKey === undefined) {
         let preview: ProposalPreview;
@@ -222,10 +298,7 @@ export function createOpKernel<
           preview = await (impl.preview as (
             a: unknown,
             c: OpCtx<TIdentity>,
-          ) => ProposalPreview | Promise<ProposalPreview>)(args, {
-            identity,
-            surface,
-          });
+          ) => ProposalPreview | Promise<ProposalPreview>)(args, ctx);
         } catch (cause) {
           return failedOutcome(name, cause, rec, recArgs);
         }
@@ -258,13 +331,10 @@ export function createOpKernel<
       proposals.delete(opts.proposalKey);
     }
 
-    // 4. Execute → 5. log → 6. emit (emission strictly AFTER commit).
+    // 5. Execute → 6. log → 7. emit (emission strictly AFTER commit).
     try {
       if (op.streaming === true) {
-        let frames = impl.execute(args, {
-          identity,
-          surface,
-        }) as AsyncIterable<
+        let frames = impl.execute(args, ctx) as AsyncIterable<
           QueryState<unknown>
         >;
         if (config.validateOutputs === true && op.output !== undefined) {
@@ -275,7 +345,7 @@ export function createOpKernel<
         rec(recArgs, "ok");
         return { kind: "stream", frames };
       }
-      let data = await impl.execute(args, { identity, surface });
+      let data = await impl.execute(args, ctx);
       let scope: string | undefined;
       if (op.scope !== undefined) {
         // The declaration promises a scoped event; an impl that broke the
@@ -352,6 +422,7 @@ export function createOpKernel<
       title: op.title,
       description: op.description,
       auth: op.auth,
+      ...(op.resource !== undefined ? { resource: op.resource } : {}),
       exposure: op.exposure,
       approval: op.approval === true,
       streaming: op.streaming === true,
@@ -404,7 +475,7 @@ function failedOutcome(
   recArgs: unknown,
 ): OpOutcome {
   // OpFailure messages are wire-safe by contract; everything else gets
-  // generic wire text with the detail logged server-side only (R8).
+  // generic wire text with the detail logged server-side only.
   const safe = cause instanceof OpFailure ? cause.message : undefined;
   console.error(`Op "${name}" failed:`, cause);
   rec(recArgs, `failed:${safe ?? String(cause)}`);
@@ -412,13 +483,17 @@ function failedOutcome(
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// BOOT VALIDATION (R2: fail server start, never fail at call time)
+// BOOT VALIDATION (fail server start, never fail at call time)
 ////////////////////////////////////////////////////////////////////////////////
 
 function validateRegistry<TIdentity>(
   ops: Record<string, OpContract>,
-  impls: Record<string, { preview?: unknown; execute: unknown }>,
+  impls: Record<
+    string,
+    { resource?: unknown; preview?: unknown; execute: unknown }
+  >,
   guards: Record<string, Guard<TIdentity>>,
+  resourceGuards: Record<string, OpResourceGuard<TIdentity>>,
 ): void {
   const fail = (msg: string): never => {
     throw new Error(`createOpKernel: ${msg}`);
@@ -429,8 +504,32 @@ function validateRegistry<TIdentity>(
         `op name "${name}" must match ${OP_NAME_REGEX} (it becomes a path segment, tool name, and log key)`,
       );
     }
-    if (guards[op.auth] === undefined) {
+    if (!Object.hasOwn(guards, op.auth)) {
       fail(`op "${name}" declares auth "${op.auth}" but no such guard exists`);
+    }
+    if (op.resource !== undefined) {
+      if (op.resource.trim() === "") {
+        fail(
+          `op "${name}": resource must name the policy (e.g. "projectMember")`,
+        );
+      }
+      if (!Object.hasOwn(resourceGuards, op.resource)) {
+        fail(
+          `op "${name}" declares resource "${op.resource}" but no such resource guard exists`,
+        );
+      }
+      if (op.kind === "nav") {
+        fail(`nav op "${name}" cannot declare a resource policy`);
+      }
+      if (typeof impls[name]?.resource !== "function") {
+        fail(
+          `op "${name}" declares resource "${op.resource}" but its impl provides no resolver`,
+        );
+      }
+    } else if (impls[name]?.resource !== undefined) {
+      fail(
+        `op "${name}" impl provides a resource resolver but the op declares no resource policy`,
+      );
     }
     if (
       typeof op.exposure.headless === "object" &&
@@ -563,7 +662,7 @@ function redactAndTruncate(
   }
   const text = JSON.stringify(out);
   if (text !== undefined && text.length > maxChars) {
-    // Oversize args are truncated with an explicit marker (R7).
+    // Oversize args are truncated with an explicit marker.
     return {
       truncated: true,
       chars: text.length,

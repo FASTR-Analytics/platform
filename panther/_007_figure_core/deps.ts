@@ -74,6 +74,7 @@ export type {
   TableGridPrimitive,
   TableHeaderAxisPrimitive,
   VizGraphEdgePrimitive,
+  VizGraphLanePrimitive,
   VizGraphNodePrimitive,
   VizGraphUnfoldedGroupPrimitive,
 } from "../_001_render_system/mod.ts";

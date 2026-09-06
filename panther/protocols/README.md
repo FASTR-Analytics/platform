@@ -5,19 +5,19 @@ consumer apps and serve as the authoritative source for AI and human developers.
 
 ## Purpose
 
-1. **Single source of truth** — Rules live here, not duplicated in app CLAUDE.md
+1. **Single source of truth**: Rules live here, not duplicated in app CLAUDE.md
    files
-2. **AI guidance** — Structured for scanning and strict compliance
-3. **Audit capability** — Checkable items enable automated validation
-4. **Consistency** — Same patterns across all apps using panther
+2. **AI guidance**: Structured for scanning and strict compliance
+3. **Audit capability**: Checkable items enable automated validation
+4. **Consistency**: Same patterns across all apps using panther
 
 ## Naming
 
 Files are named `PROTOCOL_<SCOPE>_*.md`, where `<SCOPE>` is the audience:
 
-- `PROTOCOL_UI_*` — frontend only (scope: UI)
-- `PROTOCOL_DENO_*` — backend only (scope: Deno)
-- `PROTOCOL_ALL_*` — universal (scope: All)
+- `PROTOCOL_UI_*`: frontend only (scope: UI)
+- `PROTOCOL_DENO_*`: backend only (scope: Deno)
+- `PROTOCOL_ALL_*`: universal (scope: All)
 
 The prefix matches the in-file `**Scope:**` header and the `@protocol` list the
 file appears in (UI → `mod.ui.ts`, Deno → `mod.deno.ts`, All → both). To point a
@@ -26,8 +26,8 @@ tool or person at the frontend rules, glob `PROTOCOL_UI_*` plus the
 
 Distinguish from:
 
-- `DOC_*.md` — Panther library internals (how panther works)
-- `PLAN_*.md` — Temporary implementation plans
+- `DOC_*.md`: Panther library internals (how panther works)
+- `PLAN_*.md`: Temporary implementation plans
 
 Protocols are permanent, prescriptive documents about how to build apps.
 
@@ -74,8 +74,8 @@ Every protocol follows this structure:
 Numbered list of 5-15 rules. Each rule is one line. This section is the TL;DR
 that AI scans first.
 
-1. **[Rule name]** — [one-line description]
-2. **[Rule name]** — [one-line description]
+1. **[Rule name]**: [one-line description]
+2. **[Rule name]**: [one-line description]
 
 ## Do / Don't
 
@@ -108,21 +108,21 @@ analysis or manual review.
 
 ### Structure Rationale
 
-- **Rules** — Fast scanning, instant reference
-- **Do/Don't** — No ambiguity, visual code comparison
-- **Why** — Enables judgment calls on edge cases (brief, not essays)
-- **Patterns** — Complete examples for copy-paste
-- **Checklist** — Enables future automated auditing
+- **Rules**: Fast scanning, instant reference
+- **Do/Don't**: No ambiguity, visual code comparison
+- **Why**: Enables judgment calls on edge cases (brief, not essays)
+- **Patterns**: Complete examples for copy-paste
+- **Checklist**: Enables future automated auditing
 
 ## Writing Guidelines
 
 ### Be Prescriptive
 
-Protocols are laws, not suggestions. Use "always", "never", "must" — not
+Protocols are laws, not suggestions. Use "always", "never", "must", not
 "consider", "prefer", "try to".
 
 ```markdown
-// Good **No createResource, no Suspense — hard ban, no exceptions**
+// Good **No createResource, no Suspense (hard ban, no exceptions)**
 
 // Bad Consider avoiding createResource when possible
 ```
@@ -130,7 +130,7 @@ Protocols are laws, not suggestions. Use "always", "never", "must" — not
 ### Rules First, Explanation Second
 
 AI scans top-to-bottom. Put rules before rationale. One sentence of "why" is
-enough — protocols aren't tutorials.
+enough: protocols aren't tutorials.
 
 ### Code Over Prose
 
@@ -185,9 +185,9 @@ than duplicating rules:
 
 This project follows panther protocols. See `panther/protocols/`:
 
-- PROTOCOL_ALL_*.md — Universal conventions (TypeScript, structure, sizing,
+- PROTOCOL_ALL_*.md: Universal conventions (TypeScript, structure, sizing,
   translation)
-- PROTOCOL_UI_*.md — Frontend: SolidJS, state, styling, components
+- PROTOCOL_UI_*.md: Frontend: SolidJS, state, styling, components
 
 ## App-Specific
 
@@ -202,9 +202,9 @@ This eliminates duplication and ensures a single source of truth.
 | --------------------------- | ------------ | ---------------------------- | ------------------------------------------ |
 | `DOC_CODING_CONVENTIONS.md` | panther root | TypeScript style (long-form) | Summarized by `PROTOCOL_ALL_TYPESCRIPT.md` |
 | `FRONTEND_STYLE_GUIDE.md`   | (removed)    | SolidJS patterns             | Replaced by `PROTOCOL_UI_*`                |
-| `DOC_*.md` (panther)        | panther root | Library internals            | No — different purpose                     |
-| `DOC_*.md` (apps)           | app roots    | App-specific systems         | No — app-specific                          |
-| `CLAUDE.md` (apps)          | app roots    | Architecture + conventions   | Partially — remove duplicated rules        |
+| `DOC_*.md` (panther)        | panther root | Library internals            | No: different purpose                      |
+| `DOC_*.md` (apps)           | app roots    | App-specific systems         | No: app-specific                           |
+| `CLAUDE.md` (apps)          | app roots    | Architecture + conventions   | Partially: remove duplicated rules         |
 
 ## Future: Audit Tool
 

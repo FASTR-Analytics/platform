@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  GroupRuns,
   PipelineStep,
   PNode,
   ProperGraph,
@@ -17,7 +18,11 @@ import type { ResolvedSpacing } from "../../types_options.ts";
 // collide with neighboring nodes or sibling boxes. The label header row is
 // reserved ONLY in the group's first (top-left) spanned layer — the strip
 // that carries the label; every other layer's run gets the bare inset.
-// Nested groups accumulate.
+// Nested groups accumulate. The runs themselves are recorded on the proper
+// graph (groupRuns) with each group's own box insets, for the zone
+// machinery: a run's first member is also the first member of every
+// nested run it belongs to, so a group's box top sits Σ(pad + header) over
+// the member's chain up to that group above it.
 export const padsStep: PipelineStep = {
   id: "4.1",
   name: "pads",
@@ -46,6 +51,13 @@ export function assignGroupPads(
       }
     }
   });
+  const contribution = (groupId: string, layerIdx: number): number => {
+    const group = groupIndex.groupById.get(groupId)!;
+    const headerH = firstLayerByGroupId.get(groupId) === layerIdx
+      ? group.label?.h ?? 0
+      : 0;
+    return spacing.groupPad + headerH;
+  };
   proper.layers.forEach((layer, layerIdx) => {
     const runs = new Map<string, { first: PNode; last: PNode }>();
     for (const pnode of layer) {
@@ -67,12 +79,38 @@ export function assignGroupPads(
       }
     }
     for (const [groupId, run] of runs) {
-      const group = groupIndex.groupById.get(groupId)!;
-      const headerH = firstLayerByGroupId.get(groupId) === layerIdx
-        ? group.label?.h ?? 0
-        : 0;
-      run.first.padTop += spacing.groupPad + headerH;
+      run.first.padTop += contribution(groupId, layerIdx);
       run.last.padBottom += spacing.groupPad;
+    }
+    for (const [groupId, run] of runs) {
+      let insetTop = 0;
+      for (const id of groupIndex.chainByNodeId.get(run.first.id) ?? []) {
+        insetTop += contribution(id, layerIdx);
+        if (id === groupId) {
+          break;
+        }
+      }
+      let insetBottom = 0;
+      for (const id of groupIndex.chainByNodeId.get(run.last.id) ?? []) {
+        insetBottom += spacing.groupPad;
+        if (id === groupId) {
+          break;
+        }
+      }
+      let record: GroupRuns | undefined = proper.groupRuns.get(groupId);
+      if (record === undefined) {
+        record = {
+          firstLayerIndex: firstLayerByGroupId.get(groupId)!,
+          byLayer: new Map(),
+        };
+        proper.groupRuns.set(groupId, record);
+      }
+      record.byLayer.set(layerIdx, {
+        first: run.first,
+        last: run.last,
+        insetTop,
+        insetBottom,
+      });
     }
   });
 }

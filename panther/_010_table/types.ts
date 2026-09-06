@@ -24,15 +24,12 @@ import type {
 export type TableInputs = FigureInputsBase & {
   figureType: "table";
   data: TableData;
-  // "equal" (or omitted) divides available width evenly across columns,
-  // exactly as before this field existed. A number is an absolute width in
-  // DU, scaled by fitScale like any other authored size. "auto" measures
-  // content to size the column. Positional, in final (post-sort) column
-  // order.
+  // "equal" (or omitted) divides available width evenly across columns. A
+  // number is an absolute width in DU, scaled by fitScale like any other
+  // authored size. "auto" measures content to size the column. Positional,
+  // in final (post-sort) column order.
   columnWidths?: "equal" | (number | "auto")[];
 };
-
-// Backward compatibility alias
 
 export type TableData = TableDataJson | TableDataTransformed;
 
@@ -166,19 +163,6 @@ export type TableHeightInfo = {
   max?: number;
   min?: number;
 };
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////
-//  __       __                                                                  __                   //
-// /  \     /  |                                                                /  |                  //
-// $$  \   /$$ |  ______    ______    _______  __    __   ______    ______    ____$$ |                //
-// $$$  \ /$$$ | /      \  /      \  /       |/  |  /  | /      \  /      \  /    $$ |                //
-// $$$$  /$$$$ |/$$$$$$  | $$$$$$  |/$$$$$$$/ $$ |  $$ |/$$$$$$  |/$$$$$$  |/$$$$$$$ |                //
-// $$ $$ $$/$$ |$$    $$ | /    $$ |$$      \ $$ |  $$ |$$ |  $$/ $$    $$ |$$ |  $$ |                //
-// $$ |$$$/ $$ |$$$$$$$$/ /$$$$$$$ | $$$$$$  |$$ \__$$ |$$ |      $$$$$$$$/  $$ \__$$ |                //
-// $$ | $/  $$ |$$       |$$    $$ |/     $$/ $$    $$/ $$ |      $$       |$$    $$ |                //
-// $$/      $$/  $$$$$$$/  $$$$$$$/ $$$$$$$/   $$$$$$/  $$/        $$$$$$$/  $$$$$$$$/                 //
-//                                                                                                     //
-///////////////////////////////////////////////////////////////////////////////////////////////////////
 
 export type RowHeaderInfo = {
   mText: MeasuredText | undefined;

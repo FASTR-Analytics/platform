@@ -39,6 +39,7 @@ export const FIGURE_TEXT_STYLE_KEYS = [
   "vizgraphNodeTextPrimary",
   "vizgraphNodeTextSecondary",
   "vizgraphGroupLabel",
+  "vizgraphLaneLabel",
 ] as const;
 
 // Extract the type from the const array

@@ -1496,6 +1496,36 @@
   .ui-vizgraph-node {
     @apply block h-full w-full;
   }
+  .ui-vizgraph-node-probe {
+    @apply block w-fit;
+  }
+  .ui-vizgraph-group-outline {
+    @apply stroke-base-300;
+    fill: none;
+  }
+  .ui-vizgraph-group-header {
+    @apply block h-full w-full;
+  }
+  .ui-vizgraph-group-probe {
+    @apply block w-fit;
+  }
+  .ui-vizgraph-group-header-default {
+    @apply text-base-content-muted block truncate px-2 text-xs leading-5;
+  }
+  .ui-vizgraph-lane {
+    @apply stroke-base-300;
+    fill: none;
+    rx: 6px;
+  }
+  .ui-vizgraph-lane-header {
+    @apply block h-full w-full;
+  }
+  .ui-vizgraph-lane-probe {
+    @apply block w-fit;
+  }
+  .ui-vizgraph-lane-header-default {
+    @apply text-base-content-muted block truncate px-2 text-xs leading-5;
+  }
   .ui-vizgraph-node-selected {
     outline: 2px solid var(--color-primary);
     outline-offset: 1px;

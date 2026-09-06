@@ -90,7 +90,7 @@ export function getPieComponentSizes(
   const transformedData = getPieDataTransformed(item.data);
 
   // Measured from the (scaled) data-label style, so the floor shrinks with
-  // the style scale. The floors are not equal per direction (plan D4):
+  // the style scale. The floors are not equal per direction:
   // outside labels add width (the flank gutters) and can add height (a flank
   // stack taller than the content). Both label terms are unwrapped, so each
   // floor stays proportional to the scale (monotone) and free of any slot
@@ -102,7 +102,7 @@ export function getPieComponentSizes(
   // is too generous only makes autofit cautious, and the ideal-height pass
   // (which does read the silhouette) is what sets the natural size.
   //
-  // The gap term is geometry (plan D7): the rim is π·d and each slice
+  // The gap term is geometry: the rim is π·d and each slice
   // boundary removes a sliceGap channel. A necessary bound, not a guarantee;
   // it contributes nothing at the default sliceGap 0.
   const minLabelPlotExtent = calculateMinLabelPlotExtent(
@@ -123,9 +123,9 @@ export function getPieComponentSizes(
     allPieIndices(transformedData),
   );
 
-  // The floor pass runs before any sub-chart shape exists, so D9's objective
-  // has nothing to optimise against and the slot grid is the plain
-  // ceil(sqrt(n)) (plan D3). That overstates the demand for a wide, short
+  // The floor pass runs before any sub-chart shape exists, so the slot
+  // objective has nothing to optimise against and the slot grid is the plain
+  // ceil(sqrt(n)). That overstates the demand for a wide, short
   // frame — conservative in the safe direction: an overstated floor only
   // makes autofit shrink type marginally earlier than it had to.
   const nIndicators = transformedData.indicatorHeaders.length;
@@ -152,7 +152,7 @@ export function getPieComponentSizes(
     paneHeaders: transformedData.paneHeaders,
     minSubChartWidth: nSlotCols * (minSlotDiameter + labelBudget.horizontal) +
       (nSlotCols - 1) * ind.gapX,
-    // The vertical demand COMBINES differently by placer (plan N9): under
+    // The vertical demand COMBINES differently by placer: under
     // flank it is a stack the slot must be tall enough for; under nearest the
     // labels sit above and below the content, so it is additive.
     minSubChartHeight: nSlotRows *
@@ -181,13 +181,12 @@ export function getPieComponentSizes(
 
 // The ideal height is the real decomposition: derive the per-sub-chart width
 // from the same terms calculateChartMinWidth uses, split it into indicator
-// slots at the SELF-CONSISTENT wrap (plan D8), give each slot's content the
+// slots at the SELF-CONSISTENT wrap, give each slot's content the
 // silhouette's own aspect at the capped natural diameter, add back the
 // vertical label demand and header strip, then let the shared helper add tier
 // gaps, pane gaps, tier padding, pane headers and a measured surrounds
 // height. Applying the aspect to the whole slot would bake the flank gutters
-// into the height and pad every labelled pie with dead vertical whitespace
-// (plan D4).
+// into the height and pad every labelled pie with dead vertical whitespace.
 //
 // The idealPieDiameter policy is a CAP on the width-driven term, never a
 // replacement: an ideal that exceeds the slot is meaningless, but without the
@@ -247,11 +246,11 @@ function getPieIdealHeight(
 
   const minComfortableWidth = calculateChartMinWidth(info);
 
-  // minH is derived from the real floor at the autofit floor scale (plan
-  // D10), exactly as the scale-axis charts derive theirs — never idealH ×
-  // 0.5, which both hid the missing clamp (the layouter never allocated below
-  // it) and overstated the true floor by ~4x. getPieComponentSizes'
-  // minSubChartHeight IS the D7 floor, so the shared decomposition at
+  // minH is derived from the real floor at the autofit floor scale, exactly
+  // as the scale-axis charts derive theirs, never idealH × 0.5, which would
+  // both hide a missing clamp (the layouter never allocates below it) and
+  // overstate the true floor by ~4x. getPieComponentSizes'
+  // minSubChartHeight IS the legibility floor, so the shared decomposition at
   // floorScale is the whole derivation. With autofit off, type cannot shrink,
   // and the natural height is the minimum — the scale-axis convention.
   const autofitOpts = resolveFigureAutofitOptions(item.autofit);

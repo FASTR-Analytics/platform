@@ -16,6 +16,7 @@ export type {
   RenderContext,
   Renderer,
   VizGraphEdgePrimitive,
+  VizGraphLanePrimitive,
   VizGraphNodeInfo,
   VizGraphNodePrimitive,
   VizGraphUnfoldedGroupPrimitive,

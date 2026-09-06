@@ -49,7 +49,6 @@ export type {
   PieInputs,
   PieJsonDataConfig,
 } from "../_010_pie/mod.ts";
-export type { SimpleVizData, SimpleVizInputs } from "../_010_simpleviz/mod.ts";
 export type {
   ColGroup,
   ColGroupCol,

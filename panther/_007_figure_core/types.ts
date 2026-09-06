@@ -124,12 +124,12 @@ export function clampOverhangClearance(
   };
 }
 
-export interface TransformedDataBase {
+export type TransformedDataBase = {
   seriesHeaders: string[];
   laneHeaders: string[];
   tierHeaders: string[];
   paneHeaders: string[];
-}
+};
 
 export type UncertaintyConfig =
   | {

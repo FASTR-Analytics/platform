@@ -4,13 +4,13 @@
 
 ## Rules
 
-1. **Validate at boundaries** — Validate external input, trust internal code
-2. **Consistent response shapes** — `{ success: true, data }` or
+1. **Validate at boundaries**: Validate external input, trust internal code
+2. **Consistent response shapes**: `{ success: true, data }` or
    `{ success: false, err }`
-3. **Early return on error** — Check permissions/validation first
-4. **Descriptive error messages** — Include context for debugging
-5. **Let errors propagate** — Don't catch and return error strings
-6. **Zod for schema validation** — Derive from storage schemas where possible
+3. **Early return on error**: Check permissions/validation first
+4. **Descriptive error messages**: Include context for debugging
+5. **Let errors propagate**: Don't catch and return error strings
+6. **Zod for schema validation**: Derive from storage schemas where possible
 
 ## Response Shapes
 
@@ -91,12 +91,12 @@ export async function handleDelete(c: Context): Promise<Response> {
 ### Derive from Storage Schemas
 
 ```typescript
-// ✅ DO — derive from source of truth
+// ✅ DO: derive from source of truth
 const toolSchema = storageSchema.shape.config
   .partial()
   .describe("Configuration options");
 
-// ❌ DON'T — create "slightly different" schemas
+// ❌ DON'T: create "slightly different" schemas
 const toolSchema = z.object({
   col: z.string(), // renamed from "column"
   vals: z.array(), // renamed from "values"
@@ -109,13 +109,13 @@ const toolSchema = z.object({
 - **Layer 2 (Runtime):** Data-dependent validation
 
 ```typescript
-// Layer 1 — schema validation
+// Layer 1: schema validation
 const schema = z.object({
   indicatorId: z.string(),
   dateRange: z.object({ start: z.string(), end: z.string() }),
 });
 
-// Layer 2 — runtime validation
+// Layer 2: runtime validation
 async function validate(data: SchemaType): Promise<ValidationResult> {
   const indicator = await db.getIndicator(data.indicatorId);
   if (!indicator) {
@@ -130,14 +130,14 @@ async function validate(data: SchemaType): Promise<ValidationResult> {
 ### Error Handling
 
 ```typescript
-// ❌ DON'T — catch and return string
+// ❌ DON'T: catch and return string
 try {
   await riskyOperation();
 } catch (e) {
   return { success: false, err: "Something went wrong" };
 }
 
-// ✅ DO — let errors propagate with context
+// ✅ DO: let errors propagate with context
 await riskyOperation().catch((e) => {
   throw new Error(`Operation failed for ${id}: ${e.message}`);
 });
@@ -146,13 +146,13 @@ await riskyOperation().catch((e) => {
 ### Validation Location
 
 ```typescript
-// ❌ DON'T — validate deep in business logic
+// ❌ DON'T: validate deep in business logic
 function processData(data: unknown) {
   if (!data.id) throw new Error("Missing id");
   // ...
 }
 
-// ✅ DO — validate at route handler boundary
+// ✅ DO: validate at route handler boundary
 export async function handleProcess(c: Context) {
   const parsed = schema.safeParse(await c.req.json());
   if (!parsed.success) {

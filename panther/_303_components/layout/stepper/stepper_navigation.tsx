@@ -6,10 +6,10 @@
 import { Button } from "../../form_inputs/mod.ts";
 import type { Stepper } from "./get_stepper.ts";
 
-interface StepperNavigationProps {
+type StepperNavigationProps = {
   stepper: Stepper;
   stepLabelFormatter?: (step: number) => string;
-}
+};
 
 export function StepperNavigation(p: StepperNavigationProps) {
   const formatter = (step: number) => (p.stepLabelFormatter ?? String)(step);

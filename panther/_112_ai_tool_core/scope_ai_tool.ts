@@ -3,13 +3,13 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-// scopeAITool (PLAN_112, D7): add one required string scope parameter (e.g.
+// scopeAITool: add one required string scope parameter (e.g.
 // projectId) to an existing headless tool at the MCP boundary. The template
 // tool supplies name/description/schema; `resolve` supplies the per-call
 // inner tool bound to the scoped context — all app knowledge lives there.
 // The wrapper's parse returns the FULL input including the scope param, so
 // the MCP core's argsKey staging binds an approval to the scope: a confirm
-// can never commit into a different scope than previewed (D1).
+// can never commit into a different scope than previewed.
 //
 // bindAITool (below) is the no-parameter sibling: same static template, same
 // per-call resolve, but the surface — not the model — picks the context.

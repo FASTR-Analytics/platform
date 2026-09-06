@@ -11,7 +11,8 @@ import type {
 import type { GraphIndex } from "../_internal/graph_index.ts";
 import type { PriorIndex } from "../stability.ts";
 import type { GroupIndex } from "../transform/derive.ts";
-import type { RankResult } from "./_1_rank.ts";
+import type { ResolvedSpan, ResolvedZone } from "../_internal/regions.ts";
+import type { RankResult } from "./_1_rank/_1_1_rank.ts";
 
 export const properizeStep: PipelineStep = {
   id: "2",
@@ -22,6 +23,8 @@ export const properizeStep: PipelineStep = {
       state.rank!,
       state.prior,
       state.groupIndex,
+      state.spans ?? [],
+      state.zones ?? [],
     );
   },
 };
@@ -30,14 +33,27 @@ export const properizeStep: PipelineStep = {
 // nodes (one per crossed layer, internal ids only); same-layer edges are
 // extracted here — they skip ordering/placement as edges and re-enter at
 // routing (their endpoints still participate as nodes). Also records each
-// real node's innermost group, which placement's adopt-isolates reads.
+// real node's innermost group, which placement's adopt-isolates reads,
+// marks the gutters where a resolved span starts or ends, and carries
+// the resolved zones to the placement passes.
 export function properizeStage(
   index: GraphIndex,
   rank: RankResult,
   prior: PriorIndex | undefined,
   groupIndex: GroupIndex,
+  spans: ResolvedSpan[],
+  zones: ResolvedZone[],
 ): ProperGraph {
   const layerCount = rank.layerValueByIndex.length;
+  const laneBoundaries: boolean[] = new Array(layerCount + 1).fill(false);
+  for (const span of spans) {
+    if (span.fromLayerIndex > 0) {
+      laneBoundaries[span.fromLayerIndex] = true;
+    }
+    if (span.toLayerIndex < layerCount - 1) {
+      laneBoundaries[span.toLayerIndex + 1] = true;
+    }
+  }
   const layers: PNode[][] = Array.from({ length: layerCount }, () => []);
   const pnodeByRealId = new Map<string, PNode>();
 
@@ -144,6 +160,11 @@ export function properizeStage(
     sameLayerEdges,
     crossLayerEdges,
     innermostGroupByNodeId,
+    groupChainById: groupIndex.chainByGroupId,
+    laneBoundaries,
+    zones,
+    coherentRank: new Map(),
+    groupRuns: new Map(),
   };
 }
 

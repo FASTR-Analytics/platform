@@ -32,7 +32,7 @@ export type ActiveTurn = {
   // must never outlive the turn).
   containerId: string | undefined;
   // True once the model's assistant message lands in the store. Drives the
-  // transactional interaction-drain restore (Phase 3): a turn that ends
+  // transactional interaction-drain restore: a turn that ends
   // WITHOUT one never delivered its digest, so the drained entries are
   // restored. The synthetic "[Stopped]" / cancelled-result repairs don't
   // count — only the model's own message consumes the digest.
@@ -44,7 +44,7 @@ export type ActiveTurn = {
   resolveOnFinish: Array<() => void>;
   // Cancels THIS turn's currently-executing promise-blocking card
   // (ask_user_questions), set by the loop around the block's await and
-  // called by stopGeneration. Turn-scoped ON PURPOSE (Phase 4 review H2): a
+  // called by stopGeneration. Turn-scoped ON PURPOSE: a
   // registry-wide sweep cancelled another conversation's pending question
   // when two chats shared the same tool instance.
   cancelPendingInteraction: (() => void) | null;

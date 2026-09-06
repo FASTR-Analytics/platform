@@ -14,6 +14,10 @@ export type {
   ProposalPreview,
 } from "../_112_ai_tool_core/mod.ts";
 export { authorize } from "../_113_identity/mod.ts";
-export type { Guard, IdentityProvider } from "../_113_identity/mod.ts";
+export type {
+  Guard,
+  GuardDecision,
+  IdentityProvider,
+} from "../_113_identity/mod.ts";
 export { z } from "zod";
 export type { z as zType } from "zod";

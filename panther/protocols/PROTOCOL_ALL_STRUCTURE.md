@@ -4,12 +4,12 @@
 
 ## Rules
 
-1. **Never modify panther/** — External library, auto-synced
-2. **Barrel exports via mod.ts** — Not `index.ts`
-3. **Underscore prefix for internal** — `_internal/`, `_helpers.ts`
-4. **Domain types centralized** — In `data/types.ts` or `lib/types/`
-5. **Static imports only** — Never dynamic imports
-6. **Exports before helpers** — Main functions at top of file
+1. **Never modify panther/**: External library, auto-synced
+2. **Barrel exports via mod.ts**: Not `index.ts`
+3. **Underscore prefix for internal**: `_internal/`, `_helpers.ts`
+4. **Domain types centralized**: In `data/types.ts` or `lib/types/`
+5. **Static imports only**: Never dynamic imports
+6. **Exports before helpers**: Main functions at top of file
 
 ## File Naming
 
@@ -113,14 +113,14 @@ export type { MyType } from "./types.ts";
 ### Type Organization
 
 ```typescript
-// ❌ DON'T — types scattered
+// ❌ DON'T: types scattered
 // components/Card.tsx
 export type CardProps = { ... };
 
 // pages/Dashboard.tsx
 export type DashboardData = { ... };
 
-// ✅ DO — centralized
+// ✅ DO: centralized
 // data/types.ts
 export type CardProps = { ... };
 export type DashboardData = { ... };

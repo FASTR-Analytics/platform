@@ -4,19 +4,17 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 // The 2025-11-25 protocol adapter + stdio transport for createMCPServer.
-// ONE revision, selected by the Phase 0 wire spike (PLAN_305_MCP_SERVER.md):
+// ONE revision:
 // Claude Code speaks the legacy initialize handshake and answers
 // server-initiated elicitation/create on stdio. The adapter owns everything
 // wire-shaped — framing, negotiation, the elicit round trip, the serialized
 // tools/call queue, cancellation — and drives the era-agnostic core through
-// callTool/resumeToolCall. Tripwire resolution (2026-08-06, PLAN_112): the
-// second adapter arrived (remote HTTP) and the flip to the official SDK
-// HAPPENED — the HTTP adapter (_220_mcp_http/createMCPHttpHandler) is built
-// on @modelcontextprotocol/server v2 and serves both protocol eras through
-// the SDK's inbound ladder. THIS stdio adapter is grandfathered as-is:
-// live-verified, zero-dep, browser-inert, and not worth churning until there
-// is a concrete reason to consolidate it onto the SDK. Its dispatch
-// semantics remain the reference behavior the HTTP adapter mirrors.
+// callTool/resumeToolCall. The HTTP adapter (_220_mcp_http/
+// createMCPHttpHandler) is built on @modelcontextprotocol/server v2 and
+// serves both protocol eras through the SDK's inbound ladder. This stdio
+// adapter stays hand-rolled: live-verified, zero-dep, browser-inert, and not
+// worth consolidating onto the SDK without a concrete reason. Its dispatch
+// semantics are the reference behavior the HTTP adapter mirrors.
 
 import {
   type MCPCallOutcome,

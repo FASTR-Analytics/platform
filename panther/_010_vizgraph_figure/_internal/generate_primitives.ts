@@ -28,6 +28,7 @@ import type {
   RenderContext,
   Spacing,
   VizGraphEdgePrimitive,
+  VizGraphLanePrimitive,
   VizGraphNodeInfo,
   VizGraphNodePrimitive,
   VizGraphUnfoldedGroupPrimitive,
@@ -36,6 +37,7 @@ import type {
   VizGraphCustomNode,
   VizGraphData,
   VizGraphDataGroup,
+  VizGraphDataLane,
   VizGraphDataNode,
 } from "../types.ts";
 
@@ -79,8 +81,65 @@ type VizGraphBundle = {
   // §5a: one wrap width per labeled unfolded group, used by BOTH the
   // pre-layout header measurement and the render-time re-wrap.
   labelWrapWidthById: Map<string, number>;
+  laneById: Map<string, VizGraphDataLane>;
+  // The same rule for lane headers: one wrap width per labeled lane.
+  laneLabelWrapWidthById: Map<string, number>;
   runLayout: (fitWidth: number) => Geometry;
 };
+
+// A lane header wraps at the lane's own natural width — the widest member
+// per layer, summed with the ideal layer gaps between its layers — so the
+// header never widens the lane; the reserved row and the rendered text
+// share that width. Members without a layer can't be assigned to columns
+// pre-layout, so the widest member stands in; a memberless lane falls back
+// to the global cap.
+function computeLaneLabelWrapWidths(
+  data: VizGraphData,
+  s: MergedVizGraphStyle,
+  measureNode: NodeMeasurer,
+): Map<string, number> {
+  const wrapWidths = new Map<string, number>();
+  const lanes = data.lanes ?? [];
+  if (lanes.length === 0) {
+    return wrapWidths;
+  }
+  const spacing = {
+    ...DEFAULT_SPACING,
+    ...scaleSpacing(data.layoutOptions?.spacing, s.alreadyScaledValue),
+  };
+  const layerGap = typeof spacing.layerGap === "number"
+    ? spacing.layerGap
+    : spacing.layerGap.ideal;
+  const widthOf = (node: VizGraphDataNode): number =>
+    node.size?.w ?? measureNode(node.id, Infinity).w;
+  for (const lane of lanes) {
+    if (lane.label === undefined) {
+      continue;
+    }
+    const members = data.nodes.filter((n) => n.laneId === lane.id);
+    if (members.length === 0) {
+      wrapWidths.set(lane.id, s.nodes.maxTextWidth);
+      continue;
+    }
+    if (members.some((m) => m.layer === undefined)) {
+      wrapWidths.set(lane.id, Math.max(...members.map(widthOf)));
+      continue;
+    }
+    const colW = new Map<number, number>();
+    for (const member of members) {
+      colW.set(
+        member.layer!,
+        Math.max(colW.get(member.layer!) ?? 0, widthOf(member)),
+      );
+    }
+    let total = 0;
+    for (const w of colW.values()) {
+      total += w;
+    }
+    wrapWidths.set(lane.id, total + (colW.size - 1) * layerGap);
+  }
+  return wrapWidths;
+}
 
 // The header label's wrap width is the group's own first-layer column width:
 // the widest single member in the group's minimum layer (members of a layer
@@ -294,7 +353,42 @@ function buildVizGraphBundle(
         h: mt.dims.h() + 2 * s.groups.labelInset,
       };
     }
-    return { id: group.id, parentId: group.parentId, label, folded };
+    return {
+      id: group.id,
+      parentId: group.parentId,
+      label,
+      folded,
+      span: group.span,
+      zone: group.zone,
+      coherent: group.coherent,
+      shape: group.shape,
+    };
+  });
+
+  // Lanes (M5): like a group header, a lane label crosses into the engine
+  // as a measured {w, h} block, wrapped at the lane's natural width.
+  const laneById = new Map(
+    (data.lanes ?? []).map((lane) => [lane.id, lane]),
+  );
+  const laneLabelWrapWidthById = computeLaneLabelWrapWidths(
+    data,
+    s,
+    measureNode,
+  );
+  const modelLanes = (data.lanes ?? []).map((lane) => {
+    let label: { w: number; h: number } | undefined;
+    if (lane.label !== undefined) {
+      const mt = rc.mText(
+        lane.label,
+        s.text.laneLabel,
+        laneLabelWrapWidthById.get(lane.id)! + TEXT_WIDTH_EPS,
+      );
+      label = {
+        w: mt.dims.w() + 2 * s.lanes.labelInset,
+        h: mt.dims.h() + 2 * s.lanes.labelInset,
+      };
+    }
+    return { id: lane.id, label, minSize: lane.minSize };
   });
 
   // Ids must be unique or the engine's keyed output drops edges: suffix
@@ -337,8 +431,10 @@ function buildVizGraphBundle(
       layer: node.layer,
       seq: node.seq,
       groupId: node.groupId,
+      laneId: node.laneId,
     })),
     edges: modelEdges,
+    lanes: modelLanes.length > 0 ? modelLanes : undefined,
     groups: modelGroups.length > 0 ? modelGroups : undefined,
     constraints: data.constraints,
   };
@@ -359,6 +455,8 @@ function buildVizGraphBundle(
     groupById,
     groupStyleById,
     labelWrapWidthById,
+    laneById,
+    laneLabelWrapWidthById,
     runLayout,
   };
 }
@@ -385,7 +483,7 @@ function scaleSpacing(
   return {
     nodeGap: merged.nodeGap * k,
     layerGap: scaleGap(merged.layerGap, k),
-    laneGap: merged.laneGap * k,
+    laneGap: scaleGap(merged.laneGap, k),
     trackGap: merged.trackGap * k,
     portGap: scaleGap(merged.portGap, k),
     portMargin: merged.portMargin * k,
@@ -583,7 +681,81 @@ export function generateVizGraphPrimitives(
     );
   }
 
+  // Lane boxes (M5): full-height bands behind everything, the header text
+  // in the row the engine reserved.
+  for (const [laneId, laneGeom] of Object.entries(geometry.lanes)) {
+    primitives.push(
+      generateLanePrimitive(
+        rc,
+        laneId,
+        laneGeom,
+        dx,
+        dy,
+        bundle.laneById.get(laneId)!,
+        bundle.laneLabelWrapWidthById.get(laneId),
+        s,
+      ),
+    );
+  }
+
   return primitives;
+}
+
+function generateLanePrimitive(
+  rc: RenderContext,
+  laneId: string,
+  laneGeom: Geometry["lanes"][string],
+  dx: number,
+  dy: number,
+  lane: VizGraphDataLane,
+  labelWrapWidth: number | undefined,
+  s: MergedVizGraphStyle,
+): VizGraphLanePrimitive {
+  const rcd = new RectCoordsDims({
+    x: laneGeom.x + dx,
+    y: laneGeom.y + dy,
+    w: laneGeom.w,
+    h: laneGeom.h,
+  });
+  // Stroke straddles the drawn path — inset by half the border, like nodes.
+  const border = s.lanes.strokeWidth;
+  const primitive: VizGraphLanePrimitive = {
+    type: "vizgraph-lane",
+    key: `vizgraph-lane-${laneId}`,
+    bounds: rcd,
+    zIndex: Z_INDEX.VIZGRAPH_LANE,
+    meta: { laneId },
+    rcd: new RectCoordsDims({
+      x: rcd.x() + border / 2,
+      y: rcd.y() + border / 2,
+      w: Math.max(0, rcd.w() - border),
+      h: Math.max(0, rcd.h() - border),
+    }),
+    rectStyle: {
+      fillColor: s.lanes.fillColor,
+      strokeColor: s.lanes.strokeColor,
+      strokeWidth: s.lanes.strokeWidth,
+      rectRadius: s.lanes.rectRadius,
+    },
+  };
+  if (lane.label !== undefined) {
+    // Left-aligned in the header row, re-wrapped at the SAME width the
+    // pre-layout measurement used (the group rule, §5a).
+    const inset = s.lanes.labelInset;
+    const mText = rc.mText(
+      lane.label,
+      s.text.laneLabel,
+      (labelWrapWidth ?? s.nodes.maxTextWidth) + TEXT_WIDTH_EPS,
+    );
+    primitive.text = {
+      mText,
+      position: new Coordinates([
+        laneGeom.header.x + dx + inset + mText.dims.w() / 2,
+        laneGeom.header.y + dy + laneGeom.header.h / 2,
+      ]),
+    };
+  }
+  return primitive;
 }
 
 function generateGroupBoxPrimitive(

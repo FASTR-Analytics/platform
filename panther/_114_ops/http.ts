@@ -3,12 +3,12 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-// The RPC door: web-standard Request → Response over the kernel (panterra
-// decision 15: every server op is POST /api/op/<name>). Framework-free —
+// The RPC door: web-standard Request → Response over the kernel (every
+// server op is POST /api/op/<name>). Framework-free:
 // the app mounts it in one line (Hono: `app.post("/api/op/:name", (c) =>
 // door(c.req.raw))`). This projection is deliberately small: if it ever
 // needs the kernel changed to accommodate it, that is a coupling finding,
-// not a patch site (panterra E1).
+// not a patch site.
 //
 // The door owns exactly the transport concerns the kernel must never see:
 // method discipline, tri-state credential resolution (_113: identity | null

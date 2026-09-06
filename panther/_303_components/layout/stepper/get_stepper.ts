@@ -5,21 +5,21 @@
 
 import { type Accessor, createSignal, type Setter } from "solid-js";
 
-export interface StepValidation {
+export type StepValidation = {
   canGoPrev: boolean;
   canGoNext: boolean;
-}
+};
 
-export interface GetStepperOptions<T> {
+export type GetStepperOptions<T> = {
   initialStep?: number;
   minStep?: number;
   maxStep?: number;
   getValidation: (step: number, data: T) => StepValidation;
-}
+};
 
 export type StepStatus = "completed" | "current" | "available" | "locked";
 
-export interface Stepper {
+export type Stepper = {
   currentStep: Accessor<number>;
   setCurrentStep: Setter<number>;
   goNext: () => void;
@@ -30,7 +30,7 @@ export interface Stepper {
   getAllSteps: () => number[];
   minStep: number;
   maxStep: number;
-}
+};
 
 export function getStepper<T>(
   data: Accessor<T>,

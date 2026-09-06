@@ -6,6 +6,8 @@
 import type { PNode, ProperGraph } from "../_internal/pipeline_types.ts";
 import type { PassContext, PlacementPass } from "./types.ts";
 import { requiredGap } from "./types.ts";
+import type { ZoneInterval } from "./zones.ts";
+import { zoneIntervals } from "./zones.ts";
 
 // void-bound (DOC_VIZGRAPH_PLACEMENT.md): the whitespace invariant — no
 // horizontal band of the drawing that is free of ink may exceed maxVoid.
@@ -27,9 +29,12 @@ import { requiredGap } from "./types.ts";
 // Occupancy is every PNode's y-span — dummies (h = 0) included, because an
 // edge lane is ink: a long edge crossing the middle of the drawing keeps
 // the band it runs through alive, and a band this pass closes therefore has
-// nothing drawn in it in ANY column. Loose whitespace the composition wants
-// is untouched: a sparse layer beside a tall one is not a band (the tall
-// layer occupies those y's).
+// nothing drawn in it in ANY column, plus every zone's reserved interval:
+// a reserved box is drawn, so it is ink too, and the zone-reserve
+// clearance between a zone and its non-members clamps a shift exactly as
+// an in-layer pair's requiredGap does (region-free models add nothing).
+// Loose whitespace the composition wants is untouched: a sparse layer
+// beside a tall one is not a band (the tall layer occupies those y's).
 //
 // Order/gap and straightness invariants hold BY CONSTRUCTION. Every node
 // lies wholly above or wholly below a node-free band, so closing one is a
@@ -67,8 +72,9 @@ export function voidBound(params?: Partial<VoidBoundParams>): PlacementPass {
       // translates both sides of every band below it equally, so their
       // straddling gaps are unaffected and the passes are independent.
       const y0 = new Map<PNode, number>(all.map((n) => [n, n.y]));
-      for (const band of findBands(all, maxVoid)) {
-        const shift = feasibleShift(proper, ctx, y0, band, maxVoid);
+      const zones = zoneIntervals(proper);
+      for (const band of findBands(all, zones, maxVoid)) {
+        const shift = feasibleShift(proper, ctx, y0, zones, band, maxVoid);
         if (shift <= EPS) {
           continue;
         }
@@ -84,10 +90,16 @@ export function voidBound(params?: Partial<VoidBoundParams>): PlacementPass {
 
 type Band = { top: number; bottom: number };
 
-// Maximal gaps in the union of node y-spans, top-down, wider than maxVoid.
-function findBands(all: PNode[], maxVoid: number): Band[] {
+// Maximal gaps in the union of node y-spans (and zone intervals), top-down,
+// wider than maxVoid.
+function findBands(
+  all: PNode[],
+  zones: ZoneInterval[],
+  maxVoid: number,
+): Band[] {
   const spans = all
     .map((n) => [n.y, n.y + n.h] as [number, number])
+    .concat(zones.map((z) => [z.top, z.bottom] as [number, number]))
     .sort((a, b) => a[0] - b[0] || a[1] - b[1]);
   const bands: Band[] = [];
   let cur = spans[0][1];
@@ -101,11 +113,14 @@ function findBands(all: PNode[], maxVoid: number): Band[] {
 }
 
 // How far the below-part may rise: down to maxVoid, but never past the
-// separation the tightest straddling in-layer pair needs.
+// separation the tightest straddling in-layer pair needs, nor past the
+// clearance a zone keeps against the real non-members on the other side of
+// the band in the layers it spans.
 function feasibleShift(
   proper: ProperGraph,
   ctx: PassContext,
   y0: Map<PNode, number>,
+  zones: ZoneInterval[],
   band: Band,
   maxVoid: number,
 ): number {
@@ -122,6 +137,29 @@ function feasibleShift(
         shift,
         y0.get(below)! - aBottom - requiredGap(above, below, ctx.spacing),
       );
+    }
+  }
+  const nodeGap = ctx.spacing.nodeGap;
+  for (const { zone, top, bottom } of zones) {
+    const members = new Set(zone.region.memberIds);
+    const zoneBelow = top >= band.bottom - EPS;
+    const zoneAbove = bottom <= band.top + EPS;
+    if (!zoneBelow && !zoneAbove) {
+      continue;
+    }
+    for (let l = zone.fromLayerIndex; l <= zone.toLayerIndex; l++) {
+      for (const r of proper.layers[l]) {
+        if (r.isDummy || members.has(r.id)) {
+          continue;
+        }
+        const rTop = y0.get(r)!;
+        const rBottom = rTop + r.h;
+        if (zoneBelow && rBottom <= band.top + EPS) {
+          shift = Math.min(shift, top - rBottom - r.padBottom - nodeGap);
+        } else if (zoneAbove && rTop >= band.bottom - EPS) {
+          shift = Math.min(shift, rTop - r.padTop - bottom - nodeGap);
+        }
+      }
     }
   }
   return shift;

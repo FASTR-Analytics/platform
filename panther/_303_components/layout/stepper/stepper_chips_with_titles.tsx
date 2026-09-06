@@ -6,7 +6,7 @@
 import { For, Show } from "solid-js";
 import type { Stepper } from "./get_stepper.ts";
 
-interface StepperChipsWithTitlesProps {
+type StepperChipsWithTitlesProps = {
   stepper: Stepper;
   /** Label per step, indexed by (step - minStep). If omitted, only the
    * number chip is shown. */
@@ -15,7 +15,7 @@ interface StepperChipsWithTitlesProps {
    * stepper.getAllSteps(). Useful for conditionally hiding steps. */
   visibleSteps?: number[];
   onStepClick?: (step: number) => void;
-}
+};
 
 /**
  * Horizontal numbered-chip stepper with inline titles.

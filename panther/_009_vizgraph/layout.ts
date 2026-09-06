@@ -7,19 +7,22 @@ import type {
   EdgeGeom,
   Geometry,
   GroupGeom,
+  LaneGeom,
   NodeGeom,
   Rect,
 } from "./types_geometry.ts";
 import type { GraphModel, GroupIn } from "./types_model.ts";
-import type { LayoutOptions } from "./types_options.ts";
+import type { LayoutOptions, ResolvedSpacing } from "./types_options.ts";
+import type { ResolvedSpan } from "./_internal/regions.ts";
 import { buildOrderRecord } from "./stability.ts";
 import { deriveGroupGeoms } from "./transform/derive.ts";
+import { zoneIntervals } from "./placement/zones.ts";
 import { createPipelineState, runPipeline } from "./pipeline.ts";
 import { DEFAULT_CORNER_RADIUS } from "./stages/_6_route/route_shared.ts";
 
 // [T] transform + the six numbered stages (pipeline.ts — the sequence is
 // data there, shared with the stage film), then [7] assembly: node/group
-// geoms, bounds, and the stability order record
+// geoms, lane boxes, bounds, and the stability order record
 // (DOC_VIZGRAPH_ARCHITECTURE.md stage pipeline).
 export function layout(model: GraphModel, options?: LayoutOptions): Geometry {
   const state = createPipelineState(model, options);
@@ -64,6 +67,14 @@ export function layout(model: GraphModel, options?: LayoutOptions): Geometry {
       }
     }
   }
+  // Rect zones: the reserved interval the zone-reserve pass made
+  // exclusive is the rectangle's cross-axis extent.
+  const rectZones = new Map<string, { top: number; bottom: number }>();
+  for (const iv of zoneIntervals(proper)) {
+    if (iv.zone.region.shape === "rect") {
+      rectZones.set(iv.zone.region.id, { top: iv.top, bottom: iv.bottom });
+    }
+  }
   const groups = deriveGroupGeoms(
     state.groupIndex,
     nodes,
@@ -71,8 +82,18 @@ export function layout(model: GraphModel, options?: LayoutOptions): Geometry {
     collapsed.edges,
     new Set(foldedGroupById.keys()),
     foldedGroupById,
+    rectZones,
     state.spacing,
     options?.cornerRadius ?? DEFAULT_CORNER_RADIUS,
+  );
+
+  const lanes = deriveLaneGeoms(
+    state.spans ?? [],
+    state.route!,
+    nodes,
+    edges,
+    groups,
+    state.spacing,
   );
 
   return {
@@ -80,10 +101,11 @@ export function layout(model: GraphModel, options?: LayoutOptions): Geometry {
       Object.values(nodes),
       Object.values(edges),
       Object.values(groups),
+      Object.values(lanes),
     ),
     nodes,
     edges,
-    lanes: {},
+    lanes,
     groups,
     hitAreas: [],
     warnings: state.warnings,
@@ -91,10 +113,63 @@ export function layout(model: GraphModel, options?: LayoutOptions): Geometry {
   };
 }
 
+// Lane boxes: a lane spans its columns (plus the group inset on both
+// sides) and the FULL drawing height — every lane the same band, header row
+// on top (uniform: the tallest lane label, so lane tops align — the
+// ept-lineage look), inset below. Nodes never move for a lane; the box and
+// the bounds grow around them. Span groups have no box here (they keep
+// their hug ring in `groups`).
+function deriveLaneGeoms(
+  spans: ResolvedSpan[],
+  route: { columnX?: number[]; columnW?: number[] },
+  nodes: Record<string, NodeGeom>,
+  edges: Record<string, EdgeGeom>,
+  groups: Record<string, GroupGeom>,
+  spacing: ResolvedSpacing,
+): Record<string, LaneGeom> {
+  const laneSpans = spans.filter((span) => span.region.source === "lane");
+  if (laneSpans.length === 0 || route.columnX === undefined) {
+    return {};
+  }
+  const content = computeBounds(
+    Object.values(nodes),
+    Object.values(edges),
+    Object.values(groups),
+    [],
+  );
+  const headerH = Math.max(
+    0,
+    ...laneSpans.map((span) => span.region.label?.h ?? 0),
+  );
+  const y = content.y - spacing.groupPad - headerH;
+  const h = content.h + 2 * spacing.groupPad + headerH;
+  const lanes: Record<string, LaneGeom> = {};
+  for (const span of laneSpans) {
+    const x = route.columnX[span.fromLayerIndex] - spacing.groupPad;
+    const right = route.columnX[span.toLayerIndex] +
+      route.columnW![span.toLayerIndex] + spacing.groupPad;
+    const w = right - x;
+    lanes[span.region.id] = {
+      x,
+      y,
+      w,
+      h,
+      header: {
+        x,
+        y,
+        w: Math.min(span.region.label?.w ?? w, w),
+        h: headerH,
+      },
+    };
+  }
+  return lanes;
+}
+
 function computeBounds(
   nodeGeoms: NodeGeom[],
   edgeGeoms: EdgeGeom[],
   groupGeoms: GroupGeom[],
+  laneGeoms: LaneGeom[],
 ): Rect {
   if (nodeGeoms.length === 0) {
     return { x: 0, y: 0, w: 0, h: 0 };
@@ -122,6 +197,12 @@ function computeBounds(
     minY = Math.min(minY, g.y);
     maxX = Math.max(maxX, g.x + g.w);
     maxY = Math.max(maxY, g.y + g.h);
+  }
+  for (const l of laneGeoms) {
+    minX = Math.min(minX, l.x);
+    minY = Math.min(minY, l.y);
+    maxX = Math.max(maxX, l.x + l.w);
+    maxY = Math.max(maxY, l.y + l.h);
   }
   return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
 }

@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-// The notify seam's server half (panterra Phase 5): the change-event hub
+// The notify seam's server half: the change-event hub
 // the kernel emits into, and the guarded SSE door subscribers connect to.
 // Events are pokes ({ type: "op", name, scope? }), never payloads — the
 // guarded read path stays the only data and authorization channel, so the
@@ -14,7 +14,7 @@
 
 import { authorize } from "./deps.ts";
 import type { Guard, IdentityProvider } from "./deps.ts";
-import type { OpChangeEvent } from "./types.ts";
+import type { OpChangeEvent, OpResourceGuard } from "./types.ts";
 
 const DEFAULT_HEARTBEAT_MS = 30_000;
 
@@ -58,12 +58,20 @@ export function createOpEventHub(): OpEventHub {
 export type OpEventsHandlerConfig<TIdentity> = {
   hub: OpEventHub;
   provider: IdentityProvider<TIdentity>;
-  // The subscription guard (panterra D4): judged at connect through _113's
+  // The subscription guard: judged at connect through _113's
   // one evaluation order (null → 401, deny → 403 with the readable reason,
   // throw → 503), then re-run per delivery so a mid-connection revocation
-  // stops events without waiting for a reconnect. Per-scope ACLs ride this
-  // same seam — a guard closing over the request's scope.
+  // stops events without waiting for a reconnect.
   guard: Guard<TIdentity>;
+  // The per-scope guard — the same arg-aware kind the kernel's resource step
+  // uses (panterra decision 28), so the pokes a subscriber may hear are
+  // exactly the scopes it may read. Judged at connect for a named ?scope
+  // (deny → 403 with the reason, throw → 503) and per delivery for every
+  // scoped event — a scopeless subscription hears global events plus the
+  // scopes it passes, never everything. Omitted only by an app whose ops
+  // declare no resource policy; declared, it fails closed (a deny or a throw
+  // skips the poke).
+  scopeGuard?: OpResourceGuard<TIdentity>;
   heartbeatMs?: number;
 };
 
@@ -93,6 +101,24 @@ export function createOpEventsHandler<TIdentity>(
     const scope = scopeParam === null || scopeParam === ""
       ? undefined
       : scopeParam;
+    if (scope !== undefined && config.scopeGuard !== undefined) {
+      let scoped;
+      try {
+        scoped = await config.scopeGuard(identity, scope);
+      } catch (cause) {
+        console.error("Scope guard failure:", cause);
+        return Response.json(
+          { success: false, err: "Authorization service unavailable" },
+          { status: 503 },
+        );
+      }
+      if (!scoped.allow) {
+        return Response.json(
+          { success: false, err: scoped.reason },
+          { status: 403 },
+        );
+      }
+    }
 
     const encoder = new TextEncoder();
     let cleanup = () => {};
@@ -112,14 +138,21 @@ export function createOpEventsHandler<TIdentity>(
         const unsubscribe = config.hub.subscribe({
           scope,
           deliver: (event) => {
-            // Guard re-check per delivery: a deny stops the poke; a throw
-            // is "cannot judge" — fail closed and skip this delivery (the
-            // client's next reconnect re-authorizes in full).
+            // Guard re-check per delivery — the identity guard, then the
+            // scope guard for a scoped event: a deny stops the poke; a
+            // throw is "cannot judge" — fail closed and skip this delivery
+            // (the client's next reconnect re-authorizes in full).
             void (async () => {
               try {
                 const decision = await config.guard(identity);
                 if (!decision.allow) {
                   return;
+                }
+                if (event.scope !== undefined && config.scopeGuard) {
+                  const scoped = await config.scopeGuard(identity, event.scope);
+                  if (!scoped.allow) {
+                    return;
+                  }
                 }
               } catch {
                 return;

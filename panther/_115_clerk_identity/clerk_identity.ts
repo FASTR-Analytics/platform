@@ -3,8 +3,8 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-// Clerk providers behind the _113 identity seam (graduated from the
-// panterra lab, Phase 3/4). The module owns credential JUDGMENT — token-type
+// Clerk providers behind the _113 identity seam. The module owns credential
+// JUDGMENT: token-type
 // pins, tri-state reason classification, the load-bearing OAuth user cache;
 // the app owns identity CONSTRUCTION — what an identity is, how session
 // claims or a fetched user become one, and who holds which role.

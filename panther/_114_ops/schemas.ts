@@ -25,6 +25,7 @@ export const zOpCatalogEntry: zType.ZodType<OpCatalogEntry> = z.object({
   title: z.string(),
   description: z.string(),
   auth: z.string(),
+  resource: z.string().optional(),
   exposure: zOpExposure,
   approval: z.boolean(),
   streaming: z.boolean(),

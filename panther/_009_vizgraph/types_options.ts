@@ -35,9 +35,9 @@ export type NodeMeasurer = (
 // IS off.
 export type GapRange = { min: number; ideal: number };
 
-// layerGap is pressure-responsive (gaps-first, PLAN M4-polish 7): under
-// fit.width pressure it compresses ideal→min BEFORE any node text rewraps.
-// A bare number means fixed (exact pre-range behavior).
+// layerGap is pressure-responsive (gaps-first): under fit.width pressure
+// it compresses ideal→min BEFORE any node text rewraps. A bare number means
+// fixed (min == ideal).
 //
 // portGap is pressure-responsive too, against SIDE-LENGTH pressure: a
 // left/right port fan spreads at ideal, compresses ideal→min when the side
@@ -49,14 +49,19 @@ export type GapRange = { min: number; ideal: number };
 // compress, always grow to the full gap. Top/bottom fans (immediate edges)
 // compress freely regardless — the floor governs only the horizontal
 // segments joining left/right sides.
+//
+// laneGap is EXTRA gutter width at a span boundary (a gutter where a lane or
+// span group starts or ends), on top of layerGap, so lane boxes get
+// daylight between them; pressure-responsive like layerGap (gaps-first —
+// both compress by the same fraction). A bare number means fixed.
 export type Spacing = {
   nodeGap: number;
   layerGap: number | GapRange;
-  laneGap: number;
+  laneGap: number | GapRange;
   trackGap: number;
   portGap: number | GapRange;
   portMargin: number;
-  // Inset between a group's box and its member nodes (M6); the box also
+  // Inset between a group's box and its member nodes; the box also
   // reserves the group label's height above its first member.
   groupPad: number;
 };
@@ -65,12 +70,16 @@ export type Spacing = {
 // current pressure state (stage 4 lowers layerGap within layerGapRange;
 // portGap resolves to its ideal — the floor is read from portGapRange by the
 // port-gap floor and by assignPorts' compression).
-export type ResolvedSpacing = Omit<Spacing, "layerGap" | "portGap"> & {
-  layerGap: number;
-  layerGapRange: GapRange;
-  portGap: number;
-  portGapRange: GapRange;
-};
+export type ResolvedSpacing =
+  & Omit<Spacing, "layerGap" | "laneGap" | "portGap">
+  & {
+    layerGap: number;
+    layerGapRange: GapRange;
+    laneGap: number;
+    laneGapRange: GapRange;
+    portGap: number;
+    portGapRange: GapRange;
+  };
 
 export const DEFAULT_SPACING: Spacing = {
   nodeGap: 24,
@@ -88,12 +97,18 @@ export function resolveSpacing(
   const merged = { ...DEFAULT_SPACING, ...input };
   const lg = merged.layerGap;
   const layerGapRange = typeof lg === "number" ? { min: lg, ideal: lg } : lg;
+  const lane = merged.laneGap;
+  const laneGapRange = typeof lane === "number"
+    ? { min: lane, ideal: lane }
+    : lane;
   const pg = merged.portGap;
   const portGapRange = typeof pg === "number" ? { min: pg, ideal: pg } : pg;
   return {
     ...merged,
     layerGap: layerGapRange.ideal,
     layerGapRange,
+    laneGap: laneGapRange.ideal,
+    laneGapRange,
     portGap: portGapRange.ideal,
     portGapRange,
   };

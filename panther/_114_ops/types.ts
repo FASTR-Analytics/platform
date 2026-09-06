@@ -9,10 +9,15 @@
 // fields — and the op's NAME is its registry key: there is no second
 // identifier anywhere for a wire path, tool name, or log record to drift
 // from. Policy fields are required; there is no "omitted means default open"
-// (panterra R1/R2 — the wb-fastr survey's 85 unlogged guarded routes and one
-// unguarded route were accidents of per-site opt-in).
+// (the wb-fastr survey's 85 unlogged guarded routes and one unguarded route
+// were accidents of per-site opt-in).
 
-import type { ProposalPreview, QueryState, zType } from "./deps.ts";
+import type {
+  GuardDecision,
+  ProposalPreview,
+  QueryState,
+  zType,
+} from "./deps.ts";
 
 export type OpKind = "read" | "write" | "nav";
 
@@ -28,7 +33,7 @@ export type OpExposure = {
   // Project as an in-app AI tool.
   ai: boolean;
   // Expose on headless surfaces (MCP). Exclusion must carry its reason — a
-  // visible choice, not an omission (panterra R9). The headless catalog is
+  // visible choice, not an omission. The headless catalog is
   // DERIVED from these declarations; there is no separate allowlist to drift.
   headless: true | { excluded: string };
 };
@@ -37,6 +42,7 @@ export type OpContract<
   TAuth extends string = string,
   TInput extends zType.ZodType = zType.ZodType,
   TOutput extends zType.ZodType = zType.ZodType,
+  TResource extends string = string,
 > = {
   kind: OpKind;
   // Human label (buttons, catalog).
@@ -55,33 +61,46 @@ export type OpContract<
   // result (boot refuses one).
   output?: TOutput;
   // The app's policy vocabulary as data; mapped to _113 guards at kernel
-  // boot, which fails when a value has no guard.
+  // boot, which fails when a value has no guard. Judges the IDENTITY alone,
+  // before validation — an unprovisioned identity never sees validation
+  // feedback.
   auth: TAuth;
+  // The app's RESOURCE policy vocabulary as data ("may this identity touch
+  // THIS row"), mapped to arg-aware guards at boot. The resource a call
+  // touches is resolved per op by the impl's `resource` resolver after
+  // validation (an input may carry only an opaque id — only the impl can
+  // name what it belongs to); the guard then judges identity + resource.
+  // Optional because not every op has a resource (listing, creating, the
+  // catalog); when declared, the resolver is required (boot-enforced).
+  resource?: TResource;
   exposure: OpExposure;
   // Confirm-before-apply via _112's propose → preview → commit lifecycle.
   // Writes only; the impl must supply `preview`.
   approval?: true;
   // A write reachable by AI or headless surfaces without approval must say
-  // why — the boot check refuses a bare flagless write (panterra R2/R12).
+  // why: the boot check refuses a bare flagless write.
   approvalExempt?: string;
   // Emits _111 QueryState frames over NDJSON through the same authorized,
-  // logged dispatch. Reads only (Phase 2 scope).
+  // logged dispatch. Reads only.
   streaming?: true;
   // Input fields replaced with "[redacted]" in provenance records. Declared
   // per field on the schema it protects — never guessed from key names.
   redact?: readonly string[];
-  // The scope KIND this write's change event carries (e.g. "project") —
-  // panterra D1. The declaration is data (catalog-visible); the VALUE comes
+  // The scope KIND this write's change event carries (e.g. "project").
+  // The declaration is data (catalog-visible); the VALUE comes
   // from the impl, which returns { scope, result } (OpScoped) — only the
   // impl authoritatively knows the affected scope (a delete's input may
   // carry just an id). Writes only; boot refuses it elsewhere.
   scope?: string;
 };
 
-export type OpRegistry<TAuth extends string = string> = Record<
+export type OpRegistry<
+  TAuth extends string = string,
+  TResource extends string = string,
+> = Record<
   string,
   // deno-lint-ignore no-explicit-any
-  OpContract<TAuth, zType.ZodType<any>, zType.ZodType<any>>
+  OpContract<TAuth, zType.ZodType<any>, zType.ZodType<any>, TResource>
 >;
 
 export type OpArgsOf<C extends OpContract> = zType.infer<C["input"]>;
@@ -100,11 +119,31 @@ export type NavOpNameOf<TReg extends OpRegistry> = {
 
 // What the kernel hands an impl: validated args plus this. Impls never see a
 // Request, a header, or a raw body — identity arrives already resolved
-// (panterra R4) and args already validated.
+// and args already validated.
 export type OpCtx<TIdentity> = {
   identity: TIdentity;
   surface: OpSurface;
 };
+
+// What preview/execute receive: the base ctx plus the resolved resource
+// exactly when the op declares one — resolved ONCE (by the impl's resolver,
+// before the resource guard), never re-derived, and typed present so an impl
+// needs no non-null assertion.
+export type OpCtxFor<C extends OpContract, TIdentity> =
+  & OpCtx<TIdentity>
+  & (C["resource"] extends string ? { resource: string }
+    : { resource?: never });
+
+// A resource guard judges an identity AGAINST a resolved resource (the row,
+// project, document — whatever the impl's resolver named). Same decision
+// contract as _113's Guard: deny with a readable reason, throw only for
+// "cannot judge" (storage down → 503). Admin overrides and resource-state
+// denials (a locked project) are the guard's business — app policy, never
+// the kernel's.
+export type OpResourceGuard<TIdentity> = (
+  identity: TIdentity,
+  resource: string,
+) => GuardDecision | Promise<GuardDecision>;
 
 // What a scoped write's impl resolves to: the result plus the scope value
 // its change event carries. The wire never sees this wrapper — the kernel
@@ -119,34 +158,43 @@ type OpExecuteValue<C extends OpContract> = C["scope"] extends string
 // supply the read-only preview (same trust contract as _112's "propose must
 // be read-only"); scoped writes resolve to { scope, result } (the same
 // conditional-type enforcement as the preview — forgetting the scope is a
-// compile error, never a silently global event); everything else executes
-// to a value. Impls THROW on failure — the kernel owns outcome mapping;
-// OpFailure marks a message as wire-safe, anything else reaches the wire as
-// generic text.
-export type OpImplFor<C extends OpContract, TIdentity> = C["streaming"] extends
-  true ? {
-    execute: (
-      args: OpArgsOf<C>,
-      ctx: OpCtx<TIdentity>,
-    ) => AsyncIterable<QueryState<OpOutputOf<C>>>;
-  }
-  : C["approval"] extends true ? {
-      preview: (
+// compile error, never a silently global event); ops declaring a resource
+// policy must supply the resolver (validated args → the resource the call
+// touches; may look storage up; throws land in the failed funnel);
+// everything else executes to a value. Impls THROW on failure — the kernel
+// owns outcome mapping; OpFailure marks a message as wire-safe, anything
+// else reaches the wire as generic text.
+export type OpImplFor<C extends OpContract, TIdentity> =
+  & (C["resource"] extends string ? {
+      resource: (
         args: OpArgsOf<C>,
         ctx: OpCtx<TIdentity>,
-      ) => ProposalPreview | Promise<ProposalPreview>;
+      ) => string | Promise<string>;
+    }
+    : { resource?: never })
+  & (C["streaming"] extends true ? {
       execute: (
         args: OpArgsOf<C>,
-        ctx: OpCtx<TIdentity>,
-      ) => OpExecuteValue<C> | Promise<OpExecuteValue<C>>;
+        ctx: OpCtxFor<C, TIdentity>,
+      ) => AsyncIterable<QueryState<OpOutputOf<C>>>;
     }
-  : {
-    preview?: never;
-    execute: (
-      args: OpArgsOf<C>,
-      ctx: OpCtx<TIdentity>,
-    ) => OpExecuteValue<C> | Promise<OpExecuteValue<C>>;
-  };
+    : C["approval"] extends true ? {
+        preview: (
+          args: OpArgsOf<C>,
+          ctx: OpCtxFor<C, TIdentity>,
+        ) => ProposalPreview | Promise<ProposalPreview>;
+        execute: (
+          args: OpArgsOf<C>,
+          ctx: OpCtxFor<C, TIdentity>,
+        ) => OpExecuteValue<C> | Promise<OpExecuteValue<C>>;
+      }
+    : {
+      preview?: never;
+      execute: (
+        args: OpArgsOf<C>,
+        ctx: OpCtxFor<C, TIdentity>,
+      ) => OpExecuteValue<C> | Promise<OpExecuteValue<C>>;
+    });
 
 // The impl map is keyed by the registry's server ops: a missing impl, an
 // orphan impl, or an impl for a nav op is a TYPE error here, and the kernel
@@ -156,9 +204,10 @@ export type OpImpls<TReg extends OpRegistry, TIdentity> = {
 };
 
 // One record per ATTEMPTED op, written by dispatch — denials and rejected
-// input included (panterra R7). args are the VALIDATED args after redaction
-// and truncation; denied/invalid records carry no args (nothing unvalidated
-// is ever recorded).
+// input included. args are the VALIDATED args after redaction
+// and truncation; identity denials and invalid records carry no args
+// (nothing unvalidated is ever recorded), while a RESOURCE denial — judged
+// after validation — records them: they name the resource attempted.
 export type OpProvenanceOutcome =
   | "ok"
   | "proposed"
@@ -176,7 +225,8 @@ export type OpProvenanceRecord = {
   op: string;
   kind: Exclude<OpKind, "nav">;
   surface: OpSurface;
-  // Absent on denied/invalid records (nothing unvalidated is ever recorded).
+  // Absent on identity-denied and invalid records (nothing unvalidated is
+  // ever recorded); present on resource denials (validated by then).
   args?: unknown;
   outcome: OpProvenanceOutcome;
   // The committed write's scope VALUE (the impl-returned one the change
@@ -220,6 +270,7 @@ export type OpCatalogEntry = {
   title: string;
   description: string;
   auth: string;
+  resource?: string;
   exposure: OpExposure;
   approval: boolean;
   streaming: boolean;
@@ -233,5 +284,5 @@ export type OpCatalogEntry = {
 
 // Thrown by impls (or previews) whose failure message is safe to show on the
 // wire — the parallel of _112's AIToolFailure. Any other throw reaches the
-// client as generic text with the detail logged server-side (panterra R8).
+// client as generic text with the detail logged server-side.
 export class OpFailure extends Error {}

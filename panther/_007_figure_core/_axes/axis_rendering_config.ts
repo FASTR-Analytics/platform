@@ -10,11 +10,11 @@ import type { XTextAxisMeasuredInfo } from "./x_text/types.ts";
 import type { YAxisWidthInfo } from "../types.ts";
 import type { YTextAxisWidthInfo } from "./y_text/types.ts";
 
-export interface AxisRenderingConfig {
+export type AxisRenderingConfig = {
   categoryIncrement: number;
   isCentered: boolean;
   nVals: number;
-}
+};
 
 export function getXAxisRenderConfig(
   xAxisConfig: XAxisConfig,

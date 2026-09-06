@@ -4,7 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 // Registry → _112 AI tools and registry → MCP tools. Both are a filter +
-// map over the SAME declarations the server boots (panterra R5: exposure is
+// map over the SAME declarations the server boots (exposure is
 // derived; there is no second allowlist to drift). Each surface derives
 // from its own declaration: the in-app AI list from `exposure.ai`, the MCP
 // list from `exposure.headless`.
@@ -96,7 +96,7 @@ function projectOpTool(
       headless,
       // The kernel validates the SAME schema inside run() and records the
       // attempt — a pre-parse here would answer invalid input before
-      // provenance could see it (panterra D6).
+      // provenance could see it.
       validation: "internal",
       approval: {
         propose: async (input: unknown) => {

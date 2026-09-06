@@ -3,11 +3,11 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { LayoutWarning } from "../types_geometry.ts";
-import type { LayoutOptions } from "../types_options.ts";
-import { resolveLayers } from "../_internal/graph_index.ts";
-import type { GraphIndex } from "../_internal/graph_index.ts";
-import type { PipelineStep } from "../_internal/pipeline_types.ts";
+import type { LayoutWarning } from "../../types_geometry.ts";
+import type { LayoutOptions } from "../../types_options.ts";
+import { resolveLayers } from "../../_internal/graph_index.ts";
+import type { GraphIndex } from "../../_internal/graph_index.ts";
+import type { PipelineStep } from "../../_internal/pipeline_types.ts";
 
 export type RankResult = {
   layerIndexByNodeId: Map<string, number>;
@@ -15,7 +15,7 @@ export type RankResult = {
 };
 
 export const rankStep: PipelineStep = {
-  id: "1",
+  id: "1.1",
   name: "rank",
   run: (state) => {
     state.rank = rankStage(state.index, state.options, state.warnings);

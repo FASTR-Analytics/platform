@@ -14,8 +14,7 @@
 // through a single authorize → validate → execute → log → emit sequence,
 // and projected to every surface — the RPC HTTP door (POST /api/op/<name>),
 // the generated typed client, the in-app AI tools (_112 lifecycle), and the
-// derived headless/MCP tools. Designed in the panterra repo
-// (PLAN_OPS_KERNEL.md there; requirements R1–R14, wire = decision 15).
+// derived headless/MCP tools.
 
 export { defineOps } from "./define.ts";
 export { createOpKernel } from "./kernel.ts";
@@ -72,6 +71,7 @@ export type {
   OpChangeEvent,
   OpContract,
   OpCtx,
+  OpCtxFor,
   OpExposure,
   OpImplFor,
   OpImpls,
@@ -81,6 +81,7 @@ export type {
   OpProvenanceOutcome,
   OpProvenanceRecord,
   OpRegistry,
+  OpResourceGuard,
   OpScoped,
   OpSurface,
   ServerOpNameOf,

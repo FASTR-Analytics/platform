@@ -6,37 +6,35 @@ See `PROTOCOL_UI_SOLIDJS.md` for reactivity rules.
 
 ## Rules
 
-1. **No createResource, no Suspense — hard ban, no exceptions** — Async state is
+1. **No createResource, no Suspense (hard ban, no exceptions)**: Async state is
    always explicit `StateHolder` data, never a thrown-promise boundary. Full
    rule and rationale: `PROTOCOL_UI_SOLIDJS.md` rule 5
-2. **createQuery for one-shot fetches** — Runs queryFunc once on mount; no
+2. **createQuery for one-shot fetches**: Runs queryFunc once on mount; no
    reactivity
-3. **createLiveQuery for op-backed live reads** — Views of server state that
+3. **createLiveQuery for op-backed live reads**: Views of server state that
    emits change events (an ops registry with a notify hub): thunk + subscription
    → `StateHolder`, silent refetch on poke and on reconnect. Never hand-wire the
    signal + refetch + subscribe triple
-4. **createEffect for reactive fetches** — Long-lived views that must react to
+4. **createEffect for reactive fetches**: Long-lived views that must react to
    changing INPUTS (an id, a filter) when no change event exists for the data
-5. **createFormAction for form submissions** — Validation inside, returns
+5. **createFormAction for form submissions**: Validation inside, returns
    success/error
-6. **createButtonAction for simple actions** — Delete, refresh, discrete
-   commands
-7. **createDeleteAction for deletions** — Confirmation dialog + action +
-   refetch. Exception, by design: a delete behind an ops-registry approval gate
-   uses `callWithApproval` + `openProposalPreview` instead — the server-computed
+6. **createButtonAction for simple actions**: Delete, refresh, discrete commands
+7. **createDeleteAction for deletions**: Confirmation dialog + action + refetch.
+   Exception, by design: a delete behind an ops-registry approval gate uses
+   `callWithApproval` + `openProposalPreview` instead: the server-computed
    preview IS the confirmation, so a client-side confirm dialog would be a
    second, weaker copy of it
-8. **StateHolderWrapper for rendering** — Handles loading/error/ready states
-9. **Use `StateHolder` for loading state** — Via `createQuery` /
+8. **StateHolderWrapper for rendering**: Handles loading/error/ready states
+9. **Use `StateHolder` for loading state**: Via `createQuery` /
    `createLiveQuery`, or `createSignal<StateHolder<T>>` + `createEffect`
    (reactive). Never raw `loading`/`error`/`data` signals
-10. **Validation inside actions** — Return `{ success: false, err }` for
-    failures
-11. **Don't flash loading on incremental refetches** — When refetching the same
+10. **Validation inside actions**: Return `{ success: false, err }` for failures
+11. **Don't flash loading on incremental refetches**: When refetching the same
     entity, leave stale data visible until the new data arrives
     (`createLiveQuery` does this for pokes; hand-rolled effects must too)
-12. **Guard overlapping async effects** — An async effect that can re-run while
-    a previous run is still awaiting must drop stale completions (request-id
+12. **Guard overlapping async effects**: An async effect that can re-run while a
+    previous run is still awaiting must drop stale completions (request-id
     guard). `createQuery` does this internally, `createLiveQuery` serializes
     refetches outright; hand-rolled effects must do it themselves
 
@@ -51,7 +49,7 @@ the wrong one is the source of most state bugs.
 | **Snapshot** | Captures state at a moment in time. View ignores subsequent changes. | `createQuery`, `unwrap()`, cache `.get()` from async code                |
 
 **When in doubt, prefer live.** A view that should have stayed in sync but used
-a snapshot read goes silently stale — the worst failure mode. A live read where
+a snapshot read goes silently stale, the worst failure mode. A live read where
 snapshot would have sufficed has only minor cost.
 
 Choose by **view lifetime**:
@@ -84,7 +82,7 @@ const query = createQuery(
 ### Live Op-Backed Data (createLiveQuery)
 
 For long-lived views of server state that emits change events. The subscription
-delivers pokes (`{ name }` — never payloads); the query refetches silently on
+delivers pokes (`{ name }`, never payloads); the query refetches silently on
 every matching poke and on every (re)connect, so the view stays in sync with
 writes from ANY surface (another user, the AI, an MCP client) with no
 missed-change window and no loading flash after first mount. Refetches are
@@ -184,7 +182,7 @@ createEffect(async () => {
 ```
 
 - Loading flash on first mount only (signal default)
-- No flash on subsequent refetches — stale data stays visible
+- No flash on subsequent refetches: stale data stays visible
 - Trade-off: a failed refetch replaces stale data with an error state.
   Acceptable in practice.
 
@@ -268,9 +266,9 @@ createEffect(
 
 **Key utilities:**
 
-- `reconcile(data)` — Efficiently diffs when loading external data
-- `unwrap(store)` — Strips SolidJS proxy before passing to storage
-- `{ defer: true }` — Skips initial run, only fires on changes
+- `reconcile(data)`: Efficiently diffs when loading external data
+- `unwrap(store)`: Strips SolidJS proxy before passing to storage
+- `{ defer: true }`: Skips initial run, only fires on changes
 
 ## Do / Don't
 
@@ -299,7 +297,7 @@ const query = createQuery(() => fetch(), "Loading...");
 ### Validation
 
 ```tsx
-// ❌ DON'T — validate before calling action
+// ❌ DON'T: validate before calling action
 const save = createFormAction(async () => {
   return serverActions.save(formData);
 }, onSuccess);
@@ -312,7 +310,7 @@ function handleSave() {
   save.click();
 }
 
-// ✅ DO — validate inside action
+// ✅ DO: validate inside action
 const save = createFormAction(async () => {
   if (!valid()) {
     return { success: false, err: "Invalid" };
@@ -324,21 +322,21 @@ const save = createFormAction(async () => {
 ### Reactivity in Queries
 
 ```tsx
-// ❌ DON'T — createQuery is one-shot. Signal reads inside queryFunc are NOT tracked.
+// ❌ DON'T: createQuery is one-shot. Signal reads inside queryFunc are NOT tracked.
 // This looks reactive but never re-runs when id() changes.
 const query = createQuery(() => serverActions.getData(id()));
 
-// ❌ DON'T — manually calling fetch() to "refresh" suggests you need a live read.
+// ❌ DON'T: manually calling fetch() to "refresh" suggests you need a live read.
 // If you keep wanting to do this, convert to createEffect.
 async function save() {
   await serverActions.update(...);
   query.silentFetch();
 }
 
-// ✅ DO — use createEffect for reactive inputs
+// ✅ DO: use createEffect for reactive inputs
 const [data, setData] = createSignal<StateHolder<T>>({ status: "loading" });
 createEffect(async () => {
-  const currentId = id();                  // tracked — refetches on change
+  const currentId = id();                  // tracked: refetches on change
   const res = await serverActions.getData(currentId);
   setData(/* ... */);
 });
@@ -351,14 +349,14 @@ server updates, use `createEffect`.
 ### Overlapping Refetches
 
 ```tsx
-// ❌ DON'T — two in-flight fetches can resolve out of order; stale data wins
+// ❌ DON'T: two in-flight fetches can resolve out of order; stale data wins
 createEffect(async () => {
   const currentId = id();
   const res = await serverActions.getData(currentId);
   setData(/* ... */); // may be the response for a PREVIOUS id
 });
 
-// ✅ DO — drop completions that a newer run has superseded
+// ✅ DO: drop completions that a newer run has superseded
 let requestId = 0;
 
 createEffect(async () => {
@@ -378,7 +376,7 @@ hand-rolled async effects must carry their own request-id guard.
 ### Stale-While-Revalidate
 
 ```tsx
-// ❌ DON'T — flashes "Loading..." every time the entity changes
+// ❌ DON'T: flashes "Loading..." every time the entity changes
 createEffect(async () => {
   const _v = version();
   setData({ status: "loading" }); // ⚠️ flash on every edit
@@ -386,7 +384,7 @@ createEffect(async () => {
   setData(/* ... */);
 });
 
-// ✅ DO — keep stale data visible until fresh arrives
+// ✅ DO: keep stale data visible until fresh arrives
 createEffect(async () => {
   const _v = version();
   const res = await serverActions.getEntity(id);
@@ -400,7 +398,7 @@ new data arrives.
 
 ## Checklist
 
-- [ ] No `createResource` / `<Suspense>` / `createAsync` (hard ban — see
+- [ ] No `createResource` / `<Suspense>` / `createAsync` (hard ban, see
       `PROTOCOL_UI_SOLIDJS.md`)
 - [ ] One-shot fetches use `createQuery`
 - [ ] Op-backed live views use `createLiveQuery` (no hand-wired signal +

@@ -7,7 +7,7 @@ import { createSignal, type JSX, mergeProps, Show, splitProps } from "solid-js";
 import { Icon } from "../icons/mod.ts";
 import { type DataAttrs, splitDataAttrs } from "../data_attrs.ts";
 
-export interface CollapsibleSectionProps extends DataAttrs {
+export type CollapsibleSectionProps = DataAttrs & {
   title: string | JSX.Element;
   isOpen?: boolean;
   defaultOpen?: boolean;
@@ -25,7 +25,7 @@ export interface CollapsibleSectionProps extends DataAttrs {
   contentBorder?: boolean;
   hideChevron?: boolean;
   noClickToCollapse?: boolean;
-}
+};
 
 export function CollapsibleSection(p: CollapsibleSectionProps) {
   const merged = mergeProps(

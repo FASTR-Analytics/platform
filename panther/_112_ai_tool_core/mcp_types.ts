@@ -3,12 +3,12 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-// MCP server capability (PLAN_305_MCP_SERVER.md; remote HTTP added by
-// PLAN_112). The core is era-agnostic and RESUME-FIRST: a tool call that
+// MCP server capability. The core is era-agnostic and RESUME-FIRST: a tool
+// call that
 // needs approval returns an input_required outcome with an opaque
 // requestState, and the decision comes back through one resume entry point.
-// Two adapters drive it: the stdio adapter here (2025-11-25, hand-rolled,
-// grandfathered — see mcp_protocol.ts) runs the elicit round trip inline;
+// Two adapters drive it: the stdio adapter here (2025-11-25, hand-rolled;
+// see mcp_protocol.ts) runs the elicit round trip inline;
 // the HTTP adapter (_220_mcp_http, official SDK v2 wire) serves BOTH eras —
 // on 2025-era connections the SDK's legacy shim runs the real elicitation
 // and re-enters the handler, on 2026-07-28 the client itself retries with
@@ -37,7 +37,7 @@ export type MCPResourceConfig = {
 };
 
 // The thunk form's construction context: the authenticated principal an HTTP
-// adapter resolved for the request (D3, PLAN_112). Typed loosely here so the
+// adapter resolved for the request. Typed loosely here so the
 // config type stays non-generic for the stdio path; the HTTP adapter's
 // createMCPHttpHandler<TPrincipal> narrows it at its own boundary.
 export type MCPToolsContext<TPrincipal = unknown> = {
@@ -62,7 +62,7 @@ export type CreateMCPServerConfig<TPrincipal = unknown> = {
   // headless: true are exposed; the rest are dropped with a per-tool reason
   // reported to stderr on connect. The thunk form binds the tool set to an
   // authenticated principal (one call per principal core, HTTP adapter only);
-  // the array form is validated eagerly and behaves exactly as before. stdio
+  // the array form is validated eagerly. stdio
   // serving has no principal, so a thunk-form config is rejected there at
   // construction.
   tools:

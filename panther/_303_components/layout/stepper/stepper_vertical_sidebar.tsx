@@ -6,7 +6,7 @@
 import { For, Show } from "solid-js";
 import type { Stepper } from "./get_stepper.ts";
 
-interface StepperVerticalSidebarProps {
+type StepperVerticalSidebarProps = {
   stepper: Stepper;
   /** Label per step, indexed by (step - minStep). If omitted, shows
    * "Step N". */
@@ -18,7 +18,7 @@ interface StepperVerticalSidebarProps {
    * sidebar container is too narrow for labels (e.g. ≤ 60px rail). */
   collapsed?: boolean;
   onStepClick?: (step: number) => void;
-}
+};
 
 /**
  * Vertical step indicator for a left-pane sidebar.

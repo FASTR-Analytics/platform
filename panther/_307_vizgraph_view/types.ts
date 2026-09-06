@@ -7,17 +7,33 @@ import type {
   FontInfo,
   Geometry,
   GraphModel,
+  GroupGeom,
   JSX,
+  LaneGeom,
   LayoutOptions,
   NodeGeom,
 } from "./deps.ts";
 
 // Fields are live getters — read them where reactivity is wanted; don't
-// snapshot-destructure.
+// snapshot-destructure. geom is undefined while the node is being MEASURED
+// (the same content element serves as the measurement probe — see
+// nodeContent); selected is false then.
 export type VizGraphViewNodeInfo = {
   id: string;
-  geom: NodeGeom;
+  geom: NodeGeom | undefined;
   selected: boolean;
+};
+
+// Same shape for group headers: geom is undefined while the header is being
+// measured (a group whose model entry carries no label size).
+export type VizGraphViewGroupInfo = {
+  id: string;
+  geom: GroupGeom | undefined;
+};
+
+export type VizGraphViewLaneInfo = {
+  id: string;
+  geom: LaneGeom | undefined;
 };
 
 // Imperative surface for actions-map runners (DOC_VIZGRAPH_ARCHITECTURE.md): the
@@ -44,14 +60,36 @@ export type VizGraphViewProps = {
   // on resize); an explicit `fit` here PINS the layout width instead —
   // reproducible geometry independent of the window (fixtures, tests).
   layoutOptions?: Omit<LayoutOptions, "prior">;
+  // ONE element, two duties: the node body inside the engine-sized box, and
+  // the measurement probe for UNSIZED model nodes (geom undefined). The view
+  // owns both wrappers — a shrink-to-fit block for the probe, the sized
+  // block for the body — so the element lays out in the same formatting
+  // context at the same width each time. It must fill the width it is given
+  // and carry no width cap of its own (that is maxNodeWidth). Sizes come
+  // from the view's DomMeasurer (created against the viewport so measured
+  // content inherits the app's CSS context — the strut rule), wired as
+  // layoutOptions.measureNode; a layout with unsized nodes waits for the
+  // font gate. Presence is read once (not reactive). Omitted: the default
+  // chrome renders (and measures) the node id.
   nodeContent?: (node: VizGraphViewNodeInfo) => JSX.Element;
-  // Sizes UNSIZED model nodes by measuring live DOM content: the view owns a
-  // DomMeasurer (created against the viewport so measured content inherits
-  // the app's CSS context — the strut rule) and wires it as
-  // layoutOptions.measureNode. The first layout waits for the font gate.
-  // Measure the SAME content nodeContent renders, or sizes and rendering
-  // disagree. Presence is read once (not reactive), like nodeContent.
-  measureNodeContent?: (nodeId: string) => JSX.Element;
+  // Width cap on unsized nodes (px): the measurement budget is clamped to it,
+  // so natural-width probes wrap here. The view-side counterpart of the
+  // figure style's nodes.maxTextWidth. Default: unbounded.
+  maxNodeWidth?: number;
+  // Group header content — the same one-element contract as nodeContent: the
+  // header body in the row the engine reserved, and the measurement probe for
+  // groups whose model entry has no `label` size (the view measures the
+  // header, wrapped at the group's first-layer strip width, and injects the
+  // size before layout, so the reserved row always matches the rendered
+  // height). Hug rings are painted regardless. Omitted: groups with a model
+  // label size get the default header (the group id); groups without one get
+  // no header row. Presence is read once (not reactive).
+  groupContent?: (group: VizGraphViewGroupInfo) => JSX.Element;
+  // Lane header content (M5) — the same contract as groupContent: header
+  // body in the lane's header row AND the probe for lanes whose model entry
+  // has no `label` size (measured wrapped at the lane's natural width, so a
+  // header never widens its lane). Lane boxes are painted regardless.
+  laneContent?: (lane: VizGraphViewLaneInfo) => JSX.Element;
   // Web fonts the measurer must await before the first layout.
   measureFonts?: FontInfo[];
   selected?: string[];

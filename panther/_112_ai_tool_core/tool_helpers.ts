@@ -139,7 +139,7 @@ export type ApprovalPolicy = {
   requireKind?: boolean;
 };
 
-export interface ToolUIMetadata<TInput = unknown> {
+export type ToolUIMetadata<TInput = unknown> = {
   displayComponent?: Component<{ input: TInput }>;
 
   inProgressComponent?: Component<{ input: TInput }>;
@@ -209,9 +209,9 @@ export interface ToolUIMetadata<TInput = unknown> {
   // the explicit path that unblocks an abandoned question. Never set by
   // consumers.
   _cancelPending?: () => void;
-}
+};
 
-export interface SDKTool<TInput = unknown> {
+export type SDKTool<TInput = unknown> = {
   name: string;
   description: string;
   input_schema: {
@@ -248,13 +248,13 @@ export interface SDKTool<TInput = unknown> {
     input: TInput,
     getView?: () => unknown,
   ) => Promise<{ text: string; structured?: unknown }>;
-}
+};
 
-export interface AIToolWithMetadata<TInput = unknown> {
+export type AIToolWithMetadata<TInput = unknown> = {
   sdkTool: SDKTool<TInput>;
 
   metadata: ToolUIMetadata<TInput>;
-}
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 // HEADLESS ELIGIBILITY (one concept, two surfaces)
@@ -303,7 +303,7 @@ export function getHeadlessCapability(
   return { kind: "ok" };
 }
 
-export interface CreateAIToolConfigCommon<TInput> {
+export type CreateAIToolConfigCommon<TInput> = {
   name: string;
 
   description: string;
@@ -352,7 +352,7 @@ export interface CreateAIToolConfigCommon<TInput> {
   // structuredContent. The Anthropic tool definition has no output-schema
   // field, so the chat leg ignores it.
   outputSchema?: zType.ZodType;
-}
+};
 
 // Exactly one of handler / approval — enforced at the type level (the XOR
 // union) and again at construction for erased callers. A tool either
@@ -411,8 +411,7 @@ export type CreateAIToolConfig<TInput, TOutput = string> =
 //     K and hands the handler the full union.
 //   - NoInfer on the view parameter blocks the remaining path: an annotated
 //     handler param can no longer INFER K narrow while availableIn stays
-//     absent. (Proven in the Phase 1+2 review; the explicit-K half was
-//     PLAN_AI_TOOL_GATE_SOUNDNESS.)
+//     absent.
 export type CreateViewAIToolConfig<
   TDefs extends Record<string, AnyAIView>,
   K extends keyof TDefs,

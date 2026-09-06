@@ -14,8 +14,8 @@ export const _GLOBAL_LAYOUT_COLUMNS = 12;
 // Legibility floor for shrink-to-fit, in design units (DUs in the REFERENCE_WIDTH
 // frame). Shrink-to-fit never reduces the base font below this; below it the
 // content renders at the floor and is flagged `cramped`. One home for figures and
-// markdown so their floors can't drift. Placeholder value — the real legibility
-// floor is set holistically in the design redo (see PLAN_SIZING_REFACTOR.md).
+// markdown so their floors can't drift. Placeholder value: the real legibility
+// floor has not been set.
 export const MIN_FONT_SIZE_DU = 4;
 
 export type SizingMode = "reflow" | "zoom";

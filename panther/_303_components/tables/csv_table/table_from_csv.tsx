@@ -17,12 +17,15 @@ type Props = {
   unsorted?: boolean;
   cellFormatter?: (str: string) => string;
   alignText?: "left" | "center" | "right";
+  // Rows rendered; the rest are summarised in the footer. Default 100.
+  maxRows?: number;
 };
 
 export function TableFromCsv(p: Props) {
+  const maxRows = () => p.maxRows ?? 100;
   const sortedCsv = createMemo(() =>
     p.csv
-      .selectRows((_, i_row) => i_row < 100)
+      .selectRows((_, i_row) => i_row < maxRows())
       .selectCols(
         p.csv.nCols < 50
           ? p.csv.colHeaders
@@ -98,13 +101,13 @@ export function TableFromCsv(p: Props) {
         </tbody>
       </table>
       <Switch>
-        <Match when={p.knownTotalCount > 100}>
+        <Match when={p.knownTotalCount > maxRows()}>
           <div class="ui-text-small sticky left-0 px-3 py-2 text-left font-mono">
-            ...and {toNum0(p.knownTotalCount - 100)} more rows.{" "}
+            ...and {toNum0(p.knownTotalCount - maxRows())} more rows.{" "}
             {toNum0(p.knownTotalCount)} rows in total.
           </div>
         </Match>
-        <Match when={p.knownTotalCount <= 100}>
+        <Match when={p.knownTotalCount <= maxRows()}>
           <div class="ui-text-small sticky left-0 px-3 py-2 text-left font-mono">
             {toNum0(p.knownTotalCount)} rows
           </div>

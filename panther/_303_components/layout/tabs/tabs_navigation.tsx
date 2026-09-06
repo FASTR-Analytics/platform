@@ -12,8 +12,7 @@ import type { Intent } from "../../types.ts";
 import { type DataAttrs, splitDataAttrs } from "../../data_attrs.ts";
 import type { ListItem } from "../../list_selection/list_item_types.ts";
 
-interface TabsNavigationProps<T extends string = string, M = never>
-  extends DataAttrs {
+type TabsNavigationProps<T extends string = string, M = never> = DataAttrs & {
   items: ListItem<T, M>[];
   value: T;
   onChange: (value: T) => void;
@@ -24,7 +23,7 @@ interface TabsNavigationProps<T extends string = string, M = never>
   collapsible?: boolean;
   collapsed?: boolean;
   onCollapsedChange?: (collapsed: boolean) => void;
-}
+};
 
 export function TabsNavigation<T extends string = string, M = never>(
   p: TabsNavigationProps<T, M>,

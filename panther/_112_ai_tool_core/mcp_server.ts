@@ -3,8 +3,8 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-// createMCPServer — expose a _305_ai tool registry over MCP
-// (PLAN_305_MCP_SERVER.md). Panther owns everything MCP-shaped: the headless
+// createMCPServer: expose a _305_ai tool registry over MCP. Panther owns
+// everything MCP-shaped: the headless
 // filter, tool→MCP conversion, the resumable approval driver and its
 // staged-proposal lifecycle, the readiness gate, the error funnel. A consumer
 // entry is ~50 lines of composition with zero protocol code.
@@ -53,7 +53,7 @@ type AnyTool = AIToolWithMetadata<any>;
 
 type DroppedTool = { name: string; reason: string };
 
-// NOTE on principal binding (resolved 2026-08-06, PLAN_112 D3): the staged
+// Principal binding: the staged
 // entry carries no principal field ON PURPOSE. On stdio one connection owns
 // one core. Over HTTP, where a modern (MRTR) client CAN supply requestState,
 // the adapter generalizes the invariant instead of relaxing it: ONE core per
@@ -327,7 +327,7 @@ export function buildMCPServerCore(
       "createMCPServer: name and version are required (they identify the server to clients).",
     );
   }
-  // Thunk-form tools bind the exposed set to an authenticated principal (D3):
+  // Thunk-form tools bind the exposed set to an authenticated principal:
   // the HTTP adapter resolves one core per principal and passes the context.
   // stdio serving has no principal, so a thunk there is a construction error,
   // never a silently-unbound tool set.

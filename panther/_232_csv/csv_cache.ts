@@ -14,7 +14,7 @@ import type { CsvReadOptions } from "./types.ts";
 // Re-export CsvReadOptions as CsvOptions for backward compatibility
 export type CsvOptions = CsvReadOptions;
 
-interface CacheEntry {
+type CacheEntry = {
   data: Csv<string>;
   size: number;
   lastAccessed: number;
@@ -23,24 +23,24 @@ interface CacheEntry {
   filePath: string;
   fileModTime: number;
   fileSize: number;
-}
+};
 
-export interface CacheConfig {
+export type CacheConfig = {
   maxSizeBytes?: number;
   maxEntries?: number;
   ttlSeconds?: number;
   checkFileChanges?: boolean;
   enableMetrics?: boolean;
-}
+};
 
-export interface CacheMetrics {
+export type CacheMetrics = {
   hits: number;
   misses: number;
   evictions: number;
   currentSize: number;
   entryCount: number;
   hitRate: number;
-}
+};
 
 // ================================================================================
 // CACHE IMPLEMENTATION

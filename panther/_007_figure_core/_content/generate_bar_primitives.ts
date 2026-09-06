@@ -20,12 +20,9 @@ import {
 } from "./content_generation_types.ts";
 import { generateCascadeArrowPrimitives } from "./generate_cascade_arrow_primitives.ts";
 import {
-  catCenterOfRect,
   catCoord,
-  catExtentOfRect,
   makeBarDataLabel,
   makeBarRect,
-  makeErrorBarPrimitive,
   type Orientation,
   valBaselineCoord,
   valCoord,
@@ -326,31 +323,6 @@ export function generateBarPrimitives(
         style: { fillColor: getColor(barStyle.fillColor) },
         dataLabel,
       });
-
-      // Error bar.
-      const ebStyle = s.errorBars.getStyle(valueInfo);
-      if (ebStyle.show && ctx.mappedBoundsUb && ctx.mappedBoundsLb) {
-        const ubMapped = ctx.mappedBoundsUb[i_series]?.[i_val];
-        const lbMapped = ctx.mappedBoundsLb[i_series]?.[i_val];
-        if (ubMapped && lbMapped) {
-          // Cap extent is measured along the category axis.
-          const capExtent = catExtentOfRect(barRcd, orientation) *
-            ebStyle.capWidthProportion;
-          primitives.push(makeErrorBarPrimitive({
-            key:
-              `errorbar-${ctx.subChartInfo.i_pane}-${ctx.subChartInfo.i_tier}-${ctx.subChartInfo.i_lane}-${i_series}-${i_val}`,
-            meta: { value: valueInfo },
-            categoryCenter: catCenterOfRect(barRcd, orientation),
-            valUb: valCoord(ubMapped.coords, orientation),
-            valLb: valCoord(lbMapped.coords, orientation),
-            capExtent,
-            strokeColor: ebStyle.strokeColor,
-            strokeWidth: ebStyle.strokeWidth,
-            zIndex: Z_INDEX.CONTENT_BAR + 1,
-            orientation,
-          }));
-        }
-      }
     }
   }
 

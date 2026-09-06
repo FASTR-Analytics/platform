@@ -533,6 +533,15 @@ const _DS = {
       rectRadius: 6,
       labelInset: 8,
     },
+    // Lane boxes (M5): full-height bands behind a lane's columns; header
+    // text via text.vizgraphLaneLabel.
+    lanes: {
+      fillColor: typed<ColorKeyOrString>("transparent"),
+      strokeColor: typed<ColorKeyOrString>({ key: "base300" }),
+      strokeWidth: 1,
+      rectRadius: 6,
+      labelInset: 8,
+    },
   },
   // Sankey
   sankey: {
@@ -555,14 +564,13 @@ const _DS = {
     // centroid whatever happens; "callout" sends every label outside; "auto"
     // keeps a label inside when it genuinely fits and exiles the rest.
     //
-    // "auto" since 2026-07-27, ruled by the owner. The old default was
-    // "centroid", and on any dense map it produced a pile: Kenya adm1 with all
-    // 47 counties labelled draws seventeen of them on top of each other in the
-    // west, unreadable. Under "auto" the same map keeps 20 inside and takes 27
-    // out to their own nearest points, all legible, zero overlaps.
+    // "auto" is the default because "centroid" piles up on any dense map:
+    // Kenya adm1 with all 47 counties labelled draws seventeen of them on top
+    // of each other in the west, unreadable. Under "auto" the same map keeps
+    // 20 inside and takes 27 out to their own nearest points, all legible,
+    // zero overlaps.
     //
-    // It is NOT free, and the cost is the reason this was a decision rather
-    // than an obvious fix. "centroid" needs no distance field, no track and no
+    // It is NOT free. "centroid" needs no distance field, no track and no
     // content-scale solve against labels; "auto" needs all three as soon as one
     // label is exiled. Measured, one measure() of a labelled map:
     //
@@ -572,19 +580,18 @@ const _DS = {
     //
     // Nothing changes for a map that draws no labels, which is the default
     // (content.mapRegions.func.dataLabel.show is false): the whole label solve
-    // is gated on there being labels at all. A consumer who wants the old
-    // behaviour, or the old cost, sets this key to "centroid".
+    // is gated on there being labels at all. A consumer who wants the cheaper
+    // path sets this key to "centroid".
     dataLabelMode: typed<"none" | "centroid" | "callout" | "auto">("auto"),
-    // The silhouette-to-label clearance for callout labels. 12 preserves the
-    // look shipped while this key was dead and the clearance was hardwired to
-    // labelCollision.gap.
+    // The silhouette-to-label clearance for callout labels. 12 matches the
+    // labelCollision.gap default, so callouts sit as far off the shape as
+    // labels sit from each other.
     calloutMargin: 12,
     labelCollision: defaultLabelCollision(),
     ...defaultLabelPlacement(),
     // Each outside label goes to the nearest point on the map's own dilated
-    // outline rather than into a column on the flank. Ruled and shipped
-    // 2026-07-27, on these measurements — nearest against flank on identical
-    // inputs, mean anchor-to-label distance:
+    // outline rather than into a column on the flank. Nearest against flank on
+    // identical inputs, mean anchor-to-label distance:
     //
     //   kenya callout, 16 labels    105.9 -> 77.0
     //   east africa callout, 10     125.5 -> 78.2
@@ -592,15 +599,14 @@ const _DS = {
     //   kenya auto, 26 outside      140.1 -> 123.7
     //   kenya callout, 47           identical: that cell is genuinely
     //                               saturated and falls back to flank, which
-    //                               is the design (plan N10)
+    //                               is the design
     //
     // Zero overlaps, zero escapes and zero crossing leaders throughout, except
     // two near-saturated cells that keep 2 and 1 (budgeted in
-    // map_figure_check.ts). The bar the owner set was "beats flank on leader
-    // length AND inside retention"; the last case that missed it, Kenya adm1
-    // `auto`, was 2.4% worse until the step-10 untangle and is now 14% better.
+    // map_figure_check.ts). The bar is "beats flank on leader length AND
+    // inside retention"; the closest case, Kenya adm1 `auto`, is 14% better.
     //
-    // The flank placer is not gone: it is the per-cell fallback when a track
+    // The flank placer remains: it is the per-cell fallback when a track
     // cannot hold its labels, and the opt-out via this key.
     outsideLabelPlacement: typed<"nearest" | "flank">("nearest"),
   },

@@ -167,4 +167,7 @@ type MergedFigureTextKey =
     : never)
   | (MergedVizGraphStyle["text"]["groupLabel"] extends TextInfoUnkeyed
     ? "vizgraphGroupLabel"
+    : never)
+  | (MergedVizGraphStyle["text"]["laneLabel"] extends TextInfoUnkeyed
+    ? "vizgraphLaneLabel"
     : never);

@@ -5,10 +5,19 @@
 
 export { loadFontsWithTimeout } from "../_001_font/mod.ts";
 export type { FontInfo } from "../_001_font/mod.ts";
-export { layout, toSvgPath, tween } from "../_009_vizgraph/mod.ts";
+export {
+  DEFAULT_SPACING,
+  layout,
+  toSvgPath,
+  toSvgPathClosedRing,
+  tween,
+} from "../_009_vizgraph/mod.ts";
 export type {
   Geometry,
   GraphModel,
+  GroupGeom,
+  GroupIn,
+  LaneGeom,
   LayoutOptions,
   NodeGeom,
   PathSpec,

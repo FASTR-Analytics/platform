@@ -30,6 +30,7 @@ import type {
   TableGridPrimitive,
   TableHeaderAxisPrimitive,
   VizGraphEdgePrimitive,
+  VizGraphLanePrimitive,
   VizGraphNodePrimitive,
   VizGraphUnfoldedGroupPrimitive,
 } from "./deps.ts";
@@ -300,6 +301,9 @@ function renderPrimitive(rc: RenderContext, primitive: Primitive): void {
       break;
     case "vizgraph-node":
       renderVizGraphNodePrimitive(rc, primitive);
+      break;
+    case "vizgraph-lane":
+      renderVizGraphLanePrimitive(rc, primitive);
       break;
     case "vizgraph-unfolded-group":
       renderVizGraphUnfoldedGroupPrimitive(rc, primitive);
@@ -712,6 +716,16 @@ function renderVizGraphNodePrimitive(
       "center",
       "middle",
     );
+  }
+}
+
+function renderVizGraphLanePrimitive(
+  rc: RenderContext,
+  primitive: VizGraphLanePrimitive,
+): void {
+  rc.rRect(primitive.rcd, primitive.rectStyle);
+  if (primitive.text) {
+    rc.rText(primitive.text.mText, primitive.text.position, "center", "middle");
   }
 }
 

@@ -27,6 +27,8 @@ export type GroupIndex = {
   // Innermost → outermost valid group chain per node id (cycle-safe;
   // dangling refs dropped — validate() reports them).
   chainByNodeId: Map<string, string[]>;
+  // The same chain per group id, self first.
+  chainByGroupId: Map<string, string[]>;
   depthByGroupId: Map<string, number>;
 };
 
@@ -56,11 +58,14 @@ export function buildGroupIndex(model: GraphModel): GroupIndex {
       chainByNodeId.set(node.id, chainOfGroup(node.groupId));
     }
   }
+  const chainByGroupId = new Map<string, string[]>();
   const depthByGroupId = new Map<string, number>();
   for (const groupId of groupById.keys()) {
-    depthByGroupId.set(groupId, chainOfGroup(groupId).length - 1);
+    const chain = chainOfGroup(groupId);
+    chainByGroupId.set(groupId, chain);
+    depthByGroupId.set(groupId, chain.length - 1);
   }
-  return { groupById, chainByNodeId, depthByGroupId };
+  return { groupById, chainByNodeId, chainByGroupId, depthByGroupId };
 }
 
 // Edge-hug outline construction (the group-hug ruling): at every x the
@@ -203,8 +208,13 @@ function boundsOfRings(rings: PathSpec[]): Rect {
 // Assemble-time box derivation: innermost groups first, each group's outline
 // hugged from its real content (member layer strips, group-internal edge
 // segments, child rings), header row raised over the first-layer strip only.
-// Folded representatives (present in `nodes` under the group id) contribute
-// like any member; THEIR OWN GroupGeom entry is the node rect, folded: true.
+// A rect zone (`shape: "rect"`, honored on a zone group) is instead the
+// rectangle over its reserved cross-axis interval (rectZones — the
+// zone-reserve pass made it exclusive, so the box is truthful) and the
+// members' column extent, child rings included, inset by groupPad; its
+// header row sits at the rectangle's top-left. Folded representatives
+// (present in `nodes` under the group id) contribute like any member; THEIR
+// OWN GroupGeom entry is the node rect, folded: true.
 export function deriveGroupGeoms(
   groupIndex: GroupIndex,
   nodes: Record<string, NodeGeom>,
@@ -212,6 +222,7 @@ export function deriveGroupGeoms(
   modelEdges: EdgeIn[],
   foldedRepIds: Set<string>,
   foldedGroupById: Map<string, GroupIn>,
+  rectZones: Map<string, { top: number; bottom: number }>,
   spacing: ResolvedSpacing,
   cornerRadius: number,
 ): Record<string, GroupGeom> {
@@ -263,6 +274,41 @@ export function deriveGroupGeoms(
     }
     const group = groupIndex.groupById.get(groupId)!;
     const headerH = group.label?.h ?? 0;
+    const rectZone = rectZones.get(groupId);
+    if (rectZone !== undefined) {
+      let x0 = Math.min(...members.map((m) => m.x));
+      let x1 = Math.max(...members.map((m) => m.x + m.w));
+      for (const childId of childGroups.get(groupId) ?? []) {
+        for (const iv of coverageByGroupId.get(childId) ?? []) {
+          x0 = Math.min(x0, iv.x0);
+          x1 = Math.max(x1, iv.x1);
+        }
+      }
+      const rect: Rect = {
+        x: x0 - spacing.groupPad,
+        y: rectZone.top,
+        w: x1 - x0 + 2 * spacing.groupPad,
+        h: rectZone.bottom - rectZone.top,
+      };
+      coverageByGroupId.set(groupId, [{
+        x0: rect.x,
+        x1: rect.x + rect.w,
+        top: rect.y,
+        bot: rect.y + rect.h,
+      }]);
+      groups[groupId] = {
+        ...rect,
+        header: {
+          x: rect.x,
+          y: rect.y,
+          w: Math.min(group.label?.w ?? rect.w, rect.w),
+          h: headerH,
+        },
+        folded: false,
+        outline: [rectRing(rect, cornerRadius)],
+      };
+      continue;
+    }
     const groupEdges = internalEdges.get(groupId) ?? [];
     const pad = computeHugPad(groupEdges, edges, spacing.nodeGap);
 

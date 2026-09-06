@@ -308,7 +308,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
   const queuedMessages = () => store().queuedMessages[0]().map((q) => q.text);
 
   // Reactive: true while the ACTIVE conversation's turn is blocked on a user
-  // decision (Phase 4 gives this meaning; the slot is wired from 0A).
+  // decision.
   const pendingUserAction = () => store().pendingDecision[0]() !== null;
 
   const addDisplayItemsTo = (s: ConversationStore, items: DisplayItem[]) => {
@@ -665,7 +665,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
         }
       }
 
-      // Transactional interaction drain (Phase 3): a turn that ends without
+      // Transactional interaction drain: a turn that ends without
       // any assistant message FROM THE MODEL (failed or stopped before/
       // during the stream — the synthetic "[Stopped]" repair above doesn't
       // count) never delivered its digest. Restore the drained entries; they
@@ -1034,9 +1034,9 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
           }
         });
         // A customProposalUI that throws SYNCHRONOUSLY gets the same
-        // treatment as an async rejection (review H1b): declined + logged —
-        // before this guard the throw rejected the lifecycle and bricked
-        // the conversation.
+        // treatment as an async rejection: declined + logged. Without this
+        // guard the throw would reject the lifecycle and brick the
+        // conversation.
         try {
           customProposalUI(presenterAbort.signal).then(
             (accepted) => {

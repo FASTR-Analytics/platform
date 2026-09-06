@@ -100,7 +100,7 @@ export function getMapComponentSizes(
   // the style scale. Outside labels add width (the flank gutters) and can add
   // height (a flank stack taller than the map) — both label terms are
   // unwrapped, so each floor stays proportional to the scale (monotone) and
-  // free of any cell dependence (plan D4).
+  // free of any cell dependence.
   const minLabelPlotExtent = calculateMinLabelPlotExtent(
     rc,
     mergedStyle.text.dataLabels,
@@ -122,7 +122,7 @@ export function getMapComponentSizes(
     nTiers: transformedData.tierHeaders.length,
     paneHeaders: transformedData.paneHeaders,
     minSubChartWidth: minLabelPlotExtent + labelBudget.horizontal,
-    // The vertical demand COMBINES differently by placer (plan N9): under
+    // The vertical demand COMBINES differently by placer: under
     // flank it is a stack the cell must be tall enough for; under nearest the
     // labels sit above and below the content, so it is additive.
     minSubChartHeight: mergedStyle.map.outsideLabelPlacement === "nearest"
@@ -259,9 +259,9 @@ function getMapIdealHeight(
 
   const minComfortableWidth = calculateChartMinWidth(info);
 
-  // minH is derived from the real floor at the autofit floor scale (plan
-  // D10), exactly as the scale-axis charts derive theirs — never idealH ×
-  // 0.5. getMapComponentSizes' minSubChartHeight IS the legibility floor, so
+  // minH is derived from the real floor at the autofit floor scale, exactly
+  // as the scale-axis charts derive theirs, never idealH × 0.5.
+  // getMapComponentSizes' minSubChartHeight IS the legibility floor, so
   // the shared decomposition at floorScale is the whole derivation. With
   // autofit off, type cannot shrink and the natural height is the minimum —
   // the scale-axis convention.
