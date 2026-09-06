@@ -338,9 +338,9 @@ async function writePopulationPersonYears(
   },
 ): Promise<RunPopulation> {
   const populationLevel = await getPopulationLevel(mainDb);
-  // The instance's population level setting when set, else the data's own
-  // depth. A depth-1 structure has no area below the country, so no
-  // population level exists: the header carries no area column and m012 stops.
+  // The header-only file falls back to the data's own depth. A depth-1
+  // structure has no area below the country: the header carries no area
+  // column and m012 stops.
   const level: PopulationLevel | null = populationLevel ??
     (capture.adminDepth >= 2 ? parsePopulationLevel(capture.adminDepth) : null);
   const populationTypes = populationTypesReferencedBySlotMaps(
@@ -360,18 +360,18 @@ async function writePopulationPersonYears(
   ];
 
   if (populationTypes.length > 0) {
-    if (level === null) {
+    if (populationLevel === null) {
       throw new Error(
-        "Cannot generate results: the dictionary names a population, but the HMIS structure has no admin areas below the country to hold population data.",
+        "Cannot generate results: an indicator formula uses a population, but the population level is not set. Set it on the instance Population page and import population data before generating.",
       );
     }
-    const areas = await listHmisStructureAreas(mainDb, level);
+    const areas = await listHmisStructureAreas(mainDb, populationLevel);
     const problems: string[] = [];
     for (const populationType of populationTypes) {
       const anchorsByArea = await getPopulationAnchors(
         mainDb,
         populationType,
-        level,
+        populationLevel,
       );
       const uncovered: string[] = [];
       for (const area of areas) {
@@ -390,7 +390,7 @@ async function writePopulationPersonYears(
           covered.lastYear < lastYear
         ) {
           uncovered.push(
-            populationDisplayPath(names, level) +
+            populationDisplayPath(names, populationLevel) +
               (covered === null
                 ? " (no data)"
                 : ` (covers ${covered.firstYear}–${covered.lastYear})`),
@@ -405,7 +405,7 @@ async function writePopulationPersonYears(
           );
           lines.push(
             [
-              ...names.slice(1, level).map(csvCell),
+              ...names.slice(1, populationLevel).map(csvCell),
               String(periodId),
               csvCell(populationType),
               String(personYears),
@@ -415,7 +415,7 @@ async function writePopulationPersonYears(
       }
       if (uncovered.length > 0) {
         problems.push(
-          `Population "${populationType}" at admin area level ${level} does not cover ${firstYear}–${lastYear} (±1 year of extrapolation) for ${uncovered.length} of ${areas.length} areas: ${
+          `Population "${populationType}" at admin area level ${populationLevel} does not cover ${firstYear}–${lastYear} (±1 year of extrapolation) for ${uncovered.length} of ${areas.length} areas: ${
             uncovered.slice(0, 10).join("; ")
           }${uncovered.length > 10 ? "; …" : ""}`,
         );
@@ -423,7 +423,7 @@ async function writePopulationPersonYears(
     }
     if (problems.length > 0) {
       throw new Error(
-        `Cannot generate results: the population store does not cover the data. Upload the missing population data on the instance Population page (annual counts per area at level ${level}, one row per area × year × population type).\n\n${
+        `Cannot generate results: the population store does not cover the data. Upload the missing population data on the instance Population page (annual counts per area at level ${populationLevel}, one row per area × year × population type).\n\n${
           problems.join("\n")
         }`,
       );
