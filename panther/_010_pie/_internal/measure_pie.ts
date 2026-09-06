@@ -151,6 +151,7 @@ export function measurePie(
           { ...prim.meta, indicatorIndex: k },
           transformedData,
           mergedStyle,
+          customFigureStyle.sf,
         ),
       );
       if (showHeaders) {
@@ -257,6 +258,7 @@ function solveOnePie(
   indices: PieIndices,
   data: PieDataTransformed,
   mergedStyle: MergedPieStyle,
+  sf: number,
 ): SolvedPie {
   const mode = toPieLabelMode(mergedStyle.pie.labelMode);
   const ratio = clampInnerRadiusRatio(mergedStyle.pie.innerRadiusRatio);
@@ -291,7 +293,7 @@ function solveOnePie(
   // the fit scale multiplies here to keep shrunk figures proportional.
   const capD = mergedStyle.idealHeight.idealPieDiameter(
     data.indicatorHeaders.length,
-  ) * mergedStyle.alreadyScaledValue;
+  ) * sf;
   // capD bounds the DISC diameter (2s) — the visual scale of the pie — not
   // the silhouette's drawn extent, so a half-disc gauge is capped at the same
   // underlying disc as a full pie whatever its orientation.

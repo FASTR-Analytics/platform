@@ -34,6 +34,7 @@ import {
   type TableCellInfoFunc,
   type TableHeaderInfo,
   type TableHeaderInfoFunc,
+  type TextInfoUnkeyed,
 } from "./deps.ts";
 import type { DefaultFigureStyle } from "./_1_default_figure_style.ts";
 import type { CustomFigureStyleOptions } from "./_2_custom_figure_style_options.ts";
@@ -131,7 +132,7 @@ export type GenericDataLabelStyle = {
   offset: number;
   backgroundColor: ColorKeyOrString | "none";
   padding: PaddingOptions;
-  borderColor?: ColorKeyOrString;
+  borderColor?: ColorKeyOrString | "none";
   borderWidth: number;
   rectRadius: number;
   // Optional on the per-block defaults (a bar's data label never draws one),
@@ -143,6 +144,9 @@ export type GenericDataLabelStyle = {
 // The shared content.dataLabel cascade base: the terminal level of the
 // data-label merge, so every field without a per-block default must be here.
 export type GenericDataLabelBaseStyle = GenericDataLabelStyle & {
+  relFontSize: number;
+  font: FontInfoOptions;
+  borderColor: ColorKeyOrString | "none";
   leaderLine: GenericLeaderLineStyle;
 };
 
@@ -154,12 +158,12 @@ export type DataLabelStyle = {
   show: boolean;
   color?: ColorKeyOrString;
   colorStrategy?: ColorAdjustmentStrategy;
-  relFontSize?: number;
-  font?: FontInfoOptions;
+  relFontSize: number;
+  font: FontInfoOptions;
   offset: number;
   backgroundColor: ColorKeyOrString | "none";
   padding: Padding;
-  borderColor?: ColorKeyOrString;
+  borderColor: ColorKeyOrString | "none";
   borderWidth: number;
   rectRadius: number;
   leaderLine: GenericLeaderLineStyle;
@@ -192,18 +196,31 @@ function pickColorPair(
   return { color: undefined, colorStrategy: undefined };
 }
 
+function adjustedHostColor(
+  host: ColorKeyOrString | "none",
+  strategy: ColorAdjustmentStrategy | "none",
+): string | undefined {
+  return host === "none" || strategy === "none"
+    ? undefined
+    : getAdjustedColor(host, strategy);
+}
+
+export function applyTextColorStrategy(
+  text: TextInfoUnkeyed,
+  host: ColorKeyOrString | "none",
+  strategy: ColorAdjustmentStrategy | "none",
+): TextInfoUnkeyed {
+  const color = adjustedHostColor(host, strategy);
+  return color === undefined ? text : { ...text, color };
+}
+
 function applyDataLabelColorStrategy(
   dl: DataLabelStyle,
   hostColor: ColorKeyOrString | "none",
 ): DataLabelStyle {
-  if (
-    dl.color !== undefined ||
-    dl.colorStrategy === undefined ||
-    hostColor === "none"
-  ) {
-    return dl;
-  }
-  return { ...dl, color: getAdjustedColor(hostColor, dl.colorStrategy) };
+  if (dl.color !== undefined) return dl;
+  const color = adjustedHostColor(hostColor, dl.colorStrategy ?? "none");
+  return color === undefined ? dl : { ...dl, color };
 }
 
 // The data-label cascade has six levels: the per-block override (c/g/d) and the
@@ -361,18 +378,14 @@ function resolveDataLabelInstance(
   return applyDataLabelColorStrategy(dl, hostColor);
 }
 
-// alignH/alignV are optional on the Generic (authoring) shapes — the resolved
-// styles below always carry them. Vertical defaults: cells and row headers
-// fall back to the table-wide `table.alignV` (same fallback pattern as
-// colHeaderBackgroundColor); col headers default to
-// "bottom" (they sit on the header axis). Col-GROUP headers and rotated col
-// headers ignore alignment entirely (forced center — a multi-column span has
-// no principled single edge, and sideways text has no meaningful alignH).
+// Col-group headers and rotated col headers ignore alignment entirely (forced
+// center: a multi-column span has no principled single edge, and sideways text
+// has no meaningful alignH).
 export type GenericTableCellStyle = {
   backgroundColor: ColorKeyOrString | typeof VALUES_COLOR_SENTINEL | "none";
   textColorStrategy: ColorAdjustmentStrategy | "none";
-  alignH?: "left" | "center" | "right";
-  alignV?: "top" | "middle" | "bottom";
+  alignH: "left" | "center" | "right";
+  alignV: "top" | "middle" | "bottom";
 };
 
 export type GenericTableCellStyleOptions =
@@ -390,16 +403,13 @@ export type TableCellStyle = {
 export type GenericTableHeaderStyle = {
   backgroundColor: ColorKeyOrString | "none";
   textColorStrategy: ColorAdjustmentStrategy | "none";
-  alignH?: "left" | "center" | "right";
-  alignV?: "top" | "middle" | "bottom";
+  alignH: "left" | "center" | "right";
+  alignV: "top" | "middle" | "bottom";
 };
 
 export type GenericTableHeaderStyleOptions = Partial<GenericTableHeaderStyle>;
 
-export type TableHeaderStyle = GenericTableHeaderStyle & {
-  alignH: "left" | "center" | "right";
-  alignV: "top" | "middle" | "bottom";
-};
+export type TableHeaderStyle = GenericTableHeaderStyle;
 
 export function getTableRowHeaderStyleFunc(
   _sf: number,
@@ -422,14 +432,8 @@ export function getTableRowHeaderStyleFunc(
     g?.textColorStrategy,
     d.textColorStrategy,
   );
-  const dAlignH = m(c?.alignH, g?.alignH, d.alignH) ?? "left";
-  // Row headers follow the table-wide alignV so their text lines up
-  // vertically with the cells in the same row.
-  const dAlignV = m(
-    c?.alignV,
-    g?.alignV,
-    m(_c.table?.alignV, _g.table?.alignV, _d.table.alignV),
-  );
+  const dAlignH = m(c?.alignH, g?.alignH, d.alignH);
+  const dAlignV = m(c?.alignV, g?.alignV, d.alignV);
   return (info: TableHeaderInfo): TableHeaderStyle => {
     const oc = cf?.(info);
     const og = gf?.(info);
@@ -454,38 +458,18 @@ export function getTableColHeaderStyleFunc(
     _c.content?.tableColHeaders?.func,
     _g.content?.tableColHeaders?.func,
   );
-  const d = _d.content.tableColHeaders.func;
-  const dTextColorStrategy: ColorAdjustmentStrategy | "none" = m(
-    c?.textColorStrategy,
-    g?.textColorStrategy,
-    d.textColorStrategy,
-  ) ?? "none";
-  // Backward-compat fallback: when no per-header backgroundColor is provided,
-  // fall back to the uniform colHeaderBackgroundColor / colGroupHeaderBackgroundColor.
-  const dColBg = m(
-    _c.table?.colHeaderBackgroundColor,
-    _g.table?.colHeaderBackgroundColor,
-    _d.table.colHeaderBackgroundColor,
-  );
-  const dColGroupBg = m(
-    _c.table?.colGroupHeaderBackgroundColor,
-    _g.table?.colGroupHeaderBackgroundColor,
-    _d.table.colGroupHeaderBackgroundColor,
-  );
-  const dAlignH = m(c?.alignH, g?.alignH, d.alignH) ?? "center";
-  const dAlignV = m(c?.alignV, g?.alignV, d.alignV) ?? "bottom";
+  const df = _d.content.tableColHeaders.func;
   return (info: TableHeaderInfo): TableHeaderStyle => {
     const oc = cf?.(info);
     const og = gf?.(info);
-    const backgroundColor = oc?.backgroundColor ?? og?.backgroundColor ??
-      c?.backgroundColor ?? g?.backgroundColor ??
-      (info.isGroupHeader ? dColGroupBg : dColBg);
+    const d = df(info);
     return {
-      backgroundColor: backgroundColor as ColorKeyOrString | "none",
+      backgroundColor: oc?.backgroundColor ?? og?.backgroundColor ??
+        c?.backgroundColor ?? g?.backgroundColor ?? d.backgroundColor,
       textColorStrategy: oc?.textColorStrategy ?? og?.textColorStrategy ??
-        dTextColorStrategy,
-      alignH: oc?.alignH ?? og?.alignH ?? dAlignH,
-      alignV: oc?.alignV ?? og?.alignV ?? dAlignV,
+        c?.textColorStrategy ?? g?.textColorStrategy ?? d.textColorStrategy,
+      alignH: oc?.alignH ?? og?.alignH ?? c?.alignH ?? g?.alignH ?? d.alignH,
+      alignV: oc?.alignV ?? og?.alignV ?? c?.alignV ?? g?.alignV ?? d.alignV,
     };
   };
 }
@@ -512,12 +496,8 @@ export function getTableCellStyleFunc(
     g?.textColorStrategy,
     d.textColorStrategy,
   );
-  const dAlignH = m(c?.alignH, g?.alignH, d.alignH) ?? "center";
-  const dAlignV = m(
-    c?.alignV,
-    g?.alignV,
-    m(_c.table?.alignV, _g.table?.alignV, _d.table.alignV),
-  );
+  const dAlignH = m(c?.alignH, g?.alignH, d.alignH);
+  const dAlignV = m(c?.alignV, g?.alignV, d.alignV);
 
   return (info: TableCellInfo): TableCellStyle => {
     const oc = cf?.(info);
@@ -1172,7 +1152,7 @@ export type GenericMapRegionStyle = {
   strokeColor: ColorKeyOrString | "none";
   strokeWidth: number;
   dataLabel: GenericDataLabelStyle;
-  centroidOffset?: { dx: number; dy: number };
+  centroidOffset: { dx: number; dy: number };
 };
 
 export type MapRegionStyle = {
@@ -1181,7 +1161,7 @@ export type MapRegionStyle = {
   strokeColor: ColorKeyOrString | "none";
   strokeWidth: number;
   dataLabel: DataLabelStyle;
-  centroidOffset?: { dx: number; dy: number };
+  centroidOffset: { dx: number; dy: number };
 };
 
 export function getMapRegionStyleFunc(

@@ -265,7 +265,7 @@ export function generateBarPrimitives(
                 ? getColor(dl.backgroundColor)
                 : undefined,
               padding: dl.padding,
-              borderColor: dl.borderColor !== undefined
+              borderColor: dl.borderColor !== "none"
                 ? getColor(dl.borderColor)
                 : undefined,
               borderWidth: dl.borderWidth > 0 ? dl.borderWidth : undefined,

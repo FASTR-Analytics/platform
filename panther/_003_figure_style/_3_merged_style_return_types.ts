@@ -87,6 +87,7 @@ export type MergedScaleLegendStyle = {
   blockGap: number;
   noDataGap: number;
   noDataSwatchWidth: number;
+  minBarWidth: number;
 };
 
 export type MergedIdealHeightStyle = {
@@ -160,7 +161,6 @@ export type MergedMapStyle = MergedChartStyleBase & {
   map: {
     projection: "equirectangular" | "mercator" | "naturalEarth1";
     fit: "all-regions" | "only-regions-in-data";
-    boundingBox?: [number, number, number, number];
     dataLabelMode: MapDataLabelMode;
     calloutMargin: number;
     labelCollision: LabelCollisionConfig;
@@ -249,7 +249,6 @@ export type MergedYTextAxisStyle = {
   tickPosition: "sides" | "center";
   paddingTop: number;
   paddingBottom: number;
-  logicTickLabelWidth: "auto" | "fixed";
   maxTickLabelWidthAsPctOfChart: number;
 };
 
@@ -301,8 +300,6 @@ export type MergedTableStyle = {
   colHeaderPadding: Padding;
   rowHeaderPadding: Padding;
   cellPadding: Padding;
-  colHeaderBackgroundColor: string | "none";
-  colGroupHeaderBackgroundColor: string | "none";
   headerBorderWidth: number;
   gridLineWidth: number;
   borderWidth: number;
@@ -400,8 +397,8 @@ export type MergedYScaleAxisStyle = {
     yScaleAxisTickLabels: TextInfoUnkeyed;
     yScaleAxisLabel: TextInfoUnkeyed;
   };
-  max: number | "auto" | "auto-zero" | ((i_series: number) => number);
-  min: number | "auto" | "auto-zero" | ((i_series: number) => number);
+  max: number | "auto" | "auto-zero" | ((i_pane: number) => number);
+  min: number | "auto" | "auto-zero" | ((i_pane: number) => number);
   labelGap: number;
   tickWidth: number;
   tickLabelGap: number;

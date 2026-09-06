@@ -93,8 +93,8 @@ export function collectMapLabelSpecs(
       text,
       dl,
       offset: {
-        dx: region.style.centroidOffset?.dx ?? 0,
-        dy: region.style.centroidOffset?.dy ?? 0,
+        dx: region.style.centroidOffset.dx,
+        dy: region.style.centroidOffset.dy,
       },
       feature: region.feature,
     });

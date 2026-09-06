@@ -85,18 +85,13 @@ type FuncPayloadMissing = {
 // `lines.func.color` lands as `strokeColor` on LineStyle (getLineStyleFunc).
 type FuncPayloadExempt = "lines.func.color";
 
-// `table.alignV` is the table-wide fallback read straight from the option
-// levels inside the header/cell style funcs (style_func_types.ts), so it has
-// no merged field of its own.
-type TableExempt = "alignV";
-
 export type FigureStyleKeyCoverage = {
   surrounds: AssertNoMissingKeys<Missing<"surrounds", MergedSurroundsStyle>>;
   legend: AssertNoMissingKeys<Missing<"legend", MergedLegendStyle>>;
   scaleLegend: AssertNoMissingKeys<
     Missing<"scaleLegend", MergedScaleLegendStyle>
   >;
-  table: AssertNoMissingKeys<Missing<"table", MergedTableStyle, TableExempt>>;
+  table: AssertNoMissingKeys<Missing<"table", MergedTableStyle>>;
   tiers: AssertNoMissingKeys<Missing<"tiers", MergedChartStyleBase["tiers"]>>;
   lanes: AssertNoMissingKeys<Missing<"lanes", MergedChartStyleBase["lanes"]>>;
   xTextAxis: AssertNoMissingKeys<Missing<"xTextAxis", MergedXTextAxisStyle>>;

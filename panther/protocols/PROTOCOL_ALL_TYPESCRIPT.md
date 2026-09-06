@@ -13,7 +13,9 @@ For detailed explanations, see `DOC_CODING_CONVENTIONS.md`.
    literals, plus an `ALL_*` array when the values need iterating or validating
 4. **No JSDoc**: TypeScript types are sufficient
 5. **No `any`**: Explicit types always
-6. **Const by default**: Use `let` only for loop counters
+6. **Const by default**: Use `let` only where mutation cannot be avoided (a loop
+   counter, a counter that outlives its closure). If a value can be computed as
+   an expression, a `const` and a pure function replace the `let`.
 7. **Undefined over null**: For optional/missing values
 8. **Early throw**: Validate and throw early with descriptive messages
 9. **Braces required**: Always use braces with `if` statements

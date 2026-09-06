@@ -47,6 +47,7 @@ export {
   getHeaderIndex,
   measureChart,
   measureChartWithAutofit,
+  PANE_HEADER_SAMPLE_MAX_W,
   placeNearestBoxes,
   placeOutsideBoxes,
   renderFigureBackground,
@@ -55,6 +56,7 @@ export {
   resolveFigureAutofitOptions,
   resolveFlooredContentScale,
   resolveLabelPlacement,
+  SIZING_SAMPLE,
   solveContentScale,
   validateDataInput,
 } from "../_007_figure_core/mod.ts";

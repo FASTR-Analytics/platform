@@ -316,6 +316,12 @@ export class CustomFigureStyle {
         g.scaleLegend?.noDataSwatchWidth,
         d.scaleLegend.noDataSwatchWidth,
       ),
+      minBarWidth: ms(
+        sf,
+        c.scaleLegend?.minBarWidth,
+        g.scaleLegend?.minBarWidth,
+        d.scaleLegend.minBarWidth,
+      ),
     };
   }
 
@@ -495,11 +501,6 @@ export class CustomFigureStyle {
       map: {
         projection: m(c.map?.projection, g.map?.projection, d.map.projection),
         fit: m(c.map?.fit, g.map?.fit, d.map.fit),
-        boundingBox: m(
-          c.map?.boundingBox,
-          g.map?.boundingBox,
-          d.map.boundingBox,
-        ),
         dataLabelMode: m(
           c.map?.dataLabelMode,
           g.map?.dataLabelMode,
@@ -810,20 +811,6 @@ export class CustomFigureStyle {
         g.table?.cellPadding,
         d.table.cellPadding,
       ),
-      colHeaderBackgroundColor: getColor(
-        m(
-          c.table?.colHeaderBackgroundColor,
-          g.table?.colHeaderBackgroundColor,
-          d.table.colHeaderBackgroundColor,
-        ),
-      ),
-      colGroupHeaderBackgroundColor: getColor(
-        m(
-          c.table?.colGroupHeaderBackgroundColor,
-          g.table?.colGroupHeaderBackgroundColor,
-          d.table.colGroupHeaderBackgroundColor,
-        ),
-      ),
       headerBorderWidth: ms(
         sf,
         c.table?.headerBorderWidth,
@@ -1118,11 +1105,6 @@ export class CustomFigureStyle {
         c.yTextAxis?.paddingBottom,
         g.yTextAxis?.paddingBottom,
         d.yTextAxis.paddingBottom,
-      ),
-      logicTickLabelWidth: m(
-        c.yTextAxis?.logicTickLabelWidth,
-        g.yTextAxis?.logicTickLabelWidth,
-        d.yTextAxis.logicTickLabelWidth,
       ),
       maxTickLabelWidthAsPctOfChart: m(
         c.yTextAxis?.maxTickLabelWidthAsPctOfChart,

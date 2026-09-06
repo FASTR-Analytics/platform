@@ -11,8 +11,10 @@ import {
   estimateMinYAxisWidth,
   maxProportionalPanePlotExtent,
   maxVisibleCount,
+  PANE_HEADER_SAMPLE_MAX_W,
   type RenderContext,
   resolveDefaultLegend,
+  SIZING_SAMPLE,
 } from "../deps.ts";
 import { getChartOVDataTransformed } from "../get_chartov_data.ts";
 import type { ChartOVDataTransformed, ChartOVInputs } from "../types.ts";
@@ -40,7 +42,11 @@ export function getChartOVComponentSizes(
   const ms = cs.getMergedChartOVStyle();
 
   const xAxisTickH = rc
-    .mText("Category", ms.xTextAxis.text.xTextAxisTickLabels, Infinity)
+    .mText(
+      SIZING_SAMPLE.textTick,
+      ms.xTextAxis.text.xTextAxisTickLabels,
+      Infinity,
+    )
     .dims.h();
   const xAxisHeight = ms.grid.axisStrokeWidth +
     xAxisTickH +
@@ -48,7 +54,11 @@ export function getChartOVComponentSizes(
     ms.xTextAxis.tickLabelGap;
 
   const paneHeaderHeight = rc
-    .mText("Region 001", ms.text.paneHeaders, 400)
+    .mText(
+      SIZING_SAMPLE.paneHeader,
+      ms.text.paneHeaders,
+      PANE_HEADER_SAMPLE_MAX_W,
+    )
     .dims.h();
 
   const textStyle = ms.xTextAxis.text.xTextAxisTickLabels;

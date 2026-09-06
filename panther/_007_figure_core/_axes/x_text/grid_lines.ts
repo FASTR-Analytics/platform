@@ -6,10 +6,7 @@
 import type { RectCoordsDims } from "../../deps.ts";
 import type { XTextAxisMeasuredInfo } from "./types.ts";
 
-// NOTE: This function needs data from ChartOVDataTransformed
-// We pass the needed data as parameters to avoid importing from higher-numbered modules
 export function calculateVerticalGridLinesForLaneXText(
-  _i_lane: number,
   plotAreaRcd: RectCoordsDims,
   xTextAxisMeasuredInfo: XTextAxisMeasuredInfo,
   nIndicators: number,

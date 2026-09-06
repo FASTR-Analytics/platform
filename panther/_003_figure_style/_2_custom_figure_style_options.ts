@@ -79,6 +79,7 @@ export type CustomFigureStyleOptions = {
     blockGap?: number;
     noDataGap?: number;
     noDataSwatchWidth?: number;
+    minBarWidth?: number;
   };
   table?: {
     rowHeaderIndentIfRowGroups?: number;
@@ -87,9 +88,6 @@ export type CustomFigureStyleOptions = {
     colHeaderPadding?: PaddingOptions;
     rowHeaderPadding?: PaddingOptions;
     cellPadding?: PaddingOptions;
-    alignV?: "top" | "middle" | "bottom";
-    colHeaderBackgroundColor?: ColorKeyOrString | "none";
-    colGroupHeaderBackgroundColor?: ColorKeyOrString | "none";
     headerBorderWidth?: number;
     gridLineWidth?: number;
     borderWidth?: number;
@@ -152,12 +150,11 @@ export type CustomFigureStyleOptions = {
     paddingBottom?: number;
     tickWidth?: number;
     tickLabelGap?: number;
-    logicTickLabelWidth?: "auto" | "fixed";
     maxTickLabelWidthAsPctOfChart?: number;
   };
   yScaleAxis?: {
-    max?: number | "auto" | "auto-zero" | ((i_series: number) => number);
-    min?: number | "auto" | "auto-zero" | ((i_series: number) => number);
+    max?: number | "auto" | "auto-zero" | ((i_pane: number) => number);
+    min?: number | "auto" | "auto-zero" | ((i_pane: number) => number);
     labelGap?: number;
     tickWidth?: number;
     tickLabelGap?: number;
@@ -381,7 +378,6 @@ export type CustomFigureStyleOptions = {
   map?: {
     projection?: "equirectangular" | "mercator" | "naturalEarth1";
     fit?: "all-regions" | "only-regions-in-data";
-    boundingBox?: [number, number, number, number];
     dataLabelMode?: "none" | "centroid" | "callout" | "auto";
     calloutMargin?: number;
     labelCollision?: {

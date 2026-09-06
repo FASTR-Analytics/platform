@@ -16,7 +16,6 @@ export type {
   Geometry,
   GraphModel,
   GroupGeom,
-  GroupIn,
   LaneGeom,
   LayoutOptions,
   NodeGeom,

@@ -6,7 +6,7 @@
 import type {
   ChartSeriesInfo,
   ChartValueInfo,
-  ColorKeyOrString,
+  DataLabelStyle,
   HeaderItem,
   MergedContentStyle,
   RectCoordsDims,
@@ -23,28 +23,20 @@ import type { MappedValueCoordinate } from "./calculate_mapped_coordinates.ts";
 // label dimensions.
 export function buildDataLabelTextStyle(
   base: TextInfoUnkeyed,
-  dl: {
-    color?: ColorKeyOrString;
-    relFontSize?: number;
-    font?: Parameters<typeof getAdjustedFont>[1];
-  },
+  dl: Pick<DataLabelStyle, "color" | "relFontSize" | "font">,
 ): TextInfoUnkeyed {
   if (
     dl.color === undefined &&
-    dl.relFontSize === undefined &&
-    dl.font === undefined
+    dl.relFontSize === 1 &&
+    Object.keys(dl.font).length === 0
   ) {
     return base;
   }
   return {
     ...base,
     ...(dl.color !== undefined ? { color: getColor(dl.color) } : {}),
-    ...(dl.relFontSize !== undefined
-      ? { fontSize: base.fontSize * dl.relFontSize }
-      : {}),
-    ...(dl.font !== undefined
-      ? { font: getAdjustedFont(base.font, dl.font) }
-      : {}),
+    fontSize: base.fontSize * dl.relFontSize,
+    font: getAdjustedFont(base.font, dl.font),
   };
 }
 

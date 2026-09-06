@@ -33,22 +33,6 @@ export type TableInputs = FigureInputsBase & {
 
 export type TableData = TableDataJson | TableDataTransformed;
 
-///////////////
-//           //
-//    Csv    //
-//           //
-///////////////
-
-// export type TableDataCsv = {
-//   csv: Csv<string | number>;
-//   csvDataConfig: TableDataConfigCsv;
-// };
-
-// export type TableDataConfigCsv = {
-//   colGroups?: ColGroupAsNumbersOrStrings[];
-//   rowGroups?: ColGroupAsNumbersOrStrings[];
-// };
-
 ////////////////
 //            //
 //    Json    //
@@ -120,10 +104,6 @@ export type ResolvedTableHeaders = {
 ///////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////
 
-// export function isTableDataCsv(d: TableData): d is TableDataCsv {
-//   return (d as TableDataCsv).csv !== undefined;
-// }
-
 export function isTableDataJson(d: TableData): d is TableDataJson {
   return (d as TableDataJson).jsonArray !== undefined;
 }
@@ -156,12 +136,6 @@ export type RowGroupRow = {
   id: string | undefined;
   label: string | undefined;
   index: number;
-};
-
-export type TableHeightInfo = {
-  ideal: number;
-  max?: number;
-  min?: number;
 };
 
 export type RowHeaderInfo = {
@@ -233,7 +207,7 @@ export type MeasuredTable = Measured<TableInputs> & {
   // exactly what renders.
   transformedData: TableDataTransformed;
   customFigureStyle: CustomFigureStyle;
-  mergedTableStyle: MergedTableStyle;
+  mergedStyle: MergedTableStyle;
   columnMinMax: Map<number, { min: number; max: number }>;
   // Display data
   caption?: string;

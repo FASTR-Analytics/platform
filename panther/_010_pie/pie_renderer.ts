@@ -15,11 +15,13 @@ import {
   type HeightConstraints,
   type LegendInput,
   measureChartWithAutofit,
+  PANE_HEADER_SAMPLE_MAX_W,
   type RectCoordsDims,
   type RenderContext,
   type Renderer,
   resolveDefaultLegend,
   resolveFigureAutofitOptions,
+  SIZING_SAMPLE,
 } from "./deps.ts";
 import type { MeasuredPie, PieInputs } from "./types.ts";
 import { getPieDataTransformed } from "./get_pie_data.ts";
@@ -134,7 +136,11 @@ export function getPieComponentSizes(
   const ind = mergedStyle.pie.indicators;
   const headerAllowance = showsIndicatorHeaders(transformedData, mergedStyle)
     ? ind.headerGap +
-      rc.mText("Region 001", mergedStyle.pie.text.indicatorHeaders, 400).dims
+      rc.mText(
+        SIZING_SAMPLE.paneHeader,
+        mergedStyle.pie.text.indicatorHeaders,
+        PANE_HEADER_SAMPLE_MAX_W,
+      ).dims
         .h()
     : 0;
 
@@ -163,7 +169,11 @@ export function getPieComponentSizes(
       (nSlotRows - 1) * ind.gapY,
     xAxisHeight: 0,
     paneHeaderHeight: rc
-      .mText("Region 001", mergedStyle.text.paneHeaders, 400)
+      .mText(
+        SIZING_SAMPLE.paneHeader,
+        mergedStyle.text.paneHeaders,
+        PANE_HEADER_SAMPLE_MAX_W,
+      )
       .dims.h(),
     minYAxisWidth: 0,
     // The 4th argument matters: without it the estimator synthesizes
