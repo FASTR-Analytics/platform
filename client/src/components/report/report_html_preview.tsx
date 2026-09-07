@@ -1,4 +1,5 @@
 import {
+  type FastrChartPalette,
   type FigureBlock,
   type ImageBlock,
   readFastrDocumentSettings,
@@ -56,7 +57,7 @@ type Props = {
   // style is white-on-dark still reads on the page.
   darkInk?: FigureInkTheme;
   // The report theme's series palette for its figures.
-  chartPalette?: string[];
+  chartPalette?: FastrChartPalette;
   lineAnchors: boolean;
   forwardPointer?: boolean;
   onSurface?: (surface: PreviewSurface) => void;

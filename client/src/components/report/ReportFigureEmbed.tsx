@@ -8,7 +8,7 @@ import {
   Switch,
 } from "solid-js";
 import { FigureHolder, type FigureInputs } from "panther";
-import { type FigureBlock, t3 } from "lib";
+import { type FastrChartPalette, type FigureBlock, t3 } from "lib";
 import { buildFigureInputs } from "~/generate_visualization/mod";
 import { applyInkTheme, type FigureInkTheme } from "./report_figure_raster";
 
@@ -19,8 +19,8 @@ type Props = {
   // element — dark on light, light on dark — so a figure keeps its stored
   // series colours but never its dashboard's text colour.
   inkFor?: (el: Element) => FigureInkTheme | undefined;
-  // The report theme's series palette (see getStandardSeriesColorFunc).
-  chartPalette?: () => string[] | undefined;
+  // The report theme's chart palette (see getStandardSeriesColorFunc).
+  chartPalette?: () => FastrChartPalette | undefined;
 };
 
 type Hydrated = { ok: true; inputs: FigureInputs } | { ok: false; err: string };

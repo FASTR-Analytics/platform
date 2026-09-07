@@ -9,6 +9,7 @@ import {
   _CF_GREEN,
   _CF_RED,
   type DeckStyleContext,
+  type FastrChartPalette,
   type IndicatorFormat,
   PresentationObjectConfig,
 } from "lib";
@@ -23,10 +24,14 @@ export function buildPercentChangeChartStyle(
   formatAs: IndicatorFormat,
   calendar: CalendarType,
   deckStyle?: DeckStyleContext,
-  chartPalette?: string[],
+  chartPalette?: FastrChartPalette,
 ): CustomFigureStyleOptions {
   const threshold = config.s.specialBarChartDiffThreshold ?? 0.1;
   const inverted = config.s.specialBarChartInverted;
+  // A themed report's own good/bad/neutral (see getStandardSeriesColorFunc).
+  const neutral = chartPalette?.neutral ?? _CF_COMPARISON;
+  const good = chartPalette?.good ?? _CF_GREEN;
+  const bad = chartPalette?.bad ?? _CF_RED;
 
   return {
     seriesColorFunc: getStandardSeriesColorFunc(config, chartPalette),
@@ -49,27 +54,27 @@ export function buildPercentChangeChartStyle(
           if (diff === undefined) {
             return {
               show: true,
-              fillColor: _CF_COMPARISON,
+              fillColor: neutral,
               dataLabel: { show: config.s.showDataLabels },
             };
           }
           if (diff > threshold) {
             return {
               show: true,
-              fillColor: inverted ? _CF_RED : _CF_GREEN,
+              fillColor: inverted ? bad : good,
               dataLabel: { show: config.s.showDataLabels },
             };
           }
           if (diff < -1 * threshold) {
             return {
               show: true,
-              fillColor: inverted ? _CF_GREEN : _CF_RED,
+              fillColor: inverted ? good : bad,
               dataLabel: { show: config.s.showDataLabels },
             };
           }
           return {
             show: true,
-            fillColor: _CF_COMPARISON,
+            fillColor: neutral,
             dataLabel: { show: config.s.showDataLabels },
           };
         },

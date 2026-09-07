@@ -738,19 +738,30 @@ any mark it cuts into and is rebuilt as flat segments — each existing mark's
 attrs patched, plain text newly marked, same-attr neighbours merged — so
 re-sizing a partly-sized phrase yields one mark and an inner role survives as
 its own segment (`rewriteRangeMarks`); selections split per line and at table
-pipes, so a label can never swallow a cell boundary. **Figure series colours follow the theme.** Every theme carries a `chart`
-palette (accent first) in `FASTR_THEME_TOKENS`; `fastrChartPalette(theme,
-colors)` puts a custom style's accent at its head. It travels as a plain
-`chartPalette?: string[]` through `buildFigureInputs` →
-`getStyleFromPresentationObject` → the standard and percent-change style
-builders → `getStandardSeriesColorFunc`, which uses it ONLY for the discrete
-scales (`pastel-discrete`, `alt-discrete`): the semantic scales (single grey,
-red→green, blue→green, the coverage/disruption/scorecard specials) and a
-figure's explicit per-series colours keep their meaning. The three report
-render sites pass it (the live embed through `EmbedResolver.chartPalette`, the
-preview through the raster cache — whose key includes the palette, so a
-re-theme re-rasters — and the export), and nothing else does, so dashboards,
-slide decks and the visualization editor are byte-identical to before.
+pipes, so a label can never swallow a cell boundary. **Figure colours follow the theme — every scale, not just the series
+cycle.** Each theme's `chart` in `FASTR_THEME_TOKENS` is a `FastrThemeChart`:
+`series` (the neutral cycle, accent first) plus `neutral`, `good`, `bad` and a
+sequential `ramp` — hand-picked so meaning survives the theme (Monochrome's
+bad is a muted brick and its good a moss that still tell apart; Terminal's are
+neons on black; Risograph's are its own red and green inks; a test pins good
+to green hues, bad to red hues, the ramp to a real lightness run).
+`fastrChartPalette(theme, colors)` turns that into the `FastrChartPalette` a
+figure receives: a custom style's accent leads the series, and two derived
+colours are added — `strong` (the document's ink) and `faint` (the neutral
+faded 60% toward the page). It travels as `chartPalette?: FastrChartPalette`
+through `buildFigureInputs` → `getStyleFromPresentationObject` → every style
+builder: `getStandardSeriesColorFunc` maps `pastel-discrete`/`alt-discrete`
+to the series cycle, `single-grey` and the roll-up total to `neutral`,
+`red-green` to a `bad`→`good` scale and `blue-green` to the ramp (a lone series
+takes the ramp's emphatic `to` end, not the tint); the percent-change bars use
+neutral/good/bad, the disruption bands good/bad with the ink as the observed
+line, the coverage chart ink/bad/faint for observed/projected/background. A
+figure's explicit per-series colours, conditional-formatting cells and the
+scorecard's traffic lights are never replaced. The three report render sites
+pass it (the live embed through `EmbedResolver.chartPalette`, the preview
+through the raster cache — whose key includes the palette, so a re-theme
+re-rasters — and the export), and nothing else does, so dashboards, slide
+decks and the visualization editor are byte-identical to before.
 **Figure ink follows the ground in BOTH directions.** A figure's stored style
 is its dashboard's — a dark dashboard's white text arrives as white text — so
 every place a report renders one re-inks it for the ground it actually sits

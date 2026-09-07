@@ -2,6 +2,7 @@ import { CustomFigureStyleOptions, type CalendarType } from "panther";
 import {
   type DeckStyleContext,
   type EffectiveFormat,
+  type FastrChartPalette,
   type FigureLocalization,
   type IndicatorMetadata,
   PresentationObjectConfig,
@@ -27,7 +28,7 @@ export function getStyleFromPresentationObject(
   indicatorMetadata: IndicatorMetadata[] | undefined,
   allowNegativeScale: boolean,
   effectiveValueProps: string[],
-  chartPalette?: string[],
+  chartPalette?: FastrChartPalette,
 ): CustomFigureStyleOptions {
   const calendar = resolveFigureCalendar(config, localization);
   if (isSpecialScorecardTableActive(config) && indicatorMetadata) {
@@ -43,13 +44,13 @@ export function getStyleFromPresentationObject(
   // their declaration IS the axis format and nothing they draw is per-value.
   const formatAs = effectiveFormat.axisFormat;
   if (isSpecialCoverageChartActive(config)) {
-    return buildCoverageChartStyle(config, formatAs, calendar, deckStyle);
+    return buildCoverageChartStyle(config, formatAs, calendar, deckStyle, chartPalette);
   }
   if (isSpecialBarChartActive(config)) {
     return buildPercentChangeChartStyle(config, formatAs, calendar, deckStyle, chartPalette);
   }
   if (isSpecialDisruptionsChartActive(config)) {
-    return buildDisruptionsChartStyle(config, formatAs, calendar, allowNegativeScale, deckStyle);
+    return buildDisruptionsChartStyle(config, formatAs, calendar, allowNegativeScale, deckStyle, chartPalette);
   }
   return buildStandardStyle(
     config,
