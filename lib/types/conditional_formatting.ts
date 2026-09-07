@@ -1,9 +1,16 @@
-import type {
-  ColorKeyOrString,
-  ContinuousScaleConfig,
+import {
+  type ColorKeyOrString,
+  type ContinuousScaleConfig,
+  getAdjustedColor,
 } from "@timroberton/panther";
 import { t3 } from "../translate/mod.ts";
+import {
+  _CF_LIGHTER_GREEN,
+  _CF_LIGHTER_RED,
+  _CF_LIGHTER_YELLOW,
+} from "../key_colors.ts";
 import { cfStorageSchema } from "./conditional_formatting_standalone.ts";
+import type { FastrChartPalette } from "./report_fastr_themes.ts";
 
 export { cfStorageSchema };
 export type CfStorage = import("zod").infer<typeof cfStorageSchema>;
@@ -192,6 +199,58 @@ function parseContinuousScaleConfigForStorage(scale: ContinuousScaleConfig): {
 
 function stringifyColor(c: ColorKeyOrString): string {
   return typeof c === "string" ? c : "";
+}
+
+// The stock traffic-light cell tints, keyed by their exact strings — the
+// three bases the presets seed and the CF editor shows, plus the darkened /
+// brightened variants the seven-bucket diverging presets derive from them.
+// A themed report swaps each for the theme's own tint with the same
+// adjustment applied; a colour the user picked themselves is never touched.
+const STOCK_CELL_ADJUSTMENTS = [
+  undefined,
+  { darken: 0.25 },
+  { brighten: 0.5 },
+] as const;
+
+function stockCellColourMap(palette: FastrChartPalette): Map<string, string> {
+  const bases: Array<[string, string]> = [
+    [_CF_LIGHTER_GREEN, palette.cells.good],
+    [_CF_LIGHTER_YELLOW, palette.cells.warn],
+    [_CF_LIGHTER_RED, palette.cells.bad],
+  ];
+  const map = new Map<string, string>();
+  for (const [stock, themed] of bases) {
+    for (const adj of STOCK_CELL_ADJUSTMENTS) {
+      const from = adj ? getAdjustedColor(stock, adj) : stock;
+      const to = adj ? getAdjustedColor(themed, adj) : themed;
+      map.set(from.toLowerCase(), to);
+    }
+  }
+  return map;
+}
+
+// Re-colours a thresholds conditional format for a themed report: stock cell
+// tints become the theme's, the stock white no-data cell becomes the page.
+// Scale-mode formats (a chosen ColorBrewer-style ramp) pass through as they
+// are, as do buckets in colours the user chose.
+export function themeConditionalFormatting(
+  cf: ConditionalFormatting,
+  palette: FastrChartPalette | undefined,
+): ConditionalFormatting {
+  if (!palette || cf.type !== "thresholds") return cf;
+  const map = stockCellColourMap(palette);
+  const swap = (c: ColorKeyOrString): ColorKeyOrString =>
+    typeof c === "string" ? map.get(c.toLowerCase()) ?? c : c;
+  const noData = cf.noDataColor;
+  const themedNoData = typeof noData === "string" &&
+      (noData.toLowerCase() === "#ffffff" || noData.toLowerCase() === "#f0f0f0")
+    ? palette.cells.none
+    : noData;
+  return {
+    ...cf,
+    buckets: cf.buckets.map((b) => ({ ...b, color: swap(b.color) })),
+    noDataColor: themedNoData,
+  };
 }
 
 // ============================================================================

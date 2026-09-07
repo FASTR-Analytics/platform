@@ -50,6 +50,11 @@ import {
   FASTR_SEMANTIC_COLORS,
   FASTR_THEME_TOKENS,
 } from "../../lib/types/report_fastr_themes.ts";
+import { LEGACY_CF_PRESETS } from "../../lib/legacy_cf_presets.ts";
+import { themeConditionalFormatting } from "../../lib/types/conditional_formatting.ts";
+import { _CF_LIGHTER_GREEN, _CF_LIGHTER_RED, _CF_LIGHTER_YELLOW } from "../../lib/key_colors.ts";
+import { getAdjustedColor } from "@timroberton/panther";
+
 import {
   buildReportPreview,
   referencedReportEmbedIds,
@@ -623,6 +628,9 @@ Deno.test("every theme's chart colours: a distinct series cycle, semantic colour
     assert(goodHue >= 70 && goodHue <= 170, `${theme} good ${chart.good} hue ${goodHue.toFixed(0)}`);
     const badHue = hueOf(chart.bad);
     assert(badHue <= 25 || badHue >= 335, `${theme} bad ${chart.bad} hue ${badHue.toFixed(0)}`);
+    const warnHue = hueOf(chart.warn);
+    assert(warnHue >= 20 && warnHue <= 65, `${theme} warn ${chart.warn} hue ${warnHue.toFixed(0)}`);
+    assert(HEX.test(chart.warn), `${theme}: ${chart.warn}`);
     // The neutral is a mid tone that reads on the page, not a series colour
     // in disguise: no strong hue, and away from both page and ink.
     assert(Math.abs(lumOf(chart.neutral) - lumOf(page)) > 0.12, `${theme} neutral vanishes on the page`);
@@ -647,6 +655,27 @@ Deno.test("every theme's chart colours: a distinct series cycle, semantic colour
     assert(HEX.test(p.faint), `${theme} faint ${p.faint}`);
     const fl = lumOf(p.faint), nl = lumOf(chart.neutral), pl = lumOf(page);
     assert(fl >= Math.min(nl, pl) - 1e-9 && fl <= Math.max(nl, pl) + 1e-9, `${theme} faint ${p.faint} is not between neutral and page`);
+    // Conditional-formatting cell tints: each tier faded toward the page but
+    // still distinct from it (a coloured cell must read as coloured), keeping
+    // its hue so the traffic light still means what it means.
+    for (const [tier, full] of [["good", chart.good], ["warn", chart.warn], ["bad", chart.bad]] as const) {
+      const tint = p.cells[tier];
+      assert(HEX.test(tint), `${theme} ${tier} cell ${tint}`);
+      const tl = lumOf(tint), cl = lumOf(full);
+      assert(tl >= Math.min(cl, pl) - 1e-9 && tl <= Math.max(cl, pl) + 1e-9, `${theme} ${tier} cell ${tint} is not between colour and page`);
+      assert(Math.abs(tl - pl) > 0.02, `${theme} ${tier} cell ${tint} vanishes on the page`);
+      // Fading toward a warm or cool page pulls a pale tint's hue around (a
+      // near-grey has little hue to hold), so the check is the band, not the
+      // drift: the green cell stays a green, the amber an amber, the red a red.
+      const h = hueOf(tint);
+      const inBand = tier === "good"
+        ? h >= 60 && h <= 180
+        : tier === "warn"
+        ? h >= 20 && h <= 75
+        : h <= 40 || h >= 335;
+      assert(inBand, `${theme} ${tier} cell ${tint} hue ${h.toFixed(0)}° left its band`);
+    }
+    assertEquals(p.cells.none, page);
   }
   // A custom style: its accent leads the series, its ink is the strong
   // line, its page tunes the faint tone; the semantic colours stay the
@@ -656,6 +685,8 @@ Deno.test("every theme's chart colours: a distinct series cycle, semantic colour
   assertEquals(custom.series.length, FASTR_THEME_TOKENS.ministry.chart.series.length + 1);
   assertEquals(custom.strong, "#123456");
   assert(lumOf(custom.faint) < lumOf(fastrChartPalette("ministry").faint), "faint follows the page");
+  assertEquals(custom.cells.none, "#000000");
+  assert(lumOf(custom.cells.good) < lumOf(fastrChartPalette("ministry").cells.good), "cell tints follow the page");
   assertEquals(custom.good, FASTR_THEME_TOKENS.ministry.chart.good);
   // An accent the theme already has is not doubled.
   const same = fastrChartPalette("risograph", { accent: "#FF48B0" });
@@ -663,6 +694,50 @@ Deno.test("every theme's chart colours: a distinct series cycle, semantic colour
   // A page that is not a 6-digit hex cannot be mixed: the faint tone falls
   // back to the neutral rather than a broken colour.
   assertEquals(fastrChartPalette("default", { page: "white" }).faint, FASTR_THEME_TOKENS.default.chart.neutral);
+});
+
+Deno.test("a themed report re-tints every stock traffic-light preset; chosen colours and scales pass through", () => {
+  const stock = new Set<string>();
+  for (const b of [_CF_LIGHTER_GREEN, _CF_LIGHTER_YELLOW, _CF_LIGHTER_RED]) {
+    stock.add(b.toLowerCase());
+    stock.add(getAdjustedColor(b, { darken: 0.25 }).toLowerCase());
+    stock.add(getAdjustedColor(b, { brighten: 0.5 }).toLowerCase());
+  }
+  const palette = fastrChartPalette("artdeco");
+  for (const [id, preset] of Object.entries(LEGACY_CF_PRESETS)) {
+    const themed = themeConditionalFormatting(preset.value, palette);
+    assert(themed.type === "thresholds", id);
+    assertEquals(themed.buckets.length, preset.value.buckets.length, id);
+    assertEquals(themed.cutoffs, preset.value.cutoffs, id);
+    for (const [i, b] of themed.buckets.entries()) {
+      const before = preset.value.buckets[i].color;
+      if (typeof before !== "string") {
+        // A structural key (the neutral middle bucket) is not a stock tint.
+        assertEquals(b.color, before, `${id} bucket ${i}`);
+        continue;
+      }
+      assert(typeof b.color === "string" && !stock.has(b.color.toLowerCase()), `${id} bucket ${i} still stock: ${b.color}`);
+      assert(b.color !== before, `${id} bucket ${i} unchanged`);
+    }
+    // Stock white no-data cells become the page.
+    assertEquals(themed.noDataColor, palette.cells.none, id);
+  }
+  // The three bases land on the theme's tints exactly.
+  const basic = themeConditionalFormatting(LEGACY_CF_PRESETS["fmt-90-80"].value, palette);
+  assert(basic.type === "thresholds");
+  assertEquals(basic.buckets.map((b) => b.color), [palette.cells.bad, palette.cells.warn, palette.cells.good]);
+  // A user's own colours are theirs.
+  const custom = {
+    type: "thresholds" as const,
+    cutoffs: [0.5],
+    buckets: [{ color: "#123456" }, { color: "#abcdef" }],
+    noDataColor: "#eeeeee",
+  };
+  assertEquals(themeConditionalFormatting(custom, palette), custom);
+  // A scale-mode format and an unthemed render are untouched (same object).
+  const scale = { type: "scale" as const, scale: { palette: "rd-yl-gn" as const }, domain: { kind: "auto" as const } };
+  assert(themeConditionalFormatting(scale, palette) === scale);
+  assert(themeConditionalFormatting(LEGACY_CF_PRESETS["fmt-90-80"].value, undefined) === LEGACY_CF_PRESETS["fmt-90-80"].value);
 });
 
 Deno.test("a cover's layout is a class the sheet styles; classic is the bare cover", () => {
