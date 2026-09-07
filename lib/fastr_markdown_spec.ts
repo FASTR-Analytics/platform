@@ -204,6 +204,16 @@ Composing a report — this matters as much as the syntax:
     standfirst (what is measured, over what period). The cover is the ONLY
     title page — a bare \`# Heading\` renders as an ordinary heading, and a
     report that opens with one reads as typed rather than published.
+    Pick a \`layout\` for it: \`poster\` or \`split\` for a bulletin with one
+    headline, \`frame\` or \`centered\` for a formal review, \`spine\` for a
+    bound annual report, \`minimal\` when the user wants it quiet. Vary it
+    across reports rather than reaching for classic every time.
+  - A report with more than four or five sections gets a
+    \`:::contents{title="Contents" depth=2}\` line straight after the cover,
+    so the reader can see the shape of it. Shorter reports do not.
+  - A formal or ministerial review takes \`numbering=sections\` on the
+    \`:::report\` header, so its headings read 1., 1.1, 2. — a bulletin or a
+    brief does not.
   - Put the two or three headline numbers in a \`:::tiles\` row of \`:::stat\`
     blocks. Give the one that matters most \`tone=solid\` so it reads as the
     finding, not one of three.
@@ -221,8 +231,8 @@ Composing a report — this matters as much as the syntax:
   left. Aim for roughly one block per two or three paragraphs of prose.
 
 Rules:
-- \`stat\` and \`report\` are ONE-LINE blocks: they take no closing \`:::\`.
-  Every other block must be closed.
+- \`stat\`, \`contents\` and \`report\` are ONE-LINE blocks: they take no
+  closing \`:::\`. Every other block must be closed.
 - \`report\` is the document header — put it on the first line, once.
 - \`band\` and \`cover\` are TOP-LEVEL sections; nesting one inside a card or a
   column cannot bleed correctly.

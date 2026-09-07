@@ -124,13 +124,13 @@ ${FASTR_MD_SYNTAX_DOC}`,
           if (literals.length > 0 && !input.allowLiteralColors) {
             const shown = literals
               .slice(0, 5)
-              .map((l) => `line ${l.line}: bg=${l.value}`)
+              .map((l) => `line ${l.line}: ${l.attr}=${l.value}`)
               .join("\n");
             return {
               invalid:
-                `The body uses ${literals.length} literal background colour${
+                `The body uses ${literals.length} literal colour${
                   literals.length === 1 ? "" : "s"
-                }:\n${shown}\nLiterals do not follow a theme switch — replace them with tones (tone=muted|accent|solid|dark|inverse|gradient|danger|warning|success|info), which each theme maps to its own palette. Only if the user explicitly asked for these exact colours, re-propose unchanged with allowLiteralColors: true.`,
+                }:\n${shown}\nLiterals do not follow a theme switch — for a ground use a tone (tone=muted|accent|solid|dark|inverse|gradient|danger|warning|success|info) and for a phrase use a role ([x]{.danger} etc.), which each theme maps to its own palette. Only if the user explicitly asked for these exact colours, re-propose unchanged with allowLiteralColors: true.`,
             };
           }
           return {

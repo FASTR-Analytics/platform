@@ -35,13 +35,16 @@ import {
   WidgetType,
 } from "@codemirror/view";
 import {
-  type EditorState,
+  Annotation,
   EditorState as CMEditorState,
-  type Extension,
-  type Range,
+  Facet,
   RangeSetBuilder,
+  StateEffect,
   StateField,
   Transaction,
+  type EditorState,
+  type Extension,
+  type Range,
 } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
 import { render } from "solid-js/web";
@@ -153,6 +156,10 @@ class RegionWidget extends WidgetType {
     // cover even pulls itself up), so the editor must not open with a strip
     // of page ground above it either.
     readonly first = false,
+    // What eq compares instead of the source. Normally the source itself; an
+    // island's live commit carries the PREVIOUS key forward, so the widget
+    // the user is typing in is kept rather than rebuilt under the cursor.
+    readonly sourceKey = source,
   ) {
     super();
   }
@@ -161,7 +168,7 @@ class RegionWidget extends WidgetType {
     // Source + kind only — theming is external CSS, so a re-theme never
     // touches the editor; a remote edit inside the region changes the source
     // and re-creates just this widget.
-    return other.kind === this.kind && other.source === this.source &&
+    return other.kind === this.kind && other.sourceKey === this.sourceKey &&
       other.startLine === this.startLine && other.active === this.active &&
       other.first === this.first;
   }
@@ -587,6 +594,25 @@ function attachAttrEditor(
 ) {
   el.classList.add("cm-fm-attr");
   el.setAttribute("data-placeholder", placeholder);
+  // Committed as typed (see attachTextEditor): each keystroke is a fence
+  // patch annotated as this island's own, so the widget is kept, not rebuilt.
+  let committed = original.trim();
+  const patchTo = (value: string, keep: boolean) => {
+    if (value === committed) return;
+    if (line1 > view.state.doc.lines) return;
+    const line = view.state.doc.line(line1);
+    const patched = updateContainerFenceLine(line.text, { [attr]: value });
+    committed = value;
+    if (patched === undefined || patched === line.text) return;
+    view.dispatch({
+      changes: { from: line.from, to: line.to, insert: patched },
+      annotations: islandCommit.of(keep),
+    });
+  };
+  const commitLive = () => {
+    if (!el.isContentEditable || !el.isConnected) return;
+    patchTo((el.textContent ?? "").replace(/\s+/g, " ").trim(), true);
+  };
   const activate = () => {
     try {
       el.contentEditable = "plaintext-only";
@@ -594,6 +620,10 @@ function attachAttrEditor(
       el.contentEditable = "true";
     }
     el.focus();
+    if (line1 <= view.state.doc.lines) {
+      const at = view.state.doc.line(line1).from;
+      publishIslandCaret(view, at, at);
+    }
     const sel = window.getSelection();
     if (sel) {
       const range = document.createRange();
@@ -631,17 +661,13 @@ function attachAttrEditor(
   // Clicks stay inside the label — the widget's own handlers (reveal, embed
   // select) must not see them.
   el.addEventListener("click", (e) => e.stopPropagation());
+  el.addEventListener("input", commitLive);
   const commit = () => {
-    const next = (el.textContent ?? "").replace(/\s+/g, " ").trim();
+    commitLive();
     el.contentEditable = "false";
-    if (next === original.trim()) return;
-    if (line1 > view.state.doc.lines) return;
-    const line = view.state.doc.line(line1);
-    const patched = updateContainerFenceLine(line.text, { [attr]: next });
-    if (patched === undefined || patched === line.text) return;
-    view.dispatch({
-      changes: { from: line.from, to: line.to, insert: patched },
-    });
+    if (committed !== original.trim()) {
+      dispatchAfterUpdate(view, { effects: rebuildRegions.of(null) }, () => !el.isConnected);
+    }
   };
   el.addEventListener("blur", commit);
   el.addEventListener("keydown", (e) => {
@@ -741,6 +767,45 @@ function attachTextEditor(
     ) endRel++;
   }
   const original = sourceLines.slice(rel, endRel + 1).join("\n");
+  // What the document holds for this island right now. Edits are committed
+  // AS THEY ARE TYPED (peers see them live, and nothing can be lost on a
+  // missed blur); the island's own commit is annotated so the region field
+  // keeps this DOM instead of rebuilding it under the cursor.
+  let committed = original;
+  const committedEndLine1 = () =>
+    regionStartLine + rel + committed.split("\n").length;
+  const commitLive = () => {
+    // A detached island (the widget was rebuilt under it) is stale DOM: the
+    // document already holds everything it committed while it was live.
+    if (!el.isContentEditable || !el.isConnected) return;
+    const next = (el.textContent ?? "").replace(/\r/g, "");
+    if (next === committed) return;
+    const doc = view.state.doc;
+    const line1 = regionStartLine + rel + 1;
+    const endLine1 = committedEndLine1();
+    if (endLine1 > doc.lines) return;
+    // A change of LINE COUNT moves every island below this one, so the
+    // widget must rebuild; the island is then re-opened on the rebuilt
+    // element, caret at the end (Shift+Enter is the only way here).
+    const sameShape = next.split("\n").length === committed.split("\n").length;
+    committed = next;
+    view.dispatch({
+      changes: { from: doc.line(line1).from, to: doc.line(endLine1).to, insert: next },
+      annotations: islandCommit.of(sameShape),
+    });
+    if (!sameShape) {
+      stopMirror();
+      const host = view.contentDOM.querySelector(
+        `[data-region-line="${regionStartLine}"]`,
+      );
+      const target = host
+        ? [...host.querySelectorAll<HTMLElement>(`[data-line="${rel}"]`)].find(
+          (n) => n.tagName === el.tagName,
+        )
+        : undefined;
+      (target as unknown as { _fmActivate?: () => void } | undefined)?._fmActivate?.();
+    }
+  };
   el.classList.add("cm-fm-text-edit");
   // The editing surface is the raw source, but the syntax the toolbar OWNS
   // stays invisible while editing: the leading heading marker and role-mark
@@ -855,6 +920,7 @@ function attachTextEditor(
       ._fmActivate?.();
   });
   el.addEventListener("click", (e) => e.stopPropagation());
+  el.addEventListener("input", commitLive);
   // Mirror the island's DOM selection into the CM selection while editing:
   // the toolbar's text actions (role colour, bold, italic) read the CM
   // selection, and without the mirror they would act on wherever the caret
@@ -865,7 +931,7 @@ function attachTextEditor(
     if (!sel || sel.rangeCount === 0 || !el.contains(sel.anchorNode)) return;
     const doc = view.state.doc;
     const line1 = regionStartLine + rel + 1;
-    const endLine1 = regionStartLine + endRel + 1;
+    const endLine1 = committedEndLine1();
     if (endLine1 > doc.lines) return;
     const base = doc.line(line1).from;
     const max = doc.line(endLine1).to;
@@ -881,6 +947,9 @@ function attachTextEditor(
     };
     const anchor = Math.min(base + offsetOf(sel.anchorNode!, sel.anchorOffset), max);
     const head = Math.min(base + offsetOf(sel.focusNode!, sel.focusOffset), max);
+    // Peers: the CM view has no focus while an island does, so yCollab
+    // publishes nothing — this is where the caret reaches them.
+    publishIslandCaret(view, anchor, head);
     const cur = view.state.selection.main;
     if (cur.anchor === anchor && cur.head === head) return;
     view.dispatch({ selection: { anchor, head } });
@@ -898,26 +967,24 @@ function attachTextEditor(
     const rendered = (el as unknown as { _rendered?: string })._rendered;
     if (rendered !== undefined) el.innerHTML = rendered;
   };
-  el.addEventListener("blur", () => {
-    if (!el.isContentEditable) return;
-    const next = (el.textContent ?? "").replace(/\r/g, "");
-    if (next === original) {
+  // Closing the island: whatever was typed is already in the document, so
+  // this only has to stop editing and, when something changed, ask the
+  // region field to render the committed text properly.
+  const finish = () => {
+    commitLive();
+    stopMirror();
+    el.contentEditable = "false";
+    if (committed === original) {
       restore();
       return;
     }
-    stopMirror();
-    el.contentEditable = "false";
-    const doc = view.state.doc;
-    const line1 = regionStartLine + rel + 1;
-    const endLine1 = regionStartLine + endRel + 1;
-    if (endLine1 > doc.lines) return;
-    view.dispatch({
-      changes: {
-        from: doc.line(line1).from,
-        to: doc.line(endLine1).to,
-        insert: next,
-      },
-    });
+    // Already rebuilt when the island turns out detached — that is what
+    // detached it (decided a tick later; see dispatchAfterUpdate).
+    dispatchAfterUpdate(view, { effects: rebuildRegions.of(null) }, () => !el.isConnected);
+  };
+  el.addEventListener("blur", () => {
+    if (!el.isContentEditable) return;
+    finish();
   });
   // Enter inside a step: a NEW step, the way Enter in a list makes a new
   // item. The text after the caret becomes the next step — a placeholder
@@ -928,7 +995,7 @@ function attachTextEditor(
   const splitStep = () => {
     const doc = view.state.doc;
     const line1 = regionStartLine + rel + 1;
-    const endLine1 = regionStartLine + endRel + 1;
+    const endLine1 = committedEndLine1();
     if (endLine1 > doc.lines) {
       el.blur();
       return;
@@ -952,8 +1019,9 @@ function attachTextEditor(
     stopMirror();
     el.contentEditable = "false";
     const from = doc.line(line1).from;
+    committed = `${before}\n\n${after || label}`;
     view.dispatch({
-      changes: { from, to: doc.line(endLine1).to, insert: `${before}\n\n${after || label}` },
+      changes: { from, to: doc.line(endLine1).to, insert: committed },
       selection: { anchor: from + before.length + 2 },
     });
     const newRel = rel + before.split("\n").length + 1;
@@ -978,8 +1046,13 @@ function attachTextEditor(
       }
     } else if (e.key === "Escape") {
       e.preventDefault();
+      // The live commits already changed the document: put the original
+      // back (one more island commit), then close.
       el.textContent = original;
-      restore();
+      commitLive();
+      stopMirror();
+      el.contentEditable = "false";
+      dispatchAfterUpdate(view, { effects: rebuildRegions.of(null) });
     }
   });
 }
@@ -1277,17 +1350,40 @@ function attachCellEditor(
     const clamp = (n: number) => Math.max(0, Math.min(n, range.len));
     const anchor = range.from + clamp(offsetOf(sel.anchorNode!, sel.anchorOffset));
     const head = range.from + clamp(offsetOf(sel.focusNode!, sel.focusOffset));
+    publishIslandCaret(view, anchor, head);
     const cur = view.state.selection.main;
     if (cur.anchor === anchor && cur.head === head) return;
     view.dispatch({ selection: { anchor, head } });
   };
   const stopMirror = () =>
     document.removeEventListener("selectionchange", mirrorSelection);
+  // Committed as typed (see attachTextEditor): the row is rewritten on each
+  // keystroke under the island's own annotation, so the table widget is kept.
+  let committed: string | undefined;
+  let original: string | undefined;
+  const writeCell = (value: string, keep: boolean) => {
+    if (value === committed) return;
+    if (rowLine1 > view.state.doc.lines) return;
+    const line = view.state.doc.line(rowLine1);
+    const cells = cellsOf(line.text);
+    cells[cellIndex] = value;
+    committed = value;
+    view.dispatch({
+      changes: { from: line.from, to: line.to, insert: `| ${cells.join(" | ")} |` },
+      annotations: islandCommit.of(keep),
+    });
+  };
+  const commitLive = () => {
+    if (!el.isContentEditable || !el.isConnected) return;
+    writeCell((el.textContent ?? "").replace(/[\r\n|]/g, " ").trim(), true);
+  };
   const activate = () => {
     if (rowLine1 > view.state.doc.lines) return;
     const cells = cellsOf(view.state.doc.line(rowLine1).text);
     (el as unknown as { _rendered: string })._rendered = el.innerHTML;
     el.textContent = cells[cellIndex] ?? "";
+    original = cells[cellIndex] ?? "";
+    committed = original;
     try {
       el.contentEditable = "plaintext-only";
     } catch {
@@ -1313,27 +1409,24 @@ function attachCellEditor(
       ._fmCellActivate?.();
   });
   el.addEventListener("click", (e) => e.stopPropagation());
-  el.addEventListener("blur", () => {
+  el.addEventListener("input", commitLive);
+  const finish = () => {
+    commitLive();
     stopMirror();
-    if (!el.isContentEditable) return;
     el.contentEditable = "false";
-    if (rowLine1 > view.state.doc.lines) return;
-    const line = view.state.doc.line(rowLine1);
-    const cells = cellsOf(line.text);
-    const next = (el.textContent ?? "").replace(/[\r\n|]/g, " ").trim();
-    if (next === (cells[cellIndex] ?? "")) {
+    if (committed === original) {
       const rendered = (el as unknown as { _rendered?: string })._rendered;
       if (rendered !== undefined) el.innerHTML = rendered;
       return;
     }
-    cells[cellIndex] = next;
-    view.dispatch({
-      changes: {
-        from: line.from,
-        to: line.to,
-        insert: `| ${cells.join(" | ")} |`,
-      },
-    });
+    dispatchAfterUpdate(view, { effects: rebuildRegions.of(null) }, () => !el.isConnected);
+  };
+  el.addEventListener("blur", () => {
+    if (!el.isContentEditable) {
+      stopMirror();
+      return;
+    }
+    finish();
   });
   el.addEventListener("keydown", (e) => {
     if (e.key === "Enter" || e.key === "Tab") {
@@ -1341,10 +1434,11 @@ function attachCellEditor(
       el.blur();
     } else if (e.key === "Escape") {
       e.preventDefault();
+      // Put the original cell back (one more island commit), then close.
+      if (original !== undefined) writeCell(original, true);
       stopMirror();
       el.contentEditable = "false";
-      const rendered = (el as unknown as { _rendered?: string })._rendered;
-      if (rendered !== undefined) el.innerHTML = rendered;
+      dispatchAfterUpdate(view, { effects: rebuildRegions.of(null) });
     }
   });
 }
@@ -1741,6 +1835,16 @@ function buildRevealedRegion(
 type LiveState = {
   ranges: RegionRange[];
   deco: DecorationSet;
+  // Each region's widget key (see RegionWidget.sourceKey) and the source it
+  // was built from, by start line. A region whose source is unchanged keeps
+  // its key across any transaction (a caret move must never rebuild the
+  // island being typed in); an island's own live commit keeps it even though
+  // the source changed.
+  keys: Map<number, { key: string; source: string }>;
+  // Bumped by rebuildRegions: it is part of every ACTIVE region's key, which
+  // is what makes a closing island's region re-render even when the text it
+  // committed equals the text it started with (an Escape).
+  rev: number;
   // Fence/leaf lines of REVEALED regions plus the whole span of every region:
   // what the transaction filter consults to refuse user edits into structure.
   protectedLines: ProtectedLine[];
@@ -1790,9 +1894,15 @@ function buildLiveState(
   state: EditorState,
   resolver: EmbedResolver,
   cached?: RegionRange[],
+  // The previous state and whether this build is an island's own live
+  // commit: then the ACTIVE region keeps its previous widget key.
+  prev?: LiveState,
+  keepActive = false,
+  rev = prev?.rev ?? 0,
 ): LiveState {
   const ranges = cached ?? regionRanges(state);
   const firstLine = firstVisibleLine(state);
+  const keys = new Map<number, { key: string; source: string }>();
   const builder = new RangeSetBuilder<Decoration>();
   const protectedLines: ProtectedLine[] = [];
   const boxes: BoxInfo[] = [];
@@ -1830,6 +1940,13 @@ function buildLiveState(
     }
     const isToc = r.region.kind === "leaf" &&
       r.region.fence?.name === "contents";
+    const before = prev?.keys.get(r.region.startLine);
+    const carried = before !== undefined &&
+        (before.source === source || (keepActive && touched))
+      ? before.key
+      : undefined;
+    const sourceKey = carried ?? (touched ? `${rev}\u0000${source}` : source);
+    keys.set(r.region.startLine, { key: sourceKey, source });
     const widget = isPageSetup
       ? new PageSetupWidget(source, r.region.startLine)
       : isToc
@@ -1848,6 +1965,7 @@ function buildLiveState(
         // is its only sign of selection, since there is no source to show.
         touched,
         firstLine !== undefined && r.region.startLine + 1 === firstLine,
+        sourceKey,
       );
     builder.add(r.from, r.to, Decoration.replace({ widget, block: true }));
   }
@@ -1857,6 +1975,8 @@ function buildLiveState(
   }
   return {
     ranges,
+    keys,
+    rev,
     deco: builder.finish(),
     protectedLines,
     boxes,
@@ -1870,9 +1990,20 @@ export function liveRegionExtensions(resolver: EmbedResolver): Extension[] {
       return buildLiveState(state, resolver);
     },
     update(value, tr) {
-      if (tr.docChanged) return buildLiveState(tr.state, resolver);
+      if (tr.effects.some((e) => e.is(rebuildRegions))) {
+        return buildLiveState(tr.state, resolver, undefined, undefined, false, value.rev + 1);
+      }
+      if (tr.docChanged) {
+        return buildLiveState(
+          tr.state,
+          resolver,
+          undefined,
+          value,
+          tr.annotation(islandCommit) === true,
+        );
+      }
       if (tr.selection) {
-        return buildLiveState(tr.state, resolver, value.ranges);
+        return buildLiveState(tr.state, resolver, value.ranges, value);
       }
       return value;
     },
@@ -2349,6 +2480,65 @@ const concealPlugin = ViewPlugin.fromClass(ConcealPluginValue, {
 
 type PresenceDeps = { yText: Y.Text; awareness: Awareness };
 
+// The collab binding, reachable from inside a widget: islands publish their
+// own caret through it (y-codemirror publishes only while the CM view has
+// focus, and an island takes focus away from it).
+const presenceFacet = Facet.define<
+  PresenceDeps | undefined,
+  PresenceDeps | undefined
+>({ combine: (v) => (v.length > 0 ? v[v.length - 1] : undefined) });
+
+// Marks a transaction as an ISLAND's own live commit: the region field keeps
+// the active widget's DOM (the island being typed in) instead of rebuilding
+// it under the cursor. Remote and toolbar transactions never carry it, so
+// those still re-render the region as before.
+const islandCommit = Annotation.define<boolean>();
+
+// Forces the region field to rebuild every widget from its current source —
+// dispatched when an island closes, so the text it committed live is finally
+// rendered rather than shown as the island's raw source.
+const rebuildRegions = StateEffect.define<null>();
+
+// An island's closing dispatch, made safe to issue from a blur handler: a
+// widget rebuild removes the focused island and Chrome fires its blur while
+// CodeMirror's update is still in progress, where a dispatch throws. Deferred
+// to a microtask, and skipped when the view is gone.
+//
+// `unless` is checked at that later tick, not now: Chrome fires the blur
+// BEFORE the node is actually detached, so an island asking "am I still in
+// the document?" during its own removal is told yes.
+function dispatchAfterUpdate(
+  view: EditorView,
+  spec: Parameters<EditorView["dispatch"]>[0],
+  unless?: () => boolean,
+) {
+  queueMicrotask(() => {
+    if (!view.dom.isConnected || unless?.()) return;
+    try {
+      view.dispatch(spec);
+    } catch {
+      // A view torn down between the blur and this tick.
+    }
+  });
+}
+
+// Tell peers where this user is while an island (not the CM view) has focus:
+// the same `cursor` field yCollab publishes, with relative positions, so the
+// peers' caret layer and the region presence border both keep working.
+function publishIslandCaret(view: EditorView, anchor: number, head: number) {
+  const deps = view.state.facet(presenceFacet);
+  if (!deps || !deps.yText.doc) return;
+  const clamp = (n: number) => Math.max(0, Math.min(n, deps.yText.length));
+  try {
+    deps.awareness.setLocalStateField("cursor", {
+      anchor: Y.createRelativePositionFromTypeIndex(deps.yText, clamp(anchor)),
+      head: Y.createRelativePositionFromTypeIndex(deps.yText, clamp(head)),
+    });
+  } catch {
+    // A destroyed awareness (editor teardown mid-edit) has nothing to tell.
+  }
+}
+
 function regionPresencePlugin(deps: PresenceDeps): Extension {
   return ViewPlugin.fromClass(
     class {
@@ -2567,6 +2757,6 @@ export function livePreviewExtensions(
     livePreviewTheme,
     sheetBleedVars,
     docGroundPlugin(resolver),
-    ...(collab ? [regionPresencePlugin(collab)] : []),
+    ...(collab ? [regionPresencePlugin(collab), presenceFacet.of(collab)] : []),
   ];
 }

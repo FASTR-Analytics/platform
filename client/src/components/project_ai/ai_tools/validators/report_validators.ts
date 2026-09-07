@@ -102,12 +102,13 @@ export function validateFastrContainers(
   throw new AIToolFailure(
     `The proposed body has ${defects.length} block problem${
       defects.length === 1 ? "" : "s"
-    }:\n${shown}\nEvery \`:::\` block except \`stat\` must be closed by a bare \`:::\` line, and block names must be ones the format defines. Fix and re-propose.`,
+    }:\n${shown}\nEvery \`:::\` block except \`stat\`, \`contents\` and \`report\` must be closed by a bare \`:::\` line, and block names must be ones the format defines. Fix and re-propose.`,
   );
 }
 
-// FASTR Markdown: literal `bg=` values deliberately do not follow a theme
-// switch, and the model reaches for them despite the brief saying tones
+// FASTR Markdown: literal colours — `bg=` on a block, `color=`/`highlight=`
+// on a phrase — deliberately do not follow a theme switch, and the model
+// reaches for them despite the brief saying tones and roles
 // (observed on testing: an AI-drafted report full of hex backgrounds). Gated
 // on the DELTA — literals whose value already appears in the current body were
 // sanctioned by the user (set manually or previously accepted) and pass, so a
@@ -130,12 +131,12 @@ export function validateFastrNewLiteralBackgrounds(
   if (added.length === 0) return;
   const shown = added
     .slice(0, 5)
-    .map((l) => `line ${l.line}: bg=${l.value}`)
+    .map((l) => `line ${l.line}: ${l.attr}=${l.value}`)
     .join("\n");
   throw new AIToolFailure(
-    `The proposal adds ${added.length} literal background colour${
+    `The proposal adds ${added.length} literal colour${
       added.length === 1 ? "" : "s"
-    }:\n${shown}\nLiterals do not follow a theme switch — use tones (tone=muted|accent|solid|dark|inverse|gradient|danger|warning|success|info), which each theme maps to its own palette. Only if the user explicitly asked for these exact colours, re-propose unchanged with allowLiteralColors: true.`,
+    }:\n${shown}\nLiterals do not follow a theme switch — for a ground use a tone (tone=muted|accent|solid|dark|inverse|gradient|danger|warning|success|info) and for a phrase use a role ([x]{.danger} etc.), which each theme maps to its own palette. Only if the user explicitly asked for these exact colours, re-propose unchanged with allowLiteralColors: true.`,
   );
 }
 

@@ -202,9 +202,9 @@ Deno.test("listFastrLiteralBackgrounds finds literals, never tones", () => {
     "```",
   ].join("\n");
   assertEquals(listFastrLiteralBackgrounds(md), [
-    { line: 5, value: "#0b3d2e" },
-    { line: 8, value: "linear-gradient(180deg,#111,#222)" },
-    { line: 11, value: "image:abc" },
+    { line: 5, attr: "bg", value: "#0b3d2e" },
+    { line: 8, attr: "bg", value: "linear-gradient(180deg,#111,#222)" },
+    { line: 11, attr: "bg", value: "image:abc" },
   ]);
   assertEquals(listFastrLiteralBackgrounds(":::band{tone=danger}\nx\n:::\n"), []);
 });
@@ -468,6 +468,26 @@ Deno.test("bg=image resolves through the image registry, not the stylesheet", ()
   // The source token stays in the body, so the orphan prune keeps the asset.
   const body = ":::band{bg=image:abc-123}\nx\n:::\n";
   assert(referencedReportEmbedIds(body, "any").images.has("abc-123"));
+});
+
+Deno.test("literal colours are listed from blocks AND phrase marks, with their attribute", () => {
+  const body = [
+    ':::band{bg="#101010"}',
+    "Text [hot]{color=#c62828} and [lit]{highlight=yellow} and [role]{.danger}.",
+    ":::",
+    ":::callout{tone=muted}",
+    "A tone is not a literal.",
+    ":::",
+    "```",
+    ':::band{bg="#000"}',
+    "```",
+  ].join("\n");
+  const found = listFastrLiteralBackgrounds(body);
+  assertEquals(found, [
+    { line: 1, attr: "bg", value: "#101010" },
+    { line: 2, attr: "color", value: "#c62828" },
+    { line: 2, attr: "highlight", value: "yellow" },
+  ]);
 });
 
 Deno.test("the document header carries print setup and section numbering", () => {
@@ -1239,6 +1259,12 @@ Deno.test("an accent mark is never a no-op, even where the accent cannot be text
 
 Deno.test("the model-facing brief documents the marks it is allowed to write", () => {
   assertStringIncludes(FASTR_MD_SYNTAX_DOC, "{.danger}");
+  // Everything the editor can insert is something the model is told about.
+  for (const needle of [":::contents", "layout=", "highlight=", "numbering=sections", "color=", "size=", "underline"]) {
+    assertStringIncludes(FASTR_MD_SYNTAX_DOC, needle);
+  }
+  // The one-line rule names every leaf, or the model closes a contents block.
+  assertStringIncludes(FASTR_MD_SYNTAX_DOC, "`stat`, `contents` and `report` are ONE-LINE");
   for (const role of FASTR_INK_ROLES) {
     assertStringIncludes(FASTR_MD_SYNTAX_DOC, `.${role}`);
   }
