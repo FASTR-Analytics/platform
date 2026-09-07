@@ -22,6 +22,7 @@ import {
   selectCf,
   withReplicant,
   type DeckStyleContext,
+  type FastrChartPalette,
   type IndicatorFormat,
   type IndicatorMetadata,
 } from "lib";
@@ -49,8 +50,8 @@ import { getGeoJsonSync } from "~/state/instance/t2_geojson";
 export function buildFigureInputs(
   bundle: FigureBundle,
   deckStyle?: DeckStyleContext,
-  // A document's own series palette (see getStandardSeriesColorFunc).
-  chartPalette?: string[],
+  // A document's own chart palette (see getStandardSeriesColorFunc).
+  chartPalette?: FastrChartPalette,
 ): FigureInputs {
   const { config, items, resultsValue, indicatorMetadata, dateRange, geo, localization } = bundle;
 

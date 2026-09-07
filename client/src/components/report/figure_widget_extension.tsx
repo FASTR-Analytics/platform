@@ -13,6 +13,7 @@ import {
 import { render } from "solid-js/web";
 import { Match, Show, Switch } from "solid-js";
 import {
+  type FastrChartPalette,
   type FigureBlock,
   type ImageBlock,
   parseReportEmbedLine,
@@ -35,7 +36,7 @@ export type EmbedResolver = {
   // on dark), from the report's own palette.
   inkFor: (el: Element) => FigureInkTheme | undefined;
   // The report theme's series palette for its figures.
-  chartPalette: () => string[] | undefined;
+  chartPalette: () => FastrChartPalette | undefined;
 };
 
 class EmbedWidget extends WidgetType {

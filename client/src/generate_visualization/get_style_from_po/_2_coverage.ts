@@ -8,6 +8,7 @@ import {
 import { type CalendarType } from "panther";
 import {
   type DeckStyleContext,
+  type FastrChartPalette,
   type IndicatorFormat,
   PresentationObjectConfig,
 } from "lib";
@@ -18,9 +19,13 @@ export function buildCoverageChartStyle(
   formatAs: IndicatorFormat,
   calendar: CalendarType,
   deckStyle?: DeckStyleContext,
+  // A themed report's own ink / bad / faded neutral (see
+  // getStandardSeriesColorFunc): the observed line, the projection and the
+  // background series keep their roles in the document's colours.
+  chartPalette?: FastrChartPalette,
 ): CustomFigureStyleOptions {
   return {
-    seriesColorFunc: getCoverageSeriesColorFunc(),
+    seriesColorFunc: getCoverageSeriesColorFunc(chartPalette),
     text: getTextStyle(config, deckStyle),
     panes: { nCols: config.s.nColsInCellDisplay },
     xPeriodAxis: { calendar },
@@ -51,9 +56,14 @@ export function buildCoverageChartStyle(
   };
 }
 
-function getCoverageSeriesColorFunc(): (
+function getCoverageSeriesColorFunc(
+  chartPalette: FastrChartPalette | undefined,
+): (
   info: ChartSeriesInfo,
 ) => ColorKeyOrString {
+  const strong = chartPalette?.strong ?? "#000000";
+  const bad = chartPalette?.bad ?? "#F04D44";
+  const faint = chartPalette?.faint ?? "#CED4DB";
   return (info) => {
     // TODO: switch to .id matching once raw series ids are confirmed
     // (and drop the French branches — id is locale-stable, label is not)
@@ -63,17 +73,17 @@ function getCoverageSeriesColorFunc(): (
     const label = typeof header === "string"
       ? header
       : (header as { label?: string } | undefined)?.label ?? "";
-    if (label.startsWith("default")) return "#000000";
+    if (label.startsWith("default")) return strong;
     if (
       label.startsWith("Survey") ||
       label.startsWith("Estimation basée")
     )
-      return "#000000";
+      return strong;
     if (
       label.startsWith("Projected") ||
       label.startsWith("Estimation projetée")
     )
-      return "#F04D44";
-    return "#CED4DB";
+      return bad;
+    return faint;
   };
 }

@@ -44,6 +44,7 @@ import {
   toggleInlineDelimiters,
   toggleLinePrefixEdit,
   updateContainerFenceLine,
+  type FastrChartPalette,
 } from "lib";
 import type { ReportEditorSelection } from "~/components/project_ai/types";
 import { embedWidgets, type EmbedResolver } from "./figure_widget_extension";
@@ -173,7 +174,7 @@ type Props = {
   // Ink for a figure on the ground behind an element (see EmbedResolver).
   figureInkFor: (el: Element) => FigureInkTheme | undefined;
   // The report theme's series palette for its figures (undefined = default).
-  figureChartPalette: () => string[] | undefined;
+  figureChartPalette: () => FastrChartPalette | undefined;
   onBodyChange: (body: string) => void;
   onSelectEmbed: (kind: "figure" | "image", id: string) => void;
   selectedId: () => string | undefined;

@@ -9,6 +9,7 @@ import {
   _CF_GREEN,
   _CF_RED,
   type DeckStyleContext,
+  type FastrChartPalette,
   type IndicatorFormat,
   PresentationObjectConfig,
 } from "lib";
@@ -24,11 +25,13 @@ export function buildDisruptionsChartStyle(
   calendar: CalendarType,
   allowNegativeScale: boolean,
   deckStyle?: DeckStyleContext,
+  // A themed report's own good/bad and ink (see getStandardSeriesColorFunc).
+  chartPalette?: FastrChartPalette,
 ): CustomFigureStyleOptions {
   const inverted = config.s.diffInverted;
 
   return {
-    seriesColorFunc: getDisruptionsSeriesColorFunc(inverted),
+    seriesColorFunc: getDisruptionsSeriesColorFunc(inverted, chartPalette),
     text: getTextStyle(config, deckStyle),
     panes: {
       nCols: config.s.nColsInCellDisplay,
@@ -50,7 +53,8 @@ export function buildDisruptionsChartStyle(
       lines: {
         func: (info) => ({
           show: true,
-          color: "#000000",
+          // The document's ink on a themed page (black vanishes on a dark one).
+          color: chartPalette?.strong ?? "#000000",
           lineDash: info.i_series === 0 ? "solid" : "dashed",
           strokeWidth: info.i_series === 0 ? 3 : 1.5,
           dataLabel: { show: config.s.showDataLabelsLineCharts },
@@ -68,11 +72,14 @@ export function buildDisruptionsChartStyle(
 
 function getDisruptionsSeriesColorFunc(
   inverted: boolean,
+  chartPalette: FastrChartPalette | undefined,
 ): (info: ChartSeriesInfo) => ColorKeyOrString {
+  const good = chartPalette?.good ?? _CF_GREEN;
+  const bad = chartPalette?.bad ?? _CF_RED;
   return (info) => {
     if (inverted) {
-      return [_CF_RED, _CF_GREEN][info.i_series] ?? _CF_RED;
+      return [bad, good][info.i_series] ?? bad;
     }
-    return [_CF_GREEN, _CF_RED][info.i_series] ?? _CF_GREEN;
+    return [good, bad][info.i_series] ?? good;
   };
 }

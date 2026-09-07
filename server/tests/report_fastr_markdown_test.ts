@@ -585,21 +585,84 @@ Deno.test("bands and covers are full-bleed sections", () => {
   );
 });
 
-Deno.test("every theme carries a chart palette, and a custom accent leads it", () => {
+// Hue on the 0–360 wheel and WCAG-ish relative luminance, enough to pin
+// that "good" is a green, "bad" a red, and a ramp runs light to dark.
+function hueOf(hex: string): number {
+  const n = parseInt(hex.slice(1), 16);
+  const r = ((n >> 16) & 255) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+  if (d === 0) return 0;
+  const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return ((h * 60) + 360) % 360;
+}
+function lumOf(hex: string): number {
+  const n = parseInt(hex.slice(1), 16);
+  const ch = (v: number) => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * ch((n >> 16) & 255) + 0.7152 * ch((n >> 8) & 255) + 0.0722 * ch(n & 255);
+}
+
+Deno.test("every theme's chart colours: a distinct series cycle, semantic colours that still read as such, a sequential ramp", () => {
+  const HEX = /^#[0-9a-f]{6}$/i;
   for (const theme of FASTR_REPORT_THEMES) {
-    const chart = FASTR_THEME_TOKENS[theme].chart;
-    assert(chart.length >= 6, `${theme} has ${chart.length} chart colours`);
-    assertEquals(new Set(chart.map((c) => c.toLowerCase())).size, chart.length, `${theme} repeats a colour`);
-    for (const c of chart) assert(/^#[0-9a-f]{6}$/i.test(c), `${theme}: ${c}`);
-    // The theme's accent leads, so the first series reads as the design.
-    assertEquals(fastrChartPalette(theme), chart);
+    const { chart, page, ink } = FASTR_THEME_TOKENS[theme];
+    assert(chart.series.length >= 6, `${theme} has ${chart.series.length} series colours`);
+    assertEquals(
+      new Set(chart.series.map((c) => c.toLowerCase())).size,
+      chart.series.length,
+      `${theme} repeats a series colour`,
+    );
+    for (const c of [...chart.series, chart.neutral, chart.good, chart.bad, ...chart.ramp]) {
+      assert(HEX.test(c), `${theme}: ${c}`);
+    }
+    // Meaning survives the theme: good is a green, bad a red — even on the
+    // monochrome themes, where they are muted but still tell apart.
+    const goodHue = hueOf(chart.good);
+    assert(goodHue >= 70 && goodHue <= 170, `${theme} good ${chart.good} hue ${goodHue.toFixed(0)}`);
+    const badHue = hueOf(chart.bad);
+    assert(badHue <= 25 || badHue >= 335, `${theme} bad ${chart.bad} hue ${badHue.toFixed(0)}`);
+    // The neutral is a mid tone that reads on the page, not a series colour
+    // in disguise: no strong hue, and away from both page and ink.
+    assert(Math.abs(lumOf(chart.neutral) - lumOf(page)) > 0.12, `${theme} neutral vanishes on the page`);
+    assert(Math.abs(lumOf(chart.neutral) - lumOf(ink)) > 0.05, `${theme} neutral is the ink`);
+    // The ramp is sequential: its ends differ clearly in lightness, the
+    // emphatic end (`to`) being the one that contrasts most with the page.
+    const [from, to] = chart.ramp;
+    assert(Math.abs(lumOf(from) - lumOf(to)) > 0.15, `${theme} ramp ${from}→${to} is flat`);
+    assert(
+      Math.abs(lumOf(to) - lumOf(page)) > Math.abs(lumOf(from) - lumOf(page)),
+      `${theme} ramp's emphatic end is the faint one`,
+    );
+    // The palette a figure receives: the theme's colours, its ink as the
+    // strong line, and a faint tone between the neutral and the page.
+    const p = fastrChartPalette(theme);
+    assertEquals(p.series, chart.series);
+    assertEquals(p.neutral, chart.neutral);
+    assertEquals(p.good, chart.good);
+    assertEquals(p.bad, chart.bad);
+    assertEquals(p.ramp, chart.ramp);
+    assertEquals(p.strong, ink);
+    assert(HEX.test(p.faint), `${theme} faint ${p.faint}`);
+    const fl = lumOf(p.faint), nl = lumOf(chart.neutral), pl = lumOf(page);
+    assert(fl >= Math.min(nl, pl) - 1e-9 && fl <= Math.max(nl, pl) + 1e-9, `${theme} faint ${p.faint} is not between neutral and page`);
   }
-  const custom = fastrChartPalette("ministry", { accent: "#ABCDEF" });
-  assertEquals(custom[0], "#abcdef");
-  assertEquals(custom.length, FASTR_THEME_TOKENS.ministry.chart.length + 1);
+  // A custom style: its accent leads the series, its ink is the strong
+  // line, its page tunes the faint tone; the semantic colours stay the
+  // theme's (a custom accent says nothing about good and bad).
+  const custom = fastrChartPalette("ministry", { accent: "#ABCDEF", ink: "#123456", page: "#000000" });
+  assertEquals(custom.series[0], "#abcdef");
+  assertEquals(custom.series.length, FASTR_THEME_TOKENS.ministry.chart.series.length + 1);
+  assertEquals(custom.strong, "#123456");
+  assert(lumOf(custom.faint) < lumOf(fastrChartPalette("ministry").faint), "faint follows the page");
+  assertEquals(custom.good, FASTR_THEME_TOKENS.ministry.chart.good);
   // An accent the theme already has is not doubled.
   const same = fastrChartPalette("risograph", { accent: "#FF48B0" });
-  assertEquals(same, FASTR_THEME_TOKENS.risograph.chart.map((c) => c.toLowerCase() === "#ff48b0" ? "#ff48b0" : c));
+  assertEquals(same.series, FASTR_THEME_TOKENS.risograph.chart.series.map((c) => c.toLowerCase() === "#ff48b0" ? "#ff48b0" : c));
+  // A page that is not a 6-digit hex cannot be mixed: the faint tone falls
+  // back to the neutral rather than a broken colour.
+  assertEquals(fastrChartPalette("default", { page: "white" }).faint, FASTR_THEME_TOKENS.default.chart.neutral);
 });
 
 Deno.test("a cover's layout is a class the sheet styles; classic is the bare cover", () => {

@@ -6,6 +6,7 @@ import {
 import {
   type DeckStyleContext,
   type EffectiveFormat,
+  type FastrChartPalette,
   PresentationObjectConfig,
   selectCf,
 } from "lib";
@@ -32,7 +33,7 @@ export function buildStandardStyle(
   deckStyle: DeckStyleContext | undefined,
   allowNegativeScale: boolean,
   effectiveValueProps: string[],
-  chartPalette?: string[],
+  chartPalette?: FastrChartPalette,
 ): CustomFigureStyleOptions {
   // Signed metrics (e.g. inequality measures) must let the value axis fit below 0
   // rather than flooring at 0, which draws negative values outside the plot box.

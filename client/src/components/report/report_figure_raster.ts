@@ -19,6 +19,7 @@ import {
   FIGURE_EXPORT_WIDTH_PX,
   type ReportHtmlStyle,
   type ReportStyleColors,
+  type FastrChartPalette,
 } from "lib";
 import {
   CustomFigureStyle,
@@ -162,7 +163,7 @@ export type FigureRasterCache = {
     id: string,
     block: FigureBlock,
     ink?: FigureInkTheme,
-    chartPalette?: string[],
+    chartPalette?: FastrChartPalette,
   ) => FigureRasterState;
   dispose: () => void;
 };
@@ -171,7 +172,7 @@ type Entry = {
   state: FigureRasterState;
   block: FigureBlock;
   ink: FigureInkTheme | undefined;
-  chartPalette: string[] | undefined;
+  chartPalette: FastrChartPalette | undefined;
 };
 
 export function figureRasterKey(block: FigureBlock): string | undefined {
@@ -266,7 +267,7 @@ export function createFigureRasterCache(
       const contentKey = keyOf(block);
       if (contentKey === undefined) return { state: "missing" };
       const key = `${contentKey}|ink:${ink ? ink.text + ink.axis : "dark"}|pal:${
-        chartPalette ? chartPalette.join(",") : "-"
+        chartPalette ? JSON.stringify(chartPalette) : "-"
       }`;
       const prevKey = keyById.get(id);
       const prev = prevKey !== undefined ? entries.get(prevKey) : undefined;

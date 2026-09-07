@@ -56,6 +56,25 @@ export const FASTR_SEMANTIC_COLORS: Record<
   },
 };
 
+// What a theme lends to charts. `series` is the neutral cycle (accent first)
+// behind the two discrete colour scales. The rest carry MEANING, so each
+// theme picks them to still read as what they mean ON ITS OWN PAGE rather
+// than borrowing the app's red and green: Monochrome's "bad" is a muted brick
+// and its "good" a moss that still tell apart; Terminal's are neons on black;
+// Risograph's are its own red and green inks.
+export type FastrThemeChart = {
+  series: string[];
+  // Reference / no-signal: the single-grey scale, a roll-up total series, an
+  // unchanged bar in a percent-change chart.
+  neutral: string;
+  good: string;
+  bad: string;
+  // The sequential scale's ends (the blue-green option), [from, to]: `to` is
+  // the emphatic end — the one a lone series takes — and `from` the receding
+  // one, so a light theme runs tint → shade and a dark theme dim → bright.
+  ramp: [string, string];
+};
+
 export type FastrThemeTokens = {
   // Whether the PAGE is light or dark — picks the semantic colour set.
   scheme: FastrColorScheme;
@@ -89,10 +108,10 @@ export type FastrThemeTokens = {
   // what makes a full-bleed band feel like it belongs to the theme.
   toneDark: string;
   toneDarkInk: string;
-  // Series colours for the figures a report embeds, accent first: a chart in
+  // The colours the theme lends to the figures a report embeds: a chart in
   // a themed report should read as part of the design, not as the dashboard
-  // it was made on. Semantic scales (good/bad, red-green) are never replaced.
-  chart: string[];
+  // it was made on. See FastrThemeChart for what each slot means.
+  chart: FastrThemeChart;
   // Rules the token model cannot express.
   extraCss: string;
 };
@@ -126,7 +145,13 @@ export const FASTR_THEME_TOKENS: Record<FastrReportTheme, FastrThemeTokens> = {
     measure: "56rem",
     toneDark: "#1e293b",
     toneDarkInk: "#f1f5f9",
-    chart: ["#2563eb", "#0f766e", "#d97706", "#7c3aed", "#dc2626", "#0891b2", "#65a30d"],
+    chart: {
+      series: ["#2563eb", "#0f766e", "#d97706", "#7c3aed", "#dc2626", "#0891b2", "#65a30d"],
+      neutral: "#8b95a5",
+      good: "#15803d",
+      bad: "#b91c1c",
+      ramp: ["#60a5fa", "#134e4a"],
+    },
     extraCss: `
 h2 { border-bottom: 1px solid var(--fm-border); padding-bottom: 0.25em; }
 .fm-figure { background: var(--fm-surface); border: 1px solid var(--fm-border); border-radius: var(--fm-radius); padding: 1em; }
@@ -157,7 +182,13 @@ thead th { background: var(--fm-surface-alt); }
     measure: "44rem",
     toneDark: "#18181b",
     toneDarkInk: "#fafafa",
-    chart: ["#18181b", "#71717a", "#3f3f46", "#a1a1aa", "#52525b", "#d4d4d8"],
+    chart: {
+      series: ["#18181b", "#71717a", "#3f3f46", "#a1a1aa", "#52525b", "#d4d4d8"],
+      neutral: "#8f8f96",
+      good: "#3f6f4a",
+      bad: "#9f3f3a",
+      ramp: ["#b4b4ba", "#18181b"],
+    },
     extraCss: `
 .fm-callout { border-left-width: 2px; background: none; padding-left: 1.1em; }
 .fm-card { box-shadow: none; }
@@ -197,7 +228,13 @@ thead th { border-bottom-width: 1px; font-weight: 600; }
     measure: "56rem",
     toneDark: "#0b2d52",
     toneDarkInk: "#e8f0f9",
-    chart: ["#0b4f9e", "#3b82c4", "#0b2d52", "#7fa7d1", "#c98b1a", "#5c6b7a", "#2e8b7a"],
+    chart: {
+      series: ["#0b4f9e", "#3b82c4", "#0b2d52", "#7fa7d1", "#c98b1a", "#5c6b7a", "#2e8b7a"],
+      neutral: "#8a97a8",
+      good: "#1f7a4d",
+      bad: "#b3261e",
+      ramp: ["#8fb0d8", "#0b2d52"],
+    },
     extraCss: `
 h1 { border-bottom: 3px solid var(--fm-accent); padding-bottom: 0.25em; }
 h2 { color: var(--fm-accent-text); }
@@ -236,7 +273,13 @@ th, td { padding: 0.6em 0.8em; }
     measure: "54rem",
     toneDark: "#0d3b22",
     toneDarkInk: "#e8f3ec",
-    chart: ["#12633a", "#2e8b57", "#0d3b22", "#8fbf9f", "#c9a227", "#4a6b5a", "#1f7a8c"],
+    chart: {
+      series: ["#12633a", "#2e8b57", "#0d3b22", "#8fbf9f", "#c9a227", "#4a6b5a", "#1f7a8c"],
+      neutral: "#7f8f85",
+      good: "#2e8b57",
+      bad: "#b3261e",
+      ramp: ["#8fc7a3", "#0d3b22"],
+    },
     extraCss: `
 h1 { text-align: center; }
 h2 { color: var(--fm-accent-text); border-bottom: 2px solid var(--fm-border); padding-bottom: 0.25em; }
@@ -272,7 +315,13 @@ thead th { background: var(--fm-surface-alt); border-bottom-width: 2px; }
     measure: "48rem",
     toneDark: "#33291c",
     toneDarkInk: "#f7f0e4",
-    chart: ["#8a5a2b", "#4a6b8a", "#b08d3e", "#33291c", "#7a8a5a", "#a26a4a", "#6b5b7a"],
+    chart: {
+      series: ["#8a5a2b", "#4a6b8a", "#b08d3e", "#33291c", "#7a8a5a", "#a26a4a", "#6b5b7a"],
+      neutral: "#8f8474",
+      good: "#5f7a3a",
+      bad: "#a23b2a",
+      ramp: ["#c9ab82", "#4a3520"],
+    },
     extraCss: `
 body { line-height: 1.7; }
 /* Book furniture: a rule under every heading, figures set like plates. */
@@ -308,7 +357,13 @@ thead th { border-bottom-width: 1px; font-variant: small-caps; letter-spacing: 0
     measure: "52rem",
     toneDark: "#1c1c1c",
     toneDarkInk: "#f5f1e8",
-    chart: ["#9a7b34", "#1c1c1c", "#5a5a5a", "#c2a55c", "#8a8a8a", "#3d4a5c", "#b5b5b5"],
+    chart: {
+      series: ["#9a7b34", "#1c1c1c", "#5a5a5a", "#c2a55c", "#8a8a8a", "#3d4a5c", "#b5b5b5"],
+      neutral: "#9a9a9a",
+      good: "#3f7a4a",
+      bad: "#a3382c",
+      ramp: ["#cdb978", "#5a4a1e"],
+    },
     extraCss: `
 h1 { font-size: 2.6em; }
 h2 { border-bottom: 1px solid var(--fm-accent); padding-bottom: 0.2em; }
@@ -346,7 +401,13 @@ thead th { border-bottom: 1px solid var(--fm-accent); font-family: var(--fm-font
     measure: "56rem",
     toneDark: "#0c3b38",
     toneDarkInk: "#e6f4f2",
-    chart: ["#0f766e", "#0369a1", "#0c3b38", "#5eb8ad", "#b45309", "#64748b", "#7c3aed"],
+    chart: {
+      series: ["#0f766e", "#0369a1", "#0c3b38", "#5eb8ad", "#b45309", "#64748b", "#7c3aed"],
+      neutral: "#8a9a9c",
+      good: "#1f8a4c",
+      bad: "#b3261e",
+      ramp: ["#7ccbc2", "#0c3b38"],
+    },
     extraCss: `
 /* A data theme: the table and the stat tile are the primary devices. */
 h2 { color: var(--fm-accent-text); }
@@ -384,7 +445,13 @@ tbody tr:nth-child(even) { background: var(--fm-surface-alt); }
     measure: "50rem",
     toneDark: "#1f1b16",
     toneDarkInk: "#f6f1e8",
-    chart: ["#b3311f", "#1f1b16", "#7a6a5a", "#d98c7a", "#4a5a6a", "#b3931f", "#5a7a6a"],
+    chart: {
+      series: ["#b3311f", "#1f1b16", "#7a6a5a", "#d98c7a", "#4a5a6a", "#b3931f", "#5a7a6a"],
+      neutral: "#8a8177",
+      good: "#4f7a3a",
+      bad: "#b3311f",
+      ramp: ["#d9a08c", "#5a1f14"],
+    },
     extraCss: `
 h1 { border-top: 4px solid var(--fm-ink); border-bottom: 1px solid var(--fm-ink); padding: 0.3em 0; }
 h2 { text-transform: uppercase; letter-spacing: 0.08em; font-size: 1.25em; border-bottom: 1px solid var(--fm-ink); padding-bottom: 0.2em; }
@@ -423,7 +490,13 @@ thead th { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.85em;
     measure: "54rem",
     toneDark: "#000000",
     toneDarkInk: "#ffffff",
-    chart: ["#e2231a", "#000000", "#6b6b6b", "#f28b85", "#a3a3a3", "#333333", "#d1d1d1"],
+    chart: {
+      series: ["#e2231a", "#000000", "#6b6b6b", "#f28b85", "#a3a3a3", "#333333", "#d1d1d1"],
+      neutral: "#8a8a8a",
+      good: "#1f8a3d",
+      bad: "#e2231a",
+      ramp: ["#b3b3b3", "#000000"],
+    },
     extraCss: `
 h1 { text-transform: uppercase; }
 .fm-stat__value { font-size: 2.6em; }
@@ -465,7 +538,13 @@ thead th { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.8em; 
     measure: "52rem",
     toneDark: "#111111",
     toneDarkInk: "#f4f4f4",
-    chart: ["#111111", "#555555", "#888888", "#bbbbbb", "#333333", "#dddddd"],
+    chart: {
+      series: ["#111111", "#555555", "#888888", "#bbbbbb", "#333333", "#dddddd"],
+      neutral: "#777777",
+      good: "#3d6b45",
+      bad: "#8c3b35",
+      ramp: ["#bdbdbd", "#111111"],
+    },
     extraCss: `
 .fm-callout { background: var(--fm-surface); border-left-color: var(--fm-ink); }
 /* Every emphasis has to come from weight and tone, never from hue. */
@@ -503,7 +582,13 @@ thead th { background: var(--fm-ink); color: var(--fm-page); border-bottom: none
     measure: "54rem",
     toneDark: "#1a1a1a",
     toneDarkInk: "#f5f1e8",
-    chart: ["#d02e26", "#1f5ca9", "#f0b429", "#1a1a1a", "#6b6b6b", "#e6a09a", "#8fb3e0"],
+    chart: {
+      series: ["#d02e26", "#1f5ca9", "#f0b429", "#1a1a1a", "#6b6b6b", "#e6a09a", "#8fb3e0"],
+      neutral: "#7a7a7a",
+      good: "#2f8f46",
+      bad: "#d02e26",
+      ramp: ["#7fa9dd", "#123a73"],
+    },
     extraCss: `
 h1 { font-size: 2.8em; line-height: 0.95; }
 h2 { color: #1f5ca9; }
@@ -545,7 +630,13 @@ th, td { border: 2px solid var(--fm-ink); }
     measure: "52rem",
     toneDark: "#1c1c1c",
     toneDarkInk: "#faf7f0",
-    chart: ["#7a1f1a", "#1c1c1c", "#5a5a5a", "#a35a55", "#8a8a8a", "#3a4a5a", "#c0a080"],
+    chart: {
+      series: ["#7a1f1a", "#1c1c1c", "#5a5a5a", "#a35a55", "#8a8a8a", "#3a4a5a", "#c0a080"],
+      neutral: "#8a8580",
+      good: "#3f6b3a",
+      bad: "#7a1f1a",
+      ramp: ["#b8ae9c", "#1c1c1c"],
+    },
     extraCss: `
 h1 {
   text-align: center;
@@ -589,7 +680,13 @@ thead th { border-bottom: 3px double var(--fm-ink); font-variant: small-caps; }
     measure: "50rem",
     toneDark: "#1d3159",
     toneDarkInk: "#f7f3e8",
-    chart: ["#ff48b0", "#0078bf", "#ffe800", "#1d3159", "#00a95c", "#ff7f00", "#765ba7"],
+    chart: {
+      series: ["#ff48b0", "#0078bf", "#ffe800", "#1d3159", "#00a95c", "#ff7f00", "#765ba7"],
+      neutral: "#8a93a8",
+      good: "#00a95c",
+      bad: "#ff665e",
+      ramp: ["#7fc8ef", "#004f8f"],
+    },
     extraCss: `
 h1, h2 { color: #0078bf; text-shadow: 3px 3px 0 var(--fm-accent); }
 .fm-card { box-shadow: 4px 4px 0 rgba(0, 120, 191, 0.25); }
@@ -627,7 +724,13 @@ thead th { background: #0078bf; color: #fff; }
     measure: "48rem",
     toneDark: "#191714",
     toneDarkInk: "#f5efe0",
-    chart: ["#b08d3e", "#191714", "#2b4f5e", "#d4b978", "#6f4e37", "#8a9a8a", "#4a3f6b"],
+    chart: {
+      series: ["#b08d3e", "#191714", "#2b4f5e", "#d4b978", "#6f4e37", "#8a9a8a", "#4a3f6b"],
+      neutral: "#8c8474",
+      good: "#4a7a5a",
+      bad: "#9a3b2f",
+      ramp: ["#cdb26a", "#2b4f5e"],
+    },
     extraCss: `
 body { font-size: 1.06em; }
 h1 { text-align: center; }
@@ -671,7 +774,13 @@ thead th { border-bottom: 3px double var(--fm-accent); text-transform: uppercase
     measure: "46rem",
     toneDark: "#2b2b28",
     toneDarkInk: "#fbfaf7",
-    chart: ["#b04a39", "#2b2b28", "#5b7a8c", "#d6a08a", "#7a8a5a", "#8a7a9a", "#b8a880"],
+    chart: {
+      series: ["#b04a39", "#2b2b28", "#5b7a8c", "#d6a08a", "#7a8a5a", "#8a7a9a", "#b8a880"],
+      neutral: "#9a978f",
+      good: "#5a8a5a",
+      bad: "#b04a39",
+      ramp: ["#a9bcc6", "#2f4a58"],
+    },
     extraCss: `
 body { line-height: 1.85; }
 h1, h2, h3 { margin-top: 2.4em; }
@@ -711,7 +820,13 @@ thead th { border-bottom-width: 1px; }
     measure: "54rem",
     toneDark: "#050706",
     toneDarkInk: "#c8e6ce",
-    chart: ["#33ff66", "#9bb39f", "#00c2ff", "#ffd166", "#ff6b6b", "#c77dff", "#5eead4"],
+    chart: {
+      series: ["#33ff66", "#9bb39f", "#00c2ff", "#ffd166", "#ff6b6b", "#c77dff", "#5eead4"],
+      neutral: "#6d8271",
+      good: "#33ff66",
+      bad: "#ff6b6b",
+      ramp: ["#1a4d66", "#7fffd4"],
+    },
     extraCss: `
 h1::before, h2::before { content: "> "; color: var(--fm-accent); }
 h1, h2, h3 { color: var(--fm-accent); }
@@ -752,7 +867,13 @@ thead th { border-bottom: 1px solid var(--fm-accent); color: var(--fm-accent); }
     measure: "54rem",
     toneDark: "#000000",
     toneDarkInk: "#ffffff",
-    chart: ["#000000", "#ffff00", "#ff0000", "#0000ff", "#808080", "#00a000", "#ff00ff"],
+    chart: {
+      series: ["#000000", "#ffff00", "#ff0000", "#0000ff", "#808080", "#00a000", "#ff00ff"],
+      neutral: "#808080",
+      good: "#00a000",
+      bad: "#ff0000",
+      ramp: ["#a0a0a0", "#000000"],
+    },
     extraCss: `
 h1 { background: var(--fm-accent); display: inline-block; padding: 0 0.15em; }
 h2 { border-bottom: 6px solid var(--fm-ink); padding-bottom: 0.2em; letter-spacing: 0.12em; }
@@ -817,14 +938,52 @@ export function isFastrReportTheme(v: unknown): v is FastrReportTheme {
     (FASTR_REPORT_THEMES as readonly string[]).includes(v);
 }
 
-// The series palette a report's figures use: the theme's, with a custom
-// accent (a creation-time style's palette) taking the lead colour.
+// What a report hands every figure it embeds (see getStandardSeriesColorFunc
+// and the special-chart builders): the theme's chart colours plus the two a
+// coverage chart needs, derived from the page the figure actually sits on.
+export type FastrChartPalette = FastrThemeChart & {
+  // The principal (observed) series line: the document's ink, so it reads on
+  // a dark page where the dashboard's black would vanish.
+  strong: string;
+  // The de-emphasised series behind it: the neutral faded toward the page.
+  faint: string;
+};
+
 export function fastrChartPalette(
   theme: FastrReportTheme,
-  colors?: { accent: string } | null,
-): string[] {
-  const base = FASTR_THEME_TOKENS[theme]?.chart ?? FASTR_THEME_TOKENS.default.chart;
-  if (!colors?.accent) return base;
-  const accent = colors.accent.toLowerCase();
-  return [accent, ...base.filter((c) => c.toLowerCase() !== accent)];
+  // A creation-time style's colours: its accent leads the series cycle, its
+  // ink and page tune the derived pair. Any subset may be given.
+  colors?: { accent?: string; page?: string; ink?: string } | null,
+): FastrChartPalette {
+  const tokens = FASTR_THEME_TOKENS[theme] ?? FASTR_THEME_TOKENS.default;
+  const chart = tokens.chart;
+  const accent = colors?.accent?.toLowerCase();
+  const series = accent
+    ? [accent, ...chart.series.filter((c) => c.toLowerCase() !== accent)]
+    : chart.series;
+  const page = colors?.page ?? tokens.page;
+  const ink = colors?.ink ?? tokens.ink;
+  return {
+    ...chart,
+    series,
+    strong: ink,
+    faint: mixHex(chart.neutral, page, 0.6) ?? chart.neutral,
+  };
+}
+
+// sRGB mix of two #rrggbb colours, `t` of the way from a to b; undefined when
+// either is not a 6-digit hex (a custom page may be any CSS colour).
+function mixHex(a: string, b: string, t: number): string | undefined {
+  const pa = parseHex6(a);
+  const pb = parseHex6(b);
+  if (!pa || !pb) return undefined;
+  const ch = (i: number) => Math.round(pa[i] + (pb[i] - pa[i]) * t);
+  return "#" + [ch(0), ch(1), ch(2)].map((v) => v.toString(16).padStart(2, "0")).join("");
+}
+
+function parseHex6(v: string): [number, number, number] | undefined {
+  const m = /^#([0-9a-f]{6})$/i.exec(v.trim());
+  if (!m) return undefined;
+  const n = parseInt(m[1], 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
