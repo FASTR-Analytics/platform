@@ -1125,23 +1125,44 @@ export function listFastrContainerDefects(body: string): FastrContainerDefect[] 
 export type FastrLiteralBackground = {
   // 1-based.
   line: number;
+  // Which attribute carries it: a block's ground, or a phrase's colour or
+  // highlight stripe — all three are literals that stop following the theme.
+  attr: "bg" | "color" | "highlight";
   value: string;
 };
+
+const LITERAL_MARK_RE = /\[([^\]]*)\]\{([^}]*)\}/g;
 
 export function listFastrLiteralBackgrounds(
   body: string,
 ): FastrLiteralBackground[] {
   const literals: FastrLiteralBackground[] = [];
   for (
-    const { index: i, inCode, fence } of scanContainerLines(body.split("\n"))
+    const { index: i, text, inCode, fence } of scanContainerLines(body.split("\n"))
   ) {
-    if (inCode || fence?.kind !== "open") continue;
-    const bgAttr = fence.attrs["bg"] ?? fence.attrs["background"];
-    if (
-      typeof bgAttr === "string" && bgAttr.length > 0 &&
-      !(FASTR_TONES as readonly string[]).includes(bgAttr.toLowerCase())
-    ) {
-      literals.push({ line: i + 1, value: bgAttr });
+    if (inCode) continue;
+    if (fence?.kind === "open") {
+      const bgAttr = fence.attrs["bg"] ?? fence.attrs["background"];
+      if (
+        typeof bgAttr === "string" && bgAttr.length > 0 &&
+        !(FASTR_TONES as readonly string[]).includes(bgAttr.toLowerCase())
+      ) {
+        literals.push({ line: i + 1, attr: "bg", value: bgAttr });
+      }
+      continue;
+    }
+    // Phrase marks on a prose line: `[x]{color=…}` and `[x]{highlight=…}`.
+    LITERAL_MARK_RE.lastIndex = 0;
+    let m: RegExpExecArray | null;
+    while ((m = LITERAL_MARK_RE.exec(text)) !== null) {
+      const attrs = parseFastrMarkAttrs(m[2]);
+      if (!attrs) continue;
+      if (attrs.color !== undefined) {
+        literals.push({ line: i + 1, attr: "color", value: attrs.color });
+      }
+      if (attrs.highlight !== undefined) {
+        literals.push({ line: i + 1, attr: "highlight", value: attrs.highlight });
+      }
     }
   }
   return literals;

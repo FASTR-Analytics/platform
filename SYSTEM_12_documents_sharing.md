@@ -738,7 +738,17 @@ any mark it cuts into and is rebuilt as flat segments — each existing mark's
 attrs patched, plain text newly marked, same-attr neighbours merged — so
 re-sizing a partly-sized phrase yields one mark and an inner role survives as
 its own segment (`rewriteRangeMarks`); selections split per line and at table
-pipes, so a label can never swallow a cell boundary. The pill also carries FIND (CodeMirror's own `search({top:true})` panel, over
+pipes, so a label can never swallow a cell boundary. The AI brief (`FASTR_MD_SYNTAX_DOC`, the one source for both the editing
+view's system prompt and the create_report tool) documents every element the
+editor can insert — cover `layout`, `:::contents`, `numbering=sections`,
+`color=`/`size=`/`underline`/`highlight=` marks — and its composition guidance
+now says WHEN to reach for them (a layout per report, contents past four or
+five sections, numbering for a formal review); a test pins that coverage, so
+an editor feature cannot ship without the model being told. The literal-colour
+gate (`listFastrLiteralBackgrounds`, used by the create tool and the client's
+rewrite validator) lists phrase-mark `color=`/`highlight=` literals beside
+block `bg=` ones, each with its `attr`, so an AI draft full of hex marks is
+refused the same way a draft full of hex grounds is. The pill also carries FIND (CodeMirror's own `search({top:true})` panel, over
 the SOURCE, so a phrase inside a collapsed block is reachable where the
 browser's Ctrl+F cannot look; the panel is re-skinned as app chrome by the
 surface sheet, since it sits on a themed document), a LINK button doubling
@@ -749,7 +759,29 @@ a TABLE segment that appears only while the caret is in a table
 (`ReportBlockContext.table`, the same `applyTableCellAction` the cell
 right-click menu uses, so rows and columns are reachable without knowing
 about right-click). Applying a list kind now REPLACES whatever list marker is
-there rather than stacking one; a quote still wraps a list. Toolbar text actions reach
+there rather than stacking one; a quote still wraps a list. Islands COMMIT AS THEY ARE TYPED (text islands, the chrome attr editors and
+table cells alike): every keystroke is a normal doc change, so under collab a
+peer sees the cover title change letter by letter and nothing depends on a
+blur that a widget rebuild may swallow. The island's own commits carry the
+`islandCommit` annotation, and the region field keeps the ACTIVE region's
+widget key (`RegionWidget.sourceKey`, carried through `LiveState.keys`) for
+those, so the widget the user is typing in is never rebuilt under the cursor
+— while a remote edit or a toolbar fence patch into the same region carries no
+annotation and re-renders it as before. A region whose source is unchanged
+keeps its key across ANY transaction (a caret move must not rebuild the
+island). Closing an island dispatches `rebuildRegions`, which bumps
+`LiveState.rev` — part of every touched region's key — so the committed text
+is rendered even when it equals what the island started with (an Escape puts
+the original back with one more commit). That closing dispatch is deferred a
+microtask and dropped if the island is by then detached: Chrome fires the
+blur of a removed focused element DURING CodeMirror's own update (where a
+dispatch throws) and before the node is actually detached. A line-count
+change in an island (Shift+Enter) lets the rebuild happen and re-opens the
+island on the rebuilt element. Peer PRESENCE from inside an island: y-codemirror
+publishes the caret only while the CM view has focus, and an island takes
+focus from it, so the selection mirror publishes the caret itself through the
+`presenceFacet` (`publishIslandCaret`, relative positions on the shared
+Y.Text) — the attr editors publish their fence line on activation. Toolbar text actions reach
 selections inside widget text islands AND table cell islands through a
 selection MIRROR
 (`selectionchange` → CM selection, alive only while an island is active);
