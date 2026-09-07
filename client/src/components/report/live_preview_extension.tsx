@@ -333,6 +333,8 @@ class RegionWidget extends WidgetType {
               <ReportFigureEmbed
                 figure={fig()}
                 onMeasured={() => view.requestMeasure()}
+                inkFor={this.resolver.inkFor}
+                chartPalette={this.resolver.chartPalette}
               />
             )}
           </Show>

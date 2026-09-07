@@ -504,8 +504,12 @@ function getColorPropHeaderId(
 
 export function getStandardSeriesColorFunc(
   config: PresentationObjectConfig,
+  // A document's own series palette (a FASTR report theme's): replaces the
+  // discrete scales only — semantic scales and explicit per-series colours
+  // keep their meaning.
+  chartPalette?: string[],
 ): (info: ChartSeriesInfo) => ColorKeyOrString {
-  const base = getStandardSeriesColorFuncBase(config);
+  const base = getStandardSeriesColorFuncBase(config, chartPalette);
   if (!isRollupActive(config)) {
     return base;
   }
@@ -520,17 +524,23 @@ export function getStandardSeriesColorFunc(
 
 function getStandardSeriesColorFuncBase(
   config: PresentationObjectConfig,
+  chartPalette?: string[],
 ): (info: ChartSeriesInfo) => ColorKeyOrString {
   if (config.s.colorScale === "single-grey") {
     return () => _CF_COMPARISON;
   }
+  const themed = chartPalette && chartPalette.length > 0 ? chartPalette : undefined;
   if (config.s.colorScale === "pastel-discrete") {
-    return (info: ChartSeriesInfo) =>
-      getAbcQualScale(getIndex(info, config.s.seriesColorFuncPropToUse));
+    return (info: ChartSeriesInfo) => {
+      const i = getIndex(info, config.s.seriesColorFuncPropToUse);
+      return themed ? themed[i % themed.length] : getAbcQualScale(i);
+    };
   }
   if (config.s.colorScale === "alt-discrete") {
-    return (info: ChartSeriesInfo) =>
-      getAbcQualScale2(getIndex(info, config.s.seriesColorFuncPropToUse));
+    return (info: ChartSeriesInfo) => {
+      const i = getIndex(info, config.s.seriesColorFuncPropToUse);
+      return themed ? themed[(i + 1) % themed.length] : getAbcQualScale2(i);
+    };
   }
   if (config.s.colorScale === "blue-green") {
     return (info: ChartSeriesInfo) =>

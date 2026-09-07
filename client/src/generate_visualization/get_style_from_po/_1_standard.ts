@@ -32,6 +32,7 @@ export function buildStandardStyle(
   deckStyle: DeckStyleContext | undefined,
   allowNegativeScale: boolean,
   effectiveValueProps: string[],
+  chartPalette?: string[],
 ): CustomFigureStyleOptions {
   // Signed metrics (e.g. inequality measures) must let the value axis fit below 0
   // rather than flooring at 0, which draws negative values outside the plot box.
@@ -74,7 +75,7 @@ export function buildStandardStyle(
   const showConnectors = c === "points-connectors";
 
   return {
-    seriesColorFunc: getStandardSeriesColorFunc(config),
+    seriesColorFunc: getStandardSeriesColorFunc(config, chartPalette),
     text: getTextStyle(config, deckStyle),
     surrounds: {
       legendPosition: config.s.hideLegend ? "none" : undefined,

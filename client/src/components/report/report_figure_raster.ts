@@ -44,6 +44,38 @@ export const GENERIC_LIGHT_INK: FigureInkTheme = {
   grid: "#3A4653",
 };
 
+// The DARK ink a light ground takes. A figure's stored style is whatever its
+// dashboard wanted — a dark dashboard's white text arrives as white text —
+// so a report re-inks every figure for the ground it actually sits on, in
+// both directions, rather than only lightening on dark grounds.
+export const GENERIC_DARK_INK: FigureInkTheme = {
+  text: "#1B2430",
+  axis: "#5C6672",
+  grid: "#D5DAE0",
+};
+
+// The palette's own ink when its page is light; the generic dark ink for a
+// dark page (whose light grounds are cards the theme has no ink for).
+export function figureDarkInkForColors(
+  colors: ReportStyleColors | null | undefined,
+): FigureInkTheme {
+  if (colors) {
+    const rgb = hexRgb(colors.page);
+    if (rgb) {
+      const luminance = (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) /
+        255;
+      if (luminance >= 0.45 && hexRgb(colors.ink)) {
+        return {
+          text: colors.ink,
+          axis: mixHex(colors.ink, colors.page, 0.35),
+          grid: mixHex(colors.ink, colors.page, 0.75),
+        };
+      }
+    }
+  }
+  return GENERIC_DARK_INK;
+}
+
 const PRESET_INK_THEMES: Partial<Record<ReportHtmlStyle, FigureInkTheme>> = {
   terminal: { text: "#9BB39F", axis: "#5E7A66", grid: "#223129" },
   blueprint: { text: "#E7F0F7", axis: "#7FA6C6", grid: "#2E5B85" },
@@ -130,6 +162,7 @@ export type FigureRasterCache = {
     id: string,
     block: FigureBlock,
     ink?: FigureInkTheme,
+    chartPalette?: string[],
   ) => FigureRasterState;
   dispose: () => void;
 };
@@ -138,6 +171,7 @@ type Entry = {
   state: FigureRasterState;
   block: FigureBlock;
   ink: FigureInkTheme | undefined;
+  chartPalette: string[] | undefined;
 };
 
 export function figureRasterKey(block: FigureBlock): string | undefined {
@@ -177,7 +211,7 @@ export function createFigureRasterCache(
   async function rasterize(entry: Entry): Promise<FigureRasterState> {
     try {
       const bundle = entry.block.bundle!;
-      const fi = buildFigureInputs(bundle);
+      const fi = buildFigureInputs(bundle, undefined, entry.chartPalette);
       const style = new CustomFigureStyle(fi.style);
       await loadFontsWithTimeout(style.getFontsToRegister());
       // Transparent raster: the report style's CSS paints whatever sits
@@ -228,10 +262,12 @@ export function createFigureRasterCache(
   }
 
   return {
-    get(id, block, ink) {
+    get(id, block, ink, chartPalette) {
       const contentKey = keyOf(block);
       if (contentKey === undefined) return { state: "missing" };
-      const key = `${contentKey}|ink:${ink ? ink.text + ink.axis : "dark"}`;
+      const key = `${contentKey}|ink:${ink ? ink.text + ink.axis : "dark"}|pal:${
+        chartPalette ? chartPalette.join(",") : "-"
+      }`;
       const prevKey = keyById.get(id);
       const prev = prevKey !== undefined ? entries.get(prevKey) : undefined;
       const aspect = prev?.state.state === "ready"
@@ -243,7 +279,7 @@ export function createFigureRasterCache(
       }
       const existing = entries.get(key);
       if (existing) return existing.state;
-      const entry: Entry = { state: { state: "pending", aspect }, block, ink };
+      const entry: Entry = { state: { state: "pending", aspect }, block, ink, chartPalette };
       entries.set(key, entry);
       queue.push(key);
       void pump();

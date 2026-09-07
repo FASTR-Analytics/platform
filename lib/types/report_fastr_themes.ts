@@ -89,6 +89,10 @@ export type FastrThemeTokens = {
   // what makes a full-bleed band feel like it belongs to the theme.
   toneDark: string;
   toneDarkInk: string;
+  // Series colours for the figures a report embeds, accent first: a chart in
+  // a themed report should read as part of the design, not as the dashboard
+  // it was made on. Semantic scales (good/bad, red-green) are never replaced.
+  chart: string[];
   // Rules the token model cannot express.
   extraCss: string;
 };
@@ -122,6 +126,7 @@ export const FASTR_THEME_TOKENS: Record<FastrReportTheme, FastrThemeTokens> = {
     measure: "56rem",
     toneDark: "#1e293b",
     toneDarkInk: "#f1f5f9",
+    chart: ["#2563eb", "#0f766e", "#d97706", "#7c3aed", "#dc2626", "#0891b2", "#65a30d"],
     extraCss: `
 h2 { border-bottom: 1px solid var(--fm-border); padding-bottom: 0.25em; }
 .fm-figure { background: var(--fm-surface); border: 1px solid var(--fm-border); border-radius: var(--fm-radius); padding: 1em; }
@@ -152,6 +157,7 @@ thead th { background: var(--fm-surface-alt); }
     measure: "44rem",
     toneDark: "#18181b",
     toneDarkInk: "#fafafa",
+    chart: ["#18181b", "#71717a", "#3f3f46", "#a1a1aa", "#52525b", "#d4d4d8"],
     extraCss: `
 .fm-callout { border-left-width: 2px; background: none; padding-left: 1.1em; }
 .fm-card { box-shadow: none; }
@@ -191,6 +197,7 @@ thead th { border-bottom-width: 1px; font-weight: 600; }
     measure: "56rem",
     toneDark: "#0b2d52",
     toneDarkInk: "#e8f0f9",
+    chart: ["#0b4f9e", "#3b82c4", "#0b2d52", "#7fa7d1", "#c98b1a", "#5c6b7a", "#2e8b7a"],
     extraCss: `
 h1 { border-bottom: 3px solid var(--fm-accent); padding-bottom: 0.25em; }
 h2 { color: var(--fm-accent-text); }
@@ -229,6 +236,7 @@ th, td { padding: 0.6em 0.8em; }
     measure: "54rem",
     toneDark: "#0d3b22",
     toneDarkInk: "#e8f3ec",
+    chart: ["#12633a", "#2e8b57", "#0d3b22", "#8fbf9f", "#c9a227", "#4a6b5a", "#1f7a8c"],
     extraCss: `
 h1 { text-align: center; }
 h2 { color: var(--fm-accent-text); border-bottom: 2px solid var(--fm-border); padding-bottom: 0.25em; }
@@ -264,6 +272,7 @@ thead th { background: var(--fm-surface-alt); border-bottom-width: 2px; }
     measure: "48rem",
     toneDark: "#33291c",
     toneDarkInk: "#f7f0e4",
+    chart: ["#8a5a2b", "#4a6b8a", "#b08d3e", "#33291c", "#7a8a5a", "#a26a4a", "#6b5b7a"],
     extraCss: `
 body { line-height: 1.7; }
 /* Book furniture: a rule under every heading, figures set like plates. */
@@ -299,6 +308,7 @@ thead th { border-bottom-width: 1px; font-variant: small-caps; letter-spacing: 0
     measure: "52rem",
     toneDark: "#1c1c1c",
     toneDarkInk: "#f5f1e8",
+    chart: ["#9a7b34", "#1c1c1c", "#5a5a5a", "#c2a55c", "#8a8a8a", "#3d4a5c", "#b5b5b5"],
     extraCss: `
 h1 { font-size: 2.6em; }
 h2 { border-bottom: 1px solid var(--fm-accent); padding-bottom: 0.2em; }
@@ -336,6 +346,7 @@ thead th { border-bottom: 1px solid var(--fm-accent); font-family: var(--fm-font
     measure: "56rem",
     toneDark: "#0c3b38",
     toneDarkInk: "#e6f4f2",
+    chart: ["#0f766e", "#0369a1", "#0c3b38", "#5eb8ad", "#b45309", "#64748b", "#7c3aed"],
     extraCss: `
 /* A data theme: the table and the stat tile are the primary devices. */
 h2 { color: var(--fm-accent-text); }
@@ -373,6 +384,7 @@ tbody tr:nth-child(even) { background: var(--fm-surface-alt); }
     measure: "50rem",
     toneDark: "#1f1b16",
     toneDarkInk: "#f6f1e8",
+    chart: ["#b3311f", "#1f1b16", "#7a6a5a", "#d98c7a", "#4a5a6a", "#b3931f", "#5a7a6a"],
     extraCss: `
 h1 { border-top: 4px solid var(--fm-ink); border-bottom: 1px solid var(--fm-ink); padding: 0.3em 0; }
 h2 { text-transform: uppercase; letter-spacing: 0.08em; font-size: 1.25em; border-bottom: 1px solid var(--fm-ink); padding-bottom: 0.2em; }
@@ -411,6 +423,7 @@ thead th { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.85em;
     measure: "54rem",
     toneDark: "#000000",
     toneDarkInk: "#ffffff",
+    chart: ["#e2231a", "#000000", "#6b6b6b", "#f28b85", "#a3a3a3", "#333333", "#d1d1d1"],
     extraCss: `
 h1 { text-transform: uppercase; }
 .fm-stat__value { font-size: 2.6em; }
@@ -452,6 +465,7 @@ thead th { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.8em; 
     measure: "52rem",
     toneDark: "#111111",
     toneDarkInk: "#f4f4f4",
+    chart: ["#111111", "#555555", "#888888", "#bbbbbb", "#333333", "#dddddd"],
     extraCss: `
 .fm-callout { background: var(--fm-surface); border-left-color: var(--fm-ink); }
 /* Every emphasis has to come from weight and tone, never from hue. */
@@ -489,6 +503,7 @@ thead th { background: var(--fm-ink); color: var(--fm-page); border-bottom: none
     measure: "54rem",
     toneDark: "#1a1a1a",
     toneDarkInk: "#f5f1e8",
+    chart: ["#d02e26", "#1f5ca9", "#f0b429", "#1a1a1a", "#6b6b6b", "#e6a09a", "#8fb3e0"],
     extraCss: `
 h1 { font-size: 2.8em; line-height: 0.95; }
 h2 { color: #1f5ca9; }
@@ -530,6 +545,7 @@ th, td { border: 2px solid var(--fm-ink); }
     measure: "52rem",
     toneDark: "#1c1c1c",
     toneDarkInk: "#faf7f0",
+    chart: ["#7a1f1a", "#1c1c1c", "#5a5a5a", "#a35a55", "#8a8a8a", "#3a4a5a", "#c0a080"],
     extraCss: `
 h1 {
   text-align: center;
@@ -573,6 +589,7 @@ thead th { border-bottom: 3px double var(--fm-ink); font-variant: small-caps; }
     measure: "50rem",
     toneDark: "#1d3159",
     toneDarkInk: "#f7f3e8",
+    chart: ["#ff48b0", "#0078bf", "#ffe800", "#1d3159", "#00a95c", "#ff7f00", "#765ba7"],
     extraCss: `
 h1, h2 { color: #0078bf; text-shadow: 3px 3px 0 var(--fm-accent); }
 .fm-card { box-shadow: 4px 4px 0 rgba(0, 120, 191, 0.25); }
@@ -610,6 +627,7 @@ thead th { background: #0078bf; color: #fff; }
     measure: "48rem",
     toneDark: "#191714",
     toneDarkInk: "#f5efe0",
+    chart: ["#b08d3e", "#191714", "#2b4f5e", "#d4b978", "#6f4e37", "#8a9a8a", "#4a3f6b"],
     extraCss: `
 body { font-size: 1.06em; }
 h1 { text-align: center; }
@@ -653,6 +671,7 @@ thead th { border-bottom: 3px double var(--fm-accent); text-transform: uppercase
     measure: "46rem",
     toneDark: "#2b2b28",
     toneDarkInk: "#fbfaf7",
+    chart: ["#b04a39", "#2b2b28", "#5b7a8c", "#d6a08a", "#7a8a5a", "#8a7a9a", "#b8a880"],
     extraCss: `
 body { line-height: 1.85; }
 h1, h2, h3 { margin-top: 2.4em; }
@@ -692,6 +711,7 @@ thead th { border-bottom-width: 1px; }
     measure: "54rem",
     toneDark: "#050706",
     toneDarkInk: "#c8e6ce",
+    chart: ["#33ff66", "#9bb39f", "#00c2ff", "#ffd166", "#ff6b6b", "#c77dff", "#5eead4"],
     extraCss: `
 h1::before, h2::before { content: "> "; color: var(--fm-accent); }
 h1, h2, h3 { color: var(--fm-accent); }
@@ -732,6 +752,7 @@ thead th { border-bottom: 1px solid var(--fm-accent); color: var(--fm-accent); }
     measure: "54rem",
     toneDark: "#000000",
     toneDarkInk: "#ffffff",
+    chart: ["#000000", "#ffff00", "#ff0000", "#0000ff", "#808080", "#00a000", "#ff00ff"],
     extraCss: `
 h1 { background: var(--fm-accent); display: inline-block; padding: 0 0.15em; }
 h2 { border-bottom: 6px solid var(--fm-ink); padding-bottom: 0.2em; letter-spacing: 0.12em; }
@@ -794,4 +815,16 @@ export type FastrThemeColorOverride = {
 export function isFastrReportTheme(v: unknown): v is FastrReportTheme {
   return typeof v === "string" &&
     (FASTR_REPORT_THEMES as readonly string[]).includes(v);
+}
+
+// The series palette a report's figures use: the theme's, with a custom
+// accent (a creation-time style's palette) taking the lead colour.
+export function fastrChartPalette(
+  theme: FastrReportTheme,
+  colors?: { accent: string } | null,
+): string[] {
+  const base = FASTR_THEME_TOKENS[theme]?.chart ?? FASTR_THEME_TOKENS.default.chart;
+  if (!colors?.accent) return base;
+  const accent = colors.accent.toLowerCase();
+  return [accent, ...base.filter((c) => c.toLowerCase() !== accent)];
 }

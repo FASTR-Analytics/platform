@@ -3,6 +3,7 @@ import {
   buildFastrReportCss,
   FASTR_THEME_TOKENS,
   FIGURE_EXPORT_WIDTH_PX,
+  fastrChartPalette,
   getFastrReportTheme,
   getReportCustomStyle,
   getReportFormat,
@@ -23,6 +24,7 @@ import { figureInputsForDownload } from "./_dashboard_export_model";
 import { loadImageEntry } from "./_report_export_maps";
 import {
   applyInkTheme,
+  figureDarkInkForColors,
   figureInkThemeForStyle,
   GENERIC_LIGHT_INK,
 } from "~/components/report/report_figure_raster";
@@ -90,20 +92,33 @@ export async function buildStandaloneReportHtml(
       getReportHtmlStyle(detail.config),
       customColors,
     )) ?? GENERIC_LIGHT_INK;
+  const darkInk = figureDarkInkForColors(
+    isFastr
+      ? customColors ?? {
+        page: fastrTokens.page,
+        ink: fastrTokens.ink,
+        accent: fastrTokens.accent,
+      }
+      : customColors,
+  );
   const rasters = new Map<string, FigureRasterState>();
   let done = 0;
   for (const [id, block] of figureEntries) {
     try {
       const bundle = block.bundle;
       if (!bundle) throw new Error("no bundle");
-      const fi = buildFigureInputs(bundle);
+      const fi = buildFigureInputs(
+        bundle,
+        undefined,
+        isFastr ? fastrChartPalette(fastrTheme, customColors) : undefined,
+      );
       await loadFontsWithTimeout(new CustomFigureStyle(fi.style).getFontsToRegister());
       // Transparent, like the preview rasters — the report's CSS owns what
       // shows behind the figure; light ink only on a detected dark ground.
       const r = await getFigureAsDataUrlBrowser(
         applyInkTheme(
           figureInputsForDownload(fi, true, false),
-          darkGrounds.get(id) ? lightInk : undefined,
+          darkGrounds.get(id) ? lightInk : darkInk,
         ),
         FIGURE_EXPORT_WIDTH_PX,
       );
