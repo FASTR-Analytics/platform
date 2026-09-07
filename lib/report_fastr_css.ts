@@ -1191,7 +1191,7 @@ ${d}.cm-panels .cm-button {
 }
 /* Two classes: the general first-child clamp below is a later rule of equal
    weight, and would otherwise win the tie. */
-${d}.fm-live-region.fm-live-region--first > *:first-child { margin-top: 0 !important; }
+${d}.fm-live-region.fm-live-region--first > .fm-peer-layer + * { margin-top: 0 !important; }
 /* Widgets render REAL html inside .cm-content, which is white-space:pre-wrap
    (CodeMirror needs it for the text). Inherited into a widget, every newline
    the renderer emits between tags becomes a phantom line box — two extra
@@ -1233,8 +1233,16 @@ ${d}.cm-fm-box {
    editor ALSO spends a blank source line and the box gap on that seam, so the
    widget's outer margins are clamped or blocks drift twice as far apart in
    Edit as in View. */
-${d}.fm-live-region > *:first-child { margin-top: 0.2em !important; }
+${d}.fm-live-region > .fm-peer-layer + * { margin-top: 0.2em !important; }
 ${d}.fm-live-region > *:last-child { margin-bottom: 0.2em !important; }
+/* The peer layer (carets, presence) sits first in every widget and covers
+   it; it is not content, so the clamp above addresses the child after it. */
+${d}.fm-peer-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+}
 /* GAP above the box is page-side; the extra 8px is interior headroom so the
    title clears the box's own top border (the box starts at +GAP exactly). */
 ${d}.cm-fm-chrome-open { padding-top: ${FM_BOX_GAP + 8}px; padding-bottom: 0.2rem; }
