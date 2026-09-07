@@ -38,6 +38,7 @@ export function getStyleFromPresentationObject(
       indicatorMetadata,
       effectiveValueProps,
       deckStyle,
+      chartPalette,
     );
   }
   // The special chart modes are all constant-format metrics (m3/m4/m6), so

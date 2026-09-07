@@ -5,6 +5,7 @@ import {
   _CF_LIGHTER_YELLOW,
   type DeckStyleContext,
   type EffectiveFormat,
+  type FastrChartPalette,
   type IndicatorMetadata,
   PresentationObjectConfig,
 } from "lib";
@@ -35,15 +36,19 @@ function getScorecardCutoffColor(
   green: number,
   yellow: number,
   scaledValue: number,
+  cells: FastrChartPalette["cells"] | undefined,
 ): string {
+  const tierGood = cells?.good ?? _CF_LIGHTER_GREEN;
+  const tierWarn = cells?.warn ?? _CF_LIGHTER_YELLOW;
+  const tierBad = cells?.bad ?? _CF_LIGHTER_RED;
   if (direction === "higher_is_better") {
-    if (scaledValue >= green) return _CF_LIGHTER_GREEN;
-    if (scaledValue >= yellow) return _CF_LIGHTER_YELLOW;
-    return _CF_LIGHTER_RED;
+    if (scaledValue >= green) return tierGood;
+    if (scaledValue >= yellow) return tierWarn;
+    return tierBad;
   } else {
-    if (scaledValue <= green) return _CF_LIGHTER_GREEN;
-    if (scaledValue <= yellow) return _CF_LIGHTER_YELLOW;
-    return _CF_LIGHTER_RED;
+    if (scaledValue <= green) return tierGood;
+    if (scaledValue <= yellow) return tierWarn;
+    return tierBad;
   }
 }
 
@@ -53,6 +58,8 @@ export function buildScorecardStyle(
   indicatorMetadata: IndicatorMetadata[],
   effectiveValueProps: string[],
   deckStyle?: DeckStyleContext,
+  // A themed report's traffic-light tints (see getStandardSeriesColorFunc).
+  chartPalette?: FastrChartPalette,
 ): CustomFigureStyleOptions {
   const metadataById = new Map(indicatorMetadata.map((m) => [m.id, m]));
 
@@ -79,6 +86,7 @@ export function buildScorecardStyle(
                 meta.threshold_green ?? 0,
                 meta.threshold_yellow ?? 0,
                 scaled,
+                chartPalette?.cells,
               ),
               textColorStrategy: getCfCellTextColorStrategy(deckStyle),
             };

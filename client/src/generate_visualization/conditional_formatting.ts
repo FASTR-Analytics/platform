@@ -10,11 +10,13 @@ import {
   _CF_LIGHTER_RED,
   _CF_LIGHTER_YELLOW,
   _CF_RED,
+  type FastrChartPalette,
   type IndicatorFormat,
   PeriodOption,
   PresentationObjectConfig,
   pickLang,
   selectCf,
+  themeConditionalFormatting,
   TranslatableString,
   type FigureLocalization,
 } from "lib";
@@ -91,30 +93,37 @@ export function getLegendFromConfig(
   config: PresentationObjectConfig,
   formatAs: IndicatorFormat,
   localization: Pick<FigureLocalization, "language">,
+  // A themed report's palette: every legend swatch must match what the
+  // matching style builder draws with it (see getStandardSeriesColorFunc).
+  chartPalette?: FastrChartPalette,
 ): LegendInput | undefined {
   const { language } = localization;
+  const good = chartPalette?.good ?? _CF_GREEN;
+  const bad = chartPalette?.bad ?? _CF_RED;
+  const strong = chartPalette?.strong ?? "#000000";
   if (isSpecialScorecardTableActive(config)) {
+    const cells = chartPalette?.cells;
     return [
-      { label: pickLang(language, { en: "On track", fr: "En bonne voie", pt: "No bom caminho" }), color: _CF_LIGHTER_GREEN },
-      { label: pickLang(language, { en: "Progress needed", fr: "Progrès nécessaire", pt: "Progresso necessário" }), color: _CF_LIGHTER_YELLOW },
-      { label: pickLang(language, { en: "Not on track", fr: "Pas en bonne voie", pt: "Fora do bom caminho" }), color: _CF_LIGHTER_RED },
+      { label: pickLang(language, { en: "On track", fr: "En bonne voie", pt: "No bom caminho" }), color: cells?.good ?? _CF_LIGHTER_GREEN },
+      { label: pickLang(language, { en: "Progress needed", fr: "Progrès nécessaire", pt: "Progresso necessário" }), color: cells?.warn ?? _CF_LIGHTER_YELLOW },
+      { label: pickLang(language, { en: "Not on track", fr: "Pas en bonne voie", pt: "Fora do bom caminho" }), color: cells?.bad ?? _CF_LIGHTER_RED },
     ];
   }
   if (isSpecialCoverageChartActive(config)) {
     return [
       {
         label: pickLang(language, { en: "Administrative data", fr: "Données administratives", pt: "Dados administrativos" }),
-        color: "#CED4DB",
+        color: chartPalette?.faint ?? "#CED4DB",
         pointStyle: "as-line",
       },
       {
         label: pickLang(language, { en: "Survey-based estimate", fr: "Estimation basée sur des enquêtes", pt: "Estimativa baseada em inquéritos" }),
-        color: "#000000",
+        color: strong,
         pointStyle: "as-line",
       },
       {
         label: pickLang(language, { en: "Projected estimate", fr: "Estimation projetée", pt: "Estimativa projetada" }),
-        color: "#F04D44",
+        color: chartPalette?.bad ?? "#F04D44",
         pointStyle: "as-line",
       },
     ];
@@ -128,44 +137,44 @@ export function getLegendFromConfig(
     );
     if (config.s.specialBarChartInverted) {
       return [
-        { label: labels.increase, color: _CF_RED },
-        { label: labels.decrease, color: _CF_GREEN },
+        { label: labels.increase, color: bad },
+        { label: labels.decrease, color: good },
       ];
     }
     return [
-      { label: labels.increase, color: _CF_GREEN },
-      { label: labels.decrease, color: _CF_RED },
+      { label: labels.increase, color: good },
+      { label: labels.decrease, color: bad },
     ];
   }
   if (isSpecialDisruptionsChartActive(config)) {
     if (config.s.diffInverted) {
       return [
-        { label: pickLang(language, { en: "Actual", fr: "Réel", pt: "Real" }), color: "#000000", pointStyle: "as-line" },
+        { label: pickLang(language, { en: "Actual", fr: "Réel", pt: "Real" }), color: strong, pointStyle: "as-line" },
         {
           label: pickLang(language, { en: "Expected", fr: "Attendu", pt: "Esperado" }),
-          color: "#000000",
+          color: strong,
           pointStyle: "as-line",
           lineDash: "dashed",
           lineStrokeWidthScaleFactor: 0.5,
         },
-        { label: pickLang(language, { en: "Excess", fr: "Excès", pt: "Excesso" }), color: _CF_RED },
-        { label: pickLang(language, { en: "Reduction", fr: "Réduction", pt: "Redução" }), color: _CF_GREEN },
+        { label: pickLang(language, { en: "Excess", fr: "Excès", pt: "Excesso" }), color: bad },
+        { label: pickLang(language, { en: "Reduction", fr: "Réduction", pt: "Redução" }), color: good },
       ];
     }
     return [
-      { label: pickLang(language, { en: "Actual", fr: "Réel", pt: "Real" }), color: "#000000", pointStyle: "as-line" },
+      { label: pickLang(language, { en: "Actual", fr: "Réel", pt: "Real" }), color: strong, pointStyle: "as-line" },
       {
         label: pickLang(language, { en: "Expected", fr: "Attendu", pt: "Esperado" }),
-        color: "#000000",
+        color: strong,
         pointStyle: "as-line",
         lineDash: "dashed",
         lineStrokeWidthScaleFactor: 0.5,
       },
-      { label: pickLang(language, { en: "Surplus", fr: "Excédent", pt: "Excedente" }), color: _CF_GREEN },
-      { label: pickLang(language, { en: "Disruption", fr: "Perturbation", pt: "Perturbação" }), color: _CF_RED },
+      { label: pickLang(language, { en: "Surplus", fr: "Excédent", pt: "Excedente" }), color: good },
+      { label: pickLang(language, { en: "Disruption", fr: "Perturbation", pt: "Perturbação" }), color: bad },
     ];
   }
-  const cf = selectCf(config.s);
+  const cf = themeConditionalFormatting(selectCf(config.s), chartPalette);
   if (cf.type === "none") return undefined;
   return compileCfToLegend(cf, formatAs);
 }

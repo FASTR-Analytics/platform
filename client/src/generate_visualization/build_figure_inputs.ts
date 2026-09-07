@@ -103,7 +103,7 @@ export function buildFigureInputs(
       subCaption: withDateRange(withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       footnote: withDateRange(withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, indicatorMetadata, allowNegativeScale, effectiveValueProps, chartPalette),
-      legend: getLegendFromConfig(config, effectiveFormat.axisFormat, localization),
+      legend: getLegendFromConfig(config, effectiveFormat.axisFormat, localization, chartPalette),
     };
   }
 
@@ -129,7 +129,7 @@ export function buildFigureInputs(
       subCaption: withDateRange(withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       footnote: withDateRange(withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, indicatorMetadata, allowNegativeScale, effectiveValueProps, chartPalette),
-      legend: getLegendFromConfig(config, effectiveFormat.axisFormat, localization),
+      legend: getLegendFromConfig(config, effectiveFormat.axisFormat, localization, chartPalette),
     };
   }
 
@@ -139,7 +139,7 @@ export function buildFigureInputs(
       subCaption: withDateRange(withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       footnote: withDateRange(withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, indicatorMetadata, allowNegativeScale, effectiveValueProps, chartPalette),
-      legend: getLegendFromConfig(config, effectiveFormat.axisFormat, localization),
+      legend: getLegendFromConfig(config, effectiveFormat.axisFormat, localization, chartPalette),
     };
     if (effectiveConfig.s.horizontal) {
       return {
@@ -209,7 +209,7 @@ export function buildFigureInputs(
       subCaption: withDateRange(withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       footnote: withDateRange(withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, indicatorMetadata, allowNegativeScale, effectiveValueProps, chartPalette),
-      legend: config.s.hideLegend ? undefined : buildMapAutoLegend(config, effectiveFormat.axisFormat, localization),
+      legend: config.s.hideLegend ? undefined : buildMapAutoLegend(config, effectiveFormat.axisFormat, localization, chartPalette),
     };
   }
 
@@ -265,10 +265,11 @@ function buildMapAutoLegend(
   config: PresentationObjectConfig,
   formatAs: IndicatorFormat,
   localization: Pick<FigureLocalization, "language">,
+  chartPalette: FastrChartPalette | undefined,
 ) {
   const cf = selectCf(config.s);
   if (cf.type === "thresholds") {
-    return getLegendFromConfig(config, formatAs, localization);
+    return getLegendFromConfig(config, formatAs, localization, chartPalette);
   }
   const noData = {
     color: "#f0f0f0",

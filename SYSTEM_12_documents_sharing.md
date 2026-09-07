@@ -755,13 +755,29 @@ to the series cycle, `single-grey` and the roll-up total to `neutral`,
 `red-green` to a `bad`→`good` scale and `blue-green` to the ramp (a lone series
 takes the ramp's emphatic `to` end, not the tint); the percent-change bars use
 neutral/good/bad, the disruption bands good/bad with the ink as the observed
-line, the coverage chart ink/bad/faint for observed/projected/background. A
-figure's explicit per-series colours, conditional-formatting cells and the
-scorecard's traffic lights are never replaced. The three report render sites
-pass it (the live embed through `EmbedResolver.chartPalette`, the preview
-through the raster cache — whose key includes the palette, so a re-theme
-re-rasters — and the export), and nothing else does, so dashboards, slide
-decks and the visualization editor are byte-identical to before.
+line, the coverage chart ink/bad/faint for observed/projected/background.
+**Conditional formatting's traffic lights re-tint too.** Each theme also
+carries `warn` (its amber), and the palette derives `cells` — good, warn and
+bad each faded 60% toward the page (the same tint the stock pastels are of the
+app's colours), plus `none` = the page. `themeConditionalFormatting(cf,
+palette)` (lib/types/conditional_formatting.ts) rewrites a THRESHOLDS format:
+the three stock pastels and the darkened / brightened variants the seven-bucket
+diverging presets derive from them (matched by exact string, computed with the
+same `getAdjustedColor` calls) become the theme's tints with the same
+adjustment, and a stock white / `#f0f0f0` no-data cell becomes the page. The
+standard builder feeds the themed format to `compileCfToValuesColorFunc` (so
+cells, CF-coloured bars and map regions all take it) and `getLegendFromConfig`
+— which now takes the palette for EVERY legend, so the swatches match what
+the special-chart builders draw — feeds it to `compileCfToLegend`; the
+scorecard's per-indicator tiers use `cells` directly. What passes through
+untouched: a bucket colour the user picked themselves, a structural key (the
+neutral middle bucket), and scale-mode formats (a chosen ColorBrewer-style
+ramp). A figure's explicit per-series colours are never replaced either. The
+three report render sites pass the palette (the live embed through
+`EmbedResolver.chartPalette`, the preview through the raster cache — whose key
+includes the palette, so a re-theme re-rasters — and the export), and nothing
+else does, so dashboards, slide decks and the visualization editor are
+byte-identical to before.
 **Figure ink follows the ground in BOTH directions.** A figure's stored style
 is its dashboard's — a dark dashboard's white text arrives as white text — so
 every place a report renders one re-inks it for the ground it actually sits

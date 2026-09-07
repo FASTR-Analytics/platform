@@ -69,6 +69,10 @@ export type FastrThemeChart = {
   neutral: string;
   good: string;
   bad: string;
+  // The caution tier between good and bad: the middle traffic light of a
+  // thresholds table. An amber the theme would use (gold on Art Deco, the
+  // yellow ink on Risograph, a khaki on Monochrome).
+  warn: string;
   // The sequential scale's ends (the blue-green option), [from, to]: `to` is
   // the emphatic end — the one a lone series takes — and `from` the receding
   // one, so a light theme runs tint → shade and a dark theme dim → bright.
@@ -150,6 +154,7 @@ export const FASTR_THEME_TOKENS: Record<FastrReportTheme, FastrThemeTokens> = {
       neutral: "#8b95a5",
       good: "#15803d",
       bad: "#b91c1c",
+      warn: "#b45309",
       ramp: ["#60a5fa", "#134e4a"],
     },
     extraCss: `
@@ -187,6 +192,7 @@ thead th { background: var(--fm-surface-alt); }
       neutral: "#8f8f96",
       good: "#3f6f4a",
       bad: "#9f3f3a",
+      warn: "#8a6d3b",
       ramp: ["#b4b4ba", "#18181b"],
     },
     extraCss: `
@@ -233,6 +239,7 @@ thead th { border-bottom-width: 1px; font-weight: 600; }
       neutral: "#8a97a8",
       good: "#1f7a4d",
       bad: "#b3261e",
+      warn: "#c98b1a",
       ramp: ["#8fb0d8", "#0b2d52"],
     },
     extraCss: `
@@ -278,6 +285,7 @@ th, td { padding: 0.6em 0.8em; }
       neutral: "#7f8f85",
       good: "#2e8b57",
       bad: "#b3261e",
+      warn: "#c9a227",
       ramp: ["#8fc7a3", "#0d3b22"],
     },
     extraCss: `
@@ -320,6 +328,7 @@ thead th { background: var(--fm-surface-alt); border-bottom-width: 2px; }
       neutral: "#8f8474",
       good: "#5f7a3a",
       bad: "#a23b2a",
+      warn: "#b08d3e",
       ramp: ["#c9ab82", "#4a3520"],
     },
     extraCss: `
@@ -362,6 +371,7 @@ thead th { border-bottom-width: 1px; font-variant: small-caps; letter-spacing: 0
       neutral: "#9a9a9a",
       good: "#3f7a4a",
       bad: "#a3382c",
+      warn: "#b8962e",
       ramp: ["#cdb978", "#5a4a1e"],
     },
     extraCss: `
@@ -406,6 +416,7 @@ thead th { border-bottom: 1px solid var(--fm-accent); font-family: var(--fm-font
       neutral: "#8a9a9c",
       good: "#1f8a4c",
       bad: "#b3261e",
+      warn: "#b45309",
       ramp: ["#7ccbc2", "#0c3b38"],
     },
     extraCss: `
@@ -450,6 +461,7 @@ tbody tr:nth-child(even) { background: var(--fm-surface-alt); }
       neutral: "#8a8177",
       good: "#4f7a3a",
       bad: "#b3311f",
+      warn: "#b3931f",
       ramp: ["#d9a08c", "#5a1f14"],
     },
     extraCss: `
@@ -495,6 +507,7 @@ thead th { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.85em;
       neutral: "#8a8a8a",
       good: "#1f8a3d",
       bad: "#e2231a",
+      warn: "#e8a000",
       ramp: ["#b3b3b3", "#000000"],
     },
     extraCss: `
@@ -543,6 +556,7 @@ thead th { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.8em; 
       neutral: "#777777",
       good: "#3d6b45",
       bad: "#8c3b35",
+      warn: "#8a7a4a",
       ramp: ["#bdbdbd", "#111111"],
     },
     extraCss: `
@@ -587,6 +601,7 @@ thead th { background: var(--fm-ink); color: var(--fm-page); border-bottom: none
       neutral: "#7a7a7a",
       good: "#2f8f46",
       bad: "#d02e26",
+      warn: "#f0b429",
       ramp: ["#7fa9dd", "#123a73"],
     },
     extraCss: `
@@ -635,6 +650,7 @@ th, td { border: 2px solid var(--fm-ink); }
       neutral: "#8a8580",
       good: "#3f6b3a",
       bad: "#7a1f1a",
+      warn: "#a8843a",
       ramp: ["#b8ae9c", "#1c1c1c"],
     },
     extraCss: `
@@ -685,6 +701,7 @@ thead th { border-bottom: 3px double var(--fm-ink); font-variant: small-caps; }
       neutral: "#8a93a8",
       good: "#00a95c",
       bad: "#ff665e",
+      warn: "#ffe800",
       ramp: ["#7fc8ef", "#004f8f"],
     },
     extraCss: `
@@ -729,6 +746,7 @@ thead th { background: #0078bf; color: #fff; }
       neutral: "#8c8474",
       good: "#4a7a5a",
       bad: "#9a3b2f",
+      warn: "#b08d3e",
       ramp: ["#cdb26a", "#2b4f5e"],
     },
     extraCss: `
@@ -779,6 +797,7 @@ thead th { border-bottom: 3px double var(--fm-accent); text-transform: uppercase
       neutral: "#9a978f",
       good: "#5a8a5a",
       bad: "#b04a39",
+      warn: "#c19a4a",
       ramp: ["#a9bcc6", "#2f4a58"],
     },
     extraCss: `
@@ -825,6 +844,7 @@ thead th { border-bottom-width: 1px; }
       neutral: "#6d8271",
       good: "#33ff66",
       bad: "#ff6b6b",
+      warn: "#ffd166",
       ramp: ["#1a4d66", "#7fffd4"],
     },
     extraCss: `
@@ -872,6 +892,7 @@ thead th { border-bottom: 1px solid var(--fm-accent); color: var(--fm-accent); }
       neutral: "#808080",
       good: "#00a000",
       bad: "#ff0000",
+      warn: "#ffd000",
       ramp: ["#a0a0a0", "#000000"],
     },
     extraCss: `
@@ -947,6 +968,12 @@ export type FastrChartPalette = FastrThemeChart & {
   strong: string;
   // The de-emphasised series behind it: the neutral faded toward the page.
   faint: string;
+  // Cell grounds for conditional formatting's traffic lights: good, warn and
+  // bad each faded 60% toward the page — the same tint the stock pastels are
+  // of the app's red, amber and green — so dark text still reads on them and
+  // a table's cells sit on the page rather than glowing off it. `none` is the
+  // page itself, for the no-data cell that stock CF paints white.
+  cells: { good: string; warn: string; bad: string; none: string };
 };
 
 export function fastrChartPalette(
@@ -963,11 +990,18 @@ export function fastrChartPalette(
     : chart.series;
   const page = colors?.page ?? tokens.page;
   const ink = colors?.ink ?? tokens.ink;
+  const tint = (c: string) => mixHex(c, page, 0.6) ?? c;
   return {
     ...chart,
     series,
     strong: ink,
-    faint: mixHex(chart.neutral, page, 0.6) ?? chart.neutral,
+    faint: tint(chart.neutral),
+    cells: {
+      good: tint(chart.good),
+      warn: tint(chart.warn),
+      bad: tint(chart.bad),
+      none: page,
+    },
   };
 }
 
