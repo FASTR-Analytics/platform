@@ -299,7 +299,13 @@ export function yCaretHygiene(yText: Y.Text, awareness: Awareness): Extension {
   };
   return ViewPlugin.define(() => ({
     update(u) {
-      if (u.focusChanged && !u.view.hasFocus) {
+      // Focus moving INTO the editor's own content — a live-preview island
+      // (a block's title, a table cell) is a contentEditable inside
+      // contentDOM — is not leaving the editor: the island publishes the
+      // caret itself, and clearing here would erase it a tick later.
+      const active = u.view.root.activeElement;
+      const inContent = active !== null && u.view.contentDOM.contains(active);
+      if (u.focusChanged && !u.view.hasFocus && !inContent) {
         clear();
       }
     },

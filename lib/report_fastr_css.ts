@@ -1122,6 +1122,48 @@ ${d}.cm-line.cm-fm-first { padding-top: 0 !important; margin-top: 0 !important; 
 /* Section numbers on the editor's own heading lines (the rendered document
    uses a CSS counter; a cm-line is not a real heading). */
 ${d}.cm-fm-secnum { color: var(--fm-accent-text); }
+/* A peer's caret inside a rendered block — the same bar, dot and name flag
+   yCollab draws in a paragraph (its .cm-ySelectionCaret), positioned by the
+   presence plugin since the text layer cannot reach into a widget. */
+${d}.fm-peer-caret {
+  position: absolute;
+  width: 2px;
+  margin-left: -1px;
+  pointer-events: auto;
+  z-index: 4;
+}
+${d}.fm-peer-caret::before {
+  content: "";
+  position: absolute;
+  left: -2px;
+  top: -3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: inherit;
+}
+${d}.fm-peer-caret::after {
+  content: "";
+  position: absolute;
+  left: -6px;
+  right: -6px;
+  top: -8px;
+  bottom: 0;
+}
+${d}.fm-peer-caret__name {
+  position: absolute;
+  left: -1px;
+  bottom: 100%;
+  padding: 1px 4px;
+  border-radius: 3px 3px 3px 0;
+  font: 11px/1.3 system-ui, sans-serif;
+  color: #fff;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+  pointer-events: none;
+}
+${d}.fm-peer-caret:hover > .fm-peer-caret__name { opacity: 1; }
 /* CodeMirror's find panel is app chrome sitting on a themed document sheet:
    give it the app's own surface rather than letting the report's typography
    reach it. */
