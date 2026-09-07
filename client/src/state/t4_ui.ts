@@ -34,8 +34,8 @@ export type TabOption = (typeof ALL_TAB_OPTIONS)[number];
 // that feeds a lookup which THROWS on a miss (PROJECT_TAB_TO_VIEW ->
 // panther's setView, from a mount effect with no ErrorBoundary above it, so
 // the throw also skips every effect queued after it). A value written by a
-// build that spelled a tab differently — or holding a removed tab like
-// "modules"/"data" — would take the project page down with no error surface;
+// build that spelled a tab differently, or holding a removed tab like
+// "modules"/"data", would take the project page down with no error surface;
 // the modes below only feed comparisons and degrade.
 const storedTab = localStorage.getItem("projectTab");
 const initialTab: TabOption =
@@ -340,24 +340,18 @@ export const [policyHeaderOrContent, setPolicyHeaderOrContent] = createSignal<
 export const [dashboardEditorOpen, setDashboardEditorOpen] =
   createSignal<boolean>(false);
 
-// The two results-package surfaces fetch what they show on mount (the
-// project tab its attached package, the instance tab its run catalogue)
-// instead of reading a store, so their tour anchors appear a network
-// round-trip after the tab itself does. Each surface counts its settled
-// fetches here (ready OR error; 0 while the first is in flight, reset to 0 on
-// unmount). The onboarding managers count the tab as visible only while this
-// is > 0, so tour parts gated on those anchors are evaluated against the
-// drawn page rather than the loading one — evaluating at tab-entry excluded
-// them, and nothing re-checked once the fetch landed. A count rather than a
-// flag so that every later settle (a repoint, a generation finishing) is a
-// re-check too: a part that only became possible mid-visit starts as soon as
-// its anchor is on screen and no run is in progress.
+// The project results-package tab fetches its attached package on mount
+// instead of reading a store, so its tour anchors appear a network
+// round-trip after the tab itself does. This counts its settled fetches
+// (ready OR error; 0 while the first is in flight, reset to 0 on unmount).
+// The onboarding manager counts the tab as visible only while this is > 0,
+// so tour parts gated on those anchors are evaluated against the drawn page
+// rather than the loading one: evaluating at tab-entry excluded them, and
+// nothing re-checked once the fetch landed. A count rather than a flag so
+// that every later settle (a repoint) is a re-check too: a part that only
+// became possible mid-visit starts as soon as its anchor is on screen.
 export const [resultsPackageTabLoadCount, setResultsPackageTabLoadCount] =
   createSignal<number>(0);
-export const [
-  instanceResultsPackagesLoadCount,
-  setInstanceResultsPackagesLoadCount,
-] = createSignal<number>(0);
 
 // Request signal for opening a document editor from outside the tab
 // components (the tour catalogue modal). The openers live in private closures
@@ -374,7 +368,7 @@ export const [pendingEditorOpen, setPendingEditorOpen] =
 
 // Second level of the same pattern: set alongside a pending "deck" request by
 // the tour catalogue's slide-tour replays, consumed by the deck editor once
-// its slides have loaded — it opens the first slide of this type.
+// its slides have loaded: it opens the first slide of this type.
 export const [pendingSlideOpen, setPendingSlideOpen] =
   createSignal<SlideType | null>(null);
 

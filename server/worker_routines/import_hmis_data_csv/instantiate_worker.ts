@@ -7,7 +7,7 @@ export type ImportHmisDataCsvWorkerPayload = {
   // Resolved by the host at spawn time; empty for a resumeFromStaging run
   // (the integrate leg reads the surviving staging table, not the file).
   csvFilePath: string;
-  // Present only for resumeFromStaging runs — the diagnostics recorded at the
+  // Present only for resumeFromStaging runs: the diagnostics recorded at the
   // needs_review hold, which the integrate leg verifies the table against.
   stagingResult?: DatasetCsvStagingResult;
 };

@@ -39,10 +39,12 @@ export {
   isRowBasedUncertainty,
   measureChart,
   measureChartWithAutofit,
+  PANE_HEADER_SAMPLE_MAX_W,
   renderFigureBackground,
   renderFigurePrimitives,
   resolveDefaultLegend,
   resolveScaleAxisPlotHeight,
+  SIZING_SAMPLE,
   validateDataInput,
   validateUncertaintyConfig,
 } from "../_007_figure_core/mod.ts";

@@ -1,7 +1,7 @@
 import {
   type IndicatorFormat,
   PresentationObjectConfig,
-  PresentationObjectDetail,
+  PresentationObjectEditorDetail,
   t3,
 } from "lib";
 import {
@@ -19,12 +19,12 @@ import { SetStoreFunction } from "solid-js/store";
 import { StyleRevealGroup, StyleSection } from "./_style_components";
 
 type Props = {
-  poDetail: PresentationObjectDetail;
+  poDetail: PresentationObjectEditorDetail;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
   editCustomSeriesStyles: () => Promise<void>;
   /** Format the figure's values will actually be written in (resolved from the
-   *  draft config — HFA metrics all declare "number"). */
+   *  draft config: HFA metrics all declare "number"). */
   effectiveFormatAs: IndicatorFormat;
 };
 

@@ -4,20 +4,20 @@ import { createSignal, For } from "solid-js";
 import { render } from "solid-js/web";
 
 // =============================================================================
-// Presence toasts — "Alice joined this deck"
+// Presence toasts: "Alice joined this deck"
 // =============================================================================
 //
 // Small, transient, non-interactive pills (top-right, below the header)
 // announcing when a collaborator joins or leaves the document YOU are
-// currently in (deck, report, or visualization — from your own presence
+// currently in (deck, report, or visualization: from your own presence
 // view). Driven by the presence snapshots the collab WebSocket already
 // broadcasts; no server changes.
 //
 // Honesty/noise rules:
-//   * People are keyed by EMAIL, not connection — a second tab is not a "join".
+//   * People are keyed by EMAIL, not connection: a second tab is not a "join".
 //   * Leaves are announced on a 4s grace so a refresh / reconnect (leave then
 //     immediate rejoin) toasts nothing.
-//   * Switching documents re-baselines silently — you are the one who moved;
+//   * Switching documents re-baselines silently: you are the one who moved;
 //     the people already there did not "join".
 
 const TOAST_MS = 4_000;
@@ -217,7 +217,7 @@ export function notifyPresenceToasts(
     return;
   }
 
-  // Joins (a rejoin within the leave grace is a reconnect — silent).
+  // Joins (a rejoin within the leave grace is a reconnect: silent).
   for (const [email, who] of occupants) {
     const graceTimer = pendingLeave.get(email);
     if (graceTimer !== undefined) {

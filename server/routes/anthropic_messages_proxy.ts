@@ -22,10 +22,10 @@ import {
 // mounts cannot drift.
 //
 // Responses are Anthropic-shaped (including errors), NOT the APIResponse
-// envelope — the browser Anthropic SDK parses them (see SYSTEM_13).
+// envelope: the browser Anthropic SDK parses them (see SYSTEM_13).
 
 // Client-supplied anthropic-beta values (SDK >=0.110 sends betas via this
-// header, not the body) are forwarded ONLY from this allowlist — the set
+// header, not the body) are forwarded ONLY from this allowlist: the set
 // panther actually uses. An open passthrough would let any authenticated
 // user enable cost/behavior-changing betas (e.g. premium long-context
 // pricing) under the same token limits.
@@ -102,7 +102,7 @@ async function runProxy(args: ProxyArgs): Promise<Response> {
     "anthropic-version": "2023-06-01",
   };
 
-  // Build beta headers based on features used. Prompt caching is GA — no
+  // Build beta headers based on features used. Prompt caching is GA: no
   // beta header needed. (cache_control just works.)
   const betaFeatures: string[] = [];
 
@@ -161,10 +161,10 @@ async function runProxy(args: ProxyArgs): Promise<Response> {
 
     // Log + increment exactly once per stream: flush() on graceful upstream
     // completion, cancel() when the client aborts mid-stream (Stop button,
-    // tab close) — flush never runs on a cancelled pipe, and this path used
+    // tab close): flush never runs on a cancelled pipe, and this path used
     // to record nothing. Cancel-path counts are partial (whatever events
     // arrived before the abort), which still undercounts what Anthropic
-    // bills for the aborted generation — partial beats zero.
+    // bills for the aborted generation: partial beats zero.
     let settled = false;
     const settle = () => {
       if (settled) return;
@@ -196,7 +196,7 @@ async function runProxy(args: ProxyArgs): Promise<Response> {
 
     // Deno's Transformer lib type predates the spec's transformer.cancel
     // hook, but the runtime honors it (verified: cancel fires and flush does
-    // not when the readable side is cancelled) — hence the widened type.
+    // not when the readable side is cancelled): hence the widened type.
     const transformer: Transformer<Uint8Array, Uint8Array> & {
       cancel?: (reason: unknown) => void;
     } = {
@@ -217,7 +217,7 @@ async function runProxy(args: ProxyArgs): Promise<Response> {
                 // message_delta.usage is CUMULATIVE for the whole response.
                 // Server-tool turns (web search/fetch) run multiple internal
                 // sampling iterations and only the delta carries the true
-                // input totals — assign every non-null field, never add
+                // input totals: assign every non-null field, never add
                 // (reading input from message_start alone misses all
                 // server-tool iteration input; adding would double-count if
                 // the API ever emits per-iteration deltas).

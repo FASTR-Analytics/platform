@@ -35,7 +35,6 @@ export function calculateXAxisGridLines(
   switch (xAxisConfig.type) {
     case "text":
       return calculateVerticalGridLinesForLaneXText(
-        i_lane,
         plotAreaRcd,
         xAxisMeasuredInfo as XTextAxisMeasuredInfo,
         visibleIndicatorCount ?? xAxisConfig.indicatorHeaders.length,
@@ -44,7 +43,6 @@ export function calculateXAxisGridLines(
       );
     case "period":
       return calculateVerticalGridLinesForLaneXPeriod(
-        i_lane,
         plotAreaRcd,
         xAxisMeasuredInfo as XPeriodAxisMeasuredInfo,
         xAxisConfig.periodType,
@@ -91,7 +89,6 @@ export function calculateYAxisGridLines(
       );
     case "text":
       return calculateHorizontalGridLinesForTierYText(
-        i_tier,
         plotAreaRcd,
         visibleIndicatorCount ??
           (yAxisWidthInfo as YTextAxisWidthInfo).nIndicators,

@@ -10,29 +10,26 @@ const _STRUCTURE_ITEMS_CACHE = createReactiveCache<
   {
     family: FacilityFamily;
     structureLastUpdated: string;
-    maxAdminArea: number;
-    facilityColumnsHash: string;
+    schemaHash: string;
   },
   ItemsHolderStructure
 >({
   name: "instance_structure_items",
   uniquenessKeys: (params) => ["structure", params.family],
   versionKey: (params) =>
-    `${params.family}_${params.structureLastUpdated}_${params.maxAdminArea}_${params.facilityColumnsHash}`,
+    `${params.family}_${params.structureLastUpdated}_${params.schemaHash}`,
   pdsNotRequired: true,
 });
 
 export async function getStructureItemsFromCacheOrFetch(
   family: FacilityFamily,
   structureLastUpdated: string,
-  maxAdminArea: number,
-  facilityColumnsHash: string,
+  schemaHash: string,
 ) {
   const params = {
     family,
     structureLastUpdated,
-    maxAdminArea,
-    facilityColumnsHash,
+    schemaHash,
   };
   const { data, version } = await _STRUCTURE_ITEMS_CACHE.get(params);
   if (data) return { success: true, data } as const;

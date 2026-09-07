@@ -344,7 +344,7 @@ function placeInside(
   }));
 }
 
-// Nearest-point placement (plan N2–N5): each label at its own nearest point on
+// Nearest-point placement: each label at its own nearest point on
 // the track, anchored where the ray exits its box, slid along the track only as
 // far as the shape or a neighbour forces. Undefined when the track cannot hold
 // them — the figure decides the policy per cell at the harmonised scale, so in

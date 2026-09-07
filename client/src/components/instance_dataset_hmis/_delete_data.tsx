@@ -4,7 +4,7 @@ import {
   t3,
   TC,
   type DatasetHmisWindowingRaw,
-  type InstanceConfigFacilityColumns,
+  type StructureSchema,
 } from "lib";
 import {
   Button,
@@ -23,9 +23,8 @@ export function DeleteData(
   p: EditorComponentProps<
     {
       hmisVersionId: number;
-      indicatorMappingsVersion: string;
-      silentFetch: () => Promise<void>;
-      facilityColumns: InstanceConfigFacilityColumns;
+      baseIndicatorMappingsVersion: string;
+      structureSchema: StructureSchema;
     },
     undefined
   >,
@@ -75,7 +74,6 @@ export function DeleteData(
 
         return serverActions.deleteAllDatasetHmisData({ windowing });
       },
-      p.silentFetch,
       () => p.close(undefined),
     );
 
@@ -96,11 +94,11 @@ export function DeleteData(
         <div class="">
           <WindowingSelector
             hmisVersionId={p.hmisVersionId}
-            indicatorMappingsVersion={p.indicatorMappingsVersion}
+            baseIndicatorMappingsVersion={p.baseIndicatorMappingsVersion}
             tempWindowing={tempWindowing}
             setTempWindowing={setTempWindowing}
             includeOrDelete="delete"
-            facilityColumns={p.facilityColumns}
+            structureSchema={p.structureSchema}
           />
         </div>
         <div class="ui-spy-sm">

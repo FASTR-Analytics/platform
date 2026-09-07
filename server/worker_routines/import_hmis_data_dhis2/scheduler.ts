@@ -1,10 +1,10 @@
 // ============================================================================
-// DHIS2 IMPORT SCHEDULER (PLAN_DHIS2_IMPORTER Phase 4 — C4 + C6)
+// DHIS2 IMPORT SCHEDULER (PLAN_DHIS2_IMPORTER Phase 4, C4 + C6)
 //
-// A ~60 s tick (started from main.ts — deliberately NOT the boot-anchored
+// A ~60 s tick (started from main.ts: deliberately NOT the boot-anchored
 // 24 h jobs, which would usually miss a 01:15 Lagos window). Each tick:
 // skip entirely if any HMIS import operation is active; otherwise fire at
-// most ONE due item — queued runs FIFO first, then due schedules.
+// most ONE due item: queued runs FIFO first, then due schedules.
 // Serialization needs nothing new: every fire goes through the runs table's
 // partial-unique 'running' claim, so a lost race just leaves the item due
 // for the next tick.
@@ -110,7 +110,7 @@ function zoneOffsetMs(utcMs: number, timeZone: string): number {
 
 // The UTC instant at which the given wall time occurs in the given zone.
 // Iterative offset correction handles DST transitions; for a wall time that
-// does not exist (spring-forward gap) this lands within an hour of it — on
+// does not exist (spring-forward gap) this lands within an hour of it, on
 // the EARLY side in some zones (e.g. 02:30 Pacific/Auckland → 01:30).
 // Accepted: it stays far inside the 4 h grace, and the fleet's zones do not
 // observe DST.
@@ -188,7 +188,7 @@ function nthWeekdayOfMonthUtcNoonMs(
 
 // The most recent occurrence ≤ now for the recurrence, or null when none
 // exists yet (anchor still in the future). Exact arithmetic from the
-// anchor — cadence phase never depends on when the schedule last fired.
+// anchor: cadence phase never depends on when the schedule last fired.
 export function mostRecentOccurrenceMs(
   nowMs: number,
   recurrence: Dhis2ScheduleRecurrence,
@@ -290,7 +290,7 @@ export function decideScheduleFire(
     if (row.runAtMs === null || row.lastFiredAtMs !== null) {
       return { action: "none" };
     }
-    // Armed after its own fire instant (a stale row re-enabled somehow —
+    // Armed after its own fire instant (a stale row re-enabled somehow:
     // edits re-arm and re-validate run-at, so belt-and-braces): never due,
     // never missed.
     if (row.runAtMs < row.armedAtMs) {
@@ -314,12 +314,12 @@ export function decideScheduleFire(
     console.error(`Schedule ${row.id}: occurrence computation failed:`, e);
     return { action: "none" };
   }
-  // null = the anchor is still in the future — nothing has ever been due.
+  // null = the anchor is still in the future, nothing has ever been due.
   if (occurrenceMs === null) {
     return { action: "none" };
   }
   // Occurrences from before the row existed / was last armed (create,
-  // enable, edit) are not this schedule's business — neither a fire (an
+  // enable, edit) are not this schedule's business: neither a fire (an
   // unattended import launching the moment a schedule is saved) nor a
   // 'missed' alarm (review finding 1). The first real occurrence is the
   // next one after arming.
@@ -372,7 +372,7 @@ export function resolveRollingSelection(selection: {
     kind: "window",
     rawIndicatorIds: selection.rawIndicatorIds,
     // monthsBack is inclusive of the current month (matches the viz editor's
-    // last_n_months filter: min = max - (nMonths - 1)) — monthsBack=12 means
+    // last_n_months filter: min = max - (nMonths - 1)), monthsBack=12 means
     // 12 months total, not the current month plus 12 more.
     startPeriod: minusMonthsPeriodId(endPeriod, selection.monthsBack - 1),
     endPeriod,
@@ -416,13 +416,13 @@ export async function tickDhis2ImportScheduler(): Promise<void> {
     const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
 
     // Spent-one-shot sweep (§0 lifecycle table): runs every tick, even when
-    // the import slot is busy — it only deletes rows whose story has ended.
+    // the import slot is busy: it only deletes rows whose story has ended.
     const swept = await sweepSpentOneShotScheduledImports(mainDb);
     if (swept > 0) {
       await notifyDatasets(mainDb);
     }
 
-    // Skip entirely while any HMIS import operation is active — queued items
+    // Skip entirely while any HMIS import operation is active: queued items
     // and due schedules wait their turn (C6: queue, not concurrency).
     if (getWorker("hmis") || getWorker("hmis_dhis2_run")) {
       return;
@@ -486,7 +486,7 @@ async function fireQueuedRun(
   mainDb: Sql,
   queued: QueuedDatasetHmisImportRun,
 ): Promise<void> {
-  // CSV fires need no stored-credential checks — the pinned asset (or the
+  // CSV fires need no stored-credential checks: the pinned asset (or the
   // surviving per-run staging table, for an integrate-anyway resume) is the
   // whole input.
   if (queued.source === "csv") {
@@ -585,8 +585,8 @@ async function fireSchedule(
     await notifyDatasets(mainDb);
     return;
   }
-  // A launch that lost only the import-slot race — another run claiming it
-  // between the tick's idle check and the launch guards — stays due: release
+  // A launch that lost only the import-slot race, another run claiming it
+  // between the tick's idle check and the launch guards, stays due: release
   // the occurrence so the next tick retries (within grace; past grace it
   // becomes a truthful 'missed'). Anything else is deterministic and records
   // a loud refusal. The revert is conditional on the row still holding this

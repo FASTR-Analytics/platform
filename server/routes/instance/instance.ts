@@ -1,16 +1,12 @@
 import { Hono } from "hono";
-import { InstanceMeta, type InstanceConfig } from "lib";
+import { InstanceMeta } from "lib";
 import {
-  getAdminAreaLabelsConfig,
-  getFacilityColumnsConfig,
   getInstanceDetail,
-  getMaxAdminAreaConfig,
   getProjectsForUser,
+  setStructureSchema,
   updateAdminAreaLabelsConfig,
-  updateFacilityColumnsConfig,
-  updateMaxAdminArea,
 } from "../../db/mod.ts";
-import { notifyInstanceConfigUpdated } from "../../task_management/notify_instance_updated.ts";
+import { notifyInstanceConfigUpdatedFromDb } from "../../task_management/notify_instance_updated.ts";
 import {
   _DATABASE_FOLDER,
   _INSTANCE_CALENDAR,
@@ -79,27 +75,13 @@ defineRoute(
 
 defineRoute(
   routesInstance,
-  "updateMaxAdminArea",
+  "updateStructureSchema",
   requireGlobalPermission("can_configure_settings"),
-  log("updateMaxAdminArea"),
+  log("updateStructureSchema"),
   async (c, { body }) => {
-    const res = await updateMaxAdminArea(c.var.mainDb, body.maxAdminArea);
+    const res = await setStructureSchema(c.var.mainDb, body.family, body.schema);
     if (res.success) {
-      await notifyConfigUpdated(c.var.mainDb);
-    }
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesInstance,
-  "updateFacilityColumnsConfig",
-  requireGlobalPermission("can_configure_settings"),
-  log("updateFacilityColumnsConfig"),
-  async (c, { body }) => {
-    const res = await updateFacilityColumnsConfig(c.var.mainDb, body);
-    if (res.success) {
-      await notifyConfigUpdated(c.var.mainDb);
+      await notifyInstanceConfigUpdatedFromDb(c.var.mainDb);
     }
     return c.json(res);
   },
@@ -113,7 +95,7 @@ defineRoute(
   async (c, { body }) => {
     const res = await updateAdminAreaLabelsConfig(c.var.mainDb, body);
     if (res.success) {
-      await notifyConfigUpdated(c.var.mainDb);
+      await notifyInstanceConfigUpdatedFromDb(c.var.mainDb);
     }
     return c.json(res);
   },
@@ -123,20 +105,3 @@ defineRoute(routesInstance, "getDiskSpace", requireGlobalPermission(), async (c)
   const res = await checkSpaceForNewProject();
   return c.json({ success: true, data: { ok: res.ok, availableGB: res.availableGB } });
 });
-
-async function notifyConfigUpdated(mainDb: Parameters<typeof getMaxAdminAreaConfig>[0]) {
-  const [maxRes, fcRes, labelsRes] = await Promise.all([
-    getMaxAdminAreaConfig(mainDb),
-    getFacilityColumnsConfig(mainDb),
-    getAdminAreaLabelsConfig(mainDb),
-  ]);
-  if (maxRes.success && fcRes.success && labelsRes.success) {
-    const config: InstanceConfig = {
-      maxAdminArea: maxRes.data.maxAdminArea,
-      facilityColumns: fcRes.data,
-      countryIso3: _INSTANCE_COUNTRY_ISO3,
-      adminAreaLabels: labelsRes.data,
-    };
-    notifyInstanceConfigUpdated(config);
-  }
-}

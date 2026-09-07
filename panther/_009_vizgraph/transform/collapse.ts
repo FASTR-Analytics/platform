@@ -71,10 +71,14 @@ export function collapseFolded(model: GraphModel): GraphModel {
 
   // Nodes: visible ones pass through; each representative is emitted once,
   // at the position of its first hidden member, accumulating min layer/seq.
+  // laneId: the one lane every hidden member shares (null once they
+  // disagree) — the rep inherits it so a folded group keeps its lane's span
+  // claim intact.
   type RepSlot = {
     index: number;
     layer: number | undefined;
     seq: number | undefined;
+    laneId: string | undefined | null;
   };
   const outNodes: NodeIn[] = [];
   const repSlots = new Map<string, RepSlot>();
@@ -92,8 +96,15 @@ export function collapseFolded(model: GraphModel): GraphModel {
         ? group.parentId
         : undefined;
       outNodes.push({ id: rep, size: group.label, groupId: parentId });
-      slot = { index: outNodes.length - 1, layer: undefined, seq: undefined };
+      slot = {
+        index: outNodes.length - 1,
+        layer: undefined,
+        seq: undefined,
+        laneId: node.laneId,
+      };
       repSlots.set(rep, slot);
+    } else if (slot.laneId !== null && slot.laneId !== node.laneId) {
+      slot.laneId = null;
     }
     if (node.layer !== undefined) {
       slot.layer = slot.layer === undefined
@@ -108,7 +119,14 @@ export function collapseFolded(model: GraphModel): GraphModel {
   }
   for (const slot of repSlots.values()) {
     const node = outNodes[slot.index];
-    outNodes[slot.index] = { ...node, layer: slot.layer, seq: slot.seq };
+    outNodes[slot.index] = {
+      ...node,
+      layer: slot.layer,
+      seq: slot.seq,
+      ...(slot.laneId === null || slot.laneId === undefined
+        ? {}
+        : { laneId: slot.laneId }),
+    };
   }
 
   const repOfNodeId = new Map<string, string | undefined>();

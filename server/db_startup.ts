@@ -1,12 +1,9 @@
 import {
   _COMMON_INDICATORS,
   H_USERS,
-  MODULE_REGISTRY,
   type InstanceConfigAdminAreaLabels,
-  type InstanceConfigFacilityColumns,
-  type InstanceConfigMaxAdminArea,
+  type StructureSchema,
 } from "lib";
-import { uninstallModule } from "./db/project/modules.ts";
 import { escapeSqlString } from "./db/utils.ts";
 import {
   evictRunFromManifestCache,
@@ -25,6 +22,7 @@ import {
   runProjectMigrations,
 } from "./db/migrations/runner.ts";
 import {
+  dropOrphanProjectDatabases,
   getPgConnectionFromCacheOrNew,
   markStaleRunningDatasetHfaImportRuns,
   markStaleRunningDatasetHmisImportRuns,
@@ -35,8 +33,6 @@ import {
   migratePOConfigs,
   type MigrationStats,
 } from "./db/migrations/data_transforms/po_config.ts";
-import { migrateModuleDefinitions } from "./db/migrations/data_transforms/module_definition.ts";
-import { migrateMetricsColumns } from "./db/migrations/data_transforms/metric.ts";
 import { migrateSlideDeckConfigs } from "./db/migrations/data_transforms/slide_deck_config.ts";
 import { migrateSlideConfigs } from "./db/migrations/data_transforms/slide_config.ts";
 import { migrateReports } from "./db/migrations/data_transforms/reports.ts";
@@ -73,6 +69,8 @@ ${userInserts}
 
   await runInstanceMigrations(sqlMain);
 
+  await dropOrphanProjectDatabases(sqlMain);
+
   // A restart mid-import leaves status_type stuck at an in-flight value with no
   // live worker, and the concurrency guards then block all future imports.
   await resetWedgedUploadAttempts(sqlMain);
@@ -94,7 +92,7 @@ ${userInserts}
       `[startup] Marked ${staleIcehRuns} ICEH import run(s) wedged mid-run by a previous shutdown`,
     );
   }
-  // Instance data transforms — on main database
+  // Instance data transforms: on main database
   await runInstanceDataTransforms(sqlMain);
 
   // Instance-level country, threaded into the figure backfill so backfilled
@@ -116,29 +114,15 @@ ${userInserts}
     await backfillDashboardSlugsToMain(sqlMain, projectDb, project.id);
     await runProjectMigrations(projectDb);
 
-    // Project data transforms — each in its own transaction
+    // Project data transforms: each in its own transaction
     await runProjectDataTransforms(project.id, projectDb, instanceCountryIso3);
-
-    // =========================================================================
-    // TEMPORARY: Remove after all ~5 production instances have been updated
-    // Added: 2025-05-20 for hfa001 → m010 rename
-    // This uninstalls any modules not in MODULE_REGISTRY (orphaned modules)
-    // =========================================================================
-    await cleanupOrphanModules(projectDb);
-
-    // =========================================================================
-    // TEMPORARY: Remove after all production instances have been updated
-    // Added: 2026-06-10 — see cleanupOrphanedPresentationObjects
-    // =========================================================================
-    await cleanupOrphanedPresentationObjects(projectDb);
   }
 
   // Results runs (PLAN_RESULTS_RUNS §2.6): a crashed generation leaves only a
-  // .tmp- dir, never a readable run — sweep the debris at boot, and mark any
+  // .tmp- dir, never a readable run: sweep the debris at boot, and mark any
   // 'generating' catalog rows failed (their worker died with the previous
   // process). Projects without a run serve the typed "no run attached" state
-  // until the backfill synthesizer (synthesize_run.ts) or a wizard generation
-  // attaches one.
+  // until a generation attaches one.
   await Deno.mkdir(_RUNS_DIR_PATH, { recursive: true });
   await sweepAbandonedTmpRunDirs();
   await resetDuckDbSpillDir();
@@ -150,12 +134,12 @@ ${userInserts}
 }
 
 // The manifest data transform (PROTOCOL_APP_MIGRATIONS § "Run Manifest
-// Transforms") — the same pattern as the JSON transforms below, applied to a
+// Transforms"): the same pattern as the JSON transforms below, applied to a
 // file. It enumerates the `runs`
-// CATALOGUE and never the filesystem: the runs volume is shared with legacy
-// {projectId} sandbox dirs, published-failed dirs (deliberately manifest-less)
-// and .duckdb-spill, none of which are packages, and every consumer addresses a
-// NAMED entry.
+// CATALOGUE and never the filesystem: the runs volume also holds
+// published-failed dirs (deliberately manifest-less), `.tmp-` dirs,
+// .duckdb-spill and loose scratch files, none of which are packages, and
+// every consumer addresses a NAMED entry.
 //
 // A missing or unparseable manifest is OPERATIONAL, not a code defect, and must
 // not fail boot: backups are pg dumps, so a restore brings catalogue rows back
@@ -170,7 +154,7 @@ async function runRunManifestTransforms(mainDb: Sql): Promise<void> {
   // flipped any left over by a previous process). Sweeping them would warn on
   // every boot, forever, about a state that is working as designed. Excluding
   // by what a status IS NOT, so a status added later gets swept rather than
-  // silently skipped — a missed transform fails at read time, a spurious
+  // silently skipped: a missed transform fails at read time, a spurious
   // warning does not.
   const rows = await mainDb<{ id: string }[]>`
 SELECT id FROM runs WHERE status NOT IN ('generating', 'failed')
@@ -221,7 +205,7 @@ SELECT id FROM runs WHERE status NOT IN ('generating', 'failed')
   }
 }
 
-// Only the structure family (S5) still runs on upload attempts — every
+// Only the structure family (S5) still runs on upload attempts: every
 // dataset family is import runs (PLAN_DHIS2_IMPORTER_CONSOLIDATION).
 async function resetWedgedUploadAttempts(mainDb: Sql): Promise<void> {
   const message =
@@ -259,8 +243,6 @@ const INSTANCE_DATA_TRANSFORMS: { name: string; fn: InstanceMigrationFn }[] = [
 
 const PROJECT_DATA_TRANSFORMS: { name: string; fn: ProjectMigrationFn }[] = [
   { name: "po_config", fn: migratePOConfigs },
-  { name: "module_definition", fn: migrateModuleDefinitions },
-  { name: "metrics_columns", fn: migrateMetricsColumns },
   { name: "slide_deck_config", fn: migrateSlideDeckConfigs },
   { name: "slide_config", fn: migrateSlideConfigs },
   { name: "reports", fn: migrateReports },
@@ -383,11 +365,8 @@ function getInitialUsersInsertStatements(): string {
 }
 
 function getDefaultInstanceConfigInsertStatement(): string {
-  const adminAreaValue: InstanceConfigMaxAdminArea = {
-    maxAdminArea: 4,
-  };
-
-  const facilityColumnsValue: InstanceConfigFacilityColumns = {
+  const structureSchemaValue: StructureSchema = {
+    adminDepth: 4,
     includeNames: false,
     includeTypes: false,
     includeOwnership: false,
@@ -403,8 +382,8 @@ function getDefaultInstanceConfigInsertStatement(): string {
   return `
 INSERT INTO instance_config (config_key, config_json_value)
 VALUES
-  ('max_admin_area', '${JSON.stringify(adminAreaValue)}'),
-  ('facility_columns', '${JSON.stringify(facilityColumnsValue)}'),
+  ('structure_schema_hmis', '${JSON.stringify(structureSchemaValue)}'),
+  ('structure_schema_hfa', '${JSON.stringify(structureSchemaValue)}'),
   ('admin_area_labels', '${JSON.stringify(adminAreaLabelsValue)}');
 `;
 }
@@ -455,41 +434,5 @@ async function backfillDashboardSlugsToMain(
         `[dashboard-slug-backfill] slug "${row.slug}" (project ${projectId.slice(0, 8)}, dashboard ${row.id}) not registered — already taken globally. Re-slug it to restore its public link.`,
       );
     }
-  }
-}
-
-// =============================================================================
-// TEMPORARY: Remove this function after all ~5 production instances updated
-// Added: 2025-05-20 for hfa001 → m010 rename
-// =============================================================================
-async function cleanupOrphanModules(projectDb: Sql): Promise<void> {
-  const validIds = MODULE_REGISTRY.map((m) => m.id);
-  const installed = await projectDb<{ id: string }[]>`SELECT id FROM modules`;
-
-  for (const mod of installed) {
-    if (!validIds.includes(mod.id as typeof validIds[number])) {
-      console.log(`[cleanup] Removing orphan module: ${mod.id}`);
-      await uninstallModule(projectDb, mod.id);
-    }
-  }
-}
-
-// =============================================================================
-// TEMPORARY: Remove this function after all production instances updated
-// Added: 2026-06-10 — purge presentation objects whose metric no longer exists
-// in the project (orphaned by uninstalls/metric renames before install/update/
-// uninstall purged them). 240 such rows found across 21 instances.
-// =============================================================================
-async function cleanupOrphanedPresentationObjects(
-  projectDb: Sql,
-): Promise<void> {
-  const del = await projectDb`
-    DELETE FROM presentation_objects
-    WHERE metric_id NOT IN (SELECT id FROM metrics)
-  `;
-  if (del.count > 0) {
-    console.log(
-      `[cleanup] Removed ${del.count} orphaned visualization(s) with no matching metric`,
-    );
   }
 }

@@ -27,7 +27,7 @@ import {
   ReuseSourceMissingError,
   reuseRunModule,
 } from "./execute_module.ts";
-import { notifyRunProgress } from "./notify_run.ts";
+import { notifyInstanceRunProgress } from "../../task_management/notify_instance_updated.ts";
 import { prepareRunInputs } from "./prepare_inputs.ts";
 import { resolveRunModules, type ResolvedRunModule } from "./resolve_modules.ts";
 import {
@@ -45,12 +45,12 @@ import type { GenerateRunStartData } from "./types.ts";
 // failed generation never replaces the serving run.
 //
 // Memoized generation (§3.7): the reuse plan resolves as the first stage
-// after resolve — per-module reused / will-run pushed to the progress view
+// after resolve: per-module reused / will-run pushed to the progress view
 // before anything executes. The plan is a pessimistic prediction; the loop
 // below makes the authoritative per-module decision from ACTUAL upstream
 // hashes, so a prediction can only be upgraded (pending → reused, when a
 // re-executed upstream produced byte-identical outputs), and the one
-// downgrade path — a base output file gone missing — falls back to a real
+// downgrade path, a base output file gone missing, falls back to a real
 // run with the status visibly correcting itself. Fails closed throughout.
 
 export async function runGenerationPipeline(
@@ -68,7 +68,7 @@ export async function runGenerationPipeline(
   };
   const pushProgress = async () => {
     await updateRunProgress(mainDb, std.runId, progress);
-    notifyRunProgress(std.attachTargetProjectIds, std.runId, progress);
+    notifyInstanceRunProgress(std.runId, progress);
   };
 
   const prepared = await prepareRunInputs(mainDb, std.step1Result, std.runId);
@@ -86,7 +86,7 @@ export async function runGenerationPipeline(
   const planned = await planReuse(
     resolved,
     reuseSearch,
-    prepared.datasetExtractHashes,
+    prepared.inputHashes,
     assetHashCache,
   );
   for (const mod of resolved) {
@@ -105,7 +105,7 @@ export async function runGenerationPipeline(
     progress.currentModuleId = mod.moduleId;
     const inputs = await computeModuleInputs(
       mod,
-      prepared.datasetExtractHashes,
+      prepared.inputHashes,
       upstreamOutputHashes,
       assetHashCache,
     );
@@ -120,7 +120,6 @@ export async function runGenerationPipeline(
       await pushProgress();
       try {
         result = await reuseRunModule({
-          attachTargetProjectIds: std.attachTargetProjectIds,
           runId: std.runId,
           tmpDir,
           module: mod,
@@ -138,7 +137,6 @@ export async function runGenerationPipeline(
       progress.moduleStatus[mod.moduleId] = "running";
       await pushProgress();
       result = await executeRunModule({
-        attachTargetProjectIds: std.attachTargetProjectIds,
         runId: std.runId,
         tmpDir,
         module: mod,
@@ -152,29 +150,21 @@ export async function runGenerationPipeline(
   }
   progress.currentModuleId = null;
 
-  // ONE finalize (§3.8): wholesale manifest + inputs capture via the shared
-  // package builder. Under the no-dual-write model (Phase 3 re-cut ruling 5)
-  // the catalog is handed to the builder from THIS generation's resolved
-  // definitions — no project-DB round trip — and the input mirrors were
-  // written by prepare.
+  // ONE finalize (§3.8): wholesale manifest + inputs capture via the package
+  // builder. The catalog is handed to the builder from THIS generation's
+  // resolved definitions and the input mirrors were written by prepare.
   const { manifest, summary } = await buildRunPackageIntoTmp(
     mainDb,
     std.runId,
     tmpDir,
     {
       label: std.label,
-      provenance: "wizard",
-      source: {
-        kind: "captured",
-        modules: buildRunModules(resolved, memo),
-        metrics: buildRunMetrics(resolved),
-        datasets: prepared.datasets,
-        facilitiesTables: prepared.facilitiesTables,
-      },
-      backfillSourceProjectId: null,
+      modules: buildRunModules(resolved, memo),
+      metrics: buildRunMetrics(resolved),
+      datasets: prepared.datasets,
+      facilitiesTables: prepared.facilitiesTables,
+      population: prepared.population,
       attachTargetProjectIds: std.attachTargetProjectIds,
-      moduleMemo: memo,
-      moduleCsvDir: (moduleId) => join(tmpDir, "outputs", moduleId),
       extraInputFiles: prepared.extraInputFiles,
     },
   );
@@ -192,25 +182,38 @@ export async function runGenerationPipeline(
   // longer written, so it is never read here either). A run launched with no
   // targets publishes silently and is attached later from a project's
   // picker.
-  // Final progress first, on both channels: it is what tells the catalogue
-  // and every target's package surface that this generation is over, so it
-  // must not be gated on the per-target catalog reads below (a run with no
-  // targets does none of them).
-  notifyRunProgress(std.attachTargetProjectIds, std.runId, progress);
+  // Final progress first: it is what tells the catalogue that this
+  // generation is over, so it must not be gated on the per-target catalog
+  // reads below (a run with no targets does none of them). Attach targets
+  // learn of the publish through `run_attached` alone: a project has no
+  // live view of a generation (it is attached only once the run is ready).
+  // The run IS published from here on: a notify failure must never fail the
+  // generation (worker.ts's catch would flip a published, attached run to
+  // 'failed'). Same class of post-write catch as attachRunToProject: log,
+  // continue; the read plane reports a broken payload properly on its own.
+  try {
+    notifyInstanceRunProgress(std.runId, progress);
 
-  if (std.attachTargetProjectIds.length > 0) {
-    const payload = await buildRunAttachedManifestPayload({
-      runId: std.runId,
-      manifest,
-    });
-    for (const projectId of std.attachTargetProjectIds) {
-      const projectDb = createWorkerReadConnection(projectId);
-      try {
-        await notifyRunAttachedForProject(mainDb, projectId, projectDb, payload);
-      } finally {
-        await projectDb.end();
+    if (std.attachTargetProjectIds.length > 0) {
+      const payload = await buildRunAttachedManifestPayload(mainDb, {
+        runId: std.runId,
+        manifest,
+      });
+      for (const projectId of std.attachTargetProjectIds) {
+        const projectDb = createWorkerReadConnection(projectId);
+        try {
+          await notifyRunAttachedForProject(mainDb, projectId, projectDb, payload);
+        } finally {
+          await projectDb.end();
+        }
       }
     }
+  } catch (e) {
+    console.error(
+      `[generate_run] run ${std.runId} published but its post-publish events could not be built: ${
+        e instanceof Error ? e.message : e
+      }`,
+    );
   }
 }
 
@@ -261,6 +264,9 @@ function buildRunMetrics(resolved: ResolvedRunModule[]): RunMetric[] {
           : null,
         post_aggregation_expression: m.postAggregationExpression
           ? JSON.stringify(m.postAggregationExpression)
+          : null,
+        catalog_expression_evaluation: m.catalogExpressionEvaluation
+          ? JSON.stringify(m.catalogExpressionEvaluation)
           : null,
         results_object_id: m.resultsObjectId,
         ai_description: m.aiDescription ? JSON.stringify(m.aiDescription) : null,

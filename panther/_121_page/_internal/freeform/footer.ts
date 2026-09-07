@@ -14,11 +14,11 @@ import {
 import { RectCoordsDims as RCD } from "../../deps.ts";
 import type { FreeformPageInputs, PagePrimitive } from "../../types.ts";
 
-export interface MeasuredFooter {
+export type MeasuredFooter = {
   mFooter?: MeasuredText;
   rcdFooterOuter: RectCoordsDims;
   maxWidthForFooterText: number;
-}
+};
 
 export function measureFooter(
   rc: RenderContext,

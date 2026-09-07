@@ -10,20 +10,20 @@ import {
   getSharedToolsForInfo,
   getSharedToolsForMethodologyDocs,
   getSharedToolsForMetrics,
-  getSharedToolsForModules,
-  getSharedToolsForReports,
-  getSharedToolsForSlideDecks,
-  getSharedToolsForVisualizations,
 } from "lib";
 import { createAskUserQuestionsTool } from "panther";
-import { clientAIToolEnv } from "./ai_tools/client_env";
+import { clientAIToolEnvFor } from "./ai_tools/client_env";
+import { SPA_INFO_TOPICS } from "./ai_tools/client_info_topics";
 import { getClientToolsForDrafts } from "./ai_tools/tools/drafts";
+import { getClientToolsForModules } from "./ai_tools/tools/modules";
 import { getClientToolsForReportEditor } from "./ai_tools/tools/report_editor";
+import { getClientToolsForReports } from "./ai_tools/tools/reports";
+import { getClientToolsForSlideDecks } from "./ai_tools/tools/slide_decks";
 import { getClientToolsForSlideEditor } from "./ai_tools/tools/slide_editor";
 import { getClientToolsForSlides } from "./ai_tools/tools/slides";
+import { getClientToolsForVisualizations } from "./ai_tools/tools/visualizations";
 import { getClientToolsForVizEditor } from "./ai_tools/tools/visualization_editor";
 import { getClientToolsForNavigation } from "./ai_tools/tools/navigation";
-import { projectState } from "~/state/project/t1_store";
 
 type BuildToolsParams = {
   projectId: string;
@@ -36,24 +36,27 @@ type BuildToolsParams = {
   reports: ReportSummary[];
 };
 
+// The copilot's tool set = the SHARED tools (lib/ai_tools: the same
+// definitions the /mcp surface exposes, over the env bound to this project)
+// + the CLIENT tools (project content, editors, navigation, drafts). Array
+// order is the tool-catalog order and the catalog is a prompt-cache input:
+// keep it stable.
 export function buildToolsForContext(params: BuildToolsParams) {
   const { projectId, modules, metrics, icehIndicators, hfaTaxonomy, visualizations, slideDecks, reports } =
     params;
+  const env = clientAIToolEnvFor(projectId);
 
   return [
-    // Base data tools - always available (shared factories in lib/ai_tools;
-    // the SPA injects cache-backed getters via clientAIToolEnv, the headless
-    // MCP host injects direct fetches)
-    ...getSharedToolsForMetrics(clientAIToolEnv, projectId, metrics, icehIndicators, hfaTaxonomy),
-    // The package the script/log tools read is resolved SERVER-side at call
-    // time (projects.run_id via the attached-package routes), so a repoint
-    // mid-conversation moves them to the newly attached package.
-    ...getSharedToolsForModules(clientAIToolEnv, projectId, modules, metrics),
-    ...getSharedToolsForVisualizations(clientAIToolEnv, projectId, visualizations, metrics),
-    ...getSharedToolsForSlideDecks(slideDecks),
-    ...getSharedToolsForReports(clientAIToolEnv, projectId, reports),
+    // Shared metric tools, bound to this project's package.
+    ...getSharedToolsForMetrics(env, metrics, icehIndicators, hfaTaxonomy),
+    // Module internals of that package (SPA-only)
+    ...getClientToolsForModules(projectId, modules, metrics),
+    // Project content
+    ...getClientToolsForVisualizations(projectId, visualizations, metrics),
+    ...getClientToolsForSlideDecks(slideDecks),
+    ...getClientToolsForReports(projectId, reports),
     ...getSharedToolsForMethodologyDocs(),
-    ...getSharedToolsForInfo(),
+    ...getSharedToolsForInfo(SPA_INFO_TOPICS),
 
     // View-gated tools (createAITool with viewRegistry + availableIn)
     ...getClientToolsForSlides(projectId, metrics),

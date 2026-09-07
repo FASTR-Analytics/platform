@@ -31,8 +31,8 @@ export async function createDatabase(name: string): Promise<Sql> {
 }
 
 // The rig runs the REAL base schema files rather than hand-written DDL, so its
-// tables cannot drift from production. Migrations are deliberately not replayed
-// — validate_migrations already proves base schema ≡ base + migrations.
+// tables cannot drift from production. Migrations are deliberately not replayed:
+// validate_migrations already proves base schema ≡ base + migrations.
 export async function loadSchemaFile(sql: Sql, path: string): Promise<void> {
   const text = await Deno.readTextFile(path);
   await sql.unsafe(text);
@@ -40,8 +40,8 @@ export async function loadSchemaFile(sql: Sql, path: string): Promise<void> {
 
 export type Failure = { case: string; detail: string };
 
-// Rows come back in whatever order the planner chose — the queries carry no
-// ORDER BY — so equality is multiset equality, not sequence equality.
+// Rows come back in whatever order the planner chose (the queries carry no
+// ORDER BY), so equality is multiset equality, not sequence equality.
 export function canonicalise(rows: Record<string, unknown>[]): string {
   return JSON.stringify(
     rows

@@ -165,7 +165,7 @@ const PIE_UNTANGLES_LEADERS = false;
 
 // A pie's silhouette is a disc, so its track is analytically a circle of
 // radius outerR + calloutMargin about the disc centre. The circle is a
-// CONSEQUENCE of the shape, never the model (plan N1).
+// CONSEQUENCE of the shape, never the model.
 //
 // A partial sweep (a gauge) keeps the whole circle here, along with
 // `outsideBand` and `circleEdgeAtY` below: the outside-label FRAME stays
@@ -218,11 +218,11 @@ export type PieOutsideBox = { x: number; y: number };
 
 // Places every frozen-outside label at content scale s in a frame centred on
 // (cx, cy), through the same placer core the driver draws with — the reserve IS
-// the draw (one placer, plan D1). Anchors are re-derived analytically from each
+// the draw (one placer). Anchors are re-derived analytically from each
 // slice's bearing; text is never re-measured.
 //
 // Undefined only under "nearest", and only when the track at this s cannot hold
-// the labels: that is the N10 fallback signal, not an error.
+// the labels: that is the flank-fallback signal, not an error.
 export function placePieOutsideBoxesAt(
   outside: PieLabelEntry[],
   s: number,
@@ -295,9 +295,9 @@ export function placePieOutsideBoxesAt(
   );
 }
 
-// The label terms of the autofit floor (plan D4), measured UNWRAPPED
+// The label terms of the autofit floor, measured UNWRAPPED
 // (maxWidth Infinity) so the floor is exactly proportional to the font scale
-// (monotone — plan E4) and has no cell dependence (no circularity). Budgets
+// (monotone) and has no cell dependence (no circularity). Budgets
 // every shown label as outside: with no cell in existence there is nothing to
 // resolve `auto` against, and the conservative side is the only safe one; the
 // draw freezes at s0, so floor ≥ draw.
@@ -305,7 +305,7 @@ export type PieLabelFloorBudget = {
   // Extra width beyond the content disc that outside labels demand.
   horizontal: number;
   // Extra height. What this MEANS differs by placer, and so does how the
-  // consumer combines it (plan N9):
+  // consumer combines it:
   //   flank    the tallest single-flank stack, which the cell must be at least
   //            as tall as — outside labels can outgrow the disc vertically.
   //   nearest  labels sit above and below the content as well as beside it, so
@@ -381,7 +381,7 @@ export function calculatePieLabelFloorBudget(
   if (!nearest || maxW === 0) return { horizontal, vertical: tallestStack };
 
   // Under nearest the floor must cover BOTH placers, because any cell may fall
-  // back to flank (N10) and the floor is what autofit shrinks the type against.
+  // back to flank and the floor is what autofit shrinks the type against.
   // Budgeting nearest alone is how a 47-label map starved: the floor asked for
   // 94 DU of height, nothing was shrunk, the cell then fell back to flank and
   // needed 612 with full-size type. "Floor >= draw" is the property that makes

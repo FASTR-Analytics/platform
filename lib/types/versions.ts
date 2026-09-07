@@ -16,7 +16,7 @@ export type VersionEditor = {
 };
 
 /** Run-length-encoded per-character authorship of a report body: `len`
- *  characters written by `email` (null = unknown — text that predates the
+ *  characters written by `email` (null = unknown: text that predates the
  *  ledger, was edited outside a live collab room, or came from a restore).
  *  Runs with `deletedBy` present are TOMBSTONES: characters deleted at this
  *  position, kept as ghosts so diff views can name the exact deleter
@@ -58,7 +58,7 @@ export type ReportVersionDetail = ReportVersionSummary & {
   bodyAuthors: AuthorRun[] | null;
 };
 
-/** One step in a version's lineage (body only — no figure payloads): the
+/** One step in a version's lineage (body only, no figure payloads): the
  *  compare view diffs adjacent steps to attribute each changed section to the
  *  editing session that introduced it. */
 export type ReportVersionLineageStep = {
@@ -88,7 +88,7 @@ export type DeckVersionSummary = {
 /** Per-slide attribution for one deck editing session (emails; names resolve
  *  client-side): who edited/added/removed each slide, plus deck-level ops.
  *  Maintained in memory by server/collab/deck_session_ledger.ts and frozen
- *  per version — null for pre-feature versions or after a server restart
+ *  per version: null for pre-feature versions or after a server restart
  *  (the UI falls back to the session's editor set). */
 export type DeckSlideEditors = {
   slides: Record<
@@ -98,15 +98,15 @@ export type DeckSlideEditors = {
       added?: string[];
       removed?: string[];
       /** Element-level detail for collab edits: element key (see
-       *  observeSlideDocElements in lib/collab/slide_crdt.ts — "field:<name>",
+       *  observeSlideDocElements in lib/collab/slide_crdt.ts: "field:<name>",
        *  "block:<id>", "layout", "props") -> emails of everyone who touched
        *  the element. */
       elements?: Record<string, string[]>;
       /** Deck-side deletion "tombstones": exactly who ADDED an item block,
        *  who structurally REMOVED it (both from set-diffing the layout's
-       *  block-id inventory across each transaction — robust to container
+       *  block-id inventory across each transaction: robust to container
        *  collapses/rebuilds and immune to moves), and who DELETED TEXT inside
-       *  an element (Y.Text delete ops) — lets the version diff say "removed
+       *  an element (Y.Text delete ops): lets the version diff say "removed
        *  by Bob" instead of falling back to the whole element-editor set.
        *  Subsets of `elements`. */
       elementsAdded?: Record<string, string[]>;

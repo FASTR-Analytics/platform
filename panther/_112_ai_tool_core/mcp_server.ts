@@ -3,14 +3,16 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-// createMCPServer — expose a _305_ai tool registry over MCP
-// (PLAN_305_MCP_SERVER.md). Panther owns everything MCP-shaped: the headless
+// createMCPServer: expose a _305_ai tool registry over MCP. Panther owns
+// everything MCP-shaped: the headless
 // filter, tool→MCP conversion, the resumable approval driver and its
 // staged-proposal lifecycle, the readiness gate, the error funnel. A consumer
 // entry is ~50 lines of composition with zero protocol code.
 
+import { z } from "./deps.ts";
+import type { zType } from "./deps.ts";
 import type {
-  AIToolWithMetadata,
+  AnyAITool,
   ErasedApprovalConfig,
   ProposalPreview,
   ProposalResult,
@@ -23,6 +25,7 @@ import {
   type MCPCallOutcome,
   type MCPConnection,
   type MCPElicitDecision,
+  type MCPElicitRequestedSchema,
   MCPRequestError,
   type MCPResourceConfig,
   type MCPServer,
@@ -33,10 +36,10 @@ import {
 } from "./mcp_types.ts";
 import { createMCPConnection, serveCoreOnStdio } from "./mcp_protocol.ts";
 
-const ORIENTATION_TOOL_NAME = "get_orientation";
-const ORIENTATION_RESOURCE_URI = "panther://orientation";
-const ORIENTATION_TOOL_DESCRIPTION =
-  "Read the orientation document: what exists in the app right now (live ids), the rules for operating it, and how to use the other tools. Call this before doing other work.";
+const OVERVIEW_TOOL_NAME = "get_overview";
+const OVERVIEW_RESOURCE_URI = "panther://overview";
+const OVERVIEW_TOOL_DESCRIPTION =
+  "Read the overview document: what exists in the app right now (live ids), the rules for operating it, and how to use the other tools. Call this before doing other work.";
 
 // Spec: tool names SHOULD be 1–128 chars from [A-Za-z0-9_.-]. Panther's
 // snake_case names comply; this catches a consumer inventing one with a
@@ -46,12 +49,9 @@ const TOOL_NAME_PATTERN = /^[A-Za-z0-9_.-]{1,128}$/;
 const DEFAULT_APPROVAL_TTL_MS = 5 * 60 * 1000;
 const INSTRUCTIONS_POINTER_BYTES = 2048;
 
-// deno-lint-ignore no-explicit-any
-type AnyTool = AIToolWithMetadata<any>;
-
 type DroppedTool = { name: string; reason: string };
 
-// NOTE on principal binding (resolved 2026-08-06, PLAN_112 D3): the staged
+// Principal binding: the staged
 // entry carries no principal field ON PURPOSE. On stdio one connection owns
 // one core. Over HTTP, where a modern (MRTR) client CAN supply requestState,
 // the adapter generalizes the invariant instead of relaxing it: ONE core per
@@ -93,8 +93,29 @@ function stringifyToolOutput(output: unknown): string {
   return typeof output === "string" ? output : (JSON.stringify(output) ?? "");
 }
 
-function completeText(text: string): MCPCallOutcome {
-  return { type: "complete", text, isError: false };
+// The MCP wrapper rule: structuredContent must be a JSON OBJECT and tool
+// outputs are arbitrary JSON (arrays included), so every tool wraps
+// UNIFORMLY — structuredContent is { result: <output> } and the advertised
+// outputSchema wraps identically. One rule for every tool; clients never
+// switch per shape. The text block still carries the serialized output (the
+// spec's backwards-compat SHOULD).
+function wrappedOutputSchema(schema: zType.ZodType): Record<string, unknown> {
+  return z.toJSONSchema(z.object({ result: schema }), { io: "output" });
+}
+
+function wrappedStructured(
+  structured: unknown,
+): Record<string, unknown> | undefined {
+  return structured === undefined ? undefined : { result: structured };
+}
+
+function completeText(
+  text: string,
+  structuredContent?: Record<string, unknown>,
+): MCPCallOutcome {
+  return structuredContent === undefined
+    ? { type: "complete", text, isError: false }
+    : { type: "complete", text, isError: false, structuredContent };
 }
 
 function completeError(text: string): MCPCallOutcome {
@@ -103,9 +124,25 @@ function completeError(text: string): MCPCallOutcome {
 
 // Same funnel as the chat loop: AIToolFailure (and any throw) reaches the
 // model as an isError result with a clean message — the model reads it and
-// recovers; a JSON-RPC error would not reach the model at all.
+// recovers; a JSON-RPC error is not guaranteed to (hosts surface protocol
+// errors as they see fit).
 function completeFromThrow(error: unknown): MCPCallOutcome {
   return completeError(toolThrowToResultParts(error).content);
+}
+
+// The one protocol error whose message is written for the model anyway: the
+// spec makes an unknown tool a -32602, and hosts that show the error text
+// (Claude Code renders "MCP error -32602: <message>" as the tool result) let
+// the model act on it. The model cannot call tools/list, and it cannot be
+// told WHY the name is unknown — a stale client catalog (the server's catalog
+// is fixed per core; a change is a deploy) is indistinguishable from a
+// hallucinated name — so the text states the fact and the one recovery step,
+// conditionally.
+function unknownToolError(name: string): MCPRequestError {
+  return new MCPRequestError(
+    -32602,
+    `Unknown tool: ${name}. It is not in this server's current tool list. If your tool list is stale, ask the user to refresh this connector's tools (or start a new conversation) and retry.`,
+  );
 }
 
 // Preview values routinely embed MODEL-SUPPLIED text (a report label, a body
@@ -172,7 +209,7 @@ function renderAuditHeader(preview: ProposalPreview): string {
 
 function buildElicitForm(
   preview: ProposalPreview,
-): { message: string; requestedSchema: Record<string, unknown> } {
+): { message: string; requestedSchema: MCPElicitRequestedSchema } {
   return {
     message: renderPreviewMessage(preview),
     requestedSchema: {
@@ -288,11 +325,11 @@ export function buildMCPServerCore(
       "createMCPServer: name and version are required (they identify the server to clients).",
     );
   }
-  // Thunk-form tools bind the exposed set to an authenticated principal (D3):
+  // Thunk-form tools bind the exposed set to an authenticated principal:
   // the HTTP adapter resolves one core per principal and passes the context.
   // stdio serving has no principal, so a thunk there is a construction error,
   // never a silently-unbound tool set.
-  let resolvedTools: AnyTool[];
+  let resolvedTools: AnyAITool[];
   if (typeof config.tools === "function") {
     if (!toolsCtx) {
       throw new Error(
@@ -305,7 +342,7 @@ export function buildMCPServerCore(
   }
 
   // ---- Filter: headless declaration via the shared eligibility helper ----
-  const exposed = new Map<string, AnyTool>();
+  const exposed = new Map<string, AnyAITool>();
   const dropped: DroppedTool[] = [];
   for (const tool of resolvedTools) {
     const name = tool.sdkTool.name;
@@ -343,11 +380,19 @@ export function buildMCPServerCore(
       continue;
     }
     // parse() is the "input validation is the backstop" promise for
-    // model-supplied ids. createAITool always provides it; a hand-constructed
-    // tool without it would hand propose/commit unvalidated input.
-    if (typeof tool.sdkTool.parse !== "function") {
+    // model-supplied ids. createAITool provides it unless the tool declares
+    // `validation: "internal"` — its runner then owns refusal AND logging
+    // (e.g. an ops kernel validating the same schema and recording the
+    // attempt), so raw input must reach it: a pre-parse here would answer
+    // invalid calls before any provenance could see them. Either way the
+    // promise is boot-visible, never silently waived; a hand-constructed
+    // tool with neither would hand propose/commit unvalidated input.
+    if (
+      typeof tool.sdkTool.parse !== "function" &&
+      tool.metadata.validation !== "internal"
+    ) {
       throw new Error(
-        `createMCPServer: tool "${name}" has no parse() — every exposed tool must validate its input (build tools with createAITool, or provide parse).`,
+        `createMCPServer: tool "${name}" has no parse() — every exposed tool must validate its input (build tools with createAITool, provide parse, or declare validation: "internal").`,
       );
     }
     if (!TOOL_NAME_PATTERN.test(name)) {
@@ -363,10 +408,10 @@ export function buildMCPServerCore(
     exposed.set(name, tool);
   }
   if (
-    config.groundingResource !== undefined && exposed.has(ORIENTATION_TOOL_NAME)
+    config.groundingResource !== undefined && exposed.has(OVERVIEW_TOOL_NAME)
   ) {
     throw new Error(
-      `createMCPServer: tool name "${ORIENTATION_TOOL_NAME}" collides with the built-in orientation tool (added because groundingResource is configured).`,
+      `createMCPServer: tool name "${OVERVIEW_TOOL_NAME}" collides with the built-in overview tool (added because groundingResource is configured).`,
     );
   }
 
@@ -419,10 +464,10 @@ export function buildMCPServerCore(
   }
   if (
     config.groundingResource !== undefined &&
-    resourceUris.has(ORIENTATION_RESOURCE_URI)
+    resourceUris.has(OVERVIEW_RESOURCE_URI)
   ) {
     throw new Error(
-      `createMCPServer: resource uri "${ORIENTATION_RESOURCE_URI}" collides with the built-in orientation resource.`,
+      `createMCPServer: resource uri "${OVERVIEW_RESOURCE_URI}" collides with the built-in overview resource.`,
     );
   }
 
@@ -442,7 +487,7 @@ export function buildMCPServerCore(
   const resolveGrounding = async (): Promise<string> => {
     const source = config.groundingResource;
     if (source === undefined) {
-      throw new MCPRequestError(-32002, "No orientation resource configured");
+      throw new MCPRequestError(-32002, "No overview resource configured");
     }
     return typeof source === "function" ? await source() : source;
   };
@@ -519,8 +564,8 @@ export function buildMCPServerCore(
   const toolDefs: MCPToolDef[] = [];
   if (config.groundingResource !== undefined) {
     toolDefs.push({
-      name: ORIENTATION_TOOL_NAME,
-      description: ORIENTATION_TOOL_DESCRIPTION,
+      name: OVERVIEW_TOOL_NAME,
+      description: OVERVIEW_TOOL_DESCRIPTION,
       inputSchema: { type: "object", properties: {} },
       annotations: { readOnlyHint: true },
     });
@@ -529,10 +574,10 @@ export function buildMCPServerCore(
     toolDefs.push({
       name,
       description: tool.sdkTool.description,
-      inputSchema: tool.sdkTool.input_schema as unknown as Record<
-        string,
-        unknown
-      >,
+      inputSchema: tool.sdkTool.input_schema,
+      ...(tool.metadata.outputSchema !== undefined
+        ? { outputSchema: wrappedOutputSchema(tool.metadata.outputSchema) }
+        : {}),
       annotations: tool.metadata.kind === "read"
         ? { readOnlyHint: true }
         : undefined,
@@ -544,6 +589,9 @@ export function buildMCPServerCore(
     commit: () => Promise<unknown> | unknown,
     stillValid: (() => boolean) | undefined,
     withAuditHeader: boolean,
+    // Whether the tool declares an outputSchema — commit's raw return then
+    // rides as structuredContent beside the text.
+    emitStructured: boolean,
   ): Promise<MCPCallOutcome> => {
     // stillValid is load-bearing here, not a nicety: real wall-clock time
     // passes between propose and commit, which is never true in the chat. A
@@ -565,6 +613,7 @@ export function buildMCPServerCore(
       const text = stringifyToolOutput(output);
       return completeText(
         withAuditHeader ? renderAuditHeader(preview) + text : text,
+        emitStructured ? wrappedStructured(output) : undefined,
       );
     } catch (error) {
       return completeFromThrow(error);
@@ -576,6 +625,7 @@ export function buildMCPServerCore(
     approval: ErasedApprovalConfig,
     input: unknown,
     clientCanElicit: boolean,
+    emitStructured: boolean,
   ): Promise<MCPCallOutcome> => {
     let proposal: ProposalResult<unknown>;
     try {
@@ -642,6 +692,7 @@ export function buildMCPServerCore(
         proposal.commit,
         proposal.stillValid,
         true,
+        emitStructured,
       );
     }
     return completeError(
@@ -676,7 +727,7 @@ export function buildMCPServerCore(
       const readyError = await awaitReady();
       if (readyError) return completeError(readyError);
       if (
-        name === ORIENTATION_TOOL_NAME && config.groundingResource !== undefined
+        name === OVERVIEW_TOOL_NAME && config.groundingResource !== undefined
       ) {
         try {
           return completeText(await resolveGrounding());
@@ -686,7 +737,7 @@ export function buildMCPServerCore(
       }
       const tool = exposed.get(name);
       if (!tool) {
-        throw new MCPRequestError(-32602, `Unknown tool: ${name}`);
+        throw unknownToolError(name);
       }
       // Parse BEFORE anything else — the chat loop parses before propose and
       // this driver mirrors it. This is the "input validation is the
@@ -701,9 +752,22 @@ export function buildMCPServerCore(
       }
       const approval = tool.metadata.approval;
       if (approval) {
-        return runApproval(name, approval, input, opts.clientCanElicit);
+        return runApproval(
+          name,
+          approval,
+          input,
+          opts.clientCanElicit,
+          tool.metadata.outputSchema !== undefined,
+        );
       }
       try {
+        if (tool.sdkTool.runStructured) {
+          const { text, structured } = await tool.sdkTool.runStructured(
+            input,
+            poisonView(name),
+          );
+          return completeText(text, wrappedStructured(structured));
+        }
         const text = tool.sdkTool.runWithView
           ? await tool.sdkTool.runWithView(input, poisonView(name))
           : await tool.sdkTool.run(input);
@@ -718,7 +782,7 @@ export function buildMCPServerCore(
       if (readyError) return completeError(readyError);
       const tool = exposed.get(name);
       if (!tool) {
-        throw new MCPRequestError(-32602, `Unknown tool: ${name}`);
+        throw unknownToolError(name);
       }
       // Parse on the resume leg too — requestState and args are
       // client-supplied input on this leg, exactly like the first.
@@ -783,6 +847,7 @@ export function buildMCPServerCore(
         entry.commit,
         entry.stillValid,
         false,
+        tool.metadata.outputSchema !== undefined,
       );
     },
 
@@ -808,10 +873,10 @@ export function buildMCPServerCore(
       const list: Omit<MCPResourceConfig, "read">[] = [];
       if (config.groundingResource !== undefined) {
         list.push({
-          uri: ORIENTATION_RESOURCE_URI,
-          name: "orientation",
+          uri: OVERVIEW_RESOURCE_URI,
+          name: "overview",
           description:
-            "Orientation for operating this app: live ids, rules, tool usage.",
+            "Overview for operating this app: live ids, rules, tool usage.",
           mimeType: "text/markdown",
         });
       }
@@ -825,10 +890,10 @@ export function buildMCPServerCore(
 
     readResource: async (uri) => {
       if (
-        uri === ORIENTATION_RESOURCE_URI &&
+        uri === OVERVIEW_RESOURCE_URI &&
         config.groundingResource !== undefined
       ) {
-        // The orientation thunk reads live app state, so it waits for
+        // The overview thunk reads live app state, so it waits for
         // hydration like a tool call does.
         const readyError = await awaitReady();
         if (readyError) {

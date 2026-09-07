@@ -10,7 +10,7 @@ export interface FetchOptions extends RequestInit {
   retryOptions?: RetryOptions;
   timeout?: number;
   // Opt-in cap on the response body size, enforced while streaming (a
-  // Content-Length check is not enough — chunked responses have none).
+  // Content-Length check is not enough: chunked responses have none).
   // Without it the body is materialized unbounded by response.json().
   maxResponseBytes?: number;
   logRequest?: boolean;
@@ -104,7 +104,7 @@ export async function fetchFromDHIS2<T = any>(
     // Abort controller for timeout. The timer must stay alive across the
     // BODY read, not just time-to-headers: clearing it as soon as fetch()
     // resolves leaves response.json() unbounded, and a stalled/trickling
-    // body then hangs the caller forever (verified empirically — the signal
+    // body then hangs the caller forever (verified empirically, the signal
     // aborts an in-flight body read).
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
@@ -228,7 +228,7 @@ const VALIDATION_TIMEOUT = 10000;
 export async function validateDhis2Connection(
   credentials: Dhis2Credentials,
 ): Promise<Dhis2ValidationResult> {
-  // Phase 1 — Verify this is a real DHIS2 instance (unauthenticated, follow redirects)
+  // Phase 1: Verify this is a real DHIS2 instance (unauthenticated, follow redirects)
   const phase1Url = buildUrl("/api/system/info.json", credentials.url);
   const phase1Controller = new AbortController();
   const phase1Timeout = setTimeout(
@@ -249,7 +249,7 @@ export async function validateDhis2Connection(
         isDhis2 = true;
       }
     } catch {
-      // Not JSON — check if HTML contains DHIS2 markers (login page redirect)
+      // Not JSON, check if HTML contains DHIS2 markers (login page redirect)
       if (text.includes("DHIS") || text.includes("dhis2")) {
         isDhis2 = true;
       }
@@ -280,7 +280,7 @@ export async function validateDhis2Connection(
     clearTimeout(phase1Timeout);
   }
 
-  // Phase 2 — Auth check (authenticated)
+  // Phase 2: Auth check (authenticated)
   const phase2Url = buildUrl("/api/me.json", credentials.url);
   const phase2Controller = new AbortController();
   const phase2Timeout = setTimeout(

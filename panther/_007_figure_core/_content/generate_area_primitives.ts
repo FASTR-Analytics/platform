@@ -4,9 +4,11 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  type AreaDiffPair,
   type ChartSeriesInfo,
   computeBoundsForPath,
   Coordinates,
+  type MergedContentStyle,
   type Primitive,
   type RectCoordsDims,
   Z_INDEX,
@@ -181,158 +183,179 @@ export function generateAreaPrimitives(
         });
       }
     }
-  } else if (s.areas && s.areas.diff.enabled && mapped.length >= 2) {
-    // The diff shades the area between two series (mapped[0] vs mapped[1]); with
-    // only one series there's nothing to diff, so skip it (degrade) rather than
-    // dereferencing the absent mapped[1].
-    const areas: {
-      order: "over" | "under";
-      coords: Coordinates[];
-    }[] = [];
-    let currentCoords: Coordinates[] = [];
-
-    let prevOrderOfSeries_1: undefined | "over" | "under" | "equal" = undefined;
-    let prevMappedVal_1:
-      | { coords: Coordinates; val: number; barExtent: number }
-      | undefined = undefined;
-    let prevMappedVal_2:
-      | { coords: Coordinates; val: number; barExtent: number }
-      | undefined = undefined;
-
-    for (let i_val = 0; i_val < mapped[0].length; i_val++) {
-      const mappedValThisSeries_1 = mapped[0][i_val];
-      const mappedValThisSeries_2 = mapped[1][i_val];
+  } else if (s.areas && s.areas.diff.enabled) {
+    const areasStyle = s.areas;
+    areasStyle.diff.pairs.forEach((pair, i_pair) => {
+      // A pair naming an absent series has nothing to diff — degrade rather
+      // than dereference.
       if (
-        mappedValThisSeries_1 === undefined ||
-        mappedValThisSeries_2 === undefined
+        mapped[pair.series[0]] === undefined ||
+        mapped[pair.series[1]] === undefined
       ) {
-        if (
-          currentCoords.length > 0 &&
-          (prevOrderOfSeries_1 === "over" || prevOrderOfSeries_1 === "under")
-        ) {
-          areas.push({
-            coords: currentCoords,
-            order: prevOrderOfSeries_1,
-          });
-          currentCoords = [];
-        }
-        prevOrderOfSeries_1 = undefined;
-        prevMappedVal_1 = undefined;
-        prevMappedVal_2 = undefined;
-        continue;
+        return;
       }
-      const thisOrder = mappedValThisSeries_1.val === mappedValThisSeries_2.val
-        ? "equal"
-        : mappedValThisSeries_1.val > mappedValThisSeries_2.val
-        ? "over"
-        : "under";
-
-      if (prevOrderOfSeries_1 === undefined) {
-        if (thisOrder === "equal") {
-          // Do nothing
-        } else {
-          currentCoords.unshift(mappedValThisSeries_1.coords);
-          currentCoords.push(mappedValThisSeries_2.coords);
-        }
-      } else if (thisOrder === "equal") {
-        if (prevOrderOfSeries_1 === "equal") {
-          // Do nothing
-        } else {
-          currentCoords.push(mappedValThisSeries_1.coords);
-          if (currentCoords.length > 0) {
-            areas.push({ coords: currentCoords, order: prevOrderOfSeries_1 });
-            currentCoords = [];
-          }
-        }
-      } else if (prevOrderOfSeries_1 === "equal") {
-        currentCoords.push(new Coordinates(prevMappedVal_1!.coords));
-        currentCoords.unshift(mappedValThisSeries_1.coords);
-        currentCoords.push(mappedValThisSeries_2.coords);
-      } else if (thisOrder === prevOrderOfSeries_1) {
-        currentCoords.unshift(mappedValThisSeries_1.coords);
-        currentCoords.push(mappedValThisSeries_2.coords);
-      } else {
-        let interception = getLineIntersection(
-          prevMappedVal_1!.coords,
-          mappedValThisSeries_1.coords,
-          prevMappedVal_2!.coords,
-          mappedValThisSeries_2.coords,
-        );
-        if (interception === false) {
-          const x1 = prevMappedVal_1!.coords.x();
-          const y1 = prevMappedVal_1!.coords.y();
-          const x2 = mappedValThisSeries_1.coords.x();
-          const y2 = mappedValThisSeries_1.coords.y();
-          const x3 = prevMappedVal_2!.coords.x();
-          const y3 = prevMappedVal_2!.coords.y();
-          const x4 = mappedValThisSeries_2.coords.x();
-          const y4 = mappedValThisSeries_2.coords.y();
-          const denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
-          if (denom === 0) {
-            interception = {
-              x: (x1 + x2 + x3 + x4) / 4,
-              y: (y1 + y2 + y3 + y4) / 4,
-            };
-          } else {
-            const t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom;
-            interception = {
-              x: x1 + t * (x2 - x1),
-              y: y1 + t * (y2 - y1),
-            };
-          }
-        }
-        currentCoords.push(new Coordinates(interception));
-        areas.push({ coords: currentCoords, order: prevOrderOfSeries_1 });
-        currentCoords = [];
-        currentCoords.push(new Coordinates(interception));
-        currentCoords.unshift(mappedValThisSeries_1.coords);
-        currentCoords.push(mappedValThisSeries_2.coords);
-      }
-      prevOrderOfSeries_1 = thisOrder;
-      prevMappedVal_1 = mappedValThisSeries_1;
-      prevMappedVal_2 = mappedValThisSeries_2;
-    }
-
-    if (
-      currentCoords.length > 0 &&
-      (prevOrderOfSeries_1 === "over" || prevOrderOfSeries_1 === "under")
-    ) {
-      areas.push({ coords: currentCoords, order: prevOrderOfSeries_1 });
-    }
-
-    for (let i_area = 0; i_area < areas.length; i_area++) {
-      if (areas[i_area].coords.length === 0) continue;
-      const i_series = areas[i_area].order === "over" ? 0 : 1;
-      const seriesInfo: ChartSeriesInfo = {
-        ...ctx.subChartInfo,
-        i_series,
-        isFirstSeries: i_series === 0,
-        isLastSeries: i_series === ctx.subChartInfo.nSerieses - 1,
-        seriesHeader: ctx.seriesHeaders[0],
-        nVals: 0,
-      };
-      const areaStyle = s.areas.getStyle(seriesInfo);
-      const lineCoordArray = [...areas[i_area].coords, areas[i_area].coords[0]];
-
-      primitives.push({
-        type: "chart-area-series",
-        key:
-          `area-diff-${ctx.subChartInfo.i_pane}-${ctx.subChartInfo.i_tier}-${ctx.subChartInfo.i_lane}-${
-            areas[i_area].order
-          }-${i_area}`,
-        bounds: computeBoundsForPath(lineCoordArray),
-        zIndex: Z_INDEX.CONTENT_AREA,
-        meta: {
-          series: seriesInfo,
-          valueIndices: [],
-        },
-        annotationGroup: areaStyle.annotationGroup,
-        coords: lineCoordArray,
-        style: areaStyle,
-      });
-    }
+      primitives.push(
+        ...generateDiffPairPrimitives(pair, i_pair, mapped, areasStyle, ctx),
+      );
+    });
   }
 
+  return primitives;
+}
+
+// One diff pair's walk: segment the span into "over"/"under" areas at the
+// crossing points of series a and b, then emit those areas the pair asks for,
+// attributed per the AreaDiffPair contract (over → a, under → b).
+function generateDiffPairPrimitives(
+  pair: AreaDiffPair,
+  i_pair: number,
+  mapped: MappedValueCoordinate[][],
+  areasStyle: NonNullable<MergedContentStyle["areas"]>,
+  ctx: ContentGenerationContext,
+): Primitive[] {
+  const seriesA = mapped[pair.series[0]];
+  const seriesB = mapped[pair.series[1]];
+
+  const areas: {
+    order: "over" | "under";
+    coords: Coordinates[];
+  }[] = [];
+  let currentCoords: Coordinates[] = [];
+
+  let prevOrderOfA: undefined | "over" | "under" | "equal" = undefined;
+  let prevMappedValA: MappedValueCoordinate | undefined = undefined;
+  let prevMappedValB: MappedValueCoordinate | undefined = undefined;
+
+  for (let i_val = 0; i_val < seriesA.length; i_val++) {
+    const mappedValA = seriesA[i_val];
+    const mappedValB = seriesB[i_val];
+    if (mappedValA === undefined || mappedValB === undefined) {
+      if (
+        currentCoords.length > 0 &&
+        (prevOrderOfA === "over" || prevOrderOfA === "under")
+      ) {
+        areas.push({
+          coords: currentCoords,
+          order: prevOrderOfA,
+        });
+        currentCoords = [];
+      }
+      prevOrderOfA = undefined;
+      prevMappedValA = undefined;
+      prevMappedValB = undefined;
+      continue;
+    }
+    const thisOrder = mappedValA.val === mappedValB.val
+      ? "equal"
+      : mappedValA.val > mappedValB.val
+      ? "over"
+      : "under";
+
+    if (prevOrderOfA === undefined) {
+      if (thisOrder === "equal") {
+        // Do nothing
+      } else {
+        currentCoords.unshift(mappedValA.coords);
+        currentCoords.push(mappedValB.coords);
+      }
+    } else if (thisOrder === "equal") {
+      if (prevOrderOfA === "equal") {
+        // Do nothing
+      } else {
+        currentCoords.push(mappedValA.coords);
+        if (currentCoords.length > 0) {
+          areas.push({ coords: currentCoords, order: prevOrderOfA });
+          currentCoords = [];
+        }
+      }
+    } else if (prevOrderOfA === "equal") {
+      currentCoords.push(new Coordinates(prevMappedValA!.coords));
+      currentCoords.unshift(mappedValA.coords);
+      currentCoords.push(mappedValB.coords);
+    } else if (thisOrder === prevOrderOfA) {
+      currentCoords.unshift(mappedValA.coords);
+      currentCoords.push(mappedValB.coords);
+    } else {
+      let interception = getLineIntersection(
+        prevMappedValA!.coords,
+        mappedValA.coords,
+        prevMappedValB!.coords,
+        mappedValB.coords,
+      );
+      if (interception === false) {
+        const x1 = prevMappedValA!.coords.x();
+        const y1 = prevMappedValA!.coords.y();
+        const x2 = mappedValA.coords.x();
+        const y2 = mappedValA.coords.y();
+        const x3 = prevMappedValB!.coords.x();
+        const y3 = prevMappedValB!.coords.y();
+        const x4 = mappedValB.coords.x();
+        const y4 = mappedValB.coords.y();
+        const denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+        if (denom === 0) {
+          interception = {
+            x: (x1 + x2 + x3 + x4) / 4,
+            y: (y1 + y2 + y3 + y4) / 4,
+          };
+        } else {
+          const t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom;
+          interception = {
+            x: x1 + t * (x2 - x1),
+            y: y1 + t * (y2 - y1),
+          };
+        }
+      }
+      currentCoords.push(new Coordinates(interception));
+      areas.push({ coords: currentCoords, order: prevOrderOfA });
+      currentCoords = [];
+      currentCoords.push(new Coordinates(interception));
+      currentCoords.unshift(mappedValA.coords);
+      currentCoords.push(mappedValB.coords);
+    }
+    prevOrderOfA = thisOrder;
+    prevMappedValA = mappedValA;
+    prevMappedValB = mappedValB;
+  }
+
+  if (
+    currentCoords.length > 0 &&
+    (prevOrderOfA === "over" || prevOrderOfA === "under")
+  ) {
+    areas.push({ coords: currentCoords, order: prevOrderOfA });
+  }
+
+  const primitives: Primitive[] = [];
+  for (let i_area = 0; i_area < areas.length; i_area++) {
+    if (areas[i_area].coords.length === 0) continue;
+    const order = areas[i_area].order;
+    if (pair.emit !== "both" && order !== pair.emit) continue;
+    const i_series = order === "over" ? pair.series[0] : pair.series[1];
+    const seriesInfo: ChartSeriesInfo = {
+      ...ctx.subChartInfo,
+      i_series,
+      isFirstSeries: i_series === 0,
+      isLastSeries: i_series === ctx.subChartInfo.nSerieses - 1,
+      seriesHeader: ctx.seriesHeaders[i_series],
+      nVals: 0,
+    };
+    const areaStyle = areasStyle.getStyle(seriesInfo);
+    const lineCoordArray = [...areas[i_area].coords, areas[i_area].coords[0]];
+
+    primitives.push({
+      type: "chart-area-series",
+      key:
+        `area-diff-${ctx.subChartInfo.i_pane}-${ctx.subChartInfo.i_tier}-${ctx.subChartInfo.i_lane}-${i_pair}-${order}-${i_area}`,
+      bounds: computeBoundsForPath(lineCoordArray),
+      zIndex: Z_INDEX.CONTENT_AREA,
+      meta: {
+        series: seriesInfo,
+        valueIndices: [],
+      },
+      annotationGroup: areaStyle.annotationGroup,
+      coords: lineCoordArray,
+      style: areaStyle,
+    });
+  }
   return primitives;
 }
 

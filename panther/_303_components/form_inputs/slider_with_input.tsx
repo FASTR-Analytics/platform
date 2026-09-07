@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { createSignal, type JSX, Match, Show, Switch } from "solid-js";
+import { batch, createSignal, type JSX, Match, Show, Switch } from "solid-js";
 import { clamp } from "../deps.ts";
 import { ComparisonSlider } from "./comparison_slider.tsx";
 import { Slider } from "./slider.tsx";
@@ -83,30 +83,36 @@ export function SliderWithInput(p: SliderWithInputProps) {
 
     const actualValue = parsed / multiplier();
     const outOfRange = actualValue < min() || actualValue > max();
-    setIsInvalid(outOfRange);
-    p.onChange(actualValue);
+    batch(() => {
+      setIsInvalid(outOfRange);
+      p.onChange(actualValue);
+    });
   };
 
   const sliderValue = () => (isFocused() ? frozenValue() : p.value);
 
   const handleFocus = () => {
-    setFrozenValue(p.value);
-    setIsFocused(true);
-    setInputText(String(numericValue()));
+    batch(() => {
+      setFrozenValue(p.value);
+      setIsFocused(true);
+      setInputText(String(numericValue()));
+    });
   };
 
   const handleBlur = () => {
-    setIsFocused(false);
+    batch(() => {
+      setIsFocused(false);
 
-    if (inputText() === "" || isNaN(Number(inputText()))) {
-      p.onChange(min());
-    } else if (isInvalid()) {
-      const clamped = clamp(p.value, min(), max());
-      p.onChange(clamped);
-    }
+      if (inputText() === "" || isNaN(Number(inputText()))) {
+        p.onChange(min());
+      } else if (isInvalid()) {
+        const clamped = clamp(p.value, min(), max());
+        p.onChange(clamped);
+      }
 
-    setIsInvalid(false);
-    setInputText("");
+      setIsInvalid(false);
+      setInputText("");
+    });
   };
 
   const labelSizeClass = () => {
@@ -172,7 +178,7 @@ export function SliderWithInput(p: SliderWithInputProps) {
                 ticks={p.ticks}
               />
             </Match>
-            <Match when>
+            <Match when={p.comparisonValue === undefined}>
               <Slider
                 value={sliderValue()}
                 onChange={p.onChange}

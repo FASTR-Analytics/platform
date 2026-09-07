@@ -3,6 +3,6 @@ import { createAllServerActions } from "lib";
 export const _SERVER_HOST =
   process.env.NODE_ENV === "production" ? "" : "http://localhost:8000";
 
-// P2: sentinel layer deleted — bundles carry no undefined values, so
+// P2: sentinel layer deleted: bundles carry no undefined values, so
 // createAllServerActions() can be used directly.
 export const serverActions: ServerActionsType = createAllServerActions();

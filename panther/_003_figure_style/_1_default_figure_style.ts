@@ -21,12 +21,14 @@ import {
   type TableCellInfoFunc,
   type TableHeaderInfoFunc,
   toPct0,
-  type ValuesColorFunc,
+  typed,
   type VizGraphEdgeInfoFunc,
   type VizGraphNodeInfoFunc,
 } from "./deps.ts";
 import type {
+  AreaDiffPair,
   ArrowheadFitFallback,
+  FigureValuesColorFunc,
   GenericAreaStyle,
   GenericBarStyle,
   GenericCascadeArrowStyle,
@@ -40,7 +42,6 @@ import type {
   GenericPointStyle,
   GenericTableCellStyle,
   GenericTableHeaderStyle,
-  GenericTableHeaderStyleOptions,
 } from "./style_func_types.ts";
 import {
   SERIES_COLOR_SENTINEL,
@@ -48,10 +49,6 @@ import {
 } from "./style_func_types.ts";
 import type { LabelCollisionConfig } from "./_3_merged_style_return_types.ts";
 import type { LegendPosition } from "./types.ts";
-
-function typed<T>(value: T): T {
-  return value;
-}
 
 // Shared default for every figure's labelCollision block (map, pie). The
 // blocks stay per-figure (collision policy is figure-wide structural style),
@@ -72,8 +69,26 @@ function defaultLabelPlacement() {
   return {
     // Which placer runs for labels that go outside. "flank" stacks them in a
     // column per side; "nearest" puts each at its own nearest point on the
-    // figure's silhouette. Each figure flips its own default as it is wired.
-    outsideLabelPlacement: typed<"nearest" | "flank">("flank"),
+    // figure's dilated silhouette. Nearest is the default for both figures: a
+    // pie slice at 12 o'clock gets its label directly above the disc, and on
+    // maps nearest beats flank on identical inputs, mean anchor-to-label
+    // distance:
+    //
+    //   kenya callout, 16 labels    105.9 -> 77.0
+    //   east africa callout, 10     125.5 -> 78.2
+    //   east africa auto, 19        117.5 -> 76.1   inside 4 -> 6
+    //   kenya auto, 26 outside      140.1 -> 123.7
+    //   kenya callout, 47           identical: that cell is genuinely
+    //                               saturated and falls back to flank, which
+    //                               is the design
+    //
+    // Zero overlaps, zero escapes and zero crossing leaders throughout, except
+    // two near-saturated cells that keep 2 and 1 (budgeted in
+    // map_figure_check.ts). The bar is "beats flank on leader length AND
+    // inside retention"; the closest case, Kenya adm1 `auto`, is 14% better.
+    // The flank placer remains: it is the per-cell fallback when a track
+    // cannot hold its labels, and the opt-out via this key.
+    outsideLabelPlacement: typed<"nearest" | "flank">("nearest"),
     // How close a padded label box may come to the silhouette at directions
     // where its CORNER leads. At the cardinals an edge leads and the clearance
     // is calloutMargin exactly; this guards the diagonals, where ray-exit
@@ -99,7 +114,7 @@ const _DS = {
     key: "baseContent",
   })),
 
-  valuesColorFunc: typed<ValuesColorFunc>((v, min, max) => {
+  valuesColorFunc: typed<FigureValuesColorFunc>((v, min, max) => {
     if (v === undefined) return "#f0f0f0";
     const t = normalizeTo01(v, min, max);
     return Color.scaledPct(
@@ -145,6 +160,7 @@ const _DS = {
     blockGap: 1,
     noDataGap: 8,
     noDataSwatchWidth: 24,
+    minBarWidth: 100,
   },
   // Table
   table: {
@@ -154,13 +170,6 @@ const _DS = {
     colHeaderPadding: typed<PaddingOptions>(5),
     rowHeaderPadding: typed<PaddingOptions>([5, 10]),
     cellPadding: typed<PaddingOptions>(5),
-    alignV: typed<"top" | "middle" | "bottom">("top"),
-    colHeaderBackgroundColor: typed<ColorKeyOrString | "none">({
-      key: "base100",
-    }),
-    colGroupHeaderBackgroundColor: typed<ColorKeyOrString | "none">({
-      key: "base200",
-    }),
     headerBorderWidth: 1,
     gridLineWidth: 1,
     borderWidth: 1,
@@ -210,17 +219,15 @@ const _DS = {
     tickPosition: typed<"sides" | "center">("sides"),
     paddingTop: 0,
     paddingBottom: 0,
-    labelGap: 10,
     tickWidth: 10,
     tickLabelGap: 10,
-    logicTickLabelWidth: typed<"auto" | "fixed">("auto"),
     maxTickLabelWidthAsPctOfChart: 0.5,
   },
   yScaleAxis: {
-    max: typed<number | "auto" | "auto-zero" | ((i_series: number) => number)>(
+    max: typed<number | "auto" | "auto-zero" | ((i_pane: number) => number)>(
       "auto",
     ),
-    min: typed<number | "auto" | "auto-zero" | ((i_series: number) => number)>(
+    min: typed<number | "auto" | "auto-zero" | ((i_pane: number) => number)>(
       0,
     ),
     labelGap: 10,
@@ -255,9 +262,12 @@ const _DS = {
   content: {
     dataLabel: typed<GenericDataLabelBaseStyle>({
       show: false,
+      relFontSize: 1,
+      font: {},
       offset: 3,
       backgroundColor: "none",
       padding: 0,
+      borderColor: "none",
       borderWidth: 0,
       rectRadius: 0,
       // The single home for leader-line defaults. A leader line belongs to the
@@ -334,6 +344,7 @@ const _DS = {
       joinAcrossGaps: true,
       diff: {
         enabled: false,
+        pairs: typed<AreaDiffPair[]>([{ series: [0, 1], emit: "both" }]),
       },
     },
     errorBars: {
@@ -391,6 +402,7 @@ const _DS = {
         fillColor: VALUES_COLOR_SENTINEL,
         strokeColor: { key: "baseContent" },
         strokeWidth: 1,
+        centroidOffset: { dx: 0, dy: 0 },
         dataLabel: {
           show: false,
           offset: 0,
@@ -420,14 +432,12 @@ const _DS = {
       }),
       textFormatter: typed<PieSliceInfoFunc<string> | "none">("none"),
     },
-    // alignV for cells and row headers is deliberately absent here — its
-    // default is the table-wide `table.alignV` (resolved as a fallback
-    // cascade in the style builders, like colHeaderBackgroundColor).
     tableCells: {
       func: typed<GenericTableCellStyle>({
         backgroundColor: "none",
         textColorStrategy: "none",
         alignH: "center",
+        alignV: "top",
       }),
       textFormatter: typed<TableCellInfoFunc<string> | "none">("none"),
     },
@@ -436,15 +446,17 @@ const _DS = {
         backgroundColor: "none",
         textColorStrategy: "none",
         alignH: "left",
+        alignV: "top",
       }),
       textFormatter: typed<TableHeaderInfoFunc<string> | "none">("none"),
     },
     tableColHeaders: {
-      func: typed<GenericTableHeaderStyleOptions>({
+      func: typed<TableHeaderInfoFunc<GenericTableHeaderStyle>>((info) => ({
+        backgroundColor: { key: info.isGroupHeader ? "base200" : "base100" },
         textColorStrategy: "none",
         alignH: "center",
         alignV: "bottom",
-      }),
+      })),
       textFormatter: typed<TableHeaderInfoFunc<string> | "none">("none"),
     },
   },
@@ -535,6 +547,15 @@ const _DS = {
       rectRadius: 6,
       labelInset: 8,
     },
+    // Lane boxes (M5): full-height bands behind a lane's columns; header
+    // text via text.vizgraphLaneLabel.
+    lanes: {
+      fillColor: typed<ColorKeyOrString>("transparent"),
+      strokeColor: typed<ColorKeyOrString>({ key: "base300" }),
+      strokeWidth: 1,
+      rectRadius: 6,
+      labelInset: 8,
+    },
   },
   // Sankey
   sankey: {
@@ -552,19 +573,17 @@ const _DS = {
       "equirectangular",
     ),
     fit: typed<"all-regions" | "only-regions-in-data">("all-regions"),
-    boundingBox: typed<[number, number, number, number] | undefined>(undefined),
     // Where a region's label goes. "centroid" pins every label to its region's
     // centroid whatever happens; "callout" sends every label outside; "auto"
     // keeps a label inside when it genuinely fits and exiles the rest.
     //
-    // "auto" since 2026-07-27, ruled by the owner. The old default was
-    // "centroid", and on any dense map it produced a pile: Kenya adm1 with all
-    // 47 counties labelled draws seventeen of them on top of each other in the
-    // west, unreadable. Under "auto" the same map keeps 20 inside and takes 27
-    // out to their own nearest points, all legible, zero overlaps.
+    // "auto" is the default because "centroid" piles up on any dense map:
+    // Kenya adm1 with all 47 counties labelled draws seventeen of them on top
+    // of each other in the west, unreadable. Under "auto" the same map keeps
+    // 20 inside and takes 27 out to their own nearest points, all legible,
+    // zero overlaps.
     //
-    // It is NOT free, and the cost is the reason this was a decision rather
-    // than an obvious fix. "centroid" needs no distance field, no track and no
+    // It is NOT free. "centroid" needs no distance field, no track and no
     // content-scale solve against labels; "auto" needs all three as soon as one
     // label is exiled. Measured, one measure() of a labelled map:
     //
@@ -574,37 +593,15 @@ const _DS = {
     //
     // Nothing changes for a map that draws no labels, which is the default
     // (content.mapRegions.func.dataLabel.show is false): the whole label solve
-    // is gated on there being labels at all. A consumer who wants the old
-    // behaviour, or the old cost, sets this key to "centroid".
+    // is gated on there being labels at all. A consumer who wants the cheaper
+    // path sets this key to "centroid".
     dataLabelMode: typed<"none" | "centroid" | "callout" | "auto">("auto"),
-    // The silhouette-to-label clearance for callout labels. 12 preserves the
-    // look shipped while this key was dead and the clearance was hardwired to
-    // labelCollision.gap.
+    // The silhouette-to-label clearance for callout labels. 12 matches the
+    // labelCollision.gap default, so callouts sit as far off the shape as
+    // labels sit from each other.
     calloutMargin: 12,
     labelCollision: defaultLabelCollision(),
     ...defaultLabelPlacement(),
-    // Each outside label goes to the nearest point on the map's own dilated
-    // outline rather than into a column on the flank. Ruled and shipped
-    // 2026-07-27, on these measurements — nearest against flank on identical
-    // inputs, mean anchor-to-label distance:
-    //
-    //   kenya callout, 16 labels    105.9 -> 77.0
-    //   east africa callout, 10     125.5 -> 78.2
-    //   east africa auto, 19        117.5 -> 76.1   inside 4 -> 6
-    //   kenya auto, 26 outside      140.1 -> 123.7
-    //   kenya callout, 47           identical: that cell is genuinely
-    //                               saturated and falls back to flank, which
-    //                               is the design (plan N10)
-    //
-    // Zero overlaps, zero escapes and zero crossing leaders throughout, except
-    // two near-saturated cells that keep 2 and 1 (budgeted in
-    // map_figure_check.ts). The bar the owner set was "beats flank on leader
-    // length AND inside retention"; the last case that missed it, Kenya adm1
-    // `auto`, was 2.4% worse until the step-10 untangle and is now 14% better.
-    //
-    // The flank placer is not gone: it is the per-cell fallback when a track
-    // cannot hold its labels, and the opt-out via this key.
-    outsideLabelPlacement: typed<"nearest" | "flank">("nearest"),
   },
 
   pie: {
@@ -648,9 +645,6 @@ const _DS = {
     },
     labelCollision: defaultLabelCollision(),
     ...defaultLabelPlacement(),
-    // Pie ships on nearest-point placement: a slice at 12 o'clock gets its
-    // label directly above the disc, whatever bearing that turns out to be.
-    outsideLabelPlacement: typed<"nearest" | "flank">("nearest"),
     // Partial pies (an explicit `total` the values do not reach) draw the
     // unfilled part as a slice by default — a bare gap is indistinguishable
     // from a rendering bug at small sizes.

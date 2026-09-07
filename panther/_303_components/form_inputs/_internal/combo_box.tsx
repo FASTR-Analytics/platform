@@ -153,10 +153,12 @@ export function createComboBoxPanel(
   }
 
   function handleInput(value: string) {
-    if (!open()) {
-      openPanel();
-    }
-    setQuery(value);
+    batch(() => {
+      if (!open()) {
+        openPanel();
+      }
+      setQuery(value);
+    });
   }
 
   // The tooltip is a module-level singleton with a delayed show, so an unmount

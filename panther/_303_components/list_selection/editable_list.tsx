@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { For, type JSX, Show } from "solid-js";
+import { For, type JSX, Match, Show, Switch } from "solid-js";
 import { t3 } from "../deps.ts";
 import type { Intent } from "../types.ts";
 import { Icon, type IconName } from "../icons/mod.ts";
@@ -31,6 +31,9 @@ export type RowAction = {
 // consumers). Multi-select lists use `createSelectionController` + custom markup
 // (the card-grid pattern). No inline editing (D-no-inline) — `onEdit(id)` opens
 // the caller's editor. No `addMenu` / `isGroupHeader` (deferred — marker-only).
+// Selection is controlled-only (pass `selected`; an undefined value must stay
+// selectable — it's indistinguishable from "nothing selected yet"). `mode` is
+// mount-time, matching the controller contract.
 export type EditableListProps<T extends string, M = never> = {
   items: ListItem<T, M>[];
 
@@ -221,23 +224,23 @@ export function EditableList<T extends string, M = never>(
           </div>
         }
       >
-        <Show
-          when={reorderable()}
-          fallback={
+        <Switch>
+          <Match when={reorderable()}>
+            <Reorderable
+              items={p.items}
+              onReorder={(ids) => p.onReorder!(ids as T[])}
+              handle=".el-drag"
+              class="ui-spy-sm"
+            >
+              {(item) => row(item, true)}
+            </Reorderable>
+          </Match>
+          <Match when={!reorderable()}>
             <div class="ui-spy-sm">
               <For each={p.items}>{(item) => row(item, false)}</For>
             </div>
-          }
-        >
-          <Reorderable
-            items={p.items}
-            onReorder={(ids) => p.onReorder!(ids as T[])}
-            handle=".el-drag"
-            class="ui-spy-sm"
-          >
-            {(item) => row(item, true)}
-          </Reorderable>
-        </Show>
+          </Match>
+        </Switch>
       </Show>
     </div>
   );

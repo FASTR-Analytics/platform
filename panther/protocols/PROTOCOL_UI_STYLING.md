@@ -9,64 +9,67 @@ the full token catalog, and the theming mechanics, see
 
 ## Rules
 
-1. **Token colors only** — `base-100/200/300`, `base-content` (+ `-muted`,
+1. **Token colors only**: `base-100/200/300`, `base-content` (+ `-muted`,
    `-faint`), the five intents (+ `-content`, `-hover`, `-active`, `-subtle`,
    `-subtle-content`), `border`, `focus`, `scrim`. Nothing else.
-2. **No arbitrary values** — never `bg-[#ff0000]`, `p-[23px]`, or an inline
+2. **No arbitrary values**: never `bg-[#ff0000]`, `p-[23px]`, or an inline
    `style` for anything a token covers.
-3. **Only declared scale values exist** — the color, radius, shadow and
+3. **Only declared scale values exist**: the color, radius, shadow and
    font-weight scales are wiped, so an off-scale class is never generated and
    fails silently rather than visibly. `bg-gray-100`, `rounded-lg`, `shadow-md`,
    `font-normal`, `font-medium` and `font-semibold` are all no-ops. Weights are
    `font-400` and `font-700`, plus any the app declares.
-4. **Cursor change ⇒ visible state change** — no cursor-only hovers. Two
+4. **Cursor change ⇒ visible state change**: no cursor-only hovers. Two
    exceptions to the background rule: text-only interactives (inline links, tab
    labels) hover on text color; clickable cards (content containers) hover at
-   the frame — `cursor-pointer` + `hover:border-primary` (prefer `Card`).
-5. **`ui-hoverable-{token}` is the state pattern** — every interactive opaque
+   the frame: `cursor-pointer` + `hover:border-primary` (prefer `Card`).
+5. **`ui-hoverable-{token}` is the state pattern**: every interactive opaque
    surface uses it. Explicit `hover:`/`active:` pairs only for selectable text
    or a transparent rest. Clickable cards use the frame idiom instead (rule 4).
-6. **Never stack `bg-*` on a family-classed element** — the utility wins and
+6. **Never stack `bg-*` on a family-classed element**: the utility wins and
    kills the states. Scope the family per `classList` arm instead.
-7. **Declare `onBackground`** — any outline `Button` / `ButtonGroup` not sitting
+7. **Declare `onBackground`**: any outline `Button` / `ButtonGroup` not sitting
    on `base-100` must declare the surface token it sits on.
-8. **Never write a border color for the default** — bare `border` already paints
+8. **Never write a border color for the default**: bare `border` already paints
    the border token. A border color class always marks an exception.
-9. **Side frames own their divider** — `FrameLeft`, `FrameRight`, `FrameBottom`,
+9. **Side frames own their divider**: `FrameLeft`, `FrameRight`, `FrameBottom`,
    `FrameLeftResizable`, `FrameRightResizable` and `FrameThreeColumnResizable`
    draw the panel/content edge themselves. Never put that edge's border on a
-   side-frame panel (or on the panel component's root) — it double-draws. Inner
+   side-frame panel (or on the panel component's root): it double-draws. Inner
    dividers on other edges are fine. Pass `noBorder` only when the panel is
    tonal against its content or draws a deliberately non-default border colour.
-10. **`-subtle` washes are non-interactive** — never a hover target, never a
+10. **`-subtle` washes are non-interactive**: never a hover target, never a
     hover destination, never a click target's rest surface. Only exception: the
-    pinned surface of a _selected_ selection control.
-11. **Controls on washes are filled, not outline** — at the wash's own intent.
-12. **Disabled is `opacity-40`** — a treatment, not a color.
-13. **Focus is `ui-focusable`** — one focus signal; never a per-intent ring.
-14. **Spacing uses `ui-*`** — `ui-pad`, `ui-gap`, `ui-spy` and their `-sm`/`-lg`
+    pinned surface of a _selected_ selection control. An outline `Button`'s
+    tinted hover is not `-subtle` (same ingredients, composed per surface at a
+    smaller amount, present only under the cursor): `-subtle` stays banned as a
+    destination.
+11. **Controls on washes are filled, not outline**: at the wash's own intent.
+12. **Disabled is `opacity-40`**: a treatment, not a color.
+13. **Focus is `ui-focusable`**: one focus signal; never a per-intent ring.
+14. **Spacing uses `ui-*`**: `ui-pad`, `ui-gap`, `ui-spy` and their `-sm`/`-lg`
     variants, not raw `p-4` / `gap-4` / `space-y-6`.
-15. **Size via `size="sm"`** — never ad-hoc classes to resize a control.
-16. **Theme with plain `@theme`** — never `@theme inline`, never re-wipe
+15. **Size via `size="sm"`**: never ad-hoc classes to resize a control.
+16. **Theme with plain `@theme`**: never `@theme inline`, never re-wipe
     `--color-*` app-side.
-17. **Sentence case** — all UI text, always.
-18. **Dark mode is `data-scheme`, and opted-in apps override tokens as pairs** —
+17. **Sentence case**: all UI text, always.
+18. **Dark mode is `data-scheme`, and opted-in apps override tokens as pairs**:
     opt in by setting `data-scheme="system|light|dark"` on `<html>` (via
     `setSchemePreference`). Once opted in, every color token the app overrides
     must be a `light-dark()` pair in an un-layered `:root[data-scheme]` block
     inside `@supports (color: light-dark(#fff, #000))`, after the kit import. A
     single-value override means "same color in both schemes". `data-theme` stays
-    reserved for palette swaps — never use it for scheme.
-19. **Document surfaces wear `ui-scheme-light`** — slide canvases, page
-    previews, print/export HTML pin `color-scheme` with the utility, never
-    `bg-white`. Canvas twin: `<FigureHolder scheme="light">`.
+    reserved for palette swaps: never use it for scheme.
+19. **Document surfaces wear `ui-scheme-light`**: slide canvases, page previews,
+    print/export HTML pin `color-scheme` with the utility, never `bg-white`.
+    Canvas twin: `<FigureHolder scheme="light">`.
 
 ## Do / Don't
 
 ### Colors
 
 ```tsx
-// ❌ DON'T — off-token palette, arbitrary hex, alpha improvised
+// ❌ DON'T: off-token palette, arbitrary hex, alpha improvised
 <div class="bg-gray-100 text-gray-800">
 <div class="bg-[#f5f5f5]">
 <div class="bg-primary/10">
@@ -82,7 +85,7 @@ nothing at all; `-subtle` is the designed opaque wash the `/10` idiom replaced.
 ### Muted text
 
 ```tsx
-// ❌ DON'T — neutral is a fill intent, not a text ramp
+// ❌ DON'T: neutral is a fill intent, not a text ramp
 <span class="text-neutral">Last updated 3h ago</span>;
 
 // ✅ DO
@@ -97,10 +100,10 @@ dark theme.
 ### Interactive surfaces
 
 ```tsx
-// ❌ DON'T — cursor with no surface change
+// ❌ DON'T: cursor with no surface change
 <div class="cursor-pointer" onClick={open}>…</div>;
 
-// ❌ DON'T — utility bg on a family class (utility wins, states die)
+// ❌ DON'T: utility bg on a family class (utility wins, states die)
 <div class="ui-hoverable-base-100 bg-base-100" onClick={open}>…</div>;
 
 // ✅ DO
@@ -114,10 +117,10 @@ states.
 ### Selected states
 
 ```tsx
-// ❌ DON'T — a wash as the rest surface of a clickable
+// ❌ DON'T: a wash as the rest surface of a clickable
 <button class="bg-primary-subtle cursor-pointer">{label}</button>;
 
-// ✅ DO — pinned wash on the selected arm only, family on the rest
+// ✅ DO: pinned wash on the selected arm only, family on the rest
 <button
   classList={{
     "border-primary bg-primary-subtle font-700": isSelected(),
@@ -134,7 +137,7 @@ selected arm keeps that meaning while the unselected arm keeps the affordance.
 ### Outline buttons
 
 ```tsx
-// ❌ DON'T — undeclared backdrop on a non-base-100 surface (paints white)
+// ❌ DON'T: undeclared backdrop on a non-base-100 surface (paints white)
 <div class="bg-base-200 ui-pad">
   <Button outline onClick={edit}>Edit</Button>
 </div>;
@@ -145,13 +148,14 @@ selected arm keeps that meaning while the unselected arm keeps the affordance.
 </div>;
 ```
 
-**Why:** An outline control is a quiet interactive _of the surface it sits on_;
-`onBackground` names that surface so rest, hover and press match it.
+**Why:** An outline control rests _on the surface it sits on_; `onBackground`
+names that surface so the rest matches it. Hover and press are a tint of the
+control's own colour over that surface (`ui-hoverable-outline-on-{token}`).
 
 ### Controls in callouts
 
 ```tsx
-// ❌ DON'T — outline control on a wash reads as a second wash
+// ❌ DON'T: outline control on a wash reads as a second wash
 <div class="bg-danger-subtle ui-pad rounded border border-danger">
   <Button outline intent="danger">Back</Button>
 </div>;
@@ -171,7 +175,7 @@ selected arm keeps that meaning while the unselected arm keeps the affordance.
 <div class="border border-base-300">
 <div class="border border-border">
 
-// ✅ DO — bare border already paints the border token
+// ✅ DO: bare border already paints the border token
 <div class="border rounded">
 <div class="border border-primary rounded">  // only when selected/active
 ```
@@ -238,17 +242,17 @@ its whole density from one `@theme` block.
 | Inset or well inside a panel                 | `bg-base-200`                                                                                                            |
 | Chip, slider track, filled placeholder       | `bg-base-300`                                                                                                            |
 | Divider, tick, scrollbar thumb               | `bg-border`                                                                                                              |
-| In-flow container                            | `border rounded` — no color, no shadow                                                                                   |
+| In-flow container                            | `border rounded`: no color, no shadow                                                                                    |
 | Popover, menu, tooltip, modal panel          | `bg-base-100 border rounded shadow-floating`                                                                             |
 | Modal backdrop                               | `bg-scrim`                                                                                                               |
 | Selected / active border                     | `border-primary`                                                                                                         |
 | Error border                                 | `border-danger`                                                                                                          |
 | Callout or badge                             | `bg-{intent}-subtle` + `text-{intent}-subtle-content`                                                                    |
 | Selected card / option / nav item            | accent select: pinned `bg-primary-subtle` + `border-primary` (+ `font-700` on labels/rows, never on a content container) |
-| Multi-select card grid                       | marking select: `Card selected + onSelectToggle` — `border-primary` + circle, no wash                                    |
+| Multi-select card grid                       | marking select: `Card selected + onSelectToggle` (`border-primary` + circle, no wash)                                    |
 | Selected row in a dense list                 | fill select: `bg-base-200`                                                                                               |
 | Any interactive opaque surface               | `ui-hoverable-{token}`                                                                                                   |
-| Clickable card (whole card is the target)    | `Card onClick` — `cursor-pointer` + `hover:border-primary` at the frame                                                  |
+| Clickable card (whole card is the target)    | `Card onClick`: `cursor-pointer` + `hover:border-primary` at the frame                                                   |
 | Focus                                        | `ui-focusable`                                                                                                           |
 | Main action / secondary action / destructive | `intent="primary"` / `outline` + `onBackground` / `intent="danger"`                                                      |
 
@@ -256,7 +260,7 @@ Status intents: `success` complete/positive · `warning` caution · `danger`
 error/destructive · `neutral` running/queued/pending · `primary`
 selected/active.
 
-**"I need a new token."** You don't — fix the site. Never add a surface tier, a
+**"I need a new token."** You don't: fix the site. Never add a surface tier, a
 lighter wash, or a per-intent focus color for one awkward site. See
 `DOC_UI_COLOR_AND_STATE.md`.
 
@@ -301,7 +305,7 @@ lighter wash, or a per-intent focus color for one awkward site. See
 </For>;
 ```
 
-Prefer `Card` (`selected` / `onClick`) for card-shaped sites — it carries the
+Prefer `Card` (`selected` / `onClick`) for card-shaped sites: it carries the
 `border-color` transition and the keyboard/focus wiring for you. The `font-700`
 here bolds the option label; a content container pins wash + border without
 bolding.
@@ -314,7 +318,7 @@ bolding.
 @import "./panther/_303_components/_fixed.css";
 
 @theme {
-  /* No --color-*: initial — the kit already wiped the palette, and an
+  /* No --color-*: initial: the kit already wiped the palette, and an
      app-side wipe also nukes the kit's derived state tokens. */
   --color-primary: #6f2e30;
   --color-base-200: #ebebec;
@@ -324,8 +328,8 @@ bolding.
 ```
 
 Dark themes additionally override `--color-scrim` (the default 30% black veil
-disappears over near-black surfaces). Palette swaps must land on `:root` —
-`:root[data-theme="dark"] { … }` — never on a wrapper element.
+disappears over near-black surfaces). Palette swaps must land on `:root`
+(`:root[data-theme="dark"] { … }`), never on a wrapper element.
 
 ### The public class API
 
@@ -337,9 +341,10 @@ Usable from app code:
 - **Form density:** `ui-form-pad`, `ui-form-pad-sm`, `ui-form-text-size`,
   `ui-form-text-size-sm`, `ui-icon-only-correction`,
   `ui-icon-only-correction-sm`
-- **State:** the `ui-hoverable-{token}` family — `base-100`, `base-200`,
+- **State:** the `ui-hoverable-{token}` family (`base-100`, `base-200`,
   `base-300`, `base-content`, `primary`, `neutral`, `success`, `warning`,
-  `danger` — and `ui-focusable`
+  `danger`), its outline sibling `ui-hoverable-outline-on-{token}` (same nine
+  members), and `ui-focusable`
 - **Type:** `ui-text-display`, `ui-text-title`, `ui-text-heading`,
   `ui-text-overline`, `ui-text-caption`, `ui-text-small`, `ui-form-text`,
   `ui-label`
@@ -355,12 +360,12 @@ Retune these in `@theme`; never override a derived one directly.
 | Var                                 | Role                                                                             |
 | ----------------------------------- | -------------------------------------------------------------------------------- |
 | `--ui-form-content-h`               | **Authoring knob.** A control's content height, as a ratio of its own text size. |
-| `--ui-form-content-h-em`            | Derived. The same ratio with the unit attached — what components consume.        |
+| `--ui-form-content-h-em`            | Derived. The same ratio with the unit attached: what components consume.         |
 | `--ui-form-line-height` / `-sm`     | Derived from the ratio.                                                          |
 | `--ui-form-height` / `-sm`          | Derived. A control's full outer height; what `HeadingBar` floors its row to.     |
 | `--ui-heading-bar-tonal-bg` / `-fg` | **Authoring knob (a pair).** The one tonal header surface.                       |
 
-The ratio is deliberately shared across sizes — `em` rescales it, so there is no
+The ratio is deliberately shared across sizes: `em` rescales it, so there is no
 `--ui-form-content-h-sm`. Overriding `--ui-form-height` or
 `--ui-form-line-height` directly desyncs a heading bar from the controls sitting
 in it; change the ratio instead. Retune the heading-bar pair together: the
@@ -369,10 +374,10 @@ foreground is not derived from the background.
 ## Checklist
 
 - [ ] No off-token colors (`bg-gray-*`, `text-slate-*`, `bg-[#…]`, and
-      `bg-white` / `text-black` — white/black are not tokens) and no arbitrary
+      `bg-white` / `text-black`: white/black are not tokens) and no arbitrary
       values (`p-[Npx]`). Constant contrast over a data/media background is an
       inline style beside its inline background
-- [ ] No `/N` alpha as a surface fill (`bg-primary/10`) — `-subtle` instead;
+- [ ] No `/N` alpha as a surface fill (`bg-primary/10`): `-subtle` instead;
       `bg-scrim` is the one sanctioned veil
 - [ ] Muted text is `base-content-muted`, never `neutral`
 - [ ] Every `cursor-pointer` element also changes background (or is a text-only
@@ -384,16 +389,16 @@ foreground is not derived from the background.
       affordances
 - [ ] Outline `Button` / `ButtonGroup` off `base-100` declares `onBackground`
 - [ ] No `-subtle` wash on a clickable's rest surface, hover target, or hover
-      destination — except a selected arm's pin
+      destination, except a selected arm's pin
 - [ ] Buttons inside `-subtle` callouts are filled at the callout's intent
-- [ ] No edge border on a side-frame panel — the frame draws it (`noBorder` only
+- [ ] No edge border on a side-frame panel: the frame draws it (`noBorder` only
       for a tonal panel or a deliberate non-default border colour)
 - [ ] No `border-base-300` / `border-border`; bare `border` unless marking an
       exception
 - [ ] No `rounded-lg` / `shadow-md`; `rounded`, and `shadow-floating` only on
       floating surfaces
 - [ ] No named font-weight aliases (`font-normal`, `font-medium`,
-      `font-semibold`, `font-bold`) — they are wiped no-ops; use `font-400` /
+      `font-semibold`, `font-bold`): they are wiped no-ops; use `font-400` /
       `font-700` or an app-declared weight
 - [ ] Spacing uses `ui-pad` / `ui-gap` / `ui-spy`, sizing uses `size="sm"`
 - [ ] App CSS uses plain `@theme`, no `--color-*: initial`, palettes on `:root`

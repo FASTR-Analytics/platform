@@ -86,24 +86,6 @@ CREATE TABLE iceh_indicators_snapshot (
   sort_order INTEGER NOT NULL
 );
 
--- Point-in-time snapshot of calculated indicator definitions,
--- copied from the instance DB at HMIS data export time.
-CREATE TABLE calculated_indicators_snapshot (
-  calculated_indicator_id TEXT PRIMARY KEY NOT NULL,
-  label TEXT NOT NULL,
-  group_label TEXT NOT NULL,
-  sort_order INTEGER NOT NULL,
-  num_indicator_id TEXT NOT NULL,
-  denom_kind TEXT NOT NULL,
-  denom_indicator_id TEXT,
-  denom_population_type TEXT,
-  denom_population_multiplier DOUBLE PRECISION,
-  format_as TEXT NOT NULL,
-  threshold_direction TEXT NOT NULL,
-  threshold_green DOUBLE PRECISION NOT NULL,
-  threshold_yellow DOUBLE PRECISION NOT NULL
-);
-
 CREATE TABLE facilities_hmis (
   facility_id text PRIMARY KEY NOT NULL,
   admin_area_4 text NOT NULL,
@@ -151,64 +133,6 @@ CREATE INDEX idx_facilities_hfa_admin_area_3 ON facilities_hfa(admin_area_3);
 CREATE INDEX idx_facilities_hfa_admin_area_4 ON facilities_hfa(admin_area_4);
 
 -- ============================================================================
--- MODULE SYSTEM
--- ============================================================================
-
-CREATE TABLE modules (
-  id text PRIMARY KEY NOT NULL,
-  module_definition text NOT NULL,
-  config_selections text NOT NULL,
-  dirty text NOT NULL,
-  compute_def_updated_at text,
-  compute_def_git_ref text,
-  presentation_def_updated_at text,
-  presentation_def_git_ref text,
-  config_updated_at text,
-  last_run_at text NOT NULL,
-  last_run_git_ref text
-);
-
-CREATE INDEX idx_modules_dirty ON modules(dirty);
-
--- ============================================================================
--- RESULTS OBJECTS AND METRICS
--- ============================================================================
-
--- Results object definitions extracted from module definitions
-CREATE TABLE results_objects (
-  id text PRIMARY KEY NOT NULL,
-  module_id text NOT NULL,
-  -- Store column definitions as JSON for now (can be further normalized later)
-  column_definitions text,  -- JSON array of {colName, colType, notNull}
-  FOREIGN KEY (module_id) REFERENCES modules(id) ON DELETE CASCADE
-);
-
-CREATE INDEX idx_results_objects_module_id ON results_objects(module_id);
-
--- Metrics extracted from module definitions
-CREATE TABLE metrics (
-  id text PRIMARY KEY NOT NULL,
-  module_id text NOT NULL,
-  label text NOT NULL,
-  variant_label text,
-  value_func text NOT NULL CHECK (value_func IN ('SUM', 'AVG', 'COUNT', 'MIN', 'MAX', 'identity')),
-  format_as text NOT NULL CHECK (format_as IN ('percent', 'number', 'indicator')),
-  value_props text NOT NULL,  -- JSON array of property names
-  required_disaggregation_options text NOT NULL,  -- JSON array
-  value_label_replacements text,  -- JSON object (nullable)
-  post_aggregation_expression text,  -- JSON object (nullable)
-  auto_include_facility_columns boolean DEFAULT false,
-  results_object_id text NOT NULL,
-  ai_description text,  -- JSON object (nullable)
-  viz_presets text,  -- JSON array (nullable)
-  hide boolean DEFAULT false,
-  important_notes text,  -- resolved string (nullable)
-  FOREIGN KEY (module_id) REFERENCES modules(id) ON DELETE CASCADE
-);
-
-CREATE INDEX idx_metrics_module_id ON metrics(module_id);
-
--- ============================================================================
 -- VISUALIZATION AND PRESENTATION
 -- ============================================================================
 
@@ -226,7 +150,7 @@ CREATE INDEX idx_visualization_folders_last_updated ON visualization_folders(las
 
 CREATE TABLE presentation_objects (
   id text PRIMARY KEY NOT NULL,
-  metric_id text NOT NULL,  -- No FK - purged when metric no longer exists in project (see purgeOrphanedPresentationObjects)
+  metric_id text NOT NULL,  -- No FK: metrics are manifest-resolved, not a project table
   is_default_visualization boolean NOT NULL,
   label text NOT NULL,
   config text NOT NULL,
@@ -407,17 +331,6 @@ CREATE INDEX idx_dashboard_items_dashboard_id ON dashboard_items(dashboard_id);
 CREATE INDEX idx_dashboard_items_dashboard_sort ON dashboard_items(dashboard_id, sort_order);
 CREATE INDEX idx_dashboard_items_last_updated ON dashboard_items(last_updated);
 CREATE INDEX idx_dashboard_items_replicant_group_id ON dashboard_items(replicant_group_id);
-
--- ============================================================================
--- METADATA
--- ============================================================================
-
-CREATE TABLE global_last_updated (
-  id text PRIMARY KEY NOT NULL,
-  last_updated text NOT NULL
-);
-
-CREATE INDEX idx_global_last_updated_last_updated ON global_last_updated(last_updated);
 
 -- ============================================================================
 -- SCHEMA MIGRATIONS

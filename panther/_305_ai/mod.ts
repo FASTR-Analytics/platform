@@ -12,6 +12,10 @@ export { AIChatConversationSelector } from "./_components/ai_chat_conversation_s
 export { AIChatSettingsPanel } from "./_components/ai_chat_settings_panel.tsx";
 export { AIChatSystemPromptPanel } from "./_components/ai_chat_system_prompt_panel.tsx";
 export { AIChatProvider } from "./context.tsx";
+export {
+  openProposalPreview,
+  ProposalPreviewBody,
+} from "./_components/_renderers/approval_renderer.tsx";
 
 ////////////////////////////////////////////////////////////////////////////////
 // SIGNALS & HOOKS

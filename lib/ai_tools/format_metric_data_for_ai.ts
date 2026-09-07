@@ -9,29 +9,37 @@ import type {
   IndicatorFormat,
   MetricFormatAs,
   MetricWithStatus,
+  PeriodBounds,
   PresentationObjectConfig,
 } from "../types/mod.ts";
 import type { TranslatableString } from "../translate/types.ts";
 import { ICEH_STRAT_INFO } from "../types/iceh_strats.ts";
+import {
+  bucketLabels,
+  isSymmetricAroundZero,
+  legendBucketOrder,
+  type ThresholdsRule,
+} from "../types/conditional_formatting.ts";
+import { scaleValueForFormat } from "../indicator_value_scale.ts";
 import { INDICATOR_DISAGGREGATION_OPTIONS } from "../types/disaggregation_options.ts";
 import { inferPeriodFormatFromValue } from "../types/_metric_installed.ts";
 import { getFiltersWithReplicant } from "../get_fetch_config_from_po.ts";
 import { isSampleNProp, sampleNProp } from "../sample_n.ts";
 import { AIToolFailure } from "@timroberton/panther";
 import type { AIToolEnv } from "./env.ts";
+import { validateMetricInputsAgainstValueInfo } from "./content_validators.ts";
 
 export function inferPeriodFilter(
   startDate: number | undefined,
   endDate: number | undefined,
 ): { filterType: "custom"; min: number; max: number } | undefined {
   if (startDate == null || endDate == null) return undefined;
-  // The value self-identifies its format downstream — no periodOption needed.
+  // The value self-identifies its format downstream: no periodOption needed.
   return { filterType: "custom", min: startDate, max: endDate };
 }
 
 export async function getMetricDataForAI(
   env: AIToolEnv,
-  projectId: string,
   query: AiMetricQuery,
   metrics: MetricWithStatus[],
   valuesFilter?: string[],
@@ -51,11 +59,32 @@ export async function getMetricDataForAI(
     disOpt: DisaggregationOption;
     values: (string | number)[];
   }[];
-  const periodFilter = periodFilterOverride ??
-    inferPeriodFilter(startDate, endDate);
+  const dateRangeFilter = inferPeriodFilter(startDate, endDate);
+  const periodFilter = periodFilterOverride ?? dateRangeFilter;
 
   const metric = metrics.find((m) => m.id === metricId);
   if (!metric) throw new AIToolFailure(`Metric "${metricId}" not found`);
+
+  // ONE value-info read serves two purposes: validating the query's filters
+  // and date range against the metric's real dimensions and bounds (fail
+  // fast, before the items query: a caller-supplied periodFilterOverride is
+  // engine-typed, not a model input, and is not checked), and the "Period
+  // coverage" line: the metric's FULL range, independent of this query's
+  // filters, which lets the model tell "the data ends here" from "I didn't
+  // ask for later periods". Context, not data: a failed read skips both
+  // rather than failing the tool.
+  const valueInfoRes = await env.getResultsValueInfo(metricId);
+  if (valueInfoRes.success) {
+    validateMetricInputsAgainstValueInfo(
+      valueInfoRes.data,
+      metricId,
+      filters,
+      dateRangeFilter,
+    );
+  }
+  const periodCoverage = valueInfoRes.success
+    ? valueInfoRes.data.periodBounds ?? null
+    : undefined;
 
   // Auto-merge required disaggregations (AI doesn't need to specify them)
   const requiredDisaggregationOptions = metric.disaggregationOptions
@@ -78,8 +107,24 @@ export async function getMetricDataForAI(
   // AI data: a total row mixed into the long-form rows would invite double
   // counting in the model's sums. Callers that mirror a viz with the roll-up
   // enabled must say so in the context text (see format_viz_editor_for_ai).
-  const fetchConfig: GenericLongFormFetchConfig =
-    metric.postAggregationExpression
+  const fetchConfig: GenericLongFormFetchConfig = metric
+      .catalogExpressionEvaluation
+    // A catalog-evaluated metric (PLAN_1a §1.6): the wire carries the declared
+    // ingredient columns, SUMmed, and the server returns one computed `value`.
+    // Its valueProps are ["value"], which is NOT a column of the results
+    // object, so without this branch every query is rejected by the §1.7
+    // guard. Same wire/display split as the PAE branch below.
+    ? {
+      values: metric.catalogExpressionEvaluation.ingredientProps.map(
+        (prop) => ({ prop, func: "SUM" as const }),
+      ),
+      groupBys: uniqueDisaggregations,
+      filters: filters,
+      periodFilter,
+      postAggregationExpression: undefined,
+      rollupDim: undefined,
+    }
+    : metric.postAggregationExpression
       ? {
         values: metric.postAggregationExpression.ingredientValues,
         groupBys: uniqueDisaggregations,
@@ -101,7 +146,6 @@ export async function getMetricDataForAI(
       };
 
   const res = await env.getItems({
-    projectId,
     resultsObjectId: metric.resultsObjectId,
     fetchConfig,
     firstPeriodOption: metric.mostGranularTimePeriodColumnInResultsFile,
@@ -117,9 +161,9 @@ export async function getMetricDataForAI(
 
   // uniqueDisaggregations, not the model's own list: the required options were
   // merged into the QUERY, so they are real columns of the rows below. Passing
-  // the shorter list left the indicator dimension out of the Dimension Summary
-  // — the very place the "Format: varies by indicator" line promises the
-  // per-indicator formats are listed — and made the CSV treat it as a value
+  // the shorter list left the indicator dimension out of the Dimension Summary,
+  // the very place the "Format: varies by indicator" line promises the
+  // per-indicator formats are listed, and made the CSV treat it as a value
   // column instead of pivoting on it.
   return formatItemsAsMarkdown(
     itemsHolder,
@@ -129,6 +173,7 @@ export async function getMetricDataForAI(
     periodFilter,
     aiDescription,
     indicatorMetadata,
+    periodCoverage,
   );
 }
 
@@ -145,6 +190,9 @@ function formatItemsAsMarkdown(
   periodFilter?: GenericLongFormFetchConfig["periodFilter"],
   aiDescription?: MetricAIDescription,
   indicatorMetadata?: IndicatorMetadata[],
+  // null = the metric is not time-indexed; undefined = unknown (value info
+  // could not be read), which prints nothing.
+  periodCoverage?: PeriodBounds | null,
 ): string {
   const lines: string[] = [];
 
@@ -220,6 +268,17 @@ function formatItemsAsMarkdown(
 
   if (disaggregations.length > 0) {
     lines.push("**Disaggregated by:** " + disaggregations.join(", "));
+    lines.push("");
+  }
+
+  if (periodCoverage !== undefined) {
+    lines.push(
+      periodCoverage === null
+        ? "**Period coverage (all data for this metric):** not time-indexed"
+        : `**Period coverage (all data for this metric):** ${
+          inferPeriodFormatFromValue(periodCoverage.min) ?? "unknown"
+        } ${periodCoverage.min} to ${periodCoverage.max}`,
+    );
     lines.push("");
   }
 
@@ -307,17 +366,25 @@ function formatItemsAsMarkdown(
           const valuesWithLabels = stats.uniqueValues.map((val) => {
             const meta = metadataById.get(val);
             // "indicator" metric: the value's format is a per-indicator fact
-            // the model needs to read the CSV honestly.
+            // the model needs to read the CSV honestly. Direction and
+            // thresholds, where the indicator declares them, are what
+            // "good"/"bad" means for that row.
             const format = metric.formatAs === "indicator"
               ? meta?.format_as
               : undefined;
+            const notes = [
+              ...(format ? [format] : []),
+              ...(meta?.thresholds
+                ? [formatIndicatorThresholds(meta.thresholds, meta.format_as ?? "number")]
+                : []),
+            ];
             if (meta?.label && meta.label !== val) {
-              return format
-                ? `${val} (${meta.label} — ${format})`
+              return notes.length > 0
+                ? `${val} (${meta.label} — ${notes.join("; ")})`
                 : `${val} (${meta.label})`;
             }
-            if (format) {
-              return `${val} (${format})`;
+            if (notes.length > 0) {
+              return `${val} (${notes.join("; ")})`;
             }
             if (col === "strat") {
               const stratInfo =
@@ -331,7 +398,7 @@ function formatItemsAsMarkdown(
           // Over the cap the labels are dropped as noise, but on an "indicator"
           // metric the FORMATS cannot be: the header above tells the model that
           // percent values are 0-1 fractions and rates are pre-scaled, and
-          // without this the two are indistinguishable in the CSV — 0.853
+          // without this the two are indistinguishable in the CSV: 0.853
           // (85.3%) sits beside 4.20 (per 10,000) with nothing to tell them
           // apart. Grouped by format so the cost is O(formats), not O(values).
           if (metric.formatAs === "indicator") {
@@ -366,43 +433,51 @@ function formatItemsAsMarkdown(
     resolveItemFormat(metric.formatAs, metadataById),
   );
   lines.push(csvData);
-  lines.push("");
-
-  lines.push("=".repeat(80));
-  lines.push("## Creating Visualizations from this Metric");
-  lines.push("");
-  lines.push(
-    "To visualize this metric, use a `from_metric` block with a vizPresetId from get_available_metrics.",
-  );
-  lines.push("");
-  lines.push("```");
-  lines.push("{");
-  lines.push('  "type": "from_metric",');
-  lines.push(`  "metricId": "${metric.id}",`);
-  lines.push('  "vizPresetId": "<preset_id>",');
-  lines.push('  "chartTitle": "Your chart title here",');
-  lines.push(
-    '  "filters": [{ "disOpt": "<dimension>", "values": ["<value>"] }],',
-  );
-  lines.push('  "startDate": 202301,');
-  lines.push('  "endDate": 202412');
-  lines.push("}");
-  lines.push("```");
-  lines.push("");
-  lines.push("**Notes:**");
-  lines.push(
-    `- Use get_available_metrics to see available vizPresetId values for metric "${metric.id}"`,
-  );
-  lines.push("- filters and startDate/endDate are optional");
-  lines.push(
-    "- Date format depends on the preset (YYYY or YYYYMM — shown in preset listing)",
-  );
-  lines.push(
-    "- Only filter on dimensions listed in the preset's allowedFilters",
-  );
-  lines.push("");
 
   return lines.join("\n");
+}
+
+// "higher is better; On track ≥ 80%; Progress needed ≥ 70%; Not on track
+// < 70%" from the indicator's own CF rule: every bucket, best first, with the
+// bound that admits it under THE boundary rule (thresholdBucketIndex: an
+// authored label gets its operator and cutoff appended; an unlabelled bucket
+// prints the derived wording, which already carries them). Cutoffs are
+// printed in DISPLAY units: percent points, counts per 10,000, while the
+// CSV prints percent values as 0-1 fractions, so the unit is spelled out.
+export function formatIndicatorThresholds(
+  rule: ThresholdsRule,
+  formatAs: IndicatorFormat,
+): string {
+  const fmt = (v: number) => {
+    const scaled = scaleValueForFormat(v, formatAs);
+    return formatAs === "percent" ? `${scaled}%` : String(scaled);
+  };
+  const labels = bucketLabels(rule, fmt, "en");
+  const direction = rule.direction ?? "higher-is-better";
+  const symmetric = isSymmetricAroundZero(rule.cutoffs);
+  const n = rule.buckets.length;
+  const bandText = (i: number): string => {
+    const authored = rule.buckets[i].label;
+    if (authored === undefined || symmetric) return labels[i];
+    if (direction === "lower-is-better") {
+      return i === n - 1
+        ? `${authored} > ${fmt(rule.cutoffs[i - 1])}`
+        : `${authored} ≤ ${fmt(rule.cutoffs[i])}`;
+    }
+    return i === 0
+      ? `${authored} < ${fmt(rule.cutoffs[0])}`
+      : `${authored} ≥ ${fmt(rule.cutoffs[i - 1])}`;
+  };
+  const bands = legendBucketOrder(rule).map(bandText);
+  const unit = formatAs === "percent"
+    ? " (the CSV shows 0-1 fractions)"
+    : formatAs === "rate_per_10k"
+    ? " (per 10,000)"
+    : "";
+  const head = symmetric
+    ? []
+    : [direction === "lower-is-better" ? "lower is better" : "higher is better"];
+  return [...head, bands.join("; ") + unit].join("; ");
 }
 
 // Ids that DECLARE a format, bucketed by it, in first-seen format order. Ids
@@ -455,7 +530,7 @@ function getDimensionStats(
 // The format of ONE row's value. A "percent"/"number" metric owns its format
 // and every row shares it; an "indicator" metric's rows are each in their own
 // indicator's format, read off the row's indicator dimension. Rows whose
-// indicator declares nothing fall back to "number" — the same honest answer
+// indicator declares nothing fall back to "number": the same honest answer
 // the renderer's collapse gives.
 function resolveItemFormat(
   metricFormatAs: MetricFormatAs,
@@ -478,7 +553,7 @@ function resolveItemFormat(
 // A CSV cell, in the units the model is told to read. percent stays a 0-1
 // fraction (3 decimals, so a sub-1% value survives); rate_per_10k is scaled to
 // its per-10,000 count, because a bare rate at ANY shared decimal count rounds
-// to 0.000 — the whole column read as zeros.
+// to 0.000: the whole column read as zeros.
 function formatIndicatorValueForCsv(
   val: unknown,
   formatAs: IndicatorFormat,
@@ -579,13 +654,13 @@ function pivotToWide(
 
   // Group items by row dimensions.
   //
-  // The joined string is ONLY a grouping key — the dimension values are carried
+  // The joined string is ONLY a grouping key: the dimension values are carried
   // alongside it, never recovered by splitting it back apart. Reconstructing
   // them with rowKey.split("|") was wrong in two ways, both of which emitted a
   // row with a different field count from the header, silently shifting every
   // column for a positional parser:
   //   - with NO row dimensions the key is "", and "".split("|") is [""], not
-  //     [] — so every row gained a leading empty field (9 headers, 10 values).
+  //     []: so every row gained a leading empty field (9 headers, 10 values).
   //   - a dimension VALUE containing "|" (e.g. a region label) split into two
   //     or more fields.
   const grouped = new Map<
@@ -657,7 +732,7 @@ function formatLongCSV(
 
 // A value plus its sample size, as one cell: "0.453 (n=120)". Dimension columns
 // have no n column and pass through unchanged. The count is written plain, with
-// no thousands separator — rows are joined on "," without quoting, so a grouped
+// no thousands separator: rows are joined on "," without quoting, so a grouped
 // number would break the column count.
 function formatValueWithN(
   item: JsonArrayItem,
@@ -682,7 +757,6 @@ function formatValueWithN(
 
 export async function getDataFromConfig(
   env: AIToolEnv,
-  projectId: string,
   metricId: string,
   metrics: MetricWithStatus[],
   config: PresentationObjectConfig,
@@ -698,7 +772,7 @@ export async function getDataFromConfig(
 
   // Fold in the replicant pin so the excerpt matches what the figure renders
   // (the figure's items are filtered to selectedReplicantValue). Only when a
-  // value is actually selected — otherwise getFiltersWithReplicant would pin the
+  // value is actually selected: otherwise getFiltersWithReplicant would pin the
   // "UNSELECTED" sentinel and return no rows (the viz editor's live config may
   // leave the replicant unresolved).
   const filters = config.d.selectedReplicantValue
@@ -712,7 +786,6 @@ export async function getDataFromConfig(
   };
   return await getMetricDataForAI(
     env,
-    projectId,
     query,
     metrics,
     config.d.valuesFilter,

@@ -3,10 +3,14 @@
 // depend on these, so they live in lib/ and use no panther UI surface.
 //
 // The collapsed dimension is chosen by getRollupDimension /
-// getEffectiveRollupDimension (in get_fetch_config_from_po.ts) — see the doc
+// getEffectiveRollupDimension (in get_fetch_config_from_po.ts): see the doc
 // comment there for the contract.
 
-import type { PostAggregationExpression, ValueFunc } from "./types/_metric_installed.ts";
+import type {
+  CatalogExpressionEvaluation,
+  PostAggregationExpression,
+  ValueFunc,
+} from "./types/_metric_installed.ts";
 
 export const ADMIN_LEVELS = [
   "admin_area_2",
@@ -43,7 +47,7 @@ export type RollupDimension = (typeof ROLLUP_DIMENSIONS)[number];
 
 // Sentinel value placed in the collapsed admin column to mark the roll-up row.
 // The top/bottom position is a display preference handled entirely client-side
-// (getRollupAwareSort) — it never changes the SQL or the sentinel.
+// (getRollupAwareSort): it never changes the SQL or the sentinel.
 export const ROLLUP_SENTINEL = "__NATIONAL";
 // Emitted by a previous release for position "bottom"; kept for one release so
 // stored bundle item grids containing it still render. Nothing new emits it.
@@ -68,7 +72,7 @@ export function isRollupDimension(disOpt: string): disOpt is RollupDimension {
   return (ROLLUP_DIMENSIONS as readonly string[]).includes(disOpt);
 }
 
-// The sentinel the roll-up row carries in the collapsed column — interpolated
+// The sentinel the roll-up row carries in the collapsed column: interpolated
 // into SQL by buildRollupQuery and matched client-side via ROLLUP_PIN_IDS.
 export function rollupSentinelForDimension(dim: RollupDimension): string {
   return isAdminLevel(dim) ? ROLLUP_SENTINEL : ALL_FACILITIES_SENTINEL;
@@ -76,19 +80,24 @@ export function rollupSentinelForDimension(dim: RollupDimension): string {
 
 // The metric fields rollup eligibility is decided from. hasFacilityLevelRows
 // is derived at enrichment time (results table has a facility_id column) and
-// may be absent on stale cached ResultsValue objects — absence reads as false.
+// may be absent on stale cached ResultsValue objects: absence reads as false.
 export type RollupEligibilityInputs = {
   valueFunc: ValueFunc;
   postAggregationExpression?: PostAggregationExpression | null;
+  catalogExpressionEvaluation?: CatalogExpressionEvaluation | null;
   hasFacilityLevelRows?: boolean;
 };
 
 // The roll-up re-aggregates a metric's rows across the collapsed dimension's
 // values, so it is only offered when that re-aggregation is meaningful:
 // - additive value funcs (SUM/COUNT);
-// - identity values whose ratio is recomputed after the union via a
-//   post-aggregation expression;
-// - AVG over FACILITY-LEVEL rows (raw observations — re-averaging over any
+// - identity values whose ratio is recomputed after the union: either via a
+//   metric-wide post-aggregation expression, or, for a catalog-evaluated
+//   metric, via each row's own indicator expression over its summed
+//   ingredients (PLAN_1a §1.6). Both are the same case: the ingredients are
+//   additive, so the roll-up row's formula is applied to correctly summed
+//   parts rather than averaging finished ratios;
+// - AVG over FACILITY-LEVEL rows (raw observations: re-averaging over any
 //   collapsed scope is the correctly weighted statistic).
 // Excluded: bare identity (pre-aggregated percentages/rates), AVG over
 // pre-aggregated area rows (re-averaging gives a population-blind mean), and
@@ -99,6 +108,7 @@ export function isRollupEligibleResultsValue(
 ): boolean {
   return (
     !!rv.postAggregationExpression ||
+    !!rv.catalogExpressionEvaluation ||
     rv.valueFunc === "SUM" ||
     rv.valueFunc === "COUNT" ||
     (rv.valueFunc === "AVG" && rv.hasFacilityLevelRows === true)

@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  batch,
   createSignal,
   For,
   type JSX,
@@ -15,6 +16,7 @@ import { Button } from "../form_inputs/button.tsx";
 import type { IconName } from "../icons/mod.ts";
 import { IconRenderer } from "../form_inputs/icon_renderer.tsx";
 import type { Intent } from "../types.ts";
+import { type DataAttrs, splitDataAttrs } from "../data_attrs.ts";
 
 // =============================================================================
 // Types
@@ -138,16 +140,20 @@ export function showMenuAtPoint(
 }
 
 export function hideMenu(): void {
-  subMenuPopoverRef?.hidePopover();
-  setSubMenuState(undefined);
-  popoverRef?.hidePopover();
-  setMenuState(undefined);
+  batch(() => {
+    subMenuPopoverRef?.hidePopover();
+    setSubMenuState(undefined);
+    popoverRef?.hidePopover();
+    setMenuState(undefined);
+  });
 }
 
 // For testing
 export function _resetMenuState(): void {
-  setMenuState(undefined);
-  setSubMenuState(undefined);
+  batch(() => {
+    setMenuState(undefined);
+    setSubMenuState(undefined);
+  });
 }
 
 // =============================================================================
@@ -411,11 +417,12 @@ export type MenuTriggerWrapperProps = {
   items: MenuItem[] | (() => MenuItem[]);
   position?: PopoverPosition;
   children: JSX.Element;
-};
+} & DataAttrs;
 
 export function MenuTriggerWrapper(
   p: MenuTriggerWrapperProps,
 ): JSX.Element {
+  const [dataAttrs] = splitDataAttrs(p);
   let wrapperRef: HTMLSpanElement | undefined;
 
   function handleClick(e: MouseEvent) {
@@ -431,6 +438,7 @@ export function MenuTriggerWrapper(
 
   return (
     <span
+      {...dataAttrs}
       ref={wrapperRef}
       onClick={handleClick}
       style={{ cursor: "pointer" }}

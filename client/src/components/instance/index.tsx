@@ -23,6 +23,7 @@ import {
   TooltipProvider,
   getFirstString,
   openComponent,
+  type IconName,
   type ListItem,
   type MenuItem,
 } from "panther";
@@ -30,11 +31,7 @@ import { Match, Show, Switch, createEffect, createSignal } from "solid-js";
 import { clerk } from "~/components/LoggedInWrapper";
 import { EmailOptInModal } from "~/components/email_opt_in_modal";
 import { OrganisationModal } from "~/components/organisation_modal";
-import {
-  WhatsNewBellIcon,
-  WhatsNewFeedModal,
-  WhatsNewModal,
-} from "~/components/whats_new_modal";
+import { WhatsNewFeedModal, WhatsNewModal } from "~/components/whats_new_modal";
 import { serverActions } from "~/server_actions";
 import { InstanceAssets } from "~/components/instance/instance_assets";
 import { InstanceData } from "~/components/instance/instance_data";
@@ -45,7 +42,6 @@ import { instanceState } from "~/state/instance/t1_store";
 import Project from "../project";
 import { FeedbackForm, type FeedbackType } from "./feedback_form";
 import { InstanceMetaForm } from "./instance_meta_form";
-import { InstanceSettings } from "./instance_settings";
 import { ProfileForm } from "./profile";
 import { TourCatalogueInstanceModal } from "~/onboarding/tour_catalogue_instance_modal";
 import { setupInstanceTours } from "~/onboarding";
@@ -55,10 +51,9 @@ type InstanceTab =
   | "data"
   | "results_packages"
   | "assets"
-  | "users"
-  | "settings";
+  | "users";
 
-// Generation is instance-admin only (can_configure_data — the same guard the
+// Generation is instance-admin only (can_configure_data: the same guard the
 // run_generation routes use).
 function canConfigureData(): boolean {
   return (
@@ -67,64 +62,14 @@ function canConfigureData(): boolean {
   );
 }
 
-function compactNavItems(): ListItem<InstanceTab>[] {
-  const items: ListItem<InstanceTab>[] = [
-    {
-      id: "projects",
-      label: "",
-      labelText: t3({ en: "Projects", fr: "Projets", pt: "Projetos" }),
-      iconName: "folder",
-    },
-    {
-      id: "data",
-      label: "",
-      labelText: t3({ en: "Data", fr: "Données", pt: "Dados" }),
-      iconName: "database",
-    },
-    {
-      id: "assets",
-      label: "",
-      labelText: t3({ en: "Assets", fr: "Ressources", pt: "Recursos" }),
-      iconName: "package",
-    },
-  ];
-  if (canConfigureData()) {
-    items.push({
-      id: "results_packages",
-      label: "",
-      labelText: t3({
-        en: "Results",
-        fr: "Résultats",
-        pt: "Resultados",
-      }),
-      iconName: "chart",
-    });
-  }
-  if (
-    instanceState.currentUserIsGlobalAdmin ||
-    instanceState.currentUserPermissions.can_configure_users ||
-    instanceState.currentUserPermissions.can_view_users
-  ) {
-    items.push({
-      id: "users",
-      label: "",
-      labelText: t3({ en: "Users", fr: "Utilisateurs", pt: "Utilizadores" }),
-      iconName: "users",
-    });
-  }
-  if (instanceState.currentUserIsGlobalAdmin) {
-    items.push({
-      id: "settings",
-      label: "",
-      labelText: t3(TC.settings),
-      iconName: "settings",
-    });
-  }
-  return items;
-}
-
-function wideNavItems(): ListItem<InstanceTab>[] {
-  const items: ListItem<InstanceTab>[] = [
+// One gated, ordered list; the compact (icon-only) nav is a projection of it
+// so order and permission gates cannot drift between the two widths.
+function wideNavItems(): {
+  id: InstanceTab;
+  label: string;
+  iconName: IconName;
+}[] {
+  const items: { id: InstanceTab; label: string; iconName: IconName }[] = [
     {
       id: "projects",
       label: t3({ en: "Projects", fr: "Projets", pt: "Projetos" }),
@@ -150,13 +95,13 @@ function wideNavItems(): ListItem<InstanceTab>[] {
         fr: "Résultats",
         pt: "Resultados",
       }),
-      iconName: "chart",
+      iconName: "package",
     });
   }
   items.push({
     id: "assets",
     label: t3({ en: "Assets", fr: "Ressources", pt: "Recursos" }),
-    iconName: "package",
+    iconName: "paperclip",
   });
   if (
     instanceState.currentUserIsGlobalAdmin ||
@@ -169,17 +114,16 @@ function wideNavItems(): ListItem<InstanceTab>[] {
       iconName: "users",
     });
   }
-  if (
-    instanceState.currentUserIsGlobalAdmin ||
-    instanceState.currentUserPermissions.can_configure_settings
-  ) {
-    items.push({
-      id: "settings",
-      label: t3(TC.settings),
-      iconName: "settings",
-    });
-  }
   return items;
+}
+
+function compactNavItems(): ListItem<InstanceTab>[] {
+  return wideNavItems().map((item) => ({
+    id: item.id,
+    label: "",
+    labelText: item.label,
+    iconName: item.iconName,
+  }));
 }
 
 type Props = {
@@ -198,11 +142,9 @@ export default function Instance(p: Props) {
     const perms = p_();
     const canData = admin || perms.can_view_data || perms.can_configure_data;
     const canUsers = admin || perms.can_configure_users || perms.can_view_users;
-    const canSettings = admin || perms.can_configure_settings;
     if (t === "data" && !canData) return "projects";
     if (t === "results_packages" && !canConfigureData()) return "projects";
     if (t === "users" && !canUsers) return "projects";
-    if (t === "settings" && !canSettings) return "projects";
     return t;
   };
 
@@ -214,7 +156,7 @@ export default function Instance(p: Props) {
       !getFirstString(searchParams.p) && instanceState.currentUserApproved,
   });
 
-  // post-login modals — wait until user is approved; skip inside a project.
+  // post-login modals: wait until user is approved; skip inside a project.
   // Runs ONCE per signed-in user: the effect's reactive deps (searchParams,
   // approval store) re-fire it on every return from a project, which would
   // otherwise re-open the modals and displace whatever the alert slot holds.
@@ -293,22 +235,18 @@ export default function Instance(p: Props) {
                   </div>
                 </div>
                 <Show when={instanceState.currentUserApproved}>
-                  <div
-                    class="flex flex-1 justify-center xl:hidden"
-                    data-tour="instance-nav"
-                  >
+                  <div class="flex flex-1 justify-center xl:hidden">
                     <ButtonGroup
+                      data-tour="instance-nav"
                       value={tab()}
                       onChange={setTab}
                       items={compactNavItems()}
                       itemWidth="50px"
                     />
                   </div>
-                  <div
-                    class="hidden flex-1 justify-center xl:flex"
-                    data-tour="instance-nav"
-                  >
+                  <div class="hidden flex-1 justify-center xl:flex">
                     <ButtonGroup
+                      data-tour="instance-nav"
                       value={tab()}
                       onChange={setTab}
                       items={wideNavItems()}
@@ -317,47 +255,46 @@ export default function Instance(p: Props) {
                   </div>
                 </Show>
                 <div class="ui-gap-sm flex flex-0 items-center justify-end">
-                  <div data-tour="instance-topbar-language">
-                    <MenuTriggerWrapper
-                      items={
-                        [
-                          {
-                            label: "English",
-                            onClick: () => {
-                              localStorage.setItem(LANGUAGE_STORAGE_KEY, "en");
-                              if (getLanguage() === "en") return;
-                              window.location.reload();
-                            },
-                          },
-                          {
-                            label: "Français",
-                            onClick: () => {
-                              localStorage.setItem(LANGUAGE_STORAGE_KEY, "fr");
-                              if (getLanguage() === "fr") return;
-                              window.location.reload();
-                            },
-                          },
-                          {
-                            label: "Português",
-                            onClick: () => {
-                              localStorage.setItem(LANGUAGE_STORAGE_KEY, "pt");
-                              if (getLanguage() === "pt") return;
-                              window.location.reload();
-                            },
-                          },
-                        ] satisfies MenuItem[]
-                      }
-                      position="bottom-end"
-                    >
-                      <Button intent="base-100">
+                  <MenuTriggerWrapper
+                    data-tour="instance-topbar-language"
+                    items={
+                      [
                         {
-                          ({ en: "EN", fr: "FR", pt: "PT" } as const)[
-                            getLanguage()
-                          ]
-                        }
-                      </Button>
-                    </MenuTriggerWrapper>
-                  </div>
+                          label: "English",
+                          onClick: () => {
+                            localStorage.setItem(LANGUAGE_STORAGE_KEY, "en");
+                            if (getLanguage() === "en") return;
+                            window.location.reload();
+                          },
+                        },
+                        {
+                          label: "Français",
+                          onClick: () => {
+                            localStorage.setItem(LANGUAGE_STORAGE_KEY, "fr");
+                            if (getLanguage() === "fr") return;
+                            window.location.reload();
+                          },
+                        },
+                        {
+                          label: "Português",
+                          onClick: () => {
+                            localStorage.setItem(LANGUAGE_STORAGE_KEY, "pt");
+                            if (getLanguage() === "pt") return;
+                            window.location.reload();
+                          },
+                        },
+                      ] satisfies MenuItem[]
+                    }
+                    position="bottom-end"
+                  >
+                    <Button intent="base-100">
+                      {
+                        ({ en: "EN", fr: "FR", pt: "PT" } as const)[
+                          getLanguage()
+                        ]
+                      }
+                    </Button>
+                  </MenuTriggerWrapper>
                   <Show
                     when={
                       instanceState.currentUserApproved &&
@@ -365,71 +302,72 @@ export default function Instance(p: Props) {
                     }
                   >
                     <div class="relative" data-tour="instance-topbar-whats-new">
-                      <Button onClick={openWhatsNewFeed} intent="base-100">
-                        <WhatsNewBellIcon />
-                      </Button>
+                      <Button
+                        onClick={openWhatsNewFeed}
+                        iconName="bell"
+                        intent="base-100"
+                      />
                       <Show when={whatsNewHasUnread()}>
                         <div class="bg-warning pointer-events-none absolute top-1 right-1 h-2 w-2 rounded-full" />
                       </Show>
                     </div>
                   </Show>
                   <Show when={instanceState.currentUserApproved}>
-                    <div data-tour="instance-topbar-help">
-                      <MenuTriggerWrapper
-                        items={() => {
-                          const items: MenuItem[] = [];
-                          if (
-                            instanceState.projects.some(
-                              (project) => project.status === "ready",
-                            )
-                          ) {
-                            items.push({
-                              label: t3({
-                                en: "Guided tours",
-                                fr: "Visites guidées",
-                                pt: "Visitas guiadas",
-                              }),
-                              icon: "slideshow",
-                              onClick: () => void openTours(),
-                            });
-                          }
+                    <MenuTriggerWrapper
+                      data-tour="instance-topbar-help"
+                      items={() => {
+                        const items: MenuItem[] = [];
+                        if (
+                          instanceState.projects.some(
+                            (project) => project.status === "ready",
+                          )
+                        ) {
                           items.push({
                             label: t3({
-                              en: "Ask for help",
-                              fr: "Demander de l'aide",
-                              pt: "Pedir ajuda",
+                              en: "Guided tours",
+                              fr: "Visites guidées",
+                              pt: "Visitas guiadas",
                             }),
-                            icon: "lifebuoy",
-                            onClick: () => void openFeedback("help"),
+                            icon: "slideshow",
+                            onClick: () => void openTours(),
                           });
-                          items.push({
-                            label: t3({
-                              en: "Send feedback",
-                              fr: "Envoyer un commentaire",
-                              pt: "Enviar comentários",
-                            }),
-                            icon: "pencil",
-                            onClick: () => void openFeedback(),
-                          });
-                          items.push({
-                            label: t3({
-                              en: "Documentation",
-                              fr: "Documentation",
-                              pt: "Documentação",
-                            }),
-                            icon: "document",
-                            onClick: () =>
-                              window.open(getDocsOverviewUrl(), "_blank"),
-                          });
-                          return items;
-                        }}
-                        position="bottom-end"
-                      >
-                        <Button intent="base-100">
-                          {t3({ en: "Help", fr: "Aide", pt: "Ajuda" })}
-                        </Button>
-                      </MenuTriggerWrapper>
-                    </div>
+                        }
+                        items.push({
+                          label: t3({
+                            en: "Ask for help",
+                            fr: "Demander de l'aide",
+                            pt: "Pedir ajuda",
+                          }),
+                          icon: "lifebuoy",
+                          onClick: () => void openFeedback("help"),
+                        });
+                        items.push({
+                          label: t3({
+                            en: "Send feedback",
+                            fr: "Envoyer un commentaire",
+                            pt: "Enviar comentários",
+                          }),
+                          icon: "pencil",
+                          onClick: () => void openFeedback(),
+                        });
+                        items.push({
+                          label: t3({
+                            en: "Documentation",
+                            fr: "Documentation",
+                            pt: "Documentação",
+                          }),
+                          icon: "document",
+                          onClick: () =>
+                            window.open(getDocsOverviewUrl(), "_blank"),
+                        });
+                        return items;
+                      }}
+                      position="bottom-end"
+                    >
+                      <Button intent="base-100">
+                        {t3({ en: "Help", fr: "Aide", pt: "Ajuda" })}
+                      </Button>
+                    </MenuTriggerWrapper>
                     <Button
                       onClick={openInstanceMeta}
                       iconName="versions"
@@ -493,18 +431,6 @@ export default function Instance(p: Props) {
                     thisLoggedInUserEmail={instanceState.currentUserEmail}
                   />
                 </Match>
-                <Match
-                  when={
-                    (instanceState.currentUserIsGlobalAdmin ||
-                      instanceState.currentUserPermissions
-                        .can_configure_settings) &&
-                    tab() === "settings"
-                  }
-                >
-                  <InstanceSettings
-                    thisLoggedInUserEmail={instanceState.currentUserEmail}
-                  />
-                </Match>
                 <Match when={true}>
                   <InstanceProjects
                     canCreateProjects={
@@ -529,7 +455,7 @@ export default function Instance(p: Props) {
 // a high-water-mark version string in Clerk unsafeMetadata; brand-new users
 // are baselined without seeing a popup. Fetched posts also power the header
 // bell (unread dot + browsable feed). All module-level state is scoped to the
-// signed-in user's id — these signals outlive a same-tab user switch that
+// signed-in user's id: these signals outlive a same-tab user switch that
 // happens without a full page reload.
 const [whatsNewState, setWhatsNewState] = createSignal<{
   userId: string;
@@ -595,7 +521,7 @@ async function persistWhatsNewReadIds(ids: Set<string>, posts: WhatsNewPost[]) {
         whatsNewReadPostIds: pruned,
       },
     });
-    // Only on success — a failed write leaves the unread dot lit
+    // Only on success: a failed write leaves the unread dot lit
     setWhatsNewReadIds(new Set(pruned));
   } catch (err) {
     console.error("Failed to record whatsNewReadPostIds", err);

@@ -3,20 +3,19 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { AIToolWithMetadata } from "./tool_helpers.ts";
+import type { AIToolWithMetadata, AnyAITool } from "./tool_helpers.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
-// DERIVED TOOL CATALOG (Phase 5, Feature 5)
+// DERIVED TOOL CATALOG
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Renders the registered tools' REAL names and descriptions as markdown for
 // prompt composition — the output can never drift from the registry because
-// it is the registry (PLAN_AI_VIEWS_AND_APPROVAL Feature 5, replacing every
-// hand-maintained prose tool list). Descriptions already carry the static
+// it is the registry. Descriptions already carry the static
 // availability hints createAITool appends, so per-tool view annotations
 // ride along.
 //
-// CACHE RULE (stated in the plan): a call composed into the `system`
+// CACHE RULE: a call composed into the `system`
 // accessor must OMIT currentView. Without a view the output is byte-stable
 // (input order, static descriptions), so the system cache breakpoint keeps
 // hitting; with a view the catalog regroups per navigation, and since
@@ -39,8 +38,7 @@ function bullet(tool: AIToolWithMetadata<unknown>): string {
 }
 
 export function buildToolCatalog(
-  // deno-lint-ignore no-explicit-any
-  tools: AIToolWithMetadata<any>[],
+  tools: AnyAITool[],
   currentView?: { id: string } | null,
 ): string {
   if (tools.length === 0) return "";

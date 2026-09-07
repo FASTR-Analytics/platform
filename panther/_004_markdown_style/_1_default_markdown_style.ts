@@ -3,15 +3,23 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { AlignH, ColorKeyOrString } from "./deps.ts";
+import type { AlignH, ColorKeyOrString, FontInfoOptions } from "./deps.ts";
+import { typed } from "./deps.ts";
 
 const _DS = {
-  alignH: "left" as AlignH,
+  alignH: typed<AlignH>("left"),
 
   headingRelFontSizes: {
     h1: 1.5,
     h2: 1.25,
     h3: 1.125,
+  },
+
+  // Default-level font adjustments per text key (applied under global/custom).
+  // Every other key inherits the base font. Weight is pinned so a light or
+  // heavy base never asks for a Roboto Mono weight the font map lacks.
+  textFonts: {
+    code: typed<FontInfoOptions>({ fontFamily: "Roboto Mono", weight: 400 }),
   },
 
   marginsEm: {
@@ -46,7 +54,7 @@ const _DS = {
   // Blockquote
   blockquote: {
     leftBorderWidth: 3,
-    leftBorderColor: { key: "baseContent" } as ColorKeyOrString,
+    leftBorderColor: typed<ColorKeyOrString>({ key: "baseContent" }),
     paddingEm: {
       top: 0.25,
       bottom: 0.25,
@@ -54,13 +62,13 @@ const _DS = {
       right: 0,
     },
     paragraphGapEm: 0.5,
-    alignH: "left" as AlignH,
-    backgroundColor: "none" as ColorKeyOrString | "none",
+    alignH: typed<AlignH>("left"),
+    backgroundColor: typed<ColorKeyOrString | "none">("none"),
   },
 
   // Code styling
   code: {
-    backgroundColor: { key: "base200" } as ColorKeyOrString,
+    backgroundColor: typed<ColorKeyOrString>({ key: "base200" }),
     paddingEm: {
       horizontal: 1,
       vertical: 1,
@@ -70,12 +78,12 @@ const _DS = {
   // Horizontal rule
   horizontalRule: {
     strokeWidth: 1,
-    strokeColor: { key: "base300" } as ColorKeyOrString,
+    strokeColor: typed<ColorKeyOrString>({ key: "base300" }),
   },
 
   // Link styling
   link: {
-    color: "#0066cc" as ColorKeyOrString,
+    color: typed<ColorKeyOrString>("#0066cc"),
     underline: true,
   },
 
@@ -88,22 +96,17 @@ const _DS = {
   table: {
     border: {
       width: 1,
-      color: { key: "base300" } as ColorKeyOrString,
-      style: "single" as "single" | "double" | "dotted",
+      color: typed<ColorKeyOrString>({ key: "base300" }),
+      style: typed<"single" | "double" | "dotted">("single"),
     },
     cellPaddingEm: {
       horizontal: 0.5,
       vertical: 0.25,
     },
     headerShading: {
-      color: { key: "base200" } as ColorKeyOrString,
+      color: typed<ColorKeyOrString>({ key: "base200" }),
       opacity: 1,
     },
-  },
-
-  // Math display alignment
-  math: {
-    displayAlign: "center" as "left" | "center" | "right",
   },
 };
 

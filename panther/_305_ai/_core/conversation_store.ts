@@ -4,7 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type { MessageParam, Usage } from "../deps.ts";
-import { createSignal } from "solid-js";
+import { batch, createSignal } from "solid-js";
 import type { ChatState, DisplayItem } from "./types.ts";
 import type { ProposalPreview } from "../deps.ts";
 import {
@@ -32,7 +32,7 @@ export type ActiveTurn = {
   // must never outlive the turn).
   containerId: string | undefined;
   // True once the model's assistant message lands in the store. Drives the
-  // transactional interaction-drain restore (Phase 3): a turn that ends
+  // transactional interaction-drain restore: a turn that ends
   // WITHOUT one never delivered its digest, so the drained entries are
   // restored. The synthetic "[Stopped]" / cancelled-result repairs don't
   // count — only the model's own message consumes the digest.
@@ -44,7 +44,7 @@ export type ActiveTurn = {
   resolveOnFinish: Array<() => void>;
   // Cancels THIS turn's currently-executing promise-blocking card
   // (ask_user_questions), set by the loop around the block's await and
-  // called by stopGeneration. Turn-scoped ON PURPOSE (Phase 4 review H2): a
+  // called by stopGeneration. Turn-scoped ON PURPOSE: a
   // registry-wide sweep cancelled another conversation's pending question
   // when two chats shared the same tool instance.
   cancelPendingInteraction: (() => void) | null;
@@ -186,25 +186,26 @@ export function clearConversationStore(conversationId: string): void {
     const [, setUsageHistory] = store.usageHistory;
     const [, setServerToolLabel] = store.serverToolLabel;
 
-    setMessages([]);
-    setDisplayItems([]);
-    setIsLoading(false);
-    setIsStreaming(false);
-    setIsProcessingTools(false);
-    setError(null);
-    setUsage(null);
-    setCurrentStreamingText(undefined);
-    setUsageHistory([]);
-    setServerToolLabel(undefined);
-
-    store.approvedTools[1]([]);
-
     // Queued messages are dropped; their senders' promises resolve at drop
     // (await means "the attempt finished"). activeTurn is NOT touched — a
     // running turn nulls it in its own finally.
     const [queued, setQueued] = store.queuedMessages;
     const entries = queued();
-    setQueued([]);
+
+    batch(() => {
+      setMessages([]);
+      setDisplayItems([]);
+      setIsLoading(false);
+      setIsStreaming(false);
+      setIsProcessingTools(false);
+      setError(null);
+      setUsage(null);
+      setCurrentStreamingText(undefined);
+      setUsageHistory([]);
+      setServerToolLabel(undefined);
+      store.approvedTools[1]([]);
+      setQueued([]);
+    });
     for (const entry of entries) entry.resolve();
 
     // Also clear persisted data

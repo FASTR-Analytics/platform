@@ -30,6 +30,10 @@ type Props = {
   displayItems: DisplayItem[];
   isLoading: boolean;
   isStreaming?: boolean;
+  // True while the turn is parked on a pending approval decision — the
+  // engine is waiting on the USER, so the "Thinking..." fallback must not
+  // show (the card/dialog already communicates what is being waited for).
+  awaitingDecision?: boolean;
   currentStreamingText?: string | undefined;
   serverToolLabel?: string | undefined;
   // Queued-but-unsent user texts, rendered as a derived tail below the
@@ -168,7 +172,7 @@ export function MessageList(p: Props) {
           </Match>
           <Match
             when={(p.isStreaming || p.isLoading) &&
-              toolInProgressItems().length === 0}
+              toolInProgressItems().length === 0 && !p.awaitingDecision}
           >
             <div class="text-base-content-muted text-sm italic">
               <SpinningCursor class="mr-1 inline-block" />

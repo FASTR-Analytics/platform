@@ -1,18 +1,18 @@
-# PROTOCOL — App: Migrations & Stored-Schema Changes
+# PROTOCOL (App): Migrations & Stored-Schema Changes
 
 > **App-specific authoring protocol** (not panther's cross-project
-> `PROTOCOL_*`). This is the *recipe* — read it when **building** a migration,
+> `PROTOCOL_*`). This is the *recipe*. Read it when **building** a migration,
 > schema change, or data transform. It is FASTR-specific, so it lives at repo
 > root, not in `panther/protocols/`. The migration machinery's *ownership* and
-> architecture belong to **S2 (Persistence)** — see `SYSTEM_02_persistence.md`;
+> architecture belong to **S2 (Persistence)**: see `SYSTEM_02_persistence.md`;
 > this file is the how-to.
 
 How database and data changes are handled and how data integrity is enforced.
 
 Two types of migrations:
 
-- **SQL migrations** — table/column structure changes
-- **JSON data transforms** — transforming JSON data stored in columns
+- **SQL migrations**: table/column structure changes
+- **JSON data transforms**: transforming JSON data stored in columns
 
 ---
 
@@ -71,8 +71,6 @@ server/db/migrations/
 ├── project/               # SQL migrations - project DBs
 └── data_transforms/       # JSON data transforms - one file per type
     ├── po_config.ts
-    ├── module_definition.ts
-    ├── metric.ts
     ├── slide_deck_config.ts
     ├── slide_config.ts
     ├── dashboard_config.ts
@@ -93,7 +91,7 @@ Each stored data type has one migration function. At startup:
    - If invalid: apply transforms, validate result, write
 4. If any row fails validation after transforms: transaction rolls back, boot fails
 
-No `schema_migrations` tracking needed — the validation check itself determines if work is needed.
+No `schema_migrations` tracking needed. The validation check itself determines if work is needed.
 
 ### Writing a Migration Function
 
@@ -106,24 +104,24 @@ The pattern:
 3. If valid: skip (already current-shape)
 4. If invalid: apply transforms to bring data up to current shape, validate, write
 
-Transform blocks are historical — they handle old data shapes from before a schema change. Once all data is migrated, they become no-ops (the "if valid: skip" branch is always taken).
+Transform blocks are historical: they handle old data shapes from before a schema change. Once all data is migrated, they become no-ops (the "if valid: skip" branch is always taken).
 
 **Rules:**
 
 - One function per data type
-- Transform blocks are idempotent — safe to re-run
+- Transform blocks are idempotent, safe to re-run
 - Always validates against **current** strict schema
-- **Update `last_updated`** — invalidates Valkey cache entries automatically
+- **Update `last_updated`**: invalidates Valkey cache entries automatically
 
 ### Transform Block Ordering
 
 **CRITICAL: Blocks must be sequential and ordered.**
 
-1. **Number blocks sequentially** — `// Block 1:`, `// Block 2:`, etc.
-2. **New blocks go at the END** — after all existing blocks, before final validation
-3. **Blocks run in order** — Block 2 may depend on Block 1 having run first
-4. **Never reorder existing blocks** — later blocks may depend on earlier ones
-5. **Each block is idempotent** — checks its own precondition before acting
+1. **Number blocks sequentially**: `// Block 1:`, `// Block 2:`, etc.
+2. **New blocks go at the END**, after all existing blocks, before final validation
+3. **Blocks run in order**: Block 2 may depend on Block 1 having run first
+4. **Never reorder existing blocks**: later blocks may depend on earlier ones
+5. **Each block is idempotent**, checking its own precondition before acting
 
 Example structure:
 
@@ -161,19 +159,23 @@ const validated = schema.parse(config);
 The "already valid? skip" gate has a blind spot: zod object schemas in default
 (strip) mode treat **unknown keys as valid**. A row whose only drift is a
 legacy key (e.g. a field that was renamed) passes `safeParse`, so the rename
-block never runs — and every runtime read silently strips the user's setting.
+block never runs, and every runtime read silently strips the user's setting.
 
 When a transform block renames or deletes a key, the sweep gate must force the
 transform for rows still carrying the old key. See
 `configNeedsForcedTransform` / `rawJsonNeedsForcedTransform` in
 `data_transforms/po_config.ts` (used by the po_config, dashboard_items,
-reports, slide_config, metric, and module_definition sweeps — first for the
-`includeNational*` → `adminAreaRollup*` rename, then for the
+reports and slide_config sweeps, first for the `includeNational*` →
+`adminAreaRollup*` rename, then for the
 `includeAdminAreaRollup`/`adminAreaRollupPosition` → per-entry
-`rollup`/`rollupPosition` move). Add new legacy keys to those helpers whenever
-a rename/delete block is added. Embedded configs are covered because
+`rollup`/`rollupPosition` move, then for the `specialScorecardTable` →
+`cfMode: "indicator"` conversion), plus `rawJsonNeedsFigureBlockTransform` in
+`_figure_block.ts` for the keys the figure-block transforms rewrite. There is
+no metric or module-definition sweep: installed definitions are stored
+parsed, and module presets reach the client from the run manifest. Add new
+legacy keys to those helpers whenever a rename/delete block is added. Embedded configs are covered because
 `transformFigureBlock` runs `transformPOConfigData` on BOTH `source.config`
-and `bundle.config` — without the bundle half, the sweep's re-parse would
+and `bundle.config`. Without the bundle half, the sweep's re-parse would
 strip a legacy key from a bundle instead of migrating it.
 
 ### Cache Invalidation
@@ -190,14 +192,14 @@ No explicit cache flush needed.
 
 1. **Add transform block** to the relevant migration function
 2. **Update Zod schema** to new shape
-3. **Deploy** — migration runs, boot validates
+3. **Deploy**: migration runs, boot validates
 
 ---
 
 ## Run Manifest Transforms
 
-`server/runs/manifest_transform.ts` is the same pattern applied to a **file** —
-a results package's `manifest.json` — instead of a DB column. Everything above
+`server/runs/manifest_transform.ts` is the same pattern applied to a **file**
+(a results package's `manifest.json`) instead of a DB column. Everything above
 holds unchanged: one function per type, numbered blocks appended at the end and
 never reordered, each idempotent and checking its own precondition,
 `structuredClone` → mutate → `.parse`, and the no-op-write guard. It runs at
@@ -205,14 +207,15 @@ boot from `db_startup.ts` and again on the read path (`manifest_cache.ts`) for
 packages that arrive after boot, using the same function.
 
 Packages are immutable, so this is a deliberate amendment recorded in
-`VISION_RESULTS_RUNS.md`: **package outputs are immutable; the manifest is a
-derived descriptor and may be transformed forward.** Without it a schema change
-orphans every existing package, and "regenerate" is not a real remedy — it mints
+SYSTEM_08 (the `manifestSchemaVersion` paragraph of the format spec):
+**package outputs are immutable; the manifest is a derived descriptor and may
+be transformed forward.** Without it a schema change
+orphans every existing package, and "regenerate" is not a real remedy. It mints
 a new `runId`, which marks every stored figure in the fleet stale.
 
 Four things differ from a DB transform.
 
-**1. Recompute only — never invent provenance.**
+**1. Recompute only, never invent provenance.**
 
 > A block may only RECOMPUTE from files already in the package. It may never
 > invent provenance.
@@ -222,7 +225,9 @@ A DB transform only reshuffles fields inside the row it was handed, so it
 
 - **A field knowable only at generation time is nullable forever.** `createdAt`,
   `appVersion`, `rImageTag`, `label`, `provenance`, `calendar`, `countryIso3`,
-  `facilityColumnsConfig`, `datasets[]`, `modules[]`, `metrics[]`, `inputKey`,
+  `structureSchemaHmis` / `structureSchemaHfa` (generation-only; copied forward
+  from the legacy `facilityColumnsConfig` key by block 3, null for families not
+  in the package), `datasets[]`, `modules[]`, `metrics[]`, `inputKey`,
   `outputFileHashes`. Carry them forward untouched; leave them null where they
   never existed. Never synthesize a plausible value.
 - Recomputable, therefore fair game: `runId` (the directory name),
@@ -231,7 +236,7 @@ A DB transform only reshuffles fields inside the row it was handed, so it
 - **Whatever a block reads becomes a permanent part of the package format.** An
   input file a transform recomputes from can never be dropped.
 - A recompute is a pure function of (package files × **app code**), not of the
-  files alone — e.g. `getIndicatorMetadataFromRun` branches on
+  files alone, e.g. `getIndicatorMetadataFromRun` branches on
   `scriptGenerationType`. That is intended (see 2), but it means recomputed
   fields are not byte-stable across app versions.
 
@@ -251,7 +256,7 @@ if (
 ```
 
 The corollary the gate imposes: a manifest already stamped current is
-**skipped whole** — blocks do NOT re-evaluate on every boot. **A derivation
+**skipped whole**: blocks do NOT re-evaluate on every boot. **A derivation
 fix therefore requires a `RUN_MANIFEST_SCHEMA_VERSION` bump**, or it reaches
 only packages that arrive after the deploy. The v3→v4 bump is the worked
 example: block 2 rewrites `metrics[].format_as` for the 8 pre-declaration
@@ -260,8 +265,8 @@ free.
 
 **Each block stamps the version it produces, inside the block** (block 1
 stamps 3, block 2 stamps 4). `runManifestSchema` deliberately accepts **any**
-integer version — it has to, so a newer manifest is detected rather than
-rejected as malformed — so the version is asserted separately after the
+integer version (it has to, so a newer manifest is detected rather than
+rejected as malformed), so the version is asserted separately after the
 blocks run. Because the stamps live inside the blocks, a manifest still below
 current after every block ran means the block for that step is genuinely
 missing: a code defect, and boot fails. (A single trailing stamp would mask
@@ -269,16 +274,16 @@ exactly that.)
 
 **3. The boot sweep enumerates the `runs` catalogue, never the filesystem.**
 
-The runs volume is shared and heterogeneous: legacy `{projectId}` sandbox dirs
-(left entirely alone — Phase 4 owns removing them), published-failed dirs,
-`.tmp-` dirs, `.duckdb-spill`, loose `restore_*.sql.gz`. Catalogue enumeration
+The runs volume is heterogeneous: package dirs, published-failed dirs,
+`.tmp-` dirs, `.duckdb-spill`, loose scratch files (`restore_*.sql.gz`,
+`iceh_indicators_*.xlsx`). Catalogue enumeration
 excludes all of them by construction and preserves the ruling that justified
 sharing the directory: *every consumer addresses a NAMED entry.* Statuses
-`generating` and `failed` are excluded too — those definitionally have no
+`generating` and `failed` are excluded too: those definitionally have no
 manifest, so sweeping them would warn on every boot about a state working as
 designed.
 
-**4. Failure policy — operational fault vs code defect.**
+**4. Failure policy: operational fault vs code defect.**
 
 | Case | Meaning | Policy |
 | --- | --- | --- |
@@ -288,21 +293,21 @@ designed.
 | Version **below** current | Same drift, no parse failure | Same as above. |
 | Version **above** current | Data *not for this server* | Refuse that package (unavailable). Boot continues. |
 | A LISTED **input mirror** absent, unreadable, or not parseable JSON | Half-restored backup, truncated write | **Operational.** `RunInputReadError` → the `unreadable` outcome: that package degrades to unavailable, boot proceeds. |
-| Input mirror parses as JSON but fails its **row schema** | Real shape drift — a row schema changed without a migration | `RunInputRowSchemaError`. Nothing catches it → **fail-stop boot.** |
+| Input mirror parses as JSON but fails its **row schema** | Real shape drift: a row schema changed without a migration | `RunInputRowSchemaError`. Nothing catches it → **fail-stop boot.** |
 
 The two **input-mirror** rows are the twin of the manifest not-parseable and
 schema-drift rows, and they must stay apart. Wrapping both in
 `RunInputReadError` (as the first cut did) meant a code defect silently marked
-every affected package unavailable fleet-wide with the deploy looking green —
+every affected package unavailable fleet-wide with the deploy looking green,
 the exact outcome the fail-stop rows exist to prevent. Both classes are raised
 in `runDirInputRowsReader` (`server/runs/indicator_catalog.ts`) and
 discriminated in `transformRunManifestFile`.
 
 The two **version** rows are principle 4 unchanged. The **absent / unreadable**
-rows — manifest or input mirror — must not fail boot, and the reason is
+rows, manifest or input mirror, must not fail boot, and the reason is
 concrete: backups are pg dumps, so a restore
 brings `runs` catalogue rows back while the package directories are still
-absent. The existing degrade paths are deliberate and stay — `getRunReadContext`
+absent. The existing degrade paths are deliberate and stay: `getRunReadContext`
 returns a typed "Results run unavailable", and `projects.ts` degrades the
 project shell to empty lists on purpose so authored decks, reports and
 dashboards stay reachable. Do not "fix" that catch. Consequence to accept: on
@@ -311,22 +316,22 @@ visible only in the log.
 
 ### Writing to the package
 
-Transform in memory, `.parse`, **then** persist — there is nothing to restore
+Transform in memory, `.parse`, **then** persist. There is nothing to restore
 from if it fails. Write `.tmp-manifest-{crypto.randomUUID()}.json` in the
 package dir and rename over `manifest.json`; a unique name, never a fixed one,
 so two writers can never share a temp file. `sweepAbandonedTmpRunDirs` matches
-*directories*, so a leftover temp manifest has no sweeper — clean up in a
+*directories*, so a leftover temp manifest has no sweeper. Clean up in a
 `finally`. Retain the pre-transform file as `manifest.v{n}.json`: that is what
 makes both a bad block and an image rollback recoverable.
 
 No lock is needed, on this premise: `await dbStartUp()` is top-level in
 `main.ts` before any serving begins, and every `getRunManifestCached` caller is
-main-realm — no Web Worker reads a manifest. Re-check if one ever does.
+main-realm: no Web Worker reads a manifest. Re-check if one ever does.
 
 `runs.summary` is **not** touched. `RunSummary.manifestSchemaVersion` is
 display-only provenance of how the package was originally written and is read by
 nothing. A naive "refresh" would rebuild the summary from the manifest and wipe
-three fields deliberately not in it — `attachTargetProjectIds` (read
+three fields deliberately not in it: `attachTargetProjectIds` (read
 structurally by the launch concurrency guard), `backfillSourceProjectId`, and
 `diskSizeBytes`.
 
@@ -335,7 +340,7 @@ structurally by the launch concurrency guard), `backfillSourceProjectId`, and
 - [ ] Append the block at the end, numbered, idempotent, precondition-checked
 - [ ] Add it to the `TRANSFORM BLOCKS:` list in the file header
 - [ ] Bump `RUN_MANIFEST_SCHEMA_VERSION` and update the Zod schema
-- [ ] Recompute only — check every field you touch against the list in 1
+- [ ] Recompute only: check every field you touch against the list in 1
 - [ ] Bump `PO_CACHE_VERSION` and the `_PO_DETAIL_CACHE` key prefix in
       `server/routes/caches/visualizations.ts`. The first three PO caches key on
       `PO_CACHE_VERSION` (a code dimension, which the manifest now is); the
@@ -372,12 +377,9 @@ Before INSERT/UPDATE, validate against Zod schema. Invalid data cannot enter the
 |-------------------------------|---------------------------------------------|---------------------------------------------------------------------------------------------------------------|-----------------------------------|
 | `presentation_objects.config` | `server/db/project/presentation_objects.ts` | `addPresentationObject`, `updatePresentationObjectConfig`, `batchUpdatePresentationObjectsPeriodFilter`       | `presentationObjectConfigSchema`  |
 | `presentation_objects.config` | `server/db/project/presentation_objects.ts` | `duplicatePresentationObject`                                                                                 | (copies validated row)            |
-| `presentation_objects.config` | `server/db/project/modules.ts`              | `installModule`, `updateModuleDefinition`                                                                     | `presentationObjectConfigSchema`  |
-| `modules.module_definition`   | `server/db/project/modules.ts`              | `installModule`, `updateModuleDefinition`                                                                     | `moduleDefinitionInstalledSchema` |
-| `metrics.*`                   | `server/db/project/modules.ts`              | `installModule`, `updateModuleDefinition`                                                                     | `metricStrict`                    |
 | `slide_decks.config`          | `server/db/project/slide_decks.ts`          | `createSlideDeck`, `duplicateSlideDeck`, `updateSlideDeckConfig`                                              | `slideDeckConfigSchema`           |
 | `slides.config`               | `server/db/project/slides.ts`               | `createSlide`, `updateSlide`                                                                                  | `slideConfigSchema`               |
-| `instance_config.*`           | `server/db/instance/config.ts`              | `updateMaxAdminArea`, `updateFacilityColumnsConfig`, `updateCountryIso3Config`, `updateAdminAreaLabelsConfig` | Type-specific schemas             |
+| `instance_config.*`           | `server/db/instance/config.ts`              | `setStructureSchema`, `updateAdminAreaLabelsConfig`                                                           | Type-specific schemas             |
 
 **Note:** `slideDeckConfigSchema` and `slideConfigSchema` are currently `z.unknown()` stubs. Validation is wired up but accepts anything until real schemas are defined.
 
@@ -391,7 +393,7 @@ export function parsePresentationObjectConfig(raw: string): PresentationObjectCo
 }
 ```
 
-The startup sweep already validated this data. Write-time validation ensures only valid data enters. Read-time validation is optional extra safety — it catches edge cases but should never trigger in practice.
+The startup sweep already validated this data. Write-time validation ensures only valid data enters. Read-time validation is optional extra safety: it catches edge cases but should never trigger in practice.
 
 ### External Boundaries
 
@@ -421,7 +423,7 @@ Naming: `NNN_description.sql`
 
 ### The Golden Rule: Idempotency
 
-**Every migration must be idempotent.** Running the same migration twice must produce the same result as running it once. The base schema (`_main_database.sql`, `_project_database.sql`) represents the current state — migrations run on top of it, so they must handle the case where their changes already exist.
+**Every migration must be idempotent.** Running the same migration twice must produce the same result as running it once. The base schema (`_main_database.sql`, `_project_database.sql`) represents the current state, and migrations run on top of it, so they must handle the case where their changes already exist.
 
 Common patterns:
 
@@ -437,7 +439,7 @@ Common patterns:
 | Add constraint | Wrap in `DO $$ ... END $$` checking `pg_constraint` |
 | Complex logic | Use `DO $$ BEGIN ... END $$` with `IF EXISTS` checks |
 
-Example — renaming a column safely:
+Example: renaming a column safely:
 
 ```sql
 DO $$
@@ -451,7 +453,7 @@ BEGIN
 END $$;
 ```
 
-Example — adding a constraint safely:
+Example: adding a constraint safely:
 
 ```sql
 DO $$
@@ -465,9 +467,28 @@ END $$;
 ### Other Rules
 
 - Update live schema files too (`_main_database.sql`, `_project_database.sql`)
-- Don't rewrite old migrations — fix forward
+- Don't rewrite old migrations, fix forward (one exception, below)
 - **Always run `./validate_migrations` after adding or modifying SQL migrations**
-- SQL-safety (parameterize values, whitelist identifiers, `.unsafe()` on trusted-internal input only) is owned by [SYSTEM_02_persistence.md](SYSTEM_02_persistence.md) — migration files are repo-authored SQL run via `.unsafe()`, so never build them from runtime input
+- SQL-safety (parameterize values, whitelist identifiers, `.unsafe()` on trusted-internal input only) is owned by [SYSTEM_02_persistence.md](SYSTEM_02_persistence.md). Migration files are repo-authored SQL run via `.unsafe()`, so never build them from runtime input
+
+**Dropping a table that older migrations touch.** A fresh database loads the
+base schema and then replays EVERY migration, and `./validate_migrations`
+requires that replay to leave the schema byte-identical. So a table can only
+leave the base schema if every older migration that creates, alters or
+updates it (or a table with a foreign key to it) survives a replay on a base
+that never had it. Migration-owned tables (created by an earlier migration
+with `IF NOT EXISTS`, no foreign key to a base-owned table) need nothing:
+the old migration re-creates them and the drop migration removes them. A
+base-owned table, or anything referencing one, needs every such statement
+wrapped in a table-existence guard,
+`DO $$ BEGIN IF EXISTS (SELECT 1 FROM information_schema.tables WHERE
+table_schema = 'public' AND table_name = '…') THEN … END IF; END $$;`, so
+the fresh replay never creates the plane and the drop is a no-op there.
+This is the one sanctioned edit of an applied migration: every instance has
+already applied those files and the runner never re-fires them, so
+production behaviour is unchanged. Precedent:
+`041_drop_frozen_results_plane.sql` (2026-09-04) and the guards it added to
+`002`, `005`, `006`, `009` (both), `010`, `012`, `013`, `039`.
 
 **Use SQL migrations for:** Adding columns, creating tables, adding indexes, constraints.
 
@@ -503,7 +524,7 @@ Non-prefixed type files contain plain TypeScript types that are not stored/valid
 | Report config                 | `lib/types/reports.ts`                      | `reports.config`                    |
 | Instance configs              | `lib/types/instance.ts`                     | `instance_config.config_json_value` |
 
-(`instance.ts` is the kernel grab-bag — the instance-config Zod schemas live there by symbol, not in a dedicated `_instance_config.ts`.)
+(`instance.ts` is the kernel grab-bag: the instance-config Zod schemas live there by symbol, not in a dedicated `_instance_config.ts`.)
 
 ### GitHub-Authored Schemas
 
@@ -513,7 +534,7 @@ Location: `lib/types/_module_definition_github.ts`
 
 Authored `definition.json` files must match the current shape exactly. Invalid files fail at fetch time with clear error paths. No silent normalization.
 
-**"No silent normalization" bans coercion, not breadth.** The rule is about the schema quietly changing what it parsed — `.transform()`, `z.preprocess()`, defaulting a missing field — so that the value a caller receives is not the value the file contained. Declaring a union because the boundary genuinely accepts two shapes is not a violation: the schema still states exactly what is valid, and nothing is rewritten behind the caller's back. When two accepted shapes must converge on one internal form, the narrowing belongs in a named, exported function that consumers call explicitly (see `getAssetName` for `assetsToImport`), never inside the schema.
+**"No silent normalization" bans coercion, not breadth.** The rule is about the schema quietly changing what it parsed (`.transform()`, `z.preprocess()`, defaulting a missing field), so that the value a caller receives is not the value the file contained. Declaring a union because the boundary genuinely accepts two shapes is not a violation: the schema still states exactly what is valid, and nothing is rewritten behind the caller's back. When two accepted shapes must converge on one internal form, the narrowing belongs in a named, exported function that consumers call explicitly (see `getAssetName` for `assetsToImport`), never inside the schema.
 
 ---
 
@@ -523,7 +544,7 @@ Authored `definition.json` files must match the current shape exactly. Invalid f
 2. **Add parse helper** (just JSON.parse + cast)
 3. **Create migration function** in `server/db/migrations/data_transforms/`
 4. **Wire into startup** in `server/db_startup.ts`
-5. **Use schema for writes** — validate before INSERT/UPDATE
+5. **Use schema for writes**: validate before INSERT/UPDATE
 
 ---
 
@@ -535,18 +556,18 @@ When changing a stored schema:
 - [ ] Update Zod schema to new shape
 - [ ] Update GitHub schema if applicable (must stay in sync)
 - [ ] Test migration against real data shapes
-- [ ] Deploy — migration runs at startup, validates
+- [ ] Deploy: migration runs at startup, validates
 - [ ] After all deployments migrated: optionally remove old field from schema
 
 ---
 
 ## What to Do If You Want to Change a Schema-Validated Type
 
-1. **Find the Zod schema** — underscore-prefixed files in `lib/types/` (e.g., `_presentation_object_config.ts`)
+1. **Find the Zod schema**: underscore-prefixed files in `lib/types/` (e.g., `_presentation_object_config.ts`)
 2. **Update the schema** to the new shape
-3. **Find the data transform** — matching file in `server/db/migrations/data_transforms/`
+3. **Find the data transform**: matching file in `server/db/migrations/data_transforms/`
 4. **Add a transform block** that converts old shape → new shape
-5. **Deploy** — transform runs on existing data, schema validates new writes
+5. **Deploy**: transform runs on existing data, schema validates new writes
 
 Example: adding a required field `sortOrder` to presentation objects:
 
@@ -568,10 +589,10 @@ if (config.sortOrder === undefined) {
 
 This will happen when you deploy a schema change and existing data doesn't match the new shape.
 
-1. **Check the error log** — it shows which data transform failed and which row caused the issue
-2. **Identify the old data shape** — look at the failing row to understand what needs to transform
+1. **Check the error log**: it shows which data transform failed and which row caused the issue
+2. **Identify the old data shape**: look at the failing row to understand what needs to transform
 3. **Add a transform block** to the relevant file in `server/db/migrations/data_transforms/`
-4. **Redeploy** — the transform runs, fixes the data, boot succeeds
+4. **Redeploy**: the transform runs, fixes the data, boot succeeds
 
 Example: if `po_config.ts` fails because old rows have `filterType: "all"` but new schema expects `filterType: "none"`:
 
@@ -603,13 +624,13 @@ A: First startup after schema change may take time. Subsequent startups are fast
 
 **Q: Can I roll back a migration?**
 
-A: Data migrations are forward-only. If you need to reverse a change, add a new transform block. Code can be rolled back safely — the data shape is still valid.
+A: Data migrations are forward-only. If you need to reverse a change, add a new transform block. Code can be rolled back safely: the data shape is still valid.
 
 **Q: What if I find invalid data in production?**
 
 A: Boot would have failed if data was invalid. If you somehow have invalid data:
 1. Add a transform block to fix it
-2. Deploy — migration transforms invalid rows
+2. Deploy: migration transforms invalid rows
 
 **Q: Can I delete old transform blocks?**
 
@@ -620,4 +641,4 @@ A: Only when no deployment could ever see data in the old shape. In practice: ke
 A: Each instance validates independently. If Instance B fails:
 1. Instance B's transaction rolls back, boot fails
 2. Fix the transform block to handle the edge case
-3. Redeploy — Instance A skips (already valid), Instance B runs fixed transform
+3. Redeploy: Instance A skips (already valid), Instance B runs fixed transform

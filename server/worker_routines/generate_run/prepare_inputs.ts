@@ -1,21 +1,31 @@
 import { join } from "@std/path";
 import type { Sql } from "postgres";
 import {
+  ADMIN_AREA_COLUMNS,
+  listMonthlyPeriodIds,
+  personYearsForMonth,
+  populationAreaKey,
+  populationCellCoverage,
+  populationTypesReferencedByCatalog,
   throwIfErrWithData,
-  type CalculatedIndicator,
+  type CommonIndicatorCatalogRow,
   type DatasetType,
   type HfaIndicator,
   type HfaIndicatorCode,
   type HfaIndicatorVariantCode,
   type RunDataset,
   type RunGenerationStep1Result,
+  type RunPopulation,
+  type RunPopulationCoverage,
 } from "lib";
 import {
-  calculatedIndicatorToSnapshotRow,
   computeDatasetHfaRunCapture,
   computeDatasetHmisRunCapture,
   computeDatasetIcehRunCapture,
   dbRowToHfaIndicator,
+  getPopulationAnchors,
+  getPopulationLevel,
+  listHmisStructureAreas,
   PROJECT_FACILITY_COLUMN_NAMES,
   type DatasetCsvTarget,
   type ProjectFacilityRow,
@@ -32,7 +42,7 @@ import { writeParquetFromCsv } from "../../run_query/mod.ts";
 import { sha256HexOfFile } from "./input_key.ts";
 import type { HfaSentinelRow } from "../../server_only_funcs/get_script_with_parameters_hfa.ts";
 
-// Stage 1 of the run pipeline — prepare inputs (PLAN_RESULTS_RUNS item 2;
+// Stage 1 of the run pipeline: prepare inputs (PLAN_RESULTS_RUNS item 2;
 // COPY TO re-targeted by item 7, binding decision 4; project-DB writes
 // deleted by the Phase 3 re-cut, ruling 5). The dataset CAPTURE functions do
 // every instance-DB read plus the `COPY … TO` that writes each extract
@@ -43,10 +53,22 @@ import type { HfaSentinelRow } from "../../server_only_funcs/get_script_with_par
 // and they feed script generation. A family not selected in step 1 simply
 // has no extract and no manifest entry.
 
+// The content hashes of the run's prepared input files: module inputKey
+// ingredients (resolve_reuse.ts), one per declared data source kind.
+export type RunInputHashes = {
+  // sha256 of each extract CSV, by family.
+  datasets: Map<DatasetType, string>;
+  // sha256 of inputs/population.csv; null when the run has no HMIS family
+  // (the file is written on every HMIS capture, header-only if nothing
+  // needs it).
+  population: string | null;
+};
+
 export type PreparedRunInputs = {
   selectedFamilies: DatasetType[];
-  // sha256 of each extract CSV, by family — module inputKey ingredients.
-  datasetExtractHashes: Map<DatasetType, string>;
+  inputHashes: RunInputHashes;
+  // The manifest's `population` stamp (PLAN_1b ruling 4).
+  population: RunPopulation | null;
   // Relative paths (from the run dir root) for the manifest's inputFiles.
   extraInputFiles: string[];
   // Manifest `datasets` entries, built from the captures (the project
@@ -65,7 +87,10 @@ export type PreparedRunInputs = {
     // assignments ride hfaIndicators' variantGroupId.
     hfaVariantCode: HfaIndicatorVariantCode[];
     hfaSentinelRows: HfaSentinelRow[];
-    calculatedIndicators: CalculatedIndicator[];
+    // The resolved common-indicator catalog, from the HMIS capture. m012's
+    // ingredient table is built from it and substituted into its script
+    // (PLAN_1a §1.5); empty when the run carries no HMIS family.
+    commonIndicatorCatalog: CommonIndicatorCatalogRow[];
   };
 };
 
@@ -100,6 +125,8 @@ export async function prepareRunInputs(
   const selectedFamilies: DatasetType[] = [];
   const datasets: RunDataset[] = [];
   const extraInputFiles: string[] = [];
+  let population: RunPopulation | null = null;
+  let populationHash: string | null = null;
   const facilitiesTables: { tableName: string; columns: ExportedColumn[] }[] =
     [];
   const scriptInputs: PreparedRunInputs["scriptInputs"] = {
@@ -108,7 +135,7 @@ export async function prepareRunInputs(
     hfaIndicatorCode: [],
     hfaVariantCode: [],
     hfaSentinelRows: [],
-    calculatedIndicators: [],
+    commonIndicatorCatalog: [],
   };
 
   if (step1.hmis) {
@@ -124,21 +151,30 @@ export async function prepareRunInputs(
       lastUpdated: capture.lastUpdated,
       info: capture.info,
     });
+    // The v2 indicators mirror: the WHOLE common dictionary, resolved
+    // (PLAN_1a §1.10). The separate calculated_indicators_snapshot.json that
+    // used to sit beside it is gone: one writer, one catalog contract.
     await writeInputJson(tmpDir, "indicators.json", capture.indicators);
     extraInputFiles.push("inputs/indicators.json");
-    await writeInputJson(
-      tmpDir,
-      "calculated_indicators_snapshot.json",
-      capture.calculatedIndicators.map(calculatedIndicatorToSnapshotRow),
-    );
-    extraInputFiles.push("inputs/calculated_indicators_snapshot.json");
+    // The resolved catalog is also a SCRIPT-GENERATION input: m012's
+    // ingredient table is substituted into its script as a data literal
+    // (PLAN_1a §1.5), so nothing is written to inputs/ for it and no
+    // memoization input class exists: the literal rides in scriptText.
+    scriptInputs.commonIndicatorCatalog = capture.indicators;
     await writeFacilitiesParquet(tmpDir, "facilities_hmis", capture.facilities);
     extraInputFiles.push("inputs/facilities_hmis.parquet");
     facilitiesTables.push({
       tableName: "facilities_hmis",
       columns: FACILITY_PARQUET_COLUMNS,
     });
-    scriptInputs.calculatedIndicators = capture.calculatedIndicators;
+    // The person-years file, written on EVERY HMIS capture so a module
+    // declaring the population source always has its input; header-only when
+    // no expression in the catalog names a population.
+    population = await writePopulationPersonYears(mainDb, tmpDir, capture);
+    populationHash = await sha256HexOfFile(
+      runInputFilePath(tmpDir, POPULATION_FILE_NAME),
+    );
+    extraInputFiles.push(`inputs/${POPULATION_FILE_NAME}`);
   }
 
   if (step1.hfa) {
@@ -267,12 +303,163 @@ export async function prepareRunInputs(
 
   return {
     selectedFamilies,
-    datasetExtractHashes,
+    inputHashes: { datasets: datasetExtractHashes, population: populationHash },
+    population,
     extraInputFiles,
     datasets,
     facilitiesTables,
     scriptInputs,
   };
+}
+
+export const POPULATION_FILE_NAME = "population.csv";
+
+// Annual population stock → monthly person-years, for every population type
+// the resolved catalog's slot maps reference (the expression IS the
+// declaration), over the extract's months (SYSTEM_08 "population.csv").
+// Format, permanent once written: admin_area_2..N, period_id,
+// population_type, person_years. The header alone sets m012's grain.
+//
+// Population is ACTIVE when at least one type is referenced. Not active: the
+// file is header-only at the HMIS depth and m012 keeps the data exactly as it
+// is. Active: the file is at the population level, HMIS finer than that is
+// summed up by m012, and each type gets person-years for exactly the cells
+// (area × month) its anchors cover; m012 drops the other cells for the
+// indicators naming that type, and the stamp records what was covered. Only
+// three things refuse the run: no population level and a referenced type with
+// no rows for any structure area at that level, both of which the indicator
+// manager already shows as "Population data missing", and a population level
+// deeper than the HMIS structure.
+async function writePopulationPersonYears(
+  mainDb: Sql,
+  tmpDir: string,
+  capture: {
+    indicators: CommonIndicatorCatalogRow[];
+    periodRange: { min: number; max: number };
+    adminDepth: number;
+  },
+): Promise<RunPopulation> {
+  const populationTypes = populationTypesReferencedByCatalog(capture.indicators);
+  const extractMonths = {
+    firstPeriodId: capture.periodRange.min,
+    lastPeriodId: capture.periodRange.max,
+  };
+  const writeFile = (level: number, rows: string[]) =>
+    Deno.writeTextFile(
+      runInputFilePath(tmpDir, POPULATION_FILE_NAME),
+      [
+        [
+          ...ADMIN_AREA_COLUMNS.slice(1, level),
+          "period_id",
+          "population_type",
+          "person_years",
+        ].join(","),
+        ...rows,
+      ].join("\n") + "\n",
+    );
+
+  if (populationTypes.length === 0) {
+    await writeFile(capture.adminDepth, []);
+    return {
+      active: false,
+      adminAreaLevel: capture.adminDepth,
+      populationTypes: [],
+      coverage: [],
+      ...extractMonths,
+    };
+  }
+
+  const level = await getPopulationLevel(mainDb);
+  if (level === undefined) {
+    throw new Error(
+      "Cannot generate results: an indicator formula uses a population, but the population level is not set. Set it on the instance Population page and import population data before generating.",
+    );
+  }
+  if (level > capture.adminDepth) {
+    throw new Error(
+      capture.adminDepth < 2
+        ? `Cannot generate results: an indicator formula uses a population, but the HMIS structure has no admin areas below the country, so population rates cannot be computed. Remove the population term from the formula or import a structure with admin areas.`
+        : `Cannot generate results: the population data is at admin area level ${level}, deeper than the HMIS structure (level ${capture.adminDepth}). Delete the population data on the instance Population page and re-import it at level ${capture.adminDepth} or a coarser one.`,
+    );
+  }
+  const areas = await listHmisStructureAreas(mainDb, level);
+  const periodIds = listMonthlyPeriodIds(
+    capture.periodRange.min,
+    capture.periodRange.max,
+  );
+  const rows: string[] = [];
+  const coverage: RunPopulationCoverage[] = [];
+  for (const populationType of populationTypes) {
+    const anchorsByArea = await getPopulationAnchors(
+      mainDb,
+      populationType,
+      level,
+    );
+    let areasWithData = 0;
+    let areasCovered = 0;
+    let firstCoveredPeriodId: number | null = null;
+    let lastCoveredPeriodId: number | null = null;
+    for (const area of areas) {
+      const names = [
+        area.admin_area_1,
+        area.admin_area_2,
+        area.admin_area_3,
+        area.admin_area_4,
+      ];
+      const anchors = anchorsByArea.get(populationAreaKey(names));
+      if (anchors === undefined) continue;
+      areasWithData++;
+      const cells = populationCellCoverage(anchors, periodIds);
+      if (cells.length === 0) continue;
+      areasCovered++;
+      firstCoveredPeriodId = Math.min(firstCoveredPeriodId ?? Infinity, cells[0]);
+      lastCoveredPeriodId = Math.max(
+        lastCoveredPeriodId ?? -Infinity,
+        cells[cells.length - 1],
+      );
+      for (const periodId of cells) {
+        rows.push(
+          [
+            ...names.slice(1, level).map(csvCell),
+            String(periodId),
+            csvCell(populationType),
+            String(
+              personYearsForMonth(
+                anchors,
+                Math.floor(periodId / 100),
+                periodId % 100,
+              ),
+            ),
+          ].join(","),
+        );
+      }
+    }
+    if (areasWithData === 0) {
+      throw new Error(
+        `Cannot generate results: an indicator formula uses the population "${populationType}", but the population store holds no data for it for any area of the current HMIS structure at admin area level ${level}. Import it on the instance Population page.`,
+      );
+    }
+    coverage.push({
+      populationType,
+      areasCovered,
+      areasTotal: areas.length,
+      firstCoveredPeriodId,
+      lastCoveredPeriodId,
+    });
+  }
+
+  await writeFile(level, rows);
+  return {
+    active: true,
+    adminAreaLevel: level,
+    populationTypes,
+    coverage,
+    ...extractMonths,
+  };
+}
+
+function csvCell(value: string): string {
+  return /[",\n\r]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value;
 }
 
 async function writeInputJson(
@@ -299,7 +486,7 @@ async function writeFacilitiesParquet(
 }
 
 // Explicit parquet schema for the extract twins (§2.3: declared types, never
-// inferred — facility ids and HFA values are TEXT that inference would
+// inferred: facility ids and HFA values are TEXT that inference would
 // mangle). Mirrors the Postgres types of the export statements'
 // columns: everything is an identifier/label except the few numeric columns
 // named here.

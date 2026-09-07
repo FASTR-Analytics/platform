@@ -183,7 +183,7 @@ export class ToolRegistry {
   }
 }
 
-// Soft gating (PLAN_AI_VIEWS_AND_APPROVAL Feature 2): every tool is always
+// Soft gating: every tool is always
 // sent to the API (tool definitions live in the cached prompt prefix), but an
 // out-of-view EXECUTION is refused before the handler runs. Returns null when
 // the block may execute (tool unknown/ungated or the view matches); the loop
@@ -220,7 +220,7 @@ export function checkViewGate(
 // Consumer label callbacks run in the turn's extent — a throw must degrade
 // to the fallback, never reject the loop (a rejection there escapes with no
 // tool_result appended and the finally-only save persists a dangling
-// tool_use; hardened alongside Phase 4 review H1).
+// tool_use).
 function safeLabel(
   source: string | ((input: unknown) => string) | undefined,
   input: unknown,

@@ -1,7 +1,7 @@
 // Sentinel-value classification for HFA survey codes.
 //
-// A "sentinel" is a code standing in for a non-substantive response — a
-// don't-know, a refusal, an "other (specify)" — rather than a real answer.
+// A "sentinel" is a code standing in for a non-substantive response: a
+// don't-know, a refusal, an "other (specify)", rather than a real answer.
 // Layer 3 of the sentinel ladder turns these classes into missingness policy
 // (see PLAN_HFA_FEATURES.md); this module only *derives* the class from
 // what the XLSForm says, as a proposal the import wizard lets a human correct.
@@ -38,7 +38,7 @@ const KNOWN_SENTINEL_CODES: Record<string, SentinelClass> = {
 };
 
 // Classify one choice from a select_one / select_multiple list. Returns
-// undefined for a substantive answer (Yes/No, a real option) — those fall
+// undefined for a substantive answer (Yes/No, a real option): those fall
 // through to the indicator R code untouched (principle 5). undefined means "not
 // a sentinel", not "unknown".
 export function classifyChoice(
@@ -54,7 +54,7 @@ export function classifyChoice(
 
 // Pull the explicit equality escapes out of an XLSForm numeric `constraint`,
 // e.g. "(. >= 100 and . <= 999999) or . = -999999" → ["-999999"]. Matches
-// `. = N` / `. == N` only — never the `<=` / `>=` range bounds. De-duplicated,
+// `. = N` / `. == N` only: never the `<=` / `>=` range bounds. De-duplicated,
 // order-preserving.
 export function parseNumericSentinels(constraint: string): string[] {
   const out: string[] = [];

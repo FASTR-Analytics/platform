@@ -10,9 +10,9 @@
 //   root: Y.Map  ( doc.getMap("slide") )
 //     "type": "cover" | "section" | "content"
 //     TEXT fields are Y.Text (character-level co-editing, remote carets):
-//       cover  — title, subtitle, presenter, date
-//       section — sectionTitle, sectionSubtitle
-//       content — header, subHeader, date, footer
+//       cover : title, subtitle, presenter, date
+//       section: sectionTitle, sectionSubtitle
+//       content: header, subHeader, date, footer
 //     remaining scalars (showHeaderLogos, showFooterLogos, cover/section
 //       non-text fields) as LWW entries
 //     "split": opaque LWW object (small; never co-edited field-by-field)
@@ -20,9 +20,9 @@
 //
 //   Layout node (recursive Y.Map):
 //     "id", "type" ("item" | "rows" | "cols"), optional "minH"/"maxH"/"span"
-//     "fracIndex": string — present on every NON-root node; orders it within
+//     "fracIndex": string: present on every NON-root node; orders it within
 //        its parent. Reordering is an LWW update of one node's fracIndex, which
-//        converges cleanly — this is the fix for the layout-swap hazard (an
+//        converges cleanly: this is the fix for the layout-swap hazard (an
 //        array move can duplicate/drop a node under concurrency). Children are
 //        materialized sorted by (fracIndex, id), so even a fracIndex collision
 //        between two concurrently-inserted nodes resolves deterministically.
@@ -31,10 +31,10 @@
 //       text:   "markdown": Y.Text (true character-level co-editing);
 //               "blockStyle"? opaque
 //       image:  "imgFile": string; "blockStyle"? opaque
-//       figure: decomposed — "figConfig" (co-editable Y.Map of the bundle's
+//       figure: decomposed into "figConfig" (co-editable Y.Map of the bundle's
 //               config; see the block at FIG_CONFIG_KEY below) + "figData"
 //               (opaque bundle remainder). Legacy docs used an opaque
-//               "bundle" key — honored on read, converted on next sync.
+//               "bundle" key: honored on read, converted on next sync.
 //       "itemStyle"? opaque (layout-node style record); "alignV"?
 //     container nodes:
 //       "children": Y.Map ( childId -> child node Y.Map )
@@ -56,8 +56,8 @@ import {
 // A figure item node splits the FigureBundle into two keys so the config can be
 // co-edited field-by-field (like a standalone visualization) while the heavy,
 // derived data rides as one opaque blob:
-//   "figConfig": Y.Map  — the bundle's `config` (the figure-config bridge shape)
-//   "figData":   opaque — the bundle MINUS config (items, geo, resultsValue,
+//   "figConfig": Y.Map : the bundle's `config` (the figure-config bridge shape)
+//   "figData":   opaque: the bundle MINUS config (items, geo, resultsValue,
 //                         indicatorMetadata, dateRange, localization, metricId,
 //                         snapshotAt, provenance)
 // Legacy docs stored the whole bundle opaque under "bundle"; that is honored on
@@ -88,10 +88,10 @@ function readFigureBundle(m: Y.Map<unknown>): FigureBundle | undefined {
 }
 
 // Fast path: remembers the last whole-bundle object reference synced per figure
-// node, so a slide push that didn't touch this figure (the common case — a text
+// node, so a slide push that didn't touch this figure (the common case: a text
 // block edited elsewhere) skips re-serializing its (potentially multi-MB) data.
 // Mirrors setOpaque's reference-cache discipline; a changed bundle must be a
-// fresh object (the editor's path-set guarantees this — slide_editor index.tsx).
+// fresh object (the editor's path-set guarantees this: slide_editor index.tsx).
 const lastFigureBundleRef = new WeakMap<Y.Map<unknown>, unknown>();
 
 const ROOT_KEY = "slide";
@@ -196,7 +196,7 @@ export function seedSlideDoc(doc: Y.Doc, slide: Slide): void {
 
   const rec = slide as unknown as Record<string, unknown>;
   const textFields = TEXT_FIELDS_BY_TYPE[slide.type];
-  // Text fields become Y.Text — always created (even when empty) so the editor
+  // Text fields become Y.Text: always created (even when empty) so the editor
   // can bind a CodeMirror to it and a peer can type into an empty title.
   for (const f of textFields) {
     root.set(f, newYText(rec[f]));
@@ -299,10 +299,10 @@ function materializeNode(m: Y.Map<unknown>, seenIds: Set<string>): SlideNode {
     const children: SlideNode[] = [];
     for (const cm of sorted) {
       // Concurrent restructures can leave the same logical node in TWO places
-      // (one client moves a block while another rebuilds its old container —
+      // (one client moves a block while another rebuilds its old container:
       // both copies survive the CRDT merge). Duplicate ids break the editor's
       // id-based lookups, so keep only the first copy in the deterministic
-      // (fracIndex, id) walk order — identical on every client — and skip the
+      // (fracIndex, id) walk order, identical on every client, and skip the
       // shadowed one. The next push's syncChildren then deletes the skipped
       // copy from the doc itself (its id is absent from the materialized
       // target), so the doc self-heals.
@@ -359,7 +359,7 @@ export function materializeSlide(doc: Y.Doc): Slide {
   return out as unknown as Slide;
 }
 
-/** The slide doc's root Y.Map — the scope for a per-user Y.UndoManager. Yjs
+/** The slide doc's root Y.Map: the scope for a per-user Y.UndoManager. Yjs
  *  tracks a change when its parent type is the scope OR a descendant of it, so
  *  this one root covers the whole slide (layout nodes, styles, figure configs).
  */
@@ -393,14 +393,14 @@ export function findRootTextField(
 // event-shaped: the structural sync collapses/unwraps containers via
 // rebuildNodeInPlace and wholesale children replacement, so a deleted block
 // often never appears as its own children-key delete (only its ancestor
-// container's does — an id the version diff never displays). Diffing the id
+// container's does: an id the version diff never displays). Diffing the id
 // inventory catches every encoding, and a block MOVE (delete+add elsewhere
 // in one transaction) correctly classifies as neither added nor removed.
 // The callback receives the transaction origin so the caller can attribute
 // (a RoomConn's identity for collab edits, applyToLiveRoom's versionEditor
 // tag for HTTP-routed writes). Attach AFTER the doc holds its initial content.
 
-/** One Y.Text delta within a transaction, tagged with its element key — the
+/** One Y.Text delta within a transaction, tagged with its element key: the
  *  raw material for the per-character authorship ledger (exact
  *  retain/insert/delete ops, no diffing). `postText` is the text AFTER the
  *  transaction, for ledgers that need to (re)align. */
@@ -420,7 +420,7 @@ export type SlideElementTouches = {
   /** Elements the transaction deleted TEXT from (Y.Text delete ops, or a
    *  root text field's key removed). */
   textDeleted: string[];
-  /** Every Y.Text delta in the transaction (inserts AND deletes — the
+  /** Every Y.Text delta in the transaction (inserts AND deletes: the
    *  authorship ledger must see all of them to stay aligned). */
   textDeltas: SlideTextDelta[];
 };
@@ -431,7 +431,7 @@ export function observeSlideDocElements(
 ): void {
   const root = doc.getMap<unknown>(ROOT_KEY);
 
-  // Inventory of item-block ids currently in the layout (containers excluded —
+  // Inventory of item-block ids currently in the layout (containers excluded:
   // the version diff only reports item blocks). Cheap: reads only id/type/
   // children keys, never block content.
   const collectItemIds = (): Set<string> => {
@@ -498,7 +498,7 @@ export function observeSlideDocElements(
       });
     };
     // Did any MAP event touch the layout subtree (or the root "layout" key)?
-    // Only those can change the block inventory — text deltas never do, so
+    // Only those can change the block inventory: text deltas never do, so
     // typing doesn't pay for the re-walk.
     let structural = false;
     for (const event of events) {
@@ -552,7 +552,7 @@ export function observeSlideDocElements(
             touched.add(`block:${nodeId}`);
             // Only the item's own `markdown` Y.Text feeds the block's text
             // ledger. figConfig holds THREE separate Y.Texts (caption /
-            // subCaption / footnote) under the same block — their interleaved
+            // subCaption / footnote) under the same block: their interleaved
             // deltas would corrupt the single block:<id> mirror and mark
             // caption trims as block text deletions.
             if (path[path.length - 1] === "markdown") {
@@ -600,7 +600,7 @@ export function observeSlideDocElements(
 
 // ── Text-element inventories (authorship ledger init + version snapshot) ────
 
-/** Every text element in a slide room's DOC with its current content —
+/** Every text element in a slide room's DOC with its current content:
  *  element keys match the observer's ("field:<name>", "block:<id>"). */
 export function listSlideDocTextElements(
   doc: Y.Doc,
@@ -636,7 +636,7 @@ export function listSlideDocTextElements(
   return out;
 }
 
-/** Every text element in a slide CONFIG with its content — the version-write
+/** Every text element in a slide CONFIG with its content: the version-write
  *  counterpart of listSlideDocTextElements (validates ledger snapshots
  *  against the texts actually being persisted). */
 export function listSlideConfigTextElements(
@@ -647,7 +647,7 @@ export function listSlideConfigTextElements(
   for (const f of TEXT_FIELDS_BY_TYPE[slide.type] ?? []) {
     // Emit EVERY field of the type: a cleared optional field is OMITTED from
     // the persisted config (materializeSlide drops empty optionals), but its
-    // ledger — mirroring "" and holding the deletion's tombstones — must
+    // ledger, mirroring "" and holding the deletion's tombstones, must
     // still validate and freeze, or "who cleared this field" is lost.
     out[`field:${f}`] = typeof rec[f] === "string" ? rec[f] as string : "";
   }
@@ -734,7 +734,7 @@ export function findSlideFigureConfigMap(
 // diffs that target onto the shared doc so local edits become granular,
 // mergeable Yjs ops: text -> Y.Text deltas (so concurrent typing merges),
 // scalar/opaque fields -> LWW sets, structure -> add/remove + fractional-index
-// reorder. Idempotent — a no-op when the doc already matches the target.
+// reorder. Idempotent: a no-op when the doc already matches the target.
 
 type SlideItemNode = Extract<SlideNode, { type: "item" }>;
 
@@ -769,7 +769,7 @@ function syncFigureNode(
     return;
   }
   // The skip only applies when there IS a figConfig map for the modal to own.
-  // With none, honoring it would write figData alone — and readFigureBundle
+  // With none, honoring it would write figData alone: and readFigureBundle
   // keys off figConfig, so the whole bundle becomes unreadable and the
   // checkpoint stores an empty figure. `trusted` stays true (materialize and
   // the row agree, on the wrong thing), so the loss is permanent. Reachable
@@ -865,8 +865,8 @@ function syncNode(
     return;
   }
   // The root layout node is NOT keyed by id (children are), so an operation
-  // that swaps the root for a new node — first split of a single-block slide,
-  // delete-with-cleanup promoting a child — must write the new id here. A
+  // that swaps the root for a new node, whether a first split of a single-block slide or
+  // delete-with-cleanup promoting a child, must write the new id here. A
   // stale root id can shadow a descendant's id, and materializeNode's
   // duplicate-id guard would then drop that descendant (a real content block).
   setScalar(m, "id", node.id);
@@ -905,7 +905,7 @@ function syncChildren(
     }
   }
   // Reorder: ensure fracIndex is strictly increasing in target order,
-  // reassigning ONLY nodes that are out of order (or newly added) — so a local
+  // reassigning ONLY nodes that are out of order (or newly added): so a local
   // reorder doesn't churn every sibling's key and clobber a concurrent move.
   let prevKey: string | null = null;
   target.forEach((child, i) => {
@@ -969,7 +969,7 @@ export function syncSlideToDoc(
       setScalar(root, f, rec[f]);
     }
     // By VALUE, not setOpaque: the split panel is edited via nested store
-    // path-sets (placement/sizeAsPct/fill), which mutate the object in place —
+    // path-sets (placement/sizeAsPct/fill), which mutate the object in place:
     // setOpaque's reference cache would skip the write (and the doc's stored
     // value would alias the mutated object), silently dropping the edit for
     // peers and the checkpoint. setOpaqueByValue clones on write and compares

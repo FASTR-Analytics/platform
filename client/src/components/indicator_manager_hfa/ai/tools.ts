@@ -5,7 +5,7 @@ import { serverActions } from "~/server_actions";
 import { checkRCodeResultType, hasRCodeErrors, validateRCode } from "../hfa_r_code_validator";
 
 // ---------------------------------------------------------------------------
-// Loaders — always read fresh so the AI acts on current state, and so writes
+// Loaders: always read fresh so the AI acts on current state, and so writes
 // from earlier in the conversation are reflected.
 // ---------------------------------------------------------------------------
 
@@ -27,7 +27,7 @@ async function loadTaxonomy() {
   return { categories: cats.data, subCategories: subs.data, serviceCategories: svcs.data };
 }
 
-// Apply a set of fully-merged indicators (read-modify-write — the bulk route
+// Apply a set of fully-merged indicators (read-modify-write: the bulk route
 // takes whole objects). Transactional server-side: all applied or none.
 async function applyIndicatorUpdates(merged: HfaIndicator[]): Promise<void> {
   const res = await serverActions.updateHfaIndicatorsBulk({
@@ -79,7 +79,7 @@ function statusText(hasSyntaxError: boolean, codeConsistent: boolean): string {
 // existence → hasSyntaxError; identical non-empty rounds → codeConsistent), plus
 // two additions: an unknown time point also counts as a syntax error, and
 // advisory findings (lone-`=` warnings, the binary/numeric result-type check)
-// are surfaced in `issues` ONLY — they never flip hasSyntaxError, so the stored
+// are surfaced in `issues` ONLY: they never flip hasSyntaxError, so the stored
 // status stays consistent with the editor for everything the editor itself
 // treats as an error.
 function computeIndicatorValidation(
@@ -660,7 +660,7 @@ export function buildHfaIndicatorTools() {
             // Sequential per-indicator saves, unchanged from the pre-approval
             // handler: partial failure (one saveHfaIndicatorFull throwing)
             // stops the loop, leaving earlier saves in this batch already
-            // persisted server-side — the same throw-mid-batch semantics as
+            // persisted server-side: the same throw-mid-batch semantics as
             // before migration.
             commit: async () => {
               const results: { varName: string; hasSyntaxError: boolean; codeConsistent: boolean; issues: string[] }[] = [];
@@ -671,7 +671,7 @@ export function buildHfaIndicatorTools() {
                 other.delete(vn);
                 const v = computeIndicatorValidation(code, dict, other, indicator.type);
                 // saveHfaIndicatorFull replaces the indicator's whole variant
-                // code set — pass the stored rows back so they survive a
+                // code set: pass the stored rows back so they survive a
                 // main-code-only edit.
                 const variantRes = await serverActions.getHfaIndicatorVariantCode({ varName: vn });
                 if (!variantRes.success) throw new AIToolFailure(`Failed to load variant code for "${vn}".`);
@@ -718,7 +718,7 @@ export function buildHfaIndicatorTools() {
             ];
             if (identifiers.some((id) => deleted.has(id))) referencing.add(c.varName);
           }
-          // References living only in variant snippets must warn too — same
+          // References living only in variant snippets must warn too: same
           // union as the manager's findReferencingIndicators.
           for (const c of allVariantCode) {
             if (deleted.has(c.varName)) continue;

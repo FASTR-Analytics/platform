@@ -10,7 +10,7 @@ import {
 // what the user sees on screen. The transform's `aoa` holds RAW values
 // (`String(obj[vp])`, e.g. "0.453"); the displayed text ("45.3%") is produced by
 // the table's per-cell `textFormatter`. We resolve that same formatter off the
-// (hydrated) style and apply it exactly as the renderer does — see
+// (hydrated) style and apply it exactly as the renderer does: see
 // panther `_010_table/_internal/measure_table.ts` (cell loop) and `get_infos.ts`
 // (row groups render as interleaved full-width rows, not a leading column).
 //
@@ -60,7 +60,7 @@ export function getTableExportAoa(inputs: TableInputs): string[][] {
   }
   out.push(["", ...cols.map(({ col }) => col.label ?? "")]);
 
-  // Body — iterate row groups in order, mirroring the renderer: a labelled group
+  // Body: iterate row groups in order, mirroring the renderer: a labelled group
   // emits a full-width group-header row, then its member rows.
   for (const g of rowGroups) {
     // Truthy, matching the renderer (get_infos.ts: `if (rowGroup.label)`): a

@@ -7,7 +7,7 @@ import { otherPeers } from "~/state/project/collab";
 // user and is project-wide, so it works from the AI chat context. Best-effort:
 // if collab/presence isn't connected, otherPeers() is empty and edits proceed
 // (we can't know who is editing). The thrown message is surfaced to the AI,
-// which relays it to the user — matching every other tool refusal.
+// which relays it to the user: matching every other tool refusal.
 export function assertSlidesNotBusy(slideIds: string[]): void {
   const busy = new Map<string, Set<string>>(); // slideId -> collaborator names
   for (const peer of otherPeers()) {

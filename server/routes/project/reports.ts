@@ -189,7 +189,7 @@ defineRoute(
   async (c, { params, body }) => {
     // While a collab room is live for this report, the room's doc is
     // authoritative: a direct DB write would be silently overwritten by the
-    // room's next checkpoint. Route the save through the room instead — the
+    // room's next checkpoint. Route the save through the room instead: the
     // change merges into the shared doc (relayed live to connected editors)
     // and the room checkpoints it immediately (which fires its own SSE
     // notifications). Merging into the live doc IS the conflict resolution,
@@ -209,7 +209,7 @@ defineRoute(
     }
     if (roomRes.status === "save_failed") {
       // The room applied the change (peers already see it) but could not
-      // persist it. No direct-write fallback — the room owns persistence.
+      // persist it. No direct-write fallback: the room owns persistence.
       return c.json({
         success: false as const,
         err: "The change was applied to the live editing session but could not be saved yet. Saving will retry automatically.",
@@ -255,7 +255,7 @@ defineRoute(
     "can_configure_reports",
   ),
   async (c, { params, body }) => {
-    // Live-room chokepoint — see updateReportBody.
+    // Live-room chokepoint: see updateReportBody.
     const editor = editorFromGlobalUser(c.var.globalUser);
     const roomRes = await applyReportToLiveRoom(
       c.var.ppk.projectId,
@@ -270,7 +270,7 @@ defineRoute(
       });
     }
     if (roomRes.status === "save_failed") {
-      // See updateReportBody — no direct-write fallback on a failed room save.
+      // See updateReportBody: no direct-write fallback on a failed room save.
       return c.json({
         success: false as const,
         err: "The change was applied to the live editing session but could not be saved yet. Saving will retry automatically.",
@@ -307,7 +307,7 @@ defineRoute(
     "can_configure_reports",
   ),
   async (c, { params, body }) => {
-    // Live-room chokepoint — see updateReportBody.
+    // Live-room chokepoint: see updateReportBody.
     const editor = editorFromGlobalUser(c.var.globalUser);
     const roomRes = await applyReportToLiveRoom(
       c.var.ppk.projectId,
@@ -322,7 +322,7 @@ defineRoute(
       });
     }
     if (roomRes.status === "save_failed") {
-      // See updateReportBody — no direct-write fallback on a failed room save.
+      // See updateReportBody: no direct-write fallback on a failed room save.
       return c.json({
         success: false as const,
         err: "The change was applied to the live editing session but could not be saved yet. Saving will retry automatically.",
@@ -442,7 +442,7 @@ defineRoute(
   async (c, { params }) => {
     const res = await deleteReport(c.var.ppk.projectDb, params.report_id);
     if (res.success) {
-      // A live room left behind would fail its checkpoints forever — discard.
+      // A live room left behind would fail its checkpoints forever: discard.
       closeReportRoom(
         c.var.ppk.projectId,
         params.report_id,
@@ -535,10 +535,10 @@ defineRoute(
       });
     }
 
-    // Persist any un-checkpointed live-room edits FIRST — the safety snapshot
+    // Persist any un-checkpointed live-room edits FIRST: the safety snapshot
     // below reads the DB, and a live room can be up to 1.5s ahead of it.
     // A FAILED flush means the row is stale, so the "safety" version would not
-    // actually contain the current state — abort rather than overwrite the
+    // actually contain the current state: abort rather than overwrite the
     // document with a snapshot while promising a rollback point we don't have.
     if (!await flushReportRoom(projectId, params.report_id)) {
       return c.json({
@@ -606,7 +606,7 @@ defineRoute(
       images,
     });
     if (roomRes.status === "save_failed") {
-      // The room absorbed the snapshot but couldn't persist it — the restore
+      // The room absorbed the snapshot but couldn't persist it: the restore
       // is PARTIAL (co-editors see it; the DB doesn't). No direct-write
       // fallback (the room owns persistence), and no restored-state version
       // below that would misrepresent the DB. The safety version exists;
@@ -621,7 +621,7 @@ defineRoute(
     let lastUpdated: string;
     if (roomRes.status === "saved") {
       lastUpdated = roomRes.lastUpdated;
-      // The label is not part of the room doc — restore it directly. A failed
+      // The label is not part of the room doc: restore it directly. A failed
       // label write means the restore is PARTIAL: report it as a failure (the
       // safety version exists; retrying is safe) and record no restored-state
       // version that would misrepresent the DB.
@@ -654,13 +654,13 @@ defineRoute(
 
     // The restore itself appears in history (content restored successfully at
     // this point, so a failed history insert must not fail the request). Uses
-    // the schema-normalized content, hashed through reportContentHash — the
-    // ONE definition of the report hash field set — so it matches what a
+    // the schema-normalized content, hashed through reportContentHash: the
+    // ONE definition of the report hash field set, so it matches what a
     // later capture computes from the DB (a divergent hash here would break
     // the dedup chain and duplicate versions).
     const restoredRes = await insertReportVersion(projectDb, {
       reportId: params.report_id,
-      // Strictly after the safety version even within one millisecond — the
+      // Strictly after the safety version even within one millisecond: the
       // two are ordered by (created_at, id) everywhere, and a tie would let
       // the restored state sort BEFORE the state it replaced.
       createdAt: isoStrictlyAfter(safetyCreatedAt),
@@ -677,7 +677,7 @@ defineRoute(
         bodyAuthors: version.bodyAuthors,
       }),
       restoredFromVersionId: version.id,
-      // The restored text keeps the authorship it had in the source version —
+      // The restored text keeps the authorship it had in the source version:
       // LIVE runs only. The source's tombstones describe deletions made in
       // that old session (already captured by that version); carried along
       // they would misattribute what THIS restore removed to those deleters.
@@ -690,7 +690,7 @@ defineRoute(
     }
 
     // A room-path restore floods the live ledger with unknown-deleter
-    // tombstones from the body rewrite — they must not leak into the next
+    // tombstones from the body rewrite: they must not leak into the next
     // session's version.
     compactTombstones(projectId, params.report_id);
 

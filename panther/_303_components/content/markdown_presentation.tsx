@@ -4,13 +4,11 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { createEffect, createMemo } from "solid-js";
-import markdownItKatex from "@vscode/markdown-it-katex";
-import "katex/dist/katex.min.css";
 import type { CustomMarkdownStyleOptions, ImageMap } from "../deps.ts";
 import { createMarkdownIt } from "../deps.ts";
 import {
   deriveMarkdownCssVars,
-  MARKDOWN_BASE_STYLES,
+  markdownClasses,
 } from "../utils/markdown_tailwind.ts";
 
 type Props = {
@@ -27,9 +25,7 @@ type Props = {
 };
 
 const md = createMarkdownIt();
-md.use(markdownItKatex);
 const mdRawHtml = createMarkdownIt({ html: true });
-mdRawHtml.use(markdownItKatex);
 
 export function MarkdownPresentation(p: Props) {
   let containerRef: HTMLDivElement | undefined;
@@ -66,7 +62,7 @@ export function MarkdownPresentation(p: Props) {
   return (
     <div
       ref={containerRef}
-      class={MARKDOWN_BASE_STYLES}
+      class={markdownClasses(p.style)}
       style={allStyles()}
       innerHTML={htmlContent()}
     />

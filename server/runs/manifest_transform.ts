@@ -12,10 +12,28 @@
 // before touching this.
 //
 // TRANSFORM BLOCKS:
-//   1. indicators[] — the per-module resolved indicator catalog (schema v3),
+//   1. indicators[]: the per-module resolved indicator catalog (schema v3),
 //      recomputed from the package's own input mirrors.
 //   2. metrics[].format_as → "indicator" for the 8 pre-declaration metrics
-//      (schema v4) — the declared-format migration (PLAN_EFFECTIVE_FORMAT).
+//      (schema v4): the declared-format migration (PLAN_EFFECTIVE_FORMAT).
+//   3. facilityColumnsConfig → per-family structureSchemaHmis/Hfa slots
+//      (schema v5): the structure family split (PLAN_2). Pure copy, no
+//      recompute, no parquet read.
+//   4. commonIndicators stamped from the package's own indicators mirror,
+//      metrics[].catalog_expression_evaluation defaulted to null, and the
+//      `population` stamp defaulted to null (schema v6), the
+//      common-indicator restructure (PLAN_1a §1.9) and the population store
+//      (PLAN_1b), one release. Note what this
+//      block does NOT do: it never patches indicators[]. Block 1 recomputes
+//      that catalog unconditionally on every forced pass through
+//      buildRunIndicatorCatalog, and the v6 additions to it (sort_order for
+//      legacy packages, the type/expression/slot_map fields) live inside that
+//      one derivation. A second derivation here would be wiped and re-applied
+//      on every future bump.
+//   5. population.active recomputed from the stamp's own type list and
+//      population.coverage carried forward as null (schema v7): m012 works on
+//      the intersection of population and HMIS data, and the stamp records
+//      what a generation covered.
 //
 // =============================================================================
 
@@ -29,6 +47,7 @@ import {
 import { z } from "zod";
 import { join } from "@std/path";
 import {
+  buildRunCommonIndicators,
   buildRunIndicatorCatalog,
   runDirInputRowsReader,
   RunInputReadError,
@@ -36,7 +55,7 @@ import {
 import { runManifestPath } from "./run_paths.ts";
 
 // A package directory can be missing, half-written, or written by a newer
-// server, and none of those are "invalid data" — only the last two rows of
+// server, and none of those are "invalid data": only the last two rows of
 // the protocol's failure table are code defects, and those throw.
 export type RunManifestOutcome =
   | { kind: "ok"; manifest: RunManifest; transformed: boolean }
@@ -54,7 +73,7 @@ function manifestNeedsForcedTransform(
   return manifest.manifestSchemaVersion !== RUN_MANIFEST_SCHEMA_VERSION;
 }
 
-// Blocks may READ anything under `runDir` and must never write to it — every
+// Blocks may READ anything under `runDir` and must never write to it: every
 // file a block reads becomes a permanent part of the package format.
 async function transformRunManifest(
   manifest: Record<string, unknown>,
@@ -65,13 +84,13 @@ async function transformRunManifest(
   // ─── TRANSFORM BLOCKS ──────────────────────────────────────────────────
   // New blocks go HERE, at the end, numbered sequentially, never reordered.
   // Each checks its own precondition, is idempotent, and STAMPS the version
-  // it produces — the stamp lives inside the block, so a missing block leaves
+  // it produces: the stamp lives inside the block, so a missing block leaves
   // the version behind and the assertion below catches it. Blocks run only
   // when the version gate forces the transform (they do NOT re-evaluate on a
   // boot where the manifest is already current), so fixing a bad derivation
   // requires a RUN_MANIFEST_SCHEMA_VERSION bump to reach existing packages.
 
-  // 1. indicators[] — the per-module resolved indicator catalog. A pure
+  // 1. indicators[]: the per-module resolved indicator catalog. A pure
   //    recompute from inputs/*.json through the SAME function the finalize
   //    writer uses, so this is not a second derivation that could drift.
   //    Unconditional rather than "only when absent": re-running the recompute
@@ -106,8 +125,72 @@ async function transformRunManifest(
   }
   m.manifestSchemaVersion = 4;
 
+  // 3. facilityColumnsConfig → structureSchemaHmis / structureSchemaHfa. A
+  //    pure copy: every artefact in a legacy package (export CSVs, the
+  //    availableDisaggregationOptions stamps, the manifest stamp) was built
+  //    from that one global config, so copying it into each PRESENT family's
+  //    slot is exactly faithful, no stamp recompute, no parquet read, no
+  //    behavioural change to any existing package. A family is present when
+  //    its facilities parquet is in the package (facilitiesTables/inputFiles);
+  //    absent families get null. Idempotent: copies only while the legacy key
+  //    is still present.
+  if ("facilityColumnsConfig" in m) {
+    const legacy = m.facilityColumnsConfig ?? null;
+    const tables = Array.isArray(m.facilitiesTables) ? m.facilitiesTables : [];
+    const inputFiles = Array.isArray(m.inputFiles) ? m.inputFiles : [];
+    const familyPresent = (family: "hmis" | "hfa"): boolean =>
+      tables.some((t) =>
+        (t as Record<string, unknown>).tableName === `facilities_${family}`
+      ) || inputFiles.includes(`inputs/facilities_${family}.parquet`);
+    m.structureSchemaHmis = familyPresent("hmis") ? legacy : null;
+    m.structureSchemaHfa = familyPresent("hfa") ? legacy : null;
+    delete m.facilityColumnsConfig;
+  }
+  m.manifestSchemaVersion = 5;
+
+  // 4. commonIndicators + metrics[].catalog_expression_evaluation +
+  //    population. The first is a recompute from the package's own indicators
+  //    mirror through the SAME function finalize stamps with: it moves the
+  //    last per-request mirror read off the read path. The other two are not
+  //    recomputes at all: metrics[] and the person-years stamp are
+  //    generation-only provenance, so a field that did not exist when the
+  //    package was written is carried forward as null, never synthesized
+  //    (a pre-1b package has no inputs/population.csv, and the stamp says
+  //    so). All three are idempotent.
+  m.commonIndicators = await buildRunCommonIndicators(
+    runDirInputRowsReader(runDir, z.array(z.string()).parse(m.inputFiles ?? [])),
+  );
+  if (Array.isArray(m.metrics)) {
+    for (const metric of m.metrics as Record<string, unknown>[]) {
+      if (metric.catalog_expression_evaluation === undefined) {
+        metric.catalog_expression_evaluation = null;
+      }
+    }
+  }
+  if (m.population === undefined) {
+    m.population = null;
+  }
+  m.manifestSchemaVersion = 6;
+
+  // 5. population.active + population.coverage. `active` is a recompute from
+  //    the stamp's own type list: a v6 capture wrote person-years exactly when
+  //    a formula named a population. `coverage` is generation-only
+  //    provenance: a v6 capture refused any shortfall but recorded nothing,
+  //    so it is carried forward as null, never synthesized. Both idempotent.
+  if (m.population !== null && typeof m.population === "object") {
+    const population = m.population as Record<string, unknown>;
+    if (population.active === undefined) {
+      population.active = Array.isArray(population.populationTypes) &&
+        population.populationTypes.length > 0;
+    }
+    if (population.coverage === undefined) {
+      population.coverage = null;
+    }
+  }
+  m.manifestSchemaVersion = 7;
+
   const validated = runManifestSchema.parse(m);
-  // The schema deliberately accepts ANY integer version — it has to, so a
+  // The schema deliberately accepts ANY integer version: it has to, so a
   // manifest from a newer server can be detected rather than rejected as
   // malformed. So the version is asserted separately: a manifest still below
   // the current version after every block ran means the block for that step
@@ -169,7 +252,7 @@ export async function transformRunManifestFile(
     transformed = await transformRunManifest(stored, runDir);
   } catch (e) {
     // F5: a listed input mirror whose bytes are unavailable is the same
-    // operational class as a missing manifest — degrade this package, keep
+    // operational class as a missing manifest: degrade this package, keep
     // booting. Everything else throws: a mirror that parses as JSON but not as
     // its row schema is drift (RunInputRowSchemaError), same as manifest
     // drift or a missing block. See RunInputReadError in indicator_catalog.ts.
@@ -195,7 +278,7 @@ function serializeRunManifest(manifest: RunManifest): string {
   return JSON.stringify(manifest, null, 2);
 }
 
-// Transform in memory, parse, THEN persist — there is nothing to restore from
+// Transform in memory, parse, THEN persist: there is nothing to restore from
 // if it fails. The pre-transform copy is what makes both a bad block and an
 // image rollback recoverable. The temp name is unique, never fixed, so two
 // writers can never share it; nothing sweeps a leftover temp MANIFEST
@@ -203,7 +286,7 @@ function serializeRunManifest(manifest: RunManifest): string {
 // finally.
 //
 // No lock, on this premise: `await dbStartUp()` is top-level in main.ts before
-// any serving begins, and every getRunManifestCached caller is main-realm — no
+// any serving begins, and every getRunManifestCached caller is main-realm: no
 // Web Worker reads a manifest. Re-check this if one ever does.
 async function persistRunManifest(
   runDir: string,

@@ -25,7 +25,7 @@ import { escapeSqlString } from "../db/utils.ts";
 // ============================================================================
 
 // trim's default charset is ASCII space only, so the whitespace classes have
-// to be spelled out — a tab-only cell would otherwise stay unfolded here while
+// to be spelled out: a tab-only cell would otherwise stay unfolded here while
 // JS `.trim()` still stripped it from the options list, which is precisely the
 // chart-group-with-no-filter-option defect this whole mechanism exists to kill.
 // Two-arg trim(), not btrim(): this SQL runs on BOTH engines (Postgres and
@@ -35,14 +35,14 @@ const BLANK_WHITESPACE_CHARS = String.raw`E' \t\r\n'`;
 
 /**
  * Wraps a column reference so NULL and whitespace-only cells both surface as
- * BLANK_SENTINEL. THE single emitter — the options query, the SELECT list, the
+ * BLANK_SENTINEL. THE single emitter: the options query, the SELECT list, the
  * GROUP BY and the filter predicate must agree exactly, or the option id and
  * the item group key stop being the same id space.
  *
  * Detects blankness with a trim but returns the value UNTRIMMED. Folding to
  * `trim(col)` would rewrite non-blank values too: ' services' and 'services'
  * would collapse into one group keyed 'services', which buildWhereClause's
- * `UPPER(col) IN (…)` — comparing against the raw column — could then only
+ * `UPPER(col) IN (…)`, comparing against the raw column, could then only
  * half-match. That reintroduces the same defect in a new form.
  */
 export function blankFoldedRef(columnRef: string): string {
@@ -51,12 +51,12 @@ export function blankFoldedRef(columnRef: string): string {
 
 /**
  * Whether a disaggregation column folds NULL/blank onto BLANK_SENTINEL. THE
- * single gate — the options query, the SELECT, the GROUP BY and the WHERE
+ * single gate: the options query, the SELECT, the GROUP BY and the WHERE
  * clause must all agree, or an option is offered that no filter can match.
  *
  * Two conditions. `usesBlankSentinel` is the semantic one: integer and
  * period-derived columns have no blank state, and a multi-membership column's
- * blank cell yields no row to fold. The type check is the mechanical one — the
+ * blank cell yields no row to fold. The type check is the mechanical one: the
  * fold emits trim() and returns a text sentinel from the CASE, neither of
  * which Postgres will accept on an integer or numeric column, and disaggregation
  * columns are only text by convention (module authors declare the type).
@@ -76,7 +76,7 @@ export function shouldFoldBlank(
  *
  * Self-parenthesising, because it contains an OR and callers AND it together
  * with other statements. `a = 1 AND col IS NULL OR trim(col) = ''` parses as
- * `(a = 1 AND col IS NULL) OR trim(col) = ''` — the blank test escapes its own
+ * `(a = 1 AND col IS NULL) OR trim(col) = ''`: the blank test escapes its own
  * filter and swallows every other predicate in the WHERE clause.
  */
 export function blankPredicate(columnRef: string): string {
@@ -92,7 +92,7 @@ export function blankPredicate(columnRef: string): string {
  * m8 scorecard shape: `value = numerator / denominator` disaggregated by
  * `denominator`). The inner query then emits BOTH the grouped column and a
  * same-named aggregate alias, and the PAE wrapper's bare references against
- * that subquery are ambiguous — Postgres errors, DuckDB silently binds the
+ * that subquery are ambiguous: Postgres errors, DuckDB silently binds the
  * raw grouped value instead of the aggregate ingredient. Colliding columns
  * are therefore SELECTed as `__dis_<col>` in the inner query (selectRef) and
  * re-aliased back in the wrapper (applyPostAggregationExpression); both sites
@@ -115,7 +115,7 @@ export function paeCollidingGroupBys(
  * THE single activation predicate for every PAE-conditional behavior: the
  * wrapper itself, the collision aliasing above, and the sample-n column mode.
  * A defined-but-malformed PAE (no "=", empty chunk) must deactivate ALL of
- * them together — a site keying on `!== undefined` alone would alias inner
+ * them together: a site keying on `!== undefined` alone would alias inner
  * columns (or emit the PAE-mode n column) with no wrapper to re-project them,
  * leaking `__dis_`/`__n_all` names to the client. Unreachable through
  * validated routes (isSafePostAggregationExpression requires exactly one "="),
@@ -265,7 +265,7 @@ function buildSelectQuery(
 
   // A blank-folded column must carry its bare name into the result set, or the
   // item key would come back as "coalesce". SELECT aliases it; GROUP BY repeats
-  // the expression, which must match the SELECT exactly — grouping on the raw
+  // the expression, which must match the SELECT exactly: grouping on the raw
   // column while selecting the folded one would emit NULL and '' as two rows
   // carrying the same key.
   const groupByRef = (col: string): string => {
@@ -274,7 +274,7 @@ function buildSelectQuery(
       ? blankFoldedRef(prefixed)
       : prefixed;
   };
-  // Colliding columns take the __dis_ alias — see paeCollidingGroupBys.
+  // Colliding columns take the __dis_ alias, see paeCollidingGroupBys.
   const collidingCols = paeCollidingGroupBys(fetchConfig);
   const selectRef = (col: string): string => {
     const outName = collidingCols.has(col) ? collisionAlias(col) : col;
@@ -334,7 +334,7 @@ function buildSelectQuery(
   //                       //
   ///////////////////////////
 
-  // Identity value props are result-table columns, not disaggregators — they
+  // Identity value props are result-table columns, not disaggregators: they
   // group by their bare name and are never folded.
   const adjustedGroupByColumns = [
     ...groupBys.filter((gb) => gb !== collapsedLevel).map(groupByRef),
@@ -376,7 +376,7 @@ export function buildWhereClause(
   // Add filter conditions: case-insensitive for text, direct for integers
   // and for numeric results columns. The integer set lives in lib
   // (INTEGER_FILTER_COLUMNS) beside the boundary validators that guard its
-  // values; note `month` is NOT integer — the derived month column is
+  // values; note `month` is NOT integer: the derived month column is
   // zero-padded LPAD text ("03").
   for (const filter of fetchConfig.filters) {
     if (filter.values.length === 0) continue;
@@ -385,7 +385,7 @@ export function buildWhereClause(
     const isIntegerColumn = INTEGER_FILTER_COLUMNS.has(filter.disOpt);
 
     if (MULTI_MEMBERSHIP_FILTER_COLUMNS.has(filter.disOpt)) {
-      // Delimiter-joined set column: membership (OR-of-many), not exact match —
+      // Delimiter-joined set column: membership (OR-of-many), not exact match,
       // see MULTI_MEMBERSHIP_FILTER_COLUMNS (lib/validate_fetch_config.ts)
       const quotedValues = filter.values
         .map((v) => `'${escapeSqlString(String(v).toUpperCase())}'`)
@@ -403,13 +403,13 @@ export function buildWhereClause(
     ) {
       // Numeric results column used as a dimension (m8's denominator): the
       // text path's UPPER() is a hard SQL error on both engines. Gated on the
-      // same textColumns knowledge the blank fold trusts — but the PERIOD
+      // same textColumns knowledge the blank fold trusts, but the PERIOD
       // exclusion is load-bearing: derived `month` is LPAD TEXT and not a
       // physical column, so it is absent from textColumns and would otherwise
       // be misrouted here (`month IN (3)` breaks on text = integer). Number()
       // coercion is the SQL-safety boundary; non-finite values (the UNSELECTED
       // replicant sentinel, a stale __BLANK) can never match a numeric column
-      // and are dropped, with FALSE emitted when nothing remains — the same
+      // and are dropped, with FALSE emitted when nothing remains: the same
       // zero-match outcome those values produce on the text path.
       const numericValues = filter.values
         .map((v) => Number(v))
@@ -421,7 +421,7 @@ export function buildWhereClause(
       );
     } else {
       // Case-insensitive comparison for text columns. BLANK_SENTINEL cannot ride
-      // the IN list — `NULL IN ('__BLANK')` is NULL, never true — so it splits
+      // the IN list: `NULL IN ('__BLANK')` is NULL, never true, so it splits
       // out into its own OR-ed predicate matching both blank routes.
       const wantsBlank =
         shouldFoldBlank(filter.disOpt, queryContext) &&
@@ -484,7 +484,7 @@ export function buildWhereClause(
 
 /**
  * Builds aggregate column expressions based on value configuration. In the
- * roll-up branch SUM/COUNT re-add and AVG re-averages — the latter is only
+ * roll-up branch SUM/COUNT re-add and AVG re-averages: the latter is only
  * correct over raw facility rows, which eligibility guarantees
  * (isRollupEligibleResultsValue client-side; queryContext.hasFacilityId
  * server-side). Identity values cannot reach the roll-up branch from a real
@@ -500,7 +500,7 @@ function buildAggregateColumns(
   hasPostAggregationExpression: boolean,
 ): string {
   // Value props are results-table columns, so every reference is qualified
-  // with sourceTable — the facilities CTE joins in a facility_id of the same
+  // with sourceTable: the facilities CTE joins in a facility_id of the same
   // name, and an unqualified COUNT(facility_id) is ambiguous on both engines.
   const valueColumns = values.map((valueObj) => {
     const qualified = `${sourceTable}.${valueObj.prop}`;
@@ -533,7 +533,7 @@ function buildAggregateColumns(
 const SAMPLE_N_PAE_COLUMN = `${SAMPLE_N_PREFIX}all`;
 
 /**
- * Whether this fetch emits sample-size columns at all. THE single gate — the
+ * Whether this fetch emits sample-size columns at all. THE single gate: the
  * aggregate builder and the post-aggregation wrapper must agree, or the wrapper
  * re-projects a column the inner query never selected.
  *
@@ -553,7 +553,7 @@ export function emitsSampleN(queryContext: QueryContext): boolean {
  * facility × time_point: a table spanning two survey rounds without grouping by
  * round would otherwise report double the sample. The facility_id reference is
  * table-qualified because the facilities CTE joins in a column of the same name
- * (buildSelectQuery's LEFT JOIN) — unqualified, Postgres rejects it as
+ * (buildSelectQuery's LEFT JOIN), unqualified, Postgres rejects it as
  * ambiguous on every facility-column disaggregation.
  *
  * Two rules, and the split is load-bearing:
@@ -564,7 +564,7 @@ export function emitsSampleN(queryContext: QueryContext): boolean {
  *   expression instead looks tidier and is wrong: the shipped HFA metrics are
  *   `value = COALESCE(sum_val, avg_num / avg_weight)`, where the divisor is NULL
  *   for every sum-aggregation indicator (n would read 0 on those columns), and
- *   `value = dk_num / resp_weight`, where resp_weight is 0 — not NULL — for
+ *   `value = dk_num / resp_weight`, where resp_weight is 0, not NULL, for
  *   not-applicable rows (n would over-count).
  * - **Plain values: one column per value, filtered.** A NULL cell contributes
  *   nothing to AVG/SUM. No shipped HFA module takes this path (all four M10
@@ -581,7 +581,7 @@ function buildSampleNColumns(
   }
 
   // Cast to int because COUNT returns bigint, which the driver hands back as a
-  // string — the payload should carry n as a number, not "212". A facility
+  // string: the payload should carry n as a number, not "212". A facility
   // count cannot approach the int4 ceiling. The cast wraps the whole aggregate:
   // FILTER binds to the aggregate itself and must precede it.
   const distinctFacilities = `COUNT(DISTINCT ${sourceTable}.facility_id)`;
@@ -623,7 +623,7 @@ export function applyPostAggregationExpression(
   // Note: \s* handles optional whitespace around the division operator
   const safeExpression = expression.replace(/\/\s*(\w+)/g, "/ NULLIF($1, 0)");
 
-  // Colliding columns re-project their __dis_ alias back to the bare name —
+  // Colliding columns re-project their __dis_ alias back to the bare name,
   // see paeCollidingGroupBys.
   const groupByPrefix =
     groupBys.length === 0
@@ -635,7 +635,7 @@ export function applyPostAggregationExpression(
           .join(", ")}, `;
 
   // The wrapper drops every inner column it doesn't re-project, so the sample-n
-  // column has to be named here — renamed to the target the client looks for,
+  // column has to be named here, renamed to the target the client looks for,
   // since `value` is the prop the items carry.
   const sampleNSuffix = hasSampleNColumn
     ? `, ${SAMPLE_N_PAE_COLUMN} AS ${sampleNProp(value)}`

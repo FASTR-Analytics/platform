@@ -6,8 +6,8 @@ import { assertReplicantValid } from "./assert_replicant_valid";
 import { resolveFigureBundleFromMetric } from "./resolve_figure_from_metric";
 
 // Unified figure resolver: given a metric + a full config, validate the
-// replicant (strict — throw with the valid-value list, matching the from_metric
-// policy), then re-query items and build a FigureBundle. Slide-agnostic — used by
+// replicant (strict, throw with the valid-value list, matching the from_metric
+// policy), then re-query items and build a FigureBundle. Slide-agnostic: used by
 // the from_metric create path and the update_figure edit path. Re-resolution
 // keys off the metric (the bundle stores `metricId`), never the source viz.
 export async function resolveBundleFromMetricAndConfig(
@@ -18,7 +18,7 @@ export async function resolveBundleFromMetricAndConfig(
   // AI tool handlers pass live Solid store objects (the metrics store, preset
   // configs). Deep-copy to plain data first: Solid stamps symbol keys onto the
   // raw targets, which zod's record parsing surfaces via Reflect.ownKeys and
-  // then crashes formatting ("Cannot convert a Symbol value to a string") —
+  // then crashes formatting ("Cannot convert a Symbol value to a string"):
   // unwrap() alone is not enough, the raw objects keep the symbol keys. A
   // bundle destined for storage must also not alias live store objects.
   metric = structuredClone(unwrap(metric));
@@ -31,7 +31,7 @@ export async function resolveBundleFromMetricAndConfig(
   const resFetch = getFetchConfigFromPresentationObjectConfig(metric, config);
   if (!resFetch.success) {
     // Currently unreachable (the callee throws instead of returning
-    // {success:false}) — converted anyway, forward-safe. Its LIVE plain-Error
+    // {success:false}): converted anyway, forward-safe. Its LIVE plain-Error
     // surface is get_fetch_config_from_po.ts:47 (missing timeseriesGrouping),
     // which is lib/ code shared with human renders and stays plain Error; the
     // AI tools pre-flight that case before reaching here.
@@ -47,12 +47,12 @@ export async function resolveBundleFromMetricAndConfig(
       metricId: metric.id,
       resultsObjectId: metric.resultsObjectId,
       mostGranularTimePeriodColumnInResultsFile: metric.mostGranularTimePeriodColumnInResultsFile,
-      moduleLastRun: "", // matches the current from_metric adapter; provenance is informational
       resultsValueForViz: {
         formatAs: metric.formatAs,
         valueProps: metric.valueProps,
         valueLabelReplacements: metric.valueLabelReplacements,
       },
+      datasetFamily: metric.datasetFamily,
       fetchConfig: resFetch.data,
     },
     config,

@@ -1,5 +1,5 @@
 // ============================================================================
-// Visualization Config & Metric Schemas — INSTALLED SHAPE
+// Visualization Config & Metric Schemas: INSTALLED SHAPE
 //
 // This file is the foundation for visualization-related schemas:
 //   - configDStrict, configSStrict (used by PO configs and viz presets)
@@ -90,7 +90,7 @@ export function inferPeriodFormatFromValue(
   return pt === undefined ? undefined : periodTypeToPeriodOption(pt);
 }
 
-// Returns the shared period format of a min/max pair — but only when both values
+// Returns the shared period format of a min/max pair: but only when both values
 // self-identify AND agree; otherwise undefined. The save-time refine rejects on
 // undefined; read-time consumers skip the period filter.
 export function inferPeriodFormatFromValuesIfTheSame(
@@ -102,7 +102,7 @@ export function inferPeriodFormatFromValuesIfTheSame(
   return fMin !== undefined && fMin === fMax ? fMin : undefined;
 }
 
-// Strict period filter schema — each filterType has exactly the fields it requires
+// Strict period filter schema: each filterType has exactly the fields it requires
 const boundedFilterBase = z.object({
   min: z.number().int(),
   max: z.number().int(),
@@ -232,7 +232,7 @@ export const configSStrict = z
     specialBarChartDataLabels: z.enum(["all-values", "threshold-values"]),
     specialCoverageChart: z.boolean(),
     specialDisruptionsChart: z.boolean(),
-    specialScorecardTable: z.boolean(),
+    specialDisruptionsChartV2: z.boolean(),
     verticalTickLabels: z.boolean(),
     horizontal: z.boolean().optional(),
     allowVerticalColHeaders: z.boolean(),
@@ -338,6 +338,15 @@ export const postAggregationExpressionStrict = z.object({
   expression: z.string(),
 });
 
+// Declared catalog evaluation (PLAN_1a §1.6): the wire/display split that
+// PAE metrics have, but declared rather than inferred. The named ingredient
+// props are SUM-aggregated on the wire; the server then applies each
+// indicator's own catalog expression to the aggregated row and returns one
+// `value` column, which is why such a metric's valueProps stay ["value"].
+export const catalogExpressionEvaluationStrict = z.object({
+  ingredientProps: z.array(z.string()).min(1),
+});
+
 export const metricStrict = z.object({
   id: z.string(),
   label: z.string(),
@@ -348,6 +357,7 @@ export const metricStrict = z.object({
   requiredDisaggregationOptions: z.array(disaggregationOption),
   valueLabelReplacements: z.record(z.string(), z.string()).nullable(),
   postAggregationExpression: postAggregationExpressionStrict.nullable(),
+  catalogExpressionEvaluation: catalogExpressionEvaluationStrict.nullable(),
   resultsObjectId: z.string(),
   aiDescription: metricAIDescriptionInstalledStrict.nullable(),
   vizPresets: z.array(vizPresetInstalledStrict),
@@ -376,6 +386,9 @@ export type RelativePeriodFilter = Exclude<
 export type ValueFunc = z.infer<typeof valueFuncStrict>;
 export type PostAggregationExpression = z.infer<
   typeof postAggregationExpressionStrict
+>;
+export type CatalogExpressionEvaluation = z.infer<
+  typeof catalogExpressionEvaluationStrict
 >;
 export type VizPresetTextConfig = z.infer<
   typeof vizPresetTextConfigInstalledStrict

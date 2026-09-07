@@ -4,7 +4,8 @@ On-demand context for the AI about ICEH (International Center for Equity in Heal
 survey data and the equity analyses FASTR computes from it. This is **reference
 knowledge**, not a task — load it when a user works with ICEH data or asks to build
 an equity profile, and cite it for definitions, methods, and caveats. For the
-step-by-step report recipe, see the ICEH equity-profile prompt.
+step-by-step report recipe, load the `iceh-equity-profile` topic where get_info
+lists it.
 
 ## What ICEH data is
 

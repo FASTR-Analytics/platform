@@ -15,7 +15,7 @@ import { resolvePieSilhouette } from "./pie_geometry.ts";
 
 // Two candidate slot scales this close are a tie, and ties break toward the
 // ideal pass's choice so a figure handed exactly its ideal height keeps the
-// grid it was sized for (plan D9).
+// grid it was sized for.
 const SLOT_SCALE_TIE_EPSILON = 1e-9;
 
 export function allPieIndices(data: PieDataTransformed): PieIndices[] {
@@ -41,7 +41,7 @@ export function allPieIndices(data: PieDataTransformed): PieIndices[] {
 }
 
 // The most slices any one pie draws (remainder slice included) — the count
-// that sizes D7's slice-gap floor term. Angles are geometry-independent, so a
+// that sizes the slice-gap floor term. Angles are geometry-independent, so a
 // unit disc is enough.
 export function maxSlicesPerPie(
   data: PieDataTransformed,
@@ -96,7 +96,7 @@ type SlotObjectiveContext = {
   labelBudget: PieLabelFloorBudget;
 };
 
-// D9's objective: the content scale the best-fitting pie achieves in a slot
+// The slot objective: the content scale the best-fitting pie achieves in a slot
 // grid of c columns — content, not slot, so the pie has to fit its label
 // gutter beside it and its header above or below it.
 function slotScaleAt(
@@ -194,7 +194,7 @@ export function idealSubChartHeightAt(
 }
 
 // The ideal pass's "auto" column count: the self-consistent wrap — the
-// candidate that reproduces itself when D9's objective is evaluated at the
+// candidate that reproduces itself when the slot objective is evaluated at the
 // height it implies. Plain ceil(sqrt(n)) is only right when slots are square,
 // which they are not once labels and headers pad them; an inconsistent wrap
 // would make the measure pass re-wrap at the very height the ideal was
@@ -218,7 +218,7 @@ export function resolveIdealSlotCols(
       return c;
     }
   }
-  // Possible only at a tie; D9's tie-break points the measure pass here too.
+  // Possible only at a tie; the measure pass's tie-break points here too.
   return Math.ceil(Math.sqrt(n));
 }
 

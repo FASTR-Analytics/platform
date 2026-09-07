@@ -6,6 +6,7 @@
 import { For, type JSX, Show } from "solid-js";
 import type { ListItem } from "../list_selection/list_item_types.ts";
 import type { Intent } from "../types.ts";
+import { type DataAttrs, splitDataAttrs } from "../data_attrs.ts";
 import { IconRenderer } from "./icon_renderer.tsx";
 
 // Button group item classes composed from utility classes and component classes
@@ -59,13 +60,14 @@ export type ButtonGroupProps<T extends string, M = never> = {
   size?: "sm";
   allowDeselect?: boolean;
   onBackground?: Intent;
-};
+} & DataAttrs;
 
 export function ButtonGroup<T extends string, M = never>(
   p: ButtonGroupProps<T, M>,
 ) {
+  const [dataAttrs] = splitDataAttrs(p);
   return (
-    <div class="">
+    <div {...dataAttrs} class="">
       <Show when={p.label}>
         <label class="ui-label block">{p.label}</label>
       </Show>

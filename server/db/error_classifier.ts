@@ -74,19 +74,9 @@ export function classifyDatabaseError(e: unknown): CategorizedError {
   // Fall back to PostgreSQL error pattern matching
   const relationMatch = technicalMessage.match(/relation "([^"]+)" does not exist/);
   if (relationMatch) {
-    const tableName = relationMatch[1];
-    if (tableName.startsWith("ro_")) {
-      return {
-        category: ERROR_CATEGORY.DATA_NOT_FOUND,
-        userMessage:
-          "The data for this visualization is not available. The module may need to be run.",
-        technicalMessage,
-        suggestedAction: "Run the module to generate the required data.",
-      };
-    }
     return {
       category: ERROR_CATEGORY.DATA_NOT_FOUND,
-      userMessage: `Database table "${tableName}" does not exist`,
+      userMessage: `Database table "${relationMatch[1]}" does not exist`,
       technicalMessage,
     };
   }
@@ -102,8 +92,9 @@ export function classifyDatabaseError(e: unknown): CategorizedError {
     };
   }
 
-  // DuckDB (run path) twins of the two Postgres patterns above — same
-  // categories/messages so both planes degrade identically.
+  // DuckDB (run path): a missing `ro_` view means the package holds no query
+  // data for that results object; other missing tables and unbound columns
+  // map to the same categories as their Postgres twins above.
   const duckTableMatch = technicalMessage.match(
     /Catalog Error: Table with name (\w+) does not exist/,
   );

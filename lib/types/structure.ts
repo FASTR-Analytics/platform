@@ -1,13 +1,31 @@
+import { z } from "zod";
 import { CsvDetails, OptionalFacilityColumn } from "./instance.ts";
 
 // Which facility registry an import targets. Admin areas are shared; each
 // family has its own facilities table and its own import flow.
 export type FacilityFamily = "hmis" | "hfa";
 
+// The admin area levels below the country that data can be held at; the
+// family's adminDepth caps which of them an instance uses.
+export const ALL_ADMIN_AREA_LEVELS = [2, 3, 4] as const;
+export type AdminAreaLevel = (typeof ALL_ADMIN_AREA_LEVELS)[number];
+export const adminAreaLevelSchema = z.literal(ALL_ADMIN_AREA_LEVELS);
+
+export function isAdminAreaLevel(value: number): value is AdminAreaLevel {
+  return ALL_ADMIN_AREA_LEVELS.some((level) => level === value);
+}
+
+export function parseAdminAreaLevel(value: number): AdminAreaLevel {
+  if (isAdminAreaLevel(value)) {
+    return value;
+  }
+  throw new Error(`Not an admin area level: ${value}`);
+}
+
 // The safe snapshot written to step_1_result once a structure import
 // confirms the connection: which stored instance DHIS2 connection (by URL)
 // was confirmed at step 1 (PLAN_DHIS2_CREDENTIAL_STORE_CONSOLIDATION Phase 2
-// — structure import is saved-only, no credentials are stored per-attempt).
+//: structure import is saved-only, no credentials are stored per-attempt).
 export type StructureDhis2ConnectionSnapshot = {
   url: string;
 };
@@ -218,12 +236,12 @@ export type StructureDhis2OrgUnitMetadata = {
 // ============================================================================
 
 // Import CSV is LONG format: two user-mapped columns (facility_id, weight),
-// one row per facility. The time point is chosen in the UI — one time point
+// one row per facility. The time point is chosen in the UI: one time point
 // per import. A blank weight cell = facility not in that round's sample;
 // skipped rather than stored (decided 2026-06-11: no surveyed-but-excluded
 // case exists, so no 0/NULL weights are ever stored). The EXPORT is wide:
 // facility_id, then one column per time point label.
-// Coverage is measured against facilities WITH DATA in the round — those are
+// Coverage is measured against facilities WITH DATA in the round: those are
 // the ones that enter the analysis (not-sampled facilities have no data rows
 // and need no weight). Partial coverage is the footgun to show.
 export type HfaWeightsCoverage = {
@@ -250,10 +268,11 @@ export type StructureIntegrateStrategy =
   | { type: "add_and_update" }
   | { type: "update_existing_only" };
 
-// Per admin-area level: how many stored geojson feature area_ids no longer
-// match any admin_areas_N row (an import that renamed areas orphans them;
-// repairable in the map boundaries editor).
+// Per map (family + level): how many stored geojson feature area_ids no
+// longer match any row in that family's admin tree (an import that renamed
+// areas orphans them; repairable in the map boundaries editor).
 export type GeojsonOrphanedAreaIds = {
+  family: FacilityFamily;
   adminAreaLevel: number;
   orphanedCount: number;
 };

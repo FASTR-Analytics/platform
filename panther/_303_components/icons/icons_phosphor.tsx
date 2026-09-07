@@ -125,6 +125,14 @@ function PhBadge(p: { class?: string }) {
   );
 }
 
+function PhBell(p: { class?: string }) {
+  return (
+    <PhosphorWrapper class={p.class}>
+      <path d="M221.8,175.94C216.25,166.38,208,139.33,208,104a80,80,0,1,0-160,0c0,35.34-8.26,62.38-13.81,71.94A16,16,0,0,0,48,200H88.81a40,40,0,0,0,78.38,0H208a16,16,0,0,0,13.8-24.06ZM128,216a24,24,0,0,1-22.62-16h45.24A24,24,0,0,1,128,216ZM48,184c7.7-13.24,16-43.92,16-80a64,64,0,1,1,128,0c0,36.05,8.28,66.73,16,80Z" />
+    </PhosphorWrapper>
+  );
+}
+
 function PhBox(p: { class?: string }) {
   return (
     <PhosphorWrapper class={p.class}>
@@ -453,6 +461,14 @@ function PhPackage(p: { class?: string }) {
   );
 }
 
+function PhPaperclip(p: { class?: string }) {
+  return (
+    <PhosphorWrapper class={p.class}>
+      <path d="M209.66,122.34a8,8,0,0,1,0,11.32l-82.05,82a56,56,0,0,1-79.2-79.21L147.67,35.73a40,40,0,1,1,56.61,56.55L105,193A24,24,0,1,1,71,159L154.3,74.38A8,8,0,1,1,165.7,85.6L82.39,170.31a8,8,0,1,0,11.27,11.36L192.93,81A24,24,0,1,0,159,47L59.76,147.68a40,40,0,1,0,56.53,56.62l82.06-82A8,8,0,0,1,209.66,122.34Z" />
+    </PhosphorWrapper>
+  );
+}
+
 function PhPencil(p: { class?: string }) {
   return (
     <PhosphorWrapper class={p.class}>
@@ -721,6 +737,7 @@ export const _ICON_MAP_PHOSPHOR: Record<IconName, IconComponent> = {
   arrowsDiagonalMinimize2: PhArrowsDiagonalMinimize2,
   backspace: PhBackspace,
   badge: PhBadge,
+  bell: PhBell,
   box: PhBox,
   calendar: PhCalendar,
   chart: PhChart,
@@ -762,6 +779,7 @@ export const _ICON_MAP_PHOSPHOR: Record<IconName, IconComponent> = {
   moreVertical: PhMoreVertical,
   move: PhMove,
   package: PhPackage,
+  paperclip: PhPaperclip,
   pencil: PhPencil,
   photo: PhPhoto,
   plus: PhPlus,

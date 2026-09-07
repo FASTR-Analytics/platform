@@ -9,7 +9,7 @@ import type { SetStoreFunction } from "solid-js/store";
 
 // Applies a ConditionalFormatting union to tempConfig.s by fanning it out
 // into individual cf* field writes. Each write is its own setStore call so
-// Solid's fine-grained reactivity fires per-field — matches the pattern
+// Solid's fine-grained reactivity fires per-field: matches the pattern
 // used for every other flat field on s.
 //
 // Wrapped in batch() so all field writes apply atomically: reactive effects

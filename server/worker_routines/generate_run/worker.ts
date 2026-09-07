@@ -2,7 +2,11 @@ import type { Sql } from "postgres";
 import { createWorkerReadConnection } from "../../db/mod.ts";
 import { markRunGenerationFailed } from "../../db/instance/run_generation.ts";
 import { publishFailedRunDirOrSweep } from "../../runs/mod.ts";
-import { notifyRunProgress } from "./notify_run.ts";
+import {
+  notifyInstanceProjectsLastUpdated,
+  notifyInstanceRunProgress,
+  notifyInstanceRunsCatalogUpdated,
+} from "../../task_management/notify_instance_updated.ts";
 import { runGenerationPipeline } from "./pipeline.ts";
 import {
   RUN_GENERATION_ENDED_CHANNEL,
@@ -17,7 +21,7 @@ const broadcastEnded = new BroadcastChannel(RUN_GENERATION_ENDED_CHANNEL);
     console.error("Generate-run worker error:", error);
     // Surfaces to the host's error listener (launch.ts), which marks the run
     // failed, kills any containers, and terminates this worker. Never
-    // self.close() here — closing discards pending report-backs.
+    // self.close() here: closing discards pending report-backs.
     self.reportError(error);
   });
 };
@@ -47,6 +51,14 @@ async function run(std: GenerateRunStartData) {
       );
       await failGeneration(mainDb, std, e);
     }
+    // One notify site for finalize AND fail (ruling 3): by this point either
+    // publishReadyRun or markRunGenerationFailed has updated the row. A
+    // publish also repointed the attach targets' projects.run_id, which the
+    // project cards render.
+    notifyInstanceRunsCatalogUpdated();
+    if (successOrError === "success") {
+      notifyInstanceProjectsLastUpdated(new Date().toISOString());
+    }
     const ended: GenerateRunEndedData = {
       runId: std.runId,
       successOrError,
@@ -58,9 +70,9 @@ async function run(std: GenerateRunStartData) {
 }
 
 // A failed generation never replaces the serving run: publish the partial
-// workspace for inspection (no manifest — see publishFailedRunDirOrSweep),
+// workspace for inspection (no manifest, see publishFailedRunDirOrSweep),
 // mark the catalog row failed (errorDetail into progress), push the final
-// progress over SSE. The attached run — if any — keeps serving untouched.
+// progress over SSE. The attached run, if any, keeps serving untouched.
 async function failGeneration(
   mainDb: Sql,
   std: GenerateRunStartData,
@@ -73,6 +85,6 @@ async function failGeneration(
     e instanceof Error ? e.message : String(e),
   );
   if (progress !== null) {
-    notifyRunProgress(std.attachTargetProjectIds, std.runId, progress);
+    notifyInstanceRunProgress(std.runId, progress);
   }
 }

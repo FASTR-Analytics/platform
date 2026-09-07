@@ -8,9 +8,11 @@ import type { CustomMarkdownStyleOptions } from "../../_004_markdown_style/mod.t
 import { getColor } from "../../_001_color/mod.ts";
 import type { JSX } from "solid-js";
 
-// Static class string - always included in Tailwind build
-// Uses CSS custom properties for dynamic values
-export const MARKDOWN_BASE_STYLES = `
+// Static class strings - always included in Tailwind build
+// Uses CSS custom properties for dynamic values. Not exported: markdownClasses
+// below is the single entry point, so the app/document fragment can never be
+// forgotten or mismatched.
+const MARKDOWN_BASE_STYLES = `
   grid
   grid-cols-[minmax(1rem,1fr)_min(var(--md-content-width,100%),calc(100%-2rem))_minmax(1rem,1fr)]
   [&>*]:col-start-2
@@ -76,17 +78,13 @@ export const MARKDOWN_BASE_STYLES = `
   [&_code]:[font-family:var(--md-code-family)] [&_code]:[font-weight:var(--md-code-weight)]
   [&_code]:[font-style:var(--md-code-style)]
   [&_code]:leading-[var(--md-code-lh)]
-  [&_code]:bg-[color:var(--md-code-bg)] [&_code]:rounded
-  [&_code]:px-[0.4em] [&_code]:py-[0.2em]
   [&_code]:text-[length:var(--md-code-size)] [&_code]:text-[color:var(--md-code-color)]
 
   [&_pre]:[font-family:var(--md-code-family)] [&_pre]:[font-weight:var(--md-code-weight)]
   [&_pre]:[font-style:var(--md-code-style)]
   [&_pre]:leading-[var(--md-code-lh)]
-  [&_pre]:bg-[color:var(--md-code-bg)] [&_pre]:rounded
   [&_pre]:px-[var(--md-code-px)] [&_pre]:py-[var(--md-code-py)] [&_pre]:my-[var(--md-code-my)]
   [&_pre]:overflow-x-auto
-  [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:rounded-none
   [&_pre_code]:text-[length:var(--md-code-size)] [&_pre_code]:text-[color:var(--md-code-color)]
 
   [&_blockquote]:[font-family:var(--md-bq-family)] [&_blockquote]:[font-weight:var(--md-bq-weight)]
@@ -118,10 +116,44 @@ export const MARKDOWN_BASE_STYLES = `
 
   [&_strong]:font-700 [&_em]:italic
 
-  [&_.katex-html]:[text-align:var(--md-math-align)]
 `
   .replace(/\s+/g, " ")
   .trim();
+
+// The two looks differ structurally on code, not just by value, so the
+// difference lives in the class layer — never as zeroed-out vars. App look:
+// inline code is a word, not a container — face alone. A multi-line block is
+// an in-flow container: base-100 fill + bare border + rounded, the same
+// treatment as markdown table cells, so the border always sits on the edge
+// of a base-100 surface rather than naked on a wash (a lone border color
+// does not read inside -subtle grounds). Document look: the chip mirrors the
+// document model's code background, and pre_code resets the inline chip
+// inside blocks.
+const MARKDOWN_APP_CODE_STYLES = `
+  [&_pre]:bg-base-100 [&_pre]:border [&_pre]:rounded
+`
+  .replace(/\s+/g, " ")
+  .trim();
+
+const MARKDOWN_DOCUMENT_CODE_STYLES = `
+  [&_code]:bg-[color:var(--md-code-bg)] [&_code]:rounded
+  [&_code]:px-[0.4em] [&_code]:py-[0.2em]
+  [&_pre]:bg-[color:var(--md-code-bg)] [&_pre]:rounded
+  [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:rounded-none
+`
+  .replace(/\s+/g, " ")
+  .trim();
+
+// The one entry point: pairs the shared base with the fragment for the look
+// the caller chose, on the same undefined-vs-object seam deriveMarkdownCssVars
+// keys on. Callers pass the same style value to both.
+export function markdownClasses(
+  style?: CustomMarkdownStyleOptions | null,
+): string {
+  return `${MARKDOWN_BASE_STYLES} ${
+    style == null ? MARKDOWN_APP_CODE_STYLES : MARKDOWN_DOCUMENT_CODE_STYLES
+  }`;
+}
 
 function opacityToHex(opacity: number): string {
   if (opacity >= 1) return "";
@@ -254,7 +286,10 @@ export function deriveMarkdownCssVars(
     "--md-bq-gap": `${em.blockquote.paragraphGap}em`,
     "--md-bq-my": `${em.margins.blockquote.top}em`,
 
-    "--md-code-family": merged.text.code.font.fontFamily,
+    // The model's code font may not be @font-face'd by the app; fall back to
+    // the app mono stack rather than the browser default face.
+    "--md-code-family":
+      `"${merged.text.code.font.fontFamily}", var(--font-mono)`,
     "--md-code-weight": `${merged.text.code.font.weight}`,
     "--md-code-style": merged.text.code.font.italic ? "italic" : "normal",
     "--md-code-lh": `${merged.text.code.lineHeight}`,
@@ -283,8 +318,6 @@ export function deriveMarkdownCssVars(
     "--md-table-cell-py": `${em.table.cellPaddingV}em`,
     "--md-table-header-bg": merged.table.headerShadingColor +
       opacityToHex(merged.table.headerShadingOpacity),
-
-    "--md-math-align": merged.math.displayAlign,
   };
 
   return vars as JSX.CSSProperties;

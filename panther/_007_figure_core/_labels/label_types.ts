@@ -68,9 +68,9 @@ export type LabelGeometry = {
   // figure's calloutMargin. Distinct from LabelCollisionConfig.gap, which is
   // label-to-label spacing inside a stack.
   outsideClearance: number;
-  // Present only when this figure has opted into nearest-point placement
-  // (plan N7). Absent → the flank placer runs, bit-for-bit as before. The
-  // figure decides this once, per cell, at the harmonised content scale.
+  // Present only when this figure has opted into nearest-point placement.
+  // Absent → the flank placer runs. The figure decides this once, per cell,
+  // at the harmonised content scale.
   outsideTrack?: {
     track: LabelTrack;
     clearanceFloor: number;
@@ -93,7 +93,6 @@ export type FigureLabelMeta = {
   paneIndex: number;
   tierIndex: number;
   laneIndex: number;
-  // Pie only: which pie in the sub-chart's indicator grid. Absent for map,
-  // whose keys and meta stay exactly as before.
+  // Pie only: which pie in the sub-chart's indicator grid. Absent for map.
   indicatorIndex?: number;
 };

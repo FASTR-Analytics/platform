@@ -23,7 +23,7 @@ export type FigureFitReport = {
 };
 
 // Base interface for measured objects
-export interface Measured<TItem> {
+export type Measured<TItem> = {
   item: TItem;
   bounds: RectCoordsDims;
   // Set by shrink-to-fit when the content shrank to the min-font floor and still
@@ -31,7 +31,7 @@ export interface Measured<TItem> {
   cramped?: boolean;
   // Post-measure fit metrics. Undefined when autofit was disabled.
   fitReport?: FigureFitReport;
-}
+};
 
 // Height constraints for layout system
 export type HeightConstraints = {
@@ -43,7 +43,7 @@ export type HeightConstraints = {
 };
 
 // Synchronous renderer interface
-export interface Renderer<TItem, TMeasured extends Measured<TItem>> {
+export type Renderer<TItem, TMeasured extends Measured<TItem>> = {
   isType(item: unknown): item is TItem;
 
   measure(
@@ -65,10 +65,10 @@ export interface Renderer<TItem, TMeasured extends Measured<TItem>> {
     width: number,
     item: TItem,
   ): HeightConstraints;
-}
+};
 
 // Asynchronous renderer interface
-export interface AsyncRenderer<TItem, TMeasured extends Measured<TItem>> {
+export type AsyncRenderer<TItem, TMeasured extends Measured<TItem>> = {
   isType(item: unknown): item is TItem;
 
   measure(
@@ -90,4 +90,4 @@ export interface AsyncRenderer<TItem, TMeasured extends Measured<TItem>> {
     width: number,
     item: TItem,
   ): Promise<HeightConstraints>;
-}
+};

@@ -3,19 +3,19 @@ import { cfStorageSchema } from "./conditional_formatting_standalone.ts";
 import { ALL_DISAGGREGATION_OPTIONS } from "./disaggregation_options.ts";
 
 // ============================================================================
-// Module Definition — GITHUB SHAPE.
+// Module Definition: GITHUB SHAPE.
 //
 // Strict schema for module definitions as authored in GitHub repos. Validated
 // at fetch time by load_module.ts. NO preprocess, NO drift tolerance, NO
 // defaults for missing fields: incomplete shapes get rejected with clear error
 // paths. CAVEAT: zod's default strip mode silently DROPS unknown keys rather
-// than rejecting them — a definition.json carrying a renamed-away legacy key
+// than rejecting them: a definition.json carrying a renamed-away legacy key
 // (e.g. includeNationalForAdminArea2) loads with that setting silently lost.
 // Field renames must therefore land in the authored definition.json files at
 // the same time as here.
 //
 // MUST NOT import from _module_definition_installed.ts or _metric_installed.ts.
-// GitHub and installed schemas are independent — shared atoms live in
+// GitHub and installed schemas are independent: shared atoms live in
 // foundational files (conditional_formatting.ts, disaggregation_options.ts).
 // Where sub-shapes are structurally identical to the installed file, they are
 // duplicated here on purpose.
@@ -29,11 +29,11 @@ const translatableStringGithub = z.object({
   pt: z.string().optional(),
 });
 
-const scriptGenerationTypeGithub = z.enum([
-  "template",
-  "hfa",
-  "calculated_indicators",
-]);
+// "calculated_indicators" is gone from the AUTHORING vocabulary (PLAN_1a
+// §1.11): the module that used it is dropped, and its replacement m012 is an
+// ordinary "template" R module. The installed enum keeps the value, because
+// stored module-definition blobs parse forever.
+const scriptGenerationTypeGithub = z.enum(["template", "hfa"]);
 
 const dataSourceDatasetGithub = z.object({
   sourceType: z.literal("dataset"),
@@ -48,9 +48,22 @@ const dataSourceResultsObjectGithub = z.object({
   moduleId: z.string(),
 });
 
+// The run's person-years file (inputs/population.csv): monthly person-years
+// per population type at the population level (SYSTEM_08 "population.csv"),
+// expanded at capture from the instance population store. It is not a
+// dataset family: it accompanies the HMIS family and is
+// written on every HMIS capture (header-only when no expression names a
+// population), so a module declaring it needs the hmis dataset in the run
+// and nothing else.
+const dataSourcePopulationGithub = z.object({
+  sourceType: z.literal("population"),
+  replacementString: z.string(),
+});
+
 const dataSourceGithub = z.discriminatedUnion("sourceType", [
   dataSourceDatasetGithub,
   dataSourceResultsObjectGithub,
+  dataSourcePopulationGithub,
 ]);
 
 const moduleParameterInputGithub = z.discriminatedUnion("inputType", [
@@ -99,6 +112,16 @@ const postAggregationExpressionGithub = z.object({
   expression: z.string(),
 });
 
+// Declared catalog evaluation (PLAN_1a §1.6). A metric that declares it reads
+// an indicator_values results object: the named ingredient props are what
+// travels on the wire (SUM-aggregated, one column each), and the server then
+// applies each indicator's OWN catalog expression to the aggregated row,
+// returning a single `value` column. The metric's valueProps stay ["value"]:
+// the ingredients are never a user-facing prop picker.
+const catalogExpressionEvaluationGithub = z.object({
+  ingredientProps: z.array(z.string()).min(1),
+});
+
 const presentationOptionGithub = z.enum([
   "timeseries",
   "table",
@@ -118,7 +141,7 @@ const disaggregationDisplayOptionGithub = z.enum([
   "mapArea",
 ]);
 
-// Strict period filter schema — each filterType has exactly the fields it requires
+// Strict period filter schema: each filterType has exactly the fields it requires
 const boundedFilterBaseGithub = z.object({
   min: z.number().int(),
   max: z.number().int(),
@@ -180,10 +203,10 @@ const configDGithubStrict = z
     periodFilter: periodFilterGithub,
     selectedReplicantValue: z.string().optional(),
   });
-// Note: Duplicate disDisplayOpt/disOpt entries are allowed — UI handles gracefully.
+// Note: Duplicate disDisplayOpt/disOpt entries are allowed. UI handles gracefully.
 
 // configS for github vizPresets: every field optional via .partial(). Github
-// authors don't need to repeat all the cf* defaults — they just override what
+// authors don't need to repeat all the cf* defaults: they just override what
 // they want. CF storage keys come from cfStorageSchema (shared foundational
 // primitive). If you change this schema, keep the corresponding
 // configSStrict in _module_definition_installed.ts in lockstep.
@@ -223,7 +246,7 @@ const configSGithubStrict = z
     specialBarChartDataLabels: z.enum(["all-values", "threshold-values"]),
     specialCoverageChart: z.boolean(),
     specialDisruptionsChart: z.boolean(),
-    specialScorecardTable: z.boolean(),
+    specialDisruptionsChartV2: z.boolean(),
     verticalTickLabels: z.boolean(),
     horizontal: z.boolean().optional(),
     allowVerticalColHeaders: z.boolean(),
@@ -309,6 +332,7 @@ const metricDefinitionGithub = z.object({
   requiredDisaggregationOptions: z.array(disaggregationOptionGithub),
   valueLabelReplacements: z.record(z.string(), z.string()),
   postAggregationExpression: postAggregationExpressionGithub.nullable(),
+  catalogExpressionEvaluation: catalogExpressionEvaluationGithub.nullable(),
   resultsObjectId: z.string(),
   aiDescription: metricAIDescriptionGithub.nullable(),
   importantNotes: translatableStringGithub.nullable(),
@@ -334,8 +358,8 @@ const resultsObjectDefinitionGithub = z.object({
 // Two kinds (PLAN_RESULTS_RUNS item 2 ruling, 2026-07-13; re-cut 2026-08-03):
 // a plain string names an instance-uploaded asset; an object pins a
 // modules-repo data file by repo path + sha256. The file is fetched at the
-// SAME gitRef the definition itself was resolved at — definition and data can
-// never disagree, because they are read from one commit — and `sha256`
+// SAME gitRef the definition itself was resolved at, definition and data can
+// never disagree, because they are read from one commit, and `sha256`
 // (computed by the modules-repo build from the working-tree file) is the
 // integrity check and content-addressed cache key. There is no per-asset
 // commit field any more; legacy definitions carrying one parse fine (strip)
@@ -343,8 +367,8 @@ const resultsObjectDefinitionGithub = z.object({
 //
 // The 1.65.0 hotfix declared repoPath/sha256 OPTIONAL and collapsed pins to
 // names via getAssetName (main consumed assets by name only). On this branch
-// the pin is honoured — repo_assets.ts fetches by repoPath and verifies
-// sha256 — so both fields are required and no collapse exists (2026-08-09
+// the pin is honoured, repo_assets.ts fetches by repoPath and verifies
+// sha256, so both fields are required and no collapse exists (2026-08-09
 // merge ruling).
 const repoAssetToImportGithub = z.object({
   name: z.string(),
@@ -353,7 +377,7 @@ const repoAssetToImportGithub = z.object({
 });
 const assetToImportGithub = z.union([z.string(), repoAssetToImportGithub]);
 
-// ── moduleDefinition (github — full file) ───────────────────────────
+// ── moduleDefinition (github: full file) ───────────────────────────
 
 export const moduleDefinitionGithubSchema = z
   .object({
@@ -449,13 +473,16 @@ export type DisaggregationOption = z.infer<typeof disaggregationOptionGithub>;
 export type PostAggregationExpression = z.infer<
   typeof postAggregationExpressionGithub
 >;
+export type CatalogExpressionEvaluation = z.infer<
+  typeof catalogExpressionEvaluationGithub
+>;
 export type VizPresetTextConfig = z.infer<
   typeof vizPresetTextConfigGithubStrict
 >;
 export type VizPreset = z.infer<typeof vizPresetGithub>;
 export type MetricAIDescription = z.infer<typeof metricAIDescriptionGithub>;
 export type RepoAssetToImportGithub = z.infer<typeof repoAssetToImportGithub>;
-// Authoring shape in _core.ts — the build injects sha256.
+// Authoring shape in _core.ts: the build injects sha256.
 export type RepoAssetPin = Omit<RepoAssetToImportGithub, "sha256">;
 export type ModuleDefinitionCore =
   & Pick<

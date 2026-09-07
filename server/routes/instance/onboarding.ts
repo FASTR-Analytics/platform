@@ -10,7 +10,7 @@ export const routesOnboarding = new Hono();
 // ("tour_<event>:<tourId>") so per-tour start/finish/abort counts survive the
 // 7-day rollup into user_logs_aggregate; the details blob carries the rest
 // (page, trigger, and for aborts the step reached and why it ended) for the
-// raw window. Only start/finish/abort are recorded — per-step events would
+// raw window. Only start/finish/abort are recorded: per-step events would
 // multiply the row count for little extra signal, since an abort already
 // says how far the user got.
 defineRoute(routesOnboarding, "recordTourEvent", requireGlobalPermission(), async (c, { body }) => {

@@ -1,51 +1,43 @@
 import { ensureDir } from "@std/fs";
-import { dirname, join } from "@std/path";
+import { dirname } from "@std/path";
 import { assertNotUndefined } from "@timroberton/panther";
 import { Sql } from "postgres";
 import {
-  _SANDBOX_DIR_PATH,
-  _SANDBOX_DIR_PATH_POSTGRES_INTERNAL,
-} from "../../exposed_env_vars.ts";
-import {
-  APIResponseNoData,
   APIResponseWithData,
+  CommonIndicatorCatalogError,
+  type CommonIndicatorCatalogRow,
   getEnabledOptionalFacilityColumns,
-  InstanceConfigFacilityColumns,
+  StructureSchema,
   isValidPeriodId,
+  resolveCommonIndicatorCatalog,
   throwIfErrWithData,
-  type CalculatedIndicator,
   type DatasetHmisInfoInProject,
-  type DatasetType,
+  POPULATION_TYPE_IDS,
 } from "lib";
-import { DBIndicator } from "../instance/_main_database_types.ts";
-import { getCalculatedIndicators } from "../instance/calculated_indicators.ts";
+import { getCommonIndicators } from "../instance/indicators.ts";
 import {
-  getFacilityColumnsConfig,
-  getMaxAdminAreaConfig,
+  getStructureSchema,
 } from "../instance/config.ts";
 import { getCurrentDatasetHmisVersion } from "../instance/dataset_hmis.ts";
 import { assertNoRunningDatasetHmisImportRun } from "../instance/dataset_hmis_import_runs.ts";
 import {
-  getCalculatedIndicatorsVersion,
+  getBaseIndicatorMappingsVersion,
   getIndicatorMappingsVersion,
 } from "../instance/instance.ts";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
 
-// Where a dataset attach writes its extract CSV, per caller (the item-4
-// per-caller pattern, extended to the COPY TO by work item 7): the Postgres
-// server executes `COPY … TO postgresPath` (a path inside the Postgres
-// container), and denoPath is the SAME file as this process sees it. The
-// two must resolve to one file through the container mounts. createProject
-// passes the sandbox pair (the legacy dual-write plane); the run pipeline
-// passes the run tmp dir pair and mirrors the extract back into the sandbox.
+// Where a dataset capture writes its extract CSV: the Postgres server executes
+// `COPY … TO postgresPath` (a path inside the Postgres container), and
+// denoPath is the SAME file as this process sees it. The two must resolve to
+// one file through the container mounts; the run pipeline passes the run tmp
+// dir pair.
 export type DatasetCsvTarget = {
   postgresPath: string;
   denoPath: string;
 };
 
 // Ensures the target's parent dir exists and is writable by the Postgres
-// container user before `COPY … TO` runs (same 0o777 the sandbox datasets
-// dir has always used).
+// container user before `COPY … TO` runs.
 export async function ensureDatasetCsvTargetDir(
   csvTarget: DatasetCsvTarget,
 ): Promise<void> {
@@ -55,15 +47,15 @@ export async function ensureDatasetCsvTargetDir(
 }
 
 // computeDatasetHmisRunCapture does every instance-DB read, validation, and
-// the COPY TO export — and returns the captured rows the caller needs (run
+// the COPY TO export, and returns the captured rows the caller needs (run
 // input mirrors, script-generation inputs, manifest datasets info) WITHOUT
-// touching any project DB. Capture is always the FULL dataset — entire
+// touching any project DB. Capture is always the FULL dataset: entire
 // period range, all indicators, all admin areas, all facility
 // types/ownerships (PLAN_FULL_CAPTURE_GENERATION ruling 2026-08-03):
 // the R scripts need the full dataset to compute correctly, and per-project
 // subsetting is an attach-time query filter, never a generation input.
 
-// The facilities_{hmis,hfa} column set, in project-table order — the run's
+// The facilities_{hmis,hfa} column set, in project-table order: the run's
 // facilities parquet is built from these rows directly (no project table to
 // export from under the no-dual-write model).
 export const PROJECT_FACILITY_COLUMN_NAMES = [
@@ -101,49 +93,17 @@ export type ProjectFacilityRow = {
 export type DatasetHmisRunCapture = {
   info: DatasetHmisInfoInProject;
   lastUpdated: string;
-  indicators: {
-    indicator_common_id: string;
-    indicator_common_label: string;
-  }[];
+  // The v2 `indicators.json` mirror: the WHOLE common dictionary, resolved.
+  // (v1 carried only the commons that had mappings, and a separate calculated
+  // snapshot beside it.)
+  indicators: CommonIndicatorCatalogRow[];
   facilities: ProjectFacilityRow[];
-  calculatedIndicators: CalculatedIndicator[];
+  // The extract's month range and the structure's finest admin level: what
+  // the person-years expansion (prepare_inputs) needs to know which months
+  // and which areas every referenced population must cover.
+  periodRange: { min: number; max: number };
+  adminDepth: number;
 };
-
-// The calculated_indicators_snapshot row shape (denormalized denom) — shared
-// by the project-DB apply above and the run input JSON export.
-export function calculatedIndicatorToSnapshotRow(ci: CalculatedIndicator): {
-  calculated_indicator_id: string;
-  label: string;
-  group_label: string;
-  sort_order: number;
-  num_indicator_id: string;
-  denom_kind: string;
-  denom_indicator_id: string | null;
-  denom_population_type: string | null;
-  denom_population_multiplier: number | null;
-  format_as: string;
-  threshold_direction: string;
-  threshold_green: number;
-  threshold_yellow: number;
-} {
-  return {
-    calculated_indicator_id: ci.calculated_indicator_id,
-    label: ci.label,
-    group_label: ci.group_label,
-    sort_order: ci.sort_order,
-    num_indicator_id: ci.num_indicator_id,
-    denom_kind: ci.denom.kind,
-    denom_indicator_id: ci.denom.kind === "indicator" ? ci.denom.indicator_id : null,
-    denom_population_type:
-      ci.denom.kind === "population" ? ci.denom.population_type : null,
-    denom_population_multiplier:
-      ci.denom.kind === "population" ? ci.denom.multiplier : null,
-    format_as: ci.format_as,
-    threshold_direction: ci.threshold_direction,
-    threshold_green: ci.threshold_green,
-    threshold_yellow: ci.threshold_yellow,
-  };
-}
 
 export async function computeDatasetHmisRunCapture(
   mainDb: Sql,
@@ -155,12 +115,12 @@ export async function computeDatasetHmisRunCapture(
     // one would copy torn mid-run data into the project stamped with the
     // settled version id. Refuse up front (this also gives the clear error
     // on a first-ever import, when the only version row is still hidden).
-    // A run *launching* mid-export remains possible — that window existed
+    // A run *launching* mid-export remains possible, that window existed
     // pre-Phase-3 too (a CSV integrate commit could land mid-export) and
     // self-signals via the staleness marker at run end.
     await assertNoRunningDatasetHmisImportRun(mainDb);
 
-    // Validate BEFORE removing the existing attachment — a validation
+    // Validate BEFORE removing the existing attachment: a validation
     // failure after the remove would leave the project detached with
     // modules still clean and clients unnotified. The version is also the
     // staleness marker, so it must be captured before the export.
@@ -168,11 +128,8 @@ export async function computeDatasetHmisRunCapture(
     const version = await getCurrentDatasetHmisVersion(mainDb);
     assertNotUndefined(version, "Cannot get hmis version");
 
-    const resMaxAdminArea = await getMaxAdminAreaConfig(mainDb);
-    throwIfErrWithData(resMaxAdminArea);
-
-    const resFacilityConfig = await getFacilityColumnsConfig(mainDb);
-    throwIfErrWithData(resFacilityConfig);
+    const resStructureSchema = await getStructureSchema(mainDb, "hmis");
+    throwIfErrWithData(resStructureSchema);
 
     // Get actual min/max periods from the entire dataset table
     const datasetTableName = "dataset_hmis";
@@ -209,9 +166,8 @@ export async function computeDatasetHmisRunCapture(
 
     await ensureDatasetCsvTargetDir(csvTarget);
 
-    const exportStatement = await getDatasetHmisExportStatement(
-      mainDb,
-      resFacilityConfig.data
+    const exportStatement = getDatasetHmisExportStatement(
+      resStructureSchema.data
     );
 
     if (onProgress) await onProgress(0.3, "Counting rows to export...");
@@ -234,21 +190,15 @@ export async function computeDatasetHmisRunCapture(
       : undefined;
 
     const indicatorMappingsVersion = await getIndicatorMappingsVersion(mainDb);
-
-    const calculatedIndicatorsVersion =
-      await getCalculatedIndicatorsVersion(mainDb);
-    const resCalculatedIndicators = await getCalculatedIndicators(mainDb);
-    throwIfErrWithData(resCalculatedIndicators);
-    const calculatedIndicators = resCalculatedIndicators.data;
+    const baseIndicatorMappingsVersion =
+      await getBaseIndicatorMappingsVersion(mainDb);
 
     const info: DatasetHmisInfoInProject = {
       version,
       totalRows,
       structureLastUpdated,
       indicatorMappingsVersion,
-      facilityColumnsConfig: resFacilityConfig.data,
-      maxAdminArea: resMaxAdminArea.data.maxAdminArea,
-      calculatedIndicatorsVersion,
+      baseIndicatorMappingsVersion,
     };
 
     if (onProgress) await onProgress(0.5, "Exporting data to CSV...");
@@ -256,37 +206,39 @@ export async function computeDatasetHmisRunCapture(
     await mainDb.unsafe(`
 COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADER true, FREEZE false)
 `);
-    const indicators = await mainDb<DBIndicator[]>`
-SELECT i.* FROM indicators i
-WHERE EXISTS (
-  SELECT 1 FROM indicator_mappings im
-  WHERE im.indicator_common_id = i.indicator_common_id
-)
-    `;
 
-    const indicatorIdsInData = new Set(
-      indicators.map((ind) => ind.indicator_common_id)
+    // The mirror carries the WHOLE dictionary: a derived indicator's own row
+    // is what makes the package standalone. The extract, by contrast, is base
+    // rows only, so the base commons with mappings are exactly the ingredients
+    // any expression may draw on.
+    const commonIndicators = await getCommonIndicators(mainDb);
+    const baseIdsInData = new Set(
+      (
+        await mainDb<{ indicator_common_id: string }[]>`
+          SELECT DISTINCT i.indicator_common_id
+          FROM indicators i
+          INNER JOIN indicator_mappings im
+            ON im.indicator_common_id = i.indicator_common_id
+          WHERE i.definition_type = 'base'
+        `
+      ).map((r) => r.indicator_common_id),
     );
-    const calculatedIndicatorsWithMissingData: string[] = [];
-    for (const ci of calculatedIndicators) {
-      if (!indicatorIdsInData.has(ci.num_indicator_id)) {
-        calculatedIndicatorsWithMissingData.push(
-          `Calculated indicator '${ci.calculated_indicator_id}' requires numerator '${ci.num_indicator_id}' which is not in the data`
-        );
-      }
-      if (
-        ci.denom.kind === "indicator" &&
-        !indicatorIdsInData.has(ci.denom.indicator_id)
-      ) {
-        calculatedIndicatorsWithMissingData.push(
-          `Calculated indicator '${ci.calculated_indicator_id}' requires denominator '${ci.denom.indicator_id}' which is not in the data`
-        );
-      }
-    }
-    if (calculatedIndicatorsWithMissingData.length > 0) {
+
+    let indicators: CommonIndicatorCatalogRow[];
+    try {
+      indicators = resolveCommonIndicatorCatalog(
+        commonIndicators,
+        baseIdsInData,
+        POPULATION_TYPE_IDS,
+      );
+    } catch (e) {
+      if (!(e instanceof CommonIndicatorCatalogError)) throw e;
       return {
         success: false,
-        err: `Cannot add data to project. The following calculated indicators reference indicators that don't exist in your data:\n\n${calculatedIndicatorsWithMissingData.join("\n")}\n\nPlease edit or remove these calculated indicators, or ensure your data includes the required indicators.`,
+        err:
+          `Cannot generate results from this dictionary. The following indicators cannot be computed:\n\n${
+            e.problems.join("\n")
+          }\n\nEdit or remove these indicators, or ensure your data includes the indicators they are computed from.`,
       };
     }
 
@@ -299,93 +251,32 @@ WHERE EXISTS (
       data: {
         info,
         lastUpdated: new Date().toISOString(),
-        indicators: indicators.map((ind) => ({
-          indicator_common_id: ind.indicator_common_id,
-          indicator_common_label: ind.indicator_common_label,
-        })),
+        indicators,
         facilities,
-        calculatedIndicators,
+        periodRange: { min: minPeriod, max: maxPeriod },
+        adminDepth: resStructureSchema.data.adminDepth,
       },
     };
   });
 }
 
-export async function removeDatasetFromProject(
-  projectDb: Sql,
-  projectId: string,
-  datasetType: DatasetType
-): Promise<APIResponseNoData> {
-  return await tryCatchDatabaseAsync(async () => {
-    // Fully clear the per-dataset-type tables so "disable" actually disables.
-    // The code order matters for HFA: snapshot-code FKs into snapshot-indicators.
-    await projectDb.begin((sql) => [
-      sql`DELETE FROM datasets WHERE dataset_type = ${datasetType}`,
-      ...(datasetType === "hmis"
-        ? [
-            sql`DELETE FROM indicators`,
-            sql`DELETE FROM facilities_hmis`,
-            sql`DELETE FROM calculated_indicators_snapshot`,
-          ]
-        : datasetType === "hfa"
-          ? [
-              sql`DELETE FROM hfa_indicator_code_snapshot`,
-              sql`DELETE FROM hfa_indicators_snapshot`,
-              sql`DELETE FROM hfa_indicator_sub_categories_snapshot`,
-              sql`DELETE FROM hfa_indicator_categories_snapshot`,
-              sql`DELETE FROM hfa_indicator_service_categories_snapshot`,
-              sql`DELETE FROM indicators_hfa`,
-              sql`DELETE FROM facilities_hfa`,
-            ]
-          : datasetType === "iceh"
-            ? [sql`DELETE FROM iceh_indicators_snapshot`]
-            : []),
-    ]);
-    try {
-      const datasetFilePath = getDatasetFilePath(projectId, datasetType);
-      await Deno.remove(datasetFilePath);
-    } catch {
-      //
-    }
-    return { success: true };
-  });
-}
-
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-
-export function getDatasetFilePath(
-  projectId: string,
-  datasetType: DatasetType
+function getDatasetHmisExportStatement(
+  structureSchema: StructureSchema
 ): string {
-  return join(_SANDBOX_DIR_PATH, projectId, "datasets", `${datasetType}.csv`);
-}
-
-async function getDatasetHmisExportStatement(
-  mainDb: Sql,
-  facilityConfig: InstanceConfigFacilityColumns
-): Promise<string> {
-  // Build admin area columns list (we only have admin_area_1 through admin_area_4)
-  const maxAdminAreaRes = await getMaxAdminAreaConfig(mainDb);
-  throwIfErrWithData(maxAdminAreaRes);
+  // Admin columns up to the HMIS registry's own depth: never a global max
   const adminAreaColumns = [];
-  for (let i = 1; i <= Math.min(maxAdminAreaRes.data.maxAdminArea, 4); i++) {
+  for (let i = 1; i <= structureSchema.adminDepth; i++) {
     adminAreaColumns.push(`admin_area_${i}`);
   }
 
   // Add enabled optional columns
-  const optionalColumns = getEnabledOptionalFacilityColumns(facilityConfig);
+  const optionalColumns = getEnabledOptionalFacilityColumns(structureSchema);
 
   // Use CTEs for clarity - explicitly showing the aggregation from raw to common IDs
   const statement = `
 WITH aggregated AS (
-  -- Step 1: Aggregate raw indicators to common IDs
+  -- Step 1: Aggregate raw indicators to common IDs. BASE commons only —
+  -- everything else is a formula over these, computed downstream.
   SELECT
     d.facility_id,
     im.indicator_common_id,
@@ -393,6 +284,9 @@ WITH aggregated AS (
     SUM(d.count) as count
   FROM dataset_hmis d
   INNER JOIN indicator_mappings im ON d.indicator_raw_id = im.indicator_raw_id
+  INNER JOIN indicators i
+    ON i.indicator_common_id = im.indicator_common_id
+   AND i.definition_type = 'base'
   GROUP BY
     d.facility_id,
     im.indicator_common_id,

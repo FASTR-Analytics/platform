@@ -6,7 +6,7 @@
 // The one geometric primitive both halves of the label system read from: a
 // signed distance field over a cell's silhouette, positive inside.
 //
-// It answers four questions with one build (plan I1):
+// It answers four questions with one build:
 //   - where inside a region a label should sit  -> interiorMax()
 //   - how much room is there                    -> the value at that point
 //   - how clear of the shape is a placed box    -> distanceAt() under the box
@@ -32,8 +32,8 @@ export type DistanceField = {
   sample: (col: number, row: number) => number;
   // Figure coordinates of a lattice sample.
   samplePoint: (col: number, row: number) => Point;
-  // The interior point furthest from the boundary — the pole of inaccessibility
-  // (plan I2). Undefined when nothing was rasterised as inside.
+  // The interior point furthest from the boundary, the pole of inaccessibility.
+  // Undefined when nothing was rasterised as inside.
   interiorMax: () => { point: Point; distance: number } | undefined;
 };
 

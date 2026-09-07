@@ -44,13 +44,13 @@ import {
   buildInstanceProjectsTour,
   buildInstanceResultsPackagesCatalogueTour,
   buildInstanceResultsPackagesTour,
-  buildInstanceSettingsTour,
   buildInstanceUsersTour,
   buildInstanceWelcomeTour,
   tourLabels,
 } from "./tours";
 import { instanceState } from "~/state/instance/t1_store";
 import { projectState } from "~/state/project/t1_store";
+import { canOpenProjectResultsPackageTab } from "~/components/project/project_results_package";
 import { projectAIViewController } from "~/components/project_ai/ai_views";
 import type { SlideType } from "lib";
 import {
@@ -63,7 +63,6 @@ import {
   vizSelectedGroup,
   dashboardSortMode,
   dashboardEditorOpen,
-  instanceResultsPackagesLoadCount,
   resultsPackageTabLoadCount,
 } from "~/state/t4_ui";
 
@@ -71,7 +70,7 @@ import {
 // page's tour auto-starts on the user's first visit to that page; seen-flags
 // live in Clerk unsafeMetadata.onboarding (tour:<id> / tour:<group>), so once
 // per user across devices. A `pages` predicate must be true only while that
-// page is actually visible (tab active AND permission granted) — otherwise a
+// page is actually visible (tab active AND permission granted): otherwise a
 // tour could fire, find no targets, and be marked seen invisibly.
 //
 // The decks tour is split into parts with independent seen-flags: the viewer
@@ -80,7 +79,7 @@ import {
 // the same moment merge into one seamless run in this array order; a part
 // whose condition only holds later runs on the first visit where it does.
 // The editor overlays render on top of the still-mounted project shell, so
-// projectTab() stays "decks" inside them — the AI view is what actually tracks
+// projectTab() stays "decks" inside them: the AI view is what actually tracks
 // where the user is. Tab pages must exclude the editing views, or a deck-list
 // tour could fire behind the editor.
 const currentView = () => projectAIViewController.current();
@@ -103,18 +102,9 @@ export function setupInstanceTours(opts: {
     pages: {
       "instance-projects": onTab("projects"),
       "instance-data": onTab("data"),
-      // The run catalogue is fetched by the tab component, not read from
-      // instanceState, so the tab counts as visible only once that fetch has
-      // settled: the catalogue part below probes for a package card, and
-      // probing at tab-entry found a loading pane and excluded it for good
-      // (nothing re-checked once the fetch landed, and the intro run in
-      // progress blocks re-checks anyway). Later settles bump the count, so
-      // they re-check too.
-      "instance-results-packages": () =>
-        onTab("results_packages")() && instanceResultsPackagesLoadCount() > 0,
+      "instance-results-packages": onTab("results_packages"),
       "instance-assets": onTab("assets"),
       "instance-users": onTab("users"),
-      "instance-settings": onTab("settings"),
     },
     watch: [() => instanceState.projects.length],
     tours: [
@@ -142,7 +132,6 @@ export function setupInstanceTours(opts: {
       },
       { page: "instance-assets", tour: buildInstanceAssetsTour() },
       { page: "instance-users", tour: buildInstanceUsersTour() },
-      { page: "instance-settings", tour: buildInstanceSettingsTour() },
     ],
   });
 }
@@ -170,7 +159,7 @@ export function setupDeckTours(): SolidTourManagerController {
   const slideCardOnScreen = () =>
     document.querySelector('[data-tour="deck-slide-card"]') !== null;
   // The deck list, the deck editor and the per-slide-type tours share ONE
-  // manager so they also share its one-run-at-a-time lock — clicking a deck
+  // manager so they also share its one-run-at-a-time lock: clicking a deck
   // mid-tour hands over cleanly instead of two tours overlapping.
   const tours = createTourManager({
     storage: clerkOnboardingStorage,
@@ -398,20 +387,16 @@ export function setupVisualizationTours(): SolidTourManagerController {
 // is) runs for anyone who can see the tab and targets only the header, so it
 // is safe on a project with nothing attached yet. The explore part waits for
 // an attached package to actually be on screen, and the switch part for a
-// member who may repoint the project (the picker section is theirs alone; it
-// renders with a "none available" line when the instance holds no other
-// package, and the tour still explains what it is for). Splitting rather than
-// skipping steps matters because a tour that runs against missing targets is
-// still marked seen, and the user would never get it later.
+// member who may repoint the project (the configure card is theirs alone).
+// Splitting rather than skipping steps matters because a tour that runs
+// against missing targets is still marked seen, and the user would never get
+// it later.
 //
-// The attached card comes from a fetch the tab component makes on mount, not
-// from projectState, so the page counts as visible only once that fetch has
-// settled — probing for the card at tab-entry found a loading pane, which
-// excluded the explore part from the run for good: nothing re-checked once
-// the fetch landed, and the intro run in progress blocks re-checks anyway.
-// Later settles (a repoint's refetch) bump the count and re-check, so a
-// member who attaches their first package from this tab gets the explore
-// part as soon as the card is drawn.
+// The tab renders from project T1 (`attachedRun`), so its anchors exist on
+// mount; the tab bumps `resultsPackageTabLoadCount` on mount and resets it on
+// unmount, and the page counts as visible only while it is > 0: the same
+// gate the fetch-driven version used, kept so a tour part is evaluated
+// against the drawn page.
 export function setupResultsPackageTours(): SolidTourManagerController {
   const canAttach = () =>
     instanceState.currentUserIsGlobalAdmin ||
@@ -427,7 +412,7 @@ export function setupResultsPackageTours(): SolidTourManagerController {
     pages: {
       "results-package": () =>
         projectTab() === "results_package" &&
-        projectState.thisUserPermissions.can_view_data &&
+        canOpenProjectResultsPackageTab() &&
         !isEditingView() &&
         resultsPackageTabLoadCount() > 0,
     },

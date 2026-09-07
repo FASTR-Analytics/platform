@@ -1,5 +1,6 @@
 import { dirname, join } from "@std/path";
 import { Sql } from "postgres";
+import { _INSTANCE_LANGUAGE } from "../../exposed_env_vars.ts";
 
 type MigrationType = "instance" | "project";
 
@@ -103,6 +104,14 @@ async function applyMigration(sql: Sql, migration: MigrationFile): Promise<void>
   const migrationSQL = await Deno.readTextFile(migration.filepath);
 
   await sql.begin(async (tx) => {
+    // Transaction-local, so a migration that seeds user-facing text (079's
+    // bucket labels) can read the instance language with
+    // current_setting('fastr.instance_language', true). ./validate_migrations
+    // runs files through psql without it, so every reader defaults to 'en'.
+    await tx.unsafe(
+      "SELECT set_config('fastr.instance_language', $1, true)",
+      [_INSTANCE_LANGUAGE],
+    );
     await tx.unsafe(migrationSQL);
     await tx`
       INSERT INTO schema_migrations (migration_id)

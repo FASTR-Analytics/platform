@@ -63,7 +63,7 @@ export type AIView<TParams = void, TContext = void> = {
 // the contextual type of each property is the constraint's AIView<any, any>,
 // and without the block those `any`s beat the void defaults — a label-only
 // view({ label: "Home" }) would silently become AIView<any, any> and poison
-// every handler union (any absorbs). Proven in the Phase 1+2 review.
+// every handler union (any absorbs).
 export function view<TParams = void, TContext = void>(
   def: AIViewDefinition<TParams, TContext>,
 ): AIView<NoInfer<TParams>, NoInfer<TContext>> {

@@ -10,6 +10,7 @@ export type ValidationIssueCode =
   | "duplicate-id"
   | "dangling-ref"
   | "group-cycle"
+  | "shape-without-zone"
   | "cycle";
 
 export type ValidationIssue = {
@@ -80,6 +81,17 @@ export function validate(model: GraphModel): ValidationReport {
     }
   }
   checkGroupParentCycles(issues, model);
+  for (const group of model.groups ?? []) {
+    if (group.shape === "rect" && group.zone !== true) {
+      issues.push({
+        severity: "warning",
+        code: "shape-without-zone",
+        message:
+          `Group "${group.id}" asks for shape "rect" without zone; a rectangle over a non-exclusive group would swallow bystanders, so it is drawn as hug`,
+        ids: [group.id],
+      });
+    }
+  }
   checkConstraintRefs(issues, model, nodeIds);
 
   const cycle = findCycle(buildGraphIndex(model));

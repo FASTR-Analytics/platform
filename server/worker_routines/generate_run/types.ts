@@ -9,7 +9,7 @@ import type {
 // can terminate it and release the generation claim.
 //
 // A run belongs to no project (Q-A): `attachTargetProjectIds` is the
-// launch-time attach selection — the projects the publish transaction
+// launch-time attach selection: the projects the publish transaction
 // repoints and the projects progress is pushed to. It may be empty; the run
 // is then published unattached and picked up from a project's attach picker.
 

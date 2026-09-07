@@ -9,6 +9,7 @@ import type {
   StateHolderFormAction,
 } from "../special_state/mod.ts";
 import type { Intent } from "../types.ts";
+import { type DataAttrs, splitDataAttrs } from "../data_attrs.ts";
 import { Spinner } from "./loading_el.tsx";
 import type { IconName } from "../icons/mod.ts";
 import { IconRenderer } from "./icon_renderer.tsx";
@@ -23,15 +24,15 @@ function getButtonClasses(
   return [
     // Component classes (defined in CSS): the per-intent skin, then the
     // behavior. Filled buttons are hoverable surfaces of their own intent.
-    // Outline buttons are quiet interactives OF THE SURFACE THEY SIT ON:
-    // onBackground declares that token, and the button takes its exact
-    // rest/hover/active pattern (the opaque rest is also what makes the
-    // button safe over busy content).
+    // Outline buttons REST on the surface they sit on (onBackground names
+    // that token; the opaque rest is what makes the button safe over busy
+    // content) and hover/press with a tint of their own colour over it —
+    // the outline family mixes currentColor, which the outline skin sets.
     "ui-focusable",
     ...(outline
       ? [
         `ui-outline-${intent ?? "primary"}`,
-        `ui-hoverable-${onBackground ?? "base-100"}`,
+        `ui-hoverable-outline-on-${onBackground ?? "base-100"}`,
       ]
       : [
         `ui-fill-${intent ?? "primary"}`,
@@ -111,9 +112,10 @@ type ButtonPropsLink = ButtonPropsBase & {
   autofocus?: never;
 };
 
-type ButtonProps = ButtonPropsButton | ButtonPropsLink;
+type ButtonProps = (ButtonPropsButton | ButtonPropsLink) & DataAttrs;
 
 export function Button(p: ButtonProps) {
+  const [dataAttrs] = splitDataAttrs(p);
   const isLoading = () => p.loading || p.state?.status === "loading";
   const iconPos = () => p.iconPosition ?? "left";
 
@@ -126,36 +128,34 @@ export function Button(p: ButtonProps) {
       </Show>
       {/* Icon & Text */}
       <Show when={p.children && p.iconName}>
-        <Show
-          when={iconPos() === "left"}
-          fallback={
-            <>
-              <span
-                class="relative inline-flex min-h-[var(--ui-form-content-h-em)] items-center data-[loading=true]:invisible"
-                data-loading={isLoading()}
-              >
-                {p.children}
-              </span>
-              <IconRenderer
-                iconName={p.iconName}
-                invisible={isLoading()}
-                size={p.size}
-              />
-            </>
-          }
-        >
-          <IconRenderer
-            iconName={p.iconName}
-            invisible={isLoading()}
-            size={p.size}
-          />
-          <span
-            class="relative inline-flex min-h-[var(--ui-form-content-h-em)] items-center data-[loading=true]:invisible"
-            data-loading={isLoading()}
-          >
-            {p.children}
-          </span>
-        </Show>
+        <Switch>
+          <Match when={iconPos() === "left"}>
+            <IconRenderer
+              iconName={p.iconName}
+              invisible={isLoading()}
+              size={p.size}
+            />
+            <span
+              class="relative inline-flex min-h-[var(--ui-form-content-h-em)] items-center data-[loading=true]:invisible"
+              data-loading={isLoading()}
+            >
+              {p.children}
+            </span>
+          </Match>
+          <Match when={iconPos() === "right"}>
+            <span
+              class="relative inline-flex min-h-[var(--ui-form-content-h-em)] items-center data-[loading=true]:invisible"
+              data-loading={isLoading()}
+            >
+              {p.children}
+            </span>
+            <IconRenderer
+              iconName={p.iconName}
+              invisible={isLoading()}
+              size={p.size}
+            />
+          </Match>
+        </Switch>
       </Show>
       {/* Only Text */}
       <Show when={p.children && !p.iconName}>
@@ -182,6 +182,7 @@ export function Button(p: ButtonProps) {
     <Switch>
       <Match when={!p.href}>
         <button
+          {...dataAttrs}
           class={getButtonClasses(p.size, p.intent, p.outline, p.onBackground)}
           onClick={p.onClick}
           onPointerDown={p.onPointerDown}
@@ -198,6 +199,7 @@ export function Button(p: ButtonProps) {
       </Match>
       <Match when={p.href}>
         <a
+          {...dataAttrs}
           class={getButtonClasses(p.size, p.intent, p.outline, p.onBackground)}
           href={p.href}
           id={p.id}

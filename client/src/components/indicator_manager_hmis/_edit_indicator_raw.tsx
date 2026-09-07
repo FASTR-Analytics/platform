@@ -70,9 +70,9 @@ export function EditIndicatorRawForm(
         return {
           success: false,
           err: t3({
-            en: "Indicator ID must not contain commas, semicolons, or colons, and must be at most 128 characters",
-            fr: "L'identifiant de l'indicateur ne doit pas contenir de virgules, de points-virgules ou de deux-points, et doit comporter au maximum 128 caractères",
-            pt: "O ID do indicador não pode conter vírgulas, pontos e vírgulas ou dois pontos, e deve ter no máximo 128 caracteres",
+            en: "Indicator ID must not contain commas, semicolons, colons, or square brackets, and must be at most 128 characters",
+            fr: "L'identifiant de l'indicateur ne doit pas contenir de virgules, de points-virgules, de deux-points ou de crochets, et doit comporter au maximum 128 caractères",
+            pt: "O ID do indicador não pode conter vírgulas, pontos e vírgulas, dois pontos ou parênteses retos, e deve ter no máximo 128 caracteres",
           }),
         };
       }

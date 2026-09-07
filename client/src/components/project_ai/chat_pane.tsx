@@ -149,9 +149,17 @@ type ConsolidatedChatPaneProps = {
 };
 
 export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
-  const { updateConfig, getConfig, conversationId, isLoading, sendMessage } =
-    createAIChat();
+  const {
+    updateConfig,
+    getConfig,
+    conversationId,
+    isLoading,
+    sendMessage,
+    messages,
+  } = createAIChat();
   const conversations = useConversations();
+
+  p.aiDocs.bind(conversationId, messages);
 
   let scrollToBottom: ((force?: boolean) => void) | null = null;
 
@@ -190,7 +198,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
         initialValues: current,
         // max_tokens is exposed so the truncation notice's "increase max
         // tokens in the AI settings" advice is actionable. The model list is
-        // panther's MODEL_OPTIONS — curated there, not per app.
+        // panther's MODEL_OPTIONS: curated there, not per app.
         adjustable: ["model", "max_tokens"],
       },
     });
@@ -431,7 +439,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
     }
   };
 
-  // The per-mode label switch moved onto the view registry (ai_views.ts) —
+  // The per-mode label switch moved onto the view registry (ai_views.ts):
   // the controller resolves the current view's label.
   const titleSubtext = () => projectAIViewController.currentLabel();
 
@@ -512,8 +520,9 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
       </div>
 
       <AIDocumentList
-        documents={p.aiDocs.documents()}
-        onRemove={p.aiDocs.removeDocument}
+        sent={p.aiDocs.sentDocs()}
+        pending={p.aiDocs.pending()}
+        onRemovePending={p.aiDocs.removePendingAttachment}
       />
 
       <div class="flex-1 overflow-hidden">

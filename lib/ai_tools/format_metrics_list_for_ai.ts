@@ -14,7 +14,6 @@ export function formatMetricsListForAI(
     "=".repeat(80),
     "",
     "Query with get_metric_data for data and detailed context.",
-    "Visualize with from_metric blocks using vizPresetId.",
     "Required disaggregations are auto-included.",
     "Period formats: period_id (YYYYMM), year (YYYY), month (1-12 for seasonal).",
     "",
@@ -124,9 +123,9 @@ export function formatMetricsListForAI(
           preset.allowedFilters && preset.allowedFilters.length > 0
             ? ` — filters: ${preset.allowedFilters.join(", ")}`
             : "";
-        const hasReplicant = getReplicateByProp(preset.config) !== undefined;
-        const replicantNote = hasReplicant
-          ? " ** REQUIRES selectedReplicant **"
+        const replicateBy = getReplicateByProp(preset.config);
+        const replicantNote = replicateBy !== undefined
+          ? ` ** REQUIRES selectedReplicant: one ${replicateBy} value **`
           : "";
         lines.push(
           `    - ${preset.id}: ${preset.label.en} (${dateFormat})${filterNote}${replicantNote}`,

@@ -12,8 +12,7 @@ import { type DHIS2OrgUnit } from "../dhis2/goal1_org_units_v2/mod.ts";
 import { getDHIS2 } from "../dhis2/common/base_fetcher.ts";
 import { escapeSqlString } from "../db/utils.ts";
 import {
-  getFacilityColumnsConfig,
-  getMaxAdminAreaConfig,
+  getStructureSchema,
 } from "../db/instance/config.ts";
 
 // Helper function to process a batch of org units during DHIS2 import
@@ -167,7 +166,7 @@ export async function stageStructureFromDhis2V2(
   // without clobbering each other's staging data. Same-family double-staging is
   // gated by the status_type='importing' check in the step-3 wrapper; the
   // staging table is family-scoped so the residual race is benign (same attempt,
-  // same mappings → same result, deduped at integration). No advisory lock — the
+  // same mappings → same result, deduped at integration). No advisory lock: the
   // old pg_advisory_lock leaked because acquire and the finally-unlock ran on
   // different pooled mainDb connections, wedging the lock until restart.
   const stagingTableName = `temp_structure_staging_${family}`;
@@ -179,18 +178,14 @@ export async function stageStructureFromDhis2V2(
 
     if (onProgress) await onProgress(0.1, "Setting up staging environment...");
 
-    // Get configuration
-    const resMaxAdminArea = await getMaxAdminAreaConfig(mainDb);
-    throwIfErrWithData(resMaxAdminArea);
-    const maxAdminArea = resMaxAdminArea.data.maxAdminArea;
-
-    const resFacilityConfig = await getFacilityColumnsConfig(mainDb);
-    throwIfErrWithData(resFacilityConfig);
-    const facilityConfig = resFacilityConfig.data;
+    // The family's structure schema: admin depth + enabled optional columns
+    const resStructureSchema = await getStructureSchema(mainDb, family);
+    throwIfErrWithData(resStructureSchema);
+    const maxAdminArea = resStructureSchema.data.adminDepth;
     const enabledOptionalColumns =
-      getEnabledOptionalFacilityColumns(facilityConfig);
+      getEnabledOptionalFacilityColumns(resStructureSchema.data);
     // DHIS2 only supplies facility_name (from displayName). Never stage the other
-    // metadata columns — integration writes exactly the staged columns, and a
+    // metadata columns: integration writes exactly the staged columns, and a
     // blank facility_type/ownership would wipe existing values.
     const dhis2OptionalColumns = enabledOptionalColumns.filter(
       (c) => c === "facility_name"

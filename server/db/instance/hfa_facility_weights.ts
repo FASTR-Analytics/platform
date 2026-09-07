@@ -15,7 +15,7 @@ import { tryCatchDatabaseAsync } from "../utils.ts";
 // Import shape: long-format CSV, one row per facility.
 //   facility_id, <weight>   (two columns, any column names, mapped by user)
 // One import = one time point. A blank weight cell means the facility is not
-// in this round's sample — nothing is stored (absence is the representation).
+// in this round's sample: nothing is stored (absence is the representation).
 // Import replaces all stored weights for the selected time point wholesale.
 
 // Keep batches well under Postgres's 65,534-parameter limit (3 params per row)

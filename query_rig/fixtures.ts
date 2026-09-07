@@ -1,8 +1,12 @@
 import type { PeriodOption } from "lib";
 
+// A results object's declared column types, in the module-authoring
+// vocabulary (createTableStatementPossibleColumns; NUMERIC lands as DOUBLE in
+// the parquet). The types are load-bearing: shouldFoldBlank gates on the
+// column actually being text.
 export type RoColumn = {
   name: string;
-  type: "text" | "integer" | "double precision";
+  type: "TEXT" | "INTEGER" | "NUMERIC";
 };
 
 export type HfaSnapshots = {
@@ -30,6 +34,10 @@ export type HfaSnapshots = {
 export type Fixture = {
   name: string;
   family: "hmis" | "hfa";
+  // Seeded into the family's structure_schema_{family} row alongside the
+  // flags. Not consumed by the query engine (ruling 4: flags only). It makes
+  // the seeded row a valid StructureSchema.
+  adminDepth: 1 | 2 | 3 | 4;
   moduleId: string;
   moduleDefinition: Record<string, unknown>;
   resultsObjectId: string;
@@ -39,7 +47,7 @@ export type Fixture = {
   roRows: Record<string, string | number | null>[];
   indicators: { indicator_common_id: string; indicator_common_label: string }[];
   hfaSnapshots?: HfaSnapshots;
-  // Only needed by `metricInfo` cases — that entry resolves a metric row and
+  // Only needed by `metricInfo` cases: that entry resolves a metric row and
   // enriches it into a ResultsValue.
   metric?: {
     id: string;
@@ -63,17 +71,18 @@ const ALL_FACILITY_COLUMNS_OFF = {
   includeCustom5: false,
 };
 
-// F1 — HMIS, physical period_id (YYYYMM), facility-level rows.
+// F1: HMIS, physical period_id (YYYYMM), facility-level rows.
 //
 // source_indicator is the blank-fold specimen: it carries NULL, a spaces-only
 // cell, a tab-only cell, and the pair 'x' / ' x'. The pair is what proves the
-// fold detects blankness without rewriting non-blank values — collapsing ' x'
+// fold detects blankness without rewriting non-blank values: collapsing ' x'
 // onto 'x' is the original defect in a new form.
 //
 // Sums by admin_area_2: A2_north = 35, A2_south = 17.
 export const F1_HMIS_MONTHLY: Fixture = {
   name: "hmis_monthly",
   family: "hmis",
+  adminDepth: 4,
   moduleId: "m_hmis",
   moduleDefinition: {
     scriptGenerationType: "standard",
@@ -89,13 +98,13 @@ export const F1_HMIS_MONTHLY: Fixture = {
     { facility_id: "f5", admin_area_1: "Country", admin_area_2: "A2_south", admin_area_3: "A3_delta", admin_area_4: "A4_w5", facility_type: "health_post" },
   ],
   roColumns: [
-    { name: "facility_id", type: "text" },
-    { name: "period_id", type: "integer" },
-    { name: "admin_area_2", type: "text" },
-    { name: "admin_area_3", type: "text" },
-    { name: "indicator_common_id", type: "text" },
-    { name: "source_indicator", type: "text" },
-    { name: "value", type: "double precision" },
+    { name: "facility_id", type: "TEXT" },
+    { name: "period_id", type: "INTEGER" },
+    { name: "admin_area_2", type: "TEXT" },
+    { name: "admin_area_3", type: "TEXT" },
+    { name: "indicator_common_id", type: "TEXT" },
+    { name: "source_indicator", type: "TEXT" },
+    { name: "value", type: "NUMERIC" },
   ],
   roRows: [
     { facility_id: "f1", period_id: 202401, admin_area_2: "A2_north", admin_area_3: "A3_alpha", indicator_common_id: "anc1", source_indicator: "dhis2", value: 10 },
@@ -144,13 +153,14 @@ const HFA_FACILITIES: Record<string, string | null>[] = [
   { facility_id: "h5", admin_area_1: "Country", admin_area_2: "A2_south", admin_area_3: "A3_delta", admin_area_4: "A4_w5", facility_type: "health_post" },
 ];
 
-// F2 — HFA, hfa_service_category carrying pipe-joined SETS, time_point TEXT.
+// F2: HFA, hfa_service_category carrying pipe-joined SETS, time_point TEXT.
 //
 // Sums: by service-category membership rmnch = 41, malaria = 4.
 // By time_point: baseline = 26, midline = 26, blank (NULL + spaces) = 4.
 export const F2_HFA_SERVICE_CATS: Fixture = {
   name: "hfa_service_cats",
   family: "hfa",
+  adminDepth: 4,
   moduleId: "m_hfa",
   moduleDefinition: {
     scriptGenerationType: "hfa",
@@ -160,13 +170,13 @@ export const F2_HFA_SERVICE_CATS: Fixture = {
   facilityColumns: { ...ALL_FACILITY_COLUMNS_OFF, includeTypes: true },
   facilities: HFA_FACILITIES,
   roColumns: [
-    { name: "facility_id", type: "text" },
-    { name: "time_point", type: "text" },
-    { name: "hfa_indicator", type: "text" },
-    { name: "hfa_category", type: "text" },
-    { name: "hfa_service_category", type: "text" },
-    { name: "admin_area_2", type: "text" },
-    { name: "value", type: "double precision" },
+    { name: "facility_id", type: "TEXT" },
+    { name: "time_point", type: "TEXT" },
+    { name: "hfa_indicator", type: "TEXT" },
+    { name: "hfa_category", type: "TEXT" },
+    { name: "hfa_service_category", type: "TEXT" },
+    { name: "admin_area_2", type: "TEXT" },
+    { name: "value", type: "NUMERIC" },
   ],
   roRows: [
     { facility_id: "h1", time_point: "baseline", hfa_indicator: "ind_a", hfa_category: "cat_1", hfa_service_category: "rmnch|nutrition", admin_area_2: "A2_north", value: 10 },
@@ -183,7 +193,7 @@ export const F2_HFA_SERVICE_CATS: Fixture = {
   firstPeriodOption: undefined,
 };
 
-// F3 — F2 with ONE thing changed: time_point is declared `integer`.
+// F3: F2 with ONE thing changed: time_point is declared `integer`.
 //
 // This pair is the whole point of the shouldFoldBlank type gate. The fold emits
 // btrim() and returns a text sentinel from its CASE; Postgres rejects both on a
@@ -196,7 +206,7 @@ export const F3_HFA_TIMEPOINT_INTEGER: Fixture = {
   moduleId: "m_hfa_int",
   resultsObjectId: "cccccccc-dddd-eeee-ffff-000000000000",
   roColumns: F2_HFA_SERVICE_CATS.roColumns.map((c) =>
-    c.name === "time_point" ? { ...c, type: "integer" } : c
+    c.name === "time_point" ? { ...c, type: "INTEGER" } : c
   ),
   roRows: F2_HFA_SERVICE_CATS.roRows.map((r) => ({
     ...r,
@@ -215,7 +225,7 @@ function hmisModule(): Record<string, unknown> {
   };
 }
 
-// F4 — facility-level rows with ratio ingredients, sized so that a recomputed
+// F4: facility-level rows with ratio ingredients, sized so that a recomputed
 // roll-up ratio and a mean-of-ratios give visibly different answers:
 //   recomputed 80/1000 = 0.08   vs   mean of (0.3, 0.025) = 0.1625
 // AVG(value) is also meaningful here because rows are raw facility
@@ -223,6 +233,7 @@ function hmisModule(): Record<string, unknown> {
 export const F4_HMIS_RATIO: Fixture = {
   name: "hmis_ratio",
   family: "hmis",
+  adminDepth: 4,
   moduleId: "m_ratio",
   moduleDefinition: hmisModule(),
   resultsObjectId: "dddddddd-eeee-ffff-0000-111111111111",
@@ -232,12 +243,12 @@ export const F4_HMIS_RATIO: Fixture = {
     { facility_id: "r2", admin_area_1: "Country", admin_area_2: "A2_south", admin_area_3: "A3_gamma", admin_area_4: "A4_w3", facility_type: "clinic" },
   ],
   roColumns: [
-    { name: "facility_id", type: "text" },
-    { name: "admin_area_2", type: "text" },
-    { name: "period_id", type: "integer" },
-    { name: "num", type: "double precision" },
-    { name: "den", type: "double precision" },
-    { name: "value", type: "double precision" },
+    { name: "facility_id", type: "TEXT" },
+    { name: "admin_area_2", type: "TEXT" },
+    { name: "period_id", type: "INTEGER" },
+    { name: "num", type: "NUMERIC" },
+    { name: "den", type: "NUMERIC" },
+    { name: "value", type: "NUMERIC" },
   ],
   roRows: [
     { facility_id: "r1", admin_area_2: "A2_north", period_id: 202401, num: 60, den: 200, value: 10 },
@@ -247,21 +258,22 @@ export const F4_HMIS_RATIO: Fixture = {
   firstPeriodOption: "period_id",
 };
 
-// F5 — pre-aggregated area rows, NO facility_id. Exists to prove the
+// F5: pre-aggregated area rows, NO facility_id. Exists to prove the
 // table-aware half of the roll-up gate: AVG over rows that are already area
 // summaries is a population-blind mean, so it must be refused.
 export const F5_HMIS_AREA_ONLY: Fixture = {
   name: "hmis_area_only",
   family: "hmis",
+  adminDepth: 4,
   moduleId: "m_area_only",
   moduleDefinition: hmisModule(),
   resultsObjectId: "eeeeeeee-ffff-0000-1111-222222222222",
   facilityColumns: { ...ALL_FACILITY_COLUMNS_OFF },
   facilities: [],
   roColumns: [
-    { name: "admin_area_2", type: "text" },
-    { name: "period_id", type: "integer" },
-    { name: "value", type: "double precision" },
+    { name: "admin_area_2", type: "TEXT" },
+    { name: "period_id", type: "INTEGER" },
+    { name: "value", type: "NUMERIC" },
   ],
   roRows: [
     { admin_area_2: "A2_north", period_id: 202401, value: 10 },
@@ -271,13 +283,14 @@ export const F5_HMIS_AREA_ONLY: Fixture = {
   firstPeriodOption: "period_id",
 };
 
-// F6 / F7 — the other two period scenarios. A results table has at most ONE
+// F6 / F7: the other two period scenarios. A results table has at most ONE
 // physical time column (S8 drops the redundant ones), so each scenario needs
 // its own fixture: quarter_id can derive `year` but not `month`, and a
 // year-only table derives nothing.
 export const F6_HMIS_QUARTERLY: Fixture = {
   name: "hmis_quarterly",
   family: "hmis",
+  adminDepth: 4,
   moduleId: "m_quarterly",
   moduleDefinition: hmisModule(),
   resultsObjectId: "ffffffff-0000-1111-2222-333333333333",
@@ -287,10 +300,10 @@ export const F6_HMIS_QUARTERLY: Fixture = {
     { facility_id: "q2", admin_area_1: "Country", admin_area_2: "A2_south", admin_area_3: "A3_gamma", admin_area_4: "A4_w3", facility_type: null },
   ],
   roColumns: [
-    { name: "facility_id", type: "text" },
-    { name: "admin_area_2", type: "text" },
-    { name: "quarter_id", type: "integer" },
-    { name: "value", type: "double precision" },
+    { name: "facility_id", type: "TEXT" },
+    { name: "admin_area_2", type: "TEXT" },
+    { name: "quarter_id", type: "INTEGER" },
+    { name: "value", type: "NUMERIC" },
   ],
   roRows: [
     { facility_id: "q1", admin_area_2: "A2_north", quarter_id: 20241, value: 10 },
@@ -304,6 +317,7 @@ export const F6_HMIS_QUARTERLY: Fixture = {
 export const F7_HMIS_YEARLY: Fixture = {
   name: "hmis_yearly",
   family: "hmis",
+  adminDepth: 4,
   moduleId: "m_yearly",
   moduleDefinition: hmisModule(),
   resultsObjectId: "00000000-1111-2222-3333-444444444444",
@@ -313,10 +327,10 @@ export const F7_HMIS_YEARLY: Fixture = {
     { facility_id: "y2", admin_area_1: "Country", admin_area_2: "A2_south", admin_area_3: "A3_gamma", admin_area_4: "A4_w3", facility_type: null },
   ],
   roColumns: [
-    { name: "facility_id", type: "text" },
-    { name: "admin_area_2", type: "text" },
-    { name: "year", type: "integer" },
-    { name: "value", type: "double precision" },
+    { name: "facility_id", type: "TEXT" },
+    { name: "admin_area_2", type: "TEXT" },
+    { name: "year", type: "INTEGER" },
+    { name: "value", type: "NUMERIC" },
   ],
   roRows: [
     { facility_id: "y1", admin_area_2: "A2_north", year: 2023, value: 10 },
@@ -327,18 +341,19 @@ export const F7_HMIS_YEARLY: Fixture = {
   firstPeriodOption: "year",
 };
 
-// F8 — the two DIFFERENT origins of a blank facility cell, plus a
+// F8: the two DIFFERENT origins of a blank facility cell, plus a
 // multi-membership column holding exactly one member.
 //
 // `textColumns` spans the results table AND the joined facilities table, so the
 // fold reaches facility columns. A blank there arrives two ways: a facilities
 // row whose column is NULL (e2), and a results row whose facility_id matches no
 // facilities row at all, where the LEFT JOIN manufactures the NULL (e_missing).
-// Both must land in ONE __BLANK group — that is precisely why NULL and blank
+// Both must land in ONE __BLANK group: that is precisely why NULL and blank
 // fold together rather than becoming two options.
 export const F8_HFA_FACILITY_BLANKS: Fixture = {
   name: "hfa_facility_blanks",
   family: "hfa",
+  adminDepth: 4,
   moduleId: "m_hfa_edge",
   moduleDefinition: {
     scriptGenerationType: "hfa",
@@ -351,15 +366,15 @@ export const F8_HFA_FACILITY_BLANKS: Fixture = {
     { facility_id: "e2", admin_area_1: "Country", admin_area_2: "A2_north", admin_area_3: "A3_beta", admin_area_4: "A4_w2", facility_type: null },
   ],
   roColumns: [
-    { name: "facility_id", type: "text" },
-    { name: "hfa_service_category", type: "text" },
-    { name: "admin_area_2", type: "text" },
-    { name: "value", type: "double precision" },
+    { name: "facility_id", type: "TEXT" },
+    { name: "hfa_service_category", type: "TEXT" },
+    { name: "admin_area_2", type: "TEXT" },
+    { name: "value", type: "NUMERIC" },
   ],
   roRows: [
     { facility_id: "e1", hfa_service_category: "rmnch", admin_area_2: "A2_north", value: 10 },
     { facility_id: "e2", hfa_service_category: "rmnch", admin_area_2: "A2_north", value: 20 },
-    // No facilities row for e_missing — the LEFT JOIN yields NULL.
+    // No facilities row for e_missing: the LEFT JOIN yields NULL.
     { facility_id: "e_missing", hfa_service_category: "rmnch", admin_area_2: "A2_south", value: 5 },
   ],
   indicators: [],
@@ -375,10 +390,10 @@ export const F8_HFA_FACILITY_BLANKS: Fixture = {
   firstPeriodOption: undefined,
 };
 
-// F9 — the replicant-options cap boundary. The cap counts NAMED values, and
+// F9: the replicant-options cap boundary. The cap counts NAMED values, and
 // the query budget is MAX + 2, so the sentinel can neither displace a named
 // value nor tip a dimension holding exactly MAX into too_many_values (which
-// would make the filter disappear — the very failure the blank fold prevents).
+// would make the filter disappear, the very failure the blank fold prevents).
 //
 //   source_indicator  : 500 named + a blank  → ok  (blank does not count)
 //   target_population : 501 named            → too_many_values
@@ -392,16 +407,17 @@ const CAP_ROWS = Array.from({ length: 501 }, (_, i) => ({
 export const F9_HMIS_OPTION_CAP: Fixture = {
   name: "hmis_option_cap",
   family: "hmis",
+  adminDepth: 4,
   moduleId: "m_cap",
   moduleDefinition: hmisModule(),
   resultsObjectId: "22222222-3333-4444-5555-666666666666",
   facilityColumns: { ...ALL_FACILITY_COLUMNS_OFF },
   facilities: [],
   roColumns: [
-    { name: "admin_area_2", type: "text" },
-    { name: "source_indicator", type: "text" },
-    { name: "target_population", type: "text" },
-    { name: "value", type: "double precision" },
+    { name: "admin_area_2", type: "TEXT" },
+    { name: "source_indicator", type: "TEXT" },
+    { name: "target_population", type: "TEXT" },
+    { name: "value", type: "NUMERIC" },
   ],
   roRows: CAP_ROWS,
   indicators: [],
@@ -416,14 +432,15 @@ export const F9_HMIS_OPTION_CAP: Fixture = {
   firstPeriodOption: undefined,
 };
 
-// F10 — HFA rows already aggregated to area level, so NO facility_id. Exists to
+// F10: HFA rows already aggregated to area level, so NO facility_id. Exists to
 // prove the table-aware half of the sample-n gate: n counts distinct facilities,
 // and emitting the aggregate over a table without the column is not a wrong
 // number but a hard SQL error ("column facility_id does not exist"). The
-// family check alone would not catch this — F10 is HFA.
+// family check alone would not catch this: F10 is HFA.
 export const F10_HFA_AREA_ONLY: Fixture = {
   name: "hfa_area_only",
   family: "hfa",
+  adminDepth: 4,
   moduleId: "m_hfa_area_only",
   moduleDefinition: {
     scriptGenerationType: "hfa",
@@ -433,9 +450,9 @@ export const F10_HFA_AREA_ONLY: Fixture = {
   facilityColumns: { ...ALL_FACILITY_COLUMNS_OFF },
   facilities: [],
   roColumns: [
-    { name: "admin_area_2", type: "text" },
-    { name: "time_point", type: "text" },
-    { name: "value", type: "double precision" },
+    { name: "admin_area_2", type: "TEXT" },
+    { name: "time_point", type: "TEXT" },
+    { name: "value", type: "NUMERIC" },
   ],
   roRows: [
     { admin_area_2: "A2_north", time_point: "baseline", value: 10 },
@@ -445,7 +462,7 @@ export const F10_HFA_AREA_ONLY: Fixture = {
   firstPeriodOption: undefined,
 };
 
-// F11 — the HFA variants RO shape: hfa_variant_item is a plain TEXT NOT NULL
+// F11: the HFA variants RO shape: hfa_variant_item is a plain TEXT NOT NULL
 // physical column (never in the special registries), hfa_indicator carries the
 // PARENT indicator, and each parent's rows span only its own group's items.
 // Exercises the generic physical-column path for group-by / filter / option
@@ -453,6 +470,7 @@ export const F10_HFA_AREA_ONLY: Fixture = {
 export const F11_HFA_VARIANTS: Fixture = {
   name: "hfa_variants",
   family: "hfa",
+  adminDepth: 4,
   moduleId: "m_hfa_var",
   moduleDefinition: {
     scriptGenerationType: "hfa",
@@ -462,12 +480,12 @@ export const F11_HFA_VARIANTS: Fixture = {
   facilityColumns: { ...ALL_FACILITY_COLUMNS_OFF },
   facilities: HFA_FACILITIES,
   roColumns: [
-    { name: "facility_id", type: "text" },
-    { name: "time_point", type: "text" },
-    { name: "hfa_indicator", type: "text" },
-    { name: "hfa_variant_item", type: "text" },
-    { name: "hfa_category", type: "text" },
-    { name: "value", type: "double precision" },
+    { name: "facility_id", type: "TEXT" },
+    { name: "time_point", type: "TEXT" },
+    { name: "hfa_indicator", type: "TEXT" },
+    { name: "hfa_variant_item", type: "TEXT" },
+    { name: "hfa_category", type: "TEXT" },
+    { name: "value", type: "NUMERIC" },
   ],
   roRows: [
     { facility_id: "h1", time_point: "baseline", hfa_indicator: "vacc", hfa_variant_item: "campaign", hfa_category: "cat_1", value: 10 },
@@ -482,7 +500,7 @@ export const F11_HFA_VARIANTS: Fixture = {
   firstPeriodOption: undefined,
 };
 
-// F12 — the ethiopia v2b shape (m8 scorecard): `denominator` is BOTH a PAE
+// F12: the ethiopia v2b shape (m8 scorecard): `denominator` is BOTH a PAE
 // ingredient (`value = numerator / denominator` over SUM ingredients) and a
 // disaggregation option. The inner query then emits the grouped column and a
 // same-named aggregate alias, which the PAE wrapper must disambiguate
@@ -493,16 +511,17 @@ export const F11_HFA_VARIANTS: Fixture = {
 export const F12_HMIS_SCORECARD: Fixture = {
   name: "hmis_scorecard",
   family: "hmis",
+  adminDepth: 4,
   moduleId: "m_scorecard",
   moduleDefinition: hmisModule(),
   resultsObjectId: "33333333-4444-5555-6666-777777777777",
   facilityColumns: { ...ALL_FACILITY_COLUMNS_OFF },
   facilities: [],
   roColumns: [
-    { name: "admin_area_2", type: "text" },
-    { name: "period_id", type: "integer" },
-    { name: "numerator", type: "double precision" },
-    { name: "denominator", type: "double precision" },
+    { name: "admin_area_2", type: "TEXT" },
+    { name: "period_id", type: "INTEGER" },
+    { name: "numerator", type: "NUMERIC" },
+    { name: "denominator", type: "NUMERIC" },
   ],
   roRows: [
     { admin_area_2: "A2_north", period_id: 202401, numerator: 10, denominator: 20 },
@@ -511,6 +530,49 @@ export const F12_HMIS_SCORECARD: Fixture = {
   ],
   indicators: [],
   firstPeriodOption: "period_id",
+};
+
+// F13: the family-split divergence specimen: an HFA fixture at depth 2 with
+// includeTypes ON, while seedInstance seeds the OTHER family's row with a
+// different depth AND inverted flags (so hmis carries includeTypes OFF here).
+// The facility_type cases only pass if the engine picked the HFA row: reading
+// the hmis row would drop the facility join and kill the option/group-by.
+export const F13_HFA_DIVERGENT_SCHEMA: Fixture = {
+  name: "hfa_divergent_schema",
+  family: "hfa",
+  adminDepth: 2,
+  moduleId: "m_hfa_div",
+  moduleDefinition: {
+    scriptGenerationType: "hfa",
+    dataSources: [{ sourceType: "dataset", datasetType: "hfa" }],
+  },
+  resultsObjectId: "33333333-4444-5555-6666-777777777777",
+  facilityColumns: { ...ALL_FACILITY_COLUMNS_OFF, includeTypes: true },
+  facilities: [
+    { facility_id: "d1", admin_area_1: "Country", admin_area_2: "A2_north", admin_area_3: "A2_north", admin_area_4: "A2_north", facility_type: "hospital" },
+    { facility_id: "d2", admin_area_1: "Country", admin_area_2: "A2_north", admin_area_3: "A2_north", admin_area_4: "A2_north", facility_type: "clinic" },
+    { facility_id: "d3", admin_area_1: "Country", admin_area_2: "A2_south", admin_area_3: "A2_south", admin_area_4: "A2_south", facility_type: "hospital" },
+  ],
+  roColumns: [
+    { name: "facility_id", type: "TEXT" },
+    { name: "admin_area_2", type: "TEXT" },
+    { name: "value", type: "NUMERIC" },
+  ],
+  roRows: [
+    { facility_id: "d1", admin_area_2: "A2_north", value: 10 },
+    { facility_id: "d2", admin_area_2: "A2_north", value: 20 },
+    { facility_id: "d3", admin_area_2: "A2_south", value: 5 },
+  ],
+  indicators: [],
+  metric: {
+    id: "metric_div",
+    label: "Divergence metric",
+    value_func: "SUM",
+    format_as: "number",
+    value_props: ["value"],
+    required_disaggregation_options: [],
+  },
+  firstPeriodOption: undefined,
 };
 
 export const ALL_FIXTURES: Fixture[] = [
@@ -526,4 +588,5 @@ export const ALL_FIXTURES: Fixture[] = [
   F10_HFA_AREA_ONLY,
   F11_HFA_VARIANTS,
   F12_HMIS_SCORECARD,
+  F13_HFA_DIVERGENT_SCHEMA,
 ];

@@ -10,31 +10,42 @@ theme, `ui-*` utilities, sizing utilities, and sentence case see
 
 ## Rules
 
-1. **Panther components first** — Never hand-roll a `Button`, `Input`, `Select`,
+1. **Panther components first**: Never hand-roll a `Button`, `Input`, `Select`,
    `TextArea`, `Checkbox`, `RadioGroup`, table, or modal that panther provides.
-2. **Compose, don't replace** — When panther lacks something, build on top of
-   its components rather than reimplementing them.
-3. **Custom only when justified** — Hand-write a component only when panther has
+2. **Compose, don't replace**: When panther lacks something, build on top of its
+   components rather than reimplementing them.
+3. **Custom only when justified**: Hand-write a component only when panther has
    no equivalent or the need is app-specific; even then, wrap panther parts.
-4. **Tables use `Table`** — Define `columns: TableColumn<T>[]`; never build
+4. **Tables use `Table`**: Define `columns: TableColumn<T>[]`; never build
    bespoke `<table>` markup for data.
-5. **Modals/editors use the helpers** — Open dialogs via the editor/alert
-   helpers (`getEditorWrapper` / `openEditor`, confirm/prompt/alert); never roll
-   a custom overlay.
-6. **Delete confirmations via `createDeleteAction`** — Don't wire a custom
+5. **Modals/editors use the helpers**: Open dialogs via the editor/alert helpers
+   (`getEditorWrapper` / `openEditor`, confirm/prompt/alert); never roll a
+   custom overlay.
+6. **Delete confirmations via `createDeleteAction`**: Don't wire a custom
    confirm modal for deletes (see `PROTOCOL_UI_STATE.md`).
-7. **Size via the `size` prop** — Use `size="sm"` for small variants; resize
+7. **Size via the `size` prop**: Use `size="sm"` for small variants; resize
    globally with the `ui-form-*` utilities (see `PROTOCOL_UI_STYLING.md`). Never
    restyle a component with ad-hoc classes to change its size.
-8. **Loading/error via `StateHolderWrapper`** — Render async data through it,
-   not hand-written spinner/error branches (see `PROTOCOL_UI_STATE.md`).
+8. **Loading/error via `StateHolderWrapper`**: Render async data through it, not
+   hand-written spinner/error branches (see `PROTOCOL_UI_STATE.md`).
+9. **`data-*` goes on the component, not a wrapper**: `Button`, `Card`,
+   `HeadingBar`, `CollapsibleSection`, `Select`, `Input`, `Slider`,
+   `ButtonGroup`, `TabsNavigation`, `MenuTriggerWrapper` and
+   `CopyToClipboardButton` forward `data-*` attributes to their root element;
+   put tour anchors, test hooks and other DOM markers there instead of wrapping
+   in a `<div data-*="...">`. `data-*` only: anything else (`class`, `style`,
+   `id`, event handlers) is a real prop or needs a wrapper; it will NOT forward,
+   by design. On every other component a `data-*` attribute compiles but is
+   silently dropped (TypeScript exempts hyphenated JSX attribute names), so this
+   list is the source of truth. Inside the kit, a component's own attributes are
+   always written after `{...dataAttrs}`, so they win on a key collision.
 
 ## Do / Don't
 
 ### Component selection
 
 ```tsx
-// ❌ DON'T — hand-rolled equivalent of a panther component
+// ❌ DON'T: hand-rolled equivalent of a panther component
 <button
   class="rounded bg-primary px-3 py-2 text-primary-content"
   onClick={save}
@@ -52,10 +63,10 @@ so fixes and theme changes flow from one place to every app.
 ### Form inputs
 
 ```tsx
-// ❌ DON'T — custom size styling / arbitrary classes
+// ❌ DON'T: custom size styling / arbitrary classes
 <Input class="px-1 py-0.5 text-xs" value={v()} onChange={setV} />;
 
-// ✅ DO — use the size prop (and global ui-form-* utilities to resize app-wide)
+// ✅ DO: use the size prop (and global ui-form-* utilities to resize app-wide)
 <Input size="sm" value={v()} onChange={setV} />;
 ```
 
@@ -65,7 +76,7 @@ ad-hoc classes drift and break global resizing.
 ### Tables
 
 ```tsx
-// ❌ DON'T — bespoke table markup
+// ❌ DON'T: bespoke table markup
 <table>
   <For each={rows()}>
     {(r) => (
@@ -76,7 +87,7 @@ ad-hoc classes drift and break global resizing.
   </For>
 </table>;
 
-// ✅ DO — Table with typed columns
+// ✅ DO: Table with typed columns
 const columns: TableColumn<Row>[] = [
   {
     key: "id",
@@ -94,14 +105,14 @@ tables re-solve those and diverge.
 ### Modals & editors
 
 ```tsx
-// ❌ DON'T — custom overlay
+// ❌ DON'T: custom overlay
 <Show when={open()}>
   <div class="fixed inset-0 bg-black/30">
     <div class="...">{form}</div>
   </div>
 </Show>;
 
-// ✅ DO — editor/alert helpers
+// ✅ DO: editor/alert helpers
 const { openEditor, EditorWrapper } = getEditorWrapper();
 await openEditor({ element: EditForm, props: { data, onSave } });
 // and for destructive actions, createDeleteAction (see PROTOCOL_UI_STATE.md)
@@ -144,13 +155,13 @@ const query = createQuery(
 spacing/classes: `PROTOCOL_UI_STYLING.md`. User-facing strings: `t3` /
 `PROTOCOL_ALL_TRANSLATION.md`.)
 
-### `HeadingBar` — every header bar, no exceptions
+### `HeadingBar`: every header bar, no exceptions
 
 One component covers all of it: `heading`, optional inline `subheading`,
 `onBack`, `leftChildren`, `centerChildren`, right-hand `children`, and a
 built-in search field via `searchText` / `setSearchText`. Empty slots collapse,
 so the title gets the full width when nothing else is present, and the bar's
-height floor is a control's height — a bar holding only a title is exactly as
+height floor is a control's height: a bar holding only a title is exactly as
 tall as one holding buttons.
 
 `tonal` is the only surface control, and it also decides the divider:
@@ -164,7 +175,7 @@ surface is `--ui-heading-bar-tonal-bg` / `-fg`, retuned once per app, so "what
 does a tonal header look like?" has a single answer.
 
 ```tsx
-// ❌ DON'T — the hand-rolled bar this component exists to delete
+// ❌ DON'T: the hand-rolled bar this component exists to delete
 <div class="ui-pad ui-gap bg-base-200 flex h-full w-full items-center">
   <Button iconName="chevronLeft" onClick={back} />
   <div class="font-700 flex-1 truncate text-xl">
@@ -180,7 +191,7 @@ does a tonal header look like?" has a single answer.
 </HeadingBar>
 ```
 
-**Why:** the hand-rolled version drifts — every copy re-decides the surface, the
+**Why:** the hand-rolled version drifts: every copy re-decides the surface, the
 title type scale, and whether there's a divider. Four implementations of this
 bar existed before it was consolidated.
 

@@ -3,10 +3,38 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { Button, createSignal, For, Show, t3 } from "../../deps.ts";
+import {
+  Button,
+  createSignal,
+  For,
+  openConfirm,
+  Show,
+  t3,
+} from "../../deps.ts";
 import type { ProposalPreview } from "../../deps.ts";
 import type { DisplayItem } from "../../_core/types.ts";
 import { md } from "./_markdown_utils.ts";
+
+// The human confirmation for _114's callWithApproval — the two are ONE
+// idiom: callWithApproval owns the propose → present → confirm state
+// machine (framework-free, in _114), this owns the rendering. It presents
+// the SAME ProposalPreviewBody the AI approval card renders, over _303's
+// confirm dialog, so the human path and the AI path can never fork into two
+// renderings of one preview type. Apps pass it as `present`:
+//   callWithApproval(opClient.ops.deleteNode, args, {
+//     present: openProposalPreview,
+//   })
+export function openProposalPreview(
+  preview: ProposalPreview,
+): Promise<boolean> {
+  return openConfirm({
+    title: preview.title,
+    text: <ProposalPreviewBody preview={preview} />,
+    intent: preview.intent === "danger" ? "danger" : "primary",
+    confirmButtonLabel: preview.confirmLabel ??
+      t3({ en: "Accept", fr: "Accepter", pt: "Aceitar" }),
+  });
+}
 
 // Shared preview body: the inline card and the modal path render the SAME
 // structured preview (changes as a before → after list, diff as a two-pane

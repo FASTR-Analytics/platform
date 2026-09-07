@@ -95,7 +95,7 @@ type Props = {
   searchText: string;
   onClick: (presentationObject: PresentationObjectSummary) => void;
   /** Tag the grid as a page-cursor surface (see live_cursors.tsx "page").
-   *  Set ONLY by the project Visualizations tab — this component is also
+   *  Set ONLY by the project Visualizations tab: this component is also
    *  rendered by the slide editor's viz picker, which must not emit
    *  page-scoped cursors. */
   pageCursorSurface?: boolean;
@@ -587,7 +587,7 @@ function VisualizationGrid(p: VisualizationGridProps) {
   }
 
   async function handleEditCommonProperties(po: PresentationObjectSummary) {
-    // Default visualizations are manifest projections with no row — the batch
+    // Default visualizations are manifest projections with no row: the batch
     // period-filter route refuses the whole batch if any id is one. Customize
     // them individually instead.
     const idsToEdit = selection
@@ -713,7 +713,7 @@ function VisualizationGrid(p: VisualizationGridProps) {
 
   async function handleDelete(po: PresentationObjectSummary) {
     // Default visualizations have no row and the server refuses their delete
-    // (item 5b ruling: no delete on defaults) — exclude them from the batch.
+    // (item 5b ruling: no delete on defaults): exclude them from the batch.
     const idsToDelete = selection
       .getBatchIds(po.id)
       .filter((id) => !p.visualizations.find((v) => v.id === id)?.isDefault);
@@ -1009,7 +1009,7 @@ function VisualizationCard(p: VisualizationCardProps) {
       },
     );
     // Single-select delete on a default is refused server-side (item 5b: no
-    // delete on defaults) — don't offer it. Batch delete stays: the handler
+    // delete on defaults): don't offer it. Batch delete stays: the handler
     // filters defaults out of the selection.
     if (isMultiSelect || !p.po.isDefault) {
       items.push({
@@ -1050,7 +1050,7 @@ function VisualizationCard(p: VisualizationCardProps) {
         onClick={p.onCardClick}
         onContextMenu={handleContextMenu}
       >
-        {/* Live-presence avatars, overlaid bottom-left on the thumbnail — same
+        {/* Live-presence avatars, overlaid bottom-left on the thumbnail: same
             placement as the deck and report lists. */}
         <div class="pointer-events-none absolute bottom-1 left-1 z-10">
           <PresenceAvatars peers={cardPeers()} size="sm" showEditingPulse />

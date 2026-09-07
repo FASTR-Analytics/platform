@@ -3,8 +3,8 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-// Order-preserving, minimum-displacement relaxation along a closed track
-// (plan N4). Every label starts at its own nearest point and moves only because
+// Order-preserving, minimum-displacement relaxation along a closed track.
+// Every label starts at its own nearest point and moves only because
 // a neighbour physically forces it — so proximity is never traded away as a
 // matter of policy, only as a matter of geometry.
 //
@@ -17,7 +17,7 @@
 
 export type TrackItem = {
   // Natural position: the arc length of the point on the track nearest this
-  // label's anchor (plan N2).
+  // label's anchor.
   t: number;
   // Arc length this label occupies on the track once placed.
   footprint: number;
@@ -25,7 +25,7 @@ export type TrackItem = {
 
 export type RelaxResult =
   | { kind: "ok"; positions: number[] }
-  // The items cannot fit the track at all: the caller falls back (plan N10).
+  // The items cannot fit the track at all: the caller falls back.
   | { kind: "infeasible" };
 
 // Doublings allowed while bracketing the span multiplier. Measured worst case

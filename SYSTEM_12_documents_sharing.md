@@ -73,10 +73,10 @@ globs:
   - server/utils/id_generation.ts
 docs_absorbed:
 ---
-# S12 — Documents & Sharing
+# S12: Documents & Sharing
 
-The three figure-snapshot-embedding artifact types — slide decks, markdown
-reports, and dashboards — plus the public slug-addressed viewer and the
+The three figure-snapshot-embedding artifact types (slide decks, markdown
+reports, and dashboards), plus the public slug-addressed viewer and the
 SendGrid email egress. The render/export engines themselves are S10's; S12
 owns the artifacts, their storage, and the export *triggers*.
 
@@ -93,11 +93,11 @@ all three families + folders, `db/instance/dashboard_slugs.ts`,
 `routes/public/dashboard.ts` **and** the `/api/d/*` CORS + populate-only-Clerk
 mounts plus the `/d/:slug` SPA-HTML in root `main.ts` (the actual auth
 boundary), `routes/project/emails.ts`, `server/utils/id_generation.ts`
-(hardcodes 7 tables — Open item). Lib: slide/report/dashboard types incl.
+(hardcodes 7 tables, Open item). Lib: slide/report/dashboard types incl.
 `buildPublicDashboardBundle` and `buildReportPreview`. Custody wrinkle: the
 `_shared/**` glob also carries `dhis2_credentials/` (all consumers are
-S5/S6/S7 surfaces — SYSTEM_07 documents it) and `sort_control.tsx`
-(shell furniture — flagged in SYSTEM_14); the three logo files are genuinely
+S5/S6/S7 surfaces, documented in SYSTEM_07) and `sort_control.tsx`
+(shell furniture, flagged in SYSTEM_14); the three logo files are genuinely
 S12's (Open item: settle the manifest).
 
 ## Contract
@@ -112,22 +112,22 @@ banner; dashboards = **no conflict detection at all** (zero
 `expectedLastUpdated` in the family). **S16 overlays the first two**: when a
 live collab room exists for a slide or report, the mutating routes offer the
 save to the room first (`applySlideToLiveRoom` / `applyReportToLiveRoom`) and
-the CRDT merge is the conflict resolution — the philosophies below engage only
+the CRDT merge is the conflict resolution. The philosophies below engage only
 when no room is live. The collab checkpoint functions and additive columns
 (`saveSlideCheckpoint` / `saveReportCheckpoint`, `crdt_state` /
 `crdt_state_last_updated` / `body_authors`) ride this system's
 `server/db/project/{reports,slides,slide_decks}.ts`, and the version-history
-routes ride its route files — S12 owns the files, S16 the feature (SYSTEMS.md
+routes ride its route files. S12 owns the files, S16 the feature (SYSTEMS.md
 §4.1; [SYSTEM_16_collaboration.md](SYSTEM_16_collaboration.md)). Reads are
 guarded by `can_view_*`,
-mutations by `can_configure_*` + `preventAccessToLockedProjects` — dashboards
+mutations by `can_configure_*` + `preventAccessToLockedProjects`. Dashboards
 have no flags of their own and ride the slide-deck pair (Open item). The
 public viewer is the app's only unauthenticated product surface (cross-cutting
 audit SYSTEMS.md §4.3.9).
 
 ## Slide decks
 
-**Data model.** A deck row (`label`, free-text `plan` — the AI planning
+**Data model.** A deck row (`label`, free-text `plan` for the AI planning
 scratchpad, JSON `config` = deck style) + one row per slide (JSON `config` =
 one `Slide`, integer `sort_order`; FK cascade on deck delete). Deck and slide
 ids are 3-char nanoids. `getSlideDeckDetail` returns only ordered `slideIds`;
@@ -135,21 +135,21 @@ slide bodies fetch per-slide through `_SLIDE_CACHE`. Sort orders are
 **gap-numbered** (append = max+10, insert = target±5) with `reSequence`
 (`ROW_NUMBER()*10`) run inside the create/delete/duplicate transactions;
 `moveSlides` ([db/project/move_slides.ts](server/db/project/move_slides.ts))
-is **within-deck reorder only** — no cross-deck slide move exists.
+is **within-deck reorder only**: no cross-deck slide move exists.
 
 **The deck-touch rule.** Every slide mutation bumps
-`slide_decks.last_updated` with the same timestamp in the same transaction —
-that touch is what drives the SSE push and t2 cache versioning. Exceptions
+`slide_decks.last_updated` with the same timestamp in the same transaction,
+and that touch is what drives the SSE push and t2 cache versioning. Exceptions
 (Open item): `duplicateSlides` runs its shift-UPDATE and per-slide INSERT
 loop **outside** any transaction, and `duplicateSlideDeck` has no transaction
-at all — a mid-loop failure leaves partial rows.
+at all, so a mid-loop failure leaves partial rows.
 
 **Validation at write.** Deck config is validated at both the route body
 (`slideDeckConfigSchema`) and the DB layer; slide bodies are **`z.unknown()`
-at the route** — blocked on a real gap: panther's `PatternType` includes
+at the route**, blocked on a real gap: panther's `PatternType` includes
 `"none"` but the split-fill Zod enum doesn't
-([lib/api-routes/project/slides.ts:16-18](lib/api-routes/project/slides.ts#L16-L18))
-— with `slideConfigSchema.parse` as the DB-layer backstop. The layout tree is
+([lib/api-routes/project/slides.ts:16-18](lib/api-routes/project/slides.ts#L16-L18)),
+with `slideConfigSchema.parse` as the DB-layer backstop. The layout tree is
 a recursive Zod union embedding the strict `figureBlockSchema`; layout item
 `style` is `z.record(z.unknown())`. Duplicates copy stored config text
 without re-validation.
@@ -165,15 +165,15 @@ a live preview through S10's `convertSlideToPageInputs` debounced 100ms off
 switching back restores prior state (same idiom per-block for block-type
 switches). The layout tree is manipulated exclusively through panther node
 ops via `buildLayoutContextMenu`
-([layout_editor/build_context_menu.ts](client/src/components/layout_editor/build_context_menu.ts))
-— split/add/move/delete/convert, reachable from both the panel button and
+([layout_editor/build_context_menu.ts](client/src/components/layout_editor/build_context_menu.ts)):
+split/add/move/delete/convert, reachable from both the panel button and
 canvas right-click. Figure blocks resolve through the S10 shared resolvers
 (select existing viz → `resolveFigureBundleFromVisualization`; edit →
 ephemeral S11 editor + rebuild; create → `AddVisualization` + build). Local
 edits notify the AI (`edited_slide_locally`) and the editor registers the
 `editing_slide` view's mutator context on the AI view controller (S13).
 
-**The per-slide save loop** (the no-room/offline path — while a collab
+**The per-slide save loop** (the no-room/offline path: while a collab
 session is live the editor never explicit-saves; the room checkpoints
 continuously, S16): editor seeds `lastKnownServerTimestamp` from
 props → `updateSlide({slide, expectedLastUpdated, overwrite})` → DB compares
@@ -185,16 +185,16 @@ current slide) / view-theirs / cancel → on success the editor pre-warms
 lock is **opt-in** at the DB layer, but both writers send it: the S13 AI
 slide tools pass `expectedLastUpdated` from a pre-write `getSlide` fetch
 and rethrow `CONFLICT` to the model as a "re-read via get_slide and retry"
-error (no overwrite path — the human editor's modal is the only override).
+error (no overwrite path: the human editor's modal is the only override).
 
 **Lists & operations.** `ProjectDecks` reads T1 (`projectState.slideDecks`,
 SSE-maintained), groups `folders | flat` with a "General" pseudo-group,
-sorts client-side (`sortBySortMode` — not the server ORDER BY), multi-selects
+sorts client-side (`sortBySortMode`, not the server ORDER BY), multi-selects
 via `createSelectionController`, and batches move/duplicate/delete. The deck
 view's `SlideList` renders cards in the vendored SortableJS wrapper
 (multiDrag; optimistic local order; reorder diffs the moved run and calls
 `moveSlides`). Deck cards track both the deck's and the first slide's
-`lastUpdated`. Folders have **no GET route** — they ride the project-state
+`lastUpdated`. Folders have **no GET route**: they ride the project-state
 payload and SSE pushes only (same for report folders).
 
 ## Reports
@@ -895,43 +895,43 @@ the island's own publish a tick later. Bands and covers bleed to the SHEET's edg
 bleed vars above); Split/View remain the true page, where the bleed is the
 viewport.
 
-**Autosave protocol** (no-room path — once a collab session becomes ready the
+**Autosave protocol** (no-room path: once a collab session becomes ready the
 800ms REST autosave is turned off for good and edits flow over the WS, S16):
 800ms debounce → `updateReportBody({body,
 expectedLastUpdated, overwrite: true})`; the server **always writes** and
-returns `{lastUpdated, conflicted}` — `conflicted` is advisory
+returns `{lastUpdated, conflicted}`, where `conflicted` is advisory
 ([db/project/reports.ts:127-163](server/db/project/reports.ts#L127-L163));
 the client bumps its base timestamp monotonically (out-of-order responses
 can't rewind) and shows a dismissible "your changes were saved over theirs"
-banner. The `overwrite` param is accepted but unused — reserved for a
+banner. The `overwrite` param is accepted but unused, reserved for a
 hard-reject mode (Open item). Figures/images/config/label are separate
-whole-registry PUTs with **no concurrency guard** — the known MED
+whole-registry PUTs with **no concurrency guard**, the known MED
 lost-update race on the registries (Open item).
 
 **AI-diff view**: the `editing_report` view context registers `proposeEdit`
-— now the propose phase of the report tools' approval lifecycle (S13), whose
-`customProposalUI` opens a `@codemirror/merge` MergeView modal
-(accept/reject) — and `applyFigureUpdate`;
-on accept, figures persist FIRST and roll back client-side if the save fails
+and `applyFigureUpdate`. `proposeEdit` is now the propose phase of the report
+tools' approval lifecycle (S13), whose `customProposalUI` opens a
+`@codemirror/merge` MergeView modal (accept/reject).
+On accept, figures persist FIRST and roll back client-side if the save fails
 (the AI is told the edit was not applied), then the body applies through the
 editor API with the local-edit echo suppressed.
 
 ## Dashboards
 
 **Storage.** `dashboards` (title, `is_public`, `layout` = `sidebar | grid`,
-`config` = logos + about, slug held in the **main** DB — below) +
+`config` = logos + about, slug held in the **main** DB, see below) +
 `dashboard_items` (`figure_block`, nullable `geo_data`, `sort_order`,
 `replicant_group_id`/`replicant_value`) + `dashboard_item_groups`
 (`replicate_by`, `default_replicant_value`, ordered `replicants` JSON, and
-the group's **shared** `geo_data` — members store none). A group = 1 group
+the group's **shared** `geo_data`: members store none). A group = 1 group
 row + N tagged member items inserted contiguously in one transaction.
 
 **Entry CRUD.** 13 routes; every item/group mutation bumps the parent
 dashboard row in the same transaction. `moveDashboardItems` rewrites the
-full order (`(i+1)*10`, tie-free — the old anchor+offset approach collided
+full order (`(i+1)*10`, tie-free, since the old anchor+offset approach collided
 when a moved group was wider than the gap). **`replaceDashboardEntry`** is
-the single structural-reshape primitive — replace one entry (item or group)
-with a new entry of either kind, preserving position: inside one
+the single structural-reshape primitive: replace one entry (item or group)
+with a new entry of either kind, preserving position. Inside one
 transaction it reads the old position, deletes, shifts trailing rows to open
 a tie-free hole, inserts, bumps, reSequences.
 
@@ -940,23 +940,23 @@ expands to a group only when the edited config **gains** a replicant
 dimension (`oldHadReplicant` test); an item pinned to one replicant stays an
 item (a cleared pick is restored). A group with the same dimension + same
 value set gets an in-place member update behind a progress-only modal (no
-confirm — a cancel would discard); a different dimension/set → confirmed
+confirm, since a cancel would discard); a different dimension/set → confirmed
 rebuild via `replaceDashboardEntry`; no dimension → confirmed collapse to
 item. Member resolution (`resolveMembersWithProgress`) builds one figure per
 replicant and captures shared geo from the first member that has it;
 structure discovery uses `excludeReplicantFilter: true` (keeps user filters,
 drops the auto-pin). Group member updates are **matched by
-`replicant_value`** — a vanished value silently no-ops (v1 same-set
-assumption, unverified server-side — Open item).
+`replicant_value`**: a vanished value silently no-ops (v1 same-set
+assumption, unverified server-side, Open item).
 
 **No conflict detection** anywhere in the family, and no dashboard-specific
-permission flags — both are Contract facts above.
+permission flags. Both are Contract facts above.
 
 ## Slugs & the public viewer
 
 **Slug indirection.** `dashboard_slugs` lives in the **main** DB (slug PK →
 `{projectId, dashboardId}`) because dashboard ids are only unique per
-project — the slug is what routes a bare `/d/:slug` to the right project
+project. The slug is what routes a bare `/d/:slug` to the right project
 database. Format `^[a-z0-9]+(-[a-z0-9]+)*$`, 3-60 chars; uniqueness checked
 with self-exclusion. Lifecycle writes are **non-transactional cross-DB
 pairs**, all main-DB-first with compensation: create inserts the slug then
@@ -970,33 +970,33 @@ rejects); `routesPublicDashboard` mounts BEFORE the global auth middleware;
 `/d/:slug` serves the SPA HTML pre-auth. The route
 ([routes/public/dashboard.ts](server/routes/public/dashboard.ts)): resolve
 slug on main (READ_ONLY) → project connection → detail; `isPublic: false`
-requires any Clerk session (`getAuth(c)?.userId`) — under `_BYPASS_AUTH`
+requires any Clerk session (`getAuth(c)?.userId`). Under `_BYPASS_AUTH`
 there is no session at all, so a private dashboard is hidden from everyone
-in that mode. **All four failure modes return the identical 404** — no
+in that mode. **All four failure modes return the identical 404**, with no
 oracle distinguishing "private" from "doesn't exist". The response is
-`buildPublicDashboardBundle(detail, countryIso3)` — titles/bundles only,
+`buildPublicDashboardBundle(detail, countryIso3)`: titles/bundles only,
 no emails or project ids; `countryIso3` is the env-sourced
 `_INSTANCE_COUNTRY_ISO3` (label cleaning has no failure mode to guard).
 
 **`buildPublicDashboardBundle`**
 ([lib/types/dashboard.ts:148](lib/types/dashboard.ts#L148)) is the single
-shared transform — sorts, collapses members into `entries`, injects the
+shared transform: it sorts, collapses members into `entries`, injects the
 group's shared geo into each member bundle as `{kind:"data"}`, skips
-bundle-less items, cleans replicant labels — used by BOTH the server public
-route and the in-app editor (via a thin client wrapper, "so they can never
-diverge").
+bundle-less items, and cleans replicant labels. It is used by BOTH the server
+public route and the in-app editor (via a thin client wrapper, "so they can
+never diverge").
 
-**Client viewer**: `/d/:slug` registers before the logged-in catch-all —
+**Client viewer**: `/d/:slug` registers before the logged-in catch-all:
 outside the app shell, raw `fetch` with `credentials: "include"` (a
 logged-in user can view private dashboards at the same URL), local
 `AlertProvider`. Chrome: title bar with placement-configurable logos, About
 modal, summary strip; `sidebar` layout (nav list, group members indented) or
 `grid` (2-col tiles, per-tile replicant `Select`). The download modal
 (PNG/PDF/PPTX/XLSX, scope current/all, >50-figure confirm, honest
-table-count for XLSX) is the **only** dashboard export entry — the in-app
+table-count for XLSX) is the **only** dashboard export entry. The in-app
 editor's outward path is just the public URL.
 
-## FigureBundle — the three storage surfaces (shipped 2026-06-13)
+## FigureBundle: the three storage surfaces
 
 This is S12's slice of the FigureBundle refactor; the full architecture
 (bundle shape, `buildFigureInputs`, the invariants, localization) lives in
@@ -1010,7 +1010,7 @@ that **store** bundles and the public/export paths that **render** them.
   ([_slide_config.ts](lib/types/_slide_config.ts)); dashboards in the
   `figure_block` column
   ([_dashboard_config.ts](lib/types/_dashboard_config.ts)); reports in the
-  `figures` registry ([reports.ts](lib/types/reports.ts) — one shared block
+  `figures` registry ([reports.ts](lib/types/reports.ts), one shared block
   schema across all three). The strict schema is what lets the migration
   skip-gate catch legacy blocks (S2) and what made deleting the old
   force-run safe.
@@ -1020,10 +1020,10 @@ that **store** bundles and the public/export paths that **render** them.
   instance locale** (NOT the session toggle) + `metricId`/`snapshotAt` +
   free `provenance`. The bundle is undefined-free pure JSON, so it persists
   with no stripping.
-- **Build-on-render — every surface.** On-screen render, exports, and the
+- **Build-on-render: every surface.** On-screen render, exports, and the
   public viewer all call `buildFigureInputs(bundle, deckStyle?)`. The
   public/export path "just works" because the bundle carries its own
-  `localization` — the old `hydrateFigureInputsForPublicRendering`
+  `localization`. The old `hydrateFigureInputsForPublicRendering`
   special-casing was deleted.
 - **The sentinel layer is gone.** Bundles carry no `undefined` values, so
   the `@@__UNDEFINED__@@` encode/decode wrappers were deleted along with
@@ -1035,14 +1035,14 @@ that **store** bundles and the public/export paths that **render** them.
 ## Caches & the notify triangle
 
 Per-family t2 reactive caches version off the SSE-pushed `lastUpdated` maps
-(version is part of the cache key — a flip is an automatic miss): `slide`
+(version is part of the cache key, so a flip is an automatic miss): `slide`
 (per slide), `slide_deck_detail` (per deck), `dashboard_detail` (per
-dashboard). **Reports have no t2 cache** — the editor and exports fetch
+dashboard). **Reports have no t2 cache**: the editor and exports fetch
 `getReportDetail` directly; summaries live in T1 via `reports_updated`.
 Every family follows the pattern: mutations fire
 `notifyLastUpdated(projectId, table, ids, ts)` + a full-list re-broadcast
 (`notifyProject{SlideDecks,Reports,Dashboards,…Folders}Updated`) on
-list-affecting ops. Coverage is inconsistent at the edges — two real
+list-affecting ops. Coverage is inconsistent at the edges, with two real
 staleness candidates: `moveSlideDeckToFolder` / `moveReportToFolder` bump
 the row's `last_updated` in the DB but fire **no** `notifyLastUpdated` (a
 changed row the triangle never pushes), and slide create/delete/move never
@@ -1054,14 +1054,14 @@ re-broadcast the deck list although its summary embeds `first_slide_id`
 [routes/project/emails.ts](server/routes/project/emails.ts) is the only
 SendGrid egress (raw fetch, `Bearer _SEND_GRID_API`, from
 `noreply@fastr-analytics.org`). `sendSlideDeckEmail`
-(`can_view_slide_decks` — deliberately the view flag): the PDF is
+(`can_view_slide_decks`, deliberately the view flag): the PDF is
 client-rendered (S10 base64 export); recipients are schema-validated
 (`z.array(z.email()).min(1).max(50)`); sequential per-recipient sends with
 partial failures returned as `{sent: false, failedRecipients}`.
-`sendHelpEmail` (bare `requireGlobalPermission()` — authenticates only,
+`sendHelpEmail` (bare `requireGlobalPermission()`, which authenticates only,
 never checks `approved`, Open item): one email per
 `_FEEDBACK_EMAIL_RECIPIENTS` with `replyTo` the user, then a confirmation
-to the user only after at least one internal send succeeded — zero internal
+to the user only after at least one internal send succeeded. Zero internal
 deliveries returns `success: false` (the form shows the error instead of
 "Thank you"). User-typed text (`message`/`description`/`projectLabel`/
 `userEmail`) is HTML-escaped before interpolation in both routes.
@@ -1069,7 +1069,7 @@ deliveries returns `success: false` (the form shows the error instead of
 ## Open items
 
 - **Reports registry lost-update race (MED, known)**: figures/images/config
-  PUTs are whole-registry replaces with no concurrency guard — two editors
+  PUTs are whole-registry replaces with no concurrency guard, so two editors
   (or human + AI `applyFigureUpdate`) clobber each other. Narrowed by S16:
   while a collab room is live these route through the room and merge; the
   race remains for the no-room path.
@@ -1083,29 +1083,29 @@ deliveries returns `success: false` (the form shows the error instead of
   `updateDashboardItem/ItemGroup`, `moveDashboardItems` skip the list
   re-broadcast.
 - **Dashboards**: zero optimistic concurrency; no dashboard-specific
-  permission flags (rides the slide-deck pair) — document as contract or
+  permission flags (rides the slide-deck pair): document as contract or
   add flags; group member update silently no-ops for vanished replicant
   values; every mutation route re-runs `getAllDashboards` (project + main
-  DB) just to broadcast — N× for batch deletes.
+  DB) just to broadcast, N× for batch deletes.
 - **`sendHelpEmail` approved-user question**: the guard never checks
   `approved`, so unapproved (Clerk-authenticated but not-added) users can
-  send feedback. Possibly intended — an unapproved user may legitimately
+  send feedback. Possibly intended: an unapproved user may legitimately
   need to reach support. Decide and either document or add the check.
-- **`overwrite` on `updateReportBody` is dead** — always sent `true`,
+- **`overwrite` on `updateReportBody` is dead**: always sent `true`,
   ignored by the DB fn; wire the hard-reject mode or drop it.
 - **`_shared/**` custody**: `dhis2_credentials/` is consumed only by
   S5/S6/S7 surfaces and documented by S7; `sort_control.tsx` is shell
-  furniture (SYSTEM_14 flag) — settle via manifest move or a §4.1 exception
+  furniture (SYSTEM_14 flag). Settle via manifest move or a §4.1 exception
   row.
 - **Type casts on mutation bodies**: `body as any` ×5 in the dashboards
   routes, `body.figures as any`, `body.slide as Slide`, `body.config as
-  SlideDeckConfig` — the Zod-validated body is discarded typewise; ties into
+  SlideDeckConfig`: the Zod-validated body is discarded typewise; ties into
   the tighten-to-schema follow-on.
 - **Committed debug logging** in the slide editor ("FUZZ DEBUG" blocks incl.
   a full layout-tree dump on every measure).
 - **Dead code**: `PasswordGate.tsx` (zero importers, EN-only); the ~90-line
   commented-out text-size slider block + its 5 imports in
-  `editor_panel_content.tsx` (`TextBlockStyle.textSize` has no UI writer —
+  `editor_panel_content.tsx` (`TextBlockStyle.textSize` has no UI writer, which
   pairs with S10's dead-at-render textSize item); dead `editingSlideId`
   signal; `slide_deck_folders.description` column has no UI writer;
   duplicate modal pairs (deck/report duplicate + move modals are 231/231 and

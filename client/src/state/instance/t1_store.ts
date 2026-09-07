@@ -1,8 +1,11 @@
 import { createStore, reconcile, unwrap } from "solid-js/store";
 import type {
+  FacilityFamily,
+  StructureSchema,
   InstanceConfig,
   InstanceDatasetsSummary,
   InstanceIndicatorsSummary,
+  InstancePopulationSummary,
   InstanceState,
   InstanceStructureSummary,
   AssetInfo,
@@ -10,36 +13,36 @@ import type {
   OtherUser,
   ProjectSummary,
   FigureLocalization,
+  RunCatalogItem,
 } from "lib";
 
 // ============================================================================
 // Store
 // ============================================================================
 
-const [instanceState, setInstanceState] = createStore<InstanceState>({
+// Hoisted so resetInstanceState can reconcile back to it: the instance
+// sibling of EMPTY_PROJECT_STATE. `isReady: false` included: a disconnect
+// must never leave the previous user's state renderable (Clerk cross-tab
+// user switch unmounts/remounts the boundary without a reload).
+const EMPTY_INSTANCE_STATE: InstanceState = {
   isReady: false,
   instanceName: "",
   instanceLanguage: "en",
   instanceCalendar: "gregorian",
   instanceFiscalYear: "none",
-  maxAdminArea: 0,
   countryIso3: undefined,
-  facilityColumns: {
-    includeNames: false,
-    includeTypes: false,
-    includeOwnership: false,
-    includeCustom1: false,
-    includeCustom2: false,
-    includeCustom3: false,
-    includeCustom4: false,
-    includeCustom5: false,
-  },
+  structureSchemaHmis: null,
+  structureSchemaHfa: null,
+  dhis2ConnectionUrl: null,
   adminAreaLabels: {},
   projects: [],
   projectsLastUpdated: "",
   users: [],
   assets: [],
   geojsonMaps: [],
+  runsCatalog: [],
+  runsCatalogSignal: "",
+  pinnedRunId: null,
   structure: undefined,
   structureLastUpdated: undefined,
   hfaWeights: [],
@@ -47,7 +50,6 @@ const [instanceState, setInstanceState] = createStore<InstanceState>({
     commonIndicators: 0,
     rawIndicators: 0,
     hfaIndicators: 0,
-    calculatedIndicators: 0,
   },
   datasetsWithData: [],
   datasetVersions: {},
@@ -58,9 +60,13 @@ const [instanceState, setInstanceState] = createStore<InstanceState>({
   hfaTimePoints: [],
   hfaCacheHash: "",
   icehCacheHash: "",
+  populationLevel: undefined,
+  populationRowCount: 0,
+  populationCoverage: [],
+  populationLastUpdated: undefined,
   indicatorMappingsVersion: "",
+  baseIndicatorMappingsVersion: "",
   hfaIndicatorsVersion: "",
-  calculatedIndicatorsVersion: "",
   currentUserEmail: "",
   currentUserApproved: false,
   currentUserIsGlobalAdmin: false,
@@ -73,17 +79,17 @@ const [instanceState, setInstanceState] = createStore<InstanceState>({
     can_view_data: false,
     can_create_projects: false,
   },
-});
+};
+
+const [instanceState, setInstanceState] = createStore<InstanceState>(
+  structuredClone(EMPTY_INSTANCE_STATE),
+);
 
 export { instanceState };
 
 // ============================================================================
-// Snapshot-read getters (for caches and async code) — named getSnapshot*
+// Snapshot-read getters (for caches and async code): named getSnapshot*
 // ============================================================================
-
-export function getSnapshotInstanceCountryIso3(): string | undefined {
-  return unwrap(instanceState).countryIso3;
-}
 
 export function getSnapshotInstanceLocalization(): FigureLocalization {
   const s = unwrap(instanceState);
@@ -103,11 +109,55 @@ export function initInstanceState(data: InstanceState): void {
   setInstanceState(reconcile(data));
 }
 
+// Mirrors resetProjectState: called from disconnectInstanceSSE so a boundary
+// unmount (incl. the Clerk-listener user-switch path, which does NOT reload)
+// never lets the next user render the previous user's permissions, roster or
+// catalogue.
+export function resetInstanceState(): void {
+  setInstanceState(reconcile(structuredClone(EMPTY_INSTANCE_STATE)));
+}
+
 export function updateInstanceConfig(data: InstanceConfig): void {
-  setInstanceState("maxAdminArea", data.maxAdminArea);
   setInstanceState("countryIso3", data.countryIso3);
-  setInstanceState("facilityColumns", reconcile(data.facilityColumns));
+  // Solid's reconcile handles null↔object transitions cleanly (verified:
+  // isWrappable guard returns the value directly when either side is not
+  // wrappable)
+  setInstanceState("structureSchemaHmis", reconcile(data.structureSchemaHmis));
+  setInstanceState("structureSchemaHfa", reconcile(data.structureSchemaHfa));
   setInstanceState("adminAreaLabels", reconcile(data.adminAreaLabels));
+  setInstanceState("dhis2ConnectionUrl", data.dhis2ConnectionUrl);
+}
+
+// The shared-surface depth: the deepest level either registry uses. Surfaces
+// that are family-scoped read their own family's schema instead.
+export function maxDepth(): number {
+  return Math.max(
+    instanceState.structureSchemaHmis?.adminDepth ?? 1,
+    instanceState.structureSchemaHfa?.adminDepth ?? 1,
+  );
+}
+
+// Family-scoped surfaces that need a definite schema. The fallback matches
+// the seeded default (depth 4, all columns off) and only applies on an
+// instance whose schema row is missing: near-zero probability, guarded by
+// the pre-deploy check.
+const FALLBACK_STRUCTURE_SCHEMA: StructureSchema = {
+  adminDepth: 4,
+  includeNames: false,
+  includeTypes: false,
+  includeOwnership: false,
+  includeCustom1: false,
+  includeCustom2: false,
+  includeCustom3: false,
+  includeCustom4: false,
+  includeCustom5: false,
+};
+
+export function structureSchemaForFamily(family: FacilityFamily): StructureSchema {
+  const schema = family === "hmis"
+    ? instanceState.structureSchemaHmis
+    : instanceState.structureSchemaHfa;
+  return schema ?? FALLBACK_STRUCTURE_SCHEMA;
 }
 
 export function updateInstanceProjects(projects: ProjectSummary[]): void {
@@ -130,6 +180,26 @@ export function updateInstanceGeoJsonMaps(maps: GeoJsonMapSummary[]): void {
   setInstanceState("geojsonMaps", reconcile(maps));
 }
 
+export function updateInstanceRunsCatalog(runs: RunCatalogItem[]): void {
+  setInstanceState("runsCatalog", reconcile(runs));
+}
+
+export function updateRunsCatalogSignal(signal: string): void {
+  setInstanceState("runsCatalogSignal", signal);
+}
+
+export function updatePinnedRunId(pinnedRunId: string | null): void {
+  setInstanceState("pinnedRunId", pinnedRunId);
+}
+
+// Live read of the current user's own catalogue entitlement (Q-B): the
+// boundary's catalogue fetch tracks this, so a grant or revocation takes
+// effect without a reconnect.
+export function canSeeRunsCatalog(): boolean {
+  return instanceState.currentUserIsGlobalAdmin ||
+    instanceState.currentUserPermissions.can_configure_data;
+}
+
 export function updateInstanceStructure(data: InstanceStructureSummary): void {
   setInstanceState("structure", reconcile(data.structure));
   setInstanceState("structureLastUpdated", data.structureLastUpdated);
@@ -141,11 +211,11 @@ export function updateInstanceIndicators(
 ): void {
   setInstanceState("indicators", reconcile(data.indicators));
   setInstanceState("indicatorMappingsVersion", data.indicatorMappingsVersion);
-  setInstanceState("hfaIndicatorsVersion", data.hfaIndicatorsVersion);
   setInstanceState(
-    "calculatedIndicatorsVersion",
-    data.calculatedIndicatorsVersion,
+    "baseIndicatorMappingsVersion",
+    data.baseIndicatorMappingsVersion,
   );
+  setInstanceState("hfaIndicatorsVersion", data.hfaIndicatorsVersion);
 }
 
 export function updateInstanceDatasets(data: InstanceDatasetsSummary): void {
@@ -161,6 +231,15 @@ export function updateInstanceDatasets(data: InstanceDatasetsSummary): void {
   setInstanceState("hfaTimePoints", reconcile(data.hfaTimePoints));
   setInstanceState("hfaCacheHash", data.hfaCacheHash);
   setInstanceState("icehCacheHash", data.icehCacheHash);
+}
+
+export function updateInstancePopulation(
+  data: InstancePopulationSummary,
+): void {
+  setInstanceState("populationLevel", data.populationLevel);
+  setInstanceState("populationRowCount", data.populationRowCount);
+  setInstanceState("populationCoverage", reconcile(data.populationCoverage));
+  setInstanceState("populationLastUpdated", data.populationLastUpdated);
 }
 
 // ============================================================================

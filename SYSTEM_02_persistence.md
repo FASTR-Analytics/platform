@@ -16,25 +16,25 @@ globs:
 docs_absorbed:
 ---
 
-# S2 — Persistence Core & Schema Lifecycle
+# S2: Persistence Core & Schema Lifecycle
 
 The Postgres layer everything else stands on: the multi-database model (one
 `main` plus one bare-UUID database per project), the two sanctioned connection
 factories and their pools, the canonical `Sql`-first DB-function shape with its
 single error funnel, the **SQL-safety boundary** (this file is the normative
-owner of that rule), and the schema lifecycle — fail-stop boot running SQL
+owner of that rule), and the schema lifecycle: fail-stop boot running SQL
 migrations then JSON data transforms, plus backup/restore mechanics. Reviewed
-against code 2026-07-16 (first review cycle, review-only; absorbs
+against code (first review cycle, review-only; absorbs
 DOC_DB_ACCESS_LAYER).
 
 Boundaries: the migration/schema-change **recipe** (transform blocks, skip-gate
 gotcha, idempotency patterns, the write-time/read-time validation boundary) is
-[PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md) — this system owns the
+[PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md): this system owns the
 machinery and architecture, the protocol owns the how-to. The `last_updated`
 bump this layer performs on every mutation is one corner of the
 `last_updated → SSE → version-hash` triangle; the push and cache corners are
 **S3** ([SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md)). DB
-functions return `APIResponse` envelopes consumed by the route layer — the
+functions return `APIResponse` envelopes consumed by the route layer. The
 envelope and route contract are **S1**
 ([SYSTEM_01_api_contract.md](SYSTEM_01_api_contract.md)); the generic
 envelope/boundary-validation rules both build on are panther's
@@ -45,14 +45,14 @@ the bulk-import SQL does is **S6**
 ([SYSTEM_06_ingestion.md](SYSTEM_06_ingestion.md)). Operator access to the
 databases from outside the app (DOC_ACCESS_DBS) is S15's cycle. Sub-file custody
 exceptions are in SYSTEMS.md §4.1: `db/project/projects.ts` and
-`routes/instance/backups.ts` are owned by S15 with S2 a mandatory reader — the
+`routes/instance/backups.ts` are owned by S15 with S2 a mandatory reader: the
 slices reviewed here are project-DB create/drop and the restore body; `main.ts`
-is owned by S1 (S2 reader — the boot call order).
+is owned by S1 (S2 reader, the boot call order).
 
 ## Contract
 
 Project DBs named by bare UUID; pooled cached connections acquired only through
-the two factories (the `READ_ONLY` flag is _nominal_ — never enforced); every DB
+the two factories (the `READ_ONLY` flag is _nominal_, never enforced); every DB
 function takes an `Sql` first and returns an `APIResponse` through one error
 funnel; values parameterized, identifiers whitelisted; boot is fail-stop (SQL
 migrations, then per-type data transforms, `Deno.exit(1)` on any failure);
@@ -102,20 +102,20 @@ const db = getPgConnectionFromCacheOrNew(id, "READ_AND_WRITE"); // "main" or pro
 - Pool defaults: `max: 20`, `idle_timeout: 300`,
   `statement_timeout`/`query_timeout: 300000`, `prepare: true`,
   `transform.undefined → null`.
-- **Lifecycle is owned by postgres.js `idle_timeout`** — there is deliberately
+- **Lifecycle is owned by postgres.js `idle_timeout`**: there is deliberately
   **no manual cleanup** (manual `end()` on pools with in-flight queries crashed
   the server; see the comment in the file).
 - `closePgConnection` / `closeAllConnections` exist only for explicit teardown:
   process shutdown in `main.ts` (SIGINT/SIGTERM), and per-project teardown
   before a project delete or a backup restore drops its database.
 - `getPgConnection(databaseId, { max?, readonly? })` creates a **fresh,
-  uncached** pool — caller must `.end()`. Two call sites, both in the restore
-  body of `routes/instance/backups.ts`. (`options.readonly` is dead — see
-  below.)
+  uncached** pool: caller must `.end()`. Two call sites, both in the restore
+  body of `routes/instance/backups.ts`. (`options.readonly` is dead, as
+  described below.)
 
 ### 2. Dedicated worker connections (background jobs)
 
-`server/db/postgres/worker_connections.ts` — workers run in separate contexts
+`server/db/postgres/worker_connections.ts`. Workers run in separate contexts
 with no access to the request cache:
 
 | Factory                      | `max` | `idle_timeout` | `prepare` | Use                                      |
@@ -125,21 +125,21 @@ with no access to the request cache:
 | `createWorkerReadConnection` | 2     | 120s           | `false`   | read-only worker reads                   |
 
 `prepare: false` is required for the buffered bulk-`INSERT` style used by
-importers. **These are not cached — every worker exit path must `.end()` them**
-(teardown contract:
+importers. **These are not cached, so every worker exit path must `.end()`
+them** (teardown contract:
 [PROTOCOL_APP_WORKER_ROUTINES.md](PROTOCOL_APP_WORKER_ROUTINES.md)).
 
 ### The `READ_ONLY` flag is cosmetic ⚠️
 
 `getPgConnectionFromCacheOrNew(id, "READ_ONLY" | "READ_AND_WRITE")` uses
 `permissions` **only to namespace the cache key**. It calls `getPgConnection`
-with no options, and `getPgConnection` never reads `options.readonly` — no
+with no options, and `getPgConnection` never reads `options.readonly`: no
 `default_transaction_read_only` is ever set. Net effect: a `"READ_ONLY"`-keyed
 connection can write freely, and the flag merely **doubles** the pooled
 connections per database (a `_READ_ONLY` and a `_READ_AND_WRITE` entry, up to 20
-each — size Postgres `max_connections` accordingly). Treat the parameter as
-cache-namespacing, not a safety boundary (ruled 2026-08-03: it stays
-namespacing-only — making it real would break legitimate writes on
+each, so size Postgres `max_connections` accordingly). Treat the parameter as
+cache-namespacing, not a safety boundary (ruled: it stays
+namespacing-only, because making it real would break legitimate writes on
 `READ_ONLY`-pooled connections, e.g. `getGlobalUser`'s open-access insert).
 
 ## The canonical DB-function shape
@@ -176,11 +176,11 @@ Rules of the shape:
 - **First parameter is the `Sql` connection** (`db` / `projectDb` / `mainDb`),
   passed in by the route from `c.var.ppk.projectDb` or `c.var.mainDb`. DB
   functions don't acquire their own connection.
-- **Body wrapped in `tryCatchDatabaseAsync`** — converts any throw (including a
+- **Body wrapped in `tryCatchDatabaseAsync`**: converts any throw (including a
   Zod `.parse` failure) into `{ success: false, err }`.
-- **Returns `APIResponseWithData<T>` or `APIResponseNoData`** — never raw rows,
+- **Returns `APIResponseWithData<T>` or `APIResponseNoData`**: never raw rows,
   never a bare throw to the route. (Known stragglers: `ai_usage_logs.ts` and
-  some log/user functions — Open items.)
+  some log/user functions, listed in Open items.)
 
 ### The error funnel
 
@@ -189,7 +189,7 @@ Rules of the shape:
 
 - internal sentinel strings (`ERROR_CATEGORY.MODULE_NOT_RUN`, `DATA_NOT_FOUND`,
   `VALIDATION_ERROR`, …) → friendly messages;
-- Postgres message patterns — `relation "ro_…" does not exist` →
+- Postgres message patterns: `relation "ro_…" does not exist` →
   `DATA_NOT_FOUND` ("module may need to be run"), `column … does not exist` →
   `CONFIGURATION_ERROR`, `permission denied` → `PERMISSION_DENIED`;
 - network error codes (`CONNECTION_ENDED`, `ECONNREFUSED`, …) → `NETWORK_ERROR`.
@@ -206,16 +206,16 @@ SQL error.
 
 | Direction    | Pattern                                                                                                   |
 | ------------ | --------------------------------------------------------------------------------------------------------- |
-| **Read**     | `JSON.parse(raw)` or a domain parser (`parsePresentationObjectConfig`, `parseJsonOrThrow`) — trust the DB |
-| **Write**    | `JSON.stringify(schema.parse(value))` **inline in the SQL template** — Zod-validate before write          |
+| **Read**     | `JSON.parse(raw)` or a domain parser (`parsePresentationObjectConfig`, `parseJsonOrThrow`). Trust the DB |
+| **Write**    | `JSON.stringify(schema.parse(value))` **inline in the SQL template**. Zod-validate before write          |
 | **Nullable** | `${value ?? null}`                                                                                        |
 
 The validation boundary (which schema, where) is owned by
 [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md); this file documents
 only the mechanical round-trip. Don't add read-time Zod validation as a matter
-of course — trust the database after the startup sweep; validate on write. The
+of course: trust the database after the startup sweep; validate on write. The
 connection-level `undefined → null` transform means a missing field becomes SQL
-`NULL`, not a default — be explicit with `?? null` for clarity.
+`NULL`, not a default, so be explicit with `?? null` for clarity.
 
 ### Transactions & optimistic concurrency
 
@@ -226,47 +226,48 @@ connection-level `undefined → null` transform means a missing field becomes SQ
   `expectedLastUpdated`; if it differs from the stored value, the function
   reports `conflicted: true` (e.g. `updateReportBody`,
   `updatePresentationObjectConfig`, `updateSlide`) rather than clobbering. The
-  bumped `last_updated` is also the SSE/cache version key — see
+  bumped `last_updated` is also the SSE/cache version key. See
   [SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md). When a live
   collab room exists for the row, the mutating route offers the save to the
   room first (S16's `apply*ToLiveRoom` chokepoint) and the CRDT merge is the
-  conflict resolution — the optimistic round-trip engages only on the no-room
+  conflict resolution: the optimistic round-trip engages only on the no-room
   path. The room checkpoint stamps `last_updated` and the additive
   `crdt_state_last_updated` column equal in one write; any non-collab write
   bumps `last_updated` alone, which is exactly what invalidates the stored
   CRDT state ([SYSTEM_16_collaboration.md](SYSTEM_16_collaboration.md)).
 
-## SQL safety — the normative rule
+## SQL safety: the normative rule
 
 **This file owns the SQL-safety boundary.** The ingestion, PO-query, and
 module-execution systems apply it to their domains but cite this rule rather
 than restating it.
 
 ```text
-VALUES           → tagged template ${value}            (always parameterized — safe)
+VALUES           → tagged template ${value}            (always parameterized, safe)
 IDENTIFIERS      → db(identifier) / projectDb(name)    (whitelisted by postgres.js)
 DYNAMIC VALUES   → escapeSqlString(s)  ('' doubling)   (ONE sanctioned manual escaper)
 RAW .unsafe(sql) → trusted-internal input ONLY         (closed unions / module-def
                                                         constants / repo-authored SQL)
 ```
 
-- **Values**: always interpolate with the tagged template —
+- **Values**: always interpolate with the tagged template, as in
   `` projectDb`… WHERE id = ${id}` ``. Never string-concatenate a value.
-- **Identifiers**: dynamic table/column names go through the helper —
+- **Identifiers**: dynamic table/column names go through the helper, as in
   `` projectDb`SELECT * FROM ${projectDb(tableName)}` `` (see
   `results_objects.ts`). postgres.js quotes them safely. There are **no
-  parameterized table names** — a table name from config must be validated
+  parameterized table names**: a table name from config must be validated
   against a closed set before it reaches SQL.
 - **`escapeSqlString`** (`server/db/utils.ts`, `s.replace(/'/g, "''")`) is the
   **only** sanctioned manual escaper for Postgres-bound SQL, used for
   hand-built `VALUES` tuples in the bulk paths (HFA/HMIS/structure staging,
   `db_startup`, S9 filter values). No call site may inline its own
-  `''`-doubling (the last inline sites were consolidated 2026-08-03).
+  `''`-doubling.
   `escapeSqlLiteral` (`server/run_query/duckdb_executor.ts`) is its DuckDB-side
   twin.
-- **`.unsafe()`** runs raw SQL with no parameterization — ~20 call sites, all
-  trusted-internal, in four groups: (1) the **bulk ingest paths** (S6-owned:
-  `datasets_in_project_{hfa,hmis,iceh}.ts`, `instance/dataset_{hfa,hmis}.ts`,
+- **`.unsafe()`** runs raw SQL with no parameterization. There are ~20 call
+  sites, all trusted-internal, in four groups: (1) the **bulk ingest paths**
+  (S6-owned: `datasets_in_project_{hfa,hmis,iceh}.ts`,
+  `instance/dataset_{hfa,hmis}.ts`,
   `instance/structure.ts`, staging workers) building large `INSERT`/DDL strings
   whose values go through `''`-doubling escaping; (2) the three **`detect*`
   probes** (`detectColumnExists`, `detectHasPeriodId`, `detectHasAnyRows` in
@@ -297,20 +298,23 @@ server has verified-current schema and stored-JSON shapes. The sequence:
 4. **Instance data transforms.** Per-type JSON transforms (`instance_config`),
    each in its own transaction; any failure exits.
 5. **Per-project pass.** For each row in `projects`: project SQL migrations (`migrations/project/`,
-   same runner), then the eight project data transforms in fixed order
-   (`po_config`, `module_definition`, `metrics_columns`, `slide_deck_config`,
-   `slide_config`, `reports`, `dashboard_config`, `dashboard_items`), each in
-   its own transaction, fail-stop; plus explicitly-`TEMPORARY` cleanup sweeps
-   (orphan modules, orphaned POs, dashboard-slug backfill) that self-identify in
-   the file.
+   same runner), then the six project data transforms in fixed order
+   (`po_config`, `slide_deck_config`, `slide_config`, `reports`,
+   `dashboard_config`, `dashboard_items`), each in its own transaction,
+   fail-stop; plus the explicitly-`TEMPORARY` dashboard-slug backfill that
+   self-identifies in the file. No boot step touches results: the project-DB
+   results plane was dropped by migration 041 (SYSTEM_08).
 
 SQL migrations must be idempotent because the base schema files
 (`_main_database.sql`, `_project_database.sql`) represent current state and new
-databases get base + all migrations — patterns and the golden rule are in
+databases get base + all migrations. Patterns and the golden rule are in
 [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md).
 `./validate_migrations` (repo root) verifies the two paths converge by diffing
 schemas in a throwaway `postgres:15` Docker container; run it after touching any
-SQL migration.
+SQL migration. The one sanctioned edit of an applied migration is the
+table-existence guard that lets a base-owned table leave the base schema
+(the protocol's "Dropping a table that older migrations touch"; applied to
+nine project migrations).
 
 ### Backup / restore mechanics
 
@@ -321,13 +325,18 @@ via `docker exec` on the postgres container, then `runProjectMigrations` on the
 restored DB so an older dump is brought up to current schema immediately. The
 JSON data transforms do **not** run until the next server restart, and the fresh
 pool opened for the migration re-run is never `.end()`ed (both Open items).
+Backups are pure pg dumps: a restore never touches `projects.run_id` and never
+brings a results package back: a project whose package is absent on this
+instance shows the typed "results run unavailable" state until an editor
+attaches another package or an admin regenerates (ruled;
+[SYSTEM_08](SYSTEM_08_results_packages.md) "Backups and packages").
 
-## FigureBundle backfill — the boot-time cutover (shipped 2026-06-13)
+## FigureBundle backfill: the boot-time cutover
 
 This is S2's slice of the FigureBundle refactor; the bundle shape and the render
 side live in [SYSTEM_10](SYSTEM_10_figure_render_export.md). S2 owns the
 **migration** that converts every stored figure from the old
-`{ figureInputs?, source? }` to the new `{ bundle? }` — a textbook
+`{ figureInputs?, source? }` to the new `{ bundle? }`, a textbook
 PROTOCOL_APP_MIGRATIONS data-transform (one deploy, no offline script).
 
 - **Where.**
@@ -346,20 +355,20 @@ PROTOCOL_APP_MIGRATIONS data-transform (one deploy, no offline script).
   transformed 5-D grid instead of `jsonArray`. The forward transform is a strict
   one-cell-one-row pivot (it throws on collisions), so the grid is **lossless
   and reversible**: emit one row per non-empty cell keyed by header id + period
-  id. It is **self-validating** — `validateTimeseriesRoundTrip` does a direct
+  id. It is **self-validating**: `validateTimeseriesRoundTrip` does a direct
   lookup for every stored cell and **throws** if any value isn't recoverable
   (fail-fast → aborts boot). It reconstructs the original rollup-aware sort and
   `dateRange` (from `timeMin`/`nTimePoints`) so a mismatch is the only reason to
   fail. **Orphans dissolve**: a timeseries whose metric is uninstalled
-  in-project converts from its own grid exactly like any other — no re-query, no
+  in-project converts from its own grid exactly like any other: no re-query, no
   `mainDb`, no blank placeholders.
 - **Localization synthesis.** `getTransformLocalization(countryIso3)` builds the
-  frozen `localization`, all three fields from the instance env —
-  `_INSTANCE_LANGUAGE`/`_INSTANCE_CALENDAR`/`_INSTANCE_COUNTRY_ISO3` — threaded
+  frozen `localization`, all three fields from the instance env
+  (`_INSTANCE_LANGUAGE`/`_INSTANCE_CALENDAR`/`_INSTANCE_COUNTRY_ISO3`), threaded
   through every project sweep, so backfilled figures carry the real country
-  (drives admin-area relabelling at render). `provenance.moduleLastRun`
-  is best-effort (= `snapshotAt`); the Phase-4 stale-flag is therefore
-  approximate for backfilled figures (accepted).
+  (drives admin-area relabelling at render). `provenance` is
+  `{ runId: null }`: a pre-bundle figure predates the runs model, so its run
+  is unknowable and never invented (the snapshot time is not the run time).
 - **Invalid config fails fast.** A missing/invalid `source.config` **throws**
   rather than producing a silent blank (which would masquerade as "empty" past
   `figureBlockSchema`), so the dry-run surfaces it by id.
@@ -371,7 +380,7 @@ PROTOCOL_APP_MIGRATIONS data-transform (one deploy, no offline script).
   `"indicator"` for the eight ids in `INDICATOR_FORMAT_METRIC_IDS`
   ([lib/indicator_format_metrics.ts](lib/indicator_format_metrics.ts)),
   `"number"` for m9-02-01 (frozen: its CIX/SII values are derived measures over
-  percent indicators), otherwise the original backfill heuristic — percent iff
+  percent indicators), otherwise the original backfill heuristic: percent iff
   **every** stored indicator entry declares `format_as: "percent"`, so a
   label-only entry counts as disagreement. That strictness is the point: the
   function repairs history and must not improve on it. It deliberately does NOT
@@ -384,32 +393,31 @@ PROTOCOL_APP_MIGRATIONS data-transform (one deploy, no offline script).
   schema and a parse-only gate would skip it forever
   ([PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md), "Skip-Gate
   Gotcha"). The same frozen list drives project migration **039**
-  (`039_metric_format_as_indicator.sql` — relaxes the `metrics.format_as` CHECK
-  to admit `'indicator'`, then flips the eight installed rows; a SQL literal,
-  the one copy that cannot import the lib constant) and `manifest_transform`
-  block 2 for run manifests. The declaration itself is
+  (`039_metric_format_as_indicator.sql`, which relaxes the `metrics.format_as`
+  CHECK to admit `'indicator'`, then flips the eight installed rows; a SQL
+  literal, the one copy that cannot import the lib constant) and
+  `manifest_transform` block 2 for run manifests. The declaration itself is
   [SYSTEM_10](SYSTEM_10_figure_render_export.md)'s.
 
-### The mandatory pre-deploy dry-run gate
+### The pre-deploy dry-run gate (passed; tool retired)
 
-[validate_figure_bundle_backfill.ts](validate_figure_bundle_backfill.ts) (repo
-root) runs the exact reshape + round-trip in **read-only** mode against every
-instance's DBs before the cutover: per-outcome counts (in-place ok / timeseries
-round-trip ok / FAIL / already-bundle / empty) and the identity of every
-failure. The cutover deploys only when it is clean (zero round-trip failures) on
-all instances. Result of the gate: **36/36 instances, 17,142 figures, 0 FAILs.**
+A read-only repo-root script ran the exact reshape + round-trip against every
+instance's DBs before the cutover (per-outcome counts and the identity of every
+failure). Result: **36/36 instances, 17,142 figures, 0 FAILs.** The script was
+deleted with the results-runs Phase 4 sweep: a passed one-time
+gate is history, not tooling.
 
 ## File & naming conventions
 
-- **`_*.sql`** — base schema files (`_main_database.sql`,
+- **`_*.sql`**: base schema files (`_main_database.sql`,
   `_project_database.sql`), loaded via `db.file(...)`.
-- **`_*_database_types.ts`** — hand-written `DB*` row types
+- **`_*_database_types.ts`**: hand-written `DB*` row types
   (`DBPresentationObject`, `DBUser`, …) describing raw table rows. These are
   _not_ Zod schemas (the `_*.ts` stored-schema convention is in
   [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md)).
-- **`mod.ts` barrels** — `db/mod.ts`, `db/instance/mod.ts`, `db/project/mod.ts`
+- **`mod.ts` barrels**: `db/mod.ts`, `db/instance/mod.ts`, `db/project/mod.ts`
   aggregate and re-export every non-helper sibling so callers never deep-import.
-- **`generateUnique*Id`** (`server/utils/id_generation.ts`) — short nanoid
+- **`generateUnique*Id`** (`server/utils/id_generation.ts`): short nanoid
   (3-char, alphabet `23456789abcdefghjkmnpqrstuvwxyz`), retry-until-unique (10
   attempts) against a specific table: one internal core over a closed
   `IdTable` union, seven thin named wrappers
@@ -418,7 +426,7 @@ all instances. Result of the gate: **36/36 instances, 17,142 figures, 0 FAILs.**
   instead.)
 - **PascalCase stragglers.** The DB-function convention is camelCase, but the
   log/usage families predate it (`AddLog`, `GetLogs`, `SetUserUnlimitedAi`,
-  `DeleteOldLogs`, the `ai_usage_logs.ts` set, …) — don't copy them.
+  `DeleteOldLogs`, the `ai_usage_logs.ts` set, …). Don't copy them.
 
 ## Rules
 
@@ -433,9 +441,9 @@ all instances. Result of the gate: **36/36 instances, 17,142 figures, 0 FAILs.**
    `escapeSqlString`.
 4. **Worker connections must `.end()` on every exit path** (they are uncached).
 5. **JSON columns: `JSON.parse` on read, `JSON.stringify(schema.parse(x))` on
-   write** — never stringify without the parse (schema per
+   write**. Never stringify without the parse (schema per
    PROTOCOL_APP_MIGRATIONS); multi-statement writes inside `db.begin`.
-6. **Bump `last_updated` on mutations** — it drives SSE + cache invalidation
+6. **Bump `last_updated` on mutations**: it drives SSE + cache invalidation
    (S3) and the optimistic-concurrency round-trip.
 7. **Export new DB functions from the appropriate `mod.ts` barrel.**
 
@@ -443,10 +451,10 @@ all instances. Result of the gate: **36/36 instances, 17,142 figures, 0 FAILs.**
 
 - `ai_usage_logs.ts` (and some log/user functions) bypass the envelope: no
   `tryCatchDatabaseAsync`, raw rows/scalars returned, throws reach the caller.
-- Restore runs SQL migrations but **not** the JSON data transforms — a restored
+- Restore runs SQL migrations but **not** the JSON data transforms: a restored
   dump's stored-JSON shapes stay stale until the next server restart.
-- The restore body's fresh `getPgConnection(projectId)` pool is never `.end()`ed
-  — one leaked pool per restore.
+- The restore body's fresh `getPgConnection(projectId)` pool is never
+  `.end()`ed, one leaked pool per restore.
 - Standardize the PascalCase DB-function stragglers to camelCase.
 - Lint ideas (from the absorbed doc): flag `.unsafe()` call sites for
   trusted-input review; flag DB functions that throw or return non-envelope

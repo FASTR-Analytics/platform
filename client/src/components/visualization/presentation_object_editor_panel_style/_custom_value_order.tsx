@@ -31,8 +31,8 @@ type Props = {
 };
 
 // One row per orderable dimension. A row stays visible whenever a stored
-// order exists — even when the dimension's values are unavailable
-// (too_many_values / error) or the dimension is no longer displayed — because
+// order exists, even when the dimension's values are unavailable
+// (too_many_values / error) or the dimension is no longer displayed, because
 // the stored order still applies at render and this row's clear button is the
 // only way to remove it (same trap the filters panel guards against).
 type OrderRow = {
@@ -46,11 +46,6 @@ const NOTE_SORTED_BY_VALUE: TranslatableString = {
   en: "Not applied while sorted by value",
   fr: "Non appliqué lorsque trié par valeur",
   pt: "Não aplicado quando ordenado por valor",
-};
-const NOTE_SCORECARD: TranslatableString = {
-  en: "Not applied in scorecard mode",
-  fr: "Non appliqué en mode tableau de bord",
-  pt: "Não aplicado no modo de tabela de pontuação",
 };
 const NOTE_NO_SLOT: TranslatableString = {
   en: "Not applied — no display position",
@@ -83,20 +78,13 @@ export function CustomValueOrderSection(p: Props) {
 
   // Why a saved order would be inert for this dimension right now, or
   // undefined when it applies. Mirrors the precedence rules in
-  // get_data_config_from_po.ts: scorecard customSortHeaders owns table
-  // ordering; asc/desc value sorting beats the header sort on the chart
-  // indicator axis and pie slices; a dim sharing the multi-value-props slot
-  // occupies no axis. With duplicate disOpt entries the order applies if ANY
-  // occupied axis honors it.
+  // get_data_config_from_po.ts: asc/desc value sorting beats the header sort
+  // on the chart indicator axis and pie slices; a dim sharing the
+  // multi-value-props slot occupies no axis. With duplicate disOpt entries
+  // the order applies if ANY occupied axis honors it.
   const getInertNote = (
     disOpt: DisaggregationOption,
   ): TranslatableString | undefined => {
-    if (
-      p.tempConfig.d.type === "table" &&
-      p.tempConfig.s.specialScorecardTable
-    ) {
-      return NOTE_SCORECARD;
-    }
     const entries = p.tempConfig.d.disaggregateBy.filter(
       (d) => d.disOpt === disOpt && d.disDisplayOpt !== "replicant",
     );
@@ -232,7 +220,7 @@ export function CustomValueOrderSection(p: Props) {
     const res = await openComponent({
       element: CustomValueOrderModal,
       props: {
-        dimLabel: t3(getDisplayDisaggregationLabel(disOpt)),
+        dimLabel: t3(getDisplayDisaggregationLabel(disOpt, p.resultsValueInfo.datasetFamily)),
         items: possibleValues.values.map((v) => ({
           id: v.id,
           label: getDisplayDisaggregationValueLabel(v.id, v.label),
@@ -259,7 +247,7 @@ export function CustomValueOrderSection(p: Props) {
             <div>
               <div class="ui-gap-sm flex items-center">
                 <div class="min-w-0 flex-1 truncate">
-                  {t3(getDisplayDisaggregationLabel(row.disOpt))}
+                  {t3(getDisplayDisaggregationLabel(row.disOpt, p.resultsValueInfo.datasetFamily))}
                 </div>
                 <Show when={row.canEdit}>
                   <Button

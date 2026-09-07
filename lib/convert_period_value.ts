@@ -3,7 +3,7 @@ import type { PeriodOption } from "./types/_metric_installed.ts";
 // Re-express a self-identifying period value into `target`'s format. Source
 // format is disjoint by digit length: year YYYY (4) / quarter_id YYYYQ (5) /
 // period_id YYYYMM (6). `isEnd` anchors open conversions to the end vs start of
-// the period. Calendar-agnostic (quarter math is Gregorian) — used by the AI /
+// the period. Calendar-agnostic (quarter math is Gregorian): used by the AI /
 // validation period handling.
 export function convertPeriodValue(
   value: number,

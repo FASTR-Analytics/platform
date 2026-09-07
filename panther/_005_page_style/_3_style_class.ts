@@ -3,6 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+import "./_4_key_coverage.ts";
 import {
   type DefaultPageStyle,
   getDefaultPageStyle,

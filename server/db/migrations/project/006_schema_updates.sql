@@ -11,7 +11,16 @@
 -- =============================================================================
 
 -- Add latest_ran_commit_sha to modules (from migration 005 that Somalia may not have fully)
-ALTER TABLE modules ADD COLUMN IF NOT EXISTS latest_ran_commit_sha text;
+-- (guarded on the modules table: absent on a fresh DB since 041)
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'modules'
+  ) THEN
+    ALTER TABLE modules ADD COLUMN IF NOT EXISTS latest_ran_commit_sha text;
+  END IF;
+END $$;
 
 -- Add example_values to indicators_hfa
 ALTER TABLE indicators_hfa ADD COLUMN IF NOT EXISTS example_values text NOT NULL DEFAULT '';
@@ -20,26 +29,35 @@ ALTER TABLE indicators_hfa ADD COLUMN IF NOT EXISTS example_values text NOT NULL
 -- PART 2: New schema for metrics system
 -- =============================================================================
 
--- Create metrics table (replaces conceptual use of results_values)
-CREATE TABLE IF NOT EXISTS metrics (
-  id text PRIMARY KEY NOT NULL,
-  module_id text NOT NULL,
-  label text NOT NULL,
-  variant_label text,
-  value_func text NOT NULL CHECK (value_func IN ('SUM', 'AVG', 'COUNT', 'MIN', 'MAX', 'identity')),
-  format_as text NOT NULL CHECK (format_as IN ('percent', 'number')),
-  value_props text NOT NULL,
-  period_options text NOT NULL,
-  required_disaggregation_options text NOT NULL,
-  value_label_replacements text,
-  post_aggregation_expression text,
-  auto_include_facility_columns boolean DEFAULT false,
-  results_object_id text NOT NULL,
-  ai_description text,
-  FOREIGN KEY (module_id) REFERENCES modules(id) ON DELETE CASCADE
-);
+-- Create metrics table (replaces conceptual use of results_values); frozen
+-- results plane, dropped by 041, guarded on the modules table it references.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'modules'
+  ) THEN
+    CREATE TABLE IF NOT EXISTS metrics (
+      id text PRIMARY KEY NOT NULL,
+      module_id text NOT NULL,
+      label text NOT NULL,
+      variant_label text,
+      value_func text NOT NULL CHECK (value_func IN ('SUM', 'AVG', 'COUNT', 'MIN', 'MAX', 'identity')),
+      format_as text NOT NULL CHECK (format_as IN ('percent', 'number')),
+      value_props text NOT NULL,
+      period_options text NOT NULL,
+      required_disaggregation_options text NOT NULL,
+      value_label_replacements text,
+      post_aggregation_expression text,
+      auto_include_facility_columns boolean DEFAULT false,
+      results_object_id text NOT NULL,
+      ai_description text,
+      FOREIGN KEY (module_id) REFERENCES modules(id) ON DELETE CASCADE
+    );
 
-CREATE INDEX IF NOT EXISTS idx_metrics_module_id ON metrics(module_id);
+    CREATE INDEX IF NOT EXISTS idx_metrics_module_id ON metrics(module_id);
+  END IF;
+END $$;
 
 -- =============================================================================
 -- PART 3: Visualization folders

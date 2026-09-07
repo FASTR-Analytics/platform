@@ -85,7 +85,7 @@ export function SlideDeckSettings(p: Props) {
           return { success: false, err: v.reason };
         }
       }
-      // Drop empty custom-logo rows before saving — on a fresh copy, never by
+      // Drop empty custom-logo rows before saving: on a fresh copy, never by
       // mutating the unwrapped store data.
       const newConfig: typeof raw = {
         ...raw,

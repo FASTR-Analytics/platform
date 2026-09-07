@@ -1,14 +1,18 @@
-import type {
-  DisaggregationOption,
-  InstanceConfigAdminAreaLabels,
-  InstanceConfigFacilityColumns,
-  PresentationOption,
+import {
+  type DisaggregationOption,
+  type InstanceConfigAdminAreaLabels,
+  parseAdminAreaLevel,
+  type PresentationOption,
+  type StructureColumns,
 } from "./types/mod.ts";
 import type { TranslatableString } from "./translate/mod.ts";
 
+// facilityColumns is the owning FAMILY's structure schema (StructureSchema is
+// assignable); pass undefined when the family is unknown so the generic
+// default labels apply.
 export type DisaggregationLabelConfig = {
   adminAreaLabels?: InstanceConfigAdminAreaLabels;
-  facilityColumns?: InstanceConfigFacilityColumns;
+  facilityColumns?: StructureColumns;
 };
 
 export function getDisaggregationLabel(
@@ -20,7 +24,7 @@ export function getDisaggregationLabel(
     disOpt === "admin_area_3" ||
     disOpt === "admin_area_4"
   ) {
-    const level = Number(disOpt.slice(-1)) as 2 | 3 | 4;
+    const level = parseAdminAreaLevel(Number(disOpt.slice(-1)));
     const custom = config.adminAreaLabels?.[`label${level}`];
     if (custom) return { en: custom, fr: custom, pt: custom };
     return {

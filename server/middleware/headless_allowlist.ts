@@ -2,47 +2,42 @@ import type { Context } from "hono";
 import { routeRegistry } from "lib";
 
 // Deny-by-default route allowlist for the internal headless app
-// (REVIEW_MCP_HOST_ARCHITECTURE.md §8; public mount retired by PLAN_112 D5 —
+// (REVIEW_MCP_HOST_ARCHITECTURE.md §8; public mount retired by PLAN_112 D5:
 // the /mcp endpoint dispatches into headlessApp in-process): a headless
-// credential can reach exactly the routes the /mcp tools need — the
-// AI-Assistant read tools + create_report, a whoami, the projects listing, and
-// the /info reference docs. A route added next year is headless-closed until
-// opted in here. Token mint/list/revoke and user/admin routes are deliberately
-// absent: a headless caller can never mint or revoke PATs.
+// credential can reach exactly the routes the /mcp tools need: the
+// run-keyed package reads (all read-only, all under the instance data bits),
+// a whoami, and the /info reference docs. A route added next year is
+// headless-closed until opted in here. Token mint/list/revoke and user/admin
+// routes are deliberately absent: a headless caller can never mint or revoke
+// PATs.
 //
 // NEVER allowlist any backups route: server/routes/instance/backups.ts
 // forwards the raw incoming Authorization header off-instance (to
 // status-api.fastr-analytics.org), which would ship the user's credential to
 // an external service.
-const HEADLESS_ALLOWED_ROUTE_NAMES = [
-  // getCurrentUser: not called by the host or lib tools — it is the parity
-  // test's whoami probe (server/tests/pat_identity_parity_test.ts) and grants
-  // only the caller's own identity.
+// Exported for validateHeadlessMounts (headless_app.ts), the dev-boot check
+// that every name here is actually reachable through headlessApp (the
+// allowlist and the mount list are two lists; the check is what keeps them
+// one).
+export const HEADLESS_ALLOWED_ROUTE_NAMES = [
+  // getCurrentUser: not called by the lib tools, it is the parity test's
+  // whoami probe (server/tests/pat_identity_parity_test.ts) and grants only
+  // the caller's own identity.
   "getCurrentUser",
-  // The /mcp get_projects tool + orientation (PLAN_112): the caller's own
-  // accessible projects only.
-  "getProjectsForUser",
-  "getPresentationObjectItems",
-  "getResultsValueInfoForPresentationObject",
-  "getPresentationObjectDetail",
-  "getReplicantOptions",
-  "getSlide",
-  // Module script/logs: the PROJECT-scoped attached-package routes (no runId
-  // in the path — the server resolves projects.run_id; per-project
-  // can_view_script_code / can_view_logs gates). The instance-wide run-keyed
-  // routes (getRunModuleScript/getRunModuleLogs) are deliberately NOT
-  // allowlisted: they would give a leaked credential every run in the instance.
-  "getAttachedPackageModuleScript",
-  "getAttachedPackageModuleLogs",
-  "getModuleWithConfigSelections",
-  "getReportDetail",
-  "createReport",
-  "updateReportBody",
+  // The run-keyed metric reads (S8 "one core, two lenses"; Tim's ruling
+  // 2026-08-18: what a package contains is a function of the runId alone,
+  // gated on instance can_view_data). A leaked credential reaches exactly
+  // what its user's own instance bits already reach in the UI; the /mcp
+  // tools resolve the runId from the instance's pin at call time, never from
+  // the model. The module reads (script/logs/settings) are SPA-only tools
+  // and deliberately absent.
+  "getRunPresentationObjectItems",
+  "getRunResultsValueInfo",
 ] as const satisfies readonly (keyof typeof routeRegistry)[];
 
 // Non-registry paths: the /info markdown docs (served by the headless app's
 // static handler). The SSE hydration patterns died with the local MCP host
-// (PLAN_112 D5) — the /mcp endpoint builds state server-side.
+// (PLAN_112 D5): the /mcp endpoint builds state server-side.
 const HEADLESS_ALLOWED_RAW: { method: string; pattern: RegExp }[] = [
   { method: "GET", pattern: /^\/info\/[A-Za-z0-9_-]+\.md$/ },
 ];

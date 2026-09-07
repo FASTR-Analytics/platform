@@ -546,7 +546,7 @@ export async function deleteDashboardItemGroup(
 
 // Update a group: rename, and/or re-resolve members (Switch/Edit). Member
 // figure_blocks are updated in place matched by replicant_value (the replicant
-// SET is assumed stable — v1 supports same-dimension switch/edit), so ids and
+// SET is assumed stable: v1 supports same-dimension switch/edit), so ids and
 // ordering are untouched. The shared geojson is replaced when provided.
 export async function updateDashboardItemGroup(
   projectDb: Sql,
@@ -639,7 +639,7 @@ type ReplaceEntryNew =
     };
 
 // Replace one entry (item OR group) in place with a new entry of EITHER kind,
-// preserving its sort position — the single primitive behind every structural
+// preserving its sort position: the single primitive behind every structural
 // reshape (item↔group, group→group with a changed dimension/set). Members are
 // re-resolved upstream, so this swaps rows wholesale rather than diffing them.
 // The insert is tie-free via the duplicateSlides hole-clear idiom (shift trailing
@@ -844,7 +844,7 @@ export async function moveDashboardItems(
 
     // Full-order rewrite (mirrors moveSlides): splice the moved block into the
     // current order, then renumber every row to (i+1)*10. Tie-free by
-    // construction — the older anchor+offset+reSequence approach collided when a
+    // construction: the older anchor+offset+reSequence approach collided when a
     // moved block (a replicant group's N members) was wider than the 10-unit gap
     // to its neighbour, and reSequence cannot break sort_order ties.
     const allRows = await projectDb<{ id: string }[]>`

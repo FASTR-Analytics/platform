@@ -5,7 +5,7 @@ import type {
 } from "./ai_views";
 
 // The copilot's interaction registry (rung 4, PLAN_FUTURE_AI_ADOPTIONS.md
-// feature 3) — replaces the hand-rolled pendingInteractions queue +
+// feature 3): replaces the hand-rolled pendingInteractions queue +
 // reduceInteractions/formatInteraction pipeline. Reduction semantics are
 // preserved from the pre-rung-4 reducer: per-view relevance via relevantIn,
 // payload×view reductions via filter, and the same digest wording (the
@@ -83,7 +83,7 @@ export const projectAIInteractions = defineAIInteractions({
   // App-notified (not SSE): the user accepted an AI draft into a deck via
   // the preview card / AddToDeckModal. The write's SSE echoes are marked as
   // AI edits (the content is the AI's), so without this line the model would
-  // never learn its draft was accepted — notify carries the true signal
+  // never learn its draft was accepted: notify carries the true signal
   // instead of letting a generic "deck structure changed" misreport it.
   draft_added_to_deck: interaction<{ slideId: string; deckId: string }>({
     format: (p) =>

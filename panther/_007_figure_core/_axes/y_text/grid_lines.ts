@@ -6,7 +6,6 @@
 import type { RectCoordsDims } from "../../deps.ts";
 
 export function calculateHorizontalGridLinesForTierYText(
-  _i_tier: number,
   plotAreaRcd: RectCoordsDims,
   nIndicators: number,
   gridStrokeWidth: number,

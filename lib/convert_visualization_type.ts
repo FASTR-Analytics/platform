@@ -46,7 +46,7 @@ export function convertVisualizationType(
 
     usedOpts.add(newDisplayOpt);
     // The roll-up flag survives the type switch (like every other transient
-    // gate closure — normalizePOConfigForStorage strips it if still closed at
+    // gate closure: normalizePOConfigForStorage strips it if still closed at
     // save). On a map the gate is closed anyway, so the flag is latent there.
     return {
       disOpt: entry.disOpt,

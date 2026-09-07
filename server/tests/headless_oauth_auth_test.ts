@@ -1,7 +1,7 @@
 // The OAuth branch of the headless credential seam (PLAN_MCP_OAUTH step 3b).
 //
-// WHY THIS EXISTS: Clerk's verifier NEVER throws. It folds every failure —
-// unknown token, wrong secret key, HTTP 500, DNS failure — into the same
+// WHY THIS EXISTS: Clerk's verifier NEVER throws. It folds every failure,
+// whether unknown token, wrong secret key, HTTP 500, or DNS failure, into the same
 // non-throwing signed-out state, distinguished only by a `reason` string. The
 // resolver's whole job is to split that undifferentiated blob into the two
 // answers the callers need:
@@ -43,7 +43,7 @@ type Handler = (url: string) => Response;
 let currentHandler: Handler | null = null;
 let calls: string[] = [];
 
-// Installed BEFORE the dynamic import below — see the header note.
+// Installed BEFORE the dynamic import below: see the header note.
 globalThis.fetch = ((input: string | URL | Request) => {
   const url = typeof input === "string"
     ? input
@@ -93,7 +93,7 @@ function freshToken(suffix: string): string {
 }
 
 // `clerk_idp_oauth_access_token` is the discriminator Clerk's deserializer
-// keys on — NOT `oauth_access_token`, which is the social-provider token type.
+// keys on, NOT `oauth_access_token`, which is the social-provider token type.
 // With the wrong value the response silently deserializes to something with no
 // `subject`, and the resolver sees a verified token carrying no userId.
 function verifiedTokenBody() {
@@ -155,7 +155,7 @@ Deno.test("headless OAuth: a valid access token resolves to the PRIMARY email", 
     const email = await resolveHeadlessCredentialEmail(
       `Bearer ${freshToken("Valid")}`,
     );
-    // Not the first address in the array — the one primary_email_address_id
+    // Not the first address in the array: the one primary_email_address_id
     // points at. This is what makes an OAuth caller and a browser login land
     // on the same FASTR user.
     assertEquals(email, PRIMARY_EMAIL);
@@ -285,7 +285,7 @@ Deno.test("headless OAuth: a user with no primary email is 401", async () => {
       : jsonResponse(200, userBody({ primaryId: null }))
   );
   try {
-    // Judged, and unmappable to a FASTR user — a bad credential, not an outage.
+    // Judged, and unmappable to a FASTR user: a bad credential, not an outage.
     assertEquals(
       await resolveHeadlessCredentialEmail(`Bearer ${freshToken("NoPrimary")}`),
       null,

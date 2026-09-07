@@ -194,7 +194,7 @@ export function SlideEditor(p: Props) {
   // no-op, and editing behaves exactly as before (tempSlide + explicit Save).
   const [collabReady, setCollabReady] = createSignal(false);
   // Signal (not a bare let) so the panel reactively picks up the session once it
-  // opens — needed to bind the CodeMirror text editor to the block's Y.Text.
+  // opens: needed to bind the CodeMirror text editor to the block's Y.Text.
   const [session, setSession] = createSignal<SlideSession | null>(null);
   let removeLastUpdatedListener: (() => void) | null = null;
   // Count of sub-editors/modals (e.g. the visualization editor) currently open
@@ -203,7 +203,7 @@ export function SlideEditor(p: Props) {
   const [subEditorOpen, setSubEditorOpen] = createSignal(0);
   // The layout-block id whose figure editor modal is currently open (co-editing
   // its config live in the shared doc). While set, the host's full-slide push
-  // must NOT sync that figure's config (the modal owns it — its tempSlide copy
+  // must NOT sync that figure's config (the modal owns it: its tempSlide copy
   // lags the modal's live edits); presence advertises it to peers.
   const [editingFigureBlockId, setEditingFigureBlockId] = createSignal<
     string | undefined
@@ -305,12 +305,12 @@ export function SlideEditor(p: Props) {
     }
 
     // Push every change onto the shared doc. A remote change reconciled into
-    // tempSlide pushes back a NO-OP here (syncSlideToDoc is idempotent — the doc
+    // tempSlide pushes back a NO-OP here (syncSlideToDoc is idempotent: the doc
     // already matches, so no update is emitted and nothing echoes); a genuine
     // local edit emits an update. We deliberately do NOT gate this on a
     // "was this remote?" flag: that flag (skipNextPush) could get stuck true
     // when a remote reconcile made no tracked change, silently swallowing the
-    // NEXT local edit — the cause of visualization edits not saving/syncing.
+    // NEXT local edit: the cause of visualization edits not saving/syncing.
     setNeedsSave(true);
     const skipId = editingFigureBlockId();
     session()?.pushLocal(
@@ -356,7 +356,7 @@ export function SlideEditor(p: Props) {
         if (!collabReady()) {
           setCollabReady(true);
           // Local edits raced the first sync. Push them onto the shared doc
-          // only while the doc still matches the slide this editor loaded —
+          // only while the doc still matches the slide this editor loaded:
           // pushing over a diverged doc would force it to equal our draft and
           // DELETE other users' edits (syncSlideToDoc/syncText are 2-way
           // diffs, not merges). If peers got there first, fall through and
@@ -372,14 +372,14 @@ export function SlideEditor(p: Props) {
         }
         // Adopt the doc state. reconcile diffs in place (a no-op when nothing
         // changed), and the push it triggers via the tracking effect is
-        // idempotent — so no pre-comparison is needed (a full JSON compare
+        // idempotent, so no pre-comparison is needed (a full JSON compare
         // here serialized multi-MB figure bundles twice per remote keystroke).
         setTempSlide(reconcile(docSlide));
       },
       (errMsg, fatal) => {
         console.warn("Slide collab error:", errMsg);
         // The server discards rooms when the slide row is deleted or replaced
-        // (delete, version restore) — further edits here would silently go
+        // (delete, version restore): further edits here would silently go
         // nowhere, so tell the user instead of letting them type into a void.
         // Only FATAL errors (room gone) warrant the alert; per-operation
         // rejections (a malformed update) don't.
@@ -390,7 +390,7 @@ export function SlideEditor(p: Props) {
         }
         // Edit rejected on the socket's snapshot auth. If the live store says
         // this user CAN edit, the socket is stale (permission granted after
-        // connect) — reconnect to re-derive auth; the resync then pushes the
+        // connect): reconnect to re-derive auth; the resync then pushes the
         // rejected local ops. Otherwise the user really is read-only: say so
         // once instead of letting them type into a void.
         if (!fatal && errMsg === COLLAB_NO_EDIT_PERMISSION) {
@@ -417,7 +417,7 @@ export function SlideEditor(p: Props) {
 
     undoMgr = s.undoManager;
     // Undo/redo mutate the shared doc DIRECTLY (not tempSlide), so pull the
-    // result back into the store — the same adopt path a remote change takes.
+    // result back into the store: the same adopt path a remote change takes.
     // The push the tracking effect then fires is idempotent (the doc already
     // matches), so nothing echoes back.
     const onUndoPop = () => {
@@ -457,7 +457,7 @@ export function SlideEditor(p: Props) {
       clearTimeout(renderTimeout);
     }
     // Detach the undo hooks BEFORE the session closes (the session destroys
-    // its manager and doc on close) — a late Ctrl+Z must not drive a
+    // its manager and doc on close): a late Ctrl+Z must not drive a
     // destroyed doc.
     document.removeEventListener("keydown", handleEditorKeyDown);
     detachUndoPop?.();
@@ -468,7 +468,7 @@ export function SlideEditor(p: Props) {
     }
     // Last-chance flush for exits that bypass the back button (route change,
     // deck switch): if collab isn't persisting and edits are pending, save
-    // best-effort. Fire-and-forget with no conflict modal — at teardown there
+    // best-effort. Fire-and-forget with no conflict modal: at teardown there
     // is no UI to ask; a conflicting concurrent save simply wins.
     if (needsSave() && !(session()?.isLive() ?? false)) {
       void serverActions.updateSlide({
@@ -588,7 +588,7 @@ export function SlideEditor(p: Props) {
 
   async function handleCancel() {
     // Edits autosave via the collab checkpoint; flush explicitly when collab
-    // isn't actually persisting RIGHT NOW — never synced, or synced but the
+    // isn't actually persisting RIGHT NOW: never synced, or synced but the
     // socket has since dropped (isLive, not the latched collabReady: edits made
     // while disconnected sit only in the local doc and die with it on close).
     if (needsSave() && !(session()?.isLive() ?? false)) {
@@ -597,12 +597,12 @@ export function SlideEditor(p: Props) {
         res.success &&
         res.data.conflictResolutionDecision === "user_chose_cancel"
       ) {
-        // The user chose to keep editing rather than resolve the conflict —
+        // The user chose to keep editing rather than resolve the conflict:
         // don't close (closing would discard the draft they chose to keep).
         return;
       }
       // Every other outcome resolved the draft (saved, saved-as-new, or
-      // explicitly discarded in favor of theirs) — clear the dirty flag so the
+      // explicitly discarded in favor of theirs): clear the dirty flag so the
       // onCleanup last-chance flush doesn't re-save a resolved/discarded draft.
       setNeedsSave(false);
     }
@@ -759,7 +759,7 @@ export function SlideEditor(p: Props) {
       // Path set (not reconcile): guarantees a FRESH bundle object reference so
       // syncSlideToDoc always writes it. reconcile can merge the new bundle into
       // the old object in place (same ref) for some shapes, which the sync's
-      // reference cache then skips — the edit updates locally but never reaches
+      // reference cache then skips: the edit updates locally but never reaches
       // the doc (not synced, not saved). See lib/collab/slide_crdt.ts.
       const applyFigureBundle = (bundle: FigureBundle) => {
         const updatedLayout = updateBlockInLayout(
@@ -776,7 +776,7 @@ export function SlideEditor(p: Props) {
 
       // Live co-editing: bind the modal to this figure's config IN the shared
       // slide doc. Only when the session is live; otherwise the modal keeps its
-      // classic Apply/Cancel flow (graceful degradation — WS down / not ready).
+      // classic Apply/Cancel flow (graceful degradation: WS down / not ready).
       const s = session();
       const figureOrigin = {}; // per-open origin for the modal's undo tracking
       const collabBinding: VizFigureCollabBinding | undefined =
@@ -820,23 +820,14 @@ export function SlideEditor(p: Props) {
           }),
         );
 
-        // On close, rebuild once from the final config (fresh items) — the final
+        // On close, rebuild once from the final config (fresh items): the final
         // coherent bundle for both the classic path and the live path.
         if (result?.updated) {
           const newConfig = result.updated.config;
 
           const newItemsRes = await getPresentationObjectItemsFromCacheOrFetch(
             p.projectId,
-            {
-              id: "",
-              projectId: p.projectId,
-              lastUpdated: "",
-              label: "Ephemeral",
-              resultsValue: resultsValue,
-              config: newConfig,
-              isDefault: false,
-              folderId: null,
-            },
+            { projectId: p.projectId, resultsValue },
             newConfig,
           );
 
@@ -898,7 +889,7 @@ export function SlideEditor(p: Props) {
         () => ({ type: "figure" as const, bundle }),
       );
 
-      // Path set (fresh bundle ref) so setOpaque always writes it — see the
+      // Path set (fresh bundle ref) so setOpaque always writes it: see the
       // note in handleEditVisualization.
       (manuallyUpdateTempSlide as SetStoreFunction<ContentSlide>)(
         "layout",
@@ -935,16 +926,7 @@ export function SlideEditor(p: Props) {
 
       const newItemsRes = await getPresentationObjectItemsFromCacheOrFetch(
         p.projectId,
-        {
-          id: "",
-          projectId: p.projectId,
-          lastUpdated: "",
-          label: "Ephemeral",
-          resultsValue,
-          config,
-          isDefault: false,
-          folderId: null,
-        },
+        { projectId: p.projectId, resultsValue },
         config,
       );
 
@@ -973,7 +955,7 @@ export function SlideEditor(p: Props) {
         () => ({ type: "figure" as const, bundle }),
       );
 
-      // Path set (fresh bundle ref) so setOpaque always writes it — see the
+      // Path set (fresh bundle ref) so setOpaque always writes it: see the
       // note in handleEditVisualization.
       (manuallyUpdateTempSlide as SetStoreFunction<ContentSlide>)(
         "layout",
@@ -995,9 +977,9 @@ export function SlideEditor(p: Props) {
           <div
             class="h-full w-full"
             data-cursor-zone="header"
-            data-tour="slide-editor-header"
           >
             <HeadingBar
+              data-tour="slide-editor-header"
               heading={t3({
                 en: "Edit Slide",
                 fr: "Modifier la diapositive",
@@ -1017,7 +999,7 @@ export function SlideEditor(p: Props) {
                   peers={otherPeers().filter((pe) => pe.slideId === p.slideId)}
                   size="sm"
                 />
-                {/* Room checkpoint health — edits relay live between peers,
+                {/* Room checkpoint health: edits relay live between peers,
                     but the server can't persist them right now. */}
                 <Show
                   when={
@@ -1042,32 +1024,31 @@ export function SlideEditor(p: Props) {
                   <Button onClick={undo} iconName="undo" outline />
                   <Button onClick={redo} iconName="redo" outline />
                 </Show>
-                <div data-tour="slide-type-select">
-                  <Select
-                    options={[
-                      {
-                        value: "cover",
-                        label: t3({ en: "Cover", fr: "Couverture", pt: "Capa" }),
-                      },
-                      {
-                        value: "section",
-                        label: t3({ en: "Section", fr: "Section", pt: "Secção" }),
-                      },
-                      {
-                        value: "content",
-                        label: t3({
-                          en: "Content",
-                          fr: "Contenu",
-                          pt: "Conteúdo",
-                        }),
-                      },
-                    ]}
-                    value={tempSlide.type}
-                    onChange={(v: string) =>
-                      handleTypeChange(v as "cover" | "section" | "content")
-                    }
-                  />
-                </div>
+                <Select
+                  data-tour="slide-type-select"
+                  options={[
+                    {
+                      value: "cover",
+                      label: t3({ en: "Cover", fr: "Couverture", pt: "Capa" }),
+                    },
+                    {
+                      value: "section",
+                      label: t3({ en: "Section", fr: "Section", pt: "Secção" }),
+                    },
+                    {
+                      value: "content",
+                      label: t3({
+                        en: "Content",
+                        fr: "Contenu",
+                        pt: "Conteúdo",
+                      }),
+                    },
+                  ]}
+                  value={tempSlide.type}
+                  onChange={(v: string) =>
+                    handleTypeChange(v as "cover" | "section" | "content")
+                  }
+                />
                 <Show when={!showAi()}>
                   <Button
                     onClick={() => setShowAi(true)}
@@ -1280,8 +1261,8 @@ export function SlideEditor(p: Props) {
               )}
             </Show>
             {/* Figma-style live cursors. Outside the keyed <Show> above (which
-                recreates on every edit) so the sprites — and their transform
-                transitions — survive re-renders. */}
+                recreates on every edit) so the sprites, and their transform
+                transitions, survive re-renders. */}
             <SlideEditorCursors
               slideId={p.slideId}
               awareness={() => session()?.awareness}
@@ -1376,7 +1357,7 @@ function PeerSelectionOverlay(p: {
     const r = canvas.getBoundingClientRect();
     if (r.width === 0 || r.height === 0) return [];
     // Backstop for any other covering modal: if the slide canvas isn't the
-    // topmost element at its own center, something is over it — suppress.
+    // topmost element at its own center, something is over it: suppress.
     const topEl = document.elementFromPoint(
       r.left + r.width / 2,
       r.top + r.height / 2,

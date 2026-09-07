@@ -7,48 +7,55 @@ see `PROTOCOL_UI_STATE.md`.
 
 ## Rules
 
-**Correctness — violations are bugs.** Reactivity breaks silently: no error, no
+**Correctness: violations are bugs.** Reactivity breaks silently: no error, no
 warning, the view just goes stale. Report these as bugs, not style findings.
 
-1. **No conditional returns** — Never use early returns in component functions.
+1. **No conditional returns**: Never use early returns in component functions.
    Component bodies run exactly once; a top-level `if` is never re-evaluated
-2. **Never destructure props** — Destructuring reads values once and loses
+2. **Never destructure props**: Destructuring reads values once and loses
    reactivity. Forward a prop reactively with `() => p.x` or `splitProps`
-3. **Access deps before conditionals** — Read all reactive deps at top of
+3. **Access deps before conditionals**: Read all reactive deps at top of
    `createEffect`/`createMemo` before any `if`
-4. **No tracking after `await`** — Reads after `await` in an async effect are
+4. **No tracking after `await`**: Reads after `await` in an async effect are
    silently untracked
-5. **No createResource, no Suspense — hard ban, no exceptions** — Async state is
+5. **No createResource, no Suspense (hard ban, no exceptions)**: Async state is
    always explicit `StateHolder` data (`createQuery` / effects, per
    `PROTOCOL_UI_STATE.md`), never a thrown-promise boundary. Banned:
    `createResource`, `<Suspense>`, `lazy()`, `useTransition`, and solid-router's
    Suspense-based data APIs (`createAsync`, `query`, route `preload`). This
    includes inert "just in case" `<Suspense>` wrappers at the router root
 
-**Convention — violations are style findings.** The code works either way; these
+**Convention: violations are style findings.** The code works either way; these
 keep the codebase uniform and reviewable.
 
-6. **Use control flow components** — `<Show>`, `<For>`, `<Switch>`/`<Match>`
-7. **Props as `p`** — Name the props parameter `p`, never `props`
-8. **Function declarations** — Not arrow functions for components
-9. **Batch writes in event handlers** — Wrap multiple signal writes in `batch()`
-   in event handlers and in code after an `await`. Solid already batches
-   automatically inside `createEffect`, `onMount`, and store setters — `batch()`
-   there is a no-op; don't add it or flag its absence
-10. **Peer branches use `<Match>`, not `fallback`** — `<Show fallback>` is only
+6. **Use control flow components**: `<Show>`, `<For>`, `<Switch>`/`<Match>`
+7. **Props as `p`**: Name the props parameter `p`, never `props`
+8. **Function declarations**: Not arrow functions for components
+9. **Batch writes in event handlers**: Wrap multiple signal writes in `batch()`
+   in event handlers, in code after an `await`, and in other callbacks Solid
+   does not auto-batch (ResizeObserver, requestAnimationFrame, stream/observer
+   listeners). Wrap only contiguous, synchronous, write-only spans, never a span
+   containing `return` (it would only exit the batch callback) or `await`. Solid
+   already batches automatically inside `createEffect`, `onMount`, and store
+   setters: `batch()` there is a no-op; don't add it or flag its absence
+10. **Peer branches use `<Match>`, not `fallback`**: `<Show fallback>` is only
     for genuinely subordinate content (loading / empty / absent). Equal
-    alternatives use `<Switch>` with an explicit `when` on each `<Match>` —
-    never relegate a peer to `fallback` or a `when={true}` catch-all
+    alternatives use `<Switch>` with an explicit `when` on each `<Match>`: never
+    relegate a peer to `fallback` or a `when={true}` catch-all. A ternary may
+    choose a primitive prop value (a string, number, boolean, or token name),
+    such as `iconName={open() ? "chevron-up" : "chevron-down"}`. Neither arm may
+    be JSX or another ternary; that is a branch and uses the control flow
+    components. For classes, prefer `classList` over a ternary.
 
 Vendored third-party files (e.g. `solid_sortablejs_vendored.tsx`) are exempt
-from this protocol — don't flag or modify them.
+from this protocol: don't flag or modify them.
 
 ## Do / Don't
 
 ### Conditional Rendering
 
 ```tsx
-// ❌ DON'T — breaks reactivity
+// ❌ DON'T: breaks reactivity
 export function MyComponent(p: Props) {
   if (!p.data) {
     return <div>No data</div>;
@@ -69,13 +76,13 @@ export function MyComponent(p: Props) {
 ### Reactive Dependencies
 
 ```tsx
-// ❌ DON'T — data() untracked while !ready()
+// ❌ DON'T: data() untracked while !ready()
 createEffect(() => {
   if (!ready()) return;
   doSomething(data());
 });
 
-// ✅ DO — access all deps first
+// ✅ DO: access all deps first
 createEffect(() => {
   const r = ready();
   const d = data();
@@ -86,7 +93,7 @@ createEffect(() => {
 ```
 
 **Why:** Dependencies are re-collected on every run, so the ❌ effect does
-re-run when `ready()` changes — the bug is narrower: while `ready()` is false,
+re-run when `ready()` changes. The bug is narrower: while `ready()` is false,
 `data()` was never read that run, so changes to it don't trigger the effect.
 Whether the effect responds to `data()` depends on the guard's state at the last
 run. Reading every dep up front makes the dependency set static and the behavior
@@ -95,15 +102,15 @@ guard-independent.
 ### Async Effects
 
 ```tsx
-// ❌ DON'T — someSignal() after await is not tracked
+// ❌ DON'T: someSignal() after await is not tracked
 createEffect(async () => {
   const _v = version(); // tracked
   await fetchSomething();
-  const x = someSignal(); // NOT tracked — effect won't re-run when x changes
+  const x = someSignal(); // NOT tracked: effect won't re-run when x changes
   doSomething(x);
 });
 
-// ✅ DO — read everything synchronously first
+// ✅ DO: read everything synchronously first
 createEffect(async () => {
   const _v = version();
   const x = someSignal(); // tracked
@@ -116,21 +123,21 @@ createEffect(async () => {
 longer set up new tracking dependencies in that effect run.
 
 Async effects that fetch and write state must also drop out-of-order completions
-— see "Overlapping Refetches" in `PROTOCOL_UI_STATE.md`.
+(see "Overlapping Refetches" in `PROTOCOL_UI_STATE.md`).
 
-### Data Fetching — No Suspense (hard ban)
+### Data Fetching: No Suspense (hard ban)
 
 ```tsx
-// ❌ DON'T — createResource is Suspense-based
+// ❌ DON'T: createResource is Suspense-based
 const [data] = createResource(() => fetchData());
 
-// ❌ DON'T — no Suspense boundaries anywhere, even inert ones at the router root
+// ❌ DON'T: no Suspense boundaries anywhere, even inert ones at the router root
 <Router root={(p) => <Suspense>{p.children}</Suspense>}>
 
-// ❌ DON'T — lazy() suspends while the chunk loads
+// ❌ DON'T: lazy() suspends while the chunk loads
 const Editor = lazy(() => import("./editor.tsx"));
 
-// ✅ DO — loading is explicit data, rendered like any other state
+// ✅ DO: loading is explicit data, rendered like any other state
 const query = createQuery(() => fetchData(), "Loading...");
 
 <StateHolderWrapper state={query.state()}>
@@ -140,13 +147,13 @@ const query = createQuery(() => fetchData(), "Loading...");
 
 **Why:** Suspense inverts the house model: it moves loading state out of data
 and into the component tree, where a thrown promise tears the UI down to the
-nearest boundary — non-local, non-greppable, and the cause of full-page "reload"
+nearest boundary: non-local, non-greppable, and the cause of full-page "reload"
 flashes. Panther's `_302_query` (`createQuery`, `createFormAction`,
 `StateHolderWrapper`) exists precisely so async state stays explicit (`loading`
 / `error` / `ready`) and rendering stays deterministic. The ban covers the
-entire Suspense mechanism — `createResource`, `<Suspense>`, `lazy()`,
+entire Suspense mechanism: `createResource`, `<Suspense>`, `lazy()`,
 `useTransition`, and solid-router's data APIs (`createAsync`, `query`,
-`preload`) — with no exceptions.
+`preload`), with no exceptions.
 
 ### Component Declaration
 
@@ -161,7 +168,7 @@ export function Button(p: ButtonProps) { ... }
 ### Props Access
 
 ```tsx
-// ❌ DON'T — loses reactivity
+// ❌ DON'T: loses reactivity
 export function Card({ title, children }: Props) {
   return <div>{title}</div>;
 }
@@ -171,7 +178,7 @@ export function Card(p: Props) {
   return <div>{p.title}</div>;
 }
 
-// ✅ DO — reactive forwarding when you need a prop as a standalone value
+// ✅ DO: reactive forwarding when you need a prop as a standalone value
 const label = () => p.title; // wrapper function stays reactive
 const [local, rest] = splitProps(p, ["title"]); // reactive split for spreads
 ```
@@ -194,7 +201,7 @@ const [local, rest] = splitProps(p, ["title"]); // reactive split for spreads
 ```
 
 **Why:** `{condition && ...}` and `.map` are reactive in Solid (JSX expressions
-re-evaluate) — they're not broken, they're unmemoized: the branch is torn down
+re-evaluate). They're not broken, they're unmemoized: the branch is torn down
 and rebuilt on every dependent change, and `.map` recreates every row with no
 keyed reconciliation. `<Show>`/`<For>` memoize. Style finding, not a bug.
 
@@ -217,12 +224,12 @@ keyed reconciliation. `<Show>`/`<For>` memoize. Style finding, not a bug.
 ### Equal branches (peers, not a fallback)
 
 ```tsx
-// ❌ DON'T — two equal branches, but one is forced into "fallback"
+// ❌ DON'T: two equal branches, but one is forced into "fallback"
 <Show when={mode() === "edit"} fallback={<ReadView item={item()} />}>
   <EditView item={item()} />
 </Show>
 
-// ✅ DO — peers stay peers; every branch states its own condition
+// ✅ DO: peers stay peers; every branch states its own condition
 <Switch>
   <Match when={mode() === "edit"}><EditView item={item()} /></Match>
   <Match when={mode() === "read"}><ReadView item={item()} /></Match>
@@ -232,20 +239,20 @@ keyed reconciliation. `<Show>`/`<For>` memoize. Style finding, not a bug.
 **Why:** `fallback` encodes a primary/secondary hierarchy. For genuine
 alternatives that's a lie that hides intent and misleads the next reader.
 Reserve `<Show>`'s `fallback` (and a `when={true}` catch-all) for content that
-truly _is_ subordinate — loading, empty, or absent — like the data / "No data"
+truly _is_ subordinate (loading, empty, or absent), like the data / "No data"
 case above.
 
 ### Batched Updates
 
 ```tsx
-// ❌ DON'T — three separate updates in an event handler
+// ❌ DON'T: three separate updates in an event handler
 function handleSelect(item: Item) {
   setSelected(item.id);
   setLabel(item.label);
   setDirty(true);
 }
 
-// ✅ DO — coalesced into one
+// ✅ DO: coalesced into one
 function handleSelect(item: Item) {
   batch(() => {
     setSelected(item.id);
@@ -257,15 +264,19 @@ function handleSelect(item: Item) {
 
 **Why:** `batch()` collapses multiple signal writes into a single downstream
 update. Solid already auto-batches inside `createEffect`, `onMount`, and store
-setters — `batch()` there is redundant; don't add it or flag its absence. It
-matters in event handlers and in code after an `await`.
+setters: `batch()` there is redundant; don't add it or flag its absence. It
+matters in event handlers, in code after an `await`, and in any other callback
+Solid does not auto-batch (ResizeObserver, requestAnimationFrame, stream
+listeners). Nesting is fine (a batched helper called inside a batched handler
+coalesces into the outer batch), and parent callbacks like `p.onChange` may sit
+inside a batch: their writes coalesce too.
 
 ## Checklist
 
 Bug-severity:
 
 - [ ] (bug) No conditional returns in components
-- [ ] (bug) Props never destructured — reactive forwarding uses `() => p.x` or
+- [ ] (bug) Props never destructured: reactive forwarding uses `() => p.x` or
       `splitProps`
 - [ ] (bug) All reactive deps accessed before conditionals in effects
 - [ ] (bug) All reactive deps accessed before `await` in async effects
@@ -279,4 +290,5 @@ Style-severity:
 - [ ] (style) `<Show fallback>` only for subordinate content; equal branches use
       `<Switch>`/`<Match>` with an explicit `when` on each
 - [ ] (style) Components use function declarations
-- [ ] (style) Multi-signal writes in event handlers wrapped in `batch()`
+- [ ] (style) Multi-signal writes in event handlers and other non-auto-batched
+      callbacks wrapped in `batch()`

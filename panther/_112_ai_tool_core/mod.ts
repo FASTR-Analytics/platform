@@ -32,13 +32,14 @@ export {
   validateMCPServerConfig,
 } from "./mcp_server.ts";
 export { MCPRequestError } from "./mcp_types.ts";
-export { scopeAITool } from "./scope_ai_tool.ts";
+export { bindAITool, scopeAITool } from "./scope_ai_tool.ts";
 export type { ScopeAIToolOptions } from "./scope_ai_tool.ts";
 
 export type {
   AIToolApprovalConfig,
   AIToolKind,
   AIToolWithMetadata,
+  AnyAITool,
   ApprovalPolicy,
   CreateAIToolConfig,
   CreateAIToolConfigCommon,

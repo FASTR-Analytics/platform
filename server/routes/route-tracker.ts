@@ -9,7 +9,7 @@ export function markRouteDefined<K extends keyof typeof routeRegistry>(routeName
   definedRoutes.add(routeName);
 }
 
-// Validate all routes at startup — throws (Deno.exit(1)) on any mismatch
+// Validate all routes at startup: throws (Deno.exit(1)) on any mismatch
 export function validateAllRoutesDefined(): void {
   console.log("\n🔍 Validating route definitions...\n");
 
@@ -76,7 +76,7 @@ export function validateAllRoutesDefined(): void {
 
   // Check schema/path placeholder agreement for ALL routes (unconditional).
   // Every route whose path has :placeholders must have a z.object params schema
-  // declaring exactly those keys — a missing schema is itself an error, not a skip.
+  // declaring exactly those keys: a missing schema is itself an error, not a skip.
   const schemaPathMismatches: string[] = [];
   for (const [routeName, entry] of Object.entries(routeRegistry)) {
     const paramsSchema = (entry as any).params;
@@ -107,7 +107,7 @@ export function validateAllRoutesDefined(): void {
   }
 
   // Body schemas must not declare a key that the client transport carries in a
-  // different channel — otherwise the client strips it from the body (see
+  // different channel: otherwise the client strips it from the body (see
   // buildRequestParams) while the server's Zod body validator still requires it,
   // producing a "field: expected ..., received undefined" 400. A body key is
   // carried elsewhere if it is a path placeholder (→ URL) or "projectId" on a

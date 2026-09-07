@@ -1,15 +1,17 @@
-import { t3, type MetricsByModule, type ModuleId } from "lib";
+import { t3, type MetricsByModule } from "lib";
 import { type ListItem, SelectList } from "panther";
 import { createMemo } from "solid-js";
 
+// Module identity here is read-plane: a plain string from the attached
+// package's manifest (PLAN_1a §0 clause 3).
 type Props = {
   metricsByModule: MetricsByModule[];
-  selectedModule: ModuleId | "all";
-  onSelectModule: (moduleId: ModuleId | "all") => void;
+  selectedModule: string;
+  onSelectModule: (moduleId: string) => void;
   totalMetricCount: number;
 };
 
-type ModuleItem = ListItem<ModuleId | "all", number>;
+type ModuleItem = ListItem<string, number>;
 
 export function ModuleSidebar(p: Props) {
   const items = createMemo((): ModuleItem[] => {

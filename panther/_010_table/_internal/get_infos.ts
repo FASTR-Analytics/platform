@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { getAdjustedColor, sum } from "../deps.ts";
+import { applyTextColorStrategy, sum } from "../deps.ts";
 import type {
   MergedTableStyle,
   RenderContext,
@@ -49,19 +49,11 @@ export function getRowHeaderInfos(
           : {}),
       };
       const headerStyle = s.tableRowHeaders.getStyle(info);
-      let textStyle = s.text.rowGroupHeaders;
-      if (
-        headerStyle.textColorStrategy !== "none" &&
-        headerStyle.backgroundColor !== "none"
-      ) {
-        textStyle = {
-          ...textStyle,
-          color: getAdjustedColor(
-            headerStyle.backgroundColor,
-            headerStyle.textColorStrategy,
-          ),
-        };
-      }
+      const textStyle = applyTextColorStrategy(
+        s.text.rowGroupHeaders,
+        headerStyle.backgroundColor,
+        headerStyle.textColorStrategy,
+      );
       const mText = rc.mText(rowGroup.label, textStyle, maxPossibleWidth);
       rowHeaderInfos.push({
         mText,
@@ -93,19 +85,11 @@ export function getRowHeaderInfos(
           : {}),
       };
       const headerStyle = s.tableRowHeaders.getStyle(info);
-      let textStyle = s.text.rowHeaders;
-      if (
-        headerStyle.textColorStrategy !== "none" &&
-        headerStyle.backgroundColor !== "none"
-      ) {
-        textStyle = {
-          ...textStyle,
-          color: getAdjustedColor(
-            headerStyle.backgroundColor,
-            headerStyle.textColorStrategy,
-          ),
-        };
-      }
+      const textStyle = applyTextColorStrategy(
+        s.text.rowHeaders,
+        headerStyle.backgroundColor,
+        headerStyle.textColorStrategy,
+      );
       const mText = rc.mText(row.label, textStyle, maxPossibleWidth);
       rowHeaderInfos.push({
         mText,
@@ -160,19 +144,11 @@ export function getColGroupHeaderInfos(
         : {}),
     };
     const headerStyle = s.tableColHeaders.getStyle(info);
-    let textStyle = s.text.colHeaders;
-    if (
-      headerStyle.textColorStrategy !== "none" &&
-      headerStyle.backgroundColor !== "none"
-    ) {
-      textStyle = {
-        ...textStyle,
-        color: getAdjustedColor(
-          headerStyle.backgroundColor,
-          headerStyle.textColorStrategy,
-        ),
-      };
-    }
+    const textStyle = applyTextColorStrategy(
+      s.text.colHeaders,
+      headerStyle.backgroundColor,
+      headerStyle.textColorStrategy,
+    );
     const mText = rc.mText(colGroup.label, textStyle, colGroupContentWidth);
     return { mText, colGroupInnerWidth, headerStyle };
   });
@@ -208,19 +184,11 @@ export function getColHeaderInfos(
         : {}),
     };
     const headerStyle = s.tableColHeaders.getStyle(info);
-    let textStyle = s.text.colHeaders;
-    if (
-      headerStyle.textColorStrategy !== "none" &&
-      headerStyle.backgroundColor !== "none"
-    ) {
-      textStyle = {
-        ...textStyle,
-        color: getAdjustedColor(
-          headerStyle.backgroundColor,
-          headerStyle.textColorStrategy,
-        ),
-      };
-    }
+    const textStyle = applyTextColorStrategy(
+      s.text.colHeaders,
+      headerStyle.backgroundColor,
+      headerStyle.textColorStrategy,
+    );
     const mText = rc.mText(label, textStyle, maxWidth, rotationOpts);
     return { mText, index, headerStyle };
   }

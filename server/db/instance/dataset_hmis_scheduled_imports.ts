@@ -17,8 +17,8 @@ import type { DBDatasetHmisScheduledImport } from "./_main_database_types.ts";
 // Scheduled DHIS2 imports (PLAN_DHIS2_IMPORTER Phase 4, C4): CRUD for the
 // schedule rows plus the compare-and-set primitives the ~60 s scheduler tick
 // uses (see server/worker_routines/import_hmis_data_dhis2/scheduler.ts).
-// last_fired_at is the last HANDLED occurrence — launched, refused, or
-// missed — which doubles as the tick's idempotency token. Cadence phase
+// last_fired_at is the last HANDLED occurrence: launched, refused, or
+// missed, which doubles as the tick's idempotency token. Cadence phase
 // comes from the recurrence's own anchor, never from last_fired_at.
 
 export function isValidIanaTimeZone(timeZone: string): boolean {
@@ -31,8 +31,8 @@ export function isValidIanaTimeZone(timeZone: string): boolean {
 }
 
 // Legacy rows (pre period-selection revamp) have no "kind" tag on their
-// stored selection — they're all rolling windows. Read boundary only; no
-// DB migration (this table is write-time validated, not sweep-validated —
+// stored selection: they're all rolling windows. Read boundary only; no
+// DB migration (this table is write-time validated, not sweep-validated:
 // see PROTOCOL_APP_MIGRATIONS.md).
 function parseScheduleSelectionOrThrow(str: string): Dhis2ScheduleSelection {
   const parsed = parseJsonOrThrow<Record<string, unknown>>(str);
@@ -86,7 +86,7 @@ function validateScheduleFields(
   if (rec.kind === "weekly") {
     // Round-trip check: V8 rolls impossible dates over ("2026-02-29" →
     // Mar 1) instead of returning Invalid Date. A past anchor is legal (it
-    // just sets the phase) — no recency bound, because the anchor never
+    // just sets the phase): no recency bound, because the anchor never
     // advances and every edit re-validates it.
     const [y, m, d] = rec.firstRunDate.split("-").map(Number);
     const anchor = new Date(Date.UTC(y, m - 1, d));
@@ -181,8 +181,8 @@ export async function updateDatasetHmisScheduledImport(
     const f = validateScheduleFields(fields);
     // Every edit RE-ARMS the schedule (review findings 1 + 3): armed_at moves
     // to now (occurrences before it are never due, so clearing the
-    // handled-occurrence anchor is safe — no phantom fire can result), the
-    // last-fire outcome is cleared (the user has addressed it — the
+    // handled-occurrence anchor is safe: no phantom fire can result), the
+    // last-fire outcome is cleared (the user has addressed it: the
     // attention banner must not outlive the edit), and a one-shot is
     // re-enabled (editing a fired/refused/missed one-shot to a new future
     // time IS the re-arm gesture; the route re-checks stored credentials).
@@ -304,7 +304,7 @@ export async function recordScheduledImportOutcome(
     outcome: DatasetHmisScheduledImportOutcome;
     error?: string;
     runId?: number;
-    // One-shots disable after their occurrence is handled — the spent latch
+    // One-shots disable after their occurrence is handled: the spent latch
     // that stops refires. Launched-and-completed rows are swept from the
     // table by the tick (sweepSpentOneShotScheduledImports); refused/missed/
     // run-errored rows stay until the user edits (re-arms) or deletes them.
@@ -325,7 +325,7 @@ export async function recordScheduledImportOutcome(
 // occurrence was handled (enabled=false latch), the outcome was 'launched',
 // and the launched run is no longer running or errored (complete, cancelled,
 // or deleted). Refused/missed one-shots and launched-but-errored ones are
-// deliberately NOT swept — they carry the attention state until the user
+// deliberately NOT swept: they carry the attention state until the user
 // edits (re-arms) or deletes them. Every condition lives in the one atomic
 // DELETE, so a concurrent edit (which re-enables and clears the outcome)
 // can never lose a just-re-armed row.

@@ -256,8 +256,7 @@ export function silhouetteExtents(spec: {
 // move as its value changes. Sizing a `remainder.mode: "gap"` cell on the ink
 // alone would make the same gauge a different size at 30% and at 90%, and would
 // give grid siblings with different values different centres. It also means a
-// full-turn pie is the { 1, 1, 1, 1 } disc no matter what its data does, so
-// every pre-gauge pie is measured exactly as before.
+// full-turn pie is the { 1, 1, 1, 1 } disc no matter what its data does.
 //
 // Direction is load-bearing: 180 degrees clockwise from 9 o'clock is the top
 // half, counterclockwise is the bottom half.

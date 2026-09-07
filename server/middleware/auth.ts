@@ -22,8 +22,8 @@ const clerkAuth = clerkMiddleware() as unknown as (
 // changed under @hono/clerk-auth v3 that this accessor exists to absorb:
 //
 // 1. clerkMiddleware now authenticates with `acceptsToken: "any"` (v2 was
-//    session-tokens-only). So a machine token — API key, M2M, and after this
-//    plan an OAuth access token — presented as a Bearer header to an ordinary
+//    session-tokens-only). So a machine token: API key, M2M, and after this
+//    plan an OAuth access token: presented as a Bearer header to an ordinary
 //    /api route now produces an AUTHENTICATED machine auth object carrying a
 //    userId but NO sessionClaims. Headless credentials are judged at the two
 //    headless judgment points and nowhere else, so the tokenType guard below
@@ -58,7 +58,7 @@ export const authMiddleware = _BYPASS_AUTH
   ? async (c: any, next: any) => await next()
   : clerkAuth;
 
-// The headless mount: headless credentials ONLY — no Clerk fallback, no
+// The headless mount: headless credentials ONLY: no Clerk fallback, no
 // cookies. The credential resolves to the real user identity, so all
 // downstream permission checks are the user's own (getGlobalUser branches on
 // headlessAuthEmail). This is the SECOND of the two judgment points; the
@@ -69,7 +69,7 @@ async function headlessOnlyMiddleware(c: Context, next: () => Promise<void>) {
   try {
     email = await resolveHeadlessCredentialEmail(authz);
   } catch (error) {
-    // The credential was NOT judged (DB or Clerk unreachable) — 503, so the
+    // The credential was NOT judged (DB or Clerk unreachable): 503, so the
     // client retries instead of discarding a token that may be perfectly good.
     console.error("Error resolving headless credential:", error);
     c.status(503);

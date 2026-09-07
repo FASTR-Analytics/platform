@@ -22,7 +22,7 @@ type PersistedConversation = {
   displayItems: DisplayItem[];
   lastUpdated: string;
   formatVersion?: number;
-  // Session-approved tool names (approval mode "session", Phase 4).
+  // Session-approved tool names (approval mode "session").
   // Additive within v2: absent on older records → empty set, and an older
   // library reading a record that carries it just ignores the field — no
   // version bump needed (each migration targets its own legacy signature).

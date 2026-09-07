@@ -15,5 +15,6 @@ export * from "./scheme.ts";
 export * from "./special_state/mod.ts";
 export * from "./tables/mod.ts";
 export * from "./types.ts";
+export * from "./data_attrs.ts";
 export * from "./utils/markdown_tailwind.ts";
 export * from "./list_selection/mod.ts";

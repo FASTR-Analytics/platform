@@ -1,6 +1,7 @@
 import { useNavigate } from "@solidjs/router";
 import { t3 } from "lib";
 import {
+  Badge,
   Button,
   Card,
   FrameTop,
@@ -119,8 +120,9 @@ export function InstanceProjects(p: Props) {
     <EditorWrapper>
       <FrameTop
         panelChildren={
-          <div class="h-full w-full" data-tour="instance-projects-header">
+          <div class="h-full w-full">
             <HeadingBar
+              data-tour="instance-projects-header"
               tonal
               heading={t3({ en: "Projects", fr: "Projets", pt: "Projetos" })}
             >
@@ -132,19 +134,19 @@ export function InstanceProjects(p: Props) {
                   />
                 </div>
                 <Show when={instanceState.currentUserIsGlobalAdmin}>
-                  <div data-tour="instance-projects-compare">
-                    <Button
-                      onClick={compareProjects}
-                      outline
-                      onBackground="base-200"
-                    >
-                      {t3({
-                        en: "Compare projects",
-                        fr: "Comparer les projets",
-                        pt: "Comparar projetos",
-                      })}
-                    </Button>
-                  </div>
+                  <Button
+                    data-tour="instance-projects-compare"
+                    onClick={compareProjects}
+                    outline
+                    onBackground="base-200"
+                    // intent="base-100"
+                  >
+                    {t3({
+                      en: "Compare projects",
+                      fr: "Comparer les projets",
+                      pt: "Comparar projetos",
+                    })}
+                  </Button>
                 </Show>
                 <Show
                   when={
@@ -152,19 +154,18 @@ export function InstanceProjects(p: Props) {
                     pendingDeletionCount() > 0
                   }
                 >
-                  <div data-tour="instance-projects-pending">
-                    <Button
-                      onClick={openPendingDeletions}
-                      outline
-                      onBackground="base-200"
-                    >
-                      {t3({
-                        en: `Pending deletions (${pendingDeletionCount()})`,
-                        fr: `Suppressions en attente (${pendingDeletionCount()})`,
-                        pt: `Eliminações pendentes (${pendingDeletionCount()})`,
-                      })}
-                    </Button>
-                  </div>
+                  <Button
+                    data-tour="instance-projects-pending"
+                    onClick={openPendingDeletions}
+                    outline
+                    onBackground="base-200"
+                  >
+                    {t3({
+                      en: `Pending deletions (${pendingDeletionCount()})`,
+                      fr: `Suppressions en attente (${pendingDeletionCount()})`,
+                      pt: `Eliminações pendentes (${pendingDeletionCount()})`,
+                    })}
+                  </Button>
                 </Show>
                 <Show
                   when={
@@ -172,15 +173,17 @@ export function InstanceProjects(p: Props) {
                     p.canCreateProjects
                   }
                 >
-                  <div data-tour="instance-projects-create">
-                    <Button onClick={attemptAddProject} iconName="plus">
-                      {t3({
-                        en: "Create project",
-                        fr: "Créer un projet",
-                        pt: "Criar projeto",
-                      })}
-                    </Button>
-                  </div>
+                  <Button
+                    data-tour="instance-projects-create"
+                    onClick={attemptAddProject}
+                    iconName="plus"
+                  >
+                    {t3({
+                      en: "Create project",
+                      fr: "Créer un projet",
+                      pt: "Criar projeto",
+                    })}
+                  </Button>
                 </Show>
               </div>
             </HeadingBar>
@@ -224,9 +227,16 @@ export function InstanceProjects(p: Props) {
                 }
               >
                 <Card href={`/?p=${project.id}`} pad="none">
-                  <div class="ui-pad flex min-h-[150px] flex-col justify-between">
-                    <div class="ui-spy-sm">
+                  <div class="ui-pad ui-spy-sm flex min-h-[150px] flex-col justify-between">
+                    <div class="ui-spy-sm flex-1">
                       <div class="font-700">{project.label}</div>
+                      <Show when={project.adminArea2}>
+                        {(area) => (
+                          <div>
+                            <Badge>{area()}</Badge>
+                          </div>
+                        )}
+                      </Show>
                       <Show when={project.isLocked}>
                         <div class="ui-gap-sm text-primary flex text-sm">
                           <span class="relative inline-flex h-[1.25em] w-[1.25em]">
@@ -239,6 +249,36 @@ export function InstanceProjects(p: Props) {
                           })}
                         </div>
                       </Show>
+                      <div class="ui-gap-sm flex flex-wrap items-center text-xs">
+                        <div class="ui-gap-sm flex w-full items-center">
+                          <div class="text-base-content-muted relative h-[1.25em] w-[1.25em] flex-none">
+                            <Icon iconName="package" />
+                          </div>
+                          <Show
+                            when={project.attachedRunLabel}
+                            fallback={
+                              <div class="text-base-content-muted flex-1">
+                                {t3({
+                                  en: "No results package",
+                                  fr: "Aucun paquet de résultats",
+                                  pt: "Nenhum pacote de resultados",
+                                })}
+                              </div>
+                            }
+                          >
+                            {(label) => <div class="flex-1">{label()}</div>}
+                          </Show>
+                        </div>
+                        <Show when={project.followPinned}>
+                          <Badge intent="neutral">
+                            {t3({
+                              en: "Follows pin",
+                              fr: "Suit l'épingle",
+                              pt: "Segue o fixado",
+                            })}
+                          </Badge>
+                        </Show>
+                      </div>
                     </div>
                     <Show when={project.lastActivityAt}>
                       {(ts) => (

@@ -14,7 +14,7 @@ export async function getHfaTimePointOrder(mainDb: Sql): Promise<string[]> {
   return rows.map((r) => r.label);
 }
 
-// Time points are instance-wide (not run content — every run of an instance
+// Time points are instance-wide (not run content: every run of an instance
 // shares its survey rounds), restricted to those actually imported.
 export async function getHfaTimePointsForAI(
   mainDb: Sql,
@@ -92,7 +92,7 @@ export async function deleteDatasetHfaData(
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     // Deletes data + dictionary only. Time points, sampling weights, and
-    // indicator code are kept — rounds are managed via the time points page.
+    // indicator code are kept: rounds are managed via the time points page.
     await mainDb.begin(async (sql) => {
       if (timePoint) {
         await sql`DELETE FROM hfa_data WHERE time_point = ${timePoint}`;
@@ -147,7 +147,7 @@ export async function getDatasetHfaItemsForDisplay(
       ORDER BY var_name, time_point
     `;
 
-    // Questionnaire values per (time_point, var_name) — only for select vars
+    // Questionnaire values per (time_point, var_name): only for select vars
     const dictValueRows = await mainDb<{ time_point: string; var_name: string; value: string; value_label: string }[]>`
       SELECT time_point, var_name, value, value_label
       FROM hfa_variable_values
@@ -226,7 +226,7 @@ export async function getDatasetHfaItemsForDisplay(
       });
     }
 
-    // Build rows — use dictionary vars if available, otherwise fall back to stats
+    // Build rows: use dictionary vars if available, otherwise fall back to stats
     const rows: import("lib").HfaVariableRow[] = [];
 
     if (dictVarRows.length > 0) {

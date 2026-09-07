@@ -5,7 +5,7 @@ import { HfaStagingSummary } from "./_staging_summary";
 import { hfaRunStatusLabel } from "./_status_label";
 
 // History click-through for an HFA run: the run facts + the durable staging
-// diagnostics (the run row is HFA's only import record — invariant 4).
+// diagnostics (the run row is HFA's only import record: invariant 4).
 export function HfaRunDetail(
   p: EditorComponentProps<{ run: HfaImportRunSummary }, undefined>,
 ) {

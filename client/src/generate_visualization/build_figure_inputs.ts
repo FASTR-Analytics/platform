@@ -18,13 +18,14 @@ import {
   getSingleValueDimsFromItems,
   indicatorMetadataToLabelMap,
   pickLang,
-  resolveEffectiveFormatFromItems,
+  resolveEffectiveIndicatorFactsFromItems,
   selectCf,
   withReplicant,
   type DeckStyleContext,
+  type EffectiveIndicatorFacts,
   type FastrChartPalette,
   type IndicatorFormat,
-  type IndicatorMetadata,
+  type IndicatorMetadataDisplay,
 } from "lib";
 import { getLegendFromConfig } from "./conditional_formatting";
 import { scaleLegendFormat } from "./conditional_formatting/compile";
@@ -40,13 +41,13 @@ import { getMapJsonDataConfigFromPresentationObjectConfig } from "./get_data_con
 import { getAdminAreaLevelFromMapConfig } from "./get_admin_area_level_from_config";
 import {
   isSpecialDisruptionsChartActive,
-  isSpecialScorecardTableActive,
+  isSpecialDisruptionsChartV2Active,
   metricAllowsNegativeScale,
 } from "./special_chart_checks";
 import { getGeoJsonSync } from "~/state/instance/t2_geojson";
 
 // Builds FigureInputs from a FigureBundle. All locale reads come from
-// bundle.localization — no ambient singletons. Throws on bad input.
+// bundle.localization: no ambient singletons. Throws on bad input.
 export function buildFigureInputs(
   bundle: FigureBundle,
   deckStyle?: DeckStyleContext,
@@ -58,13 +59,16 @@ export function buildFigureInputs(
   const geoJson = resolveGeoJson(geo, config);
 
   const indicatorLabelReplacements = indicatorMetadataToLabelMap(indicatorMetadata);
+  const indicatorSortOrder = buildIndicatorIdOrder(indicatorMetadata);
 
-  const effectiveFormat = resolveEffectiveFormatFromItems({
+  const effectiveFormat = resolveEffectiveIndicatorFactsFromItems({
     metricFormatAs: resultsValue.formatAs,
     config,
     items,
     indicatorMetadata,
   });
+  const legend = () =>
+    getLegendFromConfig(config, effectiveFormat.axisFormat, effectiveFormat, localization, chartPalette);
 
   const allowNegativeScale = metricAllowsNegativeScale(bundle.metricId);
 
@@ -75,12 +79,27 @@ export function buildFigureInputs(
   });
 
   // The disruptions chart compares two data values (actual vs expected) as two
-  // series and shades the diff between them — a single data value has nothing to
+  // series and shades the diff between them: a single data value has nothing to
   // compare. Fail with a clear message rather than a cryptic render crash.
   if (isSpecialDisruptionsChartActive(config) && effectiveValueProps.length < 2) {
     throw new Error(
       "Disruptions chart needs both data values (actual and expected). Add the second data value, or turn off disruptions mode.",
     );
+  }
+
+  // The V2 chart's diff pairs address series by POSITION, which under "--v" is
+  // the effective value-props order: a filtered subset would silently pair
+  // the wrong series. Require the full m011 shape exactly.
+  if (isSpecialDisruptionsChartV2Active(config)) {
+    const required = ["observed", "expected", "ppi_lwr", "ppi_upr"];
+    if (
+      effectiveValueProps.length !== required.length ||
+      required.some((p, i) => effectiveValueProps[i] !== p)
+    ) {
+      throw new Error(
+        "Disruptions chart needs all four data values (observed, expected, lower and upper bounds). Clear the data value filter, or turn off disruptions mode.",
+      );
+    }
   }
 
   if (effectiveConfig.d.type === "timeseries") {
@@ -89,6 +108,7 @@ export function buildFigureInputs(
       effectiveConfig,
       effectiveValueProps,
       indicatorLabelReplacements,
+      indicatorSortOrder,
       localization,
       items,
     );
@@ -102,15 +122,12 @@ export function buildFigureInputs(
       caption: withDateRange(withReplicant(config.t.caption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       subCaption: withDateRange(withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       footnote: withDateRange(withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
-      style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, indicatorMetadata, allowNegativeScale, effectiveValueProps, chartPalette),
-      legend: getLegendFromConfig(config, effectiveFormat.axisFormat, localization, chartPalette),
+      style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, allowNegativeScale, effectiveValueProps, chartPalette),
+      legend: legend(),
     };
   }
 
   if (effectiveConfig.d.type === "table") {
-    const customSortHeaders = isSpecialScorecardTableActive(config)
-      ? buildIndicatorSortOrder(indicatorMetadata)
-      : undefined;
     return {
       figureType: "table",
       data: {
@@ -120,16 +137,16 @@ export function buildFigureInputs(
           effectiveConfig,
           effectiveValueProps,
           indicatorLabelReplacements,
+          indicatorSortOrder,
           localization,
           items,
-          customSortHeaders,
         ),
       },
       caption: withDateRange(withReplicant(config.t.caption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       subCaption: withDateRange(withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       footnote: withDateRange(withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
-      style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, indicatorMetadata, allowNegativeScale, effectiveValueProps, chartPalette),
-      legend: getLegendFromConfig(config, effectiveFormat.axisFormat, localization, chartPalette),
+      style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, allowNegativeScale, effectiveValueProps, chartPalette),
+      legend: legend(),
     };
   }
 
@@ -138,8 +155,8 @@ export function buildFigureInputs(
       caption: withDateRange(withReplicant(config.t.caption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       subCaption: withDateRange(withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       footnote: withDateRange(withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
-      style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, indicatorMetadata, allowNegativeScale, effectiveValueProps, chartPalette),
-      legend: getLegendFromConfig(config, effectiveFormat.axisFormat, localization, chartPalette),
+      style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, allowNegativeScale, effectiveValueProps, chartPalette),
+      legend: legend(),
     };
     if (effectiveConfig.s.horizontal) {
       return {
@@ -151,6 +168,7 @@ export function buildFigureInputs(
             effectiveConfig,
             effectiveValueProps,
             indicatorLabelReplacements,
+            indicatorSortOrder,
             localization,
             items,
           ),
@@ -167,6 +185,7 @@ export function buildFigureInputs(
           effectiveConfig,
           effectiveValueProps,
           indicatorLabelReplacements,
+          indicatorSortOrder,
           localization,
           items,
         ),
@@ -178,13 +197,23 @@ export function buildFigureInputs(
   if (effectiveConfig.d.type === "map") {
     if (!geoJson) {
       const level = getAdminAreaLevelFromMapConfig(effectiveConfig);
-      throw new Error(`[INFO] Map files not yet uploaded for Admin Area ${level ?? ""}`);
+      // Each facility registry carries its OWN boundaries, so the level alone
+      // no longer identifies the missing map: an instance can have an HMIS
+      // AA2 map and no HFA one, and the maps page would show "a level 2 map
+      // exists" while this metric still cannot render.
+      const registry = geo && geo.kind === "level" && geo.family === "hfa"
+        ? "HFA"
+        : "HMIS";
+      throw new Error(
+        `[INFO] Map files not yet uploaded for the ${registry} registry at Admin Area ${level ?? ""}`,
+      );
     }
     const mapDataConfig = getMapJsonDataConfigFromPresentationObjectConfig(
       resultsValue,
       effectiveConfig,
       effectiveValueProps,
       indicatorLabelReplacements,
+      indicatorSortOrder,
     );
     // panther expects numeric values for the color scale; items are string-typed
     // in the bundle, so parse numeric strings to numbers here.
@@ -208,8 +237,8 @@ export function buildFigureInputs(
       caption: withDateRange(withReplicant(config.t.caption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       subCaption: withDateRange(withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       footnote: withDateRange(withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
-      style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, indicatorMetadata, allowNegativeScale, effectiveValueProps, chartPalette),
-      legend: config.s.hideLegend ? undefined : buildMapAutoLegend(config, effectiveFormat.axisFormat, localization, chartPalette),
+      style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, allowNegativeScale, effectiveValueProps, chartPalette),
+      legend: config.s.hideLegend ? undefined : buildMapAutoLegend(config, effectiveFormat, localization, chartPalette),
     };
   }
 
@@ -219,6 +248,7 @@ export function buildFigureInputs(
       effectiveConfig,
       effectiveValueProps,
       indicatorLabelReplacements,
+      indicatorSortOrder,
       localization,
       effectiveFormat.axisFormat,
       items,
@@ -226,7 +256,7 @@ export function buildFigureInputs(
     // Transform eagerly (timeseries precedent) so transform-time throws
     // (negative values, missing "--v" assignment) surface here inside the
     // caller's catch rather than at measure time inside panther. The
-    // transform coerces string values itself — no numeric parse needed.
+    // transform coerces string values itself: no numeric parse needed.
     const d = getPieDataTransformed({ jsonArray: items, jsonDataConfig: j });
     return {
       figureType: "pie",
@@ -234,11 +264,11 @@ export function buildFigureInputs(
       caption: withDateRange(withReplicant(config.t.caption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       subCaption: withDateRange(withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       footnote: withDateRange(withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
-      style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, indicatorMetadata, allowNegativeScale, effectiveValueProps, chartPalette),
+      style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, allowNegativeScale, effectiveValueProps, chartPalette),
       // Never pass an explicit legend: CF is unwired for slices (they color
       // via the series sentinel), so a cf* state carried over from a
       // chart/map conversion would show threshold/scale colors that appear
-      // nowhere on the figure — and an explicit legend would suppress the
+      // nowhere on the figure, and an explicit legend would suppress the
       // categorical slice legend panther derives from series headers.
       legend: undefined,
     };
@@ -255,21 +285,26 @@ function resolveGeoJson(
 ): GeoJSONFeatureCollection | undefined {
   if (!geo) return undefined;
   if (geo.kind === "data") return geo.data as GeoJSONFeatureCollection;
-  // geo.kind === "level": derive from sync cache
+  // geo.kind === "level": derive from sync cache. Stored bundles without a
+  // family predate the split and default to hmis (same ruling as an absent
+  // ResultsValue.datasetFamily).
   const level = getAdminAreaLevelFromMapConfig(config);
   if (!level) return undefined;
-  return getGeoJsonSync(level) ?? undefined;
+  return getGeoJsonSync(geo.family ?? "hmis", level) ?? undefined;
 }
 
+// A map's legend: a bucket list for the two rule-based sources, else the
+// gradient/stepped scale legend over the live or fixed domain.
 function buildMapAutoLegend(
   config: PresentationObjectConfig,
-  formatAs: IndicatorFormat,
+  facts: EffectiveIndicatorFacts,
   localization: Pick<FigureLocalization, "language">,
   chartPalette: FastrChartPalette | undefined,
 ) {
   const cf = selectCf(config.s);
-  if (cf.type === "thresholds") {
-    return getLegendFromConfig(config, formatAs, localization, chartPalette);
+  const formatAs: IndicatorFormat = facts.axisFormat;
+  if (cf.type === "thresholds" || cf.type === "indicator") {
+    return getLegendFromConfig(config, formatAs, facts, localization, chartPalette);
   }
   const noData = {
     color: "#f0f0f0",
@@ -312,10 +347,17 @@ function withDateRange(
     .replaceAll("INTERVALO_DE_DATAS", d);
 }
 
-function buildIndicatorSortOrder(metadata: IndicatorMetadata[]): string[] {
+// The package catalog's own order, ids only: what every indicator axis sorts
+// by (PLAN_1a §1.9). Entries with no stamped order follow, by id, so a mixed
+// catalog is still deterministic.
+function buildIndicatorIdOrder(metadata: IndicatorMetadataDisplay[]): string[] {
   return [...metadata]
-    .filter((m) => m.sort_order !== undefined)
-    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-    .flatMap((m) => [m.id, m.label]);
+    .sort(
+      (a, b) =>
+        (a.sort_order ?? Number.MAX_SAFE_INTEGER) -
+          (b.sort_order ?? Number.MAX_SAFE_INTEGER) || a.id.localeCompare(b.id),
+    )
+    .map((m) => m.id);
 }
+
 

@@ -9,10 +9,12 @@ import {
   type MergedMarkdownStyle,
   RectCoordsDims,
   type RenderContext,
+  type TextInfoUnkeyed,
 } from "../deps.ts";
 import type {
   FormattedRun,
   FormattedText,
+  InlineCodeStyle,
   MarkdownInline,
   MeasuredMarkdownBlockquote,
   MeasuredMarkdownCodeBlock,
@@ -30,6 +32,24 @@ export type MeasuredMarkdownItemsResult = {
   bounds: RectCoordsDims;
   items: MeasuredMarkdownItem[];
 };
+
+// Inline code keeps the code text style but sizes relative to the surrounding
+// text (a code span in an h1 is h1-sized), the way the HTML renderer's
+// `--md-code-size` em ratio does.
+export function getInlineCodeStyle(
+  baseTextInfo: TextInfoUnkeyed,
+  style: MergedMarkdownStyle,
+): InlineCodeStyle {
+  const codeText = style.text.code;
+  return {
+    textInfo: {
+      ...codeText,
+      fontSize: baseTextInfo.fontSize * codeText.fontSize /
+        style.text.paragraph.fontSize,
+    },
+    backgroundColor: style.code.backgroundColor,
+  };
+}
 
 export function measureMarkdownItems(
   rc: RenderContext,
@@ -140,10 +160,6 @@ function getItemMargins(
       const m = style.margins.code;
       return { marginTop: m.top, marginBottom: m.bottom };
     }
-    case "math-block": {
-      const m = style.margins.paragraph;
-      return { marginTop: m.top, marginBottom: m.bottom };
-    }
     case "image":
     case "table":
       // These are handled separately and should not reach this function
@@ -175,8 +191,6 @@ function measureItem(
       return measureHorizontalRule(x, y, maxWidth, style);
     case "code-block":
       return measureCodeBlock(rc, item, x, y, maxWidth, style);
-    case "math-block":
-      return measureMathBlock(rc, item, x, y, maxWidth, style);
     case "image":
     case "table":
       throw new Error(
@@ -195,7 +209,7 @@ function measureParagraph(
   alignH: AlignH,
 ): MeasuredMarkdownParagraph {
   const textInfo = style.text.paragraph;
-  const formattedText = inlinesToFormattedText(item.content, textInfo);
+  const formattedText = inlinesToFormattedText(item.content, textInfo, style);
   const mFormattedText = measureFormattedText(
     rc,
     formattedText,
@@ -230,7 +244,7 @@ function measureHeading(
 ): MeasuredMarkdownHeading {
   const levelKey = `h${item.level}` as "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
   const textInfo = style.text[levelKey];
-  const formattedText = inlinesToFormattedText(item.content, textInfo);
+  const formattedText = inlinesToFormattedText(item.content, textInfo, style);
   const mFormattedText = measureFormattedText(
     rc,
     formattedText,
@@ -285,7 +299,7 @@ function measureListItem(
 
   const contentX = x + levelConfig.textIndent;
   const contentWidth = maxWidth - levelConfig.textIndent;
-  const formattedText = inlinesToFormattedText(item.content, textInfo);
+  const formattedText = inlinesToFormattedText(item.content, textInfo, style);
   const mFormattedText = measureFormattedText(
     rc,
     formattedText,
@@ -370,7 +384,11 @@ function measureBlockquote(
       currentY += bqStyle.paragraphGap;
     }
 
-    const formattedText = inlinesToFormattedText(contentGroups[i], textInfo);
+    const formattedText = inlinesToFormattedText(
+      contentGroups[i],
+      textInfo,
+      style,
+    );
     const mFormattedText = measureFormattedText(
       rc,
       formattedText,
@@ -496,44 +514,10 @@ function measureCodeBlock(
   };
 }
 
-function measureMathBlock(
-  rc: RenderContext,
-  item: { type: "math-block"; latex: string },
-  x: number,
-  y: number,
-  maxWidth: number,
-  style: MergedMarkdownStyle,
-): MeasuredMarkdownParagraph {
-  const textInfo = style.text.paragraph;
-  const formattedText: FormattedText = {
-    runs: [{ text: `[Math: ${item.latex}]`, style: "italic" }],
-    baseStyle: textInfo,
-  };
-  const mFormattedText = measureFormattedText(
-    rc,
-    formattedText,
-    maxWidth,
-    "center",
-    style.link.color,
-    style.link.underline,
-  );
-
-  return {
-    type: "paragraph",
-    bounds: new RectCoordsDims({
-      x,
-      y,
-      w: maxWidth,
-      h: mFormattedText.dims.h(),
-    }),
-    mFormattedText,
-    position: new Coordinates({ x, y }),
-  };
-}
-
 function inlinesToFormattedText(
   inlines: MarkdownInline[],
-  baseTextInfo: import("../deps.ts").TextInfoUnkeyed,
+  baseTextInfo: TextInfoUnkeyed,
+  style: MergedMarkdownStyle,
 ): FormattedText {
   const runs: FormattedRun[] = [];
 
@@ -554,7 +538,7 @@ function inlinesToFormattedText(
       case "link":
         runs.push({
           text: inline.text,
-          style: "normal",
+          style: inline.style ?? "normal",
           link: { url: inline.url },
         });
         break;
@@ -564,11 +548,12 @@ function inlinesToFormattedText(
       case "code-inline":
         runs.push({ text: inline.text, style: "normal", isCode: true });
         break;
-      case "math-inline":
-        runs.push({ text: `[${inline.latex}]`, style: "italic" });
-        break;
     }
   }
 
-  return { runs, baseStyle: baseTextInfo };
+  return {
+    runs,
+    baseStyle: baseTextInfo,
+    codeStyle: getInlineCodeStyle(baseTextInfo, style),
+  };
 }

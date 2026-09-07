@@ -39,13 +39,15 @@ export {
   type PaletteOption,
   PANTHER_PALETTES,
   type QualitativePaletteName,
+  type ResolvedScale,
+  resolveScale,
   type SequentialPaletteName,
 } from "./palettes.ts";
 export { PANTHER_COLORS } from "./tim_colors.ts";
 export type { ColorKeyOrString, KeyColors } from "./types.ts";
 export {
-  divergingColorFunc,
-  sequentialColorFunc,
+  type ThresholdBoundary,
   thresholdColorFunc,
+  type ThresholdColorFuncOptions,
   type ValuesColorFunc,
 } from "./value_color_funcs.ts";

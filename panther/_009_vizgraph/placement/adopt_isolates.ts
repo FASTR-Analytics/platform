@@ -11,14 +11,18 @@ import { requiredGap } from "./types.ts";
 // zero cross-layer segments, because ALL their edges are same-layer edges
 // that properize extracted before stages 3–4 — have no barycenter pull and
 // strand wherever seed-stack dropped them. Adopt each toward the mean
-// center of its same-layer partners — or, for a FULLY edge-less node, its
+// center of its same-layer partners, or — for a FULLY edge-less node — its
 // same-layer group-mates (the hrh education_systems strand: seed dropped it
 // at the column bottom, everything else compacted up, and a 450 DU void
-// opened inside its group box) — clamped to the slack between its
-// order-neighbors (never pushes, so order/gap invariants hold trivially).
-// Edge-less AND ungrouped keeps the seed position (nothing to adopt
-// toward). Runs LAST, after compaction: the clamp neighbors (often
-// dummies) only settle once blocks have compacted.
+// opened inside its group box). A node that is edge-less AND ungrouped has
+// no target to average at all (the panterra `e` strand: 310 DU above a
+// column that budged away from it); it tucks against the column instead, at
+// the nearer order-neighbour's clearance — that is what makes it read as
+// PLACED and not merely bounded, and void-bound is the invariant behind it.
+// Every move is clamped to the slack between the node's order-neighbours —
+// the pass never pushes, so order/gap invariants hold trivially. Runs LAST,
+// after compaction: the clamp neighbours (often dummies) only settle once
+// blocks have compacted.
 export type AdoptIsolatesParams = {
   maxRounds: number;
   minMove: number;
@@ -64,13 +68,6 @@ export function adoptIsolates(
                   proper.innermostGroupByNodeId.get(m.id) === gid,
               );
             }
-            if (targets.length === 0) {
-              continue; // edge-less and ungrouped: keep the seed position
-            }
-            const target = targets.reduce(
-              (acc, t) => acc + t.y + t.h / 2,
-              0,
-            ) / targets.length;
             const k = pnode.order;
             const lo = k > 0
               ? layer[k - 1].y + layer[k - 1].h +
@@ -83,11 +80,13 @@ export function adoptIsolates(
             if (lo > hi) {
               continue;
             }
-            const desiredTop = Math.min(
-              Math.max(target - pnode.h / 2, lo),
-              hi,
-            );
-            if (Math.abs(desiredTop - pnode.y) < p.minMove) {
+            const desiredTop = targets.length > 0
+              ? clamp(mean(targets) - pnode.h / 2, lo, hi)
+              : tuck(pnode.y, lo, hi);
+            if (
+              desiredTop === undefined ||
+              Math.abs(desiredTop - pnode.y) < p.minMove
+            ) {
               continue;
             }
             pnode.y = desiredTop;
@@ -100,4 +99,31 @@ export function adoptIsolates(
       }
     },
   };
+}
+
+function mean(targets: PNode[]): number {
+  return targets.reduce((acc, t) => acc + t.y + t.h / 2, 0) / targets.length;
+}
+
+function clamp(v: number, lo: number, hi: number): number {
+  return Math.min(Math.max(v, lo), hi);
+}
+
+// The signal-less rung: nothing to average toward, so the objective is not
+// "be near X" but "leave no hole" — take the NEARER order-neighbour's
+// clearance position. Either wall closes exactly one of the node's two
+// gaps, so the column's widest gap is the same whichever side it picks;
+// nearest is the one that moves it least. Alone in its layer it has no wall
+// at all — void-bound is what bounds it then.
+function tuck(y: number, lo: number, hi: number): number | undefined {
+  if (lo === -Infinity && hi === Infinity) {
+    return undefined;
+  }
+  if (lo === -Infinity) {
+    return hi;
+  }
+  if (hi === Infinity) {
+    return lo;
+  }
+  return Math.abs(y - lo) <= Math.abs(y - hi) ? lo : hi;
 }

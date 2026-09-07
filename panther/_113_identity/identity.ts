@@ -93,3 +93,30 @@ export async function authorize<TIdentity>(
   }
   return { ok: true, identity };
 }
+
+// authorize mapped to the wire: the one evaluation order answered as the
+// JSON envelope ({ success: false, err } with 401/403/503, cause logged
+// server-side only), the identity handed to the wrapped handler. This is
+// the guard middleware every consumer app would otherwise rewrite;
+// framework-free — mount it like any (req) => Response handler.
+export function guardedHandler<TIdentity>(
+  provider: IdentityProvider<TIdentity>,
+  guard: Guard<TIdentity>,
+  handler: (
+    req: Request,
+    identity: TIdentity,
+  ) => Response | Promise<Response>,
+): (req: Request) => Promise<Response> {
+  return async (req) => {
+    const outcome = await authorize(provider, req, guard);
+    if (!outcome.ok) {
+      if (outcome.cause !== undefined) {
+        console.error("Auth backend failure:", outcome.cause);
+      }
+      return Response.json({ success: false, err: outcome.err }, {
+        status: outcome.status,
+      });
+    }
+    return await handler(req, outcome.identity);
+  };
+}

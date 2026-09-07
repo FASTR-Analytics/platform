@@ -1,22 +1,25 @@
-import type {
-  CalculatedIndicator,
-  HfaIndicator,
-  HfaIndicatorCode,
-  HfaIndicatorVariantCode,
-  ModuleConfigSelections,
-  ModuleDefinitionInstalled,
+import {
+  buildIndicatorExpressionsRLiteral,
+  buildIndicatorIngredientsRLiteral,
+  populationTypesReferencedByCatalog,
+  type CommonIndicatorCatalogRow,
+  type HfaIndicator,
+  type HfaIndicatorCode,
+  type HfaIndicatorVariantCode,
+  type ModuleConfigSelections,
+  type ModuleDefinitionInstalled,
 } from "lib";
-import { getScriptWithParametersCalculatedIndicators } from "./get_script_with_parameters_calculated_indicators.ts";
 import {
   getScriptWithParametersHfa,
   type HfaSentinelRow,
+  populationFilePathLiteral,
 } from "./get_script_with_parameters_hfa.ts";
 
 // datasetsDirPath = where the generated script finds dataset extract CSVs,
-// relative to the module's working directory. Per-caller: the legacy sandbox
-// layout puts them at "../datasets" (sandbox/{projectId}/datasets beside each
-// module dir); a run workspace (runs/{runId}/outputs/{moduleId}) reads
-// "../../inputs/datasets" (§2.1 run layout).
+// relative to the module's working directory. A module workspace is
+// runs/{runId}/outputs/{moduleId} (§2.1 run layout), so it reads
+// "../../inputs/datasets".
+
 export function getScriptWithParameters(
   moduleDefinition: ModuleDefinitionInstalled,
   configSelections: ModuleConfigSelections,
@@ -26,25 +29,10 @@ export function getScriptWithParameters(
   hfaIndicators?: HfaIndicator[],
   hfaIndicatorCode?: HfaIndicatorCode[],
   hfaVariantCode?: HfaIndicatorVariantCode[],
-  calculatedIndicators?: CalculatedIndicator[],
   hfaSentinelRows?: HfaSentinelRow[],
   hfaTimePointOrder?: string[],
+  commonIndicatorCatalog?: CommonIndicatorCatalogRow[],
 ): string {
-  if (moduleDefinition.scriptGenerationType === "calculated_indicators") {
-    if (!calculatedIndicators) {
-      throw new Error(
-        "calculatedIndicators is required for calculated_indicators module script generation"
-      );
-    }
-    return getScriptWithParametersCalculatedIndicators(
-      moduleDefinition,
-      configSelections,
-      countryIso3,
-      datasetsDirPath,
-      calculatedIndicators,
-    );
-  }
-
   if (moduleDefinition.scriptGenerationType === "hfa") {
     if (!knownDatasetVariables) {
       throw new Error(
@@ -74,12 +62,38 @@ export function getScriptWithParameters(
 
   str = str.replaceAll("COUNTRY_ISO3", `"${countryIso3 ?? "UNKNOWN"}"`);
 
+  // The ingredient and expression tables travel as DATA substituted into an
+  // otherwise static script: the same channel as COUNTRY_ISO3 above and every
+  // module parameter below, and the reason no memoization input class exists
+  // for them: the literals land in scriptText, which computeModuleKey already
+  // hashes. Only m012 carries the tokens; for every other module this is a
+  // no-op.
+  str = str.replaceAll(
+    "INDICATOR_INGREDIENTS",
+    buildIndicatorIngredientsRLiteral(commonIndicatorCatalog ?? [])
+  );
+  str = str.replaceAll(
+    "INDICATOR_EXPRESSIONS",
+    buildIndicatorExpressionsRLiteral(commonIndicatorCatalog ?? [])
+  );
+  // Whether any formula names a population: the same derivation the capture
+  // stamps into the manifest, so m012 can skip the person-years file and keep
+  // the data at its own admin level when nothing needs it.
+  str = str.replaceAll(
+    "POPULATION_ACTIVE",
+    populationTypesReferencedByCatalog(commonIndicatorCatalog ?? []).length > 0
+      ? "TRUE"
+      : "FALSE"
+  );
+
   for (const ds of moduleDefinition.dataSources) {
     if (ds.sourceType === "dataset") {
       str = str.replaceAll(
         ds.replacementString,
         `'${datasetsDirPath}/${ds.datasetType}.csv'`
       );
+    } else if (ds.sourceType === "population") {
+      str = str.replaceAll(ds.replacementString, populationFilePathLiteral(datasetsDirPath));
     } else {
       str = str.replaceAll(
         ds.replacementString,

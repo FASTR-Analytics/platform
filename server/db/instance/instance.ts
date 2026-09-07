@@ -1,4 +1,5 @@
 import { Sql } from "postgres";
+import { getStoredDhis2CredentialsInfo } from "./instance_dhis2_credentials.ts";
 import {
   APIResponseWithData,
   H_USERS,
@@ -9,10 +10,12 @@ import {
   _USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
   buildUserPermissionsFromRow,
   type DatasetType,
+  type FacilityFamily,
   type GlobalUser,
   type InstanceDatasetsSummary,
   type InstanceIndicatorsSummary,
   type InstanceStructureSummary,
+  type StructureFamilyCounts,
 } from "lib";
 import {
   _INSTANCE_COUNTRY_ISO3,
@@ -27,11 +30,7 @@ import {
 } from "./_main_database_types.ts";
 import { getAssetsForInstance } from "./assets.ts";
 import { getGeoJsonMapSummaries } from "./geojson_maps.ts";
-import {
-  getMaxAdminAreaConfig,
-  getFacilityColumnsConfig,
-  getAdminAreaLabelsConfig,
-} from "./config.ts";
+import { getAdminAreaLabelsConfig, getStructureSchema } from "./config.ts";
 import { getCurrentDatasetHmisMaxVersionId } from "./dataset_hmis.ts";
 import {
   countQueuedDatasetHmisImportRuns,
@@ -78,18 +77,9 @@ export async function getHfaIndicatorsVersion(mainDb: Sql): Promise<string> {
   return result[0]?.version ?? "none";
 }
 
-export async function getCalculatedIndicatorsVersion(
-  mainDb: Sql,
-): Promise<string> {
-  const result = await mainDb<{ version: string | null }[]>`
-    SELECT MD5(
-      COALESCE((SELECT MAX(updated_at) FROM calculated_indicators)::text, '') || '|' ||
-      (SELECT COUNT(*) FROM calculated_indicators)::text
-    ) as version
-  `;
-  return result[0]?.version ?? "none";
-}
-
+// The full dictionary stamp: every common indicator row, whatever its type,
+// plus the raws and mappings. Keys the indicator manager's cache and rides the
+// SSE summary.
 export async function getIndicatorMappingsVersion(
   mainDb: Sql,
 ): Promise<string> {
@@ -99,6 +89,25 @@ export async function getIndicatorMappingsVersion(
       COALESCE((SELECT MAX(updated_at) FROM indicators_raw)::text, '') || '|' ||
       COALESCE((SELECT MAX(updated_at) FROM indicator_mappings)::text, '') || '|' ||
       (SELECT COUNT(*) FROM indicators)::text || '|' ||
+      (SELECT COUNT(*) FROM indicators_raw)::text || '|' ||
+      (SELECT COUNT(*) FROM indicator_mappings)::text
+    ) as version
+  `;
+  return result[0]?.version ?? "none";
+}
+
+// The base-only stamp: the rows an HMIS extract is actually built from
+// (PLAN_1a §1.13). Editing a derived definition does not move it, so the
+// datatable caches it keys never churn on a formula edit.
+export async function getBaseIndicatorMappingsVersion(
+  mainDb: Sql,
+): Promise<string> {
+  const result = await mainDb<{ version: string | null }[]>`
+    SELECT MD5(
+      COALESCE((SELECT MAX(updated_at) FROM indicators WHERE definition_type = 'base')::text, '') || '|' ||
+      COALESCE((SELECT MAX(updated_at) FROM indicators_raw)::text, '') || '|' ||
+      COALESCE((SELECT MAX(updated_at) FROM indicator_mappings)::text, '') || '|' ||
+      (SELECT COUNT(*) FROM indicators WHERE definition_type = 'base')::text || '|' ||
       (SELECT COUNT(*) FROM indicators_raw)::text || '|' ||
       (SELECT COUNT(*) FROM indicator_mappings)::text
     ) as version
@@ -143,39 +152,60 @@ export async function getInstanceIndicatorsSummary(
         { count: number }[]
       >`SELECT COUNT(*) as count FROM hfa_indicators`
     )[0]?.count ?? 0;
-  const calculatedIndicators =
-    (
-      await mainDb<
-        { count: number }[]
-      >`SELECT COUNT(*) as count FROM calculated_indicators`
-    )[0]?.count ?? 0;
   const indicatorMappingsVersion = await getIndicatorMappingsVersion(mainDb);
+  const baseIndicatorMappingsVersion =
+    await getBaseIndicatorMappingsVersion(mainDb);
   const hfaIndicatorsVersion = await getHfaIndicatorsVersion(mainDb);
-  const calculatedIndicatorsVersion =
-    await getCalculatedIndicatorsVersion(mainDb);
   return {
     indicators: {
       commonIndicators,
       rawIndicators,
       hfaIndicators,
-      calculatedIndicators,
     },
     indicatorMappingsVersion,
+    baseIndicatorMappingsVersion,
     hfaIndicatorsVersion,
-    calculatedIndicatorsVersion,
+  };
+}
+
+async function getStructureFamilyCounts(
+  mainDb: Sql,
+  family: FacilityFamily,
+): Promise<StructureFamilyCounts> {
+  const row = (
+    await mainDb.unsafe<
+      {
+        admin_area_1s: number;
+        admin_area_2s: number;
+        admin_area_3s: number;
+        admin_area_4s: number;
+        facilities: number;
+      }[]
+    >(`
+      SELECT
+        (SELECT COUNT(*) FROM admin_areas_${family}_1)::int AS admin_area_1s,
+        (SELECT COUNT(*) FROM admin_areas_${family}_2)::int AS admin_area_2s,
+        (SELECT COUNT(*) FROM admin_areas_${family}_3)::int AS admin_area_3s,
+        (SELECT COUNT(*) FROM admin_areas_${family}_4)::int AS admin_area_4s,
+        (SELECT COUNT(*) FROM facilities_${family})::int AS facilities
+    `)
+  )[0];
+  return {
+    adminArea1s: row?.admin_area_1s ?? 0,
+    adminArea2s: row?.admin_area_2s ?? 0,
+    adminArea3s: row?.admin_area_3s ?? 0,
+    adminArea4s: row?.admin_area_4s ?? 0,
+    facilities: row?.facilities ?? 0,
   };
 }
 
 export async function getInstanceStructureSummary(
   mainDb: Sql,
 ): Promise<InstanceStructureSummary> {
-  const adminArea1s =
-    (
-      await mainDb<
-        { count: number }[]
-      >`SELECT COUNT(*) as count FROM admin_areas_1`
-    )[0]?.count ?? 0;
-  const hasData = adminArea1s > 0;
+  const hmis = await getStructureFamilyCounts(mainDb, "hmis");
+  const hfa = await getStructureFamilyCounts(mainDb, "hfa");
+  // "Structure set up" = either family's tree is non-empty
+  const hasData = hmis.adminArea1s > 0 || hfa.adminArea1s > 0;
   if (!hasData) {
     return {
       structure: undefined,
@@ -183,50 +213,13 @@ export async function getInstanceStructureSummary(
       hfaWeights: [],
     };
   }
-  const adminArea2s =
-    (
-      await mainDb<
-        { count: number }[]
-      >`SELECT COUNT(*) as count FROM admin_areas_2`
-    )[0]?.count ?? 0;
-  const adminArea3s =
-    (
-      await mainDb<
-        { count: number }[]
-      >`SELECT COUNT(*) as count FROM admin_areas_3`
-    )[0]?.count ?? 0;
-  const adminArea4s =
-    (
-      await mainDb<
-        { count: number }[]
-      >`SELECT COUNT(*) as count FROM admin_areas_4`
-    )[0]?.count ?? 0;
-  const facilitiesHmis =
-    (
-      await mainDb<
-        { count: number }[]
-      >`SELECT COUNT(*) as count FROM facilities_hmis`
-    )[0]?.count ?? 0;
-  const facilitiesHfa =
-    (
-      await mainDb<
-        { count: number }[]
-      >`SELECT COUNT(*) as count FROM facilities_hfa`
-    )[0]?.count ?? 0;
   const lastUpdatedRow = (
     await mainDb<{ config_json_value: string }[]>`
       SELECT config_json_value FROM instance_config WHERE config_key = 'structure_last_updated'
     `
   ).at(0);
   return {
-    structure: {
-      adminArea1s,
-      adminArea2s,
-      adminArea3s,
-      adminArea4s,
-      facilitiesHmis,
-      facilitiesHfa,
-    },
+    structure: { hmis, hfa },
     structureLastUpdated: lastUpdatedRow
       ? JSON.parse(lastUpdatedRow.config_json_value)
       : "legacy",
@@ -248,7 +241,7 @@ export async function getInstanceDatasetsSummary(
     datasetsWithData.push("iceh");
   }
   const hmis = await getCurrentDatasetHmisMaxVersionId(mainDb);
-  // Running-run versions excluded, same as every version reader — see
+  // Running-run versions excluded, same as every version reader: see
   // getVersionsForDatasetHmis.
   const hmisNVersions =
     (
@@ -299,9 +292,10 @@ export async function getProjectsForUser(
 ): Promise<ProjectSummary[]> {
   if (globalUser.isGlobalAdmin || H_USERS.includes(globalUser.email)) {
     return (
-      await mainDb<(DBProject & { last_activity_at: Date | null })[]>`
-        SELECT p.*, la.last_activity_at
+      await mainDb<(DBProject & { last_activity_at: Date | null; run_label: string | null })[]>`
+        SELECT p.*, la.last_activity_at, r.label AS run_label
         FROM projects p
+        LEFT JOIN runs r ON r.id = p.run_id
         LEFT JOIN (
           SELECT project_id, MAX(timestamp) as last_activity_at
           FROM user_logs
@@ -316,17 +310,22 @@ export async function getProjectsForUser(
       thisUserRole: "editor",
       isLocked: p.is_locked,
       isCentralReporting: p.is_central_reporting,
+      adminArea2: p.admin_area_2,
       status: p.status as ProjectSummary["status"],
+      attachedRunId: p.run_id,
+      attachedRunLabel: p.run_label,
+      followPinned: p.follow_pinned,
       lastActivityAt: p.last_activity_at?.toISOString() ?? undefined,
       deletionScheduledAt: p.deletion_scheduled_at?.toISOString() ?? undefined,
     }));
   }
 
   return (
-    await mainDb<(DBProject & DBProjectUserRole & { last_activity_at: Date | null })[]>`
-      SELECT pur.*, p.*, la.last_activity_at
+    await mainDb<(DBProject & DBProjectUserRole & { last_activity_at: Date | null; run_label: string | null })[]>`
+      SELECT pur.*, p.*, la.last_activity_at, r.label AS run_label
       FROM project_user_roles pur
       JOIN projects p ON pur.project_id = p.id
+      LEFT JOIN runs r ON r.id = p.run_id
       LEFT JOIN (
         SELECT project_id, MAX(timestamp) as last_activity_at
         FROM user_logs
@@ -351,7 +350,11 @@ export async function getProjectsForUser(
     thisUserRole: p.role === "editor" ? "editor" : "viewer",
     isLocked: p.is_locked,
     isCentralReporting: false,
+    adminArea2: p.admin_area_2,
     status: p.status as ProjectSummary["status"],
+    attachedRunId: p.run_id,
+    attachedRunLabel: p.run_label,
+    followPinned: p.follow_pinned,
     lastActivityAt: p.last_activity_at?.toISOString() ?? undefined,
     deletionScheduledAt: p.deletion_scheduled_at?.toISOString() ?? undefined,
   }));
@@ -362,59 +365,22 @@ export async function getInstanceDetail(
   globalUser: GlobalUser,
 ): Promise<APIResponseWithData<InstanceDetail>> {
   return await tryCatchDatabaseAsync(async () => {
-    // Get maxAdminArea from config
-    const maxAdminAreaRes = await getMaxAdminAreaConfig(mainDb);
-    throwIfErrWithData(maxAdminAreaRes);
-    const maxAdminArea = maxAdminAreaRes.data.maxAdminArea;
-
-    // Get facility columns config
-    const facilityColumnsRes = await getFacilityColumnsConfig(mainDb);
-    throwIfErrWithData(facilityColumnsRes);
-    const facilityColumns = facilityColumnsRes.data;
+    // The per-family structure schemas. A missing row (near-zero probability,
+    // guarded by the pre-deploy check) renders as null rather than failing the
+    // whole instance detail.
+    const hmisSchemaRes = await getStructureSchema(mainDb, "hmis");
+    const hfaSchemaRes = await getStructureSchema(mainDb, "hfa");
+    const structureSchemaHmis = hmisSchemaRes.success ? hmisSchemaRes.data : null;
+    const structureSchemaHfa = hfaSchemaRes.success ? hfaSchemaRes.data : null;
 
     // Get admin area labels config
     const adminAreaLabelsRes = await getAdminAreaLabelsConfig(mainDb);
     throwIfErrWithData(adminAreaLabelsRes);
     const adminAreaLabels = adminAreaLabelsRes.data;
 
-    // Check if admin_areas_1 has any data (determines if structure is set up)
-    const adminArea1Count = await mainDb<{ count: number }[]>`
-      SELECT COUNT(*) as count FROM admin_areas_1
-    `;
-    const hasStructureData = (adminArea1Count[0]?.count ?? 0) > 0;
-
-    // Get structure counts if we have data
-    let structure: InstanceDetail["structure"] = undefined;
-    if (hasStructureData) {
-      // Get counts for all admin area levels
-      const adminArea1s = await mainDb<{ count: number }[]>`
-        SELECT COUNT(*) as count FROM admin_areas_1
-      `;
-      const adminArea2s = await mainDb<{ count: number }[]>`
-        SELECT COUNT(*) as count FROM admin_areas_2
-      `;
-      const adminArea3s = await mainDb<{ count: number }[]>`
-        SELECT COUNT(*) as count FROM admin_areas_3
-      `;
-      const adminArea4s = await mainDb<{ count: number }[]>`
-        SELECT COUNT(*) as count FROM admin_areas_4
-      `;
-      const facilitiesHmis = await mainDb<{ count: number }[]>`
-        SELECT COUNT(*) as count FROM facilities_hmis
-      `;
-      const facilitiesHfa = await mainDb<{ count: number }[]>`
-        SELECT COUNT(*) as count FROM facilities_hfa
-      `;
-
-      structure = {
-        adminArea1s: adminArea1s[0]?.count ?? 0,
-        adminArea2s: adminArea2s[0]?.count ?? 0,
-        adminArea3s: adminArea3s[0]?.count ?? 0,
-        adminArea4s: adminArea4s[0]?.count ?? 0,
-        facilitiesHmis: facilitiesHmis[0]?.count ?? 0,
-        facilitiesHfa: facilitiesHfa[0]?.count ?? 0,
-      };
-    }
+    // Per-family counts + last-updated, shared with the SSE structure summary
+    const structureSummary = await getInstanceStructureSummary(mainDb);
+    const structure = structureSummary.structure;
 
     // Get indicator counts (both common and raw)
     const commonIndicatorsCount =
@@ -466,19 +432,6 @@ const projectSummaries = await getProjectsForUser(mainDb, globalUser);
       >`SELECT COUNT(*) as count FROM hfa_time_points`
     )[0].count;
 
-    const structureLastUpdatedRow = (
-      await mainDb<{ config_json_value: string }[]>`
-        SELECT config_json_value
-        FROM instance_config
-        WHERE config_key = 'structure_last_updated'
-      `
-    ).at(0);
-    const structureLastUpdated = structureLastUpdatedRow
-      ? JSON.parse(structureLastUpdatedRow.config_json_value)
-      : hasStructureData
-        ? "legacy"
-        : undefined;
-
     const users = await getInstanceUsers(mainDb);
 
     // Get cache version for indicators (includes counts to detect deletions)
@@ -487,19 +440,21 @@ const projectSummaries = await getProjectsForUser(mainDb, globalUser);
     const instanceDetails: InstanceDetail = {
       instanceId: _INSTANCE_ID,
       instanceName: _INSTANCE_NAME,
-      maxAdminArea,
       countryIso3: _INSTANCE_COUNTRY_ISO3,
-      facilityColumns,
+      structureSchemaHmis,
+      structureSchemaHfa,
       adminAreaLabels,
       structure,
-      structureLastUpdated,
-      hfaWeights: await getHfaWeightsCoverage(mainDb),
+      structureLastUpdated: structureSummary.structureLastUpdated,
+      hfaWeights: structureSummary.hfaWeights,
       indicators: {
         commonIndicators: commonIndicatorsCount,
         rawIndicators: rawIndicatorsCount,
         hfaIndicators: hfaIndicatorsCount,
       },
       assets: resAssets.data,
+      dhis2ConnectionUrl:
+        (await getStoredDhis2CredentialsInfo(mainDb))?.url ?? null,
       geojsonMaps: await getGeoJsonMapSummaries(mainDb),
       datasetsWithData,
       datasetVersions: {

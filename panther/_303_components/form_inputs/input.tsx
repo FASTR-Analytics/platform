@@ -5,6 +5,7 @@
 
 import { Show } from "solid-js";
 import type { Intent } from "../types.ts";
+import { type DataAttrs, splitDataAttrs } from "../data_attrs.ts";
 import { t3 } from "../deps.ts";
 import { getInputClasses } from "./_internal/input_classes.ts";
 import { IconRenderer } from "./icon_renderer.tsx";
@@ -28,9 +29,10 @@ type Props = {
   outline?: boolean;
   // id of a <datalist> to wire native autocomplete to (input `list` attr).
   list?: string;
-};
+} & DataAttrs;
 
 export function Input(p: Props) {
+  const [dataAttrs] = splitDataAttrs(p);
   let inputEl: HTMLInputElement | undefined;
 
   const showClear = () => !!p.clearable && p.value !== "" && !p.disabled;
@@ -41,7 +43,11 @@ export function Input(p: Props) {
   }
 
   return (
-    <div class="w-[200px] data-[width=true]:w-full" data-width={p.fullWidth}>
+    <div
+      {...dataAttrs}
+      class="w-[200px] data-[width=true]:w-full"
+      data-width={p.fullWidth}
+    >
       <div class="data-[left=true]:flex" data-left={!!p.searchIcon}>
         <Show when={p.searchIcon}>
           <div
@@ -72,8 +78,7 @@ export function Input(p: Props) {
             data-clearable={showClear()}
             autofocus={p.autoFocus}
             type={p.type}
-            onInput={(v) =>
-              p.onChange?.(v.currentTarget.value)}
+            onInput={(v) => p.onChange?.(v.currentTarget.value)}
             value={p.value}
             placeholder={p.placeholder}
             data-left={!!p.searchIcon}
@@ -88,8 +93,7 @@ export function Input(p: Props) {
                 "ui-hoverable-base-100 text-base-content-muted absolute inset-y-0 right-[0.5em] z-20 my-auto flex h-[1.5em] w-[1.5em] items-center justify-center rounded",
               ].join(" ")}
               aria-label={t3({ en: "Clear", fr: "Effacer", pt: "Limpar" })}
-              onMouseDown={(e) =>
-                e.preventDefault()}
+              onMouseDown={(e) => e.preventDefault()}
               onClick={clear}
             >
               <IconRenderer iconName="x" size={p.size} />

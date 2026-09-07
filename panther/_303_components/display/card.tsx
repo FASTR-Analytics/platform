@@ -5,6 +5,7 @@
 
 import { createMemo, type JSX, Match, Show, Switch } from "solid-js";
 import { SelectionCircle } from "../list_selection/selection_circle.tsx";
+import { type DataAttrs, splitDataAttrs } from "../data_attrs.ts";
 
 // Clickable cards signal at the frame, not the fill: a card is a container of
 // arbitrary content, so repainting its ground on hover reads badly. The
@@ -50,9 +51,10 @@ type CardPropsLink = CardPropsBase & {
   onClick?: never;
 };
 
-type CardProps = CardPropsClickable | CardPropsLink;
+type CardProps = (CardPropsClickable | CardPropsLink) & DataAttrs;
 
 export function Card(p: CardProps) {
+  const [dataAttrs] = splitDataAttrs(p);
   // A JSX-element prop re-instantiates on every read; memo it so the header
   // fork below reads one instance.
   const header = createMemo(() => p.header);
@@ -143,6 +145,7 @@ export function Card(p: CardProps) {
     <Switch>
       <Match when={p.href !== undefined}>
         <a
+          {...dataAttrs}
           href={p.href}
           class={rootClass("block no-underline")}
           classList={rootClassList()}
@@ -155,6 +158,7 @@ export function Card(p: CardProps) {
       </Match>
       <Match when={p.onClick !== undefined}>
         <div
+          {...dataAttrs}
           class={rootClass("")}
           classList={rootClassList()}
           style={BORDER_TRANSITION}
@@ -179,6 +183,7 @@ export function Card(p: CardProps) {
       </Match>
       <Match when={p.onClick === undefined && p.href === undefined}>
         <div
+          {...dataAttrs}
           class={rootClass("")}
           classList={rootClassList()}
           style={BORDER_TRANSITION}

@@ -19,7 +19,7 @@ type ColorThemePickerModalProps = {
 };
 
 // Cards are bespoke markup rather than the shared PresetCard because PresetCard
-// is a <button> and the Custom card has to host a text input — a nested
+// is a <button> and the Custom card has to host a text input: a nested
 // interactive control inside a button is invalid HTML and swallows clicks.
 // PresetCard also fixes w-24, which is far too narrow to read a content slide.
 const CARD_WIDTH = "w-52";

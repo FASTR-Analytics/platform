@@ -1,5 +1,5 @@
 // =============================================================================
-// Slide Deck Config — STORED SHAPE (slide_decks.config column)
+// Slide Deck Config: STORED SHAPE (slide_decks.config column)
 // =============================================================================
 
 import { COLOR_PRESET_IDS, COVER_TREATMENT_IDS, FREEFORM_TREATMENT_IDS, LAYOUT_PRESET_IDS } from "@timroberton/panther";

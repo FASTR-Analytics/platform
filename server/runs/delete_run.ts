@@ -7,10 +7,11 @@ import {
   _REPLICANT_OPTIONS_CACHE,
 } from "../routes/caches/visualizations.ts";
 import { evictRunFromManifestCache } from "./manifest_cache.ts";
+import { evictRunFromScopeDerivationCache } from "../run_query/run_read.ts";
 import { runDirPath } from "./run_paths.ts";
 
 // Guarded hard delete of a results package (PLAN_RESULTS_RUNS Phase 3 fork
-// ruling 3): ONE act — catalog row, run directory, cached payloads. There is
+// ruling 3): ONE act: catalog row, run directory, cached payloads. There is
 // no archived state and no automatic GC, so this is the only thing that ever
 // reclaims a run's disk.
 //
@@ -32,7 +33,7 @@ export async function deleteRun(
     await Deno.remove(runDirPath(runId), { recursive: true });
   } catch (e) {
     if (!(e instanceof Deno.errors.NotFound)) {
-      // The row is already gone, so this cannot be reported as a failure —
+      // The row is already gone, so this cannot be reported as a failure:
       // the package IS deleted from the user's point of view. Loudly logged
       // so an undeletable directory is an operational finding, not a silent
       // leak.
@@ -45,6 +46,7 @@ export async function deleteRun(
   }
 
   evictRunFromManifestCache(runId);
+  evictRunFromScopeDerivationCache(runId);
   await purgeRunCaches(runId);
   return { success: true };
 }
@@ -53,7 +55,7 @@ export async function deleteRun(
 // 15–30 day TTL and `get` compares version hashes, so a dead run's entries
 // are never served either way. The three caches below fold runId into their
 // UNIQUENESS hash, so they can be scanned by prefix; `po_detail` folds it
-// into its VERSION hash instead and is deliberately left to expire — its
+// into its VERSION hash instead and is deliberately left to expire: its
 // entries are version-dead the moment the run goes, and re-keying it purely
 // to reclaim them would cost a cache-prefix bump.
 async function purgeRunCaches(runId: string): Promise<void> {

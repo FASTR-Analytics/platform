@@ -71,9 +71,9 @@ type Props = EditorComponentProps<
 type ItemMovePosition = { toStart: true } | { after: string };
 
 // Detect the single item that moved between two orderings (the grid drags one
-// card at a time — no multiDrag). The moved item is the one whose removal makes
+// card at a time: no multiDrag). The moved item is the one whose removal makes
 // the two orderings identical; its target is "after the element now preceding
-// it" (or toStart). Robust where a first-index diff heuristic is not — e.g.
+// it" (or toStart). Robust where a first-index diff heuristic is not, e.g.
 // dragging the first item to the end.
 function computeSingleItemMove(
   oldIds: string[],
@@ -127,7 +127,7 @@ export function DashboardEditor(p: Props) {
     EditorWrapper: SettingsEditorWrapper,
   } = getEditorWrapper();
 
-  // T2 (Variant B — per-entity): SSE pushes a new lastUpdated when this
+  // T2 (Variant B: per-entity): SSE pushes a new lastUpdated when this
   // dashboard (or its items) changes, triggering a refetch. Stale data stays
   // visible until fresh data arrives. No manual refresh after mutations.
   const [data, setData] = createSignal<StateHolder<DashboardDetail>>({
@@ -151,7 +151,7 @@ export function DashboardEditor(p: Props) {
 
   // Variant B (per-entity T2): the StateHolder itself retains the last ready
   // value across SSE refetches (the effect never resets to loading), so it is
-  // the stale-while-revalidate holder — no separate "last ready" memo needed.
+  // the stale-while-revalidate holder: no separate "last ready" memo needed.
   const ready = (): DashboardDetail | undefined => {
     const d = data();
     return d.status === "ready" ? d.data : undefined;
@@ -209,7 +209,7 @@ export function DashboardEditor(p: Props) {
     return m;
   });
 
-  // Selection — same mechanism as the dashboard list and slide grid: multi
+  // Selection: same mechanism as the dashboard list and slide grid: multi
   // select (click / shift-range / cmd-toggle / circle), keyed by ENTRY id.
   const selection = createSelectionController<string>({
     ids: () => gridEntries().map((e) => e.id),
@@ -231,7 +231,7 @@ export function DashboardEditor(p: Props) {
     return `${window.location.origin}/d/${slug}`;
   }
 
-  // Regenerate a FigureBlock (+ geojson) from a results value + config — shared
+  // Regenerate a FigureBlock (+ geojson) from a results value + config: shared
   // by Edit and Create.
   async function buildFigureBlock(
     resultsValue: ResultsValue,
@@ -242,16 +242,7 @@ export function DashboardEditor(p: Props) {
   > {
     const itemsRes = await getPresentationObjectItemsFromCacheOrFetch(
       p.projectId,
-      {
-        id: "",
-        projectId: p.projectId,
-        lastUpdated: "",
-        label: "Ephemeral",
-        resultsValue,
-        config,
-        isDefault: false,
-        folderId: null,
-      },
+      { projectId: p.projectId, resultsValue },
       config,
     );
     if (!itemsRes.success || itemsRes.data.ih.status !== "ok") {
@@ -346,7 +337,7 @@ export function DashboardEditor(p: Props) {
     });
   }
 
-  // Delete one or more ENTRIES — dispatched by kind (a group entry id is not a
+  // Delete one or more ENTRIES: dispatched by kind (a group entry id is not a
   // row id, so it must go through deleteDashboardItemGroup, which cascades).
   async function deleteEntries(entryIds: string[]) {
     if (entryIds.length === 0) return;
@@ -417,7 +408,7 @@ export function DashboardEditor(p: Props) {
     if (!res.success) await openAlert({ text: res.err, intent: "danger" });
   }
 
-  // Rename via the shared EditLabelForm modal — one deterministic save on
+  // Rename via the shared EditLabelForm modal: one deterministic save on
   // confirm (matches how the rest of the app renames; no inline auto-save). The
   // mutate captures the entry id, so it targets the right entry even if the
   // selection moves while the modal is open.
@@ -464,7 +455,7 @@ export function DashboardEditor(p: Props) {
     }
     const oldConfig = it.figureBlock.bundle?.config;
     // The switch modal forces a single replicant pick for replicant vizes, so a
-    // switch never expands an item — it stays a single item showing the picked
+    // switch never expands an item: it stays a single item showing the picked
     // replicant. Treat an explicit pick like an existing replicant dimension.
     await reconcileItemStructure(
       it,
@@ -630,8 +621,8 @@ export function DashboardEditor(p: Props) {
 
   // Reconciliation for a standalone ITEM (shared by edit + switch). The entry
   // expands into a group only when it *gains* a replicant dimension (a plain item
-  // you add a replicant to). An item that already showed a single replicant — or
-  // never had one — stays a single item, refreshed in place (so an Add "single"
+  // you add a replicant to). An item that already showed a single replicant, or
+  // never had one: stays a single item, refreshed in place (so an Add "single"
   // item survives editing). `oldSelectedReplicantValue` is the prior pick, the
   // group default fallback; `oldHadReplicant` is whether the stored config already
   // had a replicant dimension.
@@ -1000,14 +991,13 @@ export function DashboardEditor(p: Props) {
                     >
                       {t3({ en: "Preview", fr: "Aperçu", pt: "Pré-visualização" })}
                     </Button>
-                    <div data-tour="dashboard-copy-link">
-                      <CopyToClipboardButton
-                        text={publicUrl(dashboard.slug)}
-                        outline
-                      >
-                        {t3({ en: "Copy link", fr: "Copier le lien", pt: "Copiar ligação" })}
-                      </CopyToClipboardButton>
-                    </div>
+                    <CopyToClipboardButton
+                      data-tour="dashboard-copy-link"
+                      text={publicUrl(dashboard.slug)}
+                      outline
+                    >
+                      {t3({ en: "Copy link", fr: "Copier le lien", pt: "Copiar ligação" })}
+                    </CopyToClipboardButton>
                     <Show when={canConfigure()}>
                       <Button
                         id="dashboard-settings-button"

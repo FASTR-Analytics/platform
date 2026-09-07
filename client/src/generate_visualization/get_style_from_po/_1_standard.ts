@@ -5,7 +5,7 @@ import {
 } from "panther";
 import {
   type DeckStyleContext,
-  type EffectiveFormat,
+  type EffectiveIndicatorFacts,
   type FastrChartPalette,
   PresentationObjectConfig,
   selectCf,
@@ -29,7 +29,7 @@ import { getAdminAreaLevelFromMapConfig } from "../get_admin_area_level_from_con
 
 export function buildStandardStyle(
   config: PresentationObjectConfig,
-  effectiveFormat: EffectiveFormat,
+  effectiveFormat: EffectiveIndicatorFacts,
   calendar: CalendarType,
   deckStyle: DeckStyleContext | undefined,
   allowNegativeScale: boolean,
@@ -46,7 +46,7 @@ export function buildStandardStyle(
     : allowNegativeScale
     ? "auto-zero"
     : undefined;
-  // The shared scale axis and everything derived from it — tick labels, the
+  // The shared scale axis and everything derived from it: tick labels, the
   // forceYMax1 clamp, the pie completion envelope. These are the ONLY
   // legitimate uses of the collapsed format; every individual value below goes
   // through formatForValue instead.
@@ -169,7 +169,11 @@ export function buildStandardStyle(
       slices: getPieSlicesContent(config),
     },
     table: getTableLayoutStyle(config, deckStyle, cfOn),
-    valuesColorFunc: compileCfToValuesColorFunc(cf),
+    valuesColorFunc: compileCfToValuesColorFunc(
+      cf,
+      effectiveFormat,
+      effectiveValueProps,
+    ),
     map:
       config.d.type === "map"
         ? {

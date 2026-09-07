@@ -16,7 +16,7 @@ type Props = AlertComponentProps<
     format?: ReportFormat;
     // Set when staged via the approval lifecycle's customProposalUI override
     // (report_editor's propose-edit tools): aborts on an EXTERNAL resolution
-    // (Stop) — this UI's cleanup obligation is to close itself, since
+    // (Stop): this UI's cleanup obligation is to close itself, since
     // panther has no dismissal API for an already-open openComponent
     // dialog.
     signal?: AbortSignal;
@@ -72,7 +72,7 @@ export function ReportMarkdownDiff(p: Props) {
       gutter: true,
       highlightChanges: true,
       // Fold unchanged stretches behind a clickable expander so the change is
-      // always on screen — without this, an edit below the fold of a long
+      // always on screen: without this, an edit below the fold of a long
       // report shows as an apparently empty diff.
       collapseUnchanged: {},
     });

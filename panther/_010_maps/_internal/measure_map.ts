@@ -97,7 +97,7 @@ export function measureMap(
 
   const projectionFn = getProjectionFn(mergedStyle.map.projection);
 
-  // Two-phase over the grid (plan D5): solve every cell's content scale
+  // Two-phase over the grid: solve every cell's content scale
   // first, then emit every cell at the minimum, so small multiples stay
   // comparable.
   const solved: SolvedMapCell[] = [];
@@ -149,18 +149,18 @@ type SolvedMapCell = {
   shown: ShownMapRegion[];
   unitGeom: MapUnitGeometry | undefined;
   entries: MapLabelEntry[];
-  // The frozen s0 placement split (plan D2), carried by id.
+  // The frozen s0 placement split, carried by id.
   outsideIds: Set<string>;
   outside: MapLabelEntry[];
   // Which placer this cell solved under. The final choice is re-made at the
-  // harmonised scale in emitMapCell (N10); this is the solve's own answer.
+  // harmonised scale in emitMapCell; this is the solve's own answer.
   placement: OutsideLabelPlacement;
   // The field's reference scale and validity margin, fixed per cell so one
   // distance field serves every trial content scale.
   trackCtx: MapTrackContext;
   // This cell's own solved content scale; emission uses the grid minimum.
   s: number;
-  // The budget was infeasible even at the legibility floor (plan D6).
+  // The budget was infeasible even at the legibility floor.
   starved: boolean;
   // Empty/point geometry: nothing to scale, constant-centre projector.
   degenerate: boolean;
@@ -230,7 +230,7 @@ function solveMapCell(
   }
 
   // s0: the label-free content scale — the zero-padding projection fit.
-  // Placement is decided once, at s0, and never re-decided (plan D2).
+  // Placement is decided once, at s0, and never re-decided.
   const s0 = Math.min(
     subChartRcd.w() / projBounds.w,
     subChartRcd.h() / projBounds.h,
@@ -271,7 +271,7 @@ function solveMapCell(
         e.fitsInside,
         e.mText,
         {
-          // The I3 fit ladder, switched on for map. Text measurement depends
+          // The fit ladder, switched on for map. Text measurement depends
           // only on the type style and the wrap width, never on the content
           // scale, so a rung's wrapping decided here at s0 is still valid at
           // the emission scale.
@@ -291,7 +291,7 @@ function solveMapCell(
     outside = entries.filter((e) => outsideIds.has(e.id));
   }
 
-  // Solve for the content scale the frozen label set affords (plan D3). The
+  // Solve for the content scale the frozen label set affords. The
   // floor puts the LARGER drawn dimension at the legibility extent, matching
   // the old 42×42 minimum cell.
   let placement = mergedStyle.map.outsideLabelPlacement;
@@ -316,7 +316,7 @@ function solveMapCell(
       );
       // Undefined = the track cannot hold these labels at this scale, which is
       // a genuine "does not fit"; only when NO scale works does the cell fall
-      // back (N10).
+      // back.
       return e !== undefined &&
         e.left + e.right <= subChartRcd.w() &&
         e.top + e.bottom <= subChartRcd.h();

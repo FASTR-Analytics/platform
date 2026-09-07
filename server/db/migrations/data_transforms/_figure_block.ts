@@ -1,9 +1,9 @@
 // =============================================================================
-// SHARED FIGURE-BLOCK TRANSFORMS (P2 — bundle backfill)
+// SHARED FIGURE-BLOCK TRANSFORMS (P2: bundle backfill)
 // =============================================================================
 //
-// A figure block stored in three surfaces — slides.config (layout tree),
-// dashboard_items.figure_block, and reports.figures — is converted from the
+// A figure block stored in three surfaces: slides.config (layout tree),
+// dashboard_items.figure_block, and reports.figures: is converted from the
 // old shape { type:"figure", figureInputs?, source? } to the new bundle shape
 // { type:"figure", bundle? }. The surface-specific sweeps call
 // transformFigureBlockToBundle() after running any remaining pre-P2 migrations.
@@ -28,6 +28,7 @@ import {
   isRollupActive,
   presentationObjectConfigSchema,
   ROLLUP_PIN_IDS,
+  trafficLightThresholdsToRule,
 } from "lib";
 import {
   getPeriodIdFromTime,
@@ -61,7 +62,7 @@ export type FigureLocalizationForTransform = {
   countryIso3: string;
 };
 
-// Slide-layout walk — shared by the slide_config boot transform and the
+// Slide-layout walk: shared by the slide_config boot transform and the
 // pre-deploy dry-run (validate_figure_bundle_backfill.ts) so the two traverse
 // slide layouts identically and cannot drift. Containers are "rows"/"cols";
 // figures live on "item" nodes' `.data`.
@@ -181,27 +182,76 @@ export function warnIfFigureInputsStale(
   }
 }
 
-// Known IndicatorMetadata fields — any other key is a legacy field to strip.
+// Known IndicatorMetadataDisplay fields: any other key is a legacy field to
+// strip (after conversion below).
 const _INDICATOR_METADATA_KEYS = new Set([
   "id",
   "label",
   "format_as",
-  "threshold_direction",
-  "threshold_green",
-  "threshold_yellow",
+  "thresholds",
   "group_label",
   "sort_order",
 ]);
 
-// Forced skip-gate for the formatAs flip: a bundle whose resultsValue still
+// Forced skip-gate for the figure-block transforms that a parse-only gate
+// would skip forever: the formatAs flip (a bundle whose resultsValue still
 // says "number"/"percent" for a listed metric parses cleanly under the 3-way
-// schema, so a parse-only gate would skip it forever. String-scans the raw
-// row like rawJsonNeedsForcedTransform; keeps firing for rows that contain a
-// listed metric after the flip, which the no-op write guard absorbs.
-export function rawJsonNeedsIndicatorFormatFlip(raw: string): boolean {
-  return INDICATOR_FORMAT_METRIC_IDS.some((id) =>
-    raw.includes(`"metricId":"${id}"`)
+// schema), the scorecard flag (strip mode swallows it from the embedded
+// config), the traffic-light metadata keys (likewise), and the old provenance
+// pair (the strictObject WOULD reject it, but the forced gate is the rule, not
+// an inference about strictness). String-scans the raw row like
+// rawJsonNeedsForcedTransform; keeps firing for rows that contain a listed
+// metric after the flip, which the no-op write guard absorbs.
+export function rawJsonNeedsFigureBlockTransform(raw: string): boolean {
+  return (
+    raw.includes('"specialScorecardTable"') ||
+    raw.includes('"threshold_direction"') ||
+    raw.includes('"moduleLastRun"') ||
+    raw.includes('"datasetsVersion"') ||
+    INDICATOR_FORMAT_METRIC_IDS.some((id) =>
+      raw.includes(`"metricId":"${id}"`)
+    )
   );
+}
+
+// The traffic-light pair a pre-PLAN_1d metadata entry carries → the rule it
+// meant (lib trafficLightThresholdsToRule, the same conversion migration 079
+// runs on the dictionary). Runs BEFORE the allow-list strip, on both the
+// pre-P2 source metadata and the post-P2 bundle metadata.
+function convertIndicatorMetadataEntry(m: unknown): unknown {
+  if (m === null || typeof m !== "object") return m;
+  const entry = { ...(m as Record<string, unknown>) };
+  const direction = entry.threshold_direction;
+  if (direction === "higher_is_better" || direction === "lower_is_better") {
+    const formatAs = entry.format_as;
+    entry.thresholds = trafficLightThresholdsToRule(
+      {
+        direction,
+        green: Number(entry.threshold_green ?? 0),
+        yellow: Number(entry.threshold_yellow ?? 0),
+      },
+      formatAs === "percent" || formatAs === "rate_per_10k"
+        ? formatAs
+        : "number",
+      _INSTANCE_LANGUAGE,
+    );
+  }
+  delete entry.threshold_direction;
+  delete entry.threshold_green;
+  delete entry.threshold_yellow;
+  return entry;
+}
+
+function cleanIndicatorMetadataEntry(m: unknown): unknown {
+  const converted = convertIndicatorMetadataEntry(m);
+  if (converted === null || typeof converted !== "object") return converted;
+  const cleaned: Record<string, unknown> = {};
+  for (const key of _INDICATOR_METADATA_KEYS) {
+    if (key in (converted as Record<string, unknown>)) {
+      cleaned[key] = (converted as Record<string, unknown>)[key];
+    }
+  }
+  return cleaned;
 }
 
 export function transformFigureBlock(block: FigureBlockMut): void {
@@ -220,7 +270,7 @@ export function transformFigureBlock(block: FigureBlockMut): void {
 
   // Post-P2 blocks: the bundle's frozen config gets the same PO-config
   // transforms. Without this, the sweep's re-parse (Zod strip mode) would
-  // DELETE a legacy key from bundle.config instead of migrating it — e.g. the
+  // DELETE a legacy key from bundle.config instead of migrating it: e.g. the
   // roll-up flag rename would silently drop the user's roll-up.
   const bundle = block.bundle as Record<string, unknown> | null | undefined;
   if (
@@ -234,7 +284,7 @@ export function transformFigureBlock(block: FigureBlockMut): void {
     );
   }
 
-  // Block: declared-format migration — bundles stored before the three-way
+  // Block: declared-format migration: bundles stored before the three-way
   // formatAs carry "number"/"percent" for the 8 listed metrics; flip them so
   // the render twin resolves per-indicator instead of treating the stored
   // two-way value as the metric's own constant.
@@ -249,27 +299,43 @@ export function transformFigureBlock(block: FigureBlockMut): void {
     (bundle.resultsValue as Record<string, unknown>).formatAs = "indicator";
   }
 
-  // Block: strip legacy fields from source.indicatorMetadata (e.g. "decimal_places"
-  // from older app versions). indicatorMetadataSchema is strict; cleaning happens
-  // here (in the transform layer) so the bundle builder receives clean data.
+  // Block: convert then strip legacy fields from source.indicatorMetadata
+  // (the traffic-light pair → `thresholds`; "decimal_places" from older app
+  // versions). indicatorMetadataSchema is strict; cleaning happens here (in
+  // the transform layer) so the bundle builder receives clean data.
   if (
     block.source?.type === "from_data" &&
     Array.isArray(block.source.indicatorMetadata)
   ) {
-    block.source.indicatorMetadata = block.source.indicatorMetadata.map((m) => {
-      if (m === null || typeof m !== "object") return m;
-      const cleaned: Record<string, unknown> = {};
-      for (const key of _INDICATOR_METADATA_KEYS) {
-        if (key in (m as Record<string, unknown>)) {
-          cleaned[key] = (m as Record<string, unknown>)[key];
-        }
-      }
-      return cleaned;
-    });
+    block.source.indicatorMetadata = block.source.indicatorMetadata.map(
+      cleanIndicatorMetadataEntry,
+    );
+  }
+
+  // Post-P2 blocks: the bundle's frozen metadata gets the same conversion:
+  // its strictObject schema rejects the old keys rather than stripping them.
+  if (bundle && Array.isArray(bundle.indicatorMetadata)) {
+    bundle.indicatorMetadata = bundle.indicatorMetadata.map(
+      cleanIndicatorMetadataEntry,
+    );
   }
 
   if (block.figureInputs) {
     transformFigureInputs(block.figureInputs);
+  }
+
+  // Block: provenance became the run identity (PLAN_RESULTS_RUNS ruling 4).
+  // A bundle carrying the old freshness pair was captured before the runs
+  // model; the run it came from is unknowable, so provenance is null: never
+  // invented.
+  if (
+    bundle &&
+    bundle.provenance &&
+    typeof bundle.provenance === "object" &&
+    ("moduleLastRun" in bundle.provenance ||
+      "datasetsVersion" in bundle.provenance)
+  ) {
+    bundle.provenance = { runId: null };
   }
 }
 
@@ -304,7 +370,7 @@ export function transformFigureBlockToBundle(
     : undefined;
 
   if (!config?.success) {
-    // source.config missing or invalid — fail-fast so the dry-run surfaces it
+    // source.config missing or invalid: fail-fast so the dry-run surfaces it
     // (a silent blank would pass figureBlockSchema and be masked as "empty").
     throw new Error(
       `[bundle-backfill] source.config missing or invalid for metricId=${
@@ -360,9 +426,9 @@ function buildBundleFromFigureInputs(
     metricId,
     snapshotAt,
     indicatorMetadata,
-    // moduleLastRun: best-effort (snapshot time ≠ run time; Phase 4 stale-flag
-    // will be inaccurate for backfilled figures — acceptable for P2).
-    provenance: { moduleLastRun: snapshotAt, datasetsVersion: "" },
+    // A pre-bundle figure predates the runs model: its run is unknowable and
+    // is never invented (the snapshot time is not the run time).
+    provenance: { runId: null },
   };
 
   // chart/table/map: extract items from jsonArray
@@ -385,7 +451,7 @@ function buildBundleFromFigureInputs(
       : [];
     const geo = resolveGeo(config, geoData);
 
-    // Normalize all values to strings — stored jsonArrays may carry numeric
+    // Normalize all values to strings: stored jsonArrays may carry numeric
     // year/value columns (postgres returns integers as JS numbers), but the
     // bundle schema requires Record<string, string>.
     const stringItems: Record<string, string>[] = jsonArray.map((row) =>
@@ -715,7 +781,7 @@ function validateTimeseriesRoundTrip(
         for (let iSr = 0; iSr < seriesHeaders.length; iSr++) {
           for (let iT = 0; iT < nTimePoints; iT++) {
             const sv = values[iPn]?.[iTr]?.[iLn]?.[iSr]?.[iT];
-            // Treat sentinels and nulls as absent — not a data-loss case.
+            // Treat sentinels and nulls as absent: not a data-loss case.
             if (sv === null || sv === undefined || sv === "@@__UNDEFINED__@@") {
               continue;
             }
@@ -760,7 +826,7 @@ function validateTimeseriesRoundTrip(
 
 // Scan items for known period columns and return min/max for DATE_RANGE tokens.
 // If no period column is found, returns undefined (captions with DATE_RANGE will
-// render the literal token — acceptable only if no such captions exist).
+// render the literal token: acceptable only if no such captions exist).
 function deriveDateRangeFromItems(
   items: Record<string, string>[],
 ): { min: number; max: number } | undefined {
@@ -792,7 +858,7 @@ function deriveDateRangeFromItems(
 // instead of reading a declaration, because a stored bundle carries no metric
 // definition and the transform has no honest way to reach one. The write is
 // permanent, so every branch here reproduces exactly what the pre-declaration
-// code would have written for that figure — this function repairs history, it
+// code would have written for that figure: this function repairs history, it
 // does not improve on it.
 //
 // The 8 pre-declaration metrics are "indicator" by the same frozen ruling the
@@ -803,8 +869,8 @@ function deriveDateRangeFromItems(
 // Everything else keeps the ORIGINAL all-percent heuristic verbatim. Note it
 // counts an entry with NO format_as as disagreement: the catalog carries
 // label-only entries for every family (HFA categories, ICEH strat codes and
-// levels, raw common indicators), and skipping them instead — which reads as
-// the more "correct" rule — flips those metrics from number to percent, which
+// levels, raw common indicators), and skipping them instead, which reads as
+// the more "correct" rule: flips those metrics from number to percent, which
 // is precisely the regression this restores. It is also deliberately NOT the
 // live resolution rule, which only counts values on an indicator DIMENSION: a
 // legacy figure displaying no indicator dimension (an admin-area breakdown,

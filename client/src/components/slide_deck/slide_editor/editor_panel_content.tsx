@@ -87,7 +87,7 @@ export function SlideEditorPanelContent(p: Props) {
   }
 
   // The selected text block's Y.Text, but only once live collab is ready and the
-  // block exists in the shared doc — otherwise we fall back to the panther
+  // block exists in the shared doc: otherwise we fall back to the panther
   // TextArea. Present => the CodeMirror collaborative editor (remote carets).
   function getBlockYText(): Y.Text | undefined {
     if (!p.collabReady || !p.session || !p.selectedBlockId) return undefined;

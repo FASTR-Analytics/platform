@@ -1,10 +1,8 @@
 import {
   t3,
-  getPossibleModules,
   groupMetricsByLabel,
   type MetricGroup,
   type MetricWithStatus,
-  type ModuleId,
   type ProjectState,
 } from "lib";
 import {
@@ -15,7 +13,6 @@ import {
   openComponent,
 } from "panther";
 import { For, Show } from "solid-js";
-import { getSnapshotInstanceCountryIso3 } from "~/state/instance/t1_store";
 import { VisualizationEditor } from "../visualization";
 import { MetricDetailsModal } from "./metric_details_modal";
 import { AddVisualization } from "./add_visualization";
@@ -30,14 +27,17 @@ type Props = {
 };
 
 type MetricsByModule = {
-  moduleId: ModuleId;
+  moduleId: string;
   moduleLabel: string;
   metricGroups: MetricGroup[];
 };
 
 export function ProjectMetrics(p: Props) {
+  // Grouped by the ATTACHED PACKAGE's module list, not the registry: a package
+  // is read as data, and a module that has since left the registry must still
+  // show its metrics (PLAN_1a §0 clause 3, §1.11).
   function organizeMetrics(metrics: MetricWithStatus[]): MetricsByModule[] {
-    const moduleMap = new Map<ModuleId, MetricWithStatus[]>();
+    const moduleMap = new Map<string, MetricWithStatus[]>();
     for (const metric of metrics) {
       if (!moduleMap.has(metric.moduleId)) {
         moduleMap.set(metric.moduleId, []);
@@ -46,12 +46,12 @@ export function ProjectMetrics(p: Props) {
     }
 
     const result: MetricsByModule[] = [];
-    for (const possibleModule of getPossibleModules(getSnapshotInstanceCountryIso3())) {
-      const moduleMetrics = moduleMap.get(possibleModule.id);
+    for (const mod of projectState.projectModules) {
+      const moduleMetrics = moduleMap.get(mod.id);
       if (moduleMetrics) {
         result.push({
-          moduleId: possibleModule.id,
-          moduleLabel: possibleModule.label,
+          moduleId: mod.id,
+          moduleLabel: mod.label,
           metricGroups: groupMetricsByLabel(moduleMetrics),
         });
       }

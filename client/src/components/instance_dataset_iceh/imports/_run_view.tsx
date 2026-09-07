@@ -8,7 +8,7 @@ type Props = {
 };
 
 // Running ICEH run: staging/integrating percentage (the old attempt wizard's
-// progress was frozen at 0% — the run worker actually reports it).
+// progress was frozen at 0%: the run worker actually reports it).
 export function IcehRunView(p: Props) {
   const percent = () => p.run.progress?.percent ?? 0;
 

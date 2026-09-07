@@ -21,7 +21,6 @@ import {
   getRollupDimension,
   getRollupLabelContext,
   getRollupPosition,
-  get_INDICATOR_COMMON_IDS_IN_SORT_ORDER,
   type IndicatorFormat,
   isPieCompletionMode,
   isRollupActive,
@@ -34,6 +33,7 @@ import {
 } from "lib";
 import { getDateLabelReplacements } from "./get_date_label_replacements";
 import { getNigeriaAdminAreaLabelReplacements } from "./format_admin_area_labels";
+import { projectState } from "~/state/project/t1_store";
 
 function getNigeriaLabelReplacements(countryIso3: string | undefined, jsonArray?: any[]): Record<string, string> {
   if (countryIso3 === CountryCodes.Nigeria && jsonArray) {
@@ -44,7 +44,7 @@ function getNigeriaLabelReplacements(countryIso3: string | undefined, jsonArray?
 
 // Display text for a group whose column had no value. `""` is mapped alongside
 // the sentinel because figures stored before the blank fold kept the raw empty
-// string as their group key, and panther keys label replacements by raw id —
+// string as their group key, and panther keys label replacements by raw id:
 // same reason LEGACY_ROLLUP_SENTINEL is still carried below. Placed first in
 // the merge so a metric's own valueLabelReplacements can still override it.
 //
@@ -85,7 +85,7 @@ function buildLabelReplacements(
     return base;
   }
   // All pin ids (current admin + facility sentinels + render-compat legacy)
-  // map to the one active roll-up's label — only one roll-up can be active,
+  // map to the one active roll-up's label: only one roll-up can be active,
   // and a grid only ever carries the sentinel its own dimension emitted.
   const rollupLabel = getRollupRowLabel(config, localization.language, localization.countryIso3);
   return {
@@ -96,9 +96,9 @@ function buildLabelReplacements(
 
 // The roll-up row's label, from getRollupLabelContext (shared with the editor
 // checkbox). Scope words, not operation words ("Total" would imply SUM, but
-// the row can be an AVG or a recomputed ratio): "National", "{Area} — All
+// the row can be an AVG or a recomputed ratio): "National", "{Area}: All
 // areas" for a pinned parent, "All facilities" for a facility dimension.
-// Filters never change the label — see getRollupLabelContextForDimension.
+// Filters never change the label: see getRollupLabelContextForDimension.
 function getRollupRowLabel(config: PresentationObjectConfig, language: Language, countryIso3: string | undefined): string {
   const ctx = getRollupLabelContext(config);
   if (ctx?.kind === "pinned" && ctx.value) {
@@ -106,6 +106,13 @@ function getRollupRowLabel(config: PresentationObjectConfig, language: Language,
   }
   if (ctx?.kind === "all_facilities") {
     return pickLang(language, { en: "All facilities", fr: "Tous les établissements", pt: "Todos os estabelecimentos" });
+  }
+  // Project AA2 scope: the scope filter is server-injected and never in the
+  // PO config, so the context still reads national while the row totals one
+  // area: render the pinned form instead. Display-only; the scope is never
+  // pushed into the config (that would reach the fetch config and cache hash).
+  if (projectState.adminArea2 !== null) {
+    return `${resolveAdminAreaLabel(projectState.adminArea2, countryIso3)} — ${pickLang(language, { en: "All areas", fr: "Toutes les zones" })}`;
   }
   return pickLang(language, TC.national);
 }
@@ -133,7 +140,7 @@ function getRollupAwareSort(config: PresentationObjectConfig): HeaderSortConfig 
 }
 
 // User-defined order for the dimension occupying an axis
-// (config.s.customValueOrder — style layer, never in the fetch config or
+// (config.s.customValueOrder: style layer, never in the fetch config or
 // cache hash). "--v" axes carry the module-defined valueProps order and are
 // never custom-ordered.
 function getCustomOrderForAxis(
@@ -150,10 +157,10 @@ function getCustomOrderForAxis(
 // Custom order composed with the roll-up pin. `byIdOrder` can't also carry
 // first/last, so when the rolled-up dimension sits on this axis the sentinel
 // ids are folded into the id order at the pinned end. Unranked ids (values the
-// data gained after the user ordered) sink to the end alphabetically — with a
+// data gained after the user ordered) sink to the end alphabetically: with a
 // bottom pin they land below the sentinel, accepted until the user re-orders.
 // Duplicate disOpt entries read the same grid column, so a duplicate axis
-// carries the sentinel too and the fold pins it there as well — matching the
+// carries the sentinel too and the fold pins it there as well: matching the
 // pre-custom-order behavior, where getRollupAwareSort pinned on every axis.
 function getCustomOrderSort(
   config: PresentationObjectConfig,
@@ -168,23 +175,22 @@ function getCustomOrderSort(
   return { byIdOrder: customOrder };
 }
 
-// Period axes are ordered chronologically, always — never by display label, and
+// Period axes are ordered chronologically, always, never by display label, and
 // never by an indicator `byIdOrder`. Both of the sorts this overrides get a
 // period axis wrong:
 //   - "by-label" compares the text getDateLabelReplacements produced, so a
 //     month axis reads Apr, Feb, Jan, Jun.
-//   - { byIdOrder: indicatorIds } (the scorecard order, applied to every axis)
-//     matches no period id, so every header ties at POSITIVE_INFINITY and falls
-//     through to sortByIdOrder's localeCompare(label) tie-break — identically
-//     alphabetical.
+//   - { byIdOrder: indicatorIds } matches no period id, so every header ties
+//     at POSITIVE_INFINITY and falls through to sortByIdOrder's
+//     localeCompare(label) tie-break: identically alphabetical.
 //
 // The order is a RULE, not an id list derived from the rows. Stored figures are
 // FigureBundles rebuilt through buildFigureInputs at every render (nothing
-// persists a sort config any more — the legacy stored figureInputs were
+// persists a sort config any more: the legacy stored figureInputs were
 // converted away by data_transforms/_figure_block.ts), so a derived order would
 // not go stale. It is simply worse: it rescans every row on each build, and it
 // is only correct for the periods that happened to be present. A rule is
-// total — and declarative, so it survives the structuredClone in the export
+// total, and declarative, so it survives the structuredClone in the export
 // path, same as getRollupAwareSort.
 //
 // Every period id is FIXED-WIDTH, so panther's "by-id" string compare is
@@ -195,7 +201,7 @@ function getCustomOrderSort(
 //
 // `month` is zero-padded because it is derived, not stored:
 // PERIOD_COLUMN_EXPRESSIONS.month is `LPAD((period_id % 100)::text, 2, '0')`
-// (server_only_funcs_presentation_objects/period_helpers.ts — the single
+// (server_only_funcs_presentation_objects/period_helpers.ts: the single
 // source; computeResultsObjectColumnsToExclude drops any physical `month`
 // column from results tables). Do
 // not "fix" this to an explicit 1..12 order list: those ids do not exist, and
@@ -209,7 +215,7 @@ function getPeriodAxisSort(prop: string | undefined): HeaderSortConfig | undefin
     : undefined;
 }
 
-// THE axis-sort dispatcher — the one authoritative home for the ordering
+// THE axis-sort dispatcher: the one authoritative home for the ordering
 // precedence (2026-08-09 ruling, PLAN_AXIS_SORT_DISPATCHER.md). Ordering is a
 // property of the dimension, not of the axis; every figure axis routes
 // through here. Precedence:
@@ -222,36 +228,32 @@ function getPeriodAxisSort(prop: string | undefined): HeaderSortConfig | undefin
 //      value-props dimension.
 //   3. The user's customValueOrder wins (an explicit choice beats every rule,
 //      chronology included), with the roll-up sentinel folded in by
-//      getCustomOrderSort. Suppressed in scorecard mode, whose
-//      customSortHeaders own whole-table ordering.
-//   4. Period dims are chronological, always — see getPeriodAxisSort for why
+//      getCustomOrderSort.
+//   4. Period dims are chronological, always: see getPeriodAxisSort for why
 //      fixed-width ids make plain "by-id" chronological.
-//   5. The rolled-up dimension is alphabetical with the sentinel pinned —
-//      checked before the scorecard base so a scorecard's rolled axis keeps
-//      its pin. Dimension-keyed, so a duplicate disOpt entry on another axis
-//      pins there too (it reads the same grid column, sentinel included).
-//   6. Scorecard mode: every remaining axis gets the whole-table
-//      customSortHeaders byIdOrder. Deliberately a spray, not
-//      indicator-axis-only: buildIndicatorSortOrder emits [id, label] pairs
-//      so it matches whichever axis carries indicator ids OR labels, and
-//      non-matching axes fall into the by-label tie-break.
-//   7. indicator_common_id gets the catalog order on whichever axis it
-//      occupies. hfa/iceh indicator dims stay by-label — no client-side
+//   5. The rolled-up dimension is alphabetical with the sentinel pinned.
+//      Dimension-keyed, so a duplicate disOpt entry on another axis pins
+//      there too (it reads the same grid column, sentinel included).
+//   6. indicator_common_id gets the catalog order on whichever axis it
+//      occupies. hfa/iceh indicator dims stay by-label: no client-side
 //      catalog order exists for them.
-//   8. Everything else is alphabetical by displayed label, sentinel-pinned
+//   7. Everything else is alphabetical by displayed label, sentinel-pinned
 //      when the roll-up is active (the pins are id-keyed no-ops on axes
 //      without sentinel rows).
+// `indicatorSortOrder` is the ATTACHED PACKAGE's catalog order: the ids of
+// its indicator catalog, in the order the instance's dictionary put them
+// (PLAN_1a §1.9). It replaces a hardcoded 14-id list that could only ever
+// order the seeded indicators, and it is unconditional: a package always
+// carries a catalog, so there is no vintage branch and no fallback.
 export function getAxisSort(
   config: PresentationObjectConfig,
   axisProp: DisaggregationOption | "--v" | undefined,
-  scorecardSortHeaders?: string[],
+  indicatorSortOrder: string[],
 ): HeaderSortConfig | undefined {
   if (axisProp === undefined || axisProp === "--v") {
     return undefined;
   }
-  const customOrder = scorecardSortHeaders
-    ? undefined
-    : getCustomOrderForAxis(config, axisProp);
+  const customOrder = getCustomOrderForAxis(config, axisProp);
   if (customOrder) {
     return getCustomOrderSort(config, customOrder, axisProp);
   }
@@ -262,11 +264,8 @@ export function getAxisSort(
   if (isRollupActive(config) && getRollupDimension(config) === axisProp) {
     return getRollupAwareSort(config);
   }
-  if (scorecardSortHeaders) {
-    return { byIdOrder: scorecardSortHeaders };
-  }
   if (axisProp === "indicator_common_id") {
-    return { byIdOrder: get_INDICATOR_COMMON_IDS_IN_SORT_ORDER() };
+    return { byIdOrder: indicatorSortOrder };
   }
   return getRollupAwareSort(config);
 }
@@ -276,6 +275,7 @@ export function getTimeseriesJsonDataConfigFromPresentationObjectConfig(
   config: PresentationObjectConfig,
   effectiveValueProps: string[],
   indicatorLabelReplacements: Record<string, string>,
+  indicatorSortOrder: string[],
   localization: Pick<FigureLocalization, "language" | "countryIso3">,
   jsonArray?: any[],
 ): TimeseriesJsonDataConfig {
@@ -302,10 +302,10 @@ export function getTimeseriesJsonDataConfigFromPresentationObjectConfig(
     laneProp,
     tierProp,
     sort: {
-      series: getAxisSort(config, seriesProp),
-      lane: getAxisSort(config, laneProp),
-      tier: getAxisSort(config, tierProp),
-      pane: getAxisSort(config, paneProp),
+      series: getAxisSort(config, seriesProp, indicatorSortOrder),
+      lane: getAxisSort(config, laneProp, indicatorSortOrder),
+      tier: getAxisSort(config, tierProp, indicatorSortOrder),
+      pane: getAxisSort(config, paneProp, indicatorSortOrder),
     },
     labelReplacements: buildLabelReplacements(
       resultsValue,
@@ -323,16 +323,16 @@ export function getTableJsonDataConfigFromPresentationObjectConfig(
   config: PresentationObjectConfig,
   effectiveValueProps: string[],
   indicatorLabelReplacements: Record<string, string>,
+  indicatorSortOrder: string[],
   localization: FigureLocalization,
   jsonArray?: any[],
-  customSortHeaders?: string[],
 ): TableJsonDataConfig {
   if (config.d.type !== "table") {
     throw new Error("Bad config type");
   }
 
   // Only force the value-prop axis onto columns when there's more than one value
-  // prop to differentiate — otherwise this created a column header even when the
+  // prop to differentiate: otherwise this created a column header even when the
   // user configured no col/row disaggregator at all.
   const colProp =
     getDisaggregatorDisplayProp(resultsValue, config, ["col"], effectiveValueProps) ??
@@ -362,10 +362,10 @@ export function getTableJsonDataConfigFromPresentationObjectConfig(
     rowGroupProp,
     nProps,
     sort: {
-      colGroup: getAxisSort(config, colGroupProp, customSortHeaders),
-      col: getAxisSort(config, colProp, customSortHeaders),
-      rowGroup: getAxisSort(config, rowGroupProp, customSortHeaders),
-      row: getAxisSort(config, rowProp, customSortHeaders),
+      colGroup: getAxisSort(config, colGroupProp, indicatorSortOrder),
+      col: getAxisSort(config, colProp, indicatorSortOrder),
+      rowGroup: getAxisSort(config, rowGroupProp, indicatorSortOrder),
+      row: getAxisSort(config, rowProp, indicatorSortOrder),
     },
     // The total row must not stretch auto conditional-formatting domains.
     liveDomainExcludeIds: isRollupActive(config) ? ROLLUP_PIN_IDS : undefined,
@@ -385,6 +385,7 @@ function getChartJsonDataConfig(
   config: PresentationObjectConfig,
   effectiveValueProps: string[],
   indicatorLabelReplacements: Record<string, string>,
+  indicatorSortOrder: string[],
   localization: FigureLocalization,
   jsonArray?: any[],
 ): ChartOVJsonDataConfig {
@@ -416,11 +417,11 @@ function getChartJsonDataConfig(
       // natural order (2026-08-09 ruling), so it maps to undefined + the
       // dispatcher's sort; asc/desc (an explicit value ranking) pass through
       // below and panther ignores sort.indicator entirely.
-      indicator: getAxisSort(config, indicatorPropRaw),
-      series: getAxisSort(config, seriesProp),
-      lane: getAxisSort(config, laneProp),
-      tier: getAxisSort(config, tierProp),
-      pane: getAxisSort(config, paneProp),
+      indicator: getAxisSort(config, indicatorPropRaw, indicatorSortOrder),
+      series: getAxisSort(config, seriesProp, indicatorSortOrder),
+      lane: getAxisSort(config, laneProp, indicatorSortOrder),
+      tier: getAxisSort(config, tierProp, indicatorSortOrder),
+      pane: getAxisSort(config, paneProp, indicatorSortOrder),
     },
     sortIndicatorValues: config.s.sortIndicatorValues === "none"
       ? undefined
@@ -441,11 +442,12 @@ export function getChartOVJsonDataConfigFromPresentationObjectConfig(
   config: PresentationObjectConfig,
   effectiveValueProps: string[],
   indicatorLabelReplacements: Record<string, string>,
+  indicatorSortOrder: string[],
   localization: FigureLocalization,
   jsonArray?: any[],
 ): ChartOVJsonDataConfig {
   return {
-    ...getChartJsonDataConfig(resultsValue, config, effectiveValueProps, indicatorLabelReplacements, localization, jsonArray),
+    ...getChartJsonDataConfig(resultsValue, config, effectiveValueProps, indicatorLabelReplacements, indicatorSortOrder, localization, jsonArray),
     membership: { indicator: "unbalanced", lane: "unbalanced" },
     proportional: { bands: true, panes: true },
   };
@@ -454,11 +456,11 @@ export function getChartOVJsonDataConfigFromPresentationObjectConfig(
 // Pie: slices are the series axis and `indicator` is the repeat dimension
 // (one pie per indicator, tiled inside each sub-chart, costing no
 // disaggregation axis); no roll-up (a total slice inside its own parts would
-// double the whole — the gate in isRollupCandidateDimension keeps rollup off
+// double the whole: the gate in isRollupCandidateDimension keeps rollup off
 // pie, so plain sorts suffice) and no date label replacements (time dims are
 // never offered for pie). Slot lookups are single-slot: pie's slot set has no
 // group slots and convertVisualizationType remaps rowGroup/colGroup on the way
-// in. No "--v" fallback on seriesProp — with values defaulting to "cell", that
+// in. No "--v" fallback on seriesProp: with values defaulting to "cell", that
 // would put "--v" on two axes; an empty Slices slot rendering one full circle
 // per pie is the accepted degenerate case, and the normal one in completion
 // mode.
@@ -470,6 +472,7 @@ export function getPieJsonDataConfigFromPresentationObjectConfig(
   config: PresentationObjectConfig,
   effectiveValueProps: string[],
   indicatorLabelReplacements: Record<string, string>,
+  indicatorSortOrder: string[],
   localization: Pick<FigureLocalization, "language" | "countryIso3">,
   effectiveFormatAs: IndicatorFormat,
   jsonArray?: any[],
@@ -493,11 +496,11 @@ export function getPieJsonDataConfigFromPresentationObjectConfig(
     sort: {
       // Slices sort applies under "none" only (panther gates sort.series on
       // sortSeriesValues); the Pies repeat axis is always sorted.
-      series: getAxisSort(config, seriesProp),
-      indicator: getAxisSort(config, indicatorProp),
-      pane: getAxisSort(config, paneProp),
-      tier: getAxisSort(config, tierProp),
-      lane: getAxisSort(config, laneProp),
+      series: getAxisSort(config, seriesProp, indicatorSortOrder),
+      indicator: getAxisSort(config, indicatorProp, indicatorSortOrder),
+      pane: getAxisSort(config, paneProp, indicatorSortOrder),
+      tier: getAxisSort(config, tierProp, indicatorSortOrder),
+      lane: getAxisSort(config, laneProp, indicatorSortOrder),
     },
     sortSeriesValues: config.s.sortIndicatorValues,
     groupSmallSlices: config.s.pieGroupSmallSlices
@@ -522,11 +525,12 @@ export function getChartOHJsonDataConfigFromPresentationObjectConfig(
   config: PresentationObjectConfig,
   effectiveValueProps: string[],
   indicatorLabelReplacements: Record<string, string>,
+  indicatorSortOrder: string[],
   localization: FigureLocalization,
   jsonArray?: any[],
 ): ChartOHJsonDataConfig {
   return {
-    ...getChartJsonDataConfig(resultsValue, config, effectiveValueProps, indicatorLabelReplacements, localization, jsonArray),
+    ...getChartJsonDataConfig(resultsValue, config, effectiveValueProps, indicatorLabelReplacements, indicatorSortOrder, localization, jsonArray),
     membership: { indicator: "unbalanced", tier: "unbalanced" },
     proportional: { bands: true, panes: true },
   };

@@ -93,8 +93,8 @@ export function collectMapLabelSpecs(
       text,
       dl,
       offset: {
-        dx: region.style.centroidOffset?.dx ?? 0,
-        dy: region.style.centroidOffset?.dy ?? 0,
+        dx: region.style.centroidOffset.dx,
+        dy: region.style.centroidOffset.dy,
       },
       feature: region.feature,
     });
@@ -108,7 +108,7 @@ export function collectMapLabelSpecs(
 // centroidOffset is in screen DU and does not scale.
 export type MapLabelEntry = {
   id: string;
-  // The label's own words, so the I3 ladder can re-wrap them at a trial width.
+  // The label's own words, so the fit ladder can re-wrap them at a trial width.
   text: string;
   mText: LabelCandidate["mText"];
   dl: LabelCandidate["dataLabel"];
@@ -143,7 +143,7 @@ export function buildMapLabelEntries(
     // `dataLabelMode: "centroid"` names an anchor RULE and is explicitly out of
     // scope: it keeps the area-weighted centroid it asked for. Every other mode
     // takes the pole of inaccessibility, which is inside its own region even
-    // when the centroid is not (plan I2).
+    // when the centroid is not.
     const pole = mode === "inside"
       ? undefined
       : computeRegionPole(projectRings(spec.feature.geometry, unitFitted));
@@ -310,7 +310,7 @@ function mapEdgeAtYUnit(
 }
 
 // The driver-geometry hooks at content scale s centred on (cx, cy). centerX
-// is the CONTENT centre (plan D7): the old cell-centre split let labels flip
+// is the CONTENT centre: a cell-centre split would let labels flip
 // sides as padding moved the content; on the content centre the split is
 // s-invariant, so the solve and the draw agree.
 function labelGeometryPartsAt(
@@ -386,10 +386,10 @@ export type MapTrackContext = {
 export type MapOutsideBox = { x: number; y: number };
 
 // Places every frozen-outside label at content scale s, through the same placer
-// core the driver draws with — the reserve IS the draw (one placer, plan D1).
+// core the driver draws with: the reserve IS the draw (one placer).
 //
 // Undefined only under "nearest", and only when the track at this s cannot hold
-// the labels: the N10 fallback signal, not an error.
+// the labels: the flank-fallback signal, not an error.
 export function placeMapOutsideBoxesAt(
   outside: MapLabelEntry[],
   geom: MapUnitGeometry,
@@ -513,7 +513,7 @@ export function mapExtentsAt(
 }
 
 // Emits the cell's label primitives at the solved (s, cx, cy), honouring the
-// frozen s0 placement split carried by id (plan D2).
+// frozen s0 placement split carried by id.
 export function generateResolvedMapLabelPrimitives(
   entries: MapLabelEntry[],
   outsideIds: Set<string>,
@@ -563,7 +563,7 @@ export function generateResolvedMapLabelPrimitives(
   );
 }
 
-// The label terms of the autofit floor (plan D4), measured UNWRAPPED
+// The label terms of the autofit floor, measured UNWRAPPED
 // (maxWidth Infinity) so the floor is exactly proportional to the font scale
 // (monotone) and has no cell dependence (no circularity). Budgets every shown
 // label as outside: with no cell in existence there is nothing to resolve
@@ -574,7 +574,7 @@ export type MapLabelFloorBudget = {
   // Extra width beyond the content that outside labels demand.
   horizontal: number;
   // Extra height. What this MEANS differs by placer, and so does how the
-  // consumer combines it (plan N9): under flank it is the tallest single-flank
+  // consumer combines it: under flank it is the tallest single-flank
   // stack, which the cell must be at least as tall as; under nearest labels sit
   // above and below the content too, so the demand is ADDITIVE.
   vertical: number;
@@ -651,7 +651,7 @@ export function calculateMapLabelFloorBudget(
   if (!nearest || maxW === 0) return { horizontal, vertical: tallestStack };
 
   // Under nearest the floor must cover BOTH placers, because any cell may fall
-  // back to flank (N10) and the floor is what autofit shrinks the type against.
+  // back to flank and the floor is what autofit shrinks the type against.
   // Budgeting nearest alone is how a 47-label map starved: the floor asked for
   // 94 DU of height, nothing was shrunk, the cell then fell back to flank and
   // needed 612 with full-size type. "Floor >= draw" is the property that makes

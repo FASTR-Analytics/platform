@@ -8,10 +8,7 @@ import type { CalendarType, PeriodType, RectCoordsDims } from "../../deps.ts";
 import { isLargePeriod } from "./helpers.ts";
 import type { XPeriodAxisMeasuredInfo } from "./types.ts";
 
-// NOTE: This function needs data from TimeseriesDataTransformed
-// We pass the needed data as parameters to avoid importing from higher-numbered modules
 export function calculateVerticalGridLinesForLaneXPeriod(
-  _i_lane: number,
   plotAreaRcd: RectCoordsDims,
   xPeriodAxisMeasuredInfo: XPeriodAxisMeasuredInfo,
   periodType: PeriodType,

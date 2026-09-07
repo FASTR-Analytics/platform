@@ -24,7 +24,7 @@ import type { DBIcehImportRun } from "./_main_database_types.ts";
 
 // ICEH import runs (PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase C): one row per
 // import, claimed by the partial unique index on status='running'. ICEH is a
-// deliberately smaller machine than HMIS — no queue and no scheduler, so a
+// deliberately smaller machine than HMIS: no queue and no scheduler, so a
 // second launch while one runs is refused explicitly. These run rows are
 // ICEH's first-ever durable import history.
 
@@ -86,7 +86,7 @@ async function assertIcehImportSlotFree(mainDb: Sql): Promise<void> {
   }
 }
 
-// The launch-time validations, all stateless — relocated from the deleted
+// The launch-time validations, all stateless: relocated from the deleted
 // step functions (step-1 zip parse, step-2 country-ISO pre-check). Returns
 // the config that gets stored on the run row plus the preview facts.
 export async function validateIcehRunLaunch(
@@ -239,7 +239,7 @@ export async function launchDatasetIcehImportRun(
 }
 
 // needs_review resolution. "Integrate anyway" re-claims the slot (refused if
-// another import is running — ICEH has no queue) and re-runs the full ingest
+// another import is running: ICEH has no queue) and re-runs the full ingest
 // from the zip asset with the gate skipped; "Discard" cancels.
 export async function resolveDatasetIcehReview(
   mainDb: Sql,
@@ -313,7 +313,7 @@ export async function cancelDatasetIcehImportRun(
     }
     // The status flip comes FIRST and is conditional on the given runId: a
     // cancel aimed at an already-finished run (stale tab) must not touch the
-    // worker — it belongs to whatever run is actually running.
+    // worker: it belongs to whatever run is actually running.
     const updated = await mainDb`
       UPDATE iceh_import_runs
       SET status = 'cancelled', ended_at = now(), progress = NULL,
@@ -336,7 +336,7 @@ export async function cancelDatasetIcehImportRun(
 
 // Startup sweep: a restart mid-run leaves a 'running' row with no live
 // worker, and the claim would then block every future ICEH import. This
-// replaces the ICEH arm of the deleted resetWedgedUploadAttempts — and fixes
+// replaces the ICEH arm of the deleted resetWedgedUploadAttempts, and fixes
 // the old intra-process wedge for good (an abandoned un-awaited ingest
 // promise nothing could cancel).
 export async function markStaleRunningDatasetIcehImportRuns(

@@ -6,7 +6,7 @@ import { _CLERK_PUBLISHABLE_KEY } from "../../exposed_env_vars.ts";
 // These are the documents an OAuth-capable MCP client (claude.ai custom
 // connectors, Claude Desktop) fetches to learn that /mcp is a protected
 // resource and WHICH authorization server guards it. They must be reachable
-// WITHOUT credentials — they are the thing a client reads *before* it has any.
+// WITHOUT credentials: they are the thing a client reads *before* it has any.
 // main.ts therefore registers them ahead of the global Clerk middleware, next
 // to the public dashboard routes.
 //
@@ -65,7 +65,7 @@ function authorizationServerUrl(): string | null {
 // for it, and a hardcoded value would be wrong on all but one instance.
 //
 // The scheme comes from X-Forwarded-Proto because TLS is terminated at the
-// proxy — Deno itself sees plain http, and an http:// metadata URL is one an
+// proxy: Deno itself sees plain http, and an http:// metadata URL is one an
 // OAuth client will refuse. Both this header and Host are ultimately caller
 // influenced, which is acceptable here precisely because the derived value only
 // ever appears in the response to that same caller: it is never stored, never
@@ -114,7 +114,7 @@ function unavailableResponse(): Response {
   );
 }
 
-// RFC 9728 §3 — protected resource metadata.
+// RFC 9728 §3: protected resource metadata.
 //
 // Two paths, one document. The spec-correct location for the resource
 // https://host/mcp is /.well-known/oauth-protected-resource/mcp, and that is
@@ -154,7 +154,7 @@ routesOAuthMetadata.get(
   (c) => protectedResourceMetadata(c.req.raw),
 );
 
-// RFC 8414 — authorization server metadata, proxied from Clerk.
+// RFC 8414: authorization server metadata, proxied from Clerk.
 //
 // A client that predates RFC 9728 does not know to look for the
 // protected-resource document; it goes straight to

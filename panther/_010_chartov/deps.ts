@@ -25,11 +25,13 @@ export {
   maxVisibleCount,
   measureChart,
   measureChartWithAutofit,
+  PANE_HEADER_SAMPLE_MAX_W,
   renderFigureBackground,
   renderFigurePrimitives,
   resolveDefaultLegend,
   resolveScaleAxisFloorPlotH,
   resolveScaleAxisPlotHeight,
+  SIZING_SAMPLE,
   transformOneWayChartJson,
 } from "../_007_figure_core/mod.ts";
 export type {

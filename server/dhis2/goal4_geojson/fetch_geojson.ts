@@ -2,7 +2,7 @@ import { fetchFromDHIS2, buildUrl } from "../common/base_fetcher.ts";
 import type { Dhis2Credentials } from "lib";
 import type { GeoJsonFeatureCollection } from "./types.ts";
 
-// The heavy fetch: full-resolution boundaries for every org unit at a level —
+// The heavy fetch: full-resolution boundaries for every org unit at a level,
 // ~20 MB / up to ~43 s for a 200-district country. Callers pass the timeout,
 // retry, and size budgets explicitly: the save path uses a generous timeout
 // and maxAttempts 1, because retrying a transient failure would re-download

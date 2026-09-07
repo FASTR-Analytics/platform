@@ -16,87 +16,88 @@ import type {
   PageBackgroundStyle,
   PageNumberBackground,
 } from "./types.ts";
+import { typed } from "./deps.ts";
 
 const _DS = {
   cover: {
-    padding: [200, 300] as PaddingOptions,
-    background: { key: "base300" } as PageBackgroundStyle,
-    split: {
+    padding: typed<PaddingOptions>([200, 300]),
+    background: typed<PageBackgroundStyle>({ key: "base300" }),
+    split: typed<DefaultSplitConfig>({
       placement: "none",
       sizeAsPct: 0.3,
       background: "none",
-    } as DefaultSplitConfig,
-    logosSizing: {
+    }),
+    logosSizing: typed<LogosSizing>({
       targetArea: 102400,
       maxHeight: 10000,
       maxWidth: 10000,
       gapX: 40,
-    } as LogosSizing,
-    logosPlacement: {
+    }),
+    logosPlacement: typed<LogosPlacement>({
       position: "above-content",
       gap: 30,
-    } as LogosPlacement,
+    }),
     titleBottomPadding: 30,
     subTitleBottomPadding: 30,
     authorBottomPadding: 30,
-    alignH: "center" as AlignH,
-    alignV: "middle" as AlignV,
+    alignH: typed<AlignH>("center"),
+    alignV: typed<AlignV>("middle"),
   },
   section: {
-    padding: [200, 300] as PaddingOptions,
-    background: { key: "base300" } as PageBackgroundStyle,
-    split: {
+    padding: typed<PaddingOptions>([200, 300]),
+    background: typed<PageBackgroundStyle>({ key: "base300" }),
+    split: typed<DefaultSplitConfig>({
       placement: "none",
       sizeAsPct: 0.3,
       background: "none",
-    } as DefaultSplitConfig,
+    }),
     sectionTitleBottomPadding: 30,
-    alignH: "center" as AlignH,
-    alignV: "middle" as AlignV,
+    alignH: typed<AlignH>("center"),
+    alignV: typed<AlignV>("middle"),
   },
   freeform: {
-    split: {
+    split: typed<DefaultSplitConfig>({
       placement: "none",
       sizeAsPct: 0.3,
       background: "none",
-    } as DefaultSplitConfig,
+    }),
     header: {
-      padding: [10, 15] as PaddingOptions,
-      logosSizing: {
+      padding: typed<PaddingOptions>([10, 15]),
+      logosSizing: typed<LogosSizing>({
         targetArea: 90000,
         maxHeight: 10000,
         maxWidth: 10000,
         gapX: 40,
-      } as LogosSizing,
-      background: { key: "base200" } as PageBackgroundStyle,
+      }),
+      background: typed<PageBackgroundStyle>({ key: "base200" }),
       headerBottomPadding: 20,
       subHeaderBottomPadding: 20,
       bottomBorderStrokeWidth: 0,
-      bottomBorderColor: { key: "primary" } as ColorKeyOrString,
-      alignH: "left" as AlignH,
+      bottomBorderColor: typed<ColorKeyOrString>({ key: "primary" }),
+      alignH: typed<AlignH>("left"),
     },
     footer: {
-      padding: [10, 15] as PaddingOptions,
-      logosSizing: {
+      padding: typed<PaddingOptions>([10, 15]),
+      logosSizing: typed<LogosSizing>({
         targetArea: 40000,
         maxHeight: 10000,
         maxWidth: 10000,
         gapX: 20,
-      } as LogosSizing,
-      background: { key: "base200" } as PageBackgroundStyle,
-      alignH: "left" as AlignH,
+      }),
+      background: typed<PageBackgroundStyle>({ key: "base200" }),
+      alignH: typed<AlignH>("left"),
     },
     content: {
-      padding: [10, 15] as PaddingOptions,
-      background: { key: "base100" } as PageBackgroundStyle,
+      padding: typed<PaddingOptions>([10, 15]),
+      background: typed<PageBackgroundStyle>({ key: "base100" }),
       gapX: 20,
       gapY: 20,
       figureMaxStretch: 1.5,
     },
     layoutContainers: {
-      padding: 0 as PaddingOptions,
-      backgroundColor: "none" as ColorKeyOrString,
-      borderColor: "none" as ColorKeyOrString,
+      padding: typed<PaddingOptions>(0),
+      backgroundColor: typed<ColorKeyOrString>("none"),
+      borderColor: typed<ColorKeyOrString>("none"),
       borderWidth: 0,
       rectRadius: 0,
     },
@@ -106,9 +107,9 @@ const _DS = {
       | "bottom-right"
       | "bottom-left"
       | "bottom-center",
-    padding: 15 as PaddingOptions,
-    background: "none" as PageNumberBackground,
-    backgroundColor: { key: "base100" } as ColorKeyOrString,
+    padding: typed<PaddingOptions>(15),
+    background: typed<PageNumberBackground>("none"),
+    backgroundColor: typed<ColorKeyOrString>({ key: "base100" }),
   },
 };
 

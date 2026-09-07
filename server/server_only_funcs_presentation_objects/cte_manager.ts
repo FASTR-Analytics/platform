@@ -1,5 +1,5 @@
 import { buildPeriodCTESelectColumns } from "./period_helpers.ts";
-import { facilitiesTableForFamily } from "./get_query_context.ts";
+import { facilitiesTableForFamily } from "./facility_context.ts";
 import type { QueryConfig } from "./types.ts";
 
 // ============================================================================

@@ -6,7 +6,7 @@
 import { Show } from "solid-js";
 import type { Stepper } from "./get_stepper.ts";
 
-interface StepperProgressBarProps {
+type StepperProgressBarProps = {
   stepper: Stepper;
   /** Label per step, indexed by (step - minStep). Used to show the
    * current step's title. Optional — omit for a bar-only indicator. */
@@ -14,7 +14,7 @@ interface StepperProgressBarProps {
   /** Single-line layout: bar on the right of the label instead of below
    * it. Good for very tight headers (modals, compact toolbars). */
   inline?: boolean;
-}
+};
 
 /**
  * Minimal progress-bar stepper.

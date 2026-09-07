@@ -5,7 +5,7 @@ import { serverActions } from "~/server_actions";
 // The History→version navigation that replaced the "View previous imports"
 // entry point (PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase D): a run detail's
 // Version row opens the version's import information directly. The versions
-// table and the ImportInformation view itself are unchanged — runs are
+// table and the ImportInformation view itself are unchanged: runs are
 // operations, versions are outcomes, never merged. A miss is reachable (a
 // running run's version is hidden from the versions list; a version can be
 // deleted after its run) and alerts instead of no-opping.

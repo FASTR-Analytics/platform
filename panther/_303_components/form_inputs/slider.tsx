@@ -10,6 +10,7 @@ import {
   removeDuplicates,
   tickPosition,
 } from "./_internal/tick_utils.ts";
+import { type DataAttrs, splitDataAttrs } from "../data_attrs.ts";
 
 type SliderProps = {
   value: number;
@@ -29,9 +30,10 @@ type SliderProps = {
     showLabels?: boolean;
     labelFormatter?: (v: number) => string;
   };
-};
+} & DataAttrs;
 
 export function Slider(p: SliderProps) {
+  const [dataAttrs] = splitDataAttrs(p);
   const min = () => p.min ?? 0;
   const max = () => p.max ?? 100;
 
@@ -57,7 +59,11 @@ export function Slider(p: SliderProps) {
   });
 
   return (
-    <div class="w-[200px] data-[width=true]:w-full" data-width={p.fullWidth}>
+    <div
+      {...dataAttrs}
+      class="w-[200px] data-[width=true]:w-full"
+      data-width={p.fullWidth}
+    >
       <Show when={p.label}>
         <label class="ui-label !block">
           {p.label}

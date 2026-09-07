@@ -15,7 +15,7 @@ export function unavailableItemMarkdown(): string {
 
 // Report bodies reference media as markdown image tokens
 // (`![alt](figure:<id>)` / `![alt](image:<id>)`). Any token whose media failed
-// to hydrate (absent from the maps — build error, load failure, or an orphaned
+// to hydrate (absent from the maps: build error, load failure, or an orphaned
 // reference) is swapped for the placeholder so it degrades in place.
 const MEDIA_TOKEN_RE = /!\[[^\]]*\]\(((?:figure|image):[^)\s]+)\)/g;
 

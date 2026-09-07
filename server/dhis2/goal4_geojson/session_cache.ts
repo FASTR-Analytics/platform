@@ -3,16 +3,16 @@ import type { CachedGeoJsonMetadata, CachedHeavyGeoJson } from "./types.ts";
 // Two process-local session caches for the DHIS2 geojson import wizard,
 // deliberately separate namespaces (they cache different payloads for the
 // same credentials+level key):
-// - metadata (analyze): tiny org-unit metadata + geometry count — the user
+// - metadata (analyze): tiny org-unit metadata + geometry count: the user
 //   builds the mapping against this.
-// - heavy (save): the full ~20 MB FeatureCollection — kept only so a re-save
+// - heavy (save): the full ~20 MB FeatureCollection: kept only so a re-save
 //   after fixing a mapping isn't another multi-minute DHIS2 fetch.
 const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
 const MAX_METADATA_ENTRIES = 10;
 const MAX_HEAVY_ENTRIES = 2;
 
 // SHA-256 over creds+level (the previous key was a 32-bit string hash over
-// the plaintext-concatenated password — trivially collidable).
+// the plaintext-concatenated password, trivially collidable).
 export async function getCredsCacheKey(
   url: string,
   username: string,

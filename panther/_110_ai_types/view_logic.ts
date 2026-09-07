@@ -10,7 +10,7 @@ import type { EphemeralSection } from "./types.ts";
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Pure assembly of a turn's ephemeral sections when a view controller is
-// configured (PLAN_AI_VIEWS_AND_APPROVAL Phase 1). The engine resolves the
+// configured. The engine resolves the
 // live pieces (view id + label, per-view prompt section, interaction digest,
 // consumer hook) at turn creation and passes plain strings here; this module
 // owns the section FORMAT and ORDER so they are unit-testable and stable.
@@ -23,7 +23,7 @@ import type { EphemeralSection } from "./types.ts";
 // fail a turn) — render the bare-id form.
 
 // Neutralize consumer-authored strings before they join library-authored
-// section lines (Phase 3 review, bucket 3). Presentation-only — recorded
+// section lines. Presentation-only: recorded
 // payloads and stored labels keep the consumer's raw text. Two grades:
 // newline collapse for any interpolation (one label/format return can never
 // fabricate an extra line or digest bullet), plus typographic-quote
@@ -48,7 +48,7 @@ export function buildViewLabelSectionText(
     : `[Current view: ${id} — "${sanitizeQuoted(label)}"]`;
 }
 
-// Standardized tool-gating strings (PLAN_AI_VIEWS_AND_APPROVAL Feature 2).
+// Standardized tool-gating strings.
 // Both key on the stable view ID — the same key the view-label section
 // carries every turn — so the model can connect a refusal (or a static
 // description hint) to the current-view statement it already received.
@@ -74,11 +74,11 @@ export function buildViewGateMessage(
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// APPROVAL OUTCOME STRINGS (Phase 4)
+// APPROVAL OUTCOME STRINGS
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Standardized tool_result contents for the approval lifecycle
-// (PLAN_AI_VIEWS_AND_APPROVAL Feature 4). All three are NORMAL results, not
+// Standardized tool_result contents for the approval lifecycle. All three
+// are NORMAL results, not
 // is_error — declining (or losing validity) is a legitimate outcome, and
 // is_error would make the model treat it as a bug and retry.
 
@@ -95,15 +95,15 @@ export const APPROVAL_STALE_MESSAGE =
   "The proposed change is no longer valid — the underlying content changed while the user was deciding. Nothing was applied. Re-read the current state before proposing again.";
 
 ////////////////////////////////////////////////////////////////////////////////
-// NAVIGATION TOOL RESULT STRINGS (Phase 5)
+// NAVIGATION TOOL RESULT STRINGS
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Standardized tool_result contents for the built-in navigation tool
-// (PLAN_AI_VIEWS_AND_APPROVAL Phase 5). Both are NORMAL results. The DONE
+// Standardized tool_result contents for the built-in navigation tool.
+// Both are NORMAL results. The DONE
 // form confirms arrival; the PENDING form covers every case where the
 // current view doesn't match the target once the consumer callback
 // resolves — which may mean routing is still settling, OR the app
-// deliberately redirected elsewhere (Phase 5 review: the tool cannot tell
+// deliberately redirected elsewhere (the tool cannot tell
 // these apart, since onAiNavigation has no channel to say "this is final,
 // not in-progress" other than throwing AIToolFailure as an outright
 // refusal). The wording is deliberately neutral about WHY — it never
@@ -130,7 +130,7 @@ export function buildNavigationPendingMessage(
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// INTERACTION REDUCTION PIPELINE (Phase 3)
+// INTERACTION REDUCTION PIPELINE
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Pure reduction of the interaction queue into one digest string at drain
@@ -142,8 +142,7 @@ export function buildNavigationPendingMessage(
 // (relevantIn functions, filter, coalesce, format) run against live view
 // context that may be torn down — every call AND the consumption of its
 // return value is caught; a throwing callback drops its entry/line and
-// logs, never fails the turn (the Phase 1 label rule, applied to the whole
-// pipeline).
+// logs, never fails the turn (the same rule the view label follows).
 
 export type InteractionViewStateLike = {
   id: string;
@@ -224,8 +223,8 @@ export const INTERACTION_DIGEST_PREFIX = "User actions since last message:";
 // near the entry always suppresses regardless of later marks).
 export type EchoMarks = Record<string, number[]>;
 
-// Drop entries that are echoes of the AI's own edits (Phase 3 adversarial
-// review, H1). Suppression is ORDER-INDEPENDENT by design: an entry is an
+// Drop entries that are echoes of the AI's own edits. Suppression is
+// ORDER-INDEPENDENT by design: an entry is an
 // echo iff a mark with the same key exists within echoTtlMs of the entry's
 // ARRIVAL time, on EITHER side — a push-channel echo (SSE, websocket) can
 // reach the client before the handler's markAIEdit call (e.g. a server that

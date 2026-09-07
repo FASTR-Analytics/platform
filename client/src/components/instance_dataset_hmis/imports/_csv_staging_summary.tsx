@@ -7,7 +7,7 @@ type Props = {
 };
 
 // The CSV staging diagnostics render (relocated from the deleted attempt
-// wizard's review step) — used by the needs_review card and the CSV run
+// wizard's review step): used by the needs_review card and the CSV run
 // detail.
 export function CsvStagingSummary(p: Props) {
   const totalRecords = () =>

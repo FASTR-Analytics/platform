@@ -1,5 +1,5 @@
 // ============================================================================
-// Module Definition — INSTALLED SHAPE (stored in modules.module_definition)
+// Module Definition: INSTALLED SHAPE (stored in modules.module_definition)
 //
 // This file contains ONLY the Zod schema for the stored blob.
 // Metrics are stored separately in the metrics table, not here.
@@ -11,7 +11,15 @@ import { z } from "zod";
 // Module-specific atoms
 // ============================================================================
 
-export const scriptGenerationType = z.enum(["template", "hfa", "calculated_indicators"]);
+// "calculated_indicators" is retired from authoring (it is absent from the
+// GitHub enum) but stays here forever: module definitions are stored verbatim
+// as JSON in packages and in the project DB, and stored vocabulary never
+// shrinks. It is inert data: no dispatch arm reads it.
+export const scriptGenerationType = z.enum([
+  "template",
+  "hfa",
+  "calculated_indicators",
+]);
 
 export const dataSourceDataset = z.object({
   sourceType: z.literal("dataset"),
@@ -26,9 +34,16 @@ export const dataSourceResultsObject = z.object({
   moduleId: z.string(),
 });
 
+// The run's person-years file: see dataSourcePopulationGithub.
+export const dataSourcePopulation = z.object({
+  sourceType: z.literal("population"),
+  replacementString: z.string(),
+});
+
 export const dataSource = z.discriminatedUnion("sourceType", [
   dataSourceDataset,
   dataSourceResultsObject,
+  dataSourcePopulation,
 ]);
 
 export const moduleParameterInput = z.discriminatedUnion("inputType", [
@@ -106,7 +121,7 @@ export const moduleDefinitionInstalledStrict = z.object({
   script: z.string(),
   assetsToImport: z.array(assetToImport),
   resultsObjects: z.array(resultsObjectDefinitionInstalledStrict),
-  // defaultPresentationObjects was removed in PLAN_RESULTS_RUNS item 5b —
+  // defaultPresentationObjects was removed in PLAN_RESULTS_RUNS item 5b:
   // defaults are derived from metric viz presets, never stored. Old blobs
   // still carrying the key parse fine (strip mode).
 });
@@ -121,6 +136,7 @@ export type ScriptGenerationType = z.infer<typeof scriptGenerationType>;
 export type DataSource = z.infer<typeof dataSource>;
 export type DataSourceDataset = z.infer<typeof dataSourceDataset>;
 export type DataSourceResultsObject = z.infer<typeof dataSourceResultsObject>;
+export type DataSourcePopulation = z.infer<typeof dataSourcePopulation>;
 export type ModuleParameter = z.infer<typeof moduleParameter>;
 export type RepoAssetToImport = z.infer<typeof repoAssetToImport>;
 export type AssetToImport = z.infer<typeof assetToImport>;

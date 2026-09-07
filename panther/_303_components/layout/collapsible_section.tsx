@@ -5,8 +5,9 @@
 
 import { createSignal, type JSX, mergeProps, Show, splitProps } from "solid-js";
 import { Icon } from "../icons/mod.ts";
+import { type DataAttrs, splitDataAttrs } from "../data_attrs.ts";
 
-export interface CollapsibleSectionProps {
+export type CollapsibleSectionProps = DataAttrs & {
   title: string | JSX.Element;
   isOpen?: boolean;
   defaultOpen?: boolean;
@@ -24,7 +25,7 @@ export interface CollapsibleSectionProps {
   contentBorder?: boolean;
   hideChevron?: boolean;
   noClickToCollapse?: boolean;
-}
+};
 
 export function CollapsibleSection(p: CollapsibleSectionProps) {
   const merged = mergeProps(
@@ -39,7 +40,8 @@ export function CollapsibleSection(p: CollapsibleSectionProps) {
     },
     p,
   );
-  const [local, others] = splitProps(merged, [
+  const [dataAttrs] = splitDataAttrs(p);
+  const [local] = splitProps(merged, [
     "title",
     "isOpen",
     "defaultOpen",
@@ -104,7 +106,7 @@ export function CollapsibleSection(p: CollapsibleSectionProps) {
   const headerPadding = () => (local.padding === "sm" ? "ui-pad-sm" : "ui-pad");
 
   return (
-    <div class={containerClasses()} {...others}>
+    <div {...dataAttrs} class={containerClasses()}>
       <div
         class={`${headerPadding()} flex items-center`}
         classList={{
@@ -121,13 +123,7 @@ export function CollapsibleSection(p: CollapsibleSectionProps) {
         </Show>
         <Show when={!local.hideChevron} keyed>
           <div class="h-[1.25em] w-[1.25em]">
-            <Show
-              when={isOpen()}
-              fallback={<Icon iconName="chevronRight" />}
-              keyed
-            >
-              <Icon iconName="chevronDown" />
-            </Show>
+            <Icon iconName={isOpen() ? "chevronDown" : "chevronRight"} />
           </div>
         </Show>
       </div>

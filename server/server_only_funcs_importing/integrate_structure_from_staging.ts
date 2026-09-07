@@ -23,11 +23,12 @@ interface AdminAreaCounts {
 }
 
 /**
- * Integrates structure data from a staging table into the main admin_areas and
- * facilities tables. Common logic for both CSV and DHIS2 import workflows.
+ * Integrates structure data from a staging table into the family's admin-area
+ * tree and facilities tables. Common logic for both CSV and DHIS2 import
+ * workflows.
  *
  * Column scope is the staging table's own columns (= what was mapped at step 2),
- * discovered here — never the instance's enabled-columns config. Admin areas are
+ * discovered here, never the instance's enabled-columns config. Admin areas are
  * just mapped columns: present in staging iff mapped.
  */
 export async function integrateStructureFromStaging(
@@ -66,7 +67,7 @@ export async function integrateStructureFromStaging(
       );
     }
 
-    // Replace deletes the whole family first — refuse with a clear message if
+    // Replace deletes the whole family first, refuse with a clear message if
     // anything still references these facilities (a dataset, or HFA weights),
     // instead of failing at COMMIT with a raw FK error.
     if (strategy.type === "replace_all") {
@@ -98,7 +99,7 @@ export async function integrateStructureFromStaging(
       switch (strategy.type) {
         case "replace_all": {
           deleted = await deleteAllFamilyFacilities(sql, family);
-          await insertAdminAreasFromStaging(sql, stagingTableName);
+          await insertAdminAreasFromStaging(sql, stagingTableName, family);
           inserted = await insertAllFacilities(
             sql,
             facilitiesTable,
@@ -106,12 +107,12 @@ export async function integrateStructureFromStaging(
             writeColumns,
             recodeJoins
           );
-          await cleanupUnusedAdminAreas(sql);
+          await cleanupUnusedAdminAreas(sql, family);
           break;
         }
 
         case "add_and_update": {
-          await insertAdminAreasFromStaging(sql, stagingTableName);
+          await insertAdminAreasFromStaging(sql, stagingTableName, family);
           const result = await upsertFacilities(
             sql,
             facilitiesTable,
@@ -122,7 +123,7 @@ export async function integrateStructureFromStaging(
           inserted = result.inserted;
           updated = result.updated;
           // Updates can re-place existing facilities, leaving orphan admin areas.
-          await cleanupUnusedAdminAreas(sql);
+          await cleanupUnusedAdminAreas(sql, family);
           break;
         }
 
@@ -130,7 +131,7 @@ export async function integrateStructureFromStaging(
           // Moving a facility to a new admin tuple needs the target admin rows
           // to exist first (FK), and may orphan the vacated ones afterward.
           if (stagedAdminAreas) {
-            await insertAdminAreasFromStaging(sql, stagingTableName);
+            await insertAdminAreasFromStaging(sql, stagingTableName, family);
           }
           if (writeColumns.length > 0) {
             updated = await updateExistingFacilities(
@@ -142,7 +143,7 @@ export async function integrateStructureFromStaging(
             );
           }
           if (stagedAdminAreas) {
-            await cleanupUnusedAdminAreas(sql);
+            await cleanupUnusedAdminAreas(sql, family);
           }
           break;
         }
@@ -150,7 +151,7 @@ export async function integrateStructureFromStaging(
 
       // Stamped inside the transaction: S6's staleness gates and the client
       // structure caches key on this, so it must commit atomically with the
-      // integrated data — a crash before any post-commit bookkeeping must not
+      // integrated data: a crash before any post-commit bookkeeping must not
       // leave an integrated structure unstamped.
       await sql`
         INSERT INTO instance_config (config_key, config_json_value)
@@ -187,7 +188,7 @@ export async function integrateStructureFromStaging(
 /**
  * The real column scope: the columns physically present in the staging table,
  * which the stager built from what the user mapped (CSV) or what the source
- * supplies (DHIS2). This is the authoritative source — not the enabled-columns
+ * supplies (DHIS2). This is the authoritative source, not the enabled-columns
  * config, which staging may not have materialized.
  */
 export async function getStagedColumns(
@@ -301,7 +302,7 @@ export function buildDedupOrderClause(writeColumns: string[]): string {
 /**
  * Review-step recodes are applied as a projection overlay: each recoded column
  * becomes `COALESCE(rc_col.val, col)` fed by a `LEFT JOIN (VALUES ...)` on
- * facility_id — the staging table is never mutated. The dedup ORDER BY keeps
+ * facility_id: the staging table is never mutated. The dedup ORDER BY keeps
  * referencing the raw column names, and window-clause references resolve to
  * INPUT columns (not select-list aliases), so ranking runs on ORIGINAL values:
  * the rn=1 winner the review UI showed is exactly the row integrated. Do not
@@ -456,9 +457,10 @@ async function updateExistingFacilities(
 /**
  * Deletes all of a family's facilities. replace_all's pre-check
  * (assertNoBlockingReferencesForReplace) already guarantees nothing references
- * them — no dataset rows, and no HFA sampling weights — so a plain delete is
+ * them, no dataset rows, and no HFA sampling weights, so a plain delete is
  * safe: no deferred FK and no weight stash/restore are needed. Returns rows
- * deleted. Admin areas are shared and never deleted here.
+ * deleted. The family's admin tree is not touched here: the post-insert
+ * cleanup sweeps it.
  */
 async function deleteAllFamilyFacilities(
   sql: Sql,
@@ -476,15 +478,16 @@ async function deleteAllFamilyFacilities(
  */
 async function insertAdminAreasFromStaging(
   sql: Sql,
-  stagingTableName: string
+  stagingTableName: string,
+  family: FacilityFamily
 ): Promise<AdminAreaCounts> {
-  console.log("Processing admin areas from staging...");
+  console.log(`Processing ${family} admin areas from staging...`);
 
-  // Always ON CONFLICT DO NOTHING: admin areas are shared across families and
-  // may already exist from the other family's imports
+  // ON CONFLICT DO NOTHING: the family's tree may already carry these paths
+  // from earlier imports
   // Level 1
   const level1Result = await sql.unsafe(`
-    INSERT INTO admin_areas_1 (admin_area_1)
+    INSERT INTO admin_areas_${family}_1 (admin_area_1)
     SELECT DISTINCT admin_area_1
     FROM ${stagingTableName}
     ON CONFLICT DO NOTHING
@@ -494,7 +497,7 @@ async function insertAdminAreasFromStaging(
 
   // Level 2
   const level2Result = await sql.unsafe(`
-    INSERT INTO admin_areas_2 (admin_area_1, admin_area_2)
+    INSERT INTO admin_areas_${family}_2 (admin_area_1, admin_area_2)
     SELECT DISTINCT admin_area_1, admin_area_2
     FROM ${stagingTableName}
     ON CONFLICT (admin_area_2, admin_area_1) DO NOTHING
@@ -504,7 +507,7 @@ async function insertAdminAreasFromStaging(
 
   // Level 3
   const level3Result = await sql.unsafe(`
-    INSERT INTO admin_areas_3 (admin_area_1, admin_area_2, admin_area_3)
+    INSERT INTO admin_areas_${family}_3 (admin_area_1, admin_area_2, admin_area_3)
     SELECT DISTINCT admin_area_1, admin_area_2, admin_area_3
     FROM ${stagingTableName}
     ON CONFLICT (admin_area_3, admin_area_2, admin_area_1) DO NOTHING
@@ -514,7 +517,7 @@ async function insertAdminAreasFromStaging(
 
   // Level 4
   const level4Result = await sql.unsafe(`
-    INSERT INTO admin_areas_4 (admin_area_1, admin_area_2, admin_area_3, admin_area_4)
+    INSERT INTO admin_areas_${family}_4 (admin_area_1, admin_area_2, admin_area_3, admin_area_4)
     SELECT DISTINCT admin_area_1, admin_area_2, admin_area_3, admin_area_4
     FROM ${stagingTableName}
     ON CONFLICT (admin_area_4, admin_area_3, admin_area_2, admin_area_1) DO NOTHING
@@ -531,54 +534,54 @@ async function insertAdminAreasFromStaging(
 }
 
 /**
- * Helper function to clean up unused admin areas
+ * Helper function to clean up a family's unused admin areas
  */
-export async function cleanupUnusedAdminAreas(sql: Sql): Promise<void> {
-  console.log("Cleaning up unused admin areas...");
+export async function cleanupUnusedAdminAreas(
+  sql: Sql,
+  family: FacilityFamily
+): Promise<void> {
+  console.log(`Cleaning up unused ${family} admin areas...`);
+
+  const facilitiesTable =
+    family === "hmis" ? "facilities_hmis" : "facilities_hfa";
 
   // Delete unused admin areas in reverse order (4 -> 3 -> 2 -> 1).
-  // An admin area is "used" if ANY facility table references it — every
-  // admin-area-keyed table added in future (e.g. population) must be UNIONed
-  // in here, or its admin areas get cleaned up from under it.
-  const deleted4 = await sql`
-    DELETE FROM admin_areas_4
+  // An admin area is "used" if the family's facilities table references it:
+  // every admin-area-keyed table added in future (e.g. population) must be
+  // UNIONed in here per family, or its admin areas get cleaned up from under
+  // it. This maintains the invariant that admin_areas_{family}_N exactly
+  // mirrors the distinct level-N paths in facilities_{family}.
+  const deleted4 = await sql.unsafe(`
+    DELETE FROM admin_areas_${family}_4
     WHERE (admin_area_4, admin_area_3, admin_area_2, admin_area_1)
     NOT IN (
-      SELECT DISTINCT admin_area_4, admin_area_3, admin_area_2, admin_area_1 FROM facilities_hmis
-      UNION
-      SELECT DISTINCT admin_area_4, admin_area_3, admin_area_2, admin_area_1 FROM facilities_hfa
+      SELECT DISTINCT admin_area_4, admin_area_3, admin_area_2, admin_area_1 FROM ${facilitiesTable}
     )
-  `;
+  `);
 
-  const deleted3 = await sql`
-    DELETE FROM admin_areas_3
+  const deleted3 = await sql.unsafe(`
+    DELETE FROM admin_areas_${family}_3
     WHERE (admin_area_3, admin_area_2, admin_area_1)
     NOT IN (
-      SELECT DISTINCT admin_area_3, admin_area_2, admin_area_1 FROM facilities_hmis
-      UNION
-      SELECT DISTINCT admin_area_3, admin_area_2, admin_area_1 FROM facilities_hfa
+      SELECT DISTINCT admin_area_3, admin_area_2, admin_area_1 FROM ${facilitiesTable}
     )
-  `;
+  `);
 
-  const deleted2 = await sql`
-    DELETE FROM admin_areas_2
+  const deleted2 = await sql.unsafe(`
+    DELETE FROM admin_areas_${family}_2
     WHERE (admin_area_2, admin_area_1)
     NOT IN (
-      SELECT DISTINCT admin_area_2, admin_area_1 FROM facilities_hmis
-      UNION
-      SELECT DISTINCT admin_area_2, admin_area_1 FROM facilities_hfa
+      SELECT DISTINCT admin_area_2, admin_area_1 FROM ${facilitiesTable}
     )
-  `;
+  `);
 
-  const deleted1 = await sql`
-    DELETE FROM admin_areas_1
+  const deleted1 = await sql.unsafe(`
+    DELETE FROM admin_areas_${family}_1
     WHERE admin_area_1
     NOT IN (
-      SELECT DISTINCT admin_area_1 FROM facilities_hmis
-      UNION
-      SELECT DISTINCT admin_area_1 FROM facilities_hfa
+      SELECT DISTINCT admin_area_1 FROM ${facilitiesTable}
     )
-  `;
+  `);
 
   console.log(
     `Cleaned up ${

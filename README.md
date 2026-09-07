@@ -18,7 +18,7 @@ cd -
 
 # Create instance directory structure (git-ignored)
 mkdir -p _example_instance_dir/databases
-mkdir -p _example_instance_dir/sandbox
+mkdir -p _example_instance_dir/runs
 mkdir -p _example_instance_dir/assets
 
 # Setup environment variables
@@ -45,7 +45,7 @@ cd ..
 The `_example_instance_dir/` directory contains:
 
 - `databases/` - PostgreSQL data files
-- `sandbox/` - Temporary files for module execution
+- `runs/` - Results packages
 - `assets/` - Uploaded assets and data files
 
 These directories are git-ignored and referenced in `.env` via relative paths.
@@ -121,7 +121,7 @@ platform/
 ├── _example_instance_dir/  Instance data (git-ignored)
 │   ├── assets/              Uploaded assets and data files
 │   ├── databases/           PostgreSQL data files
-│   └── sandbox/             Temporary files for module execution
+│   └── runs/                Results packages
 ├── client/                  Client SPA (npm/Vite/SolidJS)
 ├── client_dist/             Client build output (served by server)
 ├── server/                  Server source (Deno/Hono)

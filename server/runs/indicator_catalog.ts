@@ -1,5 +1,5 @@
 // =============================================================================
-// The run's indicator catalog — ONE derivation, two callers
+// The run's indicator catalog: ONE derivation, two callers
 // =============================================================================
 //
 // Composes IndicatorMetadata per module from the run's input mirrors. Called
@@ -8,7 +8,7 @@
 // dir), so a stamped catalog and a recomputed one cannot disagree.
 //
 // The read path never calls it: getIndicatorMetadataFromRun is a manifest
-// lookup. That is the point — this used to run per request, re-reading 5–8
+// lookup. That is the point: this used to run per request, re-reading 5–8
 // JSONs and re-sorting them in TS to replicate the DB ORDER BYs it replaced.
 //
 // Whatever this reads becomes a permanent part of the package format
@@ -19,6 +19,7 @@
 
 import { z } from "zod";
 import {
+  backfillCommonIndicatorSortOrder,
   composeHfaIndicatorLabel,
   getDatasetTypes,
   getHfaIndicatorMeasure,
@@ -28,7 +29,10 @@ import {
   type IndicatorMetadata,
   type RunModule,
   type RunModuleIndicators,
+  thresholdsRuleSchema,
+  trafficLightThresholdsToRule,
 } from "lib";
+import { _INSTANCE_LANGUAGE } from "../exposed_env_vars.ts";
 import { runInputFilePath } from "./run_paths.ts";
 
 const hfaIndicatorRow = z.object({
@@ -53,11 +57,37 @@ const icehIndicatorRow = z.object({
   sort_order: z.number(),
 });
 
-const indicatorRow = z.object({
+// indicators.json has TWO writer formats and ONE reader contract (PLAN_1a
+// §1.10). v1 (pre-restructure packages): id + label only, with a separate
+// calculated_indicators_snapshot.json beside it. v2 (this release onwards):
+// the whole common dictionary, resolved: type, flattened expression, slot
+// map, presentation and sort. The discriminator is the `type` field, which
+// only v2 rows carry, and v1 REJECTS a row carrying it (the z.never()),
+// so a drifted v2 row fails the union and raises RunInputRowSchemaError
+// (fail-stop, per the doctrine below) instead of silently parsing as v1 and
+// dropping every expression and slot map.
+const indicatorRowV1 = z.object({
   indicator_common_id: z.string().nullable(),
   indicator_common_label: z.string().nullable(),
+  type: z.never().optional(),
 });
 
+const indicatorRowV2 = z.object({
+  indicator_common_id: z.string(),
+  indicator_common_label: z.string(),
+  type: z.enum(["base", "derived"]),
+  expression: z.string().nullable(),
+  slot_map: z.record(z.string(), z.string()).nullable(),
+  format_as: z.enum(["percent", "number", "rate_per_10k"]),
+  thresholds: thresholdsRuleSchema.nullable(),
+  sort_order: z.number(),
+});
+
+const indicatorRow = z.union([indicatorRowV2, indicatorRowV1]);
+
+// The v1 snapshot's shape is FROZEN: a legacy package format, read as it was
+// written: a traffic-light pair in DISPLAY units per row, converted into a
+// rule at derive time (trafficLightThresholdsToRule).
 const calculatedIndicatorRow = z.object({
   calculated_indicator_id: z.string(),
   label: z.string(),
@@ -98,6 +128,24 @@ export async function buildRunIndicatorCatalog(
     });
   }
   return catalog;
+}
+
+// The manifest's `commonIndicators` field (PLAN_1a §1.9): the instance's
+// common indicator dictionary as the project shell shows it. Derived HERE,
+// once: at finalize from a v2 mirror, and by manifest transform block 4 from
+// a legacy package's v1 mirror, so the read path never opens a mirror again.
+// Label-sorted, matching the per-request derivation it replaces.
+export async function buildRunCommonIndicators(
+  readRows: RunInputRowsReader,
+): Promise<{ id: string; label: string }[]> {
+  const rows = await readRows("indicators.json", indicatorRow);
+  return rows
+    .flatMap((row) =>
+      row.indicator_common_id && row.indicator_common_label
+        ? [{ id: row.indicator_common_id, label: row.indicator_common_label }]
+        : []
+    )
+    .sort((a, b) => a.label.localeCompare(b.label));
 }
 
 async function deriveIndicatorMetadata(
@@ -178,8 +226,34 @@ async function deriveIndicatorMetadata(
     return metadata;
   }
 
-  const rawIndicators = await readRows("indicators.json", indicatorRow);
-  for (const ind of rawIndicators) {
+  const indicatorRows = await readRows("indicators.json", indicatorRow);
+
+  // ── v2: the mirror already IS the catalog ────────────────────────────────
+  if (indicatorRows.length > 0 && "type" in indicatorRows[0]) {
+    return (indicatorRows as z.infer<typeof indicatorRowV2>[])
+      .toSorted(
+        (a, b) =>
+          a.sort_order - b.sort_order ||
+          a.indicator_common_id.localeCompare(b.indicator_common_id),
+      )
+      .map((row) => ({
+        id: row.indicator_common_id,
+        label: row.indicator_common_label,
+        format_as: row.format_as,
+        ...(row.thresholds === null ? {} : { thresholds: row.thresholds }),
+        sort_order: row.sort_order,
+        type: row.type,
+        ...(row.expression === null ? {} : { expression: row.expression }),
+        ...(row.slot_map === null ? {} : { slot_map: row.slot_map }),
+      }));
+  }
+
+  // ── v1: id + label, plus the separate calculated snapshot ────────────────
+  // Content is reproduced EXACTLY as it always was (a calculated row overrides
+  // a base row of the same id, so this merges by id rather than appending);
+  // the only addition is sort_order, backfilled by the shared rule so a
+  // legacy package's axes order the way the live dictionary now does.
+  for (const ind of indicatorRows as z.infer<typeof indicatorRowV1>[]) {
     if (ind.indicator_common_id && ind.indicator_common_label) {
       metadata.push({
         id: ind.indicator_common_id,
@@ -187,9 +261,6 @@ async function deriveIndicatorMetadata(
       });
     }
   }
-
-  // Calculated indicators override a raw indicator of the same id, so this
-  // merges by id rather than appending.
   const snapshot = (
     await readRows(
       "calculated_indicators_snapshot.json",
@@ -206,14 +277,30 @@ async function deriveIndicatorMetadata(
       id: ci.calculated_indicator_id,
       label: ci.label,
       format_as: ci.format_as,
-      threshold_direction: ci.threshold_direction,
-      threshold_green: ci.threshold_green,
-      threshold_yellow: ci.threshold_yellow,
+      thresholds: trafficLightThresholdsToRule(
+        {
+          direction: ci.threshold_direction,
+          green: ci.threshold_green,
+          yellow: ci.threshold_yellow,
+        },
+        ci.format_as,
+        _INSTANCE_LANGUAGE,
+      ),
       group_label: ci.group_label,
       sort_order: ci.sort_order,
     });
   }
-  return Array.from(metadataById.values());
+  const sortOrderById = backfillCommonIndicatorSortOrder({
+    baseIds: metadata.map((m) => m.id),
+    calculatedIdsInCatalogOrder: snapshot.map((ci) =>
+      ci.calculated_indicator_id
+    ),
+  });
+  return Array.from(metadataById.values())
+    .map((m) => ({ ...m, sort_order: sortOrderById.get(m.id) ?? m.sort_order }))
+    .toSorted((a, b) =>
+      (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.id.localeCompare(b.id)
+    );
 }
 
 function isHfaScriptGeneration(moduleDefinition: string): boolean {
@@ -224,18 +311,18 @@ function isHfaScriptGeneration(moduleDefinition: string): boolean {
   }
 }
 
-// The two failure classes of an input mirror, kept apart on purpose — they sit
+// The two failure classes of an input mirror, kept apart on purpose: they sit
 // on opposite sides of the PROTOCOL_APP_MIGRATIONS failure table.
 //
-// RunInputReadError: the BYTES are unavailable — the listed file is missing or
+// RunInputReadError: the BYTES are unavailable, the listed file is missing or
 // unreadable, or what is there is not valid JSON. That is an operational fault
 // of the package (half-restored backup, truncated write), not invalid data and
 // not a code defect. The boot/read path catches it and funnels it into the
-// `unreadable` outcome — package unavailable, boot proceeds.
+// `unreadable` outcome: package unavailable, boot proceeds.
 //
 // RunInputRowSchemaError: the bytes ARE valid JSON but do not match the row
-// schema this file's rows are read with. That is shape drift — a row schema in
-// this file changed without a migration — so it is a code defect and must
+// schema this file's rows are read with. That is shape drift: a row schema in
+// this file changed without a migration, so it is a code defect and must
 // fail-stop boot exactly as a manifest Zod failure does. Nothing catches it.
 export class RunInputReadError extends Error {
   constructor(fileName: string, cause: string) {
@@ -264,7 +351,7 @@ function describeIssues(issues: z.ZodIssue[]): string {
   return rest > 0 ? `${shown} (+${rest} more)` : shown;
 }
 
-// A reader over a package directory on disk — the writer's tmp dir or an
+// A reader over a package directory on disk: the writer's tmp dir or an
 // existing package. `inputFiles` is the manifest's own list, so a mirror the
 // package does not carry is skipped without a stat.
 export function runDirInputRowsReader(

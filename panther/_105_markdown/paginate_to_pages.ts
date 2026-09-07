@@ -295,7 +295,7 @@ function splitContentToFit(
   // Split at parsed-element boundaries. Each element (paragraph, heading, code
   // block, …) is an atomic block, never split internally. Serializing the whole
   // group to a string and splitting on blank lines (the previous approach) shred
-  // fenced code and math blocks, whose bodies legitimately contain blank lines.
+  // fenced code blocks, whose bodies legitimately contain blank lines.
   const blocks = elements.map((el) => docElementToMarkdown(el));
   const splits: ConvertedPageContent[] = [];
   let currentChunk: string[] = [];

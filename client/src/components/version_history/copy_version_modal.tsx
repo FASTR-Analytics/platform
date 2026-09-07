@@ -7,7 +7,7 @@ import {
 } from "panther";
 import { createSignal } from "solid-js";
 
-// "Restore as copy" name prompt — the zero-risk restore path: the version
+// "Restore as copy" name prompt: the zero-risk restore path: the version
 // becomes a brand-new document and the original is untouched.
 export function CopyVersionModal(
   p: AlertComponentProps<

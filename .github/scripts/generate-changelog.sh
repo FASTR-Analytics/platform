@@ -13,7 +13,7 @@ BEFORE="${BEFORE_SHA:-}"
 # ---------------------------------------------------------------------------
 
 if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
-    echo "First push to branch — no before SHA. Skipping."
+    echo "First push to branch: no before SHA. Skipping."
     exit 0
 fi
 
@@ -79,7 +79,7 @@ if os.path.exists(path):
     else:
         print('No [TBD] entries to stamp')
 else:
-    print('CHANGELOG_AUTO.txt does not exist yet — nothing to stamp')
+    print('CHANGELOG_AUTO.txt does not exist yet: nothing to stamp')
 PYEOF
 fi
 
@@ -88,7 +88,7 @@ fi
 # ---------------------------------------------------------------------------
 
 if [ "$SOURCE_CHANGED" = "false" ]; then
-    echo "No source file changes — skipping AI generation."
+    echo "No source file changes: skipping AI generation."
 else
     if [ "$IS_DEPLOY" = "true" ]; then
         VERSION_TAG="$VERSION"
@@ -108,17 +108,17 @@ prompt = (
     "Source diff:\n\`\`\`diff\n" + diff + "\n\`\`\`\n\n"
     "Output ONLY lines for changes a non-technical user would directly notice or benefit from "
     "(new features, fixed issues, improved workflows, new export options, visual changes, etc.).\n\n"
-    "Format — each line must be exactly:\n"
+    "Format. Each line must be exactly:\n"
     "[user] [added] - Description\n"
     "[user] [changed] - Description\n"
     "[user] [fixed] - Description\n\n"
     "Rules:\n"
-    "- Write in plain English — no code names, no technical jargon, no component/function names\n"
+    "- Write in plain English: no code names, no technical jargon, no component/function names\n"
     "- Describe what the user can now do or what problem is solved, not what code changed\n"
-    "- Bad example: 'Fixed NaN propagation in aggregation pipeline' — Good example: 'Fixed incorrect totals appearing in summary tables'\n"
-    "- Bad example: 'Added useMemo to DataGrid component' — Good example: 'Improved loading speed on large datasets'\n"
+    "- Bad example: 'Fixed NaN propagation in aggregation pipeline'. Good example: 'Fixed incorrect totals appearing in summary tables'\n"
+    "- Bad example: 'Added useMemo to DataGrid component'. Good example: 'Improved loading speed on large datasets'\n"
     "- Skip anything backend-only, infra, tooling, logging, or deployment-related\n"
-    "- Keep each line short — aim for under 10 words per description but go over if needed\n"
+    "- Keep each line short: aim for under 10 words per description but go over if needed\n"
     "- If no user-facing changes, output exactly: SKIP\n"
     "- No preamble, no markdown, no explanation."
 )
@@ -151,22 +151,22 @@ print(resp['content'][0]['text'].strip())
 import json, os
 diff = open('/tmp/changelog_diff.txt', 'r', errors='replace').read()
 prompt = (
-    "You are writing release notes for FASTR Analytics admins — people who manage instances "
+    "You are writing release notes for FASTR Analytics admins: people who manage instances "
     "but are not necessarily technical.\n\n"
     "Source diff:\n\`\`\`diff\n" + diff + "\n\`\`\`\n\n"
     "Output lines for admin-relevant changes: new capabilities, configuration options, fixed issues, "
     "performance improvements, and anything that affects how the platform behaves or is managed.\n\n"
-    "Format — each line must be exactly:\n"
+    "Format. Each line must be exactly:\n"
     "[admin] [added] - Description\n"
     "[admin] [changed] - Description\n"
     "[admin] [fixed] - Description\n"
     "[admin] [internal] - Description\n\n"
     "Rules:\n"
-    "- Write in plain, non-technical English — no code names, function names, or developer jargon\n"
+    "- Write in plain, non-technical English: no code names, function names, or developer jargon\n"
     "- Describe what changed in terms of behaviour or capability, not what code was edited\n"
-    "- Bad example: 'Refactored aggregation middleware to use async iterators' — Good example: 'Improved performance when processing large datasets'\n"
-    "- Bad example: 'Added index to project_datasets table' — Good example: 'Faster dataset loading for projects with many uploads'\n"
-    "- Keep each line short — aim for under 10 words per description but go over if needed\n"
+    "- Bad example: 'Refactored aggregation middleware to use async iterators'. Good example: 'Improved performance when processing large datasets'\n"
+    "- Bad example: 'Added index to project_datasets table'. Good example: 'Faster dataset loading for projects with many uploads'\n"
+    "- Keep each line short: aim for under 10 words per description but go over if needed\n"
     "- If no meaningful changes, output exactly: SKIP\n"
     "- No preamble, no markdown, no explanation."
 )
@@ -244,7 +244,7 @@ fi
 git add CHANGELOG_AUTO.txt
 
 if git diff --cached --quiet; then
-    echo "No changes to CHANGELOG_AUTO.txt — nothing to commit."
+    echo "No changes to CHANGELOG_AUTO.txt: nothing to commit."
     exit 0
 fi
 

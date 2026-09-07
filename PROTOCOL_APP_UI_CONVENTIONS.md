@@ -1,19 +1,19 @@
-# PROTOCOL — App: UI Conventions
+# PROTOCOL (App): UI Conventions
 
 > **App-specific authoring protocol** (not panther's cross-project
-> `PROTOCOL_*`). This is the _recipe_ — read it when **building or changing app
+> `PROTOCOL_*`). This is the _recipe_. Read it when **building or changing app
 > UI**: which layout pattern a page uses, the recurring scaffolds, the theming
 > override point, dark mode, the icon vocabulary.
 >
 > **This file must never restate a panther fact.** Token names, color/state
 > classes, border rules, spacing utilities, type styles and sentence case all
-> live in `panther/protocols/` and change with the sync — mirroring them here is
+> live in `panther/protocols/` and change with the sync. Mirroring them here is
 > how this doc rotted before. If something is true of every panther app, it does
 > not belong in this file; add a pointer instead. The shell architecture these
 > pages mount into is **S14**
 > ([SYSTEM_14_client_shell.md](SYSTEM_14_client_shell.md)).
 
-## What panther owns — read there, not here
+## What panther owns: read there, not here
 
 - **Tokens, washes, hover/focus classes, borders, spacing, elevation, font
   weights, sentence case** → `panther/protocols/PROTOCOL_UI_STYLING.md`; current
@@ -23,19 +23,19 @@
 - Reactivity, state rigs, file organisation → `PROTOCOL_UI_SOLIDJS.md`,
   `PROTOCOL_UI_STATE.md`, `PROTOCOL_UI_STRUCTURE.md`.
 
-## Theming — the app's override point
+## Theming: the app's override point
 
 Two CSS files control the visual system:
 
-1. **`panther/_303_components/_fixed.css`** — the defaults and the authoritative
+1. **`panther/_303_components/_fixed.css`**: the defaults and the authoritative
    token inventory. Synced; never edited here.
-2. **`client/src/app.css`** — the app's override point. It imports panther's CSS
+2. **`client/src/app.css`**: the app's override point. It imports panther's CSS
    first, so any `@theme` variable or `@utility` re-declared here wins globally.
 
 Today's app-level additions:
 
 - The `"International Inter"` font stack and its `@font-face` declarations.
-- **`--font-weight-800`** — so `font-800` exists in this app on top of panther's
+- **`--font-weight-800`**, so `font-800` exists in this app on top of panther's
   `font-400` / `font-700`. Nothing else does: named aliases like `font-medium`
   and `font-semibold` are wiped no-ops (PROTOCOL_UI_STYLING).
 - `--text-5xl`.
@@ -59,7 +59,7 @@ panther repo's PLAN_DARK_MODE.)
 - **Token override.** An **unlayered** `:root[data-theme="dark"]` block in
   `client/src/app.css` re-declares the `--color-*` variables (bases from
   panther's `KEY_COLOR_THEMES["neutral-dark"]`, `primary` swapped to the app's
-  teal accent, plus `--color-border` and `color-scheme`) — unlayered so it beats
+  teal accent, plus `--color-border` and `color-scheme`), unlayered so it beats
   Tailwind's layered `@theme` defaults. **When adding a `--color-*` token, add
   its dark counterpart to this block too.**
 - **Documents stay light.** Panther's key colors are static (`setKeyColors` in
@@ -71,31 +71,35 @@ panther repo's PLAN_DARK_MODE.)
   text/axes, dimmed grid/table lines, dark table header bands, near-black data
   colors flipped to light in seriesColorFunc/lines/legend; chromatic palette
   colors pass through). It wraps the inputs at **every on-screen `FigureHolder`
-  call site — and only there**, so exports and persisted figure data are
+  call site, and only there**, so exports and persisted figure data are
   untouched. **Any new on-screen `FigureHolder` must wrap its inputs in it.**
 - **Supporting `app.css` rules** (all `data-theme="dark"`-scoped): a
   `@custom-variant dark` for one-off `dark:` overrides (classes that read as
-  "strong dark" in light mode but glare in dark); the inverted-ribbon rule —
+  "strong dark" in light mode but glare in dark); the inverted-ribbon rule:
   surfaces pairing `bg-base-content` with `text-base-100` get the two base vars
   re-inverted so they stay dark, **prefer that class pair for any new inverted
   surface**; a `.cm-editor` block retheming CodeMirror's light internals from
-  tokens — markdown _syntax token_ colors can't be themed from CSS, so editors
+  tokens. Markdown _syntax token_ colors can't be themed from CSS, so editors
   with markdown highlighting must also spread `darkMarkdownExtensions()` (from
   `_shared/collab_markdown_editor.tsx`) into their extension list inside a
   tracked scope so a theme toggle rebuilds the view; and a
   `select option { color: CanvasText; background-color: Canvas }` rule.
 - **HTML-rendered markdown** (AI chat renderers, `MarkdownPresentationJsx`)
-  colors text from inline `--md-*` vars derived from the light document style —
+  colors text from inline `--md-*` vars derived from the light document style:
   near-black on dark surfaces. Wrap the mount in `.md-dark-adapt`, which
   re-points those vars to tokens (used by the AI chat panes, public-viewer
   summary/about, and the report View-pane / version-history previews).
 - **Inverted chrome is app-owned.** `HeadingBarMainRibbon`
   (`components/_shared/heading_bar_main_ribbon.tsx`) is deliberately not a
-  panther component — the kit no longer ships inverted surfaces, and the
+  panther component: the kit no longer ships inverted surfaces, and the
   re-invert rule above keys on its `bg-base-content`/`text-base-100` pair.
-- **`text-white` / `bg-white`** are acceptable only on fixed-color surfaces
-  (identity-color badges, document thumbnails, the login brand panel) —
-  everywhere else they break the dark palette.
+- **No `text-white` / `bg-white`**: they are not tokens and break the dark
+  palette. Document surfaces (slide canvases, thumbnails, previews) wear
+  `ui-scheme-light`; constant contrast over media/data is an inline style
+  beside its inline background (PROTOCOL_UI_STYLING rule 19 + checklist).
+- The `data-theme="dark"` mechanism above predates PROTOCOL_UI_STYLING rule 18
+  (`data-scheme` + `light-dark()` pairs); that rule is the target state, landing
+  with the panther repo's PLAN_DARK_MODE.
 
 ## Page layout patterns
 
@@ -105,11 +109,11 @@ are panther exports.)
 
 | Pattern                | Frame structure                                      | Live example                       |
 | ---------------------- | ---------------------------------------------------- | ---------------------------------- |
-| A — simple content     | `FrameTop` + `HeadingBar` → `div.ui-pad.ui-spy`      | `project/project_data.tsx`         |
-| B — sidebar navigation | `FrameTop` + `FrameLeft` + vertical `TabsNavigation` | `project/index.tsx`                |
-| C — list with grouping | `FrameTop` + `HeadingBar` + `FrameLeftResizable`     | `project/project_decks.tsx`        |
-| D — full editor        | `FrameTop` toolbar + `FrameLeftResizable` + canvas   | `visualization_editor_inner.tsx`   |
-| E — split columns      | `div.flex` halves with `w-1/2` + `border-r`          | `indicator_manager_hfa/*` managers |
+| A: simple content      | `FrameTop` + `HeadingBar` → `div.ui-pad.ui-spy`      | `project/project_data.tsx`         |
+| B: sidebar navigation  | `FrameTop` + `FrameLeft` + vertical `TabsNavigation` | `project/index.tsx`                |
+| C: list with grouping  | `FrameTop` + `HeadingBar` + `FrameLeftResizable`     | `project/project_decks.tsx`        |
+| D: full editor         | `FrameTop` toolbar + `FrameLeftResizable` + canvas   | `visualization_editor_inner.tsx`   |
+| E: split columns       | `div.flex` halves with `w-1/2` + `border-r`          | `indicator_manager_hfa/*` managers |
 
 Pattern specifics, from the live pages:
 
@@ -133,12 +137,13 @@ Pattern specifics, from the live pages:
 
 ## Recurring scaffolds
 
-One copy each — copy these, don't re-derive. Classes here are only the layout
+One copy each. Copy these, don't re-derive. Classes here are only the layout
 skeleton; the color/state classes in them follow PROTOCOL_UI_STYLING and will
 change with it.
 
 **Card grid** (`15rem` is the standard card width; `18rem` for larger cards like
-dashboards/metrics):
+dashboards/metrics). Cards are panther `Card`, which owns the frame, hover,
+selected state and keyboard wiring:
 
 ```tsx
 <div class="ui-gap ui-pad grid h-full w-full grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start items-start overflow-auto">
@@ -153,58 +158,51 @@ dashboards/metrics):
     }
   >
     {(item) => (
-      <div
-        class="ui-pad group relative rounded border"
-        classList={{
-          "border-primary bg-primary-subtle": isSelected(item.id),
-          "ui-hoverable-base-100": !isSelected(item.id),
-        }}
+      <Card
+        header={item.label}
+        selected={isSelected(item.id)}
         onClick={() => openItem(item.id)}
       >
-        <div class="ui-spy-sm">
-          <div class="font-700">{item.label}</div>
-          <div class="text-base-content-muted text-sm">{item.description}</div>
-        </div>
-      </div>
+        <div class="text-base-content-muted text-sm">{item.description}</div>
+      </Card>
     )}
   </For>
 </div>;
 ```
 
-**Multi-select on cards:** use panther's `createSelectionController` (click /
-Cmd+click toggle / Shift+click range) + `<SelectionCircle isSelected onClick/>`
-inside the `group relative` card — never hand-roll the circle markup.
+**Multi-select on cards:** panther's `createSelectionController` (click /
+Cmd+click toggle / Shift+click range) drives `Card`'s `selected` +
+`onSelectToggle`, which renders the selection circle itself.
 
 **Search:** `HeadingBar`'s built-in search input; filtering triggers at **3+
 characters** (below that, show all). Empty states are search-aware (see the grid
 fallback above).
 
 **List with borders** (non-grid): rows with
-`border-b px-3 py-2 last:border-b-0`, `flex-1 truncate` label, small outline
-action buttons.
+`ui-pad-sm border-b last:border-b-0`, `flex-1 truncate` label, `size="sm"`
+outline action buttons.
 
-**Grouping sidebar** (inside Pattern C's resizable panel): full-height column —
-the frame draws the edge, so don't add one; controls section `border-b p-3`
-(e.g. a `Select` for group-by); list section `flex-1 overflow-auto p-2` with
-`SelectList`.
+**Grouping sidebar** (inside Pattern C's resizable panel): the frame draws the
+edge, so don't add one. With a controls section (e.g. a `Select` for group-by):
+full-height column, controls `ui-pad border-b`, list `ui-pad flex-1
+overflow-auto` around the `SelectList`. Without one: just
+`ui-pad h-full overflow-auto` around the `SelectList`, no column wrapper.
 
 **Context menu:** panther
-`showMenu({ anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 }, items })`
-— or the convenience `showMenuAtPoint(x, y, { items })`. `MenuItem`s take `icon`
+`showMenu({ anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 }, items })`,
+or the convenience `showMenuAtPoint(x, y, { items })`. `MenuItem`s take `icon`
 and `intent`; delete is always last and `intent: "danger"`.
 
-**Buttons:** primary = default intent, no outline; secondary/cancel =
-`intent="neutral" outline`; destructive = `intent="danger" outline` and always
+**Buttons:** which intent / outline / `onBackground` → PROTOCOL_UI_STYLING
+("Which token do I reach for"). App policy on top: destructive actions always go
 through `createDeleteAction` (confirmation built in); async buttons pass
 `state={action.state()}`; toolbar groups are `div.flex.items-center.ui-gap-sm`.
-Outline buttons off a `base-100` surface must declare `onBackground`
-(PROTOCOL_UI_STYLING).
 
-**Modal forms:** `openComponent()` + `AlertFormHolder` + `createFormAction` —
-validate inside the action and return `{ success: false, err }`; fields spaced
-`ui-spy-sm`; `autoFocus` the first input. Settings pages: `SettingsSection`
-blocks inside `ui-pad ui-spy`, fields `ui-spy-sm`. Modal widths: `sm` 400 / `md`
-560 / `lg` 800 / `xl` 1000 / `2xl` 1200 / `3xl` 1400 (all clamped to viewport).
+**Modal forms:** `openComponent()` + `AlertFormHolder` + `createFormAction`.
+Validate inside the action and return `{ success: false, err }`; fields spaced
+`ui-spy-sm`; `autoFocus` the first input. Settings pages: `ui-pad ui-spy` page,
+`ui-text-heading` section headings, fields `ui-spy-sm`. Modal widths are
+`ModalContainer`'s `width` tokens (panther).
 
 **Form-draft signals:** draft state under edit uses a `temp*` prefix
 (`tempConfig`, `tempWindowing`); unsaved-changes tracking is a `needsSaving`
@@ -213,7 +211,7 @@ signal.
 ## Icon vocabulary
 
 Icon names are the panther `IconName` union
-(`panther/_303_components/icons/icon_types.ts`) — the app's established
+(`panther/_303_components/icons/icon_types.ts`). The app's established
 mappings:
 
 | Icon                                                    | Usage                                              |
@@ -233,16 +231,18 @@ mappings:
 
 ## What NOT to do
 
-App-specific only — the general styling prohibitions are in PROTOCOL_UI_STYLING.
+App-specific only. The general styling prohibitions are in PROTOCOL_UI_STYLING.
 
-- Don't restate a panther fact here — point at the protocol instead.
+- Don't restate a panther fact here. Point at the protocol instead.
 - Don't add an on-screen `FigureHolder` without `adaptFigureStyleForDarkMode`.
 - Don't add a `--color-*` token without its `:root[data-theme="dark"]`
   counterpart.
 - Don't build a new inverted surface without the `bg-base-content` /
   `text-base-100` pair the re-invert rule keys on.
-- Don't hand-roll selection circles, context menus, delete confirmations, or the
-  running-stripe animation — primitives exist for all four.
+- Don't hand-roll cards, selection circles, context menus, delete
+  confirmations, or the running-stripe animation. `Card` (with
+  `selected`/`onSelectToggle`), `showMenu`, `createDeleteAction` and
+  `ui-running` exist for exactly these.
 - Don't put color or radius overrides in components; the override point is
   `client/src/app.css`.
 - Never modify `panther/` in this repo (fix in the panther repo, resync).

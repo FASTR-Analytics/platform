@@ -93,7 +93,7 @@ export type HfaTaxonomyForAI = {
   indicators: {
     id: string;
     label: string;
-    // Human description of the measurement, e.g. "% of facilities" — rendered as
+    // Human description of the measurement, e.g. "% of facilities": rendered as
     // a separate annotation so the model knows what the value means.
     measure: string;
     categoryId: string | null;

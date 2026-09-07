@@ -1,13 +1,13 @@
 import { Button, EditorComponentProps, ModalContainer, RadioGroup } from "panther";
 import { Show, createSignal } from "solid-js";
-import { t3, TC, PresentationObjectDetail } from "lib";
+import { t3, TC, PresentationObjectEditorDetail } from "lib";
 
 export function DownloadPresentationObject(
   p: EditorComponentProps<
     {
       isReplicateBy: boolean;
       isTable: boolean;
-      poDetail: PresentationObjectDetail;
+      poDetail: PresentationObjectEditorDetail;
     },
     {
       transparent: boolean;

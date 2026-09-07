@@ -14,6 +14,8 @@ import {
   ALL_DISAGGREGATION_OPTIONS,
   type DisaggregationOption,
 } from "./disaggregation_options.ts";
+import type { ThresholdsRule } from "./conditional_formatting.ts";
+import type { DatasetType } from "./datasets.ts";
 import type { IndicatorFormat } from "./indicators.ts";
 import type { ResultsValue } from "./modules.ts";
 import {
@@ -58,7 +60,10 @@ export type PresentationObjectInReportInfo = {
   selectedReplicantValue: string;
 };
 
-export type PresentationObjectDetail = {
+// The authored row plus its resolved resultsValue: what the visualization
+// editor and its panels work on. The create/ephemeral editors synthesize one
+// with no run behind it, which is why it carries no run identity.
+export type PresentationObjectEditorDetail = {
   id: string;
   projectId: string;
   lastUpdated: string;
@@ -67,10 +72,17 @@ export type PresentationObjectDetail = {
   config: PresentationObjectConfig;
   isDefault: boolean;
   folderId: string | null;
-  // The run resultsValue was resolved from — folded into the po_detail cache
-  // version (PLAN_RESULTS_RUNS §2.5). Absent only from the parity rig's
-  // Postgres baseline, which never enters the caches.
-  runId?: string;
+};
+
+// The served detail: the editor detail plus the run identity it was resolved
+// under.
+export type PresentationObjectDetail = PresentationObjectEditorDetail & {
+  // The run resultsValue was resolved from: folded into the po_detail cache
+  // version (PLAN_RESULTS_RUNS §2.5).
+  runId: string;
+  // The project scope the payload was computed under (projectScopeToken):
+  // folded into cache versions beside runId (PLAN_1_PROJECT_AA2_SCOPE §4).
+  scopeToken: string;
 };
 
 export type PeriodBounds = {
@@ -104,21 +116,19 @@ export type DisaggregationPossibleValuesStatus =
 export type ResultsValueInfoForPresentationObject = {
   resultsObjectId: string;
   metricId: string;
-  projectId: string;
-  moduleLastRun: string;
-  // Freshness of the dataset(s) feeding indicator metadata, which labels the
-  // cached disaggregation values. Rewritten on dataset integration (bumps
-  // datasets.last_updated) independently of moduleLastRun, so the cache versions
-  // on it too. Carried here so parseData can reproduce the version hash.
-  datasetsVersion: string;
+  // The metric's dataset family: selects which family's structure schema
+  // labels its facility columns. Absent for iceh/unknown-family metrics.
+  datasetFamily?: DatasetType;
   // See ItemsHolderPresentationObject.runId (PLAN_RESULTS_RUNS §2.5).
-  runId?: string;
+  runId: string;
+  // See PresentationObjectDetail.scopeToken.
+  scopeToken: string;
   periodBounds?: PeriodBounds;
   disaggregationPossibleValues: {
     [key in DisaggregationOption]?: DisaggregationPossibleValuesStatus;
   };
   // Indicator id → its own value format, for every indicator the metric's
-  // module knows about. The input resolveEffectiveFormat needs, delivered
+  // module knows about. The input resolveEffectiveIndicatorFacts needs, delivered
   // pre-query so the editor can resolve a figure's format from its config
   // alone.
   //
@@ -127,6 +137,10 @@ export type ResultsValueInfoForPresentationObject = {
   // dimension came back `too_many_values`, and a filterBy can still name
   // specific indicators on such a dimension. A flat map has no such hole.
   indicatorFormats: Record<string, IndicatorFormat>;
+  // Indicator id → its own CF rule, for every indicator that declares one.
+  // Flat beside indicatorFormats for the same reason; the other input the
+  // config-based facts resolver needs (ruleForValue, displayedRules).
+  indicatorRules: Record<string, ThresholdsRule>;
 };
 
 // Discriminated union for replicant option states
@@ -136,13 +150,10 @@ export type ReplicantOptionsForPresentationObject =
     resultsObjectId: string;
     replicateBy: DisaggregationOption;
     fetchConfig: GenericLongFormFetchConfig;
-    moduleLastRun: string;
-    // Replicant value labels come from indicator metadata, rewritten on dataset
-    // integration (bumps datasets.last_updated) independently of moduleLastRun, so
-    // the cache versions on it too. Carried here so parseData can reproduce it.
-    datasetsVersion: string;
     // See ItemsHolderPresentationObject.runId (PLAN_RESULTS_RUNS §2.5).
-    runId?: string;
+    runId: string;
+    // See PresentationObjectDetail.scopeToken.
+    scopeToken: string;
   }
   & (
     | {
@@ -302,7 +313,7 @@ export const VIZ_TYPE_CONFIG: Record<
 // Legal display slots for the VALUE dimension, per type: the disaggregation
 // slots minus `replicant` (a figure replicates by a disaggregation, never by
 // its value props) and `mapArea` (the map's geography is a disaggregation's
-// job — values cannot be the areas). Derived, not a second table, so a new
+// job: values cannot be the areas). Derived, not a second table, so a new
 // presentation type or display option is a compile error here, not a
 // silently-skipped check.
 export function getValidValuesDisplayOptions(
@@ -315,7 +326,7 @@ export function getValidValuesDisplayOptions(
 
 // Whether the pie draws each value against a fixed 100% envelope (panther
 // `total: 1`, unfilled arc drawn as the remainder track) rather than against
-// the sum of its own slices. THE authoritative gate — the data config's `total`
+// the sum of its own slices. THE authoritative gate: the data config's `total`
 // and the style's `centerLabel` must agree, or the hole reports a share
 // computed against a denominator the geometry never used.
 //
@@ -578,6 +589,13 @@ export function getStartingConfigForPresentationObject(
     s: {
       ...DEFAULT_S_CONFIG,
       content: VIZ_TYPE_CONFIG[presentationOption].defaultContent,
+      // An "indicator" metric's values are each indicator's own quantity, so
+      // a new figure colours by each indicator's own rule from the start. No
+      // catalog is at hand here; an indicator with no rule simply renders
+      // uncoloured with no legend.
+      ...(resultsValue.formatAs === "indicator"
+        ? { cfMode: "indicator" as const }
+        : {}),
     },
     t: DEFAULT_T_CONFIG,
   };
@@ -615,7 +633,7 @@ export type GenericLongFormFetchConfig = {
   periodFilterExactBounds?: PeriodBounds;
   postAggregationExpression: string | undefined;
   // The dimension the roll-up collapses; presence = roll-up on. Baked in
-  // client-side by getEffectiveRollupDimension — the server obeys, never
+  // client-side by getEffectiveRollupDimension: the server obeys, never
   // recomputes it.
   rollupDim?: RollupDimension;
 };

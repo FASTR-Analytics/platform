@@ -480,7 +480,9 @@ export default function AlertProvider() {
                                   <Match when={typeof keyedText === "string"}>
                                     <p>{keyedText}</p>
                                   </Match>
-                                  <Match when>{keyedText}</Match>
+                                  <Match when={typeof keyedText !== "string"}>
+                                    {keyedText}
+                                  </Match>
                                 </Switch>
                               )}
                             </Show>

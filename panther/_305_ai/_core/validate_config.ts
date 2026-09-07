@@ -6,11 +6,11 @@
 import type { AIChatConfig } from "./types.ts";
 import { ToolRegistry } from "./tool_engine.ts";
 
-// One-line committed-test guard for consumers (PLAN_AI_VIEWS_AND_APPROVAL
-// Feature 2, validation #5): runs the chat's construction-time tool checks —
-// duplicate tool names, availableIn↔viewController consistency, and the
-// approval policy (requireForKind/requireKind, Feature 4) — without mounting
-// anything. The zod-level checks (strict-schema ban, empty availableIn,
+// One-line committed-test guard for consumers: runs the chat's
+// construction-time tool checks (duplicate tool names,
+// availableIn↔viewController consistency, and the approval policy:
+// requireForKind/requireKind) without mounting anything. The zod-level
+// checks (strict-schema ban, empty availableIn,
 // handler/approval XOR, session×modal) already threw inside createAITool
 // when the tools array was built, and controller construction ran its own
 // fallback checks, so passing here means createAIChat construction cannot

@@ -3,6 +3,10 @@ import { dbStartUp } from "./server/db_startup.ts";
 import { getPgConnectionFromCacheOrNew } from "./server/db/mod.ts";
 import { DeleteOldLogs } from "./server/db/instance/user_logs.ts";
 import { purgeExpiredProjects } from "./server/db/mod.ts";
+import {
+  notifyInstanceProjectsLastUpdated,
+  notifyInstanceRunsCatalogUpdated,
+} from "./server/task_management/notify_instance_updated.ts";
 import { connectValkey, disconnectValkey } from "./server/valkey/connection.ts";
 import { startDhis2ImportScheduler } from "./server/worker_routines/import_hmis_data_dhis2/scheduler.ts";
 import { closeAllConnections } from "./server/db/postgres/connection_manager.ts";
@@ -12,7 +16,9 @@ import {
 } from "./server/collab/version_capture.ts";
 import { flushAllRooms } from "./server/collab/doc_rooms.ts";
 import { validateAllRoutesDefined } from "./server/routes/route-tracker.ts";
-import { _PORT } from "./server/exposed_env_vars.ts";
+import { _IS_DEV, _PORT } from "./server/exposed_env_vars.ts";
+import { validateHeadlessMounts } from "./server/headless_app.ts";
+import { runServerTestSuiteOrExit } from "./server/dev_boot_checks.ts";
 import {
   authMiddleware,
   cacheMiddleware,
@@ -29,7 +35,6 @@ import { routesHfaIndicators } from "./server/routes/instance/hfa_indicators.ts"
 import { routesHfaTimePoints } from "./server/routes/instance/hfa_time_points.ts";
 import { routesIceh } from "./server/routes/instance/iceh.ts";
 import { routesIndicators } from "./server/routes/instance/indicators.ts";
-import { routesCalculatedIndicators } from "./server/routes/instance/calculated_indicators.ts";
 import { routesIndicatorsDhis2 } from "./server/routes/instance/indicators_dhis2.ts";
 import { routesInstance } from "./server/routes/instance/instance.ts";
 import { routesRunGeneration } from "./server/routes/instance/run_generation.ts";
@@ -38,6 +43,7 @@ import { routesUpload } from "./server/routes/instance/upload.ts";
 import { routesUsers } from "./server/routes/instance/users.ts";
 import { routesBackups } from "./server/routes/instance/backups.ts";
 import { routesGeoJsonMaps } from "./server/routes/instance/geojson_maps.ts";
+import { routesPopulation } from "./server/routes/instance/population.ts";
 import { routesInstanceModules } from "./server/routes/instance/modules.ts";
 import { routesInstanceSSE } from "./server/routes/instance/instance-sse.ts";
 
@@ -81,15 +87,25 @@ setInterval(runLogCleanup, 24 * 60 * 60 * 1000);
 
 const runProjectPurge = () => {
   const db = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
-  purgeExpiredProjects(db).catch((e) =>
-    console.error("Project purge failed:", e)
-  );
+  purgeExpiredProjects(db)
+    .then((purgedCount) => {
+      // The purge drops projects.run_id pointers: the catalogue's
+      // attachedProjects and delete-guard facts, so connected clients must
+      // be signalled (forceDeleteProject's route fires the same pair). The
+      // boot-time invocation notifies harmlessly: no clients are connected
+      // yet.
+      if (purgedCount > 0) {
+        notifyInstanceProjectsLastUpdated(new Date().toISOString());
+        notifyInstanceRunsCatalogUpdated();
+      }
+    })
+    .catch((e) => console.error("Project purge failed:", e));
 };
 runProjectPurge();
 setInterval(runProjectPurge, 24 * 60 * 60 * 1000);
 
 // DHIS2 auto-pull (PLAN_DHIS2_IMPORTER Phase 4): ~60 s tick draining queued
-// runs FIFO and firing due schedules — a minute-level tick, NOT one of the
+// runs FIFO and firing due schedules: a minute-level tick, NOT one of the
 // boot-anchored 24 h jobs above (a daily tick would usually miss a 01:15
 // Lagos window).
 startDhis2ImportScheduler();
@@ -106,7 +122,7 @@ app.use("/api/d/*", corsMiddleware);
 
 // Dashboards are readable anonymously only when public; not-public dashboards
 // require an authenticated user. Run Clerk here so the route can READ the
-// session — clerkMiddleware populates auth without rejecting anonymous requests.
+// session: clerkMiddleware populates auth without rejecting anonymous requests.
 //@ts-ignore - Clerk middleware types not fully compatible with Hono
 app.use("/api/d/*", authMiddleware);
 
@@ -115,14 +131,14 @@ app.route("/", routesPublicDashboard);
 
 // OAuth discovery for /mcp (PLAN_MCP_OAUTH). These are what a connector reads
 // BEFORE it has any credential, so they must sit ahead of the global Clerk
-// middleware — behind it they 401 and the Connect button spins forever.
+// middleware: behind it they 401 and the Connect button spins forever.
 app.route("/", routesOAuthMetadata);
 
 // Serve SPA HTML for public dashboard routes (before auth)
 try {
   const indexHtml = Deno.readTextFileSync("./client_dist/index.html");
   // These two shell serves are registered ahead of cacheMiddleware, so they
-  // never reach its no-cache branch for HTML — they set it themselves. Same
+  // never reach its no-cache branch for HTML: they set it themselves. Same
   // reason as there: a heuristically cached shell pins the browser to the
   // previous build's immutable bundles.
   const serveShell = (c: Context) => {
@@ -141,7 +157,7 @@ try {
 }
 
 // The /mcp endpoint (PLAN_112) authenticates with PATs inside the panther
-// adapter — the global Clerk middleware and CORS headers must not touch it.
+// adapter: the global Clerk middleware and CORS headers must not touch it.
 const isMcpPath = (path: string) => path === "/mcp" || path.startsWith("/mcp/");
 
 //@ts-ignore - Clerk middleware types not fully compatible with Hono
@@ -159,7 +175,7 @@ app.onError((err: unknown, c) => {
 });
 
 // Unmatched GETs 302 to "/" (the SPA fallback below), so only non-GET
-// requests reach this — in practice a client calling a route this server
+// requests reach this: in practice a client calling a route this server
 // build no longer has, i.e. a tab running pre-deploy JS. Return the
 // APIResponse envelope with the actual cause instead of Hono's bare
 // "404 Not Found", so the failure is diagnosable from the error modal.
@@ -192,6 +208,7 @@ app.route("/", routesRunGeneration);
 app.route("/", routesBackups);
 app.route("/", routesAssets);
 app.route("/", routesGeoJsonMaps);
+app.route("/", routesPopulation);
 app.route("/", routesUpload);
 app.route("/", routesDatasets);
 app.route("/", routesDhis2Credentials);
@@ -199,7 +216,6 @@ app.route("/", routesHfaIndicators);
 app.route("/", routesHfaTimePoints);
 app.route("/", routesIceh);
 app.route("/", routesIndicators);
-app.route("/", routesCalculatedIndicators);
 app.route("/", routesIndicatorsDhis2);
 app.route("/", routesInstanceModules);
 app.route("/", routesModules);
@@ -226,7 +242,7 @@ app.route("/", routesOnboarding);
 // elicitation; Hono just hands it the raw Request.
 // CORS headers for browser-origin MCP clients. This endpoint authenticates by
 // bearer token and carries NO ambient cookie credentials, so a wildcard origin
-// is safe — and `Access-Control-Allow-Credentials` is deliberately NOT set (a
+// is safe, and `Access-Control-Allow-Credentials` is deliberately NOT set (a
 // browser can only read a response it explicitly attached the token to).
 // `Mcp-Session-Id` must be exposed or a browser client cannot read the session
 // the server issues on initialize.
@@ -267,9 +283,18 @@ app.get("*", (c) => {
 
 // Validate that all routes in the registry have been defined
 validateAllRoutesDefined();
+// Dev-only self-checks, fail-stop like the route validation above: the
+// structural headless-mount check, then the whole server test suite
+// (`deno task test`: a subprocess, because those tests need BYPASS_AUTH
+// cleared and their own module graph; ~2 s with --no-check, the tests'
+// typecheck being `deno task typecheck`'s job). Production boots skip both.
+if (_IS_DEV) {
+  validateHeadlessMounts();
+  await runServerTestSuiteOrExit();
+}
 
 // Process-level backstop for the serving phase. A single collaborative-editing
-// frame — or any other un-awaited async path — must never take down this
+// frame, or any other un-awaited async path, must never take down this
 // multi-tenant server. The known Yjs crash vectors are guarded at their source
 // (server/collab/doc_rooms.ts); these handlers are defense-in-depth so an
 // unforeseen throw degrades one request instead of every project. Both log
@@ -296,8 +321,8 @@ const shutdown = async () => {
   }, 8000);
   // Collab rooms first: dirty rooms hold up to CHECKPOINT_DEBOUNCE_MS of
   // typing that exists nowhere else, and the version flush below reads
-  // document content from the DB — so the rooms' checkpoints must land first.
-  // Both must finish BEFORE closeAllConnections() — they write through the pools.
+  // document content from the DB, so the rooms' checkpoints must land first.
+  // Both must finish BEFORE closeAllConnections(): they write through the pools.
   await flushAllRooms().catch((e) =>
     console.error("Room flush on shutdown failed:", e)
   );

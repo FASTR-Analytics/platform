@@ -11,7 +11,7 @@ type OrgUnitMetadataResponse = {
   }>;
 };
 
-// Geometry-less metadata for one level — the analyze-side replacement for the
+// Geometry-less metadata for one level: the analyze-side replacement for the
 // full .geojson pull (a 200-district country is ~20 MB of polygons but ~17 KB
 // of metadata). parent[id,name] comes inline, so no follow-up parent-name
 // fetches are needed.
@@ -43,7 +43,7 @@ export async function fetchOrgUnitsMetadataForLevel(
 
 // Exact count of org units WITH stored geometry at a level, without
 // downloading any coordinates (~1 KB response). `level` MUST be expressed as
-// a filter — DHIS2 ignores a bare `level=` param when `filter=` is present
+// a filter: DHIS2 ignores a bare `level=` param when `filter=` is present
 // (verified live on 2.40.11.1). `featureType` is absent from the fields
 // projection on 2.40, so this filter count is the geometry-presence signal.
 export async function fetchGeometryCountForLevel(

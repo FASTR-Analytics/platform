@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { Show } from "solid-js";
+import { Match, Show, Switch } from "solid-js";
 import { t3 } from "../deps.ts";
 import {
   calculateCost,
@@ -27,9 +27,21 @@ export function UsageDisplay(p: Props) {
           () => (p.showCost ? calculateCost(usage(), p.model) : null);
 
         return (
-          <Show
-            when={p.compact}
-            fallback={
+          <Switch>
+            <Match when={p.compact}>
+              <div class="text-base-content-muted flex items-center gap-2 text-xs font-mono">
+                <span>
+                  {formatTokenCount(usage().input_tokens)}{" "}
+                  {t3({ en: "in", fr: "entrée", pt: "entrada" })} /{" "}
+                  {formatTokenCount(usage().output_tokens)}{" "}
+                  {t3({ en: "out", fr: "sortie", pt: "saída" })}
+                </span>
+                <Show when={cost()}>
+                  <span>• {formatCost(cost()!.totalCost)}</span>
+                </Show>
+              </div>
+            </Match>
+            <Match when={!p.compact}>
               <div class="ui-pad bg-base-200 rounded text-xs font-mono">
                 <div class="mb-1 font-700">
                   {t3({ en: "Usage", fr: "Utilisation", pt: "Utilização" })}
@@ -79,20 +91,8 @@ export function UsageDisplay(p: Props) {
                   </div>
                 </Show>
               </div>
-            }
-          >
-            <div class="text-base-content-muted flex items-center gap-2 text-xs font-mono">
-              <span>
-                {formatTokenCount(usage().input_tokens)}{" "}
-                {t3({ en: "in", fr: "entrée", pt: "entrada" })} /{" "}
-                {formatTokenCount(usage().output_tokens)}{" "}
-                {t3({ en: "out", fr: "sortie", pt: "saída" })}
-              </span>
-              <Show when={cost()}>
-                <span>• {formatCost(cost()!.totalCost)}</span>
-              </Show>
-            </div>
-          </Show>
+            </Match>
+          </Switch>
         );
       }}
     </Show>

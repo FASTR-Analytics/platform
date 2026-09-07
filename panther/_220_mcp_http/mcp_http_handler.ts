@@ -3,13 +3,13 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-// createMCPHttpHandler (PLAN_112, D2/D3): serve a _112 MCPServerCore over
+// createMCPHttpHandler: serve a _112 MCPServerCore over
 // streamable HTTP on the official MCP SDK v2 wire layer. The SDK owns the
 // wire (era classification, sessions, SSE, keepalive, the legacy
 // input-required shim); panther owns the semantics (headless filter, approval
 // driver, staged-proposal security, serialized dispatch) via the core seam.
 //
-// Wiring facts, live-proven against Claude Code 2.1.219 (2026-08-06):
+// Wiring facts:
 // - Legacy (2025-era) serving MUST be sessionful for elicitation: the
 //   client's elicitation answer arrives as a separate POST correlated only by
 //   Mcp-Session-Id, and the SDK's stateless legacy fallback fails such tools
@@ -21,7 +21,7 @@
 //   inputResponses, on a modern one the client retries with them. The
 //   re-entry maps 1:1 onto the core's resumeToolCall.
 //
-// Isolation (D3): one core per authenticated principal, cached with idle TTL
+// Isolation: one core per authenticated principal, cached with idle TTL
 // + LRU cap. Staged proposal ids never leave the principal's core, so
 // cross-principal resume is structurally impossible; core eviction clears
 // staging. Sessions are principal-bound: a session id presented with a
@@ -83,10 +83,13 @@ export type CreateMCPHttpHandlerOptions<TPrincipal> = {
   // same way, from the same request. Returning undefined falls back to a bare
   // "Bearer" for that request.
   resourceMetadataUrl?: string | ((req: Request) => string | undefined);
-  // Core-cache key. Default: JSON identity of the principal.
+  // Core-cache key AND the principal's identity in the per-request log line
+  // (`principal=<key>`), so it must be secret-free (wb-fastr: the email).
+  // Default: JSON identity of the principal for the cache, and `-` in the log
+  // (a JSON-dumped principal routinely carries the bearer token).
   principalKey?: (principal: TPrincipal) => string;
   // Idle eviction for principal cores (staging dies with the core; the next
-  // request transparently rebuilds). Defaults per PLAN_112 D8.
+  // request transparently rebuilds).
   coreIdleTtlMs?: number;
   maxCores?: number;
   // Legacy wire sessions per principal (resource bounding — PAT auth is the
@@ -98,6 +101,15 @@ export type CreateMCPHttpHandlerOptions<TPrincipal> = {
   // SSE comment-frame keepalive interval for legacy wire sessions,
   // SDK-owned. Default: the SDK's 15s. 0 disables.
   keepAliveMs?: number;
+  // Awareness seam: when set, every COMPLETE tools/call result gains one
+  // extra text block from this hook (null/empty → none). It never runs for
+  // input_required rounds, and a hook throw never breaks the result — the
+  // undecorated result ships. sessionId is present when the wire carries
+  // one; key per-conversation state on it, falling back to the principal.
+  decorateResult?: (ctx: {
+    principal: TPrincipal;
+    sessionId?: string;
+  }) => Promise<string | null>;
 };
 
 type SessionEntry = {
@@ -105,8 +117,14 @@ type SessionEntry = {
   lastUsed: number;
 };
 
+type WireEra = "legacy" | "modern";
+
 type CoreEntry<TPrincipal> = {
   principal: TPrincipal;
+  key: string;
+  // What the log prints for this principal: the consumer's principalKey, or
+  // `-` under the default (see CreateMCPHttpHandlerOptions.principalKey).
+  logLabel: string;
   core: MCPServerCore;
   // Serialized tools/call execution per principal core: handlers were
   // written against a sequential loop and clients parallel-dispatch
@@ -121,8 +139,59 @@ type CoreEntry<TPrincipal> = {
 
 let exposureLogged = false;
 
+// Wire-supplied slots in the log line (tool name, uri, client name/version,
+// a presented session id) are unbounded and may carry newlines that would
+// forge the next line's fields — same treatment as the core's inlineValue:
+// collapse whitespace runs, cap.
+const LOG_SLOT_CAP = 200;
+function logSlot(value: string): string {
+  const flat = value.replace(/\s+/g, " ").trim();
+  return flat.length > LOG_SLOT_CAP ? `${flat.slice(0, LOG_SLOT_CAP)}…` : flat;
+}
+
+// One stderr line per handler round (unconditional, like the exposure line;
+// MCP-level logging is deprecated by SEP-2577 in favour of stderr/OTel). A
+// legacy approval call is ONE wire request but two rounds (the SDK shim
+// re-enters the handler with the elicitation answer), so the resume round
+// is marked. Era + method + session + client identity are what make a
+// client's re-list behaviour across deploys observable from the server —
+// the catalog is fixed per core and no listChanged is advertised, so this
+// log is the only evidence of when a given client re-lists.
+// getClientVersion() is deprecated in favour of ctx.mcpReq.envelope, but it
+// is the deliberate choice here: legacy connections carry no envelope (the
+// identity is initialize-scoped and this accessor is its only reader),
+// oninitialized has no ctx, and the SDK backfills it per request on modern.
+function logRequest(
+  entry: CoreEntry<unknown>,
+  era: WireEra,
+  method: string,
+  sessionId: string | undefined,
+  server: Server | undefined,
+): void {
+  const client = server?.getClientVersion();
+  console.error(
+    `[panther mcp] ${entry.core.serverInfo.name}: ${era} ${method} principal=${entry.logLabel} session=${
+      sessionId === undefined ? "-" : logSlot(sessionId)
+    } client=${client ? logSlot(`${client.name}/${client.version}`) : "-"}`,
+  );
+}
+
 function textResult(text: string, isError: boolean): CallToolResult {
   return { content: [{ type: "text", text }], isError };
+}
+
+// A complete outcome mapped whole: the text block always, plus the core's
+// pre-wrapped structuredContent when the tool declares an output schema.
+function completeResult(
+  outcome: Extract<MCPCallOutcome, { type: "complete" }>,
+): CallToolResult {
+  return {
+    content: [{ type: "text", text: outcome.text }],
+    isError: outcome.isError,
+    ...(outcome.structuredContent !== undefined
+      ? { structuredContent: outcome.structuredContent }
+      : {}),
+  };
 }
 
 // Same funnel shape as the stdio adapter: MCPRequestError crosses the wire
@@ -177,6 +246,9 @@ export function createMCPHttpHandler<TPrincipal>(
     DEFAULT_MAX_SESSIONS_PER_PRINCIPAL;
   const principalKey = opts.principalKey ??
     ((principal: TPrincipal) => JSON.stringify(principal) ?? "");
+  const principalLogLabel = opts.principalKey !== undefined
+    ? (key: string) => logSlot(key)
+    : () => "-";
 
   // RFC 9728 §5.1: the challenge points the client at the metadata document.
   // Quotes are mandatory and the value is embedded verbatim, so a value
@@ -266,7 +338,7 @@ export function createMCPHttpHandler<TPrincipal>(
       existing.lastUsed = now;
       return existing;
     }
-    // Thunk-form tools resolve here, once per principal core (D3). A
+    // Thunk-form tools resolve here, once per principal core. A
     // construction throw surfaces as a clean per-request error.
     const core = buildMCPServerCore(
       config as CreateMCPServerConfig,
@@ -280,6 +352,8 @@ export function createMCPHttpHandler<TPrincipal>(
     }
     const entry: CoreEntry<TPrincipal> = {
       principal,
+      key,
+      logLabel: principalLogLabel(key),
       core,
       queue: Promise.resolve(),
       sessions: new Map(),
@@ -309,14 +383,44 @@ export function createMCPHttpHandler<TPrincipal>(
         inputRequests: {
           [CONFIRM_KEY]: inputRequired.elicit({
             message: outcome.elicitation.message,
-            // deno-lint-ignore no-explicit-any
-            requestedSchema: outcome.elicitation.requestedSchema as any,
+            requestedSchema: outcome.elicitation.requestedSchema,
           }),
         },
         requestState: outcome.requestState,
       });
     }
-    return textResult(outcome.text, outcome.isError);
+    return completeResult(outcome);
+  };
+
+  // The decorateResult hook, applied to COMPLETE results only (an
+  // input_required round is a question, not an answer). Fail-open by
+  // design: a throwing hook ships the undecorated result — awareness may
+  // never break a tool call.
+  const decorated = async (
+    entry: CoreEntry<TPrincipal>,
+    sessionId: string | undefined,
+    result: CallToolResult | ReturnType<typeof inputRequired>,
+  ): Promise<CallToolResult | ReturnType<typeof inputRequired>> => {
+    const hook = opts.decorateResult;
+    const content = (result as CallToolResult).content;
+    if (hook === undefined || !Array.isArray(content)) {
+      return result;
+    }
+    try {
+      const extra = await hook({
+        principal: entry.principal,
+        ...(sessionId === undefined ? {} : { sessionId }),
+      });
+      if (extra === null || extra === "") {
+        return result;
+      }
+      return {
+        ...(result as CallToolResult),
+        content: [...content, { type: "text", text: extra }],
+      };
+    } catch {
+      return result;
+    }
   };
 
   // One SDK Server wired to the principal's core. Built per legacy session
@@ -324,6 +428,7 @@ export function createMCPHttpHandler<TPrincipal>(
   // eras cannot drift.
   const buildSdkServer = async (
     entry: CoreEntry<TPrincipal>,
+    era: WireEra,
   ): Promise<Server> => {
     const core = entry.core;
     const instructions = await core.instructions();
@@ -345,14 +450,30 @@ export function createMCPHttpHandler<TPrincipal>(
       },
     );
 
-    server.setRequestHandler("tools/list", () => ({
-      // deno-lint-ignore no-explicit-any
-      tools: core.listTools() as any,
-    }));
+    const log = (ctx: ServerContext, detail?: string) =>
+      logRequest(
+        entry,
+        era,
+        [
+          ctx.mcpReq.method,
+          ...(detail === undefined ? [] : [logSlot(detail)]),
+          ...(ctx.mcpReq.inputResponses === undefined ? [] : ["resume"]),
+        ].join(" "),
+        ctx.sessionId,
+        server,
+      );
+
+    server.setRequestHandler("tools/list", (_request, ctx: ServerContext) => {
+      log(ctx);
+      return {
+        tools: core.listTools(),
+      };
+    });
 
     server.setRequestHandler("tools/call", (request, ctx: ServerContext) => {
       const name = String(request.params.name ?? "");
       const args = (request.params.arguments ?? {}) as Record<string, unknown>;
+      log(ctx, name);
       return enqueue(entry, async () => {
         // A cancellation that raced the queue wait must win — commit/handler
         // never runs for a cancelled request (stdio rule).
@@ -369,7 +490,11 @@ export function createMCPHttpHandler<TPrincipal>(
             const outcome = await core.callTool(name, args, {
               clientCanElicit,
             });
-            return outcomeToCallResult(outcome);
+            return await decorated(
+              entry,
+              ctx.sessionId,
+              outcomeToCallResult(outcome),
+            );
           }
           // Resume round: the elicitation answer (or the client's retry)
           // re-entered the handler. requestState is the staged-proposal
@@ -401,7 +526,11 @@ export function createMCPHttpHandler<TPrincipal>(
               "Unexpected second input_required outcome",
             );
           }
-          return textResult(outcome.text, outcome.isError);
+          return await decorated(
+            entry,
+            ctx.sessionId,
+            completeResult(outcome),
+          );
         } catch (error) {
           throw toProtocolError(error);
         }
@@ -409,59 +538,79 @@ export function createMCPHttpHandler<TPrincipal>(
     });
 
     if (core.hasPrompts) {
-      server.setRequestHandler("prompts/list", () => ({
-        prompts: core.listPrompts(),
-      }));
-      server.setRequestHandler("prompts/get", async (request) => {
-        try {
-          const prompt = await core.getPrompt(
-            String(request.params.name ?? ""),
-            (request.params.arguments ?? {}) as Record<string, string>,
-          );
-          return {
-            ...(prompt.description !== undefined
-              ? { description: prompt.description }
-              : {}),
-            messages: [
-              {
-                role: "user" as const,
-                content: { type: "text" as const, text: prompt.text },
-              },
-            ],
-          };
-        } catch (error) {
-          throw toProtocolError(error);
-        }
-      });
+      server.setRequestHandler(
+        "prompts/list",
+        (_request, ctx: ServerContext) => {
+          log(ctx);
+          return { prompts: core.listPrompts() };
+        },
+      );
+      server.setRequestHandler(
+        "prompts/get",
+        async (request, ctx: ServerContext) => {
+          const name = String(request.params.name ?? "");
+          log(ctx, name);
+          try {
+            const prompt = await core.getPrompt(
+              name,
+              (request.params.arguments ?? {}) as Record<string, string>,
+            );
+            return {
+              ...(prompt.description !== undefined
+                ? { description: prompt.description }
+                : {}),
+              messages: [
+                {
+                  role: "user" as const,
+                  content: { type: "text" as const, text: prompt.text },
+                },
+              ],
+            };
+          } catch (error) {
+            throw toProtocolError(error);
+          }
+        },
+      );
     }
 
     if (core.hasResources) {
-      server.setRequestHandler("resources/list", () => ({
-        resources: core.listResources(),
-      }));
-      server.setRequestHandler("resources/templates/list", () => ({
-        resourceTemplates: [],
-      }));
-      server.setRequestHandler("resources/read", async (request) => {
-        try {
-          const contents = await core.readResource(
-            String(request.params.uri ?? ""),
-          );
-          return {
-            contents: [
-              {
-                uri: contents.uri,
-                ...(contents.mimeType !== undefined
-                  ? { mimeType: contents.mimeType }
-                  : {}),
-                text: contents.text,
-              },
-            ],
-          };
-        } catch (error) {
-          throw toProtocolError(error);
-        }
-      });
+      server.setRequestHandler(
+        "resources/list",
+        (_request, ctx: ServerContext) => {
+          log(ctx);
+          return { resources: core.listResources() };
+        },
+      );
+      server.setRequestHandler(
+        "resources/templates/list",
+        (_request, ctx: ServerContext) => {
+          log(ctx);
+          return { resourceTemplates: [] };
+        },
+      );
+      server.setRequestHandler(
+        "resources/read",
+        async (request, ctx: ServerContext) => {
+          const uri = String(request.params.uri ?? "");
+          log(ctx, uri);
+          try {
+            const contents = await core.readResource(uri);
+            return {
+              contents: [
+                {
+                  uri: contents.uri,
+                  ...(contents.mimeType !== undefined
+                    ? { mimeType: contents.mimeType }
+                    : {}),
+                  text: contents.text,
+                },
+              ],
+            };
+          } catch (error) {
+            throw toProtocolError(error);
+          }
+        },
+      );
     }
 
     return server;
@@ -481,7 +630,7 @@ export function createMCPHttpHandler<TPrincipal>(
           "createMCPHttpHandler: modern request reached the factory without a principal entry",
         );
       }
-      return buildSdkServer(entry);
+      return buildSdkServer(entry, ctx.era);
     },
     { legacy: "reject" },
   );
@@ -499,6 +648,9 @@ export function createMCPHttpHandler<TPrincipal>(
         // Unknown session, or a session owned by a DIFFERENT principal:
         // both answer 404 (per the streamable-HTTP spec the client
         // re-initializes; existence is never leaked across principals).
+        // Logged: this is the moment a client's pre-deploy session reaches
+        // the new process.
+        logRequest(entry, "legacy", "session-miss", sessionId, undefined);
         return jsonResponse(404, {
           jsonrpc: "2.0",
           error: { code: -32001, message: "Session not found" },
@@ -523,7 +675,7 @@ export function createMCPHttpHandler<TPrincipal>(
       if (oldestId === null) break;
       closeSession(entry, oldestId);
     }
-    const server = await buildSdkServer(entry);
+    const server = await buildSdkServer(entry, "legacy");
     const transport = new WebStandardStreamableHTTPServerTransport({
       sessionIdGenerator: () => crypto.randomUUID(),
       ...(opts.keepAliveMs !== undefined
@@ -538,6 +690,12 @@ export function createMCPHttpHandler<TPrincipal>(
         sessionOwner.delete(id);
       },
     });
+    // Fires on notifications/initialized — the handshake is complete and the
+    // client's identity is known (legacy era only, by construction). A client
+    // that skips the notification logs no line here; its identity still
+    // rides every later line.
+    server.oninitialized = () =>
+      logRequest(entry, "legacy", "initialized", transport.sessionId, server);
     await server.connect(transport);
     const response = await transport.handleRequest(req);
     if (transport.sessionId === undefined) {

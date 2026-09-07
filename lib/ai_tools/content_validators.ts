@@ -2,57 +2,19 @@ import type {
   AiMetricQuery,
   DisaggregationOption,
   MetricWithStatus,
+  ResultsValueInfoForPresentationObject,
 } from "../types/mod.ts";
 import { inferPeriodFormatFromValue } from "../types/_metric_installed.ts";
-import {
-  MAX_CONTENT_BLOCKS,
-  SLIDE_TEXT_TOTAL_WORD_COUNT_MAX,
-  SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET,
-} from "../consts.ts";
 import { convertPeriodValue } from "../convert_period_value.ts";
 import { AIToolFailure } from "@timroberton/panther";
 import type { AIToolEnv } from "./env.ts";
 
-const MARKDOWN_TABLE_PATTERNS = [
-  /\|.*\|.*\|/m, // Lines with multiple pipes (table rows)
-  /\|[\s]*[-:]+[\s]*\|/m, // Table separator lines (|---|---|)
-];
-
-function containsMarkdownTable(text: string): boolean {
-  // BOTH a multi-pipe row and a separator line — a lone piped line ("Region
-  // A | Region B | Region C", quoted `a || b || c`) isn't a rendered table
-  // and matching on it alone rejected legitimate prose.
-  return MARKDOWN_TABLE_PATTERNS.every((pattern) => pattern.test(text));
-}
-
-export function validateNoMarkdownTables(markdown: string): void {
-  if (containsMarkdownTable(markdown)) {
-    throw new AIToolFailure(
-      "Markdown tables are not allowed. To display tabular data, use a 'from_metric' block with a table preset, or a 'from_visualization' block.",
-    );
-  }
-}
-
-export function validateMaxContentBlocks(blocksCount: number): void {
-  if (blocksCount > MAX_CONTENT_BLOCKS) {
-    throw new AIToolFailure(
-      `Too many blocks (${blocksCount}). Maximum is ${MAX_CONTENT_BLOCKS} blocks per slide. Please reduce the number of blocks and try again.`,
-    );
-  }
-}
-
-export function validateSlideTotalWordCount(textBlocks: string[]): void {
-  const totalWordCount = textBlocks.reduce((sum, text) => {
-    const words = text.trim().split(/\s+/).filter((w) => w.length > 0).length;
-    return sum + words;
-  }, 0);
-
-  if (totalWordCount > SLIDE_TEXT_TOTAL_WORD_COUNT_MAX) {
-    throw new AIToolFailure(
-      `Slide exceeds maximum word count (${totalWordCount} words across all text blocks). Target: ~${SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET} words per slide, absolute maximum: ${SLIDE_TEXT_TOTAL_WORD_COUNT_MAX} words. Please reduce the text length.`,
-    );
-  }
-}
+// The metric-query validators both surfaces run (get_metric_data). The
+// slide/report content validators are SPA-only and live in the client
+// (project_ai/ai_tools/validators/content_validators.ts); the two
+// primitives below are exported because that file's validatePresetOverrides
+// composes them: one filter validator and one date-range validator for
+// every startDate/endDate surface, never a second copy.
 
 function isPeriodIdValid(val: number): boolean {
   const str = String(val);
@@ -70,7 +32,7 @@ function isQuarterIdValid(val: number): boolean {
   return year >= 1900 && year <= 2100 && quarter >= 1 && quarter <= 4;
 }
 
-function validateFilters(
+export function validateFilters(
   filters:
     | { disOpt: DisaggregationOption; values: (string | number)[] }[]
     | undefined,
@@ -115,14 +77,14 @@ export function validateAiMetricQuery(
 }
 
 // One date-range validator for every startDate/endDate surface
-// (get_metric_data queries AND from_metric preset overrides) — the two used
+// (get_metric_data queries AND from_metric preset overrides): the two used
 // to diverge, so an invalid period id one path rejected could reach a stored
 // figure config through the other.
-function validateDateRange(
+export function validateDateRange(
   startDate: number | undefined,
   endDate: number | undefined,
 ): void {
-  // One-sided input used to be silently ignored — the tool reported success
+  // One-sided input used to be silently ignored: the tool reported success
   // while the stored config / query carried no period filter at all (the
   // schema says "must be used together", but saying it is not enforcing it).
   if ((startDate != null) !== (endDate != null)) {
@@ -174,35 +136,34 @@ function validateDateRange(
   }
 }
 
-// valuesFilter membership lives in
-// generate_visualization/validate_figure_config_edit.ts (validateValuesFilter)
-// — a pure config check, called by the shared edit validator and the
-// from_metric create path.
-
-export function validatePresetOverrides(
-  metricId: string,
-  filters:
-    | { disOpt: DisaggregationOption; values: (string | number)[] }[]
-    | undefined,
-  startDate: number | undefined,
-  endDate: number | undefined,
-  metric?: MetricWithStatus,
-): void {
-  validateFilters(filters, metricId, metric);
-  validateDateRange(startDate, endDate);
-}
-
+// The fetching form, for callers that hold only an env (the edit paths). The
+// get_metric_data read already holds the value info for its coverage line and
+// calls validateMetricInputsAgainstValueInfo directly: one fetch, not two.
 export async function validateMetricInputs(
   env: AIToolEnv,
-  projectId: string,
   metricId: string,
   filters?: { disOpt: DisaggregationOption; values: (string | number)[] }[],
   periodFilter?: { min: number; max: number },
 ): Promise<void> {
   if (!filters?.length && !periodFilter) return;
 
-  const metricInfoRes = await env.getResultsValueInfo(projectId, metricId);
+  const metricInfoRes = await env.getResultsValueInfo(metricId);
   if (!metricInfoRes.success) return;
+  validateMetricInputsAgainstValueInfo(
+    metricInfoRes.data,
+    metricId,
+    filters,
+    periodFilter,
+  );
+}
+
+export function validateMetricInputsAgainstValueInfo(
+  valueInfo: ResultsValueInfoForPresentationObject,
+  metricId: string,
+  filters?: { disOpt: DisaggregationOption; values: (string | number)[] }[],
+  periodFilter?: { min: number; max: number },
+): void {
+  if (!filters?.length && !periodFilter) return;
 
   // getResultsValueInfo writes one entry per real dimension of the metric
   // (whatever its value status), so an ABSENT key means the dimension is not in
@@ -211,12 +172,9 @@ export async function validateMetricInputs(
   // update_viz_config) run this validator and nothing else, so a filter on a
   // non-existent column would otherwise pass and build a broken fetch config.
   // The create paths already reject it earlier via validateFilters.
-  const availableDims = Object.keys(
-    metricInfoRes.data.disaggregationPossibleValues,
-  );
+  const availableDims = Object.keys(valueInfo.disaggregationPossibleValues);
   for (const filter of filters ?? []) {
-    const dimValues =
-      metricInfoRes.data.disaggregationPossibleValues[filter.disOpt];
+    const dimValues = valueInfo.disaggregationPossibleValues[filter.disOpt];
     if (dimValues === undefined) {
       throw new AIToolFailure(
         `Filter dimension "${filter.disOpt}" is not available for metric "${metricId}". ` +
@@ -244,8 +202,8 @@ export async function validateMetricInputs(
     }
   }
 
-  if (periodFilter && metricInfoRes.data.periodBounds) {
-    const bounds = metricInfoRes.data.periodBounds;
+  if (periodFilter && valueInfo.periodBounds) {
+    const bounds = valueInfo.periodBounds;
     const boundsFmt = inferPeriodFormatFromValue(bounds.min);
     if (boundsFmt !== undefined) {
       const filterMin = convertPeriodValue(periodFilter.min, boundsFmt, false);

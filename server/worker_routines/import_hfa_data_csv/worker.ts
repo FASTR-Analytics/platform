@@ -37,7 +37,7 @@ import { integrateStagedHfaData } from "./integrate_staged.ts";
 let alreadyRunning = false;
 
 // The HFA clean condition (B4): no facility row was dropped, and something
-// staged. Duplicates do NOT gate — they are RESOLVED at wizard time by the
+// staged. Duplicates do NOT gate: they are RESOLVED at wizard time by the
 // dedup strategy/overrides, so a nonzero count is normal. Filtered-out rows do
 // not gate either: row filters are user-authored intent.
 function isCleanStaging(result: DatasetHfaCsvStagingResult): boolean {
@@ -91,8 +91,8 @@ async function run(payload: ImportHfaDataCsvWorkerPayload) {
         xlsFormFilePath,
         mappings: config.mappings,
         runId,
-        onProgress: async (percent) => {
-          await writeProgress({ phase: "staging", percent }, false);
+        onProgress: (percent) => {
+          writeProgress({ phase: "staging", percent }, false);
         },
       });
 
@@ -118,7 +118,7 @@ async function run(payload: ImportHfaDataCsvWorkerPayload) {
         `;
         if (held.count === 0) {
           // The run was cancelled under us (a cancel can land before this
-          // worker is registered, so nothing terminated it) — a cancelled
+          // worker is registered, so nothing terminated it), a cancelled
           // run may keep nothing.
           await dropHfaStagingTables(importDb, runId, { keepFinal: false });
         }
@@ -131,15 +131,15 @@ async function run(payload: ImportHfaDataCsvWorkerPayload) {
 
     // ── Integrate leg ───────────────────────────────────────────────────
     // The completion flip happens INSIDE the merge transaction (see
-    // integrate_staged.ts) — a cancel racing the commit either rolls the
+    // integrate_staged.ts): a cancel racing the commit either rolls the
     // merge back whole or arrives after the run is already 'complete'.
     await integrateStagedHfaData({
       importDb,
       mainDb,
       runId,
       stagingResult,
-      onProgress: async (percent) => {
-        await writeProgress({ phase: "integrating", percent }, false);
+      onProgress: (percent) => {
+        writeProgress({ phase: "integrating", percent }, false);
       },
     });
 

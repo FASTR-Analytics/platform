@@ -4,17 +4,18 @@ import type { DatasetCsvStagingResult } from "lib";
 import { hmisCsvStagingTableNames } from "./stage_csv.ts";
 
 // The single-transaction CSV integration relocated from the old
-// integrate_hmis_data worker — semantics unchanged (version minted MAX(id)
+// integrate_hmis_data worker: semantics unchanged (version minted MAX(id)
 // inline, "absent = keep prior value" merge, ledger writes in the same
 // transaction). Only the staging-table name (per-run) and the run linkage
-// (version_id lands on the run row inside the transaction, so version
-// readers hide it until the status flip) differ.
+// differ: version_id AND the completion flip land on the run row together as
+// the transaction's last statement (see below). On success the run row is
+// 'complete' when this returns.
 export async function integrateStagedHmisCsvData(args: {
   importDb: Sql;
   mainDb: Sql;
   runId: number;
   stagingResult: DatasetCsvStagingResult;
-  onProgress: (percent: number) => Promise<void>;
+  onProgress: (percent: number) => void;
 }): Promise<{ versionId: number; rowsInserted: number; rowsUpdated: number }> {
   const { importDb, mainDb, runId, stagingResult, onProgress } = args;
   const stagingTableName = hmisCsvStagingTableNames(runId).final;
@@ -63,12 +64,12 @@ export async function integrateStagedHmisCsvData(args: {
     );
   }
 
-  await onProgress(10);
+  onProgress(10);
 
   await importDb`ANALYZE ${importDb(stagingTableName)}`;
   await mainDb`ANALYZE ${mainDb(datasetTableName)}`;
 
-  await onProgress(20);
+  onProgress(20);
 
   let rowsUpdated = 0;
   let rowsInserted = 0;
@@ -79,7 +80,7 @@ export async function integrateStagedHmisCsvData(args: {
     await sql`SET LOCAL synchronous_commit = OFF`;
     await sql`SET LOCAL maintenance_work_mem = '512MB'`;
 
-    // Version id minted inside the transaction, right before its INSERT —
+    // Version id minted inside the transaction, right before its INSERT:
     // true MAX(id) inline (version READERS hide running-run versions and
     // must never mint).
     const maxRows = await sql<{ max_id: number | null }[]>`
@@ -106,17 +107,9 @@ export async function integrateStagedHmisCsvData(args: {
       )
     `;
 
-    // Linking inside the transaction keeps the version hidden from readers
-    // (running-run exclusion) until the status flip at run end.
-    await sql`
-      UPDATE dataset_hmis_import_runs
-      SET version_id = ${versionId}
-      WHERE id = ${runId}
-    `;
+    onProgress(40);
 
-    await onProgress(40);
-
-    // CSV merge — "absent = keep prior value" semantics are intended and
+    // CSV merge: "absent = keep prior value" semantics are intended and
     // must not change. Update existing rows first (faster than ON CONFLICT).
     const updateResult = await sql`
       UPDATE ${sql(datasetTableName)} dt
@@ -143,7 +136,7 @@ export async function integrateStagedHmisCsvData(args: {
       )
     `;
 
-    await onProgress(60);
+    onProgress(60);
 
     const insertResult = await sql`
       INSERT INTO ${sql(datasetTableName)}
@@ -168,7 +161,7 @@ export async function integrateStagedHmisCsvData(args: {
       WHERE id = ${versionId}
     `;
 
-    // Import ledger in the same transaction — the ledger can never disagree
+    // Import ledger in the same transaction: the ledger can never disagree
     // with the data.
     const touchedPairs = (
       await sql<{ indicator_raw_id: string; period_id: number }[]>`
@@ -183,14 +176,35 @@ export async function integrateStagedHmisCsvData(args: {
 
     await upsertHmisLedgerPairsFromData(sql, touchedPairs, "csv", versionId);
 
-    await onProgress(70);
+    onProgress(70);
+
+    // Single run-row write, LAST in the transaction (PROTOCOL_APP_WORKER_
+    // ROUTINES.md "Gotchas"): version link + completion flip together, so the
+    // run-row lock is held only for the final instant and version_id can never
+    // be observed without status='complete'. Guarded on status='running': a
+    // cancel that landed first matches zero rows and the throw rolls the whole
+    // merge back (a run marked cancelled has truly integrated nothing); a
+    // merge that commits has atomically marked itself complete, so a blocked
+    // cancel then no-ops.
+    const flipped = await sql`
+      UPDATE dataset_hmis_import_runs
+      SET version_id = ${versionId}, status = 'complete', ended_at = now(),
+        progress = NULL,
+        run_stats = ${JSON.stringify({ csvStagingResult: stagingResult })}
+      WHERE id = ${runId} AND status = 'running'
+    `;
+    if (flipped.count === 0) {
+      throw new Error(
+        "The run was cancelled during integration — nothing was merged.",
+      );
+    }
   });
 
-  await onProgress(80);
+  onProgress(80);
 
   await importDb.unsafe(`DROP TABLE IF EXISTS ${stagingTableName}`);
 
-  await onProgress(90);
+  onProgress(90);
 
   return { versionId, rowsInserted, rowsUpdated };
 }

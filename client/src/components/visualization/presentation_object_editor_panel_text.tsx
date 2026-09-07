@@ -2,7 +2,7 @@ import {
   findFigureCaptionText,
   type CaptionTextKey,
   PresentationObjectConfig,
-  PresentationObjectDetail,
+  PresentationObjectEditorDetail,
   t3,
 } from "lib";
 import { TextArea } from "panther";
@@ -17,14 +17,14 @@ export type VizCaptionCollab = {
   configMap: Y.Map<unknown>;
   awareness: Awareness;
   canEdit: () => boolean;
-  /** The viz editor's per-user undo stack — caption editors join it, so the
+  /** The viz editor's per-user undo stack: caption editors join it, so the
    *  editor's undo buttons cover caption typing too. */
   undoManager: () => Y.UndoManager | undefined;
 };
 
 type Props = {
   projectId: string;
-  poDetail: PresentationObjectDetail;
+  poDetail: PresentationObjectEditorDetail;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
   captionCollab?: VizCaptionCollab;

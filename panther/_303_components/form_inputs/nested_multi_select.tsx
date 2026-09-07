@@ -172,13 +172,11 @@ export function NestedMultiSelect<T extends string>(
                       aria-expanded={isOpen(bn.key)}
                       aria-label={isOpen(bn.key) ? "Collapse" : "Expand"}
                     >
-                      <Show
-                        when={isOpen(bn.key)}
-                        fallback={<Icon iconName="chevronRight" />}
-                        keyed
-                      >
-                        <Icon iconName="chevronDown" />
-                      </Show>
+                      <Icon
+                        iconName={isOpen(bn.key)
+                          ? "chevronDown"
+                          : "chevronRight"}
+                      />
                     </button>
                   </Show>
                   <Checkbox

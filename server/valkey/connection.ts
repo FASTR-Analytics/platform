@@ -40,7 +40,7 @@ export async function disconnectValkey(): Promise<void> {
       await _client.disconnect();
       console.log("[Valkey] Disconnected");
     } catch {
-      // Connection may already be dead — ignore
+      // Connection may already be dead: ignore
     }
   }
 }

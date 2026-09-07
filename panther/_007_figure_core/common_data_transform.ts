@@ -397,12 +397,12 @@ export function deriveVisibleLanesByPane(
   );
 }
 
-export interface ProcessedHeaders {
+export type ProcessedHeaders = {
   series: HeaderItem[];
   lane: HeaderItem[];
   tier: HeaderItem[];
   pane: HeaderItem[];
-}
+};
 
 export function fillValuesWithDuplicateCheck(
   values: (number | undefined)[][][][][],

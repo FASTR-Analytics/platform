@@ -5,6 +5,7 @@ import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to
 import {
   getQueryStateFromApiResponse,
   PageHolder,
+  SelectionCircle,
   StateHolder,
   type PageInputs,
   showMenu,
@@ -23,7 +24,7 @@ type Props = {
   selectedCount: number;
   slideSize: number;
   fillWidth: boolean;
-  onCardClick: (event: MouseEvent, isCircleClick: boolean) => void;
+  onCardClick: (event: MouseEvent | undefined, isCircleClick: boolean) => void;
   onEdit: () => void;
   onDelete: () => void;
   onDuplicate: () => void;
@@ -130,7 +131,7 @@ export function SlideCard(p: Props) {
         {p.index + 1}
       </div>
       <div
-        class="slide-card-wrapper group bg-base-100 relative cursor-pointer overflow-clip rounded border"
+        class="slide-card-wrapper group/card bg-base-100 relative cursor-pointer overflow-clip rounded border"
         classList={{
           "border-primary": p.isSelected,
           "hover:border-primary": !p.isSelected,
@@ -141,23 +142,10 @@ export function SlideCard(p: Props) {
           p.onCardClick(e, false);
         }}
       >
-        <div
-          class="absolute top-2 right-2 z-10 flex h-6 w-6 items-center justify-center rounded-full opacity-0 group-hover:opacity-100"
-          classList={{
-            "bg-primary text-primary-content opacity-100": p.isSelected,
-            "border bg-transparent hover:bg-neutral hover:text-neutral-content [&:not(:hover)]:text-transparent":
-              !p.isSelected,
-          }}
+        <SelectionCircle
+          isSelected={p.isSelected}
           onClick={(e) => p.onCardClick(e, true)}
-        >
-          <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-            <path
-              fill-rule="evenodd"
-              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-              clip-rule="evenodd"
-            />
-          </svg>
-        </div>
+        />
         <Show when={(p.viewers?.length ?? 0) > 0}>
           <div class="absolute bottom-2 left-2 z-10">
             <PresenceAvatars peers={p.viewers!} size="sm" />

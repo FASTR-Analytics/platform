@@ -160,9 +160,8 @@ export function DashboardSettings(p: Props) {
     >
       <div
         class="ui-pad ui-gap grid overflow-auto lg:grid-cols-2 lg:items-start"
-        data-tour="dashboard-settings-body"
       >
-        <Card header={t3({ en: "General", fr: "Général", pt: "Geral" })}>
+        <Card data-tour="dashboard-settings-body" header={t3({ en: "General", fr: "Général", pt: "Geral" })}>
           <div class="ui-spy-sm">
             <div class="ui-spy" data-tour="dashboard-settings-general">
               <Input

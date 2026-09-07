@@ -1,4 +1,4 @@
-import { t3, type Dhis2RunCredentialsSource } from "lib";
+import { t3, type Dhis2RunCredentialsSource, type FacilityFamily } from "lib";
 import { Match, Switch, createSignal } from "solid-js";
 import { Step0 } from "./step_0";
 import { Step1File } from "./step_1_file";
@@ -8,6 +8,7 @@ import { Step3 } from "./step_3";
 import { Step4 } from "./step_4";
 
 type Props = {
+  family: FacilityFamily;
   close: (p: unknown) => void;
 };
 
@@ -34,6 +35,7 @@ export type Dhis2Level = {
 export type AdminAreaOption = { value: string; label: string };
 
 export type WizardState = {
+  family: FacilityFamily;
   step: () => 0 | 1 | 2 | 3 | 4;
   setStep: (s: 0 | 1 | 2 | 3 | 4) => void;
   source: () => "file" | "dhis2";
@@ -98,6 +100,7 @@ export function GeoJsonUploadWizard(p: Props) {
   }
 
   const state: WizardState = {
+    family: p.family,
     step,
     setStep,
     source,
@@ -133,6 +136,10 @@ export function GeoJsonUploadWizard(p: Props) {
     <div class="ui-pad-lg ui-spy" style={{ "min-width": "700px", "max-height": "80vh", "overflow-y": "auto" }}>
       <div class="font-700 text-lg">
         {t3({ en: "Import GeoJSON", fr: "Importer GeoJSON", pt: "Importar GeoJSON" })}
+        {" — "}
+        {p.family === "hmis"
+          ? t3({ en: "HMIS", fr: "SNIS", pt: "HMIS" })
+          : t3({ en: "HFA", fr: "Enquêtes FOSA", pt: "FOSA" })}
       </div>
 
       <Switch>

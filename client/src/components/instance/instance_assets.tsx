@@ -87,8 +87,9 @@ export function InstanceAssets() {
   return (
     <FrameTop
       panelChildren={
-        <div class="h-full w-full" data-tour="instance-assets-header">
+        <div class="h-full w-full">
           <HeadingBar
+            data-tour="instance-assets-header"
             tonal
             heading={t3({ en: "Assets", fr: "Ressources", pt: "Recursos" })}
           >
@@ -162,8 +163,9 @@ function AssetFileSystem(p: {
       {(active) => (
         <FrameTop
           panelChildren={
-            <div class="h-full w-full" data-tour="instance-assets-tabs">
+            <div class="ui-pad-x h-full w-full">
               <TabsNavigation
+                data-tour="instance-assets-tabs"
                 items={tabItems()}
                 value={active()}
                 onChange={setSelectedType}
@@ -252,7 +254,7 @@ function AssetTable(p: {
         const canDelete =
           p.isAdmin || asset.uploaderEmail === p.currentUserEmail;
         // Data-file bytes are served only to data-permitted users (S1's
-        // static tier) — hide the button rather than let the browser save a
+        // static tier): hide the button rather than let the browser save a
         // 403 body to disk.
         const canDownload =
           !(asset.isCsv || asset.isXlsx || asset.isZip) ||
@@ -333,6 +335,7 @@ function AssetTable(p: {
       })}
       bulkActions={bulkActions()}
       selectionLabel={t3({ en: "asset", fr: "ressource", pt: "recurso" })}
+      fitTableToAvailableHeight
     />
   );
 }

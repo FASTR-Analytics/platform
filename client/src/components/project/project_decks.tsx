@@ -433,9 +433,9 @@ export function ProjectDecks(p: ExtendedProps) {
         <div
           class="h-full w-full"
           data-cursor-zone="header"
-          data-tour="decks-header"
         >
           <HeadingBar
+            data-tour="decks-header"
             heading={t3({
               en: "Slide decks",
               fr: "Présentations",
@@ -459,15 +459,13 @@ export function ProjectDecks(p: ExtendedProps) {
                 projectState.thisUserPermissions.can_configure_slide_decks
               }
             >
-              <div data-tour="decks-create">
-                <Button onClick={attemptAddDeck} iconName="plus">
-                  {t3({
-                    en: "Create slide deck",
-                    fr: "Créer une présentation",
-                    pt: "Criar apresentação",
-                  })}
-                </Button>
-              </div>
+              <Button data-tour="decks-create" onClick={attemptAddDeck} iconName="plus">
+                {t3({
+                  en: "Create slide deck",
+                  fr: "Créer une présentation",
+                  pt: "Criar apresentação",
+                })}
+              </Button>
             </Show>
           </HeadingBar>
         </div>
@@ -476,11 +474,11 @@ export function ProjectDecks(p: ExtendedProps) {
       <Show
         when={projectState.projectModules.length > 0}
         fallback={
-          <div class="ui-pad text-neutral text-sm">
+          <div class="ui-pad text-base-content-muted text-sm">
             {t3({
-              en: "You need to enable at least one module to create slide decks",
-              fr: "Vous devez activer au moins un module pour créer des présentations",
-              pt: "Tem de ativar pelo menos um módulo para criar apresentações",
+              en: "You need to attach a results package to create slide decks",
+              fr: "Vous devez rattacher un paquet de résultats pour créer des présentations",
+              pt: "Tem de anexar um pacote de resultados para criar apresentações",
             })}
           </div>
         }
