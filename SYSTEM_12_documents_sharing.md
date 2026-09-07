@@ -738,7 +738,32 @@ any mark it cuts into and is rebuilt as flat segments — each existing mark's
 attrs patched, plain text newly marked, same-attr neighbours merged — so
 re-sizing a partly-sized phrase yields one mark and an inner role survives as
 its own segment (`rewriteRangeMarks`); selections split per line and at table
-pipes, so a label can never swallow a cell boundary. The AI brief (`FASTR_MD_SYNTAX_DOC`, the one source for both the editing
+pipes, so a label can never swallow a cell boundary. **Figure series colours follow the theme.** Every theme carries a `chart`
+palette (accent first) in `FASTR_THEME_TOKENS`; `fastrChartPalette(theme,
+colors)` puts a custom style's accent at its head. It travels as a plain
+`chartPalette?: string[]` through `buildFigureInputs` →
+`getStyleFromPresentationObject` → the standard and percent-change style
+builders → `getStandardSeriesColorFunc`, which uses it ONLY for the discrete
+scales (`pastel-discrete`, `alt-discrete`): the semantic scales (single grey,
+red→green, blue→green, the coverage/disruption/scorecard specials) and a
+figure's explicit per-series colours keep their meaning. The three report
+render sites pass it (the live embed through `EmbedResolver.chartPalette`, the
+preview through the raster cache — whose key includes the palette, so a
+re-theme re-rasters — and the export), and nothing else does, so dashboards,
+slide decks and the visualization editor are byte-identical to before.
+**Figure ink follows the ground in BOTH directions.** A figure's stored style
+is its dashboard's — a dark dashboard's white text arrives as white text — so
+every place a report renders one re-inks it for the ground it actually sits
+on: `isDarkGroundBehind` walks up to the nearest painted ancestor (a theme's
+figure card, a band, the page) and picks the palette's LIGHT ink on a dark
+ground or its DARK ink (`figureDarkInkForColors`: the page's own ink when the
+page is light, `GENERIC_DARK_INK` otherwise) on a light one. The preview
+(`inkFor`), the standalone export and the live editor's `ReportFigureEmbed`
+(which measures its own element on mount and again once the widget is in the
+document, through `EmbedResolver.inkFor`) all apply the same rule; series
+colours stay as configured. Before this only dark grounds were handled, so
+Risograph — whose figure card is the light page colour — showed a
+dark-dashboard figure's white text on cream. The AI brief (`FASTR_MD_SYNTAX_DOC`, the one source for both the editing
 view's system prompt and the create_report tool) documents every element the
 editor can insert — cover `layout`, `:::contents`, `numbering=sections`,
 `color=`/`size=`/`underline`/`highlight=` marks — and its composition guidance

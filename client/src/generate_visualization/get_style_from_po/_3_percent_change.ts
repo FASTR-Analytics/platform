@@ -23,12 +23,13 @@ export function buildPercentChangeChartStyle(
   formatAs: IndicatorFormat,
   calendar: CalendarType,
   deckStyle?: DeckStyleContext,
+  chartPalette?: string[],
 ): CustomFigureStyleOptions {
   const threshold = config.s.specialBarChartDiffThreshold ?? 0.1;
   const inverted = config.s.specialBarChartInverted;
 
   return {
-    seriesColorFunc: getStandardSeriesColorFunc(config),
+    seriesColorFunc: getStandardSeriesColorFunc(config, chartPalette),
     text: getTextStyle(config, deckStyle),
     panes: { nCols: config.s.nColsInCellDisplay },
     xPeriodAxis: { forceSideTicksWhenYear: true, calendar },

@@ -45,6 +45,7 @@ import {
   FASTR_COVER_PRESETS,
 } from "../../lib/fastr_markdown_edits.ts";
 import {
+  fastrChartPalette,
   FASTR_REPORT_THEMES,
   FASTR_SEMANTIC_COLORS,
   FASTR_THEME_TOKENS,
@@ -582,6 +583,23 @@ Deno.test("bands and covers are full-bleed sections", () => {
     render(":::cover{tone=solid}\n# T\n:::\n"),
     "fm-band fm-cover",
   );
+});
+
+Deno.test("every theme carries a chart palette, and a custom accent leads it", () => {
+  for (const theme of FASTR_REPORT_THEMES) {
+    const chart = FASTR_THEME_TOKENS[theme].chart;
+    assert(chart.length >= 6, `${theme} has ${chart.length} chart colours`);
+    assertEquals(new Set(chart.map((c) => c.toLowerCase())).size, chart.length, `${theme} repeats a colour`);
+    for (const c of chart) assert(/^#[0-9a-f]{6}$/i.test(c), `${theme}: ${c}`);
+    // The theme's accent leads, so the first series reads as the design.
+    assertEquals(fastrChartPalette(theme), chart);
+  }
+  const custom = fastrChartPalette("ministry", { accent: "#ABCDEF" });
+  assertEquals(custom[0], "#abcdef");
+  assertEquals(custom.length, FASTR_THEME_TOKENS.ministry.chart.length + 1);
+  // An accent the theme already has is not doubled.
+  const same = fastrChartPalette("risograph", { accent: "#FF48B0" });
+  assertEquals(same, FASTR_THEME_TOKENS.risograph.chart.map((c) => c.toLowerCase() === "#ff48b0" ? "#ff48b0" : c));
 });
 
 Deno.test("a cover's layout is a class the sheet styles; classic is the bare cover", () => {

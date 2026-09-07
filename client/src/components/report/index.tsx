@@ -12,6 +12,7 @@ import {
   findReportEmbeds,
   findReportFigureConfigMap,
   getFastrReportTheme,
+  fastrChartPalette,
   fastrDocumentOutline,
   getReportCustomStyle,
   getReportFormat,
@@ -109,6 +110,7 @@ import { ReportImagePicker } from "./report_image_picker";
 import { ReportMarkdownDiff } from "./ReportMarkdownDiff";
 import { ReportFigureEmbed } from "./ReportFigureEmbed";
 import { DownloadReport } from "./download_report";
+import { isDarkGroundBehind } from "./report_html";
 import { RenameReportModal } from "./rename_report_modal";
 import { ShareReport } from "./share_report";
 import { DuplicateReportModal } from "~/components/project/duplicate_report_modal";
@@ -125,7 +127,10 @@ import { ReportHtmlPreview } from "./report_html_preview";
 import {
   createFigureRasterCache,
   type FigureInkTheme,
+  figureDarkInkForColors,
   figureInkThemeForStyle,
+  GENERIC_DARK_INK,
+  GENERIC_LIGHT_INK,
 } from "./report_figure_raster";
 import { VersionHistoryEditor } from "../version_history";
 
@@ -186,6 +191,17 @@ export function ProjectReport(p: Props) {
   // detected ground is dark. A signal, not a let: a FASTR Markdown report can
   // be re-themed at any time, which moves the palette.
   const [inkTheme, setInkTheme] = createSignal<FigureInkTheme | undefined>();
+  // The ink for LIGHT grounds — the palette's own — so a figure whose stored
+  // style is white-on-dark (a dark dashboard's) still reads on the page.
+  const [darkInk, setDarkInk] = createSignal<FigureInkTheme>(GENERIC_DARK_INK);
+  // The theme's series palette for every figure the report embeds; a custom
+  // palette's accent leads it. Only FASTR reports are themed this way.
+  const chartPalette = createMemo(() =>
+    format() === "fastr" ? fastrChartPalette(fastrTheme(), fastrColors()) : undefined
+  );
+  // What every rendered figure asks: which ink for the ground behind it.
+  const figureInkFor = (el: Element): FigureInkTheme =>
+    isDarkGroundBehind(el) ? (inkTheme() ?? GENERIC_LIGHT_INK) : darkInk();
   // FASTR Markdown theming. Unlike htmlStyle this is changeable after creation
   // — the body carries no CSS, so nothing can be invalidated by a re-theme.
   const [fastrTheme, setFastrTheme] = createSignal<FastrReportTheme>("default");
@@ -722,15 +738,16 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
         // fastr grounds come from the theme, not from an AI-written stylesheet:
         // hand the ink deriver the palette the page actually paints with.
         const tok = FASTR_THEME_TOKENS[theme];
-        setInkTheme(
-          figureInkThemeForStyle("default", snap?.colors ?? {
-            page: tok.page,
-            ink: tok.ink,
-            accent: tok.accent,
-          }),
-        );
+        const palette = snap?.colors ?? {
+          page: tok.page,
+          ink: tok.ink,
+          accent: tok.accent,
+        };
+        setInkTheme(figureInkThemeForStyle("default", palette));
+        setDarkInk(figureDarkInkForColors(palette));
       } else {
         setInkTheme(figureInkThemeForStyle(htmlStyle, snap?.colors));
+        setDarkInk(figureDarkInkForColors(snap?.colors));
       }
       if (snap) {
         customStyle = {
@@ -1166,13 +1183,13 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
   function applyFastrTheme(theme: FastrReportTheme) {
     setFastrTheme(theme);
     const tok = FASTR_THEME_TOKENS[theme];
-    setInkTheme(
-      figureInkThemeForStyle("default", fastrColors() ?? {
-        page: tok.page,
-        ink: tok.ink,
-        accent: tok.accent,
-      }),
-    );
+    const palette = fastrColors() ?? {
+      page: tok.page,
+      ink: tok.ink,
+      accent: tok.accent,
+    };
+    setInkTheme(figureInkThemeForStyle("default", palette));
+    setDarkInk(figureDarkInkForColors(palette));
   }
 
   async function changeFastrTheme(theme: FastrReportTheme) {
@@ -1687,6 +1704,8 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
           rasters={rasters}
           rasterVersion={rasterTick()}
           lightInk={inkTheme()}
+          darkInk={darkInk()}
+          chartPalette={chartPalette()}
           format={format()}
           themeCss={themeCss()}
           lineAnchors
@@ -1785,6 +1804,8 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
               format={format()}
               figures={figures()}
               images={images()}
+              figureInkFor={figureInkFor}
+              figureChartPalette={chartPalette}
               assetUrl={assetUrl}
               onBodyChange={handleBodyChange}
               onSelectEmbed={(kind, id) => setSelectedEmbed({ kind, id })}

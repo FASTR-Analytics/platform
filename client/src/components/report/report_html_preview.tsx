@@ -16,6 +16,7 @@ import {
 import {
   type FigureInkTheme,
   type FigureRasterCache,
+  GENERIC_DARK_INK,
   GENERIC_LIGHT_INK,
 } from "./report_figure_raster";
 import { iframeSurface, type PreviewSurface } from "./scroll_sync";
@@ -51,6 +52,11 @@ type Props = {
   // The style's light-ink palette for figures whose DETECTED ground is dark
   // (generic fallback applies when absent).
   lightInk?: FigureInkTheme;
+  // The ink for LIGHT grounds — the report's own, so a figure whose stored
+  // style is white-on-dark still reads on the page.
+  darkInk?: FigureInkTheme;
+  // The report theme's series palette for its figures.
+  chartPalette?: string[];
   lineAnchors: boolean;
   forwardPointer?: boolean;
   onSurface?: (surface: PreviewSurface) => void;
@@ -76,8 +82,10 @@ export function ReportHtmlPreview(p: Props) {
   // so CSS edits that flip a ground re-ink the chart.
   const darkGroundById = new Map<string, boolean>();
 
-  function inkFor(id: string): FigureInkTheme | undefined {
-    return darkGroundById.get(id) ? (p.lightInk ?? GENERIC_LIGHT_INK) : undefined;
+  function inkFor(id: string): FigureInkTheme {
+    return darkGroundById.get(id)
+      ? (p.lightInk ?? GENERIC_LIGHT_INK)
+      : (p.darkInk ?? GENERIC_DARK_INK);
   }
 
   // The theme sheet lives in the frame's <head>, not the srcdoc, so a theme
@@ -124,7 +132,7 @@ export function ReportHtmlPreview(p: Props) {
         const fb = p.figures[id];
         if (!fb) return { state: "missing" };
         if (!darkGroundById.has(id)) return { state: "probe" };
-        return p.rasters.get(id, fb, inkFor(id));
+        return p.rasters.get(id, fb, inkFor(id), p.chartPalette);
       },
       (id) => {
         const ib = p.images[id];

@@ -47,6 +47,7 @@ import {
 } from "lib";
 import type { ReportEditorSelection } from "~/components/project_ai/types";
 import { embedWidgets, type EmbedResolver } from "./figure_widget_extension";
+import type { FigureInkTheme } from "./report_figure_raster";
 import {
   FM_LIVE_SCOPE_CLASS,
   livePreviewExtensions,
@@ -169,6 +170,10 @@ type Props = {
   figures: Record<string, FigureBlock>;
   images: Record<string, ImageBlock>;
   assetUrl: (imgFile: string) => string;
+  // Ink for a figure on the ground behind an element (see EmbedResolver).
+  figureInkFor: (el: Element) => FigureInkTheme | undefined;
+  // The report theme's series palette for its figures (undefined = default).
+  figureChartPalette: () => string[] | undefined;
   onBodyChange: (body: string) => void;
   onSelectEmbed: (kind: "figure" | "image", id: string) => void;
   selectedId: () => string | undefined;
@@ -276,6 +281,8 @@ export function ReportEditor(p: Props) {
     assetUrl: (imgFile) => p.assetUrl(imgFile),
     onSelectEmbed: (kind, id) => p.onSelectEmbed(kind, id),
     getSelectedId: () => p.selectedId(),
+    inkFor: (el) => p.figureInkFor(el),
+    chartPalette: () => p.figureChartPalette(),
   };
 
   // rAF-throttle scroll events so getTopLine reads at most once per frame.

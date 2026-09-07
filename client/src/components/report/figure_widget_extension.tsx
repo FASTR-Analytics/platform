@@ -20,6 +20,7 @@ import {
   t3,
 } from "lib";
 import { ReportFigureEmbed } from "./ReportFigureEmbed";
+import type { FigureInkTheme } from "./report_figure_raster";
 
 export type EmbedKind = "figure" | "image";
 
@@ -30,6 +31,11 @@ export type EmbedResolver = {
   // Clicking an embed selects it (opens the left-side editor, dashboard-style).
   onSelectEmbed: (kind: EmbedKind, id: string) => void;
   getSelectedId: () => string | undefined;
+  // The ink a figure takes on the ground behind `el` (dark on light, light
+  // on dark), from the report's own palette.
+  inkFor: (el: Element) => FigureInkTheme | undefined;
+  // The report theme's series palette for its figures.
+  chartPalette: () => string[] | undefined;
 };
 
 class EmbedWidget extends WidgetType {
@@ -99,6 +105,8 @@ class EmbedWidget extends WidgetType {
                   <ReportFigureEmbed
                     figure={fig()}
                     onMeasured={() => view.requestMeasure()}
+                    inkFor={this.resolver.inkFor}
+                    chartPalette={this.resolver.chartPalette}
                   />
                 )}
               </Show>
