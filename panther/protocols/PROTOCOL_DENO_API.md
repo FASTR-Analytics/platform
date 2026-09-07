@@ -137,10 +137,12 @@ try {
   return { success: false, err: "Something went wrong" };
 }
 
-// ✅ DO: let errors propagate with context
-await riskyOperation().catch((e) => {
-  throw new Error(`Operation failed for ${id}: ${e.message}`);
-});
+// ✅ DO: let errors propagate, adding context where it helps
+try {
+  await riskyOperation();
+} catch (e) {
+  throw new Error(`Operation failed for ${id}`, { cause: e });
+}
 ```
 
 ### Validation Location

@@ -16,7 +16,7 @@
 // the staged proposal (single-use, TTL, args-bound, principal-scoped core)
 // is the security boundary.
 
-import type { AIToolWithMetadata, ApprovalPolicy } from "./tool_helpers.ts";
+import type { AnyAITool, ApprovalPolicy } from "./tool_helpers.ts";
 
 export type MCPApprovalMode = "elicit" | "delegate";
 
@@ -66,10 +66,8 @@ export type CreateMCPServerConfig<TPrincipal = unknown> = {
   // serving has no principal, so a thunk-form config is rejected there at
   // construction.
   tools:
-    // deno-lint-ignore no-explicit-any
-    | AIToolWithMetadata<any>[]
-    // deno-lint-ignore no-explicit-any
-    | ((ctx: MCPToolsContext<TPrincipal>) => AIToolWithMetadata<any>[]);
+    | AnyAITool[]
+    | ((ctx: MCPToolsContext<TPrincipal>) => AnyAITool[]);
   // Required for plain-shape approval tools to be exposed at all; absent =
   // approval tools are dropped (reported). "elicit" presents the computed
   // preview to the user via elicitation/create and commits only on an

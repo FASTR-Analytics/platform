@@ -12,7 +12,7 @@
 import { z } from "./deps.ts";
 import type { zType } from "./deps.ts";
 import type {
-  AIToolWithMetadata,
+  AnyAITool,
   ErasedApprovalConfig,
   ProposalPreview,
   ProposalResult,
@@ -47,9 +47,6 @@ const TOOL_NAME_PATTERN = /^[A-Za-z0-9_.-]{1,128}$/;
 
 const DEFAULT_APPROVAL_TTL_MS = 5 * 60 * 1000;
 const INSTRUCTIONS_POINTER_BYTES = 2048;
-
-// deno-lint-ignore no-explicit-any
-type AnyTool = AIToolWithMetadata<any>;
 
 type DroppedTool = { name: string; reason: string };
 
@@ -331,7 +328,7 @@ export function buildMCPServerCore(
   // the HTTP adapter resolves one core per principal and passes the context.
   // stdio serving has no principal, so a thunk there is a construction error,
   // never a silently-unbound tool set.
-  let resolvedTools: AnyTool[];
+  let resolvedTools: AnyAITool[];
   if (typeof config.tools === "function") {
     if (!toolsCtx) {
       throw new Error(
@@ -344,7 +341,7 @@ export function buildMCPServerCore(
   }
 
   // ---- Filter: headless declaration via the shared eligibility helper ----
-  const exposed = new Map<string, AnyTool>();
+  const exposed = new Map<string, AnyAITool>();
   const dropped: DroppedTool[] = [];
   for (const tool of resolvedTools) {
     const name = tool.sdkTool.name;

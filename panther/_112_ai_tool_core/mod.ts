@@ -39,6 +39,7 @@ export type {
   AIToolApprovalConfig,
   AIToolKind,
   AIToolWithMetadata,
+  AnyAITool,
   ApprovalPolicy,
   CreateAIToolConfig,
   CreateAIToolConfigCommon,

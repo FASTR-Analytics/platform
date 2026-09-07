@@ -16,7 +16,7 @@
 | Type             | Convention        | Example           |
 | ---------------- | ----------------- | ----------------- |
 | General files    | snake_case        | `measure_text.ts` |
-| Components       | PascalCase        | `DataTable.tsx`   |
+| Components       | snake_case        | `data_table.tsx`  |
 | Route pages      | Underscore prefix | `_4_marking.tsx`  |
 | Internal modules | Underscore prefix | `_internal/`      |
 
@@ -82,7 +82,7 @@ import { apiClient } from "lib";
 import { Button, createQuery } from "panther";
 import { createSignal, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { EditForm } from "./EditForm";
+import { EditForm } from "./edit_form.tsx";
 ```
 
 ## Do / Don't
@@ -114,10 +114,10 @@ export type { MyType } from "./types.ts";
 
 ```typescript
 // ❌ DON'T: types scattered
-// components/Card.tsx
+// components/card.tsx
 export type CardProps = { ... };
 
-// pages/Dashboard.tsx
+// pages/_1_dashboard.tsx
 export type DashboardData = { ... };
 
 // ✅ DO: centralized

@@ -198,13 +198,13 @@ This eliminates duplication and ensures a single source of truth.
 
 ## Relationship to Existing Docs
 
-| Document                    | Location     | Purpose                      | Protocols replace?                         |
-| --------------------------- | ------------ | ---------------------------- | ------------------------------------------ |
-| `DOC_CODING_CONVENTIONS.md` | panther root | TypeScript style (long-form) | Summarized by `PROTOCOL_ALL_TYPESCRIPT.md` |
-| `FRONTEND_STYLE_GUIDE.md`   | (removed)    | SolidJS patterns             | Replaced by `PROTOCOL_UI_*`                |
-| `DOC_*.md` (panther)        | panther root | Library internals            | No: different purpose                      |
-| `DOC_*.md` (apps)           | app roots    | App-specific systems         | No: app-specific                           |
-| `CLAUDE.md` (apps)          | app roots    | Architecture + conventions   | Partially: remove duplicated rules         |
+| Document                    | Location     | Purpose                                                      | Protocols replace?                 |
+| --------------------------- | ------------ | ------------------------------------------------------------ | ---------------------------------- |
+| `DOC_CODING_CONVENTIONS.md` | panther root | Panther-only conventions: comments, narrowing, export naming | No: holds what no protocol states  |
+| `FRONTEND_STYLE_GUIDE.md`   | (removed)    | SolidJS patterns                                             | Replaced by `PROTOCOL_UI_*`        |
+| `DOC_*.md` (panther)        | panther root | Library internals                                            | No: different purpose              |
+| `DOC_*.md` (apps)           | app roots    | App-specific systems                                         | No: app-specific                   |
+| `CLAUDE.md` (apps)          | app roots    | Architecture + conventions                                   | Partially: remove duplicated rules |
 
 ## Future: Audit Tool
 

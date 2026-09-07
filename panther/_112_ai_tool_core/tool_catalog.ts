@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import type { AIToolWithMetadata } from "./tool_helpers.ts";
+import type { AIToolWithMetadata, AnyAITool } from "./tool_helpers.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
 // DERIVED TOOL CATALOG
@@ -38,8 +38,7 @@ function bullet(tool: AIToolWithMetadata<unknown>): string {
 }
 
 export function buildToolCatalog(
-  // deno-lint-ignore no-explicit-any
-  tools: AIToolWithMetadata<any>[],
+  tools: AnyAITool[],
   currentView?: { id: string } | null,
 ): string {
   if (tools.length === 0) return "";

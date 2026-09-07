@@ -10,7 +10,7 @@
 // list from `exposure.headless`.
 
 import { AIToolFailure, createAITool } from "./deps.ts";
-import type { AIToolWithMetadata, APIResponseWithData } from "./deps.ts";
+import type { AnyAITool, APIResponseWithData } from "./deps.ts";
 import type {
   OpApprovalCallData,
   OpContract,
@@ -27,15 +27,12 @@ export type RunOpFn = (
   opts?: { proposalKey?: string; surface?: OpSurface },
 ) => Promise<APIResponseWithData<unknown>>;
 
-// deno-lint-ignore no-explicit-any
-type AnyTool = AIToolWithMetadata<any>;
-
 export function opsToAITools<TReg extends OpRegistry>(
   registry: TReg,
   hooks: { run: RunOpFn },
-): AnyTool[] {
+): AnyAITool[] {
   const ops = registry as Record<string, OpContract>;
-  const tools: AnyTool[] = [];
+  const tools: AnyAITool[] = [];
   for (const [name, op] of Object.entries(ops)) {
     if (!op.exposure.ai) {
       continue;
@@ -61,9 +58,9 @@ export function opsToAITools<TReg extends OpRegistry>(
 export function opsToMCPTools<TReg extends OpRegistry>(
   registry: TReg,
   hooks: { run: RunOpFn },
-): AnyTool[] {
+): AnyAITool[] {
   const ops = registry as Record<string, OpContract>;
-  const tools: AnyTool[] = [];
+  const tools: AnyAITool[] = [];
   for (const [name, op] of Object.entries(ops)) {
     if (op.exposure.headless !== true) {
       continue;
@@ -85,7 +82,7 @@ function projectOpTool(
   surface: OpSurface,
   headless: boolean,
   run: RunOpFn,
-): AnyTool {
+): AnyAITool {
   if (op.approval === true) {
     return createAITool({
       name,

@@ -2,8 +2,6 @@
 
 **Scope:** All
 
-For detailed explanations, see `DOC_CODING_CONVENTIONS.md`.
-
 ## Rules
 
 1. **Function declarations for exports**: Use `function`, not arrow functions

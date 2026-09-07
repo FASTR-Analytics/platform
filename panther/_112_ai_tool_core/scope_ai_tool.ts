@@ -16,14 +16,11 @@
 
 import { AIToolFailure } from "./tool_failure.ts";
 import type {
-  AIToolWithMetadata,
+  AnyAITool,
   ErasedApprovalConfig,
   SDKTool,
 } from "./tool_helpers.ts";
 import { getHeadlessCapability } from "./tool_helpers.ts";
-
-// deno-lint-ignore no-explicit-any
-type AnyTool = AIToolWithMetadata<any>;
 
 export type ScopeAIToolOptions = {
   // Name of the injected required string property.
@@ -34,7 +31,7 @@ export type ScopeAIToolOptions = {
   // Resolves the scoped inner tool for one call. Runs per call, after parse;
   // throws surface as clean tool failures (AIToolFailure for expected ones,
   // e.g. "no access to this project").
-  resolve: (value: string) => Promise<AnyTool> | AnyTool;
+  resolve: (value: string) => Promise<AnyAITool> | AnyAITool;
 };
 
 // The createAITool-level headless invariants, re-run at composition: the
@@ -42,7 +39,7 @@ export type ScopeAIToolOptions = {
 // not launder a tool the filter would reject.
 function assertHeadlessTemplate(
   wrapper: "scopeAITool" | "bindAITool",
-  template: AnyTool,
+  template: AnyAITool,
 ): void {
   const name = template.sdkTool.name;
   if (template.metadata.headless !== true) {
@@ -77,9 +74,9 @@ function assertHeadlessTemplate(
 // currently pinned package). The model sees no scope argument at all: the
 // surface, not the model, decides which context a call runs against.
 export function bindAITool(
-  template: AnyTool,
-  resolve: () => Promise<AnyTool> | AnyTool,
-): AnyTool {
+  template: AnyAITool,
+  resolve: () => Promise<AnyAITool> | AnyAITool,
+): AnyAITool {
   const name = template.sdkTool.name;
   assertHeadlessTemplate("bindAITool", template);
   const parse = template.sdkTool.parse!;
@@ -158,9 +155,9 @@ function peelScopeParam(
 }
 
 export function scopeAITool(
-  template: AnyTool,
+  template: AnyAITool,
   opts: ScopeAIToolOptions,
-): AnyTool {
+): AnyAITool {
   const name = template.sdkTool.name;
   const { param, description, resolve } = opts;
   assertHeadlessTemplate("scopeAITool", template);
@@ -198,7 +195,7 @@ export function scopeAITool(
     return { ...innerParsed, [param]: value };
   };
 
-  const resolveInner = async (value: string): Promise<AnyTool> => {
+  const resolveInner = async (value: string): Promise<AnyAITool> => {
     return await Promise.resolve(resolve(value));
   };
 

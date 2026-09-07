@@ -256,6 +256,12 @@ export type AIToolWithMetadata<TInput = unknown> = {
   metadata: ToolUIMetadata<TInput>;
 };
 
+// TInput sits in a contravariant position (SDKTool.run's input), so
+// AIToolWithMetadata<unknown> rejects every concrete tool. Collections of
+// tools with different input types use this alias.
+// deno-lint-ignore no-explicit-any
+export type AnyAITool = AIToolWithMetadata<any>;
+
 ////////////////////////////////////////////////////////////////////////////////
 // HEADLESS ELIGIBILITY (one concept, two surfaces)
 ////////////////////////////////////////////////////////////////////////////////

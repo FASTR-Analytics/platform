@@ -15,11 +15,7 @@ import type {
   Usage,
 } from "../deps.ts";
 import type { BuiltInToolsConfig } from "./builtin_tools.ts";
-import type {
-  AIToolWithMetadata,
-  ApprovalPolicy,
-  ProposalPreview,
-} from "../deps.ts";
+import type { AnyAITool, ApprovalPolicy, ProposalPreview } from "../deps.ts";
 import type { AIViewController } from "./views.ts";
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -209,8 +205,7 @@ export type AIChatConfig = {
 
   enablePersistence?: boolean;
 
-  // deno-lint-ignore no-explicit-any
-  tools?: AIToolWithMetadata<any>[];
+  tools?: AnyAITool[];
 
   builtInTools?: BuiltInToolsConfig;
 

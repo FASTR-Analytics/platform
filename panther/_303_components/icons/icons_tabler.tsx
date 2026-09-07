@@ -28,7 +28,7 @@ function TablerWrapper(
   );
 }
 
-export function AlertCircleIcon(p: { class?: string }) {
+function AlertCircleIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0" />
@@ -38,7 +38,7 @@ export function AlertCircleIcon(p: { class?: string }) {
   );
 }
 
-export function ArrowDownIcon(p: { class?: string }) {
+function ArrowDownIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M12 5l0 14" />
@@ -48,7 +48,7 @@ export function ArrowDownIcon(p: { class?: string }) {
   );
 }
 
-export function ArrowLeftIcon(p: { class?: string }) {
+function ArrowLeftIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M5 12l14 0" />
@@ -58,7 +58,7 @@ export function ArrowLeftIcon(p: { class?: string }) {
   );
 }
 
-export function ArrowRightIcon(p: { class?: string }) {
+function ArrowRightIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M5 12l14 0" />
@@ -68,7 +68,7 @@ export function ArrowRightIcon(p: { class?: string }) {
   );
 }
 
-export function ArrowUpIcon(p: { class?: string }) {
+function ArrowUpIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M12 5l0 14" />
@@ -78,7 +78,7 @@ export function ArrowUpIcon(p: { class?: string }) {
   );
 }
 
-export function ArrowsDiagonalIcon(p: { class?: string }) {
+function ArrowsDiagonalIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M16 4l4 0l0 4" />
@@ -89,7 +89,7 @@ export function ArrowsDiagonalIcon(p: { class?: string }) {
   );
 }
 
-export function ArrowsDiagonal2Icon(p: { class?: string }) {
+function ArrowsDiagonal2Icon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M16 20l4 0l0 -4" />
@@ -100,7 +100,7 @@ export function ArrowsDiagonal2Icon(p: { class?: string }) {
   );
 }
 
-export function ArrowsDiagonalMinimizeIcon(p: { class?: string }) {
+function ArrowsDiagonalMinimizeIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M6 10h4v-4" />
@@ -111,7 +111,7 @@ export function ArrowsDiagonalMinimizeIcon(p: { class?: string }) {
   );
 }
 
-export function ArrowsDiagonalMinimize2Icon(p: { class?: string }) {
+function ArrowsDiagonalMinimize2Icon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M18 10h-4v-4" />
@@ -122,7 +122,7 @@ export function ArrowsDiagonalMinimize2Icon(p: { class?: string }) {
   );
 }
 
-export function BackspaceIcon(p: { class?: string }) {
+function BackspaceIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M20 6a1 1 0 0 1 1 1v10a1 1 0 0 1 -1 1h-11l-5 -5a1.5 1.5 0 0 1 0 -2l5 -5l11 0" />
@@ -131,7 +131,7 @@ export function BackspaceIcon(p: { class?: string }) {
   );
 }
 
-export function BadgeIcon(p: { class?: string }) {
+function BadgeIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M17 17v-13l-5 3l-5 -3v13l5 3z" />
@@ -139,7 +139,7 @@ export function BadgeIcon(p: { class?: string }) {
   );
 }
 
-export function BellIcon(p: { class?: string }) {
+function BellIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M10 5a2 2 0 1 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3h-16a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6" />
@@ -148,7 +148,7 @@ export function BellIcon(p: { class?: string }) {
   );
 }
 
-export function BoxIcon(p: { class?: string }) {
+function BoxIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M12 3l8 4.5l0 9l-8 4.5l-8 -4.5l0 -9l8 -4.5" />
@@ -159,7 +159,7 @@ export function BoxIcon(p: { class?: string }) {
   );
 }
 
-export function CalendarIcon(p: { class?: string }) {
+function CalendarIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12z" />
@@ -172,7 +172,7 @@ export function CalendarIcon(p: { class?: string }) {
   );
 }
 
-export function ChartIcon(p: { class?: string }) {
+function ChartIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M4 19l16 0" />
@@ -181,7 +181,7 @@ export function ChartIcon(p: { class?: string }) {
   );
 }
 
-export function CheckIcon(p: { class?: string }) {
+function CheckIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M5 12l5 5l10 -10" />
@@ -189,7 +189,7 @@ export function CheckIcon(p: { class?: string }) {
   );
 }
 
-export function ChevronDownIcon(p: { class?: string }) {
+function ChevronDownIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M6 9l6 6l6 -6" />
@@ -197,7 +197,7 @@ export function ChevronDownIcon(p: { class?: string }) {
   );
 }
 
-export function ChevronLeftIcon(p: { class?: string }) {
+function ChevronLeftIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M15 6l-6 6l6 6" />
@@ -205,7 +205,7 @@ export function ChevronLeftIcon(p: { class?: string }) {
   );
 }
 
-export function ChevronRightIcon(p: { class?: string }) {
+function ChevronRightIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M9 6l6 6l-6 6" />
@@ -213,7 +213,7 @@ export function ChevronRightIcon(p: { class?: string }) {
   );
 }
 
-export function ChevronUpIcon(p: { class?: string }) {
+function ChevronUpIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M6 15l6 -6l6 6" />
@@ -221,7 +221,7 @@ export function ChevronUpIcon(p: { class?: string }) {
   );
 }
 
-export function CircleXIcon(p: { class?: string }) {
+function CircleXIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
@@ -230,7 +230,7 @@ export function CircleXIcon(p: { class?: string }) {
   );
 }
 
-export function ClearAllIcon(p: { class?: string }) {
+function ClearAllIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M8 6h12" />
@@ -240,7 +240,7 @@ export function ClearAllIcon(p: { class?: string }) {
   );
 }
 
-export function ClockIcon(p: { class?: string }) {
+function ClockIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0" />
@@ -249,7 +249,7 @@ export function ClockIcon(p: { class?: string }) {
   );
 }
 
-export function CodeIcon(p: { class?: string }) {
+function CodeIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M7 8l-4 4l4 4" />
@@ -259,7 +259,7 @@ export function CodeIcon(p: { class?: string }) {
   );
 }
 
-export function CopyIcon(p: { class?: string }) {
+function CopyIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" />
@@ -268,7 +268,7 @@ export function CopyIcon(p: { class?: string }) {
   );
 }
 
-export function DashboardIcon(p: { class?: string }) {
+function DashboardIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M10 13a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
@@ -278,7 +278,7 @@ export function DashboardIcon(p: { class?: string }) {
   );
 }
 
-export function DatabaseIcon(p: { class?: string }) {
+function DatabaseIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" />
@@ -288,7 +288,7 @@ export function DatabaseIcon(p: { class?: string }) {
   );
 }
 
-export function DatabaseImportIcon(p: { class?: string }) {
+function DatabaseImportIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M4 6c0 1.657 3.582 3 8 3s8 -1.343 8 -3s-3.582 -3 -8 -3s-8 1.343 -8 3" />
@@ -300,7 +300,7 @@ export function DatabaseImportIcon(p: { class?: string }) {
   );
 }
 
-export function DocumentIcon(p: { class?: string }) {
+function DocumentIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M14 3v4a1 1 0 0 0 1 1h4" />
@@ -312,7 +312,7 @@ export function DocumentIcon(p: { class?: string }) {
   );
 }
 
-export function DownloadIcon(p: { class?: string }) {
+function DownloadIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2" />
@@ -322,7 +322,7 @@ export function DownloadIcon(p: { class?: string }) {
   );
 }
 
-export function EyeIcon(p: { class?: string }) {
+function EyeIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
@@ -331,7 +331,7 @@ export function EyeIcon(p: { class?: string }) {
   );
 }
 
-export function EyeOffIcon(p: { class?: string }) {
+function EyeOffIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M10.585 10.587a2 2 0 0 0 2.829 2.828" />
@@ -341,7 +341,7 @@ export function EyeOffIcon(p: { class?: string }) {
   );
 }
 
-export function EraserIcon(p: { class?: string }) {
+function EraserIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M19 20h-10.5l-4.21 -4.3a1 1 0 0 1 0 -1.41l10 -10a1 1 0 0 1 1.41 0l5 5a1 1 0 0 1 0 1.41l-9.2 9.3" />
@@ -350,7 +350,7 @@ export function EraserIcon(p: { class?: string }) {
   );
 }
 
-export function FileIcon(p: { class?: string }) {
+function FileIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M14 3v4a1 1 0 0 0 1 1h4" />
@@ -359,7 +359,7 @@ export function FileIcon(p: { class?: string }) {
   );
 }
 
-export function FolderIcon(p: { class?: string }) {
+function FolderIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M5 4h4l3 3h7a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2" />
@@ -367,7 +367,7 @@ export function FolderIcon(p: { class?: string }) {
   );
 }
 
-export function GripVerticalIcon(p: { class?: string }) {
+function GripVerticalIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <circle cx="9" cy="5" r="1" />
@@ -380,7 +380,7 @@ export function GripVerticalIcon(p: { class?: string }) {
   );
 }
 
-export function HelpIcon(p: { class?: string }) {
+function HelpIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0" />
@@ -390,7 +390,7 @@ export function HelpIcon(p: { class?: string }) {
   );
 }
 
-export function HelpSquareIcon(p: { class?: string }) {
+function HelpSquareIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M3 5a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-14" />
@@ -400,7 +400,7 @@ export function HelpSquareIcon(p: { class?: string }) {
   );
 }
 
-export function ImportIcon(p: { class?: string }) {
+function ImportIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M14 3v4a1 1 0 0 0 1 1h4" />
@@ -409,7 +409,7 @@ export function ImportIcon(p: { class?: string }) {
   );
 }
 
-export function InfoIcon(p: { class?: string }) {
+function InfoIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0" />
@@ -419,7 +419,7 @@ export function InfoIcon(p: { class?: string }) {
   );
 }
 
-export function InfoSmallIcon(p: { class?: string }) {
+function InfoSmallIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M12 9h.01" />
@@ -428,7 +428,7 @@ export function InfoSmallIcon(p: { class?: string }) {
   );
 }
 
-export function InfoSquareIcon(p: { class?: string }) {
+function InfoSquareIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M3 5a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-14" />
@@ -438,7 +438,7 @@ export function InfoSquareIcon(p: { class?: string }) {
   );
 }
 
-export function LayoutDashboardIcon(p: { class?: string }) {
+function LayoutDashboardIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M5 4h4a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1v-6a1 1 0 0 1 1 -1" />
@@ -449,7 +449,7 @@ export function LayoutDashboardIcon(p: { class?: string }) {
   );
 }
 
-export function LayoutGridIcon(p: { class?: string }) {
+function LayoutGridIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M4 5a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -4" />
@@ -460,7 +460,7 @@ export function LayoutGridIcon(p: { class?: string }) {
   );
 }
 
-export function LifebuoyIcon(p: { class?: string }) {
+function LifebuoyIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M12 12m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" />
@@ -473,7 +473,7 @@ export function LifebuoyIcon(p: { class?: string }) {
   );
 }
 
-export function LockIcon(p: { class?: string }) {
+function LockIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M5 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-6z" />
@@ -483,7 +483,7 @@ export function LockIcon(p: { class?: string }) {
   );
 }
 
-export function LoginIcon(p: { class?: string }) {
+function LoginIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M15 8v-2a2 2 0 0 0 -2 -2h-7a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h7a2 2 0 0 0 2 -2v-2" />
@@ -493,7 +493,7 @@ export function LoginIcon(p: { class?: string }) {
   );
 }
 
-export function MaximizeIcon(p: { class?: string }) {
+function MaximizeIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M4 8v-2a2 2 0 0 1 2 -2h2" />
@@ -504,7 +504,7 @@ export function MaximizeIcon(p: { class?: string }) {
   );
 }
 
-export function MinimizeIcon(p: { class?: string }) {
+function MinimizeIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M15 19v-2a2 2 0 0 1 2 -2h2" />
@@ -515,7 +515,7 @@ export function MinimizeIcon(p: { class?: string }) {
   );
 }
 
-export function MinusIcon(p: { class?: string }) {
+function MinusIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M5 12l14 0" />
@@ -523,7 +523,7 @@ export function MinusIcon(p: { class?: string }) {
   );
 }
 
-export function MoreVerticalIcon(p: { class?: string }) {
+function MoreVerticalIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M12 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
@@ -533,7 +533,7 @@ export function MoreVerticalIcon(p: { class?: string }) {
   );
 }
 
-export function MoveIcon(p: { class?: string }) {
+function MoveIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M18 9l3 3l-3 3" />
@@ -548,7 +548,7 @@ export function MoveIcon(p: { class?: string }) {
   );
 }
 
-export function PackageIcon(p: { class?: string }) {
+function PackageIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M12 3l8 4.5l0 9l-8 4.5l-8 -4.5l0 -9l8 -4.5" />
@@ -560,7 +560,7 @@ export function PackageIcon(p: { class?: string }) {
   );
 }
 
-export function PaperclipIcon(p: { class?: string }) {
+function PaperclipIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M15 7l-6.5 6.5a1.5 1.5 0 0 0 3 3l6.5 -6.5a3 3 0 0 0 -6 -6l-6.5 6.5a4.5 4.5 0 0 0 9 9l6.5 -6.5" />
@@ -568,7 +568,7 @@ export function PaperclipIcon(p: { class?: string }) {
   );
 }
 
-export function PencilIcon(p: { class?: string }) {
+function PencilIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
@@ -577,7 +577,7 @@ export function PencilIcon(p: { class?: string }) {
   );
 }
 
-export function PhotoIcon(p: { class?: string }) {
+function PhotoIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M15 8h.01" />
@@ -588,7 +588,7 @@ export function PhotoIcon(p: { class?: string }) {
   );
 }
 
-export function PlusIcon(p: { class?: string }) {
+function PlusIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M12 5l0 14" />
@@ -597,7 +597,7 @@ export function PlusIcon(p: { class?: string }) {
   );
 }
 
-export function PresentationIcon(p: { class?: string }) {
+function PresentationIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M3 4l18 0" />
@@ -609,7 +609,7 @@ export function PresentationIcon(p: { class?: string }) {
   );
 }
 
-export function PresentationAnalyticsIcon(p: { class?: string }) {
+function PresentationAnalyticsIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M9 12v-4" />
@@ -623,7 +623,7 @@ export function PresentationAnalyticsIcon(p: { class?: string }) {
   );
 }
 
-export function PrintIcon(p: { class?: string }) {
+function PrintIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M17 17h2a2 2 0 0 0 2 -2v-4a2 2 0 0 0 -2 -2h-14a2 2 0 0 0 -2 2v4a2 2 0 0 0 2 2h2" />
@@ -633,7 +633,7 @@ export function PrintIcon(p: { class?: string }) {
   );
 }
 
-export function QuestionMarkIcon(p: { class?: string }) {
+function QuestionMarkIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M8 8a3.5 3 0 0 1 3.5 -3h1a3.5 3 0 0 1 3.5 3a3 3 0 0 1 -2 3a3 4 0 0 0 -2 4" />
@@ -642,7 +642,7 @@ export function QuestionMarkIcon(p: { class?: string }) {
   );
 }
 
-export function RedoIcon(p: { class?: string }) {
+function RedoIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M15 14l4 -4l-4 -4" />
@@ -651,7 +651,7 @@ export function RedoIcon(p: { class?: string }) {
   );
 }
 
-export function RefreshIcon(p: { class?: string }) {
+function RefreshIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
@@ -660,7 +660,7 @@ export function RefreshIcon(p: { class?: string }) {
   );
 }
 
-export function ReportIcon(p: { class?: string }) {
+function ReportIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2" />
@@ -672,7 +672,7 @@ export function ReportIcon(p: { class?: string }) {
   );
 }
 
-export function RestoreIcon(p: { class?: string }) {
+function RestoreIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M3.06 13a9 9 0 1 0 .49 -4.087" />
@@ -682,7 +682,7 @@ export function RestoreIcon(p: { class?: string }) {
   );
 }
 
-export function RotateIcon(p: { class?: string }) {
+function RotateIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M19.95 11a8 8 0 1 0 -.5 4m.5 5v-5h-5" />
@@ -690,7 +690,7 @@ export function RotateIcon(p: { class?: string }) {
   );
 }
 
-export function SaveIcon(p: { class?: string }) {
+function SaveIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M6 4h10l4 4v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2" />
@@ -700,7 +700,7 @@ export function SaveIcon(p: { class?: string }) {
   );
 }
 
-export function SearchIcon(p: { class?: string }) {
+function SearchIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" />
@@ -709,7 +709,7 @@ export function SearchIcon(p: { class?: string }) {
   );
 }
 
-export function SelectorIcon(p: { class?: string }) {
+function SelectorIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M8 9l4 -4l4 4" />
@@ -718,7 +718,7 @@ export function SelectorIcon(p: { class?: string }) {
   );
 }
 
-export function SettingsIcon(p: { class?: string }) {
+function SettingsIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065z" />
@@ -727,7 +727,7 @@ export function SettingsIcon(p: { class?: string }) {
   );
 }
 
-export function SettingsCogIcon(p: { class?: string }) {
+function SettingsCogIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
@@ -743,7 +743,7 @@ export function SettingsCogIcon(p: { class?: string }) {
   );
 }
 
-export function SlideshowIcon(p: { class?: string }) {
+function SlideshowIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M15 6l.01 0" />
@@ -757,7 +757,7 @@ export function SlideshowIcon(p: { class?: string }) {
   );
 }
 
-export function SparklesIcon(p: { class?: string }) {
+function SparklesIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z" />
@@ -765,7 +765,7 @@ export function SparklesIcon(p: { class?: string }) {
   );
 }
 
-export function SwitchHorizontalIcon(p: { class?: string }) {
+function SwitchHorizontalIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M16 3l4 4l-4 4" />
@@ -776,7 +776,7 @@ export function SwitchHorizontalIcon(p: { class?: string }) {
   );
 }
 
-export function TextIcon(p: { class?: string }) {
+function TextIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M5 4h14" />
@@ -786,7 +786,7 @@ export function TextIcon(p: { class?: string }) {
   );
 }
 
-export function TransformIcon(p: { class?: string }) {
+function TransformIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M3 7v4a1 1 0 0 0 1 1h4" />
@@ -797,7 +797,7 @@ export function TransformIcon(p: { class?: string }) {
   );
 }
 
-export function TrashIcon(p: { class?: string }) {
+function TrashIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M4 7l16 0" />
@@ -809,7 +809,7 @@ export function TrashIcon(p: { class?: string }) {
   );
 }
 
-export function UndoIcon(p: { class?: string }) {
+function UndoIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M9 14l-4 -4l4 -4" />
@@ -818,7 +818,7 @@ export function UndoIcon(p: { class?: string }) {
   );
 }
 
-export function UnlockIcon(p: { class?: string }) {
+function UnlockIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M5 11m0 2a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2z" />
@@ -828,7 +828,7 @@ export function UnlockIcon(p: { class?: string }) {
   );
 }
 
-export function UploadIcon(p: { class?: string }) {
+function UploadIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2" />
@@ -838,7 +838,7 @@ export function UploadIcon(p: { class?: string }) {
   );
 }
 
-export function UserIcon(p: { class?: string }) {
+function UserIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" />
@@ -847,7 +847,7 @@ export function UserIcon(p: { class?: string }) {
   );
 }
 
-export function UserCircleIcon(p: { class?: string }) {
+function UserCircleIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
@@ -857,7 +857,7 @@ export function UserCircleIcon(p: { class?: string }) {
   );
 }
 
-export function UserPlusIcon(p: { class?: string }) {
+function UserPlusIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" />
@@ -868,7 +868,7 @@ export function UserPlusIcon(p: { class?: string }) {
   );
 }
 
-export function UsersIcon(p: { class?: string }) {
+function UsersIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M9 7m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" />
@@ -879,7 +879,7 @@ export function UsersIcon(p: { class?: string }) {
   );
 }
 
-export function VersionsIcon(p: { class?: string }) {
+function VersionsIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M10 5m0 2a2 2 0 0 1 2 -2h6a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-6a2 2 0 0 1 -2 -2z" />
@@ -889,7 +889,7 @@ export function VersionsIcon(p: { class?: string }) {
   );
 }
 
-export function XIcon(p: { class?: string }) {
+function XIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
       <path d="M18 6l-12 12" />

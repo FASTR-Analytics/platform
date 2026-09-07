@@ -99,8 +99,7 @@ export type OpRegistry<
   TResource extends string = string,
 > = Record<
   string,
-  // deno-lint-ignore no-explicit-any
-  OpContract<TAuth, zType.ZodType<any>, zType.ZodType<any>, TResource>
+  OpContract<TAuth, zType.ZodType, zType.ZodType, TResource>
 >;
 
 export type OpArgsOf<C extends OpContract> = zType.infer<C["input"]>;

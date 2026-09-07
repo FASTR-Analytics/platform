@@ -75,6 +75,7 @@ export type {
   AIViewRegistry,
   AIViewState,
   AIViewVoidKeys,
+  AnyAITool,
   AnyAIView,
   ApprovalPolicy,
   ProposalPreview,

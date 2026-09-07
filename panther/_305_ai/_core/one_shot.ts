@@ -22,7 +22,7 @@ import {
   supportsDynamicWebTools,
   supportsSamplingParams,
 } from "../deps.ts";
-import { type AIToolWithMetadata, getHeadlessCapability } from "../deps.ts";
+import { type AnyAITool, getHeadlessCapability } from "../deps.ts";
 import {
   type BuiltInToolsConfig,
   resolveBuiltInTools,
@@ -53,8 +53,7 @@ export type CallAIConfig = {
   system?: () =>
     | string
     | Array<{ type: "text"; text: string; cache_control?: CacheControl }>;
-  // deno-lint-ignore no-explicit-any
-  tools?: AIToolWithMetadata<any>[];
+  tools?: AnyAITool[];
   builtInTools?: BuiltInToolsConfig;
 };
 
