@@ -20,6 +20,7 @@ import {
   type MCPCallOutcome,
   type MCPConnection,
   type MCPElicitDecision,
+  type MCPElicitRequestedSchema,
   MCPRequestError,
   type MCPServerCore,
   type MCPTransport,
@@ -183,7 +184,7 @@ export function createMCPConnection(
   // held during this wait — see awaitDecisionOffQueue.
   const requestElicitation = (
     clientRequestId: number | string,
-    elicitation: { message: string; requestedSchema: Record<string, unknown> },
+    elicitation: { message: string; requestedSchema: MCPElicitRequestedSchema },
   ): Promise<MCPElicitDecision> => {
     return new Promise((resolve) => {
       const id = nextServerRequestId++;

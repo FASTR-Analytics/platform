@@ -25,6 +25,7 @@ import {
   type MCPCallOutcome,
   type MCPConnection,
   type MCPElicitDecision,
+  type MCPElicitRequestedSchema,
   MCPRequestError,
   type MCPResourceConfig,
   type MCPServer,
@@ -208,7 +209,7 @@ function renderAuditHeader(preview: ProposalPreview): string {
 
 function buildElicitForm(
   preview: ProposalPreview,
-): { message: string; requestedSchema: Record<string, unknown> } {
+): { message: string; requestedSchema: MCPElicitRequestedSchema } {
   return {
     message: renderPreviewMessage(preview),
     requestedSchema: {
@@ -573,10 +574,7 @@ export function buildMCPServerCore(
     toolDefs.push({
       name,
       description: tool.sdkTool.description,
-      inputSchema: tool.sdkTool.input_schema as unknown as Record<
-        string,
-        unknown
-      >,
+      inputSchema: tool.sdkTool.input_schema,
       ...(tool.metadata.outputSchema !== undefined
         ? { outputSchema: wrappedOutputSchema(tool.metadata.outputSchema) }
         : {}),

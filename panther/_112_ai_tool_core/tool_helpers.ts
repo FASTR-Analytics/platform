@@ -211,15 +211,28 @@ export type ToolUIMetadata<TInput = unknown> = {
   _cancelPending?: () => void;
 };
 
+export type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue };
+
+// A serialized JSON Schema for an object. JSON-valued so it satisfies the
+// MCP SDK's tools/list type without a cast; the Anthropic SDK's looser
+// input_schema accepts it as is.
+export type ObjectJsonSchema = {
+  type: "object";
+  properties?: Record<string, JsonValue>;
+  required?: string[];
+  additionalProperties?: false;
+};
+
 export type SDKTool<TInput = unknown> = {
   name: string;
   description: string;
-  input_schema: {
-    type: "object";
-    properties?: Record<string, unknown>;
-    required?: string[];
-    additionalProperties: false;
-  };
+  input_schema: ObjectJsonSchema;
   // SDK-shaped, and it stays that way: run()'s SECOND parameter belongs to
   // the SDK's tool runner, which passes a context object there
   // (BetaToolRunner: `tool.run(input, { toolUse, toolUseBlock, signal })`).
@@ -557,33 +570,22 @@ function assertSchemaAcceptsUnknownKeys(
   }
 }
 
-// The return-type cast below ASSERTS `additionalProperties: false` without
-// verifying it — z.toJSONSchema does not emit that key for plain z.object.
-// Harmless today (nothing reads it), but it becomes a live lie the day
-// `strict: true` tool use is adopted: strict mode REQUIRES a real
-// `additionalProperties: false` in the wire schema, which itself conflicts
-// with the accept-unknown-keys invariant enforced above. Resolve both
-// together before adopting strict mode — and note these schemas now also
+// z.toJSONSchema does not emit `additionalProperties: false` for a plain
+// z.object, which is why the field is optional in ObjectJsonSchema. It
+// becomes mandatory the day `strict: true` tool use is adopted: strict mode
+// requires a real `additionalProperties: false` in the wire schema, which
+// itself conflicts with the accept-unknown-keys invariant enforced above.
+// Resolve both together before adopting strict mode. These schemas also
 // serve the remote MCP endpoint's tools/list (_220), so any change ripples
 // to MCP clients and must re-run the mcp rigs.
-function zodToJsonSchema(zodSchema: zType.ZodType): {
-  type: "object";
-  properties?: Record<string, unknown>;
-  required?: string[];
-  additionalProperties: false;
-} {
+function zodToJsonSchema(zodSchema: zType.ZodType): ObjectJsonSchema {
   const jsonSchema = z.toJSONSchema(zodSchema, { reused: "ref" });
 
   if (jsonSchema.type !== "object") {
     throw new Error(`Zod schema must be an object, but got ${jsonSchema.type}`);
   }
 
-  return jsonSchema as {
-    type: "object";
-    properties?: Record<string, unknown>;
-    required?: string[];
-    additionalProperties: false;
-  };
+  return jsonSchema as ObjectJsonSchema;
 }
 
 function parseToolInput<TInput>(

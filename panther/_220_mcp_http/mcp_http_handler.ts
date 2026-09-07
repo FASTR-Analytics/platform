@@ -383,8 +383,7 @@ export function createMCPHttpHandler<TPrincipal>(
         inputRequests: {
           [CONFIRM_KEY]: inputRequired.elicit({
             message: outcome.elicitation.message,
-            // deno-lint-ignore no-explicit-any
-            requestedSchema: outcome.elicitation.requestedSchema as any,
+            requestedSchema: outcome.elicitation.requestedSchema,
           }),
         },
         requestState: outcome.requestState,
@@ -467,8 +466,7 @@ export function createMCPHttpHandler<TPrincipal>(
     server.setRequestHandler("tools/list", (_request, ctx: ServerContext) => {
       log(ctx);
       return {
-        // deno-lint-ignore no-explicit-any
-        tools: core.listTools() as any,
+        tools: core.listTools(),
       };
     });
 

@@ -109,8 +109,7 @@ export async function callAIStructured<T>(
       // deno-lint-ignore no-explicit-any
       format: betaZodOutputFormat(schema as any),
     },
-    // deno-lint-ignore no-explicit-any
-    messages: messages as any,
+    messages,
     system: config.system?.(),
   });
 

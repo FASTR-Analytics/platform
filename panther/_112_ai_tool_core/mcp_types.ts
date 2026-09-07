@@ -16,7 +16,11 @@
 // the staged proposal (single-use, TTL, args-bound, principal-scoped core)
 // is the security boundary.
 
-import type { AnyAITool, ApprovalPolicy } from "./tool_helpers.ts";
+import type {
+  AnyAITool,
+  ApprovalPolicy,
+  ObjectJsonSchema,
+} from "./tool_helpers.ts";
 
 export type MCPApprovalMode = "elicit" | "delegate";
 
@@ -106,7 +110,7 @@ export type MCPToolDef = {
   description: string;
   // camelCase per the MCP spec (panther's input_schema is the Anthropic SDK
   // spelling).
-  inputSchema: Record<string, unknown>;
+  inputSchema: ObjectJsonSchema;
   // Serialized schema for the tool's structuredContent, already wrapped by
   // the uniform { result: … } rule (see mcp_server). Present exactly when
   // the tool declares an outputSchema — the spec (2025-06-18) makes a
@@ -119,6 +123,19 @@ export type MCPToolDef = {
   // readOnlyHint actually does in Claude Code is RAISE parallel dispatch of
   // read tools — which is why the adapter serializes tools/call execution.
   annotations?: { readOnlyHint?: boolean };
+};
+
+// The MCP elicitation form schema (a restricted JSON Schema whose
+// properties are primitive). Only the boolean confirm field is used today;
+// the HTTP adapter passes this to the SDK unchanged, so the SDK's own type
+// checks it at that boundary.
+export type MCPElicitRequestedSchema = {
+  type: "object";
+  properties: Record<
+    string,
+    { type: "boolean"; title?: string; description?: string; default?: boolean }
+  >;
+  required?: string[];
 };
 
 export type MCPElicitDecision =
@@ -141,7 +158,7 @@ export type MCPCallOutcome =
     type: "input_required";
     elicitation: {
       message: string;
-      requestedSchema: Record<string, unknown>;
+      requestedSchema: MCPElicitRequestedSchema;
     };
     requestState: string;
   };
