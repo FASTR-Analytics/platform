@@ -25,7 +25,6 @@ import {
 } from "panther";
 import { Show, createEffect, createMemo, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { getAdminAreaLabel } from "~/state/instance/_util_disaggregation_label";
 import { instanceState } from "~/state/instance/t1_store";
 import { getPopulationTypeStoreFromCacheOrFetch } from "~/state/instance/t2_population";
 
@@ -66,7 +65,7 @@ export function PopulationGrid(p: Props) {
   return (
     <FrameLeft
       panelChildren={
-        <div class="h-full w-64">
+        <div class="h-full">
           <TabsNavigation
             vertical
             items={tabItems()}
@@ -107,6 +106,51 @@ function gridCsv(
   return new Csv({ aoa, colHeaders });
 }
 
+// Gaps against the structure, from the grid's own rows so the strip and the
+// table cannot disagree. An area with any value counts as having data.
+function CoverageStrip(p: { years: number[]; areas: PopulationGridArea[] }) {
+  const total = () => p.areas.length;
+  const withData = () =>
+    p.areas.filter((a) => Object.keys(a.cells).length > 0).length;
+  const yearsWithGaps = createMemo(() =>
+    p.years.filter((year) =>
+      p.areas.some((a) => a.cells[String(year)] === undefined),
+    ),
+  );
+  const text = () => {
+    if (yearsWithGaps().length === 0) {
+      return t3({
+        en: `All ${toNum0(total())} areas have a value for every year.`,
+        fr: `Les ${toNum0(total())} unités ont une valeur pour chaque année.`,
+        pt: `Todas as ${toNum0(total())} zonas têm um valor para todos os anos.`,
+      });
+    }
+    const areas = t3({
+      en: `Areas with data: ${toNum0(withData())} of ${toNum0(total())}.`,
+      fr: `Unités avec données : ${toNum0(withData())} sur ${toNum0(total())}.`,
+      pt: `Zonas com dados: ${toNum0(withData())} de ${toNum0(total())}.`,
+    });
+    const years =
+      yearsWithGaps().length === p.years.length
+        ? t3({
+            en: "Every year has gaps.",
+            fr: "Chaque année a des lacunes.",
+            pt: "Todos os anos têm lacunas.",
+          })
+        : t3({
+            en: `Years with gaps: ${yearsWithGaps().join(", ")}.`,
+            fr: `Années avec lacunes : ${yearsWithGaps().join(", ")}.`,
+            pt: `Anos com lacunas: ${yearsWithGaps().join(", ")}.`,
+          });
+    return `${areas} ${years}`;
+  };
+  return (
+    <div class="ui-pad text-base-content-muted flex-none border-b text-sm">
+      {text()}
+    </div>
+  );
+}
+
 function PopulationTypeGrid(p: {
   populationType: string;
   canConfigure: boolean;
@@ -141,37 +185,12 @@ function PopulationTypeGrid(p: {
     );
   });
 
-  const levelLabel = () => {
-    const level = instanceState.populationLevel;
-    return level === undefined ? "" : t3(getAdminAreaLabel(level));
-  };
-
-  const coverageText = createMemo(() => {
+  const yearRange = () => {
     const c = coverage();
-    const parts = [levelLabel()];
-    if (c === undefined || c.yearCount === 0) {
-      parts.push(t3({ en: "no data", fr: "aucune donnée", pt: "sem dados" }));
-    } else {
-      parts.push(populationYearRangeLabel(c));
-      parts.push(
-        t3({
-          en: `${toNum0(c.areaCount)} of ${toNum0(c.structureAreaCount)} areas`,
-          fr: `${toNum0(c.areaCount)} unités sur ${toNum0(c.structureAreaCount)}`,
-          pt: `${toNum0(c.areaCount)} de ${toNum0(c.structureAreaCount)} zonas`,
-        }),
-      );
-      parts.push(
-        c.complete
-          ? t3({ en: "complete", fr: "complet", pt: "completo" })
-          : t3({
-              en: `incomplete: ${c.incompleteYears.join(", ")}`,
-              fr: `incomplet : ${c.incompleteYears.join(", ")}`,
-              pt: `incompleto: ${c.incompleteYears.join(", ")}`,
-            }),
-      );
-    }
-    return parts.filter((s) => s !== "").join(" · ");
-  });
+    return c === undefined || c.yearCount === 0
+      ? ""
+      : populationYearRangeLabel(c);
+  };
 
   const deleteTypeData = createDeleteAction(
     {
@@ -193,7 +212,7 @@ function PopulationTypeGrid(p: {
   return (
     <FrameTop
       panelChildren={
-        <HeadingBar heading={typeLabel()} subheading={coverageText()}>
+        <HeadingBar heading={typeLabel()} subheading={yearRange()}>
           <Show when={p.canConfigure}>
             <Button
               iconName="trash"
@@ -201,13 +220,7 @@ function PopulationTypeGrid(p: {
               outline
               size="sm"
               onClick={deleteTypeData.click}
-            >
-              {t3({
-                en: `Delete all “${typeLabel()}” data`,
-                fr: `Supprimer toutes les données « ${typeLabel()} »`,
-                pt: `Eliminar todos os dados «${typeLabel()}»`,
-              })}
-            </Button>
+            />
           </Show>
         </HeadingBar>
       }
@@ -236,6 +249,10 @@ function PopulationTypeGrid(p: {
                 );
                 return (
                   <div class="flex h-full w-full flex-col">
+                    <CoverageStrip
+                      years={data.years}
+                      areas={structureAreas()}
+                    />
                     <div class="min-h-0 flex-1">
                       <TableFromCsv
                         csv={gridCsv(level, data.years, structureAreas())}
