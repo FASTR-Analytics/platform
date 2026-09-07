@@ -1,5 +1,7 @@
 import {
+  buildIndicatorExpressionsRLiteral,
   buildIndicatorIngredientsRLiteral,
+  populationTypesReferencedByCatalog,
   type CommonIndicatorCatalogRow,
   type HfaIndicator,
   type HfaIndicatorCode,
@@ -60,15 +62,28 @@ export function getScriptWithParameters(
 
   str = str.replaceAll("COUNTRY_ISO3", `"${countryIso3 ?? "UNKNOWN"}"`);
 
-  // The ingredient table travels as DATA substituted into an otherwise static
-  // script (PLAN_1a §1.5, §1.14): the same channel as COUNTRY_ISO3 above and
-  // every module parameter below, and the reason no memoization input class
-  // exists for it: the literal lands in scriptText, which computeModuleKey
-  // already hashes. Only m012 carries the token; for every other module this
-  // is a no-op.
+  // The ingredient and expression tables travel as DATA substituted into an
+  // otherwise static script: the same channel as COUNTRY_ISO3 above and every
+  // module parameter below, and the reason no memoization input class exists
+  // for them: the literals land in scriptText, which computeModuleKey already
+  // hashes. Only m012 carries the tokens; for every other module this is a
+  // no-op.
   str = str.replaceAll(
     "INDICATOR_INGREDIENTS",
     buildIndicatorIngredientsRLiteral(commonIndicatorCatalog ?? [])
+  );
+  str = str.replaceAll(
+    "INDICATOR_EXPRESSIONS",
+    buildIndicatorExpressionsRLiteral(commonIndicatorCatalog ?? [])
+  );
+  // Whether any formula names a population: the same derivation the capture
+  // stamps into the manifest, so m012 can skip the person-years file and keep
+  // the data at its own admin level when nothing needs it.
+  str = str.replaceAll(
+    "POPULATION_ACTIVE",
+    populationTypesReferencedByCatalog(commonIndicatorCatalog ?? []).length > 0
+      ? "TRUE"
+      : "FALSE"
   );
 
   for (const ds of moduleDefinition.dataSources) {

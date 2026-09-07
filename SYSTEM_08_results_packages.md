@@ -26,6 +26,7 @@ globs:
   - server/server_only_funcs/**
   - server/server_only_types/**
   - server/task_management/mod.ts
+  - server/tests/m012_expression_parity_test.ts
   - server/worker_routines/generate_run/**
   - server/worker_routines/instantiate_worker_generic.ts
   - server/worker_routines/worker_contract.ts
@@ -647,8 +648,11 @@ version stamps the generation consumed; the module and metric catalogs as the in
 (so existing parsers apply unchanged); pinned asset names + hashes; and the §3.7
 memoization fields (`inputKey` per module, content hashes per output file).
 
-**`manifestSchemaVersion` gates every read**, currently `6`
-(`RUN_MANIFEST_SCHEMA_VERSION`; v6 = the common-indicator restructure:
+**`manifestSchemaVersion` gates every read**, currently `7`
+(`RUN_MANIFEST_SCHEMA_VERSION`; v7 = the `population` stamp gained `active`
+(recomputed from its own type list) and the per-type `coverage` m012's
+intersection rule records, carried forward as null, transform block 5;
+v6 = the common-indicator restructure:
 `indicators[]` catalog entries gained `sort_order` (backfilled for legacy
 packages, and the read path's axis order now comes from it) plus the
 `type`/`expression`/`slot_map` evaluation fields, a new top-level
@@ -806,7 +810,8 @@ Full build narrative + rulings: PLAN_RESULTS_RUNS Status sections.
 substitution; every generator takes a required per-caller `datasetsDirPath`
 (the run pipeline passes `"../../inputs/datasets"`). Markers replaced via
 `str.replaceAll`: `COUNTRY_ISO3`, `INDICATOR_INGREDIENTS` (m012's ingredient
-table as a tribble literal, see m012 below), dataSource `replacementString`s
+table as a tribble literal, see m012 below), `POPULATION_ACTIVE` (an R
+`TRUE`/`FALSE`, see "population.csv"), dataSource `replacementString`s
 (dataset, results-object, and `population` → the quoted path of
 `inputs/population.csv`, `populationFilePathLiteral`), and config params by
 type. **Every substituted
@@ -898,32 +903,67 @@ It declares `prerequisites: ["m002"]` and TWO dataSources: m002's
 `M2_adjusted_data.csv` and the `population` source, the run's person-years
 file (below), whose content hash enters the module's inputKey exactly like a
 dataset extract, so a population edit re-runs m012 and an unchanged store
-does not. Its third input, the ingredient table, is not a
-dataSource and not a file: the app substitutes it into `script.R` as an R
-`tribble` literal in place of the `INDICATOR_INGREDIENTS` token
-(`buildIndicatorIngredientsRLiteral` in `lib/common_indicator_catalog.ts`),
-the same channel as `COUNTRY_ISO3` and every module parameter. The R sums the
-selected count column across facilities to admin area × month × indicator at
-the population level (the person-years file's admin columns, see
-"population.csv"), binds the person-years rows in under the pseudo-indicator id
-`population:<type>` (the same id the ingredient table names wherever an
-expression's population term was assigned a slot, the two halves of one
-contract, `populationIngredientId` in `lib/types/population.ts`), joins the ingredient
+does not. Its other two inputs are tables, not dataSources and not files:
+the app substitutes them into `script.R` as R `tribble` literals in place of
+the `INDICATOR_INGREDIENTS` and `INDICATOR_EXPRESSIONS` tokens
+(`buildIndicatorIngredientsRLiteral` and `buildIndicatorExpressionsRLiteral`
+in `lib/common_indicator_catalog.ts`), the same channel as `COUNTRY_ISO3`
+and every module parameter. The ingredient table says which base common (or
+`population:<type>` person-years row) fills which slot of which indicator.
+The expression table carries each indicator's flattened expression rewritten
+over the slot names `ing1..ing8`: the expression language's syntax is a
+subset of R's, so the text is R source as written. The R sums the selected
+count column across facilities to admin area × month × indicator at the
+person-years file's level (the population level when a formula names a
+population, the HMIS depth otherwise, see "population.csv"), binds the
+person-years rows in under the pseudo-indicator id `population:<type>` (the
+same id the ingredient table names wherever an expression's population term
+was assigned a slot, the two halves of one contract,
+`populationIngredientId` in `lib/types/population.ts`), joins the ingredient
 table, and pivots each indicator's ingredients into `ing1..ing8` of
-`M12_indicator_values.csv`. It never parses an expression: the table names
-the columns.
+`M12_indicator_values.csv`.
+
+**Which rows exist is m012's decision, by one rule** (ruled): a row
+(indicator × area × month) is in the output only if the indicator's
+expression over that row's slots produces a number. The script evaluates
+the expression text per row in an environment that binds `/`, `coalesce`
+and `nullif` to the evaluator's semantics (NA propagates, division by zero
+is NA, coalesce is the first non-NA, nullif is NA where equal) and keeps
+the rows where the result is finite. The value is not written: the read
+path still re-sums the slots and evaluates once at whatever grouping a
+figure asks for (S9). The authoritative statement of the rule and the R
+bindings is the script's header; `server/tests/m012_expression_parity_test.ts`
+runs the real script against the TypeScript evaluator over one fixture and
+asserts the same row set.
+
+What this means for a user: what the package cannot compute, nobody sees.
+An ingredient no facility in an area ever reports, a zero denominator, a
+`nullif` that fires, and a month or area the population store does not
+cover all leave no row, and an indicator with no surviving row is absent
+from every figure and every filter and disaggregation list, exactly as a
+base common nobody maps is. Keeping such rows would let a coarser grouping
+sum a numerator over cells its denominator never covers. A `coalesce` in
+the expression is honoured, because the expression decides, not the mere
+presence of a slot.
 
 **An ingredient with no data is not an error.** A base common with no mapped
-raw indicators gets no slot map at capture and contributes no row, and one
-whose rows are simply absent from this dataset leaves `NA` after the pivot,
-which the evaluator turns into NULL. Failing instead would abort generation on
-every instance that does not collect one of the 14 seeded default indicators.
+raw indicators gets no slot map and no expression at capture and is in
+neither table, so it contributes no row. One whose rows are simply absent
+from this dataset leaves `NA` after the pivot, and the rule above drops the
+rows that cannot be evaluated without it. Failing instead would abort
+generation on every instance that does not collect one of the 14 seeded
+default indicators. Capture refuses only a derived common whose flattened
+expression includes an unmapped base. That rule is `judgeDerivedIndicator`
+(S5), and the indicator manager shows the same judgement before a run is
+generated; it judges mappings, not data, so a "computable" indicator can
+still be absent from a package whose data never lets it evaluate.
 
-**Memoization needs no declared input class for it.** The literal lands in
-`scriptText`, which `computeModuleKey` already hashes, so an expression edit
-re-runs m012 by construction. The literal's rows are sorted by
-`(indicator_common_id, slot)` precisely so that a display-only reorder of the
-dictionary does NOT change the script and does not force a re-run.
+**Memoization needs no declared input class for the tables.** The literals
+land in `scriptText`, which `computeModuleKey` already hashes, so an
+expression edit re-runs m012 by construction. Both tables are sorted by
+indicator id (the ingredient table by `(indicator_common_id, slot)`)
+precisely so that a display-only reorder of the dictionary does NOT change
+the script and does not force a re-run.
 
 The wide `ing1..ing8` layout is m008's shipped `numerator`/`denominator` shape
 generalised from two columns to eight. It is what makes expression-over-sums
@@ -937,37 +977,69 @@ it folds into a redefined m003 in PLAN_1e.
 The run's `inputs/population.csv` is the population store (S5 "Population
 store") expanded stock→flow at capture. Written by `prepare_inputs.ts`
 (`writePopulationPersonYears`) on **every** HMIS capture: columns
-`admin_area_2..N`, `period_id`, `population_type`, `person_years`, where N
-is the **population level**: the instance's `population_level` setting
-when set (S5), else the HMIS family's `adminDepth`. One row per structure area at that level ×
-extract month × population type, for exactly the types the resolved
-catalog's slot maps reference under the `population:` prefix
-(`populationTypesReferencedBySlotMaps`: there is no column and no
-declaration, the expression IS the declaration); **header-only** when none
-does, and the header alone sets m012's grain (below). This is what lets
-m012 declare the file unconditionally: it is the `population` dataSource
-kind (github + installed schemas, `sourceType: "population"`), substituted
-as the quoted path and hashed into the module inputKey
-(`computeModuleInputs`), so a population edit re-runs m012 and an unchanged
-store does not. The manifest's `population` stamp records level, types and
-month range (null when the package carries no file). The format is
-permanent once written.
+`admin_area_2..N`, `period_id`, `population_type`, `person_years`, for
+exactly the types the resolved catalog's slot maps reference under the
+`population:` prefix (`populationTypesReferencedByCatalog`: there is no
+column and no declaration, the expression IS the declaration). The header
+alone sets m012's grain (below). This is what lets m012 declare the file
+unconditionally: it is the `population` dataSource kind (github + installed
+schemas, `sourceType: "population"`), substituted as the quoted path and
+hashed into the module inputKey (`computeModuleInputs`), so a population
+edit re-runs m012 and an unchanged store does not. The format is permanent
+once written.
 
-**The population level is m012's grain for every indicator** (ruled).
-m012 reads the file's
-admin columns first, sums M2's facility rows to those columns (a finer
-admin level in the data is summed away) and binds the person-years rows in.
-A level-2 instance therefore gets a level-2 `M12_indicator_values.csv` for
-every indicator, including ones whose formula never names a population, and
-m12-01-01 offers no `admin_area_3`/`admin_area_4` disaggregation or filter
-there (`deriveAvailableDisaggregationOptions` reads the columns present).
-A project whose authored visualisation groups or filters m012 by a level the
-package lacks learns it from the attach-time compatibility report
-(`dimensions_not_in_package`). If the data is coarser than the population
-level (the HMIS `adminDepth` was lowered after the import), m012's script
-stops with "the population level is deeper than the data": that is the only
-check, there is no capture-side pre-check. Modules that do not declare the
-population source are untouched.
+**Population is active when a formula names it** (ruled). One boolean,
+derived from the dictionary and never a setting: a toggle could disagree
+with the formulas, and the formulas are what decide whether population is
+needed. It reaches m012 as the substituted `POPULATION_ACTIVE` literal
+(`getScriptWithParameters`, beside `INDICATOR_INGREDIENTS`) and the
+manifest as `population.active`. **Not active**: the file is header-only
+at the HMIS `adminDepth`, m012's grain is the data's own level, every area
+and month is kept, and the population level setting has no effect on the
+run. **Active**: N is the population level (S5), m012 sums finer HMIS rows
+up to it, and the file holds person-years for exactly the cells the store
+covers, per type and per area: an area's months are those inside
+`populationCoveredYears` (its earliest anchor minus one year to its latest
+plus one, gaps interpolated), `populationCellCoverage` in
+`lib/population_person_years.ts`. There is no global window: one area with
+a stray year cannot shrink the others.
+
+**m012 works on the intersection, and only m012** (ruled). A cell the
+store does not cover has `NA` in its population slot after the pivot, so
+the row rule ("m012: indicator values") drops it for every indicator whose
+expression needs that slot: kept, it would sum numerator and population
+over different cells at every grouping. Indicators whose expression never
+reaches a population slot keep every row. m001 and m002 read the extract,
+which has no population filter, and are untouched.
+
+**Only three failures** (ruled). Two are what the indicator manager already
+shows as "Population data missing" (S5): population active and the level
+unset, and a referenced type with no rows for any structure area at that
+level. The third is a population level deeper than the HMIS `adminDepth`
+(the depth was lowered after the import, which empties the deeper structure
+table), refused at capture naming the Population page. Anything short of
+that generates, including an indicator that ends up with zero usable cells.
+This reverses the earlier ruling that any shortfall failed the run: a
+country with recent population data only must still generate.
+
+**Everything left out is recorded.** The manifest's `population` stamp
+(`runPopulationSchema`) carries `active`, the file's level (m012's grain),
+the types, the extract's months, and per type the areas covered out of the
+structure total and the first and last covered period id (null when no cell
+is covered); `coverage` is null in packages written before it existed
+(transform block 5). m012 logs one line per type. The Population page's
+completeness rule is a display aid and does not gate generation.
+
+**m012's grain** is the file's admin columns: m012 reads them first, sums
+M2's facility rows to those columns and binds the person-years rows in. An
+active level-2 instance therefore gets a level-2 `M12_indicator_values.csv`
+for every indicator, including ones whose formula never names a population,
+and m12-01-01 offers no `admin_area_3`/`admin_area_4` disaggregation or
+filter there (`deriveAvailableDisaggregationOptions` reads the columns
+present). A project whose authored visualisation groups or filters m012 by a
+level the package lacks learns it from the attach-time compatibility report
+(`dimensions_not_in_package`). The script's "deeper than the data" stop
+stays as a defensive check behind the capture refusal.
 
 **The math** (`lib/population_person_years.ts`, pure): an annual population
 count is a STOCK anchored at mid-year; a month's population is read at its own
@@ -979,14 +1051,6 @@ rows are additive and a rate over them is **annualised** (a monthly
 numerator over a month's person-years reads as a per-year rate, as stated in
 the editor caption and `m12-01-01`'s AI text). Mid-year anchoring is a
 deliberate change from m008's January-1 anchoring.
-
-**Coverage failure is loud and deliberate** (ruling 6): every structure
-area at the population level must hold anchors covering the extract's
-years; otherwise
-the capture throws, naming the Population page, the type, the level, the
-needed years and the first ten uncovered areas. A package that cannot
-compute what the dictionary declares is a failed generation, not a quietly
-thinner one. This replaces m008's silent dropping of uncovered periods.
 
 The retired per-instance `population.csv` **asset** (m008's input, no
 validation, contents per country unknown) was NOT imported by migration 080

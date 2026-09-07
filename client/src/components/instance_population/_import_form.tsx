@@ -179,10 +179,7 @@ export function PopulationImportForm(p: { close: (p: unknown) => void }) {
                 <For each={pv.types}>
                   {(type) => <PreviewTypeCoverage type={type} />}
                 </For>
-                <div
-                  class="text-sm"
-                  classList={{ "text-success": pv.complete, "text-danger": !pv.complete }}
-                >
+                <div class="text-sm" classList={{ "text-success": pv.complete }}>
                   {pv.complete
                     ? t3({
                         en: "After this import, every population type in the file is complete.",
@@ -190,9 +187,9 @@ export function PopulationImportForm(p: { close: (p: unknown) => void }) {
                         pt: "Após esta importação, todos os tipos de população do ficheiro ficam completos.",
                       })
                     : t3({
-                        en: "After this import, at least one population type would still be missing values for some areas or years. Generation needs every area at the population level covered for every population a formula uses.",
-                        fr: "Après cet import, au moins un type de population manquerait encore de valeurs pour certaines unités ou années. La génération exige que chaque unité au niveau de population soit couverte pour chaque population utilisée par une formule.",
-                        pt: "Após esta importação, pelo menos um tipo de população continuaria sem valores para algumas zonas ou anos. A geração exige que todas as zonas ao nível de população estejam cobertas para cada população usada numa fórmula.",
+                        en: "After this import, at least one population type would still be missing values for some areas or years. Indicator values that use it are computed only for the areas and years it covers (plus one year either side); the other cells are left out of the results package.",
+                        fr: "Après cet import, au moins un type de population manquerait encore de valeurs pour certaines unités ou années. Les valeurs d'indicateurs qui l'utilisent ne sont calculées que pour les unités et années couvertes (plus une année de chaque côté) ; les autres cellules sont exclues du paquet de résultats.",
+                        pt: "Após esta importação, pelo menos um tipo de população continuaria sem valores para algumas zonas ou anos. Os valores de indicadores que o usam são calculados apenas para as zonas e anos cobertos (mais um ano para cada lado); as outras células ficam fora do pacote de resultados.",
                       })}
                 </div>
                 <StateHolderFormError state={runImport.state()} />
@@ -200,16 +197,10 @@ export function PopulationImportForm(p: { close: (p: unknown) => void }) {
                   <Button
                     onClick={runImport.click}
                     state={runImport.state()}
-                    intent={pv.complete ? "success" : "danger"}
+                    intent="success"
                     iconName="upload"
                   >
-                    {pv.complete
-                      ? t3({ en: "Import", fr: "Importer", pt: "Importar" })
-                      : t3({
-                        en: "Import anyway",
-                        fr: "Importer quand même",
-                        pt: "Importar mesmo assim",
-                      })}
+                    {t3({ en: "Import", fr: "Importer", pt: "Importar" })}
                   </Button>
                   <Button onClick={backToSelect} outline>
                     {t3({ en: "Back", fr: "Retour", pt: "Voltar" })}

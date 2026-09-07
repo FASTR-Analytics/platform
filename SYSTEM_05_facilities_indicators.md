@@ -386,9 +386,23 @@ works from is the commons PLUS one `population` entry per store type, at
 authoring (`checkDefinitionsResolve`, which names the Population page for an
 unknown type) and at HMIS capture (`resolveCommonIndicatorCatalog`, which
 refuses the whole capture with a listing when any flattened ingredient
-indicator is absent from the data. Population coverage is the person-years
-expansion's check, S8). Raw indicator ids are NOT ingredients: the extract
-and m001/m002 are per COMMON indicator, so a raw has no column to sum.
+indicator is absent from the data. Population coverage is recorded, not
+checked, by the person-years writer, S8 "population.csv"). Raw indicator ids
+are NOT ingredients: the extract and m001/m002 are per COMMON indicator, so a
+raw has no column to sum.
+
+**Computability is defined in one place**: `judgeDerivedIndicator` in
+`lib/common_indicator_catalog.ts`. A derived common is computable when its
+expression resolves and every flattened ingredient that is not a population
+term is a base common with at least one raw mapping. The catalog builds its
+capture error from that judgement, and the indicator manager list and the
+common editor show the same judgement (see "Client state & wizard"). A base
+common with no mapping is never a problem on its own: `db_startup` seeds
+all 14 default commons on every instance, and an unmapped base reads as
+NULL. The dependency between a derived common and the bases its expression
+uses lives only in the expression text, not in a table, so no save, delete
+or mapping change is blocked because of it: a derived indicator that cannot
+be computed yet is a normal state while a country is still mapping.
 
 **Ruling: the additivity principle (the target model, not yet
 built).** *The pipeline only ever stores, adjusts, and aggregates
@@ -438,8 +452,12 @@ pointers only. Consequences that follow from it and are ruled with it:
   package is upgraded by the manifest transform, S8); and generated module
   LOGIC (m012 as an app-executed DuckDB step or as generated R). The line
   that IS allowed: a generated DATA LITERAL substituted into a static,
-  hand-written script (m012's ingredient tribble, S8), the same channel as
-  `COUNTRY_ISO3` and every module parameter.
+  hand-written script (m012's ingredient and expression tribbles, S8), the
+  same channel as `COUNTRY_ISO3` and every module parameter. The expression
+  table is data in this sense: the expression text, rewritten over slot
+  names, which the static script evaluates per row for one purpose only, to
+  decide which rows exist (S8 "m012: indicator values"). The value a figure
+  shows is still computed by the TypeScript evaluator, after aggregation.
 
   The catalog is snapshotted into the run's `indicators.json` mirror at
   capture, so a package stays standalone and an edit still means a new run.
@@ -520,15 +538,18 @@ The store holds ONE level for every type: the import is refused until the
 level is set and refuses a file whose columns are at any other level;
 changing the setting is refused while any row exists ("delete all
 population data first"); delete-all keeps the setting. Migration 083
-cleared rows stored before the setting existed. It is also the
-analysis level of m012's indicator values for EVERY indicator (S8
-"population.csv"): coarser levels derive by summation and nothing exists
-below it, which the setting's own explanation states. Lowering the HMIS
-`adminDepth` below the setting has no guard: m012's script stops at
-generation (S8).
+cleared rows stored before the setting existed. When any indicator formula
+names a population it is also the analysis level of m012's indicator values
+for EVERY indicator (S8 "population.csv"): coarser levels derive by
+summation and nothing exists below it, which the setting's own explanation
+states. When none does, the setting has no effect on a run. Lowering the
+HMIS `adminDepth` below the setting has no guard here: the run capture
+refuses it (S8).
 
 **Completeness** (`lib/population_coverage.ts`, pure: one rule, two data
-paths). Per type, over in-structure rows at the population level: complete
+paths; a display aid, never a generation gate: a run records what it
+covered, S8 "population.csv"). Per type, over in-structure rows at the
+population level: complete
 iff the structure at that level is non-empty, the type has an in-structure
 row, and every year with one has one for every structure area;
 `incompleteYears` lists the shortfalls. The SSE summary feeds the rule
@@ -683,6 +704,23 @@ Every config mutation re-reads all configs and pushes one consolidated
   the same resolver the form validates with, and shows the annualisation
   caption whenever a population term is present. The bracket form is
   something a user sees, not something they must type.
+- Computability in the manager is shown, never enforced. The common list
+  has a Status column fed by one `createMemo` over the loaded dictionary
+  calling `judgeDerivedIndicators` (lib), so a mapping edit updates it
+  through the ordinary `indicatorMappingsVersion` refetch and no extra
+  fetch is needed. An uncomputable derived indicator shows "Cannot be
+  computed: <ids> has no mapped raw indicator", the capture error translated
+  into the interface language, and a banner above the table counts them. A
+  second, separate note is shown when the flattened expression divides by a
+  population type that has no rows at all in the store (from T1
+  `populationCoverage`), which is what generation refuses too. How much of
+  the run's years and areas the store covers is recorded in the package at
+  generation, not checked here (S8 "population.csv"). The editor runs the same judgement over
+  the formula as typed. A formula that does not resolve refuses the save, as
+  before. A flattened ingredient with no mapping is only a warning under the
+  formula. Base commons have no status. The Status column is sortable. It is
+  not in the CSV download, because that file mirrors the batch-import
+  headers.
 - The structure wizard: server owns the step number (every save writes
   `step`; the client fetcher jumps the stepper on each silent refetch).
   Errors render as a dismissible banner over navigable steps (re-saving

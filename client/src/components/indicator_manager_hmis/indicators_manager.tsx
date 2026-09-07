@@ -6,6 +6,8 @@ import {
   type InstanceIndicatorDetails,
   type RawIndicatorWithMappings,
   type Dhis2RunCredentialsSource,
+  judgeDerivedIndicators,
+  POPULATION_TYPE_IDS,
 } from "lib";
 import {
   Button,
@@ -30,6 +32,10 @@ import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { getIndicatorsFromCacheOrFetch } from "~/state/instance/t2_indicators";
 import { Dhis2CredentialsForm } from "../forms_editors/dhis2_credentials_form";
+import {
+  computabilityProblemText,
+  missingPopulationText,
+} from "./_computability";
 import { EditIndicatorCommonForm } from "./_edit_indicator_common";
 import { EditIndicatorRawForm } from "./_edit_indicator_raw";
 import { BatchUploadForm } from "./batch_upload_form";
@@ -259,11 +265,45 @@ function definedByText(indicator: CommonIndicatorWithMappings): string {
     : indicator.definition.expression;
 }
 
+type IndicatorStatus = {
+  problem: string | undefined;
+  population: string | undefined;
+};
+
 function CommonIndicatorsTable(p: {
   commonIndicators: CommonIndicatorWithMappings[];
   rawIndicators: RawIndicatorWithMappings[];
   handleDownloadCsv: (commonIndicators: CommonIndicatorWithMappings[]) => void;
 }) {
+  // The same judgement capture makes, over the dictionary the list shows.
+  // Base indicators have no status: an unmapped one is the ordinary case.
+  const statuses = createMemo(() => {
+    const judgements = judgeDerivedIndicators(
+      p.commonIndicators,
+      POPULATION_TYPE_IDS,
+    );
+    const statuses = new Map<string, IndicatorStatus>();
+    for (const [id, judgement] of judgements) {
+      statuses.set(id, {
+        problem: judgement.kind === "computable"
+          ? undefined
+          : computabilityProblemText(judgement),
+        population: judgement.kind === "unresolvable"
+          ? undefined
+          : missingPopulationText(
+            judgement.resolved,
+            instanceState.populationCoverage,
+          ),
+      });
+    }
+    return statuses;
+  });
+  const statusOf = (indicator: CommonIndicatorWithMappings) =>
+    statuses().get(indicator.indicator_common_id);
+  const uncomputableCount = createMemo(
+    () => [...statuses().values()].filter((s) => s.problem !== undefined).length,
+  );
+
   async function handleCreateIndicator() {
     const _res = await openComponent({
       element: EditIndicatorCommonForm,
@@ -392,6 +432,33 @@ function CommonIndicatorsTable(p: {
         <div class="font-mono">{definedByText(indicator)}</div>
       ),
     },
+    {
+      key: "status",
+      header: t3({ en: "Status", fr: "Statut", pt: "Estado" }),
+      sortable: true,
+      sortValue: (indicator) => {
+        const s = statusOf(indicator);
+        return s?.problem ?? s?.population ?? "";
+      },
+      render: (indicator) => (
+        <Show when={statusOf(indicator)}>
+          {(s) => (
+            <div class="text-xs">
+              <Show when={s().problem}>
+                {(problem) => (
+                  <div class="text-danger font-700">{problem()}</div>
+                )}
+              </Show>
+              <Show when={s().population}>
+                {(population) => (
+                  <div class="text-warning">{population()}</div>
+                )}
+              </Show>
+            </div>
+          )}
+        </Show>
+      ),
+    },
   ];
 
   const allColumns = createMemo<TableColumn<CommonIndicatorWithMappings>[]>(() => {
@@ -473,6 +540,21 @@ function CommonIndicatorsTable(p: {
           </Button>
         </Show>
       </div>
+      <Show when={uncomputableCount() > 0}>
+        <div class="bg-warning-subtle text-warning-subtle-content mb-4 flex-none rounded px-3 py-2 text-sm">
+          {uncomputableCount() === 1
+            ? t3({
+                en: "1 derived indicator cannot be computed. Results cannot be generated until it is edited or removed, or the indicators it uses are mapped.",
+                fr: "1 indicateur dérivé ne peut pas être calculé. Les résultats ne pourront pas être générés tant qu'il n'est pas modifié ou supprimé, ou que les indicateurs qu'il utilise ne sont pas associés.",
+                pt: "1 indicador derivado não pode ser calculado. Os resultados não podem ser gerados até que seja editado ou removido, ou até que os indicadores que utiliza sejam associados.",
+              })
+            : t3({
+                en: `${uncomputableCount()} derived indicators cannot be computed. Results cannot be generated until they are edited or removed, or the indicators they use are mapped.`,
+                fr: `${uncomputableCount()} indicateurs dérivés ne peuvent pas être calculés. Les résultats ne pourront pas être générés tant qu'ils ne sont pas modifiés ou supprimés, ou que les indicateurs qu'ils utilisent ne sont pas associés.`,
+                pt: `${uncomputableCount()} indicadores derivados não podem ser calculados. Os resultados não podem ser gerados até que sejam editados ou removidos, ou até que os indicadores que utilizam sejam associados.`,
+              })}
+        </div>
+      </Show>
       <div class="h-0 w-full flex-1">
         <Table
           data={p.commonIndicators}

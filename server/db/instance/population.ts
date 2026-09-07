@@ -618,9 +618,9 @@ export async function importPopulationCsv(
         .map((t) => t.populationType);
       return {
         success: false,
-        err: `The import would leave incomplete population data for ${
+        err: `The import would leave population data for ${
           incomplete.join(", ")
-        }. Check the file and confirm to import anyway.`,
+        } incomplete: indicator values that use it are computed only for the areas and years it covers. Check the file and confirm to import.`,
       };
     }
     const { level, rows } = parsed.data;

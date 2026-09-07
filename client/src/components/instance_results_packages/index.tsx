@@ -6,6 +6,7 @@ import {
   FrameLeftResizable,
   FrameTop,
   HeadingBar,
+  Icon,
   SelectList,
   getEditorWrapper,
   openComponent,
@@ -212,6 +213,11 @@ export function InstanceResultsPackages() {
                           <div class="min-w-16 flex-1 truncate">
                             {run.label}
                           </div>
+                          <Show when={run.status === "failed"}>
+                            <Badge intent="danger" variant="solid">
+                              <Icon iconName="alertCircle" />
+                            </Badge>
+                          </Show>
                           <Show when={run.id === instanceState.pinnedRunId}>
                             <PinnedBadge />
                           </Show>

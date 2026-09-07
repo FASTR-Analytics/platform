@@ -18,8 +18,12 @@
 import {
   buildExpressionDictionary,
   buildIngredientSlotMap,
+  type ExpressionDictionary,
   IndicatorExpressionError,
   MAX_INDICATOR_EXPRESSION_INGREDIENTS,
+  parseIndicatorExpression,
+  renameIdentifiers,
+  type ResolvedIndicatorExpression,
   resolveIndicatorExpression,
   writeIdentifier,
   writeIndicatorExpression,
@@ -28,6 +32,7 @@ import type { ThresholdsRule } from "./types/conditional_formatting.ts";
 import type {
   CommonIndicator,
   CommonIndicatorType,
+  CommonIndicatorWithMappings,
   IndicatorFormat,
 } from "./types/indicators.ts";
 import {
@@ -55,20 +60,14 @@ export class CommonIndicatorCatalogError extends Error {
   }
 }
 
-// `baseIdsInData` is the set of base commons the extract can actually produce
-// counts for (i.e. that have raw mappings). An expression that reaches outside
-// it would silently evaluate to NULL everywhere, so it fails the capture
-// instead: the same guard the retired numerator/denominator check performed,
-// now aware of chains. `populationTypeIds` is the store's vocabulary: a
-// `population:<type>` term resolves iff it names one. Whether the store
-// COVERS the data for that type is the person-years expansion's check at
-// prepare time (PLAN_1b ruling 6), not this one.
-export function resolveCommonIndicatorCatalog(
-  commons: CommonIndicator[],
-  baseIdsInData: Set<string>,
+// The dictionary every expression resolves against: the commons plus one
+// `population` leaf per store type. The editor adds the definition being
+// typed before it calls this.
+export function buildCommonIndicatorDictionary(
+  commons: Pick<CommonIndicator, "indicator_common_id" | "definition">[],
   populationTypeIds: string[],
-): CommonIndicatorCatalogRow[] {
-  const dictionary = buildExpressionDictionary([
+): ExpressionDictionary {
+  return buildExpressionDictionary([
     ...commons.map((c) => ({
       id: c.indicator_common_id,
       type: c.definition.type,
@@ -82,6 +81,113 @@ export function resolveCommonIndicatorCatalog(
       expression: null,
     })),
   ]);
+}
+
+// The base commons the extract can produce counts for, read off the
+// mappings the client already holds. Capture reads the same set from SQL.
+export function baseIdsWithMappings(
+  commons: CommonIndicatorWithMappings[],
+): Set<string> {
+  return new Set(
+    commons
+      .filter((c) =>
+        c.definition.type === "base" && c.raw_indicator_ids.length > 0
+      )
+      .map((c) => c.indicator_common_id),
+  );
+}
+
+// THE computability rule for a derived common, stated once: its expression
+// must resolve, and every flattened ingredient that is not a population term
+// must be a base common with data. Capture refuses the run on any other
+// answer; the indicator manager and editor show the same answer. Whether the
+// population store covers a `population:<type>` term is the person-years
+// expansion's check at prepare time (PLAN_1b ruling 6), not this one.
+export type DerivedIndicatorComputability =
+  | { kind: "computable"; resolved: ResolvedIndicatorExpression }
+  | {
+    kind: "unmapped_ingredients";
+    resolved: ResolvedIndicatorExpression;
+    missing: string[];
+  }
+  | { kind: "unresolvable"; problem: string };
+
+export function judgeDerivedIndicator(
+  ownId: string,
+  expression: string,
+  dictionary: ExpressionDictionary,
+  baseIdsInData: Set<string>,
+): DerivedIndicatorComputability {
+  let resolved: ResolvedIndicatorExpression;
+  try {
+    resolved = resolveIndicatorExpression({
+      ownId,
+      source: expression,
+      dictionary,
+      maxIngredients: MAX_INDICATOR_EXPRESSION_INGREDIENTS,
+    });
+  } catch (e) {
+    if (!(e instanceof IndicatorExpressionError)) throw e;
+    return { kind: "unresolvable", problem: e.message };
+  }
+  const missing = resolved.ingredientIds.filter((id) =>
+    parsePopulationIngredientId(id) === null && !baseIdsInData.has(id)
+  );
+  return missing.length > 0
+    ? { kind: "unmapped_ingredients", resolved, missing }
+    : { kind: "computable", resolved };
+}
+
+// The rule over a whole dictionary as the client holds it: one judgement per
+// derived common. Base commons are never judged (an unmapped one is the
+// ordinary case, see the catalog below).
+export function judgeDerivedIndicators(
+  commons: CommonIndicatorWithMappings[],
+  populationTypeIds: string[],
+): Map<string, DerivedIndicatorComputability> {
+  const dictionary = buildCommonIndicatorDictionary(commons, populationTypeIds);
+  const baseIdsInData = baseIdsWithMappings(commons);
+  const judgements = new Map<string, DerivedIndicatorComputability>();
+  for (const c of commons) {
+    if (c.definition.type === "base") continue;
+    judgements.set(
+      c.indicator_common_id,
+      judgeDerivedIndicator(
+        c.indicator_common_id,
+        c.definition.expression,
+        dictionary,
+        baseIdsInData,
+      ),
+    );
+  }
+  return judgements;
+}
+
+function describeComputabilityProblem(
+  ownId: string,
+  judgement: Exclude<DerivedIndicatorComputability, { kind: "computable" }>,
+): string {
+  if (judgement.kind === "unresolvable") return judgement.problem;
+  const { missing } = judgement;
+  return `Indicator '${ownId}' is computed from ${missing.join(", ")}, which ${
+    missing.length === 1 ? "is" : "are"
+  } not in the data (no raw indicators are mapped to ${
+    missing.length === 1 ? "it" : "them"
+  })`;
+}
+
+// `baseIdsInData` is the set of base commons the extract can actually produce
+// counts for (i.e. that have raw mappings). An expression that reaches outside
+// it would silently evaluate to NULL everywhere, so it fails the capture
+// instead: the same guard the retired numerator/denominator check performed,
+// now aware of chains. `populationTypeIds` is the store's vocabulary: a
+// `population:<type>` term resolves iff it names one.
+export function resolveCommonIndicatorCatalog(
+  commons: CommonIndicator[],
+  baseIdsInData: Set<string>,
+  populationTypeIds: string[],
+): CommonIndicatorCatalogRow[] {
+  const dictionary = buildCommonIndicatorDictionary(commons, populationTypeIds);
 
   const problems: string[] = [];
   const rows: CommonIndicatorCatalogRow[] = [];
@@ -120,35 +226,15 @@ export function resolveCommonIndicatorCatalog(
       continue;
     }
 
-    let ingredientIds: string[];
-    let flattened: string;
-    try {
-      const resolved = resolveIndicatorExpression({
-        ownId: common.indicator_common_id,
-        source: common.definition.expression,
-        dictionary,
-        maxIngredients: MAX_INDICATOR_EXPRESSION_INGREDIENTS,
-      });
-      ingredientIds = resolved.ingredientIds;
-      flattened = writeIndicatorExpression(resolved.ast);
-    } catch (e) {
-      if (!(e instanceof IndicatorExpressionError)) throw e;
-      problems.push(e.message);
-      continue;
-    }
-
-    const missing = ingredientIds.filter((id) =>
-      parsePopulationIngredientId(id) === null && !baseIdsInData.has(id)
+    const judgement = judgeDerivedIndicator(
+      common.indicator_common_id,
+      common.definition.expression,
+      dictionary,
+      baseIdsInData,
     );
-    if (missing.length > 0) {
+    if (judgement.kind !== "computable") {
       problems.push(
-        `Indicator '${common.indicator_common_id}' is computed from ${
-          missing.join(", ")
-        }, which ${
-          missing.length === 1 ? "is" : "are"
-        } not in the data (no raw indicators are mapped to ${
-          missing.length === 1 ? "it" : "them"
-        })`,
+        describeComputabilityProblem(common.indicator_common_id, judgement),
       );
       continue;
     }
@@ -156,8 +242,8 @@ export function resolveCommonIndicatorCatalog(
     rows.push({
       ...base,
       type: "derived",
-      expression: flattened,
-      slot_map: buildIngredientSlotMap(ingredientIds),
+      expression: writeIndicatorExpression(judgement.resolved.ast),
+      slot_map: buildIngredientSlotMap(judgement.resolved.ingredientIds),
     });
   }
 
@@ -167,16 +253,21 @@ export function resolveCommonIndicatorCatalog(
   return rows;
 }
 
-// The ingredient table as an R `tribble` literal, substituted into m012's
-// script in place of its INDICATOR_INGREDIENTS token (PLAN_1a §1.5). This is
-// the WHOLE contract between the resolved catalog and the module that
-// materialises ingredient columns: the module sums the columns this names and
-// never parses an expression. An indicator the package cannot evaluate (a base
-// common with no data) has no slot map and contributes no rows. A slot row
-// naming a `population:<type>` pseudo-ingredient is read by the module from
-// the run's person-years file under that same id.
+// The two literals below are the WHOLE contract between the resolved catalog
+// and m012, substituted into its script in place of the INDICATOR_INGREDIENTS
+// and INDICATOR_EXPRESSIONS tokens:
 //
-// Rows are sorted by (indicator, slot) and NEVER left in catalog order: the
+//   - the ingredient table says which base common (or `population:<type>`
+//     person-years row) fills which slot column of which indicator; the
+//     module sums those columns to area x month;
+//   - the expression table says how each indicator's slots combine, as the
+//     flattened expression rewritten over `ing1..ing8`; the module evaluates
+//     it per row and KEEPS ONLY THE ROWS THAT PRODUCE A NUMBER (the rule and
+//     the R semantics are stated once, in m012's script.R).
+//
+// A base common with no data has no slot map and no expression: it is in
+// neither table and the package carries no row for it. Both tables are sorted
+// by indicator id and NEVER left in catalog order: the
 // literal lands in `scriptText`, which `computeModuleKey` hashes, so catalog
 // order would put the dictionary's display sort into the memoization key and
 // re-run the module on a pure reorder.
@@ -210,6 +301,32 @@ export function buildIndicatorIngredientsRLiteral(
       rStringLiteral(r.slot),
       rStringLiteral(r.ingredientId),
     );
+  }
+  return `tribble(${cells.join(", ")})`;
+}
+
+// The expression language's surface syntax over bare slot names is valid R
+// source: decimals, `+ - * /`, unary minus, parentheses, and calls to `abs`,
+// `coalesce`, `nullif`. The canonical writer emits it fully parenthesised, so
+// R's precedence never re-associates anything, and m012 binds those three
+// functions and `/` to the evaluator's semantics before it evaluates.
+export function buildIndicatorExpressionsRLiteral(
+  catalog: CommonIndicatorCatalogRow[],
+): string {
+  const rows: { indicatorId: string; expression: string }[] = [];
+  for (const row of catalog) {
+    if (row.expression === null || row.slot_map === null) continue;
+    rows.push({
+      indicatorId: row.indicator_common_id,
+      expression: writeIndicatorExpression(
+        renameIdentifiers(parseIndicatorExpression(row.expression), row.slot_map),
+      ),
+    });
+  }
+  rows.sort((a, b) => a.indicatorId.localeCompare(b.indicatorId));
+  const cells = ["~indicator_common_id", "~expression"];
+  for (const r of rows) {
+    cells.push(rStringLiteral(r.indicatorId), rStringLiteral(r.expression));
   }
   return `tribble(${cells.join(", ")})`;
 }

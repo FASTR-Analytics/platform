@@ -3,22 +3,20 @@ import type { Sql } from "postgres";
 import {
   ADMIN_AREA_COLUMNS,
   listMonthlyPeriodIds,
-  parseAdminAreaLevel,
   personYearsForMonth,
   populationAreaKey,
-  populationCoveredYears,
-  populationDisplayPath,
-  populationTypesReferencedBySlotMaps,
+  populationCellCoverage,
+  populationTypesReferencedByCatalog,
   throwIfErrWithData,
   type CommonIndicatorCatalogRow,
   type DatasetType,
   type HfaIndicator,
   type HfaIndicatorCode,
   type HfaIndicatorVariantCode,
-  type AdminAreaLevel,
   type RunDataset,
   type RunGenerationStep1Result,
   type RunPopulation,
+  type RunPopulationCoverage,
 } from "lib";
 import {
   computeDatasetHfaRunCapture,
@@ -169,9 +167,9 @@ export async function prepareRunInputs(
       tableName: "facilities_hmis",
       columns: FACILITY_PARQUET_COLUMNS,
     });
-    // The person-years file (PLAN_1b ruling 4), written on EVERY HMIS
-    // capture so a module declaring the population source always has its
-    // input; header-only when no expression in the catalog names a population.
+    // The person-years file, written on EVERY HMIS capture so a module
+    // declaring the population source always has its input; header-only when
+    // no expression in the catalog names a population.
     population = await writePopulationPersonYears(mainDb, tmpDir, capture);
     populationHash = await sha256HexOfFile(
       runInputFilePath(tmpDir, POPULATION_FILE_NAME),
@@ -318,16 +316,20 @@ export const POPULATION_FILE_NAME = "population.csv";
 
 // Annual population stock → monthly person-years, for every population type
 // the resolved catalog's slot maps reference (the expression IS the
-// declaration), over the extract's months, at the population level (SYSTEM_08
-// "population.csv"). The header alone sets m012's grain, so it is written at
-// that level even when no type is referenced. Format, permanent once written:
-// admin_area_2..N, period_id, population_type, person_years.
+// declaration), over the extract's months (SYSTEM_08 "population.csv").
+// Format, permanent once written: admin_area_2..N, period_id,
+// population_type, person_years. The header alone sets m012's grain.
 //
-// Coverage failure is loud and deliberate: a package that cannot compute what
-// the dictionary declares is a failed generation, not a quietly thinner one.
-// Every structure area at the population level must hold anchors that cover
-// every month of the extract, within ±1 year of extrapolation; anything less
-// names the Population page.
+// Population is ACTIVE when at least one type is referenced. Not active: the
+// file is header-only at the HMIS depth and m012 keeps the data exactly as it
+// is. Active: the file is at the population level, HMIS finer than that is
+// summed up by m012, and each type gets person-years for exactly the cells
+// (area × month) its anchors cover; m012 drops the other cells for the
+// indicators naming that type, and the stamp records what was covered. Only
+// three things refuse the run: no population level and a referenced type with
+// no rows for any structure area at that level, both of which the indicator
+// manager already shows as "Population data missing", and a population level
+// deeper than the HMIS structure.
 async function writePopulationPersonYears(
   mainDb: Sql,
   tmpDir: string,
@@ -337,108 +339,122 @@ async function writePopulationPersonYears(
     adminDepth: number;
   },
 ): Promise<RunPopulation> {
-  const populationLevel = await getPopulationLevel(mainDb);
-  // The header-only file falls back to the data's own depth. A depth-1
-  // structure has no area below the country: the header carries no area
-  // column and m012 stops.
-  const level: AdminAreaLevel | undefined = populationLevel ??
-    (capture.adminDepth >= 2 ? parseAdminAreaLevel(capture.adminDepth) : undefined);
-  const populationTypes = populationTypesReferencedBySlotMaps(
-    capture.indicators.flatMap((row) =>
-      row.slot_map === null ? [] : [row.slot_map]
-    ),
-  );
+  const populationTypes = populationTypesReferencedByCatalog(capture.indicators);
+  const extractMonths = {
+    firstPeriodId: capture.periodRange.min,
+    lastPeriodId: capture.periodRange.max,
+  };
+  const writeFile = (level: number, rows: string[]) =>
+    Deno.writeTextFile(
+      runInputFilePath(tmpDir, POPULATION_FILE_NAME),
+      [
+        [
+          ...ADMIN_AREA_COLUMNS.slice(1, level),
+          "period_id",
+          "population_type",
+          "person_years",
+        ].join(","),
+        ...rows,
+      ].join("\n") + "\n",
+    );
+
+  if (populationTypes.length === 0) {
+    await writeFile(capture.adminDepth, []);
+    return {
+      active: false,
+      adminAreaLevel: capture.adminDepth,
+      populationTypes: [],
+      coverage: [],
+      ...extractMonths,
+    };
+  }
+
+  const level = await getPopulationLevel(mainDb);
+  if (level === undefined) {
+    throw new Error(
+      "Cannot generate results: an indicator formula uses a population, but the population level is not set. Set it on the instance Population page and import population data before generating.",
+    );
+  }
+  if (level > capture.adminDepth) {
+    throw new Error(
+      capture.adminDepth < 2
+        ? `Cannot generate results: an indicator formula uses a population, but the HMIS structure has no admin areas below the country, so population rates cannot be computed. Remove the population term from the formula or import a structure with admin areas.`
+        : `Cannot generate results: the population data is at admin area level ${level}, deeper than the HMIS structure (level ${capture.adminDepth}). Delete the population data on the instance Population page and re-import it at level ${capture.adminDepth} or a coarser one.`,
+    );
+  }
+  const areas = await listHmisStructureAreas(mainDb, level);
   const periodIds = listMonthlyPeriodIds(
     capture.periodRange.min,
     capture.periodRange.max,
   );
-  const firstYear = Math.floor(capture.periodRange.min / 100);
-  const lastYear = Math.floor(capture.periodRange.max / 100);
-  const areaColumns = ADMIN_AREA_COLUMNS.slice(1, level ?? 1);
-  const lines = [
-    [...areaColumns, "period_id", "population_type", "person_years"].join(","),
-  ];
-
-  if (populationTypes.length > 0) {
-    if (populationLevel === undefined) {
-      throw new Error(
-        "Cannot generate results: an indicator formula uses a population, but the population level is not set. Set it on the instance Population page and import population data before generating.",
+  const rows: string[] = [];
+  const coverage: RunPopulationCoverage[] = [];
+  for (const populationType of populationTypes) {
+    const anchorsByArea = await getPopulationAnchors(
+      mainDb,
+      populationType,
+      level,
+    );
+    let areasWithData = 0;
+    let areasCovered = 0;
+    let firstCoveredPeriodId: number | null = null;
+    let lastCoveredPeriodId: number | null = null;
+    for (const area of areas) {
+      const names = [
+        area.admin_area_1,
+        area.admin_area_2,
+        area.admin_area_3,
+        area.admin_area_4,
+      ];
+      const anchors = anchorsByArea.get(populationAreaKey(names));
+      if (anchors === undefined) continue;
+      areasWithData++;
+      const cells = populationCellCoverage(anchors, periodIds);
+      if (cells.length === 0) continue;
+      areasCovered++;
+      firstCoveredPeriodId = Math.min(firstCoveredPeriodId ?? Infinity, cells[0]);
+      lastCoveredPeriodId = Math.max(
+        lastCoveredPeriodId ?? -Infinity,
+        cells[cells.length - 1],
       );
-    }
-    const areas = await listHmisStructureAreas(mainDb, populationLevel);
-    const problems: string[] = [];
-    for (const populationType of populationTypes) {
-      const anchorsByArea = await getPopulationAnchors(
-        mainDb,
-        populationType,
-        populationLevel,
-      );
-      const uncovered: string[] = [];
-      for (const area of areas) {
-        const names = [
-          area.admin_area_1,
-          area.admin_area_2,
-          area.admin_area_3,
-          area.admin_area_4,
-        ];
-        const anchors = anchorsByArea.get(populationAreaKey(names));
-        const covered = anchors === undefined
-          ? null
-          : populationCoveredYears(anchors);
-        if (
-          covered === null || covered.firstYear > firstYear ||
-          covered.lastYear < lastYear
-        ) {
-          uncovered.push(
-            populationDisplayPath(names, populationLevel) +
-              (covered === null
-                ? " (no data)"
-                : ` (covers ${covered.firstYear}–${covered.lastYear})`),
-          );
-          continue;
-        }
-        for (const periodId of periodIds) {
-          const personYears = personYearsForMonth(
-            anchors!,
-            Math.floor(periodId / 100),
-            periodId % 100,
-          );
-          lines.push(
-            [
-              ...names.slice(1, populationLevel).map(csvCell),
-              String(periodId),
-              csvCell(populationType),
-              String(personYears),
-            ].join(","),
-          );
-        }
-      }
-      if (uncovered.length > 0) {
-        problems.push(
-          `Population "${populationType}" at admin area level ${populationLevel} does not cover ${firstYear}–${lastYear} (±1 year of extrapolation) for ${uncovered.length} of ${areas.length} areas: ${
-            uncovered.slice(0, 10).join("; ")
-          }${uncovered.length > 10 ? "; …" : ""}`,
+      for (const periodId of cells) {
+        rows.push(
+          [
+            ...names.slice(1, level).map(csvCell),
+            String(periodId),
+            csvCell(populationType),
+            String(
+              personYearsForMonth(
+                anchors,
+                Math.floor(periodId / 100),
+                periodId % 100,
+              ),
+            ),
+          ].join(","),
         );
       }
     }
-    if (problems.length > 0) {
+    if (areasWithData === 0) {
       throw new Error(
-        `Cannot generate results: the population store does not cover the data. Upload the missing population data on the instance Population page (annual counts per area at level ${populationLevel}, one row per area × year × population type).\n\n${
-          problems.join("\n")
-        }`,
+        `Cannot generate results: an indicator formula uses the population "${populationType}", but the population store holds no data for it for any area of the current HMIS structure at admin area level ${level}. Import it on the instance Population page.`,
       );
     }
+    coverage.push({
+      populationType,
+      areasCovered,
+      areasTotal: areas.length,
+      firstCoveredPeriodId,
+      lastCoveredPeriodId,
+    });
   }
 
-  await Deno.writeTextFile(
-    runInputFilePath(tmpDir, POPULATION_FILE_NAME),
-    lines.join("\n") + "\n",
-  );
+  await writeFile(level, rows);
   return {
-    adminAreaLevel: level ?? capture.adminDepth,
+    active: true,
+    adminAreaLevel: level,
     populationTypes,
-    firstPeriodId: capture.periodRange.min,
-    lastPeriodId: capture.periodRange.max,
+    coverage,
+    ...extractMonths,
   };
 }
 

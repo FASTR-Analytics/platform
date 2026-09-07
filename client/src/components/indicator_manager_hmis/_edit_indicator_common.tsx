@@ -21,26 +21,23 @@ import {
   _CF_LIGHTER_GREEN,
   _CF_LIGHTER_RED,
   _CF_LIGHTER_YELLOW,
-  buildExpressionDictionary,
+  baseIdsWithMappings,
+  buildCommonIndicatorDictionary,
   collectIdentifiers,
   type CommonIndicatorDefinition,
   type CommonIndicatorType,
   type CommonIndicatorWithMappings,
-  type ExpressionDictionaryEntry,
+  type DerivedIndicatorComputability,
   getLanguage,
   getNewIndicatorIdIssue,
-  IndicatorExpressionError,
   type IndicatorFormat,
-  MAX_INDICATOR_EXPRESSION_INGREDIENTS,
+  judgeDerivedIndicator,
   parseIndicatorExpression,
   parsePopulationIngredientId,
-  type PopulationCoverage,
   POPULATION_TYPE_IDS,
   populationIngredientId,
   populationTypeLabel,
-  populationYearRangeLabel,
   type RawIndicatorWithMappings,
-  resolveIndicatorExpression,
   t3,
   TC,
   type ThresholdsRule,
@@ -52,6 +49,10 @@ import {
 import { ThresholdsPanel } from "~/components/visualization/conditional_formatting_editor";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
+import {
+  computabilityProblemText,
+  populationCoverageSummary,
+} from "./_computability";
 
 // The rule a fresh "Set" starts from: three traffic-light bands at 70 / 80 in
 // the indicator's own display units, labelled in the UI language.
@@ -116,39 +117,6 @@ type LegendRow = {
   coverage?: { text: string; empty: boolean };
 };
 
-function populationCoverageSummary(
-  populationType: string,
-  coverage: PopulationCoverage[],
-): { text: string; empty: boolean } {
-  const c = coverage.find((row) => row.populationType === populationType);
-  if (c === undefined || c.yearCount === 0) {
-    return {
-      empty: true,
-      text: t3({
-        en: "no population data uploaded",
-        fr: "aucune donnée de population téléversée",
-        pt: "nenhum dado de população carregado",
-      }),
-    };
-  }
-  const years = populationYearRangeLabel(c);
-  if (c.complete) {
-    return {
-      empty: false,
-      text: `${years} ${t3({ en: "complete", fr: "complet", pt: "completo" })}`,
-    };
-  }
-  const shortYears = c.incompleteYears.join(", ");
-  return {
-    empty: false,
-    text: t3({
-      en: `${years}, ${c.areaCount} of ${c.structureAreaCount} areas; incomplete: ${shortYears}`,
-      fr: `${years}, ${c.areaCount} unités sur ${c.structureAreaCount} ; incomplet : ${shortYears}`,
-      pt: `${years}, ${c.areaCount} de ${c.structureAreaCount} zonas; incompleto: ${shortYears}`,
-    }),
-  };
-}
-
 export function EditIndicatorCommonForm(
   p: AlertComponentProps<
     {
@@ -202,48 +170,56 @@ export function EditIndicatorCommonForm(
     p.commonIndicators.filter((c) => c.indicator_common_id !== ownId()),
   );
 
-  // Live validation against the same rules the server enforces: the editor
-  // states them where the user is, capture states them again where the data
-  // is. Ingredients must resolve to commons or population types, chains may
-  // not cycle, and the flattened set must fit the ingredient slots a results
-  // row carries; the message names the flattened set when it does not.
+  // The same judgement capture makes, over the formula as typed: the editor
+  // states it where the user is, capture enforces it where the data is.
+  // Ingredients must resolve to commons or population types, chains may not
+  // cycle, and the flattened set must fit the ingredient slots a results row
+  // carries: those refuse the save. A flattened ingredient with no mapped
+  // raw indicator is only a warning here, since mapping comes later.
+  const judgement = createMemo<DerivedIndicatorComputability | undefined>(
+    () => {
+      const source = expression().trim();
+      if (type() === "base" || source === "") return undefined;
+      const dictionary = buildCommonIndicatorDictionary(
+        [
+          ...otherCommons(),
+          {
+            indicator_common_id: ownId(),
+            definition: { type: "derived", expression: source },
+          },
+        ],
+        POPULATION_TYPE_IDS,
+      );
+      return judgeDerivedIndicator(
+        ownId(),
+        source,
+        dictionary,
+        baseIdsWithMappings(p.commonIndicators),
+      );
+    },
+  );
+
   const expressionError = createMemo<string | undefined>(() => {
     if (type() === "base") return undefined;
-    const source = expression().trim();
-    if (source === "") {
+    if (expression().trim() === "") {
       return t3({
         en: "A formula is required",
         fr: "Une formule est requise",
         pt: "É necessária uma fórmula",
       });
     }
-    const entries: ExpressionDictionaryEntry[] = [
-      ...otherCommons().map((c) => ({
-        id: c.indicator_common_id,
-        type: c.definition.type,
-        expression:
-          c.definition.type === "derived" ? c.definition.expression : null,
-      })),
-      ...POPULATION_TYPE_IDS.map((pt) => ({
-        id: populationIngredientId(pt),
-        type: "population" as const,
-        expression: null,
-      })),
-      { id: ownId(), type: "derived", expression: source },
-    ];
-    try {
-      resolveIndicatorExpression({
-        ownId: ownId(),
-        source,
-        dictionary: buildExpressionDictionary(entries),
-        maxIngredients: MAX_INDICATOR_EXPRESSION_INGREDIENTS,
-      });
-      return undefined;
-    } catch (e) {
-      return e instanceof IndicatorExpressionError
-        ? e.message
-        : String(e instanceof Error ? e.message : e);
-    }
+    const j = judgement();
+    return j?.kind === "unresolvable" ? j.problem : undefined;
+  });
+
+  const computabilityWarning = createMemo<string | undefined>(() => {
+    const j = judgement();
+    if (j?.kind !== "unmapped_ingredients") return undefined;
+    return `${computabilityProblemText(j)}. ${t3({
+      en: "You can still save; results cannot be generated until this is fixed.",
+      fr: "Vous pouvez quand même enregistrer ; les résultats ne pourront pas être générés tant que ce problème n'est pas corrigé.",
+      pt: "Pode guardar na mesma; os resultados não podem ser gerados até que isto seja corrigido.",
+    })}`;
   });
 
   // Every identifier the formula names, with what it resolves to. Empty while
@@ -524,6 +500,11 @@ export function EditIndicatorCommonForm(
             </div>
             <Show when={expressionError()}>
               {(err) => <div class="text-danger text-xs">{err()}</div>}
+            </Show>
+            <Show when={computabilityWarning()}>
+              {(warning) => (
+                <div class="text-warning text-xs">{warning()}</div>
+              )}
             </Show>
             <div class="ui-gap-sm flex items-end">
               <SelectSearch

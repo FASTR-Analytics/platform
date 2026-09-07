@@ -32,7 +32,11 @@ import type { IndicatorMetadata } from "./indicators.ts";
 // wizard generation wrote (null for packages that carry none). A catalog
 // entry's traffic-light pair became a general `thresholds` rule (PLAN_1d,
 // same release). Manifest transform block 4.
-export const RUN_MANIFEST_SCHEMA_VERSION = 6;
+// 7: the `population` stamp gained `active` (recomputed from its own type
+// list) and `coverage`, the per-type area and month coverage a generation
+// wrote into the person-years file (carried forward as null: a v6 capture
+// refused any shortfall and recorded nothing). Manifest transform block 5.
+export const RUN_MANIFEST_SCHEMA_VERSION = 7;
 
 // Typed against DatasetType so the enum cannot drift from the union.
 export const runDatasetFamilySchema: z.ZodType<DatasetType> = z.enum([
@@ -183,18 +187,36 @@ export const runCommonIndicatorSchema = z.object({
 });
 export type RunCommonIndicator = z.infer<typeof runCommonIndicatorSchema>;
 
-// The person-years file a wizard generation wrote to inputs/population.csv:
-// which population types it carries, at which admin level (the population
-// level, SYSTEM_08 "population.csv"; m012's grain), over which months.
-// Generation-only provenance: null when the package
+// What a population type's person-years rows cover, out of the extract's
+// months and the structure areas at the file's level: a cell (area × month)
+// is covered when the store's anchors for that area reach the month within
+// the extrapolation window. The period ids are the union over areas, null
+// when no cell is covered.
+export const runPopulationCoverageSchema = z.object({
+  populationType: z.string(),
+  areasCovered: z.number().int(),
+  areasTotal: z.number().int(),
+  firstCoveredPeriodId: z.number().int().nullable(),
+  lastCoveredPeriodId: z.number().int().nullable(),
+});
+export type RunPopulationCoverage = z.infer<typeof runPopulationCoverageSchema>;
+
+// The person-years file a wizard generation wrote to inputs/population.csv
+// (SYSTEM_08 "population.csv"). `active` is whether any formula in the run's
+// dictionary named a population; `adminAreaLevel` is the file's admin level
+// and m012's grain; `firstPeriodId`/`lastPeriodId` are the extract's months;
+// `coverage` is what the file holds per type, null in packages written
+// before it was recorded. Generation-only provenance: null when the package
 // carries no such file (an older package, a backfill, or a run without the
 // HMIS family). The file's format is permanent once written:
 // admin_area_2..N, period_id, population_type, person_years.
 export const runPopulationSchema = z.object({
+  active: z.boolean(),
   adminAreaLevel: z.number().int(),
   populationTypes: z.array(z.string()),
   firstPeriodId: z.number().int(),
   lastPeriodId: z.number().int(),
+  coverage: z.array(runPopulationCoverageSchema).nullable(),
 });
 export type RunPopulation = z.infer<typeof runPopulationSchema>;
 

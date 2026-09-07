@@ -17,6 +17,10 @@
 //   - An identifier with no value in the record is NULL, exactly as a missing
 //     ingredient column is.
 //
+// m012 applies the same semantics in R to decide which rows exist at all
+// (the rule and the R bindings are in the module's script.R; pinned against
+// this evaluator by server/tests/m012_expression_parity_test.ts).
+//
 // =============================================================================
 
 import type { ExpressionNode } from "./parse.ts";

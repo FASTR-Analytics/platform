@@ -221,9 +221,9 @@ function LevelSetting(p: { locked: boolean }) {
               pt: "Bloqueado enquanto houver dados de população guardados. Para alterar o nível, elimine primeiro todos os dados de população e depois importe de novo ao novo nível.",
             })
           : t3({
-              en: "The admin area level of every population row, for every population type. Indicator values that use a population are computed at this level and nothing below it. It must be set before the first import.",
-              fr: "Le niveau administratif de chaque ligne de population, pour tous les types de population. Les valeurs d'indicateurs qui utilisent une population sont calculées à ce niveau et à rien en dessous. Il doit être défini avant le premier import.",
-              pt: "O nível administrativo de cada linha de população, para todos os tipos de população. Os valores de indicadores que usam uma população são calculados a este nível e a nada abaixo. Tem de ser definido antes da primeira importação.",
+              en: "The admin area level of every population row, for every population type. While any indicator formula uses a population, all indicator values in a results package are computed at this level and none below it; if no formula uses a population, this setting has no effect on results. It must be set before the first import.",
+              fr: "Le niveau administratif de chaque ligne de population, pour tous les types de population. Tant qu'une formule d'indicateur utilise une population, toutes les valeurs d'indicateurs d'un paquet de résultats sont calculées à ce niveau et à aucun niveau inférieur ; si aucune formule n'utilise de population, ce réglage n'a aucun effet sur les résultats. Il doit être défini avant le premier import.",
+              pt: "O nível administrativo de cada linha de população, para todos os tipos de população. Enquanto alguma fórmula de indicador usar uma população, todos os valores de indicadores de um pacote de resultados são calculados a este nível e a nenhum nível abaixo; se nenhuma fórmula usar uma população, esta definição não tem efeito nos resultados. Tem de ser definido antes da primeira importação.",
             })}
       </div>
     </div>
@@ -249,9 +249,9 @@ function EmptyStore(p: { canConfigure: boolean; levelIsSet: boolean }) {
                 pt: "Efetivos anuais de população por zona administrativa, uma linha CSV por zona, ano e tipo de população, ao nível de população escolhido à direita.",
               })
             : t3({
-                en: "First choose the population level in the panel on the right: the admin area level at which every population type will be stored and at which indicators will be computed. Then import a CSV.",
-                fr: "Choisissez d'abord le niveau de population dans le panneau de droite : le niveau administratif auquel chaque type de population sera enregistré et auquel les indicateurs seront calculés. Importez ensuite un CSV.",
-                pt: "Escolha primeiro o nível de população no painel à direita: o nível administrativo ao qual todos os tipos de população serão guardados e ao qual os indicadores serão calculados. Depois importe um CSV.",
+                en: "First choose the population level in the panel on the right: the admin area level at which every population type will be stored and, while any indicator formula uses a population, at which all indicator values are computed. Then import a CSV.",
+                fr: "Choisissez d'abord le niveau de population dans le panneau de droite : le niveau administratif auquel chaque type de population sera enregistré et, tant qu'une formule d'indicateur utilise une population, auquel toutes les valeurs d'indicateurs sont calculées. Importez ensuite un CSV.",
+                pt: "Escolha primeiro o nível de população no painel à direita: o nível administrativo ao qual todos os tipos de população serão guardados e, enquanto alguma fórmula de indicador usar uma população, ao qual todos os valores de indicadores são calculados. Depois importe um CSV.",
               })}
         </div>
       </Show>

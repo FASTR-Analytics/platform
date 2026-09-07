@@ -181,13 +181,14 @@ export function parsePopulationIngredientId(id: string): string | null {
 }
 
 // Every population type the resolved catalog's slot maps reference: what a
-// run's person-years file must carry. Sorted, deduplicated.
-export function populationTypesReferencedBySlotMaps(
-  slotMaps: Record<string, string>[],
+// run's person-years file must carry, and (non-empty) what makes population
+// ACTIVE for a run. Not a setting: the formulas decide. Sorted, deduplicated.
+export function populationTypesReferencedByCatalog(
+  rows: { slot_map: Record<string, string> | null }[],
 ): string[] {
   const types = new Set<string>();
-  for (const slotMap of slotMaps) {
-    for (const ingredientId of Object.keys(slotMap)) {
+  for (const row of rows) {
+    for (const ingredientId of Object.keys(row.slot_map ?? {})) {
       const populationType = parsePopulationIngredientId(ingredientId);
       if (populationType !== null) types.add(populationType);
     }

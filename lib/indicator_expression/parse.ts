@@ -342,3 +342,43 @@ export function writeIndicatorExpression(node: ExpressionNode): string {
       })`;
   }
 }
+
+// The same AST with every identifier renamed through `mapping`. The catalog
+// uses it to rewrite a flattened expression from ingredient ids to the slot
+// columns m012 materialises, so the text m012 evaluates names `ing1..ing8`
+// and nothing else. A name the mapping lacks is a broken slot map, not a
+// passthrough.
+export function renameIdentifiers(
+  node: ExpressionNode,
+  mapping: Record<string, string>,
+): ExpressionNode {
+  switch (node.kind) {
+    case "number":
+      return node;
+    case "identifier": {
+      const renamed = mapping[node.name];
+      if (renamed === undefined) {
+        throw new Error(`No slot for ingredient ${JSON.stringify(node.name)}`);
+      }
+      return { kind: "identifier", name: renamed };
+    }
+    case "negate":
+      return {
+        kind: "negate",
+        operand: renameIdentifiers(node.operand, mapping),
+      };
+    case "binary":
+      return {
+        kind: "binary",
+        op: node.op,
+        left: renameIdentifiers(node.left, mapping),
+        right: renameIdentifiers(node.right, mapping),
+      };
+    case "call":
+      return {
+        kind: "call",
+        name: node.name,
+        args: node.args.map((a) => renameIdentifiers(a, mapping)),
+      };
+  }
+}

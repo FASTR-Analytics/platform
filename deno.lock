@@ -6,6 +6,7 @@
     "jsr:@gfx/canvas@0.5.6": "0.5.6",
     "jsr:@hono/hono@^4.5.3": "4.6.12",
     "jsr:@std/archive@*": "0.225.4",
+    "jsr:@std/assert@*": "1.0.0",
     "jsr:@std/assert@0.214": "0.214.0",
     "jsr:@std/assert@0.217": "0.217.0",
     "jsr:@std/assert@1": "1.0.0",

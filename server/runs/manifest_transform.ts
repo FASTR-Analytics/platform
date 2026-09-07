@@ -30,6 +30,10 @@
 //      legacy packages, the type/expression/slot_map fields) live inside that
 //      one derivation. A second derivation here would be wiped and re-applied
 //      on every future bump.
+//   5. population.active recomputed from the stamp's own type list and
+//      population.coverage carried forward as null (schema v7): m012 works on
+//      the intersection of population and HMIS data, and the stamp records
+//      what a generation covered.
 //
 // =============================================================================
 
@@ -167,6 +171,23 @@ async function transformRunManifest(
     m.population = null;
   }
   m.manifestSchemaVersion = 6;
+
+  // 5. population.active + population.coverage. `active` is a recompute from
+  //    the stamp's own type list: a v6 capture wrote person-years exactly when
+  //    a formula named a population. `coverage` is generation-only
+  //    provenance: a v6 capture refused any shortfall but recorded nothing,
+  //    so it is carried forward as null, never synthesized. Both idempotent.
+  if (m.population !== null && typeof m.population === "object") {
+    const population = m.population as Record<string, unknown>;
+    if (population.active === undefined) {
+      population.active = Array.isArray(population.populationTypes) &&
+        population.populationTypes.length > 0;
+    }
+    if (population.coverage === undefined) {
+      population.coverage = null;
+    }
+  }
+  m.manifestSchemaVersion = 7;
 
   const validated = runManifestSchema.parse(m);
   // The schema deliberately accepts ANY integer version: it has to, so a

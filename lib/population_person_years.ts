@@ -11,8 +11,9 @@
 //     rate of the two nearest anchors (a single anchor extrapolates flat, and
 //     so does a pair with a zero count: a growth rate is undefined there);
 //   - never more than ±1 calendar year beyond the anchored years. A month
-//     outside that window is NOT covered, and generation refuses rather than
-//     thinning the package (ruling 6).
+//     outside that window is NOT covered: the person-years file has no row
+//     for it, and m012 drops that cell for every indicator naming the type
+//     (SYSTEM_08 "population.csv").
 //
 // Person-years for a month = that population / 12. They sum like a count:
 // twelve months of person-years are one year of population, which is what
@@ -43,6 +44,20 @@ export function populationCoveredYears(
     firstYear: firstYear - POPULATION_EXTRAPOLATION_YEARS,
     lastYear: lastYear + POPULATION_EXTRAPOLATION_YEARS,
   };
+}
+
+// The months of `periodIds` the anchors can serve: the per-cell coverage rule,
+// in one place. Order preserved, so a contiguous input stays contiguous.
+export function populationCellCoverage(
+  anchors: PopulationAnchor[],
+  periodIds: number[],
+): number[] {
+  const covered = populationCoveredYears(anchors);
+  if (covered === null) return [];
+  return periodIds.filter((periodId) => {
+    const year = Math.floor(periodId / 100);
+    return year >= covered.firstYear && year <= covered.lastYear;
+  });
 }
 
 // The population at the mid-point of `year`/`month`, from anchors of any
