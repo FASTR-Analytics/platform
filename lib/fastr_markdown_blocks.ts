@@ -901,11 +901,16 @@ const HEADING_SOURCE_RE = /^(#{1,6})\s+(.*)$/;
 // A heading's words without the inline syntax: emphasis and code delimiters
 // go, a `[phrase]{…}` mark keeps its phrase, a link keeps its label.
 export function fastrPlainInlineText(text: string): string {
+  return fastrStripInlineSyntax(text).trim();
+}
+
+// The same, edges kept: what a PREFIX of a line renders as, so a source
+// column maps to a rendered text offset (a trailing space is a real column).
+export function fastrStripInlineSyntax(text: string): string {
   return text
     .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
     .replace(/\[([^\]]*)\]\{[^}]*\}/g, "$1")
-    .replace(/(\*{1,3}|_{1,3}|`+)/g, "")
-    .trim();
+    .replace(/(\*{1,3}|_{1,3}|`+)/g, "");
 }
 
 // A stable anchor. `seen` makes repeated headings unique in document order,

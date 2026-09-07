@@ -85,7 +85,7 @@ const WORD_CH_RE = /[\p{L}\p{N}_'’%-]/u;
 const LINE_PREFIX_RE =
   /^\s*(?:>\s?)*(?:#{1,6}\s+|(?:[-*+]|\d+\.)\s+(?:\[[ xX]\]\s+)?)?/;
 
-function linePrefixLength(text: string): number {
+export function linePrefixLength(text: string): number {
   return LINE_PREFIX_RE.exec(text)?.[0].length ?? 0;
 }
 

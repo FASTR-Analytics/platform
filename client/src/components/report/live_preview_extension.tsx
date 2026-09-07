@@ -66,6 +66,8 @@ import {
   fastrDocumentOutline,
   fastrMarkClass,
   fastrMarkStyle,
+  fastrStripInlineSyntax,
+  linePrefixLength,
   fastrTocOptions,
   fastrOpenFenceOnLine,
   isDarkCssColor,
@@ -1390,6 +1392,16 @@ function attachCellEditor(
       el.contentEditable = "true";
     }
     el.focus();
+    const sel = window.getSelection();
+    if (sel) {
+      const r = document.createRange();
+      r.selectNodeContents(el);
+      r.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(r);
+    }
+    const range = contentRange();
+    if (range) publishIslandCaret(view, range.from + range.len, range.from + range.len);
     document.addEventListener("selectionchange", mirrorSelection);
   };
   (el as unknown as { _fmCellActivate?: () => void })._fmCellActivate = activate;
@@ -2549,15 +2561,26 @@ function regionPresencePlugin(deps: PresenceDeps): Extension {
         this.schedule();
       }
       update(u: ViewUpdate) {
-        if (u.docChanged || u.viewportChanged) this.schedule();
+        if (u.docChanged || u.viewportChanged || u.geometryChanged) {
+          this.schedule();
+        }
       }
+      // Coalesced on a plain tick rather than an animation frame: the DOM
+      // writes are a few small elements, and a frame can be a long time
+      // coming in a background tab (or a headless run), which left a peer's
+      // caret sitting where they used to be.
       schedule() {
         if (this.raf) return;
-        this.raf = requestAnimationFrame(() => {
+        this.raf = setTimeout(() => {
           this.raf = 0;
           this.paint();
-        });
+        }, 0) as unknown as number;
       }
+      // A peer's caret drawn INSIDE the rendered block, at the place in the
+      // text their document position maps to — the same bar-and-name caret
+      // yCollab draws in a paragraph, since the block's text is a widget and
+      // the text layer cannot reach into it. The whole-widget border is the
+      // fallback for a position nothing rendered stands for (a bare fence).
       paint() {
         const widgets = Array.from(
           this.view.dom.querySelectorAll<HTMLElement>("[data-region-line]"),
@@ -2565,6 +2588,7 @@ function regionPresencePlugin(deps: PresenceDeps): Extension {
         for (const w of widgets) {
           w.style.outline = "";
           w.querySelector(".fm-live-presence")?.remove();
+          for (const c of w.querySelectorAll(".fm-peer-caret")) c.remove();
         }
         if (widgets.length === 0) return;
         const doc = this.view.state.doc;
@@ -2598,6 +2622,7 @@ function regionPresencePlugin(deps: PresenceDeps): Extension {
           });
           if (!target) continue;
           const color = state.user.color ?? "#888888";
+          if (this.placeCaret(target, pos, color, state.user.name ?? "")) continue;
           target.style.outline = `2px solid ${color}`;
           if (!target.querySelector(".fm-live-presence")) {
             const chip = document.createElement("div");
@@ -2615,9 +2640,113 @@ function regionPresencePlugin(deps: PresenceDeps): Extension {
         const end = Number(w.getAttribute("data-region-end") ?? start);
         return line0 >= start && line0 <= end;
       }
+      // Map a document position to a point in the widget's rendered text and
+      // draw the caret there. False when nothing rendered stands for it.
+      placeCaret(widget: HTMLElement, pos: number, color: string, name: string): boolean {
+        const doc = this.view.state.doc;
+        const line = doc.lineAt(pos);
+        const start = Number(widget.getAttribute("data-region-line"));
+        const rel = line.number - 1 - start;
+        const col = pos - line.from;
+        // The element rendered for this source line: prose first (a paragraph,
+        // heading, list item), then a table row, whose cell the pipes name.
+        let anchor: HTMLElement | null = null;
+        let offset = 0;
+        const prose = Array.from(
+          widget.querySelectorAll<HTMLElement>(`[data-line="${rel}"]`),
+        ).find((el) => /^(P|H[1-6]|LI|BLOCKQUOTE)$/.test(el.tagName));
+        if (prose) {
+          anchor = prose;
+          offset = prose.isContentEditable
+            // An open island shows the raw source (syntax in hidden spans):
+            // its text IS the line, so the column is the offset.
+            ? col
+            : fastrStripInlineSyntax(
+              line.text.slice(linePrefixLength(line.text), col),
+            ).length;
+        } else {
+          const row = Array.from(
+            widget.querySelectorAll<HTMLElement>(`tr[data-line="${rel}"]`),
+          )[0];
+          if (row) {
+            const slices = cellSlices(line.text);
+            const idx = Math.max(
+              0,
+              slices.findIndex((c, i) =>
+                col < c.start + c.raw.length ||
+                i === slices.length - 1
+              ),
+            );
+            const cell = row.children[idx] as HTMLElement | undefined;
+            const slice = slices[idx];
+            if (cell && slice) {
+              anchor = cell;
+              const lead = slice.raw.length - slice.raw.trimStart().length;
+              const within = Math.max(0, col - slice.start - lead);
+              offset = cell.isContentEditable
+                ? within
+                : fastrStripInlineSyntax(slice.raw.trim().slice(0, within)).length;
+            }
+          }
+        }
+        if (!anchor) {
+          const block = widget.querySelector<HTMLElement>(`[data-line="${rel}"]`) ??
+            (rel === 0 ? widget.firstElementChild as HTMLElement | null : null);
+          if (!block) return false;
+          anchor = block;
+          offset = 0;
+        }
+        // Walk the text nodes to the offset — skipping hidden syntax spans
+        // and the whitespace between block tags, which a rendered block
+        // (but not an open island, whose text IS the source) is full of.
+        const walker = document.createTreeWalker(anchor, NodeFilter.SHOW_TEXT);
+        let node: Text | null = null;
+        let at = 0;
+        let remaining = offset;
+        let last: Text | null = null;
+        while ((node = walker.nextNode() as Text | null)) {
+          if (!anchor.isContentEditable) {
+            const hidden =
+              (node.parentElement?.closest(".cm-fm-island-syntax") ?? null) !== null;
+            if (hidden || node.data.trim().length === 0) continue;
+          }
+          last = node;
+          if (remaining <= node.length) {
+            at = remaining;
+            break;
+          }
+          remaining -= node.length;
+          node = null;
+        }
+        const range = document.createRange();
+        if (node) range.setStart(node, at);
+        else if (last) range.setStart(last, last.length);
+        else range.setStart(anchor, 0);
+        range.collapse(true);
+        let rect: DOMRect | undefined = range.getClientRects()[0];
+        if (!rect || (rect.width === 0 && rect.height === 0)) {
+          const r = anchor.getBoundingClientRect();
+          rect = new DOMRect(r.left, r.top, 0, r.height);
+        }
+        const base = widget.getBoundingClientRect();
+        widget.style.position = "relative";
+        const caret = document.createElement("span");
+        caret.className = "fm-peer-caret";
+        caret.style.left = `${rect.left - base.left}px`;
+        caret.style.top = `${rect.top - base.top}px`;
+        caret.style.height = `${rect.height || parseFloat(getComputedStyle(anchor).lineHeight) || 16}px`;
+        caret.style.background = color;
+        const flag = document.createElement("span");
+        flag.className = "fm-peer-caret__name";
+        flag.style.background = color;
+        flag.textContent = name;
+        caret.appendChild(flag);
+        widget.appendChild(caret);
+        return true;
+      }
       destroy() {
         deps.awareness.off("change", this.onAwareness);
-        if (this.raf) cancelAnimationFrame(this.raf);
+        if (this.raf) clearTimeout(this.raf);
       }
     },
   );

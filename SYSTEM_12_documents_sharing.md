@@ -809,10 +809,22 @@ only. The document stays light in a dark app (documents-stay-light); a
 skips it) — findable through the toolbar's Page setup popover, which edits
 the fence from anywhere via `setBlockAttrs` (or `insertPageSetup` when the
 document has no header yet). Peer carets
-inside a collapsed region have no text to sit in, so an awareness-driven
-plugin paints the peer's colour and name on the widget instead (relative
-positions resolved with the `yCaretHygiene` ownership check; DOM-only writes,
-never a dispatch). Bands and covers bleed to the SHEET's edges in Edit (the re-aimed
+inside a rendered region have no text layer to sit in, so an awareness-driven
+plugin draws them INSIDE the widget itself (`regionPresencePlugin.placeCaret`):
+the peer's document position → the region-relative line → the element the
+renderer anchored for it (`[data-line]`: a paragraph or heading, a table
+row's cell by pipe count, or the block element itself for a caret parked on a
+fence) → a rendered-text offset (`fastrStripInlineSyntax` of the source
+prefix past the line marker, edges kept; an OPEN island's text is the source,
+so there the column is the offset) → a Range on the text nodes (hidden syntax
+and inter-tag whitespace skipped) → an absolutely positioned `.fm-peer-caret`
+with the same bar, dot and hover name flag as yCollab's paragraph caret. The
+whole-widget border survives only as the fallback for a position nothing
+rendered stands for. Repaints coalesce on a plain tick, not an animation
+frame (a background tab can wait a long time for a frame). `yCaretHygiene`
+no longer clears the caret when focus moves INTO the editor's content (an
+island is a contentEditable inside contentDOM), which would otherwise erase
+the island's own publish a tick later. Bands and covers bleed to the SHEET's edges in Edit (the re-aimed
 bleed vars above); Split/View remain the true page, where the bleed is the
 viewport.
 
