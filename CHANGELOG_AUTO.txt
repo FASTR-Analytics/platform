@@ -1,20 +1,20 @@
-[TBD] [user] [added] - Derived indicator status column shows computability warnings in indicator list
-[TBD] [user] [added] - Banner warns when derived indicators cannot be computed due to missing mappings
-[TBD] [user] [added] - Population data import now shows a preview step before importing
-[TBD] [user] [added] - Population import preview shows coverage details per population type
-[TBD] [user] [added] - Population import preview indicates which values are new versus replacing existing ones
-[TBD] [user] [changed] - Indicator formula editor now shows a warning instead of blocking save when ingredients are unmapped
-[TBD] [user] [changed] - Population data summary card now shows the population level name instead of just counts
-[TBD] [user] [changed] - Population type labels are now translated into the selected language
-[TBD] [admin] [added] - Derived indicator computability status shown in indicator list
-[TBD] [admin] [added] - Warning banner when derived indicators cannot be computed
-[TBD] [admin] [added] - Population import now includes a preview step before importing
-[TBD] [admin] [added] - Population coverage details shown per type in import preview
-[TBD] [admin] [added] - Completeness check for population data during import
-[TBD] [admin] [changed] - Population data card now shows configured population level
-[TBD] [admin] [changed] - Population type list uses built-in types instead of instance-configured ones
-[TBD] [admin] [changed] - Derived indicator editor shows warning when ingredients lack mapped raw indicators
-[TBD] [admin] [changed] - Population coverage summary simplified to single level display
+[1.70.0] [user] [added] - Derived indicator status column shows computability warnings in indicator list
+[1.70.0] [user] [added] - Banner warns when derived indicators cannot be computed due to missing mappings
+[1.70.0] [user] [added] - Population data import now shows a preview step before importing
+[1.70.0] [user] [added] - Population import preview shows coverage details per population type
+[1.70.0] [user] [added] - Population import preview indicates which values are new versus replacing existing ones
+[1.70.0] [user] [changed] - Indicator formula editor now shows a warning instead of blocking save when ingredients are unmapped
+[1.70.0] [user] [changed] - Population data summary card now shows the population level name instead of just counts
+[1.70.0] [user] [changed] - Population type labels are now translated into the selected language
+[1.70.0] [admin] [added] - Derived indicator computability status shown in indicator list
+[1.70.0] [admin] [added] - Warning banner when derived indicators cannot be computed
+[1.70.0] [admin] [added] - Population import now includes a preview step before importing
+[1.70.0] [admin] [added] - Population coverage details shown per type in import preview
+[1.70.0] [admin] [added] - Completeness check for population data during import
+[1.70.0] [admin] [changed] - Population data card now shows configured population level
+[1.70.0] [admin] [changed] - Population type list uses built-in types instead of instance-configured ones
+[1.70.0] [admin] [changed] - Derived indicator editor shows warning when ingredients lack mapped raw indicators
+[1.70.0] [admin] [changed] - Population coverage summary simplified to single level display
 [1.69.2] [user] [fixed] - Slide deck changes now update in real time for all viewers
 [1.69.2] [admin] [added] - Slide deck changes now update collaborators in real time
 [1.69.1] [user] [changed] - Indicator colour mode now shows legend bands on the figure itself
