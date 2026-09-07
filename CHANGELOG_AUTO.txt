@@ -1,3 +1,10 @@
+[TBD] [user] [added] - Population grid now shows a data coverage summary strip indicating gaps
+[TBD] [user] [changed] - Delete button for population data now uses an icon only
+[TBD] [user] [changed] - Simplified population heading to show only the year range
+[TBD] [user] [changed] - Population type navigation panel width adjusts more flexibly
+[TBD] [admin] [added] - Population grid now shows a coverage summary strip highlighting data gaps
+[TBD] [admin] [changed] - Population type heading now shows only the year range instead of detailed coverage stats
+[TBD] [admin] [changed] - Delete button for population data no longer displays a text label
 [1.71.0] [user] [fixed] - Creating a new project no longer leaves behind incomplete data if something goes wrong
 [1.71.0] [admin] [fixed] - Failed project creation now cleans up leftover databases immediately
 [1.71.0] [admin] [added] - Orphan project databases are automatically cleaned up at startup
