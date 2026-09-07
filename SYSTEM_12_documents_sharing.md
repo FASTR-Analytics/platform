@@ -778,6 +778,20 @@ three report render sites pass the palette (the live embed through
 includes the palette, so a re-theme re-rasters — and the export), and nothing
 else does, so dashboards, slide decks and the visualization editor are
 byte-identical to before.
+**A report's live figures render in the LIGHT key-colour scheme.** Panther's
+`FigureHolder` follows the app's colour scheme by default, so in a dark app
+every keyed colour a figure uses resolved dark: a table's column-header ground
+is the base page key (near-black), and the CF cell text strategy's base text
+key is white, which painted black header cells with invisible year labels and
+white values on the pale traffic-light tints (observed on an AI-made
+completeness table, 2026-09-07). `ReportFigureEmbed` now passes
+`scheme="light"`, the documented "document surface" setting: a document stays
+light in a dark app, and dark GROUNDS inside the report remain the ink theme's
+job. The preview raster and the export never entered the dark scope, so they
+were already right. `applyInkTheme` also makes column-header grounds
+transparent through the real option (`content.tableColHeaders.func`,
+wrapping any per-header rule the figure carries); the `colHeaderBackgroundColor`
+it used to set was not a panther option and did nothing.
 **Figure ink follows the ground in BOTH directions.** A figure's stored style
 is its dashboard's — a dark dashboard's white text arrives as white text — so
 every place a report renders one re-inks it for the ground it actually sits

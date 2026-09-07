@@ -79,9 +79,14 @@ export function ReportFigureEmbed(p: Props): JSX.Element {
   return (
     <div ref={root}>
       <Switch>
+        {/* scheme="light": a document stays light in a dark app. Keyed
+            colours (a table's column-header ground is the page key, CF cell
+            text picks the base text key) must resolve against the light set,
+            or a dark app paints black header cells and white values on pale
+            tints. Dark GROUNDS inside the report are the ink theme's job. */}
         <Match when={inputs()}>
           {(fi) => (
-            <FigureHolder figureInputs={fi()} height="ideal" sizing="zoom" />
+            <FigureHolder figureInputs={fi()} height="ideal" sizing="zoom" scheme="light" />
           )}
         </Match>
         <Match when={errMsg()}>

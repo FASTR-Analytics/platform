@@ -130,7 +130,25 @@ export function applyInkTheme<T extends { style?: Record<string, unknown> }>(
     text?: { base?: Record<string, unknown> };
     grid?: Record<string, unknown>;
     table?: Record<string, unknown>;
+    content?: {
+      tableColHeaders?: { func?: unknown; textFormatter?: unknown };
+    } & Record<string, unknown>;
   };
+  // Column headers sit on the page, not on a painted band: panther's default
+  // header ground is the base page key, which is a different colour from
+  // the document's page (and near-black in a dark app), so the years row
+  // would read as a strip with its labels lost on it. Only the ground is
+  // overridden — alignment and any per-header rule a figure carries stay.
+  const prevHeader = style.content?.tableColHeaders?.func;
+  const headerFunc = typeof prevHeader === "function"
+    ? (info: unknown) => ({
+      ...(prevHeader as (i: unknown) => Record<string, unknown>)(info),
+      backgroundColor: "none",
+    })
+    : {
+      ...(typeof prevHeader === "object" && prevHeader !== null ? prevHeader : {}),
+      backgroundColor: "none",
+    };
   return {
     ...fi,
     style: {
@@ -149,7 +167,10 @@ export function applyInkTheme<T extends { style?: Record<string, unknown> }>(
         headerBorderColor: theme.axis,
         gridLineColor: theme.grid,
         borderColor: theme.axis,
-        colHeaderBackgroundColor: "none",
+      },
+      content: {
+        ...style.content,
+        tableColHeaders: { ...style.content?.tableColHeaders, func: headerFunc },
       },
     },
   };
