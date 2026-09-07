@@ -184,17 +184,21 @@ export type FastrMarkAttrs = {
   // keeps role and colour mutually exclusive; the parser accepts both so a
   // hand-written mark never turns into literal text over it.
   color?: string;
+  // A highlighter stripe behind the phrase (`highlight=#ffe08a`) — the same
+  // literal-colour trade as `color=`.
+  highlight?: string;
   size?: number;
   underline?: true;
 };
 
 export function isEmptyFastrMarkAttrs(a: FastrMarkAttrs): boolean {
-  return a.role === undefined && a.color === undefined && a.size === undefined &&
-    a.underline !== true;
+  return a.role === undefined && a.color === undefined &&
+    a.highlight === undefined && a.size === undefined && a.underline !== true;
 }
 
 export function sameFastrMarkAttrs(a: FastrMarkAttrs, b: FastrMarkAttrs): boolean {
-  return a.role === b.role && a.color === b.color && a.size === b.size &&
+  return a.role === b.role && a.color === b.color &&
+    a.highlight === b.highlight && a.size === b.size &&
     (a.underline === true) === (b.underline === true);
 }
 
@@ -218,6 +222,12 @@ export function parseFastrMarkAttrs(
     if (item === "underline") {
       if (out.underline !== undefined) return undefined;
       out.underline = true;
+      continue;
+    }
+    if (item.startsWith("highlight=")) {
+      const hl = safeCssColor(item.slice("highlight=".length));
+      if (hl === undefined || out.highlight !== undefined) return undefined;
+      out.highlight = hl;
       continue;
     }
     if (item.startsWith("color=")) {
@@ -244,6 +254,7 @@ export function serializeFastrMarkAttrs(attrs: FastrMarkAttrs): string {
   const parts: string[] = [];
   if (attrs.role !== undefined) parts.push(`.${attrs.role}`);
   if (attrs.color !== undefined) parts.push(`color=${attrs.color}`);
+  if (attrs.highlight !== undefined) parts.push(`highlight=${attrs.highlight}`);
   if (attrs.size !== undefined) parts.push(`size=${attrs.size}`);
   if (attrs.underline === true) parts.push("underline");
   return `{${parts.join(" ")}}`;
@@ -255,7 +266,11 @@ export function serializeFastrMarkAttrs(attrs: FastrMarkAttrs): string {
 // at the same strength.
 export function fastrMarkClass(attrs: FastrMarkAttrs): string {
   const base = attrs.role !== undefined ? inkRoleClass(attrs.role) : "fm-mark";
-  return attrs.underline === true ? `${base} fm-mark--u` : base;
+  const classes = [base];
+  if (attrs.underline === true) classes.push("fm-mark--u");
+  // The stripe needs padding and a radius, which only a class can carry.
+  if (attrs.highlight !== undefined) classes.push("fm-mark--hl");
+  return classes.join(" ");
 }
 
 // The colour passed safeCssColor, the size is a validated number and
@@ -263,6 +278,9 @@ export function fastrMarkClass(attrs: FastrMarkAttrs): string {
 export function fastrMarkStyle(attrs: FastrMarkAttrs): string {
   const parts: string[] = [];
   if (attrs.color !== undefined) parts.push(`color:${attrs.color}`);
+  if (attrs.highlight !== undefined) {
+    parts.push(`background-color:${attrs.highlight}`);
+  }
   if (attrs.size !== undefined) parts.push(`font-size:${attrs.size}pt`);
   if (attrs.underline === true) parts.push("text-decoration:underline");
   return parts.join(";");

@@ -10,6 +10,7 @@ import {
   insertLinkEdit,
   setHeadingLevelEdit,
   setInlineColorEdit,
+  setInlineHighlightEdit,
   setInlineRoleEdit,
   setInlineSizeEdit,
   setInlineUnderlineEdit,
@@ -483,6 +484,51 @@ Deno.test("bold is not reported as italic", () => {
   const s = inlineMarkStateAt("a **b** c", 5, 5);
   assertEquals(s.bold, true);
   assertEquals(s.italic, false);
+});
+
+Deno.test("the list kinds are one choice, and a quote is orthogonal", () => {
+  // Switching kinds replaces the marker rather than stacking a second one.
+  const bullets = "- milk\n- eggs";
+  assertEquals(
+    apply(bullets, toggleLinePrefixEdit(bullets, 0, bullets.length, "ordered")),
+    "1. milk\n2. eggs",
+  );
+  const ordered = "1. milk\n2. eggs";
+  assertEquals(
+    apply(ordered, toggleLinePrefixEdit(ordered, 0, ordered.length, "bullet")),
+    "- milk\n- eggs",
+  );
+  // A quote wraps whatever list is there instead of replacing it.
+  assertEquals(
+    apply(bullets, toggleLinePrefixEdit(bullets, 0, bullets.length, "quote")),
+    "> - milk\n> - eggs",
+  );
+  assertEquals(inlineMarkStateAt("> quoted", 3, 3).quote, true);
+  assertEquals(inlineMarkStateAt("plain", 3, 3).quote, false);
+});
+
+Deno.test("a highlight is a stripe that survives the other mark attributes", () => {
+  const doc = "Coverage fell 12 points this quarter.";
+  const r = setInlineHighlightEdit(doc, 9, 23, "#ffe08a");
+  assertWellFormed(r);
+  assertEquals(apply(doc, r), "Coverage [fell 12 points]{highlight=#ffe08a} this quarter.");
+  // Unlike a role and a colour, a highlight coexists with them.
+  const roled = "Coverage [fell 12 points]{.danger size=14} this quarter.";
+  assertEquals(
+    apply(roled, setInlineHighlightEdit(roled, 12, 20, "yellow")),
+    "Coverage [fell 12 points]{.danger highlight=yellow size=14} this quarter.",
+  );
+  // Clearing it leaves the rest of the mark alone, and unwraps when alone.
+  const both = "Coverage [fell 12 points]{.danger highlight=yellow} this quarter.";
+  assertEquals(
+    apply(both, setInlineHighlightEdit(both, 12, 20, undefined)),
+    "Coverage [fell 12 points]{.danger} this quarter.",
+  );
+  const only = "Coverage [fell 12 points]{highlight=yellow} this quarter.";
+  assertEquals(apply(only, setInlineHighlightEdit(only, 12, 20, undefined)), doc);
+  assertEquals(inlineMarkStateAt(only, 14, 14).highlight, "yellow");
+  // An unsafe colour is not a mark at all.
+  assertEquals(apply(doc, setInlineHighlightEdit(doc, 9, 23, "url(x)")), doc);
 });
 
 Deno.test("the active state reads the line's heading level and list kind", () => {

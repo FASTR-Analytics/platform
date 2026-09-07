@@ -22,6 +22,7 @@ import {
   isFastrLeafBlock,
   parseContainerFence,
   parseFastrMarkAttrs,
+  safeCssColor,
   sameFastrMarkAttrs,
   scanContainerLines,
   serializeFastrMarkAttrs,
@@ -446,6 +447,9 @@ export function setInlineColorEdit(
   to: number,
   color: string | undefined,
 ): EditResult {
+  // The mark parser is the gate; writing a colour it would refuse turns the
+  // phrase into literal text on the next render.
+  if (color !== undefined && safeCssColor(color) === undefined) return NONE;
   return setMarkAttrsEdit(doc, from, to, (cur) => {
     const { role: _role, color: _color, ...rest } = cur;
     return color === undefined ? rest : { ...rest, color };
@@ -463,6 +467,23 @@ export function setInlineUnderlineEdit(
   return setMarkAttrsEdit(doc, from, to, (cur) => {
     const { underline: _drop, ...rest } = cur;
     return on ? { ...rest, underline: true } : rest;
+  });
+}
+
+// `[phrase]{highlight=#ffe08a}` — a highlighter stripe; undefined clears it.
+// Unlike a role and a colour, a highlight coexists with everything else.
+export function setInlineHighlightEdit(
+  doc: string,
+  from: number,
+  to: number,
+  highlight: string | undefined,
+): EditResult {
+  if (highlight !== undefined && safeCssColor(highlight) === undefined) {
+    return NONE;
+  }
+  return setMarkAttrsEdit(doc, from, to, (cur) => {
+    const { highlight: _drop, ...rest } = cur;
+    return highlight === undefined ? rest : { ...rest, highlight };
   });
 }
 
@@ -579,12 +600,22 @@ export function toggleLinePrefixEdit(
   );
   if (live.length === 0) return NONE;
 
-  const re = kind === "bullet" ? BULLET_RE : kind === "ordered" ? ORDERED_RE : QUOTE_RE;
+  const re = kind === "bullet"
+    ? BULLET_RE
+    : kind === "ordered"
+    ? ORDERED_RE
+    : QUOTE_RE;
+  // The list kinds are one choice, so switching between them replaces the
+  // marker instead of stacking a second one. A quote is orthogonal:
+  // `> - item` is a quoted list, so it only ever eats its own `>`.
+  const anyPrefix = kind === "quote"
+    ? QUOTE_RE
+    : /^(\s*)(?:[-*+]\s+|\d+\.\s+)/;
   const allPrefixed = live.every((l) => re.test(l.text));
   const changes: TextEdit[] = [];
   let n = 0;
   for (const line of live) {
-    const m = re.exec(line.text);
+    const m = anyPrefix.exec(line.text);
     const indent = /^\s*/.exec(line.text)![0];
     const bodyFrom = line.from + (m ? m[0].length : indent.length);
     n++;
@@ -1089,6 +1120,8 @@ export type InlineMarkState = {
   // 0 = paragraph.
   headingLevel: number;
   list: "bullet" | "ordered" | undefined;
+  quote: boolean;
+  highlight: string | undefined;
 };
 
 // Line-local by design: this runs on EVERY cursor move, so it must never take
@@ -1111,11 +1144,13 @@ export function inlineMarkStateAt(
     size: mark?.attrs.size,
     underline: mark?.attrs.underline === true,
     headingLevel: heading ? heading[2].length : 0,
+    highlight: mark?.attrs.highlight,
     list: BULLET_RE.test(lineText)
       ? "bullet"
       : ORDERED_RE.test(lineText)
       ? "ordered"
       : undefined,
+    quote: QUOTE_RE.test(lineText),
   };
 }
 

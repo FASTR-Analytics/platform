@@ -177,6 +177,13 @@ Sizing a WORD or PHRASE — points, like a word processor:
   role in either order. A literal size does NOT rescale with the theme the way
   headings do — prefer headings for structure and sizes for emphasis.
 
+Highlighting — a stripe behind the words, the same span again:
+
+  The [only]{highlight=#ffe08a} district to improve.
+
+  Any colour a \`bg=\` takes; it does NOT re-theme, so use it for emphasis a
+  reader must not miss rather than as decoration.
+
 Underlining — the same span, since markdown has no underline of its own:
 
   The [only]{underline} district to improve, [and by a lot]{.success underline}.

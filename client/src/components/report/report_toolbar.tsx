@@ -19,6 +19,7 @@ import {
   FASTR_TOC_DEFAULT_DEPTH,
   type FastrCoverPreset,
   isFastrBlockName,
+  type TableCellAction,
   cardTilesSnippet,
   columnsSnippet,
   renderFastrMarkdownToHtml,
@@ -826,6 +827,49 @@ export function ReportToolbar(p: Props) {
                 <Icon iconName="plus" class="h-3.5 w-3.5" />
               </ToolButton>
             </div>
+            {/* Highlight: the same panel shape as the ground and ink
+                pickers, but only literal colours — a stripe IS the colour. */}
+            <Popover
+              chevron={false}
+              label={
+                <span
+                  class="rounded px-1 leading-none font-600"
+                  style={marks()?.highlight !== undefined
+                    ? { "background-color": marks()?.highlight }
+                    : { "border-bottom": "3px solid #ffe08a" }}
+                >
+                  H
+                </span>
+              }
+              title={t3({ en: "Highlight", fr: "Surlignage", pt: "Realce" })}
+            >
+              {(close) => (
+                <div class="flex w-56 flex-col">
+                  <PopoverRow
+                    active={marks()?.highlight === undefined}
+                    onClick={() => {
+                      p.api()?.setInlineHighlight(undefined);
+                      close();
+                    }}
+                  >
+                    {t3({ en: "None", fr: "Aucun", pt: "Nenhum" })}
+                  </PopoverRow>
+                  <LiteralColours
+                    literal={marks()?.highlight}
+                    onLiteral={(c) => p.api()?.setInlineHighlight(c)}
+                    onPick={close}
+                  />
+                </div>
+              )}
+            </Popover>
+            <ToolButton
+              label={`${t3({ en: "Link", fr: "Lien", pt: "Ligação" })} (Ctrl+K)`}
+              onClick={() => p.api()?.insertLink()}
+            >
+              {/* panther's icon set has no chain glyph, so the link button
+                  uses a letterform like B/I/U do. */}
+              <span class="underline">↗</span>
+            </ToolButton>
             <Popover
               chevron={false}
               label={
@@ -875,7 +919,49 @@ export function ReportToolbar(p: Props) {
             >
               <span class="text-xs">1.</span>
             </ToolButton>
+            <ToolButton
+              active={() => marks()?.quote === true}
+              onClick={() => p.api()?.toggleLinePrefix("quote")}
+              label={t3({ en: "Quote", fr: "Citation", pt: "Citação" })}
+            >
+              <span class="font-700">"</span>
+            </ToolButton>
           </div>
+
+          {/* The caret is in a TABLE: rows and columns, in the pill rather
+              than only behind a right-click. */}
+          <Show when={p.context()?.table !== undefined}>
+            <Divider />
+            <div class="flex items-center gap-0.5">
+              <Popover
+                label={t3({ en: "Table", fr: "Tableau", pt: "Tabela" })}
+                title={t3({ en: "Table", fr: "Tableau", pt: "Tabela" })}
+              >
+                {(close) => (
+                  <div class="ui-spy-sm flex w-56 flex-col">
+                    <For each={TABLE_ACTIONS()}>
+                      {(row) => (
+                        <>
+                          <Show when={row.divider}>
+                            <MenuDivider />
+                          </Show>
+                          <PopoverRow
+                            active={false}
+                            onClick={() => {
+                              p.api()?.applyTableAction(row.action);
+                              close();
+                            }}
+                          >
+                            {row.label}
+                          </PopoverRow>
+                        </>
+                      )}
+                    </For>
+                  </div>
+                )}
+              </Popover>
+            </div>
+          </Show>
 
           {/* The block under the cursor — its fence attributes append here. */}
           <Show when={target()}>
@@ -1092,6 +1178,42 @@ function DetailRows(p: {
       </For>
     </div>
   );
+}
+
+// The table set, in the order Google Docs uses.
+function TABLE_ACTIONS(): {
+  action: TableCellAction;
+  label: string;
+  divider?: boolean;
+}[] {
+  return [
+    {
+      action: "insertRowAbove",
+      label: t3({ en: "Insert row above", fr: "Insérer une ligne au-dessus", pt: "Inserir linha acima" }),
+    },
+    {
+      action: "insertRowBelow",
+      label: t3({ en: "Insert row below", fr: "Insérer une ligne en dessous", pt: "Inserir linha abaixo" }),
+    },
+    {
+      action: "insertColLeft",
+      label: t3({ en: "Insert column left", fr: "Insérer une colonne à gauche", pt: "Inserir coluna à esquerda" }),
+      divider: true,
+    },
+    {
+      action: "insertColRight",
+      label: t3({ en: "Insert column right", fr: "Insérer une colonne à droite", pt: "Inserir coluna à direita" }),
+    },
+    {
+      action: "deleteRow",
+      label: t3({ en: "Delete row", fr: "Supprimer la ligne", pt: "Eliminar linha" }),
+      divider: true,
+    },
+    {
+      action: "deleteCol",
+      label: t3({ en: "Delete column", fr: "Supprimer la colonne", pt: "Eliminar coluna" }),
+    },
+  ];
 }
 
 // A theme at a glance: its page, ink and accent, in its own heading face.
