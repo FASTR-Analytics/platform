@@ -808,7 +808,22 @@ only. The document stays light in a dark app (documents-stay-light); a
 `:::report` line is fully HIDDEN (zero-height widget, atomic so the caret
 skips it) — findable through the toolbar's Page setup popover, which edits
 the fence from anywhere via `setBlockAttrs` (or `insertPageSetup` when the
-document has no header yet). Peer carets
+document has no header yet). A region widget's ROOT is built once (`RegionWidget.toDOM`: the element,
+its reveal/embed-select listeners reading the current widget through a
+`_widget` ref) and everything content-dependent lives in `fill()`; a widget
+with a different key for the SAME region (a peer's keystroke inside the block,
+a toolbar fence patch) re-renders through `updateDOM` into the existing
+element rather than replacing it. CodeMirror lays a fresh block element out
+at its ESTIMATED height until the next measure, and that estimate-then-correct
+on every remote keystroke was a visible jolt of everything below the block
+for every peer; an in-place fill keeps the measured height. The element at a
+slot after a structural change may stand for a different region, so
+`updateDOM` demands the same kind and start line and otherwise lets CodeMirror
+rebuild. Every widget's FIRST child is a `.fm-peer-layer` (absolute, covering
+it): the sheet's first/last-child margin clamps address the child after it,
+so an overlay never hands a block its full margin back (a 37px shift on every
+repaint when the caret was the last child), and nothing is ever appended
+inside an open island, whose textContent is what it commits. Peer carets
 inside a rendered region have no text layer to sit in, so an awareness-driven
 plugin draws them INSIDE the widget itself (`regionPresencePlugin.placeCaret`):
 the peer's document position → the region-relative line → the element the

@@ -180,25 +180,115 @@ class RegionWidget extends WidgetType {
     // Vertical PADDING, never margins: CodeMirror measures the widget's box
     // for vertical layout and margins fall outside it, desyncing cursor
     // positions below (the embedWidgets rule).
-    dom.className = [
-      "fm-live-region",
-      this.active ? "fm-live-region--active" : "",
-      this.first ? "fm-live-region--first" : "",
-      "w-full cursor-text",
-    ].filter((c) => c.length > 0).join(" ");
+    // The root and its listeners are created ONCE: a later widget for the
+    // same region updates this element in place (updateDOM), so the
+    // listeners read the current widget through `self()` rather than closing
+    // over the one that built the element.
+    const self = () => (dom as unknown as { _widget: RegionWidget })._widget;
     // Presses inside the widget stopPropagation (cells, islands, the press
     // claim below), which starves panther's document-level menu dismiss — so
     // an open context menu is closed HERE, in the capture phase, before any
     // child handler can swallow the event.
     dom.addEventListener("mousedown", () => hideMenu(), true);
     dom.style.display = "flow-root";
+    dom.style.position = "relative";
     dom.contentEditable = "false";
+    // MOUSEDOWN, not click, and with the default prevented: the browser's
+    // native behaviour on pressing a contentEditable=false island is to
+    // select the WHOLE island — and if a micro-drag swallows the click, that
+    // full-widget highlight would stick. Claiming the press parks the caret
+    // immediately and no native selection ever starts. Labels and figures
+    // keep their own behaviour.
+
+    dom.addEventListener("mousedown", (e) => {
+      const target = e.target as HTMLElement;
+      if (target.closest(".cm-fm-attr") || target.closest("[data-embed-id]")) {
+        return;
+      }
+      e.preventDefault();
+      // Caret on the clicked line. data-line values are region-relative
+      // (the renderer saw only the slice).
+      const anchorEl = target.closest<HTMLElement>("[data-line]");
+      const rel = anchorEl ? Number(anchorEl.getAttribute("data-line")) : NaN;
+      const fallback = self().kind === "container"
+        ? self().startLine + 2
+        : self().startLine + 1;
+      const line1 = Math.max(
+        self().startLine + 1,
+        Math.min(
+          Number.isFinite(rel) ? self().startLine + rel + 1 : fallback,
+          self().endLine + 1,
+          view.state.doc.lines,
+        ),
+      );
+      view.dispatch({
+        selection: { anchor: view.state.doc.line(line1).from },
+        scrollIntoView: true,
+      });
+      view.focus();
+    });
+    dom.addEventListener("click", (e) => {
+      const embed = (e.target as HTMLElement).closest<HTMLElement>(
+        "[data-embed-id]",
+      );
+      if (embed) {
+        e.stopPropagation();
+        self().resolver.onSelectEmbed(
+          (embed.getAttribute("data-embed-kind") ?? "figure") as
+            | "figure"
+            | "image",
+          embed.getAttribute("data-embed-id") ?? "",
+        );
+      }
+    });
+    this.fill(dom, view);
+    return dom;
+  }
+
+  // A remote keystroke inside the region, or a toolbar patch to its fence,
+  // arrives as a widget with a different key. Re-rendering INTO the existing
+  // element keeps CodeMirror's measured height for it — a fresh element is
+  // laid out at its estimated height until the next measure, and that
+  // estimate-then-correct is what made everything below a block jolt for
+  // every peer on every keystroke. Only the same region qualifies: after a
+  // structural change the element at this slot may stand for another one.
+  override updateDOM(dom: HTMLElement, view: EditorView): boolean {
+    if (
+      dom.getAttribute("data-region-kind") !== this.kind ||
+      dom.getAttribute("data-region-line") !== String(this.startLine)
+    ) {
+      return false;
+    }
+    (dom as unknown as { _dispose?: () => void })._dispose?.();
+    this.fill(dom, view);
+    return true;
+  }
+
+  // Everything that depends on the widget's content and state: the classes,
+  // the anchors, the render, the figure mounts and the in-place editors.
+  private fill(dom: HTMLElement, view: EditorView): void {
+    (dom as unknown as { _widget: RegionWidget })._widget = this;
+    dom.className = [
+      "fm-live-region",
+      this.active ? "fm-live-region--active" : "",
+      this.first ? "fm-live-region--first" : "",
+      "w-full cursor-text",
+    ].filter((c) => c.length > 0).join(" ");
+    dom.setAttribute("data-region-kind", this.kind);
     dom.setAttribute("data-region-line", String(this.startLine));
     dom.setAttribute("data-region-end", String(this.endLine));
 
     dom.innerHTML = sanitizeReportHtml(
       renderFastrMarkdownToHtml(this.source, { lineAnchors: true }),
     );
+    // Peer carets and presence go in a layer that is ALWAYS the first child:
+    // the sheet clamps the widget's first/last CONTENT child's margins, so an
+    // overlay appended last would hand the last block its full margin back
+    // (a 37px jolt on every repaint), and one placed inside an open island
+    // would be committed as text.
+    const layer = document.createElement("div");
+    layer.className = "fm-peer-layer";
+    dom.prepend(layer);
     materializeReportBackgrounds(dom, (id) => {
       const img = this.resolver.getImage(id);
       return img ? this.resolver.assetUrl(img.imgFile) : undefined;
@@ -383,54 +473,6 @@ class RegionWidget extends WidgetType {
       });
     }
 
-    // MOUSEDOWN, not click, and with the default prevented: the browser's
-    // native behaviour on pressing a contentEditable=false island is to
-    // select the WHOLE island — and if a micro-drag swallows the click, that
-    // full-widget highlight would stick. Claiming the press parks the caret
-    // immediately and no native selection ever starts. Labels and figures
-    // keep their own behaviour.
-    dom.addEventListener("mousedown", (e) => {
-      const target = e.target as HTMLElement;
-      if (target.closest(".cm-fm-attr") || target.closest("[data-embed-id]")) {
-        return;
-      }
-      e.preventDefault();
-      // Caret on the clicked line. data-line values are region-relative
-      // (the renderer saw only the slice).
-      const anchorEl = target.closest<HTMLElement>("[data-line]");
-      const rel = anchorEl ? Number(anchorEl.getAttribute("data-line")) : NaN;
-      const fallback = this.kind === "container"
-        ? this.startLine + 2
-        : this.startLine + 1;
-      const line1 = Math.max(
-        this.startLine + 1,
-        Math.min(
-          Number.isFinite(rel) ? this.startLine + rel + 1 : fallback,
-          this.endLine + 1,
-          view.state.doc.lines,
-        ),
-      );
-      view.dispatch({
-        selection: { anchor: view.state.doc.line(line1).from },
-        scrollIntoView: true,
-      });
-      view.focus();
-    });
-    dom.addEventListener("click", (e) => {
-      const embed = (e.target as HTMLElement).closest<HTMLElement>(
-        "[data-embed-id]",
-      );
-      if (embed) {
-        e.stopPropagation();
-        this.resolver.onSelectEmbed(
-          (embed.getAttribute("data-embed-kind") ?? "figure") as
-            | "figure"
-            | "image",
-          embed.getAttribute("data-embed-id") ?? "",
-        );
-      }
-    });
-    return dom;
   }
 
   override destroy(dom: HTMLElement): void {
@@ -2587,8 +2629,7 @@ function regionPresencePlugin(deps: PresenceDeps): Extension {
         );
         for (const w of widgets) {
           w.style.outline = "";
-          w.querySelector(".fm-live-presence")?.remove();
-          for (const c of w.querySelectorAll(".fm-peer-caret")) c.remove();
+          w.querySelector(":scope > .fm-peer-layer")?.replaceChildren();
         }
         if (widgets.length === 0) return;
         const doc = this.view.state.doc;
@@ -2624,14 +2665,14 @@ function regionPresencePlugin(deps: PresenceDeps): Extension {
           const color = state.user.color ?? "#888888";
           if (this.placeCaret(target, pos, color, state.user.name ?? "")) continue;
           target.style.outline = `2px solid ${color}`;
-          if (!target.querySelector(".fm-live-presence")) {
+          const layer = target.querySelector<HTMLElement>(":scope > .fm-peer-layer");
+          if (layer && !layer.querySelector(".fm-live-presence")) {
             const chip = document.createElement("div");
             chip.className =
               "fm-live-presence pointer-events-none absolute -top-0 right-0 rounded px-1.5 text-[10px] text-white";
             chip.style.background = color;
             chip.textContent = state.user.name ?? "";
-            target.style.position = "relative";
-            target.appendChild(chip);
+            layer.appendChild(chip);
           }
         }
       }
@@ -2691,7 +2732,9 @@ function regionPresencePlugin(deps: PresenceDeps): Extension {
         }
         if (!anchor) {
           const block = widget.querySelector<HTMLElement>(`[data-line="${rel}"]`) ??
-            (rel === 0 ? widget.firstElementChild as HTMLElement | null : null);
+            (rel === 0
+              ? widget.querySelector<HTMLElement>(":scope > :not(.fm-peer-layer)")
+              : null);
           if (!block) return false;
           anchor = block;
           offset = 0;
@@ -2728,8 +2771,11 @@ function regionPresencePlugin(deps: PresenceDeps): Extension {
           const r = anchor.getBoundingClientRect();
           rect = new DOMRect(r.left, r.top, 0, r.height);
         }
+        // Into the widget's peer layer (see fill), positioned against the
+        // widget — the layer covers it exactly.
+        const container = widget.querySelector<HTMLElement>(":scope > .fm-peer-layer");
+        if (!container) return false;
         const base = widget.getBoundingClientRect();
-        widget.style.position = "relative";
         const caret = document.createElement("span");
         caret.className = "fm-peer-caret";
         caret.style.left = `${rect.left - base.left}px`;
@@ -2741,7 +2787,7 @@ function regionPresencePlugin(deps: PresenceDeps): Extension {
         flag.style.background = color;
         flag.textContent = name;
         caret.appendChild(flag);
-        widget.appendChild(caret);
+        container.appendChild(caret);
         return true;
       }
       destroy() {
