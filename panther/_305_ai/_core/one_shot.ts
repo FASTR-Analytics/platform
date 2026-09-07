@@ -102,12 +102,7 @@ export async function callAIStructured<T>(
     thinking,
     output_config: {
       ...effortConfig,
-      // Cast around zod-version skew: a consumer app may resolve a different
-      // zod copy than the SDK's bundled peer, making the ZodType structurally
-      // incompatible at the type level even though it validates fine at
-      // runtime. parse() still enforces the schema; T is restored on `data`.
-      // deno-lint-ignore no-explicit-any
-      format: betaZodOutputFormat(schema as any),
+      format: betaZodOutputFormat(schema),
     },
     messages,
     system: config.system?.(),
