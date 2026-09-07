@@ -5,6 +5,7 @@ import { basicSetup } from "codemirror";
 import { markdown } from "@codemirror/lang-markdown";
 import { html } from "@codemirror/lang-html";
 import { redo as cmRedo, undo as cmUndo } from "@codemirror/commands";
+import { openSearchPanel, search, searchKeymap } from "@codemirror/search";
 import { yCollab, yUndoManagerKeymap } from "y-codemirror.next";
 import {
   attachSelectionNameHover,
@@ -31,7 +32,12 @@ import {
   rewriteReportEmbedToken,
   setHeadingLevelEdit,
   setInlineColorEdit,
+  applyTableCellAction,
+  parseContainerFence,
+  setInlineHighlightEdit,
   setInlineRoleEdit,
+  type TableCellAction,
+  t3,
   setInlineSizeEdit,
   setInlineUnderlineEdit,
   tableSnippet,
@@ -126,9 +132,16 @@ export type ReportEditorApi = {
   setInlineSize: (size: number | undefined) => void;
   // `[phrase]{underline}` on/off — markdown has no underline of its own.
   setInlineUnderline: (on: boolean) => void;
+  // `[phrase]{highlight=#ffe08a}`; undefined clears the stripe.
+  setInlineHighlight: (color: string | undefined) => void;
   // 0 = paragraph, 1..6 = heading, across every line the selection touches.
   setHeadingLevel: (level: number) => void;
   toggleLinePrefix: (kind: "bullet" | "ordered" | "quote") => void;
+  // Rows and columns around the caret's table cell.
+  applyTableAction: (action: TableCellAction) => void;
+  // CodeMirror's own find/replace panel, over the SOURCE — so it reaches
+  // text inside collapsed blocks, which the browser's Ctrl+F cannot see.
+  openFind: () => void;
   insertLink: () => void;
   insertTable: (cols: number, rows: number) => void;
   // Undo/redo the body — the toolbar's counterpart to the editor's own
@@ -204,6 +217,10 @@ export type ReportBlockContext = {
   // always shows a number and its stepper steps from the real size, never
   // from an assumed body size. Undefined only when nothing is measurable.
   fontSizePt: number | undefined;
+  // Where the caret sits in a TABLE, so the toolbar can offer rows and
+  // columns without the reader having to find the right-click menu. Undefined
+  // when the caret is not in one.
+  table: { rowLine: number; cellIndex: number } | undefined;
 };
 
 export function ReportEditor(p: Props) {
@@ -316,6 +333,23 @@ export function ReportEditor(p: Props) {
       extensions: [
         // yCollab's per-user undo takes precedence over basicSetup's keymap.
         ...(collab ? [keymap.of([...yUndoManagerKeymap])] : []),
+        // Find/replace over the SOURCE, so a phrase inside a collapsed block
+        // is reachable — the browser's own Ctrl+F sees only rendered text.
+        // The panel sits at the TOP, where a document editor's does.
+        search({ top: true }),
+        keymap.of([
+          ...searchKeymap,
+          // Google Docs' link shortcut, the one key binding the pill's link
+          // button doubles.
+          {
+            key: "Mod-k",
+            preventDefault: true,
+            run: () => {
+              insertLink();
+              return true;
+            },
+          },
+        ]),
         basicSetup,
         ...(isFastr ? [] : darkMarkdownExtensions()),
         // FASTR Markdown is markdown to CodeMirror; the `:::` fences get
@@ -491,6 +525,52 @@ export function ReportEditor(p: Props) {
     if (s) applyEdit(setInlineUnderlineEdit(s.doc, s.from, s.to, on));
   }
 
+  function setInlineHighlight(color: string | undefined) {
+    const s = selectionRange();
+    if (s) applyEdit(setInlineHighlightEdit(s.doc, s.from, s.to, color));
+  }
+
+  // The table around the caret, rebuilt by the same pure function the cell
+  // context menu uses — one dispatch over the table's own lines.
+  function applyTableAction(action: TableCellAction) {
+    if (!view) return;
+    const state = view.state;
+    const sel = state.selection.main;
+    const line = state.doc.lineAt(sel.from);
+    const here = tableAt(state, line.number, sel.from - line.from);
+    if (!here) return;
+    let start = here.rowLine;
+    while (start > 1 && isTableRow(state.doc.line(start - 1).text)) start--;
+    let end = here.rowLine;
+    while (end < state.doc.lines && isTableRow(state.doc.line(end + 1).text)) {
+      end++;
+    }
+    const lines: string[] = [];
+    for (let l = start; l <= end; l++) lines.push(state.doc.line(l).text);
+    const next = applyTableCellAction(
+      lines,
+      here.rowLine - start,
+      here.cellIndex,
+      action,
+      t3({ en: "New column", fr: "Nouvelle colonne", pt: "Nova coluna" }),
+    );
+    if (next === undefined) return;
+    view.dispatch({
+      changes: {
+        from: state.doc.line(start).from,
+        to: state.doc.line(end).to,
+        insert: next.join("\n"),
+      },
+    });
+    view.focus();
+  }
+
+  function openFind() {
+    if (!view) return;
+    view.focus();
+    openSearchPanel(view);
+  }
+
   function setHeadingLevel(level: number) {
     const s = selectionRange();
     if (s) applyEdit(setHeadingLevelEdit(s.doc, s.from, s.to, level));
@@ -550,6 +630,45 @@ export function ReportEditor(p: Props) {
     return Number.isFinite(px) && px > 0 ? px * 0.75 : undefined;
   }
 
+  // A pipe row that is not a fence — the same heuristic the live preview's
+  // cell menus use, applied to the caret's own line.
+  function isTableRow(text: string): boolean {
+    return text.trim().length > 0 && text.includes("|") &&
+      parseContainerFence(text) === undefined;
+  }
+
+  // Which cell the caret is in, counting the pipes before it.
+  function tableAt(
+    state: EditorState,
+    line1: number,
+    col: number,
+  ): { rowLine: number; cellIndex: number } | undefined {
+    const text = state.doc.line(line1).text;
+    if (!isTableRow(text)) return undefined;
+    // A one-line pipe paragraph is not a table: a delimiter row must sit
+    // directly above or below the run.
+    const isDelimiter = (t: string) =>
+      /^\|?[ \t]*:?-+:?[ \t]*(\|[ \t]*:?-+:?[ \t]*)*\|?$/.test(t.trim()) &&
+      t.includes("|");
+    let start = line1;
+    while (start > 1 && isTableRow(state.doc.line(start - 1).text)) start--;
+    let end = line1;
+    while (end < state.doc.lines && isTableRow(state.doc.line(end + 1).text)) {
+      end++;
+    }
+    let hasRule = false;
+    for (let l = start; l <= end; l++) {
+      if (isDelimiter(state.doc.line(l).text)) hasRule = true;
+    }
+    if (!hasRule || isDelimiter(text)) return undefined;
+    const before = text.slice(0, Math.max(0, col));
+    const cells = before.split("|").length - 2;
+    return {
+      rowLine: line1,
+      cellIndex: Math.max(0, Math.min(cells, text.split("|").length - 3)),
+    };
+  }
+
   function emitContext(state: EditorState, docChanged: boolean) {
     if (!p.onContextChange) return;
     const sel = state.selection.main;
@@ -563,6 +682,7 @@ export function ReportEditor(p: Props) {
       ctxStack = fastrContainerStackUpTo(state.doc.iterLines(1, line.number));
     }
     const fenceHere = fastrOpenFenceOnLine(line.text, line.number);
+    const table = tableAt(state, line.number, pos - line.from);
     const marks = inlineMarkStateAt(
       line.text,
       sel.from - line.from,
@@ -575,7 +695,7 @@ export function ReportEditor(p: Props) {
     // the toolbar showing the tone you just replaced.
     const key = `${line.number}|${!sel.empty}|${line.text}|${
       JSON.stringify(marks)
-    }|${measureFontSizePt(pos) ?? "?"}|${
+    }|${JSON.stringify(table)}|${measureFontSizePt(pos) ?? "?"}|${
       ctxStack
         .map((f) => `${f.name}${f.line}${JSON.stringify(f.attrs)}`)
         .join(">")
@@ -589,6 +709,7 @@ export function ReportEditor(p: Props) {
       hasSelection: !sel.empty,
       marks,
       fontSizePt: measureFontSizePt(pos),
+      table,
     };
     // Out of the CodeMirror update. A synchronous signal write here re-renders
     // the toolbar mid-update, and anything in that render that touches the
@@ -784,6 +905,9 @@ export function ReportEditor(p: Props) {
       setInlineColor,
       setInlineSize,
       setInlineUnderline,
+      setInlineHighlight,
+      applyTableAction,
+      openFind,
       setHeadingLevel,
       toggleLinePrefix,
       insertLink,

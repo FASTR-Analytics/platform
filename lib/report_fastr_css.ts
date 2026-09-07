@@ -264,6 +264,7 @@ ${d}.fm-mark.fm-mark--accent {
   color: var(--fm-accent-text);
   font-weight: var(--fm-mark-accent-weight, inherit);
 }
+${d}.fm-mark.fm-mark--hl { padding: 0.05em 0.2em; border-radius: 3px; }
 ${d}.fm-mark.fm-mark--muted { color: var(--fm-ink-muted); }
 ${d}.fm-mark.fm-mark--danger { color: var(--fm-danger); }
 ${d}.fm-mark.fm-mark--warning { color: var(--fm-warning); }
@@ -1121,6 +1122,31 @@ ${d}.cm-line.cm-fm-first { padding-top: 0 !important; margin-top: 0 !important; 
 /* Section numbers on the editor's own heading lines (the rendered document
    uses a CSS counter; a cm-line is not a real heading). */
 ${d}.cm-fm-secnum { color: var(--fm-accent-text); }
+/* CodeMirror's find panel is app chrome sitting on a themed document sheet:
+   give it the app's own surface rather than letting the report's typography
+   reach it. */
+${d}.cm-panels {
+  background: #ffffff;
+  color: #111111;
+  border-color: rgba(17, 17, 17, 0.15);
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+}
+${d}.cm-panels input, ${d}.cm-panels button, ${d}.cm-panels label {
+  font-family: inherit;
+  font-size: 12px;
+}
+${d}.cm-panels .cm-textfield {
+  border: 1px solid rgba(17, 17, 17, 0.2);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+${d}.cm-panels .cm-button {
+  border-radius: 4px;
+  background-image: none;
+  background: rgba(17, 17, 17, 0.06);
+  border: 1px solid rgba(17, 17, 17, 0.12);
+}
 /* Two classes: the general first-child clamp below is a later rule of equal
    weight, and would otherwise win the tie. */
 ${d}.fm-live-region.fm-live-region--first > *:first-child { margin-top: 0 !important; }
@@ -1142,6 +1168,7 @@ ${d}.fm-mark { text-decoration: none !important; }
 /* …except an explicit underline mark, which must survive that strip (and
    the heading strip the host adds) at the same strength. */
 ${d}.fm-mark.fm-mark--u { text-decoration: underline !important; text-underline-offset: 2px; }
+${d}.fm-mark.fm-mark--hl { padding: 0.05em 0.2em; border-radius: 3px; }
 /* Syntax hidden inside an ACTIVE text island (the leading heading marker,
    role-mark wrappers): display:none keeps it out of the visual flow while
    textContent still carries it, so a commit round-trips byte-identically. */

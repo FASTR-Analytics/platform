@@ -738,7 +738,18 @@ any mark it cuts into and is rebuilt as flat segments — each existing mark's
 attrs patched, plain text newly marked, same-attr neighbours merged — so
 re-sizing a partly-sized phrase yields one mark and an inner role survives as
 its own segment (`rewriteRangeMarks`); selections split per line and at table
-pipes, so a label can never swallow a cell boundary. Toolbar text actions reach
+pipes, so a label can never swallow a cell boundary. The pill also carries FIND (CodeMirror's own `search({top:true})` panel, over
+the SOURCE, so a phrase inside a collapsed block is reachable where the
+browser's Ctrl+F cannot look; the panel is re-skinned as app chrome by the
+surface sheet, since it sits on a themed document), a LINK button doubling
+Mod-K, a QUOTE toggle beside the two list buttons, a HIGHLIGHT picker
+(`highlight=<colour>`, a fifth mark attribute — literal only, `safeCssColor`
+gated like `color=`, and coexisting with a role rather than replacing it) and
+a TABLE segment that appears only while the caret is in a table
+(`ReportBlockContext.table`, the same `applyTableCellAction` the cell
+right-click menu uses, so rows and columns are reachable without knowing
+about right-click). Applying a list kind now REPLACES whatever list marker is
+there rather than stacking one; a quote still wraps a list. Toolbar text actions reach
 selections inside widget text islands AND table cell islands through a
 selection MIRROR
 (`selectionchange` → CM selection, alive only while an island is active);
