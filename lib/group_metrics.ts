@@ -1,4 +1,4 @@
-import type { MetricWithStatus, InstalledModuleSummary, ModuleId } from "./types/mod.ts";
+import type { MetricWithStatus, InstalledModuleSummary } from "./types/mod.ts";
 
 export type MetricGroup = {
   label: string;
@@ -6,7 +6,9 @@ export type MetricGroup = {
 };
 
 export type MetricsByModule = {
-  moduleId: ModuleId;
+  // Read-plane module identity: a plain string from the package's manifest
+  // (PLAN_1a §0 clause 3).
+  moduleId: string;
   moduleLabel: string;
   metricGroups: MetricGroup[];
 };
@@ -61,7 +63,7 @@ export function groupMetricsByModule(
     ? metrics.filter((m) => m.status === "ready")
     : metrics;
 
-  const moduleMap = new Map<ModuleId, MetricWithStatus[]>();
+  const moduleMap = new Map<string, MetricWithStatus[]>();
   for (const metric of filtered) {
     if (!moduleMap.has(metric.moduleId)) {
       moduleMap.set(metric.moduleId, []);

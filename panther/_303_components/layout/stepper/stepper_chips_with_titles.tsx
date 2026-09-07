@@ -3,10 +3,10 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { For } from "solid-js";
+import { For, Show } from "solid-js";
 import type { Stepper } from "./get_stepper.ts";
 
-interface StepperChipsWithTitlesProps {
+type StepperChipsWithTitlesProps = {
   stepper: Stepper;
   /** Label per step, indexed by (step - minStep). If omitted, only the
    * number chip is shown. */
@@ -15,7 +15,7 @@ interface StepperChipsWithTitlesProps {
    * stepper.getAllSteps(). Useful for conditionally hiding steps. */
   visibleSteps?: number[];
   onStepClick?: (step: number) => void;
-}
+};
 
 /**
  * Horizontal numbered-chip stepper with inline titles.
@@ -89,7 +89,6 @@ export function StepperChipsWithTitles(p: StepperChipsWithTitlesProps) {
     <nav class="flex flex-wrap items-center gap-x-6 gap-y-2">
       <For each={p.visibleSteps ?? p.stepper.getAllSteps()}>
         {(step) => {
-          const label = labelFor(step);
           const stepIndex = step - p.stepper.minStep + 1;
           return (
             <button
@@ -102,7 +101,9 @@ export function StepperChipsWithTitles(p: StepperChipsWithTitlesProps) {
                 : undefined}
             >
               <span class={chipClasses(step)}>{stepIndex}</span>
-              {label ? <span class={labelClasses(step)}>{label}</span> : null}
+              <Show when={labelFor(step)}>
+                {(label) => <span class={labelClasses(step)}>{label()}</span>}
+              </Show>
             </button>
           );
         }}

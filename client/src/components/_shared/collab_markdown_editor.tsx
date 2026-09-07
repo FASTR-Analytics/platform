@@ -12,7 +12,7 @@ import { darkMode } from "~/state/t4_ui";
 
 // A CodeMirror markdown/plain editor bound directly to a Y.Text via
 // y-codemirror.next. It renders remote collaborators' carets and selections
-// (from Yjs awareness) and preserves the local caret through remote edits —
+// (from Yjs awareness) and preserves the local caret through remote edits:
 // things a plain <textarea> can't do. Shared by the slide editor (text-block
 // body + title/header fields) and the visualization editor (caption fields);
 // the caller supplies `canEdit` (each surface has its own configure permission),
@@ -21,10 +21,10 @@ import { darkMode } from "~/state/t4_ui";
 // ── Selection hover name flag ────────────────────────────────────────────────
 // yCollab names a peer when you hover their CARET (its own CSS hover on
 // .cm-ySelectionCaret), but a selection HIGHLIGHT is a separate mark
-// decoration with no name element — hovering it named nobody. This helper
+// decoration with no name element: hovering it named nobody. This helper
 // watches mousemoves over an editor, resolves a hovered .cm-ySelection span
 // back to its owner by matching the span's background color to the awareness
-// users (the highlight is the user's translucent colorLight — same RGB as
+// users (the highlight is the user's translucent colorLight: same RGB as
 // their identity color, alpha aside), and floats a caret-style name flag
 // above it. One shared flag element serves every editor (there is one mouse).
 
@@ -55,7 +55,7 @@ function rgbOfHex(hex: string): [number, number, number] | null {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
-// Forgiveness around each highlight rect — hovering NEAR the highlight (line
+// Forgiveness around each highlight rect: hovering NEAR the highlight (line
 // padding, the gap between wrapped segments) still counts.
 const HOVER_SLACK_PX = 8;
 
@@ -63,11 +63,11 @@ const HOVER_SLACK_PX = 8;
  *  the detach function.
  *
  *  Detection is GEOMETRIC, not DOM hit-testing: a selection renders as many
- *  thin inline spans (one or more client rects each — wrapped lines split),
+ *  thin inline spans (one or more client rects each: wrapped lines split),
  *  and the pointer target between lines or in padding is the line element,
  *  not the span. Checking the mouse against every span's client rects (with
- *  slack) makes the whole highlighted region — every line of a multi-line
- *  selection — a reliable hover target. rAF-throttled; selections on screen
+ *  slack) makes the whole highlighted region (every line of a multi-line
+ *  selection) a reliable hover target. rAF-throttled; selections on screen
  *  are few. */
 export function attachSelectionNameHover(
   dom: HTMLElement,
@@ -80,7 +80,7 @@ export function attachSelectionNameHover(
     let hitRect: DOMRect | null = null;
     // Two decoration kinds per multi-line selection: .cm-ySelection text
     // marks on the (partial) first/last lines, .cm-yLineSelection LINE
-    // decorations on fully-covered middle lines — both carry the owner's
+    // decorations on fully-covered middle lines: both carry the owner's
     // colorLight background.
     for (
       const span of dom.querySelectorAll<HTMLElement>(
@@ -115,7 +115,7 @@ export function attachSelectionNameHover(
     const b = Number(m[3]);
     // yCollab's caret already names its owner while hovered (its own CSS shows
     // .cm-ySelectionInfo on .cm-ySelectionCaret:hover). The caret sits at one
-    // end of the selection, so hovering there would show BOTH flags — suppress
+    // end of the selection, so hovering there would show BOTH flags: suppress
     // ours when the hovered caret is the same user's (caret background = their
     // full-opacity identity color; the highlight is the same RGB, alpha aside).
     for (
@@ -192,7 +192,7 @@ export function attachSelectionNameHover(
     hideHoverFlag();
   }
   // Awareness changes constantly while peers are active (their live cursor
-  // rides this same instance at up to ~20 msg/s) — NEVER blind-hide on it,
+  // rides this same instance at up to ~20 msg/s): NEVER blind-hide on it,
   // or the flag flickers and a stationary mouse loses it for good. Instead
   // RE-EVALUATE at the last known position: still over a highlight → flag
   // stays rock steady; the selection actually vanished → it hides.
@@ -218,7 +218,7 @@ export function attachSelectionNameHover(
 }
 
 // The setups bundle defaultHighlightStyle as a FALLBACK highlighter, and its
-// markdown token colors assume a light background — the #/-/*/> marks come out
+// markdown token colors assume a light background: the #/-/*/> marks come out
 // near-black and vanish on dark bases. In dark mode we add this non-fallback
 // highlighter (which then fully replaces the default one; uncovered tags
 // inherit the editor's text color). CSS vars keep it in sync with app.css.
@@ -247,7 +247,7 @@ const darkMarkdownHighlight = HighlightStyle.define([
   { tag: tags.comment, color: "var(--color-neutral)", fontStyle: "italic" },
 ]);
 
-// Reads the darkMode signal — call inside a tracked scope (the effect that
+// Reads the darkMode signal: call inside a tracked scope (the effect that
 // builds the EditorView) so a theme toggle rebuilds the editor.
 export function darkMarkdownExtensions() {
   return darkMode() ? [syntaxHighlighting(darkMarkdownHighlight)] : [];
@@ -360,15 +360,15 @@ function buildExtensions(
 export function CollabMarkdownEditor(p: {
   yText: Y.Text;
   awareness: Awareness;
-  /** Whether this user may edit — false renders a read-only editor. */
+  /** Whether this user may edit: false renders a read-only editor. */
   canEdit: boolean;
   /** Mirror the text into the host's working state so it re-renders as you type. */
   onTextChange: (markdown: string) => void;
   height?: string;
-  /** Plain text (no markdown highlighting) — used for title/header/caption fields. */
+  /** Plain text (no markdown highlighting): used for title/header/caption fields. */
   plain?: boolean;
   /** Join the host editor's per-user undo stack instead of a private
-   *  per-textbox one — the host's undo buttons then cover typing here, and
+   *  per-textbox one: the host's undo buttons then cover typing here, and
    *  in-editor Ctrl+Z pops that same stack. See SlideSession.undoManager. */
   undoManager?: Y.UndoManager;
 }) {

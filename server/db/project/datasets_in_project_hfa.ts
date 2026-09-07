@@ -5,7 +5,6 @@ import {
   composeHfaIndicatorLabel,
   DatasetHfaInfoInProject,
   getHfaIndicatorMeasure,
-  hashFacilityColumnsConfig,
   throwIfErrWithData,
   type HfaIndicator,
   type HfaIndicatorCode,
@@ -15,8 +14,7 @@ import {
   type HfaTaxonomyForAI,
 } from "lib";
 import {
-  getFacilityColumnsConfig,
-  getMaxAdminAreaConfig,
+  getStructureSchema,
 } from "../instance/config.ts";
 import { computeHfaCacheHash } from "../instance/dataset_hfa.ts";
 import {
@@ -42,7 +40,7 @@ import {
 
 // See the HMIS file's header note. computeDatasetHfaRunCapture does the
 // instance reads + COPY export and returns every captured row set. Capture
-// is always the FULL dataset — every service category's indicator
+// is always the FULL dataset: every service category's indicator
 // definitions and R code ship in the run (PLAN_FULL_CAPTURE_GENERATION
 // ruling 2026-08-03).
 
@@ -94,16 +92,9 @@ export async function computeDatasetHfaRunCapture(
       throw new Error("No HFA data available to add to project");
     }
 
-    // Get facility columns configuration
-    const facilityColumnsRes = await getFacilityColumnsConfig(mainDb);
-    if (!facilityColumnsRes.success) {
-      return facilityColumnsRes;
-    }
-    const facilityConfig = facilityColumnsRes.data;
-
-    // Get max admin area configuration
-    const resMaxAdminArea = await getMaxAdminAreaConfig(mainDb);
-    throwIfErrWithData(resMaxAdminArea);
+    // The HFA registry's structure schema (depth + columns)
+    const resStructureSchema = await getStructureSchema(mainDb, "hfa");
+    throwIfErrWithData(resStructureSchema);
 
     // Fetch HFA indicator definitions + per-time-point R code from the instance
     // DB for the run snapshot. The module runner reads from the snapshot so
@@ -129,7 +120,7 @@ export async function computeDatasetHfaRunCapture(
     `
     ).filter((c) => indicatorVarNames.has(c.var_name));
 
-    // Staleness metadata — stored in datasets.info so the client can detect
+    // Staleness metadata: stored in datasets.info so the client can detect
     // when the project's export is behind the instance.
     const hfaTimePointRowsForHash = await mainDb<
       { label: string; sort_order: number; imported_at: string | null }[]
@@ -155,9 +146,9 @@ export async function computeDatasetHfaRunCapture(
 
     if (onProgress) await onProgress(0.5, "Exporting HFA data to CSV...");
 
-    // Build admin area columns list based on config
+    // Admin columns up to the HFA registry's own depth: never a global max
     const adminAreaColumns = [];
-    for (let i = 1; i <= Math.min(resMaxAdminArea.data.maxAdminArea, 4); i++) {
+    for (let i = 1; i <= resStructureSchema.data.adminDepth; i++) {
       adminAreaColumns.push(`admin_area_${i}`);
     }
 
@@ -165,7 +156,7 @@ export async function computeDatasetHfaRunCapture(
     // columns (ownership/type/custom) are intentionally excluded here: the
     // R script has no computational use for them, and chart disaggregation
     // by these attributes is served entirely by a query-time join against
-    // facilities_hfa (see metric_enricher.ts / cte_manager.ts), not by
+    // facilities_hfa (see cte_manager.ts), not by
     // values carried through the module's own dataset export.
     const exportStatement = `
 SELECT
@@ -231,7 +222,6 @@ COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADE
       hfaCacheHash,
       hfaIndicatorsVersion,
       structureLastUpdated,
-      facilityColumnsHash: hashFacilityColumnsConfig(facilityConfig),
     };
 
     // Fetch facilities from main database for the project/run capture
@@ -261,7 +251,7 @@ COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADE
       ORDER BY var_name
     `)) as Array<{ var_name: string; sample_values: string | null }>;
     // NOTE: `hfaIndicators` here are the raw HFA *survey variables* (var_name =
-    // fin_01a_a, hr_01, ...) drawn from hfa_data — a DIFFERENT namespace from the
+    // fin_01a_a, hr_01, ...) drawn from hfa_data: a DIFFERENT namespace from the
     // hfa_indicators *definition* ids (ind001, ...). The service-category scope
     // filters indicator DEFINITIONS + their code only; the available survey
     // variables must stay complete or indicator R code can't resolve them.

@@ -1,6 +1,6 @@
 import type { CustomMarkdownStyleOptions } from "panther";
 
-// Shared markdown render style for reports — used by View mode AND the PDF/Word
+// Shared markdown render style for reports: used by View mode AND the PDF/Word
 // exports so they never drift. Each export uses a separate panther render path
 // (markdownToPdfBrowser / markdownToWordBrowser), so the style must be passed to
 // each explicitly; this constant is the single source of truth.

@@ -4,7 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 // The label track: the closed curve a constant clearance outside a figure's
-// silhouette (plan N1). A pie's silhouette is a disc so its track comes out a
+// silhouette. A pie's silhouette is a disc so its track comes out a
 // circle — the circle is a CONSEQUENCE of the shape, never the model. A map's
 // track is the country's own outline pushed outward, which is why it is
 // extracted from the distance field rather than from a hull.
@@ -19,24 +19,24 @@ export type TrackPoint = {
   ny: number;
 };
 
-// One closed curve. A silhouette with islands has several (plan N11), and each
+// One closed curve. A silhouette with islands has several, and each
 // is ordered and relaxed independently — which is what keeps an island's labels
 // beside the island.
 export type TrackComponent = {
   length: number;
   // Position and outward normal at arc length t, wrapping at `length`.
   pointAt: (t: number) => TrackPoint;
-  // The point on this component nearest p, as an arc length (plan N2).
+  // The point on this component nearest p, as an arc length.
   nearestTo: (p: Point) => { t: number; distance: number };
 };
 
 // WHAT THIS CURVE IS FOR, and how accurate it therefore has to be.
 //
 // The track supplies two things: each label's natural position (the nearest
-// point on it, plan N2) and the arc-length ordering that collision relaxation
-// runs along (N4). It is NOT what holds a label off the shape — that is done by
+// point on it) and the arc-length ordering that collision relaxation
+// runs along. It is NOT what holds a label off the shape: that is done by
 // bisecting `clearanceAt`, which is exact (see distance_field.ts), when the box
-// is placed (N3). So a small positional error in the polyline costs a little
+// is placed. So a small positional error in the polyline costs a little
 // ordering precision and nothing else.
 //
 // Measured on Kenya adm1 (159 rings, 19.6k points, 1 DU pitch): median error
@@ -48,7 +48,7 @@ export type TrackComponent = {
 export type LabelTrack = {
   components: TrackComponent[];
   // Distance from a point to the SILHOUETTE — positive outside, negative
-  // inside. This is what placement bisects against (plan N3); note it is the
+  // inside. This is what placement bisects against; note it is the
   // silhouette, not the track.
   clearanceAt: (x: number, y: number) => number;
   // The nearest point on the whole track, across every component.
@@ -308,7 +308,7 @@ function marchingSquares(
         // exact centre value 132, always-join 119. Every disagreement was a
         // deep-notched star, where the raster itself pinches. Over-joining is
         // also the safer error here: a spurious extra component splits the
-        // relaxation and costs the whole cell a flank fallback (N10), while a
+        // relaxation and costs the whole cell a flank fallback, while a
         // spurious join still leaves one closed curve at the right level.
         case 5:
         case 10: {

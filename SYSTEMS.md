@@ -1,9 +1,9 @@
-# Systems map — wb-fastr
+# Systems map: wb-fastr
 
 > Canonical topology: 17 systems (+ a read-but-don't-own kernel). This is the
 > canonical index: the map, the custody table, the kernel rule, the
 > cross-cutting audits, the execution model, and the documentation model.
-> Each system's description — scope, contract, prose — lives in its own
+> Each system's description (scope, contract, prose) lives in its own
 > `SYSTEM_NN_*.md` file, whose `globs:` frontmatter is the machine-checked
 > manifest (`lint_systems.ts` asserts every tracked file is claimed by
 > exactly one system). The old `DOC_*` set is fully absorbed into these
@@ -34,10 +34,10 @@ observability (17).
 | [S15](SYSTEM_15_admin_ops.md)            | Instance Administration & Ops            | users/roles, project lifecycle, health, backups, disk autonomics, deploy                   |
 | [S16](SYSTEM_16_collaboration.md)        | Realtime Collaboration & Version History | live Yjs co-editing over one project WS; rooms checkpoint into S12 tables + S3 notifies    |
 | [S17](SYSTEM_17_logging.md)              | Activity Logging & Audit Trail           | `log()` middleware → user_logs raw + weekly aggregate → Users tab, health, Admin-Website   |
-| [S00](SYSTEM_00_kernel.md)               | Kernel (read but don't own)              | lib mega-barrel, multi-domain grab-bags, the env nexus — everyone's dependency             |
+| [S00](SYSTEM_00_kernel.md)               | Kernel (read but don't own)              | lib mega-barrel, multi-domain grab-bags, the env nexus, everyone's dependency              |
 
 App-wide conventions that span systems live as `PROTOCOL_APP_*` files (§6),
-e.g. [PROTOCOL_APP_STATE.md](PROTOCOL_APP_STATE.md) — they own no files in
+e.g. [PROTOCOL_APP_STATE.md](PROTOCOL_APP_STATE.md). They own no files in
 the manifest.
 
 ## §4.1 Shared-custody files
@@ -62,20 +62,18 @@ list.)
 | `lib/translate/t-func.ts`                                               | S14   | S9                | calendar semantics (17 lines, two systems)            |
 | `server/task_management/mod.ts`                                         | S8    | S3                | barrel re-exports the notify hub                      |
 | `server/routes/instance/users.ts` · `server/db/instance/users.ts`       | S1    | S15, S13          | guard rows + admin handlers + token governance        |
-| `server/server_only_types/mod.ts`                                       | S8    | S1, S3, S9        | 20 lines, three systems — physical-split candidate    |
+| `server/server_only_types/mod.ts`                                       | S8    | S1, S3, S9        | 20 lines, three systems, physical-split candidate     |
 | `server/routes/instance/instance.ts` · `server/db/instance/instance.ts` | S5    | S15, S6           | config routes + meta/projects/disk + dataset versions |
 | `_file_upload_selector.tsx` · `_uppy_file_upload.ts`                    | S4    | S6, S5, S12, S15  | shared upload primitives                              |
-| `server/db/project/results_objects.ts`                                  | S8    | S9                | frozen `ro_*` read = the parity rig oracle            |
 | `client/src/components/_shared/results_package/**`                      | S8    | S12               | S8 content under S12's `_shared/**` glob              |
 | `client/src/components/instance/instance_data.tsx`                      | S6    | S5                | data-tab switchboard mounting S5 managers             |
 | `server/db/instance/config.ts`                                          | S5    | S6, S9            | instance config parameterizes ELT + generated SQL     |
-| `lib/types/project_dirty_states.ts`                                     | S3    | —                 | now only `LastUpdateTableName` — rename me            |
 | `server/db/project/reports.ts` · `slides.ts` · `slide_decks.ts`         | S12   | S16, S2           | S16 collab checkpoints + version columns              |
 | `server/routes/project/reports.ts` · `slide_decks.ts` · `slides.ts`     | S12   | S16               | S16 room chokepoints + version-history routes         |
 | `server/routes/instance/health.ts`                                      | S15   | S17               | unauthenticated endpoints dump the user_logs tables   |
 | `server/collab/version_capture.ts`                                      | S16   | S17               | onSessionEnd writes edit-session user_logs rows       |
 
-## §4.2 Kernel — read but don't own
+## §4.2 Kernel: read but don't own
 
 `SYSTEM_00_kernel.md` claims these six. They are everyone's dependency and no
 one's system; review them only alongside the consuming system, and any change
@@ -98,35 +96,35 @@ lockstep discipline · 9. Public / unauthenticated surface.
 
 Two streams interleave: **define/document** (this map → SYSTEM files) and
 **change code** (fixes driven by findings + refactors toward the map). The
-engine is the per-system cycle **review → triage → fix → document** — a SYSTEM
+engine is the per-system cycle **review → triage → fix → document**. A SYSTEM
 file's prose is the artifact of that cycle. Genuinely horizontal work
 (hardening, ZOD) gets standalone plans instead.
 
 Every triaged finding either gets fixed in the cycle, gets a one-line entry in
-that SYSTEM file's **Open items** section, or — if big enough — gets its own
+that SYSTEM file's **Open items** section, or, if big enough, gets its own
 `PLAN_*` file. The Open items sections are the permanent, scoped successor to
 ad-hoc `PLAN_*_FIXES` files.
 
 ## §6 Documentation model
 
-Every doc has one home along two axes — construction (HOW) vs architecture
+Every doc has one home along two axes, construction (HOW) vs architecture
 (WHAT), cross-project vs app-specific:
 
-- `panther/protocols/PROTOCOL_*` — cross-project HOW. Synced from the panther
+- `panther/protocols/PROTOCOL_*`: cross-project HOW. Synced from the panther
   repo; never edited here; kept fresh by the sync.
-- `PROTOCOL_APP_*` (repo root) — app-specific authoring recipes (e.g.
+- `PROTOCOL_APP_*` (repo root): app-specific authoring recipes (e.g.
   PROTOCOL_APP_MIGRATIONS), updated in lockstep with the mechanics they
   describe.
-- `SYSTEM_NN_*` — app-specific WHAT. **Prose describes verified current
-  behavior and the contract — never aspirations, never history. Deliberate
+- `SYSTEM_NN_*`: app-specific WHAT. **Prose describes verified current
+  behavior and the contract, never aspirations, never history. Deliberate
   limitations are stated as facts in the prose, once. Open items hold only
   real pending work: fixes, decisions-to-be-made, and pointers into reform
-  plans. A resolved item is deleted, not annotated — a decision log is
+  plans. A resolved item is deleted, not annotated. A decision log is
   cruft.** The boundary half (`globs:`) is lint-enforced continuously; the
   prose half is re-verified against code in each review cycle.
-- `PLAN_*` — the transient "what's changing" layer. A plan mutates a SYSTEM
+- `PLAN_*`: the transient "what's changing" layer. A plan mutates a SYSTEM
   (or a PROTOCOL_APP) and is deleted when its work lands.
-- `CLAUDE.md` — the index pointing at all of it.
+- `CLAUDE.md`: the index pointing at all of it.
 
 ## Running the lint
 

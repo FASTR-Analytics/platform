@@ -12,7 +12,8 @@ import {
   type MetricWithStatus,
   type PresentationObjectSummary,
 } from "lib";
-import { formatMetricsListForAI, formatVisualizationsListForAI } from "lib";
+import { formatMetricsListForAI } from "lib";
+import { formatVisualizationsListForAI } from "./ai_tools/tools/_internal/format_visualizations_list_for_ai";
 
 type DebugView = "metrics" | "visualizations";
 

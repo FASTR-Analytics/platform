@@ -3,7 +3,13 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { createContext, createSignal, onMount, useContext } from "solid-js";
+import {
+  batch,
+  createContext,
+  createSignal,
+  onMount,
+  useContext,
+} from "solid-js";
 import type { Accessor } from "solid-js";
 import {
   addConversationToList,
@@ -112,8 +118,10 @@ export function createConversationsManager(
     };
 
     await addConversationToList(metadata);
-    setAllConversations((prev) => [metadata, ...prev]);
-    setActiveConversationId(id);
+    batch(() => {
+      setAllConversations((prev) => [metadata, ...prev]);
+      setActiveConversationId(id);
+    });
     saveLastActiveConversationId(scope, id);
 
     return id;

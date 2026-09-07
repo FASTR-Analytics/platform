@@ -110,7 +110,7 @@ function currentYearMonth(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
-// The one wizard for every way a DHIS2 import gets configured — ad hoc run,
+// The one wizard for every way a DHIS2 import gets configured: ad hoc run,
 // queue, one-shot future run, recurring schedule (PLAN_DHIS2_IMPORTER_UI_REVISION
 // §3). A modal (Add-visualization pattern), not a full-screen editor: short,
 // transient configure-and-submit, opened from the imports listing and
@@ -132,7 +132,7 @@ export function Dhis2Wizard(
     return s.status === "ready" ? s.data : undefined;
   }
 
-  // Step 1 — credentials.
+  // Step 1: credentials.
   const [editingCreds, setEditingCreds] = createSignal<boolean>(
     !schedulingData()?.storedCredentials,
   );
@@ -142,12 +142,12 @@ export function Dhis2Wizard(
     password: "",
   });
 
-  // Step 2 — indicators.
+  // Step 2: indicators.
   const [selectedIndicators, setSelectedIndicators] = createSignal<string[]>(
     scheduleDefaults?.selection.rawIndicatorIds ?? [],
   );
 
-  // Step 3 — time.
+  // Step 3: time.
   const [timeChoice, setTimeChoice] = createSignal<Dhis2WizardTimeChoice>(
     isPreset
       ? "now"
@@ -203,7 +203,7 @@ export function Dhis2Wizard(
       Intl.DateTimeFormat().resolvedOptions().timeZone,
   );
 
-  // Step 4 — config.
+  // Step 4: config.
   const [startPeriod, setStartPeriod] = createSignal<number>(
     scheduleDefaults?.selection.kind === "explicit_range"
       ? scheduleDefaults.selection.startPeriod
@@ -225,7 +225,7 @@ export function Dhis2Wizard(
 
   // The stored-credentials gate applies whenever the server will actually
   // check it: createDatasetHmisDhis2Schedule always checks it (any kind), but
-  // updateDatasetHmisDhis2Schedule only re-checks for kind "one_shot" —
+  // updateDatasetHmisDhis2Schedule only re-checks for kind "one_shot":
   // editing an existing recurring schedule's time/day is not a re-arm
   // gesture and isn't gated server-side (datasets.ts updateDatasetHmisDhis2Schedule).
   const gateApplies = () => !isEditSchedule || timeChoice() === "later";
@@ -249,7 +249,7 @@ export function Dhis2Wizard(
       nth: nth() === "last" ? "last" : ((parseInt(nth()) || 1) as 1 | 2 | 3 | 4),
       weekday: parseInt(monthlyWeekday()) || 0,
       everyNMonths: nMonths,
-      // Phase is irrelevant at monthly cadence — any anchor gives the same
+      // Phase is irrelevant at monthly cadence: any anchor gives the same
       // occurrences, so pin the current month rather than asking.
       anchorMonth: nMonths === 1 ? currentYearMonth() : anchorMonth(),
       ...base,
@@ -321,7 +321,7 @@ export function Dhis2Wizard(
 
   const credentialsStepIndex = steps.indexOf("credentials");
 
-  // Live run state — the shell's own 2 s poll keeps runsQuery.state() fresh;
+  // Live run state: the shell's own 2 s poll keeps runsQuery.state() fresh;
   // reading it here (never a snapshot captured at open) is what makes the
   // Start-vs-Queue fork honest at both render and submit time.
   const runActive = createMemo(() => {
@@ -331,7 +331,7 @@ export function Dhis2Wizard(
   const isImmediateFlow = () => isPreset || timeChoice() === "now";
   const willQueue = createMemo(() => isImmediateFlow() && runActive());
   // Queued fires always use the stored connection (enqueueDatasetHmisDhis2Run
-  // never accepts inline credentials) — resolving to Queue with unsaved
+  // never accepts inline credentials): resolving to Queue with unsaved
   // inline credentials can't proceed.
   const queueBlocked = createMemo(() => willQueue() && editingCreds());
 

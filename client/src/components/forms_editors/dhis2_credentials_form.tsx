@@ -11,7 +11,7 @@ import { Dhis2CredentialsEditor } from "../Dhis2CredentialsEditor";
 import { serverActions } from "~/server_actions";
 
 // A one-off, never-persisted DHIS2 connection override (PLAN_DHIS2_
-// CREDENTIAL_STORE_CONSOLIDATION Phase 3) — used where a flow defaults to
+// CREDENTIAL_STORE_CONSOLIDATION Phase 3): used where a flow defaults to
 // the instance's stored connection but needs an inline alternative.
 export function Dhis2CredentialsForm(
   p: AlertComponentProps<{}, { credentials: Dhis2Credentials } | undefined>,

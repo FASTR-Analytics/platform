@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { createSignal, Show } from "solid-js";
+import { batch, createSignal, Show } from "solid-js";
 import { to100Pct0 } from "../deps.ts";
 import type { StateHolderFormAction } from "../special_state/mod.ts";
 
@@ -43,8 +43,10 @@ export function getProgress() {
   const [progressMsg, setProgressMsg] = createSignal<string>("");
 
   const onProgress = (p: number, m: string) => {
-    setProgress(p);
-    setProgressMsg(m);
+    batch(() => {
+      setProgress(p);
+      setProgressMsg(m);
+    });
   };
 
   const progressFrom0To100 = () => progress() * 100;

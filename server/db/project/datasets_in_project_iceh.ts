@@ -20,7 +20,7 @@ type DBIcehIndicator = {
   sort_order: number;
 };
 
-// The ICEH attach split (PLAN_RESULTS_RUNS Phase 3 re-cut ruling 5) — see
+// The ICEH attach split (PLAN_RESULTS_RUNS Phase 3 re-cut ruling 5): see
 // the HMIS file's header note.
 
 export type DatasetIcehRunCapture = {
@@ -35,7 +35,7 @@ export async function computeDatasetIcehRunCapture(
   onProgress?: (progress: number, message: string) => Promise<void>,
 ): Promise<APIResponseWithData<DatasetIcehRunCapture>> {
   return await tryCatchDatabaseAsync(async () => {
-    // Validate BEFORE removing the existing attachment — a validation
+    // Validate BEFORE removing the existing attachment: a validation
     // failure after the remove would leave the project detached with
     // modules still clean and clients unnotified.
     if (onProgress) await onProgress(0.1, "Validating data...");

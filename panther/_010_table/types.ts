@@ -24,33 +24,14 @@ import type {
 export type TableInputs = FigureInputsBase & {
   figureType: "table";
   data: TableData;
-  // "equal" (or omitted) divides available width evenly across columns,
-  // exactly as before this field existed. A number is an absolute width in
-  // DU, scaled by fitScale like any other authored size. "auto" measures
-  // content to size the column. Positional, in final (post-sort) column
-  // order.
+  // "equal" (or omitted) divides available width evenly across columns. A
+  // number is an absolute width in DU, scaled by fitScale like any other
+  // authored size. "auto" measures content to size the column. Positional,
+  // in final (post-sort) column order.
   columnWidths?: "equal" | (number | "auto")[];
 };
 
-// Backward compatibility alias
-
 export type TableData = TableDataJson | TableDataTransformed;
-
-///////////////
-//           //
-//    Csv    //
-//           //
-///////////////
-
-// export type TableDataCsv = {
-//   csv: Csv<string | number>;
-//   csvDataConfig: TableDataConfigCsv;
-// };
-
-// export type TableDataConfigCsv = {
-//   colGroups?: ColGroupAsNumbersOrStrings[];
-//   rowGroups?: ColGroupAsNumbersOrStrings[];
-// };
 
 ////////////////
 //            //
@@ -123,10 +104,6 @@ export type ResolvedTableHeaders = {
 ///////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////
 
-// export function isTableDataCsv(d: TableData): d is TableDataCsv {
-//   return (d as TableDataCsv).csv !== undefined;
-// }
-
 export function isTableDataJson(d: TableData): d is TableDataJson {
   return (d as TableDataJson).jsonArray !== undefined;
 }
@@ -160,25 +137,6 @@ export type RowGroupRow = {
   label: string | undefined;
   index: number;
 };
-
-export type TableHeightInfo = {
-  ideal: number;
-  max?: number;
-  min?: number;
-};
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////
-//  __       __                                                                  __                   //
-// /  \     /  |                                                                /  |                  //
-// $$  \   /$$ |  ______    ______    _______  __    __   ______    ______    ____$$ |                //
-// $$$  \ /$$$ | /      \  /      \  /       |/  |  /  | /      \  /      \  /    $$ |                //
-// $$$$  /$$$$ |/$$$$$$  | $$$$$$  |/$$$$$$$/ $$ |  $$ |/$$$$$$  |/$$$$$$  |/$$$$$$$ |                //
-// $$ $$ $$/$$ |$$    $$ | /    $$ |$$      \ $$ |  $$ |$$ |  $$/ $$    $$ |$$ |  $$ |                //
-// $$ |$$$/ $$ |$$$$$$$$/ /$$$$$$$ | $$$$$$  |$$ \__$$ |$$ |      $$$$$$$$/  $$ \__$$ |                //
-// $$ | $/  $$ |$$       |$$    $$ |/     $$/ $$    $$/ $$ |      $$       |$$    $$ |                //
-// $$/      $$/  $$$$$$$/  $$$$$$$/ $$$$$$$/   $$$$$$/  $$/        $$$$$$$/  $$$$$$$$/                 //
-//                                                                                                     //
-///////////////////////////////////////////////////////////////////////////////////////////////////////
 
 export type RowHeaderInfo = {
   mText: MeasuredText | undefined;
@@ -249,7 +207,7 @@ export type MeasuredTable = Measured<TableInputs> & {
   // exactly what renders.
   transformedData: TableDataTransformed;
   customFigureStyle: CustomFigureStyle;
-  mergedTableStyle: MergedTableStyle;
+  mergedStyle: MergedTableStyle;
   columnMinMax: Map<number, { min: number; max: number }>;
   // Display data
   caption?: string;

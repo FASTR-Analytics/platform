@@ -1,7 +1,24 @@
-export { getPresentationObjectItems } from "./get_presentation_object_items.ts";
-export { getResultsValueInfoForPresentationObject } from "./get_results_value_info.ts";
-export { getPossibleValues } from "./get_possible_values.ts";
 export {
-  getDatasetFamilyForModule,
-  getIndicatorMetadata,
-} from "./get_indicator_metadata.ts";
+  computeFacilityContext,
+  facilitiesTableForFamily,
+} from "./facility_context.ts";
+export {
+  detectNeededPeriodColumns,
+  needsPeriodCTEFor,
+} from "./period_helpers.ts";
+export {
+  buildMinimalFetchConfig,
+  getPossibleValuesCore,
+} from "./possible_values_core.ts";
+export { getPresentationObjectItemsCore } from "./presentation_object_items_core.ts";
+export { buildWhereClause } from "./query_helpers.ts";
+export {
+  buildResultsValueInfo,
+  indicatorFormatsFrom,
+  indicatorRulesFrom,
+} from "./results_value_info_core.ts";
+export type {
+  QueryContext,
+  RunVersionInfo,
+  SqlRowsExecutor,
+} from "./types.ts";

@@ -1,7 +1,7 @@
 import {
   type IndicatorFormat,
   PresentationObjectConfig,
-  PresentationObjectDetail,
+  PresentationObjectEditorDetail,
   selectCf,
   t3,
 } from "lib";
@@ -14,14 +14,16 @@ import { ConditionalFormattingEditor } from "../conditional_formatting_editor";
 import { StyleRevealGroup, StyleSection } from "./_style_components";
 
 type Props = {
-  poDetail: PresentationObjectDetail;
+  poDetail: PresentationObjectEditorDetail;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
   editCustomSeriesStyles: () => Promise<void>;
   isColorOverridden: () => boolean;
   /** Format the figure's values will actually be written in (resolved from the
-   *  draft config — HFA metrics all declare "number"). */
+   *  draft config: HFA metrics all declare "number"). */
   effectiveFormatAs: IndicatorFormat;
+  /** True for an "indicator" metric: the `indicator` CF source is offered. */
+  offerIndicatorCfSource: boolean;
 };
 
 export function ChartLikeControls(p: Props) {
@@ -191,6 +193,7 @@ export function ChartLikeControls(p: Props) {
             formatAs={p.effectiveFormatAs}
             decimalPlaces={p.tempConfig.s.decimalPlaces}
             allowNegative={metricAllowsNegativeScale(p.poDetail.resultsValue.id)}
+            offerIndicatorSource={p.offerIndicatorCfSource}
           />
         </StyleSection>
       </Show>

@@ -33,7 +33,7 @@ export async function upsertHmisLedgerPairsFromData(
   const indicatorIds = deduped.map((p) => p.indicatorRawId);
   const periodIds = deduped.map((p) => p.periodId);
   // The indicators_raw JOIN skips pairs whose indicator was deleted between
-  // staging and integration (possible for pairs with no dataset_hmis rows —
+  // staging and integration (possible for pairs with no dataset_hmis rows:
   // deleteIndicatorRaw only refuses when data exists). Without it the FK
   // aborts the whole integration; skipping matches what ON DELETE CASCADE
   // would have produced had the delete come after this write.

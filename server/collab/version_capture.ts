@@ -1,5 +1,5 @@
 // =============================================================================
-// Version capture — live binding of the version tracker (real deps, singleton)
+// Version capture: live binding of the version tracker (real deps, singleton)
 // =============================================================================
 //
 // See version_tracker.ts for the session model. This module supplies the real
@@ -79,7 +79,7 @@ export type ReportVersionData = {
   figures: Record<string, FigureBlock>;
   images: Record<string, ImageBlock>;
   /** Per-character authorship ledger at snapshot time (null = unavailable).
-   *  NOT part of the content hash — dedup is about content, not attribution. */
+   *  NOT part of the content hash: dedup is about content, not attribution. */
   bodyAuthors: AuthorRun[] | null;
 };
 
@@ -105,11 +105,11 @@ export function hashVersionData(data: unknown): string {
   return createHash("md5").update(canonicalJson(data)).digest("hex");
 }
 
-// The tracker contract: loadPayload null means "document ROW IS GONE — drop
+// The tracker contract: loadPayload null means "document ROW IS GONE, drop
 // the session". Any other failure (connection blip, pool exhaustion, a corrupt
 // row) must THROW so the tracker merges the session back and retries next
 // sweep. tryCatchDatabaseAsync funnels both into {success:false}, so the only
-// discriminator is the not-found messages our own DB functions throw — the
+// discriminator is the not-found messages our own DB functions throw: the
 // classifier's fallback passes them through verbatim.
 const NOT_FOUND_ERRORS = new Set([
   REPORT_NOT_FOUND,
@@ -127,7 +127,7 @@ export async function loadReportVersionData(
   projectId: string,
   reportId: string,
 ): Promise<ReportVersionData | null> {
-  // A live room can be up to 1.5s ahead of the DB — snapshot the room's real
+  // A live room can be up to 1.5s ahead of the DB: snapshot the room's real
   // end state (body AND the ledger's final tombstones), not the last
   // checkpoint's. No-op when no room / nothing dirty.
   // A FAILED flush means the row is stale: throwing (rather than snapshotting
@@ -145,7 +145,7 @@ export async function loadReportVersionData(
   if (!res.success) {
     return throwUnlessNotFound(res.err);
   }
-  // Authorship is best-effort — a failure here must not block the version.
+  // Authorship is best-effort: a failure here must not block the version.
   const authorsRes = await getReportBodyAuthors(projectDb, reportId);
   const authors = authorsRes.success ? authorsRes.data.authors : null;
   return {
@@ -153,7 +153,7 @@ export async function loadReportVersionData(
     body: res.data.body,
     figures: res.data.figures,
     images: res.data.images,
-    // The two reads above aren't one snapshot — a checkpoint landing between
+    // The two reads above aren't one snapshot: a checkpoint landing between
     // them pairs a ledger with a different body. Equal lengths can still be a
     // silently SHIFTED attribution, so never freeze a mismatched pair.
     bodyAuthors: authors !== null && liveAuthorRunLen(authors) === res.data.body.length
@@ -173,13 +173,13 @@ export async function loadDeckVersionData(
   }
   let slidesRes = await getSlides(projectDb, deckId);
   // getSlides returns [] for a missing deck (never a not-found error), so any
-  // failure here is transient/corrupt-row — always retry.
+  // failure here is transient/corrupt-row: always retry.
   if (!slidesRes.success) {
     throw new Error(slidesRes.err);
   }
   // Live slide rooms can be up to 1.5s ahead of the DB (guaranteed during a
   // max-session split, which by definition fires mid-editing). Snapshotting
-  // stale texts wouldn't just date the version — writeVersion validates each
+  // stale texts wouldn't just date the version: writeVersion validates each
   // element's authorship ledger against the persisted text, so a stale text
   // silently drops the element's exact attribution. Flush and re-read.
   const openIds = slidesRes.data
@@ -187,7 +187,7 @@ export async function loadDeckVersionData(
     .filter((id) => isRoomOpen(projectId, "slide", id));
   if (openIds.length > 0) {
     for (const id of openIds) {
-      // A failed flush leaves that slide's row stale — see the report loader:
+      // A failed flush leaves that slide's row stale, see the report loader:
       // throw so the session merges back and retries, rather than freezing a
       // deck version that misses the slide's session tail.
       if (!await flushSlideRoom(projectId, id)) {
@@ -268,7 +268,7 @@ async function writeVersion(
     if (res.success) {
       // This version captured the tombstones; the next version only needs
       // deletions made after this point. Compact BOTH copies of the ledger:
-      // the in-memory one (live room) and the persisted row — the room is
+      // the in-memory one (live room) and the persisted row: the room is
       // usually already closed here (empty-grace flush drops the ledger), and
       // a version insert doesn't bump last_updated, so without the DB strip
       // the next room re-adopts the old tombstones and every later version
@@ -322,7 +322,7 @@ async function writeVersion(
     restoreDeckLedger(projectId, docId, slideEditors);
     return false;
   }
-  // This version captured the element tombstones — start the next window.
+  // This version captured the element tombstones: start the next window.
   // Compact ONLY the elements the snapshot actually captured: a ledger that
   // failed validation (edit racing the load) keeps its tombstones for the
   // next version instead of having them destroyed uncaptured.
@@ -367,7 +367,7 @@ const tracker = createVersionTracker({
   },
 });
 
-/** An ISO stamp strictly after `prevIso` — the restore routes write two
+/** An ISO stamp strictly after `prevIso`: the restore routes write two
  *  versions back-to-back (safety, then restored) and order everywhere is
  *  (created_at, id), so a same-millisecond pair would sort arbitrarily. */
 export function isoStrictlyAfter(prevIso: string): string {
@@ -409,7 +409,7 @@ export function noteVersionRoomEmpty(
   tracker.noteRoomEmpty(projectId, kind, docId);
 }
 
-/** Remove the document's open editing session and return its editors — the
+/** Remove the document's open editing session and return its editors: the
  *  restore routes fold them into the safety version they write. */
 export function drainVersionEditors(
   projectId: string,

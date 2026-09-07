@@ -112,14 +112,14 @@ export const AiFigureFromMetricSchema = z.object({
     .string()
     .optional()
     .describe(
-      "Required when the preset has needsReplicant=true. Specifies which replicant value to display, e.g., 'anc1'.",
+      "REQUIRED when the preset is marked `REQUIRES selectedReplicant` in get_available_metrics; the value is one value of the dimension named there (e.g. 'anc1'), as listed by get_metric_data. Omit otherwise.",
     ),
   // DERIVED from storage schema (same as AiMetricQuerySchema)
   filters: z
     .array(aiFilterElementSchema)
     .optional()
     .describe(
-      "Optional: Filters to limit which data is displayed. Each filter has 'disOpt' (dimension name from preset's 'Filterable by' list) and 'values' (array of values to include).",
+      "Optional: Filters to limit which data is displayed. Each filter has 'disOpt' (dimension name from the preset's 'filters:' list in get_available_metrics) and 'values' (array of values to include).",
     ),
   valuesFilter: configDStrict.shape.valuesFilter
     .describe(
@@ -142,7 +142,7 @@ export const AiFigureFromMetricSchema = z.object({
 });
 
 // ============================================================================
-// Figure config PATCH schema — DERIVED from the storage schema (configDStrict +
+// Figure config PATCH schema: DERIVED from the storage schema (configDStrict +
 // caption fields). ONE base schema for every AI config-edit surface: the
 // figure tools (update_figure / update_report_figure) use it unchanged;
 // the viz editor extends it with `type` + `timeseriesGrouping`
@@ -152,7 +152,7 @@ export const AiFigureFromMetricSchema = z.object({
 
 export const AiFigureConfigPatchSchema = z.object({
   // ── config.d (data spec) ──
-  // NOTE: chart `type` is intentionally NOT editable — the figure keeps its type.
+  // NOTE: chart `type` is intentionally NOT editable. The figure keeps its type.
   valuesDisDisplayOpt: configDStrict.shape.valuesDisDisplayOpt.optional()
     .describe(
       "Display slot for the value dimension — where a metric's MULTIPLE data "
@@ -188,7 +188,7 @@ export const AiFigureConfigPatchSchema = z.object({
   rollupPosition: z.enum(["bottom", "top"]).optional()
     .describe("'top' or 'bottom'; defaults to bottom."),
   // EXCEPTION: simpler abstraction than the full periodFilter union. An
-  // omitted max stores a `from_month` filter ("to present" — the range
+  // omitted max stores a `from_month` filter ("to present": the range
   // extends as new data lands); an omitted min anchors to the data's
   // earliest period. See applyFigureConfigPatch.
   periodFilter: z.union([
@@ -217,7 +217,7 @@ export type AiFigureConfigPatch = z.infer<typeof AiFigureConfigPatchSchema>;
 // The viz editor's superset: same base patch plus the two fields only that
 // surface may set. A `type` change runs convertVisualizationType (the same
 // transform as the editor's type dropdown) before the rest of the patch
-// applies — see applyFigureConfigPatch.
+// applies: see applyFigureConfigPatch.
 export const AiVizConfigUpdateSchema = AiFigureConfigPatchSchema.extend({
   type: configDStrict.shape.type.optional().describe(
     "Presentation type. Changing it converts the config the same way the "

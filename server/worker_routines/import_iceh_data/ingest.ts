@@ -8,7 +8,7 @@ import {
   type IcehStrat,
   normalizeIcehStrat,
 } from "lib";
-import { _SANDBOX_DIR_PATH } from "../../exposed_env_vars.ts";
+import { _RUNS_DIR_PATH } from "../../exposed_env_vars.ts";
 import { readXlsxFileAsSheets } from "../../server_only_funcs_csvs/read_xlsx_raw.ts";
 
 // The ICEH ingest internals (PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase C),
@@ -41,7 +41,7 @@ async function readIcehZip(zipFilePath: string): Promise<IcehZipContents> {
   }
 
   const tempXlsxPath = join(
-    _SANDBOX_DIR_PATH,
+    _RUNS_DIR_PATH,
     `iceh_indicators_${Date.now()}.xlsx`,
   );
   await Deno.writeFile(tempXlsxPath, xlsxData);
@@ -76,7 +76,7 @@ function splitIcehCsv(csvText: string): {
   return { headerRow: rows[2], dataRows: rows.slice(3) };
 }
 
-// The zip preview for the wizard's upload step — served by the stateless
+// The zip preview for the wizard's upload step: served by the stateless
 // parse route; nothing is persisted.
 export async function parseIcehZipPreview(
   zipFilePath: string,
@@ -146,7 +146,7 @@ export type IcehValidDataRow = {
 };
 
 export type IcehStagedData = {
-  // Only the indicators (from indicators.xlsx) that have data rows — the set
+  // Only the indicators (from indicators.xlsx) that have data rows: the set
   // whose existing rows the cumulative merge replaces.
   indicators: IcehIndicatorRow[];
   validDataRows: IcehValidDataRow[];
@@ -159,7 +159,7 @@ export type IcehStagedData = {
 // of Retriever exports).
 export async function stageIcehZip(
   zipFilePath: string,
-  onProgress: (percent: number) => Promise<void>,
+  onProgress: (percent: number) => void,
 ): Promise<IcehStagedData> {
   const { csvText, indicatorSheetRows } = await readIcehZip(zipFilePath);
 
@@ -213,7 +213,7 @@ export async function stageIcehZip(
   for (let i = 0; i < dataRows.length; i++) {
     const row = dataRows[i];
     if (i % 2000 === 0) {
-      await onProgress(Math.round((i / dataRows.length) * 100));
+      onProgress(Math.round((i / dataRows.length) * 100));
     }
 
     const rawStrat = row[stratIndex]?.trim() ?? "";
@@ -312,13 +312,13 @@ export async function stageIcehZip(
 // cascades to their iceh_data rows); all others are kept, because the
 // upstream Retriever caps exports at 12 indicators. The completion flip lives
 // INSIDE the transaction, conditional on the run still being 'running', and
-// comes LAST — a cancel racing the commit either rolls the merge back whole
+// comes LAST: a cancel racing the commit either rolls the merge back whole
 // or arrives after the run is already 'complete' and no-ops.
 export async function integrateIcehData(args: {
   db: Sql;
   runId: number;
   staged: IcehStagedData;
-  onProgress: (percent: number) => Promise<void>;
+  onProgress: (percent: number) => void;
 }): Promise<void> {
   const { db, runId, staged, onProgress } = args;
   const uploadedCodes = staged.indicators.map((i) => i.code);
@@ -333,7 +333,7 @@ export async function integrateIcehData(args: {
       `;
     }
 
-    await onProgress(10);
+    onProgress(10);
 
     for (let i = 0; i < staged.validDataRows.length; i++) {
       const row = staged.validDataRows[i];
@@ -346,7 +346,7 @@ export async function integrateIcehData(args: {
           sample_size = ${row.sampleSize}
       `;
       if (i % 1000 === 0) {
-        await onProgress(
+        onProgress(
           10 + Math.round((i / staged.validDataRows.length) * 80),
         );
       }

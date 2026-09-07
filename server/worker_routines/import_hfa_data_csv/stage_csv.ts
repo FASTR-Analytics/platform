@@ -62,12 +62,12 @@ export async function dropHfaStagingTables(
   }
 }
 
-// The staging internals relocated from the old stage_hfa_data_csv worker —
+// The staging internals relocated from the old stage_hfa_data_csv worker:
 // parse the XLSForm, stream the CSV wide→long with select_multiple expansion,
 // resolve duplicates, validate facilities, and build the data + dictionary
 // staging tables. Semantics unchanged; only the table names (per-run) and the
 // progress transport (callback instead of attempt-row writes) differ. Never
-// throws on dropped rows — the caller's clean-condition gate decides what a
+// throws on dropped rows: the caller's clean-condition gate decides what a
 // nonzero drop count means.
 export async function stageHfaCsvIntoTables(args: {
   importDb: Sql;
@@ -76,7 +76,7 @@ export async function stageHfaCsvIntoTables(args: {
   xlsFormFilePath: string;
   mappings: HfaCsvMappingParams;
   runId: number;
-  onProgress: (percent: number) => Promise<void>;
+  onProgress: (percent: number) => void;
 }): Promise<DatasetHfaCsvStagingResult> {
   const {
     importDb,
@@ -161,9 +161,9 @@ export async function stageHfaCsvIntoTables(args: {
     }
     return [varName];
   });
-  // Reject names that collide with how indicator R code is interpreted —
+  // Reject names that collide with how indicator R code is interpreted:
   // `and`/`or` operator aliases, R keywords, the common functions the
-  // identifier extractor filters — or with a column the module script owns
+  // identifier extractor filters, or with a column the module script owns
   // (`weight`, `time_point`, `facility_*`, ...). A survey variable named
   // `and`/`sum`/`if` would otherwise be silently rewritten or dropped, and one
   // named `weight`/`time_point` would collide with or shadow the script's own
@@ -197,7 +197,7 @@ export async function stageHfaCsvIntoTables(args: {
   // Clean up any leftover tables from a previous crashed run of this id.
   await dropHfaStagingTables(importDb, runId, { keepFinal: false });
 
-  await onProgress(1);
+  onProgress(1);
 
   // row_seq = 1-based position of the source data row in the file, stamped by
   // the scanner.
@@ -236,7 +236,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
     rowBuffer = [];
   };
 
-  // Process CSV rows — wide to long, with select_multiple expansion. All
+  // Process CSV rows: wide to long, with select_multiple expansion. All
   // surviving (post-filter) rows are inserted, duplicates included; the
   // keep-set join below picks one row per facility.
   const scanTotals = await processFilteredRows(
@@ -296,7 +296,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
         await flushBuffer();
         const progress = Math.floor((bytesRead / fileSizeBytes) * 84) + 1;
         if (progress > lastProgressUpdate) {
-          await onProgress(progress);
+          onProgress(progress);
           lastProgressUpdate = progress;
         }
       }
@@ -309,7 +309,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
   const missingFacilityIdCount = scanTotals.nRowsMissingFacilityId;
   const nRowsFilteredOut = scanTotals.nRowsFilteredOut;
 
-  // Validate overrides against the post-filter duplicate structure — a stale
+  // Validate overrides against the post-filter duplicate structure: a stale
   // override (from an edited file or changed filters) fails staging loudly
   // rather than silently falling back to the rule.
   const overrideByFacility = new Map<string, number>();
@@ -349,7 +349,7 @@ CREATE UNLOGGED TABLE ${names.keepRows} (
     );
   }
 
-  await onProgress(88);
+  onProgress(88);
 
   // Validate facilities
   await importDb.unsafe(`
@@ -360,7 +360,7 @@ WHERE EXISTS (
   WHERE t.facility_id = facilities_hfa.facility_id
 )`);
 
-  await onProgress(90);
+  onProgress(90);
 
   // Final staging table with validated facilities, keeping only the resolved
   // row per facility
@@ -383,7 +383,7 @@ WHERE EXISTS (
 ALTER TABLE ${names.final}
 ADD PRIMARY KEY (facility_id, time_point, var_name)`);
 
-  await onProgress(93);
+  onProgress(93);
 
   // Dictionary staging tables
   await importDb.unsafe(`
@@ -487,7 +487,7 @@ CREATE UNLOGGED TABLE ${names.dictValues} (
     );
   }
 
-  await onProgress(95);
+  onProgress(95);
 
   const validRowCount = (
     await importDb<{ count: number }[]>`

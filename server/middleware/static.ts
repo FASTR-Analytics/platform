@@ -6,17 +6,17 @@ import { getGlobalUser } from "../project_auth.ts";
 import { requireGlobalPermission } from "./userPermission.ts";
 
 // Uploaded IMAGE assets (e.g. logos shown on public dashboards / share links)
-// are served WITHOUT auth — scoped to image extensions so non-image uploads stay
+// are served WITHOUT auth: scoped to image extensions so non-image uploads stay
 // behind requireGlobalPermission below. Asset filenames are already public (the
 // public dashboard bundle returns them), so exposing the image bytes is
 // consistent. Mounted AFTER the client_dist serve (bundled assets win, no
 // shadowing) and BEFORE the protected serves.
 const PUBLIC_IMAGE_RE = /\.(png|jpe?g|gif|svg|webp|avif|ico)$/i;
 
-// Data-file assets (import-wizard inputs live here now — raw facility-level
+// Data-file assets (import-wizard inputs live here now: raw facility-level
 // health data) require can_view_data OR can_configure_data (admins pass).
 // requireGlobalPermission(a, b) is AND, hence the inline check. The assets
-// PAGE itself is visible to all authenticated users — asset NAMES are public
+// PAGE itself is visible to all authenticated users: asset NAMES are public
 // (the SSE starting payload); only the bytes are gated, and the page hides
 // the data-file download button from users this tier would 403.
 const DATA_FILE_RE = /\.(csv|xlsx?|zip)$/i;
@@ -33,24 +33,24 @@ export function setupStaticServing(app: Hono) {
     await next();
   });
 
-  // Run output downloads, the files-viewer's surface, at
+  // Run output downloads, the package detail's file rows, at
   // /{runId}/outputs/{moduleId}/{file}. Scoped to that shape AND gated on
-  // can_configure_data (PLAN_RESULTS_RUNS Q-G): this mount used to answer
-  // any path under the runs volume for any authenticated instance user, so
-  // knowing a runId was enough to download another project's raw output
-  // CSVs. It carries the same guard as the viewer routes the listing comes
-  // from. The path scope also matters for what follows: a wildcard mount
-  // with this guard would 403 every non-admin request that falls through to
-  // the assets serve below.
+  // the instance data bit (PLAN_RESULTS_RUNS Q-G, regated 2026-08-18): this
+  // mount used to answer any path under the runs volume for any
+  // authenticated instance user, so knowing a runId was enough to download
+  // raw output CSVs. It carries the same guard as the run-keyed package reads
+  // the listing comes from (`getRunDetail`, `can_view_data`). The path scope
+  // also matters for what follows: a wildcard mount with this guard would
+  // 403 every non-data request that falls through to the assets serve below.
   app.use(
     "/:run_id/outputs/*",
-    requireGlobalPermission("can_configure_data"),
+    requireGlobalPermission("can_view_data"),
     serveStatic({ root: _RUNS_DIR_PATH }),
   );
 
   // Third tier: data-file bytes for data-permitted users only (admins pass).
   // The extension test runs on the DECODED, NORMALIZED path with trailing
-  // slashes stripped — serveStatic resolves `/x.csv/`, `/x.csv/.`, and
+  // slashes stripped: serveStatic resolves `/x.csv/`, `/x.csv/.`, and
   // `/x.csv/y/..` to the same file on some hono versions, and this tier
   // fails OPEN (falls through to the any-authenticated serve below), so the
   // gate must see every spelling of a data-file path.
@@ -58,7 +58,7 @@ export function setupStaticServing(app: Hono) {
     // decodeURI throws on malformed escapes (a bare % survives
     // sanitizeUploadFilename, so "coverage_100%.csv" is a real asset name);
     // serveStatic cannot decode such a path either, so gating on the raw
-    // path is equivalent there — never let the throw escape to onError.
+    // path is equivalent there: never let the throw escape to onError.
     let decoded = c.req.path;
     try {
       decoded = decodeURI(c.req.path);

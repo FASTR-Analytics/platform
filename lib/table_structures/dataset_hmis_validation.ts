@@ -28,7 +28,7 @@ export function isValidPeriodId(periodId: string): boolean {
   }
 
   // Must be within the same bounds PERIOD_ID_CHECK_CONSTRAINT enforces on the
-  // staging table — a row that passes here but violates the CHECK aborts the
+  // staging table: a row that passes here but violates the CHECK aborts the
   // whole staging batch instead of being counted as an invalid row
   if (
     periodIdNumber < DEFAULT_PERIOD_START ||
@@ -53,7 +53,7 @@ export function isValidPeriodId(periodId: string): boolean {
  * null when the cell is not one.
  *
  * Accepts any integer-VALUED decimal or exponent form ("123", "123.0", "1e3",
- * "+5"): that is what exporters emit for integer data — one missing value
+ * "+5"): that is what exporters emit for integer data, one missing value
  * turns a whole column float, and every count renders as "123.0". Rejects
  * non-integers, negatives, hex/Infinity/NaN, and anything outside int4, which
  * either violate COUNT_CHECK_CONSTRAINT or, as a raw SQL literal, abort the
@@ -85,7 +85,7 @@ export type DatasetRowValidationResult = {
 
 /**
  * Validates all required fields for a dataset row. `count` is the output of
- * parseCountValue — null means the cell was not a stageable count.
+ * parseCountValue: null means the cell was not a stageable count.
  * @returns validation result with failure reason if invalid
  */
 export function isValidDatasetRow(

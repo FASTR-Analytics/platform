@@ -8,7 +8,7 @@
 //           → dashboardConfigSchema
 //
 // TRANSFORM BLOCKS (run in order, each is idempotent):
-// (none yet — column was introduced with a valid NOT NULL DEFAULT, so every
+// (none yet: column was introduced with a valid NOT NULL DEFAULT, so every
 //  row already validates; future schema changes add `// Block N:` blocks here.)
 //
 // =============================================================================

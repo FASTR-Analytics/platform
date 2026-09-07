@@ -1,5 +1,5 @@
 // =============================================================================
-// Slide Config — STORED SHAPE (slides.config column)
+// Slide Config: STORED SHAPE (slides.config column)
 // =============================================================================
 
 import { z } from "zod";
@@ -266,7 +266,7 @@ slideConfigSchema.parse(
   } satisfies ContentSlide,
 );
 
-// Validate figure block — empty placeholder (no bundle) and bundle-populated
+// Validate figure block: empty placeholder (no bundle) and bundle-populated
 slideConfigSchema.parse(
   {
     type: "content",

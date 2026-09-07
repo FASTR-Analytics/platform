@@ -188,7 +188,7 @@ export async function getCsvStreamComponents(
           // each slice independently, so cutting at a newline inside quotes
           // (routine in ODK exports) mis-frames every row after it. Track
           // quote parity across chunks and cut only at newlines outside
-          // quotes — RFC4180 "" escapes toggle twice with no newline
+          // quotes: RFC4180 "" escapes toggle twice with no newline
           // possible between the two quote chars, so parity is exact.
           // leftoverBuffer never contains a safe newline by construction,
           // so only the newly decoded chunk needs scanning.
@@ -209,7 +209,7 @@ export async function getCsvStreamComponents(
               const bytesRead = await localFile.read(buffer);
               if (!bytesRead || bytesRead === 0) {
                 // Flush the streaming decoder (emits any held-back partial
-                // sequence as U+FFFD — at true EOF that's genuinely bad data)
+                // sequence as U+FFFD: at true EOF that's genuinely bad data)
                 leftoverBuffer += decoder.decode();
                 // Process any remaining data
                 if (leftoverBuffer) {

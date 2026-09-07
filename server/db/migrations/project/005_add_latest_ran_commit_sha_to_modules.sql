@@ -1,7 +1,11 @@
 -- Add latest_ran_commit_sha column to track the commit SHA from the last time the module was run
+-- (guarded on the modules table: absent on a fresh DB since 041)
 DO $$
 BEGIN
-  IF NOT EXISTS (
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'modules'
+  ) AND NOT EXISTS (
     SELECT 1 FROM information_schema.columns
     WHERE table_schema = 'public'
     AND table_name = 'modules'

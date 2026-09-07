@@ -4,7 +4,7 @@ import { proxyAnthropicMessages } from "../anthropic_messages_proxy.ts";
 
 export const routesInstanceAiProxy = new Hono();
 
-// Instance-level AI proxy — the same passthrough as the project proxy
+// Instance-level AI proxy: the same passthrough as the project proxy
 // (routes/project/ai_proxy.ts), but guarded at instance level and not tied
 // to a project. Powers the self-contained HFA Indicator Manager assistant.
 // Usage is logged with a null project_id; token limits are already

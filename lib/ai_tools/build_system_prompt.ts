@@ -1,66 +1,73 @@
-import {
-  getCountryLabel,
-  MAX_CONTENT_BLOCKS,
-  SLIDE_TEXT_TOTAL_WORD_COUNT_MAX,
-  SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET,
-} from "../consts.ts";
+import { getCountryLabel } from "../consts.ts";
+import type { DatasetInProject } from "../types/datasets_in_project.ts";
 import type { InstanceState } from "../types/instance_sse.ts";
-import type { ProjectState } from "../types/project_sse.ts";
+import type { InstanceCalendar } from "../types/instance.ts";
+import type { PeriodBounds } from "../types/presentation_objects.ts";
+import { inferPeriodFormatFromValue } from "../types/_metric_installed.ts";
+import type { InfoCatalogTopic } from "./info_catalog.ts";
 import type { ReportFormat, ReportHtmlStyle } from "../types/reports.ts";
 import { FASTR_MD_SYNTAX_DOC } from "../fastr_markdown_spec.ts";
-import { INFO_TOPICS } from "./info_catalog.ts";
 
-// ── Entry point ──
+// The shared halves of the AI system prompt: what both surfaces (the SPA
+// copilot and the /mcp get_overview) ground the model with. Each surface
+// assembles its own context section from these building blocks and its own
+// prose (the SPA: the project's name, viz/deck/report counts, aiContext:
+// client/src/components/project_ai/build_system_prompt.ts; /mcp: the pinned
+// package: server/mcp/mcp_tools.ts), then hands it to buildSystemPrompt.
 //
-// Per-mode instructions no longer live here (Rung 3, PLAN_FUTURE_AI_ADOPTIONS.md
-// feature 1): each getXInstructions() function below is now a view's
-// instructions in ai_views.ts, delivered as a per-turn ephemeral section by
-// panther's view controller. This accessor takes no view/mode argument, so it
-// is BYTE-STABLE across navigation — the point of the migration (prompt-cache
-// breakpoint keeps hitting when the user just switches tabs/editors).
+// The SPA's assembled prompt is BYTE-STABLE across navigation (per-view
+// instructions ride each view's instructions in ai_views.ts as an ephemeral
+// section, never baked in here): the prompt-cache breakpoint depends on it.
 
-export function buildSystemPromptForContext(
-  instance: InstanceState,
-  projectState: ProjectState,
-  toolCatalog: string,
-): string {
+export type SystemPromptParts = {
+  contextSection: string;
+  toolCatalog: string;
+  // The get_info topics THIS surface exposes: the same list its
+  // getSharedToolsForInfo was built with, so the prompt never names a topic
+  // the tool would refuse.
+  infoTopics: InfoCatalogTopic[];
+  // "# Role and Purpose" body: what THIS surface's assistant is for.
+  roleAndPurpose: string;
+  // Core principles this surface adds after the four shared ones (the SPA
+  // adds "ask when uncertain": the ask_user_questions tool exists only
+  // there).
+  extraCorePrinciples: string[];
+};
+
+export function buildSystemPrompt(parts: SystemPromptParts): string {
   const currentDate = new Date().toISOString().split("T")[0];
   const dateHeader = `**CURRENT DATE: ${currentDate}**\n\n---\n\n`;
-
-  const contextSection = buildAISystemContext(instance, projectState);
-  const referenceDocsSection = buildReferenceDocsSection();
-  const baseInstructions = getBaseInstructions();
-  const toolsSection = `\n# Available Tools\n\n${toolCatalog}\n`;
-
-  return `${dateHeader}${contextSection}${referenceDocsSection}${baseInstructions}${toolsSection}`;
+  const referenceDocsSection = buildReferenceDocsSection(parts.infoTopics);
+  const baseInstructions = getBaseInstructions(
+    parts.roleAndPurpose,
+    parts.extraCorePrinciples,
+  );
+  const toolsSection = `\n# Available Tools\n\n${parts.toolCatalog}\n`;
+  return `${dateHeader}${parts.contextSection}${referenceDocsSection}${baseInstructions}${toolsSection}`;
 }
 
 // ── Reference documentation catalog ──
 
-function buildReferenceDocsSection(): string {
-  if (INFO_TOPICS.length === 0) return "";
+function buildReferenceDocsSection(topics: InfoCatalogTopic[]): string {
+  if (topics.length === 0) return "";
   const sections: string[] = [];
   sections.push("# Reference documentation");
   sections.push("");
   sections.push(
-    "Authoritative reference docs you can load on demand with the **get_info** tool. When a task relates to one of these topics (for example, building an ICEH equity profile report), call get_info for that topic FIRST and follow it.",
+    "Authoritative reference docs you can load on demand with the **get_info** tool. When a task relates to one of these topics, call get_info for that topic FIRST and follow it.",
   );
   sections.push("");
-  for (const t of INFO_TOPICS) {
+  for (const t of topics) {
     sections.push(`- **${t.topic}** — ${t.title}: ${t.description}`);
   }
   sections.push("");
   return sections.join("\n");
 }
 
-// ── Project context ──
+// ── Instance grounding: country, terminology, data sources ──
 
-function buildAISystemContext(
-  instance: InstanceState,
-  projectState: ProjectState,
-): string {
+export function buildInstanceContextSections(instance: InstanceState): string[] {
   const sections: string[] = [];
-
   sections.push("# Instance Information");
   sections.push("");
 
@@ -79,8 +86,12 @@ function buildAISystemContext(
   sections.push("");
   sections.push("**Geographic levels:**");
   sections.push("- admin_area_1 is always the national level");
-  if (instance.maxAdminArea >= 2) {
-    const aa = instance.maxAdminArea;
+  // Depth is per facility registry; the shared level labels apply to both.
+  const hmisDepth = instance.structureSchemaHmis?.adminDepth;
+  const hfaDepth = instance.structureSchemaHfa?.adminDepth;
+  const maxAdminArea = Math.max(hmisDepth ?? 1, hfaDepth ?? 1);
+  if (maxAdminArea >= 2) {
+    const aa = maxAdminArea;
     const labels = instance.adminAreaLabels;
     const hasCustomLabels = labels.label2 || labels.label3 || labels.label4;
 
@@ -138,6 +149,14 @@ function buildAISystemContext(
         "- If this instance's country matches one of the above, use that country's terminology instead of 'admin_area_2' etc.",
       );
     }
+    if (
+      hmisDepth !== undefined && hfaDepth !== undefined &&
+      hmisDepth !== hfaDepth
+    ) {
+      sections.push(
+        `- The HMIS facility registry uses levels down to admin_area_${hmisDepth}; the HFA registry down to admin_area_${hfaDepth}. Each registry's data only carries its own levels.`,
+      );
+    }
   }
   sections.push("");
   const hasHmis = instance.datasetsWithData.includes("hmis");
@@ -160,18 +179,44 @@ function buildAISystemContext(
     }
     sections.push("");
   }
+  return sections;
+}
 
-  sections.push("# Project");
+// ── Package grounding: what ONE results package holds ──
+//
+// Derivable from either a project's state (its attached package) or a run
+// manifest (the pinned package on /mcp): the caller maps to this shape.
+
+export type PackageGrounding = {
+  // The calendar the package's period ids are in: a package fact, captured
+  // into the run manifest at finalize (`manifest.calendar`, never the env
+  // global). The SPA's attached package was generated on this instance, so it
+  // passes the instance calendar.
+  calendar: InstanceCalendar;
+  datasets: DatasetInProject[];
+  commonIndicators: { id: string; label: string }[];
+  icehIndicators: { id: string; label: string }[];
+  // The package's overall period range at its finest time grain (null = no
+  // time-indexed results). Omitted when the caller cannot know it: the SPA
+  // holds no manifest client-side; /mcp reads it from the manifest.
+  periodCoverage?: PeriodBounds | null;
+};
+
+export function buildPackageGroundingSections(
+  grounding: PackageGrounding,
+): string[] {
+  const sections: string[] = [];
   sections.push("");
-  sections.push(`**Name:** ${projectState.label}`);
-
-  const hmisDataset = projectState.projectDatasets.find(
+  sections.push(
+    `**Calendar:** ${grounding.calendar} (period ids like 202503 are year+month in this calendar)`,
+  );
+  const hmisDataset = grounding.datasets.find(
     (d) => d.datasetType === "hmis",
   );
-  const hfaDataset = projectState.projectDatasets.find(
+  const hfaDataset = grounding.datasets.find(
     (d) => d.datasetType === "hfa",
   );
-  const icehDataset = projectState.projectDatasets.find(
+  const icehDataset = grounding.datasets.find(
     (d) => d.datasetType === "iceh",
   );
 
@@ -189,87 +234,98 @@ function buildAISystemContext(
     }
   }
 
-  if (projectState.commonIndicators.length > 0) {
+  if (grounding.commonIndicators.length > 0) {
     sections.push("");
     sections.push(
-      `**Common indicators (${projectState.commonIndicators.length}):**`,
+      `**Common indicators (${grounding.commonIndicators.length}):**`,
     );
-    for (const ind of projectState.commonIndicators) {
+    for (const ind of grounding.commonIndicators) {
       sections.push(`- ${ind.id}: ${ind.label}`);
     }
   }
 
-  if (projectState.icehIndicators.length > 0) {
+  if (grounding.icehIndicators.length > 0) {
     sections.push("");
     sections.push(
-      `**ICEH indicators (${projectState.icehIndicators.length}):**`,
+      `**ICEH indicators (${grounding.icehIndicators.length}):**`,
     );
-    for (const ind of projectState.icehIndicators) {
+    for (const ind of grounding.icehIndicators) {
       sections.push(`- ${ind.id}: ${ind.label}`);
     }
   }
 
-  if (projectState.projectModules.length > 0) {
+  if (grounding.periodCoverage !== undefined) {
     sections.push("");
     sections.push(
-      `**Installed analysis modules:** ${projectState.projectModules.length}`,
+      grounding.periodCoverage === null
+        ? "**Period coverage:** no time-indexed results"
+        : `**Period coverage:** ${
+          inferPeriodFormatFromValue(grounding.periodCoverage.min) ?? "unknown"
+        } ${grounding.periodCoverage.min} to ${grounding.periodCoverage.max} (the range of the package's finest-grained results; coarser-grained results may reach further — each metric states its own in get_metric_data)`,
     );
   }
+  return sections;
+}
 
+// ── Data coverage: the instance's facility registries ──
+
+export function buildDataCoverageSections(instance: InstanceState): string[] {
+  const sections: string[] = [];
   if (instance.structure) {
     sections.push("");
     sections.push("**Data coverage:**");
     sections.push(
-      `- ${instance.structure.facilitiesHmis} HMIS facilities, ${instance.structure.facilitiesHfa} HFA facilities`,
+      `- ${instance.structure.hmis.facilities} HMIS facilities, ${instance.structure.hfa.facilities} HFA facilities`,
     );
-    if (instance.structure.adminArea2s > 0) {
-      sections.push(`- ${instance.structure.adminArea2s} admin area 2s`);
-    }
-    if (instance.structure.adminArea3s > 0) {
-      sections.push(`- ${instance.structure.adminArea3s} admin area 3s`);
+    for (
+      const [familyLabel, counts, familyDepth] of [
+        ["HMIS", instance.structure.hmis, instance.structureSchemaHmis?.adminDepth],
+        ["HFA", instance.structure.hfa, instance.structureSchemaHfa?.adminDepth],
+      ] as const
+    ) {
+      if (counts.facilities === 0) continue;
+      // Storage is always four levels: staging pads every level above the
+      // family's depth with the leaf value, so a depth-2 registry's level-3
+      // rows are a 1:1 mirror of its level-2 rows. Reporting them would tell
+      // the copilot a level-2 registry has AA3s and invite breakdowns on a
+      // column its results objects do not carry.
+      const depth = familyDepth ?? 4;
+      const parts: string[] = [];
+      if (depth >= 2 && counts.adminArea2s > 0) {
+        parts.push(`${counts.adminArea2s} admin area 2s`);
+      }
+      if (depth >= 3 && counts.adminArea3s > 0) {
+        parts.push(`${counts.adminArea3s} admin area 3s`);
+      }
+      if (parts.length > 0) {
+        sections.push(`- ${familyLabel} registry: ${parts.join(", ")}`);
+      }
     }
   }
-
-  sections.push("");
-  sections.push(
-    `**Available visualizations:** ${projectState.visualizations.length} (use get_available_visualizations for details)`,
-  );
-  sections.push(
-    `**Available slide decks:** ${projectState.slideDecks.length} (use get_available_slide_decks for details)`,
-  );
-  sections.push(
-    `**Available reports:** ${projectState.reports.length} (use get_available_reports for details)`,
-  );
-
-  if (projectState.aiContext.trim()) {
-    sections.push("");
-    sections.push("# Additional Project Context");
-    sections.push("");
-    sections.push(projectState.aiContext.trim());
-  }
-
-  sections.push("");
-  sections.push("---");
-  sections.push("");
-
-  return sections.join("\n");
+  return sections;
 }
 
 // ── Base instructions ──
 
-function getBaseInstructions(): string {
+function getBaseInstructions(
+  roleAndPurpose: string,
+  extraCorePrinciples: string[],
+): string {
+  const principles = [
+    "**CRITICAL: Always read data before commenting** - Use get_metric_data to see actual data before making any claims",
+    "**Never fabricate statistics** - Only report what you've verified from the data",
+    "**Acknowledge limitations** - Be clear about data gaps or quality issues",
+    "**Be concise** - Keep explanations actionable and to the point",
+    ...extraCorePrinciples,
+  ].map((p, i) => `${i + 1}. ${p}`).join("\n");
   return `
 # Role and Purpose
 
-You are an AI assistant helping users explore, analyze, and present their health data. You can query data, show draft visualizations, and help create slide decks.
+${roleAndPurpose}
 
 # Core Principles
 
-1. **CRITICAL: Always read data before commenting** - Use get_metric_data to see actual data before making any claims
-2. **Never fabricate statistics** - Only report what you've verified from the data
-3. **Acknowledge limitations** - Be clear about data gaps or quality issues
-4. **Be concise** - Keep explanations actionable and to the point
-5. **Ask when uncertain** - Use the ask_user_questions tool to clarify preferences, choose between approaches, or confirm decisions before proceeding. Don't guess what the user wants when you can ask.
+${principles}
 
 # Indicator Interpretation Framework
 
@@ -287,56 +343,11 @@ When analyzing indicators, first determine the directionality:
 `;
 }
 
-// ── Viewing mode instructions ──
-// Each function below is used as a view's instructions in ai_views.ts.
-
-export function getViewingVisualizationsInstructions(): string {
-  return `# Current View: Visualizations Library
-
-The user is browsing their saved visualizations.
-
-## Primary Tools (most relevant here)
-
-**get_available_visualizations** - List all saved visualizations
-**get_visualization_data** - Get data for a specific visualization by ID
-
-## Actions
-
-- Help explore existing visualizations
-- Answer questions about visualizations
-- Suggest new visualizations to create`;
-}
-
-export function getViewingSlideDecksInstructions(): string {
-  return `# Current View: Slide Decks Library
-
-The user is browsing their slide decks.
-
-## Actions
-
-- Help explore existing slide decks
-- Answer questions about deck content
-- Suggest new decks to create`;
-}
-
-export function getViewingReportsInstructions(): string {
-  return `# Current View: Reports Library
-
-The user is browsing their long-form reports (documents with embedded live data figures). A report's body format — **fastr** (FASTR Markdown), **markdown** or **HTML** — is fixed when the report is created (get_report states which).
-
-## Primary Tools (most relevant here)
-
-**get_available_reports** - List all reports (with each report's format)
-**get_report** - Get a report's full body + embedded figure/image ids
-**create_report** - Create a new FASTR Markdown report (the tool's description carries the syntax)
-
-## Actions
-
-- Help explore existing reports
-- Draft a new report with create_report — write FASTR Markdown that USES the format's \`:::\` blocks (open with a \`:::cover\`, headline numbers as \`:::tiles\` of \`:::stat\`, \`:::band\` turning points, \`:::callout\` caveats), not a plain run of headings and paragraphs
-- Never write raw HTML or CSS in a report body; for live data tables/charts, the user inserts figures via the editor
-- Markdown- and HTML-format reports are created in the FASTR report editor (Create report → Format) and edited there with the AI`;
-}
+// ── Report authoring briefs ──
+// The per-view instructions live with the SPA (client/src/components/
+// project_ai/build_system_prompt.ts); the report EDITING brief stays here
+// because its style presets are also read by the report style editor
+// (REPORT_STYLE_BRIEFS, via lib) and covered by the server test suite.
 
 // Styled html presets (chosen on the Create-report form, stored in config,
 // fixed at creation): each is a prescriptive design language the model writes
@@ -685,195 +696,4 @@ The user is editing a long-form report (markdown body + embedded live figures).
 
 ${common}
 - Use clean markdown (headings, paragraphs, lists, tables); never raw HTML. For data tables, prefer inserting a figure.`;
-}
-
-export function getViewingMetricsInstructions(): string {
-  return `# Current View: Metrics Section
-
-The user is viewing available metrics/indicators.
-
-## Primary Tools (most relevant here)
-
-**get_available_metrics** - List all metrics with disaggregation options
-**get_metric_data** - Query raw data for a metric (returns CSV)
-
-## Actions
-
-- Help explore available metrics
-- Query and analyze metric data
-- Explain methodologies`;
-}
-
-export function getViewingResultsPackageInstructions(): string {
-  return `# Current View: Results Package
-
-The user is viewing the project's attached results package (an immutable run
-of analysis-module outputs) and the wizard that generates a new one.
-
-## Primary Tools (most relevant here)
-
-**get_available_modules** - List the package's modules with status
-**get_module_r_script** - View R script for a module
-**get_module_log** - View execution log for a module
-**get_methodology_docs_list** - List methodology documents
-**get_methodology_doc_content** - Read a methodology document
-
-## Actions
-
-- Help explore the package's modules
-- Explain module methodologies
-- Answer questions about module status and results`;
-}
-
-export function getViewingSettingsInstructions(): string {
-  return `# Current View: Project Settings
-
-The user is viewing project settings (users, roles, configuration).
-
-## Actions
-
-- Answer questions about the project
-- Help with data exploration or analysis`;
-}
-
-export function getViewingDashboardsInstructions(): string {
-  return `# Current View: Dashboards
-
-The user is viewing the project's dashboards.
-
-## Actions
-
-- Answer questions about the project
-- Help with data exploration or analysis`;
-}
-
-export function getViewingCacheInstructions(): string {
-  return `# Current View: Cache (developer tab)
-
-The user is viewing the developer cache tab.
-
-## Actions
-
-- Answer questions about the project
-- Help with data exploration or analysis`;
-}
-
-// ── Editing mode instructions ──
-
-export function getEditingSlideDeckInstructions(deckLabel: string): string {
-  return `# Current Mode: Editing Slide Deck
-
-You're editing: "${deckLabel}"
-
-## Slide Types
-
-1. **Cover Slide:** title, subtitle, presenter, date
-2. **Section Slide:** sectionTitle, sectionSubtitle
-3. **Content Slide:** heading + blocks array (max ${MAX_CONTENT_BLOCKS} blocks)
-
-## Content Blocks
-
-**Text (markdown):** { "type": "text", "markdown": "..." }
-**From visualization:** { "type": "from_visualization", "visualizationId": "uuid" }
-**From metric:** { "type": "from_metric", "metricId": "...", "vizPresetId": "...", "chartTitle": "..." }
-
-**IMPORTANT:** Markdown tables are NOT allowed in text blocks. To display tabular data, use a from_metric block with a table-type visualization preset.
-
-## Text Length Guidelines
-
-**Target: ~${SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET} words per slide** (adjust down if slide has multiple figures)
-**Absolute maximum: ${SLIDE_TEXT_TOTAL_WORD_COUNT_MAX} words per slide**
-
-Keep text concise and focused. Slides with charts/visualizations should have less text. Use bullet points, not paragraphs.
-
-## Communication Style
-
-When talking to the user, never mention internal slide IDs or block IDs (e.g. 'a3k', 't2n') — these are meaningless to the user. Instead, refer to slides by their position (e.g. "slide 3"), title (e.g. "the ANC Coverage slide"), or type (e.g. "the cover slide"). Refer to blocks by their content (e.g. "the bar chart showing immunization rates", "the text block on the left"). Use IDs only in tool calls, never in your messages to the user.
-
-## Workflow
-
-1. Call get_deck FIRST to understand current structure
-2. Call get_slide before modifying any specific slide
-3. Choose the right tool for the job:
-   - **Tweak an existing figure** (replicant, filters, disaggregation, period, caption) → update_figure (pass slideId + blockId)
-   - **Swap a block for different content** (replace text, replace a chart with a different metric) → update_slide_content
-   - **Change layout** (add/remove blocks, rearrange, resize) → modify_slide_layout
-   - **Change header only** → update_slide_header
-   - **Rebuild from scratch or change slide type** → replace_slide (last resort)
-4. Call get_metric_data before creating from_metric blocks to check available data`;
-}
-
-export function getEditingSlideInstructions(
-  slideLabel: string,
-  deckLabel: string,
-): string {
-  return `# Current Mode: Editing Slide
-
-You're editing slide: "${slideLabel}" in deck: "${deckLabel}"
-
-## Primary Tools (for this slide)
-
-**get_slide_editor** - Get the current content and structure of this slide. Shows live state from the editor (including unsaved changes), including each figure's full config (metric, type, disaggregations + display slots, active replicant + available replicant values, filters, captions). ALWAYS call this first.
-**update_slide_editor** - Modify this slide's content. For cover/section slides you can update text fields. For content slides you can update the header and individual blocks by ID.
-
-## What You Can Modify
-
-- **Cover slides:** title, subtitle, presenter, date
-- **Section slides:** sectionTitle, sectionSubtitle
-- **Content slides:** header, individual content blocks (via blockUpdates), or layout structure (via layoutChange — add/remove blocks, rearrange, change column widths)
-- **Existing figures:** edit a figure's config in place with update_figure (replicant, filters, disaggregation, date range, captions; chart type is not editable) — no need to recreate it
-
-## Workflow
-
-1. Call get_slide_editor FIRST to see current content and block IDs
-2. Suggest changes based on what would improve the slide
-3. Use update_slide_editor to apply changes
-4. Changes are LOCAL until the user saves - remind them to save if satisfied
-
-## Text Length Guidelines
-
-**Target: ~${SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET} words per slide** (adjust down if slide has multiple figures)
-**Absolute maximum: ${SLIDE_TEXT_TOTAL_WORD_COUNT_MAX} words per slide**
-
-Keep text concise and focused. Slides with charts/visualizations should have less text. Use bullet points, not paragraphs.
-
-## Important
-
-- Changes are previewed immediately but NOT saved automatically
-- The user must click Save to persist changes
-- For content slides, use block IDs from get_slide_editor to target specific blocks
-- IMPORTANT: Markdown tables are NOT allowed in text blocks. To display tabular data, use a from_metric block with a table-type visualization preset.`;
-}
-
-export function getEditingVisualizationInstructions(vizLabel: string): string {
-  return `# Current Mode: Editing Visualization
-
-You're editing: "${vizLabel}"
-
-## Primary Tools (for this visualization)
-
-**get_viz_editor** - Get current config + data for this visualization
-**update_viz_config** - Modify this visualization's configuration
-
-## What You Can Modify
-
-- Chart type and layout
-- Period selections
-- Disaggregations
-- Filters
-- Captions and labels
-- Formatting options
-
-## Workflow
-
-1. Call get_viz_editor FIRST to see current config and data
-2. Suggest changes based on what would improve the visualization
-3. Use update_viz_config to apply changes
-4. Changes are LOCAL until the user saves - remind them to save if satisfied
-
-## Important
-
-- Changes are previewed immediately but NOT saved automatically
-- Always explain what changes you're making and why
-- The user must click Save to persist changes`;
 }

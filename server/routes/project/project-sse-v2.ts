@@ -21,9 +21,9 @@ type QueuedMessage = ProjectSseMessage & { projectId: string };
  * condition where messages broadcast during buildProjectState() are dropped.
  *
  * Order:
- * 1. Authenticate + authorize — hard-deny unauthenticated clients (no
+ * 1. Authenticate + authorize: hard-deny unauthenticated clients (no
  *    open-access exception) and apply the canonical project-access check
- *    (resolveProjectUserAccess — same gate as the route middleware)
+ *    (resolveProjectUserAccess: same gate as the route middleware)
  * 2. Subscribe to BroadcastChannel (queue messages)
  * 3. Build full ProjectState from DB
  * 4. Send `starting` with full state

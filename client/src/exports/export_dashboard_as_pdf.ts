@@ -29,7 +29,7 @@ import {
   prepareFigures,
 } from "./_dashboard_pages";
 
-// ── PDF layout — adjust here ────────────────────────────────────────────────
+// ── PDF layout: adjust here ────────────────────────────────────────────────
 // Pages are PDF_PAGE_WIDTH DU wide (same width as the PPTX slides) and each
 // page's HEIGHT is sized to its own figure, so nothing is letterboxed: a wide
 // chart yields a short (landscape) page, a tall table a portrait one.

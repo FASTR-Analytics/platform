@@ -62,7 +62,7 @@ export function formatVizEditorForAI(
     if (pf.filterType === "custom") {
       lines.push(`Period filter: ${inferPeriodFormatFromValue(pf.min) ?? "unknown"} from ${pf.min} to ${pf.max}`);
     } else if (pf.filterType === "from_month") {
-      // from_month discards its stored max at query time — the range extends
+      // from_month discards its stored max at query time: the range extends
       // to the latest data. Printing "to <max>" taught the model a fixed
       // upper bound the renderer ignores.
       lines.push(`Period filter: from ${pf.min} to present (extends automatically as new data lands)`);
@@ -121,7 +121,11 @@ export function formatVizEditorForAI(
   for (const opt of resultsValue.disaggregationOptions) {
     const label = getDisaggregationLabel(opt.value, {
       adminAreaLabels: instanceState.adminAreaLabels,
-      facilityColumns: instanceState.facilityColumns,
+      facilityColumns: resultsValue.datasetFamily === "hmis"
+        ? instanceState.structureSchemaHmis ?? undefined
+        : resultsValue.datasetFamily === "hfa"
+        ? instanceState.structureSchemaHfa ?? undefined
+        : undefined,
     }).en;
     const required = opt.isRequired ? " (required)" : "";
     lines.push(`  - ${opt.value}: ${label}${required}`);

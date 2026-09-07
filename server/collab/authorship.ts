@@ -1,10 +1,10 @@
 // =============================================================================
-// Per-character authorship ledgers — report bodies and slide text elements
+// Per-character authorship ledgers: report bodies and slide text elements
 // =============================================================================
 //
 // Versions attribute WHO edited per session; a session with two editors can't
 // say who typed a specific word. This ledger closes that gap for insertions:
-// while a report room is live, every body-text delta (Yjs Y.Text observer —
+// while a report room is live, every body-text delta (Yjs Y.Text observer:
 // exact retain/insert/delete ops, no diffing) updates a run-length-encoded
 // author-per-character array kept in lockstep with the body. Checkpoints
 // persist it next to crdt_state (same validity stamp), version snapshots
@@ -12,7 +12,7 @@
 // span with its actual author.
 //
 // SLIDE TEXT ELEMENTS reuse the same machinery with one ledger per
-// (slide, element text) — see the "Slide text elements" section at the
+// (slide, element text), see the "Slide text elements" section at the
 // bottom. Unlike report bodies these are session-scoped and in-memory only
 // (never persisted; same accepted restart tradeoff as the deck session
 // ledger): initialized when a slide room's doc is created, fed by the room
@@ -22,13 +22,13 @@
 // null-author runs mean "unknown": text that predates the ledger, was written
 // outside a live room (REST fallback, restore), or whose ledger was lost to a
 // stale crdt_state re-seed. Diff views fall back to session-level attribution
-// for those spans. The ledger is best-effort by design — if it ever falls out
+// for those spans. The ledger is best-effort by design: if it ever falls out
 // of alignment with the body it is discarded, never persisted wrong.
 //
 // DELETIONS leave TOMBSTONES: a deleted range's runs are kept in place with
 // `deletedBy` set (the ghost keeps its original writer in `email`). Live runs
-// concatenated still equal the body — tombstones are transparent to body
-// positions — so the alignment invariant counts live characters only. A
+// concatenated still equal the body: tombstones are transparent to body
+// positions, so the alignment invariant counts live characters only. A
 // tombstone's anchor (the live-prefix length before it) is exactly where the
 // text vanished from the current body, which is what the diff views match
 // hunks against; inserts land AFTER tombstones at the same anchor to keep
@@ -38,7 +38,7 @@
 import type { AuthorRun } from "lib";
 
 // Bounds ledger growth in churn-heavy sessions; dropped tombstones (earliest
-// document positions first — temporal order isn't tracked) simply fall back
+// document positions first, temporal order isn't tracked) simply fall back
 // to session-level attribution.
 const TOMBSTONE_CAP = 2000;
 
@@ -60,7 +60,7 @@ function isTombstone(r: AuthorRun): boolean {
   return r.deletedBy !== undefined;
 }
 
-/** Live characters only — tombstones are transparent to body positions. */
+/** Live characters only: tombstones are transparent to body positions. */
 function liveLen(runs: AuthorRun[]): number {
   return runs.reduce((n, r) => (isTombstone(r) ? n : n + r.len), 0);
 }
@@ -74,7 +74,7 @@ function mergeAdjacent(runs: AuthorRun[]): AuthorRun[] {
     const prev = out[out.length - 1];
     if (
       prev && prev.email === r.email && prev.deletedBy === r.deletedBy &&
-      // Never mix text-carrying tombstones with legacy text-less ones — the
+      // Never mix text-carrying tombstones with legacy text-less ones: the
       // merged text would no longer cover the merged length.
       (prev.text === undefined) === (r.text === undefined)
     ) {
@@ -115,7 +115,7 @@ export function stashPersistedAuthors(
 }
 
 /** Start the ledger for a (re)created room doc. Uses the stashed persisted
- *  runs when they align with the body (tombstones included — they belong to
+ *  runs when they align with the body (tombstones included: they belong to
  *  the still-open version window); otherwise everything starts unknown. */
 export function initLedger(
   projectId: string,
@@ -181,7 +181,7 @@ function applyDeltaToLedger(
 
   // Consume n LIVE characters: "keep" copies them, "delete" converts them to
   // tombstones (keeping the original writer + the deleted text). Tombstones
-  // encountered along the way are transparent — copied through unchanged.
+  // encountered along the way are transparent: copied through unchanged.
   function take(
     n: number,
     mode: "keep" | "delete",
@@ -217,7 +217,7 @@ function applyDeltaToLedger(
       }
     }
     if (n > 0 && poisonOnOverrun) {
-      // Delta ran past the ledger — misaligned; poison so it gets discarded.
+      // Delta ran past the ledger: misaligned; poison so it gets discarded.
       out.push({ len: n, email: "__MISALIGNED__" });
     }
   }
@@ -235,7 +235,7 @@ function applyDeltaToLedger(
     }
   }
   // Remainder after the last op is retained implicitly (running out here is
-  // normal — deltas don't cover the whole document).
+  // normal: deltas don't cover the whole document).
   take(Number.MAX_SAFE_INTEGER, "keep", false);
 
   ledgers.set(k, {
@@ -244,7 +244,7 @@ function applyDeltaToLedger(
   });
 }
 
-/** Current runs (tombstones included) for persistence — null unless the
+/** Current runs (tombstones included) for persistence: null unless the
  *  ledger's mirrored body EXACTLY matches the body being persisted (never
  *  persist a misaligned ledger). */
 export function getAuthorRuns(
@@ -272,7 +272,7 @@ function runsForKey(k: string, body: string): AuthorRun[] | null {
   return ledger.runs;
 }
 
-/** Drop all tombstones — called right after a version snapshotted them, so
+/** Drop all tombstones: called right after a version snapshotted them, so
  *  the ledger's tombstones always describe "deletions since the last
  *  version". No-op when no room is live. */
 export function compactTombstones(projectId: string, reportId: string): void {
@@ -297,7 +297,7 @@ export function dropLedger(projectId: string, reportId: string): void {
 }
 
 /** User email rename: rewrite the author in every open ledger (report bodies
- *  AND slide text elements — they share the map) plus the pendingInit stash,
+ *  AND slide text elements: they share the map) plus the pendingInit stash,
  *  so later checkpoints/snapshots persist the new address. */
 export function renameAuthorEmails(oldEmail: string, newEmail: string): void {
   const renameRuns = (runs: AuthorRun[]): void => {
@@ -339,7 +339,7 @@ function slideElementPrefix(projectId: string, slideId: string): string {
   return `${projectId}::slideel::${slideId}::`;
 }
 
-/** Start a text element's ledger at room create — but only when none exists
+/** Start a text element's ledger at room create, but only when none exists
  *  or the existing one is misaligned: a room reopening WITHIN the same
  *  version window (close + reopen before the version write) must keep its
  *  accumulated tombstones. */
@@ -362,10 +362,10 @@ export function ensureSlideElementLedger(
 
 /** Register a text block created WITH seeded content mid-session (duplicate,
  *  AI insert, paste): buildNode fills the Y.Text before attaching it, so no
- *  delta ever announces the seed — the first later edit would then self-init
+ *  delta ever announces the seed: the first later edit would then self-init
  *  the mirror one seed short. Start the ledger from the seed, attributed to
  *  the adder (their action put this text here; null = unknown). Deliberately
- *  REPLACES any stale ledger a removed block left under a reused key — the
+ *  REPLACES any stale ledger a removed block left under a reused key: the
  *  snapshot validates against the NEW block's text, so the old runs could
  *  only misalign or pollute its ghost. */
 export function initSeededSlideElementLedger(
@@ -384,7 +384,7 @@ export function initSeededSlideElementLedger(
 /** Apply one element text delta. A missing ledger self-initializes: a pure
  *  insert (brand-new text, e.g. a block created mid-session) starts from ""
  *  so the writer is attributed; anything else starts from the post-state as
- *  unknown (aligned for FUTURE deltas — this transaction's ops are lost,
+ *  unknown (aligned for FUTURE deltas: this transaction's ops are lost,
  *  never misattributed). */
 export function applySlideElementDelta(
   projectId: string,
@@ -409,7 +409,7 @@ export function applySlideElementDelta(
   applyDeltaToLedger(k, delta, email);
 }
 
-/** Freeze each element's runs for a deck version — validated against the
+/** Freeze each element's runs for a deck version: validated against the
  *  element texts actually being persisted (from the version's slide config),
  *  so a misaligned ledger is dropped, never stored wrong. Elements whose runs
  *  carry no information (single unknown-author live run, no tombstones) are
@@ -436,7 +436,7 @@ export function snapshotSlideElementAuthors(
   return out;
 }
 
-/** Drop tombstones on element ledgers of a slide — right after a deck
+/** Drop tombstones on element ledgers of a slide: right after a deck
  *  version snapshotted them (mirrors compactTombstones for reports). Pass
  *  `onlyElementKeys` to compact just the elements a snapshot actually
  *  captured: an element whose ledger didn't validate at snapshot time keeps
@@ -460,7 +460,7 @@ export function compactSlideElementTombstones(
   }
 }
 
-/** Discard all of a slide's element ledgers — the slide row was deleted or
+/** Discard all of a slide's element ledgers: the slide row was deleted or
  *  replaced (nothing left to attribute). */
 export function dropSlideElementLedgers(
   projectId: string,
@@ -475,7 +475,7 @@ export function dropSlideElementLedgers(
 }
 
 /** Room finalized (everyone left): drop only ledgers carrying NO information
- *  (every run live with unknown author — view-only opens). Anything with
+ *  (every run live with unknown author: view-only opens). Anything with
  *  tombstones or attributed runs must survive until the deck version writes
  *  (up to the empty-grace + idle window later); writeVersion compacts and
  *  drops closed-room ledgers after the snapshot. */

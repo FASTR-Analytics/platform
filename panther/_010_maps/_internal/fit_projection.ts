@@ -45,8 +45,8 @@ export function computeProjectedBounds(
   return { minX, minY, maxX, maxY, w: maxX - minX, h: maxY - minY };
 }
 
-// The projection expressed as (scale, centre) rather than (rect, padding)
-// (plan D7): the content scale s IS the projection scale, so the label-budget
+// The projection expressed as (scale, centre) rather than (rect, padding):
+// the content scale s IS the projection scale, so the label-budget
 // solver can fit at an explicit s. Centres the projected bbox on (cx, cy),
 // with the same y-flip the old rect fit applied. A degenerate bbox (or
 // non-positive scale) projects everything to the centre, mirroring the old

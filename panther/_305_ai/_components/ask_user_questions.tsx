@@ -74,10 +74,9 @@ export function createAskUserQuestionsTool(): AIToolWithMetadata<
   });
   // Engine-managed card mechanism (decision log #6): the card is excluded
   // from the upfront in-progress batch and created when its block starts
-  // executing; pane unmount no longer cancels the question (the renderer's
-  // onCleanup cancel is gone — a hidden pane leaves the question pending
-  // and recoverable). Stop cancels explicitly through _cancelPending so the
-  // once-per-response closure guard resets.
+  // executing; pane unmount does not cancel the question (a hidden pane
+  // leaves the question pending and recoverable). Stop cancels explicitly
+  // through _cancelPending so the once-per-response closure guard resets.
   tool.metadata.awaitsUserAction = true;
   tool.metadata._cancelPending = () => {
     rejectAnswer?.(new Error("Question cancelled: generation was stopped"));

@@ -15,12 +15,10 @@ type IconRendererProps = {
 };
 
 export function IconRenderer(p: IconRendererProps) {
-  const textSizeClass = p.size === "sm"
-    ? "ui-form-text-size-sm"
-    : "ui-form-text-size";
-  const correctionClass = p.size === "sm"
-    ? "ui-icon-only-correction-sm"
-    : "ui-icon-only-correction";
+  const textSizeClass = () =>
+    p.size === "sm" ? "ui-form-text-size-sm" : "ui-form-text-size";
+  const correctionClass = () =>
+    p.size === "sm" ? "ui-icon-only-correction-sm" : "ui-icon-only-correction";
 
   return (
     <Show when={p.iconName} keyed>
@@ -28,9 +26,9 @@ export function IconRenderer(p: IconRendererProps) {
         return (
           <span
             class={[
-              textSizeClass,
+              textSizeClass(),
               "relative h-[var(--ui-form-content-h-em)] w-[var(--ui-form-content-h-em)] flex-none overflow-clip rounded",
-              p.iconOnly && correctionClass,
+              p.iconOnly && correctionClass(),
               p.invisible && "invisible",
             ].filter(Boolean).join(" ")}
           >

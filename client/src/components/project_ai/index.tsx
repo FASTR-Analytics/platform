@@ -42,7 +42,7 @@ function AIProjectWrapperInner(p: ParentProps) {
   // this array is not re-read on change. Freshness is intentional aliasing:
   // every handler closes over the projectState store, which is updated in
   // place via reconcile, so handlers always read current data. (Anything a
-  // handler needs at BUILD time — e.g. a completionMessage counting metrics —
+  // handler needs at BUILD time, e.g. a completionMessage counting metrics,
   // is frozen at mount; keep such reads out of tool construction.) Build once.
   const tools = buildToolsForContext({
     projectId,
@@ -55,13 +55,13 @@ function AIProjectWrapperInner(p: ParentProps) {
     reports: projectState.reports,
   });
 
-  // CACHE RULE: no currentView here — the no-view catalog is byte-stable;
+  // CACHE RULE: no currentView here: the no-view catalog is byte-stable;
   // view-grouped ordering would bust the system-prompt cache breakpoint on
   // every navigation.
   const toolCatalog = buildToolCatalog(tools);
 
   // Byte-stable across navigation (Rung 3): no longer takes a mode/view
-  // argument — per-view instructions now ride each view's instructions
+  // argument: per-view instructions now ride each view's instructions
   // (ai_views.ts) as a per-turn ephemeral section instead of being baked into
   // this string.
   const systemPrompt = createMemo(() =>

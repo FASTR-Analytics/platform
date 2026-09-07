@@ -1,11 +1,11 @@
 // ============================================================================
 // ICEH IMPORT RUN WORKER (PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase C)
 //
-// Two legs, one worker: STAGE (in-memory zip parse + per-row validation —
+// Two legs, one worker: STAGE (in-memory zip parse + per-row validation:
 // ICEH is small, no staging tables) and INTEGRATE (the single-transaction
 // cumulative per-indicator replace). Clean staging auto-integrates
 // unattended; unexplained skipped rows (unknown strat / invalid year /
-// unknown indicator) hold the run in needs_review WITH the claim released —
+// unknown indicator) hold the run in needs_review WITH the claim released,
 // the retained zip is what makes that safe: "Integrate anyway"
 // (skipReviewGate) re-runs the full ingest from it with the gate skipped.
 // Zero valid rows fail loudly.
@@ -34,7 +34,7 @@ import { integrateIcehData, stageIcehZip } from "./ingest.ts";
 let alreadyRunning = false;
 
 // The ICEH clean condition (C4): no row was skipped for a reason the user
-// didn't author, and something staged. Missing estimates never gate — "NA"
+// didn't author, and something staged. Missing estimates never gate: "NA"
 // estimates are a normal feature of Retriever exports, reported but never
 // blocking.
 function isCleanStaging(result: IcehStagingResult): boolean {
@@ -72,8 +72,8 @@ async function run(payload: ImportIcehDataWorkerPayload) {
 
   try {
     // ── Stage leg (in-memory; runs even for skipReviewGate resumes) ───────
-    const staged = await stageIcehZip(zipFilePath, async (percent) => {
-      await writeProgress({ phase: "staging", percent }, false);
+    const staged = await stageIcehZip(zipFilePath, (percent) => {
+      writeProgress({ phase: "staging", percent }, false);
     });
 
     if (staged.stagingResult.nRowsValid === 0) {
@@ -105,14 +105,14 @@ async function run(payload: ImportIcehDataWorkerPayload) {
 
     // ── Integrate leg ───────────────────────────────────────────────────
     // The completion flip happens INSIDE the merge transaction (see
-    // ingest.ts) — a cancel racing the commit either rolls the merge back
+    // ingest.ts): a cancel racing the commit either rolls the merge back
     // whole or arrives after the run is already 'complete'.
     await integrateIcehData({
       db: importDb,
       runId,
       staged,
-      onProgress: async (percent) => {
-        await writeProgress({ phase: "integrating", percent }, false);
+      onProgress: (percent) => {
+        writeProgress({ phase: "integrating", percent }, false);
       },
     });
 

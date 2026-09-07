@@ -4,9 +4,9 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  applyTextColorStrategy,
   CustomFigureStyle,
   generateSurroundsPrimitives,
-  getAdjustedColor,
   type HeaderItem,
   measureSurrounds,
   type MergedTableStyle,
@@ -55,12 +55,12 @@ export function measureTable(
   );
 
   // Register the styles that you will need for this class
-  const mergedTableStyle = customFigureStyle.getMergedTableStyle();
+  const mergedStyle = customFigureStyle.getMergedTableStyle();
 
   // Add legend items manually
   const legend = inputs.legend;
 
-  const s = mergedTableStyle;
+  const s = mergedStyle;
   // Label-resolution prelude — before ANY header-label read (the first is
   // hasRowGroupHeaders below, which feeds row-header width and hence column
   // space). Mirrored in getMinComfortableWidth so the shared per-scale caches
@@ -215,17 +215,11 @@ export function measureTable(
           const cellContentWidth = colInnerWidths[col.index] -
             s.cellPadding.pl() - s.cellPadding.pr();
           const cellStyle = s.tableCells.getStyle(cellInfo);
-          let cellTextInfo = s.text.cells;
-          if (
-            cellStyle.textColorStrategy !== "none" &&
-            cellStyle.backgroundColor !== "none"
-          ) {
-            const adjustedColor = getAdjustedColor(
-              cellStyle.backgroundColor,
-              cellStyle.textColorStrategy,
-            );
-            cellTextInfo = { ...cellTextInfo, color: adjustedColor };
-          }
+          const cellTextInfo = applyTextColorStrategy(
+            s.text.cells,
+            cellStyle.backgroundColor,
+            cellStyle.textColorStrategy,
+          );
           const mText = rc.mText(cellStr, cellTextInfo, cellContentWidth);
           cells.push({ mText, cellStyle, cellInfo });
           maxCellHeight = Math.max(maxCellHeight, mText.dims.h());
@@ -302,7 +296,7 @@ export function measureTable(
     primitives: [],
     transformedData: d,
     customFigureStyle,
-    mergedTableStyle,
+    mergedStyle,
     columnMinMax,
     caption,
     subCaption,
@@ -706,9 +700,8 @@ export function computeAutoColumnMins(
   return mins;
 }
 
-// "equal"/undefined always divides evenly, exactly as before this field
-// existed — a caller that never touches columnWidths sees byte-identical
-// output forever, immune to any future change in what "auto" means.
+// "equal"/undefined always divides evenly: a caller that never touches
+// columnWidths is immune to any change in what "auto" means.
 export function resolveColumnWidths(
   rc: RenderContext,
   d: TableDataTransformed,

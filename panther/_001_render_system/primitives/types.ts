@@ -38,10 +38,6 @@ export type Arrowhead = {
 };
 
 export const Z_INDEX = {
-  // General-purpose layer constants
-  BACK: 0,
-  FRONT: 999,
-  // Chart semantic layers
   BACKGROUND: 0,
   GRID: 100,
   AXIS: 200,
@@ -57,6 +53,7 @@ export const Z_INDEX = {
   SIMPLEVIZ_ARROW: 490, // Behind boxes by default
   SIMPLEVIZ_BOX: 500,
   // VizGraph defaults
+  VIZGRAPH_LANE: 470, // Lane bands behind group boxes
   VIZGRAPH_UNFOLDED_GROUP: 480, // Group boxes behind edges and nodes
   VIZGRAPH_EDGE: 490, // Behind nodes by default
   VIZGRAPH_NODE: 500,
@@ -138,8 +135,6 @@ export type ChartDataPointPrimitive = BasePrimitive & {
   coords: Coordinates;
   style: PointStyle;
   dataLabel?: DataLabel;
-  // Optional metadata
-  sourceData?: unknown;
 };
 
 export type ChartLineSeriesPrimitive = BasePrimitive & {
@@ -151,16 +146,10 @@ export type ChartLineSeriesPrimitive = BasePrimitive & {
   // Visual
   coords: Coordinates[];
   style: LineStyle;
-  segments?: {
-    start: number; // 0-1 along path for partial animations
-    end: number;
-  };
   pointLabels?: Array<{
     coordIndex: number;
     dataLabel: DataLabel;
   }>;
-  // Optional metadata
-  sourceData?: unknown;
 };
 
 export type ChartAreaSeriesPrimitive = BasePrimitive & {
@@ -172,8 +161,6 @@ export type ChartAreaSeriesPrimitive = BasePrimitive & {
   // Visual
   coords: Coordinates[];
   style: AreaStyle;
-  // Optional metadata
-  sourceData?: unknown;
 };
 
 export type ChartConnectorPrimitive = BasePrimitive & {
@@ -189,8 +176,6 @@ export type ChartConnectorPrimitive = BasePrimitive & {
     start?: Arrowhead;
     end?: Arrowhead;
   };
-  // Optional metadata
-  sourceData?: unknown;
 };
 
 export type ChartBarPrimitive = BasePrimitive & {
@@ -208,8 +193,6 @@ export type ChartBarPrimitive = BasePrimitive & {
   orientation: "vertical" | "horizontal";
   style: RectStyle;
   dataLabel?: DataLabel;
-  // Optional metadata
-  sourceData?: unknown;
 };
 
 export type ChartErrorBarPrimitive =
@@ -222,8 +205,6 @@ export type ChartErrorBarPrimitive =
     strokeColor: ColorKeyOrString;
     strokeWidth: number;
     capWidth: number;
-    // Optional metadata
-    sourceData?: unknown;
   }
   & (
     | { orientation: "vertical"; centerX: number; ubY: number; lbY: number }
@@ -328,7 +309,7 @@ export type ChartLegendPrimitive = BasePrimitive & {
 export type ChartCaptionPrimitive = BasePrimitive & {
   type: "chart-caption";
   meta: {
-    captionType: "title" | "subtitle" | "footnote" | "caption";
+    captionType: "subtitle" | "footnote" | "caption";
     paneIndex?: number; // Captions can be figure-level (no pane) or pane-level
   };
   mText: MeasuredText;
@@ -444,6 +425,21 @@ export type VizGraphUnfoldedGroupPrimitive = BasePrimitive & {
   rectStyle: RectStyle;
   outline?: PathSegment[];
   // Label (if present)
+  text?: {
+    mText: MeasuredText;
+    position: Coordinates;
+  };
+};
+
+// A lane box (M5): the full-height band behind a lane's columns, header text
+// left-aligned in the row the engine reserved.
+export type VizGraphLanePrimitive = BasePrimitive & {
+  type: "vizgraph-lane";
+  meta: {
+    laneId: string;
+  };
+  rcd: RectCoordsDims;
+  rectStyle: RectStyle;
   text?: {
     mText: MeasuredText;
     position: Coordinates;
@@ -782,6 +778,7 @@ export type Primitive =
   | ArrowPrimitive
   // VizGraph primitives
   | VizGraphNodePrimitive
+  | VizGraphLanePrimitive
   | VizGraphUnfoldedGroupPrimitive
   | VizGraphEdgePrimitive
   // Sankey primitives

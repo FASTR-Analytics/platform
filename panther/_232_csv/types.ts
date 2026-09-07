@@ -9,19 +9,19 @@ import { Csv } from "./deps.ts";
 // CSV OPTIONS
 // ================================================================================
 
-export interface CsvReadOptions {
+export type CsvReadOptions = {
   colHeaders?: "none" | "use-first-row" | undefined;
   rowHeaders?: "none" | "use-first-col" | undefined;
-}
+};
 
-export interface XlsxReadOptions extends CsvReadOptions {
+export type XlsxReadOptions = CsvReadOptions & {
   sheetIndexToTake?: number;
   sheetNameToTake?: string;
-}
+};
 
-export interface XlsxWriteOptions {
+export type XlsxWriteOptions = {
   colHeaderForNewFirstCol?: string;
-}
+};
 
 // ================================================================================
 // TYPE GUARDS

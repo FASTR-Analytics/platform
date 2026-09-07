@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
+  batch,
   createEffect,
   createMemo,
   createSignal,
@@ -14,6 +15,7 @@ import {
   onMount,
   Show,
   Switch,
+  untrack,
 } from "solid-js";
 import { clamp } from "../deps.ts";
 import { Button } from "../form_inputs/button.tsx";
@@ -190,10 +192,10 @@ export function FrameBottom(p: SideFrameProps) {
 // order/handle side, so the signals, ResizeObserver, drag handlers and cleanup
 // live here once. Kept internal.
 function createResizablePanel(p: ResizableFrameProps, side: "left" | "right") {
-  const minWidth = p.minWidth ?? 100;
-  const maxWidth = p.maxWidth ?? 600;
+  const minWidth = () => p.minWidth ?? 100;
+  const maxWidth = () => p.maxWidth ?? 600;
   const [actualWidth, setActualWidth] = createSignal(
-    clamp(p.startingWidth, minWidth, maxWidth),
+    clamp(p.startingWidth, minWidth(), maxWidth()),
   );
   const displayWidth = createMemo(() =>
     p.isShown === false ? 0 : actualWidth()
@@ -218,14 +220,16 @@ function createResizablePanel(p: ResizableFrameProps, side: "left" | "right") {
 
       resizeObserver = new ResizeObserver((entries) => {
         for (const entry of entries) {
-          const newContainerWidth = entry.contentRect.width;
-          setContainerWidth(newContainerWidth);
-          const newWidth = clamp(
-            targetPercentage() * newContainerWidth,
-            minWidth,
-            maxWidth,
-          );
-          setActualWidth(newWidth);
+          batch(() => {
+            const newContainerWidth = entry.contentRect.width;
+            setContainerWidth(newContainerWidth);
+            const newWidth = clamp(
+              targetPercentage() * newContainerWidth,
+              minWidth(),
+              maxWidth(),
+            );
+            setActualWidth(newWidth);
+          });
         }
       });
 
@@ -245,12 +249,14 @@ function createResizablePanel(p: ResizableFrameProps, side: "left" | "right") {
 
       // Right panel drag is reversed relative to the left panel.
       const deltaX = side === "left" ? e.clientX - startX : startX - e.clientX;
-      const newWidth = clamp(startWidth + deltaX, minWidth, maxWidth);
-      setActualWidth(newWidth);
+      const newWidth = clamp(startWidth + deltaX, minWidth(), maxWidth());
+      batch(() => {
+        setActualWidth(newWidth);
 
-      if (!p.preventPanelResizeOnParentResize && containerWidth() > 0) {
-        setTargetPercentage(newWidth / containerWidth());
-      }
+        if (!p.preventPanelResizeOnParentResize && containerWidth() > 0) {
+          setTargetPercentage(newWidth / containerWidth());
+        }
+      });
     };
 
     handleMouseUp = () => {
@@ -366,14 +372,14 @@ export function FrameRightResizable(p: ResizableFrameProps) {
 }
 
 export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
-  const minWidths = p.minWidths ?? [100, 100];
-  const maxWidths = p.maxWidths ?? [2000, 2000];
+  const minWidths = () => p.minWidths ?? [100, 100];
+  const maxWidths = () => p.maxWidths ?? [2000, 2000];
 
   const [leftWidth, setLeftWidth] = createSignal(
-    clamp(p.startingWidths[0], minWidths[0], maxWidths[0]),
+    clamp(p.startingWidths[0], minWidths()[0], maxWidths()[0]),
   );
   const [rightWidth, setRightWidth] = createSignal(
-    clamp(p.startingWidths[1], minWidths[1], maxWidths[1]),
+    clamp(p.startingWidths[1], minWidths()[1], maxWidths()[1]),
   );
 
   const [leftPercent, setLeftPercent] = createSignal<number>(0);
@@ -403,11 +409,15 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
     const currentContainerWidth = containerWidth() ||
       containerRef?.offsetWidth || 1;
 
-    const newLeftWidth = clamp(p.startingWidths[0], minWidths[0], maxWidths[0]);
+    const newLeftWidth = clamp(
+      p.startingWidths[0],
+      minWidths()[0],
+      maxWidths()[0],
+    );
     const newRightWidth = clamp(
       p.startingWidths[1],
-      minWidths[1],
-      maxWidths[1],
+      minWidths()[1],
+      maxWidths()[1],
     );
 
     setLeftWidth(newLeftWidth);
@@ -417,8 +427,9 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
   };
 
   createEffect(() => {
-    if (p.resetKey !== undefined) {
-      resetWidths();
+    const key = p.resetKey;
+    if (key !== undefined) {
+      untrack(resetWidths);
     }
   });
 
@@ -431,23 +442,25 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
 
       resizeObserver = new ResizeObserver((entries) => {
         for (const entry of entries) {
-          const newContainerWidth = entry.contentRect.width;
-          setContainerWidth(newContainerWidth);
+          batch(() => {
+            const newContainerWidth = entry.contentRect.width;
+            setContainerWidth(newContainerWidth);
 
-          setLeftWidth(
-            clamp(
-              leftPercent() * newContainerWidth,
-              minWidths[0],
-              maxWidths[0],
-            ),
-          );
-          setRightWidth(
-            clamp(
-              rightPercent() * newContainerWidth,
-              minWidths[1],
-              maxWidths[1],
-            ),
-          );
+            setLeftWidth(
+              clamp(
+                leftPercent() * newContainerWidth,
+                minWidths()[0],
+                maxWidths()[0],
+              ),
+            );
+            setRightWidth(
+              clamp(
+                rightPercent() * newContainerWidth,
+                minWidths()[1],
+                maxWidths()[1],
+              ),
+            );
+          });
         }
       });
 
@@ -456,8 +469,10 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
   });
 
   const handleMouseDown = (handle: "left" | "right") => (e: MouseEvent) => {
-    setIsDragging(true);
-    setActiveHandle(handle);
+    batch(() => {
+      setIsDragging(true);
+      setActiveHandle(handle);
+    });
     e.preventDefault();
 
     const startX = e.clientX;
@@ -472,41 +487,45 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
       }
 
       rafId = requestAnimationFrame(() => {
-        const deltaX = e.clientX - startX;
+        batch(() => {
+          const deltaX = e.clientX - startX;
 
-        if (activeHandle() === "left") {
-          const maxDelta = maxWidths[0] - startLeftWidth;
-          const minDelta = minWidths[0] - startLeftWidth;
-          const constrainedDelta = clamp(deltaX, minDelta, maxDelta);
+          if (activeHandle() === "left") {
+            const maxDelta = maxWidths()[0] - startLeftWidth;
+            const minDelta = minWidths()[0] - startLeftWidth;
+            const constrainedDelta = clamp(deltaX, minDelta, maxDelta);
 
-          const newLeftWidth = startLeftWidth + constrainedDelta;
+            const newLeftWidth = startLeftWidth + constrainedDelta;
 
-          setLeftWidth(newLeftWidth);
+            setLeftWidth(newLeftWidth);
 
-          if (containerWidth() > 0) {
-            setLeftPercent(newLeftWidth / containerWidth());
+            if (containerWidth() > 0) {
+              setLeftPercent(newLeftWidth / containerWidth());
+            }
+          } else if (activeHandle() === "right") {
+            const maxDelta = startRightWidth - minWidths()[1];
+            const minDelta = startRightWidth - maxWidths()[1];
+            const constrainedDelta = clamp(deltaX, minDelta, maxDelta);
+
+            const newRightWidth = startRightWidth - constrainedDelta;
+
+            setRightWidth(newRightWidth);
+
+            if (containerWidth() > 0) {
+              setRightPercent(newRightWidth / containerWidth());
+            }
           }
-        } else if (activeHandle() === "right") {
-          const maxDelta = startRightWidth - minWidths[1];
-          const minDelta = startRightWidth - maxWidths[1];
-          const constrainedDelta = clamp(deltaX, minDelta, maxDelta);
-
-          const newRightWidth = startRightWidth - constrainedDelta;
-
-          setRightWidth(newRightWidth);
-
-          if (containerWidth() > 0) {
-            setRightPercent(newRightWidth / containerWidth());
-          }
-        }
+        });
 
         rafId = null;
       });
     };
 
     handleMouseUp = () => {
-      setIsDragging(false);
-      setActiveHandle(null);
+      batch(() => {
+        setIsDragging(false);
+        setActiveHandle(null);
+      });
       if (handleMouseMove) {
         document.removeEventListener("mousemove", handleMouseMove);
         handleMouseMove = undefined;

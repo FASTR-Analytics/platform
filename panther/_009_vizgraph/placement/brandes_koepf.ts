@@ -8,7 +8,7 @@ import type { ResolvedSpacing } from "../types_options.ts";
 import type { PassContext, PlacementPass } from "./types.ts";
 import { requiredGap } from "./types.ts";
 
-// brandes-koepf (DOC_VIZGRAPH_PLACEMENT.md, M7): the classical Brandes–Köpf
+// brandes-koepf (DOC_VIZGRAPH_PLACEMENT.md): the classical Brandes–Köpf
 // coordinate assignment, transposed to left-right flow (the assigned
 // coordinate is y; "vertical alignment" straightens cross-layer segments by
 // aligning node CENTERS). Four candidate assignments — {forward, backward}

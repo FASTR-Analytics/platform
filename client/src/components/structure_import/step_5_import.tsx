@@ -4,7 +4,7 @@ import {
   type StructureStagingResult,
   type StructureIntegrateStrategy,
   type StructureIntegrateSummary,
-  type InstanceConfigFacilityColumns,
+  type StructureSchema,
   type FacilityFamily,
 } from "lib";
 import {
@@ -22,7 +22,7 @@ type Props = {
   step3Result: StructureStagingResult;
   recodes: StructureRecodes | undefined;
   family: FacilityFamily;
-  facilityColumns: InstanceConfigFacilityColumns;
+  structureSchema: StructureSchema;
   close: () => void;
   silentRefresUploadAttempt: () => Promise<void>;
   silentRefreshInstance: () => Promise<void>;
@@ -40,6 +40,13 @@ export function Step5Import(p: Props) {
   const [importSummary, setImportSummary] = createSignal<
     StructureIntegrateSummary | undefined
   >(undefined);
+
+  // The orphan count is scoped to the family just imported, so the warning
+  // names that registry: otherwise an admin cannot tell which map to repair.
+  const registryLabel = () =>
+    p.family === "hmis"
+      ? t3({ en: "HMIS", fr: "SNIS", pt: "HMIS" })
+      : t3({ en: "HFA", fr: "Enquêtes FOSA", pt: "FOSA" });
 
   const strategyOptions: { value: IntentType; label: string }[] = [
     {
@@ -164,7 +171,7 @@ export function Step5Import(p: Props) {
 
   function columnsNotice(intent: IntentType): string {
     const cols = (p.step3Result.stagedOptionalColumns ?? []).map((c) =>
-      getStructureColumnLabel(c, p.facilityColumns)
+      getStructureColumnLabel(c, p.structureSchema)
     );
     if (p.step3Result.stagedAdminAreas) {
       cols.unshift(
@@ -269,9 +276,9 @@ export function Step5Import(p: Props) {
                 <div class="border-danger bg-danger-subtle rounded border p-4">
                   <div class="text-danger text-sm">
                     {t3({
-                      en: `${toNum0(orphans.reduce((sum, o) => sum + o.orphanedCount, 0))} map boundaries no longer match an admin area — repair them in the map boundaries editor.`,
-                      fr: `${toNum0(orphans.reduce((sum, o) => sum + o.orphanedCount, 0))} limites de carte ne correspondent plus à aucune unité administrative — corrigez-les dans l'éditeur de limites de carte.`,
-                      pt: `${toNum0(orphans.reduce((sum, o) => sum + o.orphanedCount, 0))} limites de mapa já não correspondem a nenhuma zona administrativa — corrija-as no editor de limites de mapa.`,
+                      en: `${toNum0(orphans.reduce((sum, o) => sum + o.orphanedCount, 0))} ${registryLabel()} map boundaries no longer match an admin area — repair them in the map boundaries editor.`,
+                      fr: `${toNum0(orphans.reduce((sum, o) => sum + o.orphanedCount, 0))} limites de carte ${registryLabel()} ne correspondent plus à aucune unité administrative — corrigez-les dans l'éditeur de limites de carte.`,
+                      pt: `${toNum0(orphans.reduce((sum, o) => sum + o.orphanedCount, 0))} limites de mapa ${registryLabel()} já não correspondem a nenhuma zona administrativa — corrija-as no editor de limites de mapa.`,
                     })}
                   </div>
                 </div>
@@ -365,7 +372,7 @@ export function Step5Import(p: Props) {
                           <span class="font-700">
                             {getStructureColumnLabel(
                               entry.column,
-                              p.facilityColumns,
+                              p.structureSchema,
                             )}
                           </span>
                           {": "}
@@ -407,9 +414,9 @@ export function Step5Import(p: Props) {
                     {(entry) => (
                       <div class="text-sm">
                         {t3({
-                          en: `${getStructureColumnLabel(entry.column, p.facilityColumns)}: ${toNum0(entry.count)} facilities will be recoded`,
-                          fr: `${getStructureColumnLabel(entry.column, p.facilityColumns)} : ${toNum0(entry.count)} établissements seront recodés`,
-                          pt: `${getStructureColumnLabel(entry.column, p.facilityColumns)}: ${toNum0(entry.count)} estabelecimentos serão recodificados`,
+                          en: `${getStructureColumnLabel(entry.column, p.structureSchema)}: ${toNum0(entry.count)} facilities will be recoded`,
+                          fr: `${getStructureColumnLabel(entry.column, p.structureSchema)} : ${toNum0(entry.count)} établissements seront recodés`,
+                          pt: `${getStructureColumnLabel(entry.column, p.structureSchema)}: ${toNum0(entry.count)} estabelecimentos serão recodificados`,
                         })}
                       </div>
                     )}

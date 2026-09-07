@@ -6,6 +6,7 @@
 import { type JSX, Show } from "solid-js";
 import { Input } from "../form_inputs/input.tsx";
 import { Button } from "../form_inputs/button.tsx";
+import { type DataAttrs, splitDataAttrs } from "../data_attrs.ts";
 
 type Props = {
   heading: string | JSX.Element;
@@ -17,9 +18,10 @@ type Props = {
   children?: JSX.Element;
   searchText?: string;
   setSearchText?: (v: string) => void;
-};
+} & DataAttrs;
 
 export function HeadingBar(p: Props) {
+  const [dataAttrs] = splitDataAttrs(p);
   // A tonal bar has a surface of its own, and that surface change IS the
   // divider. A flush bar sits on the same surface as its content, so it draws
   // one. The tonal surface is a kit-owned token, not a per-call-site choice —
@@ -40,7 +42,10 @@ export function HeadingBar(p: Props) {
   // only a title is as tall as one holding buttons. It cannot sit on the root,
   // which carries ui-pad over box-sizing: border-box.
   return (
-    <div class={`ui-pad w-full flex-none overflow-hidden ${surfaceClass()}`}>
+    <div
+      {...dataAttrs}
+      class={`ui-pad w-full flex-none overflow-hidden ${surfaceClass()}`}
+    >
       <div class="ui-gap flex min-h-[var(--ui-form-height)] w-full items-center">
         <div class="ui-gap flex flex-1 basis-1 items-center">
           <Show when={p.onBack !== undefined}>

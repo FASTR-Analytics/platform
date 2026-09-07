@@ -22,10 +22,9 @@ export type {
   LayoutWarning,
   LayoutWarningCode,
   NodeGeom,
+  OrderEntry,
   PathSpec,
   Port,
-  Pt,
-  Rect,
 } from "./types_geometry.ts";
 
 export { DEFAULT_SPACING } from "./types_options.ts";

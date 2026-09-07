@@ -95,7 +95,7 @@ function measureGradient(
 
   const minBarWidth = Math.max(
     (config.ticks.length - 1) * (maxTickLabelW + s.labelGap),
-    100 * s.alreadyScaledValue,
+    s.minBarWidth,
   );
   const barWidth = availableWidth !== undefined
     ? Math.min(availableWidth - leftOverhang - rightOverhang, minBarWidth)

@@ -13,7 +13,7 @@ const WHATS_NEW_URL = "https://status-api.fastr-analytics.org/api/whats-new/post
 // upstream fetch, which is all the cache is for.
 const CACHE_TTL_MS = 60_000;
 // On failure the stale list is re-served for this long instead of retrying
-// on every request — otherwise an unreachable status-api adds the full fetch
+// on every request: otherwise an unreachable status-api adds the full fetch
 // timeout to every single login.
 const ERROR_BACKOFF_MS = 30_000;
 const FETCH_TIMEOUT_MS = 5_000;
@@ -22,7 +22,7 @@ const MAX_POSTS = 20;
 let cache: { posts: WhatsNewPost[]; expires: number } | null = null;
 let inflight: Promise<WhatsNewPost[]> | null = null;
 
-// Upstream data is authored on another server — drop anything malformed
+// Upstream data is authored on another server: drop anything malformed
 // before it can reach the filter/render path (a bad post must not 500 this
 // route, let alone get cached).
 function sanitizePosts(raw: unknown): WhatsNewPost[] {
@@ -40,7 +40,7 @@ function sanitizePosts(raw: unknown): WhatsNewPost[] {
 }
 
 // Fail-silent by design: this feeds a login-time popup, so an unreachable
-// status-api must never surface as an error — serve stale if warm, [] if
+// status-api must never surface as an error: serve stale if warm, [] if
 // cold. Concurrent cold-cache requests share one upstream fetch.
 function getPublishedPosts(): Promise<WhatsNewPost[]> {
   if (cache && cache.expires > Date.now()) {
@@ -73,7 +73,7 @@ function getPublishedPosts(): Promise<WhatsNewPost[]> {
 }
 
 // Ad-hoc/test deploys have a non-dotted SERVER_VERSION (e.g. "test-feature-x"),
-// which the numeric compare can't order — skip the version gate there so
+// which the numeric compare can't order: skip the version gate there so
 // testers see every published post.
 const _VERSION_GATE_ACTIVE = /^\d+\.\d+\.\d+$/.test(_SERVER_VERSION);
 

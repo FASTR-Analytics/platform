@@ -139,7 +139,7 @@ export type ApprovalPolicy = {
   requireKind?: boolean;
 };
 
-export interface ToolUIMetadata<TInput = unknown> {
+export type ToolUIMetadata<TInput = unknown> = {
   displayComponent?: Component<{ input: TInput }>;
 
   inProgressComponent?: Component<{ input: TInput }>;
@@ -163,6 +163,14 @@ export interface ToolUIMetadata<TInput = unknown> {
   // See CreateAIToolConfigCommon.headless. Stored verbatim; read by the
   // headless-surface eligibility helper (getHeadlessCapability consumers).
   headless?: boolean;
+
+  // See CreateAIToolConfigCommon.validation. Stored verbatim; read by
+  // createMCPServer's every-tool-validates boot check.
+  validation?: "internal";
+
+  // See CreateAIToolConfigCommon.outputSchema. Stored verbatim; read by the
+  // MCP surfaces (tools/list outputSchema + structuredContent wrapping).
+  outputSchema?: zType.ZodType;
 
   // Approval lifecycle (Feature 4), erased. Set by createAITool when the
   // tool config declares approval; the chat loop branches on it BEFORE
@@ -201,17 +209,30 @@ export interface ToolUIMetadata<TInput = unknown> {
   // the explicit path that unblocks an abandoned question. Never set by
   // consumers.
   _cancelPending?: () => void;
-}
+};
 
-export interface SDKTool<TInput = unknown> {
+export type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue };
+
+// A serialized JSON Schema for an object. JSON-valued so it satisfies the
+// MCP SDK's tools/list type without a cast; the Anthropic SDK's looser
+// input_schema accepts it as is.
+export type ObjectJsonSchema = {
+  type: "object";
+  properties?: Record<string, JsonValue>;
+  required?: string[];
+  additionalProperties?: false;
+};
+
+export type SDKTool<TInput = unknown> = {
   name: string;
   description: string;
-  input_schema: {
-    type: "object";
-    properties?: Record<string, unknown>;
-    required?: string[];
-    additionalProperties: false;
-  };
+  input_schema: ObjectJsonSchema;
   // SDK-shaped, and it stays that way: run()'s SECOND parameter belongs to
   // the SDK's tool runner, which passes a context object there
   // (BetaToolRunner: `tool.run(input, { toolUse, toolUseBlock, signal })`).
@@ -231,13 +252,28 @@ export interface SDKTool<TInput = unknown> {
   // parse() (when present) before run(). Optional so hand-constructed tools
   // in consumer apps keep compiling; createAITool always provides it.
   parse?: (content: unknown) => TInput;
-}
+  // Same execution as run()/runWithView(), preserving the handler's RAW
+  // return beside its text serialization: `structured` is set exactly when
+  // the tool declares an outputSchema and the handler returned a value —
+  // the MCP surface wraps it as structuredContent. Optional so
+  // hand-constructed tools keep compiling; createAITool always provides it.
+  runStructured?: (
+    input: TInput,
+    getView?: () => unknown,
+  ) => Promise<{ text: string; structured?: unknown }>;
+};
 
-export interface AIToolWithMetadata<TInput = unknown> {
+export type AIToolWithMetadata<TInput = unknown> = {
   sdkTool: SDKTool<TInput>;
 
   metadata: ToolUIMetadata<TInput>;
-}
+};
+
+// TInput sits in a contravariant position (SDKTool.run's input), so
+// AIToolWithMetadata<unknown> rejects every concrete tool. Collections of
+// tools with different input types use this alias.
+// deno-lint-ignore no-explicit-any
+export type AnyAITool = AIToolWithMetadata<any>;
 
 ////////////////////////////////////////////////////////////////////////////////
 // HEADLESS ELIGIBILITY (one concept, two surfaces)
@@ -286,7 +322,7 @@ export function getHeadlessCapability(
   return { kind: "ok" };
 }
 
-export interface CreateAIToolConfigCommon<TInput> {
+export type CreateAIToolConfigCommon<TInput> = {
   name: string;
 
   description: string;
@@ -316,7 +352,26 @@ export interface CreateAIToolConfigCommon<TInput> {
   // Construction throws on structurally impossible combinations (availableIn,
   // kind "nav", view-typed approval); everything else is the author's word.
   headless?: boolean;
-}
+
+  // Declares that the tool's handler/propose closure itself validates input
+  // and refuses invalid input safely — e.g. it dispatches into an ops
+  // kernel that validates the SAME schema, refuses with a clean message,
+  // and records the attempt in provenance. Effect: the pre-handler parse is
+  // skipped everywhere (no sdkTool.parse, no parse inside run), so invalid
+  // input REACHES the runner instead of being answered before any log can
+  // see it — the panterra "every attempt is provenance" fix. A trust
+  // declaration at the same level as `headless` (panther cannot verify the
+  // runner validates); createMCPServer's every-tool-validates boot check
+  // accepts it explicitly, never silently.
+  validation?: "internal";
+
+  // The tool's declared output shape, as a zod schema. Optional and purely
+  // additive: when present, the MCP surfaces advertise it (wrapped — see
+  // mcp_server's wrapper rule) and attach the handler's raw return as
+  // structuredContent. The Anthropic tool definition has no output-schema
+  // field, so the chat leg ignores it.
+  outputSchema?: zType.ZodType;
+};
 
 // Exactly one of handler / approval — enforced at the type level (the XOR
 // union) and again at construction for erased callers. A tool either
@@ -375,8 +430,7 @@ export type CreateAIToolConfig<TInput, TOutput = string> =
 //     K and hands the handler the full union.
 //   - NoInfer on the view parameter blocks the remaining path: an annotated
 //     handler param can no longer INFER K narrow while availableIn stays
-//     absent. (Proven in the Phase 1+2 review; the explicit-K half was
-//     PLAN_AI_TOOL_GATE_SOUNDNESS.)
+//     absent.
 export type CreateViewAIToolConfig<
   TDefs extends Record<string, AnyAIView>,
   K extends keyof TDefs,
@@ -516,33 +570,22 @@ function assertSchemaAcceptsUnknownKeys(
   }
 }
 
-// The return-type cast below ASSERTS `additionalProperties: false` without
-// verifying it — z.toJSONSchema does not emit that key for plain z.object.
-// Harmless today (nothing reads it), but it becomes a live lie the day
-// `strict: true` tool use is adopted: strict mode REQUIRES a real
-// `additionalProperties: false` in the wire schema, which itself conflicts
-// with the accept-unknown-keys invariant enforced above. Resolve both
-// together before adopting strict mode — and note these schemas now also
+// z.toJSONSchema does not emit `additionalProperties: false` for a plain
+// z.object, which is why the field is optional in ObjectJsonSchema. It
+// becomes mandatory the day `strict: true` tool use is adopted: strict mode
+// requires a real `additionalProperties: false` in the wire schema, which
+// itself conflicts with the accept-unknown-keys invariant enforced above.
+// Resolve both together before adopting strict mode. These schemas also
 // serve the remote MCP endpoint's tools/list (_220), so any change ripples
 // to MCP clients and must re-run the mcp rigs.
-function zodToJsonSchema(zodSchema: zType.ZodType): {
-  type: "object";
-  properties?: Record<string, unknown>;
-  required?: string[];
-  additionalProperties: false;
-} {
+function zodToJsonSchema(zodSchema: zType.ZodType): ObjectJsonSchema {
   const jsonSchema = z.toJSONSchema(zodSchema, { reused: "ref" });
 
   if (jsonSchema.type !== "object") {
     throw new Error(`Zod schema must be an object, but got ${jsonSchema.type}`);
   }
 
-  return jsonSchema as {
-    type: "object";
-    properties?: Record<string, unknown>;
-    required?: string[];
-    additionalProperties: false;
-  };
+  return jsonSchema as ObjectJsonSchema;
 }
 
 function parseToolInput<TInput>(
@@ -726,7 +769,7 @@ export function buildAITool<TInput>(
   const execute = async (
     input: TInput,
     getView?: () => unknown,
-  ): Promise<string> => {
+  ): Promise<{ text: string; structured?: unknown }> => {
     // An approval tool never executes here: every sanctioned lifecycle
     // (createAIChat's chat loop, createMCPServer's approval driver) branches
     // on metadata.approval BEFORE run()/runWithView and drives propose →
@@ -738,9 +781,13 @@ export function buildAITool<TInput>(
         `Tool "${config.name}" requires user approval and can only execute inside an approval lifecycle (createAIChat's chat loop or createMCPServer's approval driver).`,
       );
     }
-    // Validate here too — the manual chat loop calls run() directly without
-    // going through parse().
-    const validated = parseToolInput(config.inputSchema, input);
+    // Validate here too (the manual chat loop calls run() directly without
+    // going through parse()) — unless the tool declares internal
+    // validation, where the RUNNER owns refusal and logging and must see
+    // the raw input.
+    const validated = config.validation === "internal"
+      ? input
+      : parseToolInput(config.inputSchema, input);
     // The engine injects the live view state; a handler that ignores it
     // (every plain tool) simply declares one parameter.
     const result = await Promise.resolve(
@@ -749,19 +796,35 @@ export function buildAITool<TInput>(
         config._liveViewAccessor ? getView : getView?.(),
       ),
     );
-    return typeof result === "string" ? result : JSON.stringify(result);
+    // JSON.stringify(undefined) is the VALUE undefined, not a string — a
+    // handler that mutates and returns nothing must still produce text.
+    const text = typeof result === "string"
+      ? result
+      : (JSON.stringify(result) ?? "Done");
+    return config.outputSchema !== undefined && result !== undefined
+      ? { text, structured: result }
+      : { text };
   };
 
   const sdkTool: SDKTool<TInput> = {
     name: config.name,
     description,
     input_schema: zodToJsonSchema(config.inputSchema),
-    parse: (content: unknown) => parseToolInput(config.inputSchema, content),
     // Exactly one parameter: the SDK owns the rest of the signature.
-    run: (input: TInput) => execute(input),
-    runWithView: (input: TInput, getView?: () => unknown) =>
+    run: async (input: TInput) => (await execute(input)).text,
+    runWithView: async (input: TInput, getView?: () => unknown) =>
+      (await execute(input, getView)).text,
+    runStructured: (input: TInput, getView?: () => unknown) =>
       execute(input, getView),
   };
+  if (config.validation !== "internal") {
+    // Every driver already tolerates absent parse (`parse ? parse(x) : x`),
+    // so omitting it — not stubbing it with identity — is what routes raw
+    // input to an internally-validating runner without lying about a parse
+    // that never checks anything.
+    sdkTool.parse = (content: unknown) =>
+      parseToolInput(config.inputSchema, content);
+  }
 
   const metadata: ToolUIMetadata<TInput> = {
     displayComponent: config.displayComponent,
@@ -773,6 +836,8 @@ export function buildAITool<TInput>(
     availableIn,
     kind: config.kind,
     headless: config.headless,
+    validation: config.validation,
+    outputSchema: config.outputSchema,
     approval: approvalMeta,
     awaitsUserAction: approvalMeta ? true : undefined,
     _viewRegistry: config.viewRegistry,

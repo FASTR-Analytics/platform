@@ -3,12 +3,12 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-// MCP server capability (PLAN_305_MCP_SERVER.md; remote HTTP added by
-// PLAN_112). The core is era-agnostic and RESUME-FIRST: a tool call that
+// MCP server capability. The core is era-agnostic and RESUME-FIRST: a tool
+// call that
 // needs approval returns an input_required outcome with an opaque
 // requestState, and the decision comes back through one resume entry point.
-// Two adapters drive it: the stdio adapter here (2025-11-25, hand-rolled,
-// grandfathered — see mcp_protocol.ts) runs the elicit round trip inline;
+// Two adapters drive it: the stdio adapter here (2025-11-25, hand-rolled;
+// see mcp_protocol.ts) runs the elicit round trip inline;
 // the HTTP adapter (_220_mcp_http, official SDK v2 wire) serves BOTH eras —
 // on 2025-era connections the SDK's legacy shim runs the real elicitation
 // and re-enters the handler, on 2026-07-28 the client itself retries with
@@ -16,7 +16,11 @@
 // the staged proposal (single-use, TTL, args-bound, principal-scoped core)
 // is the security boundary.
 
-import type { AIToolWithMetadata, ApprovalPolicy } from "./tool_helpers.ts";
+import type {
+  AnyAITool,
+  ApprovalPolicy,
+  ObjectJsonSchema,
+} from "./tool_helpers.ts";
 
 export type MCPApprovalMode = "elicit" | "delegate";
 
@@ -37,7 +41,7 @@ export type MCPResourceConfig = {
 };
 
 // The thunk form's construction context: the authenticated principal an HTTP
-// adapter resolved for the request (D3, PLAN_112). Typed loosely here so the
+// adapter resolved for the request. Typed loosely here so the
 // config type stays non-generic for the stdio path; the HTTP adapter's
 // createMCPHttpHandler<TPrincipal> narrows it at its own boundary.
 export type MCPToolsContext<TPrincipal = unknown> = {
@@ -48,28 +52,26 @@ export type CreateMCPServerConfig<TPrincipal = unknown> = {
   name: string;
   version: string;
   // ≤2KB pointer text riding the initialize result — critical rules first,
-  // ending with "read the orientation before working". The thunk is resolved
+  // ending with "read the overview before working". The thunk is resolved
   // per initialize and must be CHEAP (it answers inside the client's startup
   // timeout, before ready() has run) — live ids belong in groundingResource.
   instructions?: string | (() => string | Promise<string>);
   // Long-form grounding. Exposed BOTH as an MCP resource and as a
-  // get_orientation read tool — resources are user-attached, never
+  // get_overview read tool — resources are user-attached, never
   // model-fetched on their own, so the tool is what the model can actually
-  // call. The thunk is re-resolved per call, after ready(), so orientation
+  // call. The thunk is re-resolved per call, after ready(), so the overview
   // tracks the app's live state (which projects/decks/reports exist NOW).
   groundingResource?: string | (() => string | Promise<string>);
   // The same AIToolWithMetadata[] createAIChat takes. Only tools declaring
   // headless: true are exposed; the rest are dropped with a per-tool reason
   // reported to stderr on connect. The thunk form binds the tool set to an
   // authenticated principal (one call per principal core, HTTP adapter only);
-  // the array form is validated eagerly and behaves exactly as before. stdio
+  // the array form is validated eagerly. stdio
   // serving has no principal, so a thunk-form config is rejected there at
   // construction.
   tools:
-    // deno-lint-ignore no-explicit-any
-    | AIToolWithMetadata<any>[]
-    // deno-lint-ignore no-explicit-any
-    | ((ctx: MCPToolsContext<TPrincipal>) => AIToolWithMetadata<any>[]);
+    | AnyAITool[]
+    | ((ctx: MCPToolsContext<TPrincipal>) => AnyAITool[]);
   // Required for plain-shape approval tools to be exposed at all; absent =
   // approval tools are dropped (reported). "elicit" presents the computed
   // preview to the user via elicitation/create and commits only on an
@@ -108,7 +110,13 @@ export type MCPToolDef = {
   description: string;
   // camelCase per the MCP spec (panther's input_schema is the Anthropic SDK
   // spelling).
-  inputSchema: Record<string, unknown>;
+  inputSchema: ObjectJsonSchema;
+  // Serialized schema for the tool's structuredContent, already wrapped by
+  // the uniform { result: … } rule (see mcp_server). Present exactly when
+  // the tool declares an outputSchema — the spec (2025-06-18) makes a
+  // declared output schema oblige conforming structured results, so the two
+  // are populated together or not at all.
+  outputSchema?: Record<string, unknown>;
   // Spec-designated untrusted hints. kind "read" → readOnlyHint: true; kind
   // "write" is NOT mapped to destructiveHint (mutating ≠ destroying, and the
   // hint already defaults appropriately for non-read-only tools). What
@@ -117,20 +125,40 @@ export type MCPToolDef = {
   annotations?: { readOnlyHint?: boolean };
 };
 
+// The MCP elicitation form schema (a restricted JSON Schema whose
+// properties are primitive). Only the boolean confirm field is used today;
+// the HTTP adapter passes this to the SDK unchanged, so the SDK's own type
+// checks it at that boundary.
+export type MCPElicitRequestedSchema = {
+  type: "object";
+  properties: Record<
+    string,
+    { type: "boolean"; title?: string; description?: string; default?: boolean }
+  >;
+  required?: string[];
+};
+
 export type MCPElicitDecision =
   | { action: "accept"; content?: Record<string, unknown> }
   | { action: "decline" }
   | { action: "cancel" };
 
 export type MCPCallOutcome =
-  | { type: "complete"; text: string; isError: boolean }
+  | {
+    type: "complete";
+    text: string;
+    isError: boolean;
+    // The structured twin of text, already wrapped { result: … } — adapters
+    // serialize it as the result's structuredContent verbatim.
+    structuredContent?: Record<string, unknown>;
+  }
   | {
     // Approval needed: the adapter delivers this elicitation in its era's
     // shape, then resumes with the decision and the opaque requestState.
     type: "input_required";
     elicitation: {
       message: string;
-      requestedSchema: Record<string, unknown>;
+      requestedSchema: MCPElicitRequestedSchema;
     };
     requestState: string;
   };

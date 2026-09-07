@@ -82,17 +82,17 @@ export type DatasetCsvStagingResult = {
   };
 };
 
-// Permanent = deterministic config error (4xx, e.g. 409 on a stale dx id) —
+// Permanent = deterministic config error (4xx, e.g. 409 on a stale dx id):
 // re-running without fixing the config will fail again. Transient = server
-// health (5xx/timeout) — a later re-run may succeed.
+// health (5xx/timeout): a later re-run may succeed.
 export type Dhis2FetchErrorKind = "permanent" | "transient";
 
 // Per-(indicator, period) fetch instrumentation. The production counterpart
 // of the Phase 0 lab timing evidence, so future slowness reports arrive with
 // their own data (PLAN_DHIS2_IMPORTER A1). Lives in the run's run_stats blob.
-// One entry per pair that REACHED a fetch route — unknown-id pairs (rule 4)
+// One entry per pair that REACHED a fetch route: unknown-id pairs (rule 4)
 // never fetch and appear only in classification.unknownIds + the ledger.
-// For the "dvs" route one pull covers many pairs — each covered pair carries
+// For the "dvs" route one pull covers many pairs: each covered pair carries
 // the covering pull's request count and wall time (duplicated, not divided).
 export type Dhis2PairFetchStat = {
   indicatorRawId: string;
@@ -101,7 +101,7 @@ export type Dhis2PairFetchStat = {
   route: "analytics" | "dvs";
   requests: number;
   retries: number;
-  // Wall time including retry sleeps (retries are capped at 3, so bounded) —
+  // Wall time including retry sleeps (retries are capped at 3, so bounded):
   // not pure server think time. HTTP statuses live in the error string +
   // errorKind, not as a separate field.
   totalFetchMs: number;
@@ -159,7 +159,7 @@ export type DatasetStagingResult =
 
 // One row per (raw indicator, month): the latest import state of that pair
 // (PLAN_DHIS2_IMPORTER WS-B). status 'error' keeps the last data-bearing
-// counts untouched — the error describes the most recent failed attempt.
+// counts untouched: the error describes the most recent failed attempt.
 export type DatasetHmisImportLedgerItem = {
   indicatorRawId: string;
   periodId: number;
@@ -177,7 +177,7 @@ export type DatasetHmisImportLedgerItem = {
 };
 
 // ============================================================================
-// DHIS2 Import Run Types (PLAN_DHIS2_IMPORTER Phase 3 — C1/C2 + dispatcher)
+// DHIS2 Import Run Types (PLAN_DHIS2_IMPORTER Phase 3: C1/C2 + dispatcher)
 // ============================================================================
 
 export type Dhis2RunPair = { indicatorRawId: string; periodId: number };
@@ -198,7 +198,7 @@ export type Dhis2RunRoute = "dvs" | "analytics";
 
 // "queued" = waiting behind the running run; the ~60 s scheduler tick drains
 // queued rows FIFO once the import slot is free (PLAN_DHIS2_IMPORTER Phase 4,
-// C6 — queue, not concurrent execution). "needs_review" = a CSV stage dropped
+// C6: queue, not concurrent execution). "needs_review" = a CSV stage dropped
 // rows; the run holds with diagnostics and RELEASES the single-running slot
 // until the user integrates anyway or discards.
 export type DatasetHmisImportRunStatus =
@@ -209,7 +209,7 @@ export type DatasetHmisImportRunStatus =
   | "error"
   | "cancelled";
 
-// Small JSON on the run row, rewritten at most every 2 s — DHIS2 runs report
+// Small JSON on the run row, rewritten at most every 2 s: DHIS2 runs report
 // in-flight pairs (per-pair outcomes live in the ledger); CSV runs report a
 // staging/integrating percentage.
 export type DatasetHmisImportRunProgress =
@@ -227,7 +227,7 @@ export type DatasetHmisImportRunProgress =
     };
 
 // The summary projection of a run's selection: explicit pair lists collapse
-// to a count (a retry-failed selection can carry ~1,440 pairs — the runs
+// to a count (a retry-failed selection can carry ~1,440 pairs: the runs
 // list is polled every 2 s and must stay small).
 export type Dhis2RunSelectionSummary =
   | {
@@ -261,13 +261,13 @@ export type DatasetHmisImportRunSummary = {
   progress?: DatasetHmisImportRunProgress;
 };
 
-// The run_stats blob (durable per-run instrumentation — the home that
+// The run_stats blob (durable per-run instrumentation: the home that
 // PLAN_DHIS2_IMPORTER §4.1 designated for pairFetchStats). Not shipped in the
 // runs list (polled at 2 s, must stay small); served per-run by
 // getDatasetHmisImportRunDetail.
 export type DatasetHmisImportRunDetail = DatasetHmisImportRunSummary & {
   // Absent when the run was interrupted from outside the worker (cancel /
-  // host-detected crash / restart sweep) — stats live in worker memory and
+  // host-detected crash / restart sweep): stats live in worker memory and
   // die with it. run.error explains those cases.
   runStats?: DatasetHmisImportRunStats;
   // CSV runs only: the staging diagnostics (also stored on the version row
@@ -280,7 +280,7 @@ export type DatasetHmisImportRunStats = {
     dvsBareElements: number;
     dvsOperands: number;
     computedIndicators: number;
-    // Raw indicator ids that exist in no DHIS2 metadata endpoint — recorded
+    // Raw indicator ids that exist in no DHIS2 metadata endpoint: recorded
     // as permanent ledger errors without any fetch (dispatcher rule 4).
     unknownIds: string[];
     // Removed 2026-07-15 (period= selection cannot return other periods):
@@ -292,7 +292,7 @@ export type DatasetHmisImportRunStats = {
 };
 
 // ============================================================================
-// Scheduled Imports (PLAN_DHIS2_IMPORTER Phase 4 — C4)
+// Scheduled Imports (PLAN_DHIS2_IMPORTER Phase 4: C4)
 // ============================================================================
 
 // A schedule's selection: "last_n_months" is a rolling window resolved at
@@ -315,7 +315,7 @@ export type Dhis2ScheduleSelection =
 export type DatasetHmisScheduledImportKind = "one_shot" | "recurring";
 
 // Recurrence for recurring schedules: an explicit anchor (the first
-// occurrence) plus a kind — occurrences are exact arithmetic from the
+// occurrence) plus a kind: occurrences are exact arithmetic from the
 // anchor, never counted from the last fire (PLAN_SCHEDULE_RECURRENCE).
 export type Dhis2ScheduleRecurrence =
   | {
@@ -327,7 +327,7 @@ export type Dhis2ScheduleRecurrence =
   | {
       kind: "weekly";
       // The date of the FIRST occurrence ("YYYY-MM-DD", a wall date in
-      // `timezone`). The weekday is derived from it — no separate field to
+      // `timezone`). The weekday is derived from it: no separate field to
       // keep consistent. Occurrences are firstRunDate + k·7·everyNWeeks days.
       firstRunDate: string;
       everyNWeeks: number;
@@ -350,7 +350,7 @@ export type Dhis2ScheduleRecurrence =
 
 // "launched" = a run was started (last_run_id points at it). "refused" = the
 // fire was blocked at fire time (no stored credentials, or the stored URL
-// changed under a queued run) — loud, with the reason in lastError.
+// changed under a queued run): loud, with the reason in lastError.
 // "missed" = the fire window
 // (occurrence + grace) passed with no fire (server down); skipping loudly
 // beats firing into daytime load (PLAN_DHIS2_IMPORTER §2.7).

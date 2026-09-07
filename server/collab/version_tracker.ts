@@ -1,5 +1,5 @@
 // =============================================================================
-// Version tracker — turns a stream of edit events into editing-session versions
+// Version tracker: turns a stream of edit events into editing-session versions
 // =============================================================================
 //
 // Google-Docs-style version history: rather than a version per keystroke, edits
@@ -57,7 +57,7 @@ export type VersionTrackerDeps = {
     editors: VersionEditor[],
     createdAt: string,
   ) => Promise<boolean>;
-  /** Called exactly once per finalized editing session — including sessions
+  /** Called exactly once per finalized editing session, including sessions
    *  dropped by the content-hash dedup (edit-then-revert is still usage),
    *  sessions whose document was deleted, and sessions absorbed by a restore
    *  (drainEditors). NOT called when a failed write merges the session back:
@@ -99,11 +99,11 @@ export type VersionTracker = {
     docId: string,
     editor: VersionEditor,
   ) => void;
-  /** The collab room for this document just emptied — start the grace timer. */
+  /** The collab room for this document just emptied: start the grace timer. */
   noteRoomEmpty: (projectId: string, kind: VersionKind, docId: string) => void;
   /** Remove the document's open session and return its editors. Used by the
    *  restore routes: the safety version they write absorbs the open session's
-   *  attribution (otherwise those editors would never appear in any version —
+   *  attribution (otherwise those editors would never appear in any version:
    *  the post-restore flush would hash-dedup against the restored state). */
   drainEditors: (
     projectId: string,
@@ -145,7 +145,7 @@ export function createVersionTracker(
     if (acc) {
       acc.editors.set(editor.email, editor.name);
       acc.lastEditAt = now;
-      // An edit means someone is active again — cancel the empty-room grace.
+      // An edit means someone is active again: cancel the empty-room grace.
       acc.roomEmptyAt = null;
     } else {
       accumulators.set(key, {
@@ -223,7 +223,7 @@ export function createVersionTracker(
       accumulators.set(key, acc);
       return;
     }
-    // A new session started while we were flushing — fold the failed flush's
+    // A new session started while we were flushing: fold the failed flush's
     // window into it so no contributor is lost.
     for (const [email, name] of acc.editors) {
       if (!fresh.editors.has(email)) {
@@ -240,7 +240,7 @@ export function createVersionTracker(
       const payload = await deps.loadPayload(projectId, kind, docId);
       if (payload === null) {
         noteSessionEnd(acc);
-        return; // document deleted — drop the session
+        return; // document deleted: drop the session
       }
       const latest = await deps.latestHash(projectId, kind, docId);
       if (latest !== null && latest === payload.contentHash) {
@@ -273,7 +273,7 @@ export function createVersionTracker(
 
   async function sweep(): Promise<void> {
     const now = deps.now();
-    // Detach every due accumulator synchronously FIRST — a concurrent sweep or
+    // Detach every due accumulator synchronously FIRST: a concurrent sweep or
     // recordEdit during the awaits below must not see (or double-flush) them.
     const due: Accumulator[] = [];
     for (const [key, acc] of accumulators) {

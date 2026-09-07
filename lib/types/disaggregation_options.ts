@@ -35,7 +35,7 @@ export const ALL_DISAGGREGATION_OPTIONS = [
 
 export type DisaggregationOption = (typeof ALL_DISAGGREGATION_OPTIONS)[number];
 
-// The dimensions whose values are indicator ids — the ids IndicatorMetadata
+// The dimensions whose values are indicator ids: the ids IndicatorMetadata
 // keys on, and so the only ones that can carry a per-indicator `format_as`.
 // Every other dimension (areas, facility attributes, HFA categories, periods)
 // names something the format never varies by.
@@ -46,7 +46,7 @@ export const INDICATOR_DISAGGREGATION_OPTIONS = [
 ] as const satisfies readonly DisaggregationOption[];
 // The period-VALUED display columns. Distinct from `periodOption`
 // (_metric_installed.ts), the queryable period formats: `month` is not a
-// format — it is a derived, zero-padded text column (see
+// format: it is a derived, zero-padded text column (see
 // PERIOD_COLUMN_EXPRESSIONS). Typed ReadonlySet<string> because consumers test
 // arbitrary display props ("--v", facility columns), but the literals are
 // compiler-checked against the enum above.

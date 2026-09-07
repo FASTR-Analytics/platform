@@ -270,7 +270,7 @@ defineRoute(
   log("deleteSlideDeck"),
   async (c, { params }) => {
     // Slide ids must be read BEFORE the delete (CASCADE removes the rows) so
-    // their live rooms can be discarded — a room left behind would fail its
+    // their live rooms can be discarded: a room left behind would fail its
     // checkpoints forever. A transient fetch failure must therefore abort the
     // delete (deleting anyway would leave every live room a zombie); only the
     // deck-already-gone case proceeds, as an idempotent no-op delete.
@@ -367,14 +367,14 @@ defineRoute(
       });
     }
 
-    // Persist any un-checkpointed live-room edits FIRST — the safety snapshot
+    // Persist any un-checkpointed live-room edits FIRST: the safety snapshot
     // below reads the DB, and live slide rooms can be up to 1.5s ahead of it.
     const idsRes = await getSlideDeckDetail(projectDb, params.deck_id);
     if (!idsRes.success) {
       return c.json(idsRes);
     }
     // A FAILED flush means that slide's row is stale, so the "safety" version
-    // would not contain the current state — abort rather than overwrite the
+    // would not contain the current state: abort rather than overwrite the
     // deck while promising a rollback point we don't have.
     for (const slideId of idsRes.data.slideIds) {
       if (!await flushSlideRoom(projectId, slideId)) {
@@ -415,7 +415,7 @@ defineRoute(
       return c.json({ success: false as const, err: "Slide deck not found" });
     }
     // Freeze the drained session's per-character element authorship into the
-    // safety version, exactly like the tracker's writeVersion does — without
+    // safety version, exactly like the tracker's writeVersion does: without
     // this, the pre-restore session's exact text attribution is lost and its
     // uncaptured tombstones would leak into the NEXT session's version.
     if (drainedSlideEditors) {
@@ -448,7 +448,7 @@ defineRoute(
         reinjectDrained();
         return c.json(safetyRes);
       }
-      // The safety version captured these tombstones — start the next window
+      // The safety version captured these tombstones: start the next window
       // for exactly the elements it captured (mirrors writeVersion).
       for (const s of current.slides) {
         const captured = drainedSlideEditors?.slides[s.id]?.elementAuthors;
@@ -462,7 +462,7 @@ defineRoute(
 
     // Snapshot slide ids may have been REUSED by slides in other decks since
     // the snapshot was taken (3-char ids, uniqueness checked against live rows
-    // only) — re-inserting those verbatim would abort on the primary key.
+    // only): re-inserting those verbatim would abort on the primary key.
     // Remap them to fresh ids BEFORE closing rooms, so another deck's live
     // room is never touched.
     let plan = planDeckRestore(
@@ -476,7 +476,7 @@ defineRoute(
     }
     plan = remapRes.data.plan;
 
-    // Discard rooms whose row is about to be deleted or re-created — a stale
+    // Discard rooms whose row is about to be deleted or re-created: a stale
     // room would fail checkpoints forever (deleted) or clobber the restored
     // row (re-inserted). Rooms of surviving slides stay alive: the restore
     // merges through them below, so co-editors follow it live.
@@ -495,7 +495,7 @@ defineRoute(
       plan,
     );
     if (!structRes.success) {
-      // Nothing was restored — put the drained session back, exactly like the
+      // Nothing was restored: put the drained session back, exactly like the
       // load/safety-insert/remap failure paths above. Without this the drained
       // editors and the per-slide element ledger are dropped on the floor, and
       // when the safety version was skipped by hash-dedup that attribution is
@@ -507,7 +507,7 @@ defineRoute(
 
     // Configs of surviving slides go through the live-room chokepoint (no
     // editor param: the restore versions itself below). Failures are
-    // collected, not swallowed — a partial apply must not record a
+    // collected, not swallowed: a partial apply must not record a
     // restored-state version claiming the full snapshot, nor report success.
     const failedSlideIds: string[] = [];
     for (const s of plan.toUpdate) {
@@ -519,7 +519,7 @@ defineRoute(
       if (roomRes.status === "saved") {
         lastUpdated = roomRes.lastUpdated;
       } else if (roomRes.status === "save_failed") {
-        // Room absorbed the restore but couldn't persist it — partial apply;
+        // Room absorbed the restore but couldn't persist it: partial apply;
         // no direct-write fallback (the room owns persistence).
         failedSlideIds.push(s.id);
       } else {
@@ -558,7 +558,7 @@ defineRoute(
 
     // The restore itself appears in history (fully applied at this point, so
     // a failed history insert must not fail the request). Records the
-    // post-remap ids + normalized configs — exactly what the DB now holds.
+    // post-remap ids + normalized configs: exactly what the DB now holds.
     const restoredSlides = [...plan.toInsert, ...plan.toUpdate]
       .sort((a, b) => a.sortOrder - b.sortOrder)
       .map((s, i) => ({ id: s.id, sortOrder: (i + 1) * 10, config: s.config }));
@@ -569,7 +569,7 @@ defineRoute(
     };
     const restoredRes = await insertDeckVersion(projectDb, {
       deckId: params.deck_id,
-      // Strictly after the safety version even within one millisecond — the
+      // Strictly after the safety version even within one millisecond: the
       // two are ordered by (created_at, id) everywhere, and a tie would let
       // the restored state sort BEFORE the state it replaced.
       createdAt: isoStrictlyAfter(safetyCreatedAt),
@@ -585,7 +585,7 @@ defineRoute(
     }
 
     // A room-path restore floods the surviving slides' element ledgers with
-    // unknown-deleter tombstones from the config rewrite (syncSlideToDoc) —
+    // unknown-deleter tombstones from the config rewrite (syncSlideToDoc):
     // like the report route's compactTombstones, they must not leak into the
     // next session's version as phantom removed spans.
     for (const s of plan.toUpdate) {

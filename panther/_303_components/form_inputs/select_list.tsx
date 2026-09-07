@@ -12,7 +12,7 @@ import {
 } from "../list_selection/list_item_types.ts";
 import type { Intent } from "../types.ts";
 
-export interface SelectListProps<T extends string = string, M = never> {
+export type SelectListProps<T extends string = string, M = never> = {
   items: ListEntry<T, M>[];
   value: T | undefined;
   onChange: (value: T) => void;
@@ -22,7 +22,7 @@ export interface SelectListProps<T extends string = string, M = never> {
   horizontal?: boolean;
   align?: "left" | "center" | "right";
   intent?: Intent;
-}
+};
 
 export function SelectList<T extends string = string, M = never>(
   p: SelectListProps<T, M>,

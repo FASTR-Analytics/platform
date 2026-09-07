@@ -14,7 +14,7 @@ import {
 import { RectCoordsDims as RCD } from "../../deps.ts";
 import type { FreeformPageInputs, PagePrimitive } from "../../types.ts";
 
-export interface MeasuredHeader {
+export type MeasuredHeader = {
   mHeader?: MeasuredText;
   mSubHeader?: MeasuredText;
   mDate?: MeasuredText;
@@ -22,7 +22,7 @@ export interface MeasuredHeader {
   yOffsetHeader: number;
   yOffsetRightPlacementLogos: number;
   maxWidthForHeaderText: number;
-}
+};
 
 export function measureHeader(
   rc: RenderContext,

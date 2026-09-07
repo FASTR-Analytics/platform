@@ -1,4 +1,10 @@
-import { type GeoJsonMapSummary, t3 } from "lib";
+import {
+  type AdminAreaLevel,
+  type FacilityFamily,
+  type GeoJsonMapSummary,
+  parseAdminAreaLevel,
+  t3,
+} from "lib";
 import {
   Button,
   FrameTop,
@@ -15,32 +21,55 @@ import { GeoJsonUploadWizard } from "./geojson_upload_wizard/index";
 import { GeoJsonEditModal } from "./geojson_edit_modal";
 
 type Props = {
+  family: FacilityFamily;
   backToInstance: () => void;
 };
+
+function familyHeading(family: FacilityFamily): string {
+  return family === "hmis"
+    ? t3({
+        en: "HMIS registry maps",
+        fr: "Cartes du registre SNIS",
+        pt: "Mapas do registo SNIS",
+      })
+    : t3({
+        en: "HFA registry maps",
+        fr: "Cartes du registre Enquêtes FOSA",
+        pt: "Mapas do registo FOSA",
+      });
+}
 
 export function GeoJsonManager(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
 
-  async function handleUpload() {
+  async function handleUpload(family: FacilityFamily) {
     await openEditor({
       element: GeoJsonUploadWizard,
-      props: {},
+      props: { family },
     });
   }
 
-  async function handleEdit(level: 2 | 3 | 4) {
+  async function handleEdit(family: FacilityFamily, level: AdminAreaLevel) {
     await openEditor({
       element: GeoJsonEditModal,
       props: {
+        family,
         adminAreaLevel: level,
       },
     });
   }
 
+  const maps = () =>
+    instanceState.geojsonMaps.filter((g) => g.family === p.family);
+
   const columns: TableColumn<GeoJsonMapSummary>[] = [
     {
       key: "adminAreaLevel",
-      header: t3({ en: "Admin area level", fr: "Niveau administratif", pt: "Nível de zona administrativa" }),
+      header: t3({
+        en: "Admin area level",
+        fr: "Niveau administratif",
+        pt: "Nível de zona administrativa",
+      }),
       sortable: true,
       render: (item) => <span class="font-mono">{item.adminAreaLevel}</span>,
     },
@@ -60,14 +89,15 @@ export function GeoJsonManager(p: Props) {
         const deleteAction = createDeleteAction(
           {
             text: t3({
-              en: `Delete GeoJSON for admin area level ${item.adminAreaLevel}?`,
-              fr: `Supprimer le GeoJSON pour le niveau administratif ${item.adminAreaLevel} ?`,
-              pt: `Eliminar o GeoJSON para o nível de zona administrativa ${item.adminAreaLevel}?`,
+              en: `Delete ${p.family === "hmis" ? "HMIS" : "HFA"} GeoJSON for admin area level ${item.adminAreaLevel}?`,
+              fr: `Supprimer le GeoJSON ${p.family === "hmis" ? "SNIS" : "Enquêtes FOSA"} pour le niveau administratif ${item.adminAreaLevel} ?`,
+              pt: `Eliminar o GeoJSON ${p.family === "hmis" ? "SNIS" : "FOSA"} para o nível de zona administrativa ${item.adminAreaLevel}?`,
             }),
             itemList: [`Level ${item.adminAreaLevel}`],
           },
           () =>
             serverActions.deleteGeoJsonMap({
+              family: p.family,
               adminAreaLevel: item.adminAreaLevel,
             }),
         );
@@ -78,7 +108,12 @@ export function GeoJsonManager(p: Props) {
                 iconName="pencil"
                 intent="neutral"
                 size="sm"
-                onClick={() => handleEdit(item.adminAreaLevel as 2 | 3 | 4)}
+                onClick={() =>
+                  handleEdit(
+                    p.family,
+                    parseAdminAreaLevel(item.adminAreaLevel),
+                  )
+                }
               />
               <Button
                 iconName="trash"
@@ -100,11 +135,15 @@ export function GeoJsonManager(p: Props) {
           <HeadingBar
             tonal
             onBack={p.backToInstance}
-            heading={t3({ en: "GeoJSON maps", fr: "Cartes GeoJSON", pt: "Mapas GeoJSON" })}
+            heading={familyHeading(p.family)}
           >
             <Show when={instanceState.currentUserIsGlobalAdmin}>
-              <Button iconName="plus" onClick={handleUpload}>
-                {t3({ en: "Upload GeoJSON", fr: "Télécharger GeoJSON", pt: "Carregar GeoJSON" })}
+              <Button iconName="plus" onClick={() => handleUpload(p.family)}>
+                {t3({
+                  en: "Upload GeoJSON",
+                  fr: "Télécharger GeoJSON",
+                  pt: "Carregar GeoJSON",
+                })}
               </Button>
             </Show>
           </HeadingBar>
@@ -112,19 +151,19 @@ export function GeoJsonManager(p: Props) {
       >
         <div class="ui-pad ui-spy">
           <Show
-            when={instanceState.geojsonMaps.length > 0}
+            when={maps().length > 0}
             fallback={
               <div class="text-base-content-muted py-8 text-center">
                 {t3({
-                  en: "No GeoJSON maps uploaded yet. Upload a GeoJSON file to enable map visualizations.",
-                  fr: "Aucune carte GeoJSON téléchargée. Téléchargez un fichier GeoJSON pour activer les visualisations cartographiques.",
-                  pt: "Ainda não foi carregado nenhum mapa GeoJSON. Carregue um ficheiro GeoJSON para ativar as visualizações de mapas.",
+                  en: "No GeoJSON maps uploaded for this registry yet. Upload a GeoJSON file to enable map visualizations.",
+                  fr: "Aucune carte GeoJSON téléchargée pour ce registre. Téléchargez un fichier GeoJSON pour activer les visualisations cartographiques.",
+                  pt: "Ainda não foi carregado nenhum mapa GeoJSON para este registo. Carregue um ficheiro GeoJSON para ativar as visualizações de mapas.",
                 })}
               </div>
             }
           >
             <Table
-              data={instanceState.geojsonMaps}
+              data={maps()}
               columns={columns}
               keyField="adminAreaLevel"
               noRowsMessage={t3({

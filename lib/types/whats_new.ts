@@ -1,8 +1,8 @@
 // "What's New" release-note popups, authored in the Admin-Website and fetched
 // by the platform server from status-api. The JSON shape is duplicated in
-// Admin-Website/src/frontend/types.ts — keep the two in sync.
+// Admin-Website/src/frontend/types.ts: keep the two in sync.
 
-// Locked page layouts — the only way a page can be laid out, so every post
+// Locked page layouts: the only way a page can be laid out, so every post
 // renders with the same visual vocabulary.
 export type WhatsNewLayoutPreset =
   | "textOnly"
@@ -13,7 +13,7 @@ export type WhatsNewLayoutPreset =
   | "cover";
 
 // Drives both the platform renderer and the Admin-Website preview mock
-// (duplicated there — repos share no code; keep in sync).
+// (duplicated there: repos share no code; keep in sync).
 export const WHATS_NEW_LAYOUTS: Record<
   WhatsNewLayoutPreset,
   { hasImage: boolean; row: boolean; imageFirst: boolean; widthPct: number; cover: boolean }
@@ -47,7 +47,7 @@ export function whatsNewMediaWidthPct(
 }
 
 // Authored text, per language. English is required; fr/pt fall back to
-// English when absent — same semantics as the app's t3() translations.
+// English when absent: same semantics as the app's t3() translations.
 export type WhatsNewText = {
   en: string;
   fr?: string;
@@ -79,7 +79,7 @@ export type WhatsNewEvent = "seen" | "skipped" | "completed";
 // ─── Bell read-state ────────────────────────────────────────────────────
 // Tracked as a set of post ids (not a high-water version) so the unread dot
 // persists until EVERY missed post has been opened. Stored in Clerk
-// unsafeMetadata, which is client-writable — hence the defensive parsing.
+// unsafeMetadata, which is client-writable: hence the defensive parsing.
 
 // Returns undefined when nothing valid is stored, which is what distinguishes
 // "never tracked, consider migrating" from "tracked, nothing read yet".
@@ -119,7 +119,7 @@ export function whatsNewUnreadPosts(
 
 // The post to push at login: the newest unread release that is ALSO newer
 // than every release already acknowledged. Once a version has been seen,
-// nothing at or below it auto-opens again — a backlog of older unread posts
+// nothing at or below it auto-opens again: a backlog of older unread posts
 // stays reachable from the bell instead of resurfacing one per login.
 export function whatsNewAutoShowPost(
   posts: WhatsNewPost[],
@@ -151,7 +151,7 @@ export function whatsNewAutoShowPost(
 
 // Page media may be an uploaded image/GIF/mp4 or an embedded YouTube video;
 // all live in imageUrl. Uploaded files are served from status-api, YouTube is
-// an external embed — so the deletion/sweep logic (which keys off the
+// an external embed: so the deletion/sweep logic (which keys off the
 // /api/whats-new/images/ path) naturally ignores YouTube links.
 export function isWhatsNewVideo(url: string | undefined): boolean {
   return !!url && /\.mp4(\?|$)/i.test(url);

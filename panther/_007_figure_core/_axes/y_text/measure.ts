@@ -10,6 +10,7 @@ import type {
   RectCoordsDims,
   RenderContext,
 } from "../../deps.ts";
+import { SIZING_SAMPLE } from "../../dimension_helpers.ts";
 import type { YTextAxisWidthInfo } from "./types.ts";
 
 export function estimateMinYTextAxisWidth(
@@ -17,7 +18,11 @@ export function estimateMinYTextAxisWidth(
   sy: MergedYTextAxisStyle,
   sg: MergedGridStyle,
 ): number {
-  const sample = rc.mText("Category", sy.text.yTextAxisTickLabels, Infinity);
+  const sample = rc.mText(
+    SIZING_SAMPLE.textTick,
+    sy.text.yTextAxisTickLabels,
+    Infinity,
+  );
   return sample.dims.w() + sy.tickLabelGap + sy.tickWidth + sg.axisStrokeWidth;
 }
 

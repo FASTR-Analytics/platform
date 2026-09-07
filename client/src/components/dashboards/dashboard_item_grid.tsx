@@ -28,7 +28,7 @@ type Props = {
 // Match the visualization panel grid (PresentationObjectPanelDisplay), plus a
 // row-subgrid pass-through on the direct children. The drag-sort vendor wraps
 // each card in a plain <div>, so the card is no longer a direct grid item and
-// its own grid-rows-subgrid has no tracks to borrow — leaving cards unaligned.
+// its own grid-rows-subgrid has no tracks to borrow: leaving cards unaligned.
 // Re-establishing subgrid on the wrapper forwards the shared row tracks to the
 // card, so labels/charts line up across each row. Harmless on the no-wrapper
 // fallback path (the card already carries these classes).

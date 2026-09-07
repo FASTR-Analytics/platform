@@ -51,84 +51,63 @@ export function ModuleParameterInputs(p: Props) {
         }
       >
         {(inputParameter) => {
+          const value = () => p.values[inputParameter.replacementString];
+          const invalidMsg = () =>
+            getModuleParameterInvalidMsg(inputParameter, value());
+          const onChange = (v: string) =>
+            p.onChange(inputParameter.replacementString, v);
           return (
-            <div class="ui-spy-sm col-span-12 lg:col-span-6 xl:col-span-3">
-              <div class="text-md font-700">{inputParameter.description}</div>
-              <div class="">
-                <Switch
-                  fallback={t3({
-                    en: "Bad input type",
-                    fr: "Type de saisie incorrect",
-                    pt: "Tipo de entrada inválido",
-                  })}
+            <div class="col-span-12 xl:col-span-3">
+              <Switch
+                fallback={t3({
+                  en: "Bad input type",
+                  fr: "Type de saisie incorrect",
+                  pt: "Tipo de entrada inválido",
+                })}
+              >
+                <Match
+                  when={
+                    inputParameter.input.inputType === "number" ||
+                    inputParameter.input.inputType === "text"
+                  }
                 >
-                  <Match when={inputParameter.input.inputType === "number"}>
-                    <Input
-                      value={p.values[inputParameter.replacementString] ?? ""}
-                      onChange={(v) =>
-                        p.onChange(inputParameter.replacementString, v)
-                      }
-                      invalidMsg={getModuleParameterInvalidMsg(
-                        inputParameter,
-                        p.values[inputParameter.replacementString],
-                      )}
+                  <Input
+                    label={inputParameter.description}
+                    value={value() ?? ""}
+                    onChange={onChange}
+                    invalidMsg={invalidMsg()}
+                    fullWidth
+                  />
+                </Match>
+                <Match
+                  when={
+                    inputParameter.input.inputType === "select" &&
+                    inputParameter.input.options
+                  }
+                  keyed
+                >
+                  {(keyedOptions) => (
+                    <Select
+                      label={inputParameter.description}
+                      options={keyedOptions}
+                      value={value()}
+                      onChange={onChange}
+                      invalidMsg={invalidMsg()}
                       fullWidth
                     />
-                  </Match>
-
-                  <Match when={inputParameter.input.inputType === "text"}>
-                    <Input
-                      value={p.values[inputParameter.replacementString] ?? ""}
-                      onChange={(v) =>
-                        p.onChange(inputParameter.replacementString, v)
-                      }
-                      invalidMsg={getModuleParameterInvalidMsg(
-                        inputParameter,
-                        p.values[inputParameter.replacementString],
-                      )}
-                      fullWidth
-                    />
-                  </Match>
-                  <Match
-                    when={
-                      inputParameter.input.inputType === "select" &&
-                      inputParameter.input.options
-                    }
-                    keyed
-                  >
-                    {(keyedOptions) => {
-                      return (
-                        <Select
-                          options={keyedOptions}
-                          value={p.values[inputParameter.replacementString]}
-                          onChange={(v) =>
-                            p.onChange(inputParameter.replacementString, v)
-                          }
-                          invalidMsg={getModuleParameterInvalidMsg(
-                            inputParameter,
-                            p.values[inputParameter.replacementString],
-                          )}
-                          fullWidth
-                        />
-                      );
-                    }}
-                  </Match>
-                  <Match when={inputParameter.input.inputType === "boolean"}>
+                  )}
+                </Match>
+                <Match when={inputParameter.input.inputType === "boolean"}>
+                  <div class="ui-spy-sm">
+                    <div class="ui-label">{inputParameter.description}</div>
                     <Checkbox
                       label={t3({ en: "Yes / No", fr: "Oui / Non", pt: "Sim / Não" })}
-                      checked={
-                        p.values[inputParameter.replacementString] === "TRUE"
-                      }
-                      onChange={(v) =>
-                        p.onChange(
-                          inputParameter.replacementString,
-                          v ? "TRUE" : "FALSE",
-                        )
-                      }
+                      checked={value() === "TRUE"}
+                      onChange={(v) => onChange(v ? "TRUE" : "FALSE")}
                     />
-                  </Match>
-                </Switch>
-              </div>
+                  </div>
+                </Match>
+              </Switch>
             </div>
           );
         }}

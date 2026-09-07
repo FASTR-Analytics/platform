@@ -1,5 +1,5 @@
 // =============================================================================
-// FigureBundle — the captured, self-contained figure artifact
+// FigureBundle: the captured, self-contained figure artifact
 // =============================================================================
 //
 // A FigureBundle freezes everything `buildFigureInputs` needs: config, queried
@@ -12,17 +12,18 @@
 // =============================================================================
 
 import { z } from "zod";
-import type { IndicatorMetadata } from "./indicators.ts";
+import type { IndicatorMetadataDisplay } from "./indicators.ts";
 import type { PeriodBounds } from "./presentation_objects.ts";
 import type { ResultsValueForVisualization } from "./modules.ts";
 import { presentationObjectConfigSchema } from "./_presentation_object_config.ts";
+import { thresholdsRuleSchema } from "./conditional_formatting.ts";
 import { ALL_INSTANCE_FISCAL_YEARS } from "./instance.ts";
 
 // ── Sub-schemas (matching existing lib types exactly) ────────────────────────
 // Runtime locks: parse a Required<T> so a new field in the source type causes
 // a compile error (Required forces the literal) and a parse failure here.
 
-// P2: z.strictObject — stored shape; unknown keys in a stored sub-object would
+// P2: z.strictObject, stored shape; unknown keys in a stored sub-object would
 // pass the skip-gate and be silently stripped on read (PROTOCOL_APP_MIGRATIONS
 // skip-gate gotcha). Strict mode catches that drift at boot.
 // geo.data stays z.unknown(): GeoJSON is an external stable spec, low drift risk.
@@ -37,20 +38,23 @@ export const indicatorMetadataSchema = z.strictObject({
   id: z.string(),
   label: z.string(),
   format_as: z.enum(["percent", "number", "rate_per_10k"]).optional(),
-  threshold_direction: z.enum(["higher_is_better", "lower_is_better"])
-    .optional(),
-  threshold_green: z.number().optional(),
-  threshold_yellow: z.number().optional(),
+  thresholds: thresholdsRuleSchema.optional(),
   group_label: z.string().optional(),
   sort_order: z.number().optional(),
 });
-const _im: Required<IndicatorMetadata> = {
+// A stored figure freezes DISPLAY metadata only: the evaluation fields on a
+// catalog entry are deliberately absent from this type, so a bundle can never
+// carry them into the strictObject above (PLAN_1a §1.5).
+const _im: Required<IndicatorMetadataDisplay> = {
   id: "",
   label: "",
   format_as: "number",
-  threshold_direction: "higher_is_better",
-  threshold_green: 0,
-  threshold_yellow: 0,
+  thresholds: {
+    cutoffs: [],
+    buckets: [{ color: "", label: "" }],
+    direction: "higher-is-better",
+    noDataColor: "",
+  },
   group_label: "",
   sort_order: 0,
 };
@@ -70,21 +74,28 @@ resultsValueForVisualizationSchema.parse(_rv);
 
 // Discriminated union: live editor passes level (derives GeoJSON from sync
 // cache); stored bundles (dashboards/slides/reports) embed the full GeoJSON.
+// family selects the registry's map; optional and additive: stored
+// {kind:"level"} bundles without it default to hmis at resolution (same
+// ruling as ResultsValue.datasetFamily absence), no force block needed.
 export const geoRefSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("level"), level: z.number() }),
+  z.object({
+    kind: z.literal("level"),
+    level: z.number(),
+    family: z.enum(["hmis", "hfa"]).optional(),
+  }),
   z.object({ kind: z.literal("data"), data: z.unknown() }),
 ]);
 
 // ── Localization (extracted so callers can type function params) ─────────────
 // countryIso3 is required (use "" when the instance has no country set) so
-// a stored bundle always carries a definite string — no silent omission.
+// a stored bundle always carries a definite string: no silent omission.
 
 export const figureLocalizationSchema = z.strictObject({
   language: z.enum(["en", "fr", "pt"]),
   calendar: z.enum(["gregorian", "ethiopian"]),
   countryIso3: z.string(),
   // Defaulted rather than required so bundles stored before this field existed
-  // still validate — they predate FY entirely, so "none" is the correct
+  // still validate: they predate FY entirely, so "none" is the correct
   // reading, not a guess.
   fiscalYear: z.enum(ALL_INSTANCE_FISCAL_YEARS).default("none"),
 });
@@ -116,9 +127,11 @@ export const figureBundleSchema = z.strictObject({
   localization: figureLocalizationSchema,
   metricId: z.string(),
   snapshotAt: z.string(),
+  // The results package the items were read from; null for bundles captured
+  // before the runs model or backfilled from pre-bundle figures (the run is
+  // unknowable there and is never invented).
   provenance: z.strictObject({
-    moduleLastRun: z.string(),
-    datasetsVersion: z.string(),
+    runId: z.string().nullable(),
   }),
 });
 

@@ -50,7 +50,7 @@ export function SaveAsNewVisualizationModal(
         label: goodLabel,
         resultsValue: p.resultsValue,
         // Normalize here so ALL save-as-new paths (editor create mode, AI
-        // draft previews) enforce the canonical config form — idempotent for
+        // draft previews) enforce the canonical config form: idempotent for
         // callers that already normalized.
         config: normalizePOConfigForStorage(p.config, p.resultsValue),
         folderId,

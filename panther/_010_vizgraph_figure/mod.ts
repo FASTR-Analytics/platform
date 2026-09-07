@@ -9,6 +9,7 @@ export type {
   VizGraphData,
   VizGraphDataEdge,
   VizGraphDataGroup,
+  VizGraphDataLane,
   VizGraphDataNode,
   VizGraphInputs,
 } from "./types.ts";

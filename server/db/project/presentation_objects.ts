@@ -7,22 +7,15 @@ import {
   getReplicateByProp,
   parseJsonOrThrow,
   presentationObjectConfigSchema,
-  throwIfErrWithData,
   type APIResponseWithData,
   type DerivedDefaultVisualization,
   type PresentationObjectConfig,
-  type PresentationObjectDetail,
   type PresentationObjectSummary,
 } from "lib";
-import {
-  getResultsObjectTableName,
-  tryCatchDatabaseAsync,
-} from "./../utils.ts";
+import { tryCatchDatabaseAsync } from "./../utils.ts";
 import {
   type DBPresentationObject,
 } from "./_project_database_types.ts";
-import { getFacilityColumnsConfig } from "../instance/config.ts";
-import { resolveMetricById } from "./results_value_resolver.ts";
 import { generateUniquePresentationObjectId } from "../../utils/id_generation.ts";
 
 export type AddPresentationObjectParams = {
@@ -73,7 +66,7 @@ VALUES
 }
 
 // virtualDefaultSource: the manifest-derived projection when
-// presentationObjectId is a virtual default (item 5b) — no row exists, and
+// presentationObjectId is a virtual default (item 5b): no row exists, and
 // duplicating IS the customize path, so the copy is materialized from the
 // derivation instead of a source row.
 export async function duplicatePresentationObject(
@@ -154,46 +147,6 @@ ORDER BY po.is_default_visualization DESC, po.sort_order, LOWER(po.label)
         return configToSummary(row, config);
       });
     return { success: true, data: presentationObjects };
-  });
-}
-
-export async function getPresentationObjectDetail(
-  projectId: string,
-  projectDb: Sql,
-  presentationObjectId: string,
-  mainDb: Sql,
-): Promise<APIResponseWithData<PresentationObjectDetail>> {
-  return await tryCatchDatabaseAsync(async () => {
-    const rawPresObj = (
-      await projectDb<DBPresentationObject[]>`
-SELECT * FROM presentation_objects WHERE id = ${presentationObjectId}
-`
-    ).at(0);
-    if (rawPresObj === undefined) {
-      throw new Error("No presentation object with this id");
-    }
-
-    const resFacilityConfig = await getFacilityColumnsConfig(mainDb);
-    throwIfErrWithData(resFacilityConfig);
-
-    const resResultsValue = await resolveMetricById(
-      projectDb,
-      rawPresObj.metric_id,
-      resFacilityConfig.data,
-    );
-    throwIfErrWithData(resResultsValue);
-
-    const presObj: PresentationObjectDetail = {
-      id: rawPresObj.id,
-      projectId,
-      resultsValue: resResultsValue.data.resultsValue,
-      lastUpdated: rawPresObj.last_updated,
-      label: rawPresObj.label,
-      config: parsePresentationObjectConfig(rawPresObj.config),
-      isDefault: rawPresObj.is_default_visualization,
-      folderId: rawPresObj.folder_id,
-    };
-    return { success: true, data: presObj };
   });
 }
 
@@ -300,8 +253,8 @@ WHERE id = ${presentationObjectId}
 
 // ── Collab (visualization editor) room support ──────────────────────────────
 
-// Lightweight config loader for the collab room's load() — the room needs only
-// the config (no resultsValue/mainDb resolution like getPresentationObjectDetail).
+// Lightweight config loader for the collab room's load(): the room needs only
+// the config (no resultsValue resolution like getPresentationObjectDetailFromRun).
 // Returns null (inside a success) when the row is absent; carries isDefault so
 // the room deps can refuse to open a room for a read-only default visualization.
 export async function getPresentationObjectConfigRow(
@@ -330,7 +283,7 @@ SELECT config, is_default_visualization FROM presentation_objects WHERE id = ${p
 }
 
 // Read the persisted Yjs CRDT state for a visualization (collab rooms). Returns
-// the base64 state only if it is CURRENT — crdt_state_last_updated matches the
+// the base64 state only if it is CURRENT: crdt_state_last_updated matches the
 // PO's last_updated; otherwise the PO was edited outside collab since the state
 // was saved, so the room must re-seed from config (which is always safe).
 export async function getPresentationObjectCrdtState(
@@ -360,7 +313,7 @@ SELECT crdt_state, crdt_state_last_updated, last_updated FROM presentation_objec
 
 // Collab checkpoint: persist the config AND the Yjs CRDT state atomically
 // (collab is authoritative → always overwrites, no conflict check). Plain
-// write — POLICY LIVES IN THE CALLER (the PO room's save closure in
+// write: POLICY LIVES IN THE CALLER (the PO room's save closure in
 // routes/project/project-collab.ts): `storedConfig` must already be
 // schema-parsed with schema-invalid transients dropped, and `crdtTrusted`
 // says whether the doc materializes to exactly `storedConfig`. When trusted,
@@ -368,7 +321,7 @@ SELECT crdt_state, crdt_state_last_updated, last_updated FROM presentation_objec
 // reads back as current; when not, it is stamped NULL so the next room open
 // re-seeds from config instead of restoring a doc that disagrees with the
 // row (which every editor open would adopt, visibly "flipping" the viz ~1s
-// after open). Refuses default visualizations (read-only) — a room should
+// after open). Refuses default visualizations (read-only): a room should
 // never have been opened for one.
 export async function savePresentationObjectCheckpoint(
   projectDb: Sql,

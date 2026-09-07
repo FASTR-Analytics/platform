@@ -15,10 +15,10 @@ import { dropSuppressedEchoes, NAVIGATION_INTERACTION_ID } from "../deps.ts";
 // AI INTERACTION LOG
 ////////////////////////////////////////////////////////////////////////////////
 //
-// The "user actions since last message" registry (PLAN_AI_VIEWS_AND_APPROVAL
-// Feature 3). The app declares its interaction types once — how repeats
-// coalesce, which views they matter in, how a queued entry becomes a digest
-// line — and reports occurrences with typed viewController.notify() calls.
+// The "user actions since last message" registry. The app declares its
+// interaction types once (how repeats coalesce, which views they matter in,
+// how a queued entry becomes a digest line) and reports occurrences with
+// typed viewController.notify() calls.
 // The engine drains the queue TRANSACTIONALLY at turn creation: the digest
 // rides the turn as an ephemeral section, and if the turn ends without any
 // assistant message from the model (failed or stopped send), the drained
@@ -76,9 +76,8 @@ export type AIInteractionDef<TPayload = void> = {
 // The marker interaction() returns — the same pattern as view(): the config
 // is authored inside the helper call, so unannotated callback parameters
 // are contextually typed from the ONE declared payload type instead of
-// collapsing to `any` under defineAIInteractions' record constraint (the
-// Phase 3 review proved that collapse silently voids the payload and breaks
-// notify — the exact failure class view()'s NoInfer fixed in Phase 1).
+// collapsing to `any` under defineAIInteractions' record constraint (that
+// collapse silently voids the payload and breaks notify).
 export type AIInteraction<TPayload = void> = {
   readonly _def: AIInteractionDef<TPayload>;
 };
@@ -162,7 +161,7 @@ export function createInteractionLog(
   // Mark TIMES per key (a list, not latest-only: a mark near an entry must
   // keep suppressing it even after later marks on the same key).
   const marks = new Map<string, number[]>();
-  // AI-navigation attribution window (Phase 5): the built-in navigation
+  // AI-navigation attribution window: the built-in navigation
   // tool calls markAINavigation() before AND after its consumer callback,
   // and every navigation event recorded while the window is open is stamped
   // origin "ai" — the digest drops those (buildNavigationDigestLine), so an

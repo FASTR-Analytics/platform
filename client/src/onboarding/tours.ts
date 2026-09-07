@@ -7,7 +7,7 @@ import { instanceState } from "~/state/instance/t1_store";
 // Built as factories (not module-level constants) so t3() resolves after the
 // app language has been set.
 
-// Button labels shared by every tour — passed once per manager (roadtrip
+// Button labels shared by every tour: passed once per manager (roadtrip
 // merges them under any tour-specific labels) rather than per definition.
 export function tourLabels(): TourLabels {
   return {
@@ -51,9 +51,9 @@ export function buildDecksEditorTour(): TourDefinition {
           pt: "Criar uma apresentação",
         }),
         body: t3({
-          en: "Start a new deck here. The project needs at least one module enabled first.",
-          fr: "Commencez une nouvelle présentation ici. Le projet doit d'abord avoir au moins un module activé.",
-          pt: "Comece uma nova apresentação aqui. Primeiro, o projeto tem de ter pelo menos um módulo ativado.",
+          en: "Start a new deck here. The project needs a results package attached first.",
+          fr: "Commencez une nouvelle présentation ici. Le projet doit d'abord avoir un paquet de résultats rattaché.",
+          pt: "Comece uma nova apresentação aqui. Primeiro, o projeto tem de ter um pacote de resultados anexado.",
         }),
         placement: "bottom",
         when: () =>
@@ -144,7 +144,7 @@ export function buildDecksViewerTour(): TourDefinition {
 }
 
 // Deferred until the project actually has decks (entry-level `when` in
-// index.ts) — held back without being marked seen, so it runs on the first
+// index.ts): held back without being marked seen, so it runs on the first
 // decks visit where a deck exists, or merges into the intro run when decks
 // are already there.
 export function buildDecksOpenDeckTour(): TourDefinition {
@@ -308,7 +308,7 @@ export function buildReportsEditorTour(): TourDefinition {
   };
 }
 
-// Deferred like the deck-card tours — needs a report card on screen.
+// Deferred like the deck-card tours: needs a report card on screen.
 export function buildReportsManageTour(): TourDefinition {
   return {
     id: "reports-manage-reports",
@@ -469,7 +469,7 @@ export function buildDeckEditorSlidesTour(): TourDefinition {
   };
 }
 
-// Deferred until the Present button is on screen — it only renders once the
+// Deferred until the Present button is on screen: it only renders once the
 // deck has slides.
 export function buildDeckEditorPresentTour(): TourDefinition {
   return {
@@ -510,7 +510,7 @@ export function buildDeckEditorPresentTour(): TourDefinition {
 }
 
 // Walks the user into the version-history overlay via the overflow menu, then
-// back out again — the final advanceOn matters, because the overlay covers the
+// back out again: the final advanceOn matters, because the overlay covers the
 // toolbar that the settings part needs next.
 export function buildDeckEditorHistoryTour(): TourDefinition {
   return {
@@ -1234,7 +1234,7 @@ export function buildResultsPackageIntroTour(): TourDefinition {
 
 // Split from the intro rather than gated step-by-step: on a project with no
 // package attached yet these two targets do not exist, and a tour that runs
-// and skips its steps is still marked seen — the user would never get them
+// and skips its steps is still marked seen: the user would never get them
 // once a package IS attached.
 export function buildResultsPackageExploreTour(): TourDefinition {
   return {
@@ -1249,9 +1249,9 @@ export function buildResultsPackageExploreTour(): TourDefinition {
           pt: "O pacote em utilização",
         }),
         body: t3({
-          en: 'This is the package this project serves from, marked "In use". The line beneath it says when it was generated and by whom — useful when you need to know how current your figures are.',
-          fr: "Voici le paquet dont ce projet se sert, marqué « En cours d'utilisation ». La ligne en dessous indique quand il a été généré et par qui — utile pour savoir à quel point vos chiffres sont récents.",
-          pt: "Este é o pacote de que este projeto se serve, marcado «Em utilização». A linha por baixo indica quando foi gerado e por quem — útil para saber se os seus números estão atualizados.",
+          en: "This is the package this project serves from. The line beneath its name says when it was generated and by whom — useful when you need to know how current your figures are.",
+          fr: "Voici le paquet dont ce projet se sert. La ligne sous son nom indique quand il a été généré et par qui — utile pour savoir à quel point vos chiffres sont récents.",
+          pt: "Este é o pacote de que este projeto se serve. A linha por baixo do nome indica quando foi gerado e por quem — útil para saber se os seus números estão atualizados.",
         }),
         placement: "bottom",
       },
@@ -1264,9 +1264,9 @@ export function buildResultsPackageExploreTour(): TourDefinition {
           pt: "O que contém",
         }),
         body: t3({
-          en: "The modules that ran to build this package, and how many metrics they produced. Where you have permission, Script, Logs and Files open what a module ran, what it printed, and what it wrote.",
-          fr: "Les modules exécutés pour construire ce paquet et le nombre de métriques produites. Selon vos permissions, Script, Journaux et Fichiers ouvrent ce qu'un module a exécuté, ce qu'il a affiché et ce qu'il a écrit.",
-          pt: "Os módulos executados para construir este pacote e quantas métricas produziram. Conforme as suas permissões, Script, Registos e Ficheiros abrem o que um módulo executou, o que imprimiu e o que escreveu.",
+          en: "The modules that ran to build this package: the parameters each was configured with, the files it wrote (downloadable), and — where you have permission — its Script and Logs.",
+          fr: "Les modules exécutés pour construire ce paquet : les paramètres de chacun, les fichiers écrits (téléchargeables) et — selon vos permissions — son Script et ses Journaux.",
+          pt: "Os módulos executados para construir este pacote: os parâmetros de cada um, os ficheiros que escreveu (transferíveis) e — conforme as suas permissões — o seu Script e Registos.",
         }),
         placement: "top",
       },
@@ -1287,9 +1287,9 @@ export function buildResultsPackageSwitchTour(): TourDefinition {
           pt: "Mudar de pacote",
         }),
         body: t3({
-          en: "The other packages on this instance that this project could use instead. Switching changes the data behind everything in the project at once, so it is not a per-figure choice.",
-          fr: "Les autres paquets de cette instance que ce projet pourrait utiliser à la place. Changer modifie d'un coup les données derrière tout le projet : ce n'est pas un choix figure par figure.",
-          pt: "Os outros pacotes desta instância que este projeto poderia usar. Mudar altera de uma só vez os dados por trás de tudo no projeto: não é uma escolha figura a figura.",
+          en: "Pick any ready package on this instance here. Switching changes the data behind everything in the project at once, so it is not a per-figure choice.",
+          fr: "Choisissez ici n'importe quel paquet prêt de cette instance. Changer modifie d'un coup les données derrière tout le projet : ce n'est pas un choix figure par figure.",
+          pt: "Escolha aqui qualquer pacote pronto desta instância. Mudar altera de uma só vez os dados por trás de tudo no projeto: não é uma escolha figura a figura.",
         }),
         placement: "top",
       },
@@ -1516,7 +1516,7 @@ export function buildDashboardsCreateTour(): TourDefinition {
 
 // Mirrors canConfigure() inside dashboard_editor.tsx. Step-level `when` runs
 // once when the tour starts, and the dashboard editor's content is still
-// loading then — so these gates must read state, never the DOM.
+// loading then, so these gates must read state, never the DOM.
 const canConfigureDashboards = () =>
   projectState.thisUserPermissions.can_configure_slide_decks &&
   !projectState.isLocked;
@@ -2057,36 +2057,6 @@ export function buildInstanceDataTour(): TourDefinition {
     id: "instance-data-intro",
     steps: [
       {
-        id: "intro",
-        target: tourTarget("instance-data-header"),
-        title: t3({
-          en: "Instance data",
-          fr: "Données de l'instance",
-          pt: "Dados da instância",
-        }),
-        body: t3({
-          en: "Data is uploaded once here for the whole instance. Projects then export what they need from this shared pool — nothing is uploaded per project.",
-          fr: "Les données sont importées ici une seule fois pour toute l'instance. Les projets exportent ensuite ce dont ils ont besoin depuis ce fonds commun — rien n'est importé projet par projet.",
-          pt: "Os dados são carregados aqui uma única vez para toda a instância. Os projetos exportam depois o que precisam deste conjunto comum — nada é carregado projeto a projeto.",
-        }),
-        placement: "bottom",
-      },
-      {
-        id: "structure",
-        target: tourTarget("instance-data-structure"),
-        title: t3({
-          en: "Structure & maps",
-          fr: "Structure et cartes",
-          pt: "Estrutura e mapas",
-        }),
-        body: t3({
-          en: "The geography everything hangs off: administrative areas come from your facility imports, and GeoJSON uploads provide the map boundaries.",
-          fr: "La géographie sur laquelle tout repose : les unités administratives proviennent de vos importations d'établissements, et les fichiers GeoJSON fournissent les contours des cartes.",
-          pt: "A geografia em que tudo assenta: as zonas administrativas provêm das suas importações de estabelecimentos, e os ficheiros GeoJSON fornecem os contornos dos mapas.",
-        }),
-        placement: "bottom",
-      },
-      {
         id: "hmis",
         target: tourTarget("instance-data-hmis"),
         title: t3({ en: "HMIS", fr: "SNIS", pt: "HMIS" }),
@@ -2126,26 +2096,6 @@ export function buildInstanceDataTour(): TourDefinition {
           pt: "Dados de equidade provenientes de inquéritos aos agregados familiares. Como as outras fontes: carregados uma vez aqui e depois exportados para os projetos que os analisam.",
         }),
         placement: "top",
-      },
-      {
-        id: "dhis2",
-        target: tourTarget("instance-data-dhis2"),
-        when: () =>
-          instanceState.currentUserIsGlobalAdmin ||
-          instanceState.currentUserPermissions.can_configure_data,
-        title: t3({
-          en: "DHIS2 connection",
-          fr: "Connexion DHIS2",
-          pt: "Ligação DHIS2",
-        }),
-        body: t3({
-          en: "Connect DHIS2 credentials to pull facilities and HMIS data directly from your national system instead of uploading CSVs.",
-          fr: "Renseignez des identifiants DHIS2 pour récupérer les établissements et les données SNIS directement depuis votre système national au lieu d'importer des CSV.",
-          pt: "Configure credenciais DHIS2 para obter estabelecimentos e dados HMIS diretamente do seu sistema nacional em vez de carregar CSV.",
-        }),
-        placement: "bottom",
-        waitForTargetTimeoutMs: 2000,
-        onTargetTimeout: "skip",
       },
     ],
   };
@@ -2205,7 +2155,7 @@ export function buildInstanceResultsPackagesTour(): TourDefinition {
 }
 
 // Split from the intro for the same reason as the project pair: a freshly
-// created instance holds no packages, so neither target exists — and a tour
+// created instance holds no packages, so neither target exists, and a tour
 // that runs against nothing still writes its seen-flag.
 export function buildInstanceResultsPackagesCatalogueTour(): TourDefinition {
   return {
@@ -2378,74 +2328,6 @@ export function buildInstanceUsersTour(): TourDefinition {
         placement: "bottom",
         waitForTargetTimeoutMs: 2000,
         onTargetTimeout: "skip",
-      },
-    ],
-  };
-}
-
-export function buildInstanceSettingsTour(): TourDefinition {
-  return {
-    id: "instance-settings-intro",
-    steps: [
-      {
-        id: "intro",
-        target: tourTarget("instance-settings-header"),
-        title: t3({
-          en: "Instance settings",
-          fr: "Paramètres de l'instance",
-          pt: "Definições da instância",
-        }),
-        body: t3({
-          en: "Instance-wide configuration that every project inherits.",
-          fr: "La configuration de toute l'instance dont héritent tous les projets.",
-          pt: "A configuração de toda a instância que todos os projetos herdam.",
-        }),
-        placement: "bottom",
-      },
-      {
-        id: "admin-areas",
-        target: tourTarget("instance-settings-admin-areas"),
-        title: t3({
-          en: "Administrative levels",
-          fr: "Niveaux administratifs",
-          pt: "Níveis administrativos",
-        }),
-        body: t3({
-          en: "How many administrative levels the instance uses, from national down to level 4.",
-          fr: "Le nombre de niveaux administratifs utilisés par l'instance, du niveau national jusqu'au niveau 4.",
-          pt: "Quantos níveis administrativos a instância utiliza, do nível nacional até ao nível 4.",
-        }),
-        placement: "bottom",
-      },
-      {
-        id: "admin-labels",
-        target: tourTarget("instance-settings-admin-labels"),
-        title: t3({
-          en: "Admin area labels",
-          fr: "Libellés des unités administratives",
-          pt: "Rótulos das zonas administrativas",
-        }),
-        body: t3({
-          en: "What each level is called — Region, District, Chiefdom, whatever fits your country. These labels appear everywhere data is disaggregated by area.",
-          fr: "Le nom de chaque niveau — région, district, chefferie, selon votre pays. Ces libellés apparaissent partout où les données sont désagrégées par zone.",
-          pt: "O nome de cada nível — região, distrito, chefia, conforme o seu país. Estes rótulos aparecem sempre que os dados são desagregados por zona.",
-        }),
-        placement: "top",
-      },
-      {
-        id: "facility-columns",
-        target: tourTarget("instance-settings-facility-columns"),
-        title: t3({
-          en: "Facility columns",
-          fr: "Colonnes des établissements",
-          pt: "Colunas dos estabelecimentos de saúde",
-        }),
-        body: t3({
-          en: "Choose which extra columns from your facility imports are kept — name, type, ownership and custom fields — and how each is labelled across the app.",
-          fr: "Choisissez les colonnes supplémentaires de vos importations d'établissements à conserver — nom, type, propriété et champs personnalisés — et leur libellé dans l'application.",
-          pt: "Escolha as colunas adicionais das suas importações de estabelecimentos a manter — nome, tipo, propriedade e campos personalizados — e o rótulo de cada uma na aplicação.",
-        }),
-        placement: "top",
       },
     ],
   };

@@ -12,14 +12,14 @@ import {
 } from "../live_cursors";
 
 // =============================================================================
-// Live cursors in the visualization editor — "viz-preview" + "viz-panel"
+// Live cursors in the visualization editor: "viz-preview" + "viz-panel"
 // =============================================================================
 //
 // Surface glue only (coordinate mapping + scope gate); the engine is shared
 // (../live_cursors.tsx). Two zones on one awareness:
-//   viz-preview — the chart canvas (#VIZ_PREVIEW_CANVAS), normalized 0..1 of
+//   viz-preview: the chart canvas (#VIZ_PREVIEW_CANVAS), normalized 0..1 of
 //     its rect (the preview reflows per user; approximate landing accepted).
-//   viz-panel — the settings panel's active-tab scroll container
+//   viz-panel: the settings panel's active-tab scroll container
 //     (#VIZ_PANEL_ROOT [data-viz-panel-scroll]): x normalized, y content-px,
 //     tagged with the tab so cursors only show to peers on the SAME tab.
 // scope = `po:<id>` (standalone editor) or `fig:<figureId>` (ephemeral editor
@@ -73,7 +73,7 @@ export function VizEditorCursors(p: {
         return { surface: "viz-panel", scope, tab: p.panelTab(), ...pos };
       }
     }
-    // Chrome (header, tab row, the area around the preview) — shared zones.
+    // Chrome (header, tab row, the area around the preview): shared zones.
     return zonePointerAt(scope, cx, cy);
   }
 

@@ -15,7 +15,7 @@ export function buildLabelHalo(
   const fillColor = dl.backgroundColor !== "none"
     ? getColor(dl.backgroundColor)
     : undefined;
-  const borderColor = dl.borderWidth > 0 && dl.borderColor !== undefined
+  const borderColor = dl.borderWidth > 0 && dl.borderColor !== "none"
     ? getColor(dl.borderColor)
     : undefined;
   const borderWidth = borderColor !== undefined ? dl.borderWidth : undefined;

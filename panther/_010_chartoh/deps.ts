@@ -27,10 +27,12 @@ export {
   maxVisibleCount,
   measureChart,
   measureChartWithAutofit,
+  PANE_HEADER_SAMPLE_MAX_W,
   proportionalTotalSlots,
   renderFigureBackground,
   renderFigurePrimitives,
   resolveDefaultLegend,
+  SIZING_SAMPLE,
   transformOneWayChartJson,
 } from "../_007_figure_core/mod.ts";
 export type {

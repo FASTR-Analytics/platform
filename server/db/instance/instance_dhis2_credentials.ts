@@ -8,14 +8,14 @@ import { _DHIS2_CREDENTIALS_ENCRYPTION_KEY } from "../../exposed_env_vars.ts";
 import type { DBInstanceDhis2Credentials } from "./_main_database_types.ts";
 
 // Single instance-wide stored DHIS2 credentials row, shared by every DHIS2
-// flow (structure import, indicators, geojson, HMIS data — PLAN_DHIS2_
+// flow (structure import, indicators, geojson, HMIS data: PLAN_DHIS2_
 // CREDENTIAL_STORE_CONSOLIDATION). url + username are plaintext in the DB
 // row, but only the URL ever leaves the server (the UI shows it so an admin
 // can see what is stored; the username stays server-side). The password is
 // AES-256-GCM encrypted with a key derived from the
 // DHIS2_CREDENTIALS_ENCRYPTION_KEY env var. The key never enters the DB.
-// The password is decrypted server-side at fetch time only — in a worker or
-// a route handler immediately before calling DHIS2 — and is never included
+// The password is decrypted server-side at fetch time only: in a worker or
+// a route handler immediately before calling DHIS2, and is never included
 // in a route response. Everything user-facing gets the safe projection
 // (Dhis2StoredCredentialsInfo).
 

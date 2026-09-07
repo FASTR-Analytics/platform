@@ -11,12 +11,12 @@ import { _RUNS_DIR_PATH } from "../exposed_env_vars.ts";
 // ~5 ms), read-only views over parquet, bounded memory. The Postgres→DuckDB
 // dialect deltas are owned HERE, never in the S9 SQL builders:
 //   - `SET integer_division = true` restores Postgres int/int truncation
-//     (without it, period arithmetic puts August in Q4 — wrong data, no error).
+//     (without it, period arithmetic puts August in Q4: wrong data, no error).
 //   - BIGINT/HUGEINT aggregate results arrive as JS BigInt; convertValue
 //     resolves them to number (or throws outside the safe-integer range).
-//   - Text ORDER BY is binary, not collation — option-list callers must
+//   - Text ORDER BY is binary, not collation: option-list callers must
 //     re-sort in TS.
-//   - DuckDB group-by output order is nondeterministic run-to-run — the
+//   - DuckDB group-by output order is nondeterministic run-to-run: the
 //     executor pins a deterministic total order over every result set so
 //     identical queries yield identical row sets (stable-sort tie-breaks,
 //     stored-figure grids, LIMIT). Meaningful ordering is the caller's job:
@@ -24,8 +24,8 @@ import { _RUNS_DIR_PATH } from "../exposed_env_vars.ts";
 //     get_data_config_from_po.ts) and option-list callers re-sort in TS; an
 //     ORDER BY inside the SQL still controls WHICH rows a LIMIT keeps.
 
-// Sized empirically (review finding 11): the worst ordinary serving shape —
-// a facility_name disaggregation over a 59.5M-row parquet, 1.92M groups —
+// Sized empirically (review finding 11): the worst ordinary serving shape,
+// a facility_name disaggregation over a 59.5M-row parquet, 1.92M groups,
 // OOMs at 512MB (temp_directory or not, the grouped aggregate must fit),
 // completes at 4GB in-memory in ~2s. temp_directory is the backstop for
 // larger shapes; the cap is per-connection and queries peak far below it.
@@ -49,7 +49,7 @@ export function duckDbSpillDirPath(): string {
 }
 
 // Boot-time reset: DuckDB removes its spill files on clean close, but a
-// crashed process leaves them behind — wipe and recreate the dir.
+// crashed process leaves them behind: wipe and recreate the dir.
 export async function resetDuckDbSpillDir(): Promise<void> {
   try {
     await Deno.remove(duckDbSpillDirPath(), { recursive: true });
@@ -63,7 +63,7 @@ export async function resetDuckDbSpillDir(): Promise<void> {
 
 // Shared session settings for every DuckDB connection this app opens (the
 // serving executor AND the parquet writer). DuckDB does NOT create a missing
-// temp_directory — without the mkdir, spilling silently can't happen and a
+// temp_directory: without the mkdir, spilling silently can't happen and a
 // large query OOMs at the memory_limit (verified empirically).
 export async function applyDuckDbSessionSettings(
   conn: DuckDBConnection,
@@ -103,7 +103,7 @@ export async function executeSqlOverParquet(
 }
 
 // Total order over all columns in result-schema order (code-unit string
-// compare — determinism, not collation). Applied after LIMIT, so it never
+// compare, determinism, not collation). Applied after LIMIT, so it never
 // changes which rows a query returns.
 function pinDeterministicRowOrder(rows: DuckDbRow[]): DuckDbRow[] {
   if (rows.length < 2) {

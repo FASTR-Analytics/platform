@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  AlignH,
   Coordinates,
   CustomMarkdownStyleOptions,
   Dimensions,
@@ -73,10 +74,16 @@ export type MarkdownInline =
   | { type: "bold"; text: string }
   | { type: "italic"; text: string }
   | { type: "bold-italic"; text: string }
-  | { type: "link"; text: string; url: string }
+  // A link's own emphasis, from formatting INSIDE the link text
+  // (`[**bold**](url)`). Absent when the segment carries no emphasis.
+  | {
+    type: "link";
+    text: string;
+    url: string;
+    style?: "bold" | "italic" | "bold-italic";
+  }
   | { type: "break" }
-  | { type: "code-inline"; text: string }
-  | { type: "math-inline"; latex: string };
+  | { type: "code-inline"; text: string };
 
 export type ParsedMarkdownItem =
   & (
@@ -98,7 +105,6 @@ export type ParsedMarkdownItem =
     | { type: "blockquote"; content: MarkdownInline[] }
     | { type: "horizontal-rule" }
     | { type: "code-block"; code: string }
-    | { type: "math-block"; latex: string }
     | {
       type: "image";
       src: string;
@@ -110,6 +116,9 @@ export type ParsedMarkdownItem =
       type: "table";
       header?: MarkdownInline[][][];
       rows?: MarkdownInline[][][];
+      // GFM column alignment (`:---`, `:---:`, `---:`), one entry per column;
+      // undefined where the source gave none.
+      align?: (AlignH | undefined)[];
     }
   )
   & {
@@ -136,9 +145,17 @@ export type FormattedRun = {
   isCode?: boolean;
 };
 
+// Inline `code` runs: their own text style (monospace by default) on a
+// padded, rounded background — the same look as the HTML renderer.
+export type InlineCodeStyle = {
+  textInfo: TextInfoUnkeyed;
+  backgroundColor: string;
+};
+
 export type FormattedText = {
   runs: FormattedRun[];
   baseStyle: TextInfoUnkeyed;
+  codeStyle?: InlineCodeStyle;
 };
 
 export type MeasuredFormattedRun = {
@@ -150,6 +167,16 @@ export type MeasuredFormattedRun = {
   };
   link?: {
     url: string;
+  };
+  // Padded background behind the run (inline code); the run's `x` is the
+  // background's left edge, text starts `paddingLeft` inside it. Adjacent
+  // runs of one span share a box, so only its outer edges carry padding.
+  background?: {
+    color: string;
+    paddingLeft: number;
+    paddingRight: number;
+    paddingV: number;
+    radius: number;
   };
 };
 

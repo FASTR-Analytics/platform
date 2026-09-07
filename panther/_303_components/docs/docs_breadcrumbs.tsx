@@ -25,17 +25,13 @@ export function DocsBreadcrumbs(p: DocsBreadcrumbsProps) {
               {(crumb, index) => (
                 <>
                   <li>
-                    <Show
-                      when={index() < breadcrumbs().length - 1}
-                      fallback={
-                        <span class="text-base-content font-700">
-                          {crumb.label}
-                        </span>
-                      }
-                      keyed
+                    <span
+                      class={index() < breadcrumbs().length - 1
+                        ? "text-base-content-muted"
+                        : "text-base-content font-700"}
                     >
-                      <span class="text-base-content-muted">{crumb.label}</span>
-                    </Show>
+                      {crumb.label}
+                    </span>
                   </li>
                   <Show when={index() < breadcrumbs().length - 1} keyed>
                     <li class="text-base-content-muted">/</li>

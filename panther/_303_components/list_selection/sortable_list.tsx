@@ -7,7 +7,7 @@ import { type JSX, Show } from "solid-js";
 import { Icon } from "../icons/mod.ts";
 import { Reorderable } from "./_internal/reorderable.tsx";
 
-// The bare reorder primitive (formerly TimSortableVertical): a drag-reorder list
+// The bare reorder primitive: a drag-reorder list
 // with a grip handle, for custom row content. Delegates drag to the hardened
 // `Reorderable` engine and emits `onReorder(orderedIds)`. Use `EditableList` when
 // you also want selection / add / delete / list chrome.

@@ -19,7 +19,7 @@ export type Dhis2WizardTimeChoice = "now" | "later" | "recurring";
 
 type Props = {
   // presetPairs launches (checklist "re-import"/"retry failed") are always
-  // Now-or-Queue — a fixed one-off pair list is not sensibly schedulable, so
+  // Now-or-Queue: a fixed one-off pair list is not sensibly schedulable, so
   // no radio is shown at all.
   presetMode: boolean;
   timeChoice: () => Dhis2WizardTimeChoice;
@@ -47,7 +47,7 @@ type Props = {
   // Scheduling needs stored credentials (server's assertUnattendedReady).
   // gateApplies mirrors the server's actual check scope: always for a new
   // schedule, but for an EDIT only when the (possibly just-changed) kind is
-  // "later" — updateDatasetHmisDhis2Schedule doesn't re-check an existing
+  // "later": updateDatasetHmisDhis2Schedule doesn't re-check an existing
   // recurring schedule's edit (see _wizard/index.tsx computeTimeValid).
   gateApplies: boolean;
   hasStoredCredentials: boolean;

@@ -137,7 +137,7 @@ export class TimCacheC<UniquenessParams, VersionParams, T> {
           WRITE_TTL_BASE + Math.floor(WRITE_TTL_JITTER * Math.random());
         await client.set(key, value, { EX: ttl });
       } catch {
-        // Valkey write failed — not fatal
+        // Valkey write failed: not fatal
       }
     }
 
@@ -216,7 +216,7 @@ export class TimCacheC<UniquenessParams, VersionParams, T> {
         if (result.keys.length > 0) await client.del(result.keys);
       } while (cursor !== 0);
     } catch {
-      // Valkey error — degrade gracefully
+      // Valkey error: degrade gracefully
     }
   }
 }

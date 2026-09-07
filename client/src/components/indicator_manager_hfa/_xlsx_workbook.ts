@@ -27,10 +27,10 @@ const SHEET_INDICATORS = "Indicators";
 // Import also accepts the old positional format: r_code_1, r_filter_code_1
 // Variant code columns (labeled format only): r_variant_code__<itemId>__<timePointLabel>.
 // itemId legally contains "__", so the header is resolved against the Variant
-// items sheet by longest-matching item id — never by blind splitting.
+// items sheet by longest-matching item id: never by blind splitting.
 
 // ============================================================================
-// Build (export) — all in the browser
+// Build (export): all in the browser
 // ============================================================================
 
 export function buildHfaWorkbookBlob(args: {
@@ -124,7 +124,7 @@ export function buildHfaWorkbookBlob(args: {
 }
 
 // ============================================================================
-// Parse + validate — phase 1: detect shape (no time point mapping yet)
+// Parse + validate, phase 1: detect shape (no time point mapping yet)
 // ============================================================================
 
 export type WorkbookShape = {
@@ -285,7 +285,7 @@ export function detectHfaWorkbookShape(arrayBuffer: ArrayBuffer): DetectResult {
     variantItems.push({ id, groupId, label });
   }
 
-  // Indicators sheet — detect r_code columns before parsing rows
+  // Indicators sheet: detect r_code columns before parsing rows
   const indHeaders = (indicatorsAoa[0] ?? []).map((h) => String(h ?? "").trim());
 
   // Detect code columns in the order they appear.

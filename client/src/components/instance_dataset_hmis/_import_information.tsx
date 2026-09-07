@@ -24,7 +24,7 @@ export function ImportInformation(
       ? (p.version.stagingResult as DatasetDhis2StagingResult)
       : null;
   // Only present for versions integrated via the scoped delete-then-insert
-  // path — legacy DHIS2 versions (merge-integrated) have real nRowsUpdated
+  // path: legacy DHIS2 versions (merge-integrated) have real nRowsUpdated
   // counts instead, and must keep displaying them.
   const dhis2RowsDeleted = () => dhis2Result()?.dhis2RowsDeleted;
 

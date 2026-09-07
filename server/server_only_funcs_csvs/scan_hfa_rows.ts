@@ -29,7 +29,7 @@ export type HfaRowScanComponents = {
 };
 
 // Row numbers are the 1-based position of the data row in the file (header
-// excluded), computed while streaming — never read from any column. Filters
+// excluded), computed while streaming, never read from any column. Filters
 // run before the facility-id check, so a filtered-out row is never counted as
 // missing a facility id.
 export async function getHfaRowScanComponents(
@@ -103,7 +103,7 @@ export async function getHfaRowScanComponents(
 }
 
 // Streams the file through the wizard's filters and reports the facilities
-// left with >1 surviving row — the wizard's duplicates step. Stateless: the
+// left with >1 surviving row, the wizard's duplicates step. Stateless: the
 // caller resolves the temp upload's path, nothing is persisted.
 export async function scanHfaDuplicates(
   csvFilePath: string,

@@ -1,16 +1,12 @@
 import type { Sql } from "postgres";
 import {
   getValidatedModuleId,
-  isModuleAllowedForCountry,
   MODULE_REGISTRY,
   type APIResponseWithData,
   type RunGenerationModuleOption,
   type RunGenerationModuleOptions,
 } from "lib";
-import {
-  _INSTANCE_COUNTRY_ISO3,
-  _INSTANCE_LANGUAGE,
-} from "../exposed_env_vars.ts";
+import { _INSTANCE_LANGUAGE } from "../exposed_env_vars.ts";
 import { fetchCommits } from "../github/fetch_module.ts";
 import { getModuleDefinitionDetail } from "../module_loader/mod.ts";
 import { MODULE_SOURCE } from "../module_loader/module_source.ts";
@@ -20,10 +16,10 @@ import { MODULE_SOURCE } from "../module_loader/module_source.ts";
 // resolved from the modules repo at latest commit, returning the one gitRef
 // step 2 records so the run pipeline re-fetches identical definitions. The
 // wizard's other starting values come from the instance defaults store
-// (`getRunGenerationDefaultsConfig`) — the wizard is instance-entered, so
+// (`getRunGenerationDefaultsConfig`): the wizard is instance-entered, so
 // there is no anchor run to mine a prefill from.
 
-// "Latest commit" = the repo's HEAD, resolved once — a single commit that
+// "Latest commit" = the repo's HEAD, resolved once: a single commit that
 // contains every module path's latest content, unlike per-path last-touch
 // SHAs which can predate one another. Local source ignores pins (dev reads
 // the working tree), so a sentinel ref suffices there.
@@ -51,11 +47,8 @@ export async function getRunGenerationModuleOptions(
   try {
     const gitRef = await resolveModulesRepoHeadRef();
     const pinnedGitRef = MODULE_SOURCE === "github" ? gitRef : undefined;
-    const allowed = MODULE_REGISTRY.filter((m) =>
-      isModuleAllowedForCountry(m, _INSTANCE_COUNTRY_ISO3)
-    );
     const modules: RunGenerationModuleOption[] = await Promise.all(
-      allowed.map(async (entry) => {
+      MODULE_REGISTRY.map(async (entry) => {
         const res = await getModuleDefinitionDetail(
           entry.id,
           _INSTANCE_LANGUAGE,

@@ -10,7 +10,7 @@ import { getServerActionTransport } from "./transport.ts";
 import { tryCatchServer } from "./try_catch_server.ts";
 
 // The optional explicit transport (PLAN_112 D4) binds this action set to one
-// caller's credentials — the /mcp endpoint builds one per (PAT, project)
+// caller's credentials: the /mcp endpoint builds one per (PAT, project)
 // context. Omitted = the process-global singleton, resolved per call exactly
 // as before (the SPA registers it at boot, after this module initializes).
 export function createAllServerActions(
@@ -64,7 +64,7 @@ function createServerAction(
         transport,
       );
     }
-    // Session refresh before long-running stream — no timeout/retry: an AbortController
+    // Session refresh before long-running stream. No timeout/retry: an AbortController
     // timeout would kill legitimately long streams, and replaying a non-idempotent
     // streaming POST is wrong.
     await transport.refreshSession();
@@ -135,7 +135,7 @@ async function consumeStream<T = void>(
         return parsed as any;
       }
     } catch {
-      // not a JSON envelope — fall through to raw text
+      // not a JSON envelope: fall through to raw text
     }
     return {
       success: false,

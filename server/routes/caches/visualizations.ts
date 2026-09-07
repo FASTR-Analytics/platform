@@ -14,45 +14,46 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // runId key only tracks which immutable run the data came from, not code).
 // Folding it into the versionHash invalidates the stale entries exactly once,
 // then the caches resume hitting normally.
-// "2": quarter_id format YYYY0Q → YYYYQ — pre-cutover results held 6-digit
+// "2": quarter_id format YYYY0Q → YYYYQ: pre-cutover results held 6-digit
 // quarters that the new renderer (panther) rejects.
-// "3": replicant-options now honor the self-column subset filter (get_possible_values
-// no longer self-strips), so previously-cached full-value-set payloads are stale.
+// "3": replicant-options now honor the self-column subset filter (the
+// possible-values core no longer self-strips), so previously-cached
+// full-value-set payloads are stale.
 // "4": replicant-options now resolve RELATIVE period filters to exact bounds
-// (and re-anchor from_month) like the items query — previously-cached lists
+// (and re-anchor from_month) like the items query: previously-cached lists
 // for relative-filtered configs span all time.
 // "5": hfa_service_category filtering changed from exact-match to set-membership
-// (string_to_array overlap) — previously-cached payloads for configs filtering
+// (string_to_array overlap): previously-cached payloads for configs filtering
 // on this column used the old (wrong) semantics under an unchanged config hash.
-// "6": NULL/blank now fold onto BLANK_SENTINEL. Both cached shapes change —
+// "6": NULL/blank now fold onto BLANK_SENTINEL. Both cached shapes change:
 // possible-values gains the sentinel option, and items key their group on it
-// instead of ''/null — and version hashes track row last_updated, not code, so
+// instead of ''/null, and version hashes track row last_updated, not code, so
 // unmodified rows would otherwise keep serving pre-fold payloads.
 // "7": HFA items gained sample-size columns (__n_*) beside their values. The
 // payload shape changes for unmodified rows, which version hashes don't track.
 // "8": fetchConfig gained rollupDim replacing includeAdminAreaRollup+level.
 // The hashFetchConfig segment change already orphans every old key, so this
-// bump is declared hygiene rather than load-bearing — the shape of the cached
+// bump is declared hygiene rather than load-bearing: the shape of the cached
 // ItemsHolder.fetchConfig changed, and safety should not rest on the
 // incidental impossibility of an old/new key collision.
 // "9": the PLAN_RESULTS_RUNS cutover (merged past both sides' independent
-// bump histories — the results-runs branch used "6" for this change) —
+// bump histories: the results-runs branch used "6" for this change):
 // payloads are now sourced from the attached run (DuckDB over parquet:
 // native numbers where postgres.js returned NUMERIC strings) and
 // possible-values lists are re-sorted in TS with a pinned comparator
-// (Intl.Collator en, numeric) so Postgres and DuckDB emit identical order —
+// (Intl.Collator en, numeric) so Postgres and DuckDB emit identical order:
 // previously-cached entries hold pg-string values and DB-collation order.
 // "10": the post-merge semantic batch changed payload semantics AFTER "9"
-// was minted (blank-fold completion via manifest textColumns, trim() SQL) —
+// was minted (blank-fold completion via manifest textColumns, trim() SQL):
 // entries cached in that window hold pre-batch payloads under "9".
-// "11": the pinned option comparator changed from Intl.Collator (ICU —
+// "11": the pinned option comparator changed from Intl.Collator (ICU:
 // itself runtime-version-dependent, defeating the pin) to a hand-rolled
-// code-point/numeric comparator in get_possible_values.ts — cached option
+// code-point/numeric comparator in possible_values_core.ts: cached option
 // lists hold the old ICU order where the two disagree (leading
 // space/punctuation, accented values).
 // "12": two changes shipping together. resultsValueInfo gained
 // `indicatorFormats` (indicator id → its own value format), the pre-query
-// input resolveEffectiveFormat needs — the payload SHAPE changed for
+// input the effective-format resolver needs: the payload SHAPE changed for
 // unmodified rows, which version hashes don't track, and a metric_info entry
 // cached under "11" has no such field. And manifest schema v3 stamped the
 // indicator catalog, making the manifest a code dimension these three caches
@@ -61,17 +62,38 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // v4 rewrites metrics[].format_as in place under the SAME runId, and "12"
 // entries (briefly live on testing deploys) hold payloads computed under the
 // deleted inference design.
-// "14": the PAE groupBy/value-prop collision fix (paeCollidingGroupBys) —
+// "14": the PAE groupBy/value-prop collision fix (paeCollidingGroupBys):
 // configs disaggregated by a PAE ingredient previously had DuckDB bind the
 // expression to the raw grouped value instead of the aggregate; cached "13"
 // items hold those numbers.
-const PO_CACHE_VERSION = "14";
+// "15": project AA2 scope (PLAN_1_PROJECT_AA2_SCOPE): payloads are computed
+// under the project's scope and the keys gain a scopeToken segment; "14"
+// entries were keyed without it.
+// "17": the common-indicator restructure (PLAN_1a). Manifest schema v6
+// rewrites indicators[] in place under the SAME runId: legacy catalogs gain
+// sort_order, which axis order now comes from, and the items payload for a
+// catalog-evaluated results object is a computed `value` where "16" entries
+// hold raw ingredient columns.
+// "18" (2026-09-03): thresholds as a CF source (PLAN_1d). The indicator
+// catalog's traffic-light pair became a `thresholds` rule: po_items carries
+// IndicatorMetadataDisplay[] in the new shape, metric_info gained
+// `indicatorRules` beside `indicatorFormats`, and manifest schema v6 was
+// rewritten in place under the SAME runId; "17" entries hold the old shape.
+// "19" (2026-09-04): the write-only freshness pair (moduleLastRun,
+// datasetsVersion) left every data payload (PLAN_RESULTS_RUNS ruling 4):
+// the run id IS the provenance; "18" entries carry the old shape.
+const PO_CACHE_VERSION = "19";
 
 // The immutable run id replaces the data-version dimensions (PLAN_RESULTS_RUNS
-// §2.5): it is the uniqueness scope for the three data caches — two projects
-// attached to the same run share entries — and is folded into po_detail's
-// version (its payload embeds run-derived resultsValue). Payloads missing a
-// runId (the parity rig's Postgres baseline) are never stored.
+// §2.5): it is the uniqueness scope for the three data caches: two projects
+// attached to the same run share entries, and is folded into po_detail's
+// version (its payload embeds run-derived resultsValue). The scopeToken
+// (projectScopeToken) rides beside it: payloads are computed under the
+// project's AA2 scope, so two projects share entries only when they share
+// BOTH run and scope. Required on the uniqueness side so every exists/read
+// site is forced to supply it (an optional would compile and silently
+// mis-key); trailing segment so the `${runId}|`/`${runId}::` prefix scans
+// and their roId-at-index-1 parses keep working.
 export type PoDataVersionParams = {
   runId: string;
 };
@@ -84,6 +106,7 @@ export const _PO_DETAIL_CACHE = new TimCacheC<
   {
     presentationObjectLastUpdated: string;
     runId: string;
+    scopeToken: string;
   },
   APIResponseWithData<PresentationObjectDetail>
   // Prefix is versioned: bump it whenever the cached payload SHAPE or
@@ -93,20 +116,25 @@ export const _PO_DETAIL_CACHE = new TimCacheC<
   // gained hasFacilityLevelRows. v3 was minted twice on divergent branches
   // (main: resultsValue.datasetFamily; results-runs: manifest sourcing), so
   // the merge takes v4: both of those at once. v5: the post-merge semantic
-  // batch populated datasetFamily on the RUN path after v4 was minted —
-  // v4 entries from that window lack the field. v6: manifest schema v3 — this
+  // batch populated datasetFamily on the RUN path after v4 was minted:
+  // v4 entries from that window lack the field. v6: manifest schema v3: this
   // cache carries no code dimension, and a transform rewrites a manifest in
   // place under the SAME runId, so the prefix is the only thing that can
   // retire entries sourced from the pre-transform manifest. v7: manifest
-  // schema v4 (declared format) — payloads embed resultsValue.formatAs, which
-  // the v4 rewrite flips for the 8 pre-declaration metrics.
->("po_detail_v7", {
+  // schema v4 (declared format): payloads embed resultsValue.formatAs, which
+  // the v4 rewrite flips for the 8 pre-declaration metrics. v9: manifest
+  // schema v6 (PLAN_1a): resultsValue gained catalogExpressionEvaluation,
+  // which decides how the client compiles the fetch config, and v8 entries
+  // carry it as absent. v10: the PO config's `cfMode` enum gained
+  // "indicator" and lost `specialScorecardTable` (PLAN_1d): a v9 payload
+  // embeds the pre-transform config.
+>("po_detail_v10", {
   uniquenessHashFromParams: (params) =>
     [params.projectId, params.presentationObjectId].join("|"),
   versionHashFromParams: (params) =>
-    `${params.presentationObjectLastUpdated}|${params.runId}`,
+    `${params.presentationObjectLastUpdated}|${params.runId}|${params.scopeToken}`,
   parseData: (res) => {
-    if (res.success === false || res.data.runId === undefined) {
+    if (res.success === false) {
       return {
         shouldStore: false,
         uniquenessHash: "",
@@ -116,7 +144,8 @@ export const _PO_DETAIL_CACHE = new TimCacheC<
     return {
       shouldStore: true,
       uniquenessHash: [res.data.projectId, res.data.id].join("|"),
-      versionHash: `${res.data.lastUpdated}|${res.data.runId}`,
+      versionHash:
+        `${res.data.lastUpdated}|${res.data.runId}|${res.data.scopeToken}`,
     };
   },
 });
@@ -126,6 +155,7 @@ export const _PO_ITEMS_CACHE = new TimCacheC<
     runId: string;
     resultsObjectId: string;
     fetchConfig: GenericLongFormFetchConfig;
+    scopeToken: string;
   },
   PoDataVersionParams,
   APIResponseWithData<ItemsHolderPresentationObject>
@@ -135,10 +165,11 @@ export const _PO_ITEMS_CACHE = new TimCacheC<
       params.runId,
       params.resultsObjectId,
       hashFetchConfig(params.fetchConfig),
+      params.scopeToken,
     ].join("|"),
   versionHashFromParams: () => PO_CACHE_VERSION,
   parseData: (res) => {
-    if (res.success === false || res.data.runId === undefined) {
+    if (res.success === false) {
       return {
         shouldStore: false,
         uniquenessHash: "",
@@ -151,6 +182,7 @@ export const _PO_ITEMS_CACHE = new TimCacheC<
         res.data.runId,
         res.data.resultsObjectId,
         hashFetchConfig(res.data.fetchConfig),
+        res.data.scopeToken,
       ].join("|"),
       versionHash: PO_CACHE_VERSION,
     };
@@ -161,12 +193,13 @@ export const _METRIC_INFO_CACHE = new TimCacheC<
   {
     runId: string;
     metricId: string;
+    scopeToken: string;
   },
   PoDataVersionParams,
   APIResponseWithData<ResultsValueInfoForPresentationObject>
 >("metric_info", {
   uniquenessHashFromParams: (params) =>
-    [params.runId, params.metricId].join("::"),
+    [params.runId, params.metricId, params.scopeToken].join("::"),
   versionHashFromParams: () => PO_CACHE_VERSION,
   parseData: (res) => {
     // A transient possible-values failure is folded into a SUCCESSFUL payload
@@ -174,7 +207,6 @@ export const _METRIC_INFO_CACHE = new TimCacheC<
     // "cannot enumerate" fallback until the next run. Serve it, never store it.
     if (
       res.success === false ||
-      res.data.runId === undefined ||
       Object.values(res.data.disaggregationPossibleValues).some(
         (s) => s.status === "error",
       )
@@ -187,7 +219,11 @@ export const _METRIC_INFO_CACHE = new TimCacheC<
     }
     return {
       shouldStore: true,
-      uniquenessHash: [res.data.runId, res.data.metricId].join("::"),
+      uniquenessHash: [
+        res.data.runId,
+        res.data.metricId,
+        res.data.scopeToken,
+      ].join("::"),
       versionHash: PO_CACHE_VERSION,
     };
   },
@@ -199,6 +235,7 @@ export const _REPLICANT_OPTIONS_CACHE = new TimCacheC<
     resultsObjectId: string;
     replicateBy: DisaggregationOption;
     fetchConfig: GenericLongFormFetchConfig;
+    scopeToken: string;
   },
   PoDataVersionParams,
   APIResponseWithData<ReplicantOptionsForPresentationObject>
@@ -209,11 +246,12 @@ export const _REPLICANT_OPTIONS_CACHE = new TimCacheC<
       params.resultsObjectId,
       params.replicateBy,
       hashFetchConfig(params.fetchConfig),
+      params.scopeToken,
     ].join("::");
   },
   versionHashFromParams: () => PO_CACHE_VERSION,
   parseData: (res) => {
-    if (res.success === false || res.data.runId === undefined) {
+    if (res.success === false) {
       return {
         shouldStore: false,
         uniquenessHash: "",
@@ -227,6 +265,7 @@ export const _REPLICANT_OPTIONS_CACHE = new TimCacheC<
         res.data.resultsObjectId,
         res.data.replicateBy,
         hashFetchConfig(res.data.fetchConfig),
+        res.data.scopeToken,
       ].join("::"),
       versionHash: PO_CACHE_VERSION,
     };

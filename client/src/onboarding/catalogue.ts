@@ -9,6 +9,7 @@ import type {
 } from "lib";
 import { projectState } from "~/state/project/t1_store";
 import { instanceState } from "~/state/instance/t1_store";
+import { canViewPackageContents } from "~/components/_shared/results_package/status";
 import {
   hideUnreadyVisualizations,
   setPendingEditorOpen,
@@ -27,7 +28,7 @@ export type TourProjectFacts = {
   thisUserPermissions: ProjectUserPermissions;
   isLocked: boolean;
   /** The results package this project serves from, null if none is attached
-   *  yet — the attached-package tour has nothing to point at without one. */
+   *  yet: the attached-package tour has nothing to point at without one. */
   attachedRunId: string | null;
   projectModules: { id: string }[];
   metrics: { id: string; status: string }[];
@@ -54,7 +55,7 @@ export type TourCatalogueEntry = {
     | "settings";
   label: string;
   description: string;
-  /** State-only over the given facts. Do NOT probe the DOM here — the target
+  /** State-only over the given facts. Do NOT probe the DOM here: the target
    *  tab is usually unmounted (or another project entirely) when evaluated. */
   available: (f: TourProjectFacts) => boolean;
   /** Shown in place of the action when `available()` is false. */
@@ -67,6 +68,13 @@ export type TourCatalogueEntry = {
 const perms = (f: TourProjectFacts) => f.thisUserPermissions;
 const hasModules = (f: TourProjectFacts) => f.projectModules.length > 0;
 const hasAttachedPackage = (f: TourProjectFacts) => f.attachedRunId !== null;
+// The results package tab's two gates (project_results_package.tsx): the
+// picker is the editor's, the contents are instance data.
+const canAttach = (f: TourProjectFacts) =>
+  instanceState.currentUserIsGlobalAdmin ||
+  perms(f).can_configure_visualizations;
+const canOpenTab = (f: TourProjectFacts) =>
+  canAttach(f) || canViewPackageContents();
 const hasDecks = (f: TourProjectFacts) => f.slideDecks.length > 0;
 const hasReports = (f: TourProjectFacts) => f.reports.length > 0;
 const hasDashboards = (f: TourProjectFacts) => f.dashboards.length > 0;
@@ -116,7 +124,7 @@ const reasonNoPageAccess = (): TourReason => ({
   }),
 });
 // Modules come from the attached package's manifest, so a project with a
-// package but no modules is an unusual (generation-side) state — the common
+// package but no modules is an unusual (generation-side) state: the common
 // case, no package at all, is reasonNeedAttachedPackage and is always checked
 // first.
 const reasonNeedModule = (): TourReason => ({
@@ -402,8 +410,7 @@ export type InstanceTab =
   | "data"
   | "results_packages"
   | "assets"
-  | "users"
-  | "settings";
+  | "users";
 
 export type InstanceTourCatalogueEntry = {
   /** Must match the TourDefinition id exactly. */
@@ -534,27 +541,11 @@ export function getInstanceTourCatalogue(): InstanceTourCatalogueEntry[] {
         admin() || perms().can_configure_users || perms().can_view_users,
       unavailableReason: reasonNoPageAccess,
     },
-    {
-      id: "instance-settings-intro",
-      tab: "settings",
-      label: t3({
-        en: "Instance settings",
-        fr: "Paramètres de l'instance",
-        pt: "Definições da instância",
-      }),
-      description: t3({
-        en: "Instance-wide configuration every project inherits.",
-        fr: "La configuration de l'instance dont héritent tous les projets.",
-        pt: "A configuração da instância que todos os projetos herdam.",
-      }),
-      available: () => admin() || perms().can_configure_settings,
-      unavailableReason: reasonNoPageAccess,
-    },
   ];
 }
 
 // Built per call (not a module-scope const) so the t3 literals resolve in the
-// user's current language — the app language is set at runtime, after import.
+// user's current language: the app language is set at runtime, after import.
 export function getTourCatalogue(): TourCatalogueEntry[] {
   return [
     // ── Decks ────────────────────────────────────────────────────────────
@@ -927,7 +918,7 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "Travailler avec des figures intégrées. Ouvre votre premier rapport.",
         pt: "Trabalhar com figuras incorporadas. Abre o seu primeiro relatório.",
       }),
-      // Embedded figures render from the attached run — without a package the
+      // Embedded figures render from the attached run: without a package the
       // report opens but every figure fails to load.
       available: (f) =>
         perms(f).can_view_reports &&
@@ -1224,7 +1215,7 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "D'où viennent les chiffres de ce projet et ce que contient le paquet.",
         pt: "De onde vêm os números deste projeto e o que contém o pacote.",
       }),
-      available: (f) => perms(f).can_view_data,
+      available: (f) => canOpenTab(f),
       unavailableReason: reasonNoPageAccess,
       navigate: goToResultsPackage,
     },
@@ -1241,9 +1232,9 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "Le paquet utilisé, et les modules, scripts, journaux et fichiers qu'il contient.",
         pt: "O pacote em utilização, e os módulos, scripts, registos e ficheiros que contém.",
       }),
-      available: (f) => perms(f).can_view_data && hasAttachedPackage(f),
+      available: (f) => canViewPackageContents() && hasAttachedPackage(f),
       unavailableReason: (f) =>
-        !perms(f).can_view_data
+        !canViewPackageContents()
           ? reasonNoPageAccess()
           : reasonNeedAttachedPackage(),
       navigate: goToResultsPackage,
@@ -1261,20 +1252,9 @@ export function getTourCatalogue(): TourCatalogueEntry[] {
         fr: "Rattacher le projet à un autre paquet, et la vérification de compatibilité préalable.",
         pt: "Apontar o projeto para outro pacote, e a verificação de compatibilidade prévia.",
       }),
-      available: (f) =>
-        perms(f).can_view_data &&
-        (instanceState.currentUserIsGlobalAdmin ||
-          perms(f).can_configure_visualizations) &&
-        !f.isLocked,
+      available: (f) => canAttach(f) && !f.isLocked,
       unavailableReason: (f) =>
-        !perms(f).can_view_data
-          ? reasonNoPageAccess()
-          : !(
-                instanceState.currentUserIsGlobalAdmin ||
-                perms(f).can_configure_visualizations
-              )
-            ? reasonNeedAttachPermission()
-            : reasonLocked(),
+        !canAttach(f) ? reasonNeedAttachPermission() : reasonLocked(),
       navigate: goToResultsPackage,
     },
     // ── Settings ─────────────────────────────────────────────────────────

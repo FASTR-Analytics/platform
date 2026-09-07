@@ -1,6 +1,6 @@
 // Which dataset family a module belongs to, derived from its stored definition
 // JSON. Pure string parsing, so it lives here rather than beside the DB helpers
-// that read the definition row — the query builders, the metric enricher and
+// that read the definition row: the query builders, the metric enricher and
 // the route layer all need it, from different sides of the db/ boundary.
 
 import type { DatasetType } from "./types/datasets.ts";

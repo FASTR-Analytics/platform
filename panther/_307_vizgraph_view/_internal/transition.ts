@@ -11,12 +11,19 @@ import type { Geometry } from "../deps.ts";
 // newcomers fade in at their destination during the rest. Matched edges are
 // tweened pairwise by the engine.
 const MOVE_PORTION = 0.7;
+const GROUP_FADE_PORTION = 0.25;
 
 // Opacity keys are namespaced ("n:" / "e:") — node and edge id spaces are
 // independent, so a shared raw-id record could cross-talk.
 export type TransitionFrame = {
   geometry: Geometry;
   opacities: Record<string, number> | undefined;
+  // Group rings + headers fade as ONE layer: the hug outline is not in the
+  // tween contract, so the departing geometry's rings fade out over the first
+  // part of the move and the settled geometry's rings fade in with the
+  // newcomers (a ring re-derivation per frame is not cheap; snapping looks
+  // broken).
+  groupOpacity: number;
 };
 
 export function nodeOpacityKey(id: string): string {
@@ -33,10 +40,10 @@ export function buildTransitionFrame(
   t: number,
 ): TransitionFrame {
   if (t <= 0) {
-    return { geometry: from, opacities: undefined };
+    return { geometry: from, opacities: undefined, groupOpacity: 1 };
   }
   if (t >= 1) {
-    return { geometry: to, opacities: undefined };
+    return { geometry: to, opacities: undefined, groupOpacity: 1 };
   }
   const moveT = easeInOut(Math.min(1, t / MOVE_PORTION));
   const fadeOut = Math.min(1, t / MOVE_PORTION);
@@ -95,12 +102,20 @@ export function buildTransitionFrame(
       },
       nodes,
       edges,
-      lanes: to.lanes,
-      groups: to.groups,
-      hitAreas: [],
+      lanes: t <= MOVE_PORTION ? from.lanes : to.lanes,
+      groups: t <= MOVE_PORTION ? from.groups : to.groups,
+      // The settled target's hit areas and order record: mid-tween positions
+      // never matched either geometry, so the target is the only coherent
+      // answer — and carrying `to.order` keeps a mid-tween relayout's prior
+      // adoptable (relayout idempotence).
+      hitAreas: to.hitAreas,
       warnings: to.warnings,
+      order: to.order,
     },
     opacities,
+    groupOpacity: t <= MOVE_PORTION
+      ? Math.max(0, 1 - t / (MOVE_PORTION * GROUP_FADE_PORTION))
+      : fadeIn,
   };
 }
 

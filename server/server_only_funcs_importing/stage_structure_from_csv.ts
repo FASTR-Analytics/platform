@@ -13,10 +13,7 @@ import {
 } from "../server_only_funcs_csvs/get_csv_components_streaming_fast.ts";
 import { parseXlsForm } from "../server_only_funcs_csvs/parse_xlsform.ts";
 import { escapeSqlString } from "../db/utils.ts";
-import {
-  getFacilityColumnsConfig,
-  getMaxAdminAreaConfig,
-} from "../db/instance/config.ts";
+import { getStructureSchema } from "../db/instance/config.ts";
 
 type ColumnLabelResolver = {
   column: string;
@@ -64,15 +61,11 @@ export async function stageStructureFromCsv(
 
     if (onProgress) await onProgress(0.1, "Loading configuration...");
 
-    // Get maxAdminArea from config
-    const resMaxAdminArea = await getMaxAdminAreaConfig(mainDb);
-    throwIfErrWithData(resMaxAdminArea);
-    const maxAdminArea = resMaxAdminArea.data.maxAdminArea;
-
-    // Get facility columns config to know which optional columns are enabled
-    const resFacilityConfig = await getFacilityColumnsConfig(mainDb);
-    throwIfErrWithData(resFacilityConfig);
-    const facilityConfig = resFacilityConfig.data;
+    // The family's structure schema: admin depth + enabled optional columns
+    const resStructureSchema = await getStructureSchema(mainDb, family);
+    throwIfErrWithData(resStructureSchema);
+    const maxAdminArea = resStructureSchema.data.adminDepth;
+    const facilityConfig = resStructureSchema.data;
 
     if (onProgress) await onProgress(0.15, "Analyzing CSV structure...");
 

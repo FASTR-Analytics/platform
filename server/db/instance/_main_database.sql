@@ -51,8 +51,12 @@ CREATE TABLE runs (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   created_by text,
   summary text,
-  progress text
+  progress text,
+  pinned boolean NOT NULL DEFAULT FALSE
 );
+
+-- At most one pinned package per instance (SYSTEM_08 "The pinned package + followers").
+CREATE UNIQUE INDEX runs_one_pinned ON runs (pinned) WHERE pinned;
 
 CREATE TABLE projects (
   id text PRIMARY KEY NOT NULL,
@@ -63,6 +67,8 @@ CREATE TABLE projects (
   status text NOT NULL DEFAULT 'ready',
   deletion_scheduled_at TIMESTAMPTZ,
   run_id text,
+  admin_area_2 text,
+  follow_pinned boolean NOT NULL DEFAULT FALSE,
   FOREIGN KEY (run_id) REFERENCES runs(id)
 );
 
@@ -164,43 +170,88 @@ CREATE INDEX idx_project_user_roles_project_id ON project_user_roles(project_id)
 -- ADMINISTRATIVE STRUCTURE
 -- ============================================================================
 
-CREATE TABLE admin_areas_1 (
+-- Per-family admin-area trees: each facility registry (HMIS, HFA) has its own
+-- four-level tree. Storage is always 4 levels — staging pads levels above the
+-- family's configured depth with the leaf value — and every read gates on the
+-- family's depth, which hides exactly the padding. Invariant: each tree level
+-- mirrors the distinct level-N paths in that family's facilities table
+-- (maintained by cleanupUnusedAdminAreas after every integrate/delete).
+
+CREATE TABLE admin_areas_hmis_1 (
   admin_area_1 text PRIMARY KEY NOT NULL
 );
 
-CREATE TABLE admin_areas_2 (
+CREATE TABLE admin_areas_hmis_2 (
   admin_area_2 text NOT NULL,
   admin_area_1 text NOT NULL,
   PRIMARY KEY (admin_area_2, admin_area_1),
-  FOREIGN KEY (admin_area_1) REFERENCES admin_areas_1 (admin_area_1) ON DELETE CASCADE
+  FOREIGN KEY (admin_area_1) REFERENCES admin_areas_hmis_1 (admin_area_1) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_admin_areas_2_admin_area_1 ON admin_areas_2(admin_area_1);
-CREATE INDEX idx_admin_areas_2_admin_area_2 ON admin_areas_2(admin_area_2);
+CREATE INDEX idx_admin_areas_hmis_2_admin_area_1 ON admin_areas_hmis_2(admin_area_1);
+CREATE INDEX idx_admin_areas_hmis_2_admin_area_2 ON admin_areas_hmis_2(admin_area_2);
 
-CREATE TABLE admin_areas_3 (
+CREATE TABLE admin_areas_hmis_3 (
   admin_area_3 text NOT NULL,
   admin_area_2 text NOT NULL,
   admin_area_1 text NOT NULL,
   PRIMARY KEY (admin_area_3, admin_area_2, admin_area_1),
-  FOREIGN KEY (admin_area_2, admin_area_1) REFERENCES admin_areas_2 (admin_area_2, admin_area_1) ON DELETE CASCADE
+  FOREIGN KEY (admin_area_2, admin_area_1) REFERENCES admin_areas_hmis_2 (admin_area_2, admin_area_1) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_admin_areas_3_admin_area_2_admin_area_1 ON admin_areas_3(admin_area_2, admin_area_1);
-CREATE INDEX idx_admin_areas_3_admin_area_3 ON admin_areas_3(admin_area_3);
-CREATE INDEX idx_admin_areas_3_admin_area_2 ON admin_areas_3(admin_area_2);
+CREATE INDEX idx_admin_areas_hmis_3_admin_area_2_admin_area_1 ON admin_areas_hmis_3(admin_area_2, admin_area_1);
+CREATE INDEX idx_admin_areas_hmis_3_admin_area_3 ON admin_areas_hmis_3(admin_area_3);
+CREATE INDEX idx_admin_areas_hmis_3_admin_area_2 ON admin_areas_hmis_3(admin_area_2);
 
-CREATE TABLE admin_areas_4 (
+CREATE TABLE admin_areas_hmis_4 (
   admin_area_4 text NOT NULL,
   admin_area_3 text NOT NULL,
   admin_area_2 text NOT NULL,
   admin_area_1 text NOT NULL,
   PRIMARY KEY (admin_area_4, admin_area_3, admin_area_2, admin_area_1),
-  FOREIGN KEY (admin_area_3, admin_area_2, admin_area_1) REFERENCES admin_areas_3 (admin_area_3, admin_area_2, admin_area_1) ON DELETE CASCADE
+  FOREIGN KEY (admin_area_3, admin_area_2, admin_area_1) REFERENCES admin_areas_hmis_3 (admin_area_3, admin_area_2, admin_area_1) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_admin_areas_4_admin_area_3_admin_area_2_admin_area_1 ON admin_areas_4(admin_area_3, admin_area_2, admin_area_1);
-CREATE INDEX idx_admin_areas_4_admin_area_4 ON admin_areas_4(admin_area_4);
+CREATE INDEX idx_admin_areas_hmis_4_admin_area_3_admin_area_2_admin_area_1 ON admin_areas_hmis_4(admin_area_3, admin_area_2, admin_area_1);
+CREATE INDEX idx_admin_areas_hmis_4_admin_area_4 ON admin_areas_hmis_4(admin_area_4);
+
+CREATE TABLE admin_areas_hfa_1 (
+  admin_area_1 text PRIMARY KEY NOT NULL
+);
+
+CREATE TABLE admin_areas_hfa_2 (
+  admin_area_2 text NOT NULL,
+  admin_area_1 text NOT NULL,
+  PRIMARY KEY (admin_area_2, admin_area_1),
+  FOREIGN KEY (admin_area_1) REFERENCES admin_areas_hfa_1 (admin_area_1) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_admin_areas_hfa_2_admin_area_1 ON admin_areas_hfa_2(admin_area_1);
+CREATE INDEX idx_admin_areas_hfa_2_admin_area_2 ON admin_areas_hfa_2(admin_area_2);
+
+CREATE TABLE admin_areas_hfa_3 (
+  admin_area_3 text NOT NULL,
+  admin_area_2 text NOT NULL,
+  admin_area_1 text NOT NULL,
+  PRIMARY KEY (admin_area_3, admin_area_2, admin_area_1),
+  FOREIGN KEY (admin_area_2, admin_area_1) REFERENCES admin_areas_hfa_2 (admin_area_2, admin_area_1) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_admin_areas_hfa_3_admin_area_2_admin_area_1 ON admin_areas_hfa_3(admin_area_2, admin_area_1);
+CREATE INDEX idx_admin_areas_hfa_3_admin_area_3 ON admin_areas_hfa_3(admin_area_3);
+CREATE INDEX idx_admin_areas_hfa_3_admin_area_2 ON admin_areas_hfa_3(admin_area_2);
+
+CREATE TABLE admin_areas_hfa_4 (
+  admin_area_4 text NOT NULL,
+  admin_area_3 text NOT NULL,
+  admin_area_2 text NOT NULL,
+  admin_area_1 text NOT NULL,
+  PRIMARY KEY (admin_area_4, admin_area_3, admin_area_2, admin_area_1),
+  FOREIGN KEY (admin_area_3, admin_area_2, admin_area_1) REFERENCES admin_areas_hfa_3 (admin_area_3, admin_area_2, admin_area_1) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_admin_areas_hfa_4_admin_area_3_admin_area_2_admin_area_1 ON admin_areas_hfa_4(admin_area_3, admin_area_2, admin_area_1);
+CREATE INDEX idx_admin_areas_hfa_4_admin_area_4 ON admin_areas_hfa_4(admin_area_4);
 
 CREATE TABLE facilities_hmis (
   facility_id text PRIMARY KEY NOT NULL,
@@ -217,7 +268,7 @@ CREATE TABLE facilities_hmis (
   facility_custom_3 text,
   facility_custom_4 text,
   facility_custom_5 text,
-  FOREIGN KEY (admin_area_4, admin_area_3, admin_area_2, admin_area_1) REFERENCES admin_areas_4 (admin_area_4, admin_area_3, admin_area_2, admin_area_1) ON DELETE CASCADE
+  FOREIGN KEY (admin_area_4, admin_area_3, admin_area_2, admin_area_1) REFERENCES admin_areas_hmis_4 (admin_area_4, admin_area_3, admin_area_2, admin_area_1) ON DELETE CASCADE
 );
 
 CREATE INDEX idx_facilities_hmis_admin_areas ON facilities_hmis(admin_area_4, admin_area_3, admin_area_2, admin_area_1);
@@ -243,7 +294,7 @@ CREATE TABLE facilities_hfa (
   facility_custom_3 text,
   facility_custom_4 text,
   facility_custom_5 text,
-  FOREIGN KEY (admin_area_4, admin_area_3, admin_area_2, admin_area_1) REFERENCES admin_areas_4 (admin_area_4, admin_area_3, admin_area_2, admin_area_1) ON DELETE CASCADE
+  FOREIGN KEY (admin_area_4, admin_area_3, admin_area_2, admin_area_1) REFERENCES admin_areas_hfa_4 (admin_area_4, admin_area_3, admin_area_2, admin_area_1) ON DELETE CASCADE
 );
 
 CREATE INDEX idx_facilities_hfa_admin_areas ON facilities_hfa(admin_area_4, admin_area_3, admin_area_2, admin_area_1);
@@ -258,11 +309,38 @@ CREATE INDEX idx_facilities_hfa_facility_ownership ON facilities_hfa(facility_ow
 -- INDICATORS
 -- ============================================================================
 
+-- A common indicator carries what it IS and how it is presented. `expression`
+-- holds a derived indicator's formula (which may name a population type as
+-- `[population:<type>]`; the app validates the reference, there is no FK)
+-- and is NULL for a base one. `thresholds` is the indicator's own
+-- conditional-formatting rule as JSON text (lib thresholdsRuleSchema:
+-- cutoffs in stored units, buckets with colour + label, direction), NULL
+-- when it has none.
 CREATE TABLE indicators (
   indicator_common_id text PRIMARY KEY NOT NULL,
   indicator_common_label text NOT NULL,
   is_default boolean NOT NULL DEFAULT FALSE,
-  updated_at timestamptz DEFAULT CURRENT_TIMESTAMP
+
+  definition_type text NOT NULL DEFAULT 'base',
+  expression text,
+
+  format_as text NOT NULL DEFAULT 'number',
+  thresholds text,  -- JSON: ThresholdsRule (nullable)
+  sort_order integer NOT NULL DEFAULT 0,
+
+  updated_at timestamptz DEFAULT CURRENT_TIMESTAMP,
+
+  CONSTRAINT indicators_definition_type_check
+    CHECK (definition_type IN ('base', 'derived')),
+
+  CONSTRAINT indicators_definition_fields_check CHECK (
+    (definition_type = 'base' AND expression IS NULL)
+    OR
+    (definition_type = 'derived' AND expression IS NOT NULL)
+  ),
+
+  CONSTRAINT indicators_format_as_check
+    CHECK (format_as IN ('percent', 'number', 'rate_per_10k'))
 );
 
 CREATE TABLE indicators_raw (
@@ -285,6 +363,26 @@ CREATE INDEX idx_indicator_mappings_raw_id ON indicator_mappings(indicator_raw_i
 CREATE INDEX idx_indicator_mappings_updated_at ON indicator_mappings(updated_at DESC);
 CREATE INDEX idx_indicator_mappings_raw_common ON indicator_mappings(indicator_raw_id, indicator_common_id);
 
+-- The population store (PLAN_1b ruling 1): annual figures per admin area ×
+-- year × type, at the level the row was uploaded for. Names match the HMIS
+-- structure tables (validated at upload, never FK'd — a structure re-import
+-- must not silently delete population; a stale row is caught by the coverage
+-- check at generation). Levels coarser than `admin_area_level` carry the
+-- full path; finer columns carry ''.
+CREATE TABLE population (
+  population_type text NOT NULL,
+  admin_area_level integer NOT NULL CHECK (admin_area_level IN (2, 3, 4)),
+  admin_area_1 text NOT NULL,
+  admin_area_2 text NOT NULL,
+  admin_area_3 text NOT NULL DEFAULT '',
+  admin_area_4 text NOT NULL DEFAULT '',
+  year integer NOT NULL,
+  count double precision NOT NULL CHECK (count >= 0),
+  PRIMARY KEY (population_type, admin_area_level, admin_area_1, admin_area_2, admin_area_3, admin_area_4, year)
+);
+
+CREATE INDEX idx_population_type_level ON population(population_type, admin_area_level);
+
 -- ============================================================================
 -- FACILITY AND AA UPLOAD AND IMPORT TRACKING
 -- ============================================================================
@@ -302,28 +400,6 @@ CREATE TABLE structure_upload_attempts (
   recodes text,  -- JSON: review-step value recodes (column → facility_id → new value)
   CONSTRAINT structure_upload_attempts_pkey PRIMARY KEY (dataset_family),
   CONSTRAINT structure_upload_attempts_family_check CHECK (dataset_family IN ('hmis', 'hfa'))
-);
-
--- ============================================================================
--- RESULTS-PACKAGE GENERATION (PLAN_RESULTS_RUNS item 2)
--- ============================================================================
-
--- The launch wizard's attempt record: one configuring attempt per admin user
--- (structure_upload_attempts pattern; the wizard is entered from the
--- instance shell, so there is no source project). status_type is only ever
--- 'configuring' — execution state never touches the attempt; the row is
--- deleted at launch (and by discard).
-CREATE TABLE run_generation_attempts (
-  created_by_user_email text NOT NULL,
-  date_started text NOT NULL,
-  step integer NOT NULL,
-  status text NOT NULL,  -- JSON: RunGenerationAttemptStatus
-  status_type text NOT NULL,  -- only ever 'configuring'
-  step_1_result text,  -- JSON: RunGenerationStep1Result (data selection)
-  step_2_result text,  -- JSON: RunGenerationStep2Result (module selection)
-  CONSTRAINT run_generation_attempts_pkey PRIMARY KEY (created_by_user_email),
-  CONSTRAINT run_generation_attempts_user_fkey
-    FOREIGN KEY (created_by_user_email) REFERENCES users(email) ON DELETE CASCADE
 );
 
 -- ============================================================================
@@ -641,60 +717,17 @@ CREATE TABLE hfa_indicator_variant_code (
 );
 
 -- ============================================================================
--- CALCULATED INDICATORS
--- ============================================================================
-
-CREATE TABLE calculated_indicators (
-  calculated_indicator_id     TEXT PRIMARY KEY NOT NULL,
-  label                      TEXT NOT NULL UNIQUE,
-  group_label                TEXT NOT NULL DEFAULT '',
-  sort_order                 INTEGER NOT NULL DEFAULT 0,
-
-  num_indicator_id           TEXT NOT NULL,
-  denom_kind                 TEXT NOT NULL,
-  denom_indicator_id         TEXT,
-  denom_population_type      TEXT,
-  denom_population_multiplier REAL,
-
-  format_as                  TEXT NOT NULL DEFAULT 'percent' CHECK (format_as IN ('percent', 'number', 'rate_per_10k')),
-
-  threshold_direction        TEXT NOT NULL DEFAULT 'higher_is_better' CHECK (threshold_direction IN ('higher_is_better', 'lower_is_better')),
-  threshold_green            REAL NOT NULL,
-  threshold_yellow           REAL NOT NULL,
-
-  updated_at                 TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-  CONSTRAINT calculated_indicators_check CHECK (denom_kind IN ('none', 'indicator', 'population')),
-
-  CONSTRAINT calculated_indicators_denom_fields_check CHECK (
-    (denom_kind = 'none'
-       AND denom_indicator_id IS NULL
-       AND denom_population_type IS NULL
-       AND denom_population_multiplier IS NULL)
-    OR
-    (denom_kind = 'indicator'
-       AND denom_indicator_id IS NOT NULL
-       AND denom_population_type IS NULL
-       AND denom_population_multiplier IS NULL)
-    OR
-    (denom_kind = 'population'
-       AND denom_indicator_id IS NULL
-       AND denom_population_type IS NOT NULL
-       AND denom_population_multiplier IS NOT NULL)
-  ),
-
-  FOREIGN KEY (num_indicator_id) REFERENCES indicators(indicator_common_id) ON DELETE RESTRICT,
-  FOREIGN KEY (denom_indicator_id) REFERENCES indicators(indicator_common_id) ON DELETE RESTRICT
-);
-
--- ============================================================================
 -- GEOJSON MAPS
 -- ============================================================================
 
+-- Per-family boundary files: a map means "boundaries matching THIS registry's
+-- naming at THIS level". Up to six rows (2 families x levels 2..4).
 CREATE TABLE geojson_maps (
-  admin_area_level integer PRIMARY KEY CHECK (admin_area_level IN (2, 3, 4)),
+  facility_family text NOT NULL CHECK (facility_family IN ('hmis', 'hfa')),
+  admin_area_level integer NOT NULL CHECK (admin_area_level IN (2, 3, 4)),
   geojson text NOT NULL,
-  uploaded_at timestamptz NOT NULL DEFAULT now()
+  uploaded_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (facility_family, admin_area_level)
 );
 
 -- ============================================================================

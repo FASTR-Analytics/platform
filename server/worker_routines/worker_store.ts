@@ -1,6 +1,6 @@
 // "hmis" = the CSV wizard's staging/integration workers; "hmis_dhis2_run" =
 // the DHIS2 per-pair import run worker (separate key so deleting a CSV
-// attempt can never terminate a DHIS2 run — cross-type mutual exclusion is
+// attempt can never terminate a DHIS2 run: cross-type mutual exclusion is
 // enforced by the DB guards, not by this store).
 export type WorkerKey = "hmis" | "hfa" | "iceh" | "hmis_dhis2_run";
 

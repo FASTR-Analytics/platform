@@ -3,6 +3,7 @@ import {
   createSlide,
   deleteSlides,
   duplicateSlides,
+  getAllSlideDecks,
   getSlide,
   getSlides,
   moveSlides,
@@ -26,6 +27,7 @@ import {
 import { log } from "../../middleware/logging.ts";
 import { requireProjectPermission } from "../../project_auth.ts";
 import { notifyLastUpdated } from "../../task_management/mod.ts";
+import { notifyProjectSlideDecksUpdated } from "../../task_management/notify_project_v2.ts";
 import { defineRoute } from "../route-helpers.ts";
 
 export const routesSlides = new Hono();
@@ -93,6 +95,10 @@ defineRoute(
       [params.deck_id],
       res.data.lastUpdated,
     );
+    const decksRes = await getAllSlideDecks(c.var.ppk.projectDb);
+    if (decksRes.success) {
+      notifyProjectSlideDecksUpdated(c.var.ppk.projectId, decksRes.data);
+    }
 
     return c.json(res);
   },
@@ -109,7 +115,7 @@ defineRoute(
   async (c, { params, body }) => {
     // While a collab room is live for this slide, the room's doc is
     // authoritative: a direct DB write would be silently overwritten by the
-    // room's next checkpoint. Route the save through the room instead — the
+    // room's next checkpoint. Route the save through the room instead: the
     // change merges into the shared doc (relayed live to connected editors)
     // and the room checkpoints it immediately. The expectedLastUpdated
     // conflict check doesn't apply on this path: merging into the live doc IS
@@ -136,7 +142,7 @@ defineRoute(
     }
     if (roomRes.status === "save_failed") {
       // The room applied the change (peers already see it) but could not
-      // persist it. No direct-write fallback — the room owns persistence.
+      // persist it. No direct-write fallback: the room owns persistence.
       return c.json({
         success: false as const,
         err: "The change was applied to the live editing session but could not be saved yet. Saving will retry automatically.",
@@ -201,7 +207,7 @@ defineRoute(
     const deletedIds = res.data.deletedIds;
 
     // A live room left on a deleted slide would fail its checkpoints forever
-    // (and clobber any future row re-created with the same id) — discard.
+    // (and clobber any future row re-created with the same id): discard.
     for (const slideId of deletedIds) {
       closeSlideRoom(c.var.ppk.projectId, slideId, "This slide was deleted");
     }
@@ -237,6 +243,10 @@ defineRoute(
       [params.deck_id],
       lastUpdated,
     );
+    const decksRes = await getAllSlideDecks(c.var.ppk.projectDb);
+    if (decksRes.success) {
+      notifyProjectSlideDecksUpdated(c.var.ppk.projectId, decksRes.data);
+    }
 
     return c.json({
       success: true,
@@ -294,6 +304,10 @@ defineRoute(
       [params.deck_id],
       res.data.lastUpdated,
     );
+    const decksRes = await getAllSlideDecks(c.var.ppk.projectDb);
+    if (decksRes.success) {
+      notifyProjectSlideDecksUpdated(c.var.ppk.projectId, decksRes.data);
+    }
 
     return c.json(res);
   },
@@ -335,6 +349,10 @@ defineRoute(
       [params.deck_id],
       res.data.lastUpdated,
     );
+    const decksRes = await getAllSlideDecks(c.var.ppk.projectDb);
+    if (decksRes.success) {
+      notifyProjectSlideDecksUpdated(c.var.ppk.projectId, decksRes.data);
+    }
 
     return c.json(res);
   },

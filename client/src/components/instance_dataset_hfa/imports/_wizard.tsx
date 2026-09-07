@@ -32,7 +32,7 @@ type StepKind = "upload" | "mappings" | "duplicates" | "review";
 const STEPS: StepKind[] = ["upload", "mappings", "duplicates", "review"];
 
 // The HFA import wizard (PLAN_DHIS2_IMPORTER_CONSOLIDATION B7): a modal with
-// client-local state — the file inputs are ordinary instance assets (uploaded
+// client-local state: the file inputs are ordinary instance assets (uploaded
 // or picked), so nothing persists server-side before launch. Launch inserts a
 // run row; abandoning this wizard is a no-op by construction.
 export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
@@ -84,7 +84,7 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
   }
 
   // A new CSV means new headers, so every column choice made against the old
-  // ones is stale — clear them rather than launching with a dangling column.
+  // ones is stale: clear them rather than launching with a dangling column.
   function resetColumnChoices() {
     resetDownstream();
     setMappings({ facilityIdColumn: "", rowFilters: [] });

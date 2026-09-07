@@ -2,8 +2,16 @@
 -- compute_def_* tracks script, configRequirements, resultsObjects changes
 -- presentation_def_* tracks metrics, vizPresets, label, etc. changes
 
+-- Whole file guarded on the modules table: absent on a fresh DB since 041.
 DO $$
 BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'modules'
+  ) THEN
+    RETURN;
+  END IF;
+
   -- Rename script_updated_at -> compute_def_updated_at (if source exists and target doesn't)
   IF EXISTS (
     SELECT 1 FROM information_schema.columns
@@ -97,10 +105,10 @@ BEGIN
   ) THEN
     ALTER TABLE modules DROP COLUMN installed_git_ref;
   END IF;
-END $$;
 
--- Add new columns if they don't exist
-ALTER TABLE modules ADD COLUMN IF NOT EXISTS compute_def_updated_at text;
-ALTER TABLE modules ADD COLUMN IF NOT EXISTS compute_def_git_ref text;
-ALTER TABLE modules ADD COLUMN IF NOT EXISTS presentation_def_updated_at text;
-ALTER TABLE modules ADD COLUMN IF NOT EXISTS presentation_def_git_ref text;
+  -- Add new columns if they don't exist
+  ALTER TABLE modules ADD COLUMN IF NOT EXISTS compute_def_updated_at text;
+  ALTER TABLE modules ADD COLUMN IF NOT EXISTS compute_def_git_ref text;
+  ALTER TABLE modules ADD COLUMN IF NOT EXISTS presentation_def_updated_at text;
+  ALTER TABLE modules ADD COLUMN IF NOT EXISTS presentation_def_git_ref text;
+END $$;

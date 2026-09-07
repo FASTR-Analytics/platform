@@ -1,5 +1,5 @@
 // ============================================================================
-// DHIS2 IMPORT RUN WORKER (PLAN_DHIS2_IMPORTER Phase 3 — C1 + §4.4)
+// DHIS2 IMPORT RUN WORKER (PLAN_DHIS2_IMPORTER Phase 3: C1 + §4.4)
 //
 // One run = fetch + integrate per (raw indicator, month) pair. Each pair
 // commits in its own small transaction (scoped delete → insert → ledger row →
@@ -8,10 +8,10 @@
 // indicator per run from DHIS2 metadata and routes it:
 //   dataValueSets (bare elements + operands, ~1000× less server compute) or
 //   analytics (computed DHIS2 indicators).
-// Both routes emit the same output contract — (facility, indicator, period,
-// count) rows — so integration, the ledger, and the UI never know which
+// Both routes emit the same output contract: (facility, indicator, period,
+// count) rows, so integration, the ledger, and the UI never know which
 // route fetched. Both routes select data by the instance-calendar PERIOD ID,
-// an opaque token the DHIS2 server interprets in its own calendar — the app
+// an opaque token the DHIS2 server interprets in its own calendar, and the app
 // never converts calendars or dates anywhere in this path (lab E13: a
 // calendar-configured server does not read startDate/endDate as Gregorian,
 // so period tokens are the only fleet-safe selection).
@@ -88,7 +88,7 @@ const CONCURRENT_REQUESTS = _DHIS2_CONCURRENT_REQUESTS;
 const MAX_URL_LENGTH = 7000;
 // dataValueSets pulls: a dense Nigeria element-month is ~10-12 MB; the cap
 // exists so a pathological response can't balloon worker memory. On cap or
-// timeout the pull splits by level-2 subtree (state) — never fail a pair on
+// timeout the pull splits by level-2 subtree (state): never fail a pair on
 // size without having tried the split (§4.4).
 const DVS_MAX_RESPONSE_BYTES = 100 * 1024 * 1024;
 const DVS_TIMEOUT_MS = 300_000;
@@ -105,7 +105,7 @@ type DvsTask = {
   // One pull = one month (ruled 2026-07-14): the fetch unit matches the
   // import unit.
   periodId: number;
-  // Every selected raw indicator this pull covers for that month —
+  // Every selected raw indicator this pull covers for that month:
   // indicators sharing a base element share one pull.
   coveredPairs: Array<{
     indicatorRawId: string;
@@ -166,7 +166,7 @@ async function run(std: RunWorkerMessage) {
   let mintedVersionId: number | null = null;
   let versionPromise: Promise<number> | null = null;
 
-  // run_stats must survive EVERY exit — inputs live at run scope so the
+  // run_stats must survive EVERY exit: inputs live at run scope so the
   // catch path can persist whatever was known when the run died.
   let statsInputs:
     | { routes: Map<string, RawRoute>; unknownIds: string[] }
@@ -214,8 +214,8 @@ async function run(std: RunWorkerMessage) {
     },
   );
 
-  const updateProgress = async (force: boolean) => {
-    await writeProgress(
+  const updateProgress = (force: boolean) => {
+    writeProgress(
       {
         phase: progressPhase,
         activePairs: Array.from(activePairs.values()).slice(0, 20),
@@ -225,7 +225,7 @@ async function run(std: RunWorkerMessage) {
   };
 
   // Lazy version mint: dataset_hmis.version_id is a NOT NULL FK, so the
-  // version row must exist before the first pair's insert — but minting only
+  // version row must exist before the first pair's insert, but minting only
   // at the first *successful* pair keeps the ruled "no empty versions"
   // property (a run where every pair fails mints nothing).
   const ensureVersion = (): Promise<number> => {
@@ -355,7 +355,7 @@ async function run(std: RunWorkerMessage) {
     }
 
     // Stored credentials are read + decrypted HERE, in the worker (C3 ruling:
-    // decrypt only at fetch time — the host and the scheduler tick never see
+    // decrypt only at fetch time: the host and the scheduler tick never see
     // the plaintext password). A missing row or a changed encryption key
     // throws, and the catch below fails the run loudly.
     const credentials: Dhis2Credentials = await resolveDhis2Credentials(
@@ -365,7 +365,7 @@ async function run(std: RunWorkerMessage) {
     const baseFetchOptions: FetchOptions = { dhis2Credentials: credentials };
 
     // For stored credentials the URL was read by the launcher moments ago,
-    // but an admin can replace the stored connection in that window —
+    // but an admin can replace the stored connection in that window:
     // re-stamp the row with the URL this run will ACTUALLY fetch so run
     // history records the real source.
     if (credentialsSource.kind === "stored") {
@@ -413,7 +413,7 @@ async function run(std: RunWorkerMessage) {
     // │ PHASE 2: DISPATCHER CLASSIFICATION (per run, from DHIS2 metadata)   │
     // └─────────────────────────────────────────────────────────────────────┘
 
-    await updateProgress(true);
+    updateProgress(true);
 
     const metadataFetchOptions: FetchOptions = {
       ...baseFetchOptions,
@@ -442,7 +442,7 @@ async function run(std: RunWorkerMessage) {
         `${analyticsPairs.length} analytics pairs, ${unknownIds.length} unknown ids`,
     );
 
-    // Dispatcher rule 4: unknown ids get no fetch — every pair becomes a
+    // Dispatcher rule 4: unknown ids get no fetch, every pair becomes a
     // permanent, ledger-visible error so stale config is loud.
     for (const id of unknownIds) {
       const pairsForId = allPairs.filter((p) => p.indicatorRawId === id);
@@ -479,7 +479,7 @@ async function run(std: RunWorkerMessage) {
 
     const tasks: FetchTask[] = [];
 
-    // Group DVS pairs by base element — indicators sharing a base share pulls.
+    // Group DVS pairs by base element: indicators sharing a base share pulls.
     const byBase = new Map<
       string,
       { raws: Array<{ indicatorRawId: string; coc: string | undefined }>; periodsByRaw: Map<string, Set<number>> }
@@ -526,7 +526,7 @@ async function run(std: RunWorkerMessage) {
     // └─────────────────────────────────────────────────────────────────────┘
 
     progressPhase = "fetching";
-    await updateProgress(true);
+    updateProgress(true);
 
     const fetchPairViaAnalytics = async (
       pair: Dhis2RunPair,
@@ -599,7 +599,7 @@ async function run(std: RunWorkerMessage) {
           );
           if (orgUnitIndex < 0 || valueIndex < 0) {
             // Silently dropping rows here would integrate an empty pair and
-            // scope-delete its existing data — a failed fetch, not empty data.
+            // scope-delete its existing data: a failed fetch, not empty data.
             throw new Error(
               `DHIS2 analytics response for ${pair.indicatorRawId}, period ${period} has rows but ` +
                 `unrecognized headers (${response.headers.map((h) => h.name).join(", ")}) — treating as a failed fetch.`,
@@ -624,7 +624,7 @@ async function run(std: RunWorkerMessage) {
     const runAnalyticsPair = async (pair: Dhis2RunPair): Promise<void> => {
       const key = pairKey(pair);
       activePairs.set(key, { ...pair, route: "analytics" });
-      await updateProgress(false);
+      updateProgress(false);
       try {
         const { rows, acc, rowsFetched } = await fetchPairViaAnalytics(pair);
         await integratePair(pair, rows);
@@ -649,13 +649,13 @@ async function run(std: RunWorkerMessage) {
         await failPair(pair, message, kind);
       } finally {
         activePairs.delete(key);
-        await updateProgress(true);
+        updateProgress(true);
       }
     };
 
     // dataValueSets pull, one element × one month (§4.4), selected by the
-    // instance-calendar period token — no date conversion anywhere. On
-    // size/timeout, split by level-2 subtree — never fail a pair on size
+    // instance-calendar period token: no date conversion anywhere. On
+    // size/timeout, split by level-2 subtree: never fail a pair on size
     // without having tried the split.
     const fetchDvsValues = async (
       baseElementId: string,
@@ -682,7 +682,7 @@ async function run(std: RunWorkerMessage) {
                 maxAttempts: 3,
                 initialDelayMs: 1000,
                 maxDelayMs: 30000,
-                // Size/timeout never shrink on an identical retry — split by
+                // Size/timeout never shrink on an identical retry: split by
                 // subtree instead (handled by the catch below).
                 shouldRetry: (error) =>
                   !isSplittableDvsError(error.message) &&
@@ -740,7 +740,7 @@ async function run(std: RunWorkerMessage) {
           route: "dvs",
         });
       }
-      await updateProgress(false);
+      updateProgress(false);
 
       const acc = newFetchAccumulator();
       let values: DHIS2DataValue[];
@@ -771,12 +771,12 @@ async function run(std: RunWorkerMessage) {
           await failPair(pair, message, kind);
           activePairs.delete(pairKey(pair));
         }
-        await updateProgress(true);
+        updateProgress(true);
         return;
       }
 
       // period= selection means the response can only contain the requested
-      // period — anything else is the server misbehaving, and silently
+      // period: anything else is the server misbehaving, and silently
       // summing or silently dropping such values could integrate a wrong (or
       // wrongfully empty) pair that scope-deletes real data. Fail the pull
       // loudly instead (deterministic server property → permanent).
@@ -804,7 +804,7 @@ async function run(std: RunWorkerMessage) {
           await failPair(pair, message, "permanent");
           activePairs.delete(pairKey(pair));
         }
-        await updateProgress(true);
+        updateProgress(true);
         return;
       }
 
@@ -838,7 +838,7 @@ async function run(std: RunWorkerMessage) {
           periodId: covered.periodId,
         };
         const facilityMap = perPair.get(pairKey(covered))!;
-        // Truncate the SUM (not the addends) and drop negative totals —
+        // Truncate the SUM (not the addends) and drop negative totals:
         // matches how the analytics route parseInt-truncates the aggregate
         // and drops negatives, so the dispatcher changes where numbers come
         // from, not what they mean.
@@ -879,7 +879,7 @@ async function run(std: RunWorkerMessage) {
           activePairs.delete(pairKey(pair));
         }
       }
-      await updateProgress(true);
+      updateProgress(true);
     };
 
     const results = pooledMap(CONCURRENT_REQUESTS, tasks, async (task) => {
@@ -911,7 +911,7 @@ async function run(std: RunWorkerMessage) {
       }
     });
     for await (const _ of results) {
-      // Drain — all handling happens inside the tasks.
+      // Drain: all handling happens inside the tasks.
     }
 
     // ┌─────────────────────────────────────────────────────────────────────┐
@@ -919,13 +919,16 @@ async function run(std: RunWorkerMessage) {
     // └─────────────────────────────────────────────────────────────────────┘
 
     progressPhase = "finalizing";
-    await updateProgress(true);
+    updateProgress(true);
 
     // Edge of the "zero successful pairs ⇒ no version" ruling: the mint
     // commits before the first pair's own transaction, so that pair failing
     // (and every other pair after it) leaves an empty version row. Nothing
-    // references it — succeeded_pairs increments inside each pair's
-    // transaction — so delete it.
+    // references it: succeeded_pairs increments inside each pair's
+    // transaction, so delete it. Run row written FIRST here, but the
+    // transaction awaits nothing but its own two statements, so a concurrent
+    // progress write only waits for COMMIT (PROTOCOL_APP_WORKER_ROUTINES.md
+    // "Gotchas").
     if (mintedVersionId !== null && succeededPairsCount === 0) {
       await importDb.begin(async (sql) => {
         await sql`
@@ -1023,7 +1026,7 @@ async function run(std: RunWorkerMessage) {
         WHERE id = ${runId} AND status = 'running'
       `;
       // Reconcile the minted version row with what actually landed (or
-      // delete it if nothing did) — same as the host does on cancel/sweep.
+      // delete it if nothing did), same as the host does on cancel/sweep.
       await finalizeInterruptedDatasetHmisRunVersion(mainDb, runId);
     } catch {
       // Ignore status update errors

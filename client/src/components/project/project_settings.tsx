@@ -7,6 +7,8 @@ import {
   H_USERS,
 } from "lib";
 import {
+  AlertComponentProps,
+  AlertFormHolder,
   Button,
   FrameTop,
   HeadingBar,
@@ -16,6 +18,7 @@ import {
   openComponent,
   createDeleteAction,
   createButtonAction,
+  createFormAction,
   StateHolderWrapper,
   createQuery,
 } from "panther";
@@ -32,6 +35,12 @@ import { CreateBackupForm } from "./create_backup_form";
 import { CreateRestoreFromFileForm } from "./restore_from_file_form";
 import { DisplayProjectUserRole } from "../forms_editors/display_project_user_role.tsx";
 import { projectState } from "~/state/project/t1_store";
+import {
+  ProjectScopePicker,
+  scopeSelectionFromStored,
+  storedValueFromScopeSelection,
+  type ProjectScopeSelection,
+} from "~/components/_shared/project_scope_picker";
 
 // Backup types
 interface BackupFileInfo {
@@ -136,6 +145,10 @@ export function ProjectSettings(p: Props) {
     });
   }
 
+  async function attemptUpdateProjectScope() {
+    await openComponent({ element: ProjectScopeForm, props: undefined });
+  }
+
   async function attemptSelectUserRole(users: ProjectUser[]) {
     await openComponent({
       element: SelectProjectUserRole,
@@ -216,9 +229,8 @@ export function ProjectSettings(p: Props) {
         <div
           class="h-full w-full"
           data-cursor-zone="header"
-          data-tour="settings-header"
         >
-          <HeadingBar heading={t3(TC.settings)}></HeadingBar>
+          <HeadingBar data-tour="settings-header" heading={t3(TC.settings)}></HeadingBar>
         </div>
       }
     >
@@ -227,74 +239,93 @@ export function ProjectSettings(p: Props) {
         data-page-cursor-surface
         data-tour="settings-body"
       >
-        <div data-tour="settings-name">
-          <Card
-            header={t3({
-              en: "Project name",
-              fr: "Nom du projet",
-              pt: "Nome do projeto",
-            })}
-            headerRight={
-              <Show when={!projectState.isLocked}>
-                <Button onClick={attemptUpdateProjectLabel} iconName="settings">
-                  {t3(TC.edit)}
-                </Button>
-              </Show>
-            }
-          >
-            <div class="ui-spy-sm">
-              <div class="">{projectState.label}</div>
+        <Card
+          data-tour="settings-name"
+          header={t3({
+            en: "Project name",
+            fr: "Nom du projet",
+            pt: "Nome do projeto",
+          })}
+          headerRight={
+            <Show when={!projectState.isLocked}>
+              <Button onClick={attemptUpdateProjectLabel} iconName="settings">
+                {t3(TC.edit)}
+              </Button>
+            </Show>
+          }
+        >
+          <div class="ui-spy-sm">
+            <div class="">{projectState.label}</div>
+          </div>
+        </Card>
+        <Card
+          data-tour="settings-users"
+          header={t3({
+            en: "Project users",
+            fr: "Utilisateurs du projet",
+            pt: "Utilizadores do projeto",
+          })}
+        >
+          <div class="ui-spy-sm">
+            <ProjectUserTable
+              users={projectState.projectUsers}
+              onUserClick={attemptSelectUserRole}
+              onBulkEditPermissions={attemptBulkEditPermissions}
+              onDisplayUserRole={attemptDisplayUserRole}
+            />
+          </div>
+        </Card>
+        <Card
+          data-tour="settings-ai"
+          header={t3({
+            en: "Project context for AI interpretation",
+            fr: "Contexte du projet pour l'interprétation de l'IA",
+            pt: "Contexto do projeto para a interpretação da IA",
+          })}
+          headerRight={
+            <Show when={!projectState.isLocked}>
+              <Button
+                onClick={attemptUpdateProjectAiContext}
+                iconName="settings"
+              >
+                {t3(TC.edit)}
+              </Button>
+            </Show>
+          }
+        >
+          <div class="ui-spy-sm">
+            <div class="">
+              {projectState.aiContext ||
+                t3({
+                  en: "No context set",
+                  fr: "Aucun contexte défini",
+                  pt: "Nenhum contexto definido",
+                })}
             </div>
-          </Card>
-        </div>
-        <div data-tour="settings-users">
-          <Card
-            header={t3({
-              en: "Project users",
-              fr: "Utilisateurs du projet",
-              pt: "Utilizadores do projeto",
-            })}
-          >
-            <div class="ui-spy-sm">
-              <ProjectUserTable
-                users={projectState.projectUsers}
-                onUserClick={attemptSelectUserRole}
-                onBulkEditPermissions={attemptBulkEditPermissions}
-                onDisplayUserRole={attemptDisplayUserRole}
-              />
+          </div>
+        </Card>
+
+        <Card
+          header={t3({
+            en: "Project scope",
+            fr: "Portée du projet",
+            pt: "Âmbito do projeto",
+          })}
+          headerRight={
+            <Show when={!projectState.isLocked}>
+              <Button onClick={attemptUpdateProjectScope} iconName="settings">
+                {t3(TC.edit)}
+              </Button>
+            </Show>
+          }
+        >
+          <div class="ui-spy-sm">
+            <div class="">
+              {projectState.adminArea2 ??
+                t3({ en: "National", fr: "National", pt: "Nacional" })}
             </div>
-          </Card>
-        </div>
-        <div data-tour="settings-ai">
-          <Card
-            header={t3({
-              en: "Project context for AI interpretation",
-              fr: "Contexte du projet pour l'interprétation de l'IA",
-              pt: "Contexto do projeto para a interpretação da IA",
-            })}
-            headerRight={
-              <Show when={!projectState.isLocked}>
-                <Button
-                  onClick={attemptUpdateProjectAiContext}
-                  iconName="settings"
-                >
-                  {t3(TC.edit)}
-                </Button>
-              </Show>
-            }
-          >
-            <div class="ui-spy-sm">
-              <div class="">
-                {projectState.aiContext ||
-                  t3({
-                    en: "No context set",
-                    fr: "Aucun contexte défini",
-                    pt: "Nenhum contexto definido",
-                  })}
-              </div>
-            </div>
-          </Card>
-        </div>
+          </div>
+        </Card>
 
         <Show when={H_USERS.includes(projectState.currentUserEmail)}>
           <CentralReportingSection />
@@ -372,19 +403,18 @@ export function ProjectSettings(p: Props) {
           </Match>
         </Switch>
 
-        <div data-tour="settings-backups">
-          <Card
-            header={t3({
-              en: "Backups",
-              fr: "Sauvegardes",
-              pt: "Cópias de segurança",
-            })}
-          >
-            <div class="ui-spy-sm">
-              <ProjectBackups projectId={projectState.id} />
-            </div>
-          </Card>
-        </div>
+        <Card
+          data-tour="settings-backups"
+          header={t3({
+            en: "Backups",
+            fr: "Sauvegardes",
+            pt: "Cópias de segurança",
+          })}
+        >
+          <div class="ui-spy-sm">
+            <ProjectBackups projectId={projectState.id} />
+          </div>
+        </Card>
 
         <div class="ui-gap flex" data-tour="settings-actions">
           <Show when={!projectState.isLocked}>
@@ -411,6 +441,54 @@ export function ProjectSettings(p: Props) {
         </div>
       </div>
     </FrameTop>
+  );
+}
+
+// Scope edits are global-admin-only server-side (the updateProject class:
+// project identity, like label edits).
+function ProjectScopeForm(p: AlertComponentProps<void, boolean>) {
+  const [tempScope, setTempScope] = createSignal<ProjectScopeSelection>(
+    scopeSelectionFromStored(projectState.adminArea2),
+  );
+
+  const save = createFormAction(
+    async (e: MouseEvent) => {
+      e.preventDefault();
+      const adminArea2 = storedValueFromScopeSelection(tempScope());
+      if (adminArea2 === undefined) {
+        return {
+          success: false,
+          err: t3({
+            en: "You must select an area for the project scope",
+            fr: "Vous devez sélectionner une zone pour la portée du projet",
+            pt: "Tem de selecionar uma zona para o âmbito do projeto",
+          }),
+        };
+      }
+      return await serverActions.updateProjectAdminArea2({
+        project_id: projectState.id,
+        projectId: projectState.id,
+        adminArea2,
+      });
+    },
+    async () => {},
+    () => p.close(true),
+  );
+
+  return (
+    <AlertFormHolder
+      formId="project-scope"
+      header={t3({
+        en: "Edit project scope",
+        fr: "Modifier la portée du projet",
+        pt: "Editar o âmbito do projeto",
+      })}
+      savingState={save.state()}
+      saveFunc={save.click}
+      cancelFunc={() => p.close(undefined)}
+    >
+      <ProjectScopePicker selection={tempScope()} onChange={setTempScope} />
+    </AlertFormHolder>
   );
 }
 

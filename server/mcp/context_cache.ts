@@ -1,25 +1,35 @@
 import { AIToolFailure } from "@timroberton/panther";
 import type { AIToolWithMetadata } from "@timroberton/panther";
-import type { InstanceState, ProjectState, ServerActionTransport } from "lib";
+import type {
+  InstanceState,
+  PackageGrounding,
+  PeriodBounds,
+  RunListingItem,
+  RunManifest,
+  ServerActionTransport,
+} from "lib";
 import {
   createAllServerActions,
   createDevGlobalUser,
-  createGetSlideTool,
   getSharedToolsForMetrics,
-  getSharedToolsForModules,
-  getSharedToolsForReports,
-  getSharedToolsForSlideDecks,
-  getSharedToolsForVisualizations,
 } from "lib";
 import type { GlobalUser } from "lib";
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
+import { getHfaTimePointsForAI } from "../db/instance/dataset_hfa.ts";
 import {
-  buildGlobalUserFromDb,
-  resolveProjectUserAccess,
-} from "../project_auth.ts";
-import { buildProjectState } from "../task_management/build_project_state.ts";
+  getPinnedRunId,
+  getRunListingItem,
+} from "../db/instance/run_generation.ts";
+import { buildGlobalUserFromDb } from "../project_auth.ts";
 import { buildInstanceState } from "../task_management/build_instance_state.ts";
 import { headlessAppFetch } from "../headless_app.ts";
+import { getRunManifestCached } from "../runs/manifest_cache.ts";
+import {
+  getHfaTaxonomyFromManifestInputs,
+  getIcehIndicatorsFromManifestInputs,
+  getMetricsWithStatusFromManifest,
+  getProjectDatasetsFromManifest,
+} from "../run_query/mod.ts";
 import { createMcpAIToolEnv } from "./env.ts";
 import {
   _BYPASS_AUTH,
@@ -29,44 +39,49 @@ import {
   _INSTANCE_NAME,
 } from "../exposed_env_vars.ts";
 
-// The /mcp endpoint is stateless above the wire (PLAN_112 D1): every project
-// tool call carries projectId, authorization runs per call, and this cache is
-// PURELY performance — correctness never depends on it. Keyed by (token,
-// projectId): contexts capture serverActions bound to the building request's
-// credential, so token-keying makes revocation invalidation exact (a revoked
-// token's context ages out in <=30s and every dispatch through it 401s
-// immediately anyway). OAuth tokens rotate (~hourly), so their entries die on
-// rotation rather than by TTL — harmless, since the entry is a pure cache.
+// The /mcp endpoint reads the instance's PINNED results package (S8 "The
+// pinned package + followers"): every tool call resolves the pin, and this
+// cache is PURELY performance: correctness never depends on it. The pin is
+// read from the DB on EVERY call (never from the 30 s InstanceState copy), so
+// a pin-move is visible on the next call; the context behind a given
+// (token, runId) is what the cache holds. Keyed by token because a context
+// captures server actions bound to the building request's credential, a
+// revoked token's context ages out in <=30 s and every dispatch through it
+// 401s immediately anyway. OAuth tokens rotate (~hourly), so their entries
+// die on rotation rather than by TTL: harmless, since the entry is a pure
+// cache.
 
 const CONTEXT_TTL_MS = 30_000;
 const CONTEXT_LRU_CAP = 50;
 
+export const NO_PIN_MESSAGE =
+  "No results package is pinned on this instance. An admin with can_configure_data pins one under Results packages.";
+
 export type McpPrincipal = { token: string; email: string };
 
-export type McpProjectContext = {
-  projectId: string;
-  projectLabel: string;
-  isLocked: boolean;
-  projectState: ProjectState;
-  instanceState: InstanceState;
-  // The 13 project tools, fully bound to this (principal, project) — the
-  // scoped wrappers resolve their inner tool from this set by name, and the
-  // orientation catalog renders from it.
+export type McpPackageContext = {
+  runId: string;
+  run: RunListingItem;
+  grounding: PackageGrounding;
+  // The shared metric tools, fully bound to this (principal, package): the
+  // bound outer tools resolve their inner tool from this set by name, and
+  // the overview's tool catalog renders from it.
   // deno-lint-ignore no-explicit-any
   sessionTools: AIToolWithMetadata<any>[];
 };
 
-// One key builder for cache writes AND invalidation — the two sites drifted
-// once (a literal NUL in one template, a space in the other) and the
-// invalidation silently missed. The separator cannot occur in a token or a
-// project id.
-function contextKey(principal: McpPrincipal, projectId: string): string {
-  return `${principal.token}\u0000${projectId}`;
+// One key builder for every cache site: two hand-built keys drifted once
+// and an invalidation silently missed. The separator (NUL) cannot occur in
+// a token or a run id.
+const KEY_SEPARATOR = String.fromCharCode(0);
+
+function contextKey(principal: McpPrincipal, runId: string): string {
+  return `${principal.token}${KEY_SEPARATOR}${runId}`;
 }
 
 type CacheEntry<T> = { value: T; builtAt: number };
 
-const projectContexts = new Map<string, CacheEntry<McpProjectContext>>();
+const packageContexts = new Map<string, CacheEntry<McpPackageContext>>();
 const instanceStates = new Map<string, CacheEntry<InstanceState>>();
 
 function cacheGet<T>(map: Map<string, CacheEntry<T>>, key: string): T | null {
@@ -92,12 +107,9 @@ function cacheSet<T>(map: Map<string, CacheEntry<T>>, key: string, value: T) {
 }
 
 // The per-principal transport (PLAN_112 D4): every server action dispatches
-// in-process through headlessApp's full middleware chain — credential verify
+// in-process through headlessApp's full middleware chain: credential verify
 // (a PAT also gets its last-used stamp), deny-by-default allowlist, zod
-// validation, project permissions incl. locked-project write denial, logging.
-// Revocation reaches staged commits: a commit closure holds actions bound to
-// this token, so if the credential is revoked during a confirm window the
-// commit's own dispatch 401s.
+// validation, instance permissions, logging.
 export function buildPrincipalTransport(token: string): ServerActionTransport {
   return {
     baseUrl: "",
@@ -140,94 +152,157 @@ export async function resolveInstanceState(
   return res.data;
 }
 
-// Dropped after a successful write commit (mcp_tools wraps commit): the list
-// tools and orientation read the cached project state, and a model that
-// creates a report, lists, and sees nothing might create a duplicate. The
-// next call transparently rebuilds with the write visible.
-export function invalidateProjectContext(
-  principal: McpPrincipal,
-  projectId: string,
-): void {
-  projectContexts.delete(contextKey(principal, projectId));
+// The pin, read now. null is a typed, expected state (a fresh instance, or
+// after unpin/delete): get_overview renders it; every other tool fails with
+// NO_PIN_MESSAGE via requirePinnedPackageContext.
+export async function resolvePinnedRunId(): Promise<string | null> {
+  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
+  const res = await getPinnedRunId(mainDb);
+  if (!res.success) {
+    throw new Error(`Could not read the pinned results package: ${res.err}`);
+  }
+  return res.data;
 }
 
-export async function resolveProjectContext(
+// The widest period range across the package's time-indexed results objects.
+// A results object's periodBounds are in its own physicalTimeColumn's units
+// (period_id YYYYMM, quarter_id YYYYQ, year YYYY), so min/max is taken within
+// ONE unit: the finest-grained column present. null = nothing time-indexed.
+const PHYSICAL_TIME_COLUMNS_FINEST_FIRST = [
+  "period_id",
+  "quarter_id",
+  "year",
+] as const;
+
+export function packagePeriodCoverage(
+  manifest: RunManifest,
+): PeriodBounds | null {
+  for (const column of PHYSICAL_TIME_COLUMNS_FINEST_FIRST) {
+    const bounds = manifest.resultsObjects
+      .filter((ro) => ro.physicalTimeColumn === column)
+      .map((ro) => ro.periodBounds)
+      .filter((pb): pb is PeriodBounds => pb !== null);
+    if (bounds.length > 0) {
+      return {
+        min: Math.min(...bounds.map((b) => b.min)),
+        max: Math.max(...bounds.map((b) => b.max)),
+      };
+    }
+  }
+  return null;
+}
+
+// Every package-tool result at /mcp starts with one provenance line naming
+// the run it read (label + generated timestamp, the same identity
+// get_overview gives; no run id, which no tool accepts as input). The pin
+// can move between two calls of one conversation and a client may carry a
+// stale catalog, so results are self-identifying by construction. Failures
+// pass through unchanged.
+export function buildSourceHeader(run: RunListingItem): string {
+  return `Source: results package "${run.label}" (generated ${run.createdAt})`;
+}
+
+// deno-lint-ignore no-explicit-any
+export function withSourceHeader<T extends AIToolWithMetadata<any>>(
+  tool: T,
+  run: RunListingItem,
+): T {
+  const header = buildSourceHeader(run);
+  const prepend = (body: string) => `${header}\n\n${body}`;
+  const inner = tool.sdkTool;
+  return {
+    metadata: tool.metadata,
+    sdkTool: {
+      ...inner,
+      run: async (input: unknown) => prepend(await inner.run(input)),
+      runWithView: async (input: unknown, getView?: () => unknown) =>
+        prepend(
+          inner.runWithView
+            ? await inner.runWithView(input, getView)
+            : await inner.run(input),
+        ),
+    },
+  } as T;
+}
+
+export async function requirePinnedPackageContext(
   principal: McpPrincipal,
-  projectId: string,
-): Promise<McpProjectContext> {
-  const key = contextKey(principal, projectId);
-  const cached = cacheGet(projectContexts, key);
+): Promise<McpPackageContext> {
+  const runId = await resolvePinnedRunId();
+  if (runId === null) {
+    throw new AIToolFailure(NO_PIN_MESSAGE);
+  }
+  return await resolvePackageContext(principal, runId);
+}
+
+export async function resolvePackageContext(
+  principal: McpPrincipal,
+  runId: string,
+): Promise<McpPackageContext> {
+  const key = contextKey(principal, runId);
+  const cached = cacheGet(packageContexts, key);
   if (cached) return cached;
 
+  // The door check: the run-keyed routes enforce can_view_data on every
+  // dispatch regardless; judging it here gives the model one clean failure
+  // instead of a permission error on each tool.
   const globalUser = await resolveGlobalUser(principal);
-  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
-  let access: Awaited<ReturnType<typeof resolveProjectUserAccess>>;
-  try {
-    access = await resolveProjectUserAccess(globalUser, projectId, mainDb);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (message.startsWith("Middleware error:")) {
-      // Clean authorization failure the model can read and recover from —
-      // wrong or foreign projectId is an EXPECTED input error (D1).
-      throw new AIToolFailure(
-        `No access to project "${projectId}" (it may not exist, or you have no role on it). Call get_projects to list your accessible projects.`,
-      );
-    }
-    throw error;
+  if (
+    !globalUser.isGlobalAdmin && !globalUser.thisUserPermissions.can_view_data
+  ) {
+    throw new AIToolFailure(
+      "Your account lacks the instance permission can_view_data, which the results-package reads require. Ask an instance admin to grant it.",
+    );
   }
 
-  // projectDb only after the permission check passes (no connection-cache
-  // entries keyed by unauthorized project ids — same rule as the SSE route).
-  const projectDb = getPgConnectionFromCacheOrNew(projectId, "READ_ONLY");
-  const stateRes = await buildProjectState(
-    mainDb,
-    { projectDb, projectId },
-    access.projectUser,
-  );
-  if (!stateRes.success) {
-    throw new Error(`Could not load project state: ${stateRes.err}`);
+  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
+  const runRes = await getRunListingItem(mainDb, runId);
+  if (!runRes.success) {
+    throw new Error(`Could not read results package ${runId}: ${runRes.err}`);
   }
-  const projectState = stateRes.data;
-  const instanceState = await resolveInstanceState(principal);
+  if (runRes.data === null) {
+    throw new AIToolFailure(
+      `The pinned results package (${runId}) no longer exists. ${NO_PIN_MESSAGE}`,
+    );
+  }
+  const run = runRes.data;
+
+  // The same manifest-derived catalog getProjectDetail builds for a project's
+  // attached package (db/project/projects.ts): one derivation, two callers.
+  const manifest = await getRunManifestCached(runId);
+  const runInputs = { runId, manifest };
+  const metrics = getMetricsWithStatusFromManifest(manifest);
+  const icehIndicators = await getIcehIndicatorsFromManifestInputs(runInputs);
+  const hfaTaxonomy = await getHfaTaxonomyFromManifestInputs(
+    runInputs,
+    await getHfaTimePointsForAI(mainDb),
+  );
+  const grounding: PackageGrounding = {
+    calendar: manifest.calendar,
+    datasets: getProjectDatasetsFromManifest(manifest),
+    commonIndicators: manifest.commonIndicators,
+    icehIndicators,
+    periodCoverage: packagePeriodCoverage(manifest),
+  };
 
   const transport = buildPrincipalTransport(principal.token);
   const serverActions = createAllServerActions(transport);
-  const env = createMcpAIToolEnv(serverActions, instanceState);
+  const env = createMcpAIToolEnv(serverActions, runId);
 
   // deno-lint-ignore no-explicit-any
-  const sessionTools: AIToolWithMetadata<any>[] = [
-    ...getSharedToolsForMetrics(
-      env,
-      projectId,
-      projectState.metrics,
-      projectState.icehIndicators,
-      projectState.hfaTaxonomy,
-    ),
-    ...getSharedToolsForModules(
-      env,
-      projectId,
-      projectState.projectModules,
-      projectState.metrics,
-    ),
-    ...getSharedToolsForVisualizations(
-      env,
-      projectId,
-      projectState.visualizations,
-      projectState.metrics,
-    ),
-    ...getSharedToolsForSlideDecks(projectState.slideDecks),
-    ...getSharedToolsForReports(env, projectId, projectState.reports),
-    createGetSlideTool(env, projectId, projectState.metrics),
-  ];
+  const sessionTools: AIToolWithMetadata<any>[] = getSharedToolsForMetrics(
+    env,
+    metrics,
+    icehIndicators,
+    hfaTaxonomy,
+  ).map((tool) => withSourceHeader(tool, run));
 
-  const context: McpProjectContext = {
-    projectId,
-    projectLabel: access.projectLabel,
-    isLocked: access.isLocked,
-    projectState,
-    instanceState,
+  const context: McpPackageContext = {
+    runId,
+    run,
+    grounding,
     sessionTools,
   };
-  cacheSet(projectContexts, key, context);
+  cacheSet(packageContexts, key, context);
   return context;
 }

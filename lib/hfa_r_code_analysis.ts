@@ -1,30 +1,30 @@
 // Single source of truth for analysing user-authored HFA indicator R code.
 // Used by BOTH the client editor/validator and the server dependency analyzer,
 // so the editor's green/red status and the run-time unknown-variable check can
-// never disagree. Pure functions only — this compiles into Deno and Vite.
+// never disagree. Pure functions only: this compiles into Deno and Vite.
 
 // Shape rule for an *authored HFA indicator* name (`HfaIndicator.varName`):
 // starts with a letter, then letters/digits/underscores, max 64 chars. This is
-// deliberately NOT the rule for survey/dataset variable names — those are
+// deliberately NOT the rule for survey/dataset variable names: those are
 // external (from the XLSForm) and legitimately broader (e.g. hyphenated
 // sentinel expansions like `sup_05e_-99`). A valid indicator name must also not
-// be reserved — see `isReservedHfaVarName`.
+// be reserved: see `isReservedHfaVarName`.
 export const HFA_INDICATOR_NAME_REGEX = /^[a-zA-Z][a-zA-Z0-9_]{0,63}$/;
 
 // Shape rule for a variant item id: lowercase letter, then lowercase
 // letters/digits/underscores, max 64 chars. Item ids are data values of the
 // hfa_variant_item column and the suffix of composed per-item R columns, and
 // must be globally unique across ALL HFA id namespaces (indicator varNames,
-// categories, sub-categories, service-categories, other items) — labels
+// categories, sub-categories, service-categories, other items): labels
 // resolve through one flat id→label map, so a collision silently mislabels.
 export const HFA_VARIANT_ITEM_ID_REGEX = /^[a-z][a-z0-9_]{0,63}$/;
 
 // The generated per-item wide column for (parent indicator, variant item).
 // Composition is NOT reversible (varNames legally contain `__`), so nothing may
-// parse this name back apart — parent/item routing is metadata-driven only.
+// parse this name back apart: parent/item routing is metadata-driven only.
 // Composed names must be unique against {indicator varNames} ∪ {survey
 // variables} ∪ {other composed names} and must clear `isReservedHfaVarName`
-// (notably its `__status` suffix rule) — enforced at authoring time and as a
+// (notably its `__status` suffix rule): enforced at authoring time and as a
 // generation-time hard error.
 export function composeHfaVariantColumnName(
   parentVarName: string,
@@ -127,7 +127,7 @@ const R_LOGICAL_OPERATOR_REGEX = new RegExp(
 // are its facility columns, `var_name` / `value` are what it pivots on, and
 // `weight` / `weight_final` carry the sampling weight. A survey variable or
 // indicator with one of these names collides at `pivot_wider`, overwrites the
-// column via `mutate`, or — worst — silently shadows it inside the scoped
+// column via `mutate`, or, at worst, silently shadows it inside the scoped
 // bindings the indicator expression is evaluated in, turning every row NA with
 // no error. `__status` is the suffix of the generated response-status columns,
 // which the script collects by pattern.
@@ -143,8 +143,8 @@ const M10_STRUCTURAL_NAMES = new Set([
 ]);
 const M10_STRUCTURAL_PREFIX_REGEX = /^(facility_|admin_area_|time_point)/i;
 
-// A name that cannot be used as an HFA variable — neither an authored indicator
-// name nor a referenceable survey variable — because it collides with how
+// A name that cannot be used as an HFA variable, neither an authored indicator
+// name nor a referenceable survey variable, because it collides with how
 // indicator R code is interpreted or with the module script's own columns, and
 // would silently break at run time:
 //   - `and`/`or` (any case) are rewritten to `&`/`|` by
@@ -211,7 +211,7 @@ export function stripRStringsAndComments(rCode: string): string {
 // them outside string literals and comments. Word boundaries treat `.` and
 // identifier characters as part of a word, so `factor`, `donor`, and a dataset
 // variable like `x.or` are left untouched. `&&`/`||` are deliberately NOT
-// rewritten — those are a distinct mistake the validator flags (a vectorised
+// rewritten: those are a distinct mistake the validator flags (a vectorised
 // case_when rejects them), and silently "fixing" them would hide the error.
 export function normalizeRLogicalOperators(rCode: string): string {
   let out = "";

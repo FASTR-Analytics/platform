@@ -60,7 +60,7 @@ export function MetricCard(p: Props) {
           <For each={firstMetric().disaggregationOptions.slice(0, 4)}>
             {(disOpt) => (
               <span class="bg-base-200 ui-text-caption rounded px-1.5 py-0.5">
-                {t3(getDisplayDisaggregationLabel(disOpt.value))}
+                {t3(getDisplayDisaggregationLabel(disOpt.value, firstMetric().datasetFamily))}
               </span>
             )}
           </For>

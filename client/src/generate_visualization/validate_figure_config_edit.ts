@@ -21,7 +21,7 @@ import {
   VIZ_TYPE_CONFIG,
 } from "lib";
 
-// valuesFilter names that don't exist on the metric are NOT inert —
+// valuesFilter names that don't exist on the metric are NOT inert:
 // getFilteredValueProps is a membership filter, so a bad name yields
 // effectiveValueProps: [] and a figure with no data values. Pure; called by
 // validateFigureConfigEdit below and by the from_metric create path.
@@ -41,20 +41,20 @@ export function validateValuesFilter(
 
 // PRE-WRITE validation for every AI config edit (update_figure,
 // update_report_figure, update_viz_config), run on the config
-// applyFigureConfigPatch produced, BEFORE any store write or server call —
+// applyFigureConfigPatch produced, BEFORE any store write or server call:
 // it threw ⇒ nothing changed. Pure config checks only; anything needing
 // FETCHED data (filter/replicant values, period ranges) stays in
 // validators/content_validators.ts. The change REPORT is a separate function
-// (describeFigureConfigPatchEffect) — this one only throws.
+// (describeFigureConfigPatchEffect): this one only throws.
 //
 // DELTA-AWARE (a contract, not an accident): only concerns the patch touches
 // are validated, so a caption-only edit on a figure whose stored config has
 // drifted is NOT blocked. A `type` change does not re-validate inherited
-// slots — convertVisualizationType already made them legal; only
+// slots: convertVisualizationType already made them legal; only
 // patch-supplied slots are checked.
 //
 // The two CONDITIONALLY_APPLIED_FIELDS (rollupDimension, rollupPosition) get
-// STRUCTURAL checks here — a config diff cannot attribute their no-ops (see
+// STRUCTURAL checks here: a config diff cannot attribute their no-ops (see
 // apply_figure_config_patch.ts).
 //
 // NOTE: the collision check here is the editor UI's own pre-write guard
@@ -85,7 +85,7 @@ export function validateFigureConfigEdit(
 
   // Per-dimension: the dimension exists on the metric and its slot is legal for
   // the type. (A slot that is invalid for the type silently drops the dimension
-  // at render — getDisaggregatorDisplayProp never places it.)
+  // at render: getDisaggregatorDisplayProp never places it.)
   if (touchesDisagg) {
     const availableDims = source.disaggregationOptions.map((o) => o.value);
     const validDisplay = VIZ_TYPE_CONFIG[type].disaggregationDisplayOptions;
@@ -106,14 +106,14 @@ export function validateFigureConfigEdit(
         );
       }
     }
-    // Required dimensions must stay grouped — omitting one re-aggregates across a
+    // Required dimensions must stay grouped: omitting one re-aggregates across a
     // dimension the metric mandates, producing silently-wrong (e.g. double-counted)
     // values. The figure fetch does NOT auto-merge required dims (only the metric
     // data tool does), so this is the one path that could drop them.
     //
     // EXCEPTION (mirrors build_definitions.ts + getStartingConfigForPresentationObject):
-    // a required dim NOT allowed for the current presentation type lives elsewhere
-    // — e.g. a required time dim (year/period_id, allowed only for table/chart) is
+    // a required dim NOT allowed for the current presentation type lives elsewhere,
+    // e.g. a required time dim (year/period_id, allowed only for table/chart) is
     // the timeseries axis and is grouped via timeseriesGrouping, not disaggregateBy.
     // Demanding it in disaggregateBy would wrongly block every timeseries/map edit.
     const present = new Set(newConfig.d.disaggregateBy.map((d) => d.disOpt));
@@ -137,7 +137,7 @@ export function validateFigureConfigEdit(
         `timeseriesGrouping has no effect on a "${type}" visualization — it is only read when the presentation type is "timeseries". No changes were applied.`,
       );
     }
-    // Any time column the metric carries is a legal grouping — the same set
+    // Any time column the metric carries is a legal grouping: the same set
     // the human style panel offers (period/quarter/year radio), not just the
     // most granular one.
     const allowedGroupings = new Set<string>();
@@ -156,14 +156,14 @@ export function validateFigureConfigEdit(
     }
   }
 
-  // valuesDisDisplayOpt set EXPLICITLY — always checked, whatever the value-prop
+  // valuesDisDisplayOpt set EXPLICITLY: always checked, whatever the value-prop
   // count. Both failures below are silent no-ops at render, so without this the
   // tool saves a dead field and reports success having changed nothing.
   //
   // The slot enum is shared across presentation types (`mapArea` is a member for
   // disaggregations), so Zod cannot reject a per-type-illegal slot; only the
   // per-type table can. And on a single-value-prop figure the field is inert
-  // whatever it holds — getDisaggregatorDisplayProp only places the value
+  // whatever it holds: getDisaggregatorDisplayProp only places the value
   // dimension when effectiveValueProps.length > 1.
   if (patch.valuesDisDisplayOpt !== undefined) {
     const validValues = getValidValuesDisplayOptions(type);
@@ -186,7 +186,7 @@ export function validateFigureConfigEdit(
   }
 
   // valuesFilter can flip the figure TO multiple value props, making an
-  // INHERITED (unpatched) slot live — validate the resulting config's slot.
+  // INHERITED (unpatched) slot live: validate the resulting config's slot.
   if (hasMultipleValueProps && patch.valuesFilter !== undefined) {
     const validValues = getValidValuesDisplayOptions(type);
     if (!validValues.includes(newConfig.d.valuesDisDisplayOpt)) {
@@ -198,12 +198,12 @@ export function validateFigureConfigEdit(
 
   // selectedReplicantValue liveness (Type 2): with no ACTIVE replicant the
   // value is stored and never read (assertReplicantValid early-returns). The
-  // predicate is getReplicateByProp — NOT a scan for disDisplayOpt ===
-  // "replicant" — because a replicant dimension filtered to a single value is
+  // predicate is getReplicateByProp: NOT a scan for disDisplayOpt ===
+  // "replicant", because a replicant dimension filtered to a single value is
   // not a replicant (SYSTEM_09), and a raw scan would wave through exactly the
   // inert case this check exists to catch. (Deliberately the OPPOSITE
   // predicate to apply's write-time clear, which tests structural slot
-  // absence — liveness is transient, structure is not.)
+  // absence: liveness is transient, structure is not.)
   if (
     typeof patch.selectedReplicantValue === "string" &&
     getReplicateByProp(newConfig) === undefined
@@ -216,10 +216,10 @@ export function validateFigureConfigEdit(
     );
   }
 
-  // STRUCTURAL check for rollupPosition (conditionally applied — a diff cannot
+  // STRUCTURAL check for rollupPosition (conditionally applied: a diff cannot
   // attribute its no-op): the new config must have a flagged entry to receive
   // the position. Accepted residual: a LATENT flag (gate closed) passes this
-  // and renders nothing — the flag's own latency was already reported by the
+  // and renders nothing: the flag's own latency was already reported by the
   // roll-up gate on the edit that created it.
   if (
     patch.rollupPosition !== undefined &&
@@ -234,7 +234,7 @@ export function validateFigureConfigEdit(
   // STRUCTURAL check for rollupDimension: the named dimension must be
   // disaggregated to receive the flag (the write maps over disaggregateBy).
   // `rollupDimension: null` (remove) must NOT error when there is nothing to
-  // remove — hence the string gate.
+  // remove: hence the string gate.
   if (
     typeof patch.rollupDimension === "string" &&
     !newConfig.d.disaggregateBy.some((e) => e.disOpt === patch.rollupDimension)
@@ -244,7 +244,7 @@ export function validateFigureConfigEdit(
     );
   }
 
-  // Roll-up gate: only when the patch EXPLICITLY turns it on — via
+  // Roll-up gate: only when the patch EXPLICITLY turns it on: via
   // `rollupDimension` or via `rollup: true` stated on disaggregateBy entries.
   // An explicitly-requested roll-up that leaves the gate closed (wrong
   // dimension, two flagged entries, ineligible metric) must error, not
@@ -266,12 +266,12 @@ export function validateFigureConfigEdit(
     );
   }
 
-  // PRE-WRITE slot-collision check — the editor UI's own guard (ruling F):
+  // PRE-WRITE slot-collision check, the editor UI's own guard (ruling F):
   // convert-then-patch (and patch-supplied slots colliding with each other)
   // can put two elements on one slot, which the renderer resolves by silently
   // dropping one. Delta-gated so a caption edit on a drifted stored config is
   // not blocked. Falls back to no singleValueDims when the possible-values
-  // map is unavailable — still catches plain slot collisions.
+  // map is unavailable: still catches plain slot collisions.
   if (touchesType || touchesDisagg || patch.valuesDisDisplayOpt !== undefined) {
     const singleValueDims = opts.disaggregationPossibleValues
       ? getSingleValueDimsFromPossibleValues(opts.disaggregationPossibleValues)
@@ -292,7 +292,7 @@ export function validateFigureConfigEdit(
 
 // POST-FETCH slot-collision check. Run AFTER the re-resolve with the bundle's
 // actual dateRange so the effective config matches EXACTLY what the renderer
-// computes (same getEffectivePOConfig inputs) — no false positive on
+// computes (same getEffectivePOConfig inputs), no false positive on
 // temporally-degenerate dims, and it catches the value-dimension-vs-disaggregation
 // collision the renderer would otherwise silently drop. Throws before commit.
 export function assertNoSlotCollision(

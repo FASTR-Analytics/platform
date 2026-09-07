@@ -12,21 +12,23 @@ import type {
   Pt,
   Rect,
 } from "../types_geometry.ts";
-import type { PNode, ProperGraph } from "../_internal/pipeline_types.ts";
 import type { ResolvedSpacing } from "../types_options.ts";
 
 // Group derivations for the flat-with-constraints design
 // (DOC_VIZGRAPH_ARCHITECTURE.md decision log): groups never enter the layout
-// pipeline as structure — ordering keeps members contiguous, placement
-// reserves box clearance via PNode pads, and boxes are DERIVED from final
-// member geometry. All of it runs on the COLLAPSED model (folded subtrees
-// are already re-mapped away).
+// pipeline as structure — ordering keeps members contiguous (step 3.2,
+// stages/_3_order/_3_2_contiguity.ts), placement reserves box clearance via
+// PNode pads (step 4.1, stages/_4_size/_4_1_pads.ts), and boxes are DERIVED
+// from final member geometry here at assembly ([7]). All of it runs on the
+// COLLAPSED model (folded subtrees are already re-mapped away).
 
 export type GroupIndex = {
   groupById: Map<string, GroupIn>;
   // Innermost → outermost valid group chain per node id (cycle-safe;
   // dangling refs dropped — validate() reports them).
   chainByNodeId: Map<string, string[]>;
+  // The same chain per group id, self first.
+  chainByGroupId: Map<string, string[]>;
   depthByGroupId: Map<string, number>;
 };
 
@@ -56,146 +58,14 @@ export function buildGroupIndex(model: GraphModel): GroupIndex {
       chainByNodeId.set(node.id, chainOfGroup(node.groupId));
     }
   }
+  const chainByGroupId = new Map<string, string[]>();
   const depthByGroupId = new Map<string, number>();
   for (const groupId of groupById.keys()) {
-    depthByGroupId.set(groupId, chainOfGroup(groupId).length - 1);
+    const chain = chainOfGroup(groupId);
+    chainByGroupId.set(groupId, chain);
+    depthByGroupId.set(groupId, chain.length - 1);
   }
-  return { groupById, chainByNodeId, depthByGroupId };
-}
-
-// Stage-3 companion — the group-contiguity re-sort policy
-// (DOC_VIZGRAPH_ORDERING.md): re-sort each layer so group members are
-// CONTIGUOUS, hierarchically — compare two nodes by the barycenter (mean
-// current order) of their containing unit at each nesting depth, outermost
-// first; nodes and dummies outside a group are their own unit. Runs once
-// after the crossing sweeps: groups may cost crossings, contiguity wins
-// (decorative-groups contract).
-export function enforceGroupContiguity(
-  proper: ProperGraph,
-  groupIndex: GroupIndex,
-): void {
-  if (groupIndex.groupById.size === 0) {
-    return;
-  }
-  for (const layer of proper.layers) {
-    if (layer.length < 2) {
-      continue;
-    }
-    // Outermost-first group path per pnode; [] for dummies and ungrouped.
-    const paths = new Map<PNode, string[]>();
-    let hasGrouped = false;
-    for (const pnode of layer) {
-      const chain = pnode.isDummy
-        ? undefined
-        : groupIndex.chainByNodeId.get(pnode.id);
-      const path = chain === undefined ? [] : [...chain].reverse();
-      if (path.length > 0) {
-        hasGrouped = true;
-      }
-      paths.set(pnode, path);
-    }
-    if (!hasGrouped) {
-      continue;
-    }
-    const bary = new Map<string, { sum: number; count: number }>();
-    for (const pnode of layer) {
-      const path = paths.get(pnode)!;
-      for (let depth = 0; depth < path.length; depth++) {
-        const key = `${depth}|${path[depth]}`;
-        const entry = bary.get(key) ?? { sum: 0, count: 0 };
-        entry.sum += pnode.order;
-        entry.count++;
-        bary.set(key, entry);
-      }
-    }
-    const unitId = (pnode: PNode, depth: number): string => {
-      const path = paths.get(pnode)!;
-      return depth < path.length ? path[depth] : `\u0000${pnode.id}`;
-    };
-    const unitBary = (pnode: PNode, depth: number): number => {
-      const path = paths.get(pnode)!;
-      if (depth < path.length) {
-        const entry = bary.get(`${depth}|${path[depth]}`)!;
-        return entry.sum / entry.count;
-      }
-      return pnode.order;
-    };
-    layer.sort((a, b) => {
-      for (let depth = 0;; depth++) {
-        const ua = unitId(a, depth);
-        const ub = unitId(b, depth);
-        if (ua === ub) {
-          if (ua.startsWith("\u0000")) {
-            return a.order - b.order;
-          }
-          continue;
-        }
-        return unitBary(a, depth) - unitBary(b, depth) || ua.localeCompare(ub);
-      }
-    });
-    layer.forEach((pnode, i) => {
-      pnode.order = i;
-    });
-  }
-}
-
-// Stage-4 companion, after ordering: the first member of each group's
-// per-layer run reserves the group inset, the last reserves the inset below —
-// placement passes keep that clearance (PNode pads), so derived boxes never
-// collide with neighboring nodes or sibling boxes. The label header row is
-// reserved ONLY in the group's first (top-left) spanned layer — the strip
-// that carries the label; every other layer's run gets the bare inset.
-// Nested groups accumulate.
-export function assignGroupPads(
-  proper: ProperGraph,
-  groupIndex: GroupIndex,
-  spacing: ResolvedSpacing,
-): void {
-  if (groupIndex.groupById.size === 0) {
-    return;
-  }
-  const firstLayerByGroupId = new Map<string, number>();
-  proper.layers.forEach((layer, layerIdx) => {
-    for (const pnode of layer) {
-      if (pnode.isDummy) {
-        continue;
-      }
-      for (const groupId of groupIndex.chainByNodeId.get(pnode.id) ?? []) {
-        if (!firstLayerByGroupId.has(groupId)) {
-          firstLayerByGroupId.set(groupId, layerIdx);
-        }
-      }
-    }
-  });
-  proper.layers.forEach((layer, layerIdx) => {
-    const runs = new Map<string, { first: PNode; last: PNode }>();
-    for (const pnode of layer) {
-      if (pnode.isDummy) {
-        continue;
-      }
-      for (const groupId of groupIndex.chainByNodeId.get(pnode.id) ?? []) {
-        const run = runs.get(groupId);
-        if (run === undefined) {
-          runs.set(groupId, { first: pnode, last: pnode });
-        } else {
-          if (pnode.order < run.first.order) {
-            run.first = pnode;
-          }
-          if (pnode.order > run.last.order) {
-            run.last = pnode;
-          }
-        }
-      }
-    }
-    for (const [groupId, run] of runs) {
-      const group = groupIndex.groupById.get(groupId)!;
-      const headerH = firstLayerByGroupId.get(groupId) === layerIdx
-        ? group.label?.h ?? 0
-        : 0;
-      run.first.padTop += spacing.groupPad + headerH;
-      run.last.padBottom += spacing.groupPad;
-    }
-  });
+  return { groupById, chainByNodeId, chainByGroupId, depthByGroupId };
 }
 
 // Edge-hug outline construction (the group-hug ruling): at every x the
@@ -338,8 +208,13 @@ function boundsOfRings(rings: PathSpec[]): Rect {
 // Assemble-time box derivation: innermost groups first, each group's outline
 // hugged from its real content (member layer strips, group-internal edge
 // segments, child rings), header row raised over the first-layer strip only.
-// Folded representatives (present in `nodes` under the group id) contribute
-// like any member; THEIR OWN GroupGeom entry is the node rect, folded: true.
+// A rect zone (`shape: "rect"`, honored on a zone group) is instead the
+// rectangle over its reserved cross-axis interval (rectZones — the
+// zone-reserve pass made it exclusive, so the box is truthful) and the
+// members' column extent, child rings included, inset by groupPad; its
+// header row sits at the rectangle's top-left. Folded representatives
+// (present in `nodes` under the group id) contribute like any member; THEIR
+// OWN GroupGeom entry is the node rect, folded: true.
 export function deriveGroupGeoms(
   groupIndex: GroupIndex,
   nodes: Record<string, NodeGeom>,
@@ -347,6 +222,7 @@ export function deriveGroupGeoms(
   modelEdges: EdgeIn[],
   foldedRepIds: Set<string>,
   foldedGroupById: Map<string, GroupIn>,
+  rectZones: Map<string, { top: number; bottom: number }>,
   spacing: ResolvedSpacing,
   cornerRadius: number,
 ): Record<string, GroupGeom> {
@@ -398,6 +274,41 @@ export function deriveGroupGeoms(
     }
     const group = groupIndex.groupById.get(groupId)!;
     const headerH = group.label?.h ?? 0;
+    const rectZone = rectZones.get(groupId);
+    if (rectZone !== undefined) {
+      let x0 = Math.min(...members.map((m) => m.x));
+      let x1 = Math.max(...members.map((m) => m.x + m.w));
+      for (const childId of childGroups.get(groupId) ?? []) {
+        for (const iv of coverageByGroupId.get(childId) ?? []) {
+          x0 = Math.min(x0, iv.x0);
+          x1 = Math.max(x1, iv.x1);
+        }
+      }
+      const rect: Rect = {
+        x: x0 - spacing.groupPad,
+        y: rectZone.top,
+        w: x1 - x0 + 2 * spacing.groupPad,
+        h: rectZone.bottom - rectZone.top,
+      };
+      coverageByGroupId.set(groupId, [{
+        x0: rect.x,
+        x1: rect.x + rect.w,
+        top: rect.y,
+        bot: rect.y + rect.h,
+      }]);
+      groups[groupId] = {
+        ...rect,
+        header: {
+          x: rect.x,
+          y: rect.y,
+          w: Math.min(group.label?.w ?? rect.w, rect.w),
+          h: headerH,
+        },
+        folded: false,
+        outline: [rectRing(rect, cornerRadius)],
+      };
+      continue;
+    }
     const groupEdges = internalEdges.get(groupId) ?? [];
     const pad = computeHugPad(groupEdges, edges, spacing.nodeGap);
 

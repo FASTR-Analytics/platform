@@ -1,4 +1,4 @@
-import { t3, TC, type ModuleId } from "lib";
+import { t3 } from "lib";
 import {
   Button,
   EditorComponentProps,
@@ -6,46 +6,44 @@ import {
   HeadingBar,
   StateHolderWrapper,
   createQuery,
+  formatFileSize,
 } from "panther";
 import { For, Show } from "solid-js";
-import { formatBytes } from "./status";
-import type { PackageInternalsSource } from "./internals_source";
+import { serverActions } from "~/server_actions";
+import { runOutputFileHref } from "./status";
 
 // Lists the actual files in the run's outputs/{moduleId} dir, with a download
-// per file. Both the listing and the download come from the host surface's
-// source, so each carries that surface's guard: the instance catalogue reads
-// run-keyed routes plus the runs static mount (`can_configure_data`), while a
-// project reads its own attached package and streams downloads through a
-// path-scoped endpoint (`can_view_data`).
+// per file. Used only for a FAILED run's started modules (the catalogue's
+// failed branch: a partial workspace with no manifest); a ready run's files
+// are listed inline by ResultsPackageView from the T2 detail. Listing and
+// download share the guard of every package read (`can_view_data`).
 export function ViewFiles(
   p: EditorComponentProps<
     {
-      source: PackageInternalsSource;
-      moduleId: ModuleId;
+      runId: string;
+      // Read plane: a manifest module id, as text (PLAN_1a §0 clause 3).
+      moduleId: string;
       moduleLabel: string;
     },
     undefined
   >,
 ) {
   const rFiles = createQuery(
-    () => p.source.listFiles(p.moduleId),
+    () =>
+      serverActions.listRunModuleFiles({
+        run_id: p.runId,
+        module_id: p.moduleId,
+      }),
     t3({ en: "Loading file listing...", fr: "Chargement de la liste des fichiers...", pt: "A carregar a lista de ficheiros..." }),
   );
 
   return (
     <FrameTop
       panelChildren={
-        <HeadingBar heading={`${t3({ en: "Files for", fr: "Fichiers pour", pt: "Ficheiros para" })} ${p.moduleLabel}`}>
-          <div class="ui-gap-sm flex">
-            <Button
-              onClick={() => p.close(undefined)}
-              intent="neutral"
-              iconName="x"
-            >
-              {t3(TC.done)}
-            </Button>
-          </div>
-        </HeadingBar>
+        <HeadingBar
+          onBack={() => p.close(undefined)}
+          heading={`${t3({ en: "Files for", fr: "Fichiers pour", pt: "Ficheiros para" })} ${p.moduleLabel}`}
+        />
       }
     >
       <StateHolderWrapper state={rFiles.state()}>
@@ -68,11 +66,11 @@ export function ViewFiles(
                   <div>
                     <Button
                       iconName="download"
-                      href={p.source.fileHref(p.moduleId, file.name)}
+                      href={runOutputFileHref(p.runId, p.moduleId, file.name)}
                       outline
                       download={file.name}
                     >
-                      {`${file.name} (${formatBytes(file.sizeBytes)})`}
+                      {`${file.name} (${formatFileSize(file.sizeBytes, 1)})`}
                     </Button>
                   </div>
                 )}

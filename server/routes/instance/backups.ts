@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { requireProjectPermission } from "../../project_auth.ts";
 import { defineRoute } from "../route-helpers.ts";
 import {
-  _SANDBOX_DIR_PATH,
+  _RUNS_DIR_PATH,
   _INSTANCE_ID,
   _PG_HOST,
   _PG_PORT,
@@ -226,7 +226,7 @@ defineRoute(
         contentType = "text/plain";
       }
 
-      // Binary download — not a JSON envelope; cast to satisfy RouteHandler return type.
+      // Binary download: not a JSON envelope; cast to satisfy RouteHandler return type.
       return new Response(fileContent, {
         headers: {
           "Content-Type": contentType,
@@ -331,7 +331,7 @@ defineRoute(
         fileContent = bytes.buffer;
       }
       // Step 3: Write to temporary file
-      const tempPath = join(_SANDBOX_DIR_PATH, `restore_${Date.now()}.sql.gz`);
+      const tempPath = join(_RUNS_DIR_PATH, `restore_${Date.now()}.sql.gz`);
       await Deno.writeFile(tempPath, new Uint8Array(fileContent));
 
       try {

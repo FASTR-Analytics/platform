@@ -7,6 +7,7 @@ import type {
   AnthropicModel,
   CacheControl,
   ContentBlock,
+  DocumentContentBlock,
   EffortLevel,
   MessageParam,
   OutputConfig,
@@ -33,9 +34,11 @@ import {
 // library carry cache_control markers inside their message history, so the
 // only safe strategy is: strip every breakpoint from the history, then place
 // a bounded, deterministic set on the outgoing payload — at most one on the
-// system prompt (unless the consumer placed their own) and one on the tail
-// of the latest user message. These functions are pure and never mutate
-// their inputs; stored conversation state must never carry breakpoints.
+// system prompt (unless the consumer placed their own), one on the tail of
+// the latest user message, and one on the last document block of the last
+// document-carrying user message (withDocumentsBreakpoint). These functions
+// are pure and never mutate their inputs; stored conversation state must
+// never carry breakpoints.
 
 const EPHEMERAL: CacheControl = { type: "ephemeral" };
 
@@ -66,6 +69,19 @@ function stripMessagesCacheControl(messages: MessageParam[]): MessageParam[] {
 function countSystemBreakpoints(system: SystemParam): number {
   if (typeof system === "string") return 0;
   return system.filter((block) => block.cache_control).length;
+}
+
+function countMessagesBreakpoints(messages: MessageParam[]): number {
+  let count = 0;
+  for (const msg of messages) {
+    if (msg.cache_control) count++;
+    if (Array.isArray(msg.content)) {
+      for (const block of msg.content) {
+        if ("cache_control" in block && block.cache_control) count++;
+      }
+    }
+  }
+  return count;
 }
 
 function systemWithBreakpoint(system: SystemParam): SystemParam {
@@ -132,6 +148,47 @@ function withTailBreakpoint(messages: MessageParam[]): MessageParam[] {
   });
 }
 
+// Document blocks lead their user message and the mutable text (the
+// ephemeral-section splice, rendered on the turn's first request and bare on
+// every request after) follows them, so a tail entry covering the docs is
+// invalidated by the very next request. A breakpoint on the docs themselves
+// is the stable boundary that keeps them cached. LAST doc-carrying message,
+// not first: docs can join mid-conversation, and every message before it is
+// byte-stable (only the latest carrier renders sections), so this covers
+// every document in the prefix. Skipped when the target block already
+// carries the tail breakpoint (a doc-carrying message with nothing after
+// its docs).
+function withDocumentsBreakpoint(messages: MessageParam[]): MessageParam[] {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (msg.role !== "user" || !Array.isArray(msg.content)) continue;
+    let docIndex = -1;
+    let docBlock: DocumentContentBlock | undefined;
+    for (let j = 0; j < msg.content.length; j++) {
+      const block = msg.content[j];
+      if (block.type === "document") {
+        docIndex = j;
+        docBlock = block;
+      }
+    }
+    if (!docBlock) continue;
+    if (docBlock.cache_control) return messages;
+    return [
+      ...messages.slice(0, i),
+      {
+        ...msg,
+        content: [
+          ...msg.content.slice(0, docIndex),
+          { ...docBlock, cache_control: EPHEMERAL },
+          ...msg.content.slice(docIndex + 1),
+        ],
+      },
+      ...messages.slice(i + 1),
+    ];
+  }
+  return messages;
+}
+
 export function shapeCachedPayload(
   system: SystemParam,
   messages: MessageParam[],
@@ -139,10 +196,14 @@ export function shapeCachedPayload(
   const strippedMessages = stripMessagesCacheControl(messages);
   const shapedSystem = systemWithBreakpoint(system);
   const systemBreakpoints = countSystemBreakpoints(shapedSystem);
-  // Budget: system breakpoints + at most 1 tail must stay ≤ 4.
-  const shapedMessages = systemBreakpoints < 4
+  // Budget: system breakpoints + at most 1 tail + at most 1 docs ≤ 4.
+  const tailedMessages = systemBreakpoints < 4
     ? withTailBreakpoint(strippedMessages)
     : strippedMessages;
+  const shapedMessages =
+    systemBreakpoints + countMessagesBreakpoints(tailedMessages) < 4
+      ? withDocumentsBreakpoint(tailedMessages)
+      : tailedMessages;
   return { system: shapedSystem, messages: shapedMessages };
 }
 
@@ -150,16 +211,7 @@ export function countPayloadBreakpoints(
   system: SystemParam,
   messages: MessageParam[],
 ): number {
-  let count = countSystemBreakpoints(system);
-  for (const msg of messages) {
-    if (msg.cache_control) count++;
-    if (Array.isArray(msg.content)) {
-      for (const block of msg.content) {
-        if ("cache_control" in block && block.cache_control) count++;
-      }
-    }
-  }
-  return count;
+  return countSystemBreakpoints(system) + countMessagesBreakpoints(messages);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

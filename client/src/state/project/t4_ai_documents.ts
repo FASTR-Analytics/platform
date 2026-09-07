@@ -1,60 +1,46 @@
-import { get, set, del } from "idb-keyval";
+import { get, set } from "idb-keyval";
 
-export type ProjectDocument = {
+export type UploadedDocument = {
   assetFilename: string;
   anthropicFileId: string;
 };
 
-type ProjectDocumentsData = {
-  documents: ProjectDocument[];
-  lastUpdated: string;
-};
-
-function getKey(projectId: string): string {
-  return `ai-documents/${projectId}`;
+function uploadsKey(projectId: string): string {
+  return `ai-uploads/${projectId}`;
 }
 
-export async function getDocumentsForProject(
-  projectId: string
-): Promise<ProjectDocument[]> {
-  const data = await get<ProjectDocumentsData>(getKey(projectId));
-  return data?.documents ?? [];
+function pendingKey(projectId: string, conversationId: string): string {
+  return `ai-attachments/${projectId}/${conversationId}`;
 }
 
-export async function setDocumentsForProject(
+export async function getUploadsForProject(
   projectId: string,
-  documents: ProjectDocument[]
-): Promise<void> {
-  await set(getKey(projectId), {
-    documents,
-    lastUpdated: new Date().toISOString(),
-  } satisfies ProjectDocumentsData);
+): Promise<UploadedDocument[]> {
+  return (await get<UploadedDocument[]>(uploadsKey(projectId))) ?? [];
 }
 
-export async function clearDocumentsForProject(
-  projectId: string
-): Promise<void> {
-  await del(getKey(projectId));
-}
-
-export async function addDocumentToProject(
+export async function addUploadToProject(
   projectId: string,
-  document: ProjectDocument
+  upload: UploadedDocument,
 ): Promise<void> {
-  const existing = await getDocumentsForProject(projectId);
-  const alreadyExists = existing.some(
-    (d) => d.assetFilename === document.assetFilename
-  );
-  if (!alreadyExists) {
-    await setDocumentsForProject(projectId, [...existing, document]);
+  const existing = await getUploadsForProject(projectId);
+  if (existing.some((u) => u.assetFilename === upload.assetFilename)) {
+    return;
   }
+  await set(uploadsKey(projectId), [...existing, upload]);
 }
 
-export async function removeDocumentFromProject(
+export async function getPendingAttachments(
   projectId: string,
-  assetFilename: string
+  conversationId: string,
+): Promise<string[]> {
+  return (await get<string[]>(pendingKey(projectId, conversationId))) ?? [];
+}
+
+export async function setPendingAttachments(
+  projectId: string,
+  conversationId: string,
+  assetFilenames: string[],
 ): Promise<void> {
-  const existing = await getDocumentsForProject(projectId);
-  const filtered = existing.filter((d) => d.assetFilename !== assetFilename);
-  await setDocumentsForProject(projectId, filtered);
+  await set(pendingKey(projectId, conversationId), assetFilenames);
 }

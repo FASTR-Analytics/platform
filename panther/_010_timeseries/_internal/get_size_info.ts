@@ -10,8 +10,10 @@ import {
   CustomFigureStyle,
   estimateMinSurroundsWidth,
   estimateMinYAxisWidth,
+  PANE_HEADER_SAMPLE_MAX_W,
   type RenderContext,
   resolveDefaultLegend,
+  SIZING_SAMPLE,
 } from "../deps.ts";
 import { getTimeseriesDataTransformed } from "../get_timeseries_data.ts";
 import type { TimeseriesDataTransformed, TimeseriesInputs } from "../types.ts";
@@ -44,14 +46,22 @@ export function getTimeseriesComponentSizes(
   // not pass a ResolveFloorPlotH). If long/wrapping period labels are ever
   // introduced, route it through the probe like ChartOV (resolveScaleAxisFloorPlotH).
   const xAxisTickH = rc
-    .mText("2024", ms.xPeriodAxis.text.xPeriodAxisTickLabels, Infinity)
+    .mText(
+      SIZING_SAMPLE.periodTick,
+      ms.xPeriodAxis.text.xPeriodAxisTickLabels,
+      Infinity,
+    )
     .dims.h();
   const xAxisHeight = ms.grid.axisStrokeWidth +
     xAxisTickH +
     ms.xPeriodAxis.periodLabelLargeTopPadding;
 
   const paneHeaderHeight = rc
-    .mText("Region 001", ms.text.paneHeaders, 400)
+    .mText(
+      SIZING_SAMPLE.paneHeader,
+      ms.text.paneHeaders,
+      PANE_HEADER_SAMPLE_MAX_W,
+    )
     .dims.h();
 
   const minSubChartWidth = calculateTimeseriesMinSubChartWidth(

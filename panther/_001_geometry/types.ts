@@ -48,3 +48,11 @@ export type CoordsOffset =
       top: number;
     }>
   );
+
+// The canonical plain geometry data types. Class-based Coordinates /
+// RectCoordsDims serve the figure pipeline; these serve plain-data contracts
+// (engine geometry, cameras). _009_vizgraph defines structurally identical
+// local copies per its no-imports charter and does not re-export them.
+export type Pt = { x: number; y: number };
+
+export type Rect = { x: number; y: number; w: number; h: number };

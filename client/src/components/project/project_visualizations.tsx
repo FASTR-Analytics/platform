@@ -183,9 +183,9 @@ export function ProjectVisualizations(p: Props) {
         <div
           class="h-full w-full"
           data-cursor-zone="header"
-          data-tour="viz-header"
         >
           <HeadingBar
+            data-tour="viz-header"
             heading={t3({
               en: "Visualizations",
               fr: "Visualisations",
@@ -204,8 +204,8 @@ export function ProjectVisualizations(p: Props) {
                 !projectState.isLocked && projectState.projectModules.length > 0
               }
             >
-              <div class="ui-gap-sm flex items-center" data-tour="viz-create">
-                {/* <Button onClick={attemptAICreatePresentationObject} iconName="sparkles" outline>
+              <div class="ui-gap-sm flex items-center">
+                {/* <Button data-tour="viz-create" onClick={attemptAICreatePresentationObject} iconName="sparkles" outline>
                 {t("Create with AI")}
               </Button> */}
                 <Button onClick={attempAddPresentationObject} iconName="plus">
@@ -226,9 +226,9 @@ export function ProjectVisualizations(p: Props) {
         fallback={
           <div class="ui-pad text-base-content-muted text-sm">
             {t3({
-              en: "You need to enable at least one module to create visualizations",
-              fr: "Vous devez activer au moins un module pour créer des visualisations",
-              pt: "Tem de ativar pelo menos um módulo para criar visualizações",
+              en: "You need to attach a results package to create visualizations",
+              fr: "Vous devez rattacher un paquet de résultats pour créer des visualisations",
+              pt: "Tem de anexar um pacote de resultados para criar visualizações",
             })}
           </div>
         }

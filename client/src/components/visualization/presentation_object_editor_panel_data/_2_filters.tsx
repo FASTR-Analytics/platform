@@ -1,11 +1,12 @@
 import {
   type BoundedPeriodFilter,
+  type DatasetType,
   type DisaggregationPossibleValuesStatus,
   inferPeriodFormatFromValue,
   PeriodBounds,
   periodFilterHasBounds,
   PresentationObjectConfig,
-  PresentationObjectDetail,
+  PresentationObjectEditorDetail,
   ResultsValue,
   getCalendar,
   t3,
@@ -54,7 +55,7 @@ function periodToYear(v: number): number {
 }
 
 type FiltersProps = {
-  poDetail: PresentationObjectDetail;
+  poDetail: PresentationObjectEditorDetail;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
   resultsValueInfo: ResultsValueInfoForPresentationObject;
@@ -106,6 +107,7 @@ export function Filters(p: FiltersProps) {
                   return (
                     <DisaggregationFilter
                       disOpt={disOpt}
+                      datasetFamily={p.poDetail.resultsValue.datasetFamily}
                       keyedStatus={keyedStatus}
                       tempConfig={p.tempConfig}
                       setTempConfig={p.setTempConfig}
@@ -122,7 +124,7 @@ export function Filters(p: FiltersProps) {
 }
 
 type DataValuesFilterProps = {
-  poDetail: PresentationObjectDetail;
+  poDetail: PresentationObjectEditorDetail;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
 };
@@ -442,6 +444,7 @@ function PeriodFilter(p: PeriodFilterProps) {
 
 type DisaggregationFilterProps = {
   disOpt: FiltersProps["allowedFilterOptions"][number];
+  datasetFamily: DatasetType | undefined;
   keyedStatus: DisaggregationPossibleValuesStatus;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
@@ -462,7 +465,7 @@ function DisaggregationFilter(p: DisaggregationFilterProps) {
   return (
     <div class="ui-spy-sm">
       <Checkbox
-        label={t3(getDisplayDisaggregationLabel(p.disOpt.value))}
+        label={t3(getDisplayDisaggregationLabel(p.disOpt.value, p.datasetFamily))}
         checked={
           !!p.tempConfig.d.filterBy.some((fil) => fil.disOpt === p.disOpt.value)
         }
@@ -607,7 +610,7 @@ export function PeriodFilterPeriodId(p: PeriodFilterPropsPeriodId) {
   const [needsSave, setNeedsSave] = createSignal<boolean>(false);
 
   // Mirror external changes (a collaborator's update reconciled into the
-  // config) into the local draft — but never clobber this user's own
+  // config) into the local draft, but never clobber this user's own
   // in-progress drag (needsSave). Without this the slider kept the value it
   // was CREATED with: reconcile updates the periodFilter object in place, so
   // the keyed <Show> above never recreates this component.

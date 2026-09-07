@@ -1,19 +1,17 @@
 import { Hono } from "hono";
+import { routeRegistry } from "lib";
+import { HEADLESS_ALLOWED_ROUTE_NAMES } from "./middleware/headless_allowlist.ts";
 import {
   headlessAuthMiddleware,
   headlessRouteAllowlist,
 } from "./middleware/mod.ts";
+import { routesRunGeneration } from "./routes/instance/run_generation.ts";
 import { routesUsers } from "./routes/instance/users.ts";
-import { routesModules } from "./routes/project/modules.ts";
-import { routesProjectResultsPackage } from "./routes/project/results_package.ts";
-import { routesPresentationObjects } from "./routes/project/presentation_objects.ts";
-import { routesSlides } from "./routes/project/slides.ts";
-import { routesReports } from "./routes/project/reports.ts";
 
 // The headless app (REVIEW_MCP_HOST_ARCHITECTURE.md §8, retired as a public
 // mount by PLAN_112 D5): headless-credential-only auth + deny-by-default route
 // allowlist. Since the /mcp endpoint replaced the local MCP host, this app is
-// INTERNAL plumbing — the /mcp context builds per-principal server actions
+// INTERNAL plumbing: the /mcp context builds per-principal server actions
 // whose fetchImpl dispatches into it via headlessAppFetch below, so every tool
 // call runs the full headless middleware chain (credential verify, allowlist,
 // permissions, logging) exactly as a network caller would. Handlers are
@@ -21,19 +19,18 @@ import { routesReports } from "./routes/project/reports.ts";
 // with the cookie mount is structural (pinned by
 // server/tests/pat_identity_parity).
 //
-// Only the route FILES containing allowlisted routes are registered — the
+// Only the route FILES containing allowlisted routes are registered: the
 // allowlist (middleware/headless_allowlist.ts) remains the authority on which
-// individual routes a headless caller can reach.
+// individual routes a headless caller can reach. Since 2026-08-19 those are
+// the run-keyed package reads (routes/instance/run_generation.ts) and the
+// whoami; the project route files are gone from this mount with the
+// project-scoped /mcp surface.
 export const headlessApp = new Hono();
 //@ts-ignore - middleware typed loosely, same as authMiddleware in main.ts
 headlessApp.use("*", headlessAuthMiddleware);
 headlessApp.use("*", headlessRouteAllowlist);
 headlessApp.route("/", routesUsers);
-headlessApp.route("/", routesModules);
-headlessApp.route("/", routesProjectResultsPackage);
-headlessApp.route("/", routesPresentationObjects);
-headlessApp.route("/", routesSlides);
-headlessApp.route("/", routesReports);
+headlessApp.route("/", routesRunGeneration);
 // The /info reference docs (get_info tool): same files the SPA fetches from
 // its origin, served from the built client (dev fallback: the source dir).
 headlessApp.get("/info/:file{[A-Za-z0-9_-]+\\.md}", async (c) => {
@@ -57,4 +54,36 @@ export function headlessAppFetch(
   init: RequestInit,
 ): Promise<Response> {
   return Promise.resolve(headlessApp.request(input, init));
+}
+
+// Boot-time self-check (dev only: main.ts): every allowlisted route must be
+// MOUNTED above. The allowlist and the mount list are two hand-kept lists and
+// drifted once: allowlisted run-keyed reads whose route file was never
+// mounted 404'd silently through /mcp, because a 404 is a well-formed
+// response. Structural, not behavioural: it reads Hono's route table
+// (method + path pattern, exactly what defineRoute registers from the
+// registry) rather than dispatching requests, so it is decidable in every
+// auth mode and touches nothing. Fail-stops like validateAllRoutesDefined.
+export function validateHeadlessMounts(): void {
+  const mounted = new Set(
+    headlessApp.routes.map((r) => `${r.method.toUpperCase()} ${r.path}`),
+  );
+  const unmounted = HEADLESS_ALLOWED_ROUTE_NAMES
+    .map((name) => {
+      const route = routeRegistry[name];
+      return { name, key: `${route.method.toUpperCase()} ${route.path}` };
+    })
+    .filter(({ key }) => !mounted.has(key))
+    .map(({ name, key }) => `${name} (${key})`);
+  if (unmounted.length > 0) {
+    console.error(
+      `❌ Headless routes allowlisted but NOT mounted in headlessApp — add the route file in server/headless_app.ts:\n${
+        unmounted.map((u) => `   - ${u}`).join("\n")
+      }\n`,
+    );
+    Deno.exit(1);
+  }
+  console.log(
+    `✅ All ${HEADLESS_ALLOWED_ROUTE_NAMES.length} allowlisted headless routes are mounted\n`,
+  );
 }

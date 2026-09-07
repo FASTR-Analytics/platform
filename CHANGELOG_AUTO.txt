@@ -1,22 +1,195 @@
-[TBD] [user] [added] - Change your email address from your profile settings
-[TBD] [user] [added] - Guided tours accessible from the Help menu in projects
-[TBD] [user] [added] - Guided tours accessible from the Help menu on the home page
-[TBD] [user] [added] - Help menu now offers guided tours, help requests, feedback, and documentation
-[TBD] [user] [added] - "Ask for help" option in the feedback form
-[TBD] [user] [changed] - Feedback form renamed to "Help & feedback" with a new help request type
-[TBD] [user] [changed] - Help button replaced with a Help menu offering multiple options
-[TBD] [user] [fixed] - Live cursors no longer show duplicates when you have multiple tabs open
-[TBD] [user] [fixed] - Your cursor disappears for collaborators when you switch to another window
-[TBD] [user] [fixed] - Collaborator click ripples no longer appear from disconnected sessions
-[TBD] [admin] [added] - Self-service email change across all instances from profile
-[TBD] [admin] [added] - Guided tours accessible from the Help menu
-[TBD] [admin] [added] - Help request option in the feedback form
-[TBD] [admin] [added] - Documentation link in the Help menu
-[TBD] [admin] [changed] - Help button replaced with a menu offering tours, help, feedback, and docs
-[TBD] [admin] [changed] - Feedback form renamed to "Help & feedback" with new help request type
-[TBD] [admin] [fixed] - Live cursors no longer duplicated when a user has multiple tabs open
-[TBD] [admin] [fixed] - Cursor disappears when switching away from a window or tab
-[TBD] [admin] [fixed] - Connection banner clears correctly when collaboration access is revoked
+[1.71.0] [user] [fixed] - Creating a new project no longer leaves behind incomplete data if something goes wrong
+[1.71.0] [admin] [fixed] - Failed project creation now cleans up leftover databases immediately
+[1.71.0] [admin] [added] - Orphan project databases are automatically cleaned up at startup
+[1.70.0] [user] [added] - Derived indicator status column shows computability warnings in indicator list
+[1.70.0] [user] [added] - Banner warns when derived indicators cannot be computed due to missing mappings
+[1.70.0] [user] [added] - Population data import now shows a preview step before importing
+[1.70.0] [user] [added] - Population import preview shows coverage details per population type
+[1.70.0] [user] [added] - Population import preview indicates which values are new versus replacing existing ones
+[1.70.0] [user] [changed] - Indicator formula editor now shows a warning instead of blocking save when ingredients are unmapped
+[1.70.0] [user] [changed] - Population data summary card now shows the population level name instead of just counts
+[1.70.0] [user] [changed] - Population type labels are now translated into the selected language
+[1.70.0] [admin] [added] - Derived indicator computability status shown in indicator list
+[1.70.0] [admin] [added] - Warning banner when derived indicators cannot be computed
+[1.70.0] [admin] [added] - Population import now includes a preview step before importing
+[1.70.0] [admin] [added] - Population coverage details shown per type in import preview
+[1.70.0] [admin] [added] - Completeness check for population data during import
+[1.70.0] [admin] [changed] - Population data card now shows configured population level
+[1.70.0] [admin] [changed] - Population type list uses built-in types instead of instance-configured ones
+[1.70.0] [admin] [changed] - Derived indicator editor shows warning when ingredients lack mapped raw indicators
+[1.70.0] [admin] [changed] - Population coverage summary simplified to single level display
+[1.69.2] [user] [fixed] - Slide deck changes now update in real time for all viewers
+[1.69.2] [admin] [added] - Slide deck changes now update collaborators in real time
+[1.69.1] [user] [changed] - Indicator colour mode now shows legend bands on the figure itself
+[1.69.1] [user] [fixed] - Typing in colour band label fields no longer loses keyboard focus
+[1.69.1] [user] [fixed] - Extra spaces in colour band labels are now automatically cleaned up
+[1.69.1] [user] [changed] - Legend for indicator colouring merges shared colours across indicators into one clear list
+[1.69.1] [admin] [changed] - Indicator conditional formatting legend now merges shared colours across indicators
+[1.69.1] [admin] [changed] - Legend shows combined labels when multiple indicators share a colour band
+[1.69.1] [admin] [changed] - Legend displays cutoff ranges when indicators differ in thresholds but share the same shape
+[1.69.1] [admin] [fixed] - Typing in a bucket label no longer causes the input to lose focus
+[1.69.1] [admin] [fixed] - Extra spaces in bucket labels are now automatically collapsed and trimmed
+[1.69.0] [user] [added] - Common indicators can now be "Derived" with a formula over other indicators and populations
+[1.69.0] [user] [added] - Formula editor with searchable palette to insert indicator and population references
+[1.69.0] [user] [added] - Live formula validation and legend showing referenced indicators and populations
+[1.69.0] [user] [added] - Display format option (number, percent, rate per 10,000) for derived indicators
+[1.69.0] [user] [added] - Conditional formatting thresholds can be set directly on common indicators
+[1.69.0] [user] [added] - Population management page for importing, viewing, and deleting population figures
+[1.69.0] [user] [added] - CSV import for population figures by admin area, year, and population type
+[1.69.0] [user] [added] - Population types editor to create, rename, and delete population types
+[1.69.0] [user] [added] - Population coverage summary shown on the instance data overview card
+[1.69.0] [user] [added] - Bulk prune button to delete all unused results packages at once
+[1.69.0] [user] [added] - "Indicator" conditional formatting mode that colours each value by its own indicator's rule
+[1.69.0] [user] [added] - Sort button for common indicators to reorder them in one unified list
+[1.69.0] [user] [changed] - Base and derived indicators are now managed in one table instead of separate tabs
+[1.69.0] [user] [changed] - "Calculated indicators" tab removed; its functionality is merged into common indicators
+[1.69.0] [user] [changed] - Indicator ID validation now also disallows square brackets
+[1.69.0] [user] [changed] - Results packages from modules no longer in the system can still be viewed and downloaded
+[1.69.0] [user] [changed] - Newly generated results package is automatically selected in the sidebar
+[1.69.0] [user] [fixed] - Module progress badges no longer have inconsistent spacing between label and status dot
+[1.69.0] [admin] [added] - Common indicators now support a "derived" type with formula definitions
+[1.69.0] [admin] [added] - Derived indicators can reference other indicators and population terms in formulas
+[1.69.0] [admin] [added] - Display format option (number, percent, rate per 10,000) for derived indicators
+[1.69.0] [admin] [added] - Conditional formatting thresholds can be set per indicator in the dictionary
+[1.69.0] [admin] [added] - New Population management page for uploading and viewing population figures
+[1.69.0] [admin] [added] - Population types can be created, renamed, and deleted from the instance
+[1.69.0] [admin] [added] - CSV import for population figures by admin area, year, and population type
+[1.69.0] [admin] [added] - Population coverage summary shown on the instance data overview card
+[1.69.0] [admin] [added] - Bulk prune button to delete all unused results packages at once
+[1.69.0] [admin] [added] - Sort button for common indicators to reorder them in one unified list
+[1.69.0] [admin] [added] - "Indicator" conditional formatting source uses each indicator's own rule
+[1.69.0] [admin] [added] - Newly generated results packages are automatically selected in the sidebar
+[1.69.0] [admin] [changed] - Calculated indicators tab removed; derived indicators are now part of common indicators
+[1.69.0] [admin] [changed] - Indicator IDs now also disallow square brackets
+[1.69.0] [admin] [changed] - Results packages from modules no longer in the registry remain fully browsable
+[1.69.0] [admin] [changed] - Common indicator editor dialog is wider with a two-column layout
+[1.69.0] [admin] [fixed] - Module progress badges no longer shift layout when status text changes
+[1.69.0] [admin] [fixed] - Style preview now updates reliably when color theme settings change
+[1.68.0] [user] [changed] - Attached PDF documents are now tracked per conversation
+[1.68.0] [user] [changed] - Previously sent documents can no longer be accidentally removed
+[1.68.0] [user] [fixed] - Document selector opens faster without a loading spinner
+[1.68.0] [admin] [changed] - AI document attachments are now per-conversation instead of per-project
+[1.68.0] [admin] [changed] - Previously sent AI documents can no longer be accidentally removed
+[1.68.0] [admin] [internal] - Removed unused server endpoints for retrieving and deleting AI files
+[1.68.0] [admin] [internal] - Removed legacy data migration scripts for metrics and module definitions
+[1.67.7] [user] [added] - New Bayesian disruptions chart mode for supported metrics
+[1.67.7] [user] [added] - Legend showing observed, expected, credible interval, surplus, and deficit
+[1.67.7] [user] [added] - Option to invert red/green colors for surplus/deficit on Bayesian disruptions chart
+[1.67.7] [user] [added] - Display, label, and axis controls for Bayesian disruptions chart
+[1.67.7] [admin] [added] - New Bayesian disruptions chart mode for M11 metrics
+[1.67.7] [admin] [added] - Legend shows observed, expected, credible interval, surplus, and deficit
+[1.67.7] [admin] [added] - Option to invert red/green colors for surplus/deficit on Bayesian disruptions chart
+[1.67.7] [admin] [added] - Display, label, and axis style controls for Bayesian disruptions chart
+[1.67.6] [user] [added] - New Bayesian disruption detection module (LI model) now available
+[1.67.6] [admin] [added] - New module available: Bayesian disruption detection (LI model)
+[1.67.5] [user] [changed] - AI assistant now gives more accurate period coverage descriptions for metrics
+[1.67.5] [user] [fixed] - AI assistant validates filters before fetching data, catching errors faster
+[1.67.5] [admin] [fixed] - AI now validates metric filters before fetching data, failing faster on bad queries
+[1.67.5] [admin] [changed] - AI period coverage description now reflects finest-grained results more accurately
+[1.67.5] [admin] [internal] - Calendar context moved from instance-level to package-level in AI prompts
+[1.67.4] [user] [added] - AI assistant now shows period coverage for your data
+[1.67.4] [user] [added] - AI assistant can follow step-by-step recipes for building ICEH equity profiles
+[1.67.4] [user] [added] - AI assistant now shows indicator threshold and direction info when querying data
+[1.67.4] [user] [changed] - AI assistant gives clearer guidance on which filters and options are required for charts
+[1.67.4] [user] [changed] - AI assistant now specifies which dimension to pick a value from when a chart requires a selection
+[1.67.4] [admin] [changed] - AI copilot now shows period coverage instead of module count
+[1.67.4] [admin] [changed] - AI copilot displays indicator threshold and direction info in data results
+[1.67.4] [admin] [changed] - Module inspection tools (scripts, logs, settings) now available only in the web app, not via external API connections
+[1.67.4] [admin] [added] - ICEH equity profile recipe is now a web-app-only reference doc
+[1.67.4] [admin] [changed] - External API connections renamed "get_orientation" to "get_overview"
+[1.67.4] [admin] [changed] - External API access tokens can no longer read module scripts, logs, or settings
+[1.67.4] [admin] [added] - Metric data results now include full period coverage range for context
+[1.67.4] [admin] [changed] - AI assistant on MCP now reads the instance's pinned results package instead of per-project data
+[1.67.4] [admin] [added] - New API routes for reading results package data directly by run ID
+[1.67.4] [admin] [changed] - MCP tools are now all read-only; project-specific tools removed from MCP surface
+[1.67.4] [admin] [internal] - Reorganized how AI tools access project and package data behind the scenes
+[1.67.3] [user] [added] - Import default HFA indicators from FASTR resource hub
+[1.67.3] [user] [changed] - Guidance message now directs users to add time points first
+[1.67.3] [admin] [added] - Import default HFA indicators from FASTR resource hub on GitHub
+[1.67.3] [admin] [changed] - HFA setup message now directs users to add time points first
+[1.67.2] [user] [changed] - Guidance messages now say "attach a results package" instead of "enable a module"
+[1.67.2] [user] [fixed] - Improved readability of placeholder and status messages across the app
+[1.67.2] [user] [fixed] - Asset table now fills available screen height properly
+[1.67.2] [admin] [changed] - Guidance now says to attach a results package instead of enabling a module
+[1.67.2] [admin] [fixed] - Asset table now fills available screen height properly
+[1.67.2] [admin] [internal] - Consistent muted text styling across version history and slide views
+[1.67.1] [user] [changed] - Navigation icons updated for Results and Assets tabs
+[1.67.1] [user] [changed] - Results package list now shows project count instead of "Latest" badge
+[1.67.1] [user] [changed] - Package selector now supports search filtering
+[1.67.1] [user] [changed] - Package settings layout simplified with less explanatory text
+[1.67.1] [user] [changed] - Projects using a package are now highlighted with a callout
+[1.67.1] [user] [changed] - Results package header text is now larger
+[1.67.1] [admin] [changed] - Results package list now shows attached project count instead of "Latest" badge
+[1.67.1] [admin] [changed] - Package settings on projects simplified and reorganized for clarity
+[1.67.1] [admin] [changed] - Package selector upgraded to searchable dropdown
+[1.67.1] [admin] [changed] - "In use by" project list now displayed as a highlighted callout
+[1.67.1] [admin] [changed] - Navigation icons updated for Results and Assets tabs
+[1.67.1] [admin] [changed] - Results package header text is now larger for readability
+[1.67.1] [admin] [changed] - Module and metric summary line removed from package view
+[1.67.0] [user] [changed] - Removed pinned badge from project list items
+[1.67.0] [admin] [changed] - Removed pinned badge from project list items
+[1.67.0] [user] [changed] - Results package tab now shows module parameters, output files with download buttons, and script/logs inline
+[1.67.0] [user] [changed] - Package picker redesigned as a dropdown selector instead of a scrollable list
+[1.67.0] [user] [changed] - Results package tab now accessible to more users based on instance-level permissions
+[1.67.0] [user] [changed] - Disk size now always shown in results package details
+[1.67.0] [admin] [changed] - Results package tab now shows module parameters, output files, and download buttons inline
+[1.67.0] [admin] [changed] - Package picker on project tab replaced with a dropdown selector
+[1.67.0] [admin] [changed] - Viewing package contents now requires instance-level data permission instead of project-level
+[1.67.0] [admin] [changed] - Viewing package logs now requires instance-level logs permission instead of project-level
+[1.67.0] [admin] [changed] - Disk size now always shown on package provenance line
+[1.67.0] [admin] [changed] - Instance catalogue and project tab now display identical package contents
+[1.67.0] [admin] [internal] - Package detail data is now cached locally for faster repeat viewing
+[1.67.0] [user] [added] - Projects can now be scoped to a single admin area
+[1.67.0] [user] [added] - Project cards show attached results package and pinned/follows-pin badges
+[1.67.0] [user] [added] - Project cards display their scoped admin area
+[1.67.0] [user] [changed] - Data page now shows separate Configuration cards for HMIS and HFA
+[1.67.0] [user] [changed] - Admin area labels setting moved from Settings tab to Data page
+[1.67.0] [user] [changed] - Settings tab removed from main navigation
+[1.67.0] [user] [changed] - GeoJSON maps now managed separately for HMIS and HFA
+[1.67.0] [user] [changed] - Facility and admin area counts shown together on facility cards
+[1.67.0] [user] [changed] - Data page cards reorganized into General, HMIS, HFA, and ICEH sections
+[1.67.0] [user] [changed] - DHIS2 connection settings moved to the HMIS section of the Data page
+[1.67.0] [user] [changed] - Project comparison table now shows attached package name per project
+[1.67.0] [user] [changed] - Import status by indicator view integrated into imports panel
+[1.67.0] [user] [changed] - Module parameter inputs now show labels directly on fields
+[1.67.0] [user] [changed] - Viewer panels for files, logs, and scripts use a simpler back button
+[1.67.0] [user] [fixed] - File downloads with special characters in names now work correctly
+[1.67.0] [user] [changed] - File sizes displayed with consistent formatting across the platform
+[1.67.0] [admin] [added] - Projects can now be scoped to a single admin area
+[1.67.0] [admin] [added] - Project cards show attached results package and pinned/follows-pin badges
+[1.67.0] [admin] [changed] - Settings tab removed; configuration moved into the Data page per registry
+[1.67.0] [admin] [changed] - HMIS and HFA now have separate structure configuration and GeoJSON maps
+[1.67.0] [admin] [changed] - Admin area labels editor is now under a General section on the Data page
+[1.67.0] [admin] [changed] - Facility and admin area counts shown directly on facility cards per registry
+[1.67.0] [admin] [changed] - DHIS2 connection settings moved into the HMIS section of the Data page
+[1.67.0] [admin] [changed] - Import history by-indicator view integrated into imports surface instead of separate screen
+[1.67.0] [admin] [changed] - Results package detail panels use standardized badge styling for status
+[1.67.0] [admin] [changed] - Comparison table now shows each project's attached package name
+[1.67.0] [admin] [changed] - Module parameter inputs now show labels inline with the control
+[1.67.0] [admin] [changed] - File viewer, log viewer, and script viewer panels use back-arrow navigation
+[1.67.0] [admin] [fixed] - File download links now handle special characters in filenames correctly
+[1.67.0] [admin] [internal] - Consolidated navigation list so compact and wide views stay in sync
+[1.66.9] [user] [fixed] - Fixed data imports occasionally freezing and never completing
+[1.66.9] [admin] [fixed] - Fixed rare hang during HMIS CSV data imports
+[1.66.9] [user] [added] - Change your email address from your profile settings
+[1.66.9] [user] [added] - Guided tours accessible from the Help menu in projects
+[1.66.9] [user] [added] - Guided tours accessible from the Help menu on the home page
+[1.66.9] [user] [added] - Help menu now offers guided tours, help requests, feedback, and documentation
+[1.66.9] [user] [added] - "Ask for help" option in the feedback form
+[1.66.9] [user] [changed] - Feedback form renamed to "Help & feedback" with a new help request type
+[1.66.9] [user] [changed] - Help button replaced with a Help menu offering multiple options
+[1.66.9] [user] [fixed] - Live cursors no longer show duplicates when you have multiple tabs open
+[1.66.9] [user] [fixed] - Your cursor disappears for collaborators when you switch to another window
+[1.66.9] [user] [fixed] - Collaborator click ripples no longer appear from disconnected sessions
+[1.66.9] [admin] [added] - Self-service email change across all instances from profile
+[1.66.9] [admin] [added] - Guided tours accessible from the Help menu
+[1.66.9] [admin] [added] - Help request option in the feedback form
+[1.66.9] [admin] [added] - Documentation link in the Help menu
+[1.66.9] [admin] [changed] - Help button replaced with a menu offering tours, help, feedback, and docs
+[1.66.9] [admin] [changed] - Feedback form renamed to "Help & feedback" with new help request type
+[1.66.9] [admin] [fixed] - Live cursors no longer duplicated when a user has multiple tabs open
+[1.66.9] [admin] [fixed] - Cursor disappears when switching away from a window or tab
+[1.66.9] [admin] [fixed] - Connection banner clears correctly when collaboration access is revoked
 [1.66.8] [user] [added] - Dropdown menus now support searching by typing to filter options
 [1.66.8] [user] [changed] - Multi-select dropdowns now support searching to find items faster
 [1.66.8] [user] [changed] - Indicator labels in selection lists are no longer truncated

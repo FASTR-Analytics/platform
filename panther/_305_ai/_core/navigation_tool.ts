@@ -159,10 +159,10 @@ export function createNavigationTool<
       ? z.object({ view: z.literal(id), params: def.params })
       : z.object({ view: z.literal(id) });
   });
-  const targetSchema = branches.length === 1
-    ? branches[0]
-    // deno-lint-ignore no-explicit-any
-    : z.discriminatedUnion("view", branches as any);
+  const [firstBranch, ...restBranches] = branches;
+  const targetSchema = restBranches.length === 0
+    ? firstBranch
+    : z.discriminatedUnion("view", [firstBranch, ...restBranches]);
   const inputSchema = z.object({
     target: targetSchema,
   }) as unknown as zType.ZodType<AINavigationToolInput<TDefs, K>>;

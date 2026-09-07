@@ -106,8 +106,4 @@ export type MergedMarkdownStyle = {
     headerShadingColor: string;
     headerShadingOpacity: number;
   };
-
-  math: {
-    displayAlign: "left" | "center" | "right";
-  };
 };

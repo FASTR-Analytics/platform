@@ -55,11 +55,11 @@ export type PaneBandLayout = {
   bandExtents: number[];
 };
 
-export interface SimplifiedChartConfig<
+export type SimplifiedChartConfig<
   TInputs,
   TData,
   TStyle extends MergedChartStyleBase,
-> {
+> = {
   mergedStyle: TStyle;
   transformedData: TData;
   dataProps: {
@@ -87,9 +87,9 @@ export interface SimplifiedChartConfig<
   yAxisConfig: YAxisConfig;
   orientation: "vertical" | "horizontal";
   resolvedLegend?: LegendInput;
-}
+};
 
-export interface MeasurePaneConfig<TData> {
+export type MeasurePaneConfig<TData> = {
   indices: {
     pane: number;
     row: number;
@@ -123,9 +123,9 @@ export interface MeasurePaneConfig<TData> {
   // pass 2. Absent = measurePane solves its own per-pane slotT locally
   // (bands mode, and every pass-1/layoutOnly probe).
   slotT?: number;
-}
+};
 
-export interface MeasuredChartBase<TInputs, TData, TStyle> {
+export type MeasuredChartBase<TInputs, TData, TStyle> = {
   item: TInputs;
   bounds: RectCoordsDims;
   measuredSurrounds: MeasuredSurrounds;
@@ -144,4 +144,4 @@ export interface MeasuredChartBase<TInputs, TData, TStyle> {
   cramped?: boolean;
   // Post-measure fit metrics. Undefined when autofit was disabled.
   fitReport?: FigureFitReport;
-}
+};

@@ -56,7 +56,7 @@ export async function exportDashboardAsXlsx(
           appended++;
         } catch (e) {
           // Skip a malformed table rather than aborting the whole workbook, but
-          // log it — a silently dropped sheet would dent the "X of Y" count the
+          // log it: a silently dropped sheet would dent the "X of Y" count the
           // modal promised, so make the failure diagnosable.
           console.error(
             `Could not export table "${figures[i].label}" to Excel:`,

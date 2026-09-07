@@ -134,12 +134,12 @@ if [ -n "$CRANE" ] && "$CRANE" digest "$IMAGE_TAG" >/dev/null 2>&1; then
     if "$CRANE" copy "$IMAGE_TAG" "$PREV_IMAGE_TAG"; then
         ROLLBACK_AVAILABLE=true
     else
-        echo "WARNING: crane copy to $PREV_IMAGE_TAG failed — no rollback tag this deploy."
+        echo "WARNING: crane copy to $PREV_IMAGE_TAG failed, no rollback tag this deploy."
     fi
 fi
 
 if [ -n "$CRANE" ]; then
-    # Push via crane from the host network — Docker Desktop's VM upload path
+    # Push via crane from the host network: Docker Desktop's VM upload path
     # is throttled (see ./deploy). crane skips layers already on the registry.
     SAVE_TAR=$(mktemp /tmp/wb-fastr-deploy-testing-XXXXXX.tar)
     echo "Exporting image from Docker daemon..."
@@ -219,7 +219,7 @@ fi
 trap - ERR
 rm -rf "$SERVER_DIR/client_dist.backup"
 
-# Remove the superseded (now-untagged) images by exact ID — no blanket prune.
+# Remove the superseded (now-untagged) images by exact ID: no blanket prune.
 if [ -n "$REMOTE_OLD_IMAGE_ID" ]; then
     ssh "$SSH_HOST" "docker rmi $REMOTE_OLD_IMAGE_ID >/dev/null 2>&1" || true
 fi

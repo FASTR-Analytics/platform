@@ -10,7 +10,7 @@ export type HfaIndicatorMeasure = {
   kind: "percent" | "number";
   // Human description of what the aggregated value means, e.g. "% of facilities".
   // Surfaced as a SEPARATE annotation (never concatenated into the indicator
-  // label) so a reader — including the AI — knows the measurement. Edit the
+  // label) so a reader, including the AI, knows the measurement. Edit the
   // wording here; this is the single source of truth, never inline these
   // strings at call sites.
   label: TranslatableString;

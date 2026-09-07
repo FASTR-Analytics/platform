@@ -8,11 +8,12 @@ import {
   getEnabledOptionalFacilityColumns,
   getHfaIndicatorMeasure,
   getStartingModuleConfigSelections,
-  getValidatedModuleId,
   metricAIDescriptionInstalled,
   parseInstalledModuleDefinition,
   parsePresentationObjectConfig,
+  catalogExpressionEvaluationStrict,
   postAggregationExpressionStrict,
+  projectScopeToken,
   throwIfErrWithData,
   vizPresetInstalled,
   type APIResponseWithData,
@@ -24,12 +25,12 @@ import {
   type HfaIndicatorType,
   type HfaTaxonomyForAI,
   type IndicatorMetadata,
+  toIndicatorMetadataDisplay,
   type InstalledModuleSummary,
   type InstalledModuleWithConfigSelections,
   type ItemsHolderPresentationObject,
   type ItemsHolderResultsObject,
   type MetricWithStatus,
-  type ModuleId,
   type PeriodBounds,
   type PeriodOption,
   type PresentationObjectDetail,
@@ -40,59 +41,86 @@ import {
   type RunModule,
   type RunResultsObject,
 } from "lib";
-import { getResultsObjectTableName, tryCatchDatabaseAsync } from "../db/utils.ts";
-import { inferMostGranularTimePeriodColumn } from "../db/project/metric_enricher.ts";
+import {
+  escapeSqlString,
+  getResultsObjectTableName,
+  tryCatchDatabaseAsync,
+} from "../db/utils.ts";
 import { parseModuleConfigSelections } from "../db/project/modules.ts";
 import {
   getRunManifestCached,
   readRunInputJsonCached,
 } from "../runs/manifest_cache.ts";
 import {
+  isRunIdShape,
   runDirPath,
   runInputFilePath,
   runResultsObjectParquetPath,
 } from "../runs/run_paths.ts";
 import {
-  computeFacilityContext,
-  facilitiesTableForFamily,
-} from "../server_only_funcs_presentation_objects/get_query_context.ts";
-import {
   buildMinimalFetchConfig,
-  getPossibleValuesCore,
-} from "../server_only_funcs_presentation_objects/get_possible_values.ts";
-import { getPresentationObjectItemsCore } from "../server_only_funcs_presentation_objects/get_presentation_object_items.ts";
-import {
   buildResultsValueInfo,
-  indicatorFormatsFrom,
-} from "../server_only_funcs_presentation_objects/get_results_value_info.ts";
-import {
+  buildWhereClause,
+  computeFacilityContext,
   detectNeededPeriodColumns,
+  facilitiesTableForFamily,
+  getPossibleValuesCore,
+  getPresentationObjectItemsCore,
+  indicatorFormatsFrom,
+  indicatorRulesFrom,
   needsPeriodCTEFor,
-} from "../server_only_funcs_presentation_objects/period_helpers.ts";
-import type {
-  QueryContext,
-  SqlRowsExecutor,
-} from "../server_only_funcs_presentation_objects/types.ts";
+  type QueryContext,
+  type RunVersionInfo,
+  type SqlRowsExecutor,
+} from "../server_only_funcs_presentation_objects/mod.ts";
+import {
+  applyCatalogExpressionsToItems,
+  getCatalogEvaluationForResultsObject,
+} from "./catalog_expression_items.ts";
 import { executeSqlOverParquet, type ParquetView } from "./duckdb_executor.ts";
 import {
   findVirtualDefault,
   VIRTUAL_DEFAULT_LAST_UPDATED,
 } from "./virtual_defaults.ts";
 
-// The run read path (PLAN_RESULTS_RUNS Status, model point 3): every function
-// here consults ONLY the attached immutable run — manifest for metadata (no
-// probes), parquet for data. The SQL builders and status logic are the SAME
-// code the Postgres path uses; only the context source and the executor differ
-// (§2.4). The Postgres read functions stay in-tree solely as the parity rig's
-// baseline until demolition.
+// The run read path: every function here consults ONLY the attached immutable
+// run: manifest for metadata (no probes), parquet for data. The SQL builders
+// and status logic live in server_only_funcs_presentation_objects/ and take
+// the query context and the executor from here.
 
 export type RunReadContext = {
   runId: string;
   runDir: string;
   manifest: RunManifest;
+  // The owning project's AA2 identity (projects.admin_area_2); null =
+  // national. Scopes every read through the FromRun wrappers
+  // (PLAN_1_PROJECT_AA2_SCOPE §3).
+  adminArea2: string | null;
+  scopeToken: string;
 };
 
-// Resolves the project's attached run via projects.run_id — the one and only
+// The two lenses onto one read core. A read context is (run, scope): the
+// PROJECT lens resolves both from the project row, its attached run and its
+// AA2, and is what every project-mounted data route uses; the RUN lens takes
+// the run id directly at national scope and is what the run-keyed instance
+// routes (and through them the pinned-package MCP surface) use. Everything
+// below the context is shared.
+
+async function buildRunReadContext(
+  runId: string,
+  adminArea2: string | null,
+): Promise<RunReadContext> {
+  const manifest = await getRunManifestCached(runId);
+  return {
+    runId,
+    runDir: runDirPath(runId),
+    manifest,
+    adminArea2,
+    scopeToken: projectScopeToken(adminArea2),
+  };
+}
+
+// Resolves the project's attached run via projects.run_id, the one and only
 // serving pointer. No run attached is a typed, expected state (projects await
 // their backfill synthesis or first wizard generation); a non-null pointer to
 // an unreadable run is an operational error surfaced loudly.
@@ -102,8 +130,8 @@ export async function getRunReadContext(
 ): Promise<APIResponseWithData<RunReadContext>> {
   try {
     const row = (
-      await mainDb<{ run_id: string | null }[]>`
-SELECT run_id FROM projects WHERE id = ${projectId}
+      await mainDb<{ run_id: string | null; admin_area_2: string | null }[]>`
+SELECT run_id, admin_area_2 FROM projects WHERE id = ${projectId}
 `
     ).at(0);
     if (row === undefined) {
@@ -115,10 +143,9 @@ SELECT run_id FROM projects WHERE id = ${projectId}
         err: "No results package attached to this project",
       };
     }
-    const manifest = await getRunManifestCached(row.run_id);
     return {
       success: true,
-      data: { runId: row.run_id, runDir: runDirPath(row.run_id), manifest },
+      data: await buildRunReadContext(row.run_id, row.admin_area_2),
     };
   } catch (e) {
     return {
@@ -128,13 +155,24 @@ SELECT run_id FROM projects WHERE id = ${projectId}
   }
 }
 
-// Same format as the legacy per-request getDatasetsVersion, but from the
-// manifest's frozen stamps — carried in holders for provenance.
-export function datasetsVersionFromManifest(manifest: RunManifest): string {
-  return [...manifest.datasets]
-    .sort((a, b) => (a.datasetType < b.datasetType ? -1 : 1))
-    .map((d) => `${d.datasetType}:${d.lastUpdated}`)
-    .join(",");
+// The run lens: an explicit run id at national scope. Accepts any run id the
+// caller is authorized to read (the instance data bits), an unreadable or
+// unknown run surfaces as the manifest read failing. The id is CALLER
+// supplied (a URL param) and becomes a path, so it is shape-checked first.
+export async function getRunReadContextForRun(
+  runId: string,
+): Promise<APIResponseWithData<RunReadContext>> {
+  if (!isRunIdShape(runId)) {
+    return { success: false, err: "Invalid results package id" };
+  }
+  try {
+    return { success: true, data: await buildRunReadContext(runId, null) };
+  } catch (e) {
+    return {
+      success: false,
+      err: `Results run unavailable: ${e instanceof Error ? e.message : e}`,
+    };
+  }
 }
 
 function findResultsObject(
@@ -179,7 +217,7 @@ function executorFor(
 }
 
 // RO columns answer from the manifest stamp; anything else (facilities) is a
-// probe against the run's own parquet — still run-local, never live.
+// probe against the run's own parquet, still run-local, never live.
 function columnExistsFor(
   ctx: RunReadContext,
   resultsObjectId: string,
@@ -213,9 +251,16 @@ function buildQueryContextFromManifest(
   fetchConfig: GenericLongFormFetchConfig,
   datasetFamily: DatasetType | undefined,
 ): QueryContext {
-  const facilityConfig = manifest.facilityColumnsConfig;
-  const enabledFacilityColumns =
-    getEnabledOptionalFacilityColumns(facilityConfig);
+  // Per-family slot (manifest v5): hmis → structureSchemaHmis, hfa →
+  // structureSchemaHfa, iceh/undefined → no enabled facility columns.
+  const facilityConfig = datasetFamily === "hmis"
+    ? manifest.structureSchemaHmis ?? undefined
+    : datasetFamily === "hfa"
+    ? manifest.structureSchemaHfa ?? undefined
+    : undefined;
+  const enabledFacilityColumns = facilityConfig
+    ? getEnabledOptionalFacilityColumns(facilityConfig)
+    : [];
   const facilityContext = computeFacilityContext(
     fetchConfig,
     enabledFacilityColumns,
@@ -230,8 +275,7 @@ function buildQueryContextFromManifest(
     neededPeriodColumns,
     calendar: manifest.calendar,
   });
-  // Mirrors buildQueryContext's getTextColumnNames: both sides of the join,
-  // from the manifest stamps instead of information_schema probes.
+  // Both sides of the join, from the manifest's column-type stamps.
   const textColumns = new Set(
     ro.columns.filter((c) => c.duckDbType === "VARCHAR").map((c) => c.name),
   );
@@ -250,7 +294,6 @@ function buildQueryContextFromManifest(
     hasPeriodId,
     hasQuarterId,
     calendar: manifest.calendar,
-    facilityConfig,
     enabledFacilityColumns,
     ...facilityContext,
     neededPeriodColumns,
@@ -295,10 +338,6 @@ const icehIndicatorRow = z.object({
   category: z.string(),
   sort_order: z.number(),
 });
-const indicatorRow = z.object({
-  indicator_common_id: z.string().nullable(),
-  indicator_common_label: z.string().nullable(),
-});
 // The input-mirror readers need only identity + manifest, so the wizard can
 // call them on a run it just built (before any read context exists).
 export type RunInputSource = { runId: string; manifest: RunManifest };
@@ -314,7 +353,7 @@ async function readInputRows<T>(
 }
 
 // The project-level dataset/indicator lists that T1 carries, all served from
-// the attached run's own inputs (PLAN_RESULTS_RUNS Phase 3 re-cut ruling 5 —
+// the attached run's own inputs (PLAN_RESULTS_RUNS Phase 3 re-cut ruling 5:
 // the project mirror tables are no longer written, so they are never read).
 
 export function getProjectDatasetsFromManifest(
@@ -325,19 +364,6 @@ export function getProjectDatasetsFromManifest(
     info: d.info,
     dateExported: d.lastUpdated,
   } as DatasetInProject));
-}
-
-export async function getCommonIndicatorsFromManifestInputs(
-  ctx: RunInputSource,
-): Promise<{ id: string; label: string }[]> {
-  const rows = await readInputRows(ctx, "indicators.json", indicatorRow);
-  return rows
-    .flatMap((r) =>
-      r.indicator_common_id && r.indicator_common_label
-        ? [{ id: r.indicator_common_id, label: r.indicator_common_label }]
-        : []
-    )
-    .sort((a, b) => a.label.localeCompare(b.label));
 }
 
 export async function getIcehIndicatorsFromManifestInputs(
@@ -445,7 +471,7 @@ function parseServiceCategoryIds(raw: unknown): string[] {
 // A manifest lookup, not a derivation: the catalog is stamped at finalize by
 // buildRunIndicatorCatalog (server/runs/indicator_catalog.ts) and recomputed
 // forward by manifest transform block 1. Nothing here re-reads the input
-// mirrors — the manifest's "precomputed, never probed" doctrine.
+// mirrors: the manifest's "precomputed, never probed" doctrine.
 //
 // An empty array for an unknown module is the same answer the derivation gave
 // (it returned early on a module missing from the catalog).
@@ -459,8 +485,8 @@ export function getIndicatorMetadataFromRun(
 
 // ── Metric resolution from the manifest ──────────────────────────────────────
 
-// Mirrors enrichMetric (metric_enricher.ts) with the manifest stamps standing
-// in for the live column probes.
+// A manifest metric row → the ResultsValue the client works with, with the
+// disaggregation options from the results object's finalize-time stamp.
 export function enrichMetricFromManifest(
   metric: RunMetric,
   ro: RunResultsObject | undefined,
@@ -488,6 +514,11 @@ export function enrichMetricFromManifest(
           JSON.parse(metric.post_aggregation_expression),
         )
       : undefined,
+    catalogExpressionEvaluation: metric.catalog_expression_evaluation
+      ? catalogExpressionEvaluationStrict.parse(
+        JSON.parse(metric.catalog_expression_evaluation),
+      )
+      : undefined,
     valueLabelReplacements: metric.value_label_replacements
       ? z
           .record(z.string(), z.string())
@@ -506,10 +537,20 @@ export function enrichMetricFromManifest(
   };
 }
 
+function inferMostGranularTimePeriodColumn(
+  disaggregationOptions: ResultsValue["disaggregationOptions"],
+): PeriodOption | undefined {
+  const disOpts = disaggregationOptions.map((d) => d.value);
+  if (disOpts.includes("period_id")) return "period_id";
+  if (disOpts.includes("quarter_id")) return "quarter_id";
+  if (disOpts.includes("year")) return "year";
+  return undefined;
+}
+
 // Server-side requiredness guard for the type-erased items request: the
 // client sends only fetchConfig, so the viz type is unknown here and two
 // gaps are structural. Time-based required dims (restricted
-// allowedPresentationOptions) are exempt — a map legitimately omits
+// allowedPresentationOptions) are exempt: a map legitimately omits
 // time_point under current policy. And metrics sharing an RO may require
 // different dims (m9 strat/level), so only dims required by EVERY metric of
 // the RO are enforceable from the RO id alone. App clients and the AI tools
@@ -557,7 +598,7 @@ export function resolveMetricFromRun(
 
 // ── The run-derived catalog as the client sees it (T1 store) ─────────────────
 
-// The manifest module catalog → InstalledModuleSummary[], sorted by id — the
+// The manifest module catalog → InstalledModuleSummary[], sorted by id, the
 // project's modules ARE the attached run's modules (no live project-DB state).
 export function getModuleSummariesFromManifest(
   manifest: RunManifest,
@@ -566,7 +607,7 @@ export function getModuleSummariesFromManifest(
     .map<InstalledModuleSummary>((mod) => {
       const def = parseInstalledModuleDefinition(mod.moduleDefinition);
       return {
-        id: getValidatedModuleId(mod.id),
+        id: mod.id,
         label: def.label,
         hasParameters: (def.configRequirements?.parameters?.length ?? 0) > 0,
         lastRunAt: mod.lastRunAt,
@@ -600,7 +641,7 @@ export function getMetricsWithStatusFromManifest(
         statusReason: available
           ? undefined
           : (stamp?.reason ?? "No availability stamp in this run"),
-        moduleId: metric.module_id as ModuleId,
+        moduleId: metric.module_id,
         vizPresets: metric.viz_presets
           ? z.array(vizPresetInstalled).parse(JSON.parse(metric.viz_presets))
           : undefined,
@@ -621,7 +662,7 @@ export function getModuleWithConfigSelectionsFromManifest(
   return {
     success: true,
     data: {
-      id: getValidatedModuleId(mod.id),
+      id: mod.id,
       label: def.label,
       configSelections: mod.configSelections
         ? parseModuleConfigSelections(mod.configSelections)
@@ -652,11 +693,14 @@ export function getModuleIdForMetricFromRun(
   return ctx.manifest.metrics.find((m) => m.id === metricId)?.module_id;
 }
 
-export function getRunVersionInfo(
-  ctx: RunReadContext,
-  moduleId: string,
-): { moduleLastRun: string; datasetsVersion: string; runId: string } {
-  return versionInfoFor(ctx, moduleId);
+export function getRunVersionInfo(ctx: RunReadContext): RunVersionInfo {
+  return { runId: ctx.runId, scopeToken: ctx.scopeToken };
+}
+
+// The "module has not run" guard, read off the manifest: a module absent from
+// the run, or present without a run stamp, has no data to serve.
+export function moduleHasRun(ctx: RunReadContext, moduleId: string): boolean {
+  return findModule(ctx.manifest, moduleId)?.lastRunAt != null;
 }
 
 // PO row (authored content) stays on the project DB; only the resultsValue
@@ -702,6 +746,7 @@ SELECT * FROM presentation_objects WHERE id = ${presentationObjectId}
         isDefault: true,
         folderId: null,
         runId: ctx.runId,
+        scopeToken: ctx.scopeToken,
       };
       return { success: true, data: virtualDetail };
     }
@@ -717,25 +762,104 @@ SELECT * FROM presentation_objects WHERE id = ${presentationObjectId}
       isDefault: rawPresObj.is_default_visualization,
       folderId: rawPresObj.folder_id,
       runId: ctx.runId,
+      scopeToken: ctx.scopeToken,
     };
     return { success: true, data: presObj };
   });
 }
 
-function versionInfoFor(ctx: RunReadContext, moduleId: string) {
-  const mod = findModule(ctx.manifest, moduleId);
-  return {
-    moduleLastRun: mod?.lastRunAt ?? "unknown",
-    datasetsVersion: datasetsVersionFromManifest(ctx.manifest),
-    runId: ctx.runId,
-  };
+// ── Project scope (PLAN_1_PROJECT_AA2_SCOPE §3) ──────────────────────────────
+
+// Derived child values are immutable per run, so they memo like manifests:
+// FIFO cap for memory, evicted only when the run is deleted.
+const MAX_CACHED_SCOPE_DERIVATIONS = 50;
+const SCOPE_DERIVATION_CACHE = new Map<string, string[]>();
+
+export function evictRunFromScopeDerivationCache(runId: string): void {
+  for (const key of SCOPE_DERIVATION_CACHE.keys()) {
+    if (key.startsWith(`${runId}|`)) SCOPE_DERIVATION_CACHE.delete(key);
+  }
+}
+
+// An empty derivation must inject a never-matching sentinel: an empty
+// `values` array is skipped by buildWhereClause and would show ALL data.
+const SCOPE_EMPTY_SENTINEL = "__SCOPE_EMPTY__";
+
+// The scope filter for one results object, decided per-RO from the manifest
+// column stamps at runtime (never from a baked list, a new module can add to
+// the derivation surface). RO carries admin_area_2 → filter it directly; only
+// a child admin column → filter by the child values derived from the family
+// facilities parquet (matching by NAME, the duplicate-district collision is
+// an accepted latent, see SYSTEM_08's ruling); no admin columns at all
+// (national ROs, ICEH) → unfiltered, which is the ruling's one blessed
+// unfiltered case.
+//
+// An RO that HAS an admin column but whose scope cannot be applied fails
+// CLOSED, never unfiltered: the family is undeclarable for a module whose
+// dataSources are all upstream results objects (m004/m005/m006), and those
+// same modules drop admin_area_2 from their admin3 outputs, so the pair would
+// otherwise show every area in the country inside a scoped project. Blank is
+// wrong visibly; national data under a regional heading is wrong silently.
+// The durable fix is those scripts emitting admin_area_2 (which puts them on
+// the direct-filter path and retires the derivation entirely), tracked in
+// the modules repo as PLAN_ADMIN_AREA_2_ON_ADMIN3_OUTPUTS.md. Packages are
+// immutable,
+// so this branch still guards every package generated before that lands.
+export async function computeScopeFilters(
+  ctx: RunReadContext,
+  ro: RunResultsObject,
+): Promise<GenericLongFormFetchConfig["filters"]> {
+  if (ctx.adminArea2 === null) return [];
+  const columnNames = new Set(ro.columns.map((c) => c.name));
+  if (columnNames.has("admin_area_2")) {
+    return [{ disOpt: "admin_area_2", values: [ctx.adminArea2] }];
+  }
+  const childColumn = columnNames.has("admin_area_3")
+    ? ("admin_area_3" as const)
+    : columnNames.has("admin_area_4")
+    ? ("admin_area_4" as const)
+    : undefined;
+  if (childColumn === undefined) return [];
+  const family = getDatasetFamilyFromRun(ctx, ro.moduleId);
+  const facilitiesTable = family === "hmis" || family === "hfa"
+    ? `facilities_${family}`
+    : undefined;
+  if (
+    facilitiesTable === undefined ||
+    !ctx.manifest.inputFiles.includes(`inputs/${facilitiesTable}.parquet`)
+  ) {
+    return [{ disOpt: childColumn, values: [SCOPE_EMPTY_SENTINEL] }];
+  }
+  const cacheKey =
+    `${ctx.runId}|${facilitiesTable}|${childColumn}|${ctx.adminArea2.toUpperCase()}`;
+  let values = SCOPE_DERIVATION_CACHE.get(cacheKey);
+  if (values === undefined) {
+    const rows = await executeSqlOverParquet(
+      [{
+        viewName: facilitiesTable,
+        parquetPath: runInputFilePath(ctx.runDir, `${facilitiesTable}.parquet`),
+      }],
+      `SELECT DISTINCT ${childColumn} FROM ${facilitiesTable} WHERE UPPER(admin_area_2) = UPPER('${
+        escapeSqlString(ctx.adminArea2)
+      }') AND ${childColumn} IS NOT NULL`,
+    );
+    values = rows.map((r) => String(r[childColumn]));
+    SCOPE_DERIVATION_CACHE.set(cacheKey, values);
+    if (SCOPE_DERIVATION_CACHE.size > MAX_CACHED_SCOPE_DERIVATIONS) {
+      const oldest = SCOPE_DERIVATION_CACHE.keys().next().value!;
+      SCOPE_DERIVATION_CACHE.delete(oldest);
+    }
+  }
+  return [{
+    disOpt: childColumn,
+    values: values.length === 0 ? [SCOPE_EMPTY_SENTINEL] : values,
+  }];
 }
 
 // ── The read functions ───────────────────────────────────────────────────────
 
 export async function getPresentationObjectItemsFromRun(
   ctx: RunReadContext,
-  projectId: string,
   resultsObjectId: string,
   fetchConfig: GenericLongFormFetchConfig,
   firstPeriodOption: PeriodOption | undefined,
@@ -759,27 +883,53 @@ export async function getPresentationObjectItemsFromRun(
     };
   }
   const datasetFamily = getDatasetFamilyFromRun(ctx, ro.moduleId);
+  const scopeFilters = await computeScopeFilters(ctx, ro);
+  const effectiveFetchConfig = scopeFilters.length === 0 ? fetchConfig : {
+    ...fetchConfig,
+    filters: [...fetchConfig.filters, ...scopeFilters],
+  };
   const queryContext = buildQueryContextFromManifest(
     ctx.manifest,
     ro,
-    fetchConfig,
+    effectiveFetchConfig,
     datasetFamily,
   );
-  return await getPresentationObjectItemsCore(
+  const catalog = getIndicatorMetadataFromRun(ctx, ro.moduleId);
+  const res = await getPresentationObjectItemsCore(
     {
       execute: executorFor(ctx, resultsObjectId),
-      columnExists: columnExistsFor(ctx, resultsObjectId),
+      // Display fields only: an indicator's evaluation is a generation fact
+      // used just below, never something a client or a stored figure carries.
       getIndicatorMetadata: () =>
-        Promise.resolve(getIndicatorMetadataFromRun(ctx, ro.moduleId)),
+        Promise.resolve(toIndicatorMetadataDisplay(catalog)),
     },
-    projectId,
     resultsObjectId,
     getResultsObjectTableName(resultsObjectId),
     queryContext,
-    fetchConfig,
+    effectiveFetchConfig,
     firstPeriodOption,
-    versionInfoFor(ctx, ro.moduleId),
+    getRunVersionInfo(ctx),
   );
+  // Post-aggregation catalog evaluation (PLAN_1a §1.6): the engine returned
+  // SUMmed ingredient columns for main AND roll-up rows; each row's own
+  // indicator expression turns them into one `value`.
+  const catalogEvaluation = getCatalogEvaluationForResultsObject(
+    ctx.manifest,
+    resultsObjectId,
+  );
+  if (res.success && catalogEvaluation !== undefined && res.data.status === "ok") {
+    res.data.items = applyCatalogExpressionsToItems(
+      res.data.items,
+      catalog,
+      catalogEvaluation.ingredientProps,
+    );
+  }
+  // The echo is the REQUEST: restore the caller's fetchConfig onto the
+  // holder: the scope rides separately as the version-info scopeToken.
+  if (res.success && scopeFilters.length !== 0) {
+    res.data.fetchConfig = fetchConfig;
+  }
+  return res;
 }
 
 export async function getPossibleValuesFromRun(
@@ -809,6 +959,10 @@ export async function getPossibleValuesFromRun(
     };
   }
   const datasetFamily = getDatasetFamilyFromRun(ctx, ro.moduleId);
+  // REASSIGN the param: it is consumed twice below (buildMinimalFetchConfig
+  // AND the getPossibleValuesCore call); scoping only one would leave the
+  // query context and the actual query disagreeing.
+  filters = [...filters, ...(await computeScopeFilters(ctx, ro))];
   const fetchConfig = buildMinimalFetchConfig(
     disaggregationOptionValue,
     filters,
@@ -836,7 +990,6 @@ export async function getPossibleValuesFromRun(
 
 export async function getResultsValueInfoFromRun(
   ctx: RunReadContext,
-  projectId: string,
   metricId: string,
 ): Promise<APIResponseWithData<ResultsValueInfoForPresentationObject>> {
   const resResultsValue = resolveMetricFromRun(ctx, metricId);
@@ -851,18 +1004,19 @@ export async function getResultsValueInfoFromRun(
   const labelMap = new Map(indicatorMetadata.map((m) => [m.id, m.label]));
 
   return await buildResultsValueInfo(
-    projectId,
     metricId,
     resultsObjectId,
-    versionInfoFor(ctx, moduleId),
+    resultsValue.datasetFamily,
+    getRunVersionInfo(ctx),
     ro?.periodBounds ?? undefined,
     resultsValue.disaggregationOptions.map((d) => d.value),
     indicatorFormatsFrom(indicatorMetadata),
+    indicatorRulesFrom(indicatorMetadata),
     (disOpt) => getPossibleValuesFromRun(ctx, resultsObjectId, disOpt, labelMap, []),
   );
 }
 
-// Raw no-filter bounds for the replicant-options route — the manifest stamp
+// Raw no-filter bounds for the replicant-options route: the manifest stamp
 // IS the no-filter MIN/MAX of the physical time column.
 export function getRawPeriodBoundsFromRun(
   ctx: RunReadContext,
@@ -887,8 +1041,30 @@ export async function getResultsObjectItemsFromRun(
       };
     }
     const tableName = getResultsObjectTableName(resultsObjectId);
-    const rawItems = await executorFor(ctx, resultsObjectId)(
-      `SELECT * FROM ${tableName}${limit ? ` LIMIT ${Math.floor(limit)}` : ""}`,
+    const scopeFilters = await computeScopeFilters(ctx, ro);
+    // Scope columns are always text, route them down buildWhereClause's
+    // UPPER/escape path (an empty textColumns set would send them down the
+    // numeric branch, which compiles admin-area names to FALSE).
+    const whereStatements = buildWhereClause(
+      {
+        values: [],
+        groupBys: [],
+        filters: scopeFilters,
+        periodFilter: undefined,
+        postAggregationExpression: undefined,
+      },
+      false,
+      undefined,
+      { textColumns: new Set(scopeFilters.map((f) => f.disOpt)) },
+    );
+    const whereClause = whereStatements.length === 0
+      ? ""
+      : ` WHERE ${whereStatements.join(" AND ")}`;
+    const execute = executorFor(ctx, resultsObjectId);
+    const rawItems = await execute(
+      `SELECT * FROM ${tableName}${whereClause}${
+        limit ? ` LIMIT ${Math.floor(limit)}` : ""
+      }`,
     );
     if (rawItems.length === 0) {
       return {
@@ -896,11 +1072,18 @@ export async function getResultsObjectItemsFromRun(
         data: { status: "no_data_available" as const },
       };
     }
+    // The manifest rowCount is package-wide; a scoped preview must count over
+    // the same WHERE or report scoped items under an unscoped total.
+    const totalCount = whereClause === "" ? ro.rowCount : Number(
+      (await execute(
+        `SELECT COUNT(*) AS total_count FROM ${tableName}${whereClause}`,
+      )).at(0)?.total_count ?? 0,
+    );
     return {
       success: true as const,
       data: {
         status: "ok" as const,
-        totalCount: ro.rowCount,
+        totalCount,
         items: rawItems as Record<string, string>[],
       },
     };

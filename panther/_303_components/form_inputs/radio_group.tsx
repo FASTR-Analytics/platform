@@ -63,7 +63,9 @@ export function RadioGroup<T extends string>(p: RadioGroupProps<T>) {
                           {opt.label}
                         </span>
                       </Match>
-                      <Match when>{opt.label}</Match>
+                      <Match when={typeof opt.label !== "string"}>
+                        {opt.label}
+                      </Match>
                     </Switch>
                   </label>
                 );

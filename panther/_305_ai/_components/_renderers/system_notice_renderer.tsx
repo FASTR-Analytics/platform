@@ -19,9 +19,10 @@ export function SystemNoticeRenderer(p: {
         class="text-base-content-muted hover:text-base-content flex w-full cursor-pointer items-start gap-1 text-left text-xs"
       >
         <div class="mt-0.5">
-          {expanded()
-            ? <Icon iconName="chevronDown" class="h-3 w-3" />
-            : <Icon iconName="chevronRight" class="h-3 w-3" />}
+          <Icon
+            iconName={expanded() ? "chevronDown" : "chevronRight"}
+            class="h-3 w-3"
+          />
         </div>
         <span>{p.item.message}</span>
       </button>

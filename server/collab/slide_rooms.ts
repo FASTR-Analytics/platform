@@ -1,5 +1,5 @@
 // =============================================================================
-// Slide collaboration rooms — thin binding over the generic doc_rooms core
+// Slide collaboration rooms: thin binding over the generic doc_rooms core
 // =============================================================================
 //
 // All room mechanics (seed/restore, state-vector sync, relay, debounced
@@ -76,7 +76,7 @@ const slideAdapter: DocRoomAdapter<Slide> = {
   // diff can attribute deletions exactly instead of to every element editor.
   onDocCreated: (projectId, slideId, doc) => {
     // Per-character authorship: one ledger per text element (the slide
-    // analogue of the report body ledger — exact per-span deletion
+    // analogue of the report body ledger: exact per-span deletion
     // attribution even when several people delete in the same textbox).
     for (const { elementKey, text } of listSlideDocTextElements(doc)) {
       ensureSlideElementLedger(projectId, slideId, elementKey, text);
@@ -87,7 +87,7 @@ const slideAdapter: DocRoomAdapter<Slide> = {
         | null
         | undefined;
       const email = o?.identity?.email ?? o?.versionEditor?.email ?? null;
-      // The ledger must see EVERY text delta (inserts too) to stay aligned —
+      // The ledger must see EVERY text delta (inserts too) to stay aligned:
       // unattributed writes (restores) apply with email null.
       for (const td of touches.textDeltas) {
         applySlideElementDelta(
@@ -100,7 +100,7 @@ const slideAdapter: DocRoomAdapter<Slide> = {
         );
       }
       // Text blocks created WITH content (duplicate, AI insert, paste) seed
-      // their Y.Text before attaching, so no delta announces the seed —
+      // their Y.Text before attaching, so no delta announces the seed:
       // register their ledgers now (after the delta pass: a same-transaction
       // delta must apply against the pre-seed state, not double-apply).
       if (touches.added.length > 0) {
@@ -163,7 +163,7 @@ export type SlideRoomDeps = {
   loadSlide: () => Promise<{ slide: Slide; crdtState: string | null } | null>;
   /** Persist the materialized slide config + Yjs state (collab is
    *  authoritative, so this overwrites) and fire SSE notifications. Schema
-   *  validation belongs in this closure — classify a rejection as permanent
+   *  validation belongs in this closure: classify a rejection as permanent
    *  (see DocSaveResult in doc_rooms.ts). */
   saveSlide: (slide: Slide, crdtState: string) => Promise<DocSaveResult>;
   /** Version-history capture (see DocRoomDeps). */
@@ -239,7 +239,7 @@ export function flushSlideRoom(
   return flushRoomForDoc(projectId, DOC_TYPE, slideId);
 }
 
-/** Discard a slide's live room without checkpointing — call when the slide
+/** Discard a slide's live room without checkpointing: call when the slide
  *  row is deleted or replaced (see closeRoomsForDoc in doc_rooms.ts). */
 export function closeSlideRoom(
   projectId: string,
@@ -247,14 +247,14 @@ export function closeSlideRoom(
   message: string,
 ): void {
   closeRoomsForDoc(projectId, DOC_TYPE, slideId, message);
-  // The slide row is gone/replaced — its text authorship has nothing left to
+  // The slide row is gone/replaced: its text authorship has nothing left to
   // attribute (deletion of the whole slide is attributed at slide level).
   dropSlideElementLedgers(projectId, slideId);
   clearSlideElementTouches(projectId, slideId);
 }
 
 /** Route a non-collab slide save through a live room, if one exists (see
- *  applyToLiveRoom in doc_rooms.ts — on `save_failed` the caller must NOT
+ *  applyToLiveRoom in doc_rooms.ts: on `save_failed` the caller must NOT
  *  fall back to a direct DB write). `editor` attributes the write to version
  *  history; omit for restores (they version themselves explicitly). */
 export function applySlideToLiveRoom(

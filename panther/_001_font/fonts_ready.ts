@@ -13,11 +13,19 @@ export function loadFont(font: FontInfo): Promise<void> {
   const style = font.italic ? "italic " : "";
   const fontString = `${style}${font.weight} 16px "${font.fontFamily}"`;
 
-  return document.fonts.load(fontString).then((loaded) => {
-    if (loaded.length === 0) {
-      console.warn(`No matching font found for: ${fontString}`);
-    }
-  });
+  // Resolves on failure: the font gate is best-effort, and a rejecting font
+  // must not wedge consumers awaiting the gate (fallback metrics are used and
+  // reported downstream).
+  return document.fonts.load(fontString).then(
+    (loaded) => {
+      if (loaded.length === 0) {
+        console.warn(`No matching font found for: ${fontString}`);
+      }
+    },
+    () => {
+      console.warn(`Font load failed (fallback metrics used): ${fontString}`);
+    },
+  );
 }
 
 const FONT_LOAD_TIMEOUT_MS = 3000;

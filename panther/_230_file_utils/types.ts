@@ -7,9 +7,9 @@
 // FILE METADATA
 // ================================================================================
 
-export interface FileMetadata {
+export type FileMetadata = {
   path: string;
   size: number;
   mimeType: string;
   lastModified: Date;
-}
+};

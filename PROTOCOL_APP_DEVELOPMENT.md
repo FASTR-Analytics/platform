@@ -1,4 +1,4 @@
-# PROTOCOL — App: Development & Verification Loop
+# PROTOCOL (App): Development & Verification Loop
 
 > **App-specific working protocol.** How to get from "I changed some code" to
 > "I have watched this behave correctly," with the **MCP surface as a
@@ -17,15 +17,15 @@
 The thing we actually want to be true is a **chain**, and it is only proven by
 traversing all of it:
 
-1. A **real Claude client** — claude.ai, Claude Desktop, or Claude Code
-2. **Discovery** — an unauthenticated call returns `401` with
+1. A **real Claude client**: claude.ai, Claude Desktop, or Claude Code
+2. **Discovery**: an unauthenticated call returns `401` with
    `WWW-Authenticate: Bearer resource_metadata="…"`, which resolves to
    `/.well-known/oauth-protected-resource/mcp`, which names the Clerk
    authorization server, whose document must expose a `registration_endpoint`
    (dynamic client registration) or the client cannot register itself
 3. **Clerk sign-in + consent**, matched to a FASTR user on **primary email**
 4. A **deployed instance** over TLS, serving the built client and real config
-5. **Per-call credential verification** — every tool call, not once at connect
+5. **Per-call credential verification**: every tool call, not once at connect
 6. **Project-access and permission resolution** for that identity
 7. A **tool returning real project data**
 
@@ -34,19 +34,19 @@ thorough"; it is blind to specific links, and you have to know which.
 
 | Rung | Instrument | Skips |
 | --- | --- | --- |
-| 0 | Direct execution + validators | 1–7 — no server at all |
+| 0 | Direct execution + validators | 1–7: no server at all |
 | 1a | JSON-RPC probe → localhost | 1, 2, 3 (and 5 under `BYPASS_AUTH`) |
-| 1b | Local dev + a real client over OAuth | 4 — and uses the **dev** Clerk instance, not prod's |
-| 2a | JSON-RPC probe → testing-tim + PAT | 1, 2, 3 — PATs never touch OAuth |
-| 2b | Real client → testing-tim over OAuth | **nothing — this is the end-to-end test** |
-| 3 | `ssh` + `psql`, **read-only** | all of it — a diagnostic, never a verification |
+| 1b | Local dev + a real client over OAuth | 4, and it uses the **dev** Clerk instance, not prod's |
+| 2a | JSON-RPC probe → testing-tim + PAT | 1, 2, 3: PATs never touch OAuth |
+| 2b | Real client → testing-tim over OAuth | **nothing, this is the end-to-end test** |
+| 3 | `ssh` + `psql`, **read-only** | all of it: a diagnostic, never a verification |
 
 Rung 2b has historically been the missing one. Reaching it is the point of this
 loop.
 
 ---
 
-## The session boundary — design the loop around it
+## The session boundary: design the loop around it
 
 **`claude mcp add` does not make tools callable in the session that is already
 running.** It writes connector config; the client binds MCP servers at session
@@ -58,7 +58,7 @@ Consequences, which are structural rather than annoyances:
 - **Connector setup is a between-sessions step**, done once by a human.
 - **In-session, the agent's instrument is the raw JSON-RPC probe** (below). It
   needs no connector, works against any origin, and returns the wire response
-  rather than a model's paraphrase of it — which is what you want when the
+  rather than a model's paraphrase of it, which is what you want when the
   thing under test *is* the tool.
 - **Sequence the work accordingly**: change + deploy in one session, exercise
   the connector in the next. Do not plan a single session that both ships an
@@ -66,7 +66,7 @@ Consequences, which are structural rather than annoyances:
 
 ---
 
-## Rung 0 — execute it directly
+## Rung 0: execute it directly
 
 A ten-line harness settles most questions decisively and costs nothing:
 
@@ -88,20 +88,25 @@ needs no server, no deploy and no database session.
 
 ---
 
-## Rung 1 — local dev
+## Rung 1: local dev
 
 ```bash
 ./pg_run        # local Postgres, container `pg`, host port 7001
-./valkey_run    # Valkey on 7379 — `VALKEY_URL` is set in .env, so boot expects it
+./valkey_run    # Valkey on 7379, `VALKEY_URL` is set in .env, so boot expects it
 deno task dev   # server on :8000, /mcp mounted exactly as in production
 cd client && npm run dev   # SPA on :3000, hot-reloads
 ```
 
-Boot is ~15s cold (migrations sweep every project DB) and ~3s warm.
+Boot is ~15s cold (migrations sweep every project DB) and ~3s warm, plus
+~2s for the dev-only self-checks: the route validation, the headless mount
+check, and the whole server test suite (`deno task test`, run as a
+subprocess). A failing test fail-stops the boot, so a red test is never
+something you find later. `deno task test` alone runs the same suite.
 
-### 1a — the JSON-RPC probe: `./mcp_probe`
+### 1a. The JSON-RPC probe: `./mcp_probe`
 
 ```bash
+./mcp_probe <origin> --info                 # initialize result: serverInfo (deployed version), capabilities, instructions
 ./mcp_probe <origin> --list                 # tool names + summaries
 ./mcp_probe <origin> --schema <tool>        # that tool's full input schema
 ./mcp_probe <origin> <tool> [json-args]     # call it
@@ -112,14 +117,14 @@ Boot is ~15s cold (migrations sweep every project DB) and ~3s warm.
 ```
 
 ```bash
-./mcp_probe local get_projects
-./mcp_probe local get_orientation '{"projectId":"39b790d8-…"}'
+./mcp_probe local get_overview
+./mcp_probe local get_metric_data '{"metricId":"m10-02-01"}'
 FASTR_PAT=fastr_pat_… ./mcp_probe testing-tim --list
 ```
 
 It handles the streamable-HTTP handshake (initialize → session id →
 `notifications/initialized` → call), prints the tool's text content, and exits
-non-zero on a JSON-RPC error, a tool-level `isError`, or a bad credential —
+non-zero on a JSON-RPC error, a tool-level `isError`, or a bad credential,
 with the 401-vs-503 distinction spelled out, since those mean different things.
 
 **This is the agent's default MCP instrument**: no connector, so no session
@@ -129,11 +134,11 @@ restart. It proves links 4–7 and says nothing about 1–3.
 write schemas and stored shapes diverge in this codebase, and the schema is the
 only authority on what a tool actually accepts.
 
-### The three local auth modes — pick deliberately
+### The three local auth modes: pick deliberately
 
 | Mode | Boot | Identity | What it skips |
 | --- | --- | --- | --- |
-| `BYPASS_AUTH` (the `.env` default) | `deno task dev` | seeded admin `dev@offline.local` | link 5 entirely — **and because that identity is an instance admin, permission gating is never exercised** |
+| `BYPASS_AUTH` (the `.env` default) | `deno task dev` | seeded admin `dev@offline.local` | link 5 entirely, **and because that identity is an instance admin, permission gating is never exercised** |
 | PAT | `BYPASS_AUTH= deno task dev` | whoever you minted for | links 1–3 |
 | OAuth | `BYPASS_AUTH= deno task dev` + `claude mcp login` | the Clerk account you sign in as | link 4 only |
 
@@ -144,7 +149,7 @@ deno task mint-pat you@example.com claude   # PAT, for the probe or a header con
 **Local OAuth is a real rehearsal, against a different Clerk instance.** Local
 dev advertises the dev Clerk instance; a deployed instance advertises
 `clerk.fastr-analytics.org`. Both currently expose `registration_endpoint`, so
-the flow is genuinely exercisable locally — but a fault in the **production**
+the flow is genuinely exercisable locally, but a fault in the **production**
 Clerk configuration cannot reproduce there. Config-level OAuth failures are
 rung-2b findings by construction.
 
@@ -159,13 +164,13 @@ rung-2b findings by construction.
 
 ---
 
-## Rung 2 — `./deploy_testing`
+## Rung 2: `./deploy_testing`
 
 ```bash
 ./deploy_testing [--validate-migrations] [--validate-queries]
 ```
 
-- Deploys the **working tree** — uncommitted changes included. No git
+- Deploys the **working tree**, uncommitted changes included. No git
   operations, no `VERSION` bump. That is what makes it an iteration tool rather
   than a release.
 - Gates on `deno task typecheck` and `./validate_protocols` **before** the
@@ -174,7 +179,7 @@ rung-2b findings by construction.
   preserving the superseded manifest registry-side as `…-vtesting-tim-prev` and
   printing the rollback command on both success and failure.
 - Verifies by polling `/health_check` for `"running":true` **and** matching the
-  running container's `RepoDigest` against the pushed manifest digest — so
+  running container's `RepoDigest` against the pushed manifest digest, so
   "deploy succeeded" means the new bytes are actually serving. On failure it
   dumps the last 100 container log lines.
 
@@ -183,20 +188,21 @@ Target: `testing-tim` (app port 9151, Postgres 19151),
 
 ### What only rung 2 can reach
 
-- **Production auth** — real PAT and Clerk-OAuth verification, the deliberate
+- **Production auth**: real PAT and Clerk-OAuth verification, the deliberate
   401-vs-503 split, the deny-by-default route allowlist.
-- **Rung 2b, the end-to-end MCP test** — the only place links 1–7 are all real.
+- **Rung 2b, the end-to-end MCP test**: the only place links 1–7 are all real.
 - **The built client** (`client_dist/`), not the Vite dev server.
 - **Docker/R module execution** and the results-package pipeline.
 - **Cross-client SSE and multi-user collaboration.**
 
 ### A deploy target proves only as much as the data on it
 
-`get_projects` returning nothing on an unseeded instance is the correct answer,
-not a bug — it means the only claim that target supports is "the new bytes boot
-and serve." Before treating an instance as a verification rung, confirm it
-carries a project with known data, and a user whose primary email matches the
-credential you connect with.
+`get_overview` reporting "no results package is pinned" on an unseeded
+instance is the correct answer, not a bug. It means the only claim that target
+supports is "the new bytes boot and serve." Before treating an instance as a
+verification rung, confirm it carries a PINNED package with known data, and a
+user (with instance `can_view_data`) whose primary email matches the credential
+you connect with.
 
 **Verify with disposable fixtures**: create what you need, use it, delete it.
 Never arrange a fixture by editing an existing named row, and never by writing
@@ -216,24 +222,27 @@ change.
 ```
 
 It reads the protected-resource document, the Clerk authorization-server
-document (warning loudly if `registration_endpoint` is absent — without it
+document (warning loudly if `registration_endpoint` is absent: without it
 Claude cannot register itself and "Connect" spins and fails), and the
 unauthenticated `401` challenge. On local dev with `BYPASS_AUTH` that last check
 returns 200 and says so; anywhere else a non-401 is a real finding.
 
-**The exposed surface is the AI assistant's *shared* tools**: 17 reads plus one
-write, `create_report`. The browser-only editor tools — live slide/report/viz
-editing, navigation, ask-the-user — are SPA-only by design and must stay out.
+**The exposed surface is the AI assistant's *shared* tools over the pinned
+package**: 6 reads, no writes (S13 principle 2). Module internals (script,
+logs, settings), project content and the browser-only editor tools
+(visualizations, decks, reports, live editing, navigation, ask-the-user) are
+SPA-only by design and must stay out.
 
 So MCP exercises: the route registry and `APIResponse` envelope, server actions,
-DB reads, the query/formatting layer, orientation and prompt assembly, project
-access resolution, and the permission gates on `get_module_r_script` /
-`get_module_log`. It does **not** exercise ingestion, module execution, viz or
-slide authoring, exports, client rendering, or SSE — drive those with Playwright
+the run-keyed metric reads (items, value info), the query/formatting layer,
+`get_overview` and prompt assembly, the pin resolution, and the instance
+`can_view_data` gate. It does **not**
+exercise ingestion, module execution, viz or slide authoring, exports, client
+rendering, project access, or SSE. Drive those with Playwright
 against testing-tim.
 
 **Writes.** `approvalMode: "delegate"` means the gate is the client's own
-tool-permission prompt, not a second in-protocol elicitation — so a user who has
+tool-permission prompt, not a second in-protocol elicitation, so a user who has
 "always allow"-ed the tool sees no prompt, which is the same posture as every
 other MCP write tool. `approvalPolicy` is a **construction-time** guard: a
 `kind: "write"` tool with no approval block fails to build. Rely on that rather
@@ -245,16 +254,25 @@ permission gate actually denies. The first three are probe one-liners; the
 fourth needs a non-admin identity, which means `BYPASS_AUTH= deno task dev`
 with a PAT, or rung 2.
 
+**Shared-tool content stays surface-neutral** (S13 principle 2). Three greps,
+each expected to print nothing:
+
+```bash
+grep -rn "from_metric" lib/ai_tools/ | grep -v content_validators.ts:   # authoring guidance is SPA-prompt/schema only
+grep -rn -E "getModuleScript|getModuleLogs|getModuleSettings" lib/ai_tools/ server/mcp/   # module tools are client-only
+grep -rn "getRunModule" server/middleware/headless_allowlist.ts          # the allowlist admits only what /mcp calls
+```
+
 ---
 
-## Rung 3 — read-only DB access
+## Rung 3: read-only DB access
 
 Connection recipes, credentials, the live-vs-orphaned project rule and the two
 schema generations live in [PROTOCOL_ACCESS_DBS.md](PROTOCOL_ACCESS_DBS.md).
 That document is written for production instances; the same commands work
 against any `testing*` instance by swapping the container name.
 
-**Read-only, always** — `SELECT` and `information_schema` only, on testing
+**Read-only, always**: `SELECT` and `information_schema` only, on testing
 instances as much as on production. A `psql` session finds out what is stored;
 it is never how you arrange a fixture, because a hand-mutated row makes every
 later result unfalsifiable.
@@ -263,7 +281,7 @@ later result unfalsifiable.
 connection per table will trip the host's connection limits and start returning
 `Connection refused`, which reads exactly like an outage.
 
-Locally the equivalent is free and needs no SSH — prefer it:
+Locally the equivalent is free and needs no SSH, so prefer it:
 
 ```bash
 docker exec pg psql -U postgres -d main -c 'SELECT id, label, status FROM projects;'
@@ -286,7 +304,7 @@ docker exec pg psql -U postgres -d main -c 'SELECT id, label, status FROM projec
 | What is actually stored on a deployed instance? | 3 |
 
 A change touching persistence needs **all three** persistence layers enumerated
-before it is done — DB JSON (migration), Valkey (cache prefix), and stored
+before it is done: DB JSON (migration), Valkey (cache prefix), and stored
 `FigureInputs` (slide_config sweep). See `PROTOCOL_APP_MIGRATIONS.md`.
 
 ---
@@ -295,7 +313,7 @@ before it is done — DB JSON (migration), Valkey (cache prefix), and stored
 
 - **Never mutate data to make a test pass.** Disposable fixtures created and
   deleted; never a write to an existing named row; never a write on rung 3.
-- **`./deploy_testing` ships the working tree.** Check `git status` first —
+- **`./deploy_testing` ships the working tree.** Check `git status` first, since
   parallel workstreams in this repo are normal, and you will deploy theirs too.
 - **Report which links you traversed.** "The probe returned the tool result" and
   "a real client reached it over OAuth" are different claims; so are

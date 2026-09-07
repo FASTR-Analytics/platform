@@ -296,7 +296,7 @@ function computeCascadeArrow(
             ? getColor(dl.backgroundColor)
             : undefined,
           padding: dl.padding,
-          borderColor: dl.borderColor !== undefined
+          borderColor: dl.borderColor !== "none"
             ? getColor(dl.borderColor)
             : undefined,
           borderWidth: dl.borderWidth > 0 ? dl.borderWidth : undefined,
@@ -321,7 +321,7 @@ function computeCascadeArrow(
   return {
     type: "cascade-arrow",
     key:
-      `cascade-arrow-${fromBar.meta.value.i_series}-${fromBar.meta.value.i_val}`,
+      `cascade-arrow-${fromBar.meta.value.i_pane}-${fromBar.meta.value.i_tier}-${fromBar.meta.value.i_lane}-${fromBar.meta.value.i_series}-${fromBar.meta.value.i_val}`,
     bounds,
     zIndex: Z_INDEX.CASCADE_ARROW,
     meta: {

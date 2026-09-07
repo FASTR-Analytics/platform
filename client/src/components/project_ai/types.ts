@@ -9,15 +9,15 @@ export type ReportEditProposal = {
   summary: string;
 };
 
-// Result of EditingReportContext.proposeEdit (ai_views.ts) — the report-editing tools'
+// Result of EditingReportContext.proposeEdit (ai_views.ts): the report-editing tools'
 // approval.propose wraps this: an identical-body proposal short-circuits to
 // panther's {skip} (a normal, no-decision tool result); otherwise
 // `customProposalUI` stages the CodeMirror diff and resolves the user's
 // accept/reject decision,
 // `stillValid` guards a stale accept (editor unmounted, or the AI context
 // mode has left "editing_report") from committing against a torn-down
-// editor, and `commit` — called ONLY after an accepted, still-valid decision
-// — rebases the proposal over concurrent collaborator edits and persists it
+// editor, and `commit` (called ONLY after an accepted, still-valid decision)
+// rebases the proposal over concurrent collaborator edits and persists it
 // (mirrors the pre-approval applyProposal unchanged; `skipped` lists hunks
 // NOT applied because a collaborator edited that text while the proposal was
 // open, same 1-based line-range contract as before).
@@ -51,7 +51,7 @@ export type DraftContent =
   | null;
 
 // View state lives on projectAIViewController (ai_views.ts), a module-level
-// singleton — not on this Solid context. Import projectAIViewController
+// singleton: not on this Solid context. Import projectAIViewController
 // directly for current()/setView()/clearView()/notify()/markAIEdit().
 export type AIProjectContextValue = {
   draftContent: () => DraftContent;

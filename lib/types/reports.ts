@@ -252,9 +252,9 @@ export function decodeReportHtmlEntities(s: string): string {
 }
 
 // ── Embed registry write-validation ──────────────────────────────────────────
-// Reuses the slide figure/image block schemas verbatim — report figures/images
-// ARE slides' FigureBlock / ImageBlock (the strict figureBlockSchema — the bundle
-// is validated, not z.unknown — same as slides).
+// Reuses the slide figure/image block schemas verbatim: report figures/images
+// ARE slides' FigureBlock / ImageBlock (the strict figureBlockSchema, meaning the bundle
+// is validated, not z.unknown, same as slides).
 
 export const reportFiguresSchema = z.record(z.string(), figureBlockSchema);
 export const reportImagesSchema = z.record(z.string(), imageBlockSchema);

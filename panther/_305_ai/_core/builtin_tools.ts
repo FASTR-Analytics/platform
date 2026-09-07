@@ -30,49 +30,49 @@ import { BUILTIN_TOOL_TYPES, supportsDynamicWebTools } from "../deps.ts";
 // WEB SEARCH CONFIG
 ////////////////////////////////////////////////////////////////////////////////
 
-export interface WebSearchUserLocation {
+export type WebSearchUserLocation = {
   type: "approximate";
   city?: string;
   region?: string;
   country?: string;
   timezone?: string;
-}
+};
 
-export interface WebSearchToolConfig {
+export type WebSearchToolConfig = {
   max_uses?: number;
   allowed_domains?: string[];
   blocked_domains?: string[];
   user_location?: WebSearchUserLocation;
-}
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 // WEB FETCH CONFIG
 ////////////////////////////////////////////////////////////////////////////////
 
-export interface WebFetchToolConfig {
+export type WebFetchToolConfig = {
   max_uses?: number;
   allowed_domains?: string[];
   blocked_domains?: string[];
   citations?: { enabled: boolean };
   max_content_tokens?: number;
-}
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 // BUILT-IN TOOLS CONFIG (USER-FACING)
 ////////////////////////////////////////////////////////////////////////////////
 
-export interface BuiltInToolsConfig {
+export type BuiltInToolsConfig = {
   webSearch?: boolean | WebSearchToolConfig;
   webFetch?: boolean | WebFetchToolConfig;
   bash?: boolean;
   textEditor?: boolean;
-}
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 // SDK TOOL TYPES (INTERNAL)
 ////////////////////////////////////////////////////////////////////////////////
 
-interface WebSearchToolSDK {
+type WebSearchToolSDK = {
   type:
     | typeof BUILTIN_TOOL_TYPES.WEB_SEARCH
     | typeof BUILTIN_TOOL_TYPES.WEB_SEARCH_BASIC;
@@ -81,9 +81,9 @@ interface WebSearchToolSDK {
   allowed_domains?: string[];
   blocked_domains?: string[];
   user_location?: WebSearchUserLocation;
-}
+};
 
-interface WebFetchToolSDK {
+type WebFetchToolSDK = {
   type:
     | typeof BUILTIN_TOOL_TYPES.WEB_FETCH
     | typeof BUILTIN_TOOL_TYPES.WEB_FETCH_BASIC;
@@ -93,17 +93,17 @@ interface WebFetchToolSDK {
   blocked_domains?: string[];
   citations?: { enabled: boolean };
   max_content_tokens?: number;
-}
+};
 
-interface BashToolSDK {
+type BashToolSDK = {
   type: typeof BUILTIN_TOOL_TYPES.BASH;
   name: "bash";
-}
+};
 
-interface TextEditorToolSDK {
+type TextEditorToolSDK = {
   type: typeof BUILTIN_TOOL_TYPES.TEXT_EDITOR;
   name: "str_replace_based_edit_tool";
-}
+};
 
 type BuiltInToolSDK =
   | WebSearchToolSDK

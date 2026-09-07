@@ -97,7 +97,7 @@ type CollabAuth = {
 };
 
 /**
- * Close code for "you are not allowed on this socket" — a permanent condition
+ * Close code for "you are not allowed on this socket": a permanent condition
  * the client must not retry (see collab.ts's onclose). Sent AFTER accepting the
  * upgrade, because a pre-upgrade HTTP status is invisible to browser JS: the
  * WebSocket API surfaces a refused handshake as an unreadable 1006, which is
@@ -116,7 +116,7 @@ export const routesProjectCollab = new Hono<
 >();
 
 // The reports-list re-broadcast (card previews derive from body) runs
-// getAllReports — loading every report's body — and pushes the whole summary
+// getAllReports: loading every report's body, and pushes the whole summary
 // list to every SSE client. Far too heavy for the 1.5s checkpoint cadence, so
 // it trails on a per-project debounce; the finalize checkpoint schedules one
 // too, so the final state always broadcasts.
@@ -173,12 +173,12 @@ function scheduleVizListRebroadcast(projectId: string): void {
 
 // Reject any frame bigger than this without parsing it (abuse/corruption
 // guard). The largest legitimate client frames are reconnect push-backs of
-// figure-bundle updates — low single-digit MB of base64 — so 32 MiB leaves an
+// figure-bundle updates: low single-digit MB of base64, so 32 MiB leaves an
 // order of magnitude of headroom while bounding per-frame memory.
 const MAX_FRAME_CHARS = 32 * 1024 * 1024;
 
 // WS handshakes are not subject to CORS, and the socket authenticates via
-// ambient cookies — without this check any website could open an authenticated
+// ambient cookies: without this check any website could open an authenticated
 // collab socket in a visitor's browser. Same allowlist as the HTTP CORS
 // middleware, plus the same-origin case (production serves the SPA itself).
 // Requests WITHOUT an Origin header pass: non-browser clients don't carry
@@ -203,7 +203,7 @@ function isAllowedWsOrigin(
  * Carries presence plus the three CRDT document families (slide_* /
  * report_* / po_*). Auth mirrors the SSE endpoint (project-sse-v2.ts) and
  * resolves BEFORE the upgrade so the socket can never become an
- * unauthenticated channel: **admission is project access itself** — any member
+ * unauthenticated channel: **admission is project access itself**, any member
  * resolveProjectUserAccess admits (i.e. ≥1 project permission), matching SSE.
  * Presence and page cursors are project-wide, and their payload carries no
  * document content or labels (PresenceEntry: identity + opaque ids), so
@@ -211,7 +211,7 @@ function isAllowedWsOrigin(
  * its own view permission per message, and each family's RoomConn carries its
  * own edit permission, enforced per update by the rooms. A LOCKED project
  * admits viewers (presence + live read) but has every edit permission forced
- * off for the connection's lifetime — re-evaluated on the next (re)connect,
+ * off for the connection's lifetime: re-evaluated on the next (re)connect,
  * matching preventAccessToLockedProjects on the REST edit routes.
  *
  * Authorization failures are refused with a post-upgrade
@@ -342,7 +342,7 @@ routesProjectCollab.get(
           // Collab is authoritative → checkpoint overwrites config + CRDT state.
           // Validation lives HERE, not in the DB write: a schema rejection is
           // PERMANENT for this doc state (same input parses the same way
-          // forever), so the room must not timer-retry it — see DocSaveResult.
+          // forever), so the room must not timer-retry it: see DocSaveResult.
           // The stored copy drops schema-invalid transients from EMBEDDED
           // figures for the same reason the PO room does (see the po closure):
           // the figure modal streams a mid-edit config straight into this doc.
@@ -359,7 +359,7 @@ routesProjectCollab.get(
             return { ok: false, permanent: true };
           }
           // Trust the CRDT state only when the doc materializes to exactly
-          // what we store — parse-stripped keys would otherwise diverge doc
+          // what we store: parse-stripped keys would otherwise diverge doc
           // from row while stamped current, and every editor open would adopt
           // the divergent doc (the "viz flip" bug class, 2026-07-24).
           // storedMatchesDoc also rejects a doc holding values JSON cannot
@@ -408,7 +408,7 @@ routesProjectCollab.get(
           const crdtState = crdtRes.success ? crdtRes.data.state : null;
           // Authorship ledger: hand the persisted runs to the room's observer
           // (consumed when the doc is created; only valid alongside a current
-          // crdt_state — a re-seeded doc starts with unknown authorship).
+          // crdt_state: a re-seeded doc starts with unknown authorship).
           const authorsRes = await getReportBodyAuthors(projectDb, reportId);
           stashPersistedAuthors(
             projectId,
@@ -429,7 +429,7 @@ routesProjectCollab.get(
         save: async (content, crdtState) => {
           // Collab is authoritative → checkpoint overwrites content + CRDT state.
           // Validation lives HERE (see the slide closure): schema rejection is
-          // permanent for this doc state — no timer retry. The body is a plain
+          // permanent for this doc state: no timer retry. The body is a plain
           // string (no parse); figures/images are the parsed surfaces. Figures
           // drop embedded schema-invalid transients (see the slide closure).
           let storedFigures: typeof content.figures;
@@ -491,10 +491,10 @@ routesProjectCollab.get(
           // Collab is authoritative → checkpoint overwrites config + CRDT state.
           // The stored copy drops schema-invalid transients (a filter chip
           // with all values un-ticked is legal mid-edit; the strict parse used
-          // to throw on it, wedging the room's checkpoint permanently —
+          // to throw on it, wedging the room's checkpoint permanently:
           // observed 2026-07-23 on sierraleone/testing2). The live doc keeps
           // the transient state; only the row is normalized. A residual parse
-          // failure is PERMANENT for this doc state — no timer retry.
+          // failure is PERMANENT for this doc state: no timer retry.
           let storedConfig: PresentationObjectConfig;
           try {
             storedConfig = presentationObjectConfigSchema.parse(
@@ -508,7 +508,7 @@ routesProjectCollab.get(
             return { ok: false, permanent: true };
           }
           // Trust the CRDT state only when the doc materializes to exactly
-          // what we store — a diverged doc (dropped transients, parse-stripped
+          // what we store: a diverged doc (dropped transients, parse-stripped
           // keys) must re-seed on next open instead of reasserting itself
           // (every editor open adopts it, visibly "flipping" the viz).
           const trusted = storedMatchesDoc(storedConfig, config);
@@ -749,7 +749,7 @@ routesProjectCollab.get(
     // Server-side dead-peer detection: Deno pings every client at the
     // protocol level and closes the connection (firing onClose/onError above,
     // which run all presence/room cleanup) when no pong arrives within this
-    // many SECONDS. 30 is Deno's own default — pinned here so the contract is
+    // many SECONDS. 30 is Deno's own default: pinned here so the contract is
     // explicit rather than inherited, and survives a runtime default change.
     // The client-side mirror (browsers can't see protocol pings) is the
     // ping/pong watchdog in client/src/state/project/collab.ts.

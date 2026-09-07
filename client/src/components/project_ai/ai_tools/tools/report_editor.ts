@@ -32,7 +32,8 @@ import { formatLineRanges } from "~/components/report/rebase_edits";
 import { resolveFigureFromVisualization } from "~/components/slide_deck/slide_ai/resolve_figure_from_visualization";
 import { resolveFigureFromMetric } from "~/components/slide_deck/slide_ai/resolve_figure_from_metric";
 import { formatFigureConfigForAI } from "./_internal/format_figure_config_for_ai";
-import { validateMetricInputs } from "../validators/content_validators";
+import { validateMetricInputs } from "lib";
+import { clientAIToolEnvFor } from "../client_env";
 import {
   validateFastrContainers,
   validateFastrNewLiteralBackgrounds,
@@ -45,7 +46,7 @@ import {
 } from "../validators/report_validators";
 
 // Appended to a tool's ACCEPTED message when the accept-time rebase skipped
-// hunks that collided with a collaborator's concurrent edits — the AI must
+// hunks that collided with a collaborator's concurrent edits: the AI must
 // know its edit only partially applied, and where.
 function skippedNote(
   skipped: { fromLine: number; toLine: number }[] | undefined,
@@ -124,7 +125,7 @@ function formatHeadingsIndex(headings: ReportHeading[], format: ReportFormat): s
   ];
 }
 
-// One cheap index line per figure for get_report_editor — pure, no fetch.
+// One cheap index line per figure for get_report_editor: pure, no fetch.
 function formatFigureIndexLine(id: string, fig: FigureBlock): string {
   if (!fig.bundle) return `- figure:${id} — (no data)`;
   const cfg = fig.bundle.config;
@@ -252,7 +253,12 @@ export function getClientToolsForReportEditor(
         }
         const bundle = fig.bundle;
         const metric = metrics.find((m) => m.id === bundle.metricId);
-        return await formatFigureConfigForAI(projectId, metric, bundle.config, bundle.dateRange);
+        return await formatFigureConfigForAI(
+          clientAIToolEnvFor(projectId),
+          metric,
+          bundle.config,
+          bundle.dateRange,
+        );
       },
       inProgressLabel: "Reading figure...",
       completionMessage: "Read figure",
@@ -307,7 +313,7 @@ export function getClientToolsForReportEditor(
           );
         }
         // metricId/type are not in the patch schema (silently stripped), so an
-        // all-unsupported patch arrives empty — reject it instead of re-resolving
+        // all-unsupported patch arrives empty: reject it instead of re-resolving
         // the figure unchanged and falsely reporting success.
         if (Object.keys(input.patch).length === 0) {
           throw new AIToolFailure(
@@ -326,7 +332,7 @@ export function getClientToolsForReportEditor(
         }
 
         // Pre-flight for a stored defect this tool cannot repair (the figure
-        // patch schema carries no timeseriesGrouping) — see update_figure.
+        // patch schema carries no timeseriesGrouping): see update_figure.
         if (
           bundle.config.d.type === "timeseries" &&
           !bundle.config.d.timeseriesGrouping
@@ -337,7 +343,7 @@ export function getClientToolsForReportEditor(
         }
 
         // Hoisted conditional fetch: period bounds (open-ended periodFilter)
-        // + possible-values map (pre-write collision check) — see update_figure.
+        // + possible-values map (pre-write collision check): see update_figure.
         const pf = input.patch.periodFilter;
         const needsBounds = typeof pf === "object" && pf !== null &&
           (pf.min == null) !== (pf.max == null);
@@ -384,7 +390,7 @@ export function getClientToolsForReportEditor(
               }
             : undefined;
         await validateMetricInputs(
-          projectId,
+          clientAIToolEnvFor(projectId),
           bundle.metricId,
           filters,
           periodFilter,

@@ -23,7 +23,7 @@ import { MODULE_SOURCE } from "./module_source.ts";
 import { ensureRepoAssetCached } from "./repo_assets.ts";
 
 // pinnedGitRef: fetch the module's files at this exact commit instead of
-// HEAD — the run pipeline re-fetches the definitions the wizard's step 2
+// HEAD: the run pipeline re-fetches the definitions the wizard's step 2
 // resolved (PLAN_RESULTS_RUNS item 2). undefined = HEAD (install/update).
 // Local source ignores the pin: local refs are per-read placeholders, and
 // dev reads the working tree by design.
@@ -77,7 +77,7 @@ export async function fetchModuleFiles(
         }
       }
     } catch {
-      // Non-fatal — we can still install without a git ref
+      // Non-fatal: we can still install without a git ref
     }
   }
 
@@ -111,7 +111,7 @@ export async function fetchModuleFiles(
 }
 
 // Definition resolution is where pinned repo assets are fetched, verified,
-// and cached (PLAN_RESULTS_RUNS item 2 ruling) — a bad pin fails install/
+// and cached (PLAN_RESULTS_RUNS item 2 ruling): a bad pin fails install/
 // update/preview in the admin's face, never a module run. Assets are fetched
 // at the same gitRef the definition was, so the two cannot disagree.
 async function cachePinnedRepoAssets(
@@ -137,7 +137,7 @@ function validateDefinition(
 
   // The query builder emits sample-size columns into the same result set as the
   // values (see lib/sample_n.ts), so an authored prop in that namespace would
-  // collide with a generated alias — reject at install rather than emit
+  // collide with a generated alias: reject at install rather than emit
   // duplicate output column names.
   const reservedProps = result.data.metrics.flatMap((m) => [
     ...m.valueProps.filter(isSampleNProp),
@@ -151,8 +151,8 @@ function validateDefinition(
     );
   }
 
-  // Every definition the app ever sees passes through here — install, update,
-  // wizard preview, and the run pipeline's re-fetch at a pinned gitRef — so
+  // Every definition the app ever sees passes through here: install, update,
+  // wizard preview, and the run pipeline's re-fetch at a pinned gitRef, so
   // this is the one place that can guarantee no definition VERSION produces a
   // stale declaration. Without it the version-gated manifest repair is
   // unreachable for the packages that need it most: a run generated from an

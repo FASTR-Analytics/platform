@@ -97,8 +97,8 @@ export function measurePie(
   );
 
   // The slot grid is chosen ONCE for the figure, from the smallest sub-chart,
-  // so every pie in every sub-chart stays the same size and aligned (plan D9
-  // + D6's comparability rule). "auto" maximises the achievable content scale;
+  // so every pie in every sub-chart stays the same size and aligned (the
+  // comparability rule). "auto" maximises the achievable content scale;
   // ties break toward the ideal pass's self-consistent choice.
   const nIndicators = transformedData.indicatorHeaders.length;
   const ind = mergedStyle.pie.indicators;
@@ -118,7 +118,7 @@ export function measurePie(
   const nSlotRows = Math.ceil(nIndicators / nSlotCols);
   const showHeaders = showsIndicatorHeaders(transformedData, mergedStyle);
 
-  // Two-phase over the slots (plan D5/D6): solve every pie's content scale
+  // Two-phase over the slots: solve every pie's content scale
   // first, then emit every pie at the minimum — small multiples exist to be
   // compared, so one label-crowded pie governs the whole figure rather than
   // silently diverging from its siblings.
@@ -151,6 +151,7 @@ export function measurePie(
           { ...prim.meta, indicatorIndex: k },
           transformedData,
           mergedStyle,
+          customFigureStyle.sf,
         ),
       );
       if (showHeaders) {
@@ -187,13 +188,13 @@ export function measurePie(
   }
   const drawable = solved.filter((c) => !c.empty);
 
-  // The harmonised scale is the minimum across every pie (D6's comparability
-  // rule) — but never below any pie's OWN floor. Floors are heterogeneous
+  // The harmonised scale is the minimum across every pie (the comparability
+  // rule), but never below any pie's OWN floor. Floors are heterogeneous
   // when sliceGap > 0 (the gap term scales with each pie's slice count), so
   // the min alone could drag a many-sliced pie below the floor its solve held
-  // at, silently reproducing the disappearance D9 exists to prevent. The lift
-  // keeps every radius equal; a pie emitted above its solved scale overflows
-  // instead, and that is flagged.
+  // at, silently reproducing the disappearance the floor exists to prevent.
+  // The lift keeps every radius equal; a pie emitted above its solved scale
+  // overflows instead, and that is flagged.
   const piePrimitives: Primitive[] = [];
   let floorLifted = false;
   if (drawable.length > 0) {
@@ -211,7 +212,7 @@ export function measurePie(
   // Any starved pie (label budget infeasible even at the legibility floor, or
   // a floor lifted past its slot) makes the whole figure cramped;
   // measureChartWithAutofit ORs this into its own decision rather than
-  // overwriting it (plan D6).
+  // overwriting it.
   const starved = floorLifted || drawable.some((c) => c.starved);
 
   return {
@@ -228,24 +229,25 @@ export function measurePie(
 type SolvedPie = {
   indices: PieIndices;
   slotRcd: RectCoordsDims;
-  // The frozen s0 placement split (plan D2), carried by id.
+  // The frozen s0 placement split, carried by id.
   outsideIds: Set<string>;
   outside: PieLabelEntry[];
   // The fit ladder's chosen wrapping, by id: a label rescued onto two lines
   // must be DRAWN on two lines, and emission rebuilds candidates from scratch.
   labelText: Map<string, MeasuredText>;
   // Which placer this pie solved under. The final choice is re-made at the
-  // harmonised scale in emitOnePie (N10); this is the solve's own answer.
+  // harmonised scale in emitOnePie; this is the solve's own answer.
   placement: OutsideLabelPlacement;
   // This pie's own solved content scale; emission uses the grid minimum. May
-  // EXCEED the slot (the D7 floor lifted it — legibility beats frame).
+  // EXCEED the slot (the legibility floor lifted it: legibility beats frame).
   s: number;
-  // This pie's own D7 floor (per-slot, so heterogeneous when sliceGap > 0);
-  // the harmonised emission scale never goes below the largest of these.
+  // This pie's own legibility floor (per-slot, so heterogeneous when
+  // sliceGap > 0); the harmonised emission scale never goes below the largest
+  // of these.
   sFloor: number;
   // The label budget was infeasible even at the legibility floor, OR the
   // floor lifted the pie past what its slot can hold. Either way the overlap
-  // is signalled, never silent (plan D9).
+  // is signalled, never silent.
   starved: boolean;
   empty: boolean;
 };
@@ -256,6 +258,7 @@ function solveOnePie(
   indices: PieIndices,
   data: PieDataTransformed,
   mergedStyle: MergedPieStyle,
+  sf: number,
 ): SolvedPie {
   const mode = toPieLabelMode(mergedStyle.pie.labelMode);
   const ratio = clampInnerRadiusRatio(mergedStyle.pie.innerRadiusRatio);
@@ -264,13 +267,12 @@ function solveOnePie(
 
   // s0: the label-free content scale — the largest radius at which the slot can
   // hold the declared shape. For a full pie the silhouette is { 1, 1, 1, 1 } and
-  // this is min(w, h) / 2 exactly as before (halving is exact in binary).
+  // this is min(w, h) / 2 (halving is exact in binary).
   //
-  // The Math.max(0, ...) is unreachable defence carried over from the previous
-  // formula: `left + right` and `top + bottom` are both >= 0 for any sweep (each
-  // pair bounds the same point set from opposite sides), and a slot has no
-  // negative extent, so s0 is never negative. Removing it is behaviour-
-  // preserving.
+  // The Math.max(0, ...) is unreachable defence: `left + right` and
+  // `top + bottom` are both >= 0 for any sweep (each pair bounds the same point
+  // set from opposite sides), and a slot has no negative extent, so s0 is never
+  // negative.
   const s0 = Math.max(
     0,
     Math.min(
@@ -285,13 +287,13 @@ function solveOnePie(
   // a big fixed frame yields a natural-size disc centred in whitespace rather
   // than a massive disc beside small type ("scales down, never up", the
   // maxBarWidth precedent). sMax, not s0, is the largest drawable scale:
-  // placement is decided once, at sMax, and never re-decided (plan D2), and
+  // placement is decided once, at sMax, and never re-decided, and
   // the label solve runs under it so outside labels are placed for the disc
   // that actually draws. The policy value is unscaled (merged with `m`), so
   // the fit scale multiplies here to keep shrunk figures proportional.
   const capD = mergedStyle.idealHeight.idealPieDiameter(
     data.indicatorHeaders.length,
-  ) * mergedStyle.alreadyScaledValue;
+  ) * sf;
   // capD bounds the DISC diameter (2s) — the visual scale of the pie — not
   // the silhouette's drawn extent, so a half-disc gauge is capped at the same
   // underlying disc as a full pie whatever its orientation.
@@ -335,7 +337,7 @@ function solveOnePie(
         e.candidate.fitsInside,
         e.candidate.mText,
         {
-          // The I3 fit ladder, switched on for pie. Text measurement does not
+          // The fit ladder, switched on for pie. Text measurement does not
           // depend on the content scale — only on the type style and the wrap
           // width — so a rung's wrapping decided here is still valid at the
           // emission scale, and is carried by id in `labelText`.
@@ -355,7 +357,7 @@ function solveOnePie(
       .map((e) => withText(e, labelText));
   }
 
-  // The per-slot legibility floor (plan D7). The gap term is geometry, not a
+  // The per-slot legibility floor. The gap term is geometry, not a
   // constant: the outer rim is π·d long and each of the nSlices boundaries
   // removes a channel of sliceGap, so below this diameter the gaps consume
   // the whole rim. A necessary bound, not a guarantee — a slice thin enough
@@ -367,7 +369,7 @@ function solveOnePie(
   );
   const sFloor = minSlotDiameter / 2;
 
-  // Solve for the content scale the frozen label set affords (plan D3).
+  // Solve for the content scale the frozen label set affords.
   let placement = mergedStyle.pie.outsideLabelPlacement;
   let result: ContentScaleResult | undefined;
   if (outside.length > 0) {
@@ -382,7 +384,7 @@ function solveOnePie(
       );
       // Undefined = the track cannot hold these labels at this scale. That is
       // a genuine "does not fit", so the solver keeps scanning down; it is
-      // only when NO scale works that the pie falls back (N10).
+      // only when NO scale works that the pie falls back.
       return e !== undefined &&
         e.left + e.right <= slotRcd.w() && e.top + e.bottom <= slotRcd.h();
     };
@@ -521,12 +523,12 @@ function emitOnePie(
 
   if (mode !== "none") {
     // Rebuild candidates at the solved geometry; the frozen s0 SPLIT is what
-    // carries over, matched by id (plan D2).
+    // carries over, matched by id.
     const placed = buildPieLabelCandidates(rc, pie, mergedStyle, slotRcd);
     const insideCandidates: LabelCandidate[] = [];
     const outsideCandidates: LabelCandidate[] = [];
     for (const e of placed) {
-      // The ladder's wrapping travels by id alongside the split (plan D2): a
+      // The ladder's wrapping travels by id alongside the split: a
       // label rescued onto two lines at s0 must be drawn on two lines here.
       const candidate = withText(e, labelText).candidate;
       (outsideIds.has(candidate.id) ? outsideCandidates : insideCandidates)

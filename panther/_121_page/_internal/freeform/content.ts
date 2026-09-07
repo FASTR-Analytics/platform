@@ -20,13 +20,13 @@ import { itemMeasurer } from "./item_measurer.ts";
 import { renderItem } from "./item_renderer.ts";
 import type { FreeformPageInputs, PageContentItem } from "../../types.ts";
 
-export interface MeasuredContent {
+export type MeasuredContent = {
   rcdContentOuter: RectCoordsDims;
   rcdContentInner: RectCoordsDims;
   mLayout: MeasuredLayoutNode<PageContentItem>;
   overflow: boolean;
   gaps: LayoutGap[];
-}
+};
 
 export function measureContent(
   rc: RenderContext,

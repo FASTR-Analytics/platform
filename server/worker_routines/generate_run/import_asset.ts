@@ -3,7 +3,7 @@ import type { AssetToImport } from "lib";
 import { _ASSETS_DIR_PATH } from "../../exposed_env_vars.ts";
 import { ensureRepoAssetCached } from "../../module_loader/repo_assets.ts";
 
-// A declared asset the script is about to read MUST be present — a silent
+// A declared asset the script is about to read MUST be present: a silent
 // skip means the script falls back to nothing or stale data (PLAN_RESULTS_RUNS
 // §6.1). Missing/unreadable assets fail the module run. Pinned repo assets
 // come from the content-addressed cache (warmed at definition resolution;

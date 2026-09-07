@@ -56,7 +56,7 @@ export async function tryCatchServer<
         try {
           const body = await res.json();
           // If server explicitly says it's an auth error, retry with a fresh
-          // token before signing out — the token may have expired during a
+          // token before signing out: the token may have expired during a
           // connection stall (browser HTTP/1.1 limit of 6 concurrent connections)
           if (
             body.authError === true ||
@@ -131,7 +131,7 @@ export async function tryCatchServer<
             return parsed as T;
           }
         } catch {
-          // not a JSON envelope — fall through to raw text
+          // not a JSON envelope: fall through to raw text
         }
         return {
           success: false,

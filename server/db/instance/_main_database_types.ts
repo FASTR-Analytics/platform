@@ -79,6 +79,8 @@ export type DBProject = {
   status: string;
   deletion_scheduled_at: Date | null;
   run_id: string | null;
+  admin_area_2: string | null;
+  follow_pinned: boolean;
 };
 
 export type DBProjectUserRole = {
@@ -106,13 +108,6 @@ export type DBProjectUserRole = {
 
 // Structure
 
-export type DBIndicator = {
-  indicator_common_id: string;
-  indicator_common_label: string;
-  is_default: boolean;
-  updated_at: string;
-};
-
 export type DBIndicatorRaw = {
   indicator_raw_id: string;
   indicator_raw_label: string;
@@ -138,16 +133,6 @@ export type DBStructureUploadAttempt = {
   step_2_result: string | null; // Column mappings OR DHIS2 org unit selection
   step_3_result: string | null; // Staging result
   recodes: string | null; // JSON: StructureRecodes
-};
-
-export type DBRunGenerationAttempt = {
-  created_by_user_email: string;
-  date_started: string;
-  step: number;
-  status: string; // JSON: RunGenerationAttemptStatus
-  status_type: string; // only ever 'configuring'
-  step_1_result: string | null; // JSON: RunGenerationStep1Result
-  step_2_result: string | null; // JSON: RunGenerationStep2Result
 };
 
 // DHIS2 import runs in main

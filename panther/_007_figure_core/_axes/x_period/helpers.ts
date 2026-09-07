@@ -464,78 +464,64 @@ function getMaxWidthWord(
   return maxWidth;
 }
 
-// A label must clear 1.5x its own width to be considered a fit, so year labels
-// keep visible air between them rather than butting up against the band edge.
-const _LABEL_FIT_SLACK = 1.5;
+// Year-label density and placement (non-year-centered rungs).
+//
+// Two independent decisions, both sized against the label ladder:
+//   - skip interval N: label every Nth year band, so adjacent labels keep
+//     labelGap of air between them (centre-to-centre distance N*bandW must
+//     clear label width + gap).
+//   - boundary ticks: a full-height tick at EVERY year start whenever the
+//     shortest label physically fits inside one band between two ticks. Only
+//     when it does not do we fall back to widening the labelled cell to N
+//     bands, which is the one case where a year boundary tick is dropped.
+// labelGap is em-based (see measure.ts) so it rides the figure's fit scale
+// exactly like the label it separates — never a raw pixel constant.
 
+const _SKIP_INTERVALS = [1, 2, 5, 10, 20, 50, 100];
+
+export function calculateYearSkipInterval(
+  widthPerYear: number,
+  shortestFormW: number,
+  labelGap: number,
+): number {
+  const minWidthNeeded = shortestFormW + labelGap;
+  for (const interval of _SKIP_INTERVALS) {
+    if (widthPerYear * interval >= minWidthNeeded) {
+      return interval;
+    }
+  }
+  return _SKIP_INTERVALS[_SKIP_INTERVALS.length - 1];
+}
+
+export function labelFitsCell(labelW: number, cellInnerW: number): boolean {
+  return labelW <= cellInnerW;
+}
+
+// Widest form that keeps the gap to its neighbours (labelSpan = centre-to-centre
+// distance of labelled bands) and fits inside its own cell between ticks.
 export function pickLargeLabelForm(
-  availableSpace: number,
+  labelSpan: number,
+  cellInnerW: number,
+  labelGap: number,
   forms: { form: LargeLabelForm; w: number }[],
 ): LargeLabelForm {
   for (const f of forms) {
-    if (f.w * _LABEL_FIT_SLACK < availableSpace) {
+    if (f.w + labelGap <= labelSpan && labelFitsCell(f.w, cellInnerW)) {
       return f.form;
     }
   }
   return forms[forms.length - 1].form;
 }
 
-export function calculateYearSkipInterval(
-  rc: RenderContext,
-  periodType: PeriodType,
-  periodAxisType: PeriodAxisType,
-  periodIncrementWidth: number,
-  axisStyle: MergedXPeriodAxisStyle,
-): number {
-  // Sized against the narrowest rung of the ladder: the skip interval only has
-  // to guarantee that *some* form of the year label fits.
-  const forms = getLargeLabelForms(periodType, axisStyle.calendar);
-  const shortestFormW = rc
-    .mText(
-      getLargeLabelExemplar(forms[forms.length - 1]),
-      axisStyle.text.xPeriodAxisTickLabels,
-      Number.POSITIVE_INFINITY,
-    )
-    .dims.w();
-  const minWidthNeeded = shortestFormW * _LABEL_FIT_SLACK;
-
-  let periodsPerYear: number;
-  if (periodType === "year-month") periodsPerYear = 12;
-  else if (periodType === "year-quarter") periodsPerYear = 4;
-  else periodsPerYear = 1;
-
-  const widthPerYear = periodAxisType === "year-centered"
-    ? periodIncrementWidth
-    : periodIncrementWidth * periodsPerYear;
-
-  const skipIntervals = [1, 2, 5, 10, 20, 50, 100];
-  for (const interval of skipIntervals) {
-    if (widthPerYear * interval >= minWidthNeeded) {
-      return interval;
-    }
-  }
-
-  return 100;
-}
-
-export function shouldShowYearBoundary(
+export function shouldLabelYear(
   v: number | string,
   periodType: PeriodType,
   skipInterval: number,
   calendar: CalendarType,
 ): boolean {
-  if (!isLargePeriod(v, periodType, calendar)) return false;
-
   const decoded = decodePeriod(v, periodType);
   const year = isFiscalYearQuarterAxis(periodType, calendar)
     ? getFiscalYearStartYear(decoded.year, decoded.subPeriod)
     : decoded.year;
-
-  if (skipInterval === 1) return true;
-  if (skipInterval === 2) return year % 2 === 0;
-  if (skipInterval === 5) return year % 5 === 0;
-  if (skipInterval === 10) return year % 10 === 0;
-  if (skipInterval === 20) return year % 20 === 0;
-  if (skipInterval === 50) return year % 50 === 0;
-  return year % 100 === 0;
+  return year % skipInterval === 0;
 }

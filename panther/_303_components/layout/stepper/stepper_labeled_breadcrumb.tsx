@@ -6,13 +6,13 @@
 import { For } from "solid-js";
 import type { Stepper } from "./get_stepper.ts";
 
-interface StepperLabeledBreadcrumbProps {
+type StepperLabeledBreadcrumbProps = {
   stepper: Stepper;
   /** Label per step, indexed by (step - minStep). If omitted, falls back
    * to "Step N". */
   labels?: string[];
   onStepClick?: (step: number) => void;
-}
+};
 
 /**
  * Horizontal breadcrumb-style step indicator using the continuous-rail

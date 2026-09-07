@@ -1,9 +1,8 @@
 export {
   buildRunPackageIntoTmp,
   readCsvHeaders,
-  synthesizeRunForProject,
   type RunBuildOptions,
-} from "./synthesize_run.ts";
+} from "./build_run_package.ts";
 export {
   attachRunToProject,
   buildRunAttachedManifestPayload,
@@ -11,13 +10,14 @@ export {
 } from "./attach_run.ts";
 export { buildResultsPackageCompatibilityReport } from "./package_compatibility.ts";
 export { deleteRun } from "./delete_run.ts";
+export {
+  pinRunAndRepointFollowers,
+  setProjectFollowPinnedAndAlign,
+  unpinRun,
+} from "./pin_run.ts";
 export { deriveAvailableDisaggregationOptions } from "./disaggregation_availability.ts";
 export { getRunGenerationModuleOptions } from "./generation_wizard_reads.ts";
-export {
-  exportPgTableToParquet,
-  exportRowsToParquet,
-  type ExportedColumn,
-} from "./pg_export.ts";
+export { exportRowsToParquet, type ExportedColumn } from "./pg_export.ts";
 export {
   evictRunFromManifestCache,
   getRunManifestCached,
@@ -26,12 +26,13 @@ export {
 export { transformRunManifestFile } from "./manifest_transform.ts";
 export {
   listRunModuleFiles,
+  readRunDetail,
   readRunModuleLogs,
   readRunModuleScript,
-  resolveRunModuleFileForDownload,
 } from "./package_internals.ts";
 export {
   publishFailedRunDirOrSweep,
+  isRunIdShape,
   runDirPath,
   runInputFilePath,
   runManifestPath,

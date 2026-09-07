@@ -44,7 +44,7 @@ defineRoute(
 );
 
 // Stateless: parses the zip from the named asset for the wizard's
-// upload-step preview — no pin check, the wizard always wants current bytes.
+// upload-step preview: no pin check, the wizard always wants current bytes.
 // Nothing is persisted by this call.
 defineRoute(
   routesIceh,

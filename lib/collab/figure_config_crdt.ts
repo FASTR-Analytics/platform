@@ -1,5 +1,5 @@
 // =============================================================================
-// Figure-config CRDT bridge (Yjs) — shared by both visualization-collab surfaces
+// Figure-config CRDT bridge (Yjs): shared by both visualization-collab surfaces
 // =============================================================================
 //
 // A visualization's editable config is `PresentationObjectConfig = { d, s, t }`.
@@ -8,20 +8,20 @@
 // with same-field last-writer-wins and character-level merge on the three free-
 // text fields. It is a bridge over a Y.MAP (not a whole Y.Doc), so the identical
 // code binds both:
-//   * the standalone PO room's doc root   — doc.getMap("config")
-//   * a figure node inside a slide/report — the node's "figConfig" nested map
+//   * the standalone PO room's doc root  : doc.getMap("config")
+//   * a figure node inside a slide/report: the node's "figConfig" nested map
 //
 // Shape (configMap is the map handed in):
-//   "d": Y.Map  — query config. Primitives (type, timeseriesGrouping, ...) are
+//   "d": Y.Map : query config. Primitives (type, timeseriesGrouping, ...) are
 //                 LWW scalars; arrays/objects (disaggregateBy, filterBy,
 //                 periodFilter, valuesFilter) are whole-value LWW.
-//   "s": Y.Map  — style + conditional-formatting. Same rule: flat scalars LWW,
+//   "s": Y.Map : style + conditional-formatting. Same rule: flat scalars LWW,
 //                 arrays (customSeriesStyles, cf threshold arrays) whole-value.
-//   "t": Y.Map  — caption / subCaption / footnote as Y.Text (character merge +
+//   "t": Y.Map : caption / subCaption / footnote as Y.Text (character merge +
 //                 remote carets); the *RelFontSize numbers are LWW scalars.
 //
 // Arrays are replaced whole in the editor UI (and by the AI patch surface), so
-// whole-value LWW per array is the real editing granularity — decomposing them
+// whole-value LWW per array is the real editing granularity: decomposing them
 // into Y.Arrays would buy nothing. Classification is by runtime value type
 // (primitive vs object), not a hardcoded key list, so it survives schema growth.
 //
@@ -54,7 +54,7 @@ function isOpaqueValue(v: unknown): boolean {
 }
 
 // Keys a section REQUIRES, derived from the storage schema itself so the two can
-// never drift. syncSection deletes doc keys the pushed config lacks — correct
+// never drift. syncSection deletes doc keys the pushed config lacks: correct
 // for a cleared OPTIONAL field, catastrophic for a required one: the key leaves
 // the SHARED doc, so every peer loses it and every checkpoint's strict parse
 // fails identically, wedging the room permanently. A config can lack a required
@@ -101,7 +101,7 @@ export function seedFigureConfigMap(
       if (section === "t" && CAPTION_TEXT_SET.has(k)) {
         sub.set(k, newCaptionText(v));
       } else {
-        sub.set(k, v); // scalar OR opaque — Yjs stores the JSON value as-is
+        sub.set(k, v); // scalar OR opaque: Yjs stores the JSON value as-is
       }
     }
     // Caption Y.Texts always exist (even when empty) so the editor can bind a
@@ -161,7 +161,7 @@ function syncSection(
   );
   // Drop keys no longer in the target (a cleared optional filter/replicant).
   // Caption Y.Texts are kept and cleared to "" instead of deleted, so a bound
-  // editor never loses its Y.Text. REQUIRED keys are never dropped — see
+  // editor never loses its Y.Text. REQUIRED keys are never dropped: see
   // REQUIRED_KEYS_BY_SECTION.
   for (const k of [...sub.keys()]) {
     if (present.has(k)) {
@@ -198,7 +198,7 @@ function syncSection(
   }
 }
 
-/** Diff a full config onto the map (minimal mergeable ops). Idempotent — a
+/** Diff a full config onto the map (minimal mergeable ops). Idempotent: a
  *  no-op when the map already matches, so it is safe to call unconditionally
  *  (the standalone editor's full-store push, like the slide editor's). */
 export function syncFigureConfigToMap(
@@ -219,7 +219,7 @@ export function syncFigureConfigToMap(
   }
 }
 
-/** Set a single config field (partial write) — used by the batch period-filter
+/** Set a single config field (partial write): used by the batch period-filter
  *  chokepoint, which touches only d.periodFilter. undefined clears the field. */
 export function syncFigureConfigField(
   configMap: Y.Map<unknown>,

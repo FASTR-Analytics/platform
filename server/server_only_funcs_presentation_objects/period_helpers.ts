@@ -22,8 +22,8 @@ export const PERIOD_COLUMN_EXPRESSIONS = {
 } as const;
 
 // Calendar is data semantics and changes the generated SQL, so it threads in
-// from the caller's context — the instance env for the Postgres path, the run
-// manifest for the runs path — never from the i18n global (PLAN_RESULTS_RUNS
+// from the caller's context: the instance env for the Postgres path, the run
+// manifest for the runs path, never from the i18n global (PLAN_RESULTS_RUNS
 // §2.4).
 export function getQuarterIdExpression(calendar: InstanceCalendar): string {
   if (calendar === "ethiopian") {
@@ -77,7 +77,7 @@ export type PeriodCTEContext = {
 
 // Single source of the "does this query need a period_data CTE" rule: derived
 // columns are only derivable from period_id (all three) or quarter_id (year
-// only — quarter_id itself is physical there).
+// only: quarter_id itself is physical there).
 export function needsPeriodCTEFor(ctx: PeriodCTEContext): boolean {
   return (
     (ctx.hasPeriodId && ctx.neededPeriodColumns.size > 0) ||
@@ -127,7 +127,7 @@ export function detectNeededPeriodColumns(
     }
   }
 
-  // Check periodFilterExactBounds — add the column only when both bounds
+  // Check periodFilterExactBounds: add the column only when both bounds
   // self-identify the same format (matches the WHERE-clause skip rule).
   if (fetchConfig.periodFilterExactBounds) {
     const periodOption = inferPeriodFormatFromValuesIfTheSame(

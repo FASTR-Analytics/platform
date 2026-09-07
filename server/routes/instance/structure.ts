@@ -4,9 +4,9 @@ import { _DATASET_LIMIT, t3, type Dhis2Credentials, type FacilityFamily } from "
 import {
   addStructureUploadAttempt,
   deleteAllHfaFacilityWeights,
-  deleteAllStructureData,
   deleteFamilyFacilities,
   getHfaFacilityWeightsItems,
+  getInstancePopulationSummary,
   getInstanceStructureSummary,
   importHfaFacilityWeights,
   deleteStructureUploadAttempt,
@@ -16,6 +16,7 @@ import {
   getStructureStagedRecodeRows,
   getStructureUploadAttempt,
   getStructureUploadStatus,
+  listAdminArea2s,
   setStructureRecodes,
   resolveDhis2Credentials,
   structureStep0_SetSourceType,
@@ -36,7 +37,11 @@ import { resolveAssetFilePath } from "../../db/instance/assets.ts";
 import { getCsvDetails } from "../../server_only_funcs_csvs/get_csv_components.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/userPermission.ts";
-import { notifyInstanceStructureUpdated } from "../../task_management/notify_instance_updated.ts";
+import {
+  notifyInstanceConfigUpdatedFromDb,
+  notifyInstancePopulationUpdated,
+  notifyInstanceStructureUpdated,
+} from "../../task_management/notify_instance_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { streamResponse } from "../streaming.ts";
 
@@ -51,6 +56,18 @@ function parseFacilityFamily(raw: string): FacilityFamily | undefined {
 //    Structure items    //
 //                        //
 ////////////////////////////
+
+defineRoute(
+  routesStructure,
+  "listAdminArea2s",
+  // Any authenticated user: feeds the project scope picker (see registry).
+  requireGlobalPermission(),
+  log("listAdminArea2s"),
+  async (c) => {
+    const res = await listAdminArea2s(c.var.mainDb);
+    return c.json(res);
+  },
+);
 
 defineRoute(
   routesStructure,
@@ -69,20 +86,6 @@ defineRoute(
 
 defineRoute(
   routesStructure,
-  "deleteAllStructureData",
-  requireGlobalPermission("can_configure_data"),
-  log("deleteAllStructureData"),
-  async (c) => {
-    const res = await deleteAllStructureData(c.var.mainDb);
-    if (res.success) {
-      notifyInstanceStructureUpdated(await getInstanceStructureSummary(c.var.mainDb));
-    }
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesStructure,
   "deleteFamilyFacilities",
   requireGlobalPermission("can_configure_data"),
   log("deleteFamilyFacilities"),
@@ -94,6 +97,13 @@ defineRoute(
     const res = await deleteFamilyFacilities(c.var.mainDb, family);
     if (res.success) {
       notifyInstanceStructureUpdated(await getInstanceStructureSummary(c.var.mainDb));
+      await notifyInstanceConfigUpdatedFromDb(c.var.mainDb);
+      // Population coverage is measured against the HMIS structure.
+      if (family === "hmis") {
+        notifyInstancePopulationUpdated(
+          await getInstancePopulationSummary(c.var.mainDb),
+        );
+      }
     }
     return c.json(res);
   },
@@ -374,7 +384,10 @@ defineRoute(
       // Best-effort: the integrate has already committed, so a failure here
       // must not turn the response into an error
       try {
-        const orphans = await countOrphanedGeoJsonAreaIds(c.var.mainDb);
+        const orphans = await countOrphanedGeoJsonAreaIds(
+          c.var.mainDb,
+          params.family,
+        );
         if (orphans.length > 0) {
           res.data = { ...res.data, orphanedGeojsonAreaIds: orphans };
         }
@@ -384,6 +397,13 @@ defineRoute(
         );
       }
       notifyInstanceStructureUpdated(await getInstanceStructureSummary(c.var.mainDb));
+      await notifyInstanceConfigUpdatedFromDb(c.var.mainDb);
+      // Population coverage is measured against the HMIS structure.
+      if (params.family === "hmis") {
+        notifyInstancePopulationUpdated(
+          await getInstancePopulationSummary(c.var.mainDb),
+        );
+      }
     }
     return c.json(res);
   },
@@ -497,7 +517,7 @@ defineRoute(
   },
 );
 
-// Weights CSV export — wide format: facility_id + one column per time point
+// Weights CSV export, wide format: facility_id + one column per time point
 routesStructure.get(
   "/structure/hfa_facility_weights/export/csv",
   requireGlobalPermission("can_view_data"),

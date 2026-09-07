@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
+  AlignH,
   CustomMarkdownStyleOptions,
   FigureInputs,
   ImageInputs,
@@ -70,6 +71,7 @@ export function contentGroupToPageContentItem(
       figureType: "table",
       data: tableData,
       columnWidths: Array(nCols).fill("auto"),
+      style: getTableAlignStyle(element.align),
     };
   }
 
@@ -122,6 +124,7 @@ export function docElementToPageContentItem(
       figureType: "table",
       data: tableData,
       columnWidths: Array(nCols).fill("auto"),
+      style: getTableAlignStyle(element.align),
     };
   }
 
@@ -140,6 +143,7 @@ export function docElementToPageContentItem(
 function convertMarkdownTableToTableData(
   element: ParsedMarkdownItem & { type: "table" },
 ) {
+  // GFM tables have exactly one header row (markdown-it emits one thead tr).
   const headers = element.header?.[0] || [];
   const rows = element.rows || [];
 
@@ -162,17 +166,34 @@ function convertMarkdownTableToTableData(
     rowGroups: [{
       id: undefined,
       label: undefined,
-      rows: dataRows.map((row, index) => ({
+      rows: dataRows.map((_row, index) => ({
         id: undefined,
         label: undefined,
         index,
-        values: row,
       })),
     }],
     aoa: dataRows,
   };
 
   return tableData;
+}
+
+// A custom style rather than data, so an app-level tableCells /
+// tableColHeaders func still supplies every other field per column.
+function getTableAlignStyle(
+  align: (AlignH | undefined)[] | undefined,
+): TableInputs["style"] {
+  if (!align) {
+    return undefined;
+  }
+  const alignAt = (i: number | undefined) =>
+    i === undefined ? {} : { alignH: align[i] };
+  return {
+    content: {
+      tableCells: { func: (info) => alignAt(info.i_col) },
+      tableColHeaders: { func: (info) => alignAt(info.index) },
+    },
+  };
 }
 
 export function docElementToMarkdown(element: ParsedMarkdownItem): string {
@@ -206,9 +227,6 @@ export function docElementToMarkdown(element: ParsedMarkdownItem): string {
     case "code-block":
       return "```\n" + element.code + "```";
 
-    case "math-block":
-      return "$$\n" + element.latex + "\n$$";
-
     case "image":
       return `![${element.alt}](${element.src})`;
 
@@ -230,12 +248,18 @@ function inlineContentToString(content: MarkdownInline[]): string {
         return `*${c.text}*`;
       case "bold-italic":
         return `***${c.text}***`;
-      case "link":
-        return `[${c.text}](${c.url})`;
+      case "link": {
+        const marker = c.style === "bold-italic"
+          ? "***"
+          : c.style === "bold"
+          ? "**"
+          : c.style === "italic"
+          ? "*"
+          : "";
+        return `[${marker}${c.text}${marker}](${c.url})`;
+      }
       case "code-inline":
         return `\`${c.text}\``;
-      case "math-inline":
-        return `$${c.latex}$`;
     }
   }).join("");
 }
@@ -243,7 +267,6 @@ function inlineContentToString(content: MarkdownInline[]): string {
 function inlineContentToPlainText(content: MarkdownInline[]): string {
   return content.map((c) => {
     if (c.type === "break") return "\n";
-    if (c.type === "math-inline") return c.latex;
     return c.text;
   }).join("");
 }

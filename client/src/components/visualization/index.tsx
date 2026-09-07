@@ -2,6 +2,7 @@ import {
   type FigureBundle,
   PresentationObjectConfig,
   PresentationObjectDetail,
+  PresentationObjectEditorDetail,
   ProjectState,
   ResultsValue,
   ResultsValueInfoForPresentationObject,
@@ -35,10 +36,10 @@ export type EphemeralModeReturn =
  */
 export type VizFigureCollabBinding = {
   /** Host-side id of the figure being edited (slide layout blockId / report
-   *  figure registry id) — scopes live-cursor broadcasts to viewers of the
+   *  figure registry id): scopes live-cursor broadcasts to viewers of the
    *  same figure. */
   figureId: string;
-  /** Identity of the host doc whose room checkpoints these edits — the modal
+  /** Identity of the host doc whose room checkpoints these edits: the modal
    *  reads docSaveFailing for THIS doc (not the PO), since the host editor's
    *  own indicator is covered while the modal is open. */
   hostDoc: { docType: "slide" | "report"; docId: string };
@@ -54,7 +55,7 @@ export type VizFigureCollabBinding = {
   /** Transaction origin for this client's edits (for the scoped undo manager). */
   localOrigin: object;
   /** Called when a coherent bundle (edited config + refreshed items) is ready,
-   *  so the host can path-set it into its doc — keeps canvas peers' data in step
+   *  so the host can path-set it into its doc: keeps canvas peers' data in step
    *  with the config being co-edited. */
   onCoherentBundle: (bundle: FigureBundle) => void;
 };
@@ -212,7 +213,7 @@ function VisualizationEditorCreate(p: CreateModeProps) {
     t3(TC.loading),
   );
 
-  const syntheticPoDetail: PresentationObjectDetail = {
+  const syntheticPoDetail: PresentationObjectEditorDetail = {
     id: "",
     projectId: p.projectId,
     lastUpdated: "",
@@ -252,7 +253,7 @@ function VisualizationEditorEphemeral(p: EphemeralModeProps) {
     t3(TC.loading),
   );
 
-  const syntheticPoDetail: PresentationObjectDetail = {
+  const syntheticPoDetail: PresentationObjectEditorDetail = {
     id: "",
     projectId: p.projectId,
     lastUpdated: "",

@@ -12,8 +12,10 @@ import {
   estimateMinYTextAxisWidth,
   maxProportionalPanePlotExtent,
   maxVisibleCount,
+  PANE_HEADER_SAMPLE_MAX_W,
   type RenderContext,
   resolveDefaultLegend,
+  SIZING_SAMPLE,
 } from "../deps.ts";
 import { getChartOHDataTransformed } from "../get_chartoh_data.ts";
 import type { ChartOHDataTransformed, ChartOHInputs } from "../types.ts";
@@ -52,7 +54,11 @@ export function getChartOHComponentSizes(
   const minYAxisWidth = estimateMinYTextAxisWidth(rc, ms.yTextAxis, ms.grid);
 
   const paneHeaderHeight = rc
-    .mText("Region 001", ms.text.paneHeaders, 400)
+    .mText(
+      SIZING_SAMPLE.paneHeader,
+      ms.text.paneHeaders,
+      PANE_HEADER_SAMPLE_MAX_W,
+    )
     .dims.h();
 
   // minSubChartWidth — from X-scale tick labels (fixed, mirror of ChartOV's

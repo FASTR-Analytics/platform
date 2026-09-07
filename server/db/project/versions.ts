@@ -37,7 +37,7 @@ import { reSequence } from "./slides.ts";
 // Newest N versions kept per document; pruned in the writer after each insert.
 const VERSIONS_KEEP = 100;
 
-// True byte size of stored text — used by the version detail responses so they
+// True byte size of stored text: used by the version detail responses so they
 // agree with the SQL octet_length() the list queries use.
 function utf8Bytes(s: string): number {
   return new TextEncoder().encode(s).length;
@@ -47,13 +47,13 @@ function utf8Bytes(s: string): number {
 // mirror content that was already validated when it was written to the live
 // tables, and a later schema change must not be able to fail the version
 // write (the tracker would retry forever). Validation happens on the way OUT
-// instead — restore/copy parse with the current schemas.
+// instead: restore/copy parse with the current schemas.
 //
 // The parse alone CANNOT cover a renamed/deleted key: Zod strip mode deletes
 // unknown keys instead of normalizing them, so a snapshot from before a
 // rename would lose the setting silently on restore. Every path that reads a
 // snapshot out therefore runs the shared figure-block transforms first (the
-// same upgrade the boot sweeps apply to live rows), via the helpers below —
+// same upgrade the boot sweeps apply to live rows), via the helpers below:
 // legacy keys migrate instead of vanishing.
 
 function upgradeSnapshotFigures(
@@ -237,7 +237,7 @@ export async function getReportVersionLineage(
       throw new Error("Version not found");
     }
     // Strictly after the base by the SAME (created_at, id) order every other
-    // version query uses — a plain created_at >= would pull in an equal-stamp
+    // version query uses: a plain created_at >= would pull in an equal-stamp
     // version that the list actually shows as OLDER, reversing a diff step.
     const newer = await projectDb<LineageRow[]>`
       SELECT id, created_at, editors, body, body_authors FROM report_versions
@@ -505,11 +505,11 @@ export function planDeckRestore(
 }
 
 /** Slide ids are 3-char nanoids whose uniqueness is only checked against LIVE
- *  rows — a snapshot slide that was deleted may have had its id reused by a
+ *  rows: a snapshot slide that was deleted may have had its id reused by a
  *  slide in another deck, so re-inserting it verbatim would violate the PK and
  *  abort the restore forever. Replace any colliding toInsert id with a fresh
  *  one (identity only matters for surviving slides; the toInsert rooms were
- *  discarded anyway). Call BEFORE closing rooms — the colliding id's live room
+ *  discarded anyway). Call BEFORE closing rooms: the colliding id's live room
  *  belongs to another deck and must not be touched. */
 export async function remapCollidingSlideIds(
   projectDb: Sql,
@@ -530,7 +530,7 @@ export async function remapCollidingSlideIds(
     if (colliding.size === 0) {
       return { success: true, data: { plan, remapped: 0 } };
     }
-    // generateUniqueSlideId only checks LIVE rows — also avoid the plan's own
+    // generateUniqueSlideId only checks LIVE rows: also avoid the plan's own
     // not-yet-inserted ids and fresh ids picked earlier in this loop.
     const taken = new Set(ids);
     const toInsert: DeckVersionSlide[] = [];
@@ -554,11 +554,11 @@ export async function remapCollidingSlideIds(
 }
 
 /** Deck restore, structural half: one transaction that deletes/re-inserts
- *  slide rows (ids taken verbatim from the plan — colliding toInsert ids were
+ *  slide rows (ids taken verbatim from the plan: colliding toInsert ids were
  *  already replaced by remapCollidingSlideIds above, so only surviving
  *  toUpdate slides are guaranteed their original ids), restores every slide's
  *  snapshot sort_order, and restores the deck's label + config. Configs of
- *  surviving (toUpdate) slides are NOT written here — the route applies them
+ *  surviving (toUpdate) slides are NOT written here: the route applies them
  *  afterwards through the live-room chokepoint so co-editors follow the
  *  restore live. Safe ordering: checkpoints never write sort_order, so a
  *  straggler room checkpoint after this transaction can only touch config. */
@@ -611,7 +611,7 @@ export async function restoreDeckStructure(
   });
 }
 
-/** "Restore as copy": create a brand-new deck (+ slides with FRESH ids — the
+/** "Restore as copy": create a brand-new deck (+ slides with FRESH ids: the
  *  originals may still exist in the source deck) from a version snapshot. */
 export async function copyDeckFromVersion(
   projectDb: Sql,
@@ -638,14 +638,14 @@ export async function copyDeckFromVersion(
       .sort((a, b) => a.sortOrder - b.sortOrder);
 
     // Validate + prepare EVERYTHING before writing anything, then insert deck
-    // and slides in ONE transaction — a mid-loop failure (e.g. an old snapshot
+    // and slides in ONE transaction: a mid-loop failure (e.g. an old snapshot
     // config the current schema rejects) must not leave a half-copied deck.
     const parsedDeckConfig = JSON.stringify(slideDeckConfigSchema.parse(config));
     const parsedSlideConfigs = slides.map((s) =>
       JSON.stringify(slideConfigSchema.parse(upgradeSnapshotSlideConfig(s.config)))
     );
     const newDeckId = await generateUniqueDeckId(projectDb);
-    // generateUniqueSlideId only checks LIVE rows — none of this batch is
+    // generateUniqueSlideId only checks LIVE rows: none of this batch is
     // inserted yet, so also dedupe within the batch itself.
     const newSlideIds: string[] = [];
     const taken = new Set<string>();

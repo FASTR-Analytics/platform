@@ -32,7 +32,7 @@ export async function exportDashboardAsPptx(
       progress(0.05 + 0.7 * frac),
     );
 
-    // No header / no frontmatter — each 16:9 slide is just the figure (or a
+    // No header / no frontmatter: each 16:9 slide is just the figure (or a
     // placeholder for a figure that failed to render).
     const pages: PageInputs[] = prepared.map((pf) => ({
       type: "freeform",

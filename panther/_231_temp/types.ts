@@ -7,41 +7,41 @@ export type TempPath = string & { readonly __brand: "TempPath" };
 
 export type TempFilePath = string & { readonly __brand: "TempFilePath" };
 
-export interface TempDirOptions {
+export type TempDirOptions = {
   prefix?: string;
   suffix?: string;
   keep?: boolean;
   ttl?: number;
   mode?: number;
-}
+};
 
-export interface TempFileOptions extends TempDirOptions {
+export type TempFileOptions = TempDirOptions & {
   extension?: string;
-}
+};
 
-export interface TempConfig {
+export type TempConfig = {
   baseDir?: string;
   debug?: boolean;
   autoCleanup?: boolean;
   maxTotalSize?: number;
   defaultTtl?: number;
   encryptionKey?: Uint8Array;
-}
+};
 
-export interface TempItemMetadata {
+export type TempItemMetadata = {
   path: string;
   type: "file" | "directory";
   created: Date;
   ttl?: number;
   size: number;
   keep: boolean;
-}
+};
 
-export interface TempStats {
+export type TempStats = {
   totalItems: number;
   totalSize: number;
   directories: number;
   files: number;
   oldestItem: Date | null;
   newestItem: Date | null;
-}
+};

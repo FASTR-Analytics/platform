@@ -1,5 +1,5 @@
 // =============================================================================
-// Report collaboration rooms — thin binding over the generic doc_rooms core
+// Report collaboration rooms: thin binding over the generic doc_rooms core
 // =============================================================================
 //
 // See doc_rooms.ts for the shared mechanics and slide_rooms.ts for the slide
@@ -148,7 +148,7 @@ export function flushReportRoom(
   return flushRoomForDoc(projectId, DOC_TYPE, reportId);
 }
 
-/** Discard a report's live room without checkpointing — call when the report
+/** Discard a report's live room without checkpointing: call when the report
  *  row is deleted (see closeRoomsForDoc in doc_rooms.ts). */
 export function closeReportRoom(
   projectId: string,
@@ -161,7 +161,7 @@ export function closeReportRoom(
 /** Route a non-collab report save (the body/figures/images HTTP routes)
  *  through a live room, if one exists. Only the provided fields are synced
  *  onto the doc; the checkpoint persists the whole document. See
- *  LiveRoomApplyResult — on `save_failed` the caller must NOT fall back to a
+ *  LiveRoomApplyResult: on `save_failed` the caller must NOT fall back to a
  *  direct DB write. `editor` attributes the write to version history; omit
  *  for restores (they version themselves explicitly). */
 export function applyReportToLiveRoom(

@@ -5,7 +5,6 @@ import type {
   ProjectUser,
   ReportFolder,
   ReportSummary,
-  RunProgress,
   SlideDeckFolder,
   SlideDeckSummary,
   VisualizationFolder,
@@ -23,17 +22,17 @@ export function notifyProjectV2(
   broadcastV2.postMessage(msg);
 }
 
+// The optional fields are sent ONLY by the writer that changed them (the
+// client applies each one when present), PROTOCOL_APP_STATE "aiContext
+// quirk".
 export function notifyProjectConfigUpdated(
   projectId: string,
-  label: string,
-  isLocked: boolean,
-  aiContext?: string,
-  isCentralReporting?: boolean,
+  data: Extract<
+    ProjectSseMessage,
+    { type: "project_config_updated" }
+  >["data"],
 ): void {
-  notifyProjectV2(projectId, {
-    type: "project_config_updated",
-    data: { label, isLocked, aiContext, isCentralReporting },
-  });
+  notifyProjectV2(projectId, { type: "project_config_updated", data });
 }
 
 export function notifyProjectVisualizationsUpdated(
@@ -116,31 +115,19 @@ export function notifyProjectUsersUpdated(
   });
 }
 
-export function notifyProjectRScript(
-  projectId: string,
-  moduleId: string,
-  text: string
-): void {
-  notifyProjectV2(projectId, {
-    type: "r_script",
-    data: { moduleId, text },
-  });
-}
-
-export function notifyProjectRunProgress(
-  projectId: string,
-  runId: string,
-  progress: RunProgress,
-): void {
-  notifyProjectV2(projectId, {
-    type: "run_progress",
-    data: { runId, progress },
-  });
-}
-
 export function notifyProjectRunAttached(
   projectId: string,
   data: Extract<ProjectSseMessage, { type: "run_attached" }>["data"],
 ): void {
   notifyProjectV2(projectId, { type: "run_attached", data });
+}
+
+export function notifyProjectAdminArea2Changed(
+  projectId: string,
+  adminArea2: string | null,
+): void {
+  notifyProjectV2(projectId, {
+    type: "admin_area_2_changed",
+    data: { adminArea2 },
+  });
 }

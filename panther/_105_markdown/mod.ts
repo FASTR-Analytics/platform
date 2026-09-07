@@ -26,11 +26,7 @@ export type {
 } from "./types.ts";
 
 export { MarkdownRenderer } from "./markdown_renderer.ts";
-export {
-  createMarkdownIt,
-  parseEmailsInText,
-  parseMarkdown,
-} from "./parser.ts";
+export { createMarkdownIt, parseMarkdown } from "./parser.ts";
 
 export {
   contentGroupToPageContentItem,

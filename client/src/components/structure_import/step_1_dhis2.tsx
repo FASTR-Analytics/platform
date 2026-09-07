@@ -18,7 +18,7 @@ type Props = {
 };
 
 // Structure import is saved-only for DHIS2 (PLAN_DHIS2_CREDENTIAL_STORE_
-// CONSOLIDATION Phase 2): no credential editor here — the instance-wide
+// CONSOLIDATION Phase 2): no credential editor here: the instance-wide
 // stored connection is confirmed in place, or replaced via the shared
 // manage-connection modal.
 export function Step1_Dhis2(p: Props) {

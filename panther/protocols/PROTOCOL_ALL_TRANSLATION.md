@@ -18,25 +18,25 @@ resolveTS(ts, lang): string         // resolve ts to an explicit language
 
 ## Rules
 
-1. **User-facing strings are `TranslatableString`** — `{ en, fr, pt? }`, never a
+1. **User-facing strings are `TranslatableString`**: `{ en, fr, pt? }`, never a
    bare string literal shown to a user. `en` and `fr` are required; `pt` is
    optional.
-2. **Resolve with `t3`** — `t3(ts)` returns the string for the current language.
-3. **`t3` takes a `TranslatableString`, not a string** — it is not the app-level
+2. **Resolve with `t3`**: `t3(ts)` returns the string for the current language.
+3. **`t3` takes a `TranslatableString`, not a string**: it is not the app-level
    `t("…")` key helper (see below). Passing a bare string is a type error.
-4. **Explicit language → `resolveTS`** — use `resolveTS(ts, lang)` when output
+4. **Explicit language → `resolveTS`**: use `resolveTS(ts, lang)` when output
    must be a specific language regardless of the global (e.g. rendering a doc in
    a chosen language).
-5. **Missing French/Portuguese falls back to English** — both `t3` and
+5. **Missing French/Portuguese falls back to English**: both `t3` and
    `resolveTS` return `ts.en` when the requested language's entry is missing or
    empty. Rely on this; don't pre-check.
-6. **Locale formatting via `Record<Language, T>` lookup** — for number/date/
+6. **Locale formatting via `Record<Language, T>` lookup**: for number/date/
    label _formatting_ differences, define a `..._BY_LANG: Record<Language, T>`
    table and index it with `getLanguage()`; use `t3` for whole translatable
    strings.
-7. **Set language once at entry** — call `setLanguage()` at app start or before
-   a render pass. The language is a process-global singleton.
-8. **One language per process** — you cannot resolve EN and FR concurrently from
+7. **Set language once at entry**: call `setLanguage()` at app start or before a
+   render pass. The language is a process-global singleton.
+8. **One language per process**: you cannot resolve EN and FR concurrently from
    the global; to render both, flip `setLanguage()` between passes or use
    `resolveTS(ts, lang)` with explicit languages.
 
@@ -45,10 +45,10 @@ resolveTS(ts, lang): string         // resolve ts to an explicit language
 ### Translatable strings
 
 ```typescript
-// ❌ DON'T — hardcoded, untranslatable
+// ❌ DON'T: hardcoded, untranslatable
 const label = "Loading…";
 
-// ✅ DO (pt is optional — falls back to en when omitted)
+// ✅ DO (pt is optional: falls back to en when omitted)
 const label = t3({ en: "Loading…", fr: "Chargement…", pt: "A carregar…" });
 ```
 
@@ -58,31 +58,31 @@ where the app supports it); `t3` is the one resolution point.
 ### t3 vs the app-level t()
 
 ```typescript
-// ❌ DON'T — t3 is not a key/string helper
+// ❌ DON'T: t3 is not a key/string helper
 t3("Save");
 
-// ✅ DO — t3 resolves a TranslatableString
+// ✅ DO: t3 resolves a TranslatableString
 t3({ en: "Save", fr: "Enregistrer", pt: "Guardar" });
 ```
 
 **Why:** Panther provides `t3` over `TranslatableString`. Some apps define their
-own `t("key")` over a translation table — that's an app convention, distinct
-from `t3`. Don't conflate them.
+own `t("key")` over a translation table: that's an app convention, distinct from
+`t3`. Don't conflate them.
 
 ### Explicit vs ambient language
 
 ```typescript
-// ✅ Ambient (current global language) — typical case
+// ✅ Ambient (current global language): typical case
 t3({ en: "Total", fr: "Total" });
 
-// ✅ Explicit language — when the global can't be trusted (e.g. dual-language output)
+// ✅ Explicit language: when the global can't be trusted (e.g. dual-language output)
 resolveTS({ en: "Total", fr: "Total" }, "fr");
 ```
 
 ### Formatting branches
 
 ```typescript
-// ✅ DO — per-language lookup for locale-specific formatting (not whole strings)
+// ✅ DO: per-language lookup for locale-specific formatting (not whole strings)
 const QUARTER_PREFIX_BY_LANG: Record<Language, string> = {
   en: "Q",
   fr: "T",
@@ -111,13 +111,13 @@ setLanguage(
 // UI label
 <Button>{t3({ en: "Apply", fr: "Appliquer" })}</Button>;
 
-// Server-rendered figure title (Deno) — same primitive
+// Server-rendered figure title (Deno): same primitive
 const title = t3({ en: "Coverage by region", fr: "Couverture par région" });
 ```
 
 ## Checklist
 
-- [ ] No bare user-facing string literals — all are `TranslatableString`
+- [ ] No bare user-facing string literals: all are `TranslatableString`
 - [ ] Strings resolved via `t3` (ambient) or `resolveTS` (explicit language)
 - [ ] `t3` is called with `{ en, fr, pt? }`, never a bare string
 - [ ] `Record<Language, T>` lookups (via `getLanguage()`) used only for

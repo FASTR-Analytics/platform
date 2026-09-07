@@ -99,7 +99,7 @@ export function requireGlobalPermission(
 /** Like requireGlobalPermission, but ALSO passes fleet-internal machine calls
  *  authenticated by the shared status-api-key header (same key
  *  /health_check/pg_stat_statements_reset checks). Machine calls get mainDb
- *  but NO globalUser — a handler behind this guard must treat a missing
+ *  but NO globalUser: a handler behind this guard must treat a missing
  *  globalUser as the machine actor. */
 export function requireGlobalPermissionOrStatusKey(
   firstArg?: RequireGlobalPermissionOptions | UserPermission,

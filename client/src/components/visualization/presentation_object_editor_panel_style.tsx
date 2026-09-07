@@ -1,6 +1,6 @@
 import {
   PresentationObjectConfig,
-  PresentationObjectDetail,
+  PresentationObjectEditorDetail,
   ResultsValueInfoForPresentationObject,
   getDisaggregatorDisplayProp,
   type IndicatorFormat,
@@ -12,8 +12,8 @@ import { CustomSeriesStyles } from "~/components/forms_editors/custom_series_sty
 import {
   canUseSpecialCoverageChart,
   canUseSpecialDisruptionsChart,
+  canUseSpecialDisruptionsChartV2,
   canUseSpecialPercentChangeChart,
-  canUseSpecialScorecardTable,
 } from "~/generate_visualization/special_chart_checks";
 import { SharedControlsTop } from "./presentation_object_editor_panel_style/_shared";
 import { TimeseriesStyleControls } from "./presentation_object_editor_panel_style/_timeseries";
@@ -25,13 +25,13 @@ import { CustomValueOrderSection } from "./presentation_object_editor_panel_styl
 
 type Props = {
   projectId: string;
-  poDetail: PresentationObjectDetail;
+  poDetail: PresentationObjectEditorDetail;
   resultsValueInfo: ResultsValueInfoForPresentationObject;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
   effectiveConfig: PresentationObjectConfig;
   effectiveValueProps: string[];
-  /** The format the figure's values will actually be written in — resolved
+  /** The format the figure's values will actually be written in: resolved
    *  from the draft config, not the metric's stored formatAs, which is
    *  "number" for every HFA metric regardless of what it displays. */
   effectiveFormatAs: IndicatorFormat;
@@ -43,7 +43,12 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
   const showCoverageMode = () => canUseSpecialCoverageChart(metricId());
   const showPercentChangeMode = () => canUseSpecialPercentChangeChart(metricId());
   const showDisruptionsMode = () => canUseSpecialDisruptionsChart(metricId());
-  const showScorecardMode = () => canUseSpecialScorecardTable(metricId());
+  const showDisruptionsModeV2 = () => canUseSpecialDisruptionsChartV2(metricId());
+  // The `indicator` CF source is offered only where the values are each
+  // indicator's own quantity: the metric's declared formatAs, never the
+  // resolved axis format.
+  const offerIndicatorCfSource = () =>
+    p.poDetail.resultsValue.formatAs === "indicator";
 
   // n is a survey concept and is counted over facility rows, so the server only
   // emits it for HFA metrics whose results table has facility_id. Offering the
@@ -91,7 +96,9 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
             showCoverageMode={showCoverageMode()}
             showPercentChangeMode={showPercentChangeMode()}
             showDisruptionsMode={showDisruptionsMode()}
+            showDisruptionsModeV2={showDisruptionsModeV2()}
             effectiveFormatAs={p.effectiveFormatAs}
+            offerIndicatorCfSource={offerIndicatorCfSource()}
           />
         </Match>
         <Match when={p.tempConfig.d.type === "chart"}>
@@ -101,6 +108,7 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
             setTempConfig={p.setTempConfig}
             editCustomSeriesStyles={editCustomSeriesStyles}
             effectiveFormatAs={p.effectiveFormatAs}
+            offerIndicatorCfSource={offerIndicatorCfSource()}
           />
         </Match>
         <Match when={p.tempConfig.d.type === "table"}>
@@ -108,9 +116,9 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
             poDetail={p.poDetail}
             tempConfig={p.tempConfig}
             setTempConfig={p.setTempConfig}
-            showScorecardMode={showScorecardMode()}
             showNValuesToggle={showNValuesToggle()}
             effectiveFormatAs={p.effectiveFormatAs}
+            offerIndicatorCfSource={offerIndicatorCfSource()}
           />
         </Match>
         <Match when={p.tempConfig.d.type === "map"}>
@@ -119,6 +127,7 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
             tempConfig={p.tempConfig}
             setTempConfig={p.setTempConfig}
             effectiveFormatAs={p.effectiveFormatAs}
+            offerIndicatorCfSource={offerIndicatorCfSource()}
           />
         </Match>
         <Match when={p.tempConfig.d.type === "pie"}>

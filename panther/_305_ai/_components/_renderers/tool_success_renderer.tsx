@@ -19,9 +19,10 @@ export function ToolSuccessRenderer(p: {
         class="text-success-subtle-content hover:text-success flex w-full cursor-pointer items-start gap-1 text-left text-sm transition-colors"
       >
         <div class="mt-0.5">
-          {expanded()
-            ? <Icon iconName="chevronDown" class="h-4 w-4" />
-            : <Icon iconName="chevronRight" class="h-4 w-4" />}
+          <Icon
+            iconName={expanded() ? "chevronDown" : "chevronRight"}
+            class="h-4 w-4"
+          />
         </div>
         <span class="italic">{p.item.message}</span>
       </button>

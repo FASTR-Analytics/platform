@@ -5,16 +5,16 @@
 // A report is modelled as a Y.Doc so multiple users can edit it concurrently.
 // This module is the bridge between the stored report columns and the Yjs
 // document; it is shared by client (editor) and server (relay + persistence),
-// so it lives in `lib/`. Far simpler than the slide model — a report is one
+// so it lives in `lib/`. Far simpler than the slide model: a report is one
 // flat markdown string plus two registries:
 //
-//   doc.getText("body")    — the whole document markdown (character co-editing;
+//   doc.getText("body")   : the whole document markdown (character co-editing;
 //                            the editor binds CodeMirror to it via yCollab)
-//   doc.getMap("figures")  — figureId -> DECOMPOSED entry Y.Map: "figConfig"
+//   doc.getMap("figures") : figureId -> DECOMPOSED entry Y.Map: "figConfig"
 //                            (co-editable Y.Map of the bundle config) +
 //                            "figData" (opaque remainder). Legacy plain-object
 //                            entries are honored on read, converted on sync.
-//   doc.getMap("images")   — imageId  -> ImageBlock  (opaque LWW entries)
+//   doc.getMap("images")  : imageId  -> ImageBlock  (opaque LWW entries)
 //
 // `label` and `config` are deliberately NOT in the doc: they are edited via
 // separate routes/UI (rename, settings), never inside the editor, and giving
@@ -134,7 +134,7 @@ export function findReportFigureConfigMap(
   return cfg instanceof Y.Map ? cfg : undefined;
 }
 
-/** Options for a registry sync — lets a host with an open figure-editor modal
+/** Options for a registry sync: lets a host with an open figure-editor modal
  *  exclude that figure's config from the push (the modal owns it live). */
 export type SyncReportOpts = {
   skipFigureConfigForFigureIds?: Set<string>;
@@ -217,7 +217,7 @@ function syncFigureEntry(
     return;
   }
   const { config, ...figData } = bundle;
-  // Honor the skip only when there IS a figConfig map for the modal to own —
+  // Honor the skip only when there IS a figConfig map for the modal to own:
   // see the same guard in slide_crdt.ts syncFigureNode. Without a map, writing
   // figData alone makes readFigureEntry report a bundle-less figure, so the
   // checkpoint stores an empty one and stamps crdt_state trusted.
@@ -234,7 +234,7 @@ function syncFigureEntry(
   lastFigureBundleRef.set(entry, bundle);
 }
 
-/** Diff full report content onto the doc (minimal mergeable ops). Idempotent —
+/** Diff full report content onto the doc (minimal mergeable ops). Idempotent:
  *  a no-op when the doc already matches, which is what makes it safe to call
  *  unconditionally (echo guard; no latched "was this remote?" flags). */
 export function syncReportToDoc(doc: Y.Doc, target: ReportDocContent): void {

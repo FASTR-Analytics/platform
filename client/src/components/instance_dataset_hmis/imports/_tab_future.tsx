@@ -12,7 +12,7 @@ type Props = {
 
 // One-time rows the Future tab shows: pending, or terminally attention-
 // worthy. Launched rows whose run is running/complete/cancelled are hidden
-// (Current tab shows the running run; the tick sweeps the row after) —
+// (Current tab shows the running run; the tick sweeps the row after):
 // keep this filter in lockstep with sweepSpentOneShotScheduledImports.
 export function visibleFutureSchedules(
   schedules: DatasetHmisScheduledImport[],
@@ -106,10 +106,10 @@ function EditDeleteActions(p: { schedule: DatasetHmisScheduledImport; onEdit: (s
 }
 
 // Future tab: the schedule listing, minus the inline editor (moved into the
-// wizard — PLAN_DHIS2_IMPORTER_UI_REVISION §4) and minus the Enabled toggle
-// (removed — PLAN_DHIS2_IMPORTER_UI_FUTURE_LISTING §0: set-and-forget
-// scheduling has one place to configure — the wizard via Edit — and one
-// off-switch — Delete). Recurring and one-time schedules get separate
+// wizard: PLAN_DHIS2_IMPORTER_UI_REVISION §4) and minus the Enabled toggle
+// (removed: PLAN_DHIS2_IMPORTER_UI_FUTURE_LISTING §0: set-and-forget
+// scheduling has one place to configure (the wizard via Edit) and one
+// off-switch: Delete). Recurring and one-time schedules get separate
 // sections since their columns genuinely differ.
 export function Dhis2TabFuture(p: Props) {
   const visible = () => visibleFutureSchedules(p.schedules);

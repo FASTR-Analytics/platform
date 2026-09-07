@@ -8,7 +8,7 @@ export type ImportHfaDataCsvWorkerPayload = {
   // (the integrate leg reads the surviving staging tables, not the files).
   csvFilePath: string;
   xlsFormFilePath: string;
-  // Present only for resumeFromStaging runs — the diagnostics recorded at the
+  // Present only for resumeFromStaging runs: the diagnostics recorded at the
   // needs_review hold, which the integrate leg runs against.
   stagingResult?: DatasetHfaCsvStagingResult;
 };

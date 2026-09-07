@@ -23,7 +23,7 @@ import {
 // Unified one-page comparison between a version and the current document:
 // additions highlighted, removals struck through, and each changed section
 // attributed on hover to the editing session that made it (computed by
-// diffing the version's lineage — see version_diff.ts).
+// diffing the version's lineage: see version_diff.ts).
 export function ReportVersionCompare(
   p: AlertComponentProps<
     {
@@ -92,7 +92,7 @@ export function ReportVersionCompare(
               <Show
                 when={hasChanges}
                 fallback={
-                  <div class="text-neutral py-8 text-center text-sm">
+                  <div class="text-base-content-muted py-8 text-center text-sm">
                     {t3({
                       en: "This version is identical to the current document.",
                       fr: "Cette version est identique au document actuel.",

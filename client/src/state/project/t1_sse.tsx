@@ -1,7 +1,6 @@
 import {
   type LastUpdateTableName,
   type ProjectSseMessage,
-  type RunProgress,
   parseJsonOrThrow,
   t3,
 } from "lib";
@@ -25,16 +24,7 @@ type LastUpdatedListener = (
   timestamp: string
 ) => void;
 
-type RScriptListener = (moduleId: string, text: string) => void;
-
-// Live generation progress (generate_run worker → run_progress SSE) is
-// ephemeral execution state, not T1: like r_script it goes to listeners and
-// never touches the store — the runs listing fetches its own baseline.
-type RunProgressListener = (runId: string, progress: RunProgress) => void;
-
 const lastUpdatedListeners = new Set<LastUpdatedListener>();
-const rScriptListeners = new Set<RScriptListener>();
-const runProgressListeners = new Set<RunProgressListener>();
 
 let evtSource: EventSource | null = null;
 let retryTimeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -46,18 +36,6 @@ export function addLastUpdatedListener(listener: LastUpdatedListener): () => voi
   return () => lastUpdatedListeners.delete(listener);
 }
 
-export function addRScriptListener(listener: RScriptListener): () => void {
-  rScriptListeners.add(listener);
-  return () => rScriptListeners.delete(listener);
-}
-
-export function addRunProgressListener(
-  listener: RunProgressListener
-): () => void {
-  runProgressListeners.add(listener);
-  return () => runProgressListeners.delete(listener);
-}
-
 function fireLastUpdatedListeners(
   tableName: LastUpdateTableName,
   ids: string[],
@@ -65,18 +43,6 @@ function fireLastUpdatedListeners(
 ): void {
   for (const listener of lastUpdatedListeners) {
     listener(tableName, ids, timestamp);
-  }
-}
-
-function fireRScriptListeners(moduleId: string, text: string): void {
-  for (const listener of rScriptListeners) {
-    listener(moduleId, text);
-  }
-}
-
-function fireRunProgressListeners(runId: string, progress: RunProgress): void {
-  for (const listener of runProgressListeners) {
-    listener(runId, progress);
   }
 }
 
@@ -110,16 +76,6 @@ export function connectProjectSSE(projectId: string): void {
       msg = parseJsonOrThrow<ProjectSseMessage>(event.data);
     } catch (error) {
       console.error("Failed to parse SSE message:", error, "Raw:", event.data);
-      return;
-    }
-
-    if (msg.type === "r_script") {
-      fireRScriptListeners(msg.data.moduleId, msg.data.text);
-      return;
-    }
-
-    if (msg.type === "run_progress") {
-      fireRunProgressListeners(msg.data.runId, msg.data.progress);
       return;
     }
 
@@ -174,8 +130,6 @@ export function disconnectProjectSSE(): void {
   currentProjectId = null;
   setConnectionAttempts(0);
   lastUpdatedListeners.clear();
-  rScriptListeners.clear();
-  runProgressListeners.clear();
   resetProjectState();
 }
 

@@ -11,7 +11,7 @@ export function itemFigureInputs(item: PublicDashboardItem): FigureInputs {
 }
 
 // Export-time variant: a figure that can't build (e.g. a map whose geometry was
-// never uploaded — buildFigureInputs throws) must degrade to a placeholder, not
+// never uploaded: buildFigureInputs throws) must degrade to a placeholder, not
 // abort the whole export at model-build. The render-time prepareFigures already
 // degrades a throwing figure; this closes the same gap one step earlier, before
 // prepareFigures runs. Mirrors that bare-catch behaviour.
@@ -36,7 +36,7 @@ export function replicantLabel(
 const DOWNLOAD_MARGIN_DU = 20;
 
 // Background and margin are baked into the figure's surrounds so the plain
-// panther export helper renders them — no manual canvas compositing.
+// panther export helper renders them: no manual canvas compositing.
 export function figureInputsForDownload(
   fi: FigureInputs,
   transparent: boolean,
@@ -73,7 +73,7 @@ export type DashboardExportModel = {
 export type DashboardExportScope = "all" | "current";
 
 // The shared, format-agnostic export model. Both the PDF and PPTX renderers
-// consume this — one place owns ordering, fetch-free hydration, group-member
+// consume this: one place owns ordering, fetch-free hydration, group-member
 // labelling, and About text. `scope: "current"` yields a single-figure model.
 export function buildDashboardExportModel(
   bundle: PublicDashboardBundle,

@@ -206,7 +206,7 @@ export async function updateSlide(
 }
 
 // Read the persisted Yjs CRDT state for a slide (collab rooms). Returns the
-// base64 state only if it is CURRENT — i.e. crdt_state_last_updated matches the
+// base64 state only if it is CURRENT: i.e. crdt_state_last_updated matches the
 // slide's last_updated; otherwise the slide was edited outside collab since the
 // state was saved, so the room must re-seed from config instead.
 export async function getSlideCrdtState(
@@ -239,10 +239,10 @@ export async function getSlideCrdtState(
 }
 
 // Collab checkpoint: persist the materialized slide config AND the Yjs CRDT
-// state atomically (collab is authoritative, so this always overwrites — no
+// state atomically (collab is authoritative, so this always overwrites: no
 // conflict check). crdt_state_last_updated is stamped equal to last_updated so
 // the state reads back as current until a non-collab edit bumps last_updated.
-// Plain write — POLICY LIVES IN THE CALLER (the slide room's save closure in
+// Plain write: POLICY LIVES IN THE CALLER (the slide room's save closure in
 // routes/project/project-collab.ts): `slide` must already be schema-parsed,
 // and `crdtTrusted` says whether the doc materializes to exactly `slide`.
 // Untrusted → crdt_state_last_updated stamped NULL, so the next room open
@@ -286,7 +286,7 @@ export async function saveSlideCheckpoint(
   });
 }
 
-// Delete slides. Returns the ids ACTUALLY deleted — the delete is scoped to
+// Delete slides. Returns the ids ACTUALLY deleted: the delete is scoped to
 // this deck, so a requested id that belongs to another deck (3-char ids get
 // reused) is a no-op here and must not have its room closed or its removal
 // attributed.

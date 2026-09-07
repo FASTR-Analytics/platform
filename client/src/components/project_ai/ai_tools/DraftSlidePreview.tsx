@@ -141,7 +141,7 @@ export function DraftSlidePreview(p: Props) {
             <SlideStateWrapper state={slideState()} />
           </div>
         </div>
-        {/* Actions are hidden on error — the card still renders so the error
+        {/* Actions are hidden on error: the card still renders so the error
             message is visible (mirrors DraftVisualizationPreview) instead of
             the whole preview vanishing under a "slide preview shown" line. */}
         <Show when={slideState().status !== "error"}>

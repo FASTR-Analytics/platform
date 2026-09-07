@@ -15,7 +15,7 @@ BEFORE="${BEFORE_SHA:-}"
 # ---------------------------------------------------------------------------
 
 # Manual runs (workflow_dispatch) can override the diff base and skip the
-# deploy-commit gate — used to recover a release the automatic run missed.
+# deploy-commit gate: used to recover a release the automatic run missed.
 DIFF_BASE_OVERRIDE="${DIFF_BASE_OVERRIDE:-}"
 if [ -n "$DIFF_BASE_OVERRIDE" ]; then
     if ! git cat-file -e "$DIFF_BASE_OVERRIDE" 2>/dev/null; then
@@ -23,7 +23,7 @@ if [ -n "$DIFF_BASE_OVERRIDE" ]; then
         exit 1
     fi
     DIFF_BASE="$DIFF_BASE_OVERRIDE"
-    echo "Manual run — diffing against override: $DIFF_BASE"
+    echo "Manual run, diffing against override: $DIFF_BASE"
 else
 
 # Only run for deploy commits (same convention as generate-changelog.sh)
@@ -41,7 +41,7 @@ if [ -n "$PREV_DEPLOY" ]; then
     echo "Diffing against previous deploy: $PREV_DEPLOY"
 elif [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ] && git cat-file -e "$BEFORE" 2>/dev/null; then
     DIFF_BASE="$BEFORE"
-    echo "No previous deploy found — diffing against push base: $BEFORE"
+    echo "No previous deploy found, diffing against push base: $BEFORE"
 else
     echo "No previous deploy and no usable before SHA. Skipping."
     exit 0
@@ -51,7 +51,7 @@ fi  # end DIFF_BASE_OVERRIDE
 
 # Filter to doc-relevant paths: exclude clearly-internal infrastructure that
 # cannot affect admin/user docs (DB layer, middleware, task scheduling). Keeps
-# client/src, server/routes, server/worker_routines, server/dhis2, lib/* — all of
+# client/src, server/routes, server/worker_routines, server/dhis2, lib/*: all of
 # which can carry user-facing or admin behaviour. The chunker (below) guarantees
 # correctness even when the filter keeps more than strictly needed.
 git diff "$DIFF_BASE"..HEAD -- \
@@ -132,7 +132,7 @@ def build_prompt(diff_text, pages_dict):
         "This may be one part of a larger release diff. Only act on what this diff shows; leave "
         "pages unrelated to it unchanged.\n\n"
         "Platform diff:\n```diff\n" + diff_text + "\n```\n\n"
-        "Current documentation pages (JSON — keys are paths relative to src/content/docs/, "
+        "Current documentation pages (JSON, keys are paths relative to src/content/docs/, "
         "values are full markdown content):\n"
         + json.dumps(pages_dict, ensure_ascii=False) + "\n\n"
         "Documentation conventions:\n"
@@ -148,7 +148,7 @@ def build_prompt(diff_text, pages_dict):
         "- English pages are the source; fr/ pages mirror them in French\n"
         "- Keep sentences simple to aid translation\n"
         "- Preserve existing frontmatter (title, description, sidebar.order) unless the title must change\n"
-        "- Do not add, remove, or modify screenshot placeholders or image references — leave them exactly as-is\n\n"
+        "- Do not add, remove, or modify screenshot placeholders or image references: leave them exactly as-is\n\n"
         "Task:\n"
         "1. Determine which admin-guide and user-guide pages need TEXT updates based on the platform changes.\n"
         "   Only include a page here if its prose wording genuinely needs to change.\n"
@@ -161,8 +161,8 @@ def build_prompt(diff_text, pages_dict):
         "   For each affected screenshot, provide its image path exactly as it appears in the markdown\n"
         "   (e.g. /images/users-en.png), or null if it is a :::caution[Screenshot needed]::: placeholder\n"
         "   (in which case describe the placeholder content instead).\n"
-        "   Only flag screenshots for visual UI changes — not backend or logic-only changes.\n\n"
-        "Return strict JSON only — no preamble, no markdown wrapper:\n"
+        "   Only flag screenshots for visual UI changes: not backend or logic-only changes.\n\n"
+        "Return strict JSON only, no preamble, no markdown wrapper:\n"
         "{\n"
         "  \"updates_needed\": true,\n"
         "  \"pages\": [\n"
@@ -238,7 +238,7 @@ def call_api(prompt):
     text = ''.join(text_parts).strip()
     print(f"  Response: {len(text)} chars, stop_reason={stop_reason}")
     if stop_reason == 'max_tokens':
-        print("ERROR: response truncated at max_tokens — doc updates would be lost. Failing loudly.")
+        print("ERROR: response truncated at max_tokens, doc updates would be lost. Failing loudly.")
         sys.exit(1)
     start = text.find('{')
     if start == -1:
@@ -322,7 +322,7 @@ PYEOF
     git add src/content/docs/
 
     if git diff --cached --quiet; then
-        echo "No changes to documentation — nothing to commit."
+        echo "No changes to documentation: nothing to commit."
     else
         git commit -m "docs: sync documentation with platform changes"
         # Rebase over any commits that landed since checkout before pushing
@@ -342,14 +342,14 @@ import json, os, sys, re, base64, mimetypes, html
 
 screenshot_pages = json.load(open('/tmp/screenshot_pages.json'))
 if not screenshot_pages:
-    print("No screenshot pages — skipping email.")
+    print("No screenshot pages: skipping email.")
     raise SystemExit(0)
 
 sendgrid_api_key = os.environ.get('SENDGRID_API_KEY', '')
 sendgrid_from = os.environ.get('SENDGRID_FROM_EMAIL', '')
 
 if not sendgrid_api_key or not sendgrid_from:
-    print("Warning: SENDGRID_API_KEY or SENDGRID_FROM_EMAIL not set — skipping email.")
+    print("Warning: SENDGRID_API_KEY or SENDGRID_FROM_EMAIL not set, skipping email.")
     raise SystemExit(0)
 
 def find_section_heading(doc_dir, page_path, search_text):
@@ -416,7 +416,7 @@ for p in screenshot_pages:
         reason = s.get('reason', '')
         placeholder_desc = s.get('placeholder_description')
 
-        print(f"  Screenshot entry — image_path={raw_img_path!r}, placeholder={placeholder_desc!r}")
+        print(f"  Screenshot entry: image_path={raw_img_path!r}, placeholder={placeholder_desc!r}")
 
         reason_html = html.escape(reason)
 
@@ -463,7 +463,7 @@ for p in screenshot_pages:
             html_imgs += (
                 f'<p style="margin:16px 0 4px">{under_html}<br>'
                 f'<strong>Reason:</strong> {reason_html}<br>'
-                f'<small style="color:#999">(no existing image — placeholder only)</small></p>'
+                f'<small style="color:#999">(no existing image, placeholder only)</small></p>'
             )
 
     file_path_html = html.escape(file_path)
@@ -493,7 +493,7 @@ html_body = (
 payload = {
     "personalizations": [{"to": [{"email": "nick@usefuldata.com.au"}, {"email": "meghanpaul00@gmail.com"}]}],
     "from": {"email": sendgrid_from},
-    "subject": "FASTR docs updated — screenshots need retaking",
+    "subject": "FASTR docs updated: screenshots need retaking",
     "content": [
         {"type": "text/plain", "value": "\n".join(text_lines)},
         {"type": "text/html",  "value": html_body},
@@ -514,5 +514,5 @@ if [ "$SCREENSHOT_COUNT" -gt 0 ] && [ -n "$SENDGRID_API_KEY" ] && [ -n "$SENDGRI
         -H "Content-Type: application/json" \
         -d @/tmp/email_payload.json \
         && echo "Screenshot notification email sent to nick@usefuldata.com.au." \
-        || echo "Warning: email send failed — check SENDGRID_API_KEY and verified sender address."
+        || echo "Warning: email send failed, check SENDGRID_API_KEY and verified sender address."
 fi

@@ -19,7 +19,7 @@ import {
 // output must survive a needs_review hold across other imports running in
 // between, so every table (the final ready-for-integration table plus the
 // three throwaway intermediates) carries a _run_{runId} suffix. Dropped on
-// integrate/discard/sweep — this is what makes releasing the single-running
+// integrate/discard/sweep: this is what makes releasing the single-running
 // slot on needs_review safe.
 
 export function hmisCsvStagingTableNames(runId: number): {
@@ -56,11 +56,11 @@ export async function dropHmisCsvStagingTables(
   }
 }
 
-// The staging internals relocated from the old stage_hmis_data_csv worker —
+// The staging internals relocated from the old stage_hmis_data_csv worker:
 // stream the CSV into a raw table, dedup, validate facilities + indicators,
 // and build the final staging table. Semantics unchanged; only the table
 // names (per-run) and the progress transport (callback instead of attempt-row
-// writes) differ. Never throws on dropped rows — the caller's clean-condition
+// writes) differ. Never throws on dropped rows: the caller's clean-condition
 // gate decides what a nonzero drop count means.
 export async function stageHmisCsvIntoTables(args: {
   importDb: Sql;
@@ -68,7 +68,7 @@ export async function stageHmisCsvIntoTables(args: {
   csvFileName: string;
   mappings: HmisCsvMappingParams;
   runId: number;
-  onProgress: (percent: number) => Promise<void>;
+  onProgress: (percent: number) => void;
 }): Promise<DatasetCsvStagingResult> {
   const { importDb, csvFilePath, csvFileName, mappings, runId, onProgress } =
     args;
@@ -107,7 +107,7 @@ export async function stageHmisCsvIntoTables(args: {
   // Clean up any leftover tables from a previous crashed run of this id.
   await dropHmisCsvStagingTables(importDb, runId, { keepFinal: false });
 
-  await onProgress(1);
+  onProgress(1);
 
   await importDb.unsafe(`
 CREATE UNLOGGED TABLE ${names.raw} (
@@ -140,7 +140,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
       85,
     );
     if (actualProgress - lastProgressUpdate >= 1) {
-      await onProgress(actualProgress);
+      onProgress(actualProgress);
       lastProgressUpdate = actualProgress;
     }
   };
@@ -190,7 +190,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
   );
 
   await flushBuffer();
-  await onProgress(85);
+  onProgress(85);
 
   const tempCount = await importDb<{ count: number }[]>`
     SELECT COUNT(*)::int as count FROM ${importDb(names.raw)}
@@ -198,7 +198,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
   const rowsAfterCsvValidation = tempCount[0]?.count || 0;
 
   if (rowsAfterCsvValidation === 0) {
-    // No staging content exists — this fails the run loudly (the caller's
+    // No staging content exists: this fails the run loudly (the caller's
     // error path drops the tables) rather than holding for review.
     throw new Error(
       `No valid data rows were found in the CSV (${rowsProcessed} rows processed): ` +
@@ -232,7 +232,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
     `CREATE INDEX idx_staging_dedup_run_${runId} ON ${names.dedup} (raw_indicator_id)`,
   );
 
-  await onProgress(87);
+  onProgress(87);
 
   // Facility validation.
   const invalidFacilitiesSample = await importDb<
@@ -276,7 +276,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
   const rowsAfterFacilityValidation = validFacilityCount[0]?.count || 0;
   await importDb.unsafe(`DROP TABLE ${names.dedup}`);
 
-  await onProgress(88);
+  onProgress(88);
 
   // Indicator validation.
   let indicatorValidation: {
@@ -360,7 +360,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
   }
   await importDb.unsafe(`DROP TABLE IF EXISTS ${names.validFacilities}`);
 
-  await onProgress(90);
+  onProgress(90);
 
   // Statistics from staged data.
   let periodIndicatorStats: PeriodIndicatorRawStat[] = [];

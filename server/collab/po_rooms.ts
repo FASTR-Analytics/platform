@@ -1,5 +1,5 @@
 // =============================================================================
-// Visualization (presentation object) collaboration rooms — thin binding
+// Visualization (presentation object) collaboration rooms: thin binding
 // =============================================================================
 //
 // See doc_rooms.ts for the shared mechanics and report_rooms.ts / slide_rooms.ts
@@ -8,7 +8,7 @@
 // plus po_* wire messages).
 //
 // Unlike slides/reports, a PO room has NO authorship ledger and NO version
-// tracking — visualizations are not versioned (SYSTEM_16_collaboration.md) — so
+// tracking: visualizations are not versioned (SYSTEM_16_collaboration.md), so
 // the adapter omits onDocCreated/onDocClosed and the deps omit onEdit/onEmpty.
 
 import * as Y from "yjs";
@@ -98,7 +98,7 @@ export function unsubscribePo(
   unsubscribeDoc(projectId, DOC_TYPE, poId, conn);
 }
 
-/** Discard a visualization's live room without checkpointing — call when the
+/** Discard a visualization's live room without checkpointing: call when the
  *  PO row is deleted (see closeRoomsForDoc in doc_rooms.ts). */
 export function closePoRoom(
   projectId: string,
@@ -110,8 +110,8 @@ export function closePoRoom(
 
 /** Route a non-collab visualization config write through a live room, if one
  *  exists. `apply` receives the config map (the shared figure-config bridge
- *  target). See LiveRoomApplyResult — on `save_failed` the caller must NOT
- *  fall back to a direct DB write. No editor/attribution — POs are not
+ *  target). See LiveRoomApplyResult: on `save_failed` the caller must NOT
+ *  fall back to a direct DB write. No editor/attribution: POs are not
  *  versioned. */
 export function applyPoToLiveRoom(
   projectId: string,

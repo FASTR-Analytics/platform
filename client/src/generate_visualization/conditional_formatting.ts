@@ -1,15 +1,8 @@
-import {
-  type ColorKeyOrString,
-  type Language,
-  type LegendInput,
-  type LegendItem,
-} from "panther";
+import { type Language, type LegendInput } from "panther";
 import {
   _CF_GREEN,
-  _CF_LIGHTER_GREEN,
-  _CF_LIGHTER_RED,
-  _CF_LIGHTER_YELLOW,
   _CF_RED,
+  type EffectiveIndicatorFacts,
   type FastrChartPalette,
   type IndicatorFormat,
   PeriodOption,
@@ -21,11 +14,12 @@ import {
   type FigureLocalization,
 } from "lib";
 import { compileCfToLegend } from "./conditional_formatting/compile";
+import { BAND_GREY } from "./get_style_from_po/_6_disruptions_v2";
 import {
   isSpecialBarChartActive,
   isSpecialCoverageChartActive,
   isSpecialDisruptionsChartActive,
-  isSpecialScorecardTableActive,
+  isSpecialDisruptionsChartV2Active,
 } from "./special_chart_checks";
 
 function getPeriodChangeLabels(
@@ -89,9 +83,27 @@ function getPeriodChangeTranslatableStrings(
   }
 }
 
+// The CF legend is emitted only for figures that PAINT conditional formatting,
+// table cells, map regions, bars, for every CF source. Lines, points and
+// pie slices never consult CF, and an explicit legend would replace the
+// categorical series legend panther derives for them.
+export function figurePaintsCf(config: PresentationObjectConfig): boolean {
+  switch (config.d.type) {
+    case "table":
+    case "map":
+      return true;
+    case "chart":
+    case "timeseries":
+      return config.s.content === "bars";
+    case "pie":
+      return false;
+  }
+}
+
 export function getLegendFromConfig(
   config: PresentationObjectConfig,
   formatAs: IndicatorFormat,
+  facts: EffectiveIndicatorFacts,
   localization: Pick<FigureLocalization, "language">,
   // A themed report's palette: every legend swatch must match what the
   // matching style builder draws with it (see getStandardSeriesColorFunc).
@@ -101,14 +113,6 @@ export function getLegendFromConfig(
   const good = chartPalette?.good ?? _CF_GREEN;
   const bad = chartPalette?.bad ?? _CF_RED;
   const strong = chartPalette?.strong ?? "#000000";
-  if (isSpecialScorecardTableActive(config)) {
-    const cells = chartPalette?.cells;
-    return [
-      { label: pickLang(language, { en: "On track", fr: "En bonne voie", pt: "No bom caminho" }), color: cells?.good ?? _CF_LIGHTER_GREEN },
-      { label: pickLang(language, { en: "Progress needed", fr: "Progrès nécessaire", pt: "Progresso necessário" }), color: cells?.warn ?? _CF_LIGHTER_YELLOW },
-      { label: pickLang(language, { en: "Not on track", fr: "Pas en bonne voie", pt: "Fora do bom caminho" }), color: cells?.bad ?? _CF_LIGHTER_RED },
-    ];
-  }
   if (isSpecialCoverageChartActive(config)) {
     return [
       {
@@ -174,37 +178,33 @@ export function getLegendFromConfig(
       { label: pickLang(language, { en: "Disruption", fr: "Perturbation", pt: "Perturbação" }), color: bad },
     ];
   }
+  if (isSpecialDisruptionsChartV2Active(config)) {
+    const surplusColor = config.s.diffInverted ? _CF_RED : _CF_GREEN;
+    const deficitColor = config.s.diffInverted ? _CF_GREEN : _CF_RED;
+    return [
+      { label: pickLang(language, { en: "Observed", fr: "Observé", pt: "Observado" }), color: "#000000", pointStyle: "as-line" },
+      {
+        label: pickLang(language, { en: "Expected", fr: "Attendu", pt: "Esperado" }),
+        color: "#000000",
+        pointStyle: "as-line",
+        lineDash: "dashed",
+        lineStrokeWidthScaleFactor: 0.5,
+      },
+      {
+        label: pickLang(language, {
+          en: "95% credible interval",
+          fr: "Intervalle de crédibilité à 95%",
+          pt: "Intervalo de credibilidade de 95%",
+        }),
+        color: BAND_GREY,
+      },
+      { label: pickLang(language, { en: "Surplus", fr: "Excédent", pt: "Excedente" }), color: surplusColor },
+      { label: pickLang(language, { en: "Deficit", fr: "Déficit", pt: "Défice" }), color: deficitColor },
+    ];
+  }
+  // A themed report's cell tints stand in for the stock traffic lights (the
+  // style builder goes through the same function, so the two cannot disagree).
   const cf = themeConditionalFormatting(selectCf(config.s), chartPalette);
-  if (cf.type === "none") return undefined;
-  return compileCfToLegend(cf, formatAs);
-}
-
-// Internal helpers still used by conditional_formatting_scorecard.ts for
-// hardcoded scorecard cell coloring. These are NOT part of the user-facing
-// CF system and do not participate in the ConditionalFormatting union.
-export function getCutoffColorFunc(
-  c1: number,
-  c2: number,
-  v: number | string | undefined | null,
-  alternativeMidColor?: ColorKeyOrString,
-) {
-  if (v === ".") return "#ffffff";
-  const goodNum = Number(v);
-  if (isNaN(goodNum)) return "#ffffff";
-  if (goodNum < c2) return _CF_LIGHTER_RED;
-  if (goodNum < c1) return alternativeMidColor ?? _CF_LIGHTER_YELLOW;
-  return _CF_LIGHTER_GREEN;
-}
-
-export function getCutoffColorFuncReverse(
-  c1: number,
-  c2: number,
-  v: number | string | undefined | null,
-) {
-  if (v === ".") return "#ffffff";
-  const goodNum = Number(v);
-  if (isNaN(goodNum)) return "#ffffff";
-  if (goodNum >= c2) return _CF_LIGHTER_RED;
-  if (goodNum >= c1) return _CF_LIGHTER_YELLOW;
-  return _CF_LIGHTER_GREEN;
+  if (cf.type === "none" || !figurePaintsCf(config)) return undefined;
+  return compileCfToLegend(cf, formatAs, facts, language);
 }

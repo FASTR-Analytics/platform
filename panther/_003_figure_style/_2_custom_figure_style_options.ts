@@ -19,12 +19,13 @@ import {
   type TableCellInfoFunc,
   type TableHeaderInfoFunc,
   type TickLabelFormatterOption,
-  type ValuesColorFunc,
   type VizGraphEdgeInfoFunc,
   type VizGraphNodeInfoFunc,
 } from "./deps.ts";
 import type {
+  AreaDiffPair,
   ArrowheadFitFallback,
+  FigureValuesColorFunc,
   GenericAreaStyleOptions,
   GenericBarStyleOptions,
   GenericCascadeArrowStyleOptions,
@@ -44,33 +45,9 @@ import type { LegendPosition } from "./types.ts";
 
 export type CustomFigureStyleOptions = {
   seriesColorFunc?: ChartSeriesInfoFunc<ColorKeyOrString>;
-  valuesColorFunc?: ValuesColorFunc;
+  valuesColorFunc?: FigureValuesColorFunc;
 
-  ///////////////////////////////////////////
-  //  ________                     __      //
-  // /        |                   /  |     //
-  // $$$$$$$$/______   __    __  _$$ |_    //
-  //    $$ | /      \ /  \  /  |/ $$   |   //
-  //    $$ |/$$$$$$  |$$  \/$$/ $$$$$$/    //
-  //    $$ |$$    $$ | $$  $$<    $$ | __  //
-  //    $$ |$$$$$$$$/  /$$$$  \   $$ |/  | //
-  //    $$ |$$       |/$$/ $$  |  $$  $$/  //
-  //    $$/  $$$$$$$/ $$/   $$/    $$$$/   //
-  //                                       //
-  ///////////////////////////////////////////
   text?: FigureTextStyleOptions;
-  ////////////////////////////////////////////////////////////////////////////////////////////////
-  //   ______                                                                     __            //
-  //  /      \                                                                   /  |           //
-  // /$$$$$$  | __    __   ______    ______    ______   __    __  _______    ____$$ |  _______  //
-  // $$ \__$$/ /  |  /  | /      \  /      \  /      \ /  |  /  |/       \  /    $$ | /       | //
-  // $$      \ $$ |  $$ |/$$$$$$  |/$$$$$$  |/$$$$$$  |$$ |  $$ |$$$$$$$  |/$$$$$$$ |/$$$$$$$/  //
-  //  $$$$$$  |$$ |  $$ |$$ |  $$/ $$ |  $$/ $$ |  $$ |$$ |  $$ |$$ |  $$ |$$ |  $$ |$$      \  //
-  // /  \__$$ |$$ \__$$ |$$ |      $$ |      $$ \__$$ |$$ \__$$ |$$ |  $$ |$$ \__$$ | $$$$$$  | //
-  // $$    $$/ $$    $$/ $$ |      $$ |      $$    $$/ $$    $$/ $$ |  $$ |$$    $$ |/     $$/  //
-  //  $$$$$$/   $$$$$$/  $$/       $$/        $$$$$$/   $$$$$$/  $$/   $$/  $$$$$$$/ $$$$$$$/   //
-  //                                                                                            //
-  ////////////////////////////////////////////////////////////////////////////////////////////////
   surrounds?: {
     padding?: PaddingOptions;
     backgroundColor?: ColorKeyOrString | "none";
@@ -83,21 +60,6 @@ export type CustomFigureStyleOptions = {
     subCaptionAlignH?: "left" | "center" | "right";
     footnoteAlignH?: "left" | "center" | "right";
   };
-  //////////////////////////////////////////////////////////////////
-  //  __                                                      __  //
-  // /  |                                                    /  | //
-  // $$ |        ______    ______    ______   _______    ____$$ | //
-  // $$ |       /      \  /      \  /      \ /       \  /    $$ | //
-  // $$ |      /$$$$$$  |/$$$$$$  |/$$$$$$  |$$$$$$$  |/$$$$$$$ | //
-  // $$ |      $$    $$ |$$ |  $$ |$$    $$ |$$ |  $$ |$$ |  $$ | //
-  // $$ |_____ $$$$$$$$/ $$ \__$$ |$$$$$$$$/ $$ |  $$ |$$ \__$$ | //
-  // $$       |$$       |$$    $$ |$$       |$$ |  $$ |$$    $$ | //
-  // $$$$$$$$/  $$$$$$$/  $$$$$$$ | $$$$$$$/ $$/   $$/  $$$$$$$/  //
-  //                     /  \__$$ |                               //
-  //                     $$    $$/                                //
-  //                      $$$$$$/                                 //
-  //                                                              //
-  //////////////////////////////////////////////////////////////////
   legend?: {
     legendNoRender?: boolean;
     maxLegendItemsInOneColumn?: number | number[];
@@ -117,19 +79,8 @@ export type CustomFigureStyleOptions = {
     blockGap?: number;
     noDataGap?: number;
     noDataSwatchWidth?: number;
+    minBarWidth?: number;
   };
-  ///////////////////////////////////////////////
-  //  ________         __        __            //
-  // /        |       /  |      /  |           //
-  // $$$$$$$$/______  $$ |____  $$ |  ______   //
-  //    $$ | /      \ $$      \ $$ | /      \  //
-  //    $$ | $$$$$$  |$$$$$$$  |$$ |/$$$$$$  | //
-  //    $$ | /    $$ |$$ |  $$ |$$ |$$    $$ | //
-  //    $$ |/$$$$$$$ |$$ |__$$ |$$ |$$$$$$$$/  //
-  //    $$ |$$    $$ |$$    $$/ $$ |$$       | //
-  //    $$/  $$$$$$$/ $$$$$$$/  $$/  $$$$$$$/  //
-  //                                           //
-  ///////////////////////////////////////////////
   table?: {
     rowHeaderIndentIfRowGroups?: number;
     verticalColHeaders?: "never" | "always" | "auto";
@@ -137,9 +88,6 @@ export type CustomFigureStyleOptions = {
     colHeaderPadding?: PaddingOptions;
     rowHeaderPadding?: PaddingOptions;
     cellPadding?: PaddingOptions;
-    alignV?: "top" | "middle" | "bottom";
-    colHeaderBackgroundColor?: ColorKeyOrString | "none";
-    colGroupHeaderBackgroundColor?: ColorKeyOrString | "none";
     headerBorderWidth?: number;
     gridLineWidth?: number;
     borderWidth?: number;
@@ -147,18 +95,6 @@ export type CustomFigureStyleOptions = {
     gridLineColor?: ColorKeyOrString;
     borderColor?: ColorKeyOrString;
   };
-  ////////////////////////////////////////////////////////
-  //  __    __          ______             __            //
-  // /  |  /  |        /      \           /  |           //
-  // $$ |  $$ |       /$$$$$$  | __    __ $$/   _______  //
-  // $$  \/$$/        $$ |__$$ |/  \  /  |/  | /       | //
-  //  $$  $$<         $$    $$ |$$  \/$$/ $$ |/$$$$$$$/  //
-  //   $$$$  \        $$$$$$$$ | $$  $$<  $$ |$$      \  //
-  //  $$ /$$  |       $$ |  $$ | /$$$$  \ $$ | $$$$$$  | //
-  // $$ |  $$ |       $$ |  $$ |/$$/ $$  |$$ |/     $$/  //
-  // $$/   $$/        $$/   $$/ $$/   $$/ $$/ $$$$$$$/   //
-  //                                                     //
-  ////////////////////////////////////////////////////////
   tiers?: {
     hideHeaders?: boolean;
     paddingTop?: number;
@@ -208,31 +144,17 @@ export type CustomFigureStyleOptions = {
     periodLabelLargeTopPadding?: number;
     calendar?: CalendarType;
   };
-  //////////////////////////////////////////////////////////
-  //  __      __          ______             __            //
-  // /  \    /  |        /      \           /  |           //
-  // $$  \  /$$/        /$$$$$$  | __    __ $$/   _______  //
-  //  $$  \/$$/         $$ |__$$ |/  \  /  |/  | /       | //
-  //   $$  $$/          $$    $$ |$$  \/$$/ $$ |/$$$$$$$/  //
-  //    $$$$/           $$$$$$$$ | $$  $$<  $$ |$$      \  //
-  //     $$ |           $$ |  $$ | /$$$$  \ $$ | $$$$$$  | //
-  //     $$ |           $$ |  $$ |/$$/ $$  |$$ |/     $$/  //
-  //     $$/            $$/   $$/ $$/   $$/ $$/ $$$$$$$/   //
-  //                                                       //
-  //////////////////////////////////////////////////////////
   yTextAxis?: {
     tickPosition?: "sides" | "center";
     paddingTop?: number;
     paddingBottom?: number;
-    labelGap?: number;
     tickWidth?: number;
     tickLabelGap?: number;
-    logicTickLabelWidth?: "auto" | "fixed";
     maxTickLabelWidthAsPctOfChart?: number;
   };
   yScaleAxis?: {
-    max?: number | "auto" | "auto-zero" | ((i_series: number) => number);
-    min?: number | "auto" | "auto-zero" | ((i_series: number) => number);
+    max?: number | "auto" | "auto-zero" | ((i_pane: number) => number);
+    min?: number | "auto" | "auto-zero" | ((i_pane: number) => number);
     labelGap?: number;
     tickWidth?: number;
     tickLabelGap?: number;
@@ -241,18 +163,6 @@ export type CustomFigureStyleOptions = {
     exactAxisX?: "none" | number;
     allowIndividualTierLimits?: boolean;
   };
-  ////////////////////////////////////////////////////////////////////////////
-  //   ______                         __                            __      //
-  //  /      \                       /  |                          /  |     //
-  // /$$$$$$  |  ______   _______   _$$ |_     ______   _______   _$$ |_    //
-  // $$ |  $$/  /      \ /       \ / $$   |   /      \ /       \ / $$   |   //
-  // $$ |      /$$$$$$  |$$$$$$$  |$$$$$$/   /$$$$$$  |$$$$$$$  |$$$$$$/    //
-  // $$ |   __ $$ |  $$ |$$ |  $$ |  $$ | __ $$    $$ |$$ |  $$ |  $$ | __  //
-  // $$ \__/  |$$ \__$$ |$$ |  $$ |  $$ |/  |$$$$$$$$/ $$ |  $$ |  $$ |/  | //
-  // $$    $$/ $$    $$/ $$ |  $$ |  $$  $$/ $$       |$$ |  $$ |  $$  $$/  //
-  //  $$$$$$/   $$$$$$/  $$/   $$/    $$$$/   $$$$$$$/ $$/   $$/    $$$$/   //
-  //                                                                        //
-  ////////////////////////////////////////////////////////////////////////////
   content?: {
     dataLabel?: GenericDataLabelStyleOptions;
     points?: {
@@ -291,6 +201,7 @@ export type CustomFigureStyleOptions = {
       joinAcrossGaps?: boolean;
       diff?: {
         enabled?: boolean;
+        pairs?: AreaDiffPair[];
       };
     };
     errorBars?: {
@@ -363,18 +274,6 @@ export type CustomFigureStyleOptions = {
       textFormatter?: TableHeaderInfoFunc<string> | "none";
     };
   };
-  ////////////////////////////////////////
-  //   ______             __        __  //
-  //  /      \           /  |      /  | //
-  // /$$$$$$  |  ______  $$/   ____$$ | //
-  // $$ | _$$/  /      \ /  | /    $$ | //
-  // $$ |/    |/$$$$$$  |$$ |/$$$$$$$ | //
-  // $$ |$$$$ |$$ |  $$/ $$ |$$ |  $$ | //
-  // $$ \__$$ |$$ |      $$ |$$ \__$$ | //
-  // $$    $$/ $$ |      $$ |$$    $$ | //
-  //  $$$$$$/  $$/       $$/  $$$$$$$/  //
-  //                                    //
-  ////////////////////////////////////////
   grid?: {
     showGrid?: boolean;
     axisStrokeWidth?: number;
@@ -383,18 +282,6 @@ export type CustomFigureStyleOptions = {
     gridColor?: ColorKeyOrString;
     backgroundColor?: ColorKeyOrString | "none";
   };
-  ///////////////////////////////////////////////////////
-  //  _______                                          //
-  // /       \                                         //
-  // $$$$$$$  | ______   _______    ______    _______  //
-  // $$ |__$$ |/      \ /       \  /      \  /       | //
-  // $$    $$/ $$$$$$  |$$$$$$$  |/$$$$$$  |/$$$$$$$/  //
-  // $$$$$$$/  /    $$ |$$ |  $$ |$$    $$ |$$      \  //
-  // $$ |     /$$$$$$$ |$$ |  $$ |$$$$$$$$/  $$$$$$  | //
-  // $$ |     $$    $$ |$$ |  $$ |$$       |/     $$/  //
-  // $$/       $$$$$$$/ $$/   $$/  $$$$$$$/ $$$$$$$/   //
-  //                                                   //
-  ///////////////////////////////////////////////////////
   panes?: {
     hideHeaders?: boolean;
     padding?: PaddingOptions;
@@ -405,20 +292,6 @@ export type CustomFigureStyleOptions = {
     gapY?: number;
     nCols?: number | "auto";
   };
-  /////////////////////////////////////////////////////////////////////////////
-  //   ______   __                            __           __   __           //
-  //  /      \ /  |                          /  |         /  | /  |          //
-  // /$$$$$$  |$$/  _____  ____    ______   $$ |  ______  $$ |$$/  ________ //
-  // $$ \__$$/ /  |/     \/    \  /      \  $$ | /      \ $$ |/  |/        |//
-  // $$      \ $$ |$$$$$$ $$$$  |/$$$$$$  | $$ |/$$$$$$  |$$ |$$ |$$$$$$$$/ //
-  //  $$$$$$  |$$ |$$ | $$ | $$ |$$ |  $$ | $$ |$$    $$ |$$ |$$ |    /  $/ //
-  // /  \__$$ |$$ |$$ | $$ | $$ |$$ |__$$ | $$ |$$$$$$$$/ $$ |$$ |   /$$$/__//
-  // $$    $$/ $$ |$$ | $$ | $$ |$$    $$/  $$ |$$       |$$ |$$ |  /$$    |//
-  //  $$$$$$/  $$/ $$/  $$/  $$/ $$$$$$$/   $$/  $$$$$$$/ $$/ $$/   $$$$$$/ //
-  //                             $$ |                                        //
-  //                             $$ |                                        //
-  //                             $$/                                         //
-  /////////////////////////////////////////////////////////////////////////////
 
   simpleviz?: {
     layerGap?: number;
@@ -482,21 +355,16 @@ export type CustomFigureStyleOptions = {
       rectRadius?: number;
       labelInset?: number;
     };
+    // Lane boxes (M5): the full-height band behind a lane's columns. Label
+    // text via text.vizgraphLaneLabel.
+    lanes?: {
+      fillColor?: ColorKeyOrString;
+      strokeColor?: ColorKeyOrString;
+      strokeWidth?: number;
+      rectRadius?: number;
+      labelInset?: number;
+    };
   };
-  /////////////////////////////////////////////////////////////////////////////
-  //   ______                    __                                          //
-  //  /      \                  /  |                                         //
-  // /$$$$$$  |  ______   ____  $$ |   __   ______   __    __                //
-  // $$ \__$$/  /      \ /    \ $$ |  /  | /      \ /  |  /  |               //
-  // $$      \ /$$$$$$  |$$$$$  $$ |_/$$/  /$$$$$$  |$$ |  $$ |               //
-  //  $$$$$$  |$$ |  $$ |$$ | $$$$ $$<     $$    $$ |$$ |  $$ |               //
-  // /  \__$$ |$$ \__$$ |$$ | $$$$ |$$  \  $$$$$$$$/ $$ \__$$ |               //
-  // $$    $$/ $$    $$/ $$ | $$ $$/   $$  $$       |$$    $$ |               //
-  //  $$$$$$/   $$$$$$/  $$/  $$/  $$$$$$/  $$$$$$$/  $$$$$$$ |               //
-  //                                                 /  \__$$ |               //
-  //                                                 $$    $$/                //
-  //                                                  $$$$$$/                 //
-  /////////////////////////////////////////////////////////////////////////////
   sankey?: {
     nodeWidth?: number;
     nodeGap?: number;
@@ -510,7 +378,6 @@ export type CustomFigureStyleOptions = {
   map?: {
     projection?: "equirectangular" | "mercator" | "naturalEarth1";
     fit?: "all-regions" | "only-regions-in-data";
-    boundingBox?: [number, number, number, number];
     dataLabelMode?: "none" | "centroid" | "callout" | "auto";
     calloutMargin?: number;
     labelCollision?: {

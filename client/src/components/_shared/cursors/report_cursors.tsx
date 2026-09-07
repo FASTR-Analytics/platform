@@ -11,20 +11,20 @@ import {
 } from "../live_cursors";
 
 // =============================================================================
-// Live cursors in the report editor — "report-code" + "report-preview"
+// Live cursors in the report editor: "report-code" + "report-preview"
 // =============================================================================
 //
 // Surface glue only (coordinate mapping + scope gate); the engine is shared
 // (../live_cursors.tsx). Two zones on the report session's awareness:
-//   report-code — the CodeMirror pane. Coordinates anchor to `.cm-content`
+//   report-code: the CodeMirror pane. Coordinates anchor to `.cm-content`
 //     (its rect moves with the scroller's internal scroll; its width is
-//     capped at the editor column max for every user — best cross-user
+//     capped at the editor column max for every user: best cross-user
 //     stability). Queried live per event: buildView recreates the whole
 //     EditorView when the collab binding appears or canEdit flips.
-//   report-preview — the rendered preview. Coordinates anchor to the
-//     centered CONTENT div (max-w-4xl — stable across split/view widths).
+//   report-preview: the rendered preview. Coordinates anchor to the
+//     centered CONTENT div (max-w-4xl: stable across split/view widths).
 // The mode matrix costs nothing: View hides the CM pane (zero rect), Edit
-// unmounts the preview (element absent) — both sides bail on geometry. The
+// unmounts the preview (element absent): both sides bail on geometry. The
 // host must disable/suppress while its figure modal is open: that modal
 // broadcasts fig:-scoped pointers on this SAME awareness, and two
 // broadcasters must not fight over the one "pointer" field.
@@ -70,7 +70,7 @@ export function ReportEditorCursors(p: {
         };
       }
     }
-    // Chrome (header bar) — shared zone fallback.
+    // Chrome (header bar): shared zone fallback.
     return zonePointerAt(p.reportId, cx, cy);
   }
 
@@ -79,7 +79,7 @@ export function ReportEditorCursors(p: {
     enabled: p.enabled,
     toPointer,
     // Typing in the report (CodeMirror body, caption inputs) hides this
-    // user's pointer for peers until the mouse moves again — their attention
+    // user's pointer for peers until the mouse moves again: their attention
     // is at the text caret, which peers already see via yCollab.
     hideWhileTyping: true,
   });

@@ -25,13 +25,16 @@ import type {
 export type VizGraphData = {
   nodes: VizGraphDataNode[];
   edges: VizGraphDataEdge[];
+  lanes?: VizGraphDataLane[];
   groups?: VizGraphDataGroup[];
   constraints?: Constraints;
   layoutOptions?: Omit<LayoutOptions, "prior" | "fit" | "measureNode">;
 };
 
 // size (full outer box, border included) is authoritative when given;
-// otherwise the node sizes dynamically from its wrapped label text.
+// otherwise the node sizes dynamically from its wrapped label text. laneId
+// puts the node in a lane (M5 — the engine's LaneIn contract: lanes expect
+// given layers and own their layers exclusively).
 export type VizGraphDataNode = {
   id: string;
   label?: string;
@@ -40,6 +43,18 @@ export type VizGraphDataNode = {
   seq?: number;
   size?: { w: number; h: number };
   groupId?: string;
+  laneId?: string;
+};
+
+// Lanes (M5): full-height bands behind their columns, styled by the
+// vizgraph.lanes defaults, the label in the header row the engine reserves.
+// label is a plain string — the figure measures it (wrapped at the lane's
+// natural width) and hands the engine the {w, h} block; minSize floors the
+// box width.
+export type VizGraphDataLane = {
+  id: string;
+  label?: string;
+  minSize?: number;
 };
 
 // Groups (M6): unfolded groups render as decorative boxes behind their
@@ -47,12 +62,20 @@ export type VizGraphDataNode = {
 // folded: true collapses the group to a rep NODE sized from its label
 // (engine collapseFolded runs inside layout). label is a plain string — the
 // figure measures it and hands the engine the {w, h} block, keeping the
-// engine text-free.
+// engine text-free. span / zone / shape are the engine's territory claims
+// (M5 — GroupIn): span = an exclusive layer range, zone = an exclusive
+// cross-axis interval, coherent = one cross-layer position without the
+// interval, shape "rect" = the rectangle over the zone interval (needs zone;
+// otherwise demoted to the hug outline with a warning).
 export type VizGraphDataGroup = {
   id: string;
   parentId?: string;
   label?: string;
   folded?: boolean;
+  span?: boolean;
+  zone?: boolean;
+  coherent?: boolean;
+  shape?: "hug" | "rect";
 };
 
 // thickness is the drawn stroke width AND the engine-side occupancy for

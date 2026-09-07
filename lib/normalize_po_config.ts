@@ -28,7 +28,7 @@ import type { DisaggregationPossibleValuesStatus } from "./types/presentation_ob
  *  (normalizePOConfigForStorage) and the server collab checkpoint, which
  *  persists the otherwise-unnormalized live doc and must never be wedged by a
  *  transient editor state. Every constraint reachable from a live doc belongs
- *  here — the WS ingress applies raw Yjs updates with no content validation, so
+ *  here: the WS ingress applies raw Yjs updates with no content validation, so
  *  this is the only thing standing between a mid-edit state and a permanently
  *  wedged room checkpoint. Identity-preserving: a config with nothing to drop
  *  comes back as the same object. */
@@ -59,7 +59,7 @@ export function dropStorageInvalidTransients(
 /** The same drop for a figure EMBEDDED in a slide or report. Their stored
  *  schemas reach the identical configDStrict constraints through
  *  figureBlockSchema.bundle.config, and the embedded figure editor streams the
- *  same unnormalized mid-edit config into the host's shared doc — so a slide or
+ *  same unnormalized mid-edit config into the host's shared doc: so a slide or
  *  report room wedges its checkpoint exactly like a PO room did. Identity is
  *  preserved through every wrapper: an untouched block/slide/registry comes
  *  back as the same object, so the checkpoint's `trusted` comparison only goes
@@ -200,7 +200,7 @@ export function getEffectivePOConfig(
 
     // Replicant slots are exempt: fetches are pinned to the selected replicant
     // value, so items-derived counts would see every replicant as single-valued.
-    // mapArea is exempt for a different reason — it is not a comparison
+    // mapArea is exempt for a different reason: it is not a comparison
     // dimension but the prop items are matched to geography by, so dropping it
     // repoints the map at whatever admin level the fallback names and every
     // feature misses. One coloured district is correct output.
@@ -249,7 +249,7 @@ export function getEffectivePOConfig(
 // Post-fetch derivation for getEffectivePOConfig's singleValueDims context:
 // distinct values per disaggregated column in the fetched rows (slice
 // semantics, mirroring how dateRange reflects the fetched slice). Replicant
-// slots skipped — the fetch is pinned to the selected replicant value.
+// slots skipped: the fetch is pinned to the selected replicant value.
 export function getSingleValueDimsFromItems(
   config: { d: Pick<PresentationObjectConfig["d"], "disaggregateBy"> },
   items: JsonArrayItem[],
@@ -270,7 +270,7 @@ export function getSingleValueDimsFromItems(
 // Multi-membership columns are exempt. The one-option inference holds only for
 // scalar columns, where a single distinct value means every row carries it. A
 // set-valued column's options are the unnested members, so one option means
-// "one member of the vocabulary is in use" — rows still split into has-member
+// "one member of the vocabulary is in use": rows still split into has-member
 // and has-none, and a blank cell contributes no option row at all
 // (string_to_array('', '|') = {}). Treating such a dimension as constant hid
 // the service-category filter entirely once a single indicator was tagged.

@@ -10,17 +10,7 @@ node_modules
 # Git history
 .git
 
-# Archives and test data
-_archive_report_to_slide_deck_migration
-_archive_policy_briefs
-_OLD_REPORT_CODE
-_scorecard_populations
-_dummy_data
-compiled_CSV_data_*
-
 # Build artifacts not COPYed into image
-module_defs_dist
-module_defs
 client_dist.backup
 *.backup
 
@@ -43,7 +33,3 @@ package.json
 *.md
 CHANGELOG_AUTO.txt
 *.txt
-
-# Misc
-server-app
-test.db

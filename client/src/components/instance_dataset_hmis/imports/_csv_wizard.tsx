@@ -40,7 +40,7 @@ const _HMIS_SQL_COL_NAMES: (keyof HmisCsvMappingParams)[] = [
 ];
 
 // The CSV import wizard (PLAN_DHIS2_IMPORTER_CONSOLIDATION A7): a modal with
-// client-local state — the file input is an ordinary instance asset (uploaded
+// client-local state: the file input is an ordinary instance asset (uploaded
 // or picked), so nothing persists server-side before launch. Launch inserts a
 // run row; abandoning this wizard is a no-op by construction.
 export function CsvWizard(
@@ -112,7 +112,7 @@ export function CsvWizard(
     t3({ en: "Review & launch", fr: "Vérifier et lancer", pt: "Rever e iniciar" }),
   ];
 
-  // Live run state — reading the shell's polled query at render and submit
+  // Live run state: reading the shell's polled query at render and submit
   // time keeps the Start-vs-Queue fork honest.
   const runActive = createMemo(() => {
     const s = p.runsQuery.state();

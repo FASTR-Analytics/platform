@@ -7,7 +7,7 @@ import { ChangeSet } from "@codemirror/state";
 //
 // Versions store WHO edited per session, not per character. To say who made a
 // specific change, we walk the version chain: steps[0] is the compared (base)
-// version, each following step is a newer state — version snapshots, with the
+// version, each following step is a newer state: version snapshots, with the
 // live document last when the caller compares against it. Diffing each
 // adjacent pair tells us which step introduced which text; mapping those
 // ranges forward through the later steps' changes (CodeMirror ChangeSet
@@ -16,9 +16,9 @@ import { ChangeSet } from "@codemirror/state";
 // tombstone "ghost document" (see GHOST DOCUMENTS below); the forward-mapping
 // walk supplies the session-label fallback for spans the ledgers don't cover.
 //
-// Pure module (no Solid, no network) — harness-testable.
+// Pure module (no Solid, no network): harness-testable.
 
-// Structurally identical to lib's AuthorRun — declared locally so this module
+// Structurally identical to lib's AuthorRun: declared locally so this module
 // stays dependency-free (harness runs it with only the @codemirror packages).
 // Runs with `deletedBy` present are TOMBSTONES: deleted characters kept as
 // ghosts at the position they vanished from (transparent to body positions).
@@ -33,21 +33,21 @@ export type AuthorRunLike = {
 export type VersionStep = {
   body: string;
   /** Session-level attribution label for the changes this step introduced (vs
-   *  the previous step) — e.g. "Alice A, Bob B". Unused for steps[0]. */
+   *  the previous step), e.g. "Alice A, Bob B". Unused for steps[0]. */
   label: string;
   /** True when `label` is already precise (single-editor session). */
   labelExact?: boolean;
   /** The single editor's email when labelExact (colors the fallback spans). */
   labelEmail?: string;
   /** Per-character authorship of `body` (the server room's ledger snapshot);
-   *  null/absent = unknown — insertions fall back to the session label. */
+   *  null/absent = unknown: insertions fall back to the session label. */
   authors?: AuthorRunLike[] | null;
   /** email -> display name for `authors` lookups. */
   names?: Record<string, string>;
   /** Attribution override for text REMOVED in the transition into this step.
    *  Deck element diffs set it from the session ledger's per-element deleter
    *  set (who actually performed delete ops), which is usually narrower than
-   *  `label` (everyone who touched the element). Reports don't need it — their
+   *  `label` (everyone who touched the element). Reports don't need it: their
    *  per-character tombstones in `authors` attribute removals exactly. */
   removedLabel?: string;
   removedLabelExact?: boolean;
@@ -57,7 +57,7 @@ export type VersionStep = {
 export type DiffSegment = {
   text: string;
   /** "edited" marks text whose REFERENT changed in place (an embed token
-   *  whose figure/image was restyled) — injected by consumers after the text
+   *  whose figure/image was restyled): injected by consumers after the text
    *  diff; computeAttributedDiff itself never emits it. */
   kind: "same" | "added" | "removed" | "edited";
   /** Who made this change; undefined when attribution could not be pinned to
@@ -66,7 +66,7 @@ export type DiffSegment = {
   /** True when `who` names the exact author(s); false when it is the whole
    *  session's editor set (the actual author is one of them). */
   whoExact?: boolean;
-  /** The exact author's email when known — the UI derives their presence
+  /** The exact author's email when known: the UI derives their presence
    *  color from it. */
   whoEmail?: string;
 };
@@ -140,7 +140,7 @@ function splitByAuthors(
   if (parts.length === 0) {
     return [{ from, to, ...fallback }];
   }
-  // A misaligned ledger may not cover the range — pad the edges.
+  // A misaligned ledger may not cover the range: pad the edges.
   if (parts[0].from > from) {
     parts.unshift({ from, to: parts[0].from, ...fallback });
   }
@@ -187,10 +187,10 @@ export function computeAttributedDiff(steps: VersionStep[]): DiffSegment[] {
     });
   }
 
-  // Every step's inserted ranges — split by the step's per-character
+  // Every step's inserted ranges: split by the step's per-character
   // authorship first, then mapped forward into CURRENT coordinates. A later
   // step editing inside an earlier insertion produces its own interval over
-  // that part — overlap resolution below lets the later step win.
+  // that part: overlap resolution below lets the later step win.
   const inserted: InsertInterval[] = [];
   for (let k = 0; k < stepDiffs.length; k++) {
     for (const h of stepDiffs[k].hunks) {
@@ -228,7 +228,7 @@ export function computeAttributedDiff(steps: VersionStep[]): DiffSegment[] {
   // GHOST DOCUMENTS: a step's body with every tombstone's text spliced back
   // in at its anchor. Aligning the previous document against the ghost (a
   // plain diff) maps each removed character onto the exact tombstone that
-  // swallowed it — robust against word-aligned hunk boundaries, unrelated
+  // swallowed it: robust against word-aligned hunk boundaries, unrelated
   // typed-then-deleted ghosts, and several deleters inside one hunk. Null
   // when the step has no usable ledger (no authors, legacy text-less
   // tombstones, misalignment).
@@ -383,8 +383,8 @@ export function computeAttributedDiff(steps: VersionStep[]): DiffSegment[] {
 
   // Who removed a base-document range [fromA, toA): map it forward and, at
   // each step, check which hunks delete/replace part of it. At the FIRST
-  // touching step — while the range is still intact, so offsets correspond
-  // 1:1 — align it against that step's ghost: characters landing on
+  // touching step (while the range is still intact, so offsets correspond
+  // 1:1), align it against that step's ghost: characters landing on
   // tombstones get their exact deleter; anything else (ledger gaps, chars
   // that survive into later steps, null deleters) falls back to the
   // session-label union computed over the whole walk.
@@ -478,7 +478,7 @@ export function computeAttributedDiff(steps: VersionStep[]): DiffSegment[] {
   // A "same" span of the overall diff can still hide a replace: characters
   // the ledger PROVES were deleted (tombstoned) with identical text retyped
   // in their place. Left as "same", a select-and-rewrite renders as a couple
-  // of word tweaks — and when the deleter and the rewriter are different
+  // of word tweaks, and when the deleter and the rewriter are different
   // people, their independent edits interleave into one apparent co-edited
   // sentence. Walk the region through each transition's ghost alignment;
   // subranges that land on tombstones become real removed+added spans.
@@ -493,7 +493,7 @@ export function computeAttributedDiff(steps: VersionStep[]): DiffSegment[] {
       for (const r of open) {
         const pieces = mapRangeThroughGhost(k, r.from, r.to);
         if (!pieces) {
-          // No usable ledger for this transition — carry the range forward
+          // No usable ledger for this transition: carry the range forward
           // when it maps cleanly; anything else stays "same" (never invent a
           // removal the ledger can't back).
           const nf = stepDiffs[k].changes.mapPos(r.from, 1);
@@ -527,7 +527,7 @@ export function computeAttributedDiff(steps: VersionStep[]): DiffSegment[] {
             }
           }
           // "gap" (ledger didn't record the range) and pieces that don't map
-          // cleanly: unprovable — leave as "same".
+          // cleanly: unprovable, leave as "same".
         }
       }
       open = next;
@@ -545,7 +545,7 @@ export function computeAttributedDiff(steps: VersionStep[]): DiffSegment[] {
   // splitting out the subranges the ledgers prove were deleted-and-retyped:
   // the base text as a removal (attributed to the deleter via the tombstone)
   // and the identical current text as an addition (attributed by the final
-  // step's author runs — the actual retyper).
+  // step's author runs: the actual retyper).
   function emitSame(baseFrom: number, baseTo: number, curFrom: number): void {
     let off = 0;
     for (const f of refineSame(baseFrom, baseTo)) {
@@ -664,7 +664,7 @@ export function computeAttributedDiff(steps: VersionStep[]): DiffSegment[] {
 }
 
 // Within one contiguous run of changed segments, show every removal first,
-// then every addition — a replace reads as "old block struck out, new block
+// then every addition: a replace reads as "old block struck out, new block
 // added" instead of an interleave of fragments. Removals keep base order,
 // additions keep current order; adjacent spans with identical attribution
 // merge so long insertions don't split into per-word tooltips.

@@ -125,7 +125,7 @@ defineRoute(
     "can_configure_visualizations",
   ),
   async (c, { params, body }) => {
-    // Virtual defaults (item 5b) have no row and no folder — refuse like the
+    // Virtual defaults (item 5b) have no row and no folder: refuse like the
     // other write guards rather than no-op'ing the UPDATE.
     const manifest = await getAttachedManifestOrNull(
       c.var.mainDb,

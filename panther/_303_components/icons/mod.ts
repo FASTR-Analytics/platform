@@ -4,6 +4,6 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export * from "./icon_types.ts";
-export * from "./icons_tabler.tsx";
+export { _ICON_MAP_TABLER } from "./icons_tabler.tsx";
 export { _ICON_MAP_PHOSPHOR } from "./icons_phosphor.tsx";
 export * from "./icon_set.tsx";

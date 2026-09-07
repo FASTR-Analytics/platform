@@ -10,6 +10,18 @@ import type {
   TextInfoUnkeyed,
 } from "./deps.ts";
 
+// Strings measured in place of real content when sizing before data is laid
+// out: wide enough to stand in for the typical case, not the worst.
+export const SIZING_SAMPLE = {
+  sixDigits: "999,999",
+  scaleTickWide: "100,000",
+  scaleTickPct: "100%",
+  textTick: "Category",
+  periodTick: "2024",
+  paneHeader: "Region 001",
+} as const;
+export const PANE_HEADER_SAMPLE_MAX_W = 400;
+
 export function calculatePaneGrid(
   nPanes: number,
   nColsSetting: number | "auto",
@@ -26,7 +38,7 @@ export function calculateMinSubChartHeight(
   yScaleAxisStyle: MergedYScaleAxisStyle,
 ): number {
   const tickLabelHeight = rc.mText(
-    "999,999",
+    SIZING_SAMPLE.sixDigits,
     yScaleAxisStyle.text.yScaleAxisTickLabels,
     Infinity,
   ).dims.h();
@@ -39,7 +51,7 @@ export function calculateMinSubChartWidth(
   xScaleAxisStyle: MergedXScaleAxisStyle,
 ): number {
   const tickLabelWidth = rc.mText(
-    "999,999",
+    SIZING_SAMPLE.sixDigits,
     xScaleAxisStyle.text.xScaleAxisTickLabels,
     Infinity,
   ).dims.w();
@@ -63,7 +75,11 @@ export function calculateMinLabelPlotExtent(
   rc: RenderContext,
   dataLabelsTextStyle: TextInfoUnkeyed,
 ): number {
-  const labelHeight = rc.mText("999,999", dataLabelsTextStyle, Infinity).dims
+  const labelHeight = rc.mText(
+    SIZING_SAMPLE.sixDigits,
+    dataLabelsTextStyle,
+    Infinity,
+  ).dims
     .h();
   return labelHeight * 3;
 }

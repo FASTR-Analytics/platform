@@ -16,7 +16,6 @@ import {
   type MeasuredChartOV,
   type MeasuredMap,
   type MeasuredPie,
-  type MeasuredSimpleViz,
   type MeasuredTable,
   type MeasuredTimeseries,
   type MeasuredVizGraph,
@@ -25,8 +24,6 @@ import {
   type RectCoordsDims,
   type RenderContext,
   type Renderer,
-  type SimpleVizInputs,
-  SimpleVizRenderer,
   type TableInputs,
   TableRenderer,
   type TimeseriesInputs,
@@ -44,7 +41,6 @@ export type FigureInputs =
   | ChartOVInputs
   | ChartOHInputs
   | TimeseriesInputs
-  | SimpleVizInputs
   | VizGraphInputs
   | MapInputs
   | PieInputs;
@@ -54,7 +50,6 @@ export type MeasuredFigure =
   | MeasuredChartOV
   | MeasuredChartOH
   | MeasuredTimeseries
-  | MeasuredSimpleViz
   | MeasuredVizGraph
   | MeasuredMap
   | MeasuredPie;
@@ -81,7 +76,6 @@ export const FigureRenderer: Renderer<FigureInputs, MeasuredFigure> = {
       case "chart-ov":
       case "chart-oh":
       case "timeseries":
-      case "simpleviz":
       case "vizgraph":
       case "map":
       case "pie":
@@ -180,8 +174,6 @@ function pickRenderer(item: FigureInputs) {
       return ChartOHRenderer;
     case "timeseries":
       return TimeseriesRenderer;
-    case "simpleviz":
-      return SimpleVizRenderer;
     case "vizgraph":
       return VizGraphRenderer;
     case "map":

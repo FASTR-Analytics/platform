@@ -45,7 +45,7 @@ type Unavailability = { text: string; nearest: string | null };
 // (an instance tab switch + start on the instance tour manager). The project
 // categories need a project: on mount the modal fetches every accessible
 // project's detail, evaluates each tour against each project in list order,
-// and offers Play only for tours some project qualifies for — the play
+// and offers Play only for tours some project qualifies for: the play
 // navigates into that project (pendingTourReplay is consumed by the project
 // shell after hydration, which then runs the tour's own navigate + start
 // chain).
@@ -88,7 +88,7 @@ export function TourCatalogueInstanceModal(
       );
       const projects = details.filter((d): d is ProjectFacts => d !== null);
 
-      // Slide types live only in the slide documents — search the qualifying
+      // Slide types live only in the slide documents: search the qualifying
       // projects' decks for each type (early-exits at the first hit).
       const slideCandidates = projects
         .filter(
@@ -123,7 +123,7 @@ export function TourCatalogueInstanceModal(
         slideTypesPresent: slidePresent,
       });
       // The reason shown when no project qualifies is the one from the
-      // project that gets furthest (highest rank) — the most actionable gap.
+      // project that gets furthest (highest rank): the most actionable gap.
       const nearestUnavailability = (
         entry: TourCatalogueEntry,
       ): Unavailability => {
@@ -164,8 +164,8 @@ export function TourCatalogueInstanceModal(
   });
 
   // Instance tours are answered by their (reactive) manager. Project tours
-  // have no manager here — their managers live in the project shell, which
-  // is not mounted — so their seen-flags are read straight from storage,
+  // have no manager here: their managers live in the project shell, which
+  // is not mounted, so their seen-flags are read straight from storage,
   // which is synchronous and already hydrated by the time this modal opens.
   const seen = (id: string): boolean =>
     p.instanceManager.hasTour(id)
@@ -206,7 +206,7 @@ export function TourCatalogueInstanceModal(
       close={() => p.close(undefined)}
       renderCategory={(categoryId) =>
         categoryId === INSTANCE_CATEGORY_ID ? (
-          // Instance tours play right here — no project fetch needed, so this
+          // Instance tours play right here: no project fetch needed, so this
           // category renders immediately while the qualification check runs.
           <For each={instanceCatalogue}>
             {(entry) => (
@@ -257,7 +257,7 @@ export function TourCatalogueInstanceModal(
                         )}
                       </Show>
                       {/* No project qualifies: say which one the reason
-                          below is about — the one that came closest. */}
+                          below is about, the one that came closest. */}
                       <Show when={target() === null && why()?.nearest}>
                         {(nearest) => (
                           <div class="text-base-content-muted mt-1 text-xs">

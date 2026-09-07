@@ -3,7 +3,7 @@ import {
   formatReplicantLabelForDisplay,
   getFetchConfigFromPresentationObjectConfig,
   PresentationObjectConfig,
-  PresentationObjectDetail,
+  PresentationObjectEditorDetail,
   ReplicantOptionsForPresentationObject,
   t3,
   TC,
@@ -61,7 +61,7 @@ function cleanedReplicantSelectOptions(
 type ReplicateByOptionsPresentationObjectProps = {
   replicateBy: DisaggregationOption;
   config: PresentationObjectConfig;
-  poDetail: PresentationObjectDetail;
+  poDetail: PresentationObjectEditorDetail;
   selectedReplicantValue: string | undefined;
   setSelectedReplicant: (v: string, allOptions?: string[]) => void;
   fullWidth?: boolean;
@@ -79,7 +79,7 @@ export function ReplicateByOptionsPresentationObject(
     trackDeep(p.config.d.filterBy);
     // periodFilter also narrows the server's option list (its bounds become
     // periodFilterExactBounds), and trackDeep(filterBy) doesn't subscribe to
-    // it — without this read a bounds edit left a stale picker list. Reading
+    // it: without this read a bounds edit left a stale picker list. Reading
     // the property itself also covers wholesale replacement.
     if (p.config.d.periodFilter) {
       trackDeep(p.config.d.periodFilter);
@@ -97,7 +97,7 @@ export function ReplicateByOptionsPresentationObject(
     const resultsObjectId = p.poDetail.resultsValue.resultsObjectId;
     const replicateBy = p.replicateBy;
     const fetchConfig = resFetchConfig.data;
-    // Tracked version-key read — must precede the first await
+    // Tracked version-key read: must precede the first await
     runVersionKey(projectState);
     const controller = new AbortController();
     onCleanup(() => controller.abort());
@@ -203,7 +203,7 @@ export function ReplicateByOptionsPresentationObjectSelect(
     trackDeep(p.config.d.filterBy);
     // periodFilter also narrows the server's option list (its bounds become
     // periodFilterExactBounds), and trackDeep(filterBy) doesn't subscribe to
-    // it — without this read a bounds edit left a stale picker list. Reading
+    // it: without this read a bounds edit left a stale picker list. Reading
     // the property itself also covers wholesale replacement.
     if (p.config.d.periodFilter) {
       trackDeep(p.config.d.periodFilter);
@@ -221,7 +221,7 @@ export function ReplicateByOptionsPresentationObjectSelect(
     const resultsObjectId = p.poDetail.resultsValue.resultsObjectId;
     const replicateBy = p.replicateBy;
     const fetchConfig = resFetchConfig.data;
-    // Tracked version-key read — must precede the first await
+    // Tracked version-key read: must precede the first await
     runVersionKey(projectState);
     const controller = new AbortController();
     onCleanup(() => controller.abort());

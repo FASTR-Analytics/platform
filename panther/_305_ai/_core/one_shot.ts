@@ -22,7 +22,7 @@ import {
   supportsDynamicWebTools,
   supportsSamplingParams,
 } from "../deps.ts";
-import { type AIToolWithMetadata, getHeadlessCapability } from "../deps.ts";
+import { type AnyAITool, getHeadlessCapability } from "../deps.ts";
 import {
   type BuiltInToolsConfig,
   resolveBuiltInTools,
@@ -45,7 +45,7 @@ const MAX_CLIENT_TOOL_ITERATIONS = 24;
 // TYPES
 ////////////////////////////////////////////////////////////////////////////////
 
-export interface CallAIConfig {
+export type CallAIConfig = {
   sdkClient: Anthropic;
   // Model defaults live in panther (DEFAULT_MODEL_CONFIG) — omit entirely to
   // track them; pass a partial only for a genuinely call-specific override.
@@ -53,23 +53,22 @@ export interface CallAIConfig {
   system?: () =>
     | string
     | Array<{ type: "text"; text: string; cache_control?: CacheControl }>;
-  // deno-lint-ignore no-explicit-any
-  tools?: AIToolWithMetadata<any>[];
+  tools?: AnyAITool[];
   builtInTools?: BuiltInToolsConfig;
-}
+};
 
-export interface CallAIResult {
+export type CallAIResult = {
   content: ContentBlock[];
   stopReason: string | null;
   usage: Usage;
   messages: MessageParam[];
-}
+};
 
-export interface CallAIStructuredResult<T> extends CallAIResult {
+export type CallAIStructuredResult<T> = CallAIResult & {
   // null when the model refused or the output failed schema validation —
   // check stopReason ("refusal", "max_tokens") before retrying.
   data: T | null;
-}
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 // STRUCTURED ONE-SHOT
@@ -103,15 +102,9 @@ export async function callAIStructured<T>(
     thinking,
     output_config: {
       ...effortConfig,
-      // Cast around zod-version skew: a consumer app may resolve a different
-      // zod copy than the SDK's bundled peer, making the ZodType structurally
-      // incompatible at the type level even though it validates fine at
-      // runtime. parse() still enforces the schema; T is restored on `data`.
-      // deno-lint-ignore no-explicit-any
-      format: betaZodOutputFormat(schema as any),
+      format: betaZodOutputFormat(schema),
     },
-    // deno-lint-ignore no-explicit-any
-    messages: messages as any,
+    messages,
     system: config.system?.(),
   });
 

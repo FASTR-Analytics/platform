@@ -14,11 +14,9 @@ export const FIGURE_TEXT_STYLE_KEYS = [
   "xTextAxisTickLabels",
   "xPeriodAxisTickLabels",
   "xScaleAxisTickLabels",
-  "xTextAxisLabel",
   "xScaleAxisLabel",
   "yTextAxisTickLabels",
   "yScaleAxisTickLabels",
-  "yTextAxisLabel",
   "yScaleAxisLabel",
   "dataLabels",
   "legend",
@@ -41,6 +39,7 @@ export const FIGURE_TEXT_STYLE_KEYS = [
   "vizgraphNodeTextPrimary",
   "vizgraphNodeTextSecondary",
   "vizgraphGroupLabel",
+  "vizgraphLaneLabel",
 ] as const;
 
 // Extract the type from the const array

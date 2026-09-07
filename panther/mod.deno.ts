@@ -29,9 +29,6 @@ export * from "./_010_chartoh/mod.ts";
 export * from "./_010_chartov/mod.ts";
 export * from "./_010_maps/mod.ts";
 export * from "./_010_pie/mod.ts";
-export * from "./_010_sankey/mod.ts";
-export * from "./_010_sankey_explicit/mod.ts";
-export * from "./_010_simpleviz/mod.ts";
 export * from "./_010_table/mod.ts";
 export * from "./_010_timeseries/mod.ts";
 export * from "./_010_vizgraph_figure/mod.ts";
@@ -43,7 +40,7 @@ export * from "./_100_csv/mod.ts";
 export * from "./_101_csv_query/mod.ts";
 export * from "./_105_markdown/mod.ts";
 export * from "./_106_markdown_to_word/mod.ts";
-// _110_ai_types: CURATED re-export (Phase 3 review, bucket 3). Model
+// _110_ai_types: CURATED re-export. Model
 // consts/capabilities and message/config types are package-public; the
 // engine logic (turn_logic, view_logic, request_shaping — wire rendering,
 // digest reduction, cache shaping) is internal to the vendored engine and
@@ -90,6 +87,8 @@ export type {
 export * from "./_111_api_contract/mod.ts";
 export * from "./_112_ai_tool_core/mod.ts";
 export * from "./_113_identity/mod.ts";
+export * from "./_114_ops/mod.ts";
+export * from "./_115_clerk_identity/mod.ts";
 export * from "./_121_page/mod.ts";
 export * from "./_122_pdf/mod.ts";
 export * from "./_122_pptx/mod.ts";
@@ -102,6 +101,8 @@ export * from "./_150_figure_schema/mod.ts";
 ////////////////////////
 
 export * from "./_220_mcp_http/mod.ts";
+export * from "./_221_ai_proxy/mod.ts";
+export * from "./_222_ops_mcp/mod.ts";
 export * from "./_230_file_utils/mod.ts";
 export * from "./_231_font_paths/mod.ts";
 export * from "./_231_temp/mod.ts";

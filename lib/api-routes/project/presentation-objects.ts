@@ -4,16 +4,8 @@ import {
   periodFilterSchema,
   periodOption,
   presentationObjectConfigSchema,
-  valueFuncStrict,
-  ALL_DISAGGREGATION_OPTIONS,
 } from "../../types/mod.ts";
-import { ROLLUP_DIMENSIONS } from "../../rollup.ts";
-import {
-  INTEGER_FILTER_COLUMNS,
-  SQL_IDENTIFIER,
-  isSafePostAggregationExpression,
-  isValidIntegerFilterValue,
-} from "../../validate_fetch_config.ts";
+import { genericLongFormFetchConfigSchema } from "../../validate_fetch_config.ts";
 import type {
   DisaggregationOption,
   GenericLongFormFetchConfig,
@@ -32,49 +24,6 @@ import { route } from "../route-utils.ts";
 
 // po_id is a 3-char nanoid (generateUniquePresentationObjectId), not a UUID
 const poIdParamsSchema = z.object({ po_id: z.string() });
-
-// SQL injection guards: these fields are interpolated into projectDb.unsafe SQL.
-// SQL_IDENTIFIER / SAFE_EXPRESSION are shared with the imperative validateFetchConfig
-// (the single source of truth) so the boundary schema and the handler guard can't drift.
-// groupBys / filters[].disOpt / replicateBy → closed enum (period options are a subset)
-// values[].prop → bare SQL identifier
-// postAggregationExpression → safe arithmetic (charset + structural rules)
-const fetchConfigValuesItemSchema = z.object({
-  prop: z.string().regex(SQL_IDENTIFIER),
-  func: valueFuncStrict,
-});
-
-const genericLongFormFetchConfigSchema = z.object({
-  values: z.array(fetchConfigValuesItemSchema),
-  groupBys: z.array(disaggregationOption),
-  filters: z.array(
-    z.object({
-      disOpt: disaggregationOption,
-      values: z.array(z.union([z.string(), z.number()])),
-    }).superRefine((filter, ctx) => {
-      // Mirror of the validateFetchConfig guard: integer-path columns are
-      // Number()-coerced and bare-interpolated, so non-numeric values would
-      // emit `col IN (NaN)` — invalid SQL.
-      if (!INTEGER_FILTER_COLUMNS.has(filter.disOpt)) return;
-      filter.values.forEach((v, i) => {
-        if (!isValidIntegerFilterValue(v)) {
-          ctx.addIssue({
-            code: "custom",
-            path: ["values", i],
-            message: `Non-numeric value for integer column '${filter.disOpt}'`,
-          });
-        }
-      });
-    }),
-  ),
-  periodFilter: periodFilterSchema,
-  periodFilterExactBounds: z.object({ min: z.number(), max: z.number() }).optional(),
-  postAggregationExpression: z
-    .string()
-    .refine(isSafePostAggregationExpression)
-    .optional(),
-  rollupDim: z.enum(ROLLUP_DIMENSIONS).optional(),
-});
 
 export const presentationObjectRouteRegistry = {
   createPresentationObject: route({

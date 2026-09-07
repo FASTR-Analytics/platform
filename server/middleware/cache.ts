@@ -20,7 +20,7 @@ export const cacheMiddleware = async (c: Context, next: Next) => {
   // The SPA shell is unhashed, so freshness must be explicit: with no
   // directive a browser MAY reuse a stale copy heuristically (RFC 9111
   // §4.2.2), and a stale shell references the previous build's hashed
-  // bundles, which ARE served immutable. Defensive hardening — no observed
+  // bundles, which ARE served immutable. Defensive hardening: no observed
   // incident was traced to heuristic shell caching (with no validator the
   // major engines' heuristics effectively don't cache it). Revalidate the
   // shell on every load; the hashed assets keep their immutable year.
@@ -38,7 +38,7 @@ export const cacheMiddleware = async (c: Context, next: Next) => {
     c.header("Cache-Control", "public, max-age=31536000, immutable");
   }
   // Cache content-hashed CSS/JS for 1 year. Vite's hash is base64url, so it
-  // can contain "-" and "_" (index-pRqhO-X5.js) — an [a-zA-Z0-9]+ pattern
+  // can contain "-" and "_" (index-pRqhO-X5.js): an [a-zA-Z0-9]+ pattern
   // misses those and silently drops them to the 1-hour branch below. Anchored
   // to exactly Vite's 8-char hash immediately before the extension so an
   // unhashed, hyphenated name (my-component-name.js) can never match and get
@@ -55,7 +55,7 @@ export const cacheMiddleware = async (c: Context, next: Next) => {
     c.header("Cache-Control", "public, max-age=86400");
   }
   // Data files are permission-gated (S1's static tier + run outputs), so the
-  // response depends on who asked — shared caches must never store it.
+  // response depends on who asked: shared caches must never store it.
   else if (/\.(csv|xlsx?|zip)$/i.test(path)) {
     c.header("Cache-Control", "private, no-store");
   }

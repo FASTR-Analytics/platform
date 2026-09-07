@@ -1,22 +1,42 @@
 import { z } from "zod";
-import { instanceConfigFacilityColumnsSchema } from "./instance.ts";
+import { structureColumnsSchema } from "./instance.ts";
 import { disaggregationOption } from "./_metric_installed.ts";
+import { thresholdsRuleSchema } from "./conditional_formatting.ts";
 import type { DatasetType } from "./datasets.ts";
 import type { IndicatorMetadata } from "./indicators.ts";
 
-// The run manifest (PLAN_RESULTS_RUNS §2.2) — written once by the finalize
-// step of a generation (wizard, or the backfill synthesizer), the ONLY thing
-// readers consult at query time. Precomputed, never probed: every fact the
+// The run manifest (PLAN_RESULTS_RUNS §2.2): written once by the finalize
+// step of a generation, the ONLY thing readers consult at query time. Precomputed, never probed: every fact the
 // read path used to discover via per-request column probes is stamped here.
 // Identity is in the artifact: runId required, and no projectId or any other
 // instance FK inside run files (§9 layer rule).
 
-// 3: gained `indicators` — the per-module resolved indicator catalog, so the
+// 3: gained `indicators`, the per-module resolved indicator catalog, so the
 // read path stops re-deriving it from the input mirrors on every request.
 // 4: metrics[].format_as became the three-way declaration ("indicator" =
-// values carry the displayed indicator's own format) — the 8 pre-declaration
+// values carry the displayed indicator's own format): the 8 pre-declaration
 // metric rows are rewritten in place (manifest_transform block 2).
-export const RUN_MANIFEST_SCHEMA_VERSION = 4;
+// 5: facilityColumnsConfig split into per-family structureSchemaHmis /
+// structureSchemaHfa slots (null = family not in the package). Flags + labels
+// only: adminDepth is deliberately NOT carried (nothing on the read path
+// consumes it), and there is no shared adminAreaLabels key (every admin-label
+// consumer reads live instance state). Pure copy in manifest_transform
+// block 3.
+// 6: the common-indicator restructure (PLAN_1a) + the population store
+// (PLAN_1b, PLAN_1c), one release. indicators[] catalog entries gained
+// sort_order plus the type/expression/slot_map evaluation fields (type is
+// base | derived; a population term is an ordinary `population:<type>`
+// ingredient in the slot map, never a field of its own), a new top-level
+// `commonIndicators` list replaced the read path's per-request read of the
+// indicators input mirror, and `population` stamps the person-years file a
+// wizard generation wrote (null for packages that carry none). A catalog
+// entry's traffic-light pair became a general `thresholds` rule (PLAN_1d,
+// same release). Manifest transform block 4.
+// 7: the `population` stamp gained `active` (recomputed from its own type
+// list) and `coverage`, the per-type area and month coverage a generation
+// wrote into the person-years file (carried forward as null: a v6 capture
+// refused any shortfall and recorded nothing). Manifest transform block 5.
+export const RUN_MANIFEST_SCHEMA_VERSION = 7;
 
 // Typed against DatasetType so the enum cannot drift from the union.
 export const runDatasetFamilySchema: z.ZodType<DatasetType> = z.enum([
@@ -32,10 +52,10 @@ export const runPhysicalTimeColumnSchema = z.enum([
 ]);
 
 // Per results object: the post-normalization schema of the query parquet
-// (outputs/{moduleId}/{roId}.parquet) plus the query metadata
-// enrichMetric/getQueryContext currently probe for. hasParquet=false marks
-// file-only results objects and modules that have not run (no query store,
-// exactly as they are excluded from Postgres today).
+// (outputs/{moduleId}/{roId}.parquet) plus the query metadata the read path
+// needs (column set and types, time column, period bounds, availability), all
+// stamped at finalize so reads never probe. hasParquet=false marks file-only
+// results objects and modules that have not run (no query store).
 export const runResultsObjectSchema = z.object({
   id: z.string(),
   moduleId: z.string(),
@@ -49,12 +69,12 @@ export const runResultsObjectSchema = z.object({
 });
 export type RunResultsObject = z.infer<typeof runResultsObjectSchema>;
 
-// Module catalog entry — the installed definition verbatim (raw JSON string,
+// Module catalog entry: the installed definition verbatim (raw JSON string,
 // exactly as the project-DB modules table stores it, so existing parsers
 // apply unchanged). inputKey/outputFileHashes are the §3.7 memoization
-// fields: schema-present from the first manifest, computed only by real
-// wizard generation; synthesized backfill runs carry null and are never
-// reuse sources.
+// fields: schema-present from the first manifest, computed by generation;
+// packages synthesized during the 2026-08 fleet cutover carry null and are
+// never reuse sources.
 export const runModuleSchema = z.object({
   id: z.string(),
   moduleDefinition: z.string(),
@@ -66,9 +86,9 @@ export const runModuleSchema = z.object({
 });
 export type RunModule = z.infer<typeof runModuleSchema>;
 
-// Metric catalog entry — the project-DB metrics row verbatim (snake_case
-// field names kept so ResultsValue construction reuses the DBMetric path),
-// plus the build-time datasetFamily stamp (camelCase marks it as derived at
+// Metric catalog entry: the module definition's metric row verbatim
+// (snake_case field names are the definition's own vocabulary), plus the
+// build-time datasetFamily stamp (camelCase marks it as derived at
 // finalize via getDatasetFamily, not a DB column; null = no single family).
 export const runMetricSchema = z.object({
   datasetFamily: runDatasetFamilySchema.nullable(),
@@ -82,6 +102,7 @@ export const runMetricSchema = z.object({
   required_disaggregation_options: z.string(),
   value_label_replacements: z.string().nullable(),
   post_aggregation_expression: z.string().nullable(),
+  catalog_expression_evaluation: z.string().nullable(),
   results_object_id: z.string(),
   ai_description: z.string().nullable(),
   viz_presets: z.string().nullable(),
@@ -99,7 +120,7 @@ export const runMetricAvailabilitySchema = z.object({
 });
 export type RunMetricAvailability = z.infer<typeof runMetricAvailabilitySchema>;
 
-// Inputs record per dataset family — the version stamps and windowing the
+// Inputs record per dataset family: the version stamps and windowing the
 // project datasets table holds today (datasets.info), captured at finalize.
 export const runDatasetSchema = z.object({
   datasetType: z.string(),
@@ -110,7 +131,7 @@ export type RunDataset = z.infer<typeof runDatasetSchema>;
 
 // Pinned copy of an instance asset the run's modules declare (stored at
 // inputs/assets/{fileName}), hashed so the run records exactly which asset
-// bytes it consumed (§6.2 — assets are unversioned and mutable in place).
+// bytes it consumed (§6.2: assets are unversioned and mutable in place).
 export const runAssetSchema = z.object({
   fileName: z.string(),
   sha256: z.string(),
@@ -118,7 +139,7 @@ export const runAssetSchema = z.object({
 export type RunAsset = z.infer<typeof runAssetSchema>;
 
 // Post-export schema of a facilities input parquet (inputs/{tableName}.parquet)
-// — the join side of facility-column queries, stamped so the read path can
+//: the join side of facility-column queries, stamped so the read path can
 // build textColumns without probing the parquet.
 export const runFacilitiesTableSchema = z.object({
   tableName: z.string(),
@@ -126,7 +147,7 @@ export const runFacilitiesTableSchema = z.object({
 });
 export type RunFacilitiesTable = z.infer<typeof runFacilitiesTableSchema>;
 
-// Resolved indicator metadata per module — labels, formats, thresholds and
+// Resolved indicator metadata per module: labels, formats, thresholds and
 // sort order, composed at finalize from the input mirrors the module's dataset
 // family uses. Typed against IndicatorMetadata so the two cannot drift.
 //
@@ -140,12 +161,12 @@ export const runIndicatorMetadataSchema: z.ZodType<IndicatorMetadata> = z
     id: z.string(),
     label: z.string(),
     format_as: z.enum(["percent", "number", "rate_per_10k"]).optional(),
-    threshold_direction: z.enum(["higher_is_better", "lower_is_better"])
-      .optional(),
-    threshold_green: z.number().optional(),
-    threshold_yellow: z.number().optional(),
+    thresholds: thresholdsRuleSchema.optional(),
     group_label: z.string().optional(),
     sort_order: z.number().optional(),
+    type: z.enum(["base", "derived"]).optional(),
+    expression: z.string().optional(),
+    slot_map: z.record(z.string(), z.string()).optional(),
   });
 
 export const runModuleIndicatorsSchema = z.object({
@@ -153,6 +174,51 @@ export const runModuleIndicatorsSchema = z.object({
   indicators: z.array(runIndicatorMetadataSchema),
 });
 export type RunModuleIndicators = z.infer<typeof runModuleIndicatorsSchema>;
+
+// The instance's common indicator dictionary as the project shell shows it
+// (id + label, label-sorted). Stamped at finalize from the run's own
+// indicators mirror, and by manifest transform block 4 for older packages.
+// Before v6 the read path re-opened that mirror on every request; this field
+// is that derivation moved to where every other package fact already lives:
+// SYSTEM_08's "the read path parses the manifest only".
+export const runCommonIndicatorSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+});
+export type RunCommonIndicator = z.infer<typeof runCommonIndicatorSchema>;
+
+// What a population type's person-years rows cover, out of the extract's
+// months and the structure areas at the file's level: a cell (area × month)
+// is covered when the store's anchors for that area reach the month within
+// the extrapolation window. The period ids are the union over areas, null
+// when no cell is covered.
+export const runPopulationCoverageSchema = z.object({
+  populationType: z.string(),
+  areasCovered: z.number().int(),
+  areasTotal: z.number().int(),
+  firstCoveredPeriodId: z.number().int().nullable(),
+  lastCoveredPeriodId: z.number().int().nullable(),
+});
+export type RunPopulationCoverage = z.infer<typeof runPopulationCoverageSchema>;
+
+// The person-years file a wizard generation wrote to inputs/population.csv
+// (SYSTEM_08 "population.csv"). `active` is whether any formula in the run's
+// dictionary named a population; `adminAreaLevel` is the file's admin level
+// and m012's grain; `firstPeriodId`/`lastPeriodId` are the extract's months;
+// `coverage` is what the file holds per type, null in packages written
+// before it was recorded. Generation-only provenance: null when the package
+// carries no such file (an older package, a backfill, or a run without the
+// HMIS family). The file's format is permanent once written:
+// admin_area_2..N, period_id, population_type, person_years.
+export const runPopulationSchema = z.object({
+  active: z.boolean(),
+  adminAreaLevel: z.number().int(),
+  populationTypes: z.array(z.string()),
+  firstPeriodId: z.number().int(),
+  lastPeriodId: z.number().int(),
+  coverage: z.array(runPopulationCoverageSchema).nullable(),
+});
+export type RunPopulation = z.infer<typeof runPopulationSchema>;
 
 export const runProvenanceSchema = z.enum(["synthetic-backfill", "wizard"]);
 export type RunProvenance = z.infer<typeof runProvenanceSchema>;
@@ -166,12 +232,14 @@ export const runManifestSchema = z.object({
   appVersion: z.string(),
   rImageTag: z.string().nullable(),
 
-  // Data semantics captured into the run at finalize — the adapter reads
-  // calendar from HERE, never from the env global (§2.4); facility-columns
-  // config is the dissolved N1 gap (§8 SNAP-1).
+  // Data semantics captured into the run at finalize: the adapter reads
+  // calendar from HERE, never from the env global (§2.4); the per-family
+  // structure-schema slots are the dissolved N1 gap (§8 SNAP-1), null when
+  // that family's facilities are not in the package.
   calendar: z.enum(["gregorian", "ethiopian"]),
   countryIso3: z.string().nullable(),
-  facilityColumnsConfig: instanceConfigFacilityColumnsSchema,
+  structureSchemaHmis: structureColumnsSchema.nullable(),
+  structureSchemaHfa: structureColumnsSchema.nullable(),
 
   datasets: z.array(runDatasetSchema),
   facilitiesTables: z.array(runFacilitiesTableSchema),
@@ -181,26 +249,29 @@ export const runManifestSchema = z.object({
   resultsObjects: z.array(runResultsObjectSchema),
   metricAvailability: z.array(runMetricAvailabilitySchema),
   indicators: z.array(runModuleIndicatorsSchema),
+  commonIndicators: z.array(runCommonIndicatorSchema),
+  population: runPopulationSchema.nullable(),
 
   // Relative paths (from the run dir root) of every input file the run
-  // carries — facilities parquet, dictionary/snapshot JSONs.
+  // carries: facilities parquet, dictionary/snapshot JSONs, the
+  // person-years file.
   inputFiles: z.array(z.string()),
 });
 export type RunManifest = z.infer<typeof runManifestSchema>;
 
-// Stored in the instance-DB runs catalog row (runs.summary) for listing —
+// Stored in the instance-DB runs catalog row (runs.summary) for listing:
 // DB-side, so project references are fine here (the layer rule only forbids
 // instance FKs inside run FILES).
 //
 // Run identity (Q-A ruling): an instance-generated run has no source
 // project, so there is no sourceProjectId. `backfillSourceProjectId` is
-// stamped by the backfill synthesizer and ONLY by it — the rig gates a
-// project iff its attached run is that project's own backfill run.
+// stored vocabulary: packages synthesized during the 2026-08 fleet cutover
+// carry the project they were synthesized from; generation writes null.
 // `attachTargetProjectIds` is the wizard's launch-time attach selection: the
 // projects the publish transaction repoints, and the key the launch
 // concurrency guard uses.
 // `diskSizeBytes` is the package's total file size, summed by the shared
-// builder over the finished tmp dir — both writers stamp it, so every run
+// builder over the finished tmp dir: both writers stamp it, so every run
 // minted from Phase 3 item 3 onwards carries one. Null is a run written
 // before the stamp existed: displayed as unknown, never recomputed at read
 // time (a run dir is immutable, so a `du` fallback would only ever be a

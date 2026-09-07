@@ -4,12 +4,12 @@ import type { ProjectUser } from "./instance.ts";
 import type { InstalledModuleSummary, MetricWithStatus } from "./modules.ts";
 import type { ProjectUserPermissions } from "./permissions.ts";
 import type { PresentationObjectSummary } from "./presentation_objects.ts";
-import type { LastUpdateTableName } from "./project_dirty_states.ts";
+import type { LastUpdateTableName } from "./last_updated_tables.ts";
 import type { SlideDeckFolder, SlideDeckSummary } from "./slides.ts";
 import type { ReportFolder, ReportSummary } from "./reports.ts";
+import type { RunListingItem } from "./run_generation.ts";
 import type { VisualizationFolder } from "./visualization_folders.ts";
 import type { DashboardSummary } from "./dashboard.ts";
-import type { RunProgress } from "./run_generation.ts";
 
 /**
  * Unified project state pushed via SSE.
@@ -28,10 +28,24 @@ export type ProjectState = {
   thisUserRole: "viewer" | "editor" | "admin"; // kept with hardcoding bug intact
   isLocked: boolean;
   isCentralReporting: boolean;
-  // The immutable results run this project serves from — the client-side
+  // The project's Admin Area 2 identity; null = national. Folded into the
+  // client run version key so a scope change invalidates run-derived caches.
+  adminArea2: string | null;
+  // The immutable results run this project serves from: the client-side
   // cache identity for all run-derived data (PLAN_RESULTS_RUNS §2.5);
   // null = no run attached (typed replacement for the "unknown" sentinel).
   attachedRunId: string | null;
+  // The attached run's catalogue row (label, provenance, summary): the
+  // project tab's header renders from it with no fetch. A project attaches
+  // only to a READY run and a ready row is immutable (the one moving fact,
+  // pinned, is instance T1 `pinnedRunId`), so it is pushed once per attach
+  // and on starting. Always paired with attachedRunId.
+  attachedRun: RunListingItem | null;
+  // Subscribed to the instance's pinned package: whenever the pin moves this
+  // project is physically repointed (never a read-time indirection:
+  // SYSTEM_08 "Followers are physically repointed, never indirected"). A
+  // config bit like isLocked, pushed on project_config_updated.
+  followPinned: boolean;
   projectDatasets: DatasetInProject[];
   projectModules: InstalledModuleSummary[];
   metrics: MetricWithStatus[];
@@ -63,33 +77,35 @@ export type ProjectSseMessage =
   // Initial state on connection
   | { type: "starting"; data: ProjectState }
 
-  // Live R output line for the currently generating module
-  | { type: "r_script"; data: { moduleId: string; text: string } }
-
-  // Results-package generation (PLAN_RESULTS_RUNS item 2): worker-pushed
-  // pipeline progress on every state change, and the repoint event when a
-  // finished run becomes the project's attached package — it carries the
-  // full run-derived catalog (modules, metrics, datasets, indicators) so
-  // clients re-key live without a reconnect.
-  | { type: "run_progress"; data: { runId: string; progress: RunProgress } }
+  // Results-package repoint (PLAN_RESULTS_RUNS item 2): the event when a
+  // ready run becomes the project's attached package: it carries the full
+  // run-derived catalog (modules, metrics, datasets, indicators) so clients
+  // re-key live without a reconnect. Generation telemetry (`run_progress`,
+  // `r_script`) is instance-channel only: a project is attached only once
+  // the run is ready, so it has no live view of a generation (C2 ruling,
+  // 2026-08-16).
   | {
       type: "run_attached";
       data: {
         attachedRunId: string;
+        attachedRun: RunListingItem;
         projectModules: InstalledModuleSummary[];
         metrics: MetricWithStatus[];
         projectDatasets: DatasetInProject[];
         commonIndicators: { id: string; label: string }[];
         icehIndicators: { id: string; label: string; category: string }[];
         // Default visualizations are projections of the attached run (item
-        // 5b), so the visualizations list changes at repoint — server-built,
+        // 5b), so the visualizations list changes at repoint: server-built,
         // like every other list emission.
         visualizations: PresentationObjectSummary[];
       };
     }
 
   // Data updates (replace current "project_updated" catch-all)
-  | { type: "project_config_updated"; data: { label: string; isLocked: boolean; aiContext?: string; isCentralReporting?: boolean } }
+  | { type: "project_config_updated"; data: { label: string; isLocked: boolean; aiContext?: string; isCentralReporting?: boolean; followPinned?: boolean } }
+  // Scope identity change: flips the client run version key, invalidating
+  // every run-derived cache entry for this project (PLAN_1_PROJECT_AA2_SCOPE §5).
+  | { type: "admin_area_2_changed"; data: { adminArea2: string | null } }
   | {
       type: "visualizations_updated";
       data: { visualizations: PresentationObjectSummary[] };
@@ -111,7 +127,7 @@ export type ProjectSseMessage =
   | { type: "dashboards_updated"; data: { dashboards: DashboardSummary[] } }
   | { type: "project_users_updated"; data: { projectUsers: ProjectUser[] } }
 
-  // Per-entity timestamps (kept — project caches use per-entity versioning)
+  // Per-entity timestamps (kept: project caches use per-entity versioning)
   | {
       type: "last_updated";
       data: { tableName: LastUpdateTableName; ids: string[]; lastUpdated: string };

@@ -18,11 +18,6 @@ export { MapRenderer } from "../_010_maps/mod.ts";
 export type { MapInputs, MeasuredMap } from "../_010_maps/mod.ts";
 export { PieRenderer } from "../_010_pie/mod.ts";
 export type { MeasuredPie, PieInputs } from "../_010_pie/mod.ts";
-export { SimpleVizRenderer } from "../_010_simpleviz/mod.ts";
-export type {
-  MeasuredSimpleViz,
-  SimpleVizInputs,
-} from "../_010_simpleviz/mod.ts";
 export { TableRenderer } from "../_010_table/mod.ts";
 export type { MeasuredTable, TableInputs } from "../_010_table/mod.ts";
 export { TimeseriesRenderer } from "../_010_timeseries/mod.ts";

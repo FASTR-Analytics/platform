@@ -14,7 +14,7 @@ import {
   t3,
 } from "lib";
 import {
-  responseRunIdMatches,
+  responseRunVersionMatches,
   runVersionKey,
 } from "~/state/project/t1_store";
 import { createReactiveCache } from "../_infra/reactive_cache";
@@ -25,6 +25,7 @@ import { buildFigureInputs } from "~/generate_visualization/mod";
 import { getAdminAreaLevelFromMapConfig } from "~/generate_visualization/get_admin_area_level_from_config";
 import { getReplicantOptionsFromCacheOrFetch } from "./t2_replicant_options";
 import { getSnapshotInstanceLocalization } from "../instance/t1_store";
+import { geoJsonFamilyFor } from "../instance/t2_geojson";
 
 export const _METRIC_INFO_CACHE = createReactiveCache<
   {
@@ -33,14 +34,17 @@ export const _METRIC_INFO_CACHE = createReactiveCache<
   },
   ResultsValueInfoForPresentationObject
 >({
-  name: "metric_info",
+  // v2: payload gained indicatorRules (PLAN_1d): a shape change bumps the
+  // name, as for po_detail below. v3: payload dropped the
+  // moduleLastRun/datasetsVersion pair (PLAN_RESULTS_RUNS ruling 4).
+  name: "metric_info_v3",
   uniquenessKeys: (params) => [
     params.projectId,
     params.metricId,
   ],
   versionKey: (_params, pds) => runVersionKey(pds),
   responseMatchesVersion: (data, version) =>
-    responseRunIdMatches(data.runId, version),
+    responseRunVersionMatches(data, version),
   // A transient possible-values failure arrives as a per-dimension `error`
   // status inside a successful payload; freezing it would pin the effective-
   // format resolver's "cannot enumerate" fallback until the next run.
@@ -57,7 +61,10 @@ export const _PO_DETAIL_CACHE = createReactiveCache<
   },
   PresentationObjectDetail
 >({
-  name: "po_detail",
+  // v2: resultsValue gained catalogExpressionEvaluation (PLAN_1a). A shape
+  // change bumps the name: the run-keyed version hash does not move on a
+  // deploy.
+  name: "po_detail_v2",
   uniquenessKeys: (params) => [params.projectId, params.presentationObjectId],
   // Folds the run key: the payload embeds run-derived resultsValue
   // (PLAN_RESULTS_RUNS §2.5), mirroring the server po_detail version hash.
@@ -68,7 +75,7 @@ export const _PO_DETAIL_CACHE = createReactiveCache<
   versionKey: (params, pds) =>
     `${pds.lastUpdated.presentation_objects[params.presentationObjectId] ?? "unknown"}|${runVersionKey(pds)}`,
   responseMatchesVersion: (data, version) =>
-    responseRunIdMatches(data.runId, version.slice(version.lastIndexOf("|") + 1)),
+    responseRunVersionMatches(data, version.slice(version.lastIndexOf("|") + 1)),
 });
 
 export const _PO_ITEMS_CACHE = createReactiveCache<
@@ -79,7 +86,11 @@ export const _PO_ITEMS_CACHE = createReactiveCache<
   },
   ItemsHolderPresentationObject
 >({
-  name: "po_items",
+  // v2: indicator axis order now comes solely from catalog sort_order
+  // (PLAN_1a): stale items would sort alphabetically with no error.
+  // v3: indicatorMetadata carries `thresholds` rules (PLAN_1d). v4: payload
+  // dropped the moduleLastRun/datasetsVersion pair (PLAN_RESULTS_RUNS ruling 4).
+  name: "po_items_v4",
   uniquenessKeys: (params) => [
     params.projectId,
     params.resultsObjectId,
@@ -87,7 +98,7 @@ export const _PO_ITEMS_CACHE = createReactiveCache<
   ],
   versionKey: (_params, pds) => runVersionKey(pds),
   responseMatchesVersion: (data, version) =>
-    responseRunIdMatches(data.runId, version),
+    responseRunVersionMatches(data, version),
 });
 
 export async function getResultsValueInfoForPresentationObjectFromCacheOrFetch(
@@ -224,14 +235,17 @@ export async function* getPOFigureInputsFromCacheOrFetch_AsyncGenerator(
       },
       indicatorMetadata: ih.indicatorMetadata,
       dateRange: ih.dateRange,
-      geo: mapLevel ? { kind: "level", level: mapLevel } : undefined,
+      geo: mapLevel
+        ? {
+          kind: "level",
+          level: mapLevel,
+          family: geoJsonFamilyFor(resultsValue.datasetFamily),
+        }
+        : undefined,
       localization: getSnapshotInstanceLocalization(),
       metricId: resultsValue.id,
       snapshotAt: "",
-      provenance: {
-        moduleLastRun: ih.moduleLastRun,
-        datasetsVersion: ih.datasetsVersion,
-      },
+      provenance: { runId: ih.runId },
     });
     yield { status: "ready" as const, data: fi };
   } catch (e) {
@@ -321,11 +335,11 @@ export type ResolveDefaultReplicantResult =
 // Resolve the replicant value to actually fetch with. Replicant presets ship with
 // `selectedReplicantValue: undefined` (the user picks the category after creation);
 // left unresolved, the fetch config filters on the "UNSELECTED" sentinel and returns
-// no rows. This defaults an unset/invalid value to the first valid option — matching
+// no rows. This defaults an unset/invalid value to the first valid option, matching
 // the interactive viz, and deliberately NOT the AI-slide path, which throws on an
 // unset value (see slide_ai/resolve_figure_from_metric.ts). Returns a FRESH config
 // copy when it changes the value and never mutates the input (the generator passes
-// the unwrapped live editor store — see the caller comment below).
+// the unwrapped live editor store: see the caller comment below).
 export async function resolveDefaultReplicant(
   projectId: string,
   resultsValue: ResultsValue,
@@ -337,7 +351,7 @@ export async function resolveDefaultReplicant(
     return { ok: true, config, fetchConfig: baseFetchConfig };
   }
   // Fetch the valid replicant values with the auto-pin EXCLUDED, the same way the
-  // selector (ReplicateByOptions) queries them — so both share the single
+  // selector (ReplicateByOptions) queries them, so both share the single
   // replicant-options cache entry instead of issuing two identical server queries.
   // excludeReplicantFilter drops only the appended pin (the current
   // selectedReplicantValue), KEEPING the user's filterBy; the server honors that
@@ -384,7 +398,7 @@ export async function resolveDefaultReplicant(
 
 export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator(
   projectId: string,
-  poDetail: PresentationObjectDetail,
+  poDetail: Pick<PresentationObjectDetail, "projectId" | "resultsValue">,
   config: PresentationObjectConfig,
 ): AsyncGenerator<
   StateHolder<{
@@ -416,7 +430,7 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
     return;
   }
 
-  // The auto-selected replicant lives on a COPY yielded to the caller — never
+  // The auto-selected replicant lives on a COPY yielded to the caller: never
   // mutate the passed-in config: in the editor it is the unwrapped live store,
   // and a raw write would bypass notification and make the user's next click on
   // that same value a no-op (Solid's setter equality guard). resolveDefaultReplicant
@@ -425,7 +439,7 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
   // The mirror-image constraint also holds: the ALIASING is load-bearing. The
   // yielded holder's config shares `s`/`t` (and unchanged sub-objects) BY
   // REFERENCE with the live editor store, and the editor's style panel relies
-  // on that — its child memo re-reads `config.s` reactively without a refetch.
+  // on that: its child memo re-reads `config.s` reactively without a refetch.
   // Inserting a structuredClone or schema re-parse into this pass-through would
   // silently freeze style/caption editing (the memo would rebuild from a dead
   // snapshot). Copy-on-write only, never deep-copy.
@@ -500,7 +514,7 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
 
 export async function getPresentationObjectItemsFromCacheOrFetch(
   projectId: string,
-  poDetail: PresentationObjectDetail,
+  poDetail: Pick<PresentationObjectDetail, "projectId" | "resultsValue">,
   config: PresentationObjectConfig,
 ): Promise<
   APIResponseWithData<{

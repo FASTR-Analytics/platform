@@ -21,8 +21,6 @@ import type { XScaleAxisMeasuredInfo } from "./x_scale/types.ts";
 import { measureXTextAxis } from "./x_text/measure.ts";
 import type { XTextAxisMeasuredInfo } from "./x_text/types.ts";
 
-export type XAxisType = "text" | "period" | "scale";
-
 export type XNoneAxisMeasuredInfo = {
   subChartAreaWidth: number;
   xAxisRcd: RectCoordsDims;

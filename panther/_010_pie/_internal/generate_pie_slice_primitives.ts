@@ -142,6 +142,7 @@ export function layOutPie(
       remainderValue / resolved.declaredTotal,
       resolved.declaredTotal,
     );
+    const remainderStyle = mergedStyle.content.slices.getStyle(info);
     slices.push({
       i_series: -1,
       seriesHeader: REMAINDER_HEADER,
@@ -150,13 +151,10 @@ export function layOutPie(
       share: info.share,
       isRemainder: true,
       style: {
-        ...mergedStyle.content.slices.getStyle(info),
+        ...remainderStyle,
         fillColor: mergedStyle.pie.remainder.fillColor,
         // The remainder is not a datum — it never carries a data label.
-        dataLabel: {
-          ...mergedStyle.content.slices.getStyle(info).dataLabel,
-          show: false,
-        },
+        dataLabel: { ...remainderStyle.dataLabel, show: false },
       },
       info,
     });

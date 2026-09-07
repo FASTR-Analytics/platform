@@ -62,7 +62,7 @@ export type HfaCsvRunConfig = {
 
 // "needs_review" = staging dropped facility rows; the run holds with its
 // diagnostics and RELEASES the single-running slot until the user integrates
-// anyway or discards. No "queued" — HFA refuses a second launch explicitly.
+// anyway or discards. No "queued". HFA refuses a second launch explicitly.
 export type HfaImportRunStatus =
   | "running"
   | "needs_review"
@@ -97,7 +97,7 @@ export type HfaImportRunSummary = {
 // ============================================================================
 
 // The staging tables are named per run (see the run worker's
-// hfaStagingTableNames) — never recorded here.
+// hfaStagingTableNames): never recorded here.
 export type DatasetHfaCsvStagingResult = {
   dateImported: string;
   assetFileName: string;

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Protocol compliance sweep — companion to ./validate_queries and
+# Protocol compliance sweep, companion to ./validate_queries and
 # ./validate_migrations. Logic lives in validate_protocols.ts.
 
 set -e

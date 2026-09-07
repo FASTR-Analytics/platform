@@ -5,17 +5,17 @@ import { presentableDiff } from "@codemirror/merge";
 // COORDINATE SPACES: `baseBody` is the document the proposal was computed from
 // (captured when the proposal was staged). `newBody` is the AI's full proposed
 // document (base + its edits). `currentBody` is the live document at accept
-// time — base + whatever collaborators (and the local user) typed while the
+// time: base + whatever collaborators (and the local user) typed while the
 // proposal was under review. The returned changes are expressed in
 // CURRENT-body coordinates, disjoint and ascending, so they can be dispatched
 // as one atomic CodeMirror transaction (all positions pre-transaction).
 //
 // POLICY (skip + notify): an AI hunk that overlaps a concurrent edit is
-// SKIPPED — never overwrite text a collaborator just changed; the caller
+// SKIPPED: never overwrite text a collaborator just changed; the caller
 // surfaces the skipped count. Overlap = strict interval overlap with
 // zero-length (insertion) ranges treated as points: an insertion strictly
 // inside the other range conflicts; boundary-touching does not. Position
-// mapping is left-biased — a concurrent change ending exactly at a hunk's
+// mapping is left-biased: a concurrent change ending exactly at a hunk's
 // start still shifts it, so collaborator text at a seam deterministically
 // lands BEFORE the AI's replacement.
 
@@ -86,7 +86,7 @@ export function rebaseProposedEdits(
   return { changes, skipped };
 }
 
-/** "5", "5–8", "5, 12–14" — for embedding in skip notices. */
+/** "5", "5–8", "5, 12–14", for embedding in skip notices. */
 export function formatLineRanges(skipped: SkippedRange[]): string {
   return skipped
     .map((s) =>

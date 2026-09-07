@@ -21,19 +21,19 @@ import {
 } from "~/state/t4_ui";
 
 // =============================================================================
-// Live cursors on the project tab pages — "page" surface
+// Live cursors on the project tab pages: "page" surface
 // =============================================================================
 //
-// One file per cursor surface lives in this folder (slide/viz/report/page) —
+// One file per cursor surface lives in this folder (slide/viz/report/page):
 // each supplies only its surface's coordinate mapping and scope gate; the
 // rendering engine is shared (../live_cursors.tsx).
 //
-// Rides the PROJECT-level awareness (state/project/collab.ts) — the tab pages
+// Rides the PROJECT-level awareness (state/project/collab.ts): the tab pages
 // have no doc room. Each page tags its app-owned content element with
 // [data-page-cursor-surface]; coordinates are x normalized to that element's
 // width and y in content px against its own scrollTop (one formula covers the
 // self-scrolling card grids AND the content divs whose panther ancestor
-// scrolls — see pointerFromPane).
+// scrolls: see pointerFromPane).
 //
 // Scope = tab, PLUS the folder/grouping selection on the list tabs: two users
 // on the same tab but different folders see entirely different cards, so a
@@ -43,7 +43,7 @@ import {
 //
 // There is deliberately NO editor-open counter here: every editor overlay
 // (incl. the LOCAL EditorWrappers inside the data/modules pages) hides the
-// page content via display:none, which zeroes the tagged element's rect —
+// page content via display:none, which zeroes the tagged element's rect:
 // sender and receiver both bail on geometry. z-50 modals are rejected by the
 // elementFromPoint containment in the pane helpers.
 
@@ -61,7 +61,7 @@ function pageScope(): string | null {
   }
 }
 
-/** First VISIBLE tagged surface — hidden-but-mounted elements under an
+/** First VISIBLE tagged surface: hidden-but-mounted elements under an
  *  editor overlay stay in the DOM at zero size. A surface may carry its own
  *  scope as the attribute VALUE (e.g. `deck:<id>` on the deck overview,
  *  which renders as an editor overlay ABOVE the tab pages and must not share
@@ -89,7 +89,7 @@ function toPagePointer(
   if (pos) {
     return { surface: "page", scope: surface.scope, x: pos.x, y: pos.y };
   }
-  // Chrome (tabs nav / folder panel / top bar) — shared zone fallback, same
+  // Chrome (tabs nav / folder panel / top bar): shared zone fallback, same
   // scope so only same-view peers see the cursor cross it.
   return zonePointerAt(surface.scope, clientX, clientY);
 }

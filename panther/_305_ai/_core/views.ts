@@ -45,7 +45,7 @@ export type AIViewController<
   // it, a controller built with one interaction registry assigns to a
   // controller type carrying a structurally different one — notify's
   // generic signature compares leniently because its args are an unresolved
-  // conditional type (proven in the Phase 3 review, M4). Same pattern as
+  // conditional type. Same pattern as
   // AIView's __aiViewTypes phantom.
   readonly __aiInteractionDefs?: (defs: TIDefs) => TIDefs;
   setView<K extends keyof TDefs>(id: K, ...args: SetViewArgs<TDefs, K>): void;
@@ -150,7 +150,7 @@ export function createAIViewController<
     // Echo-suppression window for markAIEdit (TTL-only; marks are never
     // cleared at drain). Default 30 000 ms.
     echoTtlMs?: number;
-    // AI-navigation attribution window (Phase 5): navigation events recorded
+    // AI-navigation attribution window: navigation events recorded
     // within this long of the navigation tool's mark are stamped origin
     // "ai" and dropped from the digest. Raise it if the app's routing takes
     // longer to settle (lazy-loaded editors). Default 5 000 ms.
@@ -177,9 +177,9 @@ export function createAIViewController<
     );
   }
 
-  // Both TTL-style options must be strictly positive when explicitly set
-  // (Phase 5 review): the suppression window comparisons are `age < ttl` —
-  // at ttl <= 0 the window is empty by construction, so even a same-tick
+  // Both TTL-style options must be strictly positive when explicitly set:
+  // the suppression window comparisons are `age < ttl`, so at ttl <= 0 the
+  // window is empty by construction and even a same-tick
   // mark-then-record pair (a synchronous echo, or the navigation tool's
   // synchronous-routing case) can lose the Date.now() tie and be
   // misattributed. Reproduced empirically for navAttributionMs: 0 against a

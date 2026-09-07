@@ -14,20 +14,20 @@ import { serverActions } from "~/server_actions";
 
 // Self-service email change, everywhere at once. Two deliberate acts, the
 // rest automatic:
-//   1. enter  — type the new address, one button: the fleet preview runs and,
+//   1. enter: type the new address, one button: the fleet preview runs and,
 //               unless it finds a conflict (or the account nowhere), the
 //               address is added to the caller's Clerk account and a
 //               verification code is emailed to it. Already-verified
 //               addresses (a previous half-attempt) skip straight to the
 //               rename.
-//   2. verify — type the code. A correct code runs everything with no
+//   2. verify: type the code. A correct code runs everything with no
 //               further clicks, in this exact order: every instance renames
 //               FIRST (the route must authorize while the session JWT still
 //               matches the old users rows), THEN the Clerk primary flips and
-//               the token refreshes to the new identity, and — only on an
-//               all-green report — the old address is removed from Clerk as
+//               the token refreshes to the new identity, and (only on an
+//               all-green report) the old address is removed from Clerk as
 //               the very last step.
-//   3. report — per-instance outcome. Partial failure keeps the old address
+//   3. report: per-instance outcome. Partial failure keeps the old address
 //               on the account and offers Retry (idempotent end-to-end);
 //               all-green ends with Done → reload, since the SPA's identity
 //               state is stale after a self-rename.
@@ -66,7 +66,7 @@ export function ChangeEmailModal(
 
   // Fleet rename → primary flip + token refresh → (all-green only)
   // old-address removal. The rename MUST come first: the route authorizes
-  // against the users rows, which still carry the old email — flipping the
+  // against the users rows, which still carry the old email: flipping the
   // Clerk primary before the call would make the session resolve to an email
   // with no row and get rejected. Shared by the verify step and the report's
   // Retry; every part is safe to re-run.
@@ -99,19 +99,19 @@ export function ChangeEmailModal(
         setPrimaryDone(true);
       } catch {
         // Rows are renamed but the Clerk primary still points at the old
-        // address — Retry re-runs this flip (the rename side no-ops).
+        // address: Retry re-runs this flip (the rename side no-ops).
       }
     }
     if (primaryFlipped && allGreen(res.data.instances)) {
       // Deliberately the last step, and only when everything renamed: until
       // then the old address stays on the account as the recovery path. A
-      // failure here is harmless — the address can be removed in account
+      // failure here is harmless: the address can be removed in account
       // settings later.
       const old = clerk.user?.emailAddresses.find(
         (a) => a.emailAddress.toLowerCase() === oldEmail,
       );
       await old?.destroy().catch(() => {});
-      // The signed-in identity just changed under the SPA's feet — reload
+      // The signed-in identity just changed under the SPA's feet: reload
       // unconditionally rather than leave a stale session on screen.
       window.location.reload();
     }
@@ -203,7 +203,7 @@ export function ChangeEmailModal(
   const retry = createButtonAction(() => runRename());
 
   // Closing the modal cannot stop an in-flight run (the server continues and
-  // the page then auto-reloads without ever showing the report) — so Cancel
+  // the page then auto-reloads without ever showing the report), so Cancel
   // locks while anything that can end in a rename is running.
   const busy = () =>
     start.state().status === "loading" ||

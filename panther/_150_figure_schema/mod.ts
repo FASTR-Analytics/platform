@@ -53,7 +53,6 @@ export {
   zLegendInput,
   zMapInputs,
   zPieInputs,
-  zSimpleVizInputs,
   zTableInputs,
   zTimeseriesInputs,
   zVizGraphInputs,

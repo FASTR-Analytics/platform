@@ -21,7 +21,7 @@ export const icehRouteRegistry = {
     response: {} as IcehDisplayData,
   }),
 
-  // ICEH import runs (config-on-client, run-on-server —
+  // ICEH import runs (config-on-client, run-on-server:
   // PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase C). The wizard is client-local;
   // its zip input is an ordinary instance asset (uploaded or picked).
   // No queue and no scheduler: a second launch while one runs is refused.

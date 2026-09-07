@@ -34,15 +34,83 @@ import {
   type TableCellInfoFunc,
   type TableHeaderInfo,
   type TableHeaderInfoFunc,
+  type TextInfoUnkeyed,
 } from "./deps.ts";
 import type { DefaultFigureStyle } from "./_1_default_figure_style.ts";
 import type { CustomFigureStyleOptions } from "./_2_custom_figure_style_options.ts";
 
 // Color sentinels accepted wherever per-element colors are configured:
 // SERIES_COLOR_SENTINEL resolves through the per-series palette (seriesColorFunc);
-// VALUES_COLOR_SENTINEL resolves through valuesColorFunc(val, valueMin, valueMax).
+// VALUES_COLOR_SENTINEL resolves through the figure-wide valuesColorFunc slot.
 export const SERIES_COLOR_SENTINEL = 666;
 export const VALUES_COLOR_SENTINEL = 777;
+
+// The figure-wide magnitude slot. It receives the element being coloured —
+// the element's own Info, so a rule can be chosen by identity (this cell's
+// row, this bar's indicator, this region's pane) while the colour stays a
+// function of the value. Returning undefined declines: the resolution site
+// then falls through as if no sentinel were set (bars and points take their
+// series colour; table cells and map regions take "none"). Legend sampling
+// (resolveAutoScaleLegend) calls it with no element; an element-dependent
+// function should decline there, and the figure supplies an explicit legend.
+// min/max are figure-global, not per element.
+//
+// A header-free ValuesColorFunc (_001_color) is assignable to this slot as-is.
+export type ValueColorElement = TableCellInfo | ChartValueInfo | MapRegionInfo;
+
+export type FigureValuesColorFunc = (
+  value: number | undefined,
+  min: number,
+  max: number,
+  element?: ValueColorElement,
+) => ColorKeyOrString | undefined;
+
+// A content block's `func` is authored three ways: an options object (one flat
+// override for every element), a function of the element's info (a per-element
+// override), or the string "none" (ignored here — whether a block renders at
+// all is decided upstream, in the style class). Splitting the custom and global
+// levels into their object/function halves is the first act of every style-func
+// factory below, so it lives here once.
+type StyleFuncLevel<TOpts, TInfo> =
+  | TOpts
+  | ((info: TInfo) => TOpts)
+  | "none"
+  | undefined;
+
+function splitStyleLevels<TOpts extends object, TInfo>(
+  cRaw: StyleFuncLevel<TOpts, TInfo>,
+  gRaw: StyleFuncLevel<TOpts, TInfo>,
+): {
+  c: TOpts | undefined;
+  cf: ((info: TInfo) => TOpts) | undefined;
+  g: TOpts | undefined;
+  gf: ((info: TInfo) => TOpts) | undefined;
+} {
+  return {
+    c: typeof cRaw === "object" ? cRaw : undefined,
+    cf: typeof cRaw === "function" ? cRaw : undefined,
+    g: typeof gRaw === "object" ? gRaw : undefined,
+    gf: typeof gRaw === "function" ? gRaw : undefined,
+  };
+}
+
+// The two figure-wide colour funcs resolve through the same custom→global→
+// default cascade wherever a sentinel colour has to be turned into a real one.
+function resolveSeriesColorFunc(
+  _c: CustomFigureStyleOptions,
+  _g: CustomFigureStyleOptions,
+  _d: DefaultFigureStyle,
+) {
+  return m(_c.seriesColorFunc, _g.seriesColorFunc, _d.seriesColorFunc);
+}
+
+function resolveValuesColorFunc(
+  _c: CustomFigureStyleOptions,
+  _g: CustomFigureStyleOptions,
+  _d: DefaultFigureStyle,
+) {
+  return m(_c.valuesColorFunc, _g.valuesColorFunc, _d.valuesColorFunc);
+}
 
 // A leader line has no existence apart from the label at its end, so it is a
 // property of the label — not a sibling of it on the host element. (It used to
@@ -64,7 +132,7 @@ export type GenericDataLabelStyle = {
   offset: number;
   backgroundColor: ColorKeyOrString | "none";
   padding: PaddingOptions;
-  borderColor?: ColorKeyOrString;
+  borderColor?: ColorKeyOrString | "none";
   borderWidth: number;
   rectRadius: number;
   // Optional on the per-block defaults (a bar's data label never draws one),
@@ -76,6 +144,9 @@ export type GenericDataLabelStyle = {
 // The shared content.dataLabel cascade base: the terminal level of the
 // data-label merge, so every field without a per-block default must be here.
 export type GenericDataLabelBaseStyle = GenericDataLabelStyle & {
+  relFontSize: number;
+  font: FontInfoOptions;
+  borderColor: ColorKeyOrString | "none";
   leaderLine: GenericLeaderLineStyle;
 };
 
@@ -87,12 +158,12 @@ export type DataLabelStyle = {
   show: boolean;
   color?: ColorKeyOrString;
   colorStrategy?: ColorAdjustmentStrategy;
-  relFontSize?: number;
-  font?: FontInfoOptions;
+  relFontSize: number;
+  font: FontInfoOptions;
   offset: number;
   backgroundColor: ColorKeyOrString | "none";
   padding: Padding;
-  borderColor?: ColorKeyOrString;
+  borderColor: ColorKeyOrString | "none";
   borderWidth: number;
   rectRadius: number;
   leaderLine: GenericLeaderLineStyle;
@@ -125,29 +196,49 @@ function pickColorPair(
   return { color: undefined, colorStrategy: undefined };
 }
 
+function adjustedHostColor(
+  host: ColorKeyOrString | "none",
+  strategy: ColorAdjustmentStrategy | "none",
+): string | undefined {
+  return host === "none" || strategy === "none"
+    ? undefined
+    : getAdjustedColor(host, strategy);
+}
+
+export function applyTextColorStrategy(
+  text: TextInfoUnkeyed,
+  host: ColorKeyOrString | "none",
+  strategy: ColorAdjustmentStrategy | "none",
+): TextInfoUnkeyed {
+  const color = adjustedHostColor(host, strategy);
+  return color === undefined ? text : { ...text, color };
+}
+
 function applyDataLabelColorStrategy(
   dl: DataLabelStyle,
   hostColor: ColorKeyOrString | "none",
 ): DataLabelStyle {
-  if (
-    dl.color !== undefined ||
-    dl.colorStrategy === undefined ||
-    hostColor === "none"
-  ) {
-    return dl;
-  }
-  return { ...dl, color: getAdjustedColor(hostColor, dl.colorStrategy) };
+  if (dl.color !== undefined) return dl;
+  const color = adjustedHostColor(hostColor, dl.colorStrategy ?? "none");
+  return color === undefined ? dl : { ...dl, color };
 }
 
+// The data-label cascade has six levels: the per-block override (c/g/d) and the
+// shared content.dataLabel base (cc/gc/dc) behind it at each of custom, global
+// and default. Callers pass only their own block's three; the shared base is
+// pulled here, so no factory can reach for the wrong one.
 function resolveDataLabelDefaults(
   sf: number,
+  _c: CustomFigureStyleOptions,
+  _g: CustomFigureStyleOptions,
+  _d: DefaultFigureStyle,
   c: GenericDataLabelStyleOptions | undefined,
-  cc: GenericDataLabelStyleOptions | undefined,
   g: GenericDataLabelStyleOptions | undefined,
-  gc: GenericDataLabelStyleOptions | undefined,
   d: GenericDataLabelStyle,
-  dc: GenericDataLabelBaseStyle,
 ): DataLabelStyle {
+  const cc = _c.content?.dataLabel;
+  const gc = _g.content?.dataLabel;
+  const dc: GenericDataLabelBaseStyle = _d.content.dataLabel;
   const pair = pickColorPair([c, cc, g, gc, d, dc]);
   return {
     show: c?.show ?? cc?.show ?? g?.show ?? gc?.show ?? d.show ?? dc.show,
@@ -263,18 +354,38 @@ function applyDataLabelOverrides(
   };
 }
 
-// alignH/alignV are optional on the Generic (authoring) shapes — the resolved
-// styles below always carry them. Vertical defaults: cells and row headers
-// fall back to the table-wide `table.alignV` (legacy uniform knob, same
-// fallback pattern as colHeaderBackgroundColor); col headers default to
-// "bottom" (they sit on the header axis). Col-GROUP headers and rotated col
-// headers ignore alignment entirely (forced center — a multi-column span has
-// no principled single edge, and sideways text has no meaningful alignH).
+// The per-element half of the data-label cascade, run inside every style func
+// that hosts a label. Order is load-bearing and identical everywhere: global
+// per-element overrides first, then custom on top; then color/colorStrategy as
+// a single pair (never merged field-by-field); then the host's resolved colour
+// drives colorStrategy. `hostColor` must be the element's FINAL colour, after
+// any sentinel has been resolved.
+function resolveDataLabelInstance(
+  defaults: DataLabelStyle,
+  oc: GenericDataLabelStyleOptions | undefined,
+  og: GenericDataLabelStyleOptions | undefined,
+  sf: number,
+  hostColor: ColorKeyOrString | "none",
+): DataLabelStyle {
+  let dl = applyDataLabelOverrides(defaults, og, sf);
+  dl = applyDataLabelOverrides(dl, oc, sf);
+  const pair = pickColorPair([
+    oc,
+    og,
+    { color: defaults.color, colorStrategy: defaults.colorStrategy },
+  ]);
+  dl = { ...dl, color: pair.color, colorStrategy: pair.colorStrategy };
+  return applyDataLabelColorStrategy(dl, hostColor);
+}
+
+// Col-group headers and rotated col headers ignore alignment entirely (forced
+// center: a multi-column span has no principled single edge, and sideways text
+// has no meaningful alignH).
 export type GenericTableCellStyle = {
   backgroundColor: ColorKeyOrString | typeof VALUES_COLOR_SENTINEL | "none";
   textColorStrategy: ColorAdjustmentStrategy | "none";
-  alignH?: "left" | "center" | "right";
-  alignV?: "top" | "middle" | "bottom";
+  alignH: "left" | "center" | "right";
+  alignV: "top" | "middle" | "bottom";
 };
 
 export type GenericTableCellStyleOptions =
@@ -292,16 +403,13 @@ export type TableCellStyle = {
 export type GenericTableHeaderStyle = {
   backgroundColor: ColorKeyOrString | "none";
   textColorStrategy: ColorAdjustmentStrategy | "none";
-  alignH?: "left" | "center" | "right";
-  alignV?: "top" | "middle" | "bottom";
+  alignH: "left" | "center" | "right";
+  alignV: "top" | "middle" | "bottom";
 };
 
 export type GenericTableHeaderStyleOptions = Partial<GenericTableHeaderStyle>;
 
-export type TableHeaderStyle = GenericTableHeaderStyle & {
-  alignH: "left" | "center" | "right";
-  alignV: "top" | "middle" | "bottom";
-};
+export type TableHeaderStyle = GenericTableHeaderStyle;
 
 export function getTableRowHeaderStyleFunc(
   _sf: number,
@@ -309,12 +417,10 @@ export function getTableRowHeaderStyleFunc(
   _g: CustomFigureStyleOptions,
   _d: DefaultFigureStyle,
 ): TableHeaderInfoFunc<TableHeaderStyle> {
-  const cRaw = _c.content?.tableRowHeaders?.func;
-  const c = typeof cRaw === "object" ? cRaw : undefined;
-  const cf = typeof cRaw === "function" ? cRaw : undefined;
-  const gRaw = _g.content?.tableRowHeaders?.func;
-  const g = typeof gRaw === "object" ? gRaw : undefined;
-  const gf = typeof gRaw === "function" ? gRaw : undefined;
+  const { c, cf, g, gf } = splitStyleLevels(
+    _c.content?.tableRowHeaders?.func,
+    _g.content?.tableRowHeaders?.func,
+  );
   const d = _d.content.tableRowHeaders.func;
   const dBackgroundColor = m(
     c?.backgroundColor,
@@ -326,14 +432,8 @@ export function getTableRowHeaderStyleFunc(
     g?.textColorStrategy,
     d.textColorStrategy,
   );
-  const dAlignH = m(c?.alignH, g?.alignH, d.alignH) ?? "left";
-  // Row headers follow the table-wide alignV so their text lines up
-  // vertically with the cells in the same row.
-  const dAlignV = m(
-    c?.alignV,
-    g?.alignV,
-    m(_c.table?.alignV, _g.table?.alignV, _d.table.alignV),
-  );
+  const dAlignH = m(c?.alignH, g?.alignH, d.alignH);
+  const dAlignV = m(c?.alignV, g?.alignV, d.alignV);
   return (info: TableHeaderInfo): TableHeaderStyle => {
     const oc = cf?.(info);
     const og = gf?.(info);
@@ -354,44 +454,22 @@ export function getTableColHeaderStyleFunc(
   _g: CustomFigureStyleOptions,
   _d: DefaultFigureStyle,
 ): TableHeaderInfoFunc<TableHeaderStyle> {
-  const cRaw = _c.content?.tableColHeaders?.func;
-  const c = typeof cRaw === "object" ? cRaw : undefined;
-  const cf = typeof cRaw === "function" ? cRaw : undefined;
-  const gRaw = _g.content?.tableColHeaders?.func;
-  const g = typeof gRaw === "object" ? gRaw : undefined;
-  const gf = typeof gRaw === "function" ? gRaw : undefined;
-  const d = _d.content.tableColHeaders.func;
-  const dTextColorStrategy: ColorAdjustmentStrategy | "none" = m(
-    c?.textColorStrategy,
-    g?.textColorStrategy,
-    d.textColorStrategy,
-  ) ?? "none";
-  // Backward-compat fallback: when no per-header backgroundColor is provided,
-  // fall back to the uniform colHeaderBackgroundColor / colGroupHeaderBackgroundColor.
-  const dColBg = m(
-    _c.table?.colHeaderBackgroundColor,
-    _g.table?.colHeaderBackgroundColor,
-    _d.table.colHeaderBackgroundColor,
+  const { c, cf, g, gf } = splitStyleLevels(
+    _c.content?.tableColHeaders?.func,
+    _g.content?.tableColHeaders?.func,
   );
-  const dColGroupBg = m(
-    _c.table?.colGroupHeaderBackgroundColor,
-    _g.table?.colGroupHeaderBackgroundColor,
-    _d.table.colGroupHeaderBackgroundColor,
-  );
-  const dAlignH = m(c?.alignH, g?.alignH, d.alignH) ?? "center";
-  const dAlignV = m(c?.alignV, g?.alignV, d.alignV) ?? "bottom";
+  const df = _d.content.tableColHeaders.func;
   return (info: TableHeaderInfo): TableHeaderStyle => {
     const oc = cf?.(info);
     const og = gf?.(info);
-    const backgroundColor = oc?.backgroundColor ?? og?.backgroundColor ??
-      c?.backgroundColor ?? g?.backgroundColor ??
-      (info.isGroupHeader ? dColGroupBg : dColBg);
+    const d = df(info);
     return {
-      backgroundColor: backgroundColor as ColorKeyOrString | "none",
+      backgroundColor: oc?.backgroundColor ?? og?.backgroundColor ??
+        c?.backgroundColor ?? g?.backgroundColor ?? d.backgroundColor,
       textColorStrategy: oc?.textColorStrategy ?? og?.textColorStrategy ??
-        dTextColorStrategy,
-      alignH: oc?.alignH ?? og?.alignH ?? dAlignH,
-      alignV: oc?.alignV ?? og?.alignV ?? dAlignV,
+        c?.textColorStrategy ?? g?.textColorStrategy ?? d.textColorStrategy,
+      alignH: oc?.alignH ?? og?.alignH ?? c?.alignH ?? g?.alignH ?? d.alignH,
+      alignV: oc?.alignV ?? og?.alignV ?? c?.alignV ?? g?.alignV ?? d.alignV,
     };
   };
 }
@@ -402,18 +480,12 @@ export function getTableCellStyleFunc(
   _g: CustomFigureStyleOptions,
   _d: DefaultFigureStyle,
 ): TableCellInfoFunc<TableCellStyle> {
-  const cRaw = _c.content?.tableCells?.func;
-  const c = typeof cRaw === "object" ? cRaw : undefined;
-  const cf = typeof cRaw === "function" ? cRaw : undefined;
-  const gRaw = _g.content?.tableCells?.func;
-  const g = typeof gRaw === "object" ? gRaw : undefined;
-  const gf = typeof gRaw === "function" ? gRaw : undefined;
-  const d = _d.content.tableCells.func;
-  const valuesColorFunc = m(
-    _c.valuesColorFunc,
-    _g.valuesColorFunc,
-    _d.valuesColorFunc,
+  const { c, cf, g, gf } = splitStyleLevels(
+    _c.content?.tableCells?.func,
+    _g.content?.tableCells?.func,
   );
+  const d = _d.content.tableCells.func;
+  const valuesColorFunc = resolveValuesColorFunc(_c, _g, _d);
   const dBackgroundColor = m(
     c?.backgroundColor,
     g?.backgroundColor,
@@ -424,12 +496,8 @@ export function getTableCellStyleFunc(
     g?.textColorStrategy,
     d.textColorStrategy,
   );
-  const dAlignH = m(c?.alignH, g?.alignH, d.alignH) ?? "center";
-  const dAlignV = m(
-    c?.alignV,
-    g?.alignV,
-    m(_c.table?.alignV, _g.table?.alignV, _d.table.alignV),
-  );
+  const dAlignH = m(c?.alignH, g?.alignH, d.alignH);
+  const dAlignV = m(c?.alignV, g?.alignV, d.alignV);
 
   return (info: TableCellInfo): TableCellStyle => {
     const oc = cf?.(info);
@@ -439,7 +507,12 @@ export function getTableCellStyleFunc(
     return {
       backgroundColor: backgroundColor === VALUES_COLOR_SENTINEL &&
           info.valueAsNumber !== undefined
-        ? valuesColorFunc(info.valueAsNumber, info.valueMin, info.valueMax)
+        ? valuesColorFunc(
+          info.valueAsNumber,
+          info.valueMin,
+          info.valueMax,
+          info,
+        ) ?? "none"
         : backgroundColor === VALUES_COLOR_SENTINEL
         ? "none"
         : backgroundColor,
@@ -451,19 +524,6 @@ export function getTableCellStyleFunc(
     };
   };
 }
-
-//////////////////////////////////////////////////////////
-//  _______            __              __               //
-// /       \          /  |            /  |              //
-// $$$$$$$  | ______  $$/  _______   _$$ |_    _______  //
-// $$ |__$$ |/      \ /  |/       \ / $$   |  /       | //
-// $$    $$//$$$$$$  |$$ |$$$$$$$  |$$$$$$/  /$$$$$$$/  //
-// $$$$$$$/ $$ |  $$ |$$ |$$ |  $$ |  $$ | __$$      \  //
-// $$ |     $$ \__$$ |$$ |$$ |  $$ |  $$ |/  |$$$$$$  | //
-// $$ |     $$    $$/ $$ |$$ |  $$ |  $$  $$//     $$/  //
-// $$/       $$$$$$/  $$/ $$/   $$/    $$$$/ $$$$$$$/   //
-//                                                      //
-//////////////////////////////////////////////////////////
 
 export type GenericPointStyleOptions = {
   show?: boolean;
@@ -502,26 +562,13 @@ export function getPointStyleFunc(
 ): ChartValueInfoFunc<
   PointStyle & { dataLabel: DataLabelStyle; annotationGroup?: string }
 > {
-  const cRaw = _c.content?.points?.func;
-  const c = typeof cRaw === "object" ? cRaw : undefined;
-  const cf = typeof cRaw === "function" ? cRaw : undefined;
-  const gRaw = _g.content?.points?.func;
-  const g = typeof gRaw === "object" ? gRaw : undefined;
-  const gf = typeof gRaw === "function" ? gRaw : undefined;
+  const { c, cf, g, gf } = splitStyleLevels(
+    _c.content?.points?.func,
+    _g.content?.points?.func,
+  );
   const d = _d.content.points.func;
-  const seriesColorFunc = m(
-    _c.seriesColorFunc,
-    _g.seriesColorFunc,
-    _d.seriesColorFunc,
-  );
-  const valuesColorFunc = m(
-    _c.valuesColorFunc,
-    _g.valuesColorFunc,
-    _d.valuesColorFunc,
-  );
-  const cc = _c.content?.dataLabel;
-  const gc = _g.content?.dataLabel;
-  const dc = _d.content.dataLabel;
+  const seriesColorFunc = resolveSeriesColorFunc(_c, _g, _d);
+  const valuesColorFunc = resolveValuesColorFunc(_c, _g, _d);
   const dShow = m(c?.show, g?.show, d.show);
   const dPointStyle = m(c?.pointStyle, g?.pointStyle, d.pointStyle);
   const dRadius = ms(_sf, c?.radius, g?.radius, d.radius);
@@ -539,12 +586,12 @@ export function getPointStyleFunc(
   );
   const dDataLabel = resolveDataLabelDefaults(
     _sf,
+    _c,
+    _g,
+    _d,
     c?.dataLabel,
-    cc,
     g?.dataLabel,
-    gc,
     d.dataLabel,
-    dc,
   );
   return (
     info: ChartValueInfo,
@@ -554,20 +601,19 @@ export function getPointStyleFunc(
     const color = oc?.color ?? og?.color ?? dColor;
     const oRadius = oc?.radius ?? og?.radius;
     const oStrokeWidth = oc?.strokeWidth ?? og?.strokeWidth;
-    let dl = applyDataLabelOverrides(dDataLabel, og?.dataLabel, _sf);
-    dl = applyDataLabelOverrides(dl, oc?.dataLabel, _sf);
-    const dlPair = pickColorPair([
-      oc?.dataLabel,
-      og?.dataLabel,
-      { color: dDataLabel.color, colorStrategy: dDataLabel.colorStrategy },
-    ]);
-    dl = { ...dl, color: dlPair.color, colorStrategy: dlPair.colorStrategy };
     const resolvedColor = color === VALUES_COLOR_SENTINEL
-      ? valuesColorFunc(info.val, info.valueMin, info.valueMax)
+      ? valuesColorFunc(info.val, info.valueMin, info.valueMax, info) ??
+        seriesColorFunc(info)
       : color === SERIES_COLOR_SENTINEL
       ? seriesColorFunc(info)
       : color;
-    dl = applyDataLabelColorStrategy(dl, resolvedColor);
+    const dl = resolveDataLabelInstance(
+      dDataLabel,
+      oc?.dataLabel,
+      og?.dataLabel,
+      _sf,
+      resolvedColor,
+    );
     return {
       show: oc?.show ?? og?.show ?? dShow,
       pointStyle: oc?.pointStyle ?? og?.pointStyle ?? dPointStyle,
@@ -585,19 +631,6 @@ export function getPointStyleFunc(
     };
   };
 }
-
-//////////////////////////////////////////////
-//  _______                                 //
-// /       \                                //
-// $$$$$$$  |  ______    ______    _______  //
-// $$ |__$$ | /      \  /      \  /       | //
-// $$    $$<  $$$$$$  |/$$$$$$  |/$$$$$$$/  //
-// $$$$$$$  | /    $$ |$$ |  $$/ $$      \  //
-// $$ |__$$ |/$$$$$$$ |$$ |       $$$$$$  | //
-// $$    $$/ $$    $$ |$$ |      /     $$/  //
-// $$$$$$$/   $$$$$$$/ $$/       $$$$$$$/   //
-//                                          //
-//////////////////////////////////////////////
 
 export type GenericBarStyleOptions = {
   show?: boolean;
@@ -626,36 +659,23 @@ export function getBarStyleFunc(
 ): ChartValueInfoFunc<
   RectStyle & { dataLabel: DataLabelStyle; annotationGroup?: string }
 > {
-  const cRaw = _c.content?.bars?.func;
-  const c = typeof cRaw === "object" ? cRaw : undefined;
-  const cf = typeof cRaw === "function" ? cRaw : undefined;
-  const gRaw = _g.content?.bars?.func;
-  const g = typeof gRaw === "object" ? gRaw : undefined;
-  const gf = typeof gRaw === "function" ? gRaw : undefined;
+  const { c, cf, g, gf } = splitStyleLevels(
+    _c.content?.bars?.func,
+    _g.content?.bars?.func,
+  );
   const d = _d.content.bars.func;
-  const seriesColorFunc = m(
-    _c.seriesColorFunc,
-    _g.seriesColorFunc,
-    _d.seriesColorFunc,
-  );
-  const valuesColorFunc = m(
-    _c.valuesColorFunc,
-    _g.valuesColorFunc,
-    _d.valuesColorFunc,
-  );
-  const cc = _c.content?.dataLabel;
-  const gc = _g.content?.dataLabel;
-  const dc = _d.content.dataLabel;
+  const seriesColorFunc = resolveSeriesColorFunc(_c, _g, _d);
+  const valuesColorFunc = resolveValuesColorFunc(_c, _g, _d);
   const dShow = m(c?.show, g?.show, d.show);
   const dColor = m(c?.fillColor, g?.fillColor, d.fillColor);
   const dDataLabel = resolveDataLabelDefaults(
     _sf,
+    _c,
+    _g,
+    _d,
     c?.dataLabel,
-    cc,
     g?.dataLabel,
-    gc,
     d.dataLabel,
-    dc,
   );
   return (
     info: ChartValueInfo,
@@ -663,20 +683,19 @@ export function getBarStyleFunc(
     const oc = cf?.(info);
     const og = gf?.(info);
     const color = oc?.fillColor ?? og?.fillColor ?? dColor;
-    let dl = applyDataLabelOverrides(dDataLabel, og?.dataLabel, _sf);
-    dl = applyDataLabelOverrides(dl, oc?.dataLabel, _sf);
-    const dlPair = pickColorPair([
-      oc?.dataLabel,
-      og?.dataLabel,
-      { color: dDataLabel.color, colorStrategy: dDataLabel.colorStrategy },
-    ]);
-    dl = { ...dl, color: dlPair.color, colorStrategy: dlPair.colorStrategy };
     const resolvedFillColor = color === VALUES_COLOR_SENTINEL
-      ? valuesColorFunc(info.val, info.valueMin, info.valueMax)
+      ? valuesColorFunc(info.val, info.valueMin, info.valueMax, info) ??
+        seriesColorFunc(info)
       : color === SERIES_COLOR_SENTINEL
       ? seriesColorFunc(info)
       : color;
-    dl = applyDataLabelColorStrategy(dl, resolvedFillColor);
+    const dl = resolveDataLabelInstance(
+      dDataLabel,
+      oc?.dataLabel,
+      og?.dataLabel,
+      _sf,
+      resolvedFillColor,
+    );
     return {
       show: oc?.show ?? og?.show ?? dShow,
       fillColor: resolvedFillColor,
@@ -685,19 +704,6 @@ export function getBarStyleFunc(
     };
   };
 }
-
-//////////////////////////////////////////////////
-//  __        __                                //
-// /  |      /  |                               //
-// $$ |      $$/  _______    ______    _______  //
-// $$ |      /  |/       \  /      \  /       | //
-// $$ |      $$ |$$$$$$$  |/$$$$$$  |/$$$$$$$/  //
-// $$ |      $$ |$$ |  $$ |$$    $$ |$$      \  //
-// $$ |_____ $$ |$$ |  $$ |$$$$$$$$/  $$$$$$  | //
-// $$       |$$ |$$ |  $$ |$$       |/     $$/  //
-// $$$$$$$$/ $$/ $$/   $$/  $$$$$$$/ $$$$$$$/   //
-//                                              //
-//////////////////////////////////////////////////
 
 export type GenericLineStyleOptions = {
   show?: boolean;
@@ -724,33 +730,24 @@ export function getLineStyleFunc(
 ): ChartSeriesInfoFunc<
   LineStyle & { dataLabel: DataLabelStyle; annotationGroup?: string }
 > {
-  const cRaw = _c.content?.lines?.func;
-  const c = typeof cRaw === "object" ? cRaw : undefined;
-  const cf = typeof cRaw === "function" ? cRaw : undefined;
-  const gRaw = _g.content?.lines?.func;
-  const g = typeof gRaw === "object" ? gRaw : undefined;
-  const gf = typeof gRaw === "function" ? gRaw : undefined;
-  const d = _d.content.lines.func;
-  const seriesColorFunc = m(
-    _c.seriesColorFunc,
-    _g.seriesColorFunc,
-    _d.seriesColorFunc,
+  const { c, cf, g, gf } = splitStyleLevels(
+    _c.content?.lines?.func,
+    _g.content?.lines?.func,
   );
-  const cc = _c.content?.dataLabel;
-  const gc = _g.content?.dataLabel;
-  const dc = _d.content.dataLabel;
+  const d = _d.content.lines.func;
+  const seriesColorFunc = resolveSeriesColorFunc(_c, _g, _d);
   const dShow = m(c?.show, g?.show, d.show);
   const dStrokeWidth = ms(_sf, c?.strokeWidth, g?.strokeWidth, d.strokeWidth);
   const dColor = m(c?.color, g?.color, d.color);
   const dLineDash = m(c?.lineDash, g?.lineDash, d.lineDash);
   const dDataLabel = resolveDataLabelDefaults(
     _sf,
+    _c,
+    _g,
+    _d,
     c?.dataLabel,
-    cc,
     g?.dataLabel,
-    gc,
     d.dataLabel,
-    dc,
   );
   return (
     info: ChartSeriesInfo,
@@ -759,18 +756,16 @@ export function getLineStyleFunc(
     const og = gf?.(info);
     const color = oc?.color ?? og?.color ?? dColor;
     const oStrokeWidth = oc?.strokeWidth ?? og?.strokeWidth;
-    let dl = applyDataLabelOverrides(dDataLabel, og?.dataLabel, _sf);
-    dl = applyDataLabelOverrides(dl, oc?.dataLabel, _sf);
-    const dlPair = pickColorPair([
-      oc?.dataLabel,
-      og?.dataLabel,
-      { color: dDataLabel.color, colorStrategy: dDataLabel.colorStrategy },
-    ]);
-    dl = { ...dl, color: dlPair.color, colorStrategy: dlPair.colorStrategy };
     const resolvedStrokeColor = color === SERIES_COLOR_SENTINEL
       ? seriesColorFunc(info)
       : color;
-    dl = applyDataLabelColorStrategy(dl, resolvedStrokeColor);
+    const dl = resolveDataLabelInstance(
+      dDataLabel,
+      oc?.dataLabel,
+      og?.dataLabel,
+      _sf,
+      resolvedStrokeColor,
+    );
     return {
       show: oc?.show ?? og?.show ?? dShow,
       strokeWidth: oStrokeWidth !== undefined
@@ -783,19 +778,6 @@ export function getLineStyleFunc(
     };
   };
 }
-
-////////////////////////////////////////////////////////
-//   ______                                           //
-//  /      \                                          //
-// /$$$$$$  |  ______    ______    ______    _______  //
-// $$ |__$$ | /      \  /      \  /      \  /       | //
-// $$    $$ |/$$$$$$  |/$$$$$$  | $$$$$$  |/$$$$$$$/  //
-// $$$$$$$$ |$$ |  $$/ $$    $$ | /    $$ |$$      \  //
-// $$ |  $$ |$$ |      $$$$$$$$/ /$$$$$$$ | $$$$$$  | //
-// $$ |  $$ |$$ |      $$       |$$    $$ |/     $$/  //
-// $$/   $$/ $$/        $$$$$$$/  $$$$$$$/ $$$$$$$/   //
-//                                                    //
-////////////////////////////////////////////////////////
 
 export type GenericAreaStyleOptions = {
   show?: boolean;
@@ -812,24 +794,27 @@ export type GenericAreaStyle = {
   fillColorAdjustmentStrategy: ColorAdjustmentStrategy;
 };
 
+// One diff-shaded pair: fills between series a and b (`series: [a, b]`)
+// wherever the emit condition holds. Areas are styled via the areas func with
+// i_series = a for "over" areas (a above b) and i_series = b for "under"
+// areas. Pairs render in order: an earlier pair paints beneath a later one.
+export type AreaDiffPair = {
+  series: [number, number];
+  emit: "over" | "under" | "both";
+};
+
 export function getAreaStyleFunc(
   _sf: number,
   _c: CustomFigureStyleOptions,
   _g: CustomFigureStyleOptions,
   _d: DefaultFigureStyle,
 ): ChartSeriesInfoFunc<AreaStyle & { annotationGroup?: string }> {
-  const cRaw = _c.content?.areas?.func;
-  const c = typeof cRaw === "object" ? cRaw : undefined;
-  const cf = typeof cRaw === "function" ? cRaw : undefined;
-  const gRaw = _g.content?.areas?.func;
-  const g = typeof gRaw === "object" ? gRaw : undefined;
-  const gf = typeof gRaw === "function" ? gRaw : undefined;
-  const d = _d.content.areas.func;
-  const seriesColorFunc = m(
-    _c.seriesColorFunc,
-    _g.seriesColorFunc,
-    _d.seriesColorFunc,
+  const { c, cf, g, gf } = splitStyleLevels(
+    _c.content?.areas?.func,
+    _g.content?.areas?.func,
   );
+  const d = _d.content.areas.func;
+  const seriesColorFunc = resolveSeriesColorFunc(_c, _g, _d);
   const dShow = m(c?.show, g?.show, d.show);
   const dTo = m(c?.to, g?.to, d.to);
   const dColor = m(c?.fillColor, g?.fillColor, d.fillColor);
@@ -857,21 +842,6 @@ export function getAreaStyleFunc(
     };
   };
 }
-
-/////////////////////////////////////////////////////////////////////////////////////
-//   ______                                         __                             //
-//  /      \                                       /  |                            //
-// /$$$$$$  |  ______    _______   _______   ______$$ |  ______                    //
-// $$ |  $$/  /      \  /       | /       | /      $$ | /      \                   //
-// $$ |      /$$$$$$  |/$$$$$$$/  $$$$$$$/  $$$$$$$$$ |/$$$$$$  |                  //
-// $$ |   __ $$ |  $$ |$$      \  $$      \ $$ |  $$ |$$    $$ |                   //
-// $$ \__/  |$$ |__$$ | $$$$$$  |  $$$$$$  |$$ \__$$ |$$$$$$$$/                    //
-// $$    $$/ $$    $$ |/     $$/ /     $$/ $$    $$ |$$       |                    //
-//  $$$$$$/  $$$$$$$/  $$$$$$$/  $$$$$$$/   $$$$$$$/  $$$$$$$/                     //
-//           $$ |                                                                  //
-//           $$ |                                                                  //
-//           $$/                                                                   //
-/////////////////////////////////////////////////////////////////////////////////////
 
 export type GenericCascadeArrowStyleOptions = {
   show?: boolean;
@@ -912,16 +882,11 @@ export function getCascadeArrowStyleFunc(
   _g: CustomFigureStyleOptions,
   _d: DefaultFigureStyle,
 ): CascadeArrowInfoFunc<CascadeArrowStyle> {
-  const cRaw = _c.content?.cascadeArrows?.func;
-  const c = typeof cRaw === "object" ? cRaw : undefined;
-  const cf = typeof cRaw === "function" ? cRaw : undefined;
-  const gRaw = _g.content?.cascadeArrows?.func;
-  const g = typeof gRaw === "object" ? gRaw : undefined;
-  const gf = typeof gRaw === "function" ? gRaw : undefined;
+  const { c, cf, g, gf } = splitStyleLevels(
+    _c.content?.cascadeArrows?.func,
+    _g.content?.cascadeArrows?.func,
+  );
   const d = _d.content.cascadeArrows.func;
-  const cc = _c.content?.dataLabel;
-  const gc = _g.content?.dataLabel;
-  const dc = _d.content.dataLabel;
   const dShow = m(c?.show, g?.show, d.show);
   const dStrokeColor = m(c?.strokeColor, g?.strokeColor, d.strokeColor);
   const dStrokeWidth = ms(_sf, c?.strokeWidth, g?.strokeWidth, d.strokeWidth);
@@ -945,12 +910,12 @@ export function getCascadeArrowStyleFunc(
   );
   const dDataLabel = resolveDataLabelDefaults(
     _sf,
+    _c,
+    _g,
+    _d,
     c?.dataLabel,
-    cc,
     g?.dataLabel,
-    gc,
     d.dataLabel,
-    dc,
   );
   return (info: CascadeArrowInfo): CascadeArrowStyle => {
     const oc = cf?.(info);
@@ -958,17 +923,15 @@ export function getCascadeArrowStyleFunc(
     const oStrokeWidth = oc?.strokeWidth ?? og?.strokeWidth;
     const oArrowHeadLength = oc?.arrowHeadLength ?? og?.arrowHeadLength;
     const oArrowLabelGap = oc?.arrowLabelGap ?? og?.arrowLabelGap;
-    let dl = applyDataLabelOverrides(dDataLabel, og?.dataLabel, _sf);
-    dl = applyDataLabelOverrides(dl, oc?.dataLabel, _sf);
-    const dlPair = pickColorPair([
-      oc?.dataLabel,
-      og?.dataLabel,
-      { color: dDataLabel.color, colorStrategy: dDataLabel.colorStrategy },
-    ]);
-    dl = { ...dl, color: dlPair.color, colorStrategy: dlPair.colorStrategy };
     const resolvedStrokeColor = oc?.strokeColor ?? og?.strokeColor ??
       dStrokeColor;
-    dl = applyDataLabelColorStrategy(dl, resolvedStrokeColor);
+    const dl = resolveDataLabelInstance(
+      dDataLabel,
+      oc?.dataLabel,
+      og?.dataLabel,
+      _sf,
+      resolvedStrokeColor,
+    );
     return {
       show: oc?.show ?? og?.show ?? dShow,
       strokeColor: resolvedStrokeColor,
@@ -989,18 +952,6 @@ export function getCascadeArrowStyleFunc(
     };
   };
 }
-
-////////////////////////////////////////////////////////////////////////////
-//   ______                                                  __           //
-//  /      \                                                /  |          //
-// /$$$$$$  |  ______   _______   _______    ______    ____$$ |__         //
-// $$ |  $$/  /      \ /       \ /       \  /      \  /    $$ |__         //
-// $$ |      /$$$$$$  |$$$$$$$  |$$$$$$$  |/$$$$$$  |/$$$$$$$ |           //
-// $$ |   __ $$ |  $$ |$$ |  $$ |$$ |  $$ |$$    $$ |$$ |  $$ |           //
-// $$ \__/  |$$ \__$$ |$$ |  $$ |$$ |  $$ |$$$$$$$$/ $$ \__$$ |           //
-// $$    $$/ $$    $$/ $$ |  $$ |$$ |  $$ |$$       |$$    $$ |           //
-//  $$$$$$/   $$$$$$/  $$/   $$/ $$/   $$/  $$$$$$$/  $$$$$$$/            //
-////////////////////////////////////////////////////////////////////////////
 
 export type ConnectorArrowheadMode = "none" | "start" | "end" | "both";
 export type ArrowheadFitFallback = "line-only" | "skip" | "force";
@@ -1040,12 +991,10 @@ export function getConnectorStyleFunc(
   _g: CustomFigureStyleOptions,
   _d: DefaultFigureStyle,
 ): ChartConnectorInfoFunc<ConnectorStyle> {
-  const cRaw = _c.content?.connectors?.func;
-  const c = typeof cRaw === "object" ? cRaw : undefined;
-  const cf = typeof cRaw === "function" ? cRaw : undefined;
-  const gRaw = _g.content?.connectors?.func;
-  const g = typeof gRaw === "object" ? gRaw : undefined;
-  const gf = typeof gRaw === "function" ? gRaw : undefined;
+  const { c, cf, g, gf } = splitStyleLevels(
+    _c.content?.connectors?.func,
+    _g.content?.connectors?.func,
+  );
   const d = _d.content.connectors.func;
   const dShow = m(c?.show, g?.show, d.show);
   const dStrokeColor = m(c?.strokeColor, g?.strokeColor, d.strokeColor);
@@ -1079,19 +1028,6 @@ export function getConnectorStyleFunc(
   };
 }
 
-//////////////////////////////////////////////////////////////////
-//  ________                                                    //
-// /        |                                                   //
-// $$$$$$$$/  ______    ______    ______    ______              //
-// $$ |__    /      \  /      \  /      \  /      \             //
-// $$    |  /$$$$$$  |/$$$$$$  |/$$$$$$  |/$$$$$$  |            //
-// $$$$$/   $$ |  $$/ $$ |  $$/ $$ |  $$ |$$ |  $$/             //
-// $$ |___  $$ |      $$ |      $$ \__$$ |$$ |                  //
-// $$    |  $$ |      $$ |      $$    $$/ $$ |                  //
-// $$$$$$$/  $$/       $$/        $$$$$$/  $$/                   //
-//                                                              //
-//////////////////////////////////////////////////////////////////
-
 export type GenericErrorBarStyleOptions = {
   show?: boolean;
   strokeColor?: ColorKeyOrString;
@@ -1119,12 +1055,10 @@ export function getErrorBarStyleFunc(
   _g: CustomFigureStyleOptions,
   _d: DefaultFigureStyle,
 ): ChartValueInfoFunc<ErrorBarStyle> {
-  const cRaw = _c.content?.errorBars?.func;
-  const c = typeof cRaw === "object" ? cRaw : undefined;
-  const cf = typeof cRaw === "function" ? cRaw : undefined;
-  const gRaw = _g.content?.errorBars?.func;
-  const g = typeof gRaw === "object" ? gRaw : undefined;
-  const gf = typeof gRaw === "function" ? gRaw : undefined;
+  const { c, cf, g, gf } = splitStyleLevels(
+    _c.content?.errorBars?.func,
+    _g.content?.errorBars?.func,
+  );
   const d = _d.content.errorBars.func;
   const dShow = m(c?.show, g?.show, d.show);
   const dStrokeColor = m(c?.strokeColor, g?.strokeColor, d.strokeColor);
@@ -1150,19 +1084,6 @@ export function getErrorBarStyleFunc(
   };
 }
 
-///////////////////////////////////////////////////////////////////////////////////
-//   ______                     ___   __       __                                //
-//  /      \                   /  _| /  |     /  |                               //
-// /$$$$$$  |  ______   ____  | |_  $$/   ____$$ |  ______   _______    _______  //
-// $$ |  $$/  /      \ /    \ |  _| /  | /    $$ | /      \ /       \  /       | //
-// $$ |      /$$$$$$  |$$$$$  | |  $$ |/$$$$$$$ |/$$$$$$  |$$$$$$$  |/$$$$$$$/   //
-// $$ |   __ $$ |  $$ |$$ | $$|  _| $$ |$$ |  $$ |$$    $$ |$$ |  $$ |$$      \  //
-// $$ \__/  |$$ \__$$ |$$ | $$ | |  $$ |$$ \__$$ |$$$$$$$$/ $$ |  $$ | $$$$$$  | //
-// $$    $$/ $$    $$/ $$ | $$ |_|  $$ |$$    $$ |$$       |$$ |  $$ |/     $$/  //
-//  $$$$$$/   $$$$$$/  $$/  $$$$/   $$/  $$$$$$$/  $$$$$$$/ $$/   $$/ $$$$$$$/   //
-//                                                                               //
-///////////////////////////////////////////////////////////////////////////////////
-
 export type GenericConfidenceBandStyleOptions = {
   show?: boolean;
   fillColor?: ColorKeyOrString | typeof SERIES_COLOR_SENTINEL;
@@ -1187,18 +1108,12 @@ export function getConfidenceBandStyleFunc(
   _g: CustomFigureStyleOptions,
   _d: DefaultFigureStyle,
 ): ChartSeriesInfoFunc<ConfidenceBandStyle> {
-  const cRaw = _c.content?.confidenceBands?.func;
-  const c = typeof cRaw === "object" ? cRaw : undefined;
-  const cf = typeof cRaw === "function" ? cRaw : undefined;
-  const gRaw = _g.content?.confidenceBands?.func;
-  const g = typeof gRaw === "object" ? gRaw : undefined;
-  const gf = typeof gRaw === "function" ? gRaw : undefined;
-  const d = _d.content.confidenceBands.func;
-  const seriesColorFunc = m(
-    _c.seriesColorFunc,
-    _g.seriesColorFunc,
-    _d.seriesColorFunc,
+  const { c, cf, g, gf } = splitStyleLevels(
+    _c.content?.confidenceBands?.func,
+    _g.content?.confidenceBands?.func,
   );
+  const d = _d.content.confidenceBands.func;
+  const seriesColorFunc = resolveSeriesColorFunc(_c, _g, _d);
   const dShow = m(c?.show, g?.show, d.show);
   const dFillColor = m(c?.fillColor, g?.fillColor, d.fillColor);
   const dFillColorAdjustmentStrategy = m(
@@ -1222,21 +1137,6 @@ export function getConfidenceBandStyleFunc(
   };
 }
 
-///////////////////////////////////////////////////////////////////////////
-//  __       __                       _______                    __      //
-// /  \     /  |                     /       \                  /  |     //
-// $$  \   /$$ |  ______   ______   $$$$$$$  |  ______    ____ $$/      //
-// $$$  \ /$$$ | /      \ /      \  $$ |__$$ | /      \  /    \/  |     //
-// $$$$  /$$$$ | $$$$$$  /$$$$$$  | $$    $$< /$$$$$$  |/$$$$$$$ |      //
-// $$ $$ $$/$$ | /    $$ $$ |  $$ | $$$$$$$  |$$    $$ |$$ |  $$ |      //
-// $$ |$$$/ $$ |/$$$$$$$ $$ |__$$ | $$ |  $$ |$$$$$$$$/ $$ \__$$ |      //
-// $$ | $/  $$ |$$    $$ $$    $$/  $$ |  $$ |$$       |$$    $$ |      //
-// $$/      $$/  $$$$$$$/ $$$$$$$/  $$/   $$/  $$$$$$$/  $$$$$$$/       //
-//                        $$ |                                          //
-//                        $$ |                                          //
-//                        $$/                                           //
-///////////////////////////////////////////////////////////////////////////
-
 export type GenericMapRegionStyleOptions = {
   show?: boolean;
   fillColor?: ColorKeyOrString | typeof VALUES_COLOR_SENTINEL | "none";
@@ -1252,7 +1152,7 @@ export type GenericMapRegionStyle = {
   strokeColor: ColorKeyOrString | "none";
   strokeWidth: number;
   dataLabel: GenericDataLabelStyle;
-  centroidOffset?: { dx: number; dy: number };
+  centroidOffset: { dx: number; dy: number };
 };
 
 export type MapRegionStyle = {
@@ -1261,7 +1161,7 @@ export type MapRegionStyle = {
   strokeColor: ColorKeyOrString | "none";
   strokeWidth: number;
   dataLabel: DataLabelStyle;
-  centroidOffset?: { dx: number; dy: number };
+  centroidOffset: { dx: number; dy: number };
 };
 
 export function getMapRegionStyleFunc(
@@ -1270,21 +1170,12 @@ export function getMapRegionStyleFunc(
   _g: CustomFigureStyleOptions,
   _d: DefaultFigureStyle,
 ): MapRegionInfoFunc<MapRegionStyle> {
-  const cRaw = _c.content?.mapRegions?.func;
-  const c = typeof cRaw === "object" ? cRaw : undefined;
-  const cf = typeof cRaw === "function" ? cRaw : undefined;
-  const gRaw = _g.content?.mapRegions?.func;
-  const g = typeof gRaw === "object" ? gRaw : undefined;
-  const gf = typeof gRaw === "function" ? gRaw : undefined;
-  const d = _d.content.mapRegions.func;
-  const valuesColorFunc = m(
-    _c.valuesColorFunc,
-    _g.valuesColorFunc,
-    _d.valuesColorFunc,
+  const { c, cf, g, gf } = splitStyleLevels(
+    _c.content?.mapRegions?.func,
+    _g.content?.mapRegions?.func,
   );
-  const cc = _c.content?.dataLabel;
-  const gc = _g.content?.dataLabel;
-  const dc = _d.content.dataLabel;
+  const d = _d.content.mapRegions.func;
+  const valuesColorFunc = resolveValuesColorFunc(_c, _g, _d);
   const dShow = m(c?.show, g?.show, d.show);
   const dFillColor = m(c?.fillColor, g?.fillColor, d.fillColor);
   const dStrokeColor = m(c?.strokeColor, g?.strokeColor, d.strokeColor);
@@ -1296,12 +1187,12 @@ export function getMapRegionStyleFunc(
   );
   const dDataLabel = resolveDataLabelDefaults(
     _sf,
+    _c,
+    _g,
+    _d,
     c?.dataLabel,
-    cc,
     g?.dataLabel,
-    gc,
     d.dataLabel,
-    dc,
   );
 
   return (info: MapRegionInfo): MapRegionStyle => {
@@ -1310,19 +1201,17 @@ export function getMapRegionStyleFunc(
     const fillColor = oc?.fillColor ?? og?.fillColor ?? dFillColor;
     const strokeColor = oc?.strokeColor ?? og?.strokeColor ?? dStrokeColor;
     const oStrokeWidth = oc?.strokeWidth ?? og?.strokeWidth;
-    let dl = dDataLabel;
-    dl = applyDataLabelOverrides(dl, og?.dataLabel, _sf);
-    dl = applyDataLabelOverrides(dl, oc?.dataLabel, _sf);
-    const dlPair = pickColorPair([
+    const resolvedFillColor = fillColor === VALUES_COLOR_SENTINEL
+      ? valuesColorFunc(info.value, info.valueMin, info.valueMax, info) ??
+        "none"
+      : fillColor;
+    const dl = resolveDataLabelInstance(
+      dDataLabel,
       oc?.dataLabel,
       og?.dataLabel,
-      { color: dDataLabel.color, colorStrategy: dDataLabel.colorStrategy },
-    ]);
-    dl = { ...dl, color: dlPair.color, colorStrategy: dlPair.colorStrategy };
-    const resolvedFillColor = fillColor === VALUES_COLOR_SENTINEL
-      ? valuesColorFunc(info.value, info.valueMin, info.valueMax)
-      : fillColor;
-    dl = applyDataLabelColorStrategy(dl, resolvedFillColor);
+      _sf,
+      resolvedFillColor,
+    );
     return {
       show: oc?.show ?? og?.show ?? dShow,
       fillColor: resolvedFillColor,
@@ -1336,19 +1225,6 @@ export function getMapRegionStyleFunc(
     };
   };
 }
-
-////////////////////////////////////////////////
-//  _______    __                             //
-// /       \  /  |                            //
-// $$$$$$$  | $$/   ______                    //
-// $$ |__$$ | /  | /      \                   //
-// $$    $$/  $$ |/$$$$$$  |                  //
-// $$$$$$$/   $$ |$$    $$ |                  //
-// $$ |       $$ |$$$$$$$$/                   //
-// $$ |       $$ |$$       |                  //
-// $$/        $$/  $$$$$$$/                   //
-//                                            //
-////////////////////////////////////////////////
 
 export type GenericPieSliceStyleOptions = {
   show?: boolean;
@@ -1380,33 +1256,24 @@ export function getPieSliceStyleFunc(
   _g: CustomFigureStyleOptions,
   _d: DefaultFigureStyle,
 ): PieSliceInfoFunc<PieSliceStyle> {
-  const cRaw = _c.content?.slices?.func;
-  const c = typeof cRaw === "object" ? cRaw : undefined;
-  const cf = typeof cRaw === "function" ? cRaw : undefined;
-  const gRaw = _g.content?.slices?.func;
-  const g = typeof gRaw === "object" ? gRaw : undefined;
-  const gf = typeof gRaw === "function" ? gRaw : undefined;
-  const d = _d.content.slices.func;
-  const seriesColorFunc = m(
-    _c.seriesColorFunc,
-    _g.seriesColorFunc,
-    _d.seriesColorFunc,
+  const { c, cf, g, gf } = splitStyleLevels(
+    _c.content?.slices?.func,
+    _g.content?.slices?.func,
   );
-  const cc = _c.content?.dataLabel;
-  const gc = _g.content?.dataLabel;
-  const dc = _d.content.dataLabel;
+  const d = _d.content.slices.func;
+  const seriesColorFunc = resolveSeriesColorFunc(_c, _g, _d);
   const dShow = m(c?.show, g?.show, d.show);
   const dFillColor = m(c?.fillColor, g?.fillColor, d.fillColor);
   const dStrokeColor = m(c?.strokeColor, g?.strokeColor, d.strokeColor);
   const dStrokeWidth = ms(_sf, c?.strokeWidth, g?.strokeWidth, d.strokeWidth);
   const dDataLabel = resolveDataLabelDefaults(
     _sf,
+    _c,
+    _g,
+    _d,
     c?.dataLabel,
-    cc,
     g?.dataLabel,
-    gc,
     d.dataLabel,
-    dc,
   );
 
   return (info: PieSliceInfo): PieSliceStyle => {
@@ -1415,20 +1282,18 @@ export function getPieSliceStyleFunc(
     const fillColor = oc?.fillColor ?? og?.fillColor ?? dFillColor;
     const strokeColor = oc?.strokeColor ?? og?.strokeColor ?? dStrokeColor;
     const oStrokeWidth = oc?.strokeWidth ?? og?.strokeWidth;
-    let dl = applyDataLabelOverrides(dDataLabel, og?.dataLabel, _sf);
-    dl = applyDataLabelOverrides(dl, oc?.dataLabel, _sf);
-    const dlPair = pickColorPair([
-      oc?.dataLabel,
-      og?.dataLabel,
-      { color: dDataLabel.color, colorStrategy: dDataLabel.colorStrategy },
-    ]);
-    dl = { ...dl, color: dlPair.color, colorStrategy: dlPair.colorStrategy };
     const resolvedFillColor = fillColor === SERIES_COLOR_SENTINEL
       ? seriesColorFunc(info)
       : fillColor;
     // The slice is the label's host, so an inside label contrasts against the
-    // slice it sits on — the same call every other content builder makes.
-    dl = applyDataLabelColorStrategy(dl, resolvedFillColor);
+    // slice it sits on — the same cascade every other content builder runs.
+    const dl = resolveDataLabelInstance(
+      dDataLabel,
+      oc?.dataLabel,
+      og?.dataLabel,
+      _sf,
+      resolvedFillColor,
+    );
     return {
       show: oc?.show ?? og?.show ?? dShow,
       fillColor: resolvedFillColor,

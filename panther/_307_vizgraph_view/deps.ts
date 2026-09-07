@@ -5,24 +5,33 @@
 
 export { loadFontsWithTimeout } from "../_001_font/mod.ts";
 export type { FontInfo } from "../_001_font/mod.ts";
-export { layout, toSvgPath, tween } from "../_009_vizgraph/mod.ts";
+export {
+  DEFAULT_SPACING,
+  layout,
+  toSvgPath,
+  toSvgPathClosedRing,
+  tween,
+} from "../_009_vizgraph/mod.ts";
 export type {
   Geometry,
   GraphModel,
+  GroupGeom,
+  LaneGeom,
   LayoutOptions,
   NodeGeom,
   PathSpec,
 } from "../_009_vizgraph/mod.ts";
+export { FIT_PADDING_PX, PanZoomSvg } from "../_302_panzoom/mod.ts";
+export type { PanZoomApi } from "../_302_panzoom/mod.ts";
 export {
-  batch,
   createEffect,
   createMemo,
+  createSelector,
   createSignal,
-  createUniqueId,
   For,
-  on,
   onCleanup,
   onMount,
+  Show,
   untrack,
 } from "solid-js";
 export type { JSX } from "solid-js";

@@ -38,14 +38,14 @@ import { computeAttributedDiff, type DiffSegment } from "./version_diff";
 
 type PreviewMode = "edits" | "preview";
 
-// Read-only render of one report version — the same markdown funnel as the
+// Read-only render of one report version: the same markdown funnel as the
 // report View mode, but embed tokens resolve against the version's SNAPSHOT
 // figure/image registries, so the preview shows the document as it was then.
 export function ReportVersionPreview(p: {
   projectId: string;
   reportId: string;
   versionId: string;
-  /** The version immediately BEFORE this one — the session-edits view diffs
+  /** The version immediately BEFORE this one: the session-edits view diffs
    *  against it. undefined = this is the oldest stored version. */
   previousVersionId?: string;
   canRestore: boolean;
@@ -281,7 +281,7 @@ function HtmlVersionPreview(p: {
 
 // The diff this version's editing session produced, i.e. this version vs the
 // one immediately before it. The oldest version diffs against an empty
-// document — the session that created the report.
+// document: the session that created the report.
 function SessionEdits(p: {
   projectId: string;
   reportId: string;
@@ -290,7 +290,7 @@ function SessionEdits(p: {
   format: ReportFormat;
 }) {
   // The snapshot is wrapped in an object because StateHolderWrapper renders
-  // nothing for falsy ready-data — a bare "" (the oldest version's base)
+  // nothing for falsy ready-data: a bare "" (the oldest version's base)
   // would blank the whole pane. Figures/images ride along so the session view
   // can show visualization changes, not just body text.
   const previous = createQuery<{
@@ -341,7 +341,7 @@ function SessionEdits(p: {
         const imgChanges = diffRegistry(prev.images, p.version.images);
         const hasVizChanges = figChanges.length > 0 || imgChanges.length > 0;
         // Embed tokens of in-place-edited figures/images read as unchanged
-        // text — mark them so the body diff highlights WHERE the changed
+        // text: mark them so the body diff highlights WHERE the changed
         // visualization sits (session-level attribution; registries have no
         // per-editor ledger).
         const editedKeys = new Set(
@@ -358,7 +358,7 @@ function SessionEdits(p: {
         });
         const hasChanges = marked.some((s) => s.kind !== "same");
         // key -> the embed's alt text, so each change card carries the same
-        // name as its highlighted token in the body diff (current body first —
+        // name as its highlighted token in the body diff (current body first:
         // freshest alt; prev body covers removed embeds).
         const embedLabels = collectEmbedLabels([p.version.body, prev.body], p.format);
         return (
@@ -378,7 +378,7 @@ function SessionEdits(p: {
               </div>
             </Show>
             <Show when={!hasChanges && !hasVizChanges}>
-              <div class="text-neutral py-8 text-center text-sm">
+              <div class="text-base-content-muted py-8 text-center text-sm">
                 {t3({
                   en: "No text changes in this session.",
                   fr: "Aucune modification de texte dans cette session.",
@@ -450,7 +450,7 @@ type RegistryChange<T> = {
 };
 
 // Key-by-key comparison of a version's figure/image registry against its
-// predecessor's — canonicalJson kills key-order nondeterminism, mirroring the
+// predecessor's: canonicalJson kills key-order nondeterminism, mirroring the
 // version content hash.
 function diffRegistry<T>(
   prev: Record<string, T>,
@@ -491,7 +491,7 @@ function collectEmbedLabels(
 }
 
 // Split "same" segments around embed tokens whose figure/image was edited in
-// place, re-tagging the token as an "edited" span — the body diff then shows
+// place, re-tagging the token as an "edited" span: the body diff then shows
 // where the changed visualization sits. Tokens whose surrounding text also
 // changed are already highlighted by the text diff itself.
 function markEditedEmbeds(
@@ -531,11 +531,11 @@ function markEditedEmbeds(
 
 // One changed figure/image: a labeled card with the before/after snapshots
 // side by side (only the surviving side for adds/removals). Attribution stays
-// session-level — registries have no per-editor ledger.
+// session-level: registries have no per-editor ledger.
 function VizChangeRow(p: {
   kind: "added" | "removed" | "edited";
   what: "figure" | "image";
-  /** The embed's alt text (or bundle caption) — ties the card to its
+  /** The embed's alt text (or bundle caption): ties the card to its
    *  highlighted token in the body diff. */
   label?: string;
   old?: JSX.Element;

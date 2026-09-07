@@ -12,7 +12,7 @@ import type {
 } from "../../_105_markdown/mod.ts";
 import {
   deriveMarkdownCssVars,
-  MARKDOWN_BASE_STYLES,
+  markdownClasses,
 } from "../utils/markdown_tailwind.ts";
 
 export type MarkdownImageRenderer = (
@@ -45,7 +45,7 @@ export function MarkdownPresentationJsx(p: Props) {
   });
 
   return (
-    <div class={MARKDOWN_BASE_STYLES} style={allStyles()}>
+    <div class={markdownClasses(p.style)} style={allStyles()}>
       <ElementsRenderer
         elements={parsedDoc().items}
         images={p.images}
@@ -227,13 +227,6 @@ function DocElementRenderer(p: DocElementRendererProps) {
           </code>
         </pre>
       </Match>
-      <Match when={p.element.type === "math-block"}>
-        <div class="katex-display" data-line={p.element.line}>
-          <code>
-            {(p.element as ParsedMarkdownItem & { type: "math-block" }).latex}
-          </code>
-        </div>
-      </Match>
     </Switch>
   );
 }
@@ -294,6 +287,10 @@ type TableElementRendererProps = {
 };
 
 function TableElementRenderer(p: TableElementRendererProps) {
+  const cellStyle = (i: number) => {
+    const align = p.element.align?.[i];
+    return align ? { "text-align": align } : undefined;
+  };
   return (
     <table data-line={p.element.line}>
       <Show when={p.element.header && p.element.header.length > 0}>
@@ -302,8 +299,8 @@ function TableElementRenderer(p: TableElementRendererProps) {
             {(row) => (
               <tr>
                 <For each={row}>
-                  {(cell) => (
-                    <th>
+                  {(cell, i) => (
+                    <th style={cellStyle(i())}>
                       <InlineContentRenderer content={cell.flat()} />
                     </th>
                   )}
@@ -319,8 +316,8 @@ function TableElementRenderer(p: TableElementRendererProps) {
             {(row) => (
               <tr>
                 <For each={row}>
-                  {(cell) => (
-                    <td>
+                  {(cell, i) => (
+                    <td style={cellStyle(i())}>
                       <InlineContentRenderer content={cell.flat()} />
                     </td>
                   )}
@@ -365,7 +362,32 @@ function InlineContentRenderer(p: InlineContentRendererProps) {
               target="_blank"
               rel="noopener noreferrer"
             >
-              {(item as MarkdownInline & { type: "link" }).text}
+              <Switch
+                fallback={(item as MarkdownInline & { type: "link" }).text}
+              >
+                <Match
+                  when={(item as MarkdownInline & { type: "link" }).style ===
+                    "bold"}
+                >
+                  <strong>
+                    {(item as MarkdownInline & { type: "link" }).text}
+                  </strong>
+                </Match>
+                <Match
+                  when={(item as MarkdownInline & { type: "link" }).style ===
+                    "italic"}
+                >
+                  <em>{(item as MarkdownInline & { type: "link" }).text}</em>
+                </Match>
+                <Match
+                  when={(item as MarkdownInline & { type: "link" }).style ===
+                    "bold-italic"}
+                >
+                  <strong>
+                    <em>{(item as MarkdownInline & { type: "link" }).text}</em>
+                  </strong>
+                </Match>
+              </Switch>
             </a>
           </Match>
           <Match when={item.type === "break"}>
@@ -374,11 +396,6 @@ function InlineContentRenderer(p: InlineContentRendererProps) {
           <Match when={item.type === "code-inline"}>
             <code>
               {(item as MarkdownInline & { type: "code-inline" }).text}
-            </code>
-          </Match>
-          <Match when={item.type === "math-inline"}>
-            <code>
-              {(item as MarkdownInline & { type: "math-inline" }).latex}
             </code>
           </Match>
         </Switch>

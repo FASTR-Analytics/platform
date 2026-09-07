@@ -2,21 +2,32 @@ import {
   type ColorKeyOrString,
   type ContinuousScaleConfig,
   getAdjustedColor,
+  type Language,
+  type ThresholdBoundary,
 } from "@timroberton/panther";
-import { t3 } from "../translate/mod.ts";
+import type { ZodType } from "zod";
+import { pickLang } from "../translate/t-func.ts";
 import {
   _CF_LIGHTER_GREEN,
   _CF_LIGHTER_RED,
   _CF_LIGHTER_YELLOW,
 } from "../key_colors.ts";
-import { cfStorageSchema } from "./conditional_formatting_standalone.ts";
+import {
+  cfStorageSchema,
+  thresholdsRuleSchema as thresholdsRuleSchemaStandalone,
+} from "./conditional_formatting_standalone.ts";
 import type { FastrChartPalette } from "./report_fastr_themes.ts";
 
 export { cfStorageSchema };
 export type CfStorage = import("zod").infer<typeof cfStorageSchema>;
 
+// The standalone schema (vendored, panther-free) types a colour key as a bare
+// string; here it is retyped to the ThresholdsRule the app works with.
+export const thresholdsRuleSchema =
+  thresholdsRuleSchemaStandalone as unknown as ZodType<ThresholdsRule>;
+
 // ============================================================================
-// ConditionalFormatting — the reusable abstraction.
+// ConditionalFormatting: the reusable abstraction.
 // Panther-extractable. Callers work with this nested union; compile functions
 // switch on `.type` for type-safe branching.
 //
@@ -36,22 +47,40 @@ export type ConditionalFormattingScale = {
   noDataColor?: ColorKeyOrString;
 };
 
-export type ConditionalFormattingThresholds = {
-  type: "thresholds";
+export type ThresholdDirection = "higher-is-better" | "lower-is-better";
+
+export type ThresholdBucket = { color: ColorKeyOrString; label?: string };
+
+// A thresholds rule on its own: cutoffs in STORED units, ascending; one more
+// bucket than cutoffs; `label` is plain text, optional (an unlabelled bucket
+// prints the derived wording, bucketLabels). This is what a common indicator
+// carries (CommonIndicator.thresholds) and what the figure-level source wraps.
+//   direction: the semantic direction, which decides the ONE boundary rule
+//   (thresholdBucketIndex) and the label inclusivity:
+//     "higher-is-better" (default) → lowest bucket is "< X", highest is "≥ X".
+//     "lower-is-better" → lowest bucket is "≤ X", highest is "> X".
+//   Ignored for symmetric (diverging) cutoffs: those use "within" wording.
+export type ThresholdsRule = {
   cutoffs: number[];
-  buckets: Array<{ color: ColorKeyOrString }>;
-  // Semantic direction — drives label inclusivity:
-  //   "higher-is-better" (default) → lowest bucket is "< X", highest is "≥ X".
-  //   "lower-is-better" → lowest bucket is "≤ X", highest is "> X".
-  // Has no effect on symmetric (diverging) cutoffs — those use "within" wording.
-  direction?: "higher-is-better" | "lower-is-better";
+  buckets: ThresholdBucket[];
+  direction?: ThresholdDirection;
   noDataColor?: ColorKeyOrString;
 };
+
+export type ConditionalFormattingThresholds = {
+  type: "thresholds";
+} & ThresholdsRule;
+
+// "Each value's colour and legend come from its own indicator's rule": the
+// rule is a catalog fact (IndicatorMetadata.thresholds), resolved per value
+// through EffectiveIndicatorFacts.ruleForValue. Nothing else is stored.
+export type ConditionalFormattingIndicator = { type: "indicator" };
 
 export type ConditionalFormatting =
   | { type: "none" }
   | ConditionalFormattingScale
-  | ConditionalFormattingThresholds;
+  | ConditionalFormattingThresholds
+  | ConditionalFormattingIndicator;
 
 // ============================================================================
 // Bridge: flat storage ↔ union abstraction
@@ -61,6 +90,8 @@ export function selectCf(s: CfStorage): ConditionalFormatting {
   switch (s.cfMode) {
     case "none":
       return { type: "none" };
+    case "indicator":
+      return { type: "indicator" };
     case "scale":
       return {
         type: "scale",
@@ -76,11 +107,19 @@ export function selectCf(s: CfStorage): ConditionalFormatting {
       return {
         type: "thresholds",
         cutoffs: s.cfThresholdCutoffs,
-        buckets: s.cfThresholdBuckets.map((b) => ({ color: b.color as ColorKeyOrString })),
+        buckets: s.cfThresholdBuckets.map(storedBucketToBucket),
         direction: s.cfThresholdDirection,
         noDataColor: s.cfThresholdNoDataColor || undefined,
       };
   }
+}
+
+function storedBucketToBucket(
+  b: CfStorage["cfThresholdBuckets"][number],
+): ThresholdBucket {
+  return b.label === undefined
+    ? { color: b.color as ColorKeyOrString }
+    : { color: b.color as ColorKeyOrString, label: b.label };
 }
 
 function buildContinuousScaleConfig(s: CfStorage): ContinuousScaleConfig {
@@ -104,12 +143,15 @@ function buildContinuousScaleConfig(s: CfStorage): ContinuousScaleConfig {
 
 // Pure projection: nested union → flat storage record. Used by the adapter
 // (to produce a plain JS object) and by writeCf (to drive Solid store
-// writes). Always returns a complete CfStorage — callers can merge it into
+// writes). Always returns a complete CfStorage: callers can merge it into
 // their target.
 export function flattenCf(cf: ConditionalFormatting): CfStorage {
   const base: CfStorage = { ...CF_STORAGE_DEFAULTS };
   if (cf.type === "none") {
     return base;
+  }
+  if (cf.type === "indicator") {
+    return { ...base, cfMode: "indicator" };
   }
   if (cf.type === "scale") {
     const scaleState = parseContinuousScaleConfigForStorage(cf.scale);
@@ -136,7 +178,9 @@ export function flattenCf(cf: ConditionalFormatting): CfStorage {
     ...base,
     cfMode: "thresholds",
     cfThresholdCutoffs: cf.cutoffs,
-    cfThresholdBuckets: cf.buckets.map((b) => ({ color: b.color })),
+    cfThresholdBuckets: cf.buckets.map((b) =>
+      b.label === undefined ? { color: b.color } : { color: b.color, label: b.label }
+    ),
     cfThresholdDirection: cf.direction ?? "higher-is-better",
     cfThresholdNoDataColor:
       typeof cf.noDataColor === "string"
@@ -254,11 +298,64 @@ export function themeConditionalFormatting(
 }
 
 // ============================================================================
-// Bucket label derivation — labels aren't stored. The cutoffs drive the
-// wording. If cutoffs are symmetric around zero (e.g. [-10, 10] or
-// [-20, -10, 10, 20]) labels use diverging wording ("More than X below",
-// "Within X", "More than Y above"). Otherwise standard range wording
-// ("< X", "X–Y", "≥ X").
+// THE boundary rule: one for colour, label, legend, AI text and harness.
+//
+// The boundary belongs to the BETTER side. higher-is-better: a value BELOW a
+// cutoff (strict `<`) falls in the bucket under it, so an exact cutoff goes
+// up. lower-is-better: a value AT OR BELOW a cutoff (`<=`) falls in the bucket
+// under it, so an exact cutoff goes down. A rule whose cutoffs are symmetric
+// around zero (diverging) has no better side: direction is ignored and the
+// boundary is "up", which is what its "within" wording already says.
+// ============================================================================
+
+export function thresholdBoundary(rule: ThresholdsRule): ThresholdBoundary {
+  if (isSymmetricAroundZero(rule.cutoffs)) return "up";
+  return rule.direction === "lower-is-better" ? "down" : "up";
+}
+
+export function thresholdBucketIndex(
+  rule: ThresholdsRule,
+  value: number | undefined,
+): number | undefined {
+  if (value === undefined || Number.isNaN(value)) return undefined;
+  const inclusive = thresholdBoundary(rule) === "down";
+  for (let i = 0; i < rule.cutoffs.length; i++) {
+    if (inclusive ? value <= rule.cutoffs[i] : value < rule.cutoffs[i]) {
+      return i;
+    }
+  }
+  return rule.cutoffs.length;
+}
+
+// Legend order: best bucket first. higher-is-better (and diverging) lists the
+// highest bucket first; lower-is-better lists the lowest first.
+export function legendBucketOrder(rule: ThresholdsRule): number[] {
+  const indices = rule.buckets.map((_, i) => i);
+  return thresholdBoundary(rule) === "down" ? indices : indices.reverse();
+}
+
+// The label each bucket prints: authored text where the bucket has it, the
+// derived wording otherwise.
+export function bucketLabels(
+  rule: ThresholdsRule,
+  fmt: (v: number) => string,
+  language: Language,
+): string[] {
+  const derived = deriveBucketLabels(
+    rule.cutoffs,
+    fmt,
+    language,
+    rule.direction ?? "higher-is-better",
+  );
+  return rule.buckets.map((b, i) => b.label ?? derived[i]);
+}
+
+// ============================================================================
+// Bucket label derivation: the cutoffs drive the wording. If cutoffs are
+// symmetric around zero (e.g. [-10, 10] or [-20, -10, 10, 20]) labels use
+// diverging wording ("More than X below", "Within X", "More than Y above").
+// Otherwise standard range wording ("< X", "X–Y", "≥ X"), with the operators
+// honouring the boundary rule above.
 //
 // Reactive: editors + legend should call this with the current cutoffs at
 // display time; any cutoff edit re-derives the labels automatically.
@@ -267,17 +364,18 @@ export function themeConditionalFormatting(
 export function deriveBucketLabels(
   cutoffs: number[],
   fmt: (v: number) => string,
-  direction: "higher-is-better" | "lower-is-better" = "higher-is-better",
+  language: Language,
+  direction: ThresholdDirection,
 ): string[] {
   if (isSymmetricAroundZero(cutoffs)) {
-    return symmetricBucketLabels(cutoffs, fmt);
+    return symmetricBucketLabels(cutoffs, fmt, language);
   }
   return standardBucketLabels(cutoffs, fmt, direction);
 }
 
-function isSymmetricAroundZero(cutoffs: number[]): boolean {
+export function isSymmetricAroundZero(cutoffs: number[]): boolean {
   // Need at least one pair and an even count (so there's a middle bucket
-  // straddling zero — n buckets = n-1 cutoffs, odd n → even cutoffs).
+  // straddling zero: n buckets = n-1 cutoffs, odd n → even cutoffs).
   if (cutoffs.length < 2 || cutoffs.length % 2 !== 0) return false;
   const half = cutoffs.length / 2;
   for (let i = 0; i < half; i++) {
@@ -292,7 +390,7 @@ function isSymmetricAroundZero(cutoffs: number[]): boolean {
 function standardBucketLabels(
   cutoffs: number[],
   fmt: (v: number) => string,
-  direction: "higher-is-better" | "lower-is-better",
+  direction: ThresholdDirection,
 ): string[] {
   const n = cutoffs.length + 1;
   const out: string[] = [];
@@ -315,6 +413,7 @@ function standardBucketLabels(
 function symmetricBucketLabels(
   cutoffs: number[],
   fmt: (v: number) => string,
+  language: Language,
 ): string[] {
   const n = cutoffs.length + 1;
   const middleIdx = Math.floor(n / 2);
@@ -322,31 +421,31 @@ function symmetricBucketLabels(
   for (let i = 0; i < n; i++) {
     if (i === middleIdx) {
       const mag = fmt(cutoffs[middleIdx]); // smallest positive cutoff
-      out.push(t3({ en: `Within ${mag}`, fr: `À ${mag} près`, pt: `Dentro de ${mag}` }));
+      out.push(pickLang(language, { en: `Within ${mag}`, fr: `À ${mag} près`, pt: `Dentro de ${mag}` }));
     } else if (i < middleIdx) {
       if (i === 0) {
         const mag = fmt(-cutoffs[0]);
         out.push(
-          t3({ en: `More than ${mag} below`, fr: `Plus de ${mag} en dessous`, pt: `Mais de ${mag} abaixo` }),
+          pickLang(language, { en: `More than ${mag} below`, fr: `Plus de ${mag} en dessous`, pt: `Mais de ${mag} abaixo` }),
         );
       } else {
         const lo = fmt(-cutoffs[i]);
         const hi = fmt(-cutoffs[i - 1]);
         out.push(
-          t3({ en: `${lo} – ${hi} below`, fr: `${lo} – ${hi} en dessous`, pt: `${lo} – ${hi} abaixo` }),
+          pickLang(language, { en: `${lo} – ${hi} below`, fr: `${lo} – ${hi} en dessous`, pt: `${lo} – ${hi} abaixo` }),
         );
       }
     } else {
       if (i === n - 1) {
         const mag = fmt(cutoffs[cutoffs.length - 1]);
         out.push(
-          t3({ en: `More than ${mag} above`, fr: `Plus de ${mag} au-dessus`, pt: `Mais de ${mag} acima` }),
+          pickLang(language, { en: `More than ${mag} above`, fr: `Plus de ${mag} au-dessus`, pt: `Mais de ${mag} acima` }),
         );
       } else {
         const lo = fmt(cutoffs[i - 1]);
         const hi = fmt(cutoffs[i]);
         out.push(
-          t3({ en: `${lo} – ${hi} above`, fr: `${lo} – ${hi} au-dessus`, pt: `${lo} – ${hi} acima` }),
+          pickLang(language, { en: `${lo} – ${hi} above`, fr: `${lo} – ${hi} au-dessus`, pt: `${lo} – ${hi} acima` }),
         );
       }
     }

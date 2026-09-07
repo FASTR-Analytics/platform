@@ -10,6 +10,7 @@ import {
   type RectCoordsDims,
   type RenderContext,
 } from "../../deps.ts";
+import { SIZING_SAMPLE } from "../../dimension_helpers.ts";
 import type { ChartScaleAxisLimits } from "../../types.ts";
 import { getGoodAxisTickValues } from "../get_good_axis_tick_values.ts";
 import { resolveScaleAxisLimits } from "../resolve_scale_axis_limits.ts";
@@ -20,7 +21,11 @@ export function estimateMinXAxisHeightForScale(
   sx: MergedXScaleAxisStyle,
   sg: MergedGridStyle,
 ): number {
-  const sample = rc.mText("100%", sx.text.xScaleAxisTickLabels, Infinity);
+  const sample = rc.mText(
+    SIZING_SAMPLE.scaleTickPct,
+    sx.text.xScaleAxisTickLabels,
+    Infinity,
+  );
   return sample.dims.h() + sx.tickLabelGap + sx.tickHeight + sg.axisStrokeWidth;
 }
 
@@ -33,7 +38,11 @@ export function measureXScaleAxisHeightInfo(
   i_pane: number,
   laneCount: number,
 ): XScaleAxisHeightInfo {
-  const sampleH = rc.mText("100%", sx.text.xScaleAxisTickLabels, Infinity)
+  const sampleH = rc.mText(
+    SIZING_SAMPLE.scaleTickPct,
+    sx.text.xScaleAxisTickLabels,
+    Infinity,
+  )
     .dims.h();
   const heightIncludingXAxisStrokeWidth = sx.exactAxisY !== "none"
     ? sx.exactAxisY + sg.axisStrokeWidth
@@ -42,7 +51,11 @@ export function measureXScaleAxisHeightInfo(
   // Guess tick count from per-lane sub-chart width (mirror of Y-scale,
   // which divides by tierCount to size per-tier sub-chart height).
   const guessSubChartW = (contentRcd.w() * 0.8) / laneCount;
-  const sampleW = rc.mText("100,000", sx.text.xScaleAxisTickLabels, Infinity)
+  const sampleW = rc.mText(
+    SIZING_SAMPLE.scaleTickWide,
+    sx.text.xScaleAxisTickLabels,
+    Infinity,
+  )
     .dims.w();
   const guessMaxNTicks = sampleW > 0
     ? Math.max(2, Math.floor(guessSubChartW / 2 / sampleW))
@@ -100,7 +113,6 @@ export function measureXScaleAxisHeightInfo(
   return {
     heightIncludingXAxisStrokeWidth,
     xAxisTickValues,
-    guessMaxNTicks,
     tickLabelFormatter,
     maxTickLabelW,
   };

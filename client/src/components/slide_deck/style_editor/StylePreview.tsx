@@ -6,6 +6,7 @@ import {
   type PageInputs,
   getBaseText,
 } from "panther";
+import { trackStore } from "@solid-primitives/deep";
 import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import { buildStyleForSlide } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { FASTR_LOGO_VALUES } from "~/components/_shared/fastr_logos";
@@ -100,8 +101,8 @@ function getContentPageInputs(
 }
 
 // A single content slide at thumbnail scale, for side-by-side theme comparison.
-// Content (not cover) because it exercises the most color surfaces at once —
-// background, body text, header/footer rules — so themes are distinguishable at
+// Content (not cover) because it exercises the most color surfaces at once:
+// background, body text, header/footer rules, so themes are distinguishable at
 // card size. Logos are deliberately not loaded: they are theme-invariant, and
 // loading them once per card would be N redundant fetches for zero signal.
 // PageHolder always lays out in zoom mode, so a narrow container just scales the
@@ -136,10 +137,10 @@ export function StylePreview(p: StylePreviewProps) {
 
   createEffect(() => {
     const config = p.config;
-    // `config` is the bare store root (untracked) — read getBackgroundDetail's
+    // `config` is the bare store root (untracked): read getBackgroundDetail's
     // actual inputs explicitly so the preview re-runs when they change
     const _overlay = config.overlay;
-    const _colorTheme = JSON.stringify(config.colorTheme);
+    trackStore(config.colorTheme);
     const _treatment = config.coverAndSectionTreatment;
     const controller = new AbortController();
     onCleanup(() => controller.abort());

@@ -18,7 +18,7 @@ type BuildConfigResult = {
 };
 
 // Throws on every invalid input (the AI tool engine converts throws to
-// is_error results) — no {success:false} returns.
+// is_error results): no {success:false} returns.
 export function buildConfigFromPreset(
   input: AiFigureFromMetric,
   metrics: MetricWithStatus[],
@@ -55,7 +55,7 @@ export function buildConfigFromPreset(
     valueLabelReplacements: resultsValue.valueLabelReplacements,
   };
 
-  // Shared derivation with the server's virtual-default projection (5b) —
+  // Shared derivation with the server's virtual-default projection (5b):
   // the AI figure keeps only its own caption on top of the derived config.
   const config: PresentationObjectConfig = deriveConfigFromVizPreset(
     preset,
@@ -93,7 +93,7 @@ export function buildConfigFromPreset(
   if (input.startDate != null && input.endDate != null) {
     const targetPeriodOption = resultsValue.mostGranularTimePeriodColumnInResultsFile;
     if (!targetPeriodOption) {
-      // Same rule as update_viz_config — silently ignoring the requested
+      // Same rule as update_viz_config: silently ignoring the requested
       // range would show all data under a success message.
       throw new Error(
         `Cannot apply startDate/endDate: metric "${metricId}" has no time period column`,

@@ -1,5 +1,5 @@
 // AI layer: compose the shared resolver pieces with strict replicant validation
-// in the middle — the same authoring policy as the from_metric / update_figure
+// in the middle: the same authoring policy as the from_metric / update_figure
 // paths (resolveBundleFromMetricAndConfig). Non-AI consumers (dashboards, reports,
 // interactive editor) compose without the validation step and keep the lenient
 // auto-default.

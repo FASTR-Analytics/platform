@@ -20,7 +20,7 @@ type Props = ParentProps & {
 // Self-contained AI layer for the HFA Indicator Manager. Uses the same panther
 // chat engine as the project assistant, but with its own conversation register
 // (scope: "hfa-indicators"), its own instance-scoped SDK client, and its own
-// indicator-authoring tool set — fully isolated from project_ai.
+// indicator-authoring tool set: fully isolated from project_ai.
 export function HfaIndicatorAiWrapper(p: Props) {
   const sdkClient = createHfaIndicatorAiSDKClient();
   const system: Accessor<string> = () => buildHfaIndicatorSystemPrompt();

@@ -16,7 +16,7 @@ export async function getIcehCacheHash(mainDb: Sql): Promise<string> {
   // collide with the post-completion value. The marker needs BOTH facts:
   // latest id:status alone misses an out-of-order completion (a needs_review
   // hold releases the slot, so an older run can integrate-anyway AFTER a
-  // newer run completed — only its ended_at moves), and MAX(ended_at) alone
+  // newer run completed: only its ended_at moves), and MAX(ended_at) alone
   // misses launches. Two consumers depend on "hash changes iff import state
   // changed": the client display cache (instance.ts) and the results-run
   // capture staleness hash (datasets_in_project_iceh.ts).

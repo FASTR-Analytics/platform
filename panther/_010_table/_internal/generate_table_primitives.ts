@@ -14,7 +14,7 @@ import type { MeasuredTable } from "../types.ts";
 
 export function generateTablePrimitives(mTable: MeasuredTable): Primitive[] {
   const primitives: Primitive[] = [];
-  const s = mTable.mergedTableStyle;
+  const s = mTable.mergedStyle;
   const d = mTable.transformedData;
   const m = mTable.measuredInfo;
 

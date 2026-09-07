@@ -7,7 +7,7 @@ import {
   t3,
   type DatasetHmisWindowing,
   type DatasetHmisWindowingRaw,
-  type InstanceConfigFacilityColumns,
+  type StructureSchema,
   type TranslatableString,
 } from "lib";
 import {
@@ -34,10 +34,10 @@ import { PeriodSelector } from "./PeriodSelector";
 
 type Props<T extends DatasetHmisWindowing> = {
   hmisVersionId: number;
-  indicatorMappingsVersion: string;
+  baseIndicatorMappingsVersion: string;
   tempWindowing: T;
   setTempWindowing: SetStoreFunction<T>;
-  facilityColumns: InstanceConfigFacilityColumns;
+  structureSchema: StructureSchema;
   includeOrDelete: "include" | "delete";
 };
 
@@ -70,9 +70,9 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
       getDatasetHmisDisplayInfoFromCacheOrFetch(
         p.tempWindowing.indicatorType,
         p.hmisVersionId,
-        p.indicatorMappingsVersion,
-        p.facilityColumns,
-        instanceState.maxAdminArea,
+        p.baseIndicatorMappingsVersion,
+        p.structureSchema,
+        instanceState.structureLastUpdated,
         instanceState.hmisImportRunActive,
       ),
     t3({
@@ -387,7 +387,7 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
                 )}
               </Show>
             </Show>
-            <Show when={!isDelete && p.facilityColumns.includeOwnership}>
+            <Show when={!isDelete && p.structureSchema.includeOwnership}>
               <ToggledMultiSelect
                 heading={{
                   en: "Facility ownership categories",
@@ -412,7 +412,7 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
                 }
               />
             </Show>
-            <Show when={!isDelete && p.facilityColumns.includeTypes}>
+            <Show when={!isDelete && p.structureSchema.includeTypes}>
               <ToggledMultiSelect
                 heading={{
                   en: "Facility types",

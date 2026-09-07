@@ -1,7 +1,7 @@
 import { DuckDBInstance } from "@duckdb/node-api";
 import {
   getEnabledOptionalFacilityColumns,
-  type InstanceConfigFacilityColumns,
+  type StructureColumns,
 } from "lib";
 import {
   applyDuckDbSessionSettings,
@@ -9,12 +9,9 @@ import {
 } from "./duckdb_executor.ts";
 
 // Builds the normalized query-store parquet for one results object from its
-// raw R output CSV — the finalize step of PLAN_RESULTS_RUNS §2.3. This is now
-// the ONLY ingest: the legacy Postgres COPY it was written to mirror was
-// deleted with the dual-write (Phase 3 item 0), so the four normalizations
-// below are stated here once and nothing shadows them. The frozen `ro_*`
-// tables still carry rows written by that COPY, which is why the parity rig
-// can diff against them:
+// raw R output CSV: the finalize step of PLAN_RESULTS_RUNS §2.3. This is
+// the ONLY ingest, so the four normalizations below are stated here once and
+// nothing shadows them:
 //   1. 'NA' → NULL (unquoted only, matching Postgres COPY)
 //   2. schema = CSV headers ∩ declared columns, with DECLARED types (an
 //      undeclared header is a hard error; types are never inferred)
@@ -45,7 +42,7 @@ export function duckDbTypeForDeclaredColumnType(declared: string): string {
 // table/parquet carries them instead).
 export function computeResultsObjectColumnsToExclude(
   csvHeaders: string[],
-  facilityColumns: InstanceConfigFacilityColumns,
+  facilityColumns: StructureColumns | undefined,
 ): string[] {
   const hasPeriodId = csvHeaders.includes("period_id");
   const hasQuarterId = !hasPeriodId && csvHeaders.includes("quarter_id");
@@ -54,8 +51,9 @@ export function computeResultsObjectColumnsToExclude(
     : hasQuarterId
       ? ["month", "year"]
       : ["month", "quarter_id"];
-  const enabledFacilityColumns =
-    getEnabledOptionalFacilityColumns(facilityColumns);
+  const enabledFacilityColumns = facilityColumns
+    ? getEnabledOptionalFacilityColumns(facilityColumns)
+    : [];
   return [
     ...baseColumnsToExclude,
     ...enabledFacilityColumns.filter((col) => csvHeaders.includes(col)),

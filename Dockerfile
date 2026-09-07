@@ -26,16 +26,8 @@ COPY server server
 COPY client_dist client_dist
 COPY main.ts main.ts
 
-# Operator tooling (PLAN_RESULTS_RUNS item 7, review finding 18): the run
-# backfill and the parity rig ship in the image so both can run on a prod
-# host via docker exec:
-#   docker exec <server> deno run -A -c deno.json backfill_runs.ts
-#   docker exec <server> deno run -A -c deno.json validate_results_runs_parity.ts --run
-COPY backfill_runs.ts backfill_runs.ts
-COPY validate_results_runs_parity.ts validate_results_runs_parity.ts
-
 RUN mkdir /app/databases
-RUN mkdir /app/sandbox
+RUN mkdir /app/runs
 
 # ==============================================================================
 # Environment Variables
@@ -49,20 +41,14 @@ RUN mkdir /app/sandbox
 ENV IS_PRODUCTION=true
 
 # Directory paths inside container (constant across deployments)
-ENV SANDBOX_DIR_PATH=/app/sandbox
-ENV SANDBOX_DIR_PATH_POSTGRES_INTERNAL=/app/sandbox
+ENV RUNS_DIR_PATH=/app/runs
+ENV RUNS_DIR_PATH_POSTGRES_INTERNAL=/app/runs
 ENV ASSETS_DIR_PATH=/app/assets
-# NOTE: there is no RUNS_DIR_PATH. Results packages live in the sandbox
-# directory (server/exposed_env_vars.ts), which is already mounted into BOTH
-# this container and the Postgres container and already world-writable — so a
-# package needs no new volume, compose change, chmod or env var. Once Phase 4
-# removes the legacy per-project dirs, that directory and its vars get renamed
-# to runs.
 
 # Instance-specific variables passed at runtime (NOT hardcoded here):
 # - PORT
 # - CLIENT_ORIGIN
-# - SANDBOX_DIR_PATH_EXTERNAL (host machine path for volume mount; also what
+# - RUNS_DIR_PATH_EXTERNAL (host machine path for volume mount; also what
 #   the R container mount uses for a package's tmp dir)
 # - CLERK_PUBLISHABLE_KEY, CLERK_SECRET_KEY
 # - INSTANCE_NAME, INSTANCE_LANGUAGE, INSTANCE_CALENDAR, INSTANCE_FISCAL_YEAR

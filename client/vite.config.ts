@@ -25,8 +25,6 @@ export default defineConfig({
       ),
       sortablejs: path.resolve(__dirname, "node_modules/sortablejs"),
       "markdown-it": path.resolve(__dirname, "node_modules/markdown-it"),
-      "@vscode/markdown-it-katex": path.resolve(__dirname, "node_modules/@vscode/markdown-it-katex"),
-      katex: path.resolve(__dirname, "node_modules/katex"),
       docx: path.resolve(__dirname, "node_modules/docx"),
       jspdf: path.resolve(__dirname, "node_modules/jspdf"),
       papaparse: path.resolve(__dirname, "node_modules/papaparse"),

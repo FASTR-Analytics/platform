@@ -8,6 +8,8 @@ import {
   getAutofitHeightConstraints,
   resolveAutofitOptions,
 } from "./_internal/autofit.ts";
+import { measureInlineCodeAdvance } from "./_internal/formatted_text.ts";
+import { getInlineCodeStyle } from "./_internal/measure_items.ts";
 import { measureMarkdown } from "./_internal/measure_markdown.ts";
 import { renderMarkdown } from "./_internal/render_markdown.ts";
 import {
@@ -16,6 +18,7 @@ import {
   RectCoordsDims,
   type RenderContext,
   type Renderer,
+  type TextInfoUnkeyed,
 } from "./deps.ts";
 import { parseMarkdown } from "./parser.ts";
 import type {
@@ -43,14 +46,16 @@ function getMinComfortableWidth(
 
   function measureWordsInInline(
     inline: MarkdownInline,
-    textStyle: Parameters<typeof rc.mText>[1],
+    textStyle: TextInfoUnkeyed,
   ) {
     if (inline.type === "break") return;
-    if (inline.type === "code-inline" || inline.type === "math-inline") {
-      // For code/math, measure the whole thing as one "word"
-      const text = inline.type === "code-inline" ? inline.text : inline.latex;
-      const mText = rc.mText(text, textStyle, Infinity);
-      maxWordWidth = Math.max(maxWordWidth, mText.dims.w());
+    if (inline.type === "code-inline") {
+      const advance = measureInlineCodeAdvance(
+        rc,
+        inline.text,
+        getInlineCodeStyle(textStyle, style),
+      );
+      maxWordWidth = Math.max(maxWordWidth, advance);
       return;
     }
     const text = inline.text;
@@ -71,10 +76,6 @@ function getMinComfortableWidth(
         const mText = rc.mText(line, style.text.code, Infinity);
         maxWordWidth = Math.max(maxWordWidth, mText.dims.w());
       }
-      return;
-    }
-    if (item.type === "math-block") {
-      // For math blocks, just use a reasonable estimate
       return;
     }
     if (item.type === "image") return;

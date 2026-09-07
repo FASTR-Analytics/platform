@@ -4,7 +4,7 @@ import { configDStrict, disaggregationOption } from "./_metric_installed.ts";
 import { ROLLUP_PIN_IDS } from "../rollup.ts";
 
 // ============================================================================
-// PresentationObjectConfig — stored shape of a visualization config.
+// PresentationObjectConfig: stored shape of a visualization config.
 //
 // POs are user-created via the UI (no install flow), so this file has no
 // _github / _installed split.
@@ -14,7 +14,7 @@ import { ROLLUP_PIN_IDS } from "../rollup.ts";
 // module def in the data model.
 //
 // Reads and writes both use presentationObjectConfigSchema directly (strict
-// throw on invalid). No permissive fallback — drift is caught at deploy
+// throw on invalid). No permissive fallback: drift is caught at deploy
 // time by the startup sweep (see server/db_startup_validation.ts) and at
 // runtime by Zod, which returns a structured error via the route-level
 // tryCatchDatabaseAsync handler.
@@ -66,13 +66,14 @@ const presentationObjectConfigSStrict = z
     specialBarChartDataLabels: z.enum(["all-values", "threshold-values"]),
     specialCoverageChart: z.boolean(),
     specialDisruptionsChart: z.boolean(),
-    specialScorecardTable: z.boolean(),
+    // Optional for the same reason as showNValues below. Read as `?? false`.
+    specialDisruptionsChartV2: z.boolean().optional(),
     verticalTickLabels: z.boolean(),
     horizontal: z.boolean().optional(),
     allowVerticalColHeaders: z.boolean(),
     // Optional, read as `?? false`. Optional is load-bearing: stored slide,
     // report and dashboard figures embed a copy of this config, and nothing
-    // backfills a post-P2 bundle — a required field would fail the boot sweep's
+    // backfills a post-P2 bundle: a required field would fail the boot sweep's
     // parse. Historical figures carry no __n_* items either, so they render the
     // same as a backfilled false.
     showNValues: z.boolean().optional(),
@@ -96,7 +97,7 @@ const presentationObjectConfigSStrict = z
     pieGroupSmallSlices: z.number().optional(),
     // Draw each pie against a fixed 100% envelope instead of its own slice
     // sum, so the filled arc reads as the value itself. Percent metrics only
-    // — see isPieCompletionMode, which is the gate both the data config and
+    //: see isPieCompletionMode, which is the gate both the data config and
     // the style must consult.
     pieCompletionMode: z.boolean().optional(),
     // Print the value in the doughnut hole (panther `centerLabel`): the share
@@ -105,7 +106,7 @@ const presentationObjectConfigSStrict = z
     pieShowCenterValue: z.boolean().optional(),
     // Optional for the same reason as showNValues above. User-defined display
     // order for a dimension's values, applied to whichever axis the disOpt
-    // occupies at render (style layer — never in the fetch config or cache
+    // occupies at render (style layer: never in the fetch config or cache
     // hash). Ids absent from the list sink to the end alphabetically.
     // Roll-up sentinels are rejected: panther's byIdOrder rank map is
     // last-wins on duplicates, so a sentinel inside orderedIds would defeat

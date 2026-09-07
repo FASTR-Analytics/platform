@@ -1,8 +1,7 @@
-import { join } from "@std/path";
 import { Sql } from "postgres";
 import {
   _INSTANCE_ID,
-  _SANDBOX_DIR_PATH,
+  _RUNS_DIR_PATH,
   _SEND_GRID_API,
   _STATUS_API_KEY,
   _VOLUME_NAME,
@@ -16,7 +15,7 @@ interface DiskStats {
 async function getDiskStats(): Promise<DiskStats | null> {
   try {
     const cmd = new Deno.Command("df", {
-      args: ["--block-size=1", "--output=avail,size", _SANDBOX_DIR_PATH],
+      args: ["--block-size=1", "--output=avail,size", _RUNS_DIR_PATH],
       stdout: "piped",
       stderr: "piped",
     });
@@ -33,26 +32,6 @@ async function getDiskStats(): Promise<DiskStats | null> {
   } catch {
     console.warn("[disk_space] getDiskStats failed");
     return null;
-  }
-}
-
-async function getProjectSandboxBytes(projectId: string): Promise<number> {
-  try {
-    const projectDir = join(_SANDBOX_DIR_PATH, projectId);
-    const cmd = new Deno.Command("du", {
-      args: ["--block-size=1", "-s", projectDir],
-      stdout: "piped",
-      stderr: "piped",
-    });
-    const { code, stdout } = await cmd.output();
-    if (code !== 0) return 0;
-    const val = parseInt(
-      new TextDecoder().decode(stdout).trim().split(/\s+/)[0] ?? "0",
-      10,
-    );
-    return isNaN(val) ? 0 : val;
-  } catch {
-    return 0;
   }
 }
 
@@ -209,13 +188,10 @@ export async function checkSpaceForCopyProject(
     // fail open
   }
 
-  const sandboxBytes = await getProjectSandboxBytes(projectId);
-  const required = dbBytes + sandboxBytes;
-
-  if (required > 0 && required >= stats.availBytes) {
+  if (dbBytes > 0 && dbBytes >= stats.availBytes) {
     return {
       ok: false,
-      requiredGB: toGB(required),
+      requiredGB: toGB(dbBytes),
       availableGB: toGB(stats.availBytes),
       resizeTriggered,
     };

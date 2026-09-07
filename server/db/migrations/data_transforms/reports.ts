@@ -7,7 +7,7 @@
 // Schemas:  lib/types/reports.ts
 //           → reportConfigSchema, reportFiguresSchema, reportImagesSchema
 //
-// New table (v1) — no legacy shapes yet, so this is the startup validation
+// New table (v1): no legacy shapes yet, so this is the startup validation
 // sweep that lets runtime trust the database. Add transform blocks here (in
 // order, idempotent) when a stored shape changes.
 //
@@ -27,7 +27,7 @@ import {
 } from "./po_config.ts";
 import {
   type FigureBlockMut,
-  rawJsonNeedsIndicatorFormatFlip,
+  rawJsonNeedsFigureBlockTransform,
   transformFigureBlock,
   transformFigureBlockToBundle,
   getTransformLocalization,
@@ -53,7 +53,7 @@ export async function migrateReports(
     const figures = JSON.parse(row.figures);
     const images = JSON.parse(row.images);
 
-    // Already valid? Skip — unless legacy keys (which safeParse silently
+    // Already valid? Skip: unless legacy keys (which safeParse silently
     // strips) still need the embedded-config rename. figureInputs drift is
     // covered by reportFiguresSchema: figureBlockSchema validates figureInputs
     // against panther's zFigureInputs (lib/types figureInputsSchema).
@@ -62,7 +62,7 @@ export async function migrateReports(
       reportFiguresSchema.safeParse(figures).success &&
       reportImagesSchema.safeParse(images).success &&
       !rawJsonNeedsForcedTransform(row.figures) &&
-      !rawJsonNeedsIndicatorFormatFlip(row.figures)
+      !rawJsonNeedsFigureBlockTransform(row.figures)
     ) {
       continue;
     }
@@ -72,7 +72,7 @@ export async function migrateReports(
       images: JSON.stringify(images),
     };
 
-    // Block 1: Figure-block transforms shared with slides/dashboards — embedded
+    // Block 1: Figure-block transforms shared with slides/dashboards: embedded
     // PO config, source.type rename, figureInputs normalization. Repairs a
     // report figure whose embedded config drifted under a po_config change.
     // (figureInputs drift is caught by the skip gate above via
@@ -109,7 +109,7 @@ export async function migrateReports(
     }
 
     // Throws if the row is still invalid after every transform (including
-    // figureInputs drift the upgrader does not fix) — the runner then refuses
+    // figureInputs drift the upgrader does not fix): the runner then refuses
     // to start the server. The warn above names the offending figure block.
     const validated = {
       config: JSON.stringify(reportConfigSchema.parse(config)),

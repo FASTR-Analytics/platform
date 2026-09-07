@@ -3,14 +3,14 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-// The nearest-point outside placer (plan N2/N3/N4): the pure peer of the flank
+// The nearest-point outside placer: the pure peer of the flank
 // placer in generate_label_primitives.ts. Given label boxes, their anchors and
 // a track, it returns where each box goes — nothing here knows about pies,
 // maps, primitives or canvases.
 //
-// Each label goes to the point on the track nearest its own anchor (N2), is
+// Each label goes to the point on the track nearest its own anchor, is
 // anchored by the point where the ray exits its box rather than by its nearest
-// corner (N3), and moves along the track only when a neighbour forces it (N4).
+// corner, and moves along the track only when a neighbour forces it.
 
 import type { LabelTrack, TrackComponent } from "./track.ts";
 import type { Point } from "./distance_field.ts";
@@ -38,9 +38,9 @@ export type NearestPlacedBox = {
   position: Point;
   align: { h: "left" | "center" | "right"; v: "middle" };
   // The padded box's point nearest the silhouette. This is the CLEARANCE
-  // measure — how close the label came to the shape — and what N5 tests to
-  // decide whether a leader is earned. It is NOT where a leader should end:
-  // see `center`.
+  // measure (how close the label came to the shape) and what the leader test
+  // reads to decide whether a leader is earned. It is NOT where a leader
+  // should end: see `center`.
   touch: Point;
   // Centre of the padded box. A leader aims here and the renderer clamps it to
   // where it first meets the box, so the join is where the straight run from
@@ -86,7 +86,7 @@ export type NearestPlacementOptions = {
 
 export type NearestPlacementResult =
   | { kind: "ok"; boxes: NearestPlacedBox[] }
-  // The track cannot hold these labels; the caller falls back to flank (N10).
+  // The track cannot hold these labels; the caller falls back to flank.
   | { kind: "infeasible" };
 
 type Box = { cx: number; cy: number; hw: number; hh: number };
@@ -109,7 +109,7 @@ const RELAX_PASSES = 2;
 // footprints, and the whole relaxation re-runs from the seated positions. This
 // terminates either way: it converges on a layout with room, or the added arc
 // carries the exact feasibility test past the track length and the cell falls
-// back to flank (N10) — the honest answer for a track that cannot hold its
+// back to flank, the honest answer for a track that cannot hold its
 // labels.
 //
 // A layout with no overlaps — every pie, and any map whose track is smooth
@@ -144,7 +144,7 @@ function paddedSize(input: NearestLabelInput) {
 }
 
 // The distance from a track point to the box centre at which the ray along the
-// normal first meets the box boundary exactly at the track point (plan N3).
+// normal first meets the box boundary exactly at the track point.
 // At a cardinal direction this is half the box's width or height, so the label
 // touches by the middle of an edge — which is what puts a label flat above a
 // pie instead of floating out on a corner.
@@ -251,11 +251,12 @@ function boxClearance(
 }
 
 // Place the padded box on the ray leaving the track point, as close in as the
-// two N3 constraints allow. Undefined when no distance along the ray clears the
-// floor WITHIN the cap below — which happens whenever another part of the
-// silhouette lies outward of this track point, a second island being the
-// ordinary case. Emitting the box anyway would draw the label on top of that
-// other island; the remedy is to slide along the track instead (see seatBox).
+// clearance and exit-point constraints allow. Undefined when no distance along
+// the ray clears the floor WITHIN the cap below, which happens whenever
+// another part of the silhouette lies outward of this track point, a second
+// island being the ordinary case. Emitting the box anyway would draw the label
+// on top of that other island; the remedy is to slide along the track instead
+// (see seatBox).
 function placeBoxAt(
   track: LabelTrack,
   p: { x: number; y: number; nx: number; ny: number },
@@ -327,7 +328,7 @@ type ComponentLayout = {
 };
 
 // The nearest point on the track at which THIS label's box can actually be
-// placed (plan N2, as widened at the step-4 gate).
+// placed.
 //
 // "The nearest point on the track" is a total rule only on a convex silhouette,
 // where every track point has open space outward. On a real coastline it is
@@ -410,7 +411,7 @@ function rayHitsBox(
 }
 
 // How much of the track this box shadows — the arc-length interval whose
-// outward rays meet it (plan N4's footprint). Measured rather than projected:
+// outward rays meet it. Measured rather than projected:
 // the tangential projection under-spaces wide labels on a curved track, which
 // turns "no overlaps" from a property into a hope.
 //
@@ -503,9 +504,9 @@ export function placeNearestBoxes(
   if (inputs.length === 0) return { kind: "ok", boxes: [] };
   if (track.components.length === 0) return { kind: "infeasible" };
 
-  // N2: every label's natural position is the point on the track nearest its
+  // Every label's natural position is the point on the track nearest its
   // own anchor. Which component that lands on is what keeps an island's labels
-  // beside the island (N11).
+  // beside the island.
   const natural = inputs.map((input) => {
     const hit = track.nearestTo(input.anchor);
     if (!hit) return undefined;
@@ -643,7 +644,7 @@ export function placeNearestBoxes(
     // far end to the box boundary, which can only remove a crossing, never add
     // one. So counting on the untrimmed run is the conservative reading, and it
     // is the one the whole sweep is judged on. Every map leader is drawn — the
-    // anchor is deep inside the silhouette, so N5's earned-distance test always
+    // anchor is deep inside the silhouette, so the earned-distance test always
     // passes — and the sweep is map-only, so there are no undrawn leaders here
     // to chase.
     const leadersCross = (

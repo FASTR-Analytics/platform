@@ -14,14 +14,19 @@ import {
   setProjectCentralReportingStatus,
   setProjectLockStatus,
   updateProject,
+  updateProjectAdminArea2,
   updateProjectUserPermissions,
 } from "../../db/mod.ts";
 import { requireProjectPermission } from "../../project_auth.ts";
 import {
+  notifyProjectAdminArea2Changed,
   notifyProjectConfigUpdated,
   notifyProjectUsersUpdated,
 } from "../../task_management/notify_project_v2.ts";
-import { notifyInstanceProjectsLastUpdated } from "../../task_management/notify_instance_updated.ts";
+import {
+  notifyInstanceProjectsLastUpdated,
+  notifyInstanceRunsCatalogUpdated,
+} from "../../task_management/notify_instance_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { GetLogsByProject } from "../../db/instance/user_logs.ts";
 import { log } from "../../middleware/logging.ts";
@@ -50,7 +55,12 @@ defineRoute(
           : `Not enough disk space to create a new project (${spaceCheck.availableGB} GB available). Please contact your administrator.`,
       });
     }
-    const res = await addProject(c.var.mainDb, c.var.globalUser, body.label);
+    const res = await addProject(
+      c.var.mainDb,
+      c.var.globalUser,
+      body.label,
+      body.adminArea2,
+    );
     if (res.success === false) {
       return c.json(res);
     }
@@ -155,7 +165,36 @@ defineRoute(
     );
     if (res.success) {
       notifyInstanceProjectsLastUpdated(new Date().toISOString());
-      notifyProjectConfigUpdated(params.project_id, res.data.label, res.data.isLocked, body.aiContext);
+      notifyProjectConfigUpdated(params.project_id, {
+        label: res.data.label,
+        isLocked: res.data.isLocked,
+        aiContext: body.aiContext,
+      });
+      // The runs catalogue embeds project labels in attachedProjects.
+      notifyInstanceRunsCatalogUpdated();
+    }
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesProject,
+  "updateProjectAdminArea2",
+  requireProjectPermission({
+    preventAccessToLockedProjects: true,
+    requireAdmin: true,
+  }),
+  log("updateProjectAdminArea2"),
+  async (c, { params, body }) => {
+    const res = await updateProjectAdminArea2(
+      c.var.mainDb,
+      params.project_id,
+      body.adminArea2,
+    );
+    if (res.success) {
+      notifyProjectAdminArea2Changed(params.project_id, body.adminArea2);
+      // The instance list badge refetches only off projects_last_updated.
+      notifyInstanceProjectsLastUpdated(new Date().toISOString());
     }
     return c.json(res);
   },
@@ -201,6 +240,9 @@ defineRoute(
     const res = await forceDeleteProject(c.var.mainDb, params.project_id);
     if (res.success) {
       notifyInstanceProjectsLastUpdated(new Date().toISOString());
+      // The projects.run_id row is gone: a run's attachedProjects (and its
+      // delete-blocking) just changed.
+      notifyInstanceRunsCatalogUpdated();
     }
     return c.json(res);
   },
@@ -220,7 +262,10 @@ defineRoute(
     if (res.success) {
       notifyInstanceProjectsLastUpdated(new Date().toISOString());
       // V2 notify
-      notifyProjectConfigUpdated(params.project_id, res.data.label, res.data.isLocked);
+      notifyProjectConfigUpdated(params.project_id, {
+        label: res.data.label,
+        isLocked: res.data.isLocked,
+      });
     }
     return c.json(res);
   },
@@ -242,7 +287,11 @@ defineRoute(
     );
     if (res.success) {
       notifyInstanceProjectsLastUpdated(new Date().toISOString());
-      notifyProjectConfigUpdated(params.project_id, res.data.label, res.data.isLocked, undefined, res.data.isCentralReporting);
+      notifyProjectConfigUpdated(params.project_id, {
+        label: res.data.label,
+        isLocked: res.data.isLocked,
+        isCentralReporting: res.data.isCentralReporting,
+      });
     }
     return c.json(res);
   },
@@ -275,8 +324,13 @@ defineRoute(
       copyProjectInBackground(params.project_id, res.data.newProjectId)
         .then(() => {
           notifyInstanceProjectsLastUpdated(new Date().toISOString());
+          // The copy cloned the source's run_id: the run's attachedProjects
+          // just gained a project.
+          notifyInstanceRunsCatalogUpdated();
         })
-        .catch(() => {});
+        .catch((e) => {
+          console.error("Post-copy notify failed:", e);
+        });
     }
     return c.json(res);
   },

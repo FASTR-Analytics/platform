@@ -116,7 +116,7 @@ export function bboxOfScreenRings(
 }
 
 // The pole of inaccessibility: the interior point furthest from the region's
-// own boundary (plan I2), with the room around it (plan I3).
+// own boundary, with the room around it.
 //
 // The area-weighted centroid is the wrong anchor for a label and wrong in a way
 // that shows: for a crescent, a ring, or a country whose mass is split across

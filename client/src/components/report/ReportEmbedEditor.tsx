@@ -12,7 +12,7 @@ import {
 } from "solid-js";
 import { FileUploadSelector } from "~/components/_file_upload_selector";
 
-// The currently-selected report embed (report-specific — no Dashboard naming).
+// The currently-selected report embed (report-specific: no Dashboard naming).
 export type SelectedReportEmbed =
   | { kind: "figure"; id: string; caption: string; figureBlock: FigureBlock }
   | { kind: "image"; id: string; caption: string; imageBlock: ImageBlock };

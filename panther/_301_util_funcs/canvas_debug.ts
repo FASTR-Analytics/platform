@@ -3,14 +3,14 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export interface CanvasInfo {
+export type CanvasInfo = {
   id: string;
   width: number;
   height: number;
   type: "2d" | "webgl" | "webgl2";
   component: string;
   createdAt: number;
-}
+};
 
 class CanvasDebugger {
   private canvases = new Map<string, CanvasInfo>();

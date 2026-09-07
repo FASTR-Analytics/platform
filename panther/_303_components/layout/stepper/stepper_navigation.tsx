@@ -6,13 +6,13 @@
 import { Button } from "../../form_inputs/mod.ts";
 import type { Stepper } from "./get_stepper.ts";
 
-interface StepperNavigationProps {
+type StepperNavigationProps = {
   stepper: Stepper;
   stepLabelFormatter?: (step: number) => string;
-}
+};
 
 export function StepperNavigation(p: StepperNavigationProps) {
-  const formatter = p.stepLabelFormatter ?? String;
+  const formatter = (step: number) => (p.stepLabelFormatter ?? String)(step);
 
   return (
     <div class="ui-gap-sm flex items-center">

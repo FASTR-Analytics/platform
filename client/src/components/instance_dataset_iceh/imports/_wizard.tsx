@@ -19,7 +19,7 @@ type StepKind = "upload" | "review";
 const STEPS: StepKind[] = ["upload", "review"];
 
 // The ICEH import wizard (PLAN_DHIS2_IMPORTER_CONSOLIDATION C7): a modal
-// with client-local state — the zip input is an ordinary instance asset
+// with client-local state: the zip input is an ordinary instance asset
 // (uploaded or picked), so nothing persists server-side before launch. Launch
 // inserts a run row; abandoning this wizard is a no-op by construction.
 export function IcehWizard(p: AlertComponentProps<object, IcehWizardResult>) {

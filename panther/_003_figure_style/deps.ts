@@ -10,9 +10,12 @@ export {
   msOrNone,
   normalizeTo01,
   toPct0,
+  typed,
 } from "../_000_utils/mod.ts";
 export type {
+  AssertNoMissingKeys,
   CalendarType,
+  MissingKeyPaths,
   TickLabelFormatterOption,
 } from "../_000_utils/mod.ts";
 export { Color, getAdjustedColor, getColor } from "../_001_color/mod.ts";

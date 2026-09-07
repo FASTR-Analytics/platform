@@ -13,7 +13,7 @@ import { getDisplayDisaggregationLabel } from "~/state/instance/_util_disaggrega
 // The §2.6 compatibility report, shown before a project repoints at another
 // results package. Module evolution is per-package, so a swap is the one
 // moment a project's stored visualization configs can meet a different
-// catalog — this makes that informed rather than discovered afterwards.
+// catalog: this makes that informed rather than discovered afterwards.
 //
 // It never blocks: a package with issues is still attachable (the affected
 // visualizations render their typed unavailable states, which are never
@@ -63,6 +63,19 @@ export function ResultsPackageCompatibilityModal(
       <StateHolderWrapper state={report.state()} noPad>
         {(keyedReport) => (
           <div class="ui-spy-sm">
+            <Show when={keyedReport.projectAdminArea2Coverage === "uncovered"}>
+              <div class="text-warning text-sm">
+                {`${t3({
+                  en: "This package has no data for",
+                  fr: "Ce paquet ne contient aucune donnée pour",
+                  pt: "Este pacote não contém dados para",
+                })} ${keyedReport.projectAdminArea2}. ${t3({
+                  en: "Area-level metrics will show no data; national-level metrics remain visible.",
+                  fr: "Les indicateurs au niveau des zones n'afficheront aucune donnée ; les indicateurs nationaux restent visibles.",
+                  pt: "Os indicadores ao nível das zonas não mostrarão dados; os indicadores nacionais permanecem visíveis.",
+                })}`}
+              </div>
+            </Show>
             <Show
               when={keyedReport.issues.length > 0}
               fallback={
@@ -103,7 +116,7 @@ function IssueRow(p: { issue: ResultsPackageCompatibilityIssue }) {
   return (
     <div class="ui-pad-sm rounded border text-sm">
       <div class="font-700 truncate">{p.issue.label}</div>
-      <div class="text-base-content-muted text-xs">
+      <div class="ui-text-caption">
         <Switch>
           <Match when={p.issue.kind === "metric_not_in_package"}>
             {t3({
@@ -141,7 +154,14 @@ function IssueRow(p: { issue: ResultsPackageCompatibilityIssue }) {
                 fr: "Ce paquet ne produit pas",
                 pt: "Este pacote não produz",
               })}: ${disOpts
-                .map((disOpt) => t3(getDisplayDisaggregationLabel(disOpt)))
+                .map((disOpt) =>
+                  t3(getDisplayDisaggregationLabel(
+                    disOpt,
+                    p.issue.kind === "dimensions_not_in_package"
+                      ? p.issue.datasetFamily
+                      : undefined,
+                  ))
+                )
                 .join(", ")}`}
           </Match>
         </Switch>

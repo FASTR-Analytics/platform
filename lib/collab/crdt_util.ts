@@ -1,5 +1,5 @@
 // =============================================================================
-// Shared CRDT utilities (Yjs) — used by both document bridges
+// Shared CRDT utilities (Yjs): used by both document bridges
 // =============================================================================
 //
 // Content-agnostic helpers shared by the CRDT bridges (slide_crdt.ts /
@@ -14,7 +14,7 @@ import type { AuthorRun } from "../types/versions.ts";
 // Shared by the server ledger (server/collab/authorship.ts), the version
 // writer, and the restore routes. Tombstones are runs with `deletedBy` set.
 
-/** Live characters only — tombstones are transparent to body positions. */
+/** Live characters only: tombstones are transparent to body positions. */
 export function liveAuthorRunLen(runs: AuthorRun[]): number {
   return runs.reduce((n, r) => (r.deletedBy !== undefined ? n : n + r.len), 0);
 }
@@ -75,18 +75,18 @@ function canonicalScalar(val: unknown): unknown {
 }
 
 /**
- * Whether `stored` — once it has been through the row's JSON round trip —
+ * Whether `stored`, once it has been through the row's JSON round trip,
  * still equals what the doc materializes to. This is the checkpoint's
  * `trusted` test, and it is NOT just an equality check: `canonicalJson` is
  * JSON-based, so `canonicalJson(x)` really describes `JSON.parse(JSON
  * .stringify(x))`, not `x`. A doc holding a value JSON cannot represent
  * therefore compared EQUAL to the `null` Postgres would store, stamping the
- * state trusted while the doc and the row disagreed — every editor open then
+ * state trusted while the doc and the row disagreed: every editor open then
  * adopts the doc and the document visibly flips (~1s after open; observed on a
  * viz 2026-07-24). So trust additionally requires that the DOC itself survives
  * the round trip, which the sentinel above makes visible.
  *
- * A caption containing the sentinel literal merely forces `false` — the safe
+ * A caption containing the sentinel literal merely forces `false`: the safe
  * direction: the state is stamped untrusted and the room re-seeds from content.
  */
 export function storedMatchesDoc(stored: unknown, doc: unknown): boolean {
@@ -97,7 +97,7 @@ export function storedMatchesDoc(stored: unknown, doc: unknown): boolean {
 /** Key-order-independent JSON, for content equality checks (materialized doc
  * output has different key order than stored configs, so plain JSON.stringify
  * comparisons produce false differences). Non-finite numbers are rendered
- * distinctly rather than collapsing to `null` — see canonicalScalar. */
+ * distinctly rather than collapsing to `null`: see canonicalScalar. */
 export function canonicalJson(v: unknown): string {
   return JSON.stringify(v, (_k, val) =>
     val && typeof val === "object" && !Array.isArray(val)
@@ -128,7 +128,7 @@ export function setScalar(m: Y.Map<unknown>, key: string, value: unknown): void 
 // editor's structural sharing) is a cheap reference check rather than a
 // re-serialization on every keystroke.
 //
-// INVARIANT: callers must pass structurally-shared opaque values — a changed
+// INVARIANT: callers must pass structurally-shared opaque values. A changed
 // value must be a NEW object. If an edit mutates the value in place (keeping the
 // same reference), the reference check below skips the write and the change is
 // silently dropped. In the editors this means using a path set
@@ -164,13 +164,13 @@ export function setOpaque(m: Y.Map<unknown>, key: string, value: unknown): void 
  * LWW set of an opaque JSON value, compared BY VALUE (canonicalJson) rather than
  * by reference. Unlike setOpaque there is no WeakMap fast path, so it is robust
  * against callers that mutate a value IN PLACE (keeping the same object
- * reference) — which is exactly what a nested Solid store path-set does
+ * reference): which is exactly what a nested Solid store path-set does
  * (`setStore("d", "filterBy", 0, "values", ...)` mutates the raw object).
  *
  * Use this for small opaque sub-values (a figure config's filter/style arrays,
  * a period filter) where the reference-fresh discipline of setOpaque cannot be
  * guaranteed. Do NOT use it for large blobs (figure bundles with embedded items/
- * GeoJSON) — the unconditional canonicalJson serialization would be too costly;
+ * GeoJSON): the unconditional canonicalJson serialization would be too costly;
  * setOpaque's reference cache exists for those. Deletes on undefined; no-op when
  * the stored value is already canonically equal.
  */
@@ -188,7 +188,7 @@ export function setOpaqueByValue(
   if (!m.has(key) || canonicalJson(m.get(key)) !== canonicalJson(value)) {
     // Store a structural CLONE, never the caller's reference: Yjs holds plain
     // objects by reference, so aliasing the caller's object would let a later
-    // in-place mutation of it silently change the stored value — making the
+    // in-place mutation of it silently change the stored value: making the
     // NEXT canonicalJson compare a false no-op that drops the edit. The clone
     // breaks that aliasing. Values here are small, so the clone is cheap.
     m.set(key, structuredClone(value));
@@ -199,7 +199,7 @@ export function setOpaqueByValue(
  *  (line-anchored diff), not one giant splice. Multiple hunks matter for
  *  attribution and co-editing: a full-body REST save routed through a live
  *  room used to rewrite everything between the first and last difference as
- *  one delete+insert — tombstoning untouched text as "deleted by" the caller,
+ *  one delete+insert: tombstoning untouched text as "deleted by" the caller,
  *  re-attributing it to them, and reverting co-editors' edits in the span.
  *  Regions the diff can't anchor still collapse to a single splice (the old
  *  behavior), so the result is always exactly `next`. */
@@ -236,7 +236,7 @@ export function syncText(yText: Y.Text, next: string): void {
 // Replacing [fromA, toA) of A with [fromB, toB) of B for every hunk turns A
 // into B. Hunks are line-aligned via unique-common-line anchors (patience
 // diff), then char-trimmed at the edges. Regions without anchors become one
-// hunk — never wrong, just coarser.
+// hunk: never wrong, just coarser.
 
 type TextHunk = { fromA: number; toA: number; fromB: number; toB: number };
 

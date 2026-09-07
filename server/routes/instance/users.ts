@@ -61,7 +61,7 @@ defineRoute(
   log("getCurrentUser"),
   async (c) => {
     const { email, firstName, lastName } = c.var.globalUser;
-    // Sync name from Clerk on first login only — syncUserName is a no-op once
+    // Sync name from Clerk on first login only: syncUserName is a no-op once
     // the name is set. `|| null`, not `?? null`: GlobalUser coerces absent
     // names to "" (the PAT branch always does), and writing "" would defeat
     // the first_name IS NULL guard forever.
@@ -416,7 +416,7 @@ type LocalRenameResult = {
 };
 
 /** The full single-instance rename: main-DB flip, then the in-memory collab
- *  sweep, then the project-DB attribution sweep — in that order, so any collab
+ *  sweep, then the project-DB attribution sweep: in that order, so any collab
  *  checkpoint that flushes mid-rename already writes the new email and the
  *  sweep only has historical rows to fix. Fires all the notifies. */
 async function renameUserEmailLocally(
@@ -578,7 +578,7 @@ async function discoverPeers(
 
 // Timeout is deliberately tight: the whole orchestrator request lives inside
 // nginx's default 60s proxy_read_timeout, so one hung peer must not eat the
-// budget — it becomes a failed row and the idempotent retry picks it up.
+// budget: it becomes a failed row and the idempotent retry picks it up.
 async function renameOnPeer(
   id: string,
   oldEmail: string,
@@ -658,7 +658,7 @@ defineRoute(
     // The load-bearing authorization: the caller's Clerk account must own BOTH
     // addresses, the new one verified. The session JWT alone can only vouch
     // for one of them, and without this check a caller could rename themselves
-    // to an address they don't control — or claim someone else's old account.
+    // to an address they don't control, or claim someone else's old account.
     // Dry runs are exempt: the wizard previews BEFORE the user adds the new
     // address in Clerk, and the preview only reads user lists that
     // /health_check already exposes publicly.
@@ -715,8 +715,8 @@ defineRoute(
       return c.json({ success: true, data: { instances, warnings } });
     }
 
-    // Execute: local instance first (in-process — no hairpin HTTP through
-    // nginx), then the affected peers with bounded concurrency — the whole
+    // Execute: local instance first (in-process: no hairpin HTTP through
+    // nginx), then the affected peers with bounded concurrency: the whole
     // request must finish inside nginx's default 60s proxy_read_timeout, so
     // peers cannot be visited one at a time. hasNew-only instances are
     // included so a retried run re-runs their idempotent attribution sweeps.
@@ -777,7 +777,7 @@ defineRoute(
         "Some instances were not renamed — running the rename again is safe and retries only what is missing",
       );
     }
-    // The central-reporting app keeps its own user accounts — this rename
+    // The central-reporting app keeps its own user accounts: this rename
     // never reaches them (central is not in servers.json and runs a separate
     // users table). Only relevant to the few users with central access.
     warnings.push(

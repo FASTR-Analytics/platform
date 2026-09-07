@@ -25,7 +25,7 @@ export async function getSlideWithUpdatedBlocks(
   }
 
   // Existing blocks by id, so an edit preserves fields the AI's input schema
-  // cannot express — e.g. a text block's user-set style. Without this, the
+  // cannot express, e.g. a text block's user-set style. Without this, the
   // whole-block replace below silently drops textSize/textBackground on every
   // text edit.
   const existingById = new Map<string, ContentBlock>();
@@ -77,7 +77,7 @@ export async function getSlideWithUpdatedBlocks(
   }
 
   // Walk layout tree and apply updates. Spread-and-override so node-level
-  // overrides (style, alignV, minH, maxH) survive — reconstructing from a fixed
+  // overrides (style, alignV, minH, maxH) survive: reconstructing from a fixed
   // field list would silently drop them.
   function updateLayoutNode(node: LayoutNode<ContentBlock>): LayoutNode<ContentBlock> {
     if (node.type === "item") {

@@ -20,8 +20,6 @@ import type {
   PieInputs,
   PointType,
   ScaleLegendConfig,
-  SimpleVizData,
-  SimpleVizInputs,
   TableInputs,
   TimeseriesInputs,
   VizGraphCustomNode,
@@ -199,16 +197,6 @@ const _zTimeseriesInputsConforms: Conforms<
   TimeseriesInputs
 > = true;
 
-export const zSimpleVizInputs = z.object({
-  ...figureInputsBaseFields,
-  figureType: z.literal("simpleviz"),
-  data: zAnyPresentObject<SimpleVizData>(),
-});
-const _zSimpleVizInputsConforms: Conforms<
-  z.infer<typeof zSimpleVizInputs>,
-  SimpleVizInputs
-> = true;
-
 // Function-pair leaf (cf. zLabelFormatter): accepted for in-memory inputs,
 // never survives JSON storage.
 const zVizGraphCustomNode = z.custom<VizGraphCustomNode>(
@@ -247,9 +235,9 @@ const _zPieInputsConforms: Conforms<z.infer<typeof zPieInputs>, PieInputs> =
   true;
 
 // The full FigureInputs union, discriminated on figureType: surrounds and data
-// validated, style opaque. The simpleviz/vizgraph/map `data` members are
-// deliberately unvalidated — simpleviz/map have no production drift history
-// (and map geoData is stripped before storage); vizgraph has no consumer
+// validated, style opaque. The vizgraph/map `data` members are deliberately
+// unvalidated — map has no production drift history (and map geoData is
+// stripped before storage); vizgraph has no consumer
 // storing blobs at all (checked wb-fastr/marker/panrunner, 2026-07-13). Deep
 // zVizGraphData is warranted only when a consumer persists vizgraph figures.
 export const zFigureInputs: z.ZodType<FigureInputs> = z.discriminatedUnion(
@@ -259,7 +247,6 @@ export const zFigureInputs: z.ZodType<FigureInputs> = z.discriminatedUnion(
     zChartOVInputs,
     zChartOHInputs,
     zTimeseriesInputs,
-    zSimpleVizInputs,
     zVizGraphInputs,
     zMapInputs,
     zPieInputs,

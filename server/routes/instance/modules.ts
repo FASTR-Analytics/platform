@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import {
+  parseInstalledModuleDefinition,
   type CompareProjectsData,
   type CompareProjectsModule,
 } from "lib";
@@ -28,15 +29,19 @@ defineRoute(
     const projectResults = await Promise.all(
       projects.map(async (project) => {
         const modules: CompareProjectsModule[] = [];
+        let packageLabel: string | null = null;
         if (project.run_id !== null) {
           try {
             const manifest = await getRunManifestCached(project.run_id);
+            packageLabel = manifest.label;
             for (const mod of manifest.modules) {
               const config = parseModuleConfigSelections(
                 mod.configSelections ?? "{}",
               );
               modules.push({
                 id: mod.id,
+                label: parseInstalledModuleDefinition(mod.moduleDefinition)
+                  .label,
                 lastRunAt: mod.lastRunAt ?? "",
                 lastRunGitRef: mod.lastRunGitRef ?? undefined,
                 parameters: config.parameterDefinitions.map((def) => ({
@@ -54,7 +59,7 @@ defineRoute(
             );
           }
         }
-        return { id: project.id, label: project.label, modules };
+        return { id: project.id, label: project.label, packageLabel, modules };
       }),
     );
 

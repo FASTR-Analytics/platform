@@ -8,7 +8,6 @@ import type {
   PageBreakRules,
 } from "./converter.ts";
 import type {
-  DocxMath,
   ImageMap,
   MarkdownInline,
   MergedMarkdownStyle,
@@ -25,7 +24,6 @@ import {
   ImageRun,
   PageOrientation,
   Paragraph,
-  parseEmailsInText,
   ShadingType,
   Table,
   TableCell,
@@ -34,7 +32,6 @@ import {
   TextRun,
   WidthType,
 } from "./deps.ts";
-import { latexToDocxMath } from "./latex_to_math.ts";
 import {
   createFooterFromWordConfig,
   createNumberingFromMerged,
@@ -175,8 +172,6 @@ function getElementMargins(
       return merged.margins.table;
     case "code-block":
       return merged.margins.code;
-    case "math-block":
-      return merged.margins.paragraph;
   }
 }
 
@@ -493,18 +488,6 @@ function buildParagraph(
       });
     }
 
-    case "math-block": {
-      const mathContent = element.latex;
-      const mathObj = latexToDocxMath(mathContent);
-      return new Paragraph({
-        children: [mathObj],
-        spacing: {
-          before: pixelsToTwips(spacingBefore),
-          after: pixelsToTwips(spacingAfter),
-        },
-      });
-    }
-
     case "paragraph":
     default:
       return new Paragraph({
@@ -582,41 +565,23 @@ function buildInlineContent(
   content: MarkdownInline[],
   merged: MergedMarkdownStyle,
   baseStyle?: BaseTextStyle,
-): (TextRun | ExternalHyperlink | DocxMath)[] {
-  const result: (TextRun | ExternalHyperlink | DocxMath)[] = [];
+): (TextRun | ExternalHyperlink)[] {
+  const result: (TextRun | ExternalHyperlink)[] = [];
   const linkColor = getLinkColorFromMerged(merged);
 
   for (const item of content) {
     switch (item.type) {
-      case "text": {
-        // Check for email addresses in plain text
-        const emailParts = parseEmailsInText(item.text);
-        for (const part of emailParts) {
-          if (part.type === "link") {
-            result.push(
-              new ExternalHyperlink({
-                children: [
-                  new TextRun({
-                    text: part.text,
-                    color: linkColor,
-                    underline: {},
-                    italics: baseStyle?.italics,
-                  }),
-                ],
-                link: part.url,
-              }),
-            );
-          } else if (part.type === "text") {
-            result.push(
-              new TextRun({
-                text: part.text,
-                italics: baseStyle?.italics,
-              }),
-            );
-          }
-        }
+      case "text":
+        // Emails need no special handling here: markdown-it autolinks
+        // `<a@b.com>` itself, so an email arrives as a `link` inline like any
+        // other and never reaches this branch as text.
+        result.push(
+          new TextRun({
+            text: item.text,
+            italics: baseStyle?.italics,
+          }),
+        );
         break;
-      }
 
       case "bold":
         result.push(
@@ -655,7 +620,10 @@ function buildInlineContent(
                 text: item.text,
                 color: linkColor,
                 underline: {},
-                italics: baseStyle?.italics,
+                bold: item.style === "bold" || item.style === "bold-italic",
+                italics: item.style === "italic" ||
+                  item.style === "bold-italic" ||
+                  baseStyle?.italics,
               }),
             ],
             link: item.url,
@@ -681,10 +649,6 @@ function buildInlineContent(
           }),
         );
         break;
-
-      case "math-inline":
-        result.push(latexToDocxMath(item.latex));
-        break;
     }
   }
 
@@ -703,8 +667,7 @@ function getInlineMaxLineCharCount(content: MarkdownInline[]): number {
     if (item.type === "break") {
       lines.push("");
     } else {
-      const text = item.type === "math-inline" ? item.latex : item.text;
-      lines[lines.length - 1] += text;
+      lines[lines.length - 1] += item.text;
     }
   }
   return Math.max(...lines.map((line) => line.length));
@@ -781,11 +744,12 @@ function buildWordTable(
   if (element.header && element.header.length > 0) {
     for (const headerRow of element.header) {
       const cells = headerRow.map(
-        (cellContent) =>
+        (cellContent, i) =>
           new TableCell({
             children: [
               new Paragraph({
                 children: buildInlineContent(cellContent, merged),
+                alignment: element.align?.[i],
                 spacing: {
                   before: 0,
                   after: 0,
@@ -807,11 +771,12 @@ function buildWordTable(
   if (element.rows && element.rows.length > 0) {
     for (const bodyRow of element.rows) {
       const cells = bodyRow.map(
-        (cellContent) =>
+        (cellContent, i) =>
           new TableCell({
             children: [
               new Paragraph({
                 children: buildInlineContent(cellContent, merged),
+                alignment: element.align?.[i],
                 spacing: {
                   before: 0,
                   after: 0,

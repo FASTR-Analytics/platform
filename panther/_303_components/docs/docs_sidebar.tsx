@@ -210,13 +210,7 @@ function NavItemComponent(p: {
             aria-label={p.isExpanded ? "Collapse" : "Expand"}
             aria-expanded={p.isExpanded}
           >
-            <Show
-              when={p.isExpanded}
-              fallback={<Icon iconName="chevronRight" />}
-              keyed
-            >
-              <Icon iconName="chevronDown" />
-            </Show>
+            <Icon iconName={p.isExpanded ? "chevronDown" : "chevronRight"} />
           </button>
         </Show>
       </button>

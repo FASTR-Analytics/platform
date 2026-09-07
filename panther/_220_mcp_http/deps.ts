@@ -12,7 +12,6 @@ export type {
   MCPCallOutcome,
   MCPElicitDecision,
   MCPServerCore,
-  MCPToolsContext,
 } from "../_112_ai_tool_core/mod.ts";
 export {
   createMcpHandler,

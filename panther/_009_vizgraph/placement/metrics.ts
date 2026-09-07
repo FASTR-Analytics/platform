@@ -17,6 +17,7 @@ export type PlacementMetrics = {
   verticalTravel: number;
   bendCount: number;
   whitespaceRatio: number;
+  edgeCrossings: number;
 };
 
 export function computePlacementMetrics(g: Geometry): PlacementMetrics {
@@ -50,5 +51,53 @@ export function computePlacementMetrics(g: Geometry): PlacementMetrics {
     verticalTravel,
     bendCount,
     whitespaceRatio: boundsArea === 0 ? 0 : 1 - nodeArea / boundsArea,
+    edgeCrossings: countEdgeCrossings(g),
   };
+}
+
+// Geometric crossings between drawn segments of DIFFERENT edges — the
+// between-column count that stage-3's combinatorial crossing number does not
+// see (it counts order inversions per gutter, before ports, tracks, and
+// channels have shaped anything). Strictly proper crossings only: shared
+// endpoints and collinear overlaps score 0, so the fans and bundles that meet
+// at a port are not counted as crossing each other.
+const CROSS_EPS = 1e-9;
+
+type Seg = { x1: number; y1: number; x2: number; y2: number; edge: string };
+
+function countEdgeCrossings(g: Geometry): number {
+  const segs: Seg[] = [];
+  for (const [id, e] of Object.entries(g.edges)) {
+    const pts = e.path.points;
+    for (let i = 1; i < pts.length; i++) {
+      segs.push({
+        x1: pts[i - 1].x,
+        y1: pts[i - 1].y,
+        x2: pts[i].x,
+        y2: pts[i].y,
+        edge: id,
+      });
+    }
+  }
+  let count = 0;
+  for (let i = 0; i < segs.length; i++) {
+    for (let j = i + 1; j < segs.length; j++) {
+      if (segs[i].edge !== segs[j].edge && properlyCross(segs[i], segs[j])) {
+        count++;
+      }
+    }
+  }
+  return count;
+}
+
+function properlyCross(a: Seg, b: Seg): boolean {
+  const d1 = side(a, b.x1, b.y1);
+  const d2 = side(a, b.x2, b.y2);
+  const d3 = side(b, a.x1, a.y1);
+  const d4 = side(b, a.x2, a.y2);
+  return d1 * d2 < -CROSS_EPS && d3 * d4 < -CROSS_EPS;
+}
+
+function side(s: Seg, px: number, py: number): number {
+  return (s.x2 - s.x1) * (py - s.y1) - (s.y2 - s.y1) * (px - s.x1);
 }

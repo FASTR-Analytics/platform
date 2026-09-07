@@ -11,7 +11,7 @@ import {
 // touched that element during the session:
 //   "field:<name>"  root text field   "block:<id>"  layout block
 //   "layout"        arrangement only  "props"       other slide settings
-// Pure module — harness-testable.
+// Pure module: harness-testable.
 
 export type SlideElementChange = {
   key: string;
@@ -66,7 +66,7 @@ function textOf(block: ContentBlock): string {
 /** Structural signature of a layout tree over the SURVIVING blocks: nesting,
  *  node identity/type, and CONTAINER geometry. Item content and item geometry
  *  are already compared per block ("block:<id>"), and added/removed blocks are
- *  already reported as such, so both stay out of this — it answers only "was
+ *  already reported as such, so both stay out of this: it answers only "was
  *  the arrangement changed", with no double-reporting. */
 function layoutShape(layout: unknown, sharedItemIds: Set<string>): string {
   const walk = (node: AnyNode | undefined): unknown => {
@@ -95,7 +95,7 @@ export function diffSlideElements(
 ): SlideElementChange[] {
   const changes: SlideElementChange[] = [];
   if (oldSlide.type !== newSlide.type) {
-    // A wholesale type swap — element-by-element comparison is meaningless.
+    // A wholesale type swap: element-by-element comparison is meaningless.
     return [{ key: "props", kind: "edited" }];
   }
 
@@ -162,7 +162,7 @@ export function diffSlideElements(
       }
     }
 
-    // Arrangement: the layout TREE, not just surviving-item document order —
+    // Arrangement: the layout TREE, not just surviving-item document order:
     // unwrapping a container, wrapping blocks into columns, or resizing a
     // container all change the arrangement while leaving item order intact, and
     // an order-only check reports NOTHING for them (the slide still badges

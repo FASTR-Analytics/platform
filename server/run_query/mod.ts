@@ -5,7 +5,6 @@ export {
   type ParquetView,
 } from "./duckdb_executor.ts";
 export { writeParquetFromCsv, type CsvColumn } from "./csv_to_parquet.ts";
-export { duckDbTypeForPgType } from "./pg_type_map.ts";
 export {
   computeResultsObjectColumnsToExclude,
   duckDbTypeForDeclaredColumnType,
@@ -19,10 +18,13 @@ export {
   VIRTUAL_DEFAULT_LAST_UPDATED,
 } from "./virtual_defaults.ts";
 export {
-  datasetsVersionFromManifest,
+  readRunItems,
+  readRunResultsValueInfo,
+  resultsValueInfoQueue,
+} from "./run_data_reads.ts";
+export {
   enrichMetricFromManifest,
   getDatasetFamilyFromRun,
-  getCommonIndicatorsFromManifestInputs,
   getHfaTaxonomyFromManifestInputs,
   getIcehIndicatorsFromManifestInputs,
   getIndicatorMetadataFromRun,
@@ -40,7 +42,9 @@ export {
   getResultsObjectItemsFromRun,
   getResultsValueInfoFromRun,
   getRunReadContext,
+  getRunReadContextForRun,
   getRunVersionInfo,
+  moduleHasRun,
   resolveMetricFromRun,
   type RunReadContext,
 } from "./run_read.ts";

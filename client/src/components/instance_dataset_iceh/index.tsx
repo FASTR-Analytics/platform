@@ -21,7 +21,7 @@ export function InstanceDatasetIceh(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
 
   const [detail, setDetail] = createSignal<IcehDataDetail | undefined>(
-    undefined
+    undefined,
   );
 
   async function fetchDetail() {
@@ -42,11 +42,8 @@ export function InstanceDatasetIceh(p: Props) {
     void fetchDetail();
   });
 
-  async function openImports(autoOpenWizard: boolean) {
-    await openEditor({
-      element: DatasetIcehImports,
-      props: { autoOpenWizard },
-    });
+  async function openImports() {
+    await openEditor({ element: DatasetIcehImports, props: {} });
     await fetchDetail();
   }
 
@@ -66,58 +63,51 @@ export function InstanceDatasetIceh(p: Props) {
           <HeadingBar
             tonal
             onBack={p.backToInstance}
-            heading={t3({ en: "DATA SOURCE", fr: "SOURCE DE DONNÉES", pt: "FONTE DE DADOS" })}
-            subheading={t3({ en: "ICEH Equity Data", fr: "Données d'équité ICEH", pt: "Dados de equidade ICEH" })}
+            heading={t3({
+              en: "DATA SOURCE",
+              fr: "SOURCE DE DONNÉES",
+              pt: "FONTE DE DADOS",
+            })}
+            subheading={t3({
+              en: "ICEH Equity Data",
+              fr: "Données d'équité ICEH",
+              pt: "Dados de equidade ICEH",
+            })}
           />
         }
       >
         <FrameRight
           panelChildren={
             <Show when={instanceState.currentUserIsGlobalAdmin}>
-              <div class="ui-pad ui-spy flex h-full w-64 flex-col overflow-auto">
-                <div class="font-700 text-lg">
-                  {t3({ en: "Imports", fr: "Importations", pt: "Importações" })}
-                </div>
+              <div class="ui-pad ui-spy flex h-full max-w-64 flex-col overflow-auto">
                 <div class="">
                   <Button
-                    onClick={() => openImports(true)}
-                    iconName="upload"
+                    onClick={openImports}
+                    iconName="databaseImport"
                     fullWidth
                   >
                     {t3({
-                      en: "Start new import",
-                      fr: "Nouvelle importation",
-                      pt: "Iniciar nova importação",
+                      en: "Imports",
+                      fr: "Importations",
+                      pt: "Importações",
                     })}
                   </Button>
                 </div>
-                <div class="">
-                  <Button
-                    onClick={() => openImports(false)}
-                    iconName="databaseImport"
-                    outline
-                    fullWidth
-                  >
-                    {t3({ en: "View imports", fr: "Voir les importations", pt: "Ver as importações" })}
-                  </Button>
-                </div>
                 <Show when={detail() && detail()!.dataRows > 0}>
-                  <div class="ui-spy text-sm">
-                    <div class="">
-                      <Button
-                        onClick={deleteData}
-                        intent="danger"
-                        iconName="trash"
-                        outline
-                        fullWidth
-                      >
-                        {t3({
-                          en: "Delete data",
-                          fr: "Supprimer les données",
-                          pt: "Eliminar os dados",
-                        })}
-                      </Button>
-                    </div>
+                  <div class="">
+                    <Button
+                      onClick={deleteData}
+                      intent="danger"
+                      iconName="trash"
+                      outline
+                      fullWidth
+                    >
+                      {t3({
+                        en: "Delete data",
+                        fr: "Supprimer les données",
+                        pt: "Eliminar os dados",
+                      })}
+                    </Button>
                   </div>
                 </Show>
               </div>

@@ -39,7 +39,8 @@
 
   --font-*: initial;
   --font-sans: Inter, system-ui, -apple-system, sans-serif;
-  --font-mono: Roboto Mono;
+  --font-mono: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, Consolas,
+    monospace;
 
   --font-weight-*: initial;
   --font-weight-400: 400;
@@ -119,7 +120,10 @@
      thing that looks like a callout must not carry an onClick — put a
      real control inside or beside it). Never use it as a border color.
      The one exception is the pinned surface of a *selected* selection
-     control — see DOC_UI_COLOR_AND_STATE.md. */
+     control — see DOC_UI_COLOR_AND_STATE.md. The tinted hover of an
+     outline control (ui-hoverable-outline-on-*) is not -subtle: same
+     ingredients, composed per surface at a smaller amount, present only
+     under the cursor. */
   --color-primary-hover: color-mix(in oklab, var(--color-primary), black 8%);
   --color-primary-active: color-mix(in oklab, var(--color-primary), black 14%);
   --color-primary-subtle: color-mix(in oklab, var(--color-primary) 10%, var(--color-base-100));
@@ -371,15 +375,19 @@
   --md-numbered-indent: 1.714em;
   --md-numbered-gap: 0.5em;
 
-  /* code — app mono font is a deliberate improvement over the model's
-     "inherit base family" default */
+  /* code — the app look uses the app mono stack; the document model
+     defaults to Roboto Mono too (falling back to this stack). In the app
+     look inline code is face-only; a pre block is an in-flow container
+     (base-100 fill + bare border + rounded, px/py padding inside it — the
+     markdown-table treatment). The inline chip belongs to the document
+     look, whose bg arrives as an inline var (deriveMarkdownCssVars) — no
+     app default exists for it. */
   --md-code-family: var(--font-mono);
   --md-code-weight: var(--font-weight-400);
   --md-code-style: normal;
   --md-code-size: 1em;
   --md-code-lh: 1.2;
   --md-code-color: currentColor;
-  --md-code-bg: var(--color-base-200);
   --md-code-px: 1em;
   --md-code-py: 1em;
   --md-code-my: 1.5em;
@@ -409,13 +417,14 @@
   --md-table-mt: 1em;
   --md-table-mb: 1.5em;
   --md-table-border-width: 1px;
-  --md-table-border-color: var(--color-base-300);
+  --md-table-border-color: var(--color-border);
   --md-table-cell-px: 0.5em;
   --md-table-cell-py: 0.25em;
-  --md-table-header-bg: var(--color-base-200);
+  /* Headers read by weight (font-700), not by tone — same surface as body
+     cells. The document look overrides this with the model's header shading. */
+  --md-table-header-bg: var(--color-base-100);
   --md-hr-my: 1.5em;
   --md-hr-color: var(--color-base-300);
-  --md-math-align: center;
 }
 
 /* =============================================================
@@ -685,8 +694,10 @@
      where a selected arm pins its own surface, scope the family class
      to the non-selected classList arm instead. Outline-style
      interactives get their appearance from the stateless
-     ui-outline-{intent} skins below and their states from the family
-     class named by their onBackground token. ---- */
+     ui-outline-{intent} skins below and their states from the
+     ui-hoverable-outline-on-{token} family named by their onBackground
+     token (rest = that surface, hover/press = a currentColor tint over
+     it). ---- */
   .ui-hoverable-base-100,
   .ui-hoverable-base-200,
   .ui-hoverable-base-300,
@@ -737,14 +748,78 @@
     background-color: color-mix(in oklab, var(--color-base-content), var(--color-base-100) 14%);
   }
 
-  /* =============================================================
-     Internal utilities — used by panther components only. Not part
-     of the public API.
-     ============================================================= */
+  /* ---- Outline hoverable family — public. The state pattern for an
+     outline control: rest is the declared surface token (opaque — safe
+     over busy content), hover/press are a tint of the control's own
+     colour over that surface. The tint is currentColor because an
+     outline skin IS a currentColor object (text-{intent} +
+     border-[currentColor]); nothing is handed between classes. Same nine
+     members as ui-hoverable-{token}. Amounts are in-class constants like
+     ui-hoverable-base-content — composed, not pinnable. This is not the
+     -subtle wash: same ingredients, composed per surface at a smaller
+     amount, present only under the cursor. ---- */
+  .ui-hoverable-outline-on-base-100,
+  .ui-hoverable-outline-on-base-200,
+  .ui-hoverable-outline-on-base-300,
+  .ui-hoverable-outline-on-base-content,
+  .ui-hoverable-outline-on-primary,
+  .ui-hoverable-outline-on-neutral,
+  .ui-hoverable-outline-on-success,
+  .ui-hoverable-outline-on-warning,
+  .ui-hoverable-outline-on-danger {
+    @apply cursor-pointer select-none;
+    background-color: var(--ui-outline-surface);
+    transition: background-color var(--ui-dur-fast) var(--ui-ease);
+  }
+  .ui-hoverable-outline-on-base-100 {
+    --ui-outline-surface: var(--color-base-100);
+  }
+  .ui-hoverable-outline-on-base-200 {
+    --ui-outline-surface: var(--color-base-200);
+  }
+  .ui-hoverable-outline-on-base-300 {
+    --ui-outline-surface: var(--color-base-300);
+  }
+  .ui-hoverable-outline-on-base-content {
+    --ui-outline-surface: var(--color-base-content);
+  }
+  .ui-hoverable-outline-on-primary {
+    --ui-outline-surface: var(--color-primary);
+  }
+  .ui-hoverable-outline-on-neutral {
+    --ui-outline-surface: var(--color-neutral);
+  }
+  .ui-hoverable-outline-on-success {
+    --ui-outline-surface: var(--color-success);
+  }
+  .ui-hoverable-outline-on-warning {
+    --ui-outline-surface: var(--color-warning);
+  }
+  .ui-hoverable-outline-on-danger {
+    --ui-outline-surface: var(--color-danger);
+  }
 
-  /* Disabled State */
-  .ui-disabled {
-    @apply pointer-events-none opacity-40;
+  .ui-hoverable-outline-on-base-100:hover,
+  .ui-hoverable-outline-on-base-200:hover,
+  .ui-hoverable-outline-on-base-300:hover,
+  .ui-hoverable-outline-on-base-content:hover,
+  .ui-hoverable-outline-on-primary:hover,
+  .ui-hoverable-outline-on-neutral:hover,
+  .ui-hoverable-outline-on-success:hover,
+  .ui-hoverable-outline-on-warning:hover,
+  .ui-hoverable-outline-on-danger:hover {
+    background-color: color-mix(in oklab, currentColor 8%, var(--ui-outline-surface));
+  }
+  .ui-hoverable-outline-on-base-100:active,
+  .ui-hoverable-outline-on-base-200:active,
+  .ui-hoverable-outline-on-base-300:active,
+  .ui-hoverable-outline-on-base-content:active,
+  .ui-hoverable-outline-on-primary:active,
+  .ui-hoverable-outline-on-neutral:active,
+  .ui-hoverable-outline-on-success:active,
+  .ui-hoverable-outline-on-warning:active,
+  .ui-hoverable-outline-on-danger:active {
+    background-color: color-mix(in oklab, currentColor 14%, var(--ui-outline-surface));
   }
 
   /* Focus States — one focus signal, everywhere: 2px outline in
@@ -754,10 +829,6 @@
      surfaces). Outlines track border-radius in modern browsers. */
   .ui-focusable {
     @apply outline-none focus:outline-none focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2;
-  }
-
-  .ui-never-focusable {
-    @apply outline-none ring-0 ring-offset-0 focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0;
   }
 
   /* ============================================= */
@@ -799,10 +870,12 @@
   }
 
   /* Outline skins — intent-colored text on a currentColor border. No bg
-     here: an outline Button's rest surface comes from its onBackground
-     family class (the declared backdrop token, painted opaque — which is
-     also what makes it safe over busy content); stateless consumers
-     (Select, Input) have no bg of their own anyway. */
+     here: an outline Button's rest surface comes from its
+     ui-hoverable-outline-on-{onBackground} family class (the declared
+     backdrop token, painted opaque — which is also what makes it safe
+     over busy content), and that family's hover/press tint is
+     currentColor — i.e. the text colour this skin sets. Stateless
+     consumers (Select, Input) have no bg of their own anyway. */
   .ui-outline-primary,
   .ui-outline-neutral,
   .ui-outline-success,
@@ -840,6 +913,20 @@
   }
   .ui-outline-base-300 {
     @apply text-base-300;
+  }
+
+  /* =============================================================
+     Internal utilities — used by panther components only. Not part
+     of the public API.
+     ============================================================= */
+
+  /* Disabled State */
+  .ui-disabled {
+    @apply pointer-events-none opacity-40;
+  }
+
+  .ui-never-focusable {
+    @apply outline-none ring-0 ring-offset-0 focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0;
   }
 
   /* ============================================= */
@@ -1407,7 +1494,37 @@
     fill: none;
   }
   .ui-vizgraph-node {
-    @apply absolute;
+    @apply block h-full w-full;
+  }
+  .ui-vizgraph-node-probe {
+    @apply block w-fit;
+  }
+  .ui-vizgraph-group-outline {
+    @apply stroke-base-300;
+    fill: none;
+  }
+  .ui-vizgraph-group-header {
+    @apply block h-full w-full;
+  }
+  .ui-vizgraph-group-probe {
+    @apply block w-fit;
+  }
+  .ui-vizgraph-group-header-default {
+    @apply text-base-content-muted block truncate px-2 text-xs leading-5;
+  }
+  .ui-vizgraph-lane {
+    @apply stroke-base-300;
+    fill: none;
+    rx: 6px;
+  }
+  .ui-vizgraph-lane-header {
+    @apply block h-full w-full;
+  }
+  .ui-vizgraph-lane-probe {
+    @apply block w-fit;
+  }
+  .ui-vizgraph-lane-header-default {
+    @apply text-base-content-muted block truncate px-2 text-xs leading-5;
   }
   .ui-vizgraph-node-selected {
     outline: 2px solid var(--color-primary);

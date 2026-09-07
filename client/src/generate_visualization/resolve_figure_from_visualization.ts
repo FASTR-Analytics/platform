@@ -1,20 +1,20 @@
 import type { FigureBlock, FigureBundle, IndicatorMetadata, ItemsHolderPresentationObject, PeriodBounds, PresentationObjectConfig, PresentationObjectDetail, ResultsValue } from "lib";
 import { getReplicateByProp } from "lib";
 import { getAdminAreaLevelFromMapConfig } from "./get_admin_area_level_from_config";
-import { getGeoJsonSync } from "~/state/instance/t2_geojson";
+import { geoJsonFamilyFor, getGeoJsonSync } from "~/state/instance/t2_geojson";
 import { getSnapshotInstanceLocalization } from "~/state/instance/t1_store";
 import {
   getPODetailFromCacheorFetch,
   getPresentationObjectItemsFromCacheOrFetch,
 } from "~/state/project/t2_presentation_objects";
 
-// Plain input type — no AI imports needed.
+// Plain input type: no AI imports needed.
 // `type` is optional for callers that carry the discriminant from the AI input shape.
 export type VisualizationInput = { visualizationId: string; replicant?: string; type?: string };
 
 // Step 1 of resolving a figure from a saved visualization: fetch the PO and build
 // the config to resolve from (clone the stored config + apply the replicant
-// override). Shared by the render path and the AI authoring path — the AI path
+// override). Shared by the render path and the AI authoring path: the AI path
 // runs assertReplicantValid on this config BEFORE step 2.
 export async function getConfigForVisualization(
   projectId: string,
@@ -37,7 +37,7 @@ export async function getConfigForVisualization(
   return { poDetail: poDetailRes.data, config };
 }
 
-// Step 2: resolve a self-contained FigureBundle from a PO detail + config — fetch
+// Step 2: resolve a self-contained FigureBundle from a PO detail + config: fetch
 // items (the items fetch auto-defaults an unset replicant so a figure always
 // renders), capture geo, assemble. No replicant validation here; authoring paths
 // run assertReplicantValid on the config before calling this.
@@ -62,13 +62,16 @@ export async function resolveFigureBundleFromVizConfig(
   const effectiveConfig = itemsRes.data.config;
   const { resultsValue } = poDetail;
   const mapLevel = getAdminAreaLevelFromMapConfig(effectiveConfig);
+  const geoFamily = geoJsonFamilyFor(resultsValue.datasetFamily);
 
   // Capture geo as data for storage (public dashboards need it; slides re-derive
   // at render time but carrying it in the bundle is harmless and consistent).
   let geo: FigureBundle["geo"];
   if (mapLevel) {
-    const geoJson = getGeoJsonSync(mapLevel);
-    geo = geoJson ? { kind: "data", data: geoJson } : { kind: "level", level: mapLevel };
+    const geoJson = getGeoJsonSync(geoFamily, mapLevel);
+    geo = geoJson
+      ? { kind: "data", data: geoJson }
+      : { kind: "level", level: mapLevel, family: geoFamily };
   }
 
   return {
@@ -85,15 +88,12 @@ export async function resolveFigureBundleFromVizConfig(
     localization: getSnapshotInstanceLocalization(),
     metricId: resultsValue.id,
     snapshotAt: new Date().toISOString(),
-    provenance: {
-      moduleLastRun: ih.moduleLastRun,
-      datasetsVersion: ih.datasetsVersion,
-    },
+    provenance: { runId: ih.runId },
   };
 }
 
 // Render / interactive path: build the config from the viz, then resolve. Lenient
-// by composition — an unset replicant auto-defaults so a figure always shows. The
+// by composition: an unset replicant auto-defaults so a figure always shows. The
 // AI authoring path instead composes getConfigForVisualization → assertReplicantValid
 // → resolveFigureBundleFromVizConfig.
 export async function resolveFigureBundleFromVisualization(
@@ -107,7 +107,10 @@ export async function resolveFigureBundleFromVisualization(
 // P2: non-fetch bundle assembly for callers that already hold fetched PO data
 // (slide_editor, dashboard_editor). Avoids re-fetching when data is in hand.
 export type FetchedPOData = {
-  resultsValue: Pick<ResultsValue, "id" | "formatAs" | "valueProps" | "valueLabelReplacements">;
+  resultsValue: Pick<
+    ResultsValue,
+    "id" | "formatAs" | "valueProps" | "valueLabelReplacements" | "datasetFamily"
+  >;
   ih: ItemsHolderPresentationObject & { status: "ok"; items: Record<string, string>[]; indicatorMetadata: IndicatorMetadata[]; dateRange: PeriodBounds | undefined };
   effectiveConfig: PresentationObjectConfig;
 };
@@ -115,7 +118,8 @@ export type FetchedPOData = {
 export function makeFigureBundleFromFetchedData(data: FetchedPOData): FigureBundle {
   const { resultsValue, ih, effectiveConfig } = data;
   const mapLevel = getAdminAreaLevelFromMapConfig(effectiveConfig);
-  const geoJson = mapLevel ? getGeoJsonSync(mapLevel) : undefined;
+  const geoFamily = geoJsonFamilyFor(resultsValue.datasetFamily);
+  const geoJson = mapLevel ? getGeoJsonSync(geoFamily, mapLevel) : undefined;
   return {
     config: effectiveConfig,
     items: ih.items,
@@ -126,11 +130,15 @@ export function makeFigureBundleFromFetchedData(data: FetchedPOData): FigureBund
     },
     indicatorMetadata: ih.indicatorMetadata,
     dateRange: ih.dateRange,
-    geo: mapLevel ? (geoJson ? { kind: "data" as const, data: geoJson } : { kind: "level" as const, level: mapLevel }) : undefined,
+    geo: mapLevel
+      ? (geoJson
+        ? { kind: "data" as const, data: geoJson }
+        : { kind: "level" as const, level: mapLevel, family: geoFamily })
+      : undefined,
     localization: getSnapshotInstanceLocalization(),
     metricId: resultsValue.id,
     snapshotAt: new Date().toISOString(),
-    provenance: { moduleLastRun: ih.moduleLastRun, datasetsVersion: ih.datasetsVersion },
+    provenance: { runId: ih.runId },
   };
 }
 

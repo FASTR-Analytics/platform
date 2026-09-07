@@ -139,7 +139,7 @@ export function MetricDetailsModal(
                 <div class="flex items-start gap-2 rounded border p-2">
                   <div class="flex-1">
                     <div class="font-700 text-sm">
-                      {t3(getDisplayDisaggregationLabel(disOpt.value))}
+                      {t3(getDisplayDisaggregationLabel(disOpt.value, p.metric.datasetFamily))}
                     </div>
                     <div class="font-mono ui-text-caption">
                       {disOpt.value}

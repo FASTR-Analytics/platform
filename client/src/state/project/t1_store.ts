@@ -3,6 +3,7 @@ import {
   type ProjectSseMessage,
   type LastUpdateTableName,
   _PROJECT_USER_PERMISSIONS_DEFAULT_NO_ACCESS,
+  projectScopeToken,
 } from "lib";
 import { createStore, reconcile, unwrap } from "solid-js/store";
 import { forceCollabReconnect } from "./collab";
@@ -16,7 +17,10 @@ const EMPTY_PROJECT_STATE: ProjectState = {
   thisUserRole: "viewer",
   isLocked: false,
   isCentralReporting: false,
+  adminArea2: null,
   attachedRunId: null,
+  attachedRun: null,
+  followPinned: false,
   projectDatasets: [],
   projectModules: [],
   metrics: [],
@@ -45,7 +49,6 @@ const EMPTY_PROJECT_STATE: ProjectState = {
     dashboards: {},
     dashboard_items: {},
     datasets: {},
-    modules: {},
     presentation_objects: {},
     slide_decks: {},
     slides: {},
@@ -66,7 +69,7 @@ export function applyProjectSseMessage(msg: ProjectSseMessage): void {
     case "project_config_updated":
       setProjectState("label", msg.data.label);
       // The collab socket's server-side auth folds the lock in per connection
-      // (every edit permission is forced off while locked) — reconnect so a
+      // (every edit permission is forced off while locked): reconnect so a
       // live lock/unlock actually reaches open editors.
       if (projectState.isLocked !== msg.data.isLocked) {
         setProjectState("isLocked", msg.data.isLocked);
@@ -78,6 +81,15 @@ export function applyProjectSseMessage(msg: ProjectSseMessage): void {
       if (msg.data.isCentralReporting !== undefined) {
         setProjectState("isCentralReporting", msg.data.isCentralReporting);
       }
+      if (msg.data.followPinned !== undefined) {
+        setProjectState("followPinned", msg.data.followPinned);
+      }
+      break;
+
+    // Scope identity change: flips runVersionKey's scope segment, so every
+    // run-derived T2 entry re-keys (same mechanism as run_attached).
+    case "admin_area_2_changed":
+      setProjectState("adminArea2", msg.data.adminArea2);
       break;
 
     // A generated run was published and the project repointed: the run key
@@ -85,6 +97,7 @@ export function applyProjectSseMessage(msg: ProjectSseMessage): void {
     // run-derived catalog the new run carries.
     case "run_attached":
       setProjectState("attachedRunId", msg.data.attachedRunId);
+      setProjectState("attachedRun", reconcile(msg.data.attachedRun));
       setProjectState("projectModules", reconcile(msg.data.projectModules));
       setProjectState("metrics", reconcile(msg.data.metrics));
       setProjectState("projectDatasets", reconcile(msg.data.projectDatasets));
@@ -181,23 +194,24 @@ export function getSnapshotProjectState(): ProjectState {
 // version (PLAN_RESULTS_RUNS §2.5); "no_run_attached" is the typed empty
 // state (server reads error until a run is attached). Consumers inside a
 // createEffect must call this with the live `projectState` proxy before
-// their first await — getSnapshotProjectState is unwrapped, so
+// their first await: getSnapshotProjectState is unwrapped, so
 // cache-internal reads are NOT tracked.
 export function runVersionKey(pds: ProjectState): string {
-  return pds.attachedRunId ?? "no_run_attached";
+  // `~` separator, not `|`: the po_detail version guard slices at the LAST
+  // `|` and must receive the whole run+scope token as one trailing segment
+  // (projectScopeToken escapes both separators).
+  return `${pds.attachedRunId ?? "no_run_attached"}~${projectScopeToken(pds.adminArea2)}`;
 }
 
 // The response-side half of that key (item 4's cache guard): a run-keyed
-// payload carries the runId it was actually computed against, so an in-flight
-// response landing after a package repoint can be told apart from one that
-// belongs under the key it was requested with. undefined is the parity rig's
-// Postgres baseline, which must never be cached — hence the explicit false
-// rather than a "no_run_attached" fallback.
-export function responseRunIdMatches(
-  responseRunId: string | undefined,
+// payload carries the runId + scopeToken it was actually computed against, so
+// an in-flight response landing after a package repoint OR a scope change can
+// be told apart from one that belongs under the key it was requested with.
+export function responseRunVersionMatches(
+  data: { runId: string; scopeToken: string },
   runKey: string,
 ): boolean {
-  return responseRunId !== undefined && responseRunId === runKey;
+  return `${data.runId}~${data.scopeToken}` === runKey;
 }
 
 export { projectState };

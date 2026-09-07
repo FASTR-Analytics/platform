@@ -6,10 +6,11 @@
 // that every tracked .ts/.tsx file under server/, lib/, client/src/ (+ main.ts)
 // matches exactly ONE system. Reports orphans (0 systems) and double-claims
 // (>1). Custody files (PLAN_SYSTEMS §4.1) are single-owner by construction, so
-// they must never double-claim — their multi-system nature lives in prose.
+// they must never double-claim: their multi-system nature lives in prose.
 //
 // Run: deno run --allow-read --allow-run lint_systems.ts
 
+import { existsSync } from "jsr:@std/fs@^1/exists";
 import { globToRegExp } from "jsr:@std/path@^1/glob-to-regexp";
 
 const ROOT = new URL("./", import.meta.url).pathname;
@@ -98,11 +99,13 @@ async function trackedFiles(): Promise<string[]> {
     stdout: "piped",
   });
   const { stdout } = await cmd.output();
+  // Tracked AND present: a file deleted in the working tree (not yet
+  // committed) is no longer anyone's to claim.
   return new TextDecoder()
     .decode(stdout)
     .split("\n")
     .map((l) => l.trim())
-    .filter((l) => l && !l.endsWith(".d.ts"));
+    .filter((l) => l && !l.endsWith(".d.ts") && existsSync(ROOT + l));
 }
 
 function ownersOf(file: string, systems: SystemDef[]): SystemDef[] {
@@ -137,12 +140,12 @@ for (const s of systems) {
 console.log();
 
 if (orphans.length) {
-  console.log(`ORPHANS (${orphans.length}) — claimed by no system:`);
+  console.log(`ORPHANS (${orphans.length}), claimed by no system:`);
   for (const f of orphans) console.log(`  ${f}`);
   console.log();
 }
 if (doubles.length) {
-  console.log(`DOUBLE-CLAIMS (${doubles.length}) — fix the globs:`);
+  console.log(`DOUBLE-CLAIMS (${doubles.length}), fix the globs:`);
   for (const d of doubles) console.log(`  ${d.file}  ->  ${d.owners.join(", ")}`);
   console.log();
 }

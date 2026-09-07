@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import type { Dhis2Credentials } from "lib";
+import { type Dhis2Credentials, isAdminAreaLevel } from "lib";
 import {
   getGeoJsonMapSummaries,
   getGeoJsonForLevel,
@@ -31,13 +31,13 @@ import {
 
 // Guard before the unbounded readTextFile + JSON.parse: any authenticated
 // configure-data user could otherwise OOM the server with one huge upload.
-// The same cap bounds the DHIS2 .geojson response body below — an arbitrary
+// The same cap bounds the DHIS2 .geojson response body below: an arbitrary
 // URL is accepted as a "DHIS2 server" on loose evidence, so the response
 // must not be materialized unbounded either.
 const MAX_GEOJSON_FILE_BYTES = 100 * 1024 * 1024;
 
 // The heavy .geojson pull is ~20 MB / up to ~43 s for a 200-district country.
-// Generous timeout, and NO retries — a transient failure must not re-download
+// Generous timeout, and NO retries: a transient failure must not re-download
 // the payload up to 5× (the shared fetcher's default).
 const HEAVY_GEOJSON_FETCH = {
   timeoutMs: 180000,
@@ -86,7 +86,7 @@ defineRoute(
       const result = analyzeGeoJson(rawGeoJson);
       return c.json({ success: true, data: result });
     } catch (e) {
-      // JSON.parse SyntaxErrors embed a snippet of the file — never echo them
+      // JSON.parse SyntaxErrors embed a snippet of the file: never echo them
       if (e instanceof SyntaxError) {
         return c.json({ success: false, err: "File is not valid JSON/GeoJSON" });
       }
@@ -104,8 +104,8 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("saveGeoJsonMap"),
   async (c, { body }) => {
-    const { adminAreaLevel, assetFileName, areaMatchProp, areaMapping } = body;
-    if (![2, 3, 4].includes(adminAreaLevel)) {
+    const { family, adminAreaLevel, assetFileName, areaMatchProp, areaMapping } = body;
+    if (!isAdminAreaLevel(adminAreaLevel)) {
       return c.json({
         success: false,
         err: "Admin area level must be 2, 3, or 4",
@@ -126,6 +126,7 @@ defineRoute(
       }
       const res = await saveGeoJsonMap(
         c.var.mainDb,
+        family,
         adminAreaLevel,
         result.geojson,
       );
@@ -142,7 +143,7 @@ defineRoute(
         },
       });
     } catch (e) {
-      // JSON.parse SyntaxErrors embed a snippet of the file — never echo them
+      // JSON.parse SyntaxErrors embed a snippet of the file: never echo them
       if (e instanceof SyntaxError) {
         return c.json({ success: false, err: "File is not valid JSON/GeoJSON" });
       }
@@ -160,7 +161,7 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("deleteGeoJsonMap"),
   async (c, { body }) => {
-    const res = await deleteGeoJsonMap(c.var.mainDb, body.adminAreaLevel);
+    const res = await deleteGeoJsonMap(c.var.mainDb, body.family, body.adminAreaLevel);
     if (res.success) {
       notifyInstanceGeoJsonMapsUpdated(await getGeoJsonMapSummaries(c.var.mainDb));
     }
@@ -174,10 +175,14 @@ defineRoute(
   requireGlobalPermission(),
   log("getAdminAreaOptionsForLevel"),
   async (c, { params }) => {
-    if (![2, 3, 4].includes(params.level)) {
+    if (!isAdminAreaLevel(params.level)) {
       return c.json({ success: false, err: "Level must be 2, 3, or 4" });
     }
-    const res = await getAdminAreaOptionsForLevel(c.var.mainDb, params.level);
+    const res = await getAdminAreaOptionsForLevel(
+      c.var.mainDb,
+      params.family,
+      params.level,
+    );
     return c.json(res);
   },
 );
@@ -187,10 +192,10 @@ defineRoute(
   "getGeoJsonForLevel",
   requireGlobalPermission(),
   async (c, { params }) => {
-    if (![2, 3, 4].includes(params.level)) {
+    if (!isAdminAreaLevel(params.level)) {
       return c.json({ success: false, err: "Level must be 2, 3, or 4" });
     }
-    const res = await getGeoJsonForLevel(c.var.mainDb, params.level);
+    const res = await getGeoJsonForLevel(c.var.mainDb, params.family, params.level);
     return c.json(res);
   },
 );
@@ -201,8 +206,8 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("remapGeoJson"),
   async (c, { body }) => {
-    const { adminAreaLevel, remapping } = body;
-    if (![2, 3, 4].includes(adminAreaLevel)) {
+    const { family, adminAreaLevel, remapping } = body;
+    if (!isAdminAreaLevel(adminAreaLevel)) {
       return c.json({ success: false, err: "Admin area level must be 2, 3, or 4" });
     }
     if (!remapping || Object.keys(remapping).length === 0) {
@@ -210,7 +215,7 @@ defineRoute(
     }
 
     try {
-      const geoRes = await getGeoJsonForLevel(c.var.mainDb, adminAreaLevel);
+      const geoRes = await getGeoJsonForLevel(c.var.mainDb, family, adminAreaLevel);
       if (!geoRes.success) {
         return c.json({ success: false, err: "GeoJSON not found for this level" });
       }
@@ -238,7 +243,12 @@ defineRoute(
       }
 
       const updatedGeoJson = JSON.stringify(parsed);
-      const saveRes = await saveGeoJsonMap(c.var.mainDb, adminAreaLevel, updatedGeoJson);
+      const saveRes = await saveGeoJsonMap(
+        c.var.mainDb,
+        family,
+        adminAreaLevel,
+        updatedGeoJson,
+      );
 
       if (saveRes.success) {
         notifyInstanceGeoJsonMapsUpdated(await getGeoJsonMapSummaries(c.var.mainDb));
@@ -338,7 +348,7 @@ defineRoute(
       }
 
       const featureCount = cached.withGeometryCount;
-      // Units with no stored boundary — the .geojson endpoint OMITS them (it
+      // Units with no stored boundary: the .geojson endpoint OMITS them (it
       // does not return null-geometry features), so this is metadata total
       // minus the exact with-geometry count.
       const nullGeometryCount = cached.units.length - cached.withGeometryCount;
@@ -392,9 +402,9 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("dhis2SaveGeoJsonMap"),
   async (c, { body }) => {
-    const { dhis2Level, adminAreaLevel, areaMatchProp, areaMapping } = body;
+    const { dhis2Level, family, adminAreaLevel, areaMatchProp, areaMapping } = body;
 
-    if (![2, 3, 4].includes(adminAreaLevel)) {
+    if (!isAdminAreaLevel(adminAreaLevel)) {
       return c.json({ success: false, err: "Admin area level must be 2, 3, or 4" });
     }
     if (typeof dhis2Level !== "number" || dhis2Level < 1) {
@@ -444,7 +454,7 @@ defineRoute(
       );
 
       // Never store an empty map. The mapping was built against the .json
-      // metadata but is applied against .geojson feature properties — if the
+      // metadata but is applied against .geojson feature properties: if the
       // match property is absent there, every feature is silently dropped.
       if (result.featureCount === 0) {
         return c.json({
@@ -455,11 +465,11 @@ defineRoute(
         });
       }
 
-      const res = await saveGeoJsonMap(c.var.mainDb, adminAreaLevel, result.geojson);
+      const res = await saveGeoJsonMap(c.var.mainDb, family, adminAreaLevel, result.geojson);
       if (res.success === false) {
         return c.json(res);
       }
-      // The save succeeded — drop both cache entries so a follow-up wizard
+      // The save succeeded: drop both cache entries so a follow-up wizard
       // run (e.g. after adding the missing boundaries in DHIS2 that the
       // unmatched count points at) fetches fresh data instead of silently
       // re-saving this payload for up to 15 minutes. The caches only need

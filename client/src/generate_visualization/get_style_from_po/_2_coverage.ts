@@ -66,7 +66,7 @@ function getCoverageSeriesColorFunc(
   const faint = chartPalette?.faint ?? "#CED4DB";
   return (info) => {
     // TODO: switch to .id matching once raw series ids are confirmed
-    // (and drop the French branches — id is locale-stable, label is not)
+    // (and drop the French branches: id is locale-stable, label is not)
     // Stored figures may carry seriesHeader as a bare string instead of
     // { id, label }; fall back to the string (or empty) so .startsWith is safe.
     const header = info.seriesHeader as unknown;

@@ -10,6 +10,7 @@ import {
   type RectCoordsDims,
   type RenderContext,
 } from "../../deps.ts";
+import { SIZING_SAMPLE } from "../../dimension_helpers.ts";
 import type {
   ChartScaleAxisLimits,
   YAxisWidthInfoBase,
@@ -24,7 +25,7 @@ export function estimateMinYAxisWidth(
   sg: MergedGridStyle,
 ): number {
   const sampleLabel = rc.mText(
-    "100,000",
+    SIZING_SAMPLE.scaleTickWide,
     sy.text.yScaleAxisTickLabels,
     Infinity,
   );
@@ -56,7 +57,11 @@ export function measureYScaleAxisWidthInfo(
 
   const guessSubChartH = (contentRcd.h() * 0.8) / tierCount;
   const yAxisTickLabelH = rc
-    .mText("100%", sy.text.yScaleAxisTickLabels, Number.POSITIVE_INFINITY)
+    .mText(
+      SIZING_SAMPLE.scaleTickPct,
+      sy.text.yScaleAxisTickLabels,
+      Number.POSITIVE_INFINITY,
+    )
     .dims.h();
   const halfYAxisTickLabelH = yAxisTickLabelH / 2;
   const guessMaxNTicks = yAxisTickLabelH > 0
@@ -122,7 +127,6 @@ export function measureYScaleAxisWidthInfo(
 
   return {
     widthIncludingYAxisStrokeWidth,
-    guessMaxNTicks,
     yAxisTickValues,
     tierHeaderAndLabelGapWidth,
     halfYAxisTickLabelH,

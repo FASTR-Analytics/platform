@@ -1,5 +1,5 @@
 // Pure/dispatcher logic for the DHIS2 import run worker, kept out of
-// worker.ts so it can be imported (and verified) outside a worker context —
+// worker.ts so it can be imported (and verified) outside a worker context:
 // worker.ts touches worker globals at module scope.
 
 import type { Dhis2Credentials, Dhis2FetchErrorKind } from "lib";
@@ -17,7 +17,7 @@ export type RawRoute =
   | { kind: "analytics" }
   | { kind: "unknown" };
 
-// Dynamic per run — DHIS2 metadata is the source of truth, no stored type
+// Dynamic per run: DHIS2 metadata is the source of truth, no stored type
 // field to drift (robustness ruling).
 export async function classifyRawIndicators(
   rawIds: string[],
@@ -35,7 +35,7 @@ export async function classifyRawIndicators(
     if (UID_RE.test(id)) {
       return { id, base: id as string | undefined, coc: undefined };
     }
-    // Not UID-shaped at all — cannot be a valid dx.
+    // Not UID-shaped at all: cannot be a valid dx.
     return { id, base: undefined, coc: undefined };
   });
 
@@ -84,7 +84,7 @@ export async function classifyRawIndicators(
     } else if (dataElementSet.has(p.base)) {
       routes.set(p.id, { kind: "dvs", baseElementId: p.base, coc: undefined });
     } else if (indicatorSet.has(p.id)) {
-      // Computed DHIS2 indicator: keep the analytics engine for formulas —
+      // Computed DHIS2 indicator: keep the analytics engine for formulas,
       // never hand-reconstruct numerators (robustness ruling).
       routes.set(p.id, { kind: "analytics" });
     } else {
@@ -98,7 +98,7 @@ export function pairKey(p: { indicatorRawId: string; periodId: number }): string
   return `${p.indicatorRawId}|${p.periodId}`;
 }
 
-// Size/timeout never shrink on an identical retry — the caller splits by
+// Size/timeout never shrink on an identical retry: the caller splits by
 // org-unit subtree instead.
 export function isSplittableDvsError(message: string): boolean {
   return (
@@ -137,7 +137,7 @@ export function assertUrlWithinLimit(args: {
     searchParams,
   );
   if (fullUrl.length > args.maxUrlLength) {
-    // Marker string matched by describeFetchError — deterministic config
+    // Marker string matched by describeFetchError: deterministic config
     // error (batch size), permanent until the env changes.
     throw new Error(
       `URL length ${fullUrl.length} exceeds safe limit of ${args.maxUrlLength} characters for batch with ${args.facilityBatch.length} facilities. ` +
@@ -146,7 +146,7 @@ export function assertUrlWithinLimit(args: {
   }
 }
 
-// 4xx (except 429) is a deterministic config error — the connector never
+// 4xx (except 429) is a deterministic config error: the connector never
 // retries it and re-running without a config fix will fail again. The URL
 // guard is likewise deterministic. Everything else (5xx/timeout/network/size)
 // is server health and may succeed on a later re-run.
@@ -175,7 +175,7 @@ export function describeFetchError(error: unknown): {
     return { message, kind: "permanent" };
   }
   if (message.includes("unrecognized headers")) {
-    // Header shape is a deterministic property of the DHIS2 server/version —
+    // Header shape is a deterministic property of the DHIS2 server/version:
     // the pair fails identically on every retry until the config changes.
     return { message, kind: "permanent" };
   }

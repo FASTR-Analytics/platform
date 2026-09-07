@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { buildAutoFormatter, type ValuesColorFunc } from "../deps.ts";
+import { buildAutoFormatter, type FigureValuesColorFunc } from "../deps.ts";
 import type {
   ScaleLegendGradientAutoConfig,
   ScaleLegendGradientConfig,
@@ -13,10 +13,20 @@ import type {
 
 const DEFAULT_N_TICKS = 5;
 const N_GRADIENT_STOPS = 50;
+// A sample the slot declines (an element-aware colouring asked with no
+// element) takes the colour an undefined value would: the legend's own noData
+// colour, else the primitive's default.
+const DEFAULT_NO_DATA_COLOR = "#f0f0f0";
+
+function noDataColor(
+  config: ScaleLegendGradientAutoConfig | ScaleLegendSteppedAutoConfig,
+) {
+  return config.noData?.color ?? DEFAULT_NO_DATA_COLOR;
+}
 
 export function resolveAutoScaleLegend(
   config: ScaleLegendGradientAutoConfig | ScaleLegendSteppedAutoConfig,
-  valuesColorFunc: ValuesColorFunc,
+  valuesColorFunc: FigureValuesColorFunc,
   valueRange: { min: number; max: number },
 ): ScaleLegendGradientConfig | ScaleLegendSteppedConfig {
   const isFixedDomain = config.domain !== undefined;
@@ -29,7 +39,7 @@ export function resolveAutoScaleLegend(
 
 function resolveGradient(
   config: ScaleLegendGradientAutoConfig,
-  valuesColorFunc: ValuesColorFunc,
+  valuesColorFunc: FigureValuesColorFunc,
   rawDomain: { min: number; max: number },
   isFixedDomain: boolean,
 ): ScaleLegendGradientConfig {
@@ -58,7 +68,8 @@ function resolveGradient(
   for (let i = 0; i < N_GRADIENT_STOPS; i++) {
     const t = i / (N_GRADIENT_STOPS - 1);
     const value = niceMin + t * (niceMax - niceMin);
-    const color = valuesColorFunc(value, rawDomain.min, rawDomain.max);
+    const color = valuesColorFunc(value, rawDomain.min, rawDomain.max) ??
+      noDataColor(config);
     stops.push({ value, color });
   }
 
@@ -76,7 +87,7 @@ function resolveGradient(
 
 function resolveStepped(
   config: ScaleLegendSteppedAutoConfig,
-  valuesColorFunc: ValuesColorFunc,
+  valuesColorFunc: FigureValuesColorFunc,
   rawDomain: { min: number; max: number },
   isFixedDomain: boolean,
 ): ScaleLegendSteppedConfig {
@@ -100,7 +111,8 @@ function resolveStepped(
     const stepMin = min + i * stepSize;
     const stepMax = min + (i + 1) * stepSize;
     const midpoint = (stepMin + stepMax) / 2;
-    const color = valuesColorFunc(midpoint, rawDomain.min, rawDomain.max);
+    const color = valuesColorFunc(midpoint, rawDomain.min, rawDomain.max) ??
+      noDataColor(config);
     steps.push({ min: stepMin, max: stepMax, color });
   }
 

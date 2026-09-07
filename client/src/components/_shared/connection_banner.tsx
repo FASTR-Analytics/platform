@@ -3,7 +3,7 @@ import { createSignal, Show } from "solid-js";
 import { render } from "solid-js/web";
 
 // =============================================================================
-// Collab connection banner — "Connection lost — reconnecting…" / "Live again"
+// Collab connection banner: "Connection lost, reconnecting…" / "Live again"
 // =============================================================================
 //
 // The collab WebSocket client (state/project/collab.ts) reports its connection
@@ -13,11 +13,11 @@ import { render } from "solid-js/web";
 //   * "reconnecting" (a previously wanted connection dropped, retries running)
 //       → warning pill with a Reload escape hatch, visible until recovery.
 //   * reconnecting → "connected" → primary-green "Live again" flash for ~3s.
-//   * "connecting" (initial connect) and "idle" (no project) render nothing —
+//   * "connecting" (initial connect) and "idle" (no project) render nothing:
 //     a normal page load must not flash the banner.
 //   * "unauthorized" (the server refused this user the socket; retries stopped)
 //     renders nothing either: live collaboration is simply unavailable, there is
-//     no user action to offer, and a "connection lost" pill would be untrue —
+//     no user action to offer, and a "connection lost" pill would be untrue:
 //     the rest of the project works. Nothing is broken, so say nothing.
 //
 // Mirrors presence_toasts.tsx: module signal + lazily render()-mounted host,
@@ -60,7 +60,7 @@ export function notifyCollabConnection(next: CollabConnectionState): void {
   setConnState(next);
 
   if (next === "reconnecting") {
-    // First time we ever need UI — mount the host lazily.
+    // First time we ever need UI: mount the host lazily.
     ensureHost();
     if (recoveredTimer) {
       clearTimeout(recoveredTimer);
@@ -83,7 +83,7 @@ export function notifyCollabConnection(next: CollabConnectionState): void {
   }
   // idle / connecting / connected-from-connecting / unauthorized: nothing to
   // show. "unauthorized" also arrives FROM "reconnecting" (a refused reconnect
-  // after e.g. losing project access), which clears the pill — correct: retries
+  // after e.g. losing project access), which clears the pill, correct: retries
   // have stopped, so a "reconnecting" claim would be false.
   if (recoveredTimer) {
     clearTimeout(recoveredTimer);
