@@ -22,6 +22,7 @@ import {
   runProjectMigrations,
 } from "./db/migrations/runner.ts";
 import {
+  dropOrphanProjectDatabases,
   getPgConnectionFromCacheOrNew,
   markStaleRunningDatasetHfaImportRuns,
   markStaleRunningDatasetHmisImportRuns,
@@ -67,6 +68,8 @@ ${userInserts}
   }
 
   await runInstanceMigrations(sqlMain);
+
+  await dropOrphanProjectDatabases(sqlMain);
 
   // A restart mid-import leaves status_type stuck at an in-flight value with no
   // live worker, and the concurrency guards then block all future imports.

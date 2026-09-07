@@ -97,9 +97,11 @@ split into their own list).
   cleanup deletes roles + registry row + `DROP DATABASE IF EXISTS`.
 - **Delete** is soft: `status='pending_deletion'`,
   `deletion_scheduled_at = NOW() + 30 days` (admin-only route). **Restore**
-  flips it back. **Force-delete** and the daily **purge** cron run the same
-  terminate → `DROP DATABASE … WITH (FORCE)` → registry DELETE
-  block (duplicated line-for-line, Open item).
+  flips it back. **Force-delete** and the daily **purge** cron share
+  `terminateAndDropProjectDatabase` (terminate → `DROP DATABASE … WITH
+  (FORCE)`) then DELETE the registry row. **Create** makes the database
+  before it registers the row and drops it again if anything in between
+  fails; a hard crash in that window is what the boot sweep below is for.
 - **Lock** flips `is_locked`; enforcement is S1's
   `preventAccessToLockedProjects`. **Central reporting**: at most one
   `is_central_reporting` project per instance, admin + H_USERS-gated.
@@ -219,7 +221,8 @@ failures surface as user-facing route errors with GB figures.
 ## Ops: boot, cron, deploy
 
 - **Boot order** (`main.ts`): `dbStartUp()` (creates+seeds main DB if new; runs
-  instance + project migrations; resets wedged imports) → log-cleanup cron
+  instance migrations; drops orphan project databases; runs project
+  migrations; resets wedged imports) → log-cleanup cron
   (boot + 24h) → project-purge cron (boot + 24h) → the DHIS2 import scheduler (a
   deliberate **60s tick**, not daily: S6/S7 territory) → Valkey connect → route
   mounting (health first) → `validateAllRoutesDefined()` → `Deno.serve`;
@@ -277,10 +280,14 @@ S2's contract: [SYSTEM_02](SYSTEM_02_persistence.md) §The multi-database model.
 Two production facts live here:
 
 - **Live vs orphaned project DBs.** A UUID-named database is live only if its
-  UUID has a `main.projects` row AND `status <> 'pending_deletion'`. Instances
-  also carry **orphaned** UUID databases (failed copies, pre-purge-era
-  deletions) the running app never touches; diagnostics must filter to
-  registered, ready projects. No cleanup autonomic exists (Open item).
+  UUID has a `main.projects` row AND `status <> 'pending_deletion'`; diagnostics
+  must filter to registered, ready projects. A UUID-named database with no
+  `projects` row is an **orphan** (a creation that crashed between `CREATE
+  DATABASE` and the registry INSERT). `dropOrphanProjectDatabases` removes
+  them at boot, and only at boot: no creation can be in flight then, which is
+  what makes "unregistered" safe to act on. It skips any database with a live
+  connection and drops without FORCE, so a connection appearing after the
+  check fails the drop rather than being killed.
 - **Two schema generations** exist in production project DBs: current
   (`presentation_objects.metric_id` → `metrics` table) vs legacy
   (`presentation_objects.results_object_id`, no `metrics` table). Detect with
@@ -308,7 +315,7 @@ currently internet-exposed behind a shared password, PLAN_HARDEN_SECURITY).
   flag users can be granted with no consuming UI.
 - **Split the two custody files** (decoupling): `db/project/projects.ts` (mainDb
   registry/roles vs project-DB lifecycle, incl. the duplicated
-  purge/force-delete block and the duplicated admin-synthesis mapping) and
+  admin-synthesis mapping) and
   `routes/instance/backups.ts` (proxy vs restore body).
 - **Backups client bypasses the typed registry**: four raw `fetch` calls in
   `project_settings.tsx` with hand-rolled auth headers and a restore-catch that

@@ -277,84 +277,91 @@ export async function addProject(
       return { success: false, err: "Project with this ID already exists" };
     }
     await mainDb`create database ${mainDb(newProjectId)}`;
-    const projectDb = getPgConnectionFromCacheOrNew(
-      newProjectId,
-      "READ_AND_WRITE",
-    );
-    await projectDb.file("./server/db/project/_project_database.sql");
-    // Fresh schema is already up to date, but we run migrations to populate
-    // schema_migrations table (otherwise db_startup.ts would run them anyway)
-    await runProjectMigrations(projectDb);
-    await mainDb`
-      INSERT INTO users (email, is_admin)
-      VALUES (${globalUser.email}, ${globalUser.isGlobalAdmin})
-      ON CONFLICT (email) DO NOTHING
-    `;
+    try {
+      const projectDb = getPgConnectionFromCacheOrNew(
+        newProjectId,
+        "READ_AND_WRITE",
+      );
+      await projectDb.file("./server/db/project/_project_database.sql");
+      // Fresh schema is already up to date, but we run migrations to populate
+      // schema_migrations table (otherwise db_startup.ts would run them anyway)
+      await runProjectMigrations(projectDb);
+      await mainDb`
+        INSERT INTO users (email, is_admin)
+        VALUES (${globalUser.email}, ${globalUser.isGlobalAdmin})
+        ON CONFLICT (email) DO NOTHING
+      `;
 
-    // Auto-add all non-admin, non-creator users who have at least one non-false default project permission
-    const usersToAutoAdd = await mainDb<
-      { email: string; [key: string]: boolean | string }[]
-    >`
-      SELECT
-        email,
-        default_project_can_configure_settings,
-        default_project_can_create_backups,
-        default_project_can_restore_backups,
-        default_project_can_configure_modules,
-        default_project_can_run_modules,
-        default_project_can_configure_users,
-        default_project_can_configure_visualizations,
-        default_project_can_view_visualizations,
-        default_project_can_configure_reports,
-        default_project_can_view_reports,
-        default_project_can_configure_slide_decks,
-        default_project_can_view_slide_decks,
-        default_project_can_configure_data,
-        default_project_can_view_data,
-        default_project_can_view_metrics,
-        default_project_can_view_logs,
-        default_project_can_view_script_code
-      FROM users
-      WHERE is_admin = FALSE
-      AND email != ${globalUser.email}
-      AND (
-        default_project_can_configure_settings = TRUE OR
-        default_project_can_create_backups = TRUE OR
-        default_project_can_restore_backups = TRUE OR
-        default_project_can_configure_modules = TRUE OR
-        default_project_can_run_modules = TRUE OR
-        default_project_can_configure_users = TRUE OR
-        default_project_can_configure_visualizations = TRUE OR
-        default_project_can_view_visualizations = TRUE OR
-        default_project_can_configure_reports = TRUE OR
-        default_project_can_view_reports = TRUE OR
-        default_project_can_configure_slide_decks = TRUE OR
-        default_project_can_view_slide_decks = TRUE OR
-        default_project_can_configure_data = TRUE OR
-        default_project_can_view_data = TRUE OR
-        default_project_can_view_metrics = TRUE OR
-        default_project_can_view_logs = TRUE OR
-        default_project_can_view_script_code = TRUE
-      )
-    `;
+      // Auto-add all non-admin, non-creator users who have at least one non-false default project permission
+      const usersToAutoAdd = await mainDb<
+        { email: string; [key: string]: boolean | string }[]
+      >`
+        SELECT
+          email,
+          default_project_can_configure_settings,
+          default_project_can_create_backups,
+          default_project_can_restore_backups,
+          default_project_can_configure_modules,
+          default_project_can_run_modules,
+          default_project_can_configure_users,
+          default_project_can_configure_visualizations,
+          default_project_can_view_visualizations,
+          default_project_can_configure_reports,
+          default_project_can_view_reports,
+          default_project_can_configure_slide_decks,
+          default_project_can_view_slide_decks,
+          default_project_can_configure_data,
+          default_project_can_view_data,
+          default_project_can_view_metrics,
+          default_project_can_view_logs,
+          default_project_can_view_script_code
+        FROM users
+        WHERE is_admin = FALSE
+        AND email != ${globalUser.email}
+        AND (
+          default_project_can_configure_settings = TRUE OR
+          default_project_can_create_backups = TRUE OR
+          default_project_can_restore_backups = TRUE OR
+          default_project_can_configure_modules = TRUE OR
+          default_project_can_run_modules = TRUE OR
+          default_project_can_configure_users = TRUE OR
+          default_project_can_configure_visualizations = TRUE OR
+          default_project_can_view_visualizations = TRUE OR
+          default_project_can_configure_reports = TRUE OR
+          default_project_can_view_reports = TRUE OR
+          default_project_can_configure_slide_decks = TRUE OR
+          default_project_can_view_slide_decks = TRUE OR
+          default_project_can_configure_data = TRUE OR
+          default_project_can_view_data = TRUE OR
+          default_project_can_view_metrics = TRUE OR
+          default_project_can_view_logs = TRUE OR
+          default_project_can_view_script_code = TRUE
+        )
+      `;
 
-    await mainDb.begin((sql) => [
-      sql`INSERT INTO projects (id, label, ai_context, admin_area_2) VALUES (${newProjectId}, ${projectLabel}, '', ${adminArea2})`,
-      sql`INSERT INTO project_user_roles (email, project_id, role, can_configure_settings, can_create_backups, can_restore_backups, can_configure_modules, can_run_modules, can_configure_users, can_configure_visualizations, can_view_visualizations, can_configure_reports, can_view_reports, can_configure_slide_decks, can_view_slide_decks, can_configure_data, can_view_data, can_view_metrics, can_view_logs, can_view_script_code)
-       VALUES (${globalUser.email}, ${newProjectId}, 'editor', true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true)`,
-      ...usersToAutoAdd.map(
-        (user: { email: string; [key: string]: boolean | string }) => {
-          const g = (k: string): boolean =>
-            (user[`default_project_${k}`] as boolean) ?? false;
-          return sql`INSERT INTO project_user_roles (email, project_id, role, can_configure_settings, can_create_backups, can_restore_backups, can_configure_modules, can_run_modules, can_configure_users, can_configure_visualizations, can_view_visualizations, can_configure_reports, can_view_reports, can_configure_slide_decks, can_view_slide_decks, can_configure_data, can_view_data, can_view_metrics, can_view_logs, can_view_script_code)
-         VALUES (${user.email}, ${newProjectId}, 'viewer', ${g("can_configure_settings")}, ${g("can_create_backups")}, ${g("can_restore_backups")}, ${g("can_configure_modules")}, ${g("can_run_modules")}, ${g("can_configure_users")}, ${g("can_configure_visualizations")}, ${g("can_view_visualizations")}, ${g("can_configure_reports")}, ${g("can_view_reports")}, ${g("can_configure_slide_decks")}, ${g("can_view_slide_decks")}, ${g("can_configure_data")}, ${g("can_view_data")}, ${g("can_view_metrics")}, ${g("can_view_logs")}, ${g("can_view_script_code")})`;
-        },
-      ),
-    ]);
-    return {
-      success: true,
-      data: { newProjectId, projectDb },
-    };
+      await mainDb.begin((sql) => [
+        sql`INSERT INTO projects (id, label, ai_context, admin_area_2) VALUES (${newProjectId}, ${projectLabel}, '', ${adminArea2})`,
+        sql`INSERT INTO project_user_roles (email, project_id, role, can_configure_settings, can_create_backups, can_restore_backups, can_configure_modules, can_run_modules, can_configure_users, can_configure_visualizations, can_view_visualizations, can_configure_reports, can_view_reports, can_configure_slide_decks, can_view_slide_decks, can_configure_data, can_view_data, can_view_metrics, can_view_logs, can_view_script_code)
+         VALUES (${globalUser.email}, ${newProjectId}, 'editor', true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true)`,
+        ...usersToAutoAdd.map(
+          (user: { email: string; [key: string]: boolean | string }) => {
+            const g = (k: string): boolean =>
+              (user[`default_project_${k}`] as boolean) ?? false;
+            return sql`INSERT INTO project_user_roles (email, project_id, role, can_configure_settings, can_create_backups, can_restore_backups, can_configure_modules, can_run_modules, can_configure_users, can_configure_visualizations, can_view_visualizations, can_configure_reports, can_view_reports, can_configure_slide_decks, can_view_slide_decks, can_configure_data, can_view_data, can_view_metrics, can_view_logs, can_view_script_code)
+           VALUES (${user.email}, ${newProjectId}, 'viewer', ${g("can_configure_settings")}, ${g("can_create_backups")}, ${g("can_restore_backups")}, ${g("can_configure_modules")}, ${g("can_run_modules")}, ${g("can_configure_users")}, ${g("can_configure_visualizations")}, ${g("can_view_visualizations")}, ${g("can_configure_reports")}, ${g("can_view_reports")}, ${g("can_configure_slide_decks")}, ${g("can_view_slide_decks")}, ${g("can_configure_data")}, ${g("can_view_data")}, ${g("can_view_metrics")}, ${g("can_view_logs")}, ${g("can_view_script_code")})`;
+          },
+        ),
+      ]);
+      return {
+        success: true,
+        data: { newProjectId, projectDb },
+      };
+    } catch (e) {
+      // The database exists but no row points at it yet: drop it now
+      // instead of leaving an orphan for the boot sweep.
+      await terminateAndDropProjectDatabase(newProjectId);
+      throw e;
+    }
   });
 }
 
@@ -426,25 +433,75 @@ export async function forceDeleteProject(
   projectId: string,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    await closePgConnection(projectId);
-
-    const dedicatedDb = createWorkerConnection("main");
-    try {
-      await dedicatedDb`
-        SELECT pg_terminate_backend(pid)
-        FROM pg_stat_activity
-        WHERE datname = ${projectId}
-          AND pid <> pg_backend_pid()
-      `;
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      await dedicatedDb`DROP DATABASE IF EXISTS ${dedicatedDb(projectId)} WITH (FORCE)`;
-    } finally {
-      await dedicatedDb.end();
-    }
-
+    await terminateAndDropProjectDatabase(projectId);
     await mainDb`DELETE FROM projects WHERE id = ${projectId}`;
     return { success: true };
   });
+}
+
+async function terminateAndDropProjectDatabase(
+  projectId: string,
+): Promise<void> {
+  await closePgConnection(projectId);
+  const dedicatedDb = createWorkerConnection("main");
+  try {
+    await dedicatedDb`
+      SELECT pg_terminate_backend(pid)
+      FROM pg_stat_activity
+      WHERE datname = ${projectId}
+        AND pid <> pg_backend_pid()
+    `;
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await dedicatedDb`DROP DATABASE IF EXISTS ${dedicatedDb(projectId)} WITH (FORCE)`;
+  } finally {
+    await dedicatedDb.end();
+  }
+}
+
+const PROJECT_DB_NAME_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+// Boot-only sweep. addProject creates the database before it registers the
+// row, so a crash in that window leaves a UUID-named database that no
+// `projects` row points at, and nothing else ever creates one. At boot no
+// creation can be in flight, which is the only reason "unregistered" is safe
+// to act on: never call this from the 24h purge tick. Two further guards,
+// each erring towards keeping a database: a live connection skips it, and the
+// drop is deliberately not FORCE, so a connection that appears after the
+// check fails the drop instead of being killed.
+export async function dropOrphanProjectDatabases(
+  mainDb: Sql,
+): Promise<string[]> {
+  const unregistered = await mainDb<{ datname: string }[]>`
+    SELECT d.datname
+    FROM pg_database d
+    WHERE NOT EXISTS (SELECT 1 FROM projects p WHERE p.id = d.datname)
+    ORDER BY d.datname
+  `;
+  const dropped: string[] = [];
+  for (const { datname } of unregistered) {
+    if (!PROJECT_DB_NAME_RE.test(datname)) continue;
+    const [{ n }] = await mainDb<{ n: number }[]>`
+      SELECT count(*)::int AS n FROM pg_stat_activity WHERE datname = ${datname}
+    `;
+    if (n > 0) {
+      console.log(
+        `[startup] Orphan project database ${datname} has ${n} live connection(s), leaving it`,
+      );
+      continue;
+    }
+    try {
+      await mainDb`DROP DATABASE IF EXISTS ${mainDb(datname)}`;
+      dropped.push(datname);
+      console.log(`[startup] Dropped orphan project database ${datname}`);
+    } catch (e) {
+      console.error(
+        `[startup] Could not drop orphan project database ${datname}:`,
+        e,
+      );
+    }
+  }
+  return dropped;
 }
 
 // Returns the number of projects actually purged so the caller (main.ts's
@@ -462,22 +519,7 @@ export async function purgeExpiredProjects(mainDb: Sql): Promise<number> {
   let purgedCount = 0;
   for (const project of expired) {
     try {
-      await closePgConnection(project.id);
-
-      const dedicatedDb = createWorkerConnection("main");
-      try {
-        await dedicatedDb`
-          SELECT pg_terminate_backend(pid)
-          FROM pg_stat_activity
-          WHERE datname = ${project.id}
-            AND pid <> pg_backend_pid()
-        `;
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        await dedicatedDb`DROP DATABASE IF EXISTS ${dedicatedDb(project.id)} WITH (FORCE)`;
-      } finally {
-        await dedicatedDb.end();
-      }
-
+      await terminateAndDropProjectDatabase(project.id);
       await mainDb`DELETE FROM projects WHERE id = ${project.id}`;
       purgedCount++;
       console.log(`[PURGE] Deleted project ${project.id}`);
