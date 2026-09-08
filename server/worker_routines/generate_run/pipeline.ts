@@ -10,7 +10,7 @@ import {
 } from "lib";
 import { createWorkerReadConnection } from "../../db/mod.ts";
 import { _INSTANCE_COUNTRY_ISO3 } from "../../exposed_env_vars.ts";
-import { prepareModuleDefinitionForStorage } from "../../db/project/modules.ts";
+import { prepareModuleDefinitionForStorage } from "../../runs/module_config.ts";
 import {
   publishReadyRun,
   updateRunProgress,

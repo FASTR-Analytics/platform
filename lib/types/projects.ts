@@ -1,5 +1,5 @@
 import type { RunListingItem } from "./run_generation.ts";
-import type { DatasetInProject } from "./datasets_in_project.ts";
+import type { RunDataset } from "./run_datasets.ts";
 import type { HfaTaxonomyForAI } from "./hfa_types.ts";
 import { ProjectUser } from "./instance.ts";
 import { type MetricWithStatus, type InstalledModuleSummary } from "./modules.ts";
@@ -50,7 +50,7 @@ export type ProjectDetail = {
   // pin-move physically repoints this project (SYSTEM_08 "The pinned
   // package + followers").
   followPinned: boolean;
-  projectDatasets: DatasetInProject[];
+  projectDatasets: RunDataset[];
   projectModules: InstalledModuleSummary[];
   metrics: MetricWithStatus[];
   commonIndicators: { id: string; label: string }[];

@@ -55,7 +55,7 @@ list.)
 | `server/routes/caches/visualizations.ts`                                | S9    | S3, S2            | cache instances + PO_CACHE_VERSION                    |
 | `client/src/state/project/t2_presentation_objects.ts`                   | S9    | S11, S10, S3      | hottest client file (20 importers)                    |
 | `server/db/instance/dataset_hmis.ts` / `dataset_hfa.ts`                 | S6    | S2, S8            | orchestrator + worker lifecycle + CRUD                |
-| `server/db/project/modules.ts`                                          | S8    | S2, S9, S13       | definition blob + boot sweep (82 lines)               |
+| `server/runs/capture_inputs/**`                                         | S6    | S8, S5            | ingestion code inside the generation pipeline         |
 | `main.ts`                                                               | S1    | S2, S15, S12      | composition root (boot / cron / `/d/:slug`)           |
 | `client/src/components/LoggedInWrapper.tsx`                             | S1    | S3, S14           | Clerk singleton + version flush + shell               |
 | `server/routes/instance/backups.ts`                                     | S15   | S2                | restore body (DROP/CREATE + re-migrate)               |

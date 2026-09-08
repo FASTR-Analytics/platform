@@ -14,7 +14,7 @@ export function parseModuleConfigSelections(json: string): ModuleConfigSelection
 }
 
 // The installed (monolingual) definition blob: metrics live in their own
-// table / manifest array, never inside the blob.
+// manifest array, never inside the blob.
 export function prepareModuleDefinitionForStorage(
   mod: ModuleDefinitionDetail,
 ): string {

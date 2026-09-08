@@ -1,7 +1,7 @@
 import {
   APIResponseNoData,
   APIResponseWithData,
-  DatasetInProject,
+  RunDataset,
   EMPTY_HFA_TAXONOMY,
   ProjectDetail,
   throwIfErrWithData,
@@ -30,7 +30,7 @@ import {
   getIcehIndicatorsFromManifestInputs,
   getMetricsWithStatusFromManifest,
   getModuleSummariesFromManifest,
-  getProjectDatasetsFromManifest,
+  getRunDatasetsFromManifest,
 } from "../../run_query/run_read.ts";
 import { getHfaTimePointsForAI } from "../instance/dataset_hfa.ts";
 import { getRunManifestCached } from "../../runs/manifest_cache.ts";
@@ -72,7 +72,7 @@ export async function getProjectDetail(
     // query routes surface the run error properly.
     let projectModules: InstalledModuleSummary[] = [];
     let metrics: MetricWithStatus[] = [];
-    let datasetsInProject: DatasetInProject[] = [];
+    let datasetsInProject: RunDataset[] = [];
     let commonIndicators: { id: string; label: string }[] = [];
     let icehIndicators: { id: string; label: string; category: string }[] = [];
     let hfaTaxonomy = EMPTY_HFA_TAXONOMY;
@@ -82,7 +82,7 @@ export async function getProjectDetail(
         const runCtx = { runId: rawProject.run_id, manifest };
         projectModules = getModuleSummariesFromManifest(manifest);
         metrics = getMetricsWithStatusFromManifest(manifest);
-        datasetsInProject = getProjectDatasetsFromManifest(manifest);
+        datasetsInProject = getRunDatasetsFromManifest(manifest);
         commonIndicators = manifest.commonIndicators;
         icehIndicators = await getIcehIndicatorsFromManifestInputs(runCtx);
         hfaTaxonomy = await getHfaTaxonomyFromManifestInputs(

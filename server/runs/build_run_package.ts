@@ -12,7 +12,7 @@ import {
   type DatasetType,
   type DisaggregationOption,
   type RunAsset,
-  type RunDataset,
+  type RunManifestDataset,
   type RunFacilitiesTable,
   type RunManifest,
   type RunMetric,
@@ -58,7 +58,7 @@ export type RunBuildOptions = {
   label: string;
   modules: RunModule[];
   metrics: RunMetric[];
-  datasets: RunDataset[];
+  datasets: RunManifestDataset[];
   // Input mirrors/facilities the caller already wrote into the tmp dir.
   facilitiesTables: RunFacilitiesTable[];
   // The person-years file the caller wrote (null without an HMIS capture).

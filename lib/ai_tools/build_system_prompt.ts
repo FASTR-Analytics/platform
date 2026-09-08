@@ -1,5 +1,5 @@
 import { getCountryLabel } from "../consts.ts";
-import type { DatasetInProject } from "../types/datasets_in_project.ts";
+import type { RunDataset } from "../types/run_datasets.ts";
 import type { InstanceState } from "../types/instance_sse.ts";
 import type { InstanceCalendar } from "../types/instance.ts";
 import type { PeriodBounds } from "../types/presentation_objects.ts";
@@ -191,7 +191,7 @@ export type PackageGrounding = {
   // global). The SPA's attached package was generated on this instance, so it
   // passes the instance calendar.
   calendar: InstanceCalendar;
-  datasets: DatasetInProject[];
+  datasets: RunDataset[];
   commonIndicators: { id: string; label: string }[];
   icehIndicators: { id: string; label: string }[];
   // The package's overall period range at its finest time grain (null = no

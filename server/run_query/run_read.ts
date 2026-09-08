@@ -13,11 +13,11 @@ import {
   parsePresentationObjectConfig,
   catalogExpressionEvaluationStrict,
   postAggregationExpressionStrict,
-  projectScopeToken,
+  scopeToken,
   throwIfErrWithData,
   vizPresetInstalled,
   type APIResponseWithData,
-  type DatasetInProject,
+  type RunDataset,
   type DatasetType,
   type DisaggregationOption,
   type GenericLongFormFetchConfig,
@@ -46,7 +46,7 @@ import {
   getResultsObjectTableName,
   tryCatchDatabaseAsync,
 } from "../db/utils.ts";
-import { parseModuleConfigSelections } from "../db/project/modules.ts";
+import { parseModuleConfigSelections } from "../runs/module_config.ts";
 import {
   getRunManifestCached,
   readRunInputJsonCached,
@@ -116,7 +116,7 @@ async function buildRunReadContext(
     runDir: runDirPath(runId),
     manifest,
     adminArea2,
-    scopeToken: projectScopeToken(adminArea2),
+    scopeToken: scopeToken(adminArea2),
   };
 }
 
@@ -352,18 +352,18 @@ async function readInputRows<T>(
   return z.array(rowSchema).parse(raw);
 }
 
-// The project-level dataset/indicator lists that T1 carries, all served from
-// the attached run's own inputs (PLAN_RESULTS_RUNS Phase 3 re-cut ruling 5:
-// the project mirror tables are no longer written, so they are never read).
+// The dataset/indicator lists a reader carries, all served from the run's
+// own inputs (PLAN_RESULTS_RUNS Phase 3 re-cut ruling 5: the mirror tables
+// are no longer written, so they are never read).
 
-export function getProjectDatasetsFromManifest(
+export function getRunDatasetsFromManifest(
   manifest: RunManifest,
-): DatasetInProject[] {
+): RunDataset[] {
   return manifest.datasets.map((d) => ({
     datasetType: d.datasetType,
     info: d.info,
     dateExported: d.lastUpdated,
-  } as DatasetInProject));
+  } as RunDataset));
 }
 
 export async function getIcehIndicatorsFromManifestInputs(

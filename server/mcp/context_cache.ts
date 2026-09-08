@@ -28,7 +28,7 @@ import {
   getHfaTaxonomyFromManifestInputs,
   getIcehIndicatorsFromManifestInputs,
   getMetricsWithStatusFromManifest,
-  getProjectDatasetsFromManifest,
+  getRunDatasetsFromManifest,
 } from "../run_query/mod.ts";
 import { createMcpAIToolEnv } from "./env.ts";
 import {
@@ -279,7 +279,7 @@ export async function resolvePackageContext(
   );
   const grounding: PackageGrounding = {
     calendar: manifest.calendar,
-    datasets: getProjectDatasetsFromManifest(manifest),
+    datasets: getRunDatasetsFromManifest(manifest),
     commonIndicators: manifest.commonIndicators,
     icehIndicators,
     periodCoverage: packagePeriodCoverage(manifest),

@@ -4,7 +4,7 @@ import {
   type CompareProjectsData,
   type CompareProjectsModule,
 } from "lib";
-import { parseModuleConfigSelections } from "../../db/project/modules.ts";
+import { parseModuleConfigSelections } from "../../runs/module_config.ts";
 import { getRunManifestCached } from "../../runs/mod.ts";
 import { requireGlobalPermission } from "../../middleware/userPermission.ts";
 import { defineRoute } from "../route-helpers.ts";

@@ -16,7 +16,7 @@ import {
   getMetricsWithStatusFromManifest,
   getModuleSummariesFromManifest,
   getIcehIndicatorsFromManifestInputs,
-  getProjectDatasetsFromManifest,
+  getRunDatasetsFromManifest,
 } from "../run_query/mod.ts";
 import {
   notifyProjectConfigUpdated,
@@ -64,7 +64,7 @@ export async function buildRunAttachedManifestPayload(
     attachedRun: rowRes.data,
     projectModules: getModuleSummariesFromManifest(runCtx.manifest),
     metrics: getMetricsWithStatusFromManifest(runCtx.manifest),
-    projectDatasets: getProjectDatasetsFromManifest(runCtx.manifest),
+    projectDatasets: getRunDatasetsFromManifest(runCtx.manifest),
     commonIndicators: runCtx.manifest.commonIndicators,
     icehIndicators: await getIcehIndicatorsFromManifestInputs(runCtx),
   };

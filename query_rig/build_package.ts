@@ -1,13 +1,13 @@
 import { join } from "@std/path";
 import type { Sql } from "postgres";
 import {
-  projectScopeToken,
-  type RunDataset,
+  scopeToken,
+  type RunManifestDataset,
   type RunFacilitiesTable,
   type RunMetric,
   type RunModule,
 } from "lib";
-import { PROJECT_FACILITY_COLUMN_NAMES } from "../server/db/project/datasets_in_project_hmis.ts";
+import { RUN_FACILITY_COLUMN_NAMES } from "../server/runs/capture_inputs/hmis.ts";
 import { buildRunPackageIntoTmp, exportRowsToParquet } from "../server/runs/mod.ts";
 import type { RunReadContext } from "../server/run_query/mod.ts";
 import type { Fixture } from "./fixtures.ts";
@@ -63,14 +63,14 @@ export async function buildFixturePackage(
 
   const extraInputFiles: string[] = [];
   const facilitiesTable = `facilities_${fx.family}`;
-  const facilityColumns = PROJECT_FACILITY_COLUMN_NAMES.map((name) => ({
+  const facilityColumns = RUN_FACILITY_COLUMN_NAMES.map((name) => ({
     name,
     duckDbType: "VARCHAR",
   }));
   await exportRowsToParquet(
     fx.facilities.map((row) =>
       Object.fromEntries(
-        PROJECT_FACILITY_COLUMN_NAMES.map((name) => [name, row[name] ?? null]),
+        RUN_FACILITY_COLUMN_NAMES.map((name) => [name, row[name] ?? null]),
       )
     ),
     facilityColumns,
@@ -148,7 +148,7 @@ export async function buildFixturePackage(
       important_notes: null,
     }]
     : [];
-  const datasets: RunDataset[] = [
+  const datasets: RunManifestDataset[] = [
     { datasetType: fx.family, lastUpdated: now, info: {} },
   ];
 
@@ -169,7 +169,7 @@ export async function buildFixturePackage(
     runDir,
     manifest,
     adminArea2: null,
-    scopeToken: projectScopeToken(null),
+    scopeToken: scopeToken(null),
   };
 }
 

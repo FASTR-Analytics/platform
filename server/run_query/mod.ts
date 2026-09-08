@@ -30,7 +30,7 @@ export {
   getIndicatorMetadataFromRun,
   getMetricsWithStatusFromManifest,
   findMissingRequiredGroupBys,
-  getProjectDatasetsFromManifest,
+  getRunDatasetsFromManifest,
   getModuleIdForMetricFromRun,
   getModuleIdForResultsObjectFromRun,
   getModuleSummariesFromManifest,

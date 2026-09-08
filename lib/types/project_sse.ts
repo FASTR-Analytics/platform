@@ -1,4 +1,4 @@
-import type { DatasetInProject } from "./datasets_in_project.ts";
+import type { RunDataset } from "./run_datasets.ts";
 import type { HfaTaxonomyForAI } from "./hfa_types.ts";
 import type { ProjectUser } from "./instance.ts";
 import type { InstalledModuleSummary, MetricWithStatus } from "./modules.ts";
@@ -46,7 +46,7 @@ export type ProjectState = {
   // SYSTEM_08 "Followers are physically repointed, never indirected"). A
   // config bit like isLocked, pushed on project_config_updated.
   followPinned: boolean;
-  projectDatasets: DatasetInProject[];
+  projectDatasets: RunDataset[];
   projectModules: InstalledModuleSummary[];
   metrics: MetricWithStatus[];
   commonIndicators: { id: string; label: string }[];
@@ -91,7 +91,7 @@ export type ProjectSseMessage =
         attachedRun: RunListingItem;
         projectModules: InstalledModuleSummary[];
         metrics: MetricWithStatus[];
-        projectDatasets: DatasetInProject[];
+        projectDatasets: RunDataset[];
         commonIndicators: { id: string; label: string }[];
         icehIndicators: { id: string; label: string; category: string }[];
         // Default visualizations are projections of the attached run (item

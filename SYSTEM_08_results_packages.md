@@ -15,14 +15,13 @@ globs:
   - lib/types/run_generation.ts
   - lib/types/run_manifest.ts
   - server/db/instance/run_generation.ts
-  - server/db/project/modules.ts
   - server/github/**
   - server/module_loader/**
   - server/routes/instance/modules.ts
   - server/routes/instance/run_generation.ts
   - server/routes/project/modules.ts
   - server/routes/project/results_package.ts
-  - server/runs/**
+  - server/runs/*.ts
   - server/server_only_funcs/**
   - server/server_only_types/**
   - server/task_management/mod.ts
@@ -79,11 +78,11 @@ together"); that repo is not documented here.
 
 The `globs:` frontmatter above is the lint-enforced manifest
 (`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1.
-`server/module_loader/**`; `server/github/**`; ALL of `db/project/modules.ts`
-(now just the installed-definition blob helper the manifest builder shares and
-the config-selections parser);
-`server/runs/**` + `worker_routines/generate_run/**` (the results-package
-pipeline) + `instantiate_worker_generic.ts`; `server_only_funcs/**` (R-script
+`server/module_loader/**`; `server/github/**`; `server/runs/*.ts` (the
+results-package pipeline, including `module_config.ts`: the installed-definition
+blob helper the manifest builder shares and the config-selections parser) +
+`worker_routines/generate_run/**` + `instantiate_worker_generic.ts`
+(`server/runs/capture_inputs/**` is S6's, SYSTEMS.md §4.1); `server_only_funcs/**` (R-script
 templating); `server_only_types/mod.ts`;
 `routes/{instance,project}/modules.ts` + `routes/instance/run_generation.ts`
 (the catalogue listing, the guarded hard delete, and the ONE mount for
@@ -206,7 +205,7 @@ themselves (`modules`, `results_objects`, `metrics`,
 table) from the base schema and every project DB. The older migrations that
 created or altered those tables are guarded on table existence so a fresh DB
 never creates them (PROTOCOL_APP_MIGRATIONS.md, SQL Migrations). What
-survives in `db/project/modules.ts` is not a catalog write path:
+survives in `server/runs/module_config.ts` is not a catalog write path:
 `prepareModuleDefinitionForStorage` (the installed monolingual blob, built
 straight into the manifest by `generate_run/pipeline.ts`) and
 `parseModuleConfigSelections`. A project serves entirely from its attached

@@ -5,7 +5,7 @@ import {
   type RunDetail,
   type RunModuleFileListing,
 } from "lib";
-import { parseModuleConfigSelections } from "../db/project/modules.ts";
+import { parseModuleConfigSelections } from "./module_config.ts";
 import {
   _MODULE_LOG_FILE_NAME,
   _MODULE_SCRIPT_FILE_NAME,

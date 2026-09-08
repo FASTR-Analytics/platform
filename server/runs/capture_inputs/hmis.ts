@@ -11,20 +11,20 @@ import {
   isValidPeriodId,
   resolveCommonIndicatorCatalog,
   throwIfErrWithData,
-  type DatasetHmisInfoInProject,
+  type RunDatasetHmisInfo,
   POPULATION_TYPE_IDS,
 } from "lib";
-import { getCommonIndicators } from "../instance/indicators.ts";
+import { getCommonIndicators } from "../../db/instance/indicators.ts";
 import {
   getStructureSchema,
-} from "../instance/config.ts";
-import { getCurrentDatasetHmisVersion } from "../instance/dataset_hmis.ts";
-import { assertNoRunningDatasetHmisImportRun } from "../instance/dataset_hmis_import_runs.ts";
+} from "../../db/instance/config.ts";
+import { getCurrentDatasetHmisVersion } from "../../db/instance/dataset_hmis.ts";
+import { assertNoRunningDatasetHmisImportRun } from "../../db/instance/dataset_hmis_import_runs.ts";
 import {
   getBaseIndicatorMappingsVersion,
   getIndicatorMappingsVersion,
-} from "../instance/instance.ts";
-import { tryCatchDatabaseAsync } from "./../utils.ts";
+} from "../../db/instance/instance.ts";
+import { tryCatchDatabaseAsync } from "../../db/utils.ts";
 
 // Where a dataset capture writes its extract CSV: the Postgres server executes
 // `COPY … TO postgresPath` (a path inside the Postgres container), and
@@ -46,19 +46,18 @@ export async function ensureDatasetCsvTargetDir(
   await Deno.chmod(dir, 0o777);
 }
 
-// computeDatasetHmisRunCapture does every instance-DB read, validation, and
-// the COPY TO export, and returns the captured rows the caller needs (run
-// input mirrors, script-generation inputs, manifest datasets info) WITHOUT
-// touching any project DB. Capture is always the FULL dataset: entire
-// period range, all indicators, all admin areas, all facility
-// types/ownerships (PLAN_FULL_CAPTURE_GENERATION ruling 2026-08-03):
-// the R scripts need the full dataset to compute correctly, and per-project
-// subsetting is an attach-time query filter, never a generation input.
+// The run-capture seam (SYSTEM_06): computeDatasetHmisRunCapture does every
+// instance-DB read, validation, and the COPY TO export, and returns the
+// captured rows the pipeline needs (run input mirrors, script-generation
+// inputs, manifest datasets info). Capture is always the FULL dataset:
+// entire period range, all indicators, all admin areas, all facility
+// types/ownerships (PLAN_FULL_CAPTURE_GENERATION ruling 2026-08-03): the R
+// scripts need the full dataset to compute correctly, and subsetting is a
+// read-time query filter, never a generation input.
 
-// The facilities_{hmis,hfa} column set, in project-table order: the run's
-// facilities parquet is built from these rows directly (no project table to
-// export from under the no-dual-write model).
-export const PROJECT_FACILITY_COLUMN_NAMES = [
+// The facilities_{hmis,hfa} column set: the run's facilities parquet is
+// built from these rows directly.
+export const RUN_FACILITY_COLUMN_NAMES = [
   "facility_id",
   "admin_area_4",
   "admin_area_3",
@@ -74,7 +73,7 @@ export const PROJECT_FACILITY_COLUMN_NAMES = [
   "facility_custom_5",
 ] as const;
 
-export type ProjectFacilityRow = {
+export type RunFacilityRow = {
   facility_id: string;
   admin_area_4: string;
   admin_area_3: string;
@@ -91,13 +90,13 @@ export type ProjectFacilityRow = {
 };
 
 export type DatasetHmisRunCapture = {
-  info: DatasetHmisInfoInProject;
+  info: RunDatasetHmisInfo;
   lastUpdated: string;
   // The v2 `indicators.json` mirror: the WHOLE common dictionary, resolved.
   // (v1 carried only the commons that had mappings, and a separate calculated
   // snapshot beside it.)
   indicators: CommonIndicatorCatalogRow[];
-  facilities: ProjectFacilityRow[];
+  facilities: RunFacilityRow[];
   // The extract's month range and the structure's finest admin level: what
   // the person-years expansion (prepare_inputs) needs to know which months
   // and which areas every referenced population must cover.
@@ -112,7 +111,7 @@ export async function computeDatasetHmisRunCapture(
 ): Promise<APIResponseWithData<DatasetHmisRunCapture>> {
   return await tryCatchDatabaseAsync(async () => {
     // A per-pair DHIS2 run mutates dataset_hmis for hours; exporting during
-    // one would copy torn mid-run data into the project stamped with the
+    // one would copy torn mid-run data into the package stamped with the
     // settled version id. Refuse up front (this also gives the clear error
     // on a first-ever import, when the only version row is still hidden).
     // A run *launching* mid-export remains possible, that window existed
@@ -120,10 +119,9 @@ export async function computeDatasetHmisRunCapture(
     // self-signals via the staleness marker at run end.
     await assertNoRunningDatasetHmisImportRun(mainDb);
 
-    // Validate BEFORE removing the existing attachment: a validation
-    // failure after the remove would leave the project detached with
-    // modules still clean and clients unnotified. The version is also the
-    // staleness marker, so it must be captured before the export.
+    // The version is also the staleness marker, so it is captured before
+    // the export (a hash-after-export could be taken after a concurrent
+    // instance import committed, masking the staleness forever).
     if (onProgress) await onProgress(0.1, "Validating configuration...");
     const version = await getCurrentDatasetHmisVersion(mainDb);
     assertNotUndefined(version, "Cannot get hmis version");
@@ -193,7 +191,7 @@ export async function computeDatasetHmisRunCapture(
     const baseIndicatorMappingsVersion =
       await getBaseIndicatorMappingsVersion(mainDb);
 
-    const info: DatasetHmisInfoInProject = {
+    const info: RunDatasetHmisInfo = {
       version,
       totalRows,
       structureLastUpdated,
@@ -243,8 +241,8 @@ COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADE
     }
 
     const facilities = (await mainDb.unsafe(
-      `SELECT ${PROJECT_FACILITY_COLUMN_NAMES.join(", ")} FROM facilities_hmis`,
-    )) as ProjectFacilityRow[];
+      `SELECT ${RUN_FACILITY_COLUMN_NAMES.join(", ")} FROM facilities_hmis`,
+    )) as RunFacilityRow[];
 
     return {
       success: true,

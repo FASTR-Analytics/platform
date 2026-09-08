@@ -19,7 +19,7 @@ globs:
   - lib/types/dataset_iceh.ts
   - lib/types/dataset_iceh_import.ts
   - lib/types/datasets.ts
-  - lib/types/datasets_in_project.ts
+  - lib/types/run_datasets.ts
   - lib/types/dhis2.ts
   - server/db/instance/dataset_hfa.ts
   - server/db/instance/dataset_hfa_import_runs.ts
@@ -30,12 +30,10 @@ globs:
   - server/db/instance/dataset_hmis_scheduled_imports.ts
   - server/db/instance/dataset_iceh.ts
   - server/db/instance/dataset_iceh_import_runs.ts
-  - server/db/project/datasets_in_project_hfa.ts
-  - server/db/project/datasets_in_project_hmis.ts
-  - server/db/project/datasets_in_project_iceh.ts
   - server/routes/instance/datasets.ts
   - server/routes/instance/dhis2_credentials.ts
   - server/routes/instance/iceh.ts
+  - server/runs/capture_inputs/**
   - server/server_only_funcs_csvs/**
   - server/worker_routines/import_hfa_data_csv/**
   - server/worker_routines/import_hmis_data_csv/**
@@ -372,17 +370,21 @@ callback re-parses the new bytes).
   schema hash in the uniqueness keys; HFA/ICEH use server-provided cache
   hashes from the T1 SSE store.
 
-## Run capture seam
+## The run-capture seam (`server/runs/capture_inputs/**`)
 
-Datasets reach a project only as results-package run inputs: the wizard's
-choose-data step drives the per-family capture functions
-(`computeDataset*RunCapture` in `server/db/project/datasets_in_project_*.ts`,
-called from `generate_run/prepare_inputs.ts`). Each capture validates and
-records the staleness metadata FIRST (hash-after-export could mask a
-concurrent instance import), then `COPY`s main-DB data to the run's tmp dir
-(`DatasetCsvTarget` names the SAME file by its Postgres-container path and its
-Deno path), and returns the rows the run mirrors into its inputs plus the
-dataset version stamps the manifest records. No project table is written.
+A dataset reaches a reader only through a results package. The crossing is
+the per-family capture functions (`computeDataset{Hmis,Hfa,Iceh}RunCapture`),
+S6 code that lives inside the generation pipeline (SYSTEMS.md §4.1) because
+it reads main and writes the run workspace; the wizard's choose-data step
+drives them from `generate_run/prepare_inputs.ts` (S8). Each capture
+validates and records the staleness metadata FIRST (hash-after-export could
+mask a concurrent instance import), then `COPY`s main-DB data to the run's
+tmp dir (`DatasetCsvTarget` names the SAME file by its Postgres-container
+path and its Deno path), and returns the rows the run mirrors into its inputs
+plus the dataset version stamps the manifest records (`RunDataset`,
+`lib/types/run_datasets.ts`; read back by `getRunDatasetsFromManifest`).
+The facilities parquet is built from `RUN_FACILITY_COLUMN_NAMES` rows. No
+project table is written.
 
 - The run's input mirrors are the metadata twins of the CSVs:
   `hfa_*_snapshot.json` (HFA, service-category-scoped),

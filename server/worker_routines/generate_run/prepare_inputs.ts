@@ -13,23 +13,25 @@ import {
   type HfaIndicator,
   type HfaIndicatorCode,
   type HfaIndicatorVariantCode,
-  type RunDataset,
+  type RunManifestDataset,
   type RunGenerationStep1Result,
   type RunPopulation,
   type RunPopulationCoverage,
 } from "lib";
 import {
-  computeDatasetHfaRunCapture,
-  computeDatasetHmisRunCapture,
-  computeDatasetIcehRunCapture,
   dbRowToHfaIndicator,
   getPopulationAnchors,
   getPopulationLevel,
   listHmisStructureAreas,
-  PROJECT_FACILITY_COLUMN_NAMES,
-  type DatasetCsvTarget,
-  type ProjectFacilityRow,
 } from "../../db/mod.ts";
+import { computeDatasetHfaRunCapture } from "../../runs/capture_inputs/hfa.ts";
+import {
+  computeDatasetHmisRunCapture,
+  RUN_FACILITY_COLUMN_NAMES,
+  type DatasetCsvTarget,
+  type RunFacilityRow,
+} from "../../runs/capture_inputs/hmis.ts";
+import { computeDatasetIcehRunCapture } from "../../runs/capture_inputs/iceh.ts";
 import { _RUNS_DIR_PATH_POSTGRES_INTERNAL } from "../../exposed_env_vars.ts";
 import {
   exportRowsToParquet,
@@ -73,7 +75,7 @@ export type PreparedRunInputs = {
   extraInputFiles: string[];
   // Manifest `datasets` entries, built from the captures (the project
   // `datasets` table is never written or read on this path).
-  datasets: RunDataset[];
+  datasets: RunManifestDataset[];
   // Facilities tables captured into the run, with their parquet columns.
   facilitiesTables: { tableName: string; columns: ExportedColumn[] }[];
   // Everything script generation needs (previously re-read from the project
@@ -97,7 +99,7 @@ export type PreparedRunInputs = {
 // The project facilities tables are all-text; the run parquet declares the
 // same (§2.3 declared types, never inferred).
 const FACILITY_PARQUET_COLUMNS: ExportedColumn[] =
-  PROJECT_FACILITY_COLUMN_NAMES.map((name) => ({
+  RUN_FACILITY_COLUMN_NAMES.map((name) => ({
     name,
     duckDbType: "VARCHAR",
   }));
@@ -123,7 +125,7 @@ export async function prepareRunInputs(
   });
 
   const selectedFamilies: DatasetType[] = [];
-  const datasets: RunDataset[] = [];
+  const datasets: RunManifestDataset[] = [];
   const extraInputFiles: string[] = [];
   let population: RunPopulation | null = null;
   let populationHash: string | null = null;
@@ -476,7 +478,7 @@ async function writeInputJson(
 async function writeFacilitiesParquet(
   tmpDir: string,
   tableName: string,
-  facilities: ProjectFacilityRow[],
+  facilities: RunFacilityRow[],
 ): Promise<void> {
   await exportRowsToParquet(
     facilities as unknown as Record<string, unknown>[],
