@@ -29,7 +29,7 @@ fail() {
     echo "║              CONSOLIDATION REPLAY FAILED                     ║"
     echo "║                                                              ║"
     printf "║  %-60s║\n" "$1"
-    echo "╚══════════════════════════════════════════════════════════════╝\033[0m"
+    echo -e "╚══════════════════════════════════════════════════════════════╝\033[0m"
 }
 
 echo "Starting temporary postgres container..."

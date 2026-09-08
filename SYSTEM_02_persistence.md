@@ -349,7 +349,13 @@ template-identical project databases, the users-and-logs path through 086,
 the two negative controls that show 000's `ADD COLUMN` lines are
 load-bearing, and the fresh path from the post-restructure base; the
 migrated and fresh schemas must both dump byte-identical to the base plus
-086.
+086. `./validate_consolidation.ts` (repo root) is the read-only fleet
+dry-run (D13): per instance, over an ssh tunnel per PROTOCOL_ACCESS_DBS or
+`--local` against the dev database, it runs the same planner and reports
+the FAILs that would abort 085 and the REVIEW counts that are irreversible
+once it runs; `--json` writes the planned per-instance counts the rollout
+post-check compares against. The replay harness runs it against its seeded
+instance and checks the planned counts against what 085 inserted.
 
 ### Backup / restore mechanics
 

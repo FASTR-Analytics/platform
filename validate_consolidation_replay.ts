@@ -23,6 +23,11 @@
 //   (d) The fresh path: the post-restructure base plus 000, every instance
 //       migration, 085 and 086, applied by the runner in one pass, converges
 //       on the same schema as (a).
+//
+// Before (a) runs the migrations, the read-only dry-run
+// (validate_consolidation.ts) plans the same seeded instance; its FAIL,
+// REVIEW and planned counts are checked against what 085 then inserts, which
+// is the mechanism the step 10 post-check reuses.
 
 import { dirname, fromFileUrl, join } from "@std/path";
 import type { Sql } from "postgres";
@@ -33,6 +38,7 @@ import {
   type TsMigration,
 } from "./server/db/migrations/runner.ts";
 import { consolidateProjects } from "./server/db/migrations/consolidation/staged/085_consolidate_projects.ts";
+import { dryRunInstance, plannedCounts } from "./validate_consolidation.ts";
 
 const ROOT = dirname(fromFileUrl(import.meta.url));
 const INSTANCE_DIR = join(ROOT, "server/db/migrations/instance");
@@ -487,8 +493,8 @@ async function assertConsolidated(db: Sql): Promise<void> {
 
 async function replayLiveInstance(): Promise<void> {
   console.log("\n=== (a) Live instance: base, migrations, two template-identical projects ===");
-  await createDatabase("main_live");
-  await withDb("main_live", async (db) => {
+  await createDatabase("main");
+  await withDb("main", async (db) => {
     await loadFile(db, MAIN_BASE);
     await runMigrationsInDir(db, INSTANCE_DIR, {}, "instance");
     await seedLegacyMain(db);
@@ -506,10 +512,49 @@ async function replayLiveInstance(): Promise<void> {
   await createDatabase(P2, P1);
   await createDatabase(P3, P1);
 
+  console.log("\n=== Dry-run of the seeded instance before the migrations run ===");
+  const dryRun = await dryRunInstance({
+    name: "replay",
+    host: Deno.env.get("PG_HOST") ?? "localhost",
+    port: parseInt(Deno.env.get("PG_PORT") ?? "5432", 10),
+    password: Deno.env.get("PG_PASSWORD") ?? "",
+  });
+  check(dryRun.fails.length === 0, `dry-run reports zero FAIL (${dryRun.fails.join("; ")})`);
+  check(
+    dryRun.pendingDeletion.length === 1 && dryRun.centralReporting.length === 1 &&
+      dryRun.runIdNull.length === 1 && dryRun.pinnedRunId === RUN_PIN,
+    "dry-run lists the pending_deletion, central-reporting and run_id NULL projects and the pin",
+  );
+  check(
+    dryRun.viewerOnlyUsers.length === 1 && dryRun.viewerOnlyUsers[0] === "viewer@example.org" &&
+      dryRun.usersWithNoProjectRole === 1,
+    "dry-run names the viewer-only user and counts the user with no project role",
+  );
+  check(
+    dryRun.extraDropped.userAuthoredVisualizations === 2 &&
+      dryRun.extraDropped.publicDashboards === 2 && dryRun.dashboardSlugs === 1,
+    "dry-run counts the user-authored visualizations, public dashboards and slugs that are lost",
+  );
+  const planned = plannedCounts(dryRun);
+
   const stagedDir = await stageMigrationDir("full", true);
-  await withDb("main_live", async (db) => {
+  await withDb("main", async (db) => {
     await runMigrationsInDir(db, stagedDir, TS_MIGRATIONS, "replay");
     await assertConsolidated(db);
+    const actual = {
+      products: await count(db, "products"),
+      slideDecks: await count(db, "slide_decks"),
+      reports: await count(db, "reports"),
+      folders: await count(db, "folders"),
+      slides: await count(db, "slides"),
+      slideDeckVersions: await count(db, "slide_deck_versions"),
+      reportVersions: await count(db, "report_versions"),
+      remaps: planned.remaps,
+    };
+    check(
+      JSON.stringify(actual) === JSON.stringify(planned) && planned.remaps === 11,
+      `the dry-run's planned counts match what 085 inserted (${JSON.stringify(planned)})`,
+    );
   });
 }
 
@@ -522,7 +567,7 @@ async function buildReference(): Promise<void> {
     await loadFile(db, MAIN_BASE);
     await loadFile(db, join(STAGED_DIR, "086_drop_project_layer.sql"));
   });
-  await schemasMatch("main_live", "main_reference", "(a) migrated schema is byte-identical to fresh base plus 086");
+  await schemasMatch("main", "main_reference", "(a) migrated schema is byte-identical to fresh base plus 086");
 }
 
 // ── (b) Users, logs and aggregates through 086 ───────────────────────────────
