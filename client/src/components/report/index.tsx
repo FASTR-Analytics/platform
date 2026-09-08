@@ -7,12 +7,10 @@ import {
   findReportFigureConfigMap,
   type ImageBlock,
   materializeReport,
-  type PackageScope,
   type PresentationObjectConfig,
   type ProjectState,
   type ReportDocContent,
   type ResultsValue,
-  type RunAuthoringContext,
   t3,
 } from "lib";
 import {
@@ -54,8 +52,8 @@ import {
 import { PresenceAvatars } from "~/components/slide_deck/presence_avatars";
 import { ReportEditorCursors } from "~/components/_shared/cursors/report_cursors";
 import { addLastUpdatedListener } from "~/state/project/t1_sse";
-import { projectPackageScope, projectState } from "~/state/project/t1_store";
-import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
+import { projectState } from "~/state/project/t1_store";
+import { createProjectAuthoringScope } from "~/components/figure_editor/project_authoring_scope";
 import { setShowAi, showAi } from "~/state/t4_ui";
 import {
   type FetchedPOData,
@@ -425,29 +423,7 @@ export function ProjectReport(p: Props) {
     !projectState.isLocked;
 
   // ── Stale figures (D4) ──────────────────────────────────────────────────────
-  // The container's live pair: a reattach or scope change re-evaluates it,
-  // re-keys the authoring context, and lights the badges without a remount.
-  // Until step 7a the container is the project.
-  const scope = createMemo<PackageScope | undefined>(
-    projectPackageScope,
-    undefined,
-    { equals: (a, b) => a?.runId === b?.runId && a?.adminArea2 === b?.adminArea2 },
-  );
-  const [authoringContext, setAuthoringContext] = createSignal<
-    RunAuthoringContext | undefined
-  >();
-  createEffect(() => {
-    const runId = scope()?.runId;
-    setAuthoringContext(undefined);
-    if (!runId) return;
-    const controller = new AbortController();
-    onCleanup(() => controller.abort());
-    void (async () => {
-      const res = await getRunAuthoringContextFromCacheOrFetch(runId);
-      if (controller.signal.aborted || !res.success) return;
-      setAuthoringContext(res.data);
-    })();
-  });
+  const { scope, authoringContext } = createProjectAuthoringScope();
   const staleContext = () => {
     const pair = scope();
     const context = authoringContext();

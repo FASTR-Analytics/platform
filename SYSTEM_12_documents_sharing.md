@@ -176,9 +176,11 @@ package): every figure it writes is stamped with that pair, a figure block
 whose bundle was resolved under another pair shows S11's stale badge in the
 block panel, and the header counts them with "Update all figures" (S10 "The
 captured pair and staleness"). The deck header does the same across every
-slide through `deck_stale_figures.ts`, which walks the per-slide cache and
-writes each updated slide back through `updateSlide` with its
-`expectedLastUpdated`. Slide-type switching keeps a per-type cache so
+slide through `deck_stale_figures.ts`, which walks the per-slide cache,
+swaps bundles with `slide_transforms/update_block_in_layout.ts` (the one
+structural walk the slide editor's own block edits use, so every write
+carries a fresh reference for the CRDT sync) and writes each updated slide
+back through `updateSlide` with its `expectedLastUpdated`. Slide-type switching keeps a per-type cache so
 switching back restores prior state (same idiom per-block for block-type
 switches). The layout tree is manipulated exclusively through panther node
 ops via `buildLayoutContextMenu`

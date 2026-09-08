@@ -110,27 +110,8 @@ import { SelectVisualizationForSlide } from "../select_visualization_for_slide";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { convertBlockType } from "../slide_transforms/convert_block_type";
 import { convertSlideType } from "../slide_transforms/convert_slide_type";
+import { updateBlockInLayout } from "../slide_transforms/update_block_in_layout";
 import { SlideEditorPanel } from "./editor_panel";
-
-function updateBlockInLayout(
-  layout: LayoutNode<ContentBlock>,
-  targetId: string,
-  updater: (block: ContentBlock) => ContentBlock,
-): LayoutNode<ContentBlock> {
-  if (layout.type === "item") {
-    if (layout.id === targetId) {
-      return { ...layout, data: updater(layout.data) };
-    }
-    return layout;
-  }
-
-  return {
-    ...layout,
-    children: layout.children.map((child) =>
-      updateBlockInLayout(child as LayoutNode<ContentBlock>, targetId, updater),
-    ),
-  };
-}
 
 type SlideEditorInnerProps = {
   projectId: string;
@@ -953,11 +934,8 @@ export function SlideEditor(p: Props) {
     }
   }
 
-  // Path set (not reconcile): guarantees a FRESH bundle object reference so
-  // syncSlideToDoc always writes it. reconcile can merge the new bundle into
-  // the old object in place (same ref) for some shapes, which the sync's
-  // reference cache then skips: the edit updates locally but never reaches
-  // the doc (not synced, not saved). See lib/collab/slide_crdt.ts.
+  // Path set, not reconcile: updateBlockInLayout returns a fresh reference on
+  // the path so the CRDT sync always writes it (see its comment).
   function setFigureBlockBundle(blockId: string, bundle: FigureBundle) {
     if (tempSlide.type !== "content") return;
     const updatedLayout = updateBlockInLayout(

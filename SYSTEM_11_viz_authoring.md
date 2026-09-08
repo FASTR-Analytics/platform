@@ -60,11 +60,14 @@ PO CRUD with conflict resolution.
 The `globs:` frontmatter above is the lint-enforced manifest
 (`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1.
 `components/visualization/**` (editor core + panel tabs, ~6.2k LOC);
-`components/figure_editor/**` (today only `stale_figure_badge.tsx`: the
+`components/figure_editor/**` (today `stale_figure_badge.tsx`: the
 per-figure stale badge, its "Update to <package>" action and the
 "Update all figures" header button of PLAN_PRODUCTS_RESTRUCTURE D4, the
-contract being S10's "The captured pair and staleness"; step 7a moves the
-embedded editor into this directory);
+contract being S10's "The captured pair and staleness"; and
+`project_authoring_scope.ts`: `createProjectAuthoringScope()`, the one
+place a container derives its live pair and that package's authoring
+context, used by the deck and report editors; step 7a moves the embedded
+editor into this directory);
 `PresentationObjectPanelDisplay` / `MiniDisplay` / `ReplicateByOptions` /
 `NotAvailableBox` / `_editor_snapshot.ts`;
 `components/project/add_visualization/**` + `preset_preview.tsx` +

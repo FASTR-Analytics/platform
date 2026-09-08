@@ -6,7 +6,7 @@ database, one realtime channel, one copilot. An Explore tab replaces the
 project Metrics tab and the standalone visualization library; this plan
 creates the tab, and its page, the results explorer, is a later plan.
 
-**Next step: Fix 4.** Each session sets this line in its final commit. Its
+**Next step: Review 4.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N`; after step 10's review passes the
 file is deleted instead of advanced.
 
@@ -2148,6 +2148,9 @@ this section before its step.
 | 2026-09-08 | 4 | Fact: the two issue entry points agree on dimensions and availability but not on hidden metrics: `getMetricsWithStatusFromManifest` drops `hide` metrics (`run_read.ts:675`), so `figurePackageIssueForMetrics` reports a since-hidden metric as not in the package while `figurePackageIssueForDimensions` resolves it. A hidden metric cannot be authored, so no code change; SYSTEM_08's "cannot give different answers" has that one exception. |
 | 2026-09-08 | 4 | `walkLayout` in `figure_staleness.ts` beside `extractBlocksFromLayout` (`slide_ai/extract_blocks_from_layout.ts`) is accepted: that module imports the AI config formatter at runtime, and the predicate module must load under Deno with type-only imports. |
 | 2026-09-08 | 4 | Step 4 reviewed: 4 findings. |
+| 2026-09-08 | 4 | Fix 4, done by the reviewing agent at Tim's direction (deviation from §0's fresh-fixer rule, accepted as for Fix 1 to 3). All three code findings applied in one commit. `projectPackageScope()` reads `attachedRunId` alone and is undefined when it is null, with no pin fallback and no instance import; its comment says why (the project lens never reads the pin). The pair memo and authoring-context effect exist once, as `createProjectAuthoringScope()` in `client/src/components/figure_editor/project_authoring_scope.ts` (claimed by SYSTEM_11's `figure_editor/**`), returning `{ scope, authoringContext }` accessors; the deck and report containers call it. `updateBlockInLayout` is exported from `client/src/components/slide_deck/slide_transforms/update_block_in_layout.ts` (claimed by SYSTEM_12's `slide_transforms/**`) and carries the fresh-reference rule once; the slide editor imports it and `replaceFigureBundles` folds the deck's stale map over it. SYSTEM_11 and SYSTEM_12 prose name the two new files. The finding with no code change and the two facts stand as logged. |
+| 2026-09-08 | 4 | Gates green: `deno task typecheck` (server, client, `lint:systems`: every tracked file claimed once), `deno task test` (25 passed), `./validate_protocols` (0 tier-1, 0 new tier-2), and a server boot against the dev database that listens on 8000 with its 25 boot tests passing. No migration or query-engine file changed. |
+| 2026-09-08 | 4 | Step 4 fixed. |
 
 ---
 

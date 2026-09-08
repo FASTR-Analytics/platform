@@ -7,7 +7,6 @@ import {
   projectScopeToken,
 } from "lib";
 import { createStore, reconcile, unwrap } from "solid-js/store";
-import { instanceState } from "~/state/instance/t1_store";
 import { forceCollabReconnect } from "./collab";
 
 const EMPTY_PROJECT_STATE: ProjectState = {
@@ -220,9 +219,10 @@ export function responseRunVersionMatches(
 // inside the project editors is captured under (PLAN_PRODUCTS_RESTRUCTURE
 // D4) until step 7a moves the editors onto products. Live reads, so a
 // reattach or scope change re-evaluates any tracking consumer. undefined =
-// nothing to resolve under (no package attached and no pin).
+// no package attached, the state the project lens refuses to read under;
+// the pin is never a fallback here because the reads do not fall back to it.
 export function projectPackageScope(): PackageScope | undefined {
-  const runId = projectState.attachedRunId ?? instanceState.pinnedRunId;
+  const runId = projectState.attachedRunId;
   return runId === null
     ? undefined
     : { runId, adminArea2: projectState.adminArea2 };

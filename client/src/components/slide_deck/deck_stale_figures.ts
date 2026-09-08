@@ -9,6 +9,7 @@ import { serverActions } from "~/server_actions";
 import { _SLIDE_CACHE, getSlideFromCacheOrFetch } from "~/state/project/t2_slides";
 import { findStaleFiguresInLayout } from "~/generate_visualization/mod";
 import { updateFigureToScope } from "~/components/figure_editor/stale_figure_badge";
+import { updateBlockInLayout } from "./slide_transforms/update_block_in_layout";
 
 // Deck-level staleness (PLAN_PRODUCTS_RESTRUCTURE D4): which figures across
 // the deck were resolved under a pair other than the container's current
@@ -101,24 +102,15 @@ export async function updateAllDeckFigures(
   return { updated, failures };
 }
 
-// Structural replace: a fresh node object for every touched item, so the
-// CRDT sync's reference cache cannot skip the write (the same reason the
-// slide editor path-sets a new bundle rather than reconciling one in place).
 function replaceFigureBundles(
-  node: ContentSlide["layout"],
+  layout: ContentSlide["layout"],
   byBlockId: ReadonlyMap<string, FigureBundle>,
 ): ContentSlide["layout"] {
-  if (node.type === "item") {
-    const bundle = byBlockId.get(node.id);
-    if (bundle === undefined || node.data.type !== "figure") {
-      return node;
-    }
-    return { ...node, data: { type: "figure", bundle } };
+  let next = layout;
+  for (const [blockId, bundle] of byBlockId) {
+    next = updateBlockInLayout(next, blockId, (b) =>
+      b.type !== "figure" ? b : { type: "figure", bundle },
+    );
   }
-  return {
-    ...node,
-    children: node.children.map((child) =>
-      replaceFigureBundles(child as ContentSlide["layout"], byBlockId),
-    ),
-  };
+  return next;
 }

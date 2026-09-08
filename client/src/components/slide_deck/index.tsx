@@ -8,13 +8,13 @@ import {
   t3,
 } from "lib";
 import { instanceState } from "~/state/instance/t1_store";
-import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
+import { createProjectAuthoringScope } from "~/components/figure_editor/project_authoring_scope";
 import { EditorComponentProps, getEditorWrapper, openComponent } from "panther";
-import { createEffect, createMemo, createSignal, onCleanup, onMount } from "solid-js";
+import { createEffect, createSignal, onCleanup, onMount } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { _SLIDE_CACHE } from "~/state/project/t2_slides";
 import { getSlideDeckDetailFromCacheOrFetch } from "~/state/project/t2_slide_decks";
-import { projectPackageScope, projectState } from "~/state/project/t1_store";
+import { projectState } from "~/state/project/t1_store";
 import { DownloadSlideDeck } from "./download_slide_deck";
 import { ShareSlideDeck } from "./share_slide_deck";
 import { SlideEditor } from "./slide_editor";
@@ -63,29 +63,7 @@ export function ProjectAiSlideDeck(p: Props) {
     getStartingConfigForSlideDeck(p.reportLabel),
   );
 
-  // The container's live pair (D4): a reattach or scope change re-evaluates
-  // it, re-keys the authoring context below, and lights the stale badges
-  // without a remount. Until step 7a the container is the project.
-  const scope = createMemo<PackageScope | undefined>(
-    projectPackageScope,
-    undefined,
-    { equals: (a, b) => a?.runId === b?.runId && a?.adminArea2 === b?.adminArea2 },
-  );
-  const [authoringContext, setAuthoringContext] = createSignal<
-    RunAuthoringContext | undefined
-  >();
-  createEffect(() => {
-    const runId = scope()?.runId;
-    setAuthoringContext(undefined);
-    if (!runId) return;
-    const controller = new AbortController();
-    onCleanup(() => controller.abort());
-    void (async () => {
-      const res = await getRunAuthoringContextFromCacheOrFetch(runId);
-      if (controller.signal.aborted || !res.success) return;
-      setAuthoringContext(res.data);
-    })();
-  });
+  const { scope, authoringContext } = createProjectAuthoringScope();
 
   // The collab socket is owned by ProjectSSEBoundary (project-scoped). Here we
   // only advertise that this user is currently viewing this deck.
