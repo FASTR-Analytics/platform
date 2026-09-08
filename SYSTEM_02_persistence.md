@@ -322,10 +322,10 @@ SQL migration. `./validate_migrations_replay` (repo root) covers the shapes
 the fleet actually has: it loads the `_main_database.sql` of seven historical
 deploy commits into that container, one database each, applies every current
 instance migration to each, and then runs `dbStartUp()` against the empty
-server. A statement error on any base, or a non-zero boot exit, fails it. The one sanctioned edit of an applied migration is the
-table-existence guard that lets a base-owned table leave the base schema
-(the protocol's "Dropping a table that older migrations touch"; applied to
-nine project migrations).
+server. A statement error on any base, or a non-zero boot exit, fails it. The
+one sanctioned edit of an applied migration is the table-existence guard that
+lets a base-owned table leave the base schema (the protocol's "Dropping a
+table that older migrations touch"; applied to nine project migrations).
 
 ### Backup / restore mechanics
 

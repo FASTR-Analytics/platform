@@ -1,12 +1,5 @@
-// A product is a slide deck or a report. `products` is the registry every
-// cross-type operation goes through (list, folder move, delete, package
-// reattach, "in use by", the id namespace); the per-type detail tables hang
-// off it by the same id. Folders nest through `parentId` (an adjacency list;
-// the path is derived by walking up, never stored). A product lives in
-// exactly one folder or none.
-//
-// `createdBy` and `createdAt` are provenance, not ownership: nothing reads
-// them for access, and a later owner role comes from an ACL table.
+// Contract: the PRODUCTS AND FOLDERS block in
+// server/db/instance/_main_database.sql.
 
 import type { PackageScope } from "./scope.ts";
 
@@ -39,8 +32,7 @@ export type ProductBase = {
   // null = pre-restructure row (no invented provenance at consolidation).
   createdBy: string | null;
   createdAt: string | null;
-  // THE product version: every content mutation and every metadata write
-  // bumps it in the same transaction. Keys the detail cache.
+  // The product version (see the SQL contract); keys the detail cache.
   lastUpdated: string;
 };
 

@@ -5,7 +5,7 @@ folders, each attached to one results package at one scope. One main
 database, one realtime channel, one copilot. An Explore tab replaces the
 project Metrics tab and the standalone visualization library.
 
-**Next step: Fix 1.** Each session sets this line in its final commit. Its
+**Next step: Review 1.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N`; after step 10's review passes the
 file is deleted instead of advanced.
 
@@ -2067,6 +2067,8 @@ this section before its step.
 | 2026-09-08 | 1 | Finding: the D1 contract is restated in two code comments. `server/db/instance/_main_database.sql:173-183` and `lib/types/products.ts:1-9` (plus the `lastUpdated` field comment at `lib/types/products.ts:42-43`) both say, in the same words, that `products` is the registry every cross-type operation goes through, that folders nest by adjacency list, that `created_by`/`created_at` are provenance not ownership, and that `last_updated` is the product version. CLAUDE.md: one authoritative doc comment per contract, single-line pointers everywhere else. Keep the SQL block as the authority and reduce the TypeScript header to a pointer. |
 | 2026-09-08 | 1 | Finding: `SYSTEM_02_persistence.md:325` joins the new replay sentence onto the existing "The one sanctioned edit" sentence in a 129-character line; the file is hard-wrapped at 80. Re-wrap the paragraph. |
 | 2026-09-08 | 1 | Step 1 reviewed: 2 findings. |
+| 2026-09-08 | 1 | Fix 1. Both findings applied in one commit: the `lib/types/products.ts` header and its `lastUpdated` field comment are now single-line pointers to the SQL block, which stays the one authoritative statement of the D1 contract; the `SYSTEM_02_persistence.md` replay paragraph is re-wrapped at 80 columns. Floor gates green: `deno task typecheck`, `deno task test` (14 passed), `./validate_protocols`, and a server boot against the dev database that listens with its 14 boot tests passing. No migration or query-engine file changed, so the two conditional gates do not apply. |
+| 2026-09-08 | 1 | Step 1 fixed. |
 
 ---
 
