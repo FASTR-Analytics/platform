@@ -702,7 +702,7 @@ export function ReportToolbar(p: Props) {
               </MenuFlyout>
               <PopoverRow active={p.showPages()} onClick={() => p.onToggleShowPages()}>
                 <span class="flex-1">
-                  {t3({ en: "Edit on pages", fr: "Modifier sur les pages", pt: "Editar nas páginas" })}
+                  {t3({ en: "Edit on rendered pages (experimental)", fr: "Modifier sur les pages rendues (expérimental)", pt: "Editar nas páginas renderizadas (experimental)" })}
                 </span>
                 <Show when={p.showPages()}>
                   <Icon iconName="check" class="h-3.5 w-3.5" />

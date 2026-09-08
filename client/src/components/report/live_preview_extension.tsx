@@ -3089,6 +3089,10 @@ export type EditorPagination = {
   result: FastrPagedResult;
   // The running footer's title, drawn on the seam.
   title: string;
+  // Per page, the padding (px) that brings the page box up to the printed
+  // page's height at the sheet's scale — measured by pageFillPlugin and kept
+  // here so a seam re-created on scroll starts at its right size.
+  fillers?: Map<number, number>;
 };
 
 export const setPagination = StateEffect.define<EditorPagination | undefined>();
@@ -3118,15 +3122,19 @@ function footerText(pag: EditorPagination, page: number): string {
   } ${total}`;
 }
 
-// The seam element: the ENDING page's running footer, then the strip of app
-// chrome that reads as the gap between two sheets. A cover page carries no
-// footer in the PDF, so its seam shows none either.
-function seamElement(pag: EditorPagination, page: number): HTMLElement {
+// The seam element before page `page`: the filler that pads the ENDING page
+// (page − 1) to the printed page's height (its padding-top, measured by
+// pageFillPlugin), that page's running footer, then the gap between two
+// sheets. A cover page carries no footer in the PDF, so its seam shows none.
+// After the last page (`end`) there is a foot and a filler but no gap.
+function seamElement(pag: EditorPagination, page: number, end = false): HTMLElement {
   const el = document.createElement("div");
-  el.className = "fm-page-gutter";
+  el.className = end ? "fm-page-gutter fm-page-gutter--end" : "fm-page-gutter";
   el.contentEditable = "false";
   el.setAttribute("data-page", String(page));
   const ending = pag.result.pages[page - 2];
+  const filler = pag.fillers?.get(page - 1);
+  if (filler !== undefined && filler > 0) el.style.paddingTop = `${filler}px`;
   if (ending !== undefined && !ending.cover) {
     const foot = document.createElement("div");
     foot.className = "fm-page-gutter__foot";
@@ -3137,10 +3145,11 @@ function seamElement(pag: EditorPagination, page: number): HTMLElement {
     foot.append(title, num);
     el.append(foot);
   }
-  const band = document.createElement("div");
-  band.className = "fm-page-gutter__band";
-  band.textContent = `${t3({ en: "Page", fr: "Page", pt: "Página" })} ${page}`;
-  el.append(band);
+  if (!end) {
+    const band = document.createElement("div");
+    band.className = "fm-page-gutter__band";
+    el.append(band);
+  }
   return el;
 }
 
@@ -3171,7 +3180,30 @@ class PageGutterWidget extends WidgetType {
     return dom;
   }
   override get estimatedHeight(): number {
-    return 70;
+    return 70 + (this.pag.fillers?.get(this.page - 1) ?? 0);
+  }
+  override ignoreEvent(): boolean {
+    return false;
+  }
+}
+
+// After the document's last line: the last page's foot and its filler, so
+// the final page is a full sheet too.
+class PageEndWidget extends WidgetType {
+  constructor(readonly pag: EditorPagination) {
+    super();
+  }
+  override eq(other: PageEndWidget): boolean {
+    return other.pag.title === this.pag.title && other.pag.result.total === this.pag.result.total;
+  }
+  override toDOM(): HTMLElement {
+    const dom = document.createElement("div");
+    dom.className = "cm-fm-page-end";
+    dom.append(seamElement(this.pag, this.pag.result.total + 1, true));
+    return dom;
+  }
+  override get estimatedHeight(): number {
+    return 40 + (this.pag.fillers?.get(this.pag.result.total) ?? 0);
   }
   override ignoreEvent(): boolean {
     return false;
@@ -3224,6 +3256,10 @@ function buildPaginationState(
       Decoration.line({ class: "cm-fm-split" }).range(state.doc.line(s.line + 1).from),
     );
   }
+  decos.push(
+    Decoration.widget({ widget: new PageEndWidget(pag), block: true, side: 1 })
+      .range(state.doc.length),
+  );
   decos.sort((a, b) => a.from - b.from || a.value.startSide - b.value.startSide);
   return { pagination: pag, deco: Decoration.set(decos, true), regionSeams, regionSplits };
 }
@@ -3287,6 +3323,81 @@ function applyRegionPagination(
   }
 }
 
+// Every page box is the printed page's height at the sheet's scale (the
+// host's --fm-page-h): each seam's padding-top pads the page ending above it
+// to that height (a page whose editor rendering runs taller than print simply
+// runs taller). Measured from the DOM, pages between consecutive seams in
+// view; a seam whose page start is off-screen keeps its last value.
+type FillMeasure = {
+  pag: EditorPagination;
+  writes: { el: HTMLElement; page: number; px: number }[];
+};
+
+const pageFillPlugin = ViewPlugin.fromClass(
+  class {
+    constructor(readonly view: EditorView) {
+      this.measure();
+    }
+    update(u: ViewUpdate) {
+      const landed = u.transactions.some((tr) =>
+        tr.effects.some((e) => e.is(setPagination))
+      );
+      if (landed || u.docChanged || u.viewportChanged || u.geometryChanged) {
+        this.measure();
+      }
+    }
+    measure() {
+      this.view.requestMeasure<FillMeasure | undefined>({
+        read: (view) => {
+          const pag = view.state.field(paginationField, false)?.pagination;
+          if (!pag) return undefined;
+          const pageH = parseFloat(
+            getComputedStyle(view.dom).getPropertyValue("--fm-page-h"),
+          );
+          if (!Number.isFinite(pageH) || pageH <= 0) return undefined;
+          const seams = Array.from(
+            view.contentDOM.querySelectorAll<HTMLElement>(".fm-page-gutter"),
+          );
+          const contentRect = view.contentDOM.getBoundingClientRect();
+          let pageTop: number | undefined = contentRect.top +
+            (parseFloat(getComputedStyle(view.contentDOM).paddingTop) || 0);
+          const writes: FillMeasure["writes"] = [];
+          for (const seam of seams) {
+            const page = Number(seam.getAttribute("data-page"));
+            if (!Number.isFinite(page)) continue;
+            const rect = seam.getBoundingClientRect();
+            const band = seam.querySelector<HTMLElement>(".fm-page-gutter__band");
+            // The page ending here starts at the previous seam's gap; when
+            // that seam is not rendered (off-screen), its start is unknown.
+            const known = page === 2 || (pageTop !== undefined && pag.fillers?.has(page - 2) !== false);
+            if (pageTop !== undefined && (page === 2 || known)) {
+              const foot = seam.querySelector<HTMLElement>(".fm-page-gutter__foot");
+              const footH = foot ? foot.getBoundingClientRect().height : 0;
+              const contentH = rect.top - pageTop;
+              const filler = Math.max(0, Math.round(pageH - contentH - footH));
+              const current = parseFloat(seam.style.paddingTop) || 0;
+              if (Math.abs(filler - current) > 1) {
+                writes.push({ el: seam, page: page - 1, px: filler });
+              }
+            }
+            pageTop = band ? band.getBoundingClientRect().bottom : undefined;
+          }
+          return { pag, writes };
+        },
+        write: (m, view) => {
+          if (!m || m.writes.length === 0) return;
+          m.pag.fillers ??= new Map();
+          for (const w of m.writes) {
+            w.el.style.paddingTop = `${w.px}px`;
+            m.pag.fillers.set(w.page, w.px);
+          }
+          view.requestMeasure();
+        },
+      });
+    }
+  },
+);
+
 const paginationPlugin = ViewPlugin.fromClass(
   class {
     update(u: ViewUpdate) {
@@ -3322,6 +3433,7 @@ export function livePreviewExtensions(
     docGroundPlugin(resolver),
     paginationField,
     paginationPlugin,
+    pageFillPlugin,
     ...(collab ? [regionPresencePlugin(collab), presenceFacet.of(collab)] : []),
   ];
 }
