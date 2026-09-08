@@ -1,0 +1,136 @@
+#!/bin/bash
+
+# Replays every current instance migration over the main-DB base schema of
+# each historical deploy shape the fleet still carries, then boots the app's
+# dbStartUp() against an empty server. ./validate_migrations checks
+# idempotency against today's base only; an instance created at an older
+# commit has that commit's base plus every migration since, and a migration
+# can pass the first and fail the second.
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+CONTAINER_NAME="wb-fastr-migration-replay-$$"
+DB_PORT=54331
+DB_USER="postgres"
+DB_PASS="testpass"
+BASE_SCHEMA_PATH="server/db/instance/_main_database.sql"
+MIGRATION_DIR="$SCRIPT_DIR/server/db/migrations/instance"
+BOOT_HARNESS="/tmp/wb-fastr-fresh-boot-$$.ts"
+
+# One deploy commit per fleet shape: the base schema an instance created
+# at that commit started from.
+FLEET_SHAPES=(
+    42516bec
+    fd1a259e
+    68160f6e
+    d3c3b18d
+    4791f190
+    04dfd51f
+    3d320bb4
+)
+
+cleanup() {
+    echo "Cleaning up..."
+    docker stop "$CONTAINER_NAME" 2>/dev/null || true
+    docker rm -v "$CONTAINER_NAME" 2>/dev/null || true
+    rm -f "$BOOT_HARNESS"
+}
+
+trap cleanup EXIT
+
+fail() {
+    echo ""
+    echo -e "\033[91m╔══════════════════════════════════════════════════════════════╗"
+    echo "║              MIGRATION REPLAY FAILED                        ║"
+    echo "║                                                              ║"
+    printf "║  %-60s║\n" "$1"
+    echo "╚══════════════════════════════════════════════════════════════╝\033[0m"
+}
+
+echo "Starting temporary postgres container..."
+docker run -d \
+    --name "$CONTAINER_NAME" \
+    -e POSTGRES_PASSWORD="$DB_PASS" \
+    -p "$DB_PORT:5432" \
+    postgres:15 > /dev/null
+
+echo "Waiting for postgres to be ready..."
+for i in {1..30}; do
+    if docker exec "$CONTAINER_NAME" pg_isready -U "$DB_USER" > /dev/null 2>&1; then
+        break
+    fi
+    sleep 0.5
+done
+
+replay() {
+    local commit="$1"
+    local db_name="replay_$commit"
+    local psql="docker exec -i $CONTAINER_NAME psql -U $DB_USER -d $db_name -v ON_ERROR_STOP=1"
+
+    echo ""
+    echo "=== Replaying shape $commit ($(git -C "$SCRIPT_DIR" show --no-patch --format=%ad --date=short "$commit")) ==="
+
+    docker exec "$CONTAINER_NAME" psql -U "$DB_USER" -c "CREATE DATABASE $db_name" > /dev/null
+
+    echo "Loading base schema as of $commit..."
+    if ! git -C "$SCRIPT_DIR" show "$commit:$BASE_SCHEMA_PATH" | $psql -q 2>&1; then
+        fail "Base schema of $commit did not load."
+        exit 1
+    fi
+
+    local count=0
+    for f in "$MIGRATION_DIR"/*.sql; do
+        if [[ "$(basename "$f")" == _* ]]; then
+            continue
+        fi
+        local filename=$(basename "$f")
+        if ! cat "$f" | $psql -q 2>&1; then
+            echo "  FAILED: $filename on shape $commit"
+            fail "Migration $filename crashed on shape $commit."
+            exit 1
+        fi
+        count=$((count + 1))
+    done
+
+    echo "Shape $commit: $count migrations applied with zero statement errors"
+}
+
+for commit in "${FLEET_SHAPES[@]}"; do
+    replay "$commit"
+done
+
+echo ""
+echo "=== Fresh boot: dbStartUp() against an empty server ==="
+
+cat > "$BOOT_HARNESS" <<TS
+import { dbStartUp } from "$SCRIPT_DIR/server/db_startup.ts";
+import { closeAllConnections } from "$SCRIPT_DIR/server/db/postgres/mod.ts";
+await dbStartUp();
+await closeAllConnections();
+Deno.exit(0);
+TS
+
+# Shell values win over the .env file, so only the connection moves to the
+# throwaway server; every other variable is the developer's own.
+if ! (cd "$SCRIPT_DIR" && PG_HOST=localhost PG_PORT="$DB_PORT" PG_PASSWORD="$DB_PASS" \
+    deno run --allow-all --env-file -c deno.json "$BOOT_HARNESS"); then
+    fail "dbStartUp() did not exit 0 against an empty server."
+    exit 1
+fi
+
+MIGRATION_COUNT=$(docker exec "$CONTAINER_NAME" psql -U "$DB_USER" -d main -tAc "SELECT count(*) FROM schema_migrations")
+FILE_COUNT=$(ls "$MIGRATION_DIR"/*.sql | grep -v "/_" | wc -l | tr -d ' ')
+if [[ "$MIGRATION_COUNT" != "$FILE_COUNT" ]]; then
+    fail "Fresh boot recorded $MIGRATION_COUNT migrations, expected $FILE_COUNT."
+    exit 1
+fi
+echo "Fresh boot: main created, $MIGRATION_COUNT migrations recorded"
+
+echo ""
+echo -e "\033[92m╔══════════════════════════════════════════════════════════════╗"
+echo "║              MIGRATION REPLAY PASSED                        ║"
+echo "║                                                              ║"
+echo "║  Every fleet shape replayed with zero statement errors       ║"
+echo "║  Fresh boot exited 0                                         ║"
+echo "╚══════════════════════════════════════════════════════════════╝\033[0m"

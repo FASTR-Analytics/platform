@@ -5,7 +5,7 @@ folders, each attached to one results package at one scope. One main
 database, one realtime channel, one copilot. An Explore tab replaces the
 project Metrics tab and the standalone visualization library.
 
-**Next step: Do 1.** Each session sets this line in its final commit. Its
+**Next step: Review 1.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N`; after step 10's review passes the
 file is deleted instead of advanced.
 
@@ -2027,6 +2027,12 @@ this section before its step.
 | 2026-09-08 | plan | Order changed from tier-by-tier to build-beside-then-strip. Steps 1 and 2 ship early. Deletion is 7a (deck and report project tabs), 9a (client) and 9b (server). |
 | 2026-09-08 | plan | Extensibility pass (Tim's two future requirements: per-product and per-folder permissions; more product types). Product types need nothing: `products.type` plus one detail table per type is the extension point. For permissions: every product-scoped route moves under `/products/:product_id`, route entries declare `access`, one `requireProductAccess` middleware and one `productAccessPolicy` (approved at every level today), `canEditProduct(productId)` on the client, the product id in the collab subscribe and room key, `created_by`/`created_at` on `folders`, and `created_by` is provenance not ownership. D7 records that package data stays instance-level. A client type registry object replaces scattered per-type dispatch. |
 | 2026-09-08 | plan | Two review passes over the draft (writing; consistency against the tree and the reference) applied. Notable corrections: step 4 depends on 3 and owns the authoring-context cache; step 5 adds the passive T1 fields, a separate `ProductLastUpdateTableName` and `notifyInstanceLastUpdated` so nothing project-keyed changes before 9b; `lib/types/presentation_objects.ts` is trimmed, not deleted; the intermediate-states table in §4 was added. |
+| 2026-09-08 | 1 | Migration number confirmed: 084 was the next free one, so every 084 reference in this plan stands. |
+| 2026-09-08 | 1 | Outside the Surface: `lib/types/mod.ts` gained two `export *` lines for `products.ts` and `scope.ts`. Without them `_main_database_types.ts` cannot type `products.type` as `ProductType` through the `lib` specifier the server uses everywhere, and steps 3 and 5 need the symbols reachable from the barrel. |
+| 2026-09-08 | 1 | Outside the Surface, under the §0 rule that a gate is a committed harness: `validate_migrations_replay` at the repo root is the historical-shape replay (the seven Appendix A bases, every current instance migration, then `dbStartUp()` against the empty throwaway server). It is the reviewer's command for both the replay gate and the fresh-boot gate. Result: all seven shapes replayed with zero statement errors; fresh boot exited 0 with 87 migrations recorded. |
+| 2026-09-08 | 1 | Deviation from the Deliverable: only `DBFolder` and `DBProduct` were added to `_main_database_types.ts`. `DBSlideDeck`, `DBSlide`, `DBReport`, `DBReportVersion` and `DBDeckVersion` already exist in `_project_database_types.ts`, and both files are star-exported through `server/db/mod.ts`, so adding them is a TS2308 ambiguity error. Every importer of the project versions uses the direct file path, so the collision is only in the barrel chain. The five detail row types land in step 5 with the `db/products/*` layer that reads them; that step must decide how the barrel carries both sets until 9b deletes the project file. This intermediate state is missing from the §4 table. |
+| 2026-09-08 | 1 | `lib/types/scope.ts` is claimed by SYSTEM_12, as the step's Surface says; the reference claimed it under SYSTEM_09. |
+| 2026-09-08 | 1 | Step 1 built. |
 
 ---
 

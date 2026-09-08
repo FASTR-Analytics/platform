@@ -65,7 +65,8 @@ bound to panther schema versions via `_figure_block.ts`.
 Postgres server
 ├── postgres            ← the server's own admin db (create/drop/terminate run here)
 ├── main                ← reserved name. Users, projects metadata, instance config,
-│                          shared structure (indicators/facilities/admin areas), datasets
+│                          shared structure (indicators/facilities/admin areas), datasets,
+│                          the products registry and its per-type detail tables (S12)
 ├── <uuid-A>            ← one database per project, named by a BARE crypto.randomUUID()
 ├── <uuid-B>            │   (NOT "project_<uuid>")
 └── …                   ┘
@@ -81,6 +82,12 @@ const projectDb = getPgConnectionFromCacheOrNew(newProjectId, "READ_AND_WRITE");
 await projectDb.file("./server/db/project/_project_database.sql"); // base schema
 await runProjectMigrations(projectDb); // then migrations, so base + migrations converge
 ```
+
+The products block on `main` (`folders`, `products`, `slide_decks`,
+`slides`, `reports`, `report_versions`, `deck_versions`) is in the base
+schema and, for existing instances, in `084_products.sql` in `IF NOT EXISTS`
+form. Nothing reads or writes it yet
+([SYSTEM_12](SYSTEM_12_documents_sharing.md)).
 
 The connection id (`"postgres"`, `"main"`, or the project UUID) is the same
 string used everywhere: as the connection-cache key, in
@@ -311,7 +318,11 @@ databases get base + all migrations. Patterns and the golden rule are in
 [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md).
 `./validate_migrations` (repo root) verifies the two paths converge by diffing
 schemas in a throwaway `postgres:15` Docker container; run it after touching any
-SQL migration. The one sanctioned edit of an applied migration is the
+SQL migration. `./validate_migrations_replay` (repo root) covers the shapes
+the fleet actually has: it loads the `_main_database.sql` of seven historical
+deploy commits into that container, one database each, applies every current
+instance migration to each, and then runs `dbStartUp()` against the empty
+server. A statement error on any base, or a non-zero boot exit, fails it. The one sanctioned edit of an applied migration is the
 table-existence guard that lets a base-owned table leave the base schema
 (the protocol's "Dropping a table that older migrations touch"; applied to
 nine project migrations).

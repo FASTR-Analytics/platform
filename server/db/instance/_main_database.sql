@@ -167,6 +167,113 @@ CREATE INDEX idx_project_user_roles_email ON project_user_roles(email);
 CREATE INDEX idx_project_user_roles_project_id ON project_user_roles(project_id);
 
 -- ============================================================================
+-- PRODUCTS AND FOLDERS
+-- ============================================================================
+
+-- A product is a slide deck or a report. `products` is the registry every
+-- cross-type operation goes through (list, folder move, delete, package
+-- reattach, "in use by"); the per-type detail tables hang off it by the same
+-- id. `last_updated` is THE product version: every content mutation and every
+-- metadata write bumps it in the same transaction. Folders nest through
+-- `parent_id` (an adjacency list; no stored path, no depth cap, acyclic by
+-- server enforcement). `created_by` and `created_at` are provenance, not
+-- ownership; NULL on rows consolidated from the project layer.
+
+CREATE TABLE folders (
+  id text PRIMARY KEY NOT NULL,        -- uuid
+  label text NOT NULL,
+  color text,
+  parent_id text REFERENCES folders(id) ON DELETE SET NULL,  -- NULL = root
+  created_by text,                     -- email
+  created_at text,
+  last_updated text NOT NULL
+);
+
+CREATE INDEX idx_folders_parent_id ON folders(parent_id);
+
+CREATE TABLE products (
+  id text PRIMARY KEY NOT NULL,        -- 4-char nanoid (legacy 3-char kept)
+  type text NOT NULL CHECK (type IN ('slide_deck', 'report')),
+  label text NOT NULL,
+  folder_id text REFERENCES folders(id) ON DELETE SET NULL,
+  run_id text NOT NULL REFERENCES runs(id),  -- no cascade: the delete-run guard
+  admin_area_2 text,                   -- NULL = national
+  created_by text,                     -- email
+  created_at text,
+  last_updated text NOT NULL
+);
+
+CREATE INDEX idx_products_folder_id ON products(folder_id);
+CREATE INDEX idx_products_run_id ON products(run_id);
+CREATE INDEX idx_products_type ON products(type);
+CREATE INDEX idx_products_last_updated ON products(last_updated);
+
+CREATE TABLE slide_decks (
+  id text PRIMARY KEY NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  plan text,
+  config text
+);
+
+CREATE TABLE slides (
+  id text PRIMARY KEY NOT NULL,        -- 4-char nanoid
+  slide_deck_id text NOT NULL REFERENCES slide_decks(id) ON DELETE CASCADE,
+  sort_order integer NOT NULL,
+  config text NOT NULL,
+  last_updated text NOT NULL,          -- per-slide optimistic lock + slide cache
+  crdt_state text,
+  crdt_state_last_updated text
+);
+
+CREATE INDEX idx_slides_deck_id ON slides(slide_deck_id);
+CREATE INDEX idx_slides_deck_sort ON slides(slide_deck_id, sort_order);
+CREATE INDEX idx_slides_last_updated ON slides(last_updated);
+
+CREATE TABLE reports (
+  id text PRIMARY KEY NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  body text NOT NULL DEFAULT '',
+  figures text NOT NULL DEFAULT '{}',
+  images text NOT NULL DEFAULT '{}',
+  config text,
+  crdt_state text,
+  crdt_state_last_updated text,
+  body_authors text
+);
+
+-- One row = one editing-session version: full content snapshot + the editors
+-- who contributed during that window (JSON [{email, name}]). Deduped by
+-- content_hash against the newest version; newest 100 kept per document.
+CREATE TABLE report_versions (
+  id text PRIMARY KEY NOT NULL,
+  report_id text NOT NULL REFERENCES reports(id) ON DELETE CASCADE,
+  created_at text NOT NULL,
+  label text NOT NULL,
+  body text NOT NULL,
+  figures text NOT NULL DEFAULT '{}',
+  images text NOT NULL DEFAULT '{}',
+  editors text NOT NULL DEFAULT '[]',
+  content_hash text NOT NULL,
+  restored_from_version_id text,
+  body_authors text
+);
+
+CREATE INDEX idx_report_versions_report ON report_versions(report_id, created_at DESC);
+
+CREATE TABLE deck_versions (
+  id text PRIMARY KEY NOT NULL,
+  deck_id text NOT NULL REFERENCES slide_decks(id) ON DELETE CASCADE,
+  created_at text NOT NULL,
+  label text NOT NULL,
+  deck_config text NOT NULL,
+  slides text NOT NULL,
+  editors text NOT NULL DEFAULT '[]',
+  content_hash text NOT NULL,
+  restored_from_version_id text,
+  slide_editors text
+);
+
+CREATE INDEX idx_deck_versions_deck ON deck_versions(deck_id, created_at DESC);
+
+-- ============================================================================
 -- ADMINISTRATIVE STRUCTURE
 -- ============================================================================
 

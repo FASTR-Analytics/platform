@@ -1,3 +1,5 @@
+import type { ProductType } from "lib";
+
 export type DBUser = {
   email: string;
   is_admin: boolean;
@@ -104,6 +106,30 @@ export type DBProjectUserRole = {
   can_view_metrics: boolean;
   can_view_logs: boolean;
   can_view_script_code: boolean;
+};
+
+// Products and folders
+
+export type DBFolder = {
+  id: string;
+  label: string;
+  color: string | null;
+  parent_id: string | null;
+  created_by: string | null;
+  created_at: string | null;
+  last_updated: string;
+};
+
+export type DBProduct = {
+  id: string;
+  type: ProductType;
+  label: string;
+  folder_id: string | null;
+  run_id: string;
+  admin_area_2: string | null;
+  created_by: string | null;
+  created_at: string | null;
+  last_updated: string;
 };
 
 // Structure

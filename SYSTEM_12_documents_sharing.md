@@ -33,7 +33,9 @@ globs:
   - lib/types/_slide_config.ts
   - lib/types/_slide_deck_config.ts
   - lib/types/dashboard.ts
+  - lib/types/products.ts
   - lib/types/reports.ts
+  - lib/types/scope.ts
   - lib/types/slides.ts
   - server/db/instance/dashboard_slugs.ts
   - server/db/project/dashboards.ts
@@ -75,7 +77,10 @@ all three families + folders, `db/instance/dashboard_slugs.ts`,
 mounts plus the `/d/:slug` SPA-HTML in root `main.ts` (the actual auth
 boundary), `routes/project/emails.ts`, `server/utils/id_generation.ts`
 (hardcodes 7 tables, Open item). Lib: slide/report/dashboard types incl.
-`buildPublicDashboardBundle` and `buildReportPreview`. Custody wrinkle: the
+`buildPublicDashboardBundle` and `buildReportPreview`, plus the product
+contracts (`lib/types/products.ts`: `ProductType`, `Folder`, `ProductBase`,
+`ProductSummary`; `lib/types/scope.ts`: `PackageScope`, `scopeToken`) that
+describe the products registry below. Custody wrinkle: the
 `_shared/**` glob also carries `dhis2_credentials/` (all consumers are
 S5/S6/S7 surfaces, documented in SYSTEM_07) and `sort_control.tsx`
 (shell furniture, flagged in SYSTEM_14); the three logo files are genuinely
@@ -105,6 +110,25 @@ mutations by `can_configure_*` + `preventAccessToLockedProjects`. Dashboards
 have no flags of their own and ride the slide-deck pair (Open item). The
 public viewer is the app's only unauthenticated product surface (cross-cutting
 audit SYSTEMS.md §4.3.9).
+
+## The products registry on `main`
+
+`main` carries a products block beside the project layer
+(`_main_database.sql`, created on existing instances by
+`084_products.sql`): `folders` (nested through a nullable `parent_id`
+self-reference), `products` (id, `type` in {`slide_deck`, `report`}, label,
+`folder_id`, `run_id NOT NULL` referencing `runs` without cascade,
+`admin_area_2`, `created_by`, `created_at`, `last_updated`), and per-type
+detail tables keyed by the same id with `ON DELETE CASCADE` (`slide_decks`
+plus `slides` plus `deck_versions`; `reports` plus `report_versions`). Row
+types for the registry are `DBFolder` and `DBProduct` in
+`server/db/instance/_main_database_types.ts`; the detail tables have no row
+types yet, because the project-DB `DBSlideDeck`, `DBSlide`, `DBReport`,
+`DBReportVersion` and `DBDeckVersion` in `_project_database_types.ts` share
+the `server/db/mod.ts` star-export chain and the names would collide. The
+shared contracts are `lib/types/products.ts` and `lib/types/scope.ts`. No
+code reads or writes these tables; the per-project tables described in the
+sections below are still the live storage for decks and reports.
 
 ## Slide decks
 

@@ -37,6 +37,8 @@ export * from "./presentation_objects.ts";
 export * from "./last_updated_tables.ts";
 export * from "./project_sse.ts";
 export * from "./projects.ts";
+export * from "./products.ts";
+export * from "./scope.ts";
 export * from "./reports.ts";
 export * from "./run_generation.ts";
 export * from "./run_manifest.ts";
