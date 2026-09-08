@@ -49,6 +49,7 @@ import {
   type ConsolidationPlan,
   type LegacyProjectRow,
   planConsolidation,
+  tableExists,
 } from "./server/db/migrations/consolidation/plan.ts";
 import {
   isSourceAtRequiredMigration,
@@ -270,14 +271,6 @@ function connect(instance: Instance, database: string): Sql {
   });
 }
 
-async function tableExists(db: Sql, table: string): Promise<boolean> {
-  const rows = await db<{ one: number }[]>`
-    SELECT 1 AS one FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_name = ${table}
-  `;
-  return rows.length > 0;
-}
-
 // ── The per-instance dry-run ─────────────────────────────────────────────────
 
 export async function dryRunInstance(instance: Instance): Promise<InstanceReport> {
@@ -294,9 +287,10 @@ export async function dryRunInstance(instance: Instance): Promise<InstanceReport
       report.pinnedRunLabel = pinned[0]?.label ?? null;
     }
 
-    // Projects by status and the two D11 lists. Ordered by id, exactly as
-    // 085 orders them, so the remap plan reported is the one the migration
-    // produces.
+    // Projects by status and the two D11 lists. Ordered by id, as 085 orders
+    // them, so the ids that collide, and how many, are the migration's own.
+    // The replacements are minted at random when 085 runs, so they are not
+    // reported.
     const projects = await readProjects(mainDb);
     for (const project of projects) {
       report.statusCounts.set(
@@ -568,7 +562,7 @@ function printInstanceReport(report: InstanceReport): void {
   console.log(`  id remaps:       ${counts.remaps}`);
   for (const plan of report.plans) {
     for (const remap of plan.remaps) {
-      console.log(`      ${remap.entity} ${remap.from} -> ${remap.to}`);
+      console.log(`      ${remap.entity} ${remap.from} (re-minted by 085)`);
     }
   }
 

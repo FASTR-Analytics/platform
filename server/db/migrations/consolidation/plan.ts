@@ -12,8 +12,9 @@
 // FROZEN TYPES: the legacy project-DB row types are copied below from
 // server/db/project/_project_database_types.ts (plus the crdt columns the
 // live types omit), and the nanoid alphabet from server/utils/id_generation.ts.
-// This file is migration history for a schema that will exist nowhere else in
-// the repo, so it must not import live code that can drift underneath it.
+// Those describe a schema that will exist nowhere else in the repo, so they
+// are frozen here rather than imported from files 9b deletes. The slide
+// layout walker and ProductType survive the restructure and are imported.
 //
 // ID COLLISIONS (D9 item 6, D14): project DBs were created WITH TEMPLATE, so
 // ids, uuids included, are byte-identical across projects copied from one
@@ -420,17 +421,21 @@ type DroppedTable =
   | "dashboard_items"
   | "dashboard_item_groups";
 
+export async function tableExists(db: Sql, table: string): Promise<boolean> {
+  const rows = await db<{ one: number }[]>`
+    SELECT 1 AS one FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = ${table}
+  `;
+  return rows.length > 0;
+}
+
 // A project DB that never reached the migration adding one of these tables
 // reports 0 rather than throwing: the dry-run has to survive the whole fleet.
 async function countIfTableExists(
   projectDb: Sql,
   table: DroppedTable,
 ): Promise<number> {
-  const exists = await projectDb<{ one: number }[]>`
-    SELECT 1 AS one FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_name = ${table}
-  `;
-  if (exists.length === 0) {
+  if (!(await tableExists(projectDb, table))) {
     return 0;
   }
   const rows = await projectDb<{ count: number }[]>`

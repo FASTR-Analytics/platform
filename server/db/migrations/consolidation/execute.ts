@@ -31,6 +31,7 @@ import {
   type ConsolidationPlan,
   type LegacyProjectRow,
   planConsolidation,
+  tableExists,
   type TakenIds,
 } from "./plan.ts";
 
@@ -86,11 +87,7 @@ export async function seedTakenIds(db: Sql): Promise<TakenIds> {
     ["slide_deck_versions", takenIds.slideDeckVersions],
   ];
   for (const [table, target] of sources) {
-    const exists = await db<{ one: number }[]>`
-      SELECT 1 AS one FROM information_schema.tables
-      WHERE table_schema = 'public' AND table_name = ${table}
-    `;
-    if (exists.length === 0) {
+    if (!(await tableExists(db, table))) {
       continue;
     }
     const rows = await db<{ id: string }[]>`SELECT id FROM ${db(table)}`;

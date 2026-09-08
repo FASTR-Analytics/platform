@@ -5,7 +5,7 @@ folders, each attached to one results package at one scope. One main
 database, one realtime channel, one copilot. An Explore tab replaces the
 project Metrics tab and the standalone visualization library.
 
-**Next step: Fix 2.** Each session sets this line in its final commit. Its
+**Next step: Review 2.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N`; after step 10's review passes the
 file is deleted instead of advanced.
 
@@ -2089,6 +2089,8 @@ this section before its step.
 | 2026-09-08 | 2 | Finding: `validate_consolidation.ts:297-299` says the remap plan reported "is the one the migration produces", and line 571 prints `from -> to` for each remap. The colliding ids and their count are the migration's; the replacements are random 4-char and uuid mints, so 085 will mint different ones. Rewrite the comment to claim only what holds (same collisions, same count) and print the colliding id with its entity, not an invented replacement. |
 | 2026-09-08 | 2 | Finding: `server/db/migrations/consolidation/plan.ts:12-16` says the file "must not import live code that can drift underneath it", and lines 48-53 import `ProductType` from `lib` and `walkSlideLayoutNodes` from `_figure_block.ts`. Both imports are sound (the slide layout shape and the product type survive the restructure), so the comment is what is wrong: narrow it to the legacy project-DB types and the id alphabet, which is what is actually frozen. |
 | 2026-09-08 | 2 | Step 2 reviewed: 3 findings. |
+| 2026-09-08 | 2 | Fix 2, done by the reviewing agent at Tim's direction (deviation from §0's fresh-fixer rule, accepted as for Fix 1). All three findings applied in one commit. The table-existence query is one exported `tableExists(db, table)`; it lives in `plan.ts`, not `execute.ts` as the finding suggested, because `execute.ts` imports from `plan.ts` and the reverse import would make a cycle. `validate_consolidation.ts` prints each colliding id with its entity and "(re-minted by 085)", and its comment claims only the collisions and their count. The `plan.ts` header now says the legacy row types and the alphabet are frozen because 9b deletes their source files, and names the two live imports as surviving the restructure. Gates green: `deno task typecheck` (with `lint:systems`), `deno task test` (14 passed), `./validate_protocols`, `deno check` of the consolidation directory and the two root tools, `./validate_consolidation_replay` (41 checks), `./validate_consolidation.ts --local` (zero FAIL, same counts), and a server boot against the dev database that listens with its 14 boot tests passing. No migration or query-engine file changed. |
+| 2026-09-08 | 2 | Step 2 fixed. |
 
 ---
 
