@@ -6,6 +6,7 @@ import {
   type FastrPagedFooter,
   fastrPagedRunnerJs,
   fastrPrintTitleHtml,
+  sizedPlaceholderImageSrc,
   FIGURE_EXPORT_WIDTH_PX,
   fastrChartPalette,
   getFastrReportTheme,
@@ -46,7 +47,6 @@ import {
   measureFigureGrounds,
   sanitizeReportHtml,
   stripLazyLoading,
-  TRANSPARENT_PIXEL_SRC,
   wrapReportDocument,
 } from "~/components/report/report_html";
 
@@ -94,6 +94,7 @@ const FALLBACK_FIGURE_SIZE = {
   width: FIGURE_EXPORT_WIDTH_PX,
   height: Math.round(FIGURE_EXPORT_WIDTH_PX * 9 / 16),
 };
+const FALLBACK_IMAGE_SIZE = { width: 1200, height: 675 };
 
 export async function buildStandaloneReportHtml(
   detail: ReportDetail,
@@ -276,21 +277,14 @@ function buildLayoutOnlyDocument(
     (id) => {
       if (!(id in detail.figures)) return { state: "missing" };
       const size = sizes.figureSize(id) ?? FALLBACK_FIGURE_SIZE;
-      return { state: "ready", url: TRANSPARENT_PIXEL_SRC, ...size };
+      return { state: "ready", url: sizedPlaceholderImageSrc(size.width, size.height), ...size };
     },
-    (id) => (id in detail.images ? TRANSPARENT_PIXEL_SRC : undefined),
+    (id) => {
+      if (!(id in detail.images)) return undefined;
+      const size = sizes.imageSize(id) ?? FALLBACK_IMAGE_SIZE;
+      return sizedPlaceholderImageSrc(size.width, size.height);
+    },
   );
-  // An image placeholder needs its box too: the 1px source has none.
-  for (
-    const img of Array.from(
-      frag.querySelectorAll<HTMLImageElement>('img[data-embed-kind="image"]'),
-    )
-  ) {
-    const id = img.getAttribute("data-embed-id") ?? "";
-    const size = sizes.imageSize(id) ?? { width: 1200, height: 675 };
-    img.setAttribute("width", String(size.width));
-    img.setAttribute("height", String(size.height));
-  }
   stripLazyLoading(frag);
   const holder = document.createElement("template");
   holder.content.append(frag);

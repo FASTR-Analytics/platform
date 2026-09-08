@@ -437,7 +437,11 @@ insets), so lines wrap in the editor exactly as they wrap in print.
 rendered block's DOM), computed by `paginate_report.ts` in a hidden frame
 from the SAME paged document, with embeds at the boxes the PDF gives them
 (`createFigureSizeCache`: a figure's raster aspect from a 200px panther
-draw; an image's natural size), never measured from the editor's DOM. A
+draw; an image's natural size), never measured from the editor's DOM, and
+drawn as `sizedPlaceholderImageSrc` SVGs whose INTRINSIC size is the box
+(a 1px pixel with size attributes lays out square once it loads, which put
+every figure on a page of its own in the editor while the PDF flowed them:
+Nick's "test 17", 2026-09-08). A
 seam is [filler][the ending page's bottom margin with its running footer in
 it][sheet-edge gap][the next page's top margin]; a cover page has no margins
 and no footer, and a `PageHeadWidget` gives a first page that is not a cover

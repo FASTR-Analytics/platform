@@ -29,6 +29,7 @@ import {
   pagedDocumentScriptsHtml,
   readFastrDocumentSettings,
   renderFastrMarkdownToHtml,
+  sizedPlaceholderImageSrc,
   wrapReportDocument,
 } from "../../lib/mod.ts";
 import {
@@ -44,15 +45,14 @@ const POLYFILL_URL = new URL(
 );
 const FIXTURE_DIR = new URL("./fixtures/fastr_pdf/", import.meta.url);
 
-const TRANSPARENT_PIXEL =
-  "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
-
 // A figure token has no raster here: a sized transparent box stands in, which
 // is exactly what the editor's own layout frame does.
+// A 16:9 box with those INTRINSIC dimensions: a 1px pixel with size
+// attributes lays out square once it loads.
 function withPlaceholderFigures(html: string): string {
   return html.replace(
     /<img src="figure:([^"]+)"/g,
-    `<img src="${TRANSPARENT_PIXEL}" width="1200" height="675" data-embed-kind="figure" data-embed-id="$1"`,
+    `<img src="${sizedPlaceholderImageSrc(1200, 675)}" width="1200" height="675" data-embed-kind="figure" data-embed-id="$1"`,
   );
 }
 

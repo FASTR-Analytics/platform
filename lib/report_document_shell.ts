@@ -108,3 +108,16 @@ export function pagedDocumentScriptsHtml(
     `<script>${safe}</script>` +
     `<script>${runnerJs}</script>`;
 }
+
+// A stand-in for an image whose box matters but whose pixels do not (the
+// editor's layout frame, the render test's fixtures): an SVG with the size as
+// its intrinsic dimensions. A 1px pixel with width/height ATTRIBUTES is not
+// enough: once it loads, its own 1:1 ratio outranks the attributes under
+// `height: auto`, and every figure lays out as a square.
+export function sizedPlaceholderImageSrc(width: number, height: number): string {
+  const w = Math.max(1, Math.round(width));
+  const h = Math.max(1, Math.round(height));
+  return "data:image/svg+xml," + encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"/>`,
+  );
+}
