@@ -6,7 +6,7 @@ database, one realtime channel, one copilot. An Explore tab replaces the
 project Metrics tab and the standalone visualization library; this plan
 creates the tab, and its page, the results explorer, is a later plan.
 
-**Next step: Fix 3.** Each session sets this line in its final commit. Its
+**Next step: Review 3.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N`; after step 10's review passes the
 file is deleted instead of advanced.
 
@@ -2125,6 +2125,8 @@ this section before its step.
 | 2026-09-08 | 3 | Finding: `server/tests/run_authoring_context_parity_test.ts` is claimed by no SYSTEM manifest, so `lint_systems.ts` reports one orphan and `deno task typecheck` exits non-zero. It pins `buildRunAuthoringContext` (S9's `server/run_query/authoring_context.ts`), so add it to the `globs` of `SYSTEM_09_viz_query_cache.md` (after line 12, beside `lib/types/run_authoring_context.ts`), the way SYSTEM_08 lists `server/tests/m012_expression_parity_test.ts`. |
 | 2026-09-08 | 3 | Finding: `server/routes/project/presentation_objects.ts:543` builds the project payload as `{ projectId: c.var.ppk.projectId, ...res.data }`. The replicant cache is keyed by run and scope, not project, and its prefix did not move, so an entry written before commit 2770bbb8 still carries the `projectId` of whichever project filled it, and the spread lets that stored id override the stamp. Reverse the spread (`{ ...res.data, projectId: c.var.ppk.projectId }`) so the stamp is authoritative, as the step's own row says it is. |
 | 2026-09-08 | 3 | Step 3 reviewed: 2 findings. |
+| 2026-09-08 | 3 | Fix 3, done by the reviewing agent at Tim's direction (deviation from §0's fresh-fixer rule, accepted as for Fix 1 and Fix 2). Both findings applied in one commit: `server/tests/run_authoring_context_parity_test.ts` is claimed by `SYSTEM_09_viz_query_cache.md` (in the manifest's alphabetical position, after `server/server_only_funcs_presentation_objects/**`), and the project `getReplicantOptions` payload is `{ ...res.data, projectId }` so the stamp overrides any stored id. Gates green: `deno task typecheck` (server, client, `lint:systems` with every tracked file claimed once), `deno task test` (15 passed), `./validate_protocols`, and a server boot against the dev database that listens with its 15 boot tests passing. No migration or query-engine file changed. |
+| 2026-09-08 | 3 | Step 3 fixed. |
 
 ---
 

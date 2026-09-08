@@ -540,7 +540,7 @@ defineRoute(
     if (res.success === false) return c.json(res);
     return c.json({
       success: true as const,
-      data: { projectId: c.var.ppk.projectId, ...res.data },
+      data: { ...res.data, projectId: c.var.ppk.projectId },
     });
   },
 );

@@ -17,6 +17,7 @@ globs:
   - server/routes/project/presentation_objects.ts
   - server/run_query/**
   - server/server_only_funcs_presentation_objects/**
+  - server/tests/run_authoring_context_parity_test.ts
 ---
 
 # S9: Visualization Query & Cache Service
