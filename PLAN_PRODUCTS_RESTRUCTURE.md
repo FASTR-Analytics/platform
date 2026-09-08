@@ -668,13 +668,19 @@ open" and "dashboard" in model-visible text (`lib/types/ai_input.ts`, tool
 descriptions, view instructions, `client_info_topics.ts`,
 `client/public/info/*.md` served to `get_info`) is swept.
 
-**D16: The Products page is a location-based explorer.** One page under
+**D16: The Products page works like a file browser.** The user is always
+inside one folder. The page shows the sub-folders and the products of that
+folder, and nothing from any other folder. Clicking a sub-folder opens it.
+A breadcrumb at the top shows the path from the root to the current folder
+and takes the user back up; it always shows the root and the current
+folder, and collapses the folders in between when the path is long. The
+page is not a flat list of every product with a folder column, and it is
+not a tree of folders beside a list. It is one page under
 `client/src/components/products/`, reading `instanceState.products` and
-`instanceState.folders` from T1 (no list route). The location is one folder
-id (`null` = root), persisted in localStorage beside the view mode; the path
-is derived by walking `parentId`, never stored. Folders sit beside products
-and clicking one navigates into it; a breadcrumb keeps the root crumb and
-collapses the middle. The header toggles two views over one model. In the
+`instanceState.folders` from T1 (no list route). The current folder is
+stored as one folder id (`null` = root) in localStorage beside the view
+mode; the path is derived by walking `parentId` and is never stored. The
+header toggles two views, cards and list, over the same folder contents. In the
 card grid a product tile is a type icon plus one "package · scope" caption,
 so product and folder tiles share a height. The list is hand-built rather
 than assembled from the shared table component; that is a sanctioned
