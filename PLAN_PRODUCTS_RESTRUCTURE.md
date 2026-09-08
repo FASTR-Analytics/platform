@@ -6,7 +6,7 @@ database, one realtime channel, one copilot. An Explore tab replaces the
 project Metrics tab and the standalone visualization library; this plan
 creates the tab, and its page, the results explorer, is a later plan.
 
-**Next step: Review 3.** Each session sets this line in its final commit. Its
+**Next step: Do 4.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N`; after step 10's review passes the
 file is deleted instead of advanced.
 
@@ -2127,6 +2127,10 @@ this section before its step.
 | 2026-09-08 | 3 | Step 3 reviewed: 2 findings. |
 | 2026-09-08 | 3 | Fix 3, done by the reviewing agent at Tim's direction (deviation from §0's fresh-fixer rule, accepted as for Fix 1 and Fix 2). Both findings applied in one commit: `server/tests/run_authoring_context_parity_test.ts` is claimed by `SYSTEM_09_viz_query_cache.md` (in the manifest's alphabetical position, after `server/server_only_funcs_presentation_objects/**`), and the project `getReplicantOptions` payload is `{ ...res.data, projectId }` so the stamp overrides any stored id. Gates green: `deno task typecheck` (server, client, `lint:systems` with every tracked file claimed once), `deno task test` (15 passed), `./validate_protocols`, and a server boot against the dev database that listens with its 15 boot tests passing. No migration or query-engine file changed. |
 | 2026-09-08 | 3 | Step 3 fixed. |
+| 2026-09-08 | 3 | Review 3 (second pass, of Fix 3). Commit de9b6c30 read against the two findings: `SYSTEM_09_viz_query_cache.md` claims `server/tests/run_authoring_context_parity_test.ts` in its `globs`, and `server/routes/project/presentation_objects.ts:543` builds `{ ...res.data, projectId: c.var.ppk.projectId }`. Nothing else changed in code (`git diff --stat cb7200f1..HEAD` is those two files plus this plan). The route file is outside the Surface and was accepted in the first Review 3 row. Proved live on the dev pin: `POST /replicant_options` for the two ready national projects on it ("Test", then "Testing ICEH Nigeria", then "Test" again, same body) returns each caller's own `projectId` while the server log shows the second and third calls were Valkey HITs on the entry the first wrote; and an older stored `cache:replicant_opts:` entry in dev Valkey carries `projectId` of a project that no longer exists, the exact case the finding named. |
+| 2026-09-08 | 3 | Gates run by the reviewer, all green: `deno task typecheck` (server, client, `lint:systems`: every tracked file claimed once), `deno task test` (15 passed, the parity harness among them), `./validate_protocols`, `./validate_queries` (76 cases), and a server boot against the dev database that listens with its 15 boot tests passing. `./mcp_probe local`, the same seven calls as the first review (`--info`, `--list`, `get_overview`, `get_available_metrics`, `--schema get_metric_data`, `get_metric_data m10-01-01`, `get_metric_data m10-02-01` disaggregated by `admin_area_2`), is byte-identical to the outputs that review saved after the step, which it had shown equal to the pre-step outputs; the fix touches no MCP path, so a fresh pre-step boot was not repeated. |
+| 2026-09-08 | 3 | Fact: commits 5510e9bc and 6ec3252a, between Review 3 and Fix 3, rewrote the plan's preamble, vocabulary, step 6, step 7b and §8 (the product explorer and results explorer naming, and the deferral of the results explorer page), outside the §0 two-things rule; both are Tim's own rulings per their messages. Left as is; recorded so the rule's exceptions stay visible, as for 25113161. |
+| 2026-09-08 | 3 | Step 3 reviewed: pass. |
 
 ---
 
