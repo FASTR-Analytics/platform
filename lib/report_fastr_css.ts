@@ -1010,9 +1010,10 @@ export function buildFastrEditorSurfaceCss(scope: string): string {
   // root's own structure background is overridden back to transparent (this
   // sheet is appended last, so the tie resolves here).
   const sheet = `${scope} { background: transparent; }
-/* The SHEET is the scroller, mirroring View where the sheet is the iframe:
-   capped at the iframe's 56rem (896px at ITS 16px root — the host pins
-   --fm-measure to px the same way), centered, painted with the page ground.
+/* The SHEET is the scroller: the printed sheet at 96dpi (the host sets
+   --fm-sheet, 794px for A4, and --fm-measure so the column below is the
+   printed column, 1:1, so lines wrap here exactly as they wrap in print),
+   centered, painted with the page ground.
    The ground must live HERE and not on .cm-content: the box layer draws at
    negative z, and an in-flow element's background would paint OVER it —
    a scroller's own background paints below its negative-z children. */
@@ -1041,22 +1042,25 @@ ${d}.cm-content {
      document must outgrow that cap. */
   max-width: none;
   /* View's bleed-pad formula, with the sheet standing in for the viewport:
-     % resolves against the scroller, so narrow windows match View too. */
+     % resolves against the scroller, so narrow windows match View too. The
+     column is therefore --fm-measure less 48px; the host sets the var
+     accordingly. */
   padding: 0 max(24px, calc((100% - var(--fm-measure)) / 2 + 24px)) 4rem;
 }
+/* No line insets: the base theme's 6px/2px would narrow the text by 8px
+   against print, and against the rendered blocks beside it. */
+${d}.cm-line { padding-left: 0; padding-right: 0; }
 /* buildFastrReportCss neutralises all bleed under a scope (a picker tile has
    no page to bleed into). The editor DOES have a page — the sheet — so these
    later rules re-aim the two bleed properties at the sheet's edges: a band or
    cover runs edge to edge of the sheet and its text returns to the measure,
-   View's exact geometry with the sheet standing in for the viewport. The
-   host sets --fm-sheet (max(896px, measure + 48px), honouring the
-   :::report width). */
+   View's exact geometry with the sheet standing in for the viewport. */
 ${scope} {
   --fm-bleed-margin: calc((var(--fm-measure) - var(--fm-sheet, 896px)) / 2 - 24px);
   --fm-bleed-pad: calc((var(--fm-sheet, 896px) - var(--fm-measure)) / 2 + 24px);
 }
 /* A cover fills its page: the host sets --fm-page-h to the printed page's
-   height at the sheet's scale. */
+   height. */
 ${d}.fm-cover { min-height: var(--fm-page-h, 544px); }
 ${d}.fm-figure--wide {
   margin-inline: max(-4rem, calc((100% - var(--fm-sheet, 896px)) / 2 + 1.5rem));
@@ -1292,7 +1296,7 @@ ${d}.cm-fm-attr:empty::before {
 ${d}.fm-page-gutter {
   display: block;
   /* No block margins: the seam's padding-top is the page filler, measured
-     exactly (pageFillPlugin), so nothing else may add to the page's height. */
+     exactly (pageBoxPlugin), so nothing else may add to the page's height. */
   margin: 0 var(--fm-bleed-margin);
   padding: 0;
   font-family: var(--fm-font-body);
@@ -1305,11 +1309,19 @@ ${d}.fm-page-gutter {
   pointer-events: none;
   user-select: none;
 }
+/* The printed page's bottom margin (--fm-page-margin: 18mm at the sheet's
+   scale, set by the host), with the running footer sitting in it as the
+   PDF's margin box does. A page's content area is the sheet less its top
+   and bottom margins, exactly as in print, so the editor and the paginator
+   agree on what fits on a page. */
 ${d}.fm-page-gutter__foot {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 1em;
-  padding: 0 var(--fm-bleed-pad) 18px;
+  box-sizing: border-box;
+  height: var(--fm-page-margin, 77px);
+  padding: 0 var(--fm-bleed-pad);
   font-size: 0.7em;
   color: var(--fm-ink-muted);
   font-variant-numeric: tabular-nums;
@@ -1321,6 +1333,13 @@ ${d}.fm-page-gutter__band {
   background: var(--color-base-200, #e5e7eb);
   box-shadow: inset 0 8px 8px -8px rgba(0, 0, 0, 0.35), inset 0 -8px 8px -8px rgba(0, 0, 0, 0.35);
 }
+/* The next page's top margin. Before the document's first line too, when
+   page 1 is not a cover (a cover has no margins). */
+${d}.fm-page-gutter__head {
+  display: block;
+  height: var(--fm-page-margin, 77px);
+}
+${d}.cm-fm-page-head { display: block; }
 /* Between plain lines the gutter is a block widget: no line box of its own,
    the same seam geometry as inside a block. After the last line, the last
    page's foot and filler. */

@@ -5,6 +5,7 @@ import {
   canonicalJson,
   COLLAB_NO_EDIT_PERMISSION,
   FASTR_PAGE_MARGIN_MM,
+  FASTR_PX_PER_MM,
   FASTR_THEME_TOKENS,
   fastrSheetMm,
   type FastrReportTheme,
@@ -71,7 +72,7 @@ import {
   setCollabView,
 } from "~/state/project/collab";
 import { fastrThemeOptions } from "~/components/_shared/fastr_theme_labels";
-import { createReportPaginator, measureEmbedInEditor } from "./paginate_report";
+import { createReportPaginator } from "./paginate_report";
 import { fastrPagedFooter } from "~/exports/export_report_as_paged_pdf";
 import { buildStandaloneReportHtml } from "~/exports/export_report_as_html";
 import { PresenceAvatars } from "~/components/slide_deck/presence_avatars";
@@ -104,7 +105,12 @@ import {
   type ReportEditorApi,
 } from "./report_editor";
 import { ReportToolbar } from "./report_toolbar";
-import { FM_LIVE_SCOPE_CLASS } from "./live_preview_extension";
+import {
+  carryPageFillers,
+  FM_LIVE_SCOPE_CLASS,
+  type PageBoxGeometry,
+  type PageFillCarry,
+} from "./live_preview_extension";
 import { REPORT_MARKDOWN_STYLE } from "./report_markdown_style";
 import {
   ReportEmbedControls,
@@ -131,6 +137,7 @@ import {
 import { ReportHtmlPreview } from "./report_html_preview";
 import {
   createFigureRasterCache,
+  createFigureSizeCache,
   type FigureInkTheme,
   figureDarkInkForColors,
   figureInkThemeForStyle,
@@ -154,6 +161,23 @@ type Props = EditorComponentProps<
 >;
 
 const AUTOSAVE_MS = 800;
+
+// The editor's page box for a document's page setup, in CSS px at 96dpi:
+// the printed sheet 1:1 (liveSurfaceCss sets the vars; carryPageFillers and
+// pageBoxPlugin measure against them).
+function pageBoxOf(text: string): { sheetPx: number; columnPx: number; geometry: PageBoxGeometry } {
+  const page = readFastrDocumentSettings(text).page;
+  const [w, h] = fastrSheetMm(page);
+  const marginMm = FASTR_PAGE_MARGIN_MM[page.margin];
+  return {
+    sheetPx: Math.round(w * FASTR_PX_PER_MM),
+    columnPx: Math.round((w - 2 * marginMm) * FASTR_PX_PER_MM),
+    geometry: {
+      pageH: Math.round(h * FASTR_PX_PER_MM),
+      marginPx: Math.round(marginMm * FASTR_PX_PER_MM),
+    },
+  };
+}
 
 export function ProjectReport(p: Props) {
   const projectId = p.projectState.id;
@@ -276,17 +300,19 @@ export function ProjectReport(p: Props) {
     // theme's own reading measure and the :::report width no longer apply to
     // a paginated document.
     void liveDocWidth;
-    const page = readFastrDocumentSettings(body()).page;
-    const [sheetMm] = fastrSheetMm(page);
-    const printableMm = sheetMm - 2 * FASTR_PAGE_MARGIN_MM[page.margin];
-    const measurePxN = Math.round(896 * printableMm / sheetMm);
-    const measurePx = `${measurePxN}px`;
-    // The sheet is the page at the editor's scale: View's 56rem cap (896px).
-    const sheetPx = "896px";
-    // The printed page's height at that scale: every page box in the editor
-    // is padded to it (pageFillPlugin), and a cover fills it.
-    const [, sheetHmm] = fastrSheetMm(page);
-    const pageHPx = `${Math.round(896 * sheetHmm / sheetMm)}px`;
+    // The sheet is the printed page at 96dpi, 1:1 (794px wide for A4): the
+    // column, the fonts and so the line wraps are print's own, and a page
+    // box holds exactly what the printed page holds. The surface's column is
+    // --fm-measure less View's two 24px bleed pads
+    // (buildFastrEditorSurfaceCss), hence the 48.
+    const box = pageBoxOf(body());
+    const measurePx = `${box.columnPx + 48}px`;
+    const sheetPx = `${box.sheetPx}px`;
+    // Every page box in the editor is padded to the page's height
+    // (pageBoxPlugin) and a cover fills it; the margins are the printed
+    // page's top and bottom margins.
+    const pageHPx = `${box.geometry.pageH}px`;
+    const pageMarginPx = `${box.geometry.marginPx}px`;
     // Re-target the theme's own heading rules at the editor's line classes —
     // h1 underlines/centring, h2-h6 accents (Swiss's black top rule,
     // Ministry's serif colour). Margins are then neutralised by the trailing
@@ -316,7 +342,7 @@ export function ProjectReport(p: Props) {
     return [
       themed,
       // After `themed`, whose vars block also sets --fm-measure.
-      `${scope} { --fm-measure: ${measurePx}; --fm-sheet: ${sheetPx}; --fm-page-h: ${pageHPx}; }`,
+      `${scope} { --fm-measure: ${measurePx}; --fm-sheet: ${sheetPx}; --fm-page-h: ${pageHPx}; --fm-page-margin: ${pageMarginPx}; }`,
       buildFastrEditorSurfaceCss(scope),
       retargeted,
       `${scope} .cm-line.cm-fm-h1, ${scope} .cm-line.cm-fm-h2, ${scope} .cm-line.cm-fm-h3,
@@ -490,7 +516,6 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
       // Private mode: the choice lasts the session.
     }
   }
-  let editorPaneEl: HTMLDivElement | undefined;
   // "Edit on pages" ON: the editor IS the printed pages (paged_edit_surface).
   // OFF: the CodeMirror live preview with page seams from the hidden paginator.
   const pagesOn = () =>
@@ -531,6 +556,36 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
       Object.keys(images()).join(",")
     }|${Object.keys(figures()).join(",")}`
   );
+  // The boxes the layout frame gives embeds: a figure's raster box (what the
+  // PDF embeds) and an image's natural size, both cached; a size landing
+  // re-runs the layout. Never the editor's own DOM, which only holds what is
+  // scrolled into view.
+  const [sizeTick, setSizeTick] = createSignal(0);
+  const figureSizes = createFigureSizeCache(() => setSizeTick((t) => t + 1));
+  onCleanup(() => figureSizes.dispose());
+  const imageSizes = new Map<string, { width: number; height: number } | null>();
+  const imageSize = (id: string) => {
+    const entry = images()[id];
+    if (!entry) return undefined;
+    const hit = imageSizes.get(entry.imgFile);
+    if (hit) return hit;
+    if (hit === undefined) {
+      imageSizes.set(entry.imgFile, null);
+      const img = new Image();
+      img.onload = () => {
+        if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+          imageSizes.set(entry.imgFile, { width: img.naturalWidth, height: img.naturalHeight });
+          setSizeTick((t) => t + 1);
+        }
+      };
+      img.src = assetUrl(entry.imgFile);
+    }
+    return undefined;
+  };
+
+  // The previous result with its fillers, so a page whose text is unchanged
+  // keeps its measured height across results (carryPageFillers).
+  let fillCarry: PageFillCarry | undefined;
   const paginator = createReportPaginator({
     detail: () =>
       loadedConfig === undefined || !paginationWanted() ? undefined : {
@@ -543,19 +598,27 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
         lastUpdated: "",
       },
     footer: () => fastrPagedFooter(label()),
-    figureSize: (id) =>
-      editorPaneEl ? measureEmbedInEditor(editorPaneEl, "figure", id) : undefined,
-    imageSize: (id) =>
-      editorPaneEl ? measureEmbedInEditor(editorPaneEl, "image", id) : undefined,
-    onResult: (result) =>
-      editorApi?.setPagination(
-        result === undefined ? undefined : { result, title: label() },
-      ),
+    figureSize: (id) => {
+      const block = figures()[id];
+      return block ? figureSizes.get(id, block) : undefined;
+    },
+    imageSize,
+    onResult: (result, bodyUsed) => {
+      if (result === undefined) {
+        fillCarry = undefined;
+        editorApi?.setPagination(undefined);
+        return;
+      }
+      const box = pageBoxOf(bodyUsed);
+      const fillers = carryPageFillers(result, bodyUsed, fillCarry, box.geometry, box.sheetPx);
+      fillCarry = { result, body: bodyUsed, fillers };
+      editorApi?.setPagination({ result, title: label(), fillers });
+    },
   });
   onCleanup(() => paginator.dispose());
-  // Typing: after the debounce. Everything that re-lays the whole document
-  // (theme, page setup, the mode itself): now.
-  createEffect(on([body, figures, images], () => {
+  // Typing, and an embed's size landing: after the debounce. Everything that
+  // re-lays the whole document (theme, page setup, the mode itself): now.
+  createEffect(on([body, figures, images, sizeTick], () => {
     if (paginationWanted()) paginator.request();
   }, { defer: true }));
   createEffect(on([paginationWanted, fastrTheme, fastrColors, label], () => {
@@ -1879,7 +1942,6 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
               (column + gutter) so it doesn't stretch to half: the preview takes
               the leftover. flex-1 still fills it in Edit and shrinks if narrow. */}
           <div
-            ref={(el) => (editorPaneEl = el)}
             class="min-h-0 flex-1"
             classList={{ hidden: mode() === "view" }}
             data-report-cursor="code-pane"

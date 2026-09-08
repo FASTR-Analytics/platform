@@ -5,8 +5,11 @@
 // request arriving mid-layout queues one more run rather than a pile-up.
 //
 // Layout-only on purpose: figures and images are transparent boxes at the
-// size the live editor already shows them, so a run is a layout pass in an
-// iframe (hundreds of milliseconds for a long report), never a rasterization.
+// size the PDF will give them (the host's size caches: a figure's raster box,
+// an image's natural size), so a run is a layout pass in an iframe (hundreds
+// of milliseconds for a long report), never a rasterization. Sizes come from
+// caches, never from the editor's DOM, so a result does not depend on what
+// happened to be scrolled into view when it ran.
 
 import {
   FASTR_PAGED_GLOBAL,
@@ -22,7 +25,9 @@ export type ReportPaginatorDeps = {
   footer: () => FastrPagedFooter;
   figureSize: (id: string) => { width: number; height: number } | undefined;
   imageSize: (id: string) => { width: number; height: number } | undefined;
-  onResult: (result: FastrPagedResult | undefined) => void;
+  // The result, with the body it was laid out from (the editor may have
+  // moved on during the layout).
+  onResult: (result: FastrPagedResult | undefined, body: string) => void;
 };
 
 export type ReportPaginator = {
@@ -33,7 +38,9 @@ export type ReportPaginator = {
   dispose: () => void;
 };
 
-const DEBOUNCE_MS = 700;
+// Short: the editor flows blocks between pages itself as they overflow
+// (live_preview_extension's pageBoxPlugin); this run confirms the breaks.
+const DEBOUNCE_MS = 400;
 const LAYOUT_TIMEOUT_MS = 20_000;
 const POLL_MS = 80;
 
@@ -63,7 +70,7 @@ export function createReportPaginator(deps: ReportPaginatorDeps): ReportPaginato
     try {
       const detail = deps.detail();
       if (detail === undefined) {
-        deps.onResult(undefined);
+        deps.onResult(undefined, "");
         return;
       }
       const html = await buildStandaloneReportHtml(detail, () => {}, {
@@ -76,10 +83,10 @@ export function createReportPaginator(deps: ReportPaginatorDeps): ReportPaginato
       if (disposed) return;
       const result = await layoutInFrame(html);
       if (disposed) return;
-      deps.onResult(result);
+      deps.onResult(result, detail.body);
     } catch (e) {
       console.warn("Report pagination failed", e);
-      if (!disposed) deps.onResult(undefined);
+      if (!disposed) deps.onResult(undefined, "");
     } finally {
       running = false;
       if (queued && !disposed) {
@@ -143,24 +150,4 @@ export function createReportPaginator(deps: ReportPaginatorDeps): ReportPaginato
       frame = undefined;
     },
   };
-}
-
-// The live editor's own measurement of an embed, so the layout frame gives a
-// figure the box it actually occupies. Aspect is what matters: the paged
-// document scales the box to its column.
-export function measureEmbedInEditor(
-  root: ParentNode,
-  kind: "figure" | "image",
-  id: string,
-): { width: number; height: number } | undefined {
-  const el = root.querySelector<HTMLElement>(
-    `[data-embed-kind="${kind}"][data-embed-id="${CSS.escape(id)}"]`,
-  );
-  if (!el) return undefined;
-  if (el instanceof HTMLImageElement && el.naturalWidth > 0) {
-    return { width: el.naturalWidth, height: el.naturalHeight };
-  }
-  const r = el.getBoundingClientRect();
-  if (r.width < 8 || r.height < 8) return undefined;
-  return { width: Math.round(r.width), height: Math.round(r.height) };
 }

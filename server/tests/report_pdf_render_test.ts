@@ -283,10 +283,15 @@ Deno.test({
         if (fixture.name === "landscape" && result.sheet.width < result.sheet.height) {
           local.push("landscape sheet is portrait");
         }
-        // Every page (bar the first) starts at a known source line.
+        // Every page (bar the first) starts at a known source line, and
+        // reports how much of the sheet its content fills (the editor seeds
+        // its page boxes from it): more than nothing, never past the sheet.
         for (const pg of result.pages) {
           if (pg.number > 1 && pg.firstLine === undefined) {
             local.push(`page ${pg.number} has no first line`);
+          }
+          if (!(pg.contentHeight > 0) || pg.contentHeight > result.sheet.height) {
+            local.push(`page ${pg.number} content height ${pg.contentHeight} of a ${result.sheet.height}px sheet`);
           }
         }
         for (const l of local) failures.push(`${label}: ${l}`);
