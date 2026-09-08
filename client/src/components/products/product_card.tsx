@@ -1,11 +1,15 @@
 import type { ProductSummary } from "lib";
 import { Card, Icon } from "panther";
+import { Show } from "solid-js";
 import { packageScopeCaption } from "./package_label";
 import { PRODUCT_TYPE_REGISTRY } from "./product_types";
 
 type Props = {
   product: ProductSummary;
   selected: boolean;
+  // The product's folder path, set only while searching: it replaces the
+  // caption so a result says where it lives, as the folder tile does.
+  searchPath: string | null;
   onOpen: (evt?: MouseEvent) => void;
   onSelectToggle: (evt?: MouseEvent) => void;
   onContextMenu: (evt: MouseEvent) => void;
@@ -28,11 +32,17 @@ export function ProductCard(p: Props) {
         </div>
       }
     >
-      {/* ONE caption line, so product and folder tiles share a height. The
-          pair the product serves from is the load-bearing info (D8); type is
-          the header icon, and the updated date lives in the list view. */}
+      {/* ONE caption line, mirroring the folder tile's, so product and folder
+          tiles share a height. The pair the product serves from is the
+          load-bearing info (D8); type is the header icon, and the updated date
+          lives in the list view. */}
       <div class="ui-text-caption truncate">
-        {packageScopeCaption(p.product)}
+        <Show
+          when={p.searchPath}
+          fallback={packageScopeCaption(p.product)}
+        >
+          {(path) => path()}
+        </Show>
       </div>
     </Card>
   );

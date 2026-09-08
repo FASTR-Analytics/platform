@@ -15,6 +15,7 @@ import {
 } from "~/components/_shared/scope_picker";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
+import { folderPathOptions } from "./folder_tree";
 
 const _NO_FOLDER = "_none";
 
@@ -38,16 +39,14 @@ export function ProductSettings(p: AlertComponentProps<Props, ReturnType>) {
     scopeSelectionFromStored(p.product.adminArea2),
   );
 
-  // A flat list by label; the full-path options arrive with the folder tree
-  // in step 7b.
+  // The same flat full-path list, sorted by path with "No folder" first, that
+  // the move picker shows (D16).
   const folderOptions = createMemo(() => [
     {
       value: _NO_FOLDER,
       label: t3({ en: "No folder", fr: "Aucun dossier", pt: "Sem pasta" }),
     },
-    ...[...instanceState.folders]
-      .sort((a, b) => a.label.localeCompare(b.label))
-      .map((folder) => ({ value: folder.id, label: folder.label })),
+    ...folderPathOptions(instanceState.folders, {}),
   ]);
 
   // Captured at open, never derived from the current pick: an option list that
