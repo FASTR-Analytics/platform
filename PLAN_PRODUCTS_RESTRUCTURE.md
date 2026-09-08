@@ -5,6 +5,8 @@ folders, each attached to one results package at one scope. One main
 database, one realtime channel, one copilot. An Explore tab replaces the
 project Metrics tab and the standalone visualization library.
 
+**Next step: 1.** Each session advances this line in its final commit.
+
 **Status 2026-09-08: NOT STARTED on `version2`.** This is the second attempt.
 The first attempt was built on `tim-branch-restructure` between 2026-08-19 and
 2026-08-20, reached green gates and a migrated dev database, and stopped
@@ -32,10 +34,27 @@ Two things the first attempt taught, which shape this plan:
 
 ## 0. How to work this plan
 
-One agent session per step. A fresh agent reads, in this order: `CLAUDE.md`,
-`SYSTEMS.md`, the SYSTEM file for each area the step names, §1 and §2 of
-this plan, §3 for the target shape, its own row in §4, and the build log in
-§9. Nothing else in this plan is required reading for a step.
+The whole instruction to a fresh agent is: **"Do the next step of
+PLAN_PRODUCTS_RESTRUCTURE.md."** Everything else is here.
+
+**Session start.** The branch is `version2`; confirm it with `git branch
+--show-current` and confirm `git status` is clean. Never create a branch;
+commit to `version2`. The step to do is the **Next step** line at the top of
+this file. If that line and the last row of the build log (§9) disagree,
+stop and say so. `version2-reference` is read only through `git show
+version2-reference:<path>`; never check it out, merge it or cherry-pick from
+it. Then read, in this order: `CLAUDE.md`, `SYSTEMS.md`, the SYSTEM file for
+each area the step names, §1 and §2 of this plan, §3 for the target shape,
+the step's own section in §4, and §9. Nothing else in this plan is required
+reading for a step.
+
+**Session end.** The step's gates are green, the build log has its rows, the
+**Next step** line at the top of this file names the following step (or
+"done" after step 10, whose last commit deletes this file), and the last
+commit is made. Then stop. Do not start the next step in the same session.
+If the step cannot be finished, leave the tree green at the last good
+commit, record in §9 exactly what is done and what is not, leave the **Next
+step** line unchanged, and say so.
 
 Rules that bind every step:
 
@@ -64,8 +83,8 @@ Rules that bind every step:
   §2 or §3, every fact the step found wrong in this plan, and every defect
   found by running the app goes in the log with the step number and the
   reason. The next agent reads the log first.
-- **One step per session, and the session stops at the step's end.** Do not
-  start the next step. Commit with a message that says why.
+- **One step per session.** Commit with a message that says why. Where a
+  step says "several commits", each one is green on its own.
 - **Do not ship.** `./deploy_testing` ships the working tree; only steps 1
   and 2 are safe to deploy on their own, and the runbook in §6 says when.
 
