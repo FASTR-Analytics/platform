@@ -1055,7 +1055,9 @@ ${scope} {
   --fm-bleed-margin: calc((var(--fm-measure) - var(--fm-sheet, 896px)) / 2 - 24px);
   --fm-bleed-pad: calc((var(--fm-sheet, 896px) - var(--fm-measure)) / 2 + 24px);
 }
-${d}.fm-cover { min-height: min(72vh, 544px); }
+/* A cover fills its page: the host sets --fm-page-h to the printed page's
+   height at the sheet's scale. */
+${d}.fm-cover { min-height: var(--fm-page-h, 544px); }
 ${d}.fm-figure--wide {
   margin-inline: max(-4rem, calc((100% - var(--fm-sheet, 896px)) / 2 + 1.5rem));
 }
@@ -1289,7 +1291,9 @@ ${d}.cm-fm-attr:empty::before {
    child that starts the page; between plain lines it is a block widget. */
 ${d}.fm-page-gutter {
   display: block;
-  margin: 1.2em var(--fm-bleed-margin) 1.6em;
+  /* No block margins: the seam's padding-top is the page filler, measured
+     exactly (pageFillPlugin), so nothing else may add to the page's height. */
+  margin: 0 var(--fm-bleed-margin);
   padding: 0;
   font-family: var(--fm-font-body);
   font-weight: 400;
@@ -1305,26 +1309,22 @@ ${d}.fm-page-gutter__foot {
   display: flex;
   justify-content: space-between;
   gap: 1em;
-  padding: 0 var(--fm-bleed-pad) 0.9em;
+  padding: 0 var(--fm-bleed-pad) 18px;
   font-size: 0.7em;
   color: var(--fm-ink-muted);
   font-variant-numeric: tabular-nums;
 }
+/* The gap between two sheets: app chrome, with the sheets' edges shadowed. */
 ${d}.fm-page-gutter__band {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 26px;
+  display: block;
+  height: 28px;
   background: var(--color-base-200, #e5e7eb);
-  color: var(--color-base-content-muted, #6b7280);
-  font-size: 11px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.08), inset 0 -1px 0 rgba(0, 0, 0, 0.08);
+  box-shadow: inset 0 8px 8px -8px rgba(0, 0, 0, 0.35), inset 0 -8px 8px -8px rgba(0, 0, 0, 0.35);
 }
 /* Between plain lines the gutter is a block widget: no line box of its own,
-   the same seam geometry as inside a block. */
-${d}.cm-fm-page-gutter { display: block; }
+   the same seam geometry as inside a block. After the last line, the last
+   page's foot and filler. */
+${d}.cm-fm-page-gutter, ${d}.cm-fm-page-end { display: block; }
 /* A :::pagebreak line: invisible on the page, a labelled rule in the editor
    so the author can see where they forced a break (and delete it). */
 ${d}.fm-pagebreak.fm-pagebreak--editor {

@@ -410,11 +410,20 @@ restored after each swap from the CodeMirror selection the islands mirror;
 Enter splits a paragraph (a list item gets a sibling), Backspace removes an
 empty one, a press on a page's empty tail appends a paragraph, and an element
 Paged.js split across pages edits through its first fragment. Peer carets are
-mapped onto the pages. With the toggle off (the default), the CodeMirror live preview shows
-page SEAMS instead: `paginationField`/`setPagination` draw one before each
-page's first line (a block widget between plain or leaf lines, an element
-injected into the rendered block's DOM), computed by `paginate_report.ts` in
-a hidden frame; split blocks carry a flag. The Download modal offers PDF
+mapped onto the pages. With the toggle off (the default, Nick's ruling after trying the
+frame: "still use the CodeMirror system for each of the pages"), the
+CodeMirror live preview IS broken into pages: `paginationField`/
+`setPagination` draw a seam before each page's first line (a block widget
+between plain or leaf lines, an element injected into the rendered block's
+DOM), computed by `paginate_report.ts` in a hidden frame; `pageFillPlugin`
+pads every page box to the printed page's height at the sheet's scale
+(`--fm-page-h`, set by the host; A4 portrait at the 896px sheet = 1267px) by
+measuring the content between consecutive seams and writing the seam's
+padding-top, a cover fills its page (`min-height: var(--fm-page-h)`), each
+seam carries the ending page's running footer above a sheet-edge gap, and a
+PageEndWidget after the last line gives the last page its foot and filler.
+A page whose editor rendering runs taller than print simply runs taller;
+split blocks carry a flag. The Download modal offers PDF
 (default) and HTML for fastr; Print is gone for that format. Verified by
 `server/tests/report_pdf_render_test.ts` (env-gated on `CHROME_PATH`): the
 fixture corpus in `server/tests/fixtures/fastr_pdf/` on every theme, with

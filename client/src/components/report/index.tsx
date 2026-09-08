@@ -283,6 +283,10 @@ export function ProjectReport(p: Props) {
     const measurePx = `${measurePxN}px`;
     // The sheet is the page at the editor's scale: View's 56rem cap (896px).
     const sheetPx = "896px";
+    // The printed page's height at that scale: every page box in the editor
+    // is padded to it (pageFillPlugin), and a cover fills it.
+    const [, sheetHmm] = fastrSheetMm(page);
+    const pageHPx = `${Math.round(896 * sheetHmm / sheetMm)}px`;
     // Re-target the theme's own heading rules at the editor's line classes —
     // h1 underlines/centring, h2-h6 accents (Swiss's black top rule,
     // Ministry's serif colour). Margins are then neutralised by the trailing
@@ -312,7 +316,7 @@ export function ProjectReport(p: Props) {
     return [
       themed,
       // After `themed`, whose vars block also sets --fm-measure.
-      `${scope} { --fm-measure: ${measurePx}; --fm-sheet: ${sheetPx}; }`,
+      `${scope} { --fm-measure: ${measurePx}; --fm-sheet: ${sheetPx}; --fm-page-h: ${pageHPx}; }`,
       buildFastrEditorSurfaceCss(scope),
       retargeted,
       `${scope} .cm-line.cm-fm-h1, ${scope} .cm-line.cm-fm-h2, ${scope} .cm-line.cm-fm-h3,
