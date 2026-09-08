@@ -50,6 +50,21 @@ export const reportRouteRegistry = {
     requiresProject: true,
   }),
 
+  // The paged PDF of a FASTR Markdown report. The CLIENT builds the complete
+  // standalone document (rasters, inlined fonts, the paged sheet and the
+  // Paged.js runner) exactly as its editor lays it out; the server only prints
+  // it with headless Chrome, so the PDF and the editor's page boxes agree.
+  // Streaming: a render takes seconds and the payload carries every raster.
+  renderReportPdf: route({
+    path: "/reports/:report_id/pdf",
+    method: "POST",
+    params: reportIdParamsSchema,
+    body: z.object({ html: z.string().max(80_000_000) }),
+    response: {} as { pdfBase64: string; pages: number },
+    requiresProject: true,
+    isStreaming: true,
+  }),
+
   createReport: route({
     path: "/reports",
     method: "POST",

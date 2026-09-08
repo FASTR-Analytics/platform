@@ -199,6 +199,11 @@ if (_SEND_GRID_API === undefined) {
   throw new Error("Could not get SEND_GRID_API env variable");
 }
 
+// Headless Chrome for the paged report PDF (server/report_pdf/). Optional:
+// without it the PDF route reports that the instance cannot render PDFs
+// rather than the server refusing to boot. The Docker image sets it.
+export const _CHROME_PATH = Deno.env.get("CHROME_PATH");
+
 export const _GITHUB_TOKEN = Deno.env.get("GITHUB_TOKEN");
 
 ///////////////////////////////////////////////////////////////////////////////

@@ -31,6 +31,7 @@ import {
   parseContainerAttrs,
   parseContainerFence,
   parseFastrMarkAttrs,
+  readFastrDocumentSettings,
   fastrTocOptions,
   fastrTocSlug,
   renderFastrTocHtml,
@@ -299,6 +300,39 @@ export function createFastrMarkdownIt(): MarkdownIt {
       const inline = state.tokens[state.tokens.indexOf(token) + 1];
       const text = inline?.type === "inline" ? inline.content : "";
       token.attrSet("id", fastrTocSlug(text, seen));
+    }
+    return true;
+  });
+
+  // ── Top-level headings ─────────────────────────────────────────────────────
+  // A heading outside every block is a document SECTION (the format's own
+  // rule) and carries `fm-top` so a stylesheet can address it without the
+  // structural `body > h2`, which no longer holds once a paginator has moved
+  // the flow into page boxes.
+  md.core.ruler.push("fm_top_headings", (state) => {
+    // `numbering=sections`: the numbered ones also carry fm-numbered, which
+    // is what the paged stylesheet counts (its selectors must match the
+    // source alone, without the document root's class).
+    const numbered = readFastrDocumentSettings(state.src ?? "").className
+      .includes("fm-doc--numbered");
+    let depth = 0;
+    for (const token of state.tokens) {
+      if (token.type === "fm_container_open") {
+        const name = (token.meta as ContainerMeta | undefined)?.name ?? "";
+        if (!isFastrLeafBlock(name)) depth++;
+        continue;
+      }
+      if (token.type === "fm_container_close") {
+        const name = (token.meta as ContainerMeta | undefined)?.name ?? "";
+        if (!isFastrLeafBlock(name)) depth = Math.max(0, depth - 1);
+        continue;
+      }
+      if (token.type === "heading_open" && depth === 0) {
+        token.attrJoin("class", "fm-top");
+        if (numbered && (token.tag === "h2" || token.tag === "h3")) {
+          token.attrJoin("class", "fm-numbered");
+        }
+      }
     }
     return true;
   });

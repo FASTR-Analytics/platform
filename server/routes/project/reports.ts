@@ -52,6 +52,12 @@ import { log } from "../../middleware/logging.ts";
 import { notifyLastUpdated } from "../../task_management/mod.ts";
 import { notifyProjectReportsUpdated } from "../../task_management/notify_project_v2.ts";
 import { defineRoute } from "../route-helpers.ts";
+import { streamResponse } from "../streaming.ts";
+import { encodeBase64 } from "@std/encoding/base64";
+import {
+  canRenderReportPdf,
+  renderReportPdf,
+} from "../../report_pdf/render_report_pdf.ts";
 
 export const routesReports = new Hono();
 
@@ -793,5 +799,38 @@ defineRoute(
   async (c, { params }) => {
     const res = await deleteReportStyle(c.var.mainDb, params.style_id);
     return c.json(res);
+  },
+);
+
+// The paged PDF. The client sends the complete standalone document (it owns
+// the rasters and the layout); the server prints it. Viewing permission, like
+// Download and Email: the caller already holds the content it is sending.
+defineRoute(
+  routesReports,
+  "renderReportPdf",
+  requireProjectPermission("can_view_reports"),
+  log("renderReportPdf"),
+  (c, { body }) => {
+    return streamResponse(c, async (writer) => {
+      if (!canRenderReportPdf()) {
+        await writer.error(
+          "This instance cannot render PDFs yet: headless Chrome is not configured on the server.",
+        );
+        return;
+      }
+      await writer.progress(0.02, "Starting");
+      const res = await renderReportPdf(
+        body.html,
+        (pct, message) => writer.progress(pct, message),
+      );
+      if (!res.success) {
+        await writer.error(res.err);
+        return;
+      }
+      await writer.complete({
+        pdfBase64: encodeBase64(res.data.pdf),
+        pages: res.data.pages,
+      });
+    });
   },
 );

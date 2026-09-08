@@ -13,7 +13,6 @@
 
 import DOMPurify from "dompurify";
 import {
-  escapeReportHtml,
   injectReportHtmlLineAnchors,
   renderFastrMarkdownToHtml,
   REPORT_PURIFY_CONFIG,
@@ -25,83 +24,13 @@ export function sanitizeReportHtml(html: string): string {
   return DOMPurify.sanitize(html, REPORT_PURIFY_CONFIG);
 }
 
-// Inserted BEFORE the report's own CSS so the report always wins.
-export const REPORT_BASE_CSS = `
-:root { color-scheme: light; }
-html { background: #ffffff; }
-body {
-  box-sizing: border-box;
-  margin: 0 auto;
-  padding: 2.5rem 1.5rem;
-  max-width: 56rem;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  font-size: 16px;
-  line-height: 1.55;
-  color: #1a1a1a;
-}
-img { max-width: 100%; height: auto; }
-/* Figure rasters are TRANSPARENT PNGs with no default background — whatever
-   the report paints behind them (page color, texture, image, panel) shows
-   through. A style that wants a distinct card sets a background in its CSS. */
-img[data-embed-kind] { display: block; }
-table { border-collapse: collapse; }
-.report-embed-pending {
-  display: flex; align-items: center; justify-content: center;
-  width: 100%; aspect-ratio: 16 / 9;
-  background: #f3f4f6; border: 1px dashed #d1d5db; border-radius: 4px;
-  color: #6b7280; font-size: 0.85rem;
-}
-.report-embed-missing { display: block; color: #b91c1c; font-size: 0.85rem; }
-@media print {
-  body { max-width: none; padding: 0; }
-  img, table, figure, .report-embed-pending { break-inside: avoid; }
-}
-/* Styled reports depend on their backgrounds surviving print. */
-*, *::before, *::after { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-`;
-
-// FASTR Markdown reports carry no CSS of their own — their whole design is the
-// theme stylesheet, which therefore has to be part of the document. It goes in
-// its own <style> AFTER the base sheet (so it wins) and is marked so the
-// preview can swap it in place when the theme changes.
-export const FASTR_THEME_STYLE_ATTR = "data-fm-theme";
-
-export function wrapReportDocument(p: {
-  title: string;
-  bodyHtml: string;
-  themeCss?: string;
-  // FASTR Markdown `:::report` settings. They go on <html>, not <body>: the
-  // page ground has to reach past the centred text column, and --fm-measure
-  // has to be in scope for the full-bleed bands inside body.
-  documentClass?: string;
-  documentStyle?: string;
-  // The FASTR `@page` rule (sheet size, orientation, margins). The print
-  // dialog still owns headers and page numbers; CSS cannot switch those on.
-  pageCss?: string;
-}): string {
-  const title = p.title
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
-  const theme = p.themeCss
-    ? `\n<style ${FASTR_THEME_STYLE_ATTR}>${p.themeCss}</style>`
-    : "";
-  const docAttrs = [
-    p.documentClass ? ` class="${escapeReportHtml(p.documentClass)}"` : "",
-    p.documentStyle ? ` style="${escapeReportHtml(p.documentStyle)}"` : "",
-  ].join("");
-  const pageRule = p.pageCss ? `\n<style>${p.pageCss}</style>` : "";
-  return `<!doctype html>
-<html${docAttrs}>
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${title}</title>
-<style>${REPORT_BASE_CSS}</style>${theme}${pageRule}
-</head>
-<body>${p.bodyHtml}</body>
-</html>`;
-}
+// The document shell (base stylesheet + html wrapper) lives in lib so the
+// Deno render tests build the same document; re-exported for the callers here.
+export {
+  FASTR_THEME_STYLE_ATTR,
+  REPORT_BASE_CSS,
+  wrapReportDocument,
+} from "lib";
 
 // html: inject line anchors (preview only) → sanitize.
 // fastr: compile the markdown (anchors come from markdown-it's token.map) →
@@ -129,6 +58,11 @@ export type FigureRasterState =
   | { state: "missing" };
 
 const EMBED_SRC_RE = /^(figure|image):(.+)$/;
+
+// A 1x1 transparent GIF: the ground probe's src, and the layout-only
+// placeholder a paginating frame uses in place of a raster.
+export const TRANSPARENT_PIXEL_SRC =
+  "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
 
 function missingText(kind: "figure" | "image", id: string): string {
   return kind === "figure"
@@ -191,10 +125,7 @@ export function materializeReportEmbeds(
     }
     const r = resolveFigure(id);
     if (r.state === "probe") {
-      img.setAttribute(
-        "src",
-        "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==",
-      );
+      img.setAttribute("src", TRANSPARENT_PIXEL_SRC);
       img.setAttribute("data-embed-id", id);
       img.setAttribute("data-embed-kind", "figure");
       continue;

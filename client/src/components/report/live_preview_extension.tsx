@@ -62,6 +62,7 @@ import {
   FM_BOX_PAD_BOTTOM,
   type FastrLiveRegion,
   type FastrOpenFence,
+  type FastrPagedResult,
   fastrLiveRegions,
   fastrDocumentOutline,
   fastrMarkClass,
@@ -474,7 +475,8 @@ class RegionWidget extends WidgetType {
         attachCellContextMenu(cell, view, this.startLine + rel + 1, i);
       });
     }
-
+    // Page seams and split flags inside this block, from the last pagination.
+    applyRegionPagination(dom, this.startLine, view);
   }
 
   override destroy(dom: HTMLElement): void {
@@ -1680,6 +1682,23 @@ class LeafRenderWidget extends WidgetType {
       });
       return dom;
     }
+    if (fence?.name === "pagebreak") {
+      // Invisible on the page; in the editor a labelled dashed rule, so the
+      // forced break can be seen and deleted. Pressing it parks the caret on
+      // the line (chromeRoot's own behaviour) for the block segment.
+      const rule = document.createElement("div");
+      rule.className = "fm-pagebreak fm-pagebreak--editor";
+      rule.setAttribute("data-line", "0");
+      const label = document.createElement("span");
+      label.textContent = t3({
+        en: "Page break",
+        fr: "Saut de page",
+        pt: "Quebra de página",
+      });
+      rule.append(label);
+      dom.append(rule);
+      return dom;
+    }
     dom.innerHTML = sanitizeReportHtml(
       renderFastrMarkdownToHtml(this.source, { lineAnchors: false }),
     );
@@ -1996,6 +2015,10 @@ function buildLiveState(
     }
     const isToc = r.region.kind === "leaf" &&
       r.region.fence?.name === "contents";
+    // A page break renders as nothing on the page; the leaf widget draws its
+    // labelled divider so the author can see and delete it.
+    const isPagebreak = r.region.kind === "leaf" &&
+      r.region.fence?.name === "pagebreak";
     const before = prev?.keys.get(r.region.startLine);
     const carried = before !== undefined &&
         (before.source === source || (keepActive && touched))
@@ -2011,6 +2034,8 @@ function buildLiveState(
         r.region.startLine + 1,
         tocOutlineKey(state.doc.toString(), r.region.fence),
       )
+      : isPagebreak
+      ? new LeafRenderWidget(source, r.region.startLine + 1)
       : new RegionWidget(
         r.region.kind,
         source,
@@ -2923,6 +2948,239 @@ function docGroundPlugin(resolver: EmbedResolver) {
   );
 }
 
+// ── Page boxes ───────────────────────────────────────────────────────────────
+// Where the printed pages start, from the host's paginator (paginate_report.ts:
+// the SAME paged document the server prints, laid out in a hidden frame). The
+// editor draws a seam before each page's first line: between plain lines as a
+// block widget, inside a rendered block as an element injected before the
+// child that starts the page. Blocks the paginator had to split (taller than a
+// page) are flagged. Results are in 0-based source lines and may be a beat
+// stale after an edit, so every line is clamped and nothing here throws.
+
+export type EditorPagination = {
+  result: FastrPagedResult;
+  // The running footer's title, drawn on the seam.
+  title: string;
+};
+
+export const setPagination = StateEffect.define<EditorPagination | undefined>();
+
+type PaginationState = {
+  pagination: EditorPagination | undefined;
+  // Seams between plain lines, as decorations.
+  deco: DecorationSet;
+  // Seams inside regions, by region start line: the region-relative line the
+  // page starts on, and the page number.
+  regionSeams: Map<number, { rel: number; page: number }[]>;
+  // Regions flagged as split, by region start line → continuation page.
+  regionSplits: Map<number, number>;
+};
+
+const EMPTY_PAGINATION: PaginationState = {
+  pagination: undefined,
+  deco: Decoration.none,
+  regionSeams: new Map(),
+  regionSplits: new Map(),
+};
+
+function footerText(pag: EditorPagination, page: number): string {
+  const total = pag.result.total;
+  return `${t3({ en: "Page", fr: "Page", pt: "Página" })} ${page} ${
+    t3({ en: "of", fr: "sur", pt: "de" })
+  } ${total}`;
+}
+
+// The seam element: the ENDING page's running footer, then the strip of app
+// chrome that reads as the gap between two sheets. A cover page carries no
+// footer in the PDF, so its seam shows none either.
+function seamElement(pag: EditorPagination, page: number): HTMLElement {
+  const el = document.createElement("div");
+  el.className = "fm-page-gutter";
+  el.contentEditable = "false";
+  el.setAttribute("data-page", String(page));
+  const ending = pag.result.pages[page - 2];
+  if (ending !== undefined && !ending.cover) {
+    const foot = document.createElement("div");
+    foot.className = "fm-page-gutter__foot";
+    const title = document.createElement("span");
+    title.textContent = pag.title;
+    const num = document.createElement("span");
+    num.textContent = footerText(pag, page - 1);
+    foot.append(title, num);
+    el.append(foot);
+  }
+  const band = document.createElement("div");
+  band.className = "fm-page-gutter__band";
+  band.textContent = `${t3({ en: "Page", fr: "Page", pt: "Página" })} ${page}`;
+  el.append(band);
+  return el;
+}
+
+function splitFlag(page: number): HTMLElement {
+  const el = document.createElement("div");
+  el.className = "fm-page-split";
+  el.contentEditable = "false";
+  el.textContent = t3({
+    en: `Longer than a page: continues on page ${page}`,
+    fr: `Plus long qu'une page : continue en page ${page}`,
+    pt: `Mais longo que uma página: continua na página ${page}`,
+  });
+  return el;
+}
+
+class PageGutterWidget extends WidgetType {
+  constructor(readonly pag: EditorPagination, readonly page: number) {
+    super();
+  }
+  override eq(other: PageGutterWidget): boolean {
+    return other.page === this.page && other.pag.title === this.pag.title &&
+      other.pag.result.total === this.pag.result.total;
+  }
+  override toDOM(): HTMLElement {
+    const dom = document.createElement("div");
+    dom.className = "cm-fm-page-gutter";
+    dom.append(seamElement(this.pag, this.page));
+    return dom;
+  }
+  override get estimatedHeight(): number {
+    return 70;
+  }
+  override ignoreEvent(): boolean {
+    return false;
+  }
+}
+
+function buildPaginationState(
+  state: EditorState,
+  pag: EditorPagination | undefined,
+): PaginationState {
+  if (pag === undefined || pag.result.total === 0) return EMPTY_PAGINATION;
+  const ranges = regionRanges(state);
+  const regionAt = (line: number) =>
+    ranges.find((r) => r.region.startLine <= line && line <= r.region.endLine);
+  const regionSeams = new Map<number, { rel: number; page: number }[]>();
+  const regionSplits = new Map<number, number>();
+  const decos: Range<Decoration>[] = [];
+  for (const page of pag.result.pages) {
+    if (page.number < 2 || page.firstLine === undefined) continue;
+    const line = page.firstLine;
+    if (line >= state.doc.lines) continue;
+    const r = regionAt(line);
+    // A page starting inside a rendered block gets its seam injected into
+    // that block's DOM. A leaf or embed (one line, rendered by its own
+    // widget) and a plain line take a block widget placed before the line.
+    if (r !== undefined && r.region.kind !== "leaf" && r.region.kind !== "embed") {
+      const list = regionSeams.get(r.region.startLine) ?? [];
+      list.push({ rel: line - r.region.startLine, page: page.number });
+      regionSeams.set(r.region.startLine, list);
+      continue;
+    }
+    decos.push(
+      Decoration.widget({
+        widget: new PageGutterWidget(pag, page.number),
+        block: true,
+        side: -1,
+      }).range(state.doc.line(line + 1).from),
+    );
+  }
+  for (const s of pag.result.splits) {
+    if (s.line >= state.doc.lines) continue;
+    const r = regionAt(s.line);
+    if (r !== undefined) {
+      if (!regionSplits.has(r.region.startLine)) {
+        regionSplits.set(r.region.startLine, s.page + 1);
+      }
+      continue;
+    }
+    decos.push(
+      Decoration.line({ class: "cm-fm-split" }).range(state.doc.line(s.line + 1).from),
+    );
+  }
+  decos.sort((a, b) => a.from - b.from || a.value.startSide - b.value.startSide);
+  return { pagination: pag, deco: Decoration.set(decos, true), regionSeams, regionSplits };
+}
+
+export const paginationField = StateField.define<PaginationState>({
+  create: () => EMPTY_PAGINATION,
+  update(value, tr) {
+    for (const e of tr.effects) {
+      if (e.is(setPagination)) return buildPaginationState(tr.state, e.value);
+    }
+    // An edit shifts lines under a result computed for the previous text;
+    // keep the seams where they were (they move with the mapping) until the
+    // paginator answers again, rather than flashing them away on every key.
+    if (tr.docChanged && value.pagination !== undefined) {
+      return { ...value, deco: value.deco.map(tr.changes) };
+    }
+    return value;
+  },
+  provide: (f) => EditorView.decorations.from(f, (v) => v.deco),
+});
+
+// Seams and flags INSIDE a rendered block: applied to the widget's DOM after
+// each fill, and re-applied to every mounted widget when a new result lands
+// (the widgets themselves do not change, so eq cannot drive it).
+function applyRegionPagination(
+  dom: HTMLElement,
+  startLine: number,
+  view: EditorView,
+): void {
+  for (const old of Array.from(dom.querySelectorAll(".fm-page-gutter, .fm-page-split"))) {
+    old.remove();
+  }
+  dom.classList.remove("fm-live-region--split");
+  const ps = view.state.field(paginationField, false);
+  if (ps === undefined || ps.pagination === undefined) return;
+  const seams = ps.regionSeams.get(startLine);
+  if (seams !== undefined) {
+    for (const seam of seams) {
+      const el = seamElement(ps.pagination, seam.page);
+      // The child that starts the page: the innermost anchored element for
+      // that region-relative line, or the block's own top when the page
+      // starts at its fence (rel 0) or no anchor matches.
+      const anchor = seam.rel === 0 ? undefined : Array.from(
+        dom.querySelectorAll<HTMLElement>(`[data-line="${seam.rel}"]`),
+      ).pop();
+      const target = anchor ?? dom.querySelector<HTMLElement>(".fm-peer-layer + *");
+      if (target !== null && target !== undefined && target.parentElement) {
+        target.parentElement.insertBefore(el, target);
+      } else {
+        dom.append(el);
+      }
+    }
+  }
+  const split = ps.regionSplits.get(startLine);
+  if (split !== undefined) {
+    dom.classList.add("fm-live-region--split");
+    const first = dom.querySelector<HTMLElement>(".fm-peer-layer + *");
+    const flag = splitFlag(split);
+    if (first && first.parentElement) first.parentElement.insertBefore(flag, first);
+    else dom.append(flag);
+  }
+}
+
+const paginationPlugin = ViewPlugin.fromClass(
+  class {
+    update(u: ViewUpdate) {
+      const landed = u.transactions.some((tr) =>
+        tr.effects.some((e) => e.is(setPagination))
+      );
+      if (!landed) return;
+      for (
+        const el of Array.from(
+          u.view.contentDOM.querySelectorAll<HTMLElement>(
+            ".fm-live-region[data-region-line]",
+          ),
+        )
+      ) {
+        const start = Number(el.getAttribute("data-region-line"));
+        if (Number.isFinite(start)) applyRegionPagination(el, start, u.view);
+      }
+      u.view.requestMeasure();
+    }
+  },
+);
+
 export function livePreviewExtensions(
   resolver: EmbedResolver,
   collab?: PresenceDeps,
@@ -2934,6 +3192,8 @@ export function livePreviewExtensions(
     livePreviewTheme,
     sheetBleedVars,
     docGroundPlugin(resolver),
+    paginationField,
+    paginationPlugin,
     ...(collab ? [regionPresencePlugin(collab), presenceFacet.of(collab)] : []),
   ];
 }

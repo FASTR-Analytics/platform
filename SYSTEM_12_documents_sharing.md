@@ -46,6 +46,8 @@ globs:
   - lib/fastr_markdown_spec.ts
   - lib/report_fastr_css.ts
   - lib/report_fastr_markdown.ts
+  - lib/report_fastr_paged.ts
+  - lib/report_document_shell.ts
   - lib/types/slides.ts
   - server/db/instance/dashboard_slugs.ts
   - server/db/instance/report_styles.ts
@@ -60,6 +62,7 @@ globs:
   - server/routes/project/emails.ts
   - server/routes/project/report_folders.ts
   - server/routes/project/reports.ts
+  - server/report_pdf/**
   - server/routes/project/slide_deck_folders.ts
   - server/routes/project/slide_decks.ts
   - server/routes/project/slides.ts
@@ -363,9 +366,46 @@ contributes only its `colors` here — its `reference_css` targets AI-authored
 class names, not `fm-*`. Sections are the markdown `#`-line scan with a
 top-level mask (`fastrTopLevelLineMask`): headings inside a container or a code
 fence are NOT indexed, so `rewrite_section` can never splice a section that
-starts mid-block. Exports: `.html` + print, same builder as html; PDF/Word are
-deliberately absent because panther's markdown IR cannot represent the blocks
-and would silently drop every one.
+starts mid-block. Exports: `.html` (same builder as html) and a PAGED PDF —
+see "Paged PDF and page boxes" below; Word is absent because panther's
+markdown IR cannot represent the blocks and would silently drop every one.
+
+**Paged PDF and page boxes (2026-09-08).** A FASTR Markdown report has a real
+PDF, and the Edit pane shows where its pages fall. One paginator does both:
+Paged.js lays the SAME standalone document out into page boxes in the browser
+(the editor's hidden layout frame, `report/paginate_report.ts`) and inside the
+server's headless Chrome (`server/report_pdf/`, astral over CDP, the Chrome for
+Testing headless shell the Dockerfile installs at `CHROME_PATH`), so the seams
+the editor draws and the pages the PDF prints cannot disagree.
+`lib/report_fastr_paged.ts` is the contract: the paged stylesheet
+(`buildFastrPagedCss` — `@page` size/margins, a zero-margin named page for a
+cover, the running footer as margin boxes, keep-together on every designed
+block, keep-with-next on headings, orphans/widows 3, explicit breaks from
+`:::pagebreak` and `break=before|after`, section counters on the
+renderer-stamped `fm-numbered` class, TOC page numbers via `target-counter`) and
+the in-document runner (`fastrPagedRunnerJs`), which releases blocks taller
+than a page before pagination (they split as a last resort and are reported),
+repairs Paged.js's keep-with-next flags, redirects a break that lands inside a
+whole block to the block itself (and back over its heading), repeats table
+header rows on continuations, paints the document ground on every sheet, and
+publishes a `FastrPagedResult` in SOURCE LINES on `window.__fmPaged`.
+`lib/report_document_shell.ts` holds the document wrapper so the Deno render
+test builds byte-identical documents. Side margins are zero on the page and
+live on the content wrapper: Paged.js treats any content wider than its box as
+overflow, and bands must bleed to the paper edge. The client builds the
+document (`buildStandaloneReportHtml` with `paged`, fonts inlined as data URLs
+by `exports/inline_theme_fonts.ts` so the host needs no network) and POSTs it to
+the streaming `renderReportPdf` route (can_view_reports; one render at a time
+per instance; `CHROME_PATH` unset ⇒ a clean "cannot render" error). In the
+editor, `paginationField`/`setPagination` (live_preview_extension) draw a seam
+before each page's first line: a block widget between plain or leaf lines, an
+element injected into the rendered block's DOM (before the child whose
+region-relative data-line matches, re-applied by a ViewPlugin when a result
+lands); split blocks carry a flag. The Download modal offers PDF (default) and
+HTML for fastr; Print is gone for that format. Verified by
+`server/tests/report_pdf_render_test.ts` (env-gated on `CHROME_PATH`): the
+fixture corpus in `server/tests/fixtures/fastr_pdf/` on every theme, with
+structural assertions on the Paged.js DOM before printing.
 
 **Backgrounds and page-level design.** The format's answer to "everything html
 reports can do" is to name the ROLE, not the value. Every block takes
@@ -547,12 +587,10 @@ heading lines are cm-lines rather than real headings and a viewport-scoped
 counter would renumber on scroll, so `buildSurfaceLines` computes the same
 numbers doc-wide as widgets, and docGroundPlugin deliberately keeps `fm-doc*`
 classes off the scroller so the two can never both fire) and DOCUMENT DETAILS
-(words, headings, visualizations, images, last saved). The printed SHEET is
-deliberately NOT a control: `:::report` still accepts
-`pagesize`/`orientation`/`margin` and `fastrPageRuleCss` still writes the
-`@page` rule the .html export, the print frame and the emailed PDF use, but
-nothing in the UI or the AI brief sets them, so a report prints A4 portrait
-with normal margins unless a body says otherwise by hand. Theme and Background
+(words, headings, visualizations, images, last saved), PAGE SIZE (A4/Letter)
+and ORIENTATION — the printed sheet the paged PDF uses and the editor's page
+boxes show (`:::report{pagesize= orientation=}`; margins stay at normal, 18mm)
+— and a SHOW PAGE BOXES toggle (per browser, localStorage). Theme and Background
 are hover FLYOUTS — `MenuFlyout`, the pure-CSS row-plus-panel the Insert pickers
 already used and now share. The theme flyout's tiles are drawn from
 `FASTR_THEME_TOKENS` (page, ink, accent, dark tone, heading face) rather than
@@ -563,7 +601,8 @@ row opens with a FILE menu (Google Docs' shape): Download… (the host's
 shows it), Email this file… (`share_report.tsx`, the slide deck's share modal
 for a report: the attachment is always a PDF, built in memory by
 `exports/export_report_attachment.ts` — markdown through panther's vector
-renderer, html/fastr through `rasterize_report_document.ts`, which mounts the
+renderer, fastr through the paged PDF (`export_report_as_paged_pdf.ts`, the
+same bytes Download saves), html through `rasterize_report_document.ts`, which mounts the
 standalone document in a hidden iframe sized to the PRINTABLE AREA (so `vh`
 blocks like a cover match the sheet), rasterizes it and cuts it into pages at
 top-level block boundaries, a cover taking a full sheet of its own ground.

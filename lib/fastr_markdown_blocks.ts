@@ -9,6 +9,8 @@
 //   :::stat{value="64%" label="ANC4" delta="+3pp" dir=up}      ← leaf, no close
 //   :::columns{cols=2}  :::col{span=2} … :::      :::
 //   :::quote{cite="Dr N. Kamara"} … :::
+//   :::pagebreak                                    ← leaf, ends the printed page
+//   :::callout{break=before} … :::                  ← any block may start/end a page
 //
 // A container's design lives entirely in the theme stylesheet (report_fastr_css.ts)
 // — the body never carries CSS, which is what makes the format hand-editable and
@@ -29,6 +31,7 @@ export const FASTR_BLOCK_NAMES = [
   "cover",
   "steps",
   "contents",
+  "pagebreak",
   "report",
 ] as const;
 export type FastrBlockName = (typeof FASTR_BLOCK_NAMES)[number];
@@ -39,8 +42,14 @@ export type FastrBlockName = (typeof FASTR_BLOCK_NAMES)[number];
 export const FASTR_LEAF_BLOCK_NAMES: readonly string[] = [
   "stat",
   "contents",
+  "pagebreak",
   "report",
 ];
+
+// `break=before|after` on any block: the printed page ends before or after it.
+// The paged stylesheet reads the data attribute; on screen it does nothing.
+export const FASTR_BREAK_MODES = ["before", "after"] as const;
+export type FastrBreakMode = (typeof FASTR_BREAK_MODES)[number];
 
 export function isFastrBlockName(name: string): name is FastrBlockName {
   return (FASTR_BLOCK_NAMES as readonly string[]).includes(name);
@@ -539,19 +548,24 @@ export const FASTR_PAGE_MARGIN_MM: Record<FastrPageMargin, number> = {
   wide: 28,
 };
 
-// The printed sheet, in mm — what `@page { size }` names.
-const PAGE_SIZE_MM: Record<FastrPageSize, [number, number]> = {
+// The printed sheet, in mm — what `@page { size }` names. Portrait; the
+// orientation swaps the pair (fastrSheetMm).
+export const FASTR_PAGE_SIZE_MM: Record<FastrPageSize, [number, number]> = {
   a4: [210, 297],
   letter: [216, 279],
   legal: [216, 356],
 };
 
-// The `@page` rule the export and the print frame carry. The browser's own
-// print dialog still owns headers, footers and page numbers — CSS cannot
-// switch those on — so this sets the sheet and the margins only.
+// The sheet as printed: [width, height] in mm, orientation applied.
+export function fastrSheetMm(page: FastrPageSetup): [number, number] {
+  const [w, h] = FASTR_PAGE_SIZE_MM[page.size];
+  return page.orientation === "landscape" ? [h, w] : [w, h];
+}
+
+// The `@page` rule the .html export carries for the browser's own print
+// dialog. The paged PDF (report_fastr_paged.ts) writes its own, richer rule.
 export function fastrPageRuleCss(page: FastrPageSetup): string {
-  const [w, h] = PAGE_SIZE_MM[page.size];
-  const [width, height] = page.orientation === "landscape" ? [h, w] : [w, h];
+  const [width, height] = fastrSheetMm(page);
   return `@page { size: ${width}mm ${height}mm; margin: ${
     FASTR_PAGE_MARGIN_MM[page.margin]
   }mm; }`;
@@ -836,6 +850,16 @@ function blockShapeFor(
         leadingHtml: "",
         trailingHtml: "",
       };
+    // A forced page break. Renders as an empty marker: on screen the theme
+    // sheet hides it, in the paged PDF it ends the page, and the editor draws
+    // it as a labelled divider so the author can see and delete it.
+    case "pagebreak":
+      return {
+        tag: "div",
+        className: "fm-pagebreak",
+        leadingHtml: "",
+        trailingHtml: "",
+      };
     default:
       // An unknown name still renders (as a plain grouping div) so a typo never
       // swallows the author's content; listFastrContainerDefects flags it.
@@ -871,13 +895,27 @@ export function containerHtmlFor(
   }
   const shape = blockShapeFor(name, attrs);
   const surface = surfaceFor(attrs);
+  // `break=before|after` rides on the element as a data attribute: the paged
+  // stylesheet turns it into a page break, and nothing else reads it.
+  const breakMode = fastrBreakMode(attrs);
+  const breakAttr = breakMode === undefined ? "" : ` data-break="${breakMode}"`;
   return {
     ...shape,
     className: [shape.className, ...surface.classes].join(" "),
     style: surface.style,
-    extraAttrs: surface.extraAttrs,
+    extraAttrs: surface.extraAttrs + breakAttr,
     silent: false,
   };
+}
+
+// The block's `break=` attribute, if it names a mode the sheet knows.
+export function fastrBreakMode(
+  attrs: FastrContainerAttrs,
+): FastrBreakMode | undefined {
+  const v = attrText(attrs, "break")?.toLowerCase();
+  return v !== undefined && (FASTR_BREAK_MODES as readonly string[]).includes(v)
+    ? (v as FastrBreakMode)
+    : undefined;
 }
 
 // ── Table of contents ────────────────────────────────────────────────────────
@@ -1106,6 +1144,17 @@ export function listFastrContainerDefects(body: string): FastrContainerDefect[] 
         message: `Unknown tone \`${tone}\`. Available tones: ${
           FASTR_TONES.join(", ")
         }.`,
+      });
+    }
+    // A `break=` the sheet does not know would silently do nothing.
+    const brk = fence.attrs["break"];
+    if (
+      typeof brk === "string" &&
+      !(FASTR_BREAK_MODES as readonly string[]).includes(brk.toLowerCase())
+    ) {
+      defects.push({
+        line: i + 1,
+        message: `Unknown break \`${brk}\`. Use break=before or break=after.`,
       });
     }
     if (!isFastrLeafBlock(fence.name)) {

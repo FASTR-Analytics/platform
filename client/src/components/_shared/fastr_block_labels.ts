@@ -54,11 +54,11 @@ export function fastrBlockLabel(name: FastrBlockName): string {
         fr: "Étapes numérotées",
         pt: "Passos numerados",
       });
-    case "contents":
+    case "pagebreak":
       return t3({
-        en: "Table of contents",
-        fr: "Table des matières",
-        pt: "Índice",
+        en: "Page break",
+        fr: "Saut de page",
+        pt: "Quebra de página",
       });
     case "report":
       return t3({ en: "Page setup", fr: "Mise en page", pt: "Configuração da página" });
@@ -130,6 +130,12 @@ export function fastrBlockCaption(name: FastrBlockName): string {
         en: "The page background, set once at the top",
         fr: "Fond de page et largeur de colonne, définis une fois en haut",
         pt: "Fundo da página e largura da coluna, definidos uma vez no topo",
+      });
+    case "pagebreak":
+      return t3({
+        en: "Ends the printed page here",
+        fr: "Termine la page imprimée ici",
+        pt: "Termina a página impressa aqui",
       });
     case "card":
     case "col":

@@ -50,8 +50,10 @@ import type { ReportEditorSelection } from "~/components/project_ai/types";
 import { embedWidgets, type EmbedResolver } from "./figure_widget_extension";
 import type { FigureInkTheme } from "./report_figure_raster";
 import {
+  type EditorPagination,
   FM_LIVE_SCOPE_CLASS,
   livePreviewExtensions,
+  setPagination as setPaginationEffect,
 } from "./live_preview_extension";
 import { fastrContainerFences } from "./fastr_fence_extension";
 import { rebaseProposedEdits, type SkippedRange } from "./rebase_edits";
@@ -152,6 +154,9 @@ export type ReportEditorApi = {
   redo: () => void;
   // Re-measure (e.g. after the editor was hidden during a diff review).
   refresh: () => void;
+  // Where the printed pages start (from the host's paginator); undefined
+  // clears the page boxes. Live preview only; a no-op in Split.
+  setPagination: (pagination: EditorPagination | undefined) => void;
   // Fractional 0-based source line at the viewport top (for scroll sync), or
   // undefined if it can't be read (no view / zero height / off-screen).
   getTopLine: () => number | undefined;
@@ -836,6 +841,10 @@ export function ReportEditor(p: Props) {
     view?.requestMeasure();
   }
 
+  function setPagination(pagination: EditorPagination | undefined) {
+    view?.dispatch({ effects: setPaginationEffect.of(pagination) });
+  }
+
   // Fractional 0-based source line at the viewport top. Coordinate spaces must
   // not be mixed: BlockInfo.top is in *document* space, while getBoundingClientRect
   // and posAtCoords are *screen* space. view.documentTop bridges them
@@ -923,6 +932,7 @@ export function ReportEditor(p: Props) {
       undo,
       redo,
       refresh,
+      setPagination,
       getTopLine,
       scrollToLine,
       isAtBottom,

@@ -12,6 +12,7 @@ import { buildReportFigureMap, buildReportImageMap } from "./_report_export_maps
 import { replaceUnavailableMediaTokens } from "./_media_placeholder";
 import { REPORT_MARKDOWN_STYLE } from "~/components/report/report_markdown_style";
 import { buildStandaloneReportHtml } from "./export_report_as_html";
+import { buildReportPdfFromDetail } from "./export_report_as_paged_pdf";
 import { rasterizeReportPages } from "./rasterize_report_document";
 
 // The file "Email this file" attaches: a PDF, whatever the format. A markdown
@@ -42,6 +43,24 @@ export async function buildReportAttachment(
     });
     if (!res.success) return res;
     const detail = res.data;
+    // A FASTR Markdown report has a real paged PDF (the editor's pages,
+    // printed by the server); the raster path below is the html format's.
+    if (getReportFormat(detail.config) === "fastr") {
+      const pdf = await buildReportPdfFromDetail(
+        projectId,
+        detail,
+        (v) => progress(0.05 + v * 0.95),
+      );
+      if (!pdf.success) return pdf;
+      return {
+        success: true,
+        data: {
+          content: pdf.data.base64,
+          filename: pdf.data.filename,
+          mimeType: "application/pdf",
+        },
+      };
+    }
     if (reportRendersAsHtml(getReportFormat(detail.config))) {
       const html = await buildStandaloneReportHtml(detail, (v) => progress(0.05 + v * 0.4));
       const page = getReportFormat(detail.config) === "fastr"
