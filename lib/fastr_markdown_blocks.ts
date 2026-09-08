@@ -719,6 +719,11 @@ export const FASTR_COVER_LAYOUTS = [
   "block",
 ] as const;
 export type FastrCoverLayout = (typeof FASTR_COVER_LAYOUTS)[number];
+// A cover is a band at the head of page 1 at its natural height, the report
+// continuing below it; `fill=page` makes it a title page of its own, edge to
+// edge with no footer (the stylesheets' fm-cover--fill rules).
+export const FASTR_COVER_FILLS = ["page"] as const;
+export type FastrCoverFill = (typeof FASTR_COVER_FILLS)[number];
 const STAT_DIRS = ["up", "down", "flat"] as const;
 
 // Per-block markup, BEFORE the shared surface attributes are folded in.
@@ -821,16 +826,19 @@ function blockShapeFor(
         leadingHtml: titleHtml("fm-kicker", attrText(attrs, "kicker")),
         trailingHtml: titleHtml("fm-dek", attrText(attrs, "sub")),
       };
-    // A title page — full bleed and tall, and it breaks the page in print.
-    // `layout` picks its composition (the stylesheet's fm-cover--* rules);
-    // classic is the bare class, so existing covers render byte-identically.
+    // The title band: full bleed, tall, at the head of the report; with
+    // fill=page a whole title page. `layout` picks its composition (the
+    // stylesheet's fm-cover--* rules); classic is the bare class, so existing
+    // covers render byte-identically.
     case "cover": {
       const layout = oneOf(attrs, "layout", FASTR_COVER_LAYOUTS, "classic");
+      const fill = oneOf(attrs, "fill", FASTR_COVER_FILLS, "auto");
       return {
         tag: "section",
-        className: layout === "classic"
-          ? "fm-band fm-cover"
-          : `fm-band fm-cover fm-cover--${layout}`,
+        className: [
+          layout === "classic" ? "fm-band fm-cover" : `fm-band fm-cover fm-cover--${layout}`,
+          fill === "page" ? "fm-cover--fill" : "",
+        ].filter((c) => c.length > 0).join(" "),
         leadingHtml: titleHtml("fm-kicker", attrText(attrs, "kicker")),
         trailingHtml: titleHtml("fm-dek", attrText(attrs, "sub")),
       };
@@ -1159,6 +1167,17 @@ export function listFastrContainerDefects(body: string): FastrContainerDefect[] 
       defects.push({
         line: i + 1,
         message: `Unknown break \`${brk}\`. Use break=before or break=after.`,
+      });
+    }
+    // A cover's `fill=` the sheet does not know would leave it a band.
+    const fill = fence.attrs["fill"];
+    if (
+      fence.name === "cover" && typeof fill === "string" &&
+      !(FASTR_COVER_FILLS as readonly string[]).includes(fill.toLowerCase())
+    ) {
+      defects.push({
+        line: i + 1,
+        message: `Unknown fill \`${fill}\`. Use fill=page for a cover that fills its page.`,
       });
     }
     if (!isFastrLeafBlock(fence.name)) {

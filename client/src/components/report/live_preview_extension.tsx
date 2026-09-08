@@ -3442,6 +3442,7 @@ function applyRegionPagination(
   if (seams !== undefined) {
     for (const seam of seams) {
       const el = seamElement(ps.pagination, seam.page);
+      el.classList.add("fm-page-gutter--inner");
       // The child that starts the page: the innermost anchored element for
       // that region-relative line, or the block's own top when the page
       // starts at its fence (rel 0) or no anchor matches.

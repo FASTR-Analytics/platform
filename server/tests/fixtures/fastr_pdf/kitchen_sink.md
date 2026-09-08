@@ -1,5 +1,5 @@
 :::report{background=muted numbering=sections}
-:::cover{tone=dark layout=poster kicker="Ministry of Health · Q3 2026" sub="Routine data, national roll-up"}
+:::cover{tone=dark layout=poster fill=page kicker="Ministry of Health · Q3 2026" sub="Routine data, national roll-up"}
 # Quarterly service review
 :::
 

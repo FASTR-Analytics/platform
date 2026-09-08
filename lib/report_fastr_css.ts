@@ -531,8 +531,9 @@ ${d}.fm-cover {
   flex-direction: column;
   justify-content: center;
   margin-top: -2.5rem;
-  break-after: page;
 }
+/* fill=page: a title page of its own; the report continues on the next. */
+${d}.fm-cover.fm-cover--fill { break-after: page; }
 ${d}.fm-cover h1 { font-size: 3em; }
 /* Masthead lines: the kicker sits above the title, the dek below a rule. */
 ${d}.fm-kicker {
@@ -1059,9 +1060,12 @@ ${scope} {
   --fm-bleed-margin: calc((var(--fm-measure) - var(--fm-sheet, 896px)) / 2 - 24px);
   --fm-bleed-pad: calc((var(--fm-sheet, 896px) - var(--fm-measure)) / 2 + 24px);
 }
-/* A cover fills its page: the host sets --fm-page-h to the printed page's
-   height. */
-${d}.fm-cover { min-height: var(--fm-page-h, 544px); }
+/* A cover's height is print's: 34rem at the 16px root, in px so the editor
+   and the layout frame agree whatever their roots and viewports (the screen
+   sheet's 72vh cap would make it depend on the window). With fill=page it
+   fills its page: the host sets --fm-page-h to the printed page's height. */
+${d}.fm-cover { min-height: 544px; }
+${d}.fm-cover.fm-cover--fill { min-height: var(--fm-page-h, 544px); }
 ${d}.fm-figure--wide {
   margin-inline: max(-4rem, calc((100% - var(--fm-sheet, 896px)) / 2 + 1.5rem));
 }
@@ -1340,6 +1344,28 @@ ${d}.fm-page-gutter__head {
   height: var(--fm-page-margin, 77px);
 }
 ${d}.cm-fm-page-head { display: block; }
+/* A seam INSIDE a rendered block (a callout, band or steps block that
+   continues on the next page): centred on the block's content box, which
+   sits centred on the sheet, and as wide as the sheet, painted with the page
+   ground so the block's box visibly stops above it and resumes below, as
+   print draws it. It must not read as one of the block's children: no
+   padding, border, counter or generated number. */
+${d}.fm-page-gutter--inner {
+  position: relative;
+  left: 50%;
+  width: var(--fm-sheet, 794px);
+  margin: 0 0 0 calc(-0.5 * var(--fm-sheet, 794px)) !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: var(--fm-page);
+  color: var(--fm-ink-muted);
+  counter-increment: none !important;
+  z-index: 1;
+}
+${d}.fm-page-gutter--inner::before, ${d}.fm-page-gutter--inner::after { content: none !important; }
 /* Between plain lines the gutter is a block widget: no line box of its own,
    the same seam geometry as inside a block. After the last line, the last
    page's foot and filler. */

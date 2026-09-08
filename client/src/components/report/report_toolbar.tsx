@@ -193,6 +193,20 @@ function choiceControlsFor(name: FastrBlockName): ChoiceControl[] {
           value: l,
           label: fastrCoverLayoutLabel(l),
         })),
+      }, {
+        attr: "fill",
+        label: t3({ en: "Size", fr: "Taille", pt: "Tamanho" }),
+        fallback: "auto",
+        options: [
+          {
+            value: "auto",
+            label: t3({ en: "Natural height", fr: "Hauteur naturelle", pt: "Altura natural" }),
+          },
+          {
+            value: "page",
+            label: t3({ en: "Fill the page", fr: "Remplir la page", pt: "Preencher a página" }),
+          },
+        ],
       }];
     case "contents":
       return [{
