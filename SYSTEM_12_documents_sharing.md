@@ -65,8 +65,10 @@ boundary), `routes/instance/emails.ts`, `server/utils/id_generation.ts`
 `server/db/products/**`, `server/routes/products/**` and their harness
 `server/tests/products_routes_test.ts` (the registries are S1's
 `lib/api-routes/products/*`); on the client, the Products page and its
-surfaces (`client/src/components/products/**`: the flat card grid, the type
-registry `product_types.ts`, `product_settings.tsx`, the duplicate modal,
+surfaces (`client/src/components/products/**`: the explorer page, the pure
+`folder_tree.ts` derivations and their harness, the card and list views, the
+two menu builders, the folder and move modals, the type registry
+`product_types.ts`, `product_settings.tsx`, the duplicate modal,
 `package_label.ts`) and the two editors (`slide_deck/**`, `report/**`), which
 since PLAN_PRODUCTS_RESTRUCTURE step 7a take `{ productId }` and read label,
 package and scope live from the T1 products row. Lib: slide/report/dashboard
@@ -269,19 +271,70 @@ slide tools pass `expectedLastUpdated` from a pre-write `getSlide` fetch
 and rethrow `CONFLICT` to the model as a "re-read via get_slide and retry"
 error (no overwrite path: the human editor's modal is the only override).
 
-**The Products page** (`components/products/index.tsx`) reads T1
-(`instanceState.products`, per-row `products_upserted` maintained), sorts
-newest first, multi-selects via `createSelectionController`, and offers
-settings, duplicate and delete from the card context menu; "New deck" and
-"New report" are two `createButtonAction`s over `createProduct` (the server
-mints the label and resolves the pin; the buttons disable before the click
-when no ready package is pinned) and the editor opens on the SSE echo or
-through `pendingEditorOpen({ kind: "product" })`, the one opener the tours
-and the copilot also use. Folders, list view, search and the menus are step
-7b. The deck view's `SlideList` renders cards in the vendored SortableJS
-wrapper (multiDrag; optimistic local order; reorder diffs the moved run and
-calls `moveSlides`). Folders have **no GET route**: they ride the `starting`
-payload and `folders_updated` only.
+**The product explorer** (`components/products/index.tsx`) is a file browser
+over the two flat T1 lists (`instanceState.products` and
+`instanceState.folders`, both maintained per row off the instance channel).
+The user is always **inside one folder**: the page shows that folder's
+sub-folders and products and nothing from anywhere else. The location is one
+folder id in localStorage (`productsOpenFolder`, null = the root) beside the
+view mode, the sort mode and the type filter (`state/t4_ui.ts`); the path
+back to the root is **derived**, never stored, by
+`folder_tree.ts` (`childFolders`, `ancestors`, `folderPathLabels`,
+`descendantIds`, `folderPathOptions` — pure, type-import-only, every walk
+carrying a visited set so a corrupted cycle terminates, pinned by
+`server/tests/folder_tree_test.ts`). The breadcrumb keeps the root and the
+current folder and collapses the middle into a menu past two ancestors. A
+location that no longer exists (another session deleted the folder) resets to
+the root through an effect gated on `isReady`, so the persisted location
+survives hydration.
+
+The header toggles **cards and list** over the same contents. The list
+(`list_view.tsx`) is hand-built from panther parts on one CSS grid template
+shared by the header row and every body row — the sanctioned exception to
+PROTOCOL_UI_COMPONENTS rule 4, because the rows open editors, reveal per-row
+menus and mix two entity kinds. Type chips filter **products only**; folders
+are always visible, with direct-child counts (computed for every folder in
+one pass, not a scan per row) that follow the filter. Search at 3+ characters
+is global and flat: it escapes the location and lists matching folders then
+products from anywhere, each with its path. One sort vocabulary (`SortMode`)
+drives the header Select and the list's clickable Name and Last updated
+headers; folders sort by the same mode and always come first.
+
+Multi-select runs over the plain product id via `createSelectionController`;
+folders are never multi-selectable and act through their own menu. One menu
+builder per kind (`product_menu.ts`, `folder_menu.ts`) serves the tiles, the
+list rows and the right-click menu, and both share `buildQuickMoveEntries`:
+**Move into ▸** (this location's folders, capped at 10, then More…), **Move
+up to "parent"**, **Move to top level**, **Move to folder…**. There is no
+drag-and-drop and no batch action bar. The full picker
+(`move_to_folder_modal.tsx`) moves a product batch or one folder, lists flat
+full paths sorted by path with "No folder" first, and excludes a moved
+folder's own subtree; the server's typed `FOLDER_CYCLE` is still the
+authority. `edit_folder_modal.tsx` creates a folder in the current location
+and renames or recolours an existing one, sending its parent back unchanged
+because label, colour and parent are one `updateFolder` write. Deleting a
+folder **reparents one level and never cascades**, and the confirmation
+carries the direct counts and the destination.
+
+Create is two buttons, no modal: "New deck" and "New report" are two separate
+`createButtonAction`s over `createProduct` with the location as the folder
+(separate, because one shared action's request-id guard would discard all but
+the most recent click's callback). The server mints the label and resolves
+the pin, and the buttons disable before the click when no ready package is
+pinned. The editor opens on the SSE echo, on the page's own
+`awaitingProductId` wait for a product it just created, or through
+`pendingEditorOpen({ kind: "product" })`, the one opener the tours, the
+copilot and the `?product=<id>` deep link share (`_PRODUCT_QUERY_PARAM`; the
+parameter is consumed into that request and cleared, and an id still absent
+once the store is ready is dropped as a dead link).
+
+The deck view's `SlideList` renders cards in the vendored SortableJS wrapper
+(multiDrag; optimistic local order; reorder diffs the moved run and calls
+`moveSlides`), and its menu carries **"Copy to deck…"**
+(`copy_slides_to_deck_modal.tsx` over `copySlidesToSlideDeck`), the only
+cross-product figure reuse there is: bundles are copied verbatim, so the
+picker names each destination deck's package and scope. Folders have **no GET
+route**: they ride the `starting` payload and `folders_updated` only.
 
 ## Reports
 

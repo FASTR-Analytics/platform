@@ -140,10 +140,13 @@ The URL surface is deliberately minimal, three routes in `app.tsx`: `/d/:slug`
 (the public dashboard viewer, S12), `/access-tokens` (the unlisted Clerk-gated
 PAT panel, `routes/access_tokens.tsx`, reached only by knowing the URL), and
 `/*` (the logged-in app). Note `/mcp` is the server's headless MCP endpoint and
-never reaches the SPA. Within the app, exactly one URL parameter matters:
+never reaches the SPA. Within the app, two URL parameters matter:
 **`?p=<projectId>`** selects project-vs-instance
 (`components/instance/index.tsx` switches on `searchParams.p`); "back to
-instance" is `navigate("/")`.
+instance" is `navigate("/")`. **`?product=<id>`** (`_PRODUCT_QUERY_PARAM` in
+`t4_ui.ts`) is the product deep link: the Products page consumes it into
+`pendingEditorOpen`, clears it from the URL and opens that product's editor
+once the store has hydrated (S12). It replaces the old `?d=`, with no shim.
 
 Everything else is a **signal-driven switchboard**, never the URL:
 
@@ -221,10 +224,16 @@ Whether every literal is well-formed across the 252-file surface is the standing
 ## UI preferences (`state/t4_ui.ts`)
 
 Signal + localStorage pairs, each with a `set*` wrapper that writes localStorage
-then the signal: `projectTab`, `navCollapsed`, five `*SortMode` prefs
-(`SortMode = "name" | "recent"` from `lib/types/sort.ts`),
+then the signal: the product explorer's four (`productsOpenFolder` — the
+location, null = the root; `productsViewMode`; `productsSortMode`;
+`productsTypeFilter`, null = every type), then `projectTab`, `navCollapsed`,
+the `*SortMode` prefs (`SortMode = "name" | "recent"` from
+`lib/types/sort.ts`, one vocabulary for every list including the explorer's),
 grouping/selected-group/`hideUnreadyVisualizations` for viz, decks, and reports,
-with `updateProjectView` as the consolidated updater. In-memory only
+with `updateProjectView` as the consolidated updater. The explorer's four are
+unvalidated on read, unlike `projectTab`: they only feed comparisons and a
+value from a build that spelled one differently degrades to "no match" rather
+than throwing. In-memory only
 (deliberately not persisted): `fitWithin`, `showAi`, `headerOrContent`,
 `policyHeaderOrContent`, `showModules`, `moduleLatestCommits`. The rule these
 encode: **display-only preferences stay in T4: they never enter fetch configs
