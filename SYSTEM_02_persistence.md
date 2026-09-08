@@ -293,11 +293,16 @@ server has verified-current schema and stored-JSON shapes. The sequence:
 1. **Fresh-instance bootstrap.** Connect to the `postgres` admin DB; if `main`
    doesn't exist, create it, load `_main_database.sql`, and seed it (H_USERS
    admin rows, default `instance_config` rows, the common-indicator dictionary).
-2. **Instance SQL migrations.** `runInstanceMigrations`
+2. **Instance migrations.** `runInstanceMigrations`
    (`server/db/migrations/runner.ts`): lexicographically-ordered `NNN_*.sql`
-   files from `migrations/instance/`, applied-set tracked in a
-   `schema_migrations` table per database, each file in its own transaction via
-   `tx.unsafe(fileContents)`; any failure exits.
+   and `NNN_*.ts` files from `migrations/instance/`, applied-set tracked in a
+   `schema_migrations` table per database, each file in its own transaction
+   (`tx.unsafe(fileContents)` for SQL; the registered `(tx) => Promise<void>`
+   for TypeScript, which throws and never exits); any failure exits. A `.ts`
+   file runs only through the literal-keyed `TS_MIGRATIONS` map, so
+   `deno check main.ts` covers it, and an unregistered one makes the runner
+   throw rather than skip. `runMigrationsInDir` is the same loop over any
+   directory, throwing `MigrationFailure` instead of exiting, for harnesses.
 3. **Wedged-state resets.** Upload attempts stuck at an in-flight `status_type`
    (`staging`/`integrating`/`importing`) with no live worker are flipped to
    `error` (a restart mid-import would otherwise block all future imports via
@@ -326,6 +331,25 @@ server. A statement error on any base, or a non-zero boot exit, fails it. The
 one sanctioned edit of an applied migration is the table-existence guard that
 lets a base-owned table leave the base schema (the protocol's "Dropping a
 table that older migrations touch"; applied to nine project migrations).
+
+`server/db/migrations/consolidation/` is the project consolidation
+(PLAN_PRODUCTS_RESTRUCTURE D9): `plan.ts` reads one legacy project database
+and returns every row 085 would insert, the id remaps, the nested folder
+plan, the bundle stamps and the dropped-row counts, and issues no write;
+`execute.ts` is `consolidateProjects(tx)`, which applies that plan through
+the migration transaction, opening each source project pool fresh and
+read-only. The three migrations it belongs to (`000_legacy_project_shell.sql`,
+`085_consolidate_projects.ts`, `086_drop_project_layer.sql`) are staged
+under `consolidation/staged/`, which neither the runner nor the validate
+scripts scan, until step 9b moves them into `instance/`.
+`./validate_consolidation_replay` (repo root, logic in
+`validate_consolidation_replay.ts`) executes them end to end in the
+throwaway container through the real runner: a seeded live instance with two
+template-identical project databases, the users-and-logs path through 086,
+the two negative controls that show 000's `ADD COLUMN` lines are
+load-bearing, and the fresh path from the post-restructure base; the
+migrated and fresh schemas must both dump byte-identical to the base plus
+086.
 
 ### Backup / restore mechanics
 

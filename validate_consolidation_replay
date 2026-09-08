@@ -1,0 +1,64 @@
+#!/bin/bash
+
+# Executes the staged project consolidation (000, 085, 086 under
+# server/db/migrations/consolidation/staged/) end to end in a throwaway
+# postgres:15 container, through the real migration runner, against seeded
+# legacy data. ./validate_migrations only proves SQL idempotency; a .ts
+# migration changes data, so it is proved by running it. The checks are in
+# validate_consolidation_replay.ts.
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+CONTAINER_NAME="wb-fastr-consolidation-replay-$$"
+DB_PORT=54333
+DB_USER="postgres"
+DB_PASS="testpass"
+
+cleanup() {
+    echo "Cleaning up..."
+    docker stop "$CONTAINER_NAME" 2>/dev/null || true
+    docker rm -v "$CONTAINER_NAME" 2>/dev/null || true
+}
+
+trap cleanup EXIT
+
+fail() {
+    echo ""
+    echo -e "\033[91m╔══════════════════════════════════════════════════════════════╗"
+    echo "║              CONSOLIDATION REPLAY FAILED                     ║"
+    echo "║                                                              ║"
+    printf "║  %-60s║\n" "$1"
+    echo "╚══════════════════════════════════════════════════════════════╝\033[0m"
+}
+
+echo "Starting temporary postgres container..."
+docker run -d \
+    --name "$CONTAINER_NAME" \
+    -e POSTGRES_PASSWORD="$DB_PASS" \
+    -p "$DB_PORT:5432" \
+    postgres:15 > /dev/null
+
+echo "Waiting for postgres to be ready..."
+for i in {1..30}; do
+    if docker exec "$CONTAINER_NAME" pg_isready -U "$DB_USER" > /dev/null 2>&1; then
+        break
+    fi
+    sleep 0.5
+done
+
+# Shell values win over the .env file, so only the connection moves to the
+# throwaway server; every other variable is the developer's own.
+if ! (cd "$SCRIPT_DIR" && REPLAY_CONTAINER="$CONTAINER_NAME" \
+    PG_HOST=localhost PG_PORT="$DB_PORT" PG_PASSWORD="$DB_PASS" \
+    deno run --allow-all --env-file -c deno.json validate_consolidation_replay.ts); then
+    fail "See the failed checks above."
+    exit 1
+fi
+
+echo ""
+echo -e "\033[92m╔══════════════════════════════════════════════════════════════╗"
+echo "║              CONSOLIDATION REPLAY PASSED                     ║"
+echo "║                                                              ║"
+echo "║  Live path, logs merge, negative controls, fresh path        ║"
+echo -e "╚══════════════════════════════════════════════════════════════╝\033[0m"
