@@ -2,7 +2,8 @@ import { Hono, type Context } from "hono";
 import type { TypedResponse } from "hono";
 import type { JSONParsed } from "hono/utils/types";
 import { z } from "zod";
-import { routeRegistry } from "lib";
+import { type ProductAccessLevel, routeRegistry } from "lib";
+import { requireProductAccess } from "../middleware/userPermission.ts";
 import { markRouteDefined } from "./route-tracker.ts";
 
 // Extract params type directly from route registry
@@ -47,8 +48,14 @@ export function defineRoute<K extends keyof typeof routeRegistry>(
   ...args: [...middlewares: any[], handler: RouteHandler<K>]
 ) {
   const route = routeRegistry[routeName];
-  const middlewares = args.slice(0, -1);
   const handler = args[args.length - 1] as RouteHandler<K>;
+  // A product or folder entry declares `access`, and that declaration IS its
+  // guard: the middleware is installed here so no handler checks access itself
+  // (PLAN_PRODUCTS_RESTRUCTURE §3.2).
+  const access = (route as { access?: ProductAccessLevel }).access;
+  const middlewares = access === undefined
+    ? args.slice(0, -1)
+    : [requireProductAccess(access), ...args.slice(0, -1)];
 
   // Wrap the handler to extract params and body
   const wrappedHandler = async (c: Context) => {

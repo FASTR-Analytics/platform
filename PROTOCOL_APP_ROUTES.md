@@ -17,7 +17,8 @@
 ### 1. Declare the route in the registry
 
 Add a `route({...})` entry to the right `lib/api-routes/*` feature registry
-(`instance/` or `project/`; new feature file → spread it into `combined.ts`).
+(`instance/`, `products/` or `project/`; new feature file → spread it into
+`combined.ts`).
 
 ```ts
 createReport: route({
@@ -37,6 +38,12 @@ createReport: route({
   (optional-parameter inference silently strips the `undefined`).
 - Set `requiresProject: true` on every project route. That is what makes the
   client emit the `Project-Id` header the project guard reads.
+- Set `access: "view" | "edit" | "own"` on every product and folder route
+  (`lib/api-routes/products/*`; the file's closing `satisfies` refuses an
+  entry without it). Every product-scoped path lives under
+  `/products/:product_id/...`, the param is always `product_id`, child ids
+  (`slide_id`, `version_id`) follow it, and batch targets ride the body as
+  `productIds`. The guard reads its targets from exactly those fields.
 - Don't add `z.unknown()` body fields to dodge writing a schema; the only
   sanctioned uses are the sentinel-encoded passthroughs
   (PROTOCOL_APP_MIGRATIONS.md).
@@ -92,6 +99,14 @@ Every `defineRoute` gets one. A route with no guard is public-by-accident
 (Clerk populates, it never rejects).
 
 - Instance route → `requireGlobalPermission(...UserPermission)`.
+- Approved-user surface (run-keyed package reads, the authoring context, the
+  ready-package list) → `requireApprovedUser()`.
+- Product or folder route → nothing: the registry entry's `access` field is
+  the guard. `defineRoute` installs `requireProductAccess` from it, so the
+  handler names only `log(...)` and the handler. Never add a permission check
+  inside the handler; the policy lives in `server/auth/product_access.ts`. A
+  handler that receives a `slide_id` or `version_id` still scopes its query
+  by `product_id` as well, so an id from another product is a 404.
 - Project route → `requireProjectPermission(...ProjectPermission)`, and scope
   ALL DB work to `c.var.ppk.projectDb` / `c.var.ppk.projectId`, never a project
   id from the body/params (confused-deputy/IDOR).

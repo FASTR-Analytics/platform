@@ -11,6 +11,7 @@ globs:
   - lib/types/permissions.ts
   - lib/types/streaming.ts
   - main.ts
+  - server/auth/**
   - server/dev_boot_checks.ts
   - mint_pat.ts
   - server/clerk_api.ts
@@ -44,8 +45,9 @@ request passes. One route declaration in `lib/api-routes/` is the whole
 contract: the server types its handler off it (`defineRoute`), the client
 generates a typed server-action from it, and boot fails if the two sets diverge.
 Around that seam sit the `APIResponse` envelope, the request-scoped NDJSON
-streaming sub-protocol, the `log()` audit middleware, and the two
-permission-guard factories with the `Project-Id` scoping pipeline. Reviewed
+streaming sub-protocol, the `log()` audit middleware, the two permission-guard
+factories with the `Project-Id` scoping pipeline, and the product guard the
+registry's `access` field installs. Reviewed
 against code (first review cycle, review-only; absorbs
 DOC_API_ROUTES + DOC_ACCESS_CONTROL).
 
@@ -122,6 +124,7 @@ export const reportRouteRegistry = {
 | `requiresProject` | client must send `Project-Id`                                             | real boolean                                                 |
 | `isStreaming`     | NDJSON stream protocol                                                    | real boolean                                                 |
 | `timeoutMs`       | client fetch timeout override (default 5 min; streaming routes have none) | real number                                                  |
+| `access`          | product/folder access level (`view`, `edit`, `own`); installs the guard   | real value, product registries only                          |
 
 `params`/`body` as phantom `{} as T` is retired: `route()` requires real Zod
 schemas for both, so a handler can trust they match their `z.infer<T>` types.
@@ -447,11 +450,22 @@ clean: the boundary holds by convention plus runtime guards
 scope). Mechanical enforcement, if ever wanted, means a separate dom-less
 `deno check` of `lib/` or a lint rule.
 
-### The two guard factories
+### Identity: `getGlobalUser`
 
-Mirrored shapes: an optional leading options object, then variadic permission
-keys with AND semantics; both skip `OPTIONS` (CORS preflight); both bypass all
-permission checks for global admins; both fail closed.
+`server/auth/global_user.ts` is the one place a request's identity becomes a
+`GlobalUser`: the dev bypass, a headless credential (already resolved to an
+email by `headlessAuthMiddleware`) and a Clerk session all converge on
+`buildGlobalUserFromDb`, which reads the `users` row and sets `approved =
+_OPEN_ACCESS || !!row`. Every guard below calls it first; `project_auth.ts`
+re-exports both functions for its remaining importers until 9b of the
+products restructure deletes it.
+
+### The guard factories
+
+`requireGlobalPermission` and `requireProjectPermission` are mirrored shapes:
+an optional leading options object, then variadic permission keys with AND
+semantics; both skip `OPTIONS` (CORS preflight); both bypass all permission
+checks for global admins; both fail closed.
 
 **`requireGlobalPermission([opts,] ...UserPermission)`**: instance routes
 (`server/middleware/userPermission.ts`). `getGlobalUser(c)` returns
@@ -473,13 +487,39 @@ success sets `c.var.ppk = { projectDb, projectId }`, `projectUser`,
 503 (no `authError`); `"Middleware error: …"` → 403 with the prefix stripped;
 anything else rethrows to `app.onError`.
 
-**The `authError` flag is 401-only.** Only the two 401 not-authenticated
-responses carry `authError: true`; no 403 in either guard does, and the client
+**`requireApprovedUser()`**: the product plane's instance-level guard
+(`server/middleware/userPermission.ts`): signed in (else 401) AND
+`globalUser.approved` (else 403 "awaiting approval"); sets `c.var.globalUser`
+and `c.var.mainDb`. It guards the run-keyed figure-data reads, the authoring
+context and the ready-package list, and will guard the copilot proxies and
+the collab socket when those move (PLAN_PRODUCTS_RESTRUCTURE D2, D7). Unlike
+the zero-permission `requireGlobalPermission()`, it checks `approved`.
+
+**`requireProductAccess(level)`**: the guard for every product and folder
+route, and the one guard a handler in `server/routes/products/` never names.
+Each entry in `lib/api-routes/products/*` declares `access: "view" | "edit"
+| "own"` (the `route()` helper returns the field non-optional, and each
+registry closes with a `satisfies` that requires it), and `defineRoute`
+installs the middleware whenever an entry carries the field. Per request it
+authenticates (401), resolves the route's targets from the id fields the
+contract declares and nowhere else (path `product_id` / `folder_id`; body
+`productIds`, `targetProductId`, `folderId`, `parentId`), and asks
+`productAccessPolicy(user, level, targets)` in
+`server/auth/product_access.ts` once (403 on false). Today's policy returns
+`user.approved` for every level and target: every approved user is a full
+editor of every product and folder. Doctrine: the product id in the path IS
+the authority; a future permission model replaces the policy function and
+inherits the per-route access inventory, and must never be built as
+per-handler checks behind this guard. The registry's other guards never
+check `access`; instance routes do not declare it.
+
+**The `authError` flag is 401-only.** Only the 401 not-authenticated
+responses carry `authError: true`; no 403 in any guard does, and the client
 (`tryCatchServer`) only inspects the flag on status 401, where it drives
 token-refresh/logout. Auth-failure vs outage stays distinguishable by status:
 401/403 = denied, 503 = retry, don't log out.
 
-### `getProjectUser`: the `Project-Id` scoping pipeline
+### `getProjectUser`: the `Project-Id` scoping pipeline (project routes, until 9b)
 
 The chain that makes project scope safe: registry `requiresProject: true` →
 client emits the `Project-Id` header → `getProjectUser` reads it → loads the
