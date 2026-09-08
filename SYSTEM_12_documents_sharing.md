@@ -412,17 +412,42 @@ empty one, a press on a page's empty tail appends a paragraph, and an element
 Paged.js split across pages edits through its first fragment. Peer carets are
 mapped onto the pages. With the toggle off (the default, Nick's ruling after trying the
 frame: "still use the CodeMirror system for each of the pages"), the
-CodeMirror live preview IS broken into pages: `paginationField`/
-`setPagination` draw a seam before each page's first line (a block widget
-between plain or leaf lines, an element injected into the rendered block's
-DOM), computed by `paginate_report.ts` in a hidden frame; `pageFillPlugin`
-pads every page box to the printed page's height at the sheet's scale
-(`--fm-page-h`, set by the host; A4 portrait at the 896px sheet = 1267px) by
-measuring the content between consecutive seams and writing the seam's
-padding-top, a cover fills its page (`min-height: var(--fm-page-h)`), each
-seam carries the ending page's running footer above a sheet-edge gap, and a
-PageEndWidget after the last line gives the last page its foot and filler.
-A page whose editor rendering runs taller than print simply runs taller;
+CodeMirror live preview IS broken into pages, 1:1 with print: the sheet is
+the printed page at 96dpi (`--fm-sheet` 794px for A4, `--fm-measure` the
+printed column plus the surface's two 24px bleed pads, no `.cm-line`
+insets), so lines wrap in the editor exactly as they wrap in print.
+`paginationField`/`setPagination` draw a seam before each page's first line
+(a block widget between plain or leaf lines, an element injected into the
+rendered block's DOM), computed by `paginate_report.ts` in a hidden frame
+from the SAME paged document, with embeds at the boxes the PDF gives them
+(`createFigureSizeCache`: a figure's raster aspect from a 200px panther
+draw; an image's natural size), never measured from the editor's DOM. A
+seam is [filler][the ending page's bottom margin with its running footer in
+it][sheet-edge gap][the next page's top margin]; a cover page has no margins
+and no footer, and a `PageHeadWidget` gives a first page that is not a cover
+its top margin. `pageBoxPlugin` measures the content between consecutive
+seams (only pages entirely in the DOM: CodeMirror stands a `.cm-gap` of
+estimated height in for lines outside the viewport, and a page with a gap
+inside it keeps its current filler) and writes each seam's padding-top so
+every page box is the printed page's height (`--fm-page-h`, 1123px for A4;
+`--fm-page-margin` 68px). Fillers are owned by the host and carried across
+results by page TEXT (`carryPageFillers`), seeded from each page's printed
+content height (`FastrPagedPage.contentHeight`) before it has ever been
+rendered, so scrolling never moves a page that has been measured. The same
+plugin FLOWS blocks between pages while the paginator is still working
+(Nick: "like Google Docs, when a page reaches a certain size it auto creates
+the next page"): a fully rendered page whose content crosses its area
+pushes the crossing block, with any heading directly above it, to the next
+page at once (opening a new page after the last), a page with 24px to
+spare pulls the next page's first block up (never a heading, never across
+`:::pagebreak`/`break=`), and a page left without blocks closes; one move
+per measure pass, dispatched after the cycle, only between an edit and the
+paginator's next answer, which stands as the printed truth. The result's
+lines are mapped through every edit so a provisional move never rebuilds
+seams from stale lines. A page whose editor rendering runs taller than
+print simply runs taller (the residual, measured 2026-09-08 on the fixtures
+and a real bulletin, is under 25px a page and goes both ways: container
+spacing and headings differ a little from the themes' collapsed margins);
 split blocks carry a flag. The Download modal offers PDF
 (default) and HTML for fastr; Print is gone for that format. Verified by
 `server/tests/report_pdf_render_test.ts` (env-gated on `CHROME_PATH`): the

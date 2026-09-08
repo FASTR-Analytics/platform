@@ -318,3 +318,67 @@ export function createFigureRasterCache(
     },
   };
 }
+
+// The box a figure's RASTER will have, without drawing it at export size:
+// panther lays a figure out at its reference width whatever the output
+// pixels, so a 200px draw yields the same aspect as the 1920px raster the
+// PDF embeds. The editor's paginator gives figures this box, so its pages
+// agree with the PDF's. Fonts first, as for the raster: text measured before
+// the figure's fonts load can wrap a title onto a different line count.
+export type FigureSizeCache = {
+  // The size when known; undefined starts the measurement (onReady fires
+  // when it lands) or means the figure cannot be laid out at all.
+  get: (id: string, block: FigureBlock) => { width: number; height: number } | undefined;
+  dispose: () => void;
+};
+
+const FIGURE_SIZE_PROBE_WIDTH_PX = 200;
+
+export function createFigureSizeCache(onReady: () => void): FigureSizeCache {
+  // Content key → size, null while in flight, false when the figure failed.
+  const sizes = new Map<string, { width: number; height: number } | null | false>();
+  let disposed = false;
+
+  async function measure(key: string, block: FigureBlock): Promise<void> {
+    let next: { width: number; height: number } | false = false;
+    try {
+      const fi = buildFigureInputs(block.bundle!, undefined, undefined);
+      const style = new CustomFigureStyle(fi.style);
+      await loadFontsWithTimeout(style.getFontsToRegister());
+      if (disposed) return;
+      const canvas = getFigureAsCanvas(
+        figureInputsForDownload(fi, true, false),
+        FIGURE_SIZE_PROBE_WIDTH_PX,
+      );
+      if (canvas.width > 0 && canvas.height > 0) {
+        next = {
+          width: FIGURE_EXPORT_WIDTH_PX,
+          height: Math.round(FIGURE_EXPORT_WIDTH_PX * canvas.height / canvas.width),
+        };
+      }
+    } catch {
+      next = false;
+    }
+    if (disposed) return;
+    sizes.set(key, next);
+    onReady();
+  }
+
+  return {
+    get(_id, block) {
+      const key = figureRasterKey(block);
+      if (key === undefined) return undefined;
+      const hit = sizes.get(key);
+      if (hit === undefined) {
+        sizes.set(key, null);
+        void measure(key, block);
+        return undefined;
+      }
+      return hit === null || hit === false ? undefined : hit;
+    },
+    dispose() {
+      disposed = true;
+      sizes.clear();
+    },
+  };
+}

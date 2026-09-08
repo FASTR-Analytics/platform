@@ -3089,13 +3089,102 @@ export type EditorPagination = {
   result: FastrPagedResult;
   // The running footer's title, drawn on the seam.
   title: string;
-  // Per page, the padding (px) that brings the page box up to the printed
-  // page's height at the sheet's scale — measured by pageFillPlugin and kept
-  // here so a seam re-created on scroll starts at its right size.
+  // Per page number, the padding (px) that brings the page box up to the
+  // printed page's height at the sheet's scale. Owned by the host and handed
+  // over with every result (carryPageFillers), seeded from the printed
+  // layout, then overwritten in place by pageBoxPlugin as pages are
+  // measured; a seam re-created on scroll reads its size from here.
   fillers?: Map<number, number>;
+  // True for a result the editor adjusted itself (pageBoxPlugin's flow)
+  // while the paginator was still working; the host's results carry no flag.
+  provisional?: boolean;
 };
 
 export const setPagination = StateEffect.define<EditorPagination | undefined>();
+
+// The page box geometry the host sets on the editor's scope: the printed
+// page's height and its margin at the sheet's scale (report_fastr_css.ts
+// draws the margins; the plugin measures against them).
+export type PageBoxGeometry = { pageH: number; marginPx: number };
+
+// What a page's content may fill: the sheet less the top and bottom margins,
+// or the whole sheet for a cover (its page has no margins).
+function pageAreaPx(g: PageBoxGeometry, cover: boolean): number {
+  return cover ? g.pageH : g.pageH - 2 * g.marginPx;
+}
+
+// The fillers for a new pagination result. A page whose source text (and
+// page height) is unchanged keeps its filler, measured or seeded, found by
+// that text even when the page moved down the document or was renumbered;
+// every other page is seeded from the printed layout: the page box minus
+// the printed content at the sheet's scale minus the footer. Seeds keep the
+// editor's pages at their printed height from the first scroll; a
+// measurement replaces a seed once the page is fully rendered.
+export type PageFillCarry = {
+  result: FastrPagedResult;
+  body: string;
+  fillers: Map<number, number>;
+};
+
+export function carryPageFillers(
+  result: FastrPagedResult,
+  body: string,
+  prev: PageFillCarry | undefined,
+  geometry: PageBoxGeometry,
+  sheetPx: number,
+): Map<number, number> {
+  const known = new Map<string, number>();
+  if (prev !== undefined) {
+    const keys = pageTextKeys(prev.result, prev.body, geometry.pageH);
+    for (const [n, px] of prev.fillers) {
+      const k = keys[n - 1];
+      if (k !== undefined && !known.has(k)) known.set(k, px);
+    }
+  }
+  const keys = pageTextKeys(result, body, geometry.pageH);
+  const scale = result.sheet.width > 0 ? sheetPx / result.sheet.width : 1;
+  const fillers = new Map<number, number>();
+  for (const page of result.pages) {
+    const kept = known.get(keys[page.number - 1] ?? "");
+    if (kept !== undefined) {
+      fillers.set(page.number, kept);
+      continue;
+    }
+    fillers.set(
+      page.number,
+      Math.max(0, Math.round(pageAreaPx(geometry, page.cover) - page.contentHeight * scale)),
+    );
+  }
+  return fillers;
+}
+
+function readPageBoxGeometry(view: EditorView): PageBoxGeometry | undefined {
+  const style = getComputedStyle(view.dom);
+  const pageH = parseFloat(style.getPropertyValue("--fm-page-h"));
+  const marginPx = parseFloat(style.getPropertyValue("--fm-page-margin"));
+  if (!Number.isFinite(pageH) || pageH <= 0) return undefined;
+  return { pageH, marginPx: Number.isFinite(marginPx) && marginPx >= 0 ? marginPx : 0 };
+}
+
+function pageTextKeys(result: FastrPagedResult, body: string, pageH: number): string[] {
+  const lines = body.split("\n");
+  const starts = result.pages.map((p) => p.firstLine);
+  const keys: string[] = [];
+  let from = 0;
+  for (let i = 0; i < starts.length; i++) {
+    from = Math.max(from, starts[i] ?? from);
+    let to = lines.length;
+    for (let j = i + 1; j < starts.length; j++) {
+      const s = starts[j];
+      if (s !== undefined) {
+        to = Math.max(from, s);
+        break;
+      }
+    }
+    keys.push(`${pageH}|${result.pages[i].cover ? "c" : "p"}|${lines.slice(from, to).join("\n")}`);
+  }
+  return keys;
+}
 
 type PaginationState = {
   pagination: EditorPagination | undefined;
@@ -3123,16 +3212,18 @@ function footerText(pag: EditorPagination, page: number): string {
 }
 
 // The seam element before page `page`: the filler that pads the ENDING page
-// (page − 1) to the printed page's height (its padding-top, measured by
-// pageFillPlugin), that page's running footer, then the gap between two
-// sheets. A cover page carries no footer in the PDF, so its seam shows none.
-// After the last page (`end`) there is a foot and a filler but no gap.
+// (page − 1) to the printed page's content area (its padding-top, measured
+// by pageBoxPlugin), that page's bottom margin with the running footer in
+// it, the gap between two sheets, then the starting page's top margin. A
+// cover page has no margins and no footer in the PDF, so its seam shows
+// neither. After the last page (`end`) there is a foot and a filler only.
 function seamElement(pag: EditorPagination, page: number, end = false): HTMLElement {
   const el = document.createElement("div");
   el.className = end ? "fm-page-gutter fm-page-gutter--end" : "fm-page-gutter";
   el.contentEditable = "false";
   el.setAttribute("data-page", String(page));
   const ending = pag.result.pages[page - 2];
+  const starting = pag.result.pages[page - 1];
   const filler = pag.fillers?.get(page - 1);
   if (filler !== undefined && filler > 0) el.style.paddingTop = `${filler}px`;
   if (ending !== undefined && !ending.cover) {
@@ -3149,8 +3240,36 @@ function seamElement(pag: EditorPagination, page: number, end = false): HTMLElem
     const band = document.createElement("div");
     band.className = "fm-page-gutter__band";
     el.append(band);
+    if (starting === undefined || !starting.cover) {
+      const head = document.createElement("div");
+      head.className = "fm-page-gutter__head";
+      el.append(head);
+    }
   }
   return el;
+}
+
+// Before the document's first line when page 1 is not a cover: its top
+// margin.
+class PageHeadWidget extends WidgetType {
+  override eq(): boolean {
+    return true;
+  }
+  override toDOM(): HTMLElement {
+    const dom = document.createElement("div");
+    dom.className = "cm-fm-page-head";
+    dom.contentEditable = "false";
+    const head = document.createElement("div");
+    head.className = "fm-page-gutter__head";
+    dom.append(head);
+    return dom;
+  }
+  override get estimatedHeight(): number {
+    return 77;
+  }
+  override ignoreEvent(): boolean {
+    return false;
+  }
 }
 
 function splitFlag(page: number): HTMLElement {
@@ -3180,7 +3299,7 @@ class PageGutterWidget extends WidgetType {
     return dom;
   }
   override get estimatedHeight(): number {
-    return 70 + (this.pag.fillers?.get(this.page - 1) ?? 0);
+    return 182 + (this.pag.fillers?.get(this.page - 1) ?? 0);
   }
   override ignoreEvent(): boolean {
     return false;
@@ -3203,7 +3322,7 @@ class PageEndWidget extends WidgetType {
     return dom;
   }
   override get estimatedHeight(): number {
-    return 40 + (this.pag.fillers?.get(this.pag.result.total) ?? 0);
+    return 77 + (this.pag.fillers?.get(this.pag.result.total) ?? 0);
   }
   override ignoreEvent(): boolean {
     return false;
@@ -3221,6 +3340,11 @@ function buildPaginationState(
   const regionSeams = new Map<number, { rel: number; page: number }[]>();
   const regionSplits = new Map<number, number>();
   const decos: Range<Decoration>[] = [];
+  if (pag.result.pages[0] !== undefined && !pag.result.pages[0].cover) {
+    decos.push(
+      Decoration.widget({ widget: new PageHeadWidget(), block: true, side: -2 }).range(0),
+    );
+  }
   for (const page of pag.result.pages) {
     if (page.number < 2 || page.firstLine === undefined) continue;
     const line = page.firstLine;
@@ -3271,15 +3395,34 @@ export const paginationField = StateField.define<PaginationState>({
       if (e.is(setPagination)) return buildPaginationState(tr.state, e.value);
     }
     // An edit shifts lines under a result computed for the previous text;
-    // keep the seams where they were (they move with the mapping) until the
-    // paginator answers again, rather than flashing them away on every key.
+    // the result's lines follow the edit (so the seams stay where they were
+    // and a provisional move rebuilds from current lines) until the
+    // paginator answers again, rather than flashing away on every key.
     if (tr.docChanged && value.pagination !== undefined) {
-      return { ...value, deco: value.deco.map(tr.changes) };
+      return buildPaginationState(tr.state, {
+        ...value.pagination,
+        result: mapResultThroughChanges(value.pagination.result, tr),
+      });
     }
     return value;
   },
   provide: (f) => EditorView.decorations.from(f, (v) => v.deco),
 });
+
+function mapResultThroughChanges(result: FastrPagedResult, tr: Transaction): FastrPagedResult {
+  const before = tr.startState.doc;
+  const after = tr.state.doc;
+  const mapLine = (line: number | undefined): number | undefined => {
+    if (line === undefined || line < 0 || line >= before.lines) return line;
+    const pos = tr.changes.mapPos(before.line(line + 1).from, -1);
+    return after.lineAt(pos).number - 1;
+  };
+  return {
+    ...result,
+    pages: result.pages.map((p) => ({ ...p, firstLine: mapLine(p.firstLine) })),
+    splits: result.splits.map((sp) => ({ ...sp, line: mapLine(sp.line) ?? sp.line })),
+  };
+}
 
 // Seams and flags INSIDE a rendered block: applied to the widget's DOM after
 // each fill, and re-applied to every mounted widget when a new result lands
@@ -3326,66 +3469,179 @@ function applyRegionPagination(
 // Every page box is the printed page's height at the sheet's scale (the
 // host's --fm-page-h): each seam's padding-top pads the page ending above it
 // to that height (a page whose editor rendering runs taller than print simply
-// runs taller). Measured from the DOM, pages between consecutive seams in
-// view; a seam whose page start is off-screen keeps its last value.
-type FillMeasure = {
+// runs taller). Measured from the DOM, and only for a page that is entirely
+// in the DOM: CodeMirror renders the viewport plus a margin and stands a
+// gap placeholder of estimated height in for the rest, so a page with a gap
+// inside it, or one whose start is not rendered, keeps its current filler
+// (its seed or its last measurement) rather than being measured against a
+// guess. A measured value is final until the page's content changes, so
+// scrolling never moves a page that has already been measured.
+//
+// The same walk keeps the pages FLOWING while the paginator is still
+// working (it answers a few hundred milliseconds after typing stops): a
+// page whose content has run past its box pushes the block that crossed the
+// edge, with any heading directly above it, onto the next page at once,
+// opening a new page after the last one; a page with room to spare pulls
+// the next page's first block back up (never a heading, never across an
+// explicit break, and only with a clear margin, so a push and a pull cannot
+// chase each other). Whole blocks, as the seams themselves are; the
+// paginator's next result replaces these provisional breaks. One move per
+// pass, lowest page first: the next pass sees the page it changed.
+
+type PageChild = {
+  el: HTMLElement;
+  kind: "gap" | "seam" | "end" | "head" | "line" | "blank" | "region" | "widget";
+  // For a seam: the page it starts.
+  page: number | undefined;
+  heading: boolean;
+  pagebreak: boolean;
+  // A rendered block with a page starting inside it (an over-tall block the
+  // paginator split): its pages belong to the paginator alone.
+  innerSeam: boolean;
+  top: number;
+  bottom: number;
+};
+
+function readPageChildren(view: EditorView): PageChild[] {
+  const out: PageChild[] = [];
+  for (const el of Array.from(view.contentDOM.children) as HTMLElement[]) {
+    const cl = el.classList;
+    let kind: PageChild["kind"];
+    let page: number | undefined;
+    if (cl.contains("cm-gap")) kind = "gap";
+    else if (cl.contains("cm-fm-page-gutter")) {
+      kind = "seam";
+      const n = Number(el.querySelector(".fm-page-gutter")?.getAttribute("data-page"));
+      page = Number.isFinite(n) ? n : undefined;
+    } else if (cl.contains("cm-fm-page-end")) kind = "end";
+    else if (cl.contains("cm-fm-page-head")) kind = "head";
+    else if (cl.contains("cm-line")) kind = (el.textContent ?? "").trim() === "" ? "blank" : "line";
+    else if (el.hasAttribute("data-region-line") || el.querySelector("[data-region-line]")) {
+      kind = "region";
+    } else kind = "widget";
+    const r = kind === "gap" ? undefined : el.getBoundingClientRect();
+    out.push({
+      el,
+      kind,
+      page,
+      heading: kind === "line" && /\bcm-fm-h[1-6]\b/.test(el.className),
+      pagebreak: kind !== "line" && kind !== "blank" && el.querySelector(".fm-pagebreak--editor") !== null,
+      innerSeam: kind === "region" && el.querySelector(".fm-page-gutter") !== null,
+      top: r?.top ?? 0,
+      bottom: r?.bottom ?? 0,
+    });
+  }
+  return out;
+}
+
+// A page that starts and ends at top-level seams both in the DOM with no
+// gap between: its top-level children are [from, to).
+type PageSpan = { number: number; from: number; to: number };
+
+type BoxMeasure = {
   pag: EditorPagination;
+  move?: FastrPagedResult;
   writes: { el: HTMLElement; page: number; px: number }[];
 };
 
-const pageFillPlugin = ViewPlugin.fromClass(
+const PUSH_TOLERANCE_PX = 2;
+const PULL_MARGIN_PX = 24;
+// Provisional moves between two paginator results (or edits): a cascade
+// down a long document is one per page; anything beyond this is a
+// disagreement between two measurements, and the paginator settles it.
+const MAX_PROVISIONAL_RUNS = 40;
+
+// The 0-based source line a rendered top-level child starts on.
+function lineOf(view: EditorView, c: PageChild): number | undefined {
+  const attr = c.el.getAttribute("data-region-line") ??
+    c.el.querySelector("[data-region-line]")?.getAttribute("data-region-line") ?? null;
+  if (attr !== null) {
+    const n = Number(attr);
+    return Number.isFinite(n) ? n : undefined;
+  }
+  try {
+    const pos = view.posAtDOM(c.el, 0);
+    return view.state.doc.lineAt(pos).number - 1;
+  } catch {
+    return undefined;
+  }
+}
+
+function hasExplicitBreak(state: EditorState, line: number, which: "before" | "after"): boolean {
+  if (line < 0 || line >= state.doc.lines) return false;
+  return new RegExp(`\\bbreak=${which}\\b`).test(state.doc.line(line + 1).text);
+}
+
+// The result with page `index + 1` starting at `line` (opened after the last
+// page when it does not exist yet).
+function withPageStart(result: FastrPagedResult, index: number, line: number): FastrPagedResult {
+  const pages = result.pages.map((p) => ({ ...p }));
+  if (index < pages.length) {
+    pages[index] = { ...pages[index], firstLine: line, lines: [line] };
+  } else {
+    pages.push({ number: pages.length + 1, firstLine: line, lines: [line], cover: false, contentHeight: 0 });
+  }
+  return { ...result, total: pages.length, pages };
+}
+
+function withoutPage(result: FastrPagedResult, number: number): FastrPagedResult {
+  const pages = result.pages.filter((p) => p.number !== number).map((p, i) => ({ ...p, number: i + 1 }));
+  return { ...result, total: pages.length, pages };
+}
+
+const pageBoxPlugin = ViewPlugin.fromClass(
   class {
+    provisionalRuns = 0;
+    // A move found but not yet dispatched: the next pass would find it
+    // again from the same DOM.
+    pendingMove = false;
+    // Flow runs between an edit and the paginator's next answer. That answer
+    // is the printed truth and stands, whatever the editor's own rendering
+    // makes of it, until the next edit.
+    flowArmed = false;
     constructor(readonly view: EditorView) {
       this.measure();
     }
     update(u: ViewUpdate) {
-      const landed = u.transactions.some((tr) =>
-        tr.effects.some((e) => e.is(setPagination))
-      );
+      let landed = false;
+      for (const tr of u.transactions) {
+        for (const e of tr.effects) {
+          if (e.is(setPagination)) {
+            landed = true;
+            if (e.value?.provisional !== true) {
+              this.provisionalRuns = 0;
+              this.flowArmed = false;
+            }
+          }
+        }
+      }
+      if (u.docChanged) {
+        this.provisionalRuns = 0;
+        this.flowArmed = true;
+      }
       if (landed || u.docChanged || u.viewportChanged || u.geometryChanged) {
         this.measure();
       }
     }
     measure() {
-      this.view.requestMeasure<FillMeasure | undefined>({
-        read: (view) => {
-          const pag = view.state.field(paginationField, false)?.pagination;
-          if (!pag) return undefined;
-          const pageH = parseFloat(
-            getComputedStyle(view.dom).getPropertyValue("--fm-page-h"),
-          );
-          if (!Number.isFinite(pageH) || pageH <= 0) return undefined;
-          const seams = Array.from(
-            view.contentDOM.querySelectorAll<HTMLElement>(".fm-page-gutter"),
-          );
-          const contentRect = view.contentDOM.getBoundingClientRect();
-          let pageTop: number | undefined = contentRect.top +
-            (parseFloat(getComputedStyle(view.contentDOM).paddingTop) || 0);
-          const writes: FillMeasure["writes"] = [];
-          for (const seam of seams) {
-            const page = Number(seam.getAttribute("data-page"));
-            if (!Number.isFinite(page)) continue;
-            const rect = seam.getBoundingClientRect();
-            const band = seam.querySelector<HTMLElement>(".fm-page-gutter__band");
-            // The page ending here starts at the previous seam's gap; when
-            // that seam is not rendered (off-screen), its start is unknown.
-            const known = page === 2 || (pageTop !== undefined && pag.fillers?.has(page - 2) !== false);
-            if (pageTop !== undefined && (page === 2 || known)) {
-              const foot = seam.querySelector<HTMLElement>(".fm-page-gutter__foot");
-              const footH = foot ? foot.getBoundingClientRect().height : 0;
-              const contentH = rect.top - pageTop;
-              const filler = Math.max(0, Math.round(pageH - contentH - footH));
-              const current = parseFloat(seam.style.paddingTop) || 0;
-              if (Math.abs(filler - current) > 1) {
-                writes.push({ el: seam, page: page - 1, px: filler });
-              }
-            }
-            pageTop = band ? band.getBoundingClientRect().bottom : undefined;
-          }
-          return { pag, writes };
-        },
+      this.view.requestMeasure<BoxMeasure | undefined>({
+        read: (view) => this.read(view),
         write: (m, view) => {
-          if (!m || m.writes.length === 0) return;
+          if (!m) return;
+          if (m.move !== undefined) {
+            const { pag, move } = m;
+            this.provisionalRuns++;
+            this.pendingMove = true;
+            // A dispatch cannot run inside the measure cycle that found the
+            // move; and only against the pagination it was measured on.
+            setTimeout(() => {
+              this.pendingMove = false;
+              if (view.state.field(paginationField, false)?.pagination !== pag) return;
+              view.dispatch({ effects: setPagination.of({ ...pag, result: move, provisional: true }) });
+            }, 0);
+            return;
+          }
+          if (m.writes.length === 0) return;
           m.pag.fillers ??= new Map();
           for (const w of m.writes) {
             w.el.style.paddingTop = `${w.px}px`;
@@ -3395,8 +3651,137 @@ const pageFillPlugin = ViewPlugin.fromClass(
         },
       });
     }
+    read(view: EditorView): BoxMeasure | undefined {
+      const pag = view.state.field(paginationField, false)?.pagination;
+      if (!pag) return undefined;
+      const geometry = readPageBoxGeometry(view);
+      if (geometry === undefined) return undefined;
+      const children = readPageChildren(view);
+      const indexOf = new Map<Element, number>(children.map((c, i) => [c.el, i]));
+      // Every seam (between top-level blocks, or inside a split block) and
+      // CodeMirror's gap placeholders, in document order.
+      const nodes = Array.from(
+        view.contentDOM.querySelectorAll<HTMLElement>(".fm-page-gutter, .cm-gap"),
+      );
+      const contentRect = view.contentDOM.getBoundingClientRect();
+      // The page being walked: page 1 from the document's top (below its
+      // top margin when it has one), then each seam's top margin; unknown
+      // after a gap placeholder until the next seam. `from` is the index of
+      // its first top-level child, when the page starts at a top-level seam.
+      const head0 = children[0]?.kind === "head" ? children[0] : undefined;
+      let cur: { number: number; pageTop: number; from: number | undefined } | undefined = {
+        number: 1,
+        pageTop: head0 !== undefined
+          ? head0.bottom
+          : contentRect.top + (parseFloat(getComputedStyle(view.contentDOM).paddingTop) || 0),
+        from: head0 !== undefined ? 1 : 0,
+      };
+      const writes: BoxMeasure["writes"] = [];
+      const canFlow = this.flowArmed && !this.pendingMove &&
+        this.provisionalRuns < MAX_PROVISIONAL_RUNS;
+      for (const node of nodes) {
+        if (node.classList.contains("cm-gap")) {
+          cur = undefined;
+          continue;
+        }
+        const seam = node;
+        const starts = Number(seam.getAttribute("data-page"));
+        const wrapper = seam.parentElement;
+        const idx = wrapper ? indexOf.get(wrapper) : undefined;
+        if (cur !== undefined && Number.isFinite(starts)) {
+          const area = pageAreaPx(geometry, pag.result.pages[cur.number - 1]?.cover === true);
+          const limit = cur.pageTop + area;
+          const seamTop = seam.getBoundingClientRect().top;
+          if (canFlow && cur.from !== undefined && idx !== undefined) {
+            const move = flowPage(
+              view,
+              pag.result,
+              children,
+              { number: cur.number, from: cur.from, to: idx },
+              limit,
+              seamTop,
+            );
+            if (move !== undefined) return { pag, move, writes: [] };
+          }
+          const filler = Math.max(0, Math.round(area - (seamTop - cur.pageTop)));
+          const current = parseFloat(seam.style.paddingTop) || 0;
+          if (Math.abs(filler - current) > 1) {
+            writes.push({ el: seam, page: cur.number, px: filler });
+          }
+        }
+        // The next page starts below the seam's top margin (a cover's: at
+        // the gap).
+        const band = seam.querySelector<HTMLElement>(".fm-page-gutter__band");
+        const head = seam.querySelector<HTMLElement>(".fm-page-gutter__head");
+        const nextTop = head ?? band;
+        cur = Number.isFinite(starts) && nextTop !== null
+          ? {
+            number: starts,
+            pageTop: nextTop.getBoundingClientRect().bottom,
+            from: idx !== undefined ? idx + 1 : undefined,
+          }
+          : undefined;
+      }
+      return { pag, writes };
+    }
   },
 );
+
+// The provisional move a fully rendered page calls for, if any: push the
+// block that crossed its edge to the next page, or pull the next page's
+// first block up.
+function flowPage(
+  view: EditorView,
+  result: FastrPagedResult,
+  children: PageChild[],
+  span: PageSpan,
+  limit: number,
+  seamTop: number,
+): FastrPagedResult | undefined {
+  const page = result.pages[span.number - 1];
+  if (page === undefined || page.cover) return undefined;
+  const items: PageChild[] = [];
+  for (let i = span.from; i < span.to; i++) {
+    const c = children[i];
+    if (c.innerSeam) return undefined;
+    if (c.kind !== "blank" && c.kind !== "head") items.push(c);
+  }
+  // A page with no block left on it (its content was deleted) closes.
+  if (items.length === 0) return span.number > 1 ? withoutPage(result, span.number) : undefined;
+  let over = items.findIndex((c) => c.bottom > limit + PUSH_TOLERANCE_PX);
+  if (over === 0) return undefined;
+  if (over > 0) {
+    while (over > 1 && items[over - 1].heading) over--;
+    const line = lineOf(view, items[over]);
+    return line === undefined ? undefined : withPageStart(result, span.number, line);
+  }
+  // Nothing over the edge. A pull needs the next page's first block in the
+  // DOM right after this seam, and this seam must not be the last page's.
+  if (children[span.to].kind !== "seam") return undefined;
+  const next = result.pages[span.number];
+  if (next === undefined || next.cover) return undefined;
+  let j = span.to + 1;
+  while (j < children.length && children[j].kind === "blank") j++;
+  const b = children[j];
+  if (b === undefined || b.kind === "gap" || b.kind === "seam" || b.kind === "end") return undefined;
+  if (b.heading || b.pagebreak || b.innerSeam) return undefined;
+  const last = items[items.length - 1];
+  if (last.pagebreak) return undefined;
+  const bLine = lineOf(view, b);
+  const lastLine = lineOf(view, last);
+  if (bLine === undefined || lastLine === undefined) return undefined;
+  if (hasExplicitBreak(view.state, bLine, "before") || hasExplicitBreak(view.state, lastLine, "after")) {
+    return undefined;
+  }
+  if (seamTop + (b.bottom - b.top) + PULL_MARGIN_PX > limit) return undefined;
+  let k = j + 1;
+  while (k < children.length && children[k].kind === "blank") k++;
+  const after = children[k];
+  if (after === undefined || after.kind === "gap" || after.innerSeam) return undefined;
+  if (after.kind === "seam" || after.kind === "end") return withoutPage(result, span.number + 1);
+  const afterLine = lineOf(view, after);
+  return afterLine === undefined ? undefined : withPageStart(result, span.number, afterLine);
+}
 
 const paginationPlugin = ViewPlugin.fromClass(
   class {
@@ -3433,7 +3818,7 @@ export function livePreviewExtensions(
     docGroundPlugin(resolver),
     paginationField,
     paginationPlugin,
-    pageFillPlugin,
+    pageBoxPlugin,
     ...(collab ? [regionPresencePlugin(collab), presenceFacet.of(collab)] : []),
   ];
 }

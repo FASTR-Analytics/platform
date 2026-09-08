@@ -557,6 +557,10 @@ export const FASTR_PAGE_SIZE_MM: Record<FastrPageSize, [number, number]> = {
 };
 
 // The sheet as printed: [width, height] in mm, orientation applied.
+// CSS pixels per millimetre (96dpi): the printed sheet's size in px, which
+// the editor's page boxes use 1:1 so its lines wrap exactly as print's.
+export const FASTR_PX_PER_MM = 96 / 25.4;
+
 export function fastrSheetMm(page: FastrPageSetup): [number, number] {
   const [w, h] = FASTR_PAGE_SIZE_MM[page.size];
   return page.orientation === "landscape" ? [h, w] : [w, h];

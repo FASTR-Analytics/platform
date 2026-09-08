@@ -84,6 +84,12 @@ export type FastrPagedPage = {
   lines: number[];
   // True when the page is a cover's (zero margins, no footer).
   cover: boolean;
+  // How much of the page the content fills, in the frame's CSS px (top of the
+  // flow to the bottom of its lowest block). The editor seeds a page box's
+  // filler from it before the box has ever been rendered, so the page reads
+  // at its printed height from the first scroll rather than growing as it
+  // is measured.
+  contentHeight: number;
 };
 
 export type FastrPagedSplit = {
@@ -478,22 +484,46 @@ export function fastrPagedRunnerJs(): string {
         var ln = parseInt(s.getAttribute("data-line"), 10);
         if (!isNaN(ln)) splits.push({ line: ln, page: i + 1 });
       }
+      var flow = el.querySelector(".pagedjs_page_content > div");
+      var contentHeight = 0;
+      if (flow) {
+        var flowTop = flow.getBoundingClientRect().top;
+        var bottom = flowTop;
+        for (var c = 0; c < flow.children.length; c++) {
+          var cb = flow.children[c].getBoundingClientRect().bottom;
+          if (cb > bottom) bottom = cb;
+        }
+        contentHeight = Math.round(bottom - flowTop);
+      }
       pages.push({
         number: i + 1,
         firstLine: lines.length > 0 ? lines[0] : undefined,
         lines: lines,
-        cover: el.classList.contains("pagedjs_" + ${JSON.stringify(COVER_PAGE_NAME)} + "_page")
+        cover: el.classList.contains("pagedjs_" + ${JSON.stringify(COVER_PAGE_NAME)} + "_page"),
+        contentHeight: contentHeight
       });
     }
     publish({ total: boxes.length, sheet: sheet, pages: pages, splits: splits });
   }
+  // Everything the layout depends on, before Paged.js measures a line: the
+  // stylesheets (a theme's @import of its fonts arrives after the script
+  // runs; fonts.ready alone resolves before those faces are even known),
+  // then a layout so the text asks for its faces, then the faces and the
+  // images. Otherwise a run measures fallback fonts and the pages differ
+  // from the editor's, and from the next run's.
   function ready() {
-    var imgs = Array.prototype.slice.call(document.images);
-    var decodes = imgs.map(function (img) {
-      return img.decode ? img.decode().catch(function () {}) : Promise.resolve();
+    var loaded = document.readyState === "complete"
+      ? Promise.resolve()
+      : new Promise(function (res) { window.addEventListener("load", function () { res(); }, { once: true }); });
+    return loaded.then(function () {
+      void document.body.offsetHeight;
+      var imgs = Array.prototype.slice.call(document.images);
+      var decodes = imgs.map(function (img) {
+        return img.decode ? img.decode().catch(function () {}) : Promise.resolve();
+      });
+      var fonts = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
+      return Promise.all(decodes.concat([fonts]));
     });
-    var fonts = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
-    return Promise.all(decodes.concat([fonts]));
   }
   ready().then(function () {
     releaseOverTall();
