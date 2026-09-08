@@ -35,9 +35,11 @@ import { loadImageEntry } from "./_report_export_maps";
 import {
   applyInkTheme,
   figureDarkInkForColors,
+  type FigureInkTheme,
   figureInkThemeForStyle,
   GENERIC_LIGHT_INK,
 } from "~/components/report/report_figure_raster";
+import type { FigureBlock } from "lib";
 import {
   buildReportBodyNodes,
   type FigureRasterState,
@@ -73,6 +75,14 @@ export type StandaloneReportOptions = {
   layoutOnly?: {
     figureSize: (id: string) => { width: number; height: number } | undefined;
     imageSize: (id: string) => { width: number; height: number } | undefined;
+  };
+  // The editor's pages: rasters from the host's content-keyed cache (blob
+  // URLs, the same pixels the export draws) instead of a fresh render per
+  // layout, and images by URL rather than inlined. `ink` is the figure's
+  // ground-appropriate ink, measured exactly as the export measures it.
+  cached?: {
+    figureRaster: (id: string, block: FigureBlock, ink: FigureInkTheme) => FigureRasterState;
+    imageUrl: (id: string) => string | undefined;
   };
 };
 
@@ -111,9 +121,11 @@ export async function buildStandaloneReportHtml(
   // sanitized document — figure tokens still raw — is mounted in a hidden
   // iframe to measure computed backgrounds before any rasterization. For fastr
   // the ground is painted by the theme sheet, so it must be in that document.
+  // A paged document keeps its source-line anchors: the editor's pages edit
+  // in place through them, and the printed pixels are the same either way.
   const sanitized = isFastr
     ? sanitizeReportHtml(
-      renderFastrMarkdownToHtml(detail.body, { lineAnchors: false }),
+      renderFastrMarkdownToHtml(detail.body, { lineAnchors: opts.paged !== undefined }),
     )
     : sanitizeReportHtml(detail.body);
   const docSettings = isFastr
@@ -156,6 +168,13 @@ export async function buildStandaloneReportHtml(
   const rasters = new Map<string, FigureRasterState>();
   let done = 0;
   for (const [id, block] of figureEntries) {
+    if (opts.cached) {
+      rasters.set(
+        id,
+        opts.cached.figureRaster(id, block, darkGrounds.get(id) ? lightInk : darkInk),
+      );
+      continue;
+    }
     try {
       const bundle = block.bundle;
       if (!bundle) throw new Error("no bundle");
@@ -184,6 +203,11 @@ export async function buildStandaloneReportHtml(
   }
   const imageUrls = new Map<string, string>();
   for (const [id, block] of Object.entries(detail.images)) {
+    if (opts.cached) {
+      const url = opts.cached.imageUrl(id);
+      if (url) imageUrls.set(id, url);
+      continue;
+    }
     const entry = await loadImageEntry(`${_SERVER_HOST}/${block.imgFile}`);
     if (entry) imageUrls.set(id, entry.dataUrl);
   }

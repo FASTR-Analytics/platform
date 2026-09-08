@@ -101,6 +101,38 @@ export const FM_LIVE_SCOPE_CLASS = "fm-live-scope";
 
 
 
+// ── Document-aware helpers ───────────────────────────────────────────────────
+// The in-place editors run in two places: inside CodeMirror widgets (the app
+// document) and on the pages of the paged surface, which live in an iframe.
+// Every selection, range and listener must belong to the element's OWN
+// document, and a menu anchored to an iframe event needs the frame's offset.
+function docOf(el: Node): Document {
+  return el.ownerDocument ?? document;
+}
+function winOf(el: Node): Window {
+  return docOf(el).defaultView ?? window;
+}
+function menuAnchor(e: MouseEvent): { x: number; y: number; width: number; height: number } {
+  const target = e.target as Node | null;
+  const frame = target?.ownerDocument?.defaultView?.frameElement;
+  const r = frame?.getBoundingClientRect();
+  return { x: e.clientX + (r?.left ?? 0), y: e.clientY + (r?.top ?? 0), width: 0, height: 0 };
+}
+
+// The block chrome that edits in place: [root class, child class, attr,
+// placeholder, whether an untitled block grows a ghost row to click into].
+export function chromeAttrRows(): [string, string, string, string, boolean][] {
+  return [
+    ["fm-callout", "fm-callout__title", "title", t3({ en: "Title…", fr: "Titre…", pt: "Título…" }), true],
+    ["fm-card", "fm-card__title", "title", t3({ en: "Title…", fr: "Titre…", pt: "Título…" }), true],
+    ["fm-band", "fm-kicker", "kicker", t3({ en: "Kicker…", fr: "Surtitre…", pt: "Antetítulo…" }), true],
+    ["fm-cover", "fm-kicker", "kicker", t3({ en: "Kicker…", fr: "Surtitre…", pt: "Antetítulo…" }), true],
+    ["fm-band", "fm-dek", "sub", t3({ en: "Subtitle…", fr: "Sous-titre…", pt: "Subtítulo…" }), false],
+    ["fm-cover", "fm-dek", "sub", t3({ en: "Subtitle…", fr: "Sous-titre…", pt: "Subtítulo…" }), false],
+    ["fm-quote", "fm-quote__cite", "cite", t3({ en: "Source…", fr: "Source…", pt: "Fonte…" }), false],
+  ];
+}
+
 // ── Region ranges ────────────────────────────────────────────────────────────
 
 type RegionRange = {
@@ -402,15 +434,7 @@ class RegionWidget extends WidgetType {
     // fence line. When a titled block has no title yet, an ACTIVE widget
     // (caret inside) grows a ghost title row to click into — idle widgets
     // stay exactly as the preview renders them.
-    const CHROME_ATTRS: [string, string, string, string, boolean][] = [
-      ["fm-callout", "fm-callout__title", "title", t3({ en: "Title…", fr: "Titre…", pt: "Título…" }), true],
-      ["fm-card", "fm-card__title", "title", t3({ en: "Title…", fr: "Titre…", pt: "Título…" }), true],
-      ["fm-band", "fm-kicker", "kicker", t3({ en: "Kicker…", fr: "Surtitre…", pt: "Antetítulo…" }), true],
-      ["fm-cover", "fm-kicker", "kicker", t3({ en: "Kicker…", fr: "Surtitre…", pt: "Antetítulo…" }), true],
-      ["fm-band", "fm-dek", "sub", t3({ en: "Subtitle…", fr: "Sous-titre…", pt: "Subtítulo…" }), false],
-      ["fm-cover", "fm-dek", "sub", t3({ en: "Subtitle…", fr: "Sous-titre…", pt: "Subtítulo…" }), false],
-      ["fm-quote", "fm-quote__cite", "cite", t3({ en: "Source…", fr: "Source…", pt: "Fonte…" }), false],
-    ];
+    const CHROME_ATTRS = chromeAttrRows();
     for (
       const container of Array.from(
         dom.querySelectorAll<HTMLElement>("[data-line]"),
@@ -628,7 +652,7 @@ function frameLineMeta(
 // rewrites nothing — and Escape reverts. The commit dispatch carries no
 // userEvent, so the structure guard lets it through: this IS the specialised
 // way to edit what typing cannot reach.
-function attachAttrEditor(
+export function attachAttrEditor(
   el: HTMLElement,
   view: EditorView,
   line1: number,
@@ -672,9 +696,9 @@ function attachAttrEditor(
       const at = view.state.doc.line(line1).from;
       publishIslandCaret(view, at, at);
     }
-    const sel = window.getSelection();
+    const sel = winOf(el).getSelection();
     if (sel) {
-      const range = document.createRange();
+      const range = docOf(el).createRange();
       range.selectNodeContents(el);
       range.collapse(false);
       sel.removeAllRanges();
@@ -736,7 +760,7 @@ function attachAttrEditor(
 // is ACTIVE, the pieces the stat does not carry yet appear as ghost
 // placeholders to click into (the same affordance a titleless callout or a
 // kickerless cover gets), inserted in the renderer's value→label→delta order.
-function attachStatEditors(
+export function attachStatEditors(
   root: HTMLElement,
   view: EditorView,
   line1: number,
@@ -770,7 +794,7 @@ function attachStatEditors(
   for (const [cls, attr, placeholder, ghostClass] of pieces) {
     let el = root.querySelector<HTMLElement>(`.${cls}`);
     if (!el && active) {
-      el = document.createElement("div");
+      el = root.ownerDocument.createElement("div");
       el.className = ghostClass;
       if (prev) prev.after(el);
       else root.prepend(el);
@@ -797,16 +821,30 @@ function attachStatEditors(
 // line(s) — inline markdown stays authorable — while the surrounding block
 // keeps its rendered form. Enter/blur commits (a changed text is one
 // dispatch; the widget re-renders), Escape restores the rendered content.
-function attachTextEditor(
-  el: HTMLElement,
-  view: EditorView,
-  regionStartLine: number,
+// Set by a paged-mode island action that closes the island and moves the
+// CodeMirror selection on purpose (Enter splitting a paragraph, Backspace
+// removing an empty one): the paged surface reads it at its next swap and
+// reopens the island at that selection.
+export const pagedCaretIntent = { pending: false };
+
+export type TextIslandOptions = {
+  // The paged surface (paged_edit_surface.ts): no widget rebuilds, the
+  // island's source is read from the LIVE doc on activation (the frame may
+  // be a beat behind a remote edit), Enter splits the paragraph and
+  // Backspace on an empty one removes it — the paragraph-level editing a
+  // page needs when every line is an island.
+  paged?: boolean;
+};
+
+// The last source line (relative) of the island starting at `rel`: a
+// paragraph runs over consecutive non-blank lines (breaks render as <br>).
+export function textIslandEndRel(
   sourceLines: string[],
   rel: number,
-) {
-  // A paragraph may span consecutive source lines (breaks render as <br>).
+  tag: string,
+): number {
   let endRel = rel;
-  if (el.tagName === "P") {
+  if (tag === "P") {
     while (
       endRel + 1 < sourceLines.length &&
       sourceLines[endRel + 1].trim().length > 0 &&
@@ -814,7 +852,20 @@ function attachTextEditor(
       !isFastrEmbedLine(sourceLines[endRel + 1])
     ) endRel++;
   }
-  const original = sourceLines.slice(rel, endRel + 1).join("\n");
+  return endRel;
+}
+
+export function attachTextEditor(
+  el: HTMLElement,
+  view: EditorView,
+  regionStartLine: number,
+  sourceLines: string[],
+  rel: number,
+  opts?: TextIslandOptions,
+) {
+  const sourceOf = (lines: string[]) =>
+    lines.slice(rel, textIslandEndRel(lines, rel, el.tagName) + 1).join("\n");
+  let original = sourceOf(sourceLines);
   // What the document holds for this island right now. Edits are committed
   // AS THEY ARE TYPED (peers see them live, and nothing can be lost on a
   // missed blur); the island's own commit is annotated so the region field
@@ -842,15 +893,15 @@ function attachTextEditor(
       annotations: islandCommit.of(sameShape),
     });
     if (!sameShape) {
-      stopMirror();
       const host = view.contentDOM.querySelector(
         `[data-region-line="${regionStartLine}"]`,
       );
-      const target = host
-        ? [...host.querySelectorAll<HTMLElement>(`[data-line="${rel}"]`)].find(
-          (n) => n.tagName === el.tagName,
-        )
-        : undefined;
+      // No host (the paged surface): nothing rebuilds under the island, so
+      // it stays open and mirrored; the surface re-lays the page out later.
+      if (!host) return;
+      stopMirror();
+      const target = [...host.querySelectorAll<HTMLElement>(`[data-line="${rel}"]`)]
+        .find((n) => n.tagName === el.tagName);
       (target as unknown as { _fmActivate?: () => void } | undefined)?._fmActivate?.();
     }
   };
@@ -864,7 +915,7 @@ function attachTextEditor(
   const renderEditableSource = () => {
     el.textContent = "";
     const hiddenSpan = (t: string) => {
-      const s = document.createElement("span");
+      const s = docOf(el).createElement("span");
       s.className = "cm-fm-island-syntax";
       s.textContent = t;
       return s;
@@ -878,9 +929,9 @@ function attachTextEditor(
       let last = 0;
       let m: RegExpExecArray | null;
       while ((m = EMPH_RE.exec(text)) !== null) {
-        parent.append(document.createTextNode(text.slice(last, m.index)));
+        parent.append(docOf(el).createTextNode(text.slice(last, m.index)));
         parent.append(hiddenSpan(m[1]));
-        const styled = document.createElement("span");
+        const styled = docOf(el).createElement("span");
         if (m[1].length >= 2) styled.style.fontWeight = "700";
         if (m[1].length !== 2) styled.style.fontStyle = "italic";
         styled.textContent = m[2];
@@ -888,9 +939,9 @@ function attachTextEditor(
         parent.append(hiddenSpan(m[1]));
         last = m.index + m[0].length;
       }
-      parent.append(document.createTextNode(text.slice(last)));
+      parent.append(docOf(el).createTextNode(text.slice(last)));
     };
-    const frag = document.createDocumentFragment();
+    const frag = docOf(el).createDocumentFragment();
     let rest = original;
     const hm = /^(#{1,6} )/.exec(rest);
     if (hm && /^H[1-6]$/.test(el.tagName)) {
@@ -905,7 +956,7 @@ function attachTextEditor(
       if (!attrs) continue;
       appendWithEmphasis(frag, rest.slice(last, m.index));
       frag.append(hiddenSpan("["));
-      const marked = document.createElement("span");
+      const marked = docOf(el).createElement("span");
       marked.className = fastrMarkClass(attrs);
       if (attrs.color !== undefined) marked.style.color = attrs.color;
       if (attrs.size !== undefined) marked.style.fontSize = `${attrs.size}pt`;
@@ -921,6 +972,12 @@ function attachTextEditor(
   };
   const activate = () => {
     (el as unknown as { _rendered: string })._rendered = el.innerHTML;
+    if (opts?.paged) {
+      // The frame is rendered from the doc as it was; the island edits the
+      // doc as it IS.
+      original = sourceOf(view.state.doc.toString().split("\n"));
+      committed = original;
+    }
     renderEditableSource();
     try {
       el.contentEditable = "plaintext-only";
@@ -930,9 +987,9 @@ function attachTextEditor(
     el.focus();
     // Caret at the end — the swap changed the text under the press, so a
     // precise position is not meaningful.
-    const sel = window.getSelection();
+    const sel = winOf(el).getSelection();
     if (sel) {
-      const range = document.createRange();
+      const range = docOf(el).createRange();
       range.selectNodeContents(el);
       range.collapse(false);
       sel.removeAllRanges();
@@ -975,7 +1032,7 @@ function attachTextEditor(
   // was parked instead of what the user actually selected in this island.
   const mirrorSelection = () => {
     if (!el.isContentEditable) return;
-    const sel = window.getSelection();
+    const sel = winOf(el).getSelection();
     if (!sel || sel.rangeCount === 0 || !el.contains(sel.anchorNode)) return;
     const doc = view.state.doc;
     const line1 = regionStartLine + rel + 1;
@@ -984,7 +1041,7 @@ function attachTextEditor(
     const base = doc.line(line1).from;
     const max = doc.line(endLine1).to;
     const offsetOf = (node: Node, offset: number) => {
-      const r = document.createRange();
+      const r = docOf(el).createRange();
       r.selectNodeContents(el);
       try {
         r.setEnd(node, offset);
@@ -1006,9 +1063,9 @@ function attachTextEditor(
   // widgets rebuild on every regional keystroke, and a listener left behind
   // would accumulate one copy per rebuild.
   const stopMirror = () =>
-    document.removeEventListener("selectionchange", mirrorSelection);
+    docOf(el).removeEventListener("selectionchange", mirrorSelection);
   el.addEventListener("focus", () =>
-    document.addEventListener("selectionchange", mirrorSelection));
+    docOf(el).addEventListener("selectionchange", mirrorSelection));
   const restore = () => {
     stopMirror();
     el.contentEditable = "false";
@@ -1050,9 +1107,9 @@ function attachTextEditor(
     }
     const text = (el.textContent ?? "").replace(/\r/g, "");
     let at = text.length;
-    const sel = window.getSelection();
+    const sel = winOf(el).getSelection();
     if (sel && sel.rangeCount > 0 && sel.focusNode && el.contains(sel.focusNode)) {
-      const r = document.createRange();
+      const r = docOf(el).createRange();
       r.selectNodeContents(el);
       try {
         r.setEnd(sel.focusNode, sel.focusOffset);
@@ -1079,19 +1136,90 @@ function attachTextEditor(
     const target = host?.querySelector<HTMLElement>(`p[data-line="${newRel}"]`);
     if (!target) return;
     (target as unknown as { _fmActivate?: () => void })._fmActivate?.();
-    const next = window.getSelection();
+    const next = winOf(el).getSelection();
     if (!next) return;
     if (after) next.collapse(target, 0);
     else next.selectAllChildren(target);
+  };
+  // The caret's offset in the island's text (the source), or the end.
+  const caretOffset = () => {
+    const text = (el.textContent ?? "").replace(/\r/g, "");
+    let at = text.length;
+    const sel = winOf(el).getSelection();
+    if (sel && sel.rangeCount > 0 && sel.focusNode && el.contains(sel.focusNode)) {
+      const r = docOf(el).createRange();
+      r.selectNodeContents(el);
+      try {
+        r.setEnd(sel.focusNode, sel.focusOffset);
+        at = r.toString().length;
+      } catch {
+        // An unreachable focus node: the end.
+      }
+    }
+    return { text, at };
+  };
+  // Paged editing: Enter splits the island at the caret into two paragraphs
+  // (a list item gets a sibling item with the same marker), and the caret is
+  // placed at the start of the new one — the surface re-lays the page out
+  // and opens that island from the CM selection.
+  const splitParagraph = () => {
+    const doc = view.state.doc;
+    const line1 = regionStartLine + rel + 1;
+    const endLine1 = committedEndLine1();
+    if (endLine1 > doc.lines) {
+      el.blur();
+      return;
+    }
+    const { text, at } = caretOffset();
+    const before = text.slice(0, at).trimEnd();
+    const after = text.slice(at).trimStart();
+    const marker = el.tagName === "LI"
+      ? (/^(\s*(?:[-*+]|\d+\.)\s+)/.exec(text)?.[1] ?? "- ")
+      : undefined;
+    const joiner = marker !== undefined ? `\n${marker}` : "\n\n";
+    const insert = `${before}${joiner}${after}`;
+    stopMirror();
+    el.contentEditable = "false";
+    pagedCaretIntent.pending = true;
+    const from = doc.line(line1).from;
+    committed = insert;
+    view.dispatch({
+      changes: { from, to: doc.line(endLine1).to, insert },
+      selection: { anchor: from + before.length + joiner.length },
+    });
+  };
+  // Paged editing: Backspace in an EMPTY island removes the line (and the
+  // blank line above it), leaving the caret at the end of what came before.
+  const removeEmptyLine = () => {
+    const doc = view.state.doc;
+    const line1 = regionStartLine + rel + 1;
+    if (line1 > doc.lines) return;
+    const line = doc.line(line1);
+    let from = line1 > 1 ? doc.line(line1 - 1).to : line.from;
+    if (line1 > 2 && doc.line(line1 - 1).text.trim().length === 0) {
+      from = doc.line(line1 - 2).to;
+    }
+    stopMirror();
+    el.contentEditable = "false";
+    pagedCaretIntent.pending = true;
+    view.dispatch({ changes: { from, to: line.to, insert: "" }, selection: { anchor: from } });
   };
   el.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       if (el.tagName === "P" && el.parentElement?.classList.contains("fm-steps")) {
         splitStep();
+      } else if (opts?.paged && /^(P|LI|H[1-6])$/.test(el.tagName)) {
+        splitParagraph();
       } else {
         el.blur();
       }
+    } else if (
+      opts?.paged && e.key === "Backspace" &&
+      (el.textContent ?? "").trim().length === 0 && el.tagName === "P"
+    ) {
+      e.preventDefault();
+      removeEmptyLine();
     } else if (e.key === "Escape") {
       e.preventDefault();
       // The live commits already changed the document: put the original
@@ -1109,7 +1237,7 @@ function attachTextEditor(
 // same as tiles. A paragraph inside `:::steps` IS a step (the renderer
 // numbers the block's direct children), so this menu and Enter are the only
 // chrome a step needs (applyStepsChildAction).
-function attachStepsChildContextMenu(
+export function attachStepsChildContextMenu(
   el: HTMLElement,
   view: EditorView,
   line1: number,
@@ -1121,10 +1249,10 @@ function attachStepsChildContextMenu(
     const run = (action: StepsChildAction) => {
       // A step still being typed in commits first (its blur is a dispatch),
       // so the action reads the document the author sees.
-      const active = document.activeElement;
+      const active = docOf(el).activeElement;
       if (
         active instanceof HTMLElement && active.isContentEditable &&
-        el.closest(".fm-live-region")?.contains(active)
+        (el.closest(".fm-live-region") ?? docOf(el).body).contains(active)
       ) active.blur();
       const r = applyStepsChildAction(
         view.state.doc.toString(),
@@ -1151,7 +1279,7 @@ function attachStepsChildContextMenu(
       },
     ];
     showMenu({
-      anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 },
+      anchor: menuAnchor(e),
       items,
     });
   });
@@ -1166,7 +1294,7 @@ function attachStepsChildContextMenu(
 // table cells.
 // The column count follows the child count while it fits
 // (applyTilesChildAction).
-function attachTilesChildContextMenu(
+export function attachTilesChildContextMenu(
   el: HTMLElement,
   view: EditorView,
   line1: number,
@@ -1213,13 +1341,13 @@ function attachTilesChildContextMenu(
       { label: noun.remove, intent: "danger" as const, onClick: () => run("delete") },
     ];
     showMenu({
-      anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 },
+      anchor: menuAnchor(e),
       items,
     });
   });
 }
 
-function attachCellContextMenu(
+export function attachCellContextMenu(
   el: HTMLElement,
   view: EditorView,
   rowLine1: number,
@@ -1329,7 +1457,7 @@ function attachCellContextMenu(
       },
     ];
     showMenu({
-      anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 },
+      anchor: menuAnchor(e),
       items,
     });
   });
@@ -1356,7 +1484,7 @@ function cellSlices(text: string): { start: number; raw: string }[] {
   return arr;
 }
 
-function attachCellEditor(
+export function attachCellEditor(
   el: HTMLElement,
   view: EditorView,
   rowLine1: number,
@@ -1381,12 +1509,12 @@ function attachCellEditor(
   // plain text (no hidden spans), so Range lengths are cell offsets directly.
   const mirrorSelection = () => {
     if (!el.isContentEditable) return;
-    const sel = window.getSelection();
+    const sel = winOf(el).getSelection();
     if (!sel || sel.rangeCount === 0 || !el.contains(sel.anchorNode)) return;
     const range = contentRange();
     if (!range) return;
     const offsetOf = (node: Node, offset: number) => {
-      const r = document.createRange();
+      const r = docOf(el).createRange();
       r.selectNodeContents(el);
       try {
         r.setEnd(node, offset);
@@ -1404,7 +1532,7 @@ function attachCellEditor(
     view.dispatch({ selection: { anchor, head } });
   };
   const stopMirror = () =>
-    document.removeEventListener("selectionchange", mirrorSelection);
+    docOf(el).removeEventListener("selectionchange", mirrorSelection);
   // Committed as typed (see attachTextEditor): the row is rewritten on each
   // keystroke under the island's own annotation, so the table widget is kept.
   let committed: string | undefined;
@@ -1438,9 +1566,9 @@ function attachCellEditor(
       el.contentEditable = "true";
     }
     el.focus();
-    const sel = window.getSelection();
+    const sel = winOf(el).getSelection();
     if (sel) {
-      const r = document.createRange();
+      const r = docOf(el).createRange();
       r.selectNodeContents(el);
       r.collapse(false);
       sel.removeAllRanges();
@@ -1448,7 +1576,7 @@ function attachCellEditor(
     }
     const range = contentRange();
     if (range) publishIslandCaret(view, range.from + range.len, range.from + range.len);
-    document.addEventListener("selectionchange", mirrorSelection);
+    docOf(el).addEventListener("selectionchange", mirrorSelection);
   };
   (el as unknown as { _fmCellActivate?: () => void })._fmCellActivate = activate;
   el.addEventListener("mousedown", (e) => {
@@ -2559,7 +2687,7 @@ const concealPlugin = ViewPlugin.fromClass(ConcealPluginValue, {
 // DOM-only writes (no dispatch), recomputed on awareness change and doc
 // change — never on local cursor movement.
 
-type PresenceDeps = { yText: Y.Text; awareness: Awareness };
+export type PresenceDeps = { yText: Y.Text; awareness: Awareness };
 
 // The collab binding, reachable from inside a widget: islands publish their
 // own caret through it (y-codemirror publishes only while the CM view has
@@ -2606,7 +2734,7 @@ function dispatchAfterUpdate(
 // Tell peers where this user is while an island (not the CM view) has focus:
 // the same `cursor` field yCollab publishes, with relative positions, so the
 // peers' caret layer and the region presence border both keep working.
-function publishIslandCaret(view: EditorView, anchor: number, head: number) {
+export function publishIslandCaret(view: EditorView, anchor: number, head: number) {
   const deps = view.state.facet(presenceFacet);
   if (!deps || !deps.yText.doc) return;
   const clamp = (n: number) => Math.max(0, Math.min(n, deps.yText.length));
