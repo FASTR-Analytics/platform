@@ -2,12 +2,31 @@ import { dirname, join } from "@std/path";
 import { Sql } from "postgres";
 import { _INSTANCE_LANGUAGE } from "../../exposed_env_vars.ts";
 
+// A TypeScript migration runs inside the migration transaction and throws on
+// failure, never Deno.exit, so this runner stays the single rollback and
+// fail-stop funnel. Every statement it issues, and every helper it calls,
+// goes through `tx`. Rules: PROTOCOL_APP_MIGRATIONS "TypeScript Migrations".
+export type TsMigration = (tx: Sql) => Promise<void>;
+
+// Literal-keyed so `deno check main.ts` covers every migration module. The
+// key is the migration id (filename minus extension) and sorts with the .sql
+// filenames. Empty until the consolidation migration leaves
+// consolidation/staged/ (PLAN_PRODUCTS_RESTRUCTURE step 9b).
+const TS_MIGRATIONS: Record<string, TsMigration> = {};
+
 type MigrationType = "instance" | "project";
 
 interface MigrationFile {
   id: string;
   filename: string;
   filepath: string;
+  run: TsMigration | null; // null = read filepath as SQL
+}
+
+export class MigrationFailure extends Error {
+  constructor(readonly filename: string, cause: unknown) {
+    super(cause instanceof Error ? cause.message : String(cause), { cause });
+  }
 }
 
 // Get the directory of this file, which is server/db/migrations/
@@ -25,9 +44,36 @@ async function runMigrationsForDatabase(
   sql: Sql,
   type: MigrationType
 ): Promise<void> {
+  try {
+    await runMigrationsInDir(
+      sql,
+      join(MIGRATIONS_BASE_DIR, type),
+      TS_MIGRATIONS,
+      type
+    );
+  } catch (error) {
+    const filename = error instanceof MigrationFailure ? error.filename : "?";
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`\n[sql-migration] FAILED: ${filename}`);
+    console.error(`Error: ${errorMessage}`);
+    console.error(`\n[sql-migration] FAILED — Server will not start. Fix the migration and redeploy.\n`);
+    Deno.exit(1);
+  }
+}
+
+// Applies every pending migration in `dir` in filename order, .sql and .ts
+// together. Throws MigrationFailure at the first failure, with the earlier
+// migrations left applied. Exported so ./validate_consolidation_replay can
+// drive it over a throwaway directory that includes the staged migrations.
+export async function runMigrationsInDir(
+  sql: Sql,
+  dir: string,
+  tsMigrations: Record<string, TsMigration>,
+  label: string
+): Promise<void> {
   await ensureMigrationsTableExists(sql);
 
-  const migrationFiles = await getMigrationFiles(type);
+  const migrationFiles = await getMigrationFiles(dir, tsMigrations);
   const appliedMigrations = await getAppliedMigrations(sql);
 
   const pendingMigrations = migrationFiles.filter(
@@ -39,18 +85,14 @@ async function runMigrationsForDatabase(
   }
 
   console.log(
-    `Running ${pendingMigrations.length} ${type} migration(s)...`
+    `Running ${pendingMigrations.length} ${label} migration(s)...`
   );
 
   for (const migration of pendingMigrations) {
     try {
       await applyMigration(sql, migration);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(`\n[sql-migration] FAILED: ${migration.filename}`);
-      console.error(`Error: ${errorMessage}`);
-      console.error(`\n[sql-migration] FAILED — Server will not start. Fix the migration and redeploy.\n`);
-      Deno.exit(1);
+      throw new MigrationFailure(migration.filename, error);
     }
   }
 }
@@ -64,25 +106,37 @@ async function ensureMigrationsTableExists(sql: Sql): Promise<void> {
   `;
 }
 
-async function getMigrationFiles(type: MigrationType): Promise<MigrationFile[]> {
-  // Use relative path from this file's location
-  const migrationDir = join(MIGRATIONS_BASE_DIR, type);
-
+async function getMigrationFiles(
+  dir: string,
+  tsMigrations: Record<string, TsMigration>
+): Promise<MigrationFile[]> {
   try {
-    const entries = [];
-    for await (const entry of Deno.readDir(migrationDir)) {
-      if (entry.isFile && entry.name.endsWith(".sql")) {
-        entries.push(entry);
+    const entries: MigrationFile[] = [];
+    for await (const entry of Deno.readDir(dir)) {
+      if (!entry.isFile) {
+        continue;
       }
+      const isSql = entry.name.endsWith(".sql");
+      const isTs = entry.name.endsWith(".ts");
+      if (!isSql && !isTs) {
+        continue;
+      }
+      const id = entry.name.replace(/\.(sql|ts)$/, "");
+      const run = isTs ? tsMigrations[id] : undefined;
+      if (isTs && run === undefined) {
+        throw new Error(
+          `Migration ${entry.name} has no entry in TS_MIGRATIONS (server/db/migrations/runner.ts). Register it, or it would be silently skipped.`
+        );
+      }
+      entries.push({
+        id,
+        filename: entry.name,
+        filepath: join(dir, entry.name),
+        run: run ?? null,
+      });
     }
 
-    return entries
-      .map((entry) => ({
-        id: entry.name.replace(/\.sql$/, ""),
-        filename: entry.name,
-        filepath: join(migrationDir, entry.name),
-      }))
-      .sort((a, b) => a.filename.localeCompare(b.filename));
+    return entries.sort((a, b) => a.filename.localeCompare(b.filename));
   } catch (e) {
     if (e instanceof Deno.errors.NotFound) {
       return [];
@@ -101,7 +155,8 @@ async function getAppliedMigrations(sql: Sql): Promise<Set<string>> {
 async function applyMigration(sql: Sql, migration: MigrationFile): Promise<void> {
   console.log(`  Applying migration: ${migration.filename}`);
 
-  const migrationSQL = await Deno.readTextFile(migration.filepath);
+  const migrationSQL =
+    migration.run === null ? await Deno.readTextFile(migration.filepath) : null;
 
   await sql.begin(async (tx) => {
     // Transaction-local, so a migration that seeds user-facing text (079's
@@ -112,7 +167,11 @@ async function applyMigration(sql: Sql, migration: MigrationFile): Promise<void>
       "SELECT set_config('fastr.instance_language', $1, true)",
       [_INSTANCE_LANGUAGE],
     );
-    await tx.unsafe(migrationSQL);
+    if (migration.run !== null) {
+      await migration.run(tx);
+    } else {
+      await tx.unsafe(migrationSQL!);
+    }
     await tx`
       INSERT INTO schema_migrations (migration_id)
       VALUES (${migration.id})

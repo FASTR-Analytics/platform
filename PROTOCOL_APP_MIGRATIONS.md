@@ -67,8 +67,9 @@ Boot completes (or fails if any validation fails)
 
 ```text
 server/db/migrations/
-├── instance/              # SQL migrations - main DB
+├── instance/              # SQL and TypeScript migrations - main DB
 ├── project/               # SQL migrations - project DBs
+├── consolidation/         # the project consolidation: planner, executor, staged migrations
 └── data_transforms/       # JSON data transforms - one file per type
     ├── po_config.ts
     ├── slide_deck_config.ts
@@ -419,7 +420,8 @@ For table/column structure changes.
 
 Location: `server/db/migrations/instance/` and `server/db/migrations/project/`
 
-Naming: `NNN_description.sql`
+Naming: `NNN_description.sql`, or `NNN_description.ts` for a TypeScript
+migration (below)
 
 ### The Golden Rule: Idempotency
 
@@ -493,6 +495,46 @@ production behaviour is unchanged. Precedent:
 **Use SQL migrations for:** Adding columns, creating tables, adding indexes, constraints.
 
 **Use JSON data transforms for:** Transforming data in JSON columns.
+
+### TypeScript Migrations
+
+A migration that has to read data to decide what to write (a cross-database
+copy, an id remap, anything one SQL statement cannot express) is a `.ts` file
+in the same directory. It sorts by the same filename order, is recorded in
+the same `schema_migrations` row, and runs under the same one-transaction
+rule as a `.sql` file.
+
+The rules that make it safe:
+
+- **Register it in `TS_MIGRATIONS`** (`server/db/migrations/runner.ts`), a
+  literal-keyed static import map, so `deno check main.ts` covers the
+  migration module. The runner throws on an unregistered `.ts` file rather
+  than skipping it: a silently skipped migration is the one failure that
+  would not announce itself.
+- **Signature is `(tx: Sql) => Promise<void>`.** `tx` is the migration
+  transaction and the only handle to the database being migrated. Every
+  statement, in the migration and in everything it calls, goes through it.
+- **Throw on failure, never `Deno.exit`.** The runner is the single rollback
+  and fail-stop funnel, exactly as it is for a `.sql` file.
+- **Another database is read through a fresh pool.** Open it with
+  `getPgConnection(id, { max: 2 })` after a `pg_database` existence check
+  through `tx`, read only by discipline, and `.end()` it in a `finally`.
+- **`./validate_migrations` ignores `.ts` files by construction** (it globs
+  `*.sql`). A `.ts` migration changes data, not schema, so the schema
+  idempotency check has nothing to say about it. Prove it by executing it
+  against a throwaway Postgres seeded with realistic legacy data, and diff
+  the resulting schema against the base so a migrated instance and a fresh
+  one converge. `./validate_consolidation_replay` is the worked example.
+- **Share the planning core with the pre-deploy gate.** When a migration is
+  risky enough to want a dry-run, factor the read-and-decide half into a
+  pure function the migration executes and the gate only reports
+  (`server/db/migrations/consolidation/plan.ts`). What is gated is then
+  the thing that runs.
+
+**Staged migrations.** A migration authored ahead of the step that activates
+it lives under `server/db/migrations/consolidation/staged/`, which the runner
+and both validate scripts never scan. Activating it means moving the file
+into `instance/` and, for a `.ts` file, adding its `TS_MIGRATIONS` entry.
 
 ---
 
