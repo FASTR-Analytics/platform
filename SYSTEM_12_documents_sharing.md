@@ -36,6 +36,7 @@ globs:
   - server/routes/project/dashboards.ts
   - server/routes/products/**
   - server/routes/public/dashboard.ts
+  - server/tests/folder_tree_test.ts
   - server/tests/products_routes_test.ts
   - server/utils/id_generation.ts
 docs_absorbed:
