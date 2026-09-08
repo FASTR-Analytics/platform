@@ -12,6 +12,8 @@ import { type DBFolder } from "../instance/_main_database_types.ts";
 export const FOLDER_CYCLE =
   "A folder cannot be moved into itself or into one of its own subfolders";
 
+export const FOLDER_NOT_FOUND = "Folder not found";
+
 function rowToFolder(row: DBFolder): Folder {
   return {
     id: row.id,
@@ -83,12 +85,16 @@ export async function updateFolder(
         `;
         if (hits.length > 0) return true;
       }
-      await sql`
+      const rows = await sql`
         UPDATE folders
         SET label = ${args.label.trim()}, color = ${args.color},
             parent_id = ${args.parentId}, last_updated = ${lastUpdated}
         WHERE id = ${folderId}
+        RETURNING id
       `;
+      if (rows.length === 0) {
+        throw new Error(FOLDER_NOT_FOUND);
+      }
       return false;
     });
     if (illegal) {
@@ -111,10 +117,15 @@ export async function deleteFolder(
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
     const freedProductIds = await mainDb.begin(async (sql) => {
-      const [row] = await sql<{ parent_id: string | null }[]>`
-        SELECT parent_id FROM folders WHERE id = ${folderId}
-      `;
-      const newParent = row?.parent_id ?? null;
+      const row = (
+        await sql<{ parent_id: string | null }[]>`
+          SELECT parent_id FROM folders WHERE id = ${folderId}
+        `
+      ).at(0);
+      if (!row) {
+        throw new Error(FOLDER_NOT_FOUND);
+      }
+      const newParent = row.parent_id;
       await sql`
         UPDATE folders SET parent_id = ${newParent}, last_updated = ${lastUpdated}
         WHERE parent_id = ${folderId}

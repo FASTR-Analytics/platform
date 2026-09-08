@@ -1,7 +1,8 @@
 import { Sql } from "postgres";
 import { type APIResponseWithData } from "lib";
 import { tryCatchDatabaseAsync } from "../utils.ts";
-import { mintSlideIds, reSequence, touchProduct } from "./slides.ts";
+import { touchProduct } from "./_product_row.ts";
+import { mintSlideIds, reSequence } from "./slides.ts";
 
 // The cross-deck reuse path: there is no figure library (D3), so copying
 // slides between decks is how a figure gets reused. Slide configs, and so
@@ -38,9 +39,10 @@ export async function copySlidesToSlideDeck(
     const lastUpdated = new Date().toISOString();
     const newSlideIds = await mintSlideIds(mainDb, args.slideIds.length);
 
-    await mainDb.begin((sql) => [
-      ...args.slideIds.map((id, i) =>
-        sql`
+    await mainDb.begin(async (sql) => {
+      await touchProduct(sql, args.targetProductId, "slide_deck", lastUpdated);
+      for (const [i, id] of args.slideIds.entries()) {
+        await sql`
           INSERT INTO slides (id, slide_deck_id, sort_order, config, last_updated)
           VALUES (
             ${newSlideIds[i]},
@@ -49,11 +51,10 @@ export async function copySlidesToSlideDeck(
             ${configById.get(id)!},
             ${lastUpdated}
           )
-        `
-      ),
-      touchProduct(sql, args.targetProductId, lastUpdated),
-      reSequence(sql, args.targetProductId),
-    ]);
+        `;
+      }
+      await reSequence(sql, args.targetProductId);
+    });
 
     return { success: true, data: { newSlideIds, lastUpdated } };
   });

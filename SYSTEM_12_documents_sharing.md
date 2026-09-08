@@ -158,12 +158,18 @@ parent inside the same transaction (`FOLDER_CYCLE`, through the envelope);
 `copy_slides.ts` (`copySlidesToSlideDeck`, the cross-deck reuse path:
 configs copied verbatim, scoped by the source product), `reports.ts` and
 `versions.ts` are the project counterparts rekeyed: every slide read and
-write is scoped by `product_id` AND `slide_id`, every content mutation bumps
-`products.last_updated` in the same transaction (`touchProduct`), the label
-lives on `products` and the detail reads join it, and the version functions
-carry the `SlideDeck` stem on the `slide_deck_versions` table
+write is scoped by `product_id` AND `slide_id`, the label lives on
+`products` and the detail reads join it, and the version functions carry
+the `SlideDeck` stem on the `slide_deck_versions` table
 (`insertSlideDeckVersion`, `latestSlideDeckVersionHash`,
-`copySlideDeckFromVersion`). `setProductRun`, the products half of the
+`copySlideDeckFromVersion`). Every detail mutation opens its transaction
+with `touchProduct` (`_product_row.ts`, which also holds the two type
+not-found constants): one `UPDATE products ... WHERE id AND type` that
+stamps `last_updated` (and the label when the write carries one) and throws
+the writer's type not-found when it matches nothing, so a missing id or a
+report id sent to a deck route rolls back with no side effect and leaves as
+a 404. `updateFolder` and `deleteFolder` throw `FOLDER_NOT_FOUND` the same
+way. `setProductRun`, the products half of the
 run delete guard and `listReadyPackages` live in
 `db/instance/run_generation.ts`. Ids mint at four characters
 (`generateUniqueProductId`, `generateUniqueSlideId`; the legacy 3-char ids
@@ -176,7 +182,9 @@ stay valid).
 `productIds`, and every registry entry declares `access`, which is the
 whole guard (S1). Handlers name only `log(...)`; a not-found envelope from
 the DB layer leaves as a 404 through `_respond.ts`, so a slide or version
-id under the wrong product is a 404. Every mutation re-reads the touched
+id under the wrong product is a 404. In `routes/products/slides.ts` the
+move route is registered before the per-slide update: both match `PUT
+.../slides/move`, and Hono runs matching handlers in registration order. Every mutation re-reads the touched
 summaries through `notifyInstanceProductsUpserted` (S3), slide writes also
 stamp `notifyInstanceLastUpdated("slides", ...)`, and package or delete
 changes re-nonce the runs catalogue. The restore routes write the safety

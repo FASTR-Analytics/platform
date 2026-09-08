@@ -10,6 +10,7 @@ import {
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import { type DBSlide } from "../instance/_main_database_types.ts";
 import { generateUniqueSlideId } from "../../utils/id_generation.ts";
+import { touchProduct } from "./_product_row.ts";
 
 // Every slide read and write is scoped by the owning product as well as the
 // slide id, so a slide id from another deck is not found here (§3.3).
@@ -126,8 +127,9 @@ export async function createSlide(
         : anchor.sort_order - 5;
     }
 
-    await mainDb.begin((sql) => [
-      sql`
+    await mainDb.begin(async (sql) => {
+      await touchProduct(sql, productId, "slide_deck", lastUpdated);
+      await sql`
         INSERT INTO slides (id, slide_deck_id, sort_order, config, last_updated)
         VALUES (
           ${slideId},
@@ -136,10 +138,9 @@ export async function createSlide(
           ${JSON.stringify(slideConfigSchema.parse(slide))},
           ${lastUpdated}
         )
-      `,
-      touchProduct(sql, productId, lastUpdated),
-      reSequence(sql, productId),
-    ]);
+      `;
+      await reSequence(sql, productId);
+    });
 
     return { success: true, data: { slideId, lastUpdated } };
   });
@@ -179,14 +180,14 @@ export async function updateSlide(
     }
 
     const lastUpdated = new Date().toISOString();
-    await mainDb.begin((sql) => [
-      sql`
+    await mainDb.begin(async (sql) => {
+      await touchProduct(sql, productId, "slide_deck", lastUpdated);
+      await sql`
         UPDATE slides
         SET config = ${JSON.stringify(slideConfigSchema.parse(slide))}, last_updated = ${lastUpdated}
         WHERE id = ${slideId} AND slide_deck_id = ${productId}
-      `,
-      touchProduct(sql, productId, lastUpdated),
-    ]);
+      `;
+    });
 
     return { success: true, data: { lastUpdated } };
   });
@@ -236,6 +237,7 @@ export async function saveSlideCheckpoint(
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
     const updated = await mainDb.begin(async (sql) => {
+      await touchProduct(sql, productId, "slide_deck", lastUpdated);
       const rows = await sql`
         UPDATE slides
         SET config = ${JSON.stringify(slide)},
@@ -245,7 +247,6 @@ export async function saveSlideCheckpoint(
         WHERE id = ${slideId} AND slide_deck_id = ${productId}
         RETURNING id
       `;
-      await touchProduct(sql, productId, lastUpdated);
       return rows.length > 0;
     });
     if (!updated) {
@@ -268,12 +269,12 @@ export async function deleteSlides(
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
     const deletedIds = await mainDb.begin(async (sql) => {
+      await touchProduct(sql, productId, "slide_deck", lastUpdated);
       const deleted = await sql<{ id: string }[]>`
         DELETE FROM slides
         WHERE slide_deck_id = ${productId} AND id = ANY(${slideIds})
         RETURNING id
       `;
-      await touchProduct(sql, productId, lastUpdated);
       await reSequence(sql, productId);
       return deleted.map((r) => r.id);
     });
@@ -304,14 +305,15 @@ export async function duplicateSlides(
     const newSlideIds = await mintSlideIds(mainDb, originals.length);
     const maxOriginalSortOrder = Math.max(...originals.map((s) => s.sort_order));
 
-    await mainDb.begin((sql) => [
-      sql`
+    await mainDb.begin(async (sql) => {
+      await touchProduct(sql, productId, "slide_deck", lastUpdated);
+      await sql`
         UPDATE slides
         SET sort_order = sort_order + ${originals.length * 10}
         WHERE slide_deck_id = ${productId} AND sort_order > ${maxOriginalSortOrder}
-      `,
-      ...originals.map((original, i) =>
-        sql`
+      `;
+      for (const [i, original] of originals.entries()) {
+        await sql`
           INSERT INTO slides (id, slide_deck_id, sort_order, config, last_updated)
           VALUES (
             ${newSlideIds[i]},
@@ -320,11 +322,10 @@ export async function duplicateSlides(
             ${original.config},
             ${lastUpdated}
           )
-        `
-      ),
-      touchProduct(sql, productId, lastUpdated),
-      reSequence(sql, productId),
-    ]);
+        `;
+      }
+      await reSequence(sql, productId);
+    });
 
     return { success: true, data: { newSlideIds, lastUpdated } };
   });
@@ -344,15 +345,6 @@ export async function mintSlideIds(db: Sql, count: number): Promise<string[]> {
     ids.push(id);
   }
   return ids;
-}
-
-// The deck-touch rule: every slide mutation bumps the product's stamp with
-// the same timestamp in the same transaction.
-export function touchProduct(sql: Sql, productId: string, lastUpdated: string) {
-  return sql`
-    UPDATE products SET last_updated = ${lastUpdated}
-    WHERE id = ${productId}
-  `;
 }
 
 export function reSequence(sql: Sql, productId: string) {

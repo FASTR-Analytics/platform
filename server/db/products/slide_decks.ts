@@ -9,12 +9,7 @@ import {
 } from "lib";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import { generateUniqueSlideId } from "../../utils/id_generation.ts";
-
-/** LOAD-BEARING message: version capture (NOT_FOUND_ERRORS in
- *  server/collab/version_capture.ts) matches it EXACTLY to tell "row is gone
- *  → drop the editing session" from "transient error → retry". Reword only
- *  in lockstep with that set. */
-export const SLIDE_DECK_NOT_FOUND = "Slide deck not found";
+import { SLIDE_DECK_NOT_FOUND, touchProduct } from "./_product_row.ts";
 
 // The deck's label lives on `products`; the config's own copy of it is only a
 // starting value for decks written before the config existed.
@@ -81,20 +76,10 @@ export async function updateSlideDeckPlan(
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
-    const updated = await mainDb.begin(async (sql) => {
-      const rows = await sql`
-        UPDATE slide_decks SET plan = ${plan} WHERE id = ${productId}
-        RETURNING id
-      `;
-      await sql`
-        UPDATE products SET last_updated = ${lastUpdated}
-        WHERE id = ${productId}
-      `;
-      return rows.length > 0;
+    await mainDb.begin(async (sql) => {
+      await touchProduct(sql, productId, "slide_deck", lastUpdated);
+      await sql`UPDATE slide_decks SET plan = ${plan} WHERE id = ${productId}`;
     });
-    if (!updated) {
-      throw new Error(SLIDE_DECK_NOT_FOUND);
-    }
     return { success: true, data: { lastUpdated } };
   });
 }
@@ -109,23 +94,14 @@ export async function updateSlideDeckConfig(
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
-    const updated = await mainDb.begin(async (sql) => {
-      const rows = await sql`
+    await mainDb.begin(async (sql) => {
+      await touchProduct(sql, productId, "slide_deck", lastUpdated, config.label);
+      await sql`
         UPDATE slide_decks
         SET config = ${JSON.stringify(slideDeckConfigSchema.parse(config))}
         WHERE id = ${productId}
-        RETURNING id
       `;
-      await sql`
-        UPDATE products
-        SET label = ${config.label}, last_updated = ${lastUpdated}
-        WHERE id = ${productId}
-      `;
-      return rows.length > 0;
     });
-    if (!updated) {
-      throw new Error(SLIDE_DECK_NOT_FOUND);
-    }
     return { success: true, data: { lastUpdated } };
   });
 }

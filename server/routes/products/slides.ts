@@ -65,6 +65,30 @@ defineRoute(
   },
 );
 
+// Registered before updateProductSlide: `PUT .../slides/move` also matches
+// `PUT .../slides/:slide_id`, and Hono runs matching handlers in registration
+// order, so the literal segment must be defined first or the update route's
+// body schema answers every move with a 400.
+defineRoute(
+  routesProductSlides,
+  "moveProductSlides",
+  log("moveProductSlides"),
+  async (c, { params, body }) => {
+    const res = await moveSlides(
+      c.var.mainDb,
+      params.product_id,
+      body.slideIds,
+      body.position,
+    );
+    if (!res.success) {
+      return respond(c, res);
+    }
+    notifyInstanceLastUpdated("slides", body.slideIds, res.data.lastUpdated);
+    await notifyInstanceProductsUpserted(c.var.mainDb, [params.product_id]);
+    return respond(c, res);
+  },
+);
+
 defineRoute(
   routesProductSlides,
   "updateProductSlide",
@@ -121,26 +145,6 @@ defineRoute(
       return respond(c, res);
     }
     notifyInstanceLastUpdated("slides", res.data.newSlideIds, res.data.lastUpdated);
-    await notifyInstanceProductsUpserted(c.var.mainDb, [params.product_id]);
-    return respond(c, res);
-  },
-);
-
-defineRoute(
-  routesProductSlides,
-  "moveProductSlides",
-  log("moveProductSlides"),
-  async (c, { params, body }) => {
-    const res = await moveSlides(
-      c.var.mainDb,
-      params.product_id,
-      body.slideIds,
-      body.position,
-    );
-    if (!res.success) {
-      return respond(c, res);
-    }
-    notifyInstanceLastUpdated("slides", body.slideIds, res.data.lastUpdated);
     await notifyInstanceProductsUpserted(c.var.mainDb, [params.product_id]);
     return respond(c, res);
   },

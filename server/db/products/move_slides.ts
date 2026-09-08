@@ -1,7 +1,8 @@
 import { Sql } from "postgres";
 import { APIResponseWithData, SlidePosition, SlideWithMeta } from "lib";
 import { tryCatchDatabaseAsync } from "../utils.ts";
-import { getSlides, touchProduct } from "./slides.ts";
+import { touchProduct } from "./_product_row.ts";
+import { getSlides } from "./slides.ts";
 
 // Within-deck reorder only: the cross-deck path is copySlidesToSlideDeck.
 export async function moveSlides(
@@ -46,15 +47,15 @@ export async function moveSlides(
       ...remaining.slice(insertIndex),
     ];
 
-    await mainDb.begin((sql) => [
-      ...reordered.map((s, i) =>
-        sql`
+    await mainDb.begin(async (sql) => {
+      await touchProduct(sql, productId, "slide_deck", lastUpdated);
+      for (const [i, s] of reordered.entries()) {
+        await sql`
           UPDATE slides SET sort_order = ${(i + 1) * 10}
           WHERE id = ${s.id} AND slide_deck_id = ${productId}
-        `
-      ),
-      touchProduct(sql, productId, lastUpdated),
-    ]);
+        `;
+      }
+    });
 
     const result = await getSlides(mainDb, productId);
     if (!result.success) throw new Error(result.err);

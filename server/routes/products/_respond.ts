@@ -1,6 +1,7 @@
 import type { Context } from "hono";
 import type { APIResponseNoData, APIResponseWithData } from "lib";
 import {
+  FOLDER_NOT_FOUND,
   PRODUCT_NOT_FOUND,
   REPORT_NOT_FOUND,
   SLIDE_DECK_NOT_FOUND,
@@ -10,6 +11,7 @@ import {
 
 const NOT_FOUND_ERRORS = new Set<string>([
   PRODUCT_NOT_FOUND,
+  FOLDER_NOT_FOUND,
   SLIDE_DECK_NOT_FOUND,
   REPORT_NOT_FOUND,
   SLIDE_NOT_FOUND,

@@ -15,13 +15,7 @@ import {
   stripTombstoneRuns,
 } from "lib";
 import { tryCatchDatabaseAsync } from "../utils.ts";
-import { touchProduct } from "./slides.ts";
-
-/** LOAD-BEARING message: version capture (NOT_FOUND_ERRORS in
- *  server/collab/version_capture.ts) matches it EXACTLY to tell "row is gone
- *  → drop the editing session" from "transient error → retry". Reword only
- *  in lockstep with that set. */
-export const REPORT_NOT_FOUND = "Report not found";
+import { REPORT_NOT_FOUND, touchProduct } from "./_product_row.ts";
 
 export function parseReportConfig(config: string | null): ReportConfig {
   if (config) {
@@ -124,10 +118,10 @@ export async function updateReportBody(
     const conflicted = !!expectedLastUpdated &&
       existing.last_updated !== expectedLastUpdated;
     const lastUpdated = new Date().toISOString();
-    await mainDb.begin((sql) => [
-      sql`UPDATE reports SET body = ${body} WHERE id = ${productId}`,
-      touchProduct(sql, productId, lastUpdated),
-    ]);
+    await mainDb.begin(async (sql) => {
+      await touchProduct(sql, productId, "report", lastUpdated);
+      await sql`UPDATE reports SET body = ${body} WHERE id = ${productId}`;
+    });
     return { success: true, data: { lastUpdated, conflicted } };
   });
 }
@@ -139,14 +133,10 @@ async function updateReportColumn(
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
-    const updated = await mainDb.begin(async (sql) => {
-      const rows = await write(sql);
-      await touchProduct(sql, productId, lastUpdated);
-      return rows.length > 0;
+    await mainDb.begin(async (sql) => {
+      await touchProduct(sql, productId, "report", lastUpdated);
+      await write(sql);
     });
-    if (!updated) {
-      throw new Error(REPORT_NOT_FOUND);
-    }
     return { success: true, data: { lastUpdated } };
   });
 }
@@ -158,10 +148,7 @@ export function updateReportFigures(
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   const parsed = JSON.stringify(reportFiguresSchema.parse(figures));
   return updateReportColumn(mainDb, productId, (sql) =>
-    sql`
-      UPDATE reports SET figures = ${parsed} WHERE id = ${productId}
-      RETURNING id
-    `);
+    sql`UPDATE reports SET figures = ${parsed} WHERE id = ${productId}`);
 }
 
 export function updateReportImages(
@@ -171,10 +158,7 @@ export function updateReportImages(
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   const parsed = JSON.stringify(reportImagesSchema.parse(images));
   return updateReportColumn(mainDb, productId, (sql) =>
-    sql`
-      UPDATE reports SET images = ${parsed} WHERE id = ${productId}
-      RETURNING id
-    `);
+    sql`UPDATE reports SET images = ${parsed} WHERE id = ${productId}`);
 }
 
 export function updateReportConfig(
@@ -184,10 +168,7 @@ export function updateReportConfig(
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   const parsed = JSON.stringify(reportConfigSchema.parse(config));
   return updateReportColumn(mainDb, productId, (sql) =>
-    sql`
-      UPDATE reports SET config = ${parsed} WHERE id = ${productId}
-      RETURNING id
-    `);
+    sql`UPDATE reports SET config = ${parsed} WHERE id = ${productId}`);
 }
 
 // The persisted Yjs CRDT state for a report (collab rooms), current only
@@ -222,8 +203,9 @@ export async function saveReportCheckpoint(
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
-    const updated = await mainDb.begin(async (sql) => {
-      const rows = await sql`
+    await mainDb.begin(async (sql) => {
+      await touchProduct(sql, productId, "report", lastUpdated);
+      await sql`
         UPDATE reports
         SET body = ${content.body},
             figures = ${JSON.stringify(content.figures)},
@@ -232,14 +214,8 @@ export async function saveReportCheckpoint(
             crdt_state_last_updated = ${crdtTrusted ? lastUpdated : null},
             body_authors = ${bodyAuthors ? JSON.stringify(bodyAuthors) : null}
         WHERE id = ${productId}
-        RETURNING id
       `;
-      await touchProduct(sql, productId, lastUpdated);
-      return rows.length > 0;
     });
-    if (!updated) {
-      throw new Error(REPORT_NOT_FOUND);
-    }
     return { success: true, data: { lastUpdated } };
   });
 }

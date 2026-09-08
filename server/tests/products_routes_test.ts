@@ -10,14 +10,19 @@
 
 import { assert, assertEquals, assertNotEquals } from "@std/assert";
 import { Hono } from "hono";
-import type { ContentSlide, GlobalUser, ProductSummary } from "lib";
+import {
+  type ContentSlide,
+  getStartingConfigForSlideDeck,
+  type GlobalUser,
+  type ProductSummary,
+} from "lib";
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
 import {
   deleteRunCatalogRow,
   getPinnedRunId,
 } from "../db/instance/run_generation.ts";
 import { closeAllConnections } from "../db/postgres/connection_manager.ts";
-import { FOLDER_CYCLE } from "../db/products/mod.ts";
+import { FOLDER_CYCLE, FOLDER_NOT_FOUND } from "../db/products/mod.ts";
 import { _BYPASS_AUTH } from "../exposed_env_vars.ts";
 import { routesFolders } from "../routes/products/folders.ts";
 import { routesProducts } from "../routes/products/products.ts";
@@ -320,6 +325,17 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
       parentId: folderA.folderId,
     });
     assertEquals(selfCycle.body, { success: false, err: FOLDER_CYCLE });
+    const missingFolder = crypto.randomUUID();
+    const missingUpdate = await call(app, "PUT", `/folders/${missingFolder}`, {
+      label: "Nobody",
+      color: null,
+      parentId: null,
+    });
+    assertEquals(missingUpdate.status, 404);
+    assertEquals(missingUpdate.body, { success: false, err: FOLDER_NOT_FOUND });
+    const missingDelete = await call(app, "DELETE", `/folders/${missingFolder}`);
+    assertEquals(missingDelete.status, 404);
+    assertEquals(missingDelete.body, { success: false, err: FOLDER_NOT_FOUND });
     await ok(app, "PUT", "/products/folder", {
       productIds: [report.productId],
       folderId: folderB.folderId,
@@ -350,6 +366,32 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
       slide: textSlide("two"),
     });
     assert(ID_ALPHABET.test(slide1.slideId), slide1.slideId);
+    const moved = await ok<{ slides: { id: string }[] }>(
+      app,
+      "PUT",
+      `/products/${deck.productId}/slides/move`,
+      { slideIds: [slide2.slideId], position: { toStart: true } },
+    );
+    assertEquals(moved.slides.map((s) => s.id), [slide2.slideId, slide1.slideId]);
+
+    // A deck write aimed at a report is a 404 with no side effect: the
+    // registry row keeps its label and stamp.
+    const reportBefore = (
+      await mainDb<{ label: string; last_updated: string }[]>`SELECT label, last_updated FROM products WHERE id = ${report.productId}`
+    )[0];
+    const crossType = await call(app, "PUT", `/products/${report.productId}/slide-deck/config`, {
+      config: getStartingConfigForSlideDeck("Overwritten"),
+    });
+    assertEquals(crossType.status, 404);
+    assertEquals(crossType.body.success, false);
+    const crossDelete = await call(app, "DELETE", `/products/${report.productId}/slides`, {
+      slideIds: [slide1.slideId],
+    });
+    assertEquals(crossDelete.status, 404);
+    const reportAfter = (
+      await mainDb<{ label: string; last_updated: string }[]>`SELECT label, last_updated FROM products WHERE id = ${report.productId}`
+    )[0];
+    assertEquals(reportAfter, reportBefore);
     const copy = await ok<{ productId: string }>(
       app,
       "POST",

@@ -35,6 +35,7 @@ import {
   generateUniqueProductId,
   generateUniqueSlideId,
 } from "../../utils/id_generation.ts";
+import { touchProduct } from "./_product_row.ts";
 import { getSlides, mintSlideIds, reSequence } from "./slides.ts";
 import { getSlideDeckDetail } from "./slide_decks.ts";
 import { getReportBodyAuthors, getReportDetail } from "./reports.ts";
@@ -277,23 +278,14 @@ export async function restoreReportContent(
       reportFiguresSchema.parse(upgradeSnapshotFigures(content.figures)),
     );
     const images = JSON.stringify(reportImagesSchema.parse(content.images));
-    const updated = await mainDb.begin(async (sql) => {
-      const rows = await sql`
+    await mainDb.begin(async (sql) => {
+      await touchProduct(sql, productId, "report", lastUpdated, content.label);
+      await sql`
         UPDATE reports
         SET body = ${content.body}, figures = ${figures}, images = ${images}
         WHERE id = ${productId}
-        RETURNING id
       `;
-      await sql`
-        UPDATE products
-        SET label = ${content.label}, last_updated = ${lastUpdated}
-        WHERE id = ${productId}
-      `;
-      return rows.length > 0;
     });
-    if (!updated) {
-      throw new Error("Report not found");
-    }
     return { success: true, data: { lastUpdated } };
   });
 }
@@ -669,39 +661,33 @@ export async function restoreSlideDeckStructure(
       JSON.stringify(slideConfigSchema.parse(s.config))
     );
 
-    await mainDb.begin((sql) => [
-      ...(plan.toDelete.length > 0
-        ? [
-          sql`
-            DELETE FROM slides
-            WHERE slide_deck_id = ${productId} AND id = ANY(${plan.toDelete})
-          `,
-        ]
-        : []),
-      ...plan.toInsert.map((s, i) =>
-        sql`
+    await mainDb.begin(async (sql) => {
+      await touchProduct(sql, productId, "slide_deck", lastUpdated, label);
+      if (plan.toDelete.length > 0) {
+        await sql`
+          DELETE FROM slides
+          WHERE slide_deck_id = ${productId} AND id = ANY(${plan.toDelete})
+        `;
+      }
+      for (const [i, s] of plan.toInsert.entries()) {
+        await sql`
           INSERT INTO slides (id, slide_deck_id, sort_order, config, last_updated)
           VALUES (${s.id}, ${productId}, ${s.sortOrder}, ${insertConfigs[i]}, ${lastUpdated})
-        `
-      ),
-      ...plan.toUpdate.map((s) =>
-        sql`
+        `;
+      }
+      for (const s of plan.toUpdate) {
+        await sql`
           UPDATE slides SET sort_order = ${s.sortOrder}
           WHERE id = ${s.id} AND slide_deck_id = ${productId}
-        `
-      ),
-      sql`
+        `;
+      }
+      await sql`
         UPDATE slide_decks
         SET config = ${JSON.stringify(parsedConfig)}
         WHERE id = ${productId}
-      `,
-      sql`
-        UPDATE products
-        SET label = ${label}, last_updated = ${lastUpdated}
-        WHERE id = ${productId}
-      `,
-      reSequence(sql, productId),
-    ]);
+      `;
+      await reSequence(sql, productId);
+    });
 
     return { success: true, data: { lastUpdated } };
   });

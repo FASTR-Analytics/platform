@@ -1,3 +1,4 @@
+export * from "./_product_row.ts";
 export * from "./products.ts";
 export * from "./folders.ts";
 export * from "./slide_decks.ts";
