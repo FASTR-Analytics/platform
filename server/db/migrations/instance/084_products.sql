@@ -24,7 +24,8 @@ CREATE TABLE IF NOT EXISTS products (
   admin_area_2 text,
   created_by text,
   created_at text,
-  last_updated text NOT NULL
+  last_updated text NOT NULL,
+  UNIQUE (id, type)
 );
 
 CREATE INDEX IF NOT EXISTS idx_products_folder_id ON products(folder_id);
@@ -33,9 +34,11 @@ CREATE INDEX IF NOT EXISTS idx_products_type ON products(type);
 CREATE INDEX IF NOT EXISTS idx_products_last_updated ON products(last_updated);
 
 CREATE TABLE IF NOT EXISTS slide_decks (
-  id text PRIMARY KEY NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  id text PRIMARY KEY NOT NULL,
+  type text NOT NULL DEFAULT 'slide_deck' CHECK (type = 'slide_deck'),
   plan text,
-  config text
+  config text,
+  FOREIGN KEY (id, type) REFERENCES products(id, type) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS slides (
@@ -53,14 +56,16 @@ CREATE INDEX IF NOT EXISTS idx_slides_slide_deck_sort ON slides(slide_deck_id, s
 CREATE INDEX IF NOT EXISTS idx_slides_last_updated ON slides(last_updated);
 
 CREATE TABLE IF NOT EXISTS reports (
-  id text PRIMARY KEY NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  id text PRIMARY KEY NOT NULL,
+  type text NOT NULL DEFAULT 'report' CHECK (type = 'report'),
   body text NOT NULL DEFAULT '',
   figures text NOT NULL DEFAULT '{}',
   images text NOT NULL DEFAULT '{}',
   config text,
   crdt_state text,
   crdt_state_last_updated text,
-  body_authors text
+  body_authors text,
+  FOREIGN KEY (id, type) REFERENCES products(id, type) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS report_versions (

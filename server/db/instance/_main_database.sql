@@ -177,7 +177,10 @@ CREATE INDEX idx_project_user_roles_project_id ON project_user_roles(project_id)
 -- metadata write bumps it in the same transaction. Folders nest through
 -- `parent_id` (an adjacency list; no stored path, no depth cap, acyclic by
 -- server enforcement). `created_by` and `created_at` are provenance, not
--- ownership; NULL on rows consolidated from the project layer.
+-- ownership; NULL on rows consolidated from the project layer. Each detail
+-- table carries a fixed `type` and a composite FK on (id, type), so a row
+-- can only exist in the detail table its registry type names; nothing
+-- forces the detail row to exist, which is the one-transaction insert rule.
 
 CREATE TABLE folders (
   id text PRIMARY KEY NOT NULL,        -- uuid
@@ -200,7 +203,8 @@ CREATE TABLE products (
   admin_area_2 text,                   -- NULL = national
   created_by text,                     -- email
   created_at text,
-  last_updated text NOT NULL
+  last_updated text NOT NULL,
+  UNIQUE (id, type)                    -- target of the detail tables' composite FK
 );
 
 CREATE INDEX idx_products_folder_id ON products(folder_id);
@@ -209,9 +213,11 @@ CREATE INDEX idx_products_type ON products(type);
 CREATE INDEX idx_products_last_updated ON products(last_updated);
 
 CREATE TABLE slide_decks (
-  id text PRIMARY KEY NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  id text PRIMARY KEY NOT NULL,
+  type text NOT NULL DEFAULT 'slide_deck' CHECK (type = 'slide_deck'),
   plan text,
-  config text
+  config text,
+  FOREIGN KEY (id, type) REFERENCES products(id, type) ON DELETE CASCADE
 );
 
 CREATE TABLE slides (
@@ -229,14 +235,16 @@ CREATE INDEX idx_slides_slide_deck_sort ON slides(slide_deck_id, sort_order);
 CREATE INDEX idx_slides_last_updated ON slides(last_updated);
 
 CREATE TABLE reports (
-  id text PRIMARY KEY NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  id text PRIMARY KEY NOT NULL,
+  type text NOT NULL DEFAULT 'report' CHECK (type = 'report'),
   body text NOT NULL DEFAULT '',
   figures text NOT NULL DEFAULT '{}',
   images text NOT NULL DEFAULT '{}',
   config text,
   crdt_state text,
   crdt_state_last_updated text,
-  body_authors text
+  body_authors text,
+  FOREIGN KEY (id, type) REFERENCES products(id, type) ON DELETE CASCADE
 );
 
 -- One row = one editing-session version: full content snapshot + the editors

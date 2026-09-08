@@ -218,7 +218,13 @@ stored path, no depth cap, acyclic by server enforcement), `products` (id,
 type in {slide_deck, report}, label, folder_id, run_id NOT NULL,
 admin_area_2, created_by, created_at, last_updated), and per-type detail
 tables keyed by the same id with `ON DELETE CASCADE` (`slide_decks` plus
-`slides` plus `slide_deck_versions`; `reports` plus `report_versions`). Rejected:
+`slides` plus `slide_deck_versions`; `reports` plus `report_versions`). Each
+detail table carries a fixed `type` column and a composite FK `(id, type)
+REFERENCES products(id, type)`, so a row can exist only in the detail table
+its registry type names (Tim's ruling, 2026-09-08). Existence of the detail
+row is not schema-enforced; it is the one-transaction rule on every writer
+that creates a product (`createProduct`, `duplicateProduct`, the two
+`copy*Version` routes, 085). Rejected:
 two independent tables each carrying folder, run and scope (every cross-type
 operation becomes a UNION); a hidden "workspace" project DB; flat folders
 (the first attempt ruled flat, built nested a day later, and the nested model
@@ -773,7 +779,8 @@ CREATE TABLE products (
   admin_area_2 text,                   -- NULL = national
   created_by text,                     -- email; NULL = pre-restructure product
   created_at text,                     -- NULL = pre-restructure product
-  last_updated text NOT NULL           -- THE product version (content or metadata)
+  last_updated text NOT NULL,          -- THE product version (content or metadata)
+  UNIQUE (id, type)                    -- target of the detail tables' composite FK
 );
 CREATE INDEX idx_products_folder_id ON products(folder_id);
 CREATE INDEX idx_products_run_id ON products(run_id);
@@ -781,9 +788,11 @@ CREATE INDEX idx_products_type ON products(type);
 CREATE INDEX idx_products_last_updated ON products(last_updated);
 
 CREATE TABLE slide_decks (            -- detail: type = 'slide_deck'
-  id text PRIMARY KEY NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  id text PRIMARY KEY NOT NULL,
+  type text NOT NULL DEFAULT 'slide_deck' CHECK (type = 'slide_deck'),
   plan text,
-  config text
+  config text,
+  FOREIGN KEY (id, type) REFERENCES products(id, type) ON DELETE CASCADE
 );
 
 CREATE TABLE slides (
@@ -800,14 +809,16 @@ CREATE INDEX idx_slides_slide_deck_sort ON slides(slide_deck_id, sort_order);
 CREATE INDEX idx_slides_last_updated ON slides(last_updated);
 
 CREATE TABLE reports (                -- detail: type = 'report'
-  id text PRIMARY KEY NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  id text PRIMARY KEY NOT NULL,
+  type text NOT NULL DEFAULT 'report' CHECK (type = 'report'),
   body text NOT NULL DEFAULT '',
   figures text NOT NULL DEFAULT '{}',
   images text NOT NULL DEFAULT '{}',
   config text,
   crdt_state text,
   crdt_state_last_updated text,
-  body_authors text
+  body_authors text,
+  FOREIGN KEY (id, type) REFERENCES products(id, type) ON DELETE CASCADE
 );
 
 CREATE TABLE report_versions ( ... report_id REFERENCES reports(id) ON DELETE CASCADE ... );
@@ -2051,6 +2062,7 @@ this section before its step.
 | 2026-09-08 | 1 | `lib/types/scope.ts` is claimed by SYSTEM_12, as the step's Surface says; the reference claimed it under SYSTEM_09. |
 | 2026-09-08 | 1 | Step 1 built. |
 | 2026-09-08 | 1 | Tim's ruling, applied in a second commit: the version table is `slide_deck_versions` with `slide_deck_id` and `slide_deck_config` (was `deck_versions`, `deck_id`, `deck_config`), and the three related indexes follow (`idx_slides_slide_deck_id`, `idx_slides_slide_deck_sort`, `idx_slide_deck_versions_slide_deck`). The naming rule is now in §0 and every plan mention was rewritten (D1, D4, D9, §3.1, §3.3, §3.10, step 5). 084 was amended in place rather than followed by a rename migration, because it had been applied only to the dev database; dev was reset by dropping `deck_versions` and the 084 row of `schema_migrations`, then booting. |
+| 2026-09-08 | 1 | Tim's ruling, applied in a third commit: `products` gains `UNIQUE (id, type)`, and `slide_decks` and `reports` each gain a fixed `type` column (`CHECK`, defaulted) with a composite FK `(id, type) REFERENCES products(id, type) ON DELETE CASCADE` in place of the single-column FK. A detail row can now exist only in the table its registry type names. Detail-row existence stays a writer rule (D1). Step 5's `DBSlideDeck` and `DBReport` row types carry `type`; its inserts may omit it (the default fills it). Dev was reset by dropping the seven product tables and the 084 row, then booting. |
 
 ---
 
