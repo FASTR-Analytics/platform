@@ -5,7 +5,7 @@ globs:
   - client/src/exports/**
   - client/src/generate_slide_deck/**
   - client/src/generate_visualization/**
-  - client/src/state/project/t2_images.ts
+  - client/src/state/products/t2_images.ts
   - lib/brand_presets.ts
   - lib/indicator_format_metrics.ts
   - lib/indicator_value_scale.ts
@@ -37,7 +37,7 @@ compile path, `GLOBAL_STYLE_OPTIONS`);
 `generate_slide_deck/**` (`convertSlideToPageInputs`); `client/src/exports/**`
 (incl. `get_table_export_aoa.ts`); lib render contracts (`_figure_bundle.ts`,
 `brand_presets.ts`, `key_colors.ts`, slide-font types);
-`state/project/t2_images.ts`; the two schema and predicate pins under
+`state/products/t2_images.ts`; the two schema and predicate pins under
 `server/tests/` (`figure_bundle_schema_test.ts`, `figure_staleness_test.ts`).
 Non-lint assets reviewed here:
 `client/src/font-map.json` and `client/public/fonts/` (102 font files plus
@@ -681,7 +681,7 @@ aborts the slide.
 
 ## Image cache, fonts, brand contracts
 
-**Image cache** ([t2_images.ts](client/src/state/project/t2_images.ts), one
+**Image cache** ([t2_images.ts](client/src/state/products/t2_images.ts), one
 export `getImgFromCacheOrFetch`): a `TimCacheD("img_cache")`, an in-memory LRU
 (100) over IndexedDB, keyed by URL with `versionHash = url` and `"any_version"`
 reads, so an entry never invalidates (Open item). 30s abort-timeout, 3 retries

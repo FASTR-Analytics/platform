@@ -26,6 +26,9 @@ globs:
   - client/src/components/slide_deck/slide_editor/**
   - client/src/components/slide_deck/slide_transforms/**
   - client/src/components/slide_deck/style_editor/**
+  - client/src/state/products/t2_report_detail.ts
+  - client/src/state/products/t2_slide_deck_detail.ts
+  - client/src/state/products/t2_slides.ts
   - client/src/state/project/t2_dashboards.ts
   - client/src/state/project/t2_slide_decks.ts
   - client/src/state/project/t2_slides.ts

@@ -1,4 +1,8 @@
-import type { InstanceSseMessage, RunProgress } from "lib";
+import type {
+  InstanceSseMessage,
+  ProductLastUpdateTableName,
+  RunProgress,
+} from "lib";
 import { t3 } from "lib";
 import { Show, batch, on, createEffect, type JSX } from "solid-js";
 import { onMount, onCleanup, createSignal } from "solid-js";
@@ -10,8 +14,9 @@ import {
   resetInstanceState,
   updateInstanceConfig,
   updateInstanceFolders,
+  updateInstanceLastUpdated,
   updateInstanceProjects,
-  updateInstanceSlideLastUpdated,
+  updateInstanceReadyPackages,
   upsertInstanceProducts,
   removeInstanceProducts,
   updateInstanceUsers,
@@ -62,6 +67,35 @@ export function addInstanceRScriptListener(
   return () => rScriptListeners.delete(listener);
 }
 
+// The sanctioned imperative side-channel (S3, PROTOCOL_APP_STATE): entity
+// change notification for consumers that must react to a stamp WITHOUT
+// subscribing to the store (an editor keeping its optimistic-save timestamp
+// fresh). Fires for both stamp carriers: the `last_updated` message (slides)
+// and the per-row `products_upserted` summary, whose own `lastUpdated` IS the
+// products table's stamp.
+type LastUpdatedListener = (
+  tableName: ProductLastUpdateTableName,
+  ids: string[],
+  timestamp: string,
+) => void;
+
+const lastUpdatedListeners = new Set<LastUpdatedListener>();
+
+export function addLastUpdatedListener(listener: LastUpdatedListener): () => void {
+  lastUpdatedListeners.add(listener);
+  return () => lastUpdatedListeners.delete(listener);
+}
+
+function fireLastUpdatedListeners(
+  tableName: ProductLastUpdateTableName,
+  ids: string[],
+  timestamp: string,
+): void {
+  for (const listener of lastUpdatedListeners) {
+    listener(tableName, ids, timestamp);
+  }
+}
+
 // Retries never give up: past the threshold the ladder keeps trying at the
 // capped delay forever (a dead connection would otherwise freeze T1 behind a
 // working-looking UI, with `isReady` never unset). The threshold only decides
@@ -79,6 +113,11 @@ let evtSource: EventSource | null = null;
 let retryTimeoutId: ReturnType<typeof setTimeout> | null = null;
 let connectionAttempts = 0;
 let shouldBeConnected = false;
+// Was the CURRENT connection admitted as an approved user? The server withholds
+// products, folders, ready packages and the roster from an unapproved
+// connection, and it decides that once, at connect. So an approval that lands
+// mid-session needs a new connection, not just a store update (D8).
+let connectedAsApproved = false;
 
 const [connectionDown, setConnectionDown] = createSignal(false);
 
@@ -139,6 +178,10 @@ export function connectInstanceSSE(): void {
     batch(() => {
       switch (msg.type) {
         case "starting":
+          // Recorded BEFORE the store write: the approval effect below reads
+          // it to tell "opened unapproved, needs a fresh payload" from
+          // "already approved, nothing to redo".
+          connectedAsApproved = msg.data.currentUserApproved;
           initInstanceState(msg.data);
           preloadGeoJson(msg.data.geojsonMaps);
           break;
@@ -150,6 +193,9 @@ export function connectInstanceSSE(): void {
           break;
         case "products_upserted":
           upsertInstanceProducts(msg.data.products);
+          for (const product of msg.data.products) {
+            fireLastUpdatedListeners("products", [product.id], product.lastUpdated);
+          }
           break;
         case "products_deleted":
           removeInstanceProducts(msg.data.ids);
@@ -158,7 +204,16 @@ export function connectInstanceSSE(): void {
           updateInstanceFolders(msg.data.folders);
           break;
         case "last_updated":
-          updateInstanceSlideLastUpdated(msg.data.ids, msg.data.lastUpdated);
+          updateInstanceLastUpdated(
+            msg.data.tableName,
+            msg.data.ids,
+            msg.data.lastUpdated,
+          );
+          fireLastUpdatedListeners(
+            msg.data.tableName,
+            msg.data.ids,
+            msg.data.lastUpdated,
+          );
           break;
         case "users_updated":
           updateInstanceUsers(msg.data);
@@ -233,8 +288,19 @@ export function disconnectInstanceSSE(): void {
     evtSource = null;
   }
   connectionAttempts = 0;
+  connectedAsApproved = false;
   setConnectionDown(false);
   resetInstanceState();
+}
+
+// The unapproved to approved transition (D8). Everything approval unlocks is
+// decided per CONNECTION server-side, so re-open it. The reset inside the
+// disconnect flips `currentUserApproved` back to false for one tick; the
+// approval effect below no-ops on that and re-runs when the new `starting`
+// payload lands.
+export function reconnectForApproval(): void {
+  disconnectInstanceSSE();
+  connectInstanceSSE();
 }
 
 // ============================================================================
@@ -244,6 +310,49 @@ export function disconnectInstanceSSE(): void {
 export function InstanceSSEBoundary(p: { children: JSX.Element }) {
   onMount(() => connectInstanceSSE());
   onCleanup(() => disconnectInstanceSSE());
+
+  // Approval is decided per connection (see connectedAsApproved). No `defer`:
+  // an already-approved user's first `starting` records true and does
+  // nothing here. Nothing DISCONNECTS on a false reading: `currentUserApproved`
+  // goes false transiently on every reconnect (the store reset), and a real
+  // de-approval is closed server-side, which is the authority anyway.
+  createEffect(on(
+    () => instanceState.currentUserApproved,
+    (approved) => {
+      if (approved && !connectedAsApproved) {
+        reconnectForApproval();
+      }
+    },
+  ));
+
+  // Ready packages: the `runsCatalog` idiom exactly (D8, §3.4): filled by
+  // `starting`, refetched on the EXISTING `runs_catalog_updated` nonce, no
+  // message type of its own. Unlike the catalogue below it is gated on
+  // APPROVAL, not on can_configure_data: a ready package's label is what
+  // every product card and the package picker show (the deliberate revision
+  // of Q-B, `lib/types/instance_sse.ts`). Tracking the flag live means an
+  // approval also fills the list without waiting for the next nonce.
+  createEffect(on(
+    () => [instanceState.runsCatalogSignal, instanceState.currentUserApproved] as const,
+    () => {
+      const controller = new AbortController();
+      onCleanup(() => controller.abort());
+
+      if (!instanceState.currentUserApproved) {
+        updateInstanceReadyPackages([]);
+        return;
+      }
+      serverActions.listReadyPackages({}).then((res) => {
+        if (controller.signal.aborted) return;
+        if (res.success) {
+          updateInstanceReadyPackages(res.data);
+        } else {
+          console.error("Failed to fetch ready packages:", res.err);
+        }
+      });
+    },
+    { defer: true }
+  ));
 
   // Refetch projects when version changes
   // defer: true skips initial run (starting message already has correct projects)

@@ -1,12 +1,17 @@
 import { del, get, keys, set } from "idb-keyval";
-import type { APIResponseWithData, ProjectState } from "lib";
+import type { APIResponseWithData, InstanceState, ProjectState } from "lib";
+import { getSnapshotInstanceState } from "~/state/instance/t1_store";
 import { getSnapshotProjectState } from "~/state/project/t1_store";
 
 /**
- * Reactive Cache System - Context-Aware Caching with ProjectState Integration
+ * Reactive Cache System - version-keyed caching off a T1 store
  *
- * This cache system automatically reads ProjectState from Solid.js context,
- * eliminating the need for manual version threading throughout the application.
+ * The cache reads a T1 store itself, so no consumer has to thread a version
+ * through the call chain: a version-key callback names the store field that
+ * invalidates the entry, and SSE flipping that field re-keys every read. Two
+ * version sources exist until PLAN_PRODUCTS_RESTRUCTURE step 9a deletes the
+ * project store: `versionKey` reads the project store (the project-keyed
+ * caches), `instanceVersionKey` reads the instance store (the product caches).
  *
  * Key features:
  * - Auto-hashing from key arrays (no manual .join("|"))
@@ -37,18 +42,9 @@ type UnresolvedPayload<T> = {
   dataPromise: Promise<APIResponseWithData<T>>;
 };
 
-export type ReactiveCacheConfig<Params, Data> = {
-  /** Cache name - used as IndexedDB key prefix */
-  name: string;
-
-  /** Extract uniqueness keys from params - will be auto-hashed */
-  uniquenessKeys: (params: Params) => (string | number | undefined)[];
-
+type ProjectVersioned<Params, Data> = {
   /** Extract version from params + PDS - version is part of cache key */
   versionKey: (params: Params, pds: ProjectState) => string;
-
-  /** Max number of entries in memory cache (LRU eviction). Default: 100 */
-  maxSize?: number;
 
   /** Set to true if this cache doesn't require PDS (e.g., instance-level caches). Default: false */
   pdsNotRequired?: boolean;
@@ -68,6 +64,25 @@ export type ReactiveCacheConfig<Params, Data> = {
    * recomputes both hashes from the response for the same reason.
    */
   responseMatchesVersion?: (data: Data, version: string) => boolean;
+};
+
+type InstanceVersioned<Params> = {
+  /** Extract version from params + the instance store - version is part of
+   *  the cache key. There is no readiness gate: a field the store has not
+   *  received yet yields the "unknown" sentinel, which setPromise refuses to
+   *  persist. */
+  instanceVersionKey: (params: Params, ins: InstanceState) => string;
+};
+
+export type ReactiveCacheConfig<Params, Data> = {
+  /** Cache name - used as IndexedDB key prefix */
+  name: string;
+
+  /** Extract uniqueness keys from params - will be auto-hashed */
+  uniquenessKeys: (params: Params) => (string | number | undefined)[];
+
+  /** Max number of entries in memory cache (LRU eviction). Default: 100 */
+  maxSize?: number;
 
   /**
    * Payload-side storability guard. A SUCCESSFUL response can still embed a
@@ -76,7 +91,7 @@ export type ReactiveCacheConfig<Params, Data> = {
    * memory/IndexedDB, so the next request retries.
    */
   shouldStore?: (data: Data) => boolean;
-};
+} & (ProjectVersioned<Params, Data> | InstanceVersioned<Params>);
 
 export interface ReactiveCache<Params, Data> {
   get(params: Params): Promise<{ data: Data | undefined; version: string; isInflight?: boolean }>;
@@ -91,7 +106,7 @@ export interface ReactiveCache<Params, Data> {
 }
 
 /**
- * Create a reactive cache that reads ProjectState from context
+ * Create a reactive cache that reads its version source T1 store itself
  */
 export function createReactiveCache<Params, Data>(
   config: ReactiveCacheConfig<Params, Data>,
@@ -108,12 +123,21 @@ export function createReactiveCache<Params, Data>(
       .join("|");
   }
 
-  /** Get cache key from params + PDS */
-  function getCacheKey(params: Params, pds: ProjectState): string {
-    const uniquenessHash = hashKeys(config.uniquenessKeys(params));
-    const versionHash = config.versionKey(params, pds);
-    // Version is PART of the key - different version = different key = automatic miss
-    return `${uniquenessHash}::${versionHash}`;
+  /** The version this read is keyed under, from whichever store the cache
+   *  declares. Non-reactive snapshots (unwrap-based; safe in async contexts):
+   *  both stores are always initialized, "not connected" is just the
+   *  not-ready empty state. */
+  function currentVersion(params: Params): string {
+    if ("instanceVersionKey" in config) {
+      return config.instanceVersionKey(params, getSnapshotInstanceState());
+    }
+    const pds = getSnapshotProjectState();
+    if (!pds.isReady && !config.pdsNotRequired) {
+      return "pds_not_ready";
+    }
+    // pdsNotRequired: versionKey is called with the not-ready store and
+    // must not depend on pds.
+    return config.versionKey(params, pds);
   }
 
   /** Get IndexedDB key */
@@ -147,21 +171,12 @@ export function createReactiveCache<Params, Data>(
   async function getCached(
     params: Params,
   ): Promise<{ data: Data | undefined; version: string; isInflight?: boolean }> {
-    // Non-reactive snapshot (unwrap-based; safe in async contexts). Never
-    // undefined: the t1 store is always initialized; "no project open" is
-    // just the not-ready EMPTY_PROJECT_STATE.
-    const pds = getSnapshotProjectState();
-
-    if (!pds.isReady) {
-      if (!config.pdsNotRequired) {
-        return { data: undefined, version: "pds_not_ready" };
-      }
-      // pdsNotRequired: versionKey is called with the not-ready store and
-      // must not depend on pds.
+    const version = currentVersion(params);
+    if (version === "pds_not_ready") {
+      return { data: undefined, version };
     }
-
-    const version = config.versionKey(params, pds);
-    const cacheKey = getCacheKey(params, pds);
+    // Version is PART of the key - different version = different key = automatic miss
+    const cacheKey = `${hashKeys(config.uniquenessKeys(params))}::${version}`;
 
     // Check memory cache
     const existingInMemory = _resolved.get(cacheKey);
@@ -257,6 +272,7 @@ export function createReactiveCache<Params, Data>(
       }
 
       if (
+        "responseMatchesVersion" in config &&
         config.responseMatchesVersion !== undefined &&
         !config.responseMatchesVersion(response.data, version)
       ) {

@@ -13,8 +13,10 @@ import type {
   AssetInfo,
   GeoJsonMapSummary,
   OtherUser,
+  ProductLastUpdateTableName,
   ProjectSummary,
   FigureLocalization,
+  ReadyPackage,
   RunCatalogItem,
 } from "lib";
 
@@ -97,6 +99,15 @@ export { instanceState };
 // Snapshot-read getters (for caches and async code): named getSnapshot*
 // ============================================================================
 
+// The whole store, unwrapped, for the T2 caches' version-key callbacks: they
+// run inside async code, where a tracked read would subscribe the caller's
+// effect to fields it never asked for. A consumer inside a createEffect must
+// still make its own TRACKED read of the version field on the live
+// `instanceState` proxy before its first await.
+export function getSnapshotInstanceState(): InstanceState {
+  return unwrap(instanceState);
+}
+
 export function getSnapshotInstanceLocalization(): FigureLocalization {
   const s = unwrap(instanceState);
   return {
@@ -171,8 +182,7 @@ export function updateInstanceProjects(projects: ProjectSummary[]): void {
 }
 
 // ============================================================================
-// Products, folders, ready packages (PLAN_PRODUCTS_RESTRUCTURE D8; stored
-// here from step 5, read from 7a)
+// Products, folders, ready packages (PLAN_PRODUCTS_RESTRUCTURE D8)
 // ============================================================================
 
 // PER ROW, never a list replacement: `products_upserted` carries only the
@@ -212,13 +222,29 @@ export function updateInstanceFolders(folders: Folder[]): void {
   setInstanceState("folders", reconcile(folders));
 }
 
-export function updateInstanceSlideLastUpdated(
+export function updateInstanceReadyPackages(packages: ReadyPackage[]): void {
+  setInstanceState("readyPackages", reconcile(packages));
+}
+
+// The cache-version index (S3's last_updated to SSE to cache triangle). The
+// message carries `slides` only: a product's own stamp arrives on its
+// `products_upserted` summary and is written by upsertInstanceProducts.
+export function updateInstanceLastUpdated(
+  tableName: ProductLastUpdateTableName,
   ids: string[],
   lastUpdated: string,
 ): void {
   for (const id of ids) {
-    setInstanceState("lastUpdated", "slides", id, lastUpdated);
+    setInstanceState("lastUpdated", tableName, id, lastUpdated);
   }
+}
+
+// Live derived lookup: the editors read their product's label, package and
+// scope from the T1 row (D16), never from a snapshot taken at open, so a
+// reattach or scope change mid-edit moves the figure data and the authoring
+// context together and lights the stale badges.
+export function productById(id: string): ProductSummary | undefined {
+  return instanceState.products.find((p) => p.id === id);
 }
 
 export function updateProjectsLastUpdated(lastUpdated: string): void {

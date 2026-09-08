@@ -4,6 +4,7 @@ name: API Contract, Transport & Access Control
 globs:
   - client/src/components/LoggedInWrapper.tsx
   - client/src/server_actions/**
+  - client/src/state/instance/product_access.ts
   - lib/api-routes/**
   - lib/h_users.ts
   - lib/server_actions/**
