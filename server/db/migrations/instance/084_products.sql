@@ -48,8 +48,8 @@ CREATE TABLE IF NOT EXISTS slides (
   crdt_state_last_updated text
 );
 
-CREATE INDEX IF NOT EXISTS idx_slides_deck_id ON slides(slide_deck_id);
-CREATE INDEX IF NOT EXISTS idx_slides_deck_sort ON slides(slide_deck_id, sort_order);
+CREATE INDEX IF NOT EXISTS idx_slides_slide_deck_id ON slides(slide_deck_id);
+CREATE INDEX IF NOT EXISTS idx_slides_slide_deck_sort ON slides(slide_deck_id, sort_order);
 CREATE INDEX IF NOT EXISTS idx_slides_last_updated ON slides(last_updated);
 
 CREATE TABLE IF NOT EXISTS reports (
@@ -79,12 +79,12 @@ CREATE TABLE IF NOT EXISTS report_versions (
 
 CREATE INDEX IF NOT EXISTS idx_report_versions_report ON report_versions(report_id, created_at DESC);
 
-CREATE TABLE IF NOT EXISTS deck_versions (
+CREATE TABLE IF NOT EXISTS slide_deck_versions (
   id text PRIMARY KEY NOT NULL,
-  deck_id text NOT NULL REFERENCES slide_decks(id) ON DELETE CASCADE,
+  slide_deck_id text NOT NULL REFERENCES slide_decks(id) ON DELETE CASCADE,
   created_at text NOT NULL,
   label text NOT NULL,
-  deck_config text NOT NULL,
+  slide_deck_config text NOT NULL,
   slides text NOT NULL,
   editors text NOT NULL DEFAULT '[]',
   content_hash text NOT NULL,
@@ -92,4 +92,4 @@ CREATE TABLE IF NOT EXISTS deck_versions (
   slide_editors text
 );
 
-CREATE INDEX IF NOT EXISTS idx_deck_versions_deck ON deck_versions(deck_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_slide_deck_versions_slide_deck ON slide_deck_versions(slide_deck_id, created_at DESC);

@@ -120,7 +120,7 @@ self-reference), `products` (id, `type` in {`slide_deck`, `report`}, label,
 `folder_id`, `run_id NOT NULL` referencing `runs` without cascade,
 `admin_area_2`, `created_by`, `created_at`, `last_updated`), and per-type
 detail tables keyed by the same id with `ON DELETE CASCADE` (`slide_decks`
-plus `slides` plus `deck_versions`; `reports` plus `report_versions`). Row
+plus `slides` plus `slide_deck_versions`; `reports` plus `report_versions`). Row
 types for the registry are `DBFolder` and `DBProduct` in
 `server/db/instance/_main_database_types.ts`; the detail tables have no row
 types yet, because the project-DB `DBSlideDeck`, `DBSlide`, `DBReport`,

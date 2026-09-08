@@ -84,7 +84,7 @@ await runProjectMigrations(projectDb); // then migrations, so base + migrations 
 ```
 
 The products block on `main` (`folders`, `products`, `slide_decks`,
-`slides`, `reports`, `report_versions`, `deck_versions`) is in the base
+`slides`, `reports`, `report_versions`, `slide_deck_versions`) is in the base
 schema and, for existing instances, in `084_products.sql` in `IF NOT EXISTS`
 form. Nothing reads or writes it yet
 ([SYSTEM_12](SYSTEM_12_documents_sharing.md)).

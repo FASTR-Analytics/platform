@@ -140,6 +140,23 @@ manifest (`deriveDefaultVisualizationsForModule`); **authoring context** =
 what an author needs from a package to build figures (metrics, modules,
 indicators, taxonomy, presets), a pure function of the run dir.
 
+**Naming rule for the slide-deck type (Tim, 2026-09-08).** The identifier
+stem is `slide_deck` / `SlideDeck` / `slide-deck` in every name that
+denotes the type, its tables, its columns, its row and lib types, its DB
+functions and its route paths: `slide_decks`, `slide_deck_versions`,
+`slides.slide_deck_id`, `slide_deck_versions.slide_deck_id`,
+`slide_deck_versions.slide_deck_config`, `DBSlideDeckVersion`,
+`SlideDeckVersionSummary`, `insertSlideDeckVersion`,
+`/products/:product_id/slide-deck/...`, `copySlidesToSlideDeck`. The bare
+word "deck" is for prose and UI copy only ("New deck", "Copy to deck…"),
+never a schema or code identifier, and `deckId` / `deckConfig` local
+shorthand is not carried into new code. Existing `Deck*` identifiers in live
+project code (`lib/types/versions.ts`, `server/db/project/versions.ts`,
+the client) are renamed in the step that rebuilds them on the new tables,
+never earlier. The legacy project-DB `deck_versions` (`deck_id`,
+`deck_config`) keeps its name until 9b deletes it; the step 2 planner maps
+those columns onto `slide_deck_versions`.
+
 ---
 
 ## 1. Boundary: the product plane and the package read side
@@ -201,7 +218,7 @@ stored path, no depth cap, acyclic by server enforcement), `products` (id,
 type in {slide_deck, report}, label, folder_id, run_id NOT NULL,
 admin_area_2, created_by, created_at, last_updated), and per-type detail
 tables keyed by the same id with `ON DELETE CASCADE` (`slide_decks` plus
-`slides` plus `deck_versions`; `reports` plus `report_versions`). Rejected:
+`slides` plus `slide_deck_versions`; `reports` plus `report_versions`). Rejected:
 two independent tables each carrying folder, run and scope (every cross-type
 operation becomes a UNION); a hidden "workspace" project DB; flat folders
 (the first attempt ruled flat, built nested a day later, and the nested model
@@ -274,7 +291,7 @@ resolution, the three dashboard exports, the slug backfill). **Existing
 custom visualizations and dashboards fleet-wide are deleted by the
 consolidation, not converted (Tim's ruling).** Consequences named: there is
 no figure library (reuse = `duplicateSlides` within a deck, deck duplicate,
-and the new `copySlidesToDeck`, §3.3); there is no unauthenticated surface
+and the new `copySlidesToSlideDeck`, §3.3); there is no unauthenticated surface
 left (dashboards were the only public URL; a deck reaches recipients as an
 emailed PDF, and a report is downloaded by the signed-in user; a public deck
 link is a later, far smaller feature if wanted); the
@@ -303,7 +320,7 @@ never a global store (the first attempt's first behavioural defect: an
 export of an AA2 product's figure labelled its roll-up row "National"). The
 consolidation stamps both fields from the owning project row into every
 figure block in the live tables (slides, reports) AND the version snapshots
-(`report_versions.figures`, `deck_versions.slides[].config`); the restore
+(`report_versions.figures`, `slide_deck_versions.slides[].config`); the restore
 paths parse snapshots with the strict schema, so a missing key is the
 intended fail-loud once the consolidation has run. Scope stays OUT of the
 figure config and the fetch hash (the S9/S10 rule). **Sequencing (new in
@@ -448,8 +465,8 @@ record it in §9.
   1. Assert the source `schema_migrations` holds the latest project
      migration id, today **`041_drop_frozen_results_plane`**, else throw
      ("boot the previous release first").
-  2. Copy `slide_decks`, `slides`, `deck_versions`, `reports` and
-     `report_versions`, stamping `run_id` (the project's, else the pin; D5)
+  2. Copy `slide_decks`, `slides`, `deck_versions` (into
+     `slide_deck_versions`), `reports` and `report_versions`, stamping `run_id` (the project's, else the pin; D5)
      and `admin_area_2` from the project row.
   3. Create folders per D10.
   4. Leave `created_by` and `created_at` NULL on the products and on the
@@ -457,10 +474,10 @@ record it in §9.
   5. Concatenate `ai_context` into `instance_config.ai_context` under
      `## <label>` headings (D15).
   6. **Check every inserted primary key for collision** (`products`,
-     `slides`, `report_versions`, `deck_versions`; WITH-TEMPLATE copies carry
+     `slides`, `report_versions`, `slide_deck_versions`; WITH-TEMPLATE copies carry
      byte-identical ids, uuids included). Re-mint on collision and rewrite
      the full reference surface: `slides.slide_deck_id`,
-     `deck_versions.deck_id` plus `slides[].id` plus the `slide_editors`
+     `slide_deck_versions.slide_deck_id` plus `slides[].id` plus the `slide_editors`
      keys JSON, `report_versions.report_id`, `*.restored_from_version_id`.
   7. Stamp `bundle.scope` and `provenance.runId` into every figure block in
      the live tables AND the version tables (D4).
@@ -778,8 +795,8 @@ CREATE TABLE slides (
   crdt_state text,
   crdt_state_last_updated text
 );
-CREATE INDEX idx_slides_deck_id ON slides(slide_deck_id);
-CREATE INDEX idx_slides_deck_sort ON slides(slide_deck_id, sort_order);
+CREATE INDEX idx_slides_slide_deck_id ON slides(slide_deck_id);
+CREATE INDEX idx_slides_slide_deck_sort ON slides(slide_deck_id, sort_order);
 CREATE INDEX idx_slides_last_updated ON slides(last_updated);
 
 CREATE TABLE reports (                -- detail: type = 'report'
@@ -795,8 +812,8 @@ CREATE TABLE reports (                -- detail: type = 'report'
 
 CREATE TABLE report_versions ( ... report_id REFERENCES reports(id) ON DELETE CASCADE ... );
 CREATE INDEX idx_report_versions_report ON report_versions(report_id, created_at DESC);
-CREATE TABLE deck_versions   ( ... deck_id REFERENCES slide_decks(id) ON DELETE CASCADE ... );
-CREATE INDEX idx_deck_versions_deck ON deck_versions(deck_id, created_at DESC);
+CREATE TABLE slide_deck_versions ( ... slide_deck_id REFERENCES slide_decks(id) ON DELETE CASCADE, slide_deck_config ... );
+CREATE INDEX idx_slide_deck_versions_slide_deck ON slide_deck_versions(slide_deck_id, created_at DESC);
 ```
 
 Rules of the shape:
@@ -906,13 +923,13 @@ Rules of the shape:
   folder; clones `(run_id, admin_area_2)`, per-type body),
   `listAttachableResultsPackages` (instance, approved).
 - Per-type content routes, all under the product: decks `GET
-  /products/:product_id/deck` (`getSlideDeckDetail`), `PUT .../deck/plan`,
-  `PUT .../deck/config`, `GET .../deck/versions`, `GET
-  .../deck/versions/:version_id`, `POST .../deck/versions/:version_id/
-  {restore,copy}`; slides `GET .../slides`, `GET .../slides/:slide_id`,
+  /products/:product_id/slide-deck` (`getSlideDeckDetail`), `PUT
+  .../slide-deck/plan`, `PUT .../slide-deck/config`, `GET
+  .../slide-deck/versions`, `GET .../slide-deck/versions/:version_id`, `POST
+  .../slide-deck/versions/:version_id/{restore,copy}`; slides `GET .../slides`, `GET .../slides/:slide_id`,
   `POST .../slides`, `PUT .../slides/:slide_id`, `DELETE .../slides`, `POST
   .../slides/duplicate`, `PUT .../slides/move`, and the new `POST
-  .../slides/copy-to-deck` (`copySlidesToDeck`, body `{ slideIds,
+  .../slides/copy-to-slide-deck` (`copySlidesToSlideDeck`, body `{ slideIds,
   targetProductId }`; view on the source, edit on the target; bundles copied
   verbatim, so they show stale under the target if the pairs differ; D4);
   reports `GET /products/:product_id/report` (`getReportDetail`), `PUT
@@ -947,7 +964,7 @@ Rules of the shape:
   mount removed; `app.tsx` `/d/:slug` route removed.
 - `renameUserEmail`: the per-project sweep becomes a main-DB sweep over
   `products.created_by`, `folders.created_by`, `report_versions.editors`,
-  `deck_versions.editors`,
+  `slide_deck_versions.editors`,
   `body_authors`; `RenameEmailResult` loses `projectsUpdated/projectsFailed`;
   `change_email_modal.tsx` retry UI follows; the fleet orchestrator consumes
   the new shape (§7).
@@ -1161,7 +1178,7 @@ re-exports `./project/mod.ts`):
 | `purgeExpiredProjects` | `projects.ts` | `main.ts` | dies (D12) |
 | `getProjectDetail` | `projects.ts` | `task_management/build_project_state.ts` | dies (D8); its manifest projection is the model for `buildRunAuthoringContext` |
 | `getDashboardDetail` | `dashboards.ts` | `routes/public/dashboard.ts` | dies (D3) |
-| `getReportDetail`, `getReportBodyAuthors`, `stripPersistedBodyAuthorTombstones`, `REPORT_NOT_FOUND`, `getSlideDeckDetail`, `SLIDE_DECK_NOT_FOUND`, `getSlides`, `insertDeckVersion`, `insertReportVersion`, `latestDeckVersionHash`, `latestReportVersionHash` | `reports.ts`, `slide_decks.ts`, `slides.ts`, `versions.ts` | `server/collab/version_capture.ts` | `server/db/products/*` (step 5 builds them; 7a repoints `version_capture`) |
+| `getReportDetail`, `getReportBodyAuthors`, `stripPersistedBodyAuthorTombstones`, `REPORT_NOT_FOUND`, `getSlideDeckDetail`, `SLIDE_DECK_NOT_FOUND`, `getSlides`, `insertDeckVersion`, `insertReportVersion`, `latestDeckVersionHash`, `latestReportVersionHash` | `reports.ts`, `slide_decks.ts`, `slides.ts`, `versions.ts` | `server/collab/version_capture.ts` | `server/db/products/*` (step 5 builds them, with `insertDeckVersion` and `latestDeckVersionHash` renamed `insertSlideDeckVersion` and `latestSlideDeckVersionHash` per the §0 naming rule; 7a repoints `version_capture`) |
 | project-DB row types | `_project_database_types.ts` | `db/instance/rename_user_email.ts` | frozen copy in `consolidation/plan.ts`; the rename sweep dies |
 
 `server/db/utils.ts` stays as it is: its four exports (`escapeSqlString`,
@@ -1479,7 +1496,7 @@ PROTOCOL_APP_ROUTES (the single guard recipe).
 
 **Deliverable.** D1, D8's additions, §3.2's two guards, every product and
 folder route in §3.3 at its stated path with its stated access level,
-including `duplicateProduct` and `copySlidesToDeck`, §3.4's messages and
+including `duplicateProduct` and `copySlidesToSlideDeck`, §3.4's messages and
 `ProductSummary`. No handler checks access itself; a handler that receives
 a `slide_id` or `version_id` scopes the query by `product_id` as well. The
 folder cycle check is a recursive CTE
@@ -1995,7 +2012,7 @@ project DBs are still on disk, untouched by 085.
 - A products trash.
 - A public deck link (the only public surface dashboards provided).
 - A figure library or cross-product figure clipboard beyond
-  `copySlidesToDeck`.
+  `copySlidesToSlideDeck`.
 - Drag-and-drop in the explorer.
 - The `PresentationObjectConfig` to `FigureConfig` vocabulary rename
   (`lib/get_fetch_config_from_po.ts`, `normalize_po_config.ts`,
@@ -2033,6 +2050,7 @@ this section before its step.
 | 2026-09-08 | 1 | Deviation from the Deliverable: only `DBFolder` and `DBProduct` were added to `_main_database_types.ts`. `DBSlideDeck`, `DBSlide`, `DBReport`, `DBReportVersion` and `DBDeckVersion` already exist in `_project_database_types.ts`, and both files are star-exported through `server/db/mod.ts`, so adding them is a TS2308 ambiguity error. Every importer of the project versions uses the direct file path, so the collision is only in the barrel chain. The five detail row types land in step 5 with the `db/products/*` layer that reads them; that step must decide how the barrel carries both sets until 9b deletes the project file. This intermediate state is missing from the §4 table. |
 | 2026-09-08 | 1 | `lib/types/scope.ts` is claimed by SYSTEM_12, as the step's Surface says; the reference claimed it under SYSTEM_09. |
 | 2026-09-08 | 1 | Step 1 built. |
+| 2026-09-08 | 1 | Tim's ruling, applied in a second commit: the version table is `slide_deck_versions` with `slide_deck_id` and `slide_deck_config` (was `deck_versions`, `deck_id`, `deck_config`), and the three related indexes follow (`idx_slides_slide_deck_id`, `idx_slides_slide_deck_sort`, `idx_slide_deck_versions_slide_deck`). The naming rule is now in §0 and every plan mention was rewritten (D1, D4, D9, §3.1, §3.3, §3.10, step 5). 084 was amended in place rather than followed by a rename migration, because it had been applied only to the dev database; dev was reset by dropping `deck_versions` and the 084 row of `schema_migrations`, then booting. |
 
 ---
 
