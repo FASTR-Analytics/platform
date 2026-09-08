@@ -82,6 +82,9 @@ type Props = {
   onSelectTheme: (theme: FastrReportTheme) => void;
   // Pick or upload an image to use as the PAGE ground; resolves to its id.
   onPickPageImage: () => Promise<string | undefined>;
+  // Whether the editor draws the printed page boxes (the host's paginator).
+  showPages: () => boolean;
+  onToggleShowPages: () => void;
   documentStats: () => {
     words: number;
     headings: number;
@@ -202,6 +205,7 @@ function choiceControlsFor(name: FastrBlockName): ChoiceControl[] {
     case "quote":
     case "band":
     case "steps":
+    case "pagebreak":
       return [];
   }
 }
@@ -643,6 +647,66 @@ export function ReportToolbar(p: Props) {
                   <Icon iconName="check" class="h-3.5 w-3.5" />
                 </Show>
               </PopoverRow>
+              {/* The printed sheet: what the PDF is printed on and what the
+                  editor's page boxes show. Margins stay at their default. */}
+              <MenuFlyout label={t3({ en: "Page size", fr: "Format de page", pt: "Tamanho da página" })}>
+                <div class="bg-base-100 ui-spy-sm shadow-floating flex w-40 flex-col rounded border p-1">
+                  <For
+                    each={[
+                      { value: "a4", label: "A4" },
+                      { value: "letter", label: t3({ en: "Letter", fr: "Lettre US", pt: "Carta" }) },
+                    ]}
+                  >
+                    {(opt) => (
+                      <PopoverRow
+                        active={(psAttr("pagesize") ?? "a4") === opt.value}
+                        onClick={() =>
+                          p.onPatchPageSetup({
+                            pagesize: opt.value === "a4" ? undefined : opt.value,
+                          })}
+                      >
+                        <span class="flex-1">{opt.label}</span>
+                        <Show when={(psAttr("pagesize") ?? "a4") === opt.value}>
+                          <Icon iconName="check" class="h-3.5 w-3.5" />
+                        </Show>
+                      </PopoverRow>
+                    )}
+                  </For>
+                </div>
+              </MenuFlyout>
+              <MenuFlyout label={t3({ en: "Orientation", fr: "Orientation", pt: "Orientação" })}>
+                <div class="bg-base-100 ui-spy-sm shadow-floating flex w-40 flex-col rounded border p-1">
+                  <For
+                    each={[
+                      { value: "portrait", label: t3({ en: "Portrait", fr: "Portrait", pt: "Vertical" }) },
+                      { value: "landscape", label: t3({ en: "Landscape", fr: "Paysage", pt: "Horizontal" }) },
+                    ]}
+                  >
+                    {(opt) => (
+                      <PopoverRow
+                        active={(psAttr("orientation") ?? "portrait") === opt.value}
+                        onClick={() =>
+                          p.onPatchPageSetup({
+                            orientation: opt.value === "portrait" ? undefined : opt.value,
+                          })}
+                      >
+                        <span class="flex-1">{opt.label}</span>
+                        <Show when={(psAttr("orientation") ?? "portrait") === opt.value}>
+                          <Icon iconName="check" class="h-3.5 w-3.5" />
+                        </Show>
+                      </PopoverRow>
+                    )}
+                  </For>
+                </div>
+              </MenuFlyout>
+              <PopoverRow active={p.showPages()} onClick={() => p.onToggleShowPages()}>
+                <span class="flex-1">
+                  {t3({ en: "Show page boxes", fr: "Afficher les pages", pt: "Mostrar as páginas" })}
+                </span>
+                <Show when={p.showPages()}>
+                  <Icon iconName="check" class="h-3.5 w-3.5" />
+                </Show>
+              </PopoverRow>
               <MenuFlyout
                 label={t3({ en: "Document details", fr: "Détails du document", pt: "Detalhes do documento" })}
               >
@@ -975,6 +1039,43 @@ export function ReportToolbar(p: Props) {
                   <code class="bg-base-100 text-base-content-muted shrink-0 rounded-full border px-2 py-0.5 font-mono text-xs">
                     :::{block().name}
                   </code>
+
+                  {/* Page breaks around the block (`break=before|after`): a
+                      page break IS the leaf that carries one, so it gets none. */}
+                  <Show when={block().name !== "pagebreak"}>
+                    <Popover
+                      label={attrValue("break") === "before"
+                        ? t3({ en: "Starts a new page", fr: "Commence une page", pt: "Começa uma página" })
+                        : attrValue("break") === "after"
+                        ? t3({ en: "Ends the page", fr: "Termine la page", pt: "Termina a página" })
+                        : t3({ en: "Page break", fr: "Saut de page", pt: "Quebra de página" })}
+                      title={t3({ en: "Page break", fr: "Saut de page", pt: "Quebra de página" })}
+                    >
+                      {(close) => (
+                        <div class="ui-spy-sm flex flex-col">
+                          <For
+                            each={[
+                              { value: undefined, label: t3({ en: "None", fr: "Aucun", pt: "Nenhum" }) },
+                              { value: "before", label: t3({ en: "Start on a new page", fr: "Commencer sur une nouvelle page", pt: "Começar numa nova página" }) },
+                              { value: "after", label: t3({ en: "New page after this block", fr: "Nouvelle page après ce bloc", pt: "Nova página depois deste bloco" }) },
+                            ]}
+                          >
+                            {(opt) => (
+                              <PopoverRow
+                                active={attrValue("break") === opt.value}
+                                onClick={() => {
+                                  patch("break", opt.value);
+                                  close();
+                                }}
+                              >
+                                {opt.label}
+                              </PopoverRow>
+                            )}
+                          </For>
+                        </div>
+                      )}
+                    </Popover>
+                  </Show>
 
                   <Show when={targetName()}>
                     {(name) => (

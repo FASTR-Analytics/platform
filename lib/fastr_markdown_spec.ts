@@ -54,6 +54,10 @@ export const FASTR_BLOCK_SNIPPETS: { name: FastrBlockName; snippet: string }[] =
       snippet: `:::contents{title="Contents" depth=2}`,
     },
     {
+      name: "pagebreak",
+      snippet: `:::pagebreak`,
+    },
+    {
       name: "report",
       snippet: `:::report{background=muted}`,
     },
@@ -124,9 +128,19 @@ Blocks (open with \`:::name{attributes}\`, close with a bare \`:::\`):
   nothing inside it. \`depth\` is the deepest heading level listed (default
   3), and a cover's title is never an entry. One line, no closing \`:::\`.
 
-  :::report{background=muted numbering=sections}
+  :::pagebreak
+  Ends the printed page here. One line, no closing \`:::\`. Any block can
+  also take \`break=before\` (start it on a fresh page) or \`break=after\`
+  (end the page after it). Use these sparingly: every block already keeps
+  itself on one page and a heading always stays with what follows it, so a
+  break is for structure (a new chapter), not for tidiness.
+
+  :::report{background=muted numbering=sections pagesize=a4 orientation=portrait}
   The document header. \`numbering=sections\` numbers the TOP-LEVEL headings
   (1., 1.1) — a heading inside a block is not a section, so it is skipped.
+  \`pagesize\` is a4 or letter and \`orientation\` portrait or landscape:
+  the printed sheet, and what the editor's page boxes show. Landscape suits
+  a report built around wide tables.
 
 Backgrounds — say the ROLE, not the colour:
 
@@ -231,8 +245,8 @@ Composing a report — this matters as much as the syntax:
   left. Aim for roughly one block per two or three paragraphs of prose.
 
 Rules:
-- \`stat\`, \`contents\` and \`report\` are ONE-LINE blocks: they take no
-  closing \`:::\`. Every other block must be closed.
+- \`stat\`, \`contents\`, \`pagebreak\` and \`report\` are ONE-LINE blocks:
+  they take no closing \`:::\`. Every other block must be closed.
 - \`report\` is the document header — put it on the first line, once.
 - \`band\` and \`cover\` are TOP-LEVEL sections; nesting one inside a card or a
   column cannot bleed correctly.

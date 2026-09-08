@@ -10,6 +10,7 @@ import {
 } from "panther";
 import { Show, createSignal } from "solid-js";
 import { exportReportAsPdf } from "~/exports/export_report_as_pdf";
+import { exportReportAsPagedPdf } from "~/exports/export_report_as_paged_pdf";
 import { exportReportAsWord } from "~/exports/export_report_as_word";
 import {
   exportReportAsHtml,
@@ -23,19 +24,22 @@ export function DownloadReport(
     {
       projectId: string;
       reportId: string;
-      // Absent ⇒ markdown (PDF / Word). html and fastr both render through the
-      // html funnel, so they get the .html / print options instead — panther's
-      // markdown IR cannot represent either one's markup.
+      // Absent ⇒ markdown (PDF / Word). fastr gets the paged PDF (the pages
+      // the editor shows, printed by the server) and the .html file; html
+      // renders through the same funnel but has no pagination, so it keeps
+      // the .html / print pair.
       format?: ReportFormat;
     },
     undefined
   >,
 ) {
-  const rendersAsHtml = reportRendersAsHtml(p.format ?? "markdown");
+  const format = p.format ?? "markdown";
+  const isFastr = format === "fastr";
+  const rendersAsHtml = reportRendersAsHtml(format);
   const [pct, setPct] = createSignal<number>(0);
   const [err, setErr] = createSignal<string>("");
   const [exportFormat, setExportFormat] = createSignal<ExportKind>(
-    rendersAsHtml ? "html" : "pdf",
+    rendersAsHtml && !isFastr ? "html" : "pdf",
   );
 
   function progress(pct: number) {
@@ -46,14 +50,16 @@ export function DownloadReport(
     setErr("");
     setPct(0.02);
     await new Promise((res) => setTimeout(res, 0));
-    const format = exportFormat();
+    const kind = exportFormat();
 
-    const res = format === "word"
+    const res = kind === "word"
       ? await exportReportAsWord(p.projectId, p.reportId, progress)
-      : format === "html"
+      : kind === "html"
       ? await exportReportAsHtml(p.projectId, p.reportId, progress)
-      : format === "print"
+      : kind === "print"
       ? await printReportHtml(p.projectId, p.reportId, progress)
+      : isFastr
+      ? await exportReportAsPagedPdf(p.projectId, p.reportId, progress)
       : await exportReportAsPdf(p.projectId, p.reportId, progress);
     if (res.success === false) {
       setErr(res.err);
@@ -63,19 +69,26 @@ export function DownloadReport(
     p.close(undefined);
   }
 
-  const options = rendersAsHtml
+  const pdfOption = {
+    value: "pdf" as const,
+    label: t3({ en: "PDF", fr: "PDF", pt: "PDF" }),
+  };
+  const htmlOption = {
+    value: "html" as const,
+    label: t3({ en: "HTML file (.html)", fr: "Fichier HTML (.html)", pt: "Ficheiro HTML (.html)" }),
+  };
+  const options = isFastr
+    ? [pdfOption, htmlOption]
+    : rendersAsHtml
     ? [
-      {
-        value: "html" as const,
-        label: t3({ en: "HTML file (.html)", fr: "Fichier HTML (.html)", pt: "Ficheiro HTML (.html)" }),
-      },
+      htmlOption,
       {
         value: "print" as const,
         label: t3({ en: "Print / save as PDF", fr: "Imprimer / enregistrer en PDF", pt: "Imprimir / guardar como PDF" }),
       },
     ]
     : [
-      { value: "pdf" as const, label: t3({ en: "PDF", fr: "PDF", pt: "PDF" }) },
+      pdfOption,
       { value: "word" as const, label: t3({ en: "Word (.docx)", fr: "Word (.docx)", pt: "Word (.docx)" }) },
     ];
 
@@ -111,7 +124,16 @@ export function DownloadReport(
           value={exportFormat()}
           onChange={setExportFormat}
         />
-        <Show when={rendersAsHtml}>
+        <Show when={isFastr}>
+          <div class="text-base-content-muted text-xs">
+            {t3({
+              en: "The PDF has exactly the pages the editor shows. The HTML file is self-contained (figures embedded as images) and reads as one continuous page.",
+              fr: "Le PDF contient exactement les pages affichées dans l'éditeur. Le fichier HTML est autonome (figures intégrées en images) et se lit comme une seule page continue.",
+              pt: "O PDF tem exatamente as páginas que o editor mostra. O ficheiro HTML é autónomo (figuras incorporadas como imagens) e lê-se como uma única página contínua.",
+            })}
+          </div>
+        </Show>
+        <Show when={rendersAsHtml && !isFastr}>
           <div class="text-base-content-muted text-xs">
             {t3({
               en: "The HTML file is self-contained (figures embedded as images). Print opens your browser's print dialog, where you can save as PDF.",

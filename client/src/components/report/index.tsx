@@ -4,7 +4,9 @@ import {
   buildReportEmbedToken,
   canonicalJson,
   COLLAB_NO_EDIT_PERMISSION,
+  FASTR_PAGE_MARGIN_MM,
   FASTR_THEME_TOKENS,
+  fastrSheetMm,
   type FastrReportTheme,
   type FigureBlock,
   type FigureBundle,
@@ -69,6 +71,8 @@ import {
   setCollabView,
 } from "~/state/project/collab";
 import { fastrThemeOptions } from "~/components/_shared/fastr_theme_labels";
+import { createReportPaginator, measureEmbedInEditor } from "./paginate_report";
+import { fastrPagedFooter } from "~/exports/export_report_as_paged_pdf";
 import { PresenceAvatars } from "~/components/slide_deck/presence_avatars";
 import { ReportEditorCursors } from "~/components/_shared/cursors/report_cursors";
 import { addLastUpdatedListener } from "~/state/project/t1_sse";
@@ -264,19 +268,20 @@ export function ProjectReport(p: Props) {
     // font-size differs, and a rem-resolved measure would shear the whole
     // sheet geometry away from View. width=wide/full mirror the sheet's
     // .fm-doc--wide/full measures (74rem/100rem).
-    const docWidth = liveDocWidth();
-    const measure = docWidth === "wide"
-      ? "74rem"
-      : docWidth === "full"
-      ? "100rem"
-      : FASTR_THEME_TOKENS[fastrTheme()]?.measure ?? "44rem";
-    const measurePxN = measure.endsWith("rem")
-      ? parseFloat(measure) * 16
-      : parseFloat(measure);
+    // The column is the PRINTED page's text column, scaled to the sheet: the
+    // editor shows page boxes, and the PDF's column is the sheet minus its
+    // margins (report_fastr_paged.ts sets --fm-measure to the whole printable
+    // width). A4 portrait at the 896px sheet: 174mm of 210mm = 742px. The
+    // theme's own reading measure and the :::report width no longer apply to
+    // a paginated document.
+    void liveDocWidth;
+    const page = readFastrDocumentSettings(body()).page;
+    const [sheetMm] = fastrSheetMm(page);
+    const printableMm = sheetMm - 2 * FASTR_PAGE_MARGIN_MM[page.margin];
+    const measurePxN = Math.round(896 * printableMm / sheetMm);
     const measurePx = `${measurePxN}px`;
-    // The sheet must hold the measure plus View's 24px body padding a side;
-    // 896px is View's default 56rem page cap.
-    const sheetPx = `${Math.max(896, measurePxN + 48)}px`;
+    // The sheet is the page at the editor's scale: View's 56rem cap (896px).
+    const sheetPx = "896px";
     // Re-target the theme's own heading rules at the editor's line classes —
     // h1 underlines/centring, h2-h6 accents (Swiss's black top rule,
     // Ministry's serif colour). Margins are then neutralised by the trailing
@@ -455,6 +460,63 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
 
   let editorApi: ReportEditorApi | undefined;
   let saveTimer: ReturnType<typeof setTimeout> | undefined;
+
+  // ── Page boxes ─────────────────────────────────────────────────────────────
+  // The editor shows where the printed pages start. The paginator lays the
+  // SAME paged document the PDF is printed from out in a hidden frame
+  // (paginate_report.ts) and the editor draws the seams; "Show page boxes" in
+  // the Page menu turns it off, remembered per browser.
+  const SHOW_PAGES_KEY = "fastr_report_show_pages";
+  const [showPages, setShowPages] = createSignal<boolean>((() => {
+    try {
+      return localStorage.getItem(SHOW_PAGES_KEY) !== "off";
+    } catch {
+      return true;
+    }
+  })());
+  function toggleShowPages() {
+    const next = !showPages();
+    setShowPages(next);
+    try {
+      localStorage.setItem(SHOW_PAGES_KEY, next ? "on" : "off");
+    } catch {
+      // Private mode: the choice lasts the session.
+    }
+  }
+  let editorPaneEl: HTMLDivElement | undefined;
+  const paginationWanted = () =>
+    showPages() && format() === "fastr" && mode() === "edit" && !isLoading();
+  const paginator = createReportPaginator({
+    detail: () =>
+      loadedConfig === undefined || !paginationWanted() ? undefined : {
+        id: p.reportId,
+        label: label(),
+        body: body(),
+        figures: figures(),
+        images: images(),
+        config: { ...loadedConfig, fastrTheme: fastrTheme() },
+        lastUpdated: "",
+      },
+    footer: () => fastrPagedFooter(label()),
+    figureSize: (id) =>
+      editorPaneEl ? measureEmbedInEditor(editorPaneEl, "figure", id) : undefined,
+    imageSize: (id) =>
+      editorPaneEl ? measureEmbedInEditor(editorPaneEl, "image", id) : undefined,
+    onResult: (result) =>
+      editorApi?.setPagination(
+        result === undefined ? undefined : { result, title: label() },
+      ),
+  });
+  onCleanup(() => paginator.dispose());
+  // Typing: after the debounce. Everything that re-lays the whole document
+  // (theme, page setup, the mode itself): now.
+  createEffect(on([body, figures, images], () => {
+    if (paginationWanted()) paginator.request();
+  }, { defer: true }));
+  createEffect(on([paginationWanted, fastrTheme, fastrColors, label], () => {
+    if (paginationWanted()) paginator.requestNow();
+    else editorApi?.setPagination(undefined);
+  }));
   // Suppresses the "user edited" AI notification while we apply an AI-accepted
   // edit through the editor (setBody also fires the CM change listener).
   let applyingProgrammaticEdit = false;
@@ -1772,6 +1834,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
               (column + gutter) so it doesn't stretch to half: the preview takes
               the leftover. flex-1 still fills it in Edit and shrinks if narrow. */}
           <div
+            ref={(el) => (editorPaneEl = el)}
             class="min-h-0 flex-1"
             classList={{ hidden: mode() === "view" }}
             data-report-cursor="code-pane"
@@ -1956,6 +2019,8 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
             <Show when={fileMenuShown()}>
               <ReportToolbar
                 api={() => editorApi}
+                showPages={showPages}
+                onToggleShowPages={toggleShowPages}
                 onDownload={download}
                 onEmail={emailReport}
                 onRename={renameReport}

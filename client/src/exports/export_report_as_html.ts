@@ -1,17 +1,27 @@
 import {
   type APIResponseNoData,
+  buildFastrPagedCss,
   buildFastrReportCss,
   FASTR_THEME_TOKENS,
+  type FastrPagedFooter,
+  fastrPagedRunnerJs,
+  fastrPrintTitleHtml,
   FIGURE_EXPORT_WIDTH_PX,
   fastrChartPalette,
   getFastrReportTheme,
   getReportCustomStyle,
   getReportFormat,
   getReportHtmlStyle,
+  pagedDocumentScriptsHtml,
   readFastrDocumentSettings,
   type ReportDetail,
+  type ReportDocumentShell,
   renderFastrMarkdownToHtml,
 } from "lib";
+// Relative into node_modules on purpose: pagedjs's package "exports" map
+// exposes no subpath, so the bare specifier cannot reach the dist file.
+import pagedPolyfill from "../../node_modules/pagedjs/dist/paged.polyfill.min.js?raw";
+import { inlineThemeFontCss } from "./inline_theme_fonts";
 import {
   CustomFigureStyle,
   getFigureAsDataUrlBrowser,
@@ -34,6 +44,7 @@ import {
   measureFigureGrounds,
   sanitizeReportHtml,
   stripLazyLoading,
+  TRANSPARENT_PIXEL_SRC,
   wrapReportDocument,
 } from "~/components/report/report_html";
 
@@ -43,19 +54,59 @@ import {
 // editor preview (sanitize → materialize embeds → base CSS), with figures as
 // PNG data URLs and images inlined so the file is self-contained (web
 // images/fonts the author referenced stay external).
+//
+// The same builder also produces the PAGED document (Paged.js + the paged
+// sheet, lib/report_fastr_paged.ts) that the editor lays out for its page
+// boxes and the server prints to PDF — one document, so they agree.
+
+export type StandaloneReportOptions = {
+  // Lay the document out as printed pages: the paged sheet, the running
+  // footer's title, and the Paged.js polyfill + runner at the end of <body>.
+  paged?: { footer: FastrPagedFooter };
+  // Embed the theme's web fonts as data URLs (the server render has no
+  // network; the editor's frame already has them and skips this).
+  inlineFonts?: boolean;
+  // Layout only: no rasterization at all. Figures and images become
+  // transparent placeholders at their known size, so pagination costs a
+  // layout pass rather than a render of every chart. Unknown sizes fall back
+  // to a 16:9 box at the export width.
+  layoutOnly?: {
+    figureSize: (id: string) => { width: number; height: number } | undefined;
+    imageSize: (id: string) => { width: number; height: number } | undefined;
+  };
+};
+
+function pagedScriptsHtml(): string {
+  return pagedDocumentScriptsHtml(pagedPolyfill, fastrPagedRunnerJs());
+}
+
+const FALLBACK_FIGURE_SIZE = {
+  width: FIGURE_EXPORT_WIDTH_PX,
+  height: Math.round(FIGURE_EXPORT_WIDTH_PX * 9 / 16),
+};
 
 export async function buildStandaloneReportHtml(
   detail: ReportDetail,
   progress: (pct: number) => void,
+  opts: StandaloneReportOptions = {},
 ): Promise<string> {
   const figureEntries = Object.entries(detail.figures);
   const format = getReportFormat(detail.config);
   const isFastr = format === "fastr";
   const customColors = getReportCustomStyle(detail.config)?.colors;
   const fastrTheme = getFastrReportTheme(detail.config);
-  const themeCss = isFastr
+  let themeCss = isFastr
     ? buildFastrReportCss(fastrTheme, customColors ?? undefined)
     : undefined;
+  if (isFastr && themeCss !== undefined && opts.inlineFonts) {
+    const fontImport = FASTR_THEME_TOKENS[fastrTheme].fontImport;
+    if (fontImport.length > 0) {
+      themeCss = themeCss.replace(fontImport, await inlineThemeFontCss(fontImport));
+    }
+  }
+  if (opts.layoutOnly) {
+    return buildLayoutOnlyDocument(detail, themeCss, opts);
+  }
   // Ink follows each figure's ACTUAL ground (same rule as the preview): the
   // sanitized document — figure tokens still raw — is mounted in a hidden
   // iframe to measure computed backgrounds before any rasterization. For fastr
@@ -78,6 +129,7 @@ export async function buildStandaloneReportHtml(
       pageCss: docSettings?.pageCss,
     }),
   );
+  progress(0.15);
   const fastrTokens = FASTR_THEME_TOKENS[fastrTheme];
   const lightInk = (isFastr
     ? figureInkThemeForStyle(
@@ -153,7 +205,78 @@ export async function buildStandaloneReportHtml(
     themeCss,
     documentClass: docSettings?.className,
     documentStyle: docSettings?.style,
-    pageCss: docSettings?.pageCss,
+    ...pagedDocumentParts(detail, docSettings, opts),
+  });
+}
+
+// The paged additions, or the plain `@page` rule for an unpaged document.
+function pagedDocumentParts(
+  detail: ReportDetail,
+  docSettings: ReturnType<typeof readFastrDocumentSettings> | undefined,
+  opts: StandaloneReportOptions,
+): Partial<
+  Pick<
+    ReportDocumentShell,
+    "pageCss" | "headExtraCss" | "bodyPrefixHtml" | "bodySuffixHtml"
+  >
+> {
+  if (!opts.paged) return { pageCss: docSettings?.pageCss };
+  // The paged sheet owns @page; an html-format report (no header) prints A4.
+  const setup = docSettings?.page ?? readFastrDocumentSettings("").page;
+  return {
+    headExtraCss: buildFastrPagedCss(setup, opts.paged.footer),
+    bodyPrefixHtml: fastrPrintTitleHtml(detail.label),
+    bodySuffixHtml: pagedScriptsHtml(),
+  };
+}
+
+// The editor's pagination frame: the sanitized document with every embed as
+// a sized transparent box. No ground measurement (nothing is rasterized to
+// ink) and no image fetch — the sizes come from the live editor.
+function buildLayoutOnlyDocument(
+  detail: ReportDetail,
+  themeCss: string | undefined,
+  opts: StandaloneReportOptions,
+): string {
+  const sizes = opts.layoutOnly!;
+  const isFastr = getReportFormat(detail.config) === "fastr";
+  const sanitized = isFastr
+    ? sanitizeReportHtml(
+      renderFastrMarkdownToHtml(detail.body, { lineAnchors: true }),
+    )
+    : sanitizeReportHtml(detail.body);
+  const docSettings = isFastr ? readFastrDocumentSettings(detail.body) : undefined;
+  const frag = buildReportBodyNodes(
+    document,
+    sanitized,
+    (id) => {
+      if (!(id in detail.figures)) return { state: "missing" };
+      const size = sizes.figureSize(id) ?? FALLBACK_FIGURE_SIZE;
+      return { state: "ready", url: TRANSPARENT_PIXEL_SRC, ...size };
+    },
+    (id) => (id in detail.images ? TRANSPARENT_PIXEL_SRC : undefined),
+  );
+  // An image placeholder needs its box too: the 1px source has none.
+  for (
+    const img of Array.from(
+      frag.querySelectorAll<HTMLImageElement>('img[data-embed-kind="image"]'),
+    )
+  ) {
+    const id = img.getAttribute("data-embed-id") ?? "";
+    const size = sizes.imageSize(id) ?? { width: 1200, height: 675 };
+    img.setAttribute("width", String(size.width));
+    img.setAttribute("height", String(size.height));
+  }
+  stripLazyLoading(frag);
+  const holder = document.createElement("template");
+  holder.content.append(frag);
+  return wrapReportDocument({
+    title: detail.label,
+    bodyHtml: holder.innerHTML,
+    themeCss,
+    documentClass: docSettings?.className,
+    documentStyle: docSettings?.style,
+    ...pagedDocumentParts(detail, docSettings, opts),
   });
 }
 

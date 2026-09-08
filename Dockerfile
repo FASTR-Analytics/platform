@@ -10,6 +10,25 @@ RUN apt update && \
     docker --version && \
     rm -rf /var/lib/apt/lists/*
 
+# Headless Chrome for the paged report PDF (server/report_pdf/). Chrome for
+# Testing's headless shell, pinned: Ubuntu's apt "chromium" is a snap stub that
+# does not run in a container. The libraries are the shell's runtime deps.
+ENV CHROME_HEADLESS_SHELL_VERSION=152.0.7977.82
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      curl unzip ca-certificates \
+      libnss3 libnspr4 libasound2 libatk1.0-0 libatk-bridge2.0-0 libcups2 \
+      libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 \
+      libgbm1 libpango-1.0-0 libcairo2 libxshmfence1 fonts-liberation && \
+    curl -fsSL -o /tmp/chrome.zip \
+      "https://storage.googleapis.com/chrome-for-testing-public/${CHROME_HEADLESS_SHELL_VERSION}/linux64/chrome-headless-shell-linux64.zip" && \
+    unzip -q /tmp/chrome.zip -d /opt && \
+    mv /opt/chrome-headless-shell-linux64 /opt/chrome-headless-shell && \
+    rm /tmp/chrome.zip && \
+    /opt/chrome-headless-shell/chrome-headless-shell --version && \
+    rm -rf /var/lib/apt/lists/*
+ENV CHROME_PATH=/opt/chrome-headless-shell/chrome-headless-shell
+
 EXPOSE 8000
 
 WORKDIR /app

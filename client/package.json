@@ -38,6 +38,7 @@
     "jspdf": "^3.0.1",
     "markdown-it": "^14.1.0",
     "nanoid": "^5.1.6",
+    "pagedjs": "^0.4.3",
     "papaparse": "^5.5.3",
     "pptxgenjs": "^4.0.1",
     "prettier": "^3.3.3",

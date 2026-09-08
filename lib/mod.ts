@@ -27,6 +27,8 @@ export * from "./fastr_markdown_blocks.ts";
 export * from "./fastr_markdown_spec.ts";
 export * from "./report_fastr_css.ts";
 export * from "./report_fastr_markdown.ts";
+export * from "./report_fastr_paged.ts";
+export * from "./report_document_shell.ts";
 export * from "./group_metrics.ts";
 export * from "./h_users.ts";
 export * from "./help/mod.ts";

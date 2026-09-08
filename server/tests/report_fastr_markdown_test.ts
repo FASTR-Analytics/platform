@@ -141,8 +141,8 @@ Deno.test("containerHtmlFor: attribute text is entity-escaped", () => {
   assert(!h.leadingHtml.includes("<script>"));
 });
 
-Deno.test("stat, contents and report are leaf blocks: one line, no closing fence", () => {
-  const leaves = ["stat", "contents", "report"];
+Deno.test("stat, contents, pagebreak and report are leaf blocks: one line, no closing fence", () => {
+  const leaves = ["stat", "contents", "pagebreak", "report"];
   for (const name of leaves) assert(isFastrLeafBlock(name));
   for (const name of FASTR_BLOCK_NAMES) {
     if (!leaves.includes(name)) assert(!isFastrLeafBlock(name));
@@ -241,7 +241,7 @@ Deno.test("line anchors are markdown source lines, 0-based", () => {
     "# H\n\nPara\n\n:::callout{kind=note}\nIn\n:::\n",
     { lineAnchors: true },
   );
-  assertStringIncludes(html, `<h1 data-line="0">`);
+  assertStringIncludes(html, `<h1 class="fm-top" data-line="0">`);
   assertStringIncludes(html, `<p data-line="2">`);
   assertStringIncludes(html, `data-line="4"`);
   // Off by default, so exports and diffs stay clean.
@@ -556,15 +556,16 @@ Deno.test("a table of contents is built from the document's own headings", () =>
   assertStringIncludes(html, '<a href="#fm-findings" data-toc-line="11">Findings</a>');
   assertStringIncludes(html, '<a href="#fm-findings-2" data-toc-line="14">Findings</a>');
   // Every link has its heading: the ids come from the same slug function.
-  assertStringIncludes(html, '<h2 id="fm-overview">Overview</h2>');
+  assertStringIncludes(html, '<h2 id="fm-overview" class="fm-top">Overview</h2>');
+  // Inside a band: a heading, not a section, so no fm-top.
   assertStringIncludes(html, '<h2 id="fm-findings-2">Findings</h2>');
   // An h3 that the list skipped still carries its anchor, so raising the
   // depth later cannot renumber the slugs.
-  assertStringIncludes(html, '<h3 id="fm-detail">Detail</h3>');
+  assertStringIncludes(html, '<h3 id="fm-detail" class="fm-top">Detail</h3>');
   // A document with no contents block keeps its plain headings.
   assertStringIncludes(
     renderFastrMarkdownToHtml("## Overview\n", { lineAnchors: false }),
-    "<h2>Overview</h2>",
+    '<h2 class="fm-top">Overview</h2>',
   );
   // Inline syntax is stripped from an entry, and an empty document says so.
   assertEquals(
@@ -784,7 +785,8 @@ Deno.test(":::report configures the document and renders nothing", () => {
   const html = render(body);
   assert(!html.includes("fm-report"));
   assert(!html.includes(":::report"));
-  assertStringIncludes(html, "<h1>T</h1>");
+  // A top-level heading is a section: it carries fm-top for the paged sheet.
+  assertStringIncludes(html, '<h1 class="fm-top">T</h1>');
 
   const doc = readFastrDocumentSettings(body);
   assertStringIncludes(doc.className, "fm-doc");
@@ -1420,7 +1422,13 @@ Deno.test("the model-facing brief documents the marks it is allowed to write", (
     assertStringIncludes(FASTR_MD_SYNTAX_DOC, needle);
   }
   // The one-line rule names every leaf, or the model closes a contents block.
-  assertStringIncludes(FASTR_MD_SYNTAX_DOC, "`stat`, `contents` and `report` are ONE-LINE");
+  assertStringIncludes(
+    FASTR_MD_SYNTAX_DOC,
+    "`stat`, `contents`, `pagebreak` and `report` are ONE-LINE",
+  );
+  for (const needle of [":::pagebreak", "break=before", "pagesize", "orientation"]) {
+    assertStringIncludes(FASTR_MD_SYNTAX_DOC, needle);
+  }
   for (const role of FASTR_INK_ROLES) {
     assertStringIncludes(FASTR_MD_SYNTAX_DOC, `.${role}`);
   }
@@ -1440,4 +1448,111 @@ Deno.test("the editor surface sheet is scope-prefixed and token-driven", () => {
   assertStringIncludes(css, "font-size: 2.15em");
   assertStringIncludes(css, "var(--fm-font-heading)");
   assertStringIncludes(css, ".cm-fm-link");
+});
+
+// ── Pagination: page breaks, break attributes and the paged sheet ────────────
+
+import {
+  buildFastrPagedCss,
+  FASTR_PAGED_ATOMIC_SELECTORS,
+  FASTR_PAGED_GLOBAL,
+  fastrPagedRunnerJs,
+  fastrPrintTitleHtml,
+} from "../../lib/report_fastr_paged.ts";
+import { fastrBreakMode, fastrSheetMm } from "../../lib/fastr_markdown_blocks.ts";
+
+Deno.test(":::pagebreak is a one-line leaf that renders an empty marker", () => {
+  assert(isFastrLeafBlock("pagebreak"));
+  assert((FASTR_BLOCK_NAMES as readonly string[]).includes("pagebreak"));
+  const html = renderFastrMarkdownToHtml(
+    "Before\n\n:::pagebreak\n\nAfter",
+    { lineAnchors: true },
+  );
+  assertStringIncludes(html, '<div class="fm-pagebreak" data-line="2">');
+  assertStringIncludes(html, "<p data-line=\"4\">After</p>");
+  assertEquals(listFastrContainerDefects("Before\n\n:::pagebreak\n\nAfter"), []);
+  // The editor's snippet is the bare fence.
+  assert(FASTR_BLOCK_SNIPPETS.some((s) => s.name === "pagebreak" && s.snippet === ":::pagebreak"));
+});
+
+Deno.test("break=before|after rides on any block as a data attribute; anything else is a defect", () => {
+  assertEquals(fastrBreakMode({ break: "before" }), "before");
+  assertEquals(fastrBreakMode({ break: "AFTER" }), "after");
+  assertEquals(fastrBreakMode({ break: "page" }), undefined);
+  assertEquals(fastrBreakMode({}), undefined);
+  assertStringIncludes(
+    containerHtmlFor("callout", { break: "before" }).extraAttrs,
+    ' data-break="before"',
+  );
+  assertStringIncludes(
+    containerHtmlFor("band", { tone: "dark", break: "after" }).extraAttrs,
+    ' data-break="after"',
+  );
+  assertEquals(containerHtmlFor("callout", {}).extraAttrs, "");
+  // The document header is silent and carries nothing.
+  assertEquals(containerHtmlFor("report", { break: "before" }).silent, true);
+  const html = renderFastrMarkdownToHtml(
+    ":::callout{break=before}\nFresh page.\n:::",
+    { lineAnchors: false },
+  );
+  assertStringIncludes(html, 'class="fm-callout fm-callout--note" data-break="before"');
+  const defects = listFastrContainerDefects(":::callout{break=sideways}\nx\n:::");
+  assertEquals(defects.length, 1);
+  assertStringIncludes(defects[0].message, "break=before or break=after");
+});
+
+Deno.test("the paged sheet: sheet size, margins, footer, cover page, atomic blocks, explicit breaks", () => {
+  const css = buildFastrPagedCss(
+    { size: "a4", orientation: "portrait", margin: "normal" },
+    { title: "Q3", pageWord: "Page", ofWord: "of" },
+  );
+  assertStringIncludes(css, "size: 210mm 297mm;");
+  assertStringIncludes(css, "margin: 18mm 0;");
+  assertStringIncludes(css, "--fm-print-column: 174mm;");
+  assertStringIncludes(css, "--fm-print-area: 261mm;");
+  assertStringIncludes(css, "content: string(fm-title);");
+  assertStringIncludes(css, 'content: "Page " counter(page) " of " counter(pages);');
+  // The cover's page: zero margins, no footer, and the cover fills it.
+  assertStringIncludes(css, "@page fmcover {\n  margin: 0;");
+  assertStringIncludes(css, "@bottom-left { content: none; }");
+  assertStringIncludes(css, "page: fmcover;");
+  assertStringIncludes(css, "var(--pagedjs-pagebox-height)");
+  // Bleed geometry IS the page margin.
+  assertStringIncludes(css, "--fm-bleed-margin: -18mm;");
+  assertStringIncludes(css, "--fm-bleed-pad: 18mm;");
+  // Every atomic block is protected, headings keep with next, orphans at 3.
+  for (const sel of FASTR_PAGED_ATOMIC_SELECTORS) assertStringIncludes(css, sel);
+  assertStringIncludes(css, "h1, h2, h3, h4, h5, h6 { break-after: avoid; break-inside: avoid; }");
+  assertStringIncludes(css, "orphans: 3; widows: 3;");
+  assertStringIncludes(css, ".fm-pagebreak { display: block; height: 0; margin: 0; padding: 0; break-after: page; }");
+  assertStringIncludes(css, '[data-break="before"] { break-before: page; }');
+  assertStringIncludes(css, '[data-break="after"] { break-after: page; }');
+  // Contents entries get page numbers.
+  assertStringIncludes(css, "target-counter(attr(href url), page)");
+  // Landscape letter swaps the pair; footer words are CSS-string escaped.
+  const land = buildFastrPagedCss(
+    { size: "letter", orientation: "landscape", margin: "normal" },
+    { title: "x", pageWord: 'Pa"ge', ofWord: "de" },
+  );
+  assertStringIncludes(land, "size: 279mm 216mm;");
+  assertStringIncludes(land, 'content: "Pa\\"ge " counter(page) " de " counter(pages);');
+  assertEquals(fastrSheetMm({ size: "a4", orientation: "landscape", margin: "narrow" }), [297, 210]);
+});
+
+Deno.test("the paged runner publishes on the agreed global and the title span is hidden text", () => {
+  const js = fastrPagedRunnerJs();
+  assertStringIncludes(js, JSON.stringify(FASTR_PAGED_GLOBAL));
+  assertStringIncludes(js, "window.PagedPolyfill.preview()");
+  assertStringIncludes(js, "registerHandlers");
+  // The atomic list the runner reports splits for is the sheet's own.
+  assertStringIncludes(js, JSON.stringify(FASTR_PAGED_ATOMIC_SELECTORS.join(", ")));
+  assertEquals(
+    fastrPrintTitleHtml("Q3 <review> & co"),
+    '<span class="fm-print-title">Q3 &lt;review&gt; &amp; co</span>',
+  );
+  // The paged sheet is a template literal too; no backtick inside a comment.
+  assert(!/\/\*[^*]*`/.test(buildFastrPagedCss(
+    { size: "a4", orientation: "portrait", margin: "normal" },
+    { title: "", pageWord: "Page", ofWord: "of" },
+  )));
 });

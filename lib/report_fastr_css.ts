@@ -790,7 +790,6 @@ ${d}.fm-toc__list {
   list-style: none;
   margin: 0;
   padding: 0;
-  counter-reset: none;
 }
 ${d}.fm-toc__item {
   margin: 0;
@@ -851,6 +850,11 @@ ${d}.fm-figure--full {
 ${d}.fm-figure--full .fm-figure__caption {
   padding-inline: var(--fm-bleed-pad);
 }
+
+/* ── Page break (:::pagebreak) ────────────────────────────────────────────── */
+/* Nothing on screen: the paged sheet (report_fastr_paged.ts) ends the page
+   there, and the editor draws its own labelled divider. */
+${d}.fm-pagebreak { display: block; height: 0; margin: 0; padding: 0; overflow: hidden; }
 
 /* ── Document header (:::report) — applied to <html> ──────────────────────── */
 ${d}.fm-doc--wide { --fm-measure: 74rem; }
@@ -1277,6 +1281,88 @@ ${d}.cm-fm-attr:empty::before {
   color: var(--fm-ink-muted);
   font-style: italic;
 }
+/* ── Page boxes ─────────────────────────────────────────────────────────── */
+/* The paginator says where each printed page starts; the editor draws the
+   seam there: the ending page's running footer, then a strip of app chrome
+   running edge to edge of the sheet (the bleed vars), then the next page
+   begins. Inside a rendered block the same element is injected before the
+   child that starts the page; between plain lines it is a block widget. */
+${d}.fm-page-gutter {
+  display: block;
+  margin: 1.2em var(--fm-bleed-margin) 1.6em;
+  padding: 0;
+  font-family: var(--fm-font-body);
+  font-weight: 400;
+  font-style: normal;
+  text-transform: none;
+  letter-spacing: 0;
+  line-height: 1.4;
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+}
+${d}.fm-page-gutter__foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 1em;
+  padding: 0 var(--fm-bleed-pad) 0.9em;
+  font-size: 0.7em;
+  color: var(--fm-ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+${d}.fm-page-gutter__band {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 26px;
+  background: var(--color-base-200, #e5e7eb);
+  color: var(--color-base-content-muted, #6b7280);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.08), inset 0 -1px 0 rgba(0, 0, 0, 0.08);
+}
+/* Between plain lines the gutter is a block widget: no line box of its own,
+   the same seam geometry as inside a block. */
+${d}.cm-fm-page-gutter { display: block; }
+/* A :::pagebreak line: invisible on the page, a labelled rule in the editor
+   so the author can see where they forced a break (and delete it). */
+${d}.fm-pagebreak.fm-pagebreak--editor {
+  display: flex;
+  align-items: center;
+  gap: 0.8em;
+  height: auto;
+  margin: 0.6em 0;
+  overflow: visible;
+  color: var(--fm-ink-muted);
+  font-family: var(--fm-font-body);
+  font-size: 0.7em;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+${d}.fm-pagebreak.fm-pagebreak--editor::before, ${d}.fm-pagebreak.fm-pagebreak--editor::after {
+  content: "";
+  flex: 1;
+  border-top: 1px dashed var(--fm-ink-muted);
+}
+/* A block the paginator had to split because it is taller than a page. */
+${d}.fm-page-split {
+  display: inline-block;
+  margin: 0 0 0.4em;
+  padding: 0.15em 0.6em;
+  border-radius: 999px;
+  background: var(--fm-warning, #b45309);
+  color: #ffffff;
+  font-family: var(--fm-font-body);
+  font-size: 0.68em;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  pointer-events: none;
+  user-select: none;
+}
+${d}.cm-line.cm-fm-split { box-shadow: inset 3px 0 0 var(--fm-warning, #b45309); }
 /* The document is the ground; the code-editor affordances step back. */
 ${d}.cm-cursor, ${d}.cm-dropCursor { border-left-color: var(--fm-ink); }
 ${d}.cm-activeLine { background: transparent; }
