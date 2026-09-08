@@ -1,15 +1,15 @@
 import {
-  DEFAULT_S_CONFIG,
-  DEFAULT_T_CONFIG,
   FILTER_ONLY_DISAGGREGATION_OPTIONS,
+  deriveConfigFromVizPreset,
+  getLanguage,
   getStartingConfigForPresentationObject,
   t3,
-  type CreateModeVisualizationData,
   type DisaggregationOption,
-  type InstalledModuleSummary,
   type MetricWithStatus,
+  type PackageScope,
   type PresentationObjectConfig,
   type PresentationOption,
+  type RunAuthoringContext,
 } from "lib";
 import { unwrap } from "solid-js/store";
 import {
@@ -21,33 +21,57 @@ import {
   StepperChipsWithTitles,
 } from "panther";
 import { createSignal, createMemo, Match, Switch, Show } from "solid-js";
-import { CUSTOM_OPTION } from "../preset_preview";
+import { CUSTOM_OPTION, type PresetOption } from "./preset_preview";
 import { Step1Metric } from "./step_1_metric";
 import { Step2Preset } from "./step_2_preset";
 import { Step3Configure } from "./step_3_configure";
 
-type AddVisualizationProps = {
-  projectId: string;
-  modules: InstalledModuleSummary[];
-} & (
-  | { preselectedMetric: MetricWithStatus }
-  | { metrics: MetricWithStatus[] }
-);
+// What the wizard hands back. A figure IS `{ metricId, config }` (D3): the
+// caller resolves the bundle under its own PackageScope, so nothing here is
+// stored.
+export type InsertFigureResult = {
+  metric: MetricWithStatus;
+  config: PresentationObjectConfig;
+};
 
-export function AddVisualization(
-  p: AlertComponentProps<AddVisualizationProps, CreateModeVisualizationData>,
+type Props = {
+  // Only the preset previews need the pair; the metrics and modules come from
+  // the package's authoring context, which carries no scope.
+  scope: PackageScope;
+  context: Pick<RunAuthoringContext, "metrics" | "modules">;
+  // Skips straight to the preset step. null = start at metric selection.
+  preselectedMetricId: string | null;
+};
+
+export function InsertFigureModal(
+  p: AlertComponentProps<Props, InsertFigureResult>,
 ) {
-  const preselectedMetric = "preselectedMetric" in p ? p.preselectedMetric : undefined;
-  const metrics = () => "metrics" in p ? p.metrics : [];
-
-  const [selectedMetricId, setSelectedMetricId] = createSignal(preselectedMetric?.id ?? "");
+  const [selectedMetricId, setSelectedMetricId] = createSignal(p.preselectedMetricId ?? "");
   const [selectedPresetId, setSelectedPresetId] = createSignal<string | undefined>(undefined);
   const [selectedType, setSelectedType] = createSignal<PresentationOption | undefined>(undefined);
   const [selectedDisaggregations, setSelectedDisaggregations] = createSignal<DisaggregationOption[]>([]);
 
-  const selectedMetric = createMemo((): MetricWithStatus | undefined => {
-    if (preselectedMetric) return preselectedMetric;
-    return metrics().find((m) => m.id === selectedMetricId());
+  const selectedMetric = createMemo((): MetricWithStatus | undefined =>
+    p.context.metrics.find((m) => m.id === selectedMetricId()),
+  );
+
+  // deriveConfigFromVizPreset is THE preset-to-config derivation; both the
+  // previews and the inserted figure read from this one list. The metrics may
+  // be a Solid store (the project pages pass projectState.metrics), and zod
+  // chokes on the symbol keys a store leaves on its raw objects, so each preset
+  // is cloned to plain data first.
+  const presetOptions = createMemo((): PresetOption[] => {
+    const metric = selectedMetric();
+    if (!metric) return [];
+    return (metric.vizPresets ?? []).map((preset) => {
+      const plain = structuredClone(unwrap(preset));
+      return {
+        id: plain.id,
+        label: t3(plain.label),
+        description: t3(plain.description),
+        config: deriveConfigFromVizPreset(plain, getLanguage()),
+      };
+    });
   });
 
   const isPresetSelected = () => {
@@ -62,7 +86,7 @@ export function AddVisualization(
   }));
 
   const stepper = getStepper(stepperData, {
-    initialStep: preselectedMetric ? 1 : 0,
+    initialStep: p.preselectedMetricId === null ? 0 : 1,
     minStep: 0,
     maxStep: 2,
     getValidation: (step, data) => {
@@ -114,31 +138,13 @@ export function AddVisualization(
 
       const presetId = selectedPresetId();
       if (presetId && presetId !== CUSTOM_OPTION) {
-        const preset = metric.vizPresets?.find((p) => p.id === presetId);
+        const preset = presetOptions().find((o) => o.id === presetId);
         if (!preset) {
           return { success: false, err: "Invalid preset" };
         }
-        const presetConfig = structuredClone(unwrap(preset.config));
-        const config: PresentationObjectConfig = {
-          d: presetConfig.d,
-          s: { ...DEFAULT_S_CONFIG, ...presetConfig.s },
-          t: {
-            ...DEFAULT_T_CONFIG,
-            caption: presetConfig.t.caption ? t3(presetConfig.t.caption) : DEFAULT_T_CONFIG.caption,
-            subCaption: presetConfig.t.subCaption ? t3(presetConfig.t.subCaption) : DEFAULT_T_CONFIG.subCaption,
-            footnote: presetConfig.t.footnote ? t3(presetConfig.t.footnote) : DEFAULT_T_CONFIG.footnote,
-            captionRelFontSize: presetConfig.t.captionRelFontSize ?? DEFAULT_T_CONFIG.captionRelFontSize,
-            subCaptionRelFontSize: presetConfig.t.subCaptionRelFontSize ?? DEFAULT_T_CONFIG.subCaptionRelFontSize,
-            footnoteRelFontSize: presetConfig.t.footnoteRelFontSize ?? DEFAULT_T_CONFIG.footnoteRelFontSize,
-          },
-        };
         return {
           success: true,
-          data: {
-            label: metric.label.trim(),
-            resultsValue: metric,
-            config,
-          } satisfies CreateModeVisualizationData,
+          data: { metric, config: preset.config } satisfies InsertFigureResult,
         };
       }
 
@@ -160,15 +166,12 @@ export function AddVisualization(
         .filter((disOpt) => !FILTER_ONLY_DISAGGREGATION_OPTIONS.has(disOpt.value))
         .map((disOpt) => disOpt.value);
 
-      const config = getStartingConfigForPresentationObject(metric, type, disaggregations);
-
       return {
         success: true,
         data: {
-          label: metric.label.trim(),
-          resultsValue: metric,
-          config,
-        } satisfies CreateModeVisualizationData,
+          metric,
+          config: getStartingConfigForPresentationObject(metric, type, disaggregations),
+        } satisfies InsertFigureResult,
       };
     },
     (data) => {
@@ -180,17 +183,13 @@ export function AddVisualization(
     stepper.currentStep() === 2 ||
     (stepper.currentStep() === 1 && isPresetSelected());
 
-  const handleNext = () => {
-    stepper.goNext();
-  };
-
   const handleKeyDown = (e: KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       if (isLastStep()) {
         save.click();
       } else {
-        handleNext();
+        stepper.goNext();
       }
     }
   };
@@ -202,7 +201,7 @@ export function AddVisualization(
       topPanel={
         <div class="flex items-center justify-between">
           <div class="font-700 text-lg">
-            {t3({ en: "Create visualization", fr: "Créer une visualisation", pt: "Criar visualização" })}
+            {t3({ en: "Insert figure", fr: "Insérer une figure", pt: "Inserir figura" })}
           </div>
           <StepperChipsWithTitles
             stepper={stepper}
@@ -226,7 +225,7 @@ export function AddVisualization(
           <Show
             when={isLastStep()}
             fallback={
-              <Button onClick={handleNext} disabled={!stepper.canGoNext()}>
+              <Button onClick={stepper.goNext} disabled={!stepper.canGoNext()}>
                 {t3({ en: "Next", fr: "Suivant", pt: "Seguinte" })}
               </Button>
             }
@@ -236,7 +235,7 @@ export function AddVisualization(
               disabled={!stepper.canGoNext()}
               loading={save.state().status === "loading"}
             >
-              {t3({ en: "Create", fr: "Créer", pt: "Criar" })}
+              {t3({ en: "Insert", fr: "Insérer", pt: "Inserir" })}
             </Button>
           </Show>
         </>
@@ -246,28 +245,33 @@ export function AddVisualization(
         <Switch>
           <Match when={stepper.currentStep() === 0}>
             <Step1Metric
-              metrics={metrics()}
-              modules={p.modules}
+              metrics={p.context.metrics}
+              modules={p.context.modules}
               selectedMetricId={selectedMetricId()}
               onSelectMetric={handleMetricSelect}
             />
           </Match>
-          <Match when={stepper.currentStep() === 1 && selectedMetric()}>
-            <Step2Preset
-              projectId={p.projectId}
-              metric={selectedMetric()!}
-              selectedPresetId={selectedPresetId()}
-              onSelectPreset={handlePresetSelect}
-            />
+          <Match when={stepper.currentStep() === 1 && selectedMetric()} keyed>
+            {(metric) => (
+              <Step2Preset
+                scope={p.scope}
+                metric={metric}
+                presets={presetOptions()}
+                selectedPresetId={selectedPresetId()}
+                onSelectPreset={handlePresetSelect}
+              />
+            )}
           </Match>
-          <Match when={stepper.currentStep() === 2 && selectedMetric()}>
-            <Step3Configure
-              metric={selectedMetric()!}
-              selectedType={selectedType()}
-              selectedDisaggregations={selectedDisaggregations()}
-              onSelectType={handleTypeSelect}
-              onToggleDisaggregation={handleToggleDisaggregation}
-            />
+          <Match when={stepper.currentStep() === 2 && selectedMetric()} keyed>
+            {(metric) => (
+              <Step3Configure
+                metric={metric}
+                selectedType={selectedType()}
+                selectedDisaggregations={selectedDisaggregations()}
+                onSelectType={handleTypeSelect}
+                onToggleDisaggregation={handleToggleDisaggregation}
+              />
+            )}
           </Match>
         </Switch>
       </div>

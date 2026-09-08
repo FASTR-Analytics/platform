@@ -835,7 +835,7 @@ raised by adversarial review of the shipped feature; none blocks it.
   harmless in the per-group-scoped views the presets ship, and the reason
   those presets scope by category.
 - The metric-variant picker's hardcoded "Select geographic level:" caption
-  (`add_visualization/metric_card.tsx`) predates non-geographic variant
+  (`figures/insert_figure/metric_card.tsx`) predates non-geographic variant
   pairs and is now wrong for both HFA observed/carried pairs.
 
 ### HFA indicator authoring follow-on (from the retired HFA plans)

@@ -69,7 +69,7 @@ import {
 } from "solid-js/store";
 import { ConflictResolutionModal } from "~/components/forms_editors/conflict_resolution_modal";
 import { buildLayoutContextMenu } from "~/components/layout_editor/build_context_menu";
-import { AddVisualization } from "~/components/project/add_visualization";
+import { InsertFigureModal } from "~/components/figures/insert_figure";
 import {
   projectAIViewController,
   restoreProjectAIView,
@@ -884,13 +884,15 @@ export function SlideEditor(p: Props) {
     const blockId = selectedBlockId();
     if (!blockId || tempSlide.type !== "content") return;
 
+    const ctx = staleContext();
+    if (!ctx) return;
     const result = await withCanvasCovered(
       openComponent({
-        element: AddVisualization,
+        element: InsertFigureModal,
         props: {
-          projectId: p.projectId,
-          metrics: p.projectStateSnapshot.metrics,
-          modules: p.projectStateSnapshot.projectModules,
+          scope: ctx.scope,
+          context: ctx.authoringContext,
+          preselectedMetricId: null,
         },
       }),
     );
@@ -898,7 +900,7 @@ export function SlideEditor(p: Props) {
     if (!result) return;
 
     try {
-      const { resultsValue, config } = result;
+      const { metric: resultsValue, config } = result;
 
       const newItemsRes = await getPresentationObjectItemsFromCacheOrFetch(
         p.projectId,

@@ -8,21 +8,14 @@ globs:
   - client/src/components/ReplicateByOptions.tsx
   - client/src/components/_editor_snapshot.ts
   - client/src/components/figure_editor/**
+  - client/src/components/figures/**
   - client/src/components/forms_editors/confirm_update.tsx
   - client/src/components/forms_editors/conflict_resolution_modal.tsx
   - client/src/components/forms_editors/custom_series_styles.tsx
   - client/src/components/forms_editors/download_presentation_object.tsx
   - client/src/components/forms_editors/view_results_object.tsx
-  - client/src/components/project/add_visualization/index.tsx
-  - client/src/components/project/add_visualization/metric_card.tsx
-  - client/src/components/project/add_visualization/module_sidebar.tsx
-  - client/src/components/project/add_visualization/step_1_metric.tsx
-  - client/src/components/project/add_visualization/step_2_preset.tsx
-  - client/src/components/project/add_visualization/step_3_configure.tsx
-  - client/src/components/project/add_visualization/type_card.tsx
   - client/src/components/project/edit_folder_modal.tsx
   - client/src/components/project/move_to_folder_modal.tsx
-  - client/src/components/project/preset_preview.tsx
   - client/src/components/project/project_metrics.tsx
   - client/src/components/project/project_visualizations.tsx
   - client/src/components/visualization/**
@@ -70,8 +63,9 @@ context, used by the deck and report editors; step 7a moves the embedded
 editor into this directory);
 `PresentationObjectPanelDisplay` / `MiniDisplay` / `ReplicateByOptions` /
 `NotAvailableBox` / `_editor_snapshot.ts`;
-`components/project/add_visualization/**` + `preset_preview.tsx` +
-`project_visualizations.tsx` + `project_metrics.tsx` + folder modals;
+`components/figures/insert_figure/**` (the insert-figure wizard and the
+preset gallery it renders, below); `project_visualizations.tsx` +
+`project_metrics.tsx` + folder modals;
 forms_editors viz modals; server PO/folder CRUD
 (`db/project/{presentation_objects,visualization_folders}.ts` + the
 `visualization_folders` route file: the `presentation_objects` route file is
@@ -210,10 +204,15 @@ definition; a results-file viewer. The multi-replicant branch is disabled
 `p.poDetail.config`, the open-time snapshot, so it exports the pre-edit config
 even right after a save (Open item).
 
-## The add-visualization wizard
+## The insert-figure wizard
 
-`AddVisualization` is a 3-step stepper: **Metric** (module sidebar +
-`MetricCard` grid; a card is selectable only when single-variant and
+`InsertFigureModal` (`components/figures/insert_figure/index.tsx`) takes
+`{ scope: PackageScope, context: Pick<RunAuthoringContext, "metrics" |
+"modules">, preselectedMetricId }`: the metrics and modules come from the
+package's authoring context (S9's `t2_run_authoring_context.ts`, or the
+project's own projection of the same manifest until 9a) and the pair is used
+only by the preset previews. It is a 3-step stepper: **Metric** (module
+sidebar + `MetricCard` grid; a card is selectable only when single-variant and
 `status === "ready"`; multi-variant metrics render per-variant chips) →
 **Presets** (`PresetSelector`: one live-rendered `PresetPreview` per
 `metric.vizPresets` entry + an always-appended `CUSTOM_OPTION` card; selecting a
@@ -221,13 +220,27 @@ real preset skips step 3) → **Configure** (five `TypeCard`s gated by
 `get_PRESENTATION_SELECT_OPTIONS`: timeseries needs a period column, map needs
 an admin-level disaggregation; table/chart/pie are always offered; required
 disaggregations are checked+disabled; `FILTER_ONLY_DISAGGREGATION_OPTIONS`
-excluded). Preset saves resolve `t` TranslatableStrings via `t3` **at creation
-time**. Stored PO text fields are plain strings. Custom saves go through
-`getStartingConfigForPresentationObject` (type defaults from `VIZ_TYPE_CONFIG`,
-display slots assigned via `getNextAvailableDisaggregationDisplayOption`). **The
-wizard never persists**. It closes with `{label, resultsValue, config}` and its
-five callers decide: library/metrics open the editor in create mode;
-dashboard/report/slide editors build a figure block directly.
+excluded). The wizard derives every preset's config ONCE through
+`deriveConfigFromVizPreset` (the one preset-to-config derivation, resolving
+the `t` TranslatableStrings at insertion time; stored PO text fields are
+plain strings), after cloning the preset to plain data because the project pages
+pass a Solid store; the previews render that list and the inserted figure is
+picked from it by id, so preview and figure cannot drift. A preview reads its
+rows through the scope-keyed `state/products/t2_figure_data.ts` (S9) and
+assembles them with `makeFigureBundleFromFetchedData(scope, ...)` +
+`buildFigureInputs`, so reopening a preset under the same `(runId,
+scopeToken)` is a cache hit and a preset is never a row (D6). Custom
+configs go through `getStartingConfigForPresentationObject` (type defaults
+from `VIZ_TYPE_CONFIG`, display slots assigned via
+`getNextAvailableDisaggregationDisplayOption`). **The wizard never
+persists**. It closes with `InsertFigureResult = { metric, config }` (a figure
+IS `{ metricId, config }`, D3) and its five callers decide: library/metrics
+open the editor in create mode with `metric.label` as the label;
+dashboard/report/slide editors build a figure block directly. The slide and
+report editors hand it their live `createProjectAuthoringScope()` pair and
+context; the project pages hand it `projectPackageScope()` plus
+`projectState.{metrics,projectModules}`, and do nothing when no package is
+attached.
 
 ## The library page
 
@@ -407,6 +420,13 @@ parent (the slide modal's "All replicants (N)" count).
   transparent PNG end-to-end and update or delete.
 - **Duplicated ~45-line fetch effect** in the two `ReplicateByOptions*`
   components; `MetricsByModule` type duplicated in `project_metrics.tsx`.
+- **Two client figure-data cache families until 9a**: the project-keyed
+  `state/project/t2_presentation_objects.ts` (the embedded editor, the
+  library, the slide and report editors' post-insert items read) and the
+  scope-keyed `state/products/t2_figure_data.ts` (the wizard's preset
+  previews) hold the same rows under different keys, so a preset preview and
+  the figure inserted from it are fetched twice. Step 7a moves the editors
+  onto the scope-keyed caches and 9a deletes the project family.
 - **i18n gaps**: hardcoded "Visualize" (`project_metrics.tsx:217`), "Replicant"
   (`inline_replicant_selector.tsx:26`), "Default" sub-group label,
   DuplicateVisualization/CreateSlide progress strings, `window.alert` in

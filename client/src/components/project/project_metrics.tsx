@@ -15,8 +15,8 @@ import {
 import { For, Show } from "solid-js";
 import { VisualizationEditor } from "../visualization";
 import { MetricDetailsModal } from "./metric_details_modal";
-import { AddVisualization } from "./add_visualization";
-import { projectState } from "~/state/project/t1_store";
+import { InsertFigureModal } from "~/components/figures/insert_figure";
+import { projectPackageScope, projectState } from "~/state/project/t1_store";
 import { projectAIViewController } from "~/components/project_ai/ai_views";
 import { snapshotForVizEditor } from "~/components/_editor_snapshot";
 
@@ -121,12 +121,14 @@ function MetricGroupCard(p: MetricGroupCardProps) {
   }
 
   async function visualize(metric: MetricWithStatus) {
+    const scope = projectPackageScope();
+    if (!scope) return;
     const res = await openComponent({
-      element: AddVisualization,
+      element: InsertFigureModal,
       props: {
-        projectId: p.projectId,
-        preselectedMetric: metric,
-        modules: p.projectState.projectModules,
+        scope,
+        context: { metrics: p.projectState.metrics, modules: p.projectState.projectModules },
+        preselectedMetricId: metric.id,
       },
     });
     if (!res) {
@@ -138,11 +140,11 @@ function MetricGroupCard(p: MetricGroupCardProps) {
       props: {
         mode: "create" as const,
         projectId: p.projectId,
-        label: res.label,
+        label: res.metric.label.trim(),
         returnToContext: projectAIViewController.current(),
         ...snapshotForVizEditor({
           projectState: p.projectState,
-          resultsValue: res.resultsValue,
+          resultsValue: res.metric,
           config: res.config,
         }),
       },

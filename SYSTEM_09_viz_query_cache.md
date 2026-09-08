@@ -5,6 +5,8 @@ globs:
   - client/src/state/instance/t2_run_authoring_context.ts
   - client/src/state/project/t2_presentation_objects.ts
   - client/src/state/project/t2_replicant_options.ts
+  - client/src/state/products/t2_figure_data.ts
+  - client/src/state/products/t2_replicant_options.ts
   - lib/rollup.ts
   - lib/convert_period_value.ts
   - lib/dataset_family.ts
@@ -798,6 +800,25 @@ baseline) are never cached. Uniqueness stays projectId-keyed on all four, so
 cross-project bleed was already impossible: the scope segment exists to
 invalidate on a scope CHANGE within one project. In-flight promises coalesce
 identically to the server.
+
+**Scope-keyed client twins (`state/products/`).**
+[t2_figure_data.ts](client/src/state/products/t2_figure_data.ts)
+(`run_metric_info`, `run_po_items`) and
+[t2_replicant_options.ts](client/src/state/products/t2_replicant_options.ts)
+(`run_replicant_options`) are the same three reads against the run-keyed
+mount (`getRunResultsValueInfo`, `getRunPresentationObjectItems`,
+`getRunReplicantOptions`; PLAN_PRODUCTS_RESTRUCTURE D7): the caller passes a
+`PackageScope` and the pair leads the UNIQUENESS key as `runId |
+scopeToken(adminArea2) | ...` while the version key is the constant
+`"immutable"` (`pdsNotRequired`, the `t2_runs.ts` idiom). A package never
+changes, so nothing invalidates an entry, and a response cannot land under a
+key belonging to another package or scope because the key already names
+both: the response-side guard is not needed here. The same
+`resolveDefaultReplicant` policy (first valid value, fresh config copy,
+never mutate) and the same aliasing contract on the yielded config apply.
+Consumers today: the insert-figure wizard's preset previews (S11); the
+editors move onto these in step 7a and the project family above is deleted in
+9a.
 
 **Cache observability**: `getCacheStatus`
 ([routes/project/cache_status.ts](server/routes/project/cache_status.ts),

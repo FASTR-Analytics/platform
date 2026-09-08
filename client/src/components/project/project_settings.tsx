@@ -36,11 +36,11 @@ import { CreateRestoreFromFileForm } from "./restore_from_file_form";
 import { DisplayProjectUserRole } from "../forms_editors/display_project_user_role.tsx";
 import { projectState } from "~/state/project/t1_store";
 import {
-  ProjectScopePicker,
+  ScopePicker,
   scopeSelectionFromStored,
   storedValueFromScopeSelection,
-  type ProjectScopeSelection,
-} from "~/components/_shared/project_scope_picker";
+  type ScopeSelection,
+} from "~/components/_shared/scope_picker";
 
 // Backup types
 interface BackupFileInfo {
@@ -447,7 +447,7 @@ export function ProjectSettings(p: Props) {
 // Scope edits are global-admin-only server-side (the updateProject class:
 // project identity, like label edits).
 function ProjectScopeForm(p: AlertComponentProps<void, boolean>) {
-  const [tempScope, setTempScope] = createSignal<ProjectScopeSelection>(
+  const [tempScope, setTempScope] = createSignal<ScopeSelection>(
     scopeSelectionFromStored(projectState.adminArea2),
   );
 
@@ -487,7 +487,7 @@ function ProjectScopeForm(p: AlertComponentProps<void, boolean>) {
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
     >
-      <ProjectScopePicker selection={tempScope()} onChange={setTempScope} />
+      <ScopePicker selection={tempScope()} onChange={setTempScope} />
     </AlertFormHolder>
   );
 }

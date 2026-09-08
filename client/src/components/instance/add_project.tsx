@@ -8,10 +8,10 @@ import {
 import { createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 import {
-  ProjectScopePicker,
+  ScopePicker,
   storedValueFromScopeSelection,
-  type ProjectScopeSelection,
-} from "~/components/_shared/project_scope_picker";
+  type ScopeSelection,
+} from "~/components/_shared/scope_picker";
 
 // A new project is a name plus a scope identity (national or a single Admin
 // Area 2: PLAN_1_PROJECT_AA2_SCOPE): it starts with no results package
@@ -27,7 +27,7 @@ export function AddProjectForm(
   >,
 ) {
   const [tempLabel, setTempLabel] = createSignal<string>("");
-  const [tempScope, setTempScope] = createSignal<ProjectScopeSelection>({
+  const [tempScope, setTempScope] = createSignal<ScopeSelection>({
     mode: "national",
   });
 
@@ -87,7 +87,7 @@ export function AddProjectForm(
           fullWidth
           autoFocus
         />
-        <ProjectScopePicker selection={tempScope()} onChange={setTempScope} />
+        <ScopePicker selection={tempScope()} onChange={setTempScope} />
       </div>
     </AlertFormHolder>
   );

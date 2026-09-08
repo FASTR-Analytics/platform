@@ -27,7 +27,7 @@ import {
   createDeleteAction,
 } from "panther";
 import { Show, createEffect, createMemo, createSignal, onCleanup } from "solid-js";
-import { projectState, requireProjectPackageScope } from "~/state/project/t1_store";
+import { projectPackageScope, projectState, requireProjectPackageScope } from "~/state/project/t1_store";
 import { setDashboardEditorOpen, setShowAi, showAi } from "~/state/t4_ui";
 import { projectAIViewController } from "~/components/project_ai/ai_views";
 import { getDashboardDetailFromCacheOrFetch } from "~/state/project/t2_dashboards";
@@ -38,7 +38,7 @@ import {
 import { serverActions } from "~/server_actions";
 import { SelectVisualizationForSlide } from "~/components/slide_deck/select_visualization_for_slide";
 import { VisualizationEditor } from "~/components/visualization";
-import { AddVisualization } from "~/components/project/add_visualization";
+import { InsertFigureModal } from "~/components/figures/insert_figure";
 import { snapshotForVizEditor } from "~/components/_editor_snapshot";
 import { makeFigureBundleFromFetchedData } from "~/generate_visualization/mod";
 import { AddDashboardItemConfirmModal } from "./add_dashboard_item_modal";
@@ -742,16 +742,18 @@ export function DashboardEditor(p: Props) {
   async function handleCreate() {
     const it = selectedItem();
     if (!it) return;
+    const scope = projectPackageScope();
+    if (!scope) return;
     const result = await openComponent({
-      element: AddVisualization,
+      element: InsertFigureModal,
       props: {
-        projectId: p.projectId,
-        metrics: projectState.metrics,
-        modules: projectState.projectModules,
+        scope,
+        context: { metrics: projectState.metrics, modules: projectState.projectModules },
+        preselectedMetricId: null,
       },
     });
     if (!result) return;
-    const built = await buildFigureBlock(result.resultsValue, result.config);
+    const built = await buildFigureBlock(result.metric, result.config);
     if (!built.ok) {
       await openAlert({ text: built.err, intent: "danger" });
       return;

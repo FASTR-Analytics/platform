@@ -1,22 +1,21 @@
-import { type MetricWithStatus } from "lib";
-import { PresetSelector } from "../preset_preview";
+import { type MetricWithStatus, type PackageScope } from "lib";
+import { PresetSelector, type PresetOption } from "./preset_preview";
 
 type Props = {
-  projectId: string;
+  scope: PackageScope;
   metric: MetricWithStatus;
+  presets: PresetOption[];
   selectedPresetId: string | undefined;
   onSelectPreset: (presetId: string) => void;
 };
 
 export function Step2Preset(p: Props) {
-  const presets = () => p.metric.vizPresets ?? [];
-
   return (
     <div class="ui-pad">
       <PresetSelector
-        projectId={p.projectId}
+        scope={p.scope}
         metric={p.metric}
-        presets={presets()}
+        presets={p.presets}
         selectedId={p.selectedPresetId}
         onSelect={p.onSelectPreset}
       />

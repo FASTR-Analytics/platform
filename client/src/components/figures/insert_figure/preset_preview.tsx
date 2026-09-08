@@ -1,10 +1,8 @@
 import {
-  DEFAULT_S_CONFIG,
-  DEFAULT_T_CONFIG,
-  getFetchConfigFromPresentationObjectConfig,
+  t3,
   type MetricWithStatus,
+  type PackageScope,
   type PresentationObjectConfig,
-  type VizPreset,
 } from "lib";
 import {
   FigureHolder,
@@ -12,32 +10,35 @@ import {
   type FigureInputs,
   type StateHolder,
 } from "panther";
-import { t3 } from "lib";
-import { LabelHolder } from "panther";
 import { For, Match, Show, Switch, createEffect, createSignal } from "solid-js";
-import { unwrap } from "solid-js/store";
-import { projectState, requireProjectPackageScope, runVersionKey } from "~/state/project/t1_store";
 import {
   buildFigureInputs,
   makeFigureBundleFromFetchedData,
 } from "~/generate_visualization/mod";
-import { serverActions } from "~/server_actions";
-import {
-  _PO_ITEMS_CACHE,
-  resolveDefaultReplicant,
-} from "~/state/project/t2_presentation_objects";
-import { poItemsQueue } from "~/state/_infra/request_queue";
+import { getPresentationObjectItemsFromCacheOrFetch } from "~/state/products/t2_figure_data";
+
+export const CUSTOM_OPTION = "__custom__";
+
+export type PresetOption = {
+  id: string;
+  label: string;
+  description: string | undefined;
+  config: PresentationObjectConfig;
+};
 
 type Props = {
-  projectId: string;
+  scope: PackageScope;
   metric: MetricWithStatus;
-  preset: { config: VizPreset["config"] };
+  config: PresentationObjectConfig;
   label: string;
-  description?: string;
+  description: string | undefined;
   selected: boolean;
   onClick: () => void;
 };
 
+// A preset is not a row and has no detail read (D6): it renders through the
+// same scope-keyed items read as any inserted figure, so a gallery of
+// previews and the figure a user then inserts share cache entries.
 export function PresetPreview(p: Props) {
   const [state, setState] = createSignal<StateHolder<FigureInputs>>({
     status: "loading",
@@ -46,14 +47,13 @@ export function PresetPreview(p: Props) {
   let version = 0;
 
   createEffect(() => {
-    const preset = p.preset;
+    const scope = p.scope;
     const metric = p.metric;
-    // Tracked version-key read: fetchPreview's cache-internal reads are untracked
-    runVersionKey(projectState);
+    const config = p.config;
     const thisVersion = ++version;
     setState({ status: "loading" });
 
-    fetchPreview(p.projectId, metric, preset).then(
+    fetchPreview(scope, metric, config).then(
       (result) => {
         if (version === thisVersion) setState(result);
       },
@@ -116,20 +116,12 @@ export function PresetPreview(p: Props) {
   );
 }
 
-export const CUSTOM_OPTION = "__custom__";
-
 type PresetSelectorProps = {
-  projectId: string;
+  scope: PackageScope;
   metric: MetricWithStatus;
-  presets: {
-    id: string;
-    label: { en: string; fr: string };
-    description: { en: string; fr: string };
-    config: VizPreset["config"];
-  }[];
+  presets: PresetOption[];
   selectedId: string | undefined;
   onSelect: (id: string) => void;
-  label?: string;
 };
 
 export function PresetSelector(p: PresetSelectorProps) {
@@ -138,11 +130,11 @@ export function PresetSelector(p: PresetSelectorProps) {
       <For each={p.presets}>
         {(preset) => (
           <PresetPreview
-            projectId={p.projectId}
+            scope={p.scope}
             metric={p.metric}
-            preset={preset}
-            label={t3(preset.label)}
-            description={t3(preset.description)}
+            config={preset.config}
+            label={preset.label}
+            description={preset.description}
             selected={p.selectedId === preset.id}
             onClick={() => p.onSelect(preset.id)}
           />
@@ -181,91 +173,20 @@ export function PresetSelector(p: PresetSelectorProps) {
 }
 
 async function fetchPreview(
-  projectId: string,
+  scope: PackageScope,
   metric: MetricWithStatus,
-  preset: { config: VizPreset["config"] },
+  config: PresentationObjectConfig,
 ): Promise<StateHolder<FigureInputs>> {
-  const presetConfig = structuredClone(unwrap(preset.config));
-  const config: PresentationObjectConfig = {
-    d: presetConfig.d,
-    s: {
-      ...DEFAULT_S_CONFIG,
-      ...presetConfig.s,
-    },
-    t: { ...DEFAULT_T_CONFIG },
-  };
-
-  const resFetchConfig = getFetchConfigFromPresentationObjectConfig(
-    metric,
-    config,
-  );
-  if (!resFetchConfig.success) {
-    return { status: "error", err: resFetchConfig.err };
+  const itemsRes = await getPresentationObjectItemsFromCacheOrFetch(scope, metric, config);
+  if (!itemsRes.success) {
+    return { status: "error", err: itemsRes.err };
   }
-
-  // Replicant presets ship with no selected value; resolve to the first valid
-  // option (same as the interactive viz) so the preview isn't querying the
-  // "UNSELECTED" sentinel and rendering a false "No data available".
-  const resolvedReplicant = await resolveDefaultReplicant(
-    projectId,
-    metric,
-    config,
-    resFetchConfig.data,
-  );
-  if (!resolvedReplicant.ok) {
-    return {
-      status: "error",
-      err: t3({
-        en: "No data available",
-        fr: "Aucune donnée disponible",
-        pt: "Nenhum dado disponível",
-      }),
-    };
-  }
-  const fetchConfig = resolvedReplicant.fetchConfig;
-  const effectiveConfig = resolvedReplicant.config;
-
-  const { data, version } = await _PO_ITEMS_CACHE.get({
-    projectId,
-    resultsObjectId: metric.resultsObjectId,
-    fetchConfig,
-  });
-
-  let itemsHolder;
-  if (data) {
-    itemsHolder = data;
-  } else {
-    const newPromise = poItemsQueue.enqueue(() =>
-      serverActions.getPresentationObjectItems({
-        projectId,
-        resultsObjectId: metric.resultsObjectId,
-        fetchConfig,
-        firstPeriodOption: metric.mostGranularTimePeriodColumnInResultsFile,
-      }),
-    );
-
-    _PO_ITEMS_CACHE.setPromise(
-      newPromise,
-      {
-        projectId,
-        resultsObjectId: metric.resultsObjectId,
-        fetchConfig,
-      },
-      version,
-    );
-
-    const res = await newPromise;
-    if (!res.success) {
-      return { status: "error", err: res.err };
-    }
-    itemsHolder = res.data;
-  }
-
-  if (itemsHolder.status !== "ok") {
+  const { ih, config: effectiveConfig } = itemsRes.data;
+  if (ih.status !== "ok") {
     return {
       status: "error",
       err:
-        itemsHolder.status === "too_many_items"
+        ih.status === "too_many_items"
           ? t3({
               en: "Too many data points",
               fr: "Trop de points de données",
@@ -280,11 +201,9 @@ async function fetchPreview(
   }
 
   try {
-    const bundle = makeFigureBundleFromFetchedData(requireProjectPackageScope(), {
+    const bundle = makeFigureBundleFromFetchedData(scope, {
       resultsValue: metric,
-      ih: itemsHolder as Parameters<
-        typeof makeFigureBundleFromFetchedData
-      >[1]["ih"],
+      ih,
       effectiveConfig,
     });
     return { status: "ready" as const, data: buildFigureInputs(bundle) };

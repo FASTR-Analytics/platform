@@ -251,7 +251,7 @@ through panther node ops via `buildLayoutContextMenu`
 split/add/move/delete/convert, reachable from both the panel button and
 canvas right-click. Figure blocks resolve through the S10 shared resolvers
 (select existing viz → `resolveFigureBundleFromVisualization`; edit →
-ephemeral S11 editor + rebuild; create → `AddVisualization` + build). Local
+ephemeral S11 editor + rebuild; create → `InsertFigureModal` + build). Local
 edits notify the AI (`edited_slide_locally`) and the editor registers the
 `editing_slide` view's mutator context on the AI view controller (S13).
 

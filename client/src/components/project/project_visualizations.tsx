@@ -10,7 +10,7 @@ import {
 import { Show, createEffect, createSignal } from "solid-js";
 import { PresentationObjectPanelDisplay } from "~/components/PresentationObjectPanelDisplay";
 import { VisualizationEditor } from "../visualization";
-import { AddVisualization } from "./add_visualization";
+import { InsertFigureModal } from "~/components/figures/insert_figure";
 import { getPODetailFromCacheorFetch } from "~/state/project/t2_presentation_objects";
 import {
   updateProjectView,
@@ -20,7 +20,7 @@ import {
   setPendingEditorOpen,
 } from "~/state/t4_ui";
 import { SortControl } from "~/components/_shared/sort_control";
-import { projectState } from "~/state/project/t1_store";
+import { projectPackageScope, projectState } from "~/state/project/t1_store";
 import { projectAIViewController } from "~/components/project_ai/ai_views";
 import { snapshotForVizEditor } from "~/components/_editor_snapshot";
 
@@ -105,12 +105,14 @@ export function ProjectVisualizations(p: Props) {
   });
 
   async function attempAddPresentationObject() {
+    const scope = projectPackageScope();
+    if (!scope) return;
     const res = await openComponent({
-      element: AddVisualization,
+      element: InsertFigureModal,
       props: {
-        projectId: projectState.id,
-        metrics: projectState.metrics,
-        modules: projectState.projectModules,
+        scope,
+        context: { metrics: projectState.metrics, modules: projectState.projectModules },
+        preselectedMetricId: null,
       },
     });
     if (res === undefined) {
@@ -122,12 +124,11 @@ export function ProjectVisualizations(p: Props) {
       props: {
         mode: "create" as const,
         projectId: projectState.id,
-        label: res.label,
+        label: res.metric.label.trim(),
         returnToContext: projectAIViewController.current(),
         ...snapshotForVizEditor({
           projectState,
-
-          resultsValue: res.resultsValue,
+          resultsValue: res.metric,
           config: res.config,
         }),
       },

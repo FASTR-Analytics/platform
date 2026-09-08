@@ -80,7 +80,7 @@ import { SelectVisualizationForSlide } from "../slide_deck/select_visualization_
 import { resolveFigureAndGeoFromVisualization } from "~/generate_visualization/mod";
 import { VisualizationEditor } from "../visualization";
 import type { VizFigureCollabBinding } from "../visualization";
-import { AddVisualization } from "../project/add_visualization";
+import { InsertFigureModal } from "~/components/figures/insert_figure";
 import { snapshotForVizEditor } from "../_editor_snapshot";
 import {
   EDITOR_PANE_MAX_REM,
@@ -1290,16 +1290,18 @@ export function ProjectReport(p: Props) {
   async function handleCreate() {
     const sel = selectedEmbed();
     if (!sel || sel.kind !== "figure") return;
+    const ctx = staleContext();
+    if (!ctx) return;
     const result = await openComponent({
-      element: AddVisualization,
+      element: InsertFigureModal,
       props: {
-        projectId,
-        metrics: projectState.metrics,
-        modules: projectState.projectModules,
+        scope: ctx.scope,
+        context: ctx.context,
+        preselectedMetricId: null,
       },
     });
     if (!result) return;
-    const built = await buildFigureBlock(result.resultsValue, result.config);
+    const built = await buildFigureBlock(result.metric, result.config);
     if (!built.ok) {
       await openAlert({ text: built.err, intent: "danger" });
       return;
