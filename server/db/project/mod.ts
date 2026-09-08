@@ -1,4 +1,3 @@
-export * from "./_project_database_types.ts";
 export * from "./presentation_objects.ts";
 export * from "./projects.ts";
 export * from "./slide_decks.ts";

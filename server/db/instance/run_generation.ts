@@ -4,6 +4,7 @@ import {
   type APIResponseNoData,
   type APIResponseWithData,
   type FollowPinnedProject,
+  type ReadyPackage,
   type RunCatalogItem,
   type RunCatalogStatus,
   type RunListingItem,
@@ -61,17 +62,20 @@ function toRunListingItem(row: RunListingRow): RunListingItem {
 }
 
 // The instance catalogue (Phase 3 item 3): every run on the instance, newest
-// first, each with the projects currently pointing at it. Those pointers are
-// both the "attached projects" column and the delete guard's subject, so
-// they come from projects.run_id, the serving pointer, never from the
-// summary's launch-time attach selection, which says nothing about where a
-// run ended up.
+// first, each with the projects and products currently pointing at it. Those
+// pointers are both the "in use by" column and the delete guard's subject,
+// so they come from projects.run_id and products.run_id, the serving
+// pointers, never from the summary's launch-time attach selection, which
+// says nothing about where a run ended up.
 export async function listRunCatalog(
   mainDb: Sql,
 ): Promise<APIResponseWithData<RunCatalogItem[]>> {
   try {
     const rows = await mainDb<
-      (RunListingRow & { attached_projects: { id: string; label: string }[] })[]
+      (RunListingRow & {
+        attached_projects: RunCatalogItem["attachedProjects"];
+        attached_products: RunCatalogItem["attachedProducts"];
+      })[]
     >`
 SELECT r.id, r.label, r.status, r.provenance, r.created_at, r.created_by,
   r.summary, r.progress,
@@ -83,7 +87,17 @@ SELECT r.id, r.label, r.status, r.provenance, r.created_at, r.created_by,
       WHERE p.run_id = r.id
     ),
     '[]'::json
-  ) AS attached_projects
+  ) AS attached_projects,
+  COALESCE(
+    (
+      SELECT json_agg(
+        json_build_object('type', pr.type, 'id', pr.id, 'label', pr.label)
+        ORDER BY pr.label)
+      FROM products pr
+      WHERE pr.run_id = r.id
+    ),
+    '[]'::json
+  ) AS attached_products
 FROM runs r
 ORDER BY r.created_at DESC
 `;
@@ -92,6 +106,7 @@ ORDER BY r.created_at DESC
       data: rows.map((row) => ({
         ...toRunListingItem(row),
         attachedProjects: row.attached_projects,
+        attachedProducts: row.attached_products,
       })),
     };
   } catch (e) {
@@ -104,12 +119,13 @@ ORDER BY r.created_at DESC
 }
 
 // Guarded hard delete's DB half (Q1 ruling: ONE act, no archived state). The
-// guard is IN the DELETE so a project cannot attach between a check and the
-// delete; a refusal re-reads the row to say WHY. The caller
+// guard is IN the DELETE so a project or product cannot attach between a
+// check and the delete; a refusal re-reads the row to say WHY. The caller
 // (server/runs/delete_run.ts) owns the run dir and cache purge and only runs
 // them once this returns deleted. The pinned refusal is a code guard by
 // necessity: a boolean column carries no FK protection the way
-// projects.run_id does (SYSTEM_08 "Delete protection is a code guard").
+// projects.run_id and products.run_id do (SYSTEM_08 "Delete protection is a
+// code guard").
 export async function deleteRunCatalogRow(
   mainDb: Sql,
   runId: string,
@@ -121,16 +137,15 @@ WHERE id = ${runId}
   AND status <> 'generating'
   AND NOT pinned
   AND NOT EXISTS (SELECT 1 FROM projects p WHERE p.run_id = ${runId})
+  AND NOT EXISTS (SELECT 1 FROM products pr WHERE pr.run_id = ${runId})
 RETURNING id
 `;
     if (deleted.length > 0) {
       return { success: true };
     }
     const row = (
-      await mainDb<{ status: string; pinned: boolean; attached_count: number }[]>`
-SELECT r.status, r.pinned,
-  (SELECT COUNT(*)::int FROM projects p WHERE p.run_id = r.id) AS attached_count
-FROM runs r WHERE r.id = ${runId}
+      await mainDb<{ status: string; pinned: boolean }[]>`
+SELECT r.status, r.pinned FROM runs r WHERE r.id = ${runId}
 `
     ).at(0);
     if (row === undefined) {
@@ -151,12 +166,88 @@ FROM runs r WHERE r.id = ${runId}
     return {
       success: false,
       err:
-        "This results package is in use — point every project using it at another package first",
+        "This results package is in use — point every project and product using it at another package first",
     };
   } catch (e) {
     return {
       success: false,
       err: "Problem deleting results package: " +
+        (e instanceof Error ? e.message : ""),
+    };
+  }
+}
+
+// The product package picker's options: every ready package on the
+// instance, newest first, as bare (id, label, createdAt) triples. Approved
+// users may read it (the label is what every product card shows), so it
+// carries none of RunListingItem's generation telemetry.
+export async function listReadyPackages(
+  mainDb: Sql,
+): Promise<APIResponseWithData<ReadyPackage[]>> {
+  try {
+    const rows = await mainDb<{ id: string; label: string; created_at: Date }[]>`
+SELECT id, label, created_at FROM runs
+WHERE status = 'ready'
+ORDER BY created_at DESC
+`;
+    return {
+      success: true,
+      data: rows.map((r) => ({
+        id: r.id,
+        label: r.label,
+        createdAt: r.created_at.toISOString(),
+      })),
+    };
+  } catch (e) {
+    return {
+      success: false,
+      err: "Problem listing results packages: " +
+        (e instanceof Error ? e.message : ""),
+    };
+  }
+}
+
+// The product's package pointer (PLAN_PRODUCTS_RESTRUCTURE D5): one UPDATE
+// with the ready gate IN the WHERE clause, so a package that flips out of
+// `ready` between check and write cannot be attached, and the products.run_id
+// FK (no cascade) blocks a concurrent delete of the target. Reattach never
+// blocks on compatibility: staleness is a per-figure badge (D4). A refused
+// write re-reads to say which reason.
+export async function setProductRun(
+  mainDb: Sql,
+  productId: string,
+  runId: string,
+): Promise<APIResponseWithData<{ lastUpdated: string }>> {
+  try {
+    const lastUpdated = new Date().toISOString();
+    const updated = await mainDb<{ id: string }[]>`
+UPDATE products p SET run_id = r.id, last_updated = ${lastUpdated}
+FROM runs r
+WHERE p.id = ${productId} AND r.id = ${runId} AND r.status = 'ready'
+RETURNING p.id
+`;
+    if (updated.length > 0) {
+      return { success: true, data: { lastUpdated } };
+    }
+    const row = (
+      await mainDb<{ status: string }[]>`
+SELECT status FROM runs WHERE id = ${runId}
+`
+    ).at(0);
+    if (row === undefined) {
+      return { success: false, err: "Results package not found" };
+    }
+    if (row.status !== "ready") {
+      return {
+        success: false,
+        err: "Only a ready results package can be attached to a product",
+      };
+    }
+    return { success: false, err: "Product not found" };
+  } catch (e) {
+    return {
+      success: false,
+      err: "Problem attaching results package: " +
         (e instanceof Error ? e.message : ""),
     };
   }

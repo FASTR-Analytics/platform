@@ -38,6 +38,7 @@ globs:
   - lib/types/scope.ts
   - lib/types/slides.ts
   - server/db/instance/dashboard_slugs.ts
+  - server/db/products/**
   - server/db/project/dashboards.ts
   - server/db/project/move_slides.ts
   - server/db/project/report_folders.ts

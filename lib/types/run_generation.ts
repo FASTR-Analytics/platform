@@ -3,6 +3,7 @@ import type { DatasetType } from "./datasets.ts";
 import type { DisaggregationOption } from "./disaggregation_options.ts";
 import type { ModuleParameter } from "./_module_definition_installed.ts";
 import type { ModuleId } from "./module_registry.ts";
+import type { ProductType } from "./products.ts";
 import type { RunProvenance, RunSummary } from "./run_manifest.ts";
 
 // Results-package generation (PLAN_RESULTS_RUNS item 2, re-cut by Phase 3
@@ -120,10 +121,23 @@ export type PinResultsPackageResult = {
 };
 
 // The instance catalogue row (Phase 3 item 3): every run on the instance,
-// plus the projects currently pointing at it: which is both the "attached
-// projects" column and the reason a run cannot be deleted.
+// plus the projects and the products currently pointing at it: both the "in
+// use by" column and the reason a run cannot be deleted. `attachedProjects`
+// leaves with the project layer (PLAN_PRODUCTS_RESTRUCTURE 9b).
 export type RunCatalogItem = RunListingItem & {
   attachedProjects: { id: string; label: string }[];
+  attachedProducts: { type: ProductType; id: string; label: string }[];
+};
+
+// A ready results package as the product package picker lists it. The label
+// is approved-user data (every product card shows the label of the package
+// it serves from), so this narrows SYSTEM_03's Q-B to generation telemetry:
+// `RunListingItem`'s progress, summary and provenance stay at
+// can_configure_data.
+export type ReadyPackage = {
+  id: string;
+  label: string;
+  createdAt: string;
 };
 
 // What one READY package contains, wherever it is explored: settings

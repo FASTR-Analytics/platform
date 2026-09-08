@@ -1,10 +1,15 @@
 import { customAlphabet } from "nanoid";
 import type { Sql } from "postgres";
 
+// One generator length for every short id in the app: 4 chars over this
+// 31-char alphabet is 923,521 combinations against a namespace of every row
+// on the instance. Existing 3-char ids are kept as they are; ids are never
+// length-validated, and registry params stay z.string().
 const alphabet = "23456789abcdefghjkmnpqrstuvwxyz";
-const generateId = customAlphabet(alphabet, 3);
+const generateId = customAlphabet(alphabet, 4);
 
 type IdTable =
+  | "products"
   | "slide_decks"
   | "slides"
   | "reports"
@@ -32,6 +37,11 @@ async function generateUniqueIdForTable(
   throw new Error(
     `Failed to generate unique ${table} id after ${maxAttempts} attempts`,
   );
+}
+
+// Decks and reports share one id namespace: both are rows in `products`.
+export function generateUniqueProductId(db: Sql): Promise<string> {
+  return generateUniqueIdForTable(db, "products");
 }
 
 export function generateUniqueDeckId(db: Sql): Promise<string> {

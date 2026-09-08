@@ -132,6 +132,62 @@ export type DBProduct = {
   last_updated: string;
 };
 
+export type DBSlideDeck = {
+  id: string;
+  type: "slide_deck";
+  plan: string | null;
+  config: string | null;
+};
+
+export type DBSlide = {
+  id: string;
+  slide_deck_id: string;
+  sort_order: number;
+  config: string;
+  last_updated: string;
+  crdt_state: string | null;
+  crdt_state_last_updated: string | null;
+};
+
+export type DBSlideDeckVersion = {
+  id: string;
+  slide_deck_id: string;
+  created_at: string;
+  label: string;
+  slide_deck_config: string;
+  slides: string;
+  editors: string;
+  content_hash: string;
+  restored_from_version_id: string | null;
+  slide_editors: string | null;
+};
+
+export type DBReport = {
+  id: string;
+  type: "report";
+  body: string;
+  figures: string;
+  images: string;
+  config: string | null;
+  crdt_state: string | null;
+  crdt_state_last_updated: string | null;
+  body_authors: string | null;
+};
+
+export type DBReportVersion = {
+  id: string;
+  report_id: string;
+  created_at: string;
+  label: string;
+  body: string;
+  figures: string;
+  images: string;
+  editors: string;
+  content_hash: string;
+  restored_from_version_id: string | null;
+  body_authors: string | null;
+};
+
 // Structure
 
 export type DBIndicatorRaw = {
