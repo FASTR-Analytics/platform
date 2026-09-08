@@ -6,7 +6,8 @@ database, one realtime channel, one copilot. An Explore tab replaces the
 project Metrics tab and the standalone visualization library.
 
 **Next step: Do 1.** Each session sets this line in its final commit. Its
-values are `Do N`, `Review N`, `Fix N`, and `done`.
+values are `Do N`, `Review N` and `Fix N`; after step 10's review passes the
+file is deleted instead of advanced.
 
 **Status 2026-09-08: NOT STARTED on `version2`.** This is the second attempt.
 The first attempt was built on `tim-branch-restructure` between 2026-08-19 and
@@ -44,9 +45,12 @@ builds the work list a review left. Steps alternate Do, Review, and the
 line moves on only when a review passes. A session never does two of these.
 
 **Session start.** The branch is `version2`; confirm it with `git branch
---show-current` and confirm `git status` is clean. Never create a branch;
-commit to `version2`. If the **Next step** line and the last row of the
-build log (§9) disagree, stop and say so. `version2-reference` is read only
+--show-current` and confirm `git status` is clean (sessions are serial; a
+dirty tree means another session did not finish, so stop and say so). Never
+create a branch; commit to `version2`. Every session ends with a closing row
+in §9 (`Step N built`, `Step N reviewed: pass` or `Step N reviewed: N
+findings`, `Step N fixed`); if the **Next step** line and the last closing
+row disagree, stop and say so. `version2-reference` is read only
 through `git show version2-reference:<path>`; never check it out, merge it
 or cherry-pick from it. Then read, in this order: `CLAUDE.md`, `SYSTEMS.md`,
 the SYSTEM file for each area the step names, §1 and §2 of this plan, §3 for
@@ -55,8 +59,8 @@ plan is required reading for a step.
 
 **A Do session** builds the step as its §4 section says, within its Surface,
 and ends when the step's gates and the §0 floor are green, §9 has the rows
-the step produced, the **Next step** line says `Review N`, and the last
-commit is made. Then it stops.
+the step produced plus its closing row, the **Next step** line says `Review
+N`, and the last commit is made. Then it stops.
 
 **A Review session** is a fresh agent that did not write the code. It lists
 the step's commits (`git log` from the commit that last set the **Next
@@ -68,13 +72,15 @@ message or the log. Every gate in the step's Gates and the §0 floor passes
 when the reviewer runs it; a gate the reviewer cannot run from a file in
 the repo or a command in this plan is itself a finding. §9 has the rows the
 step should have produced (deviations, facts found wrong, defects found by
-running the app). Each finding is one row in §9 with the file and line. The
-review ends with the **Next step** line set to `Do N+1` if there are no
-findings that change code, or `Fix N` if there are; `done` after step 10.
-Then it stops.
+running the app). Each finding is one row in §9 with the file and line,
+followed by the closing row. The review ends with the **Next step** line set
+to `Do N+1` if there are no findings that change code, or `Fix N` if there
+are. After step 10's review passes, the reviewer deletes this file in its
+last commit instead of setting the line. Then it stops.
 
 **A Fix session** is a Do session whose work list is the review's findings
-in §9 and nothing else. It ends with the line set to `Review N`.
+in §9 and nothing else. It ends with its closing row and the line set to
+`Review N`.
 
 **Every session edits exactly two things in this file:** the **Next step**
 line and §9. It never rewrites a ruling, a step section or a fact, even one
@@ -82,8 +88,8 @@ it has shown to be wrong; it records the disagreement in §9, and the code
 wins. The edit to this file rides the session's last commit, so the tree and
 the plan always agree. If a session cannot finish, it leaves the tree green
 at the last good commit, records in §9 exactly what is done and what is not,
-leaves the **Next step** line unchanged, and says so. Step 10's last commit
-deletes this file; that is the one exception to the two-things rule.
+leaves the **Next step** line unchanged, and says so. The deletion of this
+file after step 10's review is the one exception to the two-things rule.
 
 Rules that bind every step:
 
@@ -446,7 +452,8 @@ record it in §9.
      `report_versions`, stamping `run_id` (the project's, else the pin; D5)
      and `admin_area_2` from the project row.
   3. Create folders per D10.
-  4. Leave `created_by` and `created_at` NULL (no invented provenance).
+  4. Leave `created_by` and `created_at` NULL on the products and on the
+     folders item 3 creates (no invented provenance).
   5. Concatenate `ai_context` into `instance_config.ai_context` under
      `## <label>` headings (D15).
   6. **Check every inserted primary key for collision** (`products`,
@@ -714,8 +721,8 @@ SYSTEM prose and globs change in the step that changes the contract (§0);
 step 10 is a read-through, not the rewrite. SYSTEMS.md custody rows, the
 PROTOCOL_APP files, CLAUDE.md and USER_GUIDE_MCP follow the same rule. Other
 `PLAN_*.md` files are Tim's to rework after this plan lands; no step edits
-them. When step 10's gates are green, this file is deleted in the same
-commit (CLAUDE.md rule).
+them. When step 10's review passes, the reviewer deletes this file in its
+last commit (the CLAUDE.md rule that a finished plan is deleted).
 
 ---
 
@@ -827,16 +834,22 @@ Rules of the shape:
   `requireGlobalPermission()` is not changed (its zero-perm sites keep
   today's behaviour, including their hand-rolled `approved` branches).
 - `requireProductAccess`, new, beside it. Every entry in
-  `lib/api-routes/products/*` carries `access: "view" | "edit" | "own"`.
-  The middleware resolves the route's targets from one of three places and
-  nowhere else: the `product_id` path param, the `folder_id` path param, or
-  the body's `productIds` list on the batch routes. It then calls
-  `productAccessPolicy(user, level, targets)` in `server/auth/
-  product_access.ts`. Today's policy: 401 if unauthenticated, 403 unless
-  `approved`, otherwise true at every level. A handler never checks access
-  itself. Folder routes declare their level the same way (`createFolder`
-  edit on the parent, `updateFolder` edit on the folder and on a new parent,
-  `deleteFolder` own).
+  `lib/api-routes/products/*` carries `access: "view" | "edit" | "own"`; the
+  `route()` helper in `lib/api-routes/route-utils.ts` gains an optional
+  `access` field that comes back non-optional on the returned type, so a
+  `satisfies` over each registry can require it. `defineRoute` in
+  `server/routes/route-helpers.ts` already holds the registry entry, so it
+  installs `requireProductAccess` whenever `access` is set; that is the
+  mechanism behind "a handler never checks access itself". The middleware
+  resolves the route's targets from the id fields the route declares and
+  nowhere else: path `product_id` or `folder_id`; body `productIds` (batch
+  targets), `folderId` or `parentId` (a destination folder), and
+  `targetProductId` (a destination product). It answers 401 when
+  unauthenticated and 403 when `productAccessPolicy(user, level, targets)`
+  in `server/auth/product_access.ts` returns false. Today's policy is a pure
+  boolean: true for any approved user at every level. Folder routes declare
+  their level the same way (`createFolder` edit on the parent, `updateFolder`
+  edit on the folder and on a new parent, `deleteFolder` own).
 - `server/project_auth.ts` is deleted in step 9b; `getGlobalUser` /
   `buildGlobalUserFromDb` move to `server/auth/global_user.ts` in step 5
   (imported by `userPermission.ts`, `static.ts`, `mcp/context_cache.ts` and
@@ -906,10 +919,13 @@ Rules of the shape:
   .../report/{body,figures,images,config}`, `GET .../report/versions`, `GET
   .../report/versions/:version_id`, `GET .../report/versions/:version_id/
   lineage`, `POST .../report/versions/:version_id/{restore,copy}`. Reads
-  declare view, writes edit. Route NAMES keep today's registry keys minus
-  `requiresProject`; only the paths and params change. Per-type `delete*`,
-  `move*ToFolder`, `update*Label`, `duplicate*` are removed in favour of the
-  shared ones.
+  declare view, writes edit; the two `copy*Version` routes create a new
+  product from a version (body `{ label, folderId }`) and declare view on
+  the source and edit on the target folder, like `duplicateProduct`. Route
+  NAMES keep today's registry keys minus `requiresProject`; only the paths
+  and params change. Removed in favour of the shared routes or the SSE list:
+  per-type `getAll*`, `create*`, `delete*`, `move*ToFolder`, `update*Label`,
+  `duplicate*`.
 - Folder routes: `createFolder` (`POST /folders`, `{ label, color, parentId
   }`, edit on the parent), `updateFolder` (`PUT /folders/:folder_id`, `{
   label, color, parentId }`, edit; the cycle check lives here),
@@ -930,7 +946,8 @@ Rules of the shape:
 - Public: `/api/d/:slug` and `routes/public/dashboard.ts` deleted; `main.ts`
   mount removed; `app.tsx` `/d/:slug` route removed.
 - `renameUserEmail`: the per-project sweep becomes a main-DB sweep over
-  `products.created_by`, `report_versions.editors`, `deck_versions.editors`,
+  `products.created_by`, `folders.created_by`, `report_versions.editors`,
+  `deck_versions.editors`,
   `body_authors`; `RenameEmailResult` loses `projectsUpdated/projectsFailed`;
   `change_email_modal.tsx` retry UI follows; the fleet orchestrator consumes
   the new shape (§7).
@@ -1170,11 +1187,10 @@ build_system_prompt.ts`, `lib/types/mod.ts`; the `RunDataset` type already in
 
 Ten steps in twelve parts (7 and 9 split in two). Each row below is one Do
 session followed by one Review session, plus a Fix and another Review when
-a review fails (§0). **Depends on** is the dependency graph, not a
-suggestion:
-step 3 needs nothing but the tree as it is, so it can run before 1 and 2 or
-in parallel with them if two sessions are open, and 4 can follow it the
-same way. Everything from 5 onward is serial.
+a review fails (§0). Sessions are serial, in table order. **Depends on**
+records the true dependency graph so a reordering (step 3 before 1, say) is
+known to be safe if ever wanted; it is not an invitation to run sessions in
+parallel.
 
 | Step | Name | Depends on | Ships alone? | The one thing it proves |
 | --- | --- | --- | --- | --- |
@@ -1225,7 +1241,8 @@ early.
 `server/db/instance/_main_database.sql` (products block added, nothing
 removed); `server/db/instance/_main_database_types.ts` (row types for the
 new tables); `lib/types/products.ts` (`ProductType`, `PRODUCT_TYPES`,
-`Folder`, `ProductBase`, `ProductSummary`, `productScope`);
+`Folder` with `createdBy: string | null` and `createdAt: string | null`,
+`ProductBase`, `ProductSummary`, `productScope`);
 `lib/types/scope.ts` (`PackageScope`, `scopeToken`, `packageScopesEqual`;
 no caller switches to `scopeToken` until step 3); SYSTEM_02 and SYSTEM_12
 globs and prose for the new tables and types.
@@ -1552,8 +1569,9 @@ look at a chart without a project.
 **Surface.** Editors: `client/src/components/slide_deck/**` and
 `client/src/components/report/**` take `{ productId }`, derive `scope()`
 from the T1 products row, read the authoring context from T2 by that live
-`runId`, and gate edits on one `canEditProduct(productId)`;
-`client/src/components/products/product_types.ts` (the §3.6 type
+`runId`, and gate edits on one `canEditProduct(productId)` in
+`client/src/state/instance/product_access.ts` (returns `currentUserApproved`
+today); `client/src/components/products/product_types.ts` (the §3.6 type
 registry, with the two types);
 `components/_editor_snapshot.ts`; `components/visualization/` renamed
 `components/figure_editor/` (the embedded editor and its panels only; the
@@ -1636,7 +1654,9 @@ defect found while running the app in §9.
 
 **Surface.** `client/src/components/products/{index,folder_tree,folder_card,
 product_card,list_view,product_menu,folder_menu,move_to_folder_modal,
-edit_folder_modal}.ts*`; `client/src/state/t4_ui.ts` (`productsOpenFolder`,
+edit_folder_modal,product_types}.ts*` (the registry gains the fields the
+list rows, chips and Explore's add-to read); `client/src/state/t4_ui.ts`
+(`productsOpenFolder`,
 `productsViewMode`, `productsSortMode`, `productsTypeFilter`,
 `_PRODUCT_QUERY_PARAM`, `productDeepLinkHref`); `components/_shared/
 sort_control.tsx` if shared; `slide_deck/slide_list.tsx` ("Copy to deck…")
@@ -1670,6 +1690,10 @@ re-resolved under the target's pair.
 e3b9bf83, fcea838c, cbd8375f, 03822f32. Files: everything under
 `client/src/components/products/` (the file-by-file descriptions are in the
 reference's SYSTEM_12, "The Products page" section, which D16 restates).
+The reference's scattered per-type dispatch (`PRODUCT_TYPE_ICONS`,
+`productTypeLabel` in `product_card.tsx` and `list_view.tsx`) and its
+`canEditProducts()` are not the model; §3.6's registry and
+`canEditProduct(productId)` are.
 
 **Ends with.** Several commits. The Products page is the only route to a
 deck or report.
@@ -1680,7 +1704,9 @@ deck or report.
 `project_ai/`; the wrapper mounts once around the Products and Explore pages
 and both editor overlays); `copilot/ai_tools/{client_env,source_header,
 reresolve_slide_figures,add_slide_to_deck}.ts`, `AddToDeckModal.tsx`,
-`DeckSelector.tsx`, `DraftSlidePreview.tsx`; `copilot/ai_tools/tools/*` and
+`DeckSelector.tsx`, `DraftSlidePreview.tsx` (the deck and report pickers
+read `client/src/components/products/product_types.ts`, which may gain a
+field here); `copilot/ai_tools/tools/*` and
 `tools/_internal/format_*_for_ai.ts` (products list with folder paths; the
 viz tools, `visualization_editor.tsx` and `DraftVisualizationPreview.tsx`
 deleted here, since no mount reaches them); `copilot/{ai_views,
@@ -1840,7 +1866,7 @@ WORKER_ROUTINES,AI_TOOLS}, CLAUDE.md, USER_GUIDE_MCP ("per-project" lines),
 `PROTOCOL_ACCESS_DBS.md` (git-ignored, rewritten locally).
 `validate_protocols_baseline.json` reviewed entry by entry. `lib/help/
 help_targets.generated.ts` left as is until the docs site is rewritten.
-`PLAN_PRODUCTS_RESTRUCTURE.md` deleted.
+This file is deleted by step 10's reviewer, not by the Do session.
 
 **Deliverable.** The repo reads as if written today. The rollout tooling
 exists and `rollout_products` consumes the step 2 dry-run's `--json`.
@@ -1854,7 +1880,8 @@ at zero excluding `server/db/migrations/**`, `panther/**` and
 `purge_legacy_dbs`, and the reference's SYSTEM files as prose models, each
 checked against this tree's code before a sentence is reused.
 
-**Ends with.** One or two commits. The last one deletes this file.
+**Ends with.** One or two commits and the line set to `Review 10`. The
+review that passes deletes this file.
 
 ---
 
@@ -1962,8 +1989,9 @@ project DBs are still on disk, untouched by 085.
 
 ## 8. Explicitly out of scope (later plans)
 
-- The permission system rebuild (product-level permissions and sharing;
-  join key `products.created_by` exists; `RoomConn.canEdit` plumbing kept).
+- The permission system rebuild (owner, edit and view on products and
+  folders; the route access declarations, `productAccessPolicy`,
+  `canEditProduct` and `RoomConn.canEdit` are its insertion points).
 - A products trash.
 - A public deck link (the only public surface dashboards provided).
 - A figure library or cross-product figure clipboard beyond
@@ -1985,8 +2013,10 @@ project DBs are still on disk, untouched by 085.
 
 ## 9. Build log
 
-Append-only. One row per decision, deviation, correction or defect. Newest
-last. The next agent reads this section before its step.
+Append-only. One row per decision, deviation, correction or defect, and one
+closing row per session (`Step N built`, `Step N reviewed: pass`, `Step N
+reviewed: K findings`, `Step N fixed`). Newest last. The next agent reads
+this section before its step.
 
 | Date | Step | Entry |
 | --- | --- | --- |
