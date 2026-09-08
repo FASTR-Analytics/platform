@@ -5,7 +5,8 @@ folders, each attached to one results package at one scope. One main
 database, one realtime channel, one copilot. An Explore tab replaces the
 project Metrics tab and the standalone visualization library.
 
-**Next step: 1.** Each session advances this line in its final commit.
+**Next step: Do 1.** Each session sets this line in its final commit. Its
+values are `Do N`, `Review N`, `Fix N`, and `done`.
 
 **Status 2026-09-08: NOT STARTED on `version2`.** This is the second attempt.
 The first attempt was built on `tim-branch-restructure` between 2026-08-19 and
@@ -37,24 +38,52 @@ Two things the first attempt taught, which shape this plan:
 The whole instruction to a fresh agent is: **"Do the next step of
 PLAN_PRODUCTS_RESTRUCTURE.md."** Everything else is here.
 
+A session does exactly one thing, named by the **Next step** line at the
+top of this file: `Do N` builds step N; `Review N` reviews it; `Fix N`
+builds the work list a review left. Steps alternate Do, Review, and the
+line moves on only when a review passes. A session never does two of these.
+
 **Session start.** The branch is `version2`; confirm it with `git branch
 --show-current` and confirm `git status` is clean. Never create a branch;
-commit to `version2`. The step to do is the **Next step** line at the top of
-this file. If that line and the last row of the build log (§9) disagree,
-stop and say so. `version2-reference` is read only through `git show
-version2-reference:<path>`; never check it out, merge it or cherry-pick from
-it. Then read, in this order: `CLAUDE.md`, `SYSTEMS.md`, the SYSTEM file for
-each area the step names, §1 and §2 of this plan, §3 for the target shape,
-the step's own section in §4, and §9. Nothing else in this plan is required
-reading for a step.
+commit to `version2`. If the **Next step** line and the last row of the
+build log (§9) disagree, stop and say so. `version2-reference` is read only
+through `git show version2-reference:<path>`; never check it out, merge it
+or cherry-pick from it. Then read, in this order: `CLAUDE.md`, `SYSTEMS.md`,
+the SYSTEM file for each area the step names, §1 and §2 of this plan, §3 for
+the target shape, the step's own section in §4, and §9. Nothing else in this
+plan is required reading for a step.
 
-**Session end.** The step's gates are green, the build log has its rows, the
-**Next step** line at the top of this file names the following step (or
-"done" after step 10, whose last commit deletes this file), and the last
-commit is made. Then stop. Do not start the next step in the same session.
-If the step cannot be finished, leave the tree green at the last good
-commit, record in §9 exactly what is done and what is not, leave the **Next
-step** line unchanged, and say so.
+**A Do session** builds the step as its §4 section says, within its Surface,
+and ends when the step's gates and the §0 floor are green, §9 has the rows
+the step produced, the **Next step** line says `Review N`, and the last
+commit is made. Then it stops.
+
+**A Review session** is a fresh agent that did not write the code. It lists
+the step's commits (`git log` from the commit that last set the **Next
+step** line to `Do N` or `Fix N`) and checks four things. Nothing outside
+the step's Surface changed (`git diff --stat` against the surface list;
+every file outside it is a finding). Every item in the step's Deliverable is
+present in the code, established by reading the code, never the commit
+message or the log. Every gate in the step's Gates and the §0 floor passes
+when the reviewer runs it; a gate the reviewer cannot run from a file in
+the repo or a command in this plan is itself a finding. §9 has the rows the
+step should have produced (deviations, facts found wrong, defects found by
+running the app). Each finding is one row in §9 with the file and line. The
+review ends with the **Next step** line set to `Do N+1` if there are no
+findings that change code, or `Fix N` if there are; `done` after step 10.
+Then it stops.
+
+**A Fix session** is a Do session whose work list is the review's findings
+in §9 and nothing else. It ends with the line set to `Review N`.
+
+**Every session edits exactly two things in this file:** the **Next step**
+line and §9. It never rewrites a ruling, a step section or a fact, even one
+it has shown to be wrong; it records the disagreement in §9, and the code
+wins. The edit to this file rides the session's last commit, so the tree and
+the plan always agree. If a session cannot finish, it leaves the tree green
+at the last good commit, records in §9 exactly what is done and what is not,
+leaves the **Next step** line unchanged, and says so. Step 10's last commit
+deletes this file; that is the one exception to the two-things rule.
 
 Rules that bind every step:
 
@@ -62,7 +91,12 @@ Rules that bind every step:
   test`, `./validate_protocols`, and `./run` starting against the dev
   database are the floor. A step that touches migrations also passes
   `./validate_migrations`; one that touches the query engine also passes
-  `./validate_queries`. The step's own gates in §4 come on top.
+  `./validate_queries`. The step's own gates in §4 come on top. Every gate
+  is something the reviewer can run: a script in the repo, a `deno task`,
+  or a harness file the Do session committed (under `server/tests/` or as a
+  named root-level `validate_*` file), never a one-off the doer ran and
+  described. Where a step's Gates say "a harness", the harness is a
+  committed file.
 - **Touch only the surface the step names.** A typecheck error outside that
   surface is reported, not fixed. A rename, a cleanup, or a deletion that the
   step does not list waits for the step that does. The first attempt
@@ -83,7 +117,7 @@ Rules that bind every step:
   §2 or §3, every fact the step found wrong in this plan, and every defect
   found by running the app goes in the log with the step number and the
   reason. The next agent reads the log first.
-- **One step per session.** Commit with a message that says why. Where a
+- **One thing per session.** Commit with a message that says why. Where a
   step says "several commits", each one is green on its own.
 - **Do not ship.** `./deploy_testing` ships the working tree; only steps 1
   and 2 are safe to deploy on their own, and the runbook in §6 says when.
@@ -1134,8 +1168,10 @@ build_system_prompt.ts`, `lib/types/mod.ts`; the `RunDataset` type already in
 
 ## 4. Steps
 
-Ten steps, twelve sessions (7 and 9 split in two). Each row below is one
-agent session. **Depends on** is the dependency graph, not a suggestion:
+Ten steps in twelve parts (7 and 9 split in two). Each row below is one Do
+session followed by one Review session, plus a Fix and another Review when
+a review fails (§0). **Depends on** is the dependency graph, not a
+suggestion:
 step 3 needs nothing but the tree as it is, so it can run before 1 and 2 or
 in parallel with them if two sessions are open, and 4 can follow it the
 same way. Everything from 5 onward is serial.
