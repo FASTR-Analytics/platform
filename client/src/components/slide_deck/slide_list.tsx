@@ -1,7 +1,9 @@
 import {
   t3,
   TC,
+  type PackageScope,
   type ProjectState,
+  type RunAuthoringContext,
   type Slide,
   type SlideDeckConfig,
   getDefaultCoverSlide,
@@ -17,6 +19,7 @@ import {
   MenuTriggerWrapper,
   Slider,
   createDeleteAction,
+  openAlert,
 } from "panther";
 import SortableVendor, {
   SortableJs,
@@ -28,10 +31,17 @@ import { PresenceAvatars } from "./presence_avatars";
 import { otherPeers } from "~/state/project/collab";
 import { setShowAi, showAi } from "~/state/t4_ui";
 import { projectAIViewController } from "~/components/project_ai/ai_views";
+import { projectState as liveProjectState } from "~/state/project/t1_store";
+import { UpdateAllFiguresButton } from "~/components/figure_editor/stale_figure_badge";
+import { collectDeckStaleFigures, updateAllDeckFigures } from "./deck_stale_figures";
 
 type Props = {
   projectState: ProjectState;
   deckId: string;
+  // The container's live pair and its authoring context (D4); undefined
+  // while the project has no package to resolve under.
+  scope: PackageScope | undefined;
+  authoringContext: RunAuthoringContext | undefined;
   slideIds: string[];
   isLoading: boolean;
   deckLabel: string;
@@ -406,6 +416,61 @@ export function SlideList(p: Props) {
     },
   ];
 
+  // ── Stale figures (D4) ──────────────────────────────────────────────────────
+  // Recomputed whenever the deck's slide set changes or the container is
+  // reattached or rescoped. The slides are already in the per-slide cache
+  // (the cards render from it), so this is a walk, not a fetch storm. The
+  // walk awaits per slide, so a monotonic scan id keeps an older re-run from
+  // committing its count last.
+  const [staleCount, setStaleCount] = createSignal(0);
+  const [updatingFigures, setUpdatingFigures] = createSignal(false);
+  let staleScanId = 0;
+
+  async function rescanStaleFigures(scope: PackageScope, slideIds: string[]) {
+    const scanId = ++staleScanId;
+    const stale = await collectDeckStaleFigures(p.projectState.id, slideIds, scope);
+    if (scanId !== staleScanId) return;
+    setStaleCount(stale.length);
+  }
+
+  createEffect(() => {
+    const scope = p.scope;
+    const slideIds = [...p.slideIds];
+    // Every slide's own version: a save on any slide re-runs the walk.
+    for (const id of slideIds) void liveProjectState.lastUpdated.slides[id];
+    if (!scope) {
+      staleScanId++;
+      setStaleCount(0);
+      return;
+    }
+    void rescanStaleFigures({ runId: scope.runId, adminArea2: scope.adminArea2 }, slideIds);
+  });
+
+  async function updateAllFigures() {
+    const scope = p.scope;
+    const context = p.authoringContext;
+    if (!scope || !context) return;
+    setUpdatingFigures(true);
+    const result = await updateAllDeckFigures(
+      p.projectState.id,
+      [...p.slideIds],
+      { runId: scope.runId, adminArea2: scope.adminArea2 },
+      context,
+    );
+    await rescanStaleFigures(scope, [...p.slideIds]);
+    setUpdatingFigures(false);
+    if (result.failures.length > 0) {
+      await openAlert({
+        text: result.failures.map((f) => f.reason).join("\n"),
+        intent: "danger",
+      });
+    }
+  }
+
+  const canEditFigures = () =>
+    liveProjectState.thisUserPermissions.can_configure_slide_decks &&
+    !liveProjectState.isLocked;
+
   const menuItems = (): MenuItem[] => [
     {
       label: t3(TC.download),
@@ -468,6 +533,13 @@ export function SlideList(p: Props) {
               >
                 {t3({ en: "Present", fr: "Présenter", pt: "Apresentar" })}
               </Button>
+            </Show>
+            <Show when={canEditFigures()}>
+              <UpdateAllFiguresButton
+                count={staleCount()}
+                busy={updatingFigures()}
+                onClick={() => void updateAllFigures()}
+              />
             </Show>
             <MenuTriggerWrapper position="bottom-end" items={addSlideMenuItems}>
               <Button id="deck-add-slide-button" iconName="plus">

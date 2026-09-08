@@ -27,7 +27,7 @@ import {
   createDeleteAction,
 } from "panther";
 import { Show, createEffect, createMemo, createSignal, onCleanup } from "solid-js";
-import { projectState } from "~/state/project/t1_store";
+import { projectState, requireProjectPackageScope } from "~/state/project/t1_store";
 import { setDashboardEditorOpen, setShowAi, showAi } from "~/state/t4_ui";
 import { projectAIViewController } from "~/components/project_ai/ai_views";
 import { getDashboardDetailFromCacheOrFetch } from "~/state/project/t2_dashboards";
@@ -250,9 +250,9 @@ export function DashboardEditor(p: Props) {
     }
     const ih = itemsRes.data.ih;
     const effectiveConfig = itemsRes.data.config;
-    const bundle = makeFigureBundleFromFetchedData({
+    const bundle = makeFigureBundleFromFetchedData(requireProjectPackageScope(), {
       resultsValue,
-      ih: ih as Parameters<typeof makeFigureBundleFromFetchedData>[0]["ih"],
+      ih: ih as Parameters<typeof makeFigureBundleFromFetchedData>[1]["ih"],
       effectiveConfig,
     });
     return {

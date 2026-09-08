@@ -7,6 +7,7 @@ globs:
   - client/src/components/PresentationObjectPanelDisplay.tsx
   - client/src/components/ReplicateByOptions.tsx
   - client/src/components/_editor_snapshot.ts
+  - client/src/components/figure_editor/**
   - client/src/components/forms_editors/confirm_update.tsx
   - client/src/components/forms_editors/conflict_resolution_modal.tsx
   - client/src/components/forms_editors/custom_series_styles.tsx
@@ -59,6 +60,11 @@ PO CRUD with conflict resolution.
 The `globs:` frontmatter above is the lint-enforced manifest
 (`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1.
 `components/visualization/**` (editor core + panel tabs, ~6.2k LOC);
+`components/figure_editor/**` (today only `stale_figure_badge.tsx`: the
+per-figure stale badge, its "Update to <package>" action and the
+"Update all figures" header button of PLAN_PRODUCTS_RESTRUCTURE D4, the
+contract being S10's "The captured pair and staleness"; step 7a moves the
+embedded editor into this directory);
 `PresentationObjectPanelDisplay` / `MiniDisplay` / `ReplicateByOptions` /
 `NotAvailableBox` / `_editor_snapshot.ts`;
 `components/project/add_visualization/**` + `preset_preview.tsx` +

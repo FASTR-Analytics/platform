@@ -14,6 +14,7 @@ import * as Y from "yjs";
 import type { FigureBlock, ImageBlock } from "lib";
 import type { ReportEditorSelection } from "~/components/project_ai/types";
 import { embedWidgets, type EmbedResolver } from "./figure_widget_extension";
+import type { FigureStaleContext } from "./ReportFigureEmbed";
 import { rebaseProposedEdits, type SkippedRange } from "./rebase_edits";
 import { darkMode } from "~/state/t4_ui";
 
@@ -94,6 +95,8 @@ type Props = {
   body: string;
   figures: Record<string, FigureBlock>;
   images: Record<string, ImageBlock>;
+  // What an embed needs to judge and update its own figure (D4).
+  figureStale: (id: string) => FigureStaleContext | undefined;
   assetUrl: (imgFile: string) => string;
   onBodyChange: (body: string) => void;
   onSelectEmbed: (kind: "figure" | "image", id: string) => void;
@@ -159,6 +162,7 @@ export function ReportEditor(p: Props) {
   // newly inserted figure resolves immediately and the selected ring stays live.
   const resolver: EmbedResolver = {
     getFigure: (id) => p.figures[id],
+    figureStale: (id) => p.figureStale(id),
     getImage: (id) => p.images[id],
     assetUrl: (imgFile) => p.assetUrl(imgFile),
     onSelectEmbed: (kind, id) => p.onSelectEmbed(kind, id),

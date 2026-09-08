@@ -13,12 +13,13 @@ import {
 import { render } from "solid-js/web";
 import { Match, Show, Switch } from "solid-js";
 import { type FigureBlock, type ImageBlock, t3 } from "lib";
-import { ReportFigureEmbed } from "./ReportFigureEmbed";
+import { type FigureStaleContext, ReportFigureEmbed } from "./ReportFigureEmbed";
 
 export type EmbedKind = "figure" | "image";
 
 export type EmbedResolver = {
   getFigure: (id: string) => FigureBlock | undefined;
+  figureStale: (id: string) => FigureStaleContext | undefined;
   getImage: (id: string) => ImageBlock | undefined;
   assetUrl: (imgFile: string) => string;
   // Clicking an embed selects it (opens the left-side editor, dashboard-style).
@@ -95,6 +96,7 @@ class EmbedWidget extends WidgetType {
                 {(fig) => (
                   <ReportFigureEmbed
                     figure={fig()}
+                    stale={this.resolver.figureStale(this.id)}
                     onMeasured={() => view.requestMeasure()}
                   />
                 )}

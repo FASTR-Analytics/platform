@@ -4,6 +4,9 @@ import type {
   ContentSlideSplit,
   ContentSlideSplitFill,
   FigureBlock,
+  FigureBundle,
+  PackageScope,
+  RunAuthoringContext,
   TextBlock,
   TextSizeKey,
   ImageBlock,
@@ -30,11 +33,22 @@ import { convertBlockType } from "../slide_transforms/convert_block_type";
 import { MarkdownGuide } from "~/components/_markdown_guide";
 import { CollabMarkdownEditor } from "./collab_markdown_editor";
 import { CollabTextField } from "./collab_text_field";
+import { StaleFigureBadge } from "~/components/figure_editor/stale_figure_badge";
 import type { SlideSession } from "~/state/project/collab";
 import type * as Y from "yjs";
 
 type Props = {
   projectId: string;
+  // The container's pair and its authoring context (D4); undefined while the
+  // project has no package to resolve under.
+  staleContext:
+    | { scope: PackageScope; authoringContext: RunAuthoringContext }
+    | undefined;
+  // Set exactly when the selected figure block was resolved under a
+  // different pair than the container's.
+  staleFigureBundle: FigureBundle | undefined;
+  onFigureUpdated: (bundle: FigureBundle) => void;
+  canEditFigures: boolean;
   tempSlide: ContentSlide;
   setTempSlide: SetStoreFunction<any>;
   selectedBlockId: string | undefined;
@@ -691,6 +705,29 @@ export function SlideEditorPanelContent(p: Props) {
                         const hasBundle = () => block().bundle !== undefined;
                         return (
                           <div class="ui-gap-sm flex flex-col">
+                            {/* Resolved under another package or scope than
+                                the container now serves from (D4). Shown,
+                                never blocking: a mixed-package deck is a
+                                deliberate state. */}
+                            <Show
+                              when={
+                                p.staleContext && p.staleFigureBundle
+                                  ? { ...p.staleContext, bundle: p.staleFigureBundle }
+                                  : undefined
+                              }
+                              keyed
+                            >
+                              {(keyed) => (
+                                <StaleFigureBadge
+                                  projectId={p.projectId}
+                                  bundle={keyed.bundle}
+                                  scope={keyed.scope}
+                                  authoringContext={keyed.authoringContext}
+                                  onUpdated={p.onFigureUpdated}
+                                  canEdit={p.canEditFigures}
+                                />
+                              )}
+                            </Show>
                             <Show when={hasBundle()}>
                               <Button onClick={() => p.onEditVisualization()}>
                                 {t3({

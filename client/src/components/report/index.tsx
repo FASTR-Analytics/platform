@@ -7,10 +7,12 @@ import {
   findReportFigureConfigMap,
   type ImageBlock,
   materializeReport,
+  type PackageScope,
   type PresentationObjectConfig,
   type ProjectState,
   type ReportDocContent,
   type ResultsValue,
+  type RunAuthoringContext,
   t3,
 } from "lib";
 import {
@@ -52,10 +54,20 @@ import {
 import { PresenceAvatars } from "~/components/slide_deck/presence_avatars";
 import { ReportEditorCursors } from "~/components/_shared/cursors/report_cursors";
 import { addLastUpdatedListener } from "~/state/project/t1_sse";
-import { projectState } from "~/state/project/t1_store";
+import { projectPackageScope, projectState } from "~/state/project/t1_store";
+import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
 import { setShowAi, showAi } from "~/state/t4_ui";
-import { makeFigureBundleFromFetchedData } from "~/generate_visualization/mod";
+import {
+  type FetchedPOData,
+  findStaleFiguresInReport,
+  makeFigureBundleFromFetchedData,
+} from "~/generate_visualization/mod";
 import { getPresentationObjectItemsFromCacheOrFetch } from "~/state/project/t2_presentation_objects";
+import {
+  UpdateAllFiguresButton,
+  updateFigureToScope,
+} from "~/components/figure_editor/stale_figure_badge";
+import type { FigureStaleContext } from "./ReportFigureEmbed";
 import type {
   ReportEditProposalResult,
   ReportEditProposal,
@@ -248,7 +260,11 @@ export function ProjectReport(p: Props) {
           data-line={line}
           data-embed-id={fig[1]}
         >
-          <ReportFigureEmbed figure={fb} onMeasured={() => armFigureSettle()} />
+          <ReportFigureEmbed
+            figure={fb}
+            stale={figureStale(fig[1])}
+            onMeasured={() => armFigureSettle()}
+          />
         </div>
       ) : (
         <div class="text-danger text-xs" data-line={line}>
@@ -407,6 +423,80 @@ export function ProjectReport(p: Props) {
   const canConfigure = () =>
     projectState.thisUserPermissions.can_configure_reports &&
     !projectState.isLocked;
+
+  // ── Stale figures (D4) ──────────────────────────────────────────────────────
+  // The container's live pair: a reattach or scope change re-evaluates it,
+  // re-keys the authoring context, and lights the badges without a remount.
+  // Until step 7a the container is the project.
+  const scope = createMemo<PackageScope | undefined>(
+    projectPackageScope,
+    undefined,
+    { equals: (a, b) => a?.runId === b?.runId && a?.adminArea2 === b?.adminArea2 },
+  );
+  const [authoringContext, setAuthoringContext] = createSignal<
+    RunAuthoringContext | undefined
+  >();
+  createEffect(() => {
+    const runId = scope()?.runId;
+    setAuthoringContext(undefined);
+    if (!runId) return;
+    const controller = new AbortController();
+    onCleanup(() => controller.abort());
+    void (async () => {
+      const res = await getRunAuthoringContextFromCacheOrFetch(runId);
+      if (controller.signal.aborted || !res.success) return;
+      setAuthoringContext(res.data);
+    })();
+  });
+  const staleContext = () => {
+    const pair = scope();
+    const context = authoringContext();
+    return pair && context ? { scope: pair, context } : undefined;
+  };
+  // Which of this report's figures were resolved under a different pair
+  // than the container now serves from, live off the registry and the pair.
+  const staleFigures = () => {
+    const pair = scope();
+    return pair ? findStaleFiguresInReport(figures(), pair) : [];
+  };
+  // What each embed needs to show its own badge and commit its own update.
+  function figureStale(id: string): FigureStaleContext | undefined {
+    const ctx = staleContext();
+    if (!ctx) return undefined;
+    return {
+      projectId,
+      scope: ctx.scope,
+      authoringContext: ctx.context,
+      canEdit: canConfigure(),
+      onUpdated: (bundle) => void updateFigure(id, { type: "figure", bundle }),
+    };
+  }
+  const [updatingFigures, setUpdatingFigures] = createSignal(false);
+
+  // Re-resolve them all. Per-figure failures keep the old bundle and are
+  // reported together: the update never blocks on one bad figure.
+  async function updateAllFigures() {
+    const ctx = staleContext();
+    const stale = staleFigures();
+    if (!ctx || stale.length === 0) return;
+    setUpdatingFigures(true);
+    const next = { ...figures() };
+    const failures: string[] = [];
+    for (const s of stale) {
+      const res = await updateFigureToScope(projectId, ctx.scope, ctx.context, s.bundle);
+      if (res.ok) {
+        next[s.figureId] = { type: "figure", bundle: res.bundle };
+      } else {
+        failures.push(res.reason);
+      }
+    }
+    setFigures(next);
+    await persistFigures(next);
+    setUpdatingFigures(false);
+    if (failures.length > 0) {
+      await openAlert({ text: failures.join("\n"), intent: "danger" });
+    }
+  }
 
   /** Whether the body text can be edited: configurable AND the room is alive (a
    *  fatal collab error locks the editor read-only). Gates the CM editor and
@@ -997,13 +1087,25 @@ export function ProjectReport(p: Props) {
     return await persistFigures(next);
   }
 
-  // Regenerate a FigureBlock from a results value + config (same as dashboards).
+  // Regenerate a FigureBlock from a results value + config under the
+  // container's pair, which is what stamps it for the D4 comparison.
   async function buildFigureBlock(
     resultsValue: ResultsValue,
     config: PresentationObjectConfig,
   ): Promise<
     { ok: true; figureBlock: FigureBlock } | { ok: false; err: string }
   > {
+    const pair = scope();
+    if (!pair) {
+      return {
+        ok: false,
+        err: t3({
+          en: "No results package is attached to this project",
+          fr: "Aucun package de résultats n'est rattaché à ce projet",
+          pt: "Nenhum pacote de resultados está associado a este projeto",
+        }),
+      };
+    }
     const itemsRes = await getPresentationObjectItemsFromCacheOrFetch(
       projectId,
       { projectId, resultsValue },
@@ -1021,9 +1123,9 @@ export function ProjectReport(p: Props) {
     }
     const ih = itemsRes.data.ih;
     const effectiveConfig = itemsRes.data.config;
-    const bundle = makeFigureBundleFromFetchedData({
+    const bundle = makeFigureBundleFromFetchedData(pair, {
       resultsValue,
-      ih: ih as Parameters<typeof makeFigureBundleFromFetchedData>[0]["ih"],
+      ih: ih as FetchedPOData["ih"],
       effectiveConfig,
     });
     return { ok: true, figureBlock: { type: "figure" as const, bundle } };
@@ -1393,6 +1495,7 @@ export function ProjectReport(p: Props) {
             <ReportEditor
               body={body()}
               figures={figures()}
+              figureStale={figureStale}
               images={images()}
               assetUrl={assetUrl}
               onBodyChange={handleBodyChange}
@@ -1498,6 +1601,13 @@ export function ProjectReport(p: Props) {
                     outline
                     iconName="redo"
                     onClick={() => editorApi?.redo()}
+                  />
+                </Show>
+                <Show when={canConfigure()}>
+                  <UpdateAllFiguresButton
+                    count={staleFigures().length}
+                    busy={updatingFigures()}
+                    onClick={() => void updateAllFigures()}
                   />
                 </Show>
                 <Button

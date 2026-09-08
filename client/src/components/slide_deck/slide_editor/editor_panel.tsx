@@ -1,4 +1,12 @@
-import type { Slide, CoverSlide, SectionSlide, ContentSlide } from "lib";
+import type {
+  ContentSlide,
+  CoverSlide,
+  FigureBundle,
+  PackageScope,
+  RunAuthoringContext,
+  SectionSlide,
+  Slide,
+} from "lib";
 import { OpenEditorProps } from "panther";
 import { Match, Setter, Switch } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
@@ -9,6 +17,12 @@ import type { SlideSession } from "~/state/project/collab";
 
 type Props = {
   projectId: string;
+  staleContext:
+    | { scope: PackageScope; authoringContext: RunAuthoringContext }
+    | undefined;
+  staleFigureBundle: FigureBundle | undefined;
+  onFigureUpdated: (bundle: FigureBundle) => void;
+  canEditFigures: boolean;
   tempSlide: Slide;
   setTempSlide: SetStoreFunction<Slide>;
   selectedBlockId: string | undefined;
@@ -57,6 +71,10 @@ export function SlideEditorPanel(p: Props) {
         <Match when={p.tempSlide.type === "content"}>
           <SlideEditorPanelContent
             projectId={p.projectId}
+            staleContext={p.staleContext}
+            staleFigureBundle={p.staleFigureBundle}
+            onFigureUpdated={p.onFigureUpdated}
+            canEditFigures={p.canEditFigures}
             tempSlide={p.tempSlide as ContentSlide}
             setTempSlide={p.setTempSlide}
             selectedBlockId={p.selectedBlockId}

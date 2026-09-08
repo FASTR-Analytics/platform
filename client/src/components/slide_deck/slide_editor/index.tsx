@@ -3,7 +3,9 @@ import type {
   ContentBlock,
   ContentSlide,
   CoverSlide,
+  PackageScope,
   ProjectState,
+  RunAuthoringContext,
   SectionSlide,
   Slide,
   SlideDeckConfig,
@@ -76,9 +78,15 @@ import {
 import { VisualizationEditor } from "~/components/visualization";
 import type { VizFigureCollabBinding } from "~/components/visualization";
 import {
+  type FetchedPOData,
+  findStaleFiguresInLayout,
   makeFigureBundleFromFetchedData,
   resolveFigureBundleFromVisualization,
 } from "~/generate_visualization/mod";
+import {
+  UpdateAllFiguresButton,
+  updateFigureToScope,
+} from "~/components/figure_editor/stale_figure_badge";
 import { serverActions } from "~/server_actions";
 import { _SLIDE_CACHE } from "~/state/project/t2_slides";
 import { getPresentationObjectItemsFromCacheOrFetch } from "~/state/project/t2_presentation_objects";
@@ -95,7 +103,7 @@ import {
 import { PresenceAvatars } from "~/components/slide_deck/presence_avatars";
 import { SlideEditorCursors } from "~/components/_shared/cursors/slide_cursors";
 import { addLastUpdatedListener } from "~/state/project/t1_sse";
-import { projectState } from "~/state/project/t1_store";
+import { projectState, requireProjectPackageScope } from "~/state/project/t1_store";
 import { createIdGeneratorForLayout } from "~/components/slide_deck/_id_generation";
 import { snapshotForVizEditor } from "~/components/_editor_snapshot";
 import { SelectVisualizationForSlide } from "../select_visualization_for_slide";
@@ -133,6 +141,11 @@ type SlideEditorInnerProps = {
   lastUpdated: string;
   projectStateSnapshot: ProjectState;
   deckConfigSnapshot: SlideDeckConfig;
+  // The container's live (package, scope) pair and that package's authoring
+  // context, what staleness is measured against (D4). Both undefined while
+  // the project has no package to resolve under; the badges stay off then.
+  scope: PackageScope | undefined;
+  authoringContext: RunAuthoringContext | undefined;
   returnToContext?: ProjectAIViewState;
 };
 
@@ -225,11 +238,10 @@ export function SlideEditor(p: Props) {
   // collaborator's edit.
   let undoMgr: Y.UndoManager | undefined;
   let detachUndoPop: (() => void) | undefined;
-  const canUndoRedo = () =>
-    !!session() &&
-    collabReady() &&
+  const canEdit = () =>
     projectState.thisUserPermissions.can_configure_slide_decks &&
     !projectState.isLocked;
+  const canUndoRedo = () => !!session() && collabReady() && canEdit();
 
   function undo() {
     undoMgr?.undo();
@@ -756,23 +768,8 @@ export function SlideEditor(p: Props) {
         return;
       }
 
-      // Path set (not reconcile): guarantees a FRESH bundle object reference so
-      // syncSlideToDoc always writes it. reconcile can merge the new bundle into
-      // the old object in place (same ref) for some shapes, which the sync's
-      // reference cache then skips: the edit updates locally but never reaches
-      // the doc (not synced, not saved). See lib/collab/slide_crdt.ts.
-      const applyFigureBundle = (bundle: FigureBundle) => {
-        const updatedLayout = updateBlockInLayout(
-          tempSlide.layout,
-          blockId,
-          (b: ContentBlock) =>
-            b.type !== "figure" ? b : { type: "figure" as const, bundle },
-        );
-        (manuallyUpdateTempSlide as SetStoreFunction<ContentSlide>)(
-          "layout",
-          updatedLayout,
-        );
-      };
+      const applyFigureBundle = (bundle: FigureBundle) =>
+        setFigureBlockBundle(blockId, bundle);
 
       // Live co-editing: bind the modal to this figure's config IN the shared
       // slide doc. Only when the session is live; otherwise the modal keeps its
@@ -843,11 +840,9 @@ export function SlideEditor(p: Props) {
           }
 
           applyFigureBundle(
-            makeFigureBundleFromFetchedData({
+            makeFigureBundleFromFetchedData(requireProjectPackageScope(), {
               resultsValue,
-              ih: newItemsRes.data.ih as Parameters<
-                typeof makeFigureBundleFromFetchedData
-              >[0]["ih"],
+              ih: newItemsRes.data.ih as FetchedPOData["ih"],
               effectiveConfig: newItemsRes.data.config,
             }),
           );
@@ -941,25 +936,13 @@ export function SlideEditor(p: Props) {
         return;
       }
 
-      const bundle = makeFigureBundleFromFetchedData({
-        resultsValue,
-        ih: newItemsRes.data.ih as Parameters<
-          typeof makeFigureBundleFromFetchedData
-        >[0]["ih"],
-        effectiveConfig: newItemsRes.data.config,
-      });
-
-      const updatedLayout = updateBlockInLayout(
-        tempSlide.layout,
+      setFigureBlockBundle(
         blockId,
-        () => ({ type: "figure" as const, bundle }),
-      );
-
-      // Path set (fresh bundle ref) so setOpaque always writes it: see the
-      // note in handleEditVisualization.
-      (manuallyUpdateTempSlide as SetStoreFunction<ContentSlide>)(
-        "layout",
-        updatedLayout,
+        makeFigureBundleFromFetchedData(requireProjectPackageScope(), {
+          resultsValue,
+          ih: newItemsRes.data.ih as FetchedPOData["ih"],
+          effectiveConfig: newItemsRes.data.config,
+        }),
       );
     } catch (err) {
       await openAlert({
@@ -969,6 +952,75 @@ export function SlideEditor(p: Props) {
       });
     }
   }
+
+  // Path set (not reconcile): guarantees a FRESH bundle object reference so
+  // syncSlideToDoc always writes it. reconcile can merge the new bundle into
+  // the old object in place (same ref) for some shapes, which the sync's
+  // reference cache then skips: the edit updates locally but never reaches
+  // the doc (not synced, not saved). See lib/collab/slide_crdt.ts.
+  function setFigureBlockBundle(blockId: string, bundle: FigureBundle) {
+    if (tempSlide.type !== "content") return;
+    const updatedLayout = updateBlockInLayout(
+      tempSlide.layout,
+      blockId,
+      (b: ContentBlock) =>
+        b.type !== "figure" ? b : { type: "figure" as const, bundle },
+    );
+    (manuallyUpdateTempSlide as SetStoreFunction<ContentSlide>)(
+      "layout",
+      updatedLayout,
+    );
+  }
+
+  // ── Stale figures on this slide (D4) ────────────────────────────────────────
+  // Compared against the container's live pair, so a reattach while the slide
+  // editor is open lights the count without a remount.
+  const staleContext = () =>
+    p.scope && p.authoringContext
+      ? { scope: p.scope, authoringContext: p.authoringContext }
+      : undefined;
+  const staleFigures = () => {
+    const ctx = staleContext();
+    return ctx && tempSlide.type === "content"
+      ? findStaleFiguresInLayout(tempSlide.layout, ctx.scope)
+      : [];
+  };
+  const [updatingFigures, setUpdatingFigures] = createSignal(false);
+
+  // Re-resolve every stale figure on this slide. Failures are per figure:
+  // the ones that cannot move keep their old bundle and report why.
+  async function updateAllFiguresOnSlide() {
+    const ctx = staleContext();
+    const stale = staleFigures();
+    if (!ctx || stale.length === 0) return;
+    setUpdatingFigures(true);
+    const failures: string[] = [];
+    for (const s of stale) {
+      const res = await updateFigureToScope(
+        p.projectId,
+        ctx.scope,
+        ctx.authoringContext,
+        s.bundle,
+      );
+      if (res.ok) {
+        setFigureBlockBundle(s.blockId, res.bundle);
+      } else {
+        failures.push(res.reason);
+      }
+    }
+    setUpdatingFigures(false);
+    if (failures.length > 0) {
+      await openAlert({ text: failures.join("\n"), intent: "danger" });
+    }
+  }
+
+  // The selected block's bundle, but only when it is stale: the block panel
+  // renders the badge off this.
+  const selectedStaleBundle = (): FigureBundle | undefined => {
+    const blockId = selectedBlockId();
+    if (!blockId) return undefined;
+    return staleFigures().find((s) => s.blockId === blockId)?.bundle;
+  };
 
   return (
     <EditorWrapper>
@@ -1024,6 +1076,13 @@ export function SlideEditor(p: Props) {
                   <Button onClick={undo} iconName="undo" outline />
                   <Button onClick={redo} iconName="redo" outline />
                 </Show>
+                <Show when={canEdit()}>
+                  <UpdateAllFiguresButton
+                    count={staleFigures().length}
+                    busy={updatingFigures()}
+                    onClick={() => void updateAllFiguresOnSlide()}
+                  />
+                </Show>
                 <Select
                   data-tour="slide-type-select"
                   options={[
@@ -1075,6 +1134,13 @@ export function SlideEditor(p: Props) {
             >
               <SlideEditorPanel
                 projectId={p.projectId}
+                staleContext={staleContext()}
+                staleFigureBundle={selectedStaleBundle()}
+                onFigureUpdated={(bundle) => {
+                  const blockId = selectedBlockId();
+                  if (blockId) setFigureBlockBundle(blockId, bundle);
+                }}
+                canEditFigures={canEdit()}
                 tempSlide={tempSlide}
                 setTempSlide={manuallyUpdateTempSlide}
                 selectedBlockId={selectedBlockId()}

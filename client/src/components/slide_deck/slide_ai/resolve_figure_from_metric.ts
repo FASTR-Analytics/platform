@@ -2,11 +2,12 @@ import type { AiFigureFromMetric, FigureBlock, MetricWithStatus } from "lib";
 import { validateMetricInputs } from "lib";
 import { resolveBundleFromMetricAndConfig } from "~/generate_visualization/mod";
 import { clientAIToolEnvFor } from "~/components/project_ai/ai_tools/client_env";
+import { projectPackageScope } from "~/state/project/t1_store";
 import { buildConfigFromPreset } from "./build_config_from_metric";
 
 // AI adapter: builds the config from the preset + AI overrides, runs AI-specific
 // input validation, then delegates to the shared core (which validates the
-// replicant strictly and re-resolves the bundle).
+// replicant strictly and re-resolves the bundle under the project's pair).
 export async function resolveFigureFromMetric(
   projectId: string,
   block: AiFigureFromMetric,
@@ -27,6 +28,11 @@ export async function resolveFigureFromMetric(
     periodFilter,
   );
 
-  const bundle = await resolveBundleFromMetricAndConfig(projectId, resultsValue, config);
+  const bundle = await resolveBundleFromMetricAndConfig(
+    projectId,
+    projectPackageScope(),
+    resultsValue,
+    config,
+  );
   return { type: "figure", bundle };
 }

@@ -14,6 +14,7 @@ import {
   t3,
 } from "lib";
 import {
+  getSnapshotProjectState,
   responseRunVersionMatches,
   runVersionKey,
 } from "~/state/project/t1_store";
@@ -244,6 +245,10 @@ export async function* getPOFigureInputsFromCacheOrFetch_AsyncGenerator(
         : undefined,
       localization: getSnapshotInstanceLocalization(),
       metricId: resultsValue.id,
+      // The live editor is inside the project, and this read ran under the
+      // project's pair: stamp it so the transient bundle renders through the
+      // same path, with the same roll-up label, as a stored one (D4).
+      scope: { adminArea2: getSnapshotProjectState().adminArea2 },
       snapshotAt: "",
       provenance: { runId: ih.runId },
     });

@@ -1,8 +1,7 @@
-import type { FigureBlock, FigureBundle, IndicatorMetadata, ItemsHolderPresentationObject, PeriodBounds, PresentationObjectConfig, PresentationObjectDetail, ResultsValue } from "lib";
+import type { FigureBlock, FigureBundle, PresentationObjectConfig, PresentationObjectDetail } from "lib";
 import { getReplicateByProp } from "lib";
-import { getAdminAreaLevelFromMapConfig } from "./get_admin_area_level_from_config";
-import { geoJsonFamilyFor, getGeoJsonSync } from "~/state/instance/t2_geojson";
-import { getSnapshotInstanceLocalization } from "~/state/instance/t1_store";
+import { makeFigureBundleFromFetchedData } from "./resolve_bundle_from_metric_and_config";
+import { requireProjectPackageScope } from "~/state/project/t1_store";
 import {
   getPODetailFromCacheorFetch,
   getPresentationObjectItemsFromCacheOrFetch,
@@ -40,7 +39,9 @@ export async function getConfigForVisualization(
 // Step 2: resolve a self-contained FigureBundle from a PO detail + config: fetch
 // items (the items fetch auto-defaults an unset replicant so a figure always
 // renders), capture geo, assemble. No replicant validation here; authoring paths
-// run assertReplicantValid on the config before calling this.
+// run assertReplicantValid on the config before calling this. A saved
+// visualization lives only inside a project, so the pair it resolves under is
+// the project's (this path dies with the visualization product in step 9a).
 export async function resolveFigureBundleFromVizConfig(
   projectId: string,
   poDetail: PresentationObjectDetail,
@@ -59,37 +60,11 @@ export async function resolveFigureBundleFromVizConfig(
     throw new Error("No data available with current selection");
   }
 
-  const effectiveConfig = itemsRes.data.config;
-  const { resultsValue } = poDetail;
-  const mapLevel = getAdminAreaLevelFromMapConfig(effectiveConfig);
-  const geoFamily = geoJsonFamilyFor(resultsValue.datasetFamily);
-
-  // Capture geo as data for storage (public dashboards need it; slides re-derive
-  // at render time but carrying it in the bundle is harmless and consistent).
-  let geo: FigureBundle["geo"];
-  if (mapLevel) {
-    const geoJson = getGeoJsonSync(geoFamily, mapLevel);
-    geo = geoJson
-      ? { kind: "data", data: geoJson }
-      : { kind: "level", level: mapLevel, family: geoFamily };
-  }
-
-  return {
-    config: effectiveConfig,
-    items: ih.items,
-    resultsValue: {
-      formatAs: resultsValue.formatAs,
-      valueProps: resultsValue.valueProps,
-      valueLabelReplacements: resultsValue.valueLabelReplacements,
-    },
-    indicatorMetadata: ih.indicatorMetadata,
-    dateRange: ih.dateRange,
-    geo,
-    localization: getSnapshotInstanceLocalization(),
-    metricId: resultsValue.id,
-    snapshotAt: new Date().toISOString(),
-    provenance: { runId: ih.runId },
-  };
+  return makeFigureBundleFromFetchedData(requireProjectPackageScope(), {
+    resultsValue: poDetail.resultsValue,
+    ih,
+    effectiveConfig: itemsRes.data.config,
+  });
 }
 
 // Render / interactive path: build the config from the viz, then resolve. Lenient
@@ -102,44 +77,6 @@ export async function resolveFigureBundleFromVisualization(
 ): Promise<FigureBundle> {
   const { poDetail, config } = await getConfigForVisualization(projectId, block);
   return resolveFigureBundleFromVizConfig(projectId, poDetail, config);
-}
-
-// P2: non-fetch bundle assembly for callers that already hold fetched PO data
-// (slide_editor, dashboard_editor). Avoids re-fetching when data is in hand.
-export type FetchedPOData = {
-  resultsValue: Pick<
-    ResultsValue,
-    "id" | "formatAs" | "valueProps" | "valueLabelReplacements" | "datasetFamily"
-  >;
-  ih: ItemsHolderPresentationObject & { status: "ok"; items: Record<string, string>[]; indicatorMetadata: IndicatorMetadata[]; dateRange: PeriodBounds | undefined };
-  effectiveConfig: PresentationObjectConfig;
-};
-
-export function makeFigureBundleFromFetchedData(data: FetchedPOData): FigureBundle {
-  const { resultsValue, ih, effectiveConfig } = data;
-  const mapLevel = getAdminAreaLevelFromMapConfig(effectiveConfig);
-  const geoFamily = geoJsonFamilyFor(resultsValue.datasetFamily);
-  const geoJson = mapLevel ? getGeoJsonSync(geoFamily, mapLevel) : undefined;
-  return {
-    config: effectiveConfig,
-    items: ih.items,
-    resultsValue: {
-      formatAs: resultsValue.formatAs,
-      valueProps: resultsValue.valueProps,
-      valueLabelReplacements: resultsValue.valueLabelReplacements,
-    },
-    indicatorMetadata: ih.indicatorMetadata,
-    dateRange: ih.dateRange,
-    geo: mapLevel
-      ? (geoJson
-        ? { kind: "data" as const, data: geoJson }
-        : { kind: "level" as const, level: mapLevel, family: geoFamily })
-      : undefined,
-    localization: getSnapshotInstanceLocalization(),
-    metricId: resultsValue.id,
-    snapshotAt: new Date().toISOString(),
-    provenance: { runId: ih.runId },
-  };
 }
 
 // Convenience: resolve and return FigureBlock + extracted geo (render/interactive path).

@@ -1,10 +1,29 @@
-import { createEffect, createMemo, type JSX, Match, Switch } from "solid-js";
+import { createEffect, createMemo, type JSX, Match, Show, Switch } from "solid-js";
 import { FigureHolder, type FigureInputs } from "panther";
-import { type FigureBlock, t3 } from "lib";
-import { buildFigureInputs } from "~/generate_visualization/mod";
+import {
+  type FigureBlock,
+  type FigureBundle,
+  type PackageScope,
+  type RunAuthoringContext,
+  t3,
+} from "lib";
+import { buildFigureInputs, isFigureBundleStale } from "~/generate_visualization/mod";
+import { StaleFigureBadge } from "~/components/figure_editor/stale_figure_badge";
+
+// What the report editor hands each embed so it can judge and update its own
+// figure (PLAN_PRODUCTS_RESTRUCTURE D4). Absent on surfaces that only display
+// (version previews), where no badge is shown.
+export type FigureStaleContext = {
+  projectId: string;
+  scope: PackageScope;
+  authoringContext: RunAuthoringContext;
+  canEdit: boolean;
+  onUpdated: (bundle: FigureBundle) => void;
+};
 
 type Props = {
   figure: FigureBlock;
+  stale?: FigureStaleContext;
   onMeasured?: () => void;
 };
 
@@ -42,20 +61,43 @@ export function ReportFigureEmbed(p: Props): JSX.Element {
     return h.ok ? undefined : h.err;
   };
 
+  const staleBadge = () => {
+    const bundle = p.figure.bundle;
+    const stale = p.stale;
+    if (!bundle || !stale || !isFigureBundleStale(bundle, stale.scope)) {
+      return undefined;
+    }
+    return { bundle, stale };
+  };
+
   createEffect(() => {
     if (hydrated().ok) p.onMeasured?.();
   });
 
   return (
-    <Switch>
-      <Match when={inputs()}>
-        {(fi) => (
-          <FigureHolder figureInputs={fi()} height="ideal" sizing="zoom" />
+    <div class="ui-spy-sm">
+      <Switch>
+        <Match when={inputs()}>
+          {(fi) => (
+            <FigureHolder figureInputs={fi()} height="ideal" sizing="zoom" />
+          )}
+        </Match>
+        <Match when={errMsg()}>
+          {(msg) => <div class="ui-pad text-danger text-xs">{msg()}</div>}
+        </Match>
+      </Switch>
+      <Show when={staleBadge()} keyed>
+        {(keyed) => (
+          <StaleFigureBadge
+            projectId={keyed.stale.projectId}
+            bundle={keyed.bundle}
+            scope={keyed.stale.scope}
+            authoringContext={keyed.stale.authoringContext}
+            onUpdated={keyed.stale.onUpdated}
+            canEdit={keyed.stale.canEdit}
+          />
         )}
-      </Match>
-      <Match when={errMsg()}>
-        {(msg) => <div class="ui-pad text-danger text-xs">{msg()}</div>}
-      </Match>
-    </Switch>
+      </Show>
+    </div>
   );
 }

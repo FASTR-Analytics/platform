@@ -2,6 +2,7 @@ import type {
   DatasetType,
   FigureBundle,
   GenericLongFormFetchConfig,
+  PackageScope,
   PeriodOption,
   PresentationObjectConfig,
   ResultsValueForVisualization,
@@ -16,6 +17,10 @@ import { getSnapshotInstanceLocalization } from "~/state/instance/t1_store";
 
 // Plain-inputs resolver: takes the metric data already resolved by the caller
 // (AI adapter in slide_deck/slide_ai). No AI types imported here.
+//
+// The items read is still project-keyed (the project lens resolves the same
+// pair `scope` names); `scope` is what the bundle records as the pair it was
+// resolved under (D4). Step 6 moves the read onto the scope-keyed caches.
 export type MetricInputsForBundle = {
   metricId: string;
   resultsObjectId: string;
@@ -27,6 +32,7 @@ export type MetricInputsForBundle = {
 
 export async function resolveFigureBundleFromMetric(
   projectId: string,
+  scope: PackageScope,
   inputs: MetricInputsForBundle,
   config: PresentationObjectConfig,
 ): Promise<FigureBundle> {
@@ -87,8 +93,9 @@ export async function resolveFigureBundleFromMetric(
     geo,
     localization: getSnapshotInstanceLocalization(),
     metricId,
+    scope: { adminArea2: scope.adminArea2 },
     snapshotAt: new Date().toISOString(),
-    provenance: { runId: itemsHolder.runId },
+    provenance: { runId: scope.runId },
   };
 
   // Validate at construction so the render (buildFigureInputs) and save

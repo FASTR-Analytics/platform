@@ -16,7 +16,7 @@ import { t3 } from "lib";
 import { LabelHolder } from "panther";
 import { For, Match, Show, Switch, createEffect, createSignal } from "solid-js";
 import { unwrap } from "solid-js/store";
-import { projectState, runVersionKey } from "~/state/project/t1_store";
+import { projectState, requireProjectPackageScope, runVersionKey } from "~/state/project/t1_store";
 import {
   buildFigureInputs,
   makeFigureBundleFromFetchedData,
@@ -280,11 +280,11 @@ async function fetchPreview(
   }
 
   try {
-    const bundle = makeFigureBundleFromFetchedData({
+    const bundle = makeFigureBundleFromFetchedData(requireProjectPackageScope(), {
       resultsValue: metric,
       ih: itemsHolder as Parameters<
         typeof makeFigureBundleFromFetchedData
-      >[0]["ih"],
+      >[1]["ih"],
       effectiveConfig,
     });
     return { status: "ready" as const, data: buildFigureInputs(bundle) };

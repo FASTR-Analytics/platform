@@ -2,6 +2,7 @@
 system: 9
 name: Visualization Query & Cache Service
 globs:
+  - client/src/state/instance/t2_run_authoring_context.ts
   - client/src/state/project/t2_presentation_objects.ts
   - client/src/state/project/t2_replicant_options.ts
   - lib/rollup.ts
@@ -759,7 +760,13 @@ adminArea2)`, `runs.status = 'ready'` required, guarded
 and, until 9b, the project routes here. The replicant read is keyed by
 results object (the cache identity); the run-keyed route narrows its
 `metricId` first, and the project route stamps `projectId` onto the shared
-`RunReplicantOptions` payload on the way out.
+`RunReplicantOptions` payload on the way out. The client caches
+`getRunAuthoringContext` in
+[t2_run_authoring_context.ts](client/src/state/instance/t2_run_authoring_context.ts),
+keyed by `runId` with a constant version key (the `t2_runs.ts` idiom: a
+ready run dir never changes, so nothing invalidates an entry); the deck and
+report editors read it by their container's live `runId` and the D4 update
+action takes its metric from it.
 
 **HFA dataset display cache**
 ([routes/caches/dataset.ts](server/routes/caches/dataset.ts)): `ds_hfa` is a

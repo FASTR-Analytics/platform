@@ -1,5 +1,5 @@
 import { trackStore } from "@solid-primitives/deep";
-import { projectState, runVersionKey } from "~/state/project/t1_store";
+import { projectState, requireProjectPackageScope, runVersionKey } from "~/state/project/t1_store";
 import {
   FIGURE_EXPORT_WIDTH_PX,
   ItemsHolderPresentationObject,
@@ -258,11 +258,11 @@ export function VisualizationEditorInner(p: InnerProps) {
         if (binding && binding.isLive()) {
           try {
             binding.onCoherentBundle(
-              makeFigureBundleFromFetchedData({
+              makeFigureBundleFromFetchedData(requireProjectPackageScope(), {
                 resultsValue: p.poDetail.resultsValue,
                 ih: lastState.data.ih as Parameters<
                   typeof makeFigureBundleFromFetchedData
-                >[0]["ih"],
+                >[1]["ih"],
                 effectiveConfig: lastState.data.config,
               }),
             );
@@ -973,11 +973,11 @@ export function VisualizationEditorInner(p: InnerProps) {
     }
     let figureInputs;
     try {
-      const bundle = makeFigureBundleFromFetchedData({
+      const bundle = makeFigureBundleFromFetchedData(requireProjectPackageScope(), {
         resultsValue: p.poDetail.resultsValue,
         ih: ih.data.ih as Parameters<
           typeof makeFigureBundleFromFetchedData
-        >[0]["ih"],
+        >[1]["ih"],
         effectiveConfig: ih.data.config,
       });
       figureInputs = buildFigureInputs(bundle);
@@ -1504,11 +1504,11 @@ export function VisualizationEditorInner(p: InnerProps) {
                                 }
                               }
                               try {
-                                const bundle = makeFigureBundleFromFetchedData({
+                                const bundle = makeFigureBundleFromFetchedData(requireProjectPackageScope(), {
                                   resultsValue: p.poDetail.resultsValue,
                                   ih: keyedItemsHolder.ih as Parameters<
                                     typeof makeFigureBundleFromFetchedData
-                                  >[0]["ih"],
+                                  >[1]["ih"],
                                   effectiveConfig: keyedItemsHolder.config,
                                 });
                                 return {

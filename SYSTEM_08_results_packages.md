@@ -8,6 +8,7 @@ globs:
   - client/src/components/project/metric_details_modal.tsx
   - client/src/components/project/project_results_package.tsx
   - client/src/components/project/results_package_compatibility_modal.tsx
+  - lib/figure_package_issue.ts
   - lib/types/_module_definition_github.ts
   - lib/types/_module_definition_installed.ts
   - lib/types/module_registry.ts
@@ -251,7 +252,11 @@ compatibility report (§2.6, `server/runs/package_compatibility.ts`) resolves
 the project's AUTHORED visualizations against the candidate's manifest:
 metric absent, metric stamped unavailable, or a requested disaggregation the
 candidate's results object does not offer, one issue per visualization in
-that resolution order, no data queries. Virtual defaults are excluded by
+that resolution order, no data queries. The rule itself is
+`lib/figure_package_issue.ts` (`figurePackageIssueForDimensions` over the
+manifest; `figurePackageIssueFor` for a config; `figurePackageIssueForMetrics`
+for the client, over the authoring context), so the per-figure stale badge
+(S10) and this report cannot give different answers. Virtual defaults are excluded by
 construction: they are projections of whichever package is attached. The
 repoint itself (`server/runs/attach_run.ts`) is `setProjectAttachedRun` (the
 ready gate is IN the UPDATE and the `projects.run_id` FK closes the race with

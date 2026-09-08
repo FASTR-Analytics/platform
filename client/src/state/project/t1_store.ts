@@ -1,4 +1,5 @@
 import {
+  type PackageScope,
   type ProjectState,
   type ProjectSseMessage,
   type LastUpdateTableName,
@@ -6,6 +7,7 @@ import {
   projectScopeToken,
 } from "lib";
 import { createStore, reconcile, unwrap } from "solid-js/store";
+import { instanceState } from "~/state/instance/t1_store";
 import { forceCollabReconnect } from "./collab";
 
 const EMPTY_PROJECT_STATE: ProjectState = {
@@ -212,6 +214,28 @@ export function responseRunVersionMatches(
   runKey: string,
 ): boolean {
   return `${data.runId}~${data.scopeToken}` === runKey;
+}
+
+// The project's (package, scope) pair: the PackageScope every figure written
+// inside the project editors is captured under (PLAN_PRODUCTS_RESTRUCTURE
+// D4) until step 7a moves the editors onto products. Live reads, so a
+// reattach or scope change re-evaluates any tracking consumer. undefined =
+// nothing to resolve under (no package attached and no pin).
+export function projectPackageScope(): PackageScope | undefined {
+  const runId = projectState.attachedRunId ?? instanceState.pinnedRunId;
+  return runId === null
+    ? undefined
+    : { runId, adminArea2: projectState.adminArea2 };
+}
+
+// For assembly sites whose items were just read under the project's pair:
+// the read succeeded, so a missing pair is a bug, not a state.
+export function requireProjectPackageScope(): PackageScope {
+  const scope = projectPackageScope();
+  if (scope === undefined) {
+    throw new Error("No results package attached to this project");
+  }
+  return scope;
 }
 
 export { projectState };

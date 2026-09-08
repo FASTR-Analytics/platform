@@ -14,6 +14,8 @@ globs:
   - lib/resolve_figure_calendar.ts
   - lib/types/_figure_bundle.ts
   - lib/types/_slide_fonts.ts
+  - server/tests/figure_bundle_schema_test.ts
+  - server/tests/figure_staleness_test.ts
 docs_absorbed:
 ---
 
@@ -29,12 +31,15 @@ The `globs:` frontmatter above is the lint-enforced manifest
 (`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1.
 `client/src/generate_visualization/**` (`buildFigureInputs`, the bundle
 resolvers `resolve_figure_from_{metric,visualization}.ts` +
-`resolve_bundle_from_metric_and_config.ts`, special chart modes, the
-conditional-formatting compile path, `GLOBAL_STYLE_OPTIONS`);
+`resolve_bundle_from_metric_and_config.ts`, the stale predicate
+`figure_staleness.ts`, special chart modes, the conditional-formatting
+compile path, `GLOBAL_STYLE_OPTIONS`);
 `generate_slide_deck/**` (`convertSlideToPageInputs`); `client/src/exports/**`
 (incl. `get_table_export_aoa.ts`); lib render contracts (`_figure_bundle.ts`,
 `brand_presets.ts`, `key_colors.ts`, slide-font types);
-`state/project/t2_images.ts`. Non-lint assets reviewed here:
+`state/project/t2_images.ts`; the two schema and predicate pins under
+`server/tests/` (`figure_bundle_schema_test.ts`, `figure_staleness_test.ts`).
+Non-lint assets reviewed here:
 `client/src/font-map.json` and `client/public/fonts/` (102 font files plus
 `fonts.css`).
 
@@ -53,9 +58,9 @@ This is the authoritative record of the FigureBundle refactor. The two planning
 docs that drove it (`PLAN_FIGURE_BUNDLE.md` = vision,
 `PLAN_FIGURE_BUNDLE_IMPL.md` = executable plan) were deleted on completion; this
 section replaces them. Sibling slices live in S9 (the upstream capture side),
-S12 (the three storage surfaces), and S2 (the boot-time backfill). The deferred
-phases (provenance / stale badge, the Visualization rename) are in Open items
-below.
+S12 (the three storage surfaces), and S2 (the boot-time backfill). The stale
+badge is built (see "The captured pair and staleness" below); the deferred
+Visualization rename is in Open items.
 
 ### The idea
 
@@ -135,13 +140,25 @@ FigureBundle = {
   dateRange?: PeriodBounds;                // {min,max}: DATE_RANGE caption text + earliest/latest point
   geo?: GeoRef;                            // maps only: {kind:"level"} | {kind:"data"} (see Geo)
   localization: { language; calendar; countryIso3 }; // REQUIRED, frozen, see Localization
-  metricId: string;                        // re-query pointer for "Update data" ONLY (never render)
+  metricId: string;                        // re-query pointer for the update action ONLY (never render)
+  scope?: { adminArea2: string | null };   // the scope the bundle was resolved under; null = national
   snapshotAt: string;
-  provenance: { runId: string | null };     // the results package the items came from (free from
-                                           // ItemsHolder); null = pre-runs capture or backfill,
-                                           // never invented
+  provenance: { runId: string | null };     // the results package the bundle was resolved under
 };
 ```
+
+`scope` and `provenance.runId` are the (package, scope) pair the bundle was
+resolved under (PLAN_PRODUCTS_RESTRUCTURE D4). Every assembly site stamps
+them from its container's `PackageScope` (the project's pair until step 7a,
+through `projectPackageScope()` in `state/project/t1_store.ts`): the
+metric-keyed resolvers, `makeFigureBundleFromFetchedData`, the
+from-visualization resolver, and the live editor's transient bundle in
+`t2_presentation_objects.ts`. The pair lives on the bundle and never in
+`config`, so it stays out of the fetch hash (S9). Transitional state, closed
+by step 9b: `scope` is optional and `runId` nullable, because stored bundles
+predate the capture; 9b stamps every stored bundle from its owning project
+row and makes both required. The pin is
+`server/tests/figure_bundle_schema_test.ts`.
 
 **Why `resultsValue` is a projection, not the whole metric (proven, not
 asserted):** `buildFigureInputs` and every downstream builder
@@ -185,9 +202,12 @@ The elegant consequence the whole design turns on:
 | `t2_presentation_objects.ts` (the live FigureInputs memo, ~:195)                                                                | **Visualization**          | live query          | `getSnapshotInstanceLocalization()`, a **transient** bundle each tick  |
 | `convert_slide_to_page_inputs.ts`, `dashboard_item_grid.tsx`, `ReportFigureEmbed.tsx`, `exports/**`, public viewer, AI previews | **stored Figure / export** | baked in the bundle | `bundle.localization` (frozen)                                         |
 
-So the live editor and every stored figure run **identical code**: a figure
-renders byte-identically to the visualization it was captured from. `deckStyle?`
-is the deck-level theme; slides pass it, the others omit it.
+So the live editor and every stored figure run **identical code**, and a
+figure renders identically to the visualization it was captured from when
+the two pairs match: the stored bundle carries the scope it was resolved
+under, and the live editor's transient bundle carries the project's, so the
+same `buildFigureInputs` path labels both the same way. `deckStyle?` is the
+deck-level theme; slides pass it, the others omit it.
 
 ### The four invariants (load-bearing)
 
@@ -289,14 +309,46 @@ layout/cells, map regions, pie slices, the standard series/map color funcs) live
 in `_0_common.ts`, which also owns `GLOBAL_STYLE_OPTIONS`, applied app-wide via
 `setGlobalStyle` at boot ([index.tsx:12](client/src/index.tsx#L12)).
 
-### Roll-up row label under a project AA2 scope
+### Roll-up row label under an AA2 scope
 
 `getRollupRowLabel` (in `get_data_config_from_po.ts`) has one display-side
-override: when `projectState.adminArea2` is set and the label context resolves
-national, it renders the pinned form ("{Area} — All areas"). The scope filter
-is server-injected and never in the PO config, so without this a scoped
-project's roll-up row would read "National" while totalling one area. Full
-ruling in SYSTEM_09 "Roll-up"; the scope itself in SYSTEM_08.
+override: when the bundle's `scope.adminArea2` is set and the label context
+resolves national, it renders the pinned form ("{Area} — All areas"). The
+scope filter is server-injected and never in the PO config, so without this
+a scoped container's roll-up row would read "National" while totalling one
+area. The scope is read from the bundle, never from a global store, so an
+export, a thumbnail or a version preview labels the row correctly outside
+any authoring shell; `buildFigureInputs` threads `bundle.scope` through the
+data-config builders for this one reason. A bundle stored before the scope
+was captured has no `scope`, and only then does the label fall back to the
+project store (`projectState.adminArea2`); that fallback dies when step 9b
+makes the field required. Full ruling in SYSTEM_09 "Roll-up"; the scope
+itself in SYSTEM_08.
+
+### The captured pair and staleness
+
+A figure is stale when the pair its bundle records differs from the pair its
+container serves from: `isFigureBundleStale(bundle, containerScope)` in
+[figure_staleness.ts](client/src/generate_visualization/figure_staleness.ts)
+compares `provenance.runId` and `scope.adminArea2` against the container's
+`PackageScope`, and while the transitional state lasts a missing half
+(`scope` absent, `runId` null) reads as not stale on that half. It is pure
+(type-only imports, so `server/tests/figure_staleness_test.ts` loads it under
+Deno). `findStaleFiguresInLayout` and `findStaleFiguresInReport` walk a slide
+layout and a report's figure registry with it. Nothing rewrites a stored
+bundle behind the user: mixed-package documents are a visible state, and
+reattaching or rescoping never blocks and has no pre-flight. The affordance
+is S11's `StaleFigureBadge` (`components/figure_editor/stale_figure_badge.tsx`);
+its update action re-resolves `{ metricId, config }` under the container's
+current pair through `resolveFigureBundleInteractively` (the human path:
+a stored replicant value missing under the new package is auto-defaulted,
+never thrown on), with the metric taken from the target package's authoring
+context (S9's `t2_run_authoring_context.ts`), and a failure shows its reason
+on the figure and leaves the old bundle in place. That reason is one rule
+shared with the server, `lib/figure_package_issue.ts` (S8): metric absent,
+then metric unavailable, then a requested disaggregation the package's
+results object lacks. The deck and report editors (S12) count stale figures
+and offer "Update all figures".
 
 ### Sample sizes in table headers (`s.showNValues`)
 
@@ -785,25 +837,8 @@ entry), and the viz editor's download modal. Dashboard exports sanitize filename
 
 The P1+P2 refactor has shipped; the architecture is documented above and
 in [S9](SYSTEM_09_viz_query_cache.md), [S12](SYSTEM_12_documents_sharing.md),
-[S2](SYSTEM_02_persistence.md). Two slices were explicitly deferred:
+[S2](SYSTEM_02_persistence.md). One slice is still deferred:
 
-- **Stale badge + "Update data" on `bundle.provenance.runId`.** A bundle
-  records the results package its items were read from
-  (`provenance: { runId }`, free from the ItemsHolder; `null` for bundles
-  captured before the runs model or backfilled from pre-bundle figures, since the
-  run is unknowable there and is never invented). "Needs update?" is therefore
-  `bundle.provenance.runId !== project.attachedRunId`, one comparison against
-  the T1 store, zero per-figure queries; `null` reads as "unknown, offer
-  update", not "stale". It flags "the package moved", not "values definitely
-  changed", which is exactly right for an update nudge. Then an **"Update
-  data" action** (S12 UI + S9 re-query): re-run the same live query the editor
-  runs (`config` + `metricId`) → fresh items → reassemble the bundle
-  (re-derive `dateRange`, re-stamp `provenance.runId`, bump `snapshotAt`);
-  per-figure, "Update all" is the same call in a loop; it stays an explicit
-  user action to preserve the publish-time freeze. Edge: a figure whose metric
-  is not in the attached package can't re-query, so the action disables
-  ("source unavailable"). Being un-updatable ≠ un-migratable. Deferred
-  (results-runs follow-on, not a precondition of anything).
 - **The Visualization rename** (Phase 5, optional). Rename presentation object →
   Visualization end-to-end: the `presentation_objects` table,
   `/presentation_objects` routes, `PresentationObjectConfig`,

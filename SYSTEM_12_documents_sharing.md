@@ -170,7 +170,15 @@ without re-validation.
 panel switches per slide type (cover/section/content; content = header/footer
 tab + a per-block Content tab with text/figure/image editors); right side is
 a live preview through S10's `convertSlideToPageInputs` debounced 100ms off
-`trackStore(tempSlide)`. Slide-type switching keeps a per-type cache so
+`trackStore(tempSlide)`. The editor takes the container's live `PackageScope`
+and that package's authoring context (undefined while the project has no
+package): every figure it writes is stamped with that pair, a figure block
+whose bundle was resolved under another pair shows S11's stale badge in the
+block panel, and the header counts them with "Update all figures" (S10 "The
+captured pair and staleness"). The deck header does the same across every
+slide through `deck_stale_figures.ts`, which walks the per-slide cache and
+writes each updated slide back through `updateSlide` with its
+`expectedLastUpdated`. Slide-type switching keeps a per-type cache so
 switching back restores prior state (same idiom per-block for block-type
 switches). The layout tree is manipulated exclusively through panther node
 ops via `buildLayoutContextMenu`
@@ -226,7 +234,11 @@ LOC): CodeMirror 6 with an embed-widget extension (a line that is exactly one
 token renders as an atomic block widget), three modes edit/split/view, and
 line-anchored bidirectional scroll sync (`data-line` anchors, echo-loop
 guard, figure-settle ResizeObserver window). The left panel inserts/edits
-embeds (figures resolve through the same S10 funnel as dashboards). View
+embeds (figures resolve through the same S10 funnel as dashboards, stamped
+with the container's live pair). Each embed (`ReportFigureEmbed`, in the
+preview pane and the CodeMirror widget alike) shows S11's stale badge when
+its bundle was resolved under another pair, and the header counts them with
+"Update all figures", re-resolving through one `persistFigures` write. View
 mode and both exports share `REPORT_MARKDOWN_STYLE`.
 
 **Autosave protocol** (no-room path: once a collab session becomes ready the

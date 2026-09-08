@@ -5,6 +5,7 @@ export * from "./ai_tools/mod.ts";
 export * from "./consts.ts";
 export * from "./convert_period_value.ts";
 export * from "./derive_default_visualizations.ts";
+export * from "./figure_package_issue.ts";
 export * from "./convert_visualization_type.ts";
 export * from "./dataset_family.ts";
 export * from "./disaggregation_labels.ts";

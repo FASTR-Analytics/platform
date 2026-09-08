@@ -18,6 +18,7 @@ import {
   validateFigureConfigEdit,
 } from "~/generate_visualization/mod";
 import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/project/t2_presentation_objects";
+import { projectPackageScope } from "~/state/project/t1_store";
 import { projectAIViews } from "~/components/project_ai/ai_views";
 import { formatLineRanges } from "~/components/report/rebase_edits";
 import { resolveFigureFromVisualization } from "~/components/slide_deck/slide_ai/resolve_figure_from_visualization";
@@ -436,6 +437,7 @@ export function getClientToolsForReportEditor(
 
         const newBundle = await resolveBundleFromMetricAndConfig(
           projectId,
+          projectPackageScope(),
           metric,
           newConfig,
         );

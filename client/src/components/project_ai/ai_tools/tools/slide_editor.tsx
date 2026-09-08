@@ -13,6 +13,7 @@ import {
   type Slide,
 } from "lib";
 import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/project/t2_presentation_objects";
+import { projectPackageScope } from "~/state/project/t1_store";
 import { AIToolFailure, createAITool } from "panther";
 import type { LayoutNode } from "panther";
 import {
@@ -515,7 +516,12 @@ export function getClientToolsForSlideEditor(
 
         const report = describeFigureConfigPatchEffect(bundle.config, input.patch, metric, dataBounds);
 
-        const newBundle = await resolveBundleFromMetricAndConfig(projectId, metric, newConfig);
+        const newBundle = await resolveBundleFromMetricAndConfig(
+          projectId,
+          projectPackageScope(),
+          metric,
+          newConfig,
+        );
 
         // Slot-collision check needs the data's real dateRange (degeneracy) so it
         // matches the renderer exactly: run it post-resolve, still before commit.
