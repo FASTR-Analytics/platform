@@ -741,6 +741,28 @@ Deno.test("a themed report re-tints every stock traffic-light preset; chosen col
   assert(themeConditionalFormatting(LEGACY_CF_PRESETS["fmt-90-80"].value, undefined) === LEGACY_CF_PRESETS["fmt-90-80"].value);
 });
 
+Deno.test("a cover fills its page only with fill=page", () => {
+  assertStringIncludes(
+    render(":::cover{tone=dark fill=page}\n# T\n:::\n"),
+    '<section class="fm-band fm-cover fm-cover--fill',
+  );
+  assertStringIncludes(
+    render(":::cover{tone=dark layout=poster fill=page}\n# T\n:::\n"),
+    '<section class="fm-band fm-cover fm-cover--poster fm-cover--fill',
+  );
+  assert(!render(":::cover{tone=dark}\n# T\n:::\n").includes("fm-cover--fill"));
+  const defects = listFastrContainerDefects(":::cover{fill=tall}\n# T\n:::\n");
+  assert(defects.some((d) => d.message.includes("Unknown fill `tall`")), JSON.stringify(defects));
+  // The paged sheet gives only the filling cover its own page.
+  const css = buildFastrPagedCss(
+    { size: "a4", orientation: "portrait", margin: "normal" },
+    { title: "Q3", pageWord: "Page", ofWord: "of" },
+  );
+  assertStringIncludes(css, ".fm-band.fm-cover--fill {\n  page: fmcover;");
+  assertStringIncludes(css, ":has(+ .fm-cover--fill) { page: fmcover; }");
+  assertStringIncludes(css, ".fm-band.fm-cover {\n  min-height: 544px;");
+});
+
 Deno.test("a cover's layout is a class the sheet styles; classic is the bare cover", () => {
   assertStringIncludes(
     render(":::cover{tone=dark layout=poster}\n# T\n:::\n"),
@@ -1524,7 +1546,9 @@ Deno.test("the paged sheet: sheet size, margins, footer, cover page, atomic bloc
   for (const sel of FASTR_PAGED_ATOMIC_SELECTORS) assertStringIncludes(css, sel);
   assertStringIncludes(css, "h1, h2, h3, h4, h5, h6 { break-after: avoid; break-inside: avoid; }");
   assertStringIncludes(css, "orphans: 3; widows: 3;");
-  assertStringIncludes(css, ".fm-pagebreak { display: block; height: 0; margin: 0; padding: 0; break-after: page; }");
+  // Out of the flow and pinned to the page's corner: a marker pushed to the
+  // next page by a margin would force a break after itself, a blank page.
+  assertStringIncludes(css, ".fm-pagebreak {\n  break-after: page;\n  position: absolute;\n  top: 0;");
   assertStringIncludes(css, '[data-break="before"] { break-before: page; }');
   assertStringIncludes(css, '[data-break="after"] { break-after: page; }');
   // Contents entries get page numbers.

@@ -6,7 +6,8 @@
 //   • no atomic block is split while it fits on a page;
 //   • no heading ends a page;
 //   • a continued table starts with its header row;
-//   • a cover fills page 1 edge to edge, and carries no footer;
+//   • a cover with fill=page fills page 1 edge to edge and carries no footer;
+//     any other cover is a band at the head of page 1, which keeps its footer;
 //   • a :::pagebreak ends its page;
 //   • the runner's page count is the PDF's page count.
 // Per-page screenshots and the PDFs of a few themes are written to
@@ -84,6 +85,9 @@ type Inspection = {
   pages: number;
   problems: string[];
   cover?: { page: number; fillsWidth: boolean; fillsHeight: boolean; footer: string };
+  continuedBands?: number;
+  continuedSteps?: number;
+  stepsContinuation?: string;
   page2Footer?: string;
   splitTables: number;
 };
@@ -151,6 +155,13 @@ function inspectPages(atomic: string): Inspection {
     }
   });
   const out: Inspection = { pages: pages.length, problems, splitTables };
+  out.continuedBands = document.querySelectorAll(".fm-band[data-split-from]").length;
+  out.continuedSteps = document.querySelectorAll(".fm-steps[data-split-from]").length;
+  // Paged.js carries the step counter into a continuation by stamping the
+  // running value on the first continued step (generated content itself is
+  // not readable from script): it must not have started over.
+  const cont = document.querySelector<HTMLElement>(".fm-steps[data-split-from] > *");
+  out.stepsContinuation = cont?.getAttribute("data-counter-fm-step-value") ?? undefined;
   const cover = document.querySelector<HTMLElement>(".fm-cover");
   if (cover) {
     const pg = cover.closest<HTMLElement>(".pagedjs_page");
@@ -251,8 +262,9 @@ Deno.test({
           local.push(`PDF has ${printed} pages, layout has ${result.total}`);
         }
         if (fixture.body.includes(":::cover")) {
+          const fills = /:::cover\{[^}]*\bfill=page\b/.test(fixture.body);
           if (!ins.cover) local.push("cover missing from the laid-out pages");
-          else {
+          else if (fills) {
             if (ins.cover.page !== 1) local.push(`cover on page ${ins.cover.page}`);
             if (!ins.cover.fillsWidth || !ins.cover.fillsHeight) {
               local.push("cover does not fill its page");
@@ -261,6 +273,14 @@ Deno.test({
               local.push(`cover page carries a footer: ${ins.cover.footer}`);
             }
             if (!result.pages[0]?.cover) local.push("runner did not mark page 1 as a cover");
+          } else {
+            if (ins.cover.page !== 1) local.push(`cover on page ${ins.cover.page}`);
+            if (!ins.cover.fillsWidth) local.push("cover does not bleed to the sheet's sides");
+            if (ins.cover.fillsHeight) local.push("a natural cover fills its page");
+            if (ins.cover.footer === "none" || ins.cover.footer === "normal" || ins.cover.footer === "missing") {
+              local.push("page 1 with a natural cover has no footer");
+            }
+            if (result.pages[0]?.cover) local.push("runner marked page 1 as a cover page");
           }
         }
         if (result.total > 1 && !fixture.body.includes(":::cover")) {
@@ -274,8 +294,18 @@ Deno.test({
             local.push("the runner reported no split for the long table");
           }
         }
-        if (fixture.name === "long_band" && result.splits.length === 0) {
-          local.push("the runner reported no split for the long band");
+        // A band or a steps block continues across pages as a matter of
+        // course: nothing to report, and the continuation keeps counting.
+        if (fixture.name === "long_band") {
+          if (ins.continuedBands === 0) local.push("the long band did not continue onto a second page");
+          if (result.splits.length > 0) local.push("the runner reported the long band as an overflow split");
+        }
+        if (fixture.name === "long_steps") {
+          if (ins.continuedSteps === 0) local.push("the long steps block did not continue onto a second page");
+          const first = Number(ins.stepsContinuation);
+          if (!(first > 1)) {
+            local.push(`the continued steps restarted their numbering (first continued step: ${ins.stepsContinuation ?? "unstamped"})`);
+          }
         }
         if (fixture.name === "explicit_breaks" && result.total !== 4) {
           local.push(`explicit breaks laid out to ${result.total} pages, expected 4`);

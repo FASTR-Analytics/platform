@@ -380,9 +380,25 @@ Testing headless shell the Dockerfile installs at `CHROME_PATH`), so the seams
 the editor draws and the pages the PDF prints cannot disagree.
 `lib/report_fastr_paged.ts` is the contract: the paged stylesheet
 (`buildFastrPagedCss` — `@page` size/margins, a zero-margin named page for a
-cover, the running footer as margin boxes, keep-together on every designed
-block, keep-with-next on headings, orphans/widows 3, explicit breaks from
-`:::pagebreak` and `break=before|after`, section counters on the
+cover with `fill=page` (any other cover is a 544px-tall band at the head of
+page 1 with the report continuing below it; Nick's ruling 2026-09-08, "back
+to normal size, maybe have an option to page fill"), the running footer as
+margin boxes, keep-together on the designed blocks that are one thing
+(cards, stats, tiles, columns, figures, table rows, list items, each step)
+while callouts, bands, quotes and steps CONTINUE across pages between
+paragraphs and steps with the box drawn on both sides (Nick, 2026-09-08,
+after a bulletin printed with pages half empty behind blocks that missed
+the foot by a line; a block's title or kicker never ends a page, its
+standfirst never opens one, and a break at a flowing block's first content
+counts as a break before the block so the heading above travels with it;
+the runner judges "first on the page" by a block's FIRST fragment inside
+the page box, since a block that overflowed also has a fragment in
+Paged.js's overflow column whose top is the page's top; a continued block's
+page starts at its first new child, not at the cloned box), keep-with-next
+on headings, orphans/widows 3, explicit breaks from `:::pagebreak` (its
+marker is out of the flow, pinned to the page's top corner: pushed to the
+next page by a margin it would break after itself and print a blank page)
+and `break=before|after`, section counters on the
 renderer-stamped `fm-numbered` class, TOC page numbers via `target-counter`) and
 the in-document runner (`fastrPagedRunnerJs`), which releases blocks taller
 than a page before pagination (they split as a last resort and are reported),
@@ -444,7 +460,15 @@ spare pulls the next page's first block up (never a heading, never across
 per measure pass, dispatched after the cycle, only between an edit and the
 paginator's next answer, which stands as the printed truth. The result's
 lines are mapped through every edit so a provisional move never rebuilds
-seams from stale lines. A page whose editor rendering runs taller than
+seams from stale lines. A seam inside a rendered block (a callout, band or
+steps block that continues on the next page) is `fm-page-gutter--inner`:
+sheet-wide, on the page ground, opted out of the block's child styling
+(counters, borders, padding), so the box visibly stops and resumes. The
+model's brief (`FASTR_MD_SYNTAX_DOC`) carries a "composing for pages"
+paragraph: what keeps together, what continues, open a section with a
+paragraph before its figure, never two figures back to back, alternate
+blocks with prose, no page breaks to tidy what it cannot see. A page whose
+editor rendering runs taller than
 print simply runs taller (the residual, measured 2026-09-08 on the fixtures
 and a real bulletin, is under 25px a page and goes both ways: container
 spacing and headings differ a little from the themes' collapsed margins);

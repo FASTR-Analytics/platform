@@ -17,9 +17,13 @@
 //     with what follows it; table header rows repeat; orphans/widows at 3.
 //   • A block taller than a page splits at row/item/paragraph boundaries as a
 //     last resort, and the result lists it so the editor can flag it.
-//   • The cover takes a whole page and bleeds to the paper edge on all sides
+//   • A cover with fill=page takes a whole page and bleeds to the paper edge
+//     on all sides; any other cover is a band at the head of page 1 (544px
+//     tall at least, print's own height) and the report continues below it
 //     (a named page with zero margins); bands bleed side to side.
-//   • Footer: title left, "Page N of M" right, nothing on a cover page.
+//   • Footer: title left, "Page N of M" right, nothing on a cover page
+//   • Designed blocks keep together (the atomic list below); callouts, bands,
+//     quotes and steps continue across pages between paragraphs and steps
 // =============================================================================
 
 import {
@@ -40,16 +44,17 @@ export const FASTR_PRINT_TITLE_CLASS = "fm-print-title";
 const COVER_PAGE_NAME = "fmcover";
 
 // Blocks that never split while they fit on a page. Exported so the runner,
-// the tests and the editor agree on what "atomic" means.
+// the tests and the editor agree on what "atomic" means. Callouts, bands,
+// quotes and steps are NOT here (Nick, 2026-09-08, after a bulletin printed
+// with pages half empty): they continue across pages at their natural
+// seams, between paragraphs and between steps, the box drawn on both sides,
+// so a long one no longer drags a page of white behind it.
 export const FASTR_PAGED_ATOMIC_SELECTORS: readonly string[] = [
-  ".fm-callout",
   ".fm-card",
   ".fm-stat",
   ".fm-tiles",
   ".fm-columns",
-  ".fm-quote",
-  ".fm-band",
-  ".fm-steps",
+  ".fm-cover",
   ".fm-steps > *",
   ".fm-toc",
   ".fm-figure",
@@ -59,7 +64,6 @@ export const FASTR_PAGED_ATOMIC_SELECTORS: readonly string[] = [
   "ul",
   "ol",
   "li",
-  "blockquote",
   "pre",
   "img",
 ];
@@ -75,8 +79,10 @@ export type FastrPagedFooter = {
 export type FastrPagedPage = {
   // 1-based, as printed.
   number: number;
-  // 0-based source line of the first anchored block on the page, or undefined
-  // for a page with no anchored content (should not happen; kept honest).
+  // 0-based source line of the first anchored block on the page (inside a
+  // block continued from the previous page, its first new child), or
+  // undefined for a page with no anchored content (should not happen; kept
+  // honest).
   firstLine: number | undefined;
   // Every anchored source line on the page, ascending. The editor uses
   // firstLine for the gutter and this list to place breaks inside a rendered
@@ -188,16 +194,22 @@ body { max-width: none; margin: 0; padding: 0; }
   string-set: fm-title content(text);
 }
 .${FASTR_PRINT_TITLE_CLASS} + * { margin-top: 0; }
-/* The title span sits first in the flow; when a cover follows it, it must
-   share the cover's named page, or Paged.js opens a blank default page for
-   it and the cover lands on page 2. */
-.${FASTR_PRINT_TITLE_CLASS}:has(+ .fm-cover) { page: ${COVER_PAGE_NAME}; }
+/* The title span sits first in the flow; when a filling cover follows it,
+   it must share the cover's named page, or Paged.js opens a blank default
+   page for it and the cover lands on page 2. */
+.${FASTR_PRINT_TITLE_CLASS}:has(+ .fm-cover--fill) { page: ${COVER_PAGE_NAME}; }
 
-/* ── Cover: its own page, edge to edge ─────────────────────────────────────── */
+/* ── Cover ─────────────────────────────────────────────────────────────────── */
+/* A band at the head of page 1: print's height (the screen sheet's 72vh cap
+   would make it depend on the frame), the report continuing below it. */
 .fm-band.fm-cover {
+  min-height: 544px;
+  break-inside: avoid;
+}
+/* fill=page: its own page, edge to edge. */
+.fm-band.fm-cover--fill {
   page: ${COVER_PAGE_NAME};
   break-after: page;
-  break-inside: avoid;
   /* Side bleed through the wrapper's inset, no block margins: the named
      page's margins are 0, so the box below is the whole sheet. */
   margin: 0 var(--fm-bleed-margin);
@@ -209,11 +221,29 @@ body { max-width: none; margin: 0; padding: 0; }
 ${FASTR_PAGED_ATOMIC_SELECTORS.join(",\n")} { break-inside: avoid; }
 h1, h2, h3, h4, h5, h6 { break-after: avoid; break-inside: avoid; }
 p, li, blockquote, .fm-toc__item { orphans: 3; widows: 3; }
+/* A block that continues across pages never leaves its title or kicker
+   alone at the foot of one, nor its standfirst alone at the head of the
+   next. */
+.fm-callout__title, .fm-card__title, .fm-kicker { break-after: avoid; break-inside: avoid; }
+.fm-dek { break-before: avoid; break-inside: avoid; }
 /* Repeated header rows (cloned by the runner) never split from their table. */
 thead { display: table-header-group; break-inside: avoid; }
 
 /* ── Explicit breaks ───────────────────────────────────────────────────────── */
-.fm-pagebreak { display: block; height: 0; margin: 0; padding: 0; break-after: page; }
+/* The marker takes no room and never overflows: out of the flow, pinned to
+   the page's top corner, so it stays on the page it follows however full
+   that page is. Pushed to the next page by a margin, it would sit there
+   alone and force a break after itself: a blank page. */
+.fm-pagebreak {
+  break-after: page;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  margin: 0;
+  padding: 0;
+}
 [data-break="before"] { break-before: page; }
 [data-break="after"] { break-after: page; }
 
@@ -387,9 +417,16 @@ export function fastrPagedRunnerJs(): string {
         var ref = source.getAttribute && source.getAttribute("data-ref");
         return ref ? rendered.querySelector('[data-ref="' + ref + '"]') : null;
       };
+      // Whether nothing of the page is rendered above the source's fragment.
+      // A block that overflowed is fragmented across Paged.js's overflow
+      // column to the right, whose top is the page's top, so its bounding
+      // box misleads: measure its FIRST fragment, and inside the page box.
       var firstOnPage = function (source) {
         var r = renderedOf(source);
-        return r !== null && r.getBoundingClientRect().top - top < 4;
+        if (r === null) return false;
+        var rects = r.getClientRects();
+        var rect = rects.length > 0 ? rects[0] : r.getBoundingClientRect();
+        return rect.top - top < 4 && (!box || rect.left < box.right);
       };
       // A break at the page's FIRST block while that block fits would leave
       // the page empty and start the block over on the next one (the loop a
@@ -422,7 +459,29 @@ export function fastrPagedRunnerJs(): string {
         }
       }
       var block = el.closest(ATOMIC_WHOLE);
-      if (!block) return;
+      if (!block) {
+        // A break at the very first thing inside a block that may split (a
+        // callout's title, a band's kicker, the first step) is a break
+        // BEFORE that block: nothing of it stays on this page. Climb while
+        // the node opens its parent, so the heading above the block travels
+        // with it, exactly as it would with an atomic block.
+        var atStart = el.nodeType === 1 && breakToken.offset === 0 ||
+          node.nodeType === 3 && breakToken.offset === 0 && !node.previousSibling;
+        if (!atStart) return;
+        var cur = el;
+        var opens = function (x) {
+          var parent = x.parentElement;
+          if (!parent) return false;
+          var first = parent.firstElementChild;
+          while (first && first.classList.contains(${JSON.stringify(FASTR_PRINT_TITLE_CLASS)})) {
+            first = first.nextElementSibling;
+          }
+          return first === x;
+        };
+        while (opens(cur)) cur = cur.parentElement;
+        if (cur === el && el.parentElement) return;
+        block = cur;
+      }
       if (firstOnPage(block)) return;
       var target = block;
       for (;;) {
@@ -436,7 +495,7 @@ export function fastrPagedRunnerJs(): string {
       breakToken.node = target;
       breakToken.offset = 0;
       var rt = renderedOf(target);
-      if (rt) overflow.setStartBefore(rt);
+      if (rt && overflow) overflow.setStartBefore(rt);
     }
     // The document ground (a tone, a literal colour, an image) belongs to
     // every sheet; the page box is what the PDF prints.
@@ -468,9 +527,18 @@ export function fastrPagedRunnerJs(): string {
       }
       var anchored = el.querySelectorAll("[data-line]");
       var lines = [];
+      var firstLine = undefined;
       for (var j = 0; j < anchored.length; j++) {
-        var n = parseInt(anchored[j].getAttribute("data-line"), 10);
-        if (!isNaN(n) && lines.indexOf(n) === -1) lines.push(n);
+        var a = anchored[j];
+        var n = parseInt(a.getAttribute("data-line"), 10);
+        if (isNaN(n)) continue;
+        if (lines.indexOf(n) === -1) lines.push(n);
+        // A block continued from the previous page (a callout, band or
+        // steps block that split) opens the page with its cloned box, whose
+        // line is the block's own; the page starts at the first thing INSIDE
+        // it that is new here, not at the block.
+        var continued = a.hasAttribute("data-split-from") && a.querySelector("[data-line]") !== null;
+        if (firstLine === undefined && !continued) firstLine = n;
       }
       lines.sort(function (a, b) { return a - b; });
       var splitHeads = el.querySelectorAll("[data-split-to]");
@@ -497,7 +565,7 @@ export function fastrPagedRunnerJs(): string {
       }
       pages.push({
         number: i + 1,
-        firstLine: lines.length > 0 ? lines[0] : undefined,
+        firstLine: firstLine,
         lines: lines,
         cover: el.classList.contains("pagedjs_" + ${JSON.stringify(COVER_PAGE_NAME)} + "_page"),
         contentHeight: contentHeight

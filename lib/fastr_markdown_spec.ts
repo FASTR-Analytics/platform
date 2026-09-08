@@ -106,7 +106,10 @@ Blocks (open with \`:::name{attributes}\`, close with a bare \`:::\`):
   # A title page
   :::
   \`kicker\` is the small letterspaced line above the title, \`sub\` the
-  rule-topped standfirst below it. Both also work on \`band\`.
+  rule-topped standfirst below it. Both also work on \`band\`. A cover is a
+  tall band at the head of page 1 and the report continues below it;
+  \`fill=page\` makes it a title page of its own, edge to edge, with the
+  report starting on page 2.
   \`layout\` picks the cover's COMPOSITION, the tone its ground:
     classic   left-set masthead (the default)
     centered  everything on the axis, a short centred rule over the sub
@@ -221,7 +224,10 @@ Composing a report — this matters as much as the syntax:
     Pick a \`layout\` for it: \`poster\` or \`split\` for a bulletin with one
     headline, \`frame\` or \`centered\` for a formal review, \`spine\` for a
     bound annual report, \`minimal\` when the user wants it quiet. Vary it
-    across reports rather than reaching for classic every time.
+    across reports rather than reaching for classic every time. Add
+    \`fill=page\` only for a formal review or annual report that wants a
+    title page of its own; a bulletin or a brief keeps the cover as a band
+    with the text starting right below it.
   - A report with more than four or five sections gets a
     \`:::contents{title="Contents" depth=2}\` line straight after the cover,
     so the reader can see the shape of it. Shorter reports do not.
@@ -243,6 +249,25 @@ Composing a report — this matters as much as the syntax:
   Vary the tones so consecutive blocks differ, and keep ordinary analysis in
   ordinary paragraphs: a report where everything is a block has no emphasis
   left. Aim for roughly one block per two or three paragraphs of prose.
+
+  The report prints on pages, and the pages are what the reader holds. A
+  tiles row, a columns pair, a figure, a table row and each step keep
+  themselves whole on one page, and a heading always travels with what
+  follows it, so a big block that misses the foot of a page by a line takes
+  its whole height to the next page and leaves that much white behind.
+  Callouts, bands, quotes and steps continue across pages, so length is
+  safe there; everything else, keep compact:
+  - A tiles row is three or four stats, never cards of prose. A columns
+    pair is a few lines a side. A figure gets a one-line caption.
+  - Open a section with a paragraph, then the figure, not the figure
+    straight under the heading: the heading and the figure would otherwise
+    move together, and that is most of a page.
+  - Never place two figures back to back; put prose between them.
+  - Alternate blocks with prose. Two big blocks in a row leave the page
+    nothing to fill the gap with.
+  - Do not add \`:::pagebreak\` to tidy a page you cannot see; leave the
+    breaks to the paginator. A break is for starting a new part of the
+    report on a fresh page.
 
 Rules:
 - \`stat\`, \`contents\`, \`pagebreak\` and \`report\` are ONE-LINE blocks:
