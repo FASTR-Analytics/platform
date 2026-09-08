@@ -27,6 +27,11 @@ import { dashboardRouteRegistry } from "./project/dashboards.ts";
 import { visualizationFolderRouteRegistry } from "./project/visualization-folders.ts";
 import { emailRouteRegistry } from "./project/emails.ts";
 import { cacheStatusRouteRegistry } from "./project/cache-status.ts";
+import { productRouteRegistry } from "./products/products.ts";
+import { folderRouteRegistry } from "./products/folders.ts";
+import { productSlideDeckRouteRegistry } from "./products/slide-decks.ts";
+import { productSlideRouteRegistry } from "./products/slides.ts";
+import { productReportRouteRegistry } from "./products/reports.ts";
 import { customPromptRouteRegistry } from "./instance/custom_prompts.ts";
 import { whatsNewRouteRegistry } from "./instance/whats_new.ts";
 import { onboardingRouteRegistry } from "./instance/onboarding.ts";
@@ -64,6 +69,11 @@ export const routeRegistryIndividualCount =
   Object.keys(visualizationFolderRouteRegistry).length +
   Object.keys(emailRouteRegistry).length +
   Object.keys(cacheStatusRouteRegistry).length +
+  Object.keys(productRouteRegistry).length +
+  Object.keys(folderRouteRegistry).length +
+  Object.keys(productSlideDeckRouteRegistry).length +
+  Object.keys(productSlideRouteRegistry).length +
+  Object.keys(productReportRouteRegistry).length +
   Object.keys(customPromptRouteRegistry).length +
   Object.keys(whatsNewRouteRegistry).length +
   Object.keys(onboardingRouteRegistry).length;
@@ -99,6 +109,11 @@ export const routeRegistry = {
   ...visualizationFolderRouteRegistry,
   ...emailRouteRegistry,
   ...cacheStatusRouteRegistry,
+  ...productRouteRegistry,
+  ...folderRouteRegistry,
+  ...productSlideDeckRouteRegistry,
+  ...productSlideRouteRegistry,
+  ...productReportRouteRegistry,
   ...customPromptRouteRegistry,
   ...whatsNewRouteRegistry,
   ...onboardingRouteRegistry,

@@ -8,8 +8,12 @@ import {
 } from "../db/mod.ts";
 import {
   getPinnedRunId,
+  listReadyPackages,
   listRunCatalog,
 } from "../db/instance/run_generation.ts";
+import { listFolders } from "../db/products/folders.ts";
+import { listProducts } from "../db/products/products.ts";
+import { listSlideLastUpdated } from "../db/products/slides.ts";
 import {
   _INSTANCE_CALENDAR,
   _INSTANCE_COUNTRY_ISO3,
@@ -17,18 +21,21 @@ import {
   _INSTANCE_LANGUAGE,
 } from "../exposed_env_vars.ts";
 
+type BuildResult =
+  | { success: true; data: InstanceState }
+  | { success: false; err: string };
+
 /**
- * Builds a complete InstanceState for a given user: the instance-SSE
- * `starting` payload, lifted verbatim from the SSE handler (PLAN_112 step 3)
- * so the /mcp context cache can ground on the same state. Pure extraction:
- * the SSE payload is byte-identical.
+ * The instance grounding half of the `starting` payload: everything except
+ * the product plane, which is empty here. This is what the /mcp context
+ * cache grounds on (mcp/context_cache.ts): it reads instance facts only, so
+ * the product lists would be pure weight in a per-principal cache. The SSE
+ * handler uses buildInstanceState below.
  */
-export async function buildInstanceState(
+export async function buildInstanceStateWithoutProducts(
   mainDb: Sql,
   globalUser: GlobalUser,
-): Promise<
-  { success: true; data: InstanceState } | { success: false; err: string }
-> {
+): Promise<BuildResult> {
   const res = await getInstanceDetail(mainDb, globalUser);
   if (!res.success) {
     return { success: false, err: res.err };
@@ -88,6 +95,10 @@ export async function buildInstanceState(
     dhis2ConnectionUrl: res.data.dhis2ConnectionUrl,
     projects: res.data.projects,
     projectsLastUpdated: new Date().toISOString(),
+    products: [],
+    folders: [],
+    readyPackages: [],
+    lastUpdated: { products: {}, slides: {} },
     users: rosterForCaller,
     assets: res.data.assets,
     geojsonMaps: res.data.geojsonMaps,
@@ -128,4 +139,67 @@ export async function buildInstanceState(
   };
 
   return { success: true, data: instanceState };
+}
+
+/**
+ * The full instance-SSE `starting` payload: the grounding half plus the
+ * product plane (products, folders, ready packages and the last_updated
+ * cache-version index; PLAN_PRODUCTS_RESTRUCTURE D8).
+ *
+ * The product plane is withheld from an UNAPPROVED connection by the same
+ * roster rule that empties `users`; the client reconnects once a roster
+ * names its user, which rebuilds this payload whole. Each read degrades
+ * independently: a failure logs and leaves that list empty rather than
+ * stopping the boundary from coming up (the runsCatalog rule).
+ */
+export async function buildInstanceState(
+  mainDb: Sql,
+  globalUser: GlobalUser,
+): Promise<BuildResult> {
+  const res = await buildInstanceStateWithoutProducts(mainDb, globalUser);
+  if (!res.success || !res.data.currentUserApproved) {
+    return res;
+  }
+
+  const [productsRes, foldersRes, packagesRes, slideStampsRes] = await Promise
+    .all([
+      listProducts(mainDb),
+      listFolders(mainDb),
+      listReadyPackages(mainDb),
+      listSlideLastUpdated(mainDb),
+    ]);
+  for (
+    const [name, r] of [
+      ["products", productsRes],
+      ["folders", foldersRes],
+      ["readyPackages", packagesRes],
+      ["slide stamps", slideStampsRes],
+    ] as const
+  ) {
+    if (!r.success) {
+      console.error(`buildInstanceState ${name}: ${r.err}`);
+    }
+  }
+
+  // A product's own stamp IS its cache version, so the index is derived from
+  // the list rather than read twice; products_upserted keeps it in step.
+  const products = productsRes.success ? productsRes.data : [];
+  const productStamps: Record<string, string> = {};
+  for (const product of products) {
+    productStamps[product.id] = product.lastUpdated;
+  }
+
+  return {
+    success: true,
+    data: {
+      ...res.data,
+      products,
+      folders: foldersRes.success ? foldersRes.data : [],
+      readyPackages: packagesRes.success ? packagesRes.data : [],
+      lastUpdated: {
+        products: productStamps,
+        slides: slideStampsRes.success ? slideStampsRes.data : {},
+      },
+    },
+  };
 }

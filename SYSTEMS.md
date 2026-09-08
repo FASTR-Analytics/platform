@@ -70,6 +70,8 @@ list.)
 | `server/db/instance/config.ts`                                          | S5    | S6, S9            | instance config parameterizes ELT + generated SQL     |
 | `server/db/project/reports.ts` · `slides.ts` · `slide_decks.ts`         | S12   | S16, S2           | S16 collab checkpoints + version columns              |
 | `server/routes/project/reports.ts` · `slide_decks.ts` · `slides.ts`     | S12   | S16               | S16 room chokepoints + version-history routes         |
+| `server/db/products/reports.ts` · `slides.ts` · `slide_decks.ts`        | S12   | S16, S2           | the same seam on the products layer                   |
+| `server/routes/products/reports.ts` · `slide_decks.ts` · `slides.ts`    | S12   | S16               | version-history routes; room chokepoints from 7a      |
 | `server/routes/instance/health.ts`                                      | S15   | S17               | unauthenticated endpoints dump the user_logs tables   |
 | `server/collab/version_capture.ts`                                      | S16   | S17               | onSessionEnd writes edit-session user_logs rows       |
 

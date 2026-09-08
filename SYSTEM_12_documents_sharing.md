@@ -53,7 +53,9 @@ globs:
   - server/routes/project/slide_deck_folders.ts
   - server/routes/project/slide_decks.ts
   - server/routes/project/slides.ts
+  - server/routes/products/**
   - server/routes/public/dashboard.ts
+  - server/tests/products_routes_test.ts
   - server/utils/id_generation.ts
 docs_absorbed:
 ---
@@ -77,7 +79,10 @@ all three families + folders, `db/instance/dashboard_slugs.ts`,
 `routes/public/dashboard.ts` **and** the `/api/d/*` CORS + populate-only-Clerk
 mounts plus the `/d/:slug` SPA-HTML in root `main.ts` (the actual auth
 boundary), `routes/project/emails.ts`, `server/utils/id_generation.ts`
-(hardcodes 7 tables, Open item). Lib: slide/report/dashboard types incl.
+(one 4-char generator, table-aware). The product plane beside them:
+`server/db/products/**`, `server/routes/products/**` and their harness
+`server/tests/products_routes_test.ts` (the registries are S1's
+`lib/api-routes/products/*`). Lib: slide/report/dashboard types incl.
 `buildPublicDashboardBundle` and `buildReportPreview`, plus the product
 contracts (`lib/types/products.ts`: `ProductType`, `Folder`, `ProductBase`,
 `ProductSummary`; `lib/types/scope.ts`: `PackageScope`, `scopeToken`) that
@@ -126,14 +131,62 @@ Each detail table carries a fixed `type` column and a composite FK on
 `(id, type)` against `products`, so a detail row can exist only in the
 table its registry type names; whether the detail row exists at all is a
 writer rule (one transaction per product create), not a constraint. Row
-types for the registry are `DBFolder` and `DBProduct` in
-`server/db/instance/_main_database_types.ts`; the detail tables have no row
-types yet, because the project-DB `DBSlideDeck`, `DBSlide`, `DBReport`,
-`DBReportVersion` and `DBDeckVersion` in `_project_database_types.ts` share
-the `server/db/mod.ts` star-export chain and the names would collide. The
-shared contracts are `lib/types/products.ts` and `lib/types/scope.ts`. No
-code reads or writes these tables; the per-project tables described in the
-sections below are still the live storage for decks and reports.
+types are `DBFolder`, `DBProduct`, `DBSlideDeck`, `DBSlide`,
+`DBSlideDeckVersion`, `DBReport` and `DBReportVersion` in
+`server/db/instance/_main_database_types.ts`; the project barrel no longer
+star-exports its own row types, so the two sets coexist by direct import.
+The shared contracts are `lib/types/products.ts` and `lib/types/scope.ts`.
+
+**The layer** (`server/db/products/**`, PLAN_PRODUCTS_RESTRUCTURE step 5):
+every function takes `mainDb` and keys off the registry. `products.ts`
+holds the cross-type surface: one summary query for both types
+(`listProducts` / `getProductSummaries`, the registry row plus
+`firstSlideId` for a deck and `hasEmbeds` for a report, computed in SQL so
+no body crosses the DB boundary); `createProduct` inserts the registry row
+and the detail row in one transaction, resolves `run_id` from `runs WHERE
+pinned AND status = 'ready'` inside the insert and returns the typed
+`NO_READY_PINNED_PACKAGE` when nothing qualifies; `updateProductLabel`,
+`moveProductsToFolder`, `setProductScope`; `deleteProducts` is one `DELETE
+... WHERE id = ANY` on the registry, with the batch's slide ids pre-read
+inside the transaction for the room closers; `duplicateProduct` clones
+`(run_id, admin_area_2)` through `INSERT ... SELECT` and the detail through
+a per-type `Record<ProductType, fn>`. `folders.ts`: `updateFolder` is also
+the move and refuses a cycle with a recursive CTE walking up from the new
+parent inside the same transaction (`FOLDER_CYCLE`, through the envelope);
+`deleteFolder` reparents child folders and products one level and returns
+`freedProductIds`. `slide_decks.ts`, `slides.ts`, `move_slides.ts`,
+`copy_slides.ts` (`copySlidesToSlideDeck`, the cross-deck reuse path:
+configs copied verbatim, scoped by the source product), `reports.ts` and
+`versions.ts` are the project counterparts rekeyed: every slide read and
+write is scoped by `product_id` AND `slide_id`, every content mutation bumps
+`products.last_updated` in the same transaction (`touchProduct`), the label
+lives on `products` and the detail reads join it, and the version functions
+carry the `SlideDeck` stem on the `slide_deck_versions` table
+(`insertSlideDeckVersion`, `latestSlideDeckVersionHash`,
+`copySlideDeckFromVersion`). `setProductRun`, the products half of the
+run delete guard and `listReadyPackages` live in
+`db/instance/run_generation.ts`. Ids mint at four characters
+(`generateUniqueProductId`, `generateUniqueSlideId`; the legacy 3-char ids
+stay valid).
+
+**The routes** (`server/routes/products/**` over
+`lib/api-routes/products/*`): every product-scoped path lives under
+`/products/:product_id/...` (`.../slide-deck`, `.../slides/:slide_id`,
+`.../report`, `.../versions/:version_id`), batch targets ride the body as
+`productIds`, and every registry entry declares `access`, which is the
+whole guard (S1). Handlers name only `log(...)`; a not-found envelope from
+the DB layer leaves as a 404 through `_respond.ts`, so a slide or version
+id under the wrong product is a 404. Every mutation re-reads the touched
+summaries through `notifyInstanceProductsUpserted` (S3), slide writes also
+stamp `notifyInstanceLastUpdated("slides", ...)`, and package or delete
+changes re-nonce the runs catalogue. The restore routes write the safety
+version, the structural restore and the restored-state version; the room
+flushes, live-room apply and session ledgers arrive with collab (7a). Until
+9b deletes the project registries, the per-type keys carry a `Product`
+infix (`getProductSlides`, `updateProductReportBody`) because their final
+names are taken. The client stores the SSE product fields and reads none of
+them until 7a; the per-project tables described in the sections below are
+still the live storage the client edits.
 
 ## Slide decks
 

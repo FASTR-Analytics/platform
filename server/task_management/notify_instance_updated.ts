@@ -1,6 +1,7 @@
 import type { Sql } from "postgres";
 import type {
   AssetInfo,
+  Folder,
   GeoJsonMapSummary,
   InstanceConfig,
   InstanceDatasetsSummary,
@@ -9,6 +10,8 @@ import type {
   InstanceSseMessage,
   InstanceStructureSummary,
   OtherUser,
+  ProductLastUpdateTableName,
+  ProductSummary,
   RunProgress,
 } from "lib";
 import {
@@ -16,6 +19,7 @@ import {
   getStructureSchema,
 } from "../db/instance/config.ts";
 import { getStoredDhis2CredentialsInfo } from "../db/instance/instance_dhis2_credentials.ts";
+import { getProductSummaries } from "../db/products/products.ts";
 import { _INSTANCE_COUNTRY_ISO3 } from "../exposed_env_vars.ts";
 
 const broadcastInstanceUpdates = new BroadcastChannel("instance_updates");
@@ -54,6 +58,67 @@ export async function notifyInstanceConfigUpdatedFromDb(mainDb: Sql) {
 
 export function notifyInstanceProjectsLastUpdated(lastUpdated: string) {
   notifyInstanceUpdate({ type: "projects_last_updated", data: lastUpdated });
+}
+
+// The one re-read-and-broadcast path for products_upserted, the ONLY
+// product-list message (PLAN_PRODUCTS_RESTRUCTURE D8): a route that has
+// written a product hands over the ids it touched and this fetches the
+// summaries the wire needs. Per row, never whole-list, so a checkpoint on
+// one deck never re-sends every card. The write has already committed, so a
+// failed re-read is logged and swallowed: losing a broadcast costs a client
+// one stale card until its next event, while throwing would turn a
+// succeeded write into a failed request.
+export async function notifyInstanceProductsUpserted(
+  mainDb: Sql,
+  productIds: string[],
+): Promise<void> {
+  if (productIds.length === 0) {
+    return;
+  }
+  const res = await getProductSummaries(mainDb, productIds);
+  if (!res.success) {
+    console.error(
+      `[notify] product summary broadcast failed for ${productIds.join(", ")}: ${res.err}`,
+    );
+    return;
+  }
+  if (res.data.length === 0) {
+    return;
+  }
+  notifyInstanceUpdate({
+    type: "products_upserted",
+    data: { products: res.data },
+  });
+}
+
+export function notifyInstanceProductsDeleted(ids: string[]) {
+  if (ids.length === 0) {
+    return;
+  }
+  notifyInstanceUpdate({ type: "products_deleted", data: { ids } });
+}
+
+// Folders are few and change rarely, so the whole list rides each change.
+export function notifyInstanceFoldersUpdated(folders: Folder[]) {
+  notifyInstanceUpdate({ type: "folders_updated", data: { folders } });
+}
+
+// The instance channel's row-level stamp: `slides` only. A product's own
+// stamp rides its products_upserted summary, so emitting it here too would
+// version the same read twice. The project channel's notifyLastUpdated is
+// untouched until 9b.
+export function notifyInstanceLastUpdated(
+  tableName: ProductLastUpdateTableName,
+  ids: string[],
+  lastUpdated: string,
+) {
+  if (ids.length === 0) {
+    return;
+  }
+  notifyInstanceUpdate({
+    type: "last_updated",
+    data: { tableName, ids, lastUpdated },
+  });
 }
 
 export function notifyInstanceUsersUpdated(users: OtherUser[]) {

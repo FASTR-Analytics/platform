@@ -1,6 +1,8 @@
 import { createStore, reconcile, unwrap } from "solid-js/store";
 import type {
   FacilityFamily,
+  Folder,
+  ProductSummary,
   StructureSchema,
   InstanceConfig,
   InstanceDatasetsSummary,
@@ -37,6 +39,10 @@ const EMPTY_INSTANCE_STATE: InstanceState = {
   adminAreaLabels: {},
   projects: [],
   projectsLastUpdated: "",
+  products: [],
+  folders: [],
+  readyPackages: [],
+  lastUpdated: { products: {}, slides: {} },
   users: [],
   assets: [],
   geojsonMaps: [],
@@ -162,6 +168,57 @@ export function structureSchemaForFamily(family: FacilityFamily): StructureSchem
 
 export function updateInstanceProjects(projects: ProjectSummary[]): void {
   setInstanceState("projects", reconcile(projects));
+}
+
+// ============================================================================
+// Products, folders, ready packages (PLAN_PRODUCTS_RESTRUCTURE D8; stored
+// here from step 5, read from 7a)
+// ============================================================================
+
+// PER ROW, never a list replacement: `products_upserted` carries only the
+// products that changed. An existing row is reconciled in place so surviving
+// cards keep their identity; a new one is appended. A product's version
+// stamp rides its summary, so the cache-version index is maintained from it
+// in the same update.
+export function upsertInstanceProducts(products: ProductSummary[]): void {
+  for (const product of products) {
+    const index = instanceState.products.findIndex((p) => p.id === product.id);
+    if (index === -1) {
+      setInstanceState("products", instanceState.products.length, product);
+    } else {
+      setInstanceState("products", index, reconcile(product));
+    }
+    setInstanceState("lastUpdated", "products", product.id, product.lastUpdated);
+  }
+}
+
+export function removeInstanceProducts(ids: string[]): void {
+  const removed = new Set(ids);
+  const snapshot = unwrap(instanceState);
+  setInstanceState(
+    "products",
+    reconcile(snapshot.products.filter((p) => !removed.has(p.id))),
+  );
+  // Reconcile, not a merged partial: a store set with a plain object merges,
+  // so a rebuilt record would leave the dead keys behind.
+  const stamps = { ...snapshot.lastUpdated.products };
+  for (const id of ids) {
+    delete stamps[id];
+  }
+  setInstanceState("lastUpdated", "products", reconcile(stamps));
+}
+
+export function updateInstanceFolders(folders: Folder[]): void {
+  setInstanceState("folders", reconcile(folders));
+}
+
+export function updateInstanceSlideLastUpdated(
+  ids: string[],
+  lastUpdated: string,
+): void {
+  for (const id of ids) {
+    setInstanceState("lastUpdated", "slides", id, lastUpdated);
+  }
 }
 
 export function updateProjectsLastUpdated(lastUpdated: string): void {

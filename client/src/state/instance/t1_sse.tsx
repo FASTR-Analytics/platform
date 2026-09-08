@@ -9,7 +9,11 @@ import {
   initInstanceState,
   resetInstanceState,
   updateInstanceConfig,
+  updateInstanceFolders,
   updateInstanceProjects,
+  updateInstanceSlideLastUpdated,
+  upsertInstanceProducts,
+  removeInstanceProducts,
   updateInstanceUsers,
   updateInstanceAssets,
   updateInstanceGeoJsonMaps,
@@ -143,6 +147,18 @@ export function connectInstanceSSE(): void {
           break;
         case "projects_last_updated":
           updateProjectsLastUpdated(msg.data);
+          break;
+        case "products_upserted":
+          upsertInstanceProducts(msg.data.products);
+          break;
+        case "products_deleted":
+          removeInstanceProducts(msg.data.ids);
+          break;
+        case "folders_updated":
+          updateInstanceFolders(msg.data.folders);
+          break;
+        case "last_updated":
+          updateInstanceSlideLastUpdated(msg.data.ids, msg.data.lastUpdated);
           break;
         case "users_updated":
           updateInstanceUsers(msg.data);

@@ -8,6 +8,7 @@ import {
   type DeckVersionSummary,
   type FigureBlock,
   type ImageBlock,
+  liveAuthorRunLen,
   parseJsonOrThrow,
   reportFiguresSchema,
   reportImagesSchema,
@@ -34,10 +35,14 @@ import {
   generateUniqueProductId,
   generateUniqueSlideId,
 } from "../../utils/id_generation.ts";
-import { mintSlideIds, reSequence } from "./slides.ts";
+import { getSlides, mintSlideIds, reSequence } from "./slides.ts";
+import { getSlideDeckDetail } from "./slide_decks.ts";
+import { getReportBodyAuthors, getReportDetail } from "./reports.ts";
 
 // Newest N versions kept per document; pruned in the writer after each insert.
 const VERSIONS_KEEP = 100;
+
+export const VERSION_NOT_FOUND = "Version not found";
 
 // True byte size of stored text, so the detail responses agree with the SQL
 // octet_length() the list queries use.
@@ -185,7 +190,7 @@ export async function getReportVersion(
       `
     ).at(0);
     if (!row) {
-      throw new Error("Version not found");
+      throw new Error(VERSION_NOT_FOUND);
     }
     return {
       success: true,
@@ -229,7 +234,7 @@ export async function getReportVersionLineage(
       `
     ).at(0);
     if (!base) {
-      throw new Error("Version not found");
+      throw new Error(VERSION_NOT_FOUND);
     }
     // Strictly after the base by the SAME (created_at, id) order every other
     // version query uses: a plain created_at >= would pull in an equal-stamp
@@ -315,7 +320,7 @@ export async function copyReportFromVersion(
       `
     ).at(0);
     if (!version) {
-      throw new Error("Version not found");
+      throw new Error(VERSION_NOT_FOUND);
     }
     const source = (
       await mainDb<{ config: string | null }[]>`
@@ -356,9 +361,82 @@ export async function copyReportFromVersion(
   });
 }
 
+// What a report version freezes, read from the live rows: the safety version
+// a restore writes before overwriting anything, and (from 7a) what the
+// version tracker captures at session end. Authorship is best-effort, and a
+// ledger whose live length disagrees with the body is a silently SHIFTED
+// attribution, so a mismatched pair is never frozen.
+export async function loadReportVersionData(
+  mainDb: Sql,
+  productId: string,
+): Promise<
+  APIResponseWithData<{
+    label: string;
+    body: string;
+    figures: Record<string, FigureBlock>;
+    images: Record<string, ImageBlock>;
+    bodyAuthors: AuthorRun[] | null;
+  }>
+> {
+  const res = await getReportDetail(mainDb, productId);
+  if (!res.success) {
+    return res;
+  }
+  const authorsRes = await getReportBodyAuthors(mainDb, productId);
+  const authors = authorsRes.success ? authorsRes.data.authors : null;
+  return {
+    success: true,
+    data: {
+      label: res.data.label,
+      body: res.data.body,
+      figures: res.data.figures,
+      images: res.data.images,
+      bodyAuthors:
+        authors !== null && liveAuthorRunLen(authors) === res.data.body.length
+          ? authors
+          : null,
+    },
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Slide deck versions
 // ---------------------------------------------------------------------------
+
+// What a deck version freezes, read from the live rows, in capture form:
+// slides renumbered (i + 1) * 10 in order, so the hash of the live state
+// matches the hash a restore or the tracker computes.
+export async function loadSlideDeckVersionData(
+  mainDb: Sql,
+  productId: string,
+): Promise<
+  APIResponseWithData<{
+    label: string;
+    deckConfig: SlideDeckConfig;
+    slides: DeckVersionSlide[];
+  }>
+> {
+  const deckRes = await getSlideDeckDetail(mainDb, productId);
+  if (!deckRes.success) {
+    return deckRes;
+  }
+  const slidesRes = await getSlides(mainDb, productId);
+  if (!slidesRes.success) {
+    return slidesRes;
+  }
+  return {
+    success: true,
+    data: {
+      label: deckRes.data.label,
+      deckConfig: deckRes.data.config,
+      slides: slidesRes.data.map((s, i) => ({
+        id: s.id,
+        sortOrder: (i + 1) * 10,
+        config: s.slide,
+      })),
+    },
+  };
+}
 
 export async function insertSlideDeckVersion(
   mainDb: Sql,
@@ -467,7 +545,7 @@ export async function getSlideDeckVersion(
       `
     ).at(0);
     if (!row) {
-      throw new Error("Version not found");
+      throw new Error(VERSION_NOT_FOUND);
     }
     const slides = parseJsonOrThrow<DeckVersionSlide[]>(row.slides);
     for (const s of slides) {
@@ -651,7 +729,7 @@ export async function copySlideDeckFromVersion(
       `
     ).at(0);
     if (!version) {
-      throw new Error("Version not found");
+      throw new Error(VERSION_NOT_FOUND);
     }
 
     const config = parseJsonOrThrow<SlideDeckConfig>(version.slide_deck_config);

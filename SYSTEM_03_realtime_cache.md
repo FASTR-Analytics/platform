@@ -118,8 +118,17 @@ roster is an enumeration surface (emails, names, permission maps) with no
 consumer on the pending-approval screen. Deliberately NOT withheld from
 unapproved connections, pending a separate ruling if ever wanted:
 `dhis2ConnectionUrl`, the structure/indicator/dataset summaries, and assets;
-likewise approved non-admin users still receive the full roster. No other
-message on either channel is filtered per user.
+likewise approved non-admin users still receive the full roster. The
+product plane rides the same roster rule (PLAN_PRODUCTS_RESTRUCTURE D8):
+`buildInstanceState` leaves `products`, `folders`, `readyPackages` and the
+`lastUpdated` index empty for an unapproved connection, and the forward loop
+drops `products_upserted`, `products_deleted`, `folders_updated` and
+`last_updated` while the connection's user is absent from the roster. The
+`readyPackages` labels are approved-user data by design: a deliberate
+narrowing of Q-B to generation telemetry (`RunListingItem`'s progress,
+summary and provenance), because every product card shows the label of the
+package it serves from. No other message on either channel is filtered per
+user.
 
 `BroadcastChannel` in Deno is in-process: it fans out across the main thread and
 all Web Workers in the same process, which is how a background worker's
@@ -133,6 +142,13 @@ by `type`. The first message on any connection is always
 `{ type: "error", data: { message } }` terminates with an error. Project
 messages carry an extra `projectId` on the wire (stripped before forwarding) so
 the endpoint can filter to its project.
+
+`buildInstanceState` (`task_management/build_instance_state.ts`) is the
+instance `starting` builder in two halves: `buildInstanceStateWithoutProducts`
+is the grounding half the `/mcp` context cache uses (instance facts only,
+product lists empty), and `buildInstanceState` adds the product plane for
+the SSE handler when the caller is approved, each list degrading to empty
+on a read failure rather than stopping the boundary.
 
 **Connection lifecycle: subscribe-before-build.** Both endpoints use Hono's
 `streamSSE` and follow the same six steps; the project endpoint's doc-comment
@@ -193,7 +209,17 @@ nonce because a pin-move repoints followers and moves attachedProjects; the
 pin-move fires it once in a `finally` AFTER its follower loop, not per
 follower, so a loop that throws can never strand the catalogue),
 `notifyInstanceRunProgress` (`run_progress`), `notifyInstanceRScript`
-(`r_script`). `server/task_management/notify_project_v2.ts` exposes
+(`r_script`), and the product plane's four:
+`notifyInstanceProductsUpserted(mainDb, ids)` (`products_upserted`, the
+ONLY product-list message: it re-reads the summaries for the ids a
+mutation touched and broadcasts them per row, never the whole list, so a
+checkpoint on one deck never re-sends every card; a failed re-read is logged
+and swallowed because the write has already committed),
+`notifyInstanceProductsDeleted` (`products_deleted`),
+`notifyInstanceFoldersUpdated` (`folders_updated`, whole list) and
+`notifyInstanceLastUpdated(tableName, ids, ts)` (`last_updated`, carrying
+`slides` only: a product's own stamp rides its summary, so emitting it here
+too would version the same read twice). `server/task_management/notify_project_v2.ts` exposes
 `notifyProjectV2(projectId, message)` (spreads `projectId` in) plus twelve
 wrappers: `notifyProjectConfigUpdated`, `notifyProjectVisualizationsUpdated`,
 `notifyProjectVisualizationFoldersUpdated`, `notifyProjectSlideDecksUpdated`,
@@ -228,7 +254,14 @@ re-exported via `task_management/mod.ts`) →
 `notifyProjectV2({ type:
 "last_updated", … })` directly. (The former
 `notifyProjectLastUpdatedV2` middle layer was collapsed.) **Call
-`notifyLastUpdated`** from routes.
+`notifyLastUpdated`** from project routes. The instance twin is
+`notifyInstanceLastUpdated(tableName, ids, ts)` in
+`notify_instance_updated.ts`, keyed by `ProductLastUpdateTableName`
+(`lib/types/last_updated_tables.ts`, `products | slides`, beside the project
+union until 9b), and the client store keeps the matching
+`instanceState.lastUpdated.{products,slides}` index: `products[id]` from
+each summary's own stamp, `slides[id]` from the message. Both are stored
+and unread until the editors move to products (7a).
 
 **The mutation recipe** (see `server/routes/project/reports.ts` for every
 variant, in registry/`defineRoute` style): after a successful write, (1)

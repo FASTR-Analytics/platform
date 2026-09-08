@@ -22,7 +22,7 @@ import {
   getRunListingItem,
 } from "../db/instance/run_generation.ts";
 import { buildGlobalUserFromDb } from "../project_auth.ts";
-import { buildInstanceState } from "../task_management/build_instance_state.ts";
+import { buildInstanceStateWithoutProducts } from "../task_management/build_instance_state.ts";
 import { headlessAppFetch } from "../headless_app.ts";
 import { getRunManifestCached } from "../runs/manifest_cache.ts";
 import {
@@ -145,7 +145,7 @@ export async function resolveInstanceState(
   if (cached) return cached;
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
   const globalUser = await resolveGlobalUser(principal);
-  const res = await buildInstanceState(mainDb, globalUser);
+  const res = await buildInstanceStateWithoutProducts(mainDb, globalUser);
   if (!res.success) {
     throw new Error(`Could not load instance state: ${res.err}`);
   }

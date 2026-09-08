@@ -67,6 +67,14 @@ import { routesDashboards } from "./server/routes/project/dashboards.ts";
 import { routesEmails } from "./server/routes/project/emails.ts";
 import { routesCacheStatus } from "./server/routes/project/cache_status.ts";
 
+// Product routes (PLAN_PRODUCTS_RESTRUCTURE step 5; guarded by each registry
+// entry's `access`, installed by defineRoute)
+import { routesProducts } from "./server/routes/products/products.ts";
+import { routesFolders } from "./server/routes/products/folders.ts";
+import { routesProductSlideDecks } from "./server/routes/products/slide_decks.ts";
+import { routesProductSlides } from "./server/routes/products/slides.ts";
+import { routesProductReports } from "./server/routes/products/reports.ts";
+
 // Public routes (no auth)
 import { routesPublicDashboard } from "./server/routes/public/dashboard.ts";
 import { routesOAuthMetadata } from "./server/routes/public/oauth_metadata.ts";
@@ -230,6 +238,11 @@ app.route("/", routesVisualizationFolders);
 app.route("/", routesSlideDeckFolders);
 app.route("/", routesEmails);
 app.route("/", routesCacheStatus);
+app.route("/", routesProducts);
+app.route("/", routesFolders);
+app.route("/", routesProductSlideDecks);
+app.route("/", routesProductSlides);
+app.route("/", routesProductReports);
 app.route("/ai", routesAiProxy);
 app.route("/ai-instance", routesInstanceAiProxy);
 app.route("/ai", routesAiFiles);

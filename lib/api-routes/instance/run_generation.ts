@@ -11,6 +11,7 @@ import type {
   ItemsHolderPresentationObject,
   ItemsHolderResultsObject,
   PinResultsPackageResult,
+  ReadyPackage,
   ResultsValueInfoForPresentationObject,
   RunAuthoringContext,
   RunDetail,
@@ -90,6 +91,15 @@ export const runGenerationRouteRegistry = {
     method: "GET",
     response: {} as FollowPinnedProject[],
   }),
+  // The product package picker's options (PLAN_PRODUCTS_RESTRUCTURE §3.4):
+  // every ready package as a bare ReadyPackage, approved-user data. Follows
+  // the runsCatalog idiom: filled in `starting`, refetched on the
+  // runs_catalog_updated nonce.
+  listReadyPackages: route({
+    path: "/run_generation/ready_packages",
+    method: "GET",
+    response: {} as ReadyPackage[],
+  }),
   getRunModuleScript: route({
     path: "/run_generation/run/:run_id/module/:module_id/script",
     method: "GET",
@@ -122,7 +132,7 @@ export const runGenerationRouteRegistry = {
   // adminArea2 means national. The reads require runs.status = 'ready';
   // adminArea2 is shape-validated here and escaped server-side. /mcp reaches
   // the first two at national scope through the headless allowlist. Guarded
-  // requireGlobalPermission() until step 5 swaps in requireApprovedUser().
+  // requireApprovedUser(): package data is an instance-level resource.
   getRunPresentationObjectItems: route({
     path: "/run_generation/run/:run_id/presentation_object_items",
     method: "POST",

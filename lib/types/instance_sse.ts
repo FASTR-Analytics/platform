@@ -6,12 +6,18 @@ import type { UserPermissions } from "./permissions.ts";
 import type { GeoJsonMapSummary } from "./geojson_maps.ts";
 import type { InstanceCalendar, InstanceConfigAdminAreaLabels, InstanceFiscalYear, OtherUser, StructureFamilyCounts, StructureSchema } from "./instance.ts";
 import type { ProjectSummary } from "./projects.ts";
+import type { ProductLastUpdateTableName } from "./last_updated_tables.ts";
+import type { Folder, ProductSummary } from "./products.ts";
 import type {
   InstancePopulationSummary,
   PopulationCoverage,
 } from "./population.ts";
 import type { AdminAreaLevel } from "./structure.ts";
-import type { RunCatalogItem, RunProgress } from "./run_generation.ts";
+import type {
+  ReadyPackage,
+  RunCatalogItem,
+  RunProgress,
+} from "./run_generation.ts";
 import type { HfaWeightsCoverage } from "./structure.ts";
 
 // ============================================================================
@@ -42,6 +48,19 @@ export type InstanceState = {
   // Lists (sent as full arrays on change)
   projects: ProjectSummary[];
   projectsLastUpdated: string;
+  // The product plane (PLAN_PRODUCTS_RESTRUCTURE D8), withheld from an
+  // unapproved connection by the same roster rule as `users`. `products` is
+  // maintained PER ROW (`products_upserted` / `products_deleted`), never as
+  // a whole-list broadcast; `folders` rides whole on `folders_updated`;
+  // `readyPackages` follows the `runsCatalog` idiom (filled here, refetched
+  // on the `runs_catalog_updated` nonce). `lastUpdated` is the cache-version
+  // index: `products[id]` versions a deck or report detail read (a product's
+  // stamp rides its summary), `slides[id]` a slide read (the `last_updated`
+  // message).
+  products: ProductSummary[];
+  folders: Folder[];
+  readyPackages: ReadyPackage[];
+  lastUpdated: Record<ProductLastUpdateTableName, Record<string, string>>;
   // [] for an unapproved connection (its user absent from the roster), in
   // the starting payload and every users_updated, until a roster names them
   //: routesInstanceSSE / buildInstanceState.
@@ -197,6 +216,22 @@ export type InstanceSseMessage =
     }
   | { type: "config_updated"; data: InstanceConfig }
   | { type: "projects_last_updated"; data: string }
+  // The product plane (D8), dropped for unapproved connections like the
+  // roster. `products_upserted` is the ONLY product-list message: per row,
+  // emitted by every product mutation route (and, from 7a, every collab
+  // checkpoint). `last_updated` carries `slides` only; a product's own stamp
+  // rides its summary.
+  | { type: "products_upserted"; data: { products: ProductSummary[] } }
+  | { type: "products_deleted"; data: { ids: string[] } }
+  | { type: "folders_updated"; data: { folders: Folder[] } }
+  | {
+      type: "last_updated";
+      data: {
+        tableName: ProductLastUpdateTableName;
+        ids: string[];
+        lastUpdated: string;
+      };
+    }
   | { type: "users_updated"; data: OtherUser[] }
   // Data-free nonce signal only: the catalogue itself is fetched per user.
   | { type: "runs_catalog_updated"; data: string }

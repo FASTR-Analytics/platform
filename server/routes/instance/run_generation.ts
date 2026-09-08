@@ -6,10 +6,12 @@ import {
 } from "../../db/instance/config.ts";
 import {
   listFollowPinnedProjects,
+  listReadyPackages,
   listRunCatalog,
 } from "../../db/instance/run_generation.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
+import { requireApprovedUser } from "../../middleware/userPermission.ts";
 import {
   deleteRun,
   getRunGenerationModuleOptions,
@@ -144,6 +146,19 @@ defineRoute(
   },
 );
 
+// The product package picker's options: approved-user data (the label is
+// what every product card shows), refetched on the runs_catalog_updated
+// nonce like the catalogue itself.
+defineRoute(
+  routesRunGeneration,
+  "listReadyPackages",
+  requireApprovedUser(),
+  async (c) => {
+    const res = await listReadyPackages(c.var.mainDb);
+    return c.json(res);
+  },
+);
+
 ///////////////////////////////////////////////////////////////////////////////
 // Per-module viewers over a run's outputs dir: the CATALOGUE's copy
 ///////////////////////////////////////////////////////////////////////////////
@@ -227,13 +242,13 @@ defineRoute(
 // run id (it becomes a path) and gates on runs.status = 'ready'; the
 // registry schema bounds adminArea2 and the read path escapes it. /mcp
 // reaches the first two at national scope through the headless allowlist.
-// Guard: requireGlobalPermission() with no permission until step 5 adds
-// requireApprovedUser() (the plan's intermediate state).
+// Guard: requireApprovedUser(), so package data is an instance-level
+// resource any approved user can read at any scope (D7).
 
 defineRoute(
   routesRunGeneration,
   "getRunPresentationObjectItems",
-  requireGlobalPermission(),
+  requireApprovedUser(),
   async (c, { params, body }) => {
     const ctxRes = await getReadyRunReadContext(
       c.var.mainDb,
@@ -253,7 +268,7 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "getRunResultsValueInfo",
-  requireGlobalPermission(),
+  requireApprovedUser(),
   async (c, { params, body }) => {
     const ctxRes = await getReadyRunReadContext(
       c.var.mainDb,
@@ -270,7 +285,7 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "getRunReplicantOptions",
-  requireGlobalPermission(),
+  requireApprovedUser(),
   async (c, { params, body }) => {
     const ctxRes = await getReadyRunReadContext(
       c.var.mainDb,
@@ -295,7 +310,7 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "getRunResultsObjectItems",
-  requireGlobalPermission(),
+  requireApprovedUser(),
   log("getRunResultsObjectItems"),
   async (c, { params, body }) => {
     const ctxRes = await getReadyRunReadContext(
@@ -320,7 +335,7 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "getRunAuthoringContext",
-  requireGlobalPermission(),
+  requireApprovedUser(),
   async (c, { params }) => {
     const ctxRes = await getRunReadContextForRun(params.run_id);
     if (ctxRes.success === false) return c.json(ctxRes);
