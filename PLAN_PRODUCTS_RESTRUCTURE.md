@@ -5,7 +5,7 @@ folders, each attached to one results package at one scope. One main
 database, one realtime channel, one copilot. An Explore tab replaces the
 project Metrics tab and the standalone visualization library.
 
-**Next step: Review 2.** Each session sets this line in its final commit. Its
+**Next step: Do 3.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N`; after step 10's review passes the
 file is deleted instead of advanced.
 
@@ -2091,6 +2091,8 @@ this section before its step.
 | 2026-09-08 | 2 | Step 2 reviewed: 3 findings. |
 | 2026-09-08 | 2 | Fix 2, done by the reviewing agent at Tim's direction (deviation from §0's fresh-fixer rule, accepted as for Fix 1). All three findings applied in one commit. The table-existence query is one exported `tableExists(db, table)`; it lives in `plan.ts`, not `execute.ts` as the finding suggested, because `execute.ts` imports from `plan.ts` and the reverse import would make a cycle. `validate_consolidation.ts` prints each colliding id with its entity and "(re-minted by 085)", and its comment claims only the collisions and their count. The `plan.ts` header now says the legacy row types and the alphabet are frozen because 9b deletes their source files, and names the two live imports as surviving the restructure. Gates green: `deno task typecheck` (with `lint:systems`), `deno task test` (14 passed), `./validate_protocols`, `deno check` of the consolidation directory and the two root tools, `./validate_consolidation_replay` (41 checks), `./validate_consolidation.ts --local` (zero FAIL, same counts), and a server boot against the dev database that listens with its 14 boot tests passing. No migration or query-engine file changed. |
 | 2026-09-08 | 2 | Step 2 fixed. |
+| 2026-09-08 | 2 | Review of Fix 2 by a fresh agent. Commit 0795b04a touches only the three finding targets plus the plan. The table-existence query now exists once, as the exported `tableExists` in `plan.ts:424-430`; `execute.ts` and `validate_consolidation.ts` import it, and a grep of the consolidation directory and both root tools finds one `information_schema.tables` query. Placing it in `plan.ts` rather than `execute.ts` is right: `execute.ts` imports from `plan.ts`, so the reverse would be a cycle. The dry-run prints each colliding id with its entity and no replacement, its comment claims only the collisions and their count, and the `--json` payload carries counts only, so no minted id reaches either output. The `plan.ts` header names the legacy row types and the alphabet as frozen because 9b deletes their sources, and names the two live imports as surviving. Gates run by the reviewer, all green: `deno task typecheck` (with `lint:systems`), `deno task test` (14 passed), `./validate_protocols`, `deno check` of the consolidation directory and the two root tools, `./validate_consolidation_replay` (41 checks), `./validate_consolidation.ts --local` (zero FAIL; counts equal the logged row), and a server boot against the dev database that listens with its 14 boot tests passing. No migration or query-engine file changed, so `./validate_migrations` and `./validate_queries` do not apply. |
+| 2026-09-08 | 2 | Step 2 reviewed: pass. |
 
 ---
 
