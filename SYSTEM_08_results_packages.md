@@ -414,22 +414,27 @@ run-keyed metric reads the `/mcp` tools need (`getRunPresentationObjectItems`,
 are deliberately absent): a leaked PAT reaches exactly what its user's own
 instance bits already reach in the UI, and less.
 
-**Metric DATA is package contents too: one read core, two lenses.**
-A `RunReadContext` is (run, scope). The PROJECT lens
-(`getRunReadContext(mainDb, projectId)`) resolves both from the project row
-(attached run + AA2) and is what the project-mounted data routes use; the
-RUN lens (`getRunReadContextForRun(runId)`) takes the id directly at national
-scope, shape-checks it (`isRunIdShape`, run_paths.ts, since a caller-supplied
-id becomes a path) and accepts any readable run the caller's instance bits
-admit (no READY check, the same exposure as `getRunDetail`; the pin itself is
-ready-only by the pin's ready gate). Everything below the context is shared:
-the items / value-info handler bodies live once in
-`run_query/run_data_reads.ts` (cache-before-queue, shared queues) and are
-mounted twice: `getPresentationObjectItems` /
-`getResultsValueInfoForPresentationObject` (project) and
-`getRunPresentationObjectItems` / `getRunResultsValueInfo` (instance,
-`can_view_data`). Caches were already keyed `runId + scopeToken`, so the run
-mount and national projects share entries. "Both" (a project route also
+**Metric DATA is package contents too: one read core, one run-keyed
+mount.** A `RunReadContext` is (run, scope), and the caller supplies both
+halves (PLAN_PRODUCTS_RESTRUCTURE D7): the DATA lens
+(`getReadyRunReadContext(mainDb, runId, adminArea2)`) shape-checks the id
+(`isRunIdShape`, run_paths.ts, since a caller-supplied id becomes a path),
+takes `adminArea2` from the body (null = national; `min(1)` at the registry)
+and requires `runs.status = 'ready'` against the catalog (a failed run can
+have a published partial dir). The manifest lens
+(`getRunReadContextForRun(runId)`) is national with no ready check, the same
+exposure as `getRunDetail`, and serves the package-internals reads
+(`getRunModuleWithConfigSelections`, `getRunAuthoringContext`). The project
+lens (`getRunReadContext(mainDb, projectId)`) resolves both halves from the
+project row and dies with the project routes in 9b. Everything below the
+context is shared: the items / value-info / replicant handler bodies live
+once in `run_query/run_data_reads.ts` (cache-before-queue, shared queues)
+and are mounted on `getRunPresentationObjectItems` / `getRunResultsValueInfo`
+/ `getRunReplicantOptions` (instance, `requireGlobalPermission()` until step
+5 adds `requireApprovedUser()`) and, until 9b, on the project routes.
+`getRunResultsObjectItems` (the raw preview) is scoped the same way. Caches
+are keyed `runId + scopeToken` with the run id leading, so the run mount and
+national projects share entries and `PO_CACHE_VERSION` did not move. "Both" (a project route also
 accepting a runId) is ruled out: redundant when it equals the attached run,
 a hole (project auth over any package, bypassing the instance bit and AA2)
 when it does not.

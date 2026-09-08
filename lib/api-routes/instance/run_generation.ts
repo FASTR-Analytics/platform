@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  disaggregationOption,
   runGenerationDefaultsSchema,
   runGenerationStep1ResultSchema,
   runGenerationStep2ResultSchema,
@@ -8,9 +9,12 @@ import type {
   FollowPinnedProject,
   InstalledModuleWithConfigSelections,
   ItemsHolderPresentationObject,
+  ItemsHolderResultsObject,
   PinResultsPackageResult,
   ResultsValueInfoForPresentationObject,
+  RunAuthoringContext,
   RunDetail,
+  RunReplicantOptions,
   RunCatalogItem,
   RunGenerationDefaults,
   RunGenerationModuleOptions,
@@ -38,6 +42,11 @@ const runModuleParamsSchema = z.object({
   run_id: z.string(),
   module_id: z.string(),
 });
+
+// The scope half of a figure read: null is national, and an empty string is
+// neither national nor a real area (the shape projects.admin_area_2 has
+// always been written under).
+const adminArea2Schema = z.string().min(1).nullable();
 
 export const runGenerationRouteRegistry = {
   // The instance catalogue (item 3): every run, newest first, with the
@@ -108,10 +117,12 @@ export const runGenerationRouteRegistry = {
     params: runModuleParamsSchema,
     response: {} as InstalledModuleWithConfigSelections,
   }),
-  // The run lens onto the package-data reads (S9): the same handler bodies
-  // as the project-mounted getPresentationObjectItems /
-  // getResultsValueInfoForPresentationObject, keyed by run id at national
-  // scope. What the pinned-package MCP surface reads metric data through.
+  // The figure-data mount (S9; PLAN_PRODUCTS_RESTRUCTURE D7): the caller
+  // supplies the (runId, adminArea2) pair its product carries, and `null`
+  // adminArea2 means national. The reads require runs.status = 'ready';
+  // adminArea2 is shape-validated here and escaped server-side. /mcp reaches
+  // the first two at national scope through the headless allowlist. Guarded
+  // requireGlobalPermission() until step 5 swaps in requireApprovedUser().
   getRunPresentationObjectItems: route({
     path: "/run_generation/run/:run_id/presentation_object_items",
     method: "POST",
@@ -119,6 +130,7 @@ export const runGenerationRouteRegistry = {
     body: z.object({
       resultsObjectId: z.string(),
       fetchConfig: genericLongFormFetchConfigSchema,
+      adminArea2: adminArea2Schema,
     }),
     response: {} as ItemsHolderPresentationObject,
   }),
@@ -126,8 +138,47 @@ export const runGenerationRouteRegistry = {
     path: "/run_generation/run/:run_id/results_value_info",
     method: "POST",
     params: z.object({ run_id: z.string() }),
-    body: z.object({ metricId: z.string() }),
+    body: z.object({ metricId: z.string(), adminArea2: adminArea2Schema }),
     response: {} as ResultsValueInfoForPresentationObject,
+  }),
+  // The replicant dimension's option list: what bounds the per-value figure
+  // fan-out before any items query runs. `replicateBy` becomes a column
+  // reference in the generated SQL, so it is validated against the
+  // disaggregation enum; the results object is the metric's, resolved from
+  // the manifest server-side.
+  getRunReplicantOptions: route({
+    path: "/run_generation/run/:run_id/replicant_options",
+    method: "POST",
+    params: z.object({ run_id: z.string() }),
+    body: z.object({
+      metricId: z.string(),
+      replicateBy: disaggregationOption,
+      fetchConfig: genericLongFormFetchConfigSchema,
+      adminArea2: adminArea2Schema,
+    }),
+    response: {} as RunReplicantOptions,
+  }),
+  // The raw results-object preview, scoped like the other reads:
+  // getResultsObjectItemsFromRun applies the scope filter itself, so an AA2
+  // product's preview must carry its area or it shows national rows.
+  getRunResultsObjectItems: route({
+    path: "/run_generation/run/:run_id/results_object_items/:results_object_id",
+    method: "POST",
+    // results_object_id is a module-defined filename (e.g.
+    // "M10_hfa_results.csv"), not a uuid.
+    params: z.object({ run_id: z.string(), results_object_id: z.string() }),
+    body: z.object({ adminArea2: adminArea2Schema }),
+    response: {} as ItemsHolderResultsObject,
+  }),
+  // Everything an author needs FROM a package, a pure function of the run
+  // directory (lib/types/run_authoring_context.ts): the client caches it by
+  // runId without revalidating. No scope: scope changes what a query returns,
+  // never what exists to author against.
+  getRunAuthoringContext: route({
+    path: "/run_generation/run/:run_id/authoring_context",
+    method: "GET",
+    params: z.object({ run_id: z.string() }),
+    response: {} as RunAuthoringContext,
   }),
   // What a READY run contains: per-module settings (resolved server-side
   // from the manifest's configSelections) + outputs-dir file listing.

@@ -18,14 +18,15 @@ The fixture's rows are written as the module's raw output CSV, then the
 throwaway runs directory. It then runs the **production** run read path
 (`server/run_query/run_read.ts`: `getPresentationObjectItemsFromRun`,
 `getPossibleValuesFromRun`, `getResultsValueInfoFromRun`) against it over a
-national-scope `RunReadContext`. Config → SQL → DuckDB over parquet → real
+`RunReadContext` at the case's scope (national unless the case names an
+`adminArea2`). Config → SQL → DuckDB over parquet → real
 rows: the engine production serves from, not a stand-in. Nothing is mocked and
 there is no test seam. A throwaway Postgres survives only for what the package
 builder reads from the MAIN database (the per-family structure schema rows in
 `instance_config`).
 
 ```bash
-./validate_queries            # ~10s: container up, 13 packages built, 63 cases
+./validate_queries            # ~10s: container up, 15 packages built, 76 cases
 ```
 
 (once the `postgres:17.4` image is cached locally; the first run pulls it.)
@@ -41,8 +42,8 @@ typechecks itself before running, since `query_rig/` sits outside
 | `validate_queries` | container + runs-dir lifecycle, env, invokes the runner |
 | `query_rig/mod.ts` | runner: build packages, loop cases, summarise |
 | `query_rig/cases.ts` | **the case table**, where you add coverage |
-| `query_rig/fixtures.ts` | F1–F13 |
-| `query_rig/build_package.ts` | fixture → structure-schema rows + results package + `RunReadContext` |
+| `query_rig/fixtures.ts` | F1–F15 |
+| `query_rig/build_package.ts` | fixture → structure-schema rows + results package + national `RunReadContext` |
 | `query_rig/harness.ts` | connections, schema loading, multiset compare |
 
 ## Adding a case
@@ -68,6 +69,12 @@ one literal, one place to look.
   dimension's option-list status), or `{err}` (substring match).
 - `calendar: "ethiopian"` flips `setCalendar()` for that case:
   `getQuarterIdExpression` emits different SQL per calendar.
+- `adminArea2: "A2_south"` reads through a context scoped to that area (the
+  `(runId, adminArea2)` pair the run-keyed routes take; absent = national).
+  Scope is applied by injecting filters the caller never sent, so pair every
+  scoped case with the national reading of the same query. On every items
+  case the runner also asserts that the echoed `fetchConfig` is the request
+  and that the holder's `runId` / `scopeToken` are the context's.
 - `entry: "possibleValues"` with `disOpt` runs the option-list query instead of
   the items query, reusing `fetchConfig.filters` as the filter set.
 - `entry: "metricInfo"` resolves the fixture's `metric` through the enricher and
@@ -155,6 +162,7 @@ red is the control, not the text):
 | disable the non-PAE value-prop guard in `validateFetchConfig` | F12 boundary case: expected error, got success (silent key clobber) |
 | disable buildWhereClause's numeric filter branch | both F12 filter cases: `function upper(numeric) does not exist` |
 | drop the PERIOD exclusion from the numeric filter gate | month-filter case: derived TEXT month misrouted to `month IN (2)` |
+| `computeScopeFilters` → always `[]` (scope never injected) | the 8 scoped cases go red (items, option list, metric info, derived, sentinel, fail-closed); the 5 paired national readings stay green (2026-09-08, DuckDB era) |
 
 Check `git status` on the file first and restore by copy if it has uncommitted
 changes. `git checkout` would discard parallel work.
@@ -175,6 +183,9 @@ changes. `git checkout` would discard parallel work.
 | `hfa_area_only` (F10) | HFA, pre-aggregated area rows, **no** `facility_id` | the table-aware half of the sample-n gate. The family check alone would emit `COUNT(DISTINCT facility_id)` against a table without the column |
 | `hfa_variants` (F11) | HFA, `hfa_variant_item` plain TEXT physical column, parent in `hfa_indicator` | the generic physical-column path for group-by / filter / option lists on the variants dimension |
 | `hmis_scorecard` (F12) | `denominator` is BOTH a PAE ingredient and a disaggregation option | the PAE groupBy/value-prop collision (`paeCollidingGroupBys`): den=20 spans two rows so raw-binding (40/20 = 2) diverges from the correct aggregate binding (40/40 = 1) |
+| `hfa_divergent_schema` (F13) | HFA depth 2, `includeTypes` on, seeded beside a divergent HMIS row | the per-family structure-schema split; also the metric-info half of the scope cases |
+| `hmis_admin3_only` (F14) | HMIS, `admin_area_3` and NO `admin_area_2`, F1's facilities | the scope DERIVATION: A2_south resolves to its child areas out of the facilities parquet, by name; an unknown area derives nothing and injects the never-matching sentinel |
+| `admin3_no_family` (F15) | F14's shape under a module whose sources are all upstream results objects | the fail-CLOSED branch: the family is undeclarable, so no facilities parquet can serve the lookup and a scoped read returns no rows rather than national rows |
 
 **F2/F3 are a minimal pair and the rig's central argument.** They differ in one
 thing: `time_point`'s declared column type. The blank fold emits `btrim()` and

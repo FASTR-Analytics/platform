@@ -9,6 +9,7 @@ globs:
   - lib/dataset_family.ts
   - lib/get_fetch_config_from_po.ts
   - lib/sample_n.ts
+  - lib/types/run_authoring_context.ts
   - lib/validate_fetch_config.ts
   - server/routes/caches/dataset.ts
   - server/routes/caches/visualizations.ts
@@ -30,8 +31,8 @@ globs:
 > down this file; calendar threads via `QueryContext`, not `getCalendar()` at
 > the call sites.
 
-PO config → fetch-config contract → DuckDB SQL over the project's attached
-results package → run-keyed cached payloads, on both tiers. **This system does
+PO config → fetch-config contract → DuckDB SQL over the results package the
+caller names → run-keyed cached payloads, on both tiers. **This system does
 not define the package it reads**: the run-directory layout, the manifest
 contract and its schema version are S8's
 ([SYSTEM_08_results_packages.md](SYSTEM_08_results_packages.md), "The results
@@ -68,13 +69,15 @@ PresentationObjectConfig + ResultsValue                       (client, lib)
     │ getFetchConfigFromPresentationObjectConfig
     ▼
 GenericLongFormFetchConfig  ──hashFetchConfig──►  cache identity (both tiers)
-    │ POST /presentation_object_items   (Zod schema + validateFetchConfig)
+    │ POST /run_generation/run/:run_id/presentation_object_items  { …, adminArea2 }
+    │   (Zod schema + validateFetchConfig; the project mount until 9b)
     ▼
 readRunItems → getPresentationObjectItemsFromRun              (server)
+    │ getReadyRunReadContext(runId, adminArea2) → RunReadContext
     │ buildQueryContextFromManifest → getPeriodBoundsCore → getPeriodFilterExactBounds
     │ buildCombinedQuery:  CTEManager → main ∪ rollup → PAE wrap → WITH → LIMIT
     ▼
-projectDb.unsafe(sql)  →  ItemsHolderPresentationObject
+DuckDB over the package's parquet  →  ItemsHolderPresentationObject
     │ status: ok | too_many_items | no_data_available   (data, not errors)
     ▼
 Valkey po_items (server) / IndexedDB po_items (client)  →  buildFigureInputs (S10)
@@ -130,9 +133,10 @@ are deliberately absent.
 **Wire boundary = SQL-injection boundary.** Every field below is interpolated
 into `projectDb.unsafe` SQL, and the route body is attacker-controllable, so
 type shape alone is not enough. `genericLongFormFetchConfigSchema` rejects at
-the route boundary (400) on BOTH mounts (project `getPresentationObjectItems`
-/ `getReplicantOptions`, run-keyed `getRunPresentationObjectItems`); the
-imperative `validateFetchConfig` re-guards in the shared handler body. Both
+the route boundary (400) on BOTH mounts (run-keyed
+`getRunPresentationObjectItems` / `getRunReplicantOptions`, project
+`getPresentationObjectItems` / `getReplicantOptions`); the imperative
+`validateFetchConfig` re-guards in the shared handler body. Both
 live in [validate_fetch_config.ts](lib/validate_fetch_config.ts) (the schema
 moved there, co-located with the guard) and share the same
 primitives so they can't drift:
@@ -634,14 +638,19 @@ clearing on transient gate closures.
 canonical off-state is both entry fields absent. AI data payloads deliberately
 exclude the roll-up row (double-counting hazard).
 
-## Project AA2 scope injection (PLAN_1_PROJECT_AA2_SCOPE §3)
+## AA2 scope injection (PLAN_1_PROJECT_AA2_SCOPE §3)
 
-The project's scope (`projects.admin_area_2`, SYSTEM_08) is enforced
-**wrapper-level, above the Cores**: the shared Cores and the pg-parity path
-are untouched, so `./validate_queries` is unaffected. `getRunReadContext`
-loads `adminArea2` + `scopeToken` in its one SELECT; `computeScopeFilters(ctx,
-ro)` (run_read.ts) decides per-RO from the manifest column stamps at runtime,
-never from a baked list, because a new module output can change the split:
+The scope is the caller's: it arrives over the wire beside the run id on the
+run-keyed reads (`adminArea2`, null = national; PLAN_PRODUCTS_RESTRUCTURE
+D7), and until 9b the project lens still resolves it from
+`projects.admin_area_2`. It is enforced **wrapper-level, above the Cores**,
+so the shared Cores are untouched. `getReadyRunReadContext` shape-checks the
+run id and derives `scopeToken`; `computeScopeFilters(ctx, ro)`
+(run_read.ts) decides per-RO from the manifest column stamps at runtime,
+never from a baked list, because a new module output can change the split.
+`./validate_queries` pins every branch below with scope as a case axis
+(`adminArea2` on a case; the runner also asserts the echoed fetchConfig and
+the holder's (run, scope) identity on every items case):
 
 - RO has `admin_area_2` → `[{disOpt: "admin_area_2", values: [aa2]}]`,
   appended to the caller's filters. Compares case-insensitively and escapes
@@ -695,11 +704,13 @@ inversion in Open items):
 | `metric_info`    | runId + metric + scopeToken                                             | `PO_CACHE_VERSION`                  |
 | `replicant_opts` | runId + resultsObject + replicateBy + `hashFetchConfig` + scopeToken    | `PO_CACHE_VERSION`                  |
 
-The three data caches key on the attached immutable run, not the project
-(two projects on one run share entries), plus the **scopeToken**
-(`projectScopeToken`, PLAN_1_PROJECT_AA2_SCOPE §4): payloads are computed
-under the project's AA2 scope, so sharing requires BOTH run and scope to
-match. scopeToken is **required** on the uniqueness-param types (an optional
+The three data caches key on the immutable run, not on any caller (two
+callers on one run share entries), plus the **scopeToken** (`scopeToken`,
+`lib/types/scope.ts`, PLAN_1_PROJECT_AA2_SCOPE §4): payloads are computed
+under the caller's AA2 scope, so sharing requires BOTH run and scope to
+match. The run id leads and the token trails on every key, which is why the
+run-keyed mount needed no `PO_CACHE_VERSION` bump: a national read produces
+the same key from either mount. scopeToken is **required** on the uniqueness-param types (an optional
 would compile and silently mis-key: the `cache_status.ts` exists-probe was
 the site this was designed to force) and rides as the **trailing** segment so
 the `${runId}|`/`${runId}::` prefix scans in `delete_run.ts` and
@@ -735,13 +746,19 @@ generation captures it). This closed N1.
 Concurrency: `RequestQueue`s (items 10, info/replicant 15) bound concurrent DB
 work against the 20-connection pool; the cache check happens _before_ queueing;
 `setPromise` registers the in-flight promise so concurrent identical requests
-coalesce. The items and value-info handler bodies (cache
+coalesce. The items, value-info and replicant-options handler bodies (cache
 check → queue → `…FromRun` → `setPromise`) and their queues live ONCE in
-`server/run_query/run_data_reads.ts` and are mounted twice: the project
-routes here and the run-keyed instance routes (`getRunPresentationObjectItems`
-/ `getRunResultsValueInfo`, `can_view_data`; S8 "one core, two lenses"). The
-replicant-options route stays project-only and imports the shared
-value-info queue.
+`server/run_query/run_data_reads.ts` and are mounted twice: the run-keyed
+instance routes (`getRunPresentationObjectItems` / `getRunResultsValueInfo`
+/ `getRunReplicantOptions`, plus `getRunResultsObjectItems` and the
+manifest-only `getRunAuthoringContext`, all under
+`routes/instance/run_generation.ts`, the caller supplying `(run_id,
+adminArea2)`, `runs.status = 'ready'` required, guarded
+`requireGlobalPermission()` until step 5 swaps in `requireApprovedUser()`)
+and, until 9b, the project routes here. The replicant read is keyed by
+results object (the cache identity); the run-keyed route narrows its
+`metricId` first, and the project route stamps `projectId` onto the shared
+`RunReplicantOptions` payload on the way out.
 
 **HFA dataset display cache**
 ([routes/caches/dataset.ts](server/routes/caches/dataset.ts)): `ds_hfa` is a

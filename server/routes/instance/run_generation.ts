@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import type { GenericLongFormFetchConfig } from "lib";
+import { _DATASET_LIMIT, type GenericLongFormFetchConfig } from "lib";
 import {
   getRunGenerationDefaultsConfig,
   updateRunGenerationDefaultsConfig,
@@ -21,10 +21,15 @@ import {
   unpinRun,
 } from "../../runs/mod.ts";
 import {
+  buildRunAuthoringContext,
   getModuleWithConfigSelectionsFromManifest,
+  getReadyRunReadContext,
+  getResultsObjectItemsFromRun,
   getRunReadContextForRun,
   readRunItems,
+  readRunReplicantOptions,
   readRunResultsValueInfo,
+  resolveMetricFromRun,
 } from "../../run_query/mod.ts";
 import { notifyInstanceRunsCatalogUpdated } from "../../task_management/notify_instance_updated.ts";
 import { launchRunGeneration } from "../../worker_routines/generate_run/mod.ts";
@@ -194,9 +199,8 @@ defineRoute(
   },
 );
 
-// The run lens (run_query/run_read.ts): the same read bodies the
-// project-mounted data routes use, resolved from an explicit run id at
-// national scope. Package data is package contents, so `can_view_data`.
+// One module's configuration as generated: the AI tools' get_module_settings
+// read. Manifest only (the national manifest lens): no scope, no data.
 defineRoute(
   routesRunGeneration,
   "getRunModuleWithConfigSelections",
@@ -214,12 +218,28 @@ defineRoute(
   },
 );
 
+///////////////////////////////////////////////////////////////////////////////
+// The figure-data mount (PLAN_PRODUCTS_RESTRUCTURE D7)
+///////////////////////////////////////////////////////////////////////////////
+
+// The caller supplies the (runId, adminArea2) pair its product carries, and
+// `null` adminArea2 means national. getReadyRunReadContext shape-checks the
+// run id (it becomes a path) and gates on runs.status = 'ready'; the
+// registry schema bounds adminArea2 and the read path escapes it. /mcp
+// reaches the first two at national scope through the headless allowlist.
+// Guard: requireGlobalPermission() with no permission until step 5 adds
+// requireApprovedUser() (the plan's intermediate state).
+
 defineRoute(
   routesRunGeneration,
   "getRunPresentationObjectItems",
-  requireGlobalPermission("can_view_data"),
+  requireGlobalPermission(),
   async (c, { params, body }) => {
-    const ctxRes = await getRunReadContextForRun(params.run_id);
+    const ctxRes = await getReadyRunReadContext(
+      c.var.mainDb,
+      params.run_id,
+      body.adminArea2,
+    );
     if (ctxRes.success === false) return c.json(ctxRes);
     return c.json(
       await readRunItems(ctxRes.data, {
@@ -233,11 +253,81 @@ defineRoute(
 defineRoute(
   routesRunGeneration,
   "getRunResultsValueInfo",
-  requireGlobalPermission("can_view_data"),
+  requireGlobalPermission(),
   async (c, { params, body }) => {
-    const ctxRes = await getRunReadContextForRun(params.run_id);
+    const ctxRes = await getReadyRunReadContext(
+      c.var.mainDb,
+      params.run_id,
+      body.adminArea2,
+    );
     if (ctxRes.success === false) return c.json(ctxRes);
     return c.json(await readRunResultsValueInfo(ctxRes.data, body.metricId));
+  },
+);
+
+// Metric-keyed on the wire (the caller's handle), results-object-keyed in
+// the shared read (the cache identity): the narrowing happens here.
+defineRoute(
+  routesRunGeneration,
+  "getRunReplicantOptions",
+  requireGlobalPermission(),
+  async (c, { params, body }) => {
+    const ctxRes = await getReadyRunReadContext(
+      c.var.mainDb,
+      params.run_id,
+      body.adminArea2,
+    );
+    if (ctxRes.success === false) return c.json(ctxRes);
+    const metricRes = resolveMetricFromRun(ctxRes.data, body.metricId);
+    if (metricRes.success === false) return c.json(metricRes);
+    return c.json(
+      await readRunReplicantOptions(ctxRes.data, {
+        resultsObjectId: metricRes.data.resultsValue.resultsObjectId,
+        replicateBy: body.replicateBy,
+        fetchConfig: body.fetchConfig as GenericLongFormFetchConfig,
+      }),
+    );
+  },
+);
+
+// The raw results-object preview, scoped like every other figure-data read:
+// getResultsObjectItemsFromRun applies computeScopeFilters itself.
+defineRoute(
+  routesRunGeneration,
+  "getRunResultsObjectItems",
+  requireGlobalPermission(),
+  log("getRunResultsObjectItems"),
+  async (c, { params, body }) => {
+    const ctxRes = await getReadyRunReadContext(
+      c.var.mainDb,
+      params.run_id,
+      body.adminArea2,
+    );
+    if (ctxRes.success === false) return c.json(ctxRes);
+    return c.json(
+      await getResultsObjectItemsFromRun(
+        ctxRes.data,
+        params.results_object_id,
+        _DATASET_LIMIT,
+      ),
+    );
+  },
+);
+
+// A pure function of the run directory (lib/types/run_authoring_context.ts):
+// the manifest lens, no scope and no ready gate, the same exposure as
+// getRunDetail.
+defineRoute(
+  routesRunGeneration,
+  "getRunAuthoringContext",
+  requireGlobalPermission(),
+  async (c, { params }) => {
+    const ctxRes = await getRunReadContextForRun(params.run_id);
+    if (ctxRes.success === false) return c.json(ctxRes);
+    return c.json({
+      success: true,
+      data: await buildRunAuthoringContext(ctxRes.data.manifest),
+    });
   },
 );
 

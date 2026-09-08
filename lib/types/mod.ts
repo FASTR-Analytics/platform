@@ -41,6 +41,7 @@ export * from "./products.ts";
 export * from "./scope.ts";
 export * from "./reports.ts";
 export * from "./run_generation.ts";
+export * from "./run_authoring_context.ts";
 export * from "./run_manifest.ts";
 export * from "./slides.ts";
 export * from "./sort.ts";

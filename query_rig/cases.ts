@@ -9,6 +9,9 @@ export type Case = {
   name: string;
   fixture: string;
   calendar?: InstanceCalendar;
+  // The caller's admin-area-2 scope (D7). Absent = national, the identity
+  // the rest of the corpus runs at.
+  adminArea2?: string;
   // "possibleValues" runs the option-list query for `disOpt`, reusing
   // fetchConfig.filters as the filter set the route would pass.
   entry?: "items" | "possibleValues" | "metricInfo";
@@ -1051,8 +1054,173 @@ const QUARTER_DERIVATION: Case[] = [
   },
 ];
 
+// Admin-area-2 scope (D7). Scope is the second half of a read context, and
+// it is applied by INJECTING filters the caller never sent, so every case
+// here is paired with the national reading of the same query, and the
+// echoed-fetchConfig assertion in the runner covers all of them at once. The
+// three branches of computeScopeFilters each get a pair: the RO carries
+// admin_area_2 (direct), the RO carries only a child column (derived from the
+// facilities parquet), the RO carries no admin column at all (the blessed
+// unfiltered case), plus the fail-CLOSED branch where the derivation cannot
+// run.
+const SCOPE_CASES: Case[] = [
+  {
+    name: "scope: RO carrying admin_area_2 is filtered directly",
+    fixture: "hmis_monthly",
+    adminArea2: "A2_south",
+    fetchConfig: { ...base(), groupBys: ["admin_area_2"] },
+    // National returns both areas (35 / 17): the group-by case above.
+    expect: { status: "ok", rows: [{ admin_area_2: "A2_south", value: 17 }] },
+  },
+  {
+    name: "scope: the direct filter also bounds a child-level grouping",
+    fixture: "hmis_monthly",
+    adminArea2: "A2_south",
+    fetchConfig: { ...base(), groupBys: ["admin_area_3"] },
+    // National holds A3_alpha 30 and A3_beta 5 as well.
+    expect: {
+      status: "ok",
+      rows: [
+        { admin_area_3: "A3_gamma", value: 10 },
+        { admin_area_3: "A3_delta", value: 7 },
+      ],
+    },
+  },
+  {
+    name: "scope: the scope matches case-insensitively, like any filter value",
+    fixture: "hmis_monthly",
+    adminArea2: "a2_SOUTH",
+    fetchConfig: { ...base(), groupBys: ["admin_area_2"] },
+    expect: { status: "ok", rows: [{ admin_area_2: "A2_south", value: 17 }] },
+  },
+  {
+    name: "scope: national option list offers every area",
+    fixture: "hmis_monthly",
+    entry: "possibleValues",
+    disOpt: "admin_area_2",
+    fetchConfig: { ...base(), groupBys: [] },
+    expect: {
+      values: [
+        { id: "A2_north", label: "A2_north" },
+        { id: "A2_south", label: "A2_south" },
+      ],
+    },
+  },
+  {
+    name: "scope: scoped option list offers only the scoped area",
+    fixture: "hmis_monthly",
+    adminArea2: "A2_south",
+    entry: "possibleValues",
+    disOpt: "admin_area_2",
+    fetchConfig: { ...base(), groupBys: [] },
+    // The option list is a data query like any other, so scope reaches it:
+    // otherwise a scoped product would offer a filter value with no rows.
+    expect: { values: [{ id: "A2_south", label: "A2_south" }] },
+  },
+  {
+    name: "scope: metric info option lists are national by default",
+    fixture: "hfa_divergent_schema",
+    entry: "metricInfo",
+    fetchConfig: { ...base(), groupBys: [] },
+    expect: {
+      dimStatus: { disOpt: "admin_area_2", status: "ok", namedCount: 2 },
+    },
+  },
+  {
+    name: "scope: metric info option lists narrow under scope",
+    fixture: "hfa_divergent_schema",
+    adminArea2: "A2_south",
+    entry: "metricInfo",
+    fetchConfig: { ...base(), groupBys: [] },
+    // The scope rides the context, not the arguments, so it reaches the whole
+    // metric-info payload, the client's replicant lists included.
+    expect: {
+      dimStatus: { disOpt: "admin_area_2", status: "ok", namedCount: 1 },
+    },
+  },
+  {
+    name: "scope: admin3-only RO is unfiltered when national",
+    fixture: "hmis_admin3_only",
+    fetchConfig: { ...base(), groupBys: ["admin_area_3"] },
+    expect: {
+      status: "ok",
+      rows: [
+        { admin_area_3: "A3_alpha", value: 10 },
+        { admin_area_3: "A3_beta", value: 5 },
+        { admin_area_3: "A3_gamma", value: 7 },
+        { admin_area_3: "A3_delta", value: 1 },
+      ],
+    },
+  },
+  {
+    name: "scope: admin3-only RO filters by children DERIVED from the facilities parquet",
+    fixture: "hmis_admin3_only",
+    adminArea2: "A2_south",
+    fetchConfig: { ...base(), groupBys: ["admin_area_3"] },
+    // A2_south's children are A3_gamma (f3) and A3_delta (f4, f5); the
+    // derivation matches by NAME, and the values it finds become the filter.
+    expect: {
+      status: "ok",
+      rows: [
+        { admin_area_3: "A3_gamma", value: 7 },
+        { admin_area_3: "A3_delta", value: 1 },
+      ],
+    },
+  },
+  {
+    name: "scope: a scope with no children in the facilities parquet matches nothing",
+    fixture: "hmis_admin3_only",
+    adminArea2: "A2_nowhere",
+    fetchConfig: { ...base(), groupBys: ["admin_area_3"] },
+    // An empty derivation injects the never-matching sentinel: an empty
+    // values array would be skipped by buildWhereClause and show ALL data.
+    expect: { status: "no_data_available" },
+  },
+  {
+    name: "scope: derivation-less package is national when unscoped",
+    fixture: "admin3_no_family",
+    fetchConfig: { ...base(), groupBys: ["admin_area_3"] },
+    expect: {
+      status: "ok",
+      rows: [
+        { admin_area_3: "A3_alpha", value: 10 },
+        { admin_area_3: "A3_gamma", value: 7 },
+      ],
+    },
+  },
+  {
+    name: "scope: an admin RO whose scope cannot be derived fails CLOSED",
+    fixture: "admin3_no_family",
+    adminArea2: "A2_south",
+    fetchConfig: { ...base(), groupBys: ["admin_area_3"] },
+    // The module's sources are all upstream results objects, so its family,
+    // and with it the facilities parquet the derivation needs, is
+    // undeclarable. The sentinel filter matches nothing: blank is wrong
+    // visibly, national data under a regional heading is wrong silently.
+    expect: { status: "no_data_available" },
+  },
+  {
+    name: "scope: an RO with no admin column at all stays unfiltered",
+    fixture: "hfa_variants",
+    adminArea2: "A2_south",
+    fetchConfig: { ...base(), groupBys: ["hfa_indicator", "hfa_variant_item"] },
+    // The one blessed unfiltered case. Identical to the national reading of
+    // the same group-by (38 / 6 / 2): a national RO carries no area to
+    // filter on, and refusing to serve it would blank every scoped product.
+    expect: {
+      status: "ok",
+      rows: [
+        { hfa_indicator: "vacc", hfa_variant_item: "campaign", value: 38, __n_value: 2 },
+        { hfa_indicator: "vacc", hfa_variant_item: "routine", value: 6, __n_value: 2 },
+        { hfa_indicator: "water", hfa_variant_item: "piped", value: 2, __n_value: 1 },
+      ],
+    },
+  },
+];
+
 export const CASES: Case[] = [
   ...EXPLICIT_CASES,
   ...PERIOD_MATRIX,
   ...QUARTER_DERIVATION,
+  ...SCOPE_CASES,
 ];

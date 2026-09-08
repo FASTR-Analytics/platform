@@ -5,7 +5,7 @@ import {
   hashFetchConfig,
   type ItemsHolderPresentationObject,
   type PresentationObjectDetail,
-  type ReplicantOptionsForPresentationObject,
+  type RunReplicantOptions,
   type ResultsValueInfoForPresentationObject,
 } from "lib";
 import { TimCacheC } from "../../valkey/cache_class_C.ts";
@@ -238,7 +238,7 @@ export const _REPLICANT_OPTIONS_CACHE = new TimCacheC<
     scopeToken: string;
   },
   PoDataVersionParams,
-  APIResponseWithData<ReplicantOptionsForPresentationObject>
+  APIResponseWithData<RunReplicantOptions>
 >("replicant_opts", {
   uniquenessHashFromParams: (params) => {
     return [

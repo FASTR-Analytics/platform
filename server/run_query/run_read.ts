@@ -23,7 +23,6 @@ import {
   type GenericLongFormFetchConfig,
   type HfaIndicatorAggregation,
   type HfaIndicatorType,
-  type HfaTaxonomyForAI,
   type IndicatorMetadata,
   toIndicatorMetadataDisplay,
   type InstalledModuleSummary,
@@ -36,6 +35,7 @@ import {
   type PresentationObjectDetail,
   type ResultsValue,
   type ResultsValueInfoForPresentationObject,
+  type RunAuthoringContextHfaTaxonomy,
   type RunManifest,
   type RunMetric,
   type RunModule,
@@ -92,19 +92,22 @@ export type RunReadContext = {
   runId: string;
   runDir: string;
   manifest: RunManifest;
-  // The owning project's AA2 identity (projects.admin_area_2); null =
-  // national. Scopes every read through the FromRun wrappers
-  // (PLAN_1_PROJECT_AA2_SCOPE §3).
+  // The caller's admin-area-2 identity (a product's admin_area_2, or the
+  // project's through the project lens); null = national. Scopes every read
+  // through the FromRun wrappers (PLAN_1_PROJECT_AA2_SCOPE §3).
   adminArea2: string | null;
   scopeToken: string;
 };
 
-// The two lenses onto one read core. A read context is (run, scope): the
-// PROJECT lens resolves both from the project row, its attached run and its
-// AA2, and is what every project-mounted data route uses; the RUN lens takes
-// the run id directly at national scope and is what the run-keyed instance
-// routes (and through them the pinned-package MCP surface) use. Everything
-// below the context is shared.
+// The lenses onto one read core. A read context is (run, scope). The DATA
+// lens (getReadyRunReadContext) takes both halves from the caller, the
+// (runId, adminArea2) pair a product carries, and gates on a ready package:
+// every run-keyed figure-data route uses it (PLAN_PRODUCTS_RESTRUCTURE D7).
+// The manifest lens (getRunReadContextForRun) takes the run id at national
+// scope with no ready gate, for the package-internals reads. The PROJECT
+// lens (getRunReadContext) resolves both halves from the project row and
+// dies with the project routes in step 9b. Everything below the context is
+// shared.
 
 async function buildRunReadContext(
   runId: string,
@@ -155,10 +158,11 @@ SELECT run_id, admin_area_2 FROM projects WHERE id = ${projectId}
   }
 }
 
-// The run lens: an explicit run id at national scope. Accepts any run id the
-// caller is authorized to read (the instance data bits), an unreadable or
-// unknown run surfaces as the manifest read failing. The id is CALLER
-// supplied (a URL param) and becomes a path, so it is shape-checked first.
+// The manifest lens: an explicit run id at national scope. Accepts any run
+// id the caller is authorized to read (the instance data bits), an
+// unreadable or unknown run surfaces as the manifest read failing. The id is
+// CALLER supplied (a URL param) and becomes a path, so it is shape-checked
+// first.
 export async function getRunReadContextForRun(
   runId: string,
 ): Promise<APIResponseWithData<RunReadContext>> {
@@ -167,6 +171,44 @@ export async function getRunReadContextForRun(
   }
   try {
     return { success: true, data: await buildRunReadContext(runId, null) };
+  } catch (e) {
+    return {
+      success: false,
+      err: `Results run unavailable: ${e instanceof Error ? e.message : e}`,
+    };
+  }
+}
+
+// The data lens. Both halves arrive over the wire: the run id becomes a path
+// (shape-checked here) and adminArea2 becomes a SQL literal (escaped at its
+// interpolation sites) and a Valkey key segment (percent-encoded by
+// scopeToken). `runs.status = 'ready'` is checked against the catalog, not
+// the manifest: a generating run has no manifest file at all, but a FAILED
+// one can have a published partial dir, and neither may serve figures.
+export async function getReadyRunReadContext(
+  mainDb: Sql,
+  runId: string,
+  adminArea2: string | null,
+): Promise<APIResponseWithData<RunReadContext>> {
+  if (!isRunIdShape(runId)) {
+    return { success: false, err: "Invalid results package id" };
+  }
+  try {
+    const row = (
+      await mainDb<{ status: string }[]>`
+SELECT status FROM runs WHERE id = ${runId}
+`
+    ).at(0);
+    if (row === undefined) {
+      return { success: false, err: "Results package not found" };
+    }
+    if (row.status !== "ready") {
+      return { success: false, err: "This results package is not ready" };
+    }
+    return {
+      success: true,
+      data: await buildRunReadContext(runId, adminArea2),
+    };
   } catch (e) {
     return {
       success: false,
@@ -387,12 +429,13 @@ export async function getIcehIndicatorsFromManifestInputs(
     }));
 }
 
-// The AI's HFA taxonomy, from the run's captured indicator/category mirrors.
-// Time points stay instance-wide (they are not run content).
+// The HFA taxonomy, from the run's captured indicator/category mirrors. Time
+// points are not run content (HFA survey rounds are instance-wide T1 state),
+// so they are absent here and composed in by each consumer that needs the
+// full HfaTaxonomyForAI (getProjectDetail, server/mcp/context_cache.ts).
 export async function getHfaTaxonomyFromManifestInputs(
   ctx: RunInputSource,
-  timePoints: { id: string; label: string; periodId: string }[],
-): Promise<HfaTaxonomyForAI> {
+): Promise<RunAuthoringContextHfaTaxonomy> {
   const [indicators, categories, subCategories, serviceCategories, variantGroups, variantItems] =
     await Promise.all([
       readInputRows(ctx, "hfa_indicators_snapshot.json", hfaTaxonomyIndicatorRow),
@@ -434,7 +477,6 @@ export async function getHfaTaxonomyFromManifestInputs(
     variantItems: variantItems
       .toSorted((a, b) => a.sort_order - b.sort_order)
       .map((i) => ({ id: i.id, groupId: i.group_id, label: i.label })),
-    timePoints,
     indicators: indicators
       .toSorted((a, b) => a.sort_order - b.sort_order)
       .map((i) => ({

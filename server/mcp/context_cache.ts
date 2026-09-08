@@ -1,6 +1,7 @@
 import { AIToolFailure } from "@timroberton/panther";
 import type { AIToolWithMetadata } from "@timroberton/panther";
 import type {
+  HfaTaxonomyForAI,
   InstanceState,
   PackageGrounding,
   PeriodBounds,
@@ -267,16 +268,18 @@ export async function resolvePackageContext(
   }
   const run = runRes.data;
 
-  // The same manifest-derived catalog getProjectDetail builds for a project's
-  // attached package (db/project/projects.ts): one derivation, two callers.
+  // The same manifest-derived catalog buildRunAuthoringContext serves
+  // (run_query/authoring_context.ts): one derivation, two callers.
   const manifest = await getRunManifestCached(runId);
   const runInputs = { runId, manifest };
   const metrics = getMetricsWithStatusFromManifest(manifest);
   const icehIndicators = await getIcehIndicatorsFromManifestInputs(runInputs);
-  const hfaTaxonomy = await getHfaTaxonomyFromManifestInputs(
-    runInputs,
-    await getHfaTimePointsForAI(mainDb),
-  );
+  // The package's taxonomy carries no time points (instance T1 state, not
+  // run content; D7), so the AI's full HfaTaxonomyForAI is composed here.
+  const hfaTaxonomy: HfaTaxonomyForAI = {
+    ...(await getHfaTaxonomyFromManifestInputs(runInputs)),
+    timePoints: await getHfaTimePointsForAI(mainDb),
+  };
   const grounding: PackageGrounding = {
     calendar: manifest.calendar,
     datasets: getRunDatasetsFromManifest(manifest),

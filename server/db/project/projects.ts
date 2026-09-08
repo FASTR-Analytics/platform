@@ -85,10 +85,10 @@ export async function getProjectDetail(
         datasetsInProject = getRunDatasetsFromManifest(manifest);
         commonIndicators = manifest.commonIndicators;
         icehIndicators = await getIcehIndicatorsFromManifestInputs(runCtx);
-        hfaTaxonomy = await getHfaTaxonomyFromManifestInputs(
-          runCtx,
-          await getHfaTimePointsForAI(mainDb),
-        );
+        hfaTaxonomy = {
+          ...(await getHfaTaxonomyFromManifestInputs(runCtx)),
+          timePoints: await getHfaTimePointsForAI(mainDb),
+        };
       } catch (e) {
         console.error(
           `[runs] attached run ${rawProject.run_id} unreadable for project ${projectId}: ${

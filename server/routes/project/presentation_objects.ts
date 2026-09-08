@@ -1,13 +1,6 @@
 import { Hono } from "hono";
 import type { Sql } from "postgres";
-import {
-  getPeriodFilterExactBounds,
-  isValidDisaggregationOption,
-  syncFigureConfigField,
-  syncFigureConfigToMap,
-  validateFetchConfig,
-  type PeriodBounds,
-} from "lib";
+import { syncFigureConfigField, syncFigureConfigToMap } from "lib";
 import { applyPoToLiveRoom, closePoRoom } from "../../collab/po_rooms.ts";
 import {
   addPresentationObject,
@@ -25,29 +18,19 @@ import {
 } from "lib";
 import { log } from "../../middleware/mod.ts";
 import { requireProjectPermission } from "../../project_auth.ts";
-import { exceedsMaxReplicantOptions } from "../../server_only_funcs_presentation_objects/consts.ts";
 import { notifyLastUpdated } from "../../task_management/mod.ts";
 import { notifyProjectVisualizationsUpdated } from "../../task_management/notify_project_v2.ts";
-import {
-  _PO_DETAIL_CACHE,
-  _REPLICANT_OPTIONS_CACHE,
-} from "../caches/visualizations.ts";
+import { _PO_DETAIL_CACHE } from "../caches/visualizations.ts";
 import { defineRoute } from "../route-helpers.ts";
 import {
   findVirtualDefault,
   getAllPresentationObjectsWithVirtualDefaults,
   getAttachedManifestOrNull,
-  getIndicatorMetadataFromRun,
-  getModuleIdForResultsObjectFromRun,
-  getPossibleValuesFromRun,
   getPresentationObjectDetailFromRun,
-  getRawPeriodBoundsFromRun,
   getRunReadContext,
-  getRunVersionInfo,
-  moduleHasRun,
   readRunItems,
+  readRunReplicantOptions,
   readRunResultsValueInfo,
-  resultsValueInfoQueue,
   VIRTUAL_DEFAULT_LAST_UPDATED,
 } from "../../run_query/mod.ts";
 
@@ -547,231 +530,17 @@ defineRoute(
   "getReplicantOptions",
   requireProjectPermission("can_view_visualizations"),
   async (c, { body }) => {
-    // body is attacker-controllable and flows into generated SQL via
-    // getPossibleValuesFromRun (replicateBy → column ref) and the fetchConfig filters.
-    const fetchConfig = body.fetchConfig as GenericLongFormFetchConfig;
-    validateFetchConfig(fetchConfig);
-    if (!isValidDisaggregationOption(body.replicateBy)) {
-      return c.json({
-        success: false,
-        err: `Invalid replicateBy: ${body.replicateBy}`,
-      });
-    }
-
-    const t0 = performance.now();
-    const filterSummary =
-      fetchConfig.filters.length > 0
-        ? `${fetchConfig.filters.length} filters`
-        : "no filters";
-
     const ctxRes = await getRunReadContext(c.var.mainDb, c.var.ppk.projectId);
     if (ctxRes.success === false) return c.json(ctxRes);
-    const runCtx = ctxRes.data;
-
-    const moduleId = getModuleIdForResultsObjectFromRun(
-      runCtx,
-      body.resultsObjectId,
-    );
-    if (moduleId === undefined) {
-      return c.json({
-        success: false,
-        err: `Unknown results object: ${body.resultsObjectId}`,
-      });
-    }
-    if (!moduleHasRun(runCtx, moduleId)) {
-      return c.json({
-        success: false,
-        err: "Module not found or has not run yet",
-      });
-    }
-    const versionInfo = getRunVersionInfo(runCtx);
-
-    console.log(
-      `[SERVER] Replicant Options ${body.resultsObjectId.slice(
-        0,
-        8,
-      )}: REQUEST received (${filterSummary}, replicateBy: ${body.replicateBy})`,
-    );
-
-    // Check cache BEFORE queueing
-    const existing = await _REPLICANT_OPTIONS_CACHE.get(
-      {
-        runId: runCtx.runId,
-        resultsObjectId: body.resultsObjectId,
-        replicateBy: body.replicateBy,
-        fetchConfig: fetchConfig,
-        scopeToken: runCtx.scopeToken,
-      },
-      versionInfo,
-    );
-
-    if (existing && existing.success === true) {
-      const t1 = performance.now();
-      const stats = resultsValueInfoQueue.getStats();
-      console.log(
-        `[SERVER] Replicant Options ${body.resultsObjectId.slice(0, 8)}: HIT (${(
-          t1 - t0
-        ).toFixed(
-          0,
-        )}ms) [Queue: ${stats.running}/${stats.maxConcurrent} running, ${stats.queued} waiting]`,
-      );
-      return c.json(existing);
-    }
-
-    // Only queue on cache miss
-    const stats = resultsValueInfoQueue.getStats();
-    console.log(
-      `[SERVER] Replicant Options ${body.resultsObjectId.slice(
-        0,
-        8,
-      )}: ENTERING QUEUE [Queue: ${stats.running}/${stats.maxConcurrent} running, ${stats.queued} waiting]`,
-    );
-
-    const result = await resultsValueInfoQueue.enqueue(async () => {
-      const tQueue = performance.now();
-      console.log(
-        `[SERVER] Replicant Options ${body.resultsObjectId.slice(
-          0,
-          8,
-        )}: EXECUTING (waited ${(tQueue - t0).toFixed(0)}ms in queue)`,
-      );
-
-      const newPromise = (async () => {
-        // Fetch indicator metadata for label lookup
-        const indicatorMetadata = getIndicatorMetadataFromRun(
-          runCtx,
-          moduleId,
-        );
-        const labelMap = new Map(indicatorMetadata.map((m) => [m.id, m.label]));
-
-        // Resolve the period filter to exact bounds the same way the items
-        // query does, so relative filters ("last N months") narrow the option
-        // list too and from_month re-anchors to the live data: a bounded-only
-        // read here would list values the filtered figure can never show. The
-        // manifest stamp IS the no-filter bounds of the physical time column.
-        let periodFilterExactBounds: PeriodBounds | undefined;
-        if (fetchConfig.periodFilter) {
-          try {
-            const rawBounds = getRawPeriodBoundsFromRun(
-              runCtx,
-              body.resultsObjectId,
-            );
-            periodFilterExactBounds = getPeriodFilterExactBounds(
-              fetchConfig.periodFilter,
-              rawBounds,
-            );
-          } catch (e) {
-            return {
-              success: true as const,
-              data: {
-                projectId: c.var.ppk.projectId,
-                resultsObjectId: body.resultsObjectId,
-                replicateBy: body.replicateBy,
-                fetchConfig: fetchConfig,
-                ...versionInfo,
-                status: "error" as const,
-                message: e instanceof Error ? e.message : String(e),
-              },
-            };
-          }
-        }
-
-        const resDisPossibleVals = await getPossibleValuesFromRun(
-          runCtx,
-          body.resultsObjectId,
-          body.replicateBy,
-          labelMap,
-          fetchConfig.filters,
-          periodFilterExactBounds,
-        );
-
-        if (resDisPossibleVals.success === false) {
-          return {
-            success: true as const,
-            data: {
-              projectId: c.var.ppk.projectId,
-              resultsObjectId: body.resultsObjectId,
-              replicateBy: body.replicateBy,
-              fetchConfig: fetchConfig,
-              ...versionInfo,
-              // Surfaced as its own status (matching the metric-info path)
-              // instead of masquerading as no_values_available.
-              status: "error" as const,
-              message: resDisPossibleVals.err,
-            },
-          };
-        }
-
-        const vals = resDisPossibleVals.data;
-
-        if (exceedsMaxReplicantOptions(vals)) {
-          return {
-            success: true as const,
-            data: {
-              projectId: c.var.ppk.projectId,
-              resultsObjectId: body.resultsObjectId,
-              replicateBy: body.replicateBy,
-              fetchConfig: fetchConfig,
-              ...versionInfo,
-              status: "too_many_values" as const,
-            },
-          };
-        }
-
-        if (vals.length === 0) {
-          return {
-            success: true as const,
-            data: {
-              projectId: c.var.ppk.projectId,
-              resultsObjectId: body.resultsObjectId,
-              replicateBy: body.replicateBy,
-              fetchConfig: fetchConfig,
-              ...versionInfo,
-              status: "no_values_available" as const,
-            },
-          };
-        }
-
-        return {
-          success: true as const,
-          data: {
-            projectId: c.var.ppk.projectId,
-            resultsObjectId: body.resultsObjectId,
-            replicateBy: body.replicateBy,
-            fetchConfig: fetchConfig,
-            ...versionInfo,
-            status: "ok" as const,
-            possibleValues: vals,
-          },
-        };
-      })();
-
-      _REPLICANT_OPTIONS_CACHE.setPromise(
-        newPromise,
-        {
-          runId: runCtx.runId,
-          resultsObjectId: body.resultsObjectId,
-          replicateBy: body.replicateBy,
-          fetchConfig: fetchConfig,
-          scopeToken: runCtx.scopeToken,
-        },
-        versionInfo,
-      );
-
-      const res = await newPromise;
-      const t1 = performance.now();
-      const statsEnd = resultsValueInfoQueue.getStats();
-      console.log(
-        `[SERVER] Replicant Options ${body.resultsObjectId.slice(
-          0,
-          8,
-        )}: MISS (${(t1 - t0).toFixed(
-          0,
-        )}ms) [Queue: ${statsEnd.running}/${statsEnd.maxConcurrent} running, ${statsEnd.queued} waiting]`,
-      );
-      return res;
+    const res = await readRunReplicantOptions(ctxRes.data, {
+      resultsObjectId: body.resultsObjectId,
+      replicateBy: body.replicateBy,
+      fetchConfig: body.fetchConfig as GenericLongFormFetchConfig,
     });
-
-    return c.json(result);
+    if (res.success === false) return c.json(res);
+    return c.json({
+      success: true as const,
+      data: { projectId: c.var.ppk.projectId, ...res.data },
+    });
   },
 );

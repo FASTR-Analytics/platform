@@ -575,6 +575,68 @@ export const F13_HFA_DIVERGENT_SCHEMA: Fixture = {
   firstPeriodOption: undefined,
 };
 
+// F14: an RO with admin_area_3 and NO admin_area_2, the shape the scope
+// DERIVATION exists for (m004/m005/m006 admin3 outputs). A scoped read must
+// resolve A2_south to its child areas out of the family facilities parquet
+// and filter on those, matching by NAME.
+export const F14_HMIS_ADMIN3_ONLY: Fixture = {
+  name: "hmis_admin3_only",
+  family: "hmis",
+  adminDepth: 4,
+  moduleId: "m_admin3",
+  moduleDefinition: hmisModule(),
+  resultsObjectId: "77777777-8888-9999-aaaa-bbbbbbbbbbbb",
+  facilityColumns: { ...ALL_FACILITY_COLUMNS_OFF },
+  facilities: F1_HMIS_MONTHLY.facilities,
+  roColumns: [
+    { name: "admin_area_3", type: "TEXT" },
+    { name: "value", type: "NUMERIC" },
+  ],
+  roRows: [
+    { admin_area_3: "A3_alpha", value: 10 },
+    { admin_area_3: "A3_beta", value: 5 },
+    { admin_area_3: "A3_gamma", value: 7 },
+    { admin_area_3: "A3_delta", value: 1 },
+  ],
+  indicators: [],
+  firstPeriodOption: undefined,
+};
+
+// F15: F14's shape in a package where the derivation CANNOT run: the
+// module's data sources are all upstream results objects, so its family is
+// undeclarable and no facilities parquet can serve the lookup (the one the
+// builder writes for the seeded family is never claimed by this module). The
+// scope must fail CLOSED (a never-matching sentinel), never unfiltered.
+export const F15_ADMIN3_NO_FAMILY: Fixture = {
+  name: "admin3_no_family",
+  family: "hmis",
+  adminDepth: 4,
+  moduleId: "m_admin3_derived",
+  moduleDefinition: {
+    scriptGenerationType: "standard",
+    dataSources: [
+      {
+        sourceType: "resultsObject",
+        moduleId: "m_admin3",
+        resultsObjectId: "77777777-8888-9999-aaaa-bbbbbbbbbbbb",
+      },
+    ],
+  },
+  resultsObjectId: "88888888-9999-aaaa-bbbb-cccccccccccc",
+  facilityColumns: { ...ALL_FACILITY_COLUMNS_OFF },
+  facilities: F1_HMIS_MONTHLY.facilities,
+  roColumns: [
+    { name: "admin_area_3", type: "TEXT" },
+    { name: "value", type: "NUMERIC" },
+  ],
+  roRows: [
+    { admin_area_3: "A3_alpha", value: 10 },
+    { admin_area_3: "A3_gamma", value: 7 },
+  ],
+  indicators: [],
+  firstPeriodOption: undefined,
+};
+
 export const ALL_FIXTURES: Fixture[] = [
   F1_HMIS_MONTHLY,
   F2_HFA_SERVICE_CATS,
@@ -589,4 +651,6 @@ export const ALL_FIXTURES: Fixture[] = [
   F11_HFA_VARIANTS,
   F12_HMIS_SCORECARD,
   F13_HFA_DIVERGENT_SCHEMA,
+  F14_HMIS_ADMIN3_ONLY,
+  F15_ADMIN3_NO_FAMILY,
 ];

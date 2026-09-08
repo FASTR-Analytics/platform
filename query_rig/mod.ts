@@ -1,5 +1,5 @@
 import type { Sql } from "postgres";
-import { BLANK_SENTINEL, setCalendar, validateFetchConfig } from "lib";
+import { BLANK_SENTINEL, scopeToken, setCalendar, validateFetchConfig } from "lib";
 import { getSingleValueDimsFromPossibleValues } from "lib";
 import {
   getIndicatorMetadataFromRun,
@@ -39,12 +39,21 @@ async function prepare(fx: Fixture): Promise<Prepared> {
   return { fixture: fx, mainDb, ctx, labelMap };
 }
 
-// Calendar is a run input: the read path takes it from the manifest, never
-// from the env global. A case that flips the calendar reads the same package
-// through a context whose manifest says so.
+// A read context is the (run, scope) pair the caller supplies (D7), built
+// here rather than through getReadyRunReadContext because that gate reads the
+// catalog row for `status = 'ready'` and the rig's packages exist only on
+// disk. Calendar is a run input: the read path takes it from the manifest,
+// never from the env global, so a case that flips the calendar reads the same
+// package through a context whose manifest says so.
 function contextFor(c: Case, p: Prepared): RunReadContext {
   const calendar = c.calendar ?? "gregorian";
-  return { ...p.ctx, manifest: { ...p.ctx.manifest, calendar } };
+  const adminArea2 = c.adminArea2 ?? null;
+  return {
+    ...p.ctx,
+    manifest: { ...p.ctx.manifest, calendar },
+    adminArea2,
+    scopeToken: scopeToken(adminArea2),
+  };
 }
 
 function describe(v: unknown): string {
@@ -155,11 +164,12 @@ async function runCase(c: Case, p: Prepared): Promise<Failure | undefined> {
   // not in the read function, so calling the read function alone would
   // silently skip the imperative SQL-safety guard. (The Zod boundary schema is
   // the other half and is deliberately out of the rig's scope.)
+  const ctx = contextFor(c, p);
   let res: Awaited<ReturnType<typeof getPresentationObjectItemsFromRun>>;
   try {
     validateFetchConfig(c.fetchConfig);
     res = await getPresentationObjectItemsFromRun(
-      contextFor(c, p),
+      ctx,
       p.fixture.resultsObjectId,
       c.fetchConfig,
       p.fixture.firstPeriodOption
@@ -190,6 +200,24 @@ async function runCase(c: Case, p: Prepared): Promise<Failure | undefined> {
   }
 
   const holder = res.data;
+
+  // The echoed fetchConfig is the REQUEST, on every case: a scoped read adds
+  // its filters internally and must restore the caller's config, or the
+  // client would see filters it never sent (and cache them). The holder's
+  // identity is the (run, scope) pair, which is what the caches key on.
+  if (JSON.stringify(holder.fetchConfig) !== JSON.stringify(c.fetchConfig)) {
+    return {
+      case: c.name,
+      detail: `echoed fetchConfig is not the request\n  expected: ${describe(c.fetchConfig)}\n  actual:   ${describe(holder.fetchConfig)}`,
+    };
+  }
+  if (holder.runId !== ctx.runId || holder.scopeToken !== ctx.scopeToken) {
+    return {
+      case: c.name,
+      detail: `holder identity is not (run, scope): got runId=${holder.runId} scopeToken=${holder.scopeToken}`,
+    };
+  }
+
   if (holder.status !== c.expect.status) {
     return { case: c.name, detail: `expected status "${c.expect.status}", got "${holder.status}"` };
   }

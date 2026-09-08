@@ -143,10 +143,9 @@ export type ResultsValueInfoForPresentationObject = {
   indicatorRules: Record<string, ThresholdsRule>;
 };
 
-// Discriminated union for replicant option states
-export type ReplicantOptionsForPresentationObject =
+// The replicant dimension's option list, as the run-keyed read serves it.
+export type RunReplicantOptions =
   & {
-    projectId: string;
     resultsObjectId: string;
     replicateBy: DisaggregationOption;
     fetchConfig: GenericLongFormFetchConfig;
@@ -171,6 +170,11 @@ export type ReplicantOptionsForPresentationObject =
       message: string;
     }
   );
+
+// The project lens's response: the same payload stamped with the project id.
+export type ReplicantOptionsForPresentationObject =
+  & { projectId: string }
+  & RunReplicantOptions;
 
 export const VIZ_TYPE_CONFIG: Record<
   PresentationOption,

@@ -17,10 +17,11 @@ export {
   getAttachedManifestOrNull,
   VIRTUAL_DEFAULT_LAST_UPDATED,
 } from "./virtual_defaults.ts";
+export { buildRunAuthoringContext } from "./authoring_context.ts";
 export {
   readRunItems,
+  readRunReplicantOptions,
   readRunResultsValueInfo,
-  resultsValueInfoQueue,
 } from "./run_data_reads.ts";
 export {
   enrichMetricFromManifest,
@@ -39,6 +40,7 @@ export {
   getPresentationObjectDetailFromRun,
   getPresentationObjectItemsFromRun,
   getRawPeriodBoundsFromRun,
+  getReadyRunReadContext,
   getResultsObjectItemsFromRun,
   getResultsValueInfoFromRun,
   getRunReadContext,
