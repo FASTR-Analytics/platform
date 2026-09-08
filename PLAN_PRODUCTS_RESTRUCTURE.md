@@ -1,552 +1,676 @@
-# PLAN — Products restructure: dissolve projects; products = decks + reports
+# PLAN: Products restructure, second pass
 
-**Status 2026-08-19: BUILT. Phases 0–3 are complete on
-`tim-branch-restructure` (30 commits); Phase 4 (rollout) has not started.**
-`deno task typecheck` (server + client + `lint:systems`), `deno task test`,
-`./validate_migrations`, `./validate_queries` and `./validate_protocols` are
-all green, the fleet dry-run passes on the dev instance, and the migration has
-been RUN against the dev database — 11 projects → 15 products, matching the
-dry-run's plan exactly. The app runs on the migrated data. What remains is §4's
-last four gates and the §5 runbook, all of which need real infrastructure —
-see the per-item marks in those two sections. `main` receives the branch as one
-merge once they are green.
+Dissolve projects. Products are slide decks and reports, kept in nested
+folders, each attached to one results package at one scope. One main
+database, one realtime channel, one copilot. An Explore tab replaces the
+project Metrics tab and the standalone visualization library.
 
-Two defects have been found by using the app that no gate caught, both fixed:
-`getRollupRowLabel` read a global store instead of the bundle's own scope (so
-an export of an AA2 product's figure labelled its roll-up row "National"), and
-the two create buttons shared one `createButtonAction`, whose request-id guard
-discarded all but the most recent click's callback. Expect more of this class:
-the automated surface is clean, so what is left is behavioural.
+**Status 2026-09-08: NOT STARTED on `version2`.** This is the second attempt.
+The first attempt was built on `tim-branch-restructure` between 2026-08-19 and
+2026-08-20, reached green gates and a migrated dev database, and stopped
+before rollout. That branch is preserved as **`version2-reference`** and is
+used here as a worked example, never as a source of commits. Production moved
+on in the meantime: the app is at 1.71.1, instance migrations 079 to 083 are
+shipped, the frozen Postgres results plane is gone, and the indicator and
+population work landed. The reference branch cannot be merged (262 conflicting
+files, colliding migration numbers, and a second implementation of the
+results-runs close-out). Every ruling in §2 survives. The work breakdown in §4
+is new.
 
-**All work happens on the branch
-`tim-branch-restructure` — every commit of Phases 1–3, the docs, the rigs and
-the ops scripts — never on `main`. The single exception is the §0 hotfix, which
-was independent of the restructure and shipped on `main` first.** First written
-2026-08-19 from VISION_RESTRUCTURED_APP.md after a repo-only homework sweep
-(11 subsystem inventories, a completeness pass, a five-lens adversarial review
-and a second-round verification; the migration mechanism in D9 was EXECUTED
-in a throwaway postgres — Appendix A). **Rewritten 2026-08-19 after Tim's
-review, which ruled:** products are slide decks and reports ONLY (custom
-visualizations are not products; dashboards are dropped); existing custom
-visualizations and dashboards are DELETED on migration; every product chooses
-its own package, `follow_pinned` is dropped as a concept; figures stay as
-bundles and are updated per figure after a reattach; permissions are made
-permissive (the permission system will be rebuilt later — nothing new is
-designed here). Every decision is RULED — there are no open questions. §1
-lists the big ones; everything else follows. Where a ruling OVERRULES a
-standing SYSTEM ruling it says so.
+Two things the first attempt taught, which shape this plan:
 
-Vocabulary: **product** = a slide deck or a report; **folder** = the one flat
-organising level; **package** = results package (`runs` row + run dir; "run"
-stays the internal name); **pin** = the instance's pinned package; **scope** =
-the product's `admin_area_2` (NULL = national); **PackageScope** = the
+- **Delete last.** The first attempt deleted first and used the compiler as
+  the todo list. Nothing ran between its fourth and twentieth commits, and the
+  two behavioural defects it found were found on the last day. Here every
+  step ends with the app booting, and nothing is deleted until its
+  replacement works in dev.
+- **Gate first.** The read-only fleet dry-run was the gate left pending when
+  the first attempt stopped. Here it is step 2, and it runs against
+  production data before any product code is written.
+
+---
+
+## 0. How to work this plan
+
+One agent session per step. A fresh agent reads, in this order: `CLAUDE.md`,
+`SYSTEMS.md`, the SYSTEM file for each area the step names, §1 and §2 of
+this plan, §3 for the target shape, its own row in §4, and the build log in
+§9. Nothing else in this plan is required reading for a step.
+
+Rules that bind every step:
+
+- **The step ends green and booting.** `deno task typecheck`, `deno task
+  test`, `./validate_protocols`, and `./run` starting against the dev
+  database are the floor. A step that touches migrations also passes
+  `./validate_migrations`; one that touches the query engine also passes
+  `./validate_queries`. The step's own gates in §4 come on top.
+- **Touch only the surface the step names.** A typecheck error outside that
+  surface is reported, not fixed. A rename, a cleanup, or a deletion that the
+  step does not list waits for the step that does. The first attempt
+  produced 102-file commits this way.
+- **The reference is read, never cherry-picked.** Each step names the
+  reference commits and final-state files that show one worked answer. Read
+  them with `git show version2-reference:<path>`. Re-derive against
+  `version2`: the reference sits on a tree three weeks behind this one, and
+  `server/runs`, `server/run_query`, `lib/types` and `server/db` have all
+  changed since. Where the reference and this plan disagree, this plan
+  wins; where this plan and the code disagree, the code wins and the build
+  log records it.
+- **Docs move with the code.** `lint:systems` fails the typecheck when a file
+  is not claimed by exactly one SYSTEM manifest, so globs change in the step
+  that moves the file. Prose in the SYSTEM file for a changed contract is
+  rewritten in the same step, not deferred to step 10.
+- **Append to the build log (§9) before committing.** Every deviation from
+  §2 or §3, every fact the step found wrong in this plan, and every defect
+  found by running the app goes in the log with the step number and the
+  reason. The next agent reads the log first.
+- **One step per session, and the session stops at the step's end.** Do not
+  start the next step. Commit with a message that says why.
+- **Do not ship.** `./deploy_testing` ships the working tree; only steps 1
+  and 2 are safe to deploy on their own, and the runbook in §6 says when.
+
+Vocabulary: **product** = a slide deck or a report; **folder** = a node in
+the products tree (folders nest through `parent_id`; the root is `NULL`);
+**package** = results package (`runs` row plus run dir; "run" stays the
+internal name); **pin** = the instance's pinned package; **scope** = the
+product's `admin_area_2` (`NULL` = national); **PackageScope** = the
 client-side pair `{ runId, adminArea2 }` a product carries; **figure** = a
 `{ metricId, config }` rendered inside a product and stored as a
 `FigureBundle`; **preset** = a default visualization derived from a package's
 manifest (`deriveDefaultVisualizationsForModule`); **authoring context** =
-what an author needs FROM a package to build figures (metrics, modules,
-indicators, taxonomy, presets) — a pure function of the run dir.
+what an author needs from a package to build figures (metrics, modules,
+indicators, taxonomy, presets), a pure function of the run dir.
 
 ---
 
-## 0. Independent of this plan — a live data-loss bug found during homework
+## 1. Boundary: the product plane and the package read side
 
-`server/db_startup.ts:479-491` `cleanupOrphanedPresentationObjects` runs on
-EVERY boot for EVERY project:
-`DELETE FROM presentation_objects WHERE metric_id NOT IN (SELECT id FROM metrics)`.
-The project-DB `metrics` table is FROZEN since 2026-07-29 (no `INSERT INTO
-metrics` exists anywhere in `server/`/`lib/`; `addProject` no longer installs
-modules, `projects.ts:258-264`). On every restart of every instance a project
-created after 2026-07-29 (empty `metrics`) loses EVERY user-authored
-visualization, and an older project loses every visualization built on a
-metric newer than its frozen table. No serving path reads project-DB
-`metrics` or `modules` (readers: the two boot sweeps, two data transforms, the
-pg read plane `query_rig` alone imports, `synthesize_run`/`backfill_runs` —
-the closed rollout tools; `run_read.ts` reads `ctx.manifest.metrics`).
+SYSTEM_08 describes three planes: the instance plane (data in), the results
+plane (generation into an immutable package) and the project plane (what
+people build from a package). This plan replaces the project plane with
+products and touches the results plane only on its read and attach side.
 
-**Hotfix (needs your go; its own patch on `main`):** delete the four
-frozen-table boot steps in `db_startup.ts` — `cleanupOrphanedPresentationObjects`,
-`cleanupOrphanModules` (+ the now-orphan `uninstallModule` in
-`db/project/modules.ts`), and the `metrics_columns` + `module_definition`
-entries of `PROJECT_DATA_TRANSFORMS` (+ their two transform files). Since this
-plan DELETES every custom visualization at rollout anyway, the hotfix only
-protects users between now and the rollout — it is still destroying real work
-on every deploy until then, so it is worth its ten lines.
+**Untouched. No step names a file in any of these areas:** dataset
+ingestion (HMIS, HFA and ICEH
+wizards, staging and import workers, import runs, scheduled imports), the
+DHIS2 connector, the structure, facilities, indicators, population and
+geojson tables and routes, the instance Data tab, the package format
+(manifest, run dir, parquet, R execution, finalize) and the runs volume, the
+generation pipeline's inputs capture and execution, the `/mcp` door and its
+tools, the headless allowlist.
 
----
+**Touched outside the product plane, each because a project reference lives
+there, and each limited to removing that reference:**
 
-## 0b. Boundary — the plan lives in the product plane and the package READ side
-
-The three planes of SYSTEM_08 (instance plane = data in; results plane =
-generation into an immutable package; project plane = meaning): this plan
-REPLACES the project plane with products and touches the results plane only
-on its read/attach side.
-
-**Untouched — not one file named:** dataset ingestion (HMIS/HFA/ICEH wizards,
-staging/import workers, import runs, scheduled imports), the DHIS2 connector,
-the structure / facilities / indicators / calculated-indicators / geojson
-tables and routes, the instance Data tab, the package FORMAT (manifest, run
-dir, parquet, R execution, finalize) and the runs volume, the generation
-pipeline's inputs capture and execution, the `/mcp` door and tools, the
-headless allowlist.
-
-**Touched outside the product plane — each because a project reference lives
-there, each the minimum cut:**
-
-- Results-plane SEAM: the wizard's launch-time attach-to-projects feature
-  (`attachTargetProjectIds` in `generate_run/{launch,pipeline,types}.ts`, its
-  launch concurrency guard, `publishReadyRun`'s repoint, the wizard client's
-  attach-target step + confirm copy) is DELETED (D5); the catalogue's "in use
-  by" / delete guard count products; `runs.summary`'s two project keys are
-  stripped by a JSON transform (the catalogue row, never the package). Two
-  files in `generate_run/` change only IMPORT PATHS (`prepare_inputs.ts`,
-  `pipeline.ts`) because the input-capture helpers are relocated out of
-  `server/db/project/` (§2.10).
-- Package READ side: run-keyed figure-data reads gain a scope parameter and an
-  authoring-context route (D7).
-- Instance-level TABLES, only where a project column/FK exists: `users` loses
-  the 17 `default_project_*` columns + `can_create_projects`; `user_logs` /
-  `ai_usage_logs` / `user_logs_aggregate` lose `project_id`; `dashboard_slugs`
-  is dropped (dashboards die); `instance_config` gains `ai_context`.
-- Instance ops surfaces that were project features: health `/projects` +
-  `/project_activity` + the `projects` field of `/health_check`; the
-  per-project backup/restore routes; the project purge cron and the two
+- Results-plane seam: the wizard's launch-time attach-to-projects feature
+  (`attachTargetProjectIds` in `generate_run/{launch,pipeline,types}.ts` and
+  `build_run_package.ts`, its launch concurrency guard, `publishReadyRun`'s
+  repoint, the wizard client's attach-target step and confirm copy) is
+  deleted (D5). The catalogue's "in use by", the delete guard, and the new
+  package-prune UI (`instance_results_packages/_prune*.ts*`, which reads
+  `run.attachedProjects`) count products instead. `runs.summary`'s two
+  project keys are stripped by a JSON transform (the catalogue row, never the
+  package). `prepare_inputs.ts` and `pipeline.ts` change import paths only,
+  because the input-capture helpers move out of `server/db/project/` (§3.10).
+- Package read side: run-keyed figure-data reads gain a scope parameter and
+  an authoring-context route (D7).
+- Instance-level tables, only where a project column or FK exists: `users`
+  loses the 17 `default_project_*` columns and `can_create_projects`;
+  `user_logs`, `ai_usage_logs` and `user_logs_aggregate` lose `project_id`;
+  `dashboard_slugs` is dropped; `instance_config` gains `ai_context`.
+- Instance ops surfaces that were project features: health `/projects`,
+  `/project_activity` and the `projects` field of `/health_check`; the
+  per-project backup and restore routes; the project purge cron and the two
   project disk gates; the rename-email per-project sweep; the instance SSE
-  channel carries product lists (transport only); the public
-  `/api/d/:slug` mount and `routes/public/dashboard.ts` (dashboards die).
-- Access control: ONE new guard, `requireApprovedUser()`, used by the product
-  / figure-data / copilot / collab surface. `requireGlobalPermission()` and
-  every existing instance route keep their exact semantics (D2).
+  channel carries product lists (transport only); the public `/api/d/:slug`
+  mount and `routes/public/dashboard.ts`.
+- Access control: one new guard, `requireApprovedUser()`, used by the
+  product, figure-data, copilot and collab surface. `requireGlobalPermission()`
+  and every existing instance route keep their exact semantics (D2).
 
 ---
 
-## 1. The big decisions (ruled — overrule here, not later)
+## 2. The rulings (ruled; overrule here, not later)
 
-**D1 — Storage: one main DB, a `products` registry + per-type detail tables.**
-Per-project Postgres databases are deleted. Main gets `folders`, `products`
-(id, type ∈ {slide_deck, report}, label, folder_id, run_id NOT NULL,
-admin_area_2, created_by, created_at, last_updated) and per-type detail
-tables keyed by the same id with `ON DELETE CASCADE` (`slide_decks`+`slides`+
-`deck_versions`, `reports`+`report_versions`). Rejected: two independent
-tables each carrying folder/run/scope (every cross-type operation — list,
-folder move, delete-run guard, "in use by", id namespace — becomes a UNION).
-Rejected: keeping one hidden "workspace" project DB.
+**D1: Storage. One main DB, a `products` registry, per-type detail tables,
+nested folders.** Per-project Postgres databases are deleted. Main gets
+`folders` (with a nullable `parent_id` self-reference: an adjacency list, no
+stored path, no depth cap, acyclic by server enforcement), `products` (id,
+type in {slide_deck, report}, label, folder_id, run_id NOT NULL,
+admin_area_2, created_by, created_at, last_updated), and per-type detail
+tables keyed by the same id with `ON DELETE CASCADE` (`slide_decks` plus
+`slides` plus `deck_versions`; `reports` plus `report_versions`). Rejected:
+two independent tables each carrying folder, run and scope (every cross-type
+operation becomes a UNION); a hidden "workspace" project DB; flat folders
+(the first attempt ruled flat, built nested a day later, and the nested model
+is what its docs describe).
 
-**D2 — Permissions: permissive. No new design.** The whole permission system
-is rebuilt later; this plan designs NOTHING. The project tier dies with
+**D2: Permissions. Permissive. No new design.** The permission system is
+rebuilt later; this plan designs nothing. The project tier dies with
 projects (17 flags, 17 `default_project_*` mirrors, `project_user_roles`,
-`role`, `is_locked`, `is_central_reporting`, presets, 6 forms, 8 routes,
-`resolveProjectUserAccess`, per-family collab flags, ~20 client `canEdit`
-gates). The product surface (product/folder CRUD, figure-data reads, the
-authoring context, the ready-package list, the Explore tab's reads, the
-copilot `/ai` + `/ai/files` mounts, the collab socket, the products filter on
-the instance SSE) is guarded by **`requireApprovedUser()`** — signed in AND
-`globalUser.approved` (server `approved` = `_OPEN_ACCESS || !!usersRow`,
-`project_auth.ts:228`; today the zero-perm `requireGlobalPermission()` never
-checks `approved`, `server/middleware/userPermission.ts:71-93`, and the
-project path was the only place approval was enforced, `project_auth.ts:262`).
-Nothing else changes: the six instance flags (`can_configure_users`,
-`can_view_users`, `can_view_logs`, `can_configure_settings`,
-`can_configure_data`, `can_view_data`; `can_create_projects` dropped) keep
-guarding exactly the surfaces they guard today; package INTERNALS
-(`getRunDetail`, script/logs/files viewers, the `/:run_id/outputs/*` mount,
-the catalogue, generation, pin) keep `can_view_data` / `can_configure_data`;
-the `/mcp` door keeps its `can_view_data` check (`server/mcp/context_cache.ts:
-246-255`) — its comment (which says the run-keyed routes enforce the bit) is
-rewritten as load-bearing. Every approved user is a full editor of every
-product; `products.created_by` is recorded so a later owner/sharing model has
-its join key; `RoomConn.canEdit` plumbing is kept (TRUE) so a later model
-slots in per subscribe. Consequences accepted and named (the D13 dry-run
-reports them per instance so the blast radius is known BEFORE deploy): former
-project viewers become editors; `is_central_reporting` projects — hidden from
-non-H users today (`routes/instance/users.ts:97`, `db/instance/instance.ts:333`)
-— become ordinary visible folders unless emptied by hand before rollout
-(D11); `sendSlideDeckEmail`'s recipient roster becomes the instance roster.
-Doctrine for SYSTEM_01: the product id in the path IS the authority; a future
-permission scheme must be a product-aware guard, never per-handler checks.
+`role`, `is_locked`, `is_central_reporting`, the permission-preset sets, 6
+forms, 8 routes,
+`resolveProjectUserAccess`, per-family collab flags, around 20 client
+`canEdit` gates). The product surface (product and folder CRUD, figure-data
+reads, the authoring context, the ready-package list, the Explore tab's
+reads, the copilot `/ai` and `/ai/files` mounts, the collab socket, the
+products filter on the instance SSE) is guarded by **`requireApprovedUser()`**:
+signed in AND `globalUser.approved` (server `approved` = `_OPEN_ACCESS ||
+!!usersRow` in `project_auth.ts`; today the zero-perm
+`requireGlobalPermission()` never checks `approved`, and the project path was
+the only place approval was enforced). Nothing else changes: the six instance
+flags (`can_configure_users`, `can_view_users`, `can_view_logs`,
+`can_configure_settings`, `can_configure_data`, `can_view_data`;
+`can_create_projects` dropped) keep guarding exactly the surfaces they guard
+today; package internals (`getRunDetail`, script, logs and files viewers, the
+`/:run_id/outputs/*` mount, the catalogue, generation, pin) keep
+`can_view_data` / `can_configure_data`; the `/mcp` door keeps its
+`can_view_data` check in `server/mcp/context_cache.ts`, and the comment
+above that check, which today says the run-keyed routes enforce
+`can_view_data`, is rewritten to say that this check is now the only place
+it is enforced. Every approved user is a full editor of every product;
+`products.created_by` is recorded so a later owner or sharing model has its
+join key; `RoomConn.canEdit` plumbing is kept (TRUE) so a later model slots
+in per subscribe. Consequences accepted and named (the D13 dry-run reports
+them per instance so the blast radius is known before deploy): former
+project viewers become editors; `is_central_reporting` projects, hidden from
+non-H users today, become ordinary visible folders unless emptied by hand
+before rollout (D11); `sendSlideDeckEmail`'s recipient roster becomes the
+instance roster. Doctrine for SYSTEM_01: the product id in the path IS the
+authority; a future permission scheme must be a product-aware guard, never
+per-handler checks.
 
-**D3 — A visualization is a figure inside a product; there are no
+**D3: A visualization is a figure inside a product. There are no
 visualization products and no dashboards.** A figure is `{ metricId, config }`
-resolved under its product's PackageScope through the ONE metric-keyed
+resolved under its product's PackageScope through the one metric-keyed
 resolver (`resolveBundleFromMetricAndConfig(scope, metric, config)`) and
 stored as a `FigureBundle`. It is authored from the product's own run's
-PRESETS (the default visualizations `deriveDefaultVisualizationsForModule`
+presets (the default visualizations `deriveDefaultVisualizationsForModule`
 derives from the manifest) or from scratch via the metric wizard
-(`add_visualization/` steps metric → preset → configure), and edited in place
-with the embedded `VisualizationEditor` — which is ALREADY how every container
-works (`slide_editor/index.tsx:807,922`, `report/index.tsx:1191,1225`; in-slide
-figure co-editing binds to the SLIDE doc, `slide_editor/index.tsx:782-790`,
-never to a PO room). Deleted: the standalone visualization product (rows,
-list, cards, folders, settings, duplicate, save-as-new,
-`create_slide_from_visualization`, the "pick a visualization" pickers, both
-from-visualization resolvers, PO collab rooms + the `po_*` wire protocol, PO
-presence, the `editing_visualization` view and its tools, `DraftVisualizationPreview`,
-the PO detail route/cache), and dashboards whole (tables, `dashboard_slugs`,
+(`add_visualization/` steps metric, preset, configure), and edited in place
+with the embedded `VisualizationEditor`. Editing in place is already how
+every container works (in-slide figure co-editing binds to the slide doc,
+never to a PO room). Deleted: the standalone visualization product (rows, list, cards,
+folders, settings, duplicate, save-as-new, `create_slide_from_visualization`,
+the "pick a visualization" pickers, both from-visualization resolvers, PO
+collab rooms and the `po_*` wire protocol, PO presence, the
+`editing_visualization` view and its tools, `DraftVisualizationPreview`, the
+PO detail route and cache), and dashboards whole (tables, `dashboard_slugs`,
 `/api/d/:slug`, `public_viewer/`, `components/dashboards/`, replicant-group
 resolution, the three dashboard exports, the slug backfill). **Existing
-custom visualizations and dashboards fleet-wide are DELETED by the
-consolidation — not converted (your ruling).** Consequences named: there is
+custom visualizations and dashboards fleet-wide are deleted by the
+consolidation, not converted (Tim's ruling).** Consequences named: there is
 no figure library (reuse = `duplicateSlides` within a deck, deck duplicate,
-and the new `copySlidesToDeck`, §2.3); there is no unauthenticated surface
-left (dashboards were the only public URL; decks email a PDF, reports
-download — a "public deck link" is a later, far smaller feature if wanted);
-the Explore tab (D6) is the only standalone place to look at a chart.
+and the new `copySlidesToDeck`, §3.3); there is no unauthenticated surface
+left (dashboards were the only public URL; a deck reaches recipients as an
+emailed PDF, and a report is downloaded by the signed-in user; a public deck
+link is a later, far smaller feature if wanted); the
+Explore tab (D6) is the only standalone place to look at a chart.
 `PresentationObjectConfig` stays the figure-config type name (renaming the PO
-vocabulary is a separate refactor — §8).
+vocabulary is a separate refactor, §8).
 
-**D4 — Run and scope are CAPTURED into the FigureBundle; staleness is per
-figure.** `figureBundleSchema` gains required `scope: { adminArea2: string |
-null }` and `provenance.runId: string`. A figure is STALE when
+**D4: Run and scope are captured into the FigureBundle. Staleness is per
+figure.** `figureBundleSchema` gains `scope: { adminArea2: string | null }`
+and `provenance.runId: string`. A figure is stale when
 `bundle.provenance.runId !== product.runId || bundle.scope.adminArea2 !==
-product.adminArea2`. A stale figure shows an "Update to <package label>"
-button (slide figure blocks, report figure embeds, the deck/report headers
-get "Update all figures" with a count); pressing it re-resolves
+product.adminArea2`. A stale figure shows an "Update to [package label]"
+button (slide figure blocks, report figure embeds; the deck and report
+headers get "Update all figures" with a count). Pressing it re-resolves
 `{ metricId, config }` under the product's current pair through the
-product-run's authoring context; a failure shows the reason ON THAT FIGURE
-(`issueFor`: metric absent → metric unavailable → requested disaggregation
-missing, moved from `package_compatibility.ts:44-80` to `lib/`, manifest-only)
-and leaves the old bundle in place. A stored replicant value missing under
-the new run is auto-defaulted (today's non-strict rule,
-`resolve_figure_from_visualization.ts:40-44`), never a throw. Reattach and
-scope change NEVER block and have no pre-flight: `buildResultsPackageCompatibilityReport`
-+ `results_package_compatibility_modal.tsx` are deleted. Mixed-package
-products are a visible, intentional state (Q2 figures kept deliberately next
-to Q3 figures). `getRollupRowLabel` (`get_data_config_from_po.ts:103-120`)
-reads `bundle.scope`, never a global store — this also fixes the live hole
-where exports of an AA2 project's figure label the roll-up row "National"
-outside a project shell. The consolidation stamps both fields from the owning
-project row into every figure block in the LIVE tables (slides, reports) AND
-the version snapshots (`report_versions.figures`, `deck_versions.slides[].config`
-— the restore paths run `transformFigureBlock` on snapshots at read time,
-`versions.ts:59-79`, then parse with the current strict schema; scope/runId
-cannot be derived there, so 080 stamps them and the restore hook must NOT
-default them — a missing key is the intended fail-loud). Scope stays OUT of
-the figure config / fetch hash (S9/S10 rule).
+product-run's authoring context. A failure shows the reason on that figure
+(`figurePackageIssueFor`: metric absent, then metric unavailable, then
+requested disaggregation missing; manifest-only, in `lib/`) and leaves the
+old bundle in place. A stored replicant value missing under the new run is
+auto-defaulted (today's non-strict rule), never a throw. Reattach and scope
+change never block and have no pre-flight:
+`buildResultsPackageCompatibilityReport` and
+`results_package_compatibility_modal.tsx` are deleted. Mixed-package products
+are a visible, intentional state. `getRollupRowLabel` reads `bundle.scope`,
+never a global store (the first attempt's first behavioural defect: an
+export of an AA2 product's figure labelled its roll-up row "National"). The
+consolidation stamps both fields from the owning project row into every
+figure block in the live tables (slides, reports) AND the version snapshots
+(`report_versions.figures`, `deck_versions.slides[].config`); the restore
+paths parse snapshots with the strict schema, so a missing key is the
+intended fail-loud once the consolidation has run. Scope stays OUT of the
+figure config and the fetch hash (the S9/S10 rule). **Sequencing (new in
+this pass):** the two fields are added to the schema as optional in step 4
+and captured on every write from then on; step 9b's consolidation stamps
+every stored bundle and flips both to required in the same commit. Between
+those steps the stale predicate treats a missing field as "not stale".
 
-**D5 — Run pointer per product: `run_id NOT NULL`, no follow.** A product is
-attached to exactly one package; `follow_pinned` is DELETED as a concept
-(OVERRULES the SYSTEM_08 follower model for products: pin-move touches no
-product row; `listFollowPinnedProjects`, `clearFollowPinnedIfNotPin`,
-`setProjectFollowPinnedAndAlign`, the follower loop / `supersededMidway` /
-`skippedLocked`, the follow toggle all die). The pin serves exactly three
-things: the `/mcp` door, the Explore tab's default package (D6), and the
-DEFAULT `run_id` for a NEW product (resolved server-side inside the insert
-from `runs WHERE pinned`; creating a product requires a ready pin — zero ready
-packages ⇒ "an admin must generate a results package" with a link to Results
-for `can_configure_data`). The Q2→Q3 workflow: duplicate the product (clones
-`(run_id, admin_area_2)` verbatim), reattach the duplicate in product
-settings, update figures one by one or all (D4). Wizard launch-time attach
-targets are DELETED — a generation produces a package; products point at it
-afterwards. Delete guard + catalogue "in use by" count `products.run_id` by
-type. Consolidation: decks/reports of a project whose `run_id IS NULL` are
-attached to the instance's pin (their bundles still render; badges show
-stale); an instance with such projects and NO pin is a dry-run FAIL (pin
-one first).
+**D5: Run pointer per product. `run_id NOT NULL`, no follow.** A product is
+attached to exactly one package; `follow_pinned` is deleted as a concept
+(this overrules the SYSTEM_08 follower model for products: pin-move touches
+no product row; `listFollowPinnedProjects`, `clearFollowPinnedIfNotPin`,
+`setProjectFollowPinnedAndAlign`, the follower loop, `supersededMidway`,
+`skippedLocked` and the follow toggle all die). The pin serves exactly three
+things: the `/mcp` door; the Explore tab's default package (D6); and the
+default `run_id` for a new product, resolved server-side inside the insert
+from `runs WHERE pinned AND status = 'ready'`. Creating a product therefore
+requires a ready pin. With zero ready packages the UI says "An admin must
+generate a results package", with a link to Results for users holding
+`can_configure_data`. The Q2 to Q3
+workflow: duplicate the product (clones `(run_id, admin_area_2)` verbatim),
+reattach the duplicate in product settings, update figures one by one or all
+(D4). Wizard launch-time attach targets are deleted: a generation produces a
+package; products point at it afterwards. Delete guard, catalogue "in use
+by" and the prune UI count `products.run_id` by type. Consolidation: decks
+and reports of a project whose `run_id IS NULL` are attached to the
+instance's pin (their bundles still render; badges show stale); an instance
+with such projects and no pin is a dry-run FAIL (pin one first).
 
-**D6 — Explore tab: the pinned package's default visualizations, standalone.**
-A new instance tab **Explore** (`components/explore/`, approved users) renders
-the metric → preset gallery (the `add_visualization/` module sidebar + metric
-cards + preset preview, reused as a page) for an EPHEMERAL `(package, scope)`
-— package Select prefilled with the pin, scope picker default national,
-neither persisted — with a "Configure" (opens the embedded editor
-ephemerally) and an "Add to deck / report…" action (creates a slide / report
-figure under the TARGET product's pair, re-resolving there — the
-`AddToDeckModal` idiom). Presets are not products: no rows, no detail read;
-they render through the run-keyed ITEMS read with their own config. The
-virtual-defaults half of `getAllPresentationObjectsWithVirtualDefaults` and
-`findVirtualDefault` (`run_read.ts:750-771`) die; `deriveVirtualDefaults(manifest)`
-serves `getRunAuthoringContext.presets`. This is also where approved users
-browse metrics and their definitions (the project Metrics tab was
-`can_view_metrics`; the Results tab is `can_configure_data`-only,
-`instance/index.tsx:416`) — `metric_details_modal.tsx` moves here.
+**D6: Explore tab. The pinned package's default visualizations, standalone.**
+A new instance tab **Explore** (`components/explore/`, approved users)
+renders the metric and preset gallery (the `add_visualization/` module
+sidebar, metric cards and preset preview, reused as a page) for an ephemeral
+`(package, scope)`: package Select prefilled with the pin, scope picker
+default national, neither persisted. It has a "Configure" action (opens the
+embedded editor ephemerally) and an "Add to deck / report…" action (creates a
+slide or report figure under the target product's pair, re-resolving there;
+the `AddToDeckModal` idiom). Presets are not products: no rows, no detail
+read; they render through the run-keyed items read with their own config.
+The virtual-defaults half of `getAllPresentationObjectsWithVirtualDefaults`
+and `findVirtualDefault` (`server/run_query/virtual_defaults.ts`) die;
+`deriveVirtualDefaults(manifest)` serves `getRunAuthoringContext.presets`.
+The Explore tab is also where approved users browse metrics and their
+definitions (the
+project Metrics tab was `can_view_metrics`; the Results tab is
+`can_configure_data`-only); `metric_details_modal.tsx` moves here.
 
-**D7 — Data reads: ONE run-keyed mount, caller supplies `(runId, adminArea2)`.**
-Delete the project lens (`getRunReadContext(mainDb, projectId)` and its
-callers, `routes/project/{presentation_objects data half, modules}.ts`,
-`getCacheStatus`). Extend `getRunPresentationObjectItems` /
-`getRunResultsValueInfo` bodies with nullable `adminArea2`; add
+**D7: Data reads. One run-keyed mount; the caller supplies `(runId,
+adminArea2)`.** Delete the project lens (`getRunReadContext(mainDb,
+projectId)` and its callers, `routes/project/{presentation_objects data half,
+modules}.ts`, `getCacheStatus`). Extend `getRunPresentationObjectItems` and
+`getRunResultsValueInfo` with nullable `adminArea2`; add
 `getRunReplicantOptions`, `getRunResultsObjectItems`, and
-**`getRunAuthoringContext(run_id)`** → `{ modules, metrics (MetricWithStatus =
-ResultsValue & status), datasets, commonIndicators, icehIndicators,
-hfaTaxonomy (WITHOUT time points — instance T1, `run_read.ts:422-426`),
-presets }` — the manifest projection `getProjectDetail` builds today
-(`db/project/projects.ts:75-101`), derived from the run dir ONLY so the
-client cache is immutable by identity. Guard `requireApprovedUser()`; the
-DATA reads additionally require `runs.status = 'ready'`. `adminArea2` is
-shape-validated + `escapeSqlString`'d exactly as today. Valkey keys keep
-`runId` as the LEADING uniqueness segment (`delete_run.ts:63-74` prefix
-sweep) and `scopeToken` trailing so `PO_CACHE_VERSION` needs no bump. The
-headless allowlist stays byte-identical (nullable field; `/mcp` keeps
-national). There is no PO detail route: the only per-id detail reads are
-`getSlideDeckDetail` / `getSlide` / `getReportDetail`.
+**`getRunAuthoringContext(run_id)`** returning `{ modules, metrics
+(MetricWithStatus = ResultsValue & status), datasets, commonIndicators,
+icehIndicators, hfaTaxonomy (without time points; those are instance T1),
+presets }`. This is the same manifest projection `getProjectDetail` builds
+today in `db/project/projects.ts`. It is derived from the run dir alone, so
+its value never changes for a given `runId` and the client caches it by that
+id without revalidating. Guard `requireApprovedUser()`; the data reads
+additionally require `runs.status = 'ready'`. `adminArea2` is
+shape-validated and `escapeSqlString`'d exactly as today. Valkey keys keep
+`runId` as the leading uniqueness segment (the `delete_run.ts` prefix sweep)
+and `scopeToken` trailing, so `PO_CACHE_VERSION` needs no bump. The headless
+allowlist stays byte-identical (nullable field; `/mcp` keeps national). There
+is no PO detail route: the only per-id detail reads are `getSlideDeckDetail`,
+`getSlide` and `getReportDetail`.
 
-**D8 — Realtime: ONE instance SSE channel, ONE instance collab socket.** The
+**D8: Realtime. One instance SSE channel, one instance collab socket.** The
 project channel (`project-sse-v2.ts`, `notify_project_v2.ts`,
 `build_project_state.ts`, `project_last_updated.ts`, `lib/types/project_sse.ts`,
 client `state/project/t1_*`) is deleted. `InstanceState` gains `products:
 ProductSummary[]`, `folders: Folder[]`, `readyPackages: { id, label, createdAt
-}[]` (ready-package LABELS are approved-user data — a deliberate revision of
-SYSTEM_03's Q-B "run labels must not fan out", which now covers generation
-telemetry only) and `lastUpdated: { products, slides }`; all withheld from
-unapproved connections by the existing roster rule. `products_upserted {
-products }` is the ONLY product-list message (per-row); `products_deleted {
-ids }`; `folders_updated` whole-list; `last_updated` is emitted for `slides`
-only; `starting` carries the full lists. The unapproved→approved transition:
-on `currentUserApproved` false→true the client `reconnectForApproval()`
-(instance SSE disconnect/connect + collab connect); `deleteUser` calls
-`closeConnectionsForEmail`. The run-derived catalog leaves SSE
-(`run_attached`, `admin_area_2_changed`, `project_config_updated` die) for the
-immutable T2 `getRunAuthoringContext(runId)`. Collab: `GET /collab` (was
-`/project_collab/:project_id`), auth = origin + Clerk + approved, rooms keyed
-`docType::docId` for `slide` and `report` only (`po_rooms.ts` + `po_*`
-messages deleted), presence keyed by PRODUCT; the project-level
+}[]` (ready-package labels are approved-user data: a deliberate revision of
+SYSTEM_03's Q-B "run labels must not fan out", which narrows Q-B to
+generation telemetry only) and `lastUpdated: { products, slides }`; all
+withheld from unapproved connections by the existing roster rule.
+`products_upserted { products }` is the only product-list message (per
+row); `products_deleted { ids }`; `folders_updated` whole-list;
+`last_updated` is emitted for `slides` only; `starting` carries the full
+lists. When `currentUserApproved` goes from false to true, the client calls
+`reconnectForApproval()`, which disconnects and reconnects the instance SSE
+and connects collab; `deleteUser` calls `closeConnectionsForEmail`. The
+run-derived
+catalog leaves SSE (`run_attached`, `admin_area_2_changed`,
+`project_config_updated` die) for the immutable T2
+`getRunAuthoringContext(runId)`. Collab: `GET /collab` (was
+`/project_collab/:project_id`), auth = origin plus Clerk plus approved, rooms
+keyed `docType::docId` for `slide` and `report` only (`po_rooms.ts` and the
+`po_*` messages deleted), presence keyed by product; the project-level
 page-awareness relay, list-page cursors and card presence avatars are
-dropped. The server-cli nginx template becomes PATH-AGNOSTIC and is emitted
-fleet-wide BEFORE the deploy. `runVersionKey` becomes cache PARAMS `(runId,
-scopeToken)`; `pdsNotRequired`/`pds_not_ready` and `responseRunVersionMatches`
-die; the server `_PO_DETAIL_CACHE` is DELETED; the three run-keyed Valkey
-caches are untouched; client IndexedDB cache NAMES are kept (the deploy flush
-clears every non-AI key on version change). Per-browser AI residue (`ai-conv*`
-scoped by old project ids, `ai-documents/<projectId>`,
-`panther-ai-settings-{projectId}`, old `projectTab`/sort localStorage keys)
-is ACCEPTED, not migrated.
+dropped. The server-cli nginx template becomes path-agnostic and is emitted
+fleet-wide before the deploy. `runVersionKey` becomes cache params `(runId,
+scopeToken)`; `pdsNotRequired`, `pds_not_ready` and
+`responseRunVersionMatches` die; the server `_PO_DETAIL_CACHE` is deleted;
+the three run-keyed Valkey caches are untouched; client IndexedDB cache names
+are kept (the deploy flush clears every non-AI key on version change).
+Per-browser AI residue (`ai-conv*` scoped by old project ids,
+`ai-documents/<projectId>`, `panther-ai-settings-{projectId}`, old
+`projectTab` and sort localStorage keys) is accepted, not migrated.
 
-**D9 — Migration mechanism: tracked, ordered, transactional.**
-`server/db/migrations/runner.ts` learns to apply `.ts` migrations beside
-`.sql`: a literal-keyed static import map (so `deno check main.ts` covers
-them), id = filename minus extension, sorted together, same
-`schema_migrations` row, same one-transaction rule; a `.ts` migration THROWS
-(never exits) so the runner's rollback + fail-stop is the single funnel; EVERY
-main-DB statement in it (and every helper it calls) goes through the
-migration `tx`; source project pools are read-only, opened fresh
-(`getPgConnection(uuid, {max: 2})`, `.end()` in `finally`,
-`rename_user_email.ts:170-176` precedent) after a `pg_database` existence
-check through `tx`. `validate_migrations` globs `*.sql` and ignores them by
-construction. Then:
+**D9: Migration mechanism. Tracked, ordered, transactional, and numbered
+after what has shipped.** `server/db/migrations/runner.ts` gains `.ts`
+migration support beside `.sql`. The rules: a literal-keyed static import
+map, so `deno check main.ts` covers every migration module; id = filename
+minus extension; `.sql` and `.ts` sorted together; the same
+`schema_migrations` row and the same one-transaction rule. A `.ts` migration
+throws and never exits, so the runner's rollback and fail-stop stays the
+single funnel. Every main-DB statement in a `.ts` migration, and in every
+helper it calls, goes through the migration `tx`. Source project pools are
+opened fresh and read-only (`getPgConnection(uuid, {max: 2})`, `.end()` in
+`finally`, the `rename_user_email.ts` precedent) after a `pg_database`
+existence check through `tx`. `validate_migrations` globs `*.sql` and
+ignores `.ts` files by construction. Instance migrations 079 to 083 are
+shipped, so the numbers below assume 084 is the next free one when step 1
+lands; if another migration lands first, take the next free number and
+record it in §9.
 
-- `000_legacy_project_shell.sql` — `CREATE TABLE IF NOT EXISTS` for
-  `projects` (the FULL pre-restructure DDL — 080 SELECTs these columns and
-  runs on a fresh DB too) and `project_user_roles` (+ its two indexes), PLUS
-  `ALTER TABLE … ADD COLUMN IF NOT EXISTS project_id text` on `user_logs`,
-  `ai_usage_logs`, `user_logs_aggregate` (no FK): the base no longer has
-  them, but 016's and 035's index STATEMENTS must resolve after their `CREATE
-  TABLE IF NOT EXISTS` no-op (Postgres resolves the index expression before
-  the IF-NOT-EXISTS name check — verified, Appendix A). Verbatim text in
-  Appendix A; unchanged by the rewrite.
-- `079_products.sql` — DDL identical to the new `_main_database.sql` (§2.1;
-  SMALLER than the first draft: no `presentation_objects`, no dashboard
-  tables — the Appendix A harness must be RE-RUN with this DDL, §4).
-- **`080_consolidate_projects.ts`** — one main transaction. For each
-  `main.projects` row with `status = 'ready'` (skip `copying`; skip rows whose
-  DB is absent; D11 for `pending_deletion`): assert the source
-  `schema_migrations` holds `039_metric_format_as_indicator` else throw
-  ("boot the previous release first"); copy `slide_decks`, `slides`,
-  `deck_versions`, `reports`, `report_versions` stamping `run_id` (the
-  project's, else the pin — D5) / `admin_area_2` from the project row; folders
-  per D10; `created_by` / `created_at` NULL (no invented provenance);
-  `ai_context` concatenated into `instance_config.ai_context` under `##
-  <label>` headings (D15); **collision check on EVERY primary key inserted**
-  (`products`, `slides`, `report_versions`, `deck_versions` — WITH-TEMPLATE
-  copies carry byte-identical ids, uuids included) — re-mint on collision and
-  rewrite the full reference surface (`slides.slide_deck_id`,
-  `deck_versions.deck_id` + `slides[].id` + `slide_editors` keys JSON,
-  `report_versions.report_id`, `*.restored_from_version_id`); stamp
-  `bundle.scope` / `provenance.runId` into every figure block in live AND
-  version tables (D4). `presentation_objects`, `visualization_folders`,
-  `dashboards`, `dashboard_items`, `dashboard_item_groups` are NOT read
-  (deleted with the project DBs — your ruling; the dry-run reports their
-  counts so the loss is known, not discovered).
-- `081_drop_project_layer.sql` — NEVER `DELETE FROM projects` (its `ON DELETE
-  CASCADE` children would wipe the logs); `DROP COLUMN IF EXISTS project_id`
-  on the three log tables; rebuild `idx_user_logs_aggregate_unique`
-  byte-identically WITHOUT the COALESCE term after a guarded DO-block merges
+- `084_products.sql` (step 1): the §3.1 DDL in `CREATE ... IF NOT EXISTS`
+  form, additive, including `folders.parent_id`. Nothing reads these tables
+  until step 5. Safe to ship on its own.
+- `000_legacy_project_shell.sql` (authored in step 2, activated in 9b):
+  `CREATE TABLE IF NOT EXISTS` for `projects` (the full pre-restructure DDL;
+  085 SELECTs these columns and runs on a fresh DB too) and
+  `project_user_roles` (plus its two indexes), PLUS `ALTER TABLE ... ADD
+  COLUMN IF NOT EXISTS project_id text` on `user_logs`, `ai_usage_logs`,
+  `user_logs_aggregate` (no FK). The base no longer has those columns, but
+  migrations 016 and 035 create indexes over `project_id`; when their
+  `CREATE TABLE IF NOT EXISTS` does nothing on an existing table, Postgres
+  still resolves the index expression, so the column must be present
+  (verified, Appendix A).
+- **`085_consolidate_projects.ts`** (authored in step 2, activated in 9b).
+  For each `main.projects` row with `status = 'ready'` (skip `copying`; skip
+  rows whose DB is absent; D11 for `pending_deletion`) it does the following,
+  in one main transaction:
+  1. Assert the source `schema_migrations` holds the latest project
+     migration id, today **`041_drop_frozen_results_plane`**, else throw
+     ("boot the previous release first").
+  2. Copy `slide_decks`, `slides`, `deck_versions`, `reports` and
+     `report_versions`, stamping `run_id` (the project's, else the pin; D5)
+     and `admin_area_2` from the project row.
+  3. Create folders per D10.
+  4. Leave `created_by` and `created_at` NULL (no invented provenance).
+  5. Concatenate `ai_context` into `instance_config.ai_context` under
+     `## <label>` headings (D15).
+  6. **Check every inserted primary key for collision** (`products`,
+     `slides`, `report_versions`, `deck_versions`; WITH-TEMPLATE copies carry
+     byte-identical ids, uuids included). Re-mint on collision and rewrite
+     the full reference surface: `slides.slide_deck_id`,
+     `deck_versions.deck_id` plus `slides[].id` plus the `slide_editors`
+     keys JSON, `report_versions.report_id`, `*.restored_from_version_id`.
+  7. Stamp `bundle.scope` and `provenance.runId` into every figure block in
+     the live tables AND the version tables (D4).
+
+  `presentation_objects`, `visualization_folders`, `dashboards`,
+  `dashboard_items` and `dashboard_item_groups` are not read. They are
+  deleted with the project DBs; the dry-run reports their counts before the
+  deploy, so the loss is quantified in advance.
+- `086_drop_project_layer.sql` (authored in step 2, activated in 9b): never
+  `DELETE FROM projects` (its
+  `ON DELETE CASCADE` children would wipe the logs); `DROP COLUMN IF EXISTS
+  project_id` on the three log tables; rebuild `idx_user_logs_aggregate_unique`
+  byte-identically without the COALESCE term after a guarded DO-block merges
   aggregate rows that differ only by `project_id`; then `DROP TABLE IF EXISTS
-  dashboard_slugs, project_user_roles, projects` WITHOUT CASCADE; `DROP COLUMN
-  IF EXISTS users.default_project_*` ×17 and `users.can_create_projects`.
-  Verbatim text in Appendix A; unchanged by the rewrite.
+  dashboard_slugs, project_user_roles, projects` without CASCADE; `DROP COLUMN
+  IF EXISTS users.default_project_*` times 17 and `users.can_create_projects`.
+  Verbatim text in Appendix A.
 
-The product JSON transforms then run once on main as `INSTANCE_DATA_TRANSFORMS`
-on the same boot (signature `(tx, countryIso3)`; they bump
-`products.last_updated` through the join; `dashboard_config` /
-`dashboard_items` / `po_config` / `metrics_columns` / `module_definition`
-transforms are DELETED, not moved; `slide_config` + `reports` +
-`_figure_block` survive). Old project databases are LEFT IN PLACE (rollback
-path) and dropped later by an ops script (D12). Rejected: a TEMPORARY
-`db_startup` step; dblink-in-SQL; guarding the old migrations.
+The surviving product JSON transforms (`slide_deck_config`, `slide_config`,
+`reports`, plus the shared `_figure_block`) then run once on main as
+`INSTANCE_DATA_TRANSFORMS` on the same boot (signature `(tx, countryIso3)`;
+they bump `products.last_updated` through the join). `po_config`,
+`dashboard_config` and `dashboard_items` transforms are deleted, not moved.
+Old project databases are left in place (rollback path) and dropped later by
+an ops script (D12). Rejected: a temporary `db_startup` step; dblink-in-SQL;
+guarding the old migrations.
 
-**D10 — Folders on migration: one per project, plus one per legacy
-sub-folder.** Products of project P with no sub-folder → folder "P"; products
-in P's deck/report sub-folder F → folder "P / F" — same-label sub-folders
-across the two families MERGE into one "P / F" folder (lossless). Rejected:
-dropping the sub-folders; a data-conditional "single-project instances get no
-folder" rule.
+**D10: Folders on migration. One per project, with legacy sub-folders as
+children.** Products of project P with no sub-folder go into a root folder
+"P"; products in P's deck or report sub-folder F go into a child folder "F"
+under "P". Same-label deck and report sub-folders of one project merge into
+one child (lossless). Rejected: dropping the sub-folders; a data-conditional
+"single-project instances get no folder" rule; the first attempt's flat
+"P / F" label concatenation, which nesting makes unnecessary.
 
-**D11 — `pending_deletion` projects are NOT migrated; central-reporting
+**D11: `pending_deletion` projects are not migrated; central-reporting
 projects are migrated as ordinary folders.** The dry-run (D13) lists both
 classes per instance; the runbook step before rollout is "restore any
 pending-deletion project that must survive; delete or empty any
 central-reporting project that must not become visible to every approved
-user". Products themselves have hard delete, no trash — with a
+user". Products themselves have hard delete, no trash, with a
 confirm-by-count on the batch action and the daily named main-DB dump as the
 recovery path (a products trash is §8).
 
-**D12 — Delete, don't port.** Backups (the 4 `requiresProject` routes, the
-restore body, the settings-page backups panel, `create_backup_form`,
-`restore_from_file_form`, `can_create/restore_backups`) — instance backups
-stay a status-api/volume concern; `copyProject` (+ `WITH TEMPLATE`),
-soft-delete + purge cron + `pending_deletions.tsx`, lock, central reporting +
-every H_USERS project branch, `compareProjects` + `compare_projects.tsx`,
-`getCacheStatus` + `project_cache.tsx`, `getProjectLogs` + `project_logs.tsx`,
-`routes/project/{results_package,modules,project,cache_status,
-presentation_objects,visualization_folders,dashboards}.ts` + their
-registries, `attach_run.ts`, `package_compatibility.ts` (server report),
-per-project disk gates, `getMyProjects` / `getProjectsForUser` /
-`getOtherUser.projectUserRoles`, the pg read plane (`results_value_resolver.ts`,
-`metric_enricher.ts` minus three survivors, `get_indicator_metadata.ts`, the
-pg wrappers, the dead `db/utils.ts` probes), `backfill_runs.ts`,
-`validate_results_runs_parity.ts`, `synthesizeRunForProject` and the
-project-DB branch of `exportPgTableToParquet` (NOT the whole
-`runs/synthesize_run.ts` / `runs/pg_export.ts` files — `buildRunPackageIntoTmp`,
-`readCsvHeaders` and `exportRowsToParquet` are called by the LIVE generation
-pipeline), `validate_figure_bundle_backfill.ts`, `rollout_fleet` / `rollout_backfill` /
-`rollout_nigeria` + their Dockerfile COPY lines, the ~20 project-page tours,
-`_project_database.sql` + the 41 project migration files + the runner's
-project mode + `validate_migrations`' project half. **Visualization plane:**
-`db/project/{presentation_objects,visualization_folders}.ts`, `server/collab/
-po_rooms.ts`, `lib/types/{presentation_objects,visualization_folders}.ts`,
-`lib/collab/figure_config_crdt.ts` PO half (the slide-figure map half
-survives), `routes/caches/visualizations.ts`, client `components/visualization/
-{index,visualization_settings,duplicate_visualization,save_as_new_visualization_modal,
-create_slide_from_visualization_modal}.tsx`, `select_visualization_for_slide.tsx`,
-`PresentationObjectMiniDisplay` (if orphaned), both `resolve_figure_from_visualization.ts`,
-`state/project/t2_presentation_objects.ts` detail half, `project_visualizations.tsx`,
-the viz tours, `ai_tools/tools/{visualizations.ts,visualization_editor.tsx}`,
-`DraftVisualizationPreview.tsx`. **Dashboards:** `db/project/dashboards.ts`,
-`db/instance/dashboard_slugs.ts`, `routes/public/dashboard.ts`,
-`lib/types/{dashboard,_dashboard_config}.ts`, `lib/api-routes/project/dashboards.ts`,
-client `components/dashboards/**`, `public_viewer/**`, `project_dashboards.tsx`,
-`state/project/t2_dashboards.ts`, `exports/{_dashboard_export_model,
-_dashboard_pages,export_dashboard_as_pdf,export_dashboard_as_pptx,
-export_dashboard_as_xlsx}.ts`, the dashboard tours, the `app.tsx` `/d/:slug`
-route, `PresentationObjectMiniDisplay` (its only consumers are the deleted
-viz picker and `PresentationObjectPanelDisplay` — keep only if the latter
-still needs it), the "public dashboards" comments in `static.ts` /
-`oauth_metadata.ts` (the public image-asset mount itself stays — deck logos
-use it). `./validate_queries`
-is NOT deleted — re-based onto parquet + manifest fixtures driving the
-`FromRun` wrappers. Old project DBs and legacy `sandbox/<uuid>` dirs are
-purged by a new ops script after settling.
+**D12: Delete, don't port.** Everything below is deleted, in the step named,
+never rewritten. The list was re-verified against `version2` on 2026-09-08;
+items the first attempt listed that are already gone (`backfill_runs.ts`,
+`validate_results_runs_parity.ts`, `validate_figure_bundle_backfill.ts`, the
+three `rollout_*` scripts, `synthesize_run.ts`, the pg read plane
+`results_value_resolver.ts` / `metric_enricher.ts` /
+`get_indicator_metadata.ts`, `calculated_indicators_snapshot.ts`) are not
+repeated here.
 
-**D13 — Gate the consolidation with a read-only fleet dry-run** that SHARES
-the planning code with 080 (`planConsolidation(...)` → inserts + remaps; boot
-executes, dry-run only reports): per instance — projects by status incl.
-`pending_deletion` and `is_central_reporting` lists, DB-absent rows, sources
-not at 039, per-table row counts (INCLUDING the visualizations, dashboards
-and public dashboards that will be DROPPED), id collisions + remap plan, FK
-orphans, projects with `run_id NULL` + whether a pin exists, users holding
-only viewer roles (the D2 blast radius), max products per instance (the D8
-`starting` payload), folder counts. Zero FAIL fleet-wide = deploy. The exact
-`validate_figure_bundle_backfill.ts` mould (36/36 instances, 0 FAILs).
+- *Step 7a (the switch):* `server/db/project/{slide_decks,slides,reports,
+  versions,move_slides,slide_deck_folders,report_folders}.ts` and their
+  `lib/api-routes/project/*` registries and `server/routes/project/*`
+  handlers (`server/db/project/mod.ts` pruned to match); the slide and
+  report room handling inside `server/routes/project/project-collab.ts` (the
+  file itself, with its PO rooms, goes in 9b); `lib/api-routes/project/
+  emails.ts` and `server/routes/project/emails.ts` (moved to `instance/`);
+  the client `components/project/{project_decks,project_reports,add_deck,
+  add_report,duplicate_deck_modal,duplicate_report_modal,
+  edit_deck_folder_modal,edit_report_folder_modal,move_deck_to_folder_modal,
+  move_report_to_folder_modal,move_to_folder_modal,edit_folder_modal}.tsx`;
+  `state/project/{t2_slide_decks,t2_slides,t2_images}.ts`
+  (`state/project/collab.ts` is moved to `state/instance/`, not deleted).
+- *Step 9a (client strip):* `components/project/**` (the remainder),
+  `components/project_ai/**` (replaced by `copilot/` in step 8),
+  `components/dashboards/**`, `components/public_viewer/**`,
+  `components/visualization/{index,visualization_settings,
+  duplicate_visualization,save_as_new_visualization_modal,
+  create_slide_from_visualization_modal}.tsx`,
+  `slide_deck/select_visualization_for_slide.tsx`, both
+  `resolve_figure_from_visualization.ts`, `PresentationObjectMiniDisplay.tsx`
+  (keep only if `PresentationObjectPanelDisplay` still needs it),
+  `exports/{_dashboard_export_model,_dashboard_pages,export_dashboard_as_pdf,
+  export_dashboard_as_pptx,export_dashboard_as_xlsx}.ts`,
+  `components/instance/{instance_projects,add_project,compare_projects,
+  pending_deletions}.tsx` and the project permission forms,
+  `state/project/**` (the remainder), the `app.tsx` `/d/:slug` route, the 33
+  project-area tours (decks 12, reports 7, visualizations 5, dashboards 5,
+  results_package 3, settings 1) and `tour_catalogue_instance_modal.tsx`.
+- *Step 9b (server strip):* `server/db/project/**` (whatever remains after
+  §3.10's relocation), `server/routes/project/**`, `lib/api-routes/project/**`,
+  `server/project_auth.ts` (after `getGlobalUser` moves), `server/collab/
+  po_rooms.ts`, `lib/collab/figure_config_crdt.ts` PO half (the slide-figure
+  map half survives), `server/routes/caches/visualizations.ts` PO detail
+  cache (the three run-keyed caches in that file survive), `server/routes/
+  public/dashboard.ts`, `server/db/instance/dashboard_slugs.ts`,
+  `lib/types/{visualization_folders,dashboard,_dashboard_config,projects,
+  project_sse}.ts` (`lib/types/presentation_objects.ts` is trimmed of the
+  PO-product types, not deleted: `ALL_DISAGGREGATION_OPTIONS`,
+  `DisaggregationOption`, `PeriodBounds`,
+  `ResultsValueInfoForPresentationObject` and
+  `ReplicantOptionsForPresentationObject` have nine live importers under
+  `lib/`; `lib/types/datasets_in_project.ts` is renamed in step 3), the
+  backups feature (the 4 `requiresProject` routes in `lib/api-routes/instance/
+  backups.ts`, the restore body, the settings-page backups panel,
+  `create_backup_form`, `restore_from_file_form`, `can_create/restore_backups`;
+  instance backups stay a status-api and volume concern), `copyProjectSync` /
+  `copyProjectInBackground` and `WITH TEMPLATE`, soft-delete plus the purge
+  cron in `main.ts` (`runProjectPurge`, `purgeExpiredProjects`), lock, central
+  reporting and every H_USERS project branch (`routes/instance/users.ts`,
+  `db/instance/instance.ts`), `compareProjects` (`lib/api-routes/instance/
+  modules.ts`), `getCacheStatus`, `getProjectLogs`, the `getMyProjects` route
+  (`lib/api-routes/instance/instance.ts`, `server/routes/instance/
+  instance.ts`), `getProjectsForUser` (`server/db/instance/instance.ts`),
+  `getOtherUser.projectUserRoles` (`server/db/instance/users.ts`), the two
+  project disk gates in `server/utils/disk_space.ts`,
+  `server/runs/attach_run.ts`,
+  `server/runs/package_compatibility.ts`, `server/task_management/
+  {build_project_state,notify_project_v2,project_last_updated}.ts`, the
+  `rename_user_email.ts` per-project sweep, `_project_database.sql` plus the
+  43 project migration files plus the runner's project mode plus
+  `validate_migrations`' project half, `db_startup.ts`'s per-project loop
+  (`backfillDashboardSlugsToMain`, `runProjectMigrations`,
+  `runProjectDataTransforms`, `dropOrphanProjectDatabases`), the
+  `requiresProject` transport (`route-utils.ts`, `create_server_action.ts`,
+  `route-tracker.ts`, `cors.ts`), and the follower model in
+  `db/instance/run_generation.ts` (`listAttachableRunsForProject`,
+  `setProjectAttachedRun`, `getProjectAttachedRunId`,
+  `listFollowPinnedProjects`, `setProjectAttachedRunIfPinned`,
+  `setProjectFollowPinned`, `clearFollowPinnedIfNotPin`,
+  `getGeneratingRunIdForAttachTargets`, `getIneligibleAttachTargetNames`).
+- *Step 10:* `.github/scripts/sync-docs.sh` terminology line and image path,
+  `generate-changelog.sh` example text. `./validate_queries` is not deleted;
+  it must stay green at every step and gains the scope axis in step 3. Old
+  project DBs and legacy `sandbox/<uuid>` dirs are purged by a new ops script
+  after settling.
 
-**D14 — Ids.** Keep the nanoid scheme; ONE generator length — **4 chars**
-(923k combos; 3 chars = 29,791 was fine per project, not per instance) —
+**D13: Gate the consolidation with a read-only fleet dry-run** that shares
+the planning code with 085: `planConsolidation(...)` produces the inserts
+and remaps; the migration executes them and the dry-run only reports them.
+Per instance it reports:
+
+- projects by status, including the `pending_deletion` and
+  `is_central_reporting` lists;
+- rows whose project DB is absent, and sources not at the latest project
+  migration;
+- per-table row counts, including the visualizations, dashboards and public
+  dashboards that will be dropped;
+- id collisions and the remap plan;
+- FK orphans;
+- projects with `run_id NULL`, and whether a pin exists;
+- users holding only viewer roles (the D2 blast radius);
+- max products per instance (the size of the D8 `starting` payload);
+- folder counts.
+
+The deploy is blocked until the dry-run reports zero FAIL across the fleet.
+It runs from step 2 onward, against production, through the read-only path
+in `PROTOCOL_ACCESS_DBS.md`.
+
+**D14: Ids.** Keep the nanoid scheme; one generator length, **4 chars**
+(923,000 combinations; the old 3-char space of 29,791 was large enough
+inside a single project database, but not for one instance-wide namespace);
 product ids checked against `products`, slide ids against `slides`; versions
 and folders stay `crypto.randomUUID()`; existing 3-char ids are kept unless
 they collide (ids are not length-validated; registry params stay
 `z.string()`, never `z.uuid()`). No stored FigureBundle references a product
-id (`_figure_bundle.ts:116-133`), so bundles need no rewrite.
+id, so bundles need no rewrite.
 
-**D15 — AI copilot: one instance-level mount, env bound to the open product.**
-`AIProjectWrapper` becomes the copilot wrapper around the Products page AND
-both editor overlays (panther registers tools once per mount; the
+**D15: AI copilot. One instance-level mount, env bound to the open
+product.** `AIProjectWrapper` becomes the copilot wrapper around the Products
+page AND both editor overlays (panther registers tools once per mount; the
 `returnToContext` stack and the tours rely on one controller). The env
-resolves the OPEN product's PackageScope while an `editing_*` view is active
-(carried in the opaque view CONTEXT half, never in tool params — the "no run
-id crosses the seam" ruling holds), else the pin at national scope. SPA
-shared tools get the `withSourceHeader` (package label + scope) that `/mcp`
-already applies, since the env's pair can differ from the pin mid-thread. The
-authoring context is reconciled IN PLACE (tool-aliasing invariant,
-SYSTEM_13). Views collapse to `viewing_products`, `viewing_explore`,
-`editing_slide_deck`, `editing_slide`, `editing_report`;
+resolves the open product's PackageScope while an `editing_*` view is active
+(carried in the view context, the half of the AI env the model never sees,
+and never in tool params; the "no run id crosses the seam" ruling holds),
+else the pin at national scope. SPA
+shared tools get the `withSourceHeader` (package label plus scope) that
+`/mcp` already applies, since the env's pair can differ from the pin
+mid-thread. The authoring context is reconciled in place (the tool-aliasing
+invariant, SYSTEM_13). Views collapse to `viewing_products`,
+`viewing_explore`, `editing_slide_deck`, `editing_slide`, `editing_report`;
 `PROJECT_TAB_TO_VIEW` and `switch_tab` are deleted. Figure creation by the
-model happens INSIDE a deck/report (the slide tools + report editor tools +
-drafts); when no `editing_slide_deck` view is active, `AddToDeckModal`
-RE-RESOLVES the draft slide's figure blocks under the chosen deck's pair before
-`createSlide`. ONE conversation scope (`"copilot"`). Proxies: `/ai` guarded
-`requireApprovedUser()`, `/ai-instance` (HFA indicator manager,
-`can_configure_data`) kept — two mounts, one handler. `ai_usage_logs.project_id`
-dropped. `projects.ai_context` → ONE instance-level `ai_context` in
+model happens inside a deck or report (the slide tools, the report editor
+tools, drafts); when no `editing_slide_deck` view is active, `AddToDeckModal`
+re-resolves the draft slide's figure blocks under the chosen deck's pair
+before `createSlide`. One conversation scope (`"copilot"`). Proxies: `/ai`
+guarded `requireApprovedUser()`; `/ai-instance` (HFA indicator manager,
+`can_configure_data`) kept; two mounts, one handler. `ai_usage_logs.project_id`
+dropped. `projects.ai_context` becomes one instance-level `ai_context` in
 `instance_config` (settings textarea, `can_configure_settings`). The
-interactions producer consumes `products_upserted` rows (type + label) and
-`last_updated(slides)`. Every "project" / "visualization as a thing you open"
-/ "dashboard" in model-visible text (`lib/types/ai_input.ts`, tool
+interactions producer consumes `products_upserted` rows (type plus label)
+and `last_updated(slides)`. Every "project", "visualization as a thing you
+open" and "dashboard" in model-visible text (`lib/types/ai_input.ts`, tool
 descriptions, view instructions, `client_info_topics.ts`,
 `client/public/info/*.md` served to `get_info`) is swept.
 
-**D16 — Products page, create flow, deep link.** One Drive-like page under
-`client/src/components/products/`: folder sidebar (with the "General"
-pseudo-group), type filter chips (deck / report), search, one sort pref,
-mixed product cards (type icon, label, package label from T1 `readyPackages` +
-scope badge, last updated), multi-select on the PLAIN product id — the
-`${kind}:${id}` composite this plan first specified was a hangover from the
-per-type routes: D1 gives products one registry and one id namespace, and
-`deleteProducts` / `moveProductsToFolder` are cross-type batch routes, so
-there is nothing left to dispatch per kind. **Create = two buttons, no modal:** "New deck" / "New report" insert
-the `products` row + detail row in one transaction (label "Untitled deck" /
-"Untitled report" localised, `folder_id` = the sidebar's current folder or
-NULL, `run_id` = the pin resolved server-side, `admin_area_2` NULL) and the
-editor opens immediately via `getEditorWrapper`. Empty instance = one big
-"New deck / New report" card; zero ready packages = both disabled with the
-"an admin must generate a results package" line. ONE shared
-`product_settings.tsx` (label, folder, package Select over `readyPackages`,
-scope) reachable from the card menu and both editors' headers; changing
-package or scope never blocks — the D4 badges appear. Editors read the
-product's PackageScope LIVE from the T1 products row (tracked), not from a
-snapshot. Deep link: `?product=<id>` opens that product's editor (replaces
-`?p=` / `?d=`; old links in the wild break — no shim); editors stay
-signal-driven overlays. Owned by SYSTEM_12 (retitled "Products & Folders").
+**D16: The Products page is a location-based explorer.** One page under
+`client/src/components/products/`, reading `instanceState.products` and
+`instanceState.folders` from T1 (no list route). The location is one folder
+id (`null` = root), persisted in localStorage beside the view mode; the path
+is derived by walking `parentId`, never stored. Folders sit beside products
+and clicking one navigates into it; a breadcrumb keeps the root crumb and
+collapses the middle. The header toggles two views over one model. In the
+card grid a product tile is a type icon plus one "package · scope" caption,
+so product and folder tiles share a height. The list is hand-built rather
+than assembled from the shared table component; that is a sanctioned
+exception to the UI component rule, because the rows open editors and mix
+two entity kinds, and header and rows share one CSS grid template.
+Type-filter chips filter products only; folders are always visible in
+a location, with counts of direct children reflecting the filter. Search (3+
+characters) is global and flat: it escapes the location and lists matching
+folders then products from anywhere, each with its path. One sort vocabulary
+drives the header Select and the list's clickable Name and Last updated
+headers; folders sort by the same mode and always come first. Multi-select
+runs over the plain product id (one registry, one id namespace, cross-type
+batch routes); folders are never multi-selectable and act through their own
+menu. One menu builder per kind serves grid tiles, list rows and the
+right-click menu: **Move into ▸** (this location's folders, capped at 10, then More…),
+**Move up to "parent"**, **Move to top level**, **Move to folder…**; no
+drag-and-drop, no batch action bar. The full picker (`MoveToFolderModal`)
+moves a product batch or one folder, lists flat full paths sorted by path
+with "No folder" first, and excludes a moved folder's own subtree.
+**Create is two buttons, no modal:** "New deck" / "New report" call
+`createProduct({ type, folderId })` with the location as the folder; the
+server mints the localised label ("Untitled deck" / "Untitled report"),
+resolves `run_id` from the pin inside the insert and inserts the detail row
+in the same transaction; the editor opens immediately via `getEditorWrapper`.
+Each button is its own `createButtonAction` (the first attempt's second
+behavioural defect: two buttons on one action, whose request-id guard
+discarded all but the most recent click's callback). With no ready pinned
+package the buttons are disabled before the click, and the server's typed
+`NO_READY_PINNED_PACKAGE` still comes back through the envelope to cover the
+race. **One settings surface** (`product_settings.tsx`: label, folder,
+package Select over T1 `readyPackages`, scope picker) is reached from the
+menu and from both editor headers; changing package or scope never blocks
+and has no pre-flight (staleness is surfaced afterwards by the D4 badge);
+the package
+options always include the product's current package even when it is no
+longer ready. **Folders nest** through `parent_id`; a move is `updateFolder`
+(label, colour and parent are one metadata write); a move into the folder
+itself or any descendant is refused inside the move transaction by a
+recursive-CTE walk and returned as the typed `FOLDER_CYCLE` failure through
+the envelope; folders have no GET route (`starting` and `folders_updated`);
+**deleting a folder reparents one level and never cascades**, and the freed
+product ids come back so the route emits `products_upserted` for them.
+**Delete is hard, and rooms close with it.** `deleteProducts` reads the
+batch's product types before opening the delete transaction, then reads the
+slide ids of any deck in the batch inside that transaction, so the route can
+close the slide and report rooms afterwards; detail rows, slides and
+versions go by CASCADE. **Deep link:** `?product=<id>` is consumed
+into the same `pendingEditorOpen` request the tours and the copilot use (one
+opener, one place that waits for hydration); `?p=` and `?d=` are gone with no
+shim. Editors read the product's PackageScope live from the T1 products row,
+not from a snapshot. Owned by SYSTEM_12 (retitled "Products & Folders").
 
-**D17 — Tabs.** Instance shell: **Products** (first, default) | **Explore** |
-Data | Results | Assets | Users. Project Metrics / results-package / settings
-tabs are dissolved (metrics → Explore; package + scope → product settings;
-users/lock/central/backups/copy/delete have no product analogue; AI context →
-instance settings).
+**D17: Tabs.** Instance shell: **Products** (first, default) | **Explore** |
+Data | Results | Assets | Users. Today's set is projects | data |
+results_packages | assets | users. Project Metrics, results-package and
+settings tabs are dissolved (metrics to Explore; package and scope to
+product settings; users, lock, central, backups, copy and delete have no
+product analogue; AI context to instance settings).
 
-**D18 — Everything ships in the same push, docs included.** SYSTEM_00/01/02/
-03/05/06/08/09/10/11/12/13/14/15/16/17 prose + lint-enforced globs
-(lint:systems runs inside `deno task typecheck`), SYSTEMS.md §4.1 custody
-rows, PROTOCOL_APP_{ROUTES,STATE,MIGRATIONS,QUERY_RIG,DEVELOPMENT,
-UI_CONVENTIONS,WORKER_ROUTINES,AI_TOOLS}, CLAUDE.md, USER_GUIDE_MCP; the
-pre-existing doc drift the sweep found is fixed in passing (§7). PLAN files:
-PLAN_RESULTS_RUNS (Phase 4 subsumed; sandbox→runs rename + backups follow-up
-survive as two lines), PLAN_3_GEOJSON (project-scoped read → run-keyed
-route), PLAN_COMMON_INDICATOR_TYPES (file paths). VISION_RESTRUCTURED_APP.md
-is deleted when this plan is accepted. **Post-settle end state is named
-(§5.7): the three rollout ops scripts are deleted after the purge; `000` /
-`080` / `consolidation/plan.ts` (which carries a frozen copy of the old
-project-DB row types) and the runner's `.ts` support are migration history and
-stay until the next base squash.**
+**D18: Docs move with the code, per step, and the merge is greenfield.**
+SYSTEM prose and globs change in the step that changes the contract (§0);
+step 10 is a read-through, not the rewrite. SYSTEMS.md custody rows, the
+PROTOCOL_APP files, CLAUDE.md and USER_GUIDE_MCP follow the same rule. Other
+`PLAN_*.md` files are Tim's to rework after this plan lands; no step edits
+them. When step 10's gates are green, this file is deleted in the same
+commit (CLAUDE.md rule).
 
 ---
 
-## 2. Target architecture
+## 3. Target architecture
 
-### 2.1 Data model (main DB; base schema `_main_database.sql` = final state)
+### 3.1 Data model (main DB; base schema `_main_database.sql` = final state)
+
+The products block, as `084_products.sql` creates it (in `IF NOT EXISTS`
+form) and as the base schema carries it. This is the reference branch's
+final DDL with nesting folded in; the two version tables keep their current
+shape with FKs repointed.
 
 ```sql
 CREATE TABLE folders (
-  id text PRIMARY KEY,                 -- uuid
+  id text PRIMARY KEY NOT NULL,        -- uuid
   label text NOT NULL,
   color text,
+  parent_id text REFERENCES folders(id) ON DELETE SET NULL,  -- NULL = root
   last_updated text NOT NULL
 );
+CREATE INDEX idx_folders_parent_id ON folders(parent_id);
 
 CREATE TABLE products (
-  id text PRIMARY KEY,                 -- 4-char nanoid (legacy 3-char kept)
-  type text NOT NULL CHECK (type IN ('slide_deck','report')),
+  id text PRIMARY KEY NOT NULL,        -- 4-char nanoid (legacy 3-char kept)
+  type text NOT NULL CHECK (type IN ('slide_deck', 'report')),
   label text NOT NULL,
   folder_id text REFERENCES folders(id) ON DELETE SET NULL,
-  run_id text NOT NULL REFERENCES runs(id),   -- no cascade: the delete-run guard
+  run_id text NOT NULL REFERENCES runs(id),  -- no cascade: the delete-run guard
   admin_area_2 text,                   -- NULL = national
   created_by text,                     -- email; NULL = pre-restructure product
   created_at text,                     -- NULL = pre-restructure product
@@ -555,14 +679,16 @@ CREATE TABLE products (
 CREATE INDEX idx_products_folder_id ON products(folder_id);
 CREATE INDEX idx_products_run_id ON products(run_id);
 CREATE INDEX idx_products_type ON products(type);
+CREATE INDEX idx_products_last_updated ON products(last_updated);
 
 CREATE TABLE slide_decks (            -- detail: type = 'slide_deck'
-  id text PRIMARY KEY REFERENCES products(id) ON DELETE CASCADE,
+  id text PRIMARY KEY NOT NULL REFERENCES products(id) ON DELETE CASCADE,
   plan text,
   config text
 );
+
 CREATE TABLE slides (
-  id text PRIMARY KEY,                 -- 4-char nanoid
+  id text PRIMARY KEY NOT NULL,        -- 4-char nanoid
   slide_deck_id text NOT NULL REFERENCES slide_decks(id) ON DELETE CASCADE,
   sort_order integer NOT NULL,
   config text NOT NULL,
@@ -570,8 +696,12 @@ CREATE TABLE slides (
   crdt_state text,
   crdt_state_last_updated text
 );
+CREATE INDEX idx_slides_deck_id ON slides(slide_deck_id);
+CREATE INDEX idx_slides_deck_sort ON slides(slide_deck_id, sort_order);
+CREATE INDEX idx_slides_last_updated ON slides(last_updated);
+
 CREATE TABLE reports (                -- detail: type = 'report'
-  id text PRIMARY KEY REFERENCES products(id) ON DELETE CASCADE,
+  id text PRIMARY KEY NOT NULL REFERENCES products(id) ON DELETE CASCADE,
   body text NOT NULL DEFAULT '',
   figures text NOT NULL DEFAULT '{}',
   images text NOT NULL DEFAULT '{}',
@@ -580,662 +710,1171 @@ CREATE TABLE reports (                -- detail: type = 'report'
   crdt_state_last_updated text,
   body_authors text
 );
-CREATE TABLE report_versions ( … report_id → reports CASCADE … );  -- unchanged shape
-CREATE TABLE deck_versions   ( … deck_id → slide_decks CASCADE … ); -- unchanged shape
+
+CREATE TABLE report_versions ( ... report_id REFERENCES reports(id) ON DELETE CASCADE ... );
+CREATE INDEX idx_report_versions_report ON report_versions(report_id, created_at DESC);
+CREATE TABLE deck_versions   ( ... deck_id REFERENCES slide_decks(id) ON DELETE CASCADE ... );
+CREATE INDEX idx_deck_versions_deck ON deck_versions(deck_id, created_at DESC);
 ```
 
 Rules of the shape:
 
-- `last_updated` lives on `products` (Drive: modified time on the file) and on
-  `slides` (child rows with their own optimistic lock). Every content mutation
-  bumps `products.last_updated` in the same transaction (the deck-touch rule,
-  generalised). Optimistic-concurrency round-trips (`updateReportBody`,
-  `updateSlide`) compare against `products.last_updated` / `slides.last_updated`.
-  Collab checkpoints stamp `products.last_updated` and the detail row's
-  `crdt_state_last_updated` equal in one write; a non-collab write bumps
-  `products.last_updated` alone, which is what invalidates stored CRDT state
-  (SYSTEM_16 rule). Metadata writes (label, folder, package, scope) bump it too.
-- Dropped columns with no live writer: `*_folders.sort_order` +
-  `reorderVisualizationFolders` (zero callers), `*_folders.description`,
-  `global_last_updated` (dead). Dropped tables: everything visualization /
+- `last_updated` lives on `products` (modified time on the file) and on
+  `slides` (child rows with their own optimistic lock). Every content
+  mutation bumps `products.last_updated` in the same transaction (the
+  deck-touch rule, generalised). Optimistic-concurrency round-trips
+  (`updateReportBody`, `updateSlide`) compare against `products.last_updated`
+  / `slides.last_updated`. Collab checkpoints write the same timestamp to
+  `products.last_updated` and to the detail row's `crdt_state_last_updated`
+  in one write; a
+  non-collab write bumps `products.last_updated` alone, which is what
+  invalidates stored CRDT state (SYSTEM_16 rule). Metadata writes (label,
+  folder, package, scope) bump it too.
+- Dropped columns with no live writer: `*_folders.sort_order` and
+  `reorderVisualizationFolders`, `*_folders.description`,
+  `global_last_updated`. Dropped tables: everything visualization and
   dashboard (D3).
 - Users: `users` loses the 17 `default_project_can_*` columns and
   `can_create_projects`; `instance_config` gains an `ai_context` row.
 - Logs: `user_logs`, `ai_usage_logs`, `user_logs_aggregate` lose `project_id`
   (mechanics in D9).
 
-### 2.2 Access control
+### 3.2 Access control
 
-- `requireApprovedUser()` — new, beside `requireGlobalPermission` in
-  `server/middleware/userPermission.ts`: `getGlobalUser` → 401 if
-  unauthenticated → 403 unless `globalUser.approved` → `c.var.globalUser` /
-  `c.var.mainDb`. It replaces `requireProjectPermission` on the relocated
-  product routes and guards the new ones. `requireGlobalPermission()` is NOT
-  changed (its 31 zero-perm sites keep today's behaviour, including their
-  hand-rolled `approved` branches).
-- `server/project_auth.ts` is deleted; `getGlobalUser` / `buildGlobalUserFromDb`
-  move to `server/auth/global_user.ts` (imported by `userPermission.ts`,
-  `static.ts`, `mcp/context_cache.ts`); `createDevGlobalUser` stays in
-  `lib/types/instance.ts`; `createDevProjectUser` and `ProjectUser` die.
-- Guard map: products/folders reads + writes, run-keyed figure-data reads, the
-  authoring context, `listAttachableResultsPackages`, Explore →
-  `requireApprovedUser()`; package internals → `can_view_data`
-  (`can_view_logs` for logs); catalogue/generation/pin → `can_configure_data`;
-  users → unchanged; `/mcp` door → `can_view_data`.
-- Collab WS admission = origin + Clerk + approved; `RoomConn.canEdit` kept
-  (TRUE); the six per-family flags and the lock are deleted.
+- `requireApprovedUser()`, new, beside `requireGlobalPermission` in
+  `server/middleware/userPermission.ts`: `getGlobalUser`, 401 if
+  unauthenticated, 403 unless `globalUser.approved`, sets `c.var.globalUser`
+  and `c.var.mainDb`. It guards the product routes and the new reads.
+  `requireGlobalPermission()` is not changed (its zero-perm sites keep
+  today's behaviour, including their hand-rolled `approved` branches).
+- `server/project_auth.ts` is deleted in step 9b; `getGlobalUser` /
+  `buildGlobalUserFromDb` move to `server/auth/global_user.ts` in step 5
+  (imported by `userPermission.ts`, `static.ts`, `mcp/context_cache.ts` and
+  `server/tests/pat_identity_parity_test.ts`; `project_auth.ts` re-exports
+  them until 9b); `createDevGlobalUser` stays in `lib/types/instance.ts`;
+  `createDevProjectUser` and `ProjectUser` die in 9b.
+- Guard map: products and folders reads and writes, run-keyed figure-data
+  reads, the authoring context, `listAttachableResultsPackages`, Explore:
+  `requireApprovedUser()`. Package internals: `can_view_data`
+  (`can_view_logs` for logs). Catalogue, generation, pin: `can_configure_data`.
+  Users: unchanged. `/mcp` door: `can_view_data`.
+- Collab WS admission = origin plus Clerk plus approved; `RoomConn.canEdit`
+  kept (TRUE); the six per-family flags and the lock are deleted.
 - H_USERS survives for: boot seed, `unlimitedAi`, `setUserUnlimitedAi` /
   `setUserContactPerson`, users-list hide toggle, `version_capture` skip,
   feedback recipients. Every project branch is deleted.
 - Health surface: `/projects` and `/project_activity` deleted; `projects`
   removed from `/health_check`; `/user_logs*` rows lose `project_id`.
 
-### 2.3 API surface
+### 3.3 API surface
 
 - Transport: `requiresProject` (registry flag, `RouteRequiresProject` /
   `RouteArgsWithProject` types, the `Project-Id` header emit in
-  `create_server_action.ts:96-118`, the CORS allow-header, the route-tracker
-  body-key check) is deleted.
-- Registries: `lib/api-routes/project/*` → `lib/api-routes/products/{products,
-  folders,slide-decks,slides,reports}.ts`; server `server/routes/products/*.ts`;
-  `emails` moves to `instance/` (`sendSlideDeckEmail` recipients = instance
-  roster); `combined.ts` re-spread. Shared product routes: `createProduct({
-  type, folderId })` (server mints label + resolves the pin — D16),
+  `create_server_action.ts`, the CORS allow-header, the route-tracker
+  body-key check) is deleted in 9b.
+- Registries: `lib/api-routes/products/{products,folders,slide-decks,slides,
+  reports}.ts`; server `server/routes/products/*.ts`; `emails` moves to
+  `instance/` (`sendSlideDeckEmail` recipients = instance roster);
+  `combined.ts` re-spread. Shared product routes: `createProduct({ type,
+  folderId })` (server mints label and resolves the pin; D16),
   `updateProductLabel`, `moveProductsToFolder` (batch), `deleteProducts`
-  (batch, any type — pre-read slide ids of any deck in the batch, close
-  slide/report rooms + version accumulators, then one `DELETE FROM products
+  (batch, any type; pre-read slide ids of any deck in the batch, close slide
+  and report rooms and version accumulators, then one `DELETE FROM products
   WHERE id = ANY($1)`, emit `products_deleted`), `setProductPackage(:id,
-  {runId})` (ready gate IN the UPDATE), `setProductScope(:id, {adminArea2})`,
+  {runId})` (calls `setProductRun(id, runId)` in
+  `db/instance/run_generation.ts`, where the ready gate lives in the
+  UPDATE), `setProductScope(:id, {adminArea2})`,
   `duplicateProduct(:id)` (clones `(run_id, admin_area_2)`, per-type body),
   `listAttachableResultsPackages` (instance, approved). New:
   `copySlidesToDeck(:deck_id, { slideIds, targetDeckId })` (the cross-deck
   reuse path; bundles copied verbatim, so they show stale under the target if
-  the pairs differ — D4). Folder routes: `createFolder` / `updateFolder` /
-  `deleteFolder` (= `UPDATE products SET folder_id = NULL WHERE folder_id = $1
-  RETURNING id` → `products_upserted` for those ids, then delete the folder).
-  Per-type content routes keep their names minus `requiresProject`
-  (`getSlideDeckDetail`, `updateSlideDeckConfig`, `createSlide`, `updateSlide`,
-  `duplicateSlides`, `moveSlides`, `deleteSlides`, `getReportDetail`,
-  `updateReportBody`, versions…); per-type `delete*`, `move*ToFolder`,
+  the pairs differ; D4). Folder routes: `createFolder({ label, color,
+  parentId })`, `updateFolder(:id, { label, color, parentId })` (the cycle
+  check lives here), `deleteFolder(:id)` (reparents children and products
+  one level, returns `freedProductIds`). Per-type content routes keep their
+  names minus `requiresProject` (`getSlideDeckDetail`, `updateSlideDeckPlan`,
+  `updateSlideDeckConfig`, deck versions; `getSlides`, `getSlide`,
+  `createSlide`, `updateSlide`, `deleteSlides`, `duplicateSlides`,
+  `moveSlides`; `getReportDetail`, `updateReportBody/Figures/Images/Config`,
+  report versions and lineage). Per-type `delete*`, `move*ToFolder`,
   `update*Label`, `duplicate*` are removed in favour of the shared ones.
-- Run-keyed instance reads (D7): `getRunPresentationObjectItems(run_id, {…,
-  adminArea2})`, `getRunResultsValueInfo(run_id, {…, adminArea2})`,
-  `getRunReplicantOptions`, `getRunResultsObjectItems`, `getRunAuthoringContext`.
+- Run-keyed instance reads (D7): `getRunPresentationObjectItems(run_id,
+  {resultsObjectId, fetchConfig, adminArea2})`, `getRunResultsValueInfo(run_id,
+  {metricId, adminArea2})`, `getRunReplicantOptions(run_id, {metricId,
+  replicateBy, fetchConfig, adminArea2})`, `getRunResultsObjectItems(run_id,
+  results_object_id, {adminArea2})`, `getRunAuthoringContext(run_id)`.
 - Run generation: `launchRunGeneration` loses `attachTargetProjectIds`;
-  `listFollowPinnedProjects` deleted; `RunCatalogItem.attachedProjects` →
-  `attachedProducts { type, id, label }`; `deleteRun` refuses while any product
-  points at it.
-- AI: `/ai/v1/messages` + `/ai/files*` → `requireApprovedUser()`; SDK client
-  loses the default header; `AddAiUsageLog` loses `projectId`.
-- Public: `/api/d/:slug` + `routes/public/dashboard.ts` deleted; `main.ts`
+  `listFollowPinnedProjects` deleted; `RunCatalogItem.attachedProjects`
+  becomes `attachedProducts { type, id, label }` (consumers: `detail.tsx`,
+  the wizard, `_prune.tsx`, `_prune_plan.ts`); `deleteRun` refuses while any
+  product points at it.
+- AI: `/ai/v1/messages` and `/ai/files*` under `requireApprovedUser()`; SDK
+  client loses the default header; `AddAiUsageLog` loses `projectId`.
+- Public: `/api/d/:slug` and `routes/public/dashboard.ts` deleted; `main.ts`
   mount removed; `app.tsx` `/d/:slug` route removed.
 - `renameUserEmail`: the per-project sweep becomes a main-DB sweep over
   `products.created_by`, `report_versions.editors`, `deck_versions.editors`,
   `body_authors`; `RenameEmailResult` loses `projectsUpdated/projectsFailed`;
   `change_email_modal.tsx` retry UI follows; the fleet orchestrator consumes
-  the new shape (§6).
+  the new shape (§7).
 
-### 2.4 Realtime
+### 3.4 Realtime
 
 Instance channel additions: `products_upserted { products: ProductSummary[] }`
-(the only product-list message; every product mutation route — and every
-collab checkpoint — emits the summary for that id), `products_deleted { ids }`,
+(the only product-list message; every product mutation route, and every
+collab checkpoint, emits the summary for that id), `products_deleted { ids }`,
 `folders_updated { folders }`, `last_updated { tableName: 'slides', ids,
-lastUpdated }`; `starting` carries the full `products` + `folders` +
-`readyPackages` + `lastUpdated` map. `readyPackages` follows the `runsCatalog`
-idiom exactly — a `starting` fill plus the EXISTING `runs_catalog_updated`
-nonce triggering a `listAttachableResultsPackages` refetch (no new message
-type). **That route returns `ReadyPackage[]` (`{ id, label, createdAt }`), NOT
-`RunListingItem[]`** — the wide row carries `progress` / `summary` /
-`provenance`, which is generation telemetry and stays at `can_configure_data`
-under Q-B; the package LABEL is the whole of what D8 widens to approved users.
-The `starting` fill and the refetch therefore agree by construction instead of
-the client narrowing one of them by hand. The client `lastUpdated` map (`{ products, slides }`) is the
-cache-version INDEX (`LastUpdateTableName`, file renamed
-`lib/types/last_updated_tables.ts`, = `products | slides`).
-`notifyLastUpdated(tableName, ids, ts)` (no projectId). `buildInstanceState`
-is split so the `/mcp` context builder does not embed product lists or report
-bodies.
+lastUpdated }`; `starting` carries the full `products`, `folders`,
+`readyPackages` and `lastUpdated` map. `readyPackages` follows the
+`runsCatalog` idiom exactly: a `starting` fill plus the existing
+`runs_catalog_updated` nonce triggering a `listAttachableResultsPackages`
+refetch (no new message type). That route returns `ReadyPackage[]` (`{ id,
+label, createdAt }`), not `RunListingItem[]`. `RunListingItem` carries
+progress, summary and provenance, which is generation telemetry and stays at
+`can_configure_data` under Q-B; the package label is the whole of what D8
+widens to approved users. The client `lastUpdated` map (`{ products, slides
+}`) is the cache-version index. Its key type is `ProductLastUpdateTableName
+= "products" | "slides"` in `lib/types/last_updated_tables.ts`, added beside
+the project union in step 5 and left as the only union in 9b; the emitter is
+`notifyInstanceLastUpdated(tableName, ids, ts)`, added beside the project
+`notifyLastUpdated(projectId, ...)` in step 5, which 9b deletes.
+`buildInstanceState`
+is split so the `/mcp` context builder does not embed product lists or
+report bodies.
 
 `ProductSummary` = `{ id, type, label, folderId, runId, adminArea2, createdBy,
-createdAt, lastUpdated }` ∪ a per-type slice (`slide_deck`: `firstSlideId,
-config`; `report`: `config, preview`). Every per-type summary query today is
-`WHERE id = $1` away (`slide_decks.ts:20-42`, `reports.ts:46-66`).
+createdAt, lastUpdated }` plus one per-type existence flag (`slide_deck`:
+`firstSlideId: string | null`; `report`: `hasEmbeds: boolean`, computed in
+SQL so no body crosses the DB boundary). Detail-table content never rides
+the summary.
 
-### 2.5 Client state
+### 3.5 Client state
 
-`client/src/state/project/**` is deleted. Inventory after:
+`client/src/state/project/**` is deleted (partly in 7a, the rest in 9a).
+Inventory after:
 
 | Tier | What | Home |
 | --- | --- | --- |
 | T1 | `products`, `folders`, `readyPackages`, `lastUpdated.{products,slides}`, `pinnedRunId` (exists), `hfaTimePoints` (exists) | `state/instance/t1_store.ts` |
 | T2 | `run_authoring_context` keyed `[runId]`, immutable (the `t2_runs.ts` idiom) | `state/instance/t2_run_authoring_context.ts` |
-| T2 | figure data: `po_items` / `metric_info` / `replicant_options` keyed `(runId, scopeToken, …)`, version constant (embedded figures, Explore, presets) | `state/products/t2_figure_data.ts`, `t2_replicant_options.ts` |
+| T2 | figure data: `po_items` / `metric_info` / `replicant_options` keyed `(runId, scopeToken, ...)`, version constant (embedded figures, Explore, presets) | `state/products/t2_figure_data.ts`, `t2_replicant_options.ts` |
 | T2 | `slide` by `lastUpdated.slides[id]`; `slide_deck_detail` / `report_detail` by `lastUpdated.products[id]`; `images` (moves, no change) | `state/products/t2_*.ts` |
-| T4 | `productsSortMode`, `productsTypeFilter`, `productsSelectedFolder`, `exploreRunId`, `exploreAdminArea2`, `pendingEditorOpen`, `showAi`… | `t4_ui.ts` |
-| T4 | AI documents keyed `ai-documents/copilot` | `state/products/t4_ai_documents.ts` |
+| T4 | `productsOpenFolder`, `productsViewMode`, `productsSortMode`, `productsTypeFilter`, `exploreRunId`, `exploreAdminArea2`, `pendingEditorOpen`, `showAi` | `t4_ui.ts` |
+| T4 | AI documents keyed `ai-documents/copilot` (the store; the UI is `components/copilot/ai_documents/*`) | `state/products/t4_ai_documents.ts` |
 | T1-adjacent | collab store, connected by the instance boundary when approved | `state/instance/collab.ts` |
 
-`createReactiveCache` loses its `getSnapshotProjectState` import; version keys
-are `(params, instanceState)` only. `clear_caches.ts` keeps only the AI
+`createReactiveCache` loses its `getSnapshotProjectState` import; version
+keys are `(params, instanceState)` only. `clear_caches.ts` keeps only the AI
 prefixes. `PackageScope` replaces `ProjectState` in every editor prop;
-`snapshotForSlideEditor` snapshots ONLY what must not move under the editor
-(the deck config at open); the PackageScope is read live from T1 (D16) and the
-authoring context from the immutable T2 cache keyed by that LIVE `runId` — so
-a reattach mid-edit moves items AND metrics/presets together and the D4
-badges light up. `hfaTaxonomy` for the copilot is composed client-side from
-the authoring context + T1 `hfaTimePoints`.
+`snapshotForSlideEditor` snapshots only what must not move under the editor
+(the deck config at open); the PackageScope is read live from T1 (D16) and
+the authoring context from the immutable T2 cache keyed by that live
+`runId`, so a mid-edit reattach moves the figure data, the metrics and the
+presets together, and the D4 stale badges appear. `hfaTaxonomy` for the
+copilot is composed
+client-side from the authoring context plus T1 `hfaTimePoints`.
 
-### 2.6 Client UI
+### 3.6 Client UI
 
 - Instance shell tabs: **Products** | **Explore** | Data | Results | Assets |
   Users. `?product=<id>` opens an editor; `?p=` and `?d=` are gone.
-- `components/products/`: `index.tsx` (page — built from `project_decks.tsx`'s
-  skeleton: HeadingBar + search + SortControl + the two create buttons,
-  `FrameLeftResizable` folder sidebar with right-click rename/delete, card
-  grid, `createSelectionController`), `product_card.tsx`,
-  `product_settings.tsx`, `edit_folder_modal.tsx`, `move_to_folder_modal.tsx`,
+- `components/products/`: `index.tsx` (the explorer page), `folder_tree.ts`
+  (pure derivations over the flat `Folder[]`: children, ancestors, path
+  labels, descendant sets, flat full-path picker options; every walk carries
+  a visited set), `folder_card.tsx`, `product_card.tsx`, `list_view.tsx`,
+  `product_menu.ts`, `folder_menu.ts`, `move_to_folder_modal.tsx`,
+  `edit_folder_modal.tsx`, `product_settings.tsx`,
   `duplicate_products_modal.tsx`. `_shared/scope_picker.tsx` (renamed from
   `project_scope_picker.tsx`; copy says "Scope").
-- `components/explore/`: `index.tsx` (page: package Select + scope picker
-  (ephemeral), module sidebar, metric cards, preset gallery, render area,
-  "Configure" / "Add to deck / report…"), `add_to_product_modal.tsx`,
+- `components/explore/`: `index.tsx` (page: package Select plus scope picker,
+  ephemeral; module sidebar, metric cards, preset gallery, render area,
+  "Configure" and "Add to deck / report…"), `add_to_product_modal.tsx`,
   `metric_details_modal.tsx` (moved). `components/figures/insert_figure/**`
-  (= moved `add_visualization/` + `preset_preview.tsx`, fed by an authoring
-  context; used by both editors and Explore).
+  (= moved `add_visualization/` plus `preset_preview.tsx`, fed by an
+  authoring context; used by both editors and Explore).
 - Figures: `components/visualization/` keeps the embedded editor
   (`visualization_editor_inner.tsx`, the three editor panels, conditional
-  formatting, `edit_common_properties_modal`, `inline_replicant_selector`) and
-  is renamed `components/figure_editor/`; `stale_figure_badge.tsx` + the
-  "Update to <package>" / "Update all figures" actions (D4) live beside the
-  slide figure block and `ReportFigureEmbed`.
+  formatting, `edit_common_properties_modal`, `inline_replicant_selector`)
+  and is renamed `components/figure_editor/`; `stale_figure_badge.tsx` and
+  the "Update to [package]" / "Update all figures" actions (D4) live beside
+  the slide figure block and `ReportFigureEmbed`.
 - Editors (`slide_deck/`, `report/`) take `{ productId }` and read the
-  PackageScope live from T1 (+ the authoring context via T2) instead of
-  `projectId` + `projectState[Snapshot]`; every `can_configure_* && !isLocked`
-  gate becomes one shared `canEditProducts()` (= approved) so a later
-  permission model replaces one function; header shows the scope badge, a
-  Settings entry and the stale-figure count. The slide "insert figure" and
-  report "insert figure" panels offer the product run's presets + the metric
+  PackageScope live from T1 (plus the authoring context via T2) instead of
+  `projectId` plus `projectState[Snapshot]`; every `can_configure_* &&
+  !isLocked` gate becomes one shared `canEditProducts()` (= approved) so a
+  later permission model replaces one function; the header shows the scope
+  badge, a Settings entry and the stale-figure count. The slide and report
+  "insert figure" panels offer the product run's presets and the metric
   wizard (no viz-product picker). `slide_list.tsx` gains "Copy to deck…".
 - Copilot: `components/copilot/` (renamed from `project_ai/`), one mount at
   the Products page; env resolves the open product's scope; view registry per
   D15.
-- Onboarding: the ~20 list-page project tours collapse into one products tour
-  set + one Explore tour; results-package / settings / instance-projects /
-  visualization / dashboard tours are deleted; the deck/report editor tours
-  survive; the instance tour catalogue stops fanning out `getProjectDetail`;
-  tour ids renamed (Clerk seen-flags re-fire once, accepted); telemetry loses
-  `projectId`.
-- Copy sweep: every en/fr/pt literal saying project/projet/projeto (30 FR
-  files, 27 PT files, `TC.goBackToProject`, `client/public/info/*.md`) and
-  every "dashboard" / standalone-"visualization" literal is rewritten to
-  products/folders/scope/figures.
+- Onboarding: the 33 project-area tours collapse into one products tour set
+  plus one Explore tour; results-package, settings, instance-projects,
+  visualization and dashboard tours are deleted; the deck and report editor
+  tours survive; the instance tour catalogue stops fanning out
+  `getProjectDetail`; tour ids renamed (Clerk seen-flags re-fire once,
+  accepted); telemetry loses `projectId`.
+- Copy sweep: every en, fr and pt literal saying project, projet or projeto,
+  `TC.goBackToProject`, `client/public/info/*.md`, and every "dashboard" or
+  standalone-"visualization" literal is rewritten to products, folders,
+  scope, figures.
 
-### 2.7 Results packages: pointer, pin, presets
+### 3.7 Results packages: pointer, pin, presets
 
 - `db/instance/run_generation.ts` pointer functions rewrite against
-  `products`: `setProductRun(id, runId)` (ready gate IN the UPDATE), the delete
-  guard, catalogue `attached_products` json_agg. The pin-move transaction
-  touches only `runs.pinned` (advisory lock kept).
-- Presets: `virtual_defaults.ts` keeps `deriveVirtualDefaults(manifest)` (memo
-  by runId) and serves them inside `getRunAuthoringContext.presets`.
+  `products`: `setProductRun(id, runId)` (the DB function behind the
+  `setProductPackage` route), the delete guard, catalogue
+  `attached_products` json_agg. The pin-move
+  transaction touches only `runs.pinned` (advisory lock kept).
+- Presets: `virtual_defaults.ts` keeps `deriveVirtualDefaults(manifest)`
+  (memo by runId) and serves them inside `getRunAuthoringContext.presets`.
 - The wizard client (`instance_results_packages/_wizard/{index,_step_data,
   _step_confirm}.tsx`) loses the attach-target multi-select and confirm copy;
   `detail.tsx` "in use by" lists products by type; the pin confirm no longer
-  lists followers (there are none).
-- `issueFor` (manifest-only) moves to `lib/` for the client's per-figure
-  reason (D4).
+  lists followers (there are none); `_prune*.ts*` count products.
+- `figurePackageIssueFor` (manifest-only) lives in `lib/figure_package_issue.ts`,
+  extracted from the private `issueFor` in `server/runs/package_compatibility.ts`,
+  with a second entry point, `figurePackageIssueForMetrics`, so the client can
+  compute the same issue from the authoring context, since the client never
+  holds the manifest.
 
-### 2.8 FigureBundle
+### 3.8 FigureBundle
 
-`figureBundleSchema` (strict, shared by slides/reports): add required `scope:
-{ adminArea2: string | null }` and `provenance.runId: string`. Capture-on-write
-from the product's PackageScope in every assembly site
-(`resolve_figure_from_metric.ts:29-113`, `resolve_bundle_from_metric_and_config.ts`,
-`t2_presentation_objects.ts:218-242` → `t2_figure_data.ts`). 080 stamps them
-into live AND version tables from the owning project row (D4); the skip-gate
-for anything it misses is the normal missing-key parse failure. The stale
-predicate and the update action (D4) live in `generate_visualization/
-figure_staleness.ts` (pure) + the editor components. `buildFigureInputs` reads
-`bundle.scope` for the roll-up label. Bundles are stored, not cached, so no
-Valkey prefix moves.
+`figureBundleSchema` (strict, shared by slides and reports) gains `scope: {
+adminArea2: string | null }` and `provenance.runId: string` (optional from
+step 4, required from step 9b; D4). Every assembly site
+(`resolve_figure_from_metric.ts`, `resolve_bundle_from_metric_and_config.ts`,
+the T2 figure-data cache) captures the two fields on write from the
+product's PackageScope, or, until 7a, the project's. 085 stamps them into
+live AND version tables from the owning project row; anything 085 misses is
+caught later by the normal missing-key parse failure, so no separate
+skip-gate is needed. The stale predicate and the update action live in
+`generate_visualization/figure_staleness.ts` (pure:
+`isFigureBundleStale`, `findStaleFiguresInLayout`, `findStaleFiguresInReport`)
+plus the editor components. `buildFigureInputs` reads `bundle.scope` for the
+roll-up label. Bundles are stored, not cached, so no Valkey prefix moves.
 
-### 2.9 Migration mechanism — file list (mechanism in D9)
+### 3.9 Migration mechanism: file list (mechanism in D9)
 
-- `server/db/migrations/runner.ts` — `.ts` migrations via a literal-keyed
-  static import map; project mode deleted.
-- `server/db/migrations/instance/000_legacy_project_shell.sql`,
-  `079_products.sql`, `080_consolidate_projects.ts`, `081_drop_project_layer.sql`.
-- `server/db/migrations/consolidation/plan.ts` — the shared planning core
-  (reads a project DB, produces the insert set + id remap + folder plan +
-  bundle stamps + ai_context concatenation + the dropped-row counts); `080`
-  executes it, the dry-run reports it. It carries a frozen copy of the old
-  project-DB row types it reads (`_project_database_types.ts` is deleted).
-- `validate_consolidation.ts` (repo root) — the read-only fleet dry-run (env
-  `PG_HOST/PG_PORT/PG_PASSWORD` per instance through the PROTOCOL_ACCESS_DBS
-  tunnel), exit 1 on any FAIL.
-- `db_startup.ts` — the per-project loop, `backfillDashboardSlugsToMain`, both
-  TEMPORARY sweeps, `PROJECT_DATA_TRANSFORMS` (the two survivors become
-  instance transforms on main, signature `(tx, countryIso3)`), and the
-  `runs.summary` transform block are the edits.
-- `_main_database.sql` — final state (2.1); `_project_database.sql` and
-  `server/db/migrations/project/**` deleted; `validate_migrations` loses the
-  project call.
-- Ops (repo root, ops tooling): `rollout_products` (deploy + health poll +
-  post-check product/folder counts vs the dry-run plan), `restore_main` (stop
-  container → `docker exec psql -d postgres` DROP DATABASE main WITH (FORCE) /
-  CREATE → pipe the named status-api dump → start the previous image; verified
-  once on testing-tim before the fleet), `purge_legacy_dbs` (ssh + `docker
-  exec psql -d postgres`: `DROP DATABASE … WITH (FORCE)` for every UUID-named
-  datname ∉ {main, postgres, template*}; rm `sandbox/<uuid>` dirs whose name ∉
-  `runs.id` — never `.tmp-*`, `.duckdb-spill`, `restore_*`). All three are
-  deleted after the purge (§5.7).
+- `server/db/migrations/runner.ts`: `.ts` migrations via a literal-keyed
+  static import map (step 2); project mode deleted (step 9b).
+- `server/db/migrations/instance/084_products.sql` (step 1);
+  `000_legacy_project_shell.sql`, `085_consolidate_projects.ts`,
+  `086_drop_project_layer.sql` (authored in step 2 under
+  `server/db/migrations/consolidation/staged/`, which the runner does not
+  scan; moved into `instance/` and registered in 9b).
+- `server/db/migrations/consolidation/plan.ts` (step 2): the shared planning
+  core (reads a project DB, produces the insert set, id remap, folder plan,
+  bundle stamps, ai_context concatenation and the dropped-row counts); 085
+  executes it, the dry-run reports it. It carries a frozen copy of the
+  project-DB row types it reads, copied from `version2`'s
+  `_project_database_types.ts`, not the reference's.
+- `server/db/migrations/consolidation/execute.ts` (step 2):
+  `consolidateProjects(tx)`, the function 085 registers; opens each source
+  pool read-only, asserts the source migration id, calls the planner and
+  applies the plan through `tx`. The reference's worked answer is the body
+  of its `080_consolidate_projects.ts`.
+- `validate_consolidation.ts` (repo root, step 2): the read-only fleet
+  dry-run (per instance through the `PROTOCOL_ACCESS_DBS` path; `--local`
+  for the dev DB; `--json` for the rollout post-check), exit 1 on any FAIL.
+- `validate_consolidation_replay` (repo root, step 2): the throwaway-postgres
+  harness described in step 2's gates, mirroring `validate_migrations`.
+- `db_startup.ts` (step 9b): the per-project loop,
+  `backfillDashboardSlugsToMain`, `dropOrphanProjectDatabases`,
+  `PROJECT_DATA_TRANSFORMS` (the three survivors become instance transforms
+  on main, signature `(tx, countryIso3)`), and the `runs.summary` transform
+  block are the edits.
+- `_main_database.sql`: products block added in step 1; projects and the
+  project columns removed in 9b. `_project_database.sql` and
+  `server/db/migrations/project/**` deleted in 9b; `validate_migrations`
+  loses the project call in 9b.
+- Ops (repo root, step 10): `rollout_products` (deploy plus health poll plus
+  post-check product and folder counts against the dry-run's `--json` plan),
+  `restore_main` (stop container, `docker exec psql -d postgres` DROP DATABASE
+  main WITH (FORCE) / CREATE, pipe the named status-api dump, start the
+  previous image; rehearsed once on testing-tim before the fleet),
+  `purge_legacy_dbs` (ssh plus `docker exec psql -d postgres`: `DROP DATABASE
+  ... WITH (FORCE)` for every UUID-named datname not in {main, postgres,
+  template*}; rm `sandbox/<uuid>` dirs whose name is not in `runs.id`; never
+  `.tmp-*`, `.duckdb-spill`, `restore_*`). All three are deleted after the
+  purge (§6, item 7).
 
-### 2.10 What survives from `server/db/project/**` (relocation list)
+### 3.10 What survives from `server/db/project/**` (relocation list)
 
-`prepare_inputs.ts:13-22` imports `calculatedIndicatorToSnapshotRow`,
-`computeDataset{Hfa,Hmis,Iceh}RunCapture`, `dbRowToHfaIndicator`,
-`PROJECT_FACILITY_COLUMN_NAMES`, `ProjectFacilityRow`, `DatasetCsvTarget` (from
-`datasets_in_project_*.ts` and `_project_database_types.ts` — NOT from
-`calculated_indicators_snapshot.ts`, whose only content is a project-DB reader
-that dies; `calculatedIndicatorToSnapshotRow` lives in
-`datasets_in_project_hmis.ts`, and `dbRowToHfaIndicator` is already in
-`db/instance/hfa_indicators.ts` and does not move); `pipeline.ts:13` imports
-`prepareModuleDefinitionForStorage` (`modules.ts`); `run_query/run_read.ts:49-50`,
-`runs/package_internals.ts:9`, `runs/disaggregation_availability.ts:3-5` import
-`inferMostGranularTimePeriodColumn`, `getEnabledFacilityDisaggregationOptions`,
-`PHYSICAL_DISAGGREGATION_COLUMNS` (`metric_enricher.ts`) and
-`parseModuleConfigSelections` (`modules.ts`); `PROJECT_FACILITY_COLUMN_NAMES` /
-`ProjectFacilityRow` are renamed `RUN_FACILITY_COLUMN_NAMES` / `RunFacilityRow`
-on the way (run-capture code must not carry project vocabulary past the §4
-grep); `db/utils.ts` keeps
-`escapeSqlString`, `tryCatchDatabaseAsync`, `getResultsObjectTableName`
-(`run_read.ts:46`), `detectHasAnyRows` (live on main, `instance.ts:231-237`).
-Relocate to `server/runs/capture_inputs/{hmis,hfa,iceh,calculated_indicators}.ts`
-(they read MAIN and write the run workspace — instance-level code that was
-misfiled), `server/runs/module_config.ts` (the two module helpers),
-`server/run_query/disaggregation_columns.ts` (the three helpers). Renames:
-`lib/types/datasets_in_project.ts` → `lib/types/run_datasets.ts`
-(`DatasetInProject` → `RunDataset*`, used by MCP context + system prompt),
-`getProjectDatasetsFromManifest` → `getRunDatasetsFromManifest`
-(`run_read.ts:378`; caller `server/mcp/context_cache.ts:283`),
-`lib/types/project_dirty_states.ts` → `lib/types/last_updated_tables.ts`;
-`lib/types/projects.ts` deleted (`projectScopeToken` → `lib/types/scope.ts`).
+Re-derived against `version2` on 2026-09-08. Imports into live code from
+`server/db/project/**` (directly or through `server/db/mod.ts`, which
+re-exports `./project/mod.ts`):
 
----
+| Symbol(s) | Lives in | Live importers | Goes to |
+| --- | --- | --- | --- |
+| `computeDataset{Hfa,Hmis,Iceh}RunCapture`, `PROJECT_FACILITY_COLUMN_NAMES`, `ProjectFacilityRow`, `DatasetCsvTarget` | `datasets_in_project_{hfa,hmis,iceh}.ts` | `generate_run/prepare_inputs.ts`; `query_rig/build_package.ts` | `server/runs/capture_inputs/{hfa,hmis,iceh}.ts` (they read main and write the run workspace: instance-level code that was misfiled); renamed `RUN_FACILITY_COLUMN_NAMES` / `RunFacilityRow` on the way |
+| `prepareModuleDefinitionForStorage`, `parseModuleConfigSelections` | `modules.ts` | `generate_run/pipeline.ts`; `run_query/run_read.ts`, `runs/package_internals.ts`, `routes/instance/modules.ts` | `server/runs/module_config.ts` |
+| `getAllPresentationObjectsForProject` | `presentation_objects.ts` | `run_query/virtual_defaults.ts`, `runs/package_compatibility.ts` | dies with both callers (D6, D4) |
+| `getProjectUsers` | `projects.ts` | `routes/instance/users.ts` | dies (D2) |
+| `purgeExpiredProjects` | `projects.ts` | `main.ts` | dies (D12) |
+| `getProjectDetail` | `projects.ts` | `task_management/build_project_state.ts` | dies (D8); its manifest projection is the model for `buildRunAuthoringContext` |
+| `getDashboardDetail` | `dashboards.ts` | `routes/public/dashboard.ts` | dies (D3) |
+| `getReportDetail`, `getReportBodyAuthors`, `stripPersistedBodyAuthorTombstones`, `REPORT_NOT_FOUND`, `getSlideDeckDetail`, `SLIDE_DECK_NOT_FOUND`, `getSlides`, `insertDeckVersion`, `insertReportVersion`, `latestDeckVersionHash`, `latestReportVersionHash` | `reports.ts`, `slide_decks.ts`, `slides.ts`, `versions.ts` | `server/collab/version_capture.ts` | `server/db/products/*` (step 5 builds them; 7a repoints `version_capture`) |
+| project-DB row types | `_project_database_types.ts` | `db/instance/rename_user_email.ts` | frozen copy in `consolidation/plan.ts`; the rename sweep dies |
 
-## 3. Work breakdown
-
-**Phases 1, 2 and 3 are all DONE.** The detail below is kept as the record of
-what was built and why; a fresh reader wanting the CURRENT shape should read
-the SYSTEM docs, which were rewritten against the finished code and whose file
-manifests `lint:systems` enforces. Nothing in §3 remains to be done.
-
-Deviations from the plan that were ruled during the build are recorded inline
-where they occurred (§2.4's `ReadyPackage`, §2.6's multi-select key, §2.10's
-paths, D12's `synthesize_run` / `pg_export`). Two additional facts a fresh
-agent needs: `issueFor` landed as `figurePackageIssueFor` in
-`lib/figure_package_issue.ts` and gained a second entry point
-(`figurePackageIssueForMetrics`) so the client can answer from the authoring
-context rather than a manifest it never holds; and
-`server/routes/caches/visualizations.ts` survives — it holds the three live
-run-keyed caches, only `_PO_DETAIL_CACHE` died.
-
-Every phase is built and committed on `tim-branch-restructure` (never on
-`main`). Commits on the branch may be WIP; the MERGE into `main` is what must
-be greenfield-equivalent, and it happens only after every §4 gate is green.
-
-### Phase 1 — Server (typecheck target: `deno check main.ts server/tests/*.ts` green)
-
-1. **Schema + migrations** (§2.1, §2.9): base schema, runner `.ts` support,
-   000/079/080/081, planning core, `db_startup` rewrite, `runs.summary`
-   transform block, `validate_migrations` project half removed. Gate:
-   `./validate_migrations` green; the Appendix A harness RE-RUN with the new
-   079 DDL (fresh, live, historical shapes); a boot against an EMPTY postgres
-   completes; 080 executed against the dev DB (`pg_run`, port 7001) and the
-   dry-run reports zero FAIL there; version restore (report + deck) works on a
-   migrated product.
-2. **DB layer**: `server/db/products/{folders,products,slide_decks,slides,
-   move_slides,copy_slides,reports,versions}.ts` (moved + rekeyed: `mainDb`
-   first param, `products` join for summaries, shared label/folder/delete/
-   package/scope/duplicate functions, product-row bump in every content
-   transaction); `db/project/**` deleted after the §2.10 relocation;
-   `id_generation.ts` → 4 chars (D14); `dashboard_slugs.ts` deleted;
-   `_main_database_types.ts` updated; `rename_user_email.ts` sweep.
-3. **Access control**: `server/auth/global_user.ts`, `requireApprovedUser`
-   (§2.2; `requireGlobalPermission` untouched), `project_auth.ts` deleted,
-   `lib/types/permissions.ts` trimmed to the 6 instance flags,
-   `permission_labels`, `lib/types/instance.ts` (`ProjectUser`,
-   `createDevProjectUser`, RenameEmail shape), `users.ts` (db + routes:
-   default-project functions, `getProjectsForUser`, `getOtherUser` shape,
-   notify calls, `deleteUser` closes collab connections), `instance.ts`
-   (`getMyProjects`), `h_users` branches.
-4. **Routes**: `lib/api-routes/products/*` + `server/routes/products/*`
-   (guard swap at every handler, `c.var.mainDb`, notify rewrite); `emails` →
-   instance; run-keyed reads + `getRunAuthoringContext` (`run_generation.ts`
-   registry + handler, `run_data_reads.ts` bodies take `adminArea2`);
-   `run_read.ts` project lens + PO detail + `findVirtualDefault` deleted;
-   `virtual_defaults.ts` trimmed; `caches/visualizations.ts` deleted;
-   `route-utils` / `server-action-types` / `create_server_action` /
-   `route-tracker` / `cors` / `logging` transport cleanup; `main.ts` mounts
-   (public dashboard mount removed); `combined.ts`; `headless_allowlist`
-   unchanged; `health.ts` trims; `backups.ts` restore body + 4 routes deleted;
-   `disk_space.ts` project gates deleted; purge cron deleted; `onboarding.ts`
-   `projectId` field; `compareProjects` deleted; `static.ts` comments
-   updated (mount kept).
-5. **Packages**: `db/instance/run_generation.ts` pointer functions,
-   `pin_run.ts` (pin flag only), `attach_run.ts` + `package_compatibility.ts`
-   deleted, `issueFor` to lib, `generate_run/{launch,pipeline,types}.ts`
-   attach targets + guard deleted, `lib/types/run_generation.ts` renames,
-   `delete_run.ts` comments.
-6. **Realtime + collab**: `instance_sse.ts` types, `notify_instance_updated.ts`
-   (products/folders/last_updated wrappers), `build_instance_state.ts` (split
-   builder, readyPackages), `instance-sse.ts` forwardable filter for
-   unapproved, `notify_last_updated.ts` signature; project channel files
-   deleted; `routes/instance/collab.ts` (was `project-collab.ts`), `server/
-   collab/*` (projectId removed from room/ledger/accumulator keys, product-keyed
-   presence registry, `po_rooms.ts` deleted, `AddLog` without projectId,
-   checkpoints emit product upserts), `lib/types/collab.ts` protocol (drop
-   `project_awareness_update` + `po_*`), `lib/collab/figure_config_crdt.ts` PO
-   half removed.
-7. **AI + MCP**: `routes/instance/ai_proxy.ts` (copilot mount, approved) +
-   `ai_files.ts` moved, `anthropic_messages_proxy.ts` / `ai_usage_logs.ts`
-   without projectId, `mcp/context_cache.ts` (imports, door comment rewritten
-   as load-bearing, `RunDataset*`), `server/tests/*` updated, instance-config
-   `ai_context` (schema + route; the concatenation runs in 080).
-
-### Phase 2 — Client (typecheck target: `npm run typecheck` green; prototype)
-
-1. **State**: `state/instance/t1_store.ts` + `t1_sse.tsx` (products, folders,
-   readyPackages, lastUpdated, `reconnectForApproval`), `state/instance/
-   collab.ts` (mounted when approved, `reconnectCollab`), `state/instance/
-   t2_run_authoring_context.ts`, `state/products/t2_*.ts` (rekeyed; PO detail
-   + dashboards halves deleted), `_infra/reactive_cache.ts`, `clear_caches.ts`,
-   `t4_ui.ts` (products + explore prefs, `pendingEditorOpen`, `?product=`),
-   `state/project/**` deleted, `server_actions` regenerate (no `projectId`
-   args — the call sites go through the compiler).
-2. **Products page + create + settings + folders + Explore** (§2.6);
-   `components/project/**` gone (≈24 deleted, ≈9 relocated — `add_visualization/`
-   → `figures/insert_figure/`, `preset_preview.tsx`, `metric_details_modal.tsx`);
-   `components/dashboards/**` + `public_viewer/**` deleted; `instance/index.tsx`
-   tabs; `instance_projects.tsx` / `add_project.tsx` / `pending_deletions.tsx`
-   / `compare_projects.tsx` / permission forms deleted; `app.tsx` route.
-3. **Editors + figures + resolvers**: live PackageScope reads;
-   `_editor_snapshot.ts`; `generate_visualization/**` (`get_data_config_from_po.ts`
-   reads bundle scope; `resolve_figure_from_visualization.ts` ×2 deleted;
-   `figure_staleness.ts` new; `assert_replicant_valid.ts`);
-   `components/visualization/` → `figure_editor/` (standalone shell, settings,
-   duplicate, save-as-new, create-slide-from-viz, `select_visualization_for_slide`
-   deleted); stale badge + update actions in the slide figure block and
-   `ReportFigureEmbed`; "Copy to deck…" in `slide_list.tsx`;
-   `generate_slide_deck/convert_slide_to_page_inputs.ts` drops the unused
-   `projectId` param; `exports/**` (dashboard exports deleted);
-   `PresentationObjectPanelDisplay` (takes `{ scope, authoringContext }`),
-   `ReplicateByOptions`, `slide_presenter`, `slide_card`, `view_results_object.tsx`
-   (run-keyed raw preview), `_shared/{connection_banner,live_cursors,
-   presence_toasts}`, `cursors/` (page cursors off the list), version_history
-   (no projectId, `diff_segments` editor names from the instance roster),
-   `share_slide_deck` (instance roster), `download_*`.
-4. **Copilot** (`components/copilot/**`): wrapper mount, `client_env.ts` env
-   resolver (+ source header), `build_tools.ts`, every tool file touching
-   projectId, viz tools + `DraftVisualizationPreview` deleted, view registry
-   (D15), system prompt (instance `ai_context`), interactions producer on
-   `products_upserted` / `last_updated(slides)`, drafts (re-resolve on
-   AddToDeck), documents (`useAIDocuments`, `AIDocumentSelectorModal` headers),
-   `sdk_client` default headers, `slide_ai/*` helpers (take scope + context;
-   `resolve_figure_from_visualization.ts` deleted), `ai_input.ts` descriptions
-   sweep.
-5. **Onboarding + copy sweep + help**: `onboarding/**` per §2.6; translation
-   sweep to zero; `feedback_form` (`context` instead of `projectLabel`);
-   `change_email_modal.tsx`; help buttons untouched until the docs site is
-   rewritten (only `viz-data-tab` is consumed).
-
-Prototype milestone = both typechecks + `lint:systems` + `deno task test`
-green, dev DB consolidated by 080, app runs against it.
-
-### Phase 3 — Rigs, tools, docs
-
-1. `query_rig/**` re-based onto parquet + manifest fixtures driving
-   `getPresentationObjectItemsCore` / `getPossibleValuesFromRun` /
-   `getResultsValueInfoFromRun` / `getIndicatorMetadataFromRun`; the 59 cases
-   re-judged under DuckDB (the 3 `err` cases are `validateFetchConfig` and
-   survive); PROTOCOL_APP_QUERY_RIG "verified controls" restated.
-2. Delete `backfill_runs.ts`, `validate_results_runs_parity.ts`,
-   `validate_figure_bundle_backfill.ts`, `rollout_fleet/backfill/nigeria`,
-   Dockerfile COPY lines 34-35; and, inside `server/runs/`, `synthesizeRunForProject`
-   + the project-DB branch of `exportPgTableToParquet` (their files SURVIVE —
-   the generation pipeline calls `buildRunPackageIntoTmp`, `readCsvHeaders`
-   and `exportRowsToParquet`);
-   add `validate_consolidation.ts`, `rollout_products`, `restore_main`,
-   `purge_legacy_dbs`; `.github/scripts/sync-docs.sh` terminology line 141
-   ("Product", "Folder"; drop "Project"/"Data window"/"Dashboard") + the
-   example image path at :180, `generate-changelog.sh:168` example text;
-   `validate_protocols --update-baseline` after the `project_ai` → `copilot`
-   move.
-3. Docs (§7) + SYSTEM globs (13 SYSTEM files, 98 glob lines — incl.
-   SYSTEM_06's five relocated files) + SYSTEMS.md §4.1 rows; PLAN edits (D18);
-   `PROTOCOL_ACCESS_DBS.md` (gitignored) rewritten locally; USER_GUIDE_MCP.md
-   "per-project" lines.
-
-### Phase 4 — Rollout (runbook, §5)
+`server/db/utils.ts` stays as it is: its four exports (`escapeSqlString`,
+`tryCatchDatabaseAsync`, `getResultsObjectTableName`, `detectHasAnyRows`)
+are all live on main and in the run read path. `dbRowToHfaIndicator` already
+lives in `db/instance/hfa_indicators.ts` and does not move.
+`getEnabledFacilityDisaggregationOptions` and
+`PHYSICAL_DISAGGREGATION_COLUMNS` already live in
+`server/runs/disaggregation_availability.ts`. Renames, all in step 3:
+`getProjectDatasetsFromManifest` becomes `getRunDatasetsFromManifest`
+(`run_read.ts`; caller `server/mcp/context_cache.ts`); the live callers of
+`projectScopeToken` (`lib/types/projects.ts`) switch to `scopeToken` in
+`lib/types/scope.ts` (step 1 creates it; the callers are `run_read.ts` and
+`query_rig/build_package.ts`; two more die in 9b);
+`lib/types/datasets_in_project.ts` is renamed `lib/types/run_datasets.ts`
+with its types renamed `RunDataset*` (importers: `lib/ai_tools/
+build_system_prompt.ts`, `lib/types/mod.ts`; the `RunDataset` type already in
+`lib/types/run_manifest.ts` is checked for overlap first).
 
 ---
 
-## 4. Gates (all must be green before merge; the last four before deploy)
+## 4. Steps
 
-- **[GREEN]** `deno task typecheck` (server + client + `lint:systems`); `deno task test` (13/13).
-- **[GREEN]** `./validate_migrations` (main only).
-- **[GREEN, superseded]** the Appendix A harness. Replaced by a stronger check
-  that was EXECUTED: a throwaway postgres seeded with the pre-restructure base
-  + all 78 legacy migrations, plus TWO project databases seeded byte-identically
-  (simulating `copyProject`'s `WITH TEMPLATE`), run through 000→079→080→081.
-  Folders merged per D10, 7 id collisions re-minted with the full reference
-  surface rewritten (incl. deck-version slide ids and `slide_editors` keys),
-  all four figure surfaces stamped, and the migrated schema dump came out
-  BYTE-IDENTICAL to a fresh `_main_database.sql`.
-- **[GREEN]** `./validate_queries` — 76 cases, re-based on parquet + manifest
-  fixtures; 13 of them new and all about scope.
-- **[GREEN]** Fresh-postgres boot (000→081 + transforms) completes, exit 0.
-All five greps below are **[GREEN]**. The surviving hits are the deliberate
-keeps named in each line, plus the SQL verb "re-project" and the three comments
-naming the legacy `sandbox/{projectId}` dirs, which are real artefacts still on
-the runs volume until `purge_legacy_dbs` clears them.
+Ten steps, twelve sessions (7 and 9 split in two). Each row below is one
+agent session. **Depends on** is the dependency graph, not a suggestion:
+step 3 needs nothing but the tree as it is, so it can run before 1 and 2 or
+in parallel with them if two sessions are open, and 4 can follow it the
+same way. Everything from 5 onward is serial.
 
-- `grep -rn "projectId\|requiresProject\|state/project/\|Project-Id" client/src lib server main.ts` → 0 (excluding `server/db/migrations/**`).
-- `grep -rni "dashboard\|presentation_objects\|visualization_folder\|po_rooms\|follow_pinned\|followPinned" client/src lib server main.ts` → 0 outside `server/db/migrations/**` and the figure-config vocabulary (`PresentationObjectConfig`, `getRunPresentationObjectItems`, `normalize_po_config`, … — §8).
-- `grep -rli "projet\|projeto" client/src lib client/public/info` → 0 (excluding "projection").
-- `grep -rni "project" client/src lib server main.ts client/public/info | grep -vi "projection"` reviewed to zero outside `server/db/migrations/**` (000/080/081 and `consolidation/plan.ts` necessarily say it). Known residue excluded: `lib/help/help_targets.generated.ts` until the docs-site rewrite.
-- `git ls-files | grep -i "project\|dashboard"` → 0 excluding `server/db/migrations/**`, `panther/**` (map projections), `_archive_*/**`.
-- **[GREEN]** 080 executed against the dev DB: 11 projects → 15 products
-  (4 decks / 11 reports), 7 folders, 26 slides, 5 versions, 0 id remaps —
-  matching the dry-run's plan exactly, which is what D13's shared planning core
-  exists to guarantee. The app runs on the migrated data. Tim's own use of it
-  is the browser verification and is not a plan item.
-- **[PENDING — needs the fleet]** `validate_consolidation.ts` zero FAIL
-  fleet-wide (read-only); the `pending_deletion`, central-reporting,
-  viewer-only-user, dropped-visualization / dropped-dashboard (incl. public)
-  counts REVIEWED per instance (D2, D3, D11). Passes on the dev instance:
-  10 visualizations (all user-authored) and 7 dashboards (6 public) deleted,
-  8 of 9 users become full editors.
-- **[PENDING — needs testing-tim]** `restore_main` rehearsed once.
-- **[PENDING]** `./deploy_testing` to testing-tim BEFORE the fleet; then one
-  multi-product instance before the rest.
+| Step | Name | Depends on | Ships alone? | The one thing it proves |
+| --- | --- | --- | --- | --- |
+| 1 | Additive products schema | none | yes | 084 applies on every fleet shape |
+| 2 | Consolidation planner, fleet dry-run, `.ts` runner | 1 | yes | the fleet's blast radius is known |
+| 3 | Run-keyed reads with scope, and the authoring context | none | no | scope is a parameter on each read, with no project wrapper required |
+| 4 | FigureBundle scope and runId, staleness, the update action | 3 | no | every stored figure records its own run and scope |
+| 5 | Products DB layer, routes, guard, SSE | 1, 3 | no | the product plane exists beside projects |
+| 6 | Explore tab and the insert-figure wizard | 4, 5 | no | presets render without a project |
+| 7a | The switch. Editors live on products | 4, 5, 6 | no | a deck lives in main and edits live |
+| 7b | The explorer | 7a | no | the Products page navigates nested folders |
+| 8 | Copilot remount | 7b | no | one mount whose env follows the product |
+| 9a | Client strip | 8 | no | the client has no project |
+| 9b | Server strip and consolidation | 9a, 2 | no | the server has no project; 085 runs on dev |
+| 10 | Ops scripts, docs read-through, close | 9b | no | the repo reads as written today |
+
+Format of each step below: **Surface** (the files and areas it may touch;
+anything else is out of bounds), **Deliverable**, **Not in this step**,
+**Gates** (on top of the §0 floor), **Reference** (worked answers on
+`version2-reference`), **Ends with** (what is true when the session stops).
+
+**Intermediate states the build passes through.** Building beside the old
+code means two of some things exist for a while. Each is listed here with
+the steps it spans so no agent mistakes it for the end state or closes it
+early.
+
+| State | From | Until |
+| --- | --- | --- |
+| The three consolidation migrations exist under `consolidation/staged/`, unscanned by the runner | 2 | 9b |
+| `figureBundleSchema`'s `scope` and `provenance.runId` are optional; `getRollupRowLabel` falls back to the container's scope; the stale predicate treats a missing field as not stale | 4 | 9b |
+| `components/figure_editor/` (new files) exists beside `components/visualization/` (the embedded editor and the standalone files) | 4 | 7a renames the embedded editor into it; 9a deletes the standalone files |
+| Two deck and report DB layers, `db/project/*` and `db/products/*` | 5 | 7a |
+| `ProductLastUpdateTableName` and `notifyInstanceLastUpdated` beside the project `LastUpdateTableName` and `notifyLastUpdated` | 5 | 9b |
+| `attached_products` beside `attached_projects` in the run catalogue row and `RunCatalogItem` | 5 | 9b |
+| T1 holds `products`, `folders`, `readyPackages`, `lastUpdated` with no consumer | 5 | 6 (readyPackages), 7a (the rest) |
+| Two figure-data caches with two version-key shapes: `state/project/t2_presentation_objects.ts` (keyed by `ProjectState`) and `state/products/t2_figure_data.ts` (keyed by scope) | 6 | 9a |
+| Two instance tabs, Projects and Products; Explore sits after Projects | 6 | 9a |
+| Two collab sockets: `/collab` (slide and report rooms) and `/project_collab/:id` (PO rooms only; slide and report handling stripped). PO co-editing on the project Visualizations tab is dead from 7a; accepted, since 9a deletes that tab | 7a | 9b |
+| `reactive_cache.ts` accepts two version sources, `ProjectState` and `InstanceState` | 7a | 9a |
+| Editors opened from the Products page have no copilot; the project shell keeps `project_ai/` | 7a | 8 |
+| `/ai` is remounted to `copilot_ai_proxy.ts`; the project `ai_proxy.ts` file is unmounted but present | 8 | 9b |
+| `components/project_ai/**` remnants the project shell imports exist beside `components/copilot/**` | 8 | 9a |
+| `lib/api-routes/project/**` and `server/routes/project/**` exist with no client importer | 9a | 9b |
+
+### Step 1: Additive products schema
+
+**Surface.** `server/db/migrations/instance/084_products.sql`;
+`server/db/instance/_main_database.sql` (products block added, nothing
+removed); `server/db/instance/_main_database_types.ts` (row types for the
+new tables); `lib/types/products.ts` (`ProductType`, `PRODUCT_TYPES`,
+`Folder`, `ProductBase`, `ProductSummary`, `productScope`);
+`lib/types/scope.ts` (`PackageScope`, `scopeToken`, `packageScopesEqual`;
+no caller switches to `scopeToken` until step 3); SYSTEM_02 and SYSTEM_12
+globs and prose for the new tables and types.
+
+**Deliverable.** The §3.1 DDL, additive, `IF NOT EXISTS` throughout,
+including `folders.parent_id` and every index. The migration number is the
+next free one; if it is not 084, record it in §9 and use the recorded
+number everywhere this plan says 084.
+
+**Not in this step.** Anything that reads or writes the new tables. The
+runner's `.ts` support (step 2). Any change to `projects` or its columns.
+
+**Gates.** `./validate_migrations`. A fresh-postgres boot (`db_startup`
+against an empty database) exits 0. The historical-shape replay described
+in Appendix A, re-run for 084 alone: the seven fleet-shape bases plus their
+migrations plus 084 apply with zero statement errors.
+
+**Reference.** Commits 1c5acebc, caaa2666. Files:
+`server/db/migrations/instance/079_products.sql`,
+`082_folder_nesting.sql`, `server/db/instance/_main_database.sql` (the
+products block), `lib/types/products.ts`, `lib/types/scope.ts`.
+
+**Ends with.** One commit. The tree is deployable on a normal release and
+nothing user-visible changed.
+
+### Step 2: Consolidation planner, fleet dry-run, `.ts` runner
+
+**Surface.** `server/db/migrations/runner.ts` (the `TS_MIGRATIONS` literal
+map, `.ts` discovery, the throw for an unregistered `.ts` file; the map is
+empty until 9b); `server/db/migrations/consolidation/plan.ts`
+(`planConsolidation`, pure); `server/db/migrations/consolidation/execute.ts`
+(`consolidateProjects(tx)`: opens each source pool read-only, asserts the
+source is at `041_drop_frozen_results_plane`, calls the planner, applies the
+plan through `tx`); the three staged migration files under
+`server/db/migrations/consolidation/staged/` (`000_legacy_project_shell.sql`,
+`085_consolidate_projects.ts`, `086_drop_project_layer.sql`), which the
+runner does not scan and step 9b moves into `instance/`;
+`validate_consolidation.ts` at the repo root (`--local` against the dev DB,
+fleet mode through the `PROTOCOL_ACCESS_DBS` path, `--json` output for the
+step 10 post-check); `validate_consolidation_replay` at the repo root (the
+throwaway-postgres harness, mirroring `validate_migrations`);
+PROTOCOL_APP_MIGRATIONS (the `.ts` migration rules); SYSTEM_02 globs and
+prose.
+
+**Deliverable.** Everything D9 and D13 describe for 085, the planner and the
+dry-run, executable end to end in a throwaway database, with the live
+migration files staged but not active. The planner's frozen row types are
+copied from `version2`'s `_project_database_types.ts`. The folder plan is
+D10's nested shape. The dry-run report per instance lists what D13 names.
+
+**Not in this step.** Placing any file in `migrations/instance/` other than
+084. Any change to `db_startup.ts`. Any product read or write in the app.
+
+**Gates.** `deno check server/db/migrations/consolidation/**/*.ts` on top of
+the typecheck. `validate_consolidation_replay` green, which means three
+things. (a) A throwaway postgres is seeded with the pre-restructure base,
+all current instance migrations, and two project databases seeded
+byte-identically (the `WITH TEMPLATE` case), each holding at least one
+figure in a live table and one in a version snapshot. Run through 000, 084,
+085 and 086, it ends with: folders nested per D10; every id collision
+re-minted and the full reference surface rewritten; all four figure surfaces
+stamped; and a schema dump byte-identical to "fresh base plus 084 plus 086".
+(b) A second database seeded with users carrying `default_project_*` flags,
+logs with `project_id`, and aggregate rows that differ only by `project_id`
+comes out with logs and users preserved and the aggregate rows merged. (c)
+The two negative controls Appendix A names (000 without the
+`user_logs_aggregate` ALTER; 000 without any log ALTER) still fail at 035
+and 016. `validate_consolidation.ts --local` against the dev DB reports zero
+FAIL and
+its counts are recorded in §9. The fleet run is done from this step's
+session if the read-only access is configured, otherwise the session ends
+with the command ready and the log says so.
+
+**Reference.** Commits 1c5acebc, 3c93b798, d32d555b. Files:
+`server/db/migrations/consolidation/plan.ts` (732 lines; the header comment
+is the best statement of the collision and stamping rules),
+`server/db/migrations/instance/080_consolidate_projects.ts`,
+`validate_consolidation.ts`, `server/db/migrations/runner.ts`,
+`PROTOCOL_APP_MIGRATIONS.md`. The reference asserted source migration 039;
+this tree is at 041.
+
+**Ends with.** Two or three commits (runner; planner and replay; dry-run
+tool). The tree is deployable on a normal release. §9 carries the dev-DB
+dry-run counts and, if run, the fleet totals: instances, FAILs,
+pending-deletion and central-reporting projects, dropped visualizations and
+dashboards, viewer-only users.
+
+### Step 3: Run-keyed reads with scope, and the authoring context
+
+**Surface.** `lib/api-routes/instance/run_generation.ts` (the five routes in
+§3.3, added; existing routes untouched); `lib/types/run_authoring_context.ts`;
+`server/routes/instance/run_generation.ts`; `server/run_query/
+{run_data_reads,run_read,virtual_defaults}.ts` (nullable `adminArea2` on the
+read bodies; `deriveVirtualDefaults(manifest)` memoised by runId; the
+project lens and `findVirtualDefault` stay, unused by the new routes);
+`server/run_query/authoring_context.ts` (`buildRunAuthoringContext`); the
+§3.10 relocation of the run-capture and module-config helpers into
+`server/runs/capture_inputs/{hfa,hmis,iceh}.ts` and
+`server/runs/module_config.ts`, with the old `db/project` files becoming
+re-exports of nothing (deleted) and every importer updated;
+the three §3.10 renames (`RUN_FACILITY_COLUMN_NAMES` / `RunFacilityRow`,
+`getRunDatasetsFromManifest`, `lib/types/datasets_in_project.ts` to
+`run_datasets.ts`) and the switch of `projectScopeToken`'s live callers to
+`scopeToken`; `query_rig/**` (scope as an axis, new cases); SYSTEM_06,
+SYSTEM_08, SYSTEM_09 globs and prose; PROTOCOL_APP_QUERY_RIG "verified
+controls".
+
+**Deliverable.** D7 without the deletions. Every new route is guarded by
+`requireGlobalPermission()` with no permission for now and swapped to
+`requireApprovedUser()` in step 5 when the guard exists (record this in
+§9). The data reads require `runs.status = 'ready'`. The Valkey key shape
+keeps `runId` leading and `scopeToken` trailing; `PO_CACHE_VERSION` is not
+bumped, and the step proves it by showing an existing national key is
+unchanged.
+
+**Not in this step.** Deleting the project lens, `getCacheStatus`, or the
+project `presentation_objects` data half. Any client change. The
+`server/db/project/presentation_objects.ts` reader (dies in 9b).
+
+**Gates.** `./validate_queries` with the scope axis: every existing case
+under national, plus cases for an AA2 scope on each read kind (the reference
+added 13). A ten-line harness calls `buildRunAuthoringContext` for the dev
+pin and `getProjectDetail`'s projection for a project attached to the same
+run and diffs them (equal modulo time points and key order).
+`./mcp_probe` against local: the `/mcp` tools' output is byte-identical
+before and after (the headless allowlist and national default are
+untouched).
+
+**Reference.** Commits a2c74c04, a988418f, c322098e, 30c73212 (the rig's
+scope axis). Files:
+`server/run_query/authoring_context.ts`, `server/run_query/run_data_reads.ts`,
+`lib/types/run_authoring_context.ts`, `lib/api-routes/instance/run_generation.ts`
+(the five route definitions are printed in §3.3), `server/runs/capture_inputs/*`,
+`server/runs/module_config.ts`, `query_rig/cases.ts`. The reference's
+`run_read.ts` and `disaggregation_availability.ts` had already moved once
+(commit 6e0f8aa7 corrected the plan); re-derive homes from this tree.
+
+**Ends with.** Two commits (relocation; reads and rig). Nothing user-visible
+changed; the project pages still read through the lens.
+
+### Step 4: FigureBundle scope and runId, staleness, the update action
+
+**Surface.** `lib/types/_figure_bundle.ts` (`scope` and `provenance.runId`,
+optional); `lib/figure_package_issue.ts` (`figurePackageIssueFor`,
+`figurePackageIssueForMetrics`, `requestedDisaggregationOptions`; extracted
+from the private `issueFor` in `server/runs/package_compatibility.ts`, which
+imports the lib version back); `client/src/state/instance/
+t2_run_authoring_context.ts` (the immutable T2 cache over step 3's route,
+keyed `[runId]`, the `t2_runs.ts` idiom);
+`client/src/generate_visualization/figure_staleness.ts` (pure);
+`generate_visualization/{resolve_figure_from_metric,
+resolve_bundle_from_metric_and_config,get_data_config_from_po,
+assert_replicant_valid}.ts` (capture-on-write from the container's
+PackageScope; `getRollupRowLabel` reads `bundle.scope` and falls back to the
+container's scope only when the bundle predates step 4);
+`client/src/components/figure_editor/stale_figure_badge.tsx` (a new
+directory; 7a moves the embedded editor into it),
+`components/slide_deck/deck_stale_figures.ts`, the slide figure block and
+`ReportFigureEmbed.tsx` (badge and "Update to" action, taking a
+`PackageScope` prop from their container); the deck and report headers
+("Update all figures" with a count); `components/slide_deck/slide_ai/
+resolve_figure_from_metric.ts`; SYSTEM_10 prose (bundle contract, roll-up
+label rule, identity claim restated as "identical code path; identical
+output when the pairs match").
+
+**Deliverable.** D4 with the container being the project editor for now (it
+supplies `{ runId: project.run_id ?? pin, adminArea2: project.admin_area_2
+}`) and the product editor from 7a. The update action re-resolves through
+the step 3 authoring context.
+
+**Not in this step.** Deleting `buildResultsPackageCompatibilityReport` or
+the compatibility modal (9b, 9a). Making the two fields required (9b). Any
+server change beyond the lib move.
+
+**Gates.** A `deno task test` case in `server/tests/` for the lib schema: a
+stored bundle without the two fields parses; one with them parses. A
+harness (`deno run --allow-all -c deno.json`, absolute-path import of the
+client file) for `isFigureBundleStale` on the four combinations of matching
+and mismatching pair, plus the missing-field case returning false; if the
+client file cannot be imported under Deno because of its own imports, the
+predicate is split into a dependency-free module so it can be. In dev: an
+existing deck renders unchanged; a figure added
+now carries both fields (inspect the stored config); changing the project's
+attached package makes that figure's badge appear and "Update" re-resolves
+it; a metric absent from the new package shows the reason on the figure.
+
+**Reference.** Commits 1c5acebc (schema), a2c74c04 (`issueFor` to lib),
+e424264f (staleness, badges, `getRollupRowLabel`). Files:
+`lib/types/_figure_bundle.ts` lines 114 to 147, `lib/figure_package_issue.ts`,
+`client/src/generate_visualization/figure_staleness.ts`,
+`client/src/components/figure_editor/stale_figure_badge.tsx`,
+`client/src/components/slide_deck/deck_stale_figures.ts`,
+`client/src/generate_visualization/get_data_config_from_po.ts` lines 97 to
+135 (the first behavioural defect's fix).
+
+**Ends with.** One or two commits. The transitional optional state is
+recorded in §9 with "closed by 9b".
+
+### Step 5: Products DB layer, routes, guard, SSE
+
+**Surface.** `server/db/products/{mod,products,folders,slide_decks,slides,
+reports,versions,move_slides,copy_slides}.ts` (built from the `db/project`
+counterparts, rekeyed to `mainDb` and the `products` join; the originals stay
+until 7a); `server/utils/id_generation.ts` (4 chars, table-aware collision
+check); `server/middleware/userPermission.ts` (`requireApprovedUser`);
+`server/auth/global_user.ts` (`getGlobalUser`, `buildGlobalUserFromDb` moved
+here; `project_auth.ts` imports them back); `lib/api-routes/products/
+{products,folders,slide-decks,slides,reports}.ts`; `server/routes/products/
+*.ts`; `lib/api-routes/combined.ts`; `main.ts` mounts; `lib/api-routes/
+instance/run_generation.ts` (`listAttachableResultsPackages` returning
+`ReadyPackage[]`; the step 3 routes swapped to `requireApprovedUser`);
+`server/db/instance/run_generation.ts` (`setProductRun`, the product delete
+guard, `attached_products` json_agg beside `attached_projects` until 9b);
+`lib/types/instance_sse.ts` (the §3.4 additions to `InstanceState` and the
+message union); `lib/types/last_updated_tables.ts`
+(`ProductLastUpdateTableName` added beside the project union, which stays
+until 9b); `lib/types/run_generation.ts` (`attachedProducts` added beside
+`attachedProjects` on `RunCatalogItem`, additive);
+`server/task_management/{build_instance_state,notify_instance_updated}.ts`
+and a new `notifyInstanceLastUpdated(tableName, ids, ts)` beside the project
+`notifyLastUpdated`, which is not touched; `server/routes/instance/
+instance-sse.ts` (withhold the product lists from unapproved connections);
+`client/src/state/instance/{t1_store.ts,t1_sse.tsx}` for exactly one reason:
+`EMPTY_INSTANCE_STATE` is a typed literal of `InstanceState`, so the new
+fields must be added there and applied from `starting` and the new messages,
+with no consumer yet; SYSTEM_01, SYSTEM_03, SYSTEM_12 globs and prose;
+PROTOCOL_APP_ROUTES (the single guard recipe).
+
+**Deliverable.** D1, D8's additions, §3.2's guard, every product and folder
+route in §3.3 including `duplicateProduct` and `copySlidesToDeck`, §3.4's
+messages and `ProductSummary`. The folder cycle check is a recursive CTE
+inside the `updateFolder` transaction returning the typed `FOLDER_CYCLE`
+failure through the envelope. `deleteFolder` reparents one level and returns
+`freedProductIds`. `createProduct` resolves the pin inside the insert and
+returns the typed `NO_READY_PINNED_PACKAGE` through the envelope.
+
+**Not in this step.** Collab (7a). `version_capture` (7a). Any client file
+other than the two T1 files named above, and in those, nothing beyond
+storing the new fields. Deleting any project route. The `emails` move (7a).
+
+**Gates.** Before writing a mount, list the current `main.ts` mounts and the
+project registries' paths and show that `/products`, `/folders`,
+`/slide-decks`, `/slides`, `/reports` collide with nothing. A rung 1a
+harness against local: create a deck and a report (4-char ids; label
+localised; `run_id` = the pin), `starting` carries both with the right
+summary shape, set package to a ready run and to a non-ready run (the second
+refused in the UPDATE), set scope, create three nested folders, move a
+folder into its own descendant (`FOLDER_CYCLE`), delete the middle folder
+(children and products reparent one level; `products_upserted` for the freed
+ids), duplicate a deck (the copy carries the same `(run_id, admin_area_2)`),
+copy two slides to another deck (bundles verbatim), delete all products in
+one batch (`products_deleted`, CASCADE verified by counting `slides`). An
+unapproved connection's `starting` carries no products, folders or ready
+packages. `deleteRun` refuses while a product points at the run. The client
+typecheck passes with the new T1 fields stored and unread.
+
+**Reference.** Commits 0477beb9, c322098e, 3c93b798, 28d138de, caaa2666,
+714fd4e4 (server half). Files: everything under `server/db/products/`,
+`lib/api-routes/products/`, `server/routes/products/`;
+`server/middleware/userPermission.ts` line 28; `server/auth/global_user.ts`;
+`lib/types/instance_sse.ts`; `server/task_management/notify_instance_updated.ts`.
+The route names are printed in §3.3. `ProductSummary` was trimmed after the
+first build (commit 28d138de); build the trimmed shape.
+
+**Ends with.** Three commits (guard and global_user; DB layer; routes, SSE
+and the passive T1 fields). The Products tab does not exist yet; the new
+plane is reachable only through the API.
+
+### Step 6: Explore tab and the insert-figure wizard
+
+**Surface.** `client/src/components/explore/{index,metric_details_modal}.tsx`;
+`client/src/components/figures/insert_figure/**` (moved from
+`components/project/add_visualization/` plus `project/preset_preview.tsx`,
+fed by an authoring context; the project page imports from the new path);
+`client/src/components/_shared/scope_picker.tsx` (renamed from
+`project_scope_picker.tsx`; copy says "Scope"; its importers, project
+settings and `instance/add_project.tsx`, switch to the new name);
+`client/src/state/products/{t2_figure_data,t2_replicant_options}.ts` (keyed
+`(runId, scopeToken, ...)`, version constant; the project caches untouched);
+`client/src/state/t4_ui.ts` (`exploreRunId`, `exploreAdminArea2`);
+`client/src/components/instance/index.tsx` (the Explore tab, approved users,
+after Projects for now); translations for the new strings; SYSTEM_11 and
+SYSTEM_14 globs and prose.
+
+**Deliverable.** D6 minus "Add to deck / report…" (7b, when products can be
+created in the UI). Package Select over `readyPackages` (in T1 since step
+5) with the pin preselected; scope picker default national; module sidebar,
+metric cards, preset gallery, render area through the run-keyed items read
+and step 4's authoring-context cache; "Configure" opens the embedded editor
+ephemerally.
+
+**Not in this step.** Any write. Any product. Deleting `project_metrics.tsx`
+or the project's `add_visualization` (they now import the moved files).
+
+**Gates.** `./validate_protocols` with no new baseline entries. In dev: the
+Explore tab renders the pin's presets at national and at an AA2 scope;
+switching package re-renders from the immutable T2 context without a
+refetch of items already cached under the same `(runId, scopeToken)`; the
+project Metrics tab still works.
+
+**Reference.** Commit bc1bbc31. Files: `client/src/components/explore/*`,
+`client/src/components/figures/insert_figure/*`,
+`client/src/components/_shared/scope_picker.tsx`,
+`client/src/state/products/t2_figure_data.ts`.
+
+**Ends with.** Two commits (move and rename; Explore). An approved user can
+look at a chart without a project.
+
+### Step 7a: The switch. Editors live on products
+
+**Surface.** Editors: `client/src/components/slide_deck/**` and
+`client/src/components/report/**` take `{ productId }`, derive `scope()`
+from the T1 products row, read the authoring context from T2 by that live
+`runId`, and gate edits on one `canEditProducts()`;
+`components/_editor_snapshot.ts`; `components/visualization/` renamed
+`components/figure_editor/` (the embedded editor and its panels only; the
+standalone files stay in the old directory until 9a and import the inner
+editor from the new path); `PresentationObjectPanelDisplay` takes `{ scope,
+authoringContext }`; `ReplicateByOptions`, `slide_presenter`, `slide_card`,
+`view_results_object.tsx` (run-keyed raw preview), `version_history/**`
+(no projectId; editor names from the instance roster), `share_slide_deck`
+(instance roster), `download_*`, `_shared/{connection_banner,live_cursors,
+presence_toasts}`, `cursors/` (page cursors off the list),
+`generate_slide_deck/convert_slide_to_page_inputs.ts`. State:
+`client/src/state/instance/{t1_store,t1_sse.tsx}` (products, folders,
+readyPackages, lastUpdated, `reconnectForApproval`),
+`state/instance/collab.ts` (moved from `state/project/`, connected by the
+instance boundary when approved; its importers on the project side,
+`visualization_editor_inner.tsx`, `PresentationObjectPanelDisplay.tsx`,
+`project_ai/.../presence_guard.ts` and `cursors/page_cursors.tsx`, switch to
+the new path; the store's PO-room half stays until 9a and gets no server),
+`state/products/{t2_slide_deck_detail,t2_report_detail,t2_slides,
+t2_images}.ts`, `state/_infra/reactive_cache.ts` (a second version source
+over `InstanceState` beside the `ProjectState` one, which
+`state/project/{t2_dashboards,t2_presentation_objects,t2_replicant_options}.ts`
+still use until 9a), `state/t4_ui.ts` (`pendingEditorOpen`). Server:
+`server/routes/instance/collab.ts` (`GET /collab`),
+`server/routes/project/project-collab.ts` (the slide and report room
+handling stripped out; the file and its PO rooms stay until 9b, and
+`project_awareness_update` stays in `lib/types/collab.ts` with it),
+`server/db/project/mod.ts` (pruned of the deleted files), `server/collab/*`
+(projectId out of room, ledger and accumulator keys; product-keyed presence;
+checkpoints emit `products_upserted`), `server/collab/version_capture.ts`
+repointed to `db/products`, `lib/api-routes/instance/emails.ts` and
+`server/routes/instance/emails.ts` (moved from project; recipients =
+instance roster). Products page, minimal:
+`client/src/components/products/{index,product_card,product_settings,
+duplicate_products_modal}.tsx` (two create buttons, each its own
+`createButtonAction`; a flat card grid; open on click; the settings surface;
+no folders UI yet). Instance shell: Products tab first and default; the
+project shell's Decks and Reports tabs removed with their files (the D12
+step 7a list). SYSTEM_10, SYSTEM_12, SYSTEM_14, SYSTEM_16 globs and prose;
+PROTOCOL_APP_STATE tier inventories.
+
+**Deliverable.** A deck or report is created, opened, edited alone and
+together, versioned, restored, emailed, downloaded, reattached and rescoped
+as a product. The project shell keeps Metrics, Visualizations, Dashboards,
+Results package and Settings until 9a.
+
+**Not in this step.** Folders UI, list view, menus, search, deep link,
+copy-to-deck, Explore's add-to (7b). Copilot (8): the project AI wrapper
+still mounts on the project shell, and the editors opened from the Products
+page have no copilot until step 8; say so in §9. Deleting `po_rooms.ts`,
+`project-collab.ts` or `project_awareness_update`.
+
+**Gates.** `./validate_protocols` (baseline entries only for moved paths,
+each shown in §9). In dev, with two browser sessions: create both product
+types; edit a slide in both sessions and see the co-edit; a checkpoint bumps
+`products.last_updated` and the summary arrives on the other session; save
+and restore a version; change the package in settings and see the D4 badges
+in both sessions without reload; "Update all figures"; delete the product
+and see both sessions' editors close. The project Decks and Reports tabs
+are gone; the remaining project tabs render, with PO co-editing on the
+Visualizations tab dead as the intermediate-states table says. An
+unapproved user sees no Products tab content and the SSE carries nothing.
+
+**Reference.** Commits 838039a5, e424264f, 3c93b798 (collab and
+`version_capture`), bc1bbc31 (the first, flat Products page). Files:
+`client/src/components/slide_deck/index.tsx` and `report/index.tsx` (the
+`Props` shape and `scope()`), `client/src/state/instance/t1_store.ts`,
+`t1_sse.tsx`, `collab.ts`, `client/src/state/products/*`,
+`server/routes/instance/collab.ts`, `server/collab/*`,
+`client/src/components/products/index.tsx` lines 241 to 265 (the second
+behavioural defect's fix), `product_settings.tsx`.
+
+**Ends with.** Several commits, each green: state and SSE consumption;
+collab; editors; minimal page and the project tab removal. Record every
+defect found while running the app in §9.
+
+### Step 7b: The explorer
+
+**Surface.** `client/src/components/products/{index,folder_tree,folder_card,
+product_card,list_view,product_menu,folder_menu,move_to_folder_modal,
+edit_folder_modal}.ts*`; `client/src/state/t4_ui.ts` (`productsOpenFolder`,
+`productsViewMode`, `productsSortMode`, `productsTypeFilter`,
+`_PRODUCT_QUERY_PARAM`, `productDeepLinkHref`); `components/_shared/
+sort_control.tsx` if shared; `slide_deck/slide_list.tsx` ("Copy to deck…")
+and `copy_slides_to_deck_modal.tsx`; `components/explore/
+add_to_product_modal.tsx` and the Explore page's "Add to deck / report…";
+translations; SYSTEM_12 and SYSTEM_14 prose (the explorer model, the deep
+link).
+
+**Deliverable.** D16 in full, on top of 7a's minimal page.
+
+**Not in this step.** Drag-and-drop, a batch action bar, folder
+multi-select, a trash (all ruled out). Copilot. Any server change (the
+routes exist since step 5; if one is missing, it is a §9 entry and a small
+server commit, not a redesign).
+
+**Gates.** A harness (`deno run --allow-all -c deno.json`, absolute-path
+import; `folder_tree.ts` must stay dependency-free so this works) over
+children, ancestors, path labels, descendant sets and picker options, each
+on a tree with a deliberately corrupted cycle (the walk terminates). In dev:
+navigate three
+levels deep, breadcrumb collapses, view mode and location survive reload;
+chips filter products only and folder counts follow; search escapes the
+location and shows paths; Move into ▸ caps at 10 and offers More…; Move up
+and Move to top level; the picker excludes the moved folder's subtree;
+deleting a folder reparents; `?product=<id>` opens the editor after
+hydration and a dead id is dropped; Copy to deck lands the slides stale
+under a deck with a different pair; Explore's add-to lands a figure
+re-resolved under the target's pair.
+
+**Reference.** Commits bd899322, caaa2666, 714fd4e4, ee7c28d8, 6e847ae3,
+e3b9bf83, fcea838c, cbd8375f, 03822f32. Files: everything under
+`client/src/components/products/` (the file-by-file descriptions are in the
+reference's SYSTEM_12, "The Products page" section, which D16 restates).
+
+**Ends with.** Several commits. The Products page is the only route to a
+deck or report.
+
+### Step 8: Copilot remount
+
+**Surface.** `client/src/components/copilot/**` (renamed from
+`project_ai/`; the wrapper mounts once around the Products and Explore pages
+and both editor overlays); `copilot/ai_tools/{client_env,source_header,
+reresolve_slide_figures,add_slide_to_deck}.ts`, `AddToDeckModal.tsx`,
+`DeckSelector.tsx`, `DraftSlidePreview.tsx`; `copilot/ai_tools/tools/*` and
+`tools/_internal/format_*_for_ai.ts` (products list with folder paths; the
+viz tools, `visualization_editor.tsx` and `DraftVisualizationPreview.tsx`
+deleted here, since no mount reaches them); `copilot/{ai_views,
+build_system_prompt,build_tools,interactions,authoring_context,types}.ts`;
+`copilot/ai_documents/*` and the store `client/src/state/products/
+t4_ai_documents.ts` (moved from `state/project/`, keyed
+`ai-documents/copilot`); `copilot/ai_tools/client_info_topics.ts` and
+`client/public/info/*.md`;
+`lib/types/ai_input.ts` descriptions; `lib/ai_tools/{env,build_system_prompt,
+tools_metrics,tools_info,info_catalog}.ts`; `lib/types/instance.ts`
+(`InstanceConfig.aiContext`), `server/db/instance/config.ts` and the settings
+route, `client/src/components/instance/ai_context_form.tsx`
+(`can_configure_settings`); `server/routes/instance/copilot_ai_proxy.ts` and
+`ai_files.ts` (moved from project, `requireApprovedUser`) and the `main.ts`
+`/ai` mount, which today points at the project proxy and is repointed at the
+copilot one (the project `ai_proxy.ts` file stays, unmounted, until 9b);
+`indicator_manager_hfa/ai/sdk_client.ts`
+(default headers); `slide_deck/slide_ai/*` (take scope and context);
+`server/mcp/{env,mcp_tools,context_cache}.ts` (source header shared);
+`server/tests/*`; `validate_protocols_baseline.json` (path rename only);
+SYSTEM_13 globs and prose; PROTOCOL_APP_AI_TOOLS.
+
+**Deliverable.** D15.
+
+**Not in this step.** Deleting `project_ai/` remnants that the project shell
+still imports (9a). `ai_usage_logs.project_id` (9b).
+
+**Gates.** `deno task test` (the MCP source-header test and its SPA twin).
+`./validate_protocols` with the baseline diff limited to the path rename and
+shown in §9. In dev: the copilot opens on the Products page with the pin
+env; opening a deck attached to a different package switches the env and
+the source header names that package and scope; a drafted slide added to a
+deck from the Products page re-resolves under the chosen deck's pair; the
+instance AI context textarea saves and appears in the system prompt.
+
+**Reference.** Commits 02471d74, c2993b2a, cad2f083, ee7c28d8. Files:
+`client/src/components/copilot/index.tsx`, `ai_views.ts` line 92 (the five
+views), `ai_tools/client_env.ts`, `ai_tools/source_header.ts`,
+`ai_tools/reresolve_slide_figures.ts`, `client/src/components/instance/
+ai_context_form.tsx`, `server/routes/instance/copilot_ai_proxy.ts`.
+
+**Ends with.** Two or three commits. One copilot mount serves the Products
+page, Explore and both editors.
+
+### Step 9a: Client strip
+
+**Surface.** The D12 step 9a list. `client/src/components/instance/index.tsx`
+(Projects tab removed; final tab set per D17). `client/src/app.tsx`
+(`/d/:slug` route). `client/src/onboarding/**` (the 33 project-area tours
+deleted; one products tour set and one Explore tour added; the instance tour
+catalogue stops fanning out `getProjectDetail`; tour ids renamed; telemetry
+loses `projectId`; `tour_catalogue_instance_modal.tsx` deleted).
+`lib/translate/*` and every en, fr and pt literal (§3.6 copy sweep).
+`feedback_form` (`context` instead of `projectLabel`),
+`change_email_modal.tsx`, `state/clear_caches.ts`, `state/_infra/
+reactive_cache.ts` (`getSnapshotProjectState`, `pdsNotRequired`,
+`responseRunVersionMatches` and the `ProjectState` version source gone),
+`state/project/**` remainder, `exports/**` dashboard files. SYSTEM_11,
+SYSTEM_14 globs and prose.
+
+**Deliverable.** A client with no project, except the results-package
+wizard's attach step and confirm copy, which depend on the launch body type
+and go in 9b. Server registries under `lib/api-routes/project/` still exist
+and are simply unimported.
+
+**Not in this step.** Any server or `lib/api-routes` file. Any migration.
+`lib/types/last_updated_tables.ts` (9b). `instance_results_packages/**`
+(9b).
+
+**Gates.** The greps from §5, items 1 to 3, restricted to `client/src`,
+`client/public/info` and `lib/translate`, at zero, with
+`client/src/components/instance_results_packages/**` excluded until 9b.
+`./validate_protocols`. Dev boot with the final tab set; every tab renders;
+the tours menu offers the new sets.
+
+**Reference.** Commits 5bb7f672, 39fb59cb, bc1bbc31, e63c7b97, cad2f083,
+57d4c684 (client halves). Files: `client/src/onboarding/{index,tours,
+catalogue}.ts`, `lib/translate/common.ts`, `client/src/components/instance/
+index.tsx`.
+
+**Ends with.** Two or three commits (project shell and dashboards and viz
+products; tours; copy sweep).
+
+### Step 9b: Server strip and consolidation
+
+**Surface.** The D12 step 9b list. The staged migrations moved from
+`migrations/consolidation/staged/` into `migrations/instance/` and 085
+registered in `TS_MIGRATIONS`. `_main_database.sql` final (projects,
+`project_user_roles`, `dashboard_slugs`, the 18 user columns, the three
+`project_id` columns and their indexes removed; `idx_user_logs_aggregate_unique`
+without COALESCE). `db_startup.ts` (per-project loop, slug backfill, orphan
+DB drop, `PROJECT_DATA_TRANSFORMS` gone; the three survivors as instance
+transforms; the `runs.summary` transform block). `runner.ts` project mode
+and `validate_migrations` project half. The transport (`route-utils.ts`,
+`create_server_action.ts`, `route-tracker.ts`, `cors.ts`). The follower
+model and attach targets (`db/instance/run_generation.ts`,
+`lib/types/run_generation.ts` with `attachedProducts` final,
+`lib/types/run_manifest.ts`, `generate_run/{launch,pipeline,types}.ts`,
+`build_run_package.ts`, the wizard client's attach step and confirm copy,
+`detail.tsx`, `_prune*.ts*`). `main.ts` (the project-collab, project-SSE,
+public dashboard and unmounted project AI proxy imports; the purge cron).
+`health.ts`, `backups.ts`, `disk_space.ts`, `users.ts` columns and H_USERS
+branches, the `getMyProjects` route, `getProjectsForUser`,
+`rename_user_email.ts` (main-DB sweep), `lib/types/permissions.ts` trimmed
+to the six instance flags, `permission_labels`, `lib/types/instance.ts`
+(`ProjectUser`, `createDevProjectUser`, `RenameEmailResult`),
+`lib/types/last_updated_tables.ts` (the project union and its emitter
+deleted; `ProductLastUpdateTableName` becomes the only union, renamed
+`LastUpdateTableName`), `figure_config_crdt.ts` PO half,
+`caches/visualizations.ts` PO detail cache, `project_auth.ts` deleted
+(`server/tests/pat_identity_parity_test.ts` repointed to
+`server/auth/global_user.ts`), `static.ts` and `oauth_metadata.ts`
+comments, `anthropic_messages_proxy.ts` and `ai_usage_logs.ts` without
+projectId, `lib/types/collab.ts` (`po_*` and `project_awareness_update`),
+`server/collab/po_rooms.ts`, `server/collab/presence_registry.ts`
+(`relayProjectAwareness`), `project-collab.ts`. D4 closed:
+`scope` and `provenance.runId` required; the `getRollupRowLabel` fallback
+and the staleness missing-field branch removed. SYSTEM_00, SYSTEM_01,
+SYSTEM_02, SYSTEM_03, SYSTEM_05, SYSTEM_08, SYSTEM_15, SYSTEM_16, SYSTEM_17
+globs and prose; PROTOCOL_APP_MIGRATIONS (no project dir; transform
+signature); PROTOCOL_APP_WORKER_ROUTINES.
+
+**Deliverable.** A server with no project, and the consolidation live.
+
+**Not in this step.** The ops scripts (10). CI scripts (10). This plan's
+deletion (10).
+
+**Gates.** `./validate_migrations` (main only). `./validate_queries`.
+`validate_consolidation_replay` green with the files in their final places.
+A fresh-postgres boot (000 through 086 plus transforms) exits 0. The dev DB
+consolidated by `./run`: the products, folders, slides and versions counts
+match the step 2 `--local` plan exactly; a report and a deck version restore
+on a migrated product; a migrated AA2 product's export labels its roll-up
+row by the bundle's scope. §5 greps 1 to 4 at zero. `./mcp_probe` output
+unchanged from step 3's baseline.
+
+**Reference.** Commits 0477beb9, 57d4c684, 5bb7f672, c52bb81d, c322098e,
+41e95a2c, a2c74c04, 941c7f1e. Files: `server/db/migrations/instance/
+{000_legacy_project_shell.sql,081_drop_project_layer.sql}`, `server/db_startup.ts`,
+`server/db/instance/run_generation.ts`, `lib/api-routes/route-utils.ts`,
+`lib/server_actions/create_server_action.ts`.
+
+**Ends with.** Several commits, ordered so each is green: transport and
+follower model; ops surfaces; project DB layer and routes; migrations and
+`db_startup`; D4 closed. The app runs on migrated data.
+
+### Step 10: Ops scripts, docs read-through, close
+
+**Surface.** `rollout_products`, `restore_main`, `purge_legacy_dbs` (repo
+root; §3.9). `.github/scripts/sync-docs.sh` (terminology line and image
+path) and `generate-changelog.sh` (example text). SYSTEMS.md custody rows
+and its own section 6 vocabulary line ("product / folder / scope / figure /
+preset").
+Every SYSTEM file whose globs changed, read against the code once more.
+PROTOCOL_APP_{ROUTES,STATE,MIGRATIONS,QUERY_RIG,DEVELOPMENT,UI_CONVENTIONS,
+WORKER_ROUTINES,AI_TOOLS}, CLAUDE.md, USER_GUIDE_MCP ("per-project" lines),
+`PROTOCOL_ACCESS_DBS.md` (git-ignored, rewritten locally).
+`validate_protocols_baseline.json` reviewed entry by entry. `lib/help/
+help_targets.generated.ts` left as is until the docs site is rewritten.
+`PLAN_PRODUCTS_RESTRUCTURE.md` deleted.
+
+**Deliverable.** The repo reads as if written today. The rollout tooling
+exists and `rollout_products` consumes the step 2 dry-run's `--json`.
+
+**Gates.** Every gate in §5. `git ls-files | grep -i "project\|dashboard"`
+at zero excluding `server/db/migrations/**`, `panther/**` and
+`_archive_*/**`. `restore_main` is rehearsed in the runbook, not here.
+
+**Reference.** Commits 3c93b798 (the three scripts), 941c7f1e, 514a11ce,
+587ca8a6 (docs). Files: `rollout_products`, `restore_main`,
+`purge_legacy_dbs`, and the reference's SYSTEM files as prose models, each
+checked against this tree's code before a sentence is reused.
+
+**Ends with.** One or two commits. The last one deletes this file.
 
 ---
 
-## 5. Rollout runbook + rollback
+## 5. Gates catalogue
 
-**Step 1 is DONE; steps 2–8 have not started.** Everything below needs real
-infrastructure and is Tim's to trigger.
+The §0 floor applies to every step. These are the whole-project gates; the
+step that first reaches zero is named, and every later step keeps it there.
 
-1. ~~Ship §0 (sweep deletion) as its own patch on `main` first.~~ **DONE** —
-   shipped on both `main` and the branch (`25871ed4`).
-2. Fleet dry-run (D13); fix and repeat until zero FAIL; act on the
-   `pending_deletion` and central-reporting lists (D11); read the
-   dropped-visualization / dropped-dashboard counts and the viewer-only-user
-   counts per instance — this is the last moment to change your mind on D2/D3.
-3. Server-cli: path-agnostic nginx WS-upgrade template, re-emit fleet sites
-   (harmless to the old `/project_collab` path — no window).
-4. Take a NAMED status-api backup of every instance immediately before rollout
-   (`main` dump + previous image = rollback; the previous image cannot boot
-   after 081 without that dump). Rehearse `restore_main` on testing-tim.
-5. `./deploy_testing` → testing-tim FROM `tim-branch-restructure` (it ships
-   the working tree, no git ops); verify products/folders/counts vs the
-   dry-run plan. Only then merge the branch into `main` and run
-   `rollout_products` across the fleet with the per-instance post-check.
-6. Settle (days); then `purge_legacy_dbs` per instance — also retires the
-   long-standing orphaned-UUID-DB open item and the legacy sandbox dirs.
-7. After the purge: delete `validate_consolidation.ts`, `rollout_products`,
-   `purge_legacy_dbs` (and `restore_main` unless kept as general ops tooling)
-   in one commit. `000` / `080` / `consolidation/plan.ts` / the runner's `.ts`
-   support remain as migration history until the next base squash.
-8. External follow-ups (§6) — before or right after step 5 as marked.
-
-Rollback = `restore_main` from step 4 + previous image; project DBs are still
-on disk (untouched by 080).
+1. `grep -rn "projectId\|requiresProject\|state/project/\|Project-Id"
+   client/src lib server main.ts` at zero, excluding
+   `server/db/migrations/**`. Client half in 9a; server half in 9b.
+2. `grep -rni "dashboard\|presentation_objects\|visualization_folder\|
+   po_rooms\|follow_pinned\|followPinned" client/src lib server main.ts` at
+   zero outside `server/db/migrations/**` and the figure-config vocabulary
+   (`PresentationObjectConfig`, `getRunPresentationObjectItems`,
+   `normalize_po_config`; §8). Client half in 9a; server half in 9b.
+3. `grep -rli "projet\|projeto" client/src lib client/public/info` at zero
+   (excluding "projection"). 9a.
+4. `grep -rni "project" client/src lib server main.ts client/public/info |
+   grep -vi "projection"` reviewed to zero outside `server/db/migrations/**`
+   (000, 085, 086 and `consolidation/plan.ts` necessarily say it). Known
+   residue excluded: `lib/help/help_targets.generated.ts` until the docs
+   site rewrite. 9b.
+5. `git ls-files | grep -i "project\|dashboard"` at zero excluding
+   `server/db/migrations/**`, `panther/**`, `_archive_*/**`. 10.
+6. `validate_consolidation_replay` green (step 2; re-run in 9b).
+7. `validate_consolidation.ts` zero FAIL fleet-wide, counts reviewed (D2,
+   D3, D11). Step 2 onward; a precondition of the runbook, not of any step.
+8. 085 executed against the dev DB with counts matching the `--local` plan
+   (9b).
+9. Fresh-postgres boot exit 0 (1, 2, 9b).
+10. `./mcp_probe` output byte-identical to the pre-step-3 baseline (3, 9b).
 
 ---
 
-## 6. External couplings (named, not fetched — separate repos/services)
+## 6. Rollout runbook and rollback
+
+Everything here needs real infrastructure and is Tim's to trigger. Steps 1
+and 2 of the plan ship early; everything else ships once, after step 10.
+
+1. **After plan steps 1 and 2:** ship 084, the runner support and the
+   dry-run tooling on a normal release. Run `validate_consolidation.ts`
+   fleet-wide; fix and repeat until zero FAIL. Act on the `pending_deletion`
+   and central-reporting lists (D11). Read the dropped-visualization,
+   dropped-dashboard and viewer-only-user counts per instance: this is the
+   last moment to change D2 or D3, and it comes before any product code is
+   written.
+2. Server-cli: path-agnostic nginx WS-upgrade template, re-emit fleet sites
+   (harmless to the old `/project_collab` path; no window).
+3. Coordinate the status-api field changes (§7) before the fleet deploy.
+4. Take a named status-api backup of every instance immediately before
+   rollout (`main` dump plus previous image = rollback; the previous image
+   cannot boot after 086 without that dump). Rehearse `restore_main` on
+   testing-tim.
+5. `./deploy_testing` to testing-tim from `version2` after step 10 (it
+   ships the working tree; check `git status`); verify products, folders and
+   counts against the dry-run plan. Then merge `version2` into `main` and
+   run `rollout_products` across the fleet with the per-instance post-check,
+   one multi-product instance before the rest.
+6. Wait at least a week with the fleet running on migrated data, then run
+   `purge_legacy_dbs` per instance, which also retires the long-standing
+   orphaned-UUID-DB open item and the legacy sandbox dirs.
+7. After the purge: delete `validate_consolidation.ts`,
+   `validate_consolidation_replay`, `rollout_products`, `purge_legacy_dbs`
+   (and `restore_main` unless kept as general ops tooling) in one commit.
+   `000`, `085`, `consolidation/plan.ts` and the runner's `.ts` support
+   remain as migration history until the next base squash.
+8. External follow-ups (§7), at the points §7 marks.
+
+Rollback = `restore_main` from runbook item 4 plus the previous image;
+project DBs are still on disk, untouched by 085.
+
+---
+
+## 7. External couplings (named, not fetched; separate repos and services)
 
 - **status-api / Status Central Portal**: `/health_check` loses `projects`;
   `/projects` and `/project_activity` are gone; `/user_logs*` and `/ai_usage`
   rows lose `project_id`; per-project backup files stop appearing (main dump
-  only); rename-email fan-out result shape. Coordinate BEFORE the fleet deploy
-  (their pollers must tolerate the missing fields).
-- **Fleet MCP connector** ("FASTR Results", `get_my_projects` / project-scoped
-  dialect): this repo's `/mcp` is already the pinned dialect (1.67.x); no
-  change expected, but the connector's project vocabulary is stale after this.
+  only); rename-email fan-out result shape. Coordinate before the fleet
+  deploy: their pollers must tolerate the missing fields.
+- **Fleet MCP connector** ("FASTR Results", `get_my_projects` and the
+  project-scoped dialect): this repo's `/mcp` is already the pinned dialect;
+  no change expected, but the connector's project vocabulary is stale after
+  this.
 - **server-cli**: path-agnostic nginx WS-upgrade template (before deploy);
-  (later, separate) sandbox→runs sites.
-- **wb-fastr-site (docs)**: 15 EN + 15 FR pages mention projects; two
-  wholly-project pages; the dashboard + visualization pages; 4 images; help
-  tags `aproj-*` / `uproj-*` / `users-project-permissions`. After the site
+  later and separately, sandbox-to-runs sites.
+- **wb-fastr-site (docs)**: 15 EN and 15 FR pages mention projects; two
+  wholly-project pages; the dashboard and visualization pages; 4 images; help
+  tags `aproj-*`, `uproj-*`, `users-project-permissions`. After the site
   rewrite: `deno task build:help-buttons`. Not blocking (one help button
   consumed).
 - **panther**: no code coupling; example snippets in `PROTOCOL_DENO_API.md`
-  (`Project-Id`) and `PROTOCOL_UI_AI_CHAT.md:294` (`getSharedToolsForMetrics(env,
-  projectId, …)`) — edit in panther, re-sync.
+  (`Project-Id`) and `PROTOCOL_UI_AI_CHAT.md` (`getSharedToolsForMetrics(env,
+  projectId, ...)`). Edit in panther, re-sync.
 - **wb-fastr-modules**: no coupling (`PROJECT_DATA_HMIS` is an opaque token;
-  `DOC_MODULES.md:36` prose stale; `createDefaultVisualizationOnInstall` keeps
-  its name — it now means "is a preset").
+  `DOC_MODULES.md` prose stale; `createDefaultVisualizationOnInstall` keeps
+  its name and now means "is a preset").
 - **Clerk**: `unsafeMetadata.onboarding` tour keys re-fire once after the
   rename; nothing else.
-- **Public dashboard URLs** in the wild (`/d/<slug>`) go dark. No redirect.
+- **Public dashboard URLs** already shared (`/d/<slug>`) stop working. No
+  redirect is provided.
 
 ---
 
-## 7. Docs to rewrite in the same push (and drift to fix in passing)
+## 8. Explicitly out of scope (later plans)
 
-SYSTEM_00 (`ProjectUser` kernel row), SYSTEM_01 (Project-Id pipeline, guards,
-the `requireApprovedUser` guard, path-id doctrine, route counts, phantom
-project streaming route, `export_central`), SYSTEM_02 (multi-DB model →
-single main + runs volume, `.ts` migrations, per-project boot pass, restore
-mechanics, id generation), SYSTEM_03 (channel catalog, per-row product
-upserts, Q-B revision, `notifyProject*` wrappers, the `po_detail` row removed
-and `PO_CACHE_VERSION` 16 — the doc still says v7/13), SYSTEM_05 (prose
-crossing into project DBs), SYSTEM_06 (globs → `server/runs/capture_inputs/**`,
-`lib/types/run_datasets.ts`; the "project attach/snapshot seam" section),
-SYSTEM_08 (attach/pin/followers/AA2 → per product, NO followers; wizard attach
-targets; MCP door as the narrower gate; "metric data is a product read"),
-SYSTEM_09 (project lens → run mount with scope; no PO detail; cache table),
-SYSTEM_10 (bundle `scope`/`provenance.runId`; roll-up label rule; staleness +
-per-figure update; identity claim restated as "identical code path; identical
-output when the pairs match"), SYSTEM_11 (library page → Products + Explore;
-figure vocabulary; `ai_tools.ts` phantom), SYSTEM_12 (retitled "Products &
-Folders"; registry, folders, notify catalog; dashboards section deleted),
-SYSTEM_13 (mount, env, source header, views become 5; `ai_tools.ts` phantom),
-SYSTEM_14 (routing `?product=`, tabs incl. Explore, `/d/` gone), SYSTEM_15
-(project lifecycle/roles/backups gone; production topology "live vs orphaned
-DBs" → purge script), SYSTEM_16 (one socket, `/collab`, product-keyed
-presence, room keys; PO rooms gone), SYSTEM_17 (`project_id` gone),
-SYSTEMS.md (§4.1 rows for `db/project/projects.ts`, `routes/project/project.ts`,
-the stale `results_objects.ts` row; SYSTEM_12 title; §6 vocabulary line
-"product / folder / scope / figure / preset"), CLAUDE.md (multi-database
-section, Project Routes, worker list, Key Features "Visualization"), 
-PROTOCOL_APP_ROUTES (single guard recipe), PROTOCOL_APP_STATE (tier
-inventories), PROTOCOL_APP_MIGRATIONS (`.ts` migrations, no project dir,
-transform signature), PROTOCOL_APP_QUERY_RIG (re-based rig),
-PROTOCOL_APP_DEVELOPMENT (chain links 6–7), PROTOCOL_APP_UI_CONVENTIONS
-(`project_data.tsx`, darkMode API), PROTOCOL_APP_WORKER_ROUTINES (dead worker
-names), PROTOCOL_APP_AI_TOOLS, USER_GUIDE_MCP.
+- The permission system rebuild (product-level permissions and sharing;
+  join key `products.created_by` exists; `RoomConn.canEdit` plumbing kept).
+- A products trash.
+- A public deck link (the only public surface dashboards provided).
+- A figure library or cross-product figure clipboard beyond
+  `copySlidesToDeck`.
+- Drag-and-drop in the explorer.
+- The `PresentationObjectConfig` to `FigureConfig` vocabulary rename
+  (`lib/get_fetch_config_from_po.ts`, `normalize_po_config.ts`,
+  `getRunPresentationObjectItems`, `t2_figure_data` internals).
+- The sandbox-to-runs directory rename.
+- An in-app main-DB backup UI.
+- Presence avatars and live cursors on the Products list.
+- A dead-glob check in `lint_systems.ts`.
+- Folding `./validate_queries` into `deno task typecheck` now that it runs
+  in seconds.
+- The next base squash that retires `000`, `085` and the `.ts` runner.
+- Reworking the other `PLAN_*.md` files for the product world.
 
 ---
 
-## 7b. Small things left open at hand-off
+## 9. Build log
 
-Two known bits of residue, both cosmetic, neither blocking:
+Append-only. One row per decision, deviation, correction or defect. Newest
+last. The next agent reads this section before its step.
 
-- **`showEditingPulse` is dead UI.** The server still stamps `isEditing` and it
-  does real work (suppressing idle dimming), but nothing passes the prop —
-  D8 removed the list-page cards that rendered it. Delete the prop.
-- One comment breadcrumb survives at
-  `client/src/components/figure_editor/visualization_editor_inner.tsx:257`, and
-  `client/src/app.css:33` still names the long-deleted `dark_mode_figures.ts`.
-
-Also unresolved, and Tim's call rather than a defect: `./validate_queries` used
-to take two minutes and now takes ~2s, so it could reasonably join
-`deno task typecheck` and become part of the `./deploy` gate.
-
----
-
-## 8. Explicitly out of scope (later plans, one line each)
-
-The permission system rebuild (product-level permissions / sharing; join key
-`products.created_by` exists; `RoomConn.canEdit` plumbing kept); a products
-trash; a public deck link (the only public surface dashboards provided); a
-figure library / cross-product figure clipboard beyond `copySlidesToDeck`;
-the `PresentationObjectConfig` → `FigureConfig` vocabulary rename
-(`lib/get_fetch_config_from_po.ts`, `normalize_po_config.ts`,
-`getRunPresentationObjectItems`, `t2_figure_data` internals…); sandbox→runs
-directory rename (PLAN_RESULTS_RUNS residue); an in-app main-DB backup UI;
-per-entity report `preview` column; presence avatars / live cursors on the
-Products list; folder nesting; a dead-glob check in `lint_systems.ts`; the
-next base squash that retires `000` / `080` / the `.ts` runner.
+| Date | Step | Entry |
+| --- | --- | --- |
+| 2026-09-08 | plan | Rewritten for the second pass on `version2`. Every file path re-verified against the tree; the D12 list dropped what tim-branch had already deleted (backfill and parity scripts, rollout scripts, `synthesize_run.ts`, the pg read plane, `calculated_indicators_snapshot.ts`); §3.10 re-derived from live imports. |
+| 2026-09-08 | plan | Migrations renumbered: 084 products, then 000, 085, 086 at step 9b. The consolidation asserts `041_drop_frozen_results_plane`, not 039. |
+| 2026-09-08 | plan | Folder nesting (`parent_id`) folded into D1, D10, D16 and the base DDL; the first attempt added it after its plan ruled flat. |
+| 2026-09-08 | plan | D4's two bundle fields are optional from step 4 and required from 9b: a named transitional state so that capture-on-write can land before the consolidation stamps stored bundles. Alternative rejected: a throwaway project data transform stamping from the project row, which would need the pair at version-restore read time too. |
+| 2026-09-08 | plan | Order changed from tier-by-tier to build-beside-then-strip. Steps 1 and 2 ship early. Deletion is 7a (deck and report project tabs), 9a (client) and 9b (server). |
+| 2026-09-08 | plan | Two review passes over the draft (writing; consistency against the tree and the reference) applied. Notable corrections: step 4 depends on 3 and owns the authoring-context cache; step 5 adds the passive T1 fields, a separate `ProductLastUpdateTableName` and `notifyInstanceLastUpdated` so nothing project-keyed changes before 9b; `lib/types/presentation_objects.ts` is trimmed, not deleted; the intermediate-states table in §4 was added. |
 
 ---
 
-## 9. Size
+## Appendix A: the migration replay of 2026-08-19, and what still stands
 
-Roughly: ~165 files deleted (client `components/project/**` 33,
-`components/dashboards/**` + `public_viewer/**` 16, `state/project/**` 10,
-viz-product client files ≈12, server `db/project/**` 21 after relocation,
-project routes/registries 30, dashboard + PO server/lib files ≈15, 41 project
-migrations + base, ops scripts 6, tours), ~200 files edited (mostly
-mechanical: `projectId` → scope, guard swaps, notify signatures, T2 keys,
-translations), ~30 new files (products DB/routes/UI, Explore, figure
-staleness, migrations, planning core, dry-run + rollout + restore + purge
-scripts, run authoring context). Net around −14k LOC. The genuinely new logic
-is small: the products registry + folders, the consolidation planner (id
-remap incl. version PKs, folders, bundle stamps), the run-keyed reads with
-scope + the authoring context, the Products page + Explore page, the
-per-figure stale/update path, and the copilot env resolver. Everything else
-is deletion or rekeying.
+Run in a throwaway `postgres:15` container against the first draft's DDL
+and numbering (079, 080, 081). The step 2 replay harness supersedes these
+results; they are kept because three findings from them are load-bearing
+and are cheaper to read here than to rediscover.
 
----
+- **The 000 shell columns are load-bearing.** Without the
+  `user_logs_aggregate` `ALTER`, a fresh boot fails at migration 035;
+  without any log `ALTER`, at 016. Postgres resolves an index expression
+  before the `IF NOT EXISTS` name check.
+- **`CREATE TABLE IF NOT EXISTS projects (... REFERENCES runs)`** with
+  `projects` present but `runs` absent is skipped without error, so an
+  instance behind 065 survives 000.
+- **`DROP COLUMN project_id`** drops the COALESCE expression index by
+  dependency; the unique index is rebuilt explicitly afterwards.
 
-## Appendix A — The executed migration replay (D9), reproducible
+The historical-shape replay: seven fleet-shape bases (commits 42516bec,
+fd1a259e, 68160f6e, d3c3b18d, 4791f190, 04dfd51f, 3d320bb4), each with the
+migrations added after it, all applied with zero errors. Comparing each
+database's schema before and after the replay showed only pre-existing
+legacy drift, present identically in both dumps.
 
-Run 2026-08-19 in a throwaway `postgres:15` container (`wbf-plan-verify-54331`,
-removed afterwards; the dev `pg` container untouched), AGAINST THE FIRST
-DRAFT's 079 DDL (which included `presentation_objects` and the dashboard
-tables). The 000 and 081 texts below are unchanged by the rewrite; 079 is now
-a subset — the harness is re-run with the final DDL as a §4 gate before build
-is called done. The harness mirrors `validate_migrations` exactly: `psql -v
-ON_ERROR_STOP=1 -q` per file, then `pg_dump --schema-only --no-owner
---no-privileges | grep -v '^--' | grep -v '^$' | grep -v '\restrict' | sort`,
-diff before/after.
-
-Inputs drafted from this plan (nothing in the repo was touched):
-
-- `new_base.sql` = current `_main_database.sql` minus `projects`,
-  `project_user_roles`, `dashboard_slugs`; minus `users.can_create_projects` +
-  the 17 `default_project_can_*`; minus `project_id` (+ FKs,
-  `idx_user_logs_project_id`, `idx_ai_usage_logs_project_id`) on `user_logs` /
-  `ai_usage_logs` / `user_logs_aggregate`; `idx_user_logs_aggregate_unique`
-  rebuilt as `(user_email, endpoint, endpoint_result, week_start)`; `runs`
-  unchanged; plus the §2.1 tables with project-DB column shapes.
-- `000_legacy_project_shell.sql` — verbatim:
+`000_legacy_project_shell.sql`, verbatim (unchanged by the rewrite):
 
 ```sql
 CREATE TABLE IF NOT EXISTS projects (
@@ -1265,8 +1904,7 @@ ALTER TABLE ai_usage_logs ADD COLUMN IF NOT EXISTS project_id text;
 ALTER TABLE user_logs_aggregate ADD COLUMN IF NOT EXISTS project_id text;
 ```
 
-- `079_products.sql` = §2.1 DDL in `CREATE … IF NOT EXISTS` form.
-- `081_drop_project_layer.sql` — verbatim:
+`086_drop_project_layer.sql`, verbatim (was 081):
 
 ```sql
 DO $$
@@ -1293,36 +1931,6 @@ DROP TABLE IF EXISTS dashboard_slugs, project_user_roles, projects;
 ALTER TABLE users
   DROP COLUMN IF EXISTS can_create_projects,
   DROP COLUMN IF EXISTS default_project_can_configure_settings,
-  -- … the other 16 default_project_can_* columns …
+  -- ... the other 16 default_project_can_* columns ...
   DROP COLUMN IF EXISTS default_project_can_view_script_code;
 ```
-
-Results (first-draft 079):
-
-1. Today's harness check: current base + the 81 current migrations → all ok,
-   before == after (reproduces `validate_migrations` green).
-2. Fresh path: `new_base` → 000 → the 81 current migrations → 079 → 081 → 84
-   ok, ZERO statement errors, before == after (zero occurrences of "project").
-3. Live path: current base + 81 migrations + seed (2 users with
-   `default_project_*` flags, 1 run, 2 projects, a role row, a slug, 3
-   `user_logs`, 2 `ai_usage_logs`, 5 aggregate rows of which 3 differ only by
-   `project_id`) → 000 (no-op) → 079 → 081 → all ok; the dump is byte-identical
-   to `new_base`'s; logs and users preserved; aggregate rows merged (3+4+5 →
-   12, min id kept).
-4. Historical fleet shapes: bases from commits 42516bec (05-05), fd1a259e
-   (05-18), 68160f6e (05-25), d3c3b18d (06-29), 4791f190 (07-16), 04dfd51f
-   (08-06), 3d320bb4 (08-12) + the migrations added after each + seed + 000/
-   079/081 → zero errors everywhere; 3d320bb4 identical to `new_base`; the
-   others differ only by pre-existing legacy `admin_areas_1..4` / iceh drift
-   that is identical before and after (PLAN_REMOVE_OLD_STRUCTURE_TABLES
-   territory).
-5. Edge tests: `CREATE TABLE IF NOT EXISTS projects (… REFERENCES runs)` with
-   `projects` present but `runs` absent → skipped without error (an instance
-   behind 065 survives 000); `DROP COLUMN project_id` drops the COALESCE
-   expression index by dependency.
-6. Negative controls: 000 without the `user_logs_aggregate` ALTER fails at 035;
-   without any log ALTER fails at 016 — the shell columns are load-bearing.
-7. Runner: pending migrations sort by filename (`localeCompare`), so on a live
-   instance 000 applies first (no-op), then 079 / 080 / 081; a fresh
-   `db_startup` = base + all migrations; the initial user seed inserts only
-   `(email, is_admin)`.
