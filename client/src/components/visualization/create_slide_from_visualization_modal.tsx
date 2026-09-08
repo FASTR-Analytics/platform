@@ -1,11 +1,13 @@
-import { useNavigate } from "@solidjs/router";
-import type { AiContentSlideInput, DisaggregationOption, MetricWithStatus, SlideDeckConfig, SlideDeckFolder, SlideDeckSummary } from "lib";
+import type { AiContentSlideInput, DisaggregationOption, MetricWithStatus, SlideDeckConfig } from "lib";
 import { formatReplicantLabelForDisplay, getStartingConfigForSlideDeck, t3 } from "lib";
 import { AlertComponentProps, AlertFormHolder, RadioGroup, ProgressBar, getProgress, createFormAction } from "panther";
 import { createSignal, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
-import { DeckSelector } from "~/components/project_ai/ai_tools/DeckSelector";
+import { getSlideDeckDetailFromCacheOrFetch } from "~/state/products/t2_slide_deck_detail";
+import { setPendingEditorOpen } from "~/state/t4_ui";
+import { createLabelledProduct } from "~/components/project_ai/ai_tools/create_labelled_product";
+import { DeckSelector, slideDeckProducts } from "~/components/project_ai/ai_tools/DeckSelector";
 import { convertAiInputToSlide } from "../slide_deck/slide_ai/convert_ai_input_to_slide";
 import { InlineReplicantSelector } from "./inline_replicant_selector";
 
@@ -15,16 +17,13 @@ type Props = {
   visualizationLabels: string[];
   replicateBy?: DisaggregationOption;
   metrics: MetricWithStatus[];
-  slideDecks: SlideDeckSummary[];
-  slideDeckFolders: SlideDeckFolder[];
 };
 
 type ReturnType = { deckId: string } | undefined;
 
 export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, ReturnType>) {
-  const navigate = useNavigate();
   const [selectedDeckId, setSelectedDeckId] = createSignal<string>(
-    p.slideDecks.length > 0 ? p.slideDecks[0].id : "",
+    slideDeckProducts()[0]?.id ?? "",
   );
   const [isCreatingNew, setIsCreatingNew] = createSignal(false);
   const [newDeckLabel, setNewDeckLabel] = createSignal("");
@@ -49,14 +48,11 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
         if (!label) {
           return { success: false as const, err: "Please enter a deck name" };
         }
-        const createRes = await serverActions.createSlideDeck({
-          projectId: p.projectId,
-          label,
-        });
+        const createRes = await createLabelledProduct("slide_deck", label);
         if (!createRes.success) {
           return createRes;
         }
-        deckId = createRes.data.deckId;
+        deckId = createRes.data.productId;
       } else {
         deckId = selectedDeckId();
       }
@@ -66,7 +62,7 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
       if (isCreatingNew()) {
         deckConfig = getStartingConfigForSlideDeck(newDeckLabel().trim());
       } else {
-        const detailRes = await serverActions.getSlideDeckDetail({ projectId: p.projectId, deck_id: deckId });
+        const detailRes = await getSlideDeckDetailFromCacheOrFetch(deckId);
         if (!detailRes.success) return detailRes;
         deckConfig = detailRes.data.config;
       }
@@ -90,8 +86,7 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
 
           const slide = await convertAiInputToSlide(p.projectId, input, p.metrics, deckConfig);
           const addRes = await serverActions.createSlide({
-            projectId: p.projectId,
-            deck_id: deckId,
+            product_id: deckId,
             position: { toEnd: true },
             slide,
           });
@@ -131,8 +126,7 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
             try {
               const slide = await convertAiInputToSlide(p.projectId, input, p.metrics, deckConfig);
               const addRes = await serverActions.createSlide({
-                projectId: p.projectId,
-                deck_id: deckId,
+                product_id: deckId,
                 position: { toEnd: true },
                 slide,
               });
@@ -185,8 +179,7 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
         try {
           const slide = await convertAiInputToSlide(p.projectId, input, p.metrics, deckConfig);
           const addRes = await serverActions.createSlide({
-            projectId: p.projectId,
-            deck_id: deckId,
+            product_id: deckId,
             position: { toEnd: true },
             slide,
           });
@@ -218,7 +211,7 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
     },
     (data) => {
       p.close(data);
-      navigate(`/?p=${p.projectId}&d=${data.deckId}`);
+      setPendingEditorOpen({ kind: "product", id: data.deckId });
     }
   );
 
@@ -287,8 +280,6 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
           />
         </Show>
         <DeckSelector
-          decks={p.slideDecks}
-          folders={p.slideDeckFolders}
           selectedDeckId={selectedDeckId()}
           onSelectDeck={setSelectedDeckId}
           isCreatingNew={isCreatingNew()}

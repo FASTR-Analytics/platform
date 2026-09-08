@@ -1,10 +1,11 @@
 import { SectionSlide, t3 } from "lib";
 import { SetStoreFunction } from "solid-js/store";
-import type { SlideSession } from "~/state/project/collab";
+import type { SlideSession } from "~/state/instance/collab";
 import { CollabTextField } from "./collab_text_field";
 import { TextStylePopover } from "./TextStylePopover.tsx";
 
 type Props = {
+  productId: string;
   tempSlide: SectionSlide;
   setTempSlide: SetStoreFunction<any>;
   session: SlideSession | null;
@@ -17,6 +18,7 @@ export function SlideEditorPanelSection(p: Props) {
     <div class="ui-pad ui-spy" data-tour="slide-section-fields">
       <div class="ui-spy-sm">
         <CollabTextField
+          productId={p.productId}
           session={p.session}
           collabReady={p.collabReady}
           fieldKey="sectionTitle"
@@ -48,6 +50,7 @@ export function SlideEditorPanelSection(p: Props) {
       </div>
       <div class="ui-spy-sm">
         <CollabTextField
+          productId={p.productId}
           session={p.session}
           collabReady={p.collabReady}
           fieldKey="sectionSubtitle"

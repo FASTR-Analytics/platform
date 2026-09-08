@@ -14,7 +14,6 @@ import { StaleFigureBadge } from "~/components/figure_editor/stale_figure_badge"
 // figure (PLAN_PRODUCTS_RESTRUCTURE D4). Absent on surfaces that only display
 // (version previews), where no badge is shown.
 export type FigureStaleContext = {
-  projectId: string;
   scope: PackageScope;
   authoringContext: RunAuthoringContext;
   canEdit: boolean;
@@ -89,7 +88,6 @@ export function ReportFigureEmbed(p: Props): JSX.Element {
       <Show when={staleBadge()} keyed>
         {(keyed) => (
           <StaleFigureBadge
-            projectId={keyed.stale.projectId}
             bundle={keyed.bundle}
             scope={keyed.stale.scope}
             authoringContext={keyed.stale.authoringContext}

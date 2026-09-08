@@ -5,11 +5,16 @@ import {
   buildSystemPrompt,
   type InstanceState,
   MAX_CONTENT_BLOCKS,
+  type ProductType,
   type ProjectState,
   SLIDE_TEXT_TOTAL_WORD_COUNT_MAX,
   SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET,
 } from "lib";
 import { SPA_INFO_TOPICS } from "./ai_tools/client_info_topics";
+
+function countProducts(instance: InstanceState, type: ProductType): number {
+  return instance.products.filter((p) => p.type === type).length;
+}
 
 // The copilot's system prompt: the shared grounding blocks (lib/ai_tools/
 // build_system_prompt.ts) plus the project's own prose: its name, what its
@@ -37,8 +42,8 @@ export function buildSystemPromptForContext(
     ...buildDataCoverageSections(instance),
     "",
     `**Available visualizations:** ${projectState.visualizations.length} (use get_available_visualizations for details)`,
-    `**Available slide decks:** ${projectState.slideDecks.length} (use get_available_slide_decks for details)`,
-    `**Available reports:** ${projectState.reports.length} (use get_available_reports for details)`,
+    `**Available slide decks:** ${countProducts(instance, "slide_deck")} (use get_available_slide_decks for details)`,
+    `**Available reports:** ${countProducts(instance, "report")} (use get_available_reports for details)`,
   ];
   if (projectState.aiContext.trim()) {
     sections.push("");

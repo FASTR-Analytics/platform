@@ -12,8 +12,7 @@ const PAGE_WIDTH = 1000;
 const PAGE_HEIGHT = 1414;
 
 export async function exportReportAsPdf(
-  projectId: string,
-  reportId: string,
+  productId: string,
   progress: (pct: number) => void,
 ): Promise<APIResponseNoData> {
   try {
@@ -21,8 +20,7 @@ export async function exportReportAsPdf(
     progress(0.05);
 
     const res = await serverActions.getReportDetail({
-      projectId,
-      report_id: reportId,
+      product_id: productId,
     });
     if (!res.success) return res;
 

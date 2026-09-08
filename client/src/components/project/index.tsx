@@ -224,7 +224,7 @@ function ProjectInner() {
                               void openComponent({
                                 element: FeedbackForm,
                                 props: {
-                                  projectLabel: projectState.label,
+                                  context: projectState.label,
                                   initialType: "help",
                                 },
                               }),
@@ -240,7 +240,7 @@ function ProjectInner() {
                               void openComponent({
                                 element: FeedbackForm,
                                 props: {
-                                  projectLabel: projectState.label,
+                                  context: projectState.label,
                                 },
                               }),
                           },

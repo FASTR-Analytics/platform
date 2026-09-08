@@ -115,7 +115,6 @@ export function getClientToolsForDrafts(
           deckConfig,
         );
         const renderRes = await convertSlideToPageInputs(
-          projectId,
           convertedSlide,
           undefined,
           deckConfig,

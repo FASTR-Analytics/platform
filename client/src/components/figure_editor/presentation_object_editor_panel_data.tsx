@@ -3,8 +3,7 @@ import {
   FILTER_ONLY_DISAGGREGATION_OPTIONS,
   IneffectiveDisaggregator,
   PresentationObjectConfig,
-  PresentationObjectEditorDetail,
-  ProjectState,
+  ResultsValue,
   ResultsValueInfoForPresentationObject,
 } from "lib";
 import { SetStoreFunction } from "solid-js/store";
@@ -17,8 +16,7 @@ import { DisaggregationSection } from "./presentation_object_editor_panel_data/_
 import { HelpButton } from "../HelpButton";
 
 type Props = {
-  projectStateSnapshot: ProjectState;
-  poDetail: PresentationObjectEditorDetail;
+  metric: ResultsValue;
   resultsValueInfo: ResultsValueInfoForPresentationObject;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
@@ -31,7 +29,7 @@ type Props = {
 
 export function PresentationObjectEditorPanelData(p: Props) {
   const allowedFilterOptions = () => {
-    return p.poDetail.resultsValue.disaggregationOptions.filter((disOpt) => {
+    return p.metric.disaggregationOptions.filter((disOpt) => {
       if (
         disOpt.allowedPresentationOptions &&
         !disOpt.allowedPresentationOptions.includes(p.tempConfig.d.type)
@@ -53,15 +51,15 @@ export function PresentationObjectEditorPanelData(p: Props) {
       {/* <div class="h-0 text-right">
         <HelpButton id="viz-data-tab" />
       </div> */}
-      <DataValuesSummary poDetail={p.poDetail} />
+      <DataValuesSummary metric={p.metric} />
       <PresentationTypeSummary
         tempConfig={p.tempConfig}
         setTempConfig={p.setTempConfig}
-        disaggregationOptions={p.poDetail.resultsValue.disaggregationOptions}
+        disaggregationOptions={p.metric.disaggregationOptions}
       />
 
       <Filters
-        poDetail={p.poDetail}
+        metric={p.metric}
         tempConfig={p.tempConfig}
         setTempConfig={p.setTempConfig}
         resultsValueInfo={p.resultsValueInfo}
@@ -79,7 +77,7 @@ export function PresentationObjectEditorPanelData(p: Props) {
       />
 
       <DisaggregationSection
-        poDetail={p.poDetail}
+        metric={p.metric}
         tempConfig={p.tempConfig}
         setTempConfig={p.setTempConfig}
         allDisaggregationOptions={allowedFilterOptions().filter(

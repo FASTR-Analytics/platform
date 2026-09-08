@@ -423,7 +423,10 @@ export function getClientToolsForSlideEditor(
           if (!input.slideId) {
             throw new AIToolFailure("slideId is required to update a figure at the deck level.");
           }
-          const slideRes = await serverActions.getSlide({ projectId, slide_id: input.slideId });
+          const slideRes = await serverActions.getSlide({
+            product_id: view.params.deckId,
+            slide_id: input.slideId,
+          });
           if (!slideRes.success) throw new AIToolFailure(slideRes.err);
           slide = slideRes.data.slide;
           expectedLastUpdated = slideRes.data.lastUpdated;
@@ -517,7 +520,6 @@ export function getClientToolsForSlideEditor(
         const report = describeFigureConfigPatchEffect(bundle.config, input.patch, metric, dataBounds);
 
         const newBundle = await resolveBundleFromMetricAndConfig(
-          projectId,
           projectPackageScope(),
           metric,
           newConfig,
@@ -537,7 +539,7 @@ export function getClientToolsForSlideEditor(
           return `Updated figure ${input.blockId}.\n${reportText}\nThe preview will update automatically. User must click "Save" to persist changes.`;
         }
         const saveRes = await serverActions.updateSlide({
-          projectId,
+          product_id: view.params.deckId,
           slide_id: input.slideId!,
           slide: updatedSlide,
           expectedLastUpdated,

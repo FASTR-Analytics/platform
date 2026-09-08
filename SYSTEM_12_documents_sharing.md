@@ -8,6 +8,7 @@ globs:
   - client/src/components/dashboards/**
   - client/src/components/forms_editors/edit_label.tsx
   - client/src/components/layout_editor/**
+  - client/src/components/products/**
   - client/src/components/project/project_dashboards.tsx
   - client/src/components/public_viewer/**
   - client/src/components/report/**
@@ -20,8 +21,6 @@ globs:
   - client/src/state/products/t2_slide_deck_detail.ts
   - client/src/state/products/t2_slides.ts
   - client/src/state/project/t2_dashboards.ts
-  - client/src/state/project/t2_slide_decks.ts
-  - client/src/state/project/t2_slides.ts
   - lib/types/_dashboard_config.ts
   - lib/types/_slide_config.ts
   - lib/types/_slide_deck_config.ts
@@ -33,19 +32,8 @@ globs:
   - server/db/instance/dashboard_slugs.ts
   - server/db/products/**
   - server/db/project/dashboards.ts
-  - server/db/project/move_slides.ts
-  - server/db/project/report_folders.ts
-  - server/db/project/reports.ts
-  - server/db/project/slide_deck_folders.ts
-  - server/db/project/slide_decks.ts
-  - server/db/project/slides.ts
+  - server/routes/instance/emails.ts
   - server/routes/project/dashboards.ts
-  - server/routes/project/emails.ts
-  - server/routes/project/report_folders.ts
-  - server/routes/project/reports.ts
-  - server/routes/project/slide_deck_folders.ts
-  - server/routes/project/slide_decks.ts
-  - server/routes/project/slides.ts
   - server/routes/products/**
   - server/routes/public/dashboard.ts
   - server/tests/products_routes_test.ts
@@ -71,11 +59,17 @@ deck/report/dashboard list pages + modals in `components/project/`,
 all three families + folders, `db/instance/dashboard_slugs.ts`,
 `routes/public/dashboard.ts` **and** the `/api/d/*` CORS + populate-only-Clerk
 mounts plus the `/d/:slug` SPA-HTML in root `main.ts` (the actual auth
-boundary), `routes/project/emails.ts`, `server/utils/id_generation.ts`
-(one 4-char generator, table-aware). The product plane beside them:
+boundary), `routes/instance/emails.ts`, `server/utils/id_generation.ts`
+(one 4-char generator, table-aware). The product plane:
 `server/db/products/**`, `server/routes/products/**` and their harness
 `server/tests/products_routes_test.ts` (the registries are S1's
-`lib/api-routes/products/*`). Lib: slide/report/dashboard types incl.
+`lib/api-routes/products/*`); on the client, the Products page and its
+surfaces (`client/src/components/products/**`: the flat card grid, the type
+registry `product_types.ts`, `product_settings.tsx`, the duplicate modal,
+`package_label.ts`) and the two editors (`slide_deck/**`, `report/**`), which
+since PLAN_PRODUCTS_RESTRUCTURE step 7a take `{ productId }` and read label,
+package and scope live from the T1 products row. Lib: slide/report/dashboard
+types incl.
 `buildPublicDashboardBundle` and `buildReportPreview`, plus the product
 contracts (`lib/types/products.ts`: `ProductType`, `Folder`, `ProductBase`,
 `ProductSummary`; `lib/types/scope.ts`: `PackageScope`, `scopeToken`) that
@@ -101,14 +95,15 @@ the CRDT merge is the conflict resolution. The philosophies below engage only
 when no room is live. The collab checkpoint functions and additive columns
 (`saveSlideCheckpoint` / `saveReportCheckpoint`, `crdt_state` /
 `crdt_state_last_updated` / `body_authors`) ride this system's
-`server/db/project/{reports,slides,slide_decks}.ts`, and the version-history
+`server/db/products/{reports,slides,slide_decks}.ts`, and the version-history
 routes ride its route files. S12 owns the files, S16 the feature (SYSTEMS.md
-§4.1; [SYSTEM_16_collaboration.md](SYSTEM_16_collaboration.md)). Reads are
-guarded by `can_view_*`,
-mutations by `can_configure_*` + `preventAccessToLockedProjects`. Dashboards
-have no flags of their own and ride the slide-deck pair (Open item). The
-public viewer is the app's only unauthenticated product surface (cross-cutting
-audit SYSTEMS.md §4.3.9).
+§4.1; [SYSTEM_16_collaboration.md](SYSTEM_16_collaboration.md)). Every
+product route declares its `access` level and is guarded by
+`requireProductAccess` (S1; every approved user passes every level today,
+D2); on the client the one gate is `canEditProduct(productId)` in
+`state/instance/product_access.ts`. Dashboards keep the project flags and
+`preventAccessToLockedProjects` until step 9a. The public viewer is the app's
+only unauthenticated product surface (cross-cutting audit SYSTEMS.md §4.3.9).
 
 ## The products registry on `main`
 
@@ -185,15 +180,18 @@ re-nonce the runs catalogue.
 
 ## Slide decks
 
-**Data model.** A deck row (`label`, free-text `plan` for the AI planning
-scratchpad, JSON `config` = deck style) + one row per slide (JSON `config` =
-one `Slide`, integer `sort_order`; FK cascade on deck delete). Deck and slide
-ids are 3-char nanoids. `getSlideDeckDetail` returns only ordered `slideIds`;
-slide bodies fetch per-slide through `_SLIDE_CACHE`. Sort orders are
-**gap-numbered** (append = max+10, insert = target±5) with `reSequence`
-(`ROW_NUMBER()*10`) run inside the create/delete/duplicate transactions;
-`moveSlides` ([db/project/move_slides.ts](server/db/project/move_slides.ts))
-is **within-deck reorder only**: no cross-deck slide move exists.
+**Data model.** A `slide_decks` detail row keyed by the product id
+(free-text `plan` for the AI planning scratchpad, JSON `config` = deck style;
+the label lives on `products`) + one row per slide (JSON `config` = one
+`Slide`, integer `sort_order`; FK cascade on product delete). Slide ids are
+short nanoids, instance-wide unique. `getSlideDeckDetail` returns only ordered
+`slideIds`; slide bodies fetch per-slide through `_SLIDE_CACHE`
+(`state/products/t2_slides.ts`, versioned by `lastUpdated.slides[id]`). Sort
+orders are **gap-numbered** (append = max+10, insert = target±5) with
+`reSequence` (`ROW_NUMBER()*10`) run inside the create/delete/duplicate
+transactions; `moveSlides` ([db/products/move_slides.ts](server/db/products/move_slides.ts))
+is **within-deck reorder only**; `copySlidesToSlideDeck` is the cross-deck
+reuse path.
 
 **The deck-touch rule.** Every slide mutation bumps
 `slide_decks.last_updated` with the same timestamp in the same transaction,
@@ -206,22 +204,32 @@ at all, so a mid-loop failure leaves partial rows.
 (`slideDeckConfigSchema`) and the DB layer; slide bodies are **`z.unknown()`
 at the route**, blocked on a real gap: panther's `PatternType` includes
 `"none"` but the split-fill Zod enum doesn't
-([lib/api-routes/project/slides.ts:16-18](lib/api-routes/project/slides.ts#L16-L18)),
+([lib/api-routes/products/slides.ts](lib/api-routes/products/slides.ts)),
 with `slideConfigSchema.parse` as the DB-layer backstop. The layout tree is
 a recursive Zod union embedding the strict `figureBlockSchema`; layout item
 `style` is `z.record(z.unknown())`. Duplicates copy stored config text
 without re-validation.
 
+**The deck editor** (`SlideDeckEditor` in
+[slide_deck/index.tsx](client/src/components/slide_deck/index.tsx)) takes
+`{ productId }`: label, package and scope come from `productById` on the T1
+store (D16), the authoring context from S9's immutable
+`t2_run_authoring_context.ts` keyed by the LIVE `runId`, so a reattach or
+rescope (from the header's product settings entry, the Products page or a
+collaborator) moves figure data, metrics and presets together and lights the
+stale badges without a remount; a product deleted under an open editor
+closes it. The header shows the `ProductScopeBadge` ("package · scope") and
+the overflow menu opens the shared `ProductSettings` surface.
+
 **The slide editor**
-([slide_editor/index.tsx](client/src/components/slide_deck/slide_editor/index.tsx),
-~1,370 LOC) opens via `openEditor` with `snapshotForSlideEditor`
-(structuredClone-severed projectState + instanceState + deckConfig). Left
-panel switches per slide type (cover/section/content; content = header/footer
-tab + a per-block Content tab with text/figure/image editors); right side is
-a live preview through S10's `convertSlideToPageInputs` debounced 100ms off
-`trackStore(tempSlide)`. The editor takes the container's live `PackageScope`
-and that package's authoring context (undefined while the project has no
-package): every figure it writes is stamped with that pair, a figure block
+([slide_editor/index.tsx](client/src/components/slide_deck/slide_editor/index.tsx))
+opens via `openEditor` with `snapshotForSlideEditor` (the deck config only,
+structuredClone-severed) plus the product id, the live pair and its
+authoring context passed down. Left panel switches per slide type
+(cover/section/content; content = header/footer tab + a per-block Content
+tab with text/figure/image editors); right side is a live preview through
+S10's `convertSlideToPageInputs` debounced 100ms off `trackStore(tempSlide)`.
+Every figure it writes is stamped with the product's pair, a figure block
 whose bundle was resolved under another pair shows S11's stale badge in the
 block panel, and the header counts them with "Update all figures" (S10 "The
 captured pair and staleness"). The deck header does the same across every
@@ -235,18 +243,22 @@ per-block for block-type switches). The layout tree is manipulated exclusively
 through panther node ops via `buildLayoutContextMenu`
 ([layout_editor/build_context_menu.ts](client/src/components/layout_editor/build_context_menu.ts)):
 split/add/move/delete/convert, reachable from both the panel button and
-canvas right-click. Figure blocks resolve through the S10 shared resolvers
-(select existing viz → `resolveFigureBundleFromVisualization`; edit →
-ephemeral S11 editor + rebuild; create → `InsertFigureModal` + build). Local
-edits notify the AI (`edited_slide_locally`) and the editor registers the
-`editing_slide` view's mutator context on the AI view controller (S13).
+canvas right-click. Figure blocks have ONE authoring path (D3): insert and
+replace open `InsertFigureModal` (the product package's presets and the
+metric wizard) and edit opens S11's embedded `VisualizationEditor`; every
+result resolves through `resolveFigureBundleInteractively` under the
+product's current pair, so editing a stale figure also brings it up to date.
+Local edits notify the AI (`edited_slide_locally`) and the editor registers
+the `editing_slide` view's mutator context on the AI view controller (S13);
+until step 8 remounts the copilot the editors opened from the Products page
+have no copilot.
 
 **The per-slide save loop** (the no-room/offline path: while a collab
 session is live the editor never explicit-saves; the room checkpoints
 continuously, S16): editor seeds `lastKnownServerTimestamp` from
 props → `updateSlide({slide, expectedLastUpdated, overwrite})` → DB compares
 `last_updated` and returns `CONFLICT` unless `overwrite`
-([db/project/slides.ts:175-184](server/db/project/slides.ts#L175-L184)) →
+([db/products/slides.ts](server/db/products/slides.ts)) →
 `ConflictResolutionModal` offers overwrite / save-as-new (inserts after the
 current slide) / view-theirs / cancel → on success the editor pre-warms
 `_SLIDE_CACHE.setPromise` with the fresh version before SSE arrives. The
@@ -255,15 +267,19 @@ slide tools pass `expectedLastUpdated` from a pre-write `getSlide` fetch
 and rethrow `CONFLICT` to the model as a "re-read via get_slide and retry"
 error (no overwrite path: the human editor's modal is the only override).
 
-**Lists & operations.** `ProjectDecks` reads T1 (`projectState.slideDecks`,
-SSE-maintained), groups `folders | flat` with a "General" pseudo-group,
-sorts client-side (`sortBySortMode`, not the server ORDER BY), multi-selects
-via `createSelectionController`, and batches move/duplicate/delete. The deck
-view's `SlideList` renders cards in the vendored SortableJS wrapper
-(multiDrag; optimistic local order; reorder diffs the moved run and calls
-`moveSlides`). Deck cards track both the deck's and the first slide's
-`lastUpdated`. Folders have **no GET route**: they ride the project-state
-payload and SSE pushes only (same for report folders).
+**The Products page** (`components/products/index.tsx`) reads T1
+(`instanceState.products`, per-row `products_upserted` maintained), sorts
+newest first, multi-selects via `createSelectionController`, and offers
+settings, duplicate and delete from the card context menu; "New deck" and
+"New report" are two `createButtonAction`s over `createProduct` (the server
+mints the label and resolves the pin; the buttons disable before the click
+when no ready package is pinned) and the editor opens on the SSE echo or
+through `pendingEditorOpen({ kind: "product" })`, the one opener the tours
+and the copilot also use. Folders, list view, search and the menus are step
+7b. The deck view's `SlideList` renders cards in the vendored SortableJS
+wrapper (multiDrag; optimistic local order; reorder diffs the moved run and
+calls `moveSlides`). Folders have **no GET route**: they ride the `starting`
+payload and `folders_updated` only.
 
 ## Reports
 
@@ -280,13 +296,18 @@ registries; the list card's `preview` (`buildReportPreview`) derives from the
 body alone: up to 8 lines/300 chars, heading levels, figure/image counts by
 token regex.
 
-**Editor** ([report/index.tsx](client/src/components/report/index.tsx), ~1,620
-LOC): CodeMirror 6 with an embed-widget extension (a line that is exactly one
-token renders as an atomic block widget), three modes edit/split/view, and
-line-anchored bidirectional scroll sync (`data-line` anchors, echo-loop
-guard, figure-settle ResizeObserver window). The left panel inserts/edits
-embeds (figures resolve through the same S10 funnel as dashboards, stamped
-with the container's live pair). Each embed (`ReportFigureEmbed`, in the
+**Editor** (`ReportEditor` in [report/index.tsx](client/src/components/report/index.tsx),
+over `ReportBodyEditor` in `report_editor.tsx`): takes `{ productId }` and
+reads label, package and scope live from the T1 row like the deck editor
+(the product id is also the collab document id, since a report IS its
+product). CodeMirror 6 with an embed-widget extension (a line that is
+exactly one token renders as an atomic block widget), three modes
+edit/split/view, and line-anchored bidirectional scroll sync (`data-line`
+anchors, echo-loop guard, figure-settle ResizeObserver window). The left
+panel inserts, replaces and edits embeds through the same one authoring path
+as the slide editor (`InsertFigureModal` plus the embedded editor, resolved
+by `resolveFigureBundleInteractively` under the product's pair). Each embed
+(`ReportFigureEmbed`, in the
 preview pane and the CodeMirror widget alike) shows S11's stale badge when
 its bundle was resolved under another pair, and the header counts them with
 "Update all figures", re-resolving through one `persistFigures` write. View
@@ -297,7 +318,7 @@ mode and both exports share `REPORT_MARKDOWN_STYLE`.
 800ms debounce → `updateReportBody({body,
 expectedLastUpdated, overwrite: true})`; the server **always writes** and
 returns `{lastUpdated, conflicted}`, where `conflicted` is advisory
-([db/project/reports.ts:127-163](server/db/project/reports.ts#L127-L163));
+([db/products/reports.ts](server/db/products/reports.ts));
 the client bumps its base timestamp monotonically (out-of-order responses
 can't rewind) and shows a dismissible "your changes were saved over theirs"
 banner. The `overwrite` param is accepted but unused, reserved for a
@@ -448,19 +469,20 @@ re-broadcast the deck list although its summary embeds `first_slide_id`
 
 ## Emails
 
-[routes/project/emails.ts](server/routes/project/emails.ts) is the only
+[routes/instance/emails.ts](server/routes/instance/emails.ts) is the only
 SendGrid egress (raw fetch, `Bearer _SEND_GRID_API`, from
 `noreply@fastr-analytics.org`). `sendSlideDeckEmail`
-(`can_view_slide_decks`, deliberately the view flag): the PDF is
-client-rendered (S10 base64 export); recipients are schema-validated
-(`z.array(z.email()).min(1).max(50)`); sequential per-recipient sends with
-partial failures returned as `{sent: false, failedRecipients}`.
+(`requireApprovedUser()`; the recipient roster is the instance roster, D2):
+the PDF is client-rendered (S10 base64 export); recipients are
+schema-validated (`z.array(z.email()).min(1).max(50)`); sequential
+per-recipient sends with partial failures returned as `{sent: false,
+failedRecipients}`.
 `sendHelpEmail` (bare `requireGlobalPermission()`, which authenticates only,
 never checks `approved`, Open item): one email per
 `_FEEDBACK_EMAIL_RECIPIENTS` with `replyTo` the user, then a confirmation
 to the user only after at least one internal send succeeded. Zero internal
 deliveries returns `success: false` (the form shows the error instead of
-"Thank you"). User-typed text (`message`/`description`/`projectLabel`/
+"Thank you"). User-typed text (`message`/`description`/`context`/
 `userEmail`) is HTML-escaped before interpolation in both routes.
 
 ## Open items

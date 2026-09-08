@@ -1,7 +1,6 @@
 import {
   type IndicatorFormat,
   PresentationObjectConfig,
-  PresentationObjectEditorDetail,
   t3,
 } from "lib";
 import {
@@ -19,7 +18,6 @@ import { SetStoreFunction } from "solid-js/store";
 import { StyleRevealGroup, StyleSection } from "./_style_components";
 
 type Props = {
-  poDetail: PresentationObjectEditorDetail;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
   editCustomSeriesStyles: () => Promise<void>;

@@ -15,7 +15,7 @@ type ImageAttachment = { content: string; filename: string; mimeType: string };
 
 export function FeedbackForm(
   p: AlertComponentProps<
-    { projectLabel?: string; initialType?: FeedbackType },
+    { context?: string; initialType?: FeedbackType },
     undefined
   >,
 ) {
@@ -74,7 +74,7 @@ export function FeedbackForm(
     const res = await serverActions.sendHelpEmail({
       feedbackType: feedbackType()!,
       description: description(),
-      projectLabel: p.projectLabel,
+      context: p.context,
       images: images().length > 0 ? images() : undefined,
     });
     setSending(false);

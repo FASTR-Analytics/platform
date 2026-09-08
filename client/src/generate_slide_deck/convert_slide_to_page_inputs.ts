@@ -302,7 +302,6 @@ async function loadLogos(
 }
 
 export async function convertSlideToPageInputs(
-  projectId: string,
   slide: Slide,
   slideIndex: number | undefined,
   config: SlideDeckConfig,

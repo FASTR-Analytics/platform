@@ -1,5 +1,6 @@
 import {
   DisaggregationOption,
+  PackageScope,
   PresentationObjectConfig,
   ResultsValue,
   formatReplicantLabelForDisplay,
@@ -7,8 +8,8 @@ import {
   getReplicateByProp,
 } from "lib";
 import { instanceState } from "~/state/instance/t1_store";
-import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/project/t2_presentation_objects";
-import { getReplicantOptionsFromCacheOrFetch } from "~/state/project/t2_replicant_options";
+import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/products/t2_figure_data";
+import { getReplicantOptionsFromCacheOrFetch } from "~/state/products/t2_replicant_options";
 
 // Answers ONLY "what replicant options exist for this config?": it does NOT
 // decide standalone-item vs group (that is contextual: see the dashboard editor
@@ -19,7 +20,7 @@ import { getReplicantOptionsFromCacheOrFetch } from "~/state/project/t2_replican
 // Throws on a hard resolve failure (results-value info / fetch-config) so callers
 // can surface it like the add flow does.
 export async function resolveReplicantStructure(
-  projectId: string,
+  scope: PackageScope,
   resultsValue: ResultsValue,
   config: PresentationObjectConfig,
 ): Promise<
@@ -33,7 +34,7 @@ export async function resolveReplicantStructure(
   if (!replicateBy) return null;
 
   const resInfo = await getResultsValueInfoForPresentationObjectFromCacheOrFetch(
-    projectId,
+    scope,
     resultsValue.id,
   );
   if (!resInfo.success) throw new Error(resInfo.err);
@@ -51,8 +52,8 @@ export async function resolveReplicantStructure(
   if (!fcRes.success) throw new Error(fcRes.err);
 
   const optRes = await getReplicantOptionsFromCacheOrFetch(
-    projectId,
-    resultsValue.resultsObjectId,
+    scope,
+    resultsValue.id,
     replicateBy,
     fcRes.data,
   );

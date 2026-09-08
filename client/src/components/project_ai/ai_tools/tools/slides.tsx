@@ -68,7 +68,7 @@ export function getClientToolsForSlides(
       availableIn: ["editing_slide_deck"],
       kind: "read",
       handler: async (_input, view) => {
-        return await getDeckSummaryForAI(projectId, view.context.getSlideIds());
+        return await getDeckSummaryForAI(view.params.deckId, view.context.getSlideIds());
       },
       inProgressLabel: "Getting deck state...",
       completionMessage: () => {
@@ -127,8 +127,7 @@ export function getClientToolsForSlides(
         const convertedSlide = await convertAiInputToSlide(projectId, input.slide, metrics, view.context.getDeckConfig());
 
         const res = await serverActions.createSlide({
-          projectId,
-          deck_id: view.params.deckId,
+          product_id: view.params.deckId,
           position: input.position,
           slide: convertedSlide,
         });
@@ -187,13 +186,13 @@ export function getClientToolsForSlides(
         // Optimistic concurrency: read the slide's current version so a save
         // that raced another user's edit fails loudly instead of overwriting.
         const currentRes = await serverActions.getSlide({
-          projectId,
+          product_id: view.params.deckId,
           slide_id: input.slideId,
         });
         if (!currentRes.success) throw new AIToolFailure(currentRes.err);
 
         const res = await serverActions.updateSlide({
-          projectId,
+          product_id: view.params.deckId,
           slide_id: input.slideId,
           slide: convertedSlide,
           expectedLastUpdated: currentRes.data.lastUpdated,
@@ -224,7 +223,7 @@ export function getClientToolsForSlides(
       }),
       availableIn: ["editing_slide_deck"],
       kind: "write",
-      handler: async (input) => {
+      handler: async (input, view) => {
         assertSlidesNotBusy([input.slideId]);
 
         for (const update of input.updates) {
@@ -234,7 +233,7 @@ export function getClientToolsForSlides(
         }
 
         const currentRes = await serverActions.getSlide({
-          projectId,
+          product_id: view.params.deckId,
           slide_id: input.slideId,
         });
         if (!currentRes.success) throw new AIToolFailure(currentRes.err);
@@ -256,7 +255,7 @@ export function getClientToolsForSlides(
         }
 
         const res = await serverActions.updateSlide({
-          projectId,
+          product_id: view.params.deckId,
           slide_id: input.slideId,
           slide: updatedSlide,
           expectedLastUpdated: currentRes.data.lastUpdated,
@@ -284,11 +283,11 @@ export function getClientToolsForSlides(
       }),
       availableIn: ["editing_slide_deck"],
       kind: "write",
-      handler: async (input) => {
+      handler: async (input, view) => {
         assertSlidesNotBusy([input.slideId]);
 
         const currentRes = await serverActions.getSlide({
-          projectId,
+          product_id: view.params.deckId,
           slide_id: input.slideId,
         });
         if (!currentRes.success) throw new AIToolFailure(currentRes.err);
@@ -304,7 +303,7 @@ export function getClientToolsForSlides(
         const updatedSlide = { ...slide, header: input.newHeader };
 
         const res = await serverActions.updateSlide({
-          projectId,
+          product_id: view.params.deckId,
           slide_id: input.slideId,
           slide: updatedSlide,
           expectedLastUpdated: currentRes.data.lastUpdated,
@@ -342,11 +341,11 @@ export function getClientToolsForSlides(
       }),
       availableIn: ["editing_slide_deck"],
       kind: "write",
-      handler: async (input) => {
+      handler: async (input, view) => {
         assertSlidesNotBusy([input.slideId]);
 
         const currentRes = await serverActions.getSlide({
-          projectId,
+          product_id: view.params.deckId,
           slide_id: input.slideId,
         });
         if (!currentRes.success) throw new AIToolFailure(currentRes.err);
@@ -461,7 +460,7 @@ export function getClientToolsForSlides(
         validateSlideTotalWordCount(allTextBlocks);
 
         const res = await serverActions.updateSlide({
-          projectId,
+          product_id: view.params.deckId,
           slide_id: input.slideId,
           slide: updatedSlide,
           expectedLastUpdated: currentRes.data.lastUpdated,
@@ -511,8 +510,7 @@ export function getClientToolsForSlides(
         }
 
         const res = await serverActions.deleteSlides({
-          projectId,
-          deck_id: view.params.deckId,
+          product_id: view.params.deckId,
           slideIds: input.slideIds,
         });
         if (!res.success) throw new AIToolFailure(res.err);
@@ -522,7 +520,7 @@ export function getClientToolsForSlides(
         }
         projectAIViewController.markAIEdit(`deck:${view.params.deckId}`);
 
-        return `Deleted ${res.data.deletedCount} slide(s). Deck has been updated. Call get_deck if you need to review the current deck state.`;
+        return `Deleted ${res.data.deletedIds.length} slide(s). Deck has been updated. Call get_deck if you need to review the current deck state.`;
       },
       inProgressLabel: (input) =>
         `Deleting ${input.slideIds.length} slide(s)...`,
@@ -555,8 +553,7 @@ export function getClientToolsForSlides(
         }
 
         const res = await serverActions.duplicateSlides({
-          projectId,
-          deck_id: view.params.deckId,
+          product_id: view.params.deckId,
           slideIds: input.slideIds,
         });
         if (!res.success) throw new AIToolFailure(res.err);
@@ -609,8 +606,7 @@ export function getClientToolsForSlides(
         }
 
         const res = await serverActions.moveSlides({
-          projectId,
-          deck_id: view.params.deckId,
+          product_id: view.params.deckId,
           slideIds: input.slideIds,
           position: input.position,
         });

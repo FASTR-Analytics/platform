@@ -436,7 +436,6 @@ export function getClientToolsForReportEditor(
         );
 
         const newBundle = await resolveBundleFromMetricAndConfig(
-          projectId,
           projectPackageScope(),
           metric,
           newConfig,

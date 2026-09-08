@@ -214,6 +214,7 @@ const openFirstDashboard = () => {
 // tab switch, performed by the instance modal.
 
 export type InstanceTab =
+  | "products"
   | "projects"
   | "explore"
   | "data"

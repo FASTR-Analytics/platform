@@ -2,7 +2,7 @@ import {
   t3,
   TC,
   type PackageScope,
-  type ProjectState,
+  type ProductSummary,
   type RunAuthoringContext,
   type Slide,
   type SlideDeckConfig,
@@ -28,18 +28,20 @@ import { createEffect, createSignal, on, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { SlideCard } from "./slide_card";
 import { PresenceAvatars } from "./presence_avatars";
-import { otherPeers } from "~/state/project/collab";
+import { otherPeers } from "~/state/instance/collab";
 import { setShowAi, showAi } from "~/state/t4_ui";
 import { projectAIViewController } from "~/components/project_ai/ai_views";
-import { projectState as liveProjectState } from "~/state/project/t1_store";
+import { instanceState } from "~/state/instance/t1_store";
+import { canEditProduct } from "~/state/instance/product_access";
 import { UpdateAllFiguresButton } from "~/components/figure_editor/stale_figure_badge";
+import { ProductScopeBadge } from "~/components/products/product_card";
 import { collectDeckStaleFigures, updateAllDeckFigures } from "./deck_stale_figures";
 
 type Props = {
-  projectState: ProjectState;
-  deckId: string;
-  // The container's live pair and its authoring context (D4); undefined
-  // while the project has no package to resolve under.
+  productId: string;
+  product: ProductSummary | undefined;
+  // The product's live pair and its package's authoring context (D4);
+  // undefined until the T1 row and the context have both arrived.
   scope: PackageScope | undefined;
   authoringContext: RunAuthoringContext | undefined;
   slideIds: string[];
@@ -49,6 +51,7 @@ type Props = {
   onEditSlide: (slideId: string) => Promise<void>;
   handleClose: () => Promise<void>;
   handleOpenSettings: () => Promise<void>;
+  handleOpenProductSettings: () => Promise<void>;
   download: () => Promise<void>;
   share: () => Promise<void>;
   present: () => Promise<void>;
@@ -248,8 +251,7 @@ export function SlideList(p: Props) {
       confirmText,
       () =>
         serverActions.deleteSlides({
-          projectId: p.projectState.id,
-          deck_id: p.deckId,
+          product_id: p.productId,
           slideIds: slideIdsToDelete,
         }),
       () => {
@@ -273,8 +275,7 @@ export function SlideList(p: Props) {
       : [slideId];
 
     const res = await serverActions.duplicateSlides({
-      projectId: p.projectState.id,
-      deck_id: p.deckId,
+      product_id: p.productId,
       slideIds: slideIdsToDuplicate,
     });
 
@@ -341,8 +342,7 @@ export function SlideList(p: Props) {
     if (movedIds.length === 0 || !targetPosition) return;
 
     const res = await serverActions.moveSlides({
-      projectId: p.projectState.id,
-      deck_id: p.deckId,
+      product_id: p.productId,
       slideIds: movedIds,
       position: targetPosition,
     });
@@ -376,8 +376,7 @@ export function SlideList(p: Props) {
     const afterSlideId = "after" in position ? position.after : null;
 
     const res = await serverActions.createSlide({
-      projectId: p.projectState.id,
-      deck_id: p.deckId,
+      product_id: p.productId,
       position,
       slide,
     });
@@ -428,7 +427,7 @@ export function SlideList(p: Props) {
 
   async function rescanStaleFigures(scope: PackageScope, slideIds: string[]) {
     const scanId = ++staleScanId;
-    const stale = await collectDeckStaleFigures(p.projectState.id, slideIds, scope);
+    const stale = await collectDeckStaleFigures(p.productId, slideIds, scope);
     if (scanId !== staleScanId) return;
     setStaleCount(stale.length);
   }
@@ -437,7 +436,7 @@ export function SlideList(p: Props) {
     const scope = p.scope;
     const slideIds = [...p.slideIds];
     // Every slide's own version: a save on any slide re-runs the walk.
-    for (const id of slideIds) void liveProjectState.lastUpdated.slides[id];
+    for (const id of slideIds) void instanceState.lastUpdated.slides[id];
     if (!scope) {
       staleScanId++;
       setStaleCount(0);
@@ -452,7 +451,7 @@ export function SlideList(p: Props) {
     if (!scope || !context) return;
     setUpdatingFigures(true);
     const result = await updateAllDeckFigures(
-      p.projectState.id,
+      p.productId,
       [...p.slideIds],
       { runId: scope.runId, adminArea2: scope.adminArea2 },
       context,
@@ -467,11 +466,18 @@ export function SlideList(p: Props) {
     }
   }
 
-  const canEditFigures = () =>
-    liveProjectState.thisUserPermissions.can_configure_slide_decks &&
-    !liveProjectState.isLocked;
+  const canEditFigures = () => canEditProduct(p.productId);
 
   const menuItems = (): MenuItem[] => [
+    {
+      label: t3({
+        en: "Package, scope and folder",
+        fr: "Paquet, portée et dossier",
+        pt: "Pacote, âmbito e pasta",
+      }),
+      icon: "package",
+      onClick: () => p.handleOpenProductSettings(),
+    },
     {
       label: t3(TC.download),
       icon: "download",
@@ -505,8 +511,9 @@ export function SlideList(p: Props) {
           onBack={() => p.handleClose()}
         >
           <div class="ui-gap-sm flex items-center">
+            <ProductScopeBadge product={p.product} />
             <PresenceAvatars
-              peers={otherPeers().filter((pe) => pe.deckId === p.deckId)}
+              peers={otherPeers().filter((pe) => pe.deckId === p.productId)}
             />
             <Show when={p.slideIds.length > 0}>
               <div class="w-32">
@@ -573,7 +580,6 @@ export function SlideList(p: Props) {
     >
       <div
         class="ui-pad bg-base-200 h-full w-full overflow-auto"
-        data-page-cursor-surface={`deck:${p.deckId}`}
         onClick={(e) => {
           // Clear selection when clicking outside slide cards
           const target = e.target as HTMLElement;
@@ -633,8 +639,7 @@ export function SlideList(p: Props) {
                 sortableSlideItems().findIndex((i) => i.id === item.id);
               return (
                 <SlideCard
-                  projectId={p.projectState.id}
-                  deckId={p.deckId}
+                  productId={p.productId}
                   slideId={item.id}
                   index={index()}
                   isSelected={selectedIds().has(item.id)}

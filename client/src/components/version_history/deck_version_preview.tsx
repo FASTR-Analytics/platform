@@ -29,6 +29,7 @@ import { createSignal, For, Match, onMount, Show, Switch } from "solid-js";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { ReportFigureEmbed } from "../report/ReportFigureEmbed";
 import { _SERVER_HOST, serverActions } from "~/server_actions";
+import { productById } from "~/state/instance/t1_store";
 import { CopyVersionModal } from "./copy_version_modal";
 import {
   DiffSegments,
@@ -96,8 +97,7 @@ type DisplayEntry = {
 // edited each slide (their presence color), ghost thumbnails for slides
 // removed in the session, and a summary line.
 export function DeckVersionPreview(p: {
-  projectId: string;
-  deckId: string;
+  productId: string;
   versionId: string;
   /** The version immediately BEFORE this one: session badges and ghosts
    *  diff against it. undefined = oldest version. */
@@ -117,9 +117,8 @@ export function DeckVersionPreview(p: {
         }
       | { success: false; err: string }
     > => {
-      const res = await serverActions.getDeckVersion({
-        projectId: p.projectId,
-        deck_id: p.deckId,
+      const res = await serverActions.getSlideDeckVersion({
+        product_id: p.productId,
         version_id: p.versionId,
       });
       if (!res.success) {
@@ -130,9 +129,8 @@ export function DeckVersionPreview(p: {
       let prev: SlideDeckVersionDetail | null = null;
       let prevFailed = false;
       if (p.previousVersionId) {
-        const prevRes = await serverActions.getDeckVersion({
-          projectId: p.projectId,
-          deck_id: p.deckId,
+        const prevRes = await serverActions.getSlideDeckVersion({
+          product_id: p.productId,
           version_id: p.previousVersionId,
         });
         if (prevRes.success) {
@@ -173,9 +171,8 @@ export function DeckVersionPreview(p: {
     if (!ok) {
       return;
     }
-    const res = await serverActions.restoreDeckVersion({
-      projectId: p.projectId,
-      deck_id: p.deckId,
+    const res = await serverActions.restoreSlideDeckVersion({
+      product_id: p.productId,
       version_id: v.id,
     });
     if (!res.success) {
@@ -195,12 +192,14 @@ export function DeckVersionPreview(p: {
           pt: "Restaurar como cópia",
         }),
         initialLabel: `${v.label} (${new Date(v.createdAt).toLocaleDateString()})`,
+        // The copy lands beside the source product (D16: a new product needs a
+        // folder like createProduct does).
         save: (label: string) =>
-          serverActions.copyDeckVersion({
-            projectId: p.projectId,
-            deck_id: p.deckId,
+          serverActions.copySlideDeckVersion({
+            product_id: p.productId,
             version_id: p.versionId,
             label,
+            folderId: productById(p.productId)?.folderId ?? null,
           }),
       },
     });
@@ -218,7 +217,7 @@ export function DeckVersionPreview(p: {
         const prevById = new Map(prevOrdered.map((s) => [s.id, s] as const));
         const currentIds = new Set(orderedSlides.map((s) => s.id));
 
-        // email -> display name (live project users preferred), covering the
+        // email -> display name (live instance roster preferred), covering the
         // session's editors plus anyone in the per-slide ledger.
         const names: Record<string, string> = {};
         const addName = (email: string) => {
@@ -650,7 +649,6 @@ export function DeckVersionPreview(p: {
                   <For each={pageEntries()}>
                     {(entry) => (
                       <VersionSlideThumb
-                        projectId={p.projectId}
                         slide={entry.config}
                         deckConfig={entry.deckConfig}
                         ghost={entry.ghost}
@@ -702,7 +700,6 @@ export function DeckVersionPreview(p: {
 }
 
 function VersionSlideThumb(p: {
-  projectId: string;
   slide: Slide;
   deckConfig: SlideDeckConfig;
   /** Ghost = a slide removed in this session, rendered dimmed. */
@@ -718,7 +715,6 @@ function VersionSlideThumb(p: {
   onMount(async () => {
     try {
       const res = await convertSlideToPageInputs(
-        p.projectId,
         p.slide,
         undefined,
         p.deckConfig,

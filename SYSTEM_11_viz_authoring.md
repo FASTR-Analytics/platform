@@ -5,7 +5,6 @@ globs:
   - client/src/components/NotAvailableBox.tsx
   - client/src/components/PresentationObjectMiniDisplay.tsx
   - client/src/components/PresentationObjectPanelDisplay.tsx
-  - client/src/components/ReplicateByOptions.tsx
   - client/src/components/_editor_snapshot.ts
   - client/src/components/explore/**
   - client/src/components/figure_editor/**

@@ -28,13 +28,9 @@ export function snapshotForVizEditor(p: { projectState: ProjectState; config?: P
   return result;
 }
 
-export function snapshotForSlideEditor(p: {
-  projectState: ProjectState;
-  deckConfig: SlideDeckConfig;
-}) {
-  return {
-    projectStateSnapshot: snap(p.projectState),
-    instanceDetailSnapshot: snap(instanceState),
-    deckConfigSnapshot: snap(p.deckConfig),
-  };
+// The slide editor snapshots only what must not move under it (the deck
+// config at open); the product's PackageScope and authoring context are read
+// live by the deck editor and passed down (PLAN_PRODUCTS_RESTRUCTURE D16).
+export function snapshotForSlideEditor(p: { deckConfig: SlideDeckConfig }) {
+  return { deckConfigSnapshot: snap(p.deckConfig) };
 }

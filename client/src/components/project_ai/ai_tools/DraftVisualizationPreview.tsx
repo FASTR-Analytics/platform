@@ -215,16 +215,11 @@ export function DraftVisualizationPreview(p: Props) {
         deckConfig,
       );
       if (view.id === "editing_slide_deck") {
-        await addSlideDirectlyToDeck(p.projectId, slide, view.params.deckId);
+        await addSlideDirectlyToDeck(slide, view.params.deckId);
       } else {
         await openComponent({
           element: AddToDeckModal,
-          props: {
-            projectId: p.projectId,
-            slide,
-            slideDecks: projectState.slideDecks,
-            slideDeckFolders: projectState.slideDeckFolders,
-          },
+          props: { slide },
         });
       }
     } catch (err) {

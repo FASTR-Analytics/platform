@@ -3,12 +3,11 @@ import type {
   FigureBundle,
   GenericLongFormFetchConfig,
   PackageScope,
-  PeriodOption,
   PresentationObjectConfig,
   ResultsValueForVisualization,
 } from "lib";
 import { figureBundleSchema } from "lib";
-import { _PO_ITEMS_CACHE } from "~/state/project/t2_presentation_objects";
+import { _PO_ITEMS_CACHE } from "~/state/products/t2_figure_data";
 import { serverActions } from "~/server_actions";
 import { poItemsQueue } from "~/state/_infra/request_queue";
 import { getAdminAreaLevelFromMapConfig } from "./get_admin_area_level_from_config";
@@ -18,50 +17,43 @@ import { getSnapshotInstanceLocalization } from "~/state/instance/t1_store";
 // Plain-inputs resolver: takes the metric data already resolved by the caller
 // (AI adapter in slide_deck/slide_ai). No AI types imported here.
 //
-// The items read is still project-keyed (the project lens resolves the same
-// pair `scope` names); `scope` is what the bundle records as the pair it was
-// resolved under (D4). Step 6 moves the read onto the scope-keyed caches.
+// It goes at the items cache directly rather than through
+// getPresentationObjectItemsFromCacheOrFetch because the caller already holds
+// a built fetch config and only a projection of the metric. Same cache entry
+// either way: the uniqueness key is `(runId, scopeToken, resultsObjectId,
+// fetchConfigHash)`.
 export type MetricInputsForBundle = {
   metricId: string;
   resultsObjectId: string;
-  mostGranularTimePeriodColumnInResultsFile: PeriodOption | undefined;
   resultsValueForViz: ResultsValueForVisualization;
   datasetFamily: DatasetType | undefined;
   fetchConfig: GenericLongFormFetchConfig;
 };
 
 export async function resolveFigureBundleFromMetric(
-  projectId: string,
   scope: PackageScope,
   inputs: MetricInputsForBundle,
   config: PresentationObjectConfig,
 ): Promise<FigureBundle> {
-  const { metricId, resultsObjectId, mostGranularTimePeriodColumnInResultsFile, resultsValueForViz, datasetFamily, fetchConfig } = inputs;
+  const { metricId, resultsObjectId, resultsValueForViz, datasetFamily, fetchConfig } = inputs;
 
-  const { data, version } = await _PO_ITEMS_CACHE.get({
-    projectId,
-    resultsObjectId,
-    fetchConfig,
-  });
+  const params = { scope, resultsObjectId, fetchConfig };
+  const { data, version } = await _PO_ITEMS_CACHE.get(params);
 
   let itemsHolder;
   if (data) {
     itemsHolder = data;
   } else {
     const newPromise = poItemsQueue.enqueue(() =>
-      serverActions.getPresentationObjectItems({
-        projectId,
+      serverActions.getRunPresentationObjectItems({
+        run_id: scope.runId,
         resultsObjectId,
         fetchConfig,
-        firstPeriodOption: mostGranularTimePeriodColumnInResultsFile,
+        adminArea2: scope.adminArea2,
       }),
     );
 
-    _PO_ITEMS_CACHE.setPromise(
-      newPromise,
-      { projectId, resultsObjectId, fetchConfig },
-      version,
-    );
+    _PO_ITEMS_CACHE.setPromise(newPromise, params, version);
 
     const res = await newPromise;
     if (!res.success) {

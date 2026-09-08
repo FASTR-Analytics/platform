@@ -1,5 +1,5 @@
 import { AIToolFailure } from "panther";
-import { otherPeers } from "~/state/project/collab";
+import { otherPeers } from "~/state/instance/collab";
 
 // Refuse an AI edit to a slide another collaborator currently has OPEN in the
 // editor (PresenceEntry.slideId is set on editor open, cleared on close), to

@@ -2,7 +2,22 @@ import { AIToolFailure, createAITool } from "panther";
 import { z } from "zod";
 import type { MetricWithStatus } from "lib";
 import { simplifySlideForAI } from "~/components/slide_deck/slide_ai/extract_blocks_from_layout";
+import { projectAIViewController } from "~/components/project_ai/ai_views";
 import { clientAIToolEnvFor } from "../client_env";
+
+// Slide reads are scoped by the owning deck's product id. An explicit
+// productId wins; otherwise the open deck (deck editor or slide editor)
+// supplies it.
+function resolveProductId(productId: string | undefined): string {
+  if (productId !== undefined) return productId;
+  const view = projectAIViewController.current();
+  if (view.id === "editing_slide_deck" || view.id === "editing_slide") {
+    return view.params.deckId;
+  }
+  throw new AIToolFailure(
+    "productId is required when no slide deck is open. Get deck ids from get_available_slide_decks.",
+  );
+}
 
 // DELIBERATE availableIn omission: get_slide reads by explicit slideId and
 // works from any view (e.g. while editing a report that references deck
@@ -21,10 +36,16 @@ export function createGetSlideTool(
       slideId: z.string().describe(
         "Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck.",
       ),
+      productId: z.string().optional().describe(
+        "The slide deck's product id (from get_available_slide_decks). Defaults to the open deck when a slide deck or one of its slides is open.",
+      ),
     }),
     kind: "read",
     handler: async (input) => {
-      const res = await env.getSlide(input.slideId);
+      const res = await env.getSlide(
+        resolveProductId(input.productId),
+        input.slideId,
+      );
       if (!res.success) throw new AIToolFailure(res.err);
 
       const simplified = await simplifySlideForAI(

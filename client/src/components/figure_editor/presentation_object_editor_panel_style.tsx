@@ -1,6 +1,6 @@
 import {
   PresentationObjectConfig,
-  PresentationObjectEditorDetail,
+  ResultsValue,
   ResultsValueInfoForPresentationObject,
   getDisaggregatorDisplayProp,
   type IndicatorFormat,
@@ -24,8 +24,7 @@ import { PieStyleControls } from "./presentation_object_editor_panel_style/_pie"
 import { CustomValueOrderSection } from "./presentation_object_editor_panel_style/_custom_value_order";
 
 type Props = {
-  projectId: string;
-  poDetail: PresentationObjectEditorDetail;
+  metric: ResultsValue;
   resultsValueInfo: ResultsValueInfoForPresentationObject;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
@@ -38,7 +37,7 @@ type Props = {
 };
 
 export function PresentationObjectEditorPanelStyle(p: Props) {
-  const metricId = () => p.poDetail.resultsValue.id;
+  const metricId = () => p.metric.id;
 
   const showCoverageMode = () => canUseSpecialCoverageChart(metricId());
   const showPercentChangeMode = () => canUseSpecialPercentChangeChart(metricId());
@@ -48,14 +47,14 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
   // indicator's own quantity: the metric's declared formatAs, never the
   // resolved axis format.
   const offerIndicatorCfSource = () =>
-    p.poDetail.resultsValue.formatAs === "indicator";
+    p.metric.formatAs === "indicator";
 
   // n is a survey concept and is counted over facility rows, so the server only
   // emits it for HFA metrics whose results table has facility_id. Offering the
   // toggle anywhere else would be a switch that does nothing.
   const showNValuesToggle = () =>
-    p.poDetail.resultsValue.datasetFamily === "hfa" &&
-    p.poDetail.resultsValue.hasFacilityLevelRows === true;
+    p.metric.datasetFamily === "hfa" &&
+    p.metric.hasFacilityLevelRows === true;
 
   async function editCustomSeriesStyles() {
     const res = await openComponent({
@@ -72,7 +71,7 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
   }
 
   const usingCells = () =>
-    !!getDisaggregatorDisplayProp(p.poDetail.resultsValue, p.effectiveConfig, [
+    !!getDisaggregatorDisplayProp(p.metric, p.effectiveConfig, [
       "cell",
     ], p.effectiveValueProps);
 
@@ -81,7 +80,6 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
     <div data-viz-panel-scroll
       data-tour="viz-panel-style" class="ui-pad ui-spy h-full w-full overflow-auto">
       <SharedControlsTop
-        poDetail={p.poDetail}
         tempConfig={p.tempConfig}
         setTempConfig={p.setTempConfig}
         usingCells={usingCells}
@@ -89,7 +87,7 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
       <Switch>
         <Match when={p.tempConfig.d.type === "timeseries"}>
           <TimeseriesStyleControls
-            poDetail={p.poDetail}
+            metric={p.metric}
             tempConfig={p.tempConfig}
             setTempConfig={p.setTempConfig}
             editCustomSeriesStyles={editCustomSeriesStyles}
@@ -103,7 +101,7 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
         </Match>
         <Match when={p.tempConfig.d.type === "chart"}>
           <ChartStyleControls
-            poDetail={p.poDetail}
+            metric={p.metric}
             tempConfig={p.tempConfig}
             setTempConfig={p.setTempConfig}
             editCustomSeriesStyles={editCustomSeriesStyles}
@@ -113,7 +111,7 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
         </Match>
         <Match when={p.tempConfig.d.type === "table"}>
           <TableStyleControls
-            poDetail={p.poDetail}
+            metric={p.metric}
             tempConfig={p.tempConfig}
             setTempConfig={p.setTempConfig}
             showNValuesToggle={showNValuesToggle()}
@@ -123,7 +121,7 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
         </Match>
         <Match when={p.tempConfig.d.type === "map"}>
           <MapStyleControls
-            poDetail={p.poDetail}
+            metric={p.metric}
             tempConfig={p.tempConfig}
             setTempConfig={p.setTempConfig}
             effectiveFormatAs={p.effectiveFormatAs}
@@ -132,7 +130,6 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
         </Match>
         <Match when={p.tempConfig.d.type === "pie"}>
           <PieStyleControls
-            poDetail={p.poDetail}
             tempConfig={p.tempConfig}
             setTempConfig={p.setTempConfig}
             editCustomSeriesStyles={editCustomSeriesStyles}

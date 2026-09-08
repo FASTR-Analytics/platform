@@ -34,16 +34,13 @@ import { MarkdownGuide } from "~/components/_markdown_guide";
 import { CollabMarkdownEditor } from "./collab_markdown_editor";
 import { CollabTextField } from "./collab_text_field";
 import { StaleFigureBadge } from "~/components/figure_editor/stale_figure_badge";
-import type { SlideSession } from "~/state/project/collab";
+import type { SlideSession } from "~/state/instance/collab";
 import type * as Y from "yjs";
 
 type Props = {
-  projectId: string;
-  // The container's pair and its authoring context (D4); undefined while the
-  // project has no package to resolve under.
-  staleContext:
-    | { scope: PackageScope; authoringContext: RunAuthoringContext }
-    | undefined;
+  productId: string;
+  // The product's live pair and its package's authoring context (D4).
+  staleContext: { scope: PackageScope; authoringContext: RunAuthoringContext };
   // Set exactly when the selected figure block was resolved under a
   // different pair than the container's.
   staleFigureBundle: FigureBundle | undefined;
@@ -63,7 +60,6 @@ type Props = {
   setContentTab: Setter<"slide" | "block">;
   onShowLayoutMenu: (x: number, y: number) => void;
   onEditVisualization: () => void;
-  onSelectVisualization: () => void;
   onCreateVisualization: () => void;
   showHeaderLogosByDefault: boolean;
   showFooterLogosByDefault: boolean;
@@ -181,6 +177,7 @@ export function SlideEditorPanelContent(p: Props) {
             <div class="h-full overflow-auto">
               <div class="ui-pad ui-spy-sm">
                 <CollabTextField
+                  productId={p.productId}
                   session={p.session}
                   collabReady={p.collabReady}
                   fieldKey="header"
@@ -194,6 +191,7 @@ export function SlideEditorPanelContent(p: Props) {
                   height="60px"
                 />
                 <CollabTextField
+                  productId={p.productId}
                   session={p.session}
                   collabReady={p.collabReady}
                   fieldKey="subHeader"
@@ -211,6 +209,7 @@ export function SlideEditorPanelContent(p: Props) {
                   height="40px"
                 />
                 <CollabTextField
+                  productId={p.productId}
                   session={p.session}
                   collabReady={p.collabReady}
                   fieldKey="date"
@@ -254,6 +253,7 @@ export function SlideEditorPanelContent(p: Props) {
                   }
                 >
                   <CollabTextField
+                    productId={p.productId}
                     session={p.session}
                     collabReady={p.collabReady}
                     fieldKey="footer"
@@ -544,6 +544,7 @@ export function SlideEditorPanelContent(p: Props) {
                               {t3({ en: "Text", fr: "Texte", pt: "Texto" })}
                             </label>
                             <CollabMarkdownEditor
+                              productId={p.productId}
                               yText={yText}
                               awareness={p.session!.awareness}
                               onTextChange={(md) =>
@@ -709,20 +710,12 @@ export function SlideEditorPanelContent(p: Props) {
                                 the container now serves from (D4). Shown,
                                 never blocking: a mixed-package deck is a
                                 deliberate state. */}
-                            <Show
-                              when={
-                                p.staleContext && p.staleFigureBundle
-                                  ? { ...p.staleContext, bundle: p.staleFigureBundle }
-                                  : undefined
-                              }
-                              keyed
-                            >
-                              {(keyed) => (
+                            <Show when={p.staleFigureBundle} keyed>
+                              {(staleBundle) => (
                                 <StaleFigureBadge
-                                  projectId={p.projectId}
-                                  bundle={keyed.bundle}
-                                  scope={keyed.scope}
-                                  authoringContext={keyed.authoringContext}
+                                  bundle={staleBundle}
+                                  scope={p.staleContext.scope}
+                                  authoringContext={p.staleContext.authoringContext}
                                   onUpdated={p.onFigureUpdated}
                                   canEdit={p.canEditFigures}
                                 />
@@ -737,25 +730,18 @@ export function SlideEditorPanelContent(p: Props) {
                                 })}
                               </Button>
                             </Show>
-                            <Button onClick={() => p.onSelectVisualization()}>
+                            <Button onClick={() => p.onCreateVisualization()}>
                               {hasBundle()
                                 ? t3({
-                                    en: "Switch Visualization",
-                                    fr: "Changer de visualisation",
-                                    pt: "Trocar visualização",
+                                    en: "Replace figure",
+                                    fr: "Remplacer la figure",
+                                    pt: "Substituir figura",
                                   })
                                 : t3({
-                                    en: "Select Visualization",
-                                    fr: "Sélectionner la visualisation",
-                                    pt: "Selecionar visualização",
+                                    en: "Insert figure",
+                                    fr: "Insérer une figure",
+                                    pt: "Inserir figura",
                                   })}
-                            </Button>
-                            <Button onClick={() => p.onCreateVisualization()}>
-                              {t3({
-                                en: "Create New Visualization",
-                                fr: "Créer une nouvelle visualisation",
-                                pt: "Criar nova visualização",
-                              })}
                             </Button>
                             <Show when={hasBundle()}>
                               <Button

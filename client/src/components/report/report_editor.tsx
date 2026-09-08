@@ -119,7 +119,7 @@ type Props = {
   ref?: (api: ReportEditorApi) => void;
 };
 
-export function ReportEditor(p: Props) {
+export function ReportBodyEditor(p: Props) {
   let parent!: HTMLDivElement;
   let view: EditorView | undefined;
   let detachSelectionHover: (() => void) | undefined;

@@ -1,10 +1,13 @@
-import { t3, TC, type SlideDeckFolder, type SlideDeckSummary } from "lib";
+import { t3, TC, type ProductSummary } from "lib";
 import { Button, Input, RadioGroup, Select, type SelectOption } from "panther";
 import { createMemo, createSignal, Show } from "solid-js";
+import { instanceState } from "~/state/instance/t1_store";
+
+export function slideDeckProducts(): ProductSummary[] {
+  return instanceState.products.filter((p) => p.type === "slide_deck");
+}
 
 type Props = {
-  decks: SlideDeckSummary[];
-  folders: SlideDeckFolder[];
   selectedDeckId: string;
   onSelectDeck: (deckId: string) => void;
   isCreatingNew: boolean;
@@ -17,22 +20,23 @@ export function DeckSelector(p: Props) {
   const [selectedFolderId, setSelectedFolderId] = createSignal<string>("_all");
 
   const folderOptions = createMemo((): SelectOption<string>[] => {
-    if (p.folders.length === 0) return [];
+    if (instanceState.folders.length === 0) return [];
     return [
       { value: "_all", label: t3({ en: "All folders", fr: "Tous les dossiers", pt: "Todas as pastas" }) },
       { value: "_unfiled", label: t3(TC.general) },
-      ...p.folders.map((f) => ({ value: f.id, label: f.label })),
+      ...instanceState.folders.map((f) => ({ value: f.id, label: f.label })),
     ];
   });
 
   const filteredDecks = createMemo((): SelectOption<string>[] => {
     const fId = selectedFolderId();
+    const decks = slideDeckProducts();
     const filtered =
       fId === "_all"
-        ? p.decks
+        ? decks
         : fId === "_unfiled"
-          ? p.decks.filter((d) => d.folderId === null)
-          : p.decks.filter((d) => d.folderId === fId);
+          ? decks.filter((d) => d.folderId === null)
+          : decks.filter((d) => d.folderId === fId);
     return filtered.map((d) => ({ value: d.id, label: d.label }));
   });
 

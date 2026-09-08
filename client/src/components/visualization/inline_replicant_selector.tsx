@@ -1,7 +1,8 @@
 import { DisaggregationOption } from "lib";
 import { StateHolderWrapper, createQuery } from "panther";
 import { getPODetailFromCacheorFetch } from "~/state/project/t2_presentation_objects";
-import { ReplicateByOptionsPresentationObjectSelect } from "~/components/ReplicateByOptions";
+import { ReplicateByOptionsSelect } from "~/components/figure_editor/replicate_by_options";
+import { requireProjectPackageScope } from "~/state/project/t1_store";
 
 type Props = {
   projectId: string;
@@ -24,10 +25,11 @@ export function InlineReplicantSelector(p: Props) {
       {(keyedPoDetail) => (
         <div class="">
           <div class="pb-1 text-sm">{"Replicant"}</div>
-          <ReplicateByOptionsPresentationObjectSelect
+          <ReplicateByOptionsSelect
+            scope={requireProjectPackageScope()}
             replicateBy={p.replicateBy}
             config={keyedPoDetail.config}
-            poDetail={keyedPoDetail}
+            metric={keyedPoDetail.resultsValue}
             selectedReplicantValue={p.selectedValue}
             setSelectedReplicant={p.onChange}
             fullWidth

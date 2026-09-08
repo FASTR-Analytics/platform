@@ -14,7 +14,7 @@ import { getAdminAreaLevelFromMapConfig } from "./get_admin_area_level_from_conf
 import { resolveFigureBundleFromMetric } from "./resolve_figure_from_metric";
 import { geoJsonFamilyFor, getGeoJsonSync } from "~/state/instance/t2_geojson";
 import { getSnapshotInstanceLocalization } from "~/state/instance/t1_store";
-import { getPresentationObjectItemsFromCacheOrFetch } from "~/state/project/t2_presentation_objects";
+import { getPresentationObjectItemsFromCacheOrFetch } from "~/state/products/t2_figure_data";
 
 // Unified figure resolver: given a metric + a full config, validate the
 // replicant (strict, throw with the valid-value list, matching the from_metric
@@ -23,17 +23,16 @@ import { getPresentationObjectItemsFromCacheOrFetch } from "~/state/project/t2_p
 // the update_figure edit path. Re-resolution keys off the metric (the bundle
 // stores `metricId`), never the source viz.
 //
-// `scope` is the container's pair. It is undefined only when the project has
-// no package to resolve under, which is an AI-facing failure like an unready
-// metric, so it is refused here rather than at every AI call site.
+// `scope` is the container's pair. It is undefined only when the container
+// has no package to resolve under, which is an AI-facing failure like an
+// unready metric, so it is refused here rather than at every AI call site.
 export async function resolveBundleFromMetricAndConfig(
-  projectId: string,
   scope: PackageScope | undefined,
   metric: MetricWithStatus,
   config: PresentationObjectConfig,
 ): Promise<FigureBundle> {
   if (scope === undefined) {
-    throw new AIToolFailure("No results package is attached to this project");
+    throw new AIToolFailure("No results package to resolve under");
   }
 
   // AI tool handlers pass live Solid store objects (the metrics store, preset
@@ -60,15 +59,13 @@ export async function resolveBundleFromMetricAndConfig(
   }
 
   // Strict replicant validation (shared with the from_visualization AI path).
-  await assertReplicantValid(projectId, metric, config);
+  await assertReplicantValid(scope, metric, config);
 
   return resolveFigureBundleFromMetric(
-    projectId,
     scope,
     {
       metricId: metric.id,
       resultsObjectId: metric.resultsObjectId,
-      mostGranularTimePeriodColumnInResultsFile: metric.mostGranularTimePeriodColumnInResultsFile,
       resultsValueForViz: {
         formatAs: metric.formatAs,
         valueProps: metric.valueProps,
@@ -94,15 +91,14 @@ export type ResolveFigureResult =
   | { ok: false; reason: string };
 
 export async function resolveFigureBundleInteractively(
-  projectId: string,
   scope: PackageScope,
   metric: ResultsValue,
   config: PresentationObjectConfig,
 ): Promise<ResolveFigureResult> {
   try {
     const itemsRes = await getPresentationObjectItemsFromCacheOrFetch(
-      projectId,
-      { projectId, resultsValue: metric },
+      scope,
+      metric,
       config,
     );
     if (!itemsRes.success) {

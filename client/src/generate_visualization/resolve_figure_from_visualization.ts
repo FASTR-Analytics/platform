@@ -2,10 +2,8 @@ import type { FigureBlock, FigureBundle, PresentationObjectConfig, PresentationO
 import { getReplicateByProp } from "lib";
 import { makeFigureBundleFromFetchedData } from "./resolve_bundle_from_metric_and_config";
 import { requireProjectPackageScope } from "~/state/project/t1_store";
-import {
-  getPODetailFromCacheorFetch,
-  getPresentationObjectItemsFromCacheOrFetch,
-} from "~/state/project/t2_presentation_objects";
+import { getPODetailFromCacheorFetch } from "~/state/project/t2_presentation_objects";
+import { getPresentationObjectItemsFromCacheOrFetch } from "~/state/products/t2_figure_data";
 
 // Plain input type: no AI imports needed.
 // `type` is optional for callers that carry the discriminant from the AI input shape.
@@ -43,11 +41,15 @@ export async function getConfigForVisualization(
 // visualization lives only inside a project, so the pair it resolves under is
 // the project's (this path dies with the visualization product in step 9a).
 export async function resolveFigureBundleFromVizConfig(
-  projectId: string,
   poDetail: PresentationObjectDetail,
   config: PresentationObjectConfig,
 ): Promise<FigureBundle> {
-  const itemsRes = await getPresentationObjectItemsFromCacheOrFetch(projectId, poDetail, config);
+  const scope = requireProjectPackageScope();
+  const itemsRes = await getPresentationObjectItemsFromCacheOrFetch(
+    scope,
+    poDetail.resultsValue,
+    config,
+  );
   if (!itemsRes.success) {
     throw new Error(`Failed to fetch items: ${itemsRes.err}`);
   }
@@ -60,7 +62,7 @@ export async function resolveFigureBundleFromVizConfig(
     throw new Error("No data available with current selection");
   }
 
-  return makeFigureBundleFromFetchedData(requireProjectPackageScope(), {
+  return makeFigureBundleFromFetchedData(scope, {
     resultsValue: poDetail.resultsValue,
     ih,
     effectiveConfig: itemsRes.data.config,
@@ -76,7 +78,7 @@ export async function resolveFigureBundleFromVisualization(
   block: VisualizationInput,
 ): Promise<FigureBundle> {
   const { poDetail, config } = await getConfigForVisualization(projectId, block);
-  return resolveFigureBundleFromVizConfig(projectId, poDetail, config);
+  return resolveFigureBundleFromVizConfig(poDetail, config);
 }
 
 // Convenience: resolve and return FigureBlock + extracted geo (render/interactive path).

@@ -33,6 +33,7 @@ import {
   updateCurrentUser,
   updateProjectsLastUpdated,
 } from "./t1_store";
+import { connectCollab, disconnectCollab } from "./collab";
 
 // Live results-package generation (Q-B): ephemeral execution state, not T1:
 // like the project channel's copies these go to listeners and never touch
@@ -294,13 +295,16 @@ export function disconnectInstanceSSE(): void {
 }
 
 // The unapproved to approved transition (D8). Everything approval unlocks is
-// decided per CONNECTION server-side, so re-open it. The reset inside the
-// disconnect flips `currentUserApproved` back to false for one tick; the
-// approval effect below no-ops on that and re-runs when the new `starting`
-// payload lands.
+// decided per CONNECTION server-side, so re-open both channels: the SSE for
+// its `starting` payload and the collab socket, which the server refuses to
+// an unapproved user with a terminal close the client never retries. The
+// reset inside the disconnect flips `currentUserApproved` back to false for
+// one tick; the approval effect below no-ops on that and re-runs when the
+// new `starting` payload lands.
 export function reconnectForApproval(): void {
   disconnectInstanceSSE();
   connectInstanceSSE();
+  connectCollab();
 }
 
 // ============================================================================
@@ -309,17 +313,25 @@ export function reconnectForApproval(): void {
 
 export function InstanceSSEBoundary(p: { children: JSX.Element }) {
   onMount(() => connectInstanceSSE());
-  onCleanup(() => disconnectInstanceSSE());
+  onCleanup(() => {
+    disconnectInstanceSSE();
+    disconnectCollab();
+  });
 
   // Approval is decided per connection (see connectedAsApproved). No `defer`:
-  // an already-approved user's first `starting` records true and does
-  // nothing here. Nothing DISCONNECTS on a false reading: `currentUserApproved`
-  // goes false transiently on every reconnect (the store reset), and a real
-  // de-approval is closed server-side, which is the authority anyway.
+  // an already-approved user's first `starting` records true and opens the
+  // collab socket (idempotent, so the re-run after a reconnect's fresh
+  // `starting` is a no-op while it is up). Nothing DISCONNECTS on a false
+  // reading: `currentUserApproved` goes false transiently on every reconnect
+  // (the store reset), and a real de-approval is closed server-side, which is
+  // the authority anyway.
   createEffect(on(
     () => instanceState.currentUserApproved,
     (approved) => {
-      if (approved && !connectedAsApproved) {
+      if (!approved) return;
+      if (connectedAsApproved) {
+        connectCollab();
+      } else {
         reconnectForApproval();
       }
     },

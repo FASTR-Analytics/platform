@@ -9,7 +9,7 @@ import {
   viewportFromPane,
   zonePointerAt,
 } from "../live_cursors";
-import { projectAwareness } from "~/state/project/collab";
+import { projectAwareness } from "~/state/instance/collab";
 import { projectTab, vizGroupingMode, vizSelectedGroup } from "~/state/t4_ui";
 
 // =============================================================================
@@ -20,7 +20,7 @@ import { projectTab, vizGroupingMode, vizSelectedGroup } from "~/state/t4_ui";
 // each supplies only its surface's coordinate mapping and scope gate; the
 // rendering engine is shared (../live_cursors.tsx).
 //
-// Rides the PROJECT-level awareness (state/project/collab.ts): the tab pages
+// Rides the PROJECT-level awareness (state/instance/collab.ts): the tab pages
 // have no doc room. Each page tags its app-owned content element with
 // [data-page-cursor-surface]; coordinates are x normalized to that element's
 // width and y in content px against its own scrollTop (one formula covers the

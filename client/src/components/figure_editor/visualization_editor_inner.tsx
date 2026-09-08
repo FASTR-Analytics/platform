@@ -1,12 +1,15 @@
 import { trackStore } from "@solid-primitives/deep";
-import { projectState, requireProjectPackageScope, runVersionKey } from "~/state/project/t1_store";
+import { projectState, requireProjectPackageScope } from "~/state/project/t1_store";
 import {
   FIGURE_EXPORT_WIDTH_PX,
   ItemsHolderPresentationObject,
+  PackageScope,
   PresentationObjectConfig,
   PresentationObjectEditorDetail,
   ProjectState,
+  ResultsValue,
   ResultsValueInfoForPresentationObject,
+  RunAuthoringContext,
   canonicalJson,
   COLLAB_NO_EDIT_PERMISSION,
   getEffectivePOConfig,
@@ -70,11 +73,9 @@ import {
   otherPeers,
   reconnectForStaleEditAuth,
   type PoSession,
-  setCollabView,
-} from "~/state/project/collab";
-import { PresenceAvatars } from "~/components/slide_deck/presence_avatars";
+} from "~/state/instance/collab";
 import { VizEditorCursors } from "~/components/_shared/cursors/viz_cursors";
-import { ReplicateByOptionsPresentationObject } from "~/components/ReplicateByOptions";
+import { ReplicateByOptionsList } from "./replicate_by_options";
 import { ConflictResolutionModal } from "~/components/forms_editors/conflict_resolution_modal";
 import { DownloadPresentationObject } from "~/components/forms_editors/download_presentation_object";
 import { ViewResultsObject } from "~/components/forms_editors/view_results_object";
@@ -90,18 +91,17 @@ import { serverActions } from "~/server_actions";
 import {
   getPresentationObjectItemsFromCacheOrFetch,
   getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator,
-} from "~/state/project/t2_presentation_objects";
+} from "~/state/products/t2_figure_data";
 import { setShowAi, showAi } from "~/state/t4_ui";
+import type { EphemeralModeReturn, VizFigureCollabBinding } from ".";
 import type {
   CreateModeReturn,
   EditModeReturn,
-  EphemeralModeReturn,
-  VizFigureCollabBinding,
-} from ".";
-import { DuplicateVisualization } from "./duplicate_visualization";
+} from "~/components/visualization";
+import { DuplicateVisualization } from "~/components/visualization/duplicate_visualization";
 import { PresentationObjectEditorPanel } from "./presentation_object_editor_panel";
-import { SaveAsNewVisualizationModal } from "./save_as_new_visualization_modal";
-import { VisualizationSettings } from "./visualization_settings";
+import { SaveAsNewVisualizationModal } from "~/components/visualization/save_as_new_visualization_modal";
+import { VisualizationSettings } from "~/components/visualization/visualization_settings";
 import {
   projectAIViewController,
   restoreProjectAIView,
@@ -121,37 +121,80 @@ const NON_TEXT_INPUT_TYPES = new Set([
   "image",
 ]);
 
-type InnerProps = {
-  mode: "edit" | "create" | "ephemeral";
+// The embedded figure editor: a figure `{ metricId, config }` edited under the
+// host's PackageScope, passed live so a mid-edit reattach moves the preview.
+type EphemeralProps = {
+  mode: "ephemeral";
+  scope: PackageScope;
+  metric: ResultsValue;
+  label: string;
+  configSnapshot: PresentationObjectConfig;
+  authoringContext: RunAuthoringContext;
+  resultsValueInfo: ResultsValueInfoForPresentationObject;
+  /** Live co-editing of the figure inside the host doc; absent means Apply/Cancel. */
+  collabBinding?: VizFigureCollabBinding;
+  onClose: (result: EphemeralModeReturn) => void;
+};
+
+// The project's standalone visualization editor, until step 9a. Its reads
+// resolve under the project's pair.
+type ProjectProps = {
   projectStateSnapshot: ProjectState;
   poDetail: PresentationObjectEditorDetail;
   resultsValueInfo: ResultsValueInfoForPresentationObject;
   returnToContext?: ProjectAIViewState;
-  /** Ephemeral mode only: live co-editing of the figure inside the host doc. */
-  collabBinding?: VizFigureCollabBinding;
-  onClose:
-    | ((result: EditModeReturn) => void)
-    | ((result: CreateModeReturn) => void)
-    | ((result: EphemeralModeReturn) => void);
 };
 
+type EditProps = ProjectProps & {
+  mode: "edit";
+  onClose: (result: EditModeReturn) => void;
+};
+
+type CreateProps = ProjectProps & {
+  mode: "create";
+  onClose: (result: CreateModeReturn) => void;
+};
+
+type InnerProps = EphemeralProps | EditProps | CreateProps;
+
 export function VisualizationEditorInner(p: InnerProps) {
-  const defaultHeight =
-    p.poDetail.config.d.type === "table"
-      ? ("ideal" as const)
-      : ("flex" as const);
+  const project = p.mode === "ephemeral" ? undefined : p;
+  // Reached only from the project-mode actions, which render only in those modes.
+  function requireProject(): EditProps | CreateProps {
+    if (p.mode === "ephemeral") {
+      throw new Error("Not a project visualization");
+    }
+    return p;
+  }
+  const metric: ResultsValue = p.mode === "ephemeral"
+    ? p.metric
+    : p.poDetail.resultsValue;
+  const label = p.mode === "ephemeral" ? p.label : p.poDetail.label;
+  const initialConfig = p.mode === "ephemeral"
+    ? p.configSnapshot
+    : p.poDetail.config;
+  // The pair every read resolves under. Tracked: the host's scope prop and
+  // the project's attached package are both live.
+  const scope = (): PackageScope =>
+    p.mode === "ephemeral"
+      ? { runId: p.scope.runId, adminArea2: p.scope.adminArea2 }
+      : requireProjectPackageScope();
+  const moduleIdForMetric = () =>
+    (p.mode === "ephemeral"
+      ? p.authoringContext.metrics
+      : p.projectStateSnapshot.metrics
+    ).find((m) => m.id === metric.id)?.moduleId ?? "";
+
+  const defaultHeight = initialConfig.d.type === "table"
+    ? ("ideal" as const)
+    : ("flex" as const);
   const [editorHeight, setEditorHeight] = createSignal<"flex" | "ideal">(
     defaultHeight,
   );
 
   const [lastKnownServerTimestamp, setLastKnownServerTimestamp] = createSignal(
-    p.poDetail.lastUpdated,
+    project?.poDetail.lastUpdated ?? "",
   );
-
-  // Extract static values from stores to prevent external reactivity
-  const projectId = p.projectStateSnapshot.id;
-  // const visualizationFolders = structuredClone(p.projectStateSnapshot.visualizationFolders);
-  // const isLocked = p.projectStateSnapshot.isLocked;
 
   const {
     openEditor: openEditorForResultsObject,
@@ -161,14 +204,16 @@ export function VisualizationEditorInner(p: InnerProps) {
   // Temp state
 
   const [tempConfig, setTempConfig] = createStore<PresentationObjectConfig>(
-    structuredClone(p.poDetail.config),
+    structuredClone(initialConfig),
   );
 
+  // Embedded figures tell no copilot: the host's own "edited locally"
+  // interaction fires when it applies the coherent bundle.
   const manuallyUpdateTempConfig: SetStoreFunction<PresentationObjectConfig> = (
     ...args: any[]
   ) => {
     (setTempConfig as any)(...args);
-    projectAIViewController.notify("edited_viz_locally");
+    if (project) projectAIViewController.notify("edited_viz_locally");
   };
 
   const [itemsHolder, setItemsHolder] = createSignal<
@@ -199,14 +244,15 @@ export function VisualizationEditorInner(p: InnerProps) {
   // download/duplicate/rename and surface a spurious save prompt).
   let isAutoResolvingReplicant = false;
   async function attemptGetPresentationObjectItems(
+    fetchScope: PackageScope,
     config: PresentationObjectConfig,
   ) {
     const runId = ++itemsFetchRunId;
     setItemsHolder({ status: "loading" });
     try {
       const iter = getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator(
-        projectId,
-        p.poDetail,
+        fetchScope,
+        metric,
         config,
       );
       let lastState: typeof itemsHolder extends () => infer T ? T : never = {
@@ -242,7 +288,7 @@ export function VisualizationEditorInner(p: InnerProps) {
         const mapLevel = getAdminAreaLevelFromMapConfig(lastState.data.config);
         if (mapLevel) {
           const geoJson = getGeoJsonSync(
-            geoJsonFamilyFor(p.poDetail.resultsValue.datasetFamily),
+            geoJsonFamilyFor(metric.datasetFamily),
             mapLevel,
           );
           setItemsHolder({
@@ -254,12 +300,12 @@ export function VisualizationEditorInner(p: InnerProps) {
         // co-edited + its freshly-fetched items) to the host, so canvas peers
         // render config and data in step. Config alone streams live per-keystroke;
         // this closes the config↔items gap whenever a refetch resolves.
-        const binding = p.collabBinding;
+        const binding = collabBinding();
         if (binding && binding.isLive()) {
           try {
             binding.onCoherentBundle(
-              makeFigureBundleFromFetchedData(requireProjectPackageScope(), {
-                resultsValue: p.poDetail.resultsValue,
+              makeFigureBundleFromFetchedData(fetchScope, {
+                resultsValue: metric,
                 ih: lastState.data.ih as Parameters<
                   typeof makeFigureBundleFromFetchedData
                 >[1]["ih"],
@@ -285,6 +331,9 @@ export function VisualizationEditorInner(p: InnerProps) {
 
   const [needsSave, setNeedsSave] = createSignal<boolean>(false);
 
+  const collabBinding = () =>
+    p.mode === "ephemeral" ? p.collabBinding : undefined;
+
   // ── Live collaboration ──────────────────────────────────────────────────────
   // Two surfaces share one path:
   //  • Standalone edit mode: this editor opens its OWN PO room (openPoSession)
@@ -294,11 +343,12 @@ export function VisualizationEditorInner(p: InnerProps) {
   // Both expose a config Y.Map + awareness + a per-user origin; push/reconcile/
   // undo/captions run off whichever is active. Create mode and users without
   // configure permission keep the classic non-collab flow (no target).
-  const collabEnabled =
-    p.mode === "edit" &&
-    !p.poDetail.isDefault &&
-    projectState.thisUserPermissions.can_configure_visualizations &&
-    !projectState.isLocked;
+  const poRoomId = project?.mode === "edit" &&
+      !project.poDetail.isDefault &&
+      projectState.thisUserPermissions.can_configure_visualizations &&
+      !projectState.isLocked
+    ? project.poDetail.id
+    : undefined;
 
   const [poSession, setPoSession] = createSignal<PoSession | null>(null);
   const [ephemeralMap, setEphemeralMap] = createSignal<Y.Map<unknown> | null>(
@@ -332,7 +382,7 @@ export function VisualizationEditorInner(p: InnerProps) {
       };
     }
     const m = ephemeralMap();
-    const b = p.collabBinding;
+    const b = collabBinding();
     if (m && b) {
       return {
         configMap: m,
@@ -356,27 +406,16 @@ export function VisualizationEditorInner(p: InnerProps) {
   /** The room whose checkpoints persist these edits is failing: the own PO
    *  room when standalone, the host slide/report doc when embedded. */
   const saveFailing = () => {
-    if (poSession()) {
-      return docSaveFailing("po", p.poDetail.id);
+    if (poSession() && project) {
+      return docSaveFailing("po", project.poDetail.id);
     }
-    const b = p.collabBinding;
+    const b = collabBinding();
     return (
       b !== undefined && docSaveFailing(b.hostDoc.docType, b.hostDoc.docId)
     );
   };
   /** A "must save first" guard only applies when NOT live-autosaving. */
   const blockedByUnsaved = () => needsSave() && !isCollabLive();
-
-  // Standalone: other editors inside THIS visualization, for header avatars.
-  // Ephemeral presence (editingFigureId) is owned by the host (its canvas shows
-  // who is in the figure), so the modal renders no avatars there.
-  const poPeers = () => {
-    void collabState.peers; // track
-    if (p.mode === "edit") {
-      return otherPeers().filter((peer) => peer.poId === p.poDetail.id);
-    }
-    return [];
-  };
 
   /** Diff the working config onto the active target's map (transacted with our
    *  origin, so undo tracks it and the remote-reconcile observer skips it). */
@@ -418,12 +457,11 @@ export function VisualizationEditorInner(p: InnerProps) {
   const [panelTab, setPanelTab] = createSignal<"data" | "style" | "text">(
     "data", // matches the panel's initial tab
   );
-  const pointerScope = () =>
-    poSession()
-      ? `po:${p.poDetail.id}`
-      : p.collabBinding
-        ? `fig:${p.collabBinding.figureId}`
-        : undefined;
+  const pointerScope = () => {
+    if (project && poSession()) return `po:${project.poDetail.id}`;
+    const b = collabBinding();
+    return b ? `fig:${b.figureId}` : undefined;
+  };
 
   // Live cursors: surface glue lives in _shared/cursors/viz_cursors.tsx
   // (mounted in the JSX below).
@@ -521,7 +559,7 @@ export function VisualizationEditorInner(p: InnerProps) {
       // pre-sync local edits; otherwise the doc already diverged (a peer wrote
       // first), so adopt it rather than clobber.
       const docConfig = materializeFigureConfig(s.configMap);
-      if (canonicalJson(docConfig) === canonicalJson(p.poDetail.config)) {
+      if (canonicalJson(docConfig) === canonicalJson(initialConfig)) {
         pushConfig(unwrap(tempConfig));
       } else {
         adoptFromMap(s.configMap);
@@ -594,28 +632,29 @@ export function VisualizationEditorInner(p: InnerProps) {
   }
 
   onMount(() => {
-    const unwrappedTempConfig = unwrap(tempConfig);
-    attemptGetPresentationObjectItems(unwrappedTempConfig);
+    attemptGetPresentationObjectItems(scope(), unwrap(tempConfig));
 
     document.addEventListener("keydown", handleEditorKeyDown);
 
-    projectAIViewController.setView(
-      "editing_visualization",
-      {
-        vizId: p.mode === "edit" ? p.poDetail.id : null,
-        vizLabel: p.poDetail.label,
-        mode: p.mode,
-      },
-      {
-        resultsValue: p.poDetail.resultsValue,
-        getTempConfig: () => tempConfig,
-        setTempConfig,
-      },
-    );
+    if (project) {
+      projectAIViewController.setView(
+        "editing_visualization",
+        {
+          vizId: project.mode === "edit" ? project.poDetail.id : null,
+          vizLabel: project.poDetail.label,
+          mode: project.mode,
+        },
+        {
+          resultsValue: metric,
+          getTempConfig: () => tempConfig,
+          setTempConfig,
+        },
+      );
+    }
 
-    if (collabEnabled) {
+    if (poRoomId !== undefined) {
       const session = openPoSession(
-        p.poDetail.id,
+        poRoomId,
         () => handlePoRemote(),
         (message) => handlePoError(message),
       );
@@ -639,7 +678,6 @@ export function VisualizationEditorInner(p: InnerProps) {
       };
       session.configMap.observeDeep(onLocalUndo);
       detachConfigObserver = () => session.configMap.unobserveDeep(onLocalUndo);
-      setCollabView({ poId: p.poDetail.id });
     } else if (p.mode === "ephemeral" && p.collabBinding?.isLive()) {
       const b = p.collabBinding;
       const map = b.getConfigMap();
@@ -680,15 +718,16 @@ export function VisualizationEditorInner(p: InnerProps) {
 
   onCleanup(() => {
     document.removeEventListener("keydown", handleEditorKeyDown);
-    if (p.returnToContext) restoreProjectAIView(p.returnToContext);
-    else projectAIViewController.setView("viewing_visualizations");
+    if (project) {
+      if (project.returnToContext) restoreProjectAIView(project.returnToContext);
+      else projectAIViewController.setView("viewing_visualizations");
+    }
     const s = poSession();
     if (s) {
       // The server finalizes (checkpoints) the room when the last editor leaves;
       // closing unsubscribes. Un-shipped edits made while offline would be lost,
       // same tradeoff as the slide/report editors.
       s.close();
-      setCollabView({});
     }
     detachConfigObserver?.();
     undoMgr?.destroy();
@@ -707,15 +746,15 @@ export function VisualizationEditorInner(p: InnerProps) {
     // without a refetch. Must be called on the live store proxy: trackStore on
     // an unwrap()ed object silently no-ops (verified by execution 2026-07-28).
     trackStore(tempConfig.d);
-    // Tracked version-key read so the preview refetches when the attached run
-    // changes mid-edit (cache-internal reads are untracked).
-    runVersionKey(projectState);
+    // Tracked pair read: a reattach or scope change mid-edit refetches the
+    // preview under the new package. The pair leads the items cache's
+    // uniqueness key, so this is a different entry, not an invalidation.
+    const fetchScope = scope();
     if (firstRunConfigChange) {
       firstRunConfigChange = false;
       return;
     }
-    const unwrappedTempConfig = unwrap(tempConfig);
-    attemptGetPresentationObjectItems(unwrappedTempConfig);
+    attemptGetPresentationObjectItems(fetchScope, unwrap(tempConfig));
   });
 
   // NOTE: there is deliberately no effect clearing the entry roll-up flag when
@@ -744,27 +783,38 @@ export function VisualizationEditorInner(p: InnerProps) {
   // Actions
 
   function getConfigForSave() {
-    return normalizePOConfigForStorage(
-      unwrap(tempConfig),
-      p.poDetail.resultsValue,
-    );
+    return normalizePOConfigForStorage(unwrap(tempConfig), metric);
+  }
+
+  function closeEphemeral(result: EphemeralModeReturn) {
+    if (p.mode === "ephemeral") p.onClose(result);
+  }
+  function closeEdit(result: EditModeReturn) {
+    if (p.mode === "edit") p.onClose(result);
+  }
+  function closeCreate(result: CreateModeReturn) {
+    if (p.mode === "create") p.onClose(result);
+  }
+  function cancel() {
+    p.onClose(undefined);
   }
 
   // Create mode: open modal to get name and folder, then create
   async function saveAsNewVisualization() {
+    const proj = requireProject();
     const unwrappedTempConfig = getConfigForSave();
     const modalRes = await openComponent({
       element: SaveAsNewVisualizationModal,
       props: {
-        projectId: projectId,
-        existingLabel: p.poDetail.label,
-        resultsValue: p.poDetail.resultsValue,
+        projectId: proj.projectStateSnapshot.id,
+        existingLabel: proj.poDetail.label,
+        resultsValue: metric,
         config: unwrappedTempConfig,
-        folders: p.projectStateSnapshot.visualizationFolders,
+        folders: proj.projectStateSnapshot.visualizationFolders,
       },
     });
     if (modalRes) {
-      (p.onClose as (result: CreateModeReturn) => void)({
+      closeCreate({
         created: {
           presentationObjectId: modalRes.newPresentationObjectId,
           folderId: modalRes.folderId,
@@ -784,11 +834,13 @@ export function VisualizationEditorInner(p: InnerProps) {
   async function saveFunc(
     overwriteIfConflict?: boolean,
   ): Promise<APIResponseWithData<SaveFuncData>> {
+    const proj = requireProject();
+    const projectId = proj.projectStateSnapshot.id;
     const unwrappedTempConfig = getConfigForSave();
 
     const res = await serverActions.updatePresentationObjectConfig({
       projectId: projectId,
-      po_id: p.poDetail.id,
+      po_id: proj.poDetail.id,
       config: unwrappedTempConfig,
       expectedLastUpdated: lastKnownServerTimestamp(),
       overwrite: overwriteIfConflict,
@@ -819,10 +871,10 @@ export function VisualizationEditorInner(p: InnerProps) {
       if (userChoice === "save_as_new") {
         const createRes = await serverActions.createPresentationObject({
           projectId: projectId,
-          label: `${p.poDetail.label} (copy)`,
-          resultsValue: p.poDetail.resultsValue,
+          label: `${proj.poDetail.label} (copy)`,
+          resultsValue: metric,
           config: unwrappedTempConfig,
-          folderId: p.poDetail.folderId,
+          folderId: proj.poDetail.folderId,
         });
 
         if (createRes.success === false) {
@@ -861,7 +913,7 @@ export function VisualizationEditorInner(p: InnerProps) {
     () => saveFunc(),
     (data) => {
       if (data.conflictResolutionDecision === "user_chose_cancel") return;
-      (p.onClose as (result: EditModeReturn) => void)(
+      closeEdit(
         data.conflictResolutionDecision === "user_chose_view_theirs"
           ? undefined
           : { saved: true },
@@ -873,7 +925,7 @@ export function VisualizationEditorInner(p: InnerProps) {
     () => saveFunc(),
     (data) => {
       if (data.conflictResolutionDecision === "user_chose_view_theirs") {
-        (p.onClose as (result: EditModeReturn) => void)(undefined);
+        closeEdit(undefined);
       }
     },
   );
@@ -889,25 +941,24 @@ export function VisualizationEditorInner(p: InnerProps) {
       });
       return;
     }
+    const proj = requireProject();
+    const projectId = proj.projectStateSnapshot.id;
     await openComponent({
       element: VisualizationSettings,
       props: {
         projectId: projectId,
-        presentationObjectId: p.poDetail.id,
-        resultsObjectId: p.poDetail.resultsValue.resultsObjectId,
-        metricId: p.poDetail.resultsValue.id,
-        moduleId:
-          p.projectStateSnapshot.metrics.find(
-            (m) => m.id === p.poDetail.resultsValue.id,
-          )?.moduleId ?? "",
-        isDefault: p.poDetail.isDefault,
-        existingLabel: p.poDetail.label,
-        currentFolderId: p.poDetail.folderId,
-        folders: p.projectStateSnapshot.visualizationFolders,
+        presentationObjectId: proj.poDetail.id,
+        resultsObjectId: metric.resultsObjectId,
+        metricId: metric.id,
+        moduleId: moduleIdForMetric(),
+        isDefault: proj.poDetail.isDefault,
+        existingLabel: proj.poDetail.label,
+        currentFolderId: proj.poDetail.folderId,
+        folders: proj.projectStateSnapshot.visualizationFolders,
         mutateFunc: async (newLabel) =>
           serverActions.updatePresentationObjectLabel({
             projectId: projectId,
-            po_id: p.poDetail.id,
+            po_id: proj.poDetail.id,
             label: newLabel,
           }),
       },
@@ -915,7 +966,8 @@ export function VisualizationEditorInner(p: InnerProps) {
   }
 
   async function duplicate() {
-    if (blockedByUnsaved() && !p.poDetail.isDefault) {
+    const proj = requireProject();
+    if (blockedByUnsaved() && !proj.poDetail.isDefault) {
       await openAlert({
         text: t3({
           en: "In order to be duplicated, visualizations cannot have any unsaved changes",
@@ -928,22 +980,22 @@ export function VisualizationEditorInner(p: InnerProps) {
     const res = await openComponent({
       element: DuplicateVisualization,
       props: {
-        projectId: projectId,
+        projectId: proj.projectStateSnapshot.id,
         poDetails: [
           {
-            id: p.poDetail.id,
-            label: p.poDetail.label,
-            folderId: p.poDetail.folderId,
+            id: proj.poDetail.id,
+            label: proj.poDetail.label,
+            folderId: proj.poDetail.folderId,
           },
         ],
-        folders: p.projectStateSnapshot.visualizationFolders,
+        folders: proj.projectStateSnapshot.visualizationFolders,
       },
     });
     if (res === undefined) {
       return;
     }
 
-    (p.onClose as (result: EditModeReturn) => void)({ saved: true });
+    closeEdit({ saved: true });
 
     await openAlert({
       text: t3({
@@ -956,7 +1008,7 @@ export function VisualizationEditorInner(p: InnerProps) {
   }
 
   async function download() {
-    if (blockedByUnsaved()) {
+    if (project && blockedByUnsaved()) {
       await openAlert({
         text: t3({
           en: "You must save before downloading figures",
@@ -971,10 +1023,11 @@ export function VisualizationEditorInner(p: InnerProps) {
       await openAlert({ text: "Could not get figure", intent: "danger" });
       return;
     }
+    const downloadScope = scope();
     let figureInputs;
     try {
-      const bundle = makeFigureBundleFromFetchedData(requireProjectPackageScope(), {
-        resultsValue: p.poDetail.resultsValue,
+      const bundle = makeFigureBundleFromFetchedData(downloadScope, {
+        resultsValue: metric,
         ih: ih.data.ih as Parameters<
           typeof makeFigureBundleFromFetchedData
         >[1]["ih"],
@@ -991,12 +1044,12 @@ export function VisualizationEditorInner(p: InnerProps) {
     // download option yields white until panther offers a transparent flag.)
     const canvas = getFigureAsCanvas(figureInputs, FIGURE_EXPORT_WIDTH_PX);
     const replicateBy = getReplicateByProp(tempConfig);
+    const fileStem = label.replaceAll(" ", "_").trim();
     const res = await openComponent({
       element: DownloadPresentationObject,
       props: {
         isReplicateBy: !!replicateBy,
         isTable: figureInputs.figureType === "table",
-        poDetail: p.poDetail,
       },
     });
     if (res === undefined) {
@@ -1011,32 +1064,40 @@ export function VisualizationEditorInner(p: InnerProps) {
         // BOM so accented (FR) headers/labels render correctly when the CSV is
         // opened directly in Excel on Windows.
         stringifyCsv(getTableExportAoa(fi), { bom: true }),
-        `${p.poDetail.label.replaceAll(" ", "_").trim()}_table.csv`,
+        `${fileStem}_table.csv`,
       );
       return;
     }
     if (res.format === "json-definition") {
-      const jsonDef = {
-        id: p.poDetail.id,
-        label: p.poDetail.label,
-        metricId: p.poDetail.resultsValue.id,
-        config: p.poDetail.config,
-      };
-      downloadJson(
-        jsonDef,
-        `${p.poDetail.label.replaceAll(" ", "_").trim()}_definition.json`,
-      );
+      // A saved visualization is defined by its stored config; an embedded
+      // figure has no id of its own, so its definition is the draft plus the
+      // pair it resolves under.
+      const jsonDef = project
+        ? {
+          id: project.poDetail.id,
+          label,
+          metricId: metric.id,
+          config: project.poDetail.config,
+        }
+        : {
+          label,
+          metricId: metric.id,
+          runId: downloadScope.runId,
+          adminArea2: downloadScope.adminArea2,
+          config: unwrap(tempConfig),
+        };
+      downloadJson(jsonDef, `${fileStem}_definition.json`);
       return;
     }
     if (res.format === "data-results-file") {
-      viewResultsObject(p.poDetail.resultsValue.resultsObjectId);
+      viewResultsObject(metric.resultsObjectId);
       return;
     }
     if (res.format === "data-visualization") {
       const res = await getPresentationObjectItemsFromCacheOrFetch(
-        projectId,
-        p.poDetail,
-        tempConfig,
+        downloadScope,
+        metric,
+        unwrap(tempConfig),
       );
       if (res.success === false || res.data.ih.status !== "ok") {
         return;
@@ -1054,19 +1115,13 @@ export function VisualizationEditorInner(p: InnerProps) {
           ),
         ),
       ).stringify();
-      downloadCsv(
-        csv,
-        `${p.poDetail.label.replaceAll(" ", "_").trim()}_underlying_data.csv`,
-      );
+      downloadCsv(csv, `${fileStem}_underlying_data.csv`);
       return;
     }
     if (res.transparent && !res.padding) {
       canvas.toBlob(
         (blob) => {
-          saveAs(
-            blob ?? "",
-            `${p.poDetail.label.replaceAll(" ", "_").trim()}.png`,
-          );
+          saveAs(blob ?? "", `${fileStem}.png`);
         },
         "png",
         1,
@@ -1088,11 +1143,12 @@ export function VisualizationEditorInner(p: InnerProps) {
     }
     backCanvasCtx.drawImage(canvas, _PX, _PY);
     const blob = await backCanvas.convertToBlob({ type: "png", quality: 1 });
-    saveAs(blob, `${p.poDetail.label.replaceAll(" ", "_").trim()}.png`);
+    saveAs(blob, `${fileStem}.png`);
   }
 
   async function attemptDeletePresentationObjectDetail() {
-    if (p.poDetail.isDefault) {
+    const proj = requireProject();
+    if (proj.poDetail.isDefault) {
       return;
     }
     const deleteAction = createDeleteAction(
@@ -1103,25 +1159,21 @@ export function VisualizationEditorInner(p: InnerProps) {
       }),
       () =>
         serverActions.deletePresentationObject({
-          projectId: projectId,
-          po_id: p.poDetail.id,
+          projectId: proj.projectStateSnapshot.id,
+          po_id: proj.poDetail.id,
         }),
-      () => (p.onClose as (result: EditModeReturn) => void)({ deleted: true }),
+      () => closeEdit({ deleted: true }),
     );
 
     await deleteAction.click();
   }
 
   async function viewResultsObject(resultsObjectId: string) {
-    const _res = await openEditorForResultsObject({
+    await openEditorForResultsObject({
       element: ViewResultsObject,
       props: {
-        projectId: projectId,
-        runId: p.projectStateSnapshot.attachedRunId,
-        moduleId:
-          p.projectStateSnapshot.metrics.find(
-            (m) => m.id === p.poDetail.resultsValue.id,
-          )?.moduleId ?? "",
+        scope: scope(),
+        moduleId: moduleIdForMetric(),
         resultsObjectId,
       },
     });
@@ -1145,30 +1197,20 @@ export function VisualizationEditorInner(p: InnerProps) {
                       <Show
                         when={needsSave()}
                         fallback={
-                          <Button
-                            iconName="chevronLeft"
-                            onClick={() => (p.onClose as any)(undefined)}
-                          />
+                          <Button iconName="chevronLeft" onClick={cancel} />
                         }
                       >
                         <Button
                           intent="success"
                           onClick={() =>
-                            (
-                              p.onClose as (result: EphemeralModeReturn) => void
-                            )({
+                            closeEphemeral({
                               updated: { config: getConfigForSave() },
-                            })
-                          }
+                            })}
                           iconName="check"
                         >
                           {t3({ en: "Apply", fr: "Appliquer", pt: "Aplicar" })}
                         </Button>
-                        <Button
-                          outline
-                          onClick={() => (p.onClose as any)(undefined)}
-                          iconName="x"
-                        >
+                        <Button outline onClick={cancel} iconName="x">
                           {t3(TC.cancel)}
                         </Button>
                       </Show>
@@ -1181,18 +1223,18 @@ export function VisualizationEditorInner(p: InnerProps) {
                     <Button
                       iconName="chevronLeft"
                       onClick={() =>
-                        (p.onClose as (result: EphemeralModeReturn) => void)({
+                        closeEphemeral({
                           updated: { config: getConfigForSave() },
-                        })
-                      }
+                        })}
                     />
                   </Show>
                 </Match>
                 <Match
                   when={
-                    (needsSave() || p.mode === "create") &&
-                    !p.projectStateSnapshot.isLocked &&
-                    !p.poDetail.isDefault &&
+                    project !== undefined &&
+                    (needsSave() || project.mode === "create") &&
+                    !project.projectStateSnapshot.isLocked &&
+                    !project.poDetail.isDefault &&
                     !isCollabLive()
                   }
                 >
@@ -1248,25 +1290,18 @@ export function VisualizationEditorInner(p: InnerProps) {
                       </>
                     </Match>
                   </Switch>
-                  <Button
-                    outline
-                    onClick={() => (p.onClose as any)(undefined)}
-                    iconName="x"
-                  >
+                  <Button outline onClick={cancel} iconName="x">
                     {t3(TC.cancel)}
                   </Button>
                 </Match>
                 <Match when={true}>
-                  <Button
-                    iconName="chevronLeft"
-                    onClick={() => (p.onClose as any)(undefined)}
-                  />
+                  <Button iconName="chevronLeft" onClick={cancel} />
                 </Match>
               </Switch>
             </div>
             <div class="font-700 flex flex-1 items-center truncate text-xl">
-              <span class="font-400">{p.poDetail.label}</span>
-              <Show when={p.poDetail.isDefault}>
+              <span class="font-400">{label}</span>
+              <Show when={project?.poDetail.isDefault}>
                 <span class="border-primary bg-base-100 font-400 text-primary ml-4 truncate rounded border px-2 py-1 text-xs">
                   {t3({ en: "Default", fr: "Par défaut", pt: "Predefinição" })}
                 </span>
@@ -1274,7 +1309,6 @@ export function VisualizationEditorInner(p: InnerProps) {
             </div>
             <div class="ui-gap-sm flex items-center">
               <Show when={isCollabLive()}>
-                <PresenceAvatars peers={poPeers()} size="sm" />
                 <Show
                   when={!saveFailing()}
                   fallback={
@@ -1305,7 +1339,8 @@ export function VisualizationEditorInner(p: InnerProps) {
                 <Button onClick={redo} iconName="redo" outline />
               </Show>
               <Show
-                when={!p.projectStateSnapshot.isLocked && p.mode === "edit"}
+                when={project?.mode === "edit" &&
+                  !project.projectStateSnapshot.isLocked}
               >
                 <Button
                   onClick={attemptUpdateLabel}
@@ -1313,7 +1348,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                   outline
                 ></Button>
                 <Button onClick={duplicate} iconName="copy" outline></Button>
-                <Show when={!p.poDetail.isDefault}>
+                <Show when={!project?.poDetail.isDefault}>
                   <Button
                     onClick={attemptDeletePresentationObjectDetail}
                     iconName="trash"
@@ -1350,8 +1385,7 @@ export function VisualizationEditorInner(p: InnerProps) {
           maxWidth={600}
           panelChildren={
             <PresentationObjectEditorPanel
-              projectStateSnapshot={p.projectStateSnapshot}
-              poDetail={p.poDetail}
+              metric={metric}
               resultsValueInfo={p.resultsValueInfo}
               tempConfig={tempConfig}
               setTempConfig={manuallyUpdateTempConfig}
@@ -1366,10 +1400,11 @@ export function VisualizationEditorInner(p: InnerProps) {
             <Show when={getReplicateByProp(tempConfig)} keyed>
               {(keyedReplicateBy) => {
                 return (
-                  <ReplicateByOptionsPresentationObject
+                  <ReplicateByOptionsList
+                    scope={scope()}
                     replicateBy={keyedReplicateBy}
                     config={tempConfig}
-                    poDetail={p.poDetail}
+                    metric={metric}
                     selectedReplicantValue={tempConfig.d.selectedReplicantValue}
                     setSelectedReplicant={(v) =>
                       manuallyUpdateTempConfig("d", "selectedReplicantValue", v)
@@ -1383,14 +1418,14 @@ export function VisualizationEditorInner(p: InnerProps) {
                 const { config, effectiveValueProps } = getEffectivePOConfig(
                   tempConfig,
                   {
-                    valueProps: p.poDetail.resultsValue.valueProps,
+                    valueProps: metric.valueProps,
                     singleValueDims: getSingleValueDimsFromPossibleValues(
                       p.resultsValueInfo.disaggregationPossibleValues,
                     ),
                   },
                 );
                 return !hasDuplicateDisaggregatorDisplayOptions(
-                  p.poDetail.resultsValue,
+                  metric,
                   config,
                   effectiveValueProps,
                 );
@@ -1504,8 +1539,8 @@ export function VisualizationEditorInner(p: InnerProps) {
                                 }
                               }
                               try {
-                                const bundle = makeFigureBundleFromFetchedData(requireProjectPackageScope(), {
-                                  resultsValue: p.poDetail.resultsValue,
+                                const bundle = makeFigureBundleFromFetchedData(scope(), {
+                                  resultsValue: metric,
                                   ih: keyedItemsHolder.ih as Parameters<
                                     typeof makeFigureBundleFromFetchedData
                                   >[1]["ih"],

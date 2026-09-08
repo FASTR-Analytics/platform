@@ -46,7 +46,7 @@ import {
   unscaleValueForFormat,
   writeIdentifier,
 } from "lib";
-import { ThresholdsPanel } from "~/components/visualization/conditional_formatting_editor";
+import { ThresholdsPanel } from "~/components/figure_editor/conditional_formatting_editor";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import {

@@ -13,13 +13,11 @@ import { SetStoreFunction } from "solid-js/store";
 import { SlideEditorPanelCover } from "./editor_panel_cover";
 import { SlideEditorPanelSection } from "./editor_panel_section";
 import { SlideEditorPanelContent } from "./editor_panel_content";
-import type { SlideSession } from "~/state/project/collab";
+import type { SlideSession } from "~/state/instance/collab";
 
 type Props = {
-  projectId: string;
-  staleContext:
-    | { scope: PackageScope; authoringContext: RunAuthoringContext }
-    | undefined;
+  productId: string;
+  staleContext: { scope: PackageScope; authoringContext: RunAuthoringContext };
   staleFigureBundle: FigureBundle | undefined;
   onFigureUpdated: (bundle: FigureBundle) => void;
   canEditFigures: boolean;
@@ -37,7 +35,6 @@ type Props = {
   setContentTab: Setter<"slide" | "block">;
   onShowLayoutMenu: (x: number, y: number) => void;
   onEditVisualization: () => void;
-  onSelectVisualization: () => void;
   onCreateVisualization: () => void;
   showCoverLogosByDefault: boolean;
   showHeaderLogosByDefault: boolean;
@@ -51,6 +48,7 @@ export function SlideEditorPanel(p: Props) {
       <Switch>
         <Match when={p.tempSlide.type === "cover"}>
           <SlideEditorPanelCover
+            productId={p.productId}
             tempSlide={p.tempSlide as CoverSlide}
             setTempSlide={p.setTempSlide}
             showLogosByDefault={p.showCoverLogosByDefault}
@@ -61,6 +59,7 @@ export function SlideEditorPanel(p: Props) {
         </Match>
         <Match when={p.tempSlide.type === "section"}>
           <SlideEditorPanelSection
+            productId={p.productId}
             tempSlide={p.tempSlide as SectionSlide}
             setTempSlide={p.setTempSlide}
             session={p.session}
@@ -70,7 +69,7 @@ export function SlideEditorPanel(p: Props) {
         </Match>
         <Match when={p.tempSlide.type === "content"}>
           <SlideEditorPanelContent
-            projectId={p.projectId}
+            productId={p.productId}
             staleContext={p.staleContext}
             staleFigureBundle={p.staleFigureBundle}
             onFigureUpdated={p.onFigureUpdated}
@@ -87,7 +86,6 @@ export function SlideEditorPanel(p: Props) {
             setContentTab={p.setContentTab}
             onShowLayoutMenu={p.onShowLayoutMenu}
             onEditVisualization={p.onEditVisualization}
-            onSelectVisualization={p.onSelectVisualization}
             onCreateVisualization={p.onCreateVisualization}
             showHeaderLogosByDefault={p.showHeaderLogosByDefault}
             showFooterLogosByDefault={p.showFooterLogosByDefault}

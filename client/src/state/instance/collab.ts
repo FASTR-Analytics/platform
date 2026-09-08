@@ -34,13 +34,19 @@ import {
 } from "~/components/_shared/presence_toasts";
 import { notifyCollabConnection } from "~/components/_shared/connection_banner";
 
-// Client manager for the per-project collaboration WebSocket: presence,
-// idle detection, and the three CRDT session families (slide / report /
-// visualization) with reconnect catch-up. Mirrors the SSE manager
+// Client manager for the instance-wide collaboration WebSocket (GET /collab):
+// presence, idle detection, and the two CRDT session families the server
+// serves (slide / report) with reconnect catch-up. Mirrors the SSE manager
 // (t1_sse.tsx): a single module-level connection, exponential-backoff
 // reconnect that never gives up, and a reactive store consumers read from.
 // The `peers` list is per CONNECTION and includes self; UI reads it through
-// otherPeers(), which collapses it to one entry per person.
+// otherPeers(), which collapses it to one entry per person, or
+// peersInProduct(id), since presence is keyed by PRODUCT (D8).
+//
+// The visualization (po_*) sessions and the project-level awareness below
+// have no server behind them since PLAN_PRODUCTS_RESTRUCTURE step 7a: the
+// instance socket ignores those frames. Both halves are deleted with the
+// standalone visualization editor in step 9a.
 
 type CollabState = {
   connectionId: string | null;
@@ -52,7 +58,7 @@ const [collabStore, setCollabStore] = createStore<CollabState>({
   peers: [],
 });
 
-/** Reactive presence state for the current project (includes self). */
+/** Reactive presence state for the instance connection (includes self). */
 export const collabState = collabStore;
 
 /** Which connection speaks for a person holding several (two tabs, or a
@@ -63,7 +69,7 @@ function presenceRank(p: PresenceEntry): number {
   return (p.isEditing ? 2 : 0) + (p.idle ? 0 : 1);
 }
 
-/** Other PEOPLE in this project: one entry each, never one per connection.
+/** Other PEOPLE on this instance: one entry each, never one per connection.
  *
  *  Presence is connection-keyed, but every consumer (avatars, viewer chips,
  *  "who has this open" borders, the AI busy-slide guard) is asking about
@@ -97,7 +103,16 @@ export function otherPeers(): PresenceEntry[] {
   return [...byPerson.values()];
 }
 
-/** Connection ids the server currently lists for this project (empty before
+/** Other people currently inside one product: the socket is instance-wide,
+ *  so every header filters the roster down to its own product (presence is
+ *  keyed by PRODUCT, and a product id IS its deck/report id). */
+export function peersInProduct(productId: string): PresenceEntry[] {
+  return otherPeers().filter(
+    (p) => p.deckId === productId || p.reportId === productId,
+  );
+}
+
+/** Connection ids the server currently lists (empty before
  *  presence arrives: treat that as "unknown", never as "nobody"). Reactive.
  *  The cursor overlay uses it to drop awareness states whose connection is
  *  already gone: the server deregisters a connection and rebroadcasts presence
@@ -169,13 +184,15 @@ const MAX_RETRY_DELAY = 30000;
 const TERMINAL_CLOSE_CODES = new Set([4403, 1008]);
 
 let ws: WebSocket | undefined;
-let currentProjectId: string | undefined;
+// Is a connection WANTED? There is one socket per signed-in approved user for
+// the whole session; the instance boundary opens it on approval.
+let wantConnection = false;
 let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
 let attempts = 0;
 // Latched by a terminal close so nothing re-opens the socket until something
-// that could change the answer happens (forceCollabReconnect / a new project).
+// that could change the answer happens (reconnectCollab).
 let unauthorized = false;
-// Close-intent is tracked PER SOCKET, not as a module flag: a project switch
+// Close-intent is tracked PER SOCKET, not as a module flag: a reconnect
 // closes the old socket and immediately opens a new one, and the old socket's
 // onclose fires only later: a shared flag reset by openSocket would then read
 // "unintentional" and schedule a spurious duplicate reconnect.
@@ -189,7 +206,6 @@ let view: {
   selectedBlockId?: string;
   selectedTextTarget?: string;
   reportId?: string;
-  poId?: string;
   editingFigureId?: string;
 } = {};
 
@@ -202,6 +218,7 @@ const SLIDE_REMOTE_ORIGIN = "remote-server";
 const AWARENESS_REMOTE_ORIGIN = "awareness-remote";
 
 type InternalSlideSession = {
+  productId: string;
   slideId: string;
   doc: Y.Doc;
   awareness: Awareness;
@@ -281,7 +298,7 @@ function applySessionUser(awareness: Awareness): void {
     // alpha on the hex color, matching the library's own fallback.
     colorLight: id.color + "33",
     // WHO this awareness state belongs to, and WHICH connection carries it.
-    // Both are already project-wide public in `presence_state` (same audience
+    // Both are already public in `presence_state` (same audience
     // as awareness), and the cursor overlay needs them to guarantee one cursor
     // per PERSON: `email` collapses a user's other tabs (and hides their own
     // from themselves), `connectionId` lets a viewer drop states left behind by
@@ -325,7 +342,11 @@ function sendCollab(msg: CollabClientMessage): boolean {
 function subscribeSlideOnSocket(s: InternalSlideSession): void {
   sendCollab({
     type: "slide_subscribe",
-    data: { slideId: s.slideId, stateVector: bytesToBase64(Y.encodeStateVector(s.doc)) },
+    data: {
+      productId: s.productId,
+      slideId: s.slideId,
+      stateVector: bytesToBase64(Y.encodeStateVector(s.doc)),
+    },
   });
 }
 
@@ -351,7 +372,9 @@ function destroySlideSession(s: InternalSlideSession): void {
   }
 }
 
+/** `productId` is the deck the slide belongs to: it keys the server room. */
 export function openSlideSession(
+  productId: string,
   slideId: string,
   onRemote: () => void,
   onError?: (message: string, fatal?: boolean) => void,
@@ -366,6 +389,7 @@ export function openSlideSession(
   applySessionUser(awareness);
   const localOrigin = {};
   const s: InternalSlideSession = {
+    productId,
     slideId,
     doc,
     awareness,
@@ -385,7 +409,10 @@ export function openSlideSession(
     if (origin === SLIDE_REMOTE_ORIGIN) {
       return;
     }
-    sendCollab({ type: "slide_update", data: { slideId, update: bytesToBase64(update) } });
+    sendCollab({
+      type: "slide_update",
+      data: { productId, slideId, update: bytesToBase64(update) },
+    });
   });
 
   awareness.on(
@@ -406,7 +433,7 @@ export function openSlideSession(
       const update = encodeAwarenessUpdate(awareness, changed);
       sendCollab({
         type: "awareness_update",
-        data: { slideId, update: bytesToBase64(update) },
+        data: { productId, slideId, update: bytesToBase64(update) },
       });
     },
   );
@@ -436,7 +463,10 @@ export function closeSlideSession(slideId: string): void {
   if (!s) {
     return;
   }
-  sendCollab({ type: "slide_unsubscribe", data: { slideId } });
+  sendCollab({
+    type: "slide_unsubscribe",
+    data: { productId: s.productId, slideId },
+  });
   destroySlideSession(s);
 }
 
@@ -447,6 +477,7 @@ export function closeSlideSession(slideId: string): void {
 // for the first-sync merge (before the editor binds).
 
 type InternalReportSession = {
+  productId: string;
   reportId: string;
   doc: Y.Doc;
   awareness: Awareness;
@@ -483,6 +514,7 @@ function subscribeReportOnSocket(s: InternalReportSession): void {
   sendCollab({
     type: "report_subscribe",
     data: {
+      productId: s.productId,
       reportId: s.reportId,
       stateVector: bytesToBase64(Y.encodeStateVector(s.doc)),
     },
@@ -505,7 +537,10 @@ function destroyReportSession(s: InternalReportSession): void {
   }
 }
 
+/** A report IS its product, so `productId` equals `reportId`; both ride so
+ *  the two families share one wire shape. */
 export function openReportSession(
+  productId: string,
   reportId: string,
   onRemote: () => void,
   onError?: (message: string, fatal?: boolean) => void,
@@ -519,6 +554,7 @@ export function openReportSession(
   const awareness = new Awareness(doc);
   applySessionUser(awareness);
   const s: InternalReportSession = {
+    productId,
     reportId,
     doc,
     awareness,
@@ -535,7 +571,7 @@ export function openReportSession(
     }
     sendCollab({
       type: "report_update",
-      data: { reportId, update: bytesToBase64(update) },
+      data: { productId, reportId, update: bytesToBase64(update) },
     });
   });
 
@@ -556,7 +592,7 @@ export function openReportSession(
       const update = encodeAwarenessUpdate(awareness, changed);
       sendCollab({
         type: "report_awareness_update",
-        data: { reportId, update: bytesToBase64(update) },
+        data: { productId, reportId, update: bytesToBase64(update) },
       });
     },
   );
@@ -590,7 +626,10 @@ export function closeReportSession(reportId: string): void {
   if (!s) {
     return;
   }
-  sendCollab({ type: "report_unsubscribe", data: { reportId } });
+  sendCollab({
+    type: "report_unsubscribe",
+    data: { productId: s.productId, reportId },
+  });
   destroyReportSession(s);
 }
 
@@ -819,7 +858,11 @@ function handleReportServerMessage(msg: CollabServerMessage): boolean {
           if (diff.length > 2) {
             sendCollab({
               type: "report_update",
-              data: { reportId: msg.data.reportId, update: bytesToBase64(diff) },
+              data: {
+                productId: s.productId,
+                reportId: msg.data.reportId,
+                update: bytesToBase64(diff),
+              },
             });
           }
         }
@@ -882,7 +925,11 @@ function handleSlideServerMessage(msg: CollabServerMessage): boolean {
           if (diff.length > 2) {
             sendCollab({
               type: "slide_update",
-              data: { slideId: msg.data.slideId, update: bytesToBase64(diff) },
+              data: {
+                productId: s.productId,
+                slideId: msg.data.slideId,
+                update: bytesToBase64(diff),
+              },
             });
           }
         }
@@ -922,10 +969,10 @@ function handleSlideServerMessage(msg: CollabServerMessage): boolean {
   return false;
 }
 
-function collabWsUrl(projectId: string): string {
+function collabWsUrl(): string {
   // _SERVER_HOST is "" in production (same origin) and an http URL in dev.
   const origin = _SERVER_HOST || globalThis.location.origin;
-  return origin.replace(/^http/, "ws") + `/project_collab/${projectId}`;
+  return origin.replace(/^http/, "ws") + "/collab";
 }
 
 function sendPresence(): void {
@@ -989,8 +1036,8 @@ function maybeReloadOnServerVersionChange(serverVersion: string): void {
   window.location.reload();
 }
 
-function openSocket(projectId: string): void {
-  const socket = new WebSocket(collabWsUrl(projectId));
+function openSocket(): void {
+  const socket = new WebSocket(collabWsUrl());
   ws = socket;
 
   socket.onopen = () => {
@@ -1094,10 +1141,10 @@ function openSocket(projectId: string): void {
       return;
     }
     // A close code the server only sends when this user may never hold this
-    // socket (not approved, no project access). Retrying cannot fix it, and the
-    // "reconnecting" banner would be both permanent and untrue, so stand down
-    // silently. A later grant/removal calls forceCollabReconnect (t1_store),
-    // which clears this and connects again.
+    // socket (not approved). Retrying cannot fix it, and the "reconnecting"
+    // banner would be both permanent and untrue, so stand down silently. A
+    // later approval reconnects the whole realtime layer (reconnectForApproval
+    // in t1_sse.tsx), which clears this and connects again.
     if (TERMINAL_CLOSE_CODES.has(event.code)) {
       unauthorized = true;
       notifyCollabConnection("unauthorized");
@@ -1113,7 +1160,7 @@ function openSocket(projectId: string): void {
 }
 
 function scheduleReconnect(): void {
-  if (!currentProjectId || unauthorized) {
+  if (!wantConnection || unauthorized) {
     return;
   }
   attempts += 1;
@@ -1124,19 +1171,18 @@ function scheduleReconnect(): void {
   if (reconnectTimer) {
     clearTimeout(reconnectTimer);
   }
-  const projectId = currentProjectId;
   reconnectTimer = setTimeout(() => {
-    if (currentProjectId === projectId) {
-      openSocket(projectId);
+    if (wantConnection) {
+      openSocket();
     }
   }, delay);
 }
 
 // Reconnect NOW when the network or the tab plausibly came back: skips the
 // (up to 30s) backoff wait. Registered once for the module's lifetime; no-ops
-// when no project wants a connection or the socket is already up/connecting.
+// when no connection is wanted or the socket is already up/connecting.
 function retryNow(): void {
-  if (!currentProjectId || unauthorized) {
+  if (!wantConnection || unauthorized) {
     return;
   }
   if (ws && ws.readyState <= WebSocket.OPEN) {
@@ -1147,7 +1193,7 @@ function retryNow(): void {
     clearTimeout(reconnectTimer);
     reconnectTimer = undefined;
   }
-  openSocket(currentProjectId);
+  openSocket();
 }
 window.addEventListener("online", retryNow);
 document.addEventListener("visibilitychange", () => {
@@ -1197,7 +1243,7 @@ setInterval(() => {
 
 // ── Connection liveness watchdog (client-side heartbeat) ────────────────────
 // The SERVER side of dead-peer detection is Deno's protocol-level ping
-// (idleTimeout: 30 in project-collab.ts). Browsers can neither observe
+// (idleTimeout: 30 in routes/instance/collab.ts). Browsers can neither observe
 // protocol pings nor send their own, so when the path dies silently under
 // this tab (NAT drop, server hard-kill, network switch) the socket keeps
 // LOOKING open for however long TCP takes to notice: editors claim "Live",
@@ -1236,11 +1282,11 @@ setInterval(() => {
 
 // ── Project-level awareness (page cursors) ──────────────────────────────────
 // The project tab pages have no doc room, so their live cursors ride a
-// dedicated PROJECT-scoped Awareness: local field writes relay opaquely to
-// every other admitted connection in the project (project_awareness_update /
+// dedicated PROJECT-scoped Awareness (project_awareness_update /
 // project_awareness, presence-class visibility, never persisted). Field
 // registry is the same as the session awarenesses (pointer/pointerChat/user).
-// One instance per connectCollab, destroyed on disconnectCollab.
+// One instance per connectCollab, destroyed on disconnectCollab. No server
+// relays it since step 7a (see the header); it dies with the project tabs.
 
 let projectAw: { doc: Y.Doc; awareness: Awareness } | undefined;
 const [projectAwSig, setProjectAwSig] = createSignal<Awareness | undefined>(
@@ -1310,22 +1356,21 @@ function hardClose(): void {
   }
 }
 
-/** Tear down and immediately re-open the collab socket. Needed when this
- *  user's project permissions (or the project lock) change while connected:
- *  the server snapshots authorization once per connection, so a live grant
- *  or revoke never reaches an open socket: a viewer-connected editor keeps
- *  getting non-fatal "No edit permission" rejections while its local doc
+/** Tear down and immediately re-open the collab socket. The server snapshots
+ *  authorization once per connection, so anything that changes this user's
+ *  standing never reaches an open socket on its own: a stale-auth editor
+ *  keeps getting non-fatal "No edit permission" rejections while its local doc
  *  diverges. Reconnecting re-derives auth server-side; onopen re-subscribes
  *  every open session and the two-way sync pushes any local ops the server
  *  is missing (edits typed during the stale window get saved, not lost).
- *  No-op when no project connection is wanted. */
-export function forceCollabReconnect(reason: string): void {
-  if (!currentProjectId) {
+ *  No-op when no connection is wanted. */
+export function reconnectCollab(reason: string): void {
+  if (!wantConnection) {
     return;
   }
   console.log(`Collab: reconnecting (${reason})`);
-  // Clear a previous authorization refusal: permission/lock changes and
-  // project membership changes are exactly the events that can flip it.
+  // Clear a previous authorization refusal: an approval is exactly the event
+  // that flips it.
   unauthorized = false;
   hardClose();
   retryNow();
@@ -1345,17 +1390,18 @@ export function reconnectForStaleEditAuth(): void {
     return;
   }
   lastStaleAuthReconnectAt = now;
-  forceCollabReconnect("edit rejected but permissions say editable");
+  reconnectCollab("edit rejected but permissions say editable");
 }
 
-export function connectCollab(projectId: string): void {
-  if (
-    currentProjectId === projectId && ws && ws.readyState <= WebSocket.OPEN
-  ) {
+/** Open the one instance-wide socket. Idempotent: the instance boundary calls
+ *  it whenever approval is (re)established, which includes reconnect paths
+ *  where a socket is already up. */
+export function connectCollab(): void {
+  if (wantConnection && ws && ws.readyState <= WebSocket.OPEN) {
     return;
   }
   hardClose();
-  currentProjectId = projectId;
+  wantConnection = true;
   attempts = 0;
   unauthorized = false;
   setCollabStore({ connectionId: null, peers: [] });
@@ -1364,7 +1410,7 @@ export function connectCollab(projectId: string): void {
   // Initial connect (not a drop): the banner stays hidden in this state; a
   // failure moves it to "reconnecting" via onclose.
   notifyCollabConnection("connecting");
-  openSocket(projectId);
+  openSocket();
 }
 
 export function disconnectCollab(): void {
@@ -1387,7 +1433,7 @@ export function disconnectCollab(): void {
   hardClose();
   resetPresenceToasts();
   notifyCollabConnection("idle");
-  currentProjectId = undefined;
+  wantConnection = false;
   attempts = 0;
   avatarUrl = undefined;
   view = {};
@@ -1408,7 +1454,6 @@ export function setCollabView(next: {
   selectedBlockId?: string;
   selectedTextTarget?: string;
   reportId?: string;
-  poId?: string;
   editingFigureId?: string;
 }): void {
   view = next;

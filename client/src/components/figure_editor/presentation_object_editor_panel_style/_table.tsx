@@ -1,7 +1,7 @@
 import {
   type IndicatorFormat,
   PresentationObjectConfig,
-  PresentationObjectEditorDetail,
+  ResultsValue,
   selectCf,
   t3,
 } from "lib";
@@ -14,7 +14,7 @@ import { ConditionalFormattingEditor } from "../conditional_formatting_editor";
 import { StyleSection } from "./_style_components";
 
 type Props = {
-  poDetail: PresentationObjectEditorDetail;
+  metric: ResultsValue;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
   showNValuesToggle: boolean;
@@ -88,7 +88,7 @@ export function TableStyleControls(p: Props) {
           onChange={(cf) => applyCfToTempConfig(p.setTempConfig, cf)}
           formatAs={p.effectiveFormatAs}
           decimalPlaces={p.tempConfig.s.decimalPlaces}
-          allowNegative={metricAllowsNegativeScale(p.poDetail.resultsValue.id)}
+          allowNegative={metricAllowsNegativeScale(p.metric.id)}
           offerIndicatorSource={p.offerIndicatorCfSource}
         />
       </StyleSection>

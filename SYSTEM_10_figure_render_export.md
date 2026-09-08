@@ -149,11 +149,12 @@ FigureBundle = {
 
 `scope` and `provenance.runId` are the (package, scope) pair the bundle was
 resolved under (PLAN_PRODUCTS_RESTRUCTURE D4). Every assembly site stamps
-them from its container's `PackageScope` (the project's pair until step 7a,
-through `projectPackageScope()` in `state/project/t1_store.ts`): the
-metric-keyed resolvers, `makeFigureBundleFromFetchedData`, the
-from-visualization resolver, and the live editor's transient bundle in
-`t2_presentation_objects.ts`. The pair lives on the bundle and never in
+them from its container's `PackageScope` (the product's live pair in the
+deck and report editors since step 7a; the project's pair, through
+`projectPackageScope()` in `state/project/t1_store.ts`, on the surviving
+project tabs until 9a): the metric-keyed resolvers,
+`makeFigureBundleFromFetchedData`, the from-visualization resolver, and the
+live editor's transient bundle. The pair lives on the bundle and never in
 `config`, so it stays out of the fetch hash (S9). Transitional state, closed
 by step 9b: `scope` is optional and `runId` nullable, because stored bundles
 predate the capture; 9b stamps every stored bundle from its owning project
@@ -624,12 +625,13 @@ unbounded in both directions.
 Two files:
 [convert_slide_to_page_inputs.ts](client/src/generate_slide_deck/convert_slide_to_page_inputs.ts)
 (579 LOC) and `get_overlay_image.ts` (49 LOC). One transform,
-`convertSlideToPageInputs(projectId, slide, slideIndex, config) →
+`convertSlideToPageInputs(slide, slideIndex, config) →
 APIResponse<PageInputs>`,
-serves all eight call sites: screen (`slide_editor/index.tsx`,
-`slide_card.tsx`, `slide_deck_thumbnail.tsx`), AI previews
-(`DraftSlidePreview.tsx`, `ai_tools/tools/drafts.tsx`), and the three deck
-exports, so a slide renders byte-identically everywhere. Every surface uses the
+serves all its call sites: screen (`slide_editor/index.tsx`,
+`slide_card.tsx`, `slide_presenter.tsx`, the deck version preview), AI
+previews (`DraftSlidePreview.tsx`, `ai_tools/tools/drafts.tsx`), and the
+three deck exports, so a slide renders byte-identically everywhere. Every
+surface uses the
 same frame: `PAGE_WIDTH_DU` 1400 × `PAGE_HEIGHT_DU` 788
 (`lib/consts.ts:171-173`).
 
@@ -723,9 +725,9 @@ eight entries return `APIResponse` envelopes (never throw), take a
 
 | Artifact   | Formats                                   | Pipeline                                                                                                                                                                                                                                                                                             |
 | ---------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Slide deck | PDF (download), PDF-base64 (email), PPTX  | fetch deck detail + per-slide `_SLIDE_CACHE` → `convertSlideToPageInputs` → PageRenderer into jsPDF (deck-family fonts only) or `pagesToPptxBrowser`; 1400×788                                                                                                                                       |
+| Slide deck | PDF (download), PDF-base64 (email), PPTX  | `(productId, progress)`: fetch deck detail + per-slide `getSlideFromCacheOrFetch` → `convertSlideToPageInputs` → PageRenderer into jsPDF (deck-family fonts only) or `pagesToPptxBrowser`; 1400×788                                                                                                                                       |
 | Dashboard  | PDF, PPTX, XLSX, single-figure PNG        | fetch-free: `buildDashboardExportModel(PublicDashboardBundle)` flattens groups to per-member figures → `prepareFigures` render-validates each at 200px + white-bakes → per-figure pages (PDF 1200-wide, ideal-height, portrait/landscape flip; PPTX 1200×675) or one XLSX sheet per **table** figure |
-| Report     | PDF, Word                                 | fetch report detail → hydrate figure/image maps keyed by literal `figure:<id>` / `image:<id>` tokens → `markdownTo{Pdf,Word}Browser` (PDF 1000×1414 with page numbers)                                                                                                                               |
+| Report     | PDF, Word                                 | `(productId, progress)`: fetch report detail → hydrate figure/image maps keyed by literal `figure:<id>` / `image:<id>` tokens → `markdownTo{Pdf,Word}Browser` (PDF 1000×1414 with page numbers)                                                                                                                               |
 | Single viz | PNG, table CSV, data CSV, JSON definition | in the editor (`visualization_editor_inner.tsx`, outside `exports/`): transient bundle → `getFigureAsCanvas` at `FIGURE_EXPORT_WIDTH_PX` 1920; multi-replicant download disabled                                                                                                                     |
 
 The email exit is the only non-download path: `ShareSlideDeck` →

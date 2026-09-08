@@ -1,25 +1,28 @@
 import { AIToolFailure, createAITool } from "panther";
 import { z } from "zod";
-import type { ReportSummary } from "lib";
+import type { ProductSummary } from "lib";
 import { serverActions } from "~/server_actions";
+import { instanceState } from "~/state/instance/t1_store";
+import { createLabelledProduct } from "../create_labelled_product";
 
-// Project content: the project's reports (SPA-only). create_report is the
-// copilot's one non-editor write: approval-gated.
-function formatReportsListForAI(reports: ReportSummary[]): string {
+// Instance products of type report (SPA-only), read from instance T1 at call
+// time so the list is never frozen at tool construction. create_report is
+// the copilot's one non-editor write: approval-gated.
+function formatReportsListForAI(reports: ProductSummary[]): string {
   if (reports.length === 0) return "No reports exist yet.";
   return reports.map((r) => `- ${r.label} (id: ${r.id})`).join("\n");
 }
 
-export function getClientToolsForReports(
-  projectId: string,
-  reports: ReportSummary[],
-) {
+export function getClientToolsForReports() {
   return [
     createAITool({
       name: "get_available_reports",
       description: "Get a list of all reports with their IDs and labels.",
       inputSchema: z.object({}),
-      handler: async () => formatReportsListForAI(reports),
+      handler: async () =>
+        formatReportsListForAI(
+          instanceState.products.filter((p) => p.type === "report"),
+        ),
       inProgressLabel: "Getting available reports...",
       completionMessage: "Retrieved reports list",
       kind: "read",
@@ -32,8 +35,7 @@ export function getClientToolsForReports(
       inputSchema: z.object({ reportId: z.string() }),
       handler: async (input) => {
         const res = await serverActions.getReportDetail({
-          projectId,
-          report_id: input.reportId,
+          product_id: input.reportId,
         });
         if (!res.success) throw new AIToolFailure(res.err);
         const figureIds = Object.keys(res.data.figures);
@@ -87,25 +89,20 @@ export function getClientToolsForReports(
             diff: { before: "", after: input.markdown },
           },
           commit: async () => {
-            const createRes = await serverActions.createReport({
-              projectId,
-              label: input.label,
-              folderId: null,
-            });
+            const createRes = await createLabelledProduct("report", input.label);
             if (!createRes.success) throw new AIToolFailure(createRes.err);
             const bodyRes = await serverActions.updateReportBody({
-              projectId,
-              report_id: createRes.data.reportId,
+              product_id: createRes.data.productId,
               body: input.markdown,
               expectedLastUpdated: createRes.data.lastUpdated,
               overwrite: true,
             });
             if (!bodyRes.success) {
               throw new AIToolFailure(
-                `Report created (id: ${createRes.data.reportId}) but failed to set body: ${bodyRes.err}`,
+                `Report created (id: ${createRes.data.productId}) but failed to set body: ${bodyRes.err}`,
               );
             }
-            return `Created report "${input.label}" (id: ${createRes.data.reportId}).`;
+            return `Created report "${input.label}" (id: ${createRes.data.productId}).`;
           },
         }),
       },

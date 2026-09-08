@@ -15,7 +15,7 @@ import {
 } from "panther";
 import { createSignal, For, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { projectState } from "~/state/project/t1_store";
+import { canEditProduct } from "~/state/instance/product_access";
 import { PresenceAvatars } from "../slide_deck/presence_avatars";
 import { DeckVersionPreview } from "./deck_version_preview";
 import { editorDisplayName } from "./diff_segments";
@@ -36,9 +36,10 @@ type VersionRow = {
 
 type DayGroup = { day: string; rows: VersionRow[] };
 
+// `docId` is the product id: a deck's or a report's versions hang off its
+// product row (PLAN_PRODUCTS_RESTRUCTURE D1).
 type Props = EditorComponentProps<
   {
-    projectId: string;
     kind: VersionHistoryKind;
     docId: string;
     currentLabel: string;
@@ -56,15 +57,9 @@ export function VersionHistoryEditor(p: Props) {
   const versions = createQuery<VersionRow[]>(
     async () => {
       if (p.kind === "report") {
-        return await serverActions.listReportVersions({
-          projectId: p.projectId,
-          report_id: p.docId,
-        });
+        return await serverActions.listReportVersions({ product_id: p.docId });
       }
-      return await serverActions.listDeckVersions({
-        projectId: p.projectId,
-        deck_id: p.docId,
-      });
+      return await serverActions.listSlideDeckVersions({ product_id: p.docId });
     },
     t3({ en: "Loading version history...", fr: "Chargement de l'historique des versions...", pt: "A carregar o histórico de versões..." }),
   );
@@ -74,11 +69,7 @@ export function VersionHistoryEditor(p: Props) {
     string | undefined
   >(undefined);
 
-  const canRestore = () =>
-    !projectState.isLocked &&
-    (p.kind === "report"
-      ? projectState.thisUserPermissions.can_configure_reports
-      : projectState.thisUserPermissions.can_configure_slide_decks);
+  const canRestore = () => canEditProduct(p.docId);
 
   // Contributor chips: deterministic color from the email (same recipe as
   // live presence); names via editorDisplayName (live record preferred).
@@ -243,8 +234,7 @@ export function VersionHistoryEditor(p: Props) {
               when={p.kind === "report"}
               fallback={
                 <DeckVersionPreview
-                  projectId={p.projectId}
-                  deckId={p.docId}
+                  productId={p.docId}
                   versionId={versionId}
                   previousVersionId={previousVersionId(versionId)}
                   canRestore={canRestore()}
@@ -253,8 +243,7 @@ export function VersionHistoryEditor(p: Props) {
               }
             >
               <ReportVersionPreview
-                projectId={p.projectId}
-                reportId={p.docId}
+                productId={p.docId}
                 versionId={versionId}
                 previousVersionId={previousVersionId(versionId)}
                 canRestore={canRestore()}

@@ -1,7 +1,7 @@
-import type { SlideDeckSummary } from "lib";
+import type { ProductSummary } from "lib";
 
 export function formatSlideDecksListForAI(
-  slideDecks: SlideDeckSummary[],
+  slideDecks: ProductSummary[],
 ): string {
   const lines: string[] = [
     "AVAILABLE SLIDE DECKS",

@@ -17,7 +17,7 @@ import {
   getPODetailFromCacheorFetch,
   getResultsValueInfoForPresentationObjectFromCacheOrFetch,
 } from "~/state/project/t2_presentation_objects";
-import { getSlideFromCacheOrFetch } from "~/state/project/t2_slides";
+import { getSlideFromCacheOrFetch } from "~/state/products/t2_slides";
 import { getReplicantOptionsFromCacheOrFetch } from "~/state/project/t2_replicant_options";
 import { poItemsQueue } from "~/state/_infra/request_queue";
 import { instanceState } from "~/state/instance/t1_store";
@@ -27,8 +27,9 @@ import { getSnapshotProjectState } from "~/state/project/t1_store";
 // bound to ONE project at construction: cache-backed getters over the
 // project routes (so chat tool calls share cache entries with the interactive
 // UI), plus the SPA-only getters the client tools need: module internals
-// (script, logs, settings), project content (PO detail, slides) and
-// figure-shaping helpers (replicant options, dimension labels). One env per
+// (script, logs, settings), project content (PO detail), product content
+// (slides, read by product id) and figure-shaping helpers (replicant
+// options, dimension labels). One env per
 // project, memoized: client code stays keyed by projectId and derives the
 // bound env at the lib boundary (`clientAIToolEnvFor(projectId)`), so
 // components and helpers that hold only a project id never thread an env.
@@ -49,7 +50,10 @@ export type ClientAIToolEnv = AIToolEnv & {
   getPODetail: (
     presentationObjectId: string,
   ) => Promise<APIResponseWithData<PresentationObjectDetail>>;
-  getSlide: (slideId: string) => Promise<APIResponseWithData<SlideWithMeta>>;
+  getSlide: (
+    productId: string,
+    slideId: string,
+  ) => Promise<APIResponseWithData<SlideWithMeta>>;
   getReplicantOptions: (
     resultsObjectId: string,
     replicateBy: DisaggregationOption,
@@ -129,7 +133,8 @@ function createClientAIToolEnv(projectId: string): ClientAIToolEnv {
       }),
     getPODetail: (presentationObjectId) =>
       getPODetailFromCacheorFetch(projectId, presentationObjectId),
-    getSlide: (slideId) => getSlideFromCacheOrFetch(projectId, slideId),
+    getSlide: (productId, slideId) =>
+      getSlideFromCacheOrFetch(productId, slideId),
     getReplicantOptions: (resultsObjectId, replicateBy, fetchConfig) =>
       getReplicantOptionsFromCacheOrFetch(
         projectId,

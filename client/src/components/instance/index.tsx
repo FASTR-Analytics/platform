@@ -36,6 +36,7 @@ import { Explore } from "~/components/explore";
 import { InstanceAssets } from "~/components/instance/instance_assets";
 import { InstanceData } from "~/components/instance/instance_data";
 import { InstanceProjects } from "~/components/instance/instance_projects";
+import { Products } from "~/components/products";
 import { InstanceResultsPackages } from "~/components/instance_results_packages";
 import { InstanceUsers } from "~/components/instance/instance_users";
 import { instanceState } from "~/state/instance/t1_store";
@@ -47,6 +48,7 @@ import { TourCatalogueInstanceModal } from "~/onboarding/tour_catalogue_instance
 import { setupInstanceTours } from "~/onboarding";
 
 type InstanceTab =
+  | "products"
   | "projects"
   | "explore"
   | "data"
@@ -71,6 +73,13 @@ function wideNavItems(): {
   iconName: IconName;
 }[] {
   const items: { id: InstanceTab; label: string; iconName: IconName }[] = [
+    // First and default (PLAN_PRODUCTS_RESTRUCTURE D17); the Projects tab
+    // stays beside it until step 9a removes the project shell.
+    {
+      id: "products",
+      label: t3({ en: "Products", fr: "Produits", pt: "Produtos" }),
+      iconName: "presentation",
+    },
     {
       id: "projects",
       label: t3({ en: "Projects", fr: "Projets", pt: "Projetos" }),
@@ -140,7 +149,7 @@ type Props = {
 
 export default function Instance(p: Props) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [_tab, setTab] = createSignal<InstanceTab>("projects");
+  const [_tab, setTab] = createSignal<InstanceTab>("products");
 
   const p_ = () => instanceState.currentUserPermissions;
   const a_ = () => instanceState.currentUserIsGlobalAdmin;
@@ -150,9 +159,9 @@ export default function Instance(p: Props) {
     const perms = p_();
     const canData = admin || perms.can_view_data || perms.can_configure_data;
     const canUsers = admin || perms.can_configure_users || perms.can_view_users;
-    if (t === "data" && !canData) return "projects";
-    if (t === "results_packages" && !canConfigureData()) return "projects";
-    if (t === "users" && !canUsers) return "projects";
+    if (t === "data" && !canData) return "products";
+    if (t === "results_packages" && !canConfigureData()) return "products";
+    if (t === "users" && !canUsers) return "products";
     return t;
   };
 
@@ -411,6 +420,9 @@ export default function Instance(p: Props) {
               }
             >
               <Switch>
+                <Match when={tab() === "products"}>
+                  <Products />
+                </Match>
                 <Match when={tab() === "explore"}>
                   <Explore />
                 </Match>

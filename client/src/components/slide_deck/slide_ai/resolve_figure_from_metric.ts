@@ -29,7 +29,6 @@ export async function resolveFigureFromMetric(
   );
 
   const bundle = await resolveBundleFromMetricAndConfig(
-    projectId,
     projectPackageScope(),
     resultsValue,
     config,

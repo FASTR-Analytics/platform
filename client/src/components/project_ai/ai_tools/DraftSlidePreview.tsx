@@ -27,7 +27,6 @@ import {
 import { convertAiInputToSlide } from "~/components/slide_deck/slide_ai/convert_ai_input_to_slide";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { projectAIViewController } from "~/components/project_ai/ai_views";
-import { projectState } from "~/state/project/t1_store";
 import { AddToDeckModal } from "./AddToDeckModal";
 import { addSlideDirectlyToDeck } from "./add_slide_to_deck";
 
@@ -66,7 +65,6 @@ export function DraftSlidePreview(p: Props) {
         deckConfig,
       );
       const renderRes = await convertSlideToPageInputs(
-        p.projectId,
         convertedSlide,
         undefined,
         deckConfig,
@@ -113,19 +111,13 @@ export function DraftSlidePreview(p: Props) {
     const view = projectAIViewController.current();
     if (view.id === "editing_slide_deck") {
       await addSlideDirectlyToDeck(
-        p.projectId,
         state.data.convertedSlide,
         view.params.deckId,
       );
     } else {
       await openComponent({
         element: AddToDeckModal,
-        props: {
-          projectId: p.projectId,
-          slide: state.data.convertedSlide,
-          slideDecks: projectState.slideDecks,
-          slideDeckFolders: projectState.slideDeckFolders,
-        },
+        props: { slide: state.data.convertedSlide },
       });
     }
   }

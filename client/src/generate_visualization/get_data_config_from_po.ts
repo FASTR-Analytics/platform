@@ -34,7 +34,6 @@ import {
 } from "lib";
 import { getDateLabelReplacements } from "./get_date_label_replacements";
 import { getNigeriaAdminAreaLabelReplacements } from "./format_admin_area_labels";
-import { projectState } from "~/state/project/t1_store";
 
 // The scope a bundle was resolved under, threaded through the data-config
 // builders for one reason: the roll-up row's label (getRollupRowLabel).
@@ -126,12 +125,11 @@ function getRollupRowLabel(
   //
   // Read from the bundle, never a global store (D4): a stored figure carries
   // the scope it was resolved under, so an export, a thumbnail or a version
-  // preview labels the row correctly outside any authoring shell. The project
-  // store is consulted only for a bundle that predates the captured scope;
-  // that fallback dies when step 9b makes the field required.
-  const adminArea2 = scope === undefined ? projectState.adminArea2 : scope.adminArea2;
-  if (adminArea2 !== null) {
-    return `${resolveAdminAreaLabel(adminArea2, countryIso3)} — ${pickLang(language, { en: "All areas", fr: "Toutes les zones" })}`;
+  // preview labels the row correctly outside any authoring shell. A bundle
+  // that predates the captured scope reads as national, the same way it
+  // reads as not stale; that case dies when step 9b makes the field required.
+  if (scope !== undefined && scope.adminArea2 !== null) {
+    return `${resolveAdminAreaLabel(scope.adminArea2, countryIso3)} — ${pickLang(language, { en: "All areas", fr: "Toutes les zones" })}`;
   }
   return pickLang(language, TC.national);
 }

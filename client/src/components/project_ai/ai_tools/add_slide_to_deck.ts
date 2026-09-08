@@ -3,13 +3,11 @@ import { serverActions } from "~/server_actions";
 import { projectAIViewController } from "~/components/project_ai/ai_views";
 
 export async function addSlideDirectlyToDeck(
-  projectId: string,
   slide: Slide,
   deckId: string,
 ): Promise<void> {
   const res = await serverActions.createSlide({
-    projectId,
-    deck_id: deckId,
+    product_id: deckId,
     position: { toEnd: true },
     slide,
   });

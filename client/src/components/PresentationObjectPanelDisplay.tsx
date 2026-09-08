@@ -4,10 +4,9 @@ import {
   groupMetricsByLabel,
   InstalledModuleSummary,
   MetricWithStatus,
+  type PresenceEntry,
   PresentationObjectSummary,
   ProjectState,
-  SlideDeckFolder,
-  SlideDeckSummary,
   VisualizationFolder,
   VisualizationGroupingMode,
   t3,
@@ -41,7 +40,7 @@ import {
 } from "~/state/t4_ui";
 import { sortBySortMode } from "~/components/_shared/sort_control";
 import { serverActions } from "~/server_actions";
-import { collabState, otherPeers } from "~/state/project/collab";
+import { collabState, otherPeers } from "~/state/instance/collab";
 import { PresenceAvatars } from "~/components/slide_deck/presence_avatars";
 import { PresentationObjectMiniDisplay } from "./PresentationObjectMiniDisplay";
 import { NotAvailableBox } from "./NotAvailableBox";
@@ -493,8 +492,6 @@ export function PresentationObjectPanelDisplay(p: Props) {
         folders={p.projectState.visualizationFolders}
         modules={p.projectState.projectModules}
         metrics={p.projectState.metrics}
-        slideDecks={p.projectState.slideDecks}
-        slideDeckFolders={p.projectState.slideDeckFolders}
         subGroupConfig={subGroupConfig()}
         onClick={p.onClick}
         searchText={p.searchText}
@@ -510,8 +507,6 @@ type VisualizationGridProps = {
   folders: VisualizationFolder[];
   modules: InstalledModuleSummary[];
   metrics: MetricWithStatus[];
-  slideDecks: SlideDeckSummary[];
-  slideDeckFolders: SlideDeckFolder[];
   subGroupConfig: SubGroupConfig | null;
   onClick: (po: PresentationObjectSummary) => void;
   searchText: string;
@@ -683,8 +678,6 @@ function VisualizationGrid(p: VisualizationGridProps) {
         replicateBy:
           vizsToCreate.length === 1 ? vizsToCreate[0].replicateBy : undefined,
         metrics: p.metrics,
-        slideDecks: p.slideDecks,
-        slideDeckFolders: p.slideDeckFolders,
       },
     });
 
@@ -1027,11 +1020,10 @@ function VisualizationCard(p: VisualizationCardProps) {
 
   const isReady = () => p.metricLookup.get(p.po.metricId)?.status === "ready";
 
-  // Editors currently inside this visualization (live presence), for avatars.
-  const cardPeers = () => {
-    void collabState.peers; // track
-    return otherPeers().filter((peer) => peer.poId === p.po.id);
-  };
+  // Card presence died with the project collab socket (PLAN_PRODUCTS_RESTRUCTURE
+  // D8): the instance socket keys presence by product and carries no
+  // visualization view. Empty until the Visualizations tab goes in step 9a.
+  const cardPeers = (): PresenceEntry[] => [];
 
   return (
     <div

@@ -6,7 +6,7 @@ import type {
   Slide,
 } from "lib";
 import { serverActions } from "~/server_actions";
-import { _SLIDE_CACHE, getSlideFromCacheOrFetch } from "~/state/project/t2_slides";
+import { _SLIDE_CACHE, getSlideFromCacheOrFetch } from "~/state/products/t2_slides";
 import { findStaleFiguresInLayout } from "~/generate_visualization/mod";
 import { updateFigureToScope } from "~/components/figure_editor/stale_figure_badge";
 import { updateBlockInLayout } from "./slide_transforms/update_block_in_layout";
@@ -25,13 +25,13 @@ export type DeckStaleFigure = {
 };
 
 export async function collectDeckStaleFigures(
-  projectId: string,
+  productId: string,
   slideIds: readonly string[],
   scope: PackageScope,
 ): Promise<DeckStaleFigure[]> {
   const out: DeckStaleFigure[] = [];
   for (const slideId of slideIds) {
-    const res = await getSlideFromCacheOrFetch(projectId, slideId);
+    const res = await getSlideFromCacheOrFetch(productId, slideId);
     if (!res.success || res.data.slide.type !== "content") continue;
     for (const stale of findStaleFiguresInLayout(res.data.slide.layout, scope)) {
       out.push({ slideId, blockId: stale.blockId, bundle: stale.bundle });
@@ -49,7 +49,7 @@ export type UpdateAllResult = {
 // pair, one slide at a time, so a single unresolvable figure never blocks
 // the rest: its reason is reported back and its old bundle stays in place.
 export async function updateAllDeckFigures(
-  projectId: string,
+  productId: string,
   slideIds: readonly string[],
   scope: PackageScope,
   authoringContext: RunAuthoringContext,
@@ -58,14 +58,14 @@ export async function updateAllDeckFigures(
   let updated = 0;
 
   for (const slideId of slideIds) {
-    const res = await getSlideFromCacheOrFetch(projectId, slideId);
+    const res = await getSlideFromCacheOrFetch(productId, slideId);
     if (!res.success || res.data.slide.type !== "content") continue;
     const stale = findStaleFiguresInLayout(res.data.slide.layout, scope);
     if (stale.length === 0) continue;
 
     const resolved = new Map<string, FigureBundle>();
     for (const s of stale) {
-      const r = await updateFigureToScope(projectId, scope, authoringContext, s.bundle);
+      const r = await updateFigureToScope(scope, authoringContext, s.bundle);
       if (r.ok) {
         resolved.set(s.blockId, r.bundle);
       } else {
@@ -79,7 +79,7 @@ export async function updateAllDeckFigures(
       layout: replaceFigureBundles(res.data.slide.layout, resolved),
     };
     const writeRes = await serverActions.updateSlide({
-      projectId,
+      product_id: productId,
       slide_id: slideId,
       slide: nextSlide,
       expectedLastUpdated: res.data.lastUpdated,
@@ -94,8 +94,8 @@ export async function updateAllDeckFigures(
     // Refill the per-slide cache under the new version now, the way the slide
     // editor does after its own save, so the card re-renders before the SSE
     // version flip lands.
-    const refetch = serverActions.getSlide({ projectId, slide_id: slideId });
-    await _SLIDE_CACHE.setPromise(refetch, { projectId, slideId }, writeRes.data.lastUpdated);
+    const refetch = serverActions.getSlide({ product_id: productId, slide_id: slideId });
+    await _SLIDE_CACHE.setPromise(refetch, { productId, slideId }, writeRes.data.lastUpdated);
     await refetch;
   }
 

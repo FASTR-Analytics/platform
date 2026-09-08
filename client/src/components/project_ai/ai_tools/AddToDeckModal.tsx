@@ -1,22 +1,20 @@
-import { t3, type Slide, type SlideDeckFolder, type SlideDeckSummary } from "lib";
+import { t3, type Slide } from "lib";
 import { AlertComponentProps, AlertFormHolder, createFormAction } from "panther";
 import { createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { reportDraftSlideAdded } from "./add_slide_to_deck";
-import { DeckSelector } from "./DeckSelector";
+import { createLabelledProduct } from "./create_labelled_product";
+import { DeckSelector, slideDeckProducts } from "./DeckSelector";
 
 type Props = {
-  projectId: string;
   slide: Slide;
-  slideDecks: SlideDeckSummary[];
-  slideDeckFolders: SlideDeckFolder[];
 };
 
 type ReturnType = { deckId: string } | undefined;
 
 export function AddToDeckModal(p: AlertComponentProps<Props, ReturnType>) {
   const [selectedDeckId, setSelectedDeckId] = createSignal<string>(
-    p.slideDecks.length > 0 ? p.slideDecks[0].id : "",
+    slideDeckProducts()[0]?.id ?? "",
   );
   const [isCreatingNew, setIsCreatingNew] = createSignal(false);
   const [newDeckLabel, setNewDeckLabel] = createSignal("");
@@ -32,21 +30,17 @@ export function AddToDeckModal(p: AlertComponentProps<Props, ReturnType>) {
         if (!label) {
           return { success: false as const, err: "Please enter a deck name" };
         }
-        const createRes = await serverActions.createSlideDeck({
-          projectId: p.projectId,
-          label,
-        });
+        const createRes = await createLabelledProduct("slide_deck", label);
         if (!createRes.success) {
           return createRes;
         }
-        deckId = createRes.data.deckId;
+        deckId = createRes.data.productId;
       } else {
         deckId = selectedDeckId();
       }
 
       const addRes = await serverActions.createSlide({
-        projectId: p.projectId,
-        deck_id: deckId,
+        product_id: deckId,
         position: { toEnd: true },
         slide: p.slide,
       });
@@ -76,8 +70,6 @@ export function AddToDeckModal(p: AlertComponentProps<Props, ReturnType>) {
       }
     >
       <DeckSelector
-        decks={p.slideDecks}
-        folders={p.slideDeckFolders}
         selectedDeckId={selectedDeckId()}
         onSelectDeck={setSelectedDeckId}
         isCreatingNew={isCreatingNew()}

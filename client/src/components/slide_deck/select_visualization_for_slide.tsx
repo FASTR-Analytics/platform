@@ -12,7 +12,8 @@ import { PresentationObjectMiniDisplay } from "~/components/PresentationObjectMi
 import { PresentationObjectPanelDisplay } from "~/components/PresentationObjectPanelDisplay";
 import { SortControl } from "~/components/_shared/sort_control";
 import { vizSortMode, setVizSortMode } from "~/state/t4_ui";
-import { ReplicateByOptionsPresentationObjectSelect } from "~/components/ReplicateByOptions";
+import { ReplicateByOptionsSelect } from "~/components/figure_editor/replicate_by_options";
+import { requireProjectPackageScope } from "~/state/project/t1_store";
 import {
   PresentationObjectSummary,
   ProjectState,
@@ -139,10 +140,11 @@ function Side(p: SideProps) {
             {(keyedReplicateBy) => (
               <div>
                 <div class="pb-1">{t3({ en: "Replicant", fr: "Réplicant", pt: "Replicante" })}</div>
-                <ReplicateByOptionsPresentationObjectSelect
+                <ReplicateByOptionsSelect
+                  scope={requireProjectPackageScope()}
                   replicateBy={keyedReplicateBy}
                   config={keyedPoDetail.config}
-                  poDetail={keyedPoDetail}
+                  metric={keyedPoDetail.resultsValue}
                   selectedReplicantValue={p.selectedReplicant}
                   setSelectedReplicant={p.setSelectedReplicant}
                   fullWidth

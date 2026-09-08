@@ -98,7 +98,7 @@
   background-color: transparent;
 }
 /* Remote collaborators' selection highlights arrive as the PEER's colorLight
-   (their presence color at ~20% alpha, state/project/collab.ts) — chosen for
+   (their presence color at ~20% alpha, state/instance/collab.ts) — chosen for
    light surfaces and nearly invisible over dark ones. The inline
    background-color can't be re-alphaed from CSS, so layer a translucent
    light wash on top (background-image stacks above background-color); the

@@ -7,8 +7,7 @@ import { replaceUnavailableMediaTokens } from "./_media_placeholder";
 import { REPORT_MARKDOWN_STYLE } from "~/components/report/report_markdown_style";
 
 export async function exportReportAsWord(
-  projectId: string,
-  reportId: string,
+  productId: string,
   progress: (pct: number) => void,
 ): Promise<APIResponseNoData> {
   try {
@@ -16,8 +15,7 @@ export async function exportReportAsWord(
     progress(0.05);
 
     const res = await serverActions.getReportDetail({
-      projectId,
-      report_id: reportId,
+      product_id: productId,
     });
     if (!res.success) return res;
 

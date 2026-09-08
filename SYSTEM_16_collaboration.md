@@ -5,10 +5,10 @@ globs:
   - server/collab/**
   - lib/collab/**
   - client/src/components/version_history/**
-  - client/src/state/project/collab.ts
+  - client/src/state/instance/collab.ts
   - lib/types/collab.ts
   - lib/types/versions.ts
-  - server/db/project/versions.ts
+  - server/routes/instance/collab.ts
   - server/routes/project/project-collab.ts
 ---
 
@@ -26,15 +26,18 @@ DOC_SLIDE_COLLAB_FEATURES, DOC_VIZ_COLLAB, DOC_VERSION_HISTORY).
 See the `globs:` frontmatter (the lint-enforced manifest) and the S16 row in
 [SYSTEMS.md](SYSTEMS.md). In one breath:
 
-- **Transport & rooms**: `server/routes/project/project-collab.ts` (the one WS
-  endpoint per project), `server/collab/doc_rooms.ts` (the generic master-copy
-  room core: seed, relay, debounced checkpoint, chokepoint), the three thin
-  per-document-type bindings `slide_rooms.ts` / `report_rooms.ts` /
-  `po_rooms.ts`, and `server/collab/presence_registry.ts`.
+- **Transport & rooms**: `server/routes/instance/collab.ts` (the one
+  instance-wide WS endpoint, `GET /collab`), `server/collab/doc_rooms.ts`
+  (the generic master-copy room core: seed, relay, debounced checkpoint,
+  chokepoint), the per-document-type bindings `slide_rooms.ts` /
+  `report_rooms.ts` (product-keyed) and `po_rooms.ts` (project-keyed, on the
+  project socket `server/routes/project/project-collab.ts`, which keeps only
+  the visualization rooms until step 9b deletes it), and
+  `server/collab/presence_registry.ts`.
 - **CRDT model**: `lib/collab/{crdt_util,report_crdt,slide_crdt}.ts`,
   `lib/types/collab.ts` (the WS message protocol), client
-  `state/project/collab.ts` (one WS manager per project, the T1-adjacent
-  store, PROTOCOL_APP_STATE.md).
+  `state/instance/collab.ts` (one WS manager per signed-in approved user, the
+  T1-adjacent store, PROTOCOL_APP_STATE.md).
 - **Visualization co-editing**: `lib/collab/figure_config_crdt.ts` (the shared
   `PresentationObjectConfig ⇄ Y.Map` bridge: per-field LWW for the `d`/`s`
   form config, `Y.Text` for the three captions), `server/collab/po_rooms.ts`
@@ -45,15 +48,21 @@ See the `globs:` frontmatter (the lint-enforced manifest) and the S16 row in
   rides beside it as an opaque `figData`); the figure editor modal binds to it
   live via a `collabBinding`. Chokepoints in `server/routes/project/
   presentation_objects.ts` route REST config writes through the live PO room.
+  Since PLAN_PRODUCTS_RESTRUCTURE step 7a no client connects to the project
+  socket, so standalone visualization co-editing is dead until step 9a
+  removes the editor; the client store's `po_*` session half and the
+  project-level awareness half stay only for the surviving project tabs to
+  compile against.
 - **Version history**: `server/collab/{version_tracker,version_capture}.ts`,
   the attribution ledgers `authorship.ts` (per-character report bodies, with
   tombstones) + `deck_session_ledger.ts` (per-slide / per-element decks),
-  `server/db/project/versions.ts`, `lib/types/versions.ts`, and the client
-  `components/version_history/**` (diff, compare, previews, restore modals).
+  `server/db/products/versions.ts` (S12's file), `lib/types/versions.ts`, and
+  the client `components/version_history/**` (diff, compare, previews,
+  restore modals).
 - **Shared custody.** The server chokepoint branches, checkpoint functions, and
-  version routes ride **S12**'s files (`server/db/project/{reports,slides,
-  slide_decks}.ts`, `server/routes/project/{reports,slide_decks,slides}.ts`,
-  SYSTEMS.md §4.1), and the PO chokepoint rides **S9**'s
+  version routes ride **S12**'s files (`server/db/products/{reports,slides,
+  slide_decks,versions}.ts`, `server/routes/products/{reports,slide_decks,
+  slides}.ts`, SYSTEMS.md §4.1), and the PO chokepoint rides **S9**'s
   `presentation_objects.ts`. The collab client UI (`_shared/live_cursors.tsx`,
   `_shared/cursors/`, `_shared/presence_toasts.tsx`,
   `_shared/connection_banner.tsx`, `_shared/collab_markdown_editor.tsx`, the
@@ -85,7 +94,7 @@ See the `globs:` frontmatter (the lint-enforced manifest) and the S16 row in
 
 ## What users get
 
-Presence avatars on deck/report/viz list cards, editor headers, and per-slide
+Presence avatars in the deck and report editor headers and on per-slide
 cards (`+N` overflow chip past five people); idle dimming (`opacity-40
 grayscale` after 3 min without input, lit again on the next input, never while
 editing); a pulsing "editing now" badge on list-card avatars only; join/leave
@@ -97,33 +106,31 @@ collaborator); layout, figure, and style changes propagate live; "who is
 editing what" borders on the slide canvas and around report embeds.
 Figma-style live cursors with name tags, click ripples, and `/`-triggered
 cursor chat on the slide canvas, the viz editor (preview + settings panel),
-the report editor (both panes; typing hides your own pointer), and the project
-tab pages (scoped to same tab + same folder view). Continuous autosave with no
+and the report editor (both panes; typing hides your own pointer). Continuous
+autosave with no
 Save button; graceful single-user fallback when the WS can't connect (explicit
 save with conflict dialog); reconnect-forever with two-way catch-up; view-only
 users see everything live with read-only editors; deterministic per-user
 identity color (hashed from email, server-stamped, unspoofable: only the
 avatar URL is self-reported).
 
-## Transport: one WebSocket per project
+## Transport: one WebSocket per instance
 
-- Endpoint: `GET /project_collab/:project_id`, upgraded in
-  [server/routes/project/project-collab.ts](server/routes/project/project-collab.ts),
+- Endpoint: `GET /collab`, upgraded in
+  [server/routes/instance/collab.ts](server/routes/instance/collab.ts),
   mounted raw in `main.ts` behind the global `authMiddleware` (off-registry,
-  S1's inventory). Auth mirrors the SSE endpoint and completes **before** the
-  upgrade (the auth middleware precedes `upgradeWebSocket` in the same chain,
-  so no message can precede the check): origin check → Clerk auth (401) →
-  `globalUser.approved` → `resolveProjectUserAccess` (the same shared
-  core REST/SSE use) → **admission is project access itself**: any member that
-  resolve step admits (i.e. ≥1 project permission), exactly the SSE contract.
-  Document permissions are deliberately NOT the admission boundary. Presence
-  and page cursors are project-wide, and `PresenceEntry` carries identity plus
-  opaque document ids, never labels or content, so a data-only or
-  modules-only member joins presence and is refused every document family per
-  message. (Formerly admission required ANY of `can_view_slide_decks` /
-  `can_view_reports` / `can_view_visualizations`, which left every
-  narrow-permission member (data-only, metrics-only, module operator, settings
-  admin) in a permanent "Connection lost" retry loop.)
+  S1's inventory). Admission is origin plus Clerk plus `globalUser.approved`
+  (PLAN_PRODUCTS_RESTRUCTURE D2, D8), resolved **before** the upgrade so no
+  message can precede the check. Every document message names its product
+  (`productId`; a report's equals its `reportId`), rooms are keyed
+  `productId::docType::docId` (`doc_rooms.ts` keys by owner id, the product
+  for slide and report rooms and the project for the PO rooms that remain on
+  the project socket), and presence is keyed by product, so a per-subscribe
+  permission check has its subject without a lookup. Today every approved
+  user is a full editor of every product: `RoomConn.canEdit` is TRUE for
+  every admitted connection and kept as the seam a later permission model
+  fills per subscribe. `PresenceEntry` carries identity plus opaque document
+  ids, never labels or content.
   Authorization refusals are delivered as a **post-upgrade close** with
   `COLLAB_CLOSE_UNAUTHORIZED` (4403) rather than an HTTP status, because a
   browser cannot read a refused handshake (it surfaces as an unreadable 1006,
@@ -131,32 +138,32 @@ avatar URL is self-reported).
   upgrade for a foreign origin) and the retryable 503 stay pre-upgrade.
   The Origin allowlist mirrors `server/middleware/cors.ts` (WS handshakes
   bypass CORS); same-origin requests are additionally allowed, and requests
-  with **no** Origin header pass (non-browser clients). Each message family
-  re-checks its own view permission per message and carries its own edit
-  permission on its RoomConn; a LOCKED project admits viewers with every edit
-  permission forced off for the connection's lifetime. Frames over ~32 MiB
+  with **no** Origin header pass (non-browser clients). Frames over ~32 MiB
   (measured in string length) are rejected unparsed (`error` reply); every
   parsed frame is schema-validated (`collabClientMessageSchema` in
   [lib/types/collab.ts](lib/types/collab.ts): bounded presence/awareness
   payload sizes, `avatarUrl` restricted to bounded https URLs) before any
   handler touches it.
 - Message protocol ([lib/types/collab.ts](lib/types/collab.ts)):
-  - client → server: `presence_update`, `{slide,report,po}_subscribe` /
-    `_update` / `_unsubscribe`, `awareness_update`, `report_awareness_update`,
-    `po_awareness_update`, the project-scoped `project_awareness_update`
-    (page cursors, below), and `ping` (liveness probe, below).
+  - client → server: `presence_update`, `{slide,report}_subscribe` /
+    `_update` / `_unsubscribe` (each carrying `productId`),
+    `awareness_update`, `report_awareness_update`, and `ping` (liveness
+    probe, below). The `po_*` family and `project_awareness_update` stay in
+    the schema for the project socket and fall through this endpoint's
+    switch unhandled.
   - server → client: `hello` (connectionId), `presence_state` (full peer
-    list), `{slide,report,po}_sync` / `_update` / `_error`, `awareness` /
-    `report_awareness` / `po_awareness`, `project_awareness`, `doc_save_state`
-    (room checkpoint health), `pong`, and a connection-level `error`
-    (oversized or invalid frame). The `*_error` messages carry an optional
+    list), `{slide,report}_sync` / `_update` / `_error`, `awareness` /
+    `report_awareness`, `doc_save_state` (room checkpoint health), `pong`,
+    and a connection-level `error` (oversized or invalid frame); the `po_*`
+    and `project_awareness` server messages belong to the project socket.
+    The `*_error` messages carry an optional
     `fatal` flag: fatal ⇔ the document/room is gone (deleted, replaced, not
     found) and the session must stop editing; non-fatal = per-operation
     rejection.
 - Dead-peer detection is asymmetric by platform necessity:
   - **Server side is the runtime's.** Deno pings every client at the protocol
     level and closes unresponsive connections (`idleTimeout: 30`, pinned
-    explicitly at the upgrade call in project-collab.ts), firing the same
+    explicitly at the upgrade call in routes/instance/collab.ts), firing the same
     onClose/onError handlers as a graceful close, so an ungracefully dropped
     client leaves presence and its rooms within ~30 s. (Verified empirically:
     a handshaked-but-silent TCP peer is reaped at exactly 30 s.) These
@@ -170,12 +177,16 @@ avatar URL is self-reported).
     the socket OPEN-looking for minutes: editors claim "Live" and
     `session.isLive()` misleads the close-flush logic.
 - Client manager:
-  [client/src/state/project/collab.ts](client/src/state/project/collab.ts)
-  (~1,150 lines). `ProjectSSEBoundary`
-  ([t1_sse.tsx](client/src/state/project/t1_sse.tsx)) calls
-  `connectCollab(projectId)` on mount / `disconnectCollab()` on cleanup, so
-  presence is live anywhere inside a project, not just in the editors
-  (teardown runs before the socket closes so awareness removals reach peers).
+  [client/src/state/instance/collab.ts](client/src/state/instance/collab.ts).
+  `InstanceSSEBoundary` ([t1_sse.tsx](client/src/state/instance/t1_sse.tsx))
+  calls `connectCollab()` once the `starting` payload says the user is
+  approved (and again from `reconnectForApproval()` when approval lands
+  mid-session; the call is idempotent while a socket is up) and
+  `disconnectCollab()` on cleanup, so presence is live anywhere in the app,
+  not just in the editors (teardown runs before the socket closes so
+  awareness removals reach peers). `openSlideSession(productId, slideId, …)`
+  and `openReportSession(productId, reportId, …)` stamp the product on every
+  frame of their session.
 - Reconnect: exponential backoff (1 s → 30 s cap), retrying FOREVER;
   `online` / tab-refocus events short-circuit the wait; a top-center banner
   ([connection_banner.tsx](client/src/components/_shared/connection_banner.tsx))
@@ -184,35 +195,37 @@ avatar URL is self-reported).
   retrying forever is an authorization refusal (close 4403, or the standard
   policy code 1008): `onclose` reads the code, latches `unauthorized`, and
   stands down in the silent `"unauthorized"` state: no banner, since nothing
-  is broken and no retry could help. `forceCollabReconnect` (permission change,
-  lock change, project membership change) and connecting to a different project
-  clear the latch, so a later grant reconnects. Close-intent is tracked
-  **per socket** (WeakSet) so a project switch can't mistake its own teardown
-  for a failure and open a duplicate connection. `socket.onopen` re-sends
-  presence, re-subscribes every open doc session, and re-announces project
-  awareness. The server's `hello` carries `serverVersion`; a mismatch against
+  is broken and no retry could help. `reconnectCollab` (the approval
+  reconnect, and the stale-edit-auth self-heal) clears the latch, so a later
+  approval reconnects. Close-intent is tracked **per socket** (WeakSet) so a
+  reconnect can't mistake its own teardown for a failure and open a
+  duplicate connection. `socket.onopen` re-sends presence and re-subscribes
+  every open doc session. The server's `hello` carries `serverVersion`; a
+  mismatch against
   the mount-check's localStorage key forces a page reload (once per version,
   sessionStorage-guarded). A tab surviving a deploy must NOT ship its
   pre-deploy Yjs docs into freshly re-seeded rooms via the catch-up, and the
   reload re-runs the mount check, busting the IndexedDB caches off the same
   trigger.
 - Ops requirement: reverse proxies must forward WebSocket upgrade headers on
-  `/project_collab` (the server-cli site generator emits this; older sites
-  were patched in place).
+  `/collab` (and `/project_collab` until step 9b); the server-cli site
+  template becomes path-agnostic before the rollout (PLAN_PRODUCTS_RESTRUCTURE
+  §6).
 
 ## Presence: who is where
 
 - Server:
   [server/collab/presence_registry.ts](server/collab/presence_registry.ts)
-  keeps `projectId → connectionId → PresenceEntry`: server-stamped identity
-  (`email`, `name`, `color` via `presenceColorForKey(email)`) plus the
-  client-controlled view fields (`deckId`, `slideId`, `selectedBlockId`,
-  `selectedTextTarget`, `reportId`, `poId`, `editingFigureId`, `idle`: see
+  keeps `connectionId → PresenceEntry` for the instance, grouped by the
+  product each connection has open (`deckId` or `reportId`): server-stamped
+  identity (`email`, `name`, `color` via `presenceColorForKey(email)`) plus
+  the client-controlled view fields (`deckId`, `slideId`, `selectedBlockId`,
+  `selectedTextTarget`, `reportId`, `editingFigureId`, `idle`: see
   `PresenceView` in [lib/types/collab.ts](lib/types/collab.ts), the single
   source). View fields are replaced **wholesale** on every `presence_update`
   so a client clears them by omission; `avatarUrl` is the exception: sticky
-  once provided. Every change broadcasts the full peer list to the project
-  (`broadcastPresence(projectId)`).
+  once provided. A presence change broadcasts to the product the connection
+  left and the one it joined, never the whole instance.
 - Client: a Solid store mirrors `presence_state`. Presence is keyed per
   CONNECTION, but every consumer asks about PEOPLE, so `otherPeers()` collapses
   it: this user's own connections drop out entirely (their second tab is not a
@@ -221,10 +234,10 @@ avatar URL is self-reported).
   remaining person yields ONE entry: the connection that is `isEditing`, else
   one that isn't `idle`, else the lowest connectionId so every viewer agrees.
   Anything reading `collabState.peers` directly is asking about connections and
-  must say why. Consumers: deck thumbnails, deck header + per-slide
-  cards via
+  must say why; `peersInProduct(productId)` is the product-filtered view.
+  Consumers: the deck header + per-slide cards via
   [presence_avatars.tsx](client/src/components/slide_deck/presence_avatars.tsx),
-  report + viz cards (same avatar stack filtered on `reportId`/`poId`), the
+  the report header (same avatar stack filtered on `reportId`), the
   join/leave toasts
   ([presence_toasts.tsx](client/src/components/_shared/presence_toasts.tsx)),
   the in-editor peer overlays, and the AI busy-guard.
@@ -240,8 +253,8 @@ avatar URL is self-reported).
     poll), active again on the next input. Editing state overrides a stale
     idle flag in the avatar UIs.
   - `isEditing` is **server-stamped** in `markConnectionEditing` when a
-    `slide_update`/`report_update`/`po_update` arrives from a connection with
-    the matching edit permission. Broadcasts once on the false→true edge; each
+    `slide_update`/`report_update` arrives. Broadcasts once on the false→true
+    edge; each
     update re-arms an 8 s quiet-period timer whose expiry broadcasts the clear.
     A typing burst costs two presence broadcasts total. A `presence_update`
     preserves the flag (it is not client-settable). Rendered as the pulsing
@@ -625,7 +638,7 @@ directions ship only diffs; an in-sync exchange applies as a pure no-op.
 | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | WS can't connect / proxy unpatched               | Editors fall back to plain TextAreas; back button saves explicitly with conflict dialog; no presence.                                                                                          |
 | Socket drops mid-edit                            | Edits keep accumulating locally; banner + auto-reconnect forever (≤30 s backoff, instant on network/tab return), then two-way catch-up recovers them; closing before reconnect → explicit save.|
-| User not allowed on the socket (lost project access, unapproved) | Server accepts then closes 4403; client stops retrying and shows NO banner (`"unauthorized"`); the rest of the project keeps working. A later permission change calls `forceCollabReconnect`, which clears it. |
+| User not allowed on the socket (unapproved)      | Server accepts then closes 4403; client stops retrying and shows NO banner (`"unauthorized"`); the rest of the app keeps working. Approval calls `reconnectForApproval` (SSE and collab), which clears it. |
 | Server restarts mid-edit                         | Room state restored from `crdt_state` on next subscribe, including un-checkpointed edits.                                                                                                      |
 | Two users type in the same field                 | Character-level CRDT merge; both carets visible; per-user undo.                                                                                                                                |
 | Two users restructure the layout concurrently    | Per-key LWW can duplicate a block; `materializeSlide` dedupes deterministically on every client and the next push deletes the shadowed copy, self-healing.                                     |
@@ -708,13 +721,13 @@ co-editing change how saves and refetches worked before?". Answer: no, it
 extended them.
 
 **Principle: WebSockets are strictly additive.** They add a fast, fine-grained
-live layer _inside_ the existing per-project SSE boundary; they do not take
+live layer _inside_ the existing instance SSE boundary; they do not take
 over any responsibility SSE already had. Delete all of this system's code and
 the original save-then-refetch flow still works end to end. You would only
 lose live co-editing and fall back to save-then-refetch.
 
 ```text
-                       ┌──────────────── project boundary ────────────────┐
+                       ┌──────────────── instance boundary ───────────────┐
                        │                                                   │
   live co-editors ─────┤  S16 WS layer (additive)                         │
   in one document      │   • Yjs deltas relayed sub-second                │
@@ -722,9 +735,9 @@ lose live co-editing and fall back to save-then-refetch.
                        │   • authoritative server Y.Doc per document       │
                        │        │ 1.5s debounced checkpoint                │
                        │        ▼                                          │
-  everyone else in ────┤  S3 SSE layer (unchanged, project-wide)          │
-  the project          │   • "row X changed → invalidate → refetch"        │
-                       │   • notifyLastUpdated / notifyProjectReportsUpdated│
+  everyone else on ────┤  S3 SSE layer (unchanged, instance-wide)         │
+  the instance         │   • "row X changed → invalidate → refetch"        │
+                       │   • notifyInstanceLastUpdated / products_upserted │
                        └───────────────────────────────────────────────────┘
        The WS checkpoint FEEDS the SSE bus. It never bypasses it.
 ```
@@ -738,9 +751,9 @@ lose live co-editing and fall back to save-then-refetch.
 - **The REST routes got a branch prepended; the original path is the
   fall-through.** Each mutating route now starts with a live-room check; if no
   room is live it runs the original code unchanged (see the `updateReportBody`
-  route in [server/routes/project/reports.ts](server/routes/project/reports.ts):
+  route in [server/routes/products/reports.ts](server/routes/products/reports.ts):
   the room branch returns early, otherwise it falls through to the same
-  `updateReportBody` + `notifyLastUpdated` it always did).
+  `updateReportBody` + `notifyInstanceProductsUpserted` it always did).
 - **The schema change is purely additive.** All new columns are nullable and
   ignored by the old read paths. Old rows and non-collab reads behave
   identically. Zero `notify*` calls were removed from the pre-existing
@@ -749,22 +762,24 @@ lose live co-editing and fall back to save-then-refetch.
 ### 2. How the flow changes
 
 **Old flow (still the fallback):** client edits → REST `PUT` → DB `UPDATE`
-(one column + `last_updated`) → `notifyLastUpdated` → SSE → other clients see
-the `last_updated` bump and refetch. Last-write-wins, no live merge.
+(one column + `last_updated`) → `notifyInstanceLastUpdated` for the slide
+and `notifyInstanceProductsUpserted` for the product → SSE → other clients
+see the stamp bump and refetch. Last-write-wins, no live merge.
 
 **New flow (when a collab room is live):**
 
 1. Client edits go over the **WebSocket** as Yjs deltas → applied to the
    server's authoritative master Y.Doc (`applySlideUpdate` /
    `applyReportUpdate`, defined in `slide_rooms.ts` / `report_rooms.ts`,
-   invoked from `project-collab.ts`).
+   invoked from `routes/instance/collab.ts`).
 2. The master doc **relays** the delta to the other subscribers immediately
    (sub-second, no refetch: this is the genuinely new capability).
 3. A **1.5 s debounced checkpoint** materializes the doc and calls the
    checkpoint function → the same DB row, same `last_updated` discipline.
-4. That checkpoint then rings the **same SSE bell** (`notifyLastUpdated`) so
-   everything _outside_ the room (list cards, project members not currently
-   in the document) invalidates and refetches as before.
+4. That checkpoint then rings the **same SSE bell** (the slide stamp plus the
+   product summary re-broadcast, `products_upserted`) so everything _outside_
+   the room (product cards, users not currently in the document) invalidates
+   and refetches as before.
 
 **The crucial glue (the "chokepoint"):** when a REST save arrives _while a
 room is live_, it does not write the DB directly (that would clobber the
@@ -780,15 +795,12 @@ error, which the room path never produces).
 ### 3. Same functions for the Postgres save and the SSE?
 
 **SSE: identical wrappers.** Both the REST routes and the collab checkpoint
-deps call the same `notifyLastUpdated(projectId, resource, [ids],
-lastUpdated)` from S3's notify catalog. The collab side adds **two** debounced
-extras: the reports-list and viz-list rebroadcasts
-(`scheduleReportsListRebroadcast` / `scheduleVizListRebroadcast` in
-`project-collab.ts`, 5 s per project, calling the existing
-`notifyProjectReportsUpdated` / `notifyProjectVisualizationsUpdated`),
-because those list payloads are too heavy to fire on the 1.5 s checkpoint
-cadence. Slide checkpoints need no list rebroadcast; they row-notify both the
-slide and its deck. Same SSE mechanism, just throttled per project.
+deps call the same `notifyInstanceLastUpdated("slides", [ids], lastUpdated)`
+and `notifyInstanceProductsUpserted(mainDb, [productId])` from S3's notify
+catalog: a product's summary is one row, so a checkpoint re-broadcasts it
+per product on the 1.5 s cadence with no list rebroadcast to throttle. The
+project socket's viz-list rebroadcast (`scheduleVizListRebroadcast` in
+`project-collab.ts`) survives with the PO rooms until step 9b.
 
 **Postgres: different function, same table, same stamping.** The classic path
 uses the per-column `update*` functions; the collab path uses the checkpoint
@@ -801,19 +813,18 @@ figures + images + `crdt_state` + `crdt_state_last_updated` + `body_authors`;
 what keeps S3's `last_updated → SSE → cache` triangle working the same way
 regardless of which path wrote the row.
 
-### 4. WebSocket vs the SSE project boundary
+### 4. WebSocket vs the SSE instance boundary
 
-The WS endpoint is a **sibling of the SSE endpoint at the same project
-boundary**, not a new boundary: same scoping and auth (keyed by
-`:project_id`, resolved via the same `resolveProjectUserAccess` BEFORE
-upgrading: the code cites project-sse-v2.ts explicitly); **one WS connection
-per client per project**, registered at project level
-(`addConnection(projectId, connectionId, …)`) and **multiplexing** individual
-documents via the `*_subscribe`/`*_unsubscribe` families, exactly parallel to
-the one-SSE-per-project model. Presence broadcasts per project.
+The WS endpoint is a **sibling of the instance SSE endpoint at the same
+boundary**, not a new boundary: same admission (approved user, resolved
+BEFORE upgrading); **one WS connection per client**, registered at instance
+level (`addConnection(connectionId, …)`) and **multiplexing** individual
+documents via the `*_subscribe`/`*_unsubscribe` families, each frame naming
+its product, exactly parallel to the one-SSE-per-client model. Presence
+broadcasts per product.
 
-Hold it as two layers inside the same project boundary: **SSE (S3) = the
-invalidation bus** (unchanged, project-wide), authoritative for keeping every
+Hold it as two layers inside the same instance boundary: **SSE (S3) = the
+invalidation bus** (unchanged, instance-wide), authoritative for keeping every
 surface consistent; **WS (S16) = the live collaboration layer** (per-document,
 only while subscribed): Yjs deltas, presence, awareness, none of it persisted
 through SSE. They are not alternatives: **the WS layer feeds the SSE layer.**
@@ -1017,12 +1028,12 @@ user in the slide-level `removed` bucket.
 
 ### Read + restore APIs
 
-Registry entries in [lib/api-routes/project/reports.ts](lib/api-routes/project/reports.ts)
-and [slide-decks.ts](lib/api-routes/project/slide-decks.ts); handlers in the
-matching S12 route files. `list*Versions` / `get*Versions` /
-`getReportVersionLineage` need `can_view_*`; `restore*Version` /
-`copy*Version` need `can_configure_*` + `preventAccessToLockedProjects`. List
-summaries compute sizes/counts in SQL and never ship snapshot content.
+Registry entries in [lib/api-routes/products/reports.ts](lib/api-routes/products/reports.ts)
+and [slide-decks.ts](lib/api-routes/products/slide-decks.ts); handlers in the
+matching S12 route files under `/products/:product_id/...`. Reads declare
+`access: "view"`, restore and copy `access: "edit"` (the one product guard,
+S1). List summaries compute sizes/counts in SQL and never ship snapshot
+content.
 
 **Restore sequencing** (both kinds): ⓪ validate the snapshot's content fields
 with current schemas (fail fast, zero side effects), flush the document's live
@@ -1097,8 +1108,9 @@ reused id.
 [client/src/components/version_history/](client/src/components/version_history/)
 holds `VersionHistoryEditor`, a full-panel editor: day-grouped version list on
 the left (pinned "Current version" row, contributor chips via
-`PresenceAvatars` + `presenceColorForKey(email)`, names preferring live
-`projectState.projectUsers` over the stored capture-time name, "Restored"
+`PresenceAvatars` + `presenceColorForKey(email)`, names preferring the live
+instance roster (`instanceState.users`) over the stored capture-time name,
+"Restored"
 badge, slide counts), preview on the right. The version list is a plain
 one-shot fetch refreshed by its own Refresh button, deliberately not tied to
 the `last_updated` cache triangle (a version insert never bumps
@@ -1141,10 +1153,11 @@ the `last_updated` cache triangle (a version insert never bumps
   edits (the observer lives on the room doc); REST-path slide saves fall back
   to the slide-level editors.
 
-Footer (configure permission + unlocked): **Restore** (confirm explains the
-safety version) and **Restore as copy** (name prompt). Entry points: History
-button in the report editor heading bar; "Version history" in the deck
-overflow menu.
+Footer (`canEditProduct(productId)`): **Restore** (confirm explains the
+safety version) and **Restore as copy** (name prompt; the copy is a new
+product in the source's folder). The panel takes `{ kind, docId }` where
+`docId` is the product id. Entry points: History button in the report editor
+heading bar; "Version history" in the deck overflow menu.
 
 ### Known tradeoffs (v1)
 

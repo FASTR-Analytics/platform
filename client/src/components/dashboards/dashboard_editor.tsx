@@ -29,7 +29,6 @@ import {
 import { Show, createEffect, createMemo, createSignal, onCleanup } from "solid-js";
 import { projectPackageScope, projectState, requireProjectPackageScope } from "~/state/project/t1_store";
 import { setDashboardEditorOpen, setShowAi, showAi } from "~/state/t4_ui";
-import { projectAIViewController } from "~/components/project_ai/ai_views";
 import { getDashboardDetailFromCacheOrFetch } from "~/state/project/t2_dashboards";
 import {
   getPODetailFromCacheorFetch,
@@ -37,9 +36,10 @@ import {
 } from "~/state/project/t2_presentation_objects";
 import { serverActions } from "~/server_actions";
 import { SelectVisualizationForSlide } from "~/components/slide_deck/select_visualization_for_slide";
-import { VisualizationEditor } from "~/components/visualization";
+import { VisualizationEditor } from "~/components/figure_editor";
 import { InsertFigureModal } from "~/components/figures/insert_figure";
-import { snapshotForVizEditor } from "~/components/_editor_snapshot";
+import { unwrap } from "solid-js/store";
+import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
 import { makeFigureBundleFromFetchedData } from "~/generate_visualization/mod";
 import { AddDashboardItemConfirmModal } from "./add_dashboard_item_modal";
 import { resolveReplicantStructure } from "./resolve_replicant_structure";
@@ -307,7 +307,7 @@ export function DashboardEditor(p: Props) {
     let allReplicants: { value: string; label: string }[] = [];
     try {
       const structure = await resolveReplicantStructure(
-        p.projectId,
+        requireProjectPackageScope(),
         poRes.data.resultsValue,
         config,
       );
@@ -661,7 +661,7 @@ export function DashboardEditor(p: Props) {
     let structure;
     try {
       structure = await resolveReplicantStructure(
-        p.projectId,
+        requireProjectPackageScope(),
         resultsValue,
         after,
       );
@@ -701,6 +701,31 @@ export function DashboardEditor(p: Props) {
     });
   }
 
+  // The embedded figure editor under the project's pair, with the package's
+  // authoring context behind its results-object viewer.
+  async function openFigureEditor(
+    resultsValue: ResultsValue,
+    config: PresentationObjectConfig,
+  ) {
+    const scope = projectPackageScope();
+    if (!scope) return undefined;
+    const contextRes = await getRunAuthoringContextFromCacheOrFetch(scope.runId);
+    if (!contextRes.success) {
+      await openAlert({ text: contextRes.err, intent: "danger" });
+      return undefined;
+    }
+    return openInnerEditor({
+      element: VisualizationEditor,
+      props: {
+        label: resultsValue.label,
+        scope,
+        metric: structuredClone(unwrap(resultsValue)),
+        configSnapshot: structuredClone(unwrap(config)),
+        authoringContext: contextRes.data,
+      },
+    });
+  }
+
   async function handleEdit() {
     const it = selectedItem();
     if (!it) return;
@@ -713,22 +738,7 @@ export function DashboardEditor(p: Props) {
       await openAlert({ text: "Metric not found in project", intent: "danger" });
       return;
     }
-    const result = await openInnerEditor({
-      element: VisualizationEditor,
-      props: {
-        mode: "ephemeral" as const,
-        label: resultsValue.label,
-        projectId: p.projectId,
-        // Without this the viz editor's cleanup resets the AI view to
-        // "viewing_visualizations" while the user is still in this dashboard.
-        returnToContext: projectAIViewController.current(),
-        ...snapshotForVizEditor({
-          projectState,
-          resultsValue,
-          config: bundle.config,
-        }),
-      },
-    });
+    const result = await openFigureEditor(resultsValue, bundle.config);
     if (!result?.updated) return;
     await reconcileItemStructure(
       it,
@@ -846,7 +856,7 @@ export function DashboardEditor(p: Props) {
     let structure;
     try {
       structure = await resolveReplicantStructure(
-        p.projectId,
+        requireProjectPackageScope(),
         resultsValue,
         after,
       );
@@ -908,22 +918,7 @@ export function DashboardEditor(p: Props) {
       await openAlert({ text: "Metric not found in project", intent: "danger" });
       return;
     }
-    const result = await openInnerEditor({
-      element: VisualizationEditor,
-      props: {
-        mode: "ephemeral" as const,
-        label: resultsValue.label,
-        projectId: p.projectId,
-        // Without this the viz editor's cleanup resets the AI view to
-        // "viewing_visualizations" while the user is still in this dashboard.
-        returnToContext: projectAIViewController.current(),
-        ...snapshotForVizEditor({
-          projectState,
-          resultsValue,
-          config: bundle.config,
-        }),
-      },
-    });
+    const result = await openFigureEditor(resultsValue, bundle.config);
     if (!result?.updated) return;
     await reconcileGroupStructure(g, resultsValue, result.updated.config);
   }

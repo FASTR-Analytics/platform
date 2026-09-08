@@ -14,10 +14,7 @@ import { exportSlideDeckAsPptx } from "~/exports/export_slide_deck_as_pptx";
 
 export function DownloadSlideDeck(
   p: EditorComponentProps<
-    {
-      projectId: string;
-      deckId: string;
-    },
+    { productId: string },
     undefined
   >,
 ) {
@@ -37,16 +34,8 @@ export function DownloadSlideDeck(
 
     const res =
       format === "vector"
-        ? await exportSlideDeckAsPdfVector(
-            p.projectId,
-            p.deckId,
-            progress,
-          )
-        : await exportSlideDeckAsPptx(
-            p.projectId,
-            p.deckId,
-            progress,
-          );
+        ? await exportSlideDeckAsPdfVector(p.productId, progress)
+        : await exportSlideDeckAsPptx(p.productId, progress);
     if (res.success === false) {
       setErr(res.err);
       setPct(0);

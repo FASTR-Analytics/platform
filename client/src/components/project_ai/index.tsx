@@ -51,8 +51,6 @@ function AIProjectWrapperInner(p: ParentProps) {
     icehIndicators: projectState.icehIndicators,
     hfaTaxonomy: projectState.hfaTaxonomy,
     visualizations: projectState.visualizations,
-    slideDecks: projectState.slideDecks,
-    reports: projectState.reports,
   });
 
   // CACHE RULE: no currentView here: the no-view catalog is byte-stable;

@@ -5,12 +5,10 @@ import {
   type RunAuthoringContext,
   figurePackageIssueForMetrics,
   t3,
-  TC,
 } from "lib";
 import { Button } from "panther";
 import { createSignal, Show } from "solid-js";
-import { instanceState } from "~/state/instance/t1_store";
-import { projectState } from "~/state/project/t1_store";
+import { packageLabel, scopeLabel } from "~/components/products/package_label";
 import {
   resolveFigureBundleInteractively,
   type ResolveFigureResult,
@@ -23,29 +21,12 @@ import {
 // fails it says why on the figure and leaves the old bundle in place. There
 // is no pre-flight anywhere: the per-figure badge is the report.
 
-// Human label for a package. Until step 7a's ready-package list reaches T1,
-// the sources are the catalogue (data-configuring users) and the project's
-// own attached package; anything else falls back to a short id.
-export function packageLabel(runId: string): string {
-  const catalogued = instanceState.runsCatalog.find((r) => r.id === runId);
-  if (catalogued) return catalogued.label;
-  if (runId === projectState.attachedRunId && projectState.attachedRun) {
-    return projectState.attachedRun.label;
-  }
-  return runId.slice(0, 8);
-}
-
-export function scopeLabel(adminArea2: string | null): string {
-  return adminArea2 ?? t3(TC.national);
-}
-
 // Re-resolve one figure under the container's pair: the whole of the update
 // action. The metric comes from the target package's authoring context, and
 // that lookup is the "metric not in this package" check. The resolution is
 // the interactive one (a replicant missing under the new package is
 // auto-defaulted), never the strict AI one.
 export async function updateFigureToScope(
-  projectId: string,
   scope: PackageScope,
   authoringContext: RunAuthoringContext,
   bundle: FigureBundle,
@@ -68,7 +49,7 @@ export async function updateFigureToScope(
   if (issue !== null) {
     return { ok: false, reason: describePackageIssue(issue, scope.runId) };
   }
-  return resolveFigureBundleInteractively(projectId, scope, metric, bundle.config);
+  return resolveFigureBundleInteractively(scope, metric, bundle.config);
 }
 
 function describePackageIssue(issue: FigurePackageIssue, runId: string): string {
@@ -108,7 +89,6 @@ function bundleOriginLabel(bundle: FigureBundle): string {
 }
 
 type BadgeProps = {
-  projectId: string;
   bundle: FigureBundle;
   scope: PackageScope;
   authoringContext: RunAuthoringContext;
@@ -127,7 +107,6 @@ export function StaleFigureBadge(p: BadgeProps) {
     setBusy(true);
     setReason(undefined);
     const res = await updateFigureToScope(
-      p.projectId,
       { runId: p.scope.runId, adminArea2: p.scope.adminArea2 },
       p.authoringContext,
       p.bundle,

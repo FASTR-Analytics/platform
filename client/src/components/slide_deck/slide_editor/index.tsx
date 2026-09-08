@@ -4,7 +4,6 @@ import type {
   ContentSlide,
   CoverSlide,
   PackageScope,
-  ProjectState,
   RunAuthoringContext,
   SectionSlide,
   Slide,
@@ -75,21 +74,18 @@ import {
   restoreProjectAIView,
   type ProjectAIViewState,
 } from "~/components/project_ai/ai_views";
-import { VisualizationEditor } from "~/components/visualization";
-import type { VizFigureCollabBinding } from "~/components/visualization";
+import { VisualizationEditor } from "~/components/figure_editor";
+import type { VizFigureCollabBinding } from "~/components/figure_editor";
 import {
-  type FetchedPOData,
   findStaleFiguresInLayout,
-  makeFigureBundleFromFetchedData,
-  resolveFigureBundleFromVisualization,
+  resolveFigureBundleInteractively,
 } from "~/generate_visualization/mod";
 import {
   UpdateAllFiguresButton,
   updateFigureToScope,
 } from "~/components/figure_editor/stale_figure_badge";
 import { serverActions } from "~/server_actions";
-import { _SLIDE_CACHE } from "~/state/project/t2_slides";
-import { getPresentationObjectItemsFromCacheOrFetch } from "~/state/project/t2_presentation_objects";
+import { _SLIDE_CACHE } from "~/state/products/t2_slides";
 import { setShowAi, showAi } from "~/state/t4_ui";
 import {
   collabSocketOpen,
@@ -99,14 +95,12 @@ import {
   reconnectForStaleEditAuth,
   setCollabView,
   type SlideSession,
-} from "~/state/project/collab";
+} from "~/state/instance/collab";
 import { PresenceAvatars } from "~/components/slide_deck/presence_avatars";
 import { SlideEditorCursors } from "~/components/_shared/cursors/slide_cursors";
-import { addLastUpdatedListener } from "~/state/project/t1_sse";
-import { projectState, requireProjectPackageScope } from "~/state/project/t1_store";
+import { addLastUpdatedListener } from "~/state/instance/t1_sse";
+import { canEditProduct } from "~/state/instance/product_access";
 import { createIdGeneratorForLayout } from "~/components/slide_deck/_id_generation";
-import { snapshotForVizEditor } from "~/components/_editor_snapshot";
-import { SelectVisualizationForSlide } from "../select_visualization_for_slide";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { convertBlockType } from "../slide_transforms/convert_block_type";
 import { convertSlideType } from "../slide_transforms/convert_slide_type";
@@ -114,19 +108,17 @@ import { updateBlockInLayout } from "../slide_transforms/update_block_in_layout"
 import { SlideEditorPanel } from "./editor_panel";
 
 type SlideEditorInnerProps = {
-  projectId: string;
-  deckId: string;
+  productId: string;
   deckLabel: string;
   slideId: string;
   slide: Slide;
   lastUpdated: string;
-  projectStateSnapshot: ProjectState;
   deckConfigSnapshot: SlideDeckConfig;
-  // The container's live (package, scope) pair and that package's authoring
-  // context, what staleness is measured against (D4). Both undefined while
-  // the project has no package to resolve under; the badges stay off then.
-  scope: PackageScope | undefined;
-  authoringContext: RunAuthoringContext | undefined;
+  // The product's live (package, scope) pair and that package's authoring
+  // context, passed down by the deck editor: what every figure on this slide
+  // resolves under and what staleness is measured against (D4).
+  scope: PackageScope;
+  authoringContext: RunAuthoringContext;
   returnToContext?: ProjectAIViewState;
 };
 
@@ -219,9 +211,7 @@ export function SlideEditor(p: Props) {
   // collaborator's edit.
   let undoMgr: Y.UndoManager | undefined;
   let detachUndoPop: (() => void) | undefined;
-  const canEdit = () =>
-    projectState.thisUserPermissions.can_configure_slide_decks &&
-    !projectState.isLocked;
+  const canEdit = () => canEditProduct(p.productId);
   const canUndoRedo = () => !!session() && collabReady() && canEdit();
 
   function undo() {
@@ -266,7 +256,6 @@ export function SlideEditor(p: Props) {
     const runId = ++renderRunId;
     try {
       const res = await convertSlideToPageInputs(
-        p.projectId,
         slide,
         undefined,
         p.deckConfigSnapshot,
@@ -332,7 +321,7 @@ export function SlideEditor(p: Props) {
         slideId: p.slideId,
         slideLabel: getSlideTitle(normalizedSlide),
         slideType: normalizedSlide.type as SlideType,
-        deckId: p.deckId,
+        deckId: p.productId,
         deckLabel: p.deckLabel,
       },
       {
@@ -343,6 +332,7 @@ export function SlideEditor(p: Props) {
 
     // Bind this slide to a shared CRDT document for live co-editing.
     const s = openSlideSession(
+      p.productId,
       p.slideId,
       () => {
         const docSlide = materializeSlide(s.doc) as Slide;
@@ -387,10 +377,7 @@ export function SlideEditor(p: Props) {
         // rejected local ops. Otherwise the user really is read-only: say so
         // once instead of letting them type into a void.
         if (!fatal && errMsg === COLLAB_NO_EDIT_PERMISSION) {
-          if (
-            projectState.thisUserPermissions.can_configure_slide_decks &&
-            !projectState.isLocked
-          ) {
+          if (canEdit()) {
             reconnectForStaleEditAuth();
           } else if (!collabErrorShown) {
             collabErrorShown = true;
@@ -437,7 +424,7 @@ export function SlideEditor(p: Props) {
     const block = selectedBlockId();
     const editingFig = editingFigureBlockId();
     setCollabView({
-      deckId: p.deckId,
+      deckId: p.productId,
       slideId: p.slideId,
       selectedBlockId: editingFig ?? block,
       selectedTextTarget: block ? undefined : selectedTextTarget(),
@@ -465,14 +452,14 @@ export function SlideEditor(p: Props) {
     // is no UI to ask; a conflicting concurrent save simply wins.
     if (needsSave() && !(session()?.isLive() ?? false)) {
       void serverActions.updateSlide({
-        projectId: p.projectId,
+        product_id: p.productId,
         slide_id: p.slideId,
         slide: unwrap(tempSlide),
         expectedLastUpdated: lastKnownServerTimestamp(),
       });
     }
     // Revert presence to deck-level (no slide) when the editor closes.
-    setCollabView({ deckId: p.deckId });
+    setCollabView({ deckId: p.productId });
     // Tear down the collab session for this slide.
     session()?.close();
     setSession(null);
@@ -499,7 +486,7 @@ export function SlideEditor(p: Props) {
     }
 
     const updateRes = await serverActions.updateSlide({
-      projectId: p.projectId,
+      product_id: p.productId,
       slide_id: p.slideId,
       slide: unwrap(tempSlide),
       expectedLastUpdated: lastKnownServerTimestamp(),
@@ -530,8 +517,7 @@ export function SlideEditor(p: Props) {
 
       if (userChoice === "save_as_new") {
         const createRes = await serverActions.createSlide({
-          projectId: p.projectId,
-          deck_id: p.deckId,
+          product_id: p.productId,
           position: { after: p.slideId },
           slide: unwrap(tempSlide),
         });
@@ -563,12 +549,12 @@ export function SlideEditor(p: Props) {
     }
 
     const promise = serverActions.getSlide({
-      projectId: p.projectId,
+      product_id: p.productId,
       slide_id: p.slideId,
     });
     await _SLIDE_CACHE.setPromise(
       promise,
-      { projectId: p.projectId, slideId: p.slideId },
+      { productId: p.productId, slideId: p.slideId },
       updateRes.data.lastUpdated,
     );
     await promise;
@@ -691,12 +677,6 @@ export function SlideEditor(p: Props) {
         setSelectedBlockId(blockId);
         await handleEditVisualization();
       },
-      onSelectVisualization: async (blockId: string) => {
-        await handleSelectVisualization(blockId);
-      },
-      onReplaceVisualization: async (blockId: string) => {
-        await handleSelectVisualization(blockId);
-      },
       onCreateVisualization: async (blockId: string) => {
         setSelectedBlockId(blockId);
         await handleCreateVisualization();
@@ -737,13 +717,16 @@ export function SlideEditor(p: Props) {
     const { metricId, config: bundleConfig } = block.bundle;
 
     try {
-      const resultsValue = p.projectStateSnapshot.metrics.find(
-        (m) => m.id === metricId,
-      );
-
-      if (!resultsValue) {
+      // The metric comes from the product package's authoring context; a
+      // figure carried over from another package edits under this one (D4).
+      const metric = p.authoringContext.metrics.find((m) => m.id === metricId);
+      if (!metric) {
         await openAlert({
-          text: "Metric not found in project",
+          text: t3({
+            en: "This figure's metric is not in the product's package",
+            fr: "L'indicateur de cette figure n'est pas dans le paquet du produit",
+            pt: "A métrica desta figura não está no pacote do produto",
+          }),
           intent: "danger",
         });
         return;
@@ -770,9 +753,7 @@ export function SlideEditor(p: Props) {
               },
               awareness: s.awareness,
               isLive: () => session()?.isLive() ?? false,
-              canEdit: () =>
-                projectState.thisUserPermissions.can_configure_slide_decks &&
-                !projectState.isLocked,
+              canEdit,
               localOrigin: figureOrigin,
               onCoherentBundle: applyFigureBundle,
             }
@@ -784,49 +765,30 @@ export function SlideEditor(p: Props) {
           openEditor({
             element: VisualizationEditor,
             props: {
-              mode: "ephemeral" as const,
-              label: resultsValue.label,
-              projectId: p.projectId,
-              returnToContext: projectAIViewController.current(),
+              label: metric.label,
+              scope: p.scope,
+              metric,
+              configSnapshot: structuredClone(unwrap(bundleConfig)),
+              authoringContext: p.authoringContext,
               collabBinding,
-              ...snapshotForVizEditor({
-                projectState: p.projectStateSnapshot,
-                resultsValue,
-                config: bundleConfig,
-              }),
             },
           }),
         );
 
-        // On close, rebuild once from the final config (fresh items): the final
-        // coherent bundle for both the classic path and the live path.
+        // On close, rebuild once from the final config (fresh items) under
+        // the product's CURRENT pair, so applying an edit to a stale figure
+        // also brings it up to date.
         if (result?.updated) {
-          const newConfig = result.updated.config;
-
-          const newItemsRes = await getPresentationObjectItemsFromCacheOrFetch(
-            p.projectId,
-            { projectId: p.projectId, resultsValue },
-            newConfig,
+          const rebuilt = await resolveFigureBundleInteractively(
+            p.scope,
+            metric,
+            result.updated.config,
           );
-
-          if (
-            newItemsRes.success === false ||
-            newItemsRes.data.ih.status !== "ok"
-          ) {
-            await openAlert({
-              text: "Failed to regenerate visualization",
-              intent: "danger",
-            });
+          if (!rebuilt.ok) {
+            await openAlert({ text: rebuilt.reason, intent: "danger" });
             return;
           }
-
-          applyFigureBundle(
-            makeFigureBundleFromFetchedData(requireProjectPackageScope(), {
-              resultsValue,
-              ih: newItemsRes.data.ih as FetchedPOData["ih"],
-              effectiveConfig: newItemsRes.data.config,
-            }),
-          );
+          applyFigureBundle(rebuilt.bundle);
         }
       } finally {
         setEditingFigureBlockId(undefined);
@@ -840,100 +802,35 @@ export function SlideEditor(p: Props) {
     }
   }
 
-  async function handleSelectVisualization(blockIdOverride?: string) {
-    const blockId = blockIdOverride ?? selectedBlockId();
-    if (!blockId || tempSlide.type !== "content") return;
-
-    const result = await withCanvasCovered(
-      openEditor({
-        element: SelectVisualizationForSlide,
-        props: { projectState: p.projectStateSnapshot },
-      }),
-    );
-
-    if (!result) return;
-
-    try {
-      const bundle = await resolveFigureBundleFromVisualization(p.projectId, {
-        visualizationId: result.visualizationId,
-        replicant: result.replicant,
-      });
-
-      const updatedLayout = updateBlockInLayout(
-        tempSlide.layout,
-        blockId,
-        () => ({ type: "figure" as const, bundle }),
-      );
-
-      // Path set (fresh bundle ref) so setOpaque always writes it: see the
-      // note in handleEditVisualization.
-      (manuallyUpdateTempSlide as SetStoreFunction<ContentSlide>)(
-        "layout",
-        updatedLayout,
-      );
-    } catch (err) {
-      await openAlert({
-        text:
-          err instanceof Error ? err.message : "Failed to select visualization",
-        intent: "danger",
-      });
-    }
-  }
-
+  // The ONE figure-authoring path (D3): the product package's presets and
+  // the metric wizard, resolved under the product's pair. Inserting into an
+  // empty block and replacing an existing figure are the same action.
   async function handleCreateVisualization() {
     const blockId = selectedBlockId();
     if (!blockId || tempSlide.type !== "content") return;
 
-    const ctx = staleContext();
-    if (!ctx) return;
     const result = await withCanvasCovered(
       openComponent({
         element: InsertFigureModal,
         props: {
-          scope: ctx.scope,
-          context: ctx.authoringContext,
+          scope: p.scope,
+          context: p.authoringContext,
           preselectedMetricId: null,
         },
       }),
     );
-
     if (!result) return;
 
-    try {
-      const { metric: resultsValue, config } = result;
-
-      const newItemsRes = await getPresentationObjectItemsFromCacheOrFetch(
-        p.projectId,
-        { projectId: p.projectId, resultsValue },
-        config,
-      );
-
-      if (
-        newItemsRes.success === false ||
-        newItemsRes.data.ih.status !== "ok"
-      ) {
-        await openAlert({
-          text: "Failed to generate visualization",
-          intent: "danger",
-        });
-        return;
-      }
-
-      setFigureBlockBundle(
-        blockId,
-        makeFigureBundleFromFetchedData(requireProjectPackageScope(), {
-          resultsValue,
-          ih: newItemsRes.data.ih as FetchedPOData["ih"],
-          effectiveConfig: newItemsRes.data.config,
-        }),
-      );
-    } catch (err) {
-      await openAlert({
-        text:
-          err instanceof Error ? err.message : "Failed to create visualization",
-        intent: "danger",
-      });
+    const resolved = await resolveFigureBundleInteractively(
+      p.scope,
+      result.metric,
+      result.config,
+    );
+    if (!resolved.ok) {
+      await openAlert({ text: resolved.reason, intent: "danger" });
+      return;
     }
+    setFigureBlockBundle(blockId, resolved.bundle);
   }
 
   // Path set, not reconcile: updateBlockInLayout returns a fresh reference on
@@ -953,33 +850,29 @@ export function SlideEditor(p: Props) {
   }
 
   // ── Stale figures on this slide (D4) ────────────────────────────────────────
-  // Compared against the container's live pair, so a reattach while the slide
+  // Compared against the product's live pair, so a reattach while the slide
   // editor is open lights the count without a remount.
-  const staleContext = () =>
-    p.scope && p.authoringContext
-      ? { scope: p.scope, authoringContext: p.authoringContext }
-      : undefined;
-  const staleFigures = () => {
-    const ctx = staleContext();
-    return ctx && tempSlide.type === "content"
-      ? findStaleFiguresInLayout(tempSlide.layout, ctx.scope)
+  const staleContext = () => ({
+    scope: p.scope,
+    authoringContext: p.authoringContext,
+  });
+  const staleFigures = () =>
+    tempSlide.type === "content"
+      ? findStaleFiguresInLayout(tempSlide.layout, p.scope)
       : [];
-  };
   const [updatingFigures, setUpdatingFigures] = createSignal(false);
 
   // Re-resolve every stale figure on this slide. Failures are per figure:
   // the ones that cannot move keep their old bundle and report why.
   async function updateAllFiguresOnSlide() {
-    const ctx = staleContext();
     const stale = staleFigures();
-    if (!ctx || stale.length === 0) return;
+    if (stale.length === 0) return;
     setUpdatingFigures(true);
     const failures: string[] = [];
     for (const s of stale) {
       const res = await updateFigureToScope(
-        p.projectId,
-        ctx.scope,
-        ctx.authoringContext,
+        p.scope,
+        p.authoringContext,
         s.bundle,
       );
       if (res.ok) {
@@ -1113,7 +1006,7 @@ export function SlideEditor(p: Props) {
               data-tour="slide-panel"
             >
               <SlideEditorPanel
-                projectId={p.projectId}
+                productId={p.productId}
                 staleContext={staleContext()}
                 staleFigureBundle={selectedStaleBundle()}
                 onFigureUpdated={(bundle) => {
@@ -1133,7 +1026,6 @@ export function SlideEditor(p: Props) {
                 setContentTab={setContentTab}
                 onShowLayoutMenu={handleShowLayoutMenu}
                 onEditVisualization={handleEditVisualization}
-                onSelectVisualization={() => handleSelectVisualization()}
                 onCreateVisualization={handleCreateVisualization}
                 showCoverLogosByDefault={
                   p.deckConfigSnapshot.logos.cover.showByDefault
@@ -1233,12 +1125,6 @@ export function SlideEditor(p: Props) {
                           onEditVisualization: async (blockId) => {
                             setSelectedBlockId(blockId);
                             await handleEditVisualization();
-                          },
-                          onSelectVisualization: async (blockId) => {
-                            await handleSelectVisualization(blockId);
-                          },
-                          onReplaceVisualization: async (blockId) => {
-                            await handleSelectVisualization(blockId);
                           },
                           onConvertToText: (blockId) => {
                             const newLayout = convertBlockType(

@@ -1,13 +1,14 @@
 import type { Awareness } from "y-protocols/awareness";
 import type * as Y from "yjs";
 import { CollabMarkdownEditor as SharedCollabMarkdownEditor } from "~/components/_shared/collab_markdown_editor";
-import { projectState } from "~/state/project/t1_store";
+import { canEditProduct } from "~/state/instance/product_access";
 
 // Slide-editor wrapper around the shared CollabMarkdownEditor: injects the
-// slide-deck configure permission so the two slide call sites (collab_text_field,
-// editor_panel_content) don't each repeat it. `canEdit` is read reactively (Solid
-// getter-wraps the prop), so it still re-runs when permissions arrive after mount.
+// product edit gate so the two slide call sites (collab_text_field,
+// editor_panel_content) don't each repeat it. `canEdit` is read reactively
+// (Solid getter-wraps the prop), so it re-runs when approval changes.
 export function CollabMarkdownEditor(p: {
+  productId: string;
   yText: Y.Text;
   awareness: Awareness;
   onTextChange: (markdown: string) => void;
@@ -19,8 +20,7 @@ export function CollabMarkdownEditor(p: {
     <SharedCollabMarkdownEditor
       yText={p.yText}
       awareness={p.awareness}
-      canEdit={projectState.thisUserPermissions.can_configure_slide_decks &&
-        !projectState.isLocked}
+      canEdit={canEditProduct(p.productId)}
       onTextChange={p.onTextChange}
       height={p.height}
       plain={p.plain}

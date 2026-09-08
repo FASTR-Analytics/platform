@@ -12,7 +12,6 @@ import {
   projectState,
   resetProjectState,
 } from "./t1_store";
-import { connectCollab, disconnectCollab } from "./collab";
 
 const MAX_CONNECTION_ATTEMPTS = 3;
 const BASE_RETRY_DELAY = 1000;
@@ -139,17 +138,8 @@ type ProjectSSEBoundaryProps = {
 };
 
 export function ProjectSSEBoundary(p: ProjectSSEBoundaryProps) {
-  onMount(() => {
-    connectProjectSSE(p.projectId);
-    // Project-scoped presence channel: stays connected across the whole
-    // project session (deck list + any opened deck), so presence shows in both.
-    connectCollab(p.projectId);
-  });
-
-  onCleanup(() => {
-    disconnectProjectSSE();
-    disconnectCollab();
-  });
+  onMount(() => connectProjectSSE(p.projectId));
+  onCleanup(() => disconnectProjectSSE());
 
   return (
     <Show

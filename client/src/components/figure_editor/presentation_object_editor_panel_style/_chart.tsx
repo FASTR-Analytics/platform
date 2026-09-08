@@ -1,7 +1,7 @@
 import {
   type IndicatorFormat,
   PresentationObjectConfig,
-  PresentationObjectEditorDetail,
+  ResultsValue,
   t3,
 } from "lib";
 import { Checkbox, LabelHolder, RadioGroup } from "panther";
@@ -11,7 +11,7 @@ import { ChartLikeControls } from "./_chart_like_controls";
 import { StyleRevealGroup, StyleSection } from "./_style_components";
 
 type Props = {
-  poDetail: PresentationObjectEditorDetail;
+  metric: ResultsValue;
   tempConfig: PresentationObjectConfig;
   setTempConfig: SetStoreFunction<PresentationObjectConfig>;
   editCustomSeriesStyles: () => Promise<void>;
@@ -165,7 +165,7 @@ export function ChartStyleControls(p: Props) {
         </LabelHolder>
       </StyleSection>
       <ChartLikeControls
-        poDetail={p.poDetail}
+        metric={p.metric}
         tempConfig={p.tempConfig}
         setTempConfig={p.setTempConfig}
         editCustomSeriesStyles={p.editCustomSeriesStyles}

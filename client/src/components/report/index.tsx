@@ -1,16 +1,18 @@
 import {
   canonicalJson,
   COLLAB_NO_EDIT_PERMISSION,
+  TC,
   type FigureBlock,
   type FigureBundle,
   findReportBodyText,
   findReportFigureConfigMap,
   type ImageBlock,
   materializeReport,
-  type PresentationObjectConfig,
-  type ProjectState,
+  type PackageScope,
+  type ProductSummary,
   type ReportDocContent,
-  type ResultsValue,
+  type RunAuthoringContext,
+  productScope,
   t3,
 } from "lib";
 import {
@@ -48,23 +50,24 @@ import {
   reconnectForStaleEditAuth,
   type ReportSession,
   setCollabView,
-} from "~/state/project/collab";
+} from "~/state/instance/collab";
 import { PresenceAvatars } from "~/components/slide_deck/presence_avatars";
 import { ReportEditorCursors } from "~/components/_shared/cursors/report_cursors";
-import { addLastUpdatedListener } from "~/state/project/t1_sse";
-import { projectState } from "~/state/project/t1_store";
-import { createProjectAuthoringScope } from "~/components/figure_editor/project_authoring_scope";
+import { addLastUpdatedListener } from "~/state/instance/t1_sse";
+import { productById } from "~/state/instance/t1_store";
+import { canEditProduct } from "~/state/instance/product_access";
+import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
 import { setShowAi, showAi } from "~/state/t4_ui";
 import {
-  type FetchedPOData,
   findStaleFiguresInReport,
-  makeFigureBundleFromFetchedData,
+  resolveFigureBundleInteractively,
 } from "~/generate_visualization/mod";
-import { getPresentationObjectItemsFromCacheOrFetch } from "~/state/project/t2_presentation_objects";
 import {
   UpdateAllFiguresButton,
   updateFigureToScope,
 } from "~/components/figure_editor/stale_figure_badge";
+import { ProductScopeBadge } from "~/components/products/product_card";
+import { ProductSettings } from "~/components/products/product_settings";
 import type { FigureStaleContext } from "./ReportFigureEmbed";
 import type {
   ReportEditProposalResult,
@@ -76,15 +79,12 @@ import {
   type ProjectAIViewState,
 } from "../project_ai/ai_views";
 import { formatLineRanges, type SkippedRange } from "./rebase_edits";
-import { SelectVisualizationForSlide } from "../slide_deck/select_visualization_for_slide";
-import { resolveFigureAndGeoFromVisualization } from "~/generate_visualization/mod";
-import { VisualizationEditor } from "../visualization";
-import type { VizFigureCollabBinding } from "../visualization";
+import { VisualizationEditor } from "~/components/figure_editor";
+import type { VizFigureCollabBinding } from "~/components/figure_editor";
 import { InsertFigureModal } from "~/components/figures/insert_figure";
-import { snapshotForVizEditor } from "../_editor_snapshot";
 import {
   EDITOR_PANE_MAX_REM,
-  ReportEditor,
+  ReportBodyEditor,
   type ReportEditorApi,
 } from "./report_editor";
 import { REPORT_MARKDOWN_STYLE } from "./report_markdown_style";
@@ -103,13 +103,11 @@ type EmbedKind = "figure" | "image";
 type EmbedSelection = { kind: EmbedKind; id: string };
 type ReportMode = "edit" | "view" | "split";
 
+// The report editor takes ONE thing: the product id (D16). Label, package and
+// scope are read LIVE from the T1 products row; a report IS its product, so
+// the product id is also the collab document id.
 type Props = EditorComponentProps<
-  {
-    projectState: ProjectState;
-    reportId: string;
-    reportLabel: string;
-    returnToContext?: ProjectAIViewState;
-  },
+  { productId: string; returnToContext?: ProjectAIViewState },
   undefined
 >;
 
@@ -143,8 +141,13 @@ function referencedEmbedIds(body: string): {
   return { figures, images };
 }
 
-export function ProjectReport(p: Props) {
-  const projectId = p.projectState.id;
+export function ReportEditor(p: Props) {
+  const product = (): ProductSummary | undefined => productById(p.productId);
+  const scope = (): PackageScope | undefined => {
+    const row = product();
+    return row === undefined ? undefined : productScope(row);
+  };
+  const label = () => product()?.label ?? "";
   const { openEditor: openInnerEditor, EditorWrapper: InnerEditorWrapper } =
     getEditorWrapper();
   // Count of sub-editors (figure modal, pickers, version history) currently
@@ -162,7 +165,6 @@ export function ProjectReport(p: Props) {
   }
 
   const [isLoading, setIsLoading] = createSignal(true);
-  const [label, setLabel] = createSignal(p.reportLabel);
   const [body, setBody] = createSignal("");
   const [figures, setFigures] = createSignal<Record<string, FigureBlock>>({});
   const [images, setImages] = createSignal<Record<string, ImageBlock>>({});
@@ -418,12 +420,41 @@ export function ProjectReport(p: Props) {
     }
   }
 
-  const canConfigure = () =>
-    projectState.thisUserPermissions.can_configure_reports &&
-    !projectState.isLocked;
+  const canConfigure = () => canEditProduct(p.productId);
+
+  // A deleted product closes the editor: its row leaves T1.
+  createEffect(() => {
+    const row = product();
+    const loading = isLoading();
+    if (row === undefined && !loading) p.close(undefined);
+  });
+
+  // ── Package and scope (D16, D4) ─────────────────────────────────────────────
+  // The authoring context follows the LIVE runId: a reattach swaps the metric
+  // and preset catalogue the wizard and the update actions author against.
+  const [authoringContext, setAuthoringContext] = createSignal<
+    RunAuthoringContext | undefined
+  >();
+  createEffect(() => {
+    const runId = scope()?.runId;
+    setAuthoringContext(undefined);
+    if (runId === undefined) return;
+    const controller = new AbortController();
+    onCleanup(() => controller.abort());
+    void (async () => {
+      const res = await getRunAuthoringContextFromCacheOrFetch(runId);
+      if (controller.signal.aborted || !res.success) return;
+      setAuthoringContext(res.data);
+    })();
+  });
+
+  async function openProductSettings() {
+    const row = product();
+    if (!row) return;
+    await openComponent({ element: ProductSettings, props: { product: row } });
+  }
 
   // ── Stale figures (D4) ──────────────────────────────────────────────────────
-  const { scope, authoringContext } = createProjectAuthoringScope();
   const staleContext = () => {
     const pair = scope();
     const context = authoringContext();
@@ -440,7 +471,6 @@ export function ProjectReport(p: Props) {
     const ctx = staleContext();
     if (!ctx) return undefined;
     return {
-      projectId,
       scope: ctx.scope,
       authoringContext: ctx.context,
       canEdit: canConfigure(),
@@ -459,7 +489,7 @@ export function ProjectReport(p: Props) {
     const next = { ...figures() };
     const failures: string[] = [];
     for (const s of stale) {
-      const res = await updateFigureToScope(projectId, ctx.scope, ctx.context, s.bundle);
+      const res = await updateFigureToScope(ctx.scope, ctx.context, s.bundle);
       if (res.ok) {
         next[s.figureId] = { type: "figure", bundle: res.bundle };
       } else {
@@ -505,7 +535,7 @@ export function ProjectReport(p: Props) {
     if (collabReady() && collabSocketOpen()) {
       // Edits relay live, but the room's checkpoint saves are erroring: say
       // so rather than claiming "Live" while nothing persists.
-      if (docSaveFailing("report", p.reportId)) {
+      if (docSaveFailing("report", p.productId)) {
         return {
           text: t3({
             en: "Not saving — retrying…",
@@ -608,7 +638,7 @@ export function ProjectReport(p: Props) {
   // setCollabView calls elsewhere would fight it.
   createEffect(() => {
     setCollabView({
-      reportId: p.reportId,
+      reportId: p.productId,
       selectedBlockId: selectedEmbed()?.id,
       editingFigureId: editingFigureId(),
     });
@@ -616,11 +646,9 @@ export function ProjectReport(p: Props) {
 
   onMount(async () => {
     const res = await serverActions.getReportDetail({
-      projectId,
-      report_id: p.reportId,
+      product_id: p.productId,
     });
     if (res.success) {
-      setLabel(res.data.label);
       setBody(res.data.body);
       setLastUpdated(res.data.lastUpdated);
 
@@ -656,7 +684,8 @@ export function ProjectReport(p: Props) {
 
       // Bind this report to a shared CRDT document for live co-editing.
       const s = openReportSession(
-        p.reportId,
+        p.productId,
+        p.productId,
         onRemoteReport,
         (errMsg, fatal) => {
           console.warn("Report collab error:", errMsg);
@@ -673,10 +702,7 @@ export function ProjectReport(p: Props) {
           // pushes the rejected local ops. Otherwise the user really is
           // read-only: say so once instead of silently dropping their edits.
           if (errMsg === COLLAB_NO_EDIT_PERMISSION) {
-            if (
-              projectState.thisUserPermissions.can_configure_reports &&
-              !projectState.isLocked
-            ) {
+            if (canConfigure()) {
               reconnectForStaleEditAuth();
             } else if (!permErrorShown) {
               permErrorShown = true;
@@ -695,11 +721,12 @@ export function ProjectReport(p: Props) {
       setSession(s);
 
       // Keep the optimistic-save timestamp fresh as server-side checkpoints
-      // bump last_updated, so the offline/fallback flush won't raise a
-      // spurious conflict against collab's own autosaves.
+      // bump the product's stamp (a report IS its product, so it rides the
+      // products_upserted summary), so the offline/fallback flush won't raise
+      // a spurious conflict against collab's own autosaves.
       removeLastUpdatedListener = addLastUpdatedListener(
         (tableName, ids, ts) => {
-          if (tableName === "reports" && ids.includes(p.reportId)) {
+          if (tableName === "products" && ids.includes(p.productId)) {
             bumpLastUpdated(ts);
           }
         },
@@ -709,7 +736,7 @@ export function ProjectReport(p: Props) {
 
     projectAIViewController.setView(
       "editing_report",
-      { reportId: p.reportId, reportLabel: label() },
+      { reportId: p.productId, reportLabel: label() },
       {
         getBody: () => body(),
         getFigures: () => figures(),
@@ -873,20 +900,17 @@ export function ProjectReport(p: Props) {
       // this instead of clobbering.
       const content = materializeReport(s.doc);
       void serverActions.updateReportBody({
-        projectId,
-        report_id: p.reportId,
+        product_id: p.productId,
         body: content.body,
         expectedLastUpdated: lastUpdated(),
         overwrite: true,
       });
       void serverActions.updateReportFigures({
-        projectId,
-        report_id: p.reportId,
+        product_id: p.productId,
         figures: content.figures,
       });
       void serverActions.updateReportImages({
-        projectId,
-        report_id: p.reportId,
+        product_id: p.productId,
         images: content.images,
       });
     }
@@ -956,8 +980,7 @@ export function ProjectReport(p: Props) {
   async function persistBody(nextBody: string) {
     setSaveStatus("saving");
     const res = await serverActions.updateReportBody({
-      projectId,
-      report_id: p.reportId,
+      product_id: p.productId,
       body: nextBody,
       expectedLastUpdated: lastUpdated(),
       overwrite: true,
@@ -1010,8 +1033,7 @@ export function ProjectReport(p: Props) {
     }
     setSaveStatus("saving");
     const res = await serverActions.updateReportFigures({
-      projectId,
-      report_id: p.reportId,
+      product_id: p.productId,
       figures: next,
     });
     if (res.success) {
@@ -1041,8 +1063,7 @@ export function ProjectReport(p: Props) {
     }
     setSaveStatus("saving");
     const res = await serverActions.updateReportImages({
-      projectId,
-      report_id: p.reportId,
+      product_id: p.productId,
       images: next,
     });
     if (res.success) {
@@ -1063,88 +1084,38 @@ export function ProjectReport(p: Props) {
     return await persistFigures(next);
   }
 
-  // Regenerate a FigureBlock from a results value + config under the
-  // container's pair, which is what stamps it for the D4 comparison.
-  async function buildFigureBlock(
-    resultsValue: ResultsValue,
-    config: PresentationObjectConfig,
-  ): Promise<
-    { ok: true; figureBlock: FigureBlock } | { ok: false; err: string }
-  > {
-    const pair = scope();
-    if (!pair) {
-      return {
-        ok: false,
-        err: t3({
-          en: "No results package is attached to this project",
-          fr: "Aucun package de résultats n'est rattaché à ce projet",
-          pt: "Nenhum pacote de resultados está associado a este projeto",
-        }),
-      };
-    }
-    const itemsRes = await getPresentationObjectItemsFromCacheOrFetch(
-      projectId,
-      { projectId, resultsValue },
-      config,
-    );
-    if (!itemsRes.success || itemsRes.data.ih.status !== "ok") {
-      return {
-        ok: false,
-        err: t3({
-          en: "Failed to generate visualization",
-          fr: "Échec de la génération de la visualisation",
-          pt: "Falha ao gerar a visualização",
-        }),
-      };
-    }
-    const ih = itemsRes.data.ih;
-    const effectiveConfig = itemsRes.data.config;
-    const bundle = makeFigureBundleFromFetchedData(pair, {
-      resultsValue,
-      ih: ih as FetchedPOData["ih"],
-      effectiveConfig,
-    });
-    return { ok: true, figureBlock: { type: "figure" as const, bundle } };
-  }
-
   // ── toolbar / embed-editor actions ───────────────────────────────────────────
 
-  async function insertFigure() {
-    const sel = await withPanesCovered(
-      openInnerEditor({
-        element: SelectVisualizationForSlide,
-        props: { projectState },
+  // The ONE figure-authoring path (D3): the product package's presets and
+  // the metric wizard, resolved under the product's pair.
+  async function pickFigure() {
+    const ctx = staleContext();
+    if (!ctx) return undefined;
+    return await withPanesCovered(
+      openComponent({
+        element: InsertFigureModal,
+        props: { scope: ctx.scope, context: ctx.context, preselectedMetricId: null },
       }),
     );
-    if (!sel) return;
-    let figureBlock: FigureBlock;
-    try {
-      ({ figureBlock } = await resolveFigureAndGeoFromVisualization(projectId, {
-        type: "from_visualization",
-        visualizationId: sel.visualizationId,
-        replicant: sel.replicant,
-      }));
-    } catch (err) {
-      await openAlert({
-        text:
-          err instanceof Error
-            ? err.message
-            : t3({
-                en: "Failed to add visualization",
-                fr: "Échec de l'ajout de la visualisation",
-                pt: "Falha ao adicionar a visualização",
-              }),
-        intent: "danger",
-      });
+  }
+
+  async function insertFigure() {
+    const ctx = staleContext();
+    const picked = await pickFigure();
+    if (!ctx || !picked) return;
+    const resolved = await resolveFigureBundleInteractively(
+      ctx.scope,
+      picked.metric,
+      picked.config,
+    );
+    if (!resolved.ok) {
+      await openAlert({ text: resolved.reason, intent: "danger" });
       return;
     }
     const id = crypto.randomUUID();
-    await updateFigure(id, figureBlock);
-    const vizLabel =
-      projectState.visualizations.find((v) => v.id === sel.visualizationId)
-        ?.label ?? "";
+    await updateFigure(id, { type: "figure", bundle: resolved.bundle });
     editorApi?.insertEmbedOnNewLine(
-      `![${sanitizeCaption(vizLabel)}](figure:${id})`,
+      `![${sanitizeCaption(picked.metric.label)}](figure:${id})`,
     );
     setSelectedEmbed({ kind: "figure", id });
   }
@@ -1172,55 +1143,39 @@ export function ProjectReport(p: Props) {
     editorApi?.setEmbedCaption(sel.kind, id, caption);
   }
 
-  async function handleSwitch() {
+  async function replaceSelectedFigure() {
     const sel = selectedEmbed();
     if (!sel || sel.kind !== "figure") return;
-    const chosen = await withPanesCovered(
-      openInnerEditor({
-        element: SelectVisualizationForSlide,
-        props: { projectState },
-      }),
+    const ctx = staleContext();
+    const picked = await pickFigure();
+    if (!ctx || !picked) return;
+    const resolved = await resolveFigureBundleInteractively(
+      ctx.scope,
+      picked.metric,
+      picked.config,
     );
-    if (!chosen) return;
-    try {
-      const { figureBlock } = await resolveFigureAndGeoFromVisualization(
-        projectId,
-        {
-          type: "from_visualization",
-          visualizationId: chosen.visualizationId,
-          replicant: chosen.replicant,
-        },
-      );
-      await updateFigure(sel.id, figureBlock);
-    } catch (err) {
-      await openAlert({
-        text:
-          err instanceof Error
-            ? err.message
-            : t3({
-                en: "Failed to switch visualization",
-                fr: "Échec du changement de visualisation",
-                pt: "Falha ao trocar a visualização",
-              }),
-        intent: "danger",
-      });
+    if (!resolved.ok) {
+      await openAlert({ text: resolved.reason, intent: "danger" });
+      return;
     }
+    await updateFigure(sel.id, { type: "figure", bundle: resolved.bundle });
   }
 
   async function handleEdit() {
     const sel = selectedEmbed();
     if (!sel || sel.kind !== "figure") return;
     const bundle = figures()[sel.id]?.bundle;
-    if (!bundle) return;
-    const resultsValue = projectState.metrics.find(
-      (m) => m.id === bundle.metricId,
-    );
-    if (!resultsValue) {
+    const ctx = staleContext();
+    if (!bundle || !ctx) return;
+    // The metric comes from the product package's authoring context; a
+    // figure carried over from another package edits under this one (D4).
+    const metric = ctx.context.metrics.find((m) => m.id === bundle.metricId);
+    if (!metric) {
       await openAlert({
         text: t3({
-          en: "Metric not found in project",
-          fr: "Indicateur introuvable dans le projet",
-          pt: "Métrica não encontrada no projeto",
+          en: "This figure's metric is not in the product's package",
+          fr: "L'indicateur de cette figure n'est pas dans le paquet du produit",
+          pt: "A métrica desta figura não está no pacote do produto",
         }),
         intent: "danger",
       });
@@ -1235,17 +1190,14 @@ export function ProjectReport(p: Props) {
       s0 && s0.isLive()
         ? {
             figureId: sel.id,
-            hostDoc: { docType: "report", docId: p.reportId },
+            hostDoc: { docType: "report", docId: p.productId },
             getConfigMap: () => {
               const ss = session();
               return ss ? findReportFigureConfigMap(ss.doc, sel.id) : undefined;
             },
             awareness: s0.awareness,
             isLive: () => session()?.isLive() ?? false,
-            canEdit: () =>
-              projectState.thisUserPermissions.can_configure_reports &&
-              !projectState.isLocked &&
-              !collabFatal(),
+            canEdit: () => canConfigure() && !collabFatal(),
             localOrigin: figureOrigin,
             onCoherentBundle: (b: FigureBundle) => {
               void updateFigure(sel.id, { type: "figure", bundle: b });
@@ -1259,54 +1211,31 @@ export function ProjectReport(p: Props) {
         openInnerEditor({
           element: VisualizationEditor,
           props: {
-            mode: "ephemeral" as const,
-            label: resultsValue.label,
-            projectId,
+            label: metric.label,
+            scope: ctx.scope,
+            metric,
+            configSnapshot: structuredClone(bundle.config),
+            authoringContext: ctx.context,
             collabBinding,
-            // Without this the viz editor's cleanup falls back to
-            // "viewing_visualizations", leaving the AI (and anything else
-            // keyed on the current view) wrong while the user is still here.
-            returnToContext: projectAIViewController.current(),
-            ...snapshotForVizEditor({
-              projectState,
-              resultsValue,
-              config: bundle.config,
-            }),
           },
         }),
       );
       if (!result?.updated) return;
-      const built = await buildFigureBlock(resultsValue, result.updated.config);
-      if (!built.ok) {
-        await openAlert({ text: built.err, intent: "danger" });
+      // Re-resolve under the product's CURRENT pair, so applying an edit to a
+      // stale figure also brings it up to date.
+      const rebuilt = await resolveFigureBundleInteractively(
+        ctx.scope,
+        metric,
+        result.updated.config,
+      );
+      if (!rebuilt.ok) {
+        await openAlert({ text: rebuilt.reason, intent: "danger" });
         return;
       }
-      await updateFigure(sel.id, built.figureBlock);
+      await updateFigure(sel.id, { type: "figure", bundle: rebuilt.bundle });
     } finally {
       setEditingFigureId(undefined);
     }
-  }
-
-  async function handleCreate() {
-    const sel = selectedEmbed();
-    if (!sel || sel.kind !== "figure") return;
-    const ctx = staleContext();
-    if (!ctx) return;
-    const result = await openComponent({
-      element: InsertFigureModal,
-      props: {
-        scope: ctx.scope,
-        context: ctx.context,
-        preselectedMetricId: null,
-      },
-    });
-    if (!result) return;
-    const built = await buildFigureBlock(result.metric, result.config);
-    if (!built.ok) {
-      await openAlert({ text: built.err, intent: "danger" });
-      return;
-    }
-    await updateFigure(sel.id, built.figureBlock);
   }
 
   async function handleChangeImageFile(id: string, imgFile: string) {
@@ -1330,7 +1259,7 @@ export function ProjectReport(p: Props) {
   async function download() {
     await openComponent({
       element: DownloadReport,
-      props: { projectId, reportId: p.reportId },
+      props: { productId: p.productId },
     });
   }
 
@@ -1339,9 +1268,8 @@ export function ProjectReport(p: Props) {
       openInnerEditor({
         element: VersionHistoryEditor,
         props: {
-          projectId,
           kind: "report" as const,
-          docId: p.reportId,
+          docId: p.productId,
           currentLabel: label(),
           getCurrentBody: body,
         },
@@ -1470,7 +1398,7 @@ export function ProjectReport(p: Props) {
                 : undefined
             }
           >
-            <ReportEditor
+            <ReportBodyEditor
               body={body()}
               figures={figures()}
               figureStale={figureStale}
@@ -1547,10 +1475,11 @@ export function ProjectReport(p: Props) {
               }
             >
               <div class="ui-gap-sm flex items-center">
+                <ProductScopeBadge product={product()} />
                 {/* Who else is currently in THIS report (live presence). */}
                 <PresenceAvatars
                   peers={otherPeers().filter(
-                    (pe) => pe.reportId === p.reportId,
+                    (pe) => pe.reportId === p.productId,
                   )}
                   size="sm"
                 />
@@ -1587,6 +1516,14 @@ export function ProjectReport(p: Props) {
                     busy={updatingFigures()}
                     onClick={() => void updateAllFigures()}
                   />
+                  <Button
+                    id="report-settings-button"
+                    outline
+                    iconName="settings"
+                    onClick={openProductSettings}
+                  >
+                    {t3(TC.settings)}
+                  </Button>
                 </Show>
                 <Button
                   id="report-history-button"
@@ -1637,8 +1574,8 @@ export function ProjectReport(p: Props) {
                   canConfigure={canConfigure() && mode() !== "view"}
                   onUpdateCaption={handleUpdateCaption}
                   onEditFigure={handleEdit}
-                  onSwitchFigure={handleSwitch}
-                  onCreateFigure={handleCreate}
+                  onSwitchFigure={replaceSelectedFigure}
+                  onCreateFigure={replaceSelectedFigure}
                   onChangeImageFile={handleChangeImageFile}
                   onDelete={handleDelete}
                   onInsertFigure={insertFigure}
@@ -1652,13 +1589,13 @@ export function ProjectReport(p: Props) {
         </FrameLeft>
       </FrameTop>
       <ReportEditorCursors
-        reportId={p.reportId}
+        reportId={p.productId}
         awareness={() => session()?.awareness}
         enabled={() => !!session() && collabReady() && panesCovered() === 0}
         covered={() => panesCovered() > 0}
       />
       <ReportPeerSelectionOverlay
-        reportId={p.reportId}
+        reportId={p.productId}
         suppressed={panesCovered() > 0}
       />
     </InnerEditorWrapper>

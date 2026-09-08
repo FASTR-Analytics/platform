@@ -92,6 +92,10 @@ reconnect. Stale data stays visible while reconnecting.
 | Immutable per session | `instanceName`, `instanceLanguage`, `instanceCalendar`, `instanceFiscalYear`, `countryIso3` (all env-sourced)                              | `starting` only              | none                                    |
 | Instance config       | `structureSchemaHmis`, `structureSchemaHfa`, `adminAreaLabels`, `dhis2ConnectionUrl`                                                       | `config_updated`             | none                                    |
 | Projects              | `projects`, `projectsLastUpdated`                                                                                                          | `projects_last_updated`      | none                                    |
+| Products              | `products` (full `ProductSummary[]`, maintained PER ROW: `products_upserted` carries only the changed rows, `products_deleted` the ids)     | `products_upserted` / `products_deleted` | `lastUpdated.products[id]` (the row's own stamp, written from the summary) |
+| Folders               | `folders` (full `Folder[]`)                                                                                                                | `folders_updated`            | none                                    |
+| Ready packages        | `readyPackages` (`ReadyPackage[]`, approved users; the `runsCatalog` idiom: `starting` fill plus a refetch on the catalogue nonce)         | `runs_catalog_updated`       | none                                    |
+| Product stamps        | `lastUpdated.slides[id]`                                                                                                                   | `last_updated` (`slides` only) | `lastUpdated.slides[id]`                |
 | Users                 | `users` (full `OtherUser[]`)                                                                                                               | `users_updated`              | none                                    |
 | Assets                | `assets` (full `AssetInfo[]`)                                                                                                              | `assets_updated`             | none                                    |
 | GeoJSON maps          | `geojsonMaps` (full `GeoJsonMapSummary[]`)                                                                                                 | `geojson_maps_updated`       | none                                    |
@@ -145,8 +149,6 @@ other fields are identical across clients.
 | Metrics / indicators  | `metrics`, `commonIndicators`, `icehIndicators`                                                       | `modules_updated` (derived)                                | none                               |
 | HFA taxonomy          | `hfaTaxonomy`                                                                                         | `starting` only (no update event)                          | none                               |
 | Visualizations        | `visualizations`, `visualizationFolders`                                                              | `visualizations_updated` / `visualization_folders_updated` | none                               |
-| Slide decks           | `slideDecks`, `slideDeckFolders`                                                                      | `slide_decks_updated` / `slide_deck_folders_updated`       | none                               |
-| Reports               | `reports`, `reportFolders`                                                                            | `reports_updated` / `report_folders_updated`               | none                               |
 | Dashboards            | `dashboards`                                                                                          | `dashboards_updated`                                       | none                               |
 | Project users         | `projectUsers`                                                                                        | `project_users_updated`                                    | none                               |
 | Per-entity timestamps | `lastUpdated`, a nested `Record<LastUpdateTableName, Record<string, string>>`                         | `last_updated`                                             | `lastUpdated[tableName][entityId]` |
@@ -164,13 +166,14 @@ change it: the follow toggle route and `attachRunToProject`'s auto-clear
 
 ### The collab WS store: T1-adjacent
 
-`state/project/collab.ts` (S16) is the one deliberate sibling of the T1
-stores outside the `t1_*` naming: the per-project collaboration WebSocket
+`state/instance/collab.ts` (S16) is the one deliberate sibling of the T1
+stores outside the `t1_*` naming: the instance-wide collaboration WebSocket
 manager, holding a Solid store of presence peers plus the per-document Yjs
-session handles. It follows T1 discipline: server-pushed only (the WS
-`presence_state`/awareness handlers are the sole store writers; components
-never write it), connected/disconnected by `ProjectSSEBoundary` alongside the
-SSE connection, torn down on project switch. Its transport, however, is the
+session handles (each opened with its product id). It follows T1 discipline:
+server-pushed only (the WS `presence_state`/awareness handlers are the sole
+store writers; components never write it), connected by
+`InstanceSSEBoundary` once the user is approved and disconnected with the
+SSE connection. Its transport, however, is the
 collab WebSocket rather than SSE, and its Y.Doc sessions are imperative
 edit-draft machinery owned by the editor bridges, not reactive state. Read presence via
 the exported accessors (`otherPeers()` etc.). Machinery and protocol:
@@ -260,7 +263,22 @@ All use `createReactiveCache` with `pdsNotRequired: true`, except GeoJSON.
   on `starting` / `geojson_maps_updated`), with non-reactive sync reads via
   `getGeoJsonSync(level)`, not `createReactiveCache`.
 
-### Cache inventory: project
+### Cache inventory: products
+
+Version keys read `InstanceState` through `instanceVersionKey(params, ins)`
+(no readiness gate; an absent stamp yields the `"unknown"` sentinel).
+
+| Data                          | File                                 | Version key(s)                                           | Variant |
+| ----------------------------- | ------------------------------------ | -------------------------------------------------------- | ------- |
+| Slide content                 | `products/t2_slides.ts`              | `lastUpdated.slides[slideId]` (uniqueness: the slide id; the product id only scopes the wire) | B |
+| Slide deck detail             | `products/t2_slide_deck_detail.ts`   | `lastUpdated.products[productId]`                        | B       |
+| Report detail                 | `products/t2_report_detail.ts`       | `lastUpdated.products[productId]`                        | B       |
+| Figure data (PO items, metric info) | `products/t2_figure_data.ts`   | constant `"immutable"`; `(runId, scopeToken, …)` in the uniqueness key | A |
+| Replicant options             | `products/t2_replicant_options.ts`   | constant `"immutable"`; `(runId, scopeToken, …)` in the uniqueness key | A |
+| Run authoring context         | `instance/t2_run_authoring_context.ts` | `[runId]` + constant `"immutable"`                     | A       |
+| Image blobs                   | `products/t2_images.ts`              | URL-keyed (`TimCacheD`, immutable, with failure backoff) | none    |
+
+### Cache inventory: project (until step 9a)
 
 | Data                          | File                                 | Version key(s)                                           | Variant |
 | ----------------------------- | ------------------------------------ | -------------------------------------------------------- | ------- |
@@ -269,9 +287,6 @@ All use `createReactiveCache` with `pdsNotRequired: true`, except GeoJSON.
 | PO items (data rows)          | `project/t2_presentation_objects.ts` | `runVersionKey` (`attachedRunId~scopeToken`)             | A       |
 | Metric info                   | `project/t2_presentation_objects.ts` | `runVersionKey`                                          | A       |
 | Replicant options             | `project/t2_replicant_options.ts`    | `runVersionKey`                                          | A       |
-| Slide content                 | `project/t2_slides.ts`               | `lastUpdated.slides[slideId]`                            | B       |
-| Slide deck detail             | `project/t2_slide_decks.ts`          | `lastUpdated.slide_decks[deckId]`                        | B       |
-| Image blobs                   | `project/t2_images.ts`               | URL-keyed (`TimCacheD`, immutable, with failure backoff) | none    |
 
 `t2_images.ts` is not a reactive cache: it uses `TimCacheD`
 (`_infra/indexeddb_cache.ts`) with the URL as both key and version, never reads
@@ -330,18 +345,21 @@ ordering fresh).
 
 ### Imperative listener side-channel
 
-One sanctioned ephemeral-event hook in `client/src/state/project/t1_sse.tsx`
-for consumers that need event notification without subscribing to the store:
+One sanctioned ephemeral-event hook per channel for consumers that need
+event notification without subscribing to the store:
 
-- `addLastUpdatedListener(fn)`: fires on every `last_updated` SSE event with
-  `(tableName, ids, timestamp)`. Used by `project_ai/index.tsx` to feed entity
-  changes into the AI conversation.
+- `addLastUpdatedListener(fn)` in `client/src/state/instance/t1_sse.tsx`:
+  fires with `(tableName, ids, timestamp)` for the `last_updated` message
+  (`slides`) and for every row of `products_upserted` (`products`, the
+  product's own stamp). Used by the slide and report editors to keep their
+  optimistic-save timestamp fresh under collab checkpoints.
+- The same hook in `client/src/state/project/t1_sse.tsx` fires on the
+  project channel's `last_updated`; used by `project_ai/index.tsx` to feed
+  entity changes into the AI conversation until step 8.
 
 Returns a cleanup function; register in `onMount`, clean up in `onCleanup`.
-The instance channel has the equivalent pair for generation telemetry
-(`addInstanceRunProgressListener` / `addInstanceRScriptListener` in
-`state/instance/t1_sse.tsx`). The project channel carries none, since a
-project is attached only once a run is ready.
+The instance channel also has the pair for generation telemetry
+(`addInstanceRunProgressListener` / `addInstanceRScriptListener`).
 
 ## T3: on-demand fetch
 

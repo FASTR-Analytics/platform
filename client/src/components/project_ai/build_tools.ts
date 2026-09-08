@@ -3,8 +3,6 @@ import type {
   InstalledModuleSummary,
   MetricWithStatus,
   PresentationObjectSummary,
-  ReportSummary,
-  SlideDeckSummary,
 } from "lib";
 import {
   getSharedToolsForInfo,
@@ -32,8 +30,6 @@ type BuildToolsParams = {
   icehIndicators: { id: string; label: string; category: string }[];
   hfaTaxonomy: HfaTaxonomyForAI;
   visualizations: PresentationObjectSummary[];
-  slideDecks: SlideDeckSummary[];
-  reports: ReportSummary[];
 };
 
 // The copilot's tool set = the SHARED tools (lib/ai_tools: the same
@@ -42,7 +38,7 @@ type BuildToolsParams = {
 // order is the tool-catalog order and the catalog is a prompt-cache input:
 // keep it stable.
 export function buildToolsForContext(params: BuildToolsParams) {
-  const { projectId, modules, metrics, icehIndicators, hfaTaxonomy, visualizations, slideDecks, reports } =
+  const { projectId, modules, metrics, icehIndicators, hfaTaxonomy, visualizations } =
     params;
   const env = clientAIToolEnvFor(projectId);
 
@@ -53,8 +49,9 @@ export function buildToolsForContext(params: BuildToolsParams) {
     ...getClientToolsForModules(projectId, modules, metrics),
     // Project content
     ...getClientToolsForVisualizations(projectId, visualizations, metrics),
-    ...getClientToolsForSlideDecks(slideDecks),
-    ...getClientToolsForReports(projectId, reports),
+    // Instance products (decks, reports): read from instance T1 at call time
+    ...getClientToolsForSlideDecks(),
+    ...getClientToolsForReports(),
     ...getSharedToolsForMethodologyDocs(),
     ...getSharedToolsForInfo(SPA_INFO_TOPICS),
 

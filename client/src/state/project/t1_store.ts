@@ -7,7 +7,6 @@ import {
   projectScopeToken,
 } from "lib";
 import { createStore, reconcile, unwrap } from "solid-js/store";
-import { forceCollabReconnect } from "./collab";
 
 const EMPTY_PROJECT_STATE: ProjectState = {
   isReady: false,
@@ -38,10 +37,6 @@ const EMPTY_PROJECT_STATE: ProjectState = {
   },
   visualizations: [],
   visualizationFolders: [],
-  slideDecks: [],
-  slideDeckFolders: [],
-  reports: [],
-  reportFolders: [],
   dashboards: [],
   projectUsers: [],
   thisUserPermissions: structuredClone(_PROJECT_USER_PERMISSIONS_DEFAULT_NO_ACCESS),
@@ -69,13 +64,7 @@ export function applyProjectSseMessage(msg: ProjectSseMessage): void {
 
     case "project_config_updated":
       setProjectState("label", msg.data.label);
-      // The collab socket's server-side auth folds the lock in per connection
-      // (every edit permission is forced off while locked): reconnect so a
-      // live lock/unlock actually reaches open editors.
-      if (projectState.isLocked !== msg.data.isLocked) {
-        setProjectState("isLocked", msg.data.isLocked);
-        forceCollabReconnect("project lock changed");
-      }
+      setProjectState("isLocked", msg.data.isLocked);
       if (msg.data.aiContext !== undefined) {
         setProjectState("aiContext", msg.data.aiContext);
       }
@@ -115,22 +104,6 @@ export function applyProjectSseMessage(msg: ProjectSseMessage): void {
       setProjectState("visualizationFolders", reconcile(msg.data.visualizationFolders));
       break;
 
-    case "slide_decks_updated":
-      setProjectState("slideDecks", reconcile(msg.data.slideDecks));
-      break;
-
-    case "slide_deck_folders_updated":
-      setProjectState("slideDeckFolders", reconcile(msg.data.slideDeckFolders));
-      break;
-
-    case "reports_updated":
-      setProjectState("reports", reconcile(msg.data.reports));
-      break;
-
-    case "report_folders_updated":
-      setProjectState("reportFolders", reconcile(msg.data.reportFolders));
-      break;
-
     case "dashboards_updated":
       setProjectState("dashboards", reconcile(msg.data.dashboards));
       break;
@@ -145,18 +118,7 @@ export function applyProjectSseMessage(msg: ProjectSseMessage): void {
       );
       if (currentUser) {
         const { email, role, isGlobalAdmin, firstName, lastName, ...permissions } = currentUser;
-        const changed = Object.entries(permissions).some(
-          ([k, v]) =>
-            projectState.thisUserPermissions[k as keyof typeof permissions] !== v
-        );
         setProjectState("thisUserPermissions", permissions);
-        // The collab socket's server-side view/edit auth is snapshotted per
-        // connection: without a reconnect, a freshly-granted editor keeps
-        // getting silent "No edit permission" rejections (edits render
-        // locally, never save), and a revoked one can keep editing.
-        if (changed) {
-          forceCollabReconnect("own project permissions changed");
-        }
       } else if (wasListed) {
         // Removed from the project mid-session. Guarded on wasListed so
         // open-access users (legitimately absent from the list) keep their
@@ -165,7 +127,6 @@ export function applyProjectSseMessage(msg: ProjectSseMessage): void {
           "thisUserPermissions",
           structuredClone(_PROJECT_USER_PERMISSIONS_DEFAULT_NO_ACCESS)
         );
-        forceCollabReconnect("removed from project");
       }
       break;
     }

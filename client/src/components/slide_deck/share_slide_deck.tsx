@@ -20,8 +20,7 @@ type UserRow = { email: string };
 export function ShareSlideDeck(
   p: EditorComponentProps<
     {
-      projectId: string;
-      deckId: string;
+      productId: string;
       deckLabel: string;
       userEmails: string[];
     },
@@ -101,8 +100,7 @@ export function ShareSlideDeck(
     setPct(0.02);
 
     const pdfResult = await exportSlideDeckAsPdfBase64(
-      p.projectId,
-      p.deckId,
+      p.productId,
       (v) => setPct(v * 0.8),
     );
 
@@ -115,7 +113,6 @@ export function ShareSlideDeck(
     setPct(0.85);
 
     const res = await serverActions.sendSlideDeckEmail({
-      projectId: p.projectId,
       recipients,
       message: message(),
       attachment: {
