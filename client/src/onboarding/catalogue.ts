@@ -3,9 +3,6 @@ import type {
   DashboardSummary,
   PresentationObjectSummary,
   ProjectUserPermissions,
-  ReportSummary,
-  SlideDeckSummary,
-  SlideType,
 } from "lib";
 import { projectState } from "~/state/project/t1_store";
 import { instanceState } from "~/state/instance/t1_store";
@@ -13,12 +10,8 @@ import { canViewPackageContents } from "~/components/_shared/results_package/sta
 import {
   hideUnreadyVisualizations,
   setPendingEditorOpen,
-  setPendingSlideOpen,
   updateProjectView,
 } from "~/state/t4_ui";
-import { getSlideDeckDetailFromCacheOrFetch } from "~/state/project/t2_slide_decks";
-import { _SLIDE_CACHE } from "~/state/project/t2_slides";
-import { serverActions } from "~/server_actions";
 
 // The slice of project state that tour availability depends on. Satisfied by
 // the live `projectState` store (in-project modal) and by a fetched
@@ -33,26 +26,13 @@ export type TourProjectFacts = {
   projectModules: { id: string }[];
   metrics: { id: string; status: string }[];
   visualizations: PresentationObjectSummary[];
-  slideDecks: SlideDeckSummary[];
-  reports: ReportSummary[];
   dashboards: DashboardSummary[];
-  /** Result of findProjectWithSlideOfType per slide type. When supplied, the
-   *  three slide tours are gated precisely; when absent they fall back to the
-   *  optimistic "first deck has slides" proxy (slide types live only in the
-   *  slide documents, so this is async data the modals fetch). */
-  slideTypesPresent?: Partial<Record<SlideType, boolean>>;
 };
 
 export type TourCatalogueEntry = {
   /** Must match the TourDefinition id exactly. */
   id: string;
-  area:
-    | "decks"
-    | "reports"
-    | "visualizations"
-    | "dashboards"
-    | "results_package"
-    | "settings";
+  area: "visualizations" | "dashboards" | "results_package" | "settings";
   label: string;
   description: string;
   /** State-only over the given facts. Do NOT probe the DOM here: the target
@@ -75,15 +55,7 @@ const canAttach = (f: TourProjectFacts) =>
   perms(f).can_configure_visualizations;
 const canOpenTab = (f: TourProjectFacts) =>
   canAttach(f) || canViewPackageContents();
-const hasDecks = (f: TourProjectFacts) => f.slideDecks.length > 0;
-const hasReports = (f: TourProjectFacts) => f.reports.length > 0;
 const hasDashboards = (f: TourProjectFacts) => f.dashboards.length > 0;
-const firstDeckHasSlides = (f: TourProjectFacts) =>
-  f.slideDecks[0]?.firstSlideId != null;
-const firstReportHasEmbeds = (f: TourProjectFacts) => {
-  const preview = f.reports[0]?.preview;
-  return preview !== undefined && preview.figureCount + preview.imageCount > 0;
-};
 const firstDefaultViz = (f: TourProjectFacts) =>
   f.visualizations.find((v) => v.isDefault);
 const firstCustomViz = (f: TourProjectFacts) =>
@@ -111,8 +83,7 @@ const RANK_PACKAGE = 2; // attach a results package
 const RANK_PACKAGE_CONTENT = 3; // package attached but provides nothing usable
 const RANK_LOCKED = 4;
 const RANK_CONTENT = 5; // create a deck / report / viz / dashboard
-const RANK_SUBCONTENT = 6; // add slides / a figure / an item
-const RANK_SLIDE_TYPE = 7;
+const RANK_SUBCONTENT = 6; // add an item
 const RANK_FILTER = 8; // only a view filter hides it
 
 const reasonNoPageAccess = (): TourReason => ({
@@ -149,85 +120,6 @@ const reasonLocked = (): TourReason => ({
     en: "The project is locked",
     fr: "Le projet est verrouillé",
     pt: "O projeto está bloqueado",
-  }),
-});
-const reasonNeedDeck = (): TourReason => ({
-  rank: RANK_CONTENT,
-  text: t3({
-    en: "Create a slide deck first",
-    fr: "Créez d'abord une présentation",
-    pt: "Crie primeiro uma apresentação",
-  }),
-});
-const reasonNeedSlides = (): TourReason => ({
-  rank: RANK_SUBCONTENT,
-  text: t3({
-    en: "Add slides to your first slide deck first",
-    fr: "Ajoutez d'abord des diapositives à votre première présentation",
-    pt: "Adicione primeiro diapositivos à sua primeira apresentação",
-  }),
-});
-const reasonNeedSlideOfType = (type: SlideType): TourReason => {
-  switch (type) {
-    case "cover":
-      return {
-        rank: RANK_SLIDE_TYPE,
-        text: t3({
-          en: "Add a cover slide to a slide deck first",
-          fr: "Ajoutez d'abord une diapositive de couverture à une présentation",
-          pt: "Adicione primeiro um diapositivo de capa a uma apresentação",
-        }),
-      };
-    case "section":
-      return {
-        rank: RANK_SLIDE_TYPE,
-        text: t3({
-          en: "Add a section slide to a slide deck first",
-          fr: "Ajoutez d'abord une diapositive de section à une présentation",
-          pt: "Adicione primeiro um diapositivo de secção a uma apresentação",
-        }),
-      };
-    default:
-      return {
-        rank: RANK_SLIDE_TYPE,
-        text: t3({
-          en: "Add a content slide to a slide deck first",
-          fr: "Ajoutez d'abord une diapositive de contenu à une présentation",
-          pt: "Adicione primeiro um diapositivo de conteúdo a uma apresentação",
-        }),
-      };
-  }
-};
-const reasonNeedDeckPermission = (): TourReason => ({
-  rank: RANK_EDIT_PERMISSION,
-  text: t3({
-    en: "You need permission to edit slide decks",
-    fr: "Vous avez besoin de la permission de modifier les présentations",
-    pt: "Precisa de permissão para editar apresentações",
-  }),
-});
-const reasonNeedReport = (): TourReason => ({
-  rank: RANK_CONTENT,
-  text: t3({
-    en: "Create a report first",
-    fr: "Créez d'abord un rapport",
-    pt: "Crie primeiro um relatório",
-  }),
-});
-const reasonNeedReportFigure = (): TourReason => ({
-  rank: RANK_SUBCONTENT,
-  text: t3({
-    en: "Add a figure to your first report first",
-    fr: "Ajoutez d'abord une figure à votre premier rapport",
-    pt: "Adicione primeiro uma figura ao seu primeiro relatório",
-  }),
-});
-const reasonNeedReportPermission = (): TourReason => ({
-  rank: RANK_EDIT_PERMISSION,
-  text: t3({
-    en: "You need permission to edit reports",
-    fr: "Vous avez besoin de la permission de modifier les rapports",
-    pt: "Precisa de permissão para editar relatórios",
   }),
 });
 const reasonNeedViz = (): TourReason => ({
@@ -303,95 +195,11 @@ const reasonSettingsPermission = (): TourReason => ({
   }),
 });
 
-const slideTourAvailable = (f: TourProjectFacts, type: SlideType) =>
-  perms(f).can_view_slide_decks &&
-  hasDecks(f) &&
-  (f.slideTypesPresent
-    ? f.slideTypesPresent[type] === true
-    : firstDeckHasSlides(f));
-const slideTourReason = (f: TourProjectFacts, type: SlideType) =>
-  !perms(f).can_view_slide_decks
-    ? reasonNoPageAccess()
-    : !hasDecks(f)
-      ? reasonNeedDeck()
-      : f.slideTypesPresent
-        ? reasonNeedSlideOfType(type)
-        : reasonNeedSlides();
-
-const goToDecks = () => updateProjectView({ tab: "decks" });
-const goToReports = () => updateProjectView({ tab: "reports" });
 const goToVisualizations = () => updateProjectView({ tab: "visualizations" });
 const goToDashboards = () => updateProjectView({ tab: "dashboards" });
 const goToResultsPackage = () => updateProjectView({ tab: "results_package" });
 const goToSettings = () => updateProjectView({ tab: "settings" });
 
-export const SLIDE_TOUR_TYPES: SlideType[] = ["cover", "section", "content"];
-
-export type SlideSearchCandidate = {
-  projectId: string;
-  slideDecks: SlideDeckSummary[];
-};
-
-// Slide types live only in the slide documents, so anything slide-type-aware
-// has to search: candidates in the given order, decks in list order, slides
-// in deck order, cache-first (repeat searches are cheap). Used by the
-// in-project replay (one candidate: the current project) and the instance
-// modal (all accessible projects) alike.
-export async function findProjectWithSlideOfType(
-  candidates: SlideSearchCandidate[],
-  type: SlideType,
-): Promise<{ projectId: string; deckId: string } | null> {
-  for (const candidate of candidates) {
-    for (const deck of candidate.slideDecks) {
-      const detail = await getSlideDeckDetailFromCacheOrFetch(
-        candidate.projectId,
-        deck.id,
-      );
-      if (!detail.success) continue;
-      for (const slideId of detail.data.slideIds) {
-        const cached = await _SLIDE_CACHE.get({
-          projectId: candidate.projectId,
-          slideId,
-        });
-        let slide = cached.data?.slide;
-        if (!slide) {
-          const res = await serverActions.getSlide({
-            projectId: candidate.projectId,
-            slide_id: slideId,
-          });
-          if (!res.success) continue;
-          slide = res.data.slide;
-        }
-        if (slide.type === type) {
-          return { projectId: candidate.projectId, deckId: deck.id };
-        }
-      }
-    }
-  }
-  return null;
-}
-
-const openFirstDeck = () => {
-  goToDecks();
-  const deck = projectState.slideDecks[0];
-  if (deck) setPendingEditorOpen({ kind: "deck", id: deck.id });
-};
-const openFirstDeckSlide = (type: SlideType) => {
-  goToDecks();
-  void findProjectWithSlideOfType(
-    [{ projectId: projectState.id, slideDecks: projectState.slideDecks }],
-    type,
-  ).then((found) => {
-    if (!found) return;
-    setPendingEditorOpen({ kind: "deck", id: found.deckId });
-    setPendingSlideOpen(type);
-  });
-};
-const openFirstReport = () => {
-  goToReports();
-  const report = projectState.reports[0];
-  if (report) setPendingEditorOpen({ kind: "report", id: report.id });
-};
 const openFirstDashboard = () => {
   goToDashboards();
   const dashboard = projectState.dashboards[0];
@@ -549,411 +357,6 @@ export function getInstanceTourCatalogue(): InstanceTourCatalogueEntry[] {
 // user's current language: the app language is set at runtime, after import.
 export function getTourCatalogue(): TourCatalogueEntry[] {
   return [
-    // ── Decks ────────────────────────────────────────────────────────────
-    {
-      id: "decks-intro-viewer",
-      area: "decks",
-      label: t3({
-        en: "Slide decks overview",
-        fr: "Aperçu des présentations",
-        pt: "Visão geral das apresentações",
-      }),
-      description: t3({
-        en: "The slide decks page: searching, sorting and folders.",
-        fr: "La page des présentations : recherche, tri et dossiers.",
-        pt: "A página das apresentações: pesquisa, ordenação e pastas.",
-      }),
-      available: (f) => perms(f).can_view_slide_decks,
-      unavailableReason: reasonNoPageAccess,
-      navigate: goToDecks,
-    },
-    {
-      id: "decks-open-deck",
-      area: "decks",
-      label: t3({
-        en: "Open a slide deck",
-        fr: "Ouvrir une présentation",
-        pt: "Abrir uma apresentação",
-      }),
-      description: t3({
-        en: "How to open a slide deck from its card.",
-        fr: "Comment ouvrir une présentation depuis sa carte.",
-        pt: "Como abrir uma apresentação a partir do seu cartão.",
-      }),
-      available: (f) =>
-        perms(f).can_view_slide_decks && hasModules(f) && hasDecks(f),
-      unavailableReason: (f) =>
-        !perms(f).can_view_slide_decks
-          ? reasonNoPageAccess()
-          : !hasAttachedPackage(f)
-            ? reasonNeedAttachedPackage()
-            : !hasModules(f)
-              ? reasonNeedModule()
-              : reasonNeedDeck(),
-      navigate: goToDecks,
-    },
-    {
-      id: "decks-intro-editor",
-      area: "decks",
-      label: t3({
-        en: "Create slide decks",
-        fr: "Créer des présentations",
-        pt: "Criar apresentações",
-      }),
-      description: t3({
-        en: "Creating slide decks and organizing them into folders.",
-        fr: "Créer des présentations et les organiser en dossiers.",
-        pt: "Criar apresentações e organizá-las em pastas.",
-      }),
-      available: (f) =>
-        perms(f).can_view_slide_decks && perms(f).can_configure_slide_decks,
-      unavailableReason: (f) =>
-        !perms(f).can_view_slide_decks
-          ? reasonNoPageAccess()
-          : reasonNeedDeckPermission(),
-      navigate: goToDecks,
-    },
-    {
-      id: "decks-manage-decks",
-      area: "decks",
-      label: t3({
-        en: "Manage slide decks",
-        fr: "Gérer les présentations",
-        pt: "Gerir apresentações",
-      }),
-      description: t3({
-        en: "Moving, duplicating and deleting slide decks.",
-        fr: "Déplacer, dupliquer et supprimer des présentations.",
-        pt: "Mover, duplicar e eliminar apresentações.",
-      }),
-      available: (f) =>
-        perms(f).can_view_slide_decks &&
-        perms(f).can_configure_slide_decks &&
-        !f.isLocked &&
-        hasModules(f) &&
-        hasDecks(f),
-      unavailableReason: (f) =>
-        !perms(f).can_view_slide_decks
-          ? reasonNoPageAccess()
-          : !perms(f).can_configure_slide_decks
-            ? reasonNeedDeckPermission()
-            : f.isLocked
-              ? reasonLocked()
-              : !hasAttachedPackage(f)
-                ? reasonNeedAttachedPackage()
-                : !hasModules(f)
-                  ? reasonNeedModule()
-                  : reasonNeedDeck(),
-      navigate: goToDecks,
-    },
-    {
-      id: "deck-editor-intro",
-      area: "decks",
-      label: t3({
-        en: "Slide deck editor",
-        fr: "Éditeur de présentation",
-        pt: "Editor de apresentações",
-      }),
-      description: t3({
-        en: "A walkthrough of the deck editor. Opens your first slide deck.",
-        fr: "Visite de l'éditeur de présentation. Ouvre votre première présentation.",
-        pt: "Visita ao editor de apresentações. Abre a sua primeira apresentação.",
-      }),
-      available: (f) => perms(f).can_view_slide_decks && hasDecks(f),
-      unavailableReason: (f) =>
-        !perms(f).can_view_slide_decks
-          ? reasonNoPageAccess()
-          : reasonNeedDeck(),
-      navigate: openFirstDeck,
-    },
-    {
-      id: "deck-editor-slides",
-      area: "decks",
-      label: t3({
-        en: "Working with slides",
-        fr: "Travailler avec les diapositives",
-        pt: "Trabalhar com diapositivos",
-      }),
-      description: t3({
-        en: "Slide cards inside a deck. Opens your first slide deck.",
-        fr: "Les cartes de diapositives dans une présentation. Ouvre votre première présentation.",
-        pt: "Os cartões de diapositivos numa apresentação. Abre a sua primeira apresentação.",
-      }),
-      available: (f) =>
-        perms(f).can_view_slide_decks && hasDecks(f) && firstDeckHasSlides(f),
-      unavailableReason: (f) =>
-        !perms(f).can_view_slide_decks
-          ? reasonNoPageAccess()
-          : !hasDecks(f)
-            ? reasonNeedDeck()
-            : reasonNeedSlides(),
-      navigate: openFirstDeck,
-    },
-    {
-      id: "deck-editor-present",
-      area: "decks",
-      label: t3({
-        en: "Present a slide deck",
-        fr: "Présenter une présentation",
-        pt: "Apresentar uma apresentação",
-      }),
-      description: t3({
-        en: "Starting a presentation. Opens your first slide deck.",
-        fr: "Lancer une présentation. Ouvre votre première présentation.",
-        pt: "Iniciar uma apresentação. Abre a sua primeira apresentação.",
-      }),
-      available: (f) =>
-        perms(f).can_view_slide_decks && hasDecks(f) && firstDeckHasSlides(f),
-      unavailableReason: (f) =>
-        !perms(f).can_view_slide_decks
-          ? reasonNoPageAccess()
-          : !hasDecks(f)
-            ? reasonNeedDeck()
-            : reasonNeedSlides(),
-      navigate: openFirstDeck,
-    },
-    {
-      id: "deck-editor-history",
-      area: "decks",
-      label: t3({
-        en: "Deck version history",
-        fr: "Historique des versions de présentation",
-        pt: "Histórico de versões da apresentação",
-      }),
-      description: t3({
-        en: "Browsing and restoring earlier versions. Opens your first slide deck.",
-        fr: "Parcourir et restaurer des versions antérieures. Ouvre votre première présentation.",
-        pt: "Consultar e restaurar versões anteriores. Abre a sua primeira apresentação.",
-      }),
-      available: (f) => perms(f).can_view_slide_decks && hasDecks(f),
-      unavailableReason: (f) =>
-        !perms(f).can_view_slide_decks
-          ? reasonNoPageAccess()
-          : reasonNeedDeck(),
-      navigate: openFirstDeck,
-    },
-    {
-      id: "deck-editor-settings",
-      area: "decks",
-      label: t3({
-        en: "Deck settings",
-        fr: "Paramètres de la présentation",
-        pt: "Definições da apresentação",
-      }),
-      description: t3({
-        en: "The deck settings overlay. Opens your first slide deck.",
-        fr: "Le panneau des paramètres de la présentation. Ouvre votre première présentation.",
-        pt: "O painel de definições da apresentação. Abre a sua primeira apresentação.",
-      }),
-      available: (f) => perms(f).can_view_slide_decks && hasDecks(f),
-      unavailableReason: (f) =>
-        !perms(f).can_view_slide_decks
-          ? reasonNoPageAccess()
-          : reasonNeedDeck(),
-      navigate: openFirstDeck,
-    },
-    {
-      id: "slide-cover-intro",
-      area: "decks",
-      label: t3({
-        en: "Cover slide editor",
-        fr: "Éditeur de diapositive de couverture",
-        pt: "Editor de diapositivo de capa",
-      }),
-      description: t3({
-        en: "Editing a cover slide. Opens the first cover slide found in your slide decks.",
-        fr: "Modifier une diapositive de couverture. Ouvre la première diapositive de couverture trouvée dans vos présentations.",
-        pt: "Editar um diapositivo de capa. Abre o primeiro diapositivo de capa encontrado nas suas apresentações.",
-      }),
-      available: (f) => slideTourAvailable(f, "cover"),
-      unavailableReason: (f) => slideTourReason(f, "cover"),
-      navigate: () => openFirstDeckSlide("cover"),
-    },
-    {
-      id: "slide-section-intro",
-      area: "decks",
-      label: t3({
-        en: "Section slide editor",
-        fr: "Éditeur de diapositive de section",
-        pt: "Editor de diapositivo de secção",
-      }),
-      description: t3({
-        en: "Editing a section slide. Opens the first section slide found in your slide decks.",
-        fr: "Modifier une diapositive de section. Ouvre la première diapositive de section trouvée dans vos présentations.",
-        pt: "Editar um diapositivo de secção. Abre o primeiro diapositivo de secção encontrado nas suas apresentações.",
-      }),
-      available: (f) => slideTourAvailable(f, "section"),
-      unavailableReason: (f) => slideTourReason(f, "section"),
-      navigate: () => openFirstDeckSlide("section"),
-    },
-    {
-      id: "slide-content-intro",
-      area: "decks",
-      label: t3({
-        en: "Content slide editor",
-        fr: "Éditeur de diapositive de contenu",
-        pt: "Editor de diapositivo de conteúdo",
-      }),
-      description: t3({
-        en: "Editing a content slide. Opens the first content slide found in your slide decks.",
-        fr: "Modifier une diapositive de contenu. Ouvre la première diapositive de contenu trouvée dans vos présentations.",
-        pt: "Editar um diapositivo de conteúdo. Abre o primeiro diapositivo de conteúdo encontrado nas suas apresentações.",
-      }),
-      available: (f) => slideTourAvailable(f, "content"),
-      unavailableReason: (f) => slideTourReason(f, "content"),
-      navigate: () => openFirstDeckSlide("content"),
-    },
-    // ── Reports ──────────────────────────────────────────────────────────
-    {
-      id: "reports-intro-viewer",
-      area: "reports",
-      label: t3({
-        en: "Reports overview",
-        fr: "Aperçu des rapports",
-        pt: "Visão geral dos relatórios",
-      }),
-      description: t3({
-        en: "The reports page: searching, sorting and folders.",
-        fr: "La page des rapports : recherche, tri et dossiers.",
-        pt: "A página dos relatórios: pesquisa, ordenação e pastas.",
-      }),
-      available: (f) => perms(f).can_view_reports,
-      unavailableReason: reasonNoPageAccess,
-      navigate: goToReports,
-    },
-    {
-      id: "reports-open-reports",
-      area: "reports",
-      label: t3({
-        en: "Open a report",
-        fr: "Ouvrir un rapport",
-        pt: "Abrir um relatório",
-      }),
-      description: t3({
-        en: "How to open a report from its card.",
-        fr: "Comment ouvrir un rapport depuis sa carte.",
-        pt: "Como abrir um relatório a partir do seu cartão.",
-      }),
-      available: (f) => perms(f).can_view_reports && hasReports(f),
-      unavailableReason: (f) =>
-        !perms(f).can_view_reports ? reasonNoPageAccess() : reasonNeedReport(),
-      navigate: goToReports,
-    },
-    {
-      id: "reports-intro-editor",
-      area: "reports",
-      label: t3({
-        en: "Create reports",
-        fr: "Créer des rapports",
-        pt: "Criar relatórios",
-      }),
-      description: t3({
-        en: "Creating reports and organizing them into folders.",
-        fr: "Créer des rapports et les organiser en dossiers.",
-        pt: "Criar relatórios e organizá-los em pastas.",
-      }),
-      available: (f) =>
-        perms(f).can_view_reports && perms(f).can_configure_reports,
-      unavailableReason: (f) =>
-        !perms(f).can_view_reports
-          ? reasonNoPageAccess()
-          : reasonNeedReportPermission(),
-      navigate: goToReports,
-    },
-    {
-      id: "reports-manage-reports",
-      area: "reports",
-      label: t3({
-        en: "Manage reports",
-        fr: "Gérer les rapports",
-        pt: "Gerir relatórios",
-      }),
-      description: t3({
-        en: "Moving, duplicating and deleting reports.",
-        fr: "Déplacer, dupliquer et supprimer des rapports.",
-        pt: "Mover, duplicar e eliminar relatórios.",
-      }),
-      available: (f) =>
-        perms(f).can_view_reports &&
-        perms(f).can_configure_reports &&
-        !f.isLocked &&
-        hasReports(f),
-      unavailableReason: (f) =>
-        !perms(f).can_view_reports
-          ? reasonNoPageAccess()
-          : !perms(f).can_configure_reports
-            ? reasonNeedReportPermission()
-            : f.isLocked
-              ? reasonLocked()
-              : reasonNeedReport(),
-      navigate: goToReports,
-    },
-    {
-      id: "report-editor-intro",
-      area: "reports",
-      label: t3({
-        en: "Report editor",
-        fr: "Éditeur de rapport",
-        pt: "Editor de relatórios",
-      }),
-      description: t3({
-        en: "A walkthrough of the report editor. Opens your first report.",
-        fr: "Visite de l'éditeur de rapport. Ouvre votre premier rapport.",
-        pt: "Visita ao editor de relatórios. Abre o seu primeiro relatório.",
-      }),
-      available: (f) => perms(f).can_view_reports && hasReports(f),
-      unavailableReason: (f) =>
-        !perms(f).can_view_reports ? reasonNoPageAccess() : reasonNeedReport(),
-      navigate: openFirstReport,
-    },
-    {
-      id: "report-editor-figures",
-      area: "reports",
-      label: t3({
-        en: "Figures in reports",
-        fr: "Figures dans les rapports",
-        pt: "Figuras nos relatórios",
-      }),
-      description: t3({
-        en: "Working with embedded figures. Opens your first report.",
-        fr: "Travailler avec des figures intégrées. Ouvre votre premier rapport.",
-        pt: "Trabalhar com figuras incorporadas. Abre o seu primeiro relatório.",
-      }),
-      // Embedded figures render from the attached run: without a package the
-      // report opens but every figure fails to load.
-      available: (f) =>
-        perms(f).can_view_reports &&
-        hasAttachedPackage(f) &&
-        hasReports(f) &&
-        firstReportHasEmbeds(f),
-      unavailableReason: (f) =>
-        !perms(f).can_view_reports
-          ? reasonNoPageAccess()
-          : !hasAttachedPackage(f)
-            ? reasonNeedAttachedPackage()
-            : !hasReports(f)
-              ? reasonNeedReport()
-              : reasonNeedReportFigure(),
-      navigate: openFirstReport,
-    },
-    {
-      id: "report-editor-history",
-      area: "reports",
-      label: t3({
-        en: "Report version history",
-        fr: "Historique des versions de rapport",
-        pt: "Histórico de versões do relatório",
-      }),
-      description: t3({
-        en: "Browsing and restoring earlier versions. Opens your first report.",
-        fr: "Parcourir et restaurer des versions antérieures. Ouvre votre premier rapport.",
-        pt: "Consultar e restaurar versões anteriores. Abre o seu primeiro relatório.",
-      }),
-      available: (f) => perms(f).can_view_reports && hasReports(f),
-      unavailableReason: (f) =>
-        !perms(f).can_view_reports ? reasonNoPageAccess() : reasonNeedReport(),
-      navigate: openFirstReport,
-    },
     // ── Visualizations ───────────────────────────────────────────────────
     {
       id: "viz-intro",

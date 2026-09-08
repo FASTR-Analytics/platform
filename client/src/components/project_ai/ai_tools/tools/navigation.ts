@@ -22,12 +22,10 @@ export function getClientToolsForNavigation() {
     createAITool({
       name: "switch_tab",
       description:
-        'Switch the main project tab. Available tabs: reports, decks (shown as "Slide decks" in the UI), visualizations, metrics, results_package, settings. The results_package tab is only visible to instance admins. Cannot switch tabs while the user is editing a visualization, slide deck, or slide.',
+        'Switch the main project tab. Available tabs: visualizations, metrics, results_package, settings. The results_package tab is only visible to instance admins. Cannot switch tabs while the user is editing a visualization, slide deck, or slide.',
       inputSchema: z.object({
         tab: z
           .enum([
-            "reports",
-            "decks",
             "visualizations",
             "metrics",
             "results_package",

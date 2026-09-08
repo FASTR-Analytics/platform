@@ -10,15 +10,7 @@ import {
   zonePointerAt,
 } from "../live_cursors";
 import { projectAwareness } from "~/state/project/collab";
-import {
-  deckGroupingMode,
-  deckSelectedGroup,
-  projectTab,
-  reportGroupingMode,
-  reportSelectedGroup,
-  vizGroupingMode,
-  vizSelectedGroup,
-} from "~/state/t4_ui";
+import { projectTab, vizGroupingMode, vizSelectedGroup } from "~/state/t4_ui";
 
 // =============================================================================
 // Live cursors on the project tab pages: "page" surface
@@ -50,10 +42,6 @@ import {
 function pageScope(): string | null {
   const tab = projectTab();
   switch (tab) {
-    case "reports":
-      return `reports:${reportGroupingMode()}:${reportSelectedGroup() ?? ""}`;
-    case "decks":
-      return `decks:${deckGroupingMode()}:${deckSelectedGroup() ?? ""}`;
     case "visualizations":
       return `visualizations:${vizGroupingMode()}:${vizSelectedGroup() ?? ""}`;
     default:

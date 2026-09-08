@@ -4,13 +4,7 @@ import {
   type SchemePreference,
   setSchemePreference,
 } from "panther";
-import type {
-  ReportGroupingMode,
-  SlideDeckGroupingMode,
-  SlideType,
-  SortMode,
-  VisualizationGroupingMode,
-} from "lib";
+import type { SlideType, SortMode, VisualizationGroupingMode } from "lib";
 
 // ============================================================================
 // Project View State
@@ -18,8 +12,6 @@ import type {
 
 // Active tab selection
 const ALL_TAB_OPTIONS = [
-  "reports",
-  "decks",
   "dashboards",
   "visualizations",
   "metrics",
@@ -86,27 +78,6 @@ export function setVizSortMode(mode: SortMode) {
   setVizSortModeInternal(mode);
 }
 
-const storedDeckSortMode = localStorage.getItem(
-  "deckSortMode",
-) as SortMode | null;
-export const [deckSortMode, setDeckSortModeInternal] = createSignal<SortMode>(
-  storedDeckSortMode ?? "recent",
-);
-export function setDeckSortMode(mode: SortMode) {
-  localStorage.setItem("deckSortMode", mode);
-  setDeckSortModeInternal(mode);
-}
-
-const storedReportSortMode = localStorage.getItem(
-  "reportSortMode",
-) as SortMode | null;
-export const [reportSortMode, setReportSortModeInternal] =
-  createSignal<SortMode>(storedReportSortMode ?? "recent");
-export function setReportSortMode(mode: SortMode) {
-  localStorage.setItem("reportSortMode", mode);
-  setReportSortModeInternal(mode);
-}
-
 const storedDashboardSortMode = localStorage.getItem(
   "dashboardSortMode",
 ) as SortMode | null;
@@ -156,71 +127,12 @@ export function setHideUnreadyVisualizations(value: boolean) {
   setHideUnreadyVisualizationsInternal(value);
 }
 
-// Slide deck grouping/filtering
-const storedDeckGroupingMode = localStorage.getItem(
-  "deckGroupingMode",
-) as SlideDeckGroupingMode | null;
-
-export const [deckGroupingMode, setDeckGroupingModeInternal] =
-  createSignal<SlideDeckGroupingMode>(storedDeckGroupingMode ?? "folders");
-
-export function setDeckGroupingMode(mode: SlideDeckGroupingMode) {
-  localStorage.setItem("deckGroupingMode", mode);
-  setDeckGroupingModeInternal(mode);
-}
-
-const storedDeckSelectedGroup = localStorage.getItem("deckSelectedGroup");
-
-export const [deckSelectedGroup, setDeckSelectedGroupInternal] = createSignal<
-  string | null
->(storedDeckSelectedGroup);
-
-export function setDeckSelectedGroup(group: string | null) {
-  if (group === null) {
-    localStorage.removeItem("deckSelectedGroup");
-  } else {
-    localStorage.setItem("deckSelectedGroup", group);
-  }
-  setDeckSelectedGroupInternal(group);
-}
-
-// Report grouping/filtering
-const storedReportGroupingMode = localStorage.getItem(
-  "reportGroupingMode",
-) as ReportGroupingMode | null;
-
-export const [reportGroupingMode, setReportGroupingModeInternal] =
-  createSignal<ReportGroupingMode>(storedReportGroupingMode ?? "folders");
-
-export function setReportGroupingMode(mode: ReportGroupingMode) {
-  localStorage.setItem("reportGroupingMode", mode);
-  setReportGroupingModeInternal(mode);
-}
-
-const storedReportSelectedGroup = localStorage.getItem("reportSelectedGroup");
-
-export const [reportSelectedGroup, setReportSelectedGroupInternal] =
-  createSignal<string | null>(storedReportSelectedGroup);
-
-export function setReportSelectedGroup(group: string | null) {
-  if (group === null) {
-    localStorage.removeItem("reportSelectedGroup");
-  } else {
-    localStorage.setItem("reportSelectedGroup", group);
-  }
-  setReportSelectedGroupInternal(group);
-}
-
 // Consolidated updater for project view state
 export type ProjectViewStateUpdates = {
   tab?: TabOption;
   vizGroupingMode?: VisualizationGroupingMode;
   vizSelectedGroup?: string | null;
   hideUnreadyVisualizations?: boolean;
-  deckGroupingMode?: SlideDeckGroupingMode;
-  deckSelectedGroup?: string | null;
-  reportGroupingMode?: ReportGroupingMode;
-  reportSelectedGroup?: string | null;
   fitWithin?: "fit-within" | "fit-width";
   showAi?: boolean;
   headerOrContent?: "slideHeader" | "content";
@@ -239,18 +151,6 @@ export function updateProjectView(updates: ProjectViewStateUpdates) {
   }
   if (updates.hideUnreadyVisualizations !== undefined) {
     setHideUnreadyVisualizations(updates.hideUnreadyVisualizations);
-  }
-  if (updates.deckGroupingMode !== undefined) {
-    setDeckGroupingMode(updates.deckGroupingMode);
-  }
-  if (updates.deckSelectedGroup !== undefined) {
-    setDeckSelectedGroup(updates.deckSelectedGroup);
-  }
-  if (updates.reportGroupingMode !== undefined) {
-    setReportGroupingMode(updates.reportGroupingMode);
-  }
-  if (updates.reportSelectedGroup !== undefined) {
-    setReportSelectedGroup(updates.reportSelectedGroup);
   }
   if (updates.fitWithin !== undefined) {
     setFitWithin(updates.fitWithin);
@@ -353,14 +253,15 @@ export const [dashboardEditorOpen, setDashboardEditorOpen] =
 export const [resultsPackageTabLoadCount, setResultsPackageTabLoadCount] =
   createSignal<number>(0);
 
-// Request signal for opening a document editor from outside the tab
-// components (the tour catalogue modal). The openers live in private closures
-// inside each tab component, and inactive tabs are unmounted, so the request
-// must persist until the matching tab mounts and consumes it. Consumers clear
-// the signal BEFORE calling their opener (openProjectEditor only resolves when
-// the editor closes).
+// Request signal for opening an editor from outside the page that owns it
+// (the tour catalogue modal, the copilot, a deep link). The openers live in
+// private closures inside each page, and inactive pages are unmounted, so
+// the request must persist until the matching page mounts and consumes it.
+// Consumers clear the signal BEFORE calling their opener (the editor promise
+// only resolves when the editor closes). `product` is consumed by the
+// Products page; the two project kinds die with their tabs in 9a.
 export type PendingEditorOpen = {
-  kind: "deck" | "report" | "visualization" | "dashboard";
+  kind: "product" | "visualization" | "dashboard";
   id: string;
 };
 export const [pendingEditorOpen, setPendingEditorOpen] =

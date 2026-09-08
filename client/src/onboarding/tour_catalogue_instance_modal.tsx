@@ -1,19 +1,16 @@
 import { t3 } from "lib";
-import type { ProjectDetail, SlideType } from "lib";
+import type { ProjectDetail } from "lib";
 import { type AlertComponentProps } from "panther";
 import type { SolidTourManagerController } from "@njwse/roadtrip/solid";
 import { For, Show, createSignal, onMount } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { setPendingTourReplay } from "~/state/t4_ui";
 import {
-  SLIDE_TOUR_TYPES,
-  findProjectWithSlideOfType,
   getInstanceTourCatalogue,
   getTourCatalogue,
   type InstanceTab,
   type InstanceTourCatalogueEntry,
   type TourCatalogueEntry,
-  type TourProjectFacts,
 } from "./catalogue";
 import {
   TourCatalogueFrame,
@@ -22,12 +19,6 @@ import {
   type TourCategory,
 } from "./tour_catalogue_layout";
 import { clerkOnboardingStorage } from "./storage";
-
-const SLIDE_TOUR_TYPE_BY_ID: Record<string, SlideType> = {
-  "slide-cover-intro": "cover",
-  "slide-section-intro": "section",
-  "slide-content-intro": "content",
-};
 
 const INSTANCE_CATEGORY_ID = "instance";
 
@@ -88,40 +79,8 @@ export function TourCatalogueInstanceModal(
       );
       const projects = details.filter((d): d is ProjectFacts => d !== null);
 
-      // Slide types live only in the slide documents: search the qualifying
-      // projects' decks for each type (early-exits at the first hit).
-      const slideCandidates = projects
-        .filter(
-          (d) =>
-            d.facts.thisUserPermissions.can_view_slide_decks &&
-            d.facts.slideDecks.length > 0,
-        )
-        .map((d) => ({
-          projectId: d.projectId,
-          slideDecks: d.facts.slideDecks,
-        }));
-      const slidePresent: Partial<Record<SlideType, boolean>> = {};
-      const slideTargets: Partial<Record<SlideType, TourTarget>> = {};
-      for (const type of SLIDE_TOUR_TYPES) {
-        const found = await findProjectWithSlideOfType(slideCandidates, type);
-        slidePresent[type] = found !== null;
-        if (found) {
-          const project = projects.find((d) => d.projectId === found.projectId);
-          if (project) {
-            slideTargets[type] = {
-              projectId: project.projectId,
-              label: project.label,
-            };
-          }
-        }
-      }
-
       const nextTargets = new Map<string, TourTarget | null>();
       const nextReasons = new Map<string, Unavailability>();
-      const factsWithSlides = (d: ProjectFacts): TourProjectFacts => ({
-        ...d.facts,
-        slideTypesPresent: slidePresent,
-      });
       // The reason shown when no project qualifies is the one from the
       // project that gets furthest (highest rank): the most actionable gap.
       const nearestUnavailability = (
@@ -129,7 +88,7 @@ export function TourCatalogueInstanceModal(
       ): Unavailability => {
         let best: { rank: number; text: string; label: string } | null = null;
         for (const d of projects) {
-          const reason = entry.unavailableReason(factsWithSlides(d));
+          const reason = entry.unavailableReason(d.facts);
           if (best === null || reason.rank > best.rank) {
             best = { ...reason, label: d.label };
           }
@@ -146,15 +105,10 @@ export function TourCatalogueInstanceModal(
             };
       };
       for (const entry of catalogue) {
-        const slideType = SLIDE_TOUR_TYPE_BY_ID[entry.id];
-        const target = slideType
-          ? (slideTargets[slideType] ?? null)
-          : (() => {
-              const hit = projects.find((d) => entry.available(d.facts));
-              return hit
-                ? { projectId: hit.projectId, label: hit.label }
-                : null;
-            })();
+        const hit = projects.find((d) => entry.available(d.facts));
+        const target = hit
+          ? { projectId: hit.projectId, label: hit.label }
+          : null;
         nextTargets.set(entry.id, target);
         if (!target) nextReasons.set(entry.id, nearestUnavailability(entry));
       }

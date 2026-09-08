@@ -234,8 +234,6 @@ export const PROJECT_TAB_TO_VIEW: Record<
   AIViewVoidKeys<ProjectAIViewDefs>
 > = {
   visualizations: "viewing_visualizations",
-  decks: "viewing_slide_decks",
-  reports: "viewing_reports",
   metrics: "viewing_metrics",
   results_package: "viewing_results_package",
   settings: "viewing_settings",

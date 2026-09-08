@@ -1,13 +1,9 @@
 import { t3 } from "lib";
-import type { SlideType } from "lib";
 import type { SolidTourManagerController } from "@njwse/roadtrip/solid";
 import { type AlertComponentProps } from "panther";
-import { createSignal } from "solid-js";
 import { projectState } from "~/state/project/t1_store";
 import { projectTab } from "~/state/t4_ui";
 import {
-  SLIDE_TOUR_TYPES,
-  findProjectWithSlideOfType,
   getTourCatalogue,
   type TourCatalogueEntry,
   type TourProjectFacts,
@@ -29,24 +25,6 @@ export function TourCatalogueModal(
 ) {
   const managerFor = (id: string) => p.managers.find((m) => m.hasTour(id));
 
-  // Slide types live only in the slide documents, so the three slide-tour
-  // rows need this async search before their availability is trustworthy;
-  // the row list waits for it (cache-first, so usually near-instant).
-  const [slideTypesPresent, setSlideTypesPresent] = createSignal<
-    Partial<Record<SlideType, boolean>> | undefined
-  >(undefined);
-  void (async () => {
-    const candidates = [
-      { projectId: projectState.id, slideDecks: projectState.slideDecks },
-    ];
-    const present: Partial<Record<SlideType, boolean>> = {};
-    for (const type of SLIDE_TOUR_TYPES) {
-      present[type] =
-        (await findProjectWithSlideOfType(candidates, type)) !== null;
-    }
-    setSlideTypesPresent(present);
-  })();
-
   const facts = (): TourProjectFacts => ({
     thisUserPermissions: projectState.thisUserPermissions,
     isLocked: projectState.isLocked,
@@ -54,10 +32,7 @@ export function TourCatalogueModal(
     projectModules: projectState.projectModules,
     metrics: projectState.metrics,
     visualizations: projectState.visualizations,
-    slideDecks: projectState.slideDecks,
-    reports: projectState.reports,
     dashboards: projectState.dashboards,
-    slideTypesPresent: slideTypesPresent(),
   });
 
   // The Solid manager's hasSeen() reads a signal, so the pill updates on
@@ -90,7 +65,7 @@ export function TourCatalogueModal(
         iconName: a.iconName,
       }))}
       initialCategory={initialCategory}
-      loading={slideTypesPresent() === undefined}
+      loading={false}
       loadingText={t3({ en: "Loading…", fr: "Chargement…", pt: "A carregar…" })}
       close={() => p.close(undefined)}
       renderCategory={(categoryId) => (

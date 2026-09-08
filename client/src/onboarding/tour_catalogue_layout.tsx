@@ -26,20 +26,6 @@ export function getAreaItems(): {
 }[] {
   return [
     {
-      area: "reports",
-      heading: t3({ en: "Reports", fr: "Rapports", pt: "Relatórios" }),
-      iconName: "report",
-    },
-    {
-      area: "decks",
-      heading: t3({
-        en: "Slide decks",
-        fr: "Présentations",
-        pt: "Apresentações",
-      }),
-      iconName: "presentation",
-    },
-    {
       area: "dashboards",
       heading: t3({
         en: "Dashboards",

@@ -19,8 +19,6 @@ import { ProjectPageCursors } from "~/components/_shared/cursors/page_cursors";
 import { ProjectSSEBoundary } from "~/state/project/t1_sse";
 import { projectState } from "~/state/project/t1_store";
 
-import { ProjectDecks } from "./project_decks";
-import { ProjectReports } from "./project_reports";
 import { ProjectDashboards } from "./project_dashboards";
 import { ProjectMetrics } from "./project_metrics";
 import {
@@ -49,8 +47,6 @@ import {
 import { instanceState } from "~/state/instance/t1_store";
 import {
   setupDashboardTours,
-  setupDeckTours,
-  setupReportTours,
   setupResultsPackageTours,
   setupSettingsTours,
   setupVisualizationTours,
@@ -92,8 +88,6 @@ function ProjectInner() {
   // Destroyed with this component's reactive owner; the tour catalogue modal
   // gets them as props, so nothing outlives a project switch.
   const tourManagers = [
-    setupDeckTours(),
-    setupReportTours(),
     setupVisualizationTours(),
     setupDashboardTours(),
     setupResultsPackageTours(),
@@ -117,23 +111,7 @@ function ProjectInner() {
   const tabItems = (): ListItem<TabOption>[] => {
     const perms = projectState.thisUserPermissions;
     const items: ListItem<TabOption>[] = [];
-    if (perms.can_view_reports) {
-      items.push({
-        id: "reports",
-        label: t3({ en: "Reports", fr: "Rapports", pt: "Relatórios" }),
-        iconName: "report",
-      });
-    }
     if (perms.can_view_slide_decks) {
-      items.push({
-        id: "decks",
-        label: t3({
-          en: "Slide decks",
-          fr: "Présentations",
-          pt: "Apresentações",
-        }),
-        iconName: "presentation",
-      });
       items.push({
         id: "dashboards",
         label: t3({ en: "Dashboards", fr: "Tableaux de bord", pt: "Painéis" }),
@@ -317,22 +295,6 @@ function ProjectInner() {
               }
             >
               <Switch>
-                <Match
-                  when={
-                    projectTab() === "reports" &&
-                    projectState.thisUserPermissions.can_view_reports
-                  }
-                >
-                  <ProjectReports openProjectEditor={openProjectEditor} />
-                </Match>
-                <Match
-                  when={
-                    projectTab() === "decks" &&
-                    projectState.thisUserPermissions.can_view_slide_decks
-                  }
-                >
-                  <ProjectDecks openProjectEditor={openProjectEditor} />
-                </Match>
                 <Match
                   when={
                     projectTab() === "dashboards" &&
