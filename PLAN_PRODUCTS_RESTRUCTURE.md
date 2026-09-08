@@ -3,7 +3,8 @@
 Dissolve projects. Products are slide decks and reports, kept in nested
 folders, each attached to one results package at one scope. One main
 database, one realtime channel, one copilot. An Explore tab replaces the
-project Metrics tab and the standalone visualization library.
+project Metrics tab and the standalone visualization library; this plan
+creates the tab, and its page, the results explorer, is a later plan.
 
 **Next step: Review 3.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N`; after step 10's review passes the
@@ -120,7 +121,9 @@ client-side pair `{ runId, adminArea2 }` a product carries; **figure** = a
 `FigureBundle`; **preset** = a default visualization derived from a package's
 manifest (`deriveDefaultVisualizationsForModule`); **authoring context** =
 what an author needs from a package to build figures (metrics, modules,
-indicators, taxonomy, presets), a pure function of the run dir.
+indicators, taxonomy, presets), a pure function of the run dir; **product
+explorer** = the Products page (D16, step 7b); **results explorer** = the
+page the Explore tab will hold (D6), built by a later plan.
 
 **Naming rule for the slide-deck type (Tim, 2026-09-08).** The identifier
 stem is `slide_deck` / `SlideDeck` / `slide-deck` in every name that
@@ -219,7 +222,7 @@ projects (17 flags, 17 `default_project_*` mirrors, `project_user_roles`,
 forms, 8 routes,
 `resolveProjectUserAccess`, per-family collab flags, around 20 client
 `canEdit` gates). The approved-user surface (figure-data reads, the
-authoring context, the ready-package list, the Explore tab's reads, the
+authoring context, the ready-package list, the Explore tab, the
 copilot `/ai` and `/ai/files` mounts, the collab socket, the products filter
 on the instance SSE) is guarded by **`requireApprovedUser()`**: signed in
 AND `globalUser.approved` (server `approved` = `_OPEN_ACCESS || !!usersRow`
@@ -283,7 +286,8 @@ and the new `copySlidesToSlideDeck`, §3.3); there is no unauthenticated surface
 left (dashboards were the only public URL; a deck reaches recipients as an
 emailed PDF, and a report is downloaded by the signed-in user; a public deck
 link is a later, far smaller feature if wanted); the
-Explore tab (D6) is the only standalone place to look at a chart.
+results explorer (D6, a later plan) will be the only standalone place to
+look at a chart, and until it lands there is none.
 `PresentationObjectConfig` stays the figure-config type name (renaming the PO
 vocabulary is a separate refactor, §8).
 
@@ -323,7 +327,7 @@ attached to exactly one package; `follow_pinned` is deleted as a concept
 no product row; `listFollowPinnedProjects`, `clearFollowPinnedIfNotPin`,
 `setProjectFollowPinnedAndAlign`, the follower loop, `supersededMidway`,
 `skippedLocked` and the follow toggle all die). The pin serves exactly three
-things: the `/mcp` door; the Explore tab's default package (D6); and the
+things: the `/mcp` door; the results explorer's default package (D6); and the
 default `run_id` for a new product, resolved server-side inside the insert
 from `runs WHERE pinned AND status = 'ready'`. Creating a product therefore
 requires a ready pin. With zero ready packages the UI says "An admin must
@@ -338,23 +342,31 @@ and reports of a project whose `run_id IS NULL` are attached to the
 instance's pin (their bundles still render; badges show stale); an instance
 with such projects and no pin is a dry-run FAIL (pin one first).
 
-**D6: Explore tab. The pinned package's default visualizations, standalone.**
-A new instance tab **Explore** (`components/explore/`, approved users)
-renders the metric and preset gallery (the `add_visualization/` module
-sidebar, metric cards and preset preview, reused as a page) for an ephemeral
-`(package, scope)`: package Select prefilled with the pin, scope picker
-default national, neither persisted. It has a "Configure" action (opens the
-embedded editor ephemerally) and an "Add to deck / report…" action (creates a
-slide or report figure under the target product's pair, re-resolving there;
-the `AddToDeckModal` idiom). Presets are not products: no rows, no detail
-read; they render through the run-keyed items read with their own config.
-The virtual-defaults half of `getAllPresentationObjectsWithVirtualDefaults`
-and `findVirtualDefault` (`server/run_query/virtual_defaults.ts`) die;
-`deriveVirtualDefaults(manifest)` serves `getRunAuthoringContext.presets`.
-The Explore tab is also where approved users browse metrics and their
-definitions (the
-project Metrics tab was `can_view_metrics`; the Results tab is
-`can_configure_data`-only); `metric_details_modal.tsx` moves here.
+**D6: Explore tab. This plan creates the tab; the results explorer is a
+later plan.** A new instance tab **Explore** (`components/explore/`,
+approved users) is added by step 6 as an empty page: the shell entry and
+the guard, so the tab set in D17 is settled. The page it will hold, the
+results explorer, renders the metric and preset gallery for an ephemeral
+`(package, scope)` with the pin preselected and national scope, has a
+"Configure" action and an "Add to deck / report…" action, and is where
+approved users browse metrics and their definitions once the project
+Metrics tab goes (the Metrics tab was `can_view_metrics`; the Results tab
+is `can_configure_data`-only). That page, with `add_to_product_modal.tsx`,
+the `exploreRunId` / `exploreAdminArea2` state, the copilot's
+`viewing_explore` view and its tour, is a separate plan (§8) and nothing
+in this plan builds it. `metric_details_modal.tsx` stays with the project
+Metrics tab and is deleted with it in 9a; the later plan recovers it from
+the pre-9a tree. What this plan does build, because the editors need it
+(7a): the `add_visualization/` module sidebar, metric cards and preset
+preview move to `components/figures/insert_figure/**`, fed by an authoring
+context, and the scope-keyed T2 figure caches. Presets are not products: no
+rows, no detail read; they render through the run-keyed items read with
+their own config. The virtual-defaults half of
+`getAllPresentationObjectsWithVirtualDefaults` and `findVirtualDefault`
+(`server/run_query/virtual_defaults.ts`) die; `deriveVirtualDefaults(manifest)`
+serves `getRunAuthoringContext.presets`. Consequence accepted (Tim,
+2026-09-08): from 9a until the results explorer lands, metrics and presets
+are browsed only inside an editor's insert-figure wizard.
 
 **D7: Data reads. One run-keyed mount; the caller supplies `(runId,
 adminArea2)`.** Delete the project lens (`getRunReadContext(mainDb,
@@ -639,7 +651,8 @@ shared tools get the `withSourceHeader` (package label plus scope) that
 `/mcp` already applies, since the env's pair can differ from the pin
 mid-thread. The authoring context is reconciled in place (the tool-aliasing
 invariant, SYSTEM_13). Views collapse to `viewing_products`,
-`viewing_explore`, `editing_slide_deck`, `editing_slide`, `editing_report`;
+`editing_slide_deck`, `editing_slide`, `editing_report` (the results
+explorer plan adds its own view);
 `PROJECT_TAB_TO_VIEW` and `switch_tab` are deleted. Figure creation by the
 model happens inside a deck or report (the slide tools, the report editor
 tools, drafts); when no `editing_slide_deck` view is active, `AddToDeckModal`
@@ -1003,7 +1016,7 @@ Inventory after:
 | T2 | `run_authoring_context` keyed `[runId]`, immutable (the `t2_runs.ts` idiom) | `state/instance/t2_run_authoring_context.ts` |
 | T2 | figure data: `po_items` / `metric_info` / `replicant_options` keyed `(runId, scopeToken, ...)`, version constant (embedded figures, Explore, presets) | `state/products/t2_figure_data.ts`, `t2_replicant_options.ts` |
 | T2 | `slide` by `lastUpdated.slides[id]`; `slide_deck_detail` / `report_detail` by `lastUpdated.products[id]`; `images` (moves, no change) | `state/products/t2_*.ts` |
-| T4 | `productsOpenFolder`, `productsViewMode`, `productsSortMode`, `productsTypeFilter`, `exploreRunId`, `exploreAdminArea2`, `pendingEditorOpen`, `showAi` | `t4_ui.ts` |
+| T4 | `productsOpenFolder`, `productsViewMode`, `productsSortMode`, `productsTypeFilter`, `pendingEditorOpen`, `showAi` | `t4_ui.ts` |
 | T4 | AI documents keyed `ai-documents/copilot` (the store; the UI is `components/copilot/ai_documents/*`) | `state/products/t4_ai_documents.ts` |
 | T1-adjacent | collab store, connected by the instance boundary when approved | `state/instance/collab.ts` |
 
@@ -1022,20 +1035,19 @@ client-side from the authoring context plus T1 `hfaTimePoints`.
 
 - Instance shell tabs: **Products** | **Explore** | Data | Results | Assets |
   Users. `?product=<id>` opens an editor; `?p=` and `?d=` are gone.
-- `components/products/`: `index.tsx` (the explorer page), `folder_tree.ts`
-  (pure derivations over the flat `Folder[]`: children, ancestors, path
-  labels, descendant sets, flat full-path picker options; every walk carries
-  a visited set), `folder_card.tsx`, `product_card.tsx`, `list_view.tsx`,
+- `components/products/`: `index.tsx` (the product explorer page),
+  `folder_tree.ts` (pure derivations over the flat `Folder[]`: children,
+  ancestors, path labels, descendant sets, flat full-path picker options;
+  every walk carries a visited set), `folder_card.tsx`, `product_card.tsx`, `list_view.tsx`,
   `product_menu.ts`, `folder_menu.ts`, `move_to_folder_modal.tsx`,
   `edit_folder_modal.tsx`, `product_settings.tsx`,
   `duplicate_products_modal.tsx`. `_shared/scope_picker.tsx` (renamed from
   `project_scope_picker.tsx`; copy says "Scope").
-- `components/explore/`: `index.tsx` (page: package Select plus scope picker,
-  ephemeral; module sidebar, metric cards, preset gallery, render area,
-  "Configure" and "Add to deck / report…"), `add_to_product_modal.tsx`,
-  `metric_details_modal.tsx` (moved). `components/figures/insert_figure/**`
+- `components/explore/`: `index.tsx`, the empty Explore tab page (the
+  results explorer is a later plan, D6). `components/figures/insert_figure/**`
   (= moved `add_visualization/` plus `preset_preview.tsx`, fed by an
-  authoring context; used by both editors and Explore).
+  authoring context; used by both editors, and by the results explorer when
+  it lands).
 - Figures: `components/visualization/` keeps the embedded editor
   (`visualization_editor_inner.tsx`, the three editor panels, conditional
   formatting, `edit_common_properties_modal`, `inline_replicant_selector`)
@@ -1058,15 +1070,16 @@ client-side from the authoring context plus T1 `hfaTimePoints`.
   product_types.ts`, typed `Record<ProductType, { label, icon, editor,
   createLabel, detailCache, figureTarget }>`, is the only place the client
   knows what a type is. Cards, list rows, create buttons, filter chips,
-  `getEditorWrapper`, Explore's add-to and the copilot's deck and report
-  pickers all read it. The rule, on client and server alike: every per-type
+  `getEditorWrapper` and the copilot's deck and report pickers all read
+  it. The rule, on client and server alike: every per-type
   dispatch is a `Record<ProductType, ...>` object, never a switch with a
   default, so adding a type is a compile error at each object until it is
   filled in. Server per-type logic lives in `server/db/products/<type>.ts`
   and the shared routes branch on the row's `type` once, through the same
   kind of object.
 - Onboarding: the 33 project-area tours collapse into one products tour set
-  plus one Explore tour; results-package, settings, instance-projects,
+  (the results explorer plan adds its own); results-package, settings,
+  instance-projects,
   visualization and dashboard tours are deleted; the deck and report editor
   tours survive; the instance tour catalogue stops fanning out
   `getProjectDetail`; tour ids renamed (Clerk seen-flags re-fire once,
@@ -1209,9 +1222,9 @@ parallel.
 | 3 | Run-keyed reads with scope, and the authoring context | none | no | scope is a parameter on each read, with no project wrapper required |
 | 4 | FigureBundle scope and runId, staleness, the update action | 3 | no | every stored figure records its own run and scope |
 | 5 | Products DB layer, routes, guard, SSE | 1, 3 | no | the product plane exists beside projects |
-| 6 | Explore tab and the insert-figure wizard | 4, 5 | no | presets render without a project |
+| 6 | Empty Explore tab and the insert-figure wizard | 4, 5 | no | the wizard renders from an authoring context, with no project |
 | 7a | The switch. Editors live on products | 4, 5, 6 | no | a deck lives in main and edits live |
-| 7b | The explorer | 7a | no | the Products page navigates nested folders |
+| 7b | The product explorer | 7a | no | the Products page navigates nested folders |
 | 8 | Copilot remount | 7b | no | one mount whose env follows the product |
 | 9a | Client strip | 8 | no | the client has no project |
 | 9b | Server strip and consolidation | 9a, 2 | no | the server has no project; 085 runs on dev |
@@ -1534,9 +1547,9 @@ first build (commit 28d138de); build the trimmed shape.
 and the passive T1 fields). The Products tab does not exist yet; the new
 plane is reachable only through the API.
 
-### Step 6: Explore tab and the insert-figure wizard
+### Step 6: Empty Explore tab and the insert-figure wizard
 
-**Surface.** `client/src/components/explore/{index,metric_details_modal}.tsx`;
+**Surface.** `client/src/components/explore/index.tsx` (the empty page);
 `client/src/components/figures/insert_figure/**` (moved from
 `components/project/add_visualization/` plus `project/preset_preview.tsx`,
 fed by an authoring context; the project page imports from the new path);
@@ -1545,34 +1558,38 @@ fed by an authoring context; the project page imports from the new path);
 settings and `instance/add_project.tsx`, switch to the new name);
 `client/src/state/products/{t2_figure_data,t2_replicant_options}.ts` (keyed
 `(runId, scopeToken, ...)`, version constant; the project caches untouched);
-`client/src/state/t4_ui.ts` (`exploreRunId`, `exploreAdminArea2`);
 `client/src/components/instance/index.tsx` (the Explore tab, approved users,
 after Projects for now); translations for the new strings; SYSTEM_11 and
 SYSTEM_14 globs and prose.
 
-**Deliverable.** D6 minus "Add to deck / report…" (7b, when products can be
-created in the UI). Package Select over `readyPackages` (in T1 since step
-5) with the pin preselected; scope picker default national; module sidebar,
-metric cards, preset gallery, render area through the run-keyed items read
-and step 4's authoring-context cache; "Configure" opens the embedded editor
-ephemerally.
+**Deliverable.** The parts of D6 this plan builds: the insert-figure wizard
+under `figures/insert_figure/**`, fed by step 4's authoring-context cache
+and reading figure data through the scope-keyed T2 caches, with the
+project's add-visualization flow importing it from the new path; the scope
+picker rename; the Explore tab entry, approved users, rendering an empty
+page.
 
-**Not in this step.** Any write. Any product. Deleting `project_metrics.tsx`
-or the project's `add_visualization` (they now import the moved files).
+**Not in this step.** Any write. Any product. The results explorer page and
+everything D6 defers with it. Deleting `project_metrics.tsx` or the
+project's `add_visualization` (they now import the moved files).
 
 **Gates.** `./validate_protocols` with no new baseline entries. In dev: the
-Explore tab renders the pin's presets at national and at an AA2 scope;
-switching package re-renders from the immutable T2 context without a
-refetch of items already cached under the same `(runId, scopeToken)`; the
-project Metrics tab still works.
+Explore tab opens empty for an approved user; the project's
+add-visualization flow still offers the pin's presets at national and at an
+AA2 scope through the moved wizard; reopening a preset preview under the
+same `(runId, scopeToken)` does not refetch items already in the T2 cache;
+the project Metrics tab still works.
 
-**Reference.** Commit bc1bbc31. Files: `client/src/components/explore/*`,
+**Reference.** Commit bc1bbc31. Files:
 `client/src/components/figures/insert_figure/*`,
 `client/src/components/_shared/scope_picker.tsx`,
-`client/src/state/products/t2_figure_data.ts`.
+`client/src/state/products/t2_figure_data.ts`. The reference's
+`client/src/components/explore/*` is the results explorer plan's reference,
+not this step's.
 
-**Ends with.** Two commits (move and rename; Explore). An approved user can
-look at a chart without a project.
+**Ends with.** Two commits (move and rename; the tab). The insert-figure
+wizard renders from an authoring context with no project, and the Explore
+tab exists, empty.
 
 ### Step 7a: The switch. Editors live on products
 
@@ -1631,7 +1648,7 @@ as a product. The project shell keeps Metrics, Visualizations, Dashboards,
 Results package and Settings until 9a.
 
 **Not in this step.** Folders UI, list view, menus, search, deep link,
-copy-to-deck, Explore's add-to (7b). Copilot (8): the project AI wrapper
+copy-to-deck (7b). Copilot (8): the project AI wrapper
 still mounts on the project shell, and the editors opened from the Products
 page have no copilot until step 8; say so in §9. Deleting `po_rooms.ts`,
 `project-collab.ts` or `project_awareness_update`.
@@ -1660,20 +1677,18 @@ behavioural defect's fix), `product_settings.tsx`.
 collab; editors; minimal page and the project tab removal. Record every
 defect found while running the app in §9.
 
-### Step 7b: The explorer
+### Step 7b: The product explorer
 
 **Surface.** `client/src/components/products/{index,folder_tree,folder_card,
 product_card,list_view,product_menu,folder_menu,move_to_folder_modal,
 edit_folder_modal,product_types}.ts*` (the registry gains the fields the
-list rows, chips and Explore's add-to read); `client/src/state/t4_ui.ts`
+list rows and chips read); `client/src/state/t4_ui.ts`
 (`productsOpenFolder`,
 `productsViewMode`, `productsSortMode`, `productsTypeFilter`,
 `_PRODUCT_QUERY_PARAM`, `productDeepLinkHref`); `components/_shared/
 sort_control.tsx` if shared; `slide_deck/slide_list.tsx` ("Copy to deck…")
-and `copy_slides_to_deck_modal.tsx`; `components/explore/
-add_to_product_modal.tsx` and the Explore page's "Add to deck / report…";
-translations; SYSTEM_12 and SYSTEM_14 prose (the explorer model, the deep
-link).
+and `copy_slides_to_deck_modal.tsx`; translations; SYSTEM_12 and SYSTEM_14
+prose (the product explorer model, the deep link).
 
 **Deliverable.** D16 in full, on top of 7a's minimal page.
 
@@ -1693,8 +1708,7 @@ location and shows paths; Move into ▸ caps at 10 and offers More…; Move up
 and Move to top level; the picker excludes the moved folder's subtree;
 deleting a folder reparents; `?product=<id>` opens the editor after
 hydration and a dead id is dropped; Copy to deck lands the slides stale
-under a deck with a different pair; Explore's add-to lands a figure
-re-resolved under the target's pair.
+under a deck with a different pair.
 
 **Reference.** Commits bd899322, caaa2666, 714fd4e4, ee7c28d8, 6e847ae3,
 e3b9bf83, fcea838c, cbd8375f, 03822f32. Files: everything under
@@ -1711,8 +1725,9 @@ deck or report.
 ### Step 8: Copilot remount
 
 **Surface.** `client/src/components/copilot/**` (renamed from
-`project_ai/`; the wrapper mounts once around the Products and Explore pages
-and both editor overlays); `copilot/ai_tools/{client_env,source_header,
+`project_ai/`; the wrapper mounts once around the Products page and both
+editor overlays; the Explore tab is empty until its own plan);
+`copilot/ai_tools/{client_env,source_header,
 reresolve_slide_figures,add_slide_to_deck}.ts`, `AddToDeckModal.tsx`,
 `DeckSelector.tsx`, `DraftSlidePreview.tsx` (the deck and report pickers
 read `client/src/components/products/product_types.ts`, which may gain a
@@ -1753,20 +1768,20 @@ deck from the Products page re-resolves under the chosen deck's pair; the
 instance AI context textarea saves and appears in the system prompt.
 
 **Reference.** Commits 02471d74, c2993b2a, cad2f083, ee7c28d8. Files:
-`client/src/components/copilot/index.tsx`, `ai_views.ts` line 92 (the five
-views), `ai_tools/client_env.ts`, `ai_tools/source_header.ts`,
+`client/src/components/copilot/index.tsx`, `ai_views.ts` line 92 (the
+reference's five views; D15 has four), `ai_tools/client_env.ts`, `ai_tools/source_header.ts`,
 `ai_tools/reresolve_slide_figures.ts`, `client/src/components/instance/
 ai_context_form.tsx`, `server/routes/instance/copilot_ai_proxy.ts`.
 
 **Ends with.** Two or three commits. One copilot mount serves the Products
-page, Explore and both editors.
+page and both editors.
 
 ### Step 9a: Client strip
 
 **Surface.** The D12 step 9a list. `client/src/components/instance/index.tsx`
 (Projects tab removed; final tab set per D17). `client/src/app.tsx`
 (`/d/:slug` route). `client/src/onboarding/**` (the 33 project-area tours
-deleted; one products tour set and one Explore tour added; the instance tour
+deleted; one products tour set added; the instance tour
 catalogue stops fanning out `getProjectDetail`; tour ids renamed; telemetry
 loses `projectId`; `tour_catalogue_instance_modal.tsx` deleted).
 `lib/translate/*` and every en, fr and pt literal (§3.6 copy sweep).
@@ -2006,7 +2021,14 @@ project DBs are still on disk, untouched by 085.
 - A public deck link (the only public surface dashboards provided).
 - A figure library or cross-product figure clipboard beyond
   `copySlidesToSlideDeck`.
-- Drag-and-drop in the explorer.
+- Drag-and-drop in the product explorer.
+- The results explorer, the Explore tab's page (D6): package Select and
+  scope picker, module sidebar, metric cards, preset gallery, render area,
+  "Configure", "Add to deck / report…" with `add_to_product_modal.tsx`,
+  `metric_details_modal.tsx`, the `exploreRunId` / `exploreAdminArea2`
+  state, the copilot's `viewing_explore` view and its tour. Its own plan;
+  reference `version2-reference` commit bc1bbc31,
+  `client/src/components/explore/*`.
 - The `PresentationObjectConfig` to `FigureConfig` vocabulary rename
   (`lib/get_fetch_config_from_po.ts`, `normalize_po_config.ts`,
   `getRunPresentationObjectItems`, `t2_figure_data` internals).
@@ -2075,6 +2097,7 @@ this section before its step.
 | 2026-09-08 | 2 | Step 2 fixed. |
 | 2026-09-08 | 2 | Review of Fix 2 by a fresh agent. Commit 0795b04a touches only the three finding targets plus the plan. The table-existence query now exists once, as the exported `tableExists` in `plan.ts:424-430`; `execute.ts` and `validate_consolidation.ts` import it, and a grep of the consolidation directory and both root tools finds one `information_schema.tables` query. Placing it in `plan.ts` rather than `execute.ts` is right: `execute.ts` imports from `plan.ts`, so the reverse would be a cycle. The dry-run prints each colliding id with its entity and no replacement, its comment claims only the collisions and their count, and the `--json` payload carries counts only, so no minted id reaches either output. The `plan.ts` header names the legacy row types and the alphabet as frozen because 9b deletes their sources, and names the two live imports as surviving. Gates run by the reviewer, all green: `deno task typecheck` (with `lint:systems`), `deno task test` (14 passed), `./validate_protocols`, `deno check` of the consolidation directory and the two root tools, `./validate_consolidation_replay` (41 checks), `./validate_consolidation.ts --local` (zero FAIL; counts equal the logged row), and a server boot against the dev database that listens with its 14 boot tests passing. No migration or query-engine file changed, so `./validate_migrations` and `./validate_queries` do not apply. |
 | 2026-09-08 | 2 | Step 2 reviewed: pass. |
+| 2026-09-08 | plan | Tim's ruling: the plan's vocabulary is "product explorer" (the Products page, D16, step 7b) and "results explorer" (the page the Explore tab will hold, D6); UI tab labels are unchanged. The results explorer page is cordoned off into its own later plan (§8). Step 6 keeps the insert-figure wizard move, the scope picker rename, the scope-keyed T2 caches and an empty Explore tab; 7b loses "Add to deck / report…"; D15 and step 8 lose `viewing_explore`. Consequence accepted: from 9a until that plan lands, metrics and presets are browsed only inside an editor. |
 | 2026-09-08 | 3 | Relocation (commit 1). The HFA and ICEH capture files carried project-snapshot readers (`getAll*FromSnapshot`, `getHfaTaxonomyForAI`, `getHfaSentinelRowsFromSnapshot`) with no importer since the frozen results plane went; they read a project DB and die with the move rather than landing in `server/runs/`. `server/runs/capture_inputs/**` is S6-owned (its SYSTEMS.md §4.1 row replaces the `db/project/modules.ts` row) and the S8 manifest narrows `server/runs/**` to `server/runs/*.ts` so the lint sees one owner, as the reference did. |
 | 2026-09-08 | 3 | Fact: the `RunDataset` overlap in §3.10 is real. `lib/types/run_manifest.ts` exported `RunDataset` for the raw manifest row, so the projection could not take the name through the barrel. The manifest row is now `RunManifestDataset` / `runManifestDatasetSchema` (the reference's answer); importers `build_run_package.ts`, `prepare_inputs.ts` and `query_rig/build_package.ts` follow. |
 | 2026-09-08 | 3 | Fact: §3.10's importer lists are short. `getProjectDatasetsFromManifest` also had callers in `db/project/projects.ts` and `runs/attach_run.ts`, and `DatasetInProject` in `lib/types/projects.ts` and `lib/types/project_sse.ts`; all renamed in place (each dies in 9b). A comment in `server/db/instance/dataset_iceh.ts` pointed at the old file name and was repointed. |
