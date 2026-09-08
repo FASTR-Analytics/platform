@@ -73,6 +73,7 @@ import {
 import { fastrThemeOptions } from "~/components/_shared/fastr_theme_labels";
 import { createReportPaginator, measureEmbedInEditor } from "./paginate_report";
 import { fastrPagedFooter } from "~/exports/export_report_as_paged_pdf";
+import { buildStandaloneReportHtml } from "~/exports/export_report_as_html";
 import { PresenceAvatars } from "~/components/slide_deck/presence_avatars";
 import { ReportEditorCursors } from "~/components/_shared/cursors/report_cursors";
 import { addLastUpdatedListener } from "~/state/project/t1_sse";
@@ -484,8 +485,46 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     }
   }
   let editorPaneEl: HTMLDivElement | undefined;
-  const paginationWanted = () =>
+  // "Edit on pages" ON: the editor IS the printed pages (paged_edit_surface).
+  // OFF: the CodeMirror live preview with page seams from the hidden paginator.
+  const pagesOn = () =>
     showPages() && format() === "fastr" && mode() === "edit" && !isLoading();
+  const paginationWanted = () =>
+    !showPages() && format() === "fastr" && mode() === "edit" && !isLoading();
+  // The paged standalone document for the editor's pages: the same builder
+  // the PDF export uses, with rasters from the cache (the same pixels) and
+  // images by URL.
+  const buildPagedHtml = (bodyText: string): Promise<string> => {
+    if (loadedConfig === undefined) return Promise.resolve("");
+    return buildStandaloneReportHtml(
+      {
+        id: p.reportId,
+        label: label(),
+        body: bodyText,
+        figures: figures(),
+        images: images(),
+        config: { ...loadedConfig, fastrTheme: fastrTheme() },
+        lastUpdated: "",
+      },
+      () => {},
+      {
+        paged: { footer: fastrPagedFooter(label()) },
+        inlineFonts: true,
+        cached: {
+          figureRaster: (id, block, ink) => rasters.get(id, block, ink, chartPalette()),
+          imageUrl: (id) => {
+            const entry = images()[id];
+            return entry ? assetUrl(entry.imgFile) : undefined;
+          },
+        },
+      },
+    );
+  };
+  const pagesKey = createMemo(() =>
+    `${fastrTheme()}|${JSON.stringify(fastrColors() ?? null)}|${rasterTick()}|${label()}|${
+      Object.keys(images()).join(",")
+    }|${Object.keys(figures()).join(",")}`
+  );
   const paginator = createReportPaginator({
     detail: () =>
       loadedConfig === undefined || !paginationWanted() ? undefined : {
@@ -1875,6 +1914,9 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
               canEdit={canEditBody}
               onContextChange={setBlockContext}
               livePreview={() => format() === "fastr" && mode() === "edit"}
+              pages={pagesOn}
+              buildPagedHtml={buildPagedHtml}
+              pagesKey={pagesKey}
               ref={(api) => (editorApi = api)}
             />
           </div>

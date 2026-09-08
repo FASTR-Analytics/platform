@@ -82,7 +82,8 @@ type Props = {
   onSelectTheme: (theme: FastrReportTheme) => void;
   // Pick or upload an image to use as the PAGE ground; resolves to its id.
   onPickPageImage: () => Promise<string | undefined>;
-  // Whether the editor draws the printed page boxes (the host's paginator).
+  // Whether Edit is the printed pages themselves (paged_edit_surface.ts) or
+  // the CodeMirror live preview with page seams.
   showPages: () => boolean;
   onToggleShowPages: () => void;
   documentStats: () => {
@@ -701,7 +702,7 @@ export function ReportToolbar(p: Props) {
               </MenuFlyout>
               <PopoverRow active={p.showPages()} onClick={() => p.onToggleShowPages()}>
                 <span class="flex-1">
-                  {t3({ en: "Show page boxes", fr: "Afficher les pages", pt: "Mostrar as páginas" })}
+                  {t3({ en: "Edit on pages", fr: "Modifier sur les pages", pt: "Editar nas páginas" })}
                 </span>
                 <Show when={p.showPages()}>
                   <Icon iconName="check" class="h-3.5 w-3.5" />

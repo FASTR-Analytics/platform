@@ -56,6 +56,7 @@ import {
   setPagination as setPaginationEffect,
 } from "./live_preview_extension";
 import { fastrContainerFences } from "./fastr_fence_extension";
+import { createPagedEditSurface, type PagedSurface } from "./paged_edit_surface";
 import { rebaseProposedEdits, type SkippedRange } from "./rebase_edits";
 import { darkMode } from "~/state/t4_ui";
 
@@ -208,6 +209,15 @@ type Props = {
   // page. Toggled at runtime (Edit <-> Split) via a compartment, so flipping it
   // preserves undo, scroll, selection and the collab binding.
   livePreview?: () => boolean;
+  // Edit ON the printed pages (paged_edit_surface.ts): the pane shows the
+  // PDF's own pages in a frame with the in-place editors attached, the
+  // CodeMirror view kept mounted (hidden) as the model. buildPagedHtml gives
+  // the paged standalone document for a body; pagesKey changes whenever the
+  // document must be re-laid out for a reason other than an edit (theme,
+  // rasters, label).
+  pages?: () => boolean;
+  buildPagedHtml?: (body: string) => Promise<string>;
+  pagesKey?: () => string;
   ref?: (api: ReportEditorApi) => void;
 };
 
@@ -236,6 +246,9 @@ export type ReportBlockContext = {
 
 export function ReportEditor(p: Props) {
   let parent!: HTMLDivElement;
+  let pagesHost!: HTMLDivElement;
+  let surface: PagedSurface | undefined;
+  const pagesOn = () => isFastr && (p.pages?.() ?? false) && p.buildPagedHtml !== undefined;
   let view: EditorView | undefined;
   let detachSelectionHover: (() => void) | undefined;
   let scrollRAF = 0;
@@ -412,6 +425,7 @@ export function ReportEditor(p: Props) {
           : [embedWidgets(resolver, p.format)]),
         EditorView.updateListener.of((u) => {
           if (u.docChanged) p.onBodyChange(u.state.doc.toString());
+          if (u.docChanged) surface?.schedule();
           // Push, not poll: a timer would still be wrong between ticks, and
           // this is exact and free. Guarded inside emitContext.
           if (isFastr && (u.docChanged || u.selectionSet)) {
@@ -946,6 +960,26 @@ export function ReportEditor(p: Props) {
     if (isFastr) applyLivePreview(on);
   });
 
+  // The paged surface: created once the view exists, shown while `pages` is
+  // on, re-laid out when the host's key changes, given the collab binding for
+  // peer carets.
+  onMount(() => {
+    if (!isFastr || !p.buildPagedHtml) return;
+    const build = p.buildPagedHtml;
+    surface = createPagedEditSurface(pagesHost, {
+      view: () => view,
+      buildHtml: build,
+      onSelectEmbed: (kind, id) => p.onSelectEmbed(kind, id),
+    });
+    createEffect(() => surface?.setActive(pagesOn()));
+    createEffect(() => {
+      p.pagesKey?.();
+      if (pagesOn()) surface?.refresh();
+    });
+    createEffect(() => surface?.setPresence(p.collab?.()));
+  });
+  onCleanup(() => surface?.dispose());
+
   // Rebuild when the collab binding appears (plain -> live upgrade shortly
   // after open), the edit permission flips (permissions can arrive late), or
   // the theme toggles (darkMarkdownExtensions is baked into the extension
@@ -976,5 +1010,16 @@ export function ReportEditor(p: Props) {
     yUndoMgr = undefined;
   });
 
-  return <div ref={parent} class="bg-base-100 h-full w-full" />;
+  return (
+    <div class="relative h-full w-full">
+      <div
+        ref={parent}
+        class="bg-base-100 h-full w-full"
+        style={pagesOn()
+          ? "position:absolute;inset:0;visibility:hidden;pointer-events:none"
+          : undefined}
+      />
+      <div ref={pagesHost} class="absolute inset-0" classList={{ hidden: !pagesOn() }} />
+    </div>
+  );
 }
