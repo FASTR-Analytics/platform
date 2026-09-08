@@ -20,12 +20,14 @@ import {
   Slider,
   createDeleteAction,
   openAlert,
+  openComponent,
 } from "panther";
 import SortableVendor, {
   SortableJs,
 } from "../../../../panther/_303_components/form_inputs/solid_sortablejs_vendored.tsx";
 import { createEffect, createSignal, on, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
+import { CopySlidesToDeckModal } from "./copy_slides_to_deck_modal";
 import { SlideCard } from "./slide_card";
 import { PresenceAvatars } from "./presence_avatars";
 import { otherPeers } from "~/state/instance/collab";
@@ -468,6 +470,27 @@ export function SlideList(p: Props) {
 
   const canEditFigures = () => canEditProduct(p.productId);
 
+  // The only cross-product figure reuse there is (D3): copy whole slides, with
+  // their bundles verbatim. Enabled only with a selection.
+  async function copyToDeck() {
+    const slideIds = Array.from(selectedIds());
+    if (slideIds.length === 0) return;
+    const res = await openComponent({
+      element: CopySlidesToDeckModal,
+      props: { sourceProductId: p.productId, slideIds },
+    });
+    if (!res) return;
+    clearSelection();
+    await openAlert({
+      text: t3({
+        en: `Copied ${res.newSlideIds.length} slide(s).`,
+        fr: `${res.newSlideIds.length} diapositive(s) copiée(s).`,
+        pt: `${res.newSlideIds.length} diapositivo(s) copiado(s).`,
+      }),
+      intent: "success",
+    });
+  }
+
   const menuItems = (): MenuItem[] => [
     {
       label: t3({
@@ -487,6 +510,23 @@ export function SlideList(p: Props) {
       label: t3({ en: "Share", fr: "Partager", pt: "Partilhar" }),
       icon: "arrowRight",
       onClick: () => p.share(),
+    },
+    {
+      label:
+        selectedIds().size > 0
+          ? t3({
+              en: `Copy ${selectedIds().size} slide(s) to deck…`,
+              fr: `Copier ${selectedIds().size} diapositive(s) vers une présentation…`,
+              pt: `Copiar ${selectedIds().size} diapositivo(s) para apresentação…`,
+            })
+          : t3({
+              en: "Copy to deck…",
+              fr: "Copier vers une présentation…",
+              pt: "Copiar para apresentação…",
+            }),
+      icon: "copy",
+      disabled: selectedIds().size === 0,
+      onClick: () => void copyToDeck(),
     },
     {
       label: t3({ en: "Version history", fr: "Historique des versions", pt: "Histórico de versões" }),
