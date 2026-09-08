@@ -25,7 +25,7 @@ export async function getSlideFromCacheOrFetch(
   if (cached.data) {
     return { success: true, data: cached.data };
   }
-  const promise = serverActions.getProductSlide({
+  const promise = serverActions.getSlide({
     product_id: productId,
     slide_id: slideId,
   });

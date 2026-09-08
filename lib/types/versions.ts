@@ -70,13 +70,13 @@ export type ReportVersionLineageStep = {
 };
 
 /** A slide as frozen inside a deck version (original id kept for restore). */
-export type DeckVersionSlide = {
+export type SlideDeckVersionSlide = {
   id: string;
   sortOrder: number;
   config: Slide;
 };
 
-export type DeckVersionSummary = {
+export type SlideDeckVersionSummary = {
   id: string;
   createdAt: string;
   editors: VersionEditor[];
@@ -90,7 +90,7 @@ export type DeckVersionSummary = {
  *  Maintained in memory by server/collab/deck_session_ledger.ts and frozen
  *  per version: null for pre-feature versions or after a server restart
  *  (the UI falls back to the session's editor set). */
-export type DeckSlideEditors = {
+export type SlideDeckSlideEditors = {
   slides: Record<
     string,
     {
@@ -125,9 +125,9 @@ export type DeckSlideEditors = {
   reordered?: string[];
 };
 
-export type DeckVersionDetail = DeckVersionSummary & {
+export type SlideDeckVersionDetail = SlideDeckVersionSummary & {
   label: string;
   deckConfig: SlideDeckConfig;
-  slides: DeckVersionSlide[];
-  slideEditors: DeckSlideEditors | null;
+  slides: SlideDeckVersionSlide[];
+  slideEditors: SlideDeckSlideEditors | null;
 };

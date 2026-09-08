@@ -368,7 +368,7 @@ function stampFiguresMapJson(
   return JSON.stringify(figures);
 }
 
-// A deck version's `slides` payload is a DeckVersionSlide[], each with its
+// A deck version's `slides` payload is a SlideDeckVersionSlide[], each with its
 // own layout tree, stamped exactly like a live slide. Snapshot slide ids that
 // no longer exist live are left verbatim: they are not primary keys, and the
 // restore path re-mints a snapshot slide whose id is taken.

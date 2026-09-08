@@ -2,7 +2,7 @@ import { Sql } from "postgres";
 import {
   type APIResponseWithData,
   type AuthorRun,
-  type DeckSlideEditors,
+  type SlideDeckSlideEditors,
   parseJsonOrThrow,
   type VersionEditor,
 } from "lib";
@@ -284,7 +284,7 @@ async function renameEmailInVersionRows(
     const slideEditors = row.slide_editors === null
       ? null
       : renameEmailInDeckSlideEditors(
-        parseJsonOrThrow<DeckSlideEditors>(row.slide_editors),
+        parseJsonOrThrow<SlideDeckSlideEditors>(row.slide_editors),
         oldEmail,
         newEmail,
       );
@@ -380,14 +380,14 @@ function renameEmailInListRecord(
 }
 
 export function renameEmailInDeckSlideEditors(
-  dse: DeckSlideEditors,
+  dse: SlideDeckSlideEditors,
   oldEmail: string,
   newEmail: string,
-): { dse: DeckSlideEditors; changed: boolean } {
+): { dse: SlideDeckSlideEditors; changed: boolean } {
   let changed = false;
-  const slides: DeckSlideEditors["slides"] = {};
+  const slides: SlideDeckSlideEditors["slides"] = {};
   for (const [slideId, slide] of Object.entries(dse.slides)) {
-    const next: DeckSlideEditors["slides"][string] = { ...slide };
+    const next: SlideDeckSlideEditors["slides"][string] = { ...slide };
     for (const key of ["edited", "added", "removed"] as const) {
       const emails = slide[key];
       if (emails) {
@@ -422,7 +422,7 @@ export function renameEmailInDeckSlideEditors(
     }
     slides[slideId] = next;
   }
-  const result: DeckSlideEditors = { slides };
+  const result: SlideDeckSlideEditors = { slides };
   if (dse.settings) {
     const res = renameEmailInList(dse.settings, oldEmail, newEmail);
     changed = changed || res.changed;

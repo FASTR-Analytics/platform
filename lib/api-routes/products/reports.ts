@@ -18,10 +18,9 @@ const productVersionParamsSchema = z.object({
   version_id: z.uuid(),
 });
 
-// Report content and version routes only (see ./slide-decks.ts). Keys carry
-// a `Product` infix until 9b.
+// Report content and version routes only (see ./slide-decks.ts).
 export const productReportRouteRegistry = {
-  getProductReportDetail: route({
+  getReportDetail: route({
     path: "/products/:product_id/report",
     method: "GET",
     params: productIdParamsSchema,
@@ -29,7 +28,7 @@ export const productReportRouteRegistry = {
     access: "view",
   }),
 
-  updateProductReportBody: route({
+  updateReportBody: route({
     path: "/products/:product_id/report/body",
     method: "PUT",
     params: productIdParamsSchema,
@@ -42,7 +41,7 @@ export const productReportRouteRegistry = {
     access: "edit",
   }),
 
-  updateProductReportFigures: route({
+  updateReportFigures: route({
     path: "/products/:product_id/report/figures",
     method: "PUT",
     params: productIdParamsSchema,
@@ -51,7 +50,7 @@ export const productReportRouteRegistry = {
     access: "edit",
   }),
 
-  updateProductReportImages: route({
+  updateReportImages: route({
     path: "/products/:product_id/report/images",
     method: "PUT",
     params: productIdParamsSchema,
@@ -60,7 +59,7 @@ export const productReportRouteRegistry = {
     access: "edit",
   }),
 
-  updateProductReportConfig: route({
+  updateReportConfig: route({
     path: "/products/:product_id/report/config",
     method: "PUT",
     params: productIdParamsSchema,
@@ -69,7 +68,7 @@ export const productReportRouteRegistry = {
     access: "edit",
   }),
 
-  listProductReportVersions: route({
+  listReportVersions: route({
     path: "/products/:product_id/report/versions",
     method: "GET",
     params: productIdParamsSchema,
@@ -77,7 +76,7 @@ export const productReportRouteRegistry = {
     access: "view",
   }),
 
-  getProductReportVersion: route({
+  getReportVersion: route({
     path: "/products/:product_id/report/versions/:version_id",
     method: "GET",
     params: productVersionParamsSchema,
@@ -85,7 +84,7 @@ export const productReportRouteRegistry = {
     access: "view",
   }),
 
-  getProductReportVersionLineage: route({
+  getReportVersionLineage: route({
     path: "/products/:product_id/report/versions/:version_id/lineage",
     method: "GET",
     params: productVersionParamsSchema,
@@ -93,7 +92,7 @@ export const productReportRouteRegistry = {
     access: "view",
   }),
 
-  restoreProductReportVersion: route({
+  restoreReportVersion: route({
     path: "/products/:product_id/report/versions/:version_id/restore",
     method: "POST",
     params: productVersionParamsSchema,
@@ -101,7 +100,7 @@ export const productReportRouteRegistry = {
     access: "edit",
   }),
 
-  copyProductReportVersion: route({
+  copyReportVersion: route({
     path: "/products/:product_id/report/versions/:version_id/copy",
     method: "POST",
     params: productVersionParamsSchema,

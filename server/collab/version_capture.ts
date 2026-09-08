@@ -3,7 +3,7 @@
 // =============================================================================
 //
 // See version_tracker.ts for the session model. This module supplies the real
-// dependencies (project DB loads/writes, wall clock), owns the process-wide
+// dependencies (main DB loads/writes, wall clock), owns the process-wide
 // tracker instance, and exposes the capture entry points the collab rooms and
 // HTTP routes call:
 //   - recordVersionEdit(...)        every successful write, attributed
@@ -13,7 +13,8 @@
 //
 // Slide-level edits are recorded against their DECK (whole-deck versions, like
 // Google Slides). Report `config` (display prefs) and deck `plan` (AI text)
-// are deliberately NOT part of version content.
+// are deliberately NOT part of version content. A deck or report IS its
+// product, so every document id here is a product id.
 //
 // The version data + hash builders are exported for the restore routes, which
 // write safety/restored versions directly (they bypass the tracker so a
@@ -23,14 +24,13 @@ import { createHash } from "node:crypto";
 import {
   type AuthorRun,
   canonicalJson,
-  type DeckVersionSlide,
   type FigureBlock,
   type GlobalUser,
   H_USERS,
   type ImageBlock,
   listSlideConfigTextElements,
-  liveAuthorRunLen,
   type SlideDeckConfig,
+  type SlideDeckVersionSlide,
   type VersionEditor,
 } from "lib";
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
@@ -48,23 +48,18 @@ import {
 import { isRoomOpen } from "./doc_rooms.ts";
 import { flushReportRoom } from "./report_rooms.ts";
 import { flushSlideRoom } from "./slide_rooms.ts";
+import { REPORT_NOT_FOUND } from "../db/products/_product_row.ts";
+import { SLIDE_DECK_NOT_FOUND } from "../db/products/_product_row.ts";
+import { stripPersistedBodyAuthorTombstones } from "../db/products/reports.ts";
+import { getSlideDeckDetail } from "../db/products/slide_decks.ts";
 import {
-  getReportBodyAuthors,
-  getReportDetail,
-  REPORT_NOT_FOUND,
-  stripPersistedBodyAuthorTombstones,
-} from "../db/project/reports.ts";
-import {
-  getSlideDeckDetail,
-  SLIDE_DECK_NOT_FOUND,
-} from "../db/project/slide_decks.ts";
-import { getSlides } from "../db/project/slides.ts";
-import {
-  insertDeckVersion,
   insertReportVersion,
-  latestDeckVersionHash,
+  insertSlideDeckVersion,
   latestReportVersionHash,
-} from "../db/project/versions.ts";
+  latestSlideDeckVersionHash,
+  loadReportVersionData as readReportVersionData,
+  loadSlideDeckVersionData as readSlideDeckVersionData,
+} from "../db/products/versions.ts";
 import {
   createVersionTracker,
   type VersionKind,
@@ -93,10 +88,10 @@ export function reportContentHash(data: ReportVersionData): string {
   });
 }
 
-export type DeckVersionData = {
+export type SlideDeckVersionData = {
   label: string;
   deckConfig: SlideDeckConfig;
-  slides: DeckVersionSlide[];
+  slides: SlideDeckVersionSlide[];
 };
 
 /** Content hash for dedup: canonicalJson kills key-order nondeterminism across
@@ -123,108 +118,76 @@ function throwUnlessNotFound(err: string): null {
   throw new Error(err);
 }
 
+/** The report's current content in version form, with its live room flushed
+ *  first: a room can be up to 1.5s ahead of the DB, and the snapshot must be
+ *  the room's real end state (body AND the ledger's final tombstones). A
+ *  FAILED flush means the row is stale: throwing (rather than snapshotting it)
+ *  merges the session back for the next sweep, exactly like a failed read.
+ *  Versioning the stale row instead would date the version AND usually
+ *  hash-dedup to nothing, silently ending this document's version history for
+ *  as long as its room stays wedged. */
 export async function loadReportVersionData(
-  projectId: string,
-  reportId: string,
+  productId: string,
 ): Promise<ReportVersionData | null> {
-  // A live room can be up to 1.5s ahead of the DB: snapshot the room's real
-  // end state (body AND the ledger's final tombstones), not the last
-  // checkpoint's. No-op when no room / nothing dirty.
-  // A FAILED flush means the row is stale: throwing (rather than snapshotting
-  // it) merges the session back for the next sweep, exactly like a failed read.
-  // Versioning the stale row instead would date the version AND usually
-  // hash-dedup to nothing, silently ending this document's version history for
-  // as long as its room stays wedged.
-  if (!await flushReportRoom(projectId, reportId)) {
+  if (!await flushReportRoom(productId, productId)) {
     throw new Error(
-      `Report ${reportId} has a live room whose checkpoint is failing — deferring version capture`,
+      `Report ${productId} has a live room whose checkpoint is failing — deferring version capture`,
     );
   }
-  const projectDb = getPgConnectionFromCacheOrNew(projectId, "READ_AND_WRITE");
-  const res = await getReportDetail(projectDb, reportId);
+  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
+  const res = await readReportVersionData(mainDb, productId);
   if (!res.success) {
     return throwUnlessNotFound(res.err);
   }
-  // Authorship is best-effort: a failure here must not block the version.
-  const authorsRes = await getReportBodyAuthors(projectDb, reportId);
-  const authors = authorsRes.success ? authorsRes.data.authors : null;
-  return {
-    label: res.data.label,
-    body: res.data.body,
-    figures: res.data.figures,
-    images: res.data.images,
-    // The two reads above aren't one snapshot: a checkpoint landing between
-    // them pairs a ledger with a different body. Equal lengths can still be a
-    // silently SHIFTED attribution, so never freeze a mismatched pair.
-    bodyAuthors: authors !== null && liveAuthorRunLen(authors) === res.data.body.length
-      ? authors
-      : null,
-  };
+  return res.data;
 }
 
-export async function loadDeckVersionData(
-  projectId: string,
-  deckId: string,
-): Promise<DeckVersionData | null> {
-  const projectDb = getPgConnectionFromCacheOrNew(projectId, "READ_AND_WRITE");
-  const deckRes = await getSlideDeckDetail(projectDb, deckId);
+/** The deck's current content in version form. Live slide rooms can be up to
+ *  1.5s ahead of the DB (guaranteed during a max-session split, which by
+ *  definition fires mid-editing). Snapshotting stale texts would not just date
+ *  the version: writeVersion validates each element's authorship ledger
+ *  against the persisted text, so a stale text silently drops the element's
+ *  exact attribution. Flush every open room first, then read. */
+export async function loadSlideDeckVersionData(
+  productId: string,
+): Promise<SlideDeckVersionData | null> {
+  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
+  const deckRes = await getSlideDeckDetail(mainDb, productId);
   if (!deckRes.success) {
     return throwUnlessNotFound(deckRes.err);
   }
-  let slidesRes = await getSlides(projectDb, deckId);
-  // getSlides returns [] for a missing deck (never a not-found error), so any
-  // failure here is transient/corrupt-row: always retry.
-  if (!slidesRes.success) {
-    throw new Error(slidesRes.err);
-  }
-  // Live slide rooms can be up to 1.5s ahead of the DB (guaranteed during a
-  // max-session split, which by definition fires mid-editing). Snapshotting
-  // stale texts wouldn't just date the version: writeVersion validates each
-  // element's authorship ledger against the persisted text, so a stale text
-  // silently drops the element's exact attribution. Flush and re-read.
-  const openIds = slidesRes.data
-    .map((s) => s.id)
-    .filter((id) => isRoomOpen(projectId, "slide", id));
-  if (openIds.length > 0) {
-    for (const id of openIds) {
-      // A failed flush leaves that slide's row stale, see the report loader:
-      // throw so the session merges back and retries, rather than freezing a
-      // deck version that misses the slide's session tail.
-      if (!await flushSlideRoom(projectId, id)) {
-        throw new Error(
-          `Slide ${id} has a live room whose checkpoint is failing — deferring version capture`,
-        );
-      }
+  for (const slideId of deckRes.data.slideIds) {
+    if (!isRoomOpen(productId, "slide", slideId)) {
+      continue;
     }
-    slidesRes = await getSlides(projectDb, deckId);
-    if (!slidesRes.success) {
-      throw new Error(slidesRes.err);
+    // A failed flush leaves that slide's row stale, see the report loader:
+    // throw so the session merges back and retries, rather than freezing a
+    // deck version that misses the slide's session tail.
+    if (!await flushSlideRoom(productId, slideId)) {
+      throw new Error(
+        `Slide ${slideId} has a live room whose checkpoint is failing — deferring version capture`,
+      );
     }
   }
-  return {
-    label: deckRes.data.label,
-    deckConfig: deckRes.data.config,
-    slides: slidesRes.data.map((s, i) => ({
-      id: s.id,
-      sortOrder: (i + 1) * 10,
-      config: s.slide,
-    })),
-  };
+  const res = await readSlideDeckVersionData(mainDb, productId);
+  if (!res.success) {
+    return throwUnlessNotFound(res.err);
+  }
+  return res.data;
 }
 
 async function loadPayload(
-  projectId: string,
   kind: VersionKind,
   docId: string,
 ): Promise<VersionPayload | null> {
   if (kind === "report") {
-    const data = await loadReportVersionData(projectId, docId);
+    const data = await loadReportVersionData(docId);
     if (data === null) {
       return null;
     }
     return { contentHash: reportContentHash(data), data };
   }
-  const data = await loadDeckVersionData(projectId, docId);
+  const data = await loadSlideDeckVersionData(docId);
   if (data === null) {
     return null;
   }
@@ -232,30 +195,28 @@ async function loadPayload(
 }
 
 async function latestHash(
-  projectId: string,
   kind: VersionKind,
   docId: string,
 ): Promise<string | null> {
-  const projectDb = getPgConnectionFromCacheOrNew(projectId, "READ_AND_WRITE");
+  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
   const res = kind === "report"
-    ? await latestReportVersionHash(projectDb, docId)
-    : await latestDeckVersionHash(projectDb, docId);
+    ? await latestReportVersionHash(mainDb, docId)
+    : await latestSlideDeckVersionHash(mainDb, docId);
   return res.success ? res.data.hash : null;
 }
 
 async function writeVersion(
-  projectId: string,
   kind: VersionKind,
   docId: string,
   payload: VersionPayload,
   editors: VersionEditor[],
   createdAt: string,
 ): Promise<boolean> {
-  const projectDb = getPgConnectionFromCacheOrNew(projectId, "READ_AND_WRITE");
+  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
   if (kind === "report") {
     const data = payload.data as ReportVersionData;
-    const res = await insertReportVersion(projectDb, {
-      reportId: docId,
+    const res = await insertReportVersion(mainDb, {
+      productId: docId,
       createdAt,
       label: data.label,
       body: data.body,
@@ -273,21 +234,18 @@ async function writeVersion(
       // a version insert doesn't bump last_updated, so without the DB strip
       // the next room re-adopts the old tombstones and every later version
       // re-freezes them (misattributed removals).
-      compactTombstones(projectId, docId);
-      const stripRes = await stripPersistedBodyAuthorTombstones(
-        getPgConnectionFromCacheOrNew(projectId, "READ_AND_WRITE"),
-        docId,
-      );
+      compactTombstones(docId);
+      const stripRes = await stripPersistedBodyAuthorTombstones(mainDb, docId);
       if (!stripRes.success) {
         console.error("Persisted-ledger tombstone strip failed:", stripRes.err);
       }
     }
     return res.success;
   }
-  const data = payload.data as DeckVersionData;
+  const data = payload.data as SlideDeckVersionData;
   // Freeze the per-slide session ledger into this version; a failed insert
   // merges it back so the attribution retries with the next write.
-  const slideEditors = drainDeckLedger(projectId, docId);
+  const slideEditors = drainDeckLedger(docId);
   // Per-character text authorship: freeze each edited slide's element
   // ledgers alongside, validated against the texts being persisted. On a
   // failed insert the ledgers are untouched (not compacted), so the retry
@@ -299,7 +257,6 @@ async function writeVersion(
         continue;
       }
       const authors = snapshotSlideElementAuthors(
-        projectId,
         s.id,
         listSlideConfigTextElements(s.config),
       );
@@ -308,8 +265,8 @@ async function writeVersion(
       }
     }
   }
-  const res = await insertDeckVersion(projectDb, {
-    deckId: docId,
+  const res = await insertSlideDeckVersion(mainDb, {
+    productId: docId,
     createdAt,
     label: data.label,
     deckConfig: data.deckConfig,
@@ -319,7 +276,7 @@ async function writeVersion(
     slideEditors,
   });
   if (!res.success) {
-    restoreDeckLedger(projectId, docId, slideEditors);
+    restoreDeckLedger(docId, slideEditors);
     return false;
   }
   // This version captured the element tombstones: start the next window.
@@ -329,9 +286,9 @@ async function writeVersion(
   // Closed rooms have no future to attribute; drop their ledgers entirely.
   for (const s of data.slides) {
     const captured = slideEditors?.slides[s.id]?.elementAuthors;
-    compactSlideElementTombstones(projectId, s.id, Object.keys(captured ?? {}));
-    if (!isRoomOpen(projectId, "slide", s.id)) {
-      dropSlideElementLedgers(projectId, s.id);
+    compactSlideElementTombstones(s.id, Object.keys(captured ?? {}));
+    if (!isRoomOpen(docId, "slide", s.id)) {
+      dropSlideElementLedgers(s.id);
     }
   }
   return true;
@@ -345,7 +302,7 @@ const tracker = createVersionTracker({
   // Usage stats: one user_logs row per (session × editor), rolled up weekly
   // like any logged route and read by the Admin-Website activity views.
   // H_USERS are skipped so the counts reflect country usage only.
-  onSessionEnd: ({ projectId, kind, docId, editors }) => {
+  onSessionEnd: ({ kind, docId, editors }) => {
     const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
     for (const editor of editors) {
       if (H_USERS.includes(editor.email)) {
@@ -357,7 +314,6 @@ const tracker = createVersionTracker({
         kind === "report" ? "reportEditSession" : "deckEditSession",
         "200",
         JSON.stringify({ docId }),
-        projectId,
       ).then((res) => {
         if (!res.success) {
           console.error(`Session activity log failed (${kind} ${docId}):`, res.err);
@@ -393,30 +349,24 @@ export function renameVersionEditorEmail(
 
 /** Record one attributed edit. For slides, pass the DECK id, not the slide id. */
 export function recordVersionEdit(
-  projectId: string,
   kind: VersionKind,
   docId: string,
   editor: VersionEditor,
 ): void {
-  tracker.recordEdit(projectId, kind, docId, editor);
+  tracker.recordEdit(kind, docId, editor);
 }
 
-export function noteVersionRoomEmpty(
-  projectId: string,
-  kind: VersionKind,
-  docId: string,
-): void {
-  tracker.noteRoomEmpty(projectId, kind, docId);
+export function noteVersionRoomEmpty(kind: VersionKind, docId: string): void {
+  tracker.noteRoomEmpty(kind, docId);
 }
 
 /** Remove the document's open editing session and return its editors: the
  *  restore routes fold them into the safety version they write. */
 export function drainVersionEditors(
-  projectId: string,
   kind: VersionKind,
   docId: string,
 ): VersionEditor[] {
-  return tracker.drainEditors(projectId, kind, docId);
+  return tracker.drainEditors(kind, docId);
 }
 
 export function flushAllVersions(): Promise<void> {

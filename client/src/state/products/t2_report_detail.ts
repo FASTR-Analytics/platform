@@ -23,7 +23,7 @@ export async function getReportDetailFromCacheOrFetch(
   if (data) {
     return { success: true, data } as const;
   }
-  const promise = serverActions.getProductReportDetail({
+  const promise = serverActions.getReportDetail({
     product_id: productId,
   });
   _REPORT_DETAIL_CACHE.setPromise(promise, { productId }, version);

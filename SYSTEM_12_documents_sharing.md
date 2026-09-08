@@ -181,14 +181,7 @@ route is registered before the per-slide update: both match `PUT
 mutation re-reads the touched summaries through
 `notifyInstanceProductsUpserted` (S3), slide writes also stamp
 `notifyInstanceLastUpdated("slides", ...)`, and package or delete changes
-re-nonce the runs catalogue. The restore routes write the safety
-version, the structural restore and the restored-state version; the room
-flushes, live-room apply and session ledgers arrive with collab (7a). Until
-9b deletes the project registries, the per-type keys carry a `Product`
-infix (`getProductSlides`, `updateProductReportBody`) because their final
-names are taken. The client stores the SSE product fields and reads none of
-them until 7a; the per-project tables described in the sections below are
-still the live storage the client edits.
+re-nonce the runs catalogue.
 
 ## Slide decks
 

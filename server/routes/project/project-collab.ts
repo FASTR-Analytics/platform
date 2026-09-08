@@ -6,64 +6,17 @@ import {
   type CollabServerMessage,
   createDevProjectUser,
   dropStorageInvalidTransients,
-  dropStorageInvalidTransientsInFigures,
-  dropStorageInvalidTransientsInSlide,
-  presenceColorForKey,
   presentationObjectConfigSchema,
   type PresentationObjectConfig,
   type ProjectUser,
-  reportFiguresSchema,
-  reportImagesSchema,
-  type Slide,
-  slideConfigSchema,
   storedMatchesDoc,
 } from "lib";
 import { getPgConnectionFromCacheOrNew } from "../../db/mod.ts";
 import { _BYPASS_AUTH, _SERVER_VERSION } from "../../exposed_env_vars.ts";
 import { _CLIENT_ORIGINS } from "../../exposed_env_vars.ts";
 import { getGlobalUser, resolveProjectUserAccess } from "../../project_auth.ts";
-import {
-  getSlide,
-  getSlideCrdtState,
-  saveSlideCheckpoint,
-} from "../../db/project/slides.ts";
-import {
-  getAllReports,
-  getReportBodyAuthors,
-  getReportCrdtState,
-  getReportDetail,
-  saveReportCheckpoint,
-} from "../../db/project/reports.ts";
-import {
-  getAuthorRuns,
-  stashPersistedAuthors,
-} from "../../collab/authorship.ts";
-import {
-  addConnection,
-  broadcastPresence,
-  markConnectionEditing,
-  relayProjectAwareness,
-  removeConnection,
-  updateConnectionPresence,
-} from "../../collab/presence_registry.ts";
 import { notifyLastUpdated } from "../../task_management/mod.ts";
-import { notifyProjectReportsUpdated } from "../../task_management/notify_project_v2.ts";
-import {
-  applySlideUpdate,
-  handleConnGone,
-  relayAwareness,
-  type RoomConn,
-  type SlideRoomDeps,
-  subscribeSlide,
-  unsubscribeSlide,
-} from "../../collab/slide_rooms.ts";
-import {
-  applyReportUpdate,
-  relayReportAwareness,
-  type ReportRoomDeps,
-  subscribeReport,
-  unsubscribeReport,
-} from "../../collab/report_rooms.ts";
+import { handleConnGone, type RoomConn } from "../../collab/doc_rooms.ts";
 import {
   applyPoUpdate,
   type PoRoomDeps,
@@ -78,32 +31,14 @@ import {
 } from "../../db/project/presentation_objects.ts";
 import { getAllPresentationObjectsWithVirtualDefaults } from "../../run_query/mod.ts";
 import { notifyProjectVisualizationsUpdated } from "../../task_management/notify_project_v2.ts";
-import {
-  noteVersionRoomEmpty,
-  recordVersionEdit,
-} from "../../collab/version_capture.ts";
-import { recordSlideEdited } from "../../collab/deck_session_ledger.ts";
+import { COLLAB_CLOSE_UNAUTHORIZED } from "../instance/collab.ts";
 
 type CollabAuth = {
   email: string;
   name: string;
-  color: string;
-  canViewSlides: boolean;
-  canEditSlides: boolean;
-  canViewReports: boolean;
-  canEditReports: boolean;
   canViewViz: boolean;
   canEditViz: boolean;
 };
-
-/**
- * Close code for "you are not allowed on this socket": a permanent condition
- * the client must not retry (see collab.ts's onclose). Sent AFTER accepting the
- * upgrade, because a pre-upgrade HTTP status is invisible to browser JS: the
- * WebSocket API surfaces a refused handshake as an unreadable 1006, which is
- * indistinguishable from a network drop and so retried forever.
- */
-export const COLLAB_CLOSE_UNAUTHORIZED = 4403;
 
 export const routesProjectCollab = new Hono<
   {
@@ -114,34 +49,6 @@ export const routesProjectCollab = new Hono<
     };
   }
 >();
-
-// The reports-list re-broadcast (card previews derive from body) runs
-// getAllReports: loading every report's body, and pushes the whole summary
-// list to every SSE client. Far too heavy for the 1.5s checkpoint cadence, so
-// it trails on a per-project debounce; the finalize checkpoint schedules one
-// too, so the final state always broadcasts.
-const REPORTS_REBROADCAST_DEBOUNCE_MS = 5000;
-const reportsRebroadcastTimers = new Map<
-  string,
-  ReturnType<typeof setTimeout>
->();
-
-function scheduleReportsListRebroadcast(projectId: string): void {
-  if (reportsRebroadcastTimers.has(projectId)) {
-    return;
-  }
-  reportsRebroadcastTimers.set(
-    projectId,
-    setTimeout(async () => {
-      reportsRebroadcastTimers.delete(projectId);
-      const projectDb = getPgConnectionFromCacheOrNew(projectId, "READ_ONLY");
-      const res = await getAllReports(projectDb);
-      if (res.success) {
-        notifyProjectReportsUpdated(projectId, res.data);
-      }
-    }, REPORTS_REBROADCAST_DEBOUNCE_MS),
-  );
-}
 
 // Same idea for the visualizations list (cards derive from config): trail the
 // full-list rebroadcast on a per-project debounce rather than firing it on every
@@ -198,21 +105,22 @@ function isAllowedWsOrigin(
 }
 
 /**
- * Per-project collaboration WebSocket.
+ * Per-project collaboration WebSocket: the visualization (po_*) rooms only,
+ * until step 9b deletes the standalone visualization with the project plane.
+ * Slide and report rooms and presence live on the instance socket
+ * (routes/instance/collab.ts), and no client connects here any more: the
+ * client collab store opens the instance socket alone, so the PO rooms have
+ * no live subscriber from 7a (PLAN_PRODUCTS_RESTRUCTURE §4, the
+ * intermediate-states table).
  *
- * Carries presence plus the three CRDT document families (slide_* /
- * report_* / po_*). Auth mirrors the SSE endpoint (project-sse-v2.ts) and
- * resolves BEFORE the upgrade so the socket can never become an
- * unauthenticated channel: **admission is project access itself**, any member
- * resolveProjectUserAccess admits (i.e. ≥1 project permission), matching SSE.
- * Presence and page cursors are project-wide, and their payload carries no
- * document content or labels (PresenceEntry: identity + opaque ids), so
- * document access is NOT the admission boundary: each message family re-checks
- * its own view permission per message, and each family's RoomConn carries its
- * own edit permission, enforced per update by the rooms. A LOCKED project
- * admits viewers (presence + live read) but has every edit permission forced
- * off for the connection's lifetime: re-evaluated on the next (re)connect,
- * matching preventAccessToLockedProjects on the REST edit routes.
+ * Auth mirrors the SSE endpoint (project-sse-v2.ts) and resolves BEFORE the
+ * upgrade so the socket can never become an unauthenticated channel:
+ * **admission is project access itself**, any member resolveProjectUserAccess
+ * admits (i.e. ≥1 project permission), matching SSE. The po family re-checks
+ * its view permission per message and its RoomConn carries the edit
+ * permission, enforced per update by the room. A LOCKED project admits
+ * viewers but has the edit permission forced off for the connection's
+ * lifetime.
  *
  * Authorization failures are refused with a post-upgrade
  * COLLAB_CLOSE_UNAUTHORIZED close so the client can tell "never allowed" from
@@ -284,11 +192,6 @@ routesProjectCollab.get(
     c.set("collabAuth", {
       email: globalUser.email,
       name,
-      color: presenceColorForKey(globalUser.email),
-      canViewSlides: projectUser.can_view_slide_decks,
-      canEditSlides: projectUser.can_configure_slide_decks && !projectLocked,
-      canViewReports: projectUser.can_view_reports,
-      canEditReports: projectUser.can_configure_reports && !projectLocked,
       canViewViz: projectUser.can_view_visualizations,
       canEditViz: projectUser.can_configure_visualizations && !projectLocked,
     });
@@ -309,168 +212,11 @@ routesProjectCollab.get(
     }
     const auth = c.get("collabAuth") as CollabAuth;
     const connectionId = crypto.randomUUID();
-    // Three RoomConns sharing one connectionId (slide / report / viz): the
-    // room registry keys by connectionId, and each conn carries its own
-    // family's edit permission.
-    let roomConn: RoomConn | null = null;
-    let reportRoomConn: RoomConn | null = null;
     let poRoomConn: RoomConn | null = null;
     // Liveness for the rooms' post-load re-check (see RoomConn.isLive): a
     // socket that dies while a first-subscribe load is in flight must not be
     // registered as a room member afterwards.
     let socketGone = false;
-
-    // DB-backed room dependencies for one slide. deckId is captured on load so
-    // the checkpoint can also notify the deck (refreshes thumbnails / list) and
-    // version capture can record against the DECK (whole-deck versions). The
-    // capture hooks only fire after loadSlide succeeded, so deckId is set.
-    function depsForSlide(slideId: string): SlideRoomDeps {
-      const projectDb = getPgConnectionFromCacheOrNew(projectId, "READ_AND_WRITE");
-      let deckId = "";
-      return {
-        loadSlide: async () => {
-          const res = await getSlide(projectDb, slideId);
-          if (!res.success) {
-            return null;
-          }
-          deckId = res.data.deckId;
-          const crdtRes = await getSlideCrdtState(projectDb, slideId);
-          const crdtState = crdtRes.success ? crdtRes.data.state : null;
-          return { slide: res.data.slide, crdtState };
-        },
-        saveSlide: async (slide, crdtState) => {
-          // Collab is authoritative → checkpoint overwrites config + CRDT state.
-          // Validation lives HERE, not in the DB write: a schema rejection is
-          // PERMANENT for this doc state (same input parses the same way
-          // forever), so the room must not timer-retry it: see DocSaveResult.
-          // The stored copy drops schema-invalid transients from EMBEDDED
-          // figures for the same reason the PO room does (see the po closure):
-          // the figure modal streams a mid-edit config straight into this doc.
-          let stored: Slide;
-          try {
-            stored = slideConfigSchema.parse(
-              dropStorageInvalidTransientsInSlide(slide),
-            ) as Slide;
-          } catch (err) {
-            console.error(
-              `[collab] slide checkpoint validation failed for ${slideId}`,
-              err,
-            );
-            return { ok: false, permanent: true };
-          }
-          // Trust the CRDT state only when the doc materializes to exactly
-          // what we store: parse-stripped keys would otherwise diverge doc
-          // from row while stamped current, and every editor open would adopt
-          // the divergent doc (the "viz flip" bug class, 2026-07-24).
-          // storedMatchesDoc also rejects a doc holding values JSON cannot
-          // represent, which a plain canonicalJson compare cannot see.
-          const trusted = storedMatchesDoc(stored, slide);
-          const res = await saveSlideCheckpoint(
-            projectDb,
-            slideId,
-            stored,
-            crdtState,
-            trusted,
-          );
-          if (!res.success) {
-            return { ok: false };
-          }
-          notifyLastUpdated(projectId, "slides", [slideId], res.data.lastUpdated);
-          if (deckId) {
-            notifyLastUpdated(projectId, "slide_decks", [deckId], res.data.lastUpdated);
-          }
-          return { ok: true, lastUpdated: res.data.lastUpdated };
-        },
-        onEdit: (editor) => {
-          if (deckId) {
-            recordVersionEdit(projectId, "deck", deckId, editor);
-            recordSlideEdited(projectId, deckId, slideId, editor.email);
-          }
-        },
-        onEmpty: () => {
-          if (deckId) {
-            noteVersionRoomEmpty(projectId, "deck", deckId);
-          }
-        },
-      };
-    }
-
-    // DB-backed room dependencies for one report (see depsForSlide).
-    function depsForReport(reportId: string): ReportRoomDeps {
-      const projectDb = getPgConnectionFromCacheOrNew(projectId, "READ_AND_WRITE");
-      return {
-        load: async () => {
-          const res = await getReportDetail(projectDb, reportId);
-          if (!res.success) {
-            return null;
-          }
-          const crdtRes = await getReportCrdtState(projectDb, reportId);
-          const crdtState = crdtRes.success ? crdtRes.data.state : null;
-          // Authorship ledger: hand the persisted runs to the room's observer
-          // (consumed when the doc is created; only valid alongside a current
-          // crdt_state: a re-seeded doc starts with unknown authorship).
-          const authorsRes = await getReportBodyAuthors(projectDb, reportId);
-          stashPersistedAuthors(
-            projectId,
-            reportId,
-            crdtState !== null && authorsRes.success
-              ? authorsRes.data.authors
-              : null,
-          );
-          return {
-            content: {
-              body: res.data.body,
-              figures: res.data.figures,
-              images: res.data.images,
-            },
-            crdtState,
-          };
-        },
-        save: async (content, crdtState) => {
-          // Collab is authoritative → checkpoint overwrites content + CRDT state.
-          // Validation lives HERE (see the slide closure): schema rejection is
-          // permanent for this doc state: no timer retry. The body is a plain
-          // string (no parse); figures/images are the parsed surfaces. Figures
-          // drop embedded schema-invalid transients (see the slide closure).
-          let storedFigures: typeof content.figures;
-          let storedImages: typeof content.images;
-          try {
-            storedFigures = reportFiguresSchema.parse(
-              dropStorageInvalidTransientsInFigures(content.figures),
-            );
-            storedImages = reportImagesSchema.parse(content.images);
-          } catch (err) {
-            console.error(
-              `[collab] report checkpoint validation failed for ${reportId}`,
-              err,
-            );
-            return { ok: false, permanent: true };
-          }
-          // Trust the CRDT state only when the doc materializes to exactly
-          // what we store (parse-stripped keys → untrusted → re-seed next
-          // open). Body is stored verbatim, so only figures/images can differ.
-          const trusted =
-            storedMatchesDoc(storedFigures, content.figures) &&
-            storedMatchesDoc(storedImages, content.images);
-          const res = await saveReportCheckpoint(
-            projectDb,
-            reportId,
-            { body: content.body, figures: storedFigures, images: storedImages },
-            crdtState,
-            getAuthorRuns(projectId, reportId, content.body),
-            trusted,
-          );
-          if (!res.success) {
-            return { ok: false };
-          }
-          notifyLastUpdated(projectId, "reports", [reportId], res.data.lastUpdated);
-          scheduleReportsListRebroadcast(projectId);
-          return { ok: true, lastUpdated: res.data.lastUpdated };
-        },
-        onEdit: (editor) => recordVersionEdit(projectId, "report", reportId, editor),
-        onEmpty: () => noteVersionRoomEmpty(projectId, "report", reportId),
-      };
-    }
 
     // DB-backed room dependencies for one visualization. No version/authorship
     // hooks (POs are not versioned), so onEdit/onEmpty are omitted.
@@ -536,20 +282,6 @@ routesProjectCollab.get(
 
     return {
       onOpen: (_evt, ws) => {
-        roomConn = {
-          connectionId,
-          canEdit: auth.canEditSlides,
-          identity: { email: auth.email, name: auth.name },
-          send: (msg: CollabServerMessage) => ws.send(JSON.stringify(msg)),
-          isLive: () => !socketGone,
-        };
-        reportRoomConn = {
-          connectionId,
-          canEdit: auth.canEditReports,
-          identity: { email: auth.email, name: auth.name },
-          send: (msg: CollabServerMessage) => ws.send(JSON.stringify(msg)),
-          isLive: () => !socketGone,
-        };
         poRoomConn = {
           connectionId,
           canEdit: auth.canEditViz,
@@ -557,13 +289,11 @@ routesProjectCollab.get(
           send: (msg: CollabServerMessage) => ws.send(JSON.stringify(msg)),
           isLive: () => !socketGone,
         };
-        addConnection(projectId, connectionId, auth, ws);
         const hello: CollabServerMessage = {
           type: "hello",
           data: { connectionId, serverVersion: _SERVER_VERSION },
         };
         ws.send(JSON.stringify(hello));
-        broadcastPresence(projectId);
       },
       onMessage: (evt, ws) => {
         if (typeof evt.data !== "string") {
@@ -615,87 +345,6 @@ routesProjectCollab.get(
             ws.send(JSON.stringify(pong));
             break;
           }
-          case "presence_update":
-            updateConnectionPresence(projectId, connectionId, msg.data);
-            broadcastPresence(projectId);
-            break;
-          case "project_awareness_update":
-            // Page-level cursors. No per-family permission: admission already
-            // required a view permission, and this carries the same
-            // information class as the presence broadcasts every admitted
-            // connection receives.
-            relayProjectAwareness(projectId, connectionId, msg.data.update);
-            break;
-          case "slide_subscribe":
-            if (roomConn && auth.canViewSlides) {
-              void subscribeSlide(
-                projectId,
-                msg.data.slideId,
-                roomConn,
-                msg.data.stateVector,
-                depsForSlide(msg.data.slideId),
-              );
-            } else if (roomConn) {
-              roomConn.send({
-                type: "slide_error",
-                data: { slideId: msg.data.slideId, message: "No slide deck access" },
-              });
-            }
-            break;
-          case "slide_update":
-            if (roomConn && auth.canViewSlides) {
-              applySlideUpdate(projectId, msg.data.slideId, roomConn, msg.data.update);
-              // "Editing now" presence pulse. canEdit-gated so a read-only
-              // client's (room-rejected) update never counts as editing.
-              if (auth.canEditSlides) {
-                markConnectionEditing(projectId, connectionId);
-              }
-            }
-            break;
-          case "slide_unsubscribe":
-            if (roomConn && auth.canViewSlides) {
-              unsubscribeSlide(projectId, msg.data.slideId, roomConn);
-            }
-            break;
-          case "awareness_update":
-            if (roomConn && auth.canViewSlides) {
-              relayAwareness(projectId, msg.data.slideId, roomConn, msg.data.update);
-            }
-            break;
-          case "report_subscribe":
-            if (reportRoomConn && auth.canViewReports) {
-              void subscribeReport(
-                projectId,
-                msg.data.reportId,
-                reportRoomConn,
-                msg.data.stateVector,
-                depsForReport(msg.data.reportId),
-              );
-            } else if (reportRoomConn) {
-              reportRoomConn.send({
-                type: "report_error",
-                data: { reportId: msg.data.reportId, message: "No report access" },
-              });
-            }
-            break;
-          case "report_update":
-            if (reportRoomConn && auth.canViewReports) {
-              applyReportUpdate(projectId, msg.data.reportId, reportRoomConn, msg.data.update);
-              if (auth.canEditReports) {
-                markConnectionEditing(projectId, connectionId);
-              }
-            }
-            break;
-          case "report_unsubscribe":
-            if (reportRoomConn && auth.canViewReports) {
-              unsubscribeReport(projectId, msg.data.reportId, reportRoomConn);
-            }
-            break;
-          case "report_awareness_update":
-            if (reportRoomConn && auth.canViewReports) {
-              relayReportAwareness(projectId, msg.data.reportId, reportRoomConn, msg.data.update);
-            }
-            break;
           case "po_subscribe":
             if (poRoomConn && auth.canViewViz) {
               void subscribePo(
@@ -715,9 +364,6 @@ routesProjectCollab.get(
           case "po_update":
             if (poRoomConn && auth.canViewViz) {
               applyPoUpdate(projectId, msg.data.poId, poRoomConn, msg.data.update);
-              if (auth.canEditViz) {
-                markConnectionEditing(projectId, connectionId);
-              }
             }
             break;
           case "po_unsubscribe":
@@ -734,14 +380,10 @@ routesProjectCollab.get(
       },
       onClose: () => {
         socketGone = true;
-        removeConnection(projectId, connectionId);
-        broadcastPresence(projectId);
         handleConnGone(connectionId);
       },
       onError: () => {
         socketGone = true;
-        removeConnection(projectId, connectionId);
-        broadcastPresence(projectId);
         handleConnGone(connectionId);
       },
     };
@@ -752,7 +394,7 @@ routesProjectCollab.get(
     // many SECONDS. 30 is Deno's own default: pinned here so the contract is
     // explicit rather than inherited, and survives a runtime default change.
     // The client-side mirror (browsers can't see protocol pings) is the
-    // ping/pong watchdog in client/src/state/project/collab.ts.
+    // ping/pong watchdog in client/src/state/instance/collab.ts.
     idleTimeout: 30,
   }),
 );

@@ -2,10 +2,10 @@ import { Sql } from "postgres";
 import {
   type APIResponseWithData,
   type AuthorRun,
-  type DeckSlideEditors,
-  type DeckVersionDetail,
-  type DeckVersionSlide,
-  type DeckVersionSummary,
+  type SlideDeckSlideEditors,
+  type SlideDeckVersionDetail,
+  type SlideDeckVersionSlide,
+  type SlideDeckVersionSummary,
   type FigureBlock,
   type ImageBlock,
   liveAuthorRunLen,
@@ -405,7 +405,7 @@ export async function loadSlideDeckVersionData(
   APIResponseWithData<{
     label: string;
     deckConfig: SlideDeckConfig;
-    slides: DeckVersionSlide[];
+    slides: SlideDeckVersionSlide[];
   }>
 > {
   const deckRes = await getSlideDeckDetail(mainDb, productId);
@@ -437,11 +437,11 @@ export async function insertSlideDeckVersion(
     createdAt: string;
     label: string;
     deckConfig: SlideDeckConfig;
-    slides: DeckVersionSlide[];
+    slides: SlideDeckVersionSlide[];
     editors: VersionEditor[];
     contentHash: string;
     restoredFromVersionId?: string | null;
-    slideEditors?: DeckSlideEditors | null;
+    slideEditors?: SlideDeckSlideEditors | null;
   },
 ): Promise<APIResponseWithData<{ versionId: string }>> {
   return await tryCatchDatabaseAsync(async () => {
@@ -495,7 +495,7 @@ export async function latestSlideDeckVersionHash(
 export async function listSlideDeckVersions(
   mainDb: Sql,
   productId: string,
-): Promise<APIResponseWithData<DeckVersionSummary[]>> {
+): Promise<APIResponseWithData<SlideDeckVersionSummary[]>> {
   return await tryCatchDatabaseAsync(async () => {
     const rows = await mainDb<
       (Pick<DBSlideDeckVersion, "id" | "created_at" | "editors" | "restored_from_version_id"> & {
@@ -528,7 +528,7 @@ export async function getSlideDeckVersion(
   mainDb: Sql,
   productId: string,
   versionId: string,
-): Promise<APIResponseWithData<DeckVersionDetail>> {
+): Promise<APIResponseWithData<SlideDeckVersionDetail>> {
   return await tryCatchDatabaseAsync(async () => {
     const row = (
       await mainDb<DBSlideDeckVersion[]>`
@@ -539,7 +539,7 @@ export async function getSlideDeckVersion(
     if (!row) {
       throw new Error(VERSION_NOT_FOUND);
     }
-    const slides = parseJsonOrThrow<DeckVersionSlide[]>(row.slides);
+    const slides = parseJsonOrThrow<SlideDeckVersionSlide[]>(row.slides);
     for (const s of slides) {
       upgradeSnapshotSlideConfig(s.config);
     }
@@ -556,7 +556,7 @@ export async function getSlideDeckVersion(
         deckConfig: parseJsonOrThrow<SlideDeckConfig>(row.slide_deck_config),
         slides,
         slideEditors: row.slide_editors
-          ? parseJsonOrThrow<DeckSlideEditors>(row.slide_editors)
+          ? parseJsonOrThrow<SlideDeckSlideEditors>(row.slide_editors)
           : null,
       },
     };
@@ -572,13 +572,13 @@ export async function getSlideDeckVersion(
  *  (toDelete and toInsert rooms are closed; toUpdate rooms merge live). */
 export type SlideDeckRestorePlan = {
   toDelete: string[];
-  toInsert: DeckVersionSlide[];
-  toUpdate: DeckVersionSlide[];
+  toInsert: SlideDeckVersionSlide[];
+  toUpdate: SlideDeckVersionSlide[];
 };
 
 export function planSlideDeckRestore(
   currentIds: string[],
-  snapshotSlides: DeckVersionSlide[],
+  snapshotSlides: SlideDeckVersionSlide[],
 ): SlideDeckRestorePlan {
   const current = new Set(currentIds);
   const snapshot = new Set(snapshotSlides.map((s) => s.id));
@@ -619,7 +619,7 @@ export async function remapCollidingSlideIds(
     // generateUniqueSlideId only checks LIVE rows: also avoid the plan's own
     // not-yet-inserted ids and fresh ids picked earlier in this loop.
     const taken = new Set(ids);
-    const toInsert: DeckVersionSlide[] = [];
+    const toInsert: SlideDeckVersionSlide[] = [];
     for (const s of plan.toInsert) {
       if (!colliding.has(s.id)) {
         toInsert.push(s);
@@ -720,7 +720,7 @@ export async function copySlideDeckFromVersion(
 
     const config = parseJsonOrThrow<SlideDeckConfig>(version.slide_deck_config);
     config.label = args.label.trim();
-    const slides = parseJsonOrThrow<DeckVersionSlide[]>(version.slides)
+    const slides = parseJsonOrThrow<SlideDeckVersionSlide[]>(version.slides)
       .slice()
       .sort((a, b) => a.sortOrder - b.sortOrder);
 

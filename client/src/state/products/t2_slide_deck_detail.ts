@@ -24,7 +24,7 @@ export async function getSlideDeckDetailFromCacheOrFetch(
   if (data) {
     return { success: true, data } as const;
   }
-  const promise = serverActions.getProductSlideDeckDetail({
+  const promise = serverActions.getSlideDeckDetail({
     product_id: productId,
   });
   _SLIDE_DECK_DETAIL_CACHE.setPromise(promise, { productId }, version);

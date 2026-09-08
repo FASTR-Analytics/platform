@@ -8,6 +8,9 @@ import {
   updateProductLabel,
 } from "../../db/products/mod.ts";
 import { setProductRun } from "../../db/instance/run_generation.ts";
+import { closeReportRoom } from "../../collab/report_rooms.ts";
+import { closeSlideRoom } from "../../collab/slide_rooms.ts";
+import { drainVersionEditors } from "../../collab/version_capture.ts";
 import { log } from "../../middleware/logging.ts";
 import {
   notifyInstanceProductsDeleted,
@@ -88,12 +91,24 @@ defineRoute(
   "deleteProducts",
   log("deleteProducts"),
   async (c, { body }) => {
-    // The slide ids come back for 7a, which closes the slide and report
-    // rooms and drops the version accumulators before they become zombies;
-    // rooms are project-keyed until then.
+    // The batch is mixed-type; the DB layer pre-reads the slide ids of any
+    // deck in it so the rooms can be closed afterwards. Slide rooms are keyed
+    // by their deck, and every deleted product is offered a report room close
+    // too: closing a room that does not exist is a no-op, and the batch's
+    // types are not worth a second read. A live room left on a deleted row
+    // would fail its checkpoints forever, and a version session left in the
+    // tracker would flush against a row that is gone.
     const res = await deleteProducts(c.var.mainDb, body.productIds);
     if (!res.success) {
       return respond(c, res);
+    }
+    for (const productId of res.data.deletedIds) {
+      for (const slideId of res.data.deletedSlideIds) {
+        closeSlideRoom(productId, slideId, "This slide deck was deleted");
+      }
+      closeReportRoom(productId, productId, "This report was deleted");
+      drainVersionEditors("deck", productId);
+      drainVersionEditors("report", productId);
     }
     notifyInstanceProductsDeleted(res.data.deletedIds);
     // A delete frees the packages it pointed at: the catalogue's "in use by"

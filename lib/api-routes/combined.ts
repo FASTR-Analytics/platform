@@ -18,15 +18,10 @@ import { moduleRouteRegistry } from "./project/modules.ts";
 import { presentationObjectRouteRegistry } from "./project/presentation-objects.ts";
 import { projectResultsPackageRouteRegistry } from "./project/results-package.ts";
 import { projectRouteRegistry } from "./project/projects.ts";
-import { slideDeckRouteRegistry } from "./project/slide-decks.ts";
-import { slideDeckFolderRouteRegistry } from "./project/slide-deck-folders.ts";
-import { reportRouteRegistry } from "./project/reports.ts";
-import { reportFolderRouteRegistry } from "./project/report-folders.ts";
-import { slideRouteRegistry } from "./project/slides.ts";
 import { dashboardRouteRegistry } from "./project/dashboards.ts";
 import { visualizationFolderRouteRegistry } from "./project/visualization-folders.ts";
-import { emailRouteRegistry } from "./project/emails.ts";
 import { cacheStatusRouteRegistry } from "./project/cache-status.ts";
+import { emailRouteRegistry } from "./instance/emails.ts";
 import { productRouteRegistry } from "./products/products.ts";
 import { folderRouteRegistry } from "./products/folders.ts";
 import { productSlideDeckRouteRegistry } from "./products/slide-decks.ts";
@@ -60,11 +55,6 @@ export const routeRegistryIndividualCount =
   Object.keys(projectRouteRegistry).length +
   Object.keys(presentationObjectRouteRegistry).length +
   Object.keys(projectResultsPackageRouteRegistry).length +
-  Object.keys(slideDeckRouteRegistry).length +
-  Object.keys(slideDeckFolderRouteRegistry).length +
-  Object.keys(reportRouteRegistry).length +
-  Object.keys(reportFolderRouteRegistry).length +
-  Object.keys(slideRouteRegistry).length +
   Object.keys(dashboardRouteRegistry).length +
   Object.keys(visualizationFolderRouteRegistry).length +
   Object.keys(emailRouteRegistry).length +
@@ -100,11 +90,6 @@ export const routeRegistry = {
   ...projectRouteRegistry,
   ...presentationObjectRouteRegistry,
   ...projectResultsPackageRouteRegistry,
-  ...slideDeckRouteRegistry,
-  ...slideDeckFolderRouteRegistry,
-  ...reportRouteRegistry,
-  ...reportFolderRouteRegistry,
-  ...slideRouteRegistry,
   ...dashboardRouteRegistry,
   ...visualizationFolderRouteRegistry,
   ...emailRouteRegistry,

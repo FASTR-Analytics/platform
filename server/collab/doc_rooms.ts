@@ -2,8 +2,9 @@
 // Collaborative document rooms (server-authoritative Yjs relay): generic core
 // =============================================================================
 //
-// One room per co-edited document (slides, reports, visualizations). The
-// server holds the authoritative Y.Doc and a set of connected clients. It:
+// One room per co-edited document (slides and reports on the instance socket,
+// visualizations on the project socket until 9b). The server holds the
+// authoritative Y.Doc and a set of connected clients. It:
 //   - seeds the doc from persisted content on first open (or restores the
 //     exact prior Yjs state so co-editing survives a server restart),
 //   - syncs each joining client (sends what they're missing + our state vector
@@ -29,6 +30,11 @@
 // a newer one: flushRoomForDoc's callers snapshot the DB right after it
 // resolves), and first-subscribes re-check the registry, the connection's
 // liveness and the cancellation tombstones after the async load.
+//
+// Rooms are keyed `ownerId::docType::docId`, where the owner is the PRODUCT
+// for slide and report rooms (PLAN_PRODUCTS_RESTRUCTURE D8: the subscribe
+// names it, so a per-subscribe permission check has its subject without a
+// lookup) and the project for the visualization rooms that remain until 9b.
 
 import * as Y from "yjs";
 import {
@@ -81,8 +87,8 @@ export type DocRoomAdapter<T> = {
   /** Fired once per room lifetime, after the doc holds its initial content
    *  (seed or crdt_state restore): reports attach their authorship observer
    *  here. Paired with onDocClosed on every teardown path. */
-  onDocCreated?: (projectId: string, docId: string, doc: Y.Doc) => void;
-  onDocClosed?: (projectId: string, docId: string) => void;
+  onDocCreated?: (docId: string, doc: Y.Doc) => void;
+  onDocClosed?: (docId: string) => void;
 };
 
 /** Outcome of a DocRoomDeps.save. `permanent: true` marks a failure the same
@@ -112,7 +118,7 @@ export type DocRoomDeps<T> = {
 
 type Room = {
   key: string;
-  projectId: string;
+  ownerId: string;
   docId: string;
   adapter: DocRoomAdapter<unknown>;
   doc: Y.Doc;
@@ -155,8 +161,8 @@ const connRooms = new Map<string, Set<string>>(); // connectionId -> room keys
 // connection in handleConnGone.
 const cancelledSubscribes = new Set<string>();
 
-function roomKey(projectId: string, docType: string, docId: string): string {
-  return `${projectId}::${docType}::${docId}`;
+function roomKey(ownerId: string, docType: string, docId: string): string {
+  return `${ownerId}::${docType}::${docId}`;
 }
 
 function subscribeCancelKey(connectionId: string, key: string): string {
@@ -176,11 +182,11 @@ function trackConnRoom(connectionId: string, key: string): void {
  *  decide between compacting a still-open doc's ledgers and dropping a closed
  *  one's. */
 export function isRoomOpen(
-  projectId: string,
+  ownerId: string,
   docType: string,
   docId: string,
 ): boolean {
-  return rooms.has(roomKey(projectId, docType, docId));
+  return rooms.has(roomKey(ownerId, docType, docId));
 }
 
 function attachDoc(room: Room): void {
@@ -327,14 +333,14 @@ function checkpoint(room: Room): Promise<string | null> {
  *  room the argument is ignored: the creating subscriber's deps (and any
  *  closures inside them) stay bound for the room's whole lifetime. */
 export async function subscribeDoc<T>(
-  projectId: string,
+  ownerId: string,
   docId: string,
   conn: RoomConn,
   clientStateVectorB64: string,
   adapter: DocRoomAdapter<T>,
   deps: DocRoomDeps<T>,
 ): Promise<void> {
-  const key = roomKey(projectId, adapter.docType, docId);
+  const key = roomKey(ownerId, adapter.docType, docId);
   // A fresh subscribe supersedes any tombstone an earlier unsubscribe left.
   cancelledSubscribes.delete(subscribeCancelKey(conn.connectionId, key));
   let room = rooms.get(key);
@@ -353,7 +359,7 @@ export async function subscribeDoc<T>(
       if (loaded.crdtState) {
         // Restore the exact prior Yjs doc (survives server restart cleanly).
         // Corrupt/incompatible stored state must never throw here: this runs on
-        // the shared server process, so a bad row would crash every project.
+        // the shared server process, so a bad row would crash every room.
         try {
           Y.applyUpdate(doc, base64ToBytes(loaded.crdtState));
           restored = true;
@@ -370,7 +376,7 @@ export async function subscribeDoc<T>(
       }
       room = {
         key,
-        projectId,
+        ownerId,
         docId,
         // Room deliberately erases T: one heterogeneous map holds slide/report/
         // po rooms together. adapter.seed/deps.save are never invoked with a
@@ -393,7 +399,7 @@ export async function subscribeDoc<T>(
       };
       rooms.set(key, room);
       attachDoc(room);
-      adapter.onDocCreated?.(projectId, docId, doc);
+      adapter.onDocCreated?.(docId, doc);
     }
   }
 
@@ -461,7 +467,7 @@ export async function subscribeDoc<T>(
 
 /** Apply a client's update to the authoritative doc (which relays + checkpoints). */
 export function applyDocUpdate<T>(
-  projectId: string,
+  ownerId: string,
   docId: string,
   conn: RoomConn,
   updateB64: string,
@@ -471,7 +477,7 @@ export function applyDocUpdate<T>(
     conn.send(adapter.msgError(docId, COLLAB_NO_EDIT_PERMISSION));
     return;
   }
-  const room = rooms.get(roomKey(projectId, adapter.docType, docId));
+  const room = rooms.get(roomKey(ownerId, adapter.docType, docId));
   if (!room) {
     return;
   }
@@ -503,13 +509,13 @@ export function applyDocUpdate<T>(
 /** Relay a Yjs awareness (cursor/selection) update to the other room members.
  *  Awareness is ephemeral: not applied to the server doc and not persisted. */
 export function relayDocAwareness<T>(
-  projectId: string,
+  ownerId: string,
   docId: string,
   sender: RoomConn,
   updateB64: string,
   adapter: DocRoomAdapter<T>,
 ): void {
-  const room = rooms.get(roomKey(projectId, adapter.docType, docId));
+  const room = rooms.get(roomKey(ownerId, adapter.docType, docId));
   if (!room) {
     return;
   }
@@ -526,12 +532,12 @@ export function relayDocAwareness<T>(
 }
 
 export function unsubscribeDoc(
-  projectId: string,
+  ownerId: string,
   docType: string,
   docId: string,
   conn: RoomConn,
 ): void {
-  const key = roomKey(projectId, docType, docId);
+  const key = roomKey(ownerId, docType, docId);
   const room = rooms.get(key);
   connRooms.get(conn.connectionId)?.delete(key);
   if (!room || !room.conns.has(conn.connectionId)) {
@@ -655,7 +661,7 @@ async function finalizeRoom(room: Room): Promise<void> {
     }
     rooms.delete(room.key);
     room.doc.destroy();
-    room.adapter.onDocClosed?.(room.projectId, room.docId);
+    room.adapter.onDocClosed?.(room.docId);
     room.deps.onEmpty?.();
   } finally {
     room.finalizing = false;
@@ -680,11 +686,11 @@ async function finalizeRoom(room: Room): Promise<void> {
  * all. True means the row is settled and current.
  */
 export async function flushRoomForDoc(
-  projectId: string,
+  ownerId: string,
   docType: string,
   docId: string,
 ): Promise<boolean> {
-  const room = rooms.get(roomKey(projectId, docType, docId));
+  const room = rooms.get(roomKey(ownerId, docType, docId));
   if (!room) {
     return true;
   }
@@ -724,12 +730,12 @@ export async function flushAllRooms(): Promise<void> {
  * replaces the document.
  */
 export function closeRoomsForDoc(
-  projectId: string,
+  ownerId: string,
   docType: string,
   docId: string,
   message: string,
 ): void {
-  const key = roomKey(projectId, docType, docId);
+  const key = roomKey(ownerId, docType, docId);
   const room = rooms.get(key);
   if (!room) {
     return;
@@ -757,7 +763,7 @@ export function closeRoomsForDoc(
   room.conns.clear();
   rooms.delete(key);
   room.doc.destroy();
-  room.adapter.onDocClosed?.(room.projectId, room.docId);
+  room.adapter.onDocClosed?.(room.docId);
 }
 
 /** Outcome of routing an external write through a live room.
@@ -790,13 +796,13 @@ export type LiveRoomApplyResult =
  * eventually re-clobbering its own divergent doc.
  */
 export async function applyToLiveRoom(
-  projectId: string,
+  ownerId: string,
   docType: string,
   docId: string,
   apply: (doc: Y.Doc) => void,
   editor?: VersionEditor,
 ): Promise<LiveRoomApplyResult> {
-  const room = rooms.get(roomKey(projectId, docType, docId));
+  const room = rooms.get(roomKey(ownerId, docType, docId));
   if (!room) {
     return { status: "no_room" };
   }

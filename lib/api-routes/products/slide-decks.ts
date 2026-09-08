@@ -2,8 +2,8 @@ import { z } from "zod";
 import { slideDeckConfigSchema } from "../../types/mod.ts";
 import type { SlideDeckDetail } from "../../types/slides.ts";
 import type {
-  DeckVersionDetail,
-  DeckVersionSummary,
+  SlideDeckVersionDetail,
+  SlideDeckVersionSummary,
 } from "../../types/versions.ts";
 import { type ProductAccessLevel, route } from "../route-utils.ts";
 import { productIdParamsSchema } from "./products.ts";
@@ -16,10 +16,8 @@ const productVersionParamsSchema = z.object({
 // Deck content and version routes only; label, folder, package, scope,
 // duplicate and delete are the shared product routes (./products.ts), and
 // there is no deck list route: products ride the instance SSE channel.
-// Keys carry a `Product` infix until 9b deletes the project registries that
-// hold their final names (PLAN_PRODUCTS_RESTRUCTURE §9, step 5).
 export const productSlideDeckRouteRegistry = {
-  getProductSlideDeckDetail: route({
+  getSlideDeckDetail: route({
     path: "/products/:product_id/slide-deck",
     method: "GET",
     params: productIdParamsSchema,
@@ -27,7 +25,7 @@ export const productSlideDeckRouteRegistry = {
     access: "view",
   }),
 
-  updateProductSlideDeckPlan: route({
+  updateSlideDeckPlan: route({
     path: "/products/:product_id/slide-deck/plan",
     method: "PUT",
     params: productIdParamsSchema,
@@ -36,7 +34,7 @@ export const productSlideDeckRouteRegistry = {
     access: "edit",
   }),
 
-  updateProductSlideDeckConfig: route({
+  updateSlideDeckConfig: route({
     path: "/products/:product_id/slide-deck/config",
     method: "PUT",
     params: productIdParamsSchema,
@@ -45,23 +43,23 @@ export const productSlideDeckRouteRegistry = {
     access: "edit",
   }),
 
-  listProductSlideDeckVersions: route({
+  listSlideDeckVersions: route({
     path: "/products/:product_id/slide-deck/versions",
     method: "GET",
     params: productIdParamsSchema,
-    response: {} as DeckVersionSummary[],
+    response: {} as SlideDeckVersionSummary[],
     access: "view",
   }),
 
-  getProductSlideDeckVersion: route({
+  getSlideDeckVersion: route({
     path: "/products/:product_id/slide-deck/versions/:version_id",
     method: "GET",
     params: productVersionParamsSchema,
-    response: {} as DeckVersionDetail,
+    response: {} as SlideDeckVersionDetail,
     access: "view",
   }),
 
-  restoreProductSlideDeckVersion: route({
+  restoreSlideDeckVersion: route({
     path: "/products/:product_id/slide-deck/versions/:version_id/restore",
     method: "POST",
     params: productVersionParamsSchema,
@@ -71,7 +69,7 @@ export const productSlideDeckRouteRegistry = {
 
   // Creates a NEW product from the snapshot, so it carries a label and folder
   // like createProduct does, and inherits the source deck's (run_id, scope).
-  copyProductSlideDeckVersion: route({
+  copySlideDeckVersion: route({
     path: "/products/:product_id/slide-deck/versions/:version_id/copy",
     method: "POST",
     params: productVersionParamsSchema,

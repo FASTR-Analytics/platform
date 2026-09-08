@@ -2,17 +2,23 @@
 // Collaborative editing: realtime protocol (WebSocket)
 // =============================================================================
 //
-// Transport: a per-project WebSocket at GET /project_collab/:project_id,
-// separate from the one-way server→client SSE channel. It carries
-// low-frequency presence (who is where, idle/editing state) plus three
-// parallel CRDT document-sync families (slide_*, report_*, po_*) kept as
-// separate message sets so each family's wire format stays byte-stable
-// across deploys.
+// Transport: ONE instance-wide WebSocket at GET /collab, separate from the
+// one-way server to client SSE channel. It carries low-frequency presence
+// (who is where, idle/editing state) plus two CRDT document-sync families,
+// slide_* and report_*, kept as separate message sets so each family's wire
+// format stays byte-stable across deploys. Every document message names the
+// PRODUCT the document belongs to: rooms are keyed `productId::docType::docId`
+// and presence is keyed by product (PLAN_PRODUCTS_RESTRUCTURE D8), so a
+// per-subscribe permission check has its subject without a lookup.
+//
+// The po_* family and project_awareness_update belong to the project socket
+// at GET /project_collab/:project_id (server/routes/project/project-collab.ts),
+// which keeps only its visualization rooms until step 9b deletes it.
 
 import { z } from "zod";
 
 /**
- * One peer's live presence within a project.
+ * One peer's live presence, keyed by the product they have open.
  *
  * Identity (`email`, `name`, `color`) is stamped server-side from the
  * authenticated user and cannot be spoofed. `avatarUrl` is self-reported by the
@@ -38,8 +44,6 @@ export type PresenceEntry = {
   selectedTextTarget?: string;
   /** Set ⇔ the peer has that report open in the report editor. */
   reportId?: string;
-  /** Set ⇔ the peer has that standalone visualization open in the editor. */
-  poId?: string;
   /** Set ⇔ the peer has the figure editor open on a figure embedded in the
    *  slide/report they are in (the slide layout-block id or the report figure
    *  registry id). Contextualized by `slideId`/`reportId`. */
@@ -61,7 +65,6 @@ export type PresenceView = {
   selectedBlockId?: string;
   selectedTextTarget?: string;
   reportId?: string;
-  poId?: string;
   editingFigureId?: string;
   idle?: boolean;
 };
@@ -71,17 +74,38 @@ export type CollabClientMessage =
   | { type: "presence_update"; data: PresenceView }
   // CRDT document sync. `update`/`stateVector` are base64-encoded
   // Yjs binary payloads (see bytesToBase64/base64ToBytes in lib/collab).
-  | { type: "slide_subscribe"; data: { slideId: string; stateVector: string } }
-  | { type: "slide_update"; data: { slideId: string; update: string } }
-  | { type: "slide_unsubscribe"; data: { slideId: string } }
+  // `productId` is the deck the slide belongs to.
+  | {
+    type: "slide_subscribe";
+    data: { productId: string; slideId: string; stateVector: string };
+  }
+  | {
+    type: "slide_update";
+    data: { productId: string; slideId: string; update: string };
+  }
+  | { type: "slide_unsubscribe"; data: { productId: string; slideId: string } }
   // Yjs awareness (cursor/selection positions): ephemeral, relayed not persisted.
-  | { type: "awareness_update"; data: { slideId: string; update: string } }
+  | {
+    type: "awareness_update";
+    data: { productId: string; slideId: string; update: string };
+  }
   // Report CRDT sync: a parallel message family (rather than a generic
   // doc_* protocol) so the slide messages stay byte-identical across deploys.
-  | { type: "report_subscribe"; data: { reportId: string; stateVector: string } }
-  | { type: "report_update"; data: { reportId: string; update: string } }
-  | { type: "report_unsubscribe"; data: { reportId: string } }
-  | { type: "report_awareness_update"; data: { reportId: string; update: string } }
+  // A report IS its product, so `productId` equals `reportId`; both ride so
+  // the two families share one shape.
+  | {
+    type: "report_subscribe";
+    data: { productId: string; reportId: string; stateVector: string };
+  }
+  | {
+    type: "report_update";
+    data: { productId: string; reportId: string; update: string };
+  }
+  | { type: "report_unsubscribe"; data: { productId: string; reportId: string } }
+  | {
+    type: "report_awareness_update";
+    data: { productId: string; reportId: string; update: string };
+  }
   // Presentation-object (standalone visualization) CRDT sync: a third parallel
   // family, same rationale as report_* (keeps slide/report messages byte-stable).
   | { type: "po_subscribe"; data: { poId: string; stateVector: string } }
@@ -94,7 +118,7 @@ export type CollabClientMessage =
   // persisted, never applied to any server doc.
   | { type: "project_awareness_update"; data: { update: string } }
   // Client-side liveness probe. The SERVER side of dead-peer detection is
-  // Deno's built-in protocol ping (idleTimeout: see project-collab.ts), but
+  // Deno's built-in protocol ping (idleTimeout: see routes/instance/collab.ts), but
   // browsers can neither see protocol pings nor send their own, so a client
   // whose path died silently would keep an OPEN-looking socket for minutes.
   // The client sends this on a timer and force-closes the socket when no
@@ -105,18 +129,18 @@ export type CollabClientMessage =
 
 // ── Server-side frame validation ─────────────────────────────────────────────
 // Every frame arriving on the collab socket is schema-checked before any
-// handler touches it (project-collab.ts). Handlers dereference msg.data
+// handler touches it (routes/instance/collab.ts). Handlers dereference msg.data
 // directly, so without this a malformed frame threw into the process-level
 // error backstop; the length bounds also cap the amplification surface:
 // presence fields are re-serialized to every project connection on every
 // presence change, and awareness frames relay to whole rooms.
 
-/** Document ids: slides are 3 chars, reports/POs are UUIDs (36). */
+/** Document ids: slide and product ids are short nanoids, POs are UUIDs. */
 const collabIdSchema = z.string().min(1).max(64);
 /** Yjs state vectors are a few bytes per client that ever wrote to the doc. */
 const stateVectorSchema = z.string().max(128 * 1024);
 /** Doc updates legitimately carry multi-MB figure bundles: the 32 MiB frame
- *  cap (project-collab.ts) is the real bound; this mirrors it. */
+ *  cap (routes/instance/collab.ts) is the real bound; this mirrors it. */
 const docUpdateSchema = z.string().max(32 * 1024 * 1024);
 /** Awareness = cursor/selection state: legitimately tiny. */
 const awarenessUpdateSchema = z.string().max(64 * 1024);
@@ -146,7 +170,6 @@ const presenceViewSchema = z.object({
   selectedBlockId: elementIdSchema.optional(),
   selectedTextTarget: elementIdSchema.optional(),
   reportId: collabIdSchema.optional(),
-  poId: collabIdSchema.optional(),
   editingFigureId: elementIdSchema.optional(),
   idle: z.boolean().optional(),
 });
@@ -159,35 +182,59 @@ export const collabClientMessageSchema: z.ZodType<CollabClientMessage> = z
     z.object({ type: z.literal("presence_update"), data: presenceViewSchema }),
     z.object({
       type: z.literal("slide_subscribe"),
-      data: z.object({ slideId: collabIdSchema, stateVector: stateVectorSchema }),
+      data: z.object({
+        productId: collabIdSchema,
+        slideId: collabIdSchema,
+        stateVector: stateVectorSchema,
+      }),
     }),
     z.object({
       type: z.literal("slide_update"),
-      data: z.object({ slideId: collabIdSchema, update: docUpdateSchema }),
+      data: z.object({
+        productId: collabIdSchema,
+        slideId: collabIdSchema,
+        update: docUpdateSchema,
+      }),
     }),
     z.object({
       type: z.literal("slide_unsubscribe"),
-      data: z.object({ slideId: collabIdSchema }),
+      data: z.object({ productId: collabIdSchema, slideId: collabIdSchema }),
     }),
     z.object({
       type: z.literal("awareness_update"),
-      data: z.object({ slideId: collabIdSchema, update: awarenessUpdateSchema }),
+      data: z.object({
+        productId: collabIdSchema,
+        slideId: collabIdSchema,
+        update: awarenessUpdateSchema,
+      }),
     }),
     z.object({
       type: z.literal("report_subscribe"),
-      data: z.object({ reportId: collabIdSchema, stateVector: stateVectorSchema }),
+      data: z.object({
+        productId: collabIdSchema,
+        reportId: collabIdSchema,
+        stateVector: stateVectorSchema,
+      }),
     }),
     z.object({
       type: z.literal("report_update"),
-      data: z.object({ reportId: collabIdSchema, update: docUpdateSchema }),
+      data: z.object({
+        productId: collabIdSchema,
+        reportId: collabIdSchema,
+        update: docUpdateSchema,
+      }),
     }),
     z.object({
       type: z.literal("report_unsubscribe"),
-      data: z.object({ reportId: collabIdSchema }),
+      data: z.object({ productId: collabIdSchema, reportId: collabIdSchema }),
     }),
     z.object({
       type: z.literal("report_awareness_update"),
-      data: z.object({ reportId: collabIdSchema, update: awarenessUpdateSchema }),
+      data: z.object({
+        productId: collabIdSchema,
+        reportId: collabIdSchema,
+        update: awarenessUpdateSchema,
+      }),
     }),
     z.object({
       type: z.literal("po_subscribe"),

@@ -49,7 +49,7 @@ import {
 import { getClerkSessionAuth } from "../../middleware/auth.ts";
 import { notifyInstanceUsersUpdated, notifyInstanceProjectsLastUpdated } from "../../task_management/notify_instance_updated.ts";
 import { notifyProjectUsersUpdated } from "../../task_management/notify_project_v2.ts";
-import { COLLAB_CLOSE_UNAUTHORIZED } from "../project/project-collab.ts";
+import { COLLAB_CLOSE_UNAUTHORIZED } from "./collab.ts";
 import { defineRoute } from "../route-helpers.ts";
 
 export const routesUsers = new Hono();

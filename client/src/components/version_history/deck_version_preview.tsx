@@ -2,8 +2,8 @@ import {
   type AuthorRun,
   canonicalJson,
   type ContentBlock,
-  type DeckSlideEditors,
-  type DeckVersionDetail,
+  type SlideDeckSlideEditors,
+  type SlideDeckVersionDetail,
   PAGE_HEIGHT_DU,
   PAGE_WIDTH_DU,
   presenceColorForKey,
@@ -110,8 +110,8 @@ export function DeckVersionPreview(p: {
       | {
           success: true;
           data: {
-            v: DeckVersionDetail;
-            prev: DeckVersionDetail | null;
+            v: SlideDeckVersionDetail;
+            prev: SlideDeckVersionDetail | null;
             prevFailed: boolean;
           };
         }
@@ -127,7 +127,7 @@ export function DeckVersionPreview(p: {
       }
       // A failed previous-version load is NOT the same as "oldest version":
       // conflating them would positively badge every slide "New: Added by …".
-      let prev: DeckVersionDetail | null = null;
+      let prev: SlideDeckVersionDetail | null = null;
       let prevFailed = false;
       if (p.previousVersionId) {
         const prevRes = await serverActions.getDeckVersion({
@@ -152,7 +152,7 @@ export function DeckVersionPreview(p: {
 
   const [page, setPage] = createSignal(0);
 
-  async function restore(v: DeckVersionDetail) {
+  async function restore(v: SlideDeckVersionDetail) {
     const ok = await openConfirm({
       title: t3({
         en: "Restore this version?",
@@ -185,7 +185,7 @@ export function DeckVersionPreview(p: {
     p.onRestored();
   }
 
-  async function restoreAsCopy(v: DeckVersionDetail) {
+  async function restoreAsCopy(v: SlideDeckVersionDetail) {
     await openComponent({
       element: CopyVersionModal,
       props: {
@@ -229,7 +229,7 @@ export function DeckVersionPreview(p: {
         for (const e of v.editors) {
           names[e.email] = editorDisplayName(e);
         }
-        const se: DeckSlideEditors | null = v.slideEditors;
+        const se: SlideDeckSlideEditors | null = v.slideEditors;
         for (const touch of Object.values(se?.slides ?? {})) {
           for (const email of [
             ...(touch.edited ?? []),

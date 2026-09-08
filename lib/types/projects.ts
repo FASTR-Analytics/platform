@@ -5,8 +5,6 @@ import { ProjectUser } from "./instance.ts";
 import { type MetricWithStatus, type InstalledModuleSummary } from "./modules.ts";
 import type { ProjectUserPermissions } from "./permissions.ts";
 import { PresentationObjectSummary } from "./presentation_objects.ts";
-import { SlideDeckFolder, SlideDeckSummary } from "./slides.ts";
-import { ReportFolder, ReportSummary } from "./reports.ts";
 import { VisualizationFolder } from "./visualization_folders.ts";
 import { DashboardSummary } from "./dashboard.ts";
 
@@ -58,10 +56,6 @@ export type ProjectDetail = {
   hfaTaxonomy: HfaTaxonomyForAI;
   visualizations: PresentationObjectSummary[];
   visualizationFolders: VisualizationFolder[];
-  slideDecks: SlideDeckSummary[];
-  slideDeckFolders: SlideDeckFolder[];
-  reports: ReportSummary[];
-  reportFolders: ReportFolder[];
   dashboards: DashboardSummary[];
   projectUsers: ProjectUser[];
   thisUserPermissions: ProjectUserPermissions;

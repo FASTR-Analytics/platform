@@ -23,9 +23,8 @@ const slidePositionSchema = z.union([
 // value to `Slide`: the schema's recursive layout node is z.ZodTypeAny
 // because z.lazy() cannot reproduce panther's branded LayoutNode, so the
 // inferred type is not assignable to Slide; the cast bridges that gap only.
-// Keys carry a `Product` infix until 9b (see ./slide-decks.ts).
 export const productSlideRouteRegistry = {
-  getProductSlides: route({
+  getSlides: route({
     path: "/products/:product_id/slides",
     method: "GET",
     params: productIdParamsSchema,
@@ -33,7 +32,7 @@ export const productSlideRouteRegistry = {
     access: "view",
   }),
 
-  getProductSlide: route({
+  getSlide: route({
     path: "/products/:product_id/slides/:slide_id",
     method: "GET",
     params: productSlideParamsSchema,
@@ -41,7 +40,7 @@ export const productSlideRouteRegistry = {
     access: "view",
   }),
 
-  createProductSlide: route({
+  createSlide: route({
     path: "/products/:product_id/slides",
     method: "POST",
     params: productIdParamsSchema,
@@ -53,7 +52,7 @@ export const productSlideRouteRegistry = {
     access: "edit",
   }),
 
-  updateProductSlide: route({
+  updateSlide: route({
     path: "/products/:product_id/slides/:slide_id",
     method: "PUT",
     params: productSlideParamsSchema,
@@ -66,7 +65,7 @@ export const productSlideRouteRegistry = {
     access: "edit",
   }),
 
-  deleteProductSlides: route({
+  deleteSlides: route({
     path: "/products/:product_id/slides",
     method: "DELETE",
     params: productIdParamsSchema,
@@ -77,7 +76,7 @@ export const productSlideRouteRegistry = {
     access: "edit",
   }),
 
-  duplicateProductSlides: route({
+  duplicateSlides: route({
     path: "/products/:product_id/slides/duplicate",
     method: "POST",
     params: productIdParamsSchema,
@@ -86,7 +85,7 @@ export const productSlideRouteRegistry = {
     access: "edit",
   }),
 
-  moveProductSlides: route({
+  moveSlides: route({
     path: "/products/:product_id/slides/move",
     method: "PUT",
     params: productIdParamsSchema,

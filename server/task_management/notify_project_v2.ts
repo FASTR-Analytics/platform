@@ -3,10 +3,6 @@ import type {
   PresentationObjectSummary,
   ProjectSseMessage,
   ProjectUser,
-  ReportFolder,
-  ReportSummary,
-  SlideDeckFolder,
-  SlideDeckSummary,
   VisualizationFolder,
 } from "lib";
 
@@ -52,46 +48,6 @@ export function notifyProjectVisualizationFoldersUpdated(
   notifyProjectV2(projectId, {
     type: "visualization_folders_updated",
     data: { visualizationFolders },
-  });
-}
-
-export function notifyProjectSlideDecksUpdated(
-  projectId: string,
-  slideDecks: SlideDeckSummary[]
-): void {
-  notifyProjectV2(projectId, {
-    type: "slide_decks_updated",
-    data: { slideDecks },
-  });
-}
-
-export function notifyProjectSlideDeckFoldersUpdated(
-  projectId: string,
-  slideDeckFolders: SlideDeckFolder[]
-): void {
-  notifyProjectV2(projectId, {
-    type: "slide_deck_folders_updated",
-    data: { slideDeckFolders },
-  });
-}
-
-export function notifyProjectReportsUpdated(
-  projectId: string,
-  reports: ReportSummary[]
-): void {
-  notifyProjectV2(projectId, {
-    type: "reports_updated",
-    data: { reports },
-  });
-}
-
-export function notifyProjectReportFoldersUpdated(
-  projectId: string,
-  reportFolders: ReportFolder[]
-): void {
-  notifyProjectV2(projectId, {
-    type: "report_folders_updated",
-    data: { reportFolders },
   });
 }
 
