@@ -7,6 +7,7 @@ globs:
   - client/src/components/PresentationObjectPanelDisplay.tsx
   - client/src/components/ReplicateByOptions.tsx
   - client/src/components/_editor_snapshot.ts
+  - client/src/components/explore/**
   - client/src/components/figure_editor/**
   - client/src/components/figures/**
   - client/src/components/forms_editors/confirm_update.tsx
@@ -64,7 +65,9 @@ editor into this directory);
 `PresentationObjectPanelDisplay` / `MiniDisplay` / `ReplicateByOptions` /
 `NotAvailableBox` / `_editor_snapshot.ts`;
 `components/figures/insert_figure/**` (the insert-figure wizard and the
-preset gallery it renders, below); `project_visualizations.tsx` +
+preset gallery it renders, below); `components/explore/index.tsx` (the
+instance Explore tab's page, S14 mounts it: empty until the results explorer
+plan fills it, PLAN_PRODUCTS_RESTRUCTURE D6); `project_visualizations.tsx` +
 `project_metrics.tsx` + folder modals;
 forms_editors viz modals; server PO/folder CRUD
 (`db/project/{presentation_objects,visualization_folders}.ts` + the
@@ -206,8 +209,8 @@ even right after a save (Open item).
 
 ## The insert-figure wizard
 
-`InsertFigureModal` (`components/figures/insert_figure/index.tsx`) takes
-`{ scope: PackageScope, context: Pick<RunAuthoringContext, "metrics" |
+`InsertFigureModal` (`components/figures/insert_figure/index.tsx`) takes `{
+scope: PackageScope, context: Pick<RunAuthoringContext, "metrics" |
 "modules">, preselectedMetricId }`: the metrics and modules come from the
 package's authoring context (S9's `t2_run_authoring_context.ts`, or the
 project's own projection of the same manifest until 9a) and the pair is used
@@ -215,32 +218,31 @@ only by the preset previews. It is a 3-step stepper: **Metric** (module
 sidebar + `MetricCard` grid; a card is selectable only when single-variant and
 `status === "ready"`; multi-variant metrics render per-variant chips) →
 **Presets** (`PresetSelector`: one live-rendered `PresetPreview` per
-`metric.vizPresets` entry + an always-appended `CUSTOM_OPTION` card; selecting a
-real preset skips step 3) → **Configure** (five `TypeCard`s gated by
+`metric.vizPresets` entry + an always-appended `CUSTOM_OPTION` card; selecting
+a real preset skips step 3) → **Configure** (five `TypeCard`s gated by
 `get_PRESENTATION_SELECT_OPTIONS`: timeseries needs a period column, map needs
 an admin-level disaggregation; table/chart/pie are always offered; required
 disaggregations are checked+disabled; `FILTER_ONLY_DISAGGREGATION_OPTIONS`
 excluded). The wizard derives every preset's config ONCE through
 `deriveConfigFromVizPreset` (the one preset-to-config derivation, resolving
-the `t` TranslatableStrings at insertion time; stored PO text fields are
-plain strings), after cloning the preset to plain data because the project pages
+the `t` TranslatableStrings at insertion time; stored PO text fields are plain
+strings), after cloning the preset to plain data because the project pages
 pass a Solid store; the previews render that list and the inserted figure is
 picked from it by id, so preview and figure cannot drift. A preview reads its
 rows through the scope-keyed `state/products/t2_figure_data.ts` (S9) and
 assembles them with `makeFigureBundleFromFetchedData(scope, ...)` +
 `buildFigureInputs`, so reopening a preset under the same `(runId,
-scopeToken)` is a cache hit and a preset is never a row (D6). Custom
-configs go through `getStartingConfigForPresentationObject` (type defaults
-from `VIZ_TYPE_CONFIG`, display slots assigned via
-`getNextAvailableDisaggregationDisplayOption`). **The wizard never
-persists**. It closes with `InsertFigureResult = { metric, config }` (a figure
-IS `{ metricId, config }`, D3) and its five callers decide: library/metrics
-open the editor in create mode with `metric.label` as the label;
-dashboard/report/slide editors build a figure block directly. The slide and
-report editors hand it their live `createProjectAuthoringScope()` pair and
-context; the project pages hand it `projectPackageScope()` plus
-`projectState.{metrics,projectModules}`, and do nothing when no package is
-attached.
+scopeToken)` is a cache hit and a preset is never a row (D6). Custom configs
+go through `getStartingConfigForPresentationObject` (type defaults from
+`VIZ_TYPE_CONFIG`, display slots assigned via
+`getNextAvailableDisaggregationDisplayOption`). **The wizard never persists**.
+It closes with `InsertFigureResult = { metric, config }` (a figure IS `{
+metricId, config }`, D3) and its five callers decide: library/metrics open the
+editor in create mode with `metric.label` as the label; dashboard/report/slide
+editors build a figure block directly. The slide and report editors hand it
+their live `createProjectAuthoringScope()` pair and context; the project pages
+hand it `projectPackageScope()` plus `projectState.{metrics,projectModules}`,
+and do nothing when no package is attached.
 
 ## The library page
 

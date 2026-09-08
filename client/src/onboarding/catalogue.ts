@@ -407,6 +407,7 @@ const openFirstDashboard = () => {
 
 export type InstanceTab =
   | "projects"
+  | "explore"
   | "data"
   | "results_packages"
   | "assets"

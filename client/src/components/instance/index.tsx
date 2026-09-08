@@ -32,6 +32,7 @@ import { EmailOptInModal } from "~/components/email_opt_in_modal";
 import { OrganisationModal } from "~/components/organisation_modal";
 import { WhatsNewFeedModal, WhatsNewModal } from "~/components/whats_new_modal";
 import { serverActions } from "~/server_actions";
+import { Explore } from "~/components/explore";
 import { InstanceAssets } from "~/components/instance/instance_assets";
 import { InstanceData } from "~/components/instance/instance_data";
 import { InstanceProjects } from "~/components/instance/instance_projects";
@@ -47,6 +48,7 @@ import { setupInstanceTours } from "~/onboarding";
 
 type InstanceTab =
   | "projects"
+  | "explore"
   | "data"
   | "results_packages"
   | "assets"
@@ -73,6 +75,13 @@ function wideNavItems(): {
       id: "projects",
       label: t3({ en: "Projects", fr: "Projets", pt: "Projetos" }),
       iconName: "folder",
+    },
+    // Approved users only, like every tab: the whole nav sits behind
+    // currentUserApproved (PLAN_PRODUCTS_RESTRUCTURE D6).
+    {
+      id: "explore",
+      label: t3({ en: "Explore", fr: "Explorer", pt: "Explorar" }),
+      iconName: "chart",
     },
   ];
   if (
@@ -402,6 +411,9 @@ export default function Instance(p: Props) {
               }
             >
               <Switch>
+                <Match when={tab() === "explore"}>
+                  <Explore />
+                </Match>
                 <Match
                   when={
                     tab() === "data" &&

@@ -148,9 +148,13 @@ instance" is `navigate("/")`.
 Everything else is a **signal-driven switchboard**, never the URL:
 
 - `components/instance/index.tsx`: a local `_tab` signal filtered through a
-  permission-guarded derivation selects Data / Assets / Users / Settings /
-  Projects. This file also hosts the language menu and the onboarding-modal
-  effect (below).
+  permission-guarded derivation selects Projects / Explore / Data / Results /
+  Assets / Users, in that nav order. Explore (S11's `components/explore/`,
+  empty until the results explorer plan) needs approval only, which the whole
+  nav already requires. The tab id union lives twice, here and as
+  `InstanceTab` in `onboarding/catalogue.ts` (the tour manager's page
+  predicates), and the two must agree. This file also hosts the language
+  menu and the onboarding-modal effect (below).
 - `components/project/index.tsx`: the page is the **persisted** `projectTab()`
   signal from `t4_ui` (localStorage-backed, so reloads land on the same tab);
   changes go through `updateProjectView`, and an `AIContextSync` component
