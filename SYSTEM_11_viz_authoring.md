@@ -134,10 +134,11 @@ emitted at every site but has zero consumers. Open item.)
   store), skipping first run and auto-resolution; cleared only on successful
   save.
 - **The refetch effect**
-  ([visualization_editor_inner.tsx](client/src/components/visualization/visualization_editor_inner.tsx),
-  ~:654) re-queries items when `tempConfig.d` changes, via
-  `trackStore(tempConfig.d)` plus a tracked `runVersionKey` read so the preview
-  refetches when module output changes mid-edit. The trackStore replaced a
+  ([visualization_editor_inner.tsx](client/src/components/figure_editor/visualization_editor_inner.tsx),
+  ~:748) re-queries items when `tempConfig.d` changes, via
+  `trackStore(tempConfig.d)` plus a tracked read of the container's
+  `(package, scope)` pair, so a reattach or rescope mid-edit re-previews under
+  the new package. The trackStore replaced a
   hand-maintained dependency list that regressed twice in one day when fields
   moved between nesting levels. Every current and future `d` field is
   fetch-tracked automatically. Superseded fetches are dropped via a monotonic

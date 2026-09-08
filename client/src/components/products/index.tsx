@@ -11,7 +11,7 @@ import {
   showMenu,
   type MenuItem,
 } from "panther";
-import { For, Show, createEffect, createMemo } from "solid-js";
+import { For, Show, createEffect, createMemo, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { canEditProduct } from "~/state/instance/product_access";
@@ -39,16 +39,38 @@ export function Products() {
   }
 
   // The one opener for requests made before the list is hydrated (the tour
-  // catalogue, the copilot, a product created a moment ago).
+  // catalogue, the copilot, a deep link). An id still absent once the store
+  // is ready is a dead link, so the request is dropped rather than retried.
   createEffect(() => {
     const pending = pendingEditorOpen();
+    const products = instanceState.products;
+    const isReady = instanceState.isReady;
     if (!pending || pending.kind !== "product") return;
-    const product = instanceState.products.find((x) => x.id === pending.id);
+    const product = products.find((x) => x.id === pending.id);
     if (!product) {
-      if (instanceState.isReady) setPendingEditorOpen(null);
+      if (isReady) setPendingEditorOpen(null);
       return;
     }
     setPendingEditorOpen(null);
+    void openProduct(product);
+  });
+
+  // A product this page just created, waiting for its row to arrive. NOT
+  // pendingEditorOpen: that request is dropped as a dead link the first tick
+  // the store is ready, which it already is here, so a create whose response
+  // beat its SSE echo would never open. This one waits for the row itself and
+  // is answered by nothing else.
+  const [awaitingProductId, setAwaitingProductId] = createSignal<string | null>(
+    null,
+  );
+
+  createEffect(() => {
+    const id = awaitingProductId();
+    const products = instanceState.products;
+    if (id === null) return;
+    const product = products.find((x) => x.id === id);
+    if (!product) return;
+    setAwaitingProductId(null);
     void openProduct(product);
   });
 
@@ -81,12 +103,12 @@ export function Products() {
 
   async function openCreatedProduct(data: { productId: string }) {
     const product = instanceState.products.find((x) => x.id === data.productId);
-    // The SSE echo normally lands first; if it has not, the pending-open
-    // request picks the new product up as soon as it arrives.
+    // The SSE echo normally lands first; if it has not, the effect above
+    // opens the row the moment it arrives.
     if (product) {
       await openProduct(product);
     } else {
-      setPendingEditorOpen({ kind: "product", id: data.productId });
+      setAwaitingProductId(data.productId);
     }
   }
 

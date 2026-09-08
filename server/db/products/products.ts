@@ -244,27 +244,36 @@ export async function moveProductsToFolder(
 }
 
 // Mixed-type batch delete: one DELETE on the registry; the detail tables and
-// their slides and versions go with it by CASCADE. The slide ids of any deck
-// in the batch are pre-read INSIDE the transaction so the caller can close
-// their collab rooms and version accumulators: after the delete they are
-// unrecoverable.
+// their slides and versions go with it by CASCADE. Both pre-reads happen
+// INSIDE the transaction so the caller can close exactly the collab rooms and
+// version accumulators the delete orphaned: after the delete they are
+// unrecoverable. Each deleted row comes back with its TYPE and each slide
+// with its OWN deck, so the caller closes rooms per document rather than
+// guessing across the batch.
 export async function deleteProducts(
   mainDb: Sql,
   productIds: string[],
 ): Promise<
-  APIResponseWithData<{ deletedIds: string[]; deletedSlideIds: string[] }>
+  APIResponseWithData<{
+    deleted: { id: string; type: ProductType }[];
+    deletedSlides: { productId: string; slideId: string }[];
+  }>
 > {
   return await tryCatchDatabaseAsync(async () => {
     const result = await mainDb.begin(async (sql) => {
-      const slideRows = await sql<{ id: string }[]>`
-        SELECT id FROM slides WHERE slide_deck_id = ANY(${productIds})
+      const slideRows = await sql<{ id: string; slide_deck_id: string }[]>`
+        SELECT id, slide_deck_id FROM slides
+        WHERE slide_deck_id = ANY(${productIds})
       `;
-      const deleted = await sql<{ id: string }[]>`
-        DELETE FROM products WHERE id = ANY(${productIds}) RETURNING id
+      const deleted = await sql<{ id: string; type: ProductType }[]>`
+        DELETE FROM products WHERE id = ANY(${productIds}) RETURNING id, type
       `;
       return {
-        deletedIds: deleted.map((r) => r.id),
-        deletedSlideIds: slideRows.map((r) => r.id),
+        deleted: deleted.map((r) => ({ id: r.id, type: r.type })),
+        deletedSlides: slideRows.map((r) => ({
+          productId: r.slide_deck_id,
+          slideId: r.id,
+        })),
       };
     });
     return { success: true, data: result };

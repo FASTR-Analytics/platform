@@ -260,10 +260,10 @@ re-exported via `task_management/mod.ts`) →
 (`lib/types/last_updated_tables.ts`, `products | slides`, beside the project
 union until 9b), and the client store keeps the matching
 `instanceState.lastUpdated.{products,slides}` index: `products[id]` from
-each summary's own stamp, `slides[id]` from the message. Both are stored
-and unread until the editors move to products (7a).
+each summary's own stamp, `slides[id]` from the message. Both key the
+products T2 caches the editors read.
 
-**The mutation recipe** (see `server/routes/project/reports.ts` for every
+**The mutation recipe** (see `server/routes/products/reports.ts` for every
 variant, in registry/`defineRoute` style): after a successful write, (1)
 row-level: `notifyLastUpdated(projectId, tableName, [id], lastUpdated)` so
 clients invalidate that entity's caches; (2) list-level: refetch the summary
@@ -272,17 +272,17 @@ list and broadcast it whole via `notify<Thing>Updated`, guarded by
 itself is just `success`/`err`. Clients never install state from it.
 
 **One deliberate exception: collab checkpoint rebroadcasts.** S16's collab room
-checkpoints (debounced 1.5 s while users co-edit) fire the row-level
-`notifyLastUpdated` on every checkpoint but debounce the list-level rebroadcast
-to 5 s per project (`scheduleReportsListRebroadcast` /
-`scheduleVizListRebroadcast` in `server/routes/project/project-collab.ts`,
-calling the existing `notifyProjectReportsUpdated` /
-`notifyProjectVisualizationsUpdated`). The reports list refetch loads every
-report's body, far too heavy per checkpoint while someone is typing. (Slide
-checkpoints skip the list rebroadcast entirely; they row-notify both the slide
-and its deck.) Net effect during active co-editing: an SSE message and list
-refetch roughly every 1.5 s / 5 s, the contract working as designed, worth
-knowing if broadcast volume ever becomes a concern.
+checkpoints (debounced 1.5 s while users co-edit) notify on every checkpoint.
+Product documents need no list-level throttle: a product's summary is ONE row,
+re-read and pushed by `notifyInstanceProductsUpserted`, so a slide checkpoint
+stamps the slide and re-broadcasts its deck's summary, and a report checkpoint
+re-broadcasts its own. The one surviving throttle is the project socket's
+visualization list (`scheduleVizListRebroadcast` in
+`server/routes/project/project-collab.ts`, 5 s per project, calling
+`notifyProjectVisualizationsUpdated`), which dies with the PO rooms in 9b.
+Net effect during active co-editing: an SSE message roughly every 1.5 s, the
+contract working as designed, worth knowing if broadcast volume ever becomes a
+concern.
 
 **The triangle.** A DB write bumps `last_updated` / `last_run_at` (S2). The same
 timestamp is (a) broadcast via `notifyLastUpdated` → client T1 store → client

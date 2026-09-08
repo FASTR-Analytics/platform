@@ -57,6 +57,7 @@ import { addLastUpdatedListener } from "~/state/instance/t1_sse";
 import { productById } from "~/state/instance/t1_store";
 import { canEditProduct } from "~/state/instance/product_access";
 import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
+import { getReportDetailFromCacheOrFetch } from "~/state/products/t2_report_detail";
 import { setShowAi, showAi } from "~/state/t4_ui";
 import {
   findStaleFiguresInReport,
@@ -645,9 +646,12 @@ export function ReportEditor(p: Props) {
   });
 
   onMount(async () => {
-    const res = await serverActions.getReportDetail({
-      product_id: p.productId,
-    });
+    // Through the T2 cache, like the deck editor's detail read: the entry is
+    // keyed by the product's own stamp, so a hit can only be the current row.
+    // One-shot on purpose, with no version-keyed refetch effect behind it:
+    // once the room syncs, the shared doc owns this content, and a refetch
+    // landing mid-session would fight it.
+    const res = await getReportDetailFromCacheOrFetch(p.productId);
     if (res.success) {
       setBody(res.data.body);
       setLastUpdated(res.data.lastUpdated);

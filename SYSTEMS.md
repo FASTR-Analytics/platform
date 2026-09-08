@@ -32,7 +32,7 @@ observability (17).
 | [S13](SYSTEM_13_ai_assistant.md)         | AI Copilot & Usage Governance            | Anthropic proxy + governance + ~40 browser tools via the AIContext contract                |
 | [S14](SYSTEM_14_client_shell.md)         | Client Shell & Session                   | SPA boot, page maps, language/calendar singletons, UI prefs, help chrome                   |
 | [S15](SYSTEM_15_admin_ops.md)            | Instance Administration & Ops            | users/roles, project lifecycle, health, backups, disk autonomics, deploy                   |
-| [S16](SYSTEM_16_collaboration.md)        | Realtime Collaboration & Version History | live Yjs co-editing over one project WS; rooms checkpoint into S12 tables + S3 notifies    |
+| [S16](SYSTEM_16_collaboration.md)        | Realtime Collaboration & Version History | live Yjs co-editing over one instance WS; rooms checkpoint into S12 tables + S3 notifies   |
 | [S17](SYSTEM_17_logging.md)              | Activity Logging & Audit Trail           | `log()` middleware → user_logs raw + weekly aggregate → Users tab, health, Admin-Website   |
 | [S00](SYSTEM_00_kernel.md)               | Kernel (read but don't own)              | lib mega-barrel, multi-domain grab-bags, the env nexus, everyone's dependency              |
 
@@ -68,10 +68,8 @@ list.)
 | `client/src/components/_shared/results_package/**`                      | S8    | S12               | S8 content under S12's `_shared/**` glob              |
 | `client/src/components/instance/instance_data.tsx`                      | S6    | S5                | data-tab switchboard mounting S5 managers             |
 | `server/db/instance/config.ts`                                          | S5    | S6, S9            | instance config parameterizes ELT + generated SQL     |
-| `server/db/project/reports.ts` · `slides.ts` · `slide_decks.ts`         | S12   | S16, S2           | S16 collab checkpoints + version columns              |
-| `server/routes/project/reports.ts` · `slide_decks.ts` · `slides.ts`     | S12   | S16               | S16 room chokepoints + version-history routes         |
-| `server/db/products/reports.ts` · `slides.ts` · `slide_decks.ts`        | S12   | S16, S2           | the same seam on the products layer                   |
-| `server/routes/products/reports.ts` · `slide_decks.ts` · `slides.ts`    | S12   | S16               | version-history routes; room chokepoints from 7a      |
+| `server/db/products/reports.ts` · `slides.ts` · `slide_decks.ts`        | S12   | S16, S2           | S16 collab checkpoints + version columns              |
+| `server/routes/products/reports.ts` · `slide_decks.ts` · `slides.ts`    | S12   | S16               | S16 room chokepoints + version-history routes         |
 | `server/routes/instance/health.ts`                                      | S15   | S17               | unauthenticated endpoints dump the user_logs tables   |
 | `server/collab/version_capture.ts`                                      | S16   | S17               | onSessionEnd writes edit-session user_logs rows       |
 

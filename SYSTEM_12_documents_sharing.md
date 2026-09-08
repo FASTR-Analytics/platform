@@ -193,12 +193,13 @@ transactions; `moveSlides` ([db/products/move_slides.ts](server/db/products/move
 is **within-deck reorder only**; `copySlidesToSlideDeck` is the cross-deck
 reuse path.
 
-**The deck-touch rule.** Every slide mutation bumps
-`slide_decks.last_updated` with the same timestamp in the same transaction,
-and that touch is what drives the SSE push and t2 cache versioning. Exceptions
-(Open item): `duplicateSlides` runs its shift-UPDATE and per-slide INSERT
-loop **outside** any transaction, and `duplicateSlideDeck` has no transaction
-at all, so a mid-loop failure leaves partial rows.
+**The deck-touch rule.** Every slide mutation bumps the owning `products` row
+(`touchProduct`, which also asserts the row's type) with the same timestamp in
+the same transaction, and that touch is what drives the SSE push and t2 cache
+versioning. `slide_decks` carries no timestamp of its own: the product row is
+the deck's version. Every slide writer, `duplicateSlides` and the deck
+duplicate included, runs its touch, its shift-UPDATE, its INSERTs and its
+`reSequence` inside one `mainDb.begin`.
 
 **Validation at write.** Deck config is validated at both the route body
 (`slideDeckConfigSchema`) and the DB layer; slide bodies are **`z.unknown()`

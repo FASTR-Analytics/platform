@@ -94,23 +94,24 @@ object both `server/routes/route-helpers.ts` and
 gets a typed action and the server gets a typed handler signature for free;
 forget to implement it → boot fails.
 
-Canonical example (`lib/api-routes/project/reports.ts`):
+Canonical example (`lib/api-routes/products/reports.ts`):
 
 ```ts
-export const reportRouteRegistry = {
-  createReport: route({
-    path: "/reports",
-    method: "POST",
-    body: z.object({ label: z.string(), ...folderBodyFields }),
-    response: {} as { reportId: string; lastUpdated: string },
-    requiresProject: true,
-  }),
+export const productReportRouteRegistry = {
   getReportDetail: route({
-    path: "/reports/:report_id",
+    path: "/products/:product_id/report",
     method: "GET",
-    params: reportIdParamsSchema, // z.object({ report_id: z.string() })
+    params: productIdParamsSchema, // z.object({ product_id: z.string() })
     response: {} as ReportDetail,
-    requiresProject: true,
+    access: "view",
+  }),
+  updateReportBody: route({
+    path: "/products/:product_id/report/body",
+    method: "PUT",
+    params: productIdParamsSchema,
+    body: z.object({ body: z.string(), expectedLastUpdated: z.string() }),
+    response: {} as { lastUpdated: string; conflicted: boolean },
+    access: "edit",
   }),
 };
 ```
@@ -176,7 +177,7 @@ The thin-handler shape is invariant: **call one DB fn →
 return c.json(res)` → `notify*()` on success →
 `c.json(res)`.** Business logic lives in the DB layer (S2); notify side-effects
 push state over SSE (S3); routes never hand-build `{ success: true, data }` when
-the DB function already returns an envelope. `server/routes/project/reports.ts`
+the DB function already returns an envelope. `server/routes/products/reports.ts`
 is the canonical, fully-consistent implementation file.
 
 Two deliberate validation holes remain, both documented: `response` (above), and

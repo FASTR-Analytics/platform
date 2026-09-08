@@ -78,10 +78,11 @@ See the `globs:` frontmatter (the lint-enforced manifest) and the S16 row in
   copy is never bypassed.
 - **Rides two neighbouring systems, replaces neither.** Checkpoints persist by
   calling **S12**'s document tables (`saveReportCheckpoint` /
-  `saveSlideCheckpoint` in `server/db/project/{reports,slides}.ts`, onto
+  `saveSlideCheckpoint` in `server/db/products/{reports,slides}.ts`, onto
   additive `crdt_state` / `body_authors` / `slide_editors` columns) and then
-  ring **S3**'s notify hub (`notifyLastUpdated`). See the boundary section
-  below. This is the load-bearing integration contract.
+  ring **S3**'s notify hub (`notifyInstanceLastUpdated` for the slide stamp,
+  `notifyInstanceProductsUpserted` for the product summary). See the boundary
+  section below. This is the load-bearing integration contract.
 - **Attribution is honest.** Exact per-character / per-slide / per-element
   "who" only accrues for edits made through live collab rooms after deploy;
   everything else falls back to session-level "one of: …" wording. Ledgers
@@ -97,7 +98,9 @@ See the `globs:` frontmatter (the lint-enforced manifest) and the S16 row in
 Presence avatars in the deck and report editor headers and on per-slide
 cards (`+N` overflow chip past five people); idle dimming (`opacity-40
 grayscale` after 3 min without input, lit again on the next input, never while
-editing); a pulsing "editing now" badge on list-card avatars only; join/leave
+editing); a pulsing "editing now" badge, whose only mount is the visualization
+card stack, which draws no peers since 7a and goes with the tab in 9a, so the
+badge currently renders nowhere; join/leave
 toasts (top-right, below the header) keyed per person with a short grace
 window so refreshes/reconnects stay silent and switching documents yourself
 never announces the people already there. Live co-editing: character-merged
@@ -364,11 +367,12 @@ bindings [slide_rooms.ts](server/collab/slide_rooms.ts),
   rejected non-fatally without touching the doc.
 - **Checkpoint**: dirty rooms persist on a 1.5 s debounce:
   `materializeSlide(doc)` → `saveSlideCheckpoint`
-  ([server/db/project/slides.ts](server/db/project/slides.ts)) writes
-  `config`, `crdt_state`, and both timestamps, and bumps the parent
-  `slide_decks` row, in one transaction; then SSE `notifyLastUpdated` fires
-  for the slide and its deck. Collab is authoritative: the checkpoint
-  intentionally has no conflict check. Checkpoints are SERIALIZED per room
+  ([server/db/products/slides.ts](server/db/products/slides.ts)) writes
+  `config`, `crdt_state`, and both timestamps, and bumps the owning
+  `products` row (`touchProduct`), in one transaction; then SSE fires
+  `notifyInstanceLastUpdated("slides", …)` for the slide and
+  `notifyInstanceProductsUpserted` for its deck. Collab is authoritative: the
+  checkpoint intentionally has no conflict check. Checkpoints are SERIALIZED per room
   (each chains behind the previous save) so two saves can never commit out of
   order. `flushRoomForDoc` awaits the chain even when the room looks
   clean, because "clean" may mean a save is in flight (the restore routes
@@ -503,7 +507,7 @@ and merge via CRDT.
 
 ### Visualization editor
 
-[visualization_editor_inner.tsx](client/src/components/visualization/visualization_editor_inner.tsx)
+[visualization_editor_inner.tsx](client/src/components/figure_editor/visualization_editor_inner.tsx)
 opens a `po` session over the same machinery: the `d`/`s` config co-edits
 per-field, captions per-character; per-user undo via a local-origin
 `Y.UndoManager`; presence gains `poId`/`editingFigureId`; the Data /
@@ -864,7 +868,7 @@ who edited in the session window), `content_hash`, `created_at`, and nullable
   `slide_editors` are NOT part of the hash: dedup is about content, not
   attribution.)
 - **Retention**: newest 100 per document, pruned in the writer after each
-  insert ([server/db/project/versions.ts](server/db/project/versions.ts));
+  insert ([server/db/products/versions.ts](server/db/products/versions.ts));
   `ON DELETE CASCADE` removes versions with their parent document.
 - **Ordering**: every version query (list, lineage, latest-hash, prune) orders
   by `(created_at, id)`, the same tiebreak everywhere, so list order and lineage

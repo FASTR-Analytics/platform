@@ -378,8 +378,9 @@ Before INSERT/UPDATE, validate against Zod schema. Invalid data cannot enter the
 |-------------------------------|---------------------------------------------|---------------------------------------------------------------------------------------------------------------|-----------------------------------|
 | `presentation_objects.config` | `server/db/project/presentation_objects.ts` | `addPresentationObject`, `updatePresentationObjectConfig`, `batchUpdatePresentationObjectsPeriodFilter`       | `presentationObjectConfigSchema`  |
 | `presentation_objects.config` | `server/db/project/presentation_objects.ts` | `duplicatePresentationObject`                                                                                 | (copies validated row)            |
-| `slide_decks.config`          | `server/db/project/slide_decks.ts`          | `createSlideDeck`, `duplicateSlideDeck`, `updateSlideDeckConfig`                                              | `slideDeckConfigSchema`           |
-| `slides.config`               | `server/db/project/slides.ts`               | `createSlide`, `updateSlide`                                                                                  | `slideConfigSchema`               |
+| `slide_decks.config`          | `server/db/products/slide_decks.ts`         | `insertNewSlideDeckDetail`, `duplicateSlideDeckDetail`, `updateSlideDeckConfig`                               | `slideDeckConfigSchema`           |
+| `slides.config`               | `server/db/products/slides.ts`              | `createSlide`, `updateSlide`                                                                                  | `slideConfigSchema`               |
+| `slides.config`               | `server/db/products/slides.ts`              | `saveSlideCheckpoint`                                                                                         | (parsed by the room checkpoint)   |
 | `instance_config.*`           | `server/db/instance/config.ts`              | `setStructureSchema`, `updateAdminAreaLabelsConfig`                                                           | Type-specific schemas             |
 
 **Note:** `slideDeckConfigSchema` and `slideConfigSchema` are currently `z.unknown()` stubs. Validation is wired up but accepts anything until real schemas are defined.

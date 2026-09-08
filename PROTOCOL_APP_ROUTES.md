@@ -89,7 +89,7 @@ The thin-handler shape is invariant: **call one DB fn returning an `APIResponse`
 (that's the DB layer, S2); never hand-build `{ success: true, data }` when the
 DB function already returns an envelope; never cast the return to `any`. A type
 error at the `defineRoute` call means the registry and implementation disagree.
-`server/routes/project/reports.ts` is the canonical example file; the notify
+`server/routes/products/reports.ts` is the canonical example file; the notify
 recipe (row-level `last_updated` + whole-list broadcast) is S3's mutation
 recipe.
 
