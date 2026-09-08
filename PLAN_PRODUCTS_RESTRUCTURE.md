@@ -9,28 +9,10 @@ project Metrics tab and the standalone visualization library.
 values are `Do N`, `Review N` and `Fix N`; after step 10's review passes the
 file is deleted instead of advanced.
 
-**Status 2026-09-08: NOT STARTED on `version2`.** This is the second attempt.
-The first attempt was built on `tim-branch-restructure` between 2026-08-19 and
-2026-08-20, reached green gates and a migrated dev database, and stopped
-before rollout. That branch is preserved as **`version2-reference`** and is
-used here as a worked example, never as a source of commits. Production moved
-on in the meantime: the app is at 1.71.1, instance migrations 079 to 083 are
-shipped, the frozen Postgres results plane is gone, and the indicator and
-population work landed. The reference branch cannot be merged (262 conflicting
-files, colliding migration numbers, and a second implementation of the
-results-runs close-out). Every ruling in §2 survives. The work breakdown in §4
-is new.
-
-Two things the first attempt taught, which shape this plan:
-
-- **Delete last.** The first attempt deleted first and used the compiler as
-  the todo list. Nothing ran between its fourth and twentieth commits, and the
-  two behavioural defects it found were found on the last day. Here every
-  step ends with the app booting, and nothing is deleted until its
-  replacement works in dev.
-- **Gate first.** The read-only fleet dry-run was the gate left pending when
-  the first attempt stopped. Here it is step 2, and it runs against
-  production data before any product code is written.
+All work is on `version2`. A first attempt, preserved as
+`version2-reference`, is a worked example read through `git show` and never
+a source of commits (§0). It deleted first and gated last, and paid for
+both; this plan does the reverse.
 
 ---
 
