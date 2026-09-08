@@ -124,9 +124,12 @@ there, and each limited to removing that reference:**
   project disk gates; the rename-email per-project sweep; the instance SSE
   channel carries product lists (transport only); the public `/api/d/:slug`
   mount and `routes/public/dashboard.ts`.
-- Access control: one new guard, `requireApprovedUser()`, used by the
-  product, figure-data, copilot and collab surface. `requireGlobalPermission()`
-  and every existing instance route keep their exact semantics (D2).
+- Access control: one new guard, `requireApprovedUser()`, for the
+  figure-data, copilot and collab surface, and one declared-access
+  middleware, `requireProductAccess`, for every product and folder route,
+  whose policy today grants everything to an approved user.
+  `requireGlobalPermission()` and every existing instance route keep their
+  exact semantics (D2).
 
 ---
 
@@ -151,14 +154,23 @@ projects (17 flags, 17 `default_project_*` mirrors, `project_user_roles`,
 `role`, `is_locked`, `is_central_reporting`, the permission-preset sets, 6
 forms, 8 routes,
 `resolveProjectUserAccess`, per-family collab flags, around 20 client
-`canEdit` gates). The product surface (product and folder CRUD, figure-data
-reads, the authoring context, the ready-package list, the Explore tab's
-reads, the copilot `/ai` and `/ai/files` mounts, the collab socket, the
-products filter on the instance SSE) is guarded by **`requireApprovedUser()`**:
-signed in AND `globalUser.approved` (server `approved` = `_OPEN_ACCESS ||
-!!usersRow` in `project_auth.ts`; today the zero-perm
-`requireGlobalPermission()` never checks `approved`, and the project path was
-the only place approval was enforced). Nothing else changes: the six instance
+`canEdit` gates). The approved-user surface (figure-data reads, the
+authoring context, the ready-package list, the Explore tab's reads, the
+copilot `/ai` and `/ai/files` mounts, the collab socket, the products filter
+on the instance SSE) is guarded by **`requireApprovedUser()`**: signed in
+AND `globalUser.approved` (server `approved` = `_OPEN_ACCESS || !!usersRow`
+in `project_auth.ts`; today the zero-perm `requireGlobalPermission()` never
+checks `approved`, and the project path was the only place approval was
+enforced). **Every product and folder route declares its access level**
+(`access: "view" | "edit" | "own"` on the registry entry) and is guarded by
+one middleware, **`requireProductAccess`**, which reads the declaration and
+the route's target ids and asks one policy function,
+`productAccessPolicy(user, level, targets)`. Today that policy returns true
+for any approved user at every level, so the behaviour is the same as
+`requireApprovedUser()`. The point is the shape: the future permission
+system replaces the policy function and gains the per-route access
+inventory for free, instead of rediscovering it across forty handlers.
+Nothing else changes: the six instance
 flags (`can_configure_users`, `can_view_users`, `can_view_logs`,
 `can_configure_settings`, `can_configure_data`, `can_view_data`;
 `can_create_projects` dropped) keep guarding exactly the surfaces they guard
@@ -168,10 +180,12 @@ today; package internals (`getRunDetail`, script, logs and files viewers, the
 `can_view_data` check in `server/mcp/context_cache.ts`, and the comment
 above that check, which today says the run-keyed routes enforce
 `can_view_data`, is rewritten to say that this check is now the only place
-it is enforced. Every approved user is a full editor of every product;
-`products.created_by` is recorded so a later owner or sharing model has its
-join key; `RoomConn.canEdit` plumbing is kept (TRUE) so a later model slots
-in per subscribe. Consequences accepted and named (the D13 dry-run reports
+it is enforced. Every approved user is a full editor of every product and
+folder. `products.created_by` and `folders.created_by` are recorded as
+provenance only: they are NOT ownership, and the later owner role comes
+from an ACL table, never from these columns (migrated rows have them NULL).
+`RoomConn.canEdit` plumbing is kept (TRUE) so a later model slots in per
+subscribe. Consequences accepted and named (the D13 dry-run reports
 them per instance so the blast radius is known before deploy): former
 project viewers become editors; `is_central_reporting` projects, hidden from
 non-H users today, become ordinary visible folders unless emptied by hand
@@ -291,7 +305,11 @@ presets }`. This is the same manifest projection `getProjectDetail` builds
 today in `db/project/projects.ts`. It is derived from the run dir alone, so
 its value never changes for a given `runId` and the client caches it by that
 id without revalidating. Guard `requireApprovedUser()`; the data reads
-additionally require `runs.status = 'ready'`. `adminArea2` is
+additionally require `runs.status = 'ready'`. This makes package data an
+instance-level resource: any approved user can read any ready package at
+any scope. A later view permission on a product governs the document, not
+the numbers behind it; data-level restriction, if ever wanted, is a
+separate scope-based design on these read routes. `adminArea2` is
 shape-validated and `escapeSqlString`'d exactly as today. Valkey keys keep
 `runId` as the leading uniqueness segment (the `delete_run.ts` prefix sweep)
 and `scopeToken` trailing, so `PO_CACHE_VERSION` needs no bump. The headless
@@ -318,9 +336,11 @@ run-derived
 catalog leaves SSE (`run_attached`, `admin_area_2_changed`,
 `project_config_updated` die) for the immutable T2
 `getRunAuthoringContext(runId)`. Collab: `GET /collab` (was
-`/project_collab/:project_id`), auth = origin plus Clerk plus approved, rooms
-keyed `docType::docId` for `slide` and `report` only (`po_rooms.ts` and the
-`po_*` messages deleted), presence keyed by product; the project-level
+`/project_collab/:project_id`), auth = origin plus Clerk plus approved; the
+subscribe message carries the product id and rooms are keyed
+`productId::docType::docId` for `slide` and `report` only (`po_rooms.ts`
+and the `po_*` messages deleted), so a per-subscribe permission check has
+its subject without a lookup; presence keyed by product; the project-level
 page-awareness relay, list-page cursors and card presence avatars are
 dropped. The server-cli nginx template becomes path-agnostic and is emitted
 fleet-wide before the deploy. `runVersionKey` becomes cache params `(runId,
@@ -661,6 +681,8 @@ CREATE TABLE folders (
   label text NOT NULL,
   color text,
   parent_id text REFERENCES folders(id) ON DELETE SET NULL,  -- NULL = root
+  created_by text,                     -- email; NULL = pre-restructure folder
+  created_at text,                     -- NULL = pre-restructure folder
   last_updated text NOT NULL
 );
 CREATE INDEX idx_folders_parent_id ON folders(parent_id);
@@ -734,6 +756,9 @@ Rules of the shape:
   `reorderVisualizationFolders`, `*_folders.description`,
   `global_last_updated`. Dropped tables: everything visualization and
   dashboard (D3).
+- `created_by` and `created_at` exist on both `products` and `folders` so a
+  folder can carry the same provenance a product does when permissions
+  arrive. Provenance, not ownership (D2).
 - Users: `users` loses the 17 `default_project_can_*` columns and
   `can_create_projects`; `instance_config` gains an `ai_context` row.
 - Logs: `user_logs`, `ai_usage_logs`, `user_logs_aggregate` lose `project_id`
@@ -744,22 +769,37 @@ Rules of the shape:
 - `requireApprovedUser()`, new, beside `requireGlobalPermission` in
   `server/middleware/userPermission.ts`: `getGlobalUser`, 401 if
   unauthenticated, 403 unless `globalUser.approved`, sets `c.var.globalUser`
-  and `c.var.mainDb`. It guards the product routes and the new reads.
+  and `c.var.mainDb`. It guards the run-keyed reads, the authoring context,
+  the ready-package list, the copilot proxies and the collab socket.
   `requireGlobalPermission()` is not changed (its zero-perm sites keep
   today's behaviour, including their hand-rolled `approved` branches).
+- `requireProductAccess`, new, beside it. Every entry in
+  `lib/api-routes/products/*` carries `access: "view" | "edit" | "own"`.
+  The middleware resolves the route's targets from one of three places and
+  nowhere else: the `product_id` path param, the `folder_id` path param, or
+  the body's `productIds` list on the batch routes. It then calls
+  `productAccessPolicy(user, level, targets)` in `server/auth/
+  product_access.ts`. Today's policy: 401 if unauthenticated, 403 unless
+  `approved`, otherwise true at every level. A handler never checks access
+  itself. Folder routes declare their level the same way (`createFolder`
+  edit on the parent, `updateFolder` edit on the folder and on a new parent,
+  `deleteFolder` own).
 - `server/project_auth.ts` is deleted in step 9b; `getGlobalUser` /
   `buildGlobalUserFromDb` move to `server/auth/global_user.ts` in step 5
   (imported by `userPermission.ts`, `static.ts`, `mcp/context_cache.ts` and
   `server/tests/pat_identity_parity_test.ts`; `project_auth.ts` re-exports
   them until 9b); `createDevGlobalUser` stays in `lib/types/instance.ts`;
   `createDevProjectUser` and `ProjectUser` die in 9b.
-- Guard map: products and folders reads and writes, run-keyed figure-data
-  reads, the authoring context, `listAttachableResultsPackages`, Explore:
-  `requireApprovedUser()`. Package internals: `can_view_data`
+- Guard map: product and folder routes: `requireProductAccess` with the
+  declared level. Run-keyed figure-data reads, the authoring context,
+  `listAttachableResultsPackages`, Explore: `requireApprovedUser()`. Package
+  internals: `can_view_data`
   (`can_view_logs` for logs). Catalogue, generation, pin: `can_configure_data`.
   Users: unchanged. `/mcp` door: `can_view_data`.
-- Collab WS admission = origin plus Clerk plus approved; `RoomConn.canEdit`
-  kept (TRUE); the six per-family flags and the lock are deleted.
+- Collab WS admission = origin plus Clerk plus approved; each subscribe
+  names its product id, and `RoomConn.canEdit` (kept, TRUE) is where a
+  per-product check slots in; the six per-family flags and the lock are
+  deleted.
 - H_USERS survives for: boot seed, `unlimitedAi`, `setUserUnlimitedAi` /
   `setUserContactPerson`, users-list hide toggle, `version_capture` skip,
   feedback recipients. Every project branch is deleted.
@@ -775,29 +815,53 @@ Rules of the shape:
 - Registries: `lib/api-routes/products/{products,folders,slide-decks,slides,
   reports}.ts`; server `server/routes/products/*.ts`; `emails` moves to
   `instance/` (`sendSlideDeckEmail` recipients = instance roster);
-  `combined.ts` re-spread. Shared product routes: `createProduct({ type,
-  folderId })` (server mints label and resolves the pin; D16),
-  `updateProductLabel`, `moveProductsToFolder` (batch), `deleteProducts`
-  (batch, any type; pre-read slide ids of any deck in the batch, close slide
-  and report rooms and version accumulators, then one `DELETE FROM products
-  WHERE id = ANY($1)`, emit `products_deleted`), `setProductPackage(:id,
-  {runId})` (calls `setProductRun(id, runId)` in
-  `db/instance/run_generation.ts`, where the ready gate lives in the
-  UPDATE), `setProductScope(:id, {adminArea2})`,
-  `duplicateProduct(:id)` (clones `(run_id, admin_area_2)`, per-type body),
-  `listAttachableResultsPackages` (instance, approved). New:
-  `copySlidesToDeck(:deck_id, { slideIds, targetDeckId })` (the cross-deck
-  reuse path; bundles copied verbatim, so they show stale under the target if
-  the pairs differ; D4). Folder routes: `createFolder({ label, color,
-  parentId })`, `updateFolder(:id, { label, color, parentId })` (the cycle
-  check lives here), `deleteFolder(:id)` (reparents children and products
-  one level, returns `freedProductIds`). Per-type content routes keep their
-  names minus `requiresProject` (`getSlideDeckDetail`, `updateSlideDeckPlan`,
-  `updateSlideDeckConfig`, deck versions; `getSlides`, `getSlide`,
-  `createSlide`, `updateSlide`, `deleteSlides`, `duplicateSlides`,
-  `moveSlides`; `getReportDetail`, `updateReportBody/Figures/Images/Config`,
-  report versions and lineage). Per-type `delete*`, `move*ToFolder`,
-  `update*Label`, `duplicate*` are removed in favour of the shared ones.
+  `combined.ts` re-spread. **Path rule:** every product-scoped route lives
+  under `/products/:product_id/...`, the param is always `product_id`, and
+  child ids (`slide_id`, `version_id`) follow it; the handler scopes its
+  query by both, so a slide id from another product is a 404. The reference's
+  flat paths (`/slide-decks/:deck_id`, `/slides/slide/:slide_id`,
+  `/reports/:report_id`) are not reused. Batch routes carry their targets in
+  the body under one key, `productIds`. Every entry declares `access`
+  (§3.2).
+- Shared product routes: `createProduct({ type, folderId })` (`POST
+  /products`; access edit on the folder, or approved at the root; server
+  mints label and resolves the pin; D16), `updateProductLabel` (`PUT
+  /products/:product_id/label`, edit), `moveProductsToFolder` (`PUT
+  /products/folder`, body `{ productIds, folderId }`, edit on each product
+  and on the target folder), `deleteProducts` (`DELETE /products`, body
+  `{ productIds }`, own; any type; pre-read slide ids of any deck in the
+  batch, close slide and report rooms and version accumulators, then one
+  `DELETE FROM products WHERE id = ANY($1)`, emit `products_deleted`),
+  `setProductPackage` (`PUT /products/:product_id/package`, edit; calls
+  `setProductRun(id, runId)` in `db/instance/run_generation.ts`, where the
+  ready gate lives in the UPDATE), `setProductScope` (`PUT
+  /products/:product_id/scope`, edit), `duplicateProduct` (`POST
+  /products/:product_id/duplicate`, view on the source, edit on the target
+  folder; clones `(run_id, admin_area_2)`, per-type body),
+  `listAttachableResultsPackages` (instance, approved).
+- Per-type content routes, all under the product: decks `GET
+  /products/:product_id/deck` (`getSlideDeckDetail`), `PUT .../deck/plan`,
+  `PUT .../deck/config`, `GET .../deck/versions`, `GET
+  .../deck/versions/:version_id`, `POST .../deck/versions/:version_id/
+  {restore,copy}`; slides `GET .../slides`, `GET .../slides/:slide_id`,
+  `POST .../slides`, `PUT .../slides/:slide_id`, `DELETE .../slides`, `POST
+  .../slides/duplicate`, `PUT .../slides/move`, and the new `POST
+  .../slides/copy-to-deck` (`copySlidesToDeck`, body `{ slideIds,
+  targetProductId }`; view on the source, edit on the target; bundles copied
+  verbatim, so they show stale under the target if the pairs differ; D4);
+  reports `GET /products/:product_id/report` (`getReportDetail`), `PUT
+  .../report/{body,figures,images,config}`, `GET .../report/versions`, `GET
+  .../report/versions/:version_id`, `GET .../report/versions/:version_id/
+  lineage`, `POST .../report/versions/:version_id/{restore,copy}`. Reads
+  declare view, writes edit. Route NAMES keep today's registry keys minus
+  `requiresProject`; only the paths and params change. Per-type `delete*`,
+  `move*ToFolder`, `update*Label`, `duplicate*` are removed in favour of the
+  shared ones.
+- Folder routes: `createFolder` (`POST /folders`, `{ label, color, parentId
+  }`, edit on the parent), `updateFolder` (`PUT /folders/:folder_id`, `{
+  label, color, parentId }`, edit; the cycle check lives here),
+  `deleteFolder` (`DELETE /folders/:folder_id`, own; reparents children and
+  products one level, returns `freedProductIds`).
 - Run-keyed instance reads (D7): `getRunPresentationObjectItems(run_id,
   {resultsObjectId, fetchConfig, adminArea2})`, `getRunResultsValueInfo(run_id,
   {metricId, adminArea2})`, `getRunReplicantOptions(run_id, {metricId,
@@ -901,14 +965,26 @@ client-side from the authoring context plus T1 `hfaTimePoints`.
 - Editors (`slide_deck/`, `report/`) take `{ productId }` and read the
   PackageScope live from T1 (plus the authoring context via T2) instead of
   `projectId` plus `projectState[Snapshot]`; every `can_configure_* &&
-  !isLocked` gate becomes one shared `canEditProducts()` (= approved) so a
-  later permission model replaces one function; the header shows the scope
+  !isLocked` gate becomes one shared `canEditProduct(productId)` (returns
+  approved today; takes the id so a later permission model replaces one
+  function and no call site); the header shows the scope
   badge, a Settings entry and the stale-figure count. The slide and report
   "insert figure" panels offer the product run's presets and the metric
   wizard (no viz-product picker). `slide_list.tsx` gains "Copy to deck…".
 - Copilot: `components/copilot/` (renamed from `project_ai/`), one mount at
   the Products page; env resolves the open product's scope; view registry per
   D15.
+- Product types: one registry object in `client/src/components/products/
+  product_types.ts`, typed `Record<ProductType, { label, icon, editor,
+  createLabel, detailCache, figureTarget }>`, is the only place the client
+  knows what a type is. Cards, list rows, create buttons, filter chips,
+  `getEditorWrapper`, Explore's add-to and the copilot's deck and report
+  pickers all read it. The rule, on client and server alike: every per-type
+  dispatch is a `Record<ProductType, ...>` object, never a switch with a
+  default, so adding a type is a compile error at each object until it is
+  filled in. Server per-type logic lives in `server/db/products/<type>.ts`
+  and the shared routes branch on the row's `type` once, through the same
+  kind of object.
 - Onboarding: the 33 project-area tours collapse into one products tour set
   plus one Explore tour; results-package, settings, instance-projects,
   visualization and dashboard tours are deleted; the deck and report editor
@@ -1100,7 +1176,8 @@ no caller switches to `scopeToken` until step 3); SYSTEM_02 and SYSTEM_12
 globs and prose for the new tables and types.
 
 **Deliverable.** The §3.1 DDL, additive, `IF NOT EXISTS` throughout,
-including `folders.parent_id` and every index. The migration number is the
+including `folders.parent_id`, `folders.created_by`, `folders.created_at`
+and every index. The migration number is the
 next free one; if it is not 084, record it in §9 and use the recorded
 number everywhere this plan says 084.
 
@@ -1299,11 +1376,16 @@ recorded in §9 with "closed by 9b".
 reports,versions,move_slides,copy_slides}.ts` (built from the `db/project`
 counterparts, rekeyed to `mainDb` and the `products` join; the originals stay
 until 7a); `server/utils/id_generation.ts` (4 chars, table-aware collision
-check); `server/middleware/userPermission.ts` (`requireApprovedUser`);
-`server/auth/global_user.ts` (`getGlobalUser`, `buildGlobalUserFromDb` moved
-here; `project_auth.ts` imports them back); `lib/api-routes/products/
-{products,folders,slide-decks,slides,reports}.ts`; `server/routes/products/
-*.ts`; `lib/api-routes/combined.ts`; `main.ts` mounts; `lib/api-routes/
+check); `server/middleware/userPermission.ts` (`requireApprovedUser`,
+`requireProductAccess`); `server/auth/global_user.ts` (`getGlobalUser`,
+`buildGlobalUserFromDb` moved here; `project_auth.ts` imports them back);
+`server/auth/product_access.ts` (`productAccessPolicy`, approved at every
+level); `lib/api-routes/route-utils.ts` (the `access` field on the route
+definition type, optional so instance routes are untouched);
+`lib/api-routes/products/{products,folders,slide-decks,slides,reports}.ts`
+(the §3.3 paths under `/products/:product_id`, every entry with `access`);
+`server/routes/products/*.ts`; `lib/api-routes/combined.ts`; `main.ts`
+mounts; `lib/api-routes/
 instance/run_generation.ts` (`listAttachableResultsPackages` returning
 `ReadyPackage[]`; the step 3 routes swapped to `requireApprovedUser`);
 `server/db/instance/run_generation.ts` (`setProductRun`, the product delete
@@ -1323,9 +1405,12 @@ fields must be added there and applied from `starting` and the new messages,
 with no consumer yet; SYSTEM_01, SYSTEM_03, SYSTEM_12 globs and prose;
 PROTOCOL_APP_ROUTES (the single guard recipe).
 
-**Deliverable.** D1, D8's additions, §3.2's guard, every product and folder
-route in §3.3 including `duplicateProduct` and `copySlidesToDeck`, §3.4's
-messages and `ProductSummary`. The folder cycle check is a recursive CTE
+**Deliverable.** D1, D8's additions, §3.2's two guards, every product and
+folder route in §3.3 at its stated path with its stated access level,
+including `duplicateProduct` and `copySlidesToDeck`, §3.4's messages and
+`ProductSummary`. No handler checks access itself; a handler that receives
+a `slide_id` or `version_id` scopes the query by `product_id` as well. The
+folder cycle check is a recursive CTE
 inside the `updateFolder` transaction returning the typed `FOLDER_CYCLE`
 failure through the envelope. `deleteFolder` reparents one level and returns
 `freedProductIds`. `createProduct` resolves the pin inside the insert and
@@ -1336,9 +1421,13 @@ other than the two T1 files named above, and in those, nothing beyond
 storing the new fields. Deleting any project route. The `emails` move (7a).
 
 **Gates.** Before writing a mount, list the current `main.ts` mounts and the
-project registries' paths and show that `/products`, `/folders`,
-`/slide-decks`, `/slides`, `/reports` collide with nothing. A rung 1a
-harness against local: create a deck and a report (4-char ids; label
+project registries' paths and show that `/products` and `/folders` collide
+with nothing. A typecheck-level gate: every entry in
+`lib/api-routes/products/*` has `access` set (a `satisfies` over the
+registry, or a test that walks it). A rung 1a harness against local: an
+unauthenticated call to any product route is 401 and an unapproved user's
+is 403; a slide id requested under the wrong `product_id` is 404; create a
+deck and a report (4-char ids; label
 localised; `run_id` = the pin), `starting` carries both with the right
 summary shape, set package to a ready run and to a non-ready run (the second
 refused in the UPDATE), set scope, create three nested folders, move a
@@ -1408,7 +1497,9 @@ look at a chart without a project.
 **Surface.** Editors: `client/src/components/slide_deck/**` and
 `client/src/components/report/**` take `{ productId }`, derive `scope()`
 from the T1 products row, read the authoring context from T2 by that live
-`runId`, and gate edits on one `canEditProducts()`;
+`runId`, and gate edits on one `canEditProduct(productId)`;
+`client/src/components/products/product_types.ts` (the §3.6 type
+registry, with the two types);
 `components/_editor_snapshot.ts`; `components/visualization/` renamed
 `components/figure_editor/` (the embedded editor and its panels only; the
 standalone files stay in the old directory until 9a and import the inner
@@ -1436,8 +1527,10 @@ still use until 9a), `state/t4_ui.ts` (`pendingEditorOpen`). Server:
 handling stripped out; the file and its PO rooms stay until 9b, and
 `project_awareness_update` stays in `lib/types/collab.ts` with it),
 `server/db/project/mod.ts` (pruned of the deleted files), `server/collab/*`
-(projectId out of room, ledger and accumulator keys; product-keyed presence;
-checkpoints emit `products_upserted`), `server/collab/version_capture.ts`
+(projectId out of room, ledger and accumulator keys; the subscribe message
+carries `productId` and rooms are keyed `productId::docType::docId`;
+product-keyed presence; checkpoints emit `products_upserted`),
+`lib/types/collab.ts` (the subscribe shape), `server/collab/version_capture.ts`
 repointed to `db/products`, `lib/api-routes/instance/emails.ts` and
 `server/routes/instance/emails.ts` (moved from project; recipients =
 instance roster). Products page, minimal:
@@ -1847,6 +1940,7 @@ last. The next agent reads this section before its step.
 | 2026-09-08 | plan | Folder nesting (`parent_id`) folded into D1, D10, D16 and the base DDL; the first attempt added it after its plan ruled flat. |
 | 2026-09-08 | plan | D4's two bundle fields are optional from step 4 and required from 9b: a named transitional state so that capture-on-write can land before the consolidation stamps stored bundles. Alternative rejected: a throwaway project data transform stamping from the project row, which would need the pair at version-restore read time too. |
 | 2026-09-08 | plan | Order changed from tier-by-tier to build-beside-then-strip. Steps 1 and 2 ship early. Deletion is 7a (deck and report project tabs), 9a (client) and 9b (server). |
+| 2026-09-08 | plan | Extensibility pass (Tim's two future requirements: per-product and per-folder permissions; more product types). Product types need nothing: `products.type` plus one detail table per type is the extension point. For permissions: every product-scoped route moves under `/products/:product_id`, route entries declare `access`, one `requireProductAccess` middleware and one `productAccessPolicy` (approved at every level today), `canEditProduct(productId)` on the client, the product id in the collab subscribe and room key, `created_by`/`created_at` on `folders`, and `created_by` is provenance not ownership. D7 records that package data stays instance-level. A client type registry object replaces scattered per-type dispatch. |
 | 2026-09-08 | plan | Two review passes over the draft (writing; consistency against the tree and the reference) applied. Notable corrections: step 4 depends on 3 and owns the authoring-context cache; step 5 adds the passive T1 fields, a separate `ProductLastUpdateTableName` and `notifyInstanceLastUpdated` so nothing project-keyed changes before 9b; `lib/types/presentation_objects.ts` is trimmed, not deleted; the intermediate-states table in §4 was added. |
 
 ---
