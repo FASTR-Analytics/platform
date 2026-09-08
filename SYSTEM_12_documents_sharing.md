@@ -182,12 +182,13 @@ stay valid).
 `productIds`, and every registry entry declares `access`, which is the
 whole guard (S1). Handlers name only `log(...)`; a not-found envelope from
 the DB layer leaves as a 404 through `_respond.ts`, so a slide or version
-id under the wrong product is a 404. In `routes/products/slides.ts` the
-move route is registered before the per-slide update: both match `PUT
-.../slides/move`, and Hono runs matching handlers in registration order. Every mutation re-reads the touched
-summaries through `notifyInstanceProductsUpserted` (S3), slide writes also
-stamp `notifyInstanceLastUpdated("slides", ...)`, and package or delete
-changes re-nonce the runs catalogue. The restore routes write the safety
+id under the wrong product is a 404. In `routes/products/slides.ts` the move
+route is registered before the per-slide update: both match `PUT
+.../slides/move`, and Hono runs matching handlers in registration order. Every
+mutation re-reads the touched summaries through
+`notifyInstanceProductsUpserted` (S3), slide writes also stamp
+`notifyInstanceLastUpdated("slides", ...)`, and package or delete changes
+re-nonce the runs catalogue. The restore routes write the safety
 version, the structural restore and the restored-state version; the room
 flushes, live-room apply and session ledgers arrive with collab (7a). Until
 9b deletes the project registries, the per-type keys carry a `Product`
@@ -240,12 +241,12 @@ block panel, and the header counts them with "Update all figures" (S10 "The
 captured pair and staleness"). The deck header does the same across every
 slide through `deck_stale_figures.ts`, which walks the per-slide cache,
 swaps bundles with `slide_transforms/update_block_in_layout.ts` (the one
-structural walk the slide editor's own block edits use, so every write
-carries a fresh reference for the CRDT sync) and writes each updated slide
-back through `updateSlide` with its `expectedLastUpdated`. Slide-type switching keeps a per-type cache so
-switching back restores prior state (same idiom per-block for block-type
-switches). The layout tree is manipulated exclusively through panther node
-ops via `buildLayoutContextMenu`
+structural walk the slide editor's own block edits use, so every write carries
+a fresh reference for the CRDT sync) and writes each updated slide back
+through `updateSlide` with its `expectedLastUpdated`. Slide-type switching
+keeps a per-type cache so switching back restores prior state (same idiom
+per-block for block-type switches). The layout tree is manipulated exclusively
+through panther node ops via `buildLayoutContextMenu`
 ([layout_editor/build_context_menu.ts](client/src/components/layout_editor/build_context_menu.ts)):
 split/add/move/delete/convert, reachable from both the panel button and
 canvas right-click. Figure blocks resolve through the S10 shared resolvers
