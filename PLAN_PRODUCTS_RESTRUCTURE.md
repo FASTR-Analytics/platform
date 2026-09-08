@@ -5,7 +5,7 @@ folders, each attached to one results package at one scope. One main
 database, one realtime channel, one copilot. An Explore tab replaces the
 project Metrics tab and the standalone visualization library.
 
-**Next step: Review 1.** Each session sets this line in its final commit. Its
+**Next step: Fix 1.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N`; after step 10's review passes the
 file is deleted instead of advanced.
 
@@ -2063,6 +2063,10 @@ this section before its step.
 | 2026-09-08 | 1 | Step 1 built. |
 | 2026-09-08 | 1 | Tim's ruling, applied in a second commit: the version table is `slide_deck_versions` with `slide_deck_id` and `slide_deck_config` (was `deck_versions`, `deck_id`, `deck_config`), and the three related indexes follow (`idx_slides_slide_deck_id`, `idx_slides_slide_deck_sort`, `idx_slide_deck_versions_slide_deck`). The naming rule is now in §0 and every plan mention was rewritten (D1, D4, D9, §3.1, §3.3, §3.10, step 5). 084 was amended in place rather than followed by a rename migration, because it had been applied only to the dev database; dev was reset by dropping `deck_versions` and the 084 row of `schema_migrations`, then booting. |
 | 2026-09-08 | 1 | Tim's ruling, applied in a third commit: `products` gains `UNIQUE (id, type)`, and `slide_decks` and `reports` each gain a fixed `type` column (`CHECK`, defaulted) with a composite FK `(id, type) REFERENCES products(id, type) ON DELETE CASCADE` in place of the single-column FK. A detail row can now exist only in the table its registry type names. Detail-row existence stays a writer rule (D1). Step 5's `DBSlideDeck` and `DBReport` row types carry `type`; its inserts may omit it (the default fills it). Dev was reset by dropping the seven product tables and the 084 row, then booting. |
+| 2026-09-08 | 1 | Review 1. Commits b26a2792, 0964532c, eb507f27 read against the Surface, the Deliverable and §3.1: the 084 DDL is the §3.1 block byte-for-byte after `IF NOT EXISTS` normalisation, the base schema carries the same block, the lib contracts match the reference plus `Folder.createdBy`/`createdAt`, and `scopeToken` is identical to the live `projectScopeToken`, so the step 3 swap is safe. No caller uses the new symbols. The two files outside the Surface (`lib/types/mod.ts`, `validate_migrations_replay`) are accepted for the reasons already logged. Gates run by the reviewer, all green: `deno task typecheck`, `deno task test`, `./validate_protocols`, `./validate_migrations`, `./validate_migrations_replay` (seven shapes, 87 migrations each, fresh boot 87 recorded), and a server boot against the dev database, which listens in 6 s with its 14 boot tests passing; dev `main` carries the 084 row and the composite FKs. |
+| 2026-09-08 | 1 | Finding: the D1 contract is restated in two code comments. `server/db/instance/_main_database.sql:173-183` and `lib/types/products.ts:1-9` (plus the `lastUpdated` field comment at `lib/types/products.ts:42-43`) both say, in the same words, that `products` is the registry every cross-type operation goes through, that folders nest by adjacency list, that `created_by`/`created_at` are provenance not ownership, and that `last_updated` is the product version. CLAUDE.md: one authoritative doc comment per contract, single-line pointers everywhere else. Keep the SQL block as the authority and reduce the TypeScript header to a pointer. |
+| 2026-09-08 | 1 | Finding: `SYSTEM_02_persistence.md:325` joins the new replay sentence onto the existing "The one sanctioned edit" sentence in a 129-character line; the file is hard-wrapped at 80. Re-wrap the paragraph. |
+| 2026-09-08 | 1 | Step 1 reviewed: 2 findings. |
 
 ---
 
