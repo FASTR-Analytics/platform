@@ -462,17 +462,19 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
   let editorApi: ReportEditorApi | undefined;
   let saveTimer: ReturnType<typeof setTimeout> | undefined;
 
-  // ── Page boxes ─────────────────────────────────────────────────────────────
-  // The editor shows where the printed pages start. The paginator lays the
-  // SAME paged document the PDF is printed from out in a hidden frame
-  // (paginate_report.ts) and the editor draws the seams; "Show page boxes" in
-  // the Page menu turns it off, remembered per browser.
+  // ── Pages ──────────────────────────────────────────────────────────────────
+  // Two ways to see the printed pages while editing. Default: the CodeMirror
+  // live preview with page SEAMS drawn where the pages start (the paginator
+  // lays the SAME paged document the PDF is printed from out in a hidden
+  // frame, paginate_report.ts). Opt-in ("Edit on pages" in the Page menu,
+  // remembered per browser): the editor IS the paged document
+  // (paged_edit_surface.ts).
   const SHOW_PAGES_KEY = "fastr_report_show_pages";
   const [showPages, setShowPages] = createSignal<boolean>((() => {
     try {
-      return localStorage.getItem(SHOW_PAGES_KEY) !== "off";
+      return localStorage.getItem(SHOW_PAGES_KEY) === "on";
     } catch {
-      return true;
+      return false;
     }
   })());
   function toggleShowPages() {

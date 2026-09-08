@@ -398,7 +398,7 @@ document (`buildStandaloneReportHtml` with `paged`, fonts inlined as data URLs
 by `exports/inline_theme_fonts.ts` so the host needs no network) and POSTs it to
 the streaming `renderReportPdf` route (can_view_reports; one render at a time
 per instance; `CHROME_PATH` unset ⇒ a clean "cannot render" error). EDIT ON PAGES
-(default, the Page menu's toggle): the Edit pane is the printed pages
+(opt-in, the Page menu's toggle; off by default): the Edit pane is the printed pages
 themselves — `report/paged_edit_surface.ts` holds the same paged document in
 an iframe (rasters from the host's cache, the same pixels the export draws),
 double-buffered so a re-layout after a pause swaps in without a flash. The
@@ -410,7 +410,7 @@ restored after each swap from the CodeMirror selection the islands mirror;
 Enter splits a paragraph (a list item gets a sibling), Backspace removes an
 empty one, a press on a page's empty tail appends a paragraph, and an element
 Paged.js split across pages edits through its first fragment. Peer carets are
-mapped onto the pages. With the toggle off, the CodeMirror live preview shows
+mapped onto the pages. With the toggle off (the default), the CodeMirror live preview shows
 page SEAMS instead: `paginationField`/`setPagination` draw one before each
 page's first line (a block widget between plain or leaf lines, an element
 injected into the rendered block's DOM), computed by `paginate_report.ts` in
