@@ -5,7 +5,7 @@ folders, each attached to one results package at one scope. One main
 database, one realtime channel, one copilot. An Explore tab replaces the
 project Metrics tab and the standalone visualization library.
 
-**Next step: Review 1.** Each session sets this line in its final commit. Its
+**Next step: Do 2.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N`; after step 10's review passes the
 file is deleted instead of advanced.
 
@@ -2069,6 +2069,8 @@ this section before its step.
 | 2026-09-08 | 1 | Step 1 reviewed: 2 findings. |
 | 2026-09-08 | 1 | Fix 1. Both findings applied in one commit: the `lib/types/products.ts` header and its `lastUpdated` field comment are now single-line pointers to the SQL block, which stays the one authoritative statement of the D1 contract; the `SYSTEM_02_persistence.md` replay paragraph is re-wrapped at 80 columns. Floor gates green: `deno task typecheck`, `deno task test` (14 passed), `./validate_protocols`, and a server boot against the dev database that listens with its 14 boot tests passing. No migration or query-engine file changed, so the two conditional gates do not apply. |
 | 2026-09-08 | 1 | Step 1 fixed. |
+| 2026-09-08 | 1 | Review of Fix 1, done by the fixing agent at Tim's direction (deviation from §0's fresh-reviewer rule, accepted for a two-comment fix). Commit 0edf2246 touches only the two finding targets plus the plan. The D1 contract now has one statement (`_main_database.sql:173-183`); `lib/types/products.ts` carries two single-line pointers. The SYSTEM_02 paragraph at 315-328 has no line over 80 (line 307 is 99 characters but pre-dates step 1 and is outside the finding). Gates were run green in the fix session. |
+| 2026-09-08 | 1 | Step 1 reviewed: pass. |
 
 ---
 
