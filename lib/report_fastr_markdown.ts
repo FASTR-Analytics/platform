@@ -208,6 +208,80 @@ export function createFastrMarkdownIt(): MarkdownIt {
     return `${h.trailingHtml}</${h.tag}>\n`;
   };
 
+  // ── Blank lines as vertical space ──────────────────────────────────────────
+  // One blank line separates blocks, as in any markdown. Each blank line
+  // beyond that is a line of empty space in the document, as Enter is in a
+  // word processor. The editor's page flow depends on it: a blank line takes
+  // height there, so it must take the same height in print or the two
+  // disagree about where a page ends, and a block pushed onto the next page
+  // by Enter snaps back when the paginator answers (Nick, 2026-09-09). One
+  // element per blank line, so a run breaks across pages like lines of text.
+  // Blank lines before the first rendered block stay nothing, as the editor
+  // collapses them; blank lines at the end of the document count, as the
+  // editor shows them.
+  md.core.ruler.after("block", "fm_spaces", (state) => {
+    const tokens = state.tokens;
+    // One past the last source line consumed so far, undefined until a
+    // block has rendered. A container's children start after its fence:
+    // the line to return to when it closes is kept per nesting level.
+    let end: number | undefined;
+    const outer = new Map<number, number>();
+    const lines = state.src.split("\n");
+    // A list's (or a quote's) map runs on past its last line over the blank
+    // lines that follow it, up to the next block: only the lines it actually
+    // holds count as consumed.
+    const consumedTo = (map: [number, number]) => {
+      let e = map[1];
+      while (e > map[0] + 1 && (lines[e - 1] ?? "").trim().length === 0) e--;
+      return e;
+    };
+    const spaceAt = (line: number, level: number) => {
+      const t = new state.Token("fm_space", "div", 0);
+      t.block = true;
+      t.map = [line, line + 1];
+      t.level = level;
+      return t;
+    };
+    for (let i = 0; i < tokens.length; i++) {
+      const tok = tokens[i];
+      const map = tok.map;
+      if (map !== null && tok.block) {
+        const silent = tok.type === "fm_container_open" &&
+          containerHtmlFor((tok.meta as ContainerMeta).name, (tok.meta as ContainerMeta).attrs).silent;
+        if (!silent) {
+          if (end !== undefined) {
+            for (let k = end + 1; k < map[0]; k++) {
+              tokens.splice(i, 0, spaceAt(k, tok.level));
+              i++;
+            }
+          }
+          if (tok.nesting === 1) {
+            outer.set(tok.level, consumedTo(map));
+            end = map[0] + 1;
+          } else {
+            end = end === undefined ? consumedTo(map) : Math.max(end, consumedTo(map));
+          }
+        }
+      }
+      if (tok.nesting === -1) {
+        const back = outer.get(tok.level);
+        if (back !== undefined) {
+          outer.delete(tok.level);
+          end = back;
+        }
+      }
+    }
+    if (end !== undefined) {
+      for (let k = end + 1; k < lines.length; k++) tokens.push(spaceAt(k, 0));
+    }
+    return true;
+  });
+  md.renderer.rules.fm_space = (tokens, idx) => {
+    const line = tokens[idx].attrGet("data-line");
+    const anchor = line === null ? "" : ` data-line="${escapeReportHtml(line)}"`;
+    return `<div class="fm-space"${anchor}></div>\n`;
+  };
+
   // ── Embed lines → <figure> + <figcaption> ──────────────────────────────────
   md.core.ruler.after("inline", "fm_figures", (state) => {
     const toks = state.tokens;

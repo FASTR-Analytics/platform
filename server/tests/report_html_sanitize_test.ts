@@ -227,6 +227,13 @@ Deno.test("keeps FASTR block backgrounds: inline colour and data-bg-image", () =
   assertStringIncludes(out, "<section class=");
 });
 
+// A blank-line space is an empty div: the sanitizer must keep it, anchor and
+// all, or the editor's page flow and the print disagree by a line.
+Deno.test("keeps a blank-line space and its anchor", () => {
+  const out = clean(renderFastrMarkdownToHtml("a\n\n\nb\n", { lineAnchors: true }));
+  assertStringIncludes(out, '<div class="fm-space" data-line="2"></div>');
+});
+
 // Gradients are the one background html reports could paint that a tone cannot,
 // so the whole feature rests on DOMPurify keeping the inline shorthand.
 Deno.test("keeps a gradient background in the inline style", () => {

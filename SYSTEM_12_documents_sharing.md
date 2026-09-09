@@ -498,6 +498,33 @@ split blocks carry a flag. The Download modal offers PDF
 fixture corpus in `server/tests/fixtures/fastr_pdf/` on every theme, with
 structural assertions on the Paged.js DOM before printing.
 
+**Blank lines are space, and the editor's rhythm is print's.** One blank line
+separates blocks, as in any markdown; every further blank line is a line of
+empty space in the document, as Enter is in a word processor (the `fm_spaces`
+core rule in report_fastr_markdown.ts emits one `<div class="fm-space">` per
+extra blank line, `1lh` tall, anchored to its source line, so a run breaks
+across pages like text; leading blank lines stay nothing, trailing ones
+count). This exists because the editor's page flow needs it: Enter added
+height in the editor and nothing in print, so a block pushed onto the next
+page snapped back when the paginator answered (Nick, 2026-09-09). A list's
+token map runs on over the blank lines after it, so the rule trims a map to
+its last non-blank line. The editor marks the second and later blank lines of
+a run `cm-fm-space` (full height; the first is the `cm-fm-blank` separator)
+and the page flow treats them as blocks. Two calibrations came out of the same
+probe: every flow block declares its margins as `--fm-mt`/`--fm-mb` beside
+`margin:` in the structure sheet, and the editor's widget clamp is derived
+from them (margin less the separator's height, `--fm-separator`; the whole
+margin when a space line is the neighbour, since print collapses a margin
+into a margin but never into a space), likewise the heading paddings
+(`cm-fm-h*`, line-height 1.2 like print); and a top-level `.fm-card` has a
+flow margin (1.2em, zero inside tiles), where it had none and sat flush on
+the next paragraph. probe_calib in the scratchpad recipe compares the two
+block by block; the widget rows read 0. Known residual: a THEME's own heading
+rules (a border under h2 with 0.2-0.3em of padding, a theme's h2 font size)
+do not reach the editor's heading lines, so a heading can stand a few pixels
+taller in print than in Edit; the default theme's h2 padding is mirrored on
+`cm-fm-h2`, the rest is settled by the paginator's answer.
+
 **Backgrounds and page-level design.** The format's answer to "everything html
 reports can do" is to name the ROLE, not the value. Every block takes
 `tone = paper|ink|accent|warm|cool` — the theme's five colours as grounds, and

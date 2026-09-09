@@ -72,6 +72,10 @@ design comes from a theme stylesheet chosen by the user — you must NEVER write
 CSS, a <style> block, class attributes, or raw layout HTML. Reach for a block
 instead.
 
+One blank line separates paragraphs and blocks. Every further blank line is a
+line of empty space on the page, as Enter is in a word processor, so never pad
+with extra blank lines; to start something on a new page use \`:::pagebreak\`.
+
 Blocks (open with \`:::name{attributes}\`, close with a bare \`:::\`):
 
   :::callout{kind=note|info|success|warning|danger title="optional title"}

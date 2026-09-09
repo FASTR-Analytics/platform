@@ -577,7 +577,7 @@ h2 { border-bottom: 1px solid var(--fm-border); padding-bottom: 0.5em; }
 .fm-card, .fm-callout { border-radius: 0; }
 .fm-stat { background: none; border-top: 1px solid var(--fm-ink); border-radius: 0; padding: 1.2em 0 0; }
 .fm-stat__label { color: var(--fm-ink-muted); letter-spacing: 0.06em; }
-.fm-figure { margin: 2.6em 0; }
+.fm-figure { margin: 2.6em 0; --fm-mt: 2.6em; --fm-mb: 2.6em; }
 .fm-figure__caption { margin-top: 1em; letter-spacing: 0.04em; }
 .fm-callout { background: none; border-left-width: 1px; padding: 0.4em 0 0.4em 1.6em; }
 .fm-quote { border: none; padding: 0.6em 0 0.6em 2em; font-size: 1.15em; color: var(--fm-ink); }

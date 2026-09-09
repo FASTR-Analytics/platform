@@ -2347,11 +2347,17 @@ function buildSurfaceLines(state: EditorState): DecorationSet {
   // there IS content below them — an all-blank document keeps its clickable
   // lines.
   const firstLine = firstVisibleLine(state);
+  // The first blank line after content is the paragraph separator; each
+  // further one is a line of space, as the renderer's fm_spaces makes it.
+  let prevBlank = false;
   // scanContainerLines flags code-fence interiors, where a # line is content.
   for (const { index, text, inCode, fence } of scanContainerLines(
     state.doc.iterLines(1, state.doc.lines + 1),
   )) {
-    if (inCode) continue;
+    if (inCode) {
+      prevBlank = false;
+      continue;
+    }
     if (fence) {
       // Leaf fences (a stat, the header, a contents block) open nothing.
       if (fence.kind === "open") {
@@ -2364,16 +2370,18 @@ function buildSurfaceLines(state: EditorState): DecorationSet {
     const blank = text.trim().length === 0;
     if (blank) {
       // A blank source line is View's paragraph margin (1em), not a full
-      // text line — shrink it or every seam runs ~60% taller than View.
+      // text line — shrink it or every seam runs ~60% taller than View. A
+      // second blank line in a row is a line of space (full height).
+      const lead = firstLine !== undefined && index + 1 < firstLine;
       ranges.push(
         Decoration.line({
-          class: firstLine !== undefined && index + 1 < firstLine
-            ? "cm-fm-blank cm-fm-lead"
-            : "cm-fm-blank",
+          class: lead ? "cm-fm-blank cm-fm-lead" : prevBlank ? "cm-fm-space" : "cm-fm-blank",
         }).range(from),
       );
+      prevBlank = !lead;
       continue;
     }
+    prevBlank = false;
     if (index + 1 === firstLine) {
       ranges.push(Decoration.line({ class: "cm-fm-first" }).range(from));
     }
@@ -3490,7 +3498,10 @@ function applyRegionPagination(
 
 type PageChild = {
   el: HTMLElement;
-  kind: "gap" | "seam" | "end" | "head" | "line" | "blank" | "region" | "widget";
+  // A "space" is a blank line that renders as a line of space (the second
+  // and later in a run); it flows like a line. A "blank" is the paragraph
+  // separator, which the renderer has as a margin.
+  kind: "gap" | "seam" | "end" | "head" | "line" | "blank" | "space" | "region" | "widget";
   // For a seam: the page it starts.
   page: number | undefined;
   heading: boolean;
@@ -3515,7 +3526,13 @@ function readPageChildren(view: EditorView): PageChild[] {
       page = Number.isFinite(n) ? n : undefined;
     } else if (cl.contains("cm-fm-page-end")) kind = "end";
     else if (cl.contains("cm-fm-page-head")) kind = "head";
-    else if (cl.contains("cm-line")) kind = (el.textContent ?? "").trim() === "" ? "blank" : "line";
+    else if (cl.contains("cm-line")) {
+      kind = cl.contains("cm-fm-space")
+        ? "space"
+        : (el.textContent ?? "").trim() === ""
+        ? "blank"
+        : "line";
+    }
     else if (el.hasAttribute("data-region-line") || el.querySelector("[data-region-line]")) {
       kind = "region";
     } else kind = "widget";
@@ -3525,7 +3542,8 @@ function readPageChildren(view: EditorView): PageChild[] {
       kind,
       page,
       heading: kind === "line" && /\bcm-fm-h[1-6]\b/.test(el.className),
-      pagebreak: kind !== "line" && kind !== "blank" && el.querySelector(".fm-pagebreak--editor") !== null,
+      pagebreak: kind !== "line" && kind !== "blank" && kind !== "space" &&
+        el.querySelector(".fm-pagebreak--editor") !== null,
       innerSeam: kind === "region" && el.querySelector(".fm-page-gutter") !== null,
       top: r?.top ?? 0,
       bottom: r?.bottom ?? 0,
