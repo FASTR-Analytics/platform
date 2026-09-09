@@ -47,7 +47,6 @@ import {
 import {
   fastrChartPalette,
   FASTR_REPORT_THEMES,
-  FASTR_SEMANTIC_COLORS,
   FASTR_THEME_TOKENS,
 } from "../../lib/types/report_fastr_themes.ts";
 import { LEGACY_CF_PRESETS } from "../../lib/legacy_cf_presets.ts";
@@ -610,6 +609,47 @@ function lumOf(hex: string): number {
   return 0.2126 * ch((n >> 16) & 255) + 0.7152 * ch((n >> 8) & 255) + 0.0722 * ch(n & 255);
 }
 
+function satOf(hex: string): number {
+  const n = parseInt(hex.slice(1), 16);
+  const r = ((n >> 16) & 255) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2;
+  return max === min ? 0 : (max - min) / (1 - Math.abs(2 * l - 1));
+}
+
+Deno.test("every theme is five muted colours, and everything else is mixed from them", () => {
+  const HEX = /^#[0-9a-f]{6}$/i;
+  for (const theme of FASTR_REPORT_THEMES) {
+    const t = FASTR_THEME_TOKENS[theme];
+    const five = [t.palette.paper, t.palette.ink, t.palette.accent, t.palette.warm, t.palette.cool];
+    for (const c of five) assert(HEX.test(c), `${theme}: ${c}`);
+    assertEquals(new Set(five.map((c) => c.toLowerCase())).size, 5, `${theme} repeats a palette colour`);
+    // Muted: no colour is saturated (HSL saturation), and the three hues
+    // are neither near-white nor near-black.
+    for (const c of [t.palette.accent, t.palette.warm, t.palette.cool]) {
+      assert(satOf(c) <= 0.55, `${theme} ${c} is too saturated (${satOf(c).toFixed(2)})`);
+    }
+    // The roles are the five: the page is the paper, danger the warm,
+    // success the cool, info the accent, and the charts agree.
+    assertEquals(t.page, t.palette.paper);
+    assertEquals(t.ink, t.palette.ink);
+    assertEquals(t.accent, t.palette.accent);
+    assertEquals(t.semantic.danger, t.palette.warm);
+    assertEquals(t.semantic.success, t.palette.cool);
+    assertEquals(t.semantic.info, t.palette.accent);
+    assertEquals(t.chart.bad, t.palette.warm);
+    assertEquals(t.chart.good, t.palette.cool);
+    assertEquals(t.chart.series[0], t.palette.accent);
+    // Text on a status ground stands clear of it.
+    for (const role of ["info", "success", "warning", "danger"] as const) {
+      const ground = t.semantic[role], ink = t.semanticGroundInk[role];
+      assert(ink === t.palette.paper || ink === t.palette.ink, `${theme} ${role} ground ink ${ink}`);
+      assert(Math.abs(lumOf(ground) - lumOf(ink)) > 0.2, `${theme} ${role}: ${ink} on ${ground} does not read`);
+    }
+    // A theme's extra rules name the five, never a colour of their own.
+    assert(!/#[0-9a-f]{3,8}\b|rgba?\(|\b(white|black)\b/i.test(t.extraCss), `${theme} extraCss carries a literal colour`);
+  }
+});
+
 Deno.test("every theme's chart colours: a distinct series cycle, semantic colours that still read as such, a sequential ramp", () => {
   const HEX = /^#[0-9a-f]{6}$/i;
   for (const theme of FASTR_REPORT_THEMES) {
@@ -690,8 +730,8 @@ Deno.test("every theme's chart colours: a distinct series cycle, semantic colour
   assert(lumOf(custom.cells.good) < lumOf(fastrChartPalette("ministry").cells.good), "cell tints follow the page");
   assertEquals(custom.good, FASTR_THEME_TOKENS.ministry.chart.good);
   // An accent the theme already has is not doubled.
-  const same = fastrChartPalette("risograph", { accent: "#FF48B0" });
-  assertEquals(same.series, FASTR_THEME_TOKENS.risograph.chart.series.map((c) => c.toLowerCase() === "#ff48b0" ? "#ff48b0" : c));
+  const same = fastrChartPalette("risograph", { accent: "#C26F93" });
+  assertEquals(same.series, FASTR_THEME_TOKENS.risograph.chart.series.map((c) => c.toLowerCase() === "#c26f93" ? "#c26f93" : c));
   // A page that is not a 6-digit hex cannot be mixed: the faint tone falls
   // back to the neutral rather than a broken colour.
   assertEquals(fastrChartPalette("default", { page: "white" }).faint, FASTR_THEME_TOKENS.default.chart.neutral);
@@ -1021,8 +1061,12 @@ Deno.test("a theme's scheme decides the semantic colours, and dark pages get the
       `${theme} ink ${tokens.ink} does not contrast with page ${tokens.page}`,
     );
     const css = buildFastrReportCss(theme);
-    const set = FASTR_SEMANTIC_COLORS[tokens.scheme];
-    assertStringIncludes(css, `--fm-danger: ${set.danger};`);
+    // The page reads its own status set (the light-ground set on a light
+    // page, the dark-ground set on a dark one), and that set is the theme's
+    // own warm.
+    assertStringIncludes(css, `--fm-danger: var(--fm-danger-${tokens.scheme});`);
+    assertStringIncludes(css, `--fm-danger-${tokens.scheme}: ${tokens.semantic.danger};`);
+    assertEquals(tokens.semantic.danger, tokens.palette.warm);
     // The semantic colours are referenced, never inlined.
     assertStringIncludes(css, ".fm-callout--danger { --fm-callout-color: var(--fm-danger); }");
   }
@@ -1030,7 +1074,6 @@ Deno.test("a theme's scheme decides the semantic colours, and dark pages get the
 
 Deno.test("every rule that darkens the ground re-points the semantic colours", () => {
   const css = buildFastrReportCss("default");
-  const dark = FASTR_SEMANTIC_COLORS.dark;
   for (
     const rule of [
       "fm-tone--solid",
@@ -1042,15 +1085,12 @@ Deno.test("every rule that darkens the ground re-points the semantic colours", (
     ]
   ) {
     const block = new RegExp(`\\.${rule} \\{([^}]*)\\}`).exec(css)?.[1] ?? "";
-    assertStringIncludes(block, `--fm-danger: ${dark.danger};`);
-    assertStringIncludes(block, `--fm-success: ${dark.success};`);
+    assertStringIncludes(block, "--fm-danger: var(--fm-danger-dark);");
+    assertStringIncludes(block, "--fm-success: var(--fm-success-dark);");
   }
   // And the one that LIGHTENS it goes back the other way.
   const lightBlock = /\.fm-ink--dark \{([^}]*)\}/.exec(css)?.[1] ?? "";
-  assertStringIncludes(
-    lightBlock,
-    `--fm-danger: ${FASTR_SEMANTIC_COLORS.light.danger};`,
-  );
+  assertStringIncludes(lightBlock, "--fm-danger: var(--fm-danger-light);");
 });
 
 Deno.test("all 17 themes build, and every html style name has one bar retired themes", async () => {
@@ -1128,8 +1168,8 @@ Deno.test("the meaning tones are the semantic colours, in every theme", () => {
     for (const theme of ["brutalist", "terminal", "japanese"] as const) {
       const block = new RegExp(`\\.fm-tone--${name} \\{([^}]*)\\}`)
         .exec(buildFastrReportCss(theme))?.[1] ?? "";
-      assertStringIncludes(block, `background: ${FASTR_SEMANTIC_COLORS.light[name]};`);
-      assertStringIncludes(block, "--fm-ink: #ffffff;");
+      assertStringIncludes(block, `background: var(--fm-${name}-ground);`);
+      assertStringIncludes(block, `--fm-ink: var(--fm-${name}-ground-ink);`);
     }
   }
 });
@@ -1435,14 +1475,18 @@ Deno.test("a hue mark on a ground that IS that hue returns to the ground's ink",
 });
 
 Deno.test("an accent mark is never a no-op, even where the accent cannot be text", () => {
-  // Brutalist's yellow degrades to ink by design, so those themes mark with
-  // weight instead — a control that silently does nothing is worse than one
-  // that does something modest.
+  // An accent too close to the surface to carry text (a custom style's pale
+  // accent on a white page) degrades to ink by design, so such a style marks
+  // with weight instead — a control that silently does nothing is worse than
+  // one that does something modest.
   for (const theme of FASTR_REPORT_THEMES) {
     const css = buildFastrReportCss(theme);
     assertStringIncludes(css, "--fm-mark-accent-weight:");
   }
-  assertStringIncludes(buildFastrReportCss("brutalist"), "--fm-mark-accent-weight: 700");
+  assertStringIncludes(
+    buildFastrReportCss("default", { page: "#ffffff", ink: "#111111", accent: "#f2f2f2" }),
+    "--fm-mark-accent-weight: 700",
+  );
   assertStringIncludes(
     buildFastrReportCss("corporate"),
     "--fm-mark-accent-weight: inherit",

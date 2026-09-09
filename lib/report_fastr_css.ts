@@ -13,8 +13,9 @@
 
 import { cssColorLuminance } from "./fastr_markdown_blocks.ts";
 import {
-  FASTR_SEMANTIC_COLORS,
+  deriveFastrThemeColors,
   FASTR_THEME_TOKENS,
+  type FastrDerivedColors,
   type FastrReportTheme,
   type FastrThemeColorOverride,
   type FastrThemeTokens,
@@ -32,12 +33,13 @@ function selectors(scope: string): { root: string; d: string; vars: string } {
 // palette — but a fixed light-page set is unreadable on a dark theme, and on a
 // dark BAND inside a light theme. One block, emitted at the root from the
 // theme's scheme and re-emitted by every rule that establishes a dark ground.
-function semanticVarsCss(scheme: "light" | "dark"): string {
-  const c = FASTR_SEMANTIC_COLORS[scheme];
-  return `  --fm-info: ${c.info};
-  --fm-success: ${c.success};
-  --fm-warning: ${c.warning};
-  --fm-danger: ${c.danger};`;
+// The four status roles point at the set for a ground of the given
+// darkness: the theme emits both sets (--fm-<role>-light, --fm-<role>-dark,
+// see buildFastrThemeVarsCss), the page reads its own, and every rule that
+// changes a ground's darkness re-points them (ON_DARK_GROUND, ON_LIGHT_GROUND).
+const SEMANTIC_ROLES = ["info", "success", "warning", "danger"] as const;
+function semanticVarsCss(ground: "light" | "dark"): string {
+  return SEMANTIC_ROLES.map((r) => `  --fm-${r}: var(--fm-${r}-${ground});`).join("\n");
 }
 
 // Grounds that ARE a flat, saturated colour. A hue-named mark on one of them
@@ -66,27 +68,29 @@ function markOnFlatGroundCss(d: string): string {
   return `${rules.join(",\n")} { color: var(--fm-ink); }`;
 }
 
-// A semantic ground is the same strong colour in every theme: a danger tile is
-// a saturated red panel whether the page is white or near-black, so it always
-// takes the light-scheme value (all four are dark enough to carry white type)
-// rather than flipping with the surrounding ground.
+// A semantic ground is the theme's own status colour as a panel (its warm for
+// danger, its cool for success), with the paper or the ink as its type,
+// whichever stands further from it (--fm-<role>-ground-ink): white on a
+// light theme's brick, the dark paper on a dark theme's light coral. Inside
+// it the four roles are that ink too (a role mark on the danger panel has
+// nothing left to add).
 function semanticToneCss(
   d: string,
   name: "danger" | "warning" | "success" | "info",
 ): string {
-  const bg = FASTR_SEMANTIC_COLORS.light[name];
+  const ink = `var(--fm-${name}-ground-ink)`;
   return `${d}.fm-tone.fm-tone--${name} {
-  background: ${bg};
-  --fm-ink: #ffffff;
-  --fm-accent: #ffffff;
-  --fm-accent-text: #ffffff;
-  --fm-callout-color: #ffffff;
-  --fm-ink-muted: rgba(255, 255, 255, 0.75);
-  --fm-border: rgba(255, 255, 255, 0.3);
-  --fm-surface: rgba(255, 255, 255, 0.12);
-  --fm-surface-alt: rgba(255, 255, 255, 0.18);
-${ON_DARK_GROUND}
-  color: #ffffff;
+  background: var(--fm-${name}-ground);
+  --fm-ink: ${ink};
+  --fm-accent: ${ink};
+  --fm-accent-text: ${ink};
+  --fm-callout-color: ${ink};
+  --fm-ink-muted: color-mix(in srgb, ${ink} 75%, transparent);
+  --fm-border: color-mix(in srgb, ${ink} 30%, transparent);
+  --fm-surface: color-mix(in srgb, ${ink} 12%, transparent);
+  --fm-surface-alt: color-mix(in srgb, ${ink} 18%, transparent);
+${SEMANTIC_ROLES.map((r) => `  --fm-${r}: ${ink};`).join("\n")}
+  color: ${ink};
 }`;
 }
 
@@ -108,25 +112,61 @@ function accentTextFor(accent: string, surface: string, ink: string): string {
   return Math.abs(a - s) < MIN_TEXT_SEPARATION ? ink : accent;
 }
 
+// The derived set a custom style's colours give: the three overrides take
+// the place of the theme's paper, ink and accent and everything is mixed
+// again from the five (so a dark custom page gets a light muted ink and dark
+// surfaces, not the light theme's). A colour that is not a 6-digit hex
+// cannot be mixed: then only the three vars change and the theme's derived
+// colours stand, as before.
+const HEX6 = /^#[0-9a-f]{6}$/i;
+function derivedFor(
+  tokens: FastrThemeTokens,
+  colors?: FastrThemeColorOverride,
+): FastrDerivedColors & { scheme: "light" | "dark" } {
+  if (!colors) return tokens;
+  if ([colors.page, colors.ink, colors.accent].every((c) => HEX6.test(c))) {
+    const lum = cssColorLuminance(colors.page);
+    const scheme = lum !== undefined && lum < 0.5 ? "dark" : "light";
+    return {
+      ...deriveFastrThemeColors(
+        { ...tokens.palette, paper: colors.page, ink: colors.ink, accent: colors.accent },
+        scheme,
+      ),
+      scheme,
+    };
+  }
+  return { ...tokens, page: colors.page, ink: colors.ink, accent: colors.accent };
+}
+
 export function buildFastrThemeVarsCss(
   tokens: FastrThemeTokens,
   scope = "",
   colors?: FastrThemeColorOverride,
 ): string {
   const { vars } = selectors(scope);
-  const page = colors?.page ?? tokens.page;
-  const ink = colors?.ink ?? tokens.ink;
-  const accent = colors?.accent ?? tokens.accent;
-  const accentText = accentTextFor(accent, tokens.surfaceAlt, ink);
+  const c = derivedFor(tokens, colors);
+  const { page, ink, accent } = c;
+  const accentText = accentTextFor(accent, c.surfaceAlt, ink);
+  const roles = SEMANTIC_ROLES.map((r) =>
+    `  --fm-${r}-light: ${c.semanticOnLight[r]};
+  --fm-${r}-dark: ${c.semanticOnDark[r]};
+  --fm-${r}-ground: ${c.semantic[r]};
+  --fm-${r}-ground-ink: ${c.semanticGroundInk[r]};`
+  ).join("\n");
   return `${vars} {
   --fm-page: ${page};
-  --fm-surface: ${tokens.surface};
-  --fm-surface-alt: ${tokens.surfaceAlt};
+  --fm-paper: ${page};
+  --fm-warm: ${tokens.palette.warm};
+  --fm-cool: ${tokens.palette.cool};
+  --fm-light-ink: ${c.lightInk};
+  --fm-dark-ink: ${c.darkInk};
+  --fm-surface: ${c.surface};
+  --fm-surface-alt: ${c.surfaceAlt};
   --fm-ink: ${ink};
-  --fm-ink-muted: ${tokens.inkMuted};
+  --fm-ink-muted: ${c.inkMuted};
   --fm-accent: ${accent};
-  --fm-accent-ink: ${tokens.accentInk};
-  --fm-border: ${tokens.border};
+  --fm-accent-ink: ${c.accentInk};
+  --fm-border: ${c.border};
   --fm-radius: ${tokens.radius};
   --fm-border-width: ${tokens.borderWidth};
   --fm-font-body: ${tokens.fontBody};
@@ -136,13 +176,14 @@ export function buildFastrThemeVarsCss(
   --fm-heading-case: ${tokens.headingCase};
   --fm-measure: ${tokens.measure};
   --fm-callout-color: ${accent};
-  --fm-tone-dark: ${tokens.toneDark};
-  --fm-tone-dark-ink: ${tokens.toneDarkInk};
+  --fm-tone-dark: ${c.toneDark};
+  --fm-tone-dark-ink: ${c.toneDarkInk};
   --fm-solid-bg: ${accent};
   --fm-inverse-bg: ${ink};
   --fm-accent-text: ${accentText};
   --fm-mark-accent-weight: ${accentText === ink ? "700" : "inherit"};
-${semanticVarsCss(tokens.scheme)}
+${roles}
+${semanticVarsCss(c.scheme)}
 }`;
 }
 
@@ -487,27 +528,27 @@ ${d}.fm-card--accent a { color: var(--fm-accent-ink); }
 
 /* ── Literal ink (a bg colour's luminance decides it when not given) ──────── */
 ${d}.fm-ink--light {
-  --fm-ink: #ffffff;
-  --fm-accent: #ffffff;
-  --fm-accent-text: #ffffff;
-  --fm-callout-color: #ffffff;
-  --fm-ink-muted: rgba(255, 255, 255, 0.72);
-  --fm-border: rgba(255, 255, 255, 0.26);
-  --fm-surface: rgba(255, 255, 255, 0.10);
-  --fm-surface-alt: rgba(255, 255, 255, 0.16);
-  color: #ffffff;
+  --fm-ink: var(--fm-light-ink);
+  --fm-accent: var(--fm-light-ink);
+  --fm-accent-text: var(--fm-light-ink);
+  --fm-callout-color: var(--fm-light-ink);
+  --fm-ink-muted: color-mix(in srgb, var(--fm-light-ink) 72%, transparent);
+  --fm-border: color-mix(in srgb, var(--fm-light-ink) 26%, transparent);
+  --fm-surface: color-mix(in srgb, var(--fm-light-ink) 10%, transparent);
+  --fm-surface-alt: color-mix(in srgb, var(--fm-light-ink) 16%, transparent);
+  color: var(--fm-light-ink);
 ${ON_DARK_GROUND}
 }
 ${d}.fm-ink--dark {
-  --fm-ink: #111111;
-  --fm-accent: #111111;
-  --fm-accent-text: #111111;
-  --fm-callout-color: #111111;
-  --fm-ink-muted: rgba(17, 17, 17, 0.68);
-  --fm-border: rgba(17, 17, 17, 0.22);
-  --fm-surface: rgba(17, 17, 17, 0.05);
-  --fm-surface-alt: rgba(17, 17, 17, 0.09);
-  color: #111111;
+  --fm-ink: var(--fm-dark-ink);
+  --fm-accent: var(--fm-dark-ink);
+  --fm-accent-text: var(--fm-dark-ink);
+  --fm-callout-color: var(--fm-dark-ink);
+  --fm-ink-muted: color-mix(in srgb, var(--fm-dark-ink) 68%, transparent);
+  --fm-border: color-mix(in srgb, var(--fm-dark-ink) 22%, transparent);
+  --fm-surface: color-mix(in srgb, var(--fm-dark-ink) 5%, transparent);
+  --fm-surface-alt: color-mix(in srgb, var(--fm-dark-ink) 9%, transparent);
+  color: var(--fm-dark-ink);
 ${ON_LIGHT_GROUND}
 }
 

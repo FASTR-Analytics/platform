@@ -154,8 +154,9 @@ Backgrounds — say the ROLE, not the colour:
   Each theme maps the six tones to its own palette, so \`tone=dark\` is the
   theme's dark and stays readable when the user switches themes. Prefer a tone.
 
-  The last four are MEANING grounds — a saturated red, amber, green or blue
-  panel with white type, the same colours the callout kinds use. Reach for
+  The last four are MEANING grounds — the theme's own muted red, amber,
+  green or blue as a panel with contrasting type, the same colours the
+  callout kinds use. Reach for
   \`tone=danger\` when a tile IS the bad news; it stays coherent across themes
   in a way \`bg="#c62828"\` cannot.
 
