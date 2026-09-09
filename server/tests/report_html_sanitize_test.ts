@@ -161,7 +161,7 @@ Deno.test("keeps everything FASTR Markdown compiles to", () => {
       "fm-callout fm-callout--warning",
       "fm-callout__title",
       "fm-tiles fm-tiles--3",
-      "fm-card fm-card--accent",
+      "fm-card fm-tone fm-tone--accent",
       "fm-card__title",
       "fm-stat__value",
       "fm-stat__delta fm-stat__delta--up",
@@ -214,7 +214,7 @@ Deno.test("keeps FASTR block backgrounds: inline colour and data-bg-image", () =
     renderFastrMarkdownToHtml(
       `:::band{bg="#0b3d2e"}\ndark band\n:::\n\n` +
         `:::band{bg=image:${ID}}\nphoto band\n:::\n\n` +
-        `:::band{tone=dark}\ntoned band\n:::\n`,
+        `:::band{tone=ink}\ntoned band\n:::\n`,
       { lineAnchors: false },
     ),
   );
@@ -223,7 +223,7 @@ Deno.test("keeps FASTR block backgrounds: inline colour and data-bg-image", () =
   assertStringIncludes(out, "fm-has-bgimage");
   assertStringIncludes(out, "fm-overlay fm-overlay--dark");
   assertStringIncludes(out, "fm-ink--light");
-  assertStringIncludes(out, "fm-tone fm-tone--dark");
+  assertStringIncludes(out, "fm-tone fm-tone--ink");
   assertStringIncludes(out, "<section class=");
 });
 
@@ -233,13 +233,13 @@ Deno.test("keeps a gradient background in the inline style", () => {
   const out = clean(
     renderFastrMarkdownToHtml(
       ':::band{bg="linear-gradient(180deg,#0b3d2e,#0a2a20)"}\nsweep\n:::\n\n' +
-        ":::cover{tone=gradient}\n# T\n:::\n",
+        ":::cover{tone=ink}\n# T\n:::\n",
       { lineAnchors: false },
     ),
   );
   assertStringIncludes(out, "linear-gradient(180deg,#0b3d2e,#0a2a20)");
   assertStringIncludes(out, "fm-ink--light");
-  assertStringIncludes(out, "fm-tone fm-tone--gradient");
+  assertStringIncludes(out, "fm-tone fm-tone--ink");
 });
 
 // FASTR Markdown's inline role marks compile to `<span class="fm-mark …">`, and

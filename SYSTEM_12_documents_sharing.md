@@ -347,11 +347,11 @@ which is why every block, tone and background added since landed on all of them
 at once. Two are DARK pages (blueprint, terminal), and that is what forced the
 callout/delta colours out of the sheet: they carry MEANING so they cannot come
 from the palette, but a fixed light-page set is unreadable on a dark ground.
-Each theme declares `scheme: "light" | "dark"` which picks
-`FASTR_SEMANTIC_COLORS`, and every rule that establishes a dark ground
-(`tone=solid|dark|gradient|inverse`, `fm-ink--light`, `fm-card--accent`)
-re-emits the dark set locally — pinned by a test, since the first attempt
-missed `fm-tone--dark` and nothing else would have caught it. Tokens are
+Each theme declares `scheme: "light" | "dark"`, which picks which of its two
+status sets the page reads, and every rule that establishes a ground of the
+other darkness (a tone the theme paints dark, `fm-ink--light`) re-points the
+set locally — pinned by a test, since the first attempt missed the ink tone
+and nothing else would have caught it. Tokens are
 projected into `--fm-*` custom properties;
 `buildFastrReportCss(theme, colors?, scope?, opts?)` is a pure string builder, so
 the same call serves the preview, the export AND the creation picker's tiles —
@@ -500,20 +500,33 @@ structural assertions on the Paged.js DOM before printing.
 
 **Backgrounds and page-level design.** The format's answer to "everything html
 reports can do" is to name the ROLE, not the value. Every block takes
-`tone = default|muted|accent|solid|dark|inverse`, resolved once in `surfaceFor`
-([lib/fastr_markdown_blocks.ts](lib/fastr_markdown_blocks.ts)); each theme maps
-the six to its own palette (`toneDark`/`toneDarkInk` are real per-theme values,
-so Ministry's dark band is deep green and Swiss's is black), and a re-theme
-keeps every band readable. A tone re-scopes the `--fm-ink*`/`--fm-accent`/
-`--fm-border` TOKENS on the block so descendants follow — including the figure
-rasters, whose ground probe reads the computed background these rules paint.
+`tone = paper|ink|accent|warm|cool` — the theme's five colours as grounds, and
+only five, so the picker shows five (Nick, 2026-09-09) — resolved once in
+`fastrSurfaceTone` ([lib/fastr_markdown_blocks.ts](lib/fastr_markdown_blocks.ts)),
+which also folds the older spellings (`muted`, `solid`, `dark`, `inverse`,
+`gradient`, the four status names) and the card's historical `accent` flag
+into one of the five so existing bodies keep rendering; the toolbar, the live
+preview and the defect lister all go through it. Each ground is the palette
+colour with the paper or the ink as its type, whichever stands further
+(`grounds` in `deriveFastrThemeColors`; the paper ground carries 8% ink or a
+paper panel on the paper page would be invisible), emitted as
+`--fm-<tone>-ground`/`--fm-<tone>-ground-ink`, which never re-scope. The tone
+RULES are per theme (`buildFastrToneCss`, after the structure sheet and before
+a theme's extra rules): which status set reads inside a ground depends on how
+dark that theme paints it (the ink ground is dark on Ministry and light on
+Terminal), and only the theme knows. A tone re-scopes the
+`--fm-ink*`/`--fm-accent`/`--fm-border` TOKENS on the block so descendants
+follow — including the figure rasters, whose ground probe reads the computed
+background these rules paint; the paper tone is the page again, so its accent
+returns (a stat value in a paper card inside an ink band would otherwise be
+paper on paper).
 **Two traps, both found live and both now pinned by a structural test:** a rule
 may not read a custom property it also redefines (`background: var(--fm-accent)`
 beside `--fm-accent: …` resolved against the override and rendered a solid card
-white-on-white — hence `--fm-solid-bg`/`--fm-inverse-bg`), and a tone must
-re-declare `color`, not only the token, because an element inherits its parent's
-COMPUTED colour (paragraphs stayed dark on a dark band while headings, which set
-colour explicitly, did not).
+white-on-white — hence the never-re-scoped `--fm-<tone>-ground` tokens), and a
+tone must re-declare `color`, not only the token, because an element inherits
+its parent's COMPUTED colour (paragraphs stayed dark on a dark band while
+headings, which set colour explicitly, did not).
 
 Inline, `[fell 12 points]{.danger}` colours a WORD or phrase by the same
 principle — a markdown-it inline rule registered before `link`, so anything that
@@ -548,8 +561,7 @@ colour (`safeCssColor`, hex/rgb/hsl/curated-name allowlist) as
 `background-color`, or a gradient (`safeCssGradient` — the four gradient
 functions only, a character set that cannot express a second declaration,
 balanced parens, and an explicit ban on `url(`/`var(`/`image(`/`element(`/
-`attr(`) as the `background` shorthand. `tone=gradient` is the theme-safe
-equivalent. `ink=light|dark` overrides the ink otherwise derived from the
+`attr(`) as the `background` shorthand. `ink=light|dark` overrides the ink otherwise derived from the
 background's luminance — for a gradient, the MEAN of its colour stops, since a
 full-range sweep has no ink that reads at both ends. A `bg` value that is none
 of these is a reported defect, not a silent no-op (it was the latter, and an
@@ -599,24 +611,21 @@ Brutalist's `#ffff00` on a near-white stat tile is invisible, so
 back to the ink) and used wherever the accent is type — the stat value, the note
 callout's rule, the step numbers, several themes' `h2`. Because that fallback is
 chosen against the theme's OWN surface, every ground that re-scopes
-`--fm-accent` must re-scope `--fm-accent-text` too, or a `tone=dark` tile shows
+`--fm-accent` must re-scope `--fm-accent-text` too, or a `tone=ink` tile shows
 a black number on black; a structural test enforces the pair. A tone on a
 `tiles` or `columns` grid also gets padding, since a grid has none of its own
 and the ground would otherwise show only through the gaps between tiles.
 
-Four of the tones — `danger`, `warning`, `success`, `info` — are MEANING grounds
-rather than palette entries. They reuse the semantic colours the callout kinds
-and stat deltas already carry, and are deliberately the SAME strong colour in
-every theme: a danger tile is a saturated red panel on a white page and on a
-near-black one, because "this is the bad news" is not a thing a theme should be
-free to reinterpret. Every tone rule doubles its class (`.fm-tone.fm-tone--dark`,
-specificity 0,2,0) so it outranks any background a THEME sets on the same
-element — brutalist paints `.fm-callout` white, which at equal specificity beat
-`.fm-tone--danger` and left white type on a white callout.
-And a theme that paints a
-heading WITH the accent — brutalist's highlighter `h1` — renders it invisible on
-a ground that is already the accent, so any accent ground clears the heading
-background.
+The `warm` and `cool` tones double as the MEANING grounds: they are the very
+colours the callout kinds and stat deltas carry for danger and success, so
+"this is the bad news" is one colour wherever it is said, and a hue mark
+inside one of the three hue grounds returns to the ground's ink. Every tone
+rule doubles its class (`.fm-tone.fm-tone--ink`, specificity 0,2,0) so it
+outranks any background a THEME sets on the same element — brutalist paints
+`.fm-callout` white, which at equal specificity beat the tone and left white
+type on a white callout. And a theme that paints a heading WITH the accent —
+brutalist's highlighter `h1` — renders it invisible on a ground that is
+already a hue, so the three hue grounds clear the heading background.
 
 **Editor** ([report/index.tsx](client/src/components/report/index.tsx), ~1,700
 LOC): CodeMirror 6 (`lang-markdown` or `lang-html` per format) with an
@@ -658,8 +667,9 @@ drops its own undo/redo pair. The toolbar row adapts to the last
 click: a selected embed's controls REPLACE the text controls (as selecting an
 image does in Google Docs), and a block segment (fence chip + attributes + a
 combined Background menu + ink) APPENDS while the caret is inside a `:::`
-block. Background is ONE menu for both ground kinds — the theme's tones as
-preset swatches on top, the literal colour grid + hex field below — and keeps
+block. Background is ONE menu for both ground kinds — the theme's five tones as
+preset swatches on top beside a struck-through "none" chip, the literal
+colour grid + hex field below — and keeps
 them mutually exclusive in a single fence rewrite, because a literal wins over
 a tone in the renderer and a stale one must not linger; the Page menu embeds
 the same panel for the document background. Text colour is the SAME shape
@@ -684,7 +694,7 @@ boxes show (`:::report{pagesize= orientation=}`; margins stay at normal, 18mm)
 — and a SHOW PAGE BOXES toggle (per browser, localStorage). Theme and Background
 are hover FLYOUTS — `MenuFlyout`, the pure-CSS row-plus-panel the Insert pickers
 already used and now share. The theme flyout's tiles are drawn from
-`FASTR_THEME_TOKENS` (paper, ink, accent, dark tone, heading face) rather than
+`FASTR_THEME_TOKENS` (paper, ink, accent, ink ground, heading face) rather than
 from scoped copies of every theme's stylesheet, which would be ~17 sheets in
 a dropdown. The menu
 row opens with a FILE menu (Google Docs' shape): Download… (the host's
@@ -739,8 +749,8 @@ block under the caret comes from `fastrContainerStackUpTo` plus a separate
 `fenceHere` for the caret's own line, which is the only way the leaf blocks
 (`:::stat`, `:::report`, which carry no closing fence and so never enter the
 stack) are reachable at all. Tone and role swatches render the REAL scoped
-stylesheet rather than a colour computed in JS — `fm-tone--accent` is a
-`color-mix` — and the scope root paints `--fm-page`/`--fm-ink`, so a swatch
+stylesheet rather than a colour computed in JS — a tone's muted ink and
+rules are `color-mix` — and the scope root paints `--fm-page`/`--fm-ink`, so a swatch
 shows the document's colours whatever the app's own theme is doing.
 
 **The one real hazard is the cursor→Solid feedback loop.** The context is pushed
@@ -873,10 +883,10 @@ them more muted").** `lib/types/report_fastr_themes.ts` writes each theme as
 a `FastrThemePalette` (paper, ink, accent, warm, cool) plus type and extra
 rules; `deriveFastrThemeColors` mixes everything else from the five at
 module load (surfaces and border as paper toward ink, muted ink as ink toward
-paper, the dark band as ink toward accent, status colours as the theme's own:
-danger = warm, success = cool, info = accent, warning = the warm-cool middle,
-each with a faded twin for grounds of the other darkness and a computed
-ground ink for the meaning tones), and a custom style's page/ink/accent
+paper, the five grounds with the type that reads on each, status colours as
+the theme's own: danger = warm, success = cool, info = accent, warning = the
+warm-cool middle, each with a faded twin for grounds of the other darkness),
+and a custom style's page/ink/accent
 re-derive the whole set (`derivedFor` in report_fastr_css.ts, scheme from the
 custom page's luminance; a non-hex colour falls back to swapping the three).
 A theme's `extraCss` names the five as `--fm-paper/-ink/-accent/-warm/-cool`

@@ -1,5 +1,5 @@
-:::report{background=muted numbering=sections}
-:::cover{tone=dark layout=poster fill=page kicker="Ministry of Health · Q3 2026" sub="Routine data, national roll-up"}
+:::report{background=paper numbering=sections}
+:::cover{tone=ink layout=poster fill=page kicker="Ministry of Health · Q3 2026" sub="Routine data, national roll-up"}
 # Quarterly service review
 :::
 
@@ -8,7 +8,7 @@
 ## Headline numbers
 
 :::tiles{cols=3}
-:::stat{value="64%" label="ANC4 coverage" delta="+3pp" dir=up tone=solid}
+:::stat{value="64%" label="ANC4 coverage" delta="+3pp" dir=up tone=accent}
 :::stat{value="41%" label="Facility deliveries" delta="-1pp" dir=down}
 :::stat{value="88%" label="Reporting completeness" delta="+6pp" dir=up}
 :::
@@ -21,7 +21,7 @@ Reporting completeness was 62% in the Northern region this quarter, so its figur
 
 ## Where the system is failing
 
-:::band{tone=dark kicker="Finding one" sub="Three regions have never reported on time."}
+:::band{tone=ink kicker="Finding one" sub="Three regions have never reported on time."}
 ### Late reporting is concentrated
 
 Three regions account for nearly all of the late submissions, and the same three have the weakest completeness. The pattern has held for six quarters.
@@ -30,11 +30,11 @@ Three regions account for nearly all of the late submissions, and the same three
 ![ANC4 coverage by region](figure:f1)
 
 :::columns{cols=2}
-:::col{tone=success}
+:::col{tone=cool}
 ### Gaining
 Eastern and Southern regions improved on every indicator, led by a new outreach programme.
 :::
-:::col{tone=danger}
+:::col{tone=warm}
 ### Slipping
 Northern and Western fell back on deliveries, and both report late.
 :::
@@ -77,6 +77,6 @@ This heading opens a new page because of the explicit break above it.
 This callout asked to start on a new page of its own.
 :::
 
-:::band{tone=inverse}
+:::band{tone=ink}
 Prepared by the FASTR Analytics team.
 :::

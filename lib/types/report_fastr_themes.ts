@@ -38,11 +38,15 @@ export type FastrReportTheme = (typeof FASTR_REPORT_THEMES)[number];
 // than five colours and a tint of one of them is still that colour.
 //   paper  the page
 //   ink    the text
-//   accent the theme's own colour: headings' rules, the solid tone, info
+//   accent the theme's own colour: headings' rules, info
 //   warm   the red family: danger, a chart's "bad", the falling delta
 //   cool   the green family: success, a chart's "good", the rising delta
 // Warning sits between warm and cool (their mix), as the middle traffic
 // light does. All are muted on purpose (Nick, 2026-09-09).
+//
+// The five are also the five TONES a block can take as its ground
+// (`tone=ink`, `tone=warm`): FASTR_GROUNDS, each with the type that reads on
+// it. Only five, so the picker shows five (Nick, 2026-09-09).
 export type FastrThemePalette = {
   paper: string;
   ink: string;
@@ -98,10 +102,15 @@ export type FastrThemeSpec = {
   // Body column width.
   measure: string;
   // Rules the token model cannot express. They may name the five as
-  // --fm-paper, --fm-ink, --fm-accent, --fm-warm and --fm-cool, and never a
-  // literal colour.
+  // --fm-paper, --fm-ink, --fm-accent, --fm-warm and --fm-cool (and a
+  // ground's type as --fm-<tone>-ground-ink), and never a literal colour.
   extraCss: string;
 };
+
+export const FASTR_GROUNDS = ["paper", "ink", "accent", "warm", "cool"] as const;
+export type FastrGround = (typeof FASTR_GROUNDS)[number];
+// A palette colour as a GROUND: the panel colour and the type on it.
+export type FastrGroundColors = { color: string; ink: string };
 
 // The colours the stylesheet reads, mixed from a palette.
 export type FastrDerivedColors = {
@@ -113,23 +122,19 @@ export type FastrDerivedColors = {
   ink: string;
   inkMuted: string;
   accent: string;
-  // Readable ink ON the accent colour: the paper or the ink, whichever
-  // stands further from it.
-  accentInk: string;
   border: string;
-  // The theme's DARK ground for `tone=dark` bands and covers: the ink leaning
-  // toward the accent on a light theme (Ministry's dark is a deep green,
-  // Corporate's a navy), a step off the page on a dark one.
-  toneDark: string;
-  toneDarkInk: string;
+  // The five tones: each palette colour as a ground, with the paper or the
+  // ink as its type, whichever stands further from it. The paper ground
+  // carries a hint of ink, or a paper panel on the paper page would be
+  // invisible; the ink ground is the dark band on a light theme and the
+  // light one on a dark theme.
+  grounds: Record<FastrGround, FastrGroundColors>;
   // The status colours as they read on the page, and the same four for a
   // ground of the other darkness (a dark band on a light theme, a light
   // panel on a dark one), faded toward the paper.
   semantic: FastrThemeSemantic;
   semanticOnDark: FastrThemeSemantic;
   semanticOnLight: FastrThemeSemantic;
-  // Text on each status colour used as a GROUND (tone=danger etc.).
-  semanticGroundInk: FastrThemeSemantic;
   // The lighter and the darker of paper and ink: the literal inks a custom
   // bg colour picks between.
   lightInk: string;
@@ -221,7 +226,7 @@ h2 { color: var(--fm-accent-text); }
 .fm-quote { background: var(--fm-surface); border-left-color: var(--fm-accent); padding: 1em 1.2em; border-radius: var(--fm-radius); }
 .fm-steps { box-shadow: 0 1px 3px color-mix(in srgb, var(--fm-ink) 8%, transparent); }
 .fm-steps > *::before { color: var(--fm-accent-text); }
-thead th { background: var(--fm-accent); color: var(--fm-accent-ink); }
+thead th { background: var(--fm-accent); color: var(--fm-accent-ground-ink); }
 th, td { padding: 0.6em 0.8em; }
 `,
   },
@@ -322,7 +327,7 @@ thead th { border-bottom: 1px solid var(--fm-accent); font-family: var(--fm-font
     extraCss: `
 /* A data theme: the table and the stat tile are the primary devices. */
 h2 { color: var(--fm-accent-text); }
-thead th { background: var(--fm-accent); color: var(--fm-accent-ink); border-bottom: none; }
+thead th { background: var(--fm-accent); color: var(--fm-accent-ground-ink); border-bottom: none; }
 th, td { padding: 0.55em 0.8em; }
 tbody tr:nth-child(even) { background: var(--fm-surface-alt); }
 .fm-stat { border-left: 4px solid var(--fm-accent); }
@@ -449,8 +454,8 @@ h2 { color: var(--fm-ink); }
 .fm-quote { border: 3px solid var(--fm-ink); border-left: 10px solid var(--fm-accent); padding: 1em 1.2em; color: var(--fm-ink); }
 .fm-steps { border-width: 3px; }
 .fm-steps > * { border-bottom-width: 3px; padding-left: 4.4em; }
-.fm-steps > *::before { background: var(--fm-accent); color: var(--fm-accent-ink); border-radius: 999px; width: 2em; height: 2em; display: grid; place-items: center; left: 1em; top: 0.85em; }
-thead th { background: var(--fm-accent); color: var(--fm-accent-ink); }
+.fm-steps > *::before { background: var(--fm-accent); color: var(--fm-accent-ground-ink); border-radius: 999px; width: 2em; height: 2em; display: grid; place-items: center; left: 1em; top: 0.85em; }
+thead th { background: var(--fm-accent); color: var(--fm-accent-ground-ink); }
 th, td { border: 2px solid var(--fm-ink); }
 `,
   },
@@ -600,13 +605,13 @@ h1, h2, h3 { color: var(--fm-accent); }
 /* A session transcript: bracket tags, dashed rules, screenshot panels. */
 .fm-stat { border: 1px solid var(--fm-border); background: none; border-radius: 0; }
 .fm-stat__label { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.72em; }
-.fm-figure { border: 1px solid var(--fm-border); padding: 0.9em; background: var(--fm-tone-dark); }
+.fm-figure { border: 1px solid var(--fm-border); padding: 0.9em; background: var(--fm-surface-alt); }
 .fm-figure__caption::before { content: "// "; }
-.fm-callout { border: 1px solid var(--fm-callout-color); border-left-width: 4px; background: var(--fm-tone-dark); }
+.fm-callout { border: 1px solid var(--fm-callout-color); border-left-width: 4px; background: var(--fm-surface-alt); }
 .fm-callout__title::before { content: "[ "; }
 .fm-callout__title::after { content: " ]"; }
 .fm-quote { border: 1px dashed var(--fm-border); padding: 1em 1.2em; color: var(--fm-ink); }
-.fm-steps { border: 1px solid var(--fm-border); background: var(--fm-tone-dark); }
+.fm-steps { border: 1px solid var(--fm-border); background: var(--fm-surface-alt); }
 .fm-steps > * { border-bottom: 1px dashed var(--fm-border); padding-left: 4.4em; }
 .fm-steps > *::before { content: "[" counter(fm-step, decimal-leading-zero) "]"; color: var(--fm-accent); }
 th, td { border-bottom: 1px dashed var(--fm-border); }
@@ -634,7 +639,7 @@ h3 { letter-spacing: 0.14em; }
   border: 5px solid var(--fm-ink);
   border-left-width: 14px;
   border-radius: 0;
-  background: var(--fm-paper);
+  background: var(--fm-surface);
 }
 .fm-callout__title { letter-spacing: 0.14em; text-transform: uppercase; }
 .fm-stat { border: 5px solid var(--fm-ink); }
@@ -642,7 +647,7 @@ h3 { letter-spacing: 0.14em; }
 .fm-stat__label { text-transform: uppercase; letter-spacing: 0.12em; font-weight: 700; }
 .fm-stat__delta { border-radius: 0; border: 2px solid currentColor; }
 /* A figure is a specimen: framed hard, captioned like a filename. */
-.fm-figure { border: 5px solid var(--fm-ink); padding: 14px; background: var(--fm-paper); }
+.fm-figure { border: 5px solid var(--fm-ink); padding: 14px; background: var(--fm-surface); }
 .fm-figure__caption {
   font-family: "Courier New", ui-monospace, monospace;
   font-weight: 700;
@@ -662,7 +667,7 @@ h3 { letter-spacing: 0.14em; }
   border-left: 14px solid var(--fm-ink);
   padding: 1.1em 1.3em;
   color: var(--fm-ink);
-  background: var(--fm-paper);
+  background: var(--fm-surface);
 }
 /* Default HTML tables were never ugly enough to hide. */
 table { border: 5px solid var(--fm-ink); }
@@ -724,19 +729,17 @@ export function deriveFastrThemeColors(
     ink: p.ink,
     inkMuted: mix(p.ink, p.paper, 0.38),
     accent: p.accent,
-    accentInk: on(p.accent),
     border: mix(p.paper, p.ink, 0.18),
-    toneDark: light ? mix(p.ink, p.accent, 0.18) : mix(p.paper, p.ink, 0.06),
-    toneDarkInk: light ? p.paper : p.ink,
+    grounds: {
+      paper: { color: mix(p.paper, p.ink, 0.08), ink: p.ink },
+      ink: { color: p.ink, ink: p.paper },
+      accent: { color: p.accent, ink: on(p.accent) },
+      warm: { color: p.warm, ink: on(p.warm) },
+      cool: { color: p.cool, ink: on(p.cool) },
+    },
     semantic,
     semanticOnDark: light ? faded : semantic,
     semanticOnLight: light ? semantic : faded,
-    semanticGroundInk: {
-      info: on(semantic.info),
-      success: on(semantic.success),
-      warning: on(semantic.warning),
-      danger: on(semantic.danger),
-    },
     lightInk: paperLum >= inkLum ? p.paper : p.ink,
     darkInk: paperLum >= inkLum ? p.ink : p.paper,
     chart: {

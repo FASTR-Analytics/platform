@@ -13,6 +13,8 @@
 
 import { cssColorLuminance } from "./fastr_markdown_blocks.ts";
 import {
+  FASTR_GROUNDS,
+  type FastrGround,
   deriveFastrThemeColors,
   FASTR_THEME_TOKENS,
   type FastrDerivedColors,
@@ -42,8 +44,8 @@ function semanticVarsCss(ground: "light" | "dark"): string {
   return SEMANTIC_ROLES.map((r) => `  --fm-${r}: var(--fm-${r}-${ground});`).join("\n");
 }
 
-// Grounds that ARE a flat, saturated colour. A hue-named mark on one of them
-// would be pale red on saturated red — so on these, a role mark returns to the
+// Grounds that ARE one of the theme's three hues. A hue-named mark on one of
+// them would be pale red on red, so on these a role mark returns to the
 // ground's ink. Colour the text, not the panel: if the whole panel is already
 // saying "danger", the phrase inside it has nothing left to add.
 //
@@ -51,14 +53,7 @@ function semanticVarsCss(ground: "light" | "dark"): string {
 // (--fm-accent-text, --fm-ink-muted) are re-scoped correctly by every one of
 // these grounds already, so they stay useful there.
 const MARK_HUE_ROLES = ["danger", "warning", "success", "info"] as const;
-const MARK_FLAT_GROUNDS = [
-  "fm-tone--danger",
-  "fm-tone--warning",
-  "fm-tone--success",
-  "fm-tone--info",
-  "fm-tone--solid",
-  "fm-card--accent",
-];
+const MARK_FLAT_GROUNDS = ["fm-tone--accent", "fm-tone--warm", "fm-tone--cool"];
 
 function markOnFlatGroundCss(d: string): string {
   const rules = MARK_FLAT_GROUNDS.flatMap((ground) =>
@@ -68,34 +63,64 @@ function markOnFlatGroundCss(d: string): string {
   return `${rules.join(",\n")} { color: var(--fm-ink); }`;
 }
 
-// A semantic ground is the theme's own status colour as a panel (its warm for
-// danger, its cool for success), with the paper or the ink as its type,
-// whichever stands further from it (--fm-<role>-ground-ink): white on a
-// light theme's brick, the dark paper on a dark theme's light coral. Inside
-// it the four roles are that ink too (a role mark on the danger panel has
-// nothing left to add).
-function semanticToneCss(
+const ON_DARK_GROUND = semanticVarsCss("dark");
+const ON_LIGHT_GROUND = semanticVarsCss("light");
+
+// One tone: a palette colour as a panel (--fm-<tone>-ground) with the paper
+// or the ink as its type, whichever stands further from it
+// (--fm-<tone>-ground-ink): white on a light theme's brick, the dark paper on
+// a dark theme's light coral. The rule paints the ground AND re-scopes the
+// ink tokens, so descendants follow; muted ink, rules and surfaces are that
+// ink at an opacity, which reads on any ground. Inside a coloured ground the
+// accent is the ground's ink too (an accent on the accent has nothing left to
+// add); the paper ground is the page again, so its accent returns. Doubled
+// class for specificity: it must outrank a theme's own element rules.
+function toneRuleCss(
   d: string,
-  name: "danger" | "warning" | "success" | "info",
+  tone: FastrGround,
+  onPaper: { accent: string; accentText: string } | undefined,
+  dark: boolean,
 ): string {
-  const ink = `var(--fm-${name}-ground-ink)`;
-  return `${d}.fm-tone.fm-tone--${name} {
-  background: var(--fm-${name}-ground);
+  const ink = `var(--fm-${tone}-ground-ink)`;
+  const accent = onPaper?.accent ?? ink;
+  const accentText = onPaper?.accentText ?? ink;
+  return `${d}.fm-tone.fm-tone--${tone} {
+  background: var(--fm-${tone}-ground);
   --fm-ink: ${ink};
-  --fm-accent: ${ink};
-  --fm-accent-text: ${ink};
-  --fm-callout-color: ${ink};
-  --fm-ink-muted: color-mix(in srgb, ${ink} 75%, transparent);
-  --fm-border: color-mix(in srgb, ${ink} 30%, transparent);
-  --fm-surface: color-mix(in srgb, ${ink} 12%, transparent);
-  --fm-surface-alt: color-mix(in srgb, ${ink} 18%, transparent);
-${SEMANTIC_ROLES.map((r) => `  --fm-${r}: ${ink};`).join("\n")}
+  --fm-accent: ${accent};
+  --fm-accent-text: ${accentText};
+  --fm-callout-color: ${accent};
+  --fm-ink-muted: color-mix(in srgb, ${ink} 72%, transparent);
+  --fm-border: color-mix(in srgb, ${ink} 26%, transparent);
+  --fm-surface: color-mix(in srgb, ${ink} 10%, transparent);
+  --fm-surface-alt: color-mix(in srgb, ${ink} 16%, transparent);
+${dark ? ON_DARK_GROUND : ON_LIGHT_GROUND}
   color: ${ink};
 }`;
 }
 
-const ON_DARK_GROUND = semanticVarsCss("dark");
-const ON_LIGHT_GROUND = semanticVarsCss("light");
+// The five tone rules, emitted PER THEME rather than with the structure:
+// which status set reads inside a ground depends on how dark the theme
+// paints it (the ink ground is dark on a light theme and light on a dark
+// one), and only the theme knows. Emitted after the structure so a tone
+// outranks the block grounds it overrides.
+export function buildFastrToneCss(
+  tokens: FastrThemeTokens,
+  scope = "",
+  colors?: FastrThemeColorOverride,
+): string {
+  const { d } = selectors(scope);
+  const c = derivedFor(tokens, colors);
+  const accentText = accentTextFor(c.accent, c.surfaceAlt, c.ink);
+  return FASTR_GROUNDS.map((tone) =>
+    toneRuleCss(
+      d,
+      tone,
+      tone === "paper" ? { accent: "var(--fm-accent-ground)", accentText } : undefined,
+      c.grounds[tone].ink === c.lightInk,
+    )
+  ).join("\n");
+}
 
 // An accent is a GROUND colour first; using it as TEXT only works when it
 // separates from the surface it sits on. Brutalist's #ffff00 on a near-white
@@ -149,9 +174,14 @@ export function buildFastrThemeVarsCss(
   const accentText = accentTextFor(accent, c.surfaceAlt, ink);
   const roles = SEMANTIC_ROLES.map((r) =>
     `  --fm-${r}-light: ${c.semanticOnLight[r]};
-  --fm-${r}-dark: ${c.semanticOnDark[r]};
-  --fm-${r}-ground: ${c.semantic[r]};
-  --fm-${r}-ground-ink: ${c.semanticGroundInk[r]};`
+  --fm-${r}-dark: ${c.semanticOnDark[r]};`
+  ).join("\n");
+  // The five tones' panels and their type. Unlike --fm-ink and --fm-accent,
+  // which are the CURRENT ink and accent inside whatever ground, these never
+  // re-scope, so a rule can name the accent ground from inside an ink band.
+  const grounds = FASTR_GROUNDS.map((g) =>
+    `  --fm-${g}-ground: ${c.grounds[g].color};
+  --fm-${g}-ground-ink: ${c.grounds[g].ink};`
   ).join("\n");
   return `${vars} {
   --fm-page: ${page};
@@ -165,7 +195,6 @@ export function buildFastrThemeVarsCss(
   --fm-ink: ${ink};
   --fm-ink-muted: ${c.inkMuted};
   --fm-accent: ${accent};
-  --fm-accent-ink: ${c.accentInk};
   --fm-border: ${c.border};
   --fm-radius: ${tokens.radius};
   --fm-border-width: ${tokens.borderWidth};
@@ -176,10 +205,7 @@ export function buildFastrThemeVarsCss(
   --fm-heading-case: ${tokens.headingCase};
   --fm-measure: ${tokens.measure};
   --fm-callout-color: ${accent};
-  --fm-tone-dark: ${c.toneDark};
-  --fm-tone-dark-ink: ${c.toneDarkInk};
-  --fm-solid-bg: ${accent};
-  --fm-inverse-bg: ${ink};
+${grounds}
   --fm-accent-text: ${accentText};
   --fm-mark-accent-weight: ${accentText === ink ? "700" : "inherit"};
 ${roles}
@@ -441,90 +467,17 @@ ${d}.fm-block { margin: 1.2em 0; }
 /* Doubled for specificity, like the variants below: this rule re-declares the
    COLOUR (a child inherits its parent's computed colour, so re-scoping the ink
    token alone is not enough) and must outrank a theme's own element rules. */
-${d}.fm-tone.fm-tone { background: var(--fm-surface); color: var(--fm-ink); }
-${d}.fm-tone.fm-tone--muted { background: var(--fm-surface-alt); }
-${d}.fm-tone.fm-tone--accent {
-  background: color-mix(in srgb, var(--fm-accent) 12%, var(--fm-page));
-}
-${d}.fm-tone.fm-tone--solid {
-  background: var(--fm-solid-bg);
-  --fm-ink: var(--fm-accent-ink);
-  --fm-ink-muted: color-mix(in srgb, var(--fm-accent-ink) 72%, transparent);
-  --fm-border: color-mix(in srgb, var(--fm-accent-ink) 30%, transparent);
-  --fm-accent: var(--fm-accent-ink);
-  --fm-accent-text: var(--fm-accent-ink);
-  --fm-callout-color: var(--fm-accent-ink);
-  --fm-surface: color-mix(in srgb, var(--fm-accent-ink) 14%, transparent);
-  --fm-surface-alt: color-mix(in srgb, var(--fm-accent-ink) 20%, transparent);
-${ON_DARK_GROUND}
-}
-${d}.fm-tone.fm-tone--dark {
-  background: var(--fm-tone-dark);
-  --fm-ink: var(--fm-tone-dark-ink);
-  --fm-accent: var(--fm-tone-dark-ink);
-  --fm-accent-text: var(--fm-tone-dark-ink);
-  --fm-callout-color: var(--fm-tone-dark-ink);
-  --fm-ink-muted: color-mix(in srgb, var(--fm-tone-dark-ink) 70%, transparent);
-  --fm-border: color-mix(in srgb, var(--fm-tone-dark-ink) 26%, transparent);
-  --fm-surface: color-mix(in srgb, var(--fm-tone-dark-ink) 10%, transparent);
-  --fm-surface-alt: color-mix(in srgb, var(--fm-tone-dark-ink) 16%, transparent);
-${ON_DARK_GROUND}
-}
-/* Reads --fm-tone-dark and --fm-solid-bg, neither of which it redefines — see
-   the structural test guarding that rule. */
-${d}.fm-tone.fm-tone--gradient {
-  background: linear-gradient(160deg, var(--fm-tone-dark), var(--fm-solid-bg));
-  --fm-ink: var(--fm-tone-dark-ink);
-  --fm-accent: var(--fm-tone-dark-ink);
-  --fm-accent-text: var(--fm-tone-dark-ink);
-  --fm-callout-color: var(--fm-tone-dark-ink);
-  --fm-ink-muted: color-mix(in srgb, var(--fm-tone-dark-ink) 70%, transparent);
-  --fm-border: color-mix(in srgb, var(--fm-tone-dark-ink) 26%, transparent);
-  --fm-surface: color-mix(in srgb, var(--fm-tone-dark-ink) 10%, transparent);
-  --fm-surface-alt: color-mix(in srgb, var(--fm-tone-dark-ink) 16%, transparent);
-${ON_DARK_GROUND}
-}
-${d}.fm-tone.fm-tone--inverse {
-  background: var(--fm-inverse-bg);
-  --fm-ink: var(--fm-page);
-  --fm-accent: var(--fm-page);
-  --fm-accent-text: var(--fm-page);
-  --fm-callout-color: var(--fm-page);
-  --fm-ink-muted: color-mix(in srgb, var(--fm-page) 70%, transparent);
-  --fm-border: color-mix(in srgb, var(--fm-page) 26%, transparent);
-  --fm-surface: color-mix(in srgb, var(--fm-page) 10%, transparent);
-  --fm-surface-alt: color-mix(in srgb, var(--fm-page) 16%, transparent);
-${ON_DARK_GROUND}
-}
-${semanticToneCss(d, "danger")}
-${semanticToneCss(d, "warning")}
-${semanticToneCss(d, "success")}
-${semanticToneCss(d, "info")}
+${d}.fm-tone.fm-tone { background: var(--fm-paper-ground); color: var(--fm-ink); }
+/* The tone rules themselves are per theme: buildFastrToneCss. */
 /* A theme may paint a heading WITH the accent (a highlighter mark). On a ground
-   that is already the accent, that renders the heading invisible — so any
-   accent ground clears it. Discovered as a blank yellow cover. */
-${d}.fm-tone--solid h1, ${d}.fm-tone--solid h2, ${d}.fm-tone--solid h3,
-${d}.fm-tone--danger h1, ${d}.fm-tone--warning h1, ${d}.fm-tone--success h1,
-${d}.fm-tone--info h1,
-${d}.fm-card--accent h1, ${d}.fm-card--accent h2, ${d}.fm-card--accent h3 {
+   that is already a hue, that renders the heading invisible or garish, so the
+   three hue grounds clear it. Discovered as a blank yellow cover. */
+${d}.fm-tone--accent h1, ${d}.fm-tone--accent h2, ${d}.fm-tone--accent h3,
+${d}.fm-tone--warm h1, ${d}.fm-tone--warm h2, ${d}.fm-tone--warm h3,
+${d}.fm-tone--cool h1, ${d}.fm-tone--cool h2, ${d}.fm-tone--cool h3 {
   background: none;
   padding-inline: 0;
 }
-/* The historical card flag is the old spelling of tone=solid. */
-${d}.fm-card--accent {
-  background: var(--fm-solid-bg);
-  border-color: var(--fm-solid-bg);
-  --fm-ink: var(--fm-accent-ink);
-  --fm-ink-muted: color-mix(in srgb, var(--fm-accent-ink) 72%, transparent);
-  --fm-accent: var(--fm-accent-ink);
-  --fm-accent-text: var(--fm-accent-ink);
-  --fm-accent-text: var(--fm-accent-ink);
-  --fm-callout-color: var(--fm-accent-ink);
-  color: var(--fm-accent-ink);
-${ON_DARK_GROUND}
-}
-${d}.fm-card--accent .fm-card__title,
-${d}.fm-card--accent a { color: var(--fm-accent-ink); }
 
 /* ── Literal ink (a bg colour's luminance decides it when not given) ──────── */
 ${d}.fm-ink--light {
@@ -743,13 +696,13 @@ ${d}.fm-cover.fm-cover--minimal .fm-dek {
   max-width: 36em;
 }
 
-/* Block: the title set as a solid block of the accent. On a solid ground the
-   block would vanish into it, so that tone keeps the plain title. */
+/* Block: the title set as a solid block of the accent. On the accent ground
+   the block would vanish into it, so that tone keeps the plain title. */
 ${d}.fm-cover.fm-cover--block { text-align: left; }
-${d}.fm-cover.fm-cover--block:not(.fm-tone--solid) h1 {
+${d}.fm-cover.fm-cover--block:not(.fm-tone--accent) h1 {
   align-self: flex-start;
-  background: var(--fm-solid-bg);
-  color: var(--fm-accent-ink);
+  background: var(--fm-accent-ground);
+  color: var(--fm-accent-ground-ink);
   padding: 0.18em 0.45em;
   max-width: 14em;
   box-decoration-break: clone;
@@ -1027,6 +980,7 @@ export function buildFastrReportCss(
     opts?.omitFontImport ? "" : tokens.fontImport,
     buildFastrThemeVarsCss(tokens, scope, colors),
     buildFastrStructureCss(scope),
+    buildFastrToneCss(tokens, scope, colors),
     extra,
     scope === "" ? DOCUMENT_ROOT_CSS : "",
     scope === "" ? RESPONSIVE_CSS : "",

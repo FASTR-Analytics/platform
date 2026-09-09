@@ -1,5 +1,5 @@
 :::report{orientation=landscape pagesize=letter}
-:::cover{tone=solid layout=split kicker="Landscape" sub="A wide table deserves a wide sheet"}
+:::cover{tone=accent layout=split kicker="Landscape" sub="A wide table deserves a wide sheet"}
 # Landscape review
 :::
 

@@ -1,7 +1,7 @@
 :::report
 # A band longer than a page
 
-:::band{tone=dark kicker="A very long band"}
+:::band{tone=ink kicker="A very long band"}
 ## This band cannot fit on a page
 
 Paragraph 1 of the band. It runs on for a while so that the band as a whole is taller than a printed page and the paginator has no choice but to split it between two paragraphs, keeping its ground on both sides of the seam.

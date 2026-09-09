@@ -32,6 +32,7 @@ import {
   safeCssBackground,
   safeCssColor,
   safeCssGradient,
+  fastrToneOf,
 } from "../../lib/fastr_markdown_blocks.ts";
 import { renderFastrMarkdownToHtml } from "../../lib/report_fastr_markdown.ts";
 import {
@@ -48,6 +49,7 @@ import {
   fastrChartPalette,
   FASTR_REPORT_THEMES,
   FASTR_THEME_TOKENS,
+  FASTR_GROUNDS,
 } from "../../lib/types/report_fastr_themes.ts";
 import { LEGACY_CF_PRESETS } from "../../lib/legacy_cf_presets.ts";
 import { themeConditionalFormatting } from "../../lib/types/conditional_formatting.ts";
@@ -190,7 +192,7 @@ Deno.test("a stray close and an unknown block name are defects", () => {
 Deno.test("listFastrLiteralBackgrounds finds literals, never tones", () => {
   const md = [
     ":::report{background=muted}",
-    ":::band{tone=dark}",
+    ":::band{tone=ink}",
     "x",
     ":::",
     ':::card{bg="#0b3d2e"}',
@@ -211,7 +213,7 @@ Deno.test("listFastrLiteralBackgrounds finds literals, never tones", () => {
     { line: 8, attr: "bg", value: "linear-gradient(180deg,#111,#222)" },
     { line: 11, attr: "bg", value: "image:abc" },
   ]);
-  assertEquals(listFastrLiteralBackgrounds(":::band{tone=danger}\nx\n:::\n"), []);
+  assertEquals(listFastrLiteralBackgrounds(":::band{tone=warm}\nx\n:::\n"), []);
 });
 
 Deno.test("fences inside a code block are literal text", () => {
@@ -416,14 +418,50 @@ Deno.test("tone is understood by every block and names a role, not a colour", ()
     assertEquals(containerHtmlFor("band", { tone }).style, "");
   }
   assertStringIncludes(
-    containerHtmlFor("card", { tone: "dark" }).className,
-    "fm-card fm-tone fm-tone--dark",
+    containerHtmlFor("card", { tone: "ink" }).className,
+    "fm-card fm-tone fm-tone--ink",
   );
   // An unknown tone degrades to the mildest one rather than emitting a class
   // no stylesheet defines.
   assertStringIncludes(
     containerHtmlFor("band", { tone: "chartreuse" }).className,
-    "fm-tone--muted",
+    "fm-tone--paper",
+  );
+});
+
+Deno.test("the older tone spellings still render, each as one of the five", () => {
+  for (
+    const [old, now] of [
+      ["muted", "paper"],
+      ["solid", "accent"],
+      ["dark", "ink"],
+      ["inverse", "ink"],
+      ["gradient", "ink"],
+      ["danger", "warm"],
+      ["warning", "warm"],
+      ["success", "cool"],
+      ["info", "accent"],
+    ] as const
+  ) {
+    assertEquals(fastrToneOf(old), now);
+    assertEquals(fastrToneOf(old.toUpperCase()), now);
+    assertStringIncludes(
+      containerHtmlFor("band", { tone: old }).className,
+      `fm-tone fm-tone--${now}`,
+    );
+    assertEquals(listFastrContainerDefects(`:::band{tone=${old}}\nx\n:::\n`), []);
+  }
+  assertEquals(fastrToneOf("chartreuse"), undefined);
+  assertEquals(fastrToneOf(true), undefined);
+  // The card's historical flag is the accent tone.
+  assertStringIncludes(
+    containerHtmlFor("card", { accent: true }).className,
+    "fm-card fm-tone fm-tone--accent",
+  );
+  // The page background takes an old spelling too.
+  assertStringIncludes(
+    readFastrDocumentSettings(":::report{background=muted}\n").className,
+    "fm-tone--paper",
   );
 });
 
@@ -480,7 +518,7 @@ Deno.test("literal colours are listed from blocks AND phrase marks, with their a
     ':::band{bg="#101010"}',
     "Text [hot]{color=#c62828} and [lit]{highlight=yellow} and [role]{.danger}.",
     ":::",
-    ":::callout{tone=muted}",
+    ":::callout{tone=paper}",
     "A tone is not a literal.",
     ":::",
     "```",
@@ -523,7 +561,7 @@ Deno.test("the document header carries print setup and section numbering", () =>
 
 Deno.test("a table of contents is built from the document's own headings", () => {
   const body = [
-    ":::cover{tone=dark}",
+    ":::cover{tone=ink}",
     "# Report title",
     ":::",
     "",
@@ -535,7 +573,7 @@ Deno.test("a table of contents is built from the document's own headings", () =>
     "",
     "## Findings",
     "",
-    ":::band{tone=dark}",
+    ":::band{tone=ink}",
     "## Findings",
     ":::",
     "",
@@ -581,11 +619,11 @@ Deno.test("a table of contents is built from the document's own headings", () =>
 });
 
 Deno.test("bands and covers are full-bleed sections", () => {
-  const html = render(":::band{tone=dark}\n## Failing\ntext\n:::\n");
-  assertStringIncludes(html, '<section class="fm-band fm-tone fm-tone--dark"');
+  const html = render(":::band{tone=ink}\n## Failing\ntext\n:::\n");
+  assertStringIncludes(html, '<section class="fm-band fm-tone fm-tone--ink"');
   assertStringIncludes(html, "<h2>Failing</h2>");
   assertStringIncludes(
-    render(":::cover{tone=solid}\n# T\n:::\n"),
+    render(":::cover{tone=accent}\n# T\n:::\n"),
     "fm-band fm-cover",
   );
 });
@@ -639,11 +677,25 @@ Deno.test("every theme is five muted colours, and everything else is mixed from 
     assertEquals(t.chart.bad, t.palette.warm);
     assertEquals(t.chart.good, t.palette.cool);
     assertEquals(t.chart.series[0], t.palette.accent);
-    // Text on a status ground stands clear of it.
-    for (const role of ["info", "success", "warning", "danger"] as const) {
-      const ground = t.semantic[role], ink = t.semanticGroundInk[role];
-      assert(ink === t.palette.paper || ink === t.palette.ink, `${theme} ${role} ground ink ${ink}`);
-      assert(Math.abs(lumOf(ground) - lumOf(ink)) > 0.2, `${theme} ${role}: ${ink} on ${ground} does not read`);
+    // The five tones are the five as grounds, and the type on each stands
+    // clear of it. The paper ground carries a hint of ink, so a paper panel
+    // shows on the page; the ink ground is the ink itself.
+    assertEquals(t.grounds.ink.color, t.palette.ink);
+    assertEquals(t.grounds.ink.ink, t.palette.paper);
+    assertEquals(t.grounds.accent.color, t.palette.accent);
+    assertEquals(t.grounds.warm.color, t.palette.warm);
+    assertEquals(t.grounds.cool.color, t.palette.cool);
+    assertEquals(t.grounds.paper.ink, t.palette.ink);
+    assert(t.grounds.paper.color !== t.palette.paper, `${theme}: a paper panel would vanish`);
+    assert(
+      Math.abs(lumOf(t.grounds.paper.color) - lumOf(t.palette.paper)) <
+        Math.abs(lumOf(t.grounds.paper.color) - lumOf(t.palette.ink)) / 4,
+      `${theme}: the paper ground is not paper`,
+    );
+    for (const tone of FASTR_GROUNDS) {
+      const { color, ink } = t.grounds[tone];
+      assert(ink === t.palette.paper || ink === t.palette.ink, `${theme} ${tone} ground ink ${ink}`);
+      assert(Math.abs(lumOf(color) - lumOf(ink)) > 0.2, `${theme} ${tone}: ${ink} on ${color} does not read`);
     }
     // A theme's extra rules name the five, never a colour of their own.
     assert(!/#[0-9a-f]{3,8}\b|rgba?\(|\b(white|black)\b/i.test(t.extraCss), `${theme} extraCss carries a literal colour`);
@@ -783,14 +835,14 @@ Deno.test("a themed report re-tints every stock traffic-light preset; chosen col
 
 Deno.test("a cover fills its page only with fill=page", () => {
   assertStringIncludes(
-    render(":::cover{tone=dark fill=page}\n# T\n:::\n"),
+    render(":::cover{tone=ink fill=page}\n# T\n:::\n"),
     '<section class="fm-band fm-cover fm-cover--fill',
   );
   assertStringIncludes(
-    render(":::cover{tone=dark layout=poster fill=page}\n# T\n:::\n"),
+    render(":::cover{tone=ink layout=poster fill=page}\n# T\n:::\n"),
     '<section class="fm-band fm-cover fm-cover--poster fm-cover--fill',
   );
-  assert(!render(":::cover{tone=dark}\n# T\n:::\n").includes("fm-cover--fill"));
+  assert(!render(":::cover{tone=ink}\n# T\n:::\n").includes("fm-cover--fill"));
   const defects = listFastrContainerDefects(":::cover{fill=tall}\n# T\n:::\n");
   assert(defects.some((d) => d.message.includes("Unknown fill `tall`")), JSON.stringify(defects));
   // The paged sheet gives only the filling cover its own page.
@@ -817,8 +869,8 @@ Deno.test("a cover fills its page only with fill=page", () => {
 
 Deno.test("a cover's layout is a class the sheet styles; classic is the bare cover", () => {
   assertStringIncludes(
-    render(":::cover{tone=dark layout=poster}\n# T\n:::\n"),
-    '<section class="fm-band fm-cover fm-cover--poster fm-tone fm-tone--dark"',
+    render(":::cover{tone=ink layout=poster}\n# T\n:::\n"),
+    '<section class="fm-band fm-cover fm-cover--poster fm-tone fm-tone--ink"',
   );
   // Classic and an unknown layout both leave the class alone, so existing
   // covers render byte for byte.
@@ -843,8 +895,8 @@ Deno.test("a cover's layout is a class the sheet styles; classic is the bare cov
   }
   // The preset snippet: fallbacks stay off the fence, quotes are kept safe.
   assertEquals(
-    coverSnippet({ layout: "poster", tone: "solid" }, { kicker: 'Say "hi"', title: "T", sub: "S" }),
-    `:::cover{tone=solid layout=poster kicker="Say 'hi'" sub="S"}\n# T\n:::`,
+    coverSnippet({ layout: "poster", tone: "accent" }, { kicker: 'Say "hi"', title: "T", sub: "S" }),
+    `:::cover{tone=accent layout=poster kicker="Say 'hi'" sub="S"}\n# T\n:::`,
   );
   assertEquals(
     coverSnippet({ layout: "classic", tone: "default" }, { kicker: "K", title: "T", sub: "S" }),
@@ -855,7 +907,7 @@ Deno.test("a cover's layout is a class the sheet styles; classic is the bare cov
 // ── Document header ─────────────────────────────────────────────────────────
 
 Deno.test(":::report configures the document and renders nothing", () => {
-  const body = ":::report{background=muted width=wide}\n\n# T\n";
+  const body = ":::report{background=paper width=wide}\n\n# T\n";
   const html = render(body);
   assert(!html.includes("fm-report"));
   assert(!html.includes(":::report"));
@@ -865,7 +917,7 @@ Deno.test(":::report configures the document and renders nothing", () => {
   const doc = readFastrDocumentSettings(body);
   assertStringIncludes(doc.className, "fm-doc");
   assertStringIncludes(doc.className, "fm-doc--wide");
-  assertStringIncludes(doc.className, "fm-tone--muted");
+  assertStringIncludes(doc.className, "fm-tone--paper");
   assertEquals(doc.style, "");
 });
 
@@ -914,22 +966,48 @@ Deno.test("a figure takes a width, and the attribute block is consumed", () => {
 
 // ── Themes carry the tone palette ───────────────────────────────────────────
 
-Deno.test("every theme defines a real dark ground and the tone rules read it", () => {
+Deno.test("every theme emits the five grounds and a rule for each tone", () => {
   for (const theme of FASTR_REPORT_THEMES) {
     const tokens = FASTR_THEME_TOKENS[theme];
-    assert(isDarkCssColor(tokens.toneDark), `${theme} toneDark is not dark`);
-    assertEquals(isDarkCssColor(tokens.toneDarkInk), false);
     const css = buildFastrReportCss(theme);
-    assertStringIncludes(css, `--fm-tone-dark: ${tokens.toneDark};`);
-    assertStringIncludes(css, ".fm-tone--dark {");
-    assertStringIncludes(css, ".fm-band {");
+    for (const tone of FASTR_GROUNDS) {
+      assertStringIncludes(css, `--fm-${tone}-ground: ${tokens.grounds[tone].color};`);
+      assertStringIncludes(css, `--fm-${tone}-ground-ink: ${tokens.grounds[tone].ink};`);
+      const block = new RegExp(`\\.fm-tone\\.fm-tone--${tone} \\{([^}]*)\\}`).exec(css)?.[1];
+      assert(block !== undefined, `${theme} has no ${tone} tone rule`);
+      assertStringIncludes(block, `background: var(--fm-${tone}-ground);`);
+      assertStringIncludes(block, `--fm-ink: var(--fm-${tone}-ground-ink);`);
+      assertStringIncludes(block, `color: var(--fm-${tone}-ground-ink);`);
+      // The status set inside follows the ground's darkness, which is the
+      // theme's to know: the ink ground is dark on a light theme and light
+      // on a dark one.
+      const dark = tokens.grounds[tone].ink === tokens.lightInk;
+      assertStringIncludes(block, `--fm-danger: var(--fm-danger-${dark ? "dark" : "light"});`);
+      // A coloured ground's accent is its own ink; the paper ground is the
+      // page again, so the accent returns (a stat value inside a paper card
+      // inside an ink band would otherwise be paper on paper).
+      assertStringIncludes(
+        block,
+        tone === "paper"
+          ? "--fm-accent: var(--fm-accent-ground);"
+          : `--fm-accent: var(--fm-${tone}-ground-ink);`,
+      );
+    }
+    // The tone rules come after the structure, so they outrank a block's own
+    // ground, and before the theme's extra rules.
+    assert(css.indexOf(".fm-tone.fm-tone--ink {") > css.indexOf(".fm-band {"));
     assertStringIncludes(css, ".fm-ink--light {");
+    // On a light theme the ink ground is dark; the paper ground is light.
+    if (tokens.scheme === "light") {
+      assert(isDarkCssColor(tokens.grounds.ink.color), `${theme} ink ground is not dark`);
+      assertEquals(isDarkCssColor(tokens.grounds.paper.color), false);
+    }
   }
 });
 
 // A tone rule paints its ground AND re-scopes the ink tokens. If it reads the
 // same custom property it redefines, var() resolves against the override —
-// which rendered `tone=solid` as white text on a white card until it was
+// which rendered `tone=accent` as white text on a white card until it was
 // caught. Structural, because CSS cannot be evaluated here.
 Deno.test("no tone rule reads a custom property it also redefines", () => {
   const css = buildFastrReportCss("default");
@@ -1013,18 +1091,6 @@ Deno.test("a gradient's ink comes from the MEAN of its stops", () => {
   assertStringIncludes(h.className, "fm-ink--light");
 });
 
-Deno.test("tone=gradient is the theme-safe sweep and carries no literal", () => {
-  const h = containerHtmlFor("cover", { tone: "gradient" });
-  assertStringIncludes(h.className, "fm-tone fm-tone--gradient");
-  assertEquals(h.style, "");
-  const css = buildFastrReportCss("ministry");
-  assertStringIncludes(css, ".fm-tone--gradient {");
-  assertStringIncludes(
-    css,
-    "linear-gradient(160deg, var(--fm-tone-dark), var(--fm-solid-bg))",
-  );
-});
-
 Deno.test("an unusable background is reported instead of vanishing", () => {
   const defects = listFastrContainerDefects(
     ':::band{bg="rotate(3deg)"}\nx\n:::\n',
@@ -1037,7 +1103,7 @@ Deno.test("an unusable background is reported instead of vanishing", () => {
       ':::band{bg="linear-gradient(180deg,#000,#fff)"}\nx\n:::\n' +
         ":::band{bg=image:abc}\nx\n:::\n" +
         ':::band{bg="#0b3d2e"}\nx\n:::\n' +
-        ":::band{tone=dark}\nx\n:::\n",
+        ":::band{tone=ink}\nx\n:::\n",
     ),
     [],
   );
@@ -1074,14 +1140,14 @@ Deno.test("a theme's scheme decides the semantic colours, and dark pages get the
 
 Deno.test("every rule that darkens the ground re-points the semantic colours", () => {
   const css = buildFastrReportCss("default");
+  // On the default theme every ground but paper is dark.
   for (
     const rule of [
-      "fm-tone--solid",
-      "fm-tone--dark",
-      "fm-tone--gradient",
-      "fm-tone--inverse",
+      "fm-tone--ink",
+      "fm-tone--accent",
+      "fm-tone--warm",
+      "fm-tone--cool",
       "fm-ink--light",
-      "fm-card--accent",
     ]
   ) {
     const block = new RegExp(`\\.${rule} \\{([^}]*)\\}`).exec(css)?.[1] ?? "";
@@ -1155,28 +1221,27 @@ Deno.test("any ground that re-scopes the accent re-scopes the accent TEXT too", 
   }
 });
 
-// The meaning grounds are a fixed strong colour in every theme (a danger tile is
-// a red panel on a white page and on a near-black one), so they are pinned to
-// the light-scheme semantic values with white type.
-Deno.test("the meaning tones are the semantic colours, in every theme", () => {
-  for (const name of ["danger", "warning", "success", "info"] as const) {
-    assert((FASTR_TONES as readonly string[]).includes(name));
-    assertStringIncludes(
-      containerHtmlFor("stat", { tone: name }).className,
-      `fm-tone fm-tone--${name}`,
-    );
-    for (const theme of ["brutalist", "terminal", "japanese"] as const) {
-      const block = new RegExp(`\\.fm-tone--${name} \\{([^}]*)\\}`)
-        .exec(buildFastrReportCss(theme))?.[1] ?? "";
-      assertStringIncludes(block, `background: var(--fm-${name}-ground);`);
-      assertStringIncludes(block, `--fm-ink: var(--fm-${name}-ground-ink);`);
-    }
+// The warm and cool tones ARE the meaning colours: a warm tile is the same
+// red the danger callout and the falling delta carry, in every theme, so
+// "this is the bad news" is one colour wherever it is said.
+Deno.test("the warm and cool tones are the semantic colours, in every theme", () => {
+  for (const theme of FASTR_REPORT_THEMES) {
+    const t = FASTR_THEME_TOKENS[theme];
+    assertEquals(t.grounds.warm.color, t.semantic.danger);
+    assertEquals(t.grounds.cool.color, t.semantic.success);
+    assertEquals(t.grounds.accent.color, t.semantic.info);
+    assertEquals(t.grounds.warm.color, t.chart.bad);
+    assertEquals(t.grounds.cool.color, t.chart.good);
   }
+  assertStringIncludes(
+    containerHtmlFor("stat", { tone: "warm" }).className,
+    "fm-tone fm-tone--warm",
+  );
 });
 
 // A tone paints a ground, so it must outrank any background a THEME sets on the
 // same element. Brutalist paints `.fm-callout` white; at equal specificity its
-// rule (loaded later) beat `.fm-tone--danger` and the callout went white on
+// rule (loaded later) beat the tone and the callout went white on
 // white. Every tone rule that sets a background doubles its class to win.
 Deno.test("a tone outranks a theme's own background", () => {
   const css = buildFastrReportCss("brutalist");
@@ -1234,8 +1299,8 @@ Deno.test("a fence survives a serialize round-trip semantically", () => {
 Deno.test("a patch edits in place and leaves everything else alone", () => {
   const line = `:::callout{kind=warning title="Data caveat"}`;
   assertEquals(
-    updateContainerFenceLine(line, { tone: "danger" }),
-    `:::callout{kind=warning title="Data caveat" tone=danger}`,
+    updateContainerFenceLine(line, { tone: "warm" }),
+    `:::callout{kind=warning title="Data caveat" tone=warm}`,
   );
   assertEquals(
     updateContainerFenceLine(line, { kind: "danger" }),
@@ -1253,8 +1318,8 @@ Deno.test("a patch edits in place and leaves everything else alone", () => {
   );
   // And adding to a bare fence creates them.
   assertEquals(
-    updateContainerFenceLine(":::steps", { tone: "muted" }),
-    ":::steps{tone=muted}",
+    updateContainerFenceLine(":::steps", { tone: "paper" }),
+    ":::steps{tone=paper}",
   );
   // Indent and marker length are the author's, not ours.
   assertEquals(
@@ -1306,7 +1371,7 @@ Deno.test("a leaf block never enters the stack", () => {
 });
 
 Deno.test("fences inside a code block are literal text", () => {
-  const lines = ["```", ":::band{tone=dark}", "```", "after"];
+  const lines = ["```", ":::band{tone=ink}", "```", "after"];
   assertEquals(fastrContainerStackUpTo(lines), []);
 });
 
@@ -1449,17 +1514,10 @@ Deno.test("every role has a rule reading the right token, in every theme", () =>
 });
 
 Deno.test("a hue mark on a ground that IS that hue returns to the ground's ink", () => {
-  // Otherwise `[x]{.danger}` inside `tone=danger` is pale red on saturated
-  // red — the same class of bug the accent-on-accent fixes closed.
+  // Otherwise `[x]{.danger}` inside `tone=warm` is pale red on red, the
+  // same class of bug the accent-on-accent fixes closed.
   const css = buildFastrReportCss("brutalist");
-  const grounds = [
-    "fm-tone--danger",
-    "fm-tone--warning",
-    "fm-tone--success",
-    "fm-tone--info",
-    "fm-tone--solid",
-    "fm-card--accent",
-  ];
+  const grounds = ["fm-tone--accent", "fm-tone--warm", "fm-tone--cool"];
   for (const ground of grounds) {
     for (const role of ["danger", "warning", "success", "info"]) {
       const sel = `.${ground} .fm-mark--${role}`;

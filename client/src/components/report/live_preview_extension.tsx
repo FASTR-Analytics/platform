@@ -56,7 +56,7 @@ import {
   applyTableCellAction,
   applyStepsChildAction,
   applyTilesChildAction,
-  FASTR_TONES,
+  fastrSurfaceTone,
   FM_BOX_GAP,
   FM_BOX_INSET,
   FM_BOX_PAD_BOTTOM,
@@ -573,13 +573,7 @@ const CALLOUT_KINDS = new Set(["note", "info", "success", "warning", "danger"]);
 // rules and the callout-kind custom-prop setters. Structural block classes
 // (.fm-callout, .fm-card) carry margins that would repeat on every line.
 function validTone(attrs: FastrOpenFence["attrs"]): string | undefined {
-  const tone = attrs["tone"];
-  if (
-    typeof tone === "string" &&
-    (FASTR_TONES as readonly string[]).includes(tone.toLowerCase()) &&
-    tone.toLowerCase() !== "default"
-  ) return tone.toLowerCase();
-  return undefined;
+  return fastrSurfaceTone(attrs);
 }
 
 // The REAL sheet classes for a frame's box, or undefined when the preview
@@ -595,7 +589,7 @@ function boxClassesFor(frame: FastrOpenFence): string | undefined {
       : "note";
     cls = `fm-callout fm-callout--${kind}`;
   } else if (frame.name === "card") {
-    cls = attrs["accent"] !== undefined ? "fm-card fm-card--accent" : "fm-card";
+    cls = "fm-card";
   } else if (frame.name === "quote") {
     cls = "fm-quote";
   }
