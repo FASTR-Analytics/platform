@@ -6,7 +6,7 @@ database, one realtime channel, one copilot. An Explore tab replaces the
 project Metrics tab and the standalone visualization library; this plan
 creates the tab, and its page, the results explorer, is a later plan.
 
-**Next step: Fix 7b.** Each session sets this line in its final commit. Its
+**Next step: Review 7b.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N`; after step 10's review passes the
 file is deleted instead of advanced.
 
@@ -2251,6 +2251,9 @@ this section before its step.
 | 2026-09-09 | 7b | Outside the Surface, accepted: `client/src/components/products/product_settings.tsx` (its folder Select moved to `folderPathOptions`, which the step 5 comment in that file deferred to 7b and which D16's one full-path list requires). Not logged by the build; recorded here rather than raised as a finding, because reverting it would leave two folder-picker vocabularies. |
 | 2026-09-09 | 7b | Left alone rather than raised as a finding: while a search is active the quick-move entries stay relative to the stored location, so a result that lives elsewhere is offered `Move up to "<location's parent>"` and `Move into` that location's children. The code matches D16 ("this location's folders") and the reference does the same; basing the entries on the item's own folder would be identical while browsing and correct while searching, but it is a change to a ruled behaviour, not a defect against it. |
 | 2026-09-09 | 7b | Step 7b reviewed: 2 findings. |
+| 2026-09-09 | 7b | Fix 7b, done by the reviewing agent at Tim's direction (deviation from §0's one-thing-per-session rule, as for Fix 1, Fix 2 and Fix 3). Both findings in one commit and nothing else. Finding 1: `SortControl` (`client/src/components/_shared/sort_control.tsx:32-45`) takes panther's `DataAttrs` and spreads `splitDataAttrs` onto its `Select`, so a tour anchor rides the component as PROTOCOL_UI_COMPONENTS rule 9 requires; the products header renders `<SortControl data-tour="products-sort" …>` and the duplicated option list is gone. First app use of the `DataAttrs` extension point. Finding 2: `server/tests/folder_tree_test.ts` gains a `childFolders` case over `CYCLE`, so all five primitives are exercised on the corrupted tree (38 tests). |
+| 2026-09-09 | 7b | Fix 7b gates: `deno task typecheck` (server, client, `lint:systems` clean), `deno task test` (38 passed), `./validate_protocols` (0 tier-1, 0 new tier-2, 17 baselined), boot on `PORT=8010` against the dev database (285 routes validated, dev-boot tests 38 passed, `/health_check` 200). Prettier over the two touched client files reformatted two unrelated blocks in `index.tsx`; both were reverted so the commit is the findings and nothing else. |
+| 2026-09-09 | 7b | Step 7b fixed. |
 
 ---
 

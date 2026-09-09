@@ -11,7 +11,6 @@ import {
   ButtonGroup,
   FrameTop,
   HeadingBar,
-  Select,
   createButtonAction,
   createDeleteAction,
   createSelectionController,
@@ -34,7 +33,7 @@ import {
   createSignal,
   type JSX,
 } from "solid-js";
-import { sortBySortMode } from "~/components/_shared/sort_control";
+import { SortControl, sortBySortMode } from "~/components/_shared/sort_control";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { canEditProduct } from "~/state/instance/product_access";
@@ -671,26 +670,10 @@ export function Products() {
                   }
                   items={typeFilterItems()}
                 />
-                <Select
+                <SortControl
                   data-tour="products-sort"
                   value={productsSortMode()}
-                  options={[
-                    {
-                      value: "name",
-                      label: t3({ en: "Name", fr: "Nom", pt: "Nome" }),
-                    },
-                    {
-                      value: "recent",
-                      label: t3({
-                        en: "Recently updated",
-                        fr: "Récemment modifié",
-                        pt: "Atualizado recentemente",
-                      }),
-                    },
-                  ]}
-                  onChange={(v) =>
-                    setProductsSortMode(v === "name" ? "name" : "recent")
-                  }
+                  onChange={setProductsSortMode}
                 />
                 <ButtonGroup
                   data-tour="products-view-mode"

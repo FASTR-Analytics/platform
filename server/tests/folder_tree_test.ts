@@ -56,6 +56,21 @@ Deno.test("children: direct children only, roots under null", () => {
   assertEquals(childFolders(TREE, "c"), []);
 });
 
+Deno.test("children: a cycle returns both members' children, not a walk", () => {
+  assertEquals(
+    childFolders(CYCLE, null).map((f) => f.id),
+    ["a", "d"],
+  );
+  assertEquals(
+    childFolders(CYCLE, "b").map((f) => f.id),
+    ["c"],
+  );
+  assertEquals(
+    childFolders(CYCLE, "c").map((f) => f.id),
+    ["b"],
+  );
+});
+
 Deno.test("ancestors: root first, excludes the folder itself", () => {
   assertEquals(
     ancestors(TREE, "c").map((f) => f.id),

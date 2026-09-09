@@ -1,5 +1,5 @@
 import { SortMode, t3 } from "lib";
-import { Select } from "panther";
+import { Select, splitDataAttrs, type DataAttrs } from "panther";
 
 export function sortBySortMode<T>(
   items: readonly T[],
@@ -29,14 +29,18 @@ export function sortBySortMode<T>(
   });
 }
 
+// DataAttrs so a tour anchor rides the component itself, as
+// PROTOCOL_UI_COMPONENTS rule 9 requires, instead of a wrapper div.
 type Props = {
   value: SortMode;
   onChange: (mode: SortMode) => void;
-};
+} & DataAttrs;
 
 export function SortControl(p: Props) {
+  const [dataAttrs] = splitDataAttrs(p);
   return (
     <Select
+      {...dataAttrs}
       value={p.value}
       options={[
         { value: "name", label: t3({ en: "Name", fr: "Nom", pt: "Nome" }) },
