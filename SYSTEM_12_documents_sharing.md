@@ -523,7 +523,20 @@ block by block; the widget rows read 0. Known residual: a THEME's own heading
 rules (a border under h2 with 0.2-0.3em of padding, a theme's h2 font size)
 do not reach the editor's heading lines, so a heading can stand a few pixels
 taller in print than in Edit; the default theme's h2 padding is mirrored on
-`cm-fm-h2`, the rest is settled by the paginator's answer.
+`cm-fm-h2`, the rest is settled by the paginator's answer. Those residual
+pixels are why the provisional flow is GATED on the paginator's last answer:
+`pageBoxPlugin` records, per page and while no edit has happened since that
+answer, where the page's last block ends in the editor's own measurement
+(`settled`), and a push then needs the page to have grown past that edge, a
+pull needs it to have shrunk from it. Re-deciding every break from the
+editor's measurement after each keystroke turned a few pixels of
+disagreement into a block that jumped to the next page and back a second
+later, on pages the keystroke never touched (Nick, 2026-09-09, "still
+flickering"). A provisional move drops the records of every page from the
+one it renumbered. The plugin also watches the content box with a
+ResizeObserver: a widget that grows after it was measured (a figure's raster
+arriving) changed the page under it with no editor update, and the box stayed
+wrong until the next scroll.
 
 **Backgrounds and page-level design.** The format's answer to "everything html
 reports can do" is to name the ROLE, not the value. Every block takes
