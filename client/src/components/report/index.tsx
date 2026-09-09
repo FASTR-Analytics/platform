@@ -342,7 +342,7 @@ export function ProjectReport(p: Props) {
     return [
       themed,
       // After `themed`, whose vars block also sets --fm-measure.
-      `${scope} { --fm-measure: ${measurePx}; --fm-sheet: ${sheetPx}; --fm-page-h: ${pageHPx}; --fm-page-margin: ${pageMarginPx}; }`,
+      `${scope} { --fm-measure: ${measurePx}; --fm-sheet: ${sheetPx}; --fm-page-h: ${pageHPx}; --fm-page-margin: ${pageMarginPx}; --fm-page-area: calc(${pageHPx} - 2 * ${pageMarginPx}); }`,
       buildFastrEditorSurfaceCss(scope),
       retargeted,
       `${scope} .cm-line.cm-fm-h1, ${scope} .cm-line.cm-fm-h2, ${scope} .cm-line.cm-fm-h3,

@@ -51,6 +51,13 @@ const COVER_PAGE_NAME = "fmcover";
 // seams, between paragraphs and between steps, the box drawn on both sides,
 // so a long one no longer drags a page of white behind it.
 export const FASTR_PAGED_ATOMIC_SELECTORS: readonly string[] = [
+  // A paragraph moves whole. Print could split one at its lines (orphans and
+  // widows of three), but the editor shows a paragraph as one line box and
+  // cannot draw a page seam through it, so every page that opened on the
+  // tail of a split paragraph stood taller in Edit than in print, and the
+  // page before it ended early (Nick, 2026-09-09). One block model on both
+  // sides is worth more than the odd shorter page.
+  "p",
   ".fm-card",
   ".fm-stat",
   ".fm-tiles",
@@ -172,7 +179,7 @@ export function buildFastrPagedCss(
    padding, and the bleed geometry is exactly the side inset. The runner reads
    the two --fm-print-* lengths to lay the source out at the column width
    before pagination (to find blocks taller than a page). */
-html { overflow: visible; }
+html { overflow: visible; --fm-page-area: ${h - 2 * m}mm; }
 body { max-width: none; margin: 0; padding: 0; }
 .pagedjs_page_content > div { padding: 0 ${m}mm; box-sizing: border-box; }
 /* body too: the theme's html, body rule re-sets the bleed pair on <body>,
@@ -233,7 +240,7 @@ body { max-width: none; margin: 0; padding: 0; }
 /* ── Keep-together, keep-with-next, orphans ────────────────────────────────── */
 ${FASTR_PAGED_ATOMIC_SELECTORS.join(",\n")} { break-inside: avoid; }
 h1, h2, h3, h4, h5, h6 { break-after: avoid; break-inside: avoid; }
-p, li, blockquote, .fm-toc__item { orphans: 3; widows: 3; }
+li, blockquote, .fm-toc__item { orphans: 3; widows: 3; }
 /* A block that continues across pages never leaves its title or kicker
    alone at the foot of one, nor its standfirst alone at the head of the
    next. */
@@ -572,14 +579,23 @@ export function fastrPagedRunnerJs(): string {
         var flowTop = flow.getBoundingClientRect().top;
         var top = flowTop;
         var bottom = flowTop;
+        var wholeBottom = flowTop;
         for (var c = 0; c < flow.children.length; c++) {
-          var cr = flow.children[c].getBoundingClientRect();
+          var child = flow.children[c];
+          var cr = child.getBoundingClientRect();
           // A natural cover rises into the top margin: the content starts
           // there, not at the flow's top.
           if (cr.top < top && cr.height > 0) top = cr.top;
           if (cr.bottom > bottom) bottom = cr.bottom;
+          // A block that continues on the next page (a paragraph split at
+          // its lines, an over-tall block) is not part of this page's
+          // content as the editor draws it: the editor keeps a block whole
+          // and puts it on the page it starts on, the next one. The height
+          // stops at the last whole block, so the editor's own measure of
+          // the same lines compares with it.
+          if (!child.hasAttribute("data-split-to") && cr.bottom > wholeBottom) wholeBottom = cr.bottom;
         }
-        contentHeight = Math.round(bottom - top);
+        contentHeight = Math.round((wholeBottom > top ? wholeBottom : bottom) - top);
         var firstBlock = flow.firstElementChild;
         while (firstBlock && firstBlock.classList.contains(${JSON.stringify(FASTR_PRINT_TITLE_CLASS)})) {
           firstBlock = firstBlock.nextElementSibling;

@@ -4,6 +4,7 @@ import {
   AiFigureBlockInputSchema,
   AiFigureConfigPatchSchema,
   buildReportEmbedToken,
+  collapseFastrBlankRuns,
   type FigureBlock,
   findReportEmbeds,
   findReportHeadings,
@@ -446,9 +447,14 @@ export function getClientToolsForReportEditor(
       availableIn: ["editing_report"],
       kind: "write",
       approval: {
-        propose: async (input, view) => {
+        propose: async (raw, view) => {
           const ctx = view.context;
           const format = view.params.format;
+          // In FASTR Markdown a run of blank lines is vertical space on the
+          // page; a model means nothing by it (collapseFastrBlankRuns).
+          const input = format === "fastr"
+            ? { ...raw, body: collapseFastrBlankRuns(raw.body) }
+            : raw;
           validateReportBodyLength(input.body);
           validateReportBodyForFormat(input.body, format);
           validateFastrContainers(input.body, format);
@@ -514,9 +520,13 @@ export function getClientToolsForReportEditor(
       availableIn: ["editing_report"],
       kind: "write",
       approval: {
-        propose: async (input, view) => {
+        propose: async (raw, view) => {
           const ctx = view.context;
           const format = view.params.format;
+          // As for rewrite_report: the section's blank-line runs collapse.
+          const input = format === "fastr"
+            ? { ...raw, newBody: collapseFastrBlankRuns(raw.newBody) }
+            : raw;
           validateReportBodyForFormat(input.newBody, format);
           const result = spliceReportSection(
             ctx.getBody(),

@@ -167,6 +167,26 @@ export function fastrToneOf(value: unknown): FastrTone | undefined {
     : FASTR_TONE_ALIASES[v];
 }
 
+// A run of blank lines beyond the one that separates blocks is vertical
+// SPACE in the document (report_fastr_markdown's fm_spaces), which is what
+// Enter means to a person editing. A model writing a report means nothing by
+// it: two blank lines after a figure or before a heading are a habit, and
+// they became gaps in the printed page. So a body the AI proposes is
+// collapsed to single blank lines before it lands, outside code fences, and
+// the model's own brief says the same. A person's spacing is never touched.
+export function collapseFastrBlankRuns(body: string): string {
+  const lines = body.split("\n");
+  const out: string[] = [];
+  let blank = false;
+  for (const { text, inCode } of scanContainerLines(lines)) {
+    const isBlank = !inCode && text.trim().length === 0;
+    if (isBlank && blank) continue;
+    blank = isBlank;
+    out.push(text);
+  }
+  return out.join("\n");
+}
+
 // The ground a fence's attributes resolve to, as one of the five, or
 // undefined for no ground: `default` means none, the card's historical
 // `accent` flag is the accent tone, and an unknown tone degrades to paper,
