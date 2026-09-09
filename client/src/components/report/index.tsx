@@ -73,12 +73,12 @@ import type { FigureStaleContext } from "./ReportFigureEmbed";
 import type {
   ReportEditProposalResult,
   ReportEditProposal,
-} from "../project_ai/types";
+} from "../copilot/types";
 import {
-  projectAIViewController,
-  restoreProjectAIView,
-  type ProjectAIViewState,
-} from "../project_ai/ai_views";
+  copilotViewController,
+  restoreCopilotView,
+  type CopilotViewState,
+} from "../copilot/ai_views";
 import { formatLineRanges, type SkippedRange } from "./rebase_edits";
 import { VisualizationEditor } from "~/components/figure_editor";
 import type { VizFigureCollabBinding } from "~/components/figure_editor";
@@ -108,7 +108,7 @@ type ReportMode = "edit" | "view" | "split";
 // scope are read LIVE from the T1 products row; a report IS its product, so
 // the product id is also the collab document id.
 type Props = EditorComponentProps<
-  { productId: string; returnToContext?: ProjectAIViewState },
+  { productId: string; returnToContext?: CopilotViewState },
   undefined
 >;
 
@@ -149,6 +149,15 @@ export function ReportEditor(p: Props) {
     return row === undefined ? undefined : productScope(row);
   };
   const label = () => product()?.label ?? "";
+  // The copilot's env resolver needs a pair, not an optional one; the row is
+  // gone only when the product was deleted, which closes the editor.
+  const requireScope = (): PackageScope => {
+    const s = scope();
+    if (s === undefined) {
+      throw new AIToolFailure("This product no longer exists.");
+    }
+    return s;
+  };
   const { openEditor: openInnerEditor, EditorWrapper: InnerEditorWrapper } =
     getEditorWrapper();
   // Count of sub-editors (figure modal, pickers, version history) currently
@@ -738,10 +747,13 @@ export function ReportEditor(p: Props) {
     }
     setIsLoading(false);
 
-    projectAIViewController.setView(
+    copilotViewController.setView(
       "editing_report",
       { reportId: p.productId, reportLabel: label() },
       {
+        // The pair is read LIVE from the T1 row, so a reattach or scope change
+        // mid-edit moves the copilot's env with the editor (D15).
+        getScope: () => requireScope(),
         getBody: () => body(),
         getFigures: () => figures(),
         getImages: () => images(),
@@ -785,7 +797,7 @@ export function ReportEditor(p: Props) {
             // stale/auto_declined outcome instead of calling commit.
             stillValid: () =>
               mounted &&
-              projectAIViewController.current().id === "editing_report",
+              copilotViewController.current().id === "editing_report",
             // Runs ONLY after an accepted, still-valid decision: same rebase-
             // over-collaborator-edits + persist logic as before migration.
             commit: async () => {
@@ -925,8 +937,8 @@ export function ReportEditor(p: Props) {
     removeLastUpdatedListener = undefined;
     // Clear the "in this report" presence when the editor closes.
     setCollabView({});
-    if (p.returnToContext) restoreProjectAIView(p.returnToContext);
-    else projectAIViewController.setView("viewing_reports");
+    if (p.returnToContext) restoreCopilotView(p.returnToContext);
+    else copilotViewController.setView("viewing_products");
   });
 
   // ── live collab ──────────────────────────────────────────────────────────
@@ -1005,7 +1017,7 @@ export function ReportEditor(p: Props) {
     // Let the AI know the body changed (skip AI-applied edits; while live,
     // remote peer edits land here too: they equally invalidate the AI's read).
     if (!applyingProgrammaticEdit) {
-      projectAIViewController.notify("edited_report_locally");
+      copilotViewController.notify("edited_report_locally");
     }
     // Live collab: edits stream into the shared doc via yCollab and the room
     // checkpoints them: the REST autosave stays off (see collabReady note).

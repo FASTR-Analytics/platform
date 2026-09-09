@@ -70,10 +70,10 @@ import { ConflictResolutionModal } from "~/components/forms_editors/conflict_res
 import { buildLayoutContextMenu } from "~/components/layout_editor/build_context_menu";
 import { InsertFigureModal } from "~/components/figures/insert_figure";
 import {
-  projectAIViewController,
-  restoreProjectAIView,
-  type ProjectAIViewState,
-} from "~/components/project_ai/ai_views";
+  copilotViewController,
+  restoreCopilotView,
+  type CopilotViewState,
+} from "~/components/copilot/ai_views";
 import { VisualizationEditor } from "~/components/figure_editor";
 import type { VizFigureCollabBinding } from "~/components/figure_editor";
 import {
@@ -119,7 +119,7 @@ type SlideEditorInnerProps = {
   // resolves under and what staleness is measured against (D4).
   scope: PackageScope;
   authoringContext: RunAuthoringContext;
-  returnToContext?: ProjectAIViewState;
+  returnToContext?: CopilotViewState;
 };
 
 type Props = AlertComponentProps<SlideEditorInnerProps, boolean>;
@@ -140,7 +140,7 @@ export function SlideEditor(p: Props) {
 
   const manuallyUpdateTempSlide: SetStoreFunction<Slide> = (...args: any[]) => {
     (setTempSlide as any)(...args);
-    projectAIViewController.notify("edited_slide_locally");
+    copilotViewController.notify("edited_slide_locally");
   };
 
   // Cache each type's state for restoration when switching back
@@ -315,7 +315,7 @@ export function SlideEditor(p: Props) {
 
   onMount(() => {
     attemptGetPageInputs(unwrap(tempSlide));
-    projectAIViewController.setView(
+    copilotViewController.setView(
       "editing_slide",
       {
         slideId: p.slideId,
@@ -325,6 +325,9 @@ export function SlideEditor(p: Props) {
         deckLabel: p.deckLabel,
       },
       {
+        // The deck editor passes the pair down live, so a mid-edit reattach
+        // moves the copilot's env with the slide (D15).
+        getScope: () => p.scope,
         getTempSlide: () => tempSlide,
         setTempSlide,
       },
@@ -444,7 +447,7 @@ export function SlideEditor(p: Props) {
     detachUndoPop = undefined;
     undoMgr = undefined;
     if (p.returnToContext) {
-      restoreProjectAIView(p.returnToContext);
+      restoreCopilotView(p.returnToContext);
     }
     // Last-chance flush for exits that bypass the back button (route change,
     // deck switch): if collab isn't persisting and edits are pending, save

@@ -32,7 +32,7 @@ import { SlideCard } from "./slide_card";
 import { PresenceAvatars } from "./presence_avatars";
 import { otherPeers } from "~/state/instance/collab";
 import { setShowAi, showAi } from "~/state/t4_ui";
-import { projectAIViewController } from "~/components/project_ai/ai_views";
+import { copilotViewController } from "~/components/copilot/ai_views";
 import { instanceState } from "~/state/instance/t1_store";
 import { canEditProduct } from "~/state/instance/product_access";
 import { UpdateAllFiguresButton } from "~/components/figure_editor/stale_figure_badge";
@@ -72,7 +72,7 @@ export function SlideList(p: Props) {
   function updateSelection(newSelected: Set<string>) {
     setSelectedIds(newSelected);
     p.setSelectedSlideIds(Array.from(newSelected));
-    projectAIViewController.notify("selected_slides", {
+    copilotViewController.notify("selected_slides", {
       slideIds: Array.from(newSelected),
     });
   }
@@ -81,7 +81,7 @@ export function SlideList(p: Props) {
     setSelectedIds(new Set<string>());
     setLastSelectedIndex(null);
     p.setSelectedSlideIds([]);
-    projectAIViewController.notify("selected_slides", { slideIds: [] });
+    copilotViewController.notify("selected_slides", { slideIds: [] });
     document.querySelectorAll(".sortable-selected").forEach((el) => {
       SortableJs.utils.deselect(el);
     });

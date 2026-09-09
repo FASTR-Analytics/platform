@@ -39,7 +39,6 @@ import {
   setPendingTourReplay,
 } from "~/state/t4_ui";
 import type { TabOption } from "~/state/t4_ui";
-import { AIProjectWrapper } from "../project_ai";
 import {
   PROJECT_TAB_TO_VIEW,
   projectAIViewController,
@@ -162,7 +161,10 @@ function ProjectInner() {
   };
 
   return (
-    <AIProjectWrapper>
+    // No copilot here: from step 8 the one mount wraps the Products page and
+    // its editors (D15). The view sync below keeps the shell's remnant
+    // registry honest until 9a deletes the shell.
+    <>
       <AIContextSync />
       {/* Page-level live cursors (renders into body portals; document-level
           listeners: placement here is inert). */}
@@ -350,6 +352,6 @@ function ProjectInner() {
           </FrameTop>
         </Show>
       </ProjectEditorWrapper>
-    </AIProjectWrapper>
+    </>
   );
 }

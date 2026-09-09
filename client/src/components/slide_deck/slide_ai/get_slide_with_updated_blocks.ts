@@ -1,10 +1,16 @@
-import type { Slide, ContentBlock, AiContentBlockInput, MetricWithStatus } from "lib";
+import type {
+  Slide,
+  ContentBlock,
+  AiContentBlockInput,
+  MetricWithStatus,
+  PackageScope,
+} from "lib";
 import type { LayoutNode } from "panther";
 import { resolveFigureFromVisualization } from "./resolve_figure_from_visualization";
 import { resolveFigureFromMetric } from "./resolve_figure_from_metric";
 
 export async function getSlideWithUpdatedBlocks(
-  projectId: string,
+  scope: PackageScope,
   currentSlide: Slide,
   updates: Array<{ blockId: string; newContent: AiContentBlockInput }>,
   metrics: MetricWithStatus[],
@@ -51,7 +57,7 @@ export async function getSlideWithUpdatedBlocks(
       );
     } else if (update.newContent.type === "from_visualization") {
       try {
-        const figureBlock = await resolveFigureFromVisualization(projectId, update.newContent);
+        const figureBlock = await resolveFigureFromVisualization(update.newContent);
         updateMap.set(update.blockId, figureBlock);
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : String(err);
@@ -63,7 +69,7 @@ export async function getSlideWithUpdatedBlocks(
       }
     } else if (update.newContent.type === "from_metric") {
       try {
-        const figureBlock = await resolveFigureFromMetric(projectId, update.newContent, metrics);
+        const figureBlock = await resolveFigureFromMetric(scope, update.newContent, metrics);
         updateMap.set(update.blockId, figureBlock);
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : String(err);

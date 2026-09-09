@@ -1,13 +1,13 @@
-import type { AiContentSlideInput, DisaggregationOption, MetricWithStatus, SlideDeckConfig } from "lib";
-import { formatReplicantLabelForDisplay, getStartingConfigForSlideDeck, t3 } from "lib";
+import type { AiContentSlideInput, DisaggregationOption, MetricWithStatus, PackageScope, ProductSummary, SlideDeckConfig } from "lib";
+import { formatReplicantLabelForDisplay, getStartingConfigForSlideDeck, productScope, t3 } from "lib";
 import { AlertComponentProps, AlertFormHolder, RadioGroup, ProgressBar, getProgress, createFormAction } from "panther";
 import { createSignal, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { getSlideDeckDetailFromCacheOrFetch } from "~/state/products/t2_slide_deck_detail";
 import { setPendingEditorOpen } from "~/state/t4_ui";
-import { createLabelledProduct } from "~/components/project_ai/ai_tools/create_labelled_product";
-import { DeckSelector, slideDeckProducts } from "~/components/project_ai/ai_tools/DeckSelector";
+import { createLabelledProduct } from "~/components/copilot/ai_tools/create_labelled_product";
+import { DeckSelector } from "~/components/copilot/ai_tools/DeckSelector";
 import { convertAiInputToSlide } from "../slide_deck/slide_ai/convert_ai_input_to_slide";
 import { InlineReplicantSelector } from "./inline_replicant_selector";
 
@@ -22,8 +22,11 @@ type Props = {
 type ReturnType = { deckId: string } | undefined;
 
 export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, ReturnType>) {
+  const slideDecks = (): ProductSummary[] =>
+    instanceState.products.filter((product) => product.type === "slide_deck");
+
   const [selectedDeckId, setSelectedDeckId] = createSignal<string>(
-    slideDeckProducts()[0]?.id ?? "",
+    slideDecks()[0]?.id ?? "",
   );
   const [isCreatingNew, setIsCreatingNew] = createSignal(false);
   const [newDeckLabel, setNewDeckLabel] = createSignal("");
@@ -57,6 +60,15 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
         deckId = selectedDeckId();
       }
 
+      // Figures resolve under the TARGET deck's pair (D3), not the project's.
+      const target = instanceState.products.find(
+        (product) => product.id === deckId,
+      );
+      if (!target) {
+        return { success: false as const, err: "That slide deck no longer exists" };
+      }
+      const deckScope: PackageScope = productScope(target);
+
       // Fetch deck config (for existing decks) or use default (for new decks)
       let deckConfig: SlideDeckConfig;
       if (isCreatingNew()) {
@@ -84,7 +96,7 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
             }],
           };
 
-          const slide = await convertAiInputToSlide(p.projectId, input, p.metrics, deckConfig);
+          const slide = await convertAiInputToSlide(deckScope, input, p.metrics, deckConfig);
           const addRes = await serverActions.createSlide({
             product_id: deckId,
             position: { toEnd: true },
@@ -124,7 +136,7 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
             };
 
             try {
-              const slide = await convertAiInputToSlide(p.projectId, input, p.metrics, deckConfig);
+              const slide = await convertAiInputToSlide(deckScope, input, p.metrics, deckConfig);
               const addRes = await serverActions.createSlide({
                 product_id: deckId,
                 position: { toEnd: true },
@@ -177,7 +189,7 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
         };
 
         try {
-          const slide = await convertAiInputToSlide(p.projectId, input, p.metrics, deckConfig);
+          const slide = await convertAiInputToSlide(deckScope, input, p.metrics, deckConfig);
           const addRes = await serverActions.createSlide({
             product_id: deckId,
             position: { toEnd: true },
@@ -280,6 +292,8 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
           />
         </Show>
         <DeckSelector
+          decks={slideDecks()}
+          folders={instanceState.folders}
           selectedDeckId={selectedDeckId()}
           onSelectDeck={setSelectedDeckId}
           isCreatingNew={isCreatingNew()}

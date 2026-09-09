@@ -14,6 +14,7 @@ import type {
   FigureBundle,
   AiSlideInput,
   MetricWithStatus,
+  PackageScope,
   SlideDeckConfig,
 } from "lib";
 import { slideConfigSchema, getAllSlideFontVariants, PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
@@ -24,10 +25,15 @@ import { resolveFigureFromVisualization } from "./resolve_figure_from_visualizat
 import { createIdGeneratorForLayout } from "~/components/slide_deck/_id_generation";
 
 /**
- * Convert AI input (blocks[]) to storage format (LayoutNode<ContentBlock>)
+ * Convert AI input (blocks[]) to storage format (LayoutNode<ContentBlock>).
+ *
+ * Figures resolve under the caller's PackageScope: the deck the slide is
+ * destined for (D3/D4). `from_visualization` blocks are the project
+ * Visualizations tab's own path and take their pair from the project; step 9a
+ * deletes that tab and the branch with it.
  */
 export async function convertAiInputToSlide(
-  projectId: string,
+  scope: PackageScope,
   slideInput: AiSlideInput,
   metrics: MetricWithStatus[],
   deckConfig: SlideDeckConfig,
@@ -56,10 +62,7 @@ export async function convertAiInputToSlide(
     // Handle figure input types
     if (block.type === "from_visualization") {
       try {
-        const figureBlock = await resolveFigureFromVisualization(
-          projectId,
-          block,
-        );
+        const figureBlock = await resolveFigureFromVisualization(block);
         resolvedBlocks.push(figureBlock);
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : String(err);
@@ -72,7 +75,7 @@ export async function convertAiInputToSlide(
     } else if (block.type === "from_metric") {
       try {
         const figureBlock = await resolveFigureFromMetric(
-          projectId,
+          scope,
           block,
           metrics,
         );

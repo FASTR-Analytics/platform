@@ -37,6 +37,7 @@ import { InstanceAssets } from "~/components/instance/instance_assets";
 import { InstanceData } from "~/components/instance/instance_data";
 import { InstanceProjects } from "~/components/instance/instance_projects";
 import { Products } from "~/components/products";
+import { CopilotWrapper } from "~/components/copilot";
 import { InstanceResultsPackages } from "~/components/instance_results_packages";
 import { InstanceUsers } from "~/components/instance/instance_users";
 import { instanceState } from "~/state/instance/t1_store";
@@ -420,8 +421,13 @@ export default function Instance(p: Props) {
               }
             >
               <Switch>
+                {/* The ONE copilot mount (D15): the Products page and both
+                    editor overlays, which render inside it. The Explore tab
+                    gets its own view when the results explorer lands. */}
                 <Match when={tab() === "products"}>
-                  <Products />
+                  <CopilotWrapper>
+                    <Products />
+                  </CopilotWrapper>
                 </Match>
                 <Match when={tab() === "explore"}>
                   <Explore />

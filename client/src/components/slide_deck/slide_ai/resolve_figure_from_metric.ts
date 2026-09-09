@@ -1,15 +1,20 @@
-import type { AiFigureFromMetric, FigureBlock, MetricWithStatus } from "lib";
+import type {
+  AiFigureFromMetric,
+  FigureBlock,
+  MetricWithStatus,
+  PackageScope,
+} from "lib";
 import { validateMetricInputs } from "lib";
 import { resolveBundleFromMetricAndConfig } from "~/generate_visualization/mod";
-import { clientAIToolEnvFor } from "~/components/project_ai/ai_tools/client_env";
-import { projectPackageScope } from "~/state/project/t1_store";
+import { copilotAIToolEnv } from "~/components/copilot/ai_tools/client_env";
 import { buildConfigFromPreset } from "./build_config_from_metric";
 
 // AI adapter: builds the config from the preset + AI overrides, runs AI-specific
 // input validation, then delegates to the shared core (which validates the
-// replicant strictly and re-resolves the bundle under the project's pair).
+// replicant strictly and re-resolves the bundle) under the target product's
+// PackageScope.
 export async function resolveFigureFromMetric(
-  projectId: string,
+  scope: PackageScope,
   block: AiFigureFromMetric,
   metrics: MetricWithStatus[],
 ): Promise<FigureBlock> {
@@ -22,14 +27,14 @@ export async function resolveFigureFromMetric(
     ? { min: config.d.periodFilter.min, max: config.d.periodFilter.max }
     : undefined;
   await validateMetricInputs(
-    clientAIToolEnvFor(projectId),
+    copilotAIToolEnv,
     metricId,
     filters,
     periodFilter,
   );
 
   const bundle = await resolveBundleFromMetricAndConfig(
-    projectPackageScope(),
+    scope,
     resultsValue,
     config,
   );

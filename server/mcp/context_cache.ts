@@ -12,6 +12,7 @@ import type {
 import {
   createAllServerActions,
   createDevGlobalUser,
+  formatSourceHeader,
   getSharedToolsForMetrics,
 } from "lib";
 import type { GlobalUser } from "lib";
@@ -198,9 +199,14 @@ export function packagePeriodCoverage(
 // get_overview gives; no run id, which no tool accepts as input). The pin
 // can move between two calls of one conversation and a client may carry a
 // stale catalog, so results are self-identifying by construction. Failures
-// pass through unchanged.
+// pass through unchanged. The line itself is `formatSourceHeader`
+// (lib/ai_tools), shared with the SPA copilot's wrapper so the two surfaces
+// cannot drift; /mcp passes no scope because it is national by construction.
 export function buildSourceHeader(run: RunListingItem): string {
-  return `Source: results package "${run.label}" (generated ${run.createdAt})`;
+  return formatSourceHeader({
+    packageLabel: run.label,
+    createdAt: run.createdAt,
+  });
 }
 
 // deno-lint-ignore no-explicit-any

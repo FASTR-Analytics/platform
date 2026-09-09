@@ -2,7 +2,8 @@
 system: 13
 name: AI Copilot & Usage Governance
 globs:
-  - client/src/components/project_ai/**
+  - client/src/components/copilot/**
+  - client/src/components/project_ai/ai_views.ts
   - client/src/components/instance/ai_context_form.tsx
   - client/src/components/slide_deck/slide_ai/build_config_from_metric.ts
   - client/src/components/slide_deck/slide_ai/convert_ai_input_to_slide.ts
@@ -12,7 +13,7 @@ globs:
   - client/src/components/slide_deck/slide_ai/layout_spec_helpers.ts
   - client/src/components/slide_deck/slide_ai/resolve_figure_from_metric.ts
   - client/src/components/slide_deck/slide_ai/resolve_figure_from_visualization.ts
-  - client/src/state/project/t4_ai_documents.ts
+  - client/src/state/products/t4_ai_documents.ts
   - lib/ai_tools/**
   - server/mcp/**
   - lib/types/ai_input.ts

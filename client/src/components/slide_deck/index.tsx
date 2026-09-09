@@ -8,7 +8,12 @@ import {
   t3,
 } from "lib";
 import { instanceState, productById } from "~/state/instance/t1_store";
-import { EditorComponentProps, getEditorWrapper, openComponent } from "panther";
+import {
+  AIToolFailure,
+  EditorComponentProps,
+  getEditorWrapper,
+  openComponent,
+} from "panther";
 import { createEffect, createSignal, onCleanup, onMount } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { getSlideFromCacheOrFetch } from "~/state/products/t2_slides";
@@ -24,10 +29,10 @@ import {
   type SlideDeckSettingsProps,
 } from "./slide_deck_settings";
 import {
-  projectAIViewController,
-  restoreProjectAIView,
-  type ProjectAIViewState,
-} from "../project_ai/ai_views";
+  copilotViewController,
+  restoreCopilotView,
+  type CopilotViewState,
+} from "../copilot/ai_views";
 import { snapshotForSlideEditor } from "~/components/_editor_snapshot";
 import { pendingSlideOpen, setPendingSlideOpen } from "~/state/t4_ui";
 import { setCollabAvatar, setCollabView } from "~/state/instance/collab";
@@ -36,7 +41,7 @@ import { VersionHistoryEditor } from "../version_history";
 import { ProductSettings } from "~/components/products/product_settings";
 
 type Props = EditorComponentProps<
-  { productId: string; returnToContext?: ProjectAIViewState },
+  { productId: string; returnToContext?: CopilotViewState },
   undefined
 >;
 
@@ -53,6 +58,16 @@ export function SlideDeckEditor(p: Props) {
     return row === undefined ? undefined : productScope(row);
   };
   const deckLabel = () => product()?.label ?? "";
+  // The copilot's env resolver needs a pair, not an optional one; the row is
+  // gone only when the product was deleted, and the effect below closes the
+  // editor on that.
+  const requireScope = (): PackageScope => {
+    const s = scope();
+    if (s === undefined) {
+      throw new AIToolFailure("This product no longer exists.");
+    }
+    return s;
+  };
 
   async function handleClose() {
     p.close(undefined);
@@ -78,8 +93,8 @@ export function SlideDeckEditor(p: Props) {
   });
 
   onCleanup(() => {
-    if (p.returnToContext) restoreProjectAIView(p.returnToContext);
-    else projectAIViewController.setView("viewing_slide_decks");
+    if (p.returnToContext) restoreCopilotView(p.returnToContext);
+    else copilotViewController.setView("viewing_products");
     setCollabView({});
   });
 
@@ -106,10 +121,13 @@ export function SlideDeckEditor(p: Props) {
       setIsLoading(false);
       if (!aiContextSet) {
         aiContextSet = true;
-        projectAIViewController.setView(
+        copilotViewController.setView(
           "editing_slide_deck",
           { deckId: p.productId, deckLabel: deckLabel() },
           {
+            // The pair is read LIVE, so a reattach or scope change mid-edit
+            // moves the copilot's env with the editor (D15).
+            getScope: () => requireScope(),
             getDeckConfig: () => deckConfig(),
             getSlideIds: () => slideIds(),
             getSelectedSlideIds: () => selectedSlideIds(),
@@ -269,7 +287,7 @@ function SlideDeckEditorInner(p: {
         slide: res.data.slide,
         scope,
         authoringContext,
-        returnToContext: projectAIViewController.current(),
+        returnToContext: copilotViewController.current(),
         ...snapshotForSlideEditor({ deckConfig: p.deckConfig }),
       },
     });
