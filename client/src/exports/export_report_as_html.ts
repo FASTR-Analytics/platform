@@ -106,8 +106,12 @@ export async function buildStandaloneReportHtml(
   const isFastr = format === "fastr";
   const customColors = getReportCustomStyle(detail.config)?.colors;
   const fastrTheme = getFastrReportTheme(detail.config);
+  // A paged document (the PDF, the editor's layout frame) owns its breaks
+  // and must carry none of the browser-print rules the .html download
+  // needs; see BROWSER_PRINT_CSS.
+  const paged = opts.paged !== undefined || opts.layoutOnly !== undefined;
   let themeCss = isFastr
-    ? buildFastrReportCss(fastrTheme, customColors ?? undefined)
+    ? buildFastrReportCss(fastrTheme, customColors ?? undefined, "", { omitPrintRules: paged })
     : undefined;
   if (isFastr && themeCss !== undefined && opts.inlineFonts) {
     const fontImport = FASTR_THEME_TOKENS[fastrTheme].fontImport;

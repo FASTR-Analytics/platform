@@ -18,8 +18,9 @@
 //   • A block taller than a page splits at row/item/paragraph boundaries as a
 //     last resort, and the result lists it so the editor can flag it.
 //   • A cover with fill=page takes a whole page and bleeds to the paper edge
-//     on all sides; any other cover is a band at the head of page 1 (544px
-//     tall at least, print's own height) and the report continues below it
+//     on all sides; any other cover is a band flush to the top of page 1
+//     (544px tall at least, print's own height) and the report continues
+//     below it on a page with the usual bottom margin and footer
 //     (a named page with zero margins); bands bleed side to side.
 //   • Footer: title left, "Page N of M" right, nothing on a cover page
 //   • Designed blocks keep together (the atomic list below); callouts, bands,
@@ -90,6 +91,9 @@ export type FastrPagedPage = {
   lines: number[];
   // True when the page is a cover's (zero margins, no footer).
   cover: boolean;
+  // True when a natural cover opens the page, flush to the top of the sheet
+  // through the top margin; the page keeps its bottom margin and footer.
+  flushTop: boolean;
   // How much of the page the content fills, in the frame's CSS px (top of the
   // flow to the bottom of its lowest block). The editor seeds a page box's
   // filler from it before the box has ever been rendered, so the page reads
@@ -205,6 +209,15 @@ body { max-width: none; margin: 0; padding: 0; }
 .fm-band.fm-cover {
   min-height: 544px;
   break-inside: avoid;
+}
+/* Flush to the top of the sheet: pulled up through the page's top margin
+   (the page keeps its margins and footer; a named page with no top margin
+   would do it too, but Paged.js breaks the page wherever the flow leaves a
+   named page, and the report must continue below the cover). Also outranks
+   the screen sheet's own negative margin, which pulls the band into the
+   document's padding. */
+.fm-band.fm-cover:not(.fm-cover--fill) {
+  margin-top: calc(-1 * var(--pagedjs-margin-top));
 }
 /* fill=page: its own page, edge to edge. */
 .fm-band.fm-cover--fill {
@@ -554,20 +567,32 @@ export function fastrPagedRunnerJs(): string {
       }
       var flow = el.querySelector(".pagedjs_page_content > div");
       var contentHeight = 0;
+      var flushTop = false;
       if (flow) {
         var flowTop = flow.getBoundingClientRect().top;
+        var top = flowTop;
         var bottom = flowTop;
         for (var c = 0; c < flow.children.length; c++) {
-          var cb = flow.children[c].getBoundingClientRect().bottom;
-          if (cb > bottom) bottom = cb;
+          var cr = flow.children[c].getBoundingClientRect();
+          // A natural cover rises into the top margin: the content starts
+          // there, not at the flow's top.
+          if (cr.top < top && cr.height > 0) top = cr.top;
+          if (cr.bottom > bottom) bottom = cr.bottom;
         }
-        contentHeight = Math.round(bottom - flowTop);
+        contentHeight = Math.round(bottom - top);
+        var firstBlock = flow.firstElementChild;
+        while (firstBlock && firstBlock.classList.contains(${JSON.stringify(FASTR_PRINT_TITLE_CLASS)})) {
+          firstBlock = firstBlock.nextElementSibling;
+        }
+        flushTop = !!firstBlock && firstBlock.classList.contains("fm-cover") &&
+          !firstBlock.classList.contains("fm-cover--fill");
       }
       pages.push({
         number: i + 1,
         firstLine: firstLine,
         lines: lines,
         cover: el.classList.contains("pagedjs_" + ${JSON.stringify(COVER_PAGE_NAME)} + "_page"),
+        flushTop: flushTop,
         contentHeight: contentHeight
       });
     }

@@ -381,8 +381,13 @@ the editor draws and the pages the PDF prints cannot disagree.
 `lib/report_fastr_paged.ts` is the contract: the paged stylesheet
 (`buildFastrPagedCss` — `@page` size/margins, a zero-margin named page for a
 cover with `fill=page` (any other cover is a 544px-tall band at the head of
-page 1 with the report continuing below it; Nick's ruling 2026-09-08, "back
-to normal size, maybe have an option to page fill"), the running footer as
+page 1, flush to the top of the sheet through the page's top margin with a
+negative margin, the report continuing below it on a page that keeps its
+bottom margin and footer; Nick's rulings 2026-09-08, "back to normal size,
+maybe have an option to page fill" and no white above the cover; a named
+page with no top margin was tried first, but Paged.js breaks wherever the
+flow leaves a named page and the cover took page 1 alone), the running
+footer as
 margin boxes, keep-together on the designed blocks that are one thing
 (cards, stats, tiles, columns, figures, table rows, list items, each step)
 while callouts, bands, quotes and steps CONTINUE across pages between
@@ -407,7 +412,12 @@ whole block to the block itself (and back over its heading), repeats table
 header rows on continuations, paints the document ground on every sheet, and
 publishes a `FastrPagedResult` in SOURCE LINES on `window.__fmPaged`.
 `lib/report_document_shell.ts` holds the document wrapper so the Deno render
-test builds byte-identical documents. Side margins are zero on the page and
+test builds byte-identical documents. A paged document takes the theme
+sheet with `omitPrintRules` (`BROWSER_PRINT_CSS` is the .html download's
+browser print: Paged.js applies `@media print` while laying out, Chrome
+again when printing the fixed pages, and its callout keep-together and
+cover padding fought the paged sheet; found 2026-09-08 when a long callout
+refused to flow). Side margins are zero on the page and
 live on the content wrapper: Paged.js treats any content wider than its box as
 overflow, and bands must bleed to the paper edge. The client builds the
 document (`buildStandaloneReportHtml` with `paged`, fonts inlined as data URLs
@@ -467,7 +477,13 @@ lines are mapped through every edit so a provisional move never rebuilds
 seams from stale lines. A seam inside a rendered block (a callout, band or
 steps block that continues on the next page) is `fm-page-gutter--inner`:
 sheet-wide, on the page ground, opted out of the block's child styling
-(counters, borders, padding), so the box visibly stops and resumes. The
+(counters, borders, padding), so the box visibly stops and resumes; the
+stylesheet centres it on the block's content box and `pageBoxPlugin`
+measures it against the sheet and writes the exact margin and width inline
+(a callout's 4px left border alone puts the strip 2px past the sheet, which
+is a horizontal scrollbar on the whole editor). A page a natural cover
+opens has no top margin in the editor either (`FastrPagedPage.flushTop`:
+no PageHeadWidget, content area = sheet less the bottom margin). The
 model's brief (`FASTR_MD_SYNTAX_DOC`) carries a "composing for pages"
 paragraph: what keeps together, what continues, open a section with a
 paragraph before its figure, never two figures back to back, alternate

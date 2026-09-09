@@ -923,6 +923,14 @@ const RESPONSIVE_CSS = `
   .fm-col--span2, .fm-col--span3, .fm-col--span4 { grid-column: auto; }
   .fm-figure--wide { margin-inline: 0; }
 }
+`;
+
+// The BROWSER's own print of the HTML download. Never part of a paged
+// document (buildFastrPagedCss owns its breaks): Paged.js applies print
+// rules while it lays the pages out, and Chrome applies them again when it
+// prints the finished pages, so a rule that changes a size here would move
+// content off pages that are already fixed.
+const BROWSER_PRINT_CSS = `
 @media print {
   .fm-card, .fm-callout, .fm-stat, .fm-figure { break-inside: avoid; }
   /* The print box has no viewport to bleed into; keep bands on the page. */
@@ -949,7 +957,7 @@ export function buildFastrReportCss(
   theme: FastrReportTheme,
   colors?: FastrThemeColorOverride,
   scope = "",
-  opts?: { omitFontImport?: boolean },
+  opts?: { omitFontImport?: boolean; omitPrintRules?: boolean },
 ): string {
   const tokens = FASTR_THEME_TOKENS[theme] ?? FASTR_THEME_TOKENS.default;
   const { d } = selectors(scope);
@@ -981,6 +989,7 @@ export function buildFastrReportCss(
     extra,
     scope === "" ? DOCUMENT_ROOT_CSS : "",
     scope === "" ? RESPONSIVE_CSS : "",
+    scope === "" && !opts?.omitPrintRules ? BROWSER_PRINT_CSS : "",
   ].filter((s) => s.trim().length > 0).join("\n");
 }
 
@@ -1354,7 +1363,10 @@ ${d}.fm-page-gutter--inner {
   position: relative;
   left: 50%;
   width: var(--fm-sheet, 794px);
-  margin: 0 0 0 calc(-0.5 * var(--fm-sheet, 794px)) !important;
+  /* The estimate; pageBoxPlugin measures the strip against the sheet and
+     writes the exact margin and width inline (a block's own left border
+     puts its content box off centre). */
+  margin: 0 0 0 calc(-0.5 * var(--fm-sheet, 794px));
   padding-left: 0 !important;
   padding-right: 0 !important;
   border: 0 !important;

@@ -68,7 +68,7 @@ async function buildDocument(
     bodyHtml: withPlaceholderFigures(
       renderFastrMarkdownToHtml(body, { lineAnchors: true }),
     ),
-    themeCss: buildFastrReportCss(theme),
+    themeCss: buildFastrReportCss(theme, undefined, "", { omitPrintRules: true }),
     documentClass: settings.className,
     documentStyle: settings.style,
     headExtraCss: buildFastrPagedCss(settings.page, {
@@ -84,7 +84,14 @@ async function buildDocument(
 type Inspection = {
   pages: number;
   problems: string[];
-  cover?: { page: number; fillsWidth: boolean; fillsHeight: boolean; footer: string };
+  cover?: {
+    page: number;
+    fillsWidth: boolean;
+    fillsHeight: boolean;
+    flushTop: boolean;
+    followed: boolean;
+    footer: string;
+  };
   continuedBands?: number;
   continuedSteps?: number;
   stepsContinuation?: string;
@@ -175,6 +182,10 @@ function inspectPages(atomic: string): Inspection {
         page: pages.indexOf(pg) + 1,
         fillsWidth: Math.abs(cr.width - pr.width) < 3,
         fillsHeight: Math.abs(cr.height - pr.height) < 3,
+        flushTop: Math.abs(cr.top - pr.top) < 3,
+        // The report continues on the cover's page (a natural cover is not
+        // a page of its own).
+        followed: cover.nextElementSibling !== null,
         footer: foot ? getComputedStyle(foot, "::after").content : "missing",
       };
     }
@@ -277,6 +288,14 @@ Deno.test({
             if (ins.cover.page !== 1) local.push(`cover on page ${ins.cover.page}`);
             if (!ins.cover.fillsWidth) local.push("cover does not bleed to the sheet's sides");
             if (ins.cover.fillsHeight) local.push("a natural cover fills its page");
+            if (!ins.cover.flushTop) local.push("a natural cover does not hug the top of its page");
+            // The report continues on the cover's page when the next block
+            // fits (many_sections opens with prose; landscape's next block
+            // is a table taller than the room left).
+            if (fixture.name === "many_sections" && !ins.cover.followed) {
+              local.push("nothing follows the natural cover on its page");
+            }
+            if (!result.pages[0]?.flushTop) local.push("runner did not mark page 1 as flush to the top");
             if (ins.cover.footer === "none" || ins.cover.footer === "normal" || ins.cover.footer === "missing") {
               local.push("page 1 with a natural cover has no footer");
             }
