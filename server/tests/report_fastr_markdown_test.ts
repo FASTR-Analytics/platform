@@ -404,6 +404,31 @@ Deno.test("font imports are deduped for a concatenated multi-theme sheet", () =>
   assert(lines.every((l) => l.startsWith("@import")));
 });
 
+// ── Blank lines as space ────────────────────────────────────────────────────
+
+Deno.test("a blank line beyond the separator is a line of space, anchored to its source line", () => {
+  const html = (body: string) => renderFastrMarkdownToHtml(body, { lineAnchors: true });
+  const spaces = (out: string) => [...out.matchAll(/<div class="fm-space" data-line="(\d+)"><\/div>/g)].map((m) => Number(m[1]));
+  // One blank line is the paragraph separator: nothing.
+  assertEquals(spaces(html("a\n\nb\n")), []);
+  // Each further one is a line of space, on its own source line.
+  assertEquals(spaces(html("a\n\n\n\nb\n")), [2, 3]);
+  // Leading blank lines render nothing (the editor collapses them), and
+  // the silent header does not start the count.
+  assertEquals(spaces(html("\n\n\na\n")), []);
+  assertEquals(spaces(html(":::report{width=wide}\n\n\n\na\n")), []);
+  // Trailing blank lines count, as the editor shows them.
+  assertEquals(spaces(html("a\n\n\n")), [2, 3]);
+  // Inside a container the fence line is the block's own; after it, the same
+  // rule. After the closing fence, the same rule.
+  assertEquals(spaces(html(":::band\n\n\ntext\n:::\n\n\nb\n")), [2, 6]);
+  // A list and a heading consume their lines like a paragraph.
+  assertEquals(spaces(html("## H\n\n\n- a\n- b\n\n\n\nc\n")), [2, 6, 7]);
+  // The space survives the sanitizer with its anchor (report_html_sanitize_test
+  // pins that) and carries no text, so a page can start on it.
+  assertStringIncludes(html("a\n\n\nb\n"), '<div class="fm-space" data-line="2"></div>');
+});
+
 // ── Backgrounds: tones, literals and images ─────────────────────────────────
 
 Deno.test("tone is understood by every block and names a role, not a colour", () => {

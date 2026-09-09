@@ -247,9 +247,13 @@ ${d}h2 { font-size: 1.55em; }
 ${d}h3 { font-size: 1.2em; }
 ${d}h4, ${d}h5, ${d}h6 { font-size: 1em; }
 ${d}p { margin: 0 0 1em; }
+/* A blank source line beyond the paragraph separator (report_fastr_markdown's
+   fm_spaces): one line of the body's height, empty, exactly the height the
+   editor gives that line, so Enter moves the page the same way on both. */
+${d}.fm-space { height: 1lh; margin: 0; }
 ${d}a { color: var(--fm-accent); }
 ${d}strong { font-weight: 700; }
-${d}ul, ${d}ol { margin: 0 0 1em; padding-left: 1.4em; }
+${d}ul, ${d}ol { margin: 0 0 1em; --fm-mt: 0px; --fm-mb: 1em; padding-left: 1.4em; }
 ${d}li { margin: 0.25em 0; }
 ${d}hr { border: 0; border-top: 1px solid var(--fm-border); margin: 2em 0; }
 ${d}code {
@@ -266,7 +270,7 @@ ${d}pre {
   overflow-x: auto;
 }
 ${d}pre code { background: none; padding: 0; }
-${d}table { width: 100%; margin: 0 0 1.4em; font-size: 0.94em; }
+${d}table { width: 100%; margin: 0 0 1.4em; --fm-mt: 0px; --fm-mb: 1.4em; font-size: 0.94em; }
 ${d}th, ${d}td {
   border-bottom: 1px solid var(--fm-border);
   padding: 0.5em 0.7em;
@@ -279,13 +283,15 @@ ${d}thead th {
 }
 ${d}blockquote {
   margin: 1.4em 0;
+  --fm-mt: 1.4em;
+  --fm-mb: 1.4em;
   padding: 0.2em 0 0.2em 1.1em;
   border-left: 3px solid var(--fm-border);
   color: var(--fm-ink-muted);
 }
 
 /* ── Figures (an embed on its own line becomes a captioned figure) ────────── */
-${d}.fm-figure { margin: 1.6em 0; }
+${d}.fm-figure { margin: 1.6em 0; --fm-mt: 1.6em; --fm-mb: 1.6em; }
 ${d}.fm-figure img { display: block; width: 100%; }
 ${d}.fm-figure__caption {
   margin-top: 0.5em;
@@ -297,6 +303,8 @@ ${d}.fm-figure__caption {
 /* ── Callouts ─────────────────────────────────────────────────────────────── */
 ${d}.fm-callout {
   margin: 1.5em 0;
+  --fm-mt: 1.5em;
+  --fm-mb: 1.5em;
   padding: 1em 1.2em;
   background: var(--fm-surface);
   border-left: 4px solid var(--fm-callout-color);
@@ -344,6 +352,8 @@ ${d}.fm-tiles {
   display: grid;
   gap: 1em;
   margin: 1.6em 0;
+  --fm-mt: 1.6em;
+  --fm-mb: 1.6em;
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 ${d}.fm-tiles--1 { grid-template-columns: minmax(0, 1fr); }
@@ -358,11 +368,18 @@ ${d}.fm-columns.fm-tone, ${d}.fm-columns.fm-has-bg {
   border-radius: var(--fm-radius);
 }
 ${d}.fm-card {
+  /* A card on its own in the flow keeps its distance like a callout; in a
+     tiles grid the gap is the grid's. The editor shows a card as a widget
+     with a blank line and 0.2em of box gap on each side, which is this. */
+  margin: 1.2em 0;
+  --fm-mt: 1.2em;
+  --fm-mb: 1.2em;
   background: var(--fm-surface);
   border: var(--fm-border-width) solid var(--fm-border);
   border-radius: var(--fm-radius);
   padding: 1em 1.1em;
 }
+${d}.fm-tiles > .fm-card { margin: 0; }
 ${d}.fm-card > :last-child { margin-bottom: 0; }
 ${d}.fm-card__title {
   font-family: var(--fm-font-heading);
@@ -377,6 +394,8 @@ ${d}.fm-stat {
   border-radius: var(--fm-radius);
   padding: 1em 1.1em;
   margin: 1.2em 0;
+  --fm-mt: 1.2em;
+  --fm-mb: 1.2em;
 }
 ${d}.fm-tiles .fm-stat, ${d}.fm-columns .fm-stat { margin: 0; }
 ${d}.fm-stat > :last-child { margin-bottom: 0; }
@@ -419,6 +438,8 @@ ${d}.fm-columns {
   display: grid;
   gap: 1.5em;
   margin: 1.6em 0;
+  --fm-mt: 1.6em;
+  --fm-mb: 1.6em;
   align-items: start;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -434,6 +455,8 @@ ${d}.fm-col--span4 { grid-column: span 4; }
 /* ── Pull quote ───────────────────────────────────────────────────────────── */
 ${d}.fm-quote {
   margin: 1.8em 0;
+  --fm-mt: 1.8em;
+  --fm-mb: 1.8em;
   padding: 0.2em 0 0.2em 1.2em;
   border-left: 4px solid var(--fm-accent);
   font-family: var(--fm-font-heading);
@@ -512,6 +535,8 @@ ${ON_LIGHT_GROUND}
 ${d}.fm-band {
   display: block;
   margin: 2.5em var(--fm-bleed-margin);
+  --fm-mt: 2.5em;
+  --fm-mb: 2.5em;
   padding: 2.5em var(--fm-bleed-pad);
 }
 ${d}.fm-band > :first-child { margin-top: 0; }
@@ -716,6 +741,8 @@ ${d}.fm-cover.fm-cover--block .fm-dek { max-width: 36em; }
 ${d}.fm-steps {
   counter-reset: fm-step;
   margin: 1.6em 0;
+  --fm-mt: 1.6em;
+  --fm-mb: 1.6em;
   border: var(--fm-border-width) solid var(--fm-border);
   border-radius: var(--fm-radius);
   background: var(--fm-surface);
@@ -767,6 +794,8 @@ ${d}.fm-doc--numbered body > h3::before {
 ${d}.fm-toc {
   display: block;
   margin: 1.6em 0;
+  --fm-mt: 1.6em;
+  --fm-mb: 1.6em;
   padding: 1.2em 1.4em;
   border: var(--fm-border-width) solid var(--fm-border);
   border-radius: var(--fm-radius);
@@ -1088,7 +1117,7 @@ ${d}.fm-figure--wide {
   letter-spacing: var(--fm-heading-tracking);
   text-transform: var(--fm-heading-case);
   font-size: ${size};
-  line-height: 1.3;
+  line-height: 1.2;
 }`
   ).join("\n");
   return `${sheet}
@@ -1131,6 +1160,10 @@ ${d}.cm-fm-quote-line { font-style: italic; font-size: 1.1em; }
    headings carry their margins as PADDING (line decorations may never carry
    margins), and list lines take the ul indent. */
 ${d}.cm-fm-blank { font-size: 0.65em; }
+${d}.cm-content { --fm-separator: calc(0.65 * 1lh); }
+/* Further blank lines in a run are lines of space in the document (the
+   renderer's .fm-space, one line tall), so they keep their full height. */
+${d}.cm-fm-space { font-size: 1em; }
 /* View's document opens flush with its first block: leading blank lines are
    not content there, and the body first-child rule drops its top margin (a cover
    even pulls itself up). The editor's page must open the same way, or every
@@ -1216,9 +1249,22 @@ ${d}.fm-live-region.fm-live-region--first > .fm-peer-layer + * { margin-top: 0 !
    lines in every callout, one after every grid. Rendered content collapses
    whitespace exactly like the preview does. */
 ${d}.fm-live-region, ${d}.cm-fm-chrome { white-space: normal; }
-${d}.cm-fm-h1 { padding-top: 0.5em; padding-bottom: 0.2em; }
-${d}.cm-fm-h2 { padding-top: 0.8em; padding-bottom: 0.25em; }
-${d}.cm-fm-h3, ${d}.cm-fm-h4, ${d}.cm-fm-h5, ${d}.cm-fm-h6 { padding-top: 0.7em; padding-bottom: 0.2em; }
+/* Print's heading margins (1.8em above, 0.6em below, in the heading's own
+   em) less the blank source line on each side of a heading (16px, the
+   paragraph separator), so the editor's heading stands where print's does
+   and the page flow measures the same page. */
+${d}.cm-fm-h1 { padding-top: 0; padding-bottom: 0.13em; }
+/* Most themes rule an h2 with a 0.25em padding under it; the editor line
+   cannot take a theme's own heading rules, so that one is mirrored here. */
+${d}.cm-fm-h2 { padding-top: 1.15em; padding-bottom: 0.25em; }
+${d}.cm-fm-h3 { padding-top: 0.96em; padding-bottom: 0; }
+${d}.cm-fm-h4, ${d}.cm-fm-h5, ${d}.cm-fm-h6 { padding-top: 0.8em; padding-bottom: 0; }
+/* Beside a line of space the whole margin stands (see the widget rule). */
+${d}.cm-fm-space + .cm-fm-h2, ${d}.cm-fm-space + .cm-fm-h3, ${d}.cm-fm-space + .cm-fm-h4,
+${d}.cm-fm-space + .cm-fm-h5, ${d}.cm-fm-space + .cm-fm-h6 { padding-top: 1.8em; }
+${d}.cm-fm-h1:has(+ .cm-fm-space), ${d}.cm-fm-h3:has(+ .cm-fm-space),
+${d}.cm-fm-h4:has(+ .cm-fm-space), ${d}.cm-fm-h5:has(+ .cm-fm-space), ${d}.cm-fm-h6:has(+ .cm-fm-space) { padding-bottom: 0.6em; }
+${d}.cm-fm-h2:has(+ .cm-fm-space) { padding-bottom: 0.85em; }
 ${d}.cm-fm-li { padding-left: 1.4em; }
 /* A plain markdown blockquote takes the theme's own blockquote treatment —
    the host retargets those rules onto this class, margins neutralised. */
@@ -1247,12 +1293,22 @@ ${d}.cm-fm-box {
      the retargeted theme rules land later in the sheet. */
   margin: 0 !important;
 }
-/* A collapsed widget's render carries the preview's own block margins; the
-   editor ALSO spends a blank source line and the box gap on that seam, so the
-   widget's outer margins are clamped or blocks drift twice as far apart in
-   Edit as in View. */
-${d}.fm-live-region > .fm-peer-layer + * { margin-top: 0.2em !important; }
-${d}.fm-live-region > *:last-child { margin-bottom: 0.2em !important; }
+/* A collapsed widget's render carries the preview's own block margins
+   (--fm-mt/--fm-mb, declared by each block's rule in the structure sheet);
+   the editor ALSO spends a blank source line on that seam, the paragraph
+   separator (--fm-separator, the blank line's own height), so the widget
+   keeps only what its margin exceeds the separator by, or blocks drift
+   twice as far apart in Edit as in print. Next to a line of SPACE (a second
+   blank line) the whole margin stands: print collapses a margin into the
+   neighbouring margin, never into a space. */
+${d}.fm-live-region > .fm-peer-layer + * {
+  margin-top: max(0px, calc(var(--fm-mt, 0px) - var(--fm-separator))) !important;
+}
+${d}.fm-live-region > *:last-child {
+  margin-bottom: max(0px, calc(var(--fm-mb, 0px) - var(--fm-separator))) !important;
+}
+${d}.cm-fm-space + .fm-live-region > .fm-peer-layer + * { margin-top: var(--fm-mt, 0px) !important; }
+${d}.fm-live-region:has(+ .cm-fm-space) > *:last-child { margin-bottom: var(--fm-mb, 0px) !important; }
 /* The peer layer (carets, presence) sits first in every widget and covers
    it; it is not content, so the clamp above addresses the child after it. */
 ${d}.fm-peer-layer {

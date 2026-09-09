@@ -97,6 +97,9 @@ type Inspection = {
   stepsContinuation?: string;
   page2Footer?: string;
   splitTables: number;
+  // Blank-line spaces in the laid-out document, and how many stand a line tall.
+  spaces?: number;
+  spacesTall?: number;
 };
 
 // Runs inside the laid-out document. Plain JS by construction (it is
@@ -163,6 +166,9 @@ function inspectPages(atomic: string): Inspection {
   });
   const out: Inspection = { pages: pages.length, problems, splitTables };
   out.continuedBands = document.querySelectorAll(".fm-band[data-split-from]").length;
+  const spaces = Array.from(document.querySelectorAll(".fm-space"));
+  out.spaces = spaces.length;
+  out.spacesTall = spaces.filter((s) => s.getBoundingClientRect().height > 8).length;
   out.continuedSteps = document.querySelectorAll(".fm-steps[data-split-from]").length;
   // Paged.js carries the step counter into a continuation by stamping the
   // running value on the first continued step (generated content itself is
@@ -324,6 +330,17 @@ Deno.test({
           const first = Number(ins.stepsContinuation);
           if (!(first > 1)) {
             local.push(`the continued steps restarted their numbering (first continued step: ${ins.stepsContinuation ?? "unstamped"})`);
+          }
+        }
+        // Sixty blank lines: the first is the separator, the other fifty-nine
+        // are lines of space, each a line tall, and the run breaks across the
+        // page like text, so page 2 opens on one of them.
+        if (fixture.name === "spaces") {
+          if (ins.spaces !== 59) local.push(`${ins.spaces} spaces laid out, expected 59`);
+          if (ins.spacesTall !== ins.spaces) local.push(`${ins.spacesTall} of ${ins.spaces} spaces stand a line tall`);
+          const first = result.pages[1]?.firstLine;
+          if (result.total < 2 || first === undefined || first < 4 || first > 62) {
+            local.push(`page 2 opens on line ${first} (${result.total} pages), expected inside the run of blank lines`);
           }
         }
         if (fixture.name === "explicit_breaks" && result.total !== 4) {
