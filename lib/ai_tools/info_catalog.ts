@@ -10,7 +10,7 @@ export type InfoCatalogTopic = {
 // it exposes to getSharedToolsForInfo (which whitelists the fetch path
 // against it) and to buildSystemPrompt (which renders it). SPA-only topics
 // (recipes that presuppose authoring tools) live in
-// client/src/components/project_ai/ai_tools/client_info_topics.ts. Add a
+// client/src/components/copilot/ai_tools/client_info_topics.ts. Add a
 // shared topic: drop a markdown file in client/public/info/ and add an entry
 // here.
 export const INFO_TOPICS: InfoCatalogTopic[] = [

@@ -25,7 +25,7 @@ export const AiMetricQuerySchema = z.object({
   metricId: z
     .string()
     .describe(
-      "The unique ID of the metric to query. This metric must exist in the project's data.",
+      "The unique ID of the metric to query. This metric must exist in the results package being read.",
     ),
   disaggregations: z
     .array(configDStrict.shape.disaggregateBy.element.shape.disOpt)
@@ -67,7 +67,7 @@ export const AiTextBlockSchema = z.object({
   markdown: z
     .string()
     .describe(
-      `The text content in markdown format. Supports standard markdown syntax including headers, bold, italic, lists, and links. WORD COUNT: Target ~${SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET} words TOTAL across all text blocks per slide (adjust down if slide has charts/figures), absolute maximum ${SLIDE_TEXT_TOTAL_WORD_COUNT_MAX} words TOTAL per slide. IMPORTANT: Tables-in-markdown are NOT ALLOWED. If you need to display tabular data, use a 'from_metric' block with a table preset, or a 'from_visualization' block.`,
+      `The text content in markdown format. Supports standard markdown syntax including headers, bold, italic, lists, and links. WORD COUNT: Target ~${SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET} words TOTAL across all text blocks per slide (adjust down if slide has charts/figures), absolute maximum ${SLIDE_TEXT_TOTAL_WORD_COUNT_MAX} words TOTAL per slide. IMPORTANT: Tables-in-markdown are NOT ALLOWED. If you need to display tabular data, use a 'from_metric' block with a table preset.`,
     )
     .refine(
       (text) => {
@@ -80,6 +80,9 @@ export const AiTextBlockSchema = z.object({
     ),
 });
 
+// The project Visualizations tab's own block type. No copilot tool accepts it
+// any more (a figure is a metric plus a preset, D3), and step 9a deletes the
+// tab and this schema with it.
 export const AiFigureFromVisualizationSchema = z.object({
   type: z.literal("from_visualization"),
   visualizationId: z
@@ -100,12 +103,12 @@ export const AiFigureFromMetricSchema = z.object({
   metricId: z
     .string()
     .describe(
-      "The unique ID of the metric to visualize. Must exist in the project's data.",
+      "The unique ID of the metric to visualize. Must exist in the results package the product is attached to.",
     ),
   vizPresetId: z
     .string()
     .describe(
-      "The ID of a pre-defined visualization preset for this metric. Get available preset IDs from get_available_metrics.",
+      "The ID of one of this metric's presets. Get available preset IDs from get_available_metrics.",
     ),
   chartTitle: z.string().max(200).describe("Title displayed above the figure"),
   selectedReplicant: z
@@ -340,7 +343,7 @@ export const AiContentSlideSchema = z.object({
   blocks: z
     .array(AiContentBlockInputSchema)
     .describe(
-      `Required: Array of content blocks (text and/or figures) to display on this slide. Blocks can be text (markdown), figures from existing visualizations, or figures from metrics with custom config. The layout will be automatically optimized. Maximum ${MAX_CONTENT_BLOCKS} blocks per slide.`,
+      `Required: Array of content blocks (text and/or figures) to display on this slide. A block is either text (markdown) or a figure built from a metric plus one of its presets. The layout will be automatically optimized. Maximum ${MAX_CONTENT_BLOCKS} blocks per slide.`,
     ),
 });
 

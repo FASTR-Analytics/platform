@@ -9,13 +9,16 @@ import type { InfoCatalogTopic } from "./info_catalog.ts";
 // The shared halves of the AI system prompt: what both surfaces (the SPA
 // copilot and the /mcp get_overview) ground the model with. Each surface
 // assembles its own context section from these building blocks and its own
-// prose (the SPA: the project's name, viz/deck/report counts, aiContext:
-// client/src/components/project_ai/build_system_prompt.ts; /mcp: the pinned
-// package: server/mcp/mcp_tools.ts), then hands it to buildSystemPrompt.
+// prose (the SPA: the instance ai_context, the package it is serving and the
+// deck/report counts, client/src/components/copilot/build_system_prompt.ts;
+// /mcp: the pinned package, server/mcp/mcp_tools.ts), then hands it to
+// buildSystemPrompt.
 //
-// The SPA's assembled prompt is BYTE-STABLE across navigation (per-view
-// instructions ride each view's instructions in ai_views.ts as an ephemeral
-// section, never baked in here): the prompt-cache breakpoint depends on it.
+// The SPA's assembled prompt is BYTE-STABLE across navigation WITHIN one
+// package (per-view instructions ride each view's instructions in ai_views.ts
+// as an ephemeral section, never baked in here): the prompt-cache breakpoint
+// depends on it. Opening a product on another package rewrites the grounding
+// half once, deliberately.
 
 export type SystemPromptParts = {
   contextSection: string;
@@ -182,8 +185,8 @@ export function buildInstanceContextSections(instance: InstanceState): string[] 
 
 // ── Package grounding: what ONE results package holds ──
 //
-// Derivable from either a project's state (its attached package) or a run
-// manifest (the pinned package on /mcp): the caller maps to this shape.
+// Derivable from either the open product's package (the SPA) or a run manifest
+// (the pinned package on /mcp): the caller maps to this shape.
 
 export type PackageGrounding = {
   // The calendar the package's period ids are in: a package fact, captured

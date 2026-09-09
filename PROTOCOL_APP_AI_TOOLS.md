@@ -1,6 +1,6 @@
 # PROTOCOL_APP_AI_TOOLS: authoring AI tool input schemas
 
-The recipe for writing Zod input schemas for AI tools (project copilot, HFA
+The recipe for writing Zod input schemas for AI tools (the copilot, HFA
 assistant, and any future surface). The architecture (where validation is
 enforced, which derived schemas exist) is
 [SYSTEM_13_ai_assistant.md](SYSTEM_13_ai_assistant.md).
@@ -71,7 +71,7 @@ endDate: z.number().optional(),
 - **Layer 2, data-dependent (runtime)**: anything requiring fetched data or
   runtime state. Is this disOpt available for THIS metric? do these filter
   values exist? is the range within real data bounds? Lives in
-  `client/src/components/project_ai/ai_tools/validators/content_validators.ts`
+  `client/src/components/copilot/ai_tools/validators/content_validators.ts`
   (and `report_validators.ts` for report bodies), called from handlers.
 
 Rule: if validation needs data, it's Layer 2; if it's types and structure,
