@@ -684,7 +684,7 @@ boxes show (`:::report{pagesize= orientation=}`; margins stay at normal, 18mm)
 — and a SHOW PAGE BOXES toggle (per browser, localStorage). Theme and Background
 are hover FLYOUTS — `MenuFlyout`, the pure-CSS row-plus-panel the Insert pickers
 already used and now share. The theme flyout's tiles are drawn from
-`FASTR_THEME_TOKENS` (page, ink, accent, dark tone, heading face) rather than
+`FASTR_THEME_TOKENS` (paper, ink, accent, dark tone, heading face) rather than
 from scoped copies of every theme's stylesheet, which would be ~17 sheets in
 a dropdown. The menu
 row opens with a FILE menu (Google Docs' shape): Download… (the host's
@@ -868,13 +868,27 @@ any mark it cuts into and is rebuilt as flat segments — each existing mark's
 attrs patched, plain text newly marked, same-attr neighbours merged — so
 re-sizing a partly-sized phrase yields one mark and an inner role survives as
 its own segment (`rewriteRangeMarks`); selections split per line and at table
-pipes, so a label can never swallow a cell boundary. **Figure colours follow the theme — every scale, not just the series
-cycle.** Each theme's `chart` in `FASTR_THEME_TOKENS` is a `FastrThemeChart`:
-`series` (the neutral cycle, accent first) plus `neutral`, `good`, `bad` and a
-sequential `ramp` — hand-picked so meaning survives the theme (Monochrome's
-bad is a muted brick and its good a moss that still tell apart; Terminal's are
-neons on black; Risograph's are its own red and green inks; a test pins good
-to green hues, bad to red hues, the ramp to a real lightness run).
+pipes, so a label can never swallow a cell boundary. **A theme is five colours (Nick, 2026-09-09: "only use 5 colours and make
+them more muted").** `lib/types/report_fastr_themes.ts` writes each theme as
+a `FastrThemePalette` (paper, ink, accent, warm, cool) plus type and extra
+rules; `deriveFastrThemeColors` mixes everything else from the five at
+module load (surfaces and border as paper toward ink, muted ink as ink toward
+paper, the dark band as ink toward accent, status colours as the theme's own:
+danger = warm, success = cool, info = accent, warning = the warm-cool middle,
+each with a faded twin for grounds of the other darkness and a computed
+ground ink for the meaning tones), and a custom style's page/ink/accent
+re-derive the whole set (`derivedFor` in report_fastr_css.ts, scheme from the
+custom page's luminance; a non-hex colour falls back to swapping the three).
+A theme's `extraCss` names the five as `--fm-paper/-ink/-accent/-warm/-cool`
+and never a literal colour (a test pins that, the saturation cap, the
+distinctness of the five and the role mapping). **Figure colours follow the
+theme — every scale, not just the series cycle.** Each theme's `chart` is a
+`FastrThemeChart` derived the same way: `series` (accent, warm, cool, an
+accent shade, then tints), `neutral` (the muted ink), `good` (cool), `bad`
+(warm), `warn` (their middle) and a sequential `ramp` on the accent (a test
+pins good to green hues, bad to red hues, warn to amber, the ramp to a real
+lightness run, so the palettes' warms are red families and their cools green
+families).
 `fastrChartPalette(theme, colors)` turns that into the `FastrChartPalette` a
 figure receives: a custom style's accent leads the series, and two derived
 colours are added — `strong` (the document's ink) and `faint` (the neutral
