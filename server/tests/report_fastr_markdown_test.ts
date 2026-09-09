@@ -33,6 +33,7 @@ import {
   safeCssColor,
   safeCssGradient,
   fastrToneOf,
+  collapseFastrBlankRuns,
 } from "../../lib/fastr_markdown_blocks.ts";
 import { renderFastrMarkdownToHtml } from "../../lib/report_fastr_markdown.ts";
 import {
@@ -405,6 +406,18 @@ Deno.test("font imports are deduped for a concatenated multi-theme sheet", () =>
 });
 
 // ── Blank lines as space ────────────────────────────────────────────────────
+
+Deno.test("an AI body's blank-line runs collapse to the separator, outside code", () => {
+  assertEquals(collapseFastrBlankRuns("a\n\n\n\nb\n"), "a\n\nb\n");
+  assertEquals(collapseFastrBlankRuns("a\n\nb\n"), "a\n\nb\n");
+  assertEquals(collapseFastrBlankRuns(":::band\n\n\ntext\n:::\n\n\n\nb"), ":::band\n\ntext\n:::\n\nb");
+  // A code fence keeps its blank lines: they are content there.
+  assertEquals(collapseFastrBlankRuns("```\na\n\n\nb\n```\n\n\nc"), "```\na\n\n\nb\n```\n\nc");
+  // Whitespace-only lines are blank lines.
+  assertEquals(collapseFastrBlankRuns("a\n  \n\t\nb"), "a\n  \nb");
+  assertEquals(collapseFastrBlankRuns(""), "");
+});
+
 
 Deno.test("a blank line beyond the separator is a line of space, anchored to its source line", () => {
   const html = (body: string) => renderFastrMarkdownToHtml(body, { lineAnchors: true });

@@ -1,6 +1,7 @@
 import { AIToolFailure, createAITool } from "panther";
 import { z } from "zod";
 import {
+  collapseFastrBlankRuns,
   FASTR_MD_SYNTAX_DOC,
   FASTR_REPORT_THEMES,
   getReportFormat,
@@ -93,7 +94,10 @@ ${FASTR_MD_SYNTAX_DOC}`,
         ),
       }),
       approval: {
-        propose: (input) => {
+        propose: (raw) => {
+          // A run of blank lines is vertical space on the page; a model
+          // means nothing by it (collapseFastrBlankRuns).
+          const input = { ...raw, markdown: collapseFastrBlankRuns(raw.markdown) };
           const defects = listFastrContainerDefects(input.markdown);
           if (defects.length > 0) {
             const shown = defects

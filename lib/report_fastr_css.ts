@@ -292,7 +292,22 @@ ${d}blockquote {
 
 /* ── Figures (an embed on its own line becomes a captioned figure) ────────── */
 ${d}.fm-figure { margin: 1.6em 0; --fm-mt: 1.6em; --fm-mb: 1.6em; }
-${d}.fm-figure img { display: block; width: 100%; }
+/* A figure is capped at a share of the page's content area (--fm-page-area,
+   set by the paged sheet and by the editor's page boxes; a browser window
+   falls back to its own height): a tall chart at full column width used to
+   take two thirds of a page, so it could only ever sit alone with its
+   heading and the page above it was left half empty. Capped, it narrows and
+   centres, and two figures or a figure and its prose share a page. */
+${d}.fm-figure img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  max-height: calc(var(--fm-page-area, 100vh) * 0.42);
+  margin-inline: auto;
+}
+/* The editor's stand-in while a figure renders (report_html.ts): the same
+   cap, so the page flow does not move when the raster replaces it. */
+${d}.fm-figure .report-embed-pending { max-height: calc(var(--fm-page-area, 100vh) * 0.42); }
 ${d}.fm-figure__caption {
   margin-top: 0.5em;
   font-size: 0.85em;
@@ -448,6 +463,14 @@ ${d}.fm-columns--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 ${d}.fm-columns--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 ${d}.fm-columns--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 ${d}.fm-col > :last-child { margin-bottom: 0; }
+/* A toned or painted column is a panel: text flush with a coloured edge reads
+   as a mistake, so it takes the same inset a toned grid does, and its first
+   block sits at the top of the panel rather than under its own margin. */
+${d}.fm-col.fm-tone, ${d}.fm-col.fm-has-bg {
+  padding: 1em 1.2em;
+  border-radius: var(--fm-radius);
+}
+${d}.fm-col.fm-tone > :first-child, ${d}.fm-col.fm-has-bg > :first-child { margin-top: 0; }
 ${d}.fm-col--span2 { grid-column: span 2; }
 ${d}.fm-col--span3 { grid-column: span 3; }
 ${d}.fm-col--span4 { grid-column: span 4; }

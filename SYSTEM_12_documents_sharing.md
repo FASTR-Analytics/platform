@@ -538,6 +538,54 @@ ResizeObserver: a widget that grows after it was measured (a figure's raster
 arriving) changed the page under it with no editor update, and the box stayed
 wrong until the next scroll.
 
+That gate was not enough ("still flickering", later the same day, "a lot
+when pressing enter on a page where there is already another page below").
+Three more causes, all fixed together by moving the flow off the rendered
+DOM and onto CodeMirror's HEIGHT MAP (`view.lineBlockAt`, per line and per
+widget, measured where a line has been on screen and estimated elsewhere;
+`lineBox` takes a line's own box without the seam widget attached to it, and
+`spanBlocks` builds a page's blocks from the source lines and
+`fastrLiveRegions`, memoised per document version). (1) A page only partly
+rendered had no record and could not flow, so a block pushed onto it left
+it too tall until the paginator answered; now every seam's filler comes from
+the height map, on screen or not, and only pages whose lines are all inside
+`view.viewport` may move or be recorded (an unrecorded rendered page may
+push with a 12px tolerance and never pull). (2) The bias is
+`editor last-block bottom − print contentHeight × scale`, and print's
+contentHeight included the four lines of a PARAGRAPH split across the seam
+(orphans/widows) while the editor shows the paragraph whole on the next
+page: a hundred-pixel bias that pushed everything early. The runner now
+stops contentHeight at the last block without `data-split-to`, and, more to
+the point, `p` is ATOMIC in the paged sheet: the editor cannot draw a seam
+through a line box, so a paragraph that print split left every page opening
+on its tail taller in Edit than in print and the page before it ending
+early. One block model on both sides. (3) A page that opens on a region
+carries its seam INSIDE the region widget (`applyRegionPagination`, rel 0),
+so the widget's box begins with the seam: `pageTopOf` measures the content
+top under the rendered seam's head, or estimates it from the seam chrome
+(182px) and the filler. probe_gap.ts (short viewport, Enter at a page foot),
+probe_flicker.ts and probe_enter.ts in the scratchpad recipe are the
+verification; figure pages cannot be verified there (the harness has no
+figure data).
+
+**Spacing in AI-written reports** (Nick, 2026-09-09, "more professional"):
+rendered through the paged pipeline, the ANC1 bulletin the AI wrote showed
+three things. Its blank-line habit (two blank lines after every figure)
+became lines of space once blank lines meant space, so every body the AI
+proposes (create_report, rewrite_report, rewrite_section; never replace_text,
+never a person's typing) goes through `collapseFastrBlankRuns` first, which
+folds a run of blank lines to the separator outside code fences. A toned
+`:::col` had no inset, so its text sat flush on the coloured edge (now padded
+like a toned grid, first child's top margin dropped). And a tall figure at
+full column width took two thirds of a page, so it could only sit alone with
+its heading and left the page before it half empty: `.fm-figure img` is
+capped at 42% of `--fm-page-area` (set by the paged sheet in mm and by the
+editor's page boxes in px; a browser window falls back to its own height),
+narrowing and centring the chart, so two figures, or a figure and its prose,
+share a page. The rest of the emptiness in that report is composition (a
+figure straight under a heading, two figures back to back), which the brief's
+"composing for pages" rules already forbid for new reports.
+
 **Backgrounds and page-level design.** The format's answer to "everything html
 reports can do" is to name the ROLE, not the value. Every block takes
 `tone = paper|ink|accent|warm|cool` — the theme's five colours as grounds, and
