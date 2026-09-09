@@ -942,12 +942,12 @@ function patchCols(doc: string, tilesLine1: number, cols: number): TextEdit | un
 export type FastrCoverPreset = { layout: FastrCoverLayout; tone: string };
 
 export const FASTR_COVER_PRESETS: readonly FastrCoverPreset[] = [
-  { layout: "classic", tone: "dark" },
-  { layout: "centered", tone: "gradient" },
-  { layout: "poster", tone: "solid" },
-  { layout: "spine", tone: "muted" },
+  { layout: "classic", tone: "ink" },
+  { layout: "centered", tone: "cool" },
+  { layout: "poster", tone: "accent" },
+  { layout: "spine", tone: "paper" },
   { layout: "frame", tone: "default" },
-  { layout: "split", tone: "inverse" },
+  { layout: "split", tone: "ink" },
   { layout: "minimal", tone: "default" },
   { layout: "block", tone: "default" },
 ];

@@ -127,7 +127,7 @@ ${FASTR_MD_SYNTAX_DOC}`,
               invalid:
                 `The body uses ${literals.length} literal colour${
                   literals.length === 1 ? "" : "s"
-                }:\n${shown}\nLiterals do not follow a theme switch — for a ground use a tone (tone=muted|accent|solid|dark|inverse|gradient|danger|warning|success|info) and for a phrase use a role ([x]{.danger} etc.), which each theme maps to its own palette. Only if the user explicitly asked for these exact colours, re-propose unchanged with allowLiteralColors: true.`,
+                }:\n${shown}\nLiterals do not follow a theme switch — for a ground use a tone (tone=paper|ink|accent|warm|cool) and for a phrase use a role ([x]{.danger} etc.), which each theme maps to its own palette. Only if the user explicitly asked for these exact colours, re-propose unchanged with allowLiteralColors: true.`,
             };
           }
           return {

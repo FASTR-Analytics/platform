@@ -4,6 +4,8 @@ import {
   FASTR_REPORT_THEMES,
   FASTR_THEME_TOKENS,
   FASTR_TONES,
+  fastrSurfaceTone,
+  fastrToneOf,
   type FastrBlockName,
   type FastrFencePatch,
   type FastrInkRole,
@@ -287,18 +289,15 @@ export function ReportToolbar(p: Props) {
     return typeof v === "string" ? v : v === true ? "" : undefined;
   };
   const psTone = (): string => {
-    const v = (psAttr("background") ?? psAttr("bg"))?.toLowerCase();
+    const v = psAttr("background") ?? psAttr("bg");
     if (v === undefined) return "default";
-    return (FASTR_TONES as readonly string[]).includes(v) ? v : "literal";
+    return fastrToneOf(v) ?? "literal";
   };
   const psLiteral = (): string | undefined => {
     const bg = psAttr("bg");
-    if (bg !== undefined && !(FASTR_TONES as readonly string[]).includes(bg.toLowerCase())) {
-      return bg;
-    }
+    if (bg !== undefined && fastrToneOf(bg) === undefined) return bg;
     const background = psAttr("background");
-    return background !== undefined &&
-        !(FASTR_TONES as readonly string[]).includes(background.toLowerCase())
+    return background !== undefined && fastrToneOf(background) === undefined
       ? background
       : undefined;
   };
@@ -1168,7 +1167,7 @@ export function ReportToolbar(p: Props) {
                         scopeClass={scopeClass}
                         tone={attrValue("bg") !== undefined
                           ? "literal"
-                          : attrValue(toneAttrFor(block().name)) ?? "default"}
+                          : fastrSurfaceTone(block().attrs) ?? "default"}
                         literal={attrValue("bg")}
                         onTone={(tone) =>
                           patchGround({
@@ -1360,7 +1359,7 @@ function ThemeChip(p: { theme: FastrReportTheme }) {
       </span>
       <span
         class="h-5 w-2 rounded-sm"
-        style={{ background: tok().toneDark }}
+        style={{ background: tok().grounds.ink.color }}
       />
     </span>
   );
@@ -1449,13 +1448,14 @@ function roleClassOf(role: FastrInkRole | undefined): string {
   return role === undefined ? "" : `fm-mark fm-mark--${role}`;
 }
 
-// The combined ground panel: the theme's TONES as preset swatches on top —
-// roles, so they re-theme with the document — above the literal colour grid
-// (the same "standard" set panther's ColorPicker showed) and a hex field for
-// anything else. Tone swatches paint the REAL scoped rule (fm-tone--accent is
-// a color-mix JS cannot reproduce); the "default" tone doubles as the clear.
-// `onPick` fires after any swatch click so a popover caller can close; live
-// hex typing deliberately does not fire it.
+// The combined ground panel: the theme's five TONES as preset swatches on
+// top (roles, so they re-theme with the document) above the literal colour
+// grid (the same "standard" set panther's ColorPicker showed) and a hex field
+// for anything else. Tone swatches paint the REAL scoped rule, so a swatch is
+// the ground the report will get; the "default" tone is the clear, drawn as a
+// struck-through chip so the row reads as five colours and a none. `onPick`
+// fires after any swatch click so a popover caller can close; live hex typing
+// deliberately does not fire it.
 function GroundPanel(p: {
   scopeClass: string;
   tone: string; // "default" | a tone name | "literal"
@@ -1484,13 +1484,26 @@ function GroundPanel(p: {
                 p.onPick?.();
               }}
             >
-              <span class={`${p.scopeClass} block h-full w-full`}>
-                <span
-                  class={`fm-tone fm-tone--${tone} flex h-full w-full items-center justify-center text-[10px]`}
-                >
-                  Aa
+              <Show
+                when={tone !== "default"}
+                fallback={
+                  <span
+                    class="text-base-content-muted flex h-full w-full items-center justify-center border"
+                    style={{
+                      background:
+                        "linear-gradient(to top right, transparent 46%, currentColor 46%, currentColor 54%, transparent 54%)",
+                    }}
+                  />
+                }
+              >
+                <span class={`${p.scopeClass} block h-full w-full`}>
+                  <span
+                    class={`fm-tone fm-tone--${tone} flex h-full w-full items-center justify-center text-[10px]`}
+                  >
+                    Aa
+                  </span>
                 </span>
-              </span>
+              </Show>
             </button>
           )}
         </For>

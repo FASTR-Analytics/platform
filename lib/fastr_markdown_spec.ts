@@ -37,12 +37,12 @@ export const FASTR_BLOCK_SNIPPETS: { name: FastrBlockName; snippet: string }[] =
     {
       name: "band",
       snippet:
-        `:::band{tone=dark}\n## Where the system is failing\nThree regions have never reported on time.\n:::`,
+        `:::band{tone=ink}\n## Where the system is failing\nThree regions have never reported on time.\n:::`,
     },
     {
       name: "cover",
       snippet:
-        `:::cover{tone=dark}\n# Quarterly review\nMinistry of Health · Q3 2026\n:::`,
+        `:::cover{tone=ink}\n# Quarterly review\nMinistry of Health · Q3 2026\n:::`,
     },
     {
       name: "steps",
@@ -96,13 +96,13 @@ Blocks (open with \`:::name{attributes}\`, close with a bare \`:::\`):
   A pull quote — larger and set apart from body text.
   :::
 
-  :::band{tone=dark}
+  :::band{tone=ink}
   A FULL-BLEED section: its background runs edge to edge while the text stays
   in the column. The strongest device you have — use it to mark the two or
   three moments in a report that matter.
   :::
 
-  :::cover{tone=dark layout=classic kicker="Ministry of Health · Q3 2026" sub="Prepared for the quarterly review"}
+  :::cover{tone=ink layout=classic kicker="Ministry of Health · Q3 2026" sub="Prepared for the quarterly review"}
   # A title page
   :::
   \`kicker\` is the small letterspaced line above the title, \`sub\` the
@@ -147,21 +147,19 @@ Blocks (open with \`:::name{attributes}\`, close with a bare \`:::\`):
 
 Backgrounds — say the ROLE, not the colour:
 
-  tone = default | muted | accent | solid | dark | inverse | gradient
-       | danger | warning | success | info
+  tone = paper | ink | accent | warm | cool
 
   Every block takes \`tone\`, and so does \`:::report\` (as \`background=\`).
-  Each theme maps the six tones to its own palette, so \`tone=dark\` is the
-  theme's dark and stays readable when the user switches themes. Prefer a tone.
+  A theme is five colours, and the five tones are those colours as grounds,
+  each with the type that reads on it: \`paper\` a pale panel, \`ink\` the
+  dark band (light on a dark theme), \`accent\` the theme's own colour,
+  \`warm\` its red, \`cool\` its green. A tone stays readable when the user
+  switches themes. Prefer a tone.
 
-  The last four are MEANING grounds — the theme's own muted red, amber,
-  green or blue as a panel with contrasting type, the same colours the
-  callout kinds use. Reach for
-  \`tone=danger\` when a tile IS the bad news; it stays coherent across themes
-  in a way \`bg="#c62828"\` cannot.
-
-  \`tone=gradient\` is the theme's own accent-into-dark sweep — reach for it
-  before writing a gradient by hand, because it re-themes with everything else.
+  \`warm\` and \`cool\` also MEAN something: they are the colours the callout
+  kinds and the stat deltas use for the bad and the good, so \`tone=warm\` on
+  a tile that IS the bad news stays coherent across themes in a way
+  \`bg="#c62828"\` cannot. Use them for meaning, not decoration.
 
   Literals are available and DO NOT follow a theme switch, so use one only when
   the user asks for that exact colour, gradient or image:
@@ -177,10 +175,10 @@ Colouring a WORD or PHRASE — again, say the role, not the colour:
   Completeness [fell 12 points]{.danger} while ANC4 [rose 4pp]{.success}.
 
   Roles: \`.accent .muted .danger .warning .success .info\` — the same meanings
-  the callout kinds and tones carry, so a marked phrase survives a re-theme.
-  On a ground that is already that colour (inside \`tone=danger\`, or a solid
-  accent card) the mark returns to the ground's ink: colour the text, or the
-  panel, never both. Use it sparingly — a sentence with three colours in it
+  the callout kinds and the warm and cool tones carry, so a marked phrase
+  survives a re-theme. On a ground that is already a hue (inside \`tone=warm\`,
+  or an accent card) the mark returns to the ground's ink: colour the text,
+  or the panel, never both. Use it sparingly — a sentence with three colours in it
   has none.
 
   A literal colour is available on the same span — \`[text]{color=#c62828}\`
@@ -236,7 +234,7 @@ Composing a report — this matters as much as the syntax:
     \`:::report\` header, so its headings read 1., 1.1, 2. — a bulletin or a
     brief does not.
   - Put the two or three headline numbers in a \`:::tiles\` row of \`:::stat\`
-    blocks. Give the one that matters most \`tone=solid\` so it reads as the
+    blocks. Give the one that matters most \`tone=accent\` so it reads as the
     finding, not one of three.
   - Mark the two or three TURNING POINTS of the argument with \`:::band\`.
     A band is the strongest device you have; three is a rhythm, seven is noise.
@@ -245,7 +243,7 @@ Composing a report — this matters as much as the syntax:
     two columns DIFFERENT tones. The contrast does the explaining.
   - Recommendations and next steps belong in \`:::steps\`, not a bare list.
   - Caveats, definitions and sources belong in \`:::callout\`.
-  - CLOSE with a short \`:::band{tone=inverse}\` — a colophon line.
+  - CLOSE with a short \`:::band{tone=ink}\` — a colophon line.
 
   Vary the tones so consecutive blocks differ, and keep ordinary analysis in
   ordinary paragraphs: a report where everything is a block has no emphasis

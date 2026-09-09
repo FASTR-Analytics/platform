@@ -1,5 +1,5 @@
 :::report{numbering=sections}
-:::cover{tone=dark layout=frame kicker="Many sections" sub="A heading must never end a page"}
+:::cover{tone=ink layout=frame kicker="Many sections" sub="A heading must never end a page"}
 # Forty short sections
 :::
 

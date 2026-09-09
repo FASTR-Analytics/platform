@@ -98,7 +98,7 @@ function MockContent() {
           <i class="fmt-bar" style={{ width: "90%" }} />
           <i class="fmt-bar" style={{ width: "70%" }} />
         </div>
-        <div class="fm-card fm-card--accent">
+        <div class="fm-card fm-tone fm-tone--accent">
           <i class="fmt-bar" style={{ width: "80%" }} />
           <i class="fmt-bar" style={{ width: "55%" }} />
         </div>
@@ -110,7 +110,7 @@ function MockContent() {
       <i class="fmt-bar" style={{ width: "88%" }} />
       {/* The theme's own dark ground — the thing a full-width band paints, and
           the clearest difference between one theme's dark and another's. */}
-      <div class="fm-band fm-tone fm-tone--dark">
+      <div class="fm-band fm-tone fm-tone--ink">
         <i class="fmt-bar" style={{ width: "70%" }} />
         <i class="fmt-bar" style={{ width: "48%" }} />
       </div>

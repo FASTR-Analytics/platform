@@ -143,32 +143,23 @@ export function fastrBlockCaption(name: FastrBlockName): string {
   }
 }
 
-// Tones name a ROLE. The labels say what the ground is FOR, not what colour it
-// comes out — the colour is the theme's business and changes when it does.
+// Tones are the theme's five colours as grounds. The labels name the colour's
+// ROLE in the palette, not what it comes out as: that is the theme's
+// business and changes when it does.
 export function fastrToneLabel(tone: FastrTone): string {
   switch (tone) {
     case "default":
       return t3({ en: "None", fr: "Aucun", pt: "Nenhum" });
-    case "muted":
-      return t3({ en: "Muted", fr: "Atténué", pt: "Suave" });
+    case "paper":
+      return t3({ en: "Paper", fr: "Papier", pt: "Papel" });
+    case "ink":
+      return t3({ en: "Ink", fr: "Encre", pt: "Tinta" });
     case "accent":
-      return t3({ en: "Accent wash", fr: "Voile d'accent", pt: "Véu de destaque" });
-    case "solid":
-      return t3({ en: "Solid accent", fr: "Accent plein", pt: "Destaque sólido" });
-    case "dark":
-      return t3({ en: "Dark", fr: "Sombre", pt: "Escuro" });
-    case "inverse":
-      return t3({ en: "Inverted", fr: "Inversé", pt: "Invertido" });
-    case "gradient":
-      return t3({ en: "Gradient", fr: "Dégradé", pt: "Gradiente" });
-    case "danger":
-      return t3({ en: "Bad news", fr: "Mauvaise nouvelle", pt: "Más notícias" });
-    case "warning":
-      return t3({ en: "Caution", fr: "Prudence", pt: "Atenção" });
-    case "success":
-      return t3({ en: "Good news", fr: "Bonne nouvelle", pt: "Boas notícias" });
-    case "info":
-      return t3({ en: "Note", fr: "Remarque", pt: "Nota" });
+      return t3({ en: "Accent", fr: "Accent", pt: "Destaque" });
+    case "warm":
+      return t3({ en: "Warm", fr: "Chaud", pt: "Quente" });
+    case "cool":
+      return t3({ en: "Cool", fr: "Froid", pt: "Frio" });
   }
 }
 

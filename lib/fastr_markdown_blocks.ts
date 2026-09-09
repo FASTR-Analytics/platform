@@ -18,6 +18,7 @@
 // =============================================================================
 
 import { escapeReportHtml } from "./types/reports.ts";
+import { FASTR_GROUNDS } from "./types/report_fastr_themes.ts";
 
 export const FASTR_BLOCK_NAMES = [
   "callout",
@@ -131,29 +132,52 @@ export type FastrContainerHtml = {
   silent: boolean;
 };
 
-// Grounds by ROLE, not by colour: each theme maps these to its own palette, so
-// `tone=dark` is deep green in Ministry and black in Swiss, and a re-theme
-// keeps every band readable. A tone re-scopes the `--fm-ink*`/`--fm-border`
-// tokens on the block, so descendants (headings, muted labels, rules) follow.
-export const FASTR_TONES = [
-  "default",
-  "muted",
-  "accent",
-  "solid",
-  "dark",
-  "inverse",
-  // The theme's own accent-into-dark sweep — a gradient you do not have to
-  // spell out, and the only one that survives a re-theme.
-  "gradient",
-  // The four MEANING grounds. They reuse the semantic colours the callout kinds
-  // and stat deltas already carry, so "this is the bad news" is a role rather
-  // than a colour — and unlike bg="#c62828" it stays coherent across themes.
-  "danger",
-  "warning",
-  "success",
-  "info",
-] as const;
+// Grounds by ROLE, not by colour: a theme is five colours, and the five tones
+// are those colours as grounds, so `tone=ink` is deep green-grey in Ministry
+// and black in Swiss, and a re-theme keeps every band readable. A tone
+// re-scopes the `--fm-ink*`/`--fm-border` tokens on the block, so descendants
+// (headings, muted labels, rules) follow. `warm` and `cool` double as the
+// meaning grounds (the bad news, the good news): they are the colours the
+// callout kinds and stat deltas already carry.
+export const FASTR_TONES = ["default", ...FASTR_GROUNDS] as const;
 export type FastrTone = (typeof FASTR_TONES)[number];
+
+// The older, longer tone list (muted, solid, dark, the four status names and
+// more) folded into the five on 2026-09-09. Bodies written with those
+// spellings keep rendering: each is one of the five.
+const FASTR_TONE_ALIASES: Record<string, FastrTone> = {
+  muted: "paper",
+  solid: "accent",
+  dark: "ink",
+  inverse: "ink",
+  gradient: "ink",
+  danger: "warm",
+  warning: "warm",
+  success: "cool",
+  info: "accent",
+};
+
+// The tone a value names, or undefined when it names none: the five and
+// `default`, spelt any case, plus the older spellings.
+export function fastrToneOf(value: unknown): FastrTone | undefined {
+  if (typeof value !== "string") return undefined;
+  const v = value.toLowerCase();
+  return (FASTR_TONES as readonly string[]).includes(v)
+    ? v as FastrTone
+    : FASTR_TONE_ALIASES[v];
+}
+
+// The ground a fence's attributes resolve to, as one of the five, or
+// undefined for no ground: `default` means none, the card's historical
+// `accent` flag is the accent tone, and an unknown tone degrades to paper,
+// the mildest, so the styling visibly took (a defect says what was wrong).
+export function fastrSurfaceTone(attrs: FastrContainerAttrs): FastrTone | undefined {
+  const tone = attrText(attrs, "tone");
+  const resolved = tone === undefined
+    ? (attrs["accent"] !== undefined ? "accent" : undefined)
+    : fastrToneOf(tone) ?? "paper";
+  return resolved === "default" ? undefined : resolved;
+}
 
 // Inline colour roles — `[fell 12 points]{.danger}`. Same principle as the
 // tones one level up: the author names a ROLE, the theme owns the colour, so a
@@ -466,14 +490,8 @@ export function surfaceFor(attrs: FastrContainerAttrs): FastrSurface {
   let style = "";
   let extraAttrs = "";
 
-  const tone = attrText(attrs, "tone")?.toLowerCase();
-  if (tone !== undefined && tone !== "default") {
-    classes.push(
-      (FASTR_TONES as readonly string[]).includes(tone)
-        ? `fm-tone fm-tone--${tone}`
-        : "fm-tone fm-tone--muted",
-    );
-  }
+  const tone = fastrSurfaceTone(attrs);
+  if (tone !== undefined) classes.push(`fm-tone fm-tone--${tone}`);
 
   // A literal background wins over the tone — and stops following the theme,
   // which is the documented trade of using it.
@@ -620,8 +638,7 @@ export function readFastrDocumentSettings(body: string): FastrDocumentSettings {
     // name or a literal colour — resolve which before handing it on, or a tone
     // name reaches the colour path and emits an invalid declaration.
     const background = attrs["background"] ?? attrs["bg"];
-    const isTone = typeof background === "string" &&
-      (FASTR_TONES as readonly string[]).includes(background.toLowerCase());
+    const isTone = fastrToneOf(background) !== undefined;
     const surface = surfaceFor({
       ...attrs,
       ...(isTone
@@ -751,12 +768,11 @@ function blockShapeFor(
       };
     }
     case "card": {
-      // The historical `accent` flag is the old spelling of `tone=solid`; both
-      // resolve to the same rule so existing bodies keep rendering.
-      const accent = attrs["accent"] !== undefined ? " fm-card--accent" : "";
+      // The historical `accent` flag is the old spelling of `tone=accent`;
+      // fastrSurfaceTone resolves it, so existing bodies keep rendering.
       return {
         tag: "div",
-        className: `fm-card${accent}`,
+        className: "fm-card",
         leadingHtml: titleHtml("fm-card__title", attrText(attrs, "title")),
         trailingHtml: "",
       };
@@ -1136,7 +1152,7 @@ export function listFastrContainerDefects(body: string): FastrContainerDefect[] 
       typeof bgAttr === "string" && bgAttr.length > 0 &&
       !EMBED_BG_RE.test(bgAttr.trim()) &&
       safeCssBackground(bgAttr) === undefined &&
-      !(FASTR_TONES as readonly string[]).includes(bgAttr.toLowerCase())
+      fastrToneOf(bgAttr) === undefined
     ) {
       defects.push({
         line: i + 1,
@@ -1147,14 +1163,11 @@ export function listFastrContainerDefects(body: string): FastrContainerDefect[] 
     // A misspelt tone renders as the mildest one, which reads as "my styling
     // was ignored" rather than as a mistake — so say so.
     const tone = fence.attrs["tone"];
-    if (
-      typeof tone === "string" &&
-      !(FASTR_TONES as readonly string[]).includes(tone.toLowerCase())
-    ) {
+    if (typeof tone === "string" && fastrToneOf(tone) === undefined) {
       defects.push({
         line: i + 1,
         message: `Unknown tone \`${tone}\`. Available tones: ${
-          FASTR_TONES.join(", ")
+          FASTR_GROUNDS.join(", ")
         }.`,
       });
     }
@@ -1222,7 +1235,7 @@ export function listFastrLiteralBackgrounds(
       const bgAttr = fence.attrs["bg"] ?? fence.attrs["background"];
       if (
         typeof bgAttr === "string" && bgAttr.length > 0 &&
-        !(FASTR_TONES as readonly string[]).includes(bgAttr.toLowerCase())
+        fastrToneOf(bgAttr) === undefined
       ) {
         literals.push({ line: i + 1, attr: "bg", value: bgAttr });
       }
