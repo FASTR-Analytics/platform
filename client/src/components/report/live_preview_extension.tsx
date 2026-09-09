@@ -3619,6 +3619,16 @@ function withoutPage(result: FastrPagedResult, number: number): FastrPagedResult
   return { ...result, total: pages.length, pages };
 }
 
+// The paginator's last answer as the editor measures it: per page, where its
+// last block's bottom stands below the page top, recorded while no edit has
+// happened since. The flow then moves a block only when a page has GROWN past
+// that or SHRUNK from it. The editor's rendering disagrees with print's by a
+// few pixels on some blocks (a theme's own heading rule, a figure's chrome),
+// and re-deciding every break from the editor's own measurement after each
+// keystroke turned those pixels into a block that jumped to the next page and
+// back a second later, on pages the keystroke never touched.
+type SettledPage = { lastBottom: number };
+
 const pageBoxPlugin = ViewPlugin.fromClass(
   class {
     provisionalRuns = 0;
@@ -3629,8 +3639,20 @@ const pageBoxPlugin = ViewPlugin.fromClass(
     // is the printed truth and stands, whatever the editor's own rendering
     // makes of it, until the next edit.
     flowArmed = false;
+    settled = new Map<number, SettledPage>();
+    // A widget that grows after it is measured (a figure's raster arriving)
+    // changes the page under it without an editor update; the content box's
+    // size says so.
+    resize: ResizeObserver | undefined;
     constructor(readonly view: EditorView) {
+      if (typeof ResizeObserver !== "undefined") {
+        this.resize = new ResizeObserver(() => this.measure());
+        this.resize.observe(view.contentDOM);
+      }
       this.measure();
+    }
+    destroy() {
+      this.resize?.disconnect();
     }
     update(u: ViewUpdate) {
       let landed = false;
@@ -3641,6 +3663,20 @@ const pageBoxPlugin = ViewPlugin.fromClass(
             if (e.value?.provisional !== true) {
               this.provisionalRuns = 0;
               this.flowArmed = false;
+              this.settled.clear();
+            } else {
+              // A provisional move renumbers every page from the one it
+              // changed: their records no longer describe them.
+              const before = u.startState.field(paginationField, false)?.pagination?.result.pages ?? [];
+              const after = e.value?.result.pages ?? [];
+              let from = 0;
+              while (
+                from < before.length && from < after.length &&
+                before[from].firstLine === after[from].firstLine
+              ) from++;
+              for (const n of Array.from(this.settled.keys())) {
+                if (n > from) this.settled.delete(n);
+              }
             }
           }
         }
@@ -3738,16 +3774,26 @@ const pageBoxPlugin = ViewPlugin.fromClass(
           const area = pageAreaPx(geometry, pag.result.pages[cur.number - 1] ?? { cover: false });
           const limit = cur.pageTop + area;
           const seamTop = seam.getBoundingClientRect().top;
-          if (canFlow && cur.from !== undefined && idx !== undefined) {
-            const move = flowPage(
-              view,
-              pag.result,
-              children,
-              { number: cur.number, from: cur.from, to: idx },
-              limit,
-              seamTop,
-            );
-            if (move !== undefined) return { pag, move, writes: [], aligns: [] };
+          if (cur.from !== undefined && idx !== undefined) {
+            const span = { number: cur.number, from: cur.from, to: idx };
+            if (!this.flowArmed) {
+              const last = pageItems(children, span)?.at(-1);
+              if (last !== undefined) {
+                this.settled.set(cur.number, { lastBottom: last.bottom - cur.pageTop });
+              }
+            } else if (canFlow) {
+              const settled = this.settled.get(cur.number);
+              const move = flowPage(
+                view,
+                pag.result,
+                children,
+                span,
+                limit,
+                seamTop,
+                settled === undefined ? undefined : { lastBottom: cur.pageTop + settled.lastBottom },
+              );
+              if (move !== undefined) return { pag, move, writes: [], aligns: [] };
+            }
           }
           const filler = Math.max(0, Math.round(area - (seamTop - cur.pageTop)));
           const current = parseFloat(seam.style.paddingTop) || 0;
@@ -3773,9 +3819,24 @@ const pageBoxPlugin = ViewPlugin.fromClass(
   },
 );
 
+// The blocks on a fully rendered page, in order; undefined when a page
+// starts inside one of them (the paginator's alone).
+function pageItems(children: PageChild[], span: PageSpan): PageChild[] | undefined {
+  const items: PageChild[] = [];
+  for (let i = span.from; i < span.to; i++) {
+    const c = children[i];
+    if (c.innerSeam) return undefined;
+    if (c.kind !== "blank" && c.kind !== "head") items.push(c);
+  }
+  return items;
+}
+
 // The provisional move a fully rendered page calls for, if any: push the
 // block that crossed its edge to the next page, or pull the next page's
-// first block up.
+// first block up. With the page as it stood at the paginator's last answer
+// (`settled`, in the same coordinates), a push needs the page to have grown
+// past that and a pull needs it to have shrunk: the answer already ruled on
+// the page as it was.
 function flowPage(
   view: EditorView,
   result: FastrPagedResult,
@@ -3783,18 +3844,16 @@ function flowPage(
   span: PageSpan,
   limit: number,
   seamTop: number,
+  settled: { lastBottom: number } | undefined,
 ): FastrPagedResult | undefined {
   const page = result.pages[span.number - 1];
   if (page === undefined || page.cover) return undefined;
-  const items: PageChild[] = [];
-  for (let i = span.from; i < span.to; i++) {
-    const c = children[i];
-    if (c.innerSeam) return undefined;
-    if (c.kind !== "blank" && c.kind !== "head") items.push(c);
-  }
+  const items = pageItems(children, span);
+  if (items === undefined) return undefined;
   // A page with no block left on it (its content was deleted) closes.
   if (items.length === 0) return span.number > 1 ? withoutPage(result, span.number) : undefined;
-  let over = items.findIndex((c) => c.bottom > limit + PUSH_TOLERANCE_PX);
+  const edge = Math.max(limit, settled?.lastBottom ?? limit) + PUSH_TOLERANCE_PX;
+  let over = items.findIndex((c) => c.bottom > edge);
   if (over === 0) return undefined;
   if (over > 0) {
     while (over > 1 && items[over - 1].heading) over--;
@@ -3813,6 +3872,7 @@ function flowPage(
   if (b.heading || b.pagebreak || b.innerSeam) return undefined;
   const last = items[items.length - 1];
   if (last.pagebreak) return undefined;
+  if (settled !== undefined && settled.lastBottom - last.bottom <= PUSH_TOLERANCE_PX) return undefined;
   const bLine = lineOf(view, b);
   const lastLine = lineOf(view, last);
   if (bLine === undefined || lastLine === undefined) return undefined;
