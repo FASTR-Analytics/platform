@@ -3107,10 +3107,13 @@ export const setPagination = StateEffect.define<EditorPagination | undefined>();
 // draws the margins; the plugin measures against them).
 export type PageBoxGeometry = { pageH: number; marginPx: number };
 
-// What a page's content may fill: the sheet less the top and bottom margins,
-// or the whole sheet for a cover (its page has no margins).
-function pageAreaPx(g: PageBoxGeometry, cover: boolean): number {
-  return cover ? g.pageH : g.pageH - 2 * g.marginPx;
+// What a page's content may fill: the sheet less the top and bottom margins;
+// less the bottom one only for a page a natural cover opens (no top
+// margin); the whole sheet for a filling cover (no margins at all).
+type PageMargins = { cover: boolean; flushTop?: boolean };
+function pageAreaPx(g: PageBoxGeometry, page: PageMargins): number {
+  if (page.cover) return g.pageH;
+  return g.pageH - (page.flushTop === true ? 1 : 2) * g.marginPx;
 }
 
 // The fillers for a new pagination result. A page whose source text (and
@@ -3152,7 +3155,7 @@ export function carryPageFillers(
     }
     fillers.set(
       page.number,
-      Math.max(0, Math.round(pageAreaPx(geometry, page.cover) - page.contentHeight * scale)),
+      Math.max(0, Math.round(pageAreaPx(geometry, page) - page.contentHeight * scale)),
     );
   }
   return fillers;
@@ -3181,7 +3184,8 @@ function pageTextKeys(result: FastrPagedResult, body: string, pageH: number): st
         break;
       }
     }
-    keys.push(`${pageH}|${result.pages[i].cover ? "c" : "p"}|${lines.slice(from, to).join("\n")}`);
+    const kind = result.pages[i].cover ? "c" : result.pages[i].flushTop ? "t" : "p";
+    keys.push(`${pageH}|${kind}|${lines.slice(from, to).join("\n")}`);
   }
   return keys;
 }
@@ -3240,7 +3244,7 @@ function seamElement(pag: EditorPagination, page: number, end = false): HTMLElem
     const band = document.createElement("div");
     band.className = "fm-page-gutter__band";
     el.append(band);
-    if (starting === undefined || !starting.cover) {
+    if (starting === undefined || (!starting.cover && !starting.flushTop)) {
       const head = document.createElement("div");
       head.className = "fm-page-gutter__head";
       el.append(head);
@@ -3340,7 +3344,8 @@ function buildPaginationState(
   const regionSeams = new Map<number, { rel: number; page: number }[]>();
   const regionSplits = new Map<number, number>();
   const decos: Range<Decoration>[] = [];
-  if (pag.result.pages[0] !== undefined && !pag.result.pages[0].cover) {
+  const first = pag.result.pages[0];
+  if (first !== undefined && !first.cover && !first.flushTop) {
     decos.push(
       Decoration.widget({ widget: new PageHeadWidget(), block: true, side: -2 }).range(0),
     );
@@ -3543,6 +3548,11 @@ type BoxMeasure = {
   pag: EditorPagination;
   move?: FastrPagedResult;
   writes: { el: HTMLElement; page: number; px: number }[];
+  // In-block seams to shift onto the sheet's edges (their stylesheet
+  // centring assumes the block's content box is centred on the sheet; a
+  // callout's left border alone puts it 2px off, and 2px past the sheet is
+  // a horizontal scrollbar).
+  aligns: { el: HTMLElement; marginLeft: number; width: number }[];
 };
 
 const PUSH_TOLERANCE_PX = 2;
@@ -3580,7 +3590,14 @@ function withPageStart(result: FastrPagedResult, index: number, line: number): F
   if (index < pages.length) {
     pages[index] = { ...pages[index], firstLine: line, lines: [line] };
   } else {
-    pages.push({ number: pages.length + 1, firstLine: line, lines: [line], cover: false, contentHeight: 0 });
+    pages.push({
+      number: pages.length + 1,
+      firstLine: line,
+      lines: [line],
+      cover: false,
+      flushTop: false,
+      contentHeight: 0,
+    });
   }
   return { ...result, total: pages.length, pages };
 }
@@ -3642,7 +3659,11 @@ const pageBoxPlugin = ViewPlugin.fromClass(
             }, 0);
             return;
           }
-          if (m.writes.length === 0) return;
+          for (const a of m.aligns) {
+            a.el.style.marginLeft = `${a.marginLeft}px`;
+            a.el.style.width = `${a.width}px`;
+          }
+          if (m.writes.length === 0 && m.aligns.length === 0) return;
           m.pag.fillers ??= new Map();
           for (const w of m.writes) {
             w.el.style.paddingTop = `${w.px}px`;
@@ -3678,6 +3699,9 @@ const pageBoxPlugin = ViewPlugin.fromClass(
         from: head0 !== undefined ? 1 : 0,
       };
       const writes: BoxMeasure["writes"] = [];
+      const aligns: BoxMeasure["aligns"] = [];
+      // The sheet is the scroller (report_fastr_css.ts).
+      const sheetRect = view.scrollDOM.getBoundingClientRect();
       const canFlow = this.flowArmed && !this.pendingMove &&
         this.provisionalRuns < MAX_PROVISIONAL_RUNS;
       for (const node of nodes) {
@@ -3686,11 +3710,20 @@ const pageBoxPlugin = ViewPlugin.fromClass(
           continue;
         }
         const seam = node;
+        if (seam.classList.contains("fm-page-gutter--inner")) {
+          const r = seam.getBoundingClientRect();
+          const dx = r.left - sheetRect.left;
+          const dw = r.width - sheetRect.width;
+          if (Math.abs(dx) > 0.5 || Math.abs(dw) > 0.5) {
+            const current = parseFloat(getComputedStyle(seam).marginLeft) || 0;
+            aligns.push({ el: seam, marginLeft: current - dx, width: sheetRect.width });
+          }
+        }
         const starts = Number(seam.getAttribute("data-page"));
         const wrapper = seam.parentElement;
         const idx = wrapper ? indexOf.get(wrapper) : undefined;
         if (cur !== undefined && Number.isFinite(starts)) {
-          const area = pageAreaPx(geometry, pag.result.pages[cur.number - 1]?.cover === true);
+          const area = pageAreaPx(geometry, pag.result.pages[cur.number - 1] ?? { cover: false });
           const limit = cur.pageTop + area;
           const seamTop = seam.getBoundingClientRect().top;
           if (canFlow && cur.from !== undefined && idx !== undefined) {
@@ -3702,7 +3735,7 @@ const pageBoxPlugin = ViewPlugin.fromClass(
               limit,
               seamTop,
             );
-            if (move !== undefined) return { pag, move, writes: [] };
+            if (move !== undefined) return { pag, move, writes: [], aligns: [] };
           }
           const filler = Math.max(0, Math.round(area - (seamTop - cur.pageTop)));
           const current = parseFloat(seam.style.paddingTop) || 0;
@@ -3723,7 +3756,7 @@ const pageBoxPlugin = ViewPlugin.fromClass(
           }
           : undefined;
       }
-      return { pag, writes };
+      return { pag, writes, aligns };
     }
   },
 );

@@ -761,6 +761,18 @@ Deno.test("a cover fills its page only with fill=page", () => {
   assertStringIncludes(css, ".fm-band.fm-cover--fill {\n  page: fmcover;");
   assertStringIncludes(css, ":has(+ .fm-cover--fill) { page: fmcover; }");
   assertStringIncludes(css, ".fm-band.fm-cover {\n  min-height: 544px;");
+  // The browser-print block is the .html download's: a paged document
+  // leaves it out (Paged.js would apply it during layout and Chrome again
+  // when printing the fixed pages).
+  assertStringIncludes(buildFastrReportCss("default"), "@media print {");
+  assert(!buildFastrReportCss("default", undefined, "", { omitPrintRules: true }).includes("@media print"));
+  // A natural cover hugs the top of its page, rising through the top
+  // margin (the page keeps its margins and footer, and the report continues
+  // below the cover on the same page).
+  assertStringIncludes(
+    css,
+    ".fm-band.fm-cover:not(.fm-cover--fill) {\n  margin-top: calc(-1 * var(--pagedjs-margin-top));",
+  );
 });
 
 Deno.test("a cover's layout is a class the sheet styles; classic is the bare cover", () => {
