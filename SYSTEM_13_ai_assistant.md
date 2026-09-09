@@ -3,6 +3,7 @@ system: 13
 name: AI Copilot & Usage Governance
 globs:
   - client/src/components/project_ai/**
+  - client/src/components/instance/ai_context_form.tsx
   - client/src/components/slide_deck/slide_ai/build_config_from_metric.ts
   - client/src/components/slide_deck/slide_ai/convert_ai_input_to_slide.ts
   - client/src/components/slide_deck/slide_ai/extract_blocks_from_layout.ts
@@ -20,8 +21,9 @@ globs:
   - server/db/instance/custom_prompts.ts
   - server/routes/anthropic_messages_proxy.ts
   - server/routes/instance/custom_prompts.ts
-  - server/routes/project/ai_files.ts
+  - server/routes/instance/ai_files.ts
   - server/routes/instance/ai_proxy.ts
+  - server/routes/instance/copilot_ai_proxy.ts
   - server/routes/project/ai_proxy.ts
   - server/routes/project/ai_tools.ts
   - server/tests/mcp_context_cache_test.ts

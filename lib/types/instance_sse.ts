@@ -44,6 +44,7 @@ export type InstanceState = {
   structureSchemaHfa: StructureSchema | null;
   adminAreaLabels: InstanceConfigAdminAreaLabels;
   dhis2ConnectionUrl: string | null;
+  aiContext: string;
 
   // Lists (sent as full arrays on change)
   projects: ProjectSummary[];
@@ -151,6 +152,10 @@ export type InstanceConfig = {
   structureSchemaHfa: StructureSchema | null;
   adminAreaLabels: InstanceConfigAdminAreaLabels;
   dhis2ConnectionUrl: string | null;
+  // The one instance-level copilot grounding blob (PLAN_PRODUCTS_RESTRUCTURE
+  // D15), edited on the settings page behind can_configure_settings. "" when
+  // unset; it replaced the per-project ai_context.
+  aiContext: string;
 };
 
 export type InstanceStructureSummary = {

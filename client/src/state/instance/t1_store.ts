@@ -39,6 +39,7 @@ const EMPTY_INSTANCE_STATE: InstanceState = {
   structureSchemaHfa: null,
   dhis2ConnectionUrl: null,
   adminAreaLabels: {},
+  aiContext: "",
   projects: [],
   projectsLastUpdated: "",
   products: [],
@@ -143,6 +144,7 @@ export function updateInstanceConfig(data: InstanceConfig): void {
   setInstanceState("structureSchemaHfa", reconcile(data.structureSchemaHfa));
   setInstanceState("adminAreaLabels", reconcile(data.adminAreaLabels));
   setInstanceState("dhis2ConnectionUrl", data.dhis2ConnectionUrl);
+  setInstanceState("aiContext", data.aiContext);
 }
 
 // The shared-surface depth: the deepest level either registry uses. Surfaces

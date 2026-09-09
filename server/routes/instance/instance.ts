@@ -5,6 +5,7 @@ import {
   getProjectsForUser,
   setStructureSchema,
   updateAdminAreaLabelsConfig,
+  updateAiContextConfig,
 } from "../../db/mod.ts";
 import { notifyInstanceConfigUpdatedFromDb } from "../../task_management/notify_instance_updated.ts";
 import {
@@ -94,6 +95,20 @@ defineRoute(
   log("updateAdminAreaLabelsConfig"),
   async (c, { body }) => {
     const res = await updateAdminAreaLabelsConfig(c.var.mainDb, body);
+    if (res.success) {
+      await notifyInstanceConfigUpdatedFromDb(c.var.mainDb);
+    }
+    return c.json(res);
+  },
+);
+
+defineRoute(
+  routesInstance,
+  "updateAiContextConfig",
+  requireGlobalPermission("can_configure_settings"),
+  log("updateAiContextConfig"),
+  async (c, { body }) => {
+    const res = await updateAiContextConfig(c.var.mainDb, body.aiContext);
     if (res.success) {
       await notifyInstanceConfigUpdatedFromDb(c.var.mainDb);
     }

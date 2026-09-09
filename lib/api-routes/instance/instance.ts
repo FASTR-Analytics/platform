@@ -39,6 +39,11 @@ export const instanceRouteRegistry = {
     method: "POST",
     body: instanceConfigAdminAreaLabelsSchema,
   }),
+  updateAiContextConfig: route({
+    path: "/update_ai_context_config",
+    method: "POST",
+    body: z.object({ aiContext: z.string().max(20000) }),
+  }),
   getDiskSpace: route({
     path: "/disk_space",
     method: "GET",

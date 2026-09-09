@@ -93,6 +93,7 @@ export async function buildInstanceStateWithoutProducts(
     structureSchemaHfa: res.data.structureSchemaHfa,
     adminAreaLabels: res.data.adminAreaLabels,
     dhis2ConnectionUrl: res.data.dhis2ConnectionUrl,
+    aiContext: res.data.aiContext,
     projects: res.data.projects,
     projectsLastUpdated: new Date().toISOString(),
     products: [],

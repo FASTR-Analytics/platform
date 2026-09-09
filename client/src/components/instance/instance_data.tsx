@@ -21,6 +21,7 @@ import {
   structureSchemaForFamily,
 } from "~/state/instance/t1_store";
 import { getAdminAreaLabel } from "~/state/instance/_util_disaggregation_label";
+import { AiContextForm } from "./ai_context_form";
 
 type Props = {};
 
@@ -63,6 +64,10 @@ export function InstanceData(p: Props) {
     instanceState.geojsonMaps
       .filter((g) => g.family === family)
       .map((g) => g.adminAreaLevel);
+
+  async function openAiContext() {
+    await openComponent({ element: AiContextForm, props: {} });
+  }
 
   async function openDhis2Credentials() {
     await openComponent({ element: Dhis2ManageConnection, props: {} });
@@ -234,6 +239,35 @@ export function InstanceData(p: Props) {
                                 </div>
                               )}
                             </For>
+                          </div>
+                        </Show>
+                      </div>
+                    </Card>
+                  </Show>
+                  <Show when={canConfigureSettings()}>
+                    <Card onClick={openAiContext}>
+                      <div class="ui-spy-sm">
+                        <div class="font-700 pb-2 text-sm">
+                          {t3({
+                            en: "AI context",
+                            fr: "Contexte IA",
+                            pt: "Contexto de IA",
+                          })}
+                        </div>
+                        <Show
+                          when={instanceState.aiContext.trim()}
+                          fallback={
+                            <div class="text-base-content-muted text-xs">
+                              {t3({
+                                en: "Not set",
+                                fr: "Non défini",
+                                pt: "Não definido",
+                              })}
+                            </div>
+                          }
+                        >
+                          <div class="text-success line-clamp-4 text-xs">
+                            {instanceState.aiContext}
                           </div>
                         </Show>
                       </div>

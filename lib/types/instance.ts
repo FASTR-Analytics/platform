@@ -102,6 +102,8 @@ export type InstanceDetail = {
   structureSchemaHmis: StructureSchema | null;
   structureSchemaHfa: StructureSchema | null;
   adminAreaLabels: InstanceConfigAdminAreaLabels;
+  // The instance-level copilot grounding text (D15); "" when unset.
+  aiContext: string;
   // The stored DHIS2 connection's URL, or null when none is configured. Rides
   // the instance payload (and the config SSE) rather than being fetched per
   // page view: the Data page shows it as at-a-glance state.

@@ -30,7 +30,11 @@ import {
 } from "./_main_database_types.ts";
 import { getAssetsForInstance } from "./assets.ts";
 import { getGeoJsonMapSummaries } from "./geojson_maps.ts";
-import { getAdminAreaLabelsConfig, getStructureSchema } from "./config.ts";
+import {
+  getAdminAreaLabelsConfig,
+  getAiContextConfig,
+  getStructureSchema,
+} from "./config.ts";
 import { getCurrentDatasetHmisMaxVersionId } from "./dataset_hmis.ts";
 import {
   countQueuedDatasetHmisImportRuns,
@@ -378,6 +382,12 @@ export async function getInstanceDetail(
     throwIfErrWithData(adminAreaLabelsRes);
     const adminAreaLabels = adminAreaLabelsRes.data;
 
+    // Absent = "", never an error (getAiContextConfig): a missing context
+    // must not fail the whole instance read.
+    const aiContextRes = await getAiContextConfig(mainDb);
+    throwIfErrWithData(aiContextRes);
+    const aiContext = aiContextRes.data;
+
     // Per-family counts + last-updated, shared with the SSE structure summary
     const structureSummary = await getInstanceStructureSummary(mainDb);
     const structure = structureSummary.structure;
@@ -444,6 +454,7 @@ const projectSummaries = await getProjectsForUser(mainDb, globalUser);
       structureSchemaHmis,
       structureSchemaHfa,
       adminAreaLabels,
+      aiContext,
       structure,
       structureLastUpdated: structureSummary.structureLastUpdated,
       hfaWeights: structureSummary.hfaWeights,

@@ -16,6 +16,7 @@ import type {
 } from "lib";
 import {
   getAdminAreaLabelsConfig,
+  getAiContextConfig,
   getStructureSchema,
 } from "../db/instance/config.ts";
 import { getStoredDhis2CredentialsInfo } from "../db/instance/instance_dhis2_credentials.ts";
@@ -37,12 +38,14 @@ export function notifyInstanceConfigUpdated(config: InstanceConfig) {
 // missing schema row (near-zero probability, guarded by the pre-deploy check)
 // broadcasts as null rather than suppressing the event.
 export async function notifyInstanceConfigUpdatedFromDb(mainDb: Sql) {
-  const [hmisRes, hfaRes, labelsRes, dhis2Info] = await Promise.all([
-    getStructureSchema(mainDb, "hmis"),
-    getStructureSchema(mainDb, "hfa"),
-    getAdminAreaLabelsConfig(mainDb),
-    getStoredDhis2CredentialsInfo(mainDb),
-  ]);
+  const [hmisRes, hfaRes, labelsRes, aiContextRes, dhis2Info] = await Promise
+    .all([
+      getStructureSchema(mainDb, "hmis"),
+      getStructureSchema(mainDb, "hfa"),
+      getAdminAreaLabelsConfig(mainDb),
+      getAiContextConfig(mainDb),
+      getStoredDhis2CredentialsInfo(mainDb),
+    ]);
   if (labelsRes.success === false) {
     return;
   }
@@ -52,6 +55,7 @@ export async function notifyInstanceConfigUpdatedFromDb(mainDb: Sql) {
     countryIso3: _INSTANCE_COUNTRY_ISO3,
     adminAreaLabels: labelsRes.data,
     dhis2ConnectionUrl: dhis2Info?.url ?? null,
+    aiContext: aiContextRes.success ? aiContextRes.data : "",
   };
   notifyInstanceConfigUpdated(config);
 }
