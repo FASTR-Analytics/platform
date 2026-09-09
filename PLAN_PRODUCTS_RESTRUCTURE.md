@@ -6,7 +6,7 @@ database, one realtime channel, one copilot. An Explore tab replaces the
 project Metrics tab and the standalone visualization library; this plan
 creates the tab, and its page, the results explorer, is a later plan.
 
-**Next step: Review 7b.** Each session sets this line in its final commit. Its
+**Next step: Do 8.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N`; after step 10's review passes the
 file is deleted instead of advanced.
 
@@ -2254,6 +2254,9 @@ this section before its step.
 | 2026-09-09 | 7b | Fix 7b, done by the reviewing agent at Tim's direction (deviation from §0's one-thing-per-session rule, as for Fix 1, Fix 2 and Fix 3). Both findings in one commit and nothing else. Finding 1: `SortControl` (`client/src/components/_shared/sort_control.tsx:32-45`) takes panther's `DataAttrs` and spreads `splitDataAttrs` onto its `Select`, so a tour anchor rides the component as PROTOCOL_UI_COMPONENTS rule 9 requires; the products header renders `<SortControl data-tour="products-sort" …>` and the duplicated option list is gone. First app use of the `DataAttrs` extension point. Finding 2: `server/tests/folder_tree_test.ts` gains a `childFolders` case over `CYCLE`, so all five primitives are exercised on the corrupted tree (38 tests). |
 | 2026-09-09 | 7b | Fix 7b gates: `deno task typecheck` (server, client, `lint:systems` clean), `deno task test` (38 passed), `./validate_protocols` (0 tier-1, 0 new tier-2, 17 baselined), boot on `PORT=8010` against the dev database (285 routes validated, dev-boot tests 38 passed, `/health_check` 200). Prettier over the two touched client files reformatted two unrelated blocks in `index.tsx`; both were reverted so the commit is the findings and nothing else. |
 | 2026-09-09 | 7b | Step 7b fixed. |
+| 2026-09-09 | 7b | Review of Fix 7b. One commit, 1c49b65d, read against the review's two findings. Both are in the code and nothing else is: `SortControl` (`client/src/components/_shared/sort_control.tsx:32-46`) takes `DataAttrs`, calls `splitDataAttrs` and spreads the result before `Select`'s own attributes, matching panther's spread-order rule, and `Select` already forwards `data-*` to its root div, so `data-tour="products-sort"` still reaches the DOM; the products header (`client/src/components/products/index.tsx:673-677`) renders `<SortControl>` with the bare `setProductsSortMode` and the duplicated option list is gone, leaving one sort vocabulary shared with `list_view.tsx`'s clickable Name and Last updated headers. `server/tests/folder_tree_test.ts:59-71` adds the `childFolders(CYCLE, ...)` case, so all five primitives now run over the corrupted tree. `SortControl` is an app component, so panther's rule 9 list of forwarding kit components needs no edit. |
+| 2026-09-09 | 7b | Review 7b gates run by the reviewer: `deno task typecheck` (server, client, `lint:systems` clean, every tracked file claimed once), `deno task test` (38 passed), `./validate_protocols` (0 tier-1, 0 new tier-2, 17 baselined, baseline file unchanged), boot on `PORT=8010` against the dev database (285 routes validated, 3 headless routes mounted, dev-boot tests 38 passed, `/health_check` 200). Nothing outside the step's Surface changed. |
+| 2026-09-09 | 7b | Step 7b reviewed: pass. |
 
 ---
 
