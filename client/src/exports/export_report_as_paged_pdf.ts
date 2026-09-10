@@ -27,7 +27,12 @@ export function fastrPagedFooter(title: string): FastrPagedFooter {
 // export forces those breaks when the body it fetched is that same body,
 // so the PDF breaks where the author's page boxes did. Unsaved edits or no
 // open editor: Paged.js decides by the same rules.
-export type ReportPageLayout = { body: string; pageStarts: number[] };
+export type ReportPageLayout = {
+  body: string;
+  pageStarts: number[];
+  figureFits: { line: number; height: number }[];
+  gapStretches: { line: number; marginTop: number }[];
+};
 const pageLayouts = new Map<string, () => ReportPageLayout | undefined>();
 
 export function registerReportPageLayout(
@@ -40,9 +45,9 @@ export function registerReportPageLayout(
   };
 }
 
-function pageStartsFor(detail: ReportDetail): number[] | undefined {
+function layoutFor(detail: ReportDetail): ReportPageLayout | undefined {
   const layout = pageLayouts.get(detail.id)?.();
-  return layout !== undefined && layout.body === detail.body ? layout.pageStarts : undefined;
+  return layout !== undefined && layout.body === detail.body ? layout : undefined;
 }
 
 export type ReportPdfBytes = {
@@ -62,7 +67,12 @@ export async function buildReportPdfFromDetail(
       detail,
       (v) => progress(v * 0.5),
       {
-        paged: { footer: fastrPagedFooter(detail.label), pageStarts: pageStartsFor(detail) },
+        paged: {
+          footer: fastrPagedFooter(detail.label),
+          pageStarts: layoutFor(detail)?.pageStarts,
+          figureFits: layoutFor(detail)?.figureFits,
+          gapStretches: layoutFor(detail)?.gapStretches,
+        },
         inlineFonts: true,
       },
     );

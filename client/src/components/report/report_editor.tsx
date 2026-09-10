@@ -57,6 +57,7 @@ import {
   setPagination as setPaginationEffect,
   setLayoutHints as setLayoutHintsEffect,
   refreshEmbedSizes as refreshEmbedSizesEffect,
+  stretchField,
   paginationField,
 } from "./live_preview_extension";
 import { fastrContainerFences } from "./fastr_fence_extension";
@@ -88,6 +89,14 @@ function centerTheme(centered: boolean, padRight: number) {
       : {},
   });
 }
+
+// The editor's page layout for print (export_report_as_paged_pdf.ts).
+export type ReportPageLayoutOut = {
+  body: string;
+  pageStarts: number[];
+  figureFits: { line: number; height: number }[];
+  gapStretches: { line: number; marginTop: number }[];
+};
 
 export type ReportEditorApi = {
   // Insert text as its own block at the current cursor — an embed token, or
@@ -171,7 +180,7 @@ export type ReportEditorApi = {
   refreshEmbedSizes: () => void;
   // The page starts the editor laid out, with the body they belong to, for
   // the PDF export to force; undefined without page boxes.
-  getPageLayout: () => { body: string; pageStarts: number[] } | undefined;
+  getPageLayout: () => ReportPageLayoutOut | undefined;
   // Fractional 0-based source line at the viewport top (for scroll sync), or
   // undefined if it can't be read (no view / zero height / off-screen).
   getTopLine: () => number | undefined;
@@ -909,10 +918,21 @@ export function ReportEditor(p: Props) {
     if (effects.length > 0) view.dispatch({ effects });
   }
 
-  function getPageLayout(): { body: string; pageStarts: number[] } | undefined {
+  function getPageLayout(): ReportPageLayoutOut | undefined {
     const pag = view?.state.field(paginationField, false)?.pagination;
     if (view === undefined || pag === undefined) return undefined;
-    return { body: view.state.doc.toString(), pageStarts: fastrPageStartLines(pag.result) };
+    const figureFits: { line: number; height: number }[] = [];
+    for (const [line, height] of pag.figureFits ?? []) figureFits.push({ line, height });
+    const gapStretches: { line: number; marginTop: number }[] = [];
+    for (const [line, marginTop] of view.state.field(stretchField, false)?.print ?? []) {
+      gapStretches.push({ line, marginTop });
+    }
+    return {
+      body: view.state.doc.toString(),
+      pageStarts: fastrPageStartLines(pag.result),
+      figureFits,
+      gapStretches,
+    };
   }
 
   // Fractional 0-based source line at the viewport top. Coordinate spaces must

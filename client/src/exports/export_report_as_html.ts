@@ -1,5 +1,7 @@
 import {
+  fastrFigureFitCss,
   fastrForcedBreaksCss,
+  fastrGapStretchCss,
   type APIResponseNoData,
   buildFastrPagedCss,
   buildFastrReportCss,
@@ -71,6 +73,12 @@ export type StandaloneReportOptions = {
     // the document out; forced on Paged.js so the PDF breaks where the
     // editor's page boxes did. Absent, Paged.js decides by the same rules.
     pageStarts?: readonly number[];
+    // The figures the editor shrank to fill their pages: each image's
+    // height, px (fastrFigureFitCss).
+    figureFits?: readonly { line: number; height: number }[];
+    // The gaps the editor stretched to set a page: the block after each
+    // and its whole top margin, px (fastrGapStretchCss).
+    gapStretches?: readonly { line: number; marginTop: number }[];
   };
   // Embed the theme's web fonts as data URLs (the server render has no
   // network; the editor's frame already has them and skips this).
@@ -261,7 +269,9 @@ function pagedDocumentParts(
   const setup = docSettings?.page ?? readFastrDocumentSettings("").page;
   return {
     headExtraCss: buildFastrPagedCss(setup, opts.paged.footer) +
-      fastrForcedBreaksCss(opts.paged.pageStarts ?? []),
+      fastrForcedBreaksCss(opts.paged.pageStarts ?? []) +
+      fastrFigureFitCss(opts.paged.figureFits ?? []) +
+      fastrGapStretchCss(opts.paged.gapStretches ?? []),
     bodyPrefixHtml: fastrPrintTitleHtml(detail.label),
     bodySuffixHtml: pagedScriptsHtml(),
   };

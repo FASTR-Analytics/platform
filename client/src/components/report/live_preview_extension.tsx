@@ -364,6 +364,7 @@ class RegionWidget extends WidgetType {
       mount.setAttribute("data-embed-kind", kind);
       const fig = this.resolver.getFigure(id);
       applyFigureSize(mount, fig ? this.resolver.figureSize?.(id, fig) : undefined);
+      applyFigureFit(mount, view.state.field(paginationField, false)?.pagination?.figureFits?.get(this.startLine));
       img.replaceWith(mount);
       disposers.push(render(
         () => (
@@ -569,6 +570,48 @@ function applyImageSize(
   return true;
 }
 
+// The height the page layout shrank a figure's image to, on its mount
+// (report_fastr_css.ts caps the box at --fm-fig-fit); none restores the
+// natural size.
+function applyFigureFit(mount: HTMLElement, fit: number | undefined): void {
+  if (fit === undefined) mount.style.removeProperty("--fm-fig-fit");
+  else mount.style.setProperty("--fm-fig-fit", `${fit}px`);
+}
+
+// The share of the page's content area a figure's image may take: the
+// stylesheet's cap (report_fastr_css.ts, .fm-figure img and the live mount).
+const FIGURE_PAGE_SHARE = 0.42;
+// How far a figure may shrink to fill the room left on its page: never
+// below this share of its natural size.
+const FIGURE_FLOOR = 0.6;
+
+// A figure block's image box at its natural size, px: the raster's aspect
+// (the host's size cache) at the figure's width, under the page cap, which
+// is what the mount takes before the chart draws (applyFigureSize); and
+// the height the layout last fitted it to when its rendered mount carries
+// one. Undefined while the size is unknown.
+function figureImageBox(
+  view: EditorView,
+  resolver: EmbedResolver,
+  text: string,
+  geometry: PageBoxGeometry,
+  columnW: number,
+  dom: HTMLElement | null,
+): { imgH: number; fitted: number | undefined } | undefined {
+  const m = /\(figure:([^)\s]+)\)/.exec(text);
+  if (m === null) return undefined;
+  const block = resolver.getFigure(m[1]);
+  const size = block ? resolver.figureSize?.(m[1], block) : undefined;
+  if (size === undefined || !(size.width > 0) || !(size.height > 0)) return undefined;
+  const full = /\{[^}]*\bwidth=full\b/.test(text);
+  const w = full ? (geometry.sheetPx ?? view.scrollDOM.clientWidth) : columnW;
+  const cap = FIGURE_PAGE_SHARE * (geometry.pageH - 2 * geometry.marginPx);
+  const imgH = Math.min(cap, w * size.height / size.width);
+  const mount = dom?.querySelector<HTMLElement>('[data-embed-kind="figure"][data-fm-sized]');
+  const fit = mount ? parseFloat(mount.style.getPropertyValue("--fm-fig-fit")) : NaN;
+  return { imgH, fitted: Number.isFinite(fit) ? Math.min(fit, imgH) : undefined };
+}
+
 // The host says an embed's size landed: every rendered embed still waiting
 // for its box takes it now.
 export const refreshEmbedSizes = StateEffect.define<null>();
@@ -588,7 +631,11 @@ function embedSizePlugin(resolver: EmbedResolver) {
         ) {
           const id = mount.getAttribute("data-embed-id") ?? "";
           const fig = resolver.getFigure(id);
-          if (fig && applyFigureSize(mount, resolver.figureSize?.(id, fig))) changed = true;
+          if (fig && applyFigureSize(mount, resolver.figureSize?.(id, fig))) {
+            changed = true;
+            const line = Number(mount.closest("[data-region-line]")?.getAttribute("data-region-line"));
+            applyFigureFit(mount, u.view.state.field(paginationField, false)?.pagination?.figureFits?.get(line));
+          }
         }
         for (
           const img of Array.from(
@@ -3208,6 +3255,11 @@ export type EditorPagination = {
   // (FastrLayoutBlock.topExtra), the seam's rather than the block's, written
   // by pageBoxPlugin like the fillers.
   topExtras?: Map<number, number>;
+  // Per figure's source line, the image height (px) the layout shrank it
+  // to so it fills the room left on its page (FastrLayoutBlock.flex):
+  // written by pageBoxPlugin as --fm-fig-fit on the mount, read back by a
+  // widget created later, and handed to print (getPageLayout).
+  figureFits?: Map<number, number>;
 };
 
 export const setPagination = StateEffect.define<EditorPagination | undefined>();
@@ -3472,9 +3524,20 @@ export const paginationField = StateField.define<PaginationState>({
     // and a provisional move rebuilds from current lines) until the
     // paginator answers again, rather than flashing away on every key.
     if (tr.docChanged && value.pagination !== undefined) {
+      const mapLine = lineMapper(tr);
+      const fits = value.pagination.figureFits;
+      let figureFits: Map<number, number> | undefined;
+      if (fits !== undefined) {
+        figureFits = new Map();
+        for (const [line, px] of fits) {
+          const to = mapLine(line);
+          if (to !== undefined) figureFits.set(to, px);
+        }
+      }
       return buildPaginationState(tr.state, {
         ...value.pagination,
         result: mapResultThroughChanges(value.pagination.result, tr),
+        figureFits,
       });
     }
     return value;
@@ -3482,18 +3545,24 @@ export const paginationField = StateField.define<PaginationState>({
   provide: (f) => EditorView.decorations.from(f, (v) => v.deco),
 });
 
-function mapResultThroughChanges(result: FastrPagedResult, tr: Transaction): FastrPagedResult {
+// A 0-based source line before a transaction to the line it is on after.
+function lineMapper(tr: Transaction): (line: number | undefined) => number | undefined {
   const before = tr.startState.doc;
   const after = tr.state.doc;
-  const mapLine = (line: number | undefined): number | undefined => {
+  return (line) => {
     if (line === undefined || line < 0 || line >= before.lines) return line;
     const pos = tr.changes.mapPos(before.line(line + 1).from, -1);
     return after.lineAt(pos).number - 1;
   };
+}
+
+function mapResultThroughChanges(result: FastrPagedResult, tr: Transaction): FastrPagedResult {
+  const mapLine = lineMapper(tr);
   return {
     ...result,
     pages: result.pages.map((p) => ({ ...p, firstLine: mapLine(p.firstLine) })),
     splits: result.splits.map((sp) => ({ ...sp, line: mapLine(sp.line) ?? sp.line })),
+    fits: (result.fits ?? []).map((f) => ({ ...f, line: mapLine(f.line) ?? f.line })),
   };
 }
 
@@ -3585,6 +3654,15 @@ type FlowBlock = FastrLayoutBlock & {
   // difference, so the box keeps the sheet's height while the layout keeps
   // the steady figure.
   domHeight?: number;
+  // A figure block's image height at its natural size, px (figureImageBox):
+  // what a fit is taken from.
+  imgH?: number;
+  // A region, a run of plain lines, or a line of space.
+  kind: "r" | "p" | "s";
+  // Print's margins above and below the block, px (the structure sheet's):
+  // what a stretched gap is written as for print.
+  printMt: number;
+  printMb: number;
 };
 
 // The document-space extent of a source line's OWN box: the text line, or
@@ -3720,6 +3798,20 @@ class HeightOracle {
     this.cache.set(key, mt);
     return mt;
   }
+  // Print's bottom margin of an element of this tag and class, px.
+  printMarginBottom(tag: string, cls = ""): number {
+    const key = `\u0006${tag}.${cls}`;
+    const hit = this.cache.get(key);
+    if (hit !== undefined) return hit;
+    const box = this.ensure();
+    if (box === undefined) return 0;
+    const el = document.createElement(tag);
+    if (cls.length > 0) el.className = cls;
+    box.replaceChildren(el);
+    const mb = parseFloat(getComputedStyle(el).marginBottom) || 0;
+    this.cache.set(key, mb);
+    return mb;
+  }
   // The padding above a line of this class as the editor draws it, after a
   // line of space or not (a heading's differs), px.
   linePaddingTop(cls: string, afterSpace: boolean): number {
@@ -3743,6 +3835,11 @@ class HeightOracle {
     const pt = parseFloat(getComputedStyle(el).paddingTop) || 0;
     this.cache.set(key, pt);
     return pt;
+  }
+  // The content column's width, px: what a block's line boxes wrap at.
+  columnWidth(): number {
+    this.ensure();
+    return Math.max(0, this.width);
   }
   // The measures belong to one geometry (keepMeasuredEpoch).
   reset() {
@@ -3859,6 +3956,8 @@ function flowBlocksOf(
   hints: ReadonlyMap<string, number>,
   area: number,
   oracle: HeightOracle,
+  geometry: PageBoxGeometry,
+  resolver: EmbedResolver,
 ): FlowBlock[] {
   const doc = view.state.doc;
   const db = docBlocksOf(view.state);
@@ -3902,10 +4001,15 @@ function flowBlocksOf(
       const text = textOf(r.startLine, r.endLine);
       let height = bottom - top;
       let domHeight: number | undefined;
+      let imgH: number | undefined;
       let inner: { line: number; top: number }[] | undefined;
       const isRendered = rendered(r.startLine, r.endLine);
       const key = blockKey("r", text);
       const { cls, tag } = regionClassOf(r);
+      const figureBox = (dom: HTMLElement | null) =>
+        r.kind === "embed"
+          ? figureImageBox(view, resolver, text, geometry, oracle.columnWidth(), dom)
+          : undefined;
       if (isRendered) {
         // The widget's box holds the seams inside it (a block continued
         // across pages): the block's own height is the rest.
@@ -3913,6 +4017,14 @@ function flowBlocksOf(
         if (dom !== null) {
           for (const seam of Array.from(dom.querySelectorAll<HTMLElement>(".fm-page-gutter"))) {
             height -= seam.getBoundingClientRect().height;
+          }
+          // A figure the layout fitted shows its image shrunk: the block's
+          // own height is the natural one, or the layout would find the
+          // room it made and give it back.
+          const fig = figureBox(dom);
+          if (fig !== undefined) {
+            imgH = fig.imgH;
+            if (fig.fitted !== undefined) height += fig.imgH - fig.fitted;
           }
           if (dom.querySelector("[data-fm-pending]") !== null) {
             // An embed whose box is not known yet (applyFigureSize): the
@@ -3940,6 +4052,7 @@ function flowBlocksOf(
         else if (hint !== undefined) {
           height = name === "pagebreak" ? height : hint + oracle.regionExtra(cls, tag);
         }
+        imgH = figureBox(null)?.imgH;
       }
       // The first block of the document and a cover have no top margin in
       // print either; a page break marker has no box.
@@ -3963,8 +4076,15 @@ function flowBlocksOf(
         cover: name === "cover" ? (attrs["fill"] === "page" ? "fill" : "natural") : undefined,
         inner,
         topExtra,
+        flex: imgH !== undefined ? imgH * (1 - FIGURE_FLOOR) : undefined,
+        // The separator line after it stays on the page when it shrinks.
+        tail: imgH !== undefined && r.endLine + 1 < doc.lines && blank(r.endLine + 1) ? separator : undefined,
         rendered: isRendered,
         domHeight,
+        imgH,
+        kind: "r",
+        printMt: oracle.regionMargins(cls, tag).mt,
+        printMb: oracle.regionMargins(cls, tag).mb,
       });
       prevBlank = false;
       i = r.endLine + 1;
@@ -3992,6 +4112,9 @@ function flowBlocksOf(
           breakBefore: false,
           breakAfter: false,
           rendered: isRendered,
+          kind: "s",
+          printMt: 0,
+          printMb: 0,
         });
       } else if (i >= start) {
         separated = true;
@@ -4056,11 +4179,125 @@ function flowBlocksOf(
       breakAfter: false,
       topExtra,
       rendered: isRendered,
+      kind: "p",
+      printMt: printTag === undefined ? 0 : oracle.printMarginTop(printTag, hm ? "fm-top" : ""),
+      printMb: oracle.printMarginBottom(printTag ?? "p", hm ? "fm-top" : ""),
     });
     prevBlank = false;
     i = j + 1;
   }
   return blocks;
+}
+
+// ── Gap stretch ─────────────────────────────────────────────────────────────
+// A page that ends because its next block did not fit shares the room left
+// at its foot among the gaps between its blocks (the blank separator
+// lines), each within a cap, so the page reads as set rather than cut
+// short; the seam's filler takes what the gaps do not. A stretch is a line
+// decoration on the separator (--fm-stretch, its padding-bottom in
+// report_fastr_css.ts). The layout never sees it (gaps come from the
+// source), and print gets the same gap as the next block's top margin
+// (fastrGapStretchCss, from `print`).
+type Stretches = {
+  // Separator line → px added under it.
+  lines: Map<number, number>;
+  // The block after a stretched gap → its whole top margin in print, px.
+  print: Map<number, number>;
+};
+export const setStretches = StateEffect.define<Stretches>();
+export const stretchField = StateField.define<Stretches & { deco: DecorationSet }>({
+  create: () => ({ lines: new Map(), print: new Map(), deco: Decoration.none }),
+  update(value, tr) {
+    for (const e of tr.effects) {
+      if (e.is(setStretches)) {
+        const ranges: Range<Decoration>[] = [];
+        for (const [line, px] of e.value.lines) {
+          if (line < 0 || line >= tr.state.doc.lines) continue;
+          ranges.push(
+            Decoration.line({ attributes: { style: `--fm-stretch: ${px}px` } })
+              .range(tr.state.doc.line(line + 1).from),
+          );
+        }
+        ranges.sort((a, b) => a.from - b.from);
+        return { ...e.value, deco: Decoration.set(ranges, true) };
+      }
+    }
+    if (tr.docChanged) {
+      const mapLine = lineMapper(tr);
+      const remap = (m: Map<number, number>) => {
+        const out = new Map<number, number>();
+        for (const [line, px] of m) {
+          const to = mapLine(line);
+          if (to !== undefined) out.set(to, px);
+        }
+        return out;
+      };
+      return { lines: remap(value.lines), print: remap(value.print), deco: value.deco.map(tr.changes) };
+    }
+    return value;
+  },
+  provide: (f) => EditorView.decorations.from(f, (v) => v.deco),
+});
+// A gap beside a heading, a figure or a block may grow this much; one
+// between two paragraphs this much; a leftover under the minimum is not
+// worth spreading.
+const STRETCH_CAP_PX = 40;
+const STRETCH_CAP_PROSE_PX = 12;
+const STRETCH_MIN_PX = 20;
+function sameStretches(a: Map<number, number>, b: Map<number, number>): boolean {
+  if (a.size !== b.size) return false;
+  for (const [k, v] of a) {
+    const w = b.get(k);
+    if (w === undefined || Math.abs(w - v) > 0.5) return false;
+  }
+  return true;
+}
+// The stretches for every page, and each page's total.
+function stretchesOf(
+  pages: readonly FastrPagedPage[],
+  pageBlocks: readonly (readonly FlowBlock[])[],
+  leftovers: readonly number[],
+): Stretches & { totals: Map<number, number> } {
+  const lines = new Map<number, number>();
+  const print = new Map<number, number>();
+  const totals = new Map<number, number>();
+  const prose = (fb: FlowBlock) => fb.kind === "p" && !fb.heading;
+  for (let i = 0; i + 1 < pages.length; i++) {
+    const list = pageBlocks[i];
+    const last = list[list.length - 1];
+    const nextFirst = pageBlocks[i + 1][0];
+    // A page cut inside a block, or ended by a break or a cover, keeps its
+    // foot: only the page whose next block did not fit is set.
+    if (last === undefined || nextFirst === undefined) continue;
+    if (pages[i + 1].firstLine !== nextFirst.line) continue;
+    if (last.pagebreak || last.breakAfter || last.cover === "fill") continue;
+    if (nextFirst.breakBefore || nextFirst.cover !== undefined) continue;
+    const leftover = leftovers[i];
+    if (leftover < STRETCH_MIN_PX) continue;
+    const gaps: { at: FlowBlock; prev: FlowBlock; cap: number }[] = [];
+    for (let k = 1; k < list.length; k++) {
+      const prev = list[k - 1];
+      const cur = list[k];
+      if (cur.gap <= 0 || prev.cover !== undefined) continue;
+      gaps.push({ at: cur, prev, cap: prose(prev) && prose(cur) ? STRETCH_CAP_PROSE_PX : STRETCH_CAP_PX });
+    }
+    if (gaps.length === 0) continue;
+    // The same share to every gap, each capped at its own: the smallest
+    // caps first, so what they cannot take goes to the others.
+    gaps.sort((a, b) => a.cap - b.cap);
+    let remaining = leftover;
+    let total = 0;
+    for (let g = 0; g < gaps.length; g++) {
+      const share = Math.round(Math.min(gaps[g].cap, remaining / (gaps.length - g)));
+      if (share <= 0) continue;
+      remaining -= share;
+      total += share;
+      lines.set(gaps[g].at.line - 1, share);
+      print.set(gaps[g].at.line, Math.round(Math.max(gaps[g].prev.printMb, gaps[g].at.printMt) + share));
+    }
+    if (total > 0) totals.set(pages[i].number, total);
+  }
+  return { lines, print, totals };
 }
 
 type BoxMeasure = {
@@ -4072,6 +4309,11 @@ type BoxMeasure = {
   // The padding under the head of the seam that opens each page: what the
   // page's first block grows by at the top of a page (its topExtra).
   extras: { el: HTMLElement | undefined; page: number; px: number }[];
+  // The figures to draw shrunk to their pages (--fm-fig-fit on the mount),
+  // or restored (undefined): the layout's fits against what stands.
+  fits: { el: HTMLElement | undefined; line: number; px: number | undefined }[];
+  // The gaps to stretch, when they differ from those standing.
+  stretch?: Stretches;
   // In-block seams to shift onto the sheet's edges (their stylesheet
   // centring assumes the block's content box is centred on the sheet; a
   // callout's left border alone puts it 2px off, and 2px past the sheet is
@@ -4096,7 +4338,8 @@ function samePages(a: FastrPagedResult, b: FastrPagedResult): boolean {
 }
 
 
-const pageBoxPlugin = ViewPlugin.fromClass(
+function pageBoxPlugin(resolver: EmbedResolver) {
+  return ViewPlugin.fromClass(
   class {
     // A layout found but not yet dispatched: the next pass would find it
     // again from the same heights.
@@ -4150,9 +4393,20 @@ const pageBoxPlugin = ViewPlugin.fromClass(
             a.el.style.marginLeft = `${a.marginLeft}px`;
             a.el.style.width = `${a.width}px`;
           }
-          if (m.writes.length === 0 && m.aligns.length === 0 && m.extras.length === 0) return;
+          if (m.stretch !== undefined) {
+            const { pag, stretch } = m;
+            setTimeout(() => {
+              if (view.state.field(paginationField, false)?.pagination !== pag) return;
+              view.dispatch({ effects: setStretches.of(stretch) });
+            }, 0);
+          }
+          if (
+            m.writes.length === 0 && m.aligns.length === 0 && m.extras.length === 0 &&
+            m.fits.length === 0
+          ) return;
           m.pag.fillers ??= new Map();
           m.pag.topExtras ??= new Map();
+          m.pag.figureFits ??= new Map();
           for (const w of m.writes) {
             if (w.el !== undefined) w.el.style.paddingTop = `${w.px}px`;
             m.pag.fillers.set(w.page, w.px);
@@ -4160,6 +4414,11 @@ const pageBoxPlugin = ViewPlugin.fromClass(
           for (const x of m.extras) {
             if (x.el !== undefined) x.el.style.paddingBottom = `${x.px}px`;
             m.pag.topExtras.set(x.page, x.px);
+          }
+          for (const f of m.fits) {
+            if (f.el !== undefined) applyFigureFit(f.el, f.px);
+            if (f.px === undefined) m.pag.figureFits.delete(f.line);
+            else m.pag.figureFits.set(f.line, f.px);
           }
           view.requestMeasure();
         },
@@ -4180,10 +4439,10 @@ const pageBoxPlugin = ViewPlugin.fromClass(
       const area = geometry.pageH - 2 * geometry.marginPx - LAYOUT_SAFETY_PX;
       if (keepMeasuredEpoch(view)) this.oracle.reset();
       // The layout, from the heights as they stand.
-      const blocks = flowBlocksOf(view, hints, area, this.oracle);
+      const blocks = flowBlocksOf(view, hints, area, this.oracle, geometry, resolver);
       const laid = layoutFastrPages(blocks, layoutGeometry);
       if (!this.pendingMove && !samePages(laid, pag.result)) {
-        return { pag, move: laid, writes: [], aligns: [], extras: [] };
+        return { pag, move: laid, writes: [], aligns: [], extras: [], fits: [] };
       }
       const writes: BoxMeasure["writes"] = [];
       const aligns: BoxMeasure["aligns"] = [];
@@ -4217,37 +4476,49 @@ const pageBoxPlugin = ViewPlugin.fromClass(
       const doc = view.state.doc;
       const separator = this.oracle.lines([{ cls: "cm-fm-blank", text: "" }]) ?? 16;
       const pages = laid.pages;
-      let b = 0;
-      for (let i = 0; i < pages.length; i++) {
-        const page = pages[i];
-        const to = pages[i + 1]?.firstLine ?? doc.lines;
-        // The last block that starts on this page, and what the page's
-        // widgets show beyond the heights the layout stacked (an embed
-        // pending its size): the filler takes it up.
-        let last: FlowBlock | undefined;
-        let shown = 0;
-        while (b < blocks.length && blocks[b].line < to) {
-          last = blocks[b];
-          if (last.domHeight !== undefined) shown += last.domHeight - last.height;
-          b++;
+      // The blocks that START on each page, in order (a block continued from
+      // the page before is that page's).
+      const pageBlocks: FlowBlock[][] = pages.map(() => []);
+      {
+        let b = 0;
+        for (let i = 0; i < pages.length; i++) {
+          const to = pages[i + 1]?.firstLine ?? doc.lines;
+          while (b < blocks.length && blocks[b].line < to) pageBlocks[i].push(blocks[b++]);
         }
-        let extent = page.contentHeight + shown;
+      }
+      // What each page has left under its content: beyond the heights the
+      // layout stacked, what the page's widgets show (an embed pending its
+      // size) and the separator line trailing the page's last block stay on
+      // the page before the seam.
+      const leftovers = pages.map((page, i) => {
+        const list = pageBlocks[i];
+        const last = list[list.length - 1];
+        const to = pages[i + 1]?.firstLine ?? doc.lines;
+        let extent = page.contentHeight;
+        for (const fb of list) if (fb.domHeight !== undefined) extent += fb.domHeight - fb.height;
         if (last !== undefined && last.endLine < to) {
-          // The block completed on this page; a blank line after it is the
-          // separator, which stays on this page before the seam.
           const after = last.endLine + 1;
           if (after < doc.lines && after < to && doc.line(after + 1).text.trim().length === 0) {
             extent += separator;
           }
         }
-        if (last !== undefined && last.endLine >= to) b--;
-        const filler = Math.max(0, Math.round(fastrPageArea(layoutGeometry, page) - extent));
+        return fastrPageArea(layoutGeometry, page) - extent;
+      });
+      const stretch = stretchesOf(pages, pageBlocks, leftovers);
+      // The filler pads what the stretched gaps leave.
+      for (let i = 0; i < pages.length; i++) {
+        const page = pages[i];
+        const filler = Math.max(0, Math.round(leftovers[i] - (stretch.totals.get(page.number) ?? 0)));
         const el = seamEls.get(page.number + 1);
         const current = el !== undefined
           ? parseFloat(el.style.paddingTop) || 0
           : pag.fillers?.get(page.number) ?? -1;
         if (Math.abs(filler - current) > 1) writes.push({ el, page: page.number, px: filler });
       }
+      const standing = view.state.field(stretchField, false);
+      const stretchOut = standing !== undefined && !sameStretches(standing.lines, stretch.lines)
+        ? { lines: stretch.lines, print: stretch.print }
+        : undefined;
       // The seam that opens each page carries the page's first block's
       // extra under its head (a page a continuation opens has none).
       const extras: BoxMeasure["extras"] = [];
@@ -4262,10 +4533,30 @@ const pageBoxPlugin = ViewPlugin.fromClass(
           : pag.topExtras?.get(page.number) ?? 0;
         if (Math.abs(px - current) > 0.5) extras.push({ el, page: page.number, px });
       }
-      return { pag, writes, aligns, extras };
+      // The figures the layout shrank to their pages, against what their
+      // mounts show (or the map, for one not rendered).
+      const fits: BoxMeasure["fits"] = [];
+      const shrinkByLine = new Map<number, number>();
+      for (const f of laid.fits ?? []) shrinkByLine.set(f.line, f.shrink);
+      for (const fb of blocks) {
+        if (fb.imgH === undefined) continue;
+        const shrink = shrinkByLine.get(fb.line);
+        const px = shrink !== undefined ? Math.round(fb.imgH - shrink) : undefined;
+        const mount = view.contentDOM.querySelector<HTMLElement>(
+          `[data-region-line="${fb.line}"] [data-embed-kind="figure"][data-fm-sized]`,
+        );
+        const shown = mount !== null
+          ? parseFloat(mount.style.getPropertyValue("--fm-fig-fit"))
+          : pag.figureFits?.get(fb.line);
+        const cur = shown !== undefined && Number.isFinite(shown) ? shown : undefined;
+        const same = px === cur || (px !== undefined && cur !== undefined && Math.abs(px - cur) <= 0.5);
+        if (!same) fits.push({ el: mount ?? undefined, line: fb.line, px });
+      }
+      return { pag, writes, aligns, extras, fits, stretch: stretchOut };
     }
   },
-);
+  );
+}
 
 const paginationPlugin = ViewPlugin.fromClass(
   class {
@@ -4303,8 +4594,9 @@ export function livePreviewExtensions(
     embedSizePlugin(resolver),
     paginationField,
     layoutHintsField,
+    stretchField,
     paginationPlugin,
-    pageBoxPlugin,
+    pageBoxPlugin(resolver),
     ...(collab ? [regionPresencePlugin(collab), presenceFacet.of(collab)] : []),
   ];
 }

@@ -242,7 +242,11 @@ ${d}h1, ${d}h2, ${d}h3, ${d}h4, ${d}h5, ${d}h6 {
   line-height: 1.2;
   margin: 1.8em 0 0.6em;
 }
-${d}h1 { font-size: 2.15em; margin-top: 0; }
+/* An h1 is a SECTION (the cover carries the title): the same space above
+   it as any heading. The document's first block has none (below, and the
+   paged sheet's title rule); a cover's title sits where its layout puts it. */
+${d}h1 { font-size: 2.15em; }
+${d}body > :first-child { margin-top: 0; }
 ${d}h2 { font-size: 1.55em; }
 ${d}h3 { font-size: 1.2em; }
 ${d}h4, ${d}h5, ${d}h6 { font-size: 1em; }
@@ -312,10 +316,13 @@ ${d}.fm-figure .report-embed-pending { max-height: calc(var(--fm-page-area, 100v
    the raster's aspect (--fm-fig-w/h) under the same cap, narrowed and
    centred exactly as the img above, sized before the chart draws; the
    canvas inside is cut to the box (it lays out to the same aspect, give or
-   take a pixel of rounding). */
+   take a pixel of rounding). A figure the page layout shrank to the room
+   left on its page carries that height as --fm-fig-fit (the pageBoxPlugin
+   writes it; print gets the same number, fastrFigureFitCss). */
 ${d}.fm-figure [data-embed-kind="figure"][data-fm-sized] {
+  --fm-fig-cap: min(var(--fm-fig-fit, 100000px), calc(var(--fm-page-area, 100vh) * 0.42));
   aspect-ratio: var(--fm-fig-w) / var(--fm-fig-h);
-  width: min(100%, calc(var(--fm-page-area, 100vh) * 0.42 * var(--fm-fig-w) / var(--fm-fig-h)));
+  width: min(100%, calc(var(--fm-fig-cap) * var(--fm-fig-w) / var(--fm-fig-h)));
   margin-inline: auto;
   overflow: hidden;
 }
@@ -587,7 +594,7 @@ ${d}.fm-cover {
 }
 /* fill=page: a title page of its own; the report continues on the next. */
 ${d}.fm-cover.fm-cover--fill { break-after: page; }
-${d}.fm-cover h1 { font-size: 3em; }
+${d}.fm-cover h1 { font-size: 3em; margin-top: 0; }
 /* Masthead lines: the kicker sits above the title, the dek below a rule. */
 ${d}.fm-kicker {
   font-family: var(--fm-font-heading);
@@ -1190,8 +1197,11 @@ ${d}.cm-fm-quote-line { font-style: italic; font-size: 1.1em; }
    in for the 1em paragraph margin (a full text line would run ~60% taller),
    headings carry their margins as PADDING (line decorations may never carry
    margins), and list lines take the ul indent. */
-${d}.cm-fm-blank { font-size: 0.65em; }
+${d}.cm-fm-blank { font-size: 0.65em; padding-bottom: var(--fm-stretch, 0px); }
 ${d}.cm-content { --fm-separator: calc(0.65 * 1lh); }
+/* --fm-stretch: the page layout's share of a page's leftover for this
+   separator (live_preview_extension stretchField), so a page that ends
+   because its next block moved reads as set rather than cut short. */
 /* Further blank lines in a run are lines of space in the document (the
    renderer's .fm-space, one line tall), so they keep their full height. */
 ${d}.cm-fm-space { font-size: 1em; }
@@ -1291,7 +1301,7 @@ ${d}.fm-live-region, ${d}.cm-fm-chrome { white-space: normal; }
    em) less the blank source line on each side of a heading (16px, the
    paragraph separator), so the editor's heading stands where print's does
    and the page flow measures the same page. */
-${d}.cm-fm-h1 { padding-top: 0; padding-bottom: 0.13em; }
+${d}.cm-fm-h1 { padding-top: 1.33em; padding-bottom: 0.13em; }
 /* Most themes rule an h2 with a 0.25em padding under it; the editor line
    cannot take a theme's own heading rules, so that one is mirrored here. */
 ${d}.cm-fm-h2 { padding-top: 1.15em; padding-bottom: 0.25em; }
@@ -1301,11 +1311,11 @@ ${d}.cm-fm-h4, ${d}.cm-fm-h5, ${d}.cm-fm-h6 { padding-top: 0.8em; padding-bottom
    with a page seam widget between the space and the heading all the same:
    a seam changes no line's box (the page layout depends on it, see the
    widget rule). */
-${d}.cm-fm-space + .cm-fm-h2, ${d}.cm-fm-space + .cm-fm-h3, ${d}.cm-fm-space + .cm-fm-h4,
-${d}.cm-fm-space + .cm-fm-h5, ${d}.cm-fm-space + .cm-fm-h6,
-${d}.cm-fm-space + .cm-fm-page-gutter + .cm-fm-h2, ${d}.cm-fm-space + .cm-fm-page-gutter + .cm-fm-h3,
-${d}.cm-fm-space + .cm-fm-page-gutter + .cm-fm-h4, ${d}.cm-fm-space + .cm-fm-page-gutter + .cm-fm-h5,
-${d}.cm-fm-space + .cm-fm-page-gutter + .cm-fm-h6 { padding-top: 1.8em; }
+${d}.cm-fm-space + .cm-fm-h1, ${d}.cm-fm-space + .cm-fm-h2, ${d}.cm-fm-space + .cm-fm-h3,
+${d}.cm-fm-space + .cm-fm-h4, ${d}.cm-fm-space + .cm-fm-h5, ${d}.cm-fm-space + .cm-fm-h6,
+${d}.cm-fm-space + .cm-fm-page-gutter + .cm-fm-h1, ${d}.cm-fm-space + .cm-fm-page-gutter + .cm-fm-h2,
+${d}.cm-fm-space + .cm-fm-page-gutter + .cm-fm-h3, ${d}.cm-fm-space + .cm-fm-page-gutter + .cm-fm-h4,
+${d}.cm-fm-space + .cm-fm-page-gutter + .cm-fm-h5, ${d}.cm-fm-space + .cm-fm-page-gutter + .cm-fm-h6 { padding-top: 1.8em; }
 ${d}.cm-fm-h1:has(+ .cm-fm-space), ${d}.cm-fm-h3:has(+ .cm-fm-space),
 ${d}.cm-fm-h4:has(+ .cm-fm-space), ${d}.cm-fm-h5:has(+ .cm-fm-space), ${d}.cm-fm-h6:has(+ .cm-fm-space) { padding-bottom: 0.6em; }
 ${d}.cm-fm-h2:has(+ .cm-fm-space) { padding-bottom: 0.85em; }
