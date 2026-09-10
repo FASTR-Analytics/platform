@@ -87,18 +87,17 @@ export type DatasetCsvStagingResult = {
 // health (5xx/timeout): a later re-run may succeed.
 export type Dhis2FetchErrorKind = "permanent" | "transient";
 
-// Per-(indicator, period) fetch instrumentation. The production counterpart
-// of the Phase 0 lab timing evidence, so future slowness reports arrive with
-// their own data (PLAN_DHIS2_IMPORTER A1). Lives in the run's run_stats blob.
-// One entry per pair that REACHED a fetch route: unknown-id pairs (rule 4)
-// never fetch and appear only in classification.unknownIds + the ledger.
-// For the "dvs" route one pull covers many pairs: each covered pair carries
-// the covering pull's request count and wall time (duplicated, not divided).
+// Per-(indicator, period) fetch instrumentation, so slowness reports arrive
+// with their own data. Lives in the run's run_stats blob. One entry per pair
+// that reached a fetch: ids the dispatcher refused (classification.unknownIds
+// and dhis2IndicatorIds) never fetch and appear only there and in the ledger.
+// One dataValueSets pull covers every pair sharing its base element and
+// month: each covered pair carries the covering pull's request count and
+// wall time (duplicated, not divided).
 export type Dhis2PairFetchStat = {
   indicatorRawId: string;
   periodId: number;
   success: boolean;
-  route: "analytics" | "dvs";
   requests: number;
   retries: number;
   // Wall time including retry sleeps (retries are capped at 3, so bounded):
@@ -107,6 +106,10 @@ export type Dhis2PairFetchStat = {
   totalFetchMs: number;
   maxRequestMs: number;
   rowsFetched: number;
+  // Facility values skipped as not non-negative integers (the ledger row
+  // carries the sample). Absent on run rows written before 2026-09-10;
+  // migration 086 backfills 0.
+  skippedValues?: number;
   errorKind?: Dhis2FetchErrorKind;
   error?: string;
 };
@@ -157,6 +160,8 @@ export type DatasetStagingResult =
 // Import Ledger Types
 // ============================================================================
 
+export type DatasetHmisLedgerSkippedValue = { facilityId: string; value: string };
+
 // One row per (raw indicator, month): the latest import state of that pair
 // (PLAN_DHIS2_IMPORTER WS-B). status 'error' keeps the last data-bearing
 // counts untouched: the error describes the most recent failed attempt.
@@ -165,6 +170,12 @@ export type DatasetHmisImportLedgerItem = {
   periodId: number;
   nRecords: number;
   sumCount: number;
+  // DHIS2 facility values left out of the pair at its last import because
+  // they were not non-negative integers, with a sample of at most
+  // SKIPPED_VALUES_SAMPLE_CAP (facility, value). CSV pairs record none: a
+  // bad CSV count is dropped and counted at staging.
+  skippedValues: number;
+  skippedValuesSample: DatasetHmisLedgerSkippedValue[];
   source: "dhis2" | "csv" | "backfill";
   status: "ready" | "error";
   // Prefixed with the failure classification: "[permanent] …" (config error,
@@ -191,11 +202,6 @@ export type Dhis2RunSelection =
     }
   | { kind: "pairs"; pairs: Dhis2RunPair[] };
 
-// Dispatcher route per raw indicator (PLAN_DHIS2_IMPORTER §4.4): "dvs" =
-// dataValueSets (bare data elements and operands), "analytics" = the
-// analytics engine (computed DHIS2 indicators).
-export type Dhis2RunRoute = "dvs" | "analytics";
-
 // "queued" = waiting behind the running run; the ~60 s scheduler tick drains
 // queued rows FIFO once the import slot is free (PLAN_DHIS2_IMPORTER Phase 4,
 // C6: queue, not concurrent execution). "needs_review" = a CSV stage dropped
@@ -218,7 +224,6 @@ export type DatasetHmisImportRunProgress =
       activePairs: Array<{
         indicatorRawId: string;
         periodId: number;
-        route: Dhis2RunRoute;
       }>;
     }
   | {
@@ -279,12 +284,14 @@ export type DatasetHmisImportRunStats = {
   classification: {
     dvsBareElements: number;
     dvsOperands: number;
-    computedIndicators: number;
-    // Raw indicator ids that exist in no DHIS2 metadata endpoint: recorded
-    // as permanent ledger errors without any fetch (dispatcher rule 4).
+    // Raw indicator ids that are no data element or operand in DHIS2:
+    // permanent ledger errors without any fetch.
     unknownIds: string[];
-    // Removed 2026-07-15 (period= selection cannot return other periods):
-    // older stored run_stats blobs may carry a nonMonthlyElements key.
+    // Raw indicator ids that are DHIS2 indicators (formulas): permanent
+    // ledger errors naming the decomposition importer, no fetch, existing
+    // data kept. Absent on run rows written before 2026-09-10; migration
+    // 086 backfills [] and strips the keys the analytics route left behind.
+    dhis2IndicatorIds?: string[];
   };
   pairFetchStats: Dhis2PairFetchStat[];
   // Removed 2026-07-24: older stored run_stats blobs may carry a `shadow`

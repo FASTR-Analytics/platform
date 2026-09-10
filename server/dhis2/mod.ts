@@ -1,37 +1,16 @@
-/**
- * DHIS2 API Integration Module
- * 
- * This module provides functions for interacting with DHIS2 instances
- * organized by three main goals:
- * 
- * GOAL 1: Organization Units (Health Facilities)
- * - Fetch facility lists and hierarchy
- * - Import into internal structure
- * 
- * GOAL 2: Indicators and Data Elements  
- * - Discover available indicators
- * - Map to internal indicators
- * 
- * GOAL 3: Analytics Data
- * - Query data for facilities, indicators, and time periods
- * - Batch processing for large datasets
- */
+// DHIS2 API integration, grouped by goal. Each goal folder has its own
+// barrel; this file re-exports them all.
+//
+// Common: the base fetcher (auth, timeout, retry) and connection validation.
+// Goal 1: organisation units (facility hierarchy) for the structure import.
+// Goal 2: indicator and data-element discovery for the dictionary.
+// Goal 4: org-unit boundaries (GeoJSON) for maps.
+// Goal 5: dataValueSets (the values facilities reported, the HMIS import's
+//         only fetch route) plus the metadata id-existence helpers the import
+//         dispatcher classifies with.
 
-// Common utilities
 export * from "./common/mod.ts";
-
-// GOAL 1: Organization Units
 export * from "./goal1_org_units_v2/mod.ts";
-
-// GOAL 2: Indicators (placeholder - to be implemented)
 export * from "./goal2_indicators/mod.ts";
-
-// GOAL 3: Analytics Data
-export * from "./goal3_analytics/mod.ts";
-
-// GOAL 4: GeoJSON (org unit boundaries for maps)
 export * from "./goal4_geojson/mod.ts";
-
-// GOAL 5: Data Value Sets (raw stored values: the HMIS import dispatcher's
-// primary route) + metadata classification helpers
 export * from "./goal5_data_value_sets/mod.ts";

@@ -10,9 +10,9 @@ docs_absorbed:
 # S7: DHIS2 Connector
 
 The self-contained typed HTTP adapter for external DHIS2 instances: one
-base fetcher owning auth/timeout/retry, five `goalN_` endpoint groups
-(org units, indicators, analytics, geojson, data value sets + metadata
-id-existence for the S6 import dispatcher), two-phase connection
+base fetcher owning auth/timeout/retry, four `goalN_` endpoint groups
+(org units, indicators, geojson, data value sets + metadata id-existence
+for the S6 import dispatcher), two-phase connection
 validation with a never-throw user boundary, and the client credentials
 UX. No DB access anywhere in the system. It fetches and shapes; callers
 persist. Reviewed against code (first review cycle,
@@ -20,9 +20,9 @@ review-only; absorbs DOC_DHIS2_INTEGRATION).
 
 Boundaries: what happens to fetched data is the consumer's system:
 structure/facility staging and geojson storage are **S5**, HMIS dataset
-staging is **S6**. Period (`YYYYMM`) formatting for analytics is **S9**
-(Period semantics). The in-memory geojson session cache here is the
-sanctioned process-local alternative to Valkey. See
+staging is **S6**. Period (`YYYYMM`) semantics are **S9**. The in-memory
+geojson session cache here is the sanctioned process-local alternative to
+Valkey. See
 [SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md) for when to use which. The
 instance-wide stored DHIS2 credentials (encrypted at rest, one row for
 every DHIS2 flow: structure, indicators, geojson, HMIS data) live in
@@ -78,10 +78,11 @@ items). On exhaustion, `withRetry` throws a **new plain `Error`**
 (`"Failed after N attempts. Last error: …"`). The structured
 `status`/`responseBody` fields do not survive to the caller.
 
-Callers can tune per call: the S6 HMIS analytics worker passes
-`maxAttempts: 10, maxDelayMs: 60000`; the heavy geojson fetch passes
-`maxAttempts: 1` because retrying a ~20 MB download re-pays the whole
-transfer per attempt.
+Callers can tune per call: the S6 HMIS import worker passes
+`maxAttempts: 3` and excludes size-cap and timeout errors from retry
+(it splits the pull by org-unit subtree instead); the heavy geojson fetch
+passes `maxAttempts: 1` because retrying a ~20 MB download re-pays the
+whole transfer per attempt.
 
 ## The `goalN_` convention
 
@@ -93,8 +94,8 @@ Endpoints are grouped by goal, each folder with a `mod.ts` barrel;
 | `common/` | fetcher + retry + validation | `fetchFromDHIS2`, `getDHIS2`, `withRetry`, `validateDhis2Connection` |
 | `goal1_org_units_v2/` | org-unit hierarchy metadata | `getOrgUnitMetadata` (levels + counts + roots, parallel), `testDHIS2Connection` |
 | `goal2_indicators/` | indicator / data-element discovery | `get/search{Indicators,DataElements}FromDHIS2`, `searchAllIndicatorsAndDataElements`, `testIndicatorsConnection` |
-| `goal3_analytics/` | analytics values | `getAnalyticsFromDHIS2` |
 | `goal4_geojson/` | boundary import for maps | `fetchOrgUnitsMetadataForLevel`, `fetchGeometryCountForLevel`, `fetchOrgUnitsGeoJsonForLevel`, session caches |
+| `goal5_data_value_sets/` | reported values + metadata id-existence | `getDataValueSetsFromDHIS2`, `getExistingMetadataIds`, `getOrgUnitIdsAtLevel` |
 
 (`goal1`'s `_v2` suffix is vestigial: no v1 survives.)
 
@@ -105,13 +106,16 @@ name/code/id. `searchAllIndicatorsAndDataElements` splits the query on
 comma/semicolon/newline, searches every term in parallel across both
 endpoints, and merges deduped by id.
 
-**Analytics.** `getAnalyticsFromDHIS2` requires at least one dx item
-(dataElements + indicators combined), one orgUnit, and one period. It
-throws otherwise. Dimension order is fixed `dx`, `pe`, `ou` for
-compatibility; passthrough params cover `aggregationType`, `skipMeta`,
-`skipData`, hierarchy flags, `displayProperty`, `outputIdScheme`. DHIS2
-URL limits force callers to batch large `ou` lists (S6 batches 100
-facilities per request with a 2048-char guard).
+**Data value sets.** `getDataValueSetsFromDHIS2` pulls one data element
+for one `period=` token (passed through untranslated: the DHIS2 server
+reads it in its own calendar) under the given org units with
+`children=true`, so one root pull covers a country and a level-2 pull
+covers one subtree. A body with no `dataValues` key is a legitimate empty
+month. `getExistingMetadataIds` answers which of a list of ids exist on
+`dataElements`, `indicators` or `categoryOptionCombos` (chunked `id:in`
+filters, 100 per request); `getOrgUnitIdsAtLevel` lists the ids at one
+hierarchy level. There is no analytics fetcher: the importer never asks
+DHIS2 to evaluate a formula.
 
 **Geojson: metadata-vs-heavy split.** Analyze-side,
 `fetchOrgUnitsMetadataForLevel` pulls geometry-less org-unit metadata
@@ -214,10 +218,9 @@ carry en/fr/pt.
 - **S6 HMIS dataset import**: `launchDatasetHmisDhis2Run` validates the
   connection, then the import run worker's dispatcher uses goal 5
   (`getDataValueSetsFromDHIS2`, `getExistingMetadataIds`,
-  `getOrgUnitIdsAtLevel`) for classification + country pulls and goal 3
-  (`getAnalyticsFromDHIS2`, maxAttempts 3) for computed indicators. The
-  worker's semantics (dispatcher routing, per-pair integration,
-  URL-length guard, missing-`rows` handling) are S6's documentation.
+  `getOrgUnitIdsAtLevel`) for classification + country pulls. The
+  worker's semantics (dispatcher classification, per-pair integration,
+  skip-and-record, the subtree split) are S6's documentation.
 
 ## Traps
 

@@ -442,11 +442,16 @@ CREATE INDEX idx_dataset_hmis_period_id ON dataset_hmis(period_id);
 -- Import ledger: latest import state per (raw indicator, month). Written
 -- inside every integration and deletion transaction, so it can never disagree
 -- with dataset_hmis (see server/db/instance/dataset_hmis_import_ledger.ts).
+-- skipped_values counts the DHIS2 facility values left out of the pair at its
+-- last import as not non-negative integers; skipped_values_sample is a JSON
+-- array of at most 10 { facilityId, value }.
 CREATE TABLE dataset_hmis_import_ledger (
   indicator_raw_id text NOT NULL REFERENCES indicators_raw(indicator_raw_id) ON DELETE CASCADE,
   period_id integer NOT NULL,
   n_records integer NOT NULL,
   sum_count bigint NOT NULL,
+  skipped_values integer NOT NULL DEFAULT 0,
+  skipped_values_sample text NOT NULL DEFAULT '[]',
   source text NOT NULL CHECK (source IN ('dhis2', 'csv', 'backfill')),
   status text NOT NULL CHECK (status IN ('ready', 'error')),
   error text,

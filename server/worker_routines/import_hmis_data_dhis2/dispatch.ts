@@ -2,20 +2,26 @@
 // worker.ts so it can be imported (and verified) outside a worker context:
 // worker.ts touches worker globals at module scope.
 
-import type { Dhis2Credentials, Dhis2FetchErrorKind } from "lib";
-import { buildUrl, type DHIS2FetchError } from "../../dhis2/common/mod.ts";
+import type { DatasetHmisLedgerSkippedValue, Dhis2FetchErrorKind } from "lib";
+import type { DHIS2FetchError } from "../../dhis2/common/mod.ts";
 import type { FetchOptions } from "../../dhis2/common/base_fetcher.ts";
-import { getExistingMetadataIds } from "../../dhis2/goal5_data_value_sets/mod.ts";
+import {
+  type DHIS2DataValue,
+  getExistingMetadataIds,
+} from "../../dhis2/goal5_data_value_sets/mod.ts";
 
 const UID_RE = /^[a-zA-Z][a-zA-Z0-9]{10}$/;
 const OPERAND_RE = /^([a-zA-Z][a-zA-Z0-9]{10})\.([a-zA-Z][a-zA-Z0-9]{10})$/;
 
-// Dispatcher classification per raw indicator (PLAN_DHIS2_IMPORTER §4.4
-// rules 1-4).
+// Dispatcher classification per raw indicator. "dvs" is a data element or
+// operand, fetched from dataValueSets: the values facilities reported, the
+// importer's only route. "unknown" gets no fetch and a permanent ledger
+// error: a DHIS2 indicator is a formula the importer never evaluates (it is
+// re-created through the decomposition importer), and anything else matches
+// no DHIS2 metadata at all.
 export type RawRoute =
   | { kind: "dvs"; baseElementId: string; coc: string | undefined }
-  | { kind: "analytics" }
-  | { kind: "unknown" };
+  | { kind: "unknown"; reason: "not_found" | "dhis2_indicator" };
 
 // Dynamic per run: DHIS2 metadata is the source of truth, no stored type
 // field to drift (robustness ruling).
@@ -73,22 +79,20 @@ export async function classifyRawIndicators(
   const routes = new Map<string, RawRoute>();
   for (const p of parsed) {
     if (p.base === undefined) {
-      routes.set(p.id, { kind: "unknown" });
+      routes.set(p.id, { kind: "unknown", reason: "not_found" });
     } else if (p.coc !== undefined) {
       routes.set(
         p.id,
         dataElementSet.has(p.base) && cocSet.has(p.coc)
           ? { kind: "dvs", baseElementId: p.base, coc: p.coc }
-          : { kind: "unknown" },
+          : { kind: "unknown", reason: "not_found" },
       );
     } else if (dataElementSet.has(p.base)) {
       routes.set(p.id, { kind: "dvs", baseElementId: p.base, coc: undefined });
     } else if (indicatorSet.has(p.id)) {
-      // Computed DHIS2 indicator: keep the analytics engine for formulas,
-      // never hand-reconstruct numerators (robustness ruling).
-      routes.set(p.id, { kind: "analytics" });
+      routes.set(p.id, { kind: "unknown", reason: "dhis2_indicator" });
     } else {
-      routes.set(p.id, { kind: "unknown" });
+      routes.set(p.id, { kind: "unknown", reason: "not_found" });
     }
   }
   return routes;
@@ -117,39 +121,10 @@ export function defaultShouldRetry(message: string): boolean {
   return true;
 }
 
-export function assertUrlWithinLimit(args: {
-  rawIndicatorId: string;
-  period: string;
-  facilityBatch: string[];
-  credentials: Dhis2Credentials;
-  maxUrlLength: number;
-  facilityBatchSize: number;
-}): void {
-  // Measure the URL exactly as getAnalyticsFromDHIS2 builds it.
-  const searchParams = new URLSearchParams();
-  searchParams.append("dimension", `dx:${args.rawIndicatorId}`);
-  searchParams.append("dimension", `pe:${args.period}`);
-  searchParams.append("dimension", `ou:${args.facilityBatch.join(";")}`);
-  searchParams.set("skipMeta", "true");
-  const fullUrl = buildUrl(
-    "/api/analytics.json",
-    args.credentials.url,
-    searchParams,
-  );
-  if (fullUrl.length > args.maxUrlLength) {
-    // Marker string matched by describeFetchError: deterministic config
-    // error (batch size), permanent until the env changes.
-    throw new Error(
-      `URL length ${fullUrl.length} exceeds safe limit of ${args.maxUrlLength} characters for batch with ${args.facilityBatch.length} facilities. ` +
-        `Reduce the DHIS2_FACILITY_BATCH_SIZE env variable (currently ${args.facilityBatchSize}).`,
-    );
-  }
-}
-
 // 4xx (except 429) is a deterministic config error: the connector never
-// retries it and re-running without a config fix will fail again. The URL
-// guard is likewise deterministic. Everything else (5xx/timeout/network/size)
-// is server health and may succeed on a later re-run.
+// retries it and re-running without a config fix will fail again. Everything
+// else (5xx/timeout/network/size) is server health and may succeed on a
+// later re-run.
 export function describeFetchError(error: unknown): {
   message: string;
   kind: Dhis2FetchErrorKind;
@@ -171,13 +146,90 @@ export function describeFetchError(error: unknown): {
   ) {
     return { message, kind: "permanent" };
   }
-  if (message.includes("exceeds safe limit")) {
-    return { message, kind: "permanent" };
-  }
-  if (message.includes("unrecognized headers")) {
-    // Header shape is a deterministic property of the DHIS2 server/version:
-    // the pair fails identically on every retry until the config changes.
-    return { message, kind: "permanent" };
-  }
   return { message, kind: "transient" };
+}
+
+export const SKIPPED_VALUES_SAMPLE_CAP = 10;
+
+export type DvsCoveredPair = {
+  indicatorRawId: string;
+  coc: string | undefined;
+  periodId: number;
+};
+
+export type DvsPairReduction = {
+  rows: Array<{ facilityId: string; count: number }>;
+  skippedValues: number;
+  skippedValuesSample: DatasetHmisLedgerSkippedValue[];
+};
+
+// A stored count is a non-negative integer, so that is the only facility
+// value accepted; blank, non-numeric, fractional and negative values are
+// skipped. Numeric parsing (not a digit-only pattern) because NUMBER-typed
+// elements report integers as "12.0".
+export function parseNonNegativeInteger(raw: string): number | undefined {
+  const trimmed = raw.trim();
+  if (trimmed === "") {
+    return undefined;
+  }
+  const n = Number(trimmed);
+  return Number.isInteger(n) && n >= 0 ? n : undefined;
+}
+
+// Client-side reduce of one dataValueSets pull (one base element, one month)
+// into every pair it covers: deleted values and facilities outside the run
+// scope are ignored; an operand's pair takes only its COC; accepted values
+// are summed per facility across COC×AOC, so the sum is a non-negative
+// integer by construction and nothing truncates. A skipped value is counted
+// on the pair with a capped sample, and the pair still integrates: failing
+// it would block the source-month for every facility in the country on one
+// facility's decimal, and the ledger has no per-facility grain, so
+// skip-and-record is what keeps refresh alive and the anomaly visible.
+export function reduceDvsValues(
+  values: DHIS2DataValue[],
+  coveredPairs: DvsCoveredPair[],
+  facilitySet: Set<string>,
+): Map<string, DvsPairReduction> {
+  const sums = new Map<string, Map<string, number>>();
+  const reductions = new Map<string, DvsPairReduction>();
+  for (const covered of coveredPairs) {
+    sums.set(pairKey(covered), new Map());
+    reductions.set(pairKey(covered), {
+      rows: [],
+      skippedValues: 0,
+      skippedValuesSample: [],
+    });
+  }
+  for (const v of values) {
+    if (v.deleted || !facilitySet.has(v.orgUnit)) {
+      continue;
+    }
+    const count = parseNonNegativeInteger(v.value);
+    for (const covered of coveredPairs) {
+      if (covered.coc !== undefined && v.categoryOptionCombo !== covered.coc) {
+        continue;
+      }
+      const key = pairKey(covered);
+      if (count === undefined) {
+        const reduction = reductions.get(key)!;
+        reduction.skippedValues++;
+        if (reduction.skippedValuesSample.length < SKIPPED_VALUES_SAMPLE_CAP) {
+          reduction.skippedValuesSample.push({
+            facilityId: v.orgUnit,
+            value: v.value,
+          });
+        }
+        continue;
+      }
+      const facilityMap = sums.get(key)!;
+      facilityMap.set(v.orgUnit, (facilityMap.get(v.orgUnit) ?? 0) + count);
+    }
+  }
+  for (const [key, facilityMap] of sums) {
+    reductions.get(key)!.rows = Array.from(
+      facilityMap,
+      ([facilityId, count]) => ({ facilityId, count }),
+    );
+  }
+  return reductions;
 }

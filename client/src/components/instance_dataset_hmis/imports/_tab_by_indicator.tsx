@@ -35,6 +35,7 @@ type IndicatorRollup = {
   latestImportedAt: string | undefined;
   latestSource: DatasetHmisImportLedgerItem["source"] | undefined;
   failedMonths: number;
+  skippedValues: number;
   items: DatasetHmisImportLedgerItem[];
 };
 
@@ -107,6 +108,22 @@ export function Dhis2TabByIndicator(p: Props) {
       render: (item) => (
         <span class={item.failedMonths > 0 ? "text-danger font-700" : ""}>
           {toNum0(item.failedMonths)}
+        </span>
+      ),
+    },
+    {
+      key: "skippedValues",
+      header: t3({
+        en: "Skipped values",
+        fr: "Valeurs ignorées",
+        pt: "Valores ignorados",
+      }),
+      sortable: true,
+      alignH: "right",
+      sortValue: (item) => item.skippedValues,
+      render: (item) => (
+        <span class={item.skippedValues > 0 ? "text-warning font-700" : ""}>
+          {toNum0(item.skippedValues)}
         </span>
       ),
     },
@@ -225,6 +242,7 @@ function buildRollups(items: DatasetHmisImportLedgerItem[]): {
     ([indicatorRawId, indicatorItems]) => {
       let monthsWithData = 0;
       let failedMonths = 0;
+      let skippedValues = 0;
       let latestImportedAt: string | undefined;
       let latestSource: DatasetHmisImportLedgerItem["source"] | undefined;
       for (const item of indicatorItems) {
@@ -234,6 +252,7 @@ function buildRollups(items: DatasetHmisImportLedgerItem[]): {
         if (item.status === "error") {
           failedMonths++;
         }
+        skippedValues += item.skippedValues;
         if (
           item.importedAt &&
           (latestImportedAt === undefined || item.importedAt > latestImportedAt)
@@ -249,6 +268,7 @@ function buildRollups(items: DatasetHmisImportLedgerItem[]): {
         latestImportedAt,
         latestSource,
         failedMonths,
+        skippedValues,
         items: indicatorItems,
       };
     },

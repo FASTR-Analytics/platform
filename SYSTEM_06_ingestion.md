@@ -37,6 +37,7 @@ globs:
   - server/routes/instance/dhis2_credentials.ts
   - server/routes/instance/iceh.ts
   - server/server_only_funcs_csvs/**
+  - server/tests/dhis2_skip_and_record_test.ts
   - server/worker_routines/import_hfa_data_csv/**
   - server/worker_routines/import_hmis_data_csv/**
   - server/worker_routines/import_hmis_data_dhis2/**
@@ -128,14 +129,19 @@ history). Shape:
   rolling-window "current month" resolves from the server clock, not the
   schedule's timezone (≤hours of skew, self-correcting).
 - The worker classifies every selected raw indicator per run from DHIS2
-  metadata (dispatcher): bare data elements + operands → dataValueSets
-  country-pulls, one per base element × month selected by
+  metadata (dispatcher, `dispatch.ts`) and has one fetch route: bare data
+  elements + operands → dataValueSets country-pulls (the values facilities
+  reported, no DHIS2-side formula), one per base element × month selected by
   `period=<instance period id>` (an opaque token the DHIS2 server interprets
-  in its own calendar, same contract as analytics `pe:`, and the app never
-  converts calendars/dates; a calendar-configured server does not read
-  startDate/endDate as Gregorian), level-2 subtree split on size/timeout;
-  computed DHIS2 indicators → analytics; unknown ids → permanent ledger
-  errors with no fetch; a response containing any period other than the
+  in its own calendar, the same contract as DHIS2's own analytics `pe:`, and
+  the app never converts calendars/dates; a calendar-configured server does
+  not read startDate/endDate as Gregorian), level-2 subtree split on
+  size/timeout. Every other id gets no fetch and a permanent ledger error:
+  a DHIS2 indicator (a formula; the error names the DHIS2 indicator import
+  in the indicator configuration, which decomposes it into data elements,
+  and its existing data stays), or an id that matches no data element or
+  operand at all. The run detail lists both sets (`classification.unknownIds`
+  and `dhis2IndicatorIds`). A response containing any period other than the
   requested one fails the pull loudly (permanent). The evidence base
   (verdicts E1–E13, incl. the calendar finding and the sizing fact that DVS
   deep-history backfill ≈ 10 MB per dense element-month) lives in the retired
@@ -235,12 +241,21 @@ start.
   (`get_csv_components_streaming_fast.ts`): streaming, 2 MB chunks,
   quote-parity-aware chunk boundaries (quoted fields with embedded newlines
   survive chunking; fixed `c237008e`).
-- HMIS-DHIS2 semantics (run worker): analytics values `parseInt`-truncated,
-  negatives dropped; dataValueSets values summed per facility across COC×AOC
-  (operands restricted to their COC first), the SUM truncated, negative
-  totals dropped. A 200 analytics response missing `rows` is a **failed
-  fetch**; a dataValueSets body without `dataValues` IS a legitimate empty
-  month. The facility scope is the UID-shape-filtered `facilities_hmis` list
+- HMIS-DHIS2 semantics (run worker, the pure reduce in `dispatch.ts`,
+  pinned by `server/tests/dhis2_skip_and_record_test.ts`): a facility value
+  is accepted only as a non-negative integer (numeric parse, so a
+  NUMBER-typed "12.0" counts as 12); anything else (fractional, negative,
+  blank, non-numeric) is **skipped and recorded**, never fails the pair:
+  the pair's ledger row carries `skipped_values` and a sample of at most 10
+  `{ facilityId, value }` (migration 085), the run detail and the
+  By-indicator tab show the count, and the pair integrates and stays
+  `ready`. Failing the pair would block a source-month for every facility
+  in the country on one facility's decimal, and the ledger has no
+  per-facility grain. Accepted values are summed per facility across
+  COC×AOC (operands restricted to their COC first), so the stored count is
+  a non-negative integer by construction and nothing truncates. A
+  dataValueSets body without `dataValues` IS a legitimate empty month. The
+  facility scope is the UID-shape-filtered `facilities_hmis` list
   snapshotted at run start; failed pairs never delete anything.
 - HFA XLSForm: `survey`+`choices` sheets required; only
   `select_one`/`select_multiple`/`integer`/`decimal` vars are staged;
@@ -399,8 +414,6 @@ dataset version stamps the manifest records. No project table is written.
 - **`COUNT(*)` returns a string** through the worker/bulk connections (no int8
   parser configured). Always `Number()` it. Older staging results persisted
   `finalStagingRowCount` etc. as JSON strings; comparisons must coerce.
-- The DHIS2 URL-length guard measures a URL missing two dimensions (~40–50 chars
-  short of the real request).
 - JS row validation is narrower than the staging tables' CHECK constraints (e.g.
   period year bounds), so one out-of-range row aborts the whole batch with a raw
   Postgres error instead of a counted drop.

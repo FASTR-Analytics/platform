@@ -8,7 +8,7 @@ deletes that file). PLAN_A2 has landed (instance migration 084,
 `RESERVED_INDICATOR_IDS`, renamed by ruling 5): generated ids avoid its
 reserved words and the validator this plan extends is A2's.
 
-**Next step: Do 2.** Each session sets this line in its final commit. Its
+**Next step: Review 2.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N`; after step 6's review passes the
 file is deleted instead of advanced.
 
@@ -813,3 +813,11 @@ agent reads this section before its step.
 | 2026-09-10 | 1 | Review: SYSTEM_05 line 269 runs past the file's wrap width after the seed paragraph rewrite. Formatting only; step 6's read-through rewraps it. |
 | 2026-09-10 | 1 | Review: every gate re-run green by the reviewer: typecheck (856 files claimed), `deno task test` 28 passed, `validate_protocols`, `validate_migrations`, `validate_fresh_boot` (22 specials as empty bases), gate 1 grep at zero. The committed tree booted against the dev database on `PORT=8001` to "Listening"; port 8000 is held by a server started before the step commit. Deliverable checked in code: 22 specials with en/fr/pt labels, `RESERVED_WORDS` union, generator per ruling 10, validator per ruling 5 on all four callers (retype covered in `updateIndicatorCommon` and the editor; batch upload writes bases only), frozen 14-id order in `indicator_catalog.ts`. |
 | 2026-09-10 | 1 | Step 1 reviewed: 2 findings |
+| 2026-09-10 | 2 | `RawRoute.unknown` carries a `reason` (`not_found` or `dhis2_indicator`): the dispatcher still probes the `indicators` endpoint so a DHIS2 indicator gets its own ledger error naming the DHIS2 indicator import in the indicator configuration, and a run detail box separate from the not-found list. `classification.computedIndicators` (a count) is replaced by `dhis2IndicatorIds` (the list). |
+| 2026-09-10 | 2 | Two stored-JSON keys are optional until 086: `classification.dhis2IndicatorIds` and `Dhis2PairFetchStat.skippedValues` are absent on run rows written before this step, and the run detail reads them with `?? []` / `?? 0`. Step 4's 086 JSON rewrite should set `dhis2IndicatorIds: []` and `skippedValues: 0` on old rows so both become required there (an addition to ruling 12's list). |
+| 2026-09-10 | 2 | Fact wrong in the Surface: `_main_database_types.ts` has no ledger row type (the ledger module declares its row shapes inline), so the two columns landed in `_main_database.sql`, 085 and `dataset_hmis_import_ledger.ts` only. |
+| 2026-09-10 | 2 | Skip-and-record parses numerically (`Number`, then `Number.isInteger && >= 0`), not by a digit-only pattern: a NUMBER-typed element reports integers as "12.0", which ruling 6 accepts as a source, so "12.0" counts as 12 and "12.5", "-4", blank and non-numeric are skipped. The reduce is a pure function in `dispatch.ts` (`reduceDvsValues`), the harness is `server/tests/dhis2_skip_and_record_test.ts`, and the sample cap is 10. |
+| 2026-09-10 | 2 | The pair stat, the run detail (a "Skipped values" table of pairs with a count) and the By-indicator rollup (a summed column) show the count; the per-month sample lives on the ledger row and is not rendered yet (`_ledger_indicator_detail.tsx` is outside the step's Surface). |
+| 2026-09-10 | 2 | Facts wrong in SYSTEM_07, corrected in the same step: the retry paragraph said the worker passes `maxAttempts: 10, maxDelayMs: 60000` (it passes 3 and 30000, excluding size/timeout errors); the goal table had no `goal5_data_value_sets/` row. |
+| 2026-09-10 | 2 | Floor and gates: typecheck (854 files claimed), `deno task test` 36 passed (8 new in `dhis2_skip_and_record_test.ts`), `validate_protocols`, `validate_migrations` (085 a no-op on the fresh replay), gate 2 grep at zero, gate 1 still at zero. `./run` against the dev database applied 085 ("Applying migration: 085_ledger_skipped_values.sql"), ran the in-boot suite and reached "Listening" on port 8000; stopped afterwards. |
+| 2026-09-10 | 2 | Step 2 built |

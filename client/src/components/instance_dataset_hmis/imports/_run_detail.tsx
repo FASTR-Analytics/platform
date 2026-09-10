@@ -115,6 +115,20 @@ export function Dhis2RunDetail(
     },
   ];
 
+  const skippedPairColumns: TableColumn<Dhis2PairFetchStat & { key: string }>[] = [
+    failedPairColumns[0]!,
+    failedPairColumns[1]!,
+    failedPairColumns[2]!,
+    {
+      key: "skippedValues",
+      header: t3({ en: "Skipped values", fr: "Valeurs ignorées", pt: "Valores ignorados" }),
+      sortable: true,
+      alignH: "right",
+      sortValue: (s) => s.skippedValues ?? 0,
+      render: (s) => toNum0(s.skippedValues ?? 0),
+    },
+  ];
+
   function factRow(label: string, value: string) {
     return (
       <div class="flex items-baseline">
@@ -214,9 +228,18 @@ export function Dhis2RunDetail(
         <StateHolderWrapper state={detail.state()} noPad>
           {(keyedDetail) => {
             const unknownIds = keyedDetail.runStats?.classification.unknownIds ?? [];
+            const dhis2IndicatorIds =
+              keyedDetail.runStats?.classification.dhis2IndicatorIds ?? [];
             const failedPairStats = (keyedDetail.runStats?.pairFetchStats ?? [])
               .filter((s) => !s.success)
               .map((s) => ({ ...s, key: `${s.indicatorRawId}|${s.periodId}` }));
+            const skippedPairStats = (keyedDetail.runStats?.pairFetchStats ?? [])
+              .filter((s) => (s.skippedValues ?? 0) > 0)
+              .map((s) => ({ ...s, key: `${s.indicatorRawId}|${s.periodId}` }));
+            const totalSkippedValues = skippedPairStats.reduce(
+              (sum, s) => sum + (s.skippedValues ?? 0),
+              0,
+            );
             const retryPairs: Dhis2RunPair[] = failedPairStats.map((s) => ({
               indicatorRawId: s.indicatorRawId,
               periodId: s.periodId,
@@ -246,12 +269,53 @@ export function Dhis2RunDetail(
                     </div>
                     <div class="text-sm">
                       {t3({
-                        en: "These indicator IDs do not exist in DHIS2 — every selected month failed without a fetch, and will fail every run until they are fixed or removed in the indicator configuration.",
-                        fr: "Ces ID d'indicateurs n'existent pas dans DHIS2 — chaque mois sélectionné a échoué sans récupération, et échouera à chaque importation tant qu'ils ne sont pas corrigés ou retirés de la configuration des indicateurs.",
-                        pt: "Estes IDs de indicadores não existem no DHIS2 — todos os meses selecionados falharam sem obtenção, e falharão em todas as importações até serem corrigidos ou removidos na configuração dos indicadores.",
+                        en: "These indicator IDs match no data element or operand in DHIS2 — every selected month failed without a fetch, and will fail every run until they are fixed or removed in the indicator configuration.",
+                        fr: "Ces ID d'indicateurs ne correspondent à aucun élément de données ni opérande dans DHIS2 — chaque mois sélectionné a échoué sans récupération, et échouera à chaque importation tant qu'ils ne sont pas corrigés ou retirés de la configuration des indicateurs.",
+                        pt: "Estes IDs de indicadores não correspondem a nenhum elemento de dados nem operando no DHIS2 — todos os meses selecionados falharam sem obtenção, e falharão em todas as importações até serem corrigidos ou removidos na configuração dos indicadores.",
                       })}
                     </div>
                     <div class="text-sm font-mono">{unknownIds.join(", ")}</div>
+                  </div>
+                </Show>
+
+                <Show when={dhis2IndicatorIds.length > 0}>
+                  <div class="border-danger bg-danger-subtle ui-pad ui-spy-sm rounded border">
+                    <div class="font-700">
+                      {t3({
+                        en: "DHIS2 indicators are not imported as values",
+                        fr: "Les indicateurs DHIS2 ne sont pas importés comme valeurs",
+                        pt: "Os indicadores DHIS2 não são importados como valores",
+                      })}
+                    </div>
+                    <div class="text-sm">
+                      {t3({
+                        en: "These IDs are DHIS2 indicators (formulas). The importer reads only data elements and operands, so every selected month failed without a fetch and will keep failing; existing data is kept. Re-create each one through the DHIS2 indicator import in the indicator configuration, which decomposes the formula into its data elements.",
+                        fr: "Ces ID sont des indicateurs DHIS2 (des formules). L'importation ne lit que les éléments de données et les opérandes : chaque mois sélectionné a échoué sans récupération et continuera d'échouer ; les données existantes sont conservées. Recréez chacun d'eux via l'import d'indicateurs DHIS2 dans la configuration des indicateurs, qui décompose la formule en ses éléments de données.",
+                        pt: "Estes IDs são indicadores DHIS2 (fórmulas). A importação lê apenas elementos de dados e operandos, pelo que todos os meses selecionados falharam sem obtenção e continuarão a falhar; os dados existentes são mantidos. Recrie cada um através da importação de indicadores DHIS2 na configuração dos indicadores, que decompõe a fórmula nos seus elementos de dados.",
+                      })}
+                    </div>
+                    <div class="text-sm font-mono">{dhis2IndicatorIds.join(", ")}</div>
+                  </div>
+                </Show>
+
+                <Show when={skippedPairStats.length > 0}>
+                  <div class="ui-spy-sm">
+                    <div class="font-700 text-lg">
+                      {t3({ en: "Skipped values", fr: "Valeurs ignorées", pt: "Valores ignorados" })}{" "}
+                      ({toNum0(totalSkippedValues)})
+                    </div>
+                    <div class="text-sm">
+                      {t3({
+                        en: "Facility values that were not non-negative integers were left out of these pairs; the rest of each pair was imported. The import status view lists a sample per month.",
+                        fr: "Les valeurs d'établissement qui n'étaient pas des entiers positifs ou nuls ont été exclues de ces paires ; le reste de chaque paire a été importé. L'état des importations présente un échantillon par mois.",
+                        pt: "Os valores de unidade que não eram inteiros não negativos foram excluídos destes pares; o resto de cada par foi importado. O estado das importações mostra uma amostra por mês.",
+                      })}
+                    </div>
+                    <Table
+                      data={skippedPairStats}
+                      columns={skippedPairColumns}
+                      keyField="key"
+                    />
                   </div>
                 </Show>
 
