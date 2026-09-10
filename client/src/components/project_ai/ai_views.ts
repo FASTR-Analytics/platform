@@ -14,8 +14,8 @@ import type { TabOption } from "~/state/t4_ui";
 // PROJECT SHELL: THE REMNANT VIEW REGISTRY
 ////////////////////////////////////////////////////////////////////////////////
 //
-// The copilot is one instance-level mount over the Products page and the two
-// product editors (PLAN_PRODUCTS_RESTRUCTURE D15, components/copilot/). The
+// The copilot is mounted per open product around its editor
+// (PLAN_PRODUCTS_RESTRUCTURE D15, components/copilot/). The
 // project shell has no chat any more, but its tabs, its visualization editor
 // and its tours still call setView / notify / current(), so this registry
 // keeps those calls typed and inert until step 9a deletes the shell.

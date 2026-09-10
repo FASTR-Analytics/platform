@@ -152,7 +152,7 @@ One shared handler,
 [anthropic_messages_proxy.ts](server/routes/anthropic_messages_proxy.ts)
 (governance, usage logging, and beta policy live there so the two mounts cannot
 drift), behind two thin raw Hono routes (deliberately outside the S1 route
-registry), mounted in [main.ts:145-147](main.ts#L145-L147):
+registry), mounted in [main.ts:238-240](main.ts#L238-L240):
 
 |                        | Copilot proxy                                                                                                                     | Instance proxy                                                                                                  |
 | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
@@ -507,8 +507,8 @@ editor-level tools call the same resolvers, so behavior is identical:
 ([build_system_prompt.ts](client/src/components/copilot/build_system_prompt.ts)):
 date header + instance/terminology section (country, admin-area labels, data
 sources) + results-package section (the package label and generation time, the
-scope, the package's datasets and indicator lists) + a products section (what a
-product is, deck and report counts) + the instance-level `ai_context` +
+scope, the package's datasets and indicator lists) + the instance-level
+`ai_context` +
 reference-doc catalog (`INFO_TOPICS`) + base instructions (read-data-first, no
 fabrication, indicator directionality) + the tool catalog. The accessor takes
 no view argument, so the prompt is **byte-stable across navigation within one
@@ -533,7 +533,8 @@ so the prompt reads it from T1 with no fetch. It replaced the per-project
 `projects.ai_context`.
 
 **Documents.** `useAIDocuments` keeps `{assetFilename, anthropicFileId}` pairs
-for the one copilot scope in IndexedDB
+in IndexedDB, one instance-wide upload registry shared by every product's
+copilot and pending attachments per conversation id
 ([t4_ai_documents.ts](client/src/state/products/t4_ai_documents.ts), keys
 `ai-documents/copilot` and `ai-attachments/copilot/<conversationId>`; T4:
 per-browser, no server copy, no invalidation when the underlying asset is

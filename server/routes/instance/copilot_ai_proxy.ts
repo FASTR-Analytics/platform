@@ -4,8 +4,8 @@ import { proxyAnthropicMessages } from "../anthropic_messages_proxy.ts";
 
 export const routesCopilotAiProxy = new Hono();
 
-// The copilot proxy, mounted at /ai: one instance-level mount serving the
-// Products page and both editor overlays (PLAN_PRODUCTS_RESTRUCTURE D15).
+// The copilot proxy, mounted at /ai, behind every per-product copilot mount
+// (PLAN_PRODUCTS_RESTRUCTURE D15).
 // Guarded by requireApprovedUser() and nothing finer: the copilot reads and
 // writes products, and every approved user is a full editor of every product
 // (D2). Usage is logged with a null project_id; the token limits are already

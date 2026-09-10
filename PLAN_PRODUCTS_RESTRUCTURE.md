@@ -6,7 +6,7 @@ database, one realtime channel, one copilot. An Explore tab replaces the
 project Metrics tab and the standalone visualization library; this plan
 creates the tab, and its page, the results explorer, is a later plan.
 
-**Next step: Fix 8.** Each session sets this line in its final commit. Its
+**Next step: Review 8.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N`; after step 10's review passes the
 file is deleted instead of advanced.
 
@@ -2295,6 +2295,9 @@ this section before its step.
 | 2026-09-10 | 8 | Review 8, second pass, finding 3: the instance-level mount survives in three comments. `server/routes/instance/copilot_ai_proxy.ts:7-8` ("one instance-level mount serving the Products page and both editor overlays"), `server/mcp/env.ts:6-7` ("the SPA copilot is the surface whose pair moves") and `client/src/components/project_ai/ai_views.ts:17-18` ("one instance-level mount over the Products page and the two product editors"). |
 | 2026-09-10 | 8 | Review 8, second pass, finding 4: the system prompt lost its products section with the registry tools (`copilot/build_system_prompt.ts` has no `# Products` and no deck or report counts), but SYSTEM_13 line 510 still lists "a products section (what a product is, deck and report counts)" and `lib/ai_tools/build_system_prompt.ts:12-13` still says the SPA's context includes "the deck/report counts". Two more SYSTEM_13 lines drifted: line 155 mounts the proxies at `main.ts:145-147` (they are at 238-240) and line 536 keeps documents "for the one copilot scope" (the upload registry is instance-wide and pending attachments are per conversation id, as the store's own comment now says). |
 | 2026-09-10 | 8 | Step 8 reviewed: 4 findings. |
+| 2026-09-10 | plan | Tim's ruling: the second-pass fix of step 8 runs in the review session, as the first did. The next Review 8 is a fresh agent. |
+| 2026-09-10 | 8 | Fix 8, second pass: the four findings, all comments and prose. The editors' `requireScope` and `getScope` comments now say what is true (a missing row is a tool failure; a reattach remounts the copilot on the new pair and the tools of that mount see the same pair through the view context); `slides.tsx` says `get_slide` reads from the deck and slide views; `copilot_ai_proxy.ts`, `server/mcp/env.ts` and the remnant `project_ai/ai_views.ts` describe the per-product mount; `lib/ai_tools/build_system_prompt.ts` and SYSTEM_13's system-prompt paragraph drop the products section, SYSTEM_13's proxy line points at `main.ts:238-240`, and its documents line states the instance-wide registry and per-conversation pending keys. No code path changed. Gates: `deno task typecheck` (server, client, `lint:systems` clean), `deno task test` (38 passed), `./validate_protocols` (0 tier-1, 0 new tier-2, 17 baselined). |
+| 2026-09-10 | 8 | Step 8 fixed. |
 
 ## Appendix A: the migration replay of 2026-08-19, and what still stands
 

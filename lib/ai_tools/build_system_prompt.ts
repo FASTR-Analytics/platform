@@ -9,8 +9,8 @@ import type { InfoCatalogTopic } from "./info_catalog.ts";
 // The shared halves of the AI system prompt: what both surfaces (the SPA
 // copilot and the /mcp get_overview) ground the model with. Each surface
 // assembles its own context section from these building blocks and its own
-// prose (the SPA: the instance ai_context, the package it is serving and the
-// deck/report counts, client/src/components/copilot/build_system_prompt.ts;
+// prose (the SPA: the open product's package and scope and the instance
+// ai_context, client/src/components/copilot/build_system_prompt.ts;
 // /mcp: the pinned package, server/mcp/mcp_tools.ts), then hands it to
 // buildSystemPrompt.
 //

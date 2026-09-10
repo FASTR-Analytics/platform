@@ -84,8 +84,7 @@ export function getClientToolsForSlides(
       },
     }),
 
-    // The one non-view-gated slides tool: reads by explicit slideId from
-    // any view.
+    // Reads by explicit slideId from the deck and slide views.
     createGetSlideTool(env, metrics),
 
     createAITool({

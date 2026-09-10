@@ -149,8 +149,9 @@ export function ReportEditor(p: Props) {
     return row === undefined ? undefined : productScope(row);
   };
   const label = () => product()?.label ?? "";
-  // The copilot's env resolver needs a pair, not an optional one; the row is
-  // gone only when the product was deleted, which closes the editor.
+  // Write tools read the pair through the view context, so a missing row (the
+  // product was deleted, which closes the editor) is a tool failure, not an
+  // optional value.
   const requireScope = (): PackageScope => {
     const s = scope();
     if (s === undefined) {
@@ -751,8 +752,8 @@ export function ReportEditor(p: Props) {
       "editing_report",
       { reportId: p.productId, reportLabel: label() },
       {
-        // The pair is read LIVE from the T1 row, so a reattach or scope change
-        // mid-edit moves the copilot's env with the editor (D15).
+        // Read live from the T1 row: a reattach remounts the copilot on the new
+        // pair, and the tools of that mount see the same pair here (D15).
         getScope: () => requireScope(),
         getBody: () => body(),
         getFigures: () => figures(),

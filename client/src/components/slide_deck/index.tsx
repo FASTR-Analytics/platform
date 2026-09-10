@@ -58,9 +58,9 @@ export function SlideDeckEditor(p: Props) {
     return row === undefined ? undefined : productScope(row);
   };
   const deckLabel = () => product()?.label ?? "";
-  // The copilot's env resolver needs a pair, not an optional one; the row is
-  // gone only when the product was deleted, and the effect below closes the
-  // editor on that.
+  // Write tools read the pair through the view context, so a missing row (the
+  // product was deleted; the effect below closes the editor) is a tool
+  // failure, not an optional value.
   const requireScope = (): PackageScope => {
     const s = scope();
     if (s === undefined) {
@@ -125,8 +125,8 @@ export function SlideDeckEditor(p: Props) {
           "editing_slide_deck",
           { deckId: p.productId, deckLabel: deckLabel() },
           {
-            // The pair is read LIVE, so a reattach or scope change mid-edit
-            // moves the copilot's env with the editor (D15).
+            // Read live: a reattach remounts the copilot on the new pair, and
+            // the tools of that mount see the same pair here (D15).
             getScope: () => requireScope(),
             getDeckConfig: () => deckConfig(),
             getSlideIds: () => slideIds(),

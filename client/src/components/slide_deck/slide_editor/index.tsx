@@ -325,8 +325,8 @@ export function SlideEditor(p: Props) {
         deckLabel: p.deckLabel,
       },
       {
-        // The deck editor passes the pair down live, so a mid-edit reattach
-        // moves the copilot's env with the slide (D15).
+        // The deck editor's live pair, the one the copilot mount is keyed on
+        // (D15).
         getScope: () => p.scope,
         getTempSlide: () => tempSlide,
         setTempSlide,
