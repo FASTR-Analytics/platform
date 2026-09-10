@@ -208,8 +208,9 @@ Underlining — the same span, since markdown has no underline of its own:
 
   The [only]{underline} district to improve, [and by a lot]{.success underline}.
 
-Figures take a width: ![caption](figure:<id>){width=wide} overhangs the text
-column, \`width=full\` goes edge to edge.
+A figure sits in the text column, never past it. ![caption](figure:<id>){width=full}
+runs edge to edge like a band: for the one chart a report is built around,
+at most, never for emphasis.
 
 Composing a report — this matters as much as the syntax:
 
