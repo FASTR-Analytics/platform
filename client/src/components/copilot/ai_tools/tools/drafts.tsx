@@ -7,6 +7,7 @@ import {
   getStartingConfigForSlideDeck,
   MAX_CONTENT_BLOCKS,
   type MetricWithStatus,
+  type PackageScope,
 } from "lib";
 import {
   validateMaxContentBlocks,
@@ -16,19 +17,20 @@ import { resolveFigureFromMetric } from "~/components/slide_deck/slide_ai/resolv
 import { convertAiInputToSlide } from "~/components/slide_deck/slide_ai/convert_ai_input_to_slide";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { copilotViewController } from "~/components/copilot/ai_views";
-import { requireCopilotScope } from "~/components/copilot/authoring_context";
 import { DraftSlidePreview } from "../DraftSlidePreview";
 
-// A draft resolves under whatever pair the copilot is currently bound to: the
-// open deck's while the deck editor is up, else the pin at national scope. The
-// second case is why AddToDeckModal re-resolves before writing: a draft built
-// against the pin must not be written into a deck on another package (D15).
-export function getClientToolsForDrafts(metrics: MetricWithStatus[]) {
+// A draft resolves under the open product's pair, the only pair this copilot
+// serves (D15). From the deck and slide views the preview card adds it
+// straight to the open deck; in a report it is preview-only.
+export function getClientToolsForDrafts(
+  scope: PackageScope,
+  metrics: MetricWithStatus[],
+) {
   return [
     createAITool({
       name: "show_draft_slide_to_user",
       description:
-        `Show an ad-hoc slide preview to the user inline in the chat. This is also how you show a single chart: put one from_metric figure on a content slide. Use it to propose slide content, display ideas, or when the user asks to see something charted. The user can then add it to a slide deck.\n\nSupports three slide types:\n- 'cover': Title slide with optional title/subtitle/presenter/date\n- 'section': Section divider with title and optional subtitle\n- 'content': Content slide with optional header and blocks (text and/or figures)\n\nFor content blocks, use the same rules as create_slide: from_metric for figures (call get_metric_data first), text for markdown. IMPORTANT: Markdown tables are NOT allowed — to display tabular data, use a from_metric block with a table-type preset. Max ${MAX_CONTENT_BLOCKS} content blocks.`,
+        `Show an ad-hoc slide preview to the user inline in the chat. This is also how you show a single chart: put one from_metric figure on a content slide. Use it to propose slide content, display ideas, or when the user asks to see something charted. While a slide deck is open the user can add the draft to it from the preview.\n\nSupports three slide types:\n- 'cover': Title slide with optional title/subtitle/presenter/date\n- 'section': Section divider with title and optional subtitle\n- 'content': Content slide with optional header and blocks (text and/or figures)\n\nFor content blocks, use the same rules as create_slide: from_metric for figures (call get_metric_data first), text for markdown. IMPORTANT: Markdown tables are NOT allowed — to display tabular data, use a from_metric block with a table-type preset. Max ${MAX_CONTENT_BLOCKS} content blocks.`,
       inputSchema: z.object({
         slide: z
           .union([AiCoverSlideSchema, AiSectionSlideSchema, AiContentSlideSchema])
@@ -38,7 +40,6 @@ export function getClientToolsForDrafts(metrics: MetricWithStatus[]) {
       }),
       kind: "read",
       handler: async (input) => {
-        const scope = requireCopilotScope();
         if (input.slide.type === "content") {
           validateMaxContentBlocks(input.slide.blocks.length);
           for (const block of input.slide.blocks) {
@@ -79,6 +80,7 @@ export function getClientToolsForDrafts(metrics: MetricWithStatus[]) {
       }) => {
         return (
           <DraftSlidePreview
+            scope={scope}
             slideInput={props.input.slide}
             metrics={metrics}
           />

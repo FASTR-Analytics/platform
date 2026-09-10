@@ -1,71 +1,180 @@
 import {
   AIChatProvider,
   type AIChatConfig,
+  type EditorComponentProps,
   FrameRightResizable,
+  LoadingIndicator,
   buildToolCatalog,
   validateAIChatConfig,
 } from "panther";
-import { createMemo, onCleanup, onMount, type ParentProps } from "solid-js";
+import {
+  packageScopesEqual,
+  productScope,
+  type HfaTaxonomyForAI,
+  type PackageScope,
+  type RunAuthoringContext,
+} from "lib";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  onCleanup,
+  onMount,
+  Show,
+} from "solid-js";
+import { Dynamic } from "solid-js/web";
 import {
   DEFAULT_BUILTIN_TOOLS,
   createCopilotSDKClient,
 } from "./ai_configs/defaults";
 import { copilotViewController } from "./ai_views";
-import { mountCopilotAuthoringContext } from "./authoring_context";
 import { instanceState, productById } from "~/state/instance/t1_store";
 import { addLastUpdatedListener } from "~/state/instance/t1_sse";
+import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
 import { ConsolidatedChatPane } from "./chat_pane";
 import { buildCopilotTools } from "./build_tools";
 import { buildSystemPromptForContext } from "./build_system_prompt";
+import { createCopilotAIToolEnv } from "./ai_tools/client_env";
 import { showAi, setShowAi } from "~/state/t4_ui";
 import { useAIDocuments } from "./ai_documents";
+import type { ProductEditorComponent } from "~/components/products/product_types";
 
-// ONE mount for the whole copilot (PLAN_PRODUCTS_RESTRUCTURE D15): it wraps
-// the Products page AND both editor overlays, because panther registers tools
-// once per mount and the `returnToContext` stack and the tours all rely on ONE
-// controller. ONE conversation scope, "copilot".
-export function CopilotWrapper(p: ParentProps) {
+type HostProps = EditorComponentProps<
+  { productId: string; editor: ProductEditorComponent },
+  undefined
+>;
+
+type CopilotBinding = {
+  scope: PackageScope;
+  authoringContext: RunAuthoringContext;
+};
+
+// The copilot host (PLAN_PRODUCTS_RESTRUCTURE D15): the product opener renders
+// it around whichever editor it opens, so there is one mount site and one
+// copilot per open product. The editor itself is never remounted from here
+// (it handles a reattach live, D16); the chat beside it is keyed on the
+// product's (package, scope) pair and remounts when that pair changes, which
+// is what keeps the env, the tools and the system prompt fixed for the life
+// of one chat instance.
+export function ProductCopilotHost(p: HostProps) {
+  // Referentially stable while the pair is unchanged, so a rename or a slide
+  // write (which bump the T1 row) does not remount the chat.
+  const scope = createMemo<PackageScope | undefined>((prev) => {
+    const row = productById(p.productId);
+    if (row === undefined) return undefined;
+    const next = productScope(row);
+    return prev !== undefined && packageScopesEqual(prev, next) ? prev : next;
+  });
+
+  // Immutable per runId, so the T2 cache answers instantly on every revisit.
+  const [authoringContext, setAuthoringContext] = createSignal<
+    RunAuthoringContext | undefined
+  >();
+  createEffect(() => {
+    const runId = scope()?.runId;
+    setAuthoringContext(undefined);
+    if (runId === undefined) return;
+    const controller = new AbortController();
+    onCleanup(() => controller.abort());
+    void (async () => {
+      const res = await getRunAuthoringContextFromCacheOrFetch(runId);
+      if (controller.signal.aborted || !res.success) return;
+      setAuthoringContext(res.data);
+    })();
+  });
+
+  const binding = createMemo<CopilotBinding | undefined>(() => {
+    const s = scope();
+    const ctx = authoringContext();
+    return s !== undefined && ctx !== undefined && ctx.runId === s.runId
+      ? { scope: s, authoringContext: ctx }
+      : undefined;
+  });
+
+  return (
+    <FrameRightResizable
+      minWidth={300}
+      startingWidth={600}
+      maxWidth={1200}
+      isShown={showAi()}
+      onToggleShow={() => setShowAi(false)}
+      panelChildren={
+        <Show when={binding()} keyed fallback={<LoadingIndicator />}>
+          {(bound) => (
+            <ProductCopilot
+              productId={p.productId}
+              scope={bound.scope}
+              authoringContext={bound.authoringContext}
+            />
+          )}
+        </Show>
+      }
+    >
+      <Dynamic component={p.editor} productId={p.productId} close={p.close} />
+    </FrameRightResizable>
+  );
+}
+
+// One chat instance over one fixed (package, scope) pair. Conversations are
+// per product (scope `copilot:<productId>`) while the persisted chat settings
+// (model, max tokens) are shared under `settingsScope: "copilot"`.
+function ProductCopilot(p: {
+  productId: string;
+  scope: PackageScope;
+  authoringContext: RunAuthoringContext;
+}) {
   const sdkClient = createCopilotSDKClient();
-
   const aiDocs = useAIDocuments();
+  const env = createCopilotAIToolEnv(p.scope);
 
-  // Binds the copilot's (package, scope) pair and the authoring context behind
-  // it, reconciled IN PLACE so the tools built below stay live across a
-  // package switch (authoring_context.ts states the invariant).
-  mountCopilotAuthoringContext();
+  // HFA survey rounds are instance-wide T1, not part of the per-run payload
+  // (`RunAuthoringContext`'s seam). Read once here: the tools array below is
+  // registered once at chat construction and is not re-read, so a round
+  // imported mid-session reaches the copilot on its next mount.
+  const hfaTaxonomy: HfaTaxonomyForAI = {
+    ...p.authoringContext.hfaTaxonomy,
+    timePoints: instanceState.hfaTimePoints.map((tp) => ({
+      id: tp.label,
+      label: tp.label,
+      periodId: tp.periodId,
+    })),
+  };
 
-  // Tools are registered into panther's ToolRegistry ONCE at chat-pane mount;
-  // this array is not re-read on change. Freshness is intentional aliasing:
-  // every handler closes over the authoring-context store, which is updated in
-  // place via reconcile, and reads the current pair through
-  // requireCopilotScope() at call time. (Anything a handler needs at BUILD
-  // time, e.g. a completionMessage counting metrics, is frozen at mount; keep
-  // such reads out of tool construction.) Build once.
-  const tools = buildCopilotTools();
+  const tools = buildCopilotTools(
+    env,
+    p.scope,
+    p.authoringContext,
+    hfaTaxonomy,
+  );
 
   // CACHE RULE: no currentView here: the no-view catalog is byte-stable;
   // view-grouped ordering would bust the system-prompt cache breakpoint on
   // every navigation.
   const toolCatalog = buildToolCatalog(tools);
 
-  // No mode/view argument: per-view instructions ride each view's instructions
-  // (ai_views.ts) as a per-turn ephemeral section instead of being baked into
-  // this string. Stable across navigation within one package.
+  // Per-view instructions ride each view's instructions (ai_views.ts) as a
+  // per-turn ephemeral section, so this string only changes with the instance
+  // AI context.
   const systemPrompt = createMemo(() =>
-    buildSystemPromptForContext(instanceState, toolCatalog),
+    buildSystemPromptForContext(
+      instanceState,
+      p.scope,
+      p.authoringContext,
+      toolCatalog,
+    ),
   );
 
-  // The sanctioned imperative entity-change side-channel (S3): notify on ALL
-  // changes; the interaction registry (interactions.ts) filters per view at
-  // drain, and echo keys drop the AI's own persisted writes (markAIEdit in the
-  // write tools). Two carriers on the instance channel: the per-row
-  // `products_upserted` summary and the `last_updated` message for slides.
+  // The sanctioned imperative entity-change side-channel (S3): notify on
+  // changes to the OPEN product; the interaction registry (interactions.ts)
+  // filters per view at drain, and echo keys drop the AI's own persisted
+  // writes (markAIEdit in the write tools). Two carriers on the instance
+  // channel: the per-row `products_upserted` summary and the `last_updated`
+  // message for slides.
   onMount(() => {
     // The controller is a module singleton and its log is scope-local data.
-    // This mount IS the scope root (one copilot, one conversation scope), and
-    // it remounts on a Clerk cross-tab user switch; without the clear, the
-    // previous user's retained actions would arrive in the next user's first
-    // digest as fake activity.
+    // Each mount is a new conversation scope; without the clear, the previous
+    // product's retained actions would arrive in this product's first digest
+    // as fake activity.
     copilotViewController.clearInteractionLog();
 
     const cleanup = addLastUpdatedListener((tableName, ids) => {
@@ -75,17 +184,16 @@ export function CopilotWrapper(p: ParentProps) {
         }
         return;
       }
-      for (const id of ids) {
-        const product = productById(id);
-        // A deletion has no summary to name; `products_deleted` carries no
-        // stamp and never reaches this listener.
-        if (!product) continue;
-        copilotViewController.notify("product_updated", {
-          productId: id,
-          type: product.type,
-          label: product.label,
-        });
-      }
+      if (!ids.includes(p.productId)) return;
+      const product = productById(p.productId);
+      // A deletion has no summary to name; `products_deleted` carries no
+      // stamp and never reaches this listener.
+      if (!product) return;
+      copilotViewController.notify("product_updated", {
+        productId: p.productId,
+        type: product.type,
+        label: product.label,
+      });
     });
 
     onCleanup(cleanup);
@@ -95,7 +203,8 @@ export function CopilotWrapper(p: ParentProps) {
     sdkClient,
     tools: tools as AIChatConfig["tools"],
     builtInTools: DEFAULT_BUILTIN_TOOLS,
-    scope: "copilot",
+    scope: `copilot:${p.productId}`,
+    settingsScope: "copilot",
     system: systemPrompt,
     getDocumentRefs: aiDocs.getDocumentRefs,
     viewController: copilotViewController,
@@ -107,21 +216,12 @@ export function CopilotWrapper(p: ParentProps) {
 
   return (
     <AIChatProvider config={config}>
-      <FrameRightResizable
-        minWidth={300}
-        startingWidth={600}
-        maxWidth={1200}
-        isShown={showAi()}
-        onToggleShow={() => setShowAi(false)}
-        panelChildren={
-          <ConsolidatedChatPane
-            aiDocs={aiDocs}
-            getSystemPrompt={systemPrompt}
-          />
-        }
-      >
-        {p.children}
-      </FrameRightResizable>
+      <ConsolidatedChatPane
+        aiDocs={aiDocs}
+        getSystemPrompt={systemPrompt}
+        authoringContext={p.authoringContext}
+        hfaTaxonomy={hfaTaxonomy}
+      />
     </AIChatProvider>
   );
 }

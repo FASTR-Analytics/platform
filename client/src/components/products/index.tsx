@@ -49,10 +49,8 @@ import {
   setProductsSortMode,
   setProductsTypeFilter,
   setProductsViewMode,
-  setShowAi,
-  showAi,
 } from "~/state/t4_ui";
-import { copilotViewController } from "~/components/copilot/ai_views";
+import { ProductCopilotHost } from "~/components/copilot";
 import { DuplicateProductsModal } from "./duplicate_products_modal";
 import { EditFolderModal } from "./edit_folder_modal";
 import { FolderCard, folderColor, topLevelLabel } from "./folder_card";
@@ -87,10 +85,14 @@ export function Products() {
 
   async function openProduct(product: ProductSummary) {
     // The editors take the product id and read label, package and scope LIVE
-    // from the T1 row (D16); nothing about the pair is snapshotted here.
+    // from the T1 row (D16); nothing about the pair is snapshotted here. The
+    // copilot host is the one mount site (D15): one copilot per open product.
     await openProductEditor({
-      element: PRODUCT_TYPE_REGISTRY[product.type].editor,
-      props: { productId: product.id },
+      element: ProductCopilotHost,
+      props: {
+        productId: product.id,
+        editor: PRODUCT_TYPE_REGISTRY[product.type].editor,
+      },
     });
   }
 
@@ -228,13 +230,6 @@ export function Products() {
   const selection = createSelectionController<string>({
     ids: () => visibleProducts().map((x) => x.id),
     mode: "multi",
-    // The copilot hears the act of selecting, so "add these to a deck" has a
-    // referent (D15). A clear reports nothing: it is not an action about a
-    // product.
-    onSelectionChange: (ids) => {
-      if (ids.length === 0) return;
-      copilotViewController.notify("selected_products", { productIds: ids });
-    },
   });
 
   function batchProducts(product: ProductSummary): ProductSummary[] {
@@ -717,17 +712,6 @@ export function Products() {
               </div>
             }
           >
-            <div class="ui-gap-sm flex items-center">
-              <Show when={!showAi()}>
-                <Button
-                  onClick={() => setShowAi(true)}
-                  iconName="chevronLeft"
-                  outline
-                >
-                  {t3({ en: "AI", fr: "IA", pt: "IA" })}
-                </Button>
-              </Show>
-            </div>
             <Show when={canEdit()}>
               <div class="ui-gap-sm flex items-center">
                 <Button

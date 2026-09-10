@@ -23,7 +23,7 @@ import { formatLineRanges } from "~/components/report/rebase_edits";
 import { resolveFigureFromMetric } from "~/components/slide_deck/slide_ai/resolve_figure_from_metric";
 import { formatFigureConfigForAI } from "./_internal/format_figure_config_for_ai";
 import { validateMetricInputs } from "lib";
-import { copilotAIToolEnv } from "../client_env";
+import type { ClientAIToolEnv } from "../client_env";
 import {
   validateReportBodyLength,
   validateReportTokensResolve,
@@ -202,7 +202,10 @@ function formatFigureIndexLine(id: string, fig: FigureBlock): string {
   return `- ${parts.join(" · ")}`;
 }
 
-export function getClientToolsForReportEditor(metrics: MetricWithStatus[]) {
+export function getClientToolsForReportEditor(
+  env: ClientAIToolEnv,
+  metrics: MetricWithStatus[],
+) {
   return [
     createAITool({
       viewRegistry: copilotViews,
@@ -285,7 +288,7 @@ export function getClientToolsForReportEditor(metrics: MetricWithStatus[]) {
         const bundle = fig.bundle;
         const metric = metrics.find((m) => m.id === bundle.metricId);
         return await formatFigureConfigForAI(
-          copilotAIToolEnv,
+          env,
           metric,
           bundle.config,
           bundle.dateRange,
@@ -417,7 +420,7 @@ export function getClientToolsForReportEditor(metrics: MetricWithStatus[]) {
               }
             : undefined;
         await validateMetricInputs(
-          copilotAIToolEnv,
+          env,
           bundle.metricId,
           filters,
           periodFilter,

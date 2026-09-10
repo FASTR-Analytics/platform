@@ -31,7 +31,7 @@ import { useAIDocuments, AIDocumentList } from "./ai_documents";
 import { usePromptLibrary } from "./ai_prompt_library";
 import { SaveableUserTextRenderer } from "./ai_prompt_library/SaveableUserTextRenderer";
 import { AIDebugPanel, type AIDebugPanelProps } from "./ai_debug_panel";
-import { copilotAuthoringContext } from "./authoring_context";
+import type { HfaTaxonomyForAI, RunAuthoringContext } from "lib";
 
 const RESET_RE = /will reset at ([^".}]+)/i;
 
@@ -144,6 +144,8 @@ const customChatRenderers = {
 type ConsolidatedChatPaneProps = {
   aiDocs: ReturnType<typeof useAIDocuments>;
   getSystemPrompt: Accessor<string>;
+  authoringContext: RunAuthoringContext;
+  hfaTaxonomy: HfaTaxonomyForAI;
 };
 
 export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
@@ -305,9 +307,9 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
         openComponent<AIDebugPanelProps, void>({
           element: AIDebugPanel,
           props: {
-            metrics: copilotAuthoringContext.metrics,
-            icehIndicators: copilotAuthoringContext.icehIndicators,
-            hfaTaxonomy: copilotAuthoringContext.hfaTaxonomy,
+            metrics: p.authoringContext.metrics,
+            icehIndicators: p.authoringContext.icehIndicators,
+            hfaTaxonomy: p.hfaTaxonomy,
           },
         }),
     },
@@ -348,11 +350,11 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
           fr: "Posez une question sur ce rapport...",
           pt: "Faça uma pergunta sobre este relatório...",
         });
-      case "viewing_products":
+      case "opening_product":
         return t3({
-          en: "Explore your data...",
-          fr: "Explorez vos données...",
-          pt: "Explore os seus dados...",
+          en: "Opening...",
+          fr: "Ouverture...",
+          pt: "A abrir...",
         });
       default: {
         const _exhaustive: never = view;

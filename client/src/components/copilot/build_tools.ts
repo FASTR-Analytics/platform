@@ -3,56 +3,54 @@ import {
   getSharedToolsForMethodologyDocs,
   getSharedToolsForMetrics,
 } from "lib";
+import type {
+  HfaTaxonomyForAI,
+  PackageScope,
+  RunAuthoringContext,
+} from "lib";
 import { createAskUserQuestionsTool } from "panther";
-import { copilotAuthoringContext } from "./authoring_context";
-import { copilotAIToolEnv } from "./ai_tools/client_env";
-import { withSourceHeader } from "./ai_tools/source_header";
+import type { ClientAIToolEnv } from "./ai_tools/client_env";
 import { SPA_INFO_TOPICS } from "./ai_tools/client_info_topics";
 import { getClientToolsForDrafts } from "./ai_tools/tools/drafts";
 import { getClientToolsForModules } from "./ai_tools/tools/modules";
-import { getClientToolsForProducts } from "./ai_tools/tools/products";
 import { getClientToolsForReportEditor } from "./ai_tools/tools/report_editor";
 import { getClientToolsForSlideEditor } from "./ai_tools/tools/slide_editor";
 import { getClientToolsForSlides } from "./ai_tools/tools/slides";
 
 // The copilot's tool set = the SHARED tools (lib/ai_tools: the same
-// definitions the /mcp surface exposes, over the env bound to whichever
-// (package, scope) pair the copilot currently serves) + the CLIENT tools
-// (product registry, module internals, editors, drafts). Array order is the
-// tool-catalog order and the catalog is a prompt-cache input: keep it stable.
+// definitions the /mcp surface exposes, over the env bound to the open
+// product's (package, scope) pair) + the CLIENT tools (module internals,
+// editors, drafts). Array order is the tool-catalog order and the catalog is
+// a prompt-cache input: keep it stable.
 //
-// The arrays passed here are the authoring-context STORE's, captured once and
-// reconciled in place; authoring_context.ts states why that is what keeps the
-// tools live across a package switch.
-//
-// Only the shared metric tools get the source header, exactly as at /mcp: they
-// are the ones that read the package. The methodology docs are fetched from
-// GitHub, and the client tools name their own product.
-export function buildCopilotTools() {
-  const env = copilotAIToolEnv;
-  const ctx = copilotAuthoringContext;
-
+// Built once per mount over that mount's fixed env and authoring context
+// (PLAN_PRODUCTS_RESTRUCTURE D15): nothing moves under the tools, so no
+// handler needs a store to stay live.
+export function buildCopilotTools(
+  env: ClientAIToolEnv,
+  scope: PackageScope,
+  ctx: RunAuthoringContext,
+  hfaTaxonomy: HfaTaxonomyForAI,
+) {
   return [
     ...getSharedToolsForMetrics(
       env,
       ctx.metrics,
       ctx.icehIndicators,
-      ctx.hfaTaxonomy,
-    ).map((tool) => withSourceHeader(tool)),
+      hfaTaxonomy,
+    ),
     // Module internals of that package (SPA-only)
-    ...getClientToolsForModules(ctx.modules, ctx.metrics),
-    // The product registry
-    ...getClientToolsForProducts(),
+    ...getClientToolsForModules(env, ctx.modules, ctx.metrics),
     ...getSharedToolsForMethodologyDocs(),
     ...getSharedToolsForInfo(SPA_INFO_TOPICS),
 
     // View-gated tools (createAITool with viewRegistry + availableIn)
-    ...getClientToolsForSlides(ctx.metrics),
-    ...getClientToolsForSlideEditor(ctx.metrics),
-    ...getClientToolsForReportEditor(ctx.metrics),
+    ...getClientToolsForSlides(env, ctx.metrics),
+    ...getClientToolsForSlideEditor(env, ctx.metrics),
+    ...getClientToolsForReportEditor(env, ctx.metrics),
 
-    // Draft preview tools - always available
-    ...getClientToolsForDrafts(ctx.metrics),
+    // Draft preview tool - available in every view
+    ...getClientToolsForDrafts(scope, ctx.metrics),
 
     // Interactive tools
     createAskUserQuestionsTool(),

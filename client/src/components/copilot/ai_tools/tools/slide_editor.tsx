@@ -35,7 +35,7 @@ import {
   validateNoMarkdownTables,
   validateSlideTotalWordCount,
 } from "../validators/content_validators";
-import { copilotAIToolEnv } from "../client_env";
+import type { ClientAIToolEnv } from "../client_env";
 import { assertSlidesNotBusy } from "../validators/presence_guard";
 import {
   extractBlocksFromLayout,
@@ -69,7 +69,10 @@ function replaceFigureBundleInLayout(
   return { ...slide, layout: walk(slide.layout) };
 }
 
-export function getClientToolsForSlideEditor(metrics: MetricWithStatus[]) {
+export function getClientToolsForSlideEditor(
+  env: ClientAIToolEnv,
+  metrics: MetricWithStatus[],
+) {
   return [
     createAITool({
       viewRegistry: copilotViews,
@@ -81,7 +84,7 @@ export function getClientToolsForSlideEditor(metrics: MetricWithStatus[]) {
       kind: "read",
       handler: async (_input, view) => {
         const slide = view.context.getTempSlide();
-        const simplified = await simplifySlideForAI(copilotAIToolEnv, slide, metrics);
+        const simplified = await simplifySlideForAI(env, slide, metrics);
 
         const lines: string[] = [];
         lines.push("# SLIDE EDITOR");
@@ -500,7 +503,7 @@ export function getClientToolsForSlideEditor(metrics: MetricWithStatus[]) {
         const periodFilter = newConfig.d.periodFilter && periodFilterHasBounds(newConfig.d.periodFilter)
           ? { min: newConfig.d.periodFilter.min, max: newConfig.d.periodFilter.max }
           : undefined;
-        await validateMetricInputs(copilotAIToolEnv, bundle.metricId, filters, periodFilter);
+        await validateMetricInputs(env, bundle.metricId, filters, periodFilter);
 
         const report = describeFigureConfigPatchEffect(bundle.config, input.patch, metric, dataBounds);
 

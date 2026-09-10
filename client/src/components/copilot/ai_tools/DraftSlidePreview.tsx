@@ -5,6 +5,7 @@ import {
   PAGE_WIDTH_DU,
   type AiSlideInput,
   type MetricWithStatus,
+  type PackageScope,
   type Slide,
   type SlideDeckConfig,
 } from "lib";
@@ -27,9 +28,7 @@ import {
 import { convertAiInputToSlide } from "~/components/slide_deck/slide_ai/convert_ai_input_to_slide";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { copilotViewController } from "~/components/copilot/ai_views";
-import { requireCopilotScope } from "~/components/copilot/authoring_context";
-import { AddToDeckModal } from "./AddToDeckModal";
-import { addSlideDirectlyToDeck } from "./add_slide_to_deck";
+import { addSlideToDeck } from "./add_slide_to_deck";
 
 type SlideState = {
   pageInputs: PageInputs;
@@ -37,9 +36,19 @@ type SlideState = {
 };
 
 type Props = {
+  scope: PackageScope;
   slideInput: AiSlideInput;
   metrics: MetricWithStatus[];
 };
+
+// The deck the draft can be added to: the open deck, from the deck view or
+// from one of its slides. A report has no deck, so the card is preview-only.
+function openDeckId(): string | undefined {
+  const view = copilotViewController.current();
+  return view.id === "editing_slide_deck" || view.id === "editing_slide"
+    ? view.params.deckId
+    : undefined;
+}
 
 export function DraftSlidePreview(p: Props) {
   const [slideState, setSlideState] = createSignal<StateHolder<SlideState>>({
@@ -59,7 +68,7 @@ export function DraftSlidePreview(p: Props) {
     try {
       const deckConfig = getDeckConfig();
       const convertedSlide = await convertAiInputToSlide(
-        requireCopilotScope(),
+        p.scope,
         p.slideInput,
         p.metrics,
         deckConfig,
@@ -89,6 +98,9 @@ export function DraftSlidePreview(p: Props) {
     buildSlide();
   });
 
+  const addToDeckLabel = () =>
+    t3({ en: "Add to this deck", fr: "Ajouter à cette présentation", pt: "Adicionar a esta apresentação" });
+
   function openExpandedView() {
     const state = slideState();
     if (state.status !== "ready") return;
@@ -96,30 +108,17 @@ export function DraftSlidePreview(p: Props) {
       element: ExpandedSlideModal,
       props: {
         pageInputs: state.data.pageInputs,
-        onAddToDeck: handleAddToDeck,
-        addToDeckLabel:
-          copilotViewController.current().id === "editing_slide_deck"
-            ? t3({ en: "Add to this deck", fr: "Ajouter au deck", pt: "Adicionar a esta apresentação" })
-            : t3({ en: "Add to slide deck", fr: "Ajouter à un deck", pt: "Adicionar a uma apresentação" }),
+        onAddToDeck: openDeckId() === undefined ? undefined : handleAddToDeck,
+        addToDeckLabel: addToDeckLabel(),
       },
     });
   }
 
   async function handleAddToDeck() {
     const state = slideState();
-    if (state.status !== "ready") return;
-    const view = copilotViewController.current();
-    if (view.id === "editing_slide_deck") {
-      await addSlideDirectlyToDeck(
-        state.data.convertedSlide,
-        view.params.deckId,
-      );
-    } else {
-      await openComponent({
-        element: AddToDeckModal,
-        props: { slide: state.data.convertedSlide },
-      });
-    }
+    const deckId = openDeckId();
+    if (state.status !== "ready" || deckId === undefined) return;
+    await addSlideToDeck(state.data.convertedSlide, deckId);
   }
 
   return (
@@ -144,11 +143,11 @@ export function DraftSlidePreview(p: Props) {
               iconName="maximize"
               onClick={openExpandedView}
             />
-            <Button size="sm" outline onClick={handleAddToDeck}>
-              {copilotViewController.current().id === "editing_slide_deck"
-                ? t3({ en: "Add to this deck", fr: "Ajouter au deck", pt: "Adicionar a esta apresentação" })
-                : t3({ en: "Add to slide deck", fr: "Ajouter à un deck", pt: "Adicionar a uma apresentação" })}
-            </Button>
+            <Show when={openDeckId() !== undefined}>
+              <Button size="sm" outline onClick={handleAddToDeck}>
+                {addToDeckLabel()}
+              </Button>
+            </Show>
           </div>
         </Show>
       </div>
@@ -188,7 +187,7 @@ function SlideStateWrapper(p: SlideStateWrapperProps) {
 
 type ExpandedSlideModalProps = {
   pageInputs: PageInputs;
-  onAddToDeck: () => void;
+  onAddToDeck: (() => void) | undefined;
   addToDeckLabel: string;
 };
 
@@ -201,15 +200,19 @@ function ExpandedSlideModal(
       rightButtons={
         // eslint-disable-next-line jsx-key
         [
-          <Button
-            outline
-            onClick={() => {
-              p.close(undefined);
-              p.onAddToDeck();
-            }}
-          >
-            {p.addToDeckLabel}
-          </Button>,
+          <Show when={p.onAddToDeck}>
+            {(onAddToDeck) => (
+              <Button
+                outline
+                onClick={() => {
+                  p.close(undefined);
+                  onAddToDeck()();
+                }}
+              >
+                {p.addToDeckLabel}
+              </Button>
+            )}
+          </Show>,
           <Button onClick={() => p.close(undefined)}>
             {t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
           </Button>,

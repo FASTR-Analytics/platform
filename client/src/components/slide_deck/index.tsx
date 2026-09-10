@@ -94,7 +94,7 @@ export function SlideDeckEditor(p: Props) {
 
   onCleanup(() => {
     if (p.returnToContext) restoreCopilotView(p.returnToContext);
-    else copilotViewController.setView("viewing_products");
+    else copilotViewController.clearView();
     setCollabView({});
   });
 

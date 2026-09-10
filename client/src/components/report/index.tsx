@@ -938,7 +938,7 @@ export function ReportEditor(p: Props) {
     // Clear the "in this report" presence when the editor closes.
     setCollabView({});
     if (p.returnToContext) restoreCopilotView(p.returnToContext);
-    else copilotViewController.setView("viewing_products");
+    else copilotViewController.clearView();
   });
 
   // ── live collab ──────────────────────────────────────────────────────────

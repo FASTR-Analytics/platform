@@ -1,8 +1,10 @@
 import { get, set } from "idb-keyval";
 
 // The copilot's PDF attachments (T4: per-browser IndexedDB, no server copy).
-// Keyed by the ONE copilot conversation scope, not by a project: there is one
-// mount and one scope, "copilot" (PLAN_PRODUCTS_RESTRUCTURE D15).
+// The upload registry is instance-wide (a file uploaded once serves every
+// product's copilot); pending attachments are per conversation id, which is
+// unique across the per-product conversation scopes (PLAN_PRODUCTS_RESTRUCTURE
+// D15).
 export type UploadedDocument = {
   assetFilename: string;
   anthropicFileId: string;

@@ -5,58 +5,49 @@ import {
   buildSystemPrompt,
   type InstanceState,
   MAX_CONTENT_BLOCKS,
-  type ProductType,
+  type PackageScope,
+  type RunAuthoringContext,
   SLIDE_TEXT_TOTAL_WORD_COUNT_MAX,
   SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET,
 } from "lib";
 import { SPA_INFO_TOPICS } from "./ai_tools/client_info_topics";
-import {
-  copilotAuthoringContext,
-  describeCopilotPackage,
-  describeCopilotScope,
-} from "./authoring_context";
-
-function countProducts(instance: InstanceState, type: ProductType): number {
-  return instance.products.filter((p) => p.type === type).length;
-}
 
 // The copilot's system prompt: the shared grounding blocks (lib/ai_tools/
-// build_system_prompt.ts) plus the instance's own prose: the results package
-// the copilot is currently serving, the product counts, and the instance-level
-// `ai_context` (PLAN_PRODUCTS_RESTRUCTURE D15).
+// build_system_prompt.ts) plus the instance's own prose: the open product's
+// results package and scope, and the instance-level `ai_context`
+// (PLAN_PRODUCTS_RESTRUCTURE D15).
 //
-// BYTE-STABLE across navigation WITHIN one package: no view/mode argument, and
+// BYTE-STABLE for the life of one mount: the pair and the authoring context
+// are fixed per mount (a reattach remounts), no view argument is taken, and
 // per-view instructions ride each view's instructions in ai_views.ts as a
-// per-turn ephemeral section. Opening a product on a DIFFERENT package
-// legitimately rewrites the package-grounding half and busts the prompt-cache
-// breakpoint once; that is the price of grounding the model in the package it
-// is actually reading, and the per-result source header
-// (ai_tools/source_header.ts) carries the same fact into the transcript.
+// per-turn ephemeral section. Only the instance AI context can change it.
 export function buildSystemPromptForContext(
   instance: InstanceState,
+  scope: PackageScope,
+  authoringContext: RunAuthoringContext,
   toolCatalog: string,
 ): string {
-  const pkg = describeCopilotPackage();
+  const pkg = instance.readyPackages.find((p) => p.id === scope.runId);
+  // A product attached to a package that is no longer ready has no entry:
+  // the run id is the honest fallback rather than a fabricated label.
+  const packageLine = pkg
+    ? `**Package:** ${pkg.label}${pkg.createdAt === null ? "" : ` (generated ${pkg.createdAt})`}`
+    : `**Package:** ${scope.runId}`;
   const sections: string[] = [
     ...buildInstanceContextSections(instance),
     "# Results package",
     "",
-    `**Package:** ${pkg.label}${pkg.createdAt === null ? "" : ` (generated ${pkg.createdAt})`}`,
-    `**Scope:** ${describeCopilotScope()}`,
+    "The open product is attached to exactly one results package at one scope; every figure inside it, and every metric read you make, resolves under that pair.",
+    "",
+    packageLine,
+    `**Scope:** ${scope.adminArea2 === null ? "national" : scope.adminArea2}`,
     ...buildPackageGroundingSections({
       calendar: instance.instanceCalendar,
-      datasets: copilotAuthoringContext.datasets,
-      commonIndicators: copilotAuthoringContext.commonIndicators,
-      icehIndicators: copilotAuthoringContext.icehIndicators,
+      datasets: authoringContext.datasets,
+      commonIndicators: authoringContext.commonIndicators,
+      icehIndicators: authoringContext.icehIndicators,
     }),
     ...buildDataCoverageSections(instance),
-    "",
-    "# Products",
-    "",
-    "A product is a slide deck or a report. Each one is filed in a nested folder and attached to exactly one results package at one scope; every figure inside it is resolved under that pair.",
-    "",
-    `**Slide decks:** ${countProducts(instance, "slide_deck")} (use get_available_slide_decks for details)`,
-    `**Reports:** ${countProducts(instance, "report")} (use get_available_reports for details)`,
   ];
   if (instance.aiContext.trim()) {
     sections.push("");
@@ -73,34 +64,20 @@ export function buildSystemPromptForContext(
     toolCatalog,
     infoTopics: SPA_INFO_TOPICS,
     roleAndPurpose:
-      "You are an AI assistant helping users explore, analyze, and present their health data. You can query data, draft slides and figures, and help build slide decks and reports.",
+      "You are an AI assistant helping users explore, analyze, and present their health data inside the slide deck or report they have open. You can query data, draft slides and figures, and help build that deck or report.",
     extraCorePrinciples: [
       "**Ask when uncertain** - Use the ask_user_questions tool to clarify preferences, choose between approaches, or confirm decisions before proceeding. Don't guess what the user wants when you can ask.",
     ],
   });
 }
 
-// ── Viewing mode instructions ──
+// ── View instructions ──
 // Each function below is used as a view's instructions in ai_views.ts.
 
-export function getViewingProductsInstructions(): string {
-  return `# Current View: Products
+export function getOpeningProductInstructions(): string {
+  return `# Current View: Opening product
 
-The user is browsing their products, slide decks and reports, in nested folders.
-
-## Primary Tools (most relevant here)
-
-**get_available_slide_decks** - List all slide decks with their package and scope
-**get_available_reports** - List all reports with their package and scope
-**get_report** - Get a report's full markdown body + embedded figure/image ids
-**create_report** - Create a new report from a markdown body
-
-## Actions
-
-- Help explore existing decks and reports
-- Draft a new report (use create_report with well-structured markdown: headings, paragraphs, lists, tables)
-- Do NOT put raw HTML in report bodies; for live data tables/charts, figures are inserted in the report editor
-- Figures are created INSIDE a deck or a report. To propose one here, use show_draft_slide_to_user; the user can then add it to a deck of their choice.`;
+The product is still loading. Tell the user to wait a moment and ask again; do not call editing tools yet.`;
 }
 
 export function getEditingReportInstructions(reportLabel: string): string {

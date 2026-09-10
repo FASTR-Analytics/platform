@@ -17,6 +17,7 @@ import {
 import { convertAiInputToSlide } from "~/components/slide_deck/slide_ai/convert_ai_input_to_slide";
 import { extractBlocksFromLayout } from "~/components/slide_deck/slide_ai/extract_blocks_from_layout";
 import { createGetSlideTool } from "./get_slide";
+import type { ClientAIToolEnv } from "../client_env";
 import { getSlideWithUpdatedBlocks } from "~/components/slide_deck/slide_ai/get_slide_with_updated_blocks";
 import { getDeckSummaryForAI } from "~/components/slide_deck/slide_ai/get_deck_summary";
 import {
@@ -58,7 +59,10 @@ const DECK_LEVEL_NOTE =
 const FIGURE_SOURCE_NOTE =
   "\n\nContent blocks are either:\n- from_metric: a figure built from a metric + one of its presets. IMPORTANT: always call get_metric_data FIRST to see available disaggregations, filters and time ranges. The figure resolves under the deck's results package and scope.\n- text: markdown content with autofit. IMPORTANT: Markdown tables are NOT allowed. To display tabular data, use a from_metric block with a table-type preset.";
 
-export function getClientToolsForSlides(metrics: MetricWithStatus[]) {
+export function getClientToolsForSlides(
+  env: ClientAIToolEnv,
+  metrics: MetricWithStatus[],
+) {
   return [
     createAITool({
       viewRegistry: copilotViews,
@@ -82,7 +86,7 @@ export function getClientToolsForSlides(metrics: MetricWithStatus[]) {
 
     // The one non-view-gated slides tool: reads by explicit slideId from
     // any view.
-    createGetSlideTool(metrics),
+    createGetSlideTool(env, metrics),
 
     createAITool({
       viewRegistry: copilotViews,

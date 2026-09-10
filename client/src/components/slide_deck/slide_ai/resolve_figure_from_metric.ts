@@ -6,7 +6,7 @@ import type {
 } from "lib";
 import { validateMetricInputs } from "lib";
 import { resolveBundleFromMetricAndConfig } from "~/generate_visualization/mod";
-import { copilotAIToolEnv } from "~/components/copilot/ai_tools/client_env";
+import { createCopilotAIToolEnv } from "~/components/copilot/ai_tools/client_env";
 import { buildConfigFromPreset } from "./build_config_from_metric";
 
 // AI adapter: builds the config from the preset + AI overrides, runs AI-specific
@@ -27,7 +27,7 @@ export async function resolveFigureFromMetric(
     ? { min: config.d.periodFilter.min, max: config.d.periodFilter.max }
     : undefined;
   await validateMetricInputs(
-    copilotAIToolEnv,
+    createCopilotAIToolEnv(scope),
     metricId,
     filters,
     periodFilter,

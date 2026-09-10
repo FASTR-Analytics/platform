@@ -200,8 +200,7 @@ export function packagePeriodCoverage(
 // can move between two calls of one conversation and a client may carry a
 // stale catalog, so results are self-identifying by construction. Failures
 // pass through unchanged. The line itself is `formatSourceHeader`
-// (lib/ai_tools), shared with the SPA copilot's wrapper so the two surfaces
-// cannot drift; /mcp passes no scope because it is national by construction.
+// (lib/ai_tools).
 export function buildSourceHeader(run: RunListingItem): string {
   return formatSourceHeader({
     packageLabel: run.label,

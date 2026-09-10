@@ -134,7 +134,8 @@ table** — tables must be table-preset figures (`m9-02-01`).
 ## Suggested workflow
 
 1. Discover: list M9 metrics, available `iceh_indicator` / `strat` / years.
-2. `create_report` with the title and a section skeleton (headings + intro text).
+2. `rewrite_report` with the title and a section skeleton (headings + intro text)
+   into the open report (the user creates the report and opens it first).
 3. For each section above, `insert_figure` (`from_metric` …) and embed its token.
 4. Write/refine the narrative around each figure (`rewrite_section` /
    `replace_text`), then the key messages and definitions.

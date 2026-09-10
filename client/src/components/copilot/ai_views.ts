@@ -1,6 +1,5 @@
 import { createAIViewController, defineAIViews, view } from "panther";
 import type { AIViewController, AIViewState } from "panther";
-import { t3 } from "lib";
 import type {
   FigureBlock,
   ImageBlock,
@@ -10,7 +9,6 @@ import type {
   SlideType,
 } from "lib";
 import type { SetStoreFunction } from "solid-js/store";
-import { instanceState } from "~/state/instance/t1_store";
 import type {
   ReportEditorSelection,
   ReportEditProposal,
@@ -24,33 +22,36 @@ import {
   getEditingReportInstructions,
   getEditingSlideDeckInstructions,
   getEditingSlideInstructions,
-  getViewingProductsInstructions,
+  getOpeningProductInstructions,
 } from "./build_system_prompt";
 
 ////////////////////////////////////////////////////////////////////////////////
 // COPILOT: AI VIEW REGISTRY
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Four views (PLAN_PRODUCTS_RESTRUCTURE D15): the Products page the copilot is
-// mounted over, plus the three product editors. TParams is the serializable,
-// model-visible half (view-label text, tool narrowing); TContext is the live
-// payload (the editor's store getters/setters, and the open product's
-// PackageScope) delivered to tool handlers opaquely.
+// The copilot is mounted per open product (PLAN_PRODUCTS_RESTRUCTURE D15), so
+// the views are the three product editors plus `opening_product`, the
+// paramless fallback the controller sits in between the host mounting and the
+// editor's first `setView` (each editor sets its view after its first fetch).
+// TParams is the serializable, model-visible half (view-label text, tool
+// narrowing); TContext is the live payload (the editor's store getters and
+// setters, and the open product's PackageScope) delivered to tool handlers
+// opaquely.
 //
-// There is no tab-to-view map any more: Data / Results / Assets / Users sit
-// outside the copilot's mount, so the only navigation sync sites are the
-// Products page and each editor's mount and teardown.
+// The controller is a module singleton: only one product is ever open, and
+// the host clears its interaction log at mount so nothing leaks between
+// products. The sync sites are each editor's mount and teardown, and the
+// deck-to-slide `returnToContext` stack.
 //
-// instructions carries what used to be build_system_prompt.ts's per-mode
-// switch (still exported from there) PLUS the live bits that used to ride the
-// old mode string (the deck's selected slide ids; the report editor's
-// selection preview). instructionsDelivery stays the default "ephemeral"
-// everywhere: the `system` accessor takes no view argument, so it is
-// byte-stable across navigation within one package.
+// instructions carries the per-view prompt section PLUS the live bits that
+// used to ride the old mode string (the deck's selected slide ids; the report
+// editor's selection preview). instructionsDelivery stays the default
+// "ephemeral" everywhere: the `system` accessor takes no view argument, so it
+// is byte-stable for the life of the mount.
 
 // Every editing view carries the open product's pair. It rides the opaque
 // CONTEXT half deliberately: no run id crosses the tool seam and none appears
-// in a tool schema (D15); the env reads it here instead.
+// in a tool schema (D15).
 export type OpenProductScope = {
   getScope: () => PackageScope;
 };
@@ -92,9 +93,9 @@ export type EditingReportContext = OpenProductScope & {
 };
 
 export const copilotViews = defineAIViews({
-  viewing_products: view({
-    label: () => getViewingProductsLabel(),
-    instructions: () => getViewingProductsInstructions(),
+  opening_product: view({
+    label: () => "",
+    instructions: () => getOpeningProductInstructions(),
   }),
   // The editing_* instructions each carry the entity IDS the old mode string
   // exposed (deckId / slideId / reportId): ids are the model's cross-turn
@@ -128,12 +129,6 @@ export const copilotViews = defineAIViews({
   }),
 });
 
-// Concise, UI-facing label (chat-pane header subtext) for the one no-params
-// viewing_* view.
-function getViewingProductsLabel(): string {
-  return t3({ en: "Products", fr: "Produits", pt: "Produtos" });
-}
-
 export type CopilotViewDefs = (typeof copilotViews)["_defs"];
 export type CopilotViewId = keyof CopilotViewDefs;
 export type CopilotViewState = AIViewState<CopilotViewDefs>;
@@ -142,33 +137,9 @@ export const copilotViewController: AIViewController<
   CopilotViewDefs,
   CopilotInteractionDefs
 > = createAIViewController(copilotViews, {
-  fallback: "viewing_products",
+  fallback: "opening_product",
   interactions: copilotInteractions,
 });
-
-// THE env resolver (D15). While a product editor is open the copilot serves
-// that product's package and scope, read from the view's live context, so a
-// reattach or scope change mid-edit moves the copilot with the editor. With no
-// editor open there is no product to take a pair from, so it falls back to the
-// instance pin at national scope (the same pair /mcp binds). null = neither.
-//
-// REACTIVE: `current` is the controller's state signal, so a caller inside a
-// tracking scope re-runs on every setView.
-export function resolveCopilotScope(): PackageScope | null {
-  const state = copilotViewController.current();
-  switch (state.id) {
-    case "editing_slide_deck":
-    case "editing_slide":
-    case "editing_report":
-      return state.context.getScope();
-    case "viewing_products": {
-      const pinnedRunId = instanceState.pinnedRunId;
-      return pinnedRunId === null
-        ? null
-        : { runId: pinnedRunId, adminArea2: null };
-    }
-  }
-}
 
 // Restores a previously-captured view state verbatim (params + live context),
 // for the "returnToContext" stack the nested editors use (deck editor to slide
@@ -180,8 +151,8 @@ export function resolveCopilotScope(): PackageScope | null {
 // no casts.
 export function restoreCopilotView(state: CopilotViewState): void {
   switch (state.id) {
-    case "viewing_products":
-      copilotViewController.setView("viewing_products");
+    case "opening_product":
+      copilotViewController.clearView();
       return;
     case "editing_slide_deck":
       copilotViewController.setView(
