@@ -6,7 +6,7 @@ database, one realtime channel, one copilot. An Explore tab replaces the
 project Metrics tab and the standalone visualization library; this plan
 creates the tab, and its page, the results explorer, is a later plan.
 
-**Next step: Review 8.** Each session sets this line in its final commit. Its
+**Next step: Do 9a.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N`; after step 10's review passes the
 file is deleted instead of advanced.
 
@@ -2312,6 +2312,8 @@ this section before its step.
 | 2026-09-10 | plan | Tim's ruling: the fourth-pass fix of step 8 runs in the review session, as the first three did. The next Review 8 is a fresh agent. |
 | 2026-09-10 | 8 | Fix 8, fourth pass. The two layout tools use the zod-narrowed `cell.block` as is (`AiTextBlock \| AiFigureFromMetric`): the `as AiContentBlockInput` casts at `slides.tsx:432` and `slide_editor.tsx:314` are gone, with the two unreachable `else` branches and the now-unused type import in each file. No model-visible text changed except by deletion of the dead "no figure library to clone from" failure. Gates: `deno task typecheck` (server, client, `lint:systems` clean), `deno task test` (38 passed), `./validate_protocols` (0 tier-1, 0 new tier-2, 17 baselined, baseline file unchanged), boot on `PORT=8010` against the dev database (286 routes validated, 3 headless routes mounted, 38 dev-boot tests passed, `/health_check` 200). The browser gates in the step's Gates list are Tim's. |
 | 2026-09-10 | 8 | Step 8 fixed. |
+| 2026-09-10 | 8 | Review 8, fifth pass. Commit cbddd10e read against the fourth-pass finding, the Surface and D15, with the gates run by the reviewer: `deno task typecheck` (server, client, `lint:systems` claiming every tracked file once), `deno task test` (38 passed), `./validate_protocols` (0 tier-1, 0 new tier-2, 17 baselined, baseline file unchanged since 02f80a42), boot on `PORT=8010` against the dev database (Valkey connected, 286 routes validated, 3 headless routes mounted, 38 dev-boot tests passed, listening, `/health_check` 200). The finding is closed in the code: neither `copilot/ai_tools/tools/slides.tsx` nor `slide_editor.tsx` casts `cell.block` or imports `AiContentBlockInput`; both layout branches use the zod-narrowed `cell.block` (`LayoutCellSchema` unions a block id with `AiContentBlockInputSchema`, which is `AiTextBlockSchema \| AiFigureFromMetricSchema`, `lib/types/ai_input.ts:232-244`) through `type === "text"` and `type === "from_metric"` with no else; the type import was the only import removed and both files still use every other import (tsc is clean). `AiContentBlockInput` keeps its one remaining consumer, `slide_ai/get_slide_with_updated_blocks.ts`, which 9a takes. The fix commit's two code files are inside the Surface and the diff holds nothing beyond the two casts, the two branches and the two imports. §9 has the fourth-pass Fix 8 row and its closing row. |
+| 2026-09-10 | 8 | Step 8 reviewed: pass. |
 
 ## Appendix A: the migration replay of 2026-08-19, and what still stands
 
