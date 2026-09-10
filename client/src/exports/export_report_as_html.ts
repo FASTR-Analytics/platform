@@ -269,7 +269,7 @@ function pagedDocumentParts(
   const setup = docSettings?.page ?? readFastrDocumentSettings("").page;
   return {
     headExtraCss: buildFastrPagedCss(setup, opts.paged.footer) +
-      fastrForcedBreaksCss(opts.paged.pageStarts ?? []) +
+      (opts.paged.pageStarts !== undefined ? fastrForcedBreaksCss(opts.paged.pageStarts) : "") +
       fastrFigureFitCss(opts.paged.figureFits ?? []) +
       fastrGapStretchCss(opts.paged.gapStretches ?? []),
     bodyPrefixHtml: fastrPrintTitleHtml(detail.label),

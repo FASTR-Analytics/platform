@@ -46,6 +46,7 @@ import {
   toggleLinePrefixEdit,
   updateContainerFenceLine,
   type FastrChartPalette,
+  type FastrLayoutHint,
 } from "lib";
 import type { ReportEditorSelection } from "~/components/project_ai/types";
 import { embedWidgets, type EmbedResolver } from "./figure_widget_extension";
@@ -174,7 +175,7 @@ export type ReportEditorApi = {
   setPagination: (pagination: EditorPagination | undefined) => void;
   // Print's height for every block, by source text (the host's background
   // layout): the estimates for blocks the editor has not rendered.
-  setLayoutHints: (hints: Map<string, number>) => void;
+  setLayoutHints: (hints: Map<string, FastrLayoutHint>) => void;
   // An embed's size landed in the host's caches (see EmbedResolver): the
   // rendered embeds still waiting for one take their box now.
   refreshEmbedSizes: () => void;
@@ -894,14 +895,14 @@ export function ReportEditor(p: Props) {
   // page boxes were missing until a mode switch asked again (Nick,
   // 2026-09-10).
   let wantedPagination: EditorPagination | undefined;
-  let wantedHints: Map<string, number> | undefined;
+  let wantedHints: Map<string, FastrLayoutHint> | undefined;
 
   function setPagination(pagination: EditorPagination | undefined) {
     wantedPagination = pagination;
     view?.dispatch({ effects: setPaginationEffect.of(pagination) });
   }
 
-  function setLayoutHints(hints: Map<string, number>) {
+  function setLayoutHints(hints: Map<string, FastrLayoutHint>) {
     wantedHints = hints;
     view?.dispatch({ effects: setLayoutHintsEffect.of(hints) });
   }

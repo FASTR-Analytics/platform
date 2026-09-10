@@ -609,6 +609,121 @@ blocks across the boundary, never with blank lines. The gap stretch
 never grows the gap under a heading (a heading keeps its text): 48px
 above a heading, 32px beside a block or figure, 12px between paragraphs.
 
+**A figure's box from its own chart** (2026-09-10, Nick's "test 22" PDF:
+a heading and three lines alone on page 4, the figure that followed them
+at the top of page 5 with room to spare, so the editor had believed the
+figure taller than the room: a mount whose size the host's cache never
+delivered, its live chart drawn at the chart's own uncapped height). Panther
+lays a figure out at its reference frame whatever the display, so the live
+canvas's backing size carries the same aspect as the PDF's raster: once a
+chart has drawn, `pageBoxPlugin` sizes its mount from the canvas
+(`drawnCanvasSize`, `derivedFigureSizes` by figure id, ahead of the cache
+in `figureSizeOf`, which `fill`, the refresh plugin and `figureImageBox`
+all take), and a mount whose chart drew to another aspect (an in-place
+figure edit) is re-boxed the same way. A mount still waiting is capped
+like a printed figure (`[data-fm-pending]`, 42% of the page area), so no
+figure can stand a page tall meanwhile. Verified in the harness with
+charts emulated as canvases and the size cache returning nothing for
+every figure: the same pages as with the cache, one layout while
+scrolling, every box the sheet's height, print identical.
+
+**The sweep** (2026-09-10, late: "do a sweep on the system to ensure that
+it is going to visually have no bugs and works flawlessly with making page
+breaks and different widgets in different scenarios"). A corpus of forty
+bodies (every block kind in eight sections at varying offsets, a mixed
+body of every kind twice, the print fixtures, Nick's two ANC1 reports, and
+edge bodies for covers, explicit breaks, lines of space, page-tall blocks
+under headings, landscape and letter) went through a headless harness that
+scrolls each body end to end and checks one layout throughout, every box
+at the sheet's height, in-block seams aligned to the sheet, no heading last
+on a page and the forced print equal to the editor, then photographs every
+seam; a calibration probe compared each block's layout height with its DOM
+box and print's; an operations probe typed, inserted blocks and markers and
+toggled `break=before` at every page boundary. What it found, and what
+changed:
+
+- *The placing rule* (`fastr_markdown_pages.ts`). A block that only its
+  heading precedes on a page continues in place at its inner boundaries
+  rather than run past the page (a heading and a page-tall table stood
+  250px over the sheet while print split the table). Headings, and lines
+  of space between them and the block, travel with a block that starts a
+  page by `break=before` (`FastrLayoutBlock.space`, `keepWith`). A marker
+  that opens a page ends nothing, so a leading `:::pagebreak` or two in a
+  row leave no empty page. A cover page keeps no safety and a cover never
+  continues: a filling cover was being cut at its title, the kicker alone
+  on one page. A page continued from a block re-sums from the block's last
+  part (a latent miscount of the page after a split).
+- *Print follows the editor alone.* `fastrForcedBreaksCss` neutralises the
+  marker's and the break attributes' own breaks (print broke twice when
+  the editor carried a heading onto a break=before block's page) and marks
+  each forced anchor (`--fm-forced`); the runner releases every block
+  around a forced anchor from keeping whole, whatever its height, so the
+  in-place continuation prints where the editor cut it. The stretch sheet
+  targets the outermost element of a line: a blockquote's paragraph shares
+  its line and took the stretch a second time inside the box.
+- *Boxes that changed with the viewport* (the flicker class). A block's
+  "after a line of space" margin came from a sibling selector that
+  CodeMirror's gap placeholder for unrendered neighbours did not match, so
+  the same block measured 16px taller only while its neighbour was rendered
+  and the pages moved as it scrolled: the flags ride on the widget or line
+  as classes from the source (`spaceFlags`, `fm-live-region--after-space`,
+  `cm-fm-after-space`, `cm-fm-leaf--after-space` and the `before` forms),
+  and `regionExtra` takes them for a block not yet rendered. A block's
+  inner boundaries are remembered with its measured height
+  (`measuredInner`), so a split block that leaves the viewport is not laid
+  whole again, and print's boundaries travel with the hints
+  (`FastrPagedBlock.inner`, `FastrLayoutHint`), so a page-tall block far
+  down the document splits right at first sight.
+- *Calibration.* CodeMirror's line wrapping (overflow-wrap anywhere)
+  inherited into a widget let every character break, and a wide table's
+  columns shrank to single letters, its rows 60% taller than print's:
+  rendered content wraps at words. A leaf widget (contents, the marker)
+  carried the block's whole margins inside its box and was never measured
+  (no `data-region-line`): `cm-fm-leaf`, clamped and remembered like a
+  region. The page break marker takes no room, as in print (a rule laid
+  over the page's foot, estimated and laid out at 0). The split chip is an
+  overlay. A blockquote's lines carry print's 1.4em margins less the
+  separator on the run's first and last line, as a heading's do, and
+  print's blockquote no longer adds its paragraph's margin. The height
+  oracle's box wraps its rows (an unrendered list measured at half its
+  height). A filling cover has no margins in the editor, the blank line
+  after it no height, and a sheet's height before it renders.
+- *Seams.* The end element takes no extra (a stale one from a page that no
+  longer existed stood the last page 16px over), the per-page filler and
+  extra maps are pruned on every move, and a page full to the pixel keeps
+  its trailing separator by moving the seam's foot up rather than growing
+  the box (a negative filler).
+- *Contents.* A list of `FASTR_TOC_COLUMNS_FROM` entries or more runs in
+  two columns (`.fm-toc__list--columns`), so the block stays under a
+  page's height (a 24-entry list overflowed page 1 on both sides). The page
+  map flags a heading that ends a page (STRANDED) for the AI.
+
+Verified on the finished code: the full sweep (forty-one bodies at the
+default theme, four themed runs and one with the size cache empty) is
+clean on forty-four of forty-six jobs: one layout while scrolling, every
+box at the sheet's height, every seam aligned, no stranded heading, and
+the forced print equal to the editor. The two that remain are one effect
+of the harness itself: under three parallel headless Chrome runs, about one
+run in four renders a heading or a paragraph with slightly different font
+metrics on one tab (a paragraph a line shorter, a heading 5px taller), and
+the pages move once; nine isolated runs of the same bodies never show it.
+The operations probe (typing at the foot of a page, a paragraph or a
+callout at its head, a page break marker above it, `break=before` under a
+heading, every edit undone) is clean on seven bodies, with the boxes at
+the sheet's height at every step and print equal after each edit. Lib
+tests, typecheck, the systems lint and the print render test pass; the
+many_sections fixture opens with a line of prose under its cover, since
+its forty-entry contents block, now two columns and whole, no longer fits
+beside the cover on page 1.
+
+Known limits after the sweep: a contents block taller than a page even in
+two columns overflows the page box in the editor while print splits it; a
+block with no inner boundaries that does not fit under the heading that
+opened its page runs past the page on both sides; and the AI's page map
+comes from print's natural layout of a draft, which can differ from the
+editor's decisions by a block where the two rules part (a block continued
+under its heading, a heading carried over a break, a fitted figure).
+
 The height map is measured where a line has been on screen and estimated
 elsewhere, and a page laid out from guesses moves when it scrolls in, so
 three things stand in for measurement: `paginate_report.ts` still lays the

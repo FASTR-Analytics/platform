@@ -10,10 +10,12 @@
 // The rules are the paged sheet's: every block keeps whole and moves to the
 // next page when it does not fit; a heading travels with the block after
 // it; `:::pagebreak` and break=before|after end or start a page; a cover
-// with fill=page takes page 1 alone, a natural cover opens page 1 flush to
+// with fill=page takes a page alone, a natural cover opens page 1 flush to
 // the sheet's top. A block taller than a page starts one and continues at
 // the inner boundaries its caller found (paragraphs of a band, rows of a
-// table), or, when it offers none, simply runs past the page.
+// table), or, when it offers none, simply runs past the page. A block that
+// only its heading precedes on a page continues in place the same way
+// rather than move and strand the heading.
 // =============================================================================
 
 import { fastrLiveRegions } from "./fastr_live_regions.ts";
@@ -49,6 +51,9 @@ export type FastrLayoutBlock = {
   // fit, px: the editor's blank separator line after it, which is not
   // content but takes room on the page before the seam.
   tail?: number;
+  // A line of space (a second blank line): it travels with the heading
+  // above it when that heading moves to the next page.
+  space?: boolean;
   // What the block grows by when it OPENS a page, px. Print keeps a block's
   // whole top margin at the top of a page, while the editor's box of a
   // block mid-page keeps only what that margin exceeds the blank separator
@@ -90,32 +95,100 @@ export function layoutFastrPages(
   if (blocks.length === 0) {
     return { total: 0, sheet: { width: g.sheetW, height: g.pageH }, pages, splits, fits };
   }
-  // The height each block was placed at: its own, or the room it shrank to.
+  // The height each block was placed at: its own, the room it shrank to, or
+  // the last part of one continued across pages.
   const placed = new Map<number, number>();
+  // Blocks continued from the page before: the part that opens a page
+  // starts at the page's very top, without the extra of a block that
+  // begins there.
+  const continued = new Set<number>();
+  // A cover page keeps no safety: its content is the sheet itself.
+  const areaOf = (p: OpenPage) => fastrPageArea(g, p) - (p.cover ? 0 : safety);
   let page = openPage(blocks[0], pages.length === 0);
-  let area = fastrPageArea(g, page) - safety;
+  let area = areaOf(page);
   let first = 0;
   let used = 0;
   const close = () => {
     pages.push({ ...page, number: pages.length + 1, contentHeight: used });
   };
-  const lead = (b: FastrLayoutBlock) => b.topExtra ?? 0;
+  const lead = (k: number) => continued.has(k) ? 0 : blocks[k].topExtra ?? 0;
   // What block k adds to the page that block `open` opens: its own box (or
-  // the room it shrank to) and the extra of opening the page, or the gap
-  // above it and its box.
+  // the height it was placed at) and the extra of opening the page, or the
+  // gap above it and its box.
   const footprint = (k: number, open: number) => {
     const h = placed.get(k) ?? blocks[k].height;
-    return k === open ? h + lead(blocks[k]) : blocks[k].gap + h;
+    return k === open ? h + lead(k) : blocks[k].gap + h;
+  };
+  // What travels with block i when it moves to the next page: the headings
+  // directly above it, and the lines of space between them and it. The
+  // first of those, or i itself when there are none on this page.
+  const keepWith = (i: number) => {
+    let j = i;
+    let k = i;
+    while (k > first && (blocks[k - 1].heading || blocks[k - 1].space)) {
+      k--;
+      if (blocks[k].heading) j = k;
+    }
+    return j;
+  };
+  // Close the page with what stands before block j, open the next page on
+  // j, and count blocks j to i - 1 (already placed on the page that closed)
+  // onto the new one.
+  const reopen = (j: number, i: number) => {
+    used = 0;
+    for (let k = first; k < j; k++) used += footprint(k, first);
+    close();
+    page = openPage(blocks[j], false);
+    area = areaOf(page);
+    first = j;
+    used = 0;
+    for (let k = j; k < i; k++) used += footprint(k, first);
+  };
+  // Continue block i at the inner boundaries it offers: each part ends at
+  // the last candidate that still fits what is left of its page, and the
+  // candidate opens the next page. `before` stands between the page's
+  // content so far and the block's top: its gap mid-page, or its extra
+  // when it opens the page. A continuation starts at the page's very top.
+  const continueInner = (i: number, before: number) => {
+    const b = blocks[i];
+    const inner = b.inner ?? [];
+    splits.push({ line: b.line, page: pages.length + 1 });
+    let partTop = 0;
+    let extra = before;
+    let cut = false;
+    while (used + extra + (b.height - partTop) > area) {
+      let at: { line: number; top: number } | undefined;
+      for (const cand of inner) {
+        if (cand.top <= partTop) continue;
+        if (used + extra + (cand.top - partTop) > area) break;
+        at = cand;
+      }
+      if (at === undefined) break;
+      used += extra + (at.top - partTop);
+      close();
+      page = { firstLine: at.line, lines: [at.line], cover: false, flushTop: false };
+      area = areaOf(page);
+      partTop = at.top;
+      extra = 0;
+      used = 0;
+      cut = true;
+    }
+    if (cut) {
+      first = i;
+      continued.add(i);
+      placed.set(i, b.height - partTop);
+    }
+    used += extra + (b.height - partTop);
   };
   let i = 0;
   while (i < blocks.length) {
     const b = blocks[i];
     if (i > first && (b.breakBefore || b.cover !== undefined)) {
-      close();
-      page = openPage(b, false);
-      area = fastrPageArea(g, page) - safety;
-      first = i;
-      used = 0;
+      // The page ends above the block. The headings directly above a
+      // block that starts a page travel with it: a section's heading
+      // introduces the block, and a break under it would strand it.
+      const j = b.breakBefore ? keepWith(i) : i;
+      if (j > first) reopen(j, i);
     }
     let need = footprint(i, first);
     if (i > first && used + need > area && (b.flex ?? 0) > 0) {
@@ -128,58 +201,39 @@ export function layoutFastrPages(
         need = b.gap + room;
       }
     }
+    let done = false;
     if (i > first && used + need > area) {
-      // Break before this block, taking a heading directly above with it.
-      // A page that would be left with nothing keeps the block instead (it
-      // is taller than the page: see below).
-      let j = i;
-      while (j > first && blocks[j - 1].heading) j--;
+      // Break before this block, taking the headings directly above with it.
+      const j = keepWith(i);
       if (j > first) {
-        // The page keeps what stands before the moved blocks; the heading
-        // that moves was already counted, so the page's height is re-summed.
-        used = 0;
-        for (let k = first; k < j; k++) used += footprint(k, first);
-        close();
-        page = openPage(blocks[j], false);
-        area = fastrPageArea(g, page) - safety;
-        first = j;
-        used = 0;
-        for (let k = j; k < i; k++) used += footprint(k, first);
+        reopen(j, i);
         continue;
       }
-    }
-    if (i === first && b.height + lead(b) > area && b.inner !== undefined && b.inner.length > 0) {
-      // Taller than the page: continue at the inner boundaries. Each part
-      // ends at the last candidate that still fits it, and the candidate
-      // opens the next page. The extra of opening a page is the first
-      // part's alone: a continuation starts at the page's very top.
-      splits.push({ line: b.line, page: pages.length + 1 });
-      let partTop = 0;
-      let extra = lead(b);
-      while (b.height + extra - partTop > area) {
-        let cut: { line: number; top: number } | undefined;
-        for (const cand of b.inner) {
-          if (cand.top <= partTop) continue;
-          if (cand.top - partTop + extra > area) break;
-          cut = cand;
-        }
-        if (cut === undefined) break;
-        used = cut.top - partTop + extra;
-        close();
-        page = { firstLine: cut.line, lines: [cut.line], cover: false, flushTop: false };
-        area = fastrPageArea(g, page) - safety;
-        partTop = cut.top;
-        extra = 0;
+      // Nothing but those headings stands before it on this page, so it
+      // cannot move without stranding them. A block that can continue at
+      // its inner boundaries starts here and does; any other keeps the
+      // page and runs past it (it is taller than the page: see below).
+      if (b.inner !== undefined && b.inner.length > 0) {
+        continueInner(i, b.gap);
+        done = true;
       }
-      used = b.height - partTop + extra;
-    } else {
-      used += need;
     }
-    if (b.pagebreak || b.breakAfter || b.cover === "fill") {
+    if (!done) {
+      if (i === first && b.height + lead(i) > area && b.inner !== undefined && b.inner.length > 0) {
+        // Taller than the page it opens: continue at the inner boundaries.
+        continueInner(i, lead(i));
+      } else {
+        used += need;
+      }
+    }
+    // A page ends after a marker, a break=after block or a filling cover.
+    // A marker that opens a page (the document's first block, or one
+    // right after another break) ends nothing: no page is left empty.
+    if ((b.pagebreak && i > first) || b.breakAfter || b.cover === "fill") {
       if (i + 1 < blocks.length) {
         close();
         page = openPage(blocks[i + 1], false);
-        area = fastrPageArea(g, page) - safety;
+        area = areaOf(page);
         first = i + 1;
         used = 0;
       }
@@ -210,13 +264,18 @@ export function fastrPageStartLines(result: FastrPagedResult): number[] {
   return out;
 }
 
+// Print's height of a block, and for one taller than half a page where it
+// may continue on the next page (source lines relative to the block's
+// first, tops from the block's top, px).
+export type FastrLayoutHint = { height: number; inner?: { rel: number; top: number }[] };
+
 // Print's block heights (FastrPagedResult.blocks, from the runner's layout
 // of the whole document at the print column) keyed by each block's source
 // text, so the editor can find a block's height wherever the block moves:
 // a region's lines from fence to fence, a paragraph's consecutive non-blank
 // lines. The same grouping the editor's own block walk uses.
-export function fastrLayoutHints(result: FastrPagedResult, body: string): Map<string, number> {
-  const hints = new Map<string, number>();
+export function fastrLayoutHints(result: FastrPagedResult, body: string): Map<string, FastrLayoutHint> {
+  const hints = new Map<string, FastrLayoutHint>();
   if (result.blocks === undefined) return hints;
   const lines = body.split("\n");
   const owner: (readonly [number, number] | undefined)[] = new Array(lines.length).fill(undefined);
@@ -235,7 +294,12 @@ export function fastrLayoutHints(result: FastrPagedResult, body: string): Map<st
       if (lines[b.line].trim().length === 0) continue;
       while (to + 1 < lines.length && owner[to + 1] === undefined && lines[to + 1].trim().length > 0) to++;
     }
-    hints.set(lines.slice(from, to + 1).join("\n"), b.height);
+    const hint: FastrLayoutHint = { height: b.height };
+    if (b.inner !== undefined && b.inner.length > 0) {
+      const inner = b.inner.map((c) => ({ rel: c.line - from, top: c.top })).filter((c) => c.rel > 0);
+      if (inner.length > 0) hint.inner = inner;
+    }
+    hints.set(lines.slice(from, to + 1).join("\n"), hint);
   }
   return hints;
 }

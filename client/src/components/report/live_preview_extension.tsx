@@ -95,6 +95,8 @@ import {
   stepsChildInfo,
   tilesChildInfo,
   updateContainerFenceLine,
+  type FastrLayoutHint,
+  type FigureBlock,
 } from "lib";
 import {
   materializeReportBackgrounds,
@@ -203,6 +205,9 @@ class RegionWidget extends WidgetType {
     // island's live commit carries the PREVIOUS key forward, so the widget
     // the user is typing in is kept rather than rebuilt under the cursor.
     readonly sourceKey = source,
+    // After or before a line of space (spaceFlags).
+    readonly afterSpace = false,
+    readonly beforeSpace = false,
   ) {
     super();
   }
@@ -213,7 +218,8 @@ class RegionWidget extends WidgetType {
     // and re-creates just this widget.
     return other.kind === this.kind && other.sourceKey === this.sourceKey &&
       other.startLine === this.startLine && other.active === this.active &&
-      other.first === this.first;
+      other.first === this.first && other.afterSpace === this.afterSpace &&
+      other.beforeSpace === this.beforeSpace;
   }
 
   override toDOM(view: EditorView): HTMLElement {
@@ -313,6 +319,8 @@ class RegionWidget extends WidgetType {
       "fm-live-region",
       this.active ? "fm-live-region--active" : "",
       this.first ? "fm-live-region--first" : "",
+      this.afterSpace ? "fm-live-region--after-space" : "",
+      this.beforeSpace ? "fm-live-region--before-space" : "",
       "w-full cursor-text",
     ].filter((c) => c.length > 0).join(" ");
     dom.setAttribute("data-region-kind", this.kind);
@@ -362,8 +370,7 @@ class RegionWidget extends WidgetType {
       const mount = document.createElement("div");
       mount.setAttribute("data-embed-id", id);
       mount.setAttribute("data-embed-kind", kind);
-      const fig = this.resolver.getFigure(id);
-      applyFigureSize(mount, fig ? this.resolver.figureSize?.(id, fig) : undefined);
+      applyFigureSize(mount, figureSizeOf(this.resolver, id, this.resolver.getFigure(id)));
       applyFigureFit(mount, view.state.field(paginationField, false)?.pagination?.figureFits?.get(this.startLine));
       img.replaceWith(mount);
       disposers.push(render(
@@ -531,6 +538,34 @@ class RegionWidget extends WidgetType {
   }
 }
 
+// A figure's size as its own drawn chart reports it: panther lays a figure
+// out at its reference frame whatever the display, so the live canvas's
+// backing size carries the same aspect as the PDF's raster. Once a chart
+// has drawn, its aspect is the truth for the editor, ahead of the host's
+// size cache (which can be late, or fail, and then a figure stood a page
+// tall: Nick's "test 22", a figure alone on the page after a heading and
+// three lines). By figure id.
+const derivedFigureSizes = new Map<string, { width: number; height: number }>();
+function figureSizeOf(
+  resolver: EmbedResolver,
+  id: string,
+  block: FigureBlock | undefined,
+): { width: number; height: number } | undefined {
+  return derivedFigureSizes.get(id) ?? (block ? resolver.figureSize?.(id, block) : undefined);
+}
+// The size a mount's drawn canvas gives, or undefined while it has not
+// drawn (no canvas, or a canvas still at the element's 300x150 default).
+function drawnCanvasSize(mount: HTMLElement): { width: number; height: number } | undefined {
+  const canvas = mount.querySelector("canvas");
+  if (canvas === null || !(canvas.width > 0) || !(canvas.height > 0)) return undefined;
+  if (canvas.width === 300 && canvas.height === 150) return undefined;
+  if (canvas.clientWidth === 0) return undefined;
+  return { width: canvas.width, height: canvas.height };
+}
+function sameAspect(a: { width: number; height: number }, b: { width: number; height: number }): boolean {
+  return Math.abs(a.width / a.height - b.width / b.height) <= 0.02 * (a.width / a.height);
+}
+
 // A figure's live mount takes the box its raster has in print BEFORE the
 // chart draws (report_fastr_css.ts sizes it from these: the raster's aspect,
 // capped at the same share of the page area, narrowed and centred), so the
@@ -581,6 +616,9 @@ function applyFigureFit(mount: HTMLElement, fit: number | undefined): void {
 // The share of the page's content area a figure's image may take: the
 // stylesheet's cap (report_fastr_css.ts, .fm-figure img and the live mount).
 const FIGURE_PAGE_SHARE = 0.42;
+// A rendered block at least this share of the page area tall offers its
+// inner boundaries to the layout (a shorter one always fits under a heading).
+const INNER_SHARE = 0.8;
 // How far a figure may shrink to fill the room left on its page: never
 // below this share of its natural size.
 const FIGURE_FLOOR = 0.6;
@@ -600,8 +638,7 @@ function figureImageBox(
 ): { imgH: number; fitted: number | undefined } | undefined {
   const m = /\(figure:([^)\s]+)\)/.exec(text);
   if (m === null) return undefined;
-  const block = resolver.getFigure(m[1]);
-  const size = block ? resolver.figureSize?.(m[1], block) : undefined;
+  const size = figureSizeOf(resolver, m[1], resolver.getFigure(m[1]));
   if (size === undefined || !(size.width > 0) || !(size.height > 0)) return undefined;
   const full = /\{[^}]*\bwidth=full\b/.test(text);
   const w = full ? (geometry.sheetPx ?? view.scrollDOM.clientWidth) : columnW;
@@ -630,8 +667,7 @@ function embedSizePlugin(resolver: EmbedResolver) {
           )
         ) {
           const id = mount.getAttribute("data-embed-id") ?? "";
-          const fig = resolver.getFigure(id);
-          if (fig && applyFigureSize(mount, resolver.figureSize?.(id, fig))) {
+          if (applyFigureSize(mount, figureSizeOf(resolver, id, resolver.getFigure(id)))) {
             changed = true;
             const line = Number(mount.closest("[data-region-line]")?.getAttribute("data-region-line"));
             applyFigureFit(mount, u.view.state.field(paginationField, false)?.pagination?.figureFits?.get(line));
@@ -1895,15 +1931,26 @@ class LeafRenderWidget extends WidgetType {
     readonly source: string,
     readonly line1: number,
     readonly outline = "",
+    // After or before a line of space (spaceFlags).
+    readonly afterSpace = false,
+    readonly beforeSpace = false,
   ) {
     super();
   }
   override eq(other: LeafRenderWidget): boolean {
     return other.source === this.source && other.line1 === this.line1 &&
-      other.outline === this.outline;
+      other.outline === this.outline && other.afterSpace === this.afterSpace &&
+      other.beforeSpace === this.beforeSpace;
   }
   override toDOM(view: EditorView): HTMLElement {
     const dom = chromeRoot(view, this.line1);
+    // A leaf is a region of the document like any other: found by its
+    // start line (measured and remembered by the page layout), with the
+    // block's margins clamped like a region widget's (report_fastr_css.ts).
+    dom.classList.add("cm-fm-leaf");
+    if (this.afterSpace) dom.classList.add("cm-fm-leaf--after-space");
+    if (this.beforeSpace) dom.classList.add("cm-fm-leaf--before-space");
+    dom.setAttribute("data-region-line", String(this.line1 - 1));
     const fence = fastrOpenFenceOnLine(this.source, this.line1);
     if (fence?.name === "contents") {
       // The renderer's own markup, from the same builder — but fed the live
@@ -1944,6 +1991,7 @@ class LeafRenderWidget extends WidgetType {
       // Invisible on the page; in the editor a labelled dashed rule, so the
       // forced break can be seen and deleted. Pressing it parks the caret on
       // the line (chromeRoot's own behaviour) for the block segment.
+      dom.classList.add("cm-fm-leaf--marker");
       const rule = document.createElement("div");
       rule.className = "fm-pagebreak fm-pagebreak--editor";
       rule.setAttribute("data-line", "0");
@@ -1963,8 +2011,9 @@ class LeafRenderWidget extends WidgetType {
     attachStatEditors(dom, view, this.line1, this.source, true);
     return dom;
   }
+  // The page break marker takes no room (a rule laid over the page's foot).
   override get estimatedHeight(): number {
-    return 110;
+    return fastrOpenFenceOnLine(this.source, this.line1)?.name === "pagebreak" ? 0 : 110;
   }
 }
 
@@ -2114,6 +2163,8 @@ function buildRevealedRegion(
                     fastrOpenFenceOnLine(line.text, item.line1),
                   )
                   : "",
+                spaceFlags(state, item.line1 - 1, item.line1 - 1).afterSpace,
+                spaceFlags(state, item.line1 - 1, item.line1 - 1).beforeSpace,
               ),
             block: true,
           }),
@@ -2132,6 +2183,11 @@ function buildRevealedRegion(
               item.line1 - 1,
               item.line1 - 1,
               resolver,
+              false,
+              false,
+              line.text,
+              spaceFlags(state, item.line1 - 1, item.line1 - 1).afterSpace,
+              spaceFlags(state, item.line1 - 1, item.line1 - 1).beforeSpace,
             ),
             block: true,
           }),
@@ -2284,6 +2340,7 @@ function buildLiveState(
       : undefined;
     const sourceKey = carried ?? (touched ? `${rev}\u0000${source}` : source);
     keys.set(r.region.startLine, { key: sourceKey, source });
+    const space = spaceFlags(state, r.region.startLine, r.region.endLine);
     const widget = isPageSetup
       ? new PageSetupWidget(source, r.region.startLine)
       : isToc
@@ -2291,9 +2348,11 @@ function buildLiveState(
         source,
         r.region.startLine + 1,
         tocOutlineKey(state.doc.toString(), r.region.fence),
+        space.afterSpace,
+        space.beforeSpace,
       )
       : isPagebreak
-      ? new LeafRenderWidget(source, r.region.startLine + 1)
+      ? new LeafRenderWidget(source, r.region.startLine + 1, "", space.afterSpace, space.beforeSpace)
       : new RegionWidget(
         r.region.kind,
         source,
@@ -2305,6 +2364,8 @@ function buildLiveState(
         touched,
         firstLine !== undefined && r.region.startLine + 1 === firstLine,
         sourceKey,
+        space.afterSpace,
+        space.beforeSpace,
       );
     builder.add(r.from, r.to, Decoration.replace({ widget, block: true }));
   }
@@ -2486,12 +2547,17 @@ function buildSurfaceLines(state: EditorState): DecorationSet {
   // The first blank line after content is the paragraph separator; each
   // further one is a line of space, as the renderer's fm_spaces makes it.
   let prevBlank = false;
+  // Whether the line before the current one is a line of space; the flag
+  // rides on a heading's or a quote's line as a class (spaceFlags).
+  let prevSpace = false;
+  const blankAt = (i: number) => i < state.doc.lines && state.doc.line(i + 1).text.trim().length === 0;
   // scanContainerLines flags code-fence interiors, where a # line is content.
   for (const { index, text, inCode, fence } of scanContainerLines(
     state.doc.iterLines(1, state.doc.lines + 1),
   )) {
     if (inCode) {
       prevBlank = false;
+      prevSpace = false;
       continue;
     }
     if (fence) {
@@ -2514,17 +2580,20 @@ function buildSurfaceLines(state: EditorState): DecorationSet {
           class: lead ? "cm-fm-blank cm-fm-lead" : prevBlank ? "cm-fm-space" : "cm-fm-blank",
         }).range(from),
       );
+      prevSpace = !lead && prevBlank;
       prevBlank = !lead;
       continue;
     }
+    const spaceCls = `${prevSpace ? " cm-fm-after-space" : ""}${blankAt(index + 1) && blankAt(index + 2) ? " cm-fm-before-space" : ""}`;
     prevBlank = false;
+    prevSpace = false;
     if (index + 1 === firstLine) {
       ranges.push(Decoration.line({ class: "cm-fm-first" }).range(from));
     }
     const m = HEADING_LINE_RE.exec(text);
     if (m) {
       ranges.push(
-        Decoration.line({ class: `cm-fm-h${m[1].length}` }).range(from),
+        Decoration.line({ class: `cm-fm-h${m[1].length}${spaceCls}` }).range(from),
       );
       const level = m[1].length;
       if (numbered && depth === 0 && (level === 2 || level === 3)) {
@@ -2546,7 +2615,7 @@ function buildSurfaceLines(state: EditorState): DecorationSet {
     } else if (LIST_LINE_RE.test(text)) {
       ranges.push(Decoration.line({ class: "cm-fm-li" }).range(from));
     } else if (/^\s*>\s?/.test(text)) {
-      ranges.push(Decoration.line({ class: "cm-fm-bq" }).range(from));
+      ranges.push(Decoration.line({ class: `cm-fm-bq${spaceCls}` }).range(from));
     }
     // `[x]{.role}` / `[x]{size=12}` label styling — here and not in the
     // conceal plugin because a font-size changes LINE HEIGHT, and
@@ -3267,8 +3336,8 @@ export const setPagination = StateEffect.define<EditorPagination | undefined>();
 // Print's height for every block, by the block's source text, from the
 // host's background layout of the whole document (paginate_report.ts): the
 // page layout takes them for blocks the editor has not rendered.
-export const setLayoutHints = StateEffect.define<Map<string, number>>();
-export const layoutHintsField = StateField.define<Map<string, number>>({
+export const setLayoutHints = StateEffect.define<Map<string, FastrLayoutHint>>();
+export const layoutHintsField = StateField.define<Map<string, FastrLayoutHint>>({
   create: () => new Map(),
   update(value, tr) {
     for (const e of tr.effects) if (e.is(setLayoutHints)) return e.value;
@@ -3342,12 +3411,31 @@ function seamElement(pag: EditorPagination, page: number, end = false): HTMLElem
   el.className = end ? "fm-page-gutter fm-page-gutter--end" : "fm-page-gutter";
   el.contentEditable = "false";
   el.setAttribute("data-page", String(page));
+  seamPadding(el, pag, page, end);
+  el.append(...seamParts(pag, page, end));
+  return el;
+}
+
+// The seam's padding: the page's room under its content (a page full to
+// the pixel keeps its trailing separator line by letting it run into the
+// foot, which the parts read as a negative filler), and the extra of the
+// block that opens the next page. No page opens after the end element.
+function seamPadding(el: HTMLElement, pag: EditorPagination, page: number, end: boolean): void {
+  const filler = pag.fillers?.get(page - 1);
+  if (filler !== undefined && filler > 0) el.style.paddingTop = `${filler}px`;
+  const extra = end ? undefined : pag.topExtras?.get(page);
+  if (extra !== undefined && extra > 0) el.style.paddingBottom = `${extra}px`;
+}
+
+// The seam's parts: the ending page's foot with the running footer (none
+// after a cover page), the band between the sheets, and the starting
+// page's head (none before a cover page or a page a natural cover opens).
+function seamParts(pag: EditorPagination, page: number, end: boolean): HTMLElement[] {
+  const parts: HTMLElement[] = [];
   const ending = pag.result.pages[page - 2];
   const starting = pag.result.pages[page - 1];
   const filler = pag.fillers?.get(page - 1);
-  if (filler !== undefined && filler > 0) el.style.paddingTop = `${filler}px`;
-  const extra = pag.topExtras?.get(page);
-  if (extra !== undefined && extra > 0) el.style.paddingBottom = `${extra}px`;
+  const shift = filler !== undefined && filler < 0 ? filler : 0;
   if (ending !== undefined && !ending.cover) {
     const foot = document.createElement("div");
     foot.className = "fm-page-gutter__foot";
@@ -3356,19 +3444,47 @@ function seamElement(pag: EditorPagination, page: number, end = false): HTMLElem
     const num = document.createElement("span");
     num.textContent = footerText(pag, page - 1);
     foot.append(title, num);
-    el.append(foot);
+    if (shift < 0) foot.style.marginTop = `${shift}px`;
+    parts.push(foot);
   }
   if (!end) {
     const band = document.createElement("div");
     band.className = "fm-page-gutter__band";
-    el.append(band);
+    parts.push(band);
     if (starting === undefined || (!starting.cover && !starting.flushTop)) {
       const head = document.createElement("div");
       head.className = "fm-page-gutter__head";
-      el.append(head);
+      parts.push(head);
     }
   }
-  return el;
+  return parts;
+}
+
+// A seam inside a table, before the row that opens the page: a row of its
+// own, one cell across every column, so the table's layout is untouched.
+// A block dropped between rows lands in an anonymous cell of the first
+// column, and the sheet-wide strip made that column as wide as itself. The
+// cell carries the seam's padding and classes; the strip stands in a box
+// with no intrinsic inline size (contain: inline-size), so it does not
+// widen the table, and reaches the sheet's edges from there.
+function seamRow(pag: EditorPagination, page: number, cols: number): HTMLTableRowElement {
+  const row = document.createElement("tr");
+  row.className = "fm-page-gutter-row";
+  row.contentEditable = "false";
+  const cell = document.createElement("td");
+  cell.className = "fm-page-gutter fm-page-gutter--inner fm-page-gutter--cell";
+  cell.setAttribute("data-page", String(page));
+  cell.colSpan = Math.max(1, cols);
+  seamPadding(cell, pag, page, false);
+  const contain = document.createElement("div");
+  contain.className = "fm-page-gutter__contain";
+  const sheet = document.createElement("div");
+  sheet.className = "fm-page-gutter__sheet";
+  sheet.append(...seamParts(pag, page, false));
+  contain.append(sheet);
+  cell.append(contain);
+  row.append(cell);
+  return row;
 }
 
 // Before the document's first line when page 1 is not a cover: its top
@@ -3421,7 +3537,7 @@ class PageGutterWidget extends WidgetType {
     return dom;
   }
   override get estimatedHeight(): number {
-    return 182 + (this.pag.fillers?.get(this.page - 1) ?? 0) +
+    return 182 + Math.max(0, this.pag.fillers?.get(this.page - 1) ?? 0) +
       (this.pag.topExtras?.get(this.page) ?? 0);
   }
   override ignoreEvent(): boolean {
@@ -3445,7 +3561,7 @@ class PageEndWidget extends WidgetType {
     return dom;
   }
   override get estimatedHeight(): number {
-    return 77 + (this.pag.fillers?.get(this.pag.result.total) ?? 0);
+    return 77 + Math.max(0, this.pag.fillers?.get(this.pag.result.total) ?? 0);
   }
   override ignoreEvent(): boolean {
     return false;
@@ -3574,7 +3690,7 @@ function applyRegionPagination(
   startLine: number,
   view: EditorView,
 ): void {
-  for (const old of Array.from(dom.querySelectorAll(".fm-page-gutter, .fm-page-split"))) {
+  for (const old of Array.from(dom.querySelectorAll(".fm-page-gutter-row, .fm-page-gutter, .fm-page-split"))) {
     old.remove();
   }
   dom.classList.remove("fm-live-region--split");
@@ -3592,7 +3708,11 @@ function applyRegionPagination(
         dom.querySelectorAll<HTMLElement>(`[data-line="${seam.rel}"]`),
       ).pop();
       const target = anchor ?? dom.querySelector<HTMLElement>(".fm-peer-layer + *");
-      if (target !== null && target !== undefined && target.parentElement) {
+      const row = target?.closest<HTMLTableRowElement>("tr") ?? null;
+      if (row !== null && row.parentElement) {
+        // Inside a table: a row of the seam before the row that opens the page.
+        row.parentElement.insertBefore(seamRow(ps.pagination, seam.page, row.cells.length), row);
+      } else if (target !== null && target !== undefined && target.parentElement) {
         target.parentElement.insertBefore(el, target);
       } else {
         dom.append(el);
@@ -3678,6 +3798,23 @@ function lineBox(view: EditorView, line0: number): { top: number; bottom: number
 }
 
 
+// Whether a block stands after a line of space (a second blank line above
+// it) and before one (two blank lines under it): the block then keeps its
+// whole print margin on that side (report_fastr_css.ts), and the flag rides
+// on the widget or line as a class, from the source, never from a sibling
+// element (CodeMirror stands a placeholder in for unrendered neighbours,
+// and a box that depended on them would change with the viewport).
+function spaceFlags(state: EditorState, startLine: number, endLine: number): { afterSpace: boolean; beforeSpace: boolean } {
+  const doc = state.doc;
+  const first = firstVisibleLine(state);
+  const start0 = first !== undefined ? first - 1 : 0;
+  const blank = (i: number) => i >= 0 && i < doc.lines && doc.line(i + 1).text.trim().length === 0;
+  return {
+    afterSpace: startLine - 2 >= start0 && blank(startLine - 1) && blank(startLine - 2),
+    beforeSpace: endLine + 2 < doc.lines && blank(endLine + 1) && blank(endLine + 2),
+  };
+}
+
 // The document's regions by line, computed once per document version.
 type DocBlocks = {
   owner: (FastrLiveRegion | undefined)[];
@@ -3714,7 +3851,9 @@ class HeightOracle {
     if (!(w > 0)) return undefined;
     if (this.box === undefined) {
       const b = document.createElement("div");
-      b.className = "cm-content";
+      // The editor wraps its lines (cm-lineWrapping); without the class a
+      // row measures as one line however long it runs.
+      b.className = "cm-content cm-lineWrapping";
       b.setAttribute("aria-hidden", "true");
       b.style.cssText =
         "position:absolute;left:-100000px;top:0;visibility:hidden;pointer-events:none;padding:0 !important;max-width:none;";
@@ -3777,10 +3916,11 @@ class HeightOracle {
   // What a region's widget adds around print's box of the block: its flow
   // margins less the blank separator line that stands in for one (the
   // widget clamp in report_fastr_css.ts).
-  regionExtra(cls: string, tag = "div"): number {
+  regionExtra(cls: string, tag = "div", afterSpace = false, beforeSpace = false): number {
     const { mt, mb } = this.regionMargins(cls, tag);
     const sep = this.lines([{ cls: "cm-fm-blank", text: "" }]) ?? 16;
-    return Math.max(0, mt - sep) + Math.max(0, mb - sep);
+    // After or before a line of space the whole margin stands.
+    return (afterSpace ? mt : Math.max(0, mt - sep)) + (beforeSpace ? mb : Math.max(0, mb - sep));
   }
   // Print's top margin of an element of this tag and class, px, as the
   // structure sheet rules it inside the editor's scope (a heading's 1.8em,
@@ -3820,18 +3960,10 @@ class HeightOracle {
     if (hit !== undefined) return hit;
     const box = this.ensure();
     if (box === undefined) return 0;
-    const els: HTMLElement[] = [];
-    if (afterSpace) {
-      const space = document.createElement("div");
-      space.className = "cm-line cm-fm-space";
-      space.textContent = "\u200b";
-      els.push(space);
-    }
     const el = document.createElement("div");
-    el.className = `cm-line ${cls}`.trim();
+    el.className = `cm-line ${cls}${afterSpace ? " cm-fm-after-space" : ""}`.trim();
     el.textContent = "x";
-    els.push(el);
-    box.replaceChildren(...els);
+    box.replaceChildren(el);
     const pt = parseFloat(getComputedStyle(el).paddingTop) || 0;
     this.cache.set(key, pt);
     return pt;
@@ -3862,6 +3994,11 @@ function editorLineOf(text: string): { cls: string; text: string } {
   if (ORACLE_LIST_LINE_RE.test(text)) {
     return { cls: "cm-fm-li", text: concealed(text.replace(ORACLE_LIST_LINE_RE, "")) };
   }
+  // A quote's line carries print's margins as padding (report_fastr_css.ts):
+  // measured the editor's way, never taken for a plain paragraph.
+  if (/^\s*>\s?/.test(text)) {
+    return { cls: "cm-fm-bq", text: concealed(text.replace(/^\s*>\s?/, "")) };
+  }
   return { cls: "", text: concealed(text) };
 }
 function concealed(text: string): string {
@@ -3890,6 +4027,11 @@ function regionClassOf(r: FastrLiveRegion): { cls: string; tag: string } {
 // belongs to one geometry: the content column's width and the body font;
 // a theme or page-size change starts it over.
 const measuredBlockHeights = new Map<string, number>();
+// Where a measured block may continue on the next page (innerCandidates),
+// by the same key, as region-relative lines: a block that was split keeps
+// its boundaries when it leaves the viewport, or the layout would lay it
+// whole again and move every page after it.
+const measuredInner = new Map<string, { rel: number; top: number }[]>();
 // The first height seen of a block whose embed is still pending, by key.
 const pendingBlockHeights = new Map<string, number>();
 let measuredEpoch = "";
@@ -3900,7 +4042,10 @@ function blockKey(kind: "r" | "p" | "s", text: string): string {
 function rememberBlockHeight(key: string, height: number): void {
   if (measuredBlockHeights.size >= MEASURED_CAP) {
     const first = measuredBlockHeights.keys().next().value;
-    if (first !== undefined) measuredBlockHeights.delete(first);
+    if (first !== undefined) {
+      measuredBlockHeights.delete(first);
+      measuredInner.delete(first);
+    }
   }
   measuredBlockHeights.set(key, height);
 }
@@ -3910,6 +4055,7 @@ function keepMeasuredEpoch(view: EditorView): boolean {
   if (epoch === measuredEpoch) return false;
   measuredEpoch = epoch;
   measuredBlockHeights.clear();
+  measuredInner.clear();
   pendingBlockHeights.clear();
   return true;
 }
@@ -3953,7 +4099,7 @@ function innerCandidates(
 // document order: what layoutFastrPages lays out.
 function flowBlocksOf(
   view: EditorView,
-  hints: ReadonlyMap<string, number>,
+  hints: ReadonlyMap<string, FastrLayoutHint>,
   area: number,
   oracle: HeightOracle,
   geometry: PageBoxGeometry,
@@ -3985,6 +4131,7 @@ function flowBlocksOf(
   // keeps what exceeds the separator, and print gives the rest back at the
   // top of a page: the block's topExtra, the page's rather than the block's.
   const afterSpace = (line: number) => line - 2 >= start && blank(line - 1) && blank(line - 2);
+  const beforeSpace = (line: number) => line + 2 < doc.lines && blank(line + 1) && blank(line + 2);
   let prevBlank = false;
   let i = 0;
   while (i < doc.lines) {
@@ -4037,20 +4184,42 @@ function flowBlocksOf(
             const provisional = pendingBlockHeights.get(key);
             domHeight = height;
             if (seen !== undefined) height = seen;
-            else if (hint !== undefined) height = hint + oracle.regionExtra(cls, tag);
+            else if (hint !== undefined) height = hint.height + oracle.regionExtra(cls, tag, afterSpace(r.startLine), beforeSpace(r.endLine));
             else if (provisional !== undefined) height = provisional;
             else pendingBlockHeights.set(key, height);
           } else {
             rememberBlockHeight(key, height);
-            if (height > area) inner = innerCandidates(view, r.startLine);
+            // Where the block may continue on the next page when it is
+            // taller than a page, or than the room under the heading that
+            // opened its page. Never a cover: it is its page.
+            if (name !== "cover" && height > area * INNER_SHARE) {
+              inner = innerCandidates(view, r.startLine);
+              if (inner !== undefined) measuredInner.set(key, inner.map((c) => ({ rel: c.line - r.startLine, top: c.top })));
+              else measuredInner.delete(key);
+            } else {
+              measuredInner.delete(key);
+            }
           }
         }
       } else {
         const seen = measuredBlockHeights.get(key);
         const hint = hints.get(text);
-        if (seen !== undefined) height = seen;
-        else if (hint !== undefined) {
-          height = name === "pagebreak" ? height : hint + oracle.regionExtra(cls, tag);
+        if (seen !== undefined) {
+          height = seen;
+          inner = measuredInner.get(key)?.map((c) => ({ line: r.startLine + c.rel, top: c.top }));
+        } else if (name === "cover" && fence?.attrs?.["fill"] === "page") {
+          // A cover that fills its page is the sheet, whatever print's
+          // height for its content.
+          height = geometry.pageH;
+        } else if (name === "pagebreak") {
+          // The marker takes no room, in print or on the sheet (a rule laid
+          // over the page's foot), whatever the height map guesses.
+          height = 0;
+        } else if (hint !== undefined) {
+          height = hint.height + oracle.regionExtra(cls, tag, afterSpace(r.startLine), beforeSpace(r.endLine));
+          // Print's boundaries for one taller than half a page, until the
+          // editor has rendered and measured its own.
+          if (name !== "cover") inner = hint.inner?.map((c) => ({ line: r.startLine + c.rel, top: c.top }));
         }
         imgH = figureBox(null)?.imgH;
       }
@@ -4112,6 +4281,7 @@ function flowBlocksOf(
           breakBefore: false,
           breakAfter: false,
           rendered: isRendered,
+          space: true,
           kind: "s",
           printMt: 0,
           printMb: 0,
@@ -4143,7 +4313,7 @@ function flowBlocksOf(
         const rows: { cls: string; text: string }[] = [];
         for (let k = i; k <= j; k++) rows.push(editorLineOf(doc.line(k + 1).text));
         const plain = rows.every((row) => row.cls === "");
-        const hint = plain ? hints.get(text) : undefined;
+        const hint = plain ? hints.get(text)?.height : undefined;
         height = hint ?? oracle.lines(rows) ?? height;
       }
     }
@@ -4321,6 +4491,9 @@ type BoxMeasure = {
   fits: { el: HTMLElement | undefined; line: number; px: number | undefined }[];
   // The gaps to stretch, when they differ from those standing.
   stretch?: Stretches;
+  // Mounts to size from their own drawn canvas (drawnCanvasSize): waiting
+  // ones, and sized ones whose chart drew to another aspect.
+  sizes: { mount: HTMLElement; id: string; line: number; size: { width: number; height: number } }[];
   // In-block seams to shift onto the sheet's edges (their stylesheet
   // centring assumes the block's content box is centred on the sheet; a
   // callout's left border alone puts it 2px off, and 2px past the sheet is
@@ -4386,6 +4559,12 @@ function pageBoxPlugin(resolver: EmbedResolver) {
           if (!m) return;
           if (m.move !== undefined) {
             const { pag, move } = m;
+            // Pages the new layout no longer has leave nothing behind: a
+            // seam created later for the end would read a stale extra.
+            for (const map of [pag.fillers, pag.topExtras]) {
+              if (map === undefined) continue;
+              for (const n of Array.from(map.keys())) if (n > move.total) map.delete(n);
+            }
             this.pendingMove = true;
             // A dispatch cannot run inside the measure cycle that found the
             // layout; and only against the pagination it was measured on.
@@ -4407,15 +4586,24 @@ function pageBoxPlugin(resolver: EmbedResolver) {
               view.dispatch({ effects: setStretches.of(stretch) });
             }, 0);
           }
+          for (const sz of m.sizes) {
+            derivedFigureSizes.set(sz.id, sz.size);
+            applyFigureSize(sz.mount, sz.size);
+            applyFigureFit(sz.mount, m.pag.figureFits?.get(sz.line));
+          }
           if (
             m.writes.length === 0 && m.aligns.length === 0 && m.extras.length === 0 &&
-            m.fits.length === 0
+            m.fits.length === 0 && m.sizes.length === 0
           ) return;
           m.pag.fillers ??= new Map();
           m.pag.topExtras ??= new Map();
           m.pag.figureFits ??= new Map();
           for (const w of m.writes) {
-            if (w.el !== undefined) w.el.style.paddingTop = `${w.px}px`;
+            if (w.el !== undefined) {
+              w.el.style.paddingTop = `${Math.max(0, w.px)}px`;
+              const foot = w.el.querySelector<HTMLElement>(".fm-page-gutter__foot");
+              if (foot !== null) foot.style.marginTop = w.px < 0 ? `${w.px}px` : "";
+            }
             m.pag.fillers.set(w.page, w.px);
           }
           for (const x of m.extras) {
@@ -4436,7 +4624,7 @@ function pageBoxPlugin(resolver: EmbedResolver) {
       if (!pag) return undefined;
       const geometry = readPageBoxGeometry(view);
       if (geometry === undefined) return undefined;
-      const hints = view.state.field(layoutHintsField, false) ?? new Map<string, number>();
+      const hints = view.state.field(layoutHintsField, false) ?? new Map<string, FastrLayoutHint>();
       const layoutGeometry: FastrLayoutGeometry = {
         pageH: geometry.pageH,
         marginPx: geometry.marginPx,
@@ -4449,7 +4637,7 @@ function pageBoxPlugin(resolver: EmbedResolver) {
       const blocks = flowBlocksOf(view, hints, area, this.oracle, geometry, resolver);
       const laid = layoutFastrPages(blocks, layoutGeometry);
       if (!this.pendingMove && !samePages(laid, pag.result)) {
-        return { pag, move: laid, writes: [], aligns: [], extras: [], fits: [] };
+        return { pag, move: laid, writes: [], aligns: [], extras: [], fits: [], sizes: [] };
       }
       const writes: BoxMeasure["writes"] = [];
       const aligns: BoxMeasure["aligns"] = [];
@@ -4460,12 +4648,15 @@ function pageBoxPlugin(resolver: EmbedResolver) {
           view.contentDOM.querySelectorAll<HTMLElement>(".fm-page-gutter--inner"),
         )
       ) {
-        const r = seam.getBoundingClientRect();
+        // The strip that must span the sheet: the seam itself, or inside a
+        // table its sheet box (seamRow).
+        const strip = seam.querySelector<HTMLElement>(".fm-page-gutter__sheet") ?? seam;
+        const r = strip.getBoundingClientRect();
         const dx = r.left - sheetRect.left;
         const dw = r.width - sheetRect.width;
         if (Math.abs(dx) > 0.5 || Math.abs(dw) > 0.5) {
-          const current = parseFloat(getComputedStyle(seam).marginLeft) || 0;
-          aligns.push({ el: seam, marginLeft: current - dx, width: sheetRect.width });
+          const current = parseFloat(getComputedStyle(strip).marginLeft) || 0;
+          aligns.push({ el: strip, marginLeft: current - dx, width: sheetRect.width });
         }
       }
       // Every seam element by the page it starts (the end element by
@@ -4512,14 +4703,16 @@ function pageBoxPlugin(resolver: EmbedResolver) {
         return fastrPageArea(layoutGeometry, page) - extent;
       });
       const stretch = stretchesOf(pages, pageBlocks, leftovers);
-      // The filler pads what the stretched gaps leave.
+      // The filler pads what the stretched gaps leave. A page full to the
+      // pixel (its trailing separator line past the area, within the
+      // safety) has a negative filler: the seam's foot moves up by it.
       for (let i = 0; i < pages.length; i++) {
         const page = pages[i];
-        const filler = Math.max(0, Math.round(leftovers[i] - (stretch.totals.get(page.number) ?? 0)));
+        const filler = Math.round(leftovers[i] - (stretch.totals.get(page.number) ?? 0));
         const el = seamEls.get(page.number + 1);
         const current = el !== undefined
-          ? parseFloat(el.style.paddingTop) || 0
-          : pag.fillers?.get(page.number) ?? -1;
+          ? (parseFloat(el.style.paddingTop) || 0) + (parseFloat(el.querySelector<HTMLElement>(".fm-page-gutter__foot")?.style.marginTop ?? "") || 0)
+          : pag.fillers?.get(page.number) ?? -1000;
         if (Math.abs(filler - current) > 1) writes.push({ el, page: page.number, px: filler });
       }
       const standing = view.state.field(stretchField, false);
@@ -4540,6 +4733,25 @@ function pageBoxPlugin(resolver: EmbedResolver) {
           : pag.topExtras?.get(page.number) ?? 0;
         if (Math.abs(px - current) > 0.5) extras.push({ el, page: page.number, px });
       }
+      // Mounts whose drawn chart says their size: one still waiting for
+      // it, or one boxed to another aspect than the chart drew.
+      const sizes: BoxMeasure["sizes"] = [];
+      for (
+        const mount of Array.from(
+          view.contentDOM.querySelectorAll<HTMLElement>('[data-embed-kind="figure"]'),
+        )
+      ) {
+        const drawn = drawnCanvasSize(mount);
+        if (drawn === undefined) continue;
+        const w = parseFloat(mount.style.getPropertyValue("--fm-fig-w"));
+        const h = parseFloat(mount.style.getPropertyValue("--fm-fig-h"));
+        const boxed = Number.isFinite(w) && Number.isFinite(h) && h > 0 ? { width: w, height: h } : undefined;
+        if (boxed !== undefined && sameAspect(boxed, drawn)) continue;
+        const id = mount.getAttribute("data-embed-id") ?? "";
+        const line = Number(mount.closest("[data-region-line]")?.getAttribute("data-region-line"));
+        if (id.length === 0 || !Number.isFinite(line)) continue;
+        sizes.push({ mount, id, line, size: drawn });
+      }
       // The figures the layout shrank to their pages, against what their
       // mounts show (or the map, for one not rendered).
       const fits: BoxMeasure["fits"] = [];
@@ -4559,7 +4771,7 @@ function pageBoxPlugin(resolver: EmbedResolver) {
         const same = px === cur || (px !== undefined && cur !== undefined && Math.abs(px - cur) <= 0.5);
         if (!same) fits.push({ el: mount ?? undefined, line: fb.line, px });
       }
-      return { pag, writes, aligns, extras, fits, stretch: stretchOut };
+      return { pag, writes, aligns, extras, fits, stretch: stretchOut, sizes };
     }
   },
   );
