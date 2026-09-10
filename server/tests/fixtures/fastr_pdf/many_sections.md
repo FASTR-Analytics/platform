@@ -3,6 +3,8 @@
 # Forty short sections
 :::
 
+A line of prose opens the report under its cover; the contents that follow, forty entries in two columns, are taller than what is left of the page and open page two whole.
+
 :::contents{title="Contents" depth=2}
 
 ## Section 1

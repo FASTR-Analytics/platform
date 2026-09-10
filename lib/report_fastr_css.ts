@@ -293,6 +293,13 @@ ${d}blockquote {
   border-left: 3px solid var(--fm-border);
   color: var(--fm-ink-muted);
 }
+/* The quote's own padding sets it off; its paragraphs bring no margin of
+   their own to the box (the editor draws the quote as lines and has none). */
+${d}blockquote > :first-child { margin-top: 0; }
+${d}blockquote > :last-child { margin-bottom: 0; }
+/* A word longer than the column (a URL) breaks rather than run past the
+   page; the editor's lines wrap the same way. */
+${d}p, ${d}li, ${d}td, ${d}th, ${d}h1, ${d}h2, ${d}h3, ${d}h4, ${d}h5, ${d}h6 { overflow-wrap: break-word; }
 
 /* ── Figures (an embed on its own line becomes a captioned figure) ────────── */
 ${d}.fm-figure { margin: 1.6em 0; --fm-mt: 1.6em; --fm-mb: 1.6em; }
@@ -324,6 +331,14 @@ ${d}.fm-figure [data-embed-kind="figure"][data-fm-sized] {
   aspect-ratio: var(--fm-fig-w) / var(--fm-fig-h);
   width: min(100%, calc(var(--fm-fig-cap) * var(--fm-fig-w) / var(--fm-fig-h)));
   margin-inline: auto;
+  overflow: hidden;
+}
+/* A mount still waiting for its size draws its chart at the chart's own
+   height meanwhile: capped like a printed figure, so a figure can never
+   stand a page tall while it waits (the editor sizes the mount from the
+   drawn canvas itself a frame later). */
+${d}.fm-figure [data-embed-kind="figure"][data-fm-pending] {
+  max-height: calc(var(--fm-page-area, 100vh) * 0.42);
   overflow: hidden;
 }
 ${d}.fm-figure__caption {
@@ -862,6 +877,10 @@ ${d}.fm-toc__item {
   border-bottom: 1px solid var(--fm-border);
 }
 ${d}.fm-toc__item:last-child { border-bottom: none; }
+/* A long contents list (FASTR_TOC_COLUMNS_FROM entries and more) runs in two
+   columns, so the block stays under a page's height. */
+${d}.fm-toc__list--columns { columns: 2; column-gap: 2em; }
+${d}.fm-toc__list--columns .fm-toc__item { break-inside: avoid; }
 ${d}.fm-toc__item--2 { padding-left: 1.2em; }
 ${d}.fm-toc__item--3 { padding-left: 2.4em; font-size: 0.95em; }
 ${d}.fm-toc__item--4, ${d}.fm-toc__item--5, ${d}.fm-toc__item--6 {
@@ -1297,6 +1316,24 @@ ${d}.fm-live-region.fm-live-region--first > .fm-page-split + * { margin-top: 0 !
    lines in every callout, one after every grid. Rendered content collapses
    whitespace exactly like the preview does. */
 ${d}.fm-live-region, ${d}.cm-fm-chrome { white-space: normal; }
+/* CodeMirror's line wrapping (overflow-wrap: anywhere, word-break:
+   break-word) inherited into a widget makes every character a break
+   opportunity, and a table's columns then shrink to single letters.
+   Rendered content wraps at words, as print does. */
+${d}.fm-live-region, ${d}.cm-fm-chrome { overflow-wrap: break-word; word-break: normal; }
+/* The editor's own lines wrap as print's paragraphs do: pre-wrap lets a
+   space at a line's end hang, where break-spaces (CodeMirror's choice for
+   its line wrapping) gives it room and wraps the word before it a line
+   early, one line taller than print for the same paragraph. */
+${d}.cm-content.cm-lineWrapping { white-space: pre-wrap; overflow-wrap: break-word; word-break: normal; }
+/* A quote's lines carry print's 1.4em margins less the blank separator line
+   on the run's first and last line (as a heading's lines do), its 0.2em
+   padding with them, and nothing between two lines of one quote. After a
+   line of space the whole margin rides on the line. */
+${d}.cm-line.cm-fm-bq { padding-top: 0; padding-bottom: 0; }
+${d}.cm-line.cm-fm-bq:not(.cm-fm-bq + .cm-fm-bq) { padding-top: calc(0.2em + max(0px, 1.4em - var(--fm-separator))); }
+${d}.cm-line.cm-fm-bq:not(:has(+ .cm-fm-bq)) { padding-bottom: calc(0.2em + max(0px, 1.4em - var(--fm-separator))); }
+${d}.cm-line.cm-fm-bq.cm-fm-after-space { padding-top: 1.6em; }
 /* Print's heading margins (1.8em above, 0.6em below, in the heading's own
    em) less the blank source line on each side of a heading (16px, the
    paragraph separator), so the editor's heading stands where print's does
@@ -1311,14 +1348,11 @@ ${d}.cm-fm-h4, ${d}.cm-fm-h5, ${d}.cm-fm-h6 { padding-top: 0.8em; padding-bottom
    with a page seam widget between the space and the heading all the same:
    a seam changes no line's box (the page layout depends on it, see the
    widget rule). */
-${d}.cm-fm-space + .cm-fm-h1, ${d}.cm-fm-space + .cm-fm-h2, ${d}.cm-fm-space + .cm-fm-h3,
-${d}.cm-fm-space + .cm-fm-h4, ${d}.cm-fm-space + .cm-fm-h5, ${d}.cm-fm-space + .cm-fm-h6,
-${d}.cm-fm-space + .cm-fm-page-gutter + .cm-fm-h1, ${d}.cm-fm-space + .cm-fm-page-gutter + .cm-fm-h2,
-${d}.cm-fm-space + .cm-fm-page-gutter + .cm-fm-h3, ${d}.cm-fm-space + .cm-fm-page-gutter + .cm-fm-h4,
-${d}.cm-fm-space + .cm-fm-page-gutter + .cm-fm-h5, ${d}.cm-fm-space + .cm-fm-page-gutter + .cm-fm-h6 { padding-top: 1.8em; }
-${d}.cm-fm-h1:has(+ .cm-fm-space), ${d}.cm-fm-h3:has(+ .cm-fm-space),
-${d}.cm-fm-h4:has(+ .cm-fm-space), ${d}.cm-fm-h5:has(+ .cm-fm-space), ${d}.cm-fm-h6:has(+ .cm-fm-space) { padding-bottom: 0.6em; }
-${d}.cm-fm-h2:has(+ .cm-fm-space) { padding-bottom: 0.85em; }
+${d}.cm-fm-h1.cm-fm-after-space, ${d}.cm-fm-h2.cm-fm-after-space, ${d}.cm-fm-h3.cm-fm-after-space,
+${d}.cm-fm-h4.cm-fm-after-space, ${d}.cm-fm-h5.cm-fm-after-space, ${d}.cm-fm-h6.cm-fm-after-space { padding-top: 1.8em; }
+${d}.cm-fm-h1.cm-fm-before-space, ${d}.cm-fm-h3.cm-fm-before-space,
+${d}.cm-fm-h4.cm-fm-before-space, ${d}.cm-fm-h5.cm-fm-before-space, ${d}.cm-fm-h6.cm-fm-before-space { padding-bottom: 0.6em; }
+${d}.cm-fm-h2.cm-fm-before-space { padding-bottom: 0.85em; }
 ${d}.cm-fm-li { padding-left: 1.4em; }
 /* A plain markdown blockquote takes the theme's own blockquote treatment —
    the host retargets those rules onto this class, margins neutralised. */
@@ -1373,11 +1407,27 @@ ${d}.fm-live-region > .fm-page-split + * {
 ${d}.fm-live-region > *:last-child {
   margin-bottom: max(0px, calc(var(--fm-mb, 0px) - var(--fm-separator))) !important;
 }
-${d}.cm-fm-space + .fm-live-region > .fm-peer-layer + :not(.fm-page-gutter, .fm-page-split),
-${d}.cm-fm-space + .cm-fm-page-gutter + .fm-live-region > .fm-peer-layer + :not(.fm-page-gutter, .fm-page-split),
-${d}.cm-fm-space + .fm-live-region > .fm-page-gutter--inner + :not(.fm-page-split),
-${d}.cm-fm-space + .fm-live-region > .fm-page-split + * { margin-top: var(--fm-mt, 0px) !important; }
-${d}.fm-live-region:has(+ .cm-fm-space) > *:last-child { margin-bottom: var(--fm-mb, 0px) !important; }
+${d}.fm-live-region.fm-live-region--after-space > .fm-peer-layer + :not(.fm-page-gutter, .fm-page-split),
+${d}.fm-live-region.fm-live-region--after-space > .fm-page-gutter--inner + :not(.fm-page-split),
+${d}.fm-live-region.fm-live-region--after-space > .fm-page-split + * { margin-top: var(--fm-mt, 0px) !important; }
+${d}.fm-live-region.fm-live-region--before-space > *:last-child { margin-bottom: var(--fm-mb, 0px) !important; }
+/* A leaf rendered by its own widget (contents, a page break marker) is one
+   block too: the same clamp, or its box would carry the block's whole
+   margins on top of the separator lines around it. */
+${d}.cm-fm-leaf > :first-child { margin-top: max(0px, calc(var(--fm-mt, 0px) - var(--fm-separator))) !important; }
+${d}.cm-fm-leaf > :last-child { margin-bottom: max(0px, calc(var(--fm-mb, 0px) - var(--fm-separator))) !important; }
+${d}.cm-fm-leaf.cm-fm-leaf--after-space > :first-child { margin-top: var(--fm-mt, 0px) !important; }
+${d}.cm-fm-leaf.cm-fm-leaf--before-space > :last-child { margin-bottom: var(--fm-mb, 0px) !important; }
+/* A cover that fills its page ends it: the sheet is its box, and its
+   bottom margin would stand the page box that much over the sheet. */
+${d}.fm-live-region > .fm-cover.fm-cover--fill { margin-top: 0 !important; margin-bottom: 0 !important; }
+/* The blank source line after a filling cover has no page to stand on
+   (the cover is the whole sheet): a line of no height. */
+${d}.fm-live-region:has(> .fm-cover.fm-cover--fill) + .cm-line.cm-fm-blank { height: 0; padding: 0 !important; line-height: 0; overflow: hidden; }
+/* The page break marker takes no room, as in print: the labelled rule is
+   laid over the foot of the page it ends. */
+${d}.cm-fm-leaf.cm-fm-leaf--marker { position: relative; height: 0; }
+${d}.cm-fm-leaf--marker > .fm-pagebreak.fm-pagebreak--editor { position: absolute; top: 0; left: 0; right: 0; margin: 0 !important; }
 /* The seam and the flag inside a widget are chrome, not the block: no
    margin of their own. */
 ${d}.fm-live-region > .fm-page-gutter--inner, ${d}.fm-live-region > .fm-page-split { margin-top: 0 !important; }
@@ -1485,7 +1535,7 @@ ${d}.cm-fm-page-head { display: block; }
    block's box visibly stops above it and resumes below, as print draws
    it. It must not read as one of the block's children: no padding, border,
    counter or generated number. */
-${d}.fm-page-gutter--inner {
+${d}.fm-page-gutter--inner:not(.fm-page-gutter--cell), ${d}.fm-page-gutter--cell .fm-page-gutter__sheet {
   position: relative;
   left: 50%;
   width: var(--fm-sheet, 794px);
@@ -1493,6 +1543,22 @@ ${d}.fm-page-gutter--inner {
      writes the exact margin and width inline (a block's own left border
      puts its content box off centre). */
   margin: 0 0 0 calc(-0.5 * var(--fm-sheet, 794px));
+}
+/* Inside a table the seam is a row of its own (seamRow): the cell carries
+   the padding and the ground, its strip reaches the sheet from a box with
+   no intrinsic inline size, so the table's columns are not widened. */
+${d}tr.fm-page-gutter-row { border: 0 !important; background: none !important; }
+${d}td.fm-page-gutter--cell {
+  /* A cell, whatever the seam's own display; no margins on a cell. */
+  display: table-cell;
+  margin: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  vertical-align: top;
+  height: auto;
+}
+${d}.fm-page-gutter--cell > .fm-page-gutter__contain { contain: inline-size; }
+${d}.fm-page-gutter--inner {
   padding-left: 0 !important;
   padding-right: 0 !important;
   border: 0 !important;
@@ -1529,10 +1595,17 @@ ${d}.fm-pagebreak.fm-pagebreak--editor::before, ${d}.fm-pagebreak.fm-pagebreak--
   flex: 1;
   border-top: 1px dashed var(--fm-ink-muted);
 }
-/* A block the paginator had to split because it is taller than a page. */
+/* A block the paginator had to split because it is taller than a page: a
+   chip laid over the block's top corner, out of the flow, so the block's
+   box is print's box and the layout that placed the seam is not moved by
+   its own flag. */
+${d}.fm-live-region--split { position: relative; }
 ${d}.fm-page-split {
-  display: inline-block;
-  margin: 0 0 0.4em;
+  position: absolute;
+  top: 0.4em;
+  right: 0.4em;
+  z-index: 3;
+  margin: 0;
   padding: 0.15em 0.6em;
   border-radius: 999px;
   background: var(--fm-warning, #b45309);

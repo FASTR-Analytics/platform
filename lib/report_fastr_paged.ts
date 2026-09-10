@@ -131,6 +131,11 @@ export type FastrPagedBlock = {
   // has not rendered yet (fastr_markdown_pages.ts lays pages out from them).
   line: number;
   height: number;
+  // For a block taller than half a page: where it may continue on the next
+  // page, each anchored descendant's 0-based source line and its top as an
+  // offset from the block's top, px, ascending. The editor's layout of a
+  // block it has not rendered continues it where print would.
+  inner?: { line: number; top: number }[];
 };
 
 export type FastrPagedResult = {
@@ -327,13 +332,21 @@ h3.fm-numbered::before {
 }
 
 // The page starts the editor decided (fastr_markdown_pages.ts), forced on
-// Paged.js: the block anchored to each line opens a page. Paged.js still
-// pushes a block that overflows print's page (the editor keeps a safety
-// margin so that it should not), and still splits one taller than a page.
+// Paged.js: the block anchored to each line opens a page, and no other
+// break does. The editor already ended a page at every marker and break
+// attribute (and carried a heading onto the page a break=before block
+// starts), so those rules yield here, or print would break twice. A forced
+// start inside a block (one the editor continued across pages) marks its
+// anchor for the runner, which releases the block from keeping whole.
+// Paged.js still pushes a block that overflows print's page (the editor
+// keeps a safety margin so that it should not).
 export function fastrForcedBreaksCss(lines: readonly number[]): string {
-  if (lines.length === 0) return "";
-  const rules = lines.map((l) => `[data-line="${l}"] { break-before: page !important; }`);
+  const rules = lines.map((l) =>
+    `[data-line="${l}"] { break-before: page !important; }\n[data-line="${l}"]:not([data-line="${l}"] *) { --fm-forced: 1; }`
+  );
   return `/* ── Page starts, as the editor laid them out ─────────────────────────── */
+.fm-pagebreak, [data-break="after"] { break-after: auto; }
+[data-break="before"] { break-before: auto; }
 ${rules.join("\n")}
 `;
 }
@@ -362,8 +375,10 @@ export function fastrGapStretchCss(
   gaps: readonly { line: number; marginTop: number }[],
 ): string {
   if (gaps.length === 0) return "";
+  // The outermost element of the line only: a blockquote's paragraph shares
+  // its line, and would take the margin a second time inside the box.
   const rules = gaps.map((g) =>
-    `[data-line="${g.line}"] { margin-top: ${Math.round(g.marginTop)}px !important; }`
+    `[data-line="${g.line}"]:not([data-line="${g.line}"] *) { margin-top: ${Math.round(g.marginTop)}px !important; }`
   );
   return `/* ── Gaps stretched to set the page, as the editor laid them out ──────── */
 ${rules.join("\n")}
@@ -418,7 +433,30 @@ export function fastrPagedRunnerJs(): string {
       var tb = body.children[t];
       var tl = parseInt(tb.getAttribute("data-line"), 10);
       if (isNaN(tl)) continue;
-      blockHeights.push({ line: tl, height: Math.round(tb.getBoundingClientRect().height * 100) / 100 });
+      var tbr = tb.getBoundingClientRect();
+      var entry = { line: tl, height: Math.round(tbr.height * 100) / 100 };
+      // A block taller than half a page: where it may continue (its
+      // anchored descendants' tops, one per position, the outer element
+      // first), for the editor's layout of a block it has not rendered.
+      if (tbr.height > area * 0.5) {
+        var found = [];
+        var ans = tb.querySelectorAll("[data-line]");
+        for (var u = 0; u < ans.length; u++) {
+          var al = parseInt(ans[u].getAttribute("data-line"), 10);
+          if (isNaN(al) || al <= tl) continue;
+          var atop = ans[u].getBoundingClientRect().top - tbr.top;
+          if (atop <= 0.5) continue;
+          found.push({ line: al, top: Math.round(atop * 100) / 100 });
+        }
+        found.sort(function (p, q) { return p.top - q.top; });
+        var inner = [];
+        for (var d = 0; d < found.length; d++) {
+          if (inner.length > 0 && Math.abs(inner[inner.length - 1].top - found[d].top) < 0.5) continue;
+          inner.push(found[d]);
+        }
+        if (inner.length > 0) entry.inner = inner;
+      }
+      blockHeights.push(entry);
     }
     var blocks = document.querySelectorAll(ATOMIC);
     for (var i = 0; i < blocks.length; i++) {
@@ -427,6 +465,22 @@ export function fastrPagedRunnerJs(): string {
       if (b.getBoundingClientRect().height > area * 0.97) {
         b.style.breakInside = "auto";
         b.setAttribute("data-fm-overflow", "");
+      }
+    }
+    // A block the editor continued across pages: the forced page start
+    // inside it (fastrForcedBreaksCss marks the anchor) releases it and
+    // every block around it, whatever their heights.
+    var anchors = document.querySelectorAll("[data-line]");
+    for (var q = 0; q < anchors.length; q++) {
+      var an = anchors[q];
+      if (window.getComputedStyle(an).getPropertyValue("--fm-forced").trim() !== "1") continue;
+      var host = an.parentElement ? an.parentElement.closest(ATOMIC) : null;
+      while (host) {
+        if (!host.classList.contains("fm-cover")) {
+          host.style.breakInside = "auto";
+          host.setAttribute("data-fm-overflow", "");
+        }
+        host = host.parentElement ? host.parentElement.closest(ATOMIC) : null;
       }
     }
     body.style.width = prev.width;

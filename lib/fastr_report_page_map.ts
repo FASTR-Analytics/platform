@@ -104,6 +104,16 @@ export function fastrPageMapText(result: FastrPagedResult, body: string): string
         `Page ${page.number} is ${fill}% full: ${why}. Move prose or a smaller block across the boundary, trim, or split the section so the page fills.`,
       );
     }
+    // A heading as the page's last block: the page ends under it (a page
+    // break or a break=after follows), and the heading is cut off from
+    // what it introduces.
+    const tail = own[own.length - 1];
+    if (!last && tail !== undefined && /^(section )?heading /.test(tail.label)) {
+      note += `, STRANDED: ${tail.label}`;
+      problems.push(
+        `Page ${page.number} ends with the ${tail.label}: a page break stands between it and its section. Move the break above the heading.`,
+      );
+    }
     if (last && pages.length > 1 && fill < 100 * FASTR_PAGE_STUB_SHARE) {
       note = `, STUB`;
       problems.push(

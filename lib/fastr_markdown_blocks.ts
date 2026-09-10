@@ -1051,6 +1051,11 @@ export function fastrDocumentOutline(
   return items;
 }
 
+// A contents list longer than this runs in two columns (report_fastr_css.ts):
+// one column of that many entries would not fit a page, and a block taller
+// than a page cannot keep whole.
+export const FASTR_TOC_COLUMNS_FROM = 14;
+
 // The markup both the renderer and the editor widget emit. An empty outline
 // still renders the frame, so an author who inserts the block before writing
 // any headings sees something rather than nothing.
@@ -1065,7 +1070,7 @@ export function renderFastrTocHtml(
     ? `<div class="fm-toc__empty">${
       escapeReportHtml(opts.empty ?? "No headings yet")
     }</div>`
-    : `<ol class="fm-toc__list">${
+    : `<ol class="fm-toc__list${items.length > FASTR_TOC_COLUMNS_FROM ? " fm-toc__list--columns" : ""}">${
       items.map((it) =>
         `<li class="fm-toc__item fm-toc__item--${it.level}"><a href="#${
           escapeReportHtml(it.slug)
