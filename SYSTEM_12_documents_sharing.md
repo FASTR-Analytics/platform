@@ -547,6 +547,42 @@ it appears): that reproduced the storm (20 page flips per 700ms, the
 scroll dragged back) and is quiet with the fix, pending and landed alike,
 and the forced print agrees with the editor on the bulletin.
 
+**Setting the page** (2026-09-10, "make the spacing and page structure
+better when creating reports with the AI"). Three things fill an AI
+report's pages. A figure short of room at the foot of its page shrinks to
+what is left rather than opening the next page: `FastrLayoutBlock.flex`
+(what it may give up, four tenths of its natural image height,
+`FIGURE_FLOOR`) and `tail` (the separator line that stays under it before
+the seam), the layout's `fits` (`FastrPagedResult.fits`, px taken off the
+block), the editor writes `--fm-fig-fit` on the mount (the stylesheet caps
+the box at it) and keeps the block's own height NATURAL when it measures
+a fitted mount (`figureImageBox`: the raster's aspect at the column under
+the 42% cap, plus what the fit took off), or the layout would find the
+room it made and give it back; print gets the image height as
+`fastrFigureFitCss` (`figure[data-line] img { max-height }`), through
+`getPageLayout().figureFits`. A page that ends because its next block did
+not fit shares its leftover among the gaps between its blocks
+(`stretchesOf`: 40px at most beside a heading, a figure or a block, 12px
+between two paragraphs, nothing under 20px of leftover, never on the last
+page, after a break or a cover, or on a page cut inside a block): the
+stretch is a line decoration on the separator line (`stretchField`,
+`--fm-stretch` as the line's padding-bottom), the seam's filler pads what
+the gaps do not, the layout never sees it (gaps come from the source), and
+print takes each gap as the next block's whole top margin
+(`fastrGapStretchCss`, print's collapsed margin plus the stretch, from the
+blocks' `printMt`/`printMb`). And an h1 is a section now (the cover
+carries the title): print gives it the same 1.8em above as any heading
+(the document's first block and a cover's title keep none), the editor
+line 1.33em of padding (the margin less the separator). The brief tells
+the AI to think in pages (a section is a heading, two or three paragraphs
+and one figure or block), to open a section with a paragraph so a heading
+never travels with a block, that a figure bends to its page, and that a
+contents list belongs to a formal review of eight or more sections, not a
+bulletin. Verified in the harness with emulated charts: fits on a body
+with room (`probe_body14.md`: the regional figure at 284px, page exact,
+print identical), stretches on the bulletin (every box 1123, one layout
+while scrolling, print identical), the typing and Enter probes unchanged.
+
 The height map is measured where a line has been on screen and estimated
 elsewhere, and a page laid out from guesses moves when it scrolls in, so
 three things stand in for measurement: `paginate_report.ts` still lays the

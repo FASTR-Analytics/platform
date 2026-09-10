@@ -140,9 +140,14 @@ export type FastrPagedResult = {
   pages: FastrPagedPage[];
   splits: FastrPagedSplit[];
   blocks?: FastrPagedBlock[];
+  // Blocks the editor's layout shrank to the room left on their page
+  // (fastr_markdown_pages.ts, FastrLayoutBlock.flex): px taken off each.
+  fits?: FastrPagedFit[];
   // Set when pagination could not run; pages is then empty.
   error?: string;
 };
+
+export type FastrPagedFit = { line: number; shrink: number };
 
 function cssString(s: string): string {
   return `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
@@ -329,6 +334,38 @@ export function fastrForcedBreaksCss(lines: readonly number[]): string {
   if (lines.length === 0) return "";
   const rules = lines.map((l) => `[data-line="${l}"] { break-before: page !important; }`);
   return `/* ── Page starts, as the editor laid them out ─────────────────────────── */
+${rules.join("\n")}
+`;
+}
+
+// The figures the editor shrank to fill their pages, as print must draw
+// them: each figure's image at the height the editor gave it (the paged
+// sheet's cap is the ceiling; a fit is always under it). The editor and
+// the PDF share one 96dpi px, so the number carries over as it is.
+export function fastrFigureFitCss(
+  fits: readonly { line: number; height: number }[],
+): string {
+  if (fits.length === 0) return "";
+  const rules = fits.map((f) =>
+    `figure[data-line="${f.line}"] img { max-height: ${Math.round(f.height)}px !important; }`
+  );
+  return `/* ── Figures sized to their pages, as the editor laid them out ─────────── */
+${rules.join("\n")}
+`;
+}
+
+// The gaps the editor stretched to set a page (live_preview_extension's
+// stretchField): the block after each gap takes the whole gap as its top
+// margin, print's own collapsed margin plus the stretch, so the page reads
+// as the editor's.
+export function fastrGapStretchCss(
+  gaps: readonly { line: number; marginTop: number }[],
+): string {
+  if (gaps.length === 0) return "";
+  const rules = gaps.map((g) =>
+    `[data-line="${g.line}"] { margin-top: ${Math.round(g.marginTop)}px !important; }`
+  );
+  return `/* ── Gaps stretched to set the page, as the editor laid them out ──────── */
 ${rules.join("\n")}
 `;
 }

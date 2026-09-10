@@ -232,9 +232,11 @@ Composing a report — this matters as much as the syntax:
     \`fill=page\` only for a formal review or annual report that wants a
     title page of its own; a bulletin or a brief keeps the cover as a band
     with the text starting right below it.
-  - A report with more than four or five sections gets a
+  - A formal review or an annual report of eight or more sections gets a
     \`:::contents{title="Contents" depth=2}\` line straight after the cover,
-    so the reader can see the shape of it. Shorter reports do not.
+    so the reader can see the shape of it. A bulletin or a brief does not,
+    whatever its section count: on a handful of pages a contents list is a
+    page of noise.
   - A formal or ministerial review takes \`numbering=sections\` on the
     \`:::report\` header, so its headings read 1., 1.1, 2. — a bulletin or a
     brief does not.
@@ -256,16 +258,24 @@ Composing a report — this matters as much as the syntax:
 
   The report prints on pages, and the pages are what the reader holds.
   Every block keeps itself whole on one page (a callout, a band, a steps
-  list, a table, a figure, a paragraph), and a heading always travels with
-  what follows it, so a big block that misses the foot of a page by a line
+  list, a table, a paragraph), and a heading always travels with what
+  follows it, so a big block that misses the foot of a page by a line
   takes its whole height to the next page and leaves that much white
-  behind. Only a block taller than a page continues onto the next, and
-  that reads badly, so keep every block shorter than half a page:
+  behind. A figure is the one block that bends: short of room at the foot
+  of its page it shrinks to what is left (never below six tenths of its
+  size) rather than opening the next page, so a figure placed after a
+  section's opening paragraph fills the page out. Only a block taller than
+  a page continues onto the next, and that reads badly, so keep every
+  block shorter than half a page:
+  - Think in pages. A section is a heading, two or three paragraphs and
+    one figure or one block: about a page. A section twice that long reads
+    as two, so split it under its own heading.
   - A tiles row is three or four stats, never cards of prose. A columns
     pair is a few lines a side. A figure gets a one-line caption.
-  - Open a section with a paragraph, then the figure, not the figure
-    straight under the heading: the heading and the figure would otherwise
-    move together, and that is most of a page.
+  - Open a section with a paragraph, then the figure, then the paragraph
+    that reads it, not the figure straight under the heading: the heading
+    and the figure would otherwise move together, and that is most of a
+    page.
   - Never place two figures back to back; put prose between them.
   - Alternate blocks with prose. Two big blocks in a row leave the page
     nothing to fill the gap with.

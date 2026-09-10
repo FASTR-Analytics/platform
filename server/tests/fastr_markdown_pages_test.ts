@@ -98,3 +98,24 @@ Deno.test("a block that opens a page takes its whole top margin there", () => {
   assertEquals(r3.pages[1].contentHeight, 516);
   assertEquals(r3.pages[2].contentHeight, 480);
 });
+
+Deno.test("a figure short of room shrinks to what is left, down to its floor", () => {
+  // 600 used; the figure (400, may give up 160, keeps a 16 tail under it)
+  // has 987 − 600 − 16 − 16 = 355 of room, above its floor of 240: it takes
+  // the room and the page is full but for the tail.
+  const r = layoutFastrPages([block(0, 600), block(2, 400, { flex: 160, tail: 16 }), block(4, 100)], G);
+  assertEquals(fastrPageStartLines(r), [4]);
+  assertEquals(r.fits, [{ line: 2, shrink: 45 }]);
+  assertEquals(r.pages[0].contentHeight, 600 + 16 + 355);
+  // Below the floor it moves whole, as any block does.
+  const r2 = layoutFastrPages([block(0, 800), block(2, 400, { flex: 160, tail: 16 }), block(4, 100)], G);
+  assertEquals(fastrPageStartLines(r2), [2]);
+  assertEquals(r2.fits, []);
+  // A heading before a block that shrinks stays with it on the page.
+  const r3 = layoutFastrPages(
+    [block(0, 500), block(2, 60, { heading: true }), block(4, 400, { flex: 160, tail: 16 }), block(6, 100)],
+    G,
+  );
+  assertEquals(fastrPageStartLines(r3), [6]);
+  assertEquals(r3.fits, [{ line: 4, shrink: 400 - (987 - 576 - 32) }]);
+});

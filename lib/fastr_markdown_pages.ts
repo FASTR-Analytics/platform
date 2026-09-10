@@ -39,6 +39,16 @@ export type FastrLayoutBlock = {
   // 0-based source line and its top as an offset from the block's top, px,
   // ascending. Absent when the block cannot break (or was not measured).
   inner?: { line: number; top: number }[];
+  // What the block may give up when it does not fit the room left on its
+  // page, px: a figure's image shrinks (keeping its aspect) down to a
+  // floor, and the block then takes exactly the room rather than opening
+  // the next page and leaving that room white. Absent for blocks that
+  // cannot shrink.
+  flex?: number;
+  // What stays under the block at the foot of a page when it shrinks to
+  // fit, px: the editor's blank separator line after it, which is not
+  // content but takes room on the page before the seam.
+  tail?: number;
   // What the block grows by when it OPENS a page, px. Print keeps a block's
   // whole top margin at the top of a page, while the editor's box of a
   // block mid-page keeps only what that margin exceeds the blank separator
@@ -75,10 +85,13 @@ export function layoutFastrPages(
 ): FastrPagedResult {
   const pages: FastrPagedResult["pages"] = [];
   const splits: FastrPagedResult["splits"] = [];
+  const fits: NonNullable<FastrPagedResult["fits"]> = [];
   const safety = g.safety ?? 0;
   if (blocks.length === 0) {
-    return { total: 0, sheet: { width: g.sheetW, height: g.pageH }, pages, splits };
+    return { total: 0, sheet: { width: g.sheetW, height: g.pageH }, pages, splits, fits };
   }
+  // The height each block was placed at: its own, or the room it shrank to.
+  const placed = new Map<number, number>();
   let page = openPage(blocks[0], pages.length === 0);
   let area = fastrPageArea(g, page) - safety;
   let first = 0;
@@ -87,10 +100,13 @@ export function layoutFastrPages(
     pages.push({ ...page, number: pages.length + 1, contentHeight: used });
   };
   const lead = (b: FastrLayoutBlock) => b.topExtra ?? 0;
-  // What block k adds to the page that block `open` opens: its own box and
-  // the extra of opening the page, or the gap above it and its box.
-  const footprint = (k: number, open: number) =>
-    k === open ? blocks[k].height + lead(blocks[k]) : blocks[k].gap + blocks[k].height;
+  // What block k adds to the page that block `open` opens: its own box (or
+  // the room it shrank to) and the extra of opening the page, or the gap
+  // above it and its box.
+  const footprint = (k: number, open: number) => {
+    const h = placed.get(k) ?? blocks[k].height;
+    return k === open ? h + lead(blocks[k]) : blocks[k].gap + h;
+  };
   let i = 0;
   while (i < blocks.length) {
     const b = blocks[i];
@@ -101,7 +117,17 @@ export function layoutFastrPages(
       first = i;
       used = 0;
     }
-    const need = footprint(i, first);
+    let need = footprint(i, first);
+    if (i > first && used + need > area && (b.flex ?? 0) > 0) {
+      // Short of room: a figure shrinks to what is left when that keeps it
+      // above its floor, and the page is full.
+      const room = area - used - b.gap - (b.tail ?? 0);
+      if (room >= b.height - (b.flex ?? 0)) {
+        placed.set(i, room);
+        fits.push({ line: b.line, shrink: b.height - room });
+        need = b.gap + room;
+      }
+    }
     if (i > first && used + need > area) {
       // Break before this block, taking a heading directly above with it.
       // A page that would be left with nothing keeps the block instead (it
@@ -161,7 +187,7 @@ export function layoutFastrPages(
     i++;
   }
   close();
-  return { total: pages.length, sheet: { width: g.sheetW, height: g.pageH }, pages, splits };
+  return { total: pages.length, sheet: { width: g.sheetW, height: g.pageH }, pages, splits, fits };
 }
 
 type OpenPage = { firstLine: number; lines: number[]; cover: boolean; flushTop: boolean };
