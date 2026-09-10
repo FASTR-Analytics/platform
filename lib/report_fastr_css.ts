@@ -1459,11 +1459,14 @@ ${d}.fm-page-gutter__head {
 }
 ${d}.cm-fm-page-head { display: block; }
 /* A seam INSIDE a rendered block (a callout, band or steps block that
-   continues on the next page): centred on the block's content box, which
-   sits centred on the sheet, and as wide as the sheet, painted with the page
-   ground so the block's box visibly stops above it and resumes below, as
-   print draws it. It must not read as one of the block's children: no
-   padding, border, counter or generated number. */
+   continues on the next page, or one that opens a page): centred on the
+   block's content box, which sits centred on the sheet, and as wide as the
+   sheet, painted with the DOCUMENT's ground (--fm-page-ground, the tone or
+   colour the :::report line sets, put on the scroller by the editor's
+   ground plugin; the theme's page colour when there is none) so the
+   block's box visibly stops above it and resumes below, as print draws
+   it. It must not read as one of the block's children: no padding, border,
+   counter or generated number. */
 ${d}.fm-page-gutter--inner {
   position: relative;
   left: 50%;
@@ -1477,7 +1480,7 @@ ${d}.fm-page-gutter--inner {
   border: 0 !important;
   border-radius: 0 !important;
   box-shadow: none !important;
-  background: var(--fm-page);
+  background: var(--fm-page-ground, var(--fm-page));
   color: var(--fm-ink-muted);
   counter-increment: none !important;
   z-index: 1;
