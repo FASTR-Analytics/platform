@@ -22,6 +22,29 @@ export function fastrPagedFooter(title: string): FastrPagedFooter {
   };
 }
 
+// The page starts of the report open in the editor, by report id: the
+// editor registers what it laid out (with the body it laid out), and the
+// export forces those breaks when the body it fetched is that same body,
+// so the PDF breaks where the author's page boxes did. Unsaved edits or no
+// open editor: Paged.js decides by the same rules.
+export type ReportPageLayout = { body: string; pageStarts: number[] };
+const pageLayouts = new Map<string, () => ReportPageLayout | undefined>();
+
+export function registerReportPageLayout(
+  reportId: string,
+  get: () => ReportPageLayout | undefined,
+): () => void {
+  pageLayouts.set(reportId, get);
+  return () => {
+    if (pageLayouts.get(reportId) === get) pageLayouts.delete(reportId);
+  };
+}
+
+function pageStartsFor(detail: ReportDetail): number[] | undefined {
+  const layout = pageLayouts.get(detail.id)?.();
+  return layout !== undefined && layout.body === detail.body ? layout.pageStarts : undefined;
+}
+
 export type ReportPdfBytes = {
   base64: string;
   filename: string;
@@ -38,7 +61,10 @@ export async function buildReportPdfFromDetail(
     const html = await buildStandaloneReportHtml(
       detail,
       (v) => progress(v * 0.5),
-      { paged: { footer: fastrPagedFooter(detail.label) }, inlineFonts: true },
+      {
+        paged: { footer: fastrPagedFooter(detail.label), pageStarts: pageStartsFor(detail) },
+        inlineFonts: true,
+      },
     );
     const rendered = await serverActions.renderReportPdf(
       { projectId, report_id: detail.id, html },

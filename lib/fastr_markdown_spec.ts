@@ -253,13 +253,13 @@ Composing a report — this matters as much as the syntax:
   ordinary paragraphs: a report where everything is a block has no emphasis
   left. Aim for roughly one block per two or three paragraphs of prose.
 
-  The report prints on pages, and the pages are what the reader holds. A
-  tiles row, a columns pair, a figure, a table row and each step keep
-  themselves whole on one page, and a heading always travels with what
-  follows it, so a big block that misses the foot of a page by a line takes
-  its whole height to the next page and leaves that much white behind.
-  Callouts, bands, quotes and steps continue across pages, so length is
-  safe there; everything else, keep compact:
+  The report prints on pages, and the pages are what the reader holds.
+  Every block keeps itself whole on one page (a callout, a band, a steps
+  list, a table, a figure, a paragraph), and a heading always travels with
+  what follows it, so a big block that misses the foot of a page by a line
+  takes its whole height to the next page and leaves that much white
+  behind. Only a block taller than a page continues onto the next, and
+  that reads badly, so keep every block shorter than half a page:
   - A tiles row is three or four stats, never cards of prose. A columns
     pair is a few lines a side. A figure gets a one-line caption.
   - Open a section with a paragraph, then the figure, not the figure

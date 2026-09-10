@@ -319,11 +319,12 @@ Deno.test({
             local.push("the runner reported no split for the long table");
           }
         }
-        // A band or a steps block continues across pages as a matter of
-        // course: nothing to report, and the continuation keeps counting.
+        // A band or a steps block keeps whole like every block; one taller
+        // than a page continues, reported as an overflow split, and the
+        // continuation keeps counting.
         if (fixture.name === "long_band") {
           if (ins.continuedBands === 0) local.push("the long band did not continue onto a second page");
-          if (result.splits.length > 0) local.push("the runner reported the long band as an overflow split");
+          if (result.splits.length === 0) local.push("the runner did not report the long band as an overflow split");
         }
         if (fixture.name === "long_steps") {
           if (ins.continuedSteps === 0) local.push("the long steps block did not continue onto a second page");

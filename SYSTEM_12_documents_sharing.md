@@ -46,6 +46,7 @@ globs:
   - lib/fastr_markdown_spec.ts
   - lib/report_fastr_css.ts
   - lib/report_fastr_markdown.ts
+  - lib/fastr_markdown_pages.ts
   - lib/report_fastr_paged.ts
   - lib/report_document_shell.ts
   - lib/types/slides.ts
@@ -371,13 +372,17 @@ starts mid-block. Exports: `.html` (same builder as html) and a PAGED PDF —
 see "Paged PDF and page boxes" below; Word is absent because panther's
 markdown IR cannot represent the blocks and would silently drop every one.
 
-**Paged PDF and page boxes (2026-09-08).** A FASTR Markdown report has a real
-PDF, and the Edit pane shows where its pages fall. One paginator does both:
-Paged.js lays the SAME standalone document out into page boxes in the browser
-(the editor's hidden layout frame, `report/paginate_report.ts`) and inside the
-server's headless Chrome (`server/report_pdf/`, astral over CDP, the Chrome for
-Testing headless shell the Dockerfile installs at `CHROME_PATH`), so the seams
-the editor draws and the pages the PDF prints cannot disagree.
+**Paged PDF and page boxes (2026-09-08, inverted 2026-09-10).** A FASTR
+Markdown report has a real PDF, and the Edit pane shows where its pages fall.
+The EDITOR decides where the pages break, and print follows: the editor lays
+the document out from CodeMirror's height map on every measure
+(`layoutFastrPages`, lib/fastr_markdown_pages.ts), and the export forces
+Paged.js to break on exactly those lines inside the server's headless Chrome
+(`server/report_pdf/`, astral over CDP, the Chrome for Testing headless shell
+the Dockerfile installs at `CHROME_PATH`), so the seams the editor draws and
+the pages the PDF prints cannot disagree. The first design ran Paged.js on
+both sides and had the editor chase the paginator's answer; the section
+below says why that could not be made to feel right.
 `lib/report_fastr_paged.ts` is the contract: the paged stylesheet
 (`buildFastrPagedCss` — `@page` size/margins, a zero-margin named page for a
 cover with `fill=page` (any other cover is a 544px-tall band at the head of
@@ -444,55 +449,82 @@ printed column plus the surface's two 24px bleed pads, no `.cm-line`
 insets), so lines wrap in the editor exactly as they wrap in print.
 `paginationField`/`setPagination` draw a seam before each page's first line
 (a block widget between plain or leaf lines, an element injected into the
-rendered block's DOM), computed by `paginate_report.ts` in a hidden frame
-from the SAME paged document, with embeds at the boxes the PDF gives them
+rendered block's DOM). WHERE the pages break is the editor's own decision,
+made synchronously by `pageBoxPlugin` on every measure pass: `flowBlocksOf`
+walks the source into blocks (a region from fence to fence, a paragraph of
+consecutive non-blank lines, a heading, a line of space; the first blank
+line after content is the separator between blocks, not a block), takes
+each block's own box from the height map (`lineBox`: the line or the region
+widget without the seam widget attached before it, `seamsAbove` subtracting
+seams from the space between rendered blocks) and hands the list to
+`layoutFastrPages`: whole blocks fill a page, a heading travels with the
+block after it, `:::pagebreak` and `break=` end or open a page, a cover
+opens page 1 (natural: flush to the sheet's top; fill=page: alone), a block
+taller than a page continues at the inner boundaries its rendered DOM
+offers (`innerCandidates`: anchored descendants, a seam placed inside the
+widget by `applyRegionPagination`), and 6px stay free at every foot
+(`LAYOUT_SAFETY_PX`) so print, whose measure of a block can differ by a
+pixel or two, never finds a page fuller than the editor did. When the pages
+differ from the current pagination the plugin dispatches the new one after
+the cycle: Enter moves a block onto the next page in the same frame and
+Backspace brings it back, with nothing to wait for. Every seam's filler
+(the padding that brings a page box to the sheet's height, `--fm-page-h`
+1123px for A4, `--fm-page-margin` 68px) comes from the same height map, on
+screen or not, so a page box is never the wrong size.
+
+The height map is measured where a line has been on screen and estimated
+elsewhere, and a page laid out from guesses moves when it scrolls in, so
+three things stand in for measurement: `paginate_report.ts` still lays the
+whole document out in a hidden frame after a typing pause, but only to
+report every block's height at the print column (`FastrPagedResult.blocks`,
+keyed by the block's source text through `fastrLayoutHints`, into the
+editor's `layoutHintsField`), which is exact for a paragraph; a heading or
+a list, whose editor line carries padding print keeps as margin, is
+measured the editor's own way by `HeightOracle` (its lines as `.cm-line`
+boxes off screen inside the editor, concealed text, the content column's
+width); and a region keeps its rendered height by source text
+(`measuredRegionHeights`, also its widget's estimate) or takes print's box
+plus the widget clamp (`regionExtra`, from the `--fm-mt`/`--fm-mb` the
+structure sheet declares). The space ABOVE an unrendered block comes from
+the source (the separator line, or nothing when blocks touch), never from
+estimated positions: the first build measured it from them and got zero or
+nonsense, which laid far pages out too full and let print overflow. A block
+taller than a page that has not been rendered lays out whole until it is
+(no inner candidates), so its pages appear on first scroll.
+
+Print follows: `fastrForcedBreaksCss` emits `[data-line="N"]
+{ break-before: page !important }` for the editor's page starts
+(`paged.pageStarts` on `buildStandaloneReportHtml`), which index.tsx hands
+to Download and Email through `registerReportPageLayout`
+(export_report_as_paged_pdf.ts) when the body the export fetched is the
+body the editor laid out; otherwise Paged.js decides by the same rules.
+Every block is atomic in the paged sheet, paragraphs included: a block cut
+by a page reads as a mistake (its ground stops at the seam) and would not
+pass in a ministry (Nick, 2026-09-10), and the editor cannot draw a seam
+through a line box anyway. A block taller than a page still continues
+(`releaseOverTall`), at the boundary the editor forced. The editor's list
+lines carry print's item margins as padding (`.cm-fm-li + .cm-fm-li`); the
+widget clamp and the heading paddings are derived from print's margins as
+described under "Blank lines are space" below. A seam inside a rendered
+block (one taller than a page) is `fm-page-gutter--inner`: sheet-wide, on
+the page ground, opted out of the block's child styling (counters, borders,
+padding), so the box visibly stops and resumes; the stylesheet centres it
+on the block's content box and `pageBoxPlugin` measures it against the
+sheet and writes the exact margin and width inline (a callout's 4px left
+border alone puts the strip 2px past the sheet, which is a horizontal
+scrollbar on the whole editor); `pageTopOf` reads such a page's content top
+under the seam's head, or estimates it from the seam chrome (182px) and the
+filler. A page a natural cover opens has no top margin in the editor either
+(`FastrPagedPage.flushTop`: no PageHeadWidget, content area = sheet less
+the bottom margin). Embeds are laid out at the boxes the PDF gives them
 (`createFigureSizeCache`: a figure's raster aspect from a 200px panther
-draw; an image's natural size), never measured from the editor's DOM, and
-drawn as `sizedPlaceholderImageSrc` SVGs whose INTRINSIC size is the box
-(a 1px pixel with size attributes lays out square once it loads, which put
-every figure on a page of its own in the editor while the PDF flowed them:
-Nick's "test 17", 2026-09-08). A
-seam is [filler][the ending page's bottom margin with its running footer in
-it][sheet-edge gap][the next page's top margin]; a cover page has no margins
-and no footer, and a `PageHeadWidget` gives a first page that is not a cover
-its top margin. `pageBoxPlugin` measures the content between consecutive
-seams (only pages entirely in the DOM: CodeMirror stands a `.cm-gap` of
-estimated height in for lines outside the viewport, and a page with a gap
-inside it keeps its current filler) and writes each seam's padding-top so
-every page box is the printed page's height (`--fm-page-h`, 1123px for A4;
-`--fm-page-margin` 68px). Fillers are owned by the host and carried across
-results by page TEXT (`carryPageFillers`), seeded from each page's printed
-content height (`FastrPagedPage.contentHeight`) before it has ever been
-rendered, so scrolling never moves a page that has been measured. The same
-plugin FLOWS blocks between pages while the paginator is still working
-(Nick: "like Google Docs, when a page reaches a certain size it auto creates
-the next page"): a fully rendered page whose content crosses its area
-pushes the crossing block, with any heading directly above it, to the next
-page at once (opening a new page after the last), a page with 24px to
-spare pulls the next page's first block up (never a heading, never across
-`:::pagebreak`/`break=`), and a page left without blocks closes; one move
-per measure pass, dispatched after the cycle, only between an edit and the
-paginator's next answer, which stands as the printed truth. The result's
-lines are mapped through every edit so a provisional move never rebuilds
-seams from stale lines. A seam inside a rendered block (a callout, band or
-steps block that continues on the next page) is `fm-page-gutter--inner`:
-sheet-wide, on the page ground, opted out of the block's child styling
-(counters, borders, padding), so the box visibly stops and resumes; the
-stylesheet centres it on the block's content box and `pageBoxPlugin`
-measures it against the sheet and writes the exact margin and width inline
-(a callout's 4px left border alone puts the strip 2px past the sheet, which
-is a horizontal scrollbar on the whole editor). A page a natural cover
-opens has no top margin in the editor either (`FastrPagedPage.flushTop`:
-no PageHeadWidget, content area = sheet less the bottom margin). The
-model's brief (`FASTR_MD_SYNTAX_DOC`) carries a "composing for pages"
-paragraph: what keeps together, what continues, open a section with a
-paragraph before its figure, never two figures back to back, alternate
-blocks with prose, no page breaks to tidy what it cannot see. A page whose
-editor rendering runs taller than
-print simply runs taller (the residual, measured 2026-09-08 on the fixtures
-and a real bulletin, is under 25px a page and goes both ways: container
-spacing and headings differ a little from the themes' collapsed margins);
-split blocks carry a flag. The Download modal offers PDF
+draw; an image's natural size), drawn as `sizedPlaceholderImageSrc` SVGs
+whose INTRINSIC size is the box (a 1px pixel with size attributes lays out
+square once it loads: Nick's "test 17", 2026-09-08). The model's brief
+(`FASTR_MD_SYNTAX_DOC`) carries a "composing for pages" paragraph: every
+block keeps whole, open a section with a paragraph before its figure, never
+two figures back to back, alternate blocks with prose, no page breaks to
+tidy what it cannot see. The Download modal offers PDF
 (default) and HTML for fastr; Print is gone for that format. Verified by
 `server/tests/report_pdf_render_test.ts` (env-gated on `CHROME_PATH`): the
 fixture corpus in `server/tests/fixtures/fastr_pdf/` on every theme, with
@@ -523,50 +555,21 @@ block by block; the widget rows read 0. Known residual: a THEME's own heading
 rules (a border under h2 with 0.2-0.3em of padding, a theme's h2 font size)
 do not reach the editor's heading lines, so a heading can stand a few pixels
 taller in print than in Edit; the default theme's h2 padding is mirrored on
-`cm-fm-h2`, the rest is settled by the paginator's answer. Those residual
-pixels are why the provisional flow is GATED on the paginator's last answer:
-`pageBoxPlugin` records, per page and while no edit has happened since that
-answer, where the page's last block ends in the editor's own measurement
-(`settled`), and a push then needs the page to have grown past that edge, a
-pull needs it to have shrunk from it. Re-deciding every break from the
-editor's measurement after each keystroke turned a few pixels of
-disagreement into a block that jumped to the next page and back a second
-later, on pages the keystroke never touched (Nick, 2026-09-09, "still
-flickering"). A provisional move drops the records of every page from the
-one it renumbered. The plugin also watches the content box with a
-ResizeObserver: a widget that grows after it was measured (a figure's raster
-arriving) changed the page under it with no editor update, and the box stayed
-wrong until the next scroll.
-
-That gate was not enough ("still flickering", later the same day, "a lot
-when pressing enter on a page where there is already another page below").
-Three more causes, all fixed together by moving the flow off the rendered
-DOM and onto CodeMirror's HEIGHT MAP (`view.lineBlockAt`, per line and per
-widget, measured where a line has been on screen and estimated elsewhere;
-`lineBox` takes a line's own box without the seam widget attached to it, and
-`spanBlocks` builds a page's blocks from the source lines and
-`fastrLiveRegions`, memoised per document version). (1) A page only partly
-rendered had no record and could not flow, so a block pushed onto it left
-it too tall until the paginator answered; now every seam's filler comes from
-the height map, on screen or not, and only pages whose lines are all inside
-`view.viewport` may move or be recorded (an unrecorded rendered page may
-push with a 12px tolerance and never pull). (2) The bias is
-`editor last-block bottom − print contentHeight × scale`, and print's
-contentHeight included the four lines of a PARAGRAPH split across the seam
-(orphans/widows) while the editor shows the paragraph whole on the next
-page: a hundred-pixel bias that pushed everything early. The runner now
-stops contentHeight at the last block without `data-split-to`, and, more to
-the point, `p` is ATOMIC in the paged sheet: the editor cannot draw a seam
-through a line box, so a paragraph that print split left every page opening
-on its tail taller in Edit than in print and the page before it ending
-early. One block model on both sides. (3) A page that opens on a region
-carries its seam INSIDE the region widget (`applyRegionPagination`, rel 0),
-so the widget's box begins with the seam: `pageTopOf` measures the content
-top under the rendered seam's head, or estimates it from the seam chrome
-(182px) and the filler. probe_gap.ts (short viewport, Enter at a page foot),
-probe_flicker.ts and probe_enter.ts in the scratchpad recipe are the
-verification; figure pages cannot be verified there (the harness has no
-figure data).
+`cm-fm-h2`, the rest is what the layout's 6px safety margin covers. Those residual
+pixels are what killed the first design, where Paged.js in the hidden frame
+decided the breaks and the editor FLOWED blocks provisionally until the
+paginator answered (2026-09-08 and 09-09): a page the editor measured a few
+pixels taller than print pushed a block that came straight back, a page
+only partly rendered could not be judged and stood too tall until the
+answer, and a paragraph print split at its lines (orphans/widows) left the
+page opening on its tail a hundred pixels taller in Edit. Gating the flow
+on the paginator's last answer, then moving it onto the height map, each
+helped and neither was enough ("still flickering", twice), which is why the
+editor now decides and print follows. probe_type2.ts (short viewport, Enter
+at every page foot, then the forced print against the editor),
+probe_enter2.ts, probe_scroll2.ts and probe_pdf.ts in the scratchpad recipe
+are the verification; figure pages cannot be verified there (the harness
+has no figure data).
 
 **Spacing in AI-written reports** (Nick, 2026-09-09, "more professional"):
 rendered through the paged pipeline, the ANC1 bulletin the AI wrote showed

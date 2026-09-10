@@ -1,4 +1,5 @@
 import {
+  fastrLayoutHints,
   buildFastrEditorSurfaceCss,
   buildFastrReportCss,
   buildReportEmbedToken,
@@ -73,7 +74,7 @@ import {
 } from "~/state/project/collab";
 import { fastrThemeOptions } from "~/components/_shared/fastr_theme_labels";
 import { createReportPaginator } from "./paginate_report";
-import { fastrPagedFooter } from "~/exports/export_report_as_paged_pdf";
+import { fastrPagedFooter, registerReportPageLayout } from "~/exports/export_report_as_paged_pdf";
 import { buildStandaloneReportHtml } from "~/exports/export_report_as_html";
 import { PresenceAvatars } from "~/components/slide_deck/presence_avatars";
 import { ReportEditorCursors } from "~/components/_shared/cursors/report_cursors";
@@ -106,10 +107,8 @@ import {
 } from "./report_editor";
 import { ReportToolbar } from "./report_toolbar";
 import {
-  carryPageFillers,
   FM_LIVE_SCOPE_CLASS,
   type PageBoxGeometry,
-  type PageFillCarry,
 } from "./live_preview_extension";
 import { REPORT_MARKDOWN_STYLE } from "./report_markdown_style";
 import {
@@ -163,7 +162,7 @@ type Props = EditorComponentProps<
 const AUTOSAVE_MS = 800;
 
 // The editor's page box for a document's page setup, in CSS px at 96dpi:
-// the printed sheet 1:1 (liveSurfaceCss sets the vars; carryPageFillers and
+// the printed sheet 1:1 (liveSurfaceCss sets the vars; the editor's page layout and
 // pageBoxPlugin measure against them).
 function pageBoxOf(text: string): { sheetPx: number; columnPx: number; geometry: PageBoxGeometry } {
   const page = readFastrDocumentSettings(text).page;
@@ -583,9 +582,9 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     return undefined;
   };
 
-  // The previous result with its fillers, so a page whose text is unchanged
-  // keeps its measured height across results (carryPageFillers).
-  let fillCarry: PageFillCarry | undefined;
+  // The background layout of the whole document at the print column: its
+  // block heights, by source text, are the editor's estimates for blocks it
+  // has not rendered (the editor lays the pages out itself).
   const paginator = createReportPaginator({
     detail: () =>
       loadedConfig === undefined || !paginationWanted() ? undefined : {
@@ -604,17 +603,16 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     },
     imageSize,
     onResult: (result, bodyUsed) => {
-      if (result === undefined) {
-        fillCarry = undefined;
-        editorApi?.setPagination(undefined);
-        return;
-      }
-      const box = pageBoxOf(bodyUsed);
-      const fillers = carryPageFillers(result, bodyUsed, fillCarry, box.geometry, box.sheetPx);
-      fillCarry = { result, body: bodyUsed, fillers };
-      editorApi?.setPagination({ result, title: label(), fillers });
+      if (result === undefined) return;
+      editorApi?.setLayoutHints(fastrLayoutHints(result, bodyUsed));
     },
   });
+  const emptyPagination = () => ({
+    result: { total: 0, sheet: { width: pageBoxOf(body()).sheetPx, height: pageBoxOf(body()).geometry.pageH }, pages: [], splits: [] },
+    title: label(),
+    fillers: new Map<number, number>(),
+  });
+  onCleanup(registerReportPageLayout(p.reportId, () => editorApi?.getPageLayout()));
   onCleanup(() => paginator.dispose());
   // Typing, and an embed's size landing: after the debounce. Everything that
   // re-lays the whole document (theme, page setup, the mode itself): now.
@@ -622,8 +620,10 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     if (paginationWanted()) paginator.request();
   }, { defer: true }));
   createEffect(on([paginationWanted, fastrTheme, fastrColors, label], () => {
-    if (paginationWanted()) paginator.requestNow();
-    else editorApi?.setPagination(undefined);
+    if (paginationWanted()) {
+      editorApi?.setPagination(emptyPagination());
+      paginator.requestNow();
+    } else editorApi?.setPagination(undefined);
   }));
   // Suppresses the "user edited" AI notification while we apply an AI-accepted
   // edit through the editor (setBody also fires the CM change listener).

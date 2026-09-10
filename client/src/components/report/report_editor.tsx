@@ -15,6 +15,7 @@ import {
 import type { Awareness } from "y-protocols/awareness";
 import * as Y from "yjs";
 import {
+  fastrPageStartLines,
   type EditResult,
   fastrContainerStackUpTo,
   fastrOpenFenceOnLine,
@@ -54,6 +55,8 @@ import {
   FM_LIVE_SCOPE_CLASS,
   livePreviewExtensions,
   setPagination as setPaginationEffect,
+  setLayoutHints as setLayoutHintsEffect,
+  paginationField,
 } from "./live_preview_extension";
 import { fastrContainerFences } from "./fastr_fence_extension";
 import { createPagedEditSurface, type PagedSurface } from "./paged_edit_surface";
@@ -155,9 +158,16 @@ export type ReportEditorApi = {
   redo: () => void;
   // Re-measure (e.g. after the editor was hidden during a diff review).
   refresh: () => void;
-  // Where the printed pages start (from the host's paginator); undefined
-  // clears the page boxes. Live preview only; a no-op in Split.
+  // Switch the page boxes on (a pagination with no pages: the editor lays
+  // the document out itself, live_preview_extension's pageBoxPlugin) or
+  // off (undefined). Live preview only; a no-op in Split.
   setPagination: (pagination: EditorPagination | undefined) => void;
+  // Print's height for every block, by source text (the host's background
+  // layout): the estimates for blocks the editor has not rendered.
+  setLayoutHints: (hints: Map<string, number>) => void;
+  // The page starts the editor laid out, with the body they belong to, for
+  // the PDF export to force; undefined without page boxes.
+  getPageLayout: () => { body: string; pageStarts: number[] } | undefined;
   // Fractional 0-based source line at the viewport top (for scroll sync), or
   // undefined if it can't be read (no view / zero height / off-screen).
   getTopLine: () => number | undefined;
@@ -859,6 +869,16 @@ export function ReportEditor(p: Props) {
     view?.dispatch({ effects: setPaginationEffect.of(pagination) });
   }
 
+  function setLayoutHints(hints: Map<string, number>) {
+    view?.dispatch({ effects: setLayoutHintsEffect.of(hints) });
+  }
+
+  function getPageLayout(): { body: string; pageStarts: number[] } | undefined {
+    const pag = view?.state.field(paginationField, false)?.pagination;
+    if (view === undefined || pag === undefined) return undefined;
+    return { body: view.state.doc.toString(), pageStarts: fastrPageStartLines(pag.result) };
+  }
+
   // Fractional 0-based source line at the viewport top. Coordinate spaces must
   // not be mixed: BlockInfo.top is in *document* space, while getBoundingClientRect
   // and posAtCoords are *screen* space. view.documentTop bridges them
@@ -947,6 +967,8 @@ export function ReportEditor(p: Props) {
       redo,
       refresh,
       setPagination,
+      setLayoutHints,
+      getPageLayout,
       getTopLine,
       scrollToLine,
       isAtBottom,

@@ -56,6 +56,10 @@ import type { Awareness } from "y-protocols/awareness";
 import * as Y from "yjs";
 import { hideMenu, type MenuItem, showMenu } from "panther";
 import {
+  layoutFastrPages,
+  fastrPageArea,
+  type FastrLayoutBlock,
+  type FastrLayoutGeometry,
   applyTableCellAction,
   applyStepsChildAction,
   applyTilesChildAction,
@@ -512,6 +516,8 @@ class RegionWidget extends WidgetType {
   }
 
   override get estimatedHeight(): number {
+    const seen = measuredRegionHeights.get(this.source);
+    if (seen !== undefined) return seen;
     if (this.kind === "embed") return 260;
     const lines = this.endLine - this.startLine + 1;
     return Math.max(40, Math.min(1200, 28 * lines));
@@ -3096,17 +3102,25 @@ export type EditorPagination = {
   // The running footer's title, drawn on the seam.
   title: string;
   // Per page number, the padding (px) that brings the page box up to the
-  // printed page's height at the sheet's scale. Owned by the host and handed
-  // over with every result (carryPageFillers), seeded from the printed
-  // layout, then overwritten in place by pageBoxPlugin as pages are
-  // measured; a seam re-created on scroll reads its size from here.
+  // printed page's height at the sheet's scale, written in place by
+  // pageBoxPlugin as pages are measured; a seam re-created on scroll reads
+  // its size from here.
   fillers?: Map<number, number>;
-  // True for a result the editor adjusted itself (pageBoxPlugin's flow)
-  // while the paginator was still working; the host's results carry no flag.
-  provisional?: boolean;
 };
 
 export const setPagination = StateEffect.define<EditorPagination | undefined>();
+
+// Print's height for every block, by the block's source text, from the
+// host's background layout of the whole document (paginate_report.ts): the
+// page layout takes them for blocks the editor has not rendered.
+export const setLayoutHints = StateEffect.define<Map<string, number>>();
+export const layoutHintsField = StateField.define<Map<string, number>>({
+  create: () => new Map(),
+  update(value, tr) {
+    for (const e of tr.effects) if (e.is(setLayoutHints)) return e.value;
+    return value;
+  },
+});
 
 // The page box geometry the host sets on the editor's scope: the printed
 // page's height and its margin at the sheet's scale (report_fastr_css.ts
@@ -3122,50 +3136,7 @@ function pageAreaPx(g: PageBoxGeometry, page: PageMargins): number {
   return g.pageH - (page.flushTop === true ? 1 : 2) * g.marginPx;
 }
 
-// The fillers for a new pagination result. A page whose source text (and
-// page height) is unchanged keeps its filler, measured or seeded, found by
-// that text even when the page moved down the document or was renumbered;
-// every other page is seeded from the printed layout: the page box minus
-// the printed content at the sheet's scale minus the footer. Seeds keep the
-// editor's pages at their printed height from the first scroll; a
-// measurement replaces a seed once the page is fully rendered.
-export type PageFillCarry = {
-  result: FastrPagedResult;
-  body: string;
-  fillers: Map<number, number>;
-};
 
-export function carryPageFillers(
-  result: FastrPagedResult,
-  body: string,
-  prev: PageFillCarry | undefined,
-  geometry: PageBoxGeometry,
-  sheetPx: number,
-): Map<number, number> {
-  const known = new Map<string, number>();
-  if (prev !== undefined) {
-    const keys = pageTextKeys(prev.result, prev.body, geometry.pageH);
-    for (const [n, px] of prev.fillers) {
-      const k = keys[n - 1];
-      if (k !== undefined && !known.has(k)) known.set(k, px);
-    }
-  }
-  const keys = pageTextKeys(result, body, geometry.pageH);
-  const scale = result.sheet.width > 0 ? sheetPx / result.sheet.width : 1;
-  const fillers = new Map<number, number>();
-  for (const page of result.pages) {
-    const kept = known.get(keys[page.number - 1] ?? "");
-    if (kept !== undefined) {
-      fillers.set(page.number, kept);
-      continue;
-    }
-    fillers.set(
-      page.number,
-      Math.max(0, Math.round(pageAreaPx(geometry, page) - page.contentHeight * scale)),
-    );
-  }
-  return fillers;
-}
 
 function readPageBoxGeometry(view: EditorView): PageBoxGeometry | undefined {
   const style = getComputedStyle(view.dom);
@@ -3180,26 +3151,6 @@ function readPageBoxGeometry(view: EditorView): PageBoxGeometry | undefined {
   };
 }
 
-function pageTextKeys(result: FastrPagedResult, body: string, pageH: number): string[] {
-  const lines = body.split("\n");
-  const starts = result.pages.map((p) => p.firstLine);
-  const keys: string[] = [];
-  let from = 0;
-  for (let i = 0; i < starts.length; i++) {
-    from = Math.max(from, starts[i] ?? from);
-    let to = lines.length;
-    for (let j = i + 1; j < starts.length; j++) {
-      const s = starts[j];
-      if (s !== undefined) {
-        to = Math.max(from, s);
-        break;
-      }
-    }
-    const kind = result.pages[i].cover ? "c" : result.pages[i].flushTop ? "t" : "p";
-    keys.push(`${pageH}|${kind}|${lines.slice(from, to).join("\n")}`);
-  }
-  return keys;
-}
 
 type PaginationState = {
   pagination: EditorPagination | undefined;
@@ -3348,7 +3299,8 @@ function buildPaginationState(
   state: EditorState,
   pag: EditorPagination | undefined,
 ): PaginationState {
-  if (pag === undefined || pag.result.total === 0) return EMPTY_PAGINATION;
+  if (pag === undefined) return EMPTY_PAGINATION;
+  if (pag.result.total === 0) return { ...EMPTY_PAGINATION, pagination: pag };
   const ranges = regionRanges(state);
   const regionAt = (line: number) =>
     ranges.find((r) => r.region.startLine <= line && line <= r.region.endLine);
@@ -3482,67 +3434,28 @@ function applyRegionPagination(
     else dom.append(flag);
   }
 }
-
-// Every page box is the printed page's height at the sheet's scale (the
-// host's --fm-page-h): each seam's padding-top pads the page ending above it
-// to that height (a page whose editor rendering runs taller than print simply
-// runs taller). Measured from the DOM, and only for a page that is entirely
-// in the DOM: CodeMirror renders the viewport plus a margin and stands a
-// gap placeholder of estimated height in for the rest, so a page with a gap
-// inside it, or one whose start is not rendered, keeps its current filler
-// (its seed or its last measurement) rather than being measured against a
-// guess. A measured value is final until the page's content changes, so
-// scrolling never moves a page that has already been measured.
+// ── Page layout ─────────────────────────────────────────────────────────────
+// The EDITOR decides where the pages break, on every measure, from
+// CodeMirror's height map: every block's own box (a line's, a region
+// widget's), the space between blocks, and the paged sheet's rules, run
+// through layoutFastrPages (lib/fastr_markdown_pages.ts). The result is
+// the pagination the seams draw, at once: nothing waits on a paginator, so
+// Enter moves a block to the next page in the same frame and Backspace
+// brings it back. The PDF export forces Paged.js to break on these lines
+// (fastrForcedBreaksCss), so the printed page is the page box.
 //
-// The same walk keeps the pages FLOWING while the paginator is still
-// working (it answers a few hundred milliseconds after typing stops): a
-// page whose content has run past its box pushes the block that crossed the
-// edge, with any heading directly above it, onto the next page at once,
-// opening a new page after the last one; a page with room to spare pulls
-// the next page's first block back up (never a heading, never across an
-// explicit break, and only with a clear margin, so a push and a pull cannot
-// chase each other). Whole blocks, as the seams themselves are; the
-// paginator's next result replaces these provisional breaks. One move per
-// pass, lowest page first: the next pass sees the page it changed.
-
-// The flow works from CodeMirror's HEIGHT MAP, not the rendered DOM: the
-// editor only renders the viewport and a margin, and a page half outside it
-// was a page the flow could not touch, so a block pushed onto it left it too
-// tall until the paginator answered, and a page with no rendered record got
-// re-decided from scratch when it scrolled into view mid-edit. The height
-// map has a top and a bottom for every line and widget in the document,
-// measured where they have been on screen and estimated elsewhere, so every
-// page can be judged and every seam padded whether or not it is on screen.
+// Heights are measured where a line has been on screen and estimated
+// elsewhere. Two things make the estimates good: a region's height is
+// remembered by its source text once it has been rendered
+// (measuredRegionHeights), and the host hands over print's own height for
+// every block, by text, from a background layout (setLayoutHints), so a
+// page far below the viewport is laid out from real heights rather than
+// CodeMirror's guess, and a seam does not move when the page scrolls in.
 //
-// A page whose content has run past its edge pushes the block that crossed,
-// with any heading directly above it, onto the next page (opening a page
-// after the last one); a page with room to spare pulls the next page's first
-// block back up (never a heading, never across an explicit break, and only
-// with a clear margin). Whole blocks, as the seams themselves are: a
-// container, table or embed region, a paragraph (consecutive non-blank
-// lines), a heading, a line of space. The paginator's next result replaces
-// these provisional breaks. One move per pass, lowest page first.
-//
-// The EDGE is print's, not the editor's. The editor's rendering of a page
-// differs from print's by a few pixels (a theme's own heading rule, a
-// figure's chrome), and the paginator's answer carries print's content
-// height for every page: the difference between that and the editor's own
-// height for the same content is the page's bias, recorded while no edit has
-// happened since the answer, and the edge for that page is its box plus the
-// bias. So a block moves only when print would move it, and a page the
-// keystroke never touched cannot flicker.
+// Every seam's filler (the padding that brings a page box to the sheet's
+// height) comes from the same height map, on screen or not.
 
-type PageSpan = { number: number; from: number; to: number };
-
-type FlowBlock = {
-  // Document-space extent, from the height map.
-  top: number;
-  bottom: number;
-  // 0-based first source line.
-  line: number;
-  heading: boolean;
-  pagebreak: boolean;
-};
+type FlowBlock = FastrLayoutBlock & { top: number; bottom: number; text: string; rendered: boolean };
 
 // The document-space extent of a source line's OWN box: the text line, or
 // the widget standing in for a replaced region, without the block widgets
@@ -3554,6 +3467,386 @@ function lineBox(view: EditorView, line0: number): { top: number; bottom: number
   const own = parts.filter((p) => p.type === BlockType.Text || p.type === BlockType.WidgetRange);
   if (own.length === 0) return { top: block.top, bottom: block.bottom };
   return { top: own[0].top, bottom: own[own.length - 1].bottom };
+}
+
+// The height of the page seams (and the page head) attached before a line:
+// they stand between two blocks in the height map but are not space
+// between them.
+function seamsAbove(view: EditorView, line0: number): number {
+  const block = view.lineBlockAt(view.state.doc.line(line0 + 1).from);
+  if (!Array.isArray(block.type)) return 0;
+  let h = 0;
+  for (const p of block.type as readonly BlockInfo[]) {
+    if (p.type !== BlockType.WidgetBefore) continue;
+    const w = p.widget;
+    if (w instanceof PageGutterWidget || w instanceof PageHeadWidget) h += p.height;
+  }
+  return h;
+}
+
+// The document's regions by line, computed once per document version.
+type DocBlocks = {
+  owner: (FastrLiveRegion | undefined)[];
+  firstVisible: number | undefined;
+};
+const docBlocksCache = new WeakMap<DocText, DocBlocks>();
+function docBlocksOf(state: EditorState): DocBlocks {
+  const cached = docBlocksCache.get(state.doc);
+  if (cached !== undefined) return cached;
+  const owner: (FastrLiveRegion | undefined)[] = new Array(state.doc.lines).fill(undefined);
+  for (const r of fastrLiveRegions(state.doc.iterLines(1, state.doc.lines + 1))) {
+    for (let i = r.startLine; i <= r.endLine && i < owner.length; i++) owner[i] = r;
+  }
+  const out = { owner, firstVisible: firstVisibleLine(state) };
+  docBlocksCache.set(state.doc, out);
+  return out;
+}
+
+// Heights for blocks the editor has not rendered, measured the editor's own
+// way: the block's lines as line boxes with their editor classes, off
+// screen inside the editor (so every rule that shapes a line applies), at
+// the content column's width. CodeMirror's estimate for an unrendered line
+// is a guess from its character count, which puts a heading at a third of
+// its height, and a page laid out from guesses moves when it scrolls in.
+class HeightOracle {
+  private box: HTMLDivElement | undefined;
+  private width = -1;
+  private readonly cache = new Map<string, number>();
+  constructor(private readonly view: EditorView) {}
+  private ensure(): HTMLDivElement | undefined {
+    const content = this.view.contentDOM;
+    const cs = getComputedStyle(content);
+    const w = content.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
+    if (!(w > 0)) return undefined;
+    if (this.box === undefined) {
+      const b = document.createElement("div");
+      b.className = "cm-content";
+      b.setAttribute("aria-hidden", "true");
+      b.style.cssText =
+        "position:absolute;left:-100000px;top:0;visibility:hidden;pointer-events:none;padding:0 !important;max-width:none;";
+      this.view.dom.append(b);
+      this.box = b;
+    }
+    if (w !== this.width) {
+      this.width = w;
+      this.box.style.width = `${w}px`;
+      this.cache.clear();
+    }
+    return this.box;
+  }
+  // A run of lines as the editor would show them (consecutive lines of a
+  // paragraph, the items of a list), as one box.
+  lines(rows: { cls: string; text: string }[]): number | undefined {
+    const key = rows.map((r) => `${r.cls}\u0001${r.text}`).join("\u0000");
+    const hit = this.cache.get(key);
+    if (hit !== undefined) return hit;
+    const box = this.ensure();
+    if (box === undefined) return undefined;
+    const els = rows.map((r) => {
+      const el = document.createElement("div");
+      el.className = `cm-line ${r.cls}`.trim();
+      el.textContent = r.text.length > 0 ? r.text : "\u200b";
+      return el;
+    });
+    box.replaceChildren(...els);
+    const h = els.length === 0
+      ? 0
+      : els[els.length - 1].getBoundingClientRect().bottom - els[0].getBoundingClientRect().top;
+    this.cache.set(key, h);
+    return h;
+  }
+  // What a region's widget adds around print's box of the block: its flow
+  // margins (the --fm-mt/--fm-mb the structure sheet declares) less the
+  // blank separator line that stands in for one (the widget clamp in
+  // report_fastr_css.ts).
+  regionExtra(cls: string, tag = "div"): number {
+    const key = `\u0002${tag}.${cls}`;
+    const hit = this.cache.get(key);
+    if (hit !== undefined) return hit;
+    const box = this.ensure();
+    if (box === undefined) return 0;
+    const el = document.createElement(tag);
+    el.className = cls;
+    box.replaceChildren(el);
+    const cs = getComputedStyle(el);
+    const fs = parseFloat(cs.fontSize) || 16;
+    const px = (v: string) => {
+      const t = v.trim();
+      const n = parseFloat(t);
+      if (!Number.isFinite(n)) return 0;
+      return t.endsWith("em") && !t.endsWith("rem") ? n * fs : n;
+    };
+    const sep = this.lines([{ cls: "cm-fm-blank", text: "" }]) ?? 16;
+    const extra = Math.max(0, px(cs.getPropertyValue("--fm-mt")) - sep) +
+      Math.max(0, px(cs.getPropertyValue("--fm-mb")) - sep);
+    this.cache.set(key, extra);
+    return extra;
+  }
+  dispose() {
+    this.box?.remove();
+    this.box = undefined;
+  }
+}
+
+// A source line as the editor shows it: its line class and its text with
+// the syntax the live preview conceals stripped (close enough to wrap the
+// same).
+const ORACLE_LIST_LINE_RE = /^\s*(?:[-*+]|\d+[.)])\s+/;
+function editorLineOf(text: string): { cls: string; text: string } {
+  const h = HEADING_LINE_RE.exec(text);
+  if (h) return { cls: `cm-fm-h${h[1].length}`, text: concealed(text.slice(h[0].length)) };
+  if (ORACLE_LIST_LINE_RE.test(text)) {
+    return { cls: "cm-fm-li", text: concealed(text.replace(ORACLE_LIST_LINE_RE, "")) };
+  }
+  return { cls: "", text: concealed(text) };
+}
+function concealed(text: string): string {
+  return text
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+    .replace(/\[([^\]]*)\]\{[^}]*\}/g, "$1")
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/\*\*|__|~~|`/g, "");
+}
+
+// The structure-sheet class a region renders with, for the widget clamp.
+function regionClassOf(r: FastrLiveRegion): { cls: string; tag: string } {
+  if (r.kind === "table") return { cls: "", tag: "table" };
+  if (r.kind === "embed") return { cls: "fm-figure", tag: "figure" };
+  const name = r.fence?.name ?? "";
+  if (name === "contents") return { cls: "fm-toc", tag: "div" };
+  return { cls: `fm-${name}`, tag: "div" };
+}
+
+// Regions' heights as rendered, by source text (a region that has been on
+// screen keeps its real height as its estimate wherever it goes).
+const measuredRegionHeights = new Map<string, number>();
+const MEASURED_REGION_CAP = 2000;
+function rememberRegionHeight(text: string, height: number): void {
+  if (measuredRegionHeights.size >= MEASURED_REGION_CAP) {
+    const first = measuredRegionHeights.keys().next().value;
+    if (first !== undefined) measuredRegionHeights.delete(first);
+  }
+  measuredRegionHeights.set(text, height);
+}
+
+// A region widget's inner break candidates, from its rendered DOM: every
+// anchored descendant's top as an offset from the widget's content top (the
+// seams already inside the widget do not count), ascending.
+function innerCandidates(
+  view: EditorView,
+  startLine: number,
+): { line: number; top: number }[] | undefined {
+  const dom = view.contentDOM.querySelector<HTMLElement>(`[data-region-line="${startLine}"]`);
+  if (dom === null) return undefined;
+  const domTop = dom.getBoundingClientRect().top;
+  const seams = Array.from(dom.querySelectorAll<HTMLElement>(".fm-page-gutter"))
+    .map((s) => s.getBoundingClientRect())
+    .sort((a, b) => a.top - b.top);
+  const out: { line: number; top: number }[] = [];
+  for (const el of Array.from(dom.querySelectorAll<HTMLElement>("[data-line]"))) {
+    const rel = Number(el.getAttribute("data-line"));
+    if (!Number.isFinite(rel) || rel <= 0) continue;
+    const r = el.getBoundingClientRect();
+    let above = 0;
+    for (const sr of seams) if (sr.bottom <= r.top + 0.5) above += sr.height;
+    const top = r.top - domTop - above;
+    if (top <= 0.5) continue;
+    out.push({ line: startLine + rel, top });
+  }
+  out.sort((a, b) => a.top - b.top);
+  // One candidate per position: the outermost anchor at a top wins (the
+  // first pushed at that top, after the sort is stable by insertion).
+  const dedup: { line: number; top: number }[] = [];
+  for (const c of out) {
+    if (dedup.length > 0 && Math.abs(dedup[dedup.length - 1].top - c.top) < 0.5) continue;
+    dedup.push(c);
+  }
+  return dedup;
+}
+
+// Every block of the document with its height and the space above it, in
+// document order: what layoutFastrPages lays out.
+function flowBlocksOf(
+  view: EditorView,
+  hints: ReadonlyMap<string, number>,
+  area: number,
+  oracle: HeightOracle,
+): FlowBlock[] {
+  const doc = view.state.doc;
+  const db = docBlocksOf(view.state);
+  const vp = view.viewport;
+  const rendered = (from: number, to: number) =>
+    doc.line(from + 1).from >= vp.from && doc.line(to + 1).to <= vp.to;
+  const blank = (i: number) => doc.line(i + 1).text.trim().length === 0;
+  const textOf = (from: number, to: number) => doc.sliceString(doc.line(from + 1).from, doc.line(to + 1).to);
+  const blocks: FlowBlock[] = [];
+  // The space above a block: measured between two rendered blocks (the
+  // seam between them does not count); elsewhere the blank separator line
+  // when one stands between them, nothing when they touch. The height map
+  // places an unrendered line by guesswork, so a measured distance to it
+  // means nothing.
+  const separator = oracle.lines([{ cls: "cm-fm-blank", text: "" }]) ?? 16;
+  let separated = false;
+  const push = (b: Omit<FlowBlock, "gap">) => {
+    const prev = blocks[blocks.length - 1];
+    const gap = prev === undefined
+      ? 0
+      : prev.rendered && b.rendered
+      ? Math.max(0, b.top - prev.bottom - seamsAbove(view, b.line))
+      : separated
+      ? separator
+      : 0;
+    blocks.push({ ...b, gap });
+    separated = false;
+  };
+  const start = db.firstVisible !== undefined ? Math.max(0, db.firstVisible - 1) : 0;
+  let prevBlank = false;
+  let i = 0;
+  while (i < doc.lines) {
+    const r = db.owner[i];
+    if (r !== undefined) {
+      const fence = r.fence;
+      const name = fence?.name;
+      if (name === "report") {
+        i = r.endLine + 1;
+        continue;
+      }
+      const top = lineBox(view, r.startLine).top;
+      const bottom = lineBox(view, r.endLine).bottom;
+      const text = textOf(r.startLine, r.endLine);
+      let height = bottom - top;
+      let inner: { line: number; top: number }[] | undefined;
+      const isRendered = rendered(r.startLine, r.endLine);
+      if (isRendered) {
+        // The widget's box holds the seams inside it (a block continued
+        // across pages): the block's own height is the rest.
+        const dom = view.contentDOM.querySelector<HTMLElement>(`[data-region-line="${r.startLine}"]`);
+        if (dom !== null) {
+          for (const seam of Array.from(dom.querySelectorAll<HTMLElement>(".fm-page-gutter"))) {
+            height -= seam.getBoundingClientRect().height;
+          }
+          rememberRegionHeight(text, height);
+          if (height > area) inner = innerCandidates(view, r.startLine);
+        }
+      } else {
+        const seen = measuredRegionHeights.get(text);
+        const hint = hints.get(text);
+        if (seen !== undefined) height = seen;
+        else if (hint !== undefined) {
+          const { cls, tag } = regionClassOf(r);
+          height = name === "pagebreak" ? height : hint + oracle.regionExtra(cls, tag);
+        }
+      }
+      const attrs = fence?.attrs ?? {};
+      const brk = typeof attrs["break"] === "string" ? attrs["break"].toLowerCase() : "";
+      push({
+        line: r.startLine,
+        endLine: r.endLine,
+        top,
+        bottom: top + height,
+        text,
+        height,
+        heading: false,
+        pagebreak: name === "pagebreak",
+        breakBefore: brk === "before",
+        breakAfter: brk === "after",
+        cover: name === "cover" ? (attrs["fill"] === "page" ? "fill" : "natural") : undefined,
+        inner,
+        rendered: isRendered,
+      });
+      prevBlank = false;
+      i = r.endLine + 1;
+      continue;
+    }
+    if (blank(i)) {
+      // The first blank line after content is the separator (space between
+      // blocks); each further one is a line of space, a block of its own.
+      if (prevBlank && i >= start) {
+        const box = lineBox(view, i);
+        const isRendered = rendered(i, i);
+        push({
+          line: i,
+          endLine: i,
+          top: box.top,
+          bottom: box.bottom,
+          text: "",
+          height: isRendered ? box.bottom - box.top : oracle.lines([{ cls: "cm-fm-space", text: "" }]) ?? box.bottom - box.top,
+          heading: false,
+          pagebreak: false,
+          breakBefore: false,
+          breakAfter: false,
+          rendered: isRendered,
+        });
+      } else if (i >= start) {
+        separated = true;
+      }
+      prevBlank = i >= start;
+      i++;
+      continue;
+    }
+    let j = i;
+    while (j + 1 < doc.lines && db.owner[j + 1] === undefined && !blank(j + 1)) j++;
+    const top = lineBox(view, i).top;
+    const bottom = lineBox(view, j).bottom;
+    const text = textOf(i, j);
+    let height = bottom - top;
+    const isRendered = rendered(i, j);
+    if (!isRendered) {
+      // A plain paragraph wraps in print exactly as in the editor, so
+      // print's height is exact; a heading or a list carries editor-only
+      // padding, so those are measured the editor's way.
+      const rows: { cls: string; text: string }[] = [];
+      for (let k = i; k <= j; k++) rows.push(editorLineOf(doc.line(k + 1).text));
+      const plain = rows.every((row) => row.cls === "");
+      const hint = plain ? hints.get(text) : undefined;
+      height = hint ?? oracle.lines(rows) ?? height;
+    }
+    push({
+      line: i,
+      endLine: j,
+      top,
+      bottom: top + height,
+      text,
+      height,
+      heading: HEADING_LINE_RE.test(doc.line(i + 1).text),
+      pagebreak: false,
+      breakBefore: false,
+      breakAfter: false,
+      rendered: isRendered,
+    });
+    prevBlank = false;
+    i = j + 1;
+  }
+  return blocks;
+}
+
+type BoxMeasure = {
+  pag: EditorPagination;
+  move?: FastrPagedResult;
+  // A seam's filler: the element when it is rendered, else the map only
+  // (the widget's estimated height reads the map).
+  writes: { el: HTMLElement | undefined; page: number; px: number }[];
+  // In-block seams to shift onto the sheet's edges (their stylesheet
+  // centring assumes the block's content box is centred on the sheet; a
+  // callout's left border alone puts it 2px off, and 2px past the sheet is
+  // a horizontal scrollbar).
+  aligns: { el: HTMLElement; marginLeft: number; width: number }[];
+};
+
+// Room kept free at the foot of every page: the editor's measure of a block
+// and print's differ by a pixel or two on some blocks, and print must never
+// find a page fuller than the editor did.
+const LAYOUT_SAFETY_PX = 6;
+
+function samePages(a: FastrPagedResult, b: FastrPagedResult): boolean {
+  return a.total === b.total &&
+    a.pages.every((p, i) => {
+      const q = b.pages[i];
+      return q !== undefined && p.firstLine === q.firstLine && p.cover === q.cover &&
+        p.flushTop === q.flushTop;
+    }) &&
+    a.splits.length === b.splits.length &&
+    a.splits.every((s, i) => s.line === b.splits[i]?.line);
 }
 
 // Where a page's content starts, in document space. A page that opens on a
@@ -3584,194 +3877,35 @@ function pageTopOf(
   return box.top + (pag.fillers?.get(page.number - 1) ?? 0) + chrome;
 }
 
-// The document's regions by line, computed once per document version.
-type DocBlocks = {
-  owner: (FastrLiveRegion | undefined)[];
-  firstVisible: number | undefined;
-};
-const docBlocksCache = new WeakMap<DocText, DocBlocks>();
-function docBlocksOf(state: EditorState): DocBlocks {
-  const cached = docBlocksCache.get(state.doc);
-  if (cached !== undefined) return cached;
-  const owner: (FastrLiveRegion | undefined)[] = new Array(state.doc.lines).fill(undefined);
-  for (const r of fastrLiveRegions(state.doc.iterLines(1, state.doc.lines + 1))) {
-    for (let i = r.startLine; i <= r.endLine && i < owner.length; i++) owner[i] = r;
-  }
-  const out = { owner, firstVisible: firstVisibleLine(state) };
-  docBlocksCache.set(state.doc, out);
-  return out;
-}
-
-// The blocks of a page whose lines are [from, to), or undefined when the
-// page starts or ends inside a region (the paginator split a block there:
-// those pages are its alone). The first blank line after content is the
-// paragraph separator, which takes no block of its own; each further one is
-// a line of space and flows like a block (the renderer's fm_spaces).
-function spanBlocks(view: EditorView, db: DocBlocks, from: number, to: number): FlowBlock[] | undefined {
-  const doc = view.state.doc;
-  const blank = (i: number) => doc.line(i + 1).text.trim().length === 0;
-  const blocks: FlowBlock[] = [];
-  let prevBlank = from > 0 && db.owner[from - 1] === undefined && blank(from - 1);
-  let i = from;
-  while (i < to) {
-    const r = db.owner[i];
-    if (r !== undefined) {
-      if (r.startLine < from || r.endLine >= to) return undefined;
-      blocks.push({
-        top: lineBox(view, r.startLine).top,
-        bottom: lineBox(view, r.endLine).bottom,
-        line: r.startLine,
-        heading: false,
-        pagebreak: r.fence?.name === "pagebreak",
-      });
-      i = r.endLine + 1;
-      prevBlank = false;
-      continue;
-    }
-    if (blank(i)) {
-      if (prevBlank && (db.firstVisible === undefined || i + 1 >= db.firstVisible)) {
-        const box = lineBox(view, i);
-        blocks.push({ top: box.top, bottom: box.bottom, line: i, heading: false, pagebreak: false });
-      }
-      prevBlank = true;
-      i++;
-      continue;
-    }
-    let j = i;
-    while (j + 1 < to && db.owner[j + 1] === undefined && !blank(j + 1)) j++;
-    blocks.push({
-      top: lineBox(view, i).top,
-      bottom: lineBox(view, j).bottom,
-      line: i,
-      heading: HEADING_LINE_RE.test(doc.line(i + 1).text),
-      pagebreak: false,
-    });
-    prevBlank = false;
-    i = j + 1;
-  }
-  return blocks;
-}
-
-type BoxMeasure = {
-  pag: EditorPagination;
-  move?: FastrPagedResult;
-  // A seam's filler: the element when it is rendered, else the map only
-  // (the widget's estimated height reads the map).
-  writes: { el: HTMLElement | undefined; page: number; px: number }[];
-  // In-block seams to shift onto the sheet's edges (their stylesheet
-  // centring assumes the block's content box is centred on the sheet; a
-  // callout's left border alone puts it 2px off, and 2px past the sheet is
-  // a horizontal scrollbar).
-  aligns: { el: HTMLElement; marginLeft: number; width: number }[];
-};
-
-const PUSH_TOLERANCE_PX = 2;
-// A rendered page with no settled record (it came on screen after the
-// paginator's answer): its bias is unknown, so a push needs this much and
-// a pull is never made.
-const UNSETTLED_TOLERANCE_PX = 12;
-const PULL_MARGIN_PX = 24;
-// Provisional moves between two paginator results (or edits): a cascade
-// down a long document is one per page; anything beyond this is a
-// disagreement between two measurements, and the paginator settles it.
-const MAX_PROVISIONAL_RUNS = 40;
-
-function hasExplicitBreak(state: EditorState, line: number, which: "before" | "after"): boolean {
-  if (line < 0 || line >= state.doc.lines) return false;
-  return new RegExp(`\\bbreak=${which}\\b`).test(state.doc.line(line + 1).text);
-}
-
-// The result with page `index + 1` starting at `line` (opened after the last
-// page when it does not exist yet).
-function withPageStart(result: FastrPagedResult, index: number, line: number): FastrPagedResult {
-  const pages = result.pages.map((p) => ({ ...p }));
-  if (index < pages.length) {
-    pages[index] = { ...pages[index], firstLine: line, lines: [line] };
-  } else {
-    pages.push({
-      number: pages.length + 1,
-      firstLine: line,
-      lines: [line],
-      cover: false,
-      flushTop: false,
-      contentHeight: 0,
-    });
-  }
-  return { ...result, total: pages.length, pages };
-}
-
-function withoutPage(result: FastrPagedResult, number: number): FastrPagedResult {
-  const pages = result.pages.filter((p) => p.number !== number).map((p, i) => ({ ...p, number: i + 1 }));
-  return { ...result, total: pages.length, pages };
-}
-
-// A page as the paginator's last answer left it, in the editor's own
-// measurement: where its last block ends below the page top, and how much
-// taller (or shorter) that is than print's content height for the same
-// lines. Recorded while no edit has happened since the answer.
-type SettledPage = { lastBottom: number; bias: number };
-
 const pageBoxPlugin = ViewPlugin.fromClass(
   class {
-    provisionalRuns = 0;
-    // A move found but not yet dispatched: the next pass would find it
-    // again from the same DOM.
+    // A layout found but not yet dispatched: the next pass would find it
+    // again from the same heights.
     pendingMove = false;
-    // Flow runs between an edit and the paginator's next answer. That answer
-    // is the printed truth and stands, whatever the editor's own rendering
-    // makes of it, until the next edit.
-    flowArmed = false;
-    settled = new Map<number, SettledPage>();
     // A widget that grows after it is measured (a figure's raster arriving)
     // changes the page under it without an editor update; the content box's
     // size says so.
     resize: ResizeObserver | undefined;
+    readonly oracle: HeightOracle;
     constructor(readonly view: EditorView) {
+      this.oracle = new HeightOracle(view);
       if (typeof ResizeObserver !== "undefined") {
-        this.resize = new ResizeObserver(() => this.measure());
+        this.resize = new ResizeObserver(() => {
+          view.requestMeasure();
+          this.measure();
+        });
         this.resize.observe(view.contentDOM);
       }
       this.measure();
     }
     destroy() {
       this.resize?.disconnect();
+      this.oracle.dispose();
     }
     update(u: ViewUpdate) {
-      let landed = false;
-      for (const tr of u.transactions) {
-        for (const e of tr.effects) {
-          if (e.is(setPagination)) {
-            landed = true;
-            if (e.value?.provisional !== true) {
-              this.provisionalRuns = 0;
-              this.flowArmed = false;
-              this.settled.clear();
-            } else {
-              // A provisional move keeps every page's record (a block moved
-              // between two pages leaves their biases as they were), but a
-              // closed page renumbers the ones after it.
-              const before = u.startState.field(paginationField, false)?.pagination?.result.pages ?? [];
-              const after = e.value?.result.pages ?? [];
-              if (after.length < before.length) {
-                let closed = 0;
-                while (
-                  closed < after.length && before[closed].firstLine === after[closed].firstLine
-                ) closed++;
-                const next = new Map<number, SettledPage>();
-                for (const [n, rec] of this.settled) {
-                  if (n === closed + 1) continue;
-                  next.set(n > closed + 1 ? n - 1 : n, rec);
-                }
-                this.settled = next;
-              }
-            }
-          }
-        }
-      }
-      if (u.docChanged) {
-        this.provisionalRuns = 0;
-        this.flowArmed = true;
-      }
+      const landed = u.transactions.some((tr) =>
+        tr.effects.some((e) => e.is(setPagination) || e.is(setLayoutHints))
+      );
       if (landed || u.docChanged || u.viewportChanged || u.geometryChanged) {
         this.measure();
       }
@@ -3783,14 +3917,13 @@ const pageBoxPlugin = ViewPlugin.fromClass(
           if (!m) return;
           if (m.move !== undefined) {
             const { pag, move } = m;
-            this.provisionalRuns++;
             this.pendingMove = true;
             // A dispatch cannot run inside the measure cycle that found the
-            // move; and only against the pagination it was measured on.
+            // layout; and only against the pagination it was measured on.
             setTimeout(() => {
               this.pendingMove = false;
               if (view.state.field(paginationField, false)?.pagination !== pag) return;
-              view.dispatch({ effects: setPagination.of({ ...pag, result: move, provisional: true }) });
+              view.dispatch({ effects: setPagination.of({ ...pag, result: move }) });
             }, 0);
             return;
           }
@@ -3813,6 +3946,20 @@ const pageBoxPlugin = ViewPlugin.fromClass(
       if (!pag) return undefined;
       const geometry = readPageBoxGeometry(view);
       if (geometry === undefined) return undefined;
+      const hints = view.state.field(layoutHintsField, false) ?? new Map<string, number>();
+      const layoutGeometry: FastrLayoutGeometry = {
+        pageH: geometry.pageH,
+        marginPx: geometry.marginPx,
+        sheetW: geometry.sheetPx ?? pag.result.sheet.width,
+        safety: LAYOUT_SAFETY_PX,
+      };
+      const area = geometry.pageH - 2 * geometry.marginPx - LAYOUT_SAFETY_PX;
+      // The layout, from the heights as they stand.
+      if (!this.pendingMove) {
+        const blocks = flowBlocksOf(view, hints, area, this.oracle);
+        const laid = layoutFastrPages(blocks, layoutGeometry);
+        if (!samePages(laid, pag.result)) return { pag, move: laid, writes: [], aligns: [] };
+      }
       const writes: BoxMeasure["writes"] = [];
       const aligns: BoxMeasure["aligns"] = [];
       const sheetRect = view.scrollDOM.getBoundingClientRect();
@@ -3837,13 +3984,7 @@ const pageBoxPlugin = ViewPlugin.fromClass(
         const n = Number(el.getAttribute("data-page"));
         if (Number.isFinite(n) && !seamEls.has(n)) seamEls.set(n, el);
       }
-      const db = docBlocksOf(view.state);
       const doc = view.state.doc;
-      const scale = geometry.sheetPx !== undefined && pag.result.sheet.width > 0
-        ? geometry.sheetPx / pag.result.sheet.width
-        : 1;
-      const canFlow = this.flowArmed && !this.pendingMove &&
-        this.provisionalRuns < MAX_PROVISIONAL_RUNS;
       const pages = pag.result.pages;
       for (let i = 0; i < pages.length; i++) {
         const page = pages[i];
@@ -3851,151 +3992,29 @@ const pageBoxPlugin = ViewPlugin.fromClass(
         const to = pages[i + 1]?.firstLine ?? doc.lines;
         if (from === undefined || to === undefined || from >= to || from >= doc.lines) continue;
         const pageTop = pageTopOf(view, pag, page, from, seamEls);
-        const contentBottom = lineBox(view, Math.min(to, doc.lines) - 1).bottom;
-        const area = pageAreaPx(geometry, page);
-        const blocks = spanBlocks(view, db, from, to);
-        // A page that starts or ends inside a block is filled from the DOM
-        // walk below; every other page from the height map.
-        if (blocks !== undefined) {
-          const filler = Math.max(0, Math.round(area - (contentBottom - pageTop)));
-          const el = seamEls.get(page.number + 1);
-          const current = el !== undefined
-            ? parseFloat(el.style.paddingTop) || 0
-            : pag.fillers?.get(page.number) ?? -1;
-          if (Math.abs(filler - current) > 1) writes.push({ el, page: page.number, px: filler });
-        }
-        if (blocks === undefined || page.cover) continue;
-        // Only a page whose lines are all rendered has measured heights;
-        // elsewhere the height map estimates, which is good enough to pad a
-        // seam but not to move a block or to record a bias against.
-        const rendered = doc.line(from + 1).from >= view.viewport.from &&
-          doc.line(Math.min(to, doc.lines)).to <= view.viewport.to;
-        if (!rendered) continue;
-        const last = blocks[blocks.length - 1];
-        if (!this.flowArmed) {
-          if (last !== undefined && page.contentHeight > 0) {
-            const lastBottom = last.bottom - pageTop;
-            this.settled.set(page.number, { lastBottom, bias: lastBottom - page.contentHeight * scale });
-          }
-          continue;
-        }
-        if (!canFlow) continue;
-        const move = flowPage(
-          view,
-          db,
-          pag.result,
-          blocks,
-          { number: page.number, from, to },
-          pageTop,
-          contentBottom,
-          area,
-          this.settled.get(page.number),
+        // A page that ends inside a block (the block continues on the next
+        // page) ends at that block's inner seam: the seam's top is the
+        // page's content bottom.
+        const nextSeam = seamEls.get(page.number + 1);
+        const endsInside = nextSeam !== undefined && nextSeam.classList.contains("fm-page-gutter--inner") &&
+          !nextSeam.classList.contains("fm-page-gutter--end");
+        const contentBottom = endsInside
+          ? nextSeam.getBoundingClientRect().top - view.documentTop
+          : lineBox(view, Math.min(to, doc.lines) - 1).bottom;
+        const filler = Math.max(
+          0,
+          Math.round(fastrPageArea(layoutGeometry, page) - (contentBottom - pageTop)),
         );
-        if (move !== undefined && !samePages(move, pag.result)) {
-          return { pag, move, writes: [], aligns: [] };
-        }
-      }
-      // Pages the height map cannot judge (a block continues across their
-      // seam): filled from their rendered seams, when the whole page is.
-      const nodes = Array.from(
-        view.contentDOM.querySelectorAll<HTMLElement>(".fm-page-gutter, .cm-gap"),
-      );
-      const contentRect = view.contentDOM.getBoundingClientRect();
-      const head0 = view.contentDOM.querySelector<HTMLElement>(".cm-fm-page-head");
-      let cur: { number: number; pageTop: number } | undefined = {
-        number: 1,
-        pageTop: head0 !== null
-          ? head0.getBoundingClientRect().bottom
-          : contentRect.top + (parseFloat(getComputedStyle(view.contentDOM).paddingTop) || 0),
-      };
-      const judged = new Set(writes.map((w) => w.page));
-      for (const node of nodes) {
-        if (node.classList.contains("cm-gap")) {
-          cur = undefined;
-          continue;
-        }
-        const seam = node;
-        const starts = Number(seam.getAttribute("data-page"));
-        if (cur !== undefined && Number.isFinite(starts)) {
-          const page = pages[cur.number - 1];
-          const blocks = page === undefined
-            ? undefined
-            : spanBlocks(view, db, cur.number === 1 ? 0 : page.firstLine ?? 0, pages[cur.number]?.firstLine ?? doc.lines);
-          if (blocks === undefined && !judged.has(cur.number)) {
-            const area = pageAreaPx(geometry, page ?? { cover: false });
-            const seamTop = seam.getBoundingClientRect().top;
-            const filler = Math.max(0, Math.round(area - (seamTop - cur.pageTop)));
-            const current = parseFloat(seam.style.paddingTop) || 0;
-            if (Math.abs(filler - current) > 1) writes.push({ el: seam, page: cur.number, px: filler });
-          }
-        }
-        const band = seam.querySelector<HTMLElement>(".fm-page-gutter__band");
-        const head = seam.querySelector<HTMLElement>(".fm-page-gutter__head");
-        const nextTop = head ?? band;
-        cur = Number.isFinite(starts) && nextTop !== null
-          ? { number: starts, pageTop: nextTop.getBoundingClientRect().bottom }
-          : undefined;
+        const el = seamEls.get(page.number + 1);
+        const current = el !== undefined
+          ? parseFloat(el.style.paddingTop) || 0
+          : pag.fillers?.get(page.number) ?? -1;
+        if (Math.abs(filler - current) > 1) writes.push({ el, page: page.number, px: filler });
       }
       return { pag, writes, aligns };
     }
   },
 );
-
-function samePages(a: FastrPagedResult, b: FastrPagedResult): boolean {
-  return a.total === b.total && a.pages.every((p, i) => p.firstLine === b.pages[i]?.firstLine);
-}
-
-// The provisional move a page calls for, if any: push the block that
-// crossed its edge to the next page, or pull the next page's first block
-// up. The edge is the page's box plus its settled bias (print's edge in the
-// editor's coordinates); a pull also needs the page to have shrunk since it
-// settled, so a page the edit never touched stays put.
-function flowPage(
-  view: EditorView,
-  db: DocBlocks,
-  result: FastrPagedResult,
-  blocks: FlowBlock[],
-  span: PageSpan,
-  pageTop: number,
-  contentBottom: number,
-  area: number,
-  settled: SettledPage | undefined,
-): FastrPagedResult | undefined {
-  const doc = view.state.doc;
-  // A page with no block left on it (its content was deleted) closes.
-  if (blocks.length === 0) return span.number > 1 ? withoutPage(result, span.number) : undefined;
-  const limit = pageTop + area + (settled?.bias ?? 0);
-  const tolerance = settled === undefined ? UNSETTLED_TOLERANCE_PX : PUSH_TOLERANCE_PX;
-  let over = blocks.findIndex((b) => b.bottom > limit + tolerance);
-  if (over === 0) return undefined;
-  if (over > 0) {
-    while (over > 1 && blocks[over - 1].heading) over--;
-    return withPageStart(result, span.number, blocks[over].line);
-  }
-  // Nothing over the edge. A pull needs a settled page that has shrunk
-  // since the paginator ruled on it, and a next page whose first block is
-  // whole, not a heading and not across an explicit break.
-  if (settled === undefined) return undefined;
-  const next = result.pages[span.number];
-  if (next === undefined || next.cover || next.firstLine === undefined) return undefined;
-  const last = blocks[blocks.length - 1];
-  if (last.pagebreak) return undefined;
-  if (settled.lastBottom - (last.bottom - pageTop) <= PUSH_TOLERANCE_PX) return undefined;
-  const nextTo = result.pages[span.number + 1]?.firstLine ?? doc.lines;
-  if (next.firstLine >= nextTo) return withoutPage(result, span.number + 1);
-  const nextBlocks = spanBlocks(view, db, next.firstLine, nextTo);
-  if (nextBlocks === undefined) return undefined;
-  if (nextBlocks.length === 0) return withoutPage(result, span.number + 1);
-  const b = nextBlocks[0];
-  if (b.heading || b.pagebreak) return undefined;
-  if (hasExplicitBreak(view.state, b.line, "before") || hasExplicitBreak(view.state, last.line, "after")) {
-    return undefined;
-  }
-  if (contentBottom + (b.bottom - b.top) + PULL_MARGIN_PX > limit) return undefined;
-  const after = nextBlocks[1];
-  if (after === undefined) return withoutPage(result, span.number + 1);
-  return withPageStart(result, span.number, after.line);
-}
 
 const paginationPlugin = ViewPlugin.fromClass(
   class {
@@ -4031,6 +4050,7 @@ export function livePreviewExtensions(
     sheetBleedVars,
     docGroundPlugin(resolver),
     paginationField,
+    layoutHintsField,
     paginationPlugin,
     pageBoxPlugin,
     ...(collab ? [regionPresencePlugin(collab), presenceFacet.of(collab)] : []),
