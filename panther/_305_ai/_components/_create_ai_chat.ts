@@ -210,8 +210,9 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
     config.modelConfig,
   );
 
-  const settingsKey = config.scope
-    ? `${SETTINGS_KEY_PREFIX}-${config.scope}`
+  const settingsScope = config.settingsScope ?? config.scope;
+  const settingsKey = settingsScope
+    ? `${SETTINGS_KEY_PREFIX}-${settingsScope}`
     : SETTINGS_KEY_PREFIX;
   const persisted = loadSettings(settingsKey);
   if (persisted) {
