@@ -81,3 +81,20 @@ Deno.test("the safety margin keeps the foot of every page free", () => {
   assertEquals(fastrPageStartLines(r), [2]);
   assertEquals(layoutFastrPages([block(0, 500), block(2, 450)], { ...G, safety: 12 }).total, 1);
 });
+
+Deno.test("a block that opens a page takes its whole top margin there", () => {
+  // Mid-page the extra does not count: 500 + 16 + 460 = 976 fits.
+  const r = layoutFastrPages([block(0, 500), block(2, 460, { topExtra: 16 })], G);
+  assertEquals(r.total, 1);
+  // Opening a page, the block stands 16 lower and the page counts it.
+  const r2 = layoutFastrPages([block(0, 900), block(2, 460, { topExtra: 16 })], G);
+  assertEquals(fastrPageStartLines(r2), [2]);
+  assertEquals(r2.pages[1].contentHeight, 476);
+  // Taller than the page once its extra is added, it continues at a
+  // boundary; the continuation starts at the page's top, no extra.
+  const tall = block(2, 980, { endLine: 9, topExtra: 16, inner: [{ line: 5, top: 500 }] });
+  const r3 = layoutFastrPages([block(0, 900), tall], G);
+  assertEquals(fastrPageStartLines(r3), [2, 5]);
+  assertEquals(r3.pages[1].contentHeight, 516);
+  assertEquals(r3.pages[2].contentHeight, 480);
+});

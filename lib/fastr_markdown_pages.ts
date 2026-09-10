@@ -39,6 +39,13 @@ export type FastrLayoutBlock = {
   // 0-based source line and its top as an offset from the block's top, px,
   // ascending. Absent when the block cannot break (or was not measured).
   inner?: { line: number; top: number }[];
+  // What the block grows by when it OPENS a page, px. Print keeps a block's
+  // whole top margin at the top of a page, while the editor's box of a
+  // block mid-page keeps only what that margin exceeds the blank separator
+  // line by; the difference is the page's, not the block's (the seam before
+  // the page carries it), so the block's own height is the same wherever it
+  // stands and the layout cannot chase its own seams.
+  topExtra?: number;
 };
 
 export type FastrLayoutGeometry = {
@@ -79,6 +86,11 @@ export function layoutFastrPages(
   const close = () => {
     pages.push({ ...page, number: pages.length + 1, contentHeight: used });
   };
+  const lead = (b: FastrLayoutBlock) => b.topExtra ?? 0;
+  // What block k adds to the page that block `open` opens: its own box and
+  // the extra of opening the page, or the gap above it and its box.
+  const footprint = (k: number, open: number) =>
+    k === open ? blocks[k].height + lead(blocks[k]) : blocks[k].gap + blocks[k].height;
   let i = 0;
   while (i < blocks.length) {
     const b = blocks[i];
@@ -89,7 +101,7 @@ export function layoutFastrPages(
       first = i;
       used = 0;
     }
-    const need = (i === first ? 0 : b.gap) + b.height;
+    const need = footprint(i, first);
     if (i > first && used + need > area) {
       // Break before this block, taking a heading directly above with it.
       // A page that would be left with nothing keeps the block instead (it
@@ -100,37 +112,40 @@ export function layoutFastrPages(
         // The page keeps what stands before the moved blocks; the heading
         // that moves was already counted, so the page's height is re-summed.
         used = 0;
-        for (let k = first; k < j; k++) used += (k === first ? 0 : blocks[k].gap) + blocks[k].height;
+        for (let k = first; k < j; k++) used += footprint(k, first);
         close();
         page = openPage(blocks[j], false);
         area = fastrPageArea(g, page) - safety;
         first = j;
         used = 0;
-        for (let k = j; k < i; k++) used += (k === first ? 0 : blocks[k].gap) + blocks[k].height;
+        for (let k = j; k < i; k++) used += footprint(k, first);
         continue;
       }
     }
-    if (i === first && b.height > area && b.inner !== undefined && b.inner.length > 0) {
+    if (i === first && b.height + lead(b) > area && b.inner !== undefined && b.inner.length > 0) {
       // Taller than the page: continue at the inner boundaries. Each part
       // ends at the last candidate that still fits it, and the candidate
-      // opens the next page.
+      // opens the next page. The extra of opening a page is the first
+      // part's alone: a continuation starts at the page's very top.
       splits.push({ line: b.line, page: pages.length + 1 });
       let partTop = 0;
-      while (b.height - partTop > area) {
+      let extra = lead(b);
+      while (b.height + extra - partTop > area) {
         let cut: { line: number; top: number } | undefined;
         for (const cand of b.inner) {
           if (cand.top <= partTop) continue;
-          if (cand.top - partTop > area) break;
+          if (cand.top - partTop + extra > area) break;
           cut = cand;
         }
         if (cut === undefined) break;
-        used = cut.top - partTop;
+        used = cut.top - partTop + extra;
         close();
         page = { firstLine: cut.line, lines: [cut.line], cover: false, flushTop: false };
         area = fastrPageArea(g, page) - safety;
         partTop = cut.top;
+        extra = 0;
       }
-      used = b.height - partTop;
+      used = b.height - partTop + extra;
     } else {
       used += need;
     }

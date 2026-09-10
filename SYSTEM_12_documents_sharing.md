@@ -487,10 +487,35 @@ that moved to the next page with the block after it (the page starts were
 right, the filler was that heading short, a 1042px box wherever a page
 ended before a heading and a figure), pinned by the layout test; and a
 block taller than a page carries its "continues" flag inside its widget
-AFTER the seam that opens its page, with no margin of its own, the block
-after an inner seam taking none either (print truncates a margin at a page
-top), or the flag stood at the foot of the page before and the layout
-counted it as the block's.
+AFTER the seam that opens its page, with no margin of its own, or the flag
+stood at the foot of the page before and the layout counted it as the
+block's.
+
+A seam changes no block's box. The layout measures every block from the
+height map, so a stylesheet rule that gave a block another margin beside a
+seam made the layout that placed the seam find another height, move the
+seam away, find the first height again and move it back, every frame: the
+rule that zeroed the margin of the child after an inner seam (written for
+the flag) took 25px off a `:::tiles` block that opened page 2 of Nick's
+ANC1 report, the block then fit on page 1, and the pages flipped at 60Hz
+while page 2's foot was on screen (2026-09-10, "flickering rapidly"). The
+widget clamp in `report_fastr_css.ts` now addresses the block's first
+CONTENT child through the seam and the flag alike (`:not(.fm-page-gutter,
+.fm-page-split)`), and the space-line rules that give a block or a heading
+its whole margin hold with a seam widget between the space and the block.
+Print keeps a block's whole top margin at the top of a page (measured:
+tiles at +25.6px, a heading at +44.6px, a band at +40px under the content
+area's top), where the editor's mid-page box keeps only what the margin
+exceeds the separator by; the difference is the block's `topExtra`
+(`FastrLayoutBlock`), which `layoutFastrPages` counts only when the block
+opens a page (the continuation of a split block has none) and the seam
+carries as padding under its head (`EditorPagination.topExtras`, written
+by the plugin like the fillers). A region's comes from its `--fm-mt` token
+(`HeightOracle.regionMargins`, at most the separator), a plain block's
+from print's margin of its element less the editor line's padding
+(`printMarginTop`, `linePaddingTop`: a heading's 1.8em less 1.15em, a
+blockquote's whole 1.4em); the first block of the document, a cover and a
+block after a line of space have none.
 
 The height map is measured where a line has been on screen and estimated
 elsewhere, and a page laid out from guesses moves when it scrolls in, so
