@@ -1,3 +1,6 @@
+[TBD] [user] [changed] - XLSForm upload option now only appears for HFA imports
+[TBD] [admin] [changed] - XLSForm upload option now only appears for HFA imports
+[TBD] [admin] [fixed] - Server rejects XLSForm files submitted for non-HFA imports
 [TBD] [user] [changed] - Population references in formulas now use simpler names like "population_total" instead of bracket syntax
 [TBD] [user] [added] - Reserved word validation prevents creating indicators with names that conflict with population types or formula functions
 [TBD] [user] [changed] - "Replace all" facility import now updates existing facilities and only deletes those missing from your file, instead of wiping everything first
