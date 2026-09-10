@@ -12,7 +12,6 @@ import {
   type Slide,
   type ContentBlock,
   type MetricWithStatus,
-  type AiContentBlockInput,
 } from "lib";
 import { convertAiInputToSlide } from "~/components/slide_deck/slide_ai/convert_ai_input_to_slide";
 import { extractBlocksFromLayout } from "~/components/slide_deck/slide_ai/extract_blocks_from_layout";
@@ -429,7 +428,7 @@ export function getClientToolsForSlides(
               }
               resolvedRow.push({ id: cell.block, block: existing, span });
             } else {
-              const newBlockInput = cell.block as AiContentBlockInput;
+              const newBlockInput = cell.block;
               if (newBlockInput.type === "text") {
                 validateNoMarkdownTables(newBlockInput.markdown);
                 resolvedRow.push({
@@ -444,10 +443,6 @@ export function getClientToolsForSlides(
                   metrics,
                 );
                 resolvedRow.push({ id: generateId(), block: figureBlock, span });
-              } else {
-                throw new AIToolFailure(
-                  "A figure is a metric plus one of its presets: use a from_metric block. There is no figure library to clone from.",
-                );
               }
             }
           }

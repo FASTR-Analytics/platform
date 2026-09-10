@@ -4,7 +4,6 @@ import {
   LayoutSpecSchema,
   MAX_CONTENT_BLOCKS,
   periodFilterHasBounds,
-  type AiContentBlockInput,
   type ContentBlock,
   type FigureBundle,
   type MetricWithStatus,
@@ -311,7 +310,7 @@ export function getClientToolsForSlideEditor(
                   }
                   resolvedRow.push({ id: cell.block, block: existing, span });
                 } else {
-                  const newBlockInput = cell.block as AiContentBlockInput;
+                  const newBlockInput = cell.block;
                   if (newBlockInput.type === "text") {
                     validateNoMarkdownTables(newBlockInput.markdown);
                     resolvedRow.push({
@@ -330,8 +329,6 @@ export function getClientToolsForSlideEditor(
                       block: figureBlock,
                       span,
                     });
-                  } else {
-                    throw new Error("Unsupported block type");
                   }
                 }
               }
