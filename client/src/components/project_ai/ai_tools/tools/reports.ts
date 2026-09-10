@@ -7,9 +7,12 @@ import {
   getReportFormat,
   listFastrContainerDefects,
   listFastrLiteralBackgrounds,
+  type ReportDetail,
   type ReportSummary,
 } from "lib";
-import { serverActions } from "~/server_actions";
+import { _SERVER_HOST, serverActions } from "~/server_actions";
+import { projectAIViews } from "~/components/project_ai/ai_views";
+import { describeReportPages } from "~/components/report/report_page_map";
 
 // Project content: the project's reports (SPA-only). create_report is the
 // copilot's one non-editor write: approval-gated.
@@ -74,13 +77,56 @@ export function getClientToolsForReports(
     }),
 
     createAITool({
+      viewRegistry: projectAIViews,
+      name: "get_report_pages",
+      description:
+        `Lay a FASTR Markdown report out as its printed pages (A4 unless the report says otherwise; the pages the PDF and the editor show) and return the page map: every page's fill, the blocks that landed on it with each one's share of the page, and the problems: a page left short because its next block moved whole to the following page, and a last page that is a stub. Pass \`markdown\` to check a draft BEFORE proposing it (create_report, rewrite_report), or \`reportId\` for a report as it stands (in the report editor, the open report's live body). Fix what it flags with the page budget in the format guide, then check again; a report whose pages are set is the deliverable.`,
+      inputSchema: z.object({
+        markdown: z.string().optional().describe("A draft body in FASTR Markdown to lay out (no figures needed)."),
+        reportId: z.string().optional().describe("An existing report to lay out as it stands."),
+        theme: z.enum(FASTR_REPORT_THEMES).optional().describe("The draft's theme, if one was chosen."),
+      }),
+      kind: "read",
+      inProgressLabel: "Laying the report out as pages...",
+      completionMessage: "Read the page map",
+      handler: async (input, view) => {
+        let detail: ReportDetail | undefined;
+        if (input.reportId !== undefined) {
+          const res = await serverActions.getReportDetail({ projectId, report_id: input.reportId });
+          if (!res.success) throw new AIToolFailure(res.err);
+          detail = res.data;
+          if (view?.id === "editing_report" && view.params.reportId === input.reportId) {
+            const ctx = view.context;
+            detail = { ...detail, body: ctx.getBody(), figures: ctx.getFigures(), images: ctx.getImages() };
+          }
+        } else if (input.markdown !== undefined) {
+          detail = {
+            id: "draft",
+            label: "Draft",
+            body: collapseFastrBlankRuns(input.markdown),
+            figures: {},
+            images: {},
+            config: { format: "fastr", fastrTheme: input.theme } as unknown as ReportDetail["config"],
+            lastUpdated: "",
+          };
+        } else {
+          throw new AIToolFailure("Pass markdown (a draft) or reportId (an existing report).");
+        }
+        if (getReportFormat(detail.config) !== "fastr") {
+          throw new AIToolFailure("Only a FASTR Markdown report has pages to map.");
+        }
+        return describeReportPages(detail, (imgFile) => `${_SERVER_HOST}/${imgFile}`);
+      },
+    }),
+
+    createAITool({
       name: "create_report",
       // The syntax doc rides the description so the model has the blocks in
       // context wherever the tool is callable (chat in any view) —
       // without it the model writes plain markdown, which is valid FASTR
       // Markdown but wastes the format.
       description:
-        `Create a new report written in FASTR Markdown (the platform's designed document format; the format is fixed at creation). The user opens the report in the editor to review and edit it — never show a report preview in the chat. The new report has no figures or images yet, so do NOT write embed tokens like ![...](figure:...) — the user inserts live figures later in the report editor.
+        `Create a new report written in FASTR Markdown (the platform's designed document format; the format is fixed at creation). The user opens the report in the editor to review and edit it — never show a report preview in the chat. The new report has no figures or images yet, so do NOT write embed tokens like ![...](figure:...) — the user inserts live figures later in the report editor. Before proposing, lay the draft out with get_report_pages (pass the markdown) and fix every page it flags; propose only a draft whose pages are set.
 
 ${FASTR_MD_SYNTAX_DOC}`,
       inputSchema: z.object({

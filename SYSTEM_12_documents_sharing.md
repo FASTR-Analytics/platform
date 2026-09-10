@@ -47,6 +47,7 @@ globs:
   - lib/report_fastr_css.ts
   - lib/report_fastr_markdown.ts
   - lib/fastr_markdown_pages.ts
+  - lib/fastr_report_page_map.ts
   - lib/report_fastr_paged.ts
   - lib/report_document_shell.ts
   - lib/types/slides.ts
@@ -70,6 +71,7 @@ globs:
   - server/routes/public/dashboard.ts
   - server/tests/fastr_live_regions_test.ts
   - server/tests/fastr_markdown_pages_test.ts
+  - server/tests/fastr_report_page_map_test.ts
   - server/tests/fastr_markdown_edits_test.ts
   - server/tests/report_fastr_markdown_test.ts
   - server/tests/report_format_helpers_test.ts
@@ -582,6 +584,30 @@ bulletin. Verified in the harness with emulated charts: fits on a body
 with room (`probe_body14.md`: the regional figure at 284px, page exact,
 print identical), stretches on the bulletin (every box 1123, one layout
 while scrolling, print identical), the typing and Enter probes unchanged.
+
+**The AI sees its pages** (2026-09-10, Nick's "test 21" PDF: page 2 at 61%,
+a last page holding a callout and a band, "have the AI aware of what
+things are going to go on what page"). `get_report_pages` (reports.ts, a
+registry-bound tool available everywhere) lays a draft's markdown, or a
+report by id (the open editor's live body when it is the one open), out
+in the editor's hidden frame (`describeReportPages`, report_page_map.ts:
+figure boxes from the size cache first, images at their natural size,
+then `createReportPaginator`) and returns the page map
+(`fastrPageMapText`, lib/fastr_report_page_map.ts, pure and tested): every
+page's fill, each block on it named from its source with its share of
+the page, the spacing between blocks as a row so the shares add up, and
+the problems: a page under 75% left short by the block that moved whole
+to the next page (named, with the block a moved heading keeps with), and
+a last page under 40% that is a stub. The brief carries a page budget
+(100 units a page: a line of prose 3, a section heading 12, a cover 60,
+a tiles row 22, a band 25, a columns pair 30, a callout 8 plus 4 a line,
+a steps block 12 a step, a figure 50, a table 6 a row plus 6), tells the
+model to plan pages to 85 to 95 units, to check the draft with the tool
+before proposing (create_report's description and the editor
+instructions say so too) and to fix what it flags by moving prose or
+blocks across the boundary, never with blank lines. The gap stretch
+never grows the gap under a heading (a heading keeps its text): 48px
+above a heading, 32px beside a block or figure, 12px between paragraphs.
 
 The height map is measured where a line has been on screen and estimated
 elsewhere, and a page laid out from guesses moves when it scrolls in, so
