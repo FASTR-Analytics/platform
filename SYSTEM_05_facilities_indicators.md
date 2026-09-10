@@ -183,8 +183,12 @@ DHIS2 metadata never wipes existing values.
 **Integrate strategies** (`StructureIntegrateStrategy`, chosen at step 4,
 never stored; no default in the UI: the destructive one must be opt-in):
 
-- `replace_all`: pre-checks refuse if dataset rows or HFA weights exist;
-  then delete family + insert deduped staged rows.
+- `replace_all`: the file is the registry. Upsert deduped staged rows
+  (unmapped optional columns set NULL on matched rows), then delete every
+  facility absent from staging. Refused, inside the transaction and before
+  any write, when an absent facility still has dataset rows or HFA weights
+  (`absentFacilitiesSql`, shared with the step-4 preview counts
+  `absentCount` / `absentWithDataCount` on `StructureFacilityMatch`).
 - `add_and_update`: upsert; inserted/updated split via pre-count.
 - `update_existing_only`: pre-validates every staged id exists (rejects
   wholesale with samples); updates mapped columns only.
@@ -219,10 +223,10 @@ FK topology: `facilities_{family} → admin_areas_{family}_4` CASCADE;
 `dataset_hmis`/`hfa_data → facilities_*` are RESTRICT-behaving NO ACTION
 DEFERRABLE with **named constraints** (migration 048). Note the migration
 comments claim the names are load-bearing for a `SET CONSTRAINTS` call
-that **no longer exists** in server code; integration now pre-checks and
-refuses instead. `hfa_facility_weights → facilities_hfa` is
-CASCADE-on-delete, which is why the facility delete endpoints refuse while
-weights exist (mirroring `replace_all`).
+that **no longer exists** in server code; integration pre-checks per
+facility and refuses instead. `hfa_facility_weights → facilities_hfa` is
+CASCADE-on-delete, which is why `deleteFamilyFacilities` refuses while any
+weights exist and `replace_all` refuses when an absent facility has them.
 
 **Weights** (`hfa_facility_weights`, facility × time_point): written ONLY
 by the structure-import UI's weights wizard, never by HFA data ingestion.

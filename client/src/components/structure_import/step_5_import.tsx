@@ -79,9 +79,9 @@ export function Step5Import(p: Props) {
     switch (t) {
       case "replace_all":
         return t3({
-          en: "Delete every facility currently in this list, then add all facilities from your file.",
-          fr: "Supprimer tous les établissements actuels de cette liste, puis ajouter tous ceux de votre fichier.",
-          pt: "Eliminar todos os estabelecimentos atuais desta lista e adicionar todos os do seu ficheiro.",
+          en: "Your file becomes the registry. Facilities in your file are added or updated, and every facility not in your file is deleted. Columns you did not map are cleared on updated facilities.",
+          fr: "Votre fichier devient le registre. Les établissements de votre fichier sont ajoutés ou mis à jour, et tout établissement absent de votre fichier est supprimé. Les colonnes non associées sont effacées sur les établissements mis à jour.",
+          pt: "O seu ficheiro passa a ser o registo. Os estabelecimentos do seu ficheiro são adicionados ou atualizados, e todos os estabelecimentos ausentes do ficheiro são eliminados. As colunas que não associou são apagadas nos estabelecimentos atualizados.",
         });
       case "add_and_update":
         return t3({
@@ -134,10 +134,19 @@ export function Step5Import(p: Props) {
     const total = toNum0(m.totalStaged);
     const newCount = toNum0(m.newCount);
     if (t === "replace_all") {
+      const absent = toNum0(m.absentCount);
+      const absentWithData = toNum0(m.absentWithDataCount);
+      if (m.absentWithDataCount > 0) {
+        return t3({
+          en: `${existing} existing facilities will be updated, ${newCount} new facilities will be added, and ${absent} facilities not in your file will be deleted. ${absentWithData} of those still have data, so this import will be refused. Keep them in your file, or delete their data first.`,
+          fr: `${existing} établissements existants seront mis à jour, ${newCount} nouveaux établissements seront ajoutés, et ${absent} établissements absents de votre fichier seront supprimés. ${absentWithData} d'entre eux ont encore des données : l'importation sera rejetée. Conservez-les dans votre fichier, ou supprimez d'abord leurs données.`,
+          pt: `${existing} estabelecimentos existentes serão atualizados, ${newCount} novos estabelecimentos serão adicionados, e ${absent} estabelecimentos ausentes do seu ficheiro serão eliminados. ${absentWithData} deles ainda têm dados, pelo que a importação será rejeitada. Mantenha-os no seu ficheiro, ou elimine primeiro os seus dados.`,
+        });
+      }
       return t3({
-        en: `All existing facilities in this registry will be deleted and replaced with the ${total} facilities in your file.`,
-        fr: `Tous les établissements existants de ce registre seront supprimés et remplacés par les ${total} établissements de votre fichier.`,
-        pt: `Todos os estabelecimentos existentes deste registo serão eliminados e substituídos pelos ${total} estabelecimentos do seu ficheiro.`,
+        en: `${existing} existing facilities will be updated, ${newCount} new facilities will be added, and ${absent} facilities not in your file will be deleted.`,
+        fr: `${existing} établissements existants seront mis à jour, ${newCount} nouveaux établissements seront ajoutés, et ${absent} établissements absents de votre fichier seront supprimés.`,
+        pt: `${existing} estabelecimentos existentes serão atualizados, ${newCount} novos estabelecimentos serão adicionados, e ${absent} estabelecimentos ausentes do seu ficheiro serão eliminados.`,
       });
     }
     if (t === "add_and_update") {
@@ -191,9 +200,9 @@ export function Step5Import(p: Props) {
     }
     if (intent === "replace_all") {
       return t3({
-        en: `These columns will be written on the new facilities: ${cols.join(", ")}. Columns you did not map will be empty in the new registry.`,
-        fr: `Ces colonnes seront écrites sur les nouveaux établissements : ${cols.join(", ")}. Les colonnes non associées seront vides dans le nouveau registre.`,
-        pt: `Estas colunas serão escritas nos novos estabelecimentos: ${cols.join(", ")}. As colunas que não associou ficarão vazias no novo registo.`,
+        en: `These columns will be written on every facility in your file: ${cols.join(", ")}. Columns you did not map will be empty in the new registry.`,
+        fr: `Ces colonnes seront écrites sur chaque établissement de votre fichier : ${cols.join(", ")}. Les colonnes non associées seront vides dans le nouveau registre.`,
+        pt: `Estas colunas serão escritas em todos os estabelecimentos do seu ficheiro: ${cols.join(", ")}. As colunas que não associou ficarão vazias no novo registo.`,
       });
     }
     return t3({

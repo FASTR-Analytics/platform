@@ -38,10 +38,15 @@ export type StructureDhis2ConnectionSnapshot = {
 // facility_ids already exist in the target family's backbone. Optional so an
 // upload attempt staged before this field existed still loads. The step-4 UI
 // shows it so an ID-system mismatch (0 existing) is visible before committing.
+// absentCount: registry facilities not in the file (replace_all deletes them);
+// absentWithDataCount: those that still have data (or HFA weights), which make
+// replace_all refuse.
 export type StructureFacilityMatch = {
   totalStaged: number;
   existing: number;
   newCount: number;
+  absentCount: number;
+  absentWithDataCount: number;
 };
 
 export type StructureRecodableColumn = Exclude<
@@ -260,7 +265,10 @@ export type HfaFacilityWeightsImportResult = {
 // The three facility-import intents. facility_id is always the match key; the
 // columns written are exactly those mapped at step 2 (= the staging table's
 // columns), admin areas included.
-//   - replace_all:          delete this family's facilities, then add all from the file
+//   - replace_all:          the file is the registry: upsert the file's rows,
+//                           blank unmapped optional columns on matched rows,
+//                           delete every facility not in the file; refused
+//                           when an absent facility still has data
 //   - add_and_update:       add facilities with new IDs, update existing ones
 //   - update_existing_only: update existing facilities only; reject any unknown ID
 export type StructureIntegrateStrategy =

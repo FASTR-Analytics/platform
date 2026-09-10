@@ -423,9 +423,10 @@ CREATE TABLE dataset_hmis (
   version_id integer NOT NULL,
   PRIMARY KEY (facility_id, indicator_raw_id, period_id),
   -- NO ACTION (default), not RESTRICT (RESTRICT's delete-side check can't defer).
-  -- replace_all now refuses (via assertNoBlockingReferencesForReplace) when a
-  -- dataset still references these facilities, so the old deferred SET CONSTRAINTS
-  -- delete is gone; the FK is left DEFERRABLE but its name is no longer used by code.
+  -- Structure integration refuses (assertAbsentFacilitiesUnreferenced) before
+  -- deleting any facility this table still references, so the old deferred
+  -- SET CONSTRAINTS delete is gone; the FK is left DEFERRABLE but its name is
+  -- no longer used by code.
   CONSTRAINT dataset_hmis_facility_id_fkey FOREIGN KEY (facility_id) REFERENCES facilities_hmis(facility_id) DEFERRABLE,
   FOREIGN KEY (indicator_raw_id) REFERENCES indicators_raw(indicator_raw_id) ON DELETE RESTRICT DEFERRABLE,
   FOREIGN KEY (version_id) REFERENCES dataset_hmis_versions(id) ON DELETE RESTRICT
@@ -574,9 +575,10 @@ CREATE TABLE hfa_data (
   value TEXT NOT NULL,
   PRIMARY KEY (facility_id, time_point, var_name),
   -- NO ACTION (default), not RESTRICT (RESTRICT's delete-side check can't defer).
-  -- replace_all now refuses (via assertNoBlockingReferencesForReplace) when a
-  -- dataset still references these facilities, so the old deferred SET CONSTRAINTS
-  -- delete is gone; the FK is left DEFERRABLE but its name is no longer used by code.
+  -- Structure integration refuses (assertAbsentFacilitiesUnreferenced) before
+  -- deleting any facility this table still references, so the old deferred
+  -- SET CONSTRAINTS delete is gone; the FK is left DEFERRABLE but its name is
+  -- no longer used by code.
   CONSTRAINT hfa_data_facility_id_fkey FOREIGN KEY (facility_id) REFERENCES facilities_hfa(facility_id) DEFERRABLE,
   FOREIGN KEY (time_point) REFERENCES hfa_time_points(label) ON UPDATE CASCADE ON DELETE CASCADE,
   FOREIGN KEY (time_point, var_name) REFERENCES hfa_variables(time_point, var_name) ON UPDATE CASCADE ON DELETE CASCADE

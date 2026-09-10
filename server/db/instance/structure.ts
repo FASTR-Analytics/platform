@@ -32,6 +32,7 @@ import { getXlsxSheetNamesRaw } from "../../server_only_funcs_csvs/read_xlsx_raw
 import { stageStructureFromCsv } from "../../server_only_funcs_importing/stage_structure_from_csv.ts";
 import { stageStructureFromDhis2V2 } from "../../server_only_funcs_importing/stage_structure_from_dhis2.ts";
 import {
+  absentFacilitiesSql,
   buildDedupOrderClause,
   getStagedColumns,
   integrateStructureFromStaging,
@@ -680,8 +681,10 @@ async function claimImportSlot(
 // Both handlers write conditionally on still holding the claim, so a run whose
 // attempt was deleted mid-flight cannot resurrect or overwrite anything.
 // Pre-commit match preview against the target family's backbone: how many of
-// the staged distinct facility_ids already exist. Shown at step 4 so an
-// ID-system mismatch (0 existing) is visible before committing.
+// the staged distinct facility_ids already exist, and how many registry
+// facilities the file omits (with how many of those replace_all would refuse
+// over). Shown at step 4 so an ID-system mismatch (0 existing) and the
+// replace_all consequence are visible before committing.
 async function computeFacilityMatch(
   mainDb: Sql,
   stagingTableName: string,
@@ -695,9 +698,21 @@ async function computeFacilityMatch(
     FROM (SELECT DISTINCT facility_id FROM ${stagingTableName}) s
     LEFT JOIN ${facilitiesTable} f ON f.facility_id = s.facility_id
   `);
+  const absentRows = await mainDb.unsafe(`
+    SELECT
+      COUNT(*)::int AS absent,
+      COUNT(*) FILTER (WHERE blocked)::int AS absent_with_data
+    FROM (${absentFacilitiesSql(stagingTableName, family)}) a
+  `);
   const totalStaged = matchRows[0]?.total_staged ?? 0;
   const existing = matchRows[0]?.existing ?? 0;
-  return { totalStaged, existing, newCount: totalStaged - existing };
+  return {
+    totalStaged,
+    existing,
+    newCount: totalStaged - existing,
+    absentCount: absentRows[0]?.absent ?? 0,
+    absentWithDataCount: absentRows[0]?.absent_with_data ?? 0,
+  };
 }
 
 // facilityMatch is computed once at staging success, but facilities can change

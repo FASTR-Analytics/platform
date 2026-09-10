@@ -47,6 +47,9 @@ export async function integrateStructureFromStaging(
     const stagedOptionalColumns = _OPTIONAL_FACILITY_COLUMNS.filter((col) =>
       stagedColumns.includes(col)
     );
+    const unstagedOptionalColumns = _OPTIONAL_FACILITY_COLUMNS.filter(
+      (col) => !stagedColumns.includes(col)
+    );
 
     // Should be unreachable: recodes are cleared on every reconfiguration and
     // the save is nonce-guarded. Fail loudly if it ever isn't.
@@ -65,13 +68,6 @@ export async function integrateStructureFromStaging(
       throw new Error(
         'Admin areas must be mapped to add facilities. Map the admin area columns, or choose "Update existing facilities only".'
       );
-    }
-
-    // Replace deletes the whole family first, refuse with a clear message if
-    // anything still references these facilities (a dataset, or HFA weights),
-    // instead of failing at COMMIT with a raw FK error.
-    if (strategy.type === "replace_all") {
-      await assertNoBlockingReferencesForReplace(mainDb, family);
     }
 
     // Update-only: every staged facility_id must already exist, or its data is
@@ -98,14 +94,29 @@ export async function integrateStructureFromStaging(
     await mainDb.begin(async (sql) => {
       switch (strategy.type) {
         case "replace_all": {
-          deleted = await deleteAllFamilyFacilities(sql, family);
+          // The file is the registry. Checked inside the transaction, ahead of
+          // any write, so a concurrent data import cannot land rows on a
+          // facility between the check and its delete.
+          await assertAbsentFacilitiesUnreferenced(
+            sql,
+            stagingTableName,
+            family
+          );
           await insertAdminAreasFromStaging(sql, stagingTableName, family);
-          inserted = await insertAllFacilities(
+          const result = await upsertFacilities(
             sql,
             facilitiesTable,
             stagingTableName,
             writeColumns,
-            recodeJoins
+            recodeJoins,
+            unstagedOptionalColumns
+          );
+          inserted = result.inserted;
+          updated = result.updated;
+          deleted = await deleteFacilitiesAbsentFromStaging(
+            sql,
+            facilitiesTable,
+            stagingTableName
           );
           await cleanupUnusedAdminAreas(sql, family);
           break;
@@ -118,7 +129,8 @@ export async function integrateStructureFromStaging(
             facilitiesTable,
             stagingTableName,
             writeColumns,
-            recodeJoins
+            recodeJoins,
+            []
           );
           inserted = result.inserted;
           updated = result.updated;
@@ -237,39 +249,65 @@ async function assertAllStagedFacilitiesExist(
 }
 
 /**
- * Replace deletes the whole family's facilities. If a dataset (or, for HFA,
- * sampling weights) still references them, the delete fails at COMMIT with a raw
- * FK error. Pre-check and refuse with a clear instruction to delete those first.
+ * The facilities `replace_all` will delete: every row of the family's table
+ * whose facility_id is not in the staging table, flagged `blocked` when
+ * something still references it (dataset rows for both families, and HFA
+ * sampling weights, which would otherwise vanish through their CASCADE FK).
+ * One query feeds both the step-4 preview counts and the integrate refusal,
+ * so what the user is shown is exactly what the import checks.
  */
-async function assertNoBlockingReferencesForReplace(
+export function absentFacilitiesSql(
+  stagingTableName: string,
+  family: FacilityFamily
+): string {
+  const facilitiesTable =
+    family === "hmis" ? "facilities_hmis" : "facilities_hfa";
+  const blocked =
+    family === "hmis"
+      ? "EXISTS (SELECT 1 FROM dataset_hmis d WHERE d.facility_id = f.facility_id)"
+      : "EXISTS (SELECT 1 FROM hfa_data d WHERE d.facility_id = f.facility_id) OR EXISTS (SELECT 1 FROM hfa_facility_weights w WHERE w.facility_id = f.facility_id)";
+  return `
+    SELECT f.facility_id, (${blocked}) AS blocked
+    FROM ${facilitiesTable} f
+    WHERE NOT EXISTS (
+      SELECT 1 FROM ${stagingTableName} s WHERE s.facility_id = f.facility_id
+    )
+  `;
+}
+
+/**
+ * `replace_all` deletes the facilities absent from the file. If any of them
+ * still has data (or HFA weights), the delete would fail at COMMIT with a raw
+ * FK error, or silently cascade the weights away. Refuse with the blocked
+ * count and sample ids, mirroring assertAllStagedFacilitiesExist.
+ */
+async function assertAbsentFacilitiesUnreferenced(
   sql: Sql,
+  stagingTableName: string,
   family: FacilityFamily
 ): Promise<void> {
-  if (family === "hmis") {
-    const ds = await sql<
-      { n: number }[]
-    >`SELECT COUNT(*)::int AS n FROM dataset_hmis`;
-    if ((ds[0]?.n ?? 0) > 0) {
-      throw new Error(
-        "Cannot replace all HMIS facilities: an HMIS dataset still references them. Delete the HMIS dataset first, then replace the facilities."
-      );
-    }
+  const blocked = await sql.unsafe(`
+    SELECT facility_id, COUNT(*) OVER () AS total_blocked
+    FROM (${absentFacilitiesSql(stagingTableName, family)}) a
+    WHERE blocked
+    ORDER BY facility_id
+    LIMIT 5
+  `);
+  if (blocked.length === 0) {
     return;
   }
-  const ds = await sql<{ n: number }[]>`SELECT COUNT(*)::int AS n FROM hfa_data`;
-  if ((ds[0]?.n ?? 0) > 0) {
-    throw new Error(
-      "Cannot replace all HFA facilities: an HFA dataset still references them. Delete the HFA dataset first, then replace the facilities."
-    );
-  }
-  const weights = await sql<
-    { n: number }[]
-  >`SELECT COUNT(*)::int AS n FROM hfa_facility_weights`;
-  if ((weights[0]?.n ?? 0) > 0) {
-    throw new Error(
-      "Cannot replace all HFA facilities: sampling weights still reference them. Delete the HFA sampling weights first, then replace the facilities."
-    );
-  }
+  const totalBlocked = Number(blocked[0].total_blocked);
+  const sample = blocked.map((r) => r.facility_id).join(", ");
+  const more =
+    totalBlocked > blocked.length ? `, … (${totalBlocked} total)` : "";
+  const familyLabel = family === "hmis" ? "HMIS" : "HFA";
+  const references =
+    family === "hmis"
+      ? "HMIS dataset records"
+      : "HFA dataset records or sampling weights";
+  throw new Error(
+    `${totalBlocked} ${familyLabel} facility(ies) not in your file still have ${references}, so they cannot be deleted. Examples: ${sample}${more}. Keep them in your file, or delete their data first, then replace the facilities.`
+  );
 }
 
 /**
@@ -351,46 +389,20 @@ function recodeJoinClauses(
 }
 
 /**
- * Insert all staged facilities (one row per facility_id, see
- * buildDedupOrderClause). Used by replace_all after the wipe. Returns rows
- * inserted.
- */
-async function insertAllFacilities(
-  sql: Sql,
-  facilitiesTable: string,
-  stagingTableName: string,
-  writeColumns: string[],
-  recodeJoins: RecodeJoin[]
-): Promise<number> {
-  const cols = ["facility_id", ...writeColumns];
-  const result = await sql.unsafe(`
-    INSERT INTO ${facilitiesTable} (${cols.join(", ")})
-    SELECT ${cols.join(", ")}
-    FROM (
-      SELECT ${recodedSelectList(cols, recodeJoins)},
-             ROW_NUMBER() OVER (
-               PARTITION BY facility_id
-               ORDER BY ${buildDedupOrderClause(writeColumns)}
-             ) as rn
-      FROM ${stagingTableName}
-      ${recodeJoinClauses(stagingTableName, recodeJoins)}
-    ) t
-    WHERE rn = 1
-  `);
-  return result.count ?? 0;
-}
-
-/**
- * Insert new facilities, update existing ones (mapped columns only). Splits the
- * affected rows into inserted vs updated by pre-counting existing matches.
- * writeColumns is always non-empty here (insert intents require admin areas).
+ * Insert new facilities, update existing ones (mapped columns, plus
+ * `blankColumns` set to NULL on matched rows: replace_all passes the unmapped
+ * optional columns so the registry ends up exactly the file, add_and_update
+ * passes none). Splits the affected rows into inserted vs updated by
+ * pre-counting existing matches. writeColumns is always non-empty here
+ * (insert intents require admin areas).
  */
 async function upsertFacilities(
   sql: Sql,
   facilitiesTable: string,
   stagingTableName: string,
   writeColumns: string[],
-  recodeJoins: RecodeJoin[]
+  recodeJoins: RecodeJoin[],
+  blankColumns: string[]
 ): Promise<{ inserted: number; updated: number }> {
   const cols = ["facility_id", ...writeColumns];
   const beforeRows = await sql.unsafe(`
@@ -399,9 +411,10 @@ async function upsertFacilities(
     JOIN ${facilitiesTable} f ON f.facility_id = s.facility_id
   `);
   const updated = beforeRows[0]?.matched ?? 0;
-  const setClause = writeColumns
-    .map((col) => `${col} = EXCLUDED.${col}`)
-    .join(",\n      ");
+  const setClause = [
+    ...writeColumns.map((col) => `${col} = EXCLUDED.${col}`),
+    ...blankColumns.map((col) => `${col} = NULL`),
+  ].join(",\n      ");
   const result = await sql.unsafe(`
     INSERT INTO ${facilitiesTable} (${cols.join(", ")})
     SELECT ${cols.join(", ")}
@@ -455,21 +468,22 @@ async function updateExistingFacilities(
 }
 
 /**
- * Deletes all of a family's facilities. replace_all's pre-check
- * (assertNoBlockingReferencesForReplace) already guarantees nothing references
- * them, no dataset rows, and no HFA sampling weights, so a plain delete is
- * safe: no deferred FK and no weight stash/restore are needed. Returns rows
- * deleted. The family's admin tree is not touched here: the post-insert
- * cleanup sweeps it.
+ * The delete half of replace_all: every facility not in the file. The
+ * in-transaction pre-check (assertAbsentFacilitiesUnreferenced) has already
+ * established nothing references these rows. Returns rows deleted. The
+ * family's admin tree is not touched here: the post-delete cleanup sweeps it.
  */
-async function deleteAllFamilyFacilities(
+async function deleteFacilitiesAbsentFromStaging(
   sql: Sql,
-  family: FacilityFamily
+  facilitiesTable: string,
+  stagingTableName: string
 ): Promise<number> {
-  const facilitiesTable =
-    family === "hmis" ? "facilities_hmis" : "facilities_hfa";
-  console.log(`Deleting all existing ${family} facilities...`);
-  const result = await sql.unsafe(`DELETE FROM ${facilitiesTable}`);
+  const result = await sql.unsafe(`
+    DELETE FROM ${facilitiesTable} f
+    WHERE NOT EXISTS (
+      SELECT 1 FROM ${stagingTableName} s WHERE s.facility_id = f.facility_id
+    )
+  `);
   return result.count ?? 0;
 }
 
