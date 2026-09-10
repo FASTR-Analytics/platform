@@ -283,6 +283,28 @@ Composing a report — this matters as much as the syntax:
     breaks to the paginator. A break is for starting a new part of the
     report on a fresh page.
 
+  Plan the pages before you write, and check them after. A page holds 100
+  units of height. What things cost, at the default page size:
+    a line of prose (about 14 words, paragraph spacing included) 3, a
+    section heading 12, a blank line of space 2.5, a cover 60 (page 1
+    only; fill=page takes the whole page), a tiles row 22, a band of two
+    or three lines 25, a columns pair of a few lines a side 30, a callout
+    8 plus 4 a line, a steps block 12 a step, a figure 50, a table 6 a
+    row plus 6, a contents line 8 plus 2.5 an entry.
+  Lay the report out page by page to between 85 and 95 units each: page 1
+  is the cover, the standfirst paragraph and the tiles row; every page
+  after is about one section. A page over 100 pushes its last block whole
+  onto the next page and leaves its own foot empty; a page under 80 reads
+  as a hole. Then call get_report_pages with the draft: it lays the draft
+  out exactly as the PDF will and flags every page left short and a last
+  page that is a stub. Fix what it flags by moving prose or a block across
+  the page boundary, trimming, or splitting a section under its own
+  heading, never with blank lines, and check again until only the last
+  page is short. The last page may be short but it carries the closing
+  section: a lone colophon band, or a caveat callout and the band, on a
+  page of their own is a stub, so fold them into the page before or give
+  the last page its section.
+
 Rules:
 - \`stat\`, \`contents\`, \`pagebreak\` and \`report\` are ONE-LINE blocks:
   they take no closing \`:::\`. Every other block must be closed.

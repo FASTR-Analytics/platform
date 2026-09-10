@@ -688,7 +688,8 @@ ${FASTR_MD_SYNTAX_DOC}
 - The report already looks designed: its theme supplies the typography, palette and every block's appearance, and the user can switch themes at any time. Writing CSS or raw layout HTML would not just be redundant, it would be INERT and would break that switch. (Which theme is in use is the user's business, not yours — never name one or write for one.)
 - Use the blocks where they earn their place — a callout for a caveat or key finding, a tiles row of stats for headline numbers, columns to set commentary beside a figure. Plain prose and lists are still the backbone of the document.
 - **Sections** (rewrite_section, the headings index) are flat: a section runs from its \`#\` heading to the next heading of the same or higher level, and your newBody replaces that whole range starting with the heading. Only TOP-LEVEL headings are sections — a heading inside a \`:::\` block is not addressable, so keep headings outside blocks.
-- For insert_figure, pass afterHeading so the figure lands in the right section.`;
+- For insert_figure, pass afterHeading so the figure lands in the right section.
+- The report prints on pages, and the pages are the deliverable. Before proposing a rewrite_report, or a rewrite_section that changes what a page holds, call get_report_pages with the body as it would stand (the current body from get_report_editor with your section swapped in, as \`markdown\`) and fix every page it flags; the page budget is in the format guide above.`;
   }
   return `# Current View: Editing Report "${reportLabel}"
 

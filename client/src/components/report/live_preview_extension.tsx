@@ -4238,10 +4238,12 @@ export const stretchField = StateField.define<Stretches & { deco: DecorationSet 
   },
   provide: (f) => EditorView.decorations.from(f, (v) => v.deco),
 });
-// A gap beside a heading, a figure or a block may grow this much; one
-// between two paragraphs this much; a leftover under the minimum is not
-// worth spreading.
-const STRETCH_CAP_PX = 40;
+// A gap ABOVE a heading may grow this much (a section start welcomes
+// room); one beside a figure or a block this much; one between two
+// paragraphs this much; the gap under a heading never (a heading keeps its
+// text); a leftover under the minimum is not worth spreading.
+const STRETCH_CAP_HEADING_PX = 48;
+const STRETCH_CAP_PX = 32;
 const STRETCH_CAP_PROSE_PX = 12;
 const STRETCH_MIN_PX = 20;
 function sameStretches(a: Map<number, number>, b: Map<number, number>): boolean {
@@ -4278,8 +4280,13 @@ function stretchesOf(
     for (let k = 1; k < list.length; k++) {
       const prev = list[k - 1];
       const cur = list[k];
-      if (cur.gap <= 0 || prev.cover !== undefined) continue;
-      gaps.push({ at: cur, prev, cap: prose(prev) && prose(cur) ? STRETCH_CAP_PROSE_PX : STRETCH_CAP_PX });
+      if (cur.gap <= 0 || prev.cover !== undefined || prev.heading) continue;
+      const cap = cur.heading
+        ? STRETCH_CAP_HEADING_PX
+        : prose(prev) && prose(cur)
+        ? STRETCH_CAP_PROSE_PX
+        : STRETCH_CAP_PX;
+      gaps.push({ at: cur, prev, cap });
     }
     if (gaps.length === 0) continue;
     // The same share to every gap, each capped at its own: the smallest
