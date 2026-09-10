@@ -1,17 +1,20 @@
 // The instance population store (SYSTEM_05 "Population store"): annual
 // counts per admin area × year × population type at the population level.
-// A derived common indicator names a type as the ingredient
-// `[population:<type>]`; at run capture every referenced type is expanded
-// into monthly person-years (lib/population_person_years.ts).
+// A derived common indicator names a type by its id, a bare identifier and
+// a reserved word (`anc1 / population_total`); at run capture every
+// referenced type is expanded into monthly person-years
+// (lib/population_person_years.ts).
 
 import type { TranslatableString } from "./_module_definition_github.ts";
 import type { AdminAreaLevel } from "./structure.ts";
 
-// The population type vocabulary: the only ids a CSV row, a formula's
-// `[population:<type>]` term or a package may name. Fixed in code, no table.
+// The population type vocabulary: the only ids a CSV row, a formula, an
+// ingredient table or a package may name. One string everywhere: the type
+// id IS the expression identifier and the ingredient id. Fixed in code, no
+// table.
 export const POPULATION_TYPES = [
   {
-    id: "total_population",
+    id: "population_total",
     label: {
       en: "Total population",
       fr: "Population totale",
@@ -19,7 +22,7 @@ export const POPULATION_TYPES = [
     },
   },
   {
-    id: "u5",
+    id: "population_u5",
     label: {
       en: "Under 5 population",
       fr: "Population de moins de 5 ans",
@@ -27,7 +30,7 @@ export const POPULATION_TYPES = [
     },
   },
   {
-    id: "u1",
+    id: "population_u1",
     label: {
       en: "Under 1 population",
       fr: "Population de moins de 1 an",
@@ -35,11 +38,11 @@ export const POPULATION_TYPES = [
     },
   },
   {
-    id: "wra",
+    id: "population_wra",
     label: { en: "WRA (15-49)", fr: "FAP (15-49)", pt: "MIR (15-49)" },
   },
   {
-    id: "births",
+    id: "population_births",
     label: {
       en: "Expected births",
       fr: "Naissances attendues",
@@ -47,7 +50,7 @@ export const POPULATION_TYPES = [
     },
   },
   {
-    id: "pregnancies",
+    id: "population_pregnancies",
     label: {
       en: "Expected pregnancies",
       fr: "Grossesses attendues",
@@ -59,6 +62,10 @@ export const POPULATION_TYPES = [
 export type PopulationTypeId = (typeof POPULATION_TYPES)[number]["id"];
 
 export const POPULATION_TYPE_IDS: string[] = POPULATION_TYPES.map((t) => t.id);
+
+export function isPopulationTypeId(id: string): boolean {
+  return POPULATION_TYPE_IDS.includes(id);
+}
 
 // Stored rows carry the id as text, so the lookup takes any string.
 export function populationTypeLabel(id: string): TranslatableString {
@@ -161,25 +168,6 @@ export const POPULATION_CSV_REQUIRED_COLUMNS = [
   "count",
 ] as const;
 
-// The ingredient id under which a population type's person-years travel in
-// m012's ingredient table and its ROWS. A ':' can never appear in a common
-// indicator id (getNewIndicatorIdIssue), so the pseudo-id cannot collide with
-// one; in an expression it is always [bracket-quoted]. m012's script.R
-// composes the same string (`paste0("population:", population_type)`):
-// the two sides of ONE contract.
-export const POPULATION_INGREDIENT_PREFIX = "population:";
-
-export function populationIngredientId(populationType: string): string {
-  return `${POPULATION_INGREDIENT_PREFIX}${populationType}`;
-}
-
-// The population type an ingredient id names, or null for a common indicator.
-export function parsePopulationIngredientId(id: string): string | null {
-  return id.startsWith(POPULATION_INGREDIENT_PREFIX)
-    ? id.slice(POPULATION_INGREDIENT_PREFIX.length)
-    : null;
-}
-
 // Every population type the resolved catalog's slot maps reference: what a
 // run's person-years file must carry, and (non-empty) what makes population
 // ACTIVE for a run. Not a setting: the formulas decide. Sorted, deduplicated.
@@ -189,8 +177,7 @@ export function populationTypesReferencedByCatalog(
   const types = new Set<string>();
   for (const row of rows) {
     for (const ingredientId of Object.keys(row.slot_map ?? {})) {
-      const populationType = parsePopulationIngredientId(ingredientId);
-      if (populationType !== null) types.add(populationType);
+      if (isPopulationTypeId(ingredientId)) types.add(ingredientId);
     }
   }
   return [...types].sort();

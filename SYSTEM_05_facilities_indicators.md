@@ -383,14 +383,19 @@ hold a determinate 0 while its per-variable status reads `missing`.
 population terms. There is no separate id grammar: an identifier is written
 bare when it matches `^[a-z][a-z0-9_]*$` and `[in brackets]` otherwise, so
 every common id is usable regardless of charset. A population term is the
-identifier `population:<type>` (always bracketed because `:` is outside the bare
-charset and forbidden in indicator ids), which resolves iff `<type>` is in
-`POPULATION_TYPES` (lib, fixed in code); it is a leaf like a base
-common, takes an ordinary ingredient slot in first-appearance order, and
-counts toward the uniform 8-slot cap. The dictionary the resolver
-works from is the commons PLUS one `population` entry per store type, at
-authoring (`checkDefinitionsResolve`, which names the Population page for an
-unknown type) and at HMIS capture (`resolveCommonIndicatorCatalog`, which
+population type's id written bare (`anc1 / population_total`): the six ids
+in `POPULATION_TYPES` (lib, fixed in code) are reserved words, with the
+three function names, and `getNewIndicatorIdIssue` refuses a new common
+with one (`reserved`; raw ids are a separate namespace that never enters an
+expression, so they are not checked; migration 084 guards stored ids). The
+same string is the ingredient id, the slot-map key, the person-years CSV
+`population_type` value and the manifest stamp's type. A population term is
+a leaf like a base common, takes an ordinary ingredient slot in
+first-appearance order, and counts toward the uniform 8-slot cap. The
+dictionary the resolver works from is the commons PLUS one `population`
+entry per store type, at authoring (`checkDefinitionsResolve`; an unknown
+identifier's error lists the population ids) and at HMIS capture
+(`resolveCommonIndicatorCatalog`, which
 refuses the whole capture with a listing when any flattened ingredient
 indicator is absent from the data. Population coverage is recorded, not
 checked, by the person-years writer, S8 "population.csv"). Raw indicator ids
@@ -426,7 +431,7 @@ pointers only. Consequences that follow from it and are ruled with it:
     (`+ - * /`, parentheses, literals, `abs`/`coalesce`/`nullif`; chained by
     substitution, cycles and depth rejected). Never negotiable down to
     numerator/denominator. It may divide by a population term
-    `[population:<type>]`, person-years of that population, whose grain is
+    (`population_total`, the type id), person-years of that population, whose grain is
     area×month, not facility×month: population lives in the instance
     Population store (below) and is expanded stock→flow at run capture (S8),
     so downstream it sums like any count. `format_as` is display-only and
@@ -518,12 +523,19 @@ cascades.
 ## Population store
 
 **The vocabulary** is `POPULATION_TYPES` in `lib/types/population.ts`: six
-ids with `{ en, fr, pt }` labels, fixed in code and read by the import, the
-formula resolver, the indicator editor and the page. No table (migration
-082 dropped `population_types` and the foreign key to it), so a common
-indicator formula is the same contract on
-every instance and the only thing that varies per instance is whether a
-type has data.
+ids (`population_total`, `population_u5`, `population_u1`,
+`population_wra`, `population_births`, `population_pregnancies`) with
+`{ en, fr, pt }` labels, fixed in code and read by the import, the formula
+resolver, the indicator editor and the page. The id is the one string every
+layer carries: the CSV `population_type` column, the formula identifier
+(a reserved word, "Derived commons" above), the ingredient id m012 joins on
+and the manifest stamp. No table (migration 082 dropped `population_types`
+and the foreign key to it), so a common indicator formula is the same
+contract on every instance and the only thing that varies per instance is
+whether a type has data. Migration 084 renamed the ids from their bare
+forms (`u5`, `total_population`, ...) in the store and in stored
+expressions; immutable packages keep whatever ids they were captured with,
+and `populationTypeLabel` falls back to the id.
 
 **What it is (ruled).** Annual population
 STOCKS per admin area × year × population type, in the main DB table
@@ -700,7 +712,8 @@ Every config mutation re-reads all configs and pushes one consolidated
   key on, so editing a derived definition costs those caches nothing.
   `hfaIndicatorsVersion` and `hfaCacheHash` are unchanged.
 - The common-indicator editor's expression palette (ruled;
-  storage unchanged, no alias layer): two "Insert …" pickers above the
+  storage unchanged, the identifier inserted is the stored id): two
+  "Insert …" pickers above the
   formula box, indicators (label-searchable, commons only, never the one
   being edited) and populations (`POPULATION_TYPES`, with the coverage
   from T1 `populationCoverage`), insert the
@@ -708,8 +721,7 @@ Every config mutation re-reads all configs and pushes one consolidated
   legend under the box lists every identifier the formula references with
   its label, kind (indicator / population) and a "not found" mark, driven by
   the same resolver the form validates with, and shows the annualisation
-  caption whenever a population term is present. The bracket form is
-  something a user sees, not something they must type.
+  caption whenever a population term is present.
 - Computability in the manager is shown, never enforced. The common list
   has a Status column fed by one `createMemo` over the loaded dictionary
   calling `judgeDerivedIndicators` (lib), so a mapping edit updates it

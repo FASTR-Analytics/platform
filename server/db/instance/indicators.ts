@@ -12,7 +12,6 @@ import {
   IndicatorExpressionError,
   type InstanceIndicatorDetails,
   MAX_INDICATOR_EXPRESSION_INGREDIENTS,
-  populationIngredientId,
   resolveIndicatorExpression,
   POPULATION_TYPE_IDS,
   type ThresholdsRule,
@@ -95,7 +94,7 @@ function formatRuleError(
 }
 
 // The live expression dictionary: every common indicator, plus every
-// population type under its `population:<type>` ingredient id.
+// population type under its own id.
 async function loadExpressionDictionaryEntries(
   sql: Sql,
 ): Promise<ExpressionDictionaryEntry[]> {
@@ -113,7 +112,7 @@ async function loadExpressionDictionaryEntries(
       expression: r.expression,
     })),
     ...POPULATION_TYPE_IDS.map((id) => ({
-      id: populationIngredientId(id),
+      id,
       type: "population" as const,
       expression: null,
     })),
@@ -213,8 +212,8 @@ async function checkDefinitionsResolve(
   mainDb: Sql,
   pendingDefinitions: Map<string, CommonIndicatorDefinition>,
 ): Promise<string | undefined> {
-  // The resolver reports an unknown `population:<type>` term itself, naming
-  // the Population page: the store's types are ordinary dictionary entries.
+  // The resolver reports an unknown population identifier itself, listing
+  // the type ids: the store's types are ordinary dictionary entries.
   const entries = new Map<string, ExpressionDictionaryEntry>(
     (await loadExpressionDictionaryEntries(mainDb)).map((e) => [e.id, e]),
   );
@@ -282,7 +281,7 @@ export async function createIndicatorsCommon(
 > {
   return await tryCatchDatabaseAsync(async () => {
     for (const indicator of indicators) {
-      const idIssue = getNewIndicatorIdIssue(indicator.indicator_common_id);
+      const idIssue = getNewIndicatorIdIssue(indicator.indicator_common_id, "common");
       if (idIssue) {
         return {
           success: false,
@@ -613,7 +612,7 @@ export async function createIndicatorsRaw(
 > {
   return await tryCatchDatabaseAsync(async () => {
     for (const indicator of indicators) {
-      const idIssue = getNewIndicatorIdIssue(indicator.indicator_raw_id);
+      const idIssue = getNewIndicatorIdIssue(indicator.indicator_raw_id, "raw");
       if (idIssue) {
         return {
           success: false,
@@ -840,7 +839,7 @@ export async function batchUploadRawIndicators(
 
     // Row numbers are 1-based and count the CSV header row
     const invalidIdRows = batchIndicators.flatMap((batch, index) => {
-      const idIssue = getNewIndicatorIdIssue(batch.raw_indicator_id);
+      const idIssue = getNewIndicatorIdIssue(batch.raw_indicator_id, "raw");
       return idIssue
         ? [
           `row ${index + 2} (${batch.raw_indicator_id}): ${
@@ -934,7 +933,7 @@ export async function batchUploadIndicators(
     // Row numbers are 1-based and count the CSV header row
     const invalidIdRows = parsedBatchIndicators.flatMap((batch, index) => {
       const rowErrors: string[] = [];
-      const commonIdIssue = getNewIndicatorIdIssue(batch.indicator_common_id);
+      const commonIdIssue = getNewIndicatorIdIssue(batch.indicator_common_id, "common");
       if (commonIdIssue) {
         rowErrors.push(
           `row ${index + 2} (${batch.indicator_common_id}): ${
@@ -943,7 +942,7 @@ export async function batchUploadIndicators(
         );
       }
       for (const rawId of batch.rawIds) {
-        const rawIdIssue = getNewIndicatorIdIssue(rawId);
+        const rawIdIssue = getNewIndicatorIdIssue(rawId, "raw");
         if (rawIdIssue) {
           rowErrors.push(
             `row ${index + 2} (${rawId}): ${

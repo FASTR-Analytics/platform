@@ -1,6 +1,8 @@
 import { capitalizeFirstLetter } from "@timroberton/panther";
 import type { TranslatableString } from "../translate/types.ts";
 import type { ThresholdsRule } from "./conditional_formatting.ts";
+import { EXPRESSION_FUNCTION_NAMES } from "../indicator_expression/parse.ts";
+import { POPULATION_TYPE_IDS } from "./population.ts";
 
 // ============================================================================
 // Indicator Types
@@ -35,7 +37,16 @@ export type NewIndicatorIdIssue =
   | "empty"
   | "untrimmed"
   | "forbidden_chars"
-  | "too_long";
+  | "too_long"
+  | "reserved";
+
+// The bare identifiers an expression may name that are not common indicators:
+// the population type ids and the function names. No common indicator may
+// take one. Instance migration 084 guards stored ids the same way.
+export const RESERVED_INDICATOR_IDS: readonly string[] = [
+  ...POPULATION_TYPE_IDS,
+  ...EXPRESSION_FUNCTION_NAMES,
+];
 
 // Applies to NEWLY created ids only (never to existing stored ids). Commas,
 // semicolons, and colons corrupt the STRING_AGG/split round-trip and the CSV
@@ -43,9 +54,12 @@ export type NewIndicatorIdIssue =
 // identifier] form, which has no escape (PLAN_1a §1.3): one rule for common
 // AND raw ids, since raw ids have no use for brackets either. Instance
 // migration 079 guards stored ids the same way. Dots stay legal (DHIS2
-// operand ids contain them).
+// operand ids contain them). The reserved words apply to commons only: raw
+// ids are a separate namespace that never enters an expression (the extract
+// joins raw to common).
 export function getNewIndicatorIdIssue(
   id: string,
+  kind: IndicatorType,
 ): NewIndicatorIdIssue | undefined {
   if (id.length === 0) {
     return "empty";
@@ -58,6 +72,9 @@ export function getNewIndicatorIdIssue(
   }
   if (id.length > INDICATOR_ID_MAX_LENGTH) {
     return "too_long";
+  }
+  if (kind === "common" && RESERVED_INDICATOR_IDS.includes(id)) {
+    return "reserved";
   }
   return undefined;
 }
@@ -72,6 +89,8 @@ export function describeNewIndicatorIdIssue(issue: NewIndicatorIdIssue): string 
       return "must not contain commas, semicolons, colons, or square brackets";
     case "too_long":
       return `must be at most ${INDICATOR_ID_MAX_LENGTH} characters`;
+    case "reserved":
+      return `is a reserved word (${RESERVED_INDICATOR_IDS.join(", ")})`;
   }
 }
 
@@ -87,10 +106,10 @@ export function describeNewIndicatorIdIssue(issue: NewIndicatorIdIssue): string 
 //   derived: an arbitrary expression over other commons (base or derived;
 //             chained by substitution) and population terms. Its additive
 //             ingredients travel on the results row and the expression is
-//             applied AFTER aggregation. A population term is written
-//             `[population:<type>]`, where `<type>` is an id in
-//             POPULATION_TYPES (lib/types/population.ts); it is a
-//             leaf ingredient exactly like a base common, carrying that
+//             applied AFTER aggregation. A population term is written as
+//             the type's id (`population_total`, one of POPULATION_TYPES in
+//             lib/types/population.ts, a reserved word); it is a leaf
+//             ingredient exactly like a base common, carrying that
 //             population's person-years.
 export type CommonIndicatorDefinition =
   | { type: "base" }
@@ -246,7 +265,7 @@ export type IndicatorMetadata = {
   sort_order?: number;
   // Common-indicator evaluation, stamped for HMIS dictionaries only
   // (PLAN_1a §1.5). `expression` is the FLATTENED formula: every identifier
-  // in it is a base common indicator or a `population:<type>` term, and
+  // in it is a base common indicator or a population type id, and
   // `slot_map` says which ingredient column of an indicator_values row
   // carries that ingredient's sum. A `base` indicator's expression is its own
   // single slot. Absent on every other family's catalog entries, and on a

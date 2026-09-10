@@ -9,7 +9,7 @@
 //
 // This is where "generation decides what the numbers are made of" happens: a
 // derived indicator's expression is FLATTENED here, so the row names nothing
-// but leaves, base commons and `population:<type>` terms, and each of those
+// but leaves, base commons and population types, and each of those
 // is assigned the ingredient column its value will travel in. Everything
 // downstream just sums columns and applies a formula.
 //
@@ -35,14 +35,11 @@ import type {
   CommonIndicatorWithMappings,
   IndicatorFormat,
 } from "./types/indicators.ts";
-import {
-  parsePopulationIngredientId,
-  populationIngredientId,
-} from "./types/population.ts";
+import { isPopulationTypeId } from "./types/population.ts";
 
 // One row of the v2 `indicators.json` mirror. `expression` is flattened and
 // `slot_map` names the ingredient column of each leaf it uses: a base common
-// or a `population:<type>` term, in first-appearance order, no slot special.
+// or a population type, in first-appearance order, no slot special.
 export type CommonIndicatorCatalogRow = {
   indicator_common_id: string;
   indicator_common_label: string;
@@ -76,7 +73,7 @@ export function buildCommonIndicatorDictionary(
         : c.definition.expression,
     })),
     ...populationTypeIds.map((id) => ({
-      id: populationIngredientId(id),
+      id,
       type: "population" as const,
       expression: null,
     })),
@@ -101,7 +98,7 @@ export function baseIdsWithMappings(
 // must resolve, and every flattened ingredient that is not a population term
 // must be a base common with data. Capture refuses the run on any other
 // answer; the indicator manager and editor show the same answer. Whether the
-// population store covers a `population:<type>` term is the person-years
+// population store covers a population type is the person-years
 // expansion's check at prepare time (PLAN_1b ruling 6), not this one.
 export type DerivedIndicatorComputability =
   | { kind: "computable"; resolved: ResolvedIndicatorExpression }
@@ -131,7 +128,7 @@ export function judgeDerivedIndicator(
     return { kind: "unresolvable", problem: e.message };
   }
   const missing = resolved.ingredientIds.filter((id) =>
-    parsePopulationIngredientId(id) === null && !baseIdsInData.has(id)
+    !isPopulationTypeId(id) && !baseIdsInData.has(id)
   );
   return missing.length > 0
     ? { kind: "unmapped_ingredients", resolved, missing }
@@ -181,7 +178,7 @@ function describeComputabilityProblem(
 // it would silently evaluate to NULL everywhere, so it fails the capture
 // instead: the same guard the retired numerator/denominator check performed,
 // now aware of chains. `populationTypeIds` is the store's vocabulary: a
-// `population:<type>` term resolves iff it names one.
+// population identifier resolves iff it names one.
 export function resolveCommonIndicatorCatalog(
   commons: CommonIndicator[],
   baseIdsInData: Set<string>,
@@ -257,7 +254,7 @@ export function resolveCommonIndicatorCatalog(
 // and m012, substituted into its script in place of the INDICATOR_INGREDIENTS
 // and INDICATOR_EXPRESSIONS tokens:
 //
-//   - the ingredient table says which base common (or `population:<type>`
+//   - the ingredient table says which base common (or population type's
 //     person-years row) fills which slot column of which indicator; the
 //     module sums those columns to area x month;
 //   - the expression table says how each indicator's slots combine, as the

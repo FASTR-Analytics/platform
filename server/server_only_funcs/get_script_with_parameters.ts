@@ -1,6 +1,7 @@
 import {
   buildIndicatorExpressionsRLiteral,
   buildIndicatorIngredientsRLiteral,
+  POPULATION_TYPE_IDS,
   populationTypesReferencedByCatalog,
   type CommonIndicatorCatalogRow,
   type HfaIndicator,
@@ -84,6 +85,13 @@ export function getScriptWithParameters(
     populationTypesReferencedByCatalog(commonIndicatorCatalog ?? []).length > 0
       ? "TRUE"
       : "FALSE"
+  );
+  // The population type vocabulary, so m012 can tell a population ingredient
+  // from a base common without a naming convention (a common id may
+  // legitimately start with `population_`).
+  str = str.replaceAll(
+    "POPULATION_TYPE_IDS",
+    `c(${POPULATION_TYPE_IDS.map((id) => JSON.stringify(id)).join(", ")})`
   );
 
   for (const ds of moduleDefinition.dataSources) {

@@ -18,13 +18,12 @@ import {
   type ExpressionValues,
   parseIndicatorExpression,
   POPULATION_TYPE_IDS,
-  populationIngredientId,
   resolveCommonIndicatorCatalog,
 } from "lib";
 import { getModuleDefinitionDetail } from "../module_loader/mod.ts";
 import { getScriptWithParameters } from "../server_only_funcs/get_script_with_parameters.ts";
 
-const POPULATION_TYPE = "u5";
+const POPULATION_TYPE = "population_u5";
 
 function common(
   id: string,
@@ -59,7 +58,7 @@ const COMMONS: CommonIndicator[] = [
   common("anc1_not5", { type: "derived", expression: "nullif(anc1, 5)" }, 7),
   common("anc1_per_1000_u5", {
     type: "derived",
-    expression: `1000 * anc1 / [${populationIngredientId(POPULATION_TYPE)}]`,
+    expression: `1000 * anc1 / ${POPULATION_TYPE}`,
   }, 8),
   common("penta1_share", { type: "derived", expression: "penta1 / anc1" }, 9),
   common("anc_gap", {
@@ -171,7 +170,7 @@ function expectedCells(catalog: CommonIndicatorCatalogRow[]): Set<string> {
   for (const aa2 of POPULATION_AREAS) {
     for (const p of PERIODS) {
       sums.set(
-        cellKey(populationIngredientId(POPULATION_TYPE), aa2, p),
+        cellKey(POPULATION_TYPE, aa2, p),
         POPULATION_PERSON_YEARS,
       );
     }

@@ -811,7 +811,8 @@ substitution; every generator takes a required per-caller `datasetsDirPath`
 (the run pipeline passes `"../../inputs/datasets"`). Markers replaced via
 `str.replaceAll`: `COUNTRY_ISO3`, `INDICATOR_INGREDIENTS` (m012's ingredient
 table as a tribble literal, see m012 below), `POPULATION_ACTIVE` (an R
-`TRUE`/`FALSE`, see "population.csv"), dataSource `replacementString`s
+`TRUE`/`FALSE`, see "population.csv"), `POPULATION_TYPE_IDS` (an R
+character vector of the population type ids), dataSource `replacementString`s
 (dataset, results-object, and `population` → the quoted path of
 `inputs/population.csv`, `populationFilePathLiteral`), and config params by
 type. **Every substituted
@@ -909,17 +910,18 @@ the `INDICATOR_INGREDIENTS` and `INDICATOR_EXPRESSIONS` tokens
 (`buildIndicatorIngredientsRLiteral` and `buildIndicatorExpressionsRLiteral`
 in `lib/common_indicator_catalog.ts`), the same channel as `COUNTRY_ISO3`
 and every module parameter. The ingredient table says which base common (or
-`population:<type>` person-years row) fills which slot of which indicator.
+population type's person-years row) fills which slot of which indicator.
 The expression table carries each indicator's flattened expression rewritten
 over the slot names `ing1..ing8`: the expression language's syntax is a
 subset of R's, so the text is R source as written. The R sums the selected
 count column across facilities to admin area × month × indicator at the
 person-years file's level (the population level when a formula names a
 population, the HMIS depth otherwise, see "population.csv"), binds the
-person-years rows in under the pseudo-indicator id `population:<type>` (the
-same id the ingredient table names wherever an expression's population term
-was assigned a slot, the two halves of one contract,
-`populationIngredientId` in `lib/types/population.ts`), joins the ingredient
+person-years rows in under the population type id (the same id the
+ingredient table names wherever an expression's population term was
+assigned a slot; the script tells a population ingredient from a base
+common by the substituted `POPULATION_TYPE_IDS` vector, never by a prefix,
+since a common id may start with `population_`), joins the ingredient
 table, and pivots each indicator's ingredients into `ing1..ing8` of
 `M12_indicator_values.csv`.
 
@@ -978,9 +980,9 @@ The run's `inputs/population.csv` is the population store (S5 "Population
 store") expanded stock→flow at capture. Written by `prepare_inputs.ts`
 (`writePopulationPersonYears`) on **every** HMIS capture: columns
 `admin_area_2..N`, `period_id`, `population_type`, `person_years`, for
-exactly the types the resolved catalog's slot maps reference under the
-`population:` prefix (`populationTypesReferencedByCatalog`: there is no
-column and no declaration, the expression IS the declaration). The header
+exactly the population type ids the resolved catalog's slot maps reference
+(`populationTypesReferencedByCatalog`: there is no column and no
+declaration, the expression IS the declaration). The header
 alone sets m012's grain (below). This is what lets m012 declare the file
 unconditionally: it is the `population` dataSource kind (github + installed
 schemas, `sourceType: "population"`), substituted as the quoted path and

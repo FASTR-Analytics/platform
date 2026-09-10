@@ -30,12 +30,12 @@ import {
   type DerivedIndicatorComputability,
   getLanguage,
   getNewIndicatorIdIssue,
+  RESERVED_INDICATOR_IDS,
   type IndicatorFormat,
   judgeDerivedIndicator,
   parseIndicatorExpression,
-  parsePopulationIngredientId,
+  isPopulationTypeId,
   POPULATION_TYPE_IDS,
-  populationIngredientId,
   populationTypeLabel,
   type RawIndicatorWithMappings,
   t3,
@@ -234,14 +234,13 @@ export function EditIndicatorCommonForm(
       return [];
     }
     return ids.map((id) => {
-      const populationType = parsePopulationIngredientId(id);
-      if (populationType !== null) {
+      if (isPopulationTypeId(id)) {
         return {
           identifier: writeIdentifier(id),
           kind: "population",
-          label: t3(populationTypeLabel(populationType)),
+          label: t3(populationTypeLabel(id)),
           coverage: populationCoverageSummary(
-            populationType,
+            id,
             instanceState.populationCoverage,
           ),
         };
@@ -312,7 +311,20 @@ export function EditIndicatorCommonForm(
         };
       }
 
-      if (mode === "create" && getNewIndicatorIdIssue(commonId)) {
+      const idIssue = mode === "create"
+        ? getNewIndicatorIdIssue(commonId, "common")
+        : undefined;
+      if (idIssue === "reserved") {
+        return {
+          success: false,
+          err: t3({
+            en: `"${commonId}" is a reserved word and cannot be an indicator ID (reserved: ${RESERVED_INDICATOR_IDS.join(", ")})`,
+            fr: `« ${commonId} » est un mot réservé et ne peut pas être un identifiant d'indicateur (réservés : ${RESERVED_INDICATOR_IDS.join(", ")})`,
+            pt: `"${commonId}" é uma palavra reservada e não pode ser um ID de indicador (reservadas: ${RESERVED_INDICATOR_IDS.join(", ")})`,
+          }),
+        };
+      }
+      if (idIssue !== undefined) {
         return {
           success: false,
           err: t3({
@@ -493,9 +505,9 @@ export function EditIndicatorCommonForm(
             </div>
             <div class="ui-text-caption text-xs">
               {t3({
-                en: "Use + - * / and parentheses over other indicators and populations, e.g. anc4 / anc1 or anc4 / [population:pregnancies]. abs(), coalesce() and nullif() are available.",
-                fr: "Utilisez + - * / et des parenthèses sur d'autres indicateurs et des populations, par ex. anc4 / anc1 ou anc4 / [population:pregnancies]. abs(), coalesce() et nullif() sont disponibles.",
-                pt: "Utilize + - * / e parênteses sobre outros indicadores e populações, por ex. anc4 / anc1 ou anc4 / [population:pregnancies]. abs(), coalesce() e nullif() estão disponíveis.",
+                en: "Use + - * / and parentheses over other indicators and populations, e.g. anc4 / anc1 or anc4 / population_pregnancies. abs(), coalesce() and nullif() are available.",
+                fr: "Utilisez + - * / et des parenthèses sur d'autres indicateurs et des populations, par ex. anc4 / anc1 ou anc4 / population_pregnancies. abs(), coalesce() et nullif() sont disponibles.",
+                pt: "Utilize + - * / e parênteses sobre outros indicadores e populações, por ex. anc4 / anc1 ou anc4 / population_pregnancies. abs(), coalesce() e nullif() estão disponíveis.",
               })}
             </div>
             <Show when={expressionError()}>
@@ -533,7 +545,7 @@ export function EditIndicatorCommonForm(
                   pt: "Inserir população",
                 })}
                 value={undefined}
-                onChange={(id) => insertIdentifier(populationIngredientId(id))}
+                onChange={insertIdentifier}
                 placeholder={t3({
                   en: "Search populations...",
                   fr: "Rechercher des populations...",

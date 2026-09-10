@@ -4,7 +4,7 @@
 // country is still mapping raw indicators, so nothing here blocks a save.
 import {
   type DerivedIndicatorComputability,
-  parsePopulationIngredientId,
+  isPopulationTypeId,
   type PopulationCoverage,
   populationTypeLabel,
   populationYearRangeLabel,
@@ -47,8 +47,7 @@ export function missingPopulationText(
   coverage: PopulationCoverage[],
 ): string | undefined {
   const emptyTypes = resolved.ingredientIds
-    .map(parsePopulationIngredientId)
-    .filter((type): type is string => type !== null)
+    .filter(isPopulationTypeId)
     .filter((type) => populationCoverageSummary(type, coverage).empty);
   if (emptyTypes.length === 0) return undefined;
   const labels = emptyTypes.map((type) => t3(populationTypeLabel(type))).join(

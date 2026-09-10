@@ -9,7 +9,7 @@
 //
 // Flattening is substitution: a `derived` ingredient is replaced by its own
 // expression, recursively, until the expression names nothing but leaves:
-// `base` commons and `population:<type>` terms. Those leaves ARE the
+// `base` commons and population types. Those leaves ARE the
 // ingredients that travel as ing1..ingN on a results row, which is why the
 // cap is measured AFTER flattening.
 //
@@ -20,7 +20,7 @@ import {
   type ExpressionNode,
   parseIndicatorExpression,
 } from "./parse.ts";
-import { parsePopulationIngredientId } from "../types/population.ts";
+import { isPopulationTypeId, POPULATION_TYPE_IDS } from "../types/population.ts";
 
 // The results object carries eight ingredient slots (PLAN_1a §1.5).
 export const MAX_INDICATOR_EXPRESSION_INGREDIENTS = 8;
@@ -37,8 +37,8 @@ export const MAX_INDICATOR_EXPRESSION_DEPTH = 8;
 // limits put a legitimate expression orders of magnitude below it.
 export const MAX_INDICATOR_EXPRESSION_NODES = 1000;
 
-// `population` entries are the store's types under their `population:<type>`
-// ingredient id (populationIngredientId): leaves, like `base`.
+// `population` entries are the store's types under their own id
+// (POPULATION_TYPE_IDS, reserved words): leaves, like `base`.
 export type ExpressionDictionaryEntry = {
   id: string;
   type: "base" | "derived" | "population";
@@ -52,7 +52,7 @@ export class IndicatorExpressionError extends Error {}
 
 export type ResolvedIndicatorExpression = {
   // The flattened AST: every identifier is a `base` common indicator id or
-  // a `population:<type>` term.
+  // a population type id.
   ast: ExpressionNode;
   // Those leaf ids, in first-appearance order. This IS the slot order.
   ingredientIds: string[];
@@ -95,13 +95,11 @@ export function resolveIndicatorExpression(args: {
         const entry = dictionary.get(node.name);
         if (entry === undefined) {
           throw new IndicatorExpressionError(
-            parsePopulationIngredientId(node.name) === null
-              ? `${describeChain(chain)} names ${
-                JSON.stringify(node.name)
-              }, which is not a common indicator`
-              : `${describeChain(chain)} names ${
-                JSON.stringify(node.name)
-              }, which is not a population type — add it on the Population page`,
+            `${describeChain(chain)} names ${
+              JSON.stringify(node.name)
+            }, which is not a common indicator or a population type (${
+              POPULATION_TYPE_IDS.join(", ")
+            })`,
           );
         }
         if (entry.type === "base" || entry.type === "population") {
@@ -150,9 +148,7 @@ export function resolveIndicatorExpression(args: {
   const ast = substitute(parseExpressionOf(ownId, source), [ownId]);
   const ingredientIds = collectIdentifiers(ast);
   // A population-only expression would be a rate with no numerator.
-  if (
-    ingredientIds.every((id) => parsePopulationIngredientId(id) !== null)
-  ) {
+  if (ingredientIds.every(isPopulationTypeId)) {
     throw new IndicatorExpressionError(
       "An expression must use at least one common indicator",
     );

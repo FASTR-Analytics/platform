@@ -310,8 +310,8 @@ CREATE INDEX idx_facilities_hfa_facility_ownership ON facilities_hfa(facility_ow
 -- ============================================================================
 
 -- A common indicator carries what it IS and how it is presented. `expression`
--- holds a derived indicator's formula (which may name a population type as
--- `[population:<type>]`; the app validates the reference, there is no FK)
+-- holds a derived indicator's formula (which may name a population type by
+-- its id, a reserved word; the app validates the reference, there is no FK)
 -- and is NULL for a base one. `thresholds` is the indicator's own
 -- conditional-formatting rule as JSON text (lib thresholdsRuleSchema:
 -- cutoffs in stored units, buckets with colour + label, direction), NULL
