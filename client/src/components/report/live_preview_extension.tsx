@@ -516,7 +516,7 @@ class RegionWidget extends WidgetType {
   }
 
   override get estimatedHeight(): number {
-    const seen = measuredRegionHeights.get(this.source);
+    const seen = measuredBlockHeights.get(blockKey("r", this.source));
     if (seen !== undefined) return seen;
     if (this.kind === "embed") return 260;
     const lines = this.endLine - this.startLine + 1;
@@ -3428,7 +3428,14 @@ function applyRegionPagination(
   const split = ps.regionSplits.get(startLine);
   if (split !== undefined) {
     dom.classList.add("fm-live-region--split");
-    const first = dom.querySelector<HTMLElement>(".fm-peer-layer + *");
+    // At the top of the block's own content: after a seam that opens the
+    // block's page (rel 0), or the flag would stand at the foot of the page
+    // before, counted by the layout as the block's and drawn as the other
+    // page's.
+    let first = dom.querySelector<HTMLElement>(".fm-peer-layer + *");
+    while (first !== null && first.classList.contains("fm-page-gutter")) {
+      first = first.nextElementSibling as HTMLElement | null;
+    }
     const flag = splitFlag(split);
     if (first && first.parentElement) first.parentElement.insertBefore(flag, first);
     else dom.append(flag);
@@ -3469,20 +3476,6 @@ function lineBox(view: EditorView, line0: number): { top: number; bottom: number
   return { top: own[0].top, bottom: own[own.length - 1].bottom };
 }
 
-// The height of the page seams (and the page head) attached before a line:
-// they stand between two blocks in the height map but are not space
-// between them.
-function seamsAbove(view: EditorView, line0: number): number {
-  const block = view.lineBlockAt(view.state.doc.line(line0 + 1).from);
-  if (!Array.isArray(block.type)) return 0;
-  let h = 0;
-  for (const p of block.type as readonly BlockInfo[]) {
-    if (p.type !== BlockType.WidgetBefore) continue;
-    const w = p.widget;
-    if (w instanceof PageGutterWidget || w instanceof PageHeadWidget) h += p.height;
-  }
-  return h;
-}
 
 // The document's regions by line, computed once per document version.
 type DocBlocks = {
@@ -3617,16 +3610,34 @@ function regionClassOf(r: FastrLiveRegion): { cls: string; tag: string } {
   return { cls: `fm-${name}`, tag: "div" };
 }
 
-// Regions' heights as rendered, by source text (a region that has been on
-// screen keeps its real height as its estimate wherever it goes).
-const measuredRegionHeights = new Map<string, number>();
-const MEASURED_REGION_CAP = 2000;
-function rememberRegionHeight(text: string, height: number): void {
-  if (measuredRegionHeights.size >= MEASURED_REGION_CAP) {
-    const first = measuredRegionHeights.keys().next().value;
-    if (first !== undefined) measuredRegionHeights.delete(first);
+// Every block's height as measured on screen, by kind and source text: a
+// block that has been rendered keeps its real height wherever it goes and
+// whether or not it is rendered now, so a page laid out once does not
+// change as its blocks scroll out of CodeMirror's rendered range (their
+// heights would otherwise fall back to estimates that differ by a pixel or
+// two, and a seam that moves on scroll is the flicker Nick saw). The cache
+// belongs to one geometry: the content column's width and the body font;
+// a theme or page-size change starts it over.
+const measuredBlockHeights = new Map<string, number>();
+let measuredEpoch = "";
+const MEASURED_CAP = 4000;
+function blockKey(kind: "r" | "p" | "s", text: string): string {
+  return `${kind}\u0000${text}`;
+}
+function rememberBlockHeight(key: string, height: number): void {
+  if (measuredBlockHeights.size >= MEASURED_CAP) {
+    const first = measuredBlockHeights.keys().next().value;
+    if (first !== undefined) measuredBlockHeights.delete(first);
   }
-  measuredRegionHeights.set(text, height);
+  measuredBlockHeights.set(key, height);
+}
+function keepMeasuredEpoch(view: EditorView): void {
+  const cs = getComputedStyle(view.contentDOM);
+  const epoch = `${view.contentDOM.clientWidth}|${cs.fontFamily}|${cs.fontSize}|${cs.lineHeight}`;
+  if (epoch !== measuredEpoch) {
+    measuredEpoch = epoch;
+    measuredBlockHeights.clear();
+  }
 }
 
 // A region widget's inner break candidates, from its rendered DOM: every
@@ -3680,22 +3691,15 @@ function flowBlocksOf(
   const blank = (i: number) => doc.line(i + 1).text.trim().length === 0;
   const textOf = (from: number, to: number) => doc.sliceString(doc.line(from + 1).from, doc.line(to + 1).to);
   const blocks: FlowBlock[] = [];
-  // The space above a block: measured between two rendered blocks (the
-  // seam between them does not count); elsewhere the blank separator line
-  // when one stands between them, nothing when they touch. The height map
-  // places an unrendered line by guesswork, so a measured distance to it
-  // means nothing.
+  // The space above a block: the blank separator line when one stands
+  // between it and the previous block, nothing when they touch. From the
+  // source, never from positions: the height map places an unrendered line
+  // by guesswork, and even between rendered blocks the measured distance
+  // is the same separator to the pixel, so the source is the stable answer.
   const separator = oracle.lines([{ cls: "cm-fm-blank", text: "" }]) ?? 16;
   let separated = false;
   const push = (b: Omit<FlowBlock, "gap">) => {
-    const prev = blocks[blocks.length - 1];
-    const gap = prev === undefined
-      ? 0
-      : prev.rendered && b.rendered
-      ? Math.max(0, b.top - prev.bottom - seamsAbove(view, b.line))
-      : separated
-      ? separator
-      : 0;
+    const gap = blocks.length === 0 ? 0 : separated ? separator : 0;
     blocks.push({ ...b, gap });
     separated = false;
   };
@@ -3717,6 +3721,7 @@ function flowBlocksOf(
       let height = bottom - top;
       let inner: { line: number; top: number }[] | undefined;
       const isRendered = rendered(r.startLine, r.endLine);
+      const key = blockKey("r", text);
       if (isRendered) {
         // The widget's box holds the seams inside it (a block continued
         // across pages): the block's own height is the rest.
@@ -3725,11 +3730,11 @@ function flowBlocksOf(
           for (const seam of Array.from(dom.querySelectorAll<HTMLElement>(".fm-page-gutter"))) {
             height -= seam.getBoundingClientRect().height;
           }
-          rememberRegionHeight(text, height);
+          rememberBlockHeight(key, height);
           if (height > area) inner = innerCandidates(view, r.startLine);
         }
       } else {
-        const seen = measuredRegionHeights.get(text);
+        const seen = measuredBlockHeights.get(key);
         const hint = hints.get(text);
         if (seen !== undefined) height = seen;
         else if (hint !== undefined) {
@@ -3764,13 +3769,17 @@ function flowBlocksOf(
       if (prevBlank && i >= start) {
         const box = lineBox(view, i);
         const isRendered = rendered(i, i);
+        const key = blockKey("s", "");
+        let height = box.bottom - box.top;
+        if (isRendered) rememberBlockHeight(key, height);
+        else height = measuredBlockHeights.get(key) ?? oracle.lines([{ cls: "cm-fm-space", text: "" }]) ?? height;
         push({
           line: i,
           endLine: i,
           top: box.top,
           bottom: box.bottom,
           text: "",
-          height: isRendered ? box.bottom - box.top : oracle.lines([{ cls: "cm-fm-space", text: "" }]) ?? box.bottom - box.top,
+          height,
           heading: false,
           pagebreak: false,
           breakBefore: false,
@@ -3791,15 +3800,22 @@ function flowBlocksOf(
     const text = textOf(i, j);
     let height = bottom - top;
     const isRendered = rendered(i, j);
-    if (!isRendered) {
-      // A plain paragraph wraps in print exactly as in the editor, so
-      // print's height is exact; a heading or a list carries editor-only
-      // padding, so those are measured the editor's way.
-      const rows: { cls: string; text: string }[] = [];
-      for (let k = i; k <= j; k++) rows.push(editorLineOf(doc.line(k + 1).text));
-      const plain = rows.every((row) => row.cls === "");
-      const hint = plain ? hints.get(text) : undefined;
-      height = hint ?? oracle.lines(rows) ?? height;
+    const key = blockKey("p", text);
+    if (isRendered) rememberBlockHeight(key, height);
+    else {
+      // Once measured, that; else print's height for a plain paragraph
+      // (it wraps in print exactly as in the editor); else the lines
+      // measured the editor's way (a heading or a list carries editor-only
+      // padding).
+      const seen = measuredBlockHeights.get(key);
+      if (seen !== undefined) height = seen;
+      else {
+        const rows: { cls: string; text: string }[] = [];
+        for (let k = i; k <= j; k++) rows.push(editorLineOf(doc.line(k + 1).text));
+        const plain = rows.every((row) => row.cls === "");
+        const hint = plain ? hints.get(text) : undefined;
+        height = hint ?? oracle.lines(rows) ?? height;
+      }
     }
     push({
       line: i,
@@ -3849,33 +3865,6 @@ function samePages(a: FastrPagedResult, b: FastrPagedResult): boolean {
     a.splits.every((s, i) => s.line === b.splits[i]?.line);
 }
 
-// Where a page's content starts, in document space. A page that opens on a
-// plain line has its seam as a block widget before the line, outside the
-// line's own box; a page that opens on a REGION carries its seam inside the
-// region's widget (applyRegionPagination, rel 0), so the widget's box begins
-// with the seam: the content starts under the seam's head, measured when the
-// seam is rendered, estimated from its chrome and filler otherwise.
-const SEAM_CHROME_PX = 182;
-function pageTopOf(
-  view: EditorView,
-  pag: EditorPagination,
-  page: FastrPagedPage,
-  from: number,
-  seamEls: Map<number, HTMLElement>,
-): number {
-  const box = lineBox(view, from);
-  if (page.number === 1) return box.top;
-  const seam = seamEls.get(page.number);
-  if (seam !== undefined && seam.classList.contains("fm-page-gutter--inner")) {
-    const edge = seam.querySelector<HTMLElement>(".fm-page-gutter__head") ??
-      seam.querySelector<HTMLElement>(".fm-page-gutter__band");
-    if (edge !== null) return edge.getBoundingClientRect().bottom - view.documentTop;
-  }
-  const region = docBlocksOf(view.state).owner[from];
-  if (region === undefined || region.startLine !== from) return box.top;
-  const chrome = page.cover || page.flushTop ? SEAM_CHROME_PX - 77 : SEAM_CHROME_PX;
-  return box.top + (pag.fillers?.get(page.number - 1) ?? 0) + chrome;
-}
 
 const pageBoxPlugin = ViewPlugin.fromClass(
   class {
@@ -3954,11 +3943,12 @@ const pageBoxPlugin = ViewPlugin.fromClass(
         safety: LAYOUT_SAFETY_PX,
       };
       const area = geometry.pageH - 2 * geometry.marginPx - LAYOUT_SAFETY_PX;
+      keepMeasuredEpoch(view);
       // The layout, from the heights as they stand.
-      if (!this.pendingMove) {
-        const blocks = flowBlocksOf(view, hints, area, this.oracle);
-        const laid = layoutFastrPages(blocks, layoutGeometry);
-        if (!samePages(laid, pag.result)) return { pag, move: laid, writes: [], aligns: [] };
+      const blocks = flowBlocksOf(view, hints, area, this.oracle);
+      const laid = layoutFastrPages(blocks, layoutGeometry);
+      if (!this.pendingMove && !samePages(laid, pag.result)) {
+        return { pag, move: laid, writes: [], aligns: [] };
       }
       const writes: BoxMeasure["writes"] = [];
       const aligns: BoxMeasure["aligns"] = [];
@@ -3984,27 +3974,35 @@ const pageBoxPlugin = ViewPlugin.fromClass(
         const n = Number(el.getAttribute("data-page"));
         if (Number.isFinite(n) && !seamEls.has(n)) seamEls.set(n, el);
       }
+      // Each page's filler from the layout's own numbers (the blocks and
+      // gaps it stacked, plus the blank separator line that trails the
+      // page's last block), never from the DOM: the same heights that
+      // placed the seam pad the page, on screen or not, so a box is the
+      // same size before and after its lines are rendered.
       const doc = view.state.doc;
-      const pages = pag.result.pages;
+      const separator = this.oracle.lines([{ cls: "cm-fm-blank", text: "" }]) ?? 16;
+      const pages = laid.pages;
+      let b = 0;
       for (let i = 0; i < pages.length; i++) {
         const page = pages[i];
-        const from = i === 0 ? 0 : page.firstLine;
         const to = pages[i + 1]?.firstLine ?? doc.lines;
-        if (from === undefined || to === undefined || from >= to || from >= doc.lines) continue;
-        const pageTop = pageTopOf(view, pag, page, from, seamEls);
-        // A page that ends inside a block (the block continues on the next
-        // page) ends at that block's inner seam: the seam's top is the
-        // page's content bottom.
-        const nextSeam = seamEls.get(page.number + 1);
-        const endsInside = nextSeam !== undefined && nextSeam.classList.contains("fm-page-gutter--inner") &&
-          !nextSeam.classList.contains("fm-page-gutter--end");
-        const contentBottom = endsInside
-          ? nextSeam.getBoundingClientRect().top - view.documentTop
-          : lineBox(view, Math.min(to, doc.lines) - 1).bottom;
-        const filler = Math.max(
-          0,
-          Math.round(fastrPageArea(layoutGeometry, page) - (contentBottom - pageTop)),
-        );
+        // The last block that starts on this page.
+        let last: FlowBlock | undefined;
+        while (b < blocks.length && blocks[b].line < to) {
+          last = blocks[b];
+          b++;
+        }
+        let extent = page.contentHeight;
+        if (last !== undefined && last.endLine < to) {
+          // The block completed on this page; a blank line after it is the
+          // separator, which stays on this page before the seam.
+          const after = last.endLine + 1;
+          if (after < doc.lines && after < to && doc.line(after + 1).text.trim().length === 0) {
+            extent += separator;
+          }
+        }
+        if (last !== undefined && last.endLine >= to) b--;
+        const filler = Math.max(0, Math.round(fastrPageArea(layoutGeometry, page) - extent));
         const el = seamEls.get(page.number + 1);
         const current = el !== undefined
           ? parseFloat(el.style.paddingTop) || 0

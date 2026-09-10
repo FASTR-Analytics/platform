@@ -97,6 +97,10 @@ export function layoutFastrPages(
       let j = i;
       while (j > first && blocks[j - 1].heading) j--;
       if (j > first) {
+        // The page keeps what stands before the moved blocks; the heading
+        // that moves was already counted, so the page's height is re-summed.
+        used = 0;
+        for (let k = first; k < j; k++) used += (k === first ? 0 : blocks[k].gap) + blocks[k].height;
         close();
         page = openPage(blocks[j], false);
         area = fastrPageArea(g, page) - safety;

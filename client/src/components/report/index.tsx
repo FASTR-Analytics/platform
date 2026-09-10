@@ -1985,7 +1985,12 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
               pages={pagesOn}
               buildPagedHtml={buildPagedHtml}
               pagesKey={pagesKey}
-              ref={(api) => (editorApi = api)}
+              ref={(api) => {
+                editorApi = api;
+                // The page-box effect below can run before the editor
+                // mounts (first open): ask again now that it is here.
+                if (paginationWanted()) api.setPagination(emptyPagination());
+              }}
             />
           </div>
           {/* HTML preview: visible in View & Split. Unmounts in Edit, so its

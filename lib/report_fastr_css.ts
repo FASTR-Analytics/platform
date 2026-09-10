@@ -1336,6 +1336,16 @@ ${d}.fm-live-region > *:last-child {
 }
 ${d}.cm-fm-space + .fm-live-region > .fm-peer-layer + * { margin-top: var(--fm-mt, 0px) !important; }
 ${d}.fm-live-region:has(+ .cm-fm-space) > *:last-child { margin-bottom: var(--fm-mb, 0px) !important; }
+/* A block taller than a page carries page seams and a "continues" flag
+   inside its widget. The flag is chrome, not the block: no margin of its
+   own, and the block after it takes the clamp the block would have taken.
+   The block after a seam stands at the top of a page, where print
+   truncates its margin: none here either. */
+${d}.fm-live-region > .fm-page-split { margin-top: 0 !important; }
+${d}.fm-live-region > .fm-page-split + * {
+  margin-top: max(0px, calc(var(--fm-mt, 0px) - var(--fm-separator))) !important;
+}
+${d}.fm-live-region > .fm-page-gutter--inner + * { margin-top: 0 !important; }
 /* The peer layer (carets, presence) sits first in every widget and covers
    it; it is not content, so the clamp above addresses the child after it. */
 ${d}.fm-peer-layer {

@@ -34,6 +34,10 @@ Deno.test("a heading travels with the block after it", () => {
     G,
   );
   assertEquals(fastrPageStartLines(r), [2]);
+  // The page the heading left counts only what stayed: the heading was
+  // added to it before the block after it failed to fit.
+  assertEquals(r.pages[0].contentHeight, 700);
+  assertEquals(r.pages[1].contentHeight, 40 + 16 + 400);
   // A heading that is the page's only block is not pushed into an empty page.
   const r2 = layoutFastrPages([block(0, 40, { heading: true }), block(2, 2000)], G);
   assertEquals(fastrPageStartLines(r2), []);
