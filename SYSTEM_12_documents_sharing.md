@@ -69,6 +69,7 @@ globs:
   - server/routes/project/slides.ts
   - server/routes/public/dashboard.ts
   - server/tests/fastr_live_regions_test.ts
+  - server/tests/fastr_markdown_pages_test.ts
   - server/tests/fastr_markdown_edits_test.ts
   - server/tests/report_fastr_markdown_test.ts
   - server/tests/report_format_helpers_test.ts
@@ -469,8 +470,27 @@ differ from the current pagination the plugin dispatches the new one after
 the cycle: Enter moves a block onto the next page in the same frame and
 Backspace brings it back, with nothing to wait for. Every seam's filler
 (the padding that brings a page box to the sheet's height, `--fm-page-h`
-1123px for A4, `--fm-page-margin` 68px) comes from the same height map, on
-screen or not, so a page box is never the wrong size.
+1123px for A4, `--fm-page-margin` 68px) comes from the layout's own
+numbers (the blocks and gaps it stacked on the page, plus the separator
+line trailing the last block), on screen or not, so a page box is the
+same size before and after its lines are rendered. A block's height, once
+measured, is kept by kind and source text (`measuredBlockHeights`, one
+cache per geometry epoch: column width and body font) and used wherever
+the block goes and whether or not it is rendered now, and the space
+between blocks always comes from the source (a separator line or
+nothing): the first build re-read both from the height map as blocks
+scrolled in and out of CodeMirror's rendered range, and the pixel or two
+between a measurement and an estimate moved seams while scrolling (Nick,
+2026-09-10, "scrolling makes things flicker between pages"). Two more
+findings from the same probe: the layout's page height once kept a heading
+that moved to the next page with the block after it (the page starts were
+right, the filler was that heading short, a 1042px box wherever a page
+ended before a heading and a figure), pinned by the layout test; and a
+block taller than a page carries its "continues" flag inside its widget
+AFTER the seam that opens its page, with no margin of its own, the block
+after an inner seam taking none either (print truncates a margin at a page
+top), or the flag stood at the foot of the page before and the layout
+counted it as the block's.
 
 The height map is measured where a line has been on screen and estimated
 elsewhere, and a page laid out from guesses moves when it scrolls in, so
@@ -512,9 +532,7 @@ padding), so the box visibly stops and resumes; the stylesheet centres it
 on the block's content box and `pageBoxPlugin` measures it against the
 sheet and writes the exact margin and width inline (a callout's 4px left
 border alone puts the strip 2px past the sheet, which is a horizontal
-scrollbar on the whole editor); `pageTopOf` reads such a page's content top
-under the seam's head, or estimates it from the seam chrome (182px) and the
-filler. A page a natural cover opens has no top margin in the editor either
+scrollbar on the whole editor). A page a natural cover opens has no top margin in the editor either
 (`FastrPagedPage.flushTop`: no PageHeadWidget, content area = sheet less
 the bottom margin). Embeds are laid out at the boxes the PDF gives them
 (`createFigureSizeCache`: a figure's raster aspect from a 200px panther

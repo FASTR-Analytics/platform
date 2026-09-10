@@ -350,6 +350,7 @@ export function ReportEditor(p: Props) {
     view.dispatch({
       effects: livePreviewCompartment.reconfigure(liveExtensions(on, collab)),
     });
+    if (on) reapplyPagination();
   }
 
   function buildView(collab: { yText: Y.Text; awareness: Awareness } | undefined) {
@@ -478,6 +479,7 @@ export function ReportEditor(p: Props) {
       parent.classList.toggle(FM_LIVE_SCOPE_CLASS, liveOn);
       ctxKey = "";
       emitContext(view.state, true);
+      if (liveOn) reapplyPagination();
     }
   }
 
@@ -865,12 +867,33 @@ export function ReportEditor(p: Props) {
     view?.requestMeasure();
   }
 
+  // The page boxes and the layout hints the host last asked for. The host
+  // asks once, when it decides page boxes are wanted, which can be before
+  // the view exists (first open) and is not repeated when the view is
+  // rebuilt (a collab or permission change) or the live preview is
+  // reconfigured, both of which start the pagination field empty. So the
+  // wish is kept and re-applied at each of those points; on first open the
+  // page boxes were missing until a mode switch asked again (Nick,
+  // 2026-09-10).
+  let wantedPagination: EditorPagination | undefined;
+  let wantedHints: Map<string, number> | undefined;
+
   function setPagination(pagination: EditorPagination | undefined) {
+    wantedPagination = pagination;
     view?.dispatch({ effects: setPaginationEffect.of(pagination) });
   }
 
   function setLayoutHints(hints: Map<string, number>) {
+    wantedHints = hints;
     view?.dispatch({ effects: setLayoutHintsEffect.of(hints) });
+  }
+
+  function reapplyPagination() {
+    if (!view) return;
+    const effects = [];
+    if (wantedPagination !== undefined) effects.push(setPaginationEffect.of(wantedPagination));
+    if (wantedHints !== undefined) effects.push(setLayoutHintsEffect.of(wantedHints));
+    if (effects.length > 0) view.dispatch({ effects });
   }
 
   function getPageLayout(): { body: string; pageStarts: number[] } | undefined {
