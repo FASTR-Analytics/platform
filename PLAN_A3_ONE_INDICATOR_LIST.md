@@ -8,7 +8,7 @@ deletes that file). PLAN_A2 has landed (instance migration 084,
 `RESERVED_INDICATOR_IDS`, renamed by ruling 5): generated ids avoid its
 reserved words and the validator this plan extends is A2's.
 
-**Next step: Review 1.** Each session sets this line in its final commit. Its
+**Next step: Do 2.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N`; after step 6's review passes the
 file is deleted instead of advanced.
 
@@ -809,3 +809,7 @@ agent reads this section before its step.
 | 2026-09-10 | 1 | The seed label now goes through `t3` at boot, after `exposed_env_vars.ts` has set the instance language; `_COMMON_INDICATORS` called `t3` at lib module load. |
 | 2026-09-10 | 1 | Floor: typecheck, `deno task test` (28 passed), `validate_protocols`, `validate_migrations`, `validate_fresh_boot` green. Dev boot ran `dbStartUp` (13 projects and 13 manifests checked), route validation and the in-boot suite, then failed at listen only because a deno process started before the session holds port 8000. `client/src/app.css` carries an unrelated uncommitted edit from a parallel workstream; not staged. |
 | 2026-09-10 | 1 | Step 1 built |
+| 2026-09-10 | 1 | Review: `lib/table_structures/mod.ts` changed outside the Surface (its export line for the deleted `indicators.ts`) with no §8 row. The barrel edit is the deletion's only consequence; no code change. |
+| 2026-09-10 | 1 | Review: SYSTEM_05 line 269 runs past the file's wrap width after the seed paragraph rewrite. Formatting only; step 6's read-through rewraps it. |
+| 2026-09-10 | 1 | Review: every gate re-run green by the reviewer: typecheck (856 files claimed), `deno task test` 28 passed, `validate_protocols`, `validate_migrations`, `validate_fresh_boot` (22 specials as empty bases), gate 1 grep at zero. The committed tree booted against the dev database on `PORT=8001` to "Listening"; port 8000 is held by a server started before the step commit. Deliverable checked in code: 22 specials with en/fr/pt labels, `RESERVED_WORDS` union, generator per ruling 10, validator per ruling 5 on all four callers (retype covered in `updateIndicatorCommon` and the editor; batch upload writes bases only), frozen 14-id order in `indicator_catalog.ts`. |
+| 2026-09-10 | 1 | Step 1 reviewed: 2 findings |
