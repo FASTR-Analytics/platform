@@ -3106,6 +3106,11 @@ export type EditorPagination = {
   // pageBoxPlugin as pages are measured; a seam re-created on scroll reads
   // its size from here.
   fillers?: Map<number, number>;
+  // Per page number, the padding (px) under the head of the seam that opens
+  // the page: what the page's first block grows by at the top of a page
+  // (FastrLayoutBlock.topExtra), the seam's rather than the block's, written
+  // by pageBoxPlugin like the fillers.
+  topExtras?: Map<number, number>;
 };
 
 export const setPagination = StateEffect.define<EditorPagination | undefined>();
@@ -3192,6 +3197,8 @@ function seamElement(pag: EditorPagination, page: number, end = false): HTMLElem
   const starting = pag.result.pages[page - 1];
   const filler = pag.fillers?.get(page - 1);
   if (filler !== undefined && filler > 0) el.style.paddingTop = `${filler}px`;
+  const extra = pag.topExtras?.get(page);
+  if (extra !== undefined && extra > 0) el.style.paddingBottom = `${extra}px`;
   if (ending !== undefined && !ending.cover) {
     const foot = document.createElement("div");
     foot.className = "fm-page-gutter__foot";
@@ -3265,7 +3272,8 @@ class PageGutterWidget extends WidgetType {
     return dom;
   }
   override get estimatedHeight(): number {
-    return 182 + (this.pag.fillers?.get(this.page - 1) ?? 0);
+    return 182 + (this.pag.fillers?.get(this.page - 1) ?? 0) +
+      (this.pag.topExtras?.get(this.page) ?? 0);
   }
   override ignoreEvent(): boolean {
     return false;
@@ -3452,15 +3460,23 @@ function applyRegionPagination(
 // (fastrForcedBreaksCss), so the printed page is the page box.
 //
 // Heights are measured where a line has been on screen and estimated
-// elsewhere. Two things make the estimates good: a region's height is
+// elsewhere. Two things make the estimates good: a block's height is
 // remembered by its source text once it has been rendered
-// (measuredRegionHeights), and the host hands over print's own height for
+// (measuredBlockHeights), and the host hands over print's own height for
 // every block, by text, from a background layout (setLayoutHints), so a
 // page far below the viewport is laid out from real heights rather than
 // CodeMirror's guess, and a seam does not move when the page scrolls in.
 //
+// A block's box is the same wherever it stands: the stylesheet lets no
+// seam change a margin, or the layout that placed the seam would find
+// another height and move it away, then back, every frame. What print adds
+// at the top of a page (a block's whole top margin, where the editor's box
+// keeps only what exceeds the separator) is the block's topExtra: the
+// layout counts it when the block opens a page, and the seam carries it as
+// padding under its head, so the page reads as print's.
+//
 // Every seam's filler (the padding that brings a page box to the sheet's
-// height) comes from the same height map, on screen or not.
+// height) comes from the layout's own numbers, on screen or not.
 
 type FlowBlock = FastrLayoutBlock & { top: number; bottom: number; text: string; rendered: boolean };
 
@@ -3548,16 +3564,15 @@ class HeightOracle {
     this.cache.set(key, h);
     return h;
   }
-  // What a region's widget adds around print's box of the block: its flow
-  // margins (the --fm-mt/--fm-mb the structure sheet declares) less the
-  // blank separator line that stands in for one (the widget clamp in
-  // report_fastr_css.ts).
-  regionExtra(cls: string, tag = "div"): number {
+  // A region's flow margins as the structure sheet declares them for print
+  // (the --fm-mt/--fm-mb tokens beside every margin), px.
+  regionMargins(cls: string, tag = "div"): { mt: number; mb: number } {
     const key = `\u0002${tag}.${cls}`;
-    const hit = this.cache.get(key);
-    if (hit !== undefined) return hit;
+    const mt = this.cache.get(`${key}|mt`);
+    const mb = this.cache.get(`${key}|mb`);
+    if (mt !== undefined && mb !== undefined) return { mt, mb };
     const box = this.ensure();
-    if (box === undefined) return 0;
+    if (box === undefined) return { mt: 0, mb: 0 };
     const el = document.createElement(tag);
     el.className = cls;
     box.replaceChildren(el);
@@ -3569,11 +3584,63 @@ class HeightOracle {
       if (!Number.isFinite(n)) return 0;
       return t.endsWith("em") && !t.endsWith("rem") ? n * fs : n;
     };
+    const out = { mt: px(cs.getPropertyValue("--fm-mt")), mb: px(cs.getPropertyValue("--fm-mb")) };
+    this.cache.set(`${key}|mt`, out.mt);
+    this.cache.set(`${key}|mb`, out.mb);
+    return out;
+  }
+  // What a region's widget adds around print's box of the block: its flow
+  // margins less the blank separator line that stands in for one (the
+  // widget clamp in report_fastr_css.ts).
+  regionExtra(cls: string, tag = "div"): number {
+    const { mt, mb } = this.regionMargins(cls, tag);
     const sep = this.lines([{ cls: "cm-fm-blank", text: "" }]) ?? 16;
-    const extra = Math.max(0, px(cs.getPropertyValue("--fm-mt")) - sep) +
-      Math.max(0, px(cs.getPropertyValue("--fm-mb")) - sep);
-    this.cache.set(key, extra);
-    return extra;
+    return Math.max(0, mt - sep) + Math.max(0, mb - sep);
+  }
+  // Print's top margin of an element of this tag and class, px, as the
+  // structure sheet rules it inside the editor's scope (a heading's 1.8em,
+  // a blockquote's 1.4em, a code block's browser default).
+  printMarginTop(tag: string, cls = ""): number {
+    const key = `\u0003${tag}.${cls}`;
+    const hit = this.cache.get(key);
+    if (hit !== undefined) return hit;
+    const box = this.ensure();
+    if (box === undefined) return 0;
+    const el = document.createElement(tag);
+    if (cls.length > 0) el.className = cls;
+    box.replaceChildren(el);
+    const mt = parseFloat(getComputedStyle(el).marginTop) || 0;
+    this.cache.set(key, mt);
+    return mt;
+  }
+  // The padding above a line of this class as the editor draws it, after a
+  // line of space or not (a heading's differs), px.
+  linePaddingTop(cls: string, afterSpace: boolean): number {
+    const key = `\u0004${cls}|${afterSpace ? 1 : 0}`;
+    const hit = this.cache.get(key);
+    if (hit !== undefined) return hit;
+    const box = this.ensure();
+    if (box === undefined) return 0;
+    const els: HTMLElement[] = [];
+    if (afterSpace) {
+      const space = document.createElement("div");
+      space.className = "cm-line cm-fm-space";
+      space.textContent = "\u200b";
+      els.push(space);
+    }
+    const el = document.createElement("div");
+    el.className = `cm-line ${cls}`.trim();
+    el.textContent = "x";
+    els.push(el);
+    box.replaceChildren(...els);
+    const pt = parseFloat(getComputedStyle(el).paddingTop) || 0;
+    this.cache.set(key, pt);
+    return pt;
+  }
+  // The measures belong to one geometry (keepMeasuredEpoch).
+  reset() {
+    this.cache.clear();
+    this.width = -1;
   }
   dispose() {
     this.box?.remove();
@@ -3631,13 +3698,13 @@ function rememberBlockHeight(key: string, height: number): void {
   }
   measuredBlockHeights.set(key, height);
 }
-function keepMeasuredEpoch(view: EditorView): void {
+function keepMeasuredEpoch(view: EditorView): boolean {
   const cs = getComputedStyle(view.contentDOM);
   const epoch = `${view.contentDOM.clientWidth}|${cs.fontFamily}|${cs.fontSize}|${cs.lineHeight}`;
-  if (epoch !== measuredEpoch) {
-    measuredEpoch = epoch;
-    measuredBlockHeights.clear();
-  }
+  if (epoch === measuredEpoch) return false;
+  measuredEpoch = epoch;
+  measuredBlockHeights.clear();
+  return true;
 }
 
 // A region widget's inner break candidates, from its rendered DOM: every
@@ -3704,6 +3771,11 @@ function flowBlocksOf(
     separated = false;
   };
   const start = db.firstVisible !== undefined ? Math.max(0, db.firstVisible - 1) : 0;
+  // After a line of SPACE (a second blank line) a block keeps its whole top
+  // margin in the editor as in print; after the separator alone the clamp
+  // keeps what exceeds the separator, and print gives the rest back at the
+  // top of a page: the block's topExtra, the page's rather than the block's.
+  const afterSpace = (line: number) => line - 2 >= start && blank(line - 1) && blank(line - 2);
   let prevBlank = false;
   let i = 0;
   while (i < doc.lines) {
@@ -3722,6 +3794,7 @@ function flowBlocksOf(
       let inner: { line: number; top: number }[] | undefined;
       const isRendered = rendered(r.startLine, r.endLine);
       const key = blockKey("r", text);
+      const { cls, tag } = regionClassOf(r);
       if (isRendered) {
         // The widget's box holds the seams inside it (a block continued
         // across pages): the block's own height is the rest.
@@ -3738,10 +3811,15 @@ function flowBlocksOf(
         const hint = hints.get(text);
         if (seen !== undefined) height = seen;
         else if (hint !== undefined) {
-          const { cls, tag } = regionClassOf(r);
           height = name === "pagebreak" ? height : hint + oracle.regionExtra(cls, tag);
         }
       }
+      // The first block of the document and a cover have no top margin in
+      // print either; a page break marker has no box.
+      const topExtra =
+        name === "pagebreak" || name === "cover" || r.startLine === start || afterSpace(r.startLine)
+          ? 0
+          : Math.min(oracle.regionMargins(cls, tag).mt, separator);
       const attrs = fence?.attrs ?? {};
       const brk = typeof attrs["break"] === "string" ? attrs["break"].toLowerCase() : "";
       push({
@@ -3757,6 +3835,7 @@ function flowBlocksOf(
         breakAfter: brk === "after",
         cover: name === "cover" ? (attrs["fill"] === "page" ? "fill" : "natural") : undefined,
         inner,
+        topExtra,
         rendered: isRendered,
       });
       prevBlank = false;
@@ -3817,6 +3896,25 @@ function flowBlocksOf(
         height = hint ?? oracle.lines(rows) ?? height;
       }
     }
+    // Print's top margin of the block less the padding the editor's first
+    // line carries: a heading's 1.8em less its 1.15em (the separator), and
+    // nothing after a line of space, where the line has the whole margin; a
+    // blockquote's or a code block's whole margin over a bare line; nothing
+    // over a paragraph or a list (no top margin in print).
+    const firstText = doc.line(i + 1).text;
+    const hm = HEADING_LINE_RE.exec(firstText);
+    const printTag = hm
+      ? `h${hm[1].length}`
+      : /^\s*>/.test(firstText)
+      ? "blockquote"
+      : /^\s*(```|~~~)/.test(firstText)
+      ? "pre"
+      : undefined;
+    const topExtra = printTag === undefined || i === start ? 0 : Math.max(
+      0,
+      oracle.printMarginTop(printTag, hm ? "fm-top" : "") -
+        oracle.linePaddingTop(editorLineOf(firstText).cls, afterSpace(i)),
+    );
     push({
       line: i,
       endLine: j,
@@ -3824,10 +3922,11 @@ function flowBlocksOf(
       bottom: top + height,
       text,
       height,
-      heading: HEADING_LINE_RE.test(doc.line(i + 1).text),
+      heading: hm !== null,
       pagebreak: false,
       breakBefore: false,
       breakAfter: false,
+      topExtra,
       rendered: isRendered,
     });
     prevBlank = false;
@@ -3842,6 +3941,9 @@ type BoxMeasure = {
   // A seam's filler: the element when it is rendered, else the map only
   // (the widget's estimated height reads the map).
   writes: { el: HTMLElement | undefined; page: number; px: number }[];
+  // The padding under the head of the seam that opens each page: what the
+  // page's first block grows by at the top of a page (its topExtra).
+  extras: { el: HTMLElement | undefined; page: number; px: number }[];
   // In-block seams to shift onto the sheet's edges (their stylesheet
   // centring assumes the block's content box is centred on the sheet; a
   // callout's left border alone puts it 2px off, and 2px past the sheet is
@@ -3920,11 +4022,16 @@ const pageBoxPlugin = ViewPlugin.fromClass(
             a.el.style.marginLeft = `${a.marginLeft}px`;
             a.el.style.width = `${a.width}px`;
           }
-          if (m.writes.length === 0 && m.aligns.length === 0) return;
+          if (m.writes.length === 0 && m.aligns.length === 0 && m.extras.length === 0) return;
           m.pag.fillers ??= new Map();
+          m.pag.topExtras ??= new Map();
           for (const w of m.writes) {
             if (w.el !== undefined) w.el.style.paddingTop = `${w.px}px`;
             m.pag.fillers.set(w.page, w.px);
+          }
+          for (const x of m.extras) {
+            if (x.el !== undefined) x.el.style.paddingBottom = `${x.px}px`;
+            m.pag.topExtras.set(x.page, x.px);
           }
           view.requestMeasure();
         },
@@ -3943,12 +4050,12 @@ const pageBoxPlugin = ViewPlugin.fromClass(
         safety: LAYOUT_SAFETY_PX,
       };
       const area = geometry.pageH - 2 * geometry.marginPx - LAYOUT_SAFETY_PX;
-      keepMeasuredEpoch(view);
+      if (keepMeasuredEpoch(view)) this.oracle.reset();
       // The layout, from the heights as they stand.
       const blocks = flowBlocksOf(view, hints, area, this.oracle);
       const laid = layoutFastrPages(blocks, layoutGeometry);
       if (!this.pendingMove && !samePages(laid, pag.result)) {
-        return { pag, move: laid, writes: [], aligns: [] };
+        return { pag, move: laid, writes: [], aligns: [], extras: [] };
       }
       const writes: BoxMeasure["writes"] = [];
       const aligns: BoxMeasure["aligns"] = [];
@@ -4009,7 +4116,21 @@ const pageBoxPlugin = ViewPlugin.fromClass(
           : pag.fillers?.get(page.number) ?? -1;
         if (Math.abs(filler - current) > 1) writes.push({ el, page: page.number, px: filler });
       }
-      return { pag, writes, aligns };
+      // The seam that opens each page carries the page's first block's
+      // extra under its head (a page a continuation opens has none).
+      const extras: BoxMeasure["extras"] = [];
+      const byLine = new Map<number, FlowBlock>();
+      for (const fb of blocks) byLine.set(fb.line, fb);
+      for (const page of pages) {
+        if (page.number < 2 || page.firstLine === undefined) continue;
+        const px = Math.round(byLine.get(page.firstLine)?.topExtra ?? 0);
+        const el = seamEls.get(page.number);
+        const current = el !== undefined
+          ? parseFloat(el.style.paddingBottom) || 0
+          : pag.topExtras?.get(page.number) ?? 0;
+        if (Math.abs(px - current) > 0.5) extras.push({ el, page: page.number, px });
+      }
+      return { pag, writes, aligns, extras };
     }
   },
 );

@@ -1268,8 +1268,11 @@ ${d}.cm-panels .cm-button {
   border: 1px solid rgba(17, 17, 17, 0.12);
 }
 /* Two classes: the general first-child clamp below is a later rule of equal
-   weight, and would otherwise win the tie. */
-${d}.fm-live-region.fm-live-region--first > .fm-peer-layer + * { margin-top: 0 !important; }
+   weight, and would otherwise win the tie. The first block of the document
+   has no top margin in print either (the paged sheet's title rule). */
+${d}.fm-live-region.fm-live-region--first > .fm-peer-layer + :not(.fm-page-gutter, .fm-page-split),
+${d}.fm-live-region.fm-live-region--first > .fm-page-gutter--inner + :not(.fm-page-split),
+${d}.fm-live-region.fm-live-region--first > .fm-page-split + * { margin-top: 0 !important; }
 /* Widgets render REAL html inside .cm-content, which is white-space:pre-wrap
    (CodeMirror needs it for the text). Inherited into a widget, every newline
    the renderer emits between tags becomes a phantom line box — two extra
@@ -1286,9 +1289,15 @@ ${d}.cm-fm-h1 { padding-top: 0; padding-bottom: 0.13em; }
 ${d}.cm-fm-h2 { padding-top: 1.15em; padding-bottom: 0.25em; }
 ${d}.cm-fm-h3 { padding-top: 0.96em; padding-bottom: 0; }
 ${d}.cm-fm-h4, ${d}.cm-fm-h5, ${d}.cm-fm-h6 { padding-top: 0.8em; padding-bottom: 0; }
-/* Beside a line of space the whole margin stands (see the widget rule). */
+/* Beside a line of space the whole margin stands (see the widget rule),
+   with a page seam widget between the space and the heading all the same:
+   a seam changes no line's box (the page layout depends on it, see the
+   widget rule). */
 ${d}.cm-fm-space + .cm-fm-h2, ${d}.cm-fm-space + .cm-fm-h3, ${d}.cm-fm-space + .cm-fm-h4,
-${d}.cm-fm-space + .cm-fm-h5, ${d}.cm-fm-space + .cm-fm-h6 { padding-top: 1.8em; }
+${d}.cm-fm-space + .cm-fm-h5, ${d}.cm-fm-space + .cm-fm-h6,
+${d}.cm-fm-space + .cm-fm-page-gutter + .cm-fm-h2, ${d}.cm-fm-space + .cm-fm-page-gutter + .cm-fm-h3,
+${d}.cm-fm-space + .cm-fm-page-gutter + .cm-fm-h4, ${d}.cm-fm-space + .cm-fm-page-gutter + .cm-fm-h5,
+${d}.cm-fm-space + .cm-fm-page-gutter + .cm-fm-h6 { padding-top: 1.8em; }
 ${d}.cm-fm-h1:has(+ .cm-fm-space), ${d}.cm-fm-h3:has(+ .cm-fm-space),
 ${d}.cm-fm-h4:has(+ .cm-fm-space), ${d}.cm-fm-h5:has(+ .cm-fm-space), ${d}.cm-fm-h6:has(+ .cm-fm-space) { padding-bottom: 0.6em; }
 ${d}.cm-fm-h2:has(+ .cm-fm-space) { padding-bottom: 0.85em; }
@@ -1327,25 +1336,33 @@ ${d}.cm-fm-box {
    keeps only what its margin exceeds the separator by, or blocks drift
    twice as far apart in Edit as in print. Next to a line of SPACE (a second
    blank line) the whole margin stands: print collapses a margin into the
-   neighbouring margin, never into a space. */
-${d}.fm-live-region > .fm-peer-layer + * {
+   neighbouring margin, never into a space.
+   The clamp addresses the block's first CONTENT child: the child after the
+   peer layer, or after the page seam and the "continues" flag that stand
+   before it when the block opens a page or runs past one. Its margin is the
+   same wherever the block stands, seam or no seam. The page layout takes
+   every block's box from the height map, and a seam that changed the box
+   would make the layout that placed it find another height and move it
+   away, then back, every frame (the flicker of 2026-09-10). Print keeps a
+   block's whole top margin at the top of a page: what the clamp takes off
+   is the SEAM's there, as its padding-bottom (pageBoxPlugin writes it), so
+   the page reads as print's and the block's box does not change. */
+${d}.fm-live-region > .fm-peer-layer + :not(.fm-page-gutter, .fm-page-split),
+${d}.fm-live-region > .fm-page-gutter--inner + :not(.fm-page-split),
+${d}.fm-live-region > .fm-page-split + * {
   margin-top: max(0px, calc(var(--fm-mt, 0px) - var(--fm-separator))) !important;
 }
 ${d}.fm-live-region > *:last-child {
   margin-bottom: max(0px, calc(var(--fm-mb, 0px) - var(--fm-separator))) !important;
 }
-${d}.cm-fm-space + .fm-live-region > .fm-peer-layer + * { margin-top: var(--fm-mt, 0px) !important; }
+${d}.cm-fm-space + .fm-live-region > .fm-peer-layer + :not(.fm-page-gutter, .fm-page-split),
+${d}.cm-fm-space + .cm-fm-page-gutter + .fm-live-region > .fm-peer-layer + :not(.fm-page-gutter, .fm-page-split),
+${d}.cm-fm-space + .fm-live-region > .fm-page-gutter--inner + :not(.fm-page-split),
+${d}.cm-fm-space + .fm-live-region > .fm-page-split + * { margin-top: var(--fm-mt, 0px) !important; }
 ${d}.fm-live-region:has(+ .cm-fm-space) > *:last-child { margin-bottom: var(--fm-mb, 0px) !important; }
-/* A block taller than a page carries page seams and a "continues" flag
-   inside its widget. The flag is chrome, not the block: no margin of its
-   own, and the block after it takes the clamp the block would have taken.
-   The block after a seam stands at the top of a page, where print
-   truncates its margin: none here either. */
-${d}.fm-live-region > .fm-page-split { margin-top: 0 !important; }
-${d}.fm-live-region > .fm-page-split + * {
-  margin-top: max(0px, calc(var(--fm-mt, 0px) - var(--fm-separator))) !important;
-}
-${d}.fm-live-region > .fm-page-gutter--inner + * { margin-top: 0 !important; }
+/* The seam and the flag inside a widget are chrome, not the block: no
+   margin of their own. */
+${d}.fm-live-region > .fm-page-gutter--inner, ${d}.fm-live-region > .fm-page-split { margin-top: 0 !important; }
 /* The peer layer (carets, presence) sits first in every widget and covers
    it; it is not content, so the clamp above addresses the child after it. */
 ${d}.fm-peer-layer {
