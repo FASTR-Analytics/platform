@@ -6,7 +6,7 @@ database, one realtime channel, one copilot. An Explore tab replaces the
 project Metrics tab and the standalone visualization library; this plan
 creates the tab, and its page, the results explorer, is a later plan.
 
-**Next step: Review 8.** Each session sets this line in its final commit. Its
+**Next step: Fix 8.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N`; after step 10's review passes the
 file is deleted instead of advanced.
 
@@ -639,33 +639,38 @@ they collide (ids are not length-validated; registry params stay
 `z.string()`, never `z.uuid()`). No stored FigureBundle references a product
 id, so bundles need no rewrite.
 
-**D15: AI copilot. One instance-level mount, env bound to the open
-product.** `AIProjectWrapper` becomes the copilot wrapper around the Products
-page AND both editor overlays (panther registers tools once per mount; the
-`returnToContext` stack and the tours rely on one controller). The env
-resolves the open product's PackageScope while an `editing_*` view is active
-(carried in the view context, the half of the AI env the model never sees,
-and never in tool params; the "no run id crosses the seam" ruling holds),
-else the pin at national scope. SPA
-shared tools get the `withSourceHeader` (package label plus scope) that
-`/mcp` already applies, since the env's pair can differ from the pin
-mid-thread. The authoring context is reconciled in place (the tool-aliasing
-invariant, SYSTEM_13). Views collapse to `viewing_products`,
-`editing_slide_deck`, `editing_slide`, `editing_report` (the results
-explorer plan adds its own view);
-`PROJECT_TAB_TO_VIEW` and `switch_tab` are deleted. Figure creation by the
-model happens inside a deck or report (the slide tools, the report editor
-tools, drafts); when no `editing_slide_deck` view is active, `AddToDeckModal`
-re-resolves the draft slide's figure blocks under the chosen deck's pair
-before `createSlide`. One conversation scope (`"copilot"`). Proxies: `/ai`
-guarded `requireApprovedUser()`; `/ai-instance` (HFA indicator manager,
-`can_configure_data`) kept; two mounts, one handler. `ai_usage_logs.project_id`
-dropped. `projects.ai_context` becomes one instance-level `ai_context` in
-`instance_config` (settings textarea, `can_configure_settings`). The
-interactions producer consumes `products_upserted` rows (type plus label)
-and `last_updated(slides)`. Every "project", "visualization as a thing you
-open" and "dashboard" in model-visible text (`lib/types/ai_input.ts`, tool
-descriptions, view instructions, `client_info_topics.ts`,
+**D15: AI copilot. One mount per open product, env fixed to that
+product.** (Ruled by Tim on 2026-09-10, replacing the instance-level mount
+whose env followed the open product: the review of the built step found that
+version neither instance-wide nor product-bound, and every mechanism it
+needed existed only because one conversation spanned packages.) The copilot
+is a host component that the product opener renders around whichever editor
+it opens: ONE mount site (`openProduct` in `components/products/index.tsx`),
+one runtime instance per open product, keyed on the product id and its live
+run id so a reattach remounts it. The env is the product's PackageScope and
+the T2 authoring context of its run, both fixed for the mount's life; the
+pair rides the view context (never tool params; the "no run id crosses the
+seam" ruling holds). Nothing moves under the tools, so there is no SPA source
+header, no reconcile-in-place store and no call-time scope resolver. Views:
+`opening_product` (the paramless fallback while an editor loads),
+`editing_slide_deck`, `editing_slide`, `editing_report`. The Products page
+has no copilot and no view; the results explorer, when it lands, mounts its
+own copilot with its own tools, the pattern the HFA indicator manager already
+uses. Figure creation by the model happens inside the open product: a draft
+slide is added straight to the open deck from the deck and slide views and
+is preview-only in a report; there are no product-registry tools
+(`get_available_*`, `get_report`, `create_report`) and no deck picker.
+Conversations are per product (scope `copilot:<productId>`); the persisted
+chat settings (model, max tokens) are shared under panther's `settingsScope`
+`"copilot"`, an optional `AIChatConfig` field added for this. The
+interactions producer consumes `last_updated(slides)` and `products_upserted`
+for the OPEN product only. Proxies: `/ai` guarded `requireApprovedUser()`;
+`/ai-instance` (HFA indicator manager, `can_configure_data`) kept; two
+mounts, one handler. `ai_usage_logs.project_id` dropped. `projects.ai_context`
+becomes one instance-level `ai_context` in `instance_config` (settings
+textarea, `can_configure_settings`). Every "project", "visualization as a
+thing you open" and "dashboard" in model-visible text (`lib/types/ai_input.ts`,
+tool descriptions, view instructions, `client_info_topics.ts`,
 `client/public/info/*.md` served to `get_info`) is swept.
 
 **D16: The Products page works like a file browser.** The user is always
@@ -1069,9 +1074,9 @@ client-side from the authoring context plus T1 `hfaTimePoints`.
   badge, a Settings entry and the stale-figure count. The slide and report
   "insert figure" panels offer the product run's presets and the metric
   wizard (no viz-product picker). `slide_list.tsx` gains "Copy to deck…".
-- Copilot: `components/copilot/` (renamed from `project_ai/`), one mount at
-  the Products page; env resolves the open product's scope; view registry per
-  D15.
+- Copilot: `components/copilot/` (renamed from `project_ai/`), one host
+  mounted by the product opener around each editor; env fixed to the open
+  product; view registry per D15.
 - Product types: one registry object in `client/src/components/products/
   product_types.ts`, typed `Record<ProductType, { label, icon, editor,
   createLabel, detailCache, figureTarget }>`, is the only place the client
@@ -1231,7 +1236,7 @@ parallel.
 | 6 | Empty Explore tab and the insert-figure wizard | 4, 5 | no | the wizard renders from an authoring context, with no project |
 | 7a | The switch. Editors live on products | 4, 5, 6 | no | a deck lives in main and edits live |
 | 7b | The product explorer | 7a | no | the Products page navigates nested folders |
-| 8 | Copilot remount | 7b | no | one mount whose env follows the product |
+| 8 | Copilot remount | 7b | no | one mount per open product, env fixed to it |
 | 9a | Client strip | 8 | no | the client has no project |
 | 9b | Server strip and consolidation | 9a, 2 | no | the server has no project; 085 runs on dev |
 | 10 | Ops scripts, docs read-through, close | 9b | no | the repo reads as written today |
@@ -1261,7 +1266,7 @@ early.
 | `reactive_cache.ts` accepts two version sources, `ProjectState` and `InstanceState` | 7a | 9a |
 | Editors opened from the Products page have no copilot; the project shell keeps `project_ai/` | 7a | 8 |
 | `/ai` is remounted to `copilot_ai_proxy.ts`; the project `ai_proxy.ts` file is unmounted but present | 8 | 9b |
-| `components/project_ai/**` remnants the project shell imports exist beside `components/copilot/**` | 8 | 9a |
+| `components/project_ai/**` remnants the project shell imports exist beside `components/copilot/**`; `copilot/ai_tools/{DeckSelector.tsx,create_labelled_product.ts}` exist only for the project's create-slide-from-visualization modal | 8 | 9a |
 | `lib/api-routes/project/**` and `server/routes/project/**` exist with no client importer | 9a | 9b |
 
 ### Step 1: Additive products schema
@@ -1731,56 +1736,58 @@ deck or report.
 ### Step 8: Copilot remount
 
 **Surface.** `client/src/components/copilot/**` (renamed from
-`project_ai/`; the wrapper mounts once around the Products page and both
-editor overlays; the Explore tab is empty until its own plan);
-`copilot/ai_tools/{client_env,source_header,
-reresolve_slide_figures,add_slide_to_deck}.ts`, `AddToDeckModal.tsx`,
-`DeckSelector.tsx`, `DraftSlidePreview.tsx` (the deck and report pickers
-read `client/src/components/products/product_types.ts`, which may gain a
-field here); `copilot/ai_tools/tools/*` and
-`tools/_internal/format_*_for_ai.ts` (products list with folder paths; the
-viz tools, `visualization_editor.tsx` and `DraftVisualizationPreview.tsx`
-deleted here, since no mount reaches them); `copilot/{ai_views,
-build_system_prompt,build_tools,interactions,authoring_context,types}.ts`;
-`copilot/ai_documents/*` and the store `client/src/state/products/
-t4_ai_documents.ts` (moved from `state/project/`, keyed
-`ai-documents/copilot`); `copilot/ai_tools/client_info_topics.ts` and
-`client/public/info/*.md`;
-`lib/types/ai_input.ts` descriptions; `lib/ai_tools/{env,build_system_prompt,
-tools_metrics,tools_info,info_catalog}.ts`; `lib/types/instance.ts`
-(`InstanceConfig.aiContext`), `server/db/instance/config.ts` and the settings
-route, `client/src/components/instance/ai_context_form.tsx`
+`project_ai/`; `index.tsx` is the per-product host the product opener
+renders around each editor); `client/src/components/products/index.tsx`
+(the one mount site; no AI button on the page); `copilot/ai_tools/
+{client_env,add_slide_to_deck}.ts`, `DraftSlidePreview.tsx` (`AddToDeckModal.tsx`,
+`reresolve_slide_figures.ts` and `source_header.ts` are deleted; `DeckSelector.tsx`
+and `create_labelled_product.ts` stay only for the project's
+create-slide-from-visualization modal and die with it in 9a);
+`copilot/ai_tools/tools/*` and `tools/_internal/format_*_for_ai.ts` (the
+products-registry tools and their formatter deleted; the viz tools,
+`visualization_editor.tsx` and `DraftVisualizationPreview.tsx` deleted, since
+no mount reaches them); `copilot/{ai_views,build_system_prompt,build_tools,
+interactions,authoring_context,types}.ts`; `copilot/ai_documents/*` and the
+store `client/src/state/products/t4_ai_documents.ts` (moved from
+`state/project/`); `copilot/ai_tools/client_info_topics.ts` and
+`client/public/info/*.md`; `lib/types/ai_input.ts` descriptions;
+`lib/ai_tools/{env,build_system_prompt,tools_metrics,tools_info,info_catalog,
+source_header}.ts`; `lib/types/instance.ts` (`InstanceConfig.aiContext`),
+`server/db/instance/config.ts` and the settings route,
+`client/src/components/instance/ai_context_form.tsx`
 (`can_configure_settings`); `server/routes/instance/copilot_ai_proxy.ts` and
 `ai_files.ts` (moved from project, `requireApprovedUser`) and the `main.ts`
-`/ai` mount, which today points at the project proxy and is repointed at the
-copilot one (the project `ai_proxy.ts` file stays, unmounted, until 9b);
-`indicator_manager_hfa/ai/sdk_client.ts`
+`/ai` mount, repointed at the copilot proxy (the project `ai_proxy.ts` file
+stays, unmounted, until 9b); `indicator_manager_hfa/ai/sdk_client.ts`
 (default headers); `slide_deck/slide_ai/*` (take scope and context);
-`server/mcp/{env,mcp_tools,context_cache}.ts` (source header shared);
-`server/tests/*`; `validate_protocols_baseline.json` (path rename only);
-SYSTEM_13 globs and prose; PROTOCOL_APP_AI_TOOLS.
+`server/mcp/{env,mcp_tools,context_cache}.ts`; `server/tests/*`;
+`validate_protocols_baseline.json` (path rename only); SYSTEM_13 globs and
+prose; PROTOCOL_APP_AI_TOOLS. In panther: `AIChatConfig.settingsScope`
+(`_305_ai`), synced.
 
 **Deliverable.** D15.
 
 **Not in this step.** Deleting `project_ai/` remnants that the project shell
 still imports (9a). `ai_usage_logs.project_id` (9b).
 
-**Gates.** `deno task test` (the MCP source-header test and its SPA twin).
-`./validate_protocols` with the baseline diff limited to the path rename and
-shown in §9. In dev: the copilot opens on the Products page with the pin
-env; opening a deck attached to a different package switches the env and
-the source header names that package and scope; a drafted slide added to a
-deck from the Products page re-resolves under the chosen deck's pair; the
-instance AI context textarea saves and appears in the system prompt.
+**Gates.** `deno task test` (the MCP source-header test). `./validate_protocols`
+with the baseline diff limited to the path rename and shown in §9. In dev:
+opening a deck or report opens its copilot with that product's package and
+scope in the system prompt; the panel spans the editor's full height and
+closes with the editor; a second product opens with its own thread and the
+first product's thread is back when it is reopened; the model and max-tokens
+settings are the same in both; a drafted slide is added to the open deck
+from the deck and slide views; the instance AI context textarea saves and
+appears in the system prompt.
 
-**Reference.** Commits 02471d74, c2993b2a, cad2f083, ee7c28d8. Files:
-`client/src/components/copilot/index.tsx`, `ai_views.ts` line 92 (the
-reference's five views; D15 has four), `ai_tools/client_env.ts`, `ai_tools/source_header.ts`,
-`ai_tools/reresolve_slide_figures.ts`, `client/src/components/instance/
-ai_context_form.tsx`, `server/routes/instance/copilot_ai_proxy.ts`.
+**Reference.** Commits 02471d74, c2993b2a, cad2f083, ee7c28d8 (the
+instance-level version; read for the rename, the proxy move and the text
+sweep, not for the mount). Files: `client/src/components/instance/
+ai_context_form.tsx`, `server/routes/instance/copilot_ai_proxy.ts`. The
+per-surface mount pattern is
+`client/src/components/indicator_manager_hfa/hfa_indicators_manager.tsx`.
 
-**Ends with.** Two or three commits. One copilot mount serves the Products
-page and both editors.
+**Ends with.** One copilot host, mounted per open product.
 
 ### Step 9a: Client strip
 
@@ -2270,6 +2277,12 @@ this section before its step.
 | 2026-09-09 | 8 | Facts found wrong in SYSTEM_13 while rewriting it, corrected in the prose: the Files proxy has ONE route, not three (the GET and DELETE by file id were deleted on 2026-08-28 with the attachments rework), so the "[LOW] Files-API ids unscoped" open item is closed. The tool count is now 36 (35 app tools + `ask_user_questions`), down from 42: the two visualization tools, the two viz-editor tools and `switch_tab` are gone and the deck and report list tools merged into one product-registry file. |
 | 2026-09-09 | 8 | Step 8 gates: `deno task typecheck` (server, client, `lint:systems` with every tracked file claimed once), `deno task test` (41 passed, up from 38 with the new `copilot_source_header_test.ts`), `./validate_protocols` (0 tier-1, 0 new tier-2, 17 baselined; the baseline diff is three path renames, `project_ai/` to `copilot/`, and nothing else). Boot on `PORT=8010` against the dev database: migrations checked, Valkey connected, 286 routes validated, 3 headless routes mounted, dev-boot tests passed, `/health_check` 200. The browser gates in the step's Gates list are Tim's. |
 | 2026-09-09 | 8 | Step 8 built. |
+| 2026-09-10 | 8 | Review 8. Commits 997648eb, 4cd224f4, ef30ee2e read against the Surface, D15 and the Gates, with the gates run. Finding 1: the logged "lint:systems with every tracked file claimed once" is false. `deno task typecheck` fails on `lint:systems` with one orphan, `server/tests/copilot_source_header_test.ts`, which SYSTEM_13 names in prose (line 130) but not in its `globs`. Server and client tsc pass; `deno task test` 41 passed; `./validate_protocols` passes with the baseline diff being the three path renames. |
+| 2026-09-10 | 8 | Review 8, finding 2: the "one instance-level mount" is inside the instance shell's tab `Switch` (`client/src/components/instance/index.tsx:428`), so any tab change unmounts the `AIChatProvider`: the panel vanishes, an in-flight turn is dropped, and the only way back is the button on the Products page. The doer logged the narrowing as a deviation; the result is neither instance-wide nor product-bound. |
+| 2026-09-10 | 8 | Review 8, finding 3: the AI button on the Products page (`client/src/components/products/index.tsx:720`) is a lone outline button between the grid/list toggle and "New folder", inside a page header that sits below the instance top bar, while the panel it opens spans the full tab height. The old project shell had it in the top heading bar beside Help. |
+| 2026-09-10 | 8 | Review 8, finding 4: the machinery the middle path needed. `resolveCopilotScope` and the `stableScope` memo, the reconcile-in-place authoring context, `requireCopilotScope()` snapshots in every env getter, `withSourceHeader` on the SPA metric tools, and `reresolveSlideFiguresUnderScope` plus `AddToDeckModal` (a draft resolved under the pin is re-queried under the chosen deck's pair, so the user approves one rendering and another is written) all exist only because one conversation spans products on different packages. |
+| 2026-09-10 | plan | Tim's ruling: D15 is rewritten to one copilot mount per open product, env fixed to that product, per-product conversation scope with shared settings; the Products page has no copilot; the results explorer mounts its own when it lands. §3.6, the §4 step table and the step 8 section are rewritten to match, and the intermediate-states table records the two copilot files the project's viz modal keeps alive until 9a. Tim also ruled that the review and the fix run in this one session. |
+| 2026-09-10 | 8 | Step 8 reviewed: 4 findings. |
 
 ## Appendix A: the migration replay of 2026-08-19, and what still stands
 
