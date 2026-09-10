@@ -3063,6 +3063,7 @@ function docGroundPlugin(resolver: EmbedResolver) {
           .filter((c) => c.length > 0 && !c.startsWith("fm-doc"));
         for (const c of this.classes) el.classList.add(c);
         const colon = settings.style.indexOf(":");
+        let literal: { prop: string; value: string } | undefined;
         if (colon > 0) {
           const prop = settings.style.slice(0, colon).trim();
           const value = settings.style
@@ -3071,6 +3072,23 @@ function docGroundPlugin(resolver: EmbedResolver) {
             .trim();
           el.style.setProperty(prop, value);
           this.styleProps.push(prop);
+          literal = { prop, value };
+        }
+        // The document's ground as ONE property every descendant reads: the
+        // seam drawn inside a block paints with it (report_fastr_css.ts,
+        // --fm-page-ground), where the theme's page colour showed as a
+        // lighter block on a toned document (Nick, 2026-09-10). A tone's
+        // ground goes by reference, so a theme change follows; a literal
+        // colour as written; a gradient or an image keeps the fallback.
+        const tone = /\bfm-tone--([a-z]+)\b/.exec(settings.className)?.[1];
+        const ground = tone !== undefined
+          ? `var(--fm-${tone}-ground)`
+          : literal?.prop === "background-color"
+          ? literal.value
+          : undefined;
+        if (ground !== undefined) {
+          el.style.setProperty("--fm-page-ground", ground);
+          this.styleProps.push("--fm-page-ground");
         }
         const img = /data-bg-image="image:([^"]+)"/.exec(settings.extraAttrs);
         if (img) {

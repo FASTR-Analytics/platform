@@ -551,8 +551,11 @@ through a line box anyway. A block taller than a page still continues
 lines carry print's item margins as padding (`.cm-fm-li + .cm-fm-li`); the
 widget clamp and the heading paddings are derived from print's margins as
 described under "Blank lines are space" below. A seam inside a rendered
-block (one taller than a page) is `fm-page-gutter--inner`: sheet-wide, on
-the page ground, opted out of the block's child styling (counters, borders,
+block (one taller than a page, or one that opens a page) is
+`fm-page-gutter--inner`: sheet-wide, on the DOCUMENT's ground
+(`--fm-page-ground`, see `docGroundPlugin` below; the theme's page colour
+showed as a lighter block on a `background=paper` document until
+2026-09-10), opted out of the block's child styling (counters, borders,
 padding), so the box visibly stops and resumes; the stylesheet centres it
 on the block's content box and `pageBoxPlugin` measures it against the
 sheet and writes the exact margin and width inline (a callout's 4px left
@@ -968,7 +971,11 @@ scroller — the scoped fm-tone--*/fm-has-bg/fm-ink--* rules then style the
 sheet exactly as they style View's `<html>`, dark-ground ink re-scoping
 included — dropping the `fm-doc--*` width classes (their rem measures would
 re-shear the px pin) and removing everything it applied on destroy so Split
-is never tinted. Heading lines carry `cm-fm-h1`…`h6`, and the host
+is never tinted. It also sets `--fm-page-ground` on the scroller, the
+ground as one property every descendant can read: a tone's ground token by
+reference (`var(--fm-paper-ground)`, so a theme change follows), a literal
+`background-color` as written, nothing for a gradient or an image (the
+in-block seam then keeps the theme's page colour). Heading lines carry `cm-fm-h1`…`h6`, and the host
 re-targets the theme sheet's own `h2`…`h6` rules at those classes (an h1 is a
 plain heading — no masthead), with a trailing rule stripping the flow margins
 a .cm-line must never carry.
