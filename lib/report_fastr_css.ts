@@ -1187,6 +1187,10 @@ ${d}.cm-content { --fm-separator: calc(0.65 * 1lh); }
 /* Further blank lines in a run are lines of space in the document (the
    renderer's .fm-space, one line tall), so they keep their full height. */
 ${d}.cm-fm-space { font-size: 1em; }
+/* Print's list items carry 0.25em margins that collapse to one between
+   items (and into the paragraph margins at the list's ends): the second
+   item onward takes that as padding, so a list stands the same height. */
+${d}.cm-fm-li + .cm-fm-li { padding-top: 0.25em; }
 /* View's document opens flush with its first block: leading blank lines are
    not content there, and the body first-child rule drops its top margin (a cover
    even pulls itself up). The editor's page must open the same way, or every

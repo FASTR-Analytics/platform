@@ -58,6 +58,15 @@ export const FASTR_PAGED_ATOMIC_SELECTORS: readonly string[] = [
   // page before it ended early (Nick, 2026-09-09). One block model on both
   // sides is worth more than the odd shorter page.
   "p",
+  // Callouts, bands, quotes and steps once flowed across pages. A block
+  // cut by a page reads as a mistake (its ground stops at the seam) and
+  // would not pass in a ministry, so they keep whole too; one taller than
+  // a page still continues, at the boundaries its children allow.
+  ".fm-callout",
+  ".fm-band",
+  ".fm-quote",
+  "blockquote",
+  ".fm-steps",
   ".fm-card",
   ".fm-stat",
   ".fm-tiles",
@@ -116,12 +125,21 @@ export type FastrPagedSplit = {
   page: number;
 };
 
+export type FastrPagedBlock = {
+  // 0-based source line of a top-level block, and its height at the print
+  // column's width, px. The editor takes these as the heights of blocks it
+  // has not rendered yet (fastr_markdown_pages.ts lays pages out from them).
+  line: number;
+  height: number;
+};
+
 export type FastrPagedResult = {
   total: number;
   // The page box in CSS px, as laid out (sheet size at 96dpi).
   sheet: { width: number; height: number };
   pages: FastrPagedPage[];
   splits: FastrPagedSplit[];
+  blocks?: FastrPagedBlock[];
   // Set when pagination could not run; pages is then empty.
   error?: string;
 };
@@ -303,6 +321,18 @@ h3.fm-numbered::before {
 `;
 }
 
+// The page starts the editor decided (fastr_markdown_pages.ts), forced on
+// Paged.js: the block anchored to each line opens a page. Paged.js still
+// pushes a block that overflows print's page (the editor keeps a safety
+// margin so that it should not), and still splits one taller than a page.
+export function fastrForcedBreaksCss(lines: readonly number[]): string {
+  if (lines.length === 0) return "";
+  const rules = lines.map((l) => `[data-line="${l}"] { break-before: page !important; }`);
+  return `/* ── Page starts, as the editor laid them out ─────────────────────────── */
+${rules.join("\n")}
+`;
+}
+
 // The hidden title element the builder puts first in <body>: `string-set`
 // reads its text into the running footer.
 export function fastrPrintTitleHtml(title: string): string {
@@ -320,6 +350,7 @@ export function fastrPagedRunnerJs(): string {
   var ATOMIC = ${atomic};
   // The same blocks, minus the ones the pre-pass released as taller than a page.
   var ATOMIC_WHOLE = ATOMIC.split(", ").map(function (s) { return s + ":not([data-fm-overflow])"; }).join(", ");
+  var blockHeights = [];
   function publish(r) { window[G] = r; }
   function fail(e) {
     publish({ total: 0, sheet: { width: 0, height: 0 }, pages: [], splits: [],
@@ -344,6 +375,14 @@ export function fastrPagedRunnerJs(): string {
     var prev = { width: body.style.width, margin: body.style.margin };
     body.style.width = column + "mm";
     body.style.margin = "0";
+    // Every top-level block's height at this width, for the editor's own
+    // page layout (the blocks it has not rendered take these).
+    for (var t = 0; t < body.children.length; t++) {
+      var tb = body.children[t];
+      var tl = parseInt(tb.getAttribute("data-line"), 10);
+      if (isNaN(tl)) continue;
+      blockHeights.push({ line: tl, height: Math.round(tb.getBoundingClientRect().height * 100) / 100 });
+    }
     var blocks = document.querySelectorAll(ATOMIC);
     for (var i = 0; i < blocks.length; i++) {
       var b = blocks[i];
@@ -612,7 +651,7 @@ export function fastrPagedRunnerJs(): string {
         contentHeight: contentHeight
       });
     }
-    publish({ total: boxes.length, sheet: sheet, pages: pages, splits: splits });
+    publish({ total: boxes.length, sheet: sheet, pages: pages, splits: splits, blocks: blockHeights });
   }
   // Everything the layout depends on, before Paged.js measures a line: the
   // stylesheets (a theme's @import of its fonts arrives after the script

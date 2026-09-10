@@ -1,4 +1,5 @@
 import {
+  fastrForcedBreaksCss,
   type APIResponseNoData,
   buildFastrPagedCss,
   buildFastrReportCss,
@@ -64,7 +65,13 @@ import {
 export type StandaloneReportOptions = {
   // Lay the document out as printed pages: the paged sheet, the running
   // footer's title, and the Paged.js polyfill + runner at the end of <body>.
-  paged?: { footer: FastrPagedFooter };
+  paged?: {
+    footer: FastrPagedFooter;
+    // The 0-based source lines that open page 2 onward, as the editor laid
+    // the document out; forced on Paged.js so the PDF breaks where the
+    // editor's page boxes did. Absent, Paged.js decides by the same rules.
+    pageStarts?: readonly number[];
+  };
   // Embed the theme's web fonts as data URLs (the server render has no
   // network; the editor's frame already has them and skips this).
   inlineFonts?: boolean;
@@ -253,7 +260,8 @@ function pagedDocumentParts(
   // The paged sheet owns @page; an html-format report (no header) prints A4.
   const setup = docSettings?.page ?? readFastrDocumentSettings("").page;
   return {
-    headExtraCss: buildFastrPagedCss(setup, opts.paged.footer),
+    headExtraCss: buildFastrPagedCss(setup, opts.paged.footer) +
+      fastrForcedBreaksCss(opts.paged.pageStarts ?? []),
     bodyPrefixHtml: fastrPrintTitleHtml(detail.label),
     bodySuffixHtml: pagedScriptsHtml(),
   };
