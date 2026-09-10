@@ -357,7 +357,7 @@ export function getClientToolsForReportEditor(
         const metric = metrics.find((m) => m.id === bundle.metricId);
         if (!metric) {
           throw new AIToolFailure(
-            `Metric "${bundle.metricId}" not found in this project.`,
+            `Metric "${bundle.metricId}" not found in this product's results package.`,
           );
         }
 

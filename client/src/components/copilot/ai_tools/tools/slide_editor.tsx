@@ -444,7 +444,7 @@ export function getClientToolsForSlideEditor(
 
         const metric = metrics.find((m) => m.id === bundle.metricId);
         if (!metric) {
-          throw new AIToolFailure(`Metric "${bundle.metricId}" not found in this project.`);
+          throw new AIToolFailure(`Metric "${bundle.metricId}" not found in this product's results package.`);
         }
 
         // Pre-flight for a stored defect this tool cannot repair (the figure

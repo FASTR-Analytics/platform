@@ -80,22 +80,14 @@ export const AiTextBlockSchema = z.object({
     ),
 });
 
-// The project Visualizations tab's own block type. No copilot tool accepts it
-// any more (a figure is a metric plus a preset, D3), and step 9a deletes the
-// tab and this schema with it.
+// The project Visualizations tab's own block type. It is in none of the
+// schemas the copilot registers (a figure is a metric plus a preset, D3): the
+// tab builds the block itself, so it appears only in the input TYPES below.
+// Step 9a deletes the tab, this schema and those type arms together.
 export const AiFigureFromVisualizationSchema = z.object({
   type: z.literal("from_visualization"),
-  visualizationId: z
-    .string()
-    .describe(
-      "The unique ID of an existing visualization/presentation object to clone into this slide. The visualization must already exist in the project.",
-    ),
-  replicant: z
-    .string()
-    .optional()
-    .describe(
-      "Optional: If the source visualization uses replication (e.g., one chart per region), specify which replicant value to show. For example, 'North' to show only the North region's chart.",
-    ),
+  visualizationId: z.string(),
+  replicant: z.string().optional(),
 });
 
 export const AiFigureFromMetricSchema = z.object({
@@ -237,14 +229,9 @@ export type AiVizConfigUpdate = z.infer<typeof AiVizConfigUpdateSchema>;
 
 // Union schemas
 
-export const AiFigureBlockInputSchema = z.union([
-  AiFigureFromVisualizationSchema,
-  AiFigureFromMetricSchema,
-]);
-
 export const AiContentBlockInputSchema = z.union([
   AiTextBlockSchema,
-  AiFigureBlockInputSchema,
+  AiFigureFromMetricSchema,
 ]);
 
 // Layout spec schemas (for AI layout control)
@@ -347,12 +334,6 @@ export const AiContentSlideSchema = z.object({
     ),
 });
 
-export const AiSlideInputSchema = z.union([
-  AiCoverSlideSchema,
-  AiSectionSlideSchema,
-  AiContentSlideSchema,
-]);
-
 // Inferred types (single source of truth)
 
 export type AiTextBlock = z.infer<typeof AiTextBlockSchema>;
@@ -361,7 +342,15 @@ export type AiFigureFromVisualization = z.infer<
 >;
 export type AiMetricQuery = z.infer<typeof AiMetricQuerySchema>;
 export type AiFigureFromMetric = z.infer<typeof AiFigureFromMetricSchema>;
-export type AiFigureBlockInput = z.infer<typeof AiFigureBlockInputSchema>;
-export type AiContentBlockInput = z.infer<typeof AiContentBlockInputSchema>;
-export type AiContentSlideInput = z.infer<typeof AiContentSlideSchema>;
-export type AiSlideInput = z.infer<typeof AiSlideInputSchema>;
+// The input types are one arm wider than the schemas: the project
+// Visualizations tab's from_visualization block (see above).
+export type AiContentBlockInput =
+  | z.infer<typeof AiContentBlockInputSchema>
+  | AiFigureFromVisualization;
+export type AiContentSlideInput =
+  & Omit<z.infer<typeof AiContentSlideSchema>, "blocks">
+  & { blocks: AiContentBlockInput[] };
+export type AiSlideInput =
+  | z.infer<typeof AiCoverSlideSchema>
+  | z.infer<typeof AiSectionSlideSchema>
+  | AiContentSlideInput;
