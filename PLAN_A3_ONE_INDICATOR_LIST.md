@@ -1,21 +1,18 @@
 # PLAN A3: one indicator list, sources underneath
 
-Status: OPEN. Rulings agreed (Tim, 2026-09-10). Not started. Supersedes
+Status: OPEN. Rulings agreed (Tim, 2026-09-10; ruling 5 re-ruled the same
+day). Not started. Supersedes
 PLAN_2_DHIS2_INDICATOR_IMPORT.md (its §1 ruling is ruling 8 here; delete
-that file in the first commit of this plan). Lands AFTER PLAN_A2:
-generated ids must avoid the reserved words, and the reserved-word
-validator this plan extends is A2's.
+that file in the first commit of this plan). PLAN_A2 has landed (instance
+migration 084, `RESERVED_INDICATOR_IDS`, renamed by ruling 5): generated
+ids avoid its reserved words and the validator this plan extends is A2's.
 
-Repos: app, `wb-fastr-modules` (ruling 5: module definitions declare the
-indicator ids their scripts read; pushed FIRST, then the app, because the
-definition schema is strip-mode so old apps ignore the new field while a
-new app refuses a definition without it), and `wb-fastr-site`
-(help-button text that names raw indicators).
+Repos: app and `wb-fastr-site` (help-button text that names raw
+indicators). The modules repo is not touched.
 
 Read first: [SYSTEM_05](SYSTEM_05_facilities_indicators.md) "Derived
 commons", "Computability", "Client state & wizard";
 [SYSTEM_06](SYSTEM_06_ingestion.md) HMIS CSV and DHIS2 import;
-[SYSTEM_08](SYSTEM_08_results_packages.md) module execution;
 `lib/types/indicators.ts`; `lib/types/dataset_hmis_import.ts` (every
 stored JSON shape that carries a raw id); `server/db/instance/indicators.ts`;
 `server/db/instance/dataset_hmis_import_runs.ts` (`validateRunSelection`,
@@ -24,13 +21,8 @@ stored JSON shape that carries a raw id); `server/db/instance/indicators.ts`;
 `server/worker_routines/import_hmis_data_csv/{stage_csv,worker}.ts`;
 `server/db/project/datasets_in_project_hmis.ts` (the extract's `base`
 filter); `server/db_startup.ts` (migration then transform order, the
-new-database seed); `server/runs/{indicator_catalog,generation_wizard_reads}.ts`
-and `server/worker_routines/generate_run/resolve_modules.ts` (where a
-module definition meets the instance); `lib/table_structures/indicators.ts`;
-`server/module_loader/{load_module,module_source}.ts` (definitions are
-fetched per call, never stored; production has no modules checkout);
-`build_help_buttons.ts` and `deno.json` (the generated-file pattern);
-`wb-fastr-modules/m001/script.R` and `_parameters.ts`;
+new-database seed); `server/runs/indicator_catalog.ts` (the sort-order
+backfill old packages read); `lib/table_structures/indicators.ts`;
 [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md) (column rename
 and named-constraint guards).
 
@@ -46,11 +38,15 @@ staging instead of becoming an indicator.
 
 Underneath, the ids the module scripts read by name (`anc1`, `penta1`,
 `delivery`, ...) are a hand-kept list in `lib/table_structures/indicators.ts`
-that has already drifted from the scripts: `ipd`, `new_fp` and
-`pnc1_newborn` are seeded and read by no script; `pnc1`, `rdt_positive`
-and `micro_positive` are read by m001/m004/m005 and seeded nowhere. The
-seed runs only when a database is created, so no existing instance would
-receive a new special even if the list were right.
+that has drifted from the registry scripts: `ipd`, `new_fp` and
+`pnc1_newborn` are seeded and read by no registry script (`new_fp` is read
+only by the frozen m007); `pnc1`, `rdt_positive` and `micro_positive` are
+read by m001/m004/m005 and seeded nowhere, as are eight other count ids
+m001, m004 and m005 filter on (ruling 5 lists them). Nothing fails on the
+missing ones: a module reading an id the instance lacks sees no rows, which is
+the ordinary case for any unmapped common today. The list's only job is to
+give a fresh instance the ids the scripts read, with labels, so the naming
+step can offer them.
 
 ## 2. The model
 
@@ -61,11 +57,15 @@ expression over indicators and population terms, evaluated after
 aggregation (m012). A **source** is one DHIS2 data element or operand (id
 = the UID or `UID.UID`) or one CSV indicator column (id = the value in
 the file), and it belongs to exactly one base. A **special indicator** is
-an id a module script reads by name; it is always a base, seeded on every
-instance, and never deletable.
+an id a registry module script reads by name; it may exist only as a
+base, and a new database is seeded with each as an empty base. A
+**reserved word** is an identifier no indicator id may be, however the id
+is produced (typed, generated, batch-uploaded, decomposed from DHIS2, or
+written by the migration): the special ids (except as a base), the
+population type ids and the expression function names.
 
-Terminology is exactly that: indicator, base, derived, source, special.
-No "raw", no "common", no `is_default`.
+Terminology is exactly that: indicator, base, derived, source, special,
+reserved. No "raw", no "common", no "seed", no "default", no `is_default`.
 
 ## 3. Rulings
 
@@ -76,10 +76,11 @@ No "raw", no "common", no `is_default`.
    and `indicator_sources (source_id PRIMARY KEY, indicator_id NOT NULL
    REFERENCES indicators ON DELETE CASCADE, source_label NOT NULL,
    updated_at)`. `dataset_hmis.source_id REFERENCES indicator_sources ON
-   DELETE RESTRICT`, under the named constraint `dataset_hmis_source_id_fkey`
-   in both `_main_database.sql` and the migration (the validator compares
-   the fresh replay byte for byte), so data never exists without an owner
-   and deleting a base with data is refused with the friendly pre-check
+   DELETE RESTRICT DEFERRABLE` (deferrable as the FK it replaces), under
+   the named constraint `dataset_hmis_source_id_fkey` in both
+   `_main_database.sql` and the migration (the validator compares the
+   fresh replay byte for byte), so data never exists without an owner and
+   deleting a base with data is refused with the friendly pre-check
    `deleteIndicatorRaw` has today. `dataset_hmis_import_ledger.source_id`
    CASCADEs as it does from `indicators_raw` now, and the ledger's
    deleted-mid-wizard join moves to the new table. No `source_kind`
@@ -89,8 +90,10 @@ No "raw", no "common", no `is_default`.
 3. **A source belongs to exactly one base.** Enforced by the primary key.
    A second use of the same element is a derived over the first.
 4. **Every name is the new name, and one-route shapes.** `indicator_raw_id`
-   becomes `source_id` in `dataset_hmis`, the ledger, the CSV staging
-   tables, and every TS type; `rawIndicatorIds` / `indicatorRawId` /
+   becomes `source_id` in `dataset_hmis`, the ledger and every TS type,
+   and `raw_indicator_id` becomes `source_id` in the per-run CSV staging
+   tables `stage_csv.ts` creates (code, not schema: they are created and
+   dropped by the import); `rawIndicatorIds` / `indicatorRawId` /
    `raw_indicator_id` become `indicatorIds` / `sourceId` / `source_id` in
    `Dhis2RunSelection`, `Dhis2ScheduleSelection`, `Dhis2RunPair`,
    `PeriodIndicatorRawStat`, `DatasetDhis2StagingResult`,
@@ -103,61 +106,54 @@ No "raw", no "common", no `is_default`.
    `csv_config`, `dataset_hmis_versions.staging_result`, schedule rows),
    read with `parseJsonOrThrow`, so the rename ships with the data
    transform (ruling 12) or the history tab crashes on every old row.
-5. **Special indicators are declared by the modules, not by the app.**
-   `ModuleDefinitionCore` gains `requiredIndicators: string[]` (required
-   by the definition schema; the modules repo's vendored copy
-   `.validation/_module_definition_github.ts` is re-copied in the same
-   commit), compiled into `definition.json` by the modules build, carried
-   on `ModuleDefinitionDetail` for the guard below, and stripped at
-   manifest write by the installed schema (strip mode), so the manifest
-   shape is unchanged. The app fetches nothing at boot: definitions are
-   not stored and are fetched from GitHub per wizard call, and production
-   has no modules checkout, so the union is generated at app build time
-   into `lib/module_required_indicators.generated.ts` by a new
-   `deno task build:module-indicators` reading each registry module's
-   `definition.json` under `FASTR_MODULES_LOCAL_DIR` (the
-   `help_targets.generated.ts` pattern; frozen dirs are outside
-   `MODULE_REGISTRY`). Because nothing regenerates a committed file on
-   its own, the task has a `--check` mode wired into `deno task typecheck`
-   (which both deploy scripts gate on) that diffs the committed file
-   against the checkout. From the union:
-   - **seeds**: every special is inserted with `INSERT ... ON CONFLICT DO
-     NOTHING` and `sort_order = MAX + 1` on EVERY boot, positioned after
-     the data transforms (a boot that aborts in the transform must not
-     seed first; the generator avoids special words and the transform
-     tests special-ness by set membership, so the order is otherwise
-     free); a no-op boot touches no `updated_at`, so the version stamps
-     and the datatable caches do not churn. `_COMMON_INDICATORS` is
-     deleted; the seed-order array `backfillCommonIndicatorSortOrder`
-     reads moves into `server/runs/indicator_catalog.ts` as a frozen
-     constant, since manifest transforms of immutable old packages read
-     it;
-   - **`is_default` is dropped**: special-ness is membership in the
-     generated set everywhere the column is read today (delete guard,
-     batch replace, the manager's badge, the m012 parity test fixture).
-     It is in no manifest, project database or `IndicatorMetadata`;
-   - **validator**, in lib, shared by editor and server: an id in A2's
-     reserved set is refused for any indicator; a special id is refused
-     for a derived, at create and at retype; a special is never deleted;
-   - **module guard**: where a module definition meets the instance
-     dictionary, `getRunGenerationModuleOptions` (the wizard) and
-     `resolve_modules.ts` (the run's re-fetch at the pinned ref; a derived
-     can be created between wizard and generate), a definition requiring
-     an id the instance does not hold as a base (absent, or derived) is
-     refused with a message naming the id. "Absent" matters: with a
-     "derived only" rule, a module declaring an id the committed union
-     lacks would reproduce today's drift silently.
-   Modules cleanup in the same push: m001 declares its DQA and
-   consistency-pair ids including the malaria pair; m004, m005, m006 and
-   m011 declare what their scripts filter on and m004/m005 stop reading
-   the unseeded `pnc1`; m003 reads no literal id and declares none;
-   `ipd`, `new_fp` and `pnc1_newborn` leave the seeds unless a module
-   declares them.
+5. **Special indicators and reserved words.** `SPECIAL_INDICATOR_IDS` in
+   `lib/special_indicators.ts` is the hand-kept list of HMIS count ids the
+   registry scripts read by name, with three-language labels: `anc1`,
+   `anc4`, `delivery`, `sba`, `bcg`, `penta1`, `penta3`, `measles1`,
+   `measles2`, `opd`, `pnc1`, `pnc1_mother`, `rdt_positive`,
+   `micro_positive`, `confirmed_malaria_treated_with_act` (m001 adds its
+   malaria pair only when all three exist), `rota1`, `rota2`, `opv1`,
+   `opv2`, `opv3`, `vitaminA`, `fully_immunized` (m004/m005). `ipd`,
+   `new_fp` and `pnc1_newborn` leave: no registry script reads them.
+   `nmr` and `imr` stay out: m004/m005 list them but they are survey
+   mortality rates, not counts. A special id may exist only as a base:
+   the modules read it as a count, so a derived under that id would be
+   silently ignored. `RESERVED_WORDS` (A2's `RESERVED_INDICATOR_IDS`,
+   renamed here because population type ids and function names are not
+   indicators) is the union: special ids + population type ids +
+   expression function names. From the two constants:
+   - **validator**, in lib, one function on every path that writes an
+     indicator id (editor, server routes, batch upload, the naming step,
+     DHIS2 decomposition, the migration transform), without the `kind`
+     parameter: an id in `RESERVED_WORDS` is refused, except a special
+     id for a base; a special id is refused for a derived at create and
+     at retype; a source id keeps only the charset rule;
+   - **id generator** (ruling 10): a generated id in `RESERVED_WORDS`
+     takes the `_2` suffix, so a generated id never reaches the validator
+     as a reserved word;
+   - **migration tiebreak** (ruling 12): a raw shared by commons keeps
+     its place on the special;
+   - **manager**: a badge on a special row and the reference list of
+     special ids and reserved words;
+   - **new-database seed**: each special inserted as an empty base, as
+     `_COMMON_INDICATORS` does today. Existing instances get nothing on
+     boot; a team adds or deletes specials as it likes, and deleting one
+     is refused only by ruling 2's data pre-check like any base.
+   No module guard and no declaration in the module definitions.
+   `is_default` is dropped everywhere it is read (delete guard, batch
+   replace, the manager's badge, the m012 parity test fixture in
+   `server/tests/`); it is in no manifest, project database or
+   `IndicatorMetadata`. The sort-order backfill
+   `backfillCommonIndicatorSortOrder` moves into
+   `server/runs/indicator_catalog.ts` over a frozen copy of today's
+   14-id order, since manifest transforms of immutable old packages read
+   it and the special list may change; `lib/table_structures/indicators.ts`
+   is deleted.
 6. **Ids are chosen at creation and are immutable after.** The id is the
    column key in every results package, expression, figure snapshot and AI
    tool call. Creation is a naming step in both import paths, one shared
    component: each candidate shows a proposed id (ruling 10) editable
-   inline, or "add as a source of an existing base" for the specials.
+   inline, or "add as a source of an existing base".
    - **DHIS2 select form**: selecting elements or operands creates the
      bases and their sources in one transaction on save. **A source must
      be an additive monthly count by DHIS2's own metadata**: the element's
@@ -258,32 +254,33 @@ No "raw", no "common", no `is_default`.
     (generated ids only; the validator's 128 maximum for typed ids is
     unchanged); an empty result falls back to `i_` + the source id slugged
     the same way; then `_2`, `_3` on collision with an existing id or a
-    reserved or special word. `{common}_own` in ruling 12 goes through the
-    same function.
+    reserved word (ruling 5's union). `{common}_own` in ruling 12 goes through the same
+    function.
 11. **Batch dictionary upload is one file**: `indicator_id, label, type,
     sources, expression, format_as, thresholds`; `sources`
     semicolon-separated for a base, empty for a derived. Replace refuses
-    with a listing when it would remove a source with data, a special, or
-    an id another expression names; upsert keeps `sort_order`. The
-    download mirrors the file.
+    with a listing when it would remove a source with data or an id
+    another expression names; upsert keeps `sort_order`. The download
+    mirrors the file.
 12. **Migration: a DDL migration plus a TypeScript data transform.**
     Instance migrations run before the transforms, each transform runs in
     one transaction and may run DDL, and `./validate_migrations` replays
     only the SQL on a fresh database (the transform is covered by its own
     harness, §5). Split:
     - **085 (SQL)**: create `indicator_sources`; `ALTER TABLE ... RENAME
-      COLUMN indicator_raw_id TO source_id` on `dataset_hmis`, the ledger
-      and the CSV staging tables, guarded on column existence (the
-      protocol's rename pattern: O(1), keeps the primary key and the five
-      indexes); drop the old FKs to `indicators_raw`; add the new FKs
-      `NOT VALID` under their `_main_database.sql` names, guarded on
-      `pg_constraint`; drop `indicators.is_default`; no `DROP TABLE`. On
-      the fresh schema every statement is a guarded no-op. Older
-      migrations that name the old tables get table-existence guards so
-      the fresh replay passes: 003's two index creations and 079's DO
-      block (079's `is_default` inserts sit after its early return and
-      never execute on a fresh replay). The instance-side precedent is
-      003's own guards.
+      COLUMN indicator_raw_id TO source_id` on `dataset_hmis` and the
+      ledger, guarded on column existence (the protocol's rename pattern:
+      O(1), keeps the primary key and the five indexes); drop the old FKs
+      to `indicators_raw`; add the new FKs `NOT VALID` under their
+      `_main_database.sql` names, guarded on `pg_constraint`; drop
+      `indicators.is_default`; no `DROP TABLE`. On the fresh schema every
+      statement is a guarded no-op. Older migrations that name the old
+      tables get table-existence guards so the fresh replay passes: 003's
+      two index creations and 079's id-charset DO block (079's
+      `is_default` inserts sit after its early return and never execute
+      on a fresh replay; 002 is already column-guarded and 056 is `CREATE
+      TABLE IF NOT EXISTS`). The instance-side precedent is 003's own
+      guards.
     - **The transform (TS, one transaction)**: gated on
       `to_regclass('indicators_raw') IS NOT NULL`, which is the forced
       gate here (no Zod parse is involved); a second boot and a fresh
@@ -300,14 +297,14 @@ No "raw", no "common", no `is_default`.
       label) with the raw as sole source: about 260 in Uganda (one with
       data), 109 in Ethiopia (all with data); the manager's bulk delete
       removes what a team does not want;
-    - a raw shared by commons of which exactly one is special: the special
-      keeps it; each other common O becomes derived `S + O_own` where
-      `O_own` is a new base holding O's remaining sources (omitted when
-      none), valid only when S's sources are a subset of O's. Otherwise,
-      and whenever two specials share a raw, the transform aborts with the
-      listing and the instance is resolved by hand before deploy: 13 pairs
-      in Côte d'Ivoire, Kenya, Malawi, RCA, RDC and Somaliland (sweep
-      2026-09-10);
+    - a raw shared by commons of which exactly one is special: the
+      special keeps it; each other common O becomes derived `S + O_own`
+      where `O_own` is a new base holding O's remaining sources (omitted
+      when none), valid only when S's sources are a subset of O's.
+      Otherwise, and whenever two specials share a raw, the transform
+      aborts with the listing and the instance is resolved by hand before
+      deploy: 13 pairs in Côte d'Ivoire, Kenya, Malawi, RCA, RDC and
+      Somaliland (sweep 2026-09-10);
     - a raw shared by non-special commons only becomes its own base and
       every common that held it becomes derived over its parts, with
       `_own` remainders as above. Former commons keep id, label, format
@@ -337,56 +334,51 @@ No "raw", no "common", no `is_default`.
 
 ## 4. Implementation
 
-Order: modules declaration (pushed first), then generated union and
-schema, then server, then client, each stage typechecking green.
+Order: schema, then lib, then server, then client, each stage
+typechecking green.
 
-1. **Modules**: `requiredIndicators` on `ModuleDefinitionCore` and the
-   definition schema, the vendored schema copy re-synced; m001, m004,
-   m005, m006, m011 declare; the cleanup in ruling 5; `deno task build`.
-2. **Generated union and schema**: `deno task build:module-indicators`
-   (with `--check`, chained into `typecheck`) and
-   `lib/module_required_indicators.generated.ts`; `_main_database.sql`;
-   instance migration `085_indicator_sources.sql` and the guards on 003
-   and 079; the transform
-   `server/db/migrations/data_transforms/indicator_sources.ts` registered
-   in `INSTANCE_DATA_TRANSFORMS`.
-3. **lib**: `lib/types/indicators.ts` (`IndicatorSource`, base carries
-   `sources`, one `InstanceIndicatorDetails`, the special/reserved
-   validator beside `getNewIndicatorIdIssue`, `is_default` gone),
+1. **Schema**: `_main_database.sql`; instance migration
+   `085_indicator_sources.sql` and the guards on 003 and 079; the
+   transform `server/db/migrations/data_transforms/indicator_sources.ts`
+   registered in `INSTANCE_DATA_TRANSFORMS`.
+2. **lib**: `lib/types/indicators.ts` (`IndicatorSource`, base carries
+   `sources`, one `InstanceIndicatorDetails`, the validator without
+   `kind`, `RESERVED_WORDS`, `is_default` gone), `lib/special_indicators.ts`
+   (ruling 5),
    `lib/indicator_id.ts` (ruling 10), `lib/types/dataset_hmis_import.ts`
    and `lib/types/dataset_hmis.ts` (ruling 4 names and dropped fields),
-   `lib/types/_module_definition_github.ts` and the detail type,
    `lib/api-routes/instance/{indicators,datasets,indicators_dhis2}.ts`
    (raw routes deleted; selections carry `indicatorIds`; the search
    response carries period type), `lib/table_structures/indicators.ts`
-   deleted, `lib/common_indicator_catalog.ts` reads the union and drops
-   its "seeded on every instance" comment, `lib/types/instance.ts` and
+   deleted, `lib/common_indicator_catalog.ts` comment reworded (specials
+   are seeded on a new database only), `lib/types/instance.ts` and
    `instance_sse.ts` (the raw count leaves the summary).
-4. **Server**: `db/instance/indicators.ts` (one CRUD, sources in the
+3. **Server**: `db/instance/indicators.ts` (one CRUD, sources in the
    indicator's transaction, batch per ruling 11), `db/instance/instance.ts`
    (both stamps over the two tables), `db/instance/dataset_hmis.ts`
    (windowed delete, by-source datatable), `db/instance/
    dataset_hmis_import_{runs,ledger}.ts` (expansion, `skipped_values`),
    `db/instance/_main_database_types.ts`, `db/project/
    datasets_in_project_hmis.ts` (extract joins sources), `db_startup.ts`
-   (every-boot seed after the transforms), `runs/indicator_catalog.ts`
-   (the frozen order), `runs/generation_wizard_reads.ts` and
-   `worker_routines/generate_run/resolve_modules.ts` (the module guard),
+   (new-database seed from `SPECIAL_INDICATOR_IDS`), `runs/indicator_catalog.ts`
+   (the frozen order and the backfill),
    `worker_routines/import_hmis_data_dhis2/{dispatch,scheduler,worker,
    instantiate_worker}.ts` (ruling 7 message carries sources; the route,
    the URL guard and the batch-size env var deleted; skip-and-record),
    `exposed_env_vars.ts` and `.env.example`,
    `worker_routines/import_hmis_data_csv/{stage_csv,worker,
-   integrate_staged,instantiate_worker}.ts` (full unknown set on the hold;
-   re-stage action), `server/dhis2/goal2_indicators` (period-type field,
-   decomposition), `server/dhis2/goal3_analytics` and `server/dhis2/mod.ts`
-   (deleted, export removed), `routes/instance/{indicators,
-   indicators_dhis2,datasets,health}.ts`,
-   `tests/m012_expression_parity_test.ts` (fixture).
-5. **Client**: `indicator_manager_hmis/` (one list; the naming component
-   with the metadata refusals; `_edit_indicator_raw.tsx` and the raw batch
-   form deleted; `dhis2_indicator_select_form.tsx` becomes the naming
-   step), `instance_dataset_hmis/imports/` (`_indicator_picker.tsx` lists
+   integrate_staged,instantiate_worker}.ts` (staging column rename; full
+   unknown set on the hold; re-stage action), `server/dhis2/goal2_indicators`
+   (period-type field, decomposition), `server/dhis2/goal3_analytics` and
+   `server/dhis2/mod.ts` (deleted, export removed),
+   `routes/instance/{indicators,indicators_dhis2,datasets,health}.ts`
+   (health's `dhis2-indicators-export` reads sources),
+   `server/tests/m012_expression_parity_test.ts` (fixture).
+4. **Client**: `indicator_manager_hmis/` (one list; the special badge and the
+   reference list; the naming component with the metadata refusals;
+   `_edit_indicator_raw.tsx` and the raw batch form deleted;
+   `dhis2_indicator_select_form.tsx` becomes the naming step),
+   `instance_dataset_hmis/imports/` (`_indicator_picker.tsx` lists
    indicators; `_wizard/`, `_csv_wizard.tsx`, `_csv_needs_review_card.tsx`
    (the third action), `_csv_staging_summary.tsx`, `_tab_future.tsx`,
    `_tab_history.tsx`, `_run_view.tsx`, `_run_detail.tsx`,
@@ -395,45 +387,43 @@ schema, then server, then client, each stage typechecking green.
    dataset_items_holder}.tsx`, `components/WindowingSelector.tsx` (by
    source; shared by all three families), `instance/instance_data.tsx`,
    `state/instance/{t1_store,t2_indicators,t2_datasets}.ts`.
-6. **Docs and generated**: SYSTEM_05 (including its "seeded on every
-   instance" sentence), SYSTEM_06 and SYSTEM_08 prose and `globs` (files
-   added and deleted, including the generated file); `wb-fastr-site` help
-   text for the indicator manager and imports, then
-   `deno task build:help-buttons`; `lib/ai_tools/tools_methodology_docs.ts`
-   wording.
+5. **Docs and generated**: SYSTEM_05 (including its "seeded on every
+   instance" and `is_default` sentences) and SYSTEM_06 prose and `globs`
+   (files added and deleted); `wb-fastr-site` help text for the
+   indicator manager and imports, then `deno task build:help-buttons`;
+   `lib/ai_tools/tools_methodology_docs.ts` wording if it names raws or
+   mappings.
 
 ## 5. Verification
 
-- `deno task typecheck` (now including the union `--check`),
-  `./validate_migrations` (fresh replay across the guarded 003/079 and a
-  no-op 085), `./validate_protocols`, `./validate_queries`.
+- `deno task typecheck`, `./validate_migrations` (fresh replay across the
+  guarded 003/079 and a no-op 085), `./validate_protocols`,
+  `./validate_queries`.
 - Transform harness on scratch DBs seeded from read-only dumps of the
   Uganda, Sierra Leone and Malawi dictionaries (PROTOCOL_ACCESS_DBS), run
   after 085 has been applied to them: sources = single-mapped raws; new
   bases = unmapped + shared + `_own`; every generated id unique, bare,
-  unreserved, non-special; Malawi aborts on `anc1`/`anc4`; a second boot
-  is a no-op (gate false); for an indicator with no shared source the
-  extract's per-indicator sums are identical before and after; for a
-  rewritten one the derived's evaluation over unadjusted data equals the
-  old base's sum; every historical run row, version row and schedule
-  parses after the JSON rewrite with the dropped fields gone; the
-  every-boot seed adds the missing specials at the end of the order and
-  a second boot writes nothing.
+  unreserved and non-special; Malawi aborts on `anc1`/`anc4`; a second boot is a no-op
+  (gate false); for an indicator with no shared source the extract's
+  per-indicator sums are identical before and after; for a rewritten one
+  the derived's evaluation over unadjusted data equals the old base's
+  sum; every historical run row, version row and schedule parses after
+  the JSON rewrite with the dropped fields gone; a fresh database holds
+  exactly the special list as empty bases.
 - Harness: id generation (accents, punctuation, leading digits, empty,
-  collisions, reserved, special); the validator (special as derived
-  refused, reserved refused, special delete refused); the metadata check
-  (each non-SUM aggregation type, each non-numeric or fractional value
-  type, each non-monthly or absent period type refused; `NUMBER` with
-  SUM accepted; operands checked through their element); decomposition
-  (factor 1/100/1000/10000, another factor refused, annualized refused,
-  whitespace accepted, one case per non-whitelisted term); skip-and-record
-  (a fractional and a negative facility value are skipped, counted and
-  sampled on the ledger row, the pair integrates); expansion of a derived
-  selection to sources with a population term and a CSV source dropped;
-  a queued run launched after a source is added does not include it; a
-  module definition without `requiredIndicators` fails schema validation;
-  the module guard refuses a definition requiring an absent id and one
-  requiring a derived id.
+  collisions, reserved, special); the validator (a reserved word refused;
+  a special accepted as a base and refused as a derived, at create and at
+  retype; a source id passes the charset rule only); the metadata
+  check (each non-SUM aggregation type, each non-numeric or fractional
+  value type, each non-monthly or absent period type refused; `NUMBER`
+  with SUM accepted; operands checked through their element);
+  decomposition (factor 1/100/1000/10000, another factor refused,
+  annualized refused, whitespace accepted, one case per non-whitelisted
+  term); skip-and-record (a fractional and a negative facility value are
+  skipped, counted and sampled on the ledger row, the pair integrates);
+  expansion of a derived selection to sources with a population term and
+  a CSV source dropped; a queued run launched after a source is added
+  does not include it.
 
 ## 6. Out of scope
 
@@ -445,9 +435,11 @@ schema, then server, then client, each stage typechecking green.
 - A `rate_per_1k` display format (ruling 8): SYSTEM_05 Open item.
 - Renaming an indicator id after creation.
 - HFA and ICEH dictionaries.
+- Module cleanup (m004/m005's `pnc1` fallback, the frozen m007/m008
+  directories): PLAN_1e.
 
 ## 7. Done when
 
-The gates and harnesses pass, the three repos are pushed in order, the
-SYSTEM prose is updated, PLAN_2 is deleted, and this file is deleted in
-the same commit.
+The gates and harnesses pass, the app and the site help text are pushed,
+the SYSTEM prose is updated, PLAN_2 is deleted, and this file is deleted
+in the same commit.
