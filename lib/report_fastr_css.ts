@@ -308,6 +308,17 @@ ${d}.fm-figure img {
 /* The editor's stand-in while a figure renders (report_html.ts): the same
    cap, so the page flow does not move when the raster replaces it. */
 ${d}.fm-figure .report-embed-pending { max-height: calc(var(--fm-page-area, 100vh) * 0.42); }
+/* The editor's LIVE chart mount (live_preview_extension applyFigureSize):
+   the raster's aspect (--fm-fig-w/h) under the same cap, narrowed and
+   centred exactly as the img above, sized before the chart draws; the
+   canvas inside is cut to the box (it lays out to the same aspect, give or
+   take a pixel of rounding). */
+${d}.fm-figure [data-embed-kind="figure"][data-fm-sized] {
+  aspect-ratio: var(--fm-fig-w) / var(--fm-fig-h);
+  width: min(100%, calc(var(--fm-page-area, 100vh) * 0.42 * var(--fm-fig-w) / var(--fm-fig-h)));
+  margin-inline: auto;
+  overflow: hidden;
+}
 ${d}.fm-figure__caption {
   margin-top: 0.5em;
   font-size: 0.85em;

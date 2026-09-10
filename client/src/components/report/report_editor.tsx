@@ -56,6 +56,7 @@ import {
   livePreviewExtensions,
   setPagination as setPaginationEffect,
   setLayoutHints as setLayoutHintsEffect,
+  refreshEmbedSizes as refreshEmbedSizesEffect,
   paginationField,
 } from "./live_preview_extension";
 import { fastrContainerFences } from "./fastr_fence_extension";
@@ -165,6 +166,9 @@ export type ReportEditorApi = {
   // Print's height for every block, by source text (the host's background
   // layout): the estimates for blocks the editor has not rendered.
   setLayoutHints: (hints: Map<string, number>) => void;
+  // An embed's size landed in the host's caches (see EmbedResolver): the
+  // rendered embeds still waiting for one take their box now.
+  refreshEmbedSizes: () => void;
   // The page starts the editor laid out, with the body they belong to, for
   // the PDF export to force; undefined without page boxes.
   getPageLayout: () => { body: string; pageStarts: number[] } | undefined;
@@ -191,6 +195,9 @@ type Props = {
   figureInkFor: (el: Element) => FigureInkTheme | undefined;
   // The report theme's series palette for its figures (undefined = default).
   figureChartPalette: () => FastrChartPalette | undefined;
+  // Embed boxes known ahead of drawing (see EmbedResolver).
+  figureSize?: (id: string, block: FigureBlock) => { width: number; height: number } | undefined;
+  imageSize?: (id: string) => { width: number; height: number } | undefined;
   onBodyChange: (body: string) => void;
   onSelectEmbed: (kind: "figure" | "image", id: string) => void;
   selectedId: () => string | undefined;
@@ -312,6 +319,8 @@ export function ReportEditor(p: Props) {
     getSelectedId: () => p.selectedId(),
     inkFor: (el) => p.figureInkFor(el),
     chartPalette: () => p.figureChartPalette(),
+    figureSize: (id, block) => p.figureSize?.(id, block),
+    imageSize: (id) => p.imageSize?.(id),
   };
 
   // rAF-throttle scroll events so getTopLine reads at most once per frame.
@@ -888,6 +897,10 @@ export function ReportEditor(p: Props) {
     view?.dispatch({ effects: setLayoutHintsEffect.of(hints) });
   }
 
+  function refreshEmbedSizes() {
+    view?.dispatch({ effects: refreshEmbedSizesEffect.of(null) });
+  }
+
   function reapplyPagination() {
     if (!view) return;
     const effects = [];
@@ -991,6 +1004,7 @@ export function ReportEditor(p: Props) {
       refresh,
       setPagination,
       setLayoutHints,
+      refreshEmbedSizes,
       getPageLayout,
       getTopLine,
       scrollToLine,

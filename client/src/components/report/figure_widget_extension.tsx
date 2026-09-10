@@ -37,6 +37,13 @@ export type EmbedResolver = {
   inkFor: (el: Element) => FigureInkTheme | undefined;
   // The report theme's series palette for its figures.
   chartPalette: () => FastrChartPalette | undefined;
+  // The box a figure's raster has (the host's size cache, what the PDF
+  // embeds and the print layout gives the figure) and an image's natural
+  // size: the live embed takes the same box BEFORE it draws, so its widget
+  // never measures a transient height. Undefined while the size is being
+  // measured; the host calls the editor's refreshEmbedSizes when it lands.
+  figureSize?: (id: string, block: FigureBlock) => { width: number; height: number } | undefined;
+  imageSize?: (id: string) => { width: number; height: number } | undefined;
 };
 
 class EmbedWidget extends WidgetType {

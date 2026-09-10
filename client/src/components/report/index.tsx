@@ -619,6 +619,9 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
   createEffect(on([body, figures, images, sizeTick], () => {
     if (paginationWanted()) paginator.request();
   }, { defer: true }));
+  // A size landing: the rendered embeds waiting for it take their box now,
+  // not after the paginator's debounce.
+  createEffect(on(sizeTick, () => editorApi?.refreshEmbedSizes(), { defer: true }));
   createEffect(on([paginationWanted, fastrTheme, fastrColors, label], () => {
     if (paginationWanted()) {
       editorApi?.setPagination(emptyPagination());
@@ -1967,6 +1970,11 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
               images={images()}
               figureInkFor={figureInkFor}
               figureChartPalette={chartPalette}
+              figureSize={(id) => {
+                const block = figures()[id];
+                return block ? figureSizes.get(id, block) : undefined;
+              }}
+              imageSize={imageSize}
               assetUrl={assetUrl}
               onBodyChange={handleBodyChange}
               onSelectEmbed={(kind, id) => setSelectedEmbed({ kind, id })}

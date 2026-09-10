@@ -517,6 +517,36 @@ from print's margin of its element less the editor line's padding
 blockquote's whole 1.4em); the first block of the document, a cover and a
 block after a line of space have none.
 
+An embed's box is known before it draws. A figure's live chart (panther's
+FigureHolder, mounted by the region widget) lays out a beat after its
+mount, at a canvas's default size first; measured, that transient moved
+the pages, and a page move shifts CodeMirror's rendered range, which
+destroys and re-creates the widgets at its edge, so the chart drew again
+at the default size, moved the pages back, and so on for as long as the
+figure was near the screen (Nick's ANC1 bulletin, a whole-page figure
+under "ANC1 in context", 2026-09-10: "flickering, impossible to scroll
+past"). The editor now gives the mount the box print gives the raster:
+the host's `FigureSizeCache` aspect (`EmbedResolver.figureSize`, the same
+cache `paginate_report.ts` uses, through `ReportEditor`'s `figureSize`
+prop) as `--fm-fig-w/h` on the mount (`applyFigureSize`), which the
+structure sheet sizes exactly as the printed img (the raster's aspect
+capped at 42% of the page area, narrowed and centred, the canvas cut to
+the box), so a figure measures right on its first measure and the editor's
+page equals the PDF's; an image takes its natural size as width and
+height attributes (`applyImageSize`, `imageSize`). While a size is still
+being measured the mount is flagged `data-fm-pending` and `flowBlocksOf`
+leaves the block's height alone: what was measured before, else print's
+hint, else the first height seen (`pendingBlockHeights`, steady if wrong)
+stands, and the page's filler absorbs what the widget actually shows
+(`FlowBlock.domHeight`) so the box keeps the sheet's height meanwhile;
+when the host's cache lands (`sizeTick`) it calls the editor's
+`refreshEmbedSizes`, and `embedSizePlugin` sizes the waiting mounts. The
+harness cannot render a real chart (a bundle needs a results package), so
+`probe_pages.tsx` emulates one (`?fake=1`: a mount that grows 30ms after
+it appears): that reproduced the storm (20 page flips per 700ms, the
+scroll dragged back) and is quiet with the fix, pending and landed alike,
+and the forced print agrees with the editor on the bulletin.
+
 The height map is measured where a line has been on screen and estimated
 elsewhere, and a page laid out from guesses moves when it scrolls in, so
 three things stand in for measurement: `paginate_report.ts` still lays the

@@ -347,7 +347,11 @@ class RegionWidget extends WidgetType {
         const entry = this.resolver.getImage(id);
         if (entry) {
           img.setAttribute("src", this.resolver.assetUrl(entry.imgFile));
-          img.addEventListener("load", () => view.requestMeasure());
+          applyImageSize(img, this.resolver.imageSize?.(id));
+          img.addEventListener("load", () => {
+            img.removeAttribute("data-fm-pending");
+            view.requestMeasure();
+          });
         } else {
           img.replaceWith(missingNote("image", id));
         }
@@ -358,6 +362,8 @@ class RegionWidget extends WidgetType {
       const mount = document.createElement("div");
       mount.setAttribute("data-embed-id", id);
       mount.setAttribute("data-embed-kind", kind);
+      const fig = this.resolver.getFigure(id);
+      applyFigureSize(mount, fig ? this.resolver.figureSize?.(id, fig) : undefined);
       img.replaceWith(mount);
       disposers.push(render(
         () => (
@@ -522,6 +528,79 @@ class RegionWidget extends WidgetType {
     const lines = this.endLine - this.startLine + 1;
     return Math.max(40, Math.min(1200, 28 * lines));
   }
+}
+
+// A figure's live mount takes the box its raster has in print BEFORE the
+// chart draws (report_fastr_css.ts sizes it from these: the raster's aspect,
+// capped at the same share of the page area, narrowed and centred), so the
+// widget's height is right on its first measure. Without a size yet the
+// mount is flagged pending, and the page layout leaves the block's height
+// alone until the size lands (a chart draws a beat after its mount, at a
+// canvas's default size first: measured, that transient moved the pages
+// and, with the chart re-drawn on every re-mount, moved them back and
+// forth for as long as the figure was near the screen).
+function applyFigureSize(
+  mount: HTMLElement,
+  size: { width: number; height: number } | undefined,
+): boolean {
+  if (size === undefined || !(size.width > 0) || !(size.height > 0)) {
+    mount.setAttribute("data-fm-pending", "");
+    return false;
+  }
+  mount.style.setProperty("--fm-fig-w", String(size.width));
+  mount.style.setProperty("--fm-fig-h", String(size.height));
+  mount.setAttribute("data-fm-sized", "");
+  mount.removeAttribute("data-fm-pending");
+  return true;
+}
+// An image's natural size as its width and height attributes: the browser
+// lays the box out from them before the bytes arrive.
+function applyImageSize(
+  img: HTMLImageElement,
+  size: { width: number; height: number } | undefined,
+): boolean {
+  if (size === undefined || !(size.width > 0) || !(size.height > 0)) {
+    if (!img.complete || img.naturalWidth === 0) img.setAttribute("data-fm-pending", "");
+    return false;
+  }
+  img.width = size.width;
+  img.height = size.height;
+  img.removeAttribute("data-fm-pending");
+  return true;
+}
+
+// The host says an embed's size landed: every rendered embed still waiting
+// for its box takes it now.
+export const refreshEmbedSizes = StateEffect.define<null>();
+function embedSizePlugin(resolver: EmbedResolver) {
+  return ViewPlugin.fromClass(
+    class {
+      update(u: ViewUpdate) {
+        const asked = u.transactions.some((tr) =>
+          tr.effects.some((e) => e.is(refreshEmbedSizes))
+        );
+        if (!asked) return;
+        let changed = false;
+        for (
+          const mount of Array.from(
+            u.view.contentDOM.querySelectorAll<HTMLElement>('[data-embed-kind="figure"][data-fm-pending]'),
+          )
+        ) {
+          const id = mount.getAttribute("data-embed-id") ?? "";
+          const fig = resolver.getFigure(id);
+          if (fig && applyFigureSize(mount, resolver.figureSize?.(id, fig))) changed = true;
+        }
+        for (
+          const img of Array.from(
+            u.view.contentDOM.querySelectorAll<HTMLImageElement>('img[data-embed-kind="image"][data-fm-pending]'),
+          )
+        ) {
+          if (applyImageSize(img, resolver.imageSize?.(img.getAttribute("data-embed-id") ?? ""))) changed = true;
+        }
+        if (changed) u.view.requestMeasure();
+      }
+    },
+  );
 }
 
 function missingNote(kind: string, id: string): HTMLElement {
@@ -3496,7 +3575,17 @@ function applyRegionPagination(
 // Every seam's filler (the padding that brings a page box to the sheet's
 // height) comes from the layout's own numbers, on screen or not.
 
-type FlowBlock = FastrLayoutBlock & { top: number; bottom: number; text: string; rendered: boolean };
+type FlowBlock = FastrLayoutBlock & {
+  top: number;
+  bottom: number;
+  text: string;
+  rendered: boolean;
+  // The widget's height on screen when it differs from the block's (an
+  // embed still pending its size): the page's filler absorbs the
+  // difference, so the box keeps the sheet's height while the layout keeps
+  // the steady figure.
+  domHeight?: number;
+};
 
 // The document-space extent of a source line's OWN box: the text line, or
 // the widget standing in for a replaced region, without the block widgets
@@ -3704,6 +3793,8 @@ function regionClassOf(r: FastrLiveRegion): { cls: string; tag: string } {
 // belongs to one geometry: the content column's width and the body font;
 // a theme or page-size change starts it over.
 const measuredBlockHeights = new Map<string, number>();
+// The first height seen of a block whose embed is still pending, by key.
+const pendingBlockHeights = new Map<string, number>();
 let measuredEpoch = "";
 const MEASURED_CAP = 4000;
 function blockKey(kind: "r" | "p" | "s", text: string): string {
@@ -3722,6 +3813,7 @@ function keepMeasuredEpoch(view: EditorView): boolean {
   if (epoch === measuredEpoch) return false;
   measuredEpoch = epoch;
   measuredBlockHeights.clear();
+  pendingBlockHeights.clear();
   return true;
 }
 
@@ -3809,6 +3901,7 @@ function flowBlocksOf(
       const bottom = lineBox(view, r.endLine).bottom;
       const text = textOf(r.startLine, r.endLine);
       let height = bottom - top;
+      let domHeight: number | undefined;
       let inner: { line: number; top: number }[] | undefined;
       const isRendered = rendered(r.startLine, r.endLine);
       const key = blockKey("r", text);
@@ -3821,8 +3914,24 @@ function flowBlocksOf(
           for (const seam of Array.from(dom.querySelectorAll<HTMLElement>(".fm-page-gutter"))) {
             height -= seam.getBoundingClientRect().height;
           }
-          rememberBlockHeight(key, height);
-          if (height > area) inner = innerCandidates(view, r.startLine);
+          if (dom.querySelector("[data-fm-pending]") !== null) {
+            // An embed whose box is not known yet (applyFigureSize): the
+            // widget's height is transient, not the block's. What was
+            // measured before, else print's height, else the first height
+            // seen while pending (steady, if wrong, rather than a chart's
+            // canvas growing under the layout) stands until the size lands.
+            const seen = measuredBlockHeights.get(key);
+            const hint = hints.get(text);
+            const provisional = pendingBlockHeights.get(key);
+            domHeight = height;
+            if (seen !== undefined) height = seen;
+            else if (hint !== undefined) height = hint + oracle.regionExtra(cls, tag);
+            else if (provisional !== undefined) height = provisional;
+            else pendingBlockHeights.set(key, height);
+          } else {
+            rememberBlockHeight(key, height);
+            if (height > area) inner = innerCandidates(view, r.startLine);
+          }
         }
       } else {
         const seen = measuredBlockHeights.get(key);
@@ -3855,6 +3964,7 @@ function flowBlocksOf(
         inner,
         topExtra,
         rendered: isRendered,
+        domHeight,
       });
       prevBlank = false;
       i = r.endLine + 1;
@@ -4111,13 +4221,17 @@ const pageBoxPlugin = ViewPlugin.fromClass(
       for (let i = 0; i < pages.length; i++) {
         const page = pages[i];
         const to = pages[i + 1]?.firstLine ?? doc.lines;
-        // The last block that starts on this page.
+        // The last block that starts on this page, and what the page's
+        // widgets show beyond the heights the layout stacked (an embed
+        // pending its size): the filler takes it up.
         let last: FlowBlock | undefined;
+        let shown = 0;
         while (b < blocks.length && blocks[b].line < to) {
           last = blocks[b];
+          if (last.domHeight !== undefined) shown += last.domHeight - last.height;
           b++;
         }
-        let extent = page.contentHeight;
+        let extent = page.contentHeight + shown;
         if (last !== undefined && last.endLine < to) {
           // The block completed on this page; a blank line after it is the
           // separator, which stays on this page before the seam.
@@ -4186,6 +4300,7 @@ export function livePreviewExtensions(
     livePreviewTheme,
     sheetBleedVars,
     docGroundPlugin(resolver),
+    embedSizePlugin(resolver),
     paginationField,
     layoutHintsField,
     paginationPlugin,
