@@ -564,6 +564,9 @@ export async function structureStep1Csv_UploadFile(
     throwIfErrWithData(resCsvDetails);
 
     const step1Result: StructureCsvStep1Result = { csv: resCsvDetails.data };
+    if (xlsFormAssetFileName && family !== "hfa") {
+      throw new Error("An XLSForm applies only to the HFA facility registry");
+    }
     if (xlsFormAssetFileName) {
       const xlsFormFilePath = resolveAssetFilePath(xlsFormAssetFileName);
       const sheetNames = getXlsxSheetNamesRaw(xlsFormFilePath);

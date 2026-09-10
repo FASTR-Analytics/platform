@@ -113,7 +113,7 @@ it and flags `existing === 0` as the Ghana-style ID-system-mismatch tell.
 Attempt reads at step 4 recompute the match live while the staging table
 still exists, so the numbers reflect finalize time, not staging time.
 
-**ODK label resolution (CSV path).** Step 1 optionally accepts an ODK
+**ODK label resolution (HFA CSV path).** Step 1 optionally accepts an ODK
 questionnaire (XLSForm) alongside the CSV, mirroring HFA ingestion's
 two-file step 1 (`survey`+`choices` sheets validated on save;
 `step_1_result` is `StructureCsvStep1Result` `{csv, xlsForm?}`. Legacy
