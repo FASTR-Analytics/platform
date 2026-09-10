@@ -178,7 +178,9 @@ information_schema), which staging built from the user's step-2 mappings.
 Only `facility_id` is required; admin areas are all-or-none as a group (a
 facility-id-plus-tags file is a legal tag-only update). The DHIS2 path has
 no column mapping: it stages `facility_name` only, deliberately, so blank
-DHIS2 metadata never wipes existing values.
+DHIS2 metadata never wipes existing values under `add_and_update` or
+`update_existing_only` (`replace_all` blanks unmapped columns by design,
+from DHIS2 as from a file).
 
 **Integrate strategies** (`StructureIntegrateStrategy`, chosen at step 4,
 never stored; no default in the UI: the destructive one must be opt-in):

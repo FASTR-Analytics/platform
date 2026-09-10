@@ -95,8 +95,9 @@ export async function integrateStructureFromStaging(
       switch (strategy.type) {
         case "replace_all": {
           // The file is the registry. Checked inside the transaction, ahead of
-          // any write, so a concurrent data import cannot land rows on a
-          // facility between the check and its delete.
+          // any write, with the absent rows locked, so a concurrent data or
+          // weights import cannot reference one between the check and its
+          // delete.
           await assertAbsentFacilitiesUnreferenced(
             sql,
             stagingTableName,
@@ -286,6 +287,21 @@ async function assertAbsentFacilitiesUnreferenced(
   stagingTableName: string,
   family: FacilityFamily
 ): Promise<void> {
+  const facilitiesTable =
+    family === "hmis" ? "facilities_hmis" : "facilities_hfa";
+  // FOR UPDATE conflicts with the KEY SHARE lock every FK insert takes on the
+  // referenced row, so a concurrent dataset or weights write on an absent
+  // facility waits for this transaction and then fails its FK, instead of
+  // landing between the check and the delete (where weights would cascade
+  // away silently). A separate statement: FOR UPDATE is not allowed with the
+  // window function in the sample query.
+  await sql.unsafe(`
+    SELECT 1 FROM ${facilitiesTable} f
+    WHERE NOT EXISTS (
+      SELECT 1 FROM ${stagingTableName} s WHERE s.facility_id = f.facility_id
+    )
+    FOR UPDATE
+  `);
   const blocked = await sql.unsafe(`
     SELECT facility_id, COUNT(*) OVER () AS total_blocked
     FROM (${absentFacilitiesSql(stagingTableName, family)}) a
