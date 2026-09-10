@@ -899,9 +899,11 @@ ${d}.fm-overlay--dark::before { background: rgba(0, 0, 0, 0.55); }
 ${d}.fm-overlay--light::before { background: rgba(255, 255, 255, 0.72); }
 
 /* ── Figure widths ────────────────────────────────────────────────────────── */
-${d}.fm-figure--wide {
-  margin-inline: max(-4rem, calc((100% - 100vw) / 2 + 1.5rem));
-}
+/* A figure sits in the text column. width=wide (accepted, still classed
+   fm-figure--wide) once overhung the column by up to 4rem a side: on a
+   paged sheet that crosses the margin line and reads as a mistake, not a
+   design (Nick, 2026-09-10), so it is the column now. width=full bleeds
+   edge to edge, as a band does. */
 ${d}.fm-figure--full {
   margin: 2em var(--fm-bleed-margin);
 }
@@ -923,7 +925,6 @@ ${scope === "" ? "" : `
    and full-width figure follows. */
 ${scope} { --fm-bleed-margin: 0; --fm-bleed-pad: 1.4em; }
 ${d}.fm-cover { min-height: 0; }
-${d}.fm-figure--wide { margin-inline: 0; }
 `}
 `;
 }
@@ -978,7 +979,6 @@ const RESPONSIVE_CSS = `
 @media (max-width: 640px) {
   .fm-tiles, .fm-columns { grid-template-columns: minmax(0, 1fr) !important; }
   .fm-col--span2, .fm-col--span3, .fm-col--span4 { grid-column: auto; }
-  .fm-figure--wide { margin-inline: 0; }
 }
 `;
 
@@ -1133,9 +1133,6 @@ ${scope} {
    fills its page: the host sets --fm-page-h to the printed page's height. */
 ${d}.fm-cover { min-height: 544px; }
 ${d}.fm-cover.fm-cover--fill { min-height: var(--fm-page-h, 544px); }
-${d}.fm-figure--wide {
-  margin-inline: max(-4rem, calc((100% - var(--fm-sheet, 896px)) / 2 + 1.5rem));
-}
 `;
   const headings = [
     { cls: "cm-fm-h1", size: "2.15em" },

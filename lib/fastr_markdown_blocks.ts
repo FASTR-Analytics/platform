@@ -699,8 +699,9 @@ export function readFastrDocumentSettings(body: string): FastrDocumentSettings {
   return empty;
 }
 
-// Figures take a width so a chart can break the text column — `wide` overhangs
-// it, `full` goes edge to edge (same grid mechanism as a band).
+// Figures take a width: `full` goes edge to edge (same grid mechanism as a
+// band); `wide` is still accepted and classed, but the stylesheet gives it
+// the text column (on a paged sheet an overhang reads as a mistake).
 export function figureWidthClass(attrs: FastrContainerAttrs): string {
   const w = oneOf(attrs, "width", DOC_WIDTHS, "normal");
   return w === "normal" ? "" : ` fm-figure--${w}`;

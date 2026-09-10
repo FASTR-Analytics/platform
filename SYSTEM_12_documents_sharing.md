@@ -718,8 +718,12 @@ insets its content back to `--fm-measure`; `html { overflow-x: hidden }` absorbs
 the scrollbar width, and `@media print` drops the bleed. `:::cover` is a band
 that is tall and `break-after: page`. Scoped sheets (picker tiles) neutralise the
 bleed, since there the viewport is not the page. Figures take
-`{width=wide|full}` — markdown-it has no attribute syntax, so the `fm_figures`
-core rule claims a trailing `{…}` text child and removes it.
+`{width=full}`: markdown-it has no attribute syntax, so the `fm_figures`
+core rule claims a trailing `{…}` text child and removes it. `width=wide`
+is still accepted and classed but renders at the text column: it used to
+overhang the column by up to 4rem a side, which on a paged sheet crosses
+the margin line and read as a mistake (Nick, 2026-09-10); the spec no
+longer offers it, so the AI stops asking for it.
 
 **Escape hatch** (documented as theme-breaking, and the editor guide says so):
 `bg=` emits an inline STANDARD declaration — never a custom property, which
