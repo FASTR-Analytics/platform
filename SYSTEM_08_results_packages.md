@@ -811,8 +811,7 @@ substitution; every generator takes a required per-caller `datasetsDirPath`
 (the run pipeline passes `"../../inputs/datasets"`). Markers replaced via
 `str.replaceAll`: `COUNTRY_ISO3`, `INDICATOR_INGREDIENTS` (m012's ingredient
 table as a tribble literal, see m012 below), `POPULATION_ACTIVE` (an R
-`TRUE`/`FALSE`, see "population.csv"), `POPULATION_TYPE_IDS` (an R
-character vector of the population type ids), dataSource `replacementString`s
+`TRUE`/`FALSE`, see "population.csv"), dataSource `replacementString`s
 (dataset, results-object, and `population` → the quoted path of
 `inputs/population.csv`, `populationFilePathLiteral`), and config params by
 type. **Every substituted
@@ -919,9 +918,8 @@ person-years file's level (the population level when a formula names a
 population, the HMIS depth otherwise, see "population.csv"), binds the
 person-years rows in under the population type id (the same id the
 ingredient table names wherever an expression's population term was
-assigned a slot; the script tells a population ingredient from a base
-common by the substituted `POPULATION_TYPE_IDS` vector, never by a prefix,
-since a common id may start with `population_`), joins the ingredient
+assigned a slot; the script never tells a population ingredient from a
+base one), joins the ingredient
 table, and pivots each indicator's ingredients into `ing1..ing8` of
 `M12_indicator_values.csv`.
 
