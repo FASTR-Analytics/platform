@@ -30,7 +30,9 @@ import {
   type DerivedIndicatorComputability,
   getLanguage,
   getNewIndicatorIdIssue,
-  RESERVED_INDICATOR_IDS,
+  getSpecialIndicatorTypeIssue,
+  RESERVED_WORDS,
+  SPECIAL_INDICATOR_IDS,
   type IndicatorFormat,
   judgeDerivedIndicator,
   parseIndicatorExpression,
@@ -312,15 +314,25 @@ export function EditIndicatorCommonForm(
       }
 
       const idIssue = mode === "create"
-        ? getNewIndicatorIdIssue(commonId, "common")
-        : undefined;
+        ? getNewIndicatorIdIssue(commonId, type())
+        : getSpecialIndicatorTypeIssue(commonId, type());
       if (idIssue === "reserved") {
         return {
           success: false,
           err: t3({
-            en: `"${commonId}" is a reserved word and cannot be an indicator ID (reserved: ${RESERVED_INDICATOR_IDS.join(", ")})`,
-            fr: `« ${commonId} » est un mot réservé et ne peut pas être un identifiant d'indicateur (réservés : ${RESERVED_INDICATOR_IDS.join(", ")})`,
-            pt: `"${commonId}" é uma palavra reservada e não pode ser um ID de indicador (reservadas: ${RESERVED_INDICATOR_IDS.join(", ")})`,
+            en: `"${commonId}" is a reserved word and cannot be an indicator ID (reserved: ${RESERVED_WORDS.join(", ")})`,
+            fr: `« ${commonId} » est un mot réservé et ne peut pas être un identifiant d'indicateur (réservés : ${RESERVED_WORDS.join(", ")})`,
+            pt: `"${commonId}" é uma palavra reservada e não pode ser um ID de indicador (reservadas: ${RESERVED_WORDS.join(", ")})`,
+          }),
+        };
+      }
+      if (idIssue === "special_not_base") {
+        return {
+          success: false,
+          err: t3({
+            en: `"${commonId}" is a special indicator ID, which the analysis modules read as a count, so it can only be a base indicator (special: ${SPECIAL_INDICATOR_IDS.join(", ")})`,
+            fr: `« ${commonId} » est un identifiant d'indicateur spécial, lu comme un dénombrement par les modules d'analyse, et ne peut donc être qu'un indicateur de base (spéciaux : ${SPECIAL_INDICATOR_IDS.join(", ")})`,
+            pt: `"${commonId}" é um ID de indicador especial, lido como uma contagem pelos módulos de análise, pelo que só pode ser um indicador de base (especiais: ${SPECIAL_INDICATOR_IDS.join(", ")})`,
           }),
         };
       }

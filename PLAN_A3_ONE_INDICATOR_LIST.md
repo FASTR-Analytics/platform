@@ -8,7 +8,7 @@ deletes that file). PLAN_A2 has landed (instance migration 084,
 `RESERVED_INDICATOR_IDS`, renamed by ruling 5): generated ids avoid its
 reserved words and the validator this plan extends is A2's.
 
-**Next step: Do 1.** Each session sets this line in its final commit. Its
+**Next step: Review 1.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N`; after step 6's review passes the
 file is deleted instead of advanced.
 
@@ -801,3 +801,11 @@ agent reads this section before its step.
 | 2026-09-10 | plan | §4 rewritten from four horizontal stages to six vertical steps with a Do / Review / Fix session protocol (§0). The horizontal order could not typecheck green stage by stage. |
 | 2026-09-10 | plan | Migrations renumbered: 085 is step 2's ledger columns (`skipped_values` and its sample), 086 is the dictionary migration. Every "085" in the rulings now reads 086. |
 | 2026-09-10 | plan | Fleet sweep re-run: 107 raws shared across 17 instances, one derived special (`anc1` on demo). The original "13 pairs in six countries" was the abort set under the old tiebreak rule, not the resolution list. |
+| 2026-09-10 | 1 | `lib/mod.ts` (kernel, outside the step's Surface) gained two export lines so `lib/special_indicators.ts` and `lib/indicator_id.ts` reach the server and client through the barrel like every other lib module. |
+| 2026-09-10 | 1 | Migration 079's header comment named `lib/table_structures/indicators.ts` as the backfill's authority; the pointer now names `server/runs/indicator_catalog.ts` so gate 1 is at zero. Comment only; the runner does not checksum migrations. |
+| 2026-09-10 | 1 | Generator: the `i_` digit prefix and the 64 cap are applied once, to the chosen stem, so an empty label with a digit-leading source id yields `i_12abc`, not `i_i_12abc`. 086's PL/pgSQL must apply the same order. |
+| 2026-09-10 | 1 | The fresh-postgres boot gate is committed as root-level `validate_fresh_boot` (+ `validate_fresh_boot.ts`), modelled on `validate_queries`: a throwaway container, `dbStartUp()`, then the seed asserted. Passed: 22 specials as empty bases. |
+| 2026-09-10 | 1 | Fact wrong in SYSTEM_05 and in `lib/common_indicator_catalog.ts`: the seed never ran "on every instance"; `db_startup` seeds only when the `main` database does not exist. Prose and comment corrected. |
+| 2026-09-10 | 1 | The seed label now goes through `t3` at boot, after `exposed_env_vars.ts` has set the instance language; `_COMMON_INDICATORS` called `t3` at lib module load. |
+| 2026-09-10 | 1 | Floor: typecheck, `deno task test` (28 passed), `validate_protocols`, `validate_migrations`, `validate_fresh_boot` green. Dev boot ran `dbStartUp` (13 projects and 13 manifests checked), route validation and the in-boot suite, then failed at listen only because a deno process started before the session holds port 8000. `client/src/app.css` carries an unrelated uncommitted edit from a parallel workstream; not staged. |
+| 2026-09-10 | 1 | Step 1 built |

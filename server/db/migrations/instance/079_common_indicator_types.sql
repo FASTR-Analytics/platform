@@ -47,7 +47,7 @@
 -- packages and stored figure snapshots; the two must agree.
 --
 -- sort_order backfill (the authority for the rule is
--- backfillCommonIndicatorSortOrder in lib/table_structures/indicators.ts,
+-- backfillCommonIndicatorSortOrder in server/runs/indicator_catalog.ts,
 -- which applies the same ordering to a legacy package's input mirrors): the
 -- seeded commons keep their seed order, remaining base commons follow
 -- alphabetically, and the migrated rows keep their catalog order at the end.

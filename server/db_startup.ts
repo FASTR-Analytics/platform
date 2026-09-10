@@ -1,8 +1,9 @@
 import {
-  _COMMON_INDICATORS,
   H_USERS,
   type InstanceConfigAdminAreaLabels,
+  SPECIAL_INDICATORS,
   type StructureSchema,
+  t3,
 } from "lib";
 import { escapeSqlString } from "./db/utils.ts";
 import {
@@ -61,7 +62,7 @@ export async function dbStartUp() {
     await sqlMain.unsafe(`
 ${getDefaultInstanceConfigInsertStatement()}
 
-${getDefaultIndicatorsInsertStatement()}
+${getSpecialIndicatorsInsertStatement()}
 
 ${userInserts}
 `);
@@ -388,9 +389,11 @@ VALUES
 `;
 }
 
-function getDefaultIndicatorsInsertStatement(): string {
-  const valueRows = _COMMON_INDICATORS.map((ind) => {
-    return `('${ind.value}', '${escapeSqlString(ind.label)}', TRUE)`;
+// A new database only: each special indicator as an empty base, labelled in
+// the instance language. An existing instance gets nothing on boot.
+function getSpecialIndicatorsInsertStatement(): string {
+  const valueRows = SPECIAL_INDICATORS.map((ind) => {
+    return `('${ind.id}', '${escapeSqlString(t3(ind.label))}', TRUE)`;
   });
 
   return `

@@ -3,6 +3,10 @@ import type { TranslatableString } from "../translate/types.ts";
 import type { ThresholdsRule } from "./conditional_formatting.ts";
 import { EXPRESSION_FUNCTION_NAMES } from "../indicator_expression/parse.ts";
 import { POPULATION_TYPE_IDS } from "./population.ts";
+import {
+  isSpecialIndicatorId,
+  SPECIAL_INDICATOR_IDS,
+} from "../special_indicators.ts";
 
 // ============================================================================
 // Indicator Types
@@ -38,12 +42,15 @@ export type NewIndicatorIdIssue =
   | "untrimmed"
   | "forbidden_chars"
   | "too_long"
-  | "reserved";
+  | "reserved"
+  | "special_not_base";
 
-// The bare identifiers an expression may name that are not common indicators:
-// the population type ids and the function names. No common indicator may
-// take one. Instance migration 084 guards stored ids the same way.
-export const RESERVED_INDICATOR_IDS: readonly string[] = [
+// The identifiers no indicator id may be, however the id is produced (typed,
+// generated, batch-uploaded, decomposed from DHIS2): the special ids (except
+// as a base), the population type ids and the expression function names.
+// Instance migration 084 guards stored ids against the last two.
+export const RESERVED_WORDS: readonly string[] = [
+  ...SPECIAL_INDICATOR_IDS,
   ...POPULATION_TYPE_IDS,
   ...EXPRESSION_FUNCTION_NAMES,
 ];
@@ -54,13 +61,8 @@ export const RESERVED_INDICATOR_IDS: readonly string[] = [
 // identifier] form, which has no escape (PLAN_1a §1.3): one rule for common
 // AND raw ids, since raw ids have no use for brackets either. Instance
 // migration 079 guards stored ids the same way. Dots stay legal (DHIS2
-// operand ids contain them). The reserved words apply to commons only: raw
-// ids are a separate namespace that never enters an expression (the extract
-// joins raw to common).
-export function getNewIndicatorIdIssue(
-  id: string,
-  kind: IndicatorType,
-): NewIndicatorIdIssue | undefined {
+// operand ids contain them).
+function getIdCharsetIssue(id: string): NewIndicatorIdIssue | undefined {
   if (id.length === 0) {
     return "empty";
   }
@@ -73,7 +75,41 @@ export function getNewIndicatorIdIssue(
   if (id.length > INDICATOR_ID_MAX_LENGTH) {
     return "too_long";
   }
-  if (kind === "common" && RESERVED_INDICATOR_IDS.includes(id)) {
+  return undefined;
+}
+
+// A raw id is a separate namespace that never enters an expression (the
+// extract joins raw to common), so the reserved words do not apply to it.
+export function getNewSourceIdIssue(
+  id: string,
+): NewIndicatorIdIssue | undefined {
+  return getIdCharsetIssue(id);
+}
+
+// A special id is read by the module scripts as a count, so it may exist
+// only as a base. Checked at create (inside getNewIndicatorIdIssue) and at
+// retype, where the id is not new but its type is.
+export function getSpecialIndicatorTypeIssue(
+  id: string,
+  type: CommonIndicatorType,
+): "special_not_base" | undefined {
+  return isSpecialIndicatorId(id) && type !== "base"
+    ? "special_not_base"
+    : undefined;
+}
+
+export function getNewIndicatorIdIssue(
+  id: string,
+  type: CommonIndicatorType,
+): NewIndicatorIdIssue | undefined {
+  const charsetIssue = getIdCharsetIssue(id);
+  if (charsetIssue) {
+    return charsetIssue;
+  }
+  if (isSpecialIndicatorId(id)) {
+    return getSpecialIndicatorTypeIssue(id, type);
+  }
+  if (RESERVED_WORDS.includes(id)) {
     return "reserved";
   }
   return undefined;
@@ -90,7 +126,11 @@ export function describeNewIndicatorIdIssue(issue: NewIndicatorIdIssue): string 
     case "too_long":
       return `must be at most ${INDICATOR_ID_MAX_LENGTH} characters`;
     case "reserved":
-      return `is a reserved word (${RESERVED_INDICATOR_IDS.join(", ")})`;
+      return `is a reserved word (${RESERVED_WORDS.join(", ")})`;
+    case "special_not_base":
+      return `is a special indicator id, which the analysis modules read as a count, so it can only be a base indicator (special: ${
+        SPECIAL_INDICATOR_IDS.join(", ")
+      })`;
   }
 }
 

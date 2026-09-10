@@ -19,7 +19,6 @@
 
 import { z } from "zod";
 import {
-  backfillCommonIndicatorSortOrder,
   composeHfaIndicatorLabel,
   getDatasetTypes,
   getHfaIndicatorMeasure,
@@ -56,6 +55,64 @@ const icehIndicatorRow = z.object({
   category: z.string(),
   sort_order: z.number(),
 });
+
+// The seed order of the 14 commons every instance was created with before
+// the special-indicator list replaced that seed (PLAN_A3 ruling 5). FROZEN
+// here rather than read from the live list: the manifest transform backfills
+// immutable old packages from it, and the special list may change.
+const LEGACY_SEED_ORDER: readonly string[] = [
+  "new_fp",
+  "anc1",
+  "anc4",
+  "delivery",
+  "sba",
+  "pnc1_newborn",
+  "pnc1_mother",
+  "bcg",
+  "penta1",
+  "penta3",
+  "measles1",
+  "measles2",
+  "opd",
+  "ipd",
+];
+
+// The sort_order backfill rule for dictionaries that predate the column
+// (PLAN_1a §1.9): seeded commons keep the seed order, remaining base commons
+// follow alphabetically, and the migrated catalog rows keep their own order
+// at the end. Instance migration 079 applied the same rule to the live
+// dictionary; this applies it to a legacy package's input mirrors, whose
+// only order was the catalog snapshot's.
+//
+// A calculated id that is ALSO a base id keeps the base position: that is
+// the identity-alias case, and the merged catalog entry sits where the
+// indicator has always sat.
+//
+// Nothing on the READ path consults this: axis order comes from the
+// package's own catalog, never from a hardcoded list.
+function backfillCommonIndicatorSortOrder(args: {
+  baseIds: string[];
+  calculatedIdsInCatalogOrder: string[];
+}): Map<string, number> {
+  const seedPosition = new Map(LEGACY_SEED_ORDER.map((id, i) => [id, i]));
+  const orderedBase = [...new Set(args.baseIds)].sort(
+    (a, b) =>
+      (seedPosition.get(a) ?? Number.MAX_SAFE_INTEGER) -
+        (seedPosition.get(b) ?? Number.MAX_SAFE_INTEGER) ||
+      a.localeCompare(b),
+  );
+  const sortOrderById = new Map<string, number>();
+  let next = 0;
+  for (const id of orderedBase) {
+    sortOrderById.set(id, ++next);
+  }
+  for (const id of args.calculatedIdsInCatalogOrder) {
+    if (!sortOrderById.has(id)) {
+      sortOrderById.set(id, ++next);
+    }
+  }
+  return sortOrderById;
+}
 
 // indicators.json has TWO writer formats and ONE reader contract (PLAN_1a
 // §1.10). v1 (pre-restructure packages): id + label only, with a separate

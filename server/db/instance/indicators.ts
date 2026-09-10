@@ -9,6 +9,8 @@ import {
   describeNewIndicatorIdIssue,
   type ExpressionDictionaryEntry,
   getNewIndicatorIdIssue,
+  getNewSourceIdIssue,
+  getSpecialIndicatorTypeIssue,
   IndicatorExpressionError,
   type InstanceIndicatorDetails,
   MAX_INDICATOR_EXPRESSION_INGREDIENTS,
@@ -281,7 +283,10 @@ export async function createIndicatorsCommon(
 > {
   return await tryCatchDatabaseAsync(async () => {
     for (const indicator of indicators) {
-      const idIssue = getNewIndicatorIdIssue(indicator.indicator_common_id, "common");
+      const idIssue = getNewIndicatorIdIssue(
+        indicator.indicator_common_id,
+        indicator.definition.type,
+      );
       if (idIssue) {
         return {
           success: false,
@@ -435,6 +440,19 @@ export async function updateIndicatorCommon(
         success: false,
         err:
           "Indicator IDs cannot be changed after creation. Create a new indicator instead.",
+      };
+    }
+
+    const typeIssue = getSpecialIndicatorTypeIssue(
+      update.indicator_common_id,
+      update.definition.type,
+    );
+    if (typeIssue) {
+      return {
+        success: false,
+        err: `Indicator ID ${
+          JSON.stringify(update.indicator_common_id)
+        } ${describeNewIndicatorIdIssue(typeIssue)}`,
       };
     }
 
@@ -612,7 +630,7 @@ export async function createIndicatorsRaw(
 > {
   return await tryCatchDatabaseAsync(async () => {
     for (const indicator of indicators) {
-      const idIssue = getNewIndicatorIdIssue(indicator.indicator_raw_id, "raw");
+      const idIssue = getNewSourceIdIssue(indicator.indicator_raw_id);
       if (idIssue) {
         return {
           success: false,
@@ -839,7 +857,7 @@ export async function batchUploadRawIndicators(
 
     // Row numbers are 1-based and count the CSV header row
     const invalidIdRows = batchIndicators.flatMap((batch, index) => {
-      const idIssue = getNewIndicatorIdIssue(batch.raw_indicator_id, "raw");
+      const idIssue = getNewSourceIdIssue(batch.raw_indicator_id);
       return idIssue
         ? [
           `row ${index + 2} (${batch.raw_indicator_id}): ${
@@ -933,7 +951,10 @@ export async function batchUploadIndicators(
     // Row numbers are 1-based and count the CSV header row
     const invalidIdRows = parsedBatchIndicators.flatMap((batch, index) => {
       const rowErrors: string[] = [];
-      const commonIdIssue = getNewIndicatorIdIssue(batch.indicator_common_id, "common");
+      const commonIdIssue = getNewIndicatorIdIssue(
+        batch.indicator_common_id,
+        "base",
+      );
       if (commonIdIssue) {
         rowErrors.push(
           `row ${index + 2} (${batch.indicator_common_id}): ${
@@ -942,7 +963,7 @@ export async function batchUploadIndicators(
         );
       }
       for (const rawId of batch.rawIds) {
-        const rawIdIssue = getNewIndicatorIdIssue(rawId, "raw");
+        const rawIdIssue = getNewSourceIdIssue(rawId);
         if (rawIdIssue) {
           rowErrors.push(
             `row ${index + 2} (${rawId}): ${

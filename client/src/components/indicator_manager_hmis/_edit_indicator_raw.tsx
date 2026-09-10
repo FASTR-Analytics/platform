@@ -12,7 +12,7 @@ import { For, createSignal } from "solid-js";
 import {
   t3,
   TC,
-  getNewIndicatorIdIssue,
+  getNewSourceIdIssue,
   type CommonIndicatorWithMappings,
   type RawIndicatorWithMappings,
 } from "lib";
@@ -66,7 +66,7 @@ export function EditIndicatorRawForm(
         return { success: false, err: t3({ en: "Indicator Raw ID is required", fr: "L'identifiant brut de l'indicateur est requis", pt: "O ID bruto do indicador é obrigatório" }) };
       }
 
-      if (mode === "create" && getNewIndicatorIdIssue(rawId, "raw")) {
+      if (mode === "create" && getNewSourceIdIssue(rawId)) {
         return {
           success: false,
           err: t3({

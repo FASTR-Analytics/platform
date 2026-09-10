@@ -1,0 +1,87 @@
+#!/bin/bash
+
+# Fresh-postgres boot gate (PLAN_A3 §5 gate 5): dbStartUp() against an empty
+# server must exit 0 and seed exactly the special indicators as empty bases.
+# Companion to ./validate_migrations (schema replay) and ./validate_queries
+# (the read path); this one runs the real boot path, base schema, migrations
+# and data transforms included, on a throwaway container.
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+CONTAINER_NAME="wb-fastr-fresh-boot-$$"
+DB_PORT=54331
+DB_PASS="testpass"
+SCRATCH_DIR="$(mktemp -d /tmp/fresh_boot_XXXXXX)"
+
+cleanup() {
+    echo "Cleaning up..."
+    docker stop "$CONTAINER_NAME" 2>/dev/null || true
+    docker rm -v "$CONTAINER_NAME" 2>/dev/null || true
+    rm -rf "$SCRATCH_DIR"
+}
+
+trap cleanup EXIT
+
+fail() {
+    echo ""
+    echo -e "\033[91m╔══════════════════════════════════════════════════════════════╗"
+    echo "║               FRESH BOOT VALIDATION FAILED                   ║"
+    echo "║                                                              ║"
+    printf "║  %-60s║\n" "$1"
+    echo -e "╚══════════════════════════════════════════════════════════════╝\033[0m"
+}
+
+echo "Starting temporary postgres container..."
+docker run -d \
+    --name "$CONTAINER_NAME" \
+    -e POSTGRES_PASSWORD="$DB_PASS" \
+    -p "$DB_PORT:5432" \
+    postgres:15 > /dev/null
+
+echo "Waiting for postgres to be ready..."
+for i in {1..30}; do
+    if docker exec "$CONTAINER_NAME" pg_isready -U postgres > /dev/null 2>&1; then
+        break
+    fi
+    sleep 0.5
+done
+
+# exposed_env_vars.ts reads Deno.env at module load and throws on anything
+# missing. Dummies pointing at the throwaway container; the real .env is
+# deliberately NOT sourced, so the boot cannot reach a live database.
+export INSTANCE_NAME="fresh_boot"
+export INSTANCE_ID="fresh_boot"
+export INSTANCE_LANGUAGE="en"
+export INSTANCE_CALENDAR="gregorian"
+export ISO_COUNTRY_CODE="KEN"
+export RUNS_DIR_PATH="$SCRATCH_DIR/runs"
+export RUNS_DIR_PATH_EXTERNAL="$SCRATCH_DIR/runs"
+export RUNS_DIR_PATH_POSTGRES_INTERNAL="$SCRATCH_DIR/runs"
+export ASSETS_DIR_PATH="$SCRATCH_DIR/assets"
+export DATABASE_FOLDER="$SCRATCH_DIR/databases"
+export PG_HOST="127.0.0.1"
+export PG_PORT="$DB_PORT"
+export PG_PASSWORD="$DB_PASS"
+export ANTHROPIC_API_URL="http://localhost:0"
+export ANTHROPIC_API_KEY="unused"
+export STATUS_API_KEY="unused"
+export SEND_GRID_API="unused"
+export SERVER_VERSION="0.0.0-fresh-boot"
+
+echo "Typechecking..."
+if ! deno check -c "$SCRIPT_DIR/deno.json" "$SCRIPT_DIR/validate_fresh_boot.ts"; then
+    fail "validate_fresh_boot.ts does not typecheck."
+    exit 1
+fi
+
+echo ""
+if ! deno run --allow-all -c "$SCRIPT_DIR/deno.json" "$SCRIPT_DIR/validate_fresh_boot.ts"; then
+    fail "The fresh boot failed or seeded the wrong indicators. See above."
+    exit 1
+fi
+
+echo ""
+echo -e "\033[92m╔══════════════════════════════════════════════════════════════╗"
+echo "║               FRESH BOOT VALIDATION PASSED                   ║"
+echo -e "╚══════════════════════════════════════════════════════════════╝\033[0m"

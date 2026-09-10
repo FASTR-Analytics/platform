@@ -20,8 +20,10 @@ globs:
   - lib/hfa_indicator_labels.ts
   - lib/hfa_r_code_analysis.ts
   - lib/indicator_expression/**
+  - lib/indicator_id.ts
   - lib/population_coverage.ts
   - lib/population_person_years.ts
+  - lib/special_indicators.ts
   - lib/types/geojson_maps.ts
   - lib/types/hfa_types.ts
   - lib/types/iceh_strats.ts
@@ -45,6 +47,7 @@ globs:
   - server/routes/instance/population.ts
   - server/routes/instance/structure.ts
   - server/server_only_funcs_importing/**
+  - server/tests/indicator_id_test.ts
 docs_absorbed:
 ---
 # S5: Facilities & Indicators
@@ -257,9 +260,13 @@ is unchanged).
 **HMIS** is two-level: `indicators_raw` (ids as they appear in uploads:
 DHIS2 indicator UIDs, data-element UIDs, or `dataElement.coc` operand ids)
 M:N-mapped via `indicator_mappings` (CASCADE both directions) to
-`indicators` (common ids; `is_default` marks the seeded FASTR core set,
-which module R scripts reference by literal id, and defaults cannot be
-deleted). The mapping is editable from either side (replace-list on save).
+`indicators` (common ids). A new database is seeded with the **special
+indicators**, `SPECIAL_INDICATORS` in `lib/special_indicators.ts`: the
+hand-kept list of count ids the registry module scripts read by literal
+id, each inserted as an empty base with `is_default` set (defaults cannot
+be deleted). An existing instance gets nothing on boot; a team adds or
+deletes specials like any base. `./validate_fresh_boot` boots an empty
+postgres through `dbStartUp` and asserts that seed. The mapping is editable from either side (replace-list on save).
 Raw ids are S6's staging validation surface; `dataset_hmis` stores raw ids
 (FK RESTRICT: data blocks raw deletion); raw→common aggregation (SUM
 across mapped raws) happens at project attach. New ids are charset-checked
@@ -383,11 +390,22 @@ hold a determinate 0 while its per-variable status reads `missing`.
 population terms. There is no separate id grammar: an identifier is written
 bare when it matches `^[a-z][a-z0-9_]*$` and `[in brackets]` otherwise, so
 every common id is usable regardless of charset. A population term is the
-population type's id written bare (`anc1 / population_total`): the six ids
-in `POPULATION_TYPES` (lib, fixed in code) are reserved words, with the
-three function names, and `getNewIndicatorIdIssue` refuses a new common
-with one (`reserved`; raw ids are a separate namespace that never enters an
-expression, so they are not checked; migration 084 guards stored ids). The
+population type's id written bare (`anc1 / population_total`).
+`RESERVED_WORDS` (`lib/types/indicators.ts`) is the union of the special
+ids, the six `POPULATION_TYPES` ids and the three function names.
+`getNewIndicatorIdIssue(id, type)` refuses a new common under one
+(`reserved`), except a special id for a base; a special id is refused for
+a derived at create and at retype (`special_not_base`,
+`getSpecialIndicatorTypeIssue`, applied by `updateIndicatorCommon` and the
+editor), because the module scripts read it as a count. Raw ids are a
+separate namespace that never enters an expression, so
+`getNewSourceIdIssue` checks only the charset rule. Migration 084 guards
+stored ids against the population and function names. Generated ids
+(`generateIndicatorId`, `lib/indicator_id.ts`: NFKD-fold, lowercase,
+non-alphanumeric runs to `_`, `i_` on a leading digit, a 64 cap, then
+`_2`, `_3` on collision with an existing id or a reserved word) never
+reach the validator as a reserved word. `server/tests/indicator_id_test.ts`
+pins both. The
 same string is the ingredient id, the slot-map key, the person-years CSV
 `population_type` value and the manifest stamp's type. A population term is
 a leaf like a base common, takes an ordinary ingredient slot in
@@ -408,9 +426,9 @@ expression resolves and every flattened ingredient that is not a population
 term is a base common with at least one raw mapping. The catalog builds its
 capture error from that judgement, and the indicator manager list and the
 common editor show the same judgement (see "Client state & wizard"). A base
-common with no mapping is never a problem on its own: `db_startup` seeds
-all 14 default commons on every instance, and an unmapped base reads as
-NULL. The dependency between a derived common and the bases its expression
+common with no mapping is never a problem on its own: a new database is
+seeded with every special indicator as an empty base, and an unmapped base
+reads as NULL. The dependency between a derived common and the bases its expression
 uses lives only in the expression text, not in a table, so no save, delete
 or mapping change is blocked because of it: a derived indicator that cannot
 be computed yet is a normal state while a country is still mapping.
@@ -816,6 +834,18 @@ Every config mutation re-reads all configs and pushes one consolidated
 - `pt` is missing across most of this system's t3 literals (indicator
   managers, structure viewers, wizards), part of the batch-by-batch PT
   rollout.
+- **DHIS2 population writer** (from the retired PLAN_2): yearly population
+  data elements at admin org-unit levels written into the population store
+  through the analytics API, scheduled like HMIS imports
+  (`import_hmis_data_dhis2/` is the pattern), with a population-type choice
+  in the naming step, and writes validated as the CSV import's are
+  (`server/db/instance/population.ts`: every area path in the HMIS
+  structure tables, every type known). Until it lands, population rates are
+  authored by hand over CSV-uploaded population.
+- A `rate_per_1k` display format beside `rate_per_10k` (a DHIS2 indicator
+  with factor 1000 decomposes to `number` with a note until then): touches
+  the DB check, the manifest schema, the figure bundle, the value scale and
+  four style editors.
 
 ### HFA variant groups: open questions
 

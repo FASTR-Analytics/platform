@@ -206,9 +206,10 @@ export function resolveCommonIndicatorCatalog(
       // expression and no slot map: it contributes no ingredient row, m012
       // emits nothing for it, and a read yields NULL: the same answer as any
       // other missing ingredient (PLAN_1a §1.5). This is the ordinary case,
-      // not a failure: db_startup seeds all 14 `_COMMON_INDICATORS` on every
-      // instance whether or not the country maps them, so treating an
-      // unmapped base common as an error would block generation fleet-wide.
+      // not a failure: a new database is seeded with every special indicator
+      // (`SPECIAL_INDICATORS`) as an empty base whether or not the country
+      // maps it, so treating an unmapped base common as an error would block
+      // generation fleet-wide.
       const hasData = baseIdsInData.has(common.indicator_common_id);
       rows.push({
         ...base,
