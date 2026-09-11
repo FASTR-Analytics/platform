@@ -9,14 +9,13 @@
 
 import { fastrLiveRegions, type FastrLiveRegion } from "./fastr_live_regions.ts";
 import {
-  FASTR_PAGE_MARGIN_MM,
-  fastrSheetMm,
+  fastrPageMarginPx,
+  fastrSheetPx,
   readFastrDocumentSettings,
 } from "./fastr_markdown_blocks.ts";
 import { fastrPageArea } from "./fastr_markdown_pages.ts";
 import type { FastrPagedResult } from "./report_fastr_paged.ts";
 
-const PX_PER_MM = 96 / 25.4;
 // A page (not the last) filled under this share is short; a last page under
 // this share is a stub.
 export const FASTR_PAGE_SHORT_SHARE = 0.75;
@@ -29,10 +28,10 @@ export function fastrPageMapText(result: FastrPagedResult, body: string): string
     return "The report has no pages yet (an empty body, or the layout did not run).";
   }
   const settings = readFastrDocumentSettings(body);
-  const [, sheetHmm] = fastrSheetMm(settings.page);
+  const [, sheetH] = fastrSheetPx(settings.page);
   const geometry = {
-    pageH: Math.round(sheetHmm * PX_PER_MM),
-    marginPx: Math.round(FASTR_PAGE_MARGIN_MM[settings.page.margin] * PX_PER_MM),
+    pageH: sheetH,
+    marginPx: fastrPageMarginPx(settings.page.margin),
     sheetW: result.sheet.width,
   };
   const lines = body.split("\n");

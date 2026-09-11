@@ -259,8 +259,15 @@ ${d}p { margin: 0 0 1em; }
 ${d}.fm-space { height: 1lh; margin: 0; }
 ${d}a { color: var(--fm-accent); }
 ${d}strong { font-weight: 700; }
-${d}ul, ${d}ol { margin: 0 0 1em; --fm-mt: 0px; --fm-mb: 1em; padding-left: 1.4em; }
-${d}li { margin: 0.25em 0; }
+${d}ul, ${d}ol { margin: 0 0 1em; --fm-mt: 0px; --fm-mb: 1em; padding-left: 1.4em; list-style: none; }
+${d}li { margin: 0.25em 0; position: relative; }
+/* The markers as glyphs at the left of the list's own indent, as the editor
+   draws them on its lines (cm-fm-bullet), so an item's text starts where the
+   editor's does. The contents block is an ol of its own. */
+${d}ul > li::before { content: "\\2022"; position: absolute; left: -1.4em; width: 1.4em; }
+${d}ol:not(.fm-toc__list) { counter-reset: fm-ol; }
+${d}ol:not(.fm-toc__list) > li { counter-increment: fm-ol; }
+${d}ol:not(.fm-toc__list) > li::before { content: counter(fm-ol) "."; position: absolute; left: -1.4em; width: 1.4em; }
 ${d}hr { border: 0; border-top: 1px solid var(--fm-border); margin: 2em 0; }
 ${d}code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -269,7 +276,10 @@ ${d}code {
   padding: 0.1em 0.3em;
   border-radius: 3px;
 }
+/* The browser's own 1em margins, declared: the editor measures print's
+   margins under the app's base sheet, which zeroes a pre's. */
 ${d}pre {
+  margin: 1em 0;
   background: var(--fm-surface-alt);
   border-radius: var(--fm-radius);
   padding: 0.9em 1.1em;
@@ -1197,7 +1207,10 @@ ${d}.cm-line .cm-fm-link, ${d}.cm-fm-link {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-${d}.cm-fm-bullet { color: var(--fm-ink); }
+/* A list line's marker sits in the indent the line's padding makes, as
+   print's li::before does; the depth (from the source's indentation) is the
+   number of indents. */
+${d}.cm-fm-bullet { position: absolute; left: calc(var(--fm-li-indent, 1.4em) * (var(--fm-li-depth, 1) - 1)); width: var(--fm-li-indent, 1.4em); color: var(--fm-ink); }
 /* A revealed region keeps LOOKING like the block while its source is edited:
    the lines carry the block's ground (a tone class, a callout accent, or the
    default surface wash) and the fence lines drop to dimmed syntax. Only
@@ -1214,28 +1227,42 @@ ${d}.cm-fm-d2 { padding-inline: calc(0.9rem + ${FM_BOX_INSET}px); }
 ${d}.cm-fm-d3 { padding-inline: calc(0.9rem + ${FM_BOX_INSET * 2}px); }
 ${d}.cm-fm-d4 { padding-inline: calc(0.9rem + ${FM_BOX_INSET * 3}px); }
 ${d}.cm-fm-quote-line { font-style: italic; font-size: 1.1em; }
-/* View's vertical rhythm, rebuilt from line boxes: a blank source line stands
-   in for the 1em paragraph margin (a full text line would run ~60% taller),
-   headings carry their margins as PADDING (line decorations may never carry
-   margins), and list lines take the ul indent. */
-${d}.cm-fm-blank { font-size: 0.65em; padding-bottom: var(--fm-stretch, 0px); }
-${d}.cm-content { --fm-separator: calc(0.65 * 1lh); }
+/* View's vertical rhythm, rebuilt from line boxes (live_preview_extension's
+   docRhythmOf writes the px, from print's margins measured in this very
+   sheet): two blocks a blank source line apart stand max(margin-bottom,
+   margin-top) apart in print, their margins collapsed, so the blank line
+   is exactly that tall (--fm-gap). A heading or a quote line carries no
+   margin of its own (line decorations may never carry margins; the theme's
+   own heading padding and rules reach the line through the host's
+   retargeting, untouched). Without a blank line between two blocks (a
+   paragraph straight under its heading) the collapsed gap stands above the
+   second block's first line (--fm-gap-top, a block-level ::before). */
+${d}.cm-fm-blank { font-size: 0.65em; line-height: var(--fm-gap-end, var(--fm-gap, var(--fm-separator))); padding-bottom: var(--fm-stretch, 0px); }
+/* --fm-gap-end: at a page's foot the blank line takes the room left for
+   it (stretchField's ends), as print drops a margin past the foot. */
+${d}.cm-content { --fm-separator: var(--fm-p-margin, calc(0.65 * 1lh)); }
+${d}.cm-line.cm-fm-gap::before { content: ""; display: block; height: var(--fm-gap-top, 0px); }
 /* --fm-stretch: the page layout's share of a page's leftover for this
    separator (live_preview_extension stretchField), so a page that ends
    because its next block moved reads as set rather than cut short. */
 /* Further blank lines in a run are lines of space in the document (the
-   renderer's .fm-space, one line tall), so they keep their full height. */
-${d}.cm-fm-space { font-size: 1em; }
+   renderer's .fm-space, one line tall). Margins do not collapse through a
+   line of space: the run's first blank line is the previous block's whole
+   bottom margin, and the last line of space carries the next block's whole
+   top margin under it (--fm-gap-bottom). */
+${d}.cm-fm-space { font-size: 1em; padding-bottom: var(--fm-gap-bottom, 0px); }
 /* Print's list items carry 0.25em margins that collapse to one between
-   items (and into the paragraph margins at the list's ends): the second
-   item onward takes that as padding, so a list stands the same height. */
-${d}.cm-fm-li + .cm-fm-li { padding-top: 0.25em; }
+   items (and through the list's ends into the gaps around it): the second
+   item onward takes that as padding (a class from the source, never a
+   sibling selector: CodeMirror stands a placeholder in for an unrendered
+   neighbour), so a list stands the same height. */
+${d}.cm-fm-li.cm-fm-li-next { padding-top: var(--fm-li-gap, 0.25em); }
 /* View's document opens flush with its first block: leading blank lines are
    not content there, and the body first-child rule drops its top margin (a cover
    even pulls itself up). The editor's page must open the same way, or every
    report starts with a strip of bare page ground above its cover. */
 ${d}.cm-line.cm-fm-lead { height: 0; font-size: 0; line-height: 0; overflow: hidden; }
-${d}.cm-line.cm-fm-first { padding-top: 0 !important; margin-top: 0 !important; }
+${d}.cm-line.cm-fm-first { margin-top: 0 !important; }
 /* Section numbers on the editor's own heading lines (the rendered document
    uses a CSS counter; a cm-line is not a real heading). */
 ${d}.cm-fm-secnum { color: var(--fm-accent-text); }
@@ -1328,35 +1355,21 @@ ${d}.fm-live-region, ${d}.cm-fm-chrome { overflow-wrap: break-word; word-break: 
    its line wrapping) gives it room and wraps the word before it a line
    early, one line taller than print for the same paragraph. */
 ${d}.cm-content.cm-lineWrapping { white-space: pre-wrap; overflow-wrap: break-word; word-break: normal; }
-/* A quote's lines carry print's 1.4em margins less the blank separator line
-   on the run's first and last line (as a heading's lines do), its 0.2em
-   padding with them, and nothing between two lines of one quote. After a
-   line of space the whole margin rides on the line. */
+/* A quote's lines carry the box's own padding (print's 0.2em, measured as
+   --fm-bq-pad) on the run's first and last line and nothing between; the
+   quote's margins are the blank lines' beside it (the rhythm). The classes
+   come from the source, never from a sibling selector. */
 ${d}.cm-line.cm-fm-bq { padding-top: 0; padding-bottom: 0; }
-${d}.cm-line.cm-fm-bq:not(.cm-fm-bq + .cm-fm-bq) { padding-top: calc(0.2em + max(0px, 1.4em - var(--fm-separator))); }
-${d}.cm-line.cm-fm-bq:not(:has(+ .cm-fm-bq)) { padding-bottom: calc(0.2em + max(0px, 1.4em - var(--fm-separator))); }
-${d}.cm-line.cm-fm-bq.cm-fm-after-space { padding-top: 1.6em; }
-/* Print's heading margins (1.8em above, 0.6em below, in the heading's own
-   em) less the blank source line on each side of a heading (16px, the
-   paragraph separator), so the editor's heading stands where print's does
-   and the page flow measures the same page. */
-${d}.cm-fm-h1 { padding-top: 0.83em; padding-bottom: 0.13em; }
-/* Most themes rule an h2 with a 0.25em padding under it; the editor line
-   cannot take a theme's own heading rules, so that one is mirrored here. */
-${d}.cm-fm-h2 { padding-top: 1.15em; padding-bottom: 0.25em; }
-${d}.cm-fm-h3 { padding-top: 0.96em; padding-bottom: 0; }
-${d}.cm-fm-h4, ${d}.cm-fm-h5, ${d}.cm-fm-h6 { padding-top: 0.8em; padding-bottom: 0; }
-/* Beside a line of space the whole margin stands (see the widget rule),
-   with a page seam widget between the space and the heading all the same:
-   a seam changes no line's box (the page layout depends on it, see the
-   widget rule). */
-${d}.cm-fm-h1.cm-fm-after-space, ${d}.cm-fm-h2.cm-fm-after-space, ${d}.cm-fm-h3.cm-fm-after-space,
-${d}.cm-fm-h4.cm-fm-after-space, ${d}.cm-fm-h5.cm-fm-after-space, ${d}.cm-fm-h6.cm-fm-after-space { padding-top: 1.8em; }
-${d}.cm-fm-h1.cm-fm-after-space { padding-top: 1.3em; }
-${d}.cm-fm-h1.cm-fm-before-space, ${d}.cm-fm-h3.cm-fm-before-space,
-${d}.cm-fm-h4.cm-fm-before-space, ${d}.cm-fm-h5.cm-fm-before-space, ${d}.cm-fm-h6.cm-fm-before-space { padding-bottom: 0.6em; }
-${d}.cm-fm-h2.cm-fm-before-space { padding-bottom: 0.85em; }
-${d}.cm-fm-li { padding-left: 1.4em; }
+${d}.cm-line.cm-fm-bq.cm-fm-bq-first { padding-top: var(--fm-bq-pad, 0.2em); }
+${d}.cm-line.cm-fm-bq.cm-fm-bq-last { padding-bottom: var(--fm-bq-pad, 0.2em); }
+/* A heading line carries no margin of its own: the blank line above it is
+   the whole collapsed gap (the rhythm), and the theme's own heading padding
+   and rules (an h2's 0.25em under-rule) reach the line through the host's
+   retargeting. */
+${d}.cm-fm-li { --fm-li-depth: 1; position: relative; padding-left: calc(var(--fm-li-indent, 1.4em) * var(--fm-li-depth)); }
+${d}.cm-fm-li.cm-fm-li-d2 { --fm-li-depth: 2; }
+${d}.cm-fm-li.cm-fm-li-d3 { --fm-li-depth: 3; }
+${d}.cm-fm-li.cm-fm-li-d4 { --fm-li-depth: 4; }
 /* A plain markdown blockquote takes the theme's own blockquote treatment —
    the host retargets those rules onto this class, margins neutralised. */
 /* A concealed role mark's label can sit inside what Lezer tokenized as a
@@ -1385,42 +1398,57 @@ ${d}.cm-fm-box {
   margin: 0 !important;
 }
 /* A collapsed widget's render carries the preview's own block margins
-   (--fm-mt/--fm-mb, declared by each block's rule in the structure sheet);
-   the editor ALSO spends a blank source line on that seam, the paragraph
-   separator (--fm-separator, the blank line's own height), so the widget
-   keeps only what its margin exceeds the separator by, or blocks drift
-   twice as far apart in Edit as in print. Next to a line of SPACE (a second
-   blank line) the whole margin stands: print collapses a margin into the
-   neighbouring margin, never into a space.
-   The clamp addresses the block's first CONTENT child: the child after the
-   peer layer, or after the page seam and the "continues" flag that stand
-   before it when the block opens a page or runs past one. Its margin is the
-   same wherever the block stands, seam or no seam. The page layout takes
-   every block's box from the height map, and a seam that changed the box
-   would make the layout that placed it find another height and move it
+   (--fm-mt/--fm-mb, declared by each block's rule in the structure sheet).
+   In the editor the blank source line beside the block IS the gap (the
+   rhythm rules above), so the widget keeps none of them: its first CONTENT
+   child (the child after the peer layer, or after the page seam and the
+   "continues" flag that stand before it when the block opens a page or
+   runs past one) takes only --fm-gap-top, the collapsed gap of a block with
+   no blank line above it, and its last child no margin at all. The box is
+   the same wherever the block stands, seam or no seam: the page layout
+   takes every block's box from the height map, and a seam that changed the
+   box would make the layout that placed it find another height and move it
    away, then back, every frame (the flicker of 2026-09-10). Print keeps a
-   block's whole top margin at the top of a page: what the clamp takes off
-   is the SEAM's there, as its padding-bottom (pageBoxPlugin writes it), so
-   the page reads as print's and the block's box does not change. */
+   block's whole top margin at the top of a page: the SEAM carries it there
+   as its padding-bottom (pageBoxPlugin writes it), so the page reads as
+   print's and the block's box does not change. */
 ${d}.fm-live-region > .fm-peer-layer + :not(.fm-page-gutter, .fm-page-split),
 ${d}.fm-live-region > .fm-page-gutter--inner + :not(.fm-page-split),
-${d}.fm-live-region > .fm-page-split + * {
-  margin-top: max(0px, calc(var(--fm-mt, 0px) - var(--fm-separator))) !important;
-}
-${d}.fm-live-region > *:last-child {
-  margin-bottom: max(0px, calc(var(--fm-mb, 0px) - var(--fm-separator))) !important;
-}
-${d}.fm-live-region.fm-live-region--after-space > .fm-peer-layer + :not(.fm-page-gutter, .fm-page-split),
-${d}.fm-live-region.fm-live-region--after-space > .fm-page-gutter--inner + :not(.fm-page-split),
-${d}.fm-live-region.fm-live-region--after-space > .fm-page-split + * { margin-top: var(--fm-mt, 0px) !important; }
-${d}.fm-live-region.fm-live-region--before-space > *:last-child { margin-bottom: var(--fm-mb, 0px) !important; }
+${d}.fm-live-region > .fm-page-split + * { margin-top: var(--fm-gap-top, 0px) !important; }
+${d}.fm-live-region > *:last-child { margin-bottom: 0 !important; }
 /* A leaf rendered by its own widget (contents, a page break marker) is one
-   block too: the same clamp, or its box would carry the block's whole
-   margins on top of the separator lines around it. */
-${d}.cm-fm-leaf > :first-child { margin-top: max(0px, calc(var(--fm-mt, 0px) - var(--fm-separator))) !important; }
-${d}.cm-fm-leaf > :last-child { margin-bottom: max(0px, calc(var(--fm-mb, 0px) - var(--fm-separator))) !important; }
-${d}.cm-fm-leaf.cm-fm-leaf--after-space > :first-child { margin-top: var(--fm-mt, 0px) !important; }
-${d}.cm-fm-leaf.cm-fm-leaf--before-space > :last-child { margin-bottom: var(--fm-mb, 0px) !important; }
+   block too: the same clamp. */
+${d}.cm-fm-leaf > :first-child { margin-top: var(--fm-gap-top, 0px) !important; }
+${d}.cm-fm-leaf > :last-child { margin-bottom: 0 !important; }
+/* A fenced code block as print's pre: the fence lines are the pre's 0.9em
+   padding rows (their text a small label), the code lines its rows at the
+   body's line height with the code in an inline span at print's 0.9em
+   monospace (pre > code), unwrapped as print's overflow-x: auto leaves
+   them. */
+${d}.cm-line.cm-fm-code-fence {
+  font-size: 0.7em; line-height: calc(0.9em / 0.7); color: var(--fm-ink-muted);
+  background: var(--fm-surface-alt); padding-left: calc(1.1em / 0.7); padding-right: calc(1.1em / 0.7);
+  white-space: pre; overflow: hidden;
+}
+${d}.cm-line.cm-fm-code-open { border-radius: var(--fm-radius) var(--fm-radius) 0 0; }
+${d}.cm-line.cm-fm-code-close { border-radius: 0 0 var(--fm-radius) var(--fm-radius); }
+${d}.cm-line.cm-fm-code-line {
+  background: var(--fm-surface-alt); padding-left: 1.1em; padding-right: 1.1em;
+  white-space: pre; overflow: hidden;
+}
+${d}.cm-fm-codetext { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.9em; }
+/* A thematic break is print's hr: its margins are the blank lines' beside
+   it (the rhythm); the widget's box is the rule alone, with a click target
+   around it that takes no room (negative margins against its padding). */
+${d}.cm-fm-hr { padding: 12px 0; margin: -12px 0; }
+${d}.cm-fm-hr > hr { margin-top: 0; margin-bottom: 0; }
+/* The contents block's entries carry their page numbers in the editor as
+   in print (pageBoxPlugin writes data-fm-page from the page layout, where
+   print uses target-counter), laid out the same way. */
+${d}.cm-fm-leaf .fm-toc__item a { display: flex; justify-content: space-between; align-items: baseline; gap: 1em; }
+${d}.cm-fm-leaf .fm-toc__item a[data-fm-page]::after {
+  content: attr(data-fm-page); color: var(--fm-ink-muted); font-variant-numeric: tabular-nums;
+}
 /* A cover that fills its page ends it: the sheet is its box, and its
    bottom margin would stand the page box that much over the sheet. */
 ${d}.fm-live-region > .fm-cover.fm-cover--fill { margin-top: 0 !important; margin-bottom: 0 !important; }
@@ -1493,7 +1521,6 @@ ${d}.fm-page-gutter {
   font-style: normal;
   text-transform: none;
   letter-spacing: 0;
-  line-height: 1.4;
   white-space: normal;
   pointer-events: none;
   user-select: none;
@@ -1511,7 +1538,10 @@ ${d}.fm-page-gutter__foot {
   box-sizing: border-box;
   height: var(--fm-page-margin, 77px);
   padding: 0 var(--fm-bleed-pad);
-  font-size: 0.7em;
+  /* Print's margin boxes: 8.5pt in the body face at the document's own
+     line height (inherited, as the margin box inherits it), centred in
+     the margin (report_fastr_paged.ts). */
+  font-size: 8.5pt;
   color: var(--fm-ink-muted);
   font-variant-numeric: tabular-nums;
 }
@@ -1551,6 +1581,9 @@ ${d}.fm-page-gutter--inner:not(.fm-page-gutter--cell), ${d}.fm-page-gutter--cell
    the padding and the ground, its strip reaches the sheet from a box with
    no intrinsic inline size, so the table's columns are not widened. */
 ${d}tr.fm-page-gutter-row { border: 0 !important; background: none !important; }
+/* A table's header rows repeated after an in-table seam (the host retargets
+   the theme's thead th rules onto them): inert copies. */
+${d}tr.fm-page-gutter-repeat { pointer-events: none; user-select: none; }
 ${d}td.fm-page-gutter--cell {
   /* A cell, whatever the seam's own display; no margins on a cell. */
   display: table-cell;

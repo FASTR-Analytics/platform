@@ -95,6 +95,7 @@ import {
   stepsChildInfo,
   tilesChildInfo,
   updateContainerFenceLine,
+  FASTR_BLOCK_NAMES,
   type FastrLayoutHint,
   type FigureBlock,
 } from "lib";
@@ -205,9 +206,9 @@ class RegionWidget extends WidgetType {
     // island's live commit carries the PREVIOUS key forward, so the widget
     // the user is typing in is kept rather than rebuilt under the cursor.
     readonly sourceKey = source,
-    // After or before a line of space (spaceFlags).
-    readonly afterSpace = false,
-    readonly beforeSpace = false,
+    // The collapsed gap above a block with no blank line over it, px
+    // (docRhythmOf): the first content child's margin-top.
+    readonly gapTop = 0,
   ) {
     super();
   }
@@ -218,8 +219,7 @@ class RegionWidget extends WidgetType {
     // and re-creates just this widget.
     return other.kind === this.kind && other.sourceKey === this.sourceKey &&
       other.startLine === this.startLine && other.active === this.active &&
-      other.first === this.first && other.afterSpace === this.afterSpace &&
-      other.beforeSpace === this.beforeSpace;
+      other.first === this.first && other.gapTop === this.gapTop;
   }
 
   override toDOM(view: EditorView): HTMLElement {
@@ -319,10 +319,9 @@ class RegionWidget extends WidgetType {
       "fm-live-region",
       this.active ? "fm-live-region--active" : "",
       this.first ? "fm-live-region--first" : "",
-      this.afterSpace ? "fm-live-region--after-space" : "",
-      this.beforeSpace ? "fm-live-region--before-space" : "",
       "w-full cursor-text",
     ].filter((c) => c.length > 0).join(" ");
+    dom.style.setProperty("--fm-gap-top", `${this.gapTop}px`);
     dom.setAttribute("data-region-kind", this.kind);
     dom.setAttribute("data-region-line", String(this.startLine));
     dom.setAttribute("data-region-end", String(this.endLine));
@@ -1931,16 +1930,15 @@ class LeafRenderWidget extends WidgetType {
     readonly source: string,
     readonly line1: number,
     readonly outline = "",
-    // After or before a line of space (spaceFlags).
-    readonly afterSpace = false,
-    readonly beforeSpace = false,
+    // The collapsed gap above a block with no blank line over it, px
+    // (docRhythmOf).
+    readonly gapTop = 0,
   ) {
     super();
   }
   override eq(other: LeafRenderWidget): boolean {
     return other.source === this.source && other.line1 === this.line1 &&
-      other.outline === this.outline && other.afterSpace === this.afterSpace &&
-      other.beforeSpace === this.beforeSpace;
+      other.outline === this.outline && other.gapTop === this.gapTop;
   }
   override toDOM(view: EditorView): HTMLElement {
     const dom = chromeRoot(view, this.line1);
@@ -1948,8 +1946,7 @@ class LeafRenderWidget extends WidgetType {
     // start line (measured and remembered by the page layout), with the
     // block's margins clamped like a region widget's (report_fastr_css.ts).
     dom.classList.add("cm-fm-leaf");
-    if (this.afterSpace) dom.classList.add("cm-fm-leaf--after-space");
-    if (this.beforeSpace) dom.classList.add("cm-fm-leaf--before-space");
+    dom.style.setProperty("--fm-gap-top", `${this.gapTop}px`);
     dom.setAttribute("data-region-line", String(this.line1 - 1));
     const fence = fastrOpenFenceOnLine(this.source, this.line1);
     if (fence?.name === "contents") {
@@ -2163,8 +2160,6 @@ function buildRevealedRegion(
                     fastrOpenFenceOnLine(line.text, item.line1),
                   )
                   : "",
-                spaceFlags(state, item.line1 - 1, item.line1 - 1).afterSpace,
-                spaceFlags(state, item.line1 - 1, item.line1 - 1).beforeSpace,
               ),
             block: true,
           }),
@@ -2186,8 +2181,6 @@ function buildRevealedRegion(
               false,
               false,
               line.text,
-              spaceFlags(state, item.line1 - 1, item.line1 - 1).afterSpace,
-              spaceFlags(state, item.line1 - 1, item.line1 - 1).beforeSpace,
             ),
             block: true,
           }),
@@ -2291,6 +2284,7 @@ function buildLiveState(
 ): LiveState {
   const ranges = cached ?? regionRanges(state);
   const firstLine = firstVisibleLine(state);
+  const rhythm = docRhythmOf(state, state.field(printMetricsField, false));
   const keys = new Map<number, { key: string; source: string }>();
   const builder = new RangeSetBuilder<Decoration>();
   const protectedLines: ProtectedLine[] = [];
@@ -2340,7 +2334,7 @@ function buildLiveState(
       : undefined;
     const sourceKey = carried ?? (touched ? `${rev}\u0000${source}` : source);
     keys.set(r.region.startLine, { key: sourceKey, source });
-    const space = spaceFlags(state, r.region.startLine, r.region.endLine);
+    const gapTop = rhythm.gapTop.get(r.region.startLine) ?? 0;
     const widget = isPageSetup
       ? new PageSetupWidget(source, r.region.startLine)
       : isToc
@@ -2348,11 +2342,10 @@ function buildLiveState(
         source,
         r.region.startLine + 1,
         tocOutlineKey(state.doc.toString(), r.region.fence),
-        space.afterSpace,
-        space.beforeSpace,
+        gapTop,
       )
       : isPagebreak
-      ? new LeafRenderWidget(source, r.region.startLine + 1, "", space.afterSpace, space.beforeSpace)
+      ? new LeafRenderWidget(source, r.region.startLine + 1, "", gapTop)
       : new RegionWidget(
         r.region.kind,
         source,
@@ -2364,8 +2357,7 @@ function buildLiveState(
         touched,
         firstLine !== undefined && r.region.startLine + 1 === firstLine,
         sourceKey,
-        space.afterSpace,
-        space.beforeSpace,
+        gapTop,
       );
     builder.add(r.from, r.to, Decoration.replace({ widget, block: true }));
   }
@@ -2392,6 +2384,11 @@ export function liveRegionExtensions(resolver: EmbedResolver): Extension[] {
     update(value, tr) {
       if (tr.effects.some((e) => e.is(rebuildRegions))) {
         return buildLiveState(tr.state, resolver, undefined, undefined, false, value.rev + 1);
+      }
+      // Print's margins landing (or changing with the theme) move the gap
+      // above a block that has no blank line over it.
+      if (tr.effects.some((e) => e.is(setPrintMetrics))) {
+        return buildLiveState(tr.state, resolver, undefined, value);
       }
       if (tr.docChanged) {
         return buildLiveState(
@@ -2502,12 +2499,24 @@ const HEADING_LINE_RE = /^(#{1,6})\s/;
 const surfaceLineField = StateField.define<DecorationSet>({
   create: buildSurfaceLines,
   update(deco, tr) {
-    return tr.docChanged ? buildSurfaceLines(tr.state) : deco;
+    return tr.docChanged || tr.effects.some((e) => e.is(setPrintMetrics))
+      ? buildSurfaceLines(tr.state)
+      : deco;
   },
   provide: (f) => EditorView.decorations.from(f),
 });
 
-const LIST_LINE_RE = /^\s*(?:[-*+]|\d+\.)\s/;
+const LIST_LINE_RE = /^\s*(?:[-*+]|\d+[.)])\s/;
+// A list line's depth from its indentation: two spaces nest a bullet, three
+// an ordered item (their content offsets); the same rounding serves both.
+export function listDepthOf(text: string): number {
+  const indent = (/^[ \t]*/.exec(text)?.[0] ?? "").replace(/\t/g, "    ").length;
+  return Math.min(4, 1 + Math.round(indent / 2.5));
+}
+const listDepthCls = (text: string) => {
+  const d = listDepthOf(text);
+  return d > 1 ? ` cm-fm-li-d${d}` : "";
+};
 
 // `1. ` / `1.1 ` in front of a numbered section. The rendered document gets
 // these from a CSS counter on `body > h2`; the editor's own heading lines are
@@ -2539,25 +2548,47 @@ function buildSurfaceLines(state: EditorState): DecorationSet {
   let depth = 0;
   let sec = 0;
   let sub = 0;
+  // The document's vertical rhythm: what every blank line, line of space
+  // and unseparated block edge measures, from print's margins.
+  const rhythm = docRhythmOf(state, state.field(printMetricsField, false));
   // Blank lines ABOVE the first visible block render nothing in View, so they
   // must not open the editor with a strip of page ground. Only collapsed when
   // there IS content below them — an all-blank document keeps its clickable
   // lines.
-  const firstLine = firstVisibleLine(state);
+  const firstLine = rhythm.firstVisible === undefined ? undefined : rhythm.firstVisible + 1;
+  const px = (v: number) => `${snapPx(v)}px`;
+  const gapCls = (index: number) => rhythm.gapTop.has(index) ? " cm-fm-gap" : "";
+  const gapAttrs = (index: number) => {
+    const g = rhythm.gapTop.get(index);
+    return g === undefined ? undefined : { style: `--fm-gap-top: ${px(g)}` };
+  };
   // The first blank line after content is the paragraph separator; each
   // further one is a line of space, as the renderer's fm_spaces makes it.
   let prevBlank = false;
-  // Whether the line before the current one is a line of space; the flag
-  // rides on a heading's or a quote's line as a class (spaceFlags).
-  let prevSpace = false;
-  const blankAt = (i: number) => i < state.doc.lines && state.doc.line(i + 1).text.trim().length === 0;
   // scanContainerLines flags code-fence interiors, where a # line is content.
   for (const { index, text, inCode, fence } of scanContainerLines(
     state.doc.iterLines(1, state.doc.lines + 1),
   )) {
+    const from = state.doc.line(index + 1).from;
     if (inCode) {
+      // A fenced code block as print's pre: the fence lines are its padding
+      // rows, the code lines its rows with the code in a monospace span
+      // (report_fastr_css.ts). A blank line inside is code, not a separator.
       prevBlank = false;
-      prevSpace = false;
+      const f = rhythm.fenceAt.get(index);
+      if (f !== undefined) {
+        ranges.push(
+          Decoration.line({
+            class: `cm-fm-code-fence cm-fm-code-${f}${f === "open" ? gapCls(index) : ""}`,
+            attributes: f === "open" ? gapAttrs(index) : undefined,
+          }).range(from),
+        );
+      } else {
+        ranges.push(Decoration.line({ class: "cm-fm-code-line" }).range(from));
+        if (text.length > 0) {
+          ranges.push(Decoration.mark({ class: "cm-fm-codetext" }).range(from, from + text.length));
+        }
+      }
       continue;
     }
     if (fence) {
@@ -2568,32 +2599,39 @@ function buildSurfaceLines(state: EditorState): DecorationSet {
         depth = Math.max(0, depth - 1);
       }
     }
-    const from = state.doc.line(index + 1).from;
     const blank = text.trim().length === 0;
     if (blank) {
-      // A blank source line is View's paragraph margin (1em), not a full
-      // text line — shrink it or every seam runs ~60% taller than View. A
-      // second blank line in a row is a line of space (full height).
+      // A blank source line is View's paragraph margin, collapsed with the
+      // neighbouring block's (--fm-gap, the rhythm), not a full text line. A
+      // second blank line in a row is a line of space (full height), the
+      // last of them carrying the next block's top margin under it.
       const lead = firstLine !== undefined && index + 1 < firstLine;
+      const first = !prevBlank;
+      const g = rhythm.blankGap.get(index);
+      const sb = rhythm.spaceBottom.get(index);
+      const style = lead
+        ? undefined
+        : first
+        ? (g === undefined ? undefined : `--fm-gap: ${px(g)}`)
+        : (sb === undefined ? undefined : `--fm-gap-bottom: ${px(sb)}`);
       ranges.push(
         Decoration.line({
-          class: lead ? "cm-fm-blank cm-fm-lead" : prevBlank ? "cm-fm-space" : "cm-fm-blank",
+          class: lead ? "cm-fm-blank cm-fm-lead" : first ? "cm-fm-blank" : "cm-fm-space",
+          attributes: style === undefined ? undefined : { style },
         }).range(from),
       );
-      prevSpace = !lead && prevBlank;
       prevBlank = !lead;
       continue;
     }
-    const spaceCls = `${prevSpace ? " cm-fm-after-space" : ""}${blankAt(index + 1) && blankAt(index + 2) ? " cm-fm-before-space" : ""}`;
     prevBlank = false;
-    prevSpace = false;
     if (index + 1 === firstLine) {
       ranges.push(Decoration.line({ class: "cm-fm-first" }).range(from));
     }
     const m = HEADING_LINE_RE.exec(text);
     if (m) {
       ranges.push(
-        Decoration.line({ class: `cm-fm-h${m[1].length}${spaceCls}` }).range(from),
+        Decoration.line({ class: `cm-fm-h${m[1].length}${gapCls(index)}`, attributes: gapAttrs(index) })
+          .range(from),
       );
       const level = m[1].length;
       if (numbered && depth === 0 && (level === 2 || level === 3)) {
@@ -2613,9 +2651,23 @@ function buildSurfaceLines(state: EditorState): DecorationSet {
         );
       }
     } else if (LIST_LINE_RE.test(text)) {
-      ranges.push(Decoration.line({ class: "cm-fm-li" }).range(from));
+      ranges.push(
+        Decoration.line({
+          class: `cm-fm-li${listDepthCls(text)}${rhythm.liNext.has(index) ? " cm-fm-li-next" : ""}${gapCls(index)}`,
+          attributes: gapAttrs(index),
+        }).range(from),
+      );
     } else if (/^\s*>\s?/.test(text)) {
-      ranges.push(Decoration.line({ class: `cm-fm-bq${spaceCls}` }).range(from));
+      ranges.push(
+        Decoration.line({
+          class: `cm-fm-bq${rhythm.bqFirst.has(index) ? " cm-fm-bq-first" : ""}${
+            rhythm.bqLast.has(index) ? " cm-fm-bq-last" : ""
+          }${gapCls(index)}`,
+          attributes: gapAttrs(index),
+        }).range(from),
+      );
+    } else if (rhythm.gapTop.has(index)) {
+      ranges.push(Decoration.line({ class: "cm-fm-gap", attributes: gapAttrs(index) }).range(from));
     }
     // `[x]{.role}` / `[x]{size=12}` label styling — here and not in the
     // conceal plugin because a font-size changes LINE HEIGHT, and
@@ -2656,7 +2708,9 @@ const MARK_RE = /\[([^\]]*)\]\{([^}]*)\}/g;
 class HrWidget extends WidgetType {
   override toDOM(): HTMLElement {
     const dom = document.createElement("div");
-    dom.className = "w-full";
+    // Print's hr: the rule alone (its margins are the blank lines' beside
+    // it, docRhythmOf), with a click target that takes no room.
+    dom.className = "w-full cm-fm-hr";
     dom.style.display = "flow-root";
     dom.contentEditable = "false";
     dom.appendChild(document.createElement("hr"));
@@ -2672,14 +2726,18 @@ class HrWidget extends WidgetType {
 const HR = new HrWidget();
 
 class BulletWidget extends WidgetType {
+  // A bullet, or an ordered item's own marker text ("3.").
+  constructor(readonly text = "\u2022") {
+    super();
+  }
   override toDOM(): HTMLElement {
     const el = document.createElement("span");
     el.className = "cm-fm-bullet";
-    el.textContent = "•";
+    el.textContent = this.text;
     return el;
   }
-  override eq(): boolean {
-    return true;
+  override eq(other: BulletWidget): boolean {
+    return other.text === this.text;
   }
 }
 const BULLET = new BulletWidget();
@@ -2802,13 +2860,19 @@ function buildConceal(
             return;
           }
           case "ListMark": {
-            // Bullets become glyphs; ordered markers stay (they carry info).
-            if (!/^[-*+]$/.test(state.sliceDoc(node.from, node.to))) return;
+            // The marker becomes a glyph drawn in the line's indent (a
+            // bullet, or the ordered marker's own text), and the item's
+            // indentation and the space after the marker go with it: the
+            // text then starts at the padding edge, where print's does.
             if (revealed(node.from, node.to)) return;
+            const mark = state.sliceDoc(node.from, node.to);
+            const line = state.doc.lineAt(node.from);
+            const from = /^\s*$/.test(state.sliceDoc(line.from, node.from)) ? line.from : node.from;
+            const to = state.sliceDoc(node.to, node.to + 1) === " " ? node.to + 1 : node.to;
             add(
-              node.from,
-              node.to,
-              Decoration.replace({ widget: BULLET }),
+              from,
+              to,
+              Decoration.replace({ widget: /^[-*+]$/.test(mark) ? BULLET : new BulletWidget(mark) }),
             );
             return;
           }
@@ -3690,7 +3754,7 @@ function applyRegionPagination(
   startLine: number,
   view: EditorView,
 ): void {
-  for (const old of Array.from(dom.querySelectorAll(".fm-page-gutter-row, .fm-page-gutter, .fm-page-split"))) {
+  for (const old of Array.from(dom.querySelectorAll(".fm-page-gutter-row, .fm-page-gutter-repeat, .fm-page-gutter, .fm-page-split"))) {
     old.remove();
   }
   dom.classList.remove("fm-live-region--split");
@@ -3710,8 +3774,22 @@ function applyRegionPagination(
       const target = anchor ?? dom.querySelector<HTMLElement>(".fm-peer-layer + *");
       const row = target?.closest<HTMLTableRowElement>("tr") ?? null;
       if (row !== null && row.parentElement) {
-        // Inside a table: a row of the seam before the row that opens the page.
+        // Inside a table: a row of the seam before the row that opens the
+        // page, then the table's header rows again, as print repeats them
+        // on every page a table runs on to (the layout counts them:
+        // FastrLayoutBlock.repeat). The copies are inert: no anchors (the
+        // break candidates come from the rows), no editing.
         row.parentElement.insertBefore(seamRow(ps.pagination, seam.page, row.cells.length), row);
+        const thead = row.closest("table")?.querySelector<HTMLTableSectionElement>(":scope > thead");
+        for (const hr of Array.from(thead?.rows ?? [])) {
+          const copy = hr.cloneNode(true) as HTMLTableRowElement;
+          copy.classList.add("fm-page-gutter-repeat");
+          copy.contentEditable = "false";
+          copy.setAttribute("aria-hidden", "true");
+          copy.removeAttribute("data-line");
+          for (const a of Array.from(copy.querySelectorAll("[data-line]"))) a.removeAttribute("data-line");
+          row.parentElement.insertBefore(copy, row);
+        }
       } else if (target !== null && target !== undefined && target.parentElement) {
         target.parentElement.insertBefore(el, target);
       } else {
@@ -3798,21 +3876,256 @@ function lineBox(view: EditorView, line0: number): { top: number; bottom: number
 }
 
 
-// Whether a block stands after a line of space (a second blank line above
-// it) and before one (two blank lines under it): the block then keeps its
-// whole print margin on that side (report_fastr_css.ts), and the flag rides
-// on the widget or line as a class, from the source, never from a sibling
-// element (CodeMirror stands a placeholder in for unrendered neighbours,
-// and a box that depended on them would change with the viewport).
-function spaceFlags(state: EditorState, startLine: number, endLine: number): { afterSpace: boolean; beforeSpace: boolean } {
-  const doc = state.doc;
-  const first = firstVisibleLine(state);
-  const start0 = first !== undefined ? first - 1 : 0;
-  const blank = (i: number) => i >= 0 && i < doc.lines && doc.line(i + 1).text.trim().length === 0;
+// ── Vertical rhythm ─────────────────────────────────────────────────────────
+// The editor's flow stands where print's does, to the pixel, from print's
+// own block margins measured in the editor's sheet (HeightOracle, once per
+// geometry) and the source alone. Two blocks a blank source line apart are
+// max(margin-bottom, margin-top) apart in print, their margins collapsed:
+// the blank line is exactly that tall (--fm-gap). Margins do not collapse
+// through a line of space: a run of blank lines is the previous block's
+// whole bottom margin, the lines of space, and the next block's whole top
+// margin under the last of them (--fm-gap-bottom). Two blocks with no blank
+// line between (a paragraph straight under its heading) put the collapsed
+// gap above the second block's first line, or a widget's first content
+// child (--fm-gap-top). Blocks carry nothing else, so a block's box never
+// depends on where it stands, and print keeps a block's whole top margin at
+// a page top (the seam's topExtra, pageBoxPlugin).
+export type PrintMetrics = {
+  // By block key (blockKeyOfLine, regionKeyOf): print's margins, px.
+  margins: Record<string, { mt: number; mb: number }>;
+  // Print's paragraph margin (the separator's base), a list item's margin,
+  // a quote's own padding, px: CSS variables on the editor.
+  pMargin: number;
+  liGap: number;
+  // A list's indent (the ul's padding), px: the line's padding per depth.
+  liIndent: number;
+  bqPad: number;
+};
+export const setPrintMetrics = StateEffect.define<PrintMetrics>();
+export const printMetricsField = StateField.define<PrintMetrics | undefined>({
+  create: () => undefined,
+  update(value, tr) {
+    for (const e of tr.effects) if (e.is(setPrintMetrics)) return e.value;
+    return value;
+  },
+});
+const NO_MARGINS = { mt: 0, mb: 0 };
+// Layout units: the browser keeps lengths in 1/64 px and truncates a float
+// margin to one; every px the rhythm writes is such a unit, so the editor's
+// line boxes and print's margins are the same number, not a rounding apart.
+export function snapPx(v: number): number {
+  return Math.floor(v * 64 + 1e-6) / 64;
+}
+function marginsOf(metrics: PrintMetrics | undefined, key: string | undefined): { mt: number; mb: number } {
+  return (key !== undefined ? metrics?.margins[key] : undefined) ?? NO_MARGINS;
+}
+const HR_LINE_RE = /^ {0,3}([-*_])(?:[ \t]*\1){2,}[ \t]*$/;
+const CODE_FENCE_LINE_RE = /^ {0,3}(`{3,}|~{3,})/;
+// The block a plain source line belongs to, as print renders it.
+function blockKeyOfLine(text: string): string {
+  const h = HEADING_LINE_RE.exec(text);
+  if (h) return `h${h[1].length}`;
+  if (LIST_LINE_RE.test(text)) return "list";
+  if (/^\s*>/.test(text)) return "bq";
+  if (CODE_FENCE_LINE_RE.test(text)) return "pre";
+  if (HR_LINE_RE.test(text)) return "hr";
+  return "p";
+}
+// The block a region renders as: the structure sheet's class.
+function regionKeyOf(r: FastrLiveRegion): string {
+  if (r.kind === "table") return "table";
+  if (r.kind === "embed") return "figure";
+  const name = r.fence?.name ?? "";
+  if (name === "contents") return "fm-toc";
+  if (name === "pagebreak" || name === "report") return name;
+  return `fm-${name}`;
+}
+// Print's margins for every block kind, measured in the editor's own sheet.
+function measurePrintMetrics(oracle: HeightOracle): PrintMetrics {
+  const margins: Record<string, { mt: number; mb: number }> = {};
+  const m = (tag: string, cls = "") => ({ mt: oracle.printMarginTop(tag, cls), mb: oracle.printMarginBottom(tag, cls) });
+  margins.p = m("p");
+  for (let n = 1; n <= 6; n++) margins[`h${n}`] = m(`h${n}`, "fm-top");
+  margins.bq = m("blockquote");
+  margins.pre = m("pre");
+  margins.hr = m("hr");
+  // A list's items carry the margins: the first item's collapses through
+  // the list's top, the last item's into the list's bottom margin.
+  margins.list = { mt: oracle.printMarginTop("li"), mb: Math.max(oracle.printMarginBottom("ul"), oracle.printMarginBottom("li")) };
+  margins.table = oracle.regionMargins("", "table");
+  margins.figure = oracle.regionMargins("fm-figure", "figure");
+  for (const name of FASTR_BLOCK_NAMES) {
+    if (name === "pagebreak" || name === "report") margins[name] = { mt: 0, mb: 0 };
+    else if (name === "contents") margins["fm-toc"] = oracle.regionMargins("fm-toc", "div");
+    // A cover is a band (its bottom margin is the band's); it opens the
+    // document or a page, where print gives it no top margin.
+    else if (name === "cover") margins["fm-cover"] = { mt: 0, mb: oracle.regionMargins("fm-band fm-cover", "section").mb };
+    else margins[`fm-${name}`] = oracle.regionMargins(`fm-${name}`, "div");
+  }
+  // To the 1/64 px the browser lays out at, floored as it floors a margin:
+  // a line height or padding of the same float would round up instead, a
+  // sixty-fourth per block that adds up and moves a text row by a pixel.
+  for (const k of Object.keys(margins)) margins[k] = { mt: snapPx(margins[k].mt), mb: snapPx(margins[k].mb) };
   return {
-    afterSpace: startLine - 2 >= start0 && blank(startLine - 1) && blank(startLine - 2),
-    beforeSpace: endLine + 2 < doc.lines && blank(endLine + 1) && blank(endLine + 2),
+    margins,
+    pMargin: margins.p.mb,
+    liGap: margins.list.mt,
+    liIndent: snapPx(oracle.printPaddingLeft("ul")),
+    bqPad: snapPx(oracle.printPaddingTop("blockquote")),
   };
+}
+type DocRhythm = {
+  // A blank source line outside a code block (inside one it is code).
+  blank: (line: number) => boolean;
+  // Every non-blank line's block key.
+  key: (string | undefined)[];
+  inCode: boolean[];
+  fenceAt: Map<number, "open" | "close">;
+  // The first blank line of a run: its height, px.
+  blankGap: Map<number, number>;
+  // The last line of space of a run: the next block's top margin, px.
+  spaceBottom: Map<number, number>;
+  // A block's first line with no blank line above it: the collapsed gap, px.
+  gapTop: Map<number, number>;
+  bqFirst: Set<number>;
+  bqLast: Set<number>;
+  liNext: Set<number>;
+  // 0-based.
+  firstVisible: number | undefined;
+};
+const rhythmCache = new WeakMap<DocText, { metrics: PrintMetrics | undefined; rhythm: DocRhythm }>();
+function docRhythmOf(state: EditorState, metrics: PrintMetrics | undefined): DocRhythm {
+  const cached = rhythmCache.get(state.doc);
+  if (cached !== undefined && cached.metrics === metrics) return cached.rhythm;
+  const doc = state.doc;
+  const n = doc.lines;
+  const db = docBlocksOf(state);
+  const firstVisible = db.firstVisible !== undefined ? db.firstVisible - 1 : undefined;
+  const inCode: boolean[] = new Array(n).fill(false);
+  const fenceAt = new Map<number, "open" | "close">();
+  let codeOpen = false;
+  for (const sc of scanContainerLines(doc.iterLines(1, n + 1))) {
+    inCode[sc.index] = sc.inCode;
+    if (!sc.inCode) {
+      codeOpen = false;
+      continue;
+    }
+    if (!codeOpen) {
+      fenceAt.set(sc.index, "open");
+      codeOpen = true;
+    } else if (CODE_FENCE_LINE_RE.test(sc.text)) {
+      fenceAt.set(sc.index, "close");
+      codeOpen = false;
+    }
+  }
+  const blank = (i: number) => i >= 0 && i < n && !inCode[i] && doc.line(i + 1).text.trim().length === 0;
+  const key: (string | undefined)[] = new Array(n).fill(undefined);
+  for (let i = 0; i < n; i++) {
+    if (blank(i)) continue;
+    const owner = db.owner[i];
+    key[i] = owner !== undefined ? regionKeyOf(owner) : inCode[i] ? "pre" : blockKeyOfLine(doc.line(i + 1).text);
+  }
+  const bqFirst = new Set<number>();
+  const bqLast = new Set<number>();
+  const liNext = new Set<number>();
+  for (let i = 0; i < n; i++) {
+    if (db.owner[i] !== undefined) continue;
+    if (key[i] === "bq") {
+      if (i === 0 || key[i - 1] !== "bq") bqFirst.add(i);
+      if (i + 1 >= n || key[i + 1] !== "bq") bqLast.add(i);
+    }
+    if (key[i] === "list" && i > 0 && key[i - 1] === "list" && db.owner[i - 1] === undefined) liNext.add(i);
+  }
+  const blankGap = new Map<number, number>();
+  const spaceBottom = new Map<number, number>();
+  const gapTop = new Map<number, number>();
+  // A cover that fills its page ends it: nothing stands under it on the page.
+  const fillCoverAt = (i: number) => {
+    const o = db.owner[i];
+    return o?.fence?.name === "cover" && o.fence.attrs["fill"] === "page";
+  };
+  // Two adjacent non-blank lines of one block (no gap between them).
+  const sameBlock = (a: number, b: number): boolean => {
+    const oa = db.owner[a];
+    const ob = db.owner[b];
+    if (oa !== undefined || ob !== undefined) return oa === ob;
+    if (inCode[a] || inCode[b]) return inCode[a] && inCode[b] && fenceAt.get(a) !== "close" && fenceAt.get(b) !== "open";
+    const ka = key[a];
+    const kb = key[b];
+    if (ka === "hr" || kb === "hr") return false;
+    if (kb !== undefined && /^h[1-6]$/.test(kb)) return false;
+    if (ka !== undefined && /^h[1-6]$/.test(ka)) return false;
+    if (ka === kb) return true;
+    // A plain line straight under a list item or a quote line continues it.
+    return kb === "p" && (ka === "list" || ka === "bq");
+  };
+  if (metrics !== undefined) {
+    let prev: number | undefined;
+    let i = 0;
+    while (i < n) {
+      if (blank(i)) {
+        let j = i;
+        while (j + 1 < n && blank(j + 1)) j++;
+        const k = j - i + 1;
+        const next = j + 1 < n ? j + 1 : undefined;
+        const lead = firstVisible === undefined || i < firstVisible;
+        if (!lead && prev !== undefined) {
+          const fill = fillCoverAt(prev);
+          const mbPrev = fill ? 0 : marginsOf(metrics, key[prev]).mb;
+          const mtNext = next !== undefined ? marginsOf(metrics, key[next]).mt : 0;
+          if (k === 1) blankGap.set(i, fill ? 0 : Math.max(mbPrev, mtNext));
+          else {
+            blankGap.set(i, mbPrev);
+            if (next !== undefined) spaceBottom.set(j, mtNext);
+          }
+        }
+        i = j + 1;
+        continue;
+      }
+      if (prev === i - 1 && i !== firstVisible && !sameBlock(prev, i)) {
+        const g = fillCoverAt(prev)
+          ? marginsOf(metrics, key[i]).mt
+          : Math.max(marginsOf(metrics, key[prev]).mb, marginsOf(metrics, key[i]).mt);
+        if (g > 0) gapTop.set(i, g);
+      } else if (
+        prev === i - 1 && key[prev] === "list" && key[i] === "list" && db.owner[i] === undefined &&
+        listDepthOf(doc.line(i + 1).text) < listDepthOf(doc.line(prev + 1).text)
+      ) {
+        // A nested list ends: its bottom margin collapses into the next
+        // item's (the item line already carries the items' own margin).
+        const g = marginsOf(metrics, "list").mb - metrics.liGap;
+        if (g > 0) gapTop.set(i, g);
+      }
+      prev = i;
+      i++;
+    }
+  }
+  const rhythm: DocRhythm = { blank, key, inCode, fenceAt, blankGap, spaceBottom, gapTop, bqFirst, bqLast, liNext, firstVisible };
+  rhythmCache.set(state.doc, { metrics, rhythm });
+  return rhythm;
+}
+// A source line as the editor shows it (editorLineOf) with the rhythm's own
+// classes and gap, for the oracle.
+function rowOf(rhythm: DocRhythm, text: string, line: number): OracleRow {
+  const gap = rhythm.gapTop.get(line);
+  const style = gap === undefined ? undefined : `--fm-gap-top: ${gap}px`;
+  const gapCls = gap === undefined ? "" : " cm-fm-gap";
+  const fence = rhythm.fenceAt.get(line);
+  if (fence !== undefined) return { cls: `cm-fm-code-fence cm-fm-code-${fence}${fence === "open" ? gapCls : ""}`, text, style: fence === "open" ? style : undefined };
+  if (rhythm.inCode[line]) return { cls: "cm-fm-code-line", text, inner: "cm-fm-codetext" };
+  // A thematic break's line is the rule alone (HrWidget).
+  if (HR_LINE_RE.test(text)) return { cls: "", text: "", style: "height: 1px; line-height: 1px; font-size: 0; overflow: hidden" };
+  const base = editorLineOf(text);
+  let cls = base.cls;
+  if (cls === "cm-fm-bq") {
+    if (rhythm.bqFirst.has(line)) cls += " cm-fm-bq-first";
+    if (rhythm.bqLast.has(line)) cls += " cm-fm-bq-last";
+  }
+  if (cls === "cm-fm-li") {
+    cls += listDepthCls(text);
+    if (rhythm.liNext.has(line)) cls += " cm-fm-li-next";
+  }
+  return { cls: `${cls}${gapCls}`.trim(), text: base.text, style };
 }
 
 // The document's regions by line, computed once per document version.
@@ -3869,8 +4182,8 @@ class HeightOracle {
   }
   // A run of lines as the editor would show them (consecutive lines of a
   // paragraph, the items of a list), as one box.
-  lines(rows: { cls: string; text: string }[]): number | undefined {
-    const key = rows.map((r) => `${r.cls}\u0001${r.text}`).join("\u0000");
+  lines(rows: OracleRow[]): number | undefined {
+    const key = rows.map((r) => `${r.cls}\u0001${r.style ?? ""}\u0001${r.inner ?? ""}\u0001${r.text}`).join("\u0000");
     const hit = this.cache.get(key);
     if (hit !== undefined) return hit;
     const box = this.ensure();
@@ -3878,7 +4191,15 @@ class HeightOracle {
     const els = rows.map((r) => {
       const el = document.createElement("div");
       el.className = `cm-line ${r.cls}`.trim();
-      el.textContent = r.text.length > 0 ? r.text : "\u200b";
+      if (r.style !== undefined) el.style.cssText = r.style;
+      if (r.inner !== undefined && r.text.length > 0) {
+        const span = document.createElement("span");
+        span.className = r.inner;
+        span.textContent = r.text;
+        el.append(span);
+      } else {
+        el.textContent = r.text.length > 0 ? r.text : "\u200b";
+      }
       return el;
     });
     box.replaceChildren(...els);
@@ -3908,19 +4229,16 @@ class HeightOracle {
       if (!Number.isFinite(n)) return 0;
       return t.endsWith("em") && !t.endsWith("rem") ? n * fs : n;
     };
-    const out = { mt: px(cs.getPropertyValue("--fm-mt")), mb: px(cs.getPropertyValue("--fm-mb")) };
+    // A block whose rule declares no tokens (a cover) has its computed margins.
+    const vt = cs.getPropertyValue("--fm-mt");
+    const vb = cs.getPropertyValue("--fm-mb");
+    const out = {
+      mt: vt.trim().length > 0 ? px(vt) : parseFloat(cs.marginTop) || 0,
+      mb: vb.trim().length > 0 ? px(vb) : parseFloat(cs.marginBottom) || 0,
+    };
     this.cache.set(`${key}|mt`, out.mt);
     this.cache.set(`${key}|mb`, out.mb);
     return out;
-  }
-  // What a region's widget adds around print's box of the block: its flow
-  // margins less the blank separator line that stands in for one (the
-  // widget clamp in report_fastr_css.ts).
-  regionExtra(cls: string, tag = "div", afterSpace = false, beforeSpace = false): number {
-    const { mt, mb } = this.regionMargins(cls, tag);
-    const sep = this.lines([{ cls: "cm-fm-blank", text: "" }]) ?? 16;
-    // After or before a line of space the whole margin stands.
-    return (afterSpace ? mt : Math.max(0, mt - sep)) + (beforeSpace ? mb : Math.max(0, mb - sep));
   }
   // Print's top margin of an element of this tag and class, px, as the
   // structure sheet rules it inside the editor's scope (a heading's 1.8em,
@@ -3952,17 +4270,27 @@ class HeightOracle {
     this.cache.set(key, mb);
     return mb;
   }
-  // The padding above a line of this class as the editor draws it, after a
-  // line of space or not (a heading's differs), px.
-  linePaddingTop(cls: string, afterSpace: boolean): number {
-    const key = `\u0004${cls}|${afterSpace ? 1 : 0}`;
+  // Print's left padding of an element of this tag, px (a list's indent).
+  printPaddingLeft(tag: string): number {
+    const key = `\u0005${tag}`;
     const hit = this.cache.get(key);
     if (hit !== undefined) return hit;
     const box = this.ensure();
     if (box === undefined) return 0;
-    const el = document.createElement("div");
-    el.className = `cm-line ${cls}${afterSpace ? " cm-fm-after-space" : ""}`.trim();
-    el.textContent = "x";
+    const el = document.createElement(tag);
+    box.replaceChildren(el);
+    const pl = parseFloat(getComputedStyle(el).paddingLeft) || 0;
+    this.cache.set(key, pl);
+    return pl;
+  }
+  // Print's top padding of an element of this tag, px (a quote's 0.2em).
+  printPaddingTop(tag: string): number {
+    const key = `\u0004${tag}`;
+    const hit = this.cache.get(key);
+    if (hit !== undefined) return hit;
+    const box = this.ensure();
+    if (box === undefined) return 0;
+    const el = document.createElement(tag);
     box.replaceChildren(el);
     const pt = parseFloat(getComputedStyle(el).paddingTop) || 0;
     this.cache.set(key, pt);
@@ -3984,6 +4312,7 @@ class HeightOracle {
   }
 }
 
+type OracleRow = { cls: string; text: string; style?: string; inner?: string };
 // A source line as the editor shows it: its line class and its text with
 // the syntax the live preview conceals stripped (close enough to wrap the
 // same).
@@ -4032,6 +4361,10 @@ const measuredBlockHeights = new Map<string, number>();
 // its boundaries when it leaves the viewport, or the layout would lay it
 // whole again and move every page after it.
 const measuredInner = new Map<string, { rel: number; top: number }[]>();
+// A table's header height (its repeat on continuation pages), by key.
+const measuredRepeat = new Map<string, number>();
+// A page's exact extent from the height map, by its blocks (pageBoxPlugin).
+const measuredPageExtents = new Map<string, number>();
 // The first height seen of a block whose embed is still pending, by key.
 const pendingBlockHeights = new Map<string, number>();
 let measuredEpoch = "";
@@ -4045,6 +4378,7 @@ function rememberBlockHeight(key: string, height: number): void {
     if (first !== undefined) {
       measuredBlockHeights.delete(first);
       measuredInner.delete(first);
+      measuredRepeat.delete(first);
     }
   }
   measuredBlockHeights.set(key, height);
@@ -4056,6 +4390,8 @@ function keepMeasuredEpoch(view: EditorView): boolean {
   measuredEpoch = epoch;
   measuredBlockHeights.clear();
   measuredInner.clear();
+  measuredRepeat.clear();
+  measuredPageExtents.clear();
   pendingBlockHeights.clear();
   return true;
 }
@@ -4070,7 +4406,7 @@ function innerCandidates(
   const dom = view.contentDOM.querySelector<HTMLElement>(`[data-region-line="${startLine}"]`);
   if (dom === null) return undefined;
   const domTop = dom.getBoundingClientRect().top;
-  const seams = Array.from(dom.querySelectorAll<HTMLElement>(".fm-page-gutter"))
+  const seams = Array.from(dom.querySelectorAll<HTMLElement>(".fm-page-gutter, .fm-page-gutter-repeat"))
     .map((s) => s.getBoundingClientRect())
     .sort((a, b) => a.top - b.top);
   const out: { line: number; top: number }[] = [];
@@ -4107,31 +4443,23 @@ function flowBlocksOf(
 ): FlowBlock[] {
   const doc = view.state.doc;
   const db = docBlocksOf(view.state);
+  const metrics = view.state.field(printMetricsField, false);
+  const rhythm = docRhythmOf(view.state, metrics);
   const vp = view.viewport;
   const rendered = (from: number, to: number) =>
     doc.line(from + 1).from >= vp.from && doc.line(to + 1).to <= vp.to;
-  const blank = (i: number) => doc.line(i + 1).text.trim().length === 0;
+  const blank = rhythm.blank;
   const textOf = (from: number, to: number) => doc.sliceString(doc.line(from + 1).from, doc.line(to + 1).to);
   const blocks: FlowBlock[] = [];
-  // The space above a block: the blank separator line when one stands
-  // between it and the previous block, nothing when they touch. From the
-  // source, never from positions: the height map places an unrendered line
-  // by guesswork, and even between rendered blocks the measured distance
-  // is the same separator to the pixel, so the source is the stable answer.
-  const separator = oracle.lines([{ cls: "cm-fm-blank", text: "" }]) ?? 16;
-  let separated = false;
+  // The space above a block: the blank line over it, as tall as the rhythm
+  // makes it (print's collapsed margins), nothing when the blocks touch.
+  // From the source, never from positions: the height map places an
+  // unrendered line by guesswork, so the source is the stable answer.
+  const gapAt = (line: number) => (line > 0 ? rhythm.blankGap.get(line - 1) : undefined) ?? 0;
   const push = (b: Omit<FlowBlock, "gap">) => {
-    const gap = blocks.length === 0 ? 0 : separated ? separator : 0;
-    blocks.push({ ...b, gap });
-    separated = false;
+    blocks.push({ ...b, gap: blocks.length === 0 ? 0 : gapAt(b.line) });
   };
   const start = db.firstVisible !== undefined ? Math.max(0, db.firstVisible - 1) : 0;
-  // After a line of SPACE (a second blank line) a block keeps its whole top
-  // margin in the editor as in print; after the separator alone the clamp
-  // keeps what exceeds the separator, and print gives the rest back at the
-  // top of a page: the block's topExtra, the page's rather than the block's.
-  const afterSpace = (line: number) => line - 2 >= start && blank(line - 1) && blank(line - 2);
-  const beforeSpace = (line: number) => line + 2 < doc.lines && blank(line + 1) && blank(line + 2);
   let prevBlank = false;
   let i = 0;
   while (i < doc.lines) {
@@ -4150,6 +4478,7 @@ function flowBlocksOf(
       let domHeight: number | undefined;
       let imgH: number | undefined;
       let inner: { line: number; top: number }[] | undefined;
+      let repeat: number | undefined;
       const isRendered = rendered(r.startLine, r.endLine);
       const key = blockKey("r", text);
       const { cls, tag } = regionClassOf(r);
@@ -4162,8 +4491,15 @@ function flowBlocksOf(
         // across pages): the block's own height is the rest.
         const dom = view.contentDOM.querySelector<HTMLElement>(`[data-region-line="${r.startLine}"]`);
         if (dom !== null) {
-          for (const seam of Array.from(dom.querySelectorAll<HTMLElement>(".fm-page-gutter"))) {
+          for (const seam of Array.from(dom.querySelectorAll<HTMLElement>(".fm-page-gutter, .fm-page-gutter-repeat"))) {
             height -= seam.getBoundingClientRect().height;
+          }
+          // A table's header rows, repeated at the top of every page it
+          // continues on to.
+          if (r.kind === "table") {
+            const thead = dom.querySelector<HTMLElement>("table > thead");
+            repeat = thead !== null ? thead.getBoundingClientRect().height : undefined;
+            if (repeat !== undefined) measuredRepeat.set(key, repeat);
           }
           // A figure the layout fitted shows its image shrunk: the block's
           // own height is the natural one, or the layout would find the
@@ -4184,7 +4520,7 @@ function flowBlocksOf(
             const provisional = pendingBlockHeights.get(key);
             domHeight = height;
             if (seen !== undefined) height = seen;
-            else if (hint !== undefined) height = hint.height + oracle.regionExtra(cls, tag, afterSpace(r.startLine), beforeSpace(r.endLine));
+            else if (hint !== undefined) height = hint.height + (rhythm.gapTop.get(r.startLine) ?? 0);
             else if (provisional !== undefined) height = provisional;
             else pendingBlockHeights.set(key, height);
           } else {
@@ -4204,6 +4540,7 @@ function flowBlocksOf(
       } else {
         const seen = measuredBlockHeights.get(key);
         const hint = hints.get(text);
+        repeat = measuredRepeat.get(key);
         if (seen !== undefined) {
           height = seen;
           inner = measuredInner.get(key)?.map((c) => ({ line: r.startLine + c.rel, top: c.top }));
@@ -4216,19 +4553,24 @@ function flowBlocksOf(
           // over the page's foot), whatever the height map guesses.
           height = 0;
         } else if (hint !== undefined) {
-          height = hint.height + oracle.regionExtra(cls, tag, afterSpace(r.startLine), beforeSpace(r.endLine));
+          // Print's height for the block, plus the gap its widget carries
+          // when no blank line stands over it.
+          height = hint.height + (rhythm.gapTop.get(r.startLine) ?? 0);
           // Print's boundaries for one taller than half a page, until the
           // editor has rendered and measured its own.
           if (name !== "cover") inner = hint.inner?.map((c) => ({ line: r.startLine + c.rel, top: c.top }));
         }
         imgH = figureBox(null)?.imgH;
       }
-      // The first block of the document and a cover have no top margin in
-      // print either; a page break marker has no box.
-      const topExtra =
-        name === "pagebreak" || name === "cover" || r.startLine === start || afterSpace(r.startLine)
-          ? 0
-          : Math.min(oracle.regionMargins(cls, tag).mt, separator);
+      // What print gives the block at the top of a page beyond its box: its
+      // whole top margin, less what the widget carries itself (a gap over a
+      // block with no blank line above it). The first block of the document
+      // and a cover have no top margin in print either; a page break marker
+      // has no box.
+      const rm = marginsOf(metrics, regionKeyOf(r));
+      const topExtra = name === "pagebreak" || name === "cover" || r.startLine === start
+        ? 0
+        : Math.max(0, rm.mt - (rhythm.gapTop.get(r.startLine) ?? 0));
       const attrs = fence?.attrs ?? {};
       const brk = typeof attrs["break"] === "string" ? attrs["break"].toLowerCase() : "";
       push({
@@ -4244,16 +4586,19 @@ function flowBlocksOf(
         breakAfter: brk === "after",
         cover: name === "cover" ? (attrs["fill"] === "page" ? "fill" : "natural") : undefined,
         inner,
+        repeat,
         topExtra,
         flex: imgH !== undefined ? imgH * (1 - FIGURE_FLOOR) : undefined,
         // The separator line after it stays on the page when it shrinks.
-        tail: imgH !== undefined && r.endLine + 1 < doc.lines && blank(r.endLine + 1) ? separator : undefined,
+        tail: imgH !== undefined && r.endLine + 1 < doc.lines && blank(r.endLine + 1)
+          ? rhythm.blankGap.get(r.endLine + 1) ?? 0
+          : undefined,
         rendered: isRendered,
         domHeight,
         imgH,
         kind: "r",
-        printMt: oracle.regionMargins(cls, tag).mt,
-        printMb: oracle.regionMargins(cls, tag).mb,
+        printMt: rm.mt,
+        printMb: rm.mb,
       });
       prevBlank = false;
       i = r.endLine + 1;
@@ -4265,10 +4610,17 @@ function flowBlocksOf(
       if (prevBlank && i >= start) {
         const box = lineBox(view, i);
         const isRendered = rendered(i, i);
-        const key = blockKey("s", "");
+        // The last line of space before a block carries that block's top
+        // margin under it (the rhythm): a space of its own height.
+        const bottom = rhythm.spaceBottom.get(i);
+        const key = blockKey("s", bottom === undefined ? "" : String(bottom));
         let height = box.bottom - box.top;
         if (isRendered) rememberBlockHeight(key, height);
-        else height = measuredBlockHeights.get(key) ?? oracle.lines([{ cls: "cm-fm-space", text: "" }]) ?? height;
+        else {
+          height = measuredBlockHeights.get(key) ??
+            oracle.lines([{ cls: "cm-fm-space", text: "", style: bottom === undefined ? undefined : `--fm-gap-bottom: ${bottom}px` }]) ??
+            height;
+        }
         push({
           line: i,
           endLine: i,
@@ -4286,8 +4638,6 @@ function flowBlocksOf(
           printMt: 0,
           printMb: 0,
         });
-      } else if (i >= start) {
-        separated = true;
       }
       prevBlank = i >= start;
       i++;
@@ -4310,32 +4660,20 @@ function flowBlocksOf(
       const seen = measuredBlockHeights.get(key);
       if (seen !== undefined) height = seen;
       else {
-        const rows: { cls: string; text: string }[] = [];
-        for (let k = i; k <= j; k++) rows.push(editorLineOf(doc.line(k + 1).text));
-        const plain = rows.every((row) => row.cls === "");
+        const rows: OracleRow[] = [];
+        for (let k = i; k <= j; k++) rows.push(rowOf(rhythm, doc.line(k + 1).text, k));
+        const plain = rows.every((row) => row.cls === "" && row.style === undefined);
         const hint = plain ? hints.get(text)?.height : undefined;
         height = hint ?? oracle.lines(rows) ?? height;
       }
     }
-    // Print's top margin of the block less the padding the editor's first
-    // line carries: a heading's 1.8em less its 1.15em (the separator), and
-    // nothing after a line of space, where the line has the whole margin; a
-    // blockquote's or a code block's whole margin over a bare line; nothing
-    // over a paragraph or a list (no top margin in print).
-    const firstText = doc.line(i + 1).text;
-    const hm = HEADING_LINE_RE.exec(firstText);
-    const printTag = hm
-      ? `h${hm[1].length}`
-      : /^\s*>/.test(firstText)
-      ? "blockquote"
-      : /^\s*(```|~~~)/.test(firstText)
-      ? "pre"
-      : undefined;
-    const topExtra = printTag === undefined || i === start ? 0 : Math.max(
-      0,
-      oracle.printMarginTop(printTag, hm ? "fm-top" : "") -
-        oracle.linePaddingTop(editorLineOf(firstText).cls, afterSpace(i)),
-    );
+    // What print gives the block at the top of a page beyond its box: the
+    // first line's block's whole top margin (a heading's, a quote's, a code
+    // block's; a paragraph has none), less the gap the line carries itself
+    // when no blank line stands over it.
+    const hm = HEADING_LINE_RE.exec(doc.line(i + 1).text);
+    const pm = marginsOf(metrics, rhythm.key[i]);
+    const topExtra = i === start ? 0 : Math.max(0, pm.mt - (rhythm.gapTop.get(i) ?? 0));
     push({
       line: i,
       endLine: j,
@@ -4350,8 +4688,8 @@ function flowBlocksOf(
       topExtra,
       rendered: isRendered,
       kind: "p",
-      printMt: printTag === undefined ? 0 : oracle.printMarginTop(printTag, hm ? "fm-top" : ""),
-      printMb: oracle.printMarginBottom(printTag ?? "p", hm ? "fm-top" : ""),
+      printMt: pm.mt,
+      printMb: marginsOf(metrics, rhythm.key[j]).mb,
     });
     prevBlank = false;
     i = j + 1;
@@ -4373,10 +4711,16 @@ type Stretches = {
   lines: Map<number, number>;
   // The block after a stretched gap → its whole top margin in print, px.
   print: Map<number, number>;
+  // The blank line at a page's foot (before the block that opens the next
+  // page) → its height, px: the room the page has left for it, at most its
+  // own. Print drops a margin that runs past the page's foot; the blank line
+  // stands for it and must not run into the seam (a foot pulled up over it
+  // stood the next page's box that much too tall).
+  ends: Map<number, number>;
 };
 export const setStretches = StateEffect.define<Stretches>();
 export const stretchField = StateField.define<Stretches & { deco: DecorationSet }>({
-  create: () => ({ lines: new Map(), print: new Map(), deco: Decoration.none }),
+  create: () => ({ lines: new Map(), print: new Map(), ends: new Map(), deco: Decoration.none }),
   update(value, tr) {
     for (const e of tr.effects) {
       if (e.is(setStretches)) {
@@ -4385,6 +4729,13 @@ export const stretchField = StateField.define<Stretches & { deco: DecorationSet 
           if (line < 0 || line >= tr.state.doc.lines) continue;
           ranges.push(
             Decoration.line({ attributes: { style: `--fm-stretch: ${px}px` } })
+              .range(tr.state.doc.line(line + 1).from),
+          );
+        }
+        for (const [line, px] of e.value.ends) {
+          if (line < 0 || line >= tr.state.doc.lines) continue;
+          ranges.push(
+            Decoration.line({ attributes: { style: `--fm-gap-end: ${px}px` } })
               .range(tr.state.doc.line(line + 1).from),
           );
         }
@@ -4402,7 +4753,7 @@ export const stretchField = StateField.define<Stretches & { deco: DecorationSet 
         }
         return out;
       };
-      return { lines: remap(value.lines), print: remap(value.print), deco: value.deco.map(tr.changes) };
+      return { lines: remap(value.lines), print: remap(value.print), ends: remap(value.ends), deco: value.deco.map(tr.changes) };
     }
     return value;
   },
@@ -4429,7 +4780,7 @@ function stretchesOf(
   pages: readonly FastrPagedPage[],
   pageBlocks: readonly (readonly FlowBlock[])[],
   leftovers: readonly number[],
-): Stretches & { totals: Map<number, number> } {
+): Omit<Stretches, "ends"> & { totals: Map<number, number> } {
   const lines = new Map<number, number>();
   const print = new Map<number, number>();
   const totals = new Map<number, number>();
@@ -4470,7 +4821,9 @@ function stretchesOf(
       remaining -= share;
       total += share;
       lines.set(gaps[g].at.line - 1, share);
-      print.set(gaps[g].at.line, Math.round(Math.max(gaps[g].prev.printMb, gaps[g].at.printMt) + share));
+      // To the hundredth, as the editor's blank line is: a rounded print
+      // margin stood the heading under it up to half a pixel off.
+      print.set(gaps[g].at.line, snapPx(Math.max(gaps[g].prev.printMb, gaps[g].at.printMt) + share));
     }
     if (total > 0) totals.set(pages[i].number, total);
   }
@@ -4480,6 +4833,11 @@ function stretchesOf(
 type BoxMeasure = {
   pag: EditorPagination;
   move?: FastrPagedResult;
+  // Print's margins, measured: to land in printMetricsField before any
+  // layout (the rhythm depends on them).
+  metrics?: PrintMetrics;
+  // The contents block's entries and the page each one's heading falls on.
+  tocPages: { el: HTMLElement; text: string }[];
   // A seam's filler: the element when it is rendered, else the map only
   // (the widget's estimated height reads the map).
   writes: { el: HTMLElement | undefined; page: number; px: number }[];
@@ -4546,7 +4904,7 @@ function pageBoxPlugin(resolver: EmbedResolver) {
     }
     update(u: ViewUpdate) {
       const landed = u.transactions.some((tr) =>
-        tr.effects.some((e) => e.is(setPagination) || e.is(setLayoutHints))
+        tr.effects.some((e) => e.is(setPagination) || e.is(setLayoutHints) || e.is(setPrintMetrics))
       );
       if (landed || u.docChanged || u.viewportChanged || u.geometryChanged) {
         this.measure();
@@ -4557,6 +4915,22 @@ function pageBoxPlugin(resolver: EmbedResolver) {
         read: (view) => this.read(view),
         write: (m, view) => {
           if (!m) return;
+          if (m.metrics !== undefined) {
+            // The measured margins become the sheet's variables now and the
+            // field's value on the next tick (a dispatch cannot run inside
+            // the measure cycle); the layout waits for them.
+            const { metrics, pag } = m;
+            view.dom.style.setProperty("--fm-p-margin", `${metrics.pMargin}px`);
+            view.dom.style.setProperty("--fm-li-gap", `${metrics.liGap}px`);
+            view.dom.style.setProperty("--fm-li-indent", `${metrics.liIndent}px`);
+            view.dom.style.setProperty("--fm-bq-pad", `${metrics.bqPad}px`);
+            this.oracle.reset();
+            setTimeout(() => {
+              if (view.state.field(paginationField, false)?.pagination !== pag) return;
+              view.dispatch({ effects: setPrintMetrics.of(metrics) });
+            }, 0);
+            return;
+          }
           if (m.move !== undefined) {
             const { pag, move } = m;
             // Pages the new layout no longer has leave nothing behind: a
@@ -4591,6 +4965,7 @@ function pageBoxPlugin(resolver: EmbedResolver) {
             applyFigureSize(sz.mount, sz.size);
             applyFigureFit(sz.mount, m.pag.figureFits?.get(sz.line));
           }
+          for (const t of m.tocPages) t.el.setAttribute("data-fm-page", t.text);
           if (
             m.writes.length === 0 && m.aligns.length === 0 && m.extras.length === 0 &&
             m.fits.length === 0 && m.sizes.length === 0
@@ -4632,12 +5007,24 @@ function pageBoxPlugin(resolver: EmbedResolver) {
         safety: LAYOUT_SAFETY_PX,
       };
       const area = geometry.pageH - 2 * geometry.marginPx - LAYOUT_SAFETY_PX;
-      if (keepMeasuredEpoch(view)) this.oracle.reset();
+      const epochChanged = keepMeasuredEpoch(view);
+      if (epochChanged) this.oracle.reset();
+      // Print's margins, measured in this sheet, before any layout: the
+      // rhythm (every blank line's height) is made of them. Measured again
+      // when the geometry changes (another theme, another width).
+      const metricsStanding = view.state.field(printMetricsField, false);
+      if (metricsStanding === undefined || epochChanged) {
+        const measured = measurePrintMetrics(this.oracle);
+        if (metricsStanding === undefined || JSON.stringify(measured) !== JSON.stringify(metricsStanding)) {
+          return { pag, metrics: measured, writes: [], aligns: [], extras: [], fits: [], sizes: [], tocPages: [] };
+        }
+      }
+      const rhythm = docRhythmOf(view.state, metricsStanding);
       // The layout, from the heights as they stand.
       const blocks = flowBlocksOf(view, hints, area, this.oracle, geometry, resolver);
       const laid = layoutFastrPages(blocks, layoutGeometry);
       if (!this.pendingMove && !samePages(laid, pag.result)) {
-        return { pag, move: laid, writes: [], aligns: [], extras: [], fits: [], sizes: [] };
+        return { pag, move: laid, writes: [], aligns: [], extras: [], fits: [], sizes: [], tocPages: [] };
       }
       const writes: BoxMeasure["writes"] = [];
       const aligns: BoxMeasure["aligns"] = [];
@@ -4672,7 +5059,6 @@ function pageBoxPlugin(resolver: EmbedResolver) {
       // placed the seam pad the page, on screen or not, so a box is the
       // same size before and after its lines are rendered.
       const doc = view.state.doc;
-      const separator = this.oracle.lines([{ cls: "cm-fm-blank", text: "" }]) ?? 16;
       const pages = laid.pages;
       // The blocks that START on each page, in order (a block continued from
       // the page before is that page's).
@@ -4688,6 +5074,51 @@ function pageBoxPlugin(resolver: EmbedResolver) {
       // layout stacked, what the page's widgets show (an embed pending its
       // size) and the separator line trailing the page's last block stay on
       // the page before the seam.
+      // A rendered page that starts and ends between blocks measures its
+      // extent from the height map instead (the same heights, to the 1/64
+      // px the browser laid them out at, less the stretches standing on its
+      // separators): the sum of the layout's rounded numbers drifts from the
+      // browser's by hundredths, and a page box a hundredth off the sheet
+      // puts every page after it off the pixel grid, its glyphs drawn on
+      // another sub-pixel phase than print's.
+      const standingStretch = view.state.field(stretchField, false)?.lines;
+      const vp = view.viewport;
+      const renderedRange = (from: number, to: number) =>
+        doc.line(from + 1).from >= vp.from && doc.line(to + 1).to <= vp.to;
+      const pageKeyOf = (i: number) => `${i === 0 ? 1 : 0}\u0000${pageBlocks[i].map((fb) => fb.text).join("\u0001")}`;
+      const measuredExtent = (i: number): number | undefined => {
+        const startLine = i === 0 ? pageBlocks[0][0]?.line : pages[i].firstLine;
+        const nextLine = pages[i + 1]?.firstLine;
+        if (startLine === undefined || nextLine === undefined || nextLine <= startLine) return undefined;
+        if (pageBlocks[i][0]?.line !== startLine || pageBlocks[i + 1][0]?.line !== nextLine) return undefined;
+        // Remembered by the page's content once measured: a page that has
+        // scrolled out of view keeps its exact extent rather than falling
+        // back to the layout's sum, or its seam would move by a fraction
+        // every time it left the viewport and came back.
+        const pageKey = pageKeyOf(i);
+        if (!renderedRange(startLine, nextLine - 1)) return measuredPageExtents.get(pageKey);
+        let top = lineBox(view, startLine).top;
+        if (i > 0 && pageBlocks[i][0]?.kind === "r") {
+          // A region that opens a page holds the page's seam inside its own
+          // widget (applyRegionPagination): the page's content starts under it.
+          const own = view.contentDOM.querySelector<HTMLElement>(
+            `[data-region-line="${startLine}"] .fm-page-gutter[data-page="${i + 1}"]`,
+          );
+          if (own === null) return undefined;
+          top += own.getBoundingClientRect().height;
+        }
+        let extent = lineBox(view, nextLine - 1).bottom - top;
+        if (standingStretch !== undefined) {
+          for (const [line, px] of standingStretch) if (line >= startLine && line < nextLine) extent -= px;
+        }
+        if (measuredPageExtents.size >= MEASURED_CAP) {
+          const first = measuredPageExtents.keys().next().value;
+          if (first !== undefined) measuredPageExtents.delete(first);
+        }
+        measuredPageExtents.set(pageKey, extent);
+        return extent;
+      };
+      const ends = new Map<number, number>();
       const leftovers = pages.map((page, i) => {
         const list = pageBlocks[i];
         const last = list[list.length - 1];
@@ -4696,9 +5127,24 @@ function pageBoxPlugin(resolver: EmbedResolver) {
         for (const fb of list) if (fb.domHeight !== undefined) extent += fb.domHeight - fb.height;
         if (last !== undefined && last.endLine < to) {
           const after = last.endLine + 1;
-          if (after < doc.lines && after < to && doc.line(after + 1).text.trim().length === 0) {
-            extent += separator;
+          if (after < doc.lines && after < to && rhythm.blank(after)) {
+            // The blank line at the page's foot takes the room left, at
+            // most its own height (Stretches.ends).
+            const trail = rhythm.blankGap.get(after) ?? 0;
+            const endGap = Math.max(0, Math.min(trail, fastrPageArea(layoutGeometry, page) - extent));
+            if (endGap < trail - 0.01) ends.set(after, snapPx(endGap));
+            extent += endGap;
           }
+        }
+        // The measured extent stands in for the sum only when it is the
+        // same page to within a couple of pixels: while a move is pending
+        // the seams on screen are the last layout's, and one standing
+        // inside the page would be measured as content (and remembered).
+        const measured = this.pendingMove ? undefined : measuredExtent(i);
+        if (measured !== undefined) {
+          const extra = i === 0 ? 0 : (list[0]?.topExtra ?? 0);
+          if (Math.abs(measured + extra - extent) <= 2) return fastrPageArea(layoutGeometry, page) - extra - measured;
+          measuredPageExtents.delete(pageKeyOf(i));
         }
         return fastrPageArea(layoutGeometry, page) - extent;
       });
@@ -4708,16 +5154,20 @@ function pageBoxPlugin(resolver: EmbedResolver) {
       // safety) has a negative filler: the seam's foot moves up by it.
       for (let i = 0; i < pages.length; i++) {
         const page = pages[i];
-        const filler = Math.round(leftovers[i] - (stretch.totals.get(page.number) ?? 0));
+        // To the 1/64 px the browser lays out at: a filler rounded to the
+        // pixel left every page top a fraction off the sheet's grid, and
+        // the glyphs on it drawn on another sub-pixel phase than print's.
+        const filler = Math.round((leftovers[i] - (stretch.totals.get(page.number) ?? 0)) * 64) / 64;
         const el = seamEls.get(page.number + 1);
         const current = el !== undefined
           ? (parseFloat(el.style.paddingTop) || 0) + (parseFloat(el.querySelector<HTMLElement>(".fm-page-gutter__foot")?.style.marginTop ?? "") || 0)
           : pag.fillers?.get(page.number) ?? -1000;
-        if (Math.abs(filler - current) > 1) writes.push({ el, page: page.number, px: filler });
+        if (Math.abs(filler - current) > 0.05) writes.push({ el, page: page.number, px: filler });
       }
       const standing = view.state.field(stretchField, false);
-      const stretchOut = standing !== undefined && !sameStretches(standing.lines, stretch.lines)
-        ? { lines: stretch.lines, print: stretch.print }
+      const stretchOut = standing !== undefined &&
+          (!sameStretches(standing.lines, stretch.lines) || !sameStretches(standing.ends, ends))
+        ? { lines: stretch.lines, print: stretch.print, ends }
         : undefined;
       // The seam that opens each page carries the page's first block's
       // extra under its head (a page a continuation opens has none).
@@ -4726,12 +5176,25 @@ function pageBoxPlugin(resolver: EmbedResolver) {
       for (const fb of blocks) byLine.set(fb.line, fb);
       for (const page of pages) {
         if (page.number < 2 || page.firstLine === undefined) continue;
-        const px = Math.round(byLine.get(page.firstLine)?.topExtra ?? 0);
+        // To the hundredth: print keeps the block's exact margin at the page
+        // top, and a rounded seam stood the whole page up to half a pixel off.
+        const px = snapPx(byLine.get(page.firstLine)?.topExtra ?? 0);
         const el = seamEls.get(page.number);
         const current = el !== undefined
           ? parseFloat(el.style.paddingBottom) || 0
           : pag.topExtras?.get(page.number) ?? 0;
-        if (Math.abs(px - current) > 0.5) extras.push({ el, page: page.number, px });
+        if (Math.abs(px - current) > 0.05) extras.push({ el, page: page.number, px });
+      }
+      // The contents block's entries: the page each heading falls on, as
+      // print's target-counter gives it (the CSS draws data-fm-page).
+      const tocPages: BoxMeasure["tocPages"] = [];
+      for (const a of Array.from(view.contentDOM.querySelectorAll<HTMLElement>(".cm-fm-leaf a[data-toc-line]"))) {
+        const line1 = Number(a.getAttribute("data-toc-line"));
+        if (!Number.isFinite(line1)) continue;
+        let page = 1;
+        for (const p of pages) if ((p.firstLine ?? 0) <= line1 - 1) page = p.number;
+        const text = String(page);
+        if (a.getAttribute("data-fm-page") !== text) tocPages.push({ el: a, text });
       }
       // Mounts whose drawn chart says their size: one still waiting for
       // it, or one boxed to another aspect than the chart drew.
@@ -4760,7 +5223,9 @@ function pageBoxPlugin(resolver: EmbedResolver) {
       for (const fb of blocks) {
         if (fb.imgH === undefined) continue;
         const shrink = shrinkByLine.get(fb.line);
-        const px = shrink !== undefined ? Math.round(fb.imgH - shrink) : undefined;
+        // To the hundredth, as the layout placed it: a fit rounded to the
+        // pixel stood the page's foot up to half a pixel off the grid.
+        const px = shrink !== undefined ? snapPx(fb.imgH - shrink) : undefined;
         const mount = view.contentDOM.querySelector<HTMLElement>(
           `[data-region-line="${fb.line}"] [data-embed-kind="figure"][data-fm-sized]`,
         );
@@ -4768,10 +5233,10 @@ function pageBoxPlugin(resolver: EmbedResolver) {
           ? parseFloat(mount.style.getPropertyValue("--fm-fig-fit"))
           : pag.figureFits?.get(fb.line);
         const cur = shown !== undefined && Number.isFinite(shown) ? shown : undefined;
-        const same = px === cur || (px !== undefined && cur !== undefined && Math.abs(px - cur) <= 0.5);
+        const same = px === cur || (px !== undefined && cur !== undefined && Math.abs(px - cur) <= 0.05);
         if (!same) fits.push({ el: mount ?? undefined, line: fb.line, px });
       }
-      return { pag, writes, aligns, extras, fits, stretch: stretchOut, sizes };
+      return { pag, writes, aligns, extras, fits, stretch: stretchOut, sizes, tocPages };
     }
   },
   );
@@ -4804,6 +5269,7 @@ export function livePreviewExtensions(
   collab?: PresenceDeps,
 ): Extension[] {
   return [
+    printMetricsField,
     ...liveRegionExtensions(resolver),
     surfaceLineField,
     concealPlugin,

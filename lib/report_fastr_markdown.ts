@@ -412,6 +412,19 @@ export function createFastrMarkdownIt(): MarkdownIt {
   });
 
   // ── Line anchors (preview only; env-driven so one instance serves both) ────
+  // markdown-it renders a fence's attrs on the code element; the anchor
+  // belongs on the pre, the block that stands in the flow (the paged runner
+  // and the editor's gap stretches address the outermost element of a line).
+  const renderFence = md.renderer.rules.fence;
+  if (renderFence !== undefined) {
+    md.renderer.rules.fence = (tokens, idx, options, env, self) => {
+      const html = renderFence(tokens, idx, options, env, self);
+      return html.replace(
+        /^<pre><code([^>]*?) data-line="(\d+)"/,
+        (_m, rest: string, line: string) => `<pre data-line="${line}"><code${rest}`,
+      );
+    };
+  }
   md.core.ruler.push("fm_line_anchors", (state) => {
     if (state.env?.lineAnchors !== true) return true;
     for (const token of state.tokens) {

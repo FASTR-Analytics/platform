@@ -5,10 +5,7 @@ import {
   buildReportEmbedToken,
   canonicalJson,
   COLLAB_NO_EDIT_PERMISSION,
-  FASTR_PAGE_MARGIN_MM,
-  FASTR_PX_PER_MM,
   FASTR_THEME_TOKENS,
-  fastrSheetMm,
   type FastrReportTheme,
   type FigureBlock,
   type FigureBundle,
@@ -27,6 +24,8 @@ import {
   fastrOpenFenceOnLine,
   type PresentationObjectConfig,
   type ProjectState,
+  fastrPageMarginPx,
+  fastrSheetPx,
   readFastrDocumentSettings,
   referencedReportEmbedIds,
   scanContainerLines,
@@ -166,15 +165,12 @@ const AUTOSAVE_MS = 800;
 // pageBoxPlugin measure against them).
 function pageBoxOf(text: string): { sheetPx: number; columnPx: number; geometry: PageBoxGeometry } {
   const page = readFastrDocumentSettings(text).page;
-  const [w, h] = fastrSheetMm(page);
-  const marginMm = FASTR_PAGE_MARGIN_MM[page.margin];
+  const [w, h] = fastrSheetPx(page);
+  const marginPx = fastrPageMarginPx(page.margin);
   return {
-    sheetPx: Math.round(w * FASTR_PX_PER_MM),
-    columnPx: Math.round((w - 2 * marginMm) * FASTR_PX_PER_MM),
-    geometry: {
-      pageH: Math.round(h * FASTR_PX_PER_MM),
-      marginPx: Math.round(marginMm * FASTR_PX_PER_MM),
-    },
+    sheetPx: w,
+    columnPx: w - 2 * marginPx,
+    geometry: { pageH: h, marginPx },
   };
 }
 
@@ -331,6 +327,13 @@ export function ProjectReport(p: Props) {
         out = out.replace(
           new RegExp(`(^|,)(\\s*)${escaped} blockquote(?=\\s*[,{])`, "gm"),
           `$1$2${scope} .cm-fm-bq`,
+        );
+        // A table continued on the next page repeats its header rows there
+        // as print does (applyRegionPagination): the theme's header cell
+        // rules reach the repeated rows too.
+        out = out.replace(
+          new RegExp(`(^|,)(\\s*)${escaped} thead th(?=\\s*[,{])`, "gm"),
+          `$1$2${scope} thead th, ${scope} tr.fm-page-gutter-repeat > th`,
         );
         // Only rules a replacement actually changed belong in the extra
         // sheet; copying the rest would re-fight the cascade.

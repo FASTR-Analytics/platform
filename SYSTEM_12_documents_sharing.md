@@ -507,17 +507,15 @@ CONTENT child through the seam and the flag alike (`:not(.fm-page-gutter,
 its whole margin hold with a seam widget between the space and the block.
 Print keeps a block's whole top margin at the top of a page (measured:
 tiles at +25.6px, a heading at +44.6px, a band at +40px under the content
-area's top), where the editor's mid-page box keeps only what the margin
-exceeds the separator by; the difference is the block's `topExtra`
-(`FastrLayoutBlock`), which `layoutFastrPages` counts only when the block
-opens a page (the continuation of a split block has none) and the seam
-carries as padding under its head (`EditorPagination.topExtras`, written
-by the plugin like the fillers). A region's comes from its `--fm-mt` token
-(`HeightOracle.regionMargins`, at most the separator), a plain block's
-from print's margin of its element less the editor line's padding
-(`printMarginTop`, `linePaddingTop`: a heading's 1.8em less 1.15em, a
-blockquote's whole 1.4em); the first block of the document, a cover and a
-block after a line of space have none.
+area's top), where the editor's block carries none of it (since 2026-09-11
+the blank line above a block is the whole gap: "Pixel for pixel" below);
+the margin is the block's `topExtra` (`FastrLayoutBlock`), which
+`layoutFastrPages` counts only when the block opens a page (the
+continuation of a split block has none) and the seam carries as padding
+under its head (`EditorPagination.topExtras`, written by the plugin like
+the fillers). Every block's comes from print's measured margins
+(`printMetricsField`), less the gap a block with no blank line above it
+carries itself; the first block of the document and a cover have none.
 
 An embed's box is known before it draws. A figure's live chart (panther's
 FigureHolder, mounted by the region widget) lays out a beat after its
@@ -575,7 +573,7 @@ print takes each gap as the next block's whole top margin
 blocks' `printMt`/`printMb`). And an h1 is a section now (the cover
 carries the title): print gives it an h2's space above in px (1.3em of
 its own em; the document's first block and a cover's title keep none),
-the editor line 0.83em of padding (the margin less the separator). The brief tells
+and the editor's blank line above it stands that tall (Pixel for pixel). The brief tells
 the AI to think in pages (a section is a heading, two or three paragraphs
 and one figure or block), to open a section with a paragraph so a heading
 never travels with a block, that a figure bends to its page, and that a
@@ -784,6 +782,100 @@ tidy what it cannot see. The Download modal offers PDF
 fixture corpus in `server/tests/fixtures/fastr_pdf/` on every theme, with
 structural assertions on the Paged.js DOM before printing.
 
+**Pixel for pixel** (2026-09-11, "make sure that the pdf export is pixel
+perfect with the pages on the edit pane"). Two probes judge it: one
+photographs every page box in the editor and the same page of the forced
+print document and diffs them in Chrome; the other reads where every block
+and every text row starts on both sides, to the thousandth of a pixel. The
+first run found the page starts equal and the blocks inside a page a few
+pixels apart: the editor's rhythm was hand-written (a heading's padding in
+its own em, a blank line at 0.65 line-heights, a block's margin clamped one
+side at a time), which is print's collapsed margins for the default theme's
+prose and nothing else. What stands now:
+
+- Print's margins, measured. `measurePrintMetrics` (live_preview_extension)
+  reads print's margins for every block kind in the editor's own sheet
+  (`HeightOracle`: p, h1 to h6 as `fm-top`, blockquote, pre, hr, a list as
+  its items' margins, a table, a figure, every `fm-*` region class, a cover
+  as a band), once per geometry, floored to the 1/64 px the browser lays
+  out at (`snapPx`: a margin floors where a line height rounds, and a
+  sixty-fourth per block moved a text row by a pixel), and lands them in
+  `printMetricsField` before any layout; the sheet's `--fm-p-margin`,
+  `--fm-li-gap`, `--fm-li-indent` and `--fm-bq-pad` are set from them.
+- The rhythm from the source (`docRhythmOf`). Two blocks a blank line apart
+  stand max(margin-bottom, margin-top) apart in print, so the blank line is
+  that tall (`--fm-gap`, its line height); through a line of space margins
+  do not collapse, so a run's first blank is the previous block's bottom
+  margin and the last line of space carries the next block's top margin
+  under it (`--fm-gap-bottom`); two blocks with no blank line between put
+  the collapsed gap above the second (`--fm-gap-top`: a block `::before`
+  on a line, the first content child's margin in a widget). Blocks carry no
+  margin of their own: headings have no padding (the theme's heading rules
+  reach the line through the host's retargeting), quote lines keep print's
+  0.2em box padding on the run's first and last line (classes from the
+  source), the widget clamp is gone. A block's `topExtra` is its whole
+  print margin less what it carries; the layout's `gap` is the blank
+  line's height; the blank line at a page's foot takes only the room the
+  page has left for it (`Stretches.ends`, `--fm-gap-end`), as print drops
+  a margin that runs past the foot; the filler of a rendered page is the
+  height map's own extent (remembered per page once measured, and trusted
+  only within two pixels of the layout's sum), and fillers, seam extras,
+  figure fits and print's stretched margins are written to the 1/64, so a
+  page top sits on the pixel grid and its glyphs are drawn in the same
+  sub-pixel phase as print's (pages after a figure can sit a fraction off
+  it, which changes nothing but the anti-aliasing).
+- The page in whole pixels: the printed page is `794px 1123px` with `68px`
+  margins (`fastrSheetPx`, `fastrPageMarginPx`; the .html export's own
+  `@page` stays in mm), since a page in millimetres put print's column a
+  third of a pixel wider and its area half a pixel shorter than the
+  editor's; the runner's pre-pass reads px. The seam's footer is print's
+  margin box: 8.5pt in the body face at the document's line height,
+  centred in the margin.
+- Code blocks as print's pre: the fence lines are the pre's 0.9em padding
+  rows (small labels, `cm-fm-code-fence`), the code lines its rows with the
+  code in a monospace span (`cm-fm-codetext`), unwrapped; a blank line
+  inside a fence is code. The renderer anchors a fence's `data-line` on
+  the pre (markdown-it put it on the code), and the structure sheet
+  declares the pre's browser-default 1em margins, since the editor measures
+  under the app's base sheet, which zeroes them.
+- Lists: print draws its own markers (`list-style: none`; a bullet or
+  `counter(fm-ol)` in `li::before` at the left of the 1.4em indent, the
+  contents list excepted) and the editor draws the same glyph in the same
+  place (`cm-fm-bullet`, absolute in the line's indent; the marker's space
+  and the item's indentation are concealed with it); a nested item's depth
+  is read from its indentation (`listDepthOf`, `cm-fm-li-dN`, the indent
+  per depth print's measured `--fm-li-indent`), and a nested list's end
+  carries the list margin into the next item. A thematic break's widget is
+  the rule alone. The contents block's entries carry their page numbers in
+  the editor (`data-fm-page` from the page layout, drawn as print's
+  target-counter is, the same flex row).
+- A table continued on the next page repeats its header rows in the editor
+  as print's runner does (`fm-page-gutter-repeat` rows after the in-table
+  seam, inert copies; the theme's `thead th` rules are retargeted onto
+  them), and the layout counts them (`FastrLayoutBlock.repeat`: every
+  continuation part opens with it); the runner skips a repeated head's
+  lines when it names a page's first line.
+
+Verified on the finished code: the glyph probe reads 0.000 px for every
+block and text row of the corpus (thirty-six bodies, the lists body new),
+and the pixel probe reads 0.00% (not one pixel) on the first seven pages
+of the mixed body and on whole pages of Nick's ANC1 body and the kitchen
+sink, under 0.2% where a page holds a figure (the harness's placeholder
+text against print's transparent box), and up to a few percent of
+anti-aliasing on pages after a figure. The stability sweep is clean on
+all thirty-six bodies and the operations probe on five (the sixth types at
+the end of a figure's own line, the known limit that turns it into prose). What remains is under a pixel: a
+figure's box can differ from print's by a sixty-fourth (the browser's
+aspect-ratio box against its image sizing) and move the row after it by a
+device pixel; a continued steps block draws its border a pixel differently
+across the seam; nested list depth comes from indentation with one rounding
+for bullets and numbers. The caveat that matters to a reader: the default
+theme sets no web font, so the server's Chrome draws its system sans
+(Liberation, DejaVu) where a user's browser draws Segoe or Helvetica, and a
+paragraph can wrap differently; every other theme inlines a Google font and
+prints what the editor shows. A bundled font for the default theme would
+close that.
+
 **Blank lines are space, and the editor's rhythm is print's.** One blank line
 separates blocks, as in any markdown; every further blank line is a line of
 empty space in the document, as Enter is in a word processor (the `fm_spaces`
@@ -798,18 +890,15 @@ its last non-blank line. The editor marks the second and later blank lines of
 a run `cm-fm-space` (full height; the first is the `cm-fm-blank` separator)
 and the page flow treats them as blocks. Two calibrations came out of the same
 probe: every flow block declares its margins as `--fm-mt`/`--fm-mb` beside
-`margin:` in the structure sheet, and the editor's widget clamp is derived
-from them (margin less the separator's height, `--fm-separator`; the whole
-margin when a space line is the neighbour, since print collapses a margin
-into a margin but never into a space), likewise the heading paddings
-(`cm-fm-h*`, line-height 1.2 like print); and a top-level `.fm-card` has a
+`margin:` in the structure sheet (the editor's blank lines are made of them
+since 2026-09-11, Pixel for pixel: print collapses a margin into a margin
+but never into a space); and a top-level `.fm-card` has a
 flow margin (1.2em, zero inside tiles), where it had none and sat flush on
 the next paragraph. probe_calib in the scratchpad recipe compares the two
-block by block; the widget rows read 0. Known residual: a THEME's own heading
-rules (a border under h2 with 0.2-0.3em of padding, a theme's h2 font size)
-do not reach the editor's heading lines, so a heading can stand a few pixels
-taller in print than in Edit; the default theme's h2 padding is mirrored on
-`cm-fm-h2`, the rest is what the layout's 6px safety margin covers. Those residual
+block by block; the widget rows read 0. The theme's own heading rules (a
+border under h2 with 0.2-0.3em of padding, a theme's h2 font size) reach
+the editor's heading lines through the host's retargeting; the mirrored
+h2 padding the editor sheet once carried is gone. Those residual
 pixels are what killed the first design, where Paged.js in the hidden frame
 decided the breaks and the editor FLOWED blocks provisionally until the
 paginator answered (2026-09-08 and 09-09): a page the editor measured a few

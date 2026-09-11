@@ -604,6 +604,19 @@ export function fastrSheetMm(page: FastrPageSetup): [number, number] {
   return page.orientation === "landscape" ? [h, w] : [w, h];
 }
 
+// The sheet and its margin in CSS px at 96dpi, whole pixels: the editor's
+// page boxes and the printed page (report_fastr_paged.ts) share these, so a
+// block stands on the same pixel on both. A page ruled in millimetres put
+// print's column a third of a pixel wider than the editor's and its area
+// half a pixel shorter.
+export function fastrSheetPx(page: FastrPageSetup): [number, number] {
+  const [w, h] = fastrSheetMm(page);
+  return [Math.round(w * FASTR_PX_PER_MM), Math.round(h * FASTR_PX_PER_MM)];
+}
+export function fastrPageMarginPx(margin: FastrPageMargin): number {
+  return Math.round(FASTR_PAGE_MARGIN_MM[margin] * FASTR_PX_PER_MM);
+}
+
 // The `@page` rule the .html export carries for the browser's own print
 // dialog. The paged PDF (report_fastr_paged.ts) writes its own, richer rule.
 export function fastrPageRuleCss(page: FastrPageSetup): string {

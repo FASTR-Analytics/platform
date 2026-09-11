@@ -171,6 +171,25 @@ Deno.test("a block under a heading that only its heading precedes continues in p
   assertEquals(r3.pages[2].contentHeight, 900);
 });
 
+Deno.test("a table continued on the next page repeats its header rows there", () => {
+  // Rows of 100 from top 40 (the header); each continuation part opens
+  // with the 40px header again, so the part that fits is one row shorter
+  // than the room alone would say, and the page's content counts it.
+  const inner = Array.from({ length: 30 }, (_, k) => ({ line: 2 + k, top: 40 + 100 * k }));
+  const table = block(1, 40 + 100 * 30, { endLine: 32, inner, repeat: 40 });
+  const r = layoutFastrPages([table, block(34, 100)], G);
+  // Page 1: 40 + 9 rows = 940 fit (987); a tenth row would need 1040.
+  // Page 2: 40 (repeat) + 9 rows = 940; page 3: 40 + 9 rows; page 4: the
+  // last 3 rows with the repeat (340) and the block after.
+  assertEquals(fastrPageStartLines(r), [11, 20, 29]);
+  assertEquals(r.pages[1].contentHeight, 40 + 900);
+  assertEquals(r.pages[3].contentHeight, 40 + 300 + 16 + 100);
+  // Without the repeat the same rows pack ten to a page from page 2 on.
+  const plain = layoutFastrPages([block(1, 40 + 100 * 30, { endLine: 32, inner }), block(34, 100)], G);
+  assertEquals(fastrPageStartLines(plain), [11, 20, 29]);
+  assertEquals(plain.pages[1].contentHeight, 900);
+});
+
 Deno.test("a page continued from a block re-sums from the block's last part", () => {
   const tall = block(2, 2000, { endLine: 20, inner: [{ line: 8, top: 900 }, { line: 14, top: 1800 }] });
   // The tall block continues twice; its last part (200) opens page 3, and
