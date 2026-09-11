@@ -8,7 +8,7 @@ deletes that file). PLAN_A2 has landed (instance migration 084,
 `RESERVED_INDICATOR_IDS`, renamed by ruling 5): generated ids avoid its
 reserved words and the validator this plan extends is A2's.
 
-**Next step: Review 2.** Each session sets this line in its final commit. Its
+**Next step: Do 3.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N`; after step 6's review passes the
 file is deleted instead of advanced.
 
@@ -821,3 +821,6 @@ agent reads this section before its step.
 | 2026-09-10 | 2 | Facts wrong in SYSTEM_07, corrected in the same step: the retry paragraph said the worker passes `maxAttempts: 10, maxDelayMs: 60000` (it passes 3 and 30000, excluding size/timeout errors); the goal table had no `goal5_data_value_sets/` row. |
 | 2026-09-10 | 2 | Floor and gates: typecheck (854 files claimed), `deno task test` 36 passed (8 new in `dhis2_skip_and_record_test.ts`), `validate_protocols`, `validate_migrations` (085 a no-op on the fresh replay), gate 2 grep at zero, gate 1 still at zero. `./run` against the dev database applied 085 ("Applying migration: 085_ledger_skipped_values.sql"), ran the in-boot suite and reached "Listening" on port 8000; stopped afterwards. |
 | 2026-09-10 | 2 | Step 2 built |
+| 2026-09-11 | 2 | Review: SYSTEM_06 line 156 ("Shadow verification (`shadow_passed`) was removed. DVS-analytics divergence is normal on real servers, so the gate aborted healthy first runs.") is history prose that names the deleted analytics route as if it still existed. Outside the step's changed contract; step 6's read-through drops or rewrites it. No code change. |
+| 2026-09-11 | 2 | Review: every gate re-run green by the reviewer: typecheck (every tracked file claimed), `deno task test` 36 passed, `validate_protocols`, `validate_migrations` (085 a no-op on the fresh replay, 88 instance migrations, schema unchanged), gate 1 and gate 2 greps at zero, no `DHIS2_FACILITY_BATCH_SIZE` or `goal3_analytics` reference anywhere in the repo outside this plan. `./run` on the committed tree booted against the dev database (085 already applied by the Do session, so no "Applying migration" line), ran the in-boot suite (36 passed) and reached "Listening" on port 8000; stopped afterwards. Diff stat against the Surface: every changed file is listed in it. Deliverable checked in code: `RawRoute` is `dvs` or `unknown` with a `reason`; a DHIS2 indicator fails every pair permanently with a message naming the DHIS2 indicator import and keeping data; `reduceDvsValues` skips non-integers and negatives with a capped sample of 10 and the pair integrates `ready` through `upsertHmisLedgerPairsFromData`; the CSV integrate path passes no sample and records 0; 085 and `_main_database.sql` carry the two columns with defaults so 056's backfill INSERT still fits; `_run_detail.tsx` shows the DHIS2-indicator box and the skipped-values table, `_tab_by_indicator.tsx` the summed column. |
+| 2026-09-11 | 2 | Step 2 reviewed: 1 finding |
