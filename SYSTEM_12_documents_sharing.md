@@ -573,9 +573,9 @@ the gaps do not, the layout never sees it (gaps come from the source), and
 print takes each gap as the next block's whole top margin
 (`fastrGapStretchCss`, print's collapsed margin plus the stretch, from the
 blocks' `printMt`/`printMb`). And an h1 is a section now (the cover
-carries the title): print gives it the same 1.8em above as any heading
-(the document's first block and a cover's title keep none), the editor
-line 1.33em of padding (the margin less the separator). The brief tells
+carries the title): print gives it an h2's space above in px (1.3em of
+its own em; the document's first block and a cover's title keep none),
+the editor line 0.83em of padding (the margin less the separator). The brief tells
 the AI to think in pages (a section is a heading, two or three paragraphs
 and one figure or block), to open a section with a paragraph so a heading
 never travels with a block, that a figure bends to its page, and that a
@@ -599,9 +599,10 @@ the page, the spacing between blocks as a row so the shares add up, and
 the problems: a page under 75% left short by the block that moved whole
 to the next page (named, with the block a moved heading keeps with), and
 a last page under 40% that is a stub. The brief carries a page budget
-(100 units a page: a line of prose 3, a section heading 12, a cover 60,
-a tiles row 22, a band 25, a columns pair 30, a callout 8 plus 4 a line,
-a steps block 12 a step, a figure 50, a table 6 a row plus 6), tells the
+(100 units a page: a line of prose 3, a heading 10 and an h1 11, a cover
+60, a tiles row 22, a band 25, a columns pair 30, a callout 8 plus 4 a
+line, a steps block 12 a step, a figure 50, a table 6 a row plus 6, a
+contents block 13 plus 3.5 an entry, 1.75 in two columns), tells the
 model to plan pages to 85 to 95 units, to check the draft with the tool
 before proposing (create_report's description and the editor
 instructions say so too) and to fix what it flags by moving prose or
