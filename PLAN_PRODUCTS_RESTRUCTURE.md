@@ -6,7 +6,7 @@ database, one realtime channel, one copilot. An Explore tab replaces the
 project Metrics tab and the standalone visualization library; this plan
 creates the tab, and its page, the results explorer, is a later plan.
 
-**Next step: Fix 9a.** Each session sets this line in its final commit. Its
+**Next step: Review 9a.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N`; after step 10's review passes the
 file is deleted instead of advanced.
 
@@ -2342,6 +2342,10 @@ this section before its step.
 | 2026-09-11 | 9a | Review 9a (second pass), finding 1 (code): the new drop rule loses every Products-page tour played from inside an editor. The tours menu is in the instance shell's topbar (`instance/index.tsx:295-305`), outside the editor overlay, which `getEditorWrapper` renders inside the Products page (`products/index.tsx:640`), so it stays reachable while a deck, slide or report is open. The four `page: "products"` tours (`instance-welcome`, `products-intro`, `products-create`, `products-cards`) navigate with `openTabOnly("products")`, a no-op there, and arm a product-less replay; the page predicate `onTab("products")() && !isEditingView()` (`onboarding/index.ts:81`) is false while the editor is on top, so `onboarding/index.ts:213-216` drops the replay on the arming write and Play does nothing. The rule's stated reason, "the switch was synchronous, so the tab is denied" (`t4_ui.ts`, `onboarding/index.ts`, `SYSTEM_14_client_shell.md:62`), is wrong for this page: the Products tab is the one whose page can be inactive with the tab active. The four rows should either be unavailable while an editor is open (a reason that says to close the editor first; `available` reads `copilotViewController.current()` as the manager does) or navigate must close the editor, which the catalogue has no handle for; the SYSTEM_14 sentence follows the choice. |
 | 2026-09-11 | 9a | Outside the Surface, accepted: `state/t4_ui.ts` (the replay signal's shape, finding 1), `figure_editor/**` and `_shared/cursors/viz_cursors.tsx` (finding 3); the literal edits in `report/*`, `version_history/*` and `layout_editor/build_context_menu.ts` are the Surface's copy sweep (finding 2). |
 | 2026-09-11 | 9a | Step 9a reviewed: 1 finding. |
+| 2026-09-11 | plan | Tim's ruling: the second Fix 9a runs in the review session, as the first did. The next Review 9a is a fresh agent. |
+| 2026-09-11 | 9a | Fix 9a (second pass), finding 1: the four Products-page rows (`instance-welcome`, `products-intro`, `products-create`, `products-cards`) are unavailable while an editor is open, with the reason "Close the open editor first" in en, fr and pt (`onboarding/catalogue.ts`); `isEditingView` moves to the catalogue, exported, and the manager imports it (`onboarding/index.ts`), so the rows and the page predicate share one definition over `copilotViewController.current()`, a signal, which the modal reads reactively. The catalogue's `available` doc comment, the drop-rule comments in `onboarding/index.ts` and `state/t4_ui.ts`, and SYSTEM_14's replay paragraph now state the second reason a tab page can be inactive. Closing the editor from navigate was rejected: the catalogue has no handle on the Products page's editor wrapper. |
+| 2026-09-11 | 9a | Fix 9a (second pass) gates: `deno task typecheck` (server, client, `lint:systems` with every one of 814 tracked files claimed once), `./validate_protocols` (0 tier-1, 0 new tier-2, 16 baselined). No server file changed, so the test suite and the boot stand as the second review recorded them. |
+| 2026-09-11 | 9a | Step 9a fixed. |
 
 ## Appendix A: the migration replay of 2026-08-19, and what still stands
 

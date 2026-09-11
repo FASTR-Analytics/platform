@@ -2,6 +2,7 @@ import { t3 } from "lib";
 import type { IconName } from "panther";
 import type { ProductSummary, SlideType } from "lib";
 import { instanceState } from "~/state/instance/t1_store";
+import { copilotViewController } from "~/components/copilot/ai_views";
 import { setPendingEditorOpen, setPendingSlideOpen } from "~/state/t4_ui";
 import { getSlideDeckDetailFromCacheOrFetch } from "~/state/products/t2_slide_deck_detail";
 import { getSlideFromCacheOrFetch } from "~/state/products/t2_slides";
@@ -27,8 +28,8 @@ export type TourCatalogueEntry = {
   area: TourArea;
   label: string;
   description: string;
-  /** State-only over T1. Do NOT probe the DOM here: the tour's page is
-   *  usually unmounted when this is evaluated. */
+  /** State-only over T1 and the copilot view controller. Do NOT probe the
+   *  DOM here: the tour's page is usually unmounted when this is evaluated. */
   available: () => boolean;
   /** Shown in place of the Play button when `available()` is false. */
   unavailableReason: () => string;
@@ -50,6 +51,12 @@ const decks = () =>
 const reports = () => instanceState.products.filter((p) => p.type === "report");
 const hasPackage = () => instanceState.readyPackages.length > 0;
 const hasProducts = () => instanceState.products.length > 0;
+// The editors are overlays inside the Products page, and the tours menu in the
+// shell's topbar stays reachable above them, so a Products-page tour played
+// then would wait on a page that is not visible; the manager's page predicate
+// excludes the editing views for the same reason.
+export const isEditingView = () =>
+  copilotViewController.current().id.startsWith("editing_");
 const firstDeckHasSlides = () => {
   const first = decks()[0];
   return first?.type === "slide_deck" && first.firstSlideId !== null;
@@ -64,6 +71,12 @@ const reasonNoPageAccess = () =>
     en: "You don't have permission to view this page",
     fr: "Vous n'avez pas la permission de voir cette page",
     pt: "Não tem permissão para ver esta página",
+  });
+const reasonCloseEditor = () =>
+  t3({
+    en: "Close the open editor first",
+    fr: "Fermez d'abord l'éditeur ouvert",
+    pt: "Feche primeiro o editor aberto",
   });
 const reasonNeedApproval = () =>
   t3({
@@ -246,8 +259,8 @@ export function getTourCatalogue(
         fr: "La page Produits : recherche, filtre par type, tri et dossiers.",
         pt: "A página Produtos: pesquisa, filtro por tipo, ordenação e pastas.",
       }),
-      available: () => true,
-      unavailableReason: reasonNoPageAccess,
+      available: () => !isEditingView(),
+      unavailableReason: reasonCloseEditor,
       navigate: openTabOnly("products"),
     },
     {
@@ -263,8 +276,9 @@ export function getTourCatalogue(
         fr: "Démarrer un nouveau produit et organiser les produits en dossiers.",
         pt: "Começar um novo produto e organizar os produtos em pastas.",
       }),
-      available: () => instanceState.currentUserApproved,
-      unavailableReason: reasonNeedApproval,
+      available: () => instanceState.currentUserApproved && !isEditingView(),
+      unavailableReason: () =>
+        isEditingView() ? reasonCloseEditor() : reasonNeedApproval(),
       navigate: openTabOnly("products"),
     },
     {
@@ -280,8 +294,9 @@ export function getTourCatalogue(
         fr: "Ce que montre une carte de produit et les actions accessibles par clic droit.",
         pt: "O que mostra um cartão de produto e as ações acessíveis com o botão direito.",
       }),
-      available: hasProducts,
-      unavailableReason: reasonNeedProduct,
+      available: () => hasProducts() && !isEditingView(),
+      unavailableReason: () =>
+        isEditingView() ? reasonCloseEditor() : reasonNeedProduct(),
       navigate: openTabOnly("products"),
     },
     // ── Slide decks ──────────────────────────────────────────────────────
@@ -499,8 +514,8 @@ export function getTourCatalogue(
         fr: "L'instance elle-même : navigation, langue, nouveautés et où trouver de l'aide.",
         pt: "A própria instância: navegação, idioma, novidades e onde encontrar ajuda.",
       }),
-      available: () => true,
-      unavailableReason: reasonNoPageAccess,
+      available: () => !isEditingView(),
+      unavailableReason: reasonCloseEditor,
       navigate: openTabOnly("products"),
     },
     {

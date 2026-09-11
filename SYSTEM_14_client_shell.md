@@ -59,7 +59,10 @@ finds nothing arms no replay) it arms `pendingTourReplay` with the tour id and
 the product the tour's page lives in. The order matters: the manager's replay
 effect runs synchronously on that write, starts the tour once its page
 predicate is true, drops a tab-page replay whose page is not active (the
-switch was synchronous, so the tab is denied), and drops a product replay
+switch was synchronous, so the tab is denied; the four Products-page rows are
+unavailable while an editor covers that page, with a reason to close it
+first, since the topbar's tours menu stays reachable above the editor
+overlay), and drops a product replay
 only once T1 is ready and no longer holds the product (a dead id, the
 Products page's own rule for the open request). It reads nothing transient,
 so the Products page clearing the open request just before it mounts the

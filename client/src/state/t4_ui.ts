@@ -160,7 +160,8 @@ export const [pendingSlideOpen, setPendingSlideOpen] =
 // page lives in: the manager drops the replay when T1 is ready and no longer
 // holds it (a dead id), the same rule the Products page applies to the open
 // request itself. A replay with no product is dropped as soon as its page is
-// not active, since a tab switch is synchronous.
+// not active: a tab switch is synchronous, and the catalogue offers no
+// Products-page tour while an editor covers that page.
 export type PendingTourReplay = { tourId: string; productId?: string };
 export const [pendingTourReplay, setPendingTourReplay] =
   createSignal<PendingTourReplay | null>(null);
