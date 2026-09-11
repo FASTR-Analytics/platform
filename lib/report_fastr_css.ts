@@ -242,10 +242,12 @@ ${d}h1, ${d}h2, ${d}h3, ${d}h4, ${d}h5, ${d}h6 {
   line-height: 1.2;
   margin: 1.8em 0 0.6em;
 }
-/* An h1 is a SECTION (the cover carries the title): the same space above
-   it as any heading. The document's first block has none (below, and the
-   paged sheet's title rule); a cover's title sits where its layout puts it. */
-${d}h1 { font-size: 2.15em; }
+/* An h1 is a SECTION (the cover carries the title): the space above it
+   is an h2's in px (1.3em of its own larger em; 1.8em of it stood a third
+   taller than any other heading's). The document's first block has none
+   (below, and the paged sheet's title rule); a cover's title sits where
+   its layout puts it. */
+${d}h1 { font-size: 2.15em; margin-top: 1.3em; }
 ${d}body > :first-child { margin-top: 0; }
 ${d}h2 { font-size: 1.55em; }
 ${d}h3 { font-size: 1.2em; }
@@ -1338,7 +1340,7 @@ ${d}.cm-line.cm-fm-bq.cm-fm-after-space { padding-top: 1.6em; }
    em) less the blank source line on each side of a heading (16px, the
    paragraph separator), so the editor's heading stands where print's does
    and the page flow measures the same page. */
-${d}.cm-fm-h1 { padding-top: 1.33em; padding-bottom: 0.13em; }
+${d}.cm-fm-h1 { padding-top: 0.83em; padding-bottom: 0.13em; }
 /* Most themes rule an h2 with a 0.25em padding under it; the editor line
    cannot take a theme's own heading rules, so that one is mirrored here. */
 ${d}.cm-fm-h2 { padding-top: 1.15em; padding-bottom: 0.25em; }
@@ -1350,6 +1352,7 @@ ${d}.cm-fm-h4, ${d}.cm-fm-h5, ${d}.cm-fm-h6 { padding-top: 0.8em; padding-bottom
    widget rule). */
 ${d}.cm-fm-h1.cm-fm-after-space, ${d}.cm-fm-h2.cm-fm-after-space, ${d}.cm-fm-h3.cm-fm-after-space,
 ${d}.cm-fm-h4.cm-fm-after-space, ${d}.cm-fm-h5.cm-fm-after-space, ${d}.cm-fm-h6.cm-fm-after-space { padding-top: 1.8em; }
+${d}.cm-fm-h1.cm-fm-after-space { padding-top: 1.3em; }
 ${d}.cm-fm-h1.cm-fm-before-space, ${d}.cm-fm-h3.cm-fm-before-space,
 ${d}.cm-fm-h4.cm-fm-before-space, ${d}.cm-fm-h5.cm-fm-before-space, ${d}.cm-fm-h6.cm-fm-before-space { padding-bottom: 0.6em; }
 ${d}.cm-fm-h2.cm-fm-before-space { padding-bottom: 0.85em; }

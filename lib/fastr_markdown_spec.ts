@@ -133,7 +133,8 @@ Blocks (open with \`:::name{attributes}\`, close with a bare \`:::\`):
   :::contents{title="Contents" depth=2}
   A table of contents, built from the document's own headings — you write
   nothing inside it. \`depth\` is the deepest heading level listed (default
-  3), and a cover's title is never an entry. One line, no closing \`:::\`.
+  3), and a cover's title is never an entry. From 14 entries the list runs
+  in two columns. One line, no closing \`:::\`.
 
   :::pagebreak
   Ends the printed page here. One line, no closing \`:::\`. Any block can
@@ -286,11 +287,12 @@ Composing a report — this matters as much as the syntax:
   Plan the pages before you write, and check them after. A page holds 100
   units of height. What things cost, at the default page size:
     a line of prose (about 14 words, paragraph spacing included) 3, a
-    section heading 12, a blank line of space 2.5, a cover 60 (page 1
-    only; fill=page takes the whole page), a tiles row 22, a band of two
-    or three lines 25, a columns pair of a few lines a side 30, a callout
-    8 plus 4 a line, a steps block 12 a step, a figure 50, a table 6 a
-    row plus 6, a contents line 8 plus 2.5 an entry.
+    heading 10 (an h1 section heading 11), a blank line of space 2.5, a
+    cover 60 (page 1 only; fill=page takes the whole page), a tiles row
+    22, a band of two or three lines 25, a columns pair of a few lines a
+    side 30, a callout 8 plus 4 a line, a steps block 12 a step, a figure
+    50, a table 6 a row plus 6, a contents block 13 plus 3.5 an entry (from
+    14 entries it runs in two columns: 13 plus 1.75 an entry).
   Lay the report out page by page to between 85 and 95 units each: page 1
   is the cover, the standfirst paragraph and the tiles row; every page
   after is about one section. A page over 100 pushes its last block whole
