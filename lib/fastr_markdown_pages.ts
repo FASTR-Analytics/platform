@@ -41,6 +41,10 @@ export type FastrLayoutBlock = {
   // 0-based source line and its top as an offset from the block's top, px,
   // ascending. Absent when the block cannot break (or was not measured).
   inner?: { line: number; top: number }[];
+  // What every continuation part of the block adds at its top, px: a
+  // table's header rows, repeated on each page it runs on to (print's
+  // runner clones the thead; the editor draws the same rows after the seam).
+  repeat?: number;
   // What the block may give up when it does not fit the room left on its
   // page, px: a figure's image shrinks (keeping its aspect) down to a
   // floor, and the block then takes exactly the room rather than opening
@@ -156,15 +160,17 @@ export function layoutFastrPages(
     let partTop = 0;
     let extra = before;
     let cut = false;
-    while (used + extra + (b.height - partTop) > area) {
+    // A continuation part (partTop > 0) opens with the block's repeat.
+    const head = () => partTop > 0 ? b.repeat ?? 0 : 0;
+    while (used + extra + head() + (b.height - partTop) > area) {
       let at: { line: number; top: number } | undefined;
       for (const cand of inner) {
         if (cand.top <= partTop) continue;
-        if (used + extra + (cand.top - partTop) > area) break;
+        if (used + extra + head() + (cand.top - partTop) > area) break;
         at = cand;
       }
       if (at === undefined) break;
-      used += extra + (at.top - partTop);
+      used += extra + head() + (at.top - partTop);
       close();
       page = { firstLine: at.line, lines: [at.line], cover: false, flushTop: false };
       area = areaOf(page);
@@ -176,9 +182,9 @@ export function layoutFastrPages(
     if (cut) {
       first = i;
       continued.add(i);
-      placed.set(i, b.height - partTop);
+      placed.set(i, head() + (b.height - partTop));
     }
-    used += extra + (b.height - partTop);
+    used += extra + head() + (b.height - partTop);
   };
   let i = 0;
   while (i < blocks.length) {

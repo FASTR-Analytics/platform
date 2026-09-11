@@ -28,9 +28,9 @@
 // =============================================================================
 
 import {
-  FASTR_PAGE_MARGIN_MM,
   type FastrPageSetup,
-  fastrSheetMm,
+  fastrPageMarginPx,
+  fastrSheetPx,
 } from "./fastr_markdown_blocks.ts";
 import { escapeReportHtml } from "./types/reports.ts";
 
@@ -165,8 +165,10 @@ export function buildFastrPagedCss(
   page: FastrPageSetup,
   footer: FastrPagedFooter,
 ): string {
-  const [w, h] = fastrSheetMm(page);
-  const m = FASTR_PAGE_MARGIN_MM[page.margin];
+  // Whole CSS pixels, the editor's own page box (fastrSheetPx): a page in
+  // millimetres stood a fraction of a pixel off the editor's grid.
+  const [w, h] = fastrSheetPx(page);
+  const m = fastrPageMarginPx(page.margin);
   const footerType = `font-family: var(--fm-font-body);
     font-size: 8.5pt;
     color: var(--fm-ink-muted);
@@ -178,12 +180,12 @@ export function buildFastrPagedCss(
    column is inset by the same distance. Top and bottom margins stay on the
    page, where the running footer lives. */
 @page {
-  size: ${w}mm ${h}mm;
-  margin: ${m}mm 0;
+  size: ${w}px ${h}px;
+  margin: ${m}px 0;
   @bottom-left {
     content: string(fm-title);
     text-align: left;
-    padding-left: ${m}mm;
+    padding-left: ${m}px;
     ${footerType}
   }
   @bottom-right {
@@ -191,7 +193,7 @@ export function buildFastrPagedCss(
     cssString(" " + footer.ofWord + " ")
   } counter(pages);
     text-align: right;
-    padding-right: ${m}mm;
+    padding-right: ${m}px;
     font-variant-numeric: tabular-nums;
     ${footerType}
   }
@@ -207,17 +209,17 @@ export function buildFastrPagedCss(
    padding, and the bleed geometry is exactly the side inset. The runner reads
    the two --fm-print-* lengths to lay the source out at the column width
    before pagination (to find blocks taller than a page). */
-html { overflow: visible; --fm-page-area: ${h - 2 * m}mm; }
+html { overflow: visible; --fm-page-area: ${h - 2 * m}px; }
 body { max-width: none; margin: 0; padding: 0; }
-.pagedjs_page_content > div { padding: 0 ${m}mm; box-sizing: border-box; }
+.pagedjs_page_content > div { padding: 0 ${m}px; box-sizing: border-box; }
 /* body too: the theme's html, body rule re-sets the bleed pair on <body>,
    which would otherwise win over the inherited root value. */
 :root, body, .fm-doc--wide, .fm-doc--full {
   --fm-measure: 100%;
-  --fm-bleed-margin: -${m}mm;
-  --fm-bleed-pad: ${m}mm;
-  --fm-print-column: ${w - 2 * m}mm;
-  --fm-print-area: ${h - 2 * m}mm;
+  --fm-bleed-margin: -${m}px;
+  --fm-bleed-pad: ${m}px;
+  --fm-print-column: ${w - 2 * m}px;
+  --fm-print-area: ${h - 2 * m}px;
 }
 /* Each sheet paints the document ground; the runner copies a toned or
    image ground from <html> onto the boxes since a page is not the root. */
@@ -360,7 +362,7 @@ export function fastrFigureFitCss(
 ): string {
   if (fits.length === 0) return "";
   const rules = fits.map((f) =>
-    `figure[data-line="${f.line}"] img { max-height: ${Math.round(f.height)}px !important; }`
+    `figure[data-line="${f.line}"] img { max-height: ${Math.floor(f.height * 64 + 1e-6) / 64}px !important; }`
   );
   return `/* ── Figures sized to their pages, as the editor laid them out ─────────── */
 ${rules.join("\n")}
@@ -378,7 +380,7 @@ export function fastrGapStretchCss(
   // The outermost element of the line only: a blockquote's paragraph shares
   // its line, and would take the margin a second time inside the box.
   const rules = gaps.map((g) =>
-    `[data-line="${g.line}"]:not([data-line="${g.line}"] *) { margin-top: ${Math.round(g.marginTop)}px !important; }`
+    `[data-line="${g.line}"]:not([data-line="${g.line}"] *) { margin-top: ${Math.floor(g.marginTop * 64 + 1e-6) / 64}px !important; }`
   );
   return `/* ── Gaps stretched to set the page, as the editor laid them out ──────── */
 ${rules.join("\n")}
@@ -418,14 +420,13 @@ export function fastrPagedRunnerJs(): string {
   // rule). Measured with the source laid out at the print column's width,
   // which is the only moment that width is knowable before pagination.
   function releaseOverTall() {
-    var mm = function (name) { return parseFloat(ground.getPropertyValue(name)) || 0; };
-    var pxPerMm = 96 / 25.4;
-    var column = mm("--fm-print-column");
-    var area = mm("--fm-print-area") * pxPerMm;
+    var px = function (name) { return parseFloat(ground.getPropertyValue(name)) || 0; };
+    var column = px("--fm-print-column");
+    var area = px("--fm-print-area");
     if (!(column > 0) || !(area > 0)) return;
     var body = document.body;
     var prev = { width: body.style.width, margin: body.style.margin };
-    body.style.width = column + "mm";
+    body.style.width = column + "px";
     body.style.margin = "0";
     // Every top-level block's height at this width, for the editor's own
     // page layout (the blocks it has not rendered take these).
@@ -682,6 +683,10 @@ export function fastrPagedRunnerJs(): string {
         var a = anchored[j];
         var n = parseInt(a.getAttribute("data-line"), 10);
         if (isNaN(n)) continue;
+        // A table continued from the previous page repeats its header rows
+        // (below): their lines are the table's, not this page's.
+        var head = a.closest ? a.closest("thead") : null;
+        if (head && head.parentElement && head.parentElement.hasAttribute("data-split-from")) continue;
         if (lines.indexOf(n) === -1) lines.push(n);
         // A block continued from the previous page (a callout, band or
         // steps block that split) opens the page with its cloned box, whose

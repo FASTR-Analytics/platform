@@ -1680,10 +1680,11 @@ Deno.test("the paged sheet: sheet size, margins, footer, cover page, atomic bloc
     { size: "a4", orientation: "portrait", margin: "normal" },
     { title: "Q3", pageWord: "Page", ofWord: "of" },
   );
-  assertStringIncludes(css, "size: 210mm 297mm;");
-  assertStringIncludes(css, "margin: 18mm 0;");
-  assertStringIncludes(css, "--fm-print-column: 174mm;");
-  assertStringIncludes(css, "--fm-print-area: 261mm;");
+  // Whole pixels, the editor's own page box (fastrSheetPx).
+  assertStringIncludes(css, "size: 794px 1123px;");
+  assertStringIncludes(css, "margin: 68px 0;");
+  assertStringIncludes(css, "--fm-print-column: 658px;");
+  assertStringIncludes(css, "--fm-print-area: 987px;");
   assertStringIncludes(css, "content: string(fm-title);");
   assertStringIncludes(css, 'content: "Page " counter(page) " of " counter(pages);');
   // The cover's page: zero margins, no footer, and the cover fills it.
@@ -1692,8 +1693,8 @@ Deno.test("the paged sheet: sheet size, margins, footer, cover page, atomic bloc
   assertStringIncludes(css, "page: fmcover;");
   assertStringIncludes(css, "var(--pagedjs-pagebox-height)");
   // Bleed geometry IS the page margin.
-  assertStringIncludes(css, "--fm-bleed-margin: -18mm;");
-  assertStringIncludes(css, "--fm-bleed-pad: 18mm;");
+  assertStringIncludes(css, "--fm-bleed-margin: -68px;");
+  assertStringIncludes(css, "--fm-bleed-pad: 68px;");
   // Every atomic block is protected, headings keep with next, orphans at 3.
   for (const sel of FASTR_PAGED_ATOMIC_SELECTORS) assertStringIncludes(css, sel);
   assertStringIncludes(css, "h1, h2, h3, h4, h5, h6 { break-after: avoid; break-inside: avoid; }");
@@ -1710,7 +1711,7 @@ Deno.test("the paged sheet: sheet size, margins, footer, cover page, atomic bloc
     { size: "letter", orientation: "landscape", margin: "normal" },
     { title: "x", pageWord: 'Pa"ge', ofWord: "de" },
   );
-  assertStringIncludes(land, "size: 279mm 216mm;");
+  assertStringIncludes(land, "size: 1054px 816px;");
   assertStringIncludes(land, 'content: "Pa\\"ge " counter(page) " de " counter(pages);');
   assertEquals(fastrSheetMm({ size: "a4", orientation: "landscape", margin: "narrow" }), [297, 210]);
 });
