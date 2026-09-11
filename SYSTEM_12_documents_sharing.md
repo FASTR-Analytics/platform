@@ -5,12 +5,9 @@ globs:
   - client/src/components/PasswordGate.tsx
   - client/src/components/_markdown_guide.tsx
   - client/src/components/_shared/**
-  - client/src/components/dashboards/**
   - client/src/components/forms_editors/edit_label.tsx
   - client/src/components/layout_editor/**
   - client/src/components/products/**
-  - client/src/components/project/project_dashboards.tsx
-  - client/src/components/public_viewer/**
   - client/src/components/report/**
   - client/src/components/slide_deck/*.ts
   - client/src/components/slide_deck/*.tsx
@@ -20,7 +17,6 @@ globs:
   - client/src/state/products/t2_report_detail.ts
   - client/src/state/products/t2_slide_deck_detail.ts
   - client/src/state/products/t2_slides.ts
-  - client/src/state/project/t2_dashboards.ts
   - lib/types/_dashboard_config.ts
   - lib/types/_slide_config.ts
   - lib/types/_slide_deck_config.ts
@@ -43,10 +39,11 @@ docs_absorbed:
 ---
 # S12: Documents & Sharing
 
-The three figure-snapshot-embedding artifact types (slide decks, markdown
-reports, and dashboards), plus the public slug-addressed viewer and the
-SendGrid email egress. The render/export engines themselves are S10's; S12
-owns the artifacts, their storage, and the export *triggers*.
+The two product types (slide decks and markdown reports), their folders,
+and the SendGrid email egress. The render/export engines themselves are
+S10's; S12 owns the artifacts, their storage, and the export *triggers*. The
+dashboard tables, routes and public viewer route are server residue with no
+client since PLAN_PRODUCTS_RESTRUCTURE step 9a; step 9b deletes them.
 
 ## Scope
 
@@ -54,14 +51,13 @@ The `globs:` frontmatter above is the lint-enforced manifest
 (`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1.
 Client: `components/slide_deck/**` minus `slide_ai/` (S13), `layout_editor/`
 (one file, imported only by the slide editor), `components/report/**`,
-`components/dashboards/**`, `components/public_viewer/**`, the
-deck/report/dashboard list pages + modals in `components/project/`,
-`state/project/{t2_slides,t2_slide_decks,t2_dashboards}.ts`. Server: CRUD for
-all three families + folders, `db/instance/dashboard_slugs.ts`,
+`state/products/{t2_slides,t2_slide_deck_detail,t2_report_detail,t2_images}.ts`.
+Server: CRUD for both product families + folders, `routes/instance/emails.ts`,
+`server/utils/id_generation.ts` (one 4-char generator, table-aware), and,
+until 9b deletes them, the dashboard residue: `db/project/dashboards.ts`,
+`routes/project/dashboards.ts`, `db/instance/dashboard_slugs.ts`,
 `routes/public/dashboard.ts` **and** the `/api/d/*` CORS + populate-only-Clerk
-mounts plus the `/d/:slug` SPA-HTML in root `main.ts` (the actual auth
-boundary), `routes/instance/emails.ts`, `server/utils/id_generation.ts`
-(one 4-char generator, table-aware). The product plane:
+mounts plus the `/d/:slug` SPA-HTML in root `main.ts`. The product plane:
 `server/db/products/**`, `server/routes/products/**` and their harness
 `server/tests/products_routes_test.ts` (the registries are S1's
 `lib/api-routes/products/*`); on the client, the Products page and its
@@ -71,8 +67,8 @@ two menu builders, the folder and move modals, the type registry
 `product_types.ts`, `product_settings.tsx`, the duplicate modal,
 `package_label.ts`) and the two editors (`slide_deck/**`, `report/**`), which
 since PLAN_PRODUCTS_RESTRUCTURE step 7a take `{ productId }` and read label,
-package and scope live from the T1 products row. Lib: slide/report/dashboard
-types incl.
+package and scope live from the T1 products row. Lib: slide/report types,
+the dashboard types until 9b (`lib/types/{dashboard,_dashboard_config}.ts`,
 `buildPublicDashboardBundle` and `buildReportPreview`, plus the product
 contracts (`lib/types/products.ts`: `ProductType`, `Folder`, `ProductBase`,
 `ProductSummary`; `lib/types/scope.ts`: `PackageScope`, `scopeToken`) that
@@ -90,8 +86,7 @@ S10. **Three concurrency philosophies, one per family**: slides = per-row
 **opt-in optimistic lock** (`expectedLastUpdated` → `err: "CONFLICT"`; both
 the human editor and the AI tools send it); reports body = **always-write
 last-write-wins** returning an advisory `conflicted` flag → non-blocking
-banner; dashboards = **no conflict detection at all** (zero
-`expectedLastUpdated` in the family). **S16 overlays the first two**: when a
+banner. **S16 overlays both**: when a
 live collab room exists for a slide or report, the mutating routes offer the
 save to the room first (`applySlideToLiveRoom` / `applyReportToLiveRoom`) and
 the CRDT merge is the conflict resolution. The philosophies below engage only
@@ -104,9 +99,10 @@ routes ride its route files. S12 owns the files, S16 the feature (SYSTEMS.md
 product route declares its `access` level and is guarded by
 `requireProductAccess` (S1; every approved user passes every level today,
 D2); on the client the one gate is `canEditProduct(productId)` in
-`state/instance/product_access.ts`. Dashboards keep the project flags and
-`preventAccessToLockedProjects` until step 9a. The public viewer is the app's
-only unauthenticated product surface (cross-cutting audit SYSTEMS.md §4.3.9).
+`state/instance/product_access.ts`. There is no unauthenticated product
+surface: the public dashboard viewer went with the client in step 9a, and a
+deck reaches recipients as an emailed PDF (cross-cutting audit SYSTEMS.md
+§4.3.9; the server's `/d/:slug` route lingers until 9b).
 
 ## The products registry on `main`
 
@@ -389,102 +385,40 @@ On accept, figures persist FIRST and roll back client-side if the save fails
 (the AI is told the edit was not applied), then the body applies through the
 editor API with the local-edit echo suppressed.
 
-## Dashboards
+## Dashboards (server residue until 9b)
 
-**Storage.** `dashboards` (title, `is_public`, `layout` = `sidebar | grid`,
-`config` = logos + about, slug held in the **main** DB, see below) +
-`dashboard_items` (`figure_block`, nullable `geo_data`, `sort_order`,
-`replicant_group_id`/`replicant_value`) + `dashboard_item_groups`
-(`replicate_by`, `default_replicant_value`, ordered `replicants` JSON, and
-the group's **shared** `geo_data`: members store none). A group = 1 group
-row + N tagged member items inserted contiguously in one transaction.
+No client reads or writes a dashboard since step 9a: the editor, the list
+tab, the public viewer and the three dashboard exports were deleted, not
+ported (PLAN_PRODUCTS_RESTRUCTURE D3), and fleet-wide dashboards are deleted
+by the consolidation, not converted. What remains until step 9b is the
+storage and the routes: `dashboards` + `dashboard_items` +
+`dashboard_item_groups` in each project database, the slug indirection in
+the **main** DB (`dashboard_slugs`, slug PK → `{projectId, dashboardId}`),
+the 13 project-mounted entry routes, and the public route
+([routes/public/dashboard.ts](server/routes/public/dashboard.ts)) that
+resolves a slug on main (READ_ONLY) → project connection → detail and
+answers `buildPublicDashboardBundle(detail, countryIso3)`
+([lib/types/dashboard.ts](lib/types/dashboard.ts)), with `isPublic: false`
+requiring any Clerk session and all four failure modes returning the same
+404. Root [main.ts](main.ts) still mounts `/api/d/*` (CORS + populate-only
+Clerk) and `routesPublicDashboard` before the global auth middleware, and
+serves the SPA HTML for `/d/:slug`; the SPA has no route for it and renders
+the logged-in app.
 
-**Entry CRUD.** 13 routes; every item/group mutation bumps the parent
-dashboard row in the same transaction. `moveDashboardItems` rewrites the
-full order (`(i+1)*10`, tie-free, since the old anchor+offset approach collided
-when a moved group was wider than the gap). **`replaceDashboardEntry`** is
-the single structural-reshape primitive: replace one entry (item or group)
-with a new entry of either kind, preserving position. Inside one
-transaction it reads the old position, deletes, shifts trailing rows to open
-a tie-free hole, inserts, bumps, reSequences.
-
-**Editor reconciliation rules** (`dashboard_editor.tsx`, 1080 LOC): an item
-expands to a group only when the edited config **gains** a replicant
-dimension (`oldHadReplicant` test); an item pinned to one replicant stays an
-item (a cleared pick is restored). A group with the same dimension + same
-value set gets an in-place member update behind a progress-only modal (no
-confirm, since a cancel would discard); a different dimension/set → confirmed
-rebuild via `replaceDashboardEntry`; no dimension → confirmed collapse to
-item. Member resolution (`resolveMembersWithProgress`) builds one figure per
-replicant and captures shared geo from the first member that has it;
-structure discovery uses `excludeReplicantFilter: true` (keeps user filters,
-drops the auto-pin). Group member updates are **matched by
-`replicant_value`**: a vanished value silently no-ops (v1 same-set
-assumption, unverified server-side, Open item).
-
-**No conflict detection** anywhere in the family, and no dashboard-specific
-permission flags. Both are Contract facts above.
-
-## Slugs & the public viewer
-
-**Slug indirection.** `dashboard_slugs` lives in the **main** DB (slug PK →
-`{projectId, dashboardId}`) because dashboard ids are only unique per
-project. The slug is what routes a bare `/d/:slug` to the right project
-database. Format `^[a-z0-9]+(-[a-z0-9]+)*$`, 3-60 chars; uniqueness checked
-with self-exclusion. Lifecycle writes are **non-transactional cross-DB
-pairs**, all main-DB-first with compensation: create inserts the slug then
-deletes it on project-insert failure; update moves the slug then restores
-the previous one on project-update failure; delete removes the slug then
-re-inserts it on project-delete failure.
-
-**Auth boundary** (root [main.ts](main.ts)): `/api/d/*` gets CORS + a
-**populate-only** Clerk middleware (attaches session context, never
-rejects); `routesPublicDashboard` mounts BEFORE the global auth middleware;
-`/d/:slug` serves the SPA HTML pre-auth. The route
-([routes/public/dashboard.ts](server/routes/public/dashboard.ts)): resolve
-slug on main (READ_ONLY) → project connection → detail; `isPublic: false`
-requires any Clerk session (`getAuth(c)?.userId`). Under `_BYPASS_AUTH`
-there is no session at all, so a private dashboard is hidden from everyone
-in that mode. **All four failure modes return the identical 404**, with no
-oracle distinguishing "private" from "doesn't exist". The response is
-`buildPublicDashboardBundle(detail, countryIso3)`: titles/bundles only,
-no emails or project ids; `countryIso3` is the env-sourced
-`_INSTANCE_COUNTRY_ISO3` (label cleaning has no failure mode to guard).
-
-**`buildPublicDashboardBundle`**
-([lib/types/dashboard.ts:148](lib/types/dashboard.ts#L148)) is the single
-shared transform: it sorts, collapses members into `entries`, injects the
-group's shared geo into each member bundle as `{kind:"data"}`, skips
-bundle-less items, and cleans replicant labels. It is used by BOTH the server
-public route and the in-app editor (via a thin client wrapper, "so they can
-never diverge").
-
-**Client viewer**: `/d/:slug` registers before the logged-in catch-all:
-outside the app shell, raw `fetch` with `credentials: "include"` (a
-logged-in user can view private dashboards at the same URL), local
-`AlertProvider`. Chrome: title bar with placement-configurable logos, About
-modal, summary strip; `sidebar` layout (nav list, group members indented) or
-`grid` (2-col tiles, per-tile replicant `Select`). The download modal
-(PNG/PDF/PPTX/XLSX, scope current/all, >50-figure confirm, honest
-table-count for XLSX) is the **only** dashboard export entry. The in-app
-editor's outward path is just the public URL.
-
-## FigureBundle: the three storage surfaces
+## FigureBundle: the two storage surfaces
 
 This is S12's slice of the FigureBundle refactor; the full architecture
 (bundle shape, `buildFigureInputs`, the invariants, localization) lives in
 [SYSTEM_10](SYSTEM_10_figure_render_export.md). S12 owns the three surfaces
 that **store** bundles and the public/export paths that **render** them.
 
-- **What is stored.** All three surfaces embed the strict
+- **What is stored.** Both surfaces embed the strict
   `FigureBlock = { type: "figure", bundle?: FigureBundle }`
   ([lib/types/_figure_bundle.ts](lib/types/_figure_bundle.ts)). Slides carry
   it inside the layout tree
-  ([_slide_config.ts](lib/types/_slide_config.ts)); dashboards in the
-  `figure_block` column
-  ([_dashboard_config.ts](lib/types/_dashboard_config.ts)); reports in the
+  ([_slide_config.ts](lib/types/_slide_config.ts)); reports in the
   `figures` registry ([reports.ts](lib/types/reports.ts), one shared block
-  schema across all three). The strict schema is what lets the migration
+  schema). The strict schema is what lets the migration
   skip-gate catch legacy blocks (S2) and what made deleting the old
   force-run safe.
 - **Capture-on-write.** Each surface assembles a bundle from the live build
@@ -493,11 +427,10 @@ that **store** bundles and the public/export paths that **render** them.
   instance locale** (NOT the session toggle) + `metricId`/`snapshotAt` +
   free `provenance`. The bundle is undefined-free pure JSON, so it persists
   with no stripping.
-- **Build-on-render: every surface.** On-screen render, exports, and the
-  public viewer all call `buildFigureInputs(bundle, deckStyle?)`. The
-  public/export path "just works" because the bundle carries its own
-  `localization`. The old `hydrateFigureInputsForPublicRendering`
-  special-casing was deleted.
+- **Build-on-render: every surface.** On-screen render and exports all call
+  `buildFigureInputs(bundle, deckStyle?)`. The export path "just works"
+  because the bundle carries its own `localization`. The old
+  `hydrateFigureInputsForPublicRendering` special-casing was deleted.
 - **The sentinel layer is gone.** Bundles carry no `undefined` values, so
   the `@@__UNDEFINED__@@` encode/decode wrappers were deleted along with
   `lib/json_slide_serialize.ts` itself. Follow-on status: the **reports**
@@ -509,9 +442,8 @@ that **store** bundles and the public/export paths that **render** them.
 
 Per-family t2 reactive caches version off the SSE-pushed `lastUpdated` maps
 (version is part of the cache key, so a flip is an automatic miss): `slide`
-(per slide), `slide_deck_detail` (per deck), `dashboard_detail` (per
-dashboard). **Reports have no t2 cache**: the editor and exports fetch
-`getReportDetail` directly; summaries live in T1 via `reports_updated`.
+(per slide), `slide_deck_detail` (per deck), `report_detail` (per report;
+`state/products/t2_report_detail.ts`).
 Every family follows the pattern: mutations fire
 `notifyLastUpdated(projectId, table, ids, ts)` + a full-list re-broadcast
 (`notifyProject{SlideDecks,Reports,Dashboards,…Folders}Updated`) on

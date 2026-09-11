@@ -3,7 +3,6 @@ system: 13
 name: AI Copilot & Usage Governance
 globs:
   - client/src/components/copilot/**
-  - client/src/components/project_ai/ai_views.ts
   - client/src/components/instance/ai_context_form.tsx
   - client/src/components/slide_deck/slide_ai/build_config_from_metric.ts
   - client/src/components/slide_deck/slide_ai/convert_ai_input_to_slide.ts
@@ -12,7 +11,6 @@ globs:
   - client/src/components/slide_deck/slide_ai/get_slide_with_updated_blocks.ts
   - client/src/components/slide_deck/slide_ai/layout_spec_helpers.ts
   - client/src/components/slide_deck/slide_ai/resolve_figure_from_metric.ts
-  - client/src/components/slide_deck/slide_ai/resolve_figure_from_visualization.ts
   - client/src/state/products/t4_ai_documents.ts
   - lib/ai_tools/**
   - server/mcp/**
@@ -54,9 +52,7 @@ The HFA indicator-manager assistant client
 (`client/src/components/indicator_manager_hfa/ai/**`) is an **S5-owned
 satellite**: S13 owns the `/ai-instance` proxy it talks to, the panther engine
 contract, and the tool-schema conventions it must follow; S5 owns the tool
-semantics. `components/project_ai/ai_views.ts` is a REMNANT, not a second
-copilot: a chat-less view registry that keeps the dying project shell's
-`setView`/`notify` calls typed until step 9a deletes the shell. The slide/figure shapes the slide_ai helpers produce are **S10/S12**;
+semantics. The slide/figure shapes the slide_ai helpers produce are **S10/S12**;
 the query pipeline the data tools call is **S9**.
 
 ## Principles
@@ -480,10 +476,6 @@ editor-level tools call the same resolvers, so behavior is identical:
   under is the caller's decision, never the file's. AI paths get _strict_
   replicant validation (`assertReplicantValid` throws) where non-AI callers
   keep the lenient auto-default.
-  [resolve_figure_from_visualization.ts](client/src/components/slide_deck/slide_ai/resolve_figure_from_visualization.ts)
-  is the same adapter for the project Visualizations tab's `from_visualization`
-  block; no copilot tool accepts one any more, and step 9a deletes the tab and
-  this file together.
 - [convert_ai_input_to_slide.ts](client/src/components/slide_deck/slide_ai/convert_ai_input_to_slide.ts)
   converts AiSlideInput → stored `Slide` under a `PackageScope`: resolve
   blocks, `optimizePageLayout`

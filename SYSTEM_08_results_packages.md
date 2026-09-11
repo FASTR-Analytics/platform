@@ -3,11 +3,7 @@ system: 8
 name: Results Packages & Module Execution
 globs:
   - client/src/state/instance/t2_runs.ts
-  - client/src/components/instance/compare_projects.tsx
   - client/src/components/instance_results_packages/**
-  - client/src/components/project/metric_details_modal.tsx
-  - client/src/components/project/project_results_package.tsx
-  - client/src/components/project/results_package_compatibility_modal.tsx
   - lib/figure_package_issue.ts
   - lib/types/_module_definition_github.ts
   - lib/types/_module_definition_installed.ts
@@ -91,12 +87,9 @@ package reads: detail/script/logs/files, run-keyed under the instance data
 bits) + `routes/project/results_package.ts` (the project picker + follow
 toggle); lib module + run
 types + `module_registry.ts`; client: `instance_results_packages/**` (the
-catalogue), `project_results_package.tsx` +
-`results_package_compatibility_modal.tsx`, the launch wizard
-`instance_results_packages/_wizard/**` (an ephemeral modal, the Upload-CSV
-pattern; the last consumer of the old `_import_wizard/` descriptor shell,
-deleted with it),
-`compare_projects.tsx`, `metric_details_modal.tsx`, and the T2 run-detail
+catalogue), the launch wizard `instance_results_packages/_wizard/**` (an
+ephemeral modal, the Upload-CSV pattern; the last consumer of the old
+`_import_wizard/` descriptor shell, deleted with it), and the T2 run-detail
 cache `state/instance/t2_runs.ts`. Shared-custody: `_shared/results_package/**`,
 what a package CONTAINS, rendered identically wherever a package is
 explored (`package_view.tsx` = `ResultsPackageView`, `status.tsx`,
@@ -403,11 +396,10 @@ when `RunDetail` changes shape). Script/log bytes stay T3.
 
 The same rule governs the AI tools: the shared tools' `AIToolEnv`
 (`lib/ai_tools/env.ts`) is bound to ONE package at construction: a runId
-never comes from the model. The SPA env resolves the project's
-`attachedRunId` from project T1 at call time, so a mid-conversation repoint
-moves the tools with it; the `/mcp` env is bound to the pin resolved for
-that call. The SPA-only module tools (script/logs/settings:
-`client/src/components/project_ai/ai_tools/tools/modules.ts`, getters on
+never comes from the model. The SPA env is bound to the open product's pair
+for the life of its mount (D15); the `/mcp` env is bound to the pin resolved
+for that call. The SPA-only module tools (script/logs/settings:
+`client/src/components/copilot/ai_tools/tools/modules.ts`, getters on
 `ClientAIToolEnv`) read the run-keyed mount too
 (`getRunModuleScript`/`getRunModuleLogs`/`getRunModuleWithConfigSelections`,
 `can_view_data`; the project-mounted `getModuleWithConfigSelections` (sole
@@ -444,27 +436,11 @@ accepting a runId) is ruled out: redundant when it equals the attached run,
 a hole (project auth over any package, bypassing the instance bit and AA2)
 when it does not.
 
-**A project's own package** rides project T1: `ProjectState.attachedRun`
-(`RunListingItem | null`, beside `attachedRunId`), pushed on `starting`
-(`getProjectDetail` → `getRunListingItem`) and on `run_attached`
-(`buildRunAttachedManifestPayload` reads the row once per publish). A project
-attaches only to a READY run and a ready row is immutable (label/provenance/
-summary; the one moving fact, pinned, is instance T1 `pinnedRunId`), so the
-tab's header renders with no fetch. Every project member receives the label
-over project SSE, accepted (Q-B was about the instance channel).
-
-**The project tab** (`project/project_results_package.tsx`) is two halves
-under two gates. The CONFIGURE card is the editor's: a `Select` of every ready
-package (`listAttachableResultsPackages`, project-mounted,
-`can_configure_visualizations`, T3 once per mount, now returning the attached
-one too) + "Use this package" (two-step on purpose: a native `<select>` flips
-before the compatibility modal can veto, so the selection is local until
-confirmed; no refetch after the repoint, since `run_attached` moves the store
-and the candidate resets) + the follow-pinned checkbox and behind-pin realign.
-The VIEWER is `ResultsPackageView` under `canViewPackageContents()`. The tab
-opens on either gate (`canOpenProjectResultsPackageTab()`); a member with
-neither does not get it; an editor without the instance data bit sees the
-attached row (T1) and a one-line explanation in place of the contents.
+**No product-side package tab.** A product's package and scope are one
+`product_settings.tsx` surface (S12) over the ready-package list in instance
+T1 (`readyPackages`, D8); the project results-package tab, its compatibility
+pre-flight modal and the compare-projects page went with the project shell in
+step 9a (D4: reattach never blocks, staleness is per figure).
 
 **The instance catalogue is a master–detail**
 (PLAN_RESULTS_PACKAGES_CATALOGUE_UI): a plain newest-first

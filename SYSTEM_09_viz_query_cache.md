@@ -3,8 +3,6 @@ system: 9
 name: Visualization Query & Cache Service
 globs:
   - client/src/state/instance/t2_run_authoring_context.ts
-  - client/src/state/project/t2_presentation_objects.ts
-  - client/src/state/project/t2_replicant_options.ts
   - client/src/state/products/t2_figure_data.ts
   - client/src/state/products/t2_replicant_options.ts
   - lib/rollup.ts
@@ -63,8 +61,8 @@ everything after `FigureInputs` is **S10**; the editor UI is **S11**; the
 results package this system queries (parquet, manifest and metric catalog) is
 produced by **S8**; `facilities_hmis`/`facilities_hfa` and the instance
 facility-columns config are **S5**. Sub-file custody:
-`routes/project/presentation_objects.ts` and `t2_presentation_objects.ts` are
-S9-owned with S11/S3/S10 as readers (SYSTEMS.md §4.1).
+`routes/project/presentation_objects.ts` is S9-owned with S11/S3/S16 as
+readers (SYSTEMS.md §4.1).
 
 ## The pipeline
 
@@ -547,7 +545,7 @@ displayed as `"replicant"` and _not_ filtered to one value (a one-value
 replicant is degenerate and renders as a plain filter). It is context-free
 (reads only `disaggregateBy` + `filterBy`), so raw and effective configs agree
 at every call site. `resolveDefaultReplicant`
-([t2_presentation_objects.ts:309](client/src/state/project/t2_presentation_objects.ts#L309))
+([t2_figure_data.ts](client/src/state/products/t2_figure_data.ts))
 fetches the valid values (pin-excluded config) and keeps a still-valid
 `selectedReplicantValue`, else defaults to the first valid one, returning a
 fresh config copy, never mutating the input (the editor passes its unwrapped
@@ -780,60 +778,40 @@ import ledger the read became a few ms, so `getDatasetHmisDisplayInfo` computes
 live and only the client T2 IndexedDB cache remains (see
 [SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md)).
 
-**Client (IndexedDB, `createReactiveCache`).** Mirrors of the same four caches
-in
-[t2_presentation_objects.ts](client/src/state/project/t2_presentation_objects.ts)
-/ [t2_replicant_options.ts](client/src/state/project/t2_replicant_options.ts).
-Two-tier (LRU memory, default 100, + IndexedDB); the version is **part of the
-key**, so invalidation is automatic misses, with old versions left to the deploy
-flush (LoggedInWrapper clears site caches on version change: dev has no deploy,
-hence the stale-IndexedDB trap). Version keys build on `runVersionKey(pds)` =
-`` `${attachedRunId ?? "no_run_attached"}~${projectScopeToken(adminArea2)}` ``
-(SYSTEM_03: `~` separator because the `po_detail` guard slices the trailing
-segment at the LAST `|`; `projectScopeToken` escapes both separators):
-`po_detail` = `pds.lastUpdated.presentation_objects[id]|runVersionKey`; the
-other three = `runVersionKey` alone. The response-side guard
-`responseRunVersionMatches` compares the payload's `runId`+`scopeToken`
-against the key, so an in-flight response landing after a package repoint OR
-a scope change is rejected; payloads missing either field (the parity
-baseline) are never cached. Uniqueness stays projectId-keyed on all four, so
-cross-project bleed was already impossible: the scope segment exists to
-invalidate on a scope CHANGE within one project. In-flight promises coalesce
-identically to the server.
-
-**Scope-keyed client twins (`state/products/`).**
+**Client (IndexedDB, `createReactiveCache`).**
 [t2_figure_data.ts](client/src/state/products/t2_figure_data.ts)
 (`run_metric_info`, `run_po_items`) and
 [t2_replicant_options.ts](client/src/state/products/t2_replicant_options.ts)
-(`run_replicant_options`) are the same three reads against the run-keyed
-mount (`getRunResultsValueInfo`, `getRunPresentationObjectItems`,
+(`run_replicant_options`) are the three reads against the run-keyed mount
+(`getRunResultsValueInfo`, `getRunPresentationObjectItems`,
 `getRunReplicantOptions`; PLAN_PRODUCTS_RESTRUCTURE D7): the caller passes a
 `PackageScope` and the pair leads the UNIQUENESS key as `runId |
 scopeToken(adminArea2) | ...` while the version key is the constant
-`"immutable"` (`pdsNotRequired`, the `t2_runs.ts` idiom). A package never
-changes, so nothing invalidates an entry, and a response cannot land under a
-key belonging to another package or scope because the key already names
-both: the response-side guard is not needed here. The same
-`resolveDefaultReplicant` policy (first valid value, fresh config copy,
+`"immutable"` (the `t2_runs.ts` idiom). Two-tier (LRU memory, default 100, +
+IndexedDB); a package never changes, so nothing invalidates an entry, old
+entries are left to the deploy flush (LoggedInWrapper clears site caches on
+version change: dev has no deploy, hence the stale-IndexedDB trap), and a
+response cannot land under a key belonging to another package or scope
+because the key already names both, so there is no response-side guard. The
+same `resolveDefaultReplicant` policy (first valid value, fresh config copy,
 never mutate) and the same aliasing contract on the yielded config apply.
-Consumers today: the insert-figure wizard's preset previews (S11); the
-editors move onto these in step 7a and the project family above is deleted in
-9a.
+Consumers: the embedded figure editor and the slide and report editors'
+post-insert reads (S11, S12), and the insert-figure wizard's preset previews
+(S11); the results explorer joins them when it lands.
 
 **Cache observability**: `getCacheStatus`
 ([routes/project/cache_status.ts](server/routes/project/cache_status.ts),
 admin-only) reports Valkey connectivity and per-PO cached/count state by
-scanning uniqueness prefixes.
+scanning uniqueness prefixes. Its client page went with the project shell in
+step 9a; the route goes in 9b.
 
 ## Client query flow
 
-Async generators in `t2_presentation_objects.ts` yield `loading → ready | error`
-states: `getPOFigureInputsFromCacheOrFetch_AsyncGenerator` = PO detail → (clone
-config, apply `ReplicantValueOverride`) → items generator → `buildFigureInputs`
-(S10); `too_many_items` / `no_data_available` become `[INFO]`-prefixed error
-states (rendered as NotAvailableBox, not red errors). The items generator
-resolves metric info, builds the fetch config, runs `resolveDefaultReplicant`,
-then consults `_PO_ITEMS_CACHE`. The auto-selected replicant lives on a **copy**
+The async generator in `t2_figure_data.ts`
+(`getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator(scope, metric,
+config)`) yields `loading → ready | error` states: it resolves the metric's
+`resultsValueInfo` under the pair, builds the fetch config, runs
+`resolveDefaultReplicant`, then consults `_PO_ITEMS_CACHE`. The auto-selected replicant lives on a **copy**
 yielded to the caller, never a mutation of the passed-in config (the editor's
 unwrapped live store; a raw write would bypass subscribers and turn the user's
 next identical click into a silent no-op). Promise-shaped wrappers

@@ -27,8 +27,8 @@ observability (17).
 | [S8](SYSTEM_08_results_packages.md)      | Results Packages & Module Execution      | versioned R modules → whole-DAG generation into an immutable package (parquet + manifest)  |
 | [S9](SYSTEM_09_viz_query_cache.md)       | Visualization Query & Cache Service      | PO config → fetch-config → DuckDB over the attached package → run-keyed cached payloads    |
 | [S10](SYSTEM_10_figure_render_export.md) | Figure Rendering & Export Engine         | stored FigureBundle → `buildFigureInputs` → panther, slide→page render, PDF/PPTX/XLSX/DOCX |
-| [S11](SYSTEM_11_viz_authoring.md)        | Visualization Authoring UI               | the live PO editor (edit/create/ephemeral) + library + PO CRUD                             |
-| [S12](SYSTEM_12_documents_sharing.md)    | Documents & Sharing                      | slide decks + reports + dashboards + public viewer + exports                               |
+| [S11](SYSTEM_11_viz_authoring.md)        | Visualization Authoring UI               | the embedded figure editor + insert-figure wizard + figure-config semantics                |
+| [S12](SYSTEM_12_documents_sharing.md)    | Documents & Sharing                      | slide decks + reports + folders + exports                                                  |
 | [S13](SYSTEM_13_ai_assistant.md)         | AI Copilot & Usage Governance            | Anthropic proxy + governance + ~40 browser tools via the AIContext contract                |
 | [S14](SYSTEM_14_client_shell.md)         | Client Shell & Session                   | SPA boot, page maps, language/calendar singletons, UI prefs, help chrome                   |
 | [S15](SYSTEM_15_admin_ops.md)            | Instance Administration & Ops            | users/roles, project lifecycle, health, backups, disk autonomics, deploy                   |
@@ -53,7 +53,6 @@ list.)
 | `server/routes/project/project.ts`                                      | S15   | S6, S8            | 18 routes, three systems                              |
 | `server/routes/project/presentation_objects.ts`                         | S9    | S11, S3, S16      | queries / CRUD / cache / live-room chokepoint         |
 | `server/routes/caches/visualizations.ts`                                | S9    | S3, S2            | cache instances + PO_CACHE_VERSION                    |
-| `client/src/state/project/t2_presentation_objects.ts`                   | S9    | S11, S10, S3      | hottest client file (20 importers)                    |
 | `server/db/instance/dataset_hmis.ts` / `dataset_hfa.ts`                 | S6    | S2, S8            | orchestrator + worker lifecycle + CRUD                |
 | `server/runs/capture_inputs/**`                                         | S6    | S8, S5            | ingestion code inside the generation pipeline         |
 | `main.ts`                                                               | S1    | S2, S15, S12      | composition root (boot / cron / `/d/:slug`)           |

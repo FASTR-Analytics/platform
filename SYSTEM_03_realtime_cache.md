@@ -2,15 +2,12 @@
 system: 3
 name: Realtime Sync & Cache Invalidation
 globs:
-  - client/src/components/project/project_cache.tsx
   - client/src/state/_infra/indexeddb_cache.ts
   - client/src/state/_infra/reactive_cache.ts
   - client/src/state/_infra/request_queue.ts
   - client/src/state/clear_caches.ts
   - client/src/state/instance/t1_sse.tsx
   - client/src/state/instance/t1_store.ts
-  - client/src/state/project/t1_sse.tsx
-  - client/src/state/project/t1_store.ts
   - lib/types/instance_sse.ts
   - lib/types/last_updated_tables.ts
   - lib/types/project_sse.ts
@@ -404,10 +401,8 @@ computes live; client-side T2 caching remains.
 `scanUniquenessHashes(prefix)` (SCAN-based) to report which results-objects have
 cached entries, reverse-parsing the key by hard-coded separator. Its `exists()`
 check ignores `versionHash`, so "cached" in the status page can mean a
-stale-version entry that will miss (Open items). The client half of that page is
-`components/project/project_cache.tsx`, which shows the same per-viz grid for
-the server (Valkey) and the client (IndexedDB, scanned by key prefix via
-`getClientVizCacheStatuses`).
+stale-version entry that will miss (Open items). Its client page went with the
+project shell in PLAN_PRODUCTS_RESTRUCTURE step 9a; the route goes in 9b.
 
 **Purge on run deletion** (`server/runs/delete_run.ts`, PLAN_RESULTS_RUNS Q-D) is
 the one place that deliberately deletes entries rather than out-versioning them,
@@ -432,29 +427,31 @@ per-process ephemeral data.
 
 The client mirrors the server design (two-part version-in-key caching with
 in-flight dedup and no failure caching) in `createReactiveCache`
-(`client/src/state/_infra/reactive_cache.ts`), the factory behind the eight
-`t2_*` caches. Config: `name` (IndexedDB key prefix), `uniquenessKeys(params)`
-(auto-hashed with `|`), `versionKey(params, pds)` (reads the T1 project-state
-snapshot), optional `maxSize` (memory LRU, default 100) and `pdsNotRequired`
-(instance-level caches). Cache key: `<name>/<uniquenessHash>::<versionHash>`.
+(`client/src/state/_infra/reactive_cache.ts`), the factory behind every
+`t2_*` cache. Config: `name` (IndexedDB key prefix), `uniquenessKeys(params)`
+(auto-hashed with `|`), `versionKey(params, instanceState)` (reads the one T1
+store, the instance store, as a non-reactive snapshot) and optional `maxSize`
+(memory LRU, default 100). Cache key: `<name>/<uniquenessHash>::<versionHash>`.
 Version is part of the key, so a version flip is an automatic miss. Two tiers:
 memory LRU map, then IndexedDB (`idb-keyval`); an in-flight `_unresolved` map
 dedups concurrent identical fetches; failures are never cached; the sentinel
-versions (`"pds_not_ready"`, `"unknown"`) are refused by `setPromise`. Consumer
-semantics and the composite-key caveat are in PROTOCOL_APP_STATE "Sentinel
-versions". `clearEntry` clears all versions of one uniqueness key;
-`clearEntriesWithPrefix` requires a STRICT prefix of the uniqueness keys (a
-complete key list matches nothing: full keys are followed by `::`, not `|`).
+version `"unknown"` (a `lastUpdated` field the store has not received yet) is
+refused by `setPromise`. Consumer semantics and the composite-key caveat are
+in PROTOCOL_APP_STATE "Sentinel versions". `clearEntry` clears all versions of
+one uniqueness key; `clearEntriesWithPrefix` requires a STRICT prefix of the
+uniqueness keys (a complete key list matches nothing: full keys are followed
+by `::`, not `|`).
 
-The four run-derived caches version on the composite `runVersionKey(pds)` =
-`` `${attachedRunId ?? "no_run_attached"}~${projectScopeToken(adminArea2)}` ``
-(PLAN_1_PROJECT_AA2_SCOPE §5): a package repoint OR a scope change flips it,
-and the `responseRunVersionMatches` guard rejects in-flight responses from the
-old key. Uniqueness is already projectId-scoped on all four, so cross-project
-bleed was never possible client-side; the scope segment exists solely to
-invalidate on a scope change within one project. Old IndexedDB entries become
-unreachable via the version flip and age out: no purge, the same mechanism
-attach relies on.
+Two version idioms exist. Product documents version on the SSE-pushed
+`lastUpdated` maps (`slide`, `slide_deck_detail`, `report_detail`). Package
+data (`state/products/t2_figure_data.ts`, `t2_replicant_options.ts`,
+`state/instance/t2_runs.ts`, `t2_run_authoring_context.ts`) versions on the
+constant `"immutable"` with the identity (`runId`, `scopeToken`) leading the
+UNIQUENESS key: a ready package never changes, so nothing invalidates an
+entry and a late response cannot land under another package's key. There is
+no response-side identity guard any more; the key already names the package
+and the scope. Old IndexedDB entries become unreachable via the version flip
+and age out: no purge.
 
 Around it:
 

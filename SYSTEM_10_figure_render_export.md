@@ -64,7 +64,7 @@ Visualization rename is in Open items.
 
 ### The idea
 
-The three snapshot surfaces (slides, dashboards, reports) used to persist a
+The snapshot surfaces (slides and reports) used to persist a
 **dehydrated `FigureInputs`**: panther's post-transform render artifact. That
 was costly in four ways:
 
@@ -107,7 +107,7 @@ pipeline _and_ the sentinel layer are gone.
 | Term                                                | Meaning                                                                                        | Lifetime  |
 | --------------------------------------------------- | ---------------------------------------------------------------------------------------------- | --------- |
 | **Visualization** (a.k.a. presentation object / PO) | The live, editable object. Stored as `config` + `metric_id`; re-queries data each render.      | Live      |
-| **Figure**                                          | A visualization **captured into a document** (slide / dashboard / report), a frozen snapshot.  | Snapshot  |
+| **Figure**                                          | A visualization **captured into a document** (slide / report), a frozen snapshot.              | Snapshot  |
 | **FigureBundle**                                    | The **stored shape** of a Figure: pure-JSON inputs sufficient to rebuild the render.           | Stored    |
 | **FigureInputs**                                    | Panther's transient render-input type. **Never persisted** under this design.                  | In-memory |
 | **`buildFigureInputs(bundle, deckStyle?)`**         | The one transform inputs → `FigureInputs`.                                                     | none      |
@@ -149,12 +149,10 @@ FigureBundle = {
 
 `scope` and `provenance.runId` are the (package, scope) pair the bundle was
 resolved under (PLAN_PRODUCTS_RESTRUCTURE D4). Every assembly site stamps
-them from its container's `PackageScope` (the product's live pair in the
-deck and report editors since step 7a; the project's pair, through
-`projectPackageScope()` in `state/project/t1_store.ts`, on the surviving
-project tabs until 9a): the metric-keyed resolvers,
-`makeFigureBundleFromFetchedData`, the from-visualization resolver, and the
-live editor's transient bundle. The pair lives on the bundle and never in
+them from its container's `PackageScope` (the product's live pair, read from
+the T1 products row by the deck and report editors): the metric-keyed
+resolvers, `makeFigureBundleFromFetchedData` and the live editor's transient
+bundle. The pair lives on the bundle and never in
 `config`, so it stays out of the fetch hash (S9). Transitional state, closed
 by step 9b: `scope` is optional and `runId` nullable, because stored bundles
 predate the capture; 9b stamps every stored bundle from its owning project
@@ -200,13 +198,13 @@ The elegant consequence the whole design turns on:
 
 | Caller                                                                                                                          | Surface                    | Items               | Localization source                                                    |
 | ------------------------------------------------------------------------------------------------------------------------------- | -------------------------- | ------------------- | ---------------------------------------------------------------------- |
-| `t2_presentation_objects.ts` (the live FigureInputs memo, ~:195)                                                                | **Visualization**          | live query          | `getSnapshotInstanceLocalization()`, a **transient** bundle each tick  |
-| `convert_slide_to_page_inputs.ts`, `dashboard_item_grid.tsx`, `ReportFigureEmbed.tsx`, `exports/**`, public viewer, AI previews | **stored Figure / export** | baked in the bundle | `bundle.localization` (frozen)                                         |
+| `visualization_editor_inner.tsx` (the live FigureInputs memo)                                                                   | **Live editor draft**      | live query          | `getSnapshotInstanceLocalization()`, a **transient** bundle each tick  |
+| `convert_slide_to_page_inputs.ts`, `ReportFigureEmbed.tsx`, `exports/**`, AI previews                                           | **stored Figure / export** | baked in the bundle | `bundle.localization` (frozen)                                         |
 
 So the live editor and every stored figure run **identical code**, and a
-figure renders identically to the visualization it was captured from when
-the two pairs match: the stored bundle carries the scope it was resolved
-under, and the live editor's transient bundle carries the project's, so the
+figure renders identically to the draft it was captured from when the two
+pairs match: the stored bundle carries the scope it was resolved under, and
+the live editor's transient bundle carries the host product's, so the
 same `buildFigureInputs` path labels both the same way. `deckStyle?` is the
 deck-level theme; slides pass it, the others omit it.
 
@@ -276,9 +274,8 @@ write the global `t3`/`getCalendar`/`getLanguage` singletons.
 `GeoRef` is a discriminated union. `{kind:"level", level}` is the in-app case:
 `buildFigureInputs` re-derives the GeoJSON from the sync cache
 (`getGeoJsonSync`) at render, storing no geometry. `{kind:"data", data}` is the
-baked case (public/export, and dashboard items that carry a `geo_data` column):
-the full GeoJSON travels in the bundle. Same split the old public-render path
-had.
+baked case (export): the full GeoJSON travels in the bundle. Same split the
+old public-render path had.
 
 ### What this deleted
 
@@ -289,13 +286,12 @@ vestigial dead code, 0 figures in prod); the `stripFigureInputsForStorage` /
 `lib/json_slide_serialize.ts` sentinel layer and the old ambient-localization
 build path (`get_figure_inputs_from_po.ts`), both files deleted.
 
-The `resolve_figure_from_*` resolvers are live machinery, not residue:
-`generate_visualization/resolve_figure_from_{metric,visualization}.ts` (+
-`resolve_bundle_from_metric_and_config.ts`) are the shared
-snapshot-a-viz-into-FigureBlock core consumed by dashboards
-(`add_dashboard_item_modal.tsx`), reports (`report/index.tsx`), and the slide
-editor; the same-named files under `slide_deck/slide_ai/` are thin S13 AI
-adapters (26/23 LOC) that delegate to them.
+The `resolve_figure_from_metric` resolver is live machinery, not residue:
+`generate_visualization/resolve_figure_from_metric.ts` (+
+`resolve_bundle_from_metric_and_config.ts`) is the shared
+snapshot-a-figure-into-FigureBlock core consumed by the report editor
+(`report/index.tsx`) and the slide editor; the same-named file under
+`slide_deck/slide_ai/` is a thin S13 AI adapter that delegates to it.
 
 ## Special chart modes: the style pipeline
 
@@ -322,8 +318,8 @@ export, a thumbnail or a version preview labels the row correctly outside
 any authoring shell; `buildFigureInputs` threads `bundle.scope` through the
 data-config builders for this one reason. A bundle stored before the scope
 was captured has no `scope`, and only then does the label fall back to the
-project store (`projectState.adminArea2`); that fallback dies when step 9b
-makes the field required. Full ruling in SYSTEM_09 "Roll-up"; the scope
+container's scope; that fallback dies when step 9b makes the field
+required. Full ruling in SYSTEM_09 "Roll-up"; the scope
 itself in SYSTEM_08.
 
 ### The captured pair and staleness
@@ -523,8 +519,8 @@ a diverging figure the user types a threshold in the wrong units. That is why
 the CF editor's `ValueInput` scales BOTH percent and `rate_per_10k` between
 stored and displayed units rather than trusting a raw number input, and why its
 top cutoff has no hardcoded ceiling of 1. (Also confirmed: `resultsValueInfo`
-does NOT refetch on a filter edit, since its cache keys on `(projectId,
-metricId, run)` only, which is exactly why the resolver is config-based and
+does NOT refetch on a filter edit, since its cache keys on `(runId,
+scopeToken, metricId)` only, which is exactly why the resolver is config-based and
 reacts to the draft config with no fetch.)
 
 RULED: the CF editor's scaling factor stays `axisFormat`-driven
@@ -691,7 +687,7 @@ with exponential delay (CORS errors not retried), module-level per-URL failure
 backoff (capped 60s), in-flight promise dedupe. Exactly three consumers:
 `convertSlideToPageInputs` (logos, split images, image blocks),
 `get_overlay_image.ts`, and `StylePreview.tsx`. Screen render and slide exports
-share it; report/dashboard exports fetch directly.
+share it; report exports fetch directly.
 
 **Fonts**: two disjoint paths. Screen text uses hand-written `@font-face` rules
 in `client/src/app.css` (woff2). Export PDFs embed TTFs: the four PDF exporters
@@ -742,25 +738,20 @@ order, emitting caption/col-group/header/row-group/footnote rows. Header labels
 come from panther's `resolveTableHeaders(data, style)`, the same
 label-resolution prelude the renderer runs, so header `textFormatter`s (sample
 sizes today) reach exports too. Reading the raw transformed labels instead
-diverges silently: nothing typechecks red. Exactly two consumers: dashboard XLSX
-and the editor's table CSV (with BOM for Excel). It requires hydrated
-FigureInputs, since the formatter is a rebuilt closure.
+diverges silently: nothing typechecks red. One consumer: the editor's table
+CSV (with BOM for Excel). It requires hydrated FigureInputs, since the
+formatter is a rebuilt closure.
 
-**Degradation contracts differ by artifact.** Dashboards degrade twice
-(build-time `tryItemFigureInputs` catch → null, then render-validation catch →
-null) and a null figure becomes a placeholder page. One bad figure never
-aborts. Reports swap failed/orphaned media tokens in place for the localized
+**Degradation contracts differ by artifact.** Reports swap failed/orphaned
+media tokens in place for the localized
 placeholder. Slide decks degrade per-block upstream in
 `convertSlideToPageInputs`, but a failed slide fetch or convert **aborts the
 whole deck export**. XLSX silently skips non-table figures by design and catches
 per-sheet.
 
 **UI entry points:** `DownloadSlideDeck` + `ShareSlideDeck` (deck page),
-`DownloadReport` (report page), `DownloadDashboardModal` (public viewer only;
-the in-app dashboard editor builds the same bundle type but has no export
-entry), and the viz editor's download modal. Dashboard exports sanitize filenames
-(`sanitizeFilename`); deck/report exports pass the raw DB label to
-`pdf.save`/`saveAs` (Open item).
+`DownloadReport` (report page), and the figure editor's download modal.
+Deck/report exports pass the raw DB label to `pdf.save`/`saveAs` (Open item).
 
 ## Open items
 
@@ -780,14 +771,12 @@ entry), and the viz editor's download modal. Dashboard exports sanitize filename
 - The three slide-deck exporters triplicate the fetch/convert loop (~150
   duplicated lines; the two PDF variants differ only in their tail). Extract
   one shared iterator.
-- Filename rules are inconsistent: dashboards sanitize, deck/report exports pass
-  the raw label (a `/` or `:` in a label hits browser munging), the viz editor
-  does spaces→underscores. Pick one rule.
-- `exportDashboardAsXlsx`'s per-figure loop never yields, so its progress bar
-  cannot repaint mid-workbook.
+- Filename rules are inconsistent: deck/report exports pass the raw label (a
+  `/` or `:` in a label hits browser munging), the figure editor does
+  spaces→underscores. Pick one rule.
 - Deck exporters' catch drops non-Error detail
   (`e instanceof Error ?
-  e.message : ""`); dashboard/report use `String(e)`.
+  e.message : ""`); the report exporter uses `String(e)`.
 - Slide `textSize` is dead at render: the `TEXT_SIZE_REL` multiplier is
   commented out in `convertBlockToPageContentItem` while the editor still writes
   the key, the schema validates it, and `lib/consts.ts:175-179` claims the
@@ -811,15 +800,12 @@ entry), and the viz editor's download modal. Dashboard exports sanitize filename
 - `resolveTextBackground("success")` renders `_SLIDE_BACKGROUND_COLOR` (=
   `_NIGERIA_GREEN`), not the success token: misleading name or wrong color;
   needs a ruling.
-- Deck PDF loads only the deck family's font variants while dashboard PDF unions
-  per-page fonts. A figure styled with another family hits "Font not found in
-  map", and only dashboard PDF friendly-cases that error.
-- The viz editor's multi-replicant download is disabled (`allReplicants`
+- Deck PDF loads only the deck family's font variants: a figure styled with
+  another family hits "Font not found in map".
+- The figure editor's multi-replicant download is disabled (`allReplicants`
   hard-coded false, `downloadMultiple` commented out). Revive or delete.
-- Two transparency mechanisms for the same user option: the editor PNG honors
-  transparency only in the no-padding branch (`getFigureAsCanvas` fills white);
-  the dashboard PNG bakes `backgroundColor:"none"`. Unify (blocked on a panther
-  transparent flag).
+- The editor PNG honors transparency only in the no-padding branch
+  (`getFigureAsCanvas` fills white); blocked on a panther transparent flag.
 - `buildReportFigureMap` is `async` with zero awaits.
 
 - **Deck-themed SERIES colors** (deferred half of the deck-colors work).

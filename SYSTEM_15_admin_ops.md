@@ -2,28 +2,15 @@
 system: 15
 name: Instance Administration & Ops
 globs:
-  - client/src/components/forms_editors/bulk_edit_project_permissions_form.tsx
-  - client/src/components/forms_editors/display_project_user_role.tsx
-  - client/src/components/forms_editors/select_project_user_role.tsx
-  - client/src/components/instance/add_project.tsx
   - client/src/components/instance/add_users.tsx
   - client/src/components/instance/batch_upload_users_form.tsx
-  - client/src/components/instance/bulk_edit_default_project_permissions_form.tsx
   - client/src/components/instance/bulk_edit_permissions_form.tsx
   - client/src/components/instance/change_email_modal.tsx
   - client/src/components/instance/feedback_form.tsx
   - client/src/components/instance/instance_meta_form.tsx
-  - client/src/components/instance/instance_projects.tsx
   - client/src/components/instance/instance_users.tsx
-  - client/src/components/instance/pending_deletions.tsx
   - client/src/components/instance/profile.tsx
-  - client/src/components/instance/project_permission_form.tsx
   - client/src/components/instance/user.tsx
-  - client/src/components/project/copy_project.tsx
-  - client/src/components/project/create_backup_form.tsx
-  - client/src/components/project/project_logs.tsx
-  - client/src/components/project/project_settings.tsx
-  - client/src/components/project/restore_from_file_form.tsx
   - lib/types/projects.ts
   - server/db/project/projects.ts
   - server/routes/instance/backups.ts
@@ -43,11 +30,11 @@ export, scheduled jobs, deploy. Small server surface, highest privilege.
 
 The `globs:` frontmatter above is the lint-enforced manifest
 (`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1. Client:
-`components/instance/**` except the files owned elsewhere
-(`index.tsx`/`instance_assets.tsx`, `instance_data.tsx` → S6,
-`compare_projects.tsx` → S8);
-`project_settings.tsx` + copy/backup/restore forms; role/permission
-forms_editors. Server: `routes/project/project.ts` (18 routes: lifecycle +
+`components/instance/**` except the files owned elsewhere (`index.tsx` →
+S14, `instance_assets.tsx` → S4, `instance_data.tsx` → S6,
+`ai_context_form.tsx` → S13); the projects home, the project settings page
+and the project-permission forms went with the project shell in
+PLAN_PRODUCTS_RESTRUCTURE step 9a. Server: `routes/project/project.ts` (18 routes: lifecycle +
 roles), `routes/instance/{health,backups}.ts`, `db/project/projects.ts` (the
 4-system custody file: S15 owner; S2/S1/S8 readers), `utils/disk_space.ts`
 (`db/instance/user_logs.ts` → S17); cron jobs in `main.ts` (S1-owned, S15
@@ -246,22 +233,11 @@ failures surface as user-facing route errors with GB figures.
   `admin || can_configure_users || can_view_users`): user table with last-active
   (from `getAllUserLogs`), admin toggle (server requires full admin: the bulk
   buttons show for `can_configure_users` and 403 at click, Open item), per-user
-  instance-permission checkboxes, per-project permission grids, batch CSV upload
-  (`email, is_global_admin` headers; server validates emails, optional
-  replace-all), H_USERS-only unlimited-AI/contact-person sections. Three bulk
-  tri-state editors (`unchanged → true → false`, posting only changed keys)
-  cover instance flags, default-project flags, and per-project flags. The
-  `TriStateCheckbox` is copy-pasted verbatim into all three (Open item).
-- **Projects home** (`instance_projects.tsx`): card grid, disk-space pre-check
-  before create, "Copying..." placeholders, `PendingDeletions` (restore /
-  force-delete).
-- **Project settings** (`project_settings.tsx`, 981 LOC; tab exists only with
-  `can_configure_settings`): rename + AI context (`updateProject`), project-user
-  permission table (H_USERS filtered out; "Project Admin" = all 17 flags),
-  central-reporting toggle (H_USERS-only, untranslated strings, Open item),
-  lock toggle, **backups** (the only raw-fetch caller in the surface: four
-  hand-built `fetch` calls against routes that exist in the typed registry, Open
-  item), and soft-delete/copy.
+  instance-permission checkboxes, batch CSV upload (`email, is_global_admin`
+  headers; server validates emails, optional replace-all), H_USERS-only
+  unlimited-AI/contact-person sections. One bulk tri-state editor
+  (`unchanged → true → false`, posting only changed keys) covers the instance
+  flags.
 - **Self-profile** (`profile.tsx`): AI usage bars; organisation + `emailOptIn`
   are written **directly to Clerk `unsafeMetadata`**, a second persistence
   plane outside serverActions/Postgres. Change-email wizard
@@ -310,16 +286,12 @@ currently internet-exposed behind a shared password, PLAN_HARDEN_SECURITY).
   route + DB function are gone; `ProjectUser.role` ("delete after implementing
   new system"), the hardcoded `'viewer'` INSERTs, and the stored `role` column
   remain.
-- **Dead project-logs trio**: `project_logs.tsx` (zero importers), the
-  `getProjectLogs` route (zero callers), and the project-level `can_view_logs`
-  flag users can be granted with no consuming UI.
+- **Dead project-logs route**: `getProjectLogs` (zero callers) and the
+  project-level `can_view_logs` flag, both gone in 9b.
 - **Split the two custody files** (decoupling): `db/project/projects.ts` (mainDb
   registry/roles vs project-DB lifecycle, incl. the duplicated
   admin-synthesis mapping) and
   `routes/instance/backups.ts` (proxy vs restore body).
-- **Backups client bypasses the typed registry**: four raw `fetch` calls in
-  `project_settings.tsx` with hand-rolled auth headers and a restore-catch that
-  swallows errors; the registry entries exist.
 - **`copyProjectInBackground` terminates live source-DB sessions**: users
   active in the source project during a copy get in-flight queries killed.
 - **Disk gates**: Linux-only fail-open (`df` GNU flags); `checkSpaceForDataset`
@@ -334,7 +306,5 @@ currently internet-exposed behind a shared password, PLAN_HARDEN_SECURITY).
   `can_configure_users` but the route requires full admin (403 at click).
 - **Orphaned UUID project DBs accumulate on prod**: consider a sweep autonomic
   (see Production topology).
-- Cruft: empty `server/scripts/` dir; ~95 commented-out lines in
-  `add_project.tsx`; triplicated `TriStateCheckbox`; duplicate permission grid
-  in `display_project_user_role.tsx`; dead `BackupInfo` type and
+- Cruft: empty `server/scripts/` dir; dead `BackupInfo` type and
   `showCommingSoon` prop; untranslated central-reporting strings.

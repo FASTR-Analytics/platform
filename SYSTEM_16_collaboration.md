@@ -49,10 +49,11 @@ See the `globs:` frontmatter (the lint-enforced manifest) and the S16 row in
   live via a `collabBinding`. Chokepoints in `server/routes/project/
   presentation_objects.ts` route REST config writes through the live PO room.
   Since PLAN_PRODUCTS_RESTRUCTURE step 7a no client connects to the project
-  socket, so standalone visualization co-editing is dead until step 9a
-  removes the editor; the client store's `po_*` session half and the
-  project-level awareness half stay only for the surviving project tabs to
-  compile against.
+  socket, and since 9a no client opens a PO session: the standalone editor and
+  the page-cursor consumer of the project-level awareness are gone, the
+  client store's `po_*` session half is unreachable code until 9b deletes
+  the wire family, and the client no longer creates a project-level
+  awareness at all.
 - **Version history**: `server/collab/{version_tracker,version_capture}.ts`,
   the attribution ledgers `authorship.ts` (per-character report bodies, with
   tombstones) + `deck_session_ledger.ts` (per-slide / per-element decks),
@@ -603,24 +604,12 @@ and `pointerleave` each clear the pointer outright, so an unfocused tab holds
 no cursor at all; focus/visible re-broadcasts the resting position without
 waiting for a mouse move.
 
-**Project-level awareness: page cursors.** The project tab pages have no doc
-room, so their live cursors ride a dedicated PROJECT-scoped Awareness: one
-instance per `connectCollab` (`projectAwareness`), destroyed on
-`disconnectCollab`; local updates ship as `project_awareness_update`,
-re-announced on every socket (re)open (there is no subscribe to trigger
-catch-up). The server relays opaquely to every OTHER admitted connection
-(`relayProjectAwareness`: presence-class visibility; no doc, no persistence).
-Each tab page tags its content element with `data-page-cursor-surface`
-([page_cursors.tsx](client/src/components/_shared/cursors/page_cursors.tsx)).
-Coordinates: x normalized to the element width, y in content px against the
-element's OWN scrollTop. One formula covers self-scrolling card grids and
-content divs whose panther ancestor scrolls. Scope = tab plus the
-folder/grouping selection on the list tabs (different folders = different
-cards; cursors must not cross); a surface can override the scope via the
-attribute VALUE: the deck overview tags itself `deck:<id>` this way.
-Suppression is geometric, not signaled: every editor overlay hides page
-content via `display:none` → zero-size rect → both sides bail; z-50 modals
-are rejected by elementFromPoint containment in the pane helpers.
+**No project-level awareness on the client.** The list pages show no
+cursors: the project tab pages that rode a PROJECT-scoped Awareness
+(`project_awareness_update` / `project_awareness`) went in step 9a with their
+`page_cursors.tsx` consumer, and `connectCollab` no longer creates one. The
+server relay (`relayProjectAwareness`) and the two message types stay in the
+wire protocol until 9b deletes them; nothing sends them.
 
 **Chrome zones** (`data-cursor-zone`, shared by every surface family): header
 bars, side panels, tab navs and canvas surroundings are per-user
@@ -705,7 +694,7 @@ peer border appears only once text exists.
 
 ## AI integration
 
-- [presence_guard.ts](client/src/components/project_ai/ai_tools/validators/presence_guard.ts):
+- [presence_guard.ts](client/src/components/copilot/ai_tools/validators/presence_guard.ts):
   `assertSlidesNotBusy(slideIds)` throws (surfaced to the AI, relayed to its
   user) when any _other_ peer has a target slide open. Called by every
   slide-mutating AI tool; `create_slide`/`move_slides`/`duplicate_slides` are

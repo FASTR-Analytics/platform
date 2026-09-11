@@ -105,6 +105,6 @@ the `@timroberton/panther` / `"panther"` specifiers, never deep paths. Anything
 - **Dead code (zero importers):** `_IMAGE_DIMENSIONS` in `lib/consts.ts`.
 - **Cruft in `lib/types/instance.ts`:** `ProjectUser.role` is marked "delete
   after implementing new system". The permission flags shipped but the legacy
-  field still has ~6 live consumers (`projects.ts`, `users.ts`,
-  `add_project.tsx`, …), so deletion needs a consumer migration first; also the
+  field still has live server consumers (`projects.ts`, `users.ts`, …) until
+  step 9b deletes the project layer; also the
   commented-out `ItemsHolderDatasetAA2sAndIndicators` block.

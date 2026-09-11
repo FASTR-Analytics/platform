@@ -53,8 +53,8 @@ Two stores, same architecture, five files per level:
 | Types (state shape, SSE events)  | `lib/types/instance_sse.ts`                         | `lib/types/project_sse.ts`                    |
 | Server notifications             | `server/task_management/notify_instance_updated.ts` | `server/task_management/notify_project_v2.ts` |
 | Server SSE endpoint              | `server/routes/instance/instance-sse.ts`            | `server/routes/project/project-sse-v2.ts`     |
-| Client store + getters           | `client/src/state/instance/t1_store.ts`             | `client/src/state/project/t1_store.ts`        |
-| Client SSE connection + boundary | `client/src/state/instance/t1_sse.tsx`              | `client/src/state/project/t1_sse.tsx`         |
+| Client store + getters           | `client/src/state/instance/t1_store.ts`             | (deleted in step 9a)                          |
+| Client SSE connection + boundary | `client/src/state/instance/t1_sse.tsx`              | (deleted in step 9a)                          |
 
 **Write path: SSE only. NEVER write T1 state from components.** Component calls
 mutation API → server route handler mutates → calls `notifyInstanceUpdate(...)`
@@ -353,9 +353,6 @@ event notification without subscribing to the store:
   (`slides`) and for every row of `products_upserted` (`products`, the
   product's own stamp). Used by the slide and report editors to keep their
   optimistic-save timestamp fresh under collab checkpoints.
-- The same hook in `client/src/state/project/t1_sse.tsx` fires on the
-  project channel's `last_updated`; used by `project_ai/index.tsx` to feed
-  entity changes into the AI conversation until step 8.
 
 Returns a cleanup function; register in `onMount`, clean up in `onCleanup`.
 The instance channel also has the pair for generation telemetry
