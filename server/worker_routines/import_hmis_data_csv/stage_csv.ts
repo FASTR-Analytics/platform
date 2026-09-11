@@ -282,6 +282,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
   let sourceValidation: {
     total: number;
     sample: { source_id: string; row_count: number }[];
+    ids: string[];
     rowsDropped: number;
   };
   if (rowsAfterFacilityValidation > 0) {
@@ -314,13 +315,25 @@ CREATE UNLOGGED TABLE ${names.raw} (
         WHERE s.source_id = t.source_id
       )
     `;
+    // The whole set, not the sample: the needs_review hold offers to create
+    // an indicator for every one of them.
+    const unknownSourceIds = await importDb<{ source_id: string }[]>`
+      SELECT DISTINCT t.source_id
+      FROM ${importDb(names.validFacilities)} t
+      WHERE NOT EXISTS (
+        SELECT 1 FROM indicator_sources s
+        WHERE s.source_id = t.source_id
+      )
+      ORDER BY t.source_id
+    `;
     sourceValidation = {
       total: unknownSourcesTotal[0]?.total_invalid || 0,
       sample: unknownSourcesSample,
+      ids: unknownSourceIds.map((r) => r.source_id),
       rowsDropped: rowsDroppedBySource[0]?.count || 0,
     };
   } else {
-    sourceValidation = { total: 0, sample: [], rowsDropped: 0 };
+    sourceValidation = { total: 0, sample: [], ids: [], rowsDropped: 0 };
   }
 
   // Final staging table.

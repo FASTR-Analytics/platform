@@ -29,6 +29,7 @@ import {
   resolveDatasetHmisCsvReview,
   updateDatasetHmisScheduledImport,
   getInstanceDatasetsSummary,
+  getInstanceIndicatorsSummary,
 } from "../../db/mod.ts";
 import { getCsvDetails } from "../../server_only_funcs_csvs/get_csv_components.ts";
 import { getXlsxSheetNamesRaw } from "../../server_only_funcs_csvs/read_xlsx_raw.ts";
@@ -36,7 +37,10 @@ import { scanHfaDuplicates } from "../../server_only_funcs_csvs/scan_hfa_rows.ts
 import { resolveAssetFileOrThrow } from "../../db/instance/assets.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
-import { notifyInstanceDatasetsUpdated } from "../../task_management/notify_instance_updated.ts";
+import {
+  notifyInstanceDatasetsUpdated,
+  notifyInstanceIndicatorsUpdated,
+} from "../../task_management/notify_instance_updated.ts";
 import { _FETCH_CACHE_DATASET_HFA_ITEMS } from "../caches/dataset.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { validateDhis2Connection } from "../../dhis2/mod.ts";
@@ -447,6 +451,7 @@ defineRoute(
     const res = await resolveDatasetHmisCsvReview(c.var.mainDb, {
       runId: body.runId,
       action: body.action,
+      naming: body.naming,
       onComplete: async () => {
         notifyInstanceDatasetsUpdated(
           await getInstanceDatasetsSummary(c.var.mainDb),
@@ -457,6 +462,11 @@ defineRoute(
       notifyInstanceDatasetsUpdated(
         await getInstanceDatasetsSummary(c.var.mainDb),
       );
+      if (body.naming) {
+        notifyInstanceIndicatorsUpdated(
+          await getInstanceIndicatorsSummary(c.var.mainDb),
+        );
+      }
     }
     return c.json(res);
   },

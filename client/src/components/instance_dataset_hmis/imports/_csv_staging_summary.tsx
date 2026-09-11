@@ -149,7 +149,7 @@ export function CsvStagingSummary(p: Props) {
                 </div>
                 <Show when={validation().unknownSources.sample?.length}>
                   <div class="text-base-content ml-4 text-sm">
-                    <div class="mb-1">{t3({ en: "Sample unknown sources:", fr: "Exemples de sources inconnues :", pt: "Exemplos de fontes desconhecidas:" })}</div>
+                    <div class="mb-1">{t3({ en: "Most frequent unknown sources:", fr: "Sources inconnues les plus fréquentes :", pt: "Fontes desconhecidas mais frequentes:" })}</div>
                     <div class="font-mono">
                       {validation()
                         .unknownSources.sample.slice(0, 5)
@@ -160,6 +160,18 @@ export function CsvStagingSummary(p: Props) {
                         .join(", ")}
                     </div>
                   </div>
+                </Show>
+                <Show when={validation().unknownSources.ids} keyed>
+                  {(ids) => (
+                    <div class="text-base-content ml-4 text-sm">
+                      <div class="mb-1">
+                        {t3({ en: "All unknown sources", fr: "Toutes les sources inconnues", pt: "Todas as fontes desconhecidas" })} ({ids.length}):
+                      </div>
+                      <div class="max-h-40 overflow-auto font-mono text-xs break-all">
+                        {ids.join(", ")}
+                      </div>
+                    </div>
+                  )}
                 </Show>
               </Show>
             </div>

@@ -23,7 +23,8 @@ export type DatasetHmisCsvRunLaunchInput = {
 // file is an instance asset named by fileName, byte-pinned at launch
 // validation (see AssetFilePin). resumeFromStaging marks a needs_review run
 // resolved with "Integrate anyway": the worker skips the stage leg and
-// integrates the surviving per-run staging table.
+// integrates the surviving per-run staging table. A re-stage clears it, so
+// the run reads the asset again through the full stage leg.
 export type DatasetHmisCsvRunConfig = {
   fileName: string;
   filePin: AssetFilePin;
@@ -71,13 +72,17 @@ export type DatasetCsvStagingResult = {
       }>;
       rowsDropped: number;
     };
-    // Rows whose source id is no source of any indicator.
+    // Rows whose source id is no source of any indicator. `ids` is the
+    // full distinct set, sorted, so a needs_review hold can turn every one
+    // into an indicator and re-stage (PLAN_A3 ruling 6); absent on results
+    // staged before it was recorded.
     unknownSources: {
       total: number;
       sample: Array<{
         source_id: string;
         row_count: number;
       }>;
+      ids?: string[];
       rowsDropped: number;
     };
   };

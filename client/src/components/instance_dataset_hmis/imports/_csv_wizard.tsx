@@ -247,9 +247,9 @@ export function CsvWizard(
             ))}
             <div>
               {t3({
-                en: "Staging validates every row (periods, counts, facilities, sources). A fully clean file integrates automatically; dropped rows hold the import for your review before anything is merged.",
-                fr: "La préparation valide chaque ligne (périodes, valeurs, établissements, sources). Un fichier entièrement valide s'intègre automatiquement ; des lignes rejetées mettent l'importation en attente de votre vérification avant toute fusion.",
-                pt: "A preparação valida todas as linhas (períodos, valores, estabelecimentos, fontes). Um ficheiro totalmente válido integra-se automaticamente; linhas rejeitadas colocam a importação em espera para a sua revisão antes de qualquer fusão.",
+                en: "Staging validates every row (periods, counts, facilities, sources). A fully clean file integrates automatically; dropped rows hold the import for your review before anything is merged, where unknown source ids can be turned into indicators and the file staged again.",
+                fr: "La préparation valide chaque ligne (périodes, valeurs, établissements, sources). Un fichier entièrement valide s'intègre automatiquement ; des lignes rejetées mettent l'importation en attente de votre vérification avant toute fusion, où les identifiants de source inconnus peuvent devenir des indicateurs et le fichier être préparé à nouveau.",
+                pt: "A preparação valida todas as linhas (períodos, valores, estabelecimentos, fontes). Um ficheiro totalmente válido integra-se automaticamente; linhas rejeitadas colocam a importação em espera para a sua revisão antes de qualquer fusão, onde os IDs de fonte desconhecidos podem tornar-se indicadores e o ficheiro ser preparado de novo.",
               })}
             </div>
             <Show when={queueNotice()} keyed>

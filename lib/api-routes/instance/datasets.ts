@@ -22,6 +22,7 @@ import type {
   ItemsHolderDatasetHmisDisplay,
 } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
+import { indicatorNamingSourceSchema } from "./indicators.ts";
 
 const dhis2CredentialsSchema = z.object({
   url: z.string(),
@@ -263,12 +264,28 @@ export const datasetRouteRegistry = {
     body: z.object({ config: hmisCsvRunConfigSchema }),
     response: {} as { runId: number },
   }),
+  // "restage" relaunches the held run through the full stage leg, after
+  // saving the naming step in `naming` when one is given (PLAN_A3 ruling
+  // 6: the unknown ids become indicators first).
   resolveDatasetHmisCsvReview: route({
     path: "/datasets/hmis/csv-runs/resolve-review",
     method: "POST",
     body: z.object({
       runId: z.number().int(),
-      action: z.enum(["integrate_anyway", "discard"]),
+      action: z.enum(["integrate_anyway", "discard", "restage"]),
+      naming: z
+        .object({
+          sources: z.array(indicatorNamingSourceSchema),
+          derived: z.array(
+            z.object({
+              indicator_id: z.string(),
+              label: z.string(),
+              expression: z.string(),
+              format_as: z.enum(["percent", "number", "rate_per_10k"]),
+            }),
+          ),
+        })
+        .optional(),
     }),
   }),
 

@@ -23,13 +23,14 @@ import {
   type Dhis2RunSelection,
   type Dhis2RunSelectionInput,
   type Dhis2RunSelectionSummary,
+  type IndicatorNamingInput,
 } from "lib";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import { instantiateImportHmisDataDhis2Worker } from "../../worker_routines/import_hmis_data_dhis2/instantiate_worker.ts";
 import { instantiateImportHmisDataCsvWorker } from "../../worker_routines/import_hmis_data_csv/instantiate_worker.ts";
 import { dropHmisCsvStagingTables } from "../../worker_routines/import_hmis_data_csv/stage_csv.ts";
 import { resolveAssetFileOrThrow } from "./assets.ts";
-import { getIndicatorsWithSources } from "./indicators.ts";
+import { applyIndicatorNaming, getIndicatorsWithSources } from "./indicators.ts";
 import {
   clearWorker,
   getWorker,
@@ -786,12 +787,17 @@ export async function launchQueuedDatasetHmisCsvImportRun(
 
 // needs_review resolution. "Integrate anyway" re-claims the slot (or queues
 // explicitly behind a running import, the §2 ruled change: a hold never
-// blocks the lane); "Discard" cancels and drops the surviving staging table.
+// blocks the lane) and integrates the surviving staging table; "Restage"
+// saves the naming step first when one is given, then re-claims or queues
+// the same run through the full stage leg (the asset is read again and its
+// pin re-checked at spawn); "Discard" cancels and drops the surviving
+// staging table.
 export async function resolveDatasetHmisCsvReview(
   mainDb: Sql,
   args: {
     runId: number;
-    action: "integrate_anyway" | "discard";
+    action: "integrate_anyway" | "discard" | "restage";
+    naming?: IndicatorNamingInput;
     onComplete?: () => void;
   },
 ): Promise<APIResponseNoData> {
@@ -810,9 +816,9 @@ export async function resolveDatasetHmisCsvReview(
     if (row.status !== "needs_review") {
       throw new Error("This run is not waiting for review.");
     }
-    const config = parseJsonOrThrow<DatasetHmisCsvRunConfig>(
-      row.csv_config ?? "",
-    );
+    const { resumeFromStaging: _resume, ...config } = parseJsonOrThrow<
+      DatasetHmisCsvRunConfig
+    >(row.csv_config ?? "");
 
     if (args.action === "discard") {
       const updated = await mainDb`
@@ -828,10 +834,22 @@ export async function resolveDatasetHmisCsvReview(
       return { success: true };
     }
 
-    const resumeConfig: DatasetHmisCsvRunConfig = {
-      ...config,
-      resumeFromStaging: true,
-    };
+    if (args.action === "restage" && args.naming) {
+      // The indicators land whether or not the relaunch below succeeds:
+      // they are wanted either way, and a refused naming leaves the hold
+      // untouched.
+      const named = await applyIndicatorNaming(mainDb, args.naming);
+      if (!named.success) {
+        return named;
+      }
+    }
+
+    const nextConfig: DatasetHmisCsvRunConfig = args.action === "restage"
+      ? config
+      : { ...config, resumeFromStaging: true };
+    const progress: DatasetHmisImportRunProgress = args.action === "restage"
+      ? { phase: "staging", percent: 0 }
+      : { phase: "integrating", percent: 0 };
 
     // Try to re-claim the slot directly; a unique violation (another import
     // running) queues the run instead: the tick fires it when free.
@@ -840,8 +858,8 @@ export async function resolveDatasetHmisCsvReview(
       const claimed = await mainDb`
         UPDATE dataset_hmis_import_runs
         SET status = 'running', started_at = now(),
-          csv_config = ${JSON.stringify(resumeConfig)},
-          progress = ${JSON.stringify({ phase: "integrating", percent: 0 })}
+          csv_config = ${JSON.stringify(nextConfig)},
+          progress = ${JSON.stringify(progress)}
         WHERE id = ${args.runId} AND status = 'needs_review'
       `;
       claimedCount = claimed.count;
@@ -862,7 +880,7 @@ export async function resolveDatasetHmisCsvReview(
       await mainDb`
         UPDATE dataset_hmis_import_runs
         SET status = 'queued', progress = NULL,
-          csv_config = ${JSON.stringify(resumeConfig)}
+          csv_config = ${JSON.stringify(nextConfig)}
         WHERE id = ${args.runId} AND status = 'needs_review'
       `;
       return { success: true };
