@@ -108,7 +108,14 @@ history). Shape:
   >0 rows staged → auto-integrate unattended; dropped rows → `needs_review`
   with diagnostics on the run row, **releasing the running slot** (the
   per-run table survives the hold; "Integrate anyway" re-claims, or queues;
-  "Discard" cancels and drops it); zero staged rows → loud `error`. The
+  "Discard" cancels and drops it; "Create indicators for the unknown ids
+  and re-stage" saves the naming step over the hold's full unknown-id set
+  through S5's `applyIndicatorNaming`, then relaunches the SAME run through
+  the full stage leg with the same claim-or-queue logic: `csv_config`
+  without `resumeFromStaging`, so the spawn reads the asset again and
+  re-checks its pin, and staging pre-drops the surviving table; a refused
+  naming leaves the hold untouched, and indicators that were created stay
+  even if the relaunch fails); zero staged rows → loud `error`. The
   integrate leg is the old single-transaction CSV merge unchanged; the
   version link and the `complete` flip land together as the transaction's
   last statement (readers hide a running run's version; a committed one is
@@ -253,7 +260,8 @@ start.
   in `server/db/utils.ts`, HMIS/structure inline).
 - Row-level validation counts and samples drops (on the run row); reference
   validation (facility exists; the row's source id is a source of some
-  indicator, else `unknownSources`) runs at staging, and the facility check
+  indicator, else `unknownSources`, whose `ids` is the full distinct set
+  beside the ten-row sample) runs at staging, and the facility check
   again at integration (facilities can be deleted between phases; the
   facility FKs are RESTRICT). The CSV mapping names the source column
   `source_id`; the per-run staging tables carry that column.
@@ -359,7 +367,9 @@ attention), that one button, and `Delete data` (HFA also `Manage time
 points`); no wizard shortcuts, no heading (ruled). The surface's toolbar owns
 the actions; no attempt cards anywhere. The runs query polls every 2 s while
 a run is active, needs_review runs render as Current cards with the staging
-diagnostics + Integrate-anyway/Discard, History rows click through to a run
+diagnostics + Integrate anyway / Create indicators for the unknown ids and
+re-stage (S5's naming step in a modal, shown when the diagnostics carry
+the id set) / Discard, History rows click through to a run
 detail, and the wizard is a client-local modal (nothing persists before
 launch). Every wizard file slot is S4's `FileUploadSelector`: upload a new
 file or pick an existing instance asset; either way the wizard holds an asset

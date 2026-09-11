@@ -271,10 +271,30 @@ ids against live metadata at run time. The manager (`indicators_manager.tsx`)
 is one table with a Type column, a base's sources listed under it, a
 "Special" badge, and a reference modal listing the special ids and the
 reserved words. The editor (`_edit_indicator.tsx`) writes a base's sources
-in the indicator's own transaction (`createIndicators`, `updateIndicator`);
-the DHIS2 select form creates one base per selected element with the
-generated id and the element as its sole source (PLAN_A3 step 5 turns it
-into the naming step). A new database is seeded with the **special
+in the indicator's own transaction (`createIndicators`, `updateIndicator`).
+Both import paths create indicators through one **naming step**
+(`_naming_step.tsx`, PLAN_A3 ruling 6): each candidate source (a DHIS2
+element or operand, or a CSV column id) shows a proposed id from
+`generateIndicatorId`, editable inline, or "Add to an existing indicator";
+a candidate that is already a source keeps its owner; several candidates
+given the same new id become one base. The DHIS2 select form
+(`dhis2_indicator_select_form.tsx`) refuses ineligible elements and
+indicators in the search results with the reason (S7's verdict and
+decomposition, worded by `describeDhis2SourceRefusal` /
+`describeDhis2ParseRefusal`), then names the selection: an element or
+operand is a source, a DHIS2 indicator is a derived row over the bases its
+operands become, with the formula previewed over the ids being chosen.
+Save posts to `/indicators-dhis2/create`, which re-reads every element and
+indicator from DHIS2 and judges them itself before
+`createIndicatorsFromDhis2` calls `applyIndicatorNaming`: new bases
+grouped by chosen id, sources added to existing bases, derived indicators
+with their expressions rewritten from source ids to the bases those
+sources land in (`renameIdentifiers`), all under `createIndicators`'
+pre-checks in one transaction, so a refused element or indicator creates
+nothing. A CSV hold's unknown ids go through the same component and
+`applyIndicatorNaming` (S6). Pinned by
+`server/tests/indicator_naming_test.ts` on a throwaway database built from
+the base schema. A new database is seeded with the **special
 indicators**, `SPECIAL_INDICATORS` in `lib/special_indicators.ts`: the
 hand-kept list of count ids the registry module scripts read by literal
 id, each inserted as an empty base; nothing marks them after, so an
@@ -555,7 +575,7 @@ pointers only. Consequences that follow from it and are ruled with it:
 - DHIS2 percent indicators are never imported as values. The importer
   decomposes `numerator`/`denominator` (already on `DHIS2Indicator`) into
   data-element operands → sources of base indicators, and authors the
-  indicator as a `derived` common (S7 parses; PLAN_A3 step 5 creates);
+  indicator as a `derived` common (S7 parses; the naming step creates);
   a yearly denominator DE is refused (the population store is written by
   hand). Expressions it cannot decompose (`R{}`, `OUG{}`, `C{}`, program
   indicators, `d2:` functions) are refused, not approximated.
@@ -790,6 +810,11 @@ Every config mutation re-reads all configs and pushes one consolidated
   its label, kind (indicator / population) and a "not found" mark, driven by
   the same resolver the form validates with, and shows the annualisation
   caption whenever a population term is present.
+- The naming step's state is a Solid store the host owns
+  (`createNamingState` seeds it once from the dictionary as loaded, so
+  the user's edits are never re-seeded away); `namingIssues` states every
+  refusal the server would make and disables the save while any stands;
+  `namingInputFromState` is what the host posts.
 - Computability in the manager is shown, never enforced. The list has a
   Status column fed by one `createMemo` over the loaded dictionary calling
   `judgeDerivedIndicators` (lib), so a source edit updates it through the
