@@ -3,9 +3,14 @@ import {
   APIResponseNoData,
   APIResponseWithData,
   buildExpressionDictionary,
+  collectIdentifiers,
   type CommonIndicator,
   type CommonIndicatorDefinition,
+  describeDhis2ParseRefusal,
+  describeDhis2SourceRefusal,
   describeNewIndicatorIdIssue,
+  type Dhis2IndicatorDecomposition,
+  type Dhis2SourceVerdict,
   type ExpressionDictionaryEntry,
   getNewIndicatorIdIssue,
   getNewSourceIdIssue,
@@ -14,15 +19,21 @@ import {
   INDICATOR_BATCH_SOURCES_SEPARATOR,
   IndicatorExpressionError,
   type IndicatorFormat,
+  type IndicatorNamingInput,
+  type IndicatorNamingSource,
   type IndicatorSource,
   type IndicatorWithSources,
   type InstanceIndicatorDetails,
   isCommonIndicatorType,
   MAX_INDICATOR_EXPRESSION_INGREDIENTS,
+  parseIndicatorExpression,
   POPULATION_TYPE_IDS,
+  renameIdentifiers,
   resolveIndicatorExpression,
+  t3,
   type ThresholdsRule,
   thresholdsRuleSchema,
+  writeIndicatorExpression,
 } from "lib";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
 import { resolveAssetFilePath } from "./assets.ts";
@@ -378,127 +389,355 @@ async function writeSources(
   }
 }
 
-// Creates indicators, each with its sources, in one transaction. Every id
-// goes through the validator (ruling 5): a reserved word is refused, a
-// special id is accepted for a base and refused for a derived, a source id
-// keeps the charset rule only.
-export async function createIndicators(
+type Attachment = { indicator_id: string; source: IndicatorSource };
+
+// The pre-checks every create shares (ruling 5): each id through the
+// validator (a reserved word refused, a special id accepted for a base and
+// refused for a derived), source ids on the charset rule, the format and
+// sources rules, no id twice or already taken, no source listed twice or
+// owned by an indicator other than its target, and every expression
+// resolving against the dictionary the write would leave.
+async function checkIndicatorWrites(
   mainDb: Sql,
   indicators: NewIndicator[],
-): Promise<APIResponseWithData<{ created: number }>> {
-  return await tryCatchDatabaseAsync(async () => {
-    for (const indicator of indicators) {
-      const idIssue = getNewIndicatorIdIssue(
-        indicator.indicator_common_id,
-        indicator.definition.type,
-      );
-      if (idIssue) {
-        return {
-          success: false,
-          err: `Invalid indicator ID ${
-            JSON.stringify(indicator.indicator_common_id)
-          }: ${describeNewIndicatorIdIssue(idIssue)}`,
-        };
-      }
-      const issues = sourceIdIssues(indicator.sources);
-      if (issues.length > 0) {
-        return { success: false, err: issues.join("; ") };
-      }
-      const err = formatRuleError(indicator.definition, indicator.format_as) ??
-        sourcesRuleError(indicator.definition, indicator.sources);
-      if (err) {
-        return { success: false, err: `${indicator.indicator_common_id}: ${err}` };
-      }
+  attachments: Attachment[],
+): Promise<string | undefined> {
+  for (const indicator of indicators) {
+    const idIssue = getNewIndicatorIdIssue(
+      indicator.indicator_common_id,
+      indicator.definition.type,
+    );
+    if (idIssue) {
+      return `Invalid indicator ID ${
+        JSON.stringify(indicator.indicator_common_id)
+      }: ${describeNewIndicatorIdIssue(idIssue)}`;
     }
-
-    const ids = indicators.map((i) => i.indicator_common_id);
-    const duplicateIds = ids.filter((id, index) => ids.indexOf(id) !== index);
-    if (duplicateIds.length > 0) {
-      return {
-        success: false,
-        err: `Duplicate indicator IDs in request: ${duplicateIds.join(", ")}`,
-      };
+    const issues = sourceIdIssues(indicator.sources);
+    if (issues.length > 0) {
+      return issues.join("; ");
     }
+    const err = formatRuleError(indicator.definition, indicator.format_as) ??
+      sourcesRuleError(indicator.definition, indicator.sources);
+    if (err) {
+      return `${indicator.indicator_common_id}: ${err}`;
+    }
+  }
+  const attachmentIssues = sourceIdIssues(attachments.map((a) => a.source));
+  if (attachmentIssues.length > 0) {
+    return attachmentIssues.join("; ");
+  }
 
+  const ids = indicators.map((i) => i.indicator_common_id);
+  const duplicateIds = ids.filter((id, index) => ids.indexOf(id) !== index);
+  if (duplicateIds.length > 0) {
+    return `Duplicate indicator IDs in request: ${duplicateIds.join(", ")}`;
+  }
+
+  if (ids.length > 0) {
     const existingIds = await mainDb<{ indicator_common_id: string }[]>`
       SELECT indicator_common_id FROM indicators
       WHERE indicator_common_id = ANY(${ids})
     `;
     if (existingIds.length > 0) {
-      return {
-        success: false,
-        err: `Indicators already exist: ${
-          existingIds.map((row) => row.indicator_common_id).join(", ")
+      return `Indicators already exist: ${
+        existingIds.map((row) => row.indicator_common_id).join(", ")
+      }`;
+    }
+  }
+
+  const allSourceIds = [
+    ...indicators.flatMap((i) => i.sources.map((s) => s.source_id)),
+    ...attachments.map((a) => a.source.source_id),
+  ];
+  const duplicateSources = allSourceIds.filter((id, index) =>
+    allSourceIds.indexOf(id) !== index
+  );
+  if (duplicateSources.length > 0) {
+    return `A source belongs to exactly one base indicator; these appear more than once: ${
+      duplicateSources.join(", ")
+    }`;
+  }
+  const owned = (await sourcesOwnedElsewhere(mainDb, allSourceIds, new Set()))
+    .filter((row) =>
+      !attachments.some((a) =>
+        a.source.source_id === row.source_id &&
+        a.indicator_id === row.indicator_id
+      )
+    );
+  if (owned.length > 0) {
+    return describeOwnedElsewhere(owned);
+  }
+
+  return await checkDefinitionsResolve(
+    mainDb,
+    new Map(indicators.map((i) => [i.indicator_common_id, i.definition])),
+  );
+}
+
+// All-or-nothing: one failed item aborts the whole Postgres transaction
+// (every later statement fails with "transaction is aborted"), so per-item
+// catch-and-continue can never deliver partial success. The rethrow
+// decorates the error with the item that caused it.
+async function insertIndicators(
+  sql: Sql,
+  indicators: NewIndicator[],
+): Promise<void> {
+  let sortOrder = (
+    await sql<{ next: number }[]>`
+      SELECT COALESCE(MAX(sort_order), 0) + 1 AS next FROM indicators
+    `
+  )[0].next;
+  for (const indicator of indicators) {
+    try {
+      const d = definitionFields(indicator.definition);
+      await sql`
+        INSERT INTO indicators (
+          indicator_common_id, indicator_common_label,
+          definition_type, expression,
+          format_as, thresholds, sort_order, updated_at
+        )
+        VALUES (
+          ${indicator.indicator_common_id}, ${indicator.indicator_common_label},
+          ${d.definition_type}, ${d.expression},
+          ${indicator.format_as},
+          ${thresholdsToDb(indicator.thresholds)},
+          ${sortOrder++}, CURRENT_TIMESTAMP
+        )
+      `;
+      await writeSources(sql, indicator.indicator_common_id, indicator.sources);
+    } catch (error) {
+      throw new Error(
+        `${indicator.indicator_common_id}: ${
+          error instanceof Error ? error.message : "Unknown error"
         }`,
+      );
+    }
+  }
+}
+
+// Creates indicators, each with its sources, in one transaction.
+export async function createIndicators(
+  mainDb: Sql,
+  indicators: NewIndicator[],
+): Promise<APIResponseWithData<{ created: number }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const err = await checkIndicatorWrites(mainDb, indicators, []);
+    if (err) {
+      return { success: false, err };
+    }
+    await mainDb.begin((sql) => insertIndicators(sql, indicators));
+    return { success: true, data: { created: indicators.length } };
+  });
+}
+
+// =============================================================================
+// THE NAMING STEP (PLAN_A3 ruling 6)
+// =============================================================================
+
+type NamingPlan =
+  | { ok: true; indicators: NewIndicator[]; attachments: Attachment[] }
+  | { ok: false; err: string };
+
+// What the naming step's choices amount to: one new base per distinct new
+// id (its sources are every candidate that named it, its label the first
+// one's), one attachment per candidate added to an existing base, and each
+// derived with its expression rewritten from source ids to the base ids
+// those sources land in. A source already under its target base is nothing
+// to write.
+async function planIndicatorNaming(
+  mainDb: Sql,
+  input: IndicatorNamingInput,
+): Promise<NamingPlan> {
+  const existing = await getIndicatorsWithSources(mainDb);
+  const existingById = new Map(existing.map((i) => [i.indicator_common_id, i]));
+  const newBases = new Map<string, { label: string; sources: IndicatorSource[] }>();
+  const attachments: Attachment[] = [];
+  const baseOf = new Map<string, string>();
+  for (const { target, ...source } of input.sources) {
+    baseOf.set(source.source_id, target.indicator_id);
+    if (target.kind === "new") {
+      if (existingById.has(target.indicator_id)) {
+        return {
+          ok: false,
+          err: `Indicator ${
+            JSON.stringify(target.indicator_id)
+          } already exists; add ${source.source_id} to it as a source instead of creating it.`,
+        };
+      }
+      const base = newBases.get(target.indicator_id) ??
+        { label: target.label, sources: [] };
+      base.sources.push(source);
+      newBases.set(target.indicator_id, base);
+      continue;
+    }
+    const owner = existingById.get(target.indicator_id);
+    if (owner === undefined) {
+      return {
+        ok: false,
+        err: `Indicator ${
+          JSON.stringify(target.indicator_id)
+        } does not exist, so ${source.source_id} cannot be added to it.`,
       };
     }
-
-    const allSourceIds = indicators.flatMap((i) =>
-      i.sources.map((s) => s.source_id)
-    );
-    const duplicateSources = allSourceIds.filter((id, index) =>
-      allSourceIds.indexOf(id) !== index
-    );
-    if (duplicateSources.length > 0) {
+    if (owner.definition.type !== "base") {
       return {
-        success: false,
-        err: `A source belongs to exactly one base indicator; these appear more than once: ${
-          duplicateSources.join(", ")
-        }`,
+        ok: false,
+        err: `Indicator ${
+          JSON.stringify(target.indicator_id)
+        } is derived; a source can only be added to a base indicator.`,
       };
     }
-    const owned = await sourcesOwnedElsewhere(mainDb, allSourceIds, new Set());
-    if (owned.length > 0) {
-      return { success: false, err: describeOwnedElsewhere(owned) };
+    if (owner.sources.some((s) => s.source_id === source.source_id)) {
+      continue;
     }
+    attachments.push({ indicator_id: target.indicator_id, source });
+  }
 
-    const definitionErr = await checkDefinitionsResolve(
+  const indicators: NewIndicator[] = [...newBases].map(([id, base]) => ({
+    indicator_common_id: id,
+    indicator_common_label: base.label,
+    sources: base.sources,
+    definition: { type: "base" },
+    format_as: "number",
+    thresholds: null,
+  }));
+  for (const derived of input.derived) {
+    let expression: string;
+    try {
+      const node = parseIndicatorExpression(derived.expression);
+      const unnamed = collectIdentifiers(node).filter((id) => !baseOf.has(id));
+      if (unnamed.length > 0) {
+        return {
+          ok: false,
+          err: `${derived.indicator_id}: its formula names sources that were not named: ${
+            unnamed.join(", ")
+          }`,
+        };
+      }
+      expression = writeIndicatorExpression(
+        renameIdentifiers(node, Object.fromEntries(baseOf)),
+      );
+    } catch (e) {
+      if (!(e instanceof IndicatorExpressionError)) throw e;
+      return { ok: false, err: `${derived.indicator_id}: ${e.message}` };
+    }
+    indicators.push({
+      indicator_common_id: derived.indicator_id,
+      indicator_common_label: derived.label,
+      sources: [],
+      definition: { type: "derived", expression },
+      format_as: derived.format_as,
+      thresholds: null,
+    });
+  }
+  return { ok: true, indicators, attachments };
+}
+
+// Saves a naming step in one transaction: the new bases with their sources,
+// the sources added to existing bases, and the derived indicators over
+// them. Every pre-check of createIndicators applies, so either everything
+// lands or nothing does.
+export async function applyIndicatorNaming(
+  mainDb: Sql,
+  input: IndicatorNamingInput,
+): Promise<APIResponseWithData<{ created: number; attached: number }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const plan = await planIndicatorNaming(mainDb, input);
+    if (!plan.ok) {
+      return { success: false, err: plan.err };
+    }
+    const err = await checkIndicatorWrites(
       mainDb,
-      new Map(indicators.map((i) => [i.indicator_common_id, i.definition])),
+      plan.indicators,
+      plan.attachments,
     );
-    if (definitionErr) {
-      return { success: false, err: definitionErr };
+    if (err) {
+      return { success: false, err };
     }
-
-    // All-or-nothing: one failed item aborts the whole Postgres transaction
-    // (every later statement fails with "transaction is aborted"), so
-    // per-item catch-and-continue can never deliver partial success. The
-    // rethrow decorates the error with the item that caused it.
     await mainDb.begin(async (sql) => {
-      let sortOrder = (
-        await sql<{ next: number }[]>`
-          SELECT COALESCE(MAX(sort_order), 0) + 1 AS next FROM indicators
-        `
-      )[0].next;
-      for (const indicator of indicators) {
-        try {
-          const d = definitionFields(indicator.definition);
-          await sql`
-            INSERT INTO indicators (
-              indicator_common_id, indicator_common_label,
-              definition_type, expression,
-              format_as, thresholds, sort_order, updated_at
-            )
-            VALUES (
-              ${indicator.indicator_common_id}, ${indicator.indicator_common_label},
-              ${d.definition_type}, ${d.expression},
-              ${indicator.format_as},
-              ${thresholdsToDb(indicator.thresholds)},
-              ${sortOrder++}, CURRENT_TIMESTAMP
-            )
-          `;
-          await writeSources(sql, indicator.indicator_common_id, indicator.sources);
-        } catch (error) {
-          throw new Error(
-            `${indicator.indicator_common_id}: ${
-              error instanceof Error ? error.message : "Unknown error"
-            }`,
-          );
-        }
+      await insertIndicators(sql, plan.indicators);
+      for (const a of plan.attachments) {
+        await writeSources(sql, a.indicator_id, [a.source]);
       }
     });
+    return {
+      success: true,
+      data: {
+        created: plan.indicators.length,
+        attached: plan.attachments.length,
+      },
+    };
+  });
+}
 
-    return { success: true, data: { created: indicators.length } };
+export type Dhis2NamingSource = IndicatorNamingSource & {
+  verdict: Dhis2SourceVerdict;
+};
+
+export type Dhis2NamingIndicator = {
+  dhis2_id: string;
+  indicator_id: string;
+  label: string;
+  decomposition: Dhis2IndicatorDecomposition;
+};
+
+// The DHIS2 select form's save (rulings 6 and 8): the verdicts and
+// decompositions are the server's own, computed by the route against live
+// DHIS2 metadata, never the client's. A refused element or indicator
+// refuses the whole save; an accepted indicator becomes a derived over the
+// bases its operands land in.
+export async function createIndicatorsFromDhis2(
+  mainDb: Sql,
+  input: { sources: Dhis2NamingSource[]; indicators: Dhis2NamingIndicator[] },
+): Promise<APIResponseWithData<{ created: number; attached: number }>> {
+  const named = new Set(input.sources.map((s) => s.source_id));
+  for (const source of input.sources) {
+    if (!source.verdict.accepted) {
+      return {
+        success: false,
+        err: `${source.source_id} cannot be a source: ${
+          t3(describeDhis2SourceRefusal(source.verdict.refusal))
+        }`,
+      };
+    }
+  }
+  const derived: IndicatorNamingInput["derived"] = [];
+  for (const indicator of input.indicators) {
+    const { parse, operands } = indicator.decomposition;
+    if (!parse.accepted) {
+      return {
+        success: false,
+        err: `DHIS2 indicator ${indicator.dhis2_id} cannot be decomposed: ${
+          t3(describeDhis2ParseRefusal(parse.refusal))
+        }`,
+      };
+    }
+    for (const operand of operands) {
+      if (!operand.verdict.accepted) {
+        return {
+          success: false,
+          err: `DHIS2 indicator ${indicator.dhis2_id}: operand ${operand.source_id} cannot be a source: ${
+            t3(describeDhis2SourceRefusal(operand.verdict.refusal))
+          }`,
+        };
+      }
+      if (!named.has(operand.source_id)) {
+        return {
+          success: false,
+          err: `DHIS2 indicator ${indicator.dhis2_id}: operand ${operand.source_id} was not named`,
+        };
+      }
+    }
+    derived.push({
+      indicator_id: indicator.indicator_id,
+      label: indicator.label,
+      expression: parse.expression,
+      format_as: parse.format_as,
+    });
+  }
+  return await applyIndicatorNaming(mainDb, {
+    sources: input.sources.map(({ verdict: _verdict, ...source }) => source),
+    derived,
   });
 }
 

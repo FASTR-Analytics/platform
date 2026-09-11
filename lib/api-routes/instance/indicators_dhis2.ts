@@ -4,6 +4,7 @@ import type {
   Dhis2IndicatorSearchItem,
 } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
+import { indicatorNamingSourceSchema } from "./indicators.ts";
 
 const dhis2CredentialsSchema = z.object({
   url: z.string(),
@@ -51,6 +52,25 @@ export const indicatorsDhis2RouteRegistry = {
       dataElements: Dhis2DataElementSearchItem[];
       indicators: Dhis2IndicatorSearchItem[];
     },
+  }),
+  // The naming step's save (PLAN_A3 rulings 6 and 8): the server re-reads
+  // every element and indicator from DHIS2, judges them itself, and creates
+  // everything in one transaction or nothing.
+  createIndicatorsFromDhis2: route({
+    path: "/indicators-dhis2/create",
+    method: "POST",
+    body: z.object({
+      credentialsSource: dhis2RunCredentialsSourceSchema,
+      sources: z.array(indicatorNamingSourceSchema),
+      indicators: z.array(
+        z.object({
+          dhis2_id: z.string(),
+          indicator_id: z.string(),
+          label: z.string(),
+        }),
+      ),
+    }),
+    response: {} as { created: number; attached: number },
   }),
   testDhis2IndicatorsConnection: route({
     path: "/indicators-dhis2/test-connection",

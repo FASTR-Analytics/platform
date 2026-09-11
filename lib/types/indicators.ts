@@ -378,6 +378,121 @@ export type Dhis2IndicatorSearchItem = DHIS2Indicator & {
   decomposition: Dhis2IndicatorDecomposition;
 };
 
+export function describeDhis2SourceRefusal(
+  refusal: Dhis2SourceRefusal,
+): TranslatableString {
+  switch (refusal.kind) {
+    case "aggregation_type":
+      return {
+        en: `its aggregation type is ${refusal.value ?? "not set"}, not SUM`,
+        fr: `son type d'agrégation est ${refusal.value ?? "non défini"}, pas SUM`,
+        pt: `o seu tipo de agregação é ${refusal.value ?? "não definido"}, não SUM`,
+      };
+    case "value_type":
+      return {
+        en: `its value type is ${refusal.value ?? "not set"}, not a count`,
+        fr: `son type de valeur est ${refusal.value ?? "non défini"}, pas un dénombrement`,
+        pt: `o seu tipo de valor é ${refusal.value ?? "não definido"}, não uma contagem`,
+      };
+    case "period_type":
+      return refusal.value === undefined
+        ? {
+          en: "it is in no data set, so it has no period type",
+          fr: "il n'appartient à aucun ensemble de données et n'a donc pas de type de période",
+          pt: "não pertence a nenhum conjunto de dados, pelo que não tem tipo de período",
+        }
+        : {
+          en: `its data sets are ${refusal.value}; none is monthly`,
+          fr: `ses ensembles de données sont ${refusal.value} ; aucun n'est mensuel`,
+          pt: `os seus conjuntos de dados são ${refusal.value}; nenhum é mensal`,
+        };
+    case "element_not_found":
+      return {
+        en: "its data element no longer exists on the DHIS2 server",
+        fr: "son élément de données n'existe plus sur le serveur DHIS2",
+        pt: "o seu elemento de dados já não existe no servidor DHIS2",
+      };
+  }
+}
+
+export function describeDhis2ParseRefusal(
+  refusal: Dhis2IndicatorParseRefusal,
+): TranslatableString {
+  const side = (s: "numerator" | "denominator") =>
+    s === "numerator"
+      ? { en: "numerator", fr: "numérateur", pt: "numerador" }
+      : { en: "denominator", fr: "dénominateur", pt: "denominador" };
+  switch (refusal.kind) {
+    case "annualized":
+      return {
+        en: "it is annualized",
+        fr: "il est annualisé",
+        pt: "é anualizado",
+      };
+    case "factor":
+      return {
+        en: `its factor is ${refusal.value ?? "not set"}; only 1, 100, 1000 and 10000 are supported`,
+        fr: `son facteur est ${refusal.value ?? "non défini"} ; seuls 1, 100, 1000 et 10000 sont pris en charge`,
+        pt: `o seu fator é ${refusal.value ?? "não definido"}; apenas 1, 100, 1000 e 10000 são suportados`,
+      };
+    case "empty":
+      return {
+        en: `its ${side(refusal.side).en} is empty`,
+        fr: `son ${side(refusal.side).fr} est vide`,
+        pt: `o seu ${side(refusal.side).pt} está vazio`,
+      };
+    case "term":
+      return {
+        en: `its ${side(refusal.side).en} contains ${refusal.term}, which is outside the supported formula forms`,
+        fr: `son ${side(refusal.side).fr} contient ${refusal.term}, qui n'est pas une forme de formule prise en charge`,
+        pt: `o seu ${side(refusal.side).pt} contém ${refusal.term}, que está fora das formas de fórmula suportadas`,
+      };
+    case "syntax":
+      return {
+        en: `its ${side(refusal.side).en} could not be read at ${refusal.term}`,
+        fr: `son ${side(refusal.side).fr} n'a pas pu être lu à ${refusal.term}`,
+        pt: `o seu ${side(refusal.side).pt} não pôde ser lido em ${refusal.term}`,
+      };
+    case "too_many_operands":
+      return {
+        en: `it has ${refusal.count} distinct operands; at most ${refusal.max} are supported`,
+        fr: `il a ${refusal.count} opérandes distincts ; au plus ${refusal.max} sont pris en charge`,
+        pt: `tem ${refusal.count} operandos distintos; no máximo ${refusal.max} são suportados`,
+      };
+  }
+}
+
+// ============================================================================
+// The naming step (PLAN_A3 ruling 6)
+// ============================================================================
+
+// What a candidate source becomes when the naming step is saved: the source
+// of a NEW base under the id chosen there, or one more source of an existing
+// base. Several candidates naming the same new id become one base with all
+// of those sources.
+export type IndicatorNamingTarget =
+  | { kind: "new"; indicator_id: string; label: string }
+  | { kind: "attach"; indicator_id: string };
+
+export type IndicatorNamingSource = IndicatorSource & {
+  target: IndicatorNamingTarget;
+};
+
+// A derived indicator authored over candidate sources: its expression names
+// each source by source_id, and the transaction rewrites every identifier
+// to the base that source lands in.
+export type IndicatorNamingDerived = {
+  indicator_id: string;
+  label: string;
+  expression: string;
+  format_as: IndicatorFormat;
+};
+
+export type IndicatorNamingInput = {
+  sources: IndicatorNamingSource[];
+  derived: IndicatorNamingDerived[];
+};
+
 export interface DHIS2PagedResponse {
   pager?: {
     page: number;

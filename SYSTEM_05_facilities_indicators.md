@@ -48,6 +48,7 @@ globs:
   - server/routes/instance/structure.ts
   - server/server_only_funcs_importing/**
   - server/tests/indicator_id_test.ts
+  - server/tests/indicator_naming_test.ts
   - server/tests/indicator_sources_migration_test.ts
 docs_absorbed:
 ---

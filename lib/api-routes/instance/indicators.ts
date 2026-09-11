@@ -30,6 +30,21 @@ const indicatorItemSchema = z.object({
   thresholds: thresholdsRuleSchema.nullable(),
 });
 
+// The naming step's choice for one candidate source (PLAN_A3 ruling 6):
+// shared by the DHIS2 create route and the CSV re-stage action.
+export const indicatorNamingTargetSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("new"),
+    indicator_id: z.string(),
+    label: z.string(),
+  }),
+  z.object({ kind: z.literal("attach"), indicator_id: z.string() }),
+]);
+
+export const indicatorNamingSourceSchema = indicatorSourceSchema.extend({
+  target: indicatorNamingTargetSchema,
+});
+
 export const indicatorRouteRegistry = {
   getIndicators: route({
     path: "/indicators",
