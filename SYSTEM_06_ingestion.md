@@ -110,12 +110,14 @@ history). Shape:
   per-run table survives the hold; "Integrate anyway" re-claims, or queues;
   "Discard" cancels and drops it; "Create indicators for the unknown ids
   and re-stage" saves the naming step over the hold's full unknown-id set
-  through S5's `applyIndicatorNaming`, then relaunches the SAME run through
-  the full stage leg with the same claim-or-queue logic: `csv_config`
-  without `resumeFromStaging`, so the spawn reads the asset again and
-  re-checks its pin, and staging pre-drops the surviving table; a refused
-  naming leaves the hold untouched, and indicators that were created stay
-  even if the relaunch fails); zero staged rows → loud `error`. The
+  through S5's `applyIndicatorNaming` in the route, which announces the
+  new indicators before relaunching the SAME run through the full stage
+  leg with the same claim-or-queue logic: `csv_config` without
+  `resumeFromStaging`, so the spawn reads the asset again and re-checks
+  its pin, and staging pre-drops the surviving table; a refused naming
+  leaves the hold untouched, and indicators that were created stay, and
+  are known to every client, even if the relaunch is refused); zero
+  staged rows → loud `error`. The
   integrate leg is the old single-transaction CSV merge unchanged; the
   version link and the `complete` flip land together as the transaction's
   last statement (readers hide a running run's version; a committed one is

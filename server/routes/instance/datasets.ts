@@ -28,6 +28,7 @@ import {
   resolveDatasetHfaReview,
   resolveDatasetHmisCsvReview,
   updateDatasetHmisScheduledImport,
+  applyIndicatorNaming,
   getInstanceDatasetsSummary,
   getInstanceIndicatorsSummary,
 } from "../../db/mod.ts";
@@ -448,10 +449,22 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("resolveDatasetHmisCsvReview"),
   async (c, { body }) => {
+    // The naming lands and is announced before the relaunch: a refused
+    // naming leaves the hold untouched, and a relaunch that is then refused
+    // (the asset's pin no longer matches) must not hide indicators that
+    // exist from the clients.
+    if (body.action === "restage" && body.naming) {
+      const named = await applyIndicatorNaming(c.var.mainDb, body.naming);
+      if (!named.success) {
+        return c.json(named);
+      }
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
+    }
     const res = await resolveDatasetHmisCsvReview(c.var.mainDb, {
       runId: body.runId,
       action: body.action,
-      naming: body.naming,
       onComplete: async () => {
         notifyInstanceDatasetsUpdated(
           await getInstanceDatasetsSummary(c.var.mainDb),
@@ -462,11 +475,6 @@ defineRoute(
       notifyInstanceDatasetsUpdated(
         await getInstanceDatasetsSummary(c.var.mainDb),
       );
-      if (body.naming) {
-        notifyInstanceIndicatorsUpdated(
-          await getInstanceIndicatorsSummary(c.var.mainDb),
-        );
-      }
     }
     return c.json(res);
   },

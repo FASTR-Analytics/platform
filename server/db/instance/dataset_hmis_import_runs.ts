@@ -23,14 +23,13 @@ import {
   type Dhis2RunSelection,
   type Dhis2RunSelectionInput,
   type Dhis2RunSelectionSummary,
-  type IndicatorNamingInput,
 } from "lib";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import { instantiateImportHmisDataDhis2Worker } from "../../worker_routines/import_hmis_data_dhis2/instantiate_worker.ts";
 import { instantiateImportHmisDataCsvWorker } from "../../worker_routines/import_hmis_data_csv/instantiate_worker.ts";
 import { dropHmisCsvStagingTables } from "../../worker_routines/import_hmis_data_csv/stage_csv.ts";
 import { resolveAssetFileOrThrow } from "./assets.ts";
-import { applyIndicatorNaming, getIndicatorsWithSources } from "./indicators.ts";
+import { getIndicatorsWithSources } from "./indicators.ts";
 import {
   clearWorker,
   getWorker,
@@ -788,16 +787,15 @@ export async function launchQueuedDatasetHmisCsvImportRun(
 // needs_review resolution. "Integrate anyway" re-claims the slot (or queues
 // explicitly behind a running import, the §2 ruled change: a hold never
 // blocks the lane) and integrates the surviving staging table; "Restage"
-// saves the naming step first when one is given, then re-claims or queues
-// the same run through the full stage leg (the asset is read again and its
-// pin re-checked at spawn); "Discard" cancels and drops the surviving
-// staging table.
+// re-claims or queues the same run through the full stage leg (the asset
+// is read again and its pin re-checked at spawn; the route has already
+// saved the naming step, if any, and told clients); "Discard" cancels and
+// drops the surviving staging table.
 export async function resolveDatasetHmisCsvReview(
   mainDb: Sql,
   args: {
     runId: number;
     action: "integrate_anyway" | "discard" | "restage";
-    naming?: IndicatorNamingInput;
     onComplete?: () => void;
   },
 ): Promise<APIResponseNoData> {
@@ -832,16 +830,6 @@ export async function resolveDatasetHmisCsvReview(
       }
       await dropHmisCsvStagingTables(mainDb, args.runId, { keepFinal: false });
       return { success: true };
-    }
-
-    if (args.action === "restage" && args.naming) {
-      // The indicators land whether or not the relaunch below succeeds:
-      // they are wanted either way, and a refused naming leaves the hold
-      // untouched.
-      const named = await applyIndicatorNaming(mainDb, args.naming);
-      if (!named.success) {
-        return named;
-      }
     }
 
     const nextConfig: DatasetHmisCsvRunConfig = args.action === "restage"
