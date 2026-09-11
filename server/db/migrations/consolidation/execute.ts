@@ -2,7 +2,7 @@
 // CONSOLIDATE PROJECTS INTO PRODUCTS (PLAN_PRODUCTS_RESTRUCTURE D9)
 // =============================================================================
 //
-// The body of migration 085. Every slide deck and report of every READY
+// The body of migration 088. Every slide deck and report of every READY
 // project becomes a `products` row plus its detail and child rows, foldered
 // per D10, attached to the project's package or the instance pin per D5,
 // with the figure bundles stamped per D4. The planning is plan.ts, shared
@@ -72,7 +72,7 @@ export async function isSourceAtRequiredMigration(
 }
 
 // Ids already claimed on main. The tables are absent on an instance the
-// dry-run reaches before 084 has shipped, which is the same as empty.
+// dry-run reaches before 087 has shipped, which is the same as empty.
 export async function seedTakenIds(db: Sql): Promise<TakenIds> {
   const takenIds: TakenIds = {
     products: new Set<string>(),
@@ -101,7 +101,7 @@ export async function seedTakenIds(db: Sql): Promise<TakenIds> {
 export async function consolidateProjects(tx: Sql): Promise<void> {
   const projects = await readProjects(tx);
   if (projects.length === 0) {
-    console.log(`[migration] 085 consolidate: no projects to consolidate`);
+    console.log(`[migration] 088 consolidate: no projects to consolidate`);
     return;
   }
 
@@ -117,7 +117,7 @@ export async function consolidateProjects(tx: Sql): Promise<void> {
       : null;
     if (skipReason !== null) {
       console.log(
-        `[migration] 085 consolidate: SKIP project ${project.id} ("${project.label}"): ${skipReason}`,
+        `[migration] 088 consolidate: SKIP project ${project.id} ("${project.label}"): ${skipReason}`,
       );
       continue;
     }
@@ -274,7 +274,7 @@ async function writeAiContext(
 function logPlan(plan: ConsolidationPlan): void {
   const dropped = plan.droppedCounts;
   console.log(
-    `[migration] 085 consolidate: project ${plan.projectId} ("${plan.projectLabel}") ` +
+    `[migration] 088 consolidate: project ${plan.projectId} ("${plan.projectLabel}") ` +
       `-> ${plan.folders.length} folders, ${plan.products.length} products ` +
       `(${plan.slideDecks.length} decks / ${plan.reports.length} reports), ` +
       `${plan.slides.length} slides, ` +
@@ -285,7 +285,7 @@ function logPlan(plan: ConsolidationPlan): void {
   );
   for (const warning of plan.warnings) {
     console.log(
-      `[migration] 085 consolidate: WARNING ${plan.projectId}: ${warning}`,
+      `[migration] 088 consolidate: WARNING ${plan.projectId}: ${warning}`,
     );
   }
 }
@@ -294,7 +294,7 @@ function logTotals(plans: ConsolidationPlan[]): void {
   const sum = (pick: (plan: ConsolidationPlan) => number): number =>
     plans.reduce((total, plan) => total + pick(plan), 0);
   console.log(
-    `[migration] 085 consolidate: ${plans.length} projects consolidated, ` +
+    `[migration] 088 consolidate: ${plans.length} projects consolidated, ` +
       `${sum((p) => p.products.length)} products, ${sum((p) => p.slides.length)} slides, ` +
       `${sum((p) => p.folders.length)} folders, ${sum((p) => p.remaps.length)} id remaps; ` +
       `dropped ${sum((p) => p.droppedCounts.presentationObjects)} visualizations, ` +

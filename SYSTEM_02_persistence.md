@@ -85,7 +85,7 @@ await runProjectMigrations(projectDb); // then migrations, so base + migrations 
 
 The products block on `main` (`folders`, `products`, `slide_decks`,
 `slides`, `reports`, `report_versions`, `slide_deck_versions`) is in the base
-schema and, for existing instances, in `084_products.sql` in `IF NOT EXISTS`
+schema and, for existing instances, in `087_products.sql` in `IF NOT EXISTS`
 form. Nothing reads or writes it yet
 ([SYSTEM_12](SYSTEM_12_documents_sharing.md)).
 
@@ -334,28 +334,28 @@ table that older migrations touch"; applied to nine project migrations).
 
 `server/db/migrations/consolidation/` is the project consolidation
 (PLAN_PRODUCTS_RESTRUCTURE D9): `plan.ts` reads one legacy project database
-and returns every row 085 would insert, the id remaps, the nested folder
+and returns every row 088 would insert, the id remaps, the nested folder
 plan, the bundle stamps and the dropped-row counts, and issues no write;
 `execute.ts` is `consolidateProjects(tx)`, which applies that plan through
 the migration transaction, opening each source project pool fresh and
 read-only. The three migrations it belongs to (`000_legacy_project_shell.sql`,
-`085_consolidate_projects.ts`, `086_drop_project_layer.sql`) are staged
+`088_consolidate_projects.ts`, `089_drop_project_layer.sql`) are staged
 under `consolidation/staged/`, which neither the runner nor the validate
 scripts scan, until step 9b moves them into `instance/`.
 `./validate_consolidation_replay` (repo root, logic in
 `validate_consolidation_replay.ts`) executes them end to end in the
 throwaway container through the real runner: a seeded live instance with two
-template-identical project databases, the users-and-logs path through 086,
+template-identical project databases, the users-and-logs path through 089,
 the two negative controls that show 000's `ADD COLUMN` lines are
 load-bearing, and the fresh path from the post-restructure base; the
 migrated and fresh schemas must both dump byte-identical to the base plus
-086. `./validate_consolidation.ts` (repo root) is the read-only fleet
+089. `./validate_consolidation.ts` (repo root) is the read-only fleet
 dry-run (D13): per instance, over an ssh tunnel per PROTOCOL_ACCESS_DBS or
 `--local` against the dev database, it runs the same planner and reports
-the FAILs that would abort 085 and the REVIEW counts that are irreversible
+the FAILs that would abort 088 and the REVIEW counts that are irreversible
 once it runs; `--json` writes the planned per-instance counts the rollout
 post-check compares against. The replay harness runs it against its seeded
-instance and checks the planned counts against what 085 inserted.
+instance and checks the planned counts against what 088 inserted.
 
 ### Backup / restore mechanics
 
