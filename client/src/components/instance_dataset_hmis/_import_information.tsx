@@ -143,7 +143,7 @@ export function ImportInformation(
 
         {/* Period Indicator Statistics */}
         <Show when={p.version.stagingResult}>
-          <CollapsibleSection title={t3({ en: "Period-indicator combinations", fr: "Combinaisons période-indicateur", pt: "Combinações período-indicador" })}>
+          <CollapsibleSection title={t3({ en: "Period-source combinations", fr: "Combinaisons période-source", pt: "Combinações período-fonte" })}>
             <div class="ui-pad max-h-[200px] overflow-auto">
               <For each={p.version.stagingResult?.periodIndicatorStats}>
                 {(stat, index) => (

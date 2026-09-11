@@ -793,9 +793,19 @@ export async function batchUploadIndicators(
       }
     }
 
-    // Sources the write would remove: a replace removes every source the
-    // file does not list; an upsert removes the sources of a row it
-    // rewrites that the row no longer lists.
+    // Sources the write would take from their current owner: removed (a
+    // replace removes every source the file does not list; an upsert
+    // removes the sources of a row it rewrites that the row no longer
+    // lists) or moved to another row of the file. Both leave the old
+    // owner's data behind, so both are refused while the source has data.
+    const currentOwner = new Map<string, string>();
+    const existingLabels = new Map<string, string>();
+    for (const i of existing) {
+      for (const s of i.sources) {
+        currentOwner.set(s.source_id, i.indicator_common_id);
+        existingLabels.set(s.source_id, s.source_label);
+      }
+    }
     const removedSourceIds: string[] = [];
     for (const i of existing) {
       const inFile = fileIds.has(i.indicator_common_id);
@@ -808,6 +818,22 @@ export async function batchUploadIndicators(
           removedSourceIds.push(s.source_id);
         }
       }
+    }
+    const moved = [...sourceOwner].filter(([sourceId, owner]) => {
+      const current = currentOwner.get(sourceId);
+      return current !== undefined && current !== owner;
+    });
+    const movedWithData = await sourcesWithData(
+      mainDb,
+      moved.map(([sourceId]) => sourceId),
+    );
+    if (movedWithData.length > 0) {
+      return {
+        success: false,
+        err: `The file would move sources that have data to another indicator: ${
+          describeSourcesWithData(movedWithData)
+        }. Keep them under their current indicator or delete their data first.`,
+      };
     }
     const withData = await sourcesWithData(mainDb, removedSourceIds);
     if (withData.length > 0) {
@@ -826,6 +852,16 @@ export async function batchUploadIndicators(
       : [];
 
     await mainDb.begin(async (sql) => {
+      // Moves first, so the outcome does not depend on the file's row order:
+      // a moved source is already under its new owner when the old owner's
+      // row drops it or the old owner is deleted.
+      for (const [sourceId, owner] of moved) {
+        await sql`
+          UPDATE indicator_sources
+          SET indicator_id = ${owner}, updated_at = CURRENT_TIMESTAMP
+          WHERE source_id = ${sourceId}
+        `;
+      }
       if (removedIndicatorIds.length > 0) {
         await sql`
           DELETE FROM indicators WHERE indicator_common_id = ANY(${removedIndicatorIds})
@@ -841,7 +877,6 @@ export async function batchUploadIndicators(
           ? { type: "base" }
           : { type: "derived", expression: r.expression };
         const d = definitionFields(definition);
-        const current = existingById.get(r.id);
         // New rows sort after everything that exists (CSV order preserved);
         // an update keeps the row's place.
         await sql`
@@ -867,16 +902,14 @@ export async function batchUploadIndicators(
           WHERE indicator_id = ${r.id} AND NOT (source_id = ANY(${r.sources}))
         `;
         // The file carries no source labels: an existing source keeps its
-        // label, a new one is labelled by its id until edited.
-        const currentLabels = new Map(
-          (current?.sources ?? []).map((s) => [s.source_id, s.source_label]),
-        );
+        // label (through a move too), a new one is labelled by its id until
+        // edited.
         await writeSources(
           sql,
           r.id,
           [...keptSources].map((source_id) => ({
             source_id,
-            source_label: currentLabels.get(source_id) ?? source_id,
+            source_label: existingLabels.get(source_id) ?? source_id,
           })),
         );
       }
