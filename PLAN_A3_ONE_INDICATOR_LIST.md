@@ -8,7 +8,7 @@ deletes that file). PLAN_A2 has landed (instance migration 084,
 `RESERVED_INDICATOR_IDS`, renamed by ruling 5): generated ids avoid its
 reserved words and the validator this plan extends is A2's.
 
-**Next step: Review 5.** Each session sets this line in its final commit. Its
+**Next step: Do 6.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N`; after step 6's review passes the
 file is deleted instead of advanced.
 
@@ -885,3 +885,6 @@ agent reads this section before its step.
 | 2026-09-11 | 5 | Step 5 reviewed: 1 finding |
 | 2026-09-11 | 5 | Fix (by Tim, commit 065d92f1): the route applies the naming and notifies indicators-updated before calling `resolveDatasetHmisCsvReview` for the relaunch; the resolver no longer takes a `naming`. The Do session's §8 row for the CSV path was rewritten in place to describe this (the one departure from append-only). Consequence not in that row: the naming now lands before the resolver's "not waiting for review" check, so a stale tab re-staging a run already discarded or integrated creates the indicators and then gets the refusal; consistent with the "wanted either way" ruling. |
 | 2026-09-11 | 5 | Step 5 fixed |
+| 2026-09-11 | 5 | Review (of fix 5): the finding is closed in code. `server/routes/instance/datasets.ts:456-464` applies `applyIndicatorNaming` and fires `notifyInstanceIndicatorsUpdated` before `resolveDatasetHmisCsvReview` is called, returning the refusal on a failed naming; the resolver (`server/db/instance/dataset_hmis_import_runs.ts:794`) no longer takes a `naming` and only re-claims or queues. A relaunch refused after the naming (the asset's pin no longer matching, or a stale tab's "not waiting for review") therefore cannot leave clients unaware of indicators that exist. The route schema still accepts `naming` on `integrate_anyway` and `discard` and ignores it there; no code change. |
+| 2026-09-11 | 5 | Review (of fix 5): every gate re-run green by the reviewer: typecheck (every tracked file claimed), `deno task test` 88 passed, `validate_protocols` (0 new flags), gates 1 and 2 at zero, gate 3 at zero for the dictionary with the migrations exclusion: its one word-boundary hit is `server/run_query/virtual_defaults.ts:113`, a comment on the presentation objects' own `is_default` column (2026-07-13), not the HMIS dictionary. The committed tree booted against the dev database on `PORT=8001` (no migration to apply, in-boot suite 88 passed) to "Listening"; stopped afterwards. Diff stat since the review commit: SYSTEM_06, `dataset_hmis_import_runs.ts` and `datasets.ts`, all in the Surface. Em-dashes in the two TS files sit only in user-facing and log string literals. |
+| 2026-09-11 | 5 | Step 5 reviewed: pass |
