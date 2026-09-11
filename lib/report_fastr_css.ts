@@ -293,7 +293,11 @@ ${d}th, ${d}td {
   text-align: left;
   vertical-align: top;
 }
-${d}thead th {
+/* tr.fm-page-gutter-repeat is the editor's copy of a table's header rows on
+   a page the table continues on, which print's runner clones into a real
+   thead (live_preview_extension): it takes the header treatment too, or the
+   continuation stands a pixel short of print's. */
+${d}thead th, ${d}tr.fm-page-gutter-repeat > th {
   border-bottom: 2px solid var(--fm-ink);
   font-weight: 700;
 }
@@ -1139,6 +1143,24 @@ ${d}.cm-scroller {
   position: relative;
   left: calc(var(--fm-center-pad, 0px) / -2);
 }
+/* CodeMirror puts a zero-width <img class="cm-widgetBuffer"> beside every
+   inline widget (its fix for Chrome's cursor placement). A replaced box is
+   laid out by its own margin box, and at CodeMirror's vertical-align of
+   text-top its top sits at the font's content-area top, which is ABOVE the
+   strut whenever the line's line-height is tighter than that content area:
+   every heading line (line-height 1.2) then stands up to 2px taller than
+   print's heading, and the rest of the page follows it down. Aligned to the
+   line box instead, the buffer keeps its place in the flow (and its purpose)
+   and can never grow the line. Prose lines were never affected, their
+   line-height being the looser of the two. */
+${d}.cm-widgetBuffer { vertical-align: top; }
+/* The app sets tabular numerals on html/body/#app for its data tables; they
+   inherit into the live preview, where print has proportional figures. In a
+   font with both sets (every theme with a web font) that makes any line with
+   digits measurably wider in Edit than in print, and it wraps a line early.
+   The seam's footer and the contents page numbers set tabular-nums again for
+   themselves, as the paged sheet does for print's margin boxes. */
+${d}.cm-content { font-variant-numeric: normal; }
 ${d}.cm-content {
   background: transparent;
   box-sizing: border-box;
