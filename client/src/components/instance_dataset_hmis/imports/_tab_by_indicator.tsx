@@ -1,7 +1,7 @@
 import {
   t3,
   type DatasetHmisImportLedgerItem,
-  type Dhis2RunPair,
+  type Dhis2RunPairInput,
 } from "lib";
 import {
   Button,
@@ -33,7 +33,7 @@ type Props = {
     items: DatasetHmisImportLedgerItem[],
     window: LedgerPeriodWindow,
   ) => Promise<void>;
-  onRetryFailedPairs: (pairs: Dhis2RunPair[]) => Promise<void>;
+  onRetryFailedPairs: (pairs: Dhis2RunPairInput[]) => Promise<void>;
 };
 
 type SourceRollup = {
@@ -159,10 +159,10 @@ export function Dhis2TabByIndicator(p: Props) {
   }
 
   function retryFailedPairs(items: DatasetHmisImportLedgerItem[]) {
-    const failedPairs: Dhis2RunPair[] = items
+    const failedPairs: Dhis2RunPairInput[] = items
       .filter((item) => item.status === "error")
       .map((item) => ({
-        sourceId: item.sourceId,
+        indicatorId: item.indicatorId,
         periodId: item.periodId,
       }));
     void p.onRetryFailedPairs(failedPairs);
@@ -255,11 +255,11 @@ function buildRollups(items: DatasetHmisImportLedgerItem[]): {
 
   const bySource = new Map<string, DatasetHmisImportLedgerItem[]>();
   for (const item of items) {
-    const list = bySource.get(item.sourceId);
+    const list = bySource.get(item.indicatorId);
     if (list) {
       list.push(item);
     } else {
-      bySource.set(item.sourceId, [item]);
+      bySource.set(item.indicatorId, [item]);
     }
   }
 

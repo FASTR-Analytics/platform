@@ -268,23 +268,25 @@ routesHealth.post("/pg_stat_statements_reset", async (c: Context) => {
   return c.json({ reset: true, serverTime: new Date().toISOString() });
 });
 
-// The dictionary's sources with the indicator each belongs to. The wire
-// keys (id, label, mappedTo) predate PLAN_A3 and are read outside this repo
-// (SYSTEM_15), so they stay.
+// Every DHIS2 element in the dictionary with the indicator that carries it.
+// The wire keys (id, label, mappedTo) predate PLAN_A3 and are read outside
+// this repo (SYSTEM_15), so they stay: id is the dhis2_id, mappedTo the
+// indicator's own id.
 routesHealth.get("/dhis2-indicators-export", async (c: Context) => {
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
-  const sources = await mainDb<
-    { source_id: string; source_label: string; indicator_id: string }[]
+  const elements = await mainDb<
+    { dhis2_id: string; indicator_common_label: string; indicator_common_id: string }[]
   >`
-    SELECT source_id, source_label, indicator_id
-    FROM indicator_sources
-    ORDER BY LOWER(source_label)
+    SELECT dhis2_id, indicator_common_label, indicator_common_id
+    FROM indicators
+    WHERE dhis2_id IS NOT NULL
+    ORDER BY LOWER(indicator_common_label)
   `;
   return c.json({
-    indicators: sources.map((s) => ({
-      id: s.source_id,
-      label: s.source_label,
-      mappedTo: s.indicator_id,
+    indicators: elements.map((e) => ({
+      id: e.dhis2_id,
+      label: e.indicator_common_label,
+      mappedTo: e.indicator_common_id,
     })),
   });
 });

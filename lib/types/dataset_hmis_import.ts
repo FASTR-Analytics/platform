@@ -7,7 +7,7 @@ import type { Dhis2StoredCredentialsInfo } from "./dhis2.ts";
 
 export type HmisCsvMappingParams = {
   facility_id: string;
-  source_id: string;
+  indicator_id: string;
   period_id: string;
   count: string;
 };
@@ -36,9 +36,9 @@ export type DatasetHmisCsvRunConfig = {
 // Staging Result Types
 // ============================================================================
 
-export type PeriodSourceStat = {
+export type PeriodIndicatorStat = {
   periodId: number;
-  sourceId: string;
+  indicatorId: string;
   nRecords: number;
   totalCount: number;
 };
@@ -47,7 +47,7 @@ export type DatasetCsvStagingResult = {
   sourceType: "csv";
   dateImported: string;
   assetFileName: string;
-  periodIndicatorStats: PeriodSourceStat[];
+  periodIndicatorStats: PeriodIndicatorStat[];
   rawCsvRowCount: number;
   validCsvRowCount: number;
   dedupedRowCount: number;
@@ -72,14 +72,14 @@ export type DatasetCsvStagingResult = {
       }>;
       rowsDropped: number;
     };
-    // Rows whose source id is no source of any indicator. `ids` is the
-    // full distinct set, sorted, so a needs_review hold can turn every one
-    // into an indicator and re-stage (PLAN_A3 ruling 6); absent on results
+    // Rows whose indicator id is no base indicator. `ids` is the full
+    // distinct set, sorted, so a needs_review hold can turn every one into
+    // an uploaded base and re-stage (PLAN_A4 ruling 6); absent on results
     // staged before it was recorded.
-    unknownSources: {
+    unknownIndicators: {
       total: number;
       sample: Array<{
-        source_id: string;
+        indicator_id: string;
         row_count: number;
       }>;
       ids?: string[];
@@ -93,7 +93,7 @@ export type DatasetCsvStagingResult = {
 // health (5xx/timeout): a later re-run may succeed.
 export type Dhis2FetchErrorKind = "permanent" | "transient";
 
-// Per-(source, period) fetch instrumentation, so slowness reports arrive
+// Per-(indicator, period) fetch instrumentation, so slowness reports arrive
 // with their own data. Lives in the run's run_stats blob. One entry per pair
 // that reached a fetch: ids the dispatcher refused (classification.unknownIds
 // and dhis2IndicatorIds) never fetch and appear only there and in the ledger.
@@ -101,7 +101,7 @@ export type Dhis2FetchErrorKind = "permanent" | "transient";
 // month: each covered pair carries the covering pull's request count and
 // wall time (duplicated, not divided).
 export type Dhis2PairFetchStat = {
-  sourceId: string;
+  indicatorId: string;
   periodId: number;
   success: boolean;
   requests: number;
@@ -131,19 +131,19 @@ export type DatasetDhis2StagingResult = {
   totalIndicatorPeriodCombos: number;
   successfulFetches: number;
   failedFetches: Array<{
-    sourceId: string;
+    indicatorId: string;
     periodId: number;
     error: string;
     errorKind?: Dhis2FetchErrorKind;
   }>;
-  periodIndicatorStats: PeriodSourceStat[];
+  periodIndicatorStats: PeriodIndicatorStat[];
   finalStagingRowCount: number;
   // Rows removed by the per-pair scoped deletes across the whole run.
   dhis2RowsDeleted?: number;
   // The run that minted this version.
   runId?: number;
   // Legacy fields (pre-run version rows only).
-  succeededWorkItems?: Array<{ sourceId: string; periodId: number }>;
+  succeededWorkItems?: Array<{ indicatorId: string; periodId: number }>;
   fetchedFacilityIds?: string[];
   pairFetchStats?: Dhis2PairFetchStat[];
   workItemHistory?: Array<{
@@ -167,11 +167,11 @@ export type DatasetStagingResult =
 
 export type DatasetHmisLedgerSkippedValue = { facilityId: string; value: string };
 
-// One row per (source, month): the latest import state of that pair
+// One row per (indicator, month): the latest import state of that pair
 // (PLAN_DHIS2_IMPORTER WS-B). status 'error' keeps the last data-bearing
 // counts untouched: the error describes the most recent failed attempt.
 export type DatasetHmisImportLedgerItem = {
-  sourceId: string;
+  indicatorId: string;
   periodId: number;
   nRecords: number;
   sumCount: number;
@@ -196,13 +196,19 @@ export type DatasetHmisImportLedgerItem = {
 // DHIS2 Import Run Types (PLAN_DHIS2_IMPORTER Phase 3: C1/C2 + dispatcher)
 // ============================================================================
 
-// A pair is one source × one month: the unit the importer fetches and
+// What a DHIS2 run fetches for one base: the element or operand `dhis2Id`,
+// whose values are written under `indicatorId`. Resolved once, where the
+// selection is validated, and persisted on the run row and in the worker
+// message, so the worker never re-resolves (PLAN_A4 ruling 5).
+export type Dhis2FetchTarget = { indicatorId: string; dhis2Id: string };
+
+// A pair is one base × one month: the unit the importer fetches and
 // integrates, and the grain of the ledger.
-export type Dhis2RunPair = { sourceId: string; periodId: number };
+export type Dhis2RunPair = Dhis2FetchTarget & { periodId: number };
 
 // What a launch, enqueue or schedule fire selects: INDICATORS over a month
-// window (PLAN_A3 ruling 7), or explicit source pairs (retry failed,
-// re-import from the ledger: that is what a pair is).
+// window, or explicit (indicator, month) pairs (retry failed, re-import
+// from the ledger). The server resolves each pair's dhis2Id at validation.
 export type Dhis2WindowSelectionInput = {
   kind: "window";
   indicatorIds: string[];
@@ -210,21 +216,28 @@ export type Dhis2WindowSelectionInput = {
   endPeriod: number;
 };
 
+export type Dhis2RunPairInput = { indicatorId: string; periodId: number };
+
+export type Dhis2PairSelectionInput = {
+  kind: "pairs";
+  pairs: Dhis2RunPairInput[];
+};
+
 export type Dhis2RunSelectionInput =
   | Dhis2WindowSelectionInput
-  | { kind: "pairs"; pairs: Dhis2RunPair[] };
+  | Dhis2PairSelectionInput;
 
-// The expansion of a window selection's indicators to the sources a DHIS2
-// run fetches (`expandIndicatorSelectionToSources`, lib): a derived
-// indicator flattens to its base ingredients, a base contributes its
-// sources. Population terms and sources that are not DHIS2-shaped are
-// dropped and listed. Persisted on the run row and carried in the worker
-// message, so the worker and the history tab never re-resolve: a source
-// added to a base after enqueue is not in that run.
+// The expansion of a window selection's indicators to what a DHIS2 run
+// fetches (`expandIndicatorSelection`, lib): a sum expands to its members,
+// a derived flattens through the resolver to the bases it reaches, and the
+// bases with a dhis2_id become fetch targets. Population terms and uploaded
+// bases (no dhis2_id) are dropped and listed. Persisted on the run row and
+// carried in the worker message, so the worker and the history tab never
+// re-resolve: an element assigned after enqueue is not in that run.
 export type Dhis2SelectionExpansion = {
-  sourceIds: string[];
+  elements: Dhis2FetchTarget[];
   populationTermsDropped: string[];
-  nonDhis2SourcesDropped: string[];
+  uploadedIndicatorsDropped: string[];
 };
 
 export type Dhis2WindowSelection =
@@ -264,7 +277,7 @@ export type DatasetHmisImportRunProgress =
 
 // The summary projection of a run's selection: window selections pass
 // through unchanged (the history label shows the indicator count with the
-// source count beside it); explicit pair lists collapse to a count (a
+// element count beside it); explicit pair lists collapse to a count (a
 // retry-failed selection can carry ~1,440 pairs: the runs list is polled
 // every 2 s and must stay small).
 export type Dhis2RunSelectionSummary =
@@ -312,10 +325,10 @@ export type DatasetHmisImportRunStats = {
   classification: {
     dvsBareElements: number;
     dvsOperands: number;
-    // Source ids that are no data element or operand in DHIS2: permanent
+    // dhis2_ids that are no data element or operand in DHIS2: permanent
     // ledger errors without any fetch.
     unknownIds: string[];
-    // Source ids that are DHIS2 indicators (formulas): permanent ledger
+    // dhis2_ids that are DHIS2 indicators (formulas): permanent ledger
     // errors naming the decomposition importer, no fetch, existing data
     // kept.
     dhis2IndicatorIds: string[];
@@ -332,8 +345,8 @@ export type DatasetHmisImportRunStats = {
 // A schedule's selection: "last_n_months" is a rolling window resolved at
 // fire time (current instance-calendar month plus the previous monthsBack
 // months); "explicit_range" is a fixed start–end period range (one-shot
-// schedules only). Both select indicators; the fire path expands them to
-// sources like a manual launch.
+// schedules only). Both select indicators; the fire path expands them like
+// a manual launch.
 export type Dhis2ScheduleSelection =
   | {
       kind: "last_n_months";

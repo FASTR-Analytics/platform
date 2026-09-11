@@ -21,12 +21,12 @@ const COC_B = "CocBbbbbbb1";
 const PERIOD = 202401;
 
 const barePair: DvsCoveredPair = {
-  sourceId: ELEMENT,
+  indicatorId: "bare",
   coc: undefined,
   periodId: PERIOD,
 };
 const operandPair: DvsCoveredPair = {
-  sourceId: `${ELEMENT}.${COC_A}`,
+  indicatorId: "operand",
   coc: COC_A,
   periodId: PERIOD,
 };

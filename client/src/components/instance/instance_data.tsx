@@ -443,8 +443,8 @@ export function InstanceData(p: Props) {
                       </Show>
                       <Show
                         when={
-                          instanceState.indicators.hmisSources > 0 &&
-                          instanceState.indicators.hmisSources
+                          instanceState.indicators.hmisIndicators > 0 &&
+                          instanceState.indicators.hmisIndicators
                         }
                         fallback={
                           <div class="text-danger text-xs">

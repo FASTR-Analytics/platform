@@ -3,7 +3,7 @@ import {
   type DatasetHmisImportLedgerItem,
   type DatasetHmisImportRunSummary,
   type DatasetHmisScheduledImport,
-  type Dhis2RunPair,
+  type Dhis2RunPairInput,
 } from "lib";
 import type { LedgerSourceInfo } from "./_tab_by_indicator";
 import {
@@ -146,16 +146,14 @@ export function DatasetHmisImports(p: Props) {
       return new Map();
     }
     return new Map(
-      s.data.indicators.flatMap((i) =>
-        i.sources.map((source): [string, LedgerSourceInfo] => [
-          source.source_id,
-          {
-            label: source.source_label,
-            indicatorId: i.indicator_common_id,
-            indicatorLabel: i.indicator_common_label,
-          },
-        ])
-      ),
+      s.data.indicators.map((i): [string, LedgerSourceInfo] => [
+        i.indicator_common_id,
+        {
+          label: i.indicator_common_label,
+          indicatorId: i.indicator_common_id,
+          indicatorLabel: i.indicator_common_label,
+        },
+      ]),
     );
   });
 
@@ -270,7 +268,7 @@ export function DatasetHmisImports(p: Props) {
     }
   }
 
-  async function retryFailedPairs(pairs: Dhis2RunPair[]) {
+  async function retryFailedPairs(pairs: Dhis2RunPairInput[]) {
     await openWizard({
       kind: "presetPairs",
       pairs,

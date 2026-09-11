@@ -7,14 +7,14 @@
 // over the ids its operands are taking. The host owns the state (a Solid
 // store) and posts the result; the server applies the same rules again.
 import {
+  type CommonIndicator,
   type CommonIndicatorType,
   describeNewIndicatorIdIssue,
   generateIndicatorId,
   getNewIndicatorIdIssue,
   type IndicatorFormat,
   type IndicatorNamingInput,
-  type IndicatorNamingTarget,
-  type IndicatorWithSources,
+  isDhis2ShapedId,
   parseIndicatorExpression,
   renameIdentifiers,
   t3,
@@ -30,6 +30,10 @@ export type NamingSourceCandidate = {
   source_label: string;
 };
 
+type NamingTarget =
+  | { kind: "new"; indicator_id: string; label: string }
+  | { kind: "attach"; indicator_id: string };
+
 export type NamingDerivedCandidate = {
   // What the derived comes from (the DHIS2 indicator id): the host's key.
   key: string;
@@ -42,7 +46,7 @@ export type NamingDerivedCandidate = {
 
 export type NamingSourceRow = NamingSourceCandidate & {
   ownedBy?: string;
-  target: IndicatorNamingTarget;
+  target: NamingTarget;
 };
 
 export type NamingDerivedRow = NamingDerivedCandidate & {
@@ -59,12 +63,15 @@ export type NamingState = {
 export function createNamingState(args: {
   sources: NamingSourceCandidate[];
   derived: NamingDerivedCandidate[];
-  indicators: IndicatorWithSources[];
+  indicators: CommonIndicator[];
 }): NamingState {
   const owners = new Map<string, string>();
   for (const indicator of args.indicators) {
-    for (const s of indicator.sources) {
-      owners.set(s.source_id, indicator.indicator_common_id);
+    if (
+      indicator.definition.type === "base" &&
+      indicator.definition.dhis2_id !== null
+    ) {
+      owners.set(indicator.definition.dhis2_id, indicator.indicator_common_id);
     }
   }
   const existingIds = new Set(
@@ -81,7 +88,7 @@ export function createNamingState(args: {
     }
     const indicatorId = generateIndicatorId({
       label: candidate.source_label,
-      sourceId: candidate.source_id,
+      fallbackId: candidate.source_id,
       existingIds,
     });
     existingIds.add(indicatorId);
@@ -97,7 +104,7 @@ export function createNamingState(args: {
   const derived = args.derived.map<NamingDerivedRow>((candidate) => {
     const indicatorId = generateIndicatorId({
       label: candidate.label,
-      sourceId: candidate.key,
+      fallbackId: candidate.key,
       existingIds,
     });
     existingIds.add(indicatorId);
@@ -115,7 +122,7 @@ function idIssueText(id: string, type: CommonIndicatorType): string | undefined 
 // user is. Empty means the save can go.
 export function namingIssues(
   state: NamingState,
-  indicators: IndicatorWithSources[],
+  indicators: CommonIndicator[],
 ): string[] {
   const existingIds = new Set(indicators.map((i) => i.indicator_common_id));
   const issues: string[] = [];
@@ -182,7 +189,7 @@ export function namingIssues(
   return issues;
 }
 
-function trimmedTarget(target: IndicatorNamingTarget): IndicatorNamingTarget {
+function trimmedTarget(target: NamingTarget): NamingTarget {
   return target.kind === "new"
     ? {
       kind: "new",
@@ -193,12 +200,24 @@ function trimmedTarget(target: IndicatorNamingTarget): IndicatorNamingTarget {
 }
 
 export function namingInputFromState(state: NamingState): IndicatorNamingInput {
+  const elements: IndicatorNamingInput["elements"] = [];
+  const uploaded: IndicatorNamingInput["uploaded"] = [];
+  for (const row of state.sources) {
+    const target = trimmedTarget(row.target);
+    const label = target.kind === "new" ? target.label : row.source_label;
+    if (isDhis2ShapedId(row.source_id)) {
+      elements.push({
+        dhis2_id: row.source_id,
+        indicator_id: target.indicator_id,
+        label,
+      });
+    } else {
+      uploaded.push({ indicator_id: target.indicator_id, label });
+    }
+  }
   return {
-    sources: state.sources.map((row) => ({
-      source_id: row.source_id,
-      source_label: row.source_label,
-      target: trimmedTarget(row.target),
-    })),
+    elements,
+    uploaded,
     derived: state.derived.map((row) => ({
       indicator_id: row.indicator_id.trim(),
       label: row.label.trim(),
@@ -232,12 +251,12 @@ const FORMAT_LABELS: Record<IndicatorFormat, () => string> = {
     t3({ en: "Rate per 10,000", fr: "Taux pour 10 000", pt: "Taxa por 10 000" }),
 };
 
-type TargetKind = IndicatorNamingTarget["kind"];
+type TargetKind = NamingTarget["kind"];
 
 export function NamingStep(p: {
   state: NamingState;
   setState: SetStoreFunction<NamingState>;
-  indicators: IndicatorWithSources[];
+  indicators: CommonIndicator[];
 }) {
   const baseOptions = createMemo(() =>
     p.indicators
@@ -279,7 +298,7 @@ export function NamingStep(p: {
           kind: "new",
           indicator_id: generateIndicatorId({
             label: row.source_label,
-            sourceId: row.source_id,
+            fallbackId: row.source_id,
             existingIds: [
               ...p.indicators.map((i) => i.indicator_common_id),
               ...p.state.sources.flatMap((s, i) =>

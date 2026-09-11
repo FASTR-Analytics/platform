@@ -12,7 +12,7 @@ import {
   type Dhis2IndicatorSearchItem,
   type Dhis2RunCredentialsSource,
   type DHIS2CategoryOptionCombo,
-  type IndicatorWithSources,
+  type CommonIndicator,
 } from "lib";
 import {
   FrameTop,
@@ -120,9 +120,9 @@ function indicatorRefusal(
   const refused = operands.find((o) => !o.verdict.accepted);
   if (refused !== undefined && !refused.verdict.accepted) {
     return `${t3({
-      en: `Operand ${refused.source_id} cannot be a source:`,
-      fr: `L'opérande ${refused.source_id} ne peut pas être une source :`,
-      pt: `O operando ${refused.source_id} não pode ser uma fonte:`,
+      en: `Operand ${refused.dhis2_id} cannot be a source:`,
+      fr: `L'opérande ${refused.dhis2_id} ne peut pas être une source :`,
+      pt: `O operando ${refused.dhis2_id} não pode ser uma fonte:`,
     })} ${t3(describeDhis2SourceRefusal(refused.verdict.refusal))}`;
   }
   return undefined;
@@ -169,7 +169,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
     Set<string>
   >(new Set());
   const [phase, setPhase] = createSignal<"select" | "name">("select");
-  const [dictionary, setDictionary] = createSignal<IndicatorWithSources[]>([]);
+  const [dictionary, setDictionary] = createSignal<CommonIndicator[]>([]);
   const [naming, setNaming] = createStore<NamingState>({
     sources: [],
     derived: [],
@@ -283,7 +283,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
       }
       const { parse, operands } = item.indicator.decomposition;
       if (!parse.accepted) continue;
-      for (const operand of operands) operandIds.push(operand.source_id);
+      for (const operand of operands) operandIds.push(operand.dhis2_id);
       derived.push({
         key: item.indicator.id,
         label: item.indicator.name,
@@ -320,7 +320,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
     async () => {
       return await serverActions.createIndicatorsFromDhis2({
         credentialsSource: credentialsSource(),
-        sources: namingInputFromState(naming).sources,
+        elements: namingInputFromState(naming).elements,
         indicators: naming.derived.map((row) => ({
           dhis2_id: row.key,
           indicator_id: row.indicator_id.trim(),

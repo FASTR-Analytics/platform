@@ -1,32 +1,36 @@
 #!/bin/bash
 
-# Instance migration 086 over real data (PLAN_A3 §5 gate 6). Each argument is
+# Instance migration 086 over real data (PLAN_A4 §5 gate 5). Each argument is
 # a plain-SQL dump of an instance's `main` database (pg_dump, optionally
 # gzipped). Every dump is restored into its own database on a throwaway
 # container, the pending instance migrations are applied the way the runner
-# applies them (one transaction per file), and validate_indicator_sources.ts
-# asserts the §5 replay list: an unclean instance (a raw mapped to more than
-# one common, a mapping onto a derived, a derived special) fails with its
-# listing and nothing else changes; a clean one ends with sources = mapped
-# raws, new bases = unmapped raws under ids equal to what lib/indicator_id.ts
-# generates, per-base extract sums identical, every stored JSON row parsed,
-# and a second migration run doing nothing. Companion to ./validate_migrations
-# (the fresh replay) and ./validate_fresh_boot (the seed).
+# applies them (one transaction per file), and validate_indicator_migration.ts
+# asserts the §5 list: every raw became exactly one indicator or folded into
+# exactly one common; every generated id is unique, bare, unreserved,
+# non-special and equal to what lib/indicator_id.ts produces; no derived is
+# under a special id; every common with mappings is a DHIS2 element or a sum
+# over what its raws became; the analysed set after equals the commons
+# before; the extract's per-indicator sums are identical; the data and the
+# ledger keep their rows, every one pointing at an indicator; every stored
+# JSON row parses under the new shapes; a second run does nothing; and it
+# prints the id table 086 raises as NOTICEs. Companion to
+# ./validate_migrations (the fresh replay) and ./validate_fresh_boot (the
+# seed).
 #
-#   ./validate_indicator_sources uganda_main.sql.gz ethiopia_main.sql ...
+#   ./validate_indicator_migration ~/wb-fastr-dev-main-before-086.sql.gz ...
 
 set -e
 
 if [ "$#" -eq 0 ]; then
-    echo "usage: ./validate_indicator_sources <main dump>..." >&2
+    echo "usage: ./validate_indicator_migration <main dump>..." >&2
     exit 2
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-CONTAINER_NAME="wb-fastr-indicator-sources-$$"
+CONTAINER_NAME="wb-fastr-indicator-migration-$$"
 DB_PORT=54332
 DB_PASS="testpass"
-SCRATCH_DIR="$(mktemp -d /tmp/indicator_sources_XXXXXX)"
+SCRATCH_DIR="$(mktemp -d /tmp/indicator_migration_XXXXXX)"
 
 cleanup() {
     echo "Cleaning up..."
@@ -40,7 +44,7 @@ trap cleanup EXIT
 fail() {
     echo ""
     echo -e "\033[91m╔══════════════════════════════════════════════════════════════╗"
-    echo "║           INDICATOR SOURCES VALIDATION FAILED                ║"
+    echo "║           INDICATOR MIGRATION VALIDATION FAILED              ║"
     echo "║                                                              ║"
     printf "║  %-60s║\n" "$1"
     echo -e "╚══════════════════════════════════════════════════════════════╝\033[0m"
@@ -88,8 +92,8 @@ done
 
 # lib and the postgres driver need no app env; these dummies keep any module
 # that reads Deno.env at load from throwing, and point nowhere real.
-export INSTANCE_NAME="indicator_sources"
-export INSTANCE_ID="indicator_sources"
+export INSTANCE_NAME="indicator_migration"
+export INSTANCE_ID="indicator_migration"
 export INSTANCE_LANGUAGE="en"
 export INSTANCE_CALENDAR="gregorian"
 export ISO_COUNTRY_CODE="KEN"
@@ -105,22 +109,22 @@ export ANTHROPIC_API_URL="http://localhost:0"
 export ANTHROPIC_API_KEY="unused"
 export STATUS_API_KEY="unused"
 export SEND_GRID_API="unused"
-export SERVER_VERSION="0.0.0-indicator-sources"
+export SERVER_VERSION="0.0.0-indicator-migration"
 
 echo "Typechecking..."
-if ! deno check -c "$SCRIPT_DIR/deno.json" "$SCRIPT_DIR/validate_indicator_sources.ts"; then
-    fail "validate_indicator_sources.ts does not typecheck."
+if ! deno check -c "$SCRIPT_DIR/deno.json" "$SCRIPT_DIR/validate_indicator_migration.ts"; then
+    fail "validate_indicator_migration.ts does not typecheck."
     exit 1
 fi
 
 echo ""
 # shellcheck disable=SC2086
-if ! deno run --allow-all -c "$SCRIPT_DIR/deno.json" "$SCRIPT_DIR/validate_indicator_sources.ts" $TARGETS; then
+if ! deno run --allow-all -c "$SCRIPT_DIR/deno.json" "$SCRIPT_DIR/validate_indicator_migration.ts" $TARGETS; then
     fail "One or more dumps failed. See above."
     exit 1
 fi
 
 echo ""
 echo -e "\033[92m╔══════════════════════════════════════════════════════════════╗"
-echo "║           INDICATOR SOURCES VALIDATION PASSED                ║"
+echo "║           INDICATOR MIGRATION VALIDATION PASSED              ║"
 echo -e "╚══════════════════════════════════════════════════════════════╝\033[0m"

@@ -8,7 +8,7 @@ import type {
   HfaImportRunSummary,
 } from "../../types/dataset_hfa_import.ts";
 import {
-  datasetHmisWindowingSourceSchema,
+  datasetHmisWindowingSchema,
   structureSchemaSchema,
 } from "../../types/mod.ts";
 import type {
@@ -22,7 +22,7 @@ import type {
   ItemsHolderDatasetHmisDisplay,
 } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
-import { indicatorNamingSourceSchema } from "./indicators.ts";
+import { indicatorNamingInputSchema } from "./indicators.ts";
 
 const dhis2CredentialsSchema = z.object({
   url: z.string(),
@@ -30,9 +30,9 @@ const dhis2CredentialsSchema = z.object({
   password: z.string(),
 });
 
-// A window selects indicators; the server expands them to sources at
-// launch (PLAN_A3 ruling 7). A pairs selection is at source grain: retries
-// and re-imports name the sources the ledger recorded.
+// A window selects indicators; the server expands them to the elements it
+// fetches at launch (PLAN_A4 ruling 5). A pairs selection names the
+// (indicator, month) pairs the ledger recorded: retries and re-imports.
 const dhis2RunSelectionSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("window"),
@@ -45,7 +45,7 @@ const dhis2RunSelectionSchema = z.discriminatedUnion("kind", [
     pairs: z
       .array(
         z.object({
-          sourceId: z.string(),
+          indicatorId: z.string(),
           periodId: z.number().int(),
         }),
       )
@@ -109,7 +109,7 @@ const hmisCsvRunConfigSchema = z.object({
   fileName: z.string(),
   mappings: z.object({
     facility_id: z.string(),
-    source_id: z.string(),
+    indicator_id: z.string(),
     period_id: z.string(),
     count: z.string(),
   }),
@@ -166,7 +166,6 @@ export const datasetRouteRegistry = {
     body: z.object({
       versionId: z.number(),
       baseIndicatorMappingsVersion: z.string(),
-      view: z.enum(["source", "indicator"]),
       structureSchema: structureSchemaSchema,
     }),
     response: {} as ItemsHolderDatasetHmisDisplay,
@@ -174,7 +173,7 @@ export const datasetRouteRegistry = {
   deleteAllDatasetHmisData: route({
     path: "/datasets/hmis/data",
     method: "DELETE",
-    body: z.object({ windowing: datasetHmisWindowingSourceSchema }),
+    body: z.object({ windowing: datasetHmisWindowingSchema }),
   }),
 
   // DHIS2 import runs (per-pair fetch+integrate; PLAN_DHIS2_IMPORTER Phase 3)
@@ -265,27 +264,15 @@ export const datasetRouteRegistry = {
     response: {} as { runId: number },
   }),
   // "restage" relaunches the held run through the full stage leg, after
-  // saving the naming step in `naming` when one is given (PLAN_A3 ruling
-  // 6: the unknown ids become indicators first).
+  // saving the naming step in `naming` when one is given (PLAN_A4 ruling
+  // 6: the unknown ids become uploaded bases first).
   resolveDatasetHmisCsvReview: route({
     path: "/datasets/hmis/csv-runs/resolve-review",
     method: "POST",
     body: z.object({
       runId: z.number().int(),
       action: z.enum(["integrate_anyway", "discard", "restage"]),
-      naming: z
-        .object({
-          sources: z.array(indicatorNamingSourceSchema),
-          derived: z.array(
-            z.object({
-              indicator_id: z.string(),
-              label: z.string(),
-              expression: z.string(),
-              format_as: z.enum(["percent", "number", "rate_per_10k"]),
-            }),
-          ),
-        })
-        .optional(),
+      naming: indicatorNamingInputSchema.optional(),
     }),
   }),
 

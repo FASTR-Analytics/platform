@@ -1,5 +1,5 @@
 import {
-  expandIndicatorSelectionToSources,
+  expandIndicatorSelection,
   getCalendar,
   POPULATION_TYPE_IDS,
   t3,
@@ -8,10 +8,10 @@ import {
   type DatasetHmisScheduledImportFields,
   type Dhis2Credentials,
   type Dhis2ImportSchedulingInfo,
-  type Dhis2RunPair,
+  type Dhis2RunPairInput,
   type Dhis2RunSelectionInput,
   type Dhis2ScheduleRecurrence,
-  type IndicatorWithSources,
+  type CommonIndicator,
 } from "lib";
 import { recurrenceLabel } from "../_recurrence_label";
 import {
@@ -41,7 +41,7 @@ import { Dhis2StepTime, type Dhis2WizardTimeChoice } from "./_step_time";
 export type Dhis2WizardEntry =
   | { kind: "new" }
   | { kind: "editSchedule"; schedule: DatasetHmisScheduledImport }
-  | { kind: "presetPairs"; pairs: Dhis2RunPair[]; label: string };
+  | { kind: "presetPairs"; pairs: Dhis2RunPairInput[]; label: string };
 
 export type Dhis2WizardProps = {
   entry: Dhis2WizardEntry;
@@ -152,16 +152,16 @@ export function Dhis2Wizard(
     scheduleDefaults?.selection.indicatorIds ?? [],
   );
   const [dictionary, setDictionary] = createSignal<
-    IndicatorWithSources[] | undefined
+    CommonIndicator[] | undefined
   >(undefined);
   const nSources = createMemo<number | undefined>(() => {
     const d = dictionary();
     if (isPreset || d === undefined) return undefined;
-    return expandIndicatorSelectionToSources(
+    return expandIndicatorSelection(
       selectedIndicators(),
       d,
       POPULATION_TYPE_IDS,
-    ).sourceIds.length;
+    ).elements.length;
   });
 
   // Step 3: time.

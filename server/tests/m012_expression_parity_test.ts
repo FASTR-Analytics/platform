@@ -34,6 +34,7 @@ function common(
     indicator_common_id: id,
     indicator_common_label: id,
     definition,
+    include_in_analysis: true,
     format_as: "number",
     thresholds: null,
     sort_order: sortOrder,
@@ -45,10 +46,10 @@ function common(
 // population the store does not cover, an ingredient with no rows at all,
 // and a coalesce that turns a missing ingredient into a kept row.
 const COMMONS: CommonIndicator[] = [
-  common("anc1", { type: "base" }, 1),
-  common("anc4", { type: "base" }, 2),
-  common("penta1", { type: "base" }, 3),
-  common("opd", { type: "base" }, 4),
+  common("anc1", { type: "base", dhis2_id: null }, 1),
+  common("anc4", { type: "base", dhis2_id: null }, 2),
+  common("penta1", { type: "base", dhis2_id: null }, 3),
+  common("opd", { type: "base", dhis2_id: null }, 4),
   common("anc4_rate", { type: "derived", expression: "anc4 / anc1" }, 5),
   common("anc4_rate_fill", {
     type: "derived",
@@ -66,7 +67,7 @@ const COMMONS: CommonIndicator[] = [
   }, 10),
 ];
 
-// `opd` has no sources; `penta1` has a source but no rows.
+// `opd` and `penta1` have no rows.
 const BASE_IDS_IN_DATA = new Set(["anc1", "anc4", "penta1"]);
 
 type AdjustedRow = {

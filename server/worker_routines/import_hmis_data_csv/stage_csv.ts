@@ -8,7 +8,7 @@ import {
   throwIfErrWithData,
   type DatasetCsvStagingResult,
   type HmisCsvMappingParams,
-  type PeriodSourceStat,
+  type PeriodIndicatorStat,
 } from "lib";
 import {
   getCsvColumnIndex,
@@ -57,7 +57,7 @@ export async function dropHmisCsvStagingTables(
 }
 
 // The staging internals relocated from the old stage_hmis_data_csv worker:
-// stream the CSV into a raw table, dedup, validate facilities + sources,
+// stream the CSV into a raw table, dedup, validate facilities + indicators,
 // and build the final staging table. Semantics unchanged; only the table
 // names (per-run) and the progress transport (callback instead of attempt-row
 // writes) differ. Never throws on dropped rows: the caller's clean-condition
@@ -90,10 +90,10 @@ export async function stageHmisCsvIntoTables(args: {
       mappingsRecord,
       "facility_id",
     ),
-    sourceId: getCsvColumnIndex(
+    indicatorId: getCsvColumnIndex(
       encodedHeaderToIndexMap,
       mappingsRecord,
-      "source_id",
+      "indicator_id",
     ),
     count: getCsvColumnIndex(encodedHeaderToIndexMap, mappingsRecord, "count"),
   } as const;
@@ -112,7 +112,7 @@ export async function stageHmisCsvIntoTables(args: {
   await importDb.unsafe(`
 CREATE UNLOGGED TABLE ${names.raw} (
   facility_id TEXT NOT NULL,
-  source_id TEXT NOT NULL,
+  indicator_id TEXT NOT NULL,
   period_id INTEGER NOT NULL ${PERIOD_ID_CHECK_CONSTRAINT},
   count INTEGER NOT NULL ${COUNT_CHECK_CONSTRAINT}
 )`);
@@ -130,7 +130,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
     if (rowBuffer.length === 0) return;
     const valuesClause = rowBuffer.join(",\n");
     await importDb.unsafe(
-      `INSERT INTO ${names.raw} (facility_id, source_id, period_id, count) VALUES ${valuesClause}`,
+      `INSERT INTO ${names.raw} (facility_id, indicator_id, period_id, count) VALUES ${valuesClause}`,
     );
     rowBuffer = [];
 
@@ -152,7 +152,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
 
       const periodId = row[headerIndexes.periodId];
       const facilityId = row[headerIndexes.facilityId];
-      const sourceId = row[headerIndexes.sourceId];
+      const indicatorId = row[headerIndexes.indicatorId];
       // Numeric cleaning only: tolerate thousands separators / stray quotes
       const count = parseCountValue(
         (row[headerIndexes.count] ?? "").replace(/[,'"]/g, ""),
@@ -161,7 +161,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
       const validation = isValidDatasetRow(
         periodId,
         facilityId,
-        sourceId,
+        indicatorId,
         count,
       );
       if (!validation.isValid) {
@@ -180,7 +180,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
       }
 
       rowBuffer.push(
-        `('${escapeSqlString(facilityId)}','${escapeSqlString(sourceId)}','${periodId}',${count})`,
+        `('${escapeSqlString(facilityId)}','${escapeSqlString(indicatorId)}','${periodId}',${count})`,
       );
 
       if (rowBuffer.length >= BUFFER_SIZE) {
@@ -210,7 +210,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
   }
 
   await importDb.unsafe(
-    `CREATE INDEX idx_staging_raw_run_${runId} ON ${names.raw} (source_id)`,
+    `CREATE INDEX idx_staging_raw_run_${runId} ON ${names.raw} (indicator_id)`,
   );
 
   // Deduplication: MAX(count) when duplicates exist.
@@ -218,18 +218,18 @@ CREATE UNLOGGED TABLE ${names.raw} (
   CREATE UNLOGGED TABLE ${names.dedup} AS
   SELECT
     facility_id,
-    source_id,
+    indicator_id,
     period_id,
     MAX(count) as count
   FROM ${names.raw}
-  GROUP BY facility_id, source_id, period_id
+  GROUP BY facility_id, indicator_id, period_id
   `);
   const dedupCount = await importDb<{ count: number }[]>`
     SELECT COUNT(*)::int as count FROM ${importDb(names.dedup)}
   `;
   await importDb.unsafe(`DROP TABLE ${names.raw}`);
   await importDb.unsafe(
-    `CREATE INDEX idx_staging_dedup_run_${runId} ON ${names.dedup} (source_id)`,
+    `CREATE INDEX idx_staging_dedup_run_${runId} ON ${names.dedup} (indicator_id)`,
   );
 
   onProgress(87);
@@ -278,62 +278,63 @@ CREATE UNLOGGED TABLE ${names.raw} (
 
   onProgress(88);
 
-  // Source validation: a row's source id must be a source of some indicator.
-  let sourceValidation: {
+  // Indicator validation: a row's indicator id must be a base indicator
+  // (data rows belong to bases; a sum or derived id is unknown here).
+  let indicatorValidation: {
     total: number;
-    sample: { source_id: string; row_count: number }[];
+    sample: { indicator_id: string; row_count: number }[];
     ids: string[];
     rowsDropped: number;
   };
   if (rowsAfterFacilityValidation > 0) {
-    const unknownSourcesSample = await importDb<
-      { source_id: string; row_count: number }[]
+    const unknownIndicatorsSample = await importDb<
+      { indicator_id: string; row_count: number }[]
     >`
-      SELECT t.source_id, COUNT(*)::INTEGER as row_count
+      SELECT t.indicator_id, COUNT(*)::INTEGER as row_count
       FROM ${importDb(names.validFacilities)} t
       WHERE NOT EXISTS (
-        SELECT 1 FROM indicator_sources s
-        WHERE s.source_id = t.source_id
+        SELECT 1 FROM indicators i
+        WHERE i.indicator_common_id = t.indicator_id AND i.definition_type = 'base'
       )
-      GROUP BY t.source_id
+      GROUP BY t.indicator_id
       ORDER BY COUNT(*) DESC
       LIMIT 10
     `;
-    const unknownSourcesTotal = await importDb<{ total_invalid: number }[]>`
-      SELECT COUNT(DISTINCT t.source_id)::INTEGER as total_invalid
+    const unknownIndicatorsTotal = await importDb<{ total_invalid: number }[]>`
+      SELECT COUNT(DISTINCT t.indicator_id)::INTEGER as total_invalid
       FROM ${importDb(names.validFacilities)} t
       WHERE NOT EXISTS (
-        SELECT 1 FROM indicator_sources s
-        WHERE s.source_id = t.source_id
+        SELECT 1 FROM indicators i
+        WHERE i.indicator_common_id = t.indicator_id AND i.definition_type = 'base'
       )
     `;
-    const rowsDroppedBySource = await importDb<{ count: number }[]>`
+    const rowsDroppedByIndicator = await importDb<{ count: number }[]>`
       SELECT COUNT(*)::INTEGER as count
       FROM ${importDb(names.validFacilities)} t
       WHERE NOT EXISTS (
-        SELECT 1 FROM indicator_sources s
-        WHERE s.source_id = t.source_id
+        SELECT 1 FROM indicators i
+        WHERE i.indicator_common_id = t.indicator_id AND i.definition_type = 'base'
       )
     `;
     // The whole set, not the sample: the needs_review hold offers to create
-    // an indicator for every one of them.
-    const unknownSourceIds = await importDb<{ source_id: string }[]>`
-      SELECT DISTINCT t.source_id
+    // an uploaded base for every one of them.
+    const unknownIndicatorIds = await importDb<{ indicator_id: string }[]>`
+      SELECT DISTINCT t.indicator_id
       FROM ${importDb(names.validFacilities)} t
       WHERE NOT EXISTS (
-        SELECT 1 FROM indicator_sources s
-        WHERE s.source_id = t.source_id
+        SELECT 1 FROM indicators i
+        WHERE i.indicator_common_id = t.indicator_id AND i.definition_type = 'base'
       )
-      ORDER BY t.source_id
+      ORDER BY t.indicator_id
     `;
-    sourceValidation = {
-      total: unknownSourcesTotal[0]?.total_invalid || 0,
-      sample: unknownSourcesSample,
-      ids: unknownSourceIds.map((r) => r.source_id),
-      rowsDropped: rowsDroppedBySource[0]?.count || 0,
+    indicatorValidation = {
+      total: unknownIndicatorsTotal[0]?.total_invalid || 0,
+      sample: unknownIndicatorsSample,
+      ids: unknownIndicatorIds.map((r) => r.indicator_id),
+      rowsDropped: rowsDroppedByIndicator[0]?.count || 0,
     };
   } else {
-    sourceValidation = { total: 0, sample: [], ids: [], rowsDropped: 0 };
+    indicatorValidation = { total: 0, sample: [], ids: [], rowsDropped: 0 };
   }
 
   // Final staging table.
@@ -343,13 +344,13 @@ CREATE UNLOGGED TABLE ${names.raw} (
       CREATE UNLOGGED TABLE ${names.final} AS
       SELECT
         t.facility_id,
-        t.source_id,
+        t.indicator_id,
         t.period_id::INTEGER as period_id,
         t.count::INTEGER as count
       FROM ${names.validFacilities} t
       WHERE EXISTS (
-        SELECT 1 FROM indicator_sources s
-        WHERE s.source_id = t.source_id
+        SELECT 1 FROM indicators i
+        WHERE i.indicator_common_id = t.indicator_id AND i.definition_type = 'base'
       )
     `);
     const countRows = await importDb<{ count: number }[]>`
@@ -358,14 +359,14 @@ CREATE UNLOGGED TABLE ${names.raw} (
     finalStagingCount = countRows[0]?.count || 0;
     if (finalStagingCount > 0) {
       await importDb.unsafe(
-        `CREATE INDEX idx_staging_final_run_${runId} ON ${names.final} (facility_id, source_id, period_id)`,
+        `CREATE INDEX idx_staging_final_run_${runId} ON ${names.final} (facility_id, indicator_id, period_id)`,
       );
     }
   } else {
     await importDb.unsafe(`
       CREATE UNLOGGED TABLE ${names.final} (
         facility_id TEXT,
-        source_id TEXT,
+        indicator_id TEXT,
         period_id INTEGER,
         count INTEGER
       )
@@ -376,29 +377,29 @@ CREATE UNLOGGED TABLE ${names.raw} (
   onProgress(90);
 
   // Statistics from staged data.
-  let periodIndicatorStats: PeriodSourceStat[] = [];
+  let periodIndicatorStats: PeriodIndicatorStat[] = [];
   if (finalStagingCount > 0) {
     const periodIndicatorStatsRaw = await importDb<
       {
         period_id: number;
-        source_id: string;
+        indicator_id: string;
         n_records: number;
         total_count: string | number;
       }[]
     >`
   SELECT
     period_id,
-    source_id,
+    indicator_id,
     COUNT(*)::int as n_records,
     SUM(count) as total_count
   FROM ${importDb(names.final)}
-  GROUP BY period_id, source_id
-  ORDER BY period_id, source_id
+  GROUP BY period_id, indicator_id
+  ORDER BY period_id, indicator_id
   `;
-    periodIndicatorStats = periodIndicatorStatsRaw.map<PeriodSourceStat>(
+    periodIndicatorStats = periodIndicatorStatsRaw.map<PeriodIndicatorStat>(
       (stat) => ({
         periodId: stat.period_id,
-        sourceId: stat.source_id,
+        indicatorId: stat.indicator_id,
         nRecords: stat.n_records,
         totalCount: Number(stat.total_count),
       }),
@@ -419,7 +420,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
       invalidCounts: { rowsDropped: invalidCountCount },
       missingRequiredFields: { rowsDropped: missingFieldsCount },
       invalidFacilities: facilityValidation,
-      unknownSources: sourceValidation,
+      unknownIndicators: indicatorValidation,
     },
   };
 }

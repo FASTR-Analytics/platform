@@ -28,26 +28,38 @@ function narrowIndicatorDefinition(
   if (!isCommonIndicatorType(raw.type)) {
     throw new Error(`Unknown indicator type: ${raw.type}`);
   }
-  if (raw.type === "base") {
-    return { type: "base" };
+  switch (raw.type) {
+    case "base":
+      return {
+        type: "base",
+        dhis2_id: raw.dhis2_id === null || raw.dhis2_id === undefined
+          ? null
+          : String(raw.dhis2_id),
+      };
+    case "sum":
+      return {
+        type: "sum",
+        members: (raw.members as unknown[]).map((m) => String(m)),
+      };
+    case "derived":
+      return { type: "derived", expression: String(raw.expression) };
   }
-  return { type: "derived", expression: String(raw.expression) };
 }
 
 function toNewIndicator(raw: Record<string, unknown>): NewIndicator {
   return {
     indicator_common_id: String(raw.indicator_common_id),
     indicator_common_label: String(raw.indicator_common_label),
-    sources: raw.sources as NewIndicator["sources"],
     definition: narrowIndicatorDefinition(
       raw.definition as { type: string } & Record<string, unknown>,
     ),
+    include_in_analysis: Boolean(raw.include_in_analysis),
     format_as: raw.format_as as NewIndicator["format_as"],
     thresholds: (raw.thresholds ?? null) as NewIndicator["thresholds"],
   };
 }
 
-// GET /indicators - The dictionary: every indicator with its sources
+// GET /indicators - The dictionary: every indicator
 defineRoute(
   routesIndicators,
   "getIndicators",
@@ -59,7 +71,7 @@ defineRoute(
   },
 );
 
-// POST /indicators - Create indicators, each with its sources
+// POST /indicators - Create indicators
 defineRoute(
   routesIndicators,
   "createIndicators",
@@ -83,7 +95,7 @@ defineRoute(
   },
 );
 
-// POST /indicators/update - Update an indicator and replace its sources
+// POST /indicators/update - Update an indicator
 defineRoute(
   routesIndicators,
   "updateIndicator",
@@ -128,7 +140,7 @@ defineRoute(
   },
 );
 
-// POST /indicators/delete - Delete indicators (their sources go with them)
+// POST /indicators/delete - Delete indicators
 defineRoute(
   routesIndicators,
   "deleteIndicators",
@@ -145,7 +157,7 @@ defineRoute(
   },
 );
 
-// POST /indicators/batch - Batch upload the dictionary file (PLAN_A3 ruling 11)
+// POST /indicators/batch - Batch upload the dictionary file (PLAN_A4 ruling 7)
 defineRoute(
   routesIndicators,
   "batchUploadIndicators",

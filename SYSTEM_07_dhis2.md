@@ -110,9 +110,9 @@ endpoints, and merges deduped by id. The data-element field list carries
 `dataSetElements[dataSet[id,periodType]]` so the eligibility check below
 can see the element's period type.
 
-**Source eligibility** (`goal2_indicators/source_eligibility.ts`, pure;
-PLAN_A3 ruling 6). A DHIS2 data element may be a source of a base
-indicator only when DHIS2's own metadata says it is an additive monthly
+**Element eligibility** (`goal2_indicators/source_eligibility.ts`, pure;
+PLAN_A3 ruling 6). A DHIS2 data element may fill a base indicator (be its
+`dhis2_id`) only when DHIS2's own metadata says it is an additive monthly
 count: `aggregationType` is `SUM`; `valueType` is `NUMBER` (the DHIS2
 editor's default, which most real count elements carry; integrality is
 enforced per value at import by S6's skip-and-record), `INTEGER`,
@@ -150,10 +150,10 @@ refusal with the token it stopped at). A blacklist would miss the next
 form DHIS2 adds. The accepted result's `expression` is written in the
 app's own grammar through `writeIndicatorExpression`, fully
 parenthesised as `((numerator) / (denominator))`, with each operand as
-the bracket-quoted identifier `[source_id]` (`[uid]` or `[uid.coc]`),
+the bracket-quoted identifier `[dhis2_id]` (`[uid]` or `[uid.coc]`),
 so it re-parses with `parseIndicatorExpression` and the naming step can
-rename those identifiers to the base ids it creates with
-`renameIdentifiers`. Operands are deduped by source id in first-
+rename those identifiers to the base ids the elements land in with
+`renameIdentifiers`. Operands are deduped by `dhis2_id` in first-
 appearance order across numerator then denominator.
 
 **Search-result shaping** (`goal2_indicators/attach_verdicts.ts`).
@@ -168,8 +168,7 @@ three search routes return these shapes (`Dhis2DataElementSearchItem`,
 `Dhis2IndicatorSearchItem`); the combined search passes its own
 data-element results as `known`. Pinned by
 `server/tests/dhis2_source_eligibility_test.ts` and
-`server/tests/dhis2_decompose_indicator_test.ts`. The dictionary client
-does not read the verdict or the decomposition yet (PLAN_A3 step 5).
+`server/tests/dhis2_decompose_indicator_test.ts`.
 
 **Data value sets.** `getDataValueSetsFromDHIS2` pulls one data element
 for one `period=` token (passed through untranslated: the DHIS2 server
@@ -249,9 +248,10 @@ between launch and run surfaces as retry exhaustion inside the job.
 
 `routes/instance/indicators_dhis2.ts` is the system's only route file:
 four POST routes (search indicators / search data elements / combined
-search / test connection), all guarded `can_configure_data`. The three
-search routes return the shaped items above: every data element with its
-source verdict, every indicator with its decomposition. Bodies
+search / test connection) plus the naming step's save
+(`/indicators-dhis2/create`, S5), all guarded `can_configure_data`. The
+three search routes return the shaped items above: every data element
+with its eligibility verdict, every indicator with its decomposition. Bodies
 carry a `credentialsSource: Dhis2RunCredentialsSource` (`{ kind:
 "stored" }` or `{ kind: "inline", credentials }`), resolved via
 S6's `resolveDhis2Credentials` at the top of each handler. This system

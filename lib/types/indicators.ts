@@ -12,48 +12,34 @@ import {
 // Indicator Types
 // ============================================================================
 
-// The HMIS datatable's two views: one series per source, or one per base
-// indicator (the sum of its sources).
-export type HmisDatatableView = "source" | "indicator";
-
-// One source of a base indicator: a DHIS2 data element or operand (id = the
-// UID or `UID.UID`) or a CSV indicator column (id = the value in the file).
-// A source belongs to exactly one base (the primary key of indicator_sources).
-export type IndicatorSource = {
-  source_id: string;
-  source_label: string;
-};
-
-export type IndicatorWithSources = CommonIndicator & {
-  sources: IndicatorSource[];
-};
-
 export type InstanceIndicatorDetails = {
-  indicators: IndicatorWithSources[];
+  indicators: CommonIndicator[];
 };
 
-// The one batch dictionary file (PLAN_A3 ruling 11): `sources` is
-// semicolon-separated for a base and empty for a derived; `thresholds` is
-// the rule as JSON text or empty. The download mirrors the upload.
+// The one dictionary file (PLAN_A4 ruling 7): `dhis2_id` for a DHIS2
+// element, `members` semicolon-separated for a sum, `expression` for a
+// derived, `include_in_analysis` true/false, `thresholds` the rule as JSON
+// text or empty. The download mirrors the upload.
 export const INDICATOR_BATCH_FILE_COLUMNS = [
   "indicator_id",
   "label",
   "type",
-  "sources",
+  "dhis2_id",
+  "members",
   "expression",
+  "include_in_analysis",
   "format_as",
   "thresholds",
 ] as const;
 
-export const INDICATOR_BATCH_SOURCES_SEPARATOR = ";";
+export const INDICATOR_BATCH_MEMBERS_SEPARATOR = ";";
 
-// A source the DHIS2 importer can fetch: a data element UID or an operand
-// `UID.UID`. Anything else (a CSV column name) is skipped by a DHIS2 run.
+// What a base's dhis2_id may be: a data element UID or an operand `UID.UID`.
 export const DHIS2_UID_PATTERN = /^[a-zA-Z][a-zA-Z0-9]{10}$/;
 export const DHIS2_OPERAND_PATTERN =
   /^([a-zA-Z][a-zA-Z0-9]{10})\.([a-zA-Z][a-zA-Z0-9]{10})$/;
 
-export function isDhis2ShapedSourceId(id: string): boolean {
+export function isDhis2ShapedId(id: string): boolean {
   return DHIS2_UID_PATTERN.test(id) || DHIS2_OPERAND_PATTERN.test(id);
 }
 
@@ -78,12 +64,10 @@ export const RESERVED_WORDS: readonly string[] = [
 ];
 
 // Applies to NEWLY created ids only (never to existing stored ids). Commas,
-// semicolons, and colons corrupt the batch file's source list and the CSV
+// semicolons, and colons corrupt the batch file's member list and the CSV
 // round-trip. Square brackets break the expression grammar's [quoted
-// identifier] form, which has no escape (PLAN_1a §1.3): one rule for
-// indicator AND source ids, since source ids have no use for brackets
-// either. Instance migration 079 guards stored ids the same way. Dots stay
-// legal (DHIS2 operand ids contain them).
+// identifier] form, which has no escape (PLAN_1a §1.3). Instance migration
+// 079 guards stored ids the same way. Dots stay legal.
 function getIdCharsetIssue(id: string): NewIndicatorIdIssue | undefined {
   if (id.length === 0) {
     return "empty";
@@ -100,22 +84,14 @@ function getIdCharsetIssue(id: string): NewIndicatorIdIssue | undefined {
   return undefined;
 }
 
-// A source id is a separate namespace that never enters an expression (the
-// extract joins sources to their base), so the reserved words do not apply.
-export function getNewSourceIdIssue(
-  id: string,
-): NewIndicatorIdIssue | undefined {
-  return getIdCharsetIssue(id);
-}
-
 // A special id is read by the module scripts as a count, so it may exist
-// only as a base. Checked at create (inside getNewIndicatorIdIssue) and at
-// retype, where the id is not new but its type is.
+// only as a base or a sum. Checked at create (inside getNewIndicatorIdIssue)
+// and at retype, where the id is not new but its type is.
 export function getSpecialIndicatorTypeIssue(
   id: string,
   type: CommonIndicatorType,
 ): "special_not_base" | undefined {
-  return isSpecialIndicatorId(id) && type !== "base"
+  return isSpecialIndicatorId(id) && type === "derived"
     ? "special_not_base"
     : undefined;
 }
@@ -150,7 +126,7 @@ export function describeNewIndicatorIdIssue(issue: NewIndicatorIdIssue): string 
     case "reserved":
       return `is a reserved word (${RESERVED_WORDS.join(", ")})`;
     case "special_not_base":
-      return `is a special indicator id, which the analysis modules read as a count, so it can only be a base indicator (special: ${
+      return `is a special indicator id, which the analysis modules read as a count, so it cannot be a derived indicator (special: ${
         SPECIAL_INDICATOR_IDS.join(", ")
       })`;
   }
@@ -160,27 +136,34 @@ export function describeNewIndicatorIdIssue(issue: NewIndicatorIdIssue): string 
 // Common indicator definitions
 // ============================================================================
 
-// What a common indicator IS (PLAN_1a §1.2, PLAN_1c). Generation decides what
-// the numbers are made of; the query only aggregates and applies the formula.
+// What an indicator IS (PLAN_A4 §2). Generation decides what the numbers
+// are made of; the query only aggregates and applies the formula.
 //
-//   base   : its sources, summed at extract. No formula. A count, so its
-//             format is always `number`.
-//   derived: an arbitrary expression over other commons (base or derived;
-//             chained by substitution) and population terms. Its additive
-//             ingredients travel on the results row and the expression is
-//             applied AFTER aggregation. A population term is written as
-//             the type's id (`population_total`, one of POPULATION_TYPES in
-//             lib/types/population.ts, a reserved word); it is a leaf
-//             ingredient exactly like a base common, carrying that
-//             population's person-years.
+//   base   : an additive monthly series with rows in dataset_hmis. With a
+//             `dhis2_id` (a data element UID or `UID.COC` operand) the
+//             DHIS2 import fetches it; without one it is filled by CSV
+//             upload, where the file's indicator column value is the
+//             indicator's own id. A count: its format is always `number`.
+//   sum    : a list of base ids, `members`, summed from their rows at
+//             extract into one facility x month series, adjusted by m001
+//             and m002 like any base. A count; format `number`.
+//   derived: an arbitrary expression over indicators of any type (chained
+//             by substitution) and population terms, evaluated by m012
+//             after adjustment and aggregation. A population term is
+//             written as the type's id (`population_total`, one of
+//             POPULATION_TYPES in lib/types/population.ts, a reserved
+//             word); it is a leaf ingredient exactly like a base, carrying
+//             that population's person-years.
 export type CommonIndicatorDefinition =
-  | { type: "base" }
+  | { type: "base"; dhis2_id: string | null }
+  | { type: "sum"; members: string[] }
   | { type: "derived"; expression: string };
 
 export type CommonIndicatorType = CommonIndicatorDefinition["type"];
 
 export const COMMON_INDICATOR_TYPES: readonly CommonIndicatorType[] = [
   "base",
+  "sum",
   "derived",
 ] as const;
 
@@ -194,10 +177,16 @@ export function isCommonIndicatorType(
 // conditional-formatting rule (cutoffs in STORED units, buckets with colour and
 // label, direction). A figure whose CF source is `indicator` colours each value
 // by its own indicator's rule; null means the indicator is never coloured.
+// `include_in_analysis` on means the extract carries the indicator and m001
+// and m002 adjust it (the analysed set, PLAN_A4 ruling 3, stated once in
+// lib/common_indicator_catalog.ts); off means dictionary only: its data is
+// still imported and stored, and it is still usable as a member or in an
+// expression.
 export type CommonIndicator = {
   indicator_common_id: string;
   indicator_common_label: string;
   definition: CommonIndicatorDefinition;
+  include_in_analysis: boolean;
   format_as: IndicatorFormat;
   thresholds: ThresholdsRule | null;
   sort_order: number;
@@ -304,10 +293,10 @@ export interface DHIS2CategoryCombo {
 }
 
 // ============================================================================
-// Source eligibility and indicator decomposition (PLAN_A3 rulings 6 and 8)
+// Element eligibility and indicator decomposition (PLAN_A3 rulings 6 and 8)
 // ============================================================================
 
-// Why a DHIS2 data element cannot be a source: it must be an additive monthly
+// Why a DHIS2 data element cannot fill a base: it must be an additive monthly
 // count by DHIS2's own metadata. `value` is what the metadata said; undefined
 // when the field was absent (a period type is absent when the element is in
 // no data set). `element_not_found` is for an operand whose element the
@@ -326,11 +315,11 @@ export type Dhis2DataElementSearchItem = DHIS2DataElement & {
   verdict: Dhis2SourceVerdict;
 };
 
-// One `#{uid}` or `#{uid.coc}` term of a DHIS2 indicator formula. `source_id`
-// is the term's id as a source (`uid` or `uid.coc`), which is also the
-// identifier the decomposed expression names it by.
+// One `#{uid}` or `#{uid.coc}` term of a DHIS2 indicator formula. `dhis2_id`
+// is the term's id as a base's dhis2_id (`uid` or `uid.coc`), which is also
+// the identifier the decomposed expression names it by.
 export type Dhis2ParsedOperand = {
-  source_id: string;
+  dhis2_id: string;
   data_element_id: string;
   category_option_combo_id?: string;
 };
@@ -346,7 +335,7 @@ export type Dhis2IndicatorParseRefusal =
   | { kind: "too_many_operands"; count: number; max: number };
 
 // A parsed DHIS2 indicator: its operands, the derived's expression in the
-// app's own grammar with each operand written as `[source_id]` (the naming
+// app's own grammar with each operand written as `[dhis2_id]` (the naming
 // step renames those identifiers to the base ids it creates), and the
 // display format its factor maps to. `note` is set when the factor is 1000,
 // which has no format of its own: the expression carries `* 1000` and the
@@ -365,7 +354,7 @@ export type Dhis2DecompositionOperand = Dhis2ParsedOperand & {
   verdict: Dhis2SourceVerdict;
 };
 
-// The parse plus each operand's source verdict, checked through its element
+// The parse plus each operand's eligibility verdict, checked through its element
 // on the live server. `accepted` is the whole-indicator answer: the parse
 // accepted and every operand accepted.
 export type Dhis2IndicatorDecomposition = {
@@ -463,24 +452,30 @@ export function describeDhis2ParseRefusal(
 }
 
 // ============================================================================
-// The naming step (PLAN_A3 ruling 6)
+// The naming step (PLAN_A4 ruling 6)
 // ============================================================================
 
-// What a candidate source becomes when the naming step is saved: the source
-// of a NEW base under the id chosen there, or one more source of an existing
-// base. Several candidates naming the same new id become one base with all
-// of those sources.
-export type IndicatorNamingTarget =
-  | { kind: "new"; indicator_id: string; label: string }
-  | { kind: "attach"; indicator_id: string };
-
-export type IndicatorNamingSource = IndicatorSource & {
-  target: IndicatorNamingTarget;
+// A DHIS2 element or operand the naming step imports: it becomes a new base
+// under `indicator_id` carrying `dhis2_id`, or, when `indicator_id` names an
+// existing base that has no dhis2_id, assigns the UID to that base. Any
+// other existing id is refused. A dhis2_id that already belongs to an
+// indicator creates nothing.
+export type IndicatorNamingElement = {
+  dhis2_id: string;
+  indicator_id: string;
+  label: string;
 };
 
-// A derived indicator authored over candidate sources: its expression names
-// each source by source_id, and the transaction rewrites every identifier
-// to the base that source lands in.
+// A CSV column id the naming step turns into an uploaded base: the id is
+// what the file says, so it is the indicator's own id.
+export type IndicatorNamingUploaded = {
+  indicator_id: string;
+  label: string;
+};
+
+// A derived indicator authored over candidate elements: its expression names
+// each element by `[dhis2_id]`, and the transaction rewrites every identifier
+// to the indicator that element lands in.
 export type IndicatorNamingDerived = {
   indicator_id: string;
   label: string;
@@ -489,7 +484,8 @@ export type IndicatorNamingDerived = {
 };
 
 export type IndicatorNamingInput = {
-  sources: IndicatorNamingSource[];
+  elements: IndicatorNamingElement[];
+  uploaded: IndicatorNamingUploaded[];
   derived: IndicatorNamingDerived[];
 };
 

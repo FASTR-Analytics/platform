@@ -5,11 +5,11 @@ export const GENERATED_INDICATOR_ID_MAX_LENGTH = 64;
 
 // The one id-generation rule, in lib so the client previews exactly what the
 // server writes (PLAN_A3 ruling 10). Instance migration 086 applies the same
-// rule in PL/pgSQL to the bases it creates from unmapped raws; the two
-// spellings must agree, and `server/tests/indicator_id_test.ts` pins this
-// one. The digit prefix and the cap are applied once, to the stem, so a
-// label that folds to nothing takes `i_` + the slugged source id without a
-// second `i_`.
+// rule in PL/pgSQL to the bases it creates; the two spellings must agree,
+// and `server/tests/indicator_id_test.ts` pins this one. The digit prefix
+// and the cap are applied once, to the stem, so a label that folds to
+// nothing takes `i_` + the slugged fallback id (the DHIS2 id, or the old id
+// the migration renames) without a second `i_`.
 export function slugIndicatorId(text: string): string {
   return text
     .normalize("NFKD")
@@ -21,13 +21,13 @@ export function slugIndicatorId(text: string): string {
 
 export function generateIndicatorId(args: {
   label: string;
-  sourceId: string;
+  fallbackId: string;
   existingIds: Iterable<string>;
 }): string {
   const fromLabel = slugIndicatorId(args.label);
   const stem = fromLabel.length > 0
     ? fromLabel
-    : `i_${slugIndicatorId(args.sourceId)}`;
+    : `i_${slugIndicatorId(args.fallbackId)}`;
   const capped = (/^[0-9]/.test(stem) ? `i_${stem}` : stem).slice(
     0,
     GENERATED_INDICATOR_ID_MAX_LENGTH,

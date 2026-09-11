@@ -1,6 +1,7 @@
 // Pins PLAN_A3 rulings 5 and 10 as pure functions: the id generator
 // (lib/indicator_id.ts) and the validator (lib/types/indicators.ts). Migration
 // 086 restates the generator in PL/pgSQL, so a change here is a change there.
+// The charset rule applies to every new id, a DHIS2 id included.
 //
 //   deno test -A --env-file server/tests/indicator_id_test.ts
 
@@ -10,7 +11,6 @@ import {
   GENERATED_INDICATOR_ID_MAX_LENGTH,
   generateIndicatorId,
   getNewIndicatorIdIssue,
-  getNewSourceIdIssue,
   getSpecialIndicatorTypeIssue,
   INDICATOR_ID_MAX_LENGTH,
   POPULATION_TYPE_IDS,
@@ -21,9 +21,9 @@ import {
 function generate(
   label: string,
   existingIds: string[] = [],
-  sourceId = "AbCdEfGhIj1",
+  fallbackId = "AbCdEfGhIj1",
 ) {
-  return generateIndicatorId({ label, sourceId, existingIds });
+  return generateIndicatorId({ label, fallbackId, existingIds });
 }
 
 Deno.test("generator: NFKD-folds accents and lowercases", () => {
@@ -46,7 +46,7 @@ Deno.test("generator: a leading digit takes the i_ prefix", () => {
   assertEquals(generate("2024 deliveries"), "i_2024_deliveries");
 });
 
-Deno.test("generator: an empty result falls back to i_ + the slugged source id", () => {
+Deno.test("generator: an empty result falls back to i_ + the slugged fallback id", () => {
   assertEquals(generate("", [], "AbCdEfGhIj1"), "i_abcdefghij1");
   assertEquals(
     generate("!!! ???", [], "AbCdEfGhIj1.KlMnOpQrSt2"),
@@ -107,9 +107,6 @@ Deno.test("reserved words: the union of specials, population types and function 
     ...EXPRESSION_FUNCTION_NAMES,
   ]);
   assertEquals(new Set(RESERVED_WORDS).size, RESERVED_WORDS.length);
-  for (const id of SPECIAL_INDICATOR_IDS) {
-    assertEquals(getNewSourceIdIssue(id), undefined);
-  }
 });
 
 Deno.test("validator: a reserved word is refused for a base and for a derived", () => {
@@ -119,11 +116,13 @@ Deno.test("validator: a reserved word is refused for a base and for a derived", 
   }
 });
 
-Deno.test("validator: a special id is accepted as a base and refused as a derived, at create and at retype", () => {
+Deno.test("validator: a special id is accepted as a base or sum and refused as a derived, at create and at retype", () => {
   for (const id of SPECIAL_INDICATOR_IDS) {
     assertEquals(getNewIndicatorIdIssue(id, "base"), undefined);
+    assertEquals(getNewIndicatorIdIssue(id, "sum"), undefined);
     assertEquals(getNewIndicatorIdIssue(id, "derived"), "special_not_base");
     assertEquals(getSpecialIndicatorTypeIssue(id, "base"), undefined);
+    assertEquals(getSpecialIndicatorTypeIssue(id, "sum"), undefined);
     assertEquals(
       getSpecialIndicatorTypeIssue(id, "derived"),
       "special_not_base",
@@ -151,19 +150,5 @@ Deno.test("validator: the charset rule for either kind", () => {
   assertEquals(
     getNewIndicatorIdIssue("x".repeat(INDICATOR_ID_MAX_LENGTH), "base"),
     undefined,
-  );
-});
-
-Deno.test("validator: a source id is checked by the charset rule only", () => {
-  for (const word of RESERVED_WORDS) {
-    assertEquals(getNewSourceIdIssue(word), undefined);
-  }
-  assertEquals(getNewSourceIdIssue("AbCdEfGhIj1.KlMnOpQrSt2"), undefined);
-  assertEquals(getNewSourceIdIssue(""), "empty");
-  assertEquals(getNewSourceIdIssue("a b "), "untrimmed");
-  assertEquals(getNewSourceIdIssue("a,b"), "forbidden_chars");
-  assertEquals(
-    getNewSourceIdIssue("x".repeat(INDICATOR_ID_MAX_LENGTH + 1)),
-    "too_long",
   );
 });

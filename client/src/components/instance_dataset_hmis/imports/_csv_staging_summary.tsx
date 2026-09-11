@@ -20,7 +20,7 @@ export function CsvStagingSummary(p: Props) {
     new Set(p.result.periodIndicatorStats.map((s) => s.periodId)).size;
 
   const uniqueSources = () =>
-    new Set(p.result.periodIndicatorStats.map((s) => s.sourceId)).size;
+    new Set(p.result.periodIndicatorStats.map((s) => s.indicatorId)).size;
 
   return (
     <div class="ui-spy">
@@ -74,7 +74,7 @@ export function CsvStagingSummary(p: Props) {
             (p.result.validation.invalidCounts?.rowsDropped || 0) > 0 ||
             (p.result.validation.invalidPeriods?.rowsDropped || 0) > 0 ||
             (p.result.validation.invalidFacilities?.rowsDropped || 0) > 0 ||
-            (p.result.validation.unknownSources?.rowsDropped || 0) > 0)
+            (p.result.validation.unknownIndicators?.rowsDropped || 0) > 0)
             ? p.result.validation
             : undefined
         }
@@ -139,29 +139,29 @@ export function CsvStagingSummary(p: Props) {
                   </div>
                 </Show>
               </Show>
-              <Show when={validation().unknownSources?.rowsDropped}>
+              <Show when={validation().unknownIndicators?.rowsDropped}>
                 <div class="text-danger flex justify-between">
                   <span>{t3({ en: "Unknown sources (no indicator has them):", fr: "Sources inconnues (aucun indicateur ne les a) :", pt: "Fontes desconhecidas (nenhum indicador as tem):" })}</span>
                   <span class="font-mono">
-                    {toNum0(validation().unknownSources.rowsDropped)}{" "}
+                    {toNum0(validation().unknownIndicators.rowsDropped)}{" "}
                     {t3({ en: "rows dropped", fr: "lignes supprimées", pt: "linhas descartadas" })}
                   </span>
                 </div>
-                <Show when={validation().unknownSources.sample?.length}>
+                <Show when={validation().unknownIndicators.sample?.length}>
                   <div class="text-base-content ml-4 text-sm">
                     <div class="mb-1">{t3({ en: "Most frequent unknown sources:", fr: "Sources inconnues les plus fréquentes :", pt: "Fontes desconhecidas mais frequentes:" })}</div>
                     <div class="font-mono">
                       {validation()
-                        .unknownSources.sample.slice(0, 5)
+                        .unknownIndicators.sample.slice(0, 5)
                         .map(
                           (source) =>
-                            `${source.source_id} (${toNum0(source.row_count)} ${t3({ en: "rows", fr: "lignes", pt: "linhas" })})`,
+                            `${source.indicator_id} (${toNum0(source.row_count)} ${t3({ en: "rows", fr: "lignes", pt: "linhas" })})`,
                         )
                         .join(", ")}
                     </div>
                   </div>
                 </Show>
-                <Show when={validation().unknownSources.ids} keyed>
+                <Show when={validation().unknownIndicators.ids} keyed>
                   {(ids) => (
                     <div class="text-base-content ml-4 text-sm">
                       <div class="mb-1">

@@ -1,4 +1,4 @@
-import { t3, type IndicatorWithSources } from "lib";
+import { t3, type CommonIndicator } from "lib";
 import {
   StateHolderWrapper,
   Table,
@@ -13,7 +13,7 @@ type Props = {
   setSelectedIds: (ids: string[]) => void;
   // The dictionary the picker loaded, so the wizard can count the sources a
   // selection expands to (the same expansion the server persists at launch).
-  onDictionaryLoaded: (indicators: IndicatorWithSources[]) => void;
+  onDictionaryLoaded: (indicators: CommonIndicator[]) => void;
 };
 
 // The indicator multi-select shared by the run launcher and the schedule
@@ -36,7 +36,7 @@ export function Dhis2IndicatorPicker(p: Props) {
     }
   });
 
-  const tableColumns: TableColumn<IndicatorWithSources>[] = [
+  const tableColumns: TableColumn<CommonIndicator>[] = [
     {
       key: "indicator_common_id",
       header: t3({
@@ -64,15 +64,9 @@ export function Dhis2IndicatorPicker(p: Props) {
     {
       key: "sources",
       header: t3({ en: "Sources", fr: "Sources", pt: "Fontes" }),
-      render: (item) =>
-        item.definition.type === "base"
-          ? item.sources.map((s) => s.source_id).join(", ")
-          : item.definition.expression,
+      render: (item) => definedByText(item),
       sortable: true,
-      sortValue: (item) =>
-        item.definition.type === "base"
-          ? item.sources.map((s) => s.source_id).join(", ")
-          : item.definition.expression,
+      sortValue: (item) => definedByText(item),
     },
   ];
 
@@ -104,4 +98,15 @@ export function Dhis2IndicatorPicker(p: Props) {
       )}
     </StateHolderWrapper>
   );
+}
+
+function definedByText(indicator: CommonIndicator): string {
+  switch (indicator.definition.type) {
+    case "base":
+      return indicator.definition.dhis2_id ?? "";
+    case "sum":
+      return indicator.definition.members.join(", ");
+    case "derived":
+      return indicator.definition.expression;
+  }
 }

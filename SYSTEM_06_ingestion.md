@@ -82,8 +82,8 @@ history). Shape:
 
 - `dataset_hmis_import_runs` (main DB): one row per run, with trigger/user,
   `source` (`dhis2|csv`), selection JSON (DHIS2: a window of INDICATORS with
-  its expansion to sources, or explicit source pairs) or
-  `csv_config` JSON (CSV: `{ fileName, filePin, mappings }`; the
+  its expansion to the elements it fetches, or explicit (indicator, month)
+  pairs) or `csv_config` JSON (CSV: `{ fileName, filePin, mappings }`; the
   source→fields pairing is enforced in code), status
   (`queued|running|needs_review|complete|error|cancelled`), pair counters
   (DHIS2 only), throttled `progress` JSON (by-source union: in-flight pairs vs
@@ -139,23 +139,27 @@ history). Shape:
   and the outcome write silently consumes that occurrence, and
   rolling-window "current month" resolves from the server clock, not the
   schedule's timezone (≤hours of skew, self-correcting).
-- **Import selects indicators; sources are expanded where pairs are
-  enumerated** (PLAN_A3 ruling 7). A window or schedule selection carries
-  `indicatorIds`; `validateRunSelection` (shared by launch, enqueue and the
-  scheduler's fire path) expands them with
-  `expandIndicatorSelectionToSources` (lib, S5): a derived flattens to its
-  base ingredients through the resolver, a base contributes its sources,
-  and population terms and sources that are not DHIS2-shaped are dropped
-  and listed (`populationTermsDropped`, `nonDhis2SourcesDropped`, shown in
+- **Import selects indicators; the elements it fetches are expanded where
+  pairs are enumerated** (PLAN_A4 ruling 5). A window or schedule selection
+  carries `indicatorIds`; `validateRunSelection` (shared by launch, enqueue
+  and the scheduler's fire path) expands them with
+  `expandIndicatorSelection` (lib, S5): a sum expands to its members, a
+  derived flattens through the resolver to the bases and sums it reaches,
+  the bases with a `dhis2_id` become fetch targets `{ indicatorId, dhis2Id }`,
+  and population terms and uploaded bases (no `dhis2_id`) are dropped and
+  listed (`populationTermsDropped`, `uploadedIndicatorsDropped`, shown in
   the run detail). The expansion is persisted on the run row's `selection`
-  as `sourceIds` and carried in the worker message, so the worker and the
-  history tab never re-resolve: a queued run reuses its enqueue-time
-  `sourceIds` (its `total_pairs` was recorded then), so a source added to a
-  base after enqueue is not in that run. Pairs selections (retry failed,
-  re-import from the ledger) stay at source grain. Pinned by
+  as `elements` and carried in the worker message, so the worker fetches
+  `dhis2Id` and writes rows under `indicatorId` without re-resolving: a
+  queued run reuses its enqueue-time `elements` (its `total_pairs` was
+  recorded then), so an element assigned after enqueue is not in that run.
+  A pairs selection (retry failed, re-import from the ledger) names
+  (indicator, month) pairs; `validateRunSelection` resolves each
+  indicator's `dhis2_id` and refuses an uploaded base. The ledger is keyed
+  by `indicator_id`. Pinned by
   `server/tests/indicator_selection_expansion_test.ts`.
-- The worker classifies every source of the run from DHIS2 metadata
-  (dispatcher, `dispatch.ts`) and has one fetch route: bare data
+- The worker classifies every element (`dhis2_id`) of the run from DHIS2
+  metadata (dispatcher, `dispatch.ts`) and has one fetch route: bare data
   elements + operands → dataValueSets country-pulls (the values facilities
   reported, no DHIS2-side formula), one per base element × month selected by
   `period=<instance period id>` (an opaque token the DHIS2 server interprets
@@ -165,8 +169,8 @@ history). Shape:
   size/timeout. Every other id gets no fetch and a permanent ledger error:
   a DHIS2 indicator (a formula; the error names the DHIS2 indicator import
   in the indicator configuration, which decomposes it into data elements,
-  and its existing data stays), or a source id that matches no data element
-  or operand at all. The run detail lists both sets
+  and its existing data stays), or a `dhis2_id` that matches no data
+  element or operand at all. The run detail lists both sets
   (`classification.unknownIds` and `dhis2IndicatorIds`). A response containing any period other than the
   requested one fails the pull loudly (permanent). The evidence base
   (verdicts E1–E13, incl. the calendar finding and the sizing fact that DVS
@@ -261,12 +265,12 @@ start.
 - Escaping is uniform: `''`-doubling only (HFA via the shared `escapeSqlString`
   in `server/db/utils.ts`, HMIS/structure inline).
 - Row-level validation counts and samples drops (on the run row); reference
-  validation (facility exists; the row's source id is a source of some
-  indicator, else `unknownSources`, whose `ids` is the full distinct set
-  beside the ten-row sample) runs at staging, and the facility check
-  again at integration (facilities can be deleted between phases; the
-  facility FKs are RESTRICT). The CSV mapping names the source column
-  `source_id`; the per-run staging tables carry that column.
+  validation (facility exists; the row's indicator id is a base indicator,
+  else `unknownIndicators`, whose `ids` is the full distinct set beside the
+  ten-row sample) runs at staging, and the facility check again at
+  integration (facilities can be deleted between phases; the facility FKs
+  are RESTRICT). The CSV mapping names the indicator column
+  `indicator_id`; the per-run staging tables carry that column.
 - CSV parsing goes through `getCsvStreamComponents`
   (`get_csv_components_streaming_fast.ts`): streaming, 2 MB chunks,
   quote-parity-aware chunk boundaries (quoted fields with embedded newlines
@@ -279,8 +283,8 @@ start.
   the pair's ledger row carries `skipped_values` and a sample of at most 10
   `{ facilityId, value }` (migration 085), the run detail and the
   By-indicator tab show the count, and the pair integrates and stays
-  `ready`. Failing the pair would block a source-month for every facility
-  in the country on one facility's decimal, and the ledger has no
+  `ready`. Failing the pair would block an indicator-month for every
+  facility in the country on one facility's decimal, and the ledger has no
   per-facility grain. Accepted values are summed per facility across
   COC×AOC (operands restricted to their COC first), so the stored count is
   a non-negative integer by construction and nothing truncates. A
@@ -391,15 +395,15 @@ callback re-parses the new bytes).
   By-source tab is showing (every switch to it, and every `refresh()` /
   toolbar refresh via a `ledgerVersion` signal; stale rows stay visible until
   fresh ones arrive). By source is the import ledger: import history
-  pivoted by source, each with the base indicator it belongs to,
-  click-through to a per-month detail (`_ledger_indicator_detail.tsx`).
+  pivoted by indicator (the ledger's key), click-through to a per-month
+  detail (`_ledger_indicator_detail.tsx`).
   "Re-import this source" closes the detail with a pair list and "Retry
   failed pairs" hands the tab's pair list to the shell; both feed the
   wizard's `presetPairs` entry, the same contract as History → run detail
   (a cancelled wizard lands on the tab, not back in the detail, same as run
   detail; accepted). Two wizards: DHIS2 (credentials/indicators/time/
   config/review; the indicators step picks from the one dictionary list and
-  the review counts the DHIS2 sources the selection expands to) and CSV
+  the review counts the DHIS2 elements the selection expands to) and CSV
   (upload → mappings → review), both with the launch-or-queue fork. A run
   detail's
   Version row opens the version's `_import_information.tsx`. This replaced
@@ -419,11 +423,11 @@ callback re-parses the new bytes).
   families.
 - Display caches: HMIS items keyed
   `versionId_baseIndicatorMappingsVersion_structureLastUpdated`, with the
-  view (`source` | `indicator`: one series per source, or per base as the
-  sum of its sources) and the HMIS schema hash in the uniqueness keys;
-  HFA/ICEH use server-provided cache hashes from the T1 SSE store. The
-  delete-data window selects at source grain (`grain: "source"`,
-  `sourcesToInclude`).
+  HMIS schema hash in the uniqueness keys; one view, by the indicators that
+  have rows (sums have no rows and do not appear; their totals are in
+  packages), read from the ledger; HFA/ICEH use server-provided cache
+  hashes from the T1 SSE store. The delete-data window selects indicators
+  (`indicatorsToInclude`, stored under that name in deletion version rows).
 
 ## Run capture seam
 
@@ -439,8 +443,8 @@ dataset version stamps the manifest records. No project table is written.
 
 - The run's input mirrors are the metadata twins of the CSVs:
   `hfa_*_snapshot.json` (HFA, service-category-scoped),
-  `iceh_indicators_snapshot.json`, and `indicators.json` (the whole common
-  dictionary, resolved at capture). Modules read `../datasets/{type}.csv`; PO
+  `iceh_indicators_snapshot.json`, and `indicators.json` (the analysed
+  indicator set, resolved at capture). Modules read `../datasets/{type}.csv`; PO
   metadata reads the manifest's indicator catalog, built from the mirrors at
   finalize. The project-DB `calculated_indicators_snapshot` table was dropped
   by migration 041.

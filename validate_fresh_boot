@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# Fresh-postgres boot gate (PLAN_A3 §5 gate 5): dbStartUp() against an empty
-# server must exit 0 and seed exactly the special indicators as empty bases.
+# Fresh-postgres boot gate (PLAN_A4 §5 gate 4): dbStartUp() against an empty
+# server must exit 0 and seed exactly the special indicators as empty bases,
+# every checkbox on, with no indicator_sources table.
 # Companion to ./validate_migrations (schema replay) and ./validate_queries
 # (the read path); this one runs the real boot path, base schema, migrations
 # and data transforms included, on a throwaway container.

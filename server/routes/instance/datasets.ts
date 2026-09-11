@@ -114,7 +114,6 @@ defineRoute(
       c.var.mainDb,
       body.versionId,
       body.baseIndicatorMappingsVersion,
-      body.view,
       body.structureSchema,
     );
     return c.json(res);

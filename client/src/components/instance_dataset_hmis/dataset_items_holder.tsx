@@ -3,7 +3,6 @@ import {
   getAbcQualScale,
   getCalendar,
   t3,
-  type HmisDatatableView,
   type StructureSchema,
 } from "lib";
 import {
@@ -35,6 +34,8 @@ type Props = {
   structureSchema: StructureSchema;
 };
 
+type HmisDatatableView = "source" | "indicator";
+
 export function DatasetItemsHolder(p: Props) {
   const [view, setView] = createSignal<HmisDatatableView>("indicator");
 
@@ -62,8 +63,8 @@ export function DatasetItemsHolder(p: Props) {
         pt: "A obter dados...",
       }),
     });
+    void view;
     const res = await getDatasetHmisDisplayInfoFromCacheOrFetch(
-      view,
       versionId,
       baseIndicatorMappingsVersion,
       p.structureSchema,

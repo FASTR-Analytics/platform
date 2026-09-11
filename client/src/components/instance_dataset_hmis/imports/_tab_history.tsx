@@ -37,7 +37,7 @@ export function selectionLabel(run: DatasetHmisImportRunSummary): string {
     return "";
   }
   if (run.selection.kind === "window") {
-    const sources = `${toNum0(run.selection.sourceIds.length)} ${t3({
+    const sources = `${toNum0(run.selection.elements.length)} ${t3({
       en: "sources",
       fr: "sources",
       pt: "fontes",

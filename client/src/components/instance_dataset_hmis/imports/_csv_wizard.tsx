@@ -34,7 +34,7 @@ const STEPS: StepKind[] = ["upload", "mappings", "review"];
 
 const _HMIS_SQL_COL_NAMES: (keyof HmisCsvMappingParams)[] = [
   "facility_id",
-  "source_id",
+  "indicator_id",
   "period_id",
   "count",
 ];
@@ -51,7 +51,7 @@ export function CsvWizard(
   const [headersError, setHeadersError] = createSignal<string>("");
   const [mappings, setMappings] = createStore<HmisCsvMappingParams>({
     facility_id: "",
-    source_id: "",
+    indicator_id: "",
     period_id: "",
     count: "",
   });
@@ -65,7 +65,7 @@ export function CsvWizard(
     setHeadersError("");
     setMappings({
       facility_id: "",
-      source_id: "",
+      indicator_id: "",
       period_id: "",
       count: "",
     });

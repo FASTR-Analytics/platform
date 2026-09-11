@@ -3,46 +3,47 @@ import { thresholdsRuleSchema } from "../../types/conditional_formatting.ts";
 import type { InstanceIndicatorDetails } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
-// What an indicator IS (PLAN_1a §1.2). The expression grammar itself is
-// checked server-side against the live dictionary and the population store:
-// the shape check here only says which fields each type carries. The
-// base→number format rule lives in the DB layer too, where the type is known.
+// What an indicator IS (PLAN_A4 §2). The expression grammar itself is
+// checked server-side against the live dictionary and the population store;
+// a sum's members are checked there against the live list: the shape check
+// here only says which fields each type carries. The base→number format
+// rule lives in the DB layer too, where the type is known.
 const indicatorDefinitionSchema = z.union([
-  z.object({ type: z.literal("base") }),
+  z.object({ type: z.literal("base"), dhis2_id: z.string().nullable() }),
+  z.object({ type: z.literal("sum"), members: z.array(z.string()) }),
   z.object({ type: z.literal("derived"), expression: z.string() }),
 ]);
 
-const indicatorSourceSchema = z.object({
-  source_id: z.string(),
-  source_label: z.string(),
-});
-
 // The rule's shape rules (ascending cutoffs, one more bucket than cutoffs,
-// stored units) are the schema's refinements; the route only narrows. Sources
-// are written in the indicator's own transaction: a base's sources, empty
-// for a derived (the DB layer refuses otherwise).
+// stored units) are the schema's refinements; the route only narrows.
 const indicatorItemSchema = z.object({
   indicator_common_id: z.string(),
   indicator_common_label: z.string(),
-  sources: z.array(indicatorSourceSchema),
   definition: indicatorDefinitionSchema,
+  include_in_analysis: z.boolean(),
   format_as: z.enum(["percent", "number", "rate_per_10k"]),
   thresholds: thresholdsRuleSchema.nullable(),
 });
 
-// The naming step's choice for one candidate source (PLAN_A3 ruling 6):
-// shared by the DHIS2 create route and the CSV re-stage action.
-export const indicatorNamingTargetSchema = z.discriminatedUnion("kind", [
-  z.object({
-    kind: z.literal("new"),
-    indicator_id: z.string(),
-    label: z.string(),
-  }),
-  z.object({ kind: z.literal("attach"), indicator_id: z.string() }),
-]);
+// The naming step's input (PLAN_A4 ruling 6): shared by the DHIS2 create
+// route and the CSV re-stage action.
+export const indicatorNamingElementSchema = z.object({
+  dhis2_id: z.string(),
+  indicator_id: z.string(),
+  label: z.string(),
+});
 
-export const indicatorNamingSourceSchema = indicatorSourceSchema.extend({
-  target: indicatorNamingTargetSchema,
+export const indicatorNamingInputSchema = z.object({
+  elements: z.array(indicatorNamingElementSchema),
+  uploaded: z.array(z.object({ indicator_id: z.string(), label: z.string() })),
+  derived: z.array(
+    z.object({
+      indicator_id: z.string(),
+      label: z.string(),
+      expression: z.string(),
+      format_as: z.enum(["percent", "number", "rate_per_10k"]),
+    }),
+  ),
 });
 
 export const indicatorRouteRegistry = {

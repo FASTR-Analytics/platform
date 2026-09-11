@@ -21,19 +21,17 @@ import {
   _CF_LIGHTER_GREEN,
   _CF_LIGHTER_RED,
   _CF_LIGHTER_YELLOW,
-  baseIdsWithSources,
   buildCommonIndicatorDictionary,
+  type CommonIndicator,
   collectIdentifiers,
   type CommonIndicatorDefinition,
   type CommonIndicatorType,
   type DerivedIndicatorComputability,
   getLanguage,
   getNewIndicatorIdIssue,
-  getNewSourceIdIssue,
   getSpecialIndicatorTypeIssue,
   type IndicatorFormat,
-  type IndicatorSource,
-  type IndicatorWithSources,
+  isDhis2ShapedId,
   isPopulationTypeId,
   judgeDerivedIndicator,
   parseIndicatorExpression,
@@ -110,6 +108,8 @@ const FORMAT_OPTIONS = [
   },
 ];
 
+type IndicatorSource = { source_id: string; source_label: string };
+
 type LegendRow = {
   identifier: string;
   kind: "indicator" | "population";
@@ -123,8 +123,8 @@ type LegendRow = {
 export function EditIndicatorForm(
   p: AlertComponentProps<
     {
-      indicators: IndicatorWithSources[];
-      existingIndicator?: IndicatorWithSources;
+      indicators: CommonIndicator[];
+      existingIndicator?: CommonIndicator;
     },
     undefined
   >,
@@ -143,7 +143,12 @@ export function EditIndicatorForm(
     existing?.definition.type ?? "base",
   );
   const [sources, setSources] = createSignal<IndicatorSource[]>(
-    existing?.sources.map((s) => ({ ...s })) ?? [],
+    existing?.definition.type === "base" && existing.definition.dhis2_id !== null
+      ? [{
+        source_id: existing.definition.dhis2_id,
+        source_label: existing.definition.dhis2_id,
+      }]
+      : [],
   );
   const [expression, setExpression] = createSignal(
     existing?.definition.type === "derived"
@@ -156,7 +161,7 @@ export function EditIndicatorForm(
   );
   // A base indicator is a count: its format is always a number.
   const effectiveFormatAs = (): IndicatorFormat =>
-    type() === "base" ? "number" : formatAs();
+    type() === "derived" ? formatAs() : "number";
 
   const ownId = () => indicatorId().trim() || "__new__";
 
@@ -164,7 +169,16 @@ export function EditIndicatorForm(
     if (type() === "derived") {
       return { type: "derived", expression: expression().trim() };
     }
-    return { type: "base" };
+    if (type() === "sum") {
+      return existing?.definition.type === "sum"
+        ? existing.definition
+        : { type: "sum", members: [] };
+    }
+    return {
+      type: "base",
+      dhis2_id: sources().map((s) => s.source_id.trim()).find((s) => s !== "") ??
+        null,
+    };
   }
 
   // The other indicators a formula may name: never the one being edited.
@@ -178,7 +192,9 @@ export function EditIndicatorForm(
   const sourceOwners = createMemo(() => {
     const owners = new Map<string, string>();
     for (const c of otherIndicators()) {
-      for (const s of c.sources) owners.set(s.source_id, c.indicator_common_id);
+      if (c.definition.type === "base" && c.definition.dhis2_id !== null) {
+        owners.set(c.definition.dhis2_id, c.indicator_common_id);
+      }
     }
     return owners;
   });
@@ -207,7 +223,13 @@ export function EditIndicatorForm(
         ownId(),
         source,
         dictionary,
-        baseIdsWithSources(p.indicators),
+        new Set(
+          p.indicators
+            .filter((c) =>
+              c.definition.type === "base" && c.definition.dhis2_id !== null
+            )
+            .map((c) => c.indicator_common_id),
+        ),
       );
     },
   );
@@ -382,7 +404,7 @@ export function EditIndicatorForm(
         : [];
       const seen = new Set<string>();
       for (const s of cleanSources) {
-        if (getNewSourceIdIssue(s.source_id)) {
+        if (!isDhis2ShapedId(s.source_id)) {
           return {
             success: false,
             err: t3({
@@ -431,8 +453,8 @@ export function EditIndicatorForm(
       const indicator = {
         indicator_common_id: id,
         indicator_common_label: label,
-        sources: cleanSources,
         definition: currentDefinition(),
+        include_in_analysis: existing?.include_in_analysis ?? true,
         format_as: effectiveFormatAs(),
         thresholds: rule,
       };

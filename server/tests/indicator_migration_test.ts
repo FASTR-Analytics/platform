@@ -1,17 +1,17 @@
-// Pins instance migration 086 to the lib it restates (PLAN_A3 rulings 5,
-// 10 and 12): the special and reserved word lists it fail-stops and
-// generates against are the lib constants, and its NFKD-fold translate
-// table maps every precomposed Latin letter in U+00C0..U+017F exactly as
-// slugIndicatorId does. ./validate_indicator_sources checks the generated
+// Pins instance migration 086 to the lib it restates (PLAN_A3 ruling 10,
+// PLAN_A4 ruling 10): the special and reserved word lists it generates
+// against are the lib constants, and its NFKD-fold translate table maps
+// every precomposed Latin letter in U+00C0..U+017F exactly as
+// slugIndicatorId does. ./validate_indicator_migration checks the generated
 // ids themselves against generateIndicatorId over a real dump.
 //
-//   deno test -A --env-file server/tests/indicator_sources_migration_test.ts
+//   deno test -A --env-file server/tests/indicator_migration_test.ts
 
 import { assert, assertEquals } from "@std/assert";
 import { RESERVED_WORDS, slugIndicatorId, SPECIAL_INDICATOR_IDS } from "lib";
 
 const MIGRATION_PATH = new URL(
-  "../db/migrations/instance/086_indicator_sources.sql",
+  "../db/migrations/instance/086_indicators_one_table.sql",
   import.meta.url,
 );
 const sql = await Deno.readTextFile(MIGRATION_PATH);

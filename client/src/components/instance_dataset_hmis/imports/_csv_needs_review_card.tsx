@@ -1,7 +1,7 @@
 import {
   t3,
   type DatasetHmisImportRunSummary,
-  type IndicatorWithSources,
+  type CommonIndicator,
 } from "lib";
 import {
   AlertComponentProps,
@@ -50,7 +50,7 @@ export function CsvNeedsReviewCard(p: Props) {
   const unknownSourceIds = createMemo<string[]>(() => {
     const s = detail.state();
     return s.status === "ready"
-      ? s.data.csvStagingResult?.validation?.unknownSources.ids ?? []
+      ? s.data.csvStagingResult?.validation?.unknownIndicators.ids ?? []
       : [];
   });
 
@@ -189,7 +189,7 @@ function CsvUnknownSourcesNamingForm(
   });
   // Seeded once, from the dictionary as loaded: the proposed ids are
   // generated against it, and the user's edits must not be re-seeded away.
-  const [indicators, setIndicators] = createSignal<IndicatorWithSources[]>();
+  const [indicators, setIndicators] = createSignal<CommonIndicator[]>();
   createEffect(() => {
     const s = dictionary.state();
     if (s.status !== "ready" || indicators() !== undefined) return;

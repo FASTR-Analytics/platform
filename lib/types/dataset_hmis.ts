@@ -35,31 +35,13 @@ const datasetHmisWindowingBaseSchema = z.object({
   facilityTypesToInclude: z.array(z.string()).optional(),
 });
 
-// A windowing selects series at one grain: sources (the delete-data route)
-// or base indicators.
-export const datasetHmisWindowingSourceSchema = datasetHmisWindowingBaseSchema
+// A windowing selects indicators (the delete-data route, PLAN_A4 ruling 9).
+export const datasetHmisWindowingSchema = datasetHmisWindowingBaseSchema
   .extend({
-    grain: z.literal("source"),
-    sourcesToInclude: z.array(z.string()),
-  });
-
-export const datasetHmisWindowingIndicatorSchema =
-  datasetHmisWindowingBaseSchema.extend({
-    grain: z.literal("indicator"),
     indicatorsToInclude: z.array(z.string()),
   });
 
-export type DatasetHmisWindowingSource = z.infer<
-  typeof datasetHmisWindowingSourceSchema
->;
-
-export type DatasetHmisWindowingIndicator = z.infer<
-  typeof datasetHmisWindowingIndicatorSchema
->;
-
-export type DatasetHmisWindowing =
-  | DatasetHmisWindowingSource
-  | DatasetHmisWindowingIndicator;
+export type DatasetHmisWindowing = z.infer<typeof datasetHmisWindowingSchema>;
 
 export const AA3_SEPARATOR = "|||";
 

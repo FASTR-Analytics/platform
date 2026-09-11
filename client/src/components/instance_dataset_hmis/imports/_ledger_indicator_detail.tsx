@@ -2,7 +2,7 @@ import {
   getCalendar,
   t3,
   type DatasetHmisImportLedgerItem,
-  type Dhis2RunPair,
+  type Dhis2RunPairInput,
 } from "lib";
 import {
   Button,
@@ -33,7 +33,7 @@ export function ImportLedgerIndicatorDetail(
       items: DatasetHmisImportLedgerItem[];
       window: LedgerPeriodWindow;
     },
-    Dhis2RunPair[] | undefined
+    Dhis2RunPairInput[] | undefined
   >,
 ) {
   const itemsByPeriod = new Map<number, DatasetHmisImportLedgerItem>();
@@ -45,8 +45,8 @@ export function ImportLedgerIndicatorDetail(
   );
 
   function reimportSource() {
-    const pairs: Dhis2RunPair[] = enumerateMonthsDescending(p.window).map(
-      (periodId) => ({ sourceId: p.sourceId, periodId }),
+    const pairs: Dhis2RunPairInput[] = enumerateMonthsDescending(p.window).map(
+      (periodId) => ({ indicatorId: p.sourceId, periodId }),
     );
     p.close(pairs);
   }

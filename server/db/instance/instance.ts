@@ -77,36 +77,32 @@ export async function getHfaIndicatorsVersion(mainDb: Sql): Promise<string> {
   return result[0]?.version ?? "none";
 }
 
-// The full dictionary stamp: every indicator row, whatever its type, plus
-// every source. Keys the indicator manager's cache and rides the SSE
-// summary.
+// The full dictionary stamp: every indicator row, whatever its type. Keys
+// the indicator manager's cache and rides the SSE summary. The name predates
+// PLAN_A3 and is carried by the run manifest and dataset-info types.
 export async function getIndicatorMappingsVersion(
   mainDb: Sql,
 ): Promise<string> {
   const result = await mainDb<{ version: string | null }[]>`
     SELECT MD5(
       COALESCE((SELECT MAX(updated_at) FROM indicators)::text, '') || '|' ||
-      COALESCE((SELECT MAX(updated_at) FROM indicator_sources)::text, '') || '|' ||
-      (SELECT COUNT(*) FROM indicators)::text || '|' ||
-      (SELECT COUNT(*) FROM indicator_sources)::text
+      (SELECT COUNT(*) FROM indicators)::text
     ) as version
   `;
   return result[0]?.version ?? "none";
 }
 
 // The base-only stamp: the rows an HMIS extract is actually built from
-// (PLAN_1a §1.13), base indicators and their sources. Editing a derived
-// definition does not move it, so the datatable caches it keys never churn
-// on a formula edit.
+// (PLAN_1a §1.13), the analysed base and sum indicators (PLAN_A4 ruling
+// 11). Editing a derived definition does not move it, so the datatable
+// caches it keys never churn on a formula edit.
 export async function getBaseIndicatorMappingsVersion(
   mainDb: Sql,
 ): Promise<string> {
   const result = await mainDb<{ version: string | null }[]>`
     SELECT MD5(
-      COALESCE((SELECT MAX(updated_at) FROM indicators WHERE definition_type = 'base')::text, '') || '|' ||
-      COALESCE((SELECT MAX(updated_at) FROM indicator_sources)::text, '') || '|' ||
-      (SELECT COUNT(*) FROM indicators WHERE definition_type = 'base')::text || '|' ||
-      (SELECT COUNT(*) FROM indicator_sources)::text
+      COALESCE((SELECT MAX(updated_at) FROM indicators WHERE definition_type <> 'derived' AND include_in_analysis)::text, '') || '|' ||
+      (SELECT COUNT(*) FROM indicators WHERE definition_type <> 'derived' AND include_in_analysis)::text
     ) as version
   `;
   return result[0]?.version ?? "none";
@@ -137,12 +133,6 @@ export async function getInstanceIndicatorsSummary(
         { count: number }[]
       >`SELECT COUNT(*) as count FROM indicators`
     )[0]?.count ?? 0;
-  const hmisSources =
-    (
-      await mainDb<
-        { count: number }[]
-      >`SELECT COUNT(*) as count FROM indicator_sources`
-    )[0]?.count ?? 0;
   const hfaIndicators =
     (
       await mainDb<
@@ -156,7 +146,6 @@ export async function getInstanceIndicatorsSummary(
   return {
     indicators: {
       hmisIndicators,
-      hmisSources,
       hfaIndicators,
     },
     indicatorMappingsVersion,
@@ -387,14 +376,6 @@ export async function getInstanceDetail(
       `
       ).at(0)?.total_count ?? 0;
 
-    const hmisSourcesCount =
-      (
-        await mainDb<{ total_count: number }[]>`
-        SELECT count(*) AS total_count
-        FROM indicator_sources
-      `
-      ).at(0)?.total_count ?? 0;
-
     const hfaIndicatorsCount =
       (
         await mainDb<{ total_count: number }[]>`
@@ -445,7 +426,6 @@ const projectSummaries = await getProjectsForUser(mainDb, globalUser);
       hfaWeights: structureSummary.hfaWeights,
       indicators: {
         hmisIndicators: hmisIndicatorsCount,
-        hmisSources: hmisSourcesCount,
         hfaIndicators: hfaIndicatorsCount,
       },
       assets: resAssets.data,

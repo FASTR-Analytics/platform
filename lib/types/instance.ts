@@ -3,7 +3,6 @@ import { AssetInfo } from "./assets.ts";
 import type { GeoJsonMapSummary } from "./geojson_maps.ts";
 import type { DatasetType } from "./datasets.ts";
 import type {
-  HmisDatatableView,
   IndicatorMetadata,
   IndicatorMetadataDisplay,
 } from "./indicators.ts";
@@ -116,7 +115,6 @@ export type InstanceDetail = {
   hfaWeights: HfaWeightsCoverage[];
   indicators: {
     hmisIndicators: number;
-    hmisSources: number;
     hfaIndicators: number;
   };
   assets: AssetInfo[];
@@ -458,7 +456,6 @@ export type ConflictDecisions = {
 // ============================================================================
 
 export type ItemsHolderDatasetHmisDisplay = {
-  view: HmisDatatableView;
   structureSchema: StructureSchema;
   versionId: number | undefined;
   indicatorMappingsVersion: string | undefined;

@@ -1,10 +1,10 @@
-import { t3, type IndicatorWithSources } from "lib";
+import { t3, type CommonIndicator } from "lib";
 import { Dhis2IndicatorPicker } from "../_indicator_picker";
 
 type Props = {
   selectedIds: () => string[];
   setSelectedIds: (ids: string[]) => void;
-  onDictionaryLoaded: (indicators: IndicatorWithSources[]) => void;
+  onDictionaryLoaded: (indicators: CommonIndicator[]) => void;
 };
 
 export function Dhis2StepIndicators(p: Props) {

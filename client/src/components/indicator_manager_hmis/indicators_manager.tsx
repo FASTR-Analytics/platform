@@ -4,8 +4,8 @@ import {
   type CommonIndicatorType,
   type Dhis2RunCredentialsSource,
   INDICATOR_BATCH_FILE_COLUMNS,
-  INDICATOR_BATCH_SOURCES_SEPARATOR,
-  type IndicatorWithSources,
+  INDICATOR_BATCH_MEMBERS_SEPARATOR,
+  type CommonIndicator,
   type InstanceIndicatorDetails,
   isSpecialIndicatorId,
   judgeDerivedIndicators,
@@ -81,17 +81,21 @@ export function IndicatorsManager(p: Props) {
   });
 
   // The batch file (ruling 11): the download mirrors the upload.
-  function handleDownloadCsv(list: IndicatorWithSources[]) {
+  function handleDownloadCsv(list: CommonIndicator[]) {
     const rows = list.map((indicator) => [
       indicator.indicator_common_id,
       indicator.indicator_common_label,
       indicator.definition.type,
-      indicator.sources.map((s) => s.source_id).join(
-        INDICATOR_BATCH_SOURCES_SEPARATOR,
-      ),
+      indicator.definition.type === "base"
+        ? indicator.definition.dhis2_id ?? ""
+        : "",
+      indicator.definition.type === "sum"
+        ? indicator.definition.members.join(INDICATOR_BATCH_MEMBERS_SEPARATOR)
+        : "",
       indicator.definition.type === "derived"
         ? indicator.definition.expression
         : "",
+      String(indicator.include_in_analysis),
       indicator.format_as,
       indicator.thresholds ? JSON.stringify(indicator.thresholds) : "",
     ]);
@@ -203,6 +207,8 @@ function indicatorTypeLabel(type: CommonIndicatorType): string {
   switch (type) {
     case "base":
       return t3({ en: "Base", fr: "De base", pt: "Base" });
+    case "sum":
+      return t3({ en: "Sum", fr: "Somme", pt: "Soma" });
     case "derived":
       return t3({ en: "Derived", fr: "Dérivé", pt: "Derivado" });
   }
@@ -210,10 +216,15 @@ function indicatorTypeLabel(type: CommonIndicatorType): string {
 
 // What the indicator is made of: its sources for a base indicator, the
 // formula itself for a derived one. One derivation for display AND sort.
-function definedByText(indicator: IndicatorWithSources): string {
-  return indicator.definition.type === "base"
-    ? indicator.sources.map((s) => s.source_id).join(", ")
-    : indicator.definition.expression;
+function definedByText(indicator: CommonIndicator): string {
+  switch (indicator.definition.type) {
+    case "base":
+      return indicator.definition.dhis2_id ?? "";
+    case "sum":
+      return indicator.definition.members.join(", ");
+    case "derived":
+      return indicator.definition.expression;
+  }
 }
 
 type IndicatorStatus = {
@@ -222,8 +233,8 @@ type IndicatorStatus = {
 };
 
 function IndicatorsTable(p: {
-  indicators: IndicatorWithSources[];
-  handleDownloadCsv: (indicators: IndicatorWithSources[]) => void;
+  indicators: CommonIndicator[];
+  handleDownloadCsv: (indicators: CommonIndicator[]) => void;
 }) {
   // The same judgement capture makes, over the dictionary the list shows.
   // Base indicators have no status: one without sources is the ordinary case.
@@ -231,6 +242,13 @@ function IndicatorsTable(p: {
     const judgements = judgeDerivedIndicators(
       p.indicators,
       POPULATION_TYPE_IDS,
+      new Set(
+        p.indicators
+          .filter((c) =>
+            c.definition.type === "base" && c.definition.dhis2_id !== null
+          )
+          .map((c) => c.indicator_common_id),
+      ),
     );
     const statuses = new Map<string, IndicatorStatus>();
     for (const [id, judgement] of judgements) {
@@ -248,7 +266,7 @@ function IndicatorsTable(p: {
     }
     return statuses;
   });
-  const statusOf = (indicator: IndicatorWithSources) =>
+  const statusOf = (indicator: CommonIndicator) =>
     statuses().get(indicator.indicator_common_id);
   const uncomputableCount = createMemo(
     () => [...statuses().values()].filter((s) => s.problem !== undefined).length,
@@ -261,7 +279,7 @@ function IndicatorsTable(p: {
     });
   }
 
-  async function handleUpdateIndicator(indicator: IndicatorWithSources) {
+  async function handleUpdateIndicator(indicator: CommonIndicator) {
     await openComponent({
       element: EditIndicatorForm,
       props: { indicators: p.indicators, existingIndicator: indicator },
@@ -275,7 +293,7 @@ function IndicatorsTable(p: {
     });
   }
 
-  async function handleDeleteIndicators(selected: IndicatorWithSources[]) {
+  async function handleDeleteIndicators(selected: CommonIndicator[]) {
     const indicatorIds = selected.map((i) => i.indicator_common_id);
     const deleteAction = createDeleteAction(
       {
@@ -300,7 +318,7 @@ function IndicatorsTable(p: {
     await deleteAction.click();
   }
 
-  const columns: TableColumn<IndicatorWithSources>[] = [
+  const columns: TableColumn<CommonIndicator>[] = [
     {
       key: "indicator_common_id",
       header: t3({ en: "Indicator ID", fr: "ID de l'indicateur", pt: "ID do indicador" }),
@@ -345,22 +363,7 @@ function IndicatorsTable(p: {
       render: (indicator) =>
         indicator.definition.type === "derived"
           ? <div class="font-mono">{indicator.definition.expression}</div>
-          : (
-            <div class="ui-spy-xs">
-              <For each={indicator.sources}>
-                {(source) => (
-                  <div class="text-xs">
-                    <span class="font-mono">{source.source_id}</span>
-                    <Show when={source.source_label !== source.source_id}>
-                      <span class="text-base-content-muted ml-2">
-                        {source.source_label}
-                      </span>
-                    </Show>
-                  </div>
-                )}
-              </For>
-            </div>
-          ),
+          : <div class="font-mono text-xs">{definedByText(indicator)}</div>,
     },
     {
       key: "status",
@@ -391,7 +394,7 @@ function IndicatorsTable(p: {
     },
   ];
 
-  const allColumns = createMemo<TableColumn<IndicatorWithSources>[]>(() => {
+  const allColumns = createMemo<TableColumn<CommonIndicator>[]>(() => {
     if (!instanceState.currentUserIsGlobalAdmin) return columns;
     return [
       ...columns,
@@ -423,7 +426,7 @@ function IndicatorsTable(p: {
     ];
   });
 
-  const bulkActions = createMemo<BulkAction<IndicatorWithSources>[]>(() =>
+  const bulkActions = createMemo<BulkAction<CommonIndicator>[]>(() =>
     instanceState.currentUserIsGlobalAdmin
       ? [
           {

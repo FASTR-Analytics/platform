@@ -5,14 +5,14 @@ import {
   createFormAction,
 } from "panther";
 import { createSignal } from "solid-js";
-import { t3, type IndicatorWithSources } from "lib";
+import { t3, type CommonIndicator } from "lib";
 import { serverActions } from "~/server_actions";
 
 // One order for the whole dictionary (PLAN_1a §1.9): it is what every
 // indicator axis in every figure sorts by, so base and derived indicators sort
 // together in one list rather than each type having its own.
 type Props = AlertComponentProps<
-  { indicators: IndicatorWithSources[] },
+  { indicators: CommonIndicator[] },
   undefined
 >;
 

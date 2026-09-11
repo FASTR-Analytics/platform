@@ -15,23 +15,23 @@ import {
   getExistingMetadataIds,
 } from "../../dhis2/goal5_data_value_sets/mod.ts";
 
-// Dispatcher classification per source. "dvs" is a data element or
+// Dispatcher classification per dhis2_id. "dvs" is a data element or
 // operand, fetched from dataValueSets: the values facilities reported, the
 // importer's only route. "unknown" gets no fetch and a permanent ledger
 // error: a DHIS2 indicator is a formula the importer never evaluates (it is
 // re-created through the decomposition importer), and anything else matches
 // no DHIS2 metadata at all.
-export type SourceRoute =
+export type ElementRoute =
   | { kind: "dvs"; baseElementId: string; coc: string | undefined }
   | { kind: "unknown"; reason: "not_found" | "dhis2_indicator" };
 
 // Dynamic per run: DHIS2 metadata is the source of truth, no stored type
 // field to drift (robustness ruling).
-export async function classifySources(
-  sourceIds: string[],
+export async function classifyElements(
+  dhis2Ids: string[],
   fetchOptions: FetchOptions,
-): Promise<Map<string, SourceRoute>> {
-  const parsed = sourceIds.map((id) => {
+): Promise<Map<string, ElementRoute>> {
+  const parsed = dhis2Ids.map((id) => {
     const operandMatch = id.match(DHIS2_OPERAND_PATTERN);
     if (operandMatch) {
       return {
@@ -78,7 +78,7 @@ export async function classifySources(
     ? await getExistingMetadataIds("categoryOptionCombos", cocCandidates, fetchOptions)
     : new Set<string>();
 
-  const routes = new Map<string, SourceRoute>();
+  const routes = new Map<string, ElementRoute>();
   for (const p of parsed) {
     if (p.base === undefined) {
       routes.set(p.id, { kind: "unknown", reason: "not_found" });
@@ -100,8 +100,8 @@ export async function classifySources(
   return routes;
 }
 
-export function pairKey(p: { sourceId: string; periodId: number }): string {
-  return `${p.sourceId}|${p.periodId}`;
+export function pairKey(p: { indicatorId: string; periodId: number }): string {
+  return `${p.indicatorId}|${p.periodId}`;
 }
 
 // Size/timeout never shrink on an identical retry: the caller splits by
@@ -154,7 +154,7 @@ export function describeFetchError(error: unknown): {
 export const SKIPPED_VALUES_SAMPLE_CAP = 10;
 
 export type DvsCoveredPair = {
-  sourceId: string;
+  indicatorId: string;
   coc: string | undefined;
   periodId: number;
 };
@@ -184,7 +184,7 @@ export function parseNonNegativeInteger(raw: string): number | undefined {
 // are summed per facility across COC×AOC, so the sum is a non-negative
 // integer by construction and nothing truncates. A skipped value is counted
 // on the pair with a capped sample, and the pair still integrates: failing
-// it would block the source-month for every facility in the country on one
+// it would block the indicator-month for every facility in the country on one
 // facility's decimal, and the ledger has no per-facility grain, so
 // skip-and-record is what keeps refresh alive and the anomaly visible.
 export function reduceDvsValues(

@@ -1,28 +1,28 @@
-// Pins the naming step's transaction (PLAN_A3 ruling 6, step 5):
+// Pins the naming step's transaction (PLAN_A4 ruling 6): an element becomes
+// a new base under the chosen id, or assigns its UID to an existing base
+// that has no dhis2_id; any other existing id is refused; an element whose
+// UID already belongs to an indicator creates nothing; a decomposed DHIS2
+// indicator becomes bases for its operands and a derived over their ids;
 // createIndicatorsFromDhis2 refuses a refused element or indicator and
-// creates nothing; an accepted indicator creates its bases, their sources
-// and the derived over them, or nothing; applyIndicatorNaming attaches to
-// existing bases and rewrites derived expressions to the bases their
-// operands land in. Runs on a throwaway database built from
+// creates nothing. Runs on a throwaway database built from
 // _main_database.sql on the dev postgres (the .env the test task loads),
 // dropped afterwards.
 //
 //   deno test -A --env-file server/tests/indicator_naming_test.ts
 
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
-import type { Sql } from "postgres";
 import {
+  type CommonIndicator,
   type Dhis2IndicatorDecomposition,
   type Dhis2SourceVerdict,
-  type IndicatorWithSources,
 } from "lib";
 import { getPgConnection } from "../db/postgres/connection_manager.ts";
 import {
   applyIndicatorNaming,
   createIndicators,
   createIndicatorsFromDhis2,
-  type Dhis2NamingSource,
-  getIndicatorsWithSources,
+  type Dhis2NamingElement,
+  getCommonIndicators,
 } from "../db/instance/indicators.ts";
 import { parseDhis2Indicator } from "../dhis2/goal2_indicators/decompose_indicator.ts";
 
@@ -59,12 +59,13 @@ async function reset(): Promise<void> {
   await db`DELETE FROM indicators`;
 }
 
-function source(
-  source_id: string,
-  target: Dhis2NamingSource["target"],
+function element(
+  dhis2_id: string,
+  indicator_id: string,
+  label = `Label ${dhis2_id}`,
   verdict: Dhis2SourceVerdict = ACCEPTED,
-): Dhis2NamingSource {
-  return { source_id, source_label: `Label ${source_id}`, target, verdict };
+): Dhis2NamingElement {
+  return { dhis2_id, indicator_id, label, verdict };
 }
 
 function decomposition(
@@ -75,7 +76,7 @@ function decomposition(
   const operands = parse.accepted
     ? parse.operands.map((o) => ({
       ...o,
-      verdict: verdicts[o.source_id] ?? ACCEPTED,
+      verdict: verdicts[o.dhis2_id] ?? ACCEPTED,
     }))
     : [];
   return {
@@ -91,12 +92,12 @@ const RATE = {
   factor: 100,
 };
 
-async function seedBase(id: string, sourceIds: string[]): Promise<void> {
+async function seedBase(id: string, dhis2Id: string | null): Promise<void> {
   const res = await createIndicators(db, [{
     indicator_common_id: id,
     indicator_common_label: id,
-    sources: sourceIds.map((source_id) => ({ source_id, source_label: source_id })),
-    definition: { type: "base" },
+    definition: { type: "base", dhis2_id: dhis2Id },
+    include_in_analysis: true,
     format_as: "number",
     thresholds: null,
   }]);
@@ -107,47 +108,42 @@ async function seedDerived(id: string, expression: string): Promise<void> {
   const res = await createIndicators(db, [{
     indicator_common_id: id,
     indicator_common_label: id,
-    sources: [],
     definition: { type: "derived", expression },
+    include_in_analysis: true,
     format_as: "percent",
     thresholds: null,
   }]);
   assert(res.success, res.success ? "" : res.err);
 }
 
-async function dictionary(): Promise<Map<string, IndicatorWithSources>> {
+async function dictionary(): Promise<Map<string, CommonIndicator>> {
   return new Map(
-    (await getIndicatorsWithSources(db)).map((i) => [i.indicator_common_id, i]),
+    (await getCommonIndicators(db)).map((i) => [i.indicator_common_id, i]),
   );
-}
-
-async function sourceCount(): Promise<number> {
-  return (await db<{ n: number }[]>`SELECT COUNT(*)::int AS n FROM indicator_sources`)[0].n;
 }
 
 Deno.test("dhis2: a refused element creates nothing", async () => {
   await reset();
   const res = await createIndicatorsFromDhis2(db, {
-    sources: [
-      source(ANC1_ELEMENT, { kind: "new", indicator_id: "anc1", label: "ANC 1" }),
-      source(OTHER_ELEMENT, { kind: "new", indicator_id: "other", label: "Other" }, REFUSED),
+    elements: [
+      element(ANC1_ELEMENT, "anc1", "ANC 1"),
+      element(OTHER_ELEMENT, "other", "Other", REFUSED),
     ],
     indicators: [],
   });
   assert(!res.success);
-  assertStringIncludes(res.err, `${OTHER_ELEMENT} cannot be a source`);
+  assertStringIncludes(res.err, `${OTHER_ELEMENT} cannot be imported`);
   assertStringIncludes(res.err, "none is monthly");
   assertEquals((await dictionary()).size, 0);
-  assertEquals(await sourceCount(), 0);
 });
 
-Deno.test("dhis2: a decomposed indicator creates its bases, sources and derived", async () => {
+Deno.test("dhis2: a decomposed indicator creates its bases and the derived over them", async () => {
   await reset();
   const res = await createIndicatorsFromDhis2(db, {
-    sources: [
-      source(ANC4_ELEMENT, { kind: "new", indicator_id: "anc4", label: "ANC 4" }),
-      source(ANC1_ELEMENT, { kind: "new", indicator_id: "anc1", label: "ANC 1" }),
-      source(ANC1_OPERAND, { kind: "new", indicator_id: "anc1", label: "ignored" }),
+    elements: [
+      element(ANC4_ELEMENT, "anc4", "ANC 4"),
+      element(ANC1_ELEMENT, "anc1", "ANC 1"),
+      element(ANC1_OPERAND, "anc1_repeat", "ANC 1 repeat"),
     ],
     indicators: [{
       dhis2_id: DHIS2_INDICATOR,
@@ -157,31 +153,45 @@ Deno.test("dhis2: a decomposed indicator creates its bases, sources and derived"
     }],
   });
   assert(res.success, res.success ? "" : res.err);
-  assertEquals(res.data, { created: 3, attached: 0 });
+  assertEquals(res.data, { created: 4, assigned: 0 });
   const d = await dictionary();
-  assertEquals([...d.keys()], ["anc4", "anc1", "anc4_rate"]);
-  assertEquals(d.get("anc4")!.sources.map((s) => s.source_id), [ANC4_ELEMENT]);
+  assertEquals([...d.keys()], ["anc4", "anc1", "anc1_repeat", "anc4_rate"]);
+  assertEquals(d.get("anc4")!.definition, { type: "base", dhis2_id: ANC4_ELEMENT });
   assertEquals(d.get("anc4")!.indicator_common_label, "ANC 4");
-  assertEquals(
-    d.get("anc1")!.sources.map((s) => s.source_id),
-    [ANC1_ELEMENT, ANC1_OPERAND],
-  );
-  assertEquals(d.get("anc1")!.indicator_common_label, "ANC 1");
+  assertEquals(d.get("anc1")!.definition, { type: "base", dhis2_id: ANC1_ELEMENT });
+  assertEquals(d.get("anc1_repeat")!.definition, {
+    type: "base",
+    dhis2_id: ANC1_OPERAND,
+  });
   assertEquals(d.get("anc4_rate")!.definition, {
     type: "derived",
-    expression: "(anc4 / (anc1 + anc1))",
+    expression: "(anc4 / (anc1 + anc1_repeat))",
   });
   assertEquals(d.get("anc4_rate")!.format_as, "percent");
-  assertEquals(d.get("anc4_rate")!.sources, []);
+  for (const i of d.values()) assertEquals(i.include_in_analysis, true);
+});
+
+Deno.test("dhis2: two elements cannot share one new indicator", async () => {
+  await reset();
+  const res = await createIndicatorsFromDhis2(db, {
+    elements: [
+      element(ANC1_ELEMENT, "anc1", "ANC 1"),
+      element(ANC1_OPERAND, "anc1", "ANC 1"),
+    ],
+    indicators: [],
+  });
+  assert(!res.success);
+  assertStringIncludes(res.err, "more than one DHIS2 id");
+  assertEquals((await dictionary()).size, 0);
 });
 
 Deno.test("dhis2: a refused operand creates nothing", async () => {
   await reset();
   const res = await createIndicatorsFromDhis2(db, {
-    sources: [
-      source(ANC4_ELEMENT, { kind: "new", indicator_id: "anc4", label: "ANC 4" }),
-      source(ANC1_ELEMENT, { kind: "new", indicator_id: "anc1", label: "ANC 1" }),
-      source(ANC1_OPERAND, { kind: "new", indicator_id: "anc1", label: "ANC 1" }),
+    elements: [
+      element(ANC4_ELEMENT, "anc4"),
+      element(ANC1_ELEMENT, "anc1"),
+      element(ANC1_OPERAND, "anc1_repeat"),
     ],
     indicators: [{
       dhis2_id: DHIS2_INDICATOR,
@@ -191,17 +201,14 @@ Deno.test("dhis2: a refused operand creates nothing", async () => {
     }],
   });
   assert(!res.success);
-  assertStringIncludes(res.err, `operand ${ANC1_OPERAND} cannot be a source`);
+  assertStringIncludes(res.err, `operand ${ANC1_OPERAND} cannot be imported`);
   assertEquals((await dictionary()).size, 0);
-  assertEquals(await sourceCount(), 0);
 });
 
 Deno.test("dhis2: a refused formula creates nothing", async () => {
   await reset();
   const res = await createIndicatorsFromDhis2(db, {
-    sources: [
-      source(ANC4_ELEMENT, { kind: "new", indicator_id: "anc4", label: "ANC 4" }),
-    ],
+    elements: [element(ANC4_ELEMENT, "anc4")],
     indicators: [{
       dhis2_id: DHIS2_INDICATOR,
       indicator_id: "anc4_rate",
@@ -222,9 +229,7 @@ Deno.test("dhis2: a refused formula creates nothing", async () => {
 Deno.test("dhis2: an operand the naming step did not cover creates nothing", async () => {
   await reset();
   const res = await createIndicatorsFromDhis2(db, {
-    sources: [
-      source(ANC4_ELEMENT, { kind: "new", indicator_id: "anc4", label: "ANC 4" }),
-    ],
+    elements: [element(ANC4_ELEMENT, "anc4")],
     indicators: [{
       dhis2_id: DHIS2_INDICATOR,
       indicator_id: "anc4_rate",
@@ -239,12 +244,12 @@ Deno.test("dhis2: an operand the naming step did not cover creates nothing", asy
 
 Deno.test("dhis2: a derived id already taken creates nothing, bases included", async () => {
   await reset();
-  await seedBase("anc4_rate", []);
+  await seedBase("anc4_rate", null);
   const res = await createIndicatorsFromDhis2(db, {
-    sources: [
-      source(ANC4_ELEMENT, { kind: "new", indicator_id: "anc4", label: "ANC 4" }),
-      source(ANC1_ELEMENT, { kind: "new", indicator_id: "anc1", label: "ANC 1" }),
-      source(ANC1_OPERAND, { kind: "new", indicator_id: "anc1", label: "ANC 1" }),
+    elements: [
+      element(ANC4_ELEMENT, "anc4"),
+      element(ANC1_ELEMENT, "anc1"),
+      element(ANC1_OPERAND, "anc1_repeat"),
     ],
     indicators: [{
       dhis2_id: DHIS2_INDICATOR,
@@ -256,16 +261,15 @@ Deno.test("dhis2: a derived id already taken creates nothing, bases included", a
   assert(!res.success);
   assertStringIncludes(res.err, "already exist");
   assertEquals([...(await dictionary()).keys()], ["anc4_rate"]);
-  assertEquals(await sourceCount(), 0);
 });
 
 Deno.test("dhis2: a derived under a special id is refused", async () => {
   await reset();
   const res = await createIndicatorsFromDhis2(db, {
-    sources: [
-      source(ANC4_ELEMENT, { kind: "new", indicator_id: "anc4", label: "ANC 4" }),
-      source(ANC1_ELEMENT, { kind: "new", indicator_id: "anc1", label: "ANC 1" }),
-      source(ANC1_OPERAND, { kind: "new", indicator_id: "anc1", label: "ANC 1" }),
+    elements: [
+      element(ANC4_ELEMENT, "anc4"),
+      element(ANC1_ELEMENT, "anc1"),
+      element(ANC1_OPERAND, "anc1_repeat"),
     ],
     indicators: [{
       dhis2_id: DHIS2_INDICATOR,
@@ -279,15 +283,15 @@ Deno.test("dhis2: a derived under a special id is refused", async () => {
   assertEquals((await dictionary()).size, 0);
 });
 
-Deno.test("dhis2: operands attached to existing bases rename the expression to them", async () => {
+Deno.test("dhis2: operands assigned to empty bases or already imported rename the expression to them", async () => {
   await reset();
-  await seedBase("anc1", [ANC1_ELEMENT]);
-  await seedBase("first_visits", []);
+  await seedBase("anc1", null);
+  await seedBase("first_visits", ANC1_OPERAND);
   const res = await createIndicatorsFromDhis2(db, {
-    sources: [
-      source(ANC4_ELEMENT, { kind: "new", indicator_id: "anc4", label: "ANC 4" }),
-      source(ANC1_ELEMENT, { kind: "attach", indicator_id: "anc1" }),
-      source(ANC1_OPERAND, { kind: "attach", indicator_id: "first_visits" }),
+    elements: [
+      element(ANC4_ELEMENT, "anc4"),
+      element(ANC1_ELEMENT, "anc1"),
+      element(ANC1_OPERAND, "whatever"),
     ],
     indicators: [{
       dhis2_id: DHIS2_INDICATOR,
@@ -297,120 +301,119 @@ Deno.test("dhis2: operands attached to existing bases rename the expression to t
     }],
   });
   assert(res.success, res.success ? "" : res.err);
-  assertEquals(res.data, { created: 2, attached: 1 });
+  assertEquals(res.data, { created: 2, assigned: 1 });
   const d = await dictionary();
-  assertEquals(d.get("anc1")!.sources.map((s) => s.source_id), [ANC1_ELEMENT]);
-  assertEquals(
-    d.get("first_visits")!.sources.map((s) => s.source_id),
-    [ANC1_OPERAND],
-  );
+  assertEquals(d.get("anc1")!.definition, { type: "base", dhis2_id: ANC1_ELEMENT });
+  assertEquals(d.get("first_visits")!.definition, {
+    type: "base",
+    dhis2_id: ANC1_OPERAND,
+  });
+  assertEquals(d.has("whatever"), false);
   assertEquals(d.get("anc4_rate")!.definition, {
     type: "derived",
     expression: "(anc4 / (anc1 + first_visits))",
   });
 });
 
-Deno.test("naming: attaching to an existing base adds the source and keeps the rest", async () => {
+Deno.test("naming: assigning to an empty base sets its dhis2_id and keeps the rest", async () => {
   await reset();
-  await seedBase("anc1", [ANC1_ELEMENT]);
+  await seedBase("anc1", null);
   const res = await applyIndicatorNaming(db, {
-    sources: [{
-      source_id: ANC1_OPERAND,
-      source_label: "ANC 1 (operand)",
-      target: { kind: "attach", indicator_id: "anc1" },
-    }],
+    elements: [{ dhis2_id: ANC1_ELEMENT, indicator_id: "anc1", label: "ignored" }],
+    uploaded: [],
     derived: [],
   });
   assert(res.success, res.success ? "" : res.err);
-  assertEquals(res.data, { created: 0, attached: 1 });
-  const d = await dictionary();
-  assertEquals(d.get("anc1")!.sources, [
-    { source_id: ANC1_ELEMENT, source_label: ANC1_ELEMENT },
-    { source_id: ANC1_OPERAND, source_label: "ANC 1 (operand)" },
-  ]);
+  assertEquals(res.data, { created: 0, assigned: 1 });
+  const anc1 = (await dictionary()).get("anc1")!;
+  assertEquals(anc1.definition, { type: "base", dhis2_id: ANC1_ELEMENT });
+  assertEquals(anc1.indicator_common_label, "anc1");
 });
 
-Deno.test("naming: attaching to a derived, to a missing indicator, or a source owned elsewhere is refused", async () => {
+Deno.test("naming: a taken id (a base with a dhis2_id, a sum, a derived) is refused", async () => {
   await reset();
-  await seedBase("anc1", [ANC1_ELEMENT]);
+  await seedBase("anc1", ANC1_ELEMENT);
   await seedDerived("anc1_share", "anc1 / 2");
-  const before = await sourceCount();
-  for (
-    const [target, needle] of [
-      [{ kind: "attach", indicator_id: "anc1_share" }, "is derived"],
-      [{ kind: "attach", indicator_id: "nope" }, "does not exist"],
-      [{ kind: "new", indicator_id: "anc1", label: "ANC 1" }, "already exists"],
-    ] as const
-  ) {
+  const sumRes = await createIndicators(db, [{
+    indicator_common_id: "anc_all",
+    indicator_common_label: "ANC all",
+    definition: { type: "sum", members: ["anc1"] },
+    include_in_analysis: true,
+    format_as: "number",
+    thresholds: null,
+  }]);
+  assert(sumRes.success, sumRes.success ? "" : sumRes.err);
+  for (const taken of ["anc1", "anc1_share", "anc_all"]) {
     const res = await applyIndicatorNaming(db, {
-      sources: [{ source_id: ANC4_ELEMENT, source_label: "x", target }],
+      elements: [{ dhis2_id: ANC4_ELEMENT, indicator_id: taken, label: "x" }],
+      uploaded: [],
       derived: [],
     });
-    assert(!res.success);
-    assertStringIncludes(res.err, needle);
+    assert(!res.success, taken);
+    assertStringIncludes(res.err, "already exists and cannot take");
   }
-  const owned = await applyIndicatorNaming(db, {
-    sources: [{
-      source_id: ANC1_ELEMENT,
-      source_label: "x",
-      target: { kind: "new", indicator_id: "anc1_again", label: "ANC 1 again" },
-    }],
-    derived: [],
-  });
-  assert(!owned.success);
-  assertStringIncludes(owned.err, "already belong to another");
-  assertEquals(await sourceCount(), before);
-  assertEquals((await dictionary()).size, 2);
+  assertEquals((await dictionary()).size, 3);
 });
 
-Deno.test("naming: a source already under its target base is nothing to write", async () => {
+Deno.test("naming: a UID that already belongs to an indicator is skipped and creates nothing", async () => {
   await reset();
-  await seedBase("anc1", [ANC1_ELEMENT]);
+  await seedBase("anc1", ANC1_ELEMENT);
   const res = await applyIndicatorNaming(db, {
-    sources: [{
-      source_id: ANC1_ELEMENT,
-      source_label: "renamed",
-      target: { kind: "attach", indicator_id: "anc1" },
-    }],
+    elements: [{ dhis2_id: ANC1_ELEMENT, indicator_id: "anc1_again", label: "x" }],
+    uploaded: [],
     derived: [],
   });
   assert(res.success, res.success ? "" : res.err);
-  assertEquals(res.data, { created: 0, attached: 0 });
-  assertEquals((await dictionary()).get("anc1")!.sources[0].source_label, ANC1_ELEMENT);
+  assertEquals(res.data, { created: 0, assigned: 0 });
+  assertEquals([...(await dictionary()).keys()], ["anc1"]);
+});
+
+Deno.test("naming: an uploaded base takes the file's id, and an existing id is refused", async () => {
+  await reset();
+  await seedBase("anc1", null);
+  const res = await applyIndicatorNaming(db, {
+    elements: [],
+    uploaded: [{ indicator_id: "opd_csv", label: "OPD (file)" }],
+    derived: [],
+  });
+  assert(res.success, res.success ? "" : res.err);
+  assertEquals(res.data, { created: 1, assigned: 0 });
+  assertEquals((await dictionary()).get("opd_csv")!.definition, {
+    type: "base",
+    dhis2_id: null,
+  });
+  const dup = await applyIndicatorNaming(db, {
+    elements: [],
+    uploaded: [{ indicator_id: "anc1", label: "x" }],
+    derived: [],
+  });
+  assert(!dup.success);
+  assertStringIncludes(dup.err, "already exists");
 });
 
 Deno.test("naming: a reserved new id is refused, a special id is a base like any other", async () => {
   await reset();
   const reserved = await applyIndicatorNaming(db, {
-    sources: [{
-      source_id: ANC1_ELEMENT,
-      source_label: "x",
-      target: { kind: "new", indicator_id: "population_total", label: "Population" },
-    }],
+    elements: [{ dhis2_id: ANC1_ELEMENT, indicator_id: "population_total", label: "x" }],
+    uploaded: [],
     derived: [],
   });
   assert(!reserved.success);
   assertStringIncludes(reserved.err, "reserved word");
   const special = await applyIndicatorNaming(db, {
-    sources: [{
-      source_id: ANC1_ELEMENT,
-      source_label: "x",
-      target: { kind: "new", indicator_id: "penta1", label: "Penta 1" },
-    }],
+    elements: [{ dhis2_id: ANC1_ELEMENT, indicator_id: "penta1", label: "Penta 1" }],
+    uploaded: [],
     derived: [],
   });
   assert(special.success, special.success ? "" : special.err);
   assertEquals([...(await dictionary()).keys()], ["penta1"]);
 });
 
-Deno.test("naming: a derived naming a source that was not listed is refused", async () => {
+Deno.test("naming: a derived naming a DHIS2 id that was not listed is refused", async () => {
   await reset();
   const res = await applyIndicatorNaming(db, {
-    sources: [{
-      source_id: ANC4_ELEMENT,
-      source_label: "x",
-      target: { kind: "new", indicator_id: "anc4", label: "ANC 4" },
-    }],
+    elements: [{ dhis2_id: ANC4_ELEMENT, indicator_id: "anc4", label: "ANC 4" }],
+    uploaded: [],
     derived: [{
       indicator_id: "anc4_rate",
       label: "ANC 4 rate",

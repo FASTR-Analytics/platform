@@ -4,7 +4,7 @@ import {
   type DatasetHmisImportRunSummary,
   type Dhis2FetchErrorKind,
   type Dhis2PairFetchStat,
-  type Dhis2RunPair,
+  type Dhis2RunPairInput,
 } from "lib";
 import {
   Button,
@@ -43,7 +43,7 @@ function errorKindLabel(kind: Dhis2FetchErrorKind | undefined): string {
 export function Dhis2RunDetail(
   p: EditorComponentProps<
     { run: DatasetHmisImportRunSummary },
-    Dhis2RunPair[] | undefined
+    Dhis2RunPairInput[] | undefined
   >,
 ) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
@@ -69,12 +69,10 @@ export function Dhis2RunDetail(
     const s = indicators.state();
     if (s.status !== "ready") return new Map();
     return new Map(
-      s.data.indicators.flatMap((i) =>
-        i.sources.map((source): [string, string] => [
-          source.source_id,
-          `${source.source_label} (${i.indicator_common_id})`,
-        ])
-      ),
+      s.data.indicators.map((i): [string, string] => [
+        i.indicator_common_id,
+        `${i.indicator_common_label} (${i.indicator_common_id})`,
+      ]),
     );
   });
 
@@ -83,7 +81,7 @@ export function Dhis2RunDetail(
 
   const failedPairColumns: TableColumn<Dhis2PairFetchStat & { key: string }>[] = [
     {
-      key: "sourceId",
+      key: "indicatorId",
       header: t3({ en: "Source ID", fr: "ID de la source", pt: "ID da fonte" }),
       sortable: true,
     },
@@ -91,8 +89,8 @@ export function Dhis2RunDetail(
       key: "sourceLabel",
       header: t3({ en: "Source", fr: "Source", pt: "Fonte" }),
       sortable: true,
-      sortValue: (s) => sourceLabels().get(s.sourceId) ?? "",
-      render: (s) => sourceLabels().get(s.sourceId) ?? "",
+      sortValue: (s) => sourceLabels().get(s.indicatorId) ?? "",
+      render: (s) => sourceLabels().get(s.indicatorId) ?? "",
     },
     {
       key: "periodId",
@@ -240,16 +238,16 @@ export function Dhis2RunDetail(
               keyedDetail.runStats?.classification.dhis2IndicatorIds ?? [];
             const failedPairStats = (keyedDetail.runStats?.pairFetchStats ?? [])
               .filter((s) => !s.success)
-              .map((s) => ({ ...s, key: `${s.sourceId}|${s.periodId}` }));
+              .map((s) => ({ ...s, key: `${s.indicatorId}|${s.periodId}` }));
             const skippedPairStats = (keyedDetail.runStats?.pairFetchStats ?? [])
               .filter((s) => s.skippedValues > 0)
-              .map((s) => ({ ...s, key: `${s.sourceId}|${s.periodId}` }));
+              .map((s) => ({ ...s, key: `${s.indicatorId}|${s.periodId}` }));
             const totalSkippedValues = skippedPairStats.reduce(
               (sum, s) => sum + s.skippedValues,
               0,
             );
-            const retryPairs: Dhis2RunPair[] = failedPairStats.map((s) => ({
-              sourceId: s.sourceId,
+            const retryPairs: Dhis2RunPairInput[] = failedPairStats.map((s) => ({
+              indicatorId: s.indicatorId,
               periodId: s.periodId,
             }));
             const dropped = windowSelection();
@@ -258,7 +256,7 @@ export function Dhis2RunDetail(
                 <Show
                   when={dropped &&
                     (dropped.populationTermsDropped.length > 0 ||
-                      dropped.nonDhis2SourcesDropped.length > 0)
+                      dropped.uploadedIndicatorsDropped.length > 0)
                     ? dropped
                     : undefined}
                 >
@@ -281,14 +279,14 @@ export function Dhis2RunDetail(
                           <span class="font-mono">{selection().populationTermsDropped.join(", ")}</span>
                         </div>
                       </Show>
-                      <Show when={selection().nonDhis2SourcesDropped.length > 0}>
+                      <Show when={selection().uploadedIndicatorsDropped.length > 0}>
                         <div>
                           {t3({
-                            en: `Sources that are not DHIS2 data elements or operands (${toNum0(selection().nonDhis2SourcesDropped.length)}):`,
-                            fr: `Sources qui ne sont pas des éléments de données ou des opérandes DHIS2 (${toNum0(selection().nonDhis2SourcesDropped.length)}) :`,
-                            pt: `Fontes que não são elementos de dados nem operandos DHIS2 (${toNum0(selection().nonDhis2SourcesDropped.length)}):`,
+                            en: `Sources that are not DHIS2 data elements or operands (${toNum0(selection().uploadedIndicatorsDropped.length)}):`,
+                            fr: `Sources qui ne sont pas des éléments de données ou des opérandes DHIS2 (${toNum0(selection().uploadedIndicatorsDropped.length)}) :`,
+                            pt: `Fontes que não são elementos de dados nem operandos DHIS2 (${toNum0(selection().uploadedIndicatorsDropped.length)}):`,
                           })}{" "}
-                          <span class="font-mono">{selection().nonDhis2SourcesDropped.join(", ")}</span>
+                          <span class="font-mono">{selection().uploadedIndicatorsDropped.join(", ")}</span>
                         </div>
                       </Show>
                     </div>

@@ -41,8 +41,8 @@ async function fetchByIds<T>(
   return results.flat();
 }
 
-function dataElementIdOf(sourceId: string): string {
-  return sourceId.split(".")[0];
+function dataElementIdOf(dhis2Id: string): string {
+  return dhis2Id.split(".")[0];
 }
 
 async function resolveOrErr(
@@ -165,7 +165,7 @@ defineRoute(
   },
 );
 
-// POST /indicators-dhis2/create - Save the naming step (PLAN_A3 rulings 6, 8)
+// POST /indicators-dhis2/create - Save the naming step (PLAN_A4 ruling 6)
 defineRoute(
   routesIndicatorsDhis2,
   "createIndicatorsFromDhis2",
@@ -181,7 +181,7 @@ defineRoute(
       // The verdicts are the server's own reading of the live metadata: the
       // client's search results may be stale or edited.
       const elements = await fetchByIds(
-        body.sources.map((s) => dataElementIdOf(s.source_id)),
+        body.elements.map((e) => dataElementIdOf(e.dhis2_id)),
         (filter) =>
           getDataElementsFromDHIS2(options, { filter: [filter], paging: false }),
       );
@@ -207,10 +207,10 @@ defineRoute(
       }
 
       const res = await createIndicatorsFromDhis2(c.var.mainDb, {
-        sources: body.sources.map((s) => ({
-          ...s,
+        elements: body.elements.map((e) => ({
+          ...e,
           verdict: getDhis2OperandVerdict(
-            elementsById.get(dataElementIdOf(s.source_id)),
+            elementsById.get(dataElementIdOf(e.dhis2_id)),
           ),
         })),
         indicators: body.indicators.map((i) => ({

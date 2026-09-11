@@ -44,8 +44,8 @@ function refused(
 Deno.test("decomposition: a simple ratio becomes operands, an expression and a percent", () => {
   const result = accepted(`#{${A}}`, `#{${B}}`);
   assertEquals(result.operands, [
-    { source_id: A, data_element_id: A },
-    { source_id: B, data_element_id: B },
+    { dhis2_id: A, data_element_id: A },
+    { dhis2_id: B, data_element_id: B },
   ]);
   assertEquals(result.expression, `([${A}] / [${B}])`);
   assertEquals(result.format_as, "percent");
@@ -68,7 +68,7 @@ Deno.test("decomposition: the expression re-parses in the app grammar and names 
 Deno.test("decomposition: an operand with a category option combo keeps both ids", () => {
   const result = accepted(`#{${A}.${COC}}`, `#{${B}}`);
   assertEquals(result.operands[0], {
-    source_id: `${A}.${COC}`,
+    dhis2_id: `${A}.${COC}`,
     data_element_id: A,
     category_option_combo_id: COC,
   });
@@ -76,7 +76,7 @@ Deno.test("decomposition: an operand with a category option combo keeps both ids
 
 Deno.test("decomposition: an operand used on both sides is listed once", () => {
   const result = accepted(`#{${A}}`, `#{${A}} + #{${B}}`);
-  assertEquals(result.operands.map((o) => o.source_id), [A, B]);
+  assertEquals(result.operands.map((o) => o.dhis2_id), [A, B]);
 });
 
 Deno.test("decomposition: any whitespace between tokens is accepted", () => {
