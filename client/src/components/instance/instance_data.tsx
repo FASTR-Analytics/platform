@@ -441,40 +441,6 @@ export function InstanceData(p: Props) {
                           </div>
                         )}
                       </Show>
-                      <Show
-                        when={
-                          instanceState.indicators.hmisIndicators > 0 &&
-                          instanceState.indicators.hmisIndicators
-                        }
-                        fallback={
-                          <div class="text-danger text-xs">
-                            {t3({
-                              en: "No sources",
-                              fr: "Aucune source",
-                              pt: "Nenhuma fonte",
-                            })}
-                          </div>
-                        }
-                        keyed
-                      >
-                        {(keyedNumber) => (
-                          <div class="ui-spy-sm text-success text-xs">
-                            <div class="ui-gap flex justify-between">
-                              <span>
-                                {t3({
-                                  en: "Sources",
-                                  fr: "Sources",
-                                  pt: "Fontes",
-                                })}
-                                :
-                              </span>
-                              <span class="font-mono">
-                                {toNum0(keyedNumber)}
-                              </span>
-                            </div>
-                          </div>
-                        )}
-                      </Show>
                     </div>
                   </Card>
                   <Card

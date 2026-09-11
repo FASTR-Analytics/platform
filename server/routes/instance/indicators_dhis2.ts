@@ -10,7 +10,7 @@ import {
   searchIndicatorsFromDHIS2,
   testIndicatorsConnection,
   withDecompositions,
-  withSourceVerdicts,
+  withElementVerdicts,
 } from "../../dhis2/mod.ts";
 import { t3, type Dhis2Credentials, type Dhis2RunCredentialsSource } from "lib";
 import {
@@ -112,7 +112,7 @@ defineRoute(
 
       return c.json({
         success: true,
-        data: withSourceVerdicts(dataElements),
+        data: withElementVerdicts(dataElements),
       });
     } catch (error) {
       console.error("Error searching DHIS2 data elements:", error);
@@ -147,7 +147,7 @@ defineRoute(
       return c.json({
         success: true,
         data: {
-          dataElements: withSourceVerdicts(results.dataElements),
+          dataElements: withElementVerdicts(results.dataElements),
           indicators: await withDecompositions(
             options,
             results.indicators,

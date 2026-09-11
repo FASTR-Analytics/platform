@@ -63,9 +63,10 @@ export function Dhis2RunDetail(
       pt: "A carregar o detalhe da importação...",
     }),
   );
-  // Source labels are a display-only enrichment: degrade to blank until ready.
+  // Indicator labels are a display-only enrichment: degrade to blank until
+  // ready.
   const indicators = createQuery(() => serverActions.getIndicators({}));
-  const sourceLabels = createMemo((): Map<string, string> => {
+  const indicatorLabels = createMemo((): Map<string, string> => {
     const s = indicators.state();
     if (s.status !== "ready") return new Map();
     return new Map(
@@ -82,15 +83,15 @@ export function Dhis2RunDetail(
   const failedPairColumns: TableColumn<Dhis2PairFetchStat & { key: string }>[] = [
     {
       key: "indicatorId",
-      header: t3({ en: "Source ID", fr: "ID de la source", pt: "ID da fonte" }),
+      header: t3({ en: "Indicator ID", fr: "ID de l'indicateur", pt: "ID do indicador" }),
       sortable: true,
     },
     {
-      key: "sourceLabel",
-      header: t3({ en: "Source", fr: "Source", pt: "Fonte" }),
+      key: "indicatorLabel",
+      header: t3({ en: "Indicator", fr: "Indicateur", pt: "Indicador" }),
       sortable: true,
-      sortValue: (s) => sourceLabels().get(s.indicatorId) ?? "",
-      render: (s) => sourceLabels().get(s.indicatorId) ?? "",
+      sortValue: (s) => indicatorLabels().get(s.indicatorId) ?? "",
+      render: (s) => indicatorLabels().get(s.indicatorId) ?? "",
     },
     {
       key: "periodId",
@@ -282,9 +283,9 @@ export function Dhis2RunDetail(
                       <Show when={selection().uploadedIndicatorsDropped.length > 0}>
                         <div>
                           {t3({
-                            en: `Sources that are not DHIS2 data elements or operands (${toNum0(selection().uploadedIndicatorsDropped.length)}):`,
-                            fr: `Sources qui ne sont pas des éléments de données ou des opérandes DHIS2 (${toNum0(selection().uploadedIndicatorsDropped.length)}) :`,
-                            pt: `Fontes que não são elementos de dados nem operandos DHIS2 (${toNum0(selection().uploadedIndicatorsDropped.length)}):`,
+                            en: `Uploaded indicators, which have no DHIS2 id (${toNum0(selection().uploadedIndicatorsDropped.length)}):`,
+                            fr: `Indicateurs téléversés, sans identifiant DHIS2 (${toNum0(selection().uploadedIndicatorsDropped.length)}) :`,
+                            pt: `Indicadores carregados, sem ID DHIS2 (${toNum0(selection().uploadedIndicatorsDropped.length)}):`,
                           })}{" "}
                           <span class="font-mono">{selection().uploadedIndicatorsDropped.join(", ")}</span>
                         </div>
@@ -308,16 +309,16 @@ export function Dhis2RunDetail(
                   <div class="border-danger bg-danger-subtle ui-pad ui-spy-sm rounded border">
                     <div class="font-700">
                       {t3({
-                        en: "Sources not found in DHIS2",
-                        fr: "Sources introuvables dans DHIS2",
-                        pt: "Fontes não encontradas no DHIS2",
+                        en: "DHIS2 ids not found in DHIS2",
+                        fr: "Identifiants DHIS2 introuvables dans DHIS2",
+                        pt: "IDs DHIS2 não encontrados no DHIS2",
                       })}
                     </div>
                     <div class="text-sm">
                       {t3({
-                        en: "These source IDs match no data element or operand in DHIS2 — every selected month failed without a fetch, and will fail every run until they are fixed or removed in the indicator configuration.",
-                        fr: "Ces ID de sources ne correspondent à aucun élément de données ni opérande dans DHIS2 — chaque mois sélectionné a échoué sans récupération, et échouera à chaque importation tant qu'ils ne sont pas corrigés ou retirés de la configuration des indicateurs.",
-                        pt: "Estes IDs de fontes não correspondem a nenhum elemento de dados nem operando no DHIS2 — todos os meses selecionados falharam sem obtenção, e falharão em todas as importações até serem corrigidos ou removidos na configuração dos indicadores.",
+                        en: "These DHIS2 ids match no data element or operand in DHIS2 — every selected month of the indicators carrying them failed without a fetch, and will fail every run until the ids are fixed or removed in the indicator configuration.",
+                        fr: "Ces identifiants DHIS2 ne correspondent à aucun élément de données ni opérande dans DHIS2 — chaque mois sélectionné des indicateurs qui les portent a échoué sans récupération, et échouera à chaque importation tant que les identifiants ne sont pas corrigés ou retirés de la configuration des indicateurs.",
+                        pt: "Estes IDs DHIS2 não correspondem a nenhum elemento de dados nem operando no DHIS2 — todos os meses selecionados dos indicadores que os têm falharam sem obtenção, e falharão em todas as importações até os IDs serem corrigidos ou removidos na configuração dos indicadores.",
                       })}
                     </div>
                     <div class="text-sm font-mono">{unknownIds.join(", ")}</div>

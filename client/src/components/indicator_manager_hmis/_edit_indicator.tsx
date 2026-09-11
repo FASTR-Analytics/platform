@@ -1,17 +1,18 @@
 // Create/update one indicator. The form branches on what the indicator IS
-// (PLAN_1a §1.2, PLAN_1c, PLAN_A3 §2): a base indicator is defined by its
-// sources, written in the same transaction, and is always a number; a
-// derived one by a formula over other indicators and population terms, with
-// a free display format. The palette below the formula inserts correctly
-// written identifiers, and the legend names every identifier the formula
-// references.
+// (PLAN_A4 §2): a base is a count filled from DHIS2 (its `dhis2_id`) or by
+// CSV upload (none), a sum is the total of other bases, a derived one is a
+// formula over other indicators and population terms with a free display
+// format. Every indicator carries the include-in-analysis checkbox (ruling
+// 3). The palette below the formula inserts correctly written identifiers,
+// and the legend names every identifier the formula references.
 import {
   AlertComponentProps,
   AlertFormHolder,
-  Button,
+  Checkbox,
   createFormAction,
   Input,
   LabelHolder,
+  MultiSelectSearch,
   Select,
   SelectSearch,
   TextArea,
@@ -33,6 +34,7 @@ import {
   type IndicatorFormat,
   isDhis2ShapedId,
   isPopulationTypeId,
+  isSpecialIndicatorId,
   judgeDerivedIndicator,
   parseIndicatorExpression,
   POPULATION_TYPE_IDS,
@@ -77,9 +79,17 @@ const TYPE_OPTIONS: { value: CommonIndicatorType; label: string }[] = [
   {
     value: "base",
     label: t3({
-      en: "Base: the sum of its sources",
-      fr: "De base : la somme de ses sources",
-      pt: "Base: a soma das suas fontes",
+      en: "Base: a count filled from DHIS2 or by CSV upload",
+      fr: "De base : un dénombrement rempli depuis DHIS2 ou par téléversement CSV",
+      pt: "Base: uma contagem preenchida a partir do DHIS2 ou por carregamento CSV",
+    }),
+  },
+  {
+    value: "sum",
+    label: t3({
+      en: "Sum: the total of other base indicators",
+      fr: "Somme : le total d'autres indicateurs de base",
+      pt: "Soma: o total de outros indicadores de base",
     }),
   },
   {
@@ -108,8 +118,6 @@ const FORMAT_OPTIONS = [
   },
 ];
 
-type IndicatorSource = { source_id: string; source_label: string };
-
 type LegendRow = {
   identifier: string;
   kind: "indicator" | "population";
@@ -124,6 +132,10 @@ export function EditIndicatorForm(
   p: AlertComponentProps<
     {
       indicators: CommonIndicator[];
+      // The bases and sums that have rows, as the manager knows them from the
+      // ledger; undefined while it is still loading, when no ingredient is
+      // judged to be missing data.
+      idsWithData: Set<string> | undefined;
       existingIndicator?: CommonIndicator;
     },
     undefined
@@ -142,54 +154,63 @@ export function EditIndicatorForm(
   const [type, setType] = createSignal<CommonIndicatorType>(
     existing?.definition.type ?? "base",
   );
-  const [sources, setSources] = createSignal<IndicatorSource[]>(
-    existing?.definition.type === "base" && existing.definition.dhis2_id !== null
-      ? [{
-        source_id: existing.definition.dhis2_id,
-        source_label: existing.definition.dhis2_id,
-      }]
-      : [],
+  const [dhis2Id, setDhis2Id] = createSignal(
+    existing?.definition.type === "base" ? existing.definition.dhis2_id ?? "" : "",
+  );
+  // Read-only once set (ruling 6): the data under the base was fetched for it.
+  const dhis2IdLocked = existing?.definition.type === "base" &&
+    existing.definition.dhis2_id !== null;
+  const [members, setMembers] = createSignal<string[]>(
+    existing?.definition.type === "sum" ? existing.definition.members : [],
   );
   const [expression, setExpression] = createSignal(
     existing?.definition.type === "derived"
       ? existing.definition.expression
       : "",
   );
+  const [includeInAnalysis, setIncludeInAnalysis] = createSignal(
+    existing?.include_in_analysis ?? true,
+  );
   const [formatAs, setFormatAs] = createSignal(existing?.format_as ?? "number");
   const [thresholds, setThresholds] = createSignal<ThresholdsRule | null>(
     existing?.thresholds ?? null,
   );
-  // A base indicator is a count: its format is always a number.
+  // A base or sum is a count: its format is always a number.
   const effectiveFormatAs = (): IndicatorFormat =>
     type() === "derived" ? formatAs() : "number";
 
   const ownId = () => indicatorId().trim() || "__new__";
+  const isSpecial = () => isSpecialIndicatorId(indicatorId().trim());
 
   function currentDefinition(): CommonIndicatorDefinition {
-    if (type() === "derived") {
-      return { type: "derived", expression: expression().trim() };
+    switch (type()) {
+      case "derived":
+        return { type: "derived", expression: expression().trim() };
+      case "sum":
+        return { type: "sum", members: members() };
+      case "base":
+        return { type: "base", dhis2_id: dhis2Id().trim() || null };
     }
-    if (type() === "sum") {
-      return existing?.definition.type === "sum"
-        ? existing.definition
-        : { type: "sum", members: [] };
-    }
-    return {
-      type: "base",
-      dhis2_id: sources().map((s) => s.source_id.trim()).find((s) => s !== "") ??
-        null,
-    };
   }
 
-  // The other indicators a formula may name: never the one being edited.
+  // The other indicators a formula or a member list may name: never the one
+  // being edited.
   const otherIndicators = createMemo(() =>
     p.indicators.filter((c) => c.indicator_common_id !== ownId()),
   );
 
-  // Every source that belongs to another indicator: a source belongs to
-  // exactly one base, so typing one of these is refused here before the
-  // server does.
-  const sourceOwners = createMemo(() => {
+  const memberOptions = createMemo(() =>
+    otherIndicators()
+      .filter((c) => c.definition.type === "base")
+      .map((c) => ({
+        value: c.indicator_common_id,
+        label: `${c.indicator_common_label} (${c.indicator_common_id})`,
+      })),
+  );
+
+  // Every DHIS2 id another indicator carries: one indicator carries one id,
+  // so typing one of these is refused here before the server does.
+  const dhis2IdOwners = createMemo(() => {
     const owners = new Map<string, string>();
     for (const c of otherIndicators()) {
       if (c.definition.type === "base" && c.definition.dhis2_id !== null) {
@@ -203,39 +224,33 @@ export function EditIndicatorForm(
   // states it where the user is, capture enforces it where the data is.
   // Ingredients must resolve to indicators or population types, chains may
   // not cycle, and the flattened set must fit the ingredient slots a results
-  // row carries: those refuse the save. A flattened ingredient with no
-  // sources is only a warning here, since sources can come later.
+  // row carries: those refuse the save. A flattened ingredient with no data
+  // is only a warning here, since data can come later.
   const judgement = createMemo<DerivedIndicatorComputability | undefined>(
     () => {
-      const source = expression().trim();
-      if (type() === "base" || source === "") return undefined;
+      const formula = expression().trim();
+      if (type() !== "derived" || formula === "") return undefined;
       const dictionary = buildCommonIndicatorDictionary(
         [
           ...otherIndicators(),
           {
             indicator_common_id: ownId(),
-            definition: { type: "derived", expression: source },
+            definition: { type: "derived", expression: formula },
           },
         ],
         POPULATION_TYPE_IDS,
       );
       return judgeDerivedIndicator(
         ownId(),
-        source,
+        formula,
         dictionary,
-        new Set(
-          p.indicators
-            .filter((c) =>
-              c.definition.type === "base" && c.definition.dhis2_id !== null
-            )
-            .map((c) => c.indicator_common_id),
-        ),
+        p.idsWithData ?? new Set(p.indicators.map((c) => c.indicator_common_id)),
       );
     },
   );
 
   const expressionError = createMemo<string | undefined>(() => {
-    if (type() === "base") return undefined;
+    if (type() !== "derived") return undefined;
     if (expression().trim() === "") {
       return t3({
         en: "A formula is required",
@@ -257,14 +272,45 @@ export function EditIndicatorForm(
     })}`;
   });
 
+  // Ruling 3: a checked derived indicator reaches every indicator its
+  // formula flattens to, checked or not. Said here, once; the save goes.
+  const unanalysedReached = createMemo<string[]>(() => {
+    const j = judgement();
+    if (!includeInAnalysis() || j === undefined || j.kind === "unresolvable") {
+      return [];
+    }
+    const byId = new Map(p.indicators.map((c) => [c.indicator_common_id, c]));
+    return j.resolved.ingredientIds.filter((id) => {
+      const c = byId.get(id);
+      return c !== undefined && !c.include_in_analysis && !isSpecialIndicatorId(id);
+    });
+  });
+
+  const unanalysedNotice = createMemo<string | undefined>(() => {
+    const ids = unanalysedReached();
+    if (ids.length === 0) return undefined;
+    const list = ids.join(", ");
+    return ids.length === 1
+      ? t3({
+        en: `${list} is not included in analysis, but this formula uses it, so generation includes it anyway.`,
+        fr: `${list} n'est pas inclus dans l'analyse, mais cette formule l'utilise : la génération l'inclut donc quand même.`,
+        pt: `${list} não está incluído na análise, mas esta fórmula utiliza-o, pelo que a geração o inclui de qualquer forma.`,
+      })
+      : t3({
+        en: `${list} are not included in analysis, but this formula uses them, so generation includes them anyway.`,
+        fr: `${list} ne sont pas inclus dans l'analyse, mais cette formule les utilise : la génération les inclut donc quand même.`,
+        pt: `${list} não estão incluídos na análise, mas esta fórmula utiliza-os, pelo que a geração os inclui de qualquer forma.`,
+      });
+  });
+
   // Every identifier the formula names, with what it resolves to. Empty while
   // the formula does not parse (the error above says why).
   const legend = createMemo<LegendRow[]>(() => {
-    const source = expression().trim();
-    if (type() === "base" || source === "") return [];
+    const formula = expression().trim();
+    if (type() !== "derived" || formula === "") return [];
     let ids: string[];
     try {
-      ids = collectIdentifiers(parseIndicatorExpression(source));
+      ids = collectIdentifiers(parseIndicatorExpression(formula));
     } catch {
       return [];
     }
@@ -314,16 +360,37 @@ export function EditIndicatorForm(
     }
   }
 
-  function addSource() {
-    setSources([...sources(), { source_id: "", source_label: "" }]);
-  }
-
-  function removeSource(index: number) {
-    setSources(sources().filter((_, i) => i !== index));
-  }
-
-  function updateSource(index: number, patch: Partial<IndicatorSource>) {
-    setSources(sources().map((s, i) => (i === index ? { ...s, ...patch } : s)));
+  function definitionError(): string | undefined {
+    if (type() === "base") {
+      const id = dhis2Id().trim();
+      if (id === "") return undefined;
+      if (!isDhis2ShapedId(id)) {
+        return t3({
+          en: `DHIS2 id "${id}" must be a data element UID (11 characters) or a UID.COC operand`,
+          fr: `L'identifiant DHIS2 « ${id} » doit être un UID d'élément de données (11 caractères) ou un opérande UID.COC`,
+          pt: `O ID DHIS2 "${id}" tem de ser um UID de elemento de dados (11 caracteres) ou um operando UID.COC`,
+        });
+      }
+      const owner = dhis2IdOwners().get(id);
+      if (owner !== undefined) {
+        return t3({
+          en: `DHIS2 id "${id}" already belongs to ${owner}. One indicator carries one DHIS2 id; make a sum or a derived indicator over ${owner} instead.`,
+          fr: `L'identifiant DHIS2 « ${id} » appartient déjà à ${owner}. Un indicateur porte un seul identifiant DHIS2 ; créez plutôt une somme ou un indicateur dérivé sur ${owner}.`,
+          pt: `O ID DHIS2 "${id}" já pertence a ${owner}. Um indicador tem um único ID DHIS2; crie antes uma soma ou um indicador derivado sobre ${owner}.`,
+        });
+      }
+      return undefined;
+    }
+    if (type() === "sum") {
+      return members().length === 0
+        ? t3({
+          en: "A sum needs at least one member",
+          fr: "Une somme nécessite au moins un membre",
+          pt: "Uma soma precisa de pelo menos um membro",
+        })
+        : undefined;
+    }
+    return expressionError();
   }
 
   const save = createFormAction(
@@ -361,9 +428,9 @@ export function EditIndicatorForm(
         return {
           success: false,
           err: t3({
-            en: `"${id}" is a special indicator ID, which the analysis modules read as a count, so it can only be a base indicator (special: ${SPECIAL_INDICATOR_IDS.join(", ")})`,
-            fr: `« ${id} » est un identifiant d'indicateur spécial, lu comme un dénombrement par les modules d'analyse, et ne peut donc être qu'un indicateur de base (spéciaux : ${SPECIAL_INDICATOR_IDS.join(", ")})`,
-            pt: `"${id}" é um ID de indicador especial, lido como uma contagem pelos módulos de análise, pelo que só pode ser um indicador de base (especiais: ${SPECIAL_INDICATOR_IDS.join(", ")})`,
+            en: `"${id}" is a special indicator ID, which the analysis modules read as a count, so it can only be a base or sum indicator (special: ${SPECIAL_INDICATOR_IDS.join(", ")})`,
+            fr: `« ${id} » est un identifiant d'indicateur spécial, lu comme un dénombrement par les modules d'analyse, et ne peut donc être qu'un indicateur de base ou une somme (spéciaux : ${SPECIAL_INDICATOR_IDS.join(", ")})`,
+            pt: `"${id}" é um ID de indicador especial, lido como uma contagem pelos módulos de análise, pelo que só pode ser um indicador de base ou uma soma (especiais: ${SPECIAL_INDICATOR_IDS.join(", ")})`,
           }),
         };
       }
@@ -389,53 +456,9 @@ export function EditIndicatorForm(
         };
       }
 
-      const exprErr = expressionError();
-      if (exprErr) {
-        return { success: false, err: exprErr };
-      }
-
-      const cleanSources: IndicatorSource[] = type() === "base"
-        ? sources()
-          .map((s) => ({
-            source_id: s.source_id.trim(),
-            source_label: s.source_label.trim() || s.source_id.trim(),
-          }))
-          .filter((s) => s.source_id !== "")
-        : [];
-      const seen = new Set<string>();
-      for (const s of cleanSources) {
-        if (!isDhis2ShapedId(s.source_id)) {
-          return {
-            success: false,
-            err: t3({
-              en: `Source ID "${s.source_id}" must not contain commas, semicolons, colons, or square brackets, and must be at most 128 characters`,
-              fr: `L'identifiant de source « ${s.source_id} » ne doit pas contenir de virgules, de points-virgules, de deux-points ou de crochets, et doit comporter au maximum 128 caractères`,
-              pt: `O ID de fonte "${s.source_id}" não pode conter vírgulas, pontos e vírgulas, dois pontos ou parênteses retos, e deve ter no máximo 128 caracteres`,
-            }),
-          };
-        }
-        if (seen.has(s.source_id)) {
-          return {
-            success: false,
-            err: t3({
-              en: `Source "${s.source_id}" is listed twice`,
-              fr: `La source « ${s.source_id} » apparaît deux fois`,
-              pt: `A fonte "${s.source_id}" aparece duas vezes`,
-            }),
-          };
-        }
-        seen.add(s.source_id);
-        const owner = sourceOwners().get(s.source_id);
-        if (owner !== undefined) {
-          return {
-            success: false,
-            err: t3({
-              en: `Source "${s.source_id}" already belongs to ${owner}. A source belongs to exactly one base indicator; define a derived indicator over ${owner} instead.`,
-              fr: `La source « ${s.source_id} » appartient déjà à ${owner}. Une source appartient à un seul indicateur de base ; définissez plutôt un indicateur dérivé sur ${owner}.`,
-              pt: `A fonte "${s.source_id}" já pertence a ${owner}. Uma fonte pertence a exatamente um indicador de base; defina antes um indicador derivado sobre ${owner}.`,
-            }),
-          };
-        }
+      const defErr = definitionError();
+      if (defErr) {
+        return { success: false, err: defErr };
       }
 
       const rule = thresholds();
@@ -454,7 +477,7 @@ export function EditIndicatorForm(
         indicator_common_id: id,
         indicator_common_label: label,
         definition: currentDefinition(),
-        include_in_analysis: existing?.include_in_analysis ?? true,
+        include_in_analysis: includeInAnalysis(),
         format_as: effectiveFormatAs(),
         thresholds: rule,
       };
@@ -525,53 +548,53 @@ export function EditIndicatorForm(
           </div>
 
           <Show when={type() === "base"}>
-            <div class="ui-spy-sm">
-              <div class="ui-text-caption text-xs">
-                {t3({
-                  en: "Sources: the DHIS2 data element or operand ids, or the CSV indicator ids, whose values are summed",
-                  fr: "Sources : les identifiants d'éléments de données ou d'opérandes DHIS2, ou les identifiants d'indicateurs CSV, dont les valeurs sont additionnées",
-                  pt: "Fontes: os IDs de elementos de dados ou operandos DHIS2, ou os IDs de indicadores CSV, cujos valores são somados",
+            <Input
+              label={t3({ en: "DHIS2 id", fr: "Identifiant DHIS2", pt: "ID DHIS2" })}
+              value={dhis2Id()}
+              onChange={setDhis2Id}
+              placeholder={t3({
+                en: "Empty for an uploaded indicator",
+                fr: "Vide pour un indicateur téléversé",
+                pt: "Vazio para um indicador carregado",
+              })}
+              disabled={dhis2IdLocked}
+              mono
+              fullWidth
+            />
+            <div class="ui-text-caption text-xs">
+              {dhis2IdLocked
+                ? t3({
+                  en: "The DHIS2 data element or operand this indicator is fetched from. It cannot change once set.",
+                  fr: "L'élément de données ou l'opérande DHIS2 dont cet indicateur est récupéré. Il ne peut plus changer une fois défini.",
+                  pt: "O elemento de dados ou operando DHIS2 de onde este indicador é obtido. Não pode mudar depois de definido.",
+                })
+                : t3({
+                  en: "The DHIS2 data element UID or UID.COC operand the import fetches into this indicator. Leave it empty for an indicator filled by CSV upload, where the file's indicator id is this indicator's own id.",
+                  fr: "L'UID d'élément de données ou l'opérande UID.COC que l'importation récupère dans cet indicateur. Laissez vide pour un indicateur rempli par téléversement CSV, où l'identifiant d'indicateur du fichier est l'identifiant de cet indicateur.",
+                  pt: "O UID de elemento de dados ou o operando UID.COC que a importação obtém para este indicador. Deixe vazio para um indicador preenchido por carregamento CSV, em que o ID de indicador do ficheiro é o ID deste indicador.",
                 })}
-              </div>
-              <For each={sources()}>
-                {(source, index) => (
-                  <div class="ui-gap-sm flex items-center">
-                    <Input
-                      value={source.source_id}
-                      onChange={(v) => updateSource(index(), { source_id: v })}
-                      placeholder={t3({ en: "Source ID", fr: "ID de la source", pt: "ID da fonte" })}
-                      mono
-                      fullWidth
-                    />
-                    <Input
-                      value={source.source_label}
-                      onChange={(v) => updateSource(index(), { source_label: v })}
-                      placeholder={t3(TC.label)}
-                      fullWidth
-                    />
-                    <Button
-                      intent="danger"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        removeSource(index());
-                      }}
-                      iconName="trash"
-                      outline
-                    />
-                  </div>
-                )}
-              </For>
-              <div class="">
-                <Button
-                  intent="success"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    addSource();
-                  }}
-                  iconName="plus"
-                  outline
-                />
-              </div>
+            </div>
+          </Show>
+
+          <Show when={type() === "sum"}>
+            <MultiSelectSearch
+              label={t3({ en: "Members", fr: "Membres", pt: "Membros" })}
+              options={memberOptions()}
+              values={members()}
+              onChange={setMembers}
+              placeholder={t3({
+                en: "Search base indicators...",
+                fr: "Rechercher des indicateurs de base...",
+                pt: "Pesquisar indicadores de base...",
+              })}
+              fullWidth
+            />
+            <div class="ui-text-caption text-xs">
+              {t3({
+                en: "The members' counts are added per facility and month. Members are base indicators; a sum cannot contain a sum.",
+                fr: "Les dénombrements des membres sont additionnés par établissement et par mois. Les membres sont des indicateurs de base ; une somme ne peut pas contenir une somme.",
+                pt: "As contagens dos membros são somadas por estabelecimento e mês. Os membros são indicadores de base; uma soma não pode conter uma soma.",
+              })}
             </div>
           </Show>
 
@@ -599,6 +622,11 @@ export function EditIndicatorForm(
             <Show when={computabilityWarning()}>
               {(warning) => (
                 <div class="text-warning text-xs">{warning()}</div>
+              )}
+            </Show>
+            <Show when={unanalysedNotice()}>
+              {(notice) => (
+                <div class="text-warning text-xs">{notice()}</div>
               )}
             </Show>
             <div class="ui-gap-sm flex items-end">
@@ -725,14 +753,36 @@ export function EditIndicatorForm(
 
         <div class="ui-spy-sm">
           <div class="font-700 text-base-content text-sm">
-            {t3({ en: "Display", fr: "Affichage", pt: "Apresentação" })}
+            {t3({ en: "Analysis and display", fr: "Analyse et affichage", pt: "Análise e apresentação" })}
+          </div>
+          <Checkbox
+            label={t3({
+              en: "Include in analysis",
+              fr: "Inclure dans l'analyse",
+              pt: "Incluir na análise",
+            })}
+            checked={includeInAnalysis()}
+            onChange={setIncludeInAnalysis}
+          />
+          <div class="ui-text-caption text-xs">
+            {isSpecial()
+              ? t3({
+                en: "A special indicator is always analysed: the analysis modules read it by name.",
+                fr: "Un indicateur spécial est toujours analysé : les modules d'analyse le lisent par son identifiant.",
+                pt: "Um indicador especial é sempre analisado: os módulos de análise leem-no pelo ID.",
+              })
+              : t3({
+                en: "On: every results package analyses this indicator. Off: dictionary only; its data is still imported and stored, and it can still be a member of a sum or used in a formula.",
+                fr: "Coché : chaque paquet de résultats analyse cet indicateur. Décoché : dictionnaire seulement ; ses données sont toujours importées et conservées, et il peut toujours être membre d'une somme ou utilisé dans une formule.",
+                pt: "Marcado: todos os pacotes de resultados analisam este indicador. Desmarcado: apenas dicionário; os seus dados continuam a ser importados e guardados, e pode continuar a ser membro de uma soma ou usado numa fórmula.",
+              })}
           </div>
           <Select
             label={t3({ en: "Format", fr: "Format", pt: "Formato" })}
             value={effectiveFormatAs()}
             onChange={setFormatAs}
             options={FORMAT_OPTIONS}
-            disabled={type() === "base"}
+            disabled={type() !== "derived"}
             fullWidth
           />
           <Select

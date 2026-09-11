@@ -25,7 +25,7 @@ export function statusLabel(status: DatasetHmisImportRunSummary["status"]): stri
   return t3({ en: "Error", fr: "Erreur", pt: "Erro" });
 }
 
-export function sourceLabel(run: DatasetHmisImportRunSummary): string {
+export function importRouteLabel(run: DatasetHmisImportRunSummary): string {
   return run.source === "csv" ? "CSV" : "DHIS2";
 }
 
@@ -37,20 +37,20 @@ export function selectionLabel(run: DatasetHmisImportRunSummary): string {
     return "";
   }
   if (run.selection.kind === "window") {
-    const sources = `${toNum0(run.selection.elements.length)} ${t3({
-      en: "sources",
-      fr: "sources",
-      pt: "fontes",
+    const elements = `${toNum0(run.selection.elements.length)} ${t3({
+      en: "DHIS2 elements",
+      fr: "éléments DHIS2",
+      pt: "elementos DHIS2",
     })}`;
-    // A run recorded before PLAN_A3 selected sources directly and has no
+    // A run recorded before PLAN_A3 selected elements directly and has no
     // indicator selection to show.
     const label = run.selection.indicatorIds.length === 0
-      ? sources
+      ? elements
       : `${toNum0(run.selection.indicatorIds.length)} ${t3({
         en: "indicators",
         fr: "indicateurs",
         pt: "indicadores",
-      })} (${sources})`;
+      })} (${elements})`;
     return `${label} · ${run.selection.startPeriod}–${run.selection.endPeriod}`;
   }
   return `${toNum0(run.selection.nPairs)} ${t3({ en: "pairs", fr: "paires", pt: "pares" })}`;
@@ -74,10 +74,11 @@ export function Dhis2TabHistory(p: Props) {
           : (run.triggeredBy ?? ""),
     },
     {
-      key: "source",
-      header: t3({ en: "Source", fr: "Source", pt: "Fonte" }),
+      key: "route",
+      header: t3({ en: "Imported via", fr: "Importé via", pt: "Importado via" }),
       sortable: true,
-      render: sourceLabel,
+      sortValue: importRouteLabel,
+      render: importRouteLabel,
     },
     {
       key: "selection",

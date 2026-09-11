@@ -44,7 +44,7 @@ export function ImportInformation(
             <div class="ui-spy-sm ui-pad col-span-6 rounded border text-sm">
               <div class="font-700 text-base">{t3({ en: "Import summary", fr: "Résumé de l'importation", pt: "Resumo da importação" })}</div>
               <div class="flex items-center">
-                <div class="w-56 flex-none">{t3({ en: "Import source", fr: "Source de l'importation", pt: "Fonte da importação" })}</div>
+                <div class="w-56 flex-none">{t3({ en: "Imported from", fr: "Importé depuis", pt: "Importado de" })}</div>
                 <div class="flex-1">
                   {isCSV() ? t3({ en: "CSV Import", fr: "Importation CSV", pt: "Importação CSV" }) : t3({ en: "DHIS2 Import", fr: "Importation DHIS2", pt: "Importação DHIS2" })}
                 </div>
@@ -143,7 +143,7 @@ export function ImportInformation(
 
         {/* Period Indicator Statistics */}
         <Show when={p.version.stagingResult}>
-          <CollapsibleSection title={t3({ en: "Period-source combinations", fr: "Combinaisons période-source", pt: "Combinações período-fonte" })}>
+          <CollapsibleSection title={t3({ en: "Period-indicator combinations", fr: "Combinaisons période-indicateur", pt: "Combinações período-indicador" })}>
             <div class="ui-pad max-h-[200px] overflow-auto">
               <For each={p.version.stagingResult?.periodIndicatorStats}>
                 {(stat, index) => (

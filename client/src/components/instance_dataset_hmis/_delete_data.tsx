@@ -57,7 +57,11 @@ export function DeleteData(
         ) {
           return {
             success: false,
-            err: "You must select at least one source",
+            err: t3({
+              en: "You must select at least one indicator",
+              fr: "Vous devez sélectionner au moins un indicateur",
+              pt: "Tem de selecionar pelo menos um indicador",
+            }),
           };
         }
 

@@ -17,13 +17,7 @@ import {
   toNum0,
   type CustomFigureStyleOptions,
 } from "panther";
-import {
-  Show,
-  createEffect,
-  createMemo,
-  createSignal,
-  type Setter,
-} from "solid-js";
+import { Show, createEffect, createMemo, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import { getDatasetHmisDisplayInfoFromCacheOrFetch } from "~/state/instance/t2_datasets";
 import { instanceState } from "~/state/instance/t1_store";
@@ -34,11 +28,9 @@ type Props = {
   structureSchema: StructureSchema;
 };
 
-type HmisDatatableView = "source" | "indicator";
-
+// One view, by the indicators that have rows (PLAN_A4 ruling 8): sums have
+// no rows and do not appear; their totals are in packages.
 export function DatasetItemsHolder(p: Props) {
-  const [view, setView] = createSignal<HmisDatatableView>("indicator");
-
   const [itemsHolder, setItemsHolder] = createSignal<
     StateHolder<ItemsHolderDatasetHmisDisplay>
   >({
@@ -51,7 +43,6 @@ export function DatasetItemsHolder(p: Props) {
   });
 
   async function attemptGetDatatable(
-    view: HmisDatatableView,
     versionId: number,
     baseIndicatorMappingsVersion: string,
   ) {
@@ -63,7 +54,6 @@ export function DatasetItemsHolder(p: Props) {
         pt: "A obter dados...",
       }),
     });
-    void view;
     const res = await getDatasetHmisDisplayInfoFromCacheOrFetch(
       versionId,
       baseIndicatorMappingsVersion,
@@ -89,18 +79,14 @@ export function DatasetItemsHolder(p: Props) {
   }
 
   createEffect(() => {
-    attemptGetDatatable(view(), p.versionId, p.baseIndicatorMappingsVersion);
+    attemptGetDatatable(p.versionId, p.baseIndicatorMappingsVersion);
   });
 
   return (
     <StateHolderWrapper state={itemsHolder()}>
       {(keyedDatasetItems) => {
         return (
-          <DatasetDisplayPresentation
-            displayItems={keyedDatasetItems}
-            view={view()}
-            setView={setView}
-          />
+          <DatasetDisplayPresentation displayItems={keyedDatasetItems} />
         );
       }}
     </StateHolderWrapper>
@@ -109,8 +95,6 @@ export function DatasetItemsHolder(p: Props) {
 
 type DatasetDisplayPresentationProps = {
   displayItems: ItemsHolderDatasetHmisDisplay;
-  view: HmisDatatableView;
-  setView: Setter<HmisDatatableView>;
 };
 
 function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
@@ -218,33 +202,6 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
       maxWidth={800}
       panelChildren={
         <div class="ui-pad ui-spy h-full w-full">
-          <RadioGroup
-            label={t3({
-              en: "Series",
-              fr: "Séries",
-              pt: "Séries",
-            })}
-            options={[
-              {
-                value: "indicator",
-                label: t3({
-                  en: "By indicator",
-                  fr: "Par indicateur",
-                  pt: "Por indicador",
-                }),
-              },
-              {
-                value: "source",
-                label: t3({
-                  en: "By source",
-                  fr: "Par source",
-                  pt: "Por fonte",
-                }),
-              },
-            ]}
-            value={p.view}
-            onChange={(v) => p.setView(v as HmisDatatableView)}
-          />
           <RadioGroup
             label={t3({ en: "Value", fr: "Valeur", pt: "Valor" })}
             options={[

@@ -49,9 +49,9 @@ export function InstanceDatasetHmis(p: Props) {
             tonal
             onBack={p.backToInstance}
             heading={t3({
-              en: "DATA SOURCE",
-              fr: "SOURCE DE DONNÉES",
-              pt: "FONTE DE DADOS",
+              en: "DATASET",
+              fr: "JEU DE DONNÉES",
+              pt: "CONJUNTO DE DADOS",
             })}
             subheading={t3({
               en: "HMIS Data",

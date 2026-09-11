@@ -19,9 +19,9 @@ export function Dhis2StepIndicators(p: Props) {
       </div>
       <div class="text-sm">
         {t3({
-          en: "A base indicator's DHIS2 sources are fetched; a derived indicator fetches the sources of the indicators its formula uses.",
-          fr: "Les sources DHIS2 d'un indicateur de base sont récupérées ; un indicateur dérivé récupère les sources des indicateurs que sa formule utilise.",
-          pt: "As fontes DHIS2 de um indicador de base são obtidas; um indicador derivado obtém as fontes dos indicadores que a sua fórmula utiliza.",
+          en: "A DHIS2 element is fetched by its DHIS2 id; a sum fetches its members; a derived indicator fetches the indicators its formula uses. Uploaded indicators are not fetched.",
+          fr: "Un élément DHIS2 est récupéré par son identifiant DHIS2 ; une somme récupère ses membres ; un indicateur dérivé récupère les indicateurs que sa formule utilise. Les indicateurs téléversés ne sont pas récupérés.",
+          pt: "Um elemento DHIS2 é obtido pelo seu ID DHIS2; uma soma obtém os seus membros; um indicador derivado obtém os indicadores que a sua fórmula utiliza. Os indicadores carregados não são obtidos.",
         })}
       </div>
       <Dhis2IndicatorPicker

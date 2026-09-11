@@ -14,22 +14,22 @@ import {
   toNum0,
   type TableColumn,
 } from "panther";
-import { ledgerSourceLabel, type LedgerPeriodWindow } from "./_tab_by_indicator";
+import { importRouteLabel, type LedgerPeriodWindow } from "./_tab_by_indicator";
 
 type MonthRow = {
   periodId: number;
   item: DatasetHmisImportLedgerItem | undefined;
 };
 
-// The per-source ledger surface: every month in the window with its import
-// status. Closes with a pair list when the user asks to re-import the
-// source; the shell feeds it to the wizard's presetPairs entry (same
+// The per-indicator ledger surface: every month in the window with its
+// import status. Closes with a pair list when the user asks to re-import
+// the indicator; the shell feeds it to the wizard's presetPairs entry (same
 // contract as Dhis2RunDetail).
 export function ImportLedgerIndicatorDetail(
   p: EditorComponentProps<
     {
-      sourceId: string;
-      sourceLabel: string | undefined;
+      indicatorId: string;
+      indicatorLabel: string | undefined;
       items: DatasetHmisImportLedgerItem[];
       window: LedgerPeriodWindow;
     },
@@ -44,9 +44,9 @@ export function ImportLedgerIndicatorDetail(
     (periodId) => ({ periodId, item: itemsByPeriod.get(periodId) }),
   );
 
-  function reimportSource() {
+  function reimportIndicator() {
     const pairs: Dhis2RunPairInput[] = enumerateMonthsDescending(p.window).map(
-      (periodId) => ({ indicatorId: p.sourceId, periodId }),
+      (periodId) => ({ indicatorId: p.indicatorId, periodId }),
     );
     p.close(pairs);
   }
@@ -119,9 +119,9 @@ export function ImportLedgerIndicatorDetail(
       render: (row) => (row.item ? toNum0(row.item.sumCount) : ""),
     },
     {
-      key: "source",
-      header: t3({ en: "Source", fr: "Source", pt: "Fonte" }),
-      render: (row) => (row.item ? ledgerSourceLabel(row.item.source) : ""),
+      key: "route",
+      header: t3({ en: "Imported via", fr: "Importé via", pt: "Importado via" }),
+      render: (row) => (row.item ? importRouteLabel(row.item.source) : ""),
     },
     {
       key: "importedAt",
@@ -138,7 +138,7 @@ export function ImportLedgerIndicatorDetail(
           // Backfill rows predate tracking; anything else with no timestamp
           // has never successfully imported: leave the cell empty rather
           // than implying a pre-tracking import.
-          return row.item.source === "backfill" ? ledgerSourceLabel("backfill") : "";
+          return row.item.source === "backfill" ? importRouteLabel("backfill") : "";
         }
         return new Date(row.item.importedAt).toLocaleString();
       },
@@ -168,14 +168,14 @@ export function ImportLedgerIndicatorDetail(
             fr: "État des importations",
             pt: "Estado das importações",
           })}
-          subheading={p.sourceLabel ? `${p.sourceId} · ${p.sourceLabel}` : p.sourceId}
+          subheading={p.indicatorLabel ? `${p.indicatorId} · ${p.indicatorLabel}` : p.indicatorId}
         >
           <div class="ui-gap-sm flex items-center">
-            <Button iconName="databaseImport" onClick={reimportSource}>
+            <Button iconName="databaseImport" onClick={reimportIndicator}>
               {t3({
-                en: "Re-import this source",
-                fr: "Réimporter cette source",
-                pt: "Reimportar esta fonte",
+                en: "Re-import this indicator",
+                fr: "Réimporter cet indicateur",
+                pt: "Reimportar este indicador",
               })}
             </Button>
           </div>

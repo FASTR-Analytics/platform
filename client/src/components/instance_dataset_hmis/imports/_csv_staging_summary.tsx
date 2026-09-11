@@ -19,7 +19,7 @@ export function CsvStagingSummary(p: Props) {
   const uniquePeriods = () =>
     new Set(p.result.periodIndicatorStats.map((s) => s.periodId)).size;
 
-  const uniqueSources = () =>
+  const uniqueIndicators = () =>
     new Set(p.result.periodIndicatorStats.map((s) => s.indicatorId)).size;
 
   return (
@@ -141,7 +141,7 @@ export function CsvStagingSummary(p: Props) {
               </Show>
               <Show when={validation().unknownIndicators?.rowsDropped}>
                 <div class="text-danger flex justify-between">
-                  <span>{t3({ en: "Unknown sources (no indicator has them):", fr: "Sources inconnues (aucun indicateur ne les a) :", pt: "Fontes desconhecidas (nenhum indicador as tem):" })}</span>
+                  <span>{t3({ en: "Unknown indicator ids (no indicator has them):", fr: "Identifiants d'indicateur inconnus (aucun indicateur ne les porte) :", pt: "IDs de indicador desconhecidos (nenhum indicador os tem):" })}</span>
                   <span class="font-mono">
                     {toNum0(validation().unknownIndicators.rowsDropped)}{" "}
                     {t3({ en: "rows dropped", fr: "lignes supprimées", pt: "linhas descartadas" })}
@@ -149,13 +149,13 @@ export function CsvStagingSummary(p: Props) {
                 </div>
                 <Show when={validation().unknownIndicators.sample?.length}>
                   <div class="text-base-content ml-4 text-sm">
-                    <div class="mb-1">{t3({ en: "Most frequent unknown sources:", fr: "Sources inconnues les plus fréquentes :", pt: "Fontes desconhecidas mais frequentes:" })}</div>
+                    <div class="mb-1">{t3({ en: "Most frequent unknown ids:", fr: "Identifiants inconnus les plus fréquents :", pt: "IDs desconhecidos mais frequentes:" })}</div>
                     <div class="font-mono">
                       {validation()
                         .unknownIndicators.sample.slice(0, 5)
                         .map(
-                          (source) =>
-                            `${source.indicator_id} (${toNum0(source.row_count)} ${t3({ en: "rows", fr: "lignes", pt: "linhas" })})`,
+                          (unknown) =>
+                            `${unknown.indicator_id} (${toNum0(unknown.row_count)} ${t3({ en: "rows", fr: "lignes", pt: "linhas" })})`,
                         )
                         .join(", ")}
                     </div>
@@ -165,7 +165,7 @@ export function CsvStagingSummary(p: Props) {
                   {(ids) => (
                     <div class="text-base-content ml-4 text-sm">
                       <div class="mb-1">
-                        {t3({ en: "All unknown sources", fr: "Toutes les sources inconnues", pt: "Todas as fontes desconhecidas" })} ({ids.length}):
+                        {t3({ en: "All unknown ids", fr: "Tous les identifiants inconnus", pt: "Todos os IDs desconhecidos" })} ({ids.length}):
                       </div>
                       <div class="max-h-40 overflow-auto font-mono text-xs break-all">
                         {ids.join(", ")}
@@ -191,8 +191,8 @@ export function CsvStagingSummary(p: Props) {
             <span class="font-mono">{uniquePeriods()}</span>
           </div>
           <div class="flex justify-between">
-            <span class="text-base-content">{t3({ en: "Unique sources:", fr: "Sources uniques :", pt: "Fontes únicas:" })}</span>
-            <span class="font-mono">{uniqueSources()}</span>
+            <span class="text-base-content">{t3({ en: "Unique indicators:", fr: "Indicateurs uniques :", pt: "Indicadores únicos:" })}</span>
+            <span class="font-mono">{uniqueIndicators()}</span>
           </div>
         </div>
       </div>

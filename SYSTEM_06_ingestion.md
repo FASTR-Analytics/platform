@@ -385,7 +385,7 @@ signal: re-uploading the same name leaves the signal unchanged, and only the
 callback re-parses the new bytes).
 
 - **HMIS** (`instance_dataset_hmis/imports/`): Current / Future / History /
-  By source tabs (SSE summary fields as the wake-up signal, routed through
+  By indicator tabs (SSE summary fields as the wake-up signal, routed through
   the shell's `refresh()`). The shell owns every read. The tabs are
   stateless: panther's `StateHolderWrapper` keys its ready branch on the data
   object, so every silent runs/scheduling fetch (the 2 s poll included)
@@ -394,17 +394,18 @@ callback re-parses the new bytes).
   `createSignal<StateHolder>` + `createEffect` fetched only while the
   By-source tab is showing (every switch to it, and every `refresh()` /
   toolbar refresh via a `ledgerVersion` signal; stale rows stay visible until
-  fresh ones arrive). By source is the import ledger: import history
-  pivoted by indicator (the ledger's key), click-through to a per-month
-  detail (`_ledger_indicator_detail.tsx`).
-  "Re-import this source" closes the detail with a pair list and "Retry
+  fresh ones arrive). By indicator is the import ledger: import history
+  pivoted by indicator (the ledger's key) with the dictionary's label beside
+  each id, click-through to a per-month detail
+  (`_ledger_indicator_detail.tsx`).
+  "Re-import this indicator" closes the detail with a pair list and "Retry
   failed pairs" hands the tab's pair list to the shell; both feed the
   wizard's `presetPairs` entry, the same contract as History → run detail
   (a cancelled wizard lands on the tab, not back in the detail, same as run
   detail; accepted). Two wizards: DHIS2 (credentials/indicators/time/
   config/review; the indicators step picks from the one dictionary list and
   the review counts the DHIS2 elements the selection expands to) and CSV
-  (upload → mappings → review), both with the launch-or-queue fork. A run
+  (upload → columns → review), both with the launch-or-queue fork. A run
   detail's
   Version row opens the version's `_import_information.tsx`. This replaced
   the "View previous imports" entry point (Phase D); the versions table and

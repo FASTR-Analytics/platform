@@ -14,7 +14,7 @@ import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import {
   type CommonIndicator,
   type Dhis2IndicatorDecomposition,
-  type Dhis2SourceVerdict,
+  type Dhis2ElementVerdict,
 } from "lib";
 import { getPgConnection } from "../db/postgres/connection_manager.ts";
 import {
@@ -36,8 +36,8 @@ const ANC4_ELEMENT = "KlMnOpQrSt2";
 const OTHER_ELEMENT = "UvWxYzAbCd3";
 const DHIS2_INDICATOR = "InDiCaToR01";
 
-const ACCEPTED: Dhis2SourceVerdict = { accepted: true };
-const REFUSED: Dhis2SourceVerdict = {
+const ACCEPTED: Dhis2ElementVerdict = { accepted: true };
+const REFUSED: Dhis2ElementVerdict = {
   accepted: false,
   refusal: { kind: "period_type", value: "Yearly" },
 };
@@ -63,14 +63,14 @@ function element(
   dhis2_id: string,
   indicator_id: string,
   label = `Label ${dhis2_id}`,
-  verdict: Dhis2SourceVerdict = ACCEPTED,
+  verdict: Dhis2ElementVerdict = ACCEPTED,
 ): Dhis2NamingElement {
   return { dhis2_id, indicator_id, label, verdict };
 }
 
 function decomposition(
   formula: { numerator: string; denominator: string; factor: number },
-  verdicts: Record<string, Dhis2SourceVerdict> = {},
+  verdicts: Record<string, Dhis2ElementVerdict> = {},
 ): Dhis2IndicatorDecomposition {
   const parse = parseDhis2Indicator({ ...formula, annualized: false });
   const operands = parse.accepted

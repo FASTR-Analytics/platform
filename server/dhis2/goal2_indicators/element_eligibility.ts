@@ -1,8 +1,8 @@
-// PLAN_A3 ruling 6: a DHIS2 data element may be a source only when DHIS2's
+// PLAN_A3 ruling 6: a DHIS2 data element may fill a base only when DHIS2's
 // own metadata says it is an additive monthly count. Pure: the caller fetches
 // the element (with dataSetElements[dataSet[periodType]]) and asks here.
 
-import type { DHIS2DataElement, Dhis2SourceVerdict } from "lib";
+import type { DHIS2DataElement, Dhis2ElementVerdict } from "lib";
 
 // NUMBER is the DHIS2 editor's default value type and most real count
 // elements carry it; integrality is enforced per value at import.
@@ -17,9 +17,9 @@ const COUNT_VALUE_TYPES: readonly string[] = [
 
 const MONTHLY_PERIOD_TYPE = "Monthly";
 
-export function getDhis2SourceVerdict(
+export function getDhis2ElementVerdict(
   element: DHIS2DataElement,
-): Dhis2SourceVerdict {
+): Dhis2ElementVerdict {
   if (element.aggregationType !== "SUM") {
     return refuse({ kind: "aggregation_type", value: element.aggregationType });
   }
@@ -48,14 +48,14 @@ export function getDhis2SourceVerdict(
 // longer has is a refusal of its own.
 export function getDhis2OperandVerdict(
   element: DHIS2DataElement | undefined,
-): Dhis2SourceVerdict {
+): Dhis2ElementVerdict {
   return element === undefined
     ? refuse({ kind: "element_not_found" })
-    : getDhis2SourceVerdict(element);
+    : getDhis2ElementVerdict(element);
 }
 
 function refuse(
-  refusal: Extract<Dhis2SourceVerdict, { accepted: false }>["refusal"],
-): Dhis2SourceVerdict {
+  refusal: Extract<Dhis2ElementVerdict, { accepted: false }>["refusal"],
+): Dhis2ElementVerdict {
   return { accepted: false, refusal };
 }

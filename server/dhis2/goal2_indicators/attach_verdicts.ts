@@ -1,5 +1,5 @@
 // Shapes search results for the dictionary: each data element carries its
-// source verdict (ruling 6) and each indicator its decomposition (ruling 8),
+// element verdict (ruling 6) and each indicator its decomposition (ruling 8),
 // with every operand judged through its element on the live server.
 
 import type {
@@ -13,17 +13,17 @@ import { parseDhis2Indicator } from "./decompose_indicator.ts";
 import { getDataElementsFromDHIS2 } from "./get_indicators_from_dhis2.ts";
 import {
   getDhis2OperandVerdict,
-  getDhis2SourceVerdict,
-} from "./source_eligibility.ts";
+  getDhis2ElementVerdict,
+} from "./element_eligibility.ts";
 
 const ID_FILTER_CHUNK_SIZE = 100;
 
-export function withSourceVerdicts(
+export function withElementVerdicts(
   elements: DHIS2DataElement[],
 ): Dhis2DataElementSearchItem[] {
   return elements.map((element) => ({
     ...element,
-    verdict: getDhis2SourceVerdict(element),
+    verdict: getDhis2ElementVerdict(element),
   }));
 }
 

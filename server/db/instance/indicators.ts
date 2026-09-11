@@ -7,10 +7,10 @@ import {
   type CommonIndicator,
   type CommonIndicatorDefinition,
   describeDhis2ParseRefusal,
-  describeDhis2SourceRefusal,
+  describeDhis2ElementRefusal,
   describeNewIndicatorIdIssue,
   type Dhis2IndicatorDecomposition,
-  type Dhis2SourceVerdict,
+  type Dhis2ElementVerdict,
   type ExpressionDictionaryEntry,
   getNewIndicatorIdIssue,
   getSpecialIndicatorTypeIssue,
@@ -725,7 +725,7 @@ export async function applyIndicatorNaming(
 }
 
 export type Dhis2NamingElement = IndicatorNamingElement & {
-  verdict: Dhis2SourceVerdict;
+  verdict: Dhis2ElementVerdict;
 };
 
 export type Dhis2NamingIndicator = {
@@ -750,7 +750,7 @@ export async function createIndicatorsFromDhis2(
       return {
         success: false,
         err: `${element.dhis2_id} cannot be imported: ${
-          t3(describeDhis2SourceRefusal(element.verdict.refusal))
+          t3(describeDhis2ElementRefusal(element.verdict.refusal))
         }`,
       };
     }
@@ -771,7 +771,7 @@ export async function createIndicatorsFromDhis2(
         return {
           success: false,
           err: `DHIS2 indicator ${indicator.dhis2_id}: operand ${operand.dhis2_id} cannot be imported: ${
-            t3(describeDhis2SourceRefusal(operand.verdict.refusal))
+            t3(describeDhis2ElementRefusal(operand.verdict.refusal))
           }`,
         };
       }

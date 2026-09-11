@@ -7,18 +7,23 @@ import {
 } from "panther";
 import { createEffect } from "solid-js";
 import { serverActions } from "~/server_actions";
+import {
+  definedByText,
+  indicatorTypeLabel,
+} from "~/components/indicator_manager_hmis/_indicator_display";
 
 type Props = {
   selectedIds: () => string[];
   setSelectedIds: (ids: string[]) => void;
-  // The dictionary the picker loaded, so the wizard can count the sources a
-  // selection expands to (the same expansion the server persists at launch).
+  // The dictionary the picker loaded, so the wizard can count the DHIS2
+  // elements a selection expands to (the same expansion the server persists
+  // at launch).
   onDictionaryLoaded: (indicators: CommonIndicator[]) => void;
 };
 
 // The indicator multi-select shared by the run launcher and the schedule
-// editor (PLAN_A3 ruling 7): an import selects indicators; the server
-// expands them to their sources.
+// editor (PLAN_A4 ruling 5): an import selects indicators; the server
+// expands them to the DHIS2 elements it fetches.
 export function Dhis2IndicatorPicker(p: Props) {
   const indicators = createQuery(
     () => serverActions.getIndicators({}),
@@ -52,21 +57,18 @@ export function Dhis2IndicatorPicker(p: Props) {
       sortable: true,
     },
     {
-      key: "definition",
+      key: "type",
       header: t3({ en: "Type", fr: "Type", pt: "Tipo" }),
       sortable: true,
-      sortValue: (item) => item.definition.type,
-      render: (item) =>
-        item.definition.type === "base"
-          ? t3({ en: "Base", fr: "De base", pt: "Base" })
-          : t3({ en: "Derived", fr: "Dérivé", pt: "Derivado" }),
+      sortValue: indicatorTypeLabel,
+      render: indicatorTypeLabel,
     },
     {
-      key: "sources",
-      header: t3({ en: "Sources", fr: "Sources", pt: "Fontes" }),
-      render: (item) => definedByText(item),
+      key: "defined_by",
+      header: t3({ en: "Defined by", fr: "Défini par", pt: "Definido por" }),
+      render: (item) => <span class="font-mono text-xs">{definedByText(item)}</span>,
       sortable: true,
-      sortValue: (item) => definedByText(item),
+      sortValue: definedByText,
     },
   ];
 
@@ -98,15 +100,4 @@ export function Dhis2IndicatorPicker(p: Props) {
       )}
     </StateHolderWrapper>
   );
-}
-
-function definedByText(indicator: CommonIndicator): string {
-  switch (indicator.definition.type) {
-    case "base":
-      return indicator.definition.dhis2_id ?? "";
-    case "sum":
-      return indicator.definition.members.join(", ");
-    case "derived":
-      return indicator.definition.expression;
-  }
 }

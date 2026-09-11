@@ -34,8 +34,8 @@ export function Dhis2RunView(p: Props) {
     await cancelAction.click();
   }
 
-  // DHIS2 runs only reach this view, but progress is a by-source union:
-  // narrow to the pairs variant.
+  // DHIS2 runs only reach this view, but progress is the union of both
+  // import kinds: narrow to the pairs variant.
   const dhis2Progress = () => {
     const progress = p.run.progress;
     return progress && "activePairs" in progress ? progress : undefined;

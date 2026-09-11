@@ -146,15 +146,15 @@ export function Dhis2Wizard(
   });
 
   // Step 2: indicators. The dictionary the picker loads lets the review
-  // count the sources the selection expands to, with the same lib function
-  // the server persists the expansion with at launch.
+  // count the DHIS2 elements the selection expands to, with the same lib
+  // function the server persists the expansion with at launch.
   const [selectedIndicators, setSelectedIndicators] = createSignal<string[]>(
     scheduleDefaults?.selection.indicatorIds ?? [],
   );
   const [dictionary, setDictionary] = createSignal<
     CommonIndicator[] | undefined
   >(undefined);
-  const nSources = createMemo<number | undefined>(() => {
+  const nElements = createMemo<number | undefined>(() => {
     const d = dictionary();
     if (isPreset || d === undefined) return undefined;
     return expandIndicatorSelection(
@@ -391,9 +391,9 @@ export function Dhis2Wizard(
     if (isPreset)
       return p.entry.kind === "presetPairs" ? p.entry.pairs.length : 0;
     if (timeChoice() === "recurring") return undefined;
-    const sources = nSources();
-    if (sources === undefined) return undefined;
-    return sources * getNMonths(startPeriod(), endPeriod());
+    const elements = nElements();
+    if (elements === undefined) return undefined;
+    return elements * getNMonths(startPeriod(), endPeriod());
   });
 
   const queueNotice = () =>
@@ -648,7 +648,7 @@ export function Dhis2Wizard(
           <Dhis2StepReview
             connectionSummary={connectionSummary()}
             nIndicators={isPreset ? undefined : selectedIndicators().length}
-            nSources={nSources()}
+            nElements={nElements()}
             timeSummary={timeSummary()}
             windowSummary={windowSummary()}
             nPairs={nPairs()}

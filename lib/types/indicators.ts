@@ -222,7 +222,7 @@ export interface DHIS2DataElement {
     name: string;
   }>;
   // The period type of each data set the element is collected in. An element
-  // in no data set has no period, so the source check refuses it.
+  // in no data set has no period, so the eligibility check refuses it.
   dataSetElements?: Array<{
     dataSet?: {
       id?: string;
@@ -301,18 +301,18 @@ export interface DHIS2CategoryCombo {
 // when the field was absent (a period type is absent when the element is in
 // no data set). `element_not_found` is for an operand whose element the
 // server no longer has.
-export type Dhis2SourceRefusal =
+export type Dhis2ElementRefusal =
   | { kind: "aggregation_type"; value: string | undefined }
   | { kind: "value_type"; value: string | undefined }
   | { kind: "period_type"; value: string | undefined }
   | { kind: "element_not_found" };
 
-export type Dhis2SourceVerdict =
+export type Dhis2ElementVerdict =
   | { accepted: true }
-  | { accepted: false; refusal: Dhis2SourceRefusal };
+  | { accepted: false; refusal: Dhis2ElementRefusal };
 
 export type Dhis2DataElementSearchItem = DHIS2DataElement & {
-  verdict: Dhis2SourceVerdict;
+  verdict: Dhis2ElementVerdict;
 };
 
 // One `#{uid}` or `#{uid.coc}` term of a DHIS2 indicator formula. `dhis2_id`
@@ -351,7 +351,7 @@ export type Dhis2IndicatorParse =
   | { accepted: false; refusal: Dhis2IndicatorParseRefusal };
 
 export type Dhis2DecompositionOperand = Dhis2ParsedOperand & {
-  verdict: Dhis2SourceVerdict;
+  verdict: Dhis2ElementVerdict;
 };
 
 // The parse plus each operand's eligibility verdict, checked through its element
@@ -367,8 +367,8 @@ export type Dhis2IndicatorSearchItem = DHIS2Indicator & {
   decomposition: Dhis2IndicatorDecomposition;
 };
 
-export function describeDhis2SourceRefusal(
-  refusal: Dhis2SourceRefusal,
+export function describeDhis2ElementRefusal(
+  refusal: Dhis2ElementRefusal,
 ): TranslatableString {
   switch (refusal.kind) {
     case "aggregation_type":

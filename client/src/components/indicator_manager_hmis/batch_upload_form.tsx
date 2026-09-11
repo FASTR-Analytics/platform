@@ -18,7 +18,7 @@ import { instanceState } from "~/state/instance/t1_store";
 
 type Props = EditorComponentProps<{}, undefined>;
 
-// One file for the whole dictionary (PLAN_A3 ruling 11); the manager's
+// One file for the whole dictionary (PLAN_A4 ruling 7); the manager's
 // Download CSV writes the same columns.
 export function BatchUploadForm(p: Props) {
   const [selectedFileName, setSelectedFileName] = createSignal<string>("");
@@ -83,9 +83,9 @@ export function BatchUploadForm(p: Props) {
           </div>
           <div class="text-xs">
             {t3({
-              en: "type is base or derived. sources is semicolon-separated for a base indicator and empty for a derived one; expression is the derived indicator's formula and empty for a base. format_as is number, percent or rate_per_10k (a base is always number). thresholds is the conditional-formatting rule as JSON, or empty. Existing indicators keep their sort order. Sources named in the file keep their labels; a new source is labelled by its id until edited.",
-              fr: "type vaut base ou derived. sources est une liste séparée par des points-virgules pour un indicateur de base et vide pour un indicateur dérivé ; expression est la formule de l'indicateur dérivé et vide pour un indicateur de base. format_as vaut number, percent ou rate_per_10k (un indicateur de base est toujours number). thresholds est la règle de mise en forme conditionnelle en JSON, ou vide. Les indicateurs existants conservent leur ordre. Les sources nommées dans le fichier conservent leur libellé ; une nouvelle source prend son identifiant comme libellé jusqu'à modification.",
-              pt: "type é base ou derived. sources é uma lista separada por ponto e vírgula para um indicador de base e vazia para um derivado; expression é a fórmula do indicador derivado e vazia para um de base. format_as é number, percent ou rate_per_10k (um indicador de base é sempre number). thresholds é a regra de formatação condicional em JSON, ou vazio. Os indicadores existentes mantêm a sua ordem. As fontes nomeadas no ficheiro mantêm as suas etiquetas; uma fonte nova recebe o seu ID como etiqueta até ser editada.",
+              en: "type is base, sum or derived. dhis2_id is the DHIS2 data element or operand id of a base fetched from DHIS2, and empty for an uploaded base; members is the semicolon-separated base ids of a sum; expression is a derived indicator's formula; each is empty for the other types. include_in_analysis is true or false. format_as is number, percent or rate_per_10k (a base or sum is always number). thresholds is the conditional-formatting rule as JSON, or empty. Existing indicators keep their sort order.",
+              fr: "type vaut base, sum ou derived. dhis2_id est l'identifiant d'élément de données ou d'opérande DHIS2 d'un indicateur de base récupéré depuis DHIS2, et vide pour un indicateur téléversé ; members est la liste des identifiants de base d'une somme, séparés par des points-virgules ; expression est la formule d'un indicateur dérivé ; chacun est vide pour les autres types. include_in_analysis vaut true ou false. format_as vaut number, percent ou rate_per_10k (un indicateur de base ou une somme est toujours number). thresholds est la règle de mise en forme conditionnelle en JSON, ou vide. Les indicateurs existants conservent leur ordre.",
+              pt: "type é base, sum ou derived. dhis2_id é o ID de elemento de dados ou operando DHIS2 de um indicador de base obtido do DHIS2, e vazio para um indicador carregado; members é a lista de IDs de base de uma soma, separados por ponto e vírgula; expression é a fórmula de um indicador derivado; cada um fica vazio para os outros tipos. include_in_analysis é true ou false. format_as é number, percent ou rate_per_10k (um indicador de base ou uma soma é sempre number). thresholds é a regra de formatação condicional em JSON, ou vazio. Os indicadores existentes mantêm a sua ordem.",
             })}
           </div>
         </div>
@@ -117,9 +117,9 @@ export function BatchUploadForm(p: Props) {
           />
           <div class="text-xs">
             {t3({
-              en: "Indicators the file does not name are deleted. The upload is refused if that would remove a source that has data or an indicator another formula still uses.",
-              fr: "Les indicateurs absents du fichier sont supprimés. L'importation est refusée si cela supprimerait une source contenant des données ou un indicateur qu'une autre formule utilise encore.",
-              pt: "Os indicadores que o ficheiro não nomeia são eliminados. O carregamento é recusado se isso removesse uma fonte com dados ou um indicador que outra fórmula ainda utiliza.",
+              en: "Indicators the file does not name are deleted. The upload is refused if that would remove an indicator that has data or one a sum or formula still uses, or move a DHIS2 id between indicators when the old one has data.",
+              fr: "Les indicateurs absents du fichier sont supprimés. L'importation est refusée si cela supprimerait un indicateur contenant des données ou un indicateur qu'une somme ou une formule utilise encore, ou déplacerait un identifiant DHIS2 entre indicateurs alors que l'ancien contient des données.",
+              pt: "Os indicadores que o ficheiro não nomeia são eliminados. O carregamento é recusado se isso removesse um indicador com dados ou um que uma soma ou fórmula ainda utiliza, ou movesse um ID DHIS2 entre indicadores quando o antigo tem dados.",
             })}
           </div>
         </div>

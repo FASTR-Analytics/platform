@@ -20,6 +20,7 @@ import { createStore } from "solid-js/store";
 import { serverActions } from "~/server_actions";
 import {
   createNamingState,
+  EMPTY_NAMING_STATE,
   namingInputFromState,
   namingIssues,
   NamingStep,
@@ -34,9 +35,9 @@ type Props = {
 
 // A CSV run holding in needs_review: staging dropped rows, so nothing was
 // merged. The user integrates the surviving rows anyway, turns the unknown
-// source ids into indicators and re-stages the same run (PLAN_A3 ruling 6),
-// or discards. The hold does NOT block other imports (the slot was
-// released).
+// indicator ids into uploaded indicators and re-stages the same run
+// (PLAN_A4 ruling 6), or discards. The hold does NOT block other imports
+// (the slot was released).
 export function CsvNeedsReviewCard(p: Props) {
   const detail = createQuery(
     () => serverActions.getDatasetHmisImportRunDetail({ run_id: p.run.id }),
@@ -47,7 +48,7 @@ export function CsvNeedsReviewCard(p: Props) {
     }),
   );
 
-  const unknownSourceIds = createMemo<string[]>(() => {
+  const unknownIds = createMemo<string[]>(() => {
     const s = detail.state();
     return s.status === "ready"
       ? s.data.csvStagingResult?.validation?.unknownIndicators.ids ?? []
@@ -65,8 +66,8 @@ export function CsvNeedsReviewCard(p: Props) {
 
   async function createIndicatorsAndRestage() {
     const done = await openComponent({
-      element: CsvUnknownSourcesNamingForm,
-      props: { runId: p.run.id, sourceIds: unknownSourceIds() },
+      element: CsvUnknownIdsNamingForm,
+      props: { runId: p.run.id, indicatorIds: unknownIds() },
     });
     if (done) {
       await p.onChanged();
@@ -104,9 +105,9 @@ export function CsvNeedsReviewCard(p: Props) {
       </div>
       <div class="text-sm">
         {t3({
-          en: "Some rows were dropped during staging, so nothing has been merged yet. Review the results below, then integrate the surviving rows or discard the import. Rows with an unknown source id can become indicators: name them and the file is staged again. Other imports are not blocked while this waits.",
-          fr: "Des lignes ont été rejetées pendant la préparation, rien n'a donc encore été fusionné. Vérifiez les résultats ci-dessous, puis intégrez les lignes retenues ou abandonnez l'importation. Les lignes dont l'identifiant de source est inconnu peuvent devenir des indicateurs : nommez-les et le fichier est préparé à nouveau. Les autres importations ne sont pas bloquées pendant cette attente.",
-          pt: "Algumas linhas foram rejeitadas durante a preparação, pelo que nada foi ainda fundido. Reveja os resultados abaixo e depois integre as linhas retidas ou descarte a importação. As linhas com um ID de fonte desconhecido podem tornar-se indicadores: nomeie-os e o ficheiro é preparado de novo. As outras importações não ficam bloqueadas durante esta espera.",
+          en: "Some rows were dropped during staging, so nothing has been merged yet. Review the results below, then integrate the surviving rows or discard the import. Rows with an unknown indicator id can become uploaded indicators: label them and the file is staged again. Other imports are not blocked while this waits.",
+          fr: "Des lignes ont été rejetées pendant la préparation, rien n'a donc encore été fusionné. Vérifiez les résultats ci-dessous, puis intégrez les lignes retenues ou abandonnez l'importation. Les lignes dont l'identifiant d'indicateur est inconnu peuvent devenir des indicateurs téléversés : étiquetez-les et le fichier est préparé à nouveau. Les autres importations ne sont pas bloquées pendant cette attente.",
+          pt: "Algumas linhas foram rejeitadas durante a preparação, pelo que nada foi ainda fundido. Reveja os resultados abaixo e depois integre as linhas retidas ou descarte a importação. As linhas com um ID de indicador desconhecido podem tornar-se indicadores carregados: dê-lhes uma etiqueta e o ficheiro é preparado de novo. As outras importações não ficam bloqueadas durante esta espera.",
         })}
       </div>
       <StateHolderWrapper state={detail.state()} noPad>
@@ -139,7 +140,7 @@ export function CsvNeedsReviewCard(p: Props) {
             pt: "Integrar mesmo assim",
           })}
         </Button>
-        <Show when={unknownSourceIds().length > 0}>
+        <Show when={unknownIds().length > 0}>
           <Button onClick={createIndicatorsAndRestage} intent="primary">
             {t3({
               en: "Create indicators for the unknown ids and re-stage",
@@ -156,11 +157,11 @@ export function CsvNeedsReviewCard(p: Props) {
   );
 }
 
-// The naming step over the hold's unknown source ids: each becomes a new
-// base (its label starts as the id) or a source of an existing base. Saving
+// The naming step over the hold's unknown ids: each becomes an uploaded
+// indicator under the file's own id (its label starts as the id). Saving
 // creates them and relaunches the run through the full stage leg.
-function CsvUnknownSourcesNamingForm(
-  p: AlertComponentProps<{ runId: number; sourceIds: string[] }, boolean>,
+function CsvUnknownIdsNamingForm(
+  p: AlertComponentProps<{ runId: number; indicatorIds: string[] }, boolean>,
 ) {
   const dictionary = createQuery(
     () => serverActions.getIndicators({}),
@@ -183,10 +184,9 @@ function CsvUnknownSourcesNamingForm(
     () => p.close(true),
   );
 
-  const [naming, setNaming] = createStore<NamingState>({
-    sources: [],
-    derived: [],
-  });
+  const [naming, setNaming] = createStore<NamingState>(
+    structuredClone(EMPTY_NAMING_STATE),
+  );
   // Seeded once, from the dictionary as loaded: the proposed ids are
   // generated against it, and the user's edits must not be re-seeded away.
   const [indicators, setIndicators] = createSignal<CommonIndicator[]>();
@@ -195,7 +195,8 @@ function CsvUnknownSourcesNamingForm(
     if (s.status !== "ready" || indicators() !== undefined) return;
     setNaming(
       createNamingState({
-        sources: p.sourceIds.map((id) => ({ source_id: id, source_label: id })),
+        elements: [],
+        uploadedIds: p.indicatorIds,
         derived: [],
         indicators: s.data.indicators,
       }),
@@ -210,7 +211,7 @@ function CsvUnknownSourcesNamingForm(
 
   return (
     <AlertFormHolder
-      formId="csv-unknown-sources-naming"
+      formId="csv-unknown-ids-naming"
       header={t3({
         en: "Create indicators for the unknown ids",
         fr: "Créer des indicateurs pour les identifiants inconnus",

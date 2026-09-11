@@ -1,7 +1,7 @@
 import {
+  analysedIdsWithData,
   t3,
   TC,
-  type CommonIndicatorType,
   type Dhis2RunCredentialsSource,
   INDICATOR_BATCH_FILE_COLUMNS,
   INDICATOR_BATCH_MEMBERS_SEPARATOR,
@@ -18,6 +18,7 @@ import {
   AlertComponentProps,
   AlertFormHolder,
   Button,
+  Checkbox,
   FrameTop,
   HeadingBar,
   getQueryStateFromApiResponse,
@@ -25,12 +26,14 @@ import {
   Table,
   TableColumn,
   getEditorWrapper,
+  openAlert,
   openComponent,
   createDeleteAction,
+  createQuery,
   type BulkAction,
   type StateHolder,
 } from "panther";
-import { For, Show, createEffect, createMemo, createSignal } from "solid-js";
+import { For, Show, createEffect, createMemo, createSignal, on } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { getIndicatorsFromCacheOrFetch } from "~/state/instance/t2_indicators";
@@ -40,6 +43,7 @@ import {
   missingPopulationText,
 } from "./_computability";
 import { EditIndicatorForm } from "./_edit_indicator";
+import { definedByText, indicatorTypeLabel } from "./_indicator_display";
 import { BatchUploadForm } from "./batch_upload_form";
 import { Dhis2IndicatorSelectForm } from "./dhis2_indicator_select_form";
 import { SortIndicatorsModal } from "./sort_indicators_modal";
@@ -48,9 +52,10 @@ type Props = {
   backToInstance: () => void;
 };
 
-// The dictionary as one list (PLAN_A3 ruling 1): base and derived
-// indicators differ by a Type column, a base shows its sources, and a
-// special indicator (one the analysis modules read by name) carries a badge.
+// The dictionary as one list (PLAN_A4 §2): every row is an indicator, the
+// Type column says what fills it (DHIS2 element, Uploaded, Sum, Derived),
+// every row has the include-in-analysis checkbox, and a special indicator
+// (one the analysis modules read by name) carries a badge.
 export function IndicatorsManager(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
 
@@ -80,7 +85,27 @@ export function IndicatorsManager(p: Props) {
     setIndicators(getQueryStateFromApiResponse(res));
   });
 
-  // The batch file (ruling 11): the download mirrors the upload.
+  // Which indicators have rows, for the computability status: the ledger is
+  // the cheap answer (one row per indicator × month), re-read when an import
+  // mints a new data version. A display-only enrichment: the list renders
+  // without it and the status column fills in when it arrives.
+  const ledger = createQuery(() => serverActions.getDatasetHmisImportLedger({}));
+  createEffect(
+    on(
+      () => instanceState.datasetVersions.hmis,
+      () => void ledger.silentFetch(),
+      { defer: true },
+    ),
+  );
+  const idsWithRows = createMemo<Set<string> | undefined>(() => {
+    const s = ledger.state();
+    if (s.status !== "ready") return undefined;
+    return new Set(
+      s.data.filter((item) => item.nRecords > 0).map((item) => item.indicatorId),
+    );
+  });
+
+  // The batch file (ruling 7): the download mirrors the upload.
   function handleDownloadCsv(list: CommonIndicator[]) {
     const rows = list.map((indicator) => [
       indicator.indicator_common_id,
@@ -192,6 +217,7 @@ export function IndicatorsManager(p: Props) {
               <div class="h-full">
                 <IndicatorsTable
                   indicators={keyedIndicators.indicators}
+                  idsWithRows={idsWithRows()}
                   handleDownloadCsv={handleDownloadCsv}
                 />
               </div>
@@ -203,30 +229,6 @@ export function IndicatorsManager(p: Props) {
   );
 }
 
-function indicatorTypeLabel(type: CommonIndicatorType): string {
-  switch (type) {
-    case "base":
-      return t3({ en: "Base", fr: "De base", pt: "Base" });
-    case "sum":
-      return t3({ en: "Sum", fr: "Somme", pt: "Soma" });
-    case "derived":
-      return t3({ en: "Derived", fr: "Dérivé", pt: "Derivado" });
-  }
-}
-
-// What the indicator is made of: its sources for a base indicator, the
-// formula itself for a derived one. One derivation for display AND sort.
-function definedByText(indicator: CommonIndicator): string {
-  switch (indicator.definition.type) {
-    case "base":
-      return indicator.definition.dhis2_id ?? "";
-    case "sum":
-      return indicator.definition.members.join(", ");
-    case "derived":
-      return indicator.definition.expression;
-  }
-}
-
 type IndicatorStatus = {
   problem: string | undefined;
   population: string | undefined;
@@ -234,23 +236,38 @@ type IndicatorStatus = {
 
 function IndicatorsTable(p: {
   indicators: CommonIndicator[];
+  idsWithRows: Set<string> | undefined;
   handleDownloadCsv: (indicators: CommonIndicator[]) => void;
 }) {
+  // The bases and sums the extract could produce counts for: a base by its
+  // own rows, a sum by any member's. Over every non-derived row rather than
+  // the analysed set, so an unchecked derived is judged as it would be if
+  // it were checked.
+  const idsWithData = createMemo<Set<string> | undefined>(() => {
+    const rows = p.idsWithRows;
+    if (rows === undefined) return undefined;
+    return analysedIdsWithData(
+      p.indicators,
+      new Set(
+        p.indicators
+          .filter((c) => c.definition.type !== "derived")
+          .map((c) => c.indicator_common_id),
+      ),
+      rows,
+    );
+  });
+
   // The same judgement capture makes, over the dictionary the list shows.
-  // Base indicators have no status: one without sources is the ordinary case.
+  // Bases and sums have no status: one without data is the ordinary case.
   const statuses = createMemo(() => {
+    const statuses = new Map<string, IndicatorStatus>();
+    const withData = idsWithData();
+    if (withData === undefined) return statuses;
     const judgements = judgeDerivedIndicators(
       p.indicators,
       POPULATION_TYPE_IDS,
-      new Set(
-        p.indicators
-          .filter((c) =>
-            c.definition.type === "base" && c.definition.dhis2_id !== null
-          )
-          .map((c) => c.indicator_common_id),
-      ),
+      withData,
     );
-    const statuses = new Map<string, IndicatorStatus>();
     for (const [id, judgement] of judgements) {
       statuses.set(id, {
         problem: judgement.kind === "computable"
@@ -275,15 +292,38 @@ function IndicatorsTable(p: {
   async function handleCreateIndicator() {
     await openComponent({
       element: EditIndicatorForm,
-      props: { indicators: p.indicators },
+      props: { indicators: p.indicators, idsWithData: idsWithData() },
     });
   }
 
   async function handleUpdateIndicator(indicator: CommonIndicator) {
     await openComponent({
       element: EditIndicatorForm,
-      props: { indicators: p.indicators, existingIndicator: indicator },
+      props: {
+        indicators: p.indicators,
+        idsWithData: idsWithData(),
+        existingIndicator: indicator,
+      },
     });
+  }
+
+  // The checkbox in the list (ruling 12): the same update as the editor,
+  // with nothing else changed. The SSE stamp refetches the list.
+  async function setIncludeInAnalysis(indicator: CommonIndicator, on: boolean) {
+    const res = await serverActions.updateIndicator({
+      old_indicator_common_id: indicator.indicator_common_id,
+      indicator: {
+        indicator_common_id: indicator.indicator_common_id,
+        indicator_common_label: indicator.indicator_common_label,
+        definition: indicator.definition,
+        include_in_analysis: on,
+        format_as: indicator.format_as,
+        thresholds: indicator.thresholds,
+      },
+    });
+    if (!res.success) {
+      await openAlert({ text: res.err, intent: "danger" });
+    }
   }
 
   async function handleSortIndicators() {
@@ -299,14 +339,14 @@ function IndicatorsTable(p: {
       {
         text: indicatorIds.length === 1
           ? t3({
-            en: "Are you sure you want to delete this indicator? Its sources go with it.",
-            fr: "Êtes-vous sûr de vouloir supprimer cet indicateur ? Ses sources seront supprimées avec lui.",
-            pt: "Tem a certeza de que pretende eliminar este indicador? As suas fontes são eliminadas com ele.",
+            en: "Are you sure you want to delete this indicator?",
+            fr: "Êtes-vous sûr de vouloir supprimer cet indicateur ?",
+            pt: "Tem a certeza de que pretende eliminar este indicador?",
           })
           : t3({
-            en: "Are you sure you want to delete these indicators? Their sources go with them.",
-            fr: "Êtes-vous sûr de vouloir supprimer ces indicateurs ? Leurs sources seront supprimées avec eux.",
-            pt: "Tem a certeza de que pretende eliminar estes indicadores? As suas fontes são eliminadas com eles.",
+            en: "Are you sure you want to delete these indicators?",
+            fr: "Êtes-vous sûr de vouloir supprimer ces indicateurs ?",
+            pt: "Tem a certeza de que pretende eliminar estes indicadores?",
           }),
         itemList: selected.map(
           (i) => `${i.indicator_common_id} ~ ${i.indicator_common_label}`,
@@ -330,9 +370,9 @@ function IndicatorsTable(p: {
             <span
               class="bg-primary-subtle text-primary-subtle-content rounded px-2 py-0.5 text-xs"
               title={t3({
-                en: "Read by name by the analysis modules; must stay a base indicator",
-                fr: "Lu par son identifiant par les modules d'analyse ; doit rester un indicateur de base",
-                pt: "Lido pelo seu ID pelos módulos de análise; tem de permanecer um indicador de base",
+                en: "Read by name by the analysis modules and always analysed; must stay a base or sum indicator",
+                fr: "Lu par son identifiant par les modules d'analyse et toujours analysé ; doit rester un indicateur de base ou une somme",
+                pt: "Lido pelo seu ID pelos módulos de análise e sempre analisado; tem de permanecer um indicador de base ou uma soma",
               })}
             >
               {t3({ en: "Special", fr: "Spécial", pt: "Especial" })}
@@ -347,23 +387,39 @@ function IndicatorsTable(p: {
       sortable: true,
     },
     {
-      key: "definition",
+      key: "type",
       header: t3({ en: "Type", fr: "Type", pt: "Tipo" }),
       sortable: true,
-      sortValue: (indicator) => indicatorTypeLabel(indicator.definition.type),
-      render: (indicator) => (
-        <span class="">{indicatorTypeLabel(indicator.definition.type)}</span>
-      ),
+      sortValue: indicatorTypeLabel,
+      render: (indicator) => <span>{indicatorTypeLabel(indicator)}</span>,
     },
     {
-      key: "sources",
+      key: "defined_by",
       header: t3({ en: "Defined by", fr: "Défini par", pt: "Definido por" }),
       sortable: true,
-      sortValue: (indicator) => definedByText(indicator),
+      sortValue: definedByText,
       render: (indicator) =>
         indicator.definition.type === "derived"
           ? <div class="font-mono">{indicator.definition.expression}</div>
           : <div class="font-mono text-xs">{definedByText(indicator)}</div>,
+    },
+    {
+      key: "include_in_analysis",
+      header: t3({
+        en: "Include in analysis",
+        fr: "Inclure dans l'analyse",
+        pt: "Incluir na análise",
+      }),
+      sortable: true,
+      sortValue: (indicator) => (indicator.include_in_analysis ? 0 : 1),
+      render: (indicator) => (
+        <Checkbox
+          label=""
+          checked={indicator.include_in_analysis}
+          onChange={(on) => void setIncludeInAnalysis(indicator, on)}
+          disabled={!instanceState.currentUserIsGlobalAdmin}
+        />
+      ),
     },
     {
       key: "status",
@@ -477,14 +533,14 @@ function IndicatorsTable(p: {
         <div class="bg-warning-subtle text-warning-subtle-content mb-4 flex-none rounded px-3 py-2 text-sm">
           {uncomputableCount() === 1
             ? t3({
-                en: "1 derived indicator cannot be computed. Results cannot be generated until it is edited or removed, or the indicators it uses have sources.",
-                fr: "1 indicateur dérivé ne peut pas être calculé. Les résultats ne pourront pas être générés tant qu'il n'est pas modifié ou supprimé, ou que les indicateurs qu'il utilise n'ont pas de sources.",
-                pt: "1 indicador derivado não pode ser calculado. Os resultados não podem ser gerados até que seja editado ou removido, ou até que os indicadores que utiliza tenham fontes.",
+                en: "1 derived indicator cannot be computed. Results cannot be generated until it is edited or removed, or the indicators it uses have data.",
+                fr: "1 indicateur dérivé ne peut pas être calculé. Les résultats ne pourront pas être générés tant qu'il n'est pas modifié ou supprimé, ou que les indicateurs qu'il utilise n'ont pas de données.",
+                pt: "1 indicador derivado não pode ser calculado. Os resultados não podem ser gerados até que seja editado ou removido, ou até que os indicadores que utiliza tenham dados.",
               })
             : t3({
-                en: `${uncomputableCount()} derived indicators cannot be computed. Results cannot be generated until they are edited or removed, or the indicators they use have sources.`,
-                fr: `${uncomputableCount()} indicateurs dérivés ne peuvent pas être calculés. Les résultats ne pourront pas être générés tant qu'ils ne sont pas modifiés ou supprimés, ou que les indicateurs qu'ils utilisent n'ont pas de sources.`,
-                pt: `${uncomputableCount()} indicadores derivados não podem ser calculados. Os resultados não podem ser gerados até que sejam editados ou removidos, ou até que os indicadores que utilizam tenham fontes.`,
+                en: `${uncomputableCount()} derived indicators cannot be computed. Results cannot be generated until they are edited or removed, or the indicators they use have data.`,
+                fr: `${uncomputableCount()} indicateurs dérivés ne peuvent pas être calculés. Les résultats ne pourront pas être générés tant qu'ils ne sont pas modifiés ou supprimés, ou que les indicateurs qu'ils utilisent n'ont pas de données.`,
+                pt: `${uncomputableCount()} indicadores derivados não podem ser calculados. Os resultados não podem ser gerados até que sejam editados ou removidos, ou até que os indicadores que utilizam tenham dados.`,
               })}
         </div>
       </Show>
@@ -530,9 +586,9 @@ function ReferenceListModal(p: AlertComponentProps<{}, undefined>) {
           </div>
           <div class="text-xs">
             {t3({
-              en: "The analysis modules read these ids by name as counts. A new instance is seeded with each as an empty base; an existing one adds or deletes them like any base. A special id can only be a base indicator.",
-              fr: "Les modules d'analyse lisent ces identifiants par leur nom comme des dénombrements. Une nouvelle instance est initialisée avec chacun comme indicateur de base vide ; une instance existante les ajoute ou les supprime comme tout indicateur de base. Un identifiant spécial ne peut être qu'un indicateur de base.",
-              pt: "Os módulos de análise leem estes IDs pelo nome como contagens. Uma nova instância é iniciada com cada um como indicador de base vazio; uma instância existente adiciona-os ou elimina-os como qualquer indicador de base. Um ID especial só pode ser um indicador de base.",
+              en: "The analysis modules read these ids by name as counts, so they are always analysed. A new instance is seeded with each as an empty base; an existing one adds or deletes them like any indicator. A special id can only be a base or sum indicator.",
+              fr: "Les modules d'analyse lisent ces identifiants par leur nom comme des dénombrements ; ils sont donc toujours analysés. Une nouvelle instance est initialisée avec chacun comme indicateur de base vide ; une instance existante les ajoute ou les supprime comme tout indicateur. Un identifiant spécial ne peut être qu'un indicateur de base ou une somme.",
+              pt: "Os módulos de análise leem estes IDs pelo nome como contagens, pelo que são sempre analisados. Uma nova instância é iniciada com cada um como indicador de base vazio; uma instância existente adiciona-os ou elimina-os como qualquer indicador. Um ID especial só pode ser um indicador de base ou uma soma.",
             })}
           </div>
           <div class="grid grid-cols-[repeat(auto-fit,minmax(18rem,1fr))] gap-x-4 gap-y-1">
@@ -567,9 +623,9 @@ function ReferenceListModal(p: AlertComponentProps<{}, undefined>) {
           </div>
           <div class="text-xs">
             {t3({
-              en: "No indicator id may be one of these, however it is produced: the special ids (except as a base), the population terms and the formula function names.",
-              fr: "Aucun identifiant d'indicateur ne peut être l'un de ceux-ci, quelle que soit la façon dont il est produit : les identifiants spéciaux (sauf comme indicateur de base), les termes de population et les noms de fonctions des formules.",
-              pt: "Nenhum ID de indicador pode ser um destes, seja como for produzido: os IDs especiais (exceto como base), os termos de população e os nomes das funções das fórmulas.",
+              en: "No indicator id may be one of these, however it is produced: the special ids (except as a base or sum), the population terms and the formula function names.",
+              fr: "Aucun identifiant d'indicateur ne peut être l'un de ceux-ci, quelle que soit la façon dont il est produit : les identifiants spéciaux (sauf comme indicateur de base ou somme), les termes de population et les noms de fonctions des formules.",
+              pt: "Nenhum ID de indicador pode ser um destes, seja como for produzido: os IDs especiais (exceto como base ou soma), os termos de população e os nomes das funções das fórmulas.",
             })}
           </div>
           <div class="font-mono text-xs">{RESERVED_WORDS.join(", ")}</div>

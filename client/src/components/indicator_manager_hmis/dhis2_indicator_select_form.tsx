@@ -1,12 +1,13 @@
-// Import from DHIS2 (PLAN_A3 rulings 6 and 8): search elements and
-// indicators, refuse the ineligible ones in the list with the reason, then
-// name what the selection becomes and save it in one transaction. An
-// element or operand becomes a source; a DHIS2 indicator is decomposed into
-// its operands (sources) and a derived over the bases they become. The
-// server re-reads every element and indicator and judges them itself.
+// Import from DHIS2 (PLAN_A4 ruling 6, PLAN_A3 ruling 8): search elements
+// and indicators, refuse the ineligible ones in the list with the reason,
+// then name what the selection becomes and save it in one transaction. An
+// element or operand becomes an indicator carrying its DHIS2 id; a DHIS2
+// indicator is decomposed into its operands and a derived over the
+// indicators they become. The server re-reads every element and indicator
+// and judges them itself.
 import {
   describeDhis2ParseRefusal,
-  describeDhis2SourceRefusal,
+  describeDhis2ElementRefusal,
   t3,
   type Dhis2DataElementSearchItem,
   type Dhis2IndicatorSearchItem,
@@ -34,8 +35,9 @@ import {
   namingInputFromState,
   namingIssues,
   NamingStep,
+  EMPTY_NAMING_STATE,
   type NamingDerivedCandidate,
-  type NamingSourceCandidate,
+  type NamingElementCandidate,
   type NamingState,
 } from "./_naming_step";
 
@@ -100,10 +102,10 @@ function itemName(item: SelectedItem): string {
 function elementRefusal(de: Dhis2DataElementSearchItem): string | undefined {
   if (de.verdict.accepted) return undefined;
   return `${t3({
-    en: "Cannot be a source:",
-    fr: "Ne peut pas être une source :",
-    pt: "Não pode ser uma fonte:",
-  })} ${t3(describeDhis2SourceRefusal(de.verdict.refusal))}`;
+    en: "Cannot be imported:",
+    fr: "Ne peut pas être importé :",
+    pt: "Não pode ser importado:",
+  })} ${t3(describeDhis2ElementRefusal(de.verdict.refusal))}`;
 }
 
 function indicatorRefusal(
@@ -120,10 +122,10 @@ function indicatorRefusal(
   const refused = operands.find((o) => !o.verdict.accepted);
   if (refused !== undefined && !refused.verdict.accepted) {
     return `${t3({
-      en: `Operand ${refused.dhis2_id} cannot be a source:`,
-      fr: `L'opérande ${refused.dhis2_id} ne peut pas être une source :`,
-      pt: `O operando ${refused.dhis2_id} não pode ser uma fonte:`,
-    })} ${t3(describeDhis2SourceRefusal(refused.verdict.refusal))}`;
+      en: `Operand ${refused.dhis2_id} cannot be imported:`,
+      fr: `L'opérande ${refused.dhis2_id} ne peut pas être importé :`,
+      pt: `O operando ${refused.dhis2_id} não pode ser importado:`,
+    })} ${t3(describeDhis2ElementRefusal(refused.verdict.refusal))}`;
   }
   return undefined;
 }
@@ -170,10 +172,9 @@ export function Dhis2IndicatorSelectForm(p: Props) {
   >(new Set());
   const [phase, setPhase] = createSignal<"select" | "name">("select");
   const [dictionary, setDictionary] = createSignal<CommonIndicator[]>([]);
-  const [naming, setNaming] = createStore<NamingState>({
-    sources: [],
-    derived: [],
-  });
+  const [naming, setNaming] = createStore<NamingState>(
+    structuredClone(EMPTY_NAMING_STATE),
+  );
 
   const search = createFormAction(async () => {
     const query = tempSearchQuery().trim();
@@ -212,7 +213,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
     return response;
   });
 
-  // Every operand of a selected indicator is a candidate source too. Its
+  // Every operand of a selected indicator is a candidate element too. Its
   // label comes from the element (with the COC's name for an operand); an
   // element the search did not return is looked up by id first.
   async function operandLabels(
@@ -270,14 +271,14 @@ export function Dhis2IndicatorSelectForm(p: Props) {
     if (!dictionaryRes.success) {
       return dictionaryRes;
     }
-    const sources = new Map<string, NamingSourceCandidate>();
+    const elements = new Map<string, NamingElementCandidate>();
     const operandIds: string[] = [];
     const derived: NamingDerivedCandidate[] = [];
     for (const item of items) {
       if (item.kind !== "indicator") {
-        sources.set(itemId(item), {
-          source_id: itemId(item),
-          source_label: itemName(item),
+        elements.set(itemId(item), {
+          dhis2_id: itemId(item),
+          dhis2_label: itemName(item),
         });
         continue;
       }
@@ -293,17 +294,18 @@ export function Dhis2IndicatorSelectForm(p: Props) {
       });
     }
     const labels = await operandLabels(
-      operandIds.filter((id) => !sources.has(id)),
+      operandIds.filter((id) => !elements.has(id)),
     );
     for (const id of operandIds) {
-      if (!sources.has(id)) {
-        sources.set(id, { source_id: id, source_label: labels.get(id) ?? id });
+      if (!elements.has(id)) {
+        elements.set(id, { dhis2_id: id, dhis2_label: labels.get(id) ?? id });
       }
     }
     setDictionary(dictionaryRes.data.indicators);
     setNaming(
       createNamingState({
-        sources: [...sources.values()],
+        elements: [...elements.values()],
+        uploadedIds: [],
         derived,
         indicators: dictionaryRes.data.indicators,
       }),

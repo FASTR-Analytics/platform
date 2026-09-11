@@ -6,7 +6,7 @@ globs:
   - server/dhis2/**
   - server/routes/instance/indicators_dhis2.ts
   - server/tests/dhis2_decompose_indicator_test.ts
-  - server/tests/dhis2_source_eligibility_test.ts
+  - server/tests/dhis2_element_eligibility_test.ts
 docs_absorbed:
 ---
 # S7: DHIS2 Connector
@@ -95,7 +95,7 @@ Endpoints are grouped by goal, each folder with a `mod.ts` barrel;
 | --- | --- | --- |
 | `common/` | fetcher + retry + validation | `fetchFromDHIS2`, `getDHIS2`, `withRetry`, `validateDhis2Connection` |
 | `goal1_org_units_v2/` | org-unit hierarchy metadata | `getOrgUnitMetadata` (levels + counts + roots, parallel), `testDHIS2Connection` |
-| `goal2_indicators/` | indicator / data-element discovery, source eligibility, indicator decomposition | `get/search{Indicators,DataElements}FromDHIS2`, `searchAllIndicatorsAndDataElements`, `testIndicatorsConnection`, `getDhis2SourceVerdict`, `parseDhis2Indicator`, `withSourceVerdicts`, `withDecompositions` |
+| `goal2_indicators/` | indicator / data-element discovery, element eligibility, indicator decomposition | `get/search{Indicators,DataElements}FromDHIS2`, `searchAllIndicatorsAndDataElements`, `testIndicatorsConnection`, `getDhis2ElementVerdict`, `parseDhis2Indicator`, `withElementVerdicts`, `withDecompositions` |
 | `goal4_geojson/` | boundary import for maps | `fetchOrgUnitsMetadataForLevel`, `fetchGeometryCountForLevel`, `fetchOrgUnitsGeoJsonForLevel`, session caches |
 | `goal5_data_value_sets/` | reported values + metadata id-existence | `getDataValueSetsFromDHIS2`, `getExistingMetadataIds`, `getOrgUnitIdsAtLevel` |
 
@@ -110,7 +110,7 @@ endpoints, and merges deduped by id. The data-element field list carries
 `dataSetElements[dataSet[id,periodType]]` so the eligibility check below
 can see the element's period type.
 
-**Element eligibility** (`goal2_indicators/source_eligibility.ts`, pure;
+**Element eligibility** (`goal2_indicators/element_eligibility.ts`, pure;
 PLAN_A3 ruling 6). A DHIS2 data element may fill a base indicator (be its
 `dhis2_id`) only when DHIS2's own metadata says it is an additive monthly
 count: `aggregationType` is `SUM`; `valueType` is `NUMBER` (the DHIS2
@@ -122,7 +122,7 @@ import; `PERCENTAGE`, `UNIT_INTERVAL` and every non-numeric type are
 refused); and at least one of its data sets has period type `Monthly`
 (an element in no data set has no period and is refused; one monthly
 data set among several is enough, since the monthly values are what the
-dataValueSets pull reads). `getDhis2SourceVerdict(element)` returns
+dataValueSets pull reads). `getDhis2ElementVerdict(element)` returns
 `{ accepted: true }` or `{ accepted: false, refusal }` where the refusal
 names the failing field and the metadata value; an operand is checked
 through its element by `getDhis2OperandVerdict`, which adds
@@ -157,7 +157,7 @@ rename those identifiers to the base ids the elements land in with
 appearance order across numerator then denominator.
 
 **Search-result shaping** (`goal2_indicators/attach_verdicts.ts`).
-`withSourceVerdicts(elements)` attaches a `verdict` to each data element.
+`withElementVerdicts(elements)` attaches a `verdict` to each data element.
 `withDecompositions(options, indicators, known?)` attaches a
 `decomposition` to each indicator: the parse, each operand with its own
 verdict judged through its element, and `accepted` = the parse accepted
@@ -167,7 +167,7 @@ default field list, one round of requests for the whole result set. The
 three search routes return these shapes (`Dhis2DataElementSearchItem`,
 `Dhis2IndicatorSearchItem`); the combined search passes its own
 data-element results as `known`. Pinned by
-`server/tests/dhis2_source_eligibility_test.ts` and
+`server/tests/dhis2_element_eligibility_test.ts` and
 `server/tests/dhis2_decompose_indicator_test.ts`.
 
 **Data value sets.** `getDataValueSetsFromDHIS2` pulls one data element

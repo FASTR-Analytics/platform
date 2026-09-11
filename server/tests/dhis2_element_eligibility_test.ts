@@ -1,15 +1,15 @@
-// Pins PLAN_A3 ruling 6 as a pure function: a DHIS2 data element is a source
+// Pins PLAN_A3 ruling 6 as a pure function: a DHIS2 data element fills a base
 // only when its aggregation type is SUM, its value type is a count and it is
 // collected in a monthly data set. An operand is checked through its element.
 //
-//   deno test -A --env-file server/tests/dhis2_source_eligibility_test.ts
+//   deno test -A --env-file server/tests/dhis2_element_eligibility_test.ts
 
 import { assertEquals } from "@std/assert";
 import type { DHIS2DataElement } from "lib";
 import {
   getDhis2OperandVerdict,
-  getDhis2SourceVerdict,
-} from "../dhis2/goal2_indicators/source_eligibility.ts";
+  getDhis2ElementVerdict,
+} from "../dhis2/goal2_indicators/element_eligibility.ts";
 
 function element(overrides: Partial<DHIS2DataElement>): DHIS2DataElement {
   return {
@@ -24,18 +24,18 @@ function element(overrides: Partial<DHIS2DataElement>): DHIS2DataElement {
 }
 
 Deno.test("eligibility: a SUM monthly integer element is accepted", () => {
-  assertEquals(getDhis2SourceVerdict(element({})), { accepted: true });
+  assertEquals(getDhis2ElementVerdict(element({})), { accepted: true });
 });
 
 Deno.test("eligibility: NUMBER with SUM is accepted", () => {
-  assertEquals(getDhis2SourceVerdict(element({ valueType: "NUMBER" })), {
+  assertEquals(getDhis2ElementVerdict(element({ valueType: "NUMBER" })), {
     accepted: true,
   });
 });
 
 Deno.test("eligibility: every INTEGER count type is accepted", () => {
   for (const valueType of ["INTEGER", "INTEGER_POSITIVE", "INTEGER_ZERO_OR_POSITIVE"]) {
-    assertEquals(getDhis2SourceVerdict(element({ valueType })), {
+    assertEquals(getDhis2ElementVerdict(element({ valueType })), {
       accepted: true,
     });
   }
@@ -60,12 +60,12 @@ Deno.test("eligibility: each non-SUM aggregation type is refused", () => {
       "DEFAULT",
     ]
   ) {
-    assertEquals(getDhis2SourceVerdict(element({ aggregationType })), {
+    assertEquals(getDhis2ElementVerdict(element({ aggregationType })), {
       accepted: false,
       refusal: { kind: "aggregation_type", value: aggregationType },
     });
   }
-  assertEquals(getDhis2SourceVerdict(element({ aggregationType: undefined })), {
+  assertEquals(getDhis2ElementVerdict(element({ aggregationType: undefined })), {
     accepted: false,
     refusal: { kind: "aggregation_type", value: undefined },
   });
@@ -88,12 +88,12 @@ Deno.test("eligibility: each non-count value type is refused", () => {
       "FILE_RESOURCE",
     ]
   ) {
-    assertEquals(getDhis2SourceVerdict(element({ valueType })), {
+    assertEquals(getDhis2ElementVerdict(element({ valueType })), {
       accepted: false,
       refusal: { kind: "value_type", value: valueType },
     });
   }
-  assertEquals(getDhis2SourceVerdict(element({ valueType: undefined })), {
+  assertEquals(getDhis2ElementVerdict(element({ valueType: undefined })), {
     accepted: false,
     refusal: { kind: "value_type", value: undefined },
   });
@@ -113,7 +113,7 @@ Deno.test("eligibility: each non-monthly period type is refused", () => {
     ]
   ) {
     assertEquals(
-      getDhis2SourceVerdict(
+      getDhis2ElementVerdict(
         element({ dataSetElements: [{ dataSet: { periodType } }] }),
       ),
       { accepted: false, refusal: { kind: "period_type", value: periodType } },
@@ -122,11 +122,11 @@ Deno.test("eligibility: each non-monthly period type is refused", () => {
 });
 
 Deno.test("eligibility: an element in no data set has no period and is refused", () => {
-  assertEquals(getDhis2SourceVerdict(element({ dataSetElements: [] })), {
+  assertEquals(getDhis2ElementVerdict(element({ dataSetElements: [] })), {
     accepted: false,
     refusal: { kind: "period_type", value: undefined },
   });
-  assertEquals(getDhis2SourceVerdict(element({ dataSetElements: undefined })), {
+  assertEquals(getDhis2ElementVerdict(element({ dataSetElements: undefined })), {
     accepted: false,
     refusal: { kind: "period_type", value: undefined },
   });
@@ -134,7 +134,7 @@ Deno.test("eligibility: an element in no data set has no period and is refused",
 
 Deno.test("eligibility: one monthly data set among several is enough; none among several is refused with the list", () => {
   assertEquals(
-    getDhis2SourceVerdict(
+    getDhis2ElementVerdict(
       element({
         dataSetElements: [
           { dataSet: { periodType: "Quarterly" } },
@@ -145,7 +145,7 @@ Deno.test("eligibility: one monthly data set among several is enough; none among
     { accepted: true },
   );
   assertEquals(
-    getDhis2SourceVerdict(
+    getDhis2ElementVerdict(
       element({
         dataSetElements: [
           { dataSet: { periodType: "Quarterly" } },
@@ -162,7 +162,7 @@ Deno.test("eligibility: one monthly data set among several is enough; none among
 
 Deno.test("eligibility: the checks apply in order, aggregation first", () => {
   assertEquals(
-    getDhis2SourceVerdict(
+    getDhis2ElementVerdict(
       element({ aggregationType: "AVERAGE", valueType: "PERCENTAGE" }),
     ),
     { accepted: false, refusal: { kind: "aggregation_type", value: "AVERAGE" } },

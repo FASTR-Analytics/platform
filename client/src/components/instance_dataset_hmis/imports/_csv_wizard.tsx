@@ -28,9 +28,9 @@ export type CsvWizardProps = {
 
 export type CsvWizardResult = { landedTab: "current" };
 
-type StepKind = "upload" | "mappings" | "review";
+type StepKind = "upload" | "columns" | "review";
 
-const STEPS: StepKind[] = ["upload", "mappings", "review"];
+const STEPS: StepKind[] = ["upload", "columns", "review"];
 
 const _HMIS_SQL_COL_NAMES: (keyof HmisCsvMappingParams)[] = [
   "facility_id",
@@ -49,7 +49,7 @@ export function CsvWizard(
   const [fileName, setFileName] = createSignal<string>("");
   const [headers, setHeaders] = createSignal<string[]>([]);
   const [headersError, setHeadersError] = createSignal<string>("");
-  const [mappings, setMappings] = createStore<HmisCsvMappingParams>({
+  const [columns, setColumns] = createStore<HmisCsvMappingParams>({
     facility_id: "",
     indicator_id: "",
     period_id: "",
@@ -63,7 +63,7 @@ export function CsvWizard(
     setFileName(next);
     setHeaders([]);
     setHeadersError("");
-    setMappings({
+    setColumns({
       facility_id: "",
       indicator_id: "",
       period_id: "",
@@ -79,12 +79,12 @@ export function CsvWizard(
     }
   }
 
-  const mappingsComplete = () =>
-    _HMIS_SQL_COL_NAMES.every((key) => mappings[key] !== "");
+  const columnsComplete = () =>
+    _HMIS_SQL_COL_NAMES.every((key) => columns[key] !== "");
 
   const stepperData = createMemo(() => ({
     uploadValid: fileName() !== "" && headers().length > 0,
-    mappingsValid: mappingsComplete(),
+    columnsValid: columnsComplete(),
   }));
 
   const stepper = getStepper(stepperData, {
@@ -96,8 +96,8 @@ export function CsvWizard(
       if (kind === "upload") {
         return { canGoPrev: false, canGoNext: data.uploadValid };
       }
-      if (kind === "mappings") {
-        return { canGoPrev: true, canGoNext: data.mappingsValid };
+      if (kind === "columns") {
+        return { canGoPrev: true, canGoNext: data.columnsValid };
       }
       return { canGoPrev: true, canGoNext: false };
     },
@@ -108,7 +108,7 @@ export function CsvWizard(
 
   const stepLabels = [
     t3({ en: "Upload", fr: "Téléversement", pt: "Carregamento" }),
-    t3({ en: "Mappings", fr: "Correspondances", pt: "Correspondências" }),
+    t3({ en: "Columns", fr: "Colonnes", pt: "Colunas" }),
     t3({ en: "Review & launch", fr: "Vérifier et lancer", pt: "Rever e iniciar" }),
   ];
 
@@ -144,7 +144,7 @@ export function CsvWizard(
       }
       const config: DatasetHmisCsvRunLaunchInput = {
         fileName: selected,
-        mappings: structuredClone(unwrap(mappings)),
+        mappings: structuredClone(unwrap(columns)),
       };
       if (runActive()) {
         return await serverActions.enqueueDatasetHmisCsvRun({ config });
@@ -215,7 +215,7 @@ export function CsvWizard(
           </Show>
         </Show>
 
-        <Show when={currentStepKind() === "mappings"}>
+        <Show when={currentStepKind() === "columns"}>
           <div class="ui-spy-sm">
             {_HMIS_SQL_COL_NAMES.map((hmisSqlColName) => (
               <div class="flex items-center">
@@ -223,8 +223,8 @@ export function CsvWizard(
                 <div class="flex-1">
                   <Select
                     options={getSelectOptions(headers())}
-                    value={mappings[hmisSqlColName]}
-                    onChange={(val) => setMappings(hmisSqlColName, val)}
+                    value={columns[hmisSqlColName]}
+                    onChange={(val) => setColumns(hmisSqlColName, val)}
                     fullWidth
                   />
                 </div>
@@ -242,14 +242,14 @@ export function CsvWizard(
             {_HMIS_SQL_COL_NAMES.map((hmisSqlColName) => (
               <div class="flex items-baseline">
                 <div class="w-56 flex-none">{hmisSqlColName}</div>
-                <div class="flex-1 font-mono">{mappings[hmisSqlColName]}</div>
+                <div class="flex-1 font-mono">{columns[hmisSqlColName]}</div>
               </div>
             ))}
             <div>
               {t3({
-                en: "Staging validates every row (periods, counts, facilities, sources). A fully clean file integrates automatically; dropped rows hold the import for your review before anything is merged, where unknown source ids can be turned into indicators and the file staged again.",
-                fr: "La préparation valide chaque ligne (périodes, valeurs, établissements, sources). Un fichier entièrement valide s'intègre automatiquement ; des lignes rejetées mettent l'importation en attente de votre vérification avant toute fusion, où les identifiants de source inconnus peuvent devenir des indicateurs et le fichier être préparé à nouveau.",
-                pt: "A preparação valida todas as linhas (períodos, valores, estabelecimentos, fontes). Um ficheiro totalmente válido integra-se automaticamente; linhas rejeitadas colocam a importação em espera para a sua revisão antes de qualquer fusão, onde os IDs de fonte desconhecidos podem tornar-se indicadores e o ficheiro ser preparado de novo.",
+                en: "Staging validates every row (periods, counts, facilities, indicator ids). A fully clean file integrates automatically; dropped rows hold the import for your review before anything is merged, where unknown indicator ids can be turned into uploaded indicators and the file staged again.",
+                fr: "La préparation valide chaque ligne (périodes, valeurs, établissements, identifiants d'indicateur). Un fichier entièrement valide s'intègre automatiquement ; des lignes rejetées mettent l'importation en attente de votre vérification avant toute fusion, où les identifiants d'indicateur inconnus peuvent devenir des indicateurs téléversés et le fichier être préparé à nouveau.",
+                pt: "A preparação valida todas as linhas (períodos, valores, estabelecimentos, IDs de indicador). Um ficheiro totalmente válido integra-se automaticamente; linhas rejeitadas colocam a importação em espera para a sua revisão antes de qualquer fusão, onde os IDs de indicador desconhecidos podem tornar-se indicadores carregados e o ficheiro ser preparado de novo.",
               })}
             </div>
             <Show when={queueNotice()} keyed>

@@ -319,7 +319,7 @@ made in the naming step; they are made in the list. Everything the naming
 step creates has its checkbox on. Save from the DHIS2 select form posts to
 `/indicators-dhis2/create`, which re-reads every element and indicator
 from DHIS2 and judges them itself (S7's verdict and decomposition, worded
-by `describeDhis2SourceRefusal` / `describeDhis2ParseRefusal`) before
+by `describeDhis2ElementRefusal` / `describeDhis2ParseRefusal`) before
 `createIndicatorsFromDhis2` calls `applyIndicatorNaming`, so a refused
 element or indicator creates nothing. A CSV hold's unknown ids go through
 `applyIndicatorNaming` as uploaded bases (S6). Pinned by
@@ -845,14 +845,30 @@ Every config mutation re-reads all configs and pushes one consolidated
   caption whenever a population term is present.
 - The naming step's state is a Solid store the host owns
   (`createNamingState` seeds it once from the dictionary as loaded, so
-  the user's edits are never re-seeded away); `namingIssues` states every
-  refusal the server would make and disables the save while any stands;
-  `namingInputFromState` is what the host posts.
+  the user's edits are never re-seeded away): one row per DHIS2 element
+  (proposed id and label editable inline; typing the id of an existing
+  uploaded indicator shows the assignment and takes that indicator's label;
+  an element whose UID an indicator already carries reads "Already imported
+  as" and is still posted, so a derived formula naming it rewrites, and the
+  server creates nothing for it), one row per CSV column id (the id is the
+  file's and fixed, only the label is chosen), and one per decomposed DHIS2
+  indicator with its formula previewed over the ids the elements are taking.
+  `namingIssues` states every refusal the server would make (a reserved or
+  malformed id, an existing id that is not an uploaded indicator, one id
+  chosen for two elements, a missing label) and disables the save while any
+  stands; `namingInputFromState` is what the host posts. The DHIS2 select
+  form feeds it elements and operands; the CSV hold's third action feeds it
+  the hold's unknown ids.
 - Computability in the manager is shown, never enforced. The list has a
   Status column fed by one `createMemo` over the loaded dictionary calling
-  `judgeDerivedIndicators` (lib) with the set of bases it treats as having
-  data, so an edit updates it through the ordinary
-  `indicatorMappingsVersion` refetch and no extra fetch is needed. An
+  `judgeDerivedIndicators` (lib) with the bases and sums that have rows
+  (`analysedIdsWithData` over every non-derived row, so an unchecked
+  derived is judged as it would be if checked). Which indicators have rows
+  comes from the import ledger (`getDatasetHmisImportLedger`, one row per
+  indicator × month, the cheap answer), read once and again when the HMIS
+  data version moves; the list renders without it and the column fills in
+  when it arrives. A dictionary edit updates the judgement through the
+  ordinary `indicatorMappingsVersion` refetch. An
   uncomputable derived indicator shows the capture error translated into
   the interface language, and a banner above the table counts them. A
   second, separate note is shown when the flattened expression divides by a
@@ -860,11 +876,22 @@ Every config mutation re-reads all configs and pushes one consolidated
   `populationCoverage`), which is what generation refuses too. How much of
   the run's years and areas the store covers is recorded in the package at
   generation, not checked here (S8 "population.csv"). The editor runs the same judgement over
-  the formula as typed. A formula that does not resolve refuses the save, as
-  before. A flattened ingredient with no data is only a warning under
-  the formula. Base and sum indicators have no status. The Status column is
+  the formula as typed over the same set. A formula that does not resolve
+  refuses the save, as before. A flattened ingredient with no data is only a
+  warning under the formula, and a checked derived whose formula reaches an
+  indicator with its checkbox off says so under the formula once and saves
+  (ruling 3). Base and sum indicators have no status. The Status column is
   sortable. It is not in the CSV download, because that file mirrors the
   batch-import headers.
+- The manager is one list with a Type column (DHIS2 element, Uploaded, Sum,
+  Derived, `indicatorTypeLabel`), a Defined-by column (the DHIS2 id, the
+  members, the formula; `definedByText`, shared with the import picker), the
+  include-in-analysis checkbox on every row (an `updateIndicator` with
+  nothing else changed; the SSE stamp refetches the list) and the Special
+  badge. The editor branches on the type: a base has a DHIS2 id input (empty
+  for an uploaded indicator; read-only once set), a sum a member picker over
+  the other bases (at least one), a derived the formula, palette and legend;
+  every type has the checkbox, and a base or sum is forced to `number`.
 - The structure wizard: server owns the step number (every save writes
   `step`; the client fetcher jumps the stepper on each silent refetch).
   Errors render as a dismissible banner over navigable steps (re-saving
@@ -914,12 +941,6 @@ Every config mutation re-reads all configs and pushes one consolidated
 
 ## Open items
 
-- **PLAN_A4 step 2** rewrites the HMIS manager, editor, naming step,
-  import picker and views, datatable and delete window for the one-table
-  model. Until it lands those screens render PLAN_A3's shapes over the
-  PLAN_A4 types (the manager and editor show a base's `dhis2_id` where the
-  source list was, treat bases with a `dhis2_id` as the ones with data, and
-  offer no sum editing; the datatable's view toggle is inert).
 - **Decision needed:** the M10 value object and
   `M10_hfa_response_status.csv` no longer share a denominator: a facility
   can hold a determinate 0 for an indicator while its per-variable status
