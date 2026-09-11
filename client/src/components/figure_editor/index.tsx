@@ -22,7 +22,7 @@ import { VisualizationEditorInner } from "./visualization_editor_inner";
 // mounting the editor; that read is scope-dependent, which is why it lives
 // here and not in the host.
 
-export type EphemeralModeReturn =
+export type FigureEditorResult =
   | undefined
   | { updated: { config: PresentationObjectConfig } };
 
@@ -74,7 +74,7 @@ export type VisualizationEditorProps = {
 };
 
 export function VisualizationEditor(
-  p: AlertComponentProps<VisualizationEditorProps, EphemeralModeReturn>,
+  p: AlertComponentProps<VisualizationEditorProps, FigureEditorResult>,
 ) {
   const resultsValueInfo = createQuery(
     () =>

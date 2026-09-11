@@ -348,9 +348,9 @@ export function DeckVersionPreview(p: {
           }
           if (ch.blockType === "figure") {
             const base = t3({
-              en: "Visualization",
-              fr: "Visualisation",
-              pt: "Visualização",
+              en: "Figure",
+              fr: "Figure",
+              pt: "Figura",
             });
             const cap = figureCaption(ch);
             return cap ? `${base} “${cap}”` : base;

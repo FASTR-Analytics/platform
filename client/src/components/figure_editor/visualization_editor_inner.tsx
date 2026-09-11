@@ -80,7 +80,7 @@ import {
   getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator,
 } from "~/state/products/t2_figure_data";
 import { setShowAi, showAi } from "~/state/t4_ui";
-import type { EphemeralModeReturn, VizFigureCollabBinding } from ".";
+import type { FigureEditorResult, VizFigureCollabBinding } from ".";
 import { PresentationObjectEditorPanel } from "./presentation_object_editor_panel";
 
 // Input types with no native undo: they must not swallow the editor's Ctrl+Z.
@@ -107,7 +107,7 @@ type InnerProps = {
   resultsValueInfo: ResultsValueInfoForPresentationObject;
   /** Live co-editing of the figure inside the host doc; absent means Apply/Cancel. */
   collabBinding?: VizFigureCollabBinding;
-  onClose: (result: EphemeralModeReturn) => void;
+  onClose: (result: FigureEditorResult) => void;
 };
 
 export function VisualizationEditorInner(p: InnerProps) {
@@ -225,7 +225,7 @@ export function VisualizationEditorInner(p: InnerProps) {
             data: { ...lastState.data, geoJson },
           });
         }
-        // Ephemeral live co-editing: push a COHERENT bundle (the config being
+        // Live co-editing: push a COHERENT bundle (the config being
         // co-edited + its freshly-fetched items) to the host, so canvas peers
         // render config and data in step. Config alone streams live per-keystroke;
         // this closes the config↔items gap whenever a refetch resolves.
@@ -268,7 +268,7 @@ export function VisualizationEditorInner(p: InnerProps) {
   // document of its own, D3). The binding exposes a config Y.Map + awareness +
   // a per-user origin; push/reconcile/undo/captions run off it. Without a live
   // binding the editor keeps the classic Apply/Cancel flow (no target).
-  const [ephemeralMap, setEphemeralMap] = createSignal<Y.Map<unknown> | null>(
+  const [hostConfigMap, setHostConfigMap] = createSignal<Y.Map<unknown> | null>(
     null,
   );
   // Reactive readiness (a binding's plain isLive() isn't reactive); drives the
@@ -287,7 +287,7 @@ export function VisualizationEditorInner(p: InnerProps) {
   };
   /** The active co-editing target, or undefined when not collaborating. */
   const collabTarget = (): CollabTarget | undefined => {
-    const m = ephemeralMap();
+    const m = hostConfigMap();
     const b = collabBinding();
     if (m && b) {
       return {
@@ -490,7 +490,7 @@ export function VisualizationEditorInner(p: InnerProps) {
     if (b?.isLive()) {
       const map = b.getConfigMap();
       if (map) {
-        setEphemeralMap(map);
+        setHostConfigMap(map);
         adoptFromMap(map); // adopt the live config (a peer may have edited it)
         setCollabReady(true);
         // Per-user undo: track only THIS client's edits (localOrigin). Remote
@@ -730,7 +730,6 @@ export function VisualizationEditorInner(p: InnerProps) {
           <div
             class="ui-pad ui-gap flex items-center border-b"
             data-cursor-zone="header"
-            data-tour="viz-editor-toolbar"
           >
             <div class="ui-gap-sm flex items-center">
               <Show
@@ -1014,7 +1013,6 @@ export function VisualizationEditorInner(p: InnerProps) {
                               <div
                                 class="ui-pad h-full w-full overflow-auto"
                                 data-cursor-zone="preview-area"
-                                data-tour="viz-preview"
                               >
                                 <StateHolderWrapper state={figureInputs()}>
                                   {(keyedFigureInputs) => {

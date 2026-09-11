@@ -52,13 +52,16 @@ export function TourCatalogueModal(
   // hydration and after a tour finishes without any manual invalidation.
   const seen = (id: string): boolean => p.manager.hasSeen(id);
 
-  function play(entry: TourCatalogueEntry) {
+  async function play(entry: TourCatalogueEntry) {
     p.close(undefined);
     // Always through the replay signal: setupTours() starts the tour once the
     // tour's own page is active, which for the editor tours is several frames
-    // after navigate() asks for the product.
-    setPendingTourReplay(entry.id);
-    entry.navigate(p.openInstanceTab);
+    // after navigate() asks for the product. Armed only after navigate() has
+    // resolved: the manager's effect runs synchronously on the write and must
+    // see the switched tab and the open request already in place.
+    const target = await entry.navigate(p.openInstanceTab);
+    if (target === null) return;
+    setPendingTourReplay({ tourId: entry.id, ...target });
   }
 
   // Preselect the category of the tab the user is on; the instance tabs with
@@ -89,7 +92,7 @@ export function TourCatalogueModal(
               seen={seen(entry.id)}
               available={entry.available()}
               reason={entry.unavailableReason()}
-              onPlay={() => play(entry)}
+              onPlay={() => void play(entry)}
             />
           )}
         </For>

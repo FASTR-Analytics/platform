@@ -152,10 +152,15 @@ export const [pendingEditorOpen, setPendingEditorOpen] =
 export const [pendingSlideOpen, setPendingSlideOpen] =
   createSignal<SlideType | null>(null);
 
-// Top level of the chain: a tour replay requested from the catalogue modal.
-// Set together with the entry's navigate(); the tour manager starts the tour
-// once the tour's own page is active, and drops the request when the product
-// it needed turns out not to exist.
-export const [pendingTourReplay, setPendingTourReplay] = createSignal<
-  string | null
->(null);
+// Top level of the chain: a tour replay requested from the catalogue modal,
+// armed AFTER the entry's navigate() has switched tab and requested any
+// product open (the manager's effect runs synchronously on this write, so
+// arming first would find the page inactive). The manager starts the tour
+// once the tour's own page is active. `productId` is the product the tour's
+// page lives in: the manager drops the replay when T1 is ready and no longer
+// holds it (a dead id), the same rule the Products page applies to the open
+// request itself. A replay with no product is dropped as soon as its page is
+// not active, since a tab switch is synchronous.
+export type PendingTourReplay = { tourId: string; productId?: string };
+export const [pendingTourReplay, setPendingTourReplay] =
+  createSignal<PendingTourReplay | null>(null);

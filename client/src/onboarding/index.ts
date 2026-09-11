@@ -33,7 +33,6 @@ import {
 import { instanceState } from "~/state/instance/t1_store";
 import { copilotViewController } from "~/components/copilot/ai_views";
 import {
-  pendingEditorOpen,
   pendingTourReplay,
   productsOpenFolder,
   productsTypeFilter,
@@ -186,28 +185,42 @@ export function setupTours(opts: {
     tours,
   });
 
-  // Replay chain. The catalogue modal sets `pendingTourReplay` and calls the
-  // entry's navigate(), which switches tab and, for the editor tours, asks
-  // the Products page to open a product. The editor is not mounted yet at that
-  // point, so the start waits here until the tour's own page is active.
-  // A replay whose product turns out to be a dead id is dropped: the Products
-  // page clears `pendingEditorOpen` once T1 is ready and the id is still
-  // absent, which leaves no page to wait for.
+  // Replay chain. The catalogue modal calls the entry's navigate(), which
+  // switches tab and, for the editor tours, asks the Products page to open a
+  // product, and arms `pendingTourReplay` once that has resolved. The editor
+  // is not mounted yet at that point, so the start waits here until the
+  // tour's own page is active. This effect runs synchronously on every write
+  // it tracks, including the Products page clearing `pendingEditorOpen` just
+  // before it mounts the editor, so the drop rule reads nothing transient: a
+  // replay on a tab page is dropped if the page is not active (the switch was
+  // synchronous, so the tab is denied), and a replay on a product is dropped
+  // only once T1 is ready and no longer holds that product (a dead id, the
+  // Products page's own rule for the open request).
   const pageForTour = new Map(tours.map((t) => [t.tour.id, t.page]));
   createEffect(() => {
-    const tourId = pendingTourReplay();
-    if (tourId === null) return;
-    const page = pageForTour.get(tourId);
+    const replay = pendingTourReplay();
+    if (replay === null) return;
+    const page = pageForTour.get(replay.tourId);
     if (page === undefined) {
       setPendingTourReplay(null);
       return;
     }
     if (pages[page]()) {
       setPendingTourReplay(null);
-      void manager.start(tourId);
+      void manager.start(replay.tourId);
       return;
     }
-    if (pendingEditorOpen() === null) setPendingTourReplay(null);
+    if (replay.productId === undefined) {
+      setPendingTourReplay(null);
+      return;
+    }
+    const productId = replay.productId;
+    if (
+      instanceState.isReady &&
+      !instanceState.products.some((x) => x.id === productId)
+    ) {
+      setPendingTourReplay(null);
+    }
   });
 
   return manager;

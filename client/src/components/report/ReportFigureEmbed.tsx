@@ -35,9 +35,9 @@ export function ReportFigureEmbed(p: Props): JSX.Element {
       return {
         ok: false,
         err: t3({
-          en: "Visualization has no stored inputs",
-          fr: "La visualisation n'a pas de données enregistrées",
-          pt: "A visualização não tem dados guardados",
+          en: "Figure has no stored inputs",
+          fr: "La figure n'a pas de données enregistrées",
+          pt: "A figura não tem dados guardados",
         }),
       };
     }

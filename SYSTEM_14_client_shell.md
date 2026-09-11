@@ -49,14 +49,21 @@ menu, always offered), which lists every tour by area (Products, Slide
 decks, Reports, Instance) with availability computed over T1 only
 (`instanceState.products`, `readyPackages`, the permissions; the three
 slide-type rows first run a cache-first search of the decks' slide documents,
-`findDeckWithSlideOfType`) and a reason when unavailable. Play sets
-`pendingTourReplay` and calls the entry's `navigate(openTab)`: a tab switch,
-plus for the editor tours a `pendingEditorOpen` request (`{ productId }` in
-`t4_ui.ts`, persisting until the Products page mounts and consumes it) and,
-for the slide tours, a `pendingSlideOpen` the deck editor consumes to open the
-first slide of that type. The manager's replay effect starts the tour once its
-page predicate is true and drops the request when the Products page discards
-a dead id. The manager is created with the shared button labels
+`findDeckWithSlideOfType`) and a reason when unavailable. Play calls the
+entry's `navigate(openTab)`: a tab switch, plus for the editor tours a
+`pendingEditorOpen` request (`{ productId }` in `t4_ui.ts`, persisting until
+the Products page mounts and consumes it) and, for the slide tours, a
+`pendingSlideOpen` the deck editor consumes to open the first slide of that
+type; once navigate resolves (the slide tours search first, and a search that
+finds nothing arms no replay) it arms `pendingTourReplay` with the tour id and
+the product the tour's page lives in. The order matters: the manager's replay
+effect runs synchronously on that write, starts the tour once its page
+predicate is true, drops a tab-page replay whose page is not active (the
+switch was synchronous, so the tab is denied), and drops a product replay
+only once T1 is ready and no longer holds the product (a dead id, the
+Products page's own rule for the open request). It reads nothing transient,
+so the Products page clearing the open request just before it mounts the
+editor does not disturb a waiting replay. The manager is created with the shared button labels
 (`tourLabels()`, merged by roadtrip under any per-tour labels) and
 `onEvent: reportTourEvent` (`telemetry.ts`), which posts tour start / finish /
 abort to `recordTourEvent` (`server/routes/instance/onboarding.ts`) → the

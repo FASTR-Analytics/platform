@@ -157,7 +157,7 @@ export function buildLayoutContextMenu<T>(
 
     if (blockType !== "figure" && callbacks.onConvertToFigure) {
       conversionItems.push({
-        label: t3({ en: "Visualization", fr: "Visualisation", pt: "Visualização" }),
+        label: t3({ en: "Figure", fr: "Figure", pt: "Figura" }),
         icon: "chart",
         onClick: () => callbacks.onConvertToFigure!(targetId),
       });

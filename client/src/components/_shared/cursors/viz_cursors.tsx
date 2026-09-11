@@ -22,8 +22,8 @@ import {
 //   viz-panel: the settings panel's active-tab scroll container
 //     (#VIZ_PANEL_ROOT [data-viz-panel-scroll]): x normalized, y content-px,
 //     tagged with the tab so cursors only show to peers on the SAME tab.
-// scope = `po:<id>` (standalone editor) or `fig:<figureId>` (ephemeral editor
-// bound into a host slide/report doc); the host passes it reactively.
+// scope = `fig:<figureId>` (the editor is bound into a host slide/report doc,
+// so its cursors must not mix with the host's); the host passes it reactively.
 
 const PREVIEW_ID = "VIZ_PREVIEW_CANVAS";
 

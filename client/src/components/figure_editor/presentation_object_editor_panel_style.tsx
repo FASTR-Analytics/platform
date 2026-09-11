@@ -77,8 +77,7 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
 
 
   return (
-    <div data-viz-panel-scroll
-      data-tour="viz-panel-style" class="ui-pad ui-spy h-full w-full overflow-auto">
+    <div data-viz-panel-scroll class="ui-pad ui-spy h-full w-full overflow-auto">
       <SharedControlsTop
         tempConfig={p.tempConfig}
         setTempConfig={p.setTempConfig}

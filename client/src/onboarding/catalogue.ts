@@ -33,9 +33,15 @@ export type TourCatalogueEntry = {
   /** Shown in place of the Play button when `available()` is false. */
   unavailableReason: () => string;
   /** Tab switch, plus the editor/slide open requests for the deeper tours.
-   *  The tab setter comes from the shell, which owns the tab signal. */
-  navigate: (openTab: (tab: InstanceTab) => void) => void;
+   *  The tab setter comes from the shell, which owns the tab signal. Resolves
+   *  with the product the tour's page lives in (none for a tab page), or null
+   *  when there is nothing to open, in which case no replay is armed. */
+  navigate: (
+    openTab: (tab: InstanceTab) => void,
+  ) => Promise<TourReplayTarget | null>;
 };
+
+export type TourReplayTarget = { productId?: string };
 
 const perms = () => instanceState.currentUserPermissions;
 const admin = () => instanceState.currentUserIsGlobalAdmin;
@@ -145,30 +151,39 @@ export async function findDeckWithSlideOfType(
 }
 
 // The deeper tours run inside a product editor, which the Products page opens
-// from `pendingEditorOpen` once T1 has hydrated. The catalogue modal sets
-// `pendingTourReplay` alongside, and setupTours() starts the tour when the
-// editor's page becomes active.
+// from `pendingEditorOpen` once T1 has hydrated. The catalogue modal arms
+// `pendingTourReplay` once navigate() resolves, and setupTours() starts the
+// tour when the editor's page becomes active.
+const openTabOnly = (
+  tab: InstanceTab,
+): TourCatalogueEntry["navigate"] =>
+  (openTab) => {
+    openTab(tab);
+    return Promise.resolve({});
+  };
 const openProduct = (
   openTab: (tab: InstanceTab) => void,
   product: ProductSummary | undefined,
-) => {
+): Promise<TourReplayTarget | null> => {
   openTab("products");
-  if (product) setPendingEditorOpen({ productId: product.id });
+  if (!product) return Promise.resolve(null);
+  setPendingEditorOpen({ productId: product.id });
+  return Promise.resolve({ productId: product.id });
 };
 const openFirstDeck = (openTab: (tab: InstanceTab) => void) =>
   openProduct(openTab, decks()[0]);
 const openFirstReport = (openTab: (tab: InstanceTab) => void) =>
   openProduct(openTab, reports()[0]);
-const openFirstDeckSlide = (
+const openFirstDeckSlide = async (
   openTab: (tab: InstanceTab) => void,
   type: SlideType,
-) => {
+): Promise<TourReplayTarget | null> => {
   openTab("products");
-  void findDeckWithSlideOfType(type).then((deckId) => {
-    if (deckId === null) return;
-    setPendingEditorOpen({ productId: deckId });
-    setPendingSlideOpen(type);
-  });
+  const deckId = await findDeckWithSlideOfType(type);
+  if (deckId === null) return null;
+  setPendingEditorOpen({ productId: deckId });
+  setPendingSlideOpen(type);
+  return { productId: deckId };
 };
 
 const slideTourAvailable = (
@@ -233,7 +248,7 @@ export function getTourCatalogue(
       }),
       available: () => true,
       unavailableReason: reasonNoPageAccess,
-      navigate: (openTab) => openTab("products"),
+      navigate: openTabOnly("products"),
     },
     {
       id: "products-create",
@@ -250,7 +265,7 @@ export function getTourCatalogue(
       }),
       available: () => instanceState.currentUserApproved,
       unavailableReason: reasonNeedApproval,
-      navigate: (openTab) => openTab("products"),
+      navigate: openTabOnly("products"),
     },
     {
       id: "products-cards",
@@ -267,7 +282,7 @@ export function getTourCatalogue(
       }),
       available: hasProducts,
       unavailableReason: reasonNeedProduct,
-      navigate: (openTab) => openTab("products"),
+      navigate: openTabOnly("products"),
     },
     // ── Slide decks ──────────────────────────────────────────────────────
     {
@@ -486,7 +501,7 @@ export function getTourCatalogue(
       }),
       available: () => true,
       unavailableReason: reasonNoPageAccess,
-      navigate: (openTab) => openTab("products"),
+      navigate: openTabOnly("products"),
     },
     {
       id: "instance-data-intro",
@@ -504,7 +519,7 @@ export function getTourCatalogue(
       available: () =>
         admin() || perms().can_view_data || perms().can_configure_data,
       unavailableReason: reasonNoPageAccess,
-      navigate: (openTab) => openTab("data"),
+      navigate: openTabOnly("data"),
     },
     {
       id: "instance-results-packages-intro",
@@ -522,7 +537,7 @@ export function getTourCatalogue(
       // Mirrors the instance shell's own gate for this tab.
       available: () => admin() || perms().can_configure_data,
       unavailableReason: reasonNoPageAccess,
-      navigate: (openTab) => openTab("results_packages"),
+      navigate: openTabOnly("results_packages"),
     },
     {
       id: "instance-results-packages-catalogue",
@@ -542,7 +557,7 @@ export function getTourCatalogue(
         admin() || perms().can_configure_data
           ? reasonNeedPackage()
           : reasonNoPageAccess(),
-      navigate: (openTab) => openTab("results_packages"),
+      navigate: openTabOnly("results_packages"),
     },
     {
       id: "instance-assets-intro",
@@ -559,7 +574,7 @@ export function getTourCatalogue(
       }),
       available: () => true,
       unavailableReason: reasonNoPageAccess,
-      navigate: (openTab) => openTab("assets"),
+      navigate: openTabOnly("assets"),
     },
     {
       id: "instance-users-intro",
@@ -577,7 +592,7 @@ export function getTourCatalogue(
       available: () =>
         admin() || perms().can_configure_users || perms().can_view_users,
       unavailableReason: reasonNoPageAccess,
-      navigate: (openTab) => openTab("users"),
+      navigate: openTabOnly("users"),
     },
   ];
 }

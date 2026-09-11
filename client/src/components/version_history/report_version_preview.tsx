@@ -71,9 +71,9 @@ export function ReportVersionPreview(p: {
         ) : (
           <div class="text-danger text-xs" data-line={line}>
             {t3({
-              en: "Missing visualization:",
-              fr: "Visualisation manquante :",
-              pt: "Visualização em falta:",
+              en: "Missing figure:",
+              fr: "Figure manquante :",
+              pt: "Figura em falta:",
             })}{" "}
             {fig[1]}
           </div>
@@ -329,9 +329,9 @@ function SessionEdits(p: {
               >
                 <div class="mb-2 text-sm font-semibold">
                   {t3({
-                    en: "Visualization & image changes",
-                    fr: "Modifications des visualisations et des images",
-                    pt: "Alterações de visualizações e imagens",
+                    en: "Figure & image changes",
+                    fr: "Modifications des figures et des images",
+                    pt: "Alterações de figuras e imagens",
                   })}
                 </div>
                 <For each={figChanges}>
@@ -477,7 +477,7 @@ function VizChangeRow(p: {
   neu?: JSX.Element;
 }) {
   const whatLabel = p.what === "figure"
-    ? t3({ en: "Visualization", fr: "Visualisation", pt: "Visualização" })
+    ? t3({ en: "Figure", fr: "Figure", pt: "Figura" })
     : t3({ en: "Image", fr: "Image", pt: "Imagem" });
   const kindLabel = p.kind === "added"
     ? t3({ en: "added in this session", fr: "ajoutée dans cette session", pt: "adicionada nesta sessão" })
