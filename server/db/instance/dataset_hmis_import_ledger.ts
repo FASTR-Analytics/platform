@@ -8,7 +8,7 @@ import {
 } from "lib";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 
-type LedgerPair = { indicatorRawId: string; periodId: number };
+type LedgerPair = { sourceId: string; periodId: number };
 
 // What an import writes per pair. `skipped` is DHIS2 only: the facility
 // values left out of the pair as not non-negative integers, with a capped
@@ -21,7 +21,7 @@ export type LedgerPairWrite = LedgerPair & {
 function dedupePairs<T extends LedgerPair>(pairs: T[]): T[] {
   const map = new Map<string, T>();
   for (const p of pairs) {
-    map.set(`${p.indicatorRawId}|${p.periodId}`, p);
+    map.set(`${p.sourceId}|${p.periodId}`, p);
   }
   return Array.from(map.values());
 }
@@ -40,33 +40,33 @@ export async function upsertHmisLedgerPairsFromData(
   if (deduped.length === 0) {
     return;
   }
-  const indicatorIds = deduped.map((p) => p.indicatorRawId);
+  const sourceIds = deduped.map((p) => p.sourceId);
   const periodIds = deduped.map((p) => p.periodId);
   const skippedValues = deduped.map((p) => p.skipped?.values ?? 0);
   const skippedSamples = deduped.map((p) =>
     JSON.stringify(p.skipped?.sample ?? [])
   );
-  // The indicators_raw JOIN skips pairs whose indicator was deleted between
+  // The indicator_sources JOIN skips pairs whose source was deleted between
   // staging and integration (possible for pairs with no dataset_hmis rows:
-  // deleteIndicatorRaw only refuses when data exists). Without it the FK
-  // aborts the whole integration; skipping matches what ON DELETE CASCADE
-  // would have produced had the delete come after this write.
+  // deleting an indicator only refuses when its sources have data). Without
+  // it the FK aborts the whole integration; skipping matches what ON DELETE
+  // CASCADE would have produced had the delete come after this write.
   await sql`
     INSERT INTO dataset_hmis_import_ledger
-      (indicator_raw_id, period_id, n_records, sum_count, skipped_values, skipped_values_sample,
+      (source_id, period_id, n_records, sum_count, skipped_values, skipped_values_sample,
        source, status, error, imported_at, version_id)
-    SELECT s.indicator_raw_id, s.period_id, agg.n, agg.sum, s.skipped_values, s.skipped_values_sample,
+    SELECT s.source_id, s.period_id, agg.n, agg.sum, s.skipped_values, s.skipped_values_sample,
       ${source}, 'ready', NULL, now(), ${versionId}
     FROM UNNEST(
-      ${indicatorIds}::text[], ${periodIds}::int[], ${skippedValues}::int[], ${skippedSamples}::text[]
-    ) AS s(indicator_raw_id, period_id, skipped_values, skipped_values_sample)
-    JOIN indicators_raw ir ON ir.indicator_raw_id = s.indicator_raw_id
+      ${sourceIds}::text[], ${periodIds}::int[], ${skippedValues}::int[], ${skippedSamples}::text[]
+    ) AS s(source_id, period_id, skipped_values, skipped_values_sample)
+    JOIN indicator_sources src ON src.source_id = s.source_id
     CROSS JOIN LATERAL (
       SELECT COUNT(*)::integer AS n, COALESCE(SUM(dt.count), 0)::bigint AS sum
       FROM dataset_hmis dt
-      WHERE dt.indicator_raw_id = s.indicator_raw_id AND dt.period_id = s.period_id
+      WHERE dt.source_id = s.source_id AND dt.period_id = s.period_id
     ) agg
-    ON CONFLICT (indicator_raw_id, period_id) DO UPDATE SET
+    ON CONFLICT (source_id, period_id) DO UPDATE SET
       n_records = EXCLUDED.n_records,
       sum_count = EXCLUDED.sum_count,
       skipped_values = EXCLUDED.skipped_values,
@@ -85,7 +85,7 @@ export async function upsertHmisLedgerPairsFromData(
 export async function upsertHmisLedgerErrorPairs(
   sql: Sql,
   failures: Array<{
-    indicatorRawId: string;
+    sourceId: string;
     periodId: number;
     error: string;
     errorKind?: Dhis2FetchErrorKind;
@@ -95,22 +95,22 @@ export async function upsertHmisLedgerErrorPairs(
   if (deduped.length === 0) {
     return;
   }
-  const indicatorIds = deduped.map((f) => f.indicatorRawId);
+  const sourceIds = deduped.map((f) => f.sourceId);
   const periodIds = deduped.map((f) => f.periodId);
   const errors = deduped.map((f) =>
     `[${f.errorKind ?? "transient"}] ${f.error}`.slice(0, 1000)
   );
-  // indicators_raw JOIN: same deleted-mid-wizard guard as
+  // indicator_sources JOIN: same deleted-mid-wizard guard as
   // upsertHmisLedgerPairsFromData above.
   await sql`
     INSERT INTO dataset_hmis_import_ledger
-      (indicator_raw_id, period_id, n_records, sum_count, skipped_values, skipped_values_sample,
+      (source_id, period_id, n_records, sum_count, skipped_values, skipped_values_sample,
        source, status, error, imported_at, version_id)
-    SELECT s.indicator_raw_id, s.period_id, 0, 0, 0, '[]', 'dhis2', 'error', s.error, NULL, NULL
-    FROM UNNEST(${indicatorIds}::text[], ${periodIds}::int[], ${errors}::text[])
-      AS s(indicator_raw_id, period_id, error)
-    JOIN indicators_raw ir ON ir.indicator_raw_id = s.indicator_raw_id
-    ON CONFLICT (indicator_raw_id, period_id) DO UPDATE SET
+    SELECT s.source_id, s.period_id, 0, 0, 0, '[]', 'dhis2', 'error', s.error, NULL, NULL
+    FROM UNNEST(${sourceIds}::text[], ${periodIds}::int[], ${errors}::text[])
+      AS s(source_id, period_id, error)
+    JOIN indicator_sources src ON src.source_id = s.source_id
+    ON CONFLICT (source_id, period_id) DO UPDATE SET
       status = 'error',
       error = EXCLUDED.error
   `;
@@ -128,29 +128,29 @@ export async function reconcileHmisLedgerPairsAfterDelete(
   if (deduped.length === 0) {
     return;
   }
-  const indicatorIds = deduped.map((p) => p.indicatorRawId);
+  const sourceIds = deduped.map((p) => p.sourceId);
   const periodIds = deduped.map((p) => p.periodId);
   await sql`
     UPDATE dataset_hmis_import_ledger l
     SET n_records = agg.n, sum_count = agg.sum
-    FROM UNNEST(${indicatorIds}::text[], ${periodIds}::int[]) AS s(indicator_raw_id, period_id)
+    FROM UNNEST(${sourceIds}::text[], ${periodIds}::int[]) AS s(source_id, period_id)
     CROSS JOIN LATERAL (
       SELECT COUNT(*)::integer AS n, COALESCE(SUM(dt.count), 0)::bigint AS sum
       FROM dataset_hmis dt
-      WHERE dt.indicator_raw_id = s.indicator_raw_id AND dt.period_id = s.period_id
+      WHERE dt.source_id = s.source_id AND dt.period_id = s.period_id
     ) agg
-    WHERE l.indicator_raw_id = s.indicator_raw_id
+    WHERE l.source_id = s.source_id
       AND l.period_id = s.period_id
       AND agg.n > 0
   `;
   await sql`
     DELETE FROM dataset_hmis_import_ledger l
-    USING UNNEST(${indicatorIds}::text[], ${periodIds}::int[]) AS s(indicator_raw_id, period_id)
-    WHERE l.indicator_raw_id = s.indicator_raw_id
+    USING UNNEST(${sourceIds}::text[], ${periodIds}::int[]) AS s(source_id, period_id)
+    WHERE l.source_id = s.source_id
       AND l.period_id = s.period_id
       AND NOT EXISTS (
         SELECT 1 FROM dataset_hmis dt
-        WHERE dt.indicator_raw_id = l.indicator_raw_id AND dt.period_id = l.period_id
+        WHERE dt.source_id = l.source_id AND dt.period_id = l.period_id
       )
   `;
 }
@@ -161,7 +161,7 @@ export async function getDatasetHmisImportLedgerItems(
   return await tryCatchDatabaseAsync(async () => {
     const rows = await mainDb<
       {
-        indicator_raw_id: string;
+        source_id: string;
         period_id: number;
         n_records: number;
         sum_count: string | number;
@@ -174,13 +174,13 @@ export async function getDatasetHmisImportLedgerItems(
         version_id: number | null;
       }[]
     >`
-      SELECT indicator_raw_id, period_id, n_records, sum_count, skipped_values, skipped_values_sample,
+      SELECT source_id, period_id, n_records, sum_count, skipped_values, skipped_values_sample,
         source, status, error, imported_at, version_id
       FROM dataset_hmis_import_ledger
-      ORDER BY indicator_raw_id, period_id
+      ORDER BY source_id, period_id
     `;
     const data = rows.map<DatasetHmisImportLedgerItem>((r) => ({
-      indicatorRawId: r.indicator_raw_id,
+      sourceId: r.source_id,
       periodId: r.period_id,
       nRecords: r.n_records,
       sumCount: Number(r.sum_count),

@@ -34,7 +34,7 @@ const STEPS: StepKind[] = ["upload", "mappings", "review"];
 
 const _HMIS_SQL_COL_NAMES: (keyof HmisCsvMappingParams)[] = [
   "facility_id",
-  "raw_indicator_id",
+  "source_id",
   "period_id",
   "count",
 ];
@@ -51,7 +51,7 @@ export function CsvWizard(
   const [headersError, setHeadersError] = createSignal<string>("");
   const [mappings, setMappings] = createStore<HmisCsvMappingParams>({
     facility_id: "",
-    raw_indicator_id: "",
+    source_id: "",
     period_id: "",
     count: "",
   });
@@ -65,7 +65,7 @@ export function CsvWizard(
     setHeadersError("");
     setMappings({
       facility_id: "",
-      raw_indicator_id: "",
+      source_id: "",
       period_id: "",
       count: "",
     });
@@ -247,9 +247,9 @@ export function CsvWizard(
             ))}
             <div>
               {t3({
-                en: "Staging validates every row (periods, counts, facilities, indicators). A fully clean file integrates automatically; dropped rows hold the import for your review before anything is merged.",
-                fr: "La préparation valide chaque ligne (périodes, valeurs, établissements, indicateurs). Un fichier entièrement valide s'intègre automatiquement ; des lignes rejetées mettent l'importation en attente de votre vérification avant toute fusion.",
-                pt: "A preparação valida todas as linhas (períodos, valores, estabelecimentos, indicadores). Um ficheiro totalmente válido integra-se automaticamente; linhas rejeitadas colocam a importação em espera para a sua revisão antes de qualquer fusão.",
+                en: "Staging validates every row (periods, counts, facilities, sources). A fully clean file integrates automatically; dropped rows hold the import for your review before anything is merged.",
+                fr: "La préparation valide chaque ligne (périodes, valeurs, établissements, sources). Un fichier entièrement valide s'intègre automatiquement ; des lignes rejetées mettent l'importation en attente de votre vérification avant toute fusion.",
+                pt: "A preparação valida todas as linhas (períodos, valores, estabelecimentos, fontes). Um ficheiro totalmente válido integra-se automaticamente; linhas rejeitadas colocam a importação em espera para a sua revisão antes de qualquer fusão.",
               })}
             </div>
             <Show when={queueNotice()} keyed>

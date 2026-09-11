@@ -7,8 +7,15 @@
 --    Uses PK for ordering - already optimal
 
 -- 2. SELECT updated_at FROM indicator_mappings ORDER BY updated_at DESC LIMIT 1
-CREATE INDEX IF NOT EXISTS idx_indicator_mappings_updated_at
-ON indicator_mappings(updated_at DESC);
+-- Guarded: indicator_mappings is absent on fresh installs after migration 086
+-- replaced it with indicator_sources
+DO $$
+BEGIN
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'indicator_mappings') THEN
+    CREATE INDEX IF NOT EXISTS idx_indicator_mappings_updated_at
+    ON indicator_mappings(updated_at DESC);
+  END IF;
+END $$;
 
 -- 3. SELECT admin_area_2 FROM admin_areas_2 ORDER BY LOWER(admin_area_2)
 --    Full table scan acceptable for small reference table
@@ -45,8 +52,14 @@ END $$;
 --
 --    This benefits from a composite index on (indicator_raw_id, indicator_common_id)
 --    to speed up the JOIN and GROUP BY
-CREATE INDEX IF NOT EXISTS idx_indicator_mappings_raw_common
-ON indicator_mappings(indicator_raw_id, indicator_common_id);
+-- Guarded: see index 2 above
+DO $$
+BEGIN
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'indicator_mappings') THEN
+    CREATE INDEX IF NOT EXISTS idx_indicator_mappings_raw_common
+    ON indicator_mappings(indicator_raw_id, indicator_common_id);
+  END IF;
+END $$;
 
 -- 10. Period bounds query: SELECT MIN(period_id), MAX(period_id) FROM dataset_hmis
 --     Uses idx_dataset_hmis_period_indicator (period_id is first column in some composite indexes)

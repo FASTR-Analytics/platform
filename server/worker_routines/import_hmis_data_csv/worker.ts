@@ -52,7 +52,7 @@ function isCleanStaging(result: DatasetCsvStagingResult): boolean {
     v.invalidCounts.rowsDropped === 0 &&
     v.missingRequiredFields.rowsDropped === 0 &&
     v.invalidFacilities.rowsDropped === 0 &&
-    v.unmappedIndicators.rowsDropped === 0 &&
+    v.unknownSources.rowsDropped === 0 &&
     result.finalStagingRowCount > 0
   );
 }
@@ -110,7 +110,7 @@ async function run(payload: ImportHmisDataCsvWorkerPayload) {
         throw new Error(
           `All rows were dropped during staging: ` +
             `${v?.invalidFacilities.rowsDropped ?? 0} with unknown facilities, ` +
-            `${v?.unmappedIndicators.rowsDropped ?? 0} with unknown indicators. ` +
+            `${v?.unknownSources.rowsDropped ?? 0} with unknown sources. ` +
             `Check the column mappings and try again.`,
         );
       }

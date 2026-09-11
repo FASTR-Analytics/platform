@@ -3,7 +3,7 @@ import {
   DEFAULT_PERIOD_START,
   t3,
   TC,
-  type DatasetHmisWindowingRaw,
+  type DatasetHmisWindowingSource,
   type StructureSchema,
 } from "lib";
 import {
@@ -30,14 +30,14 @@ export function DeleteData(
   >,
 ) {
   const [tempWindowing, setTempWindowing] =
-    createStore<DatasetHmisWindowingRaw>(
+    createStore<DatasetHmisWindowingSource>(
       structuredClone({
-        indicatorType: "raw",
+        grain: "source",
         start: DEFAULT_PERIOD_START,
         end: DEFAULT_PERIOD_END,
         takeAllIndicators: true,
         takeAllAdminArea2s: true,
-        rawIndicatorsToInclude: [],
+        sourcesToInclude: [],
         adminArea2sToInclude: [],
         takeAllAdminArea3s: true,
         adminArea3sToInclude: [],
@@ -54,11 +54,11 @@ export function DeleteData(
       async () => {
         if (
           !windowing.takeAllIndicators &&
-          windowing.rawIndicatorsToInclude.length === 0
+          windowing.sourcesToInclude.length === 0
         ) {
           return {
             success: false,
-            err: "You must select at least one indicator",
+            err: "You must select at least one source",
           };
         }
 

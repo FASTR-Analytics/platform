@@ -48,6 +48,7 @@ globs:
   - server/routes/instance/structure.ts
   - server/server_only_funcs_importing/**
   - server/tests/indicator_id_test.ts
+  - server/tests/indicator_sources_migration_test.ts
 docs_absorbed:
 ---
 # S5: Facilities & Indicators
@@ -64,10 +65,10 @@ dictionaries and facilities); the DHIS2 HTTP adapter is **S7** (S5 calls it
 for org units); module runs that EXECUTE the HFA indicator R code and
 materialise common-indicator ingredients (m012) are **S8**; the query
 pipeline that joins facilities/geojson at render time, and applies each
-indicator's catalog expression after aggregation, is **S9**. Common
-indicator DEFINITIONS (base mappings, derived expressions, population
-rates) are S5's dictionary, snapshotted into each package at capture. Projects never read this
-system live. Everything crosses into project DBs via attach-time snapshots
+indicator's catalog expression after aggregation, is **S9**. Indicator
+DEFINITIONS (a base's sources, derived expressions, population rates) are
+S5's dictionary, snapshotted into each package at capture. Projects never
+read this system live. Everything crosses into project DBs via attach-time snapshots
 (S6's seam).
 
 ## Structure ELT (facility/admin import)
@@ -257,26 +258,65 @@ structurally broken by the non-cascading FKs and are not worth supporting;
 label edits are always safe (Postgres skips FK checks when the key value
 is unchanged).
 
-**HMIS** is two-level: `indicators_raw` (ids as they appear in uploads:
-DHIS2 indicator UIDs, data-element UIDs, or `dataElement.coc` operand ids)
-M:N-mapped via `indicator_mappings` (CASCADE both directions) to
-`indicators` (common ids). A new database is seeded with the **special
+**HMIS** is one list with sources underneath (PLAN_A3 §2): an
+**indicator** (`indicators`, `indicator_common_id`) is `base` or `derived`,
+and a base is defined by its **sources** (`indicator_sources`: `source_id`
+primary key, `indicator_id` CASCADE, `source_label`, `updated_at`), each a
+DHIS2 data element or operand (id = the UID or `UID.UID`) or a CSV
+indicator column (id = the value in the file). A source belongs to exactly
+one base, by the primary key; a second use of the same element is a derived
+over the first. No source kind is stored: the DHIS2 dispatcher classifies
+ids against live metadata at run time. The manager (`indicators_manager.tsx`)
+is one table with a Type column, a base's sources listed under it, a
+"Special" badge, and a reference modal listing the special ids and the
+reserved words. The editor (`_edit_indicator.tsx`) writes a base's sources
+in the indicator's own transaction (`createIndicators`, `updateIndicator`);
+the DHIS2 select form creates one base per selected element with the
+generated id and the element as its sole source (PLAN_A3 step 5 turns it
+into the naming step). A new database is seeded with the **special
 indicators**, `SPECIAL_INDICATORS` in `lib/special_indicators.ts`: the
 hand-kept list of count ids the registry module scripts read by literal
-id, each inserted as an empty base with `is_default` set (defaults cannot
-be deleted). An existing instance gets nothing on boot; a team adds or
-deletes specials like any base. `./validate_fresh_boot` boots an empty
-postgres through `dbStartUp` and asserts that seed. The mapping is editable from either side (replace-list on save).
-Raw ids are S6's staging validation surface; `dataset_hmis` stores raw ids
-(FK RESTRICT: data blocks raw deletion); raw→common aggregation (SUM
-across mapped raws) happens at project attach. New ids are charset-checked
-(no `, ; :` because they corrupt the STRING_AGG read projection and the CSV
-round-trip); existing ids are grandfathered. Common-indicator deletion
-refuses with a listing when another common's expression still needs the id.
-The guard is exact rather than a direct-reference scan: it re-resolves every
-surviving definition against the post-delete dictionary, so an id used only
-deep inside a chain blocks the delete too. Batch creates are all-or-nothing (one
-transaction; the failing item is named in the error).
+id, each inserted as an empty base; nothing marks them after, so an
+existing instance gets nothing on boot and a team adds or deletes specials
+like any base. `./validate_fresh_boot` boots an empty postgres through
+`dbStartUp` and asserts that seed. Source ids are S6's staging validation
+surface; `dataset_hmis` and the import ledger store `source_id` (FK
+RESTRICT on the data, CASCADE on the ledger); source→base aggregation (SUM
+across a base's sources) happens at project attach. New ids are
+charset-checked (no `, ; :` because they corrupt the batch file's source
+list and the CSV round-trip); existing ids are grandfathered. Deleting an
+indicator refuses with a listing when one of its sources still has data or
+another indicator's expression still needs the id, and removing a source
+from a base refuses while it has data. The expression guard is exact rather
+than a direct-reference scan: it re-resolves every surviving definition
+against the post-delete dictionary, so an id used only deep inside a chain
+blocks the delete too. Creates are all-or-nothing (one transaction; the
+failing item is named in the error). The batch file is one CSV for the
+whole dictionary (`INDICATOR_BATCH_FILE_COLUMNS`: `indicator_id, label,
+type, sources, expression, format_as, thresholds`; `sources`
+semicolon-separated for a base, empty for a derived), which the manager's
+download mirrors; upsert keeps `sort_order`, replace deletes what the file
+does not name and refuses when that would remove a source with data or an
+id a surviving expression names.
+
+Instance migration 086 (`086_indicator_sources.sql`) made the switch on
+every instance in one transaction: every mapped raw became the source of
+its one common, every unmapped raw became a new base under a generated id
+(the PL/pgSQL restatement of `generateIndicatorId`, pinned to the lib by
+`server/tests/indicator_sources_migration_test.ts`), the data and ledger
+columns were renamed to `source_id`, the stored run, version, schedule and
+CSV-config JSON was rewritten, and `is_default` and the two old tables went.
+It fail-stops, leaving everything untouched, on a raw mapped to more than
+one common, a mapping onto a derived, or a derived row under a special id:
+those are resolved by hand in the manager before the image ships.
+`./validate_indicator_sources <main dump>...` restores each dump into a
+throwaway container, applies the pending migrations the way the runner
+does, and asserts the outcome (sources = mapped raws, new bases = unmapped
+raws under the ids lib generates, per-base extract sums identical, every
+stored JSON row parsed, a second run a no-op; an unclean dump fails with
+its listing and nothing else changed), and prints the id table (what each
+unmapped raw became), which the migration also raises as NOTICEs the app's
+runner suppresses.
 
 **HFA** has two disjoint namespaces that are easy to conflate:
 `hfa_indicators.var_name` (definition ids, e.g. `ind001`) vs **survey
@@ -393,14 +433,15 @@ every common id is usable regardless of charset. A population term is the
 population type's id written bare (`anc1 / population_total`).
 `RESERVED_WORDS` (`lib/types/indicators.ts`) is the union of the special
 ids, the six `POPULATION_TYPES` ids and the three function names.
-`getNewIndicatorIdIssue(id, type)` refuses a new common under one
+`getNewIndicatorIdIssue(id, type)` refuses a new indicator under one
 (`reserved`), except a special id for a base; a special id is refused for
 a derived at create and at retype (`special_not_base`,
-`getSpecialIndicatorTypeIssue`, applied by `updateIndicatorCommon` and the
-editor), because the module scripts read it as a count. Raw ids are a
-separate namespace that never enters an expression, so
+`getSpecialIndicatorTypeIssue`, applied by `updateIndicator`, the batch
+upload and the editor), because the module scripts read it as a count.
+Source ids are a separate namespace that never enters an expression, so
 `getNewSourceIdIssue` checks only the charset rule. Migration 084 guards
-stored ids against the population and function names. Generated ids
+stored ids against the population and function names, and 086 against a
+derived special. Generated ids
 (`generateIndicatorId`, `lib/indicator_id.ts`: NFKD-fold, lowercase,
 non-alphanumeric runs to `_`, `i_` on a leading digit, a 64 cap, then
 `_2`, `_3` on collision with an existing id or a reserved word) never
@@ -416,22 +457,25 @@ identifier's error lists the population ids) and at HMIS capture
 (`resolveCommonIndicatorCatalog`, which
 refuses the whole capture with a listing when any flattened ingredient
 indicator is absent from the data. Population coverage is recorded, not
-checked, by the person-years writer, S8 "population.csv"). Raw indicator ids
-are NOT ingredients: the extract and m001/m002 are per COMMON indicator, so a
-raw has no column to sum.
+checked, by the person-years writer, S8 "population.csv"). Source ids are
+NOT ingredients: the extract and m001/m002 are per base indicator, so a
+source has no column to sum. The same resolver expands a DHIS2 import's
+selected indicators to the sources it fetches
+(`expandIndicatorSelectionToSources`, S6).
 
 **Computability is defined in one place**: `judgeDerivedIndicator` in
 `lib/common_indicator_catalog.ts`. A derived common is computable when its
 expression resolves and every flattened ingredient that is not a population
-term is a base common with at least one raw mapping. The catalog builds its
+term is a base common with at least one source. The catalog builds its
 capture error from that judgement, and the indicator manager list and the
-common editor show the same judgement (see "Client state & wizard"). A base
-common with no mapping is never a problem on its own: a new database is
-seeded with every special indicator as an empty base, and an unmapped base
-reads as NULL. The dependency between a derived common and the bases its expression
-uses lives only in the expression text, not in a table, so no save, delete
-or mapping change is blocked because of it: a derived indicator that cannot
-be computed yet is a normal state while a country is still mapping.
+editor show the same judgement (see "Client state & wizard"). A base
+with no sources is never a problem on its own: a new database is seeded
+with every special indicator as an empty base, and a base without sources
+reads as NULL. The dependency between a derived common and the bases its
+expression uses lives only in the expression text, not in a table, so no
+save, delete or source change is blocked because of it: a derived indicator
+that cannot be computed yet is a normal state while a country is still
+adding sources.
 
 **Ruling: the additivity principle (the target model, not yet
 built).** *The pipeline only ever stores, adjusts, and aggregates
@@ -442,9 +486,9 @@ pointers only. Consequences that follow from it and are ruled with it:
 
 - Calculated indicators collapsed into common indicators (shipped 1.69.0).
   A common indicator has a `type`:
-  - `base`: mapping to raws, SUM at extract; the only type m001/m002 ever
+  - `base`: its sources, summed at extract; the only type m001/m002 ever
     see, and the only type the HMIS extract carries (the extract joins
-    `definition_type = 'base'`).
+    `indicator_sources` to `definition_type = 'base'`).
   - `derived`: an ARBITRARY expression over other commons, base or derived
     (`+ - * /`, parentheses, literals, `abs`/`coalesce`/`nullif`; chained by
     substitution, cycles and depth rejected). Never negotiable down to
@@ -509,9 +553,10 @@ pointers only. Consequences that follow from it and are ruled with it:
   same conversion migration 079 ran on the dictionary.
 - DHIS2 percent indicators are never imported as values. The importer
   decomposes `numerator`/`denominator` (already on `DHIS2Indicator`) into
-  data-element operands → raws → base commons, and authors the indicator as
-  a `derived` common; a yearly denominator DE routes to the population
-  store. Expressions it cannot decompose (`R{}`, `OUG{}`, `C{}`, program
+  data-element operands → sources of base indicators, and authors the
+  indicator as a `derived` common (S7 parses; PLAN_A3 step 5 creates);
+  a yearly denominator DE is refused (the population store is written by
+  hand). Expressions it cannot decompose (`R{}`, `OUG{}`, `C{}`, program
   indicators, `d2:` functions) are refused, not approximated.
 - The scorecard is a table preset on `m12-01-01`; it is not a module of its
   own (`m007` and `m008` are dropped, and visualizations over their four
@@ -722,13 +767,17 @@ Every config mutation re-reads all configs and pushes one consolidated
 
 - T2 caches: facilities keyed
   `family + structureLastUpdated + hashStructureSchema(family schema)`;
-  indicators keyed on the T1 version stamps. There are TWO indicator stamps,
-  both MD5 over MAX(updated_at)+counts of the three HMIS
-  tables: `indicatorMappingsVersion` covers EVERY common indicator row and
-  keys the indicator manager, while `baseIndicatorMappingsVersion` counts
-  only `definition_type = 'base'` rows and is what the HMIS datatable views
-  key on, so editing a derived definition costs those caches nothing.
-  `hfaIndicatorsVersion` and `hfaCacheHash` are unchanged.
+  indicators keyed on the T1 version stamps (cache name
+  `instance_indicators_v4`, bumped when the payload became one list of
+  indicators with their sources). There are TWO indicator stamps, both MD5
+  over MAX(updated_at)+counts of `indicators` and `indicator_sources`:
+  `indicatorMappingsVersion` covers EVERY indicator row and keys the
+  indicator manager, while `baseIndicatorMappingsVersion` counts only
+  `definition_type = 'base'` rows (plus every source) and is what the HMIS
+  datatable views key on, so editing a derived definition costs those
+  caches nothing. The stamp names predate PLAN_A3 and are carried by the
+  run manifest and dataset-info types outside this system, so they keep
+  "Mappings". `hfaIndicatorsVersion` and `hfaCacheHash` are unchanged.
 - The common-indicator editor's expression palette (ruled;
   storage unchanged, the identifier inserted is the stored id): two
   "Insert …" pickers above the
@@ -740,12 +789,12 @@ Every config mutation re-reads all configs and pushes one consolidated
   its label, kind (indicator / population) and a "not found" mark, driven by
   the same resolver the form validates with, and shows the annualisation
   caption whenever a population term is present.
-- Computability in the manager is shown, never enforced. The common list
-  has a Status column fed by one `createMemo` over the loaded dictionary
-  calling `judgeDerivedIndicators` (lib), so a mapping edit updates it
-  through the ordinary `indicatorMappingsVersion` refetch and no extra
-  fetch is needed. An uncomputable derived indicator shows "Cannot be
-  computed: <ids> has no mapped raw indicator", the capture error translated
+- Computability in the manager is shown, never enforced. The list has a
+  Status column fed by one `createMemo` over the loaded dictionary calling
+  `judgeDerivedIndicators` (lib), so a source edit updates it through the
+  ordinary `indicatorMappingsVersion` refetch and no extra fetch is
+  needed. An uncomputable derived indicator shows "Cannot be computed:
+  <ids> has no sources", the capture error translated
   into the interface language, and a banner above the table counts them. A
   second, separate note is shown when the flattened expression divides by a
   population type that has no rows at all in the store (from T1
@@ -753,10 +802,10 @@ Every config mutation re-reads all configs and pushes one consolidated
   the run's years and areas the store covers is recorded in the package at
   generation, not checked here (S8 "population.csv"). The editor runs the same judgement over
   the formula as typed. A formula that does not resolve refuses the save, as
-  before. A flattened ingredient with no mapping is only a warning under the
-  formula. Base commons have no status. The Status column is sortable. It is
-  not in the CSV download, because that file mirrors the batch-import
-  headers.
+  before. A flattened ingredient with no sources is only a warning under
+  the formula. Base indicators have no status. The Status column is
+  sortable. It is not in the CSV download, because that file mirrors the
+  batch-import headers.
 - The structure wizard: server owns the step number (every save writes
   `step`; the client fetcher jumps the stepper on each silent refetch).
   Errors render as a dismissible banner over navigable steps (re-saving

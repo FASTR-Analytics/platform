@@ -2,7 +2,6 @@ import { Sql } from "postgres";
 import {
   APIResponseNoData,
   APIResponseWithData,
-  type BatchIndicator,
   buildExpressionDictionary,
   type CommonIndicator,
   type CommonIndicatorDefinition,
@@ -11,11 +10,17 @@ import {
   getNewIndicatorIdIssue,
   getNewSourceIdIssue,
   getSpecialIndicatorTypeIssue,
+  INDICATOR_BATCH_FILE_COLUMNS,
+  INDICATOR_BATCH_SOURCES_SEPARATOR,
   IndicatorExpressionError,
+  type IndicatorFormat,
+  type IndicatorSource,
+  type IndicatorWithSources,
   type InstanceIndicatorDetails,
+  isCommonIndicatorType,
   MAX_INDICATOR_EXPRESSION_INGREDIENTS,
-  resolveIndicatorExpression,
   POPULATION_TYPE_IDS,
+  resolveIndicatorExpression,
   type ThresholdsRule,
   thresholdsRuleSchema,
 } from "lib";
@@ -23,29 +28,27 @@ import { tryCatchDatabaseAsync } from "./../utils.ts";
 import { resolveAssetFilePath } from "./assets.ts";
 import { readCsvFile } from "@timroberton/panther";
 
-// The stored shape of one common indicator. `expression` carries a derived
+// The stored shape of one indicator. `expression` carries a derived
 // indicator's formula and is NULL for a base one (PLAN_1a §1.2). `thresholds`
 // is the CF rule as JSON text (every JSON column is text: JSON.parse on read,
 // JSON.stringify on write: SYSTEM_02), validated by the lib schema here.
 export type DBIndicatorCommon = {
   indicator_common_id: string;
   indicator_common_label: string;
-  is_default: boolean;
   definition_type: "base" | "derived";
   expression: string | null;
-  format_as: "percent" | "number" | "rate_per_10k";
+  format_as: IndicatorFormat;
   thresholds: string | null;
   sort_order: number;
 };
 
 const COMMON_INDICATOR_COLUMNS =
-  `indicator_common_id, indicator_common_label, is_default, definition_type, expression, format_as, thresholds, sort_order`;
+  `indicator_common_id, indicator_common_label, definition_type, expression, format_as, thresholds, sort_order`;
 
 export function dbRowToCommonIndicator(row: DBIndicatorCommon): CommonIndicator {
   return {
     indicator_common_id: row.indicator_common_id,
     indicator_common_label: row.indicator_common_label,
-    is_default: row.is_default,
     definition: dbRowToDefinition(row),
     format_as: row.format_as,
     thresholds: row.thresholds === null
@@ -88,15 +91,48 @@ function definitionFields(
 // indicator is a count, so it is always a number; a derived one chooses.
 function formatRuleError(
   definition: CommonIndicatorDefinition,
-  formatAs: CommonIndicator["format_as"],
+  formatAs: IndicatorFormat,
 ): string | undefined {
   return definition.type === "base" && formatAs !== "number"
     ? "A base indicator is a count and is always formatted as a number"
     : undefined;
 }
 
-// The live expression dictionary: every common indicator, plus every
-// population type under its own id.
+// A source belongs to a base: a derived indicator is its formula.
+function sourcesRuleError(
+  definition: CommonIndicatorDefinition,
+  sources: IndicatorSource[],
+): string | undefined {
+  return definition.type === "derived" && sources.length > 0
+    ? "A derived indicator is defined by its formula and has no sources"
+    : undefined;
+}
+
+function sourceIdIssues(sources: IndicatorSource[]): string[] {
+  const issues: string[] = [];
+  const seen = new Set<string>();
+  for (const source of sources) {
+    const issue = getNewSourceIdIssue(source.source_id);
+    if (issue) {
+      issues.push(
+        `Invalid source ID ${JSON.stringify(source.source_id)}: ${
+          describeNewIndicatorIdIssue(issue)
+        }`,
+      );
+    }
+    if (seen.has(source.source_id)) {
+      issues.push(`Duplicate source ID ${JSON.stringify(source.source_id)}`);
+    }
+    seen.add(source.source_id);
+    if (source.source_label.trim() === "") {
+      issues.push(`Source ${JSON.stringify(source.source_id)} needs a label`);
+    }
+  }
+  return issues;
+}
+
+// The live expression dictionary: every indicator, plus every population
+// type under its own id.
 async function loadExpressionDictionaryEntries(
   sql: Sql,
 ): Promise<ExpressionDictionaryEntry[]> {
@@ -134,82 +170,52 @@ export async function getCommonIndicators(
   return rows.map(dbRowToCommonIndicator);
 }
 
-// Get all indicators with their mappings
-export async function getIndicatorsWithMappings(
+// The whole dictionary: every indicator with its sources (a derived
+// indicator's list is empty).
+export async function getIndicatorsWithSources(
+  sql: Sql,
+): Promise<IndicatorWithSources[]> {
+  const rows = await sql.unsafe<
+    (DBIndicatorCommon & { sources: IndicatorSource[] | null })[]
+  >(`
+    SELECT
+      ${COMMON_INDICATOR_COLUMNS.split(", ").map((c) => `i.${c}`).join(", ")},
+      (
+        SELECT json_agg(json_build_object('source_id', s.source_id, 'source_label', s.source_label) ORDER BY s.source_id)
+        FROM indicator_sources s
+        WHERE s.indicator_id = i.indicator_common_id
+      ) AS sources
+    FROM indicators i
+    ORDER BY i.sort_order, i.indicator_common_id
+  `);
+  return rows.map((row) => ({
+    ...dbRowToCommonIndicator(row),
+    sources: row.sources ?? [],
+  }));
+}
+
+export async function getInstanceIndicatorDetails(
   mainDb: Sql,
 ): Promise<APIResponseWithData<InstanceIndicatorDetails>> {
   return await tryCatchDatabaseAsync(async () => {
-    // Get all common indicators with their raw ID mappings aggregated
-    const commonIndicatorsResult = await mainDb.unsafe<
-      (DBIndicatorCommon & { raw_indicator_ids: string | null })[]
-    >(`
-      SELECT
-        ${
-      COMMON_INDICATOR_COLUMNS.split(", ").map((c) => `i.${c}`).join(", ")
-    },
-        STRING_AGG(im.indicator_raw_id, ',') as raw_indicator_ids
-      FROM indicators i
-      LEFT JOIN indicator_mappings im ON i.indicator_common_id = im.indicator_common_id
-      GROUP BY ${
-      COMMON_INDICATOR_COLUMNS.split(", ").map((c) => `i.${c}`).join(", ")
-    }
-      ORDER BY i.sort_order, i.indicator_common_id
-    `);
-
-    const commonIndicators = commonIndicatorsResult.map((row) => ({
-      ...dbRowToCommonIndicator(row),
-      raw_indicator_ids: row.raw_indicator_ids
-        ? row.raw_indicator_ids.split(",")
-        : [],
-    }));
-
-    // Get all raw indicators with their common ID mappings aggregated
-    const rawIndicatorsResult = await mainDb<
-      {
-        indicator_raw_id: string;
-        indicator_raw_label: string;
-        indicator_common_ids: string | null;
-      }[]
-    >`
-      SELECT 
-        ir.indicator_raw_id,
-        ir.indicator_raw_label,
-        STRING_AGG(im.indicator_common_id, ',') as indicator_common_ids
-      FROM indicators_raw ir
-      LEFT JOIN indicator_mappings im ON ir.indicator_raw_id = im.indicator_raw_id
-      GROUP BY ir.indicator_raw_id, ir.indicator_raw_label
-      ORDER BY ir.indicator_raw_id
-    `;
-
-    const rawIndicators = rawIndicatorsResult.map((row) => ({
-      raw_indicator_id: row.indicator_raw_id,
-      raw_indicator_label: row.indicator_raw_label,
-      indicator_common_ids: row.indicator_common_ids
-        ? row.indicator_common_ids.split(",")
-        : [],
-    }));
-
     return {
       success: true,
-      data: {
-        commonIndicators,
-        rawIndicators,
-      },
+      data: { indicators: await getIndicatorsWithSources(mainDb) },
     };
   });
 }
 
 // =============================================================================
-// COMMON INDICATOR OPERATIONS
+// GUARDS
 // =============================================================================
 
-// The authoring validator (PLAN_1a §1.2): an expression may only name commons
-// that resolve to `base` or `derived`, may not cycle or nest too deep, and
-// must flatten to no more ingredients than a results row can carry. Enforced
-// HERE, where the user is; run capture enforces the same rules again where the
-// data is. `pendingDefinitions` overrides what the dictionary says about the
-// rows being written, so a cycle is judged against the state the write would
-// produce.
+// The authoring validator (PLAN_1a §1.2): an expression may only name
+// indicators that resolve to `base` or `derived`, may not cycle or nest too
+// deep, and must flatten to no more ingredients than a results row can
+// carry. Enforced HERE, where the user is; run capture enforces the same
+// rules again where the data is. `pendingDefinitions` overrides what the
+// dictionary says about the rows being written, so a cycle is judged against
+// the state the write would produce.
 async function checkDefinitionsResolve(
   mainDb: Sql,
   pendingDefinitions: Map<string, CommonIndicatorDefinition>,
@@ -242,8 +248,8 @@ async function checkDefinitionsResolve(
     }
   }
   // A write can also break an indicator that is not itself being written:
-  // repointing a common at a new expression invalidates every chain that
-  // runs through it.
+  // repointing an indicator at a new expression invalidates every chain
+  // that runs through it.
   for (const entry of entries.values()) {
     if (entry.type !== "derived" || pendingDefinitions.has(entry.id)) continue;
     try {
@@ -265,22 +271,121 @@ async function checkDefinitionsResolve(
   return undefined;
 }
 
-export type NewCommonIndicator = {
+// The delete guard over expressions: an indicator named by another's
+// formula cannot go. Resolving each surviving definition against the
+// post-delete dictionary is what makes the check exact: an id used only deep
+// inside a chain blocks the delete just as a directly-named one does.
+async function expressionsBlockingRemoval(
+  sql: Sql,
+  removedIds: Set<string>,
+): Promise<string[]> {
+  const survivors = (await loadExpressionDictionaryEntries(sql)).filter(
+    (e) => !removedIds.has(e.id),
+  );
+  const dictionary = buildExpressionDictionary(survivors);
+  const blocked: string[] = [];
+  for (const survivor of survivors) {
+    if (survivor.type !== "derived") continue;
+    try {
+      resolveIndicatorExpression({
+        ownId: survivor.id,
+        source: survivor.expression ?? "",
+        dictionary,
+        maxIngredients: MAX_INDICATOR_EXPRESSION_INGREDIENTS,
+      });
+    } catch (e) {
+      if (!(e instanceof IndicatorExpressionError)) throw e;
+      blocked.push(`${survivor.id} (${e.message})`);
+    }
+  }
+  return blocked;
+}
+
+// Data never exists without its source (dataset_hmis.source_id RESTRICTs),
+// so removing a source with data is refused here, with the counts, before
+// the FK would.
+async function sourcesWithData(
+  sql: Sql,
+  sourceIds: string[],
+): Promise<{ source_id: string; count: number }[]> {
+  if (sourceIds.length === 0) return [];
+  return await sql<{ source_id: string; count: number }[]>`
+    SELECT source_id, COUNT(*)::int AS count
+    FROM dataset_hmis
+    WHERE source_id = ANY(${sourceIds})
+    GROUP BY source_id
+    ORDER BY source_id
+  `;
+}
+
+function describeSourcesWithData(
+  rows: { source_id: string; count: number }[],
+): string {
+  return rows.map((r) => `${r.source_id} (${r.count} records)`).join(", ");
+}
+
+// A source belongs to exactly one base (the primary key). Reports the
+// sources in `sourceIds` that another indicator already owns.
+async function sourcesOwnedElsewhere(
+  sql: Sql,
+  sourceIds: string[],
+  ownerIds: Set<string>,
+): Promise<{ source_id: string; indicator_id: string }[]> {
+  if (sourceIds.length === 0) return [];
+  const rows = await sql<{ source_id: string; indicator_id: string }[]>`
+    SELECT source_id, indicator_id FROM indicator_sources
+    WHERE source_id = ANY(${sourceIds})
+    ORDER BY source_id
+  `;
+  return rows.filter((r) => !ownerIds.has(r.indicator_id));
+}
+
+function describeOwnedElsewhere(
+  rows: { source_id: string; indicator_id: string }[],
+): string {
+  return `A source belongs to exactly one base indicator; these already belong to another: ${
+    rows.map((r) => `${r.source_id} (${r.indicator_id})`).join(", ")
+  }. Use the other indicator, or define a derived indicator over it.`;
+}
+
+// =============================================================================
+// WRITE OPERATIONS
+// =============================================================================
+
+export type NewIndicator = {
   indicator_common_id: string;
   indicator_common_label: string;
-  mapped_raw_ids: string[];
+  sources: IndicatorSource[];
   definition: CommonIndicatorDefinition;
-  format_as: CommonIndicator["format_as"];
-  thresholds: CommonIndicator["thresholds"];
+  format_as: IndicatorFormat;
+  thresholds: ThresholdsRule | null;
 };
 
-// Create multiple common indicators with raw indicator mappings
-export async function createIndicatorsCommon(
+async function writeSources(
+  sql: Sql,
+  indicatorId: string,
+  sources: IndicatorSource[],
+): Promise<void> {
+  for (const source of sources) {
+    await sql`
+      INSERT INTO indicator_sources (source_id, indicator_id, source_label, updated_at)
+      VALUES (${source.source_id}, ${indicatorId}, ${source.source_label}, CURRENT_TIMESTAMP)
+      ON CONFLICT (source_id) DO UPDATE SET
+        indicator_id = EXCLUDED.indicator_id,
+        source_label = EXCLUDED.source_label,
+        updated_at = CURRENT_TIMESTAMP
+    `;
+  }
+}
+
+// Creates indicators, each with its sources, in one transaction. Every id
+// goes through the validator (ruling 5): a reserved word is refused, a
+// special id is accepted for a base and refused for a derived, a source id
+// keeps the charset rule only.
+export async function createIndicators(
   mainDb: Sql,
-  indicators: NewCommonIndicator[],
-): Promise<
-  APIResponseWithData<{ created: number; failed: number; errors: string[] }>
-> {
+  indicators: NewIndicator[],
+): Promise<APIResponseWithData<{ created: number }>> {
   return await tryCatchDatabaseAsync(async () => {
     for (const indicator of indicators) {
       const idIssue = getNewIndicatorIdIssue(
@@ -295,9 +400,17 @@ export async function createIndicatorsCommon(
           }: ${describeNewIndicatorIdIssue(idIssue)}`,
         };
       }
+      const issues = sourceIdIssues(indicator.sources);
+      if (issues.length > 0) {
+        return { success: false, err: issues.join("; ") };
+      }
+      const err = formatRuleError(indicator.definition, indicator.format_as) ??
+        sourcesRuleError(indicator.definition, indicator.sources);
+      if (err) {
+        return { success: false, err: `${indicator.indicator_common_id}: ${err}` };
+      }
     }
 
-    // Check for duplicate indicator_common_ids in the request
     const ids = indicators.map((i) => i.indicator_common_id);
     const duplicateIds = ids.filter((id, index) => ids.indexOf(id) !== index);
     if (duplicateIds.length > 0) {
@@ -307,103 +420,74 @@ export async function createIndicatorsCommon(
       };
     }
 
-    // Check if any indicators already exist
-    const existingIds = await mainDb`
-      SELECT indicator_common_id
-      FROM indicators
+    const existingIds = await mainDb<{ indicator_common_id: string }[]>`
+      SELECT indicator_common_id FROM indicators
       WHERE indicator_common_id = ANY(${ids})
     `;
-
     if (existingIds.length > 0) {
-      const existing = existingIds.map((row) => row.indicator_common_id);
       return {
         success: false,
-        err: `Indicators already exist: ${existing.join(", ")}`,
+        err: `Indicators already exist: ${
+          existingIds.map((row) => row.indicator_common_id).join(", ")
+        }`,
       };
     }
 
-    // Check that all mapped raw ids exist (friendlier than the FK error)
-    const allRawIds = [...new Set(indicators.flatMap((i) => i.mapped_raw_ids))];
-    if (allRawIds.length > 0) {
-      const existingRaw = await mainDb<{ indicator_raw_id: string }[]>`
-        SELECT indicator_raw_id FROM indicators_raw
-        WHERE indicator_raw_id = ANY(${allRawIds})
-      `;
-      const existingRawSet = new Set(
-        existingRaw.map((r) => r.indicator_raw_id),
-      );
-      const missingRaw = allRawIds.filter((id) => !existingRawSet.has(id));
-      if (missingRaw.length > 0) {
-        return {
-          success: false,
-          err: `Mapped raw indicators do not exist: ${missingRaw.join(", ")}`,
-        };
-      }
+    const allSourceIds = indicators.flatMap((i) =>
+      i.sources.map((s) => s.source_id)
+    );
+    const duplicateSources = allSourceIds.filter((id, index) =>
+      allSourceIds.indexOf(id) !== index
+    );
+    if (duplicateSources.length > 0) {
+      return {
+        success: false,
+        err: `A source belongs to exactly one base indicator; these appear more than once: ${
+          duplicateSources.join(", ")
+        }`,
+      };
     }
-
-    for (const indicator of indicators) {
-      const formatErr = formatRuleError(
-        indicator.definition,
-        indicator.format_as,
-      );
-      if (formatErr) {
-        return {
-          success: false,
-          err: `${indicator.indicator_common_id}: ${formatErr}`,
-        };
-      }
+    const owned = await sourcesOwnedElsewhere(mainDb, allSourceIds, new Set());
+    if (owned.length > 0) {
+      return { success: false, err: describeOwnedElsewhere(owned) };
     }
 
     const definitionErr = await checkDefinitionsResolve(
       mainDb,
-      new Map(
-        indicators.map((i) => [i.indicator_common_id, i.definition]),
-      ),
+      new Map(indicators.map((i) => [i.indicator_common_id, i.definition])),
     );
     if (definitionErr) {
       return { success: false, err: definitionErr };
     }
-
-    const nextSortOrder = (
-      await mainDb<{ next: number }[]>`
-        SELECT COALESCE(MAX(sort_order), 0) + 1 AS next FROM indicators
-      `
-    )[0].next;
 
     // All-or-nothing: one failed item aborts the whole Postgres transaction
     // (every later statement fails with "transaction is aborted"), so
     // per-item catch-and-continue can never deliver partial success. The
     // rethrow decorates the error with the item that caused it.
     await mainDb.begin(async (sql) => {
-      let sortOrder = nextSortOrder;
+      let sortOrder = (
+        await sql<{ next: number }[]>`
+          SELECT COALESCE(MAX(sort_order), 0) + 1 AS next FROM indicators
+        `
+      )[0].next;
       for (const indicator of indicators) {
         try {
           const d = definitionFields(indicator.definition);
           await sql`
             INSERT INTO indicators (
-              indicator_common_id, indicator_common_label, is_default,
+              indicator_common_id, indicator_common_label,
               definition_type, expression,
               format_as, thresholds, sort_order, updated_at
             )
             VALUES (
-              ${indicator.indicator_common_id}, ${indicator.indicator_common_label}, FALSE,
+              ${indicator.indicator_common_id}, ${indicator.indicator_common_label},
               ${d.definition_type}, ${d.expression},
               ${indicator.format_as},
               ${thresholdsToDb(indicator.thresholds)},
               ${sortOrder++}, CURRENT_TIMESTAMP
             )
           `;
-          // Only a base indicator is defined by mappings (the same rule
-          // updateIndicatorCommon applies on a retype).
-          const rawIds = indicator.definition.type === "base"
-            ? indicator.mapped_raw_ids
-            : [];
-          for (const rawId of rawIds) {
-            await sql`
-              INSERT INTO indicator_mappings (indicator_raw_id, indicator_common_id, updated_at)
-              VALUES (${rawId}, ${indicator.indicator_common_id}, CURRENT_TIMESTAMP)
-            `;
-          }
+          await writeSources(sql, indicator.indicator_common_id, indicator.sources);
         } catch (error) {
           throw new Error(
             `${indicator.indicator_common_id}: ${
@@ -414,28 +498,21 @@ export async function createIndicatorsCommon(
       }
     });
 
-    return {
-      success: true,
-      data: { created: indicators.length, failed: 0, errors: [] },
-    };
+    return { success: true, data: { created: indicators.length } };
   });
 }
 
-// Update a common indicator and replace its raw indicator mappings
-export async function updateIndicatorCommon(
+// Updates an indicator and replaces its source list. Ids are immutable
+// after creation (the id is the column key in every results package). A
+// source removed here must carry no data; a source added here must not
+// belong to another indicator; a retype to derived drops every source.
+export async function updateIndicator(
   mainDb: Sql,
-  oldIndicatorCommonId: string,
-  update: {
-    indicator_common_id: string;
-    indicator_common_label: string;
-    mapped_raw_ids: string[];
-    definition: CommonIndicatorDefinition;
-    format_as: CommonIndicator["format_as"];
-    thresholds: CommonIndicator["thresholds"];
-  },
+  oldIndicatorId: string,
+  update: NewIndicator,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    if (oldIndicatorCommonId !== update.indicator_common_id) {
+    if (oldIndicatorId !== update.indicator_common_id) {
       return {
         success: false,
         err:
@@ -455,29 +532,50 @@ export async function updateIndicatorCommon(
         } ${describeNewIndicatorIdIssue(typeIssue)}`,
       };
     }
-
-    const formatErr = formatRuleError(update.definition, update.format_as);
-    if (formatErr) {
-      return { success: false, err: formatErr };
+    const issues = sourceIdIssues(update.sources);
+    if (issues.length > 0) {
+      return { success: false, err: issues.join("; ") };
+    }
+    const err = formatRuleError(update.definition, update.format_as) ??
+      sourcesRuleError(update.definition, update.sources);
+    if (err) {
+      return { success: false, err };
     }
 
     const definitionErr = await checkDefinitionsResolve(
       mainDb,
-      new Map([[oldIndicatorCommonId, update.definition]]),
+      new Map([[oldIndicatorId, update.definition]]),
     );
     if (definitionErr) {
       return { success: false, err: definitionErr };
     }
 
-    // Only a base indicator is defined by mappings. A retype to derived
-    // drops them rather than leaving orphaned rows that no extract would
-    // ever read again.
-    const rawIds = update.definition.type === "base"
-      ? update.mapped_raw_ids
-      : [];
+    const nextIds = new Set(update.sources.map((s) => s.source_id));
+    const owned = await sourcesOwnedElsewhere(
+      mainDb,
+      [...nextIds],
+      new Set([oldIndicatorId]),
+    );
+    if (owned.length > 0) {
+      return { success: false, err: describeOwnedElsewhere(owned) };
+    }
+    const current = await mainDb<{ source_id: string }[]>`
+      SELECT source_id FROM indicator_sources WHERE indicator_id = ${oldIndicatorId}
+    `;
+    const removedIds = current
+      .map((r) => r.source_id)
+      .filter((id) => !nextIds.has(id));
+    const withData = await sourcesWithData(mainDb, removedIds);
+    if (withData.length > 0) {
+      return {
+        success: false,
+        err: `Cannot remove sources that have data: ${
+          describeSourcesWithData(withData)
+        }. Delete their data first.`,
+      };
+    }
 
     const d = definitionFields(update.definition);
-
     await mainDb.begin(async (sql) => {
       await sql`
         UPDATE indicators
@@ -488,22 +586,15 @@ export async function updateIndicatorCommon(
           format_as = ${update.format_as},
           thresholds = ${thresholdsToDb(update.thresholds)},
           updated_at = CURRENT_TIMESTAMP
-        WHERE indicator_common_id = ${oldIndicatorCommonId}
+        WHERE indicator_common_id = ${oldIndicatorId}
       `;
-
-      // Delete existing mappings
-      await sql`
-        DELETE FROM indicator_mappings
-        WHERE indicator_common_id = ${oldIndicatorCommonId}
-      `;
-
-      // Create new mappings
-      for (const rawId of rawIds) {
+      if (removedIds.length > 0) {
         await sql`
-          INSERT INTO indicator_mappings (indicator_raw_id, indicator_common_id, updated_at)
-          VALUES (${rawId}, ${oldIndicatorCommonId}, CURRENT_TIMESTAMP)
+          DELETE FROM indicator_sources
+          WHERE indicator_id = ${oldIndicatorId} AND source_id = ANY(${removedIds})
         `;
       }
+      await writeSources(sql, oldIndicatorId, update.sources);
     });
 
     return { success: true };
@@ -529,386 +620,105 @@ export async function reorderCommonIndicators(
   });
 }
 
-// Delete common indicators (automatically cascades to mappings)
-export async function deleteIndicatorCommon(
+// Deletes indicators; their sources go with them (CASCADE). Refused with a
+// listing when a source still has data or another indicator's expression
+// still needs the id. A special indicator is deleted like any base.
+export async function deleteIndicators(
   mainDb: Sql,
-  indicatorCommonIds: string[],
+  indicatorIds: string[],
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    if (indicatorCommonIds.length === 0) {
+    if (indicatorIds.length === 0) {
       return { success: true };
     }
 
-    const allIndicators = await mainDb<
-      { indicator_common_id: string; is_default: boolean }[]
-    >`
-      SELECT indicator_common_id, is_default
-      FROM indicators
-      WHERE indicator_common_id = ANY(${indicatorCommonIds})
+    const found = await mainDb<{ indicator_common_id: string }[]>`
+      SELECT indicator_common_id FROM indicators
+      WHERE indicator_common_id = ANY(${indicatorIds})
     `;
-
-    const foundIds = new Set(
-      allIndicators.map((row) => row.indicator_common_id),
-    );
-    const notFoundIds = indicatorCommonIds.filter((id) => !foundIds.has(id));
+    const foundIds = new Set(found.map((row) => row.indicator_common_id));
+    const notFoundIds = indicatorIds.filter((id) => !foundIds.has(id));
     if (notFoundIds.length > 0) {
       return {
         success: false,
-        err: `Common indicators not found: ${notFoundIds.join(", ")}`,
+        err: `Indicators not found: ${notFoundIds.join(", ")}`,
       };
     }
 
-    const defaultIds = allIndicators
-      .filter((row) => row.is_default)
-      .map((row) => row.indicator_common_id);
-    if (defaultIds.length > 0) {
+    const sourceIds = (
+      await mainDb<{ source_id: string }[]>`
+        SELECT source_id FROM indicator_sources WHERE indicator_id = ANY(${indicatorIds})
+      `
+    ).map((r) => r.source_id);
+    const withData = await sourcesWithData(mainDb, sourceIds);
+    if (withData.length > 0) {
       return {
         success: false,
-        err: `Cannot delete default indicators: ${defaultIds.join(", ")}`,
+        err: `Cannot delete indicators whose sources have data: ${
+          describeSourcesWithData(withData)
+        }. Delete their data first.`,
       };
     }
 
-    // The delete guard, re-expressed over expressions: a common indicator
-    // named by another common's formula cannot go. Resolving each surviving
-    // definition against the post-delete dictionary is what makes the check
-    // exact: an id used only deep inside a chain blocks the delete just as a
-    // directly-named one does.
-    const requestedIds = new Set(indicatorCommonIds);
-    const survivors = (await loadExpressionDictionaryEntries(mainDb)).filter(
-      (e) => !requestedIds.has(e.id),
+    const blocked = await expressionsBlockingRemoval(
+      mainDb,
+      new Set(indicatorIds),
     );
-    const dictionary = buildExpressionDictionary(survivors);
-    const blocked: string[] = [];
-    for (const survivor of survivors) {
-      if (survivor.type !== "derived") continue;
-      try {
-        resolveIndicatorExpression({
-          ownId: survivor.id,
-          source: survivor.expression ?? "",
-          dictionary,
-          maxIngredients: MAX_INDICATOR_EXPRESSION_INGREDIENTS,
-        });
-      } catch (e) {
-        if (!(e instanceof IndicatorExpressionError)) throw e;
-        blocked.push(`${survivor.id} (${e.message})`);
-      }
-    }
     if (blocked.length > 0) {
       return {
         success: false,
-        err:
-          `Cannot delete common indicators that other indicators are defined from: ${
-            blocked.join("; ")
-          }`,
-      };
-    }
-
-    // CASCADE foreign key will automatically delete mappings
-    await mainDb`
-      DELETE FROM indicators
-      WHERE indicator_common_id = ANY(${indicatorCommonIds})
-    `;
-
-    return { success: true };
-  });
-}
-
-// =============================================================================
-// RAW INDICATOR OPERATIONS
-// =============================================================================
-
-// Create multiple raw indicators with common indicator mappings
-export async function createIndicatorsRaw(
-  mainDb: Sql,
-  indicators: Array<{
-    indicator_raw_id: string;
-    indicator_raw_label: string;
-    mapped_common_ids: string[];
-  }>,
-): Promise<
-  APIResponseWithData<{ created: number; failed: number; errors: string[] }>
-> {
-  return await tryCatchDatabaseAsync(async () => {
-    for (const indicator of indicators) {
-      const idIssue = getNewSourceIdIssue(indicator.indicator_raw_id);
-      if (idIssue) {
-        return {
-          success: false,
-          err: `Invalid indicator ID ${
-            JSON.stringify(indicator.indicator_raw_id)
-          }: ${describeNewIndicatorIdIssue(idIssue)}`,
-        };
-      }
-    }
-
-    // Check that all mapped common ids exist (friendlier than the FK error)
-    const allCommonIds = [
-      ...new Set(indicators.flatMap((i) => i.mapped_common_ids)),
-    ];
-    if (allCommonIds.length > 0) {
-      const existingCommon = await mainDb<{ indicator_common_id: string }[]>`
-        SELECT indicator_common_id FROM indicators
-        WHERE indicator_common_id = ANY(${allCommonIds})
-      `;
-      const existingCommonSet = new Set(
-        existingCommon.map((r) => r.indicator_common_id),
-      );
-      const missingCommon = allCommonIds.filter(
-        (id) => !existingCommonSet.has(id),
-      );
-      if (missingCommon.length > 0) {
-        return {
-          success: false,
-          err: `Mapped common indicators do not exist: ${
-            missingCommon.join(", ")
-          }`,
-        };
-      }
-    }
-
-    // All-or-nothing: one failed item aborts the whole Postgres transaction
-    // (every later statement fails with "transaction is aborted"), so
-    // per-item catch-and-continue can never deliver partial success. The
-    // rethrow decorates the error with the item that caused it.
-    await mainDb.begin(async (sql) => {
-      for (const indicator of indicators) {
-        try {
-          await sql`
-            INSERT INTO indicators_raw (indicator_raw_id, indicator_raw_label, updated_at)
-            VALUES (${indicator.indicator_raw_id}, ${indicator.indicator_raw_label}, CURRENT_TIMESTAMP)
-            ON CONFLICT (indicator_raw_id)
-            DO UPDATE SET
-              indicator_raw_label = EXCLUDED.indicator_raw_label,
-              updated_at = CURRENT_TIMESTAMP
-          `;
-          for (const commonId of indicator.mapped_common_ids) {
-            await sql`
-              INSERT INTO indicator_mappings (indicator_raw_id, indicator_common_id, updated_at)
-              VALUES (${indicator.indicator_raw_id}, ${commonId}, CURRENT_TIMESTAMP)
-              ON CONFLICT (indicator_raw_id, indicator_common_id)
-              DO UPDATE SET updated_at = CURRENT_TIMESTAMP
-            `;
-          }
-        } catch (error) {
-          throw new Error(
-            `${indicator.indicator_raw_id}: ${
-              error instanceof Error ? error.message : "Unknown error"
-            }`,
-          );
-        }
-      }
-    });
-
-    return {
-      success: true,
-      data: { created: indicators.length, failed: 0, errors: [] },
-    };
-  });
-}
-
-// Update a raw indicator and replace its common indicator mappings
-export async function updateIndicatorRaw(
-  mainDb: Sql,
-  oldIndicatorRawId: string,
-  newIndicatorRawId: string,
-  indicatorRawLabel: string,
-  mappedCommonIds: string[],
-): Promise<APIResponseNoData> {
-  return await tryCatchDatabaseAsync(async () => {
-    if (oldIndicatorRawId !== newIndicatorRawId) {
-      return {
-        success: false,
-        err:
-          "Indicator IDs cannot be changed after creation. Create a new indicator instead.",
-      };
-    }
-
-    await mainDb.begin(async (sql) => {
-      // Update the raw indicator
-      await sql`
-        UPDATE indicators_raw 
-        SET 
-          indicator_raw_id = ${newIndicatorRawId},
-          indicator_raw_label = ${indicatorRawLabel},
-          updated_at = CURRENT_TIMESTAMP
-        WHERE indicator_raw_id = ${oldIndicatorRawId}
-      `;
-
-      // Delete existing mappings for this raw indicator
-      await sql`
-        DELETE FROM indicator_mappings 
-        WHERE indicator_raw_id = ${oldIndicatorRawId}
-      `;
-
-      // Create new mappings
-      for (const commonId of mappedCommonIds) {
-        await sql`
-          INSERT INTO indicator_mappings (indicator_raw_id, indicator_common_id, updated_at)
-          VALUES (${newIndicatorRawId}, ${commonId}, CURRENT_TIMESTAMP)
-        `;
-      }
-    });
-
-    return { success: true };
-  });
-}
-
-// Delete raw indicators (checks for usage in dataset_hmis first)
-export async function deleteIndicatorRaw(
-  mainDb: Sql,
-  indicatorRawIds: string[],
-): Promise<APIResponseNoData> {
-  return await tryCatchDatabaseAsync(async () => {
-    if (indicatorRawIds.length === 0) {
-      return { success: true };
-    }
-
-    // Check if any raw indicators are used in dataset_hmis
-    const usageCheck = await mainDb<
-      { indicator_raw_id: string; count: number }[]
-    >`
-      SELECT indicator_raw_id, COUNT(*) as count 
-      FROM dataset_hmis 
-      WHERE indicator_raw_id = ANY(${indicatorRawIds})
-      GROUP BY indicator_raw_id
-    `;
-
-    const usedIndicators = usageCheck.filter((row) => row.count > 0);
-    if (usedIndicators.length > 0) {
-      const usageDetails = usedIndicators
-        .map((u) => `${u.indicator_raw_id} (${u.count} records)`)
-        .join(", ");
-      return {
-        success: false,
-        err:
-          `Cannot delete raw indicators with data in dataset_hmis: ${usageDetails}`,
-      };
-    }
-
-    // Check if all indicators exist
-    const existingIndicators = await mainDb<{ indicator_raw_id: string }[]>`
-      SELECT indicator_raw_id
-      FROM indicators_raw
-      WHERE indicator_raw_id = ANY(${indicatorRawIds})
-    `;
-
-    const existingIds = existingIndicators.map((row) => row.indicator_raw_id);
-    const notFoundIds = indicatorRawIds.filter(
-      (id) => !existingIds.includes(id),
-    );
-    if (notFoundIds.length > 0) {
-      return {
-        success: false,
-        err: `Raw indicators not found: ${notFoundIds.join(", ")}`,
-      };
-    }
-
-    // CASCADE foreign key will automatically delete mappings
-    await mainDb`
-      DELETE FROM indicators_raw 
-      WHERE indicator_raw_id = ANY(${indicatorRawIds})
-    `;
-
-    return { success: true };
-  });
-}
-
-// =============================================================================
-// BULK OPERATIONS
-// =============================================================================
-
-// Batch upload raw indicators from CSV file (ID and label only, no mappings)
-export async function batchUploadRawIndicators(
-  mainDb: Sql,
-  assetFileName: string,
-  replaceAllExisting: boolean,
-): Promise<APIResponseNoData> {
-  return await tryCatchDatabaseAsync(async () => {
-    const filePath = resolveAssetFilePath(assetFileName);
-    let csvData: Record<string, string>[];
-    try {
-      csvData = (
-        await readCsvFile(filePath, {
-          rowHeaders: "none",
-        })
-      ).toObjects();
-    } catch (error) {
-      return {
-        success: false,
-        err: `Failed to read CSV file: ${
-          error instanceof Error ? error.message : String(error)
+        err: `Cannot delete indicators that other indicators are defined from: ${
+          blocked.join("; ")
         }`,
       };
     }
 
-    const batchIndicators = csvData.map((row: Record<string, string>) => ({
-      raw_indicator_id: row.raw_indicator_id || "",
-      raw_indicator_label: row.raw_indicator_label || "",
-    }));
-
-    for (const batch of batchIndicators) {
-      if (!batch.raw_indicator_id || !batch.raw_indicator_label) {
-        return {
-          success: false,
-          err: "Each row must have raw_indicator_id and raw_indicator_label",
-        };
-      }
-    }
-
-    // Row numbers are 1-based and count the CSV header row
-    const invalidIdRows = batchIndicators.flatMap((batch, index) => {
-      const idIssue = getNewSourceIdIssue(batch.raw_indicator_id);
-      return idIssue
-        ? [
-          `row ${index + 2} (${batch.raw_indicator_id}): ${
-            describeNewIndicatorIdIssue(idIssue)
-          }`,
-        ]
-        : [];
-    });
-    if (invalidIdRows.length > 0) {
-      return {
-        success: false,
-        err: `Invalid indicator IDs in CSV: ${invalidIdRows.join("; ")}`,
-      };
-    }
-
-    await mainDb.begin(async (sql) => {
-      if (replaceAllExisting) {
-        await sql`DELETE FROM indicators_raw`;
-      }
-
-      for (const batch of batchIndicators) {
-        await sql`
-          INSERT INTO indicators_raw (indicator_raw_id, indicator_raw_label, updated_at)
-          VALUES (${batch.raw_indicator_id}, ${batch.raw_indicator_label}, CURRENT_TIMESTAMP)
-          ON CONFLICT (indicator_raw_id)
-          DO UPDATE SET
-            indicator_raw_label = EXCLUDED.indicator_raw_label,
-            updated_at = CURRENT_TIMESTAMP
-        `;
-      }
-    });
+    await mainDb`
+      DELETE FROM indicators
+      WHERE indicator_common_id = ANY(${indicatorIds})
+    `;
 
     return { success: true };
   });
 }
 
-// Batch upload indicators from CSV file
+// =============================================================================
+// BATCH FILE (PLAN_A3 ruling 11)
+// =============================================================================
+
+type BatchRow = {
+  row: number;
+  id: string;
+  label: string;
+  type: CommonIndicatorDefinition["type"];
+  sources: string[];
+  expression: string;
+  format_as: IndicatorFormat;
+  thresholds: ThresholdsRule | null;
+};
+
+const BATCH_FORMATS: readonly IndicatorFormat[] = [
+  "number",
+  "percent",
+  "rate_per_10k",
+];
+
+// One file, one row per indicator: `sources` semicolon-separated for a
+// base and empty for a derived. Upsert keeps an existing row's sort_order;
+// replace deletes every indicator the file does not name, refusing with a
+// listing when that would remove a source with data or an id a surviving
+// expression names. Every id goes through the validator.
 export async function batchUploadIndicators(
   mainDb: Sql,
   assetFileName: string,
   replaceAllExisting: boolean,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    // Read and parse the CSV file
     const filePath = resolveAssetFilePath(assetFileName);
     let csvData: Record<string, string>[];
     try {
       csvData = (
-        await readCsvFile(filePath, {
-          rowHeaders: "none",
-        })
+        await readCsvFile(filePath, { rowHeaders: "none" })
       ).toObjects();
     } catch (error) {
       return {
@@ -919,161 +729,160 @@ export async function batchUploadIndicators(
       };
     }
 
-    // Parse batch indicators from CSV
-    const batchIndicators: BatchIndicator[] = csvData.map(
-      (row: Record<string, string>) => ({
-        indicator_common_id: row.indicator_common_id || "",
-        indicator_common_label: row.indicator_common_label || "",
-        mapped_raw_indicator_ids: row.mapped_raw_indicator_ids || "",
-      }),
-    );
-
-    // Validate required fields
-    for (const batch of batchIndicators) {
-      if (!batch.indicator_common_id || !batch.indicator_common_label) {
-        return {
-          success: false,
-          err:
-            "Each row must have indicator_common_id and indicator_common_label",
-        };
-      }
+    const parsed = parseBatchRows(csvData);
+    if (!parsed.ok) {
+      return { success: false, err: parsed.err };
     }
+    const rows = parsed.rows;
 
-    // Parse the mapped_raw_indicator_ids (comma, colon, or semicolon separated)
-    const parsedBatchIndicators = batchIndicators.map((batch) => ({
-      ...batch,
-      rawIds: batch.mapped_raw_indicator_ids
-        .split(/[,:;]/)
-        .map((id) => id.trim())
-        .filter((id) => id.length > 0),
-    }));
+    const existing = await getIndicatorsWithSources(mainDb);
+    const existingById = new Map(existing.map((i) => [i.indicator_common_id, i]));
+    const fileIds = new Set(rows.map((r) => r.id));
 
-    // Row numbers are 1-based and count the CSV header row
-    const invalidIdRows = parsedBatchIndicators.flatMap((batch, index) => {
-      const rowErrors: string[] = [];
-      const commonIdIssue = getNewIndicatorIdIssue(
-        batch.indicator_common_id,
-        "base",
-      );
-      if (commonIdIssue) {
-        rowErrors.push(
-          `row ${index + 2} (${batch.indicator_common_id}): ${
-            describeNewIndicatorIdIssue(commonIdIssue)
-          }`,
+    // Row numbers are 1-based and count the CSV header row.
+    const problems: string[] = [];
+    for (const r of rows) {
+      const current = existingById.get(r.id);
+      const idIssue = current === undefined
+        ? getNewIndicatorIdIssue(r.id, r.type)
+        : getSpecialIndicatorTypeIssue(r.id, r.type);
+      if (idIssue) {
+        problems.push(
+          `row ${r.row} (${r.id}): ${describeNewIndicatorIdIssue(idIssue)}`,
         );
       }
-      for (const rawId of batch.rawIds) {
-        const rawIdIssue = getNewSourceIdIssue(rawId);
-        if (rawIdIssue) {
-          rowErrors.push(
-            `row ${index + 2} (${rawId}): ${
-              describeNewIndicatorIdIssue(rawIdIssue)
-            }`,
+      for (const sourceId of r.sources) {
+        const issue = getNewSourceIdIssue(sourceId);
+        if (issue) {
+          problems.push(
+            `row ${r.row} (${sourceId}): ${describeNewIndicatorIdIssue(issue)}`,
           );
         }
       }
-      return rowErrors;
-    });
-    if (invalidIdRows.length > 0) {
+    }
+    if (problems.length > 0) {
+      return { success: false, err: `Invalid ids in CSV: ${problems.join("; ")}` };
+    }
+
+    // The dictionary the file describes.
+    const sourceOwner = new Map<string, string>();
+    for (const r of rows) {
+      for (const sourceId of r.sources) {
+        const other = sourceOwner.get(sourceId);
+        if (other !== undefined && other !== r.id) {
+          return {
+            success: false,
+            err: `A source belongs to exactly one base indicator; ${sourceId} is listed under ${other} and ${r.id}`,
+          };
+        }
+        sourceOwner.set(sourceId, r.id);
+      }
+    }
+    if (!replaceAllExisting) {
+      for (const i of existing) {
+        if (fileIds.has(i.indicator_common_id)) continue;
+        for (const s of i.sources) {
+          const fileOwner = sourceOwner.get(s.source_id);
+          if (fileOwner !== undefined) {
+            return {
+              success: false,
+              err: `A source belongs to exactly one base indicator; ${s.source_id} already belongs to ${i.indicator_common_id} and the file lists it under ${fileOwner}`,
+            };
+          }
+        }
+      }
+    }
+
+    // Sources the write would remove: a replace removes every source the
+    // file does not list; an upsert removes the sources of a row it
+    // rewrites that the row no longer lists.
+    const removedSourceIds: string[] = [];
+    for (const i of existing) {
+      const inFile = fileIds.has(i.indicator_common_id);
+      if (!inFile && !replaceAllExisting) continue;
+      const kept = new Set(
+        inFile ? rows.find((r) => r.id === i.indicator_common_id)!.sources : [],
+      );
+      for (const s of i.sources) {
+        if (!kept.has(s.source_id) && sourceOwner.get(s.source_id) === undefined) {
+          removedSourceIds.push(s.source_id);
+        }
+      }
+    }
+    const withData = await sourcesWithData(mainDb, removedSourceIds);
+    if (withData.length > 0) {
       return {
         success: false,
-        err: `Invalid indicator IDs in CSV: ${invalidIdRows.join("; ")}`,
+        err: `The file would remove sources that have data: ${
+          describeSourcesWithData(withData)
+        }. Keep them in the file or delete their data first.`,
       };
     }
 
-    // A CSV row defines a BASE common (id, label, raw mappings). An id that is
-    // currently derived cannot take that definition: the upsert would attach
-    // mappings to a formula (updateIndicatorCommon's rule, enforced here
-    // too). Checked against the live table in BOTH modes: the replace-all
-    // wipe deliberately keeps derived rows.
-    const csvIds = parsedBatchIndicators.map((b) => b.indicator_common_id);
-    const nonBase = await mainDb<{ indicator_common_id: string }[]>`
-      SELECT indicator_common_id FROM indicators
-      WHERE indicator_common_id = ANY(${csvIds})
-        AND definition_type <> 'base'
-    `;
-    if (nonBase.length > 0) {
-      return {
-        success: false,
-        err: `These ids are derived indicators, which are defined by an expression, not by raw mappings: ${
-          nonBase.map((r) => r.indicator_common_id).join(", ")
-        }. Edit or delete them in the indicator manager first.`,
-      };
-    }
+    const removedIndicatorIds = replaceAllExisting
+      ? existing
+        .map((i) => i.indicator_common_id)
+        .filter((id) => !fileIds.has(id))
+      : [];
 
-    // Process the batch indicators in a transaction
     await mainDb.begin(async (sql) => {
-      // If replaceAllExisting is true, delete all existing indicators and mappings first
-      if (replaceAllExisting) {
-        // Delete all mappings
+      if (removedIndicatorIds.length > 0) {
         await sql`
-          DELETE FROM indicator_mappings
-        `;
-
-        // Delete all raw indicators
-        await sql`
-          DELETE FROM indicators_raw
-        `;
-
-        // Delete all non-default BASE common indicators. Derived rows are
-        // definitions, not data mappings, and a CSV of ids and raw mappings
-        // has nothing to say about them.
-        await sql`
-          DELETE FROM indicators
-          WHERE is_default = FALSE AND definition_type = 'base'
+          DELETE FROM indicators WHERE indicator_common_id = ANY(${removedIndicatorIds})
         `;
       }
-
-      // New rows sort after everything that exists (CSV order preserved);
-      // an update keeps the row's place. Without this the column DEFAULT 0
-      // would put every uploaded common ahead of the seeded ones.
       let sortOrder = (
         await sql<{ next: number }[]>`
           SELECT COALESCE(MAX(sort_order), 0) + 1 AS next FROM indicators
         `
       )[0].next;
-
-      for (const batch of parsedBatchIndicators) {
-        const rawIds = batch.rawIds;
-
-        // Insert or update the common indicator
+      for (const r of rows) {
+        const definition: CommonIndicatorDefinition = r.type === "base"
+          ? { type: "base" }
+          : { type: "derived", expression: r.expression };
+        const d = definitionFields(definition);
+        const current = existingById.get(r.id);
+        // New rows sort after everything that exists (CSV order preserved);
+        // an update keeps the row's place.
         await sql`
-          INSERT INTO indicators (indicator_common_id, indicator_common_label, is_default, sort_order, updated_at)
-          VALUES (${batch.indicator_common_id}, ${batch.indicator_common_label}, FALSE, ${sortOrder++}, CURRENT_TIMESTAMP)
-          ON CONFLICT (indicator_common_id)
-          DO UPDATE SET
+          INSERT INTO indicators (
+            indicator_common_id, indicator_common_label, definition_type, expression,
+            format_as, thresholds, sort_order, updated_at
+          )
+          VALUES (
+            ${r.id}, ${r.label}, ${d.definition_type}, ${d.expression},
+            ${r.format_as}, ${thresholdsToDb(r.thresholds)}, ${sortOrder++}, CURRENT_TIMESTAMP
+          )
+          ON CONFLICT (indicator_common_id) DO UPDATE SET
             indicator_common_label = EXCLUDED.indicator_common_label,
+            definition_type = EXCLUDED.definition_type,
+            expression = EXCLUDED.expression,
+            format_as = EXCLUDED.format_as,
+            thresholds = EXCLUDED.thresholds,
             updated_at = CURRENT_TIMESTAMP
         `;
-
-        // First, ensure all raw indicators exist in indicators_raw
-        for (const rawId of rawIds) {
-          // Note: Using rawId as label since batch upload CSV doesn't provide raw indicator labels
-          // Users should use updateIndicatorRaw to set proper labels after batch upload
-          await sql`
-            INSERT INTO indicators_raw (indicator_raw_id, indicator_raw_label, updated_at)
-            VALUES (${rawId}, ${rawId}, CURRENT_TIMESTAMP)
-            ON CONFLICT (indicator_raw_id)
-            DO UPDATE SET
-              updated_at = CURRENT_TIMESTAMP
-          `;
-        }
-
-        // Then insert mappings for each raw indicator ID
-        for (const rawId of rawIds) {
-          await sql`
-            INSERT INTO indicator_mappings (indicator_raw_id, indicator_common_id, updated_at)
-            VALUES (${rawId}, ${batch.indicator_common_id}, CURRENT_TIMESTAMP)
-            ON CONFLICT (indicator_raw_id, indicator_common_id)
-            DO UPDATE SET
-              updated_at = CURRENT_TIMESTAMP
-          `;
-        }
+        const keptSources = new Set(r.sources);
+        await sql`
+          DELETE FROM indicator_sources
+          WHERE indicator_id = ${r.id} AND NOT (source_id = ANY(${r.sources}))
+        `;
+        // The file carries no source labels: an existing source keeps its
+        // label, a new one is labelled by its id until edited.
+        const currentLabels = new Map(
+          (current?.sources ?? []).map((s) => [s.source_id, s.source_label]),
+        );
+        await writeSources(
+          sql,
+          r.id,
+          [...keptSources].map((source_id) => ({
+            source_id,
+            source_label: currentLabels.get(source_id) ?? source_id,
+          })),
+        );
       }
 
-      // A wipe can strip a base common that some derived indicator's formula
-      // still names. That used to surface as a foreign-key error from the
-      // retired calculated_indicators table; it stays a loud abort.
+      // The file's expressions are checked against the dictionary the file
+      // leaves behind: an unresolvable one aborts the whole write.
       const survivors = await loadExpressionDictionaryEntries(sql);
       const dictionary = buildExpressionDictionary(survivors);
       for (const survivor of survivors) {
@@ -1089,4 +898,67 @@ export async function batchUploadIndicators(
 
     return { success: true };
   });
+}
+
+function parseBatchRows(
+  csvData: Record<string, string>[],
+): { ok: true; rows: BatchRow[] } | { ok: false; err: string } {
+  const rows: BatchRow[] = [];
+  const seen = new Set<string>();
+  for (const [index, raw] of csvData.entries()) {
+    const row = index + 2;
+    const cell = (key: (typeof INDICATOR_BATCH_FILE_COLUMNS)[number]) =>
+      (raw[key] ?? "").trim();
+    const id = cell("indicator_id");
+    const label = cell("label");
+    const type = cell("type") || "base";
+    if (!id || !label) {
+      return {
+        ok: false,
+        err: `row ${row}: indicator_id and label are required (columns: ${
+          INDICATOR_BATCH_FILE_COLUMNS.join(", ")
+        })`,
+      };
+    }
+    if (seen.has(id)) {
+      return { ok: false, err: `row ${row}: ${id} appears more than once` };
+    }
+    seen.add(id);
+    if (!isCommonIndicatorType(type)) {
+      return { ok: false, err: `row ${row} (${id}): type must be base or derived` };
+    }
+    const sources = cell("sources")
+      .split(INDICATOR_BATCH_SOURCES_SEPARATOR)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+    const expression = cell("expression");
+    if (type === "base" && expression !== "") {
+      return { ok: false, err: `row ${row} (${id}): a base indicator has no expression` };
+    }
+    if (type === "derived" && expression === "") {
+      return { ok: false, err: `row ${row} (${id}): a derived indicator needs an expression` };
+    }
+    if (type === "derived" && sources.length > 0) {
+      return { ok: false, err: `row ${row} (${id}): a derived indicator has no sources` };
+    }
+    const formatCell = cell("format_as") || "number";
+    if (!(BATCH_FORMATS as readonly string[]).includes(formatCell)) {
+      return { ok: false, err: `row ${row} (${id}): format_as must be one of ${BATCH_FORMATS.join(", ")}` };
+    }
+    const format_as = formatCell as IndicatorFormat;
+    if (type === "base" && format_as !== "number") {
+      return { ok: false, err: `row ${row} (${id}): a base indicator is a count and is always formatted as a number` };
+    }
+    let thresholds: ThresholdsRule | null = null;
+    const thresholdsCell = cell("thresholds");
+    if (thresholdsCell !== "") {
+      try {
+        thresholds = thresholdsRuleSchema.parse(JSON.parse(thresholdsCell));
+      } catch {
+        return { ok: false, err: `row ${row} (${id}): thresholds is not a valid rule` };
+      }
+    }
+    rows.push({ row, id, label, type, sources, expression, format_as, thresholds });
+  }
+  return { ok: true, rows };
 }

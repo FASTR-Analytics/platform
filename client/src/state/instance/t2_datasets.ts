@@ -3,8 +3,8 @@ import {
   hashStructureSchema,
   ItemsHolderDatasetHmisDisplay,
   type HfaDictionaryForValidation,
+  type HmisDatatableView,
   type IcehDisplayData,
-  type IndicatorType,
   type StructureSchema,
 } from "lib";
 import type { ItemsHolderDatasetHfaDisplay } from "lib";
@@ -26,7 +26,7 @@ import { createReactiveCache } from "../_infra/reactive_cache";
 
 const _DATASET_HMIS_DISPLAY_INFO_CACHE = createReactiveCache<
   {
-    rawOrCommonIndicators: IndicatorType;
+    view: HmisDatatableView;
     structureSchema: StructureSchema;
     versionId: number;
     baseIndicatorMappingsVersion: string;
@@ -39,7 +39,7 @@ const _DATASET_HMIS_DISPLAY_INFO_CACHE = createReactiveCache<
   // data cache
   uniquenessKeys: (params) => {
     const schemaHash = hashStructureSchema(params.structureSchema);
-    return [params.rawOrCommonIndicators, schemaHash];
+    return [params.view, schemaHash];
   },
   // structureLastUpdated closes the hole where a facility re-import changes
   // the admin tree without any other key moving; the undefined case (no
@@ -52,7 +52,7 @@ const _DATASET_HMIS_DISPLAY_INFO_CACHE = createReactiveCache<
 });
 
 export async function getDatasetHmisDisplayInfoFromCacheOrFetch(
-  rawOrCommonIndicators: IndicatorType,
+  view: HmisDatatableView,
   versionId: number,
   baseIndicatorMappingsVersion: string,
   structureSchema: StructureSchema,
@@ -64,7 +64,7 @@ export async function getDatasetHmisDisplayInfoFromCacheOrFetch(
   // (mirrors the server's Valkey bypass; the token flips at run end).
   if (hmisImportRunActive) {
     return await serverActions.getDatasetHmisDisplayInfo({
-      rawOrCommonIndicators,
+      view,
       versionId,
       baseIndicatorMappingsVersion,
       structureSchema,
@@ -72,7 +72,7 @@ export async function getDatasetHmisDisplayInfoFromCacheOrFetch(
   }
 
   const { data, version } = await _DATASET_HMIS_DISPLAY_INFO_CACHE.get({
-    rawOrCommonIndicators,
+    view,
     structureSchema,
     versionId,
     baseIndicatorMappingsVersion,
@@ -84,7 +84,7 @@ export async function getDatasetHmisDisplayInfoFromCacheOrFetch(
   }
 
   const newPromise = serverActions.getDatasetHmisDisplayInfo({
-    rawOrCommonIndicators,
+    view,
     versionId,
     baseIndicatorMappingsVersion,
     structureSchema,
@@ -93,7 +93,7 @@ export async function getDatasetHmisDisplayInfoFromCacheOrFetch(
   _DATASET_HMIS_DISPLAY_INFO_CACHE.setPromise(
     newPromise,
     {
-      rawOrCommonIndicators,
+      view,
       structureSchema,
       versionId,
       baseIndicatorMappingsVersion,

@@ -106,20 +106,6 @@ export type DBProjectUserRole = {
   can_view_script_code: boolean;
 };
 
-// Structure
-
-export type DBIndicatorRaw = {
-  indicator_raw_id: string;
-  indicator_raw_label: string;
-  updated_at: string;
-};
-
-export type DBIndicatorMapping = {
-  indicator_raw_id: string;
-  indicator_common_id: string;
-  updated_at: string;
-};
-
 // Upload attempts
 
 export type DBStructureUploadAttempt = {

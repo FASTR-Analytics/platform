@@ -19,8 +19,8 @@ export function CsvStagingSummary(p: Props) {
   const uniquePeriods = () =>
     new Set(p.result.periodIndicatorStats.map((s) => s.periodId)).size;
 
-  const uniqueIndicators = () =>
-    new Set(p.result.periodIndicatorStats.map((s) => s.indicatorRawId)).size;
+  const uniqueSources = () =>
+    new Set(p.result.periodIndicatorStats.map((s) => s.sourceId)).size;
 
   return (
     <div class="ui-spy">
@@ -74,7 +74,7 @@ export function CsvStagingSummary(p: Props) {
             (p.result.validation.invalidCounts?.rowsDropped || 0) > 0 ||
             (p.result.validation.invalidPeriods?.rowsDropped || 0) > 0 ||
             (p.result.validation.invalidFacilities?.rowsDropped || 0) > 0 ||
-            (p.result.validation.unmappedIndicators?.rowsDropped || 0) > 0)
+            (p.result.validation.unknownSources?.rowsDropped || 0) > 0)
             ? p.result.validation
             : undefined
         }
@@ -139,23 +139,23 @@ export function CsvStagingSummary(p: Props) {
                   </div>
                 </Show>
               </Show>
-              <Show when={validation().unmappedIndicators?.rowsDropped}>
+              <Show when={validation().unknownSources?.rowsDropped}>
                 <div class="text-danger flex justify-between">
-                  <span>{t3({ en: "Unmapped indicators:", fr: "Indicateurs non mappés :", pt: "Indicadores não mapeados:" })}</span>
+                  <span>{t3({ en: "Unknown sources (no indicator has them):", fr: "Sources inconnues (aucun indicateur ne les a) :", pt: "Fontes desconhecidas (nenhum indicador as tem):" })}</span>
                   <span class="font-mono">
-                    {toNum0(validation().unmappedIndicators.rowsDropped)}{" "}
+                    {toNum0(validation().unknownSources.rowsDropped)}{" "}
                     {t3({ en: "rows dropped", fr: "lignes supprimées", pt: "linhas descartadas" })}
                   </span>
                 </div>
-                <Show when={validation().unmappedIndicators.sample?.length}>
+                <Show when={validation().unknownSources.sample?.length}>
                   <div class="text-base-content ml-4 text-sm">
-                    <div class="mb-1">{t3({ en: "Sample unmapped indicators:", fr: "Exemples d'indicateurs non mappés :", pt: "Exemplos de indicadores não mapeados:" })}</div>
+                    <div class="mb-1">{t3({ en: "Sample unknown sources:", fr: "Exemples de sources inconnues :", pt: "Exemplos de fontes desconhecidas:" })}</div>
                     <div class="font-mono">
                       {validation()
-                        .unmappedIndicators.sample.slice(0, 5)
+                        .unknownSources.sample.slice(0, 5)
                         .map(
-                          (indicator) =>
-                            `${indicator.indicator_raw_id} (${toNum0(indicator.row_count)} ${t3({ en: "rows", fr: "lignes", pt: "linhas" })})`,
+                          (source) =>
+                            `${source.source_id} (${toNum0(source.row_count)} ${t3({ en: "rows", fr: "lignes", pt: "linhas" })})`,
                         )
                         .join(", ")}
                     </div>
@@ -179,8 +179,8 @@ export function CsvStagingSummary(p: Props) {
             <span class="font-mono">{uniquePeriods()}</span>
           </div>
           <div class="flex justify-between">
-            <span class="text-base-content">{t3({ en: "Unique indicators:", fr: "Indicateurs uniques :", pt: "Indicadores únicos:" })}</span>
-            <span class="font-mono">{uniqueIndicators()}</span>
+            <span class="text-base-content">{t3({ en: "Unique sources:", fr: "Sources uniques :", pt: "Fontes únicas:" })}</span>
+            <span class="font-mono">{uniqueSources()}</span>
           </div>
         </div>
       </div>

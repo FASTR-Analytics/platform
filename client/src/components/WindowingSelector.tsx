@@ -6,7 +6,7 @@ import {
   makeAa3CompositeKey,
   t3,
   type DatasetHmisWindowing,
-  type DatasetHmisWindowingRaw,
+  type DatasetHmisWindowingSource,
   type StructureSchema,
   type TranslatableString,
 } from "lib";
@@ -42,33 +42,33 @@ type Props<T extends DatasetHmisWindowing> = {
 };
 
 export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
-  const isRawIndicators = (
+  const isSourceGrain = (
     w: DatasetHmisWindowing,
-  ): w is DatasetHmisWindowingRaw => w.indicatorType === "raw";
+  ): w is DatasetHmisWindowingSource => w.grain === "source";
 
   const getIndicators = () => {
-    if (isRawIndicators(p.tempWindowing)) {
-      return p.tempWindowing.rawIndicatorsToInclude ?? [];
+    if (isSourceGrain(p.tempWindowing)) {
+      return p.tempWindowing.sourcesToInclude ?? [];
     } else {
-      return p.tempWindowing.commonIndicatorsToInclude ?? [];
+      return p.tempWindowing.indicatorsToInclude ?? [];
     }
   };
 
   const setIndicators = (values: string[]) => {
-    if (isRawIndicators(p.tempWindowing)) {
-      (p.setTempWindowing as SetStoreFunction<DatasetHmisWindowingRaw>)(
-        "rawIndicatorsToInclude",
+    if (isSourceGrain(p.tempWindowing)) {
+      (p.setTempWindowing as SetStoreFunction<DatasetHmisWindowingSource>)(
+        "sourcesToInclude",
         values,
       );
     } else {
-      (p.setTempWindowing as any)("commonIndicatorsToInclude", values);
+      (p.setTempWindowing as any)("indicatorsToInclude", values);
     }
   };
 
   const itemsHolder = createQuery(
     () =>
       getDatasetHmisDisplayInfoFromCacheOrFetch(
-        p.tempWindowing.indicatorType,
+        p.tempWindowing.grain,
         p.hmisVersionId,
         p.baseIndicatorMappingsVersion,
         p.structureSchema,
@@ -229,7 +229,6 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
 
                           const inSelectedIndicators =
                             takeAll ||
-                            // TODO: prefer .id once we confirm `indicators` holds raw source ids
                             indicators.includes(pointInfo.seriesHeader.label);
 
                           const isGreen = inPeriodRange && inSelectedIndicators;
@@ -254,7 +253,6 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
 
                           const inSelectedIndicators =
                             takeAll ||
-                            // TODO: prefer .id once we confirm `indicators` holds raw source ids
                             indicators.includes(pointInfo.seriesHeader.label);
 
                           const isRed = inPeriodRange && inSelectedIndicators;
@@ -309,23 +307,33 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
               />
             </div>
             <ToggledMultiSelect
-              heading={{
-                en: "Indicators",
-                fr: "Indicateurs",
-                pt: "Indicadores",
-              }}
+              heading={isSourceGrain(p.tempWindowing)
+                ? { en: "Sources", fr: "Sources", pt: "Fontes" }
+                : { en: "Indicators", fr: "Indicateurs", pt: "Indicadores" }}
               toggleAllLabel={
-                isDelete
-                  ? {
-                      en: "Delete all indicators",
-                      fr: "Supprimer tous les indicateurs",
-                      pt: "Eliminar todos os indicadores",
-                    }
-                  : {
-                      en: "Include all indicators",
-                      fr: "Inclure tous les indicateurs",
-                      pt: "Incluir todos os indicadores",
-                    }
+                isSourceGrain(p.tempWindowing)
+                  ? isDelete
+                    ? {
+                        en: "Delete all sources",
+                        fr: "Supprimer toutes les sources",
+                        pt: "Eliminar todas as fontes",
+                      }
+                    : {
+                        en: "Include all sources",
+                        fr: "Inclure toutes les sources",
+                        pt: "Incluir todas as fontes",
+                      }
+                  : isDelete
+                    ? {
+                        en: "Delete all indicators",
+                        fr: "Supprimer tous les indicateurs",
+                        pt: "Eliminar todos os indicadores",
+                      }
+                    : {
+                        en: "Include all indicators",
+                        fr: "Inclure tous les indicateurs",
+                        pt: "Incluir todos os indicadores",
+                      }
               }
               takeAll={p.tempWindowing.takeAllIndicators}
               setTakeAll={(v) =>

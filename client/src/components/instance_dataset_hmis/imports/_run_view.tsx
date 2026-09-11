@@ -114,7 +114,7 @@ export function Dhis2RunView(p: Props) {
               <For each={dhis2Progress()?.activePairs ?? []}>
                 {(pair) => (
                   <div class="bg-base-200 rounded px-2 py-1">
-                    {pair.indicatorRawId} ·{" "}
+                    {pair.sourceId} ·{" "}
                     {formatPeriod(pair.periodId, "year-month", getCalendar())}
                   </div>
                 )}

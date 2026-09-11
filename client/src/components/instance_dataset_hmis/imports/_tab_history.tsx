@@ -37,11 +37,21 @@ export function selectionLabel(run: DatasetHmisImportRunSummary): string {
     return "";
   }
   if (run.selection.kind === "window") {
-    return `${toNum0(run.selection.rawIndicatorIds.length)} ${t3({
-      en: "indicators",
-      fr: "indicateurs",
-      pt: "indicadores",
-    })} · ${run.selection.startPeriod}–${run.selection.endPeriod}`;
+    const sources = `${toNum0(run.selection.sourceIds.length)} ${t3({
+      en: "sources",
+      fr: "sources",
+      pt: "fontes",
+    })}`;
+    // A run recorded before PLAN_A3 selected sources directly and has no
+    // indicator selection to show.
+    const label = run.selection.indicatorIds.length === 0
+      ? sources
+      : `${toNum0(run.selection.indicatorIds.length)} ${t3({
+        en: "indicators",
+        fr: "indicateurs",
+        pt: "indicadores",
+      })} (${sources})`;
+    return `${label} · ${run.selection.startPeriod}–${run.selection.endPeriod}`;
   }
   return `${toNum0(run.selection.nPairs)} ${t3({ en: "pairs", fr: "paires", pt: "pares" })}`;
 }

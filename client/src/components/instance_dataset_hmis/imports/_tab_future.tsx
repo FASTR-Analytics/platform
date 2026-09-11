@@ -33,7 +33,7 @@ function whenLabel(s: DatasetHmisScheduledImport): string {
 }
 
 function selectionLabel(s: DatasetHmisScheduledImport): string {
-  return `${toNum0(s.selection.rawIndicatorIds.length)} ${t3({ en: "indicators", fr: "indicateurs", pt: "indicadores" })} × ${
+  return `${toNum0(s.selection.indicatorIds.length)} ${t3({ en: "indicators", fr: "indicateurs", pt: "indicadores" })} × ${
     s.selection.kind === "explicit_range"
       ? `${s.selection.startPeriod}–${s.selection.endPeriod}`
       : `${t3({ en: "last", fr: "derniers", pt: "últimos" })} ${toNum0(s.selection.monthsBack)} ${t3({ en: "months", fr: "mois", pt: "meses" })}`

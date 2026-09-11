@@ -1,11 +1,13 @@
 // ============================================================================
 // DHIS2 IMPORT RUN WORKER
 //
-// One run = fetch + integrate per (raw indicator, month) pair. Each pair
-// commits in its own small transaction (scoped delete → insert → ledger row →
-// run counters), so a run that dies at hour 40 keeps 40 hours of work,
-// visible in the ledger. The dispatcher classifies every selected raw
-// indicator per run from DHIS2 metadata: data elements and operands are
+// One run = fetch + integrate per (source, month) pair. Each pair commits
+// in its own small transaction (scoped delete → insert → ledger row → run
+// counters), so a run that dies at hour 40 keeps 40 hours of work, visible
+// in the ledger. The run's sources were expanded from its selected
+// indicators at launch and travel in the message (PLAN_A3 ruling 7): the
+// worker never re-resolves. The dispatcher classifies every source per run
+// from DHIS2 metadata: data elements and operands are
 // fetched from dataValueSets (the values facilities reported, with no
 // DHIS2-side formula), the importer's only route; a DHIS2 indicator or any
 // id DHIS2 does not know is a permanent ledger error with no fetch. Data is
@@ -38,7 +40,7 @@ import type {
   Dhis2RunCredentialsSource,
   Dhis2RunPair,
   Dhis2RunSelection,
-  PeriodIndicatorRawStat,
+  PeriodSourceStat,
 } from "lib";
 import type { FetchOptions } from "../../dhis2/common/base_fetcher.ts";
 import {
@@ -52,15 +54,15 @@ import {
 } from "../../dhis2/goal5_data_value_sets/mod.ts";
 import type { DHIS2DataValue } from "../../dhis2/goal5_data_value_sets/mod.ts";
 import {
-  classifyRawIndicators,
+  classifySources,
   defaultShouldRetry,
   describeFetchError,
   type DvsCoveredPair,
   type DvsPairReduction,
   isSplittableDvsError,
   pairKey,
-  type RawRoute,
   reduceDvsValues,
+  type SourceRoute,
 } from "./dispatch.ts";
 
 (self as unknown as Worker).onmessage = (e) => {
@@ -96,8 +98,8 @@ type DvsTask = {
   // One pull = one month (ruled 2026-07-14): the fetch unit matches the
   // import unit.
   periodId: number;
-  // Every selected raw indicator this pull covers for that month:
-  // indicators sharing a base element share one pull.
+  // Every selected source this pull covers for that month: sources sharing
+  // a base element share one pull.
   coveredPairs: DvsCoveredPair[];
 };
 
@@ -133,7 +135,7 @@ async function run(std: RunWorkerMessage) {
   // --- Shared run state ------------------------------------------------------
   const pairFetchStats: Dhis2PairFetchStat[] = [];
   const failedFetches: Array<{
-    indicatorRawId: string;
+    sourceId: string;
     periodId: number;
     error: string;
     errorKind: Dhis2FetchErrorKind;
@@ -149,7 +151,7 @@ async function run(std: RunWorkerMessage) {
   // catch path can persist whatever was known when the run died.
   let statsInputs:
     | {
-        routes: Map<string, RawRoute>;
+        routes: Map<string, SourceRoute>;
         unknownIds: string[];
         dhis2IndicatorIds: string[];
       }
@@ -267,8 +269,8 @@ async function run(std: RunWorkerMessage) {
         `DELETE FROM dataset_hmis dt
          USING ${HMIS_DHIS2_RUN_SCOPE_TABLE_NAME} s
          WHERE dt.facility_id = s.facility_id
-           AND dt.indicator_raw_id = $1 AND dt.period_id = $2`,
-        [pair.indicatorRawId, pair.periodId],
+           AND dt.source_id = $1 AND dt.period_id = $2`,
+        [pair.sourceId, pair.periodId],
       );
       totalRowsDeleted += del.count;
       if (rows.length > 0) {
@@ -276,8 +278,8 @@ async function run(std: RunWorkerMessage) {
         const countArr = rows.map((r) => r.count);
         await sql`
           INSERT INTO dataset_hmis
-            (facility_id, indicator_raw_id, period_id, count, version_id)
-          SELECT t.f, ${pair.indicatorRawId}, ${pair.periodId}, t.c, ${versionId}
+            (facility_id, source_id, period_id, count, version_id)
+          SELECT t.f, ${pair.sourceId}, ${pair.periodId}, t.c, ${versionId}
           FROM UNNEST(${facilityArr}::text[], ${countArr}::int[]) AS t(f, c)
         `;
         totalRowsInserted += rows.length;
@@ -306,7 +308,7 @@ async function run(std: RunWorkerMessage) {
     failedFetches.push({ ...pair, error: capped, errorKind });
     failedPairsCount++;
     console.error(
-      `Pair failed [${errorKind}]: ${pair.indicatorRawId} / ${pair.periodId}: ${capped}`,
+      `Pair failed [${errorKind}]: ${pair.sourceId} / ${pair.periodId}: ${capped}`,
     );
     try {
       await importDb.begin(async (sql) => {
@@ -402,11 +404,11 @@ async function run(std: RunWorkerMessage) {
       retryOptions: { maxAttempts: 3, initialDelayMs: 1000, maxDelayMs: 30000 },
     };
 
-    const distinctRawIds = Array.from(
-      new Set(allPairs.map((p) => p.indicatorRawId)),
+    const distinctSourceIds = Array.from(
+      new Set(allPairs.map((p) => p.sourceId)),
     );
-    const routes = await classifyRawIndicators(
-      distinctRawIds,
+    const routes = await classifySources(
+      distinctSourceIds,
       metadataFetchOptions,
     );
 
@@ -414,14 +416,14 @@ async function run(std: RunWorkerMessage) {
       const route = routes.get(id);
       return route?.kind === "unknown" ? route.reason : undefined;
     };
-    const unknownIds = distinctRawIds.filter(
+    const unknownIds = distinctSourceIds.filter(
       (id) => unknownReason(id) === "not_found",
     );
-    const dhis2IndicatorIds = distinctRawIds.filter(
+    const dhis2IndicatorIds = distinctSourceIds.filter(
       (id) => unknownReason(id) === "dhis2_indicator",
     );
     const dvsPairs = allPairs.filter(
-      (p) => routes.get(p.indicatorRawId)?.kind === "dvs",
+      (p) => routes.get(p.sourceId)?.kind === "dvs",
     );
     console.log(
       `Run ${runId} classification: ${dvsPairs.length} dvs pairs, ` +
@@ -432,7 +434,7 @@ async function run(std: RunWorkerMessage) {
     // ledger-visible error so stale config is loud. A DHIS2 indicator keeps
     // its existing data; the ledger names the importer that re-creates it.
     const failEveryPairOf = async (id: string, message: string) => {
-      for (const pair of allPairs.filter((p) => p.indicatorRawId === id)) {
+      for (const pair of allPairs.filter((p) => p.sourceId === id)) {
         await failPair(pair, message, "permanent");
       }
     };
@@ -440,7 +442,7 @@ async function run(std: RunWorkerMessage) {
       await failEveryPairOf(
         id,
         `Not found in DHIS2: "${id}" matches no data element or operand ` +
-          `(data element . category option combo). Update or remove this raw indicator.`,
+          `(data element . category option combo). Update or remove this source.`,
       );
     }
     for (const id of dhis2IndicatorIds) {
@@ -476,36 +478,36 @@ async function run(std: RunWorkerMessage) {
 
     const tasks: DvsTask[] = [];
 
-    // Group DVS pairs by base element: indicators sharing a base share pulls.
+    // Group DVS pairs by base element: sources sharing a base share pulls.
     const byBase = new Map<
       string,
-      { raws: Array<{ indicatorRawId: string; coc: string | undefined }>; periodsByRaw: Map<string, Set<number>> }
+      { sources: Array<{ sourceId: string; coc: string | undefined }>; periodsBySource: Map<string, Set<number>> }
     >();
     for (const pair of dvsPairs) {
-      const route = routes.get(pair.indicatorRawId);
+      const route = routes.get(pair.sourceId);
       if (route?.kind !== "dvs") continue;
       let group = byBase.get(route.baseElementId);
       if (!group) {
-        group = { raws: [], periodsByRaw: new Map() };
+        group = { sources: [], periodsBySource: new Map() };
         byBase.set(route.baseElementId, group);
       }
-      if (!group.periodsByRaw.has(pair.indicatorRawId)) {
-        group.raws.push({ indicatorRawId: pair.indicatorRawId, coc: route.coc });
-        group.periodsByRaw.set(pair.indicatorRawId, new Set());
+      if (!group.periodsBySource.has(pair.sourceId)) {
+        group.sources.push({ sourceId: pair.sourceId, coc: route.coc });
+        group.periodsBySource.set(pair.sourceId, new Set());
       }
-      group.periodsByRaw.get(pair.indicatorRawId)!.add(pair.periodId);
+      group.periodsBySource.get(pair.sourceId)!.add(pair.periodId);
     }
     for (const [baseElementId, group] of byBase) {
       const allPeriods = Array.from(
         new Set(
-          Array.from(group.periodsByRaw.values()).flatMap((s) => Array.from(s)),
+          Array.from(group.periodsBySource.values()).flatMap((s) => Array.from(s)),
         ),
       ).sort((a, b) => a - b);
       for (const periodId of allPeriods) {
         const coveredPairs: DvsTask["coveredPairs"] = [];
-        for (const raw of group.raws) {
-          if (group.periodsByRaw.get(raw.indicatorRawId)!.has(periodId)) {
-            coveredPairs.push({ ...raw, periodId });
+        for (const source of group.sources) {
+          if (group.periodsBySource.get(source.sourceId)!.has(periodId)) {
+            coveredPairs.push({ ...source, periodId });
           }
         }
         if (coveredPairs.length > 0) {
@@ -603,7 +605,7 @@ async function run(std: RunWorkerMessage) {
     const runDvsTask = async (task: DvsTask): Promise<void> => {
       for (const covered of task.coveredPairs) {
         activePairs.set(pairKey(covered), {
-          indicatorRawId: covered.indicatorRawId,
+          sourceId: covered.sourceId,
           periodId: covered.periodId,
         });
       }
@@ -623,7 +625,7 @@ async function run(std: RunWorkerMessage) {
         const { message, kind } = describeFetchError(error);
         for (const covered of task.coveredPairs) {
           const pair = {
-            indicatorRawId: covered.indicatorRawId,
+            sourceId: covered.sourceId,
             periodId: covered.periodId,
           };
           pairFetchStats.push({
@@ -631,6 +633,7 @@ async function run(std: RunWorkerMessage) {
             success: false,
             ...accToStat(acc),
             rowsFetched: 0,
+            skippedValues: 0,
             errorKind: kind,
             error: message.slice(0, 1000),
           });
@@ -655,7 +658,7 @@ async function run(std: RunWorkerMessage) {
           `contained values at period "${unexpectedPeriod.period}" — treating as a failed fetch.`;
         for (const covered of task.coveredPairs) {
           const pair = {
-            indicatorRawId: covered.indicatorRawId,
+            sourceId: covered.sourceId,
             periodId: covered.periodId,
           };
           pairFetchStats.push({
@@ -663,6 +666,7 @@ async function run(std: RunWorkerMessage) {
             success: false,
             ...accToStat(acc),
             rowsFetched: values.length,
+            skippedValues: 0,
             errorKind: "permanent",
             error: message,
           });
@@ -676,7 +680,7 @@ async function run(std: RunWorkerMessage) {
       const reductions = reduceDvsValues(values, task.coveredPairs, facilitySet);
       for (const covered of task.coveredPairs) {
         const pair = {
-          indicatorRawId: covered.indicatorRawId,
+          sourceId: covered.sourceId,
           periodId: covered.periodId,
         };
         const reduction = reductions.get(pairKey(covered))!;
@@ -717,7 +721,7 @@ async function run(std: RunWorkerMessage) {
         console.error("Fetch task failed outside pair handling:", error);
         for (const covered of task.coveredPairs) {
           const pair = {
-            indicatorRawId: covered.indicatorRawId,
+            sourceId: covered.sourceId,
             periodId: covered.periodId,
           };
           activePairs.delete(pairKey(pair));
@@ -761,20 +765,20 @@ async function run(std: RunWorkerMessage) {
     if (mintedVersionId !== null) {
       const ledgerRows = await mainDb<
         {
-          indicator_raw_id: string;
+          source_id: string;
           period_id: number;
           n_records: number;
           sum_count: string | number;
         }[]
       >`
-        SELECT indicator_raw_id, period_id, n_records, sum_count
+        SELECT source_id, period_id, n_records, sum_count
         FROM dataset_hmis_import_ledger
         WHERE version_id = ${mintedVersionId}
       `;
-      const periodIndicatorStats = ledgerRows.map<PeriodIndicatorRawStat>(
+      const periodIndicatorStats = ledgerRows.map<PeriodSourceStat>(
         (r) => ({
           periodId: r.period_id,
-          indicatorRawId: r.indicator_raw_id,
+          sourceId: r.source_id,
           nRecords: r.n_records,
           totalCount: Number(r.sum_count),
         }),
@@ -876,8 +880,8 @@ function accToStat(acc: FetchAccumulator): {
 }
 
 function countRoutes(
-  routes: Map<string, RawRoute>,
-  predicate: (r: RawRoute) => boolean,
+  routes: Map<string, SourceRoute>,
+  predicate: (r: SourceRoute) => boolean,
 ): number {
   let n = 0;
   for (const r of routes.values()) {

@@ -80,8 +80,8 @@ export type InstanceState = {
   structureLastUpdated: string | undefined;
   hfaWeights: HfaWeightsCoverage[];
   indicators: {
-    commonIndicators: number;
-    rawIndicators: number;
+    hmisIndicators: number;
+    hmisSources: number;
     hfaIndicators: number;
   };
   datasetsWithData: DatasetType[];
@@ -107,9 +107,10 @@ export type InstanceState = {
 
   // Cache versioning (regular fields, read by dataset caches as version keys).
   // Two indicator stamps, split in PLAN_1a §1.13: the full one moves whenever
-  // ANY common indicator changes and keys the indicator manager; the base one
-  // moves only when the extract-relevant rows change, so editing a derived
-  // definition costs the HMIS datatable caches nothing.
+  // ANY indicator or source changes and keys the indicator manager; the base
+  // one moves only when the extract-relevant rows (base indicators and their
+  // sources) change, so editing a derived definition costs the HMIS datatable
+  // caches nothing.
   indicatorMappingsVersion: string;
   baseIndicatorMappingsVersion: string;
   hfaIndicatorsVersion: string;
@@ -147,8 +148,8 @@ export type InstanceStructureSummary = {
 
 export type InstanceIndicatorsSummary = {
   indicators: {
-    commonIndicators: number;
-    rawIndicators: number;
+    hmisIndicators: number;
+    hmisSources: number;
     hfaIndicators: number;
   };
   indicatorMappingsVersion: string;

@@ -1,7 +1,7 @@
 // The manager list and the editor state the shared computability judgement
 // (`judgeDerivedIndicator` in lib) in the UI language. Display only: a
 // derived indicator that cannot be computed today is a normal state while a
-// country is still mapping raw indicators, so nothing here blocks a save.
+// country is still adding sources, so nothing here blocks a save.
 import {
   type DerivedIndicatorComputability,
   isPopulationTypeId,
@@ -26,14 +26,14 @@ export function computabilityProblemText(
   const ids = judgement.missing.join(", ");
   const detail = judgement.missing.length === 1
     ? t3({
-      en: `${ids} has no mapped raw indicator`,
-      fr: `${ids} n'a aucun indicateur brut associé`,
-      pt: `${ids} não tem nenhum indicador bruto associado`,
+      en: `${ids} has no sources`,
+      fr: `${ids} n'a aucune source`,
+      pt: `${ids} não tem nenhuma fonte`,
     })
     : t3({
-      en: `${ids} have no mapped raw indicators`,
-      fr: `${ids} n'ont aucun indicateur brut associé`,
-      pt: `${ids} não têm nenhum indicador bruto associado`,
+      en: `${ids} have no sources`,
+      fr: `${ids} n'ont aucune source`,
+      pt: `${ids} não têm nenhuma fonte`,
     });
   return `${prefix}: ${detail}`;
 }

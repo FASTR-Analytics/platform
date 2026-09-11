@@ -32,9 +32,10 @@ import type { ThresholdsRule } from "./types/conditional_formatting.ts";
 import type {
   CommonIndicator,
   CommonIndicatorType,
-  CommonIndicatorWithMappings,
   IndicatorFormat,
+  IndicatorWithSources,
 } from "./types/indicators.ts";
+import { isDhis2ShapedSourceId } from "./types/indicators.ts";
 import { isPopulationTypeId } from "./types/population.ts";
 
 // One row of the v2 `indicators.json` mirror. `expression` is flattened and
@@ -81,15 +82,13 @@ export function buildCommonIndicatorDictionary(
 }
 
 // The base commons the extract can produce counts for, read off the
-// mappings the client already holds. Capture reads the same set from SQL.
-export function baseIdsWithMappings(
-  commons: CommonIndicatorWithMappings[],
+// sources the client already holds. Capture reads the same set from SQL.
+export function baseIdsWithSources(
+  commons: IndicatorWithSources[],
 ): Set<string> {
   return new Set(
     commons
-      .filter((c) =>
-        c.definition.type === "base" && c.raw_indicator_ids.length > 0
-      )
+      .filter((c) => c.definition.type === "base" && c.sources.length > 0)
       .map((c) => c.indicator_common_id),
   );
 }
@@ -139,11 +138,11 @@ export function judgeDerivedIndicator(
 // derived common. Base commons are never judged (an unmapped one is the
 // ordinary case, see the catalog below).
 export function judgeDerivedIndicators(
-  commons: CommonIndicatorWithMappings[],
+  commons: IndicatorWithSources[],
   populationTypeIds: string[],
 ): Map<string, DerivedIndicatorComputability> {
   const dictionary = buildCommonIndicatorDictionary(commons, populationTypeIds);
-  const baseIdsInData = baseIdsWithMappings(commons);
+  const baseIdsInData = baseIdsWithSources(commons);
   const judgements = new Map<string, DerivedIndicatorComputability>();
   for (const c of commons) {
     if (c.definition.type === "base") continue;
@@ -168,13 +167,11 @@ function describeComputabilityProblem(
   const { missing } = judgement;
   return `Indicator '${ownId}' is computed from ${missing.join(", ")}, which ${
     missing.length === 1 ? "is" : "are"
-  } not in the data (no raw indicators are mapped to ${
-    missing.length === 1 ? "it" : "them"
-  })`;
+  } not in the data (${missing.length === 1 ? "it has" : "they have"} no sources)`;
 }
 
 // `baseIdsInData` is the set of base commons the extract can actually produce
-// counts for (i.e. that have raw mappings). An expression that reaches outside
+// counts for (i.e. that have sources). An expression that reaches outside
 // it would silently evaluate to NULL everywhere, so it fails the capture
 // instead: the same guard the retired numerator/denominator check performed,
 // now aware of chains. `populationTypeIds` is the store's vocabulary: a
@@ -333,4 +330,95 @@ export function buildIndicatorExpressionsRLiteral(
 // adds for the quote would itself be escaped.
 function rStringLiteral(value: string): string {
   return `"${value.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
+}
+
+// =============================================================================
+// Import selection expansion (PLAN_A3 ruling 7)
+// =============================================================================
+
+// A DHIS2 import selects INDICATORS; the sources it fetches are expanded
+// here, once, where the selection is validated (launch, enqueue and the
+// scheduler's fire path), and the result is persisted on the run row. A
+// derived indicator flattens to its base ingredients through the resolver;
+// a base contributes its sources. Population terms are not fetched, and a
+// source that is not DHIS2-shaped (a CSV column) cannot be, so both are
+// dropped and listed for the run detail. `unknownIndicatorIds` and
+// `unresolvable` are refusals the caller reports.
+export type IndicatorSelectionExpansion = {
+  sourceIds: string[];
+  populationTermsDropped: string[];
+  nonDhis2SourcesDropped: string[];
+  unknownIndicatorIds: string[];
+  unresolvable: { id: string; problem: string }[];
+};
+
+export function expandIndicatorSelectionToSources(
+  indicatorIds: string[],
+  indicators: Pick<
+    IndicatorWithSources,
+    "indicator_common_id" | "definition" | "sources"
+  >[],
+  populationTypeIds: string[],
+): IndicatorSelectionExpansion {
+  const byId = new Map(indicators.map((i) => [i.indicator_common_id, i]));
+  const dictionary = buildCommonIndicatorDictionary(
+    indicators,
+    populationTypeIds,
+  );
+  const baseIds: string[] = [];
+  const populationTermsDropped: string[] = [];
+  const unknownIndicatorIds: string[] = [];
+  const unresolvable: { id: string; problem: string }[] = [];
+  const pushUnique = (list: string[], id: string) => {
+    if (!list.includes(id)) list.push(id);
+  };
+  for (const id of indicatorIds) {
+    const indicator = byId.get(id);
+    if (indicator === undefined) {
+      pushUnique(unknownIndicatorIds, id);
+      continue;
+    }
+    if (indicator.definition.type === "base") {
+      pushUnique(baseIds, id);
+      continue;
+    }
+    let resolved: ResolvedIndicatorExpression;
+    try {
+      resolved = resolveIndicatorExpression({
+        ownId: id,
+        source: indicator.definition.expression,
+        dictionary,
+        maxIngredients: MAX_INDICATOR_EXPRESSION_INGREDIENTS,
+      });
+    } catch (e) {
+      if (!(e instanceof IndicatorExpressionError)) throw e;
+      unresolvable.push({ id, problem: e.message });
+      continue;
+    }
+    for (const ingredientId of resolved.ingredientIds) {
+      if (isPopulationTypeId(ingredientId)) {
+        pushUnique(populationTermsDropped, ingredientId);
+      } else {
+        pushUnique(baseIds, ingredientId);
+      }
+    }
+  }
+  const sourceIds: string[] = [];
+  const nonDhis2SourcesDropped: string[] = [];
+  for (const baseId of baseIds) {
+    for (const source of byId.get(baseId)?.sources ?? []) {
+      if (isDhis2ShapedSourceId(source.source_id)) {
+        pushUnique(sourceIds, source.source_id);
+      } else {
+        pushUnique(nonDhis2SourcesDropped, source.source_id);
+      }
+    }
+  }
+  return {
+    sourceIds,
+    populationTermsDropped,
+    nonDhis2SourcesDropped,
+    unknownIndicatorIds,
+    unresolvable,
+  };
 }

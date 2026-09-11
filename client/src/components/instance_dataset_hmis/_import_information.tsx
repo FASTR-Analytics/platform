@@ -154,14 +154,7 @@ export function ImportInformation(
                     <div class="truncate">
                       {stat.periodId || `Period ${index() + 1}`}
                     </div>
-                    <div class="truncate">
-                      {/* Current staging writes indicatorRawId for both
-                          sources; versions staged by older CSV code stored
-                          indicatorCommonId instead. */}
-                      {stat.indicatorRawId ??
-                        (stat as { indicatorCommonId?: string })
-                          .indicatorCommonId}
-                    </div>
+                    <div class="truncate">{stat.sourceId}</div>
                     <div class="truncate">{toNum0(stat.nRecords)}</div>
                     <div class="truncate">{toNum0(stat.totalCount)}</div>
                   </div>

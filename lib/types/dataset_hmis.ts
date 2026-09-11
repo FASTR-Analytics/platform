@@ -35,29 +35,31 @@ const datasetHmisWindowingBaseSchema = z.object({
   facilityTypesToInclude: z.array(z.string()).optional(),
 });
 
-export const datasetHmisWindowingRawSchema = datasetHmisWindowingBaseSchema
+// A windowing selects series at one grain: sources (the delete-data route)
+// or base indicators.
+export const datasetHmisWindowingSourceSchema = datasetHmisWindowingBaseSchema
   .extend({
-    indicatorType: z.literal("raw"),
-    rawIndicatorsToInclude: z.array(z.string()),
+    grain: z.literal("source"),
+    sourcesToInclude: z.array(z.string()),
   });
 
-export const datasetHmisWindowingCommonSchema = datasetHmisWindowingBaseSchema
-  .extend({
-    indicatorType: z.literal("common"),
-    commonIndicatorsToInclude: z.array(z.string()),
+export const datasetHmisWindowingIndicatorSchema =
+  datasetHmisWindowingBaseSchema.extend({
+    grain: z.literal("indicator"),
+    indicatorsToInclude: z.array(z.string()),
   });
 
-export type DatasetHmisWindowingRaw = z.infer<
-  typeof datasetHmisWindowingRawSchema
+export type DatasetHmisWindowingSource = z.infer<
+  typeof datasetHmisWindowingSourceSchema
 >;
 
-export type DatasetHmisWindowingCommon = z.infer<
-  typeof datasetHmisWindowingCommonSchema
+export type DatasetHmisWindowingIndicator = z.infer<
+  typeof datasetHmisWindowingIndicatorSchema
 >;
 
 export type DatasetHmisWindowing =
-  | DatasetHmisWindowingRaw
-  | DatasetHmisWindowingCommon;
+  | DatasetHmisWindowingSource
+  | DatasetHmisWindowingIndicator;
 
 export const AA3_SEPARATOR = "|||";
 

@@ -5,6 +5,8 @@ import { Show } from "solid-js";
 type Props = {
   connectionSummary: string;
   nIndicators: number | undefined; // undefined = preset pairs (fixed list, no indicator count to show separately)
+  // The DHIS2 sources the selected indicators expand to.
+  nSources: number | undefined;
   timeSummary: string;
   windowSummary: string;
   nPairs: number | undefined; // undefined when a recurring window can't be sized ahead of fire time
@@ -32,6 +34,10 @@ export function Dhis2StepReview(p: Props) {
               {t3({ en: "Indicators:", fr: "Indicateurs :", pt: "Indicadores:" })}
             </span>{" "}
             {toNum0(p.nIndicators ?? 0)}
+            <Show when={p.nSources !== undefined}>
+              {" "}({toNum0(p.nSources ?? 0)}{" "}
+              {t3({ en: "DHIS2 sources", fr: "sources DHIS2", pt: "fontes DHIS2" })})
+            </Show>
           </div>
         </Show>
         <div>
@@ -48,9 +54,9 @@ export function Dhis2StepReview(p: Props) {
           <div class="font-700">
             {toNum0(p.nPairs ?? 0)}{" "}
             {t3({
-              en: "(indicator, month) pairs",
-              fr: "paires (indicateur, mois)",
-              pt: "pares (indicador, mês)",
+              en: "(source, month) pairs",
+              fr: "paires (source, mois)",
+              pt: "pares (fonte, mês)",
             })}
           </div>
         </Show>

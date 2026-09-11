@@ -1,0 +1,126 @@
+#!/bin/bash
+
+# Instance migration 086 over real data (PLAN_A3 §5 gate 6). Each argument is
+# a plain-SQL dump of an instance's `main` database (pg_dump, optionally
+# gzipped). Every dump is restored into its own database on a throwaway
+# container, the pending instance migrations are applied the way the runner
+# applies them (one transaction per file), and validate_indicator_sources.ts
+# asserts the §5 replay list: an unclean instance (a raw mapped to more than
+# one common, a mapping onto a derived, a derived special) fails with its
+# listing and nothing else changes; a clean one ends with sources = mapped
+# raws, new bases = unmapped raws under ids equal to what lib/indicator_id.ts
+# generates, per-base extract sums identical, every stored JSON row parsed,
+# and a second migration run doing nothing. Companion to ./validate_migrations
+# (the fresh replay) and ./validate_fresh_boot (the seed).
+#
+#   ./validate_indicator_sources uganda_main.sql.gz ethiopia_main.sql ...
+
+set -e
+
+if [ "$#" -eq 0 ]; then
+    echo "usage: ./validate_indicator_sources <main dump>..." >&2
+    exit 2
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+CONTAINER_NAME="wb-fastr-indicator-sources-$$"
+DB_PORT=54332
+DB_PASS="testpass"
+SCRATCH_DIR="$(mktemp -d /tmp/indicator_sources_XXXXXX)"
+
+cleanup() {
+    echo "Cleaning up..."
+    docker stop "$CONTAINER_NAME" 2>/dev/null || true
+    docker rm -v "$CONTAINER_NAME" 2>/dev/null || true
+    rm -rf "$SCRATCH_DIR"
+}
+
+trap cleanup EXIT
+
+fail() {
+    echo ""
+    echo -e "\033[91m╔══════════════════════════════════════════════════════════════╗"
+    echo "║           INDICATOR SOURCES VALIDATION FAILED                ║"
+    echo "║                                                              ║"
+    printf "║  %-60s║\n" "$1"
+    echo -e "╚══════════════════════════════════════════════════════════════╝\033[0m"
+}
+
+echo "Starting temporary postgres container..."
+docker run -d \
+    --name "$CONTAINER_NAME" \
+    -e POSTGRES_PASSWORD="$DB_PASS" \
+    -p "$DB_PORT:5432" \
+    postgres:17.4 > /dev/null
+
+echo "Waiting for postgres to be ready..."
+for i in {1..30}; do
+    if docker exec "$CONTAINER_NAME" pg_isready -U postgres > /dev/null 2>&1; then
+        break
+    fi
+    sleep 0.5
+done
+
+TARGETS=""
+n=0
+for dump in "$@"; do
+    n=$((n + 1))
+    dbname="dump_$n"
+    label="$(basename "$dump")"
+    echo "Restoring $label into $dbname..."
+    docker exec "$CONTAINER_NAME" psql -U postgres -q -c "CREATE DATABASE $dbname" > /dev/null
+    # \restrict / \unrestrict are psql meta-commands newer dumps carry that an
+    # older psql does not know; neither affects a restore.
+    if [[ "$dump" == *.gz ]]; then
+        reader="gunzip -c"
+    else
+        reader="cat"
+    fi
+    if ! $reader "$dump" \
+        | sed -e '/^\\restrict/d' -e '/^\\unrestrict/d' \
+        | docker exec -i "$CONTAINER_NAME" psql -U postgres -d "$dbname" -q -v ON_ERROR_STOP=1 > "$SCRATCH_DIR/restore_$n.log" 2>&1; then
+        tail -20 "$SCRATCH_DIR/restore_$n.log"
+        fail "Could not restore $label. See above."
+        exit 1
+    fi
+    TARGETS="$TARGETS $label=$dbname"
+done
+
+# lib and the postgres driver need no app env; these dummies keep any module
+# that reads Deno.env at load from throwing, and point nowhere real.
+export INSTANCE_NAME="indicator_sources"
+export INSTANCE_ID="indicator_sources"
+export INSTANCE_LANGUAGE="en"
+export INSTANCE_CALENDAR="gregorian"
+export ISO_COUNTRY_CODE="KEN"
+export RUNS_DIR_PATH="$SCRATCH_DIR/runs"
+export RUNS_DIR_PATH_EXTERNAL="$SCRATCH_DIR/runs"
+export RUNS_DIR_PATH_POSTGRES_INTERNAL="$SCRATCH_DIR/runs"
+export ASSETS_DIR_PATH="$SCRATCH_DIR/assets"
+export DATABASE_FOLDER="$SCRATCH_DIR/databases"
+export PG_HOST="127.0.0.1"
+export PG_PORT="$DB_PORT"
+export PG_PASSWORD="$DB_PASS"
+export ANTHROPIC_API_URL="http://localhost:0"
+export ANTHROPIC_API_KEY="unused"
+export STATUS_API_KEY="unused"
+export SEND_GRID_API="unused"
+export SERVER_VERSION="0.0.0-indicator-sources"
+
+echo "Typechecking..."
+if ! deno check -c "$SCRIPT_DIR/deno.json" "$SCRIPT_DIR/validate_indicator_sources.ts"; then
+    fail "validate_indicator_sources.ts does not typecheck."
+    exit 1
+fi
+
+echo ""
+# shellcheck disable=SC2086
+if ! deno run --allow-all -c "$SCRIPT_DIR/deno.json" "$SCRIPT_DIR/validate_indicator_sources.ts" $TARGETS; then
+    fail "One or more dumps failed. See above."
+    exit 1
+fi
+
+echo ""
+echo -e "\033[92m╔══════════════════════════════════════════════════════════════╗"
+echo "║           INDICATOR SOURCES VALIDATION PASSED                ║"
+echo -e "╚══════════════════════════════════════════════════════════════╝\033[0m"

@@ -2,32 +2,35 @@ import {
   t3,
   TC,
   type CommonIndicatorType,
-  type CommonIndicatorWithMappings,
-  type InstanceIndicatorDetails,
-  type RawIndicatorWithMappings,
   type Dhis2RunCredentialsSource,
+  INDICATOR_BATCH_FILE_COLUMNS,
+  INDICATOR_BATCH_SOURCES_SEPARATOR,
+  type IndicatorWithSources,
+  type InstanceIndicatorDetails,
+  isSpecialIndicatorId,
   judgeDerivedIndicators,
   POPULATION_TYPE_IDS,
+  populationTypeLabel,
+  RESERVED_WORDS,
+  SPECIAL_INDICATORS,
 } from "lib";
 import {
+  AlertComponentProps,
+  AlertFormHolder,
   Button,
-  FrameLeft,
-  FrameRight,
   FrameTop,
   HeadingBar,
   getQueryStateFromApiResponse,
   StateHolderWrapper,
   Table,
   TableColumn,
-  TabsNavigation,
   getEditorWrapper,
   openComponent,
   createDeleteAction,
   type BulkAction,
-  type ListItem,
   type StateHolder,
 } from "panther";
-import { Show, createEffect, createMemo, createSignal } from "solid-js";
+import { For, Show, createEffect, createMemo, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { getIndicatorsFromCacheOrFetch } from "~/state/instance/t2_indicators";
@@ -36,8 +39,7 @@ import {
   computabilityProblemText,
   missingPopulationText,
 } from "./_computability";
-import { EditIndicatorCommonForm } from "./_edit_indicator_common";
-import { EditIndicatorRawForm } from "./_edit_indicator_raw";
+import { EditIndicatorForm } from "./_edit_indicator";
 import { BatchUploadForm } from "./batch_upload_form";
 import { Dhis2IndicatorSelectForm } from "./dhis2_indicator_select_form";
 import { SortIndicatorsModal } from "./sort_indicators_modal";
@@ -46,6 +48,9 @@ type Props = {
   backToInstance: () => void;
 };
 
+// The dictionary as one list (PLAN_A3 ruling 1): base and derived
+// indicators differ by a Type column, a base shows its sources, and a
+// special indicator (one the analysis modules read by name) carries a badge.
 export function IndicatorsManager(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
 
@@ -59,21 +64,6 @@ export function IndicatorsManager(p: Props) {
       pt: "A carregar os indicadores...",
     }),
   });
-
-  // One dictionary, one table (PLAN_1a §1.1): base and derived indicators
-  // are all common indicators and differ only by a Type column, so the
-  // separate "Calculated indicators" tab is gone.
-  const [tab, setTab] = createSignal<"common" | "raw">("common");
-  const tabItems: ListItem<"common" | "raw">[] = [
-    {
-      id: "common",
-      label: t3({ en: "Common Indicators", fr: "Indicateurs communs", pt: "Indicadores comuns" }),
-    },
-    {
-      id: "raw",
-      label: t3({ en: "Raw DHIS2 Indicators", fr: "Indicateurs DHIS2", pt: "Indicadores DHIS2" }),
-    },
-  ];
 
   let indicatorsRequestId = 0;
   createEffect(async () => {
@@ -90,24 +80,26 @@ export function IndicatorsManager(p: Props) {
     setIndicators(getQueryStateFromApiResponse(res));
   });
 
-  function handleDownloadCommonCsv(
-    commonIndicators: CommonIndicatorWithMappings[],
-  ) {
-    const headers = [
-      "indicator_common_id",
-      "indicator_common_label",
-      "mapped_raw_indicator_ids",
-    ];
-    const rows = commonIndicators.map((indicator) => [
+  // The batch file (ruling 11): the download mirrors the upload.
+  function handleDownloadCsv(list: IndicatorWithSources[]) {
+    const rows = list.map((indicator) => [
       indicator.indicator_common_id,
       indicator.indicator_common_label,
-      indicator.raw_indicator_ids.join(","),
+      indicator.definition.type,
+      indicator.sources.map((s) => s.source_id).join(
+        INDICATOR_BATCH_SOURCES_SEPARATOR,
+      ),
+      indicator.definition.type === "derived"
+        ? indicator.definition.expression
+        : "",
+      indicator.format_as,
+      indicator.thresholds ? JSON.stringify(indicator.thresholds) : "",
     ]);
 
     const csvContent = [
-      headers.join(","),
-      ...rows.map((row: string[]) =>
-        row.map((cell: string) => `"${cell.replace(/"/g, '""')}"`).join(","),
+      INDICATOR_BATCH_FILE_COLUMNS.join(","),
+      ...rows.map((row) =>
+        row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(","),
       ),
     ].join("\n");
 
@@ -115,30 +107,7 @@ export function IndicatorsManager(p: Props) {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = "indicators_common.csv";
-    link.click();
-    URL.revokeObjectURL(url);
-  }
-
-  function handleDownloadRawCsv(rawIndicators: RawIndicatorWithMappings[]) {
-    const headers = ["raw_indicator_id", "raw_indicator_label"];
-    const rows = rawIndicators.map((indicator) => [
-      indicator.raw_indicator_id,
-      indicator.raw_indicator_label,
-    ]);
-
-    const csvContent = [
-      headers.join(","),
-      ...rows.map((row: string[]) =>
-        row.map((cell: string) => `"${cell.replace(/"/g, '""')}"`).join(","),
-      ),
-    ].join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "indicators_raw.csv";
+    link.download = "indicators.csv";
     link.click();
     URL.revokeObjectURL(url);
   }
@@ -172,6 +141,10 @@ export function IndicatorsManager(p: Props) {
     });
   }
 
+  async function handleReference() {
+    await openComponent({ element: ReferenceListModal, props: {} });
+  }
+
   return (
     <EditorWrapper>
       <FrameTop
@@ -182,7 +155,21 @@ export function IndicatorsManager(p: Props) {
             heading={t3({ en: "HMIS INDICATORS", fr: "INDICATEURS", pt: "INDICADORES" })}
           >
             <div class="ui-gap-sm flex items-center">
+              <Button iconName="info" onClick={handleReference} outline onBackground="base-200">
+                {t3({
+                  en: "Special indicators and reserved words",
+                  fr: "Indicateurs spéciaux et mots réservés",
+                  pt: "Indicadores especiais e palavras reservadas",
+                })}
+              </Button>
               <Show when={instanceState.currentUserIsGlobalAdmin}>
+                <Button iconName="import" onClick={handleDhis2IndicatorSelect}>
+                  {t3({
+                    en: "Import from DHIS2",
+                    fr: "Importer depuis DHIS2",
+                    pt: "Importar do DHIS2",
+                  })}
+                </Button>
                 <Button iconName="upload" onClick={handleBatchUpload}>
                   {t3({
                     en: "Batch import from CSV",
@@ -195,60 +182,24 @@ export function IndicatorsManager(p: Props) {
           </HeadingBar>
         }
       >
-        <FrameTop
-          panelChildren={
-            <TabsNavigation items={tabItems} value={tab()} onChange={setTab} />
-          }
-        >
-          <div class="ui-pad ui-spy h-full w-full overflow-auto">
-            <Show when={tab() === "common"}>
-              <StateHolderWrapper state={indicators()} noPad>
-                {(keyedIndicators) => (
-                  <div class="h-full">
-                    <CommonIndicatorsTable
-                      commonIndicators={keyedIndicators.commonIndicators}
-                      rawIndicators={keyedIndicators.rawIndicators}
-                      handleDownloadCsv={handleDownloadCommonCsv}
-                    />
-                  </div>
-                )}
-              </StateHolderWrapper>
-            </Show>
-            <Show when={tab() === "raw"}>
-              <StateHolderWrapper state={indicators()} noPad>
-                {(keyedIndicators) => (
-                  <div class="h-full">
-                    <RawIndicatorsTable
-                      commonIndicators={keyedIndicators.commonIndicators}
-                      rawIndicators={keyedIndicators.rawIndicators}
-                      handleDhis2IndicatorSelect={handleDhis2IndicatorSelect}
-                      handleDownloadCsv={handleDownloadRawCsv}
-                    />
-                  </div>
-                )}
-              </StateHolderWrapper>
-            </Show>
-          </div>
-        </FrameTop>
+        <div class="ui-pad ui-spy h-full w-full overflow-auto">
+          <StateHolderWrapper state={indicators()} noPad>
+            {(keyedIndicators) => (
+              <div class="h-full">
+                <IndicatorsTable
+                  indicators={keyedIndicators.indicators}
+                  handleDownloadCsv={handleDownloadCsv}
+                />
+              </div>
+            )}
+          </StateHolderWrapper>
+        </div>
       </FrameTop>
     </EditorWrapper>
   );
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//   ______                                                                   __                  __  __                        __                                    //
-//  /      \                                                                 /  |                /  |/  |                      /  |                                   //
-// /$$$$$$  |  ______   _____  ____   _____  ____    ______   _______        $$/  _______    ____$$ |$$/   _______   ______   _$$ |_     ______    ______    _______  //
-// $$ |  $$/  /      \ /     \/    \ /     \/    \  /      \ /       \       /  |/       \  /    $$ |/  | /       | /      \ / $$   |   /      \  /      \  /       | //
-// $$ |      /$$$$$$  |$$$$$$ $$$$  |$$$$$$ $$$$  |/$$$$$$  |$$$$$$$  |      $$ |$$$$$$$  |/$$$$$$$ |$$ |/$$$$$$$/  $$$$$$  |$$$$$$/   /$$$$$$  |/$$$$$$  |/$$$$$$$/  //
-// $$ |   __ $$ |  $$ |$$ | $$ | $$ |$$ | $$ | $$ |$$ |  $$ |$$ |  $$ |      $$ |$$ |  $$ |$$ |  $$ |$$ |$$ |       /    $$ |  $$ | __ $$ |  $$ |$$ |  $$/ $$      \  //
-// $$ \__/  |$$ \__$$ |$$ | $$ | $$ |$$ | $$ | $$ |$$ \__$$ |$$ |  $$ |      $$ |$$ |  $$ |$$ \__$$ |$$ |$$ \_____ /$$$$$$$ |  $$ |/  |$$ \__$$ |$$ |       $$$$$$  | //
-// $$    $$/ $$    $$/ $$ | $$ | $$ |$$ | $$ | $$ |$$    $$/ $$ |  $$ |      $$ |$$ |  $$ |$$    $$ |$$ |$$       |$$    $$ |  $$  $$/ $$    $$/ $$ |      /     $$/  //
-//  $$$$$$/   $$$$$$/  $$/  $$/  $$/ $$/  $$/  $$/  $$$$$$/  $$/   $$/       $$/ $$/   $$/  $$$$$$$/ $$/  $$$$$$$/  $$$$$$$/    $$$$/   $$$$$$/  $$/       $$$$$$$/   //
-//                                                                                                                                                                    //
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-function commonIndicatorTypeLabel(type: CommonIndicatorType): string {
+function indicatorTypeLabel(type: CommonIndicatorType): string {
   switch (type) {
     case "base":
       return t3({ en: "Base", fr: "De base", pt: "Base" });
@@ -257,11 +208,11 @@ function commonIndicatorTypeLabel(type: CommonIndicatorType): string {
   }
 }
 
-// What the indicator is made of: raw mappings for a base indicator, the
+// What the indicator is made of: its sources for a base indicator, the
 // formula itself for a derived one. One derivation for display AND sort.
-function definedByText(indicator: CommonIndicatorWithMappings): string {
+function definedByText(indicator: IndicatorWithSources): string {
   return indicator.definition.type === "base"
-    ? indicator.raw_indicator_ids.join(", ")
+    ? indicator.sources.map((s) => s.source_id).join(", ")
     : indicator.definition.expression;
 }
 
@@ -270,16 +221,15 @@ type IndicatorStatus = {
   population: string | undefined;
 };
 
-function CommonIndicatorsTable(p: {
-  commonIndicators: CommonIndicatorWithMappings[];
-  rawIndicators: RawIndicatorWithMappings[];
-  handleDownloadCsv: (commonIndicators: CommonIndicatorWithMappings[]) => void;
+function IndicatorsTable(p: {
+  indicators: IndicatorWithSources[];
+  handleDownloadCsv: (indicators: IndicatorWithSources[]) => void;
 }) {
   // The same judgement capture makes, over the dictionary the list shows.
-  // Base indicators have no status: an unmapped one is the ordinary case.
+  // Base indicators have no status: one without sources is the ordinary case.
   const statuses = createMemo(() => {
     const judgements = judgeDerivedIndicators(
-      p.commonIndicators,
+      p.indicators,
       POPULATION_TYPE_IDS,
     );
     const statuses = new Map<string, IndicatorStatus>();
@@ -298,106 +248,79 @@ function CommonIndicatorsTable(p: {
     }
     return statuses;
   });
-  const statusOf = (indicator: CommonIndicatorWithMappings) =>
+  const statusOf = (indicator: IndicatorWithSources) =>
     statuses().get(indicator.indicator_common_id);
   const uncomputableCount = createMemo(
     () => [...statuses().values()].filter((s) => s.problem !== undefined).length,
   );
 
   async function handleCreateIndicator() {
-    const _res = await openComponent({
-      element: EditIndicatorCommonForm,
-      props: {
-        rawIndicators: p.rawIndicators,
-        commonIndicators: p.commonIndicators,
-      },
+    await openComponent({
+      element: EditIndicatorForm,
+      props: { indicators: p.indicators },
     });
   }
 
-  async function handleUpdateIndicator(indicator: CommonIndicatorWithMappings) {
-    const _res = await openComponent({
-      element: EditIndicatorCommonForm,
-      props: {
-        rawIndicators: p.rawIndicators,
-        commonIndicators: p.commonIndicators,
-        existingCommonIndicator: indicator,
-      },
+  async function handleUpdateIndicator(indicator: IndicatorWithSources) {
+    await openComponent({
+      element: EditIndicatorForm,
+      props: { indicators: p.indicators, existingIndicator: indicator },
     });
   }
 
   async function handleSortIndicators() {
     await openComponent({
       element: SortIndicatorsModal,
-      props: { commonIndicators: p.commonIndicators },
+      props: { indicators: p.indicators },
     });
   }
 
-  async function handleDeleteIndicator(indicator: CommonIndicatorWithMappings) {
+  async function handleDeleteIndicators(selected: IndicatorWithSources[]) {
+    const indicatorIds = selected.map((i) => i.indicator_common_id);
     const deleteAction = createDeleteAction(
       {
-        text: t3({
-          en: "Are you sure you want to delete this indicator?",
-          fr: "Êtes-vous sûr de vouloir supprimer cet indicateur ?",
-          pt: "Tem a certeza de que pretende eliminar este indicador?",
-        }),
-        itemList: [indicator.indicator_common_id],
+        text: indicatorIds.length === 1
+          ? t3({
+            en: "Are you sure you want to delete this indicator? Its sources go with it.",
+            fr: "Êtes-vous sûr de vouloir supprimer cet indicateur ? Ses sources seront supprimées avec lui.",
+            pt: "Tem a certeza de que pretende eliminar este indicador? As suas fontes são eliminadas com ele.",
+          })
+          : t3({
+            en: "Are you sure you want to delete these indicators? Their sources go with them.",
+            fr: "Êtes-vous sûr de vouloir supprimer ces indicateurs ? Leurs sources seront supprimées avec eux.",
+            pt: "Tem a certeza de que pretende eliminar estes indicadores? As suas fontes são eliminadas com eles.",
+          }),
+        itemList: selected.map(
+          (i) => `${i.indicator_common_id} ~ ${i.indicator_common_label}`,
+        ),
       },
       () =>
-        serverActions.deleteCommonIndicators({
-          indicator_common_ids: [indicator.indicator_common_id],
-        }),
+        serverActions.deleteIndicators({ indicator_common_ids: indicatorIds }),
     );
-
     await deleteAction.click();
   }
 
-  async function handleBulkDeleteIndicators(
-    selectedIndicators: CommonIndicatorWithMappings[],
-  ) {
-    const indicatorIds = selectedIndicators.map(
-      (indicator) => indicator.indicator_common_id,
-    );
-    const indicatorLabels = selectedIndicators.map(
-      (indicator) =>
-        `${indicator.indicator_common_id} ~ ${indicator.indicator_common_label}`,
-    );
-    const indicatorCount = indicatorIds.length;
-    const deleteAction = createDeleteAction(
-      {
-        text:
-          indicatorCount === 1
-            ? t3({
-                en: "Are you sure you want to delete this indicator?",
-                fr: "Êtes-vous sûr de vouloir supprimer cet indicateur ?",
-                pt: "Tem a certeza de que pretende eliminar este indicador?",
-              })
-            : t3({
-                en: "Are you sure you want to delete these indicators?",
-                fr: "Êtes-vous sûr de vouloir supprimer ces indicateurs ?",
-                pt: "Tem a certeza de que pretende eliminar estes indicadores?",
-              }),
-        itemList: indicatorLabels,
-      },
-      () =>
-        serverActions.deleteCommonIndicators({
-          indicator_common_ids: indicatorIds,
-        }),
-    );
-
-    await deleteAction.click();
-  }
-
-  const columns: TableColumn<CommonIndicatorWithMappings>[] = [
+  const columns: TableColumn<IndicatorWithSources>[] = [
     {
       key: "indicator_common_id",
-      header: t3({
-        en: "Common Indicator ID",
-        fr: "ID de l'indicateur commun",
-        pt: "ID do indicador comum",
-      }),
+      header: t3({ en: "Indicator ID", fr: "ID de l'indicateur", pt: "ID do indicador" }),
       sortable: true,
       render: (indicator) => (
-        <span class="font-mono">{indicator.indicator_common_id}</span>
+        <span class="ui-gap-sm flex items-center">
+          <span class="font-mono">{indicator.indicator_common_id}</span>
+          <Show when={isSpecialIndicatorId(indicator.indicator_common_id)}>
+            <span
+              class="bg-primary-subtle text-primary-subtle-content rounded px-2 py-0.5 text-xs"
+              title={t3({
+                en: "Read by name by the analysis modules; must stay a base indicator",
+                fr: "Lu par son identifiant par les modules d'analyse ; doit rester un indicateur de base",
+                pt: "Lido pelo seu ID pelos módulos de análise; tem de permanecer um indicador de base",
+              })}
+            >
+              {t3({ en: "Special", fr: "Spécial", pt: "Especial" })}
+            </span>
+          </Show>
+        </span>
       ),
     },
     {
@@ -409,28 +332,35 @@ function CommonIndicatorsTable(p: {
       key: "definition",
       header: t3({ en: "Type", fr: "Type", pt: "Tipo" }),
       sortable: true,
-      sortValue: (indicator) =>
-        commonIndicatorTypeLabel(indicator.definition.type),
+      sortValue: (indicator) => indicatorTypeLabel(indicator.definition.type),
       render: (indicator) => (
-        <span class="">{commonIndicatorTypeLabel(indicator.definition.type)}</span>
+        <span class="">{indicatorTypeLabel(indicator.definition.type)}</span>
       ),
     },
     {
-      key: "is_default",
-      header: t3({ en: "Default", fr: "Par défaut", pt: "Predefinição" }),
-      sortable: true,
-      render: (indicator) => (
-        <span class="">{indicator.is_default ? "✓" : ""}</span>
-      ),
-    },
-    {
-      key: "raw_indicator_ids",
+      key: "sources",
       header: t3({ en: "Defined by", fr: "Défini par", pt: "Definido por" }),
       sortable: true,
       sortValue: (indicator) => definedByText(indicator),
-      render: (indicator) => (
-        <div class="font-mono">{definedByText(indicator)}</div>
-      ),
+      render: (indicator) =>
+        indicator.definition.type === "derived"
+          ? <div class="font-mono">{indicator.definition.expression}</div>
+          : (
+            <div class="ui-spy-xs">
+              <For each={indicator.sources}>
+                {(source) => (
+                  <div class="text-xs">
+                    <span class="font-mono">{source.source_id}</span>
+                    <Show when={source.source_label !== source.source_id}>
+                      <span class="text-base-content-muted ml-2">
+                        {source.source_label}
+                      </span>
+                    </Show>
+                  </div>
+                )}
+              </For>
+            </div>
+          ),
     },
     {
       key: "status",
@@ -461,7 +391,7 @@ function CommonIndicatorsTable(p: {
     },
   ];
 
-  const allColumns = createMemo<TableColumn<CommonIndicatorWithMappings>[]>(() => {
+  const allColumns = createMemo<TableColumn<IndicatorWithSources>[]>(() => {
     if (!instanceState.currentUserIsGlobalAdmin) return columns;
     return [
       ...columns,
@@ -482,7 +412,7 @@ function CommonIndicatorsTable(p: {
             <Button
               onClick={(e: MouseEvent) => {
                 e.stopPropagation();
-                handleDeleteIndicator(indicator);
+                handleDeleteIndicators([indicator]);
               }}
               iconName="trash"
               intent="base-100"
@@ -493,14 +423,14 @@ function CommonIndicatorsTable(p: {
     ];
   });
 
-  const bulkActions = createMemo<BulkAction<CommonIndicatorWithMappings>[]>(() =>
+  const bulkActions = createMemo<BulkAction<IndicatorWithSources>[]>(() =>
     instanceState.currentUserIsGlobalAdmin
       ? [
           {
             label: t3(TC.delete),
             intent: "danger",
             outline: true,
-            onClick: handleBulkDeleteIndicators,
+            onClick: handleDeleteIndicators,
           },
         ]
       : [],
@@ -510,11 +440,11 @@ function CommonIndicatorsTable(p: {
     <div class="flex h-full flex-col">
       <div class="ui-gap-sm flex items-center pb-4">
         <div class="font-700 flex-1 text-xl">
-          {t3({ en: "Common Indicators", fr: "Indicateurs communs", pt: "Indicadores comuns" })}
+          {t3({ en: "Indicators", fr: "Indicateurs", pt: "Indicadores" })}
         </div>
         <Show when={instanceState.currentUserIsGlobalAdmin}>
           <Button
-            onClick={() => p.handleDownloadCsv(p.commonIndicators)}
+            onClick={() => p.handleDownloadCsv(p.indicators)}
             iconName="download"
             intent="neutral"
           >
@@ -533,9 +463,9 @@ function CommonIndicatorsTable(p: {
             intent="primary"
           >
             {t3({
-              en: "Create Common Indicator",
-              fr: "Créer un indicateur commun",
-              pt: "Criar indicador comum",
+              en: "Create indicator",
+              fr: "Créer un indicateur",
+              pt: "Criar indicador",
             })}
           </Button>
         </Show>
@@ -544,26 +474,26 @@ function CommonIndicatorsTable(p: {
         <div class="bg-warning-subtle text-warning-subtle-content mb-4 flex-none rounded px-3 py-2 text-sm">
           {uncomputableCount() === 1
             ? t3({
-                en: "1 derived indicator cannot be computed. Results cannot be generated until it is edited or removed, or the indicators it uses are mapped.",
-                fr: "1 indicateur dérivé ne peut pas être calculé. Les résultats ne pourront pas être générés tant qu'il n'est pas modifié ou supprimé, ou que les indicateurs qu'il utilise ne sont pas associés.",
-                pt: "1 indicador derivado não pode ser calculado. Os resultados não podem ser gerados até que seja editado ou removido, ou até que os indicadores que utiliza sejam associados.",
+                en: "1 derived indicator cannot be computed. Results cannot be generated until it is edited or removed, or the indicators it uses have sources.",
+                fr: "1 indicateur dérivé ne peut pas être calculé. Les résultats ne pourront pas être générés tant qu'il n'est pas modifié ou supprimé, ou que les indicateurs qu'il utilise n'ont pas de sources.",
+                pt: "1 indicador derivado não pode ser calculado. Os resultados não podem ser gerados até que seja editado ou removido, ou até que os indicadores que utiliza tenham fontes.",
               })
             : t3({
-                en: `${uncomputableCount()} derived indicators cannot be computed. Results cannot be generated until they are edited or removed, or the indicators they use are mapped.`,
-                fr: `${uncomputableCount()} indicateurs dérivés ne peuvent pas être calculés. Les résultats ne pourront pas être générés tant qu'ils ne sont pas modifiés ou supprimés, ou que les indicateurs qu'ils utilisent ne sont pas associés.`,
-                pt: `${uncomputableCount()} indicadores derivados não podem ser calculados. Os resultados não podem ser gerados até que sejam editados ou removidos, ou até que os indicadores que utilizam sejam associados.`,
+                en: `${uncomputableCount()} derived indicators cannot be computed. Results cannot be generated until they are edited or removed, or the indicators they use have sources.`,
+                fr: `${uncomputableCount()} indicateurs dérivés ne peuvent pas être calculés. Les résultats ne pourront pas être générés tant qu'ils ne sont pas modifiés ou supprimés, ou que les indicateurs qu'ils utilisent n'ont pas de sources.`,
+                pt: `${uncomputableCount()} indicadores derivados não podem ser calculados. Os resultados não podem ser gerados até que sejam editados ou removidos, ou até que os indicadores que utilizam tenham fontes.`,
               })}
         </div>
       </Show>
       <div class="h-0 w-full flex-1">
         <Table
-          data={p.commonIndicators}
+          data={p.indicators}
           columns={allColumns()}
           keyField="indicator_common_id"
           noRowsMessage={t3({
-            en: "No common indicators",
-            fr: "Aucun indicateur commun",
-            pt: "Nenhum indicador comum",
+            en: "No indicators",
+            fr: "Aucun indicateur",
+            pt: "Nenhum indicador",
           })}
           bulkActions={bulkActions()}
           selectionLabel={t3({ en: "indicator", fr: "indicateur", pt: "indicador" })}
@@ -574,221 +504,74 @@ function CommonIndicatorsTable(p: {
   );
 }
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//  _______                                 __                  __  __                        __                                    //
-// /       \                               /  |                /  |/  |                      /  |                                   //
-// $$$$$$$  |  ______   __   __   __       $$/  _______    ____$$ |$$/   _______   ______   _$$ |_     ______    ______    _______  //
-// $$ |__$$ | /      \ /  | /  | /  |      /  |/       \  /    $$ |/  | /       | /      \ / $$   |   /      \  /      \  /       | //
-// $$    $$<  $$$$$$  |$$ | $$ | $$ |      $$ |$$$$$$$  |/$$$$$$$ |$$ |/$$$$$$$/  $$$$$$  |$$$$$$/   /$$$$$$  |/$$$$$$  |/$$$$$$$/  //
-// $$$$$$$  | /    $$ |$$ | $$ | $$ |      $$ |$$ |  $$ |$$ |  $$ |$$ |$$ |       /    $$ |  $$ | __ $$ |  $$ |$$ |  $$/ $$      \  //
-// $$ |  $$ |/$$$$$$$ |$$ \_$$ \_$$ |      $$ |$$ |  $$ |$$ \__$$ |$$ |$$ \_____ /$$$$$$$ |  $$ |/  |$$ \__$$ |$$ |       $$$$$$  | //
-// $$ |  $$ |$$    $$ |$$   $$   $$/       $$ |$$ |  $$ |$$    $$ |$$ |$$       |$$    $$ |  $$  $$/ $$    $$/ $$ |      /     $$/  //
-// $$/   $$/  $$$$$$$/  $$$$$/$$$$/        $$/ $$/   $$/  $$$$$$$/ $$/  $$$$$$$/  $$$$$$$/    $$$$/   $$$$$$/  $$/       $$$$$$$/   //
-//                                                                                                                                  //
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-function RawIndicatorsTable(p: {
-  commonIndicators: CommonIndicatorWithMappings[];
-  rawIndicators: RawIndicatorWithMappings[];
-  handleDhis2IndicatorSelect: () => Promise<void>;
-  handleDownloadCsv: (rawIndicators: RawIndicatorWithMappings[]) => void;
-}) {
-  async function handleCreateMapping() {
-    const _res = await openComponent({
-      element: EditIndicatorRawForm,
-      props: {
-        commonIndicators: p.commonIndicators,
-      },
-    });
-  }
-
-  async function handleUpdateMapping(indicator: RawIndicatorWithMappings) {
-    const _res = await openComponent({
-      element: EditIndicatorRawForm,
-      props: {
-        commonIndicators: p.commonIndicators,
-        existingRawIndicator: indicator,
-      },
-    });
-  }
-
-  async function handleDeleteMapping(indicator: RawIndicatorWithMappings) {
-    const deleteAction = createDeleteAction(
-      {
-        text: t3({
-          en: "Are you sure you want to delete this indicator?",
-          fr: "Êtes-vous sûr de vouloir supprimer cet indicateur ?",
-          pt: "Tem a certeza de que pretende eliminar este indicador?",
-        }),
-        itemList: [indicator.raw_indicator_id],
-      },
-      () =>
-        serverActions.deleteRawIndicators({
-          indicator_raw_ids: [indicator.raw_indicator_id],
-        }),
-    );
-
-    await deleteAction.click();
-  }
-
-  async function handleBulkDeleteRawIndicators(
-    selectedIndicators: RawIndicatorWithMappings[],
-  ) {
-    const indicatorIds = selectedIndicators.map(
-      (indicator) => indicator.raw_indicator_id,
-    );
-    const indicatorLabels = selectedIndicators.map(
-      (indicator) =>
-        `${indicator.raw_indicator_id} ~ ${indicator.raw_indicator_label}`,
-    );
-    const indicatorCount = indicatorIds.length;
-    const deleteAction = createDeleteAction(
-      {
-        text:
-          indicatorCount === 1
-            ? t3({
-                en: "Are you sure you want to delete this indicator?",
-                fr: "Êtes-vous sûr de vouloir supprimer cet indicateur ?",
-                pt: "Tem a certeza de que pretende eliminar este indicador?",
-              })
-            : t3({
-                en: "Are you sure you want to delete these indicators?",
-                fr: "Êtes-vous sûr de vouloir supprimer ces indicateurs ?",
-                pt: "Tem a certeza de que pretende eliminar estes indicadores?",
-              }),
-        itemList: indicatorLabels,
-      },
-      () =>
-        serverActions.deleteRawIndicators({ indicator_raw_ids: indicatorIds }),
-    );
-
-    await deleteAction.click();
-  }
-
-  const columns: TableColumn<RawIndicatorWithMappings>[] = [
-    {
-      key: "raw_indicator_id",
-      header: t3({ en: "DHIS2 Indicator ID", fr: "ID de l'indicateur DHIS2", pt: "ID do indicador DHIS2" }),
-      sortable: true,
-      render: (mapping) => (
-        <span class="font-mono">{mapping.raw_indicator_id}</span>
-      ),
-    },
-    {
-      key: "raw_indicator_label",
-      header: t3(TC.label),
-      sortable: true,
-    },
-    {
-      key: "indicator_common_ids",
-      header: t3({ en: "Mapped To", fr: "Associé à", pt: "Associado a" }),
-      sortable: true,
-      render: (mapping) => (
-        <span class="font-mono">{mapping.indicator_common_ids.join(", ")}</span>
-      ),
-    },
-  ];
-
-  const allColumns = createMemo<TableColumn<RawIndicatorWithMappings>[]>(() => {
-    if (!instanceState.currentUserIsGlobalAdmin) return columns;
-    return [
-      ...columns,
-      {
-        key: "actions",
-        header: "",
-        alignH: "right",
-        render: (mapping) => {
-          return (
-            <div class="ui-gap-sm flex justify-end">
-              <Button
-                onClick={(e: MouseEvent) => {
-                  e.stopPropagation();
-                  handleUpdateMapping(mapping);
-                }}
-                iconName="pencil"
-                intent="base-100"
-              />
-              <Button
-                onClick={(e: MouseEvent) => {
-                  e.stopPropagation();
-                  handleDeleteMapping(mapping);
-                }}
-                iconName="trash"
-                intent="base-100"
-              />
-            </div>
-          );
-        },
-      },
-    ];
-  });
-
-  const bulkActions = createMemo<BulkAction<RawIndicatorWithMappings>[]>(() =>
-    instanceState.currentUserIsGlobalAdmin
-      ? [
-          {
-            label: t3(TC.delete),
-            intent: "danger",
-            outline: true,
-            onClick: handleBulkDeleteRawIndicators,
-          },
-        ]
-      : [],
-  );
-
+// The reference list (PLAN_A3 ruling 5): the special ids the analysis
+// modules read by name, and every reserved word no indicator id may be.
+function ReferenceListModal(p: AlertComponentProps<{}, undefined>) {
   return (
-    <div class="flex h-full flex-col">
-      <div class="ui-gap-sm flex flex-none items-center pb-4">
-        <div class="font-700 flex-1 text-xl">
-          {t3({
-            en: "DHIS2 Indicators (JSON IDs)",
-            fr: "Indicateurs DHIS2 (ID JSON)",
-            pt: "Indicadores DHIS2 (ID JSON)",
-          })}
+    <AlertFormHolder
+      formId="indicator-reference"
+      header={t3({
+        en: "Special indicators and reserved words",
+        fr: "Indicateurs spéciaux et mots réservés",
+        pt: "Indicadores especiais e palavras reservadas",
+      })}
+      savingState={{ status: "ready" }}
+      saveFunc={async () => p.close(undefined)}
+      cancelFunc={() => p.close(undefined)}
+      width="xl"
+    >
+      <div class="ui-spy text-sm">
+        <div class="ui-spy-sm">
+          <div class="font-700">
+            {t3({ en: "Special indicators", fr: "Indicateurs spéciaux", pt: "Indicadores especiais" })}
+          </div>
+          <div class="text-xs">
+            {t3({
+              en: "The analysis modules read these ids by name as counts. A new instance is seeded with each as an empty base; an existing one adds or deletes them like any base. A special id can only be a base indicator.",
+              fr: "Les modules d'analyse lisent ces identifiants par leur nom comme des dénombrements. Une nouvelle instance est initialisée avec chacun comme indicateur de base vide ; une instance existante les ajoute ou les supprime comme tout indicateur de base. Un identifiant spécial ne peut être qu'un indicateur de base.",
+              pt: "Os módulos de análise leem estes IDs pelo nome como contagens. Uma nova instância é iniciada com cada um como indicador de base vazio; uma instância existente adiciona-os ou elimina-os como qualquer indicador de base. Um ID especial só pode ser um indicador de base.",
+            })}
+          </div>
+          <div class="grid grid-cols-[repeat(auto-fit,minmax(18rem,1fr))] gap-x-4 gap-y-1">
+            <For each={SPECIAL_INDICATORS}>
+              {(special) => (
+                <div>
+                  <span class="font-mono">{special.id}</span>
+                  <span class="text-base-content-muted ml-2">{t3(special.label)}</span>
+                </div>
+              )}
+            </For>
+          </div>
         </div>
-        <Show when={instanceState.currentUserIsGlobalAdmin}>
-          <Button
-            onClick={() => p.handleDownloadCsv(p.rawIndicators)}
-            iconName="download"
-            intent="neutral"
-          >
-            {t3({ en: "Download CSV", fr: "Télécharger le CSV", pt: "Transferir o CSV" })}
-          </Button>
-          <Button iconName="import" onClick={p.handleDhis2IndicatorSelect}>
+        <div class="ui-spy-sm">
+          <div class="font-700">
+            {t3({ en: "Population terms", fr: "Termes de population", pt: "Termos de população" })}
+          </div>
+          <div class="grid grid-cols-[repeat(auto-fit,minmax(18rem,1fr))] gap-x-4 gap-y-1">
+            <For each={POPULATION_TYPE_IDS}>
+              {(id) => (
+                <div>
+                  <span class="font-mono">{id}</span>
+                  <span class="text-base-content-muted ml-2">{t3(populationTypeLabel(id))}</span>
+                </div>
+              )}
+            </For>
+          </div>
+        </div>
+        <div class="ui-spy-sm">
+          <div class="font-700">
+            {t3({ en: "Reserved words", fr: "Mots réservés", pt: "Palavras reservadas" })}
+          </div>
+          <div class="text-xs">
             {t3({
-              en: "Import DHIS2 indicator",
-              fr: "Importer un indicateur DHIS2",
-              pt: "Importar um indicador DHIS2",
+              en: "No indicator id may be one of these, however it is produced: the special ids (except as a base), the population terms and the formula function names.",
+              fr: "Aucun identifiant d'indicateur ne peut être l'un de ceux-ci, quelle que soit la façon dont il est produit : les identifiants spéciaux (sauf comme indicateur de base), les termes de population et les noms de fonctions des formules.",
+              pt: "Nenhum ID de indicador pode ser um destes, seja como for produzido: os IDs especiais (exceto como base), os termos de população e os nomes das funções das fórmulas.",
             })}
-          </Button>
-          <Button
-            onClick={handleCreateMapping}
-            iconName="plus"
-            intent="primary"
-          >
-            {t3({
-              en: "Create DHIS2 Indicator",
-              fr: "Créer un indicateur DHIS2",
-              pt: "Criar indicador DHIS2",
-            })}
-          </Button>
-        </Show>
+          </div>
+          <div class="font-mono text-xs">{RESERVED_WORDS.join(", ")}</div>
+        </div>
       </div>
-      <div class="h-0 w-full flex-1">
-        <Table
-          data={p.rawIndicators}
-          columns={allColumns()}
-          keyField="raw_indicator_id"
-          noRowsMessage={t3({
-            en: "No DHIS2 indicators",
-            fr: "Aucun indicateur DHIS2",
-            pt: "Nenhum indicador DHIS2",
-          })}
-          bulkActions={bulkActions()}
-          selectionLabel={t3({ en: "indicator", fr: "indicateur", pt: "indicador" })}
-          fitTableToAvailableHeight
-        />
-      </div>
-    </div>
+    </AlertFormHolder>
   );
 }

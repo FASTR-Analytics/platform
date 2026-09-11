@@ -2,17 +2,13 @@ import { Hono } from "hono";
 import { type CommonIndicatorDefinition, isCommonIndicatorType } from "lib";
 import {
   batchUploadIndicators,
-  batchUploadRawIndicators,
-  createIndicatorsCommon,
-  createIndicatorsRaw,
-  deleteIndicatorCommon,
-  deleteIndicatorRaw,
-  getIndicatorsWithMappings,
+  createIndicators,
+  deleteIndicators,
+  getInstanceIndicatorDetails,
   getInstanceIndicatorsSummary,
-  type NewCommonIndicator,
+  type NewIndicator,
   reorderCommonIndicators,
-  updateIndicatorCommon,
-  updateIndicatorRaw,
+  updateIndicator,
 } from "../../db/mod.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
@@ -26,7 +22,7 @@ export const routesIndicators = new Hono();
 // population terms: is validated in the DB layer against the live
 // dictionary and the population store, because only there is the full
 // vocabulary available.
-function narrowCommonIndicatorDefinition(
+function narrowIndicatorDefinition(
   raw: { type: string } & Record<string, unknown>,
 ): CommonIndicatorDefinition {
   if (!isCommonIndicatorType(raw.type)) {
@@ -38,83 +34,46 @@ function narrowCommonIndicatorDefinition(
   return { type: "derived", expression: String(raw.expression) };
 }
 
-function toNewCommonIndicator(
-  raw: Record<string, unknown>,
-): NewCommonIndicator {
+function toNewIndicator(raw: Record<string, unknown>): NewIndicator {
   return {
     indicator_common_id: String(raw.indicator_common_id),
     indicator_common_label: String(raw.indicator_common_label),
-    mapped_raw_ids: raw.mapped_raw_ids as string[],
-    definition: narrowCommonIndicatorDefinition(
+    sources: raw.sources as NewIndicator["sources"],
+    definition: narrowIndicatorDefinition(
       raw.definition as { type: string } & Record<string, unknown>,
     ),
-    format_as: raw.format_as as NewCommonIndicator["format_as"],
-    thresholds: (raw.thresholds ?? null) as NewCommonIndicator["thresholds"],
+    format_as: raw.format_as as NewIndicator["format_as"],
+    thresholds: (raw.thresholds ?? null) as NewIndicator["thresholds"],
   };
 }
 
-// GET /indicators - Get all indicators with their mappings
+// GET /indicators - The dictionary: every indicator with its sources
 defineRoute(
   routesIndicators,
   "getIndicators",
   requireGlobalPermission("can_configure_data"),
   log("getIndicators"),
   async (c) => {
-    const res = await getIndicatorsWithMappings(c.var.mainDb);
+    const res = await getInstanceIndicatorDetails(c.var.mainDb);
     return c.json(res);
   },
 );
 
-//////////////////////////////////////////////////////////////////////////
-//   ______                                                             //
-//  /      \                                                            //
-// /$$$$$$  |  ______   _____  ____   _____  ____    ______   _______   //
-// $$ |  $$/  /      \ /     \/    \ /     \/    \  /      \ /       \  //
-// $$ |      /$$$$$$  |$$$$$$ $$$$  |$$$$$$ $$$$  |/$$$$$$  |$$$$$$$  | //
-// $$ |   __ $$ |  $$ |$$ | $$ | $$ |$$ | $$ | $$ |$$ |  $$ |$$ |  $$ | //
-// $$ \__/  |$$ \__$$ |$$ | $$ | $$ |$$ | $$ | $$ |$$ \__$$ |$$ |  $$ | //
-// $$    $$/ $$    $$/ $$ | $$ | $$ |$$ | $$ | $$ |$$    $$/ $$ |  $$ | //
-//  $$$$$$/   $$$$$$/  $$/  $$/  $$/ $$/  $$/  $$/  $$$$$$/  $$/   $$/  //
-//                                                                      //
-//////////////////////////////////////////////////////////////////////////
-
-// POST /indicators - Create new indicators
+// POST /indicators - Create indicators, each with its sources
 defineRoute(
   routesIndicators,
-  "createCommonIndicators",
+  "createIndicators",
   requireGlobalPermission("can_configure_data"),
-  log("createCommonIndicators"),
+  log("createIndicators"),
   async (c, { body }) => {
-    // Validate required fields
-    if (!Array.isArray(body.indicators)) {
-      return c.json({
-        success: false,
-        err: "indicators array is required",
-      });
-    }
-
-    // Validate each indicator in the array
-    for (const indicator of body.indicators) {
-      if (
-        !indicator.indicator_common_id ||
-        !indicator.indicator_common_label ||
-        !Array.isArray(indicator.mapped_raw_ids)
-      ) {
-        return c.json({
-          success: false,
-          err: "Each indicator must have indicator_common_id, indicator_common_label, and mapped_raw_ids",
-        });
-      }
-    }
-
-    let indicators: NewCommonIndicator[];
+    let indicators: NewIndicator[];
     try {
-      indicators = body.indicators.map(toNewCommonIndicator);
+      indicators = body.indicators.map(toNewIndicator);
     } catch (err) {
       return c.json({ success: false, err: (err as Error).message });
     }
 
-    const res = await createIndicatorsCommon(c.var.mainDb, indicators);
+    const res = await createIndicators(c.var.mainDb, indicators);
     if (res.success) {
       notifyInstanceIndicatorsUpdated(
         await getInstanceIndicatorsSummary(c.var.mainDb),
@@ -124,21 +83,21 @@ defineRoute(
   },
 );
 
-// POST /indicators/update - Update indicator
+// POST /indicators/update - Update an indicator and replace its sources
 defineRoute(
   routesIndicators,
-  "updateCommonIndicator",
+  "updateIndicator",
   requireGlobalPermission("can_configure_data"),
-  log("updateCommonIndicator"),
+  log("updateIndicator"),
   async (c, { body }) => {
-    let indicator: NewCommonIndicator;
+    let indicator: NewIndicator;
     try {
-      indicator = toNewCommonIndicator(body.indicator);
+      indicator = toNewIndicator(body.indicator);
     } catch (err) {
       return c.json({ success: false, err: (err as Error).message });
     }
 
-    const res = await updateIndicatorCommon(
+    const res = await updateIndicator(
       c.var.mainDb,
       body.old_indicator_common_id,
       indicator,
@@ -155,9 +114,9 @@ defineRoute(
 // POST /indicators/reorder - Set the dictionary's display order
 defineRoute(
   routesIndicators,
-  "reorderCommonIndicators",
+  "reorderIndicators",
   requireGlobalPermission("can_configure_data"),
-  log("reorderCommonIndicators"),
+  log("reorderIndicators"),
   async (c, { body }) => {
     const res = await reorderCommonIndicators(c.var.mainDb, body.order);
     if (res.success) {
@@ -169,24 +128,14 @@ defineRoute(
   },
 );
 
-// POST /indicators/delete - Delete indicators (cascades to mappings)
+// POST /indicators/delete - Delete indicators (their sources go with them)
 defineRoute(
   routesIndicators,
-  "deleteCommonIndicators",
+  "deleteIndicators",
   requireGlobalPermission("can_configure_data"),
-  log("deleteCommonIndicators"),
+  log("deleteIndicators"),
   async (c, { body }) => {
-    if (!Array.isArray(body.indicator_common_ids)) {
-      return c.json({
-        success: false,
-        err: "indicator_common_ids must be an array",
-      });
-    }
-
-    const res = await deleteIndicatorCommon(
-      c.var.mainDb,
-      body.indicator_common_ids,
-    );
+    const res = await deleteIndicators(c.var.mainDb, body.indicator_common_ids);
     if (res.success) {
       notifyInstanceIndicatorsUpdated(
         await getInstanceIndicatorsSummary(c.var.mainDb),
@@ -196,173 +145,14 @@ defineRoute(
   },
 );
 
-////////////////////////////////////////
-//  _______                           //
-// /       \                          //
-// $$$$$$$  |  ______   __   __   __  //
-// $$ |__$$ | /      \ /  | /  | /  | //
-// $$    $$<  $$$$$$  |$$ | $$ | $$ | //
-// $$$$$$$  | /    $$ |$$ | $$ | $$ | //
-// $$ |  $$ |/$$$$$$$ |$$ \_$$ \_$$ | //
-// $$ |  $$ |$$    $$ |$$   $$   $$/  //
-// $$/   $$/  $$$$$$$/  $$$$$/$$$$/   //
-//                                    //
-////////////////////////////////////////
-
-// POST /indicators-raw - Create raw indicators
-defineRoute(
-  routesIndicators,
-  "createRawIndicators",
-  requireGlobalPermission("can_configure_data"),
-  log("createRawIndicators"),
-  async (c, { body }) => {
-    // Validate required fields
-    if (!Array.isArray(body.indicators)) {
-      return c.json({
-        success: false,
-        err: "indicators array is required",
-      });
-    }
-
-    // Validate each indicator in the array
-    for (const indicator of body.indicators) {
-      if (
-        !indicator.indicator_raw_id ||
-        !indicator.indicator_raw_label ||
-        !Array.isArray(indicator.mapped_common_ids)
-      ) {
-        return c.json({
-          success: false,
-          err: "Each indicator must have indicator_raw_id, indicator_raw_label, and mapped_common_ids",
-        });
-      }
-    }
-
-    const res = await createIndicatorsRaw(c.var.mainDb, body.indicators);
-    if (res.success) {
-      notifyInstanceIndicatorsUpdated(
-        await getInstanceIndicatorsSummary(c.var.mainDb),
-      );
-    }
-    return c.json(res);
-  },
-);
-
-// POST /indicators-raw/update - Update raw indicator
-defineRoute(
-  routesIndicators,
-  "updateRawIndicator",
-  requireGlobalPermission("can_configure_data"),
-  log("updateRawIndicator"),
-  async (c, { body }) => {
-    if (
-      !body.old_indicator_raw_id ||
-      !body.new_indicator_raw_id ||
-      !body.indicator_raw_label ||
-      !Array.isArray(body.mapped_common_ids)
-    ) {
-      return c.json({
-        success: false,
-        err: "old_indicator_raw_id, new_indicator_raw_id, indicator_raw_label, and mapped_common_ids are required",
-      });
-    }
-
-    const res = await updateIndicatorRaw(
-      c.var.mainDb,
-      body.old_indicator_raw_id,
-      body.new_indicator_raw_id,
-      body.indicator_raw_label,
-      body.mapped_common_ids,
-    );
-    if (res.success) {
-      notifyInstanceIndicatorsUpdated(
-        await getInstanceIndicatorsSummary(c.var.mainDb),
-      );
-    }
-    return c.json(res);
-  },
-);
-
-// POST /indicators-raw/delete - Delete raw indicators
-defineRoute(
-  routesIndicators,
-  "deleteRawIndicators",
-  requireGlobalPermission("can_configure_data"),
-  log("deleteRawIndicators"),
-  async (c, { body }) => {
-    if (!Array.isArray(body.indicator_raw_ids)) {
-      return c.json({
-        success: false,
-        err: "indicator_raw_ids must be an array",
-      });
-    }
-
-    const res = await deleteIndicatorRaw(c.var.mainDb, body.indicator_raw_ids);
-    if (res.success) {
-      notifyInstanceIndicatorsUpdated(
-        await getInstanceIndicatorsSummary(c.var.mainDb),
-      );
-    }
-    return c.json(res);
-  },
-);
-
-////////////////////////////////////////////////////////
-//  _______               __                __        //
-// /       \             /  |              /  |       //
-// $$$$$$$  |  ______   _$$ |_     _______ $$ |____   //
-// $$ |__$$ | /      \ / $$   |   /       |$$      \  //
-// $$    $$<  $$$$$$  |$$$$$$/   /$$$$$$$/ $$$$$$$  | //
-// $$$$$$$  | /    $$ |  $$ | __ $$ |      $$ |  $$ | //
-// $$ |__$$ |/$$$$$$$ |  $$ |/  |$$ \_____ $$ |  $$ | //
-// $$    $$/ $$    $$ |  $$  $$/ $$       |$$ |  $$ | //
-// $$$$$$$/   $$$$$$$/    $$$$/   $$$$$$$/ $$/   $$/  //
-//                                                    //
-////////////////////////////////////////////////////////
-
-// POST /indicators/batch - Batch upload indicators with mappings from CSV file
+// POST /indicators/batch - Batch upload the dictionary file (PLAN_A3 ruling 11)
 defineRoute(
   routesIndicators,
   "batchUploadIndicators",
   requireGlobalPermission("can_configure_data"),
   log("batchUploadIndicators"),
   async (c, { body }) => {
-    // Validate that asset_file_name is provided
-    if (!body.asset_file_name || typeof body.asset_file_name !== "string") {
-      return c.json({
-        success: false,
-        err: "asset_file_name is required and must be a string",
-      });
-    }
-
     const res = await batchUploadIndicators(
-      c.var.mainDb,
-      body.asset_file_name,
-      body.replace_all_existing,
-    );
-    if (res.success) {
-      notifyInstanceIndicatorsUpdated(
-        await getInstanceIndicatorsSummary(c.var.mainDb),
-      );
-    }
-    return c.json(res);
-  },
-);
-
-// POST /indicators/batch-raw - Batch upload raw indicators from CSV file
-defineRoute(
-  routesIndicators,
-  "batchUploadRawIndicators",
-  requireGlobalPermission("can_configure_data"),
-  async (c, { body }) => {
-    if (!body.asset_file_name || typeof body.asset_file_name !== "string") {
-      return c.json({
-        success: false,
-        err: "asset_file_name is required and must be a string",
-      });
-    }
-
-    const res = await batchUploadRawIndicators(
       c.var.mainDb,
       body.asset_file_name,
       body.replace_all_existing,

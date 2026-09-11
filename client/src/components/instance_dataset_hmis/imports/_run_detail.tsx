@@ -63,28 +63,36 @@ export function Dhis2RunDetail(
       pt: "A carregar o detalhe da importação...",
     }),
   );
-  // Labels are a display-only enrichment: degrade to blank until ready.
+  // Source labels are a display-only enrichment: degrade to blank until ready.
   const indicators = createQuery(() => serverActions.getIndicators({}));
-  const indicatorLabels = createMemo((): Map<string, string> => {
+  const sourceLabels = createMemo((): Map<string, string> => {
     const s = indicators.state();
     if (s.status !== "ready") return new Map();
     return new Map(
-      s.data.rawIndicators.map((r) => [r.raw_indicator_id, r.raw_indicator_label]),
+      s.data.indicators.flatMap((i) =>
+        i.sources.map((source): [string, string] => [
+          source.source_id,
+          `${source.source_label} (${i.indicator_common_id})`,
+        ])
+      ),
     );
   });
 
+  const windowSelection = () =>
+    p.run.selection?.kind === "window" ? p.run.selection : undefined;
+
   const failedPairColumns: TableColumn<Dhis2PairFetchStat & { key: string }>[] = [
     {
-      key: "indicatorRawId",
-      header: t3({ en: "Indicator ID", fr: "ID indicateur", pt: "ID do indicador" }),
+      key: "sourceId",
+      header: t3({ en: "Source ID", fr: "ID de la source", pt: "ID da fonte" }),
       sortable: true,
     },
     {
-      key: "indicatorLabel",
-      header: t3({ en: "Label", fr: "Libellé", pt: "Etiqueta" }),
+      key: "sourceLabel",
+      header: t3({ en: "Source", fr: "Source", pt: "Fonte" }),
       sortable: true,
-      sortValue: (s) => indicatorLabels().get(s.indicatorRawId) ?? "",
-      render: (s) => indicatorLabels().get(s.indicatorRawId) ?? "",
+      sortValue: (s) => sourceLabels().get(s.sourceId) ?? "",
+      render: (s) => sourceLabels().get(s.sourceId) ?? "",
     },
     {
       key: "periodId",
@@ -124,8 +132,8 @@ export function Dhis2RunDetail(
       header: t3({ en: "Skipped values", fr: "Valeurs ignorées", pt: "Valores ignorados" }),
       sortable: true,
       alignH: "right",
-      sortValue: (s) => s.skippedValues ?? 0,
-      render: (s) => toNum0(s.skippedValues ?? 0),
+      sortValue: (s) => s.skippedValues,
+      render: (s) => toNum0(s.skippedValues),
     },
   ];
 
@@ -232,20 +240,60 @@ export function Dhis2RunDetail(
               keyedDetail.runStats?.classification.dhis2IndicatorIds ?? [];
             const failedPairStats = (keyedDetail.runStats?.pairFetchStats ?? [])
               .filter((s) => !s.success)
-              .map((s) => ({ ...s, key: `${s.indicatorRawId}|${s.periodId}` }));
+              .map((s) => ({ ...s, key: `${s.sourceId}|${s.periodId}` }));
             const skippedPairStats = (keyedDetail.runStats?.pairFetchStats ?? [])
-              .filter((s) => (s.skippedValues ?? 0) > 0)
-              .map((s) => ({ ...s, key: `${s.indicatorRawId}|${s.periodId}` }));
+              .filter((s) => s.skippedValues > 0)
+              .map((s) => ({ ...s, key: `${s.sourceId}|${s.periodId}` }));
             const totalSkippedValues = skippedPairStats.reduce(
-              (sum, s) => sum + (s.skippedValues ?? 0),
+              (sum, s) => sum + s.skippedValues,
               0,
             );
             const retryPairs: Dhis2RunPair[] = failedPairStats.map((s) => ({
-              indicatorRawId: s.indicatorRawId,
+              sourceId: s.sourceId,
               periodId: s.periodId,
             }));
+            const dropped = windowSelection();
             return (
               <div class="ui-spy">
+                <Show
+                  when={dropped &&
+                    (dropped.populationTermsDropped.length > 0 ||
+                      dropped.nonDhis2SourcesDropped.length > 0)
+                    ? dropped
+                    : undefined}
+                >
+                  {(selection) => (
+                    <div class="ui-pad ui-spy-sm rounded border text-sm">
+                      <div class="font-700">
+                        {t3({
+                          en: "Not fetched from this selection",
+                          fr: "Non récupéré pour cette sélection",
+                          pt: "Não obtido para esta seleção",
+                        })}
+                      </div>
+                      <Show when={selection().populationTermsDropped.length > 0}>
+                        <div>
+                          {t3({
+                            en: `Population terms (${toNum0(selection().populationTermsDropped.length)}), which come from the Population page, not DHIS2:`,
+                            fr: `Termes de population (${toNum0(selection().populationTermsDropped.length)}), qui proviennent de la page Population et non de DHIS2 :`,
+                            pt: `Termos de população (${toNum0(selection().populationTermsDropped.length)}), que provêm da página População e não do DHIS2:`,
+                          })}{" "}
+                          <span class="font-mono">{selection().populationTermsDropped.join(", ")}</span>
+                        </div>
+                      </Show>
+                      <Show when={selection().nonDhis2SourcesDropped.length > 0}>
+                        <div>
+                          {t3({
+                            en: `Sources that are not DHIS2 data elements or operands (${toNum0(selection().nonDhis2SourcesDropped.length)}):`,
+                            fr: `Sources qui ne sont pas des éléments de données ou des opérandes DHIS2 (${toNum0(selection().nonDhis2SourcesDropped.length)}) :`,
+                            pt: `Fontes que não são elementos de dados nem operandos DHIS2 (${toNum0(selection().nonDhis2SourcesDropped.length)}):`,
+                          })}{" "}
+                          <span class="font-mono">{selection().nonDhis2SourcesDropped.join(", ")}</span>
+                        </div>
+                      </Show>
+                    </div>
+                  )}
+                </Show>
                 <Show
                   when={keyedDetail.runStats === undefined && keyedDetail.status !== "running"}
                 >
@@ -262,16 +310,16 @@ export function Dhis2RunDetail(
                   <div class="border-danger bg-danger-subtle ui-pad ui-spy-sm rounded border">
                     <div class="font-700">
                       {t3({
-                        en: "Indicators not found in DHIS2",
-                        fr: "Indicateurs introuvables dans DHIS2",
-                        pt: "Indicadores não encontrados no DHIS2",
+                        en: "Sources not found in DHIS2",
+                        fr: "Sources introuvables dans DHIS2",
+                        pt: "Fontes não encontradas no DHIS2",
                       })}
                     </div>
                     <div class="text-sm">
                       {t3({
-                        en: "These indicator IDs match no data element or operand in DHIS2 — every selected month failed without a fetch, and will fail every run until they are fixed or removed in the indicator configuration.",
-                        fr: "Ces ID d'indicateurs ne correspondent à aucun élément de données ni opérande dans DHIS2 — chaque mois sélectionné a échoué sans récupération, et échouera à chaque importation tant qu'ils ne sont pas corrigés ou retirés de la configuration des indicateurs.",
-                        pt: "Estes IDs de indicadores não correspondem a nenhum elemento de dados nem operando no DHIS2 — todos os meses selecionados falharam sem obtenção, e falharão em todas as importações até serem corrigidos ou removidos na configuração dos indicadores.",
+                        en: "These source IDs match no data element or operand in DHIS2 — every selected month failed without a fetch, and will fail every run until they are fixed or removed in the indicator configuration.",
+                        fr: "Ces ID de sources ne correspondent à aucun élément de données ni opérande dans DHIS2 — chaque mois sélectionné a échoué sans récupération, et échouera à chaque importation tant qu'ils ne sont pas corrigés ou retirés de la configuration des indicateurs.",
+                        pt: "Estes IDs de fontes não correspondem a nenhum elemento de dados nem operando no DHIS2 — todos os meses selecionados falharam sem obtenção, e falharão em todas as importações até serem corrigidos ou removidos na configuração dos indicadores.",
                       })}
                     </div>
                     <div class="text-sm font-mono">{unknownIds.join(", ")}</div>

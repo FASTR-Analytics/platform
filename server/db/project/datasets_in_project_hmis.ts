@@ -209,16 +209,16 @@ COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADE
 
     // The mirror carries the WHOLE dictionary: a derived indicator's own row
     // is what makes the package standalone. The extract, by contrast, is base
-    // rows only, so the base commons with mappings are exactly the ingredients
-    // any expression may draw on.
+    // rows only, so the base indicators with sources are exactly the
+    // ingredients any expression may draw on.
     const commonIndicators = await getCommonIndicators(mainDb);
     const baseIdsInData = new Set(
       (
         await mainDb<{ indicator_common_id: string }[]>`
           SELECT DISTINCT i.indicator_common_id
           FROM indicators i
-          INNER JOIN indicator_mappings im
-            ON im.indicator_common_id = i.indicator_common_id
+          INNER JOIN indicator_sources s
+            ON s.indicator_id = i.indicator_common_id
           WHERE i.definition_type = 'base'
         `
       ).map((r) => r.indicator_common_id),
@@ -272,24 +272,23 @@ function getDatasetHmisExportStatement(
   // Add enabled optional columns
   const optionalColumns = getEnabledOptionalFacilityColumns(structureSchema);
 
-  // Use CTEs for clarity - explicitly showing the aggregation from raw to common IDs
   const statement = `
 WITH aggregated AS (
-  -- Step 1: Aggregate raw indicators to common IDs. BASE commons only —
+  -- Step 1: sum each base indicator's sources. BASE indicators only:
   -- everything else is a formula over these, computed downstream.
   SELECT
     d.facility_id,
-    im.indicator_common_id,
+    s.indicator_id AS indicator_common_id,
     d.period_id,
     SUM(d.count) as count
   FROM dataset_hmis d
-  INNER JOIN indicator_mappings im ON d.indicator_raw_id = im.indicator_raw_id
+  INNER JOIN indicator_sources s ON d.source_id = s.source_id
   INNER JOIN indicators i
-    ON i.indicator_common_id = im.indicator_common_id
+    ON i.indicator_common_id = s.indicator_id
    AND i.definition_type = 'base'
   GROUP BY
     d.facility_id,
-    im.indicator_common_id,
+    s.indicator_id,
     d.period_id
 )
 -- Step 2: Final output with facility and period details

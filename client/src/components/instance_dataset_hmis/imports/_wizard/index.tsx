@@ -1,5 +1,7 @@
 import {
+  expandIndicatorSelectionToSources,
   getCalendar,
+  POPULATION_TYPE_IDS,
   t3,
   type DatasetHmisImportRunSummary,
   type DatasetHmisScheduledImport,
@@ -7,8 +9,9 @@ import {
   type Dhis2Credentials,
   type Dhis2ImportSchedulingInfo,
   type Dhis2RunPair,
-  type Dhis2RunSelection,
+  type Dhis2RunSelectionInput,
   type Dhis2ScheduleRecurrence,
+  type IndicatorWithSources,
 } from "lib";
 import { recurrenceLabel } from "../_recurrence_label";
 import {
@@ -142,10 +145,24 @@ export function Dhis2Wizard(
     password: "",
   });
 
-  // Step 2: indicators.
+  // Step 2: indicators. The dictionary the picker loads lets the review
+  // count the sources the selection expands to, with the same lib function
+  // the server persists the expansion with at launch.
   const [selectedIndicators, setSelectedIndicators] = createSignal<string[]>(
-    scheduleDefaults?.selection.rawIndicatorIds ?? [],
+    scheduleDefaults?.selection.indicatorIds ?? [],
   );
+  const [dictionary, setDictionary] = createSignal<
+    IndicatorWithSources[] | undefined
+  >(undefined);
+  const nSources = createMemo<number | undefined>(() => {
+    const d = dictionary();
+    if (isPreset || d === undefined) return undefined;
+    return expandIndicatorSelectionToSources(
+      selectedIndicators(),
+      d,
+      POPULATION_TYPE_IDS,
+    ).sourceIds.length;
+  });
 
   // Step 3: time.
   const [timeChoice, setTimeChoice] = createSignal<Dhis2WizardTimeChoice>(
@@ -374,7 +391,9 @@ export function Dhis2Wizard(
     if (isPreset)
       return p.entry.kind === "presetPairs" ? p.entry.pairs.length : 0;
     if (timeChoice() === "recurring") return undefined;
-    return selectedIndicators().length * getNMonths(startPeriod(), endPeriod());
+    const sources = nSources();
+    if (sources === undefined) return undefined;
+    return sources * getNMonths(startPeriod(), endPeriod());
   });
 
   const queueNotice = () =>
@@ -422,7 +441,7 @@ export function Dhis2Wizard(
         });
   };
 
-  async function launchOrQueueNow(selection: Dhis2RunSelection) {
+  async function launchOrQueueNow(selection: Dhis2RunSelectionInput) {
     if (willQueue()) {
       return await serverActions.enqueueDatasetHmisDhis2Run({ selection });
     }
@@ -460,7 +479,7 @@ export function Dhis2Wizard(
       if (timeChoice() === "now") {
         return await launchOrQueueNow({
           kind: "window",
-          rawIndicatorIds: selectedIndicators(),
+          indicatorIds: selectedIndicators(),
           startPeriod: startPeriod(),
           endPeriod: endPeriod(),
         });
@@ -472,13 +491,13 @@ export function Dhis2Wizard(
           timeChoice() === "later"
             ? {
                 kind: "explicit_range",
-                rawIndicatorIds: selectedIndicators(),
+                indicatorIds: selectedIndicators(),
                 startPeriod: startPeriod(),
                 endPeriod: endPeriod(),
               }
             : {
                 kind: "last_n_months",
-                rawIndicatorIds: selectedIndicators(),
+                indicatorIds: selectedIndicators(),
                 monthsBack: monthsBack(),
               },
       };
@@ -577,6 +596,7 @@ export function Dhis2Wizard(
           <Dhis2StepIndicators
             selectedIds={selectedIndicators}
             setSelectedIds={setSelectedIndicators}
+            onDictionaryLoaded={setDictionary}
           />
         </Show>
         <Show when={currentStepKind() === "time"}>
@@ -628,6 +648,7 @@ export function Dhis2Wizard(
           <Dhis2StepReview
             connectionSummary={connectionSummary()}
             nIndicators={isPreset ? undefined : selectedIndicators().length}
+            nSources={nSources()}
             timeSummary={timeSummary()}
             windowSummary={windowSummary()}
             nPairs={nPairs()}

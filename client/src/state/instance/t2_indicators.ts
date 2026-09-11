@@ -3,7 +3,7 @@ import { serverActions } from "~/server_actions";
 import { createReactiveCache } from "../_infra/reactive_cache";
 
 // ============================================================================
-// Indicators (common + raw with mappings)
+// Indicators (with their sources)
 // ============================================================================
 
 const _INDICATORS_CACHE = createReactiveCache<
@@ -11,11 +11,12 @@ const _INDICATORS_CACHE = createReactiveCache<
   InstanceIndicatorDetails
 >({
   // v2: payload gained definition/format_as/thresholds/sort_order (PLAN_1a).
-  // v3: thresholds became a CF rule and group_label went (PLAN_1d). The name
-  // is the client's cache-prefix lever: the version hash cannot invalidate a
-  // pure shape change, so a changed payload shape bumps the name, exactly as
-  // a server Valkey prefix would.
-  name: "instance_indicators_v3",
+  // v3: thresholds became a CF rule and group_label went (PLAN_1d). v4: one
+  // list of indicators with their sources, the default flag gone (PLAN_A3). The
+  // name is the client's cache-prefix lever: the version hash cannot
+  // invalidate a pure shape change, so a changed payload shape bumps the
+  // name, exactly as a server Valkey prefix would.
+  name: "instance_indicators_v4",
   uniquenessKeys: () => ["indicators"],
   versionKey: (params) => params.indicatorMappingsVersion,
   pdsNotRequired: true,

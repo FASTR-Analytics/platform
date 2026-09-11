@@ -309,17 +309,17 @@ CREATE INDEX idx_facilities_hfa_facility_ownership ON facilities_hfa(facility_ow
 -- INDICATORS
 -- ============================================================================
 
--- A common indicator carries what it IS and how it is presented. `expression`
--- holds a derived indicator's formula (which may name a population type by
--- its id, a reserved word; the app validates the reference, there is no FK)
--- and is NULL for a base one. `thresholds` is the indicator's own
+-- An indicator is `base` or `derived` (PLAN_A3 §2). `expression` holds a
+-- derived indicator's formula (which may name a population type by its id,
+-- a reserved word; the app validates the reference, there is no FK) and is
+-- NULL for a base one. `thresholds` is the indicator's own
 -- conditional-formatting rule as JSON text (lib thresholdsRuleSchema:
 -- cutoffs in stored units, buckets with colour + label, direction), NULL
--- when it has none.
+-- when it has none. A new database is seeded with each special indicator
+-- (lib/special_indicators.ts) as an empty base; nothing marks them after.
 CREATE TABLE indicators (
   indicator_common_id text PRIMARY KEY NOT NULL,
   indicator_common_label text NOT NULL,
-  is_default boolean NOT NULL DEFAULT FALSE,
 
   definition_type text NOT NULL DEFAULT 'base',
   expression text,
@@ -343,25 +343,19 @@ CREATE TABLE indicators (
     CHECK (format_as IN ('percent', 'number', 'rate_per_10k'))
 );
 
-CREATE TABLE indicators_raw (
-  indicator_raw_id text PRIMARY KEY NOT NULL,
-  indicator_raw_label text NOT NULL,
+-- A source is one DHIS2 data element or operand (id = the UID or UID.UID)
+-- or one CSV indicator column (id = the value in the file), and it belongs
+-- to exactly one base indicator (the primary key). A base's sources are
+-- summed at extract. No source kind is stored: the DHIS2 dispatcher
+-- classifies ids against live metadata at run time.
+CREATE TABLE indicator_sources (
+  source_id text PRIMARY KEY NOT NULL,
+  indicator_id text NOT NULL REFERENCES indicators(indicator_common_id) ON DELETE CASCADE,
+  source_label text NOT NULL,
   updated_at timestamptz DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE indicator_mappings (
-  indicator_raw_id text NOT NULL,
-  indicator_common_id text NOT NULL,
-  updated_at timestamptz DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (indicator_raw_id, indicator_common_id),
-  FOREIGN KEY (indicator_raw_id) REFERENCES indicators_raw(indicator_raw_id) ON DELETE CASCADE,
-  FOREIGN KEY (indicator_common_id) REFERENCES indicators(indicator_common_id) ON DELETE CASCADE
-);
-
-CREATE INDEX idx_indicator_mappings_common_id ON indicator_mappings(indicator_common_id);
-CREATE INDEX idx_indicator_mappings_raw_id ON indicator_mappings(indicator_raw_id);
-CREATE INDEX idx_indicator_mappings_updated_at ON indicator_mappings(updated_at DESC);
-CREATE INDEX idx_indicator_mappings_raw_common ON indicator_mappings(indicator_raw_id, indicator_common_id);
+CREATE INDEX idx_indicator_sources_indicator_id ON indicator_sources(indicator_id);
 
 -- The population store (PLAN_1b ruling 1): annual figures per admin area ×
 -- year × type, at the level the row was uploaded for. Names match the HMIS
@@ -416,37 +410,40 @@ CREATE TABLE dataset_hmis_versions (
 
 CREATE TABLE dataset_hmis (
   facility_id text NOT NULL,
-  indicator_raw_id text NOT NULL,
+  source_id text NOT NULL,
   period_id integer NOT NULL 
     CHECK (period_id >= 190001 AND period_id <= 205012 AND period_id % 100 BETWEEN 1 AND 12),
   count integer NOT NULL CHECK (count >= 0),
   version_id integer NOT NULL,
-  PRIMARY KEY (facility_id, indicator_raw_id, period_id),
+  PRIMARY KEY (facility_id, source_id, period_id),
   -- NO ACTION (default), not RESTRICT (RESTRICT's delete-side check can't defer).
   -- Structure integration refuses (assertAbsentFacilitiesUnreferenced) before
   -- deleting any facility this table still references, so the old deferred
   -- SET CONSTRAINTS delete is gone; the FK is left DEFERRABLE but its name is
   -- no longer used by code.
   CONSTRAINT dataset_hmis_facility_id_fkey FOREIGN KEY (facility_id) REFERENCES facilities_hmis(facility_id) DEFERRABLE,
-  FOREIGN KEY (indicator_raw_id) REFERENCES indicators_raw(indicator_raw_id) ON DELETE RESTRICT DEFERRABLE,
+  -- Data never exists without an owning source; deleting a base with data is
+  -- refused by the app's pre-check before this RESTRICT would fire. Named
+  -- because instance migration 086 adds it under this name.
+  CONSTRAINT dataset_hmis_source_id_fkey FOREIGN KEY (source_id) REFERENCES indicator_sources(source_id) ON DELETE RESTRICT DEFERRABLE,
   FOREIGN KEY (version_id) REFERENCES dataset_hmis_versions(id) ON DELETE RESTRICT
 );
 
-CREATE INDEX idx_dataset_hmis_indicator_period ON dataset_hmis(indicator_raw_id, period_id);
-CREATE INDEX idx_dataset_hmis_period_indicator ON dataset_hmis(period_id, indicator_raw_id);
+CREATE INDEX idx_dataset_hmis_indicator_period ON dataset_hmis(source_id, period_id);
+CREATE INDEX idx_dataset_hmis_period_indicator ON dataset_hmis(period_id, source_id);
 CREATE INDEX idx_dataset_hmis_version_id ON dataset_hmis(version_id);
 CREATE INDEX idx_dataset_hmis_facility_period ON dataset_hmis(facility_id, period_id);
-CREATE INDEX idx_dataset_hmis_indicator_id ON dataset_hmis(indicator_raw_id);
+CREATE INDEX idx_dataset_hmis_indicator_id ON dataset_hmis(source_id);
 CREATE INDEX idx_dataset_hmis_period_id ON dataset_hmis(period_id);
 
--- Import ledger: latest import state per (raw indicator, month). Written
--- inside every integration and deletion transaction, so it can never disagree
--- with dataset_hmis (see server/db/instance/dataset_hmis_import_ledger.ts).
+-- Import ledger: latest import state per (source, month). Written inside
+-- every integration and deletion transaction, so it can never disagree with
+-- dataset_hmis (see server/db/instance/dataset_hmis_import_ledger.ts).
 -- skipped_values counts the DHIS2 facility values left out of the pair at its
 -- last import as not non-negative integers; skipped_values_sample is a JSON
 -- array of at most 10 { facilityId, value }.
 CREATE TABLE dataset_hmis_import_ledger (
-  indicator_raw_id text NOT NULL REFERENCES indicators_raw(indicator_raw_id) ON DELETE CASCADE,
+  source_id text NOT NULL REFERENCES indicator_sources(source_id) ON DELETE CASCADE,
   period_id integer NOT NULL,
   n_records integer NOT NULL,
   sum_count bigint NOT NULL,
@@ -457,7 +454,7 @@ CREATE TABLE dataset_hmis_import_ledger (
   error text,
   imported_at timestamptz,
   version_id integer REFERENCES dataset_hmis_versions(id),
-  PRIMARY KEY (indicator_raw_id, period_id)
+  PRIMARY KEY (source_id, period_id)
 );
 
 -- HMIS import runs: one row per import — DHIS2 (per-pair fetch+integrate) or
@@ -510,8 +507,8 @@ CREATE TABLE instance_dhis2_credentials (
 -- Scheduled DHIS2 imports (PLAN_DHIS2_IMPORTER Phase 4, C4): one-shot +
 -- recurring rows fired by the ~60 s scheduler tick
 -- (see server/worker_routines/import_hmis_data_dhis2/scheduler.ts).
--- selection is a rolling window JSON ({ rawIndicatorIds, monthsBack })
--- resolved at fire time; last_fired_at is the last HANDLED occurrence — the
+-- selection is JSON over indicator ids (a rolling window { indicatorIds,
+-- monthsBack } resolved at fire time, or an explicit range); last_fired_at is the last HANDLED occurrence — the
 -- tick's compare-and-set idempotency token.
 CREATE TABLE dataset_hmis_scheduled_imports (
   id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,

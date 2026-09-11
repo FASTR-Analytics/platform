@@ -33,7 +33,6 @@ function common(
   return {
     indicator_common_id: id,
     indicator_common_label: id,
-    is_default: false,
     definition,
     format_as: "number",
     thresholds: null,
@@ -67,7 +66,7 @@ const COMMONS: CommonIndicator[] = [
   }, 10),
 ];
 
-// `opd` is unmapped; `penta1` is mapped but has no rows.
+// `opd` has no sources; `penta1` has a source but no rows.
 const BASE_IDS_IN_DATA = new Set(["anc1", "anc4", "penta1"]);
 
 type AdjustedRow = {

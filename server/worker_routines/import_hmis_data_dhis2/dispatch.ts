@@ -2,7 +2,12 @@
 // worker.ts so it can be imported (and verified) outside a worker context:
 // worker.ts touches worker globals at module scope.
 
-import type { DatasetHmisLedgerSkippedValue, Dhis2FetchErrorKind } from "lib";
+import {
+  type DatasetHmisLedgerSkippedValue,
+  DHIS2_OPERAND_PATTERN,
+  DHIS2_UID_PATTERN,
+  type Dhis2FetchErrorKind,
+} from "lib";
 import type { DHIS2FetchError } from "../../dhis2/common/mod.ts";
 import type { FetchOptions } from "../../dhis2/common/base_fetcher.ts";
 import {
@@ -10,27 +15,24 @@ import {
   getExistingMetadataIds,
 } from "../../dhis2/goal5_data_value_sets/mod.ts";
 
-const UID_RE = /^[a-zA-Z][a-zA-Z0-9]{10}$/;
-const OPERAND_RE = /^([a-zA-Z][a-zA-Z0-9]{10})\.([a-zA-Z][a-zA-Z0-9]{10})$/;
-
-// Dispatcher classification per raw indicator. "dvs" is a data element or
+// Dispatcher classification per source. "dvs" is a data element or
 // operand, fetched from dataValueSets: the values facilities reported, the
 // importer's only route. "unknown" gets no fetch and a permanent ledger
 // error: a DHIS2 indicator is a formula the importer never evaluates (it is
 // re-created through the decomposition importer), and anything else matches
 // no DHIS2 metadata at all.
-export type RawRoute =
+export type SourceRoute =
   | { kind: "dvs"; baseElementId: string; coc: string | undefined }
   | { kind: "unknown"; reason: "not_found" | "dhis2_indicator" };
 
 // Dynamic per run: DHIS2 metadata is the source of truth, no stored type
 // field to drift (robustness ruling).
-export async function classifyRawIndicators(
-  rawIds: string[],
+export async function classifySources(
+  sourceIds: string[],
   fetchOptions: FetchOptions,
-): Promise<Map<string, RawRoute>> {
-  const parsed = rawIds.map((id) => {
-    const operandMatch = id.match(OPERAND_RE);
+): Promise<Map<string, SourceRoute>> {
+  const parsed = sourceIds.map((id) => {
+    const operandMatch = id.match(DHIS2_OPERAND_PATTERN);
     if (operandMatch) {
       return {
         id,
@@ -38,7 +40,7 @@ export async function classifyRawIndicators(
         coc: operandMatch[2] as string | undefined,
       };
     }
-    if (UID_RE.test(id)) {
+    if (DHIS2_UID_PATTERN.test(id)) {
       return { id, base: id as string | undefined, coc: undefined };
     }
     // Not UID-shaped at all: cannot be a valid dx.
@@ -76,7 +78,7 @@ export async function classifyRawIndicators(
     ? await getExistingMetadataIds("categoryOptionCombos", cocCandidates, fetchOptions)
     : new Set<string>();
 
-  const routes = new Map<string, RawRoute>();
+  const routes = new Map<string, SourceRoute>();
   for (const p of parsed) {
     if (p.base === undefined) {
       routes.set(p.id, { kind: "unknown", reason: "not_found" });
@@ -98,8 +100,8 @@ export async function classifyRawIndicators(
   return routes;
 }
 
-export function pairKey(p: { indicatorRawId: string; periodId: number }): string {
-  return `${p.indicatorRawId}|${p.periodId}`;
+export function pairKey(p: { sourceId: string; periodId: number }): string {
+  return `${p.sourceId}|${p.periodId}`;
 }
 
 // Size/timeout never shrink on an identical retry: the caller splits by
@@ -152,7 +154,7 @@ export function describeFetchError(error: unknown): {
 export const SKIPPED_VALUES_SAMPLE_CAP = 10;
 
 export type DvsCoveredPair = {
-  indicatorRawId: string;
+  sourceId: string;
   coc: string | undefined;
   periodId: number;
 };

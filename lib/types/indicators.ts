@@ -12,28 +12,50 @@ import {
 // Indicator Types
 // ============================================================================
 
-export type IndicatorType = "raw" | "common";
+// The HMIS datatable's two views: one series per source, or one per base
+// indicator (the sum of its sources).
+export type HmisDatatableView = "source" | "indicator";
+
+// One source of a base indicator: a DHIS2 data element or operand (id = the
+// UID or `UID.UID`) or a CSV indicator column (id = the value in the file).
+// A source belongs to exactly one base (the primary key of indicator_sources).
+export type IndicatorSource = {
+  source_id: string;
+  source_label: string;
+};
+
+export type IndicatorWithSources = CommonIndicator & {
+  sources: IndicatorSource[];
+};
 
 export type InstanceIndicatorDetails = {
-  commonIndicators: CommonIndicatorWithMappings[];
-  rawIndicators: RawIndicatorWithMappings[];
+  indicators: IndicatorWithSources[];
 };
 
-export type CommonIndicatorWithMappings = CommonIndicator & {
-  raw_indicator_ids: string[]; // Array of mapped raw IDs
-};
+// The one batch dictionary file (PLAN_A3 ruling 11): `sources` is
+// semicolon-separated for a base and empty for a derived; `thresholds` is
+// the rule as JSON text or empty. The download mirrors the upload.
+export const INDICATOR_BATCH_FILE_COLUMNS = [
+  "indicator_id",
+  "label",
+  "type",
+  "sources",
+  "expression",
+  "format_as",
+  "thresholds",
+] as const;
 
-export type RawIndicatorWithMappings = {
-  raw_indicator_id: string;
-  raw_indicator_label: string;
-  indicator_common_ids: string[];
-};
+export const INDICATOR_BATCH_SOURCES_SEPARATOR = ";";
 
-export type BatchIndicator = {
-  indicator_common_id: string;
-  indicator_common_label: string;
-  mapped_raw_indicator_ids: string; // This will be comma-separated or semicolon-separated raw_indicator_ids
-};
+// A source the DHIS2 importer can fetch: a data element UID or an operand
+// `UID.UID`. Anything else (a CSV column name) is skipped by a DHIS2 run.
+export const DHIS2_UID_PATTERN = /^[a-zA-Z][a-zA-Z0-9]{10}$/;
+export const DHIS2_OPERAND_PATTERN =
+  /^([a-zA-Z][a-zA-Z0-9]{10})\.([a-zA-Z][a-zA-Z0-9]{10})$/;
+
+export function isDhis2ShapedSourceId(id: string): boolean {
+  return DHIS2_UID_PATTERN.test(id) || DHIS2_OPERAND_PATTERN.test(id);
+}
 
 export const INDICATOR_ID_MAX_LENGTH = 128;
 
@@ -56,12 +78,12 @@ export const RESERVED_WORDS: readonly string[] = [
 ];
 
 // Applies to NEWLY created ids only (never to existing stored ids). Commas,
-// semicolons, and colons corrupt the STRING_AGG/split round-trip and the CSV
-// import re-split. Square brackets break the expression grammar's [quoted
-// identifier] form, which has no escape (PLAN_1a §1.3): one rule for common
-// AND raw ids, since raw ids have no use for brackets either. Instance
-// migration 079 guards stored ids the same way. Dots stay legal (DHIS2
-// operand ids contain them).
+// semicolons, and colons corrupt the batch file's source list and the CSV
+// round-trip. Square brackets break the expression grammar's [quoted
+// identifier] form, which has no escape (PLAN_1a §1.3): one rule for
+// indicator AND source ids, since source ids have no use for brackets
+// either. Instance migration 079 guards stored ids the same way. Dots stay
+// legal (DHIS2 operand ids contain them).
 function getIdCharsetIssue(id: string): NewIndicatorIdIssue | undefined {
   if (id.length === 0) {
     return "empty";
@@ -78,8 +100,8 @@ function getIdCharsetIssue(id: string): NewIndicatorIdIssue | undefined {
   return undefined;
 }
 
-// A raw id is a separate namespace that never enters an expression (the
-// extract joins raw to common), so the reserved words do not apply to it.
+// A source id is a separate namespace that never enters an expression (the
+// extract joins sources to their base), so the reserved words do not apply.
 export function getNewSourceIdIssue(
   id: string,
 ): NewIndicatorIdIssue | undefined {
@@ -141,8 +163,8 @@ export function describeNewIndicatorIdIssue(issue: NewIndicatorIdIssue): string 
 // What a common indicator IS (PLAN_1a §1.2, PLAN_1c). Generation decides what
 // the numbers are made of; the query only aggregates and applies the formula.
 //
-//   base   : mapped raw indicators, summed at extract. No formula. A count,
-//             so its format is always `number`.
+//   base   : its sources, summed at extract. No formula. A count, so its
+//             format is always `number`.
 //   derived: an arbitrary expression over other commons (base or derived;
 //             chained by substitution) and population terms. Its additive
 //             ingredients travel on the results row and the expression is
@@ -175,7 +197,6 @@ export function isCommonIndicatorType(
 export type CommonIndicator = {
   indicator_common_id: string;
   indicator_common_label: string;
-  is_default: boolean;
   definition: CommonIndicatorDefinition;
   format_as: IndicatorFormat;
   thresholds: ThresholdsRule | null;

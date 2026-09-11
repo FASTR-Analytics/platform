@@ -3,7 +3,7 @@ import {
   getAbcQualScale,
   getCalendar,
   t3,
-  type IndicatorType,
+  type HmisDatatableView,
   type StructureSchema,
 } from "lib";
 import {
@@ -36,7 +36,7 @@ type Props = {
 };
 
 export function DatasetItemsHolder(p: Props) {
-  const [rawOrCommon, setRawOrCommon] = createSignal<IndicatorType>("common");
+  const [view, setView] = createSignal<HmisDatatableView>("indicator");
 
   const [itemsHolder, setItemsHolder] = createSignal<
     StateHolder<ItemsHolderDatasetHmisDisplay>
@@ -50,7 +50,7 @@ export function DatasetItemsHolder(p: Props) {
   });
 
   async function attemptGetDatatable(
-    rawOrCommonIndicators: IndicatorType,
+    view: HmisDatatableView,
     versionId: number,
     baseIndicatorMappingsVersion: string,
   ) {
@@ -63,7 +63,7 @@ export function DatasetItemsHolder(p: Props) {
       }),
     });
     const res = await getDatasetHmisDisplayInfoFromCacheOrFetch(
-      rawOrCommonIndicators,
+      view,
       versionId,
       baseIndicatorMappingsVersion,
       p.structureSchema,
@@ -88,7 +88,7 @@ export function DatasetItemsHolder(p: Props) {
   }
 
   createEffect(() => {
-    attemptGetDatatable(rawOrCommon(), p.versionId, p.baseIndicatorMappingsVersion);
+    attemptGetDatatable(view(), p.versionId, p.baseIndicatorMappingsVersion);
   });
 
   return (
@@ -97,8 +97,8 @@ export function DatasetItemsHolder(p: Props) {
         return (
           <DatasetDisplayPresentation
             displayItems={keyedDatasetItems}
-            rawOrCommon={rawOrCommon()}
-            setRawOrCommon={setRawOrCommon}
+            view={view()}
+            setView={setView}
           />
         );
       }}
@@ -108,8 +108,8 @@ export function DatasetItemsHolder(p: Props) {
 
 type DatasetDisplayPresentationProps = {
   displayItems: ItemsHolderDatasetHmisDisplay;
-  rawOrCommon: IndicatorType;
-  setRawOrCommon: Setter<IndicatorType>;
+  view: HmisDatatableView;
+  setView: Setter<HmisDatatableView>;
 };
 
 function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
@@ -219,30 +219,30 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
         <div class="ui-pad ui-spy h-full w-full">
           <RadioGroup
             label={t3({
-              en: "Common or DHIS2 indicators",
-              fr: "Indicateurs communs ou DHIS2",
-              pt: "Indicadores comuns ou DHIS2",
+              en: "Series",
+              fr: "Séries",
+              pt: "Séries",
             })}
             options={[
               {
-                value: "common",
+                value: "indicator",
                 label: t3({
-                  en: "Common indicators",
-                  fr: "Indicateurs communs",
-                  pt: "Indicadores comuns",
+                  en: "By indicator",
+                  fr: "Par indicateur",
+                  pt: "Por indicador",
                 }),
               },
               {
-                value: "raw",
+                value: "source",
                 label: t3({
-                  en: "DHIS2 indicators",
-                  fr: "Indicateurs DHIS2",
-                  pt: "Indicadores DHIS2",
+                  en: "By source",
+                  fr: "Par source",
+                  pt: "Por fonte",
                 }),
               },
             ]}
-            value={p.rawOrCommon}
-            onChange={(v) => p.setRawOrCommon(v as IndicatorType)}
+            value={p.view}
+            onChange={(v) => p.setView(v as HmisDatatableView)}
           />
           <RadioGroup
             label={t3({ en: "Value", fr: "Valeur", pt: "Valor" })}

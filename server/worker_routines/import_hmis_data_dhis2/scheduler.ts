@@ -31,7 +31,7 @@ import {
   type QueuedDatasetHmisImportRun,
 } from "../../db/mod.ts";
 import type {
-  Dhis2RunSelection,
+  Dhis2RunSelectionInput,
   Dhis2ScheduleRecurrence,
   Dhis2ScheduleSelection,
   InstanceCalendar,
@@ -364,13 +364,13 @@ export function minusMonthsPeriodId(periodId: number, months: number): number {
 }
 
 export function resolveRollingSelection(selection: {
-  rawIndicatorIds: string[];
+  indicatorIds: string[];
   monthsBack: number;
-}): Dhis2RunSelection {
+}): Dhis2RunSelectionInput {
   const endPeriod = currentPeriodIdForCalendar(_INSTANCE_CALENDAR, new Date());
   return {
     kind: "window",
-    rawIndicatorIds: selection.rawIndicatorIds,
+    indicatorIds: selection.indicatorIds,
     // monthsBack is inclusive of the current month (matches the viz editor's
     // last_n_months filter: min = max - (nMonths - 1)), monthsBack=12 means
     // 12 months total, not the current month plus 12 more.
@@ -379,13 +379,15 @@ export function resolveRollingSelection(selection: {
   };
 }
 
+// The fire path's selection input: the launch expands the indicators to
+// sources like a manual launch (PLAN_A3 ruling 7).
 export function resolveScheduleSelection(
   selection: Dhis2ScheduleSelection,
-): Dhis2RunSelection {
+): Dhis2RunSelectionInput {
   if (selection.kind === "explicit_range") {
     return {
       kind: "window",
-      rawIndicatorIds: selection.rawIndicatorIds,
+      indicatorIds: selection.indicatorIds,
       startPeriod: selection.startPeriod,
       endPeriod: selection.endPeriod,
     };

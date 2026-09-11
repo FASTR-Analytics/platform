@@ -38,6 +38,7 @@ globs:
   - server/routes/instance/iceh.ts
   - server/server_only_funcs_csvs/**
   - server/tests/dhis2_skip_and_record_test.ts
+  - server/tests/indicator_selection_expansion_test.ts
   - server/worker_routines/import_hfa_data_csv/**
   - server/worker_routines/import_hmis_data_csv/**
   - server/worker_routines/import_hmis_data_dhis2/**
@@ -80,7 +81,8 @@ machinery died in Phase A; PLAN_DHIS2_IMPORTER's as-built record is in git
 history). Shape:
 
 - `dataset_hmis_import_runs` (main DB): one row per run, with trigger/user,
-  `source` (`dhis2|csv`), selection JSON (DHIS2: window or explicit pairs) or
+  `source` (`dhis2|csv`), selection JSON (DHIS2: a window of INDICATORS with
+  its expansion to sources, or explicit source pairs) or
   `csv_config` JSON (CSV: `{ fileName, filePin, mappings }`; the
   source→fields pairing is enforced in code), status
   (`queued|running|needs_review|complete|error|cancelled`), pair counters
@@ -128,8 +130,23 @@ history). Shape:
   and the outcome write silently consumes that occurrence, and
   rolling-window "current month" resolves from the server clock, not the
   schedule's timezone (≤hours of skew, self-correcting).
-- The worker classifies every selected raw indicator per run from DHIS2
-  metadata (dispatcher, `dispatch.ts`) and has one fetch route: bare data
+- **Import selects indicators; sources are expanded where pairs are
+  enumerated** (PLAN_A3 ruling 7). A window or schedule selection carries
+  `indicatorIds`; `validateRunSelection` (shared by launch, enqueue and the
+  scheduler's fire path) expands them with
+  `expandIndicatorSelectionToSources` (lib, S5): a derived flattens to its
+  base ingredients through the resolver, a base contributes its sources,
+  and population terms and sources that are not DHIS2-shaped are dropped
+  and listed (`populationTermsDropped`, `nonDhis2SourcesDropped`, shown in
+  the run detail). The expansion is persisted on the run row's `selection`
+  as `sourceIds` and carried in the worker message, so the worker and the
+  history tab never re-resolve: a queued run reuses its enqueue-time
+  `sourceIds` (its `total_pairs` was recorded then), so a source added to a
+  base after enqueue is not in that run. Pairs selections (retry failed,
+  re-import from the ledger) stay at source grain. Pinned by
+  `server/tests/indicator_selection_expansion_test.ts`.
+- The worker classifies every source of the run from DHIS2 metadata
+  (dispatcher, `dispatch.ts`) and has one fetch route: bare data
   elements + operands → dataValueSets country-pulls (the values facilities
   reported, no DHIS2-side formula), one per base element × month selected by
   `period=<instance period id>` (an opaque token the DHIS2 server interprets
@@ -139,9 +156,9 @@ history). Shape:
   size/timeout. Every other id gets no fetch and a permanent ledger error:
   a DHIS2 indicator (a formula; the error names the DHIS2 indicator import
   in the indicator configuration, which decomposes it into data elements,
-  and its existing data stays), or an id that matches no data element or
-  operand at all. The run detail lists both sets (`classification.unknownIds`
-  and `dhis2IndicatorIds`). A response containing any period other than the
+  and its existing data stays), or a source id that matches no data element
+  or operand at all. The run detail lists both sets
+  (`classification.unknownIds` and `dhis2IndicatorIds`). A response containing any period other than the
   requested one fails the pull loudly (permanent). The evidence base
   (verdicts E1–E13, incl. the calendar finding and the sizing fact that DVS
   deep-history backfill ≈ 10 MB per dense element-month) lives in the retired
@@ -235,8 +252,11 @@ start.
 - Escaping is uniform: `''`-doubling only (HFA via the shared `escapeSqlString`
   in `server/db/utils.ts`, HMIS/structure inline).
 - Row-level validation counts and samples drops (on the run row); reference
-  validation (facility exists) runs at staging AND again at integration
-  (facilities can be deleted between phases; the facility FKs are RESTRICT).
+  validation (facility exists; the row's source id is a source of some
+  indicator, else `unknownSources`) runs at staging, and the facility check
+  again at integration (facilities can be deleted between phases; the
+  facility FKs are RESTRICT). The CSV mapping names the source column
+  `source_id`; the per-run staging tables carry that column.
 - CSV parsing goes through `getCsvStreamComponents`
   (`get_csv_components_streaming_fast.ts`): streaming, 2 MB chunks,
   quote-parity-aware chunk boundaries (quoted fields with embedded newlines
@@ -349,24 +369,27 @@ signal: re-uploading the same name leaves the signal unchanged, and only the
 callback re-parses the new bytes).
 
 - **HMIS** (`instance_dataset_hmis/imports/`): Current / Future / History /
-  By indicator tabs (SSE summary fields as the wake-up signal, routed through
+  By source tabs (SSE summary fields as the wake-up signal, routed through
   the shell's `refresh()`). The shell owns every read. The tabs are
   stateless: panther's `StateHolderWrapper` keys its ready branch on the data
   object, so every silent runs/scheduling fetch (the 2 s poll included)
   remounts the tab area, and a tab-owned query would refetch on every poll.
   The ledger is a full-table read, so it is a shell-level
   `createSignal<StateHolder>` + `createEffect` fetched only while the
-  By-indicator tab is showing (every switch to it, and every `refresh()` /
+  By-source tab is showing (every switch to it, and every `refresh()` /
   toolbar refresh via a `ledgerVersion` signal; stale rows stay visible until
-  fresh ones arrive). By indicator is the import ledger: import history
-  pivoted by raw indicator, click-through to a per-month detail
-  (`_ledger_indicator_detail.tsx`). "Re-import this indicator" closes the
-  detail with a pair list and "Retry failed pairs" hands the tab's pair list
-  to the shell; both feed the wizard's `presetPairs` entry, the same contract
-  as History → run detail (a cancelled wizard lands on the tab, not back in
-  the detail, same as run detail; accepted). Two wizards:
-  DHIS2 (credentials/indicators/time/config/review) and CSV (upload →
-  mappings → review), both with the launch-or-queue fork. A run detail's
+  fresh ones arrive). By source is the import ledger: import history
+  pivoted by source, each with the base indicator it belongs to,
+  click-through to a per-month detail (`_ledger_indicator_detail.tsx`).
+  "Re-import this source" closes the detail with a pair list and "Retry
+  failed pairs" hands the tab's pair list to the shell; both feed the
+  wizard's `presetPairs` entry, the same contract as History → run detail
+  (a cancelled wizard lands on the tab, not back in the detail, same as run
+  detail; accepted). Two wizards: DHIS2 (credentials/indicators/time/
+  config/review; the indicators step picks from the one dictionary list and
+  the review counts the DHIS2 sources the selection expands to) and CSV
+  (upload → mappings → review), both with the launch-or-queue fork. A run
+  detail's
   Version row opens the version's `_import_information.tsx`. This replaced
   the "View previous imports" entry point (Phase D); the versions table and
   detail view are unchanged.
@@ -383,9 +406,12 @@ callback re-parses the new bytes).
 - Destructive data deletes require typing "yes please delete" in all three
   families.
 - Display caches: HMIS items keyed
-  `versionId_indicatorMappingsVersion_structureLastUpdated`, with the HMIS
-  schema hash in the uniqueness keys; HFA/ICEH use server-provided cache
-  hashes from the T1 SSE store.
+  `versionId_baseIndicatorMappingsVersion_structureLastUpdated`, with the
+  view (`source` | `indicator`: one series per source, or per base as the
+  sum of its sources) and the HMIS schema hash in the uniqueness keys;
+  HFA/ICEH use server-provided cache hashes from the T1 SSE store. The
+  delete-data window selects at source grain (`grain: "source"`,
+  `sourcesToInclude`).
 
 ## Run capture seam
 

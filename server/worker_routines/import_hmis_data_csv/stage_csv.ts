@@ -8,7 +8,7 @@ import {
   throwIfErrWithData,
   type DatasetCsvStagingResult,
   type HmisCsvMappingParams,
-  type PeriodIndicatorRawStat,
+  type PeriodSourceStat,
 } from "lib";
 import {
   getCsvColumnIndex,
@@ -57,7 +57,7 @@ export async function dropHmisCsvStagingTables(
 }
 
 // The staging internals relocated from the old stage_hmis_data_csv worker:
-// stream the CSV into a raw table, dedup, validate facilities + indicators,
+// stream the CSV into a raw table, dedup, validate facilities + sources,
 // and build the final staging table. Semantics unchanged; only the table
 // names (per-run) and the progress transport (callback instead of attempt-row
 // writes) differ. Never throws on dropped rows: the caller's clean-condition
@@ -90,10 +90,10 @@ export async function stageHmisCsvIntoTables(args: {
       mappingsRecord,
       "facility_id",
     ),
-    rawIndicatorId: getCsvColumnIndex(
+    sourceId: getCsvColumnIndex(
       encodedHeaderToIndexMap,
       mappingsRecord,
-      "raw_indicator_id",
+      "source_id",
     ),
     count: getCsvColumnIndex(encodedHeaderToIndexMap, mappingsRecord, "count"),
   } as const;
@@ -112,7 +112,7 @@ export async function stageHmisCsvIntoTables(args: {
   await importDb.unsafe(`
 CREATE UNLOGGED TABLE ${names.raw} (
   facility_id TEXT NOT NULL,
-  raw_indicator_id TEXT NOT NULL,
+  source_id TEXT NOT NULL,
   period_id INTEGER NOT NULL ${PERIOD_ID_CHECK_CONSTRAINT},
   count INTEGER NOT NULL ${COUNT_CHECK_CONSTRAINT}
 )`);
@@ -130,7 +130,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
     if (rowBuffer.length === 0) return;
     const valuesClause = rowBuffer.join(",\n");
     await importDb.unsafe(
-      `INSERT INTO ${names.raw} (facility_id, raw_indicator_id, period_id, count) VALUES ${valuesClause}`,
+      `INSERT INTO ${names.raw} (facility_id, source_id, period_id, count) VALUES ${valuesClause}`,
     );
     rowBuffer = [];
 
@@ -152,7 +152,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
 
       const periodId = row[headerIndexes.periodId];
       const facilityId = row[headerIndexes.facilityId];
-      const rawIndicatorId = row[headerIndexes.rawIndicatorId];
+      const sourceId = row[headerIndexes.sourceId];
       // Numeric cleaning only: tolerate thousands separators / stray quotes
       const count = parseCountValue(
         (row[headerIndexes.count] ?? "").replace(/[,'"]/g, ""),
@@ -161,7 +161,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
       const validation = isValidDatasetRow(
         periodId,
         facilityId,
-        rawIndicatorId,
+        sourceId,
         count,
       );
       if (!validation.isValid) {
@@ -180,7 +180,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
       }
 
       rowBuffer.push(
-        `('${escapeSqlString(facilityId)}','${escapeSqlString(rawIndicatorId)}','${periodId}',${count})`,
+        `('${escapeSqlString(facilityId)}','${escapeSqlString(sourceId)}','${periodId}',${count})`,
       );
 
       if (rowBuffer.length >= BUFFER_SIZE) {
@@ -210,7 +210,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
   }
 
   await importDb.unsafe(
-    `CREATE INDEX idx_staging_raw_run_${runId} ON ${names.raw} (raw_indicator_id)`,
+    `CREATE INDEX idx_staging_raw_run_${runId} ON ${names.raw} (source_id)`,
   );
 
   // Deduplication: MAX(count) when duplicates exist.
@@ -218,18 +218,18 @@ CREATE UNLOGGED TABLE ${names.raw} (
   CREATE UNLOGGED TABLE ${names.dedup} AS
   SELECT
     facility_id,
-    raw_indicator_id,
+    source_id,
     period_id,
     MAX(count) as count
   FROM ${names.raw}
-  GROUP BY facility_id, raw_indicator_id, period_id
+  GROUP BY facility_id, source_id, period_id
   `);
   const dedupCount = await importDb<{ count: number }[]>`
     SELECT COUNT(*)::int as count FROM ${importDb(names.dedup)}
   `;
   await importDb.unsafe(`DROP TABLE ${names.raw}`);
   await importDb.unsafe(
-    `CREATE INDEX idx_staging_dedup_run_${runId} ON ${names.dedup} (raw_indicator_id)`,
+    `CREATE INDEX idx_staging_dedup_run_${runId} ON ${names.dedup} (source_id)`,
   );
 
   onProgress(87);
@@ -278,49 +278,49 @@ CREATE UNLOGGED TABLE ${names.raw} (
 
   onProgress(88);
 
-  // Indicator validation.
-  let indicatorValidation: {
+  // Source validation: a row's source id must be a source of some indicator.
+  let sourceValidation: {
     total: number;
-    sample: { indicator_raw_id: string; row_count: number }[];
+    sample: { source_id: string; row_count: number }[];
     rowsDropped: number;
   };
   if (rowsAfterFacilityValidation > 0) {
-    const unmappedIndicatorsSample = await importDb<
-      { indicator_raw_id: string; row_count: number }[]
+    const unknownSourcesSample = await importDb<
+      { source_id: string; row_count: number }[]
     >`
-      SELECT t.raw_indicator_id as indicator_raw_id, COUNT(*)::INTEGER as row_count
+      SELECT t.source_id, COUNT(*)::INTEGER as row_count
       FROM ${importDb(names.validFacilities)} t
       WHERE NOT EXISTS (
-        SELECT 1 FROM indicators_raw ir
-        WHERE ir.indicator_raw_id = t.raw_indicator_id
+        SELECT 1 FROM indicator_sources s
+        WHERE s.source_id = t.source_id
       )
-      GROUP BY t.raw_indicator_id
+      GROUP BY t.source_id
       ORDER BY COUNT(*) DESC
       LIMIT 10
     `;
-    const unmappedIndicatorsTotal = await importDb<{ total_invalid: number }[]>`
-      SELECT COUNT(DISTINCT t.raw_indicator_id)::INTEGER as total_invalid
+    const unknownSourcesTotal = await importDb<{ total_invalid: number }[]>`
+      SELECT COUNT(DISTINCT t.source_id)::INTEGER as total_invalid
       FROM ${importDb(names.validFacilities)} t
       WHERE NOT EXISTS (
-        SELECT 1 FROM indicators_raw ir
-        WHERE ir.indicator_raw_id = t.raw_indicator_id
+        SELECT 1 FROM indicator_sources s
+        WHERE s.source_id = t.source_id
       )
     `;
-    const rowsDroppedByIndicator = await importDb<{ count: number }[]>`
+    const rowsDroppedBySource = await importDb<{ count: number }[]>`
       SELECT COUNT(*)::INTEGER as count
       FROM ${importDb(names.validFacilities)} t
       WHERE NOT EXISTS (
-        SELECT 1 FROM indicators_raw ir
-        WHERE ir.indicator_raw_id = t.raw_indicator_id
+        SELECT 1 FROM indicator_sources s
+        WHERE s.source_id = t.source_id
       )
     `;
-    indicatorValidation = {
-      total: unmappedIndicatorsTotal[0]?.total_invalid || 0,
-      sample: unmappedIndicatorsSample,
-      rowsDropped: rowsDroppedByIndicator[0]?.count || 0,
+    sourceValidation = {
+      total: unknownSourcesTotal[0]?.total_invalid || 0,
+      sample: unknownSourcesSample,
+      rowsDropped: rowsDroppedBySource[0]?.count || 0,
     };
   } else {
-    indicatorValidation = { total: 0, sample: [], rowsDropped: 0 };
+    sourceValidation = { total: 0, sample: [], rowsDropped: 0 };
   }
 
   // Final staging table.
@@ -330,13 +330,13 @@ CREATE UNLOGGED TABLE ${names.raw} (
       CREATE UNLOGGED TABLE ${names.final} AS
       SELECT
         t.facility_id,
-        t.raw_indicator_id as indicator_raw_id,
+        t.source_id,
         t.period_id::INTEGER as period_id,
         t.count::INTEGER as count
       FROM ${names.validFacilities} t
       WHERE EXISTS (
-        SELECT 1 FROM indicators_raw ir
-        WHERE ir.indicator_raw_id = t.raw_indicator_id
+        SELECT 1 FROM indicator_sources s
+        WHERE s.source_id = t.source_id
       )
     `);
     const countRows = await importDb<{ count: number }[]>`
@@ -345,14 +345,14 @@ CREATE UNLOGGED TABLE ${names.raw} (
     finalStagingCount = countRows[0]?.count || 0;
     if (finalStagingCount > 0) {
       await importDb.unsafe(
-        `CREATE INDEX idx_staging_final_run_${runId} ON ${names.final} (facility_id, indicator_raw_id, period_id)`,
+        `CREATE INDEX idx_staging_final_run_${runId} ON ${names.final} (facility_id, source_id, period_id)`,
       );
     }
   } else {
     await importDb.unsafe(`
       CREATE UNLOGGED TABLE ${names.final} (
         facility_id TEXT,
-        indicator_raw_id TEXT,
+        source_id TEXT,
         period_id INTEGER,
         count INTEGER
       )
@@ -363,29 +363,29 @@ CREATE UNLOGGED TABLE ${names.raw} (
   onProgress(90);
 
   // Statistics from staged data.
-  let periodIndicatorStats: PeriodIndicatorRawStat[] = [];
+  let periodIndicatorStats: PeriodSourceStat[] = [];
   if (finalStagingCount > 0) {
     const periodIndicatorStatsRaw = await importDb<
       {
         period_id: number;
-        indicator_raw_id: string;
+        source_id: string;
         n_records: number;
         total_count: string | number;
       }[]
     >`
   SELECT
     period_id,
-    indicator_raw_id,
+    source_id,
     COUNT(*)::int as n_records,
     SUM(count) as total_count
   FROM ${importDb(names.final)}
-  GROUP BY period_id, indicator_raw_id
-  ORDER BY period_id, indicator_raw_id
+  GROUP BY period_id, source_id
+  ORDER BY period_id, source_id
   `;
-    periodIndicatorStats = periodIndicatorStatsRaw.map<PeriodIndicatorRawStat>(
+    periodIndicatorStats = periodIndicatorStatsRaw.map<PeriodSourceStat>(
       (stat) => ({
         periodId: stat.period_id,
-        indicatorRawId: stat.indicator_raw_id,
+        sourceId: stat.source_id,
         nRecords: stat.n_records,
         totalCount: Number(stat.total_count),
       }),
@@ -406,7 +406,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
       invalidCounts: { rowsDropped: invalidCountCount },
       missingRequiredFields: { rowsDropped: missingFieldsCount },
       invalidFacilities: facilityValidation,
-      unmappedIndicators: indicatorValidation,
+      unknownSources: sourceValidation,
     },
   };
 }

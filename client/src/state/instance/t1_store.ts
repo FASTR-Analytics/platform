@@ -47,8 +47,8 @@ const EMPTY_INSTANCE_STATE: InstanceState = {
   structureLastUpdated: undefined,
   hfaWeights: [],
   indicators: {
-    commonIndicators: 0,
-    rawIndicators: 0,
+    hmisIndicators: 0,
+    hmisSources: 0,
     hfaIndicators: 0,
   },
   datasetsWithData: [],

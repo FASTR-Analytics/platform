@@ -1,15 +1,15 @@
-// Create/update one common indicator. The form branches on what the indicator
-// IS (PLAN_1a §1.2, PLAN_1c): a base indicator is defined by its raw mappings
-// and is always a number; a derived one by a formula over other commons and
-// population terms, with a free display format. The palette below the
-// formula inserts correctly written identifiers, and the legend names every
-// identifier the formula references.
+// Create/update one indicator. The form branches on what the indicator IS
+// (PLAN_1a §1.2, PLAN_1c, PLAN_A3 §2): a base indicator is defined by its
+// sources, written in the same transaction, and is always a number; a
+// derived one by a formula over other indicators and population terms, with
+// a free display format. The palette below the formula inserts correctly
+// written identifiers, and the legend names every identifier the formula
+// references.
 import {
   AlertComponentProps,
   AlertFormHolder,
   Button,
   createFormAction,
-  getUnique,
   Input,
   LabelHolder,
   Select,
@@ -21,25 +21,26 @@ import {
   _CF_LIGHTER_GREEN,
   _CF_LIGHTER_RED,
   _CF_LIGHTER_YELLOW,
-  baseIdsWithMappings,
+  baseIdsWithSources,
   buildCommonIndicatorDictionary,
   collectIdentifiers,
   type CommonIndicatorDefinition,
   type CommonIndicatorType,
-  type CommonIndicatorWithMappings,
   type DerivedIndicatorComputability,
   getLanguage,
   getNewIndicatorIdIssue,
+  getNewSourceIdIssue,
   getSpecialIndicatorTypeIssue,
-  RESERVED_WORDS,
-  SPECIAL_INDICATOR_IDS,
   type IndicatorFormat,
+  type IndicatorSource,
+  type IndicatorWithSources,
+  isPopulationTypeId,
   judgeDerivedIndicator,
   parseIndicatorExpression,
-  isPopulationTypeId,
   POPULATION_TYPE_IDS,
   populationTypeLabel,
-  type RawIndicatorWithMappings,
+  RESERVED_WORDS,
+  SPECIAL_INDICATOR_IDS,
   t3,
   TC,
   type ThresholdsRule,
@@ -78,17 +79,17 @@ const TYPE_OPTIONS: { value: CommonIndicatorType; label: string }[] = [
   {
     value: "base",
     label: t3({
-      en: "Base — summed from mapped raw indicators",
-      fr: "De base — somme des indicateurs bruts associés",
-      pt: "Base — soma dos indicadores brutos associados",
+      en: "Base: the sum of its sources",
+      fr: "De base : la somme de ses sources",
+      pt: "Base: a soma das suas fontes",
     }),
   },
   {
     value: "derived",
     label: t3({
-      en: "Derived — a formula over other indicators and populations",
-      fr: "Dérivé — une formule sur d'autres indicateurs et des populations",
-      pt: "Derivado — uma fórmula sobre outros indicadores e populações",
+      en: "Derived: a formula over other indicators and populations",
+      fr: "Dérivé : une formule sur d'autres indicateurs et des populations",
+      pt: "Derivado: uma fórmula sobre outros indicadores e populações",
     }),
   },
 ];
@@ -119,21 +120,20 @@ type LegendRow = {
   coverage?: { text: string; empty: boolean };
 };
 
-export function EditIndicatorCommonForm(
+export function EditIndicatorForm(
   p: AlertComponentProps<
     {
-      rawIndicators: RawIndicatorWithMappings[];
-      commonIndicators: CommonIndicatorWithMappings[];
-      existingCommonIndicator?: CommonIndicatorWithMappings;
+      indicators: IndicatorWithSources[];
+      existingIndicator?: IndicatorWithSources;
     },
     undefined
   >,
 ) {
-  const mode = p.existingCommonIndicator ? "update" : "create";
-  const existing = p.existingCommonIndicator;
+  const mode = p.existingIndicator ? "update" : "create";
+  const existing = p.existingIndicator;
   let formulaHolder: HTMLDivElement | undefined;
 
-  const [indicatorCommonId, setIndicatorCommonId] = createSignal(
+  const [indicatorId, setIndicatorId] = createSignal(
     existing?.indicator_common_id || "",
   );
   const [indicatorLabel, setIndicatorLabel] = createSignal(
@@ -142,8 +142,8 @@ export function EditIndicatorCommonForm(
   const [type, setType] = createSignal<CommonIndicatorType>(
     existing?.definition.type ?? "base",
   );
-  const [mappedRawIds, setMappedRawIds] = createSignal<string[]>(
-    existing?.raw_indicator_ids ?? [],
+  const [sources, setSources] = createSignal<IndicatorSource[]>(
+    existing?.sources.map((s) => ({ ...s })) ?? [],
   );
   const [expression, setExpression] = createSignal(
     existing?.definition.type === "derived"
@@ -158,7 +158,7 @@ export function EditIndicatorCommonForm(
   const effectiveFormatAs = (): IndicatorFormat =>
     type() === "base" ? "number" : formatAs();
 
-  const ownId = () => indicatorCommonId().trim() || "__new__";
+  const ownId = () => indicatorId().trim() || "__new__";
 
   function currentDefinition(): CommonIndicatorDefinition {
     if (type() === "derived") {
@@ -167,24 +167,35 @@ export function EditIndicatorCommonForm(
     return { type: "base" };
   }
 
-  // The other commons a formula may name: never the indicator being edited.
-  const otherCommons = createMemo(() =>
-    p.commonIndicators.filter((c) => c.indicator_common_id !== ownId()),
+  // The other indicators a formula may name: never the one being edited.
+  const otherIndicators = createMemo(() =>
+    p.indicators.filter((c) => c.indicator_common_id !== ownId()),
   );
+
+  // Every source that belongs to another indicator: a source belongs to
+  // exactly one base, so typing one of these is refused here before the
+  // server does.
+  const sourceOwners = createMemo(() => {
+    const owners = new Map<string, string>();
+    for (const c of otherIndicators()) {
+      for (const s of c.sources) owners.set(s.source_id, c.indicator_common_id);
+    }
+    return owners;
+  });
 
   // The same judgement capture makes, over the formula as typed: the editor
   // states it where the user is, capture enforces it where the data is.
-  // Ingredients must resolve to commons or population types, chains may not
-  // cycle, and the flattened set must fit the ingredient slots a results row
-  // carries: those refuse the save. A flattened ingredient with no mapped
-  // raw indicator is only a warning here, since mapping comes later.
+  // Ingredients must resolve to indicators or population types, chains may
+  // not cycle, and the flattened set must fit the ingredient slots a results
+  // row carries: those refuse the save. A flattened ingredient with no
+  // sources is only a warning here, since sources can come later.
   const judgement = createMemo<DerivedIndicatorComputability | undefined>(
     () => {
       const source = expression().trim();
       if (type() === "base" || source === "") return undefined;
       const dictionary = buildCommonIndicatorDictionary(
         [
-          ...otherCommons(),
+          ...otherIndicators(),
           {
             indicator_common_id: ownId(),
             definition: { type: "derived", expression: source },
@@ -196,7 +207,7 @@ export function EditIndicatorCommonForm(
         ownId(),
         source,
         dictionary,
-        baseIdsWithMappings(p.commonIndicators),
+        baseIdsWithSources(p.indicators),
       );
     },
   );
@@ -250,7 +261,7 @@ export function EditIndicatorCommonForm(
       return {
         identifier: writeIdentifier(id),
         kind: "indicator",
-        label: otherCommons().find((c) => c.indicator_common_id === id)
+        label: otherIndicators().find((c) => c.indicator_common_id === id)
           ?.indicator_common_label,
       };
     });
@@ -281,28 +292,26 @@ export function EditIndicatorCommonForm(
     }
   }
 
-  function addMappedRawId() {
-    setMappedRawIds([...mappedRawIds(), ""]);
+  function addSource() {
+    setSources([...sources(), { source_id: "", source_label: "" }]);
   }
 
-  function removeMappedRawId(index: number) {
-    setMappedRawIds(mappedRawIds().filter((_, i) => i !== index));
+  function removeSource(index: number) {
+    setSources(sources().filter((_, i) => i !== index));
   }
 
-  function updateMappedRawId(index: number, value: string) {
-    const updated = [...mappedRawIds()];
-    updated[index] = value;
-    setMappedRawIds(updated);
+  function updateSource(index: number, patch: Partial<IndicatorSource>) {
+    setSources(sources().map((s, i) => (i === index ? { ...s, ...patch } : s)));
   }
 
   const save = createFormAction(
     async (e: MouseEvent) => {
       e.preventDefault();
 
-      const commonId = indicatorCommonId().trim();
+      const id = indicatorId().trim();
       const label = indicatorLabel().trim();
 
-      if (mode === "create" && !commonId) {
+      if (mode === "create" && !id) {
         return {
           success: false,
           err: t3({
@@ -314,15 +323,15 @@ export function EditIndicatorCommonForm(
       }
 
       const idIssue = mode === "create"
-        ? getNewIndicatorIdIssue(commonId, type())
-        : getSpecialIndicatorTypeIssue(commonId, type());
+        ? getNewIndicatorIdIssue(id, type())
+        : getSpecialIndicatorTypeIssue(id, type());
       if (idIssue === "reserved") {
         return {
           success: false,
           err: t3({
-            en: `"${commonId}" is a reserved word and cannot be an indicator ID (reserved: ${RESERVED_WORDS.join(", ")})`,
-            fr: `« ${commonId} » est un mot réservé et ne peut pas être un identifiant d'indicateur (réservés : ${RESERVED_WORDS.join(", ")})`,
-            pt: `"${commonId}" é uma palavra reservada e não pode ser um ID de indicador (reservadas: ${RESERVED_WORDS.join(", ")})`,
+            en: `"${id}" is a reserved word and cannot be an indicator ID (reserved: ${RESERVED_WORDS.join(", ")})`,
+            fr: `« ${id} » est un mot réservé et ne peut pas être un identifiant d'indicateur (réservés : ${RESERVED_WORDS.join(", ")})`,
+            pt: `"${id}" é uma palavra reservada e não pode ser um ID de indicador (reservadas: ${RESERVED_WORDS.join(", ")})`,
           }),
         };
       }
@@ -330,9 +339,9 @@ export function EditIndicatorCommonForm(
         return {
           success: false,
           err: t3({
-            en: `"${commonId}" is a special indicator ID, which the analysis modules read as a count, so it can only be a base indicator (special: ${SPECIAL_INDICATOR_IDS.join(", ")})`,
-            fr: `« ${commonId} » est un identifiant d'indicateur spécial, lu comme un dénombrement par les modules d'analyse, et ne peut donc être qu'un indicateur de base (spéciaux : ${SPECIAL_INDICATOR_IDS.join(", ")})`,
-            pt: `"${commonId}" é um ID de indicador especial, lido como uma contagem pelos módulos de análise, pelo que só pode ser um indicador de base (especiais: ${SPECIAL_INDICATOR_IDS.join(", ")})`,
+            en: `"${id}" is a special indicator ID, which the analysis modules read as a count, so it can only be a base indicator (special: ${SPECIAL_INDICATOR_IDS.join(", ")})`,
+            fr: `« ${id} » est un identifiant d'indicateur spécial, lu comme un dénombrement par les modules d'analyse, et ne peut donc être qu'un indicateur de base (spéciaux : ${SPECIAL_INDICATOR_IDS.join(", ")})`,
+            pt: `"${id}" é um ID de indicador especial, lido como uma contagem pelos módulos de análise, pelo que só pode ser um indicador de base (especiais: ${SPECIAL_INDICATOR_IDS.join(", ")})`,
           }),
         };
       }
@@ -363,6 +372,50 @@ export function EditIndicatorCommonForm(
         return { success: false, err: exprErr };
       }
 
+      const cleanSources: IndicatorSource[] = type() === "base"
+        ? sources()
+          .map((s) => ({
+            source_id: s.source_id.trim(),
+            source_label: s.source_label.trim() || s.source_id.trim(),
+          }))
+          .filter((s) => s.source_id !== "")
+        : [];
+      const seen = new Set<string>();
+      for (const s of cleanSources) {
+        if (getNewSourceIdIssue(s.source_id)) {
+          return {
+            success: false,
+            err: t3({
+              en: `Source ID "${s.source_id}" must not contain commas, semicolons, colons, or square brackets, and must be at most 128 characters`,
+              fr: `L'identifiant de source « ${s.source_id} » ne doit pas contenir de virgules, de points-virgules, de deux-points ou de crochets, et doit comporter au maximum 128 caractères`,
+              pt: `O ID de fonte "${s.source_id}" não pode conter vírgulas, pontos e vírgulas, dois pontos ou parênteses retos, e deve ter no máximo 128 caracteres`,
+            }),
+          };
+        }
+        if (seen.has(s.source_id)) {
+          return {
+            success: false,
+            err: t3({
+              en: `Source "${s.source_id}" is listed twice`,
+              fr: `La source « ${s.source_id} » apparaît deux fois`,
+              pt: `A fonte "${s.source_id}" aparece duas vezes`,
+            }),
+          };
+        }
+        seen.add(s.source_id);
+        const owner = sourceOwners().get(s.source_id);
+        if (owner !== undefined) {
+          return {
+            success: false,
+            err: t3({
+              en: `Source "${s.source_id}" already belongs to ${owner}. A source belongs to exactly one base indicator; define a derived indicator over ${owner} instead.`,
+              fr: `La source « ${s.source_id} » appartient déjà à ${owner}. Une source appartient à un seul indicateur de base ; définissez plutôt un indicateur dérivé sur ${owner}.`,
+              pt: `A fonte "${s.source_id}" já pertence a ${owner}. Uma fonte pertence a exatamente um indicador de base; defina antes um indicador derivado sobre ${owner}.`,
+            }),
+          };
+        }
+      }
+
       const rule = thresholds();
       if (rule && !thresholdsRuleSchema.safeParse(rule).success) {
         return {
@@ -376,23 +429,20 @@ export function EditIndicatorCommonForm(
       }
 
       const indicator = {
-        indicator_common_id: commonId,
+        indicator_common_id: id,
         indicator_common_label: label,
-        mapped_raw_ids:
-          type() === "base"
-            ? getUnique(mappedRawIds().filter((id) => id.trim() !== ""))
-            : [],
+        sources: cleanSources,
         definition: currentDefinition(),
         format_as: effectiveFormatAs(),
         thresholds: rule,
       };
 
       if (mode === "create") {
-        return await serverActions.createCommonIndicators({
+        return await serverActions.createIndicators({
           indicators: [indicator],
         });
       }
-      return await serverActions.updateCommonIndicator({
+      return await serverActions.updateIndicator({
         old_indicator_common_id: existing!.indicator_common_id,
         indicator,
       });
@@ -406,14 +456,14 @@ export function EditIndicatorCommonForm(
       header={
         mode === "create"
           ? t3({
-              en: "Add Common Indicator",
-              fr: "Ajouter un indicateur commun",
-              pt: "Adicionar indicador comum",
+              en: "Add indicator",
+              fr: "Ajouter un indicateur",
+              pt: "Adicionar indicador",
             })
           : t3({
-              en: "Update Common Indicator",
-              fr: "Mettre à jour l'indicateur commun",
-              pt: "Atualizar indicador comum",
+              en: "Update indicator",
+              fr: "Mettre à jour l'indicateur",
+              pt: "Atualizar indicador",
             })
       }
       savingState={save.state()}
@@ -423,9 +473,9 @@ export function EditIndicatorCommonForm(
     >
       <div class="ui-gap grid grid-cols-[repeat(auto-fit,minmax(16rem,1fr))]">
         <Input
-          label={t3({ en: "Common ID", fr: "ID commun", pt: "ID comum" })}
-          value={indicatorCommonId()}
-          onChange={setIndicatorCommonId}
+          label={t3({ en: "Indicator ID", fr: "ID de l'indicateur", pt: "ID do indicador" })}
+          value={indicatorId()}
+          onChange={setIndicatorId}
           fullWidth
           autoFocus={mode === "create"}
           mono
@@ -456,33 +506,32 @@ export function EditIndicatorCommonForm(
             <div class="ui-spy-sm">
               <div class="ui-text-caption text-xs">
                 {t3({
-                  en: "Mapped DHIS2 Indicators (JSON IDs)",
-                  fr: "Indicateurs DHIS2 associés (ID JSON)",
-                  pt: "Indicadores DHIS2 associados (ID JSON)",
+                  en: "Sources: the DHIS2 data element or operand ids, or the CSV indicator ids, whose values are summed",
+                  fr: "Sources : les identifiants d'éléments de données ou d'opérandes DHIS2, ou les identifiants d'indicateurs CSV, dont les valeurs sont additionnées",
+                  pt: "Fontes: os IDs de elementos de dados ou operandos DHIS2, ou os IDs de indicadores CSV, cujos valores são somados",
                 })}
               </div>
-              <For each={mappedRawIds()}>
-                {(rawId, index) => (
+              <For each={sources()}>
+                {(source, index) => (
                   <div class="ui-gap-sm flex items-center">
-                    <SelectSearch
-                      value={rawId || undefined}
-                      onChange={(value) => updateMappedRawId(index(), value)}
-                      placeholder={t3({
-                        en: "Select DHIS2 indicator...",
-                        fr: "Sélectionner un indicateur DHIS2...",
-                        pt: "Selecionar um indicador DHIS2...",
-                      })}
-                      options={p.rawIndicators.map((raw) => ({
-                        value: raw.raw_indicator_id,
-                        label: `${raw.raw_indicator_id} ~ ${raw.raw_indicator_label}`,
-                      }))}
+                    <Input
+                      value={source.source_id}
+                      onChange={(v) => updateSource(index(), { source_id: v })}
+                      placeholder={t3({ en: "Source ID", fr: "ID de la source", pt: "ID da fonte" })}
+                      mono
+                      fullWidth
+                    />
+                    <Input
+                      value={source.source_label}
+                      onChange={(v) => updateSource(index(), { source_label: v })}
+                      placeholder={t3(TC.label)}
                       fullWidth
                     />
                     <Button
                       intent="danger"
                       onClick={(e) => {
                         e.preventDefault();
-                        removeMappedRawId(index());
+                        removeSource(index());
                       }}
                       iconName="trash"
                       outline
@@ -495,7 +544,7 @@ export function EditIndicatorCommonForm(
                   intent="success"
                   onClick={(e) => {
                     e.preventDefault();
-                    addMappedRawId();
+                    addSource();
                   }}
                   iconName="plus"
                   outline
@@ -544,7 +593,7 @@ export function EditIndicatorCommonForm(
                   fr: "Rechercher des indicateurs...",
                   pt: "Pesquisar indicadores...",
                 })}
-                options={otherCommons().map((c) => ({
+                options={otherIndicators().map((c) => ({
                   value: c.indicator_common_id,
                   label: `${c.indicator_common_label} (${c.indicator_common_id})`,
                 }))}

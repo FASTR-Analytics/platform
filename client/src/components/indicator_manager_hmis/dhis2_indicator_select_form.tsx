@@ -1,9 +1,11 @@
 import {
+  generateIndicatorId,
   t3,
   type Dhis2RunCredentialsSource,
   type DHIS2Indicator,
   type DHIS2DataElement,
   type DHIS2CategoryOptionCombo,
+  type IndicatorSource,
 } from "lib";
 import {
   FrameTop,
@@ -92,6 +94,11 @@ export function Dhis2IndicatorSelectForm(p: Props) {
     return response;
   });
 
+  // One base per selected element, its id generated from the element's name
+  // (PLAN_A3 ruling 10) against the dictionary as it stands, the element as
+  // its sole source, all in one transaction. Step 5 of PLAN_A3 turns this
+  // into the naming step (inline id edit, "add as a source of an existing
+  // base", metadata refusals, indicator decomposition).
   const save = createButtonAction(
     async () => {
       const selectedItems = tempSelectedElements();
@@ -102,16 +109,36 @@ export function Dhis2IndicatorSelectForm(p: Props) {
         };
       }
 
-      const newRawIndicators = selectedItems.map((item) => {
+      const dictionary = await serverActions.getIndicators({});
+      if (!dictionary.success) {
+        return dictionary;
+      }
+      const existingIds = new Set(
+        dictionary.data.indicators.map((i) => i.indicator_common_id),
+      );
+      const newIndicators = selectedItems.map((item) => {
+        const indicatorId = generateIndicatorId({
+          label: item.name,
+          sourceId: item.id,
+          existingIds,
+        });
+        existingIds.add(indicatorId);
+        const source: IndicatorSource = {
+          source_id: item.id,
+          source_label: item.name,
+        };
         return {
-          indicator_raw_id: item.id,
-          indicator_raw_label: item.name,
-          mapped_common_ids: [],
+          indicator_common_id: indicatorId,
+          indicator_common_label: item.name,
+          sources: [source],
+          definition: { type: "base" as const },
+          format_as: "number" as const,
+          thresholds: null,
         };
       });
 
-      return await serverActions.createRawIndicators({
-        indicators: newRawIndicators,
+      return await serverActions.createIndicators({
+        indicators: newIndicators,
       });
     },
     () => p.close(undefined),

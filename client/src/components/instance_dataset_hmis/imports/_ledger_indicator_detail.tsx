@@ -21,14 +21,15 @@ type MonthRow = {
   item: DatasetHmisImportLedgerItem | undefined;
 };
 
-// The per-indicator ledger surface: every month in the window with its
-// import status. Closes with a pair list when the user asks to re-import the
-// indicator; the shell feeds it to the wizard's presetPairs entry (same
+// The per-source ledger surface: every month in the window with its import
+// status. Closes with a pair list when the user asks to re-import the
+// source; the shell feeds it to the wizard's presetPairs entry (same
 // contract as Dhis2RunDetail).
 export function ImportLedgerIndicatorDetail(
   p: EditorComponentProps<
     {
-      indicatorRawId: string;
+      sourceId: string;
+      sourceLabel: string | undefined;
       items: DatasetHmisImportLedgerItem[];
       window: LedgerPeriodWindow;
     },
@@ -43,9 +44,9 @@ export function ImportLedgerIndicatorDetail(
     (periodId) => ({ periodId, item: itemsByPeriod.get(periodId) }),
   );
 
-  function reimportIndicator() {
+  function reimportSource() {
     const pairs: Dhis2RunPair[] = enumerateMonthsDescending(p.window).map(
-      (periodId) => ({ indicatorRawId: p.indicatorRawId, periodId }),
+      (periodId) => ({ sourceId: p.sourceId, periodId }),
     );
     p.close(pairs);
   }
@@ -167,14 +168,14 @@ export function ImportLedgerIndicatorDetail(
             fr: "État des importations",
             pt: "Estado das importações",
           })}
-          subheading={p.indicatorRawId}
+          subheading={p.sourceLabel ? `${p.sourceId} · ${p.sourceLabel}` : p.sourceId}
         >
           <div class="ui-gap-sm flex items-center">
-            <Button iconName="databaseImport" onClick={reimportIndicator}>
+            <Button iconName="databaseImport" onClick={reimportSource}>
               {t3({
-                en: "Re-import this indicator",
-                fr: "Réimporter cet indicateur",
-                pt: "Reimportar este indicador",
+                en: "Re-import this source",
+                fr: "Réimporter cette source",
+                pt: "Reimportar esta fonte",
               })}
             </Button>
           </div>

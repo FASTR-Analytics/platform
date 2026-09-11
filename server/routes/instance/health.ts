@@ -268,26 +268,23 @@ routesHealth.post("/pg_stat_statements_reset", async (c: Context) => {
   return c.json({ reset: true, serverTime: new Date().toISOString() });
 });
 
+// The dictionary's sources with the indicator each belongs to. The wire
+// keys (id, label, mappedTo) predate PLAN_A3 and are read outside this repo
+// (SYSTEM_15), so they stay.
 routesHealth.get("/dhis2-indicators-export", async (c: Context) => {
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
-  const indicators = await mainDb<
-    { indicator_raw_id: string; indicator_raw_label: string; mapped_to: string | null }[]
+  const sources = await mainDb<
+    { source_id: string; source_label: string; indicator_id: string }[]
   >`
-    SELECT
-      ir.indicator_raw_id,
-      ir.indicator_raw_label,
-      STRING_AGG(i.indicator_common_id, ', ' ORDER BY i.indicator_common_id) AS mapped_to
-    FROM indicators_raw ir
-    LEFT JOIN indicator_mappings im ON ir.indicator_raw_id = im.indicator_raw_id
-    LEFT JOIN indicators i ON im.indicator_common_id = i.indicator_common_id
-    GROUP BY ir.indicator_raw_id, ir.indicator_raw_label
-    ORDER BY LOWER(ir.indicator_raw_label)
+    SELECT source_id, source_label, indicator_id
+    FROM indicator_sources
+    ORDER BY LOWER(source_label)
   `;
   return c.json({
-    indicators: indicators.map((i) => ({
-      id: i.indicator_raw_id,
-      label: i.indicator_raw_label,
-      mappedTo: i.mapped_to ?? null,
+    indicators: sources.map((s) => ({
+      id: s.source_id,
+      label: s.source_label,
+      mappedTo: s.indicator_id,
     })),
   });
 });

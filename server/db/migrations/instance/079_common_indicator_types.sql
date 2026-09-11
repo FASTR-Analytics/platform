@@ -65,14 +65,22 @@ DO $$
 DECLARE
   v_bad TEXT[];
 BEGIN
-  SELECT COALESCE(array_agg(bad ORDER BY bad), ARRAY[]::TEXT[]) INTO v_bad
-  FROM (
-    SELECT 'indicators.' || indicator_common_id AS bad
-    FROM indicators WHERE indicator_common_id ~ '[\[\]]'
-    UNION ALL
-    SELECT 'indicators_raw.' || indicator_raw_id
-    FROM indicators_raw WHERE indicator_raw_id ~ '[\[\]]'
-  ) t;
+  SELECT COALESCE(array_agg('indicators.' || indicator_common_id ORDER BY indicator_common_id), ARRAY[]::TEXT[])
+  INTO v_bad
+  FROM indicators WHERE indicator_common_id ~ '[\[\]]';
+
+  -- indicators_raw is absent on fresh installs after migration 086 replaced
+  -- it with indicator_sources.
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'indicators_raw'
+  ) THEN
+    v_bad := v_bad || COALESCE(
+      (SELECT array_agg('indicators_raw.' || indicator_raw_id ORDER BY indicator_raw_id)
+       FROM indicators_raw WHERE indicator_raw_id ~ '[\[\]]'),
+      ARRAY[]::TEXT[]
+    );
+  END IF;
 
   IF EXISTS (
     SELECT 1 FROM information_schema.tables

@@ -109,7 +109,7 @@ defineRoute(
       c.var.mainDb,
       body.versionId,
       body.baseIndicatorMappingsVersion,
-      body.rawOrCommonIndicators,
+      body.view,
       body.structureSchema,
     );
     return c.json(res);

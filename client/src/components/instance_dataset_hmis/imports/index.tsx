@@ -5,6 +5,7 @@ import {
   type DatasetHmisScheduledImport,
   type Dhis2RunPair,
 } from "lib";
+import type { LedgerSourceInfo } from "./_tab_by_indicator";
 import {
   Button,
   EditorComponentProps,
@@ -79,7 +80,7 @@ function nextScheduleOf(schedules: DatasetHmisScheduledImport[]): DatasetHmisSch
 }
 
 // The unified imports surface: a thin tab shell (Current / Future / History
-// / By indicator) plus one wizard per source (DHIS2 runs, CSV file runs).
+// / By source) plus one wizard per source (DHIS2 runs, CSV file runs).
 // The shell owns all data plumbing (the runs, scheduling, ledger and
 // indicator-label reads, the poll loop, the SSE wake-up effect) so a run
 // keeps progressing even while the user sits on a different tab. Nothing
@@ -135,16 +136,26 @@ export function DatasetHmisImports(p: Props) {
     void load();
   });
 
-  // Labels are a display-only enrichment for the ledger: degrade to blank
-  // until ready rather than gating the table behind them.
+  // Source labels and owning indicators are a display-only enrichment for
+  // the ledger: degrade to blank until ready rather than gating the table
+  // behind them.
   const indicators = createQuery(() => serverActions.getIndicators({}));
-  const indicatorLabels = createMemo((): Map<string, string> => {
+  const sourceInfo = createMemo((): Map<string, LedgerSourceInfo> => {
     const s = indicators.state();
     if (s.status !== "ready") {
       return new Map();
     }
     return new Map(
-      s.data.rawIndicators.map((r) => [r.raw_indicator_id, r.raw_indicator_label]),
+      s.data.indicators.flatMap((i) =>
+        i.sources.map((source): [string, LedgerSourceInfo] => [
+          source.source_id,
+          {
+            label: source.source_label,
+            indicatorId: i.indicator_common_id,
+            indicatorLabel: i.indicator_common_label,
+          },
+        ])
+      ),
     );
   });
 
@@ -232,14 +243,19 @@ export function DatasetHmisImports(p: Props) {
     }
   }
 
-  async function openIndicatorDetail(
-    indicatorRawId: string,
+  async function openSourceDetail(
+    sourceId: string,
     items: DatasetHmisImportLedgerItem[],
     periodWindow: LedgerPeriodWindow,
   ) {
     const pairs = await openEditor({
       element: ImportLedgerIndicatorDetail,
-      props: { indicatorRawId, items, window: periodWindow },
+      props: {
+        sourceId,
+        sourceLabel: sourceInfo().get(sourceId)?.label,
+        items,
+        window: periodWindow,
+      },
     });
     if (pairs && pairs.length > 0) {
       await openWizard({
@@ -249,7 +265,7 @@ export function DatasetHmisImports(p: Props) {
           en: "Re-importing",
           fr: "Réimportation de",
           pt: "A reimportar",
-        })} ${indicatorRawId}:`,
+        })} ${sourceId}:`,
       });
     }
   }
@@ -309,7 +325,7 @@ export function DatasetHmisImports(p: Props) {
       { id: "history", label: t3({ en: "History", fr: "Historique", pt: "Histórico" }) },
       {
         id: "by_indicator",
-        label: t3({ en: "By indicator", fr: "Par indicateur", pt: "Por indicador" }),
+        label: t3({ en: "By source", fr: "Par source", pt: "Por fonte" }),
       },
     ];
   }
@@ -425,8 +441,8 @@ export function DatasetHmisImports(p: Props) {
                     <Match when={tab() === "by_indicator"}>
                       <Dhis2TabByIndicator
                         ledger={ledger()}
-                        indicatorLabels={indicatorLabels()}
-                        onOpenIndicator={openIndicatorDetail}
+                        sourceInfo={sourceInfo()}
+                        onOpenSource={openSourceDetail}
                         onRetryFailedPairs={retryFailedPairs}
                       />
                     </Match>

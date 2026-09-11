@@ -6,8 +6,10 @@ import {
 import {
   APIResponseNoData,
   APIResponseWithData,
+  expandIndicatorSelectionToSources,
   parseJsonOrThrow,
   parseJsonOrUndefined,
+  POPULATION_TYPE_IDS,
   type DatasetCsvStagingResult,
   type DatasetDhis2StagingResult,
   type DatasetHmisCsvRunConfig,
@@ -19,6 +21,7 @@ import {
   type Dhis2RunCredentialsSource,
   type Dhis2RunPair,
   type Dhis2RunSelection,
+  type Dhis2RunSelectionInput,
   type Dhis2RunSelectionSummary,
 } from "lib";
 import { tryCatchDatabaseAsync } from "../utils.ts";
@@ -26,6 +29,7 @@ import { instantiateImportHmisDataDhis2Worker } from "../../worker_routines/impo
 import { instantiateImportHmisDataCsvWorker } from "../../worker_routines/import_hmis_data_csv/instantiate_worker.ts";
 import { dropHmisCsvStagingTables } from "../../worker_routines/import_hmis_data_csv/stage_csv.ts";
 import { resolveAssetFileOrThrow } from "./assets.ts";
+import { getIndicatorsWithSources } from "./indicators.ts";
 import {
   clearWorker,
   getWorker,
@@ -166,32 +170,72 @@ export async function assertNoRunningDatasetHmisImportRun(
   }
 }
 
-// Validates a selection + instance state shared by launch and enqueue: the
-// enumerated pairs, the indicators_raw FK pre-check, and the UID-shaped
-// facility requirement.
+// Validates a selection + instance state shared by launch, enqueue and the
+// scheduler's fire path, and expands a window's indicators to the sources
+// the run fetches (PLAN_A3 ruling 7). The returned selection is what gets
+// stored on the run row and carried in the worker message, so nothing
+// downstream re-resolves: a source added to a base after enqueue is not in
+// that run. Pairs selections are already at source grain; their sources
+// must still exist (per-pair integration inserts against the
+// indicator_sources FK).
 async function validateRunSelection(
   mainDb: Sql,
-  selection: Dhis2RunSelection,
-): Promise<Dhis2RunPair[]> {
-  const pairs = enumerateRunPairs(selection);
-  if (pairs.length === 0) {
-    throw new Error("The selection contains no (indicator, month) pairs.");
+  input: Dhis2RunSelectionInput,
+): Promise<{ selection: Dhis2RunSelection; pairs: Dhis2RunPair[] }> {
+  let selection: Dhis2RunSelection;
+  if (input.kind === "window") {
+    const expansion = expandIndicatorSelectionToSources(
+      input.indicatorIds,
+      await getIndicatorsWithSources(mainDb),
+      POPULATION_TYPE_IDS,
+    );
+    if (expansion.unknownIndicatorIds.length > 0) {
+      throw new Error(
+        `The following selected indicators do not exist: ${
+          expansion.unknownIndicatorIds.join(", ")
+        }.`,
+      );
+    }
+    if (expansion.unresolvable.length > 0) {
+      throw new Error(
+        `The following selected indicators cannot be resolved to sources: ${
+          expansion.unresolvable.map((u) => `${u.id} (${u.problem})`).join("; ")
+        }.`,
+      );
+    }
+    selection = {
+      kind: "window",
+      indicatorIds: input.indicatorIds,
+      startPeriod: input.startPeriod,
+      endPeriod: input.endPeriod,
+      sourceIds: expansion.sourceIds,
+      populationTermsDropped: expansion.populationTermsDropped,
+      nonDhis2SourcesDropped: expansion.nonDhis2SourcesDropped,
+    };
+  } else {
+    selection = input;
+    const selectedSourceIds = Array.from(
+      new Set(input.pairs.map((p) => p.sourceId)),
+    );
+    const existing = await mainDb<{ source_id: string }[]>`
+      SELECT source_id FROM indicator_sources
+      WHERE source_id = ANY(${selectedSourceIds})
+    `;
+    if (existing.length < selectedSourceIds.length) {
+      const existingSet = new Set(existing.map((r) => r.source_id));
+      const missing = selectedSourceIds.filter((id) => !existingSet.has(id));
+      throw new Error(
+        `The following selected sources do not exist: ${missing.join(", ")}.`,
+      );
+    }
   }
 
-  // Fail fast on indicators that don't exist: per-pair integration inserts
-  // against an indicators_raw FK.
-  const selectedIndicatorIds = Array.from(
-    new Set(pairs.map((p) => p.indicatorRawId)),
-  );
-  const existing = await mainDb<{ indicator_raw_id: string }[]>`
-    SELECT indicator_raw_id FROM indicators_raw
-    WHERE indicator_raw_id = ANY(${selectedIndicatorIds})
-  `;
-  if (existing.length < selectedIndicatorIds.length) {
-    const existingSet = new Set(existing.map((r) => r.indicator_raw_id));
-    const missing = selectedIndicatorIds.filter((id) => !existingSet.has(id));
+  const pairs = enumerateRunPairs(selection);
+  if (pairs.length === 0) {
     throw new Error(
-      `The following selected raw indicators do not exist: ${missing.join(", ")}.`,
+      selection.kind === "window" && selection.sourceIds.length === 0
+        ? "The selected indicators have no DHIS2 sources to fetch."
+        : "The selection contains no (source, month) pairs.",
     );
   }
 
@@ -204,7 +248,7 @@ async function validateRunSelection(
       "No DHIS2-shaped HMIS facilities found. Import HMIS facilities from DHIS2 before importing data.",
     );
   }
-  return pairs;
+  return { selection, pairs };
 }
 
 // Spawns the run worker for a row already claimed as 'running' and wires the
@@ -284,17 +328,20 @@ export async function launchDatasetHmisDhis2ImportRun(
     // The URL recorded on the run row. For inline credentials this is
     // credentials.url; for stored, the stored url.
     dhis2Url: string;
-    selection: Dhis2RunSelection;
+    selection: Dhis2RunSelectionInput;
     trigger: "manual" | "schedule";
     triggeredBy: string;
     onComplete?: () => void;
   },
 ): Promise<APIResponseWithData<{ runId: number }>> {
   return await tryCatchDatabaseAsync(async () => {
-    const { credentialsSource, dhis2Url, selection, trigger, triggeredBy, onComplete } =
+    const { credentialsSource, dhis2Url, trigger, triggeredBy, onComplete } =
       args;
 
-    const pairs = await validateRunSelection(mainDb, selection);
+    const { selection, pairs } = await validateRunSelection(
+      mainDb,
+      args.selection,
+    );
 
     // Read-guards for friendly errors; the atomic claim is the INSERT below
     // (partial unique index: at most one status='running' row). CSV imports
@@ -333,16 +380,26 @@ export async function launchDatasetHmisDhis2ImportRun(
 // credential must never be persisted to survive until the queue drains).
 export async function enqueueDatasetHmisImportRun(
   mainDb: Sql,
-  args: { dhis2Url: string; selection: Dhis2RunSelection; triggeredBy: string },
+  args: {
+    dhis2Url: string;
+    selection: Dhis2RunSelectionInput;
+    triggeredBy: string;
+  },
 ): Promise<APIResponseWithData<{ runId: number }>> {
   return await tryCatchDatabaseAsync(async () => {
-    const pairs = await validateRunSelection(mainDb, args.selection);
+    // The expansion is recorded now, with total_pairs: the launch total must
+    // equal the worker's list, so a queued run reuses its enqueue-time
+    // sourceIds.
+    const { selection, pairs } = await validateRunSelection(
+      mainDb,
+      args.selection,
+    );
     const inserted = await mainDb<{ id: number }[]>`
       INSERT INTO dataset_hmis_import_runs
         (trigger, triggered_by, source, dhis2_url, selection, status, total_pairs)
       VALUES
         ('manual', ${args.triggeredBy}, 'dhis2', ${args.dhis2Url},
-         ${JSON.stringify(args.selection)}, 'queued', ${pairs.length})
+         ${JSON.stringify(selection)}, 'queued', ${pairs.length})
       RETURNING id
     `;
     return { success: true, data: { runId: inserted[0].id } };
@@ -477,7 +534,7 @@ async function validateCsvRunConfig(
   const mappings = input.mappings;
   for (const key of [
     "facility_id",
-    "raw_indicator_id",
+    "source_id",
     "period_id",
     "count",
   ] as const) {
@@ -975,13 +1032,13 @@ async function reconcileRunVersionRow(
   );
   const ledgerRows = await mainDb<
     {
-      indicator_raw_id: string;
+      source_id: string;
       period_id: number;
       n_records: number;
       sum_count: string | number;
     }[]
   >`
-    SELECT indicator_raw_id, period_id, n_records, sum_count
+    SELECT source_id, period_id, n_records, sum_count
     FROM dataset_hmis_import_ledger
     WHERE version_id = ${versionId}
   `;
@@ -993,7 +1050,7 @@ async function reconcileRunVersionRow(
     failedFetches: [],
     periodIndicatorStats: ledgerRows.map((r) => ({
       periodId: r.period_id,
-      indicatorRawId: r.indicator_raw_id,
+      sourceId: r.source_id,
       nRecords: r.n_records,
       totalCount: Number(r.sum_count),
     })),
@@ -1038,9 +1095,10 @@ export async function markStaleRunningDatasetHmisImportRuns(
   return swept.length;
 }
 
-// Expands a run selection to its (indicator, month) pairs. Window enumeration
-// mirrors the run worker exactly: totals recorded at launch must equal the
-// worker's work list.
+// Expands a stored run selection to its (source, month) pairs. A window's
+// sources are the ones persisted at validation (never the dictionary as it
+// stands now), and the enumeration mirrors the run worker exactly: totals
+// recorded at launch must equal the worker's work list.
 export function enumerateRunPairs(
   selection: Dhis2RunSelection,
 ): Dhis2RunPair[] {
@@ -1048,7 +1106,7 @@ export function enumerateRunPairs(
     const seen = new Set<string>();
     const pairs: Dhis2RunPair[] = [];
     for (const p of selection.pairs) {
-      const key = `${p.indicatorRawId}|${p.periodId}`;
+      const key = `${p.sourceId}|${p.periodId}`;
       if (!seen.has(key) && isValidPeriodId(p.periodId)) {
         seen.add(key);
         pairs.push(p);
@@ -1070,14 +1128,14 @@ export function enumerateRunPairs(
     );
   }
   const pairs: Dhis2RunPair[] = [];
-  for (const indicatorRawId of selection.rawIndicatorIds) {
+  for (const sourceId of selection.sourceIds) {
     for (
       let periodId = selection.startPeriod;
       periodId <= selection.endPeriod;
       periodId++
     ) {
       if (isValidPeriodId(periodId)) {
-        pairs.push({ indicatorRawId, periodId });
+        pairs.push({ sourceId, periodId });
       }
     }
   }

@@ -77,39 +77,36 @@ export async function getHfaIndicatorsVersion(mainDb: Sql): Promise<string> {
   return result[0]?.version ?? "none";
 }
 
-// The full dictionary stamp: every common indicator row, whatever its type,
-// plus the raws and mappings. Keys the indicator manager's cache and rides the
-// SSE summary.
+// The full dictionary stamp: every indicator row, whatever its type, plus
+// every source. Keys the indicator manager's cache and rides the SSE
+// summary.
 export async function getIndicatorMappingsVersion(
   mainDb: Sql,
 ): Promise<string> {
   const result = await mainDb<{ version: string | null }[]>`
     SELECT MD5(
       COALESCE((SELECT MAX(updated_at) FROM indicators)::text, '') || '|' ||
-      COALESCE((SELECT MAX(updated_at) FROM indicators_raw)::text, '') || '|' ||
-      COALESCE((SELECT MAX(updated_at) FROM indicator_mappings)::text, '') || '|' ||
+      COALESCE((SELECT MAX(updated_at) FROM indicator_sources)::text, '') || '|' ||
       (SELECT COUNT(*) FROM indicators)::text || '|' ||
-      (SELECT COUNT(*) FROM indicators_raw)::text || '|' ||
-      (SELECT COUNT(*) FROM indicator_mappings)::text
+      (SELECT COUNT(*) FROM indicator_sources)::text
     ) as version
   `;
   return result[0]?.version ?? "none";
 }
 
 // The base-only stamp: the rows an HMIS extract is actually built from
-// (PLAN_1a §1.13). Editing a derived definition does not move it, so the
-// datatable caches it keys never churn on a formula edit.
+// (PLAN_1a §1.13), base indicators and their sources. Editing a derived
+// definition does not move it, so the datatable caches it keys never churn
+// on a formula edit.
 export async function getBaseIndicatorMappingsVersion(
   mainDb: Sql,
 ): Promise<string> {
   const result = await mainDb<{ version: string | null }[]>`
     SELECT MD5(
       COALESCE((SELECT MAX(updated_at) FROM indicators WHERE definition_type = 'base')::text, '') || '|' ||
-      COALESCE((SELECT MAX(updated_at) FROM indicators_raw)::text, '') || '|' ||
-      COALESCE((SELECT MAX(updated_at) FROM indicator_mappings)::text, '') || '|' ||
+      COALESCE((SELECT MAX(updated_at) FROM indicator_sources)::text, '') || '|' ||
       (SELECT COUNT(*) FROM indicators WHERE definition_type = 'base')::text || '|' ||
-      (SELECT COUNT(*) FROM indicators_raw)::text || '|' ||
-      (SELECT COUNT(*) FROM indicator_mappings)::text
+      (SELECT COUNT(*) FROM indicator_sources)::text
     ) as version
   `;
   return result[0]?.version ?? "none";
@@ -134,17 +131,17 @@ export async function getInstanceUsers(mainDb: Sql): Promise<OtherUser[]> {
 export async function getInstanceIndicatorsSummary(
   mainDb: Sql,
 ): Promise<InstanceIndicatorsSummary> {
-  const commonIndicators =
+  const hmisIndicators =
     (
       await mainDb<
         { count: number }[]
       >`SELECT COUNT(*) as count FROM indicators`
     )[0]?.count ?? 0;
-  const rawIndicators =
+  const hmisSources =
     (
       await mainDb<
         { count: number }[]
-      >`SELECT COUNT(*) as count FROM indicators_raw`
+      >`SELECT COUNT(*) as count FROM indicator_sources`
     )[0]?.count ?? 0;
   const hfaIndicators =
     (
@@ -158,8 +155,8 @@ export async function getInstanceIndicatorsSummary(
   const hfaIndicatorsVersion = await getHfaIndicatorsVersion(mainDb);
   return {
     indicators: {
-      commonIndicators,
-      rawIndicators,
+      hmisIndicators,
+      hmisSources,
       hfaIndicators,
     },
     indicatorMappingsVersion,
@@ -382,20 +379,19 @@ export async function getInstanceDetail(
     const structureSummary = await getInstanceStructureSummary(mainDb);
     const structure = structureSummary.structure;
 
-    // Get indicator counts (both common and raw)
-    const commonIndicatorsCount =
+    const hmisIndicatorsCount =
       (
         await mainDb<{ total_count: number }[]>`
-        SELECT count(*) AS total_count 
+        SELECT count(*) AS total_count
         FROM indicators
       `
       ).at(0)?.total_count ?? 0;
 
-    const rawIndicatorsCount =
+    const hmisSourcesCount =
       (
         await mainDb<{ total_count: number }[]>`
-        SELECT count(*) AS total_count 
-        FROM indicators_raw
+        SELECT count(*) AS total_count
+        FROM indicator_sources
       `
       ).at(0)?.total_count ?? 0;
 
@@ -448,8 +444,8 @@ const projectSummaries = await getProjectsForUser(mainDb, globalUser);
       structureLastUpdated: structureSummary.structureLastUpdated,
       hfaWeights: structureSummary.hfaWeights,
       indicators: {
-        commonIndicators: commonIndicatorsCount,
-        rawIndicators: rawIndicatorsCount,
+        hmisIndicators: hmisIndicatorsCount,
+        hmisSources: hmisSourcesCount,
         hfaIndicators: hfaIndicatorsCount,
       },
       assets: resAssets.data,
