@@ -5,6 +5,8 @@ import {
   searchDataElementsFromDHIS2,
   searchIndicatorsFromDHIS2,
   testIndicatorsConnection,
+  withDecompositions,
+  withSourceVerdicts,
 } from "../../dhis2/mod.ts";
 import { t3, type Dhis2Credentials, type Dhis2RunCredentialsSource } from "lib";
 import { resolveDhis2Credentials } from "../../db/mod.ts";
@@ -40,14 +42,12 @@ defineRoute(
       if (!resolved.ok) {
         return c.json({ success: false, err: resolved.err });
       }
-      const indicators = await searchIndicatorsFromDHIS2(
-        { dhis2Credentials: resolved.credentials },
-        body.query,
-      );
+      const options = { dhis2Credentials: resolved.credentials };
+      const indicators = await searchIndicatorsFromDHIS2(options, body.query);
 
       return c.json({
         success: true,
-        data: indicators,
+        data: await withDecompositions(options, indicators),
       });
     } catch (error) {
       console.error("Error searching DHIS2 indicators:", error);
@@ -81,7 +81,7 @@ defineRoute(
 
       return c.json({
         success: true,
-        data: dataElements,
+        data: withSourceVerdicts(dataElements),
       });
     } catch (error) {
       console.error("Error searching DHIS2 data elements:", error);
@@ -105,8 +105,9 @@ defineRoute(
       if (!resolved.ok) {
         return c.json({ success: false, err: resolved.err });
       }
+      const options = { dhis2Credentials: resolved.credentials };
       const results = await searchAllIndicatorsAndDataElements(
-        { dhis2Credentials: resolved.credentials },
+        options,
         body.query,
         body.includeDataElements ?? true,
         body.includeIndicators ?? true,
@@ -114,7 +115,14 @@ defineRoute(
 
       return c.json({
         success: true,
-        data: results,
+        data: {
+          dataElements: withSourceVerdicts(results.dataElements),
+          indicators: await withDecompositions(
+            options,
+            results.indicators,
+            results.dataElements,
+          ),
+        },
       });
     } catch (error) {
       console.error("Error in combined DHIS2 search:", error);

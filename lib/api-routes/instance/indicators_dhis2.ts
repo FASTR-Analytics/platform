@@ -1,4 +1,8 @@
 import { z } from "zod";
+import type {
+  Dhis2DataElementSearchItem,
+  Dhis2IndicatorSearchItem,
+} from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
 const dhis2CredentialsSchema = z.object({
@@ -21,7 +25,7 @@ export const indicatorsDhis2RouteRegistry = {
       query: z.string(),
       searchBy: z.enum(["name", "code"]).optional(),
     }),
-    response: {} as any[],
+    response: {} as Dhis2IndicatorSearchItem[],
   }),
   searchDhis2DataElements: route({
     path: "/data-elements-dhis2/search",
@@ -31,7 +35,7 @@ export const indicatorsDhis2RouteRegistry = {
       query: z.string(),
       additionalFilters: z.array(z.string()).optional(),
     }),
-    response: {} as any[],
+    response: {} as Dhis2DataElementSearchItem[],
   }),
   searchDhis2All: route({
     path: "/indicators-dhis2/search-all",
@@ -43,7 +47,10 @@ export const indicatorsDhis2RouteRegistry = {
       includeDataElements: z.boolean().optional(),
       includeIndicators: z.boolean().optional(),
     }),
-    response: {} as { dataElements: any[]; indicators: any[] },
+    response: {} as {
+      dataElements: Dhis2DataElementSearchItem[];
+      indicators: Dhis2IndicatorSearchItem[];
+    },
   }),
   testDhis2IndicatorsConnection: route({
     path: "/indicators-dhis2/test-connection",

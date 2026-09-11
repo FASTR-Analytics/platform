@@ -5,6 +5,8 @@ globs:
   - client/src/components/Dhis2CredentialsEditor.tsx
   - server/dhis2/**
   - server/routes/instance/indicators_dhis2.ts
+  - server/tests/dhis2_decompose_indicator_test.ts
+  - server/tests/dhis2_source_eligibility_test.ts
 docs_absorbed:
 ---
 # S7: DHIS2 Connector
@@ -93,7 +95,7 @@ Endpoints are grouped by goal, each folder with a `mod.ts` barrel;
 | --- | --- | --- |
 | `common/` | fetcher + retry + validation | `fetchFromDHIS2`, `getDHIS2`, `withRetry`, `validateDhis2Connection` |
 | `goal1_org_units_v2/` | org-unit hierarchy metadata | `getOrgUnitMetadata` (levels + counts + roots, parallel), `testDHIS2Connection` |
-| `goal2_indicators/` | indicator / data-element discovery | `get/search{Indicators,DataElements}FromDHIS2`, `searchAllIndicatorsAndDataElements`, `testIndicatorsConnection` |
+| `goal2_indicators/` | indicator / data-element discovery, source eligibility, indicator decomposition | `get/search{Indicators,DataElements}FromDHIS2`, `searchAllIndicatorsAndDataElements`, `testIndicatorsConnection`, `getDhis2SourceVerdict`, `parseDhis2Indicator`, `withSourceVerdicts`, `withDecompositions` |
 | `goal4_geojson/` | boundary import for maps | `fetchOrgUnitsMetadataForLevel`, `fetchGeometryCountForLevel`, `fetchOrgUnitsGeoJsonForLevel`, session caches |
 | `goal5_data_value_sets/` | reported values + metadata id-existence | `getDataValueSetsFromDHIS2`, `getExistingMetadataIds`, `getOrgUnitIdsAtLevel` |
 
@@ -104,7 +106,70 @@ Endpoints are grouped by goal, each folder with a `mod.ts` barrel;
 `paging`/`pageSize`; `rootJunction: "OR"` for ilike OR-search over
 name/code/id. `searchAllIndicatorsAndDataElements` splits the query on
 comma/semicolon/newline, searches every term in parallel across both
-endpoints, and merges deduped by id.
+endpoints, and merges deduped by id. The data-element field list carries
+`dataSetElements[dataSet[id,periodType]]` so the eligibility check below
+can see the element's period type.
+
+**Source eligibility** (`goal2_indicators/source_eligibility.ts`, pure;
+PLAN_A3 ruling 6). A DHIS2 data element may be a source of a base
+indicator only when DHIS2's own metadata says it is an additive monthly
+count: `aggregationType` is `SUM`; `valueType` is `NUMBER` (the DHIS2
+editor's default, which most real count elements carry; integrality is
+enforced per value at import by S6's skip-and-record), `INTEGER`,
+`INTEGER_POSITIVE` or `INTEGER_ZERO_OR_POSITIVE` (`INTEGER_NEGATIVE` is
+refused, since every value of such an element would be skipped at
+import; `PERCENTAGE`, `UNIT_INTERVAL` and every non-numeric type are
+refused); and at least one of its data sets has period type `Monthly`
+(an element in no data set has no period and is refused; one monthly
+data set among several is enough, since the monthly values are what the
+dataValueSets pull reads). `getDhis2SourceVerdict(element)` returns
+`{ accepted: true }` or `{ accepted: false, refusal }` where the refusal
+names the failing field and the metadata value; an operand is checked
+through its element by `getDhis2OperandVerdict`, which adds
+`element_not_found` for an element the server no longer has. The verdict
+types live in `lib/types/indicators.ts` (S5).
+
+**Indicator decomposition** (`goal2_indicators/decompose_indicator.ts`,
+pure; PLAN_A3 ruling 8). A DHIS2 indicator is never imported as values;
+`parseDhis2Indicator({ numerator, denominator, annualized, factor })`
+turns it into operands and an expression, or refuses it. The formula is
+accepted by WHITELIST: `#{uid}` and `#{uid.coc}` terms (each part a
+DHIS2 UID), plain numeric literals (`[0-9]+(\.[0-9]+)?`), `+ - * /`,
+unary minus, parentheses and any whitespace; the indicator is not
+`annualized`; the factor is 1 (`number`), 100 (`percent`), 10000
+(`rate_per_10k`) or 1000 (`number`, the expression multiplied by 1000
+and a three-language `note` in the result, because there is no
+`rate_per_1k` format); and the distinct operand count is at most
+`MAX_INDICATOR_EXPRESSION_INGREDIENTS`. Everything else is refused with
+the offending construct as the user would recognise it in the formula:
+three-part and wildcard operands (`#{uid.coc.aoc}`, `#{uid.*.aoc}`),
+item modifiers (`.periodOffset(-1)`), `N{}` `D{}` `A{}` `I{}` `R{}`
+`OUG{}` `C{}`, `[days]`, operators outside the four (`^ % > == && ||`),
+functions (`if`, `isNull`, `d2:zing`), a malformed formula (a `syntax`
+refusal with the token it stopped at). A blacklist would miss the next
+form DHIS2 adds. The accepted result's `expression` is written in the
+app's own grammar through `writeIndicatorExpression`, fully
+parenthesised as `((numerator) / (denominator))`, with each operand as
+the bracket-quoted identifier `[source_id]` (`[uid]` or `[uid.coc]`),
+so it re-parses with `parseIndicatorExpression` and the naming step can
+rename those identifiers to the base ids it creates with
+`renameIdentifiers`. Operands are deduped by source id in first-
+appearance order across numerator then denominator.
+
+**Search-result shaping** (`goal2_indicators/attach_verdicts.ts`).
+`withSourceVerdicts(elements)` attaches a `verdict` to each data element.
+`withDecompositions(options, indicators, known?)` attaches a
+`decomposition` to each indicator: the parse, each operand with its own
+verdict judged through its element, and `accepted` = the parse accepted
+and every operand accepted. Operand elements not already in `known` are
+fetched by chunked `id:in:[...]` filters (100 per request) with the
+default field list, one round of requests for the whole result set. The
+three search routes return these shapes (`Dhis2DataElementSearchItem`,
+`Dhis2IndicatorSearchItem`); the combined search passes its own
+data-element results as `known`. Pinned by
+`server/tests/dhis2_source_eligibility_test.ts` and
+`server/tests/dhis2_decompose_indicator_test.ts`. The dictionary client
+does not read the verdict or the decomposition yet (PLAN_A3 step 5).
 
 **Data value sets.** `getDataValueSetsFromDHIS2` pulls one data element
 for one `period=` token (passed through untranslated: the DHIS2 server
@@ -184,7 +249,9 @@ between launch and run surfaces as retry exhaustion inside the job.
 
 `routes/instance/indicators_dhis2.ts` is the system's only route file:
 four POST routes (search indicators / search data elements / combined
-search / test connection), all guarded `can_configure_data`. Bodies
+search / test connection), all guarded `can_configure_data`. The three
+search routes return the shaped items above: every data element with its
+source verdict, every indicator with its decomposition. Bodies
 carry a `credentialsSource: Dhis2RunCredentialsSource` (`{ kind:
 "stored" }` or `{ kind: "inline", credentials }`), resolved via
 S6's `resolveDhis2Credentials` at the top of each handler. This system

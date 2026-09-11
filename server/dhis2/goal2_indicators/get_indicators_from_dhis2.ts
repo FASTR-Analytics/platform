@@ -39,6 +39,7 @@ const DEFAULT_DATA_ELEMENT_FIELDS = [
   "valueType",
   "categoryCombo[id,name,isDefault,categoryOptionCombos[id,name,displayName]]",
   "dataElementGroups[id,name]",
+  "dataSetElements[dataSet[id,periodType]]",
   "created",
   "lastUpdated",
 ];

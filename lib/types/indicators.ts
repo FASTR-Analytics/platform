@@ -211,6 +211,14 @@ export interface DHIS2DataElement {
     id: string;
     name: string;
   }>;
+  // The period type of each data set the element is collected in. An element
+  // in no data set has no period, so the source check refuses it.
+  dataSetElements?: Array<{
+    dataSet?: {
+      id?: string;
+      periodType?: string;
+    };
+  }>;
   created?: string;
   lastUpdated?: string;
 }
@@ -273,6 +281,81 @@ export interface DHIS2CategoryCombo {
     name: string;
   }>;
 }
+
+// ============================================================================
+// Source eligibility and indicator decomposition (PLAN_A3 rulings 6 and 8)
+// ============================================================================
+
+// Why a DHIS2 data element cannot be a source: it must be an additive monthly
+// count by DHIS2's own metadata. `value` is what the metadata said; undefined
+// when the field was absent (a period type is absent when the element is in
+// no data set). `element_not_found` is for an operand whose element the
+// server no longer has.
+export type Dhis2SourceRefusal =
+  | { kind: "aggregation_type"; value: string | undefined }
+  | { kind: "value_type"; value: string | undefined }
+  | { kind: "period_type"; value: string | undefined }
+  | { kind: "element_not_found" };
+
+export type Dhis2SourceVerdict =
+  | { accepted: true }
+  | { accepted: false; refusal: Dhis2SourceRefusal };
+
+export type Dhis2DataElementSearchItem = DHIS2DataElement & {
+  verdict: Dhis2SourceVerdict;
+};
+
+// One `#{uid}` or `#{uid.coc}` term of a DHIS2 indicator formula. `source_id`
+// is the term's id as a source (`uid` or `uid.coc`), which is also the
+// identifier the decomposed expression names it by.
+export type Dhis2ParsedOperand = {
+  source_id: string;
+  data_element_id: string;
+  category_option_combo_id?: string;
+};
+
+// Why an indicator formula is outside the whitelist. `term` is the offending
+// text where there is one (a syntax refusal carries the token it stopped at).
+export type Dhis2IndicatorParseRefusal =
+  | { kind: "annualized" }
+  | { kind: "factor"; value: number | undefined }
+  | { kind: "empty"; side: "numerator" | "denominator" }
+  | { kind: "term"; side: "numerator" | "denominator"; term: string }
+  | { kind: "syntax"; side: "numerator" | "denominator"; term: string }
+  | { kind: "too_many_operands"; count: number; max: number };
+
+// A parsed DHIS2 indicator: its operands, the derived's expression in the
+// app's own grammar with each operand written as `[source_id]` (the naming
+// step renames those identifiers to the base ids it creates), and the
+// display format its factor maps to. `note` is set when the factor is 1000,
+// which has no format of its own: the expression carries `* 1000` and the
+// derived is formatted as a number.
+export type Dhis2IndicatorParse =
+  | {
+    accepted: true;
+    operands: Dhis2ParsedOperand[];
+    expression: string;
+    format_as: IndicatorFormat;
+    note?: TranslatableString;
+  }
+  | { accepted: false; refusal: Dhis2IndicatorParseRefusal };
+
+export type Dhis2DecompositionOperand = Dhis2ParsedOperand & {
+  verdict: Dhis2SourceVerdict;
+};
+
+// The parse plus each operand's source verdict, checked through its element
+// on the live server. `accepted` is the whole-indicator answer: the parse
+// accepted and every operand accepted.
+export type Dhis2IndicatorDecomposition = {
+  accepted: boolean;
+  parse: Dhis2IndicatorParse;
+  operands: Dhis2DecompositionOperand[];
+};
+
+export type Dhis2IndicatorSearchItem = DHIS2Indicator & {
+  decomposition: Dhis2IndicatorDecomposition;
+};
 
 export interface DHIS2PagedResponse {
   pager?: {
