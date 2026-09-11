@@ -6,7 +6,7 @@ database, one realtime channel, one copilot. An Explore tab replaces the
 project Metrics tab and the standalone visualization library; this plan
 creates the tab, and its page, the results explorer, is a later plan.
 
-**Next step: Review 9a.** Each session sets this line in its final commit. Its
+**Next step: Do 9b.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N`; after step 10's review passes the
 file is deleted instead of advanced.
 
@@ -2346,6 +2346,8 @@ this section before its step.
 | 2026-09-11 | 9a | Fix 9a (second pass), finding 1: the four Products-page rows (`instance-welcome`, `products-intro`, `products-create`, `products-cards`) are unavailable while an editor is open, with the reason "Close the open editor first" in en, fr and pt (`onboarding/catalogue.ts`); `isEditingView` moves to the catalogue, exported, and the manager imports it (`onboarding/index.ts`), so the rows and the page predicate share one definition over `copilotViewController.current()`, a signal, which the modal reads reactively. The catalogue's `available` doc comment, the drop-rule comments in `onboarding/index.ts` and `state/t4_ui.ts`, and SYSTEM_14's replay paragraph now state the second reason a tab page can be inactive. Closing the editor from navigate was rejected: the catalogue has no handle on the Products page's editor wrapper. |
 | 2026-09-11 | 9a | Fix 9a (second pass) gates: `deno task typecheck` (server, client, `lint:systems` with every one of 814 tracked files claimed once), `./validate_protocols` (0 tier-1, 0 new tier-2, 16 baselined). No server file changed, so the test suite and the boot stand as the second review recorded them. |
 | 2026-09-11 | 9a | Step 9a fixed. |
+| 2026-09-11 | 9a | Review 9a, third pass. Session start: `client/package-lock.json` modified exactly as the 9a build log row records (npm's `"peer": true` flags), left untouched and uncommitted. Commit 1ca75f51 read against the second review's finding 1, with the gates run by the reviewer: `deno task typecheck` (server, client, `lint:systems` with every one of 814 tracked files claimed once), `./validate_protocols` (0 tier-1, 0 new tier-2, 16 baselined), the §5 greps 1 to 3 restricted per the step (zero outside the residue the build log records), `deno task test` 36 passed and the same 2 pre-existing failures (`products_routes_test`, `m012_expression_parity_test`), dev boot on port 8010 through DB startup, 286 routes and 3 headless mounts to the same abort at `runServerTestSuiteOrExit`; the browser gates are Tim's. Surface: `onboarding/{catalogue,index}.ts`, `state/t4_ui.ts` (accepted by the second review) and SYSTEM_14. Finding 1 verified by reading the code: the four `page: "products"` rows read `isEditingView()`, one exported definition over `copilotViewController.current()` (a signal), shared by the manager's page predicate (`onboarding/index.ts:80`) and the modal's `available()` / `unavailableReason()` props (`tour_catalogue_modal.tsx:93-94`, tracked JSX); both editors clear the view on cleanup (`slide_deck/index.tsx:95-97`, `report/index.tsx:941-942`) and the shell unmounts the Products page on a tab switch (`Switch`/`Match`), so the predicate cannot read a dead editor; the other five tab rows navigate away from the editor and their page predicates do not read the view. No findings. |
+| 2026-09-11 | 9a | Step 9a reviewed: pass. |
 
 ## Appendix A: the migration replay of 2026-08-19, and what still stands
 
