@@ -10,9 +10,9 @@ import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 
 // The instance-level copilot grounding (PLAN_PRODUCTS_RESTRUCTURE D15): one
-// text for the whole instance, replacing the per-project ai_context. There is
-// no getter: the value rides InstanceState with the rest of the config, so
-// this reads the store and only ever writes.
+// text for the whole instance. There is no getter: the value rides
+// InstanceState with the rest of the config, so this reads the store and only
+// ever writes.
 export function AiContextForm(p: AlertComponentProps<{}, undefined>) {
   const [tempAiContext, setTempAiContext] = createSignal(
     instanceState.aiContext,

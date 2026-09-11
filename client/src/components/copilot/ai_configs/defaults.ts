@@ -5,9 +5,9 @@ export const DEFAULT_BUILTIN_TOOLS = { webSearch: true, webFetch: true };
 
 const ISO_RE = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/;
 
-// One SDK client for the whole copilot: /ai is now the instance-level copilot
+// One SDK client for the whole copilot: /ai is the instance-level copilot
 // proxy (routes/instance/copilot_ai_proxy.ts), guarded by requireApprovedUser
-// and taking no Project-Id header (D15).
+// (D15).
 export function createCopilotSDKClient() {
   const baseURL = _SERVER_HOST
     ? `${_SERVER_HOST}/ai`

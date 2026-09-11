@@ -57,9 +57,8 @@ export function InsertFigureModal(
 
   // deriveConfigFromVizPreset is THE preset-to-config derivation; both the
   // previews and the inserted figure read from this one list. The metrics may
-  // be a Solid store (the project pages pass projectState.metrics), and zod
-  // chokes on the symbol keys a store leaves on its raw objects, so each preset
-  // is cloned to plain data first.
+  // come from a Solid store, and zod chokes on the symbol keys a store leaves
+  // on its raw objects, so each preset is cloned to plain data first.
   const presetOptions = createMemo((): PresetOption[] => {
     const metric = selectedMetric();
     if (!metric) return [];

@@ -13,7 +13,7 @@ import {
 import { FileUploadSelector } from "~/components/_file_upload_selector";
 import { MarkdownGuide } from "~/components/_markdown_guide";
 
-// The currently-selected report embed (report-specific: no Dashboard naming).
+// The currently-selected report embed.
 export type SelectedReportEmbed =
   | { kind: "figure"; id: string; caption: string; figureBlock: FigureBlock }
   | { kind: "image"; id: string; caption: string; imageBlock: ImageBlock };
@@ -81,9 +81,9 @@ export function ReportEmbedEditor(p: Props) {
             fallback={
               <div class="ui-pad text-base-content-muted text-sm">
                 {t3({
-                  en: "Click a visualization or image to edit it.",
-                  fr: "Cliquez sur une visualisation ou une image pour la modifier.",
-                  pt: "Clique numa visualização ou imagem para a editar.",
+                  en: "Click a figure or image to edit it.",
+                  fr: "Cliquez sur une figure ou une image pour la modifier.",
+                  pt: "Clique numa figura ou imagem para a editar.",
                 })}
               </div>
             }
@@ -99,9 +99,9 @@ export function ReportEmbedEditor(p: Props) {
                 onClick={() => p.onInsertFigure()}
               >
                 {t3({
-                  en: "Insert visualization",
-                  fr: "Insérer une visualisation",
-                  pt: "Inserir visualização",
+                  en: "Insert figure",
+                  fr: "Insérer une figure",
+                  pt: "Inserir figura",
                 })}
               </Button>
               <Button
@@ -136,24 +136,24 @@ export function ReportEmbedEditor(p: Props) {
                         <Show when={fb().bundle !== undefined}>
                           <Button onClick={() => p.onEditFigure()}>
                             {t3({
-                              en: "Edit visualization",
-                              fr: "Modifier la visualisation",
-                              pt: "Editar visualização",
+                              en: "Edit figure",
+                              fr: "Modifier la figure",
+                              pt: "Editar figura",
                             })}
                           </Button>
                         </Show>
                         <Button onClick={() => p.onSwitchFigure()}>
                           {t3({
-                            en: "Switch visualization",
-                            fr: "Changer de visualisation",
-                            pt: "Mudar de visualização",
+                            en: "Switch figure",
+                            fr: "Changer de figure",
+                            pt: "Mudar de figura",
                           })}
                         </Button>
                         <Button onClick={() => p.onCreateFigure()}>
                           {t3({
-                            en: "New visualization",
-                            fr: "Nouvelle visualisation",
-                            pt: "Nova visualização",
+                            en: "New figure",
+                            fr: "Nouvelle figure",
+                            pt: "Nova figura",
                           })}
                         </Button>
                       </div>
@@ -196,9 +196,9 @@ export function ReportEmbedEditor(p: Props) {
                   <Button intent="danger" outline onClick={() => p.onDelete()}>
                     {embed().kind === "figure"
                       ? t3({
-                          en: "Delete visualization",
-                          fr: "Supprimer la visualisation",
-                          pt: "Eliminar visualização",
+                          en: "Delete figure",
+                          fr: "Supprimer la figure",
+                          pt: "Eliminar figura",
                         })
                       : t3({ en: "Delete image", fr: "Supprimer l'image", pt: "Eliminar imagem" })}
                   </Button>

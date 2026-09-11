@@ -1,7 +1,7 @@
 import { _SERVER_HOST } from "~/server_actions";
 
 // Built-in FASTR logos bundled with the app (served from the app root) plus the
-// URL resolver shared by every logo surface (slide decks, dashboards).
+// URL resolver shared by every logo surface (slide decks, reports).
 export const FASTR_LOGOS = [
   {
     value: "images/FASTR_Primary_01_Horiz.png",

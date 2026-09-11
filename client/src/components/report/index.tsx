@@ -280,9 +280,9 @@ export function ReportEditor(p: Props) {
       ) : (
         <div class="text-danger text-xs" data-line={line}>
           {t3({
-            en: "Missing visualization:",
-            fr: "Visualisation manquante :",
-            pt: "Visualização em falta:",
+            en: "Missing figure:",
+            fr: "Figure manquante :",
+            pt: "Figura em falta:",
           })}{" "}
           {fig[1]}
         </div>

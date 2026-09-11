@@ -36,8 +36,8 @@ import {
 import { connectCollab, disconnectCollab } from "./collab";
 
 // Live results-package generation (Q-B): ephemeral execution state, not T1:
-// like the project channel's copies these go to listeners and never touch
-// the store. (The catalogue LISTING is T1 via the projects pattern:
+// these go to listeners and never touch the store. (The catalogue LISTING is
+// T1 via the refetch-on-nonce pattern:
 // `runs_catalog_updated` is a data-free timestamp and the boundary below
 // fetches `runsCatalog` per user.) The server only sends these two to
 // can_configure_data users, so a non-admin's listeners simply never fire.

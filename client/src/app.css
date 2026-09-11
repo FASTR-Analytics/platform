@@ -128,7 +128,7 @@
    light document model — near-black text, invisible on dark surfaces.
    .md-dark-adapt re-points the color vars on descendants (an element's own
    var value beats an ancestor's inline one) while keeping the document
-   typography. Markdown with NO style (AI chat, dashboard summaries) needs no
+   typography. Markdown with NO style (AI chat) needs no
    wrapper — its --md-* defaults chain to the app tokens already. Dark-only,
    dual-gated like .cm-ySelection above. */
 :root[data-scheme="dark"] .md-dark-adapt * {

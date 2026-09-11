@@ -509,9 +509,9 @@ export function buildSlideContentTour(): TourDefinition {
           pt: "Blocos no diapositivo",
         }),
         body: t3({
-          en: "Click a block in the preview to edit it here: switch it between text, a visualization or an image, and use Layout to split the slide into more blocks.",
-          fr: "Cliquez sur un bloc dans l'aperçu pour le modifier ici : basculez-le entre texte, visualisation ou image, et utilisez Mise en page pour diviser la diapositive en plusieurs blocs.",
-          pt: "Clique num bloco na pré-visualização para o editar aqui: alterne entre texto, visualização ou imagem, e utilize Layout para dividir o diapositivo em mais blocos.",
+          en: "Click a block in the preview to edit it here: switch it between text, a figure or an image, and use Layout to split the slide into more blocks.",
+          fr: "Cliquez sur un bloc dans l'aperçu pour le modifier ici : basculez-le entre texte, figure ou image, et utilisez Mise en page pour diviser la diapositive en plusieurs blocs.",
+          pt: "Clique num bloco na pré-visualização para o editar aqui: alterne entre texto, figura ou imagem, e utilize Layout para dividir o diapositivo em mais blocos.",
         }),
         placement: "right",
       },
@@ -535,9 +535,9 @@ export function buildReportEditorIntroTour(): TourDefinition {
           pt: "Dentro de um relatório",
         }),
         body: t3({
-          en: "A report is a written document: you type the words, and drop in visualizations from your project wherever they belong.",
-          fr: "Un rapport est un document rédigé : vous écrivez le texte et insérez les visualisations de votre projet là où elles doivent apparaître.",
-          pt: "Um relatório é um documento escrito: escreve o texto e insere as visualizações do seu projeto onde elas fazem sentido.",
+          en: "A report is a written document: you type the words, and drop in figures wherever they belong.",
+          fr: "Un rapport est un document rédigé : vous écrivez le texte et insérez des figures là où elles doivent apparaître.",
+          pt: "Um relatório é um documento escrito: escreve o texto e insere figuras onde elas fazem sentido.",
         }),
         placement: "bottom",
       },
@@ -565,9 +565,9 @@ export function buildReportEditorIntroTour(): TourDefinition {
           pt: "Escreva aqui",
         }),
         body: t3({
-          en: "This is the report's text, written in Markdown — # for a heading, ** ** for bold, - for a list. Visualizations appear as blocks you can click.",
-          fr: "Voici le texte du rapport, écrit en Markdown — # pour un titre, ** ** pour du gras, - pour une liste. Les visualisations apparaissent sous forme de blocs cliquables.",
-          pt: "Este é o texto do relatório, escrito em Markdown — # para um título, ** ** para negrito, - para uma lista. As visualizações aparecem como blocos que pode clicar.",
+          en: "This is the report's text, written in Markdown — # for a heading, ** ** for bold, - for a list. Figures appear as blocks you can click.",
+          fr: "Voici le texte du rapport, écrit en Markdown — # pour un titre, ** ** pour du gras, - pour une liste. Les figures apparaissent sous forme de blocs cliquables.",
+          pt: "Este é o texto do relatório, escrito em Markdown — # para um título, ** ** para negrito, - para uma lista. As figuras aparecem como blocos que pode clicar.",
         }),
         placement: "right",
       },
@@ -592,14 +592,14 @@ export function buildReportEditorIntroTour(): TourDefinition {
         id: "embed-panel",
         target: tourTarget("report-embed-panel"),
         title: t3({
-          en: "Visualizations and images",
-          fr: "Visualisations et images",
-          pt: "Visualizações e imagens",
+          en: "Figures and images",
+          fr: "Figures et images",
+          pt: "Figuras e imagens",
         }),
         body: t3({
-          en: "Insert a visualization or an image from this panel. Click one already in the report and this panel switches to editing it — caption, swapping it for another, or removing it.",
-          fr: "Insérez une visualisation ou une image depuis ce panneau. Cliquez sur un élément déjà dans le rapport et ce panneau passe à sa modification — légende, remplacement ou suppression.",
-          pt: "Insira uma visualização ou uma imagem a partir deste painel. Clique num elemento já presente no relatório e este painel passa a editá-lo — legenda, substituição ou remoção.",
+          en: "Insert a figure or an image from this panel. Click one already in the report and this panel switches to editing it — caption, swapping it for another, or removing it.",
+          fr: "Insérez une figure ou une image depuis ce panneau. Cliquez sur un élément déjà dans le rapport et ce panneau passe à sa modification — légende, remplacement ou suppression.",
+          pt: "Insira uma figura ou uma imagem a partir deste painel. Clique num elemento já presente no relatório e este painel passa a editá-lo — legenda, substituição ou remoção.",
         }),
         placement: "right",
         when: () =>
@@ -625,9 +625,9 @@ export function buildReportEditorIntroTour(): TourDefinition {
         target: "#report-download-button",
         title: t3({ en: "Export it", fr: "Exportez-le", pt: "Exporte-o" }),
         body: t3({
-          en: "Download the report as a Word document or PDF, with the visualizations rendered in place.",
-          fr: "Téléchargez le rapport en document Word ou PDF, avec les visualisations rendues à leur place.",
-          pt: "Descarregue o relatório como documento Word ou PDF, com as visualizações apresentadas no devido lugar.",
+          en: "Download the report as a Word document or PDF, with the figures rendered in place.",
+          fr: "Téléchargez le rapport en document Word ou PDF, avec les figures rendues à leur place.",
+          pt: "Descarregue o relatório como documento Word ou PDF, com as figuras apresentadas no devido lugar.",
         }),
         placement: "bottom",
       },
@@ -651,9 +651,9 @@ export function buildReportEditorIntroTour(): TourDefinition {
         id: "back",
         target: "#report-back-button",
         title: t3({
-          en: "Back to your reports",
-          fr: "Retour à vos rapports",
-          pt: "Voltar aos seus relatórios",
+          en: "Back to your products",
+          fr: "Retour à vos produits",
+          pt: "Voltar aos seus produtos",
         }),
         body: t3({
           en: "Everything is already saved, so you can leave whenever you like.",
@@ -675,14 +675,14 @@ export function buildReportEditorFiguresTour(): TourDefinition {
         id: "embed",
         target: "[data-embed-id]",
         title: t3({
-          en: "A visualization in the text",
-          fr: "Une visualisation dans le texte",
-          pt: "Uma visualização no texto",
+          en: "A figure in the text",
+          fr: "Une figure dans le texte",
+          pt: "Uma figura no texto",
         }),
         body: t3({
-          en: "Each visualization sits in the text as a block. Click it to select it, then use the left panel to edit its caption, swap it, or take it out — it always shows the project's latest data.",
-          fr: "Chaque visualisation se place dans le texte comme un bloc. Cliquez dessus pour la sélectionner, puis utilisez le panneau de gauche pour modifier sa légende, la remplacer ou la retirer — elle affiche toujours les données les plus récentes du projet.",
-          pt: "Cada visualização fica no texto como um bloco. Clique nela para a selecionar e utilize o painel da esquerda para editar a legenda, substituí-la ou removê-la — mostra sempre os dados mais recentes do projeto.",
+          en: "Each figure sits in the text as a block. Click it to select it, then use the left panel to edit its caption, swap it, or take it out — it reads from the results package this report is set to.",
+          fr: "Chaque figure se place dans le texte comme un bloc. Cliquez dessus pour la sélectionner, puis utilisez le panneau de gauche pour modifier sa légende, la remplacer ou la retirer — elle se sert du paquet de résultats auquel ce rapport est rattaché.",
+          pt: "Cada figura fica no texto como um bloco. Clique nela para a selecionar e utilize o painel da esquerda para editar a legenda, substituí-la ou removê-la — serve-se do pacote de resultados a que este relatório está associado.",
         }),
         placement: "right",
         waitForTargetTimeoutMs: 2000,
@@ -1063,9 +1063,9 @@ export function buildInstanceDataTour(): TourDefinition {
           pt: "Avaliações de unidades de saúde",
         }),
         body: t3({
-          en: "Survey rounds with their own facilities, indicators, time points and weights — each uploaded once and exported to the projects that use them.",
-          fr: "Les vagues d'enquêtes avec leurs propres établissements, indicateurs, périodes et pondérations — chacune importée une fois puis exportée vers les projets qui les utilisent.",
-          pt: "Rondas de inquérito com os seus próprios estabelecimentos, indicadores, períodos e ponderações — cada uma carregada uma vez e exportada para os projetos que as utilizam.",
+          en: "Survey rounds with their own facilities, indicators, time points and weights — each uploaded once for the whole instance and read by every results package that uses them.",
+          fr: "Les vagues d'enquêtes avec leurs propres établissements, indicateurs, périodes et pondérations — chacune importée une fois pour toute l'instance et lue par chaque paquet de résultats qui l'utilise.",
+          pt: "Rondas de inquérito com os seus próprios estabelecimentos, indicadores, períodos e ponderações — cada uma carregada uma vez para toda a instância e lida por cada pacote de resultados que a utiliza.",
         }),
         placement: "top",
       },
@@ -1078,9 +1078,9 @@ export function buildInstanceDataTour(): TourDefinition {
           pt: "Dados de equidade (ICEH)",
         }),
         body: t3({
-          en: "Household-survey equity data. Like the other datasources: uploaded once here, then exported into the projects that analyse it.",
-          fr: "Les données d'équité issues d'enquêtes auprès des ménages. Comme les autres sources : importées une fois ici, puis exportées vers les projets qui les analysent.",
-          pt: "Dados de equidade provenientes de inquéritos aos agregados familiares. Como as outras fontes: carregados uma vez aqui e depois exportados para os projetos que os analisam.",
+          en: "Household-survey equity data. Like the other datasources: uploaded once here, then read by the results packages that analyse it.",
+          fr: "Les données d'équité issues d'enquêtes auprès des ménages. Comme les autres sources : importées une fois ici, puis lues par les paquets de résultats qui les analysent.",
+          pt: "Dados de equidade provenientes de inquéritos aos agregados familiares. Como as outras fontes: carregados uma vez aqui e depois lidos pelos pacotes de resultados que os analisam.",
         }),
         placement: "top",
       },
@@ -1101,9 +1101,9 @@ export function buildInstanceResultsPackagesTour(): TourDefinition {
           pt: "Pacotes de resultados",
         }),
         body: t3({
-          en: "Running the modules is an instance-level act, not a project one: you generate a package once here from the data and modules you choose, then attach it to the projects that should use it.",
-          fr: "Exécuter les modules relève de l'instance, pas d'un projet : vous générez ici un paquet une seule fois à partir des données et des modules choisis, puis vous le rattachez aux projets qui doivent l'utiliser.",
-          pt: "Executar os módulos é um ato da instância, não de um projeto: gera aqui um pacote uma única vez a partir dos dados e módulos que escolher e depois anexa-o aos projetos que o devem usar.",
+          en: "Running the modules is an instance-level act: you generate a package once here from the data and modules you choose, and every slide deck and report reads its numbers from one package.",
+          fr: "Exécuter les modules relève de l'instance : vous générez ici un paquet une seule fois à partir des données et des modules choisis, et chaque présentation et chaque rapport tire ses chiffres d'un seul paquet.",
+          pt: "Executar os módulos é um ato da instância: gera aqui um pacote uma única vez a partir dos dados e módulos que escolher, e cada apresentação e relatório lê os seus números de um único pacote.",
         }),
         placement: "bottom",
       },
@@ -1116,9 +1116,9 @@ export function buildInstanceResultsPackagesTour(): TourDefinition {
           pt: "Gerar um pacote",
         }),
         body: t3({
-          en: "This opens the wizard that configures a generation: which data, which modules, and which projects receive the result. Your configuration is kept, so you can leave it and resume where you stopped.",
-          fr: "Ceci ouvre l'assistant de configuration d'une génération : quelles données, quels modules et quels projets reçoivent le résultat. Votre configuration est conservée : vous pouvez la quitter et la reprendre où vous en étiez.",
-          pt: "Isto abre o assistente que configura uma geração: que dados, que módulos e que projetos recebem o resultado. A sua configuração é guardada, pelo que pode sair e retomar onde parou.",
+          en: "This opens the wizard that configures a generation: which data and which modules to run. Your configuration is kept, so you can leave it and resume where you stopped.",
+          fr: "Ceci ouvre l'assistant de configuration d'une génération : quelles données et quels modules exécuter. Votre configuration est conservée : vous pouvez la quitter et la reprendre où vous en étiez.",
+          pt: "Isto abre o assistente que configura uma geração: que dados e que módulos executar. A sua configuração é guardada, pelo que pode sair e retomar onde parou.",
         }),
         placement: "bottom",
       },
@@ -1141,7 +1141,7 @@ export function buildInstanceResultsPackagesTour(): TourDefinition {
   };
 }
 
-// Split from the intro for the same reason as the project pair: a freshly
+// Split from the intro for the same reason as the products cards tour: a freshly
 // created instance holds no packages, so neither target exists, and a tour
 // that runs against nothing still writes its seen-flag.
 export function buildInstanceResultsPackagesCatalogueTour(): TourDefinition {
@@ -1167,9 +1167,9 @@ export function buildInstanceResultsPackagesCatalogueTour(): TourDefinition {
         id: "usage",
         target: tourTarget("instance-results-packages-usage"),
         title: t3({
-          en: "Which projects use it",
-          fr: "Quels projets l'utilisent",
-          pt: "Que projetos o usam",
+          en: "Which products use it",
+          fr: "Quels produits l'utilisent",
+          pt: "Que produtos o usam",
         }),
         body: t3({
           en: "A package in use cannot be deleted, and the button says so rather than disappearing. Deleting is one act — catalogue entry, files and cached results — and cannot be undone.",

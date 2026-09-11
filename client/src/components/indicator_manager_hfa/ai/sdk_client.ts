@@ -5,8 +5,7 @@ const ISO_RE = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/;
 
 // Instance-level SDK client for the HFA Indicator Manager assistant. Mirrors
 // the copilot client (copilot/ai_configs/defaults.ts) but targets the HFA
-// indicator proxy (/ai-instance) rather than the copilot's /ai. Neither client
-// sends a Project-Id header any more.
+// indicator proxy (/ai-instance) rather than the copilot's /ai.
 export function createHfaIndicatorAiSDKClient() {
   const baseURL = _SERVER_HOST
     ? `${_SERVER_HOST}/ai-instance`

@@ -24,8 +24,8 @@ import type {
 // Store
 // ============================================================================
 
-// Hoisted so resetInstanceState can reconcile back to it: the instance
-// sibling of EMPTY_PROJECT_STATE. `isReady: false` included: a disconnect
+// Hoisted so resetInstanceState can reconcile back to it. `isReady: false`
+// included: a disconnect
 // must never leave the previous user's state renderable (Clerk cross-tab
 // user switch unmounts/remounts the boundary without a reload).
 const EMPTY_INSTANCE_STATE: InstanceState = {
@@ -127,7 +127,7 @@ export function initInstanceState(data: InstanceState): void {
   setInstanceState(reconcile(data));
 }
 
-// Mirrors resetProjectState: called from disconnectInstanceSSE so a boundary
+// Called from disconnectInstanceSSE so a boundary
 // unmount (incl. the Clerk-listener user-switch path, which does NOT reload)
 // never lets the next user render the previous user's permissions, roster or
 // catalogue.
