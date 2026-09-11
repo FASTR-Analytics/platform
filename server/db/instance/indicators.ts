@@ -852,33 +852,20 @@ export async function batchUploadIndicators(
       : [];
 
     await mainDb.begin(async (sql) => {
-      // Moves first, so the outcome does not depend on the file's row order:
-      // a moved source is already under its new owner when the old owner's
-      // row drops it or the old owner is deleted.
-      for (const [sourceId, owner] of moved) {
-        await sql`
-          UPDATE indicator_sources
-          SET indicator_id = ${owner}, updated_at = CURRENT_TIMESTAMP
-          WHERE source_id = ${sourceId}
-        `;
-      }
-      if (removedIndicatorIds.length > 0) {
-        await sql`
-          DELETE FROM indicators WHERE indicator_common_id = ANY(${removedIndicatorIds})
-        `;
-      }
       let sortOrder = (
         await sql<{ next: number }[]>`
           SELECT COALESCE(MAX(sort_order), 0) + 1 AS next FROM indicators
         `
       )[0].next;
+      // Every indicator row lands before any source is written, so a moved
+      // source's new owner exists (the FK is not deferrable). New rows sort
+      // after everything that exists (CSV order preserved); an update keeps
+      // the row's place.
       for (const r of rows) {
         const definition: CommonIndicatorDefinition = r.type === "base"
           ? { type: "base" }
           : { type: "derived", expression: r.expression };
         const d = definitionFields(definition);
-        // New rows sort after everything that exists (CSV order preserved);
-        // an update keeps the row's place.
         await sql`
           INSERT INTO indicators (
             indicator_common_id, indicator_common_label, definition_type, expression,
@@ -896,6 +883,26 @@ export async function batchUploadIndicators(
             thresholds = EXCLUDED.thresholds,
             updated_at = CURRENT_TIMESTAMP
         `;
+      }
+      // Moves before the per-row source writes, so the outcome does not
+      // depend on the file's row order: a moved source is already under its
+      // new owner when the old owner's row drops it. An UPDATE rather than a
+      // delete and re-insert keeps the source's ledger rows (CASCADE).
+      for (const [sourceId, owner] of moved) {
+        await sql`
+          UPDATE indicator_sources
+          SET indicator_id = ${owner}, updated_at = CURRENT_TIMESTAMP
+          WHERE source_id = ${sourceId}
+        `;
+      }
+      // After the moves, so a replace that drops an old owner does not
+      // cascade a moved source away.
+      if (removedIndicatorIds.length > 0) {
+        await sql`
+          DELETE FROM indicators WHERE indicator_common_id = ANY(${removedIndicatorIds})
+        `;
+      }
+      for (const r of rows) {
         const keptSources = new Set(r.sources);
         await sql`
           DELETE FROM indicator_sources
