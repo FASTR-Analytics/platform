@@ -17,7 +17,6 @@ import { serverActions } from "~/server_actions";
 // immutable and the scope is another axis of the question, so
 // `(runId, scopeToken)` leads the key instead of versioning it, and a
 // response cannot land under a key belonging to another package or scope.
-// The project-keyed twin in `state/project/` stays until 9a.
 const _REPLICANT_OPTIONS_CACHE = createReactiveCache<
   {
     scope: PackageScope;
@@ -36,7 +35,6 @@ const _REPLICANT_OPTIONS_CACHE = createReactiveCache<
     hashFetchConfig(params.fetchConfig),
   ],
   versionKey: () => "immutable",
-  pdsNotRequired: true,
 });
 
 export async function getReplicantOptionsFromCacheOrFetch(

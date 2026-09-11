@@ -27,7 +27,7 @@ import { getReplicantOptionsFromCacheOrFetch } from "./t2_replicant_options";
 // entries. Version key CONSTANT, identity in the UNIQUENESS key: a package is
 // immutable, so `(runId, scopeToken)` leads the key instead of versioning it,
 // and a late response cannot land under a key belonging to another package
-// or scope. The project-keyed twins in `state/project/` stay until 9a.
+// or scope.
 
 export const _METRIC_INFO_CACHE = createReactiveCache<
   { scope: PackageScope; metricId: string },
@@ -40,7 +40,6 @@ export const _METRIC_INFO_CACHE = createReactiveCache<
     params.metricId,
   ],
   versionKey: () => "immutable",
-  pdsNotRequired: true,
   // A transient possible-values failure arrives as a per-dimension `error`
   // status inside a successful payload; with a constant version, freezing it
   // would pin the effective-format resolver's "cannot enumerate" fallback for
@@ -67,7 +66,6 @@ export const _PO_ITEMS_CACHE = createReactiveCache<
     hashFetchConfig(params.fetchConfig),
   ],
   versionKey: () => "immutable",
-  pdsNotRequired: true,
 });
 
 export async function getResultsValueInfoForPresentationObjectFromCacheOrFetch(

@@ -43,10 +43,9 @@ import { notifyCollabConnection } from "~/components/_shared/connection_banner";
 // otherPeers(), which collapses it to one entry per person, or
 // peersInProduct(id), since presence is keyed by PRODUCT (D8).
 //
-// The visualization (po_*) sessions and the project-level awareness below
-// have no server behind them since PLAN_PRODUCTS_RESTRUCTURE step 7a: the
-// instance socket ignores those frames. Both halves are deleted with the
-// standalone visualization editor in step 9a.
+// The visualization (po_*) sessions have no server behind them since
+// PLAN_PRODUCTS_RESTRUCTURE step 7a and no client caller since 9a: they go
+// with the po_* wire protocol in step 9b.
 
 type CollabState = {
   connectionId: string | null;
@@ -1057,21 +1056,6 @@ function openSocket(): void {
     for (const s of poSessions.values()) {
       subscribePoOnSocket(s);
     }
-    // Re-announce the project-scoped awareness: unlike doc sessions there is
-    // no subscribe to trigger it, and peers who swept us during an outage
-    // would otherwise wait ~15s for the internal renewal.
-    if (projectAw) {
-      sendCollab({
-        type: "project_awareness_update",
-        data: {
-          update: bytesToBase64(
-            encodeAwarenessUpdate(projectAw.awareness, [
-              projectAw.awareness.clientID,
-            ]),
-          ),
-        },
-      });
-    }
   };
 
   socket.onmessage = (event) => {
@@ -1105,19 +1089,8 @@ function openSocket(): void {
       for (const s of poSessions.values()) {
         applySessionUser(s.awareness);
       }
-      if (projectAw) {
-        applySessionUser(projectAw.awareness);
-      }
       // "Alice joined this deck" toasts: scoped to the doc I'm currently in.
       notifyPresenceToasts(msg.data.peers, collabStore.connectionId, view);
-    } else if (msg.type === "project_awareness") {
-      if (projectAw) {
-        applyAwarenessUpdate(
-          projectAw.awareness,
-          base64ToBytes(msg.data.update),
-          AWARENESS_REMOTE_ORIGIN,
-        );
-      }
     } else if (msg.type === "doc_save_state") {
       // Room checkpoint health: editors surface "not saving" instead of
       // claiming "Live" while the server can't persist.
@@ -1280,69 +1253,6 @@ setInterval(() => {
   }, PONG_DEADLINE_MS);
 }, PING_INTERVAL_MS);
 
-// ── Project-level awareness (page cursors) ──────────────────────────────────
-// The project tab pages have no doc room, so their live cursors ride a
-// dedicated PROJECT-scoped Awareness (project_awareness_update /
-// project_awareness, presence-class visibility, never persisted). Field
-// registry is the same as the session awarenesses (pointer/pointerChat/user).
-// One instance per connectCollab, destroyed on disconnectCollab. No server
-// relays it since step 7a (see the header); it dies with the project tabs.
-
-let projectAw: { doc: Y.Doc; awareness: Awareness } | undefined;
-const [projectAwSig, setProjectAwSig] = createSignal<Awareness | undefined>(
-  undefined,
-);
-/** Reactive accessor for the project-scoped awareness (null when no project
- *  connection is wanted). Consumers: ProjectPageCursors. */
-export const projectAwareness = projectAwSig;
-
-function createProjectAwareness(): void {
-  destroyProjectAwareness();
-  const doc = new Y.Doc();
-  const awareness = new Awareness(doc);
-  applySessionUser(awareness);
-  awareness.on(
-    "update",
-    (
-      changes: { added: number[]; updated: number[]; removed: number[] },
-      origin: unknown,
-    ) => {
-      // Don't re-ship awareness that was just applied from the server.
-      if (origin === AWARENESS_REMOTE_ORIGIN) {
-        return;
-      }
-      const changed = [
-        ...changes.added,
-        ...changes.updated,
-        ...changes.removed,
-      ];
-      const update = encodeAwarenessUpdate(awareness, changed);
-      sendCollab({
-        type: "project_awareness_update",
-        data: { update: bytesToBase64(update) },
-      });
-    },
-  );
-  projectAw = { doc, awareness };
-  setProjectAwSig(awareness);
-}
-
-function destroyProjectAwareness(): void {
-  if (!projectAw) {
-    return;
-  }
-  // Best-effort removal broadcast for peers (no-op when the socket is gone).
-  removeAwarenessStates(
-    projectAw.awareness,
-    [projectAw.awareness.clientID],
-    "local",
-  );
-  projectAw.awareness.destroy();
-  projectAw.doc.destroy();
-  projectAw = undefined;
-  setProjectAwSig(undefined);
-}
-
 function hardClose(): void {
   if (reconnectTimer) {
     clearTimeout(reconnectTimer);
@@ -1406,7 +1316,6 @@ export function connectCollab(): void {
   unauthorized = false;
   setCollabStore({ connectionId: null, peers: [] });
   setSaveFailingKeys(new Set<string>());
-  createProjectAwareness();
   // Initial connect (not a drop): the banner stays hidden in this state; a
   // failure moves it to "reconnecting" via onclose.
   notifyCollabConnection("connecting");
@@ -1414,7 +1323,7 @@ export function connectCollab(): void {
 }
 
 export function disconnectCollab(): void {
-  // Destroy sessions and the project awareness BEFORE closing the socket:
+  // Destroy sessions BEFORE closing the socket:
   // their teardown broadcasts awareness REMOVALS (removeAwarenessStates →
   // update handler → send), which must ship on the still-open socket so
   // peers clear our cursors instantly instead of waiting for the ~30s
@@ -1429,7 +1338,6 @@ export function disconnectCollab(): void {
   for (const s of [...poSessions.values()]) {
     destroyPoSession(s);
   }
-  destroyProjectAwareness();
   hardClose();
   resetPresenceToasts();
   notifyCollabConnection("idle");

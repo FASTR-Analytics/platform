@@ -14,7 +14,7 @@ export const _SLIDE_CACHE = createReactiveCache<
 >({
   name: "slide",
   uniquenessKeys: (p) => [p.slideId],
-  instanceVersionKey: (p, ins) => ins.lastUpdated.slides[p.slideId] ?? "unknown",
+  versionKey: (p, ins) => ins.lastUpdated.slides[p.slideId] ?? "unknown",
 });
 
 export async function getSlideFromCacheOrFetch(

@@ -59,10 +59,7 @@ export function ChangeEmailModal(
     );
 
   const allGreen = (instances: RenameEmailInstanceResult[]) =>
-    instances.length > 0 &&
-    instances.every(
-      (i) => i.status === "updated" && (i.projectsFailed?.length ?? 0) === 0,
-    );
+    instances.length > 0 && instances.every((i) => i.status === "updated");
 
   // Fleet rename → primary flip + token refresh → (all-green only)
   // old-address removal. The rename MUST come first: the route authorizes
@@ -236,11 +233,6 @@ export function ChangeEmailModal(
               <span class={label.class}>{label.text}</span>
               <Show when={instance.error && instance.status === "failed"}>
                 <span class="text-base-content-muted text-xs">{instance.error}</span>
-              </Show>
-              <Show when={(instance.projectsFailed?.length ?? 0) > 0}>
-                <span class="text-warning text-xs">
-                  {t3({ en: "some project history not yet updated — retry", fr: "certains historiques de projet pas encore mis à jour — réessayer", pt: "alguns históricos de projeto ainda não atualizados — tentar novamente" })}
-                </span>
               </Show>
             </div>
           );

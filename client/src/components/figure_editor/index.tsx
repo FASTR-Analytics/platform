@@ -16,7 +16,7 @@ import { VisualizationEditorInner } from "./visualization_editor_inner";
 
 // The embedded figure editor. A figure is `{ metricId, config }` inside a
 // product (PLAN_PRODUCTS_RESTRUCTURE D3): a host (slide editor, report
-// editor, dashboard editor) hands it a metric, a config and the host's
+// editor) hands it a metric, a config and the host's
 // PackageScope, and gets back the edited config. This wrapper resolves the
 // metric's queryable shape (`resultsValueInfo`) under that pair before
 // mounting the editor; that read is scope-dependent, which is why it lives
@@ -89,7 +89,6 @@ export function VisualizationEditor(
     <StateHolderWrapper state={resultsValueInfo.state()}>
       {(keyedResultsValueInfo: ResultsValueInfoForPresentationObject) => (
         <VisualizationEditorInner
-          mode="ephemeral"
           scope={p.scope}
           label={p.label}
           metric={p.metric}

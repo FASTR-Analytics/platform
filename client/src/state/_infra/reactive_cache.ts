@@ -1,17 +1,15 @@
 import { del, get, keys, set } from "idb-keyval";
-import type { APIResponseWithData, InstanceState, ProjectState } from "lib";
+import type { APIResponseWithData, InstanceState } from "lib";
 import { getSnapshotInstanceState } from "~/state/instance/t1_store";
-import { getSnapshotProjectState } from "~/state/project/t1_store";
 
 /**
- * Reactive Cache System - version-keyed caching off a T1 store
+ * Reactive Cache System - version-keyed caching off the instance T1 store
  *
- * The cache reads a T1 store itself, so no consumer has to thread a version
- * through the call chain: a version-key callback names the store field that
- * invalidates the entry, and SSE flipping that field re-keys every read. Two
- * version sources exist until PLAN_PRODUCTS_RESTRUCTURE step 9a deletes the
- * project store: `versionKey` reads the project store (the project-keyed
- * caches), `instanceVersionKey` reads the instance store (the product caches).
+ * The cache reads the instance store itself, so no consumer has to thread a
+ * version through the call chain: the version-key callback names the store
+ * field that invalidates the entry, and SSE flipping that field re-keys every
+ * read. Immutable, identity-keyed caches (a ready package's data) return a
+ * constant and carry the identity in their uniqueness keys instead.
  *
  * Key features:
  * - Auto-hashing from key arrays (no manual .join("|"))
@@ -24,13 +22,12 @@ import { getSnapshotProjectState } from "~/state/project/t1_store";
  * ```typescript
  * const _REPORT_CACHE = createReactiveCache({
  *   name: "report_detail",
- *   uniquenessKeys: (params) => [params.projectId, params.reportId],
- *   versionKey: (params, pds) => pds.lastUpdated.reports[params.reportId] ?? "unknown",
- *   extract: (res) => res.success ? res.data : null,
+ *   uniquenessKeys: (params) => [params.productId],
+ *   versionKey: (params, ins) => ins.lastUpdated.products[params.productId] ?? "unknown",
  * });
  *
- * // Usage - cache reads PDS internally
- * const data = await _REPORT_CACHE.get({ projectId: "p1", reportId: "r1" });
+ * // Usage - the cache reads the instance store internally
+ * const data = await _REPORT_CACHE.get({ productId: "r1" });
  * ```
  */
 
@@ -42,44 +39,18 @@ type UnresolvedPayload<T> = {
   dataPromise: Promise<APIResponseWithData<T>>;
 };
 
-type ProjectVersioned<Params, Data> = {
-  /** Extract version from params + PDS - version is part of cache key */
-  versionKey: (params: Params, pds: ProjectState) => string;
-
-  /** Set to true if this cache doesn't require PDS (e.g., instance-level caches). Default: false */
-  pdsNotRequired?: boolean;
-
-  /**
-   * Response-side identity guard (PLAN_RESULTS_RUNS Phase 3 item 4). The
-   * version in the cache key is captured when the request goes OUT; a payload
-   * that lands after the project repointed was computed for a different
-   * version, and storing it under the key we asked for would serve one
-   * package's numbers as another's.
-   *
-   * So a run-keyed cache declares how to read that identity back off the
-   * response, and `setPromise` refuses to store a payload whose identity does
-   * not match the version its key was built from. The caller still gets the
-   * response: it just never becomes a cache entry it does not belong to.
-   * This is the client half of the server caches' `parseData`, which
-   * recomputes both hashes from the response for the same reason.
-   */
-  responseMatchesVersion?: (data: Data, version: string) => boolean;
-};
-
-type InstanceVersioned<Params> = {
-  /** Extract version from params + the instance store - version is part of
-   *  the cache key. There is no readiness gate: a field the store has not
-   *  received yet yields the "unknown" sentinel, which setPromise refuses to
-   *  persist. */
-  instanceVersionKey: (params: Params, ins: InstanceState) => string;
-};
-
 export type ReactiveCacheConfig<Params, Data> = {
   /** Cache name - used as IndexedDB key prefix */
   name: string;
 
   /** Extract uniqueness keys from params - will be auto-hashed */
   uniquenessKeys: (params: Params) => (string | number | undefined)[];
+
+  /** Extract version from params + the instance store - version is part of
+   *  the cache key. There is no readiness gate: a field the store has not
+   *  received yet yields the "unknown" sentinel, which setPromise refuses to
+   *  persist. */
+  versionKey: (params: Params, ins: InstanceState) => string;
 
   /** Max number of entries in memory cache (LRU eviction). Default: 100 */
   maxSize?: number;
@@ -91,7 +62,7 @@ export type ReactiveCacheConfig<Params, Data> = {
    * memory/IndexedDB, so the next request retries.
    */
   shouldStore?: (data: Data) => boolean;
-} & (ProjectVersioned<Params, Data> | InstanceVersioned<Params>);
+};
 
 export interface ReactiveCache<Params, Data> {
   get(params: Params): Promise<{ data: Data | undefined; version: string; isInflight?: boolean }>;
@@ -106,7 +77,7 @@ export interface ReactiveCache<Params, Data> {
 }
 
 /**
- * Create a reactive cache that reads its version source T1 store itself
+ * Create a reactive cache that reads the instance T1 store itself
  */
 export function createReactiveCache<Params, Data>(
   config: ReactiveCacheConfig<Params, Data>,
@@ -123,21 +94,11 @@ export function createReactiveCache<Params, Data>(
       .join("|");
   }
 
-  /** The version this read is keyed under, from whichever store the cache
-   *  declares. Non-reactive snapshots (unwrap-based; safe in async contexts):
-   *  both stores are always initialized, "not connected" is just the
-   *  not-ready empty state. */
+  /** The version this read is keyed under. A non-reactive snapshot
+   *  (unwrap-based; safe in async contexts): the store is always initialized,
+   *  "not connected" is just the not-ready empty state. */
   function currentVersion(params: Params): string {
-    if ("instanceVersionKey" in config) {
-      return config.instanceVersionKey(params, getSnapshotInstanceState());
-    }
-    const pds = getSnapshotProjectState();
-    if (!pds.isReady && !config.pdsNotRequired) {
-      return "pds_not_ready";
-    }
-    // pdsNotRequired: versionKey is called with the not-ready store and
-    // must not depend on pds.
-    return config.versionKey(params, pds);
+    return config.versionKey(params, getSnapshotInstanceState());
   }
 
   /** Get IndexedDB key */
@@ -172,9 +133,6 @@ export function createReactiveCache<Params, Data>(
     params: Params,
   ): Promise<{ data: Data | undefined; version: string; isInflight?: boolean }> {
     const version = currentVersion(params);
-    if (version === "pds_not_ready") {
-      return { data: undefined, version };
-    }
     // Version is PART of the key - different version = different key = automatic miss
     const cacheKey = `${hashKeys(config.uniquenessKeys(params))}::${version}`;
 
@@ -226,13 +184,14 @@ export function createReactiveCache<Params, Data>(
     params: Params,
     version: string,
   ): Promise<void> {
-    // Do not cache under sentinel versions - these represent transient not-ready
-    // states and replaying them from IndexedDB on a later load would serve stale data.
-    if (version === "pds_not_ready" || version === "unknown") {
+    // Do not cache under the sentinel version: it represents a transient
+    // not-ready state and replaying it from IndexedDB on a later load would
+    // serve stale data.
+    if (version === "unknown") {
       return;
     }
 
-    // Use provided version (from get()) rather than reading PDS again
+    // Use provided version (from get()) rather than reading the store again
     // This ensures we cache under the same key we checked
 
     // Build cache key using provided version
@@ -267,18 +226,6 @@ export function createReactiveCache<Params, Data>(
         //   `[ReactiveCache:${config.name}] Response failed - not caching`,
         // );
         // Don't cache errors/failures
-        _unresolved.delete(cacheKey);
-        return;
-      }
-
-      if (
-        "responseMatchesVersion" in config &&
-        config.responseMatchesVersion !== undefined &&
-        !config.responseMatchesVersion(response.data, version)
-      ) {
-        console.warn(
-          `[ReactiveCache:${config.name}] Response was computed for a different version than the key it was requested under — not caching (key: ${cacheKey})`,
-        );
         _unresolved.delete(cacheKey);
         return;
       }

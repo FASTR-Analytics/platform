@@ -20,7 +20,6 @@ const _POPULATION_TYPE_STORE_CACHE = createReactiveCache<
     `${params.populationLastUpdated ?? "no-population"}_${
       params.structureLastUpdated ?? "no-structure"
     }`,
-  pdsNotRequired: true,
 });
 
 export async function getPopulationTypeStoreFromCacheOrFetch(

@@ -6,7 +6,6 @@ import type {
   PackageScope,
 } from "lib";
 import type { LayoutNode } from "panther";
-import { resolveFigureFromVisualization } from "./resolve_figure_from_visualization";
 import { resolveFigureFromMetric } from "./resolve_figure_from_metric";
 
 export async function getSlideWithUpdatedBlocks(
@@ -55,19 +54,7 @@ export async function getSlideWithUpdatedBlocks(
         update.blockId,
         style ? { ...update.newContent, style } : update.newContent,
       );
-    } else if (update.newContent.type === "from_visualization") {
-      try {
-        const figureBlock = await resolveFigureFromVisualization(update.newContent);
-        updateMap.set(update.blockId, figureBlock);
-      } catch (err) {
-        const errMsg = err instanceof Error ? err.message : String(err);
-        throw new Error(
-          `Failed to resolve visualization "${update.newContent.visualizationId}"${
-            update.newContent.replicant ? ` with replicant "${update.newContent.replicant}"` : ''
-          }. Check that the visualization exists and the replicant is valid. Original error: ${errMsg}`
-        );
-      }
-    } else if (update.newContent.type === "from_metric") {
+    } else {
       try {
         const figureBlock = await resolveFigureFromMetric(scope, update.newContent, metrics);
         updateMap.set(update.blockId, figureBlock);
@@ -77,8 +64,6 @@ export async function getSlideWithUpdatedBlocks(
           `Failed to create figure from metric "${update.newContent.metricId}" with preset "${update.newContent.vizPresetId}": ${errMsg}`
         );
       }
-    } else {
-      throw new Error("Custom figures not yet supported");
     }
   }
 

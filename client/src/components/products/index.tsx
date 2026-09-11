@@ -102,7 +102,7 @@ export function Products() {
     const deepLinkId = getFirstString(searchParams[_PRODUCT_QUERY_PARAM]);
     if (deepLinkId === undefined) return;
     setSearchParams({ [_PRODUCT_QUERY_PARAM]: undefined });
-    setPendingEditorOpen({ kind: "product", id: deepLinkId });
+    setPendingEditorOpen({ productId: deepLinkId });
   });
 
   // The one opener for requests made from outside this page (the tour
@@ -112,8 +112,8 @@ export function Products() {
     const pending = pendingEditorOpen();
     const products = instanceState.products;
     const isReady = instanceState.isReady;
-    if (!pending || pending.kind !== "product") return;
-    const product = products.find((x) => x.id === pending.id);
+    if (!pending) return;
+    const product = products.find((x) => x.id === pending.productId);
     if (!product) {
       if (isReady) setPendingEditorOpen(null);
       return;

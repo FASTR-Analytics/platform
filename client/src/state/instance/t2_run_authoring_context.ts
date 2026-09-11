@@ -17,7 +17,6 @@ const _RUN_AUTHORING_CONTEXT_CACHE = createReactiveCache<
   name: "run_authoring_context",
   uniquenessKeys: (params) => [params.runId],
   versionKey: () => "immutable",
-  pdsNotRequired: true,
 });
 
 export async function getRunAuthoringContextFromCacheOrFetch(

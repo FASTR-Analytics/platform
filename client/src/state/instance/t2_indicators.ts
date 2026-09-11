@@ -18,7 +18,6 @@ const _INDICATORS_CACHE = createReactiveCache<
   name: "instance_indicators_v3",
   uniquenessKeys: () => ["indicators"],
   versionKey: (params) => params.indicatorMappingsVersion,
-  pdsNotRequired: true,
 });
 
 export async function getIndicatorsFromCacheOrFetch(
@@ -45,7 +44,6 @@ const _HFA_INDICATORS_CACHE = createReactiveCache<
   name: "instance_hfa_indicators",
   uniquenessKeys: () => ["hfa_indicators"],
   versionKey: (params) => params.hfaIndicatorsVersion,
-  pdsNotRequired: true,
 });
 
 export async function getHfaIndicatorsFromCacheOrFetch(

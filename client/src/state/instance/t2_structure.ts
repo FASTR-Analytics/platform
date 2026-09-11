@@ -18,7 +18,6 @@ const _STRUCTURE_ITEMS_CACHE = createReactiveCache<
   uniquenessKeys: (params) => ["structure", params.family],
   versionKey: (params) =>
     `${params.family}_${params.structureLastUpdated}_${params.schemaHash}`,
-  pdsNotRequired: true,
 });
 
 export async function getStructureItemsFromCacheOrFetch(

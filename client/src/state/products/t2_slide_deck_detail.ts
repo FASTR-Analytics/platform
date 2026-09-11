@@ -13,7 +13,7 @@ const _SLIDE_DECK_DETAIL_CACHE = createReactiveCache<
 >({
   name: "slide_deck_detail",
   uniquenessKeys: (params) => [params.productId],
-  instanceVersionKey: (params, ins) =>
+  versionKey: (params, ins) =>
     ins.lastUpdated.products[params.productId] ?? "unknown",
 });
 

@@ -1,8 +1,6 @@
 import { tourTarget } from "@njwse/roadtrip";
 import type { TourDefinition, TourLabels, TourStep } from "@njwse/roadtrip";
 import { t3 } from "lib";
-import { projectState } from "~/state/project/t1_store";
-import { instanceState } from "~/state/instance/t1_store";
 
 // Built as factories (not module-level constants) so t3() resolves after the
 // app language has been set.
@@ -750,374 +748,103 @@ export function buildReportEditorHistoryTour(): TourDefinition {
   };
 }
 
-// -------------------------------------------------------------- Visualizations
+// ---------------------------------------------------------- Products page
 
-export function buildVizIntroTour(): TourDefinition {
+export function buildProductsIntroTour(): TourDefinition {
   return {
-    id: "viz-intro",
+    id: "products-intro",
     steps: [
       {
         id: "intro",
-        target: tourTarget("viz-header"),
+        target: tourTarget("products-header"),
+        title: t3({ en: "Products", fr: "Produits", pt: "Produtos" }),
+        body: t3({
+          en: "Everything you build lives here. A product is a slide deck or a report; click any card to open it in its editor.",
+          fr: "Tout ce que vous créez se trouve ici. Un produit est une présentation ou un rapport ; cliquez sur une carte pour l'ouvrir dans son éditeur.",
+          pt: "Tudo o que cria está aqui. Um produto é uma apresentação ou um relatório; clique num cartão para o abrir no seu editor.",
+        }),
+        placement: "bottom",
+      },
+      {
+        id: "search",
+        target: () =>
+          document.querySelector('[data-tour="products-header"] input'),
+        title: t3({ en: "Search", fr: "Recherche", pt: "Pesquisa" }),
+        body: t3({
+          en: "Type at least three letters to filter products by name.",
+          fr: "Saisissez au moins trois lettres pour filtrer les produits par nom.",
+          pt: "Escreva pelo menos três letras para filtrar os produtos por nome.",
+        }),
+        placement: "bottom",
+      },
+      {
+        id: "type-filter",
+        target: tourTarget("products-type-filter"),
         title: t3({
-          en: "Visualizations",
-          fr: "Visualisations",
-          pt: "Visualizações",
+          en: "Decks or reports",
+          fr: "Présentations ou rapports",
+          pt: "Apresentações ou relatórios",
         }),
         body: t3({
-          en: "Visualizations are the charts, tables and maps built from your project's results. Everything in your decks and reports draws on what you make here.",
-          fr: "Les visualisations sont les graphiques, tableaux et cartes créés à partir des résultats de votre projet. Tout ce qui figure dans vos présentations et rapports s'appuie sur ce que vous créez ici.",
-          pt: "As visualizações são os gráficos, tabelas e mapas criados a partir dos resultados do seu projeto. Tudo o que está nas suas apresentações e relatórios baseia-se no que criar aqui.",
+          en: "Decks and reports share one list. Use these chips to show just one kind.",
+          fr: "Les présentations et les rapports partagent une seule liste. Utilisez ces filtres pour n'en afficher qu'un type.",
+          pt: "As apresentações e os relatórios partilham uma única lista. Utilize estes filtros para mostrar apenas um tipo.",
         }),
         placement: "bottom",
       },
       {
         id: "sort",
-        target: tourTarget("viz-sort"),
-        title: t3({
-          en: "Search and sort",
-          fr: "Rechercher et trier",
-          pt: "Pesquisar e ordenar",
-        }),
+        target: tourTarget("products-sort"),
+        title: t3({ en: "Sorting", fr: "Tri", pt: "Ordenação" }),
         body: t3({
-          en: "Sort by name or by when they were last updated, and use the search box to filter by name.",
-          fr: "Triez par nom ou par date de dernière mise à jour, et utilisez la recherche pour filtrer par nom.",
-          pt: "Ordene por nome ou pela data da última atualização e utilize a pesquisa para filtrar por nome.",
+          en: "Order products by name or by when they were last updated.",
+          fr: "Classez les produits par nom ou par date de dernière mise à jour.",
+          pt: "Ordene os produtos por nome ou pela data da última atualização.",
         }),
         placement: "bottom",
       },
       {
         id: "folders",
-        target: tourTarget("viz-folders"),
+        target: tourTarget("products-items"),
         title: t3({
-          en: "Group them your way",
-          fr: "Regroupez-les à votre façon",
-          pt: "Agrupe-as como quiser",
+          en: "Browse by folder",
+          fr: "Parcourir par dossier",
+          pt: "Navegar por pasta",
         }),
         body: t3({
-          en: "Group visualizations by folder, by the module that produced them, by metric, or as one flat list. 'Hide unavailable' filters out any whose data isn't ready.",
-          fr: "Regroupez les visualisations par dossier, par module d'origine, par métrique, ou en une liste simple. « Masquer les indisponibles » filtre celles dont les données ne sont pas prêtes.",
-          pt: "Agrupe as visualizações por pasta, pelo módulo que as produziu, por métrica, ou numa lista simples. «Ocultar indisponíveis» filtra aquelas cujos dados não estão prontos.",
-        }),
-        placement: "right",
-      },
-      {
-        id: "grid",
-        target: tourTarget("viz-grid"),
-        title: t3({
-          en: "Your visualizations",
-          fr: "Vos visualisations",
-          pt: "As suas visualizações",
-        }),
-        body: t3({
-          en: "Each one shows a live preview. Badges mark those that are replicated across areas, filtered, AI-interpreted, or supplied as defaults by a module.",
-          fr: "Chacune affiche un aperçu en direct. Des badges signalent celles qui sont répliquées par zone, filtrées, interprétées par l'IA, ou fournies par défaut par un module.",
-          pt: "Cada uma mostra uma pré-visualização em direto. As etiquetas indicam as que são replicadas por área, filtradas, interpretadas pela IA, ou fornecidas por predefinição por um módulo.",
-        }),
-        placement: "top",
-      },
-    ],
-  };
-}
-
-// Deferred until a visualization card is on screen.
-export function buildVizCardsTour(): TourDefinition {
-  return {
-    id: "viz-cards",
-    steps: [
-      {
-        id: "card",
-        target: tourTarget("viz-card"),
-        title: t3({
-          en: "Working with a visualization",
-          fr: "Travailler sur une visualisation",
-          pt: "Trabalhar com uma visualização",
-        }),
-        body: t3({
-          en: "Click one to open its editor and change what it shows. Right-click for duplicate, move to folder, create slides from it, or delete.",
-          fr: "Cliquez sur l'une d'elles pour ouvrir son éditeur et modifier son contenu. Faites un clic droit pour dupliquer, déplacer vers un dossier, créer des diapositives ou supprimer.",
-          pt: "Clique numa para abrir o editor e alterar o que mostra. Clique com o botão direito para duplicar, mover para uma pasta, criar diapositivos ou eliminar.",
-        }),
-        placement: "right",
-        waitForTargetTimeoutMs: 2000,
-      },
-    ],
-  };
-}
-
-// Deferred until creating is actually possible (unlocked project with modules).
-export function buildVizCreateTour(): TourDefinition {
-  return {
-    id: "viz-create",
-    steps: [
-      {
-        id: "create",
-        target: tourTarget("viz-create"),
-        title: t3({
-          en: "Create a visualization",
-          fr: "Créer une visualisation",
-          pt: "Criar uma visualização",
-        }),
-        body: t3({
-          en: "Start from a metric produced by one of your modules, then choose the chart type, periods and disaggregation in the editor.",
-          fr: "Partez d'une métrique produite par l'un de vos modules, puis choisissez le type de graphique, les périodes et la désagrégation dans l'éditeur.",
-          pt: "Comece a partir de uma métrica produzida por um dos seus módulos e escolha o tipo de gráfico, os períodos e a desagregação no editor.",
-        }),
-        placement: "bottom",
-      },
-    ],
-  };
-}
-
-// ---------------------------------------------------- Results package tab
-
-export function buildResultsPackageIntroTour(): TourDefinition {
-  return {
-    id: "results-package-intro",
-    steps: [
-      {
-        id: "intro",
-        target: tourTarget("results-package-header"),
-        title: t3({
-          en: "Results package",
-          fr: "Paquet de résultats",
-          pt: "Pacote de resultados",
-        }),
-        body: t3({
-          en: "Every number in this project — every visualization, report and slide deck — is read from one results package. It is generated once for the whole instance, then attached to the projects that should use it.",
-          fr: "Chaque chiffre de ce projet — chaque visualisation, rapport et présentation — provient d'un seul paquet de résultats. Il est généré une fois pour toute l'instance, puis rattaché aux projets qui doivent l'utiliser.",
-          pt: "Todos os números deste projeto — cada visualização, relatório e apresentação — vêm de um único pacote de resultados. É gerado uma vez para toda a instância e depois anexado aos projetos que o devem usar.",
-        }),
-        placement: "bottom",
-      },
-    ],
-  };
-}
-
-// Split from the intro rather than gated step-by-step: on a project with no
-// package attached yet these two targets do not exist, and a tour that runs
-// and skips its steps is still marked seen: the user would never get them
-// once a package IS attached.
-export function buildResultsPackageExploreTour(): TourDefinition {
-  return {
-    id: "results-package-explore",
-    steps: [
-      {
-        id: "attached",
-        target: tourTarget("results-package-attached"),
-        title: t3({
-          en: "The package in use",
-          fr: "Le paquet utilisé",
-          pt: "O pacote em utilização",
-        }),
-        body: t3({
-          en: "This is the package this project serves from. The line beneath its name says when it was generated and by whom — useful when you need to know how current your figures are.",
-          fr: "Voici le paquet dont ce projet se sert. La ligne sous son nom indique quand il a été généré et par qui — utile pour savoir à quel point vos chiffres sont récents.",
-          pt: "Este é o pacote de que este projeto se serve. A linha por baixo do nome indica quando foi gerado e por quem — útil para saber se os seus números estão atualizados.",
-        }),
-        placement: "bottom",
-      },
-      {
-        id: "contents",
-        target: tourTarget("results-package-contents"),
-        title: t3({
-          en: "What's inside",
-          fr: "Ce qu'il contient",
-          pt: "O que contém",
-        }),
-        body: t3({
-          en: "The modules that ran to build this package: the parameters each was configured with, the files it wrote (downloadable), and — where you have permission — its Script and Logs.",
-          fr: "Les modules exécutés pour construire ce paquet : les paramètres de chacun, les fichiers écrits (téléchargeables) et — selon vos permissions — son Script et ses Journaux.",
-          pt: "Os módulos executados para construir este pacote: os parâmetros de cada um, os ficheiros que escreveu (transferíveis) e — conforme as suas permissões — o seu Script e Registos.",
-        }),
-        placement: "top",
-      },
-    ],
-  };
-}
-
-export function buildResultsPackageSwitchTour(): TourDefinition {
-  return {
-    id: "results-package-switch",
-    steps: [
-      {
-        id: "picker",
-        target: tourTarget("results-package-picker"),
-        title: t3({
-          en: "Switching package",
-          fr: "Changer de paquet",
-          pt: "Mudar de pacote",
-        }),
-        body: t3({
-          en: "Pick any ready package on this instance here. Switching changes the data behind everything in the project at once, so it is not a per-figure choice.",
-          fr: "Choisissez ici n'importe quel paquet prêt de cette instance. Changer modifie d'un coup les données derrière tout le projet : ce n'est pas un choix figure par figure.",
-          pt: "Escolha aqui qualquer pacote pronto desta instância. Mudar altera de uma só vez os dados por trás de tudo no projeto: não é uma escolha figura a figura.",
+          en: "Folders and products share one view. Click a folder to go inside it, and use the breadcrumb in the header to come back out. Folders can hold other folders.",
+          fr: "Les dossiers et les produits partagent une même vue. Cliquez sur un dossier pour y entrer, et utilisez le fil d'Ariane dans l'en-tête pour en ressortir. Les dossiers peuvent contenir d'autres dossiers.",
+          pt: "As pastas e os produtos partilham uma única vista. Clique numa pasta para entrar nela, e use o caminho no cabeçalho para voltar a sair. As pastas podem conter outras pastas.",
         }),
         placement: "top",
       },
       {
-        id: "compatibility",
-        target: tourTarget("results-package-picker"),
+        id: "view-mode",
+        target: tourTarget("products-view-mode"),
         title: t3({
-          en: "Check before you switch",
-          fr: "Vérifiez avant de changer",
-          pt: "Verifique antes de mudar",
+          en: "Grid or list",
+          fr: "Grille ou liste",
+          pt: "Grelha ou lista",
         }),
         body: t3({
-          en: '"Use this package" does not switch straight away — it first shows you what would stop resolving under the new package, so you can back out before anything changes.',
-          fr: "« Utiliser ce paquet » ne change rien immédiatement : vous voyez d'abord ce qui cesserait de se résoudre avec le nouveau paquet, et vous pouvez renoncer avant toute modification.",
-          pt: "«Usar este pacote» não muda de imediato: mostra primeiro o que deixaria de se resolver com o novo pacote, para poder desistir antes de qualquer alteração.",
-        }),
-        placement: "top",
-      },
-    ],
-  };
-}
-
-// ----------------------------------------------------------- Settings tab
-
-export function buildSettingsIntroTour(): TourDefinition {
-  return {
-    id: "settings-intro",
-    steps: [
-      {
-        id: "intro",
-        target: tourTarget("settings-header"),
-        title: t3({
-          en: "Project settings",
-          fr: "Paramètres du projet",
-          pt: "Definições do projeto",
-        }),
-        body: t3({
-          en: "Everything about the project as a whole lives here. There's no save button — each section saves as you change it.",
-          fr: "Tout ce qui concerne le projet dans son ensemble se trouve ici. Il n'y a pas de bouton d'enregistrement — chaque section s'enregistre au moment où vous la modifiez.",
-          pt: "Tudo o que diz respeito ao projeto no seu conjunto está aqui. Não há botão de guardar — cada secção é guardada quando a altera.",
-        }),
-        placement: "bottom",
-      },
-      {
-        id: "name",
-        target: tourTarget("settings-name"),
-        title: t3({
-          en: "Project name",
-          fr: "Nom du projet",
-          pt: "Nome do projeto",
-        }),
-        body: t3({
-          en: "Rename the project — this is the name everyone sees in the project list.",
-          fr: "Renommez le projet — c'est le nom que tout le monde voit dans la liste des projets.",
-          pt: "Mude o nome do projeto — é o nome que todos vêem na lista de projetos.",
-        }),
-        placement: "bottom",
-      },
-      {
-        id: "users",
-        target: tourTarget("settings-users"),
-        title: t3({
-          en: "Who can do what",
-          fr: "Qui peut faire quoi",
-          pt: "Quem pode fazer o quê",
-        }),
-        body: t3({
-          en: "Everyone with access is listed here. Click a person to set their role, or select several to change permissions in bulk — viewers read, editors build, admins configure.",
-          fr: "Toutes les personnes ayant accès sont listées ici. Cliquez sur une personne pour définir son rôle, ou sélectionnez-en plusieurs pour modifier les permissions en lot — les lecteurs consultent, les éditeurs créent, les administrateurs configurent.",
-          pt: "Todas as pessoas com acesso estão listadas aqui. Clique numa pessoa para definir a sua função, ou selecione várias para alterar permissões em bloco — os observadores leem, os editores criam, os administradores configuram.",
-        }),
-        placement: "top",
-      },
-      {
-        id: "ai-context",
-        target: tourTarget("settings-ai"),
-        title: t3({
-          en: "Context for the AI",
-          fr: "Contexte pour l'IA",
-          pt: "Contexto para a IA",
-        }),
-        body: t3({
-          en: "Background about the country, programme or period the project covers. The AI uses it when interpreting charts, so a sentence or two here improves every interpretation.",
-          fr: "Des informations générales sur le pays, le programme ou la période couverts par le projet. L'IA s'en sert pour interpréter les graphiques : une ou deux phrases ici améliorent chaque interprétation.",
-          pt: "Informação de contexto sobre o país, o programa ou o período que o projeto abrange. A IA utiliza-a ao interpretar gráficos, por isso uma ou duas frases aqui melhoram todas as interpretações.",
-        }),
-        placement: "top",
-      },
-      {
-        id: "backups",
-        target: tourTarget("settings-backups"),
-        title: t3({
-          en: "Backups",
-          fr: "Sauvegardes",
-          pt: "Cópias de segurança",
-        }),
-        body: t3({
-          en: "Snapshots of the whole project, grouped by day. Create one before a big change, download it to keep a copy, or restore to roll the project back.",
-          fr: "Des instantanés de tout le projet, regroupés par jour. Créez-en un avant un changement important, téléchargez-le pour en garder une copie, ou restaurez pour revenir en arrière.",
-          pt: "Instantâneos de todo o projeto, agrupados por dia. Crie um antes de uma alteração importante, descarregue-o para guardar uma cópia, ou restaure para reverter o projeto.",
-        }),
-        placement: "top",
-      },
-      {
-        id: "actions",
-        target: tourTarget("settings-actions"),
-        title: t3({
-          en: "Copying and deleting",
-          fr: "Copier et supprimer",
-          pt: "Copiar e eliminar",
-        }),
-        body: t3({
-          en: "Copy project duplicates everything into a new project — handy for starting a new round from last year's setup. Delete removes the project and its data for good.",
-          fr: "Copier le projet duplique tout dans un nouveau projet — pratique pour démarrer un nouveau cycle à partir de la configuration de l'année précédente. Supprimer efface définitivement le projet et ses données.",
-          pt: "Copiar projeto duplica tudo para um novo projeto — útil para começar uma nova ronda a partir da configuração do ano anterior. Eliminar remove o projeto e os seus dados definitivamente.",
-        }),
-        placement: "top",
-      },
-    ],
-  };
-}
-
-// ------------------------------------------------------------ Dashboards tab
-
-export function buildDashboardsIntroTour(): TourDefinition {
-  return {
-    id: "dashboards-intro",
-    steps: [
-      {
-        id: "intro",
-        target: tourTarget("dashboards-header"),
-        title: t3({ en: "Dashboards", fr: "Tableaux de bord", pt: "Painéis" }),
-        body: t3({
-          en: "Dashboards are web pages that show a set of your visualizations at a live link — useful for sharing current numbers with people who don't work in the platform.",
-          fr: "Les tableaux de bord sont des pages web qui présentent une sélection de vos visualisations via un lien permanent — pratique pour partager des chiffres à jour avec des personnes qui n'utilisent pas la plateforme.",
-          pt: "Os painéis são páginas web que mostram um conjunto das suas visualizações num link permanente — útil para partilhar números atualizados com pessoas que não trabalham na plataforma.",
-        }),
-        placement: "bottom",
-      },
-      {
-        id: "sort",
-        target: tourTarget("dashboards-sort"),
-        title: t3({
-          en: "Search and sort",
-          fr: "Rechercher et trier",
-          pt: "Pesquisar e ordenar",
-        }),
-        body: t3({
-          en: "Sort by name or by when they were last updated, and search by name once you have a few.",
-          fr: "Triez par nom ou par date de dernière mise à jour, et recherchez par nom lorsque vous en avez plusieurs.",
-          pt: "Ordene por nome ou pela data da última atualização e pesquise por nome quando tiver vários.",
+          en: "Switch between the card grid and a compact list. Both show the same folders and products.",
+          fr: "Basculez entre la grille de cartes et une liste compacte. Les deux montrent les mêmes dossiers et produits.",
+          pt: "Alterne entre a grelha de cartões e uma lista compacta. Ambas mostram as mesmas pastas e produtos.",
         }),
         placement: "bottom",
       },
       {
         id: "grid",
-        target: tourTarget("dashboards-grid"),
+        target: tourTarget("products-items"),
         title: t3({
-          en: "Your dashboards",
-          fr: "Vos tableaux de bord",
-          pt: "Os seus painéis",
+          en: "Your products",
+          fr: "Vos produits",
+          pt: "Os seus produtos",
         }),
         body: t3({
-          en: "Each card shows its web address, how many items it holds, and whether it's public or needs a login.",
-          fr: "Chaque carte indique son adresse web, le nombre d'éléments qu'elle contient, et si elle est publique ou nécessite une connexion.",
-          pt: "Cada cartão mostra o seu endereço web, quantos elementos contém, e se é público ou exige autenticação.",
+          en: "Every product in the current location appears here, with the results package it reads from and the area it covers.",
+          fr: "Tous les produits de l'emplacement actuel apparaissent ici, avec le paquet de résultats dont ils se servent et la zone qu'ils couvrent.",
+          pt: "Todos os produtos da localização atual aparecem aqui, com o pacote de resultados de que se servem e a área que abrangem.",
         }),
         placement: "top",
       },
@@ -1125,48 +852,54 @@ export function buildDashboardsIntroTour(): TourDefinition {
   };
 }
 
-// Deferred until a dashboard card is on screen.
-export function buildDashboardsCardsTour(): TourDefinition {
+// Permission-gated second layer: merges after the intro part for editors, or
+// runs on its own on the first visit after a viewer becomes an editor.
+export function buildProductsCreateTour(): TourDefinition {
   return {
-    id: "dashboards-cards",
+    id: "products-create",
     steps: [
       {
-        id: "card",
-        target: tourTarget("dashboards-card"),
+        id: "new-deck",
+        target: tourTarget("products-new-deck"),
         title: t3({
-          en: "Open a dashboard",
-          fr: "Ouvrir un tableau de bord",
-          pt: "Abrir um painel",
+          en: "Create a slide deck",
+          fr: "Créer une présentation",
+          pt: "Criar uma apresentação",
         }),
         body: t3({
-          en: "Click one to choose which visualizations it shows and whether the link is public. Public dashboards can be opened by anyone with the address, so check that setting before sharing. Right-click to delete.",
-          fr: "Cliquez sur l'un d'eux pour choisir les visualisations affichées et si le lien est public. Un tableau de bord public est accessible à quiconque possède l'adresse : vérifiez ce réglage avant de partager. Faites un clic droit pour supprimer.",
-          pt: "Clique num deles para escolher as visualizações que mostra e se o link é público. Um painel público pode ser aberto por qualquer pessoa com o endereço, por isso verifique essa definição antes de partilhar. Clique com o botão direito para eliminar.",
+          en: "There is no dialog — the deck is created and its editor opens straight away. It starts from the instance's current results package, covering the whole country; both can be changed later in its settings.",
+          fr: "Aucune boîte de dialogue — la présentation est créée et son éditeur s'ouvre immédiatement. Elle part du paquet de résultats actuel de l'instance et couvre tout le pays ; les deux peuvent être modifiés ensuite dans ses paramètres.",
+          pt: "Não há caixa de diálogo — a apresentação é criada e o seu editor abre de imediato. Parte do pacote de resultados atual da instância e abrange todo o país; ambos podem ser alterados depois nas suas definições.",
         }),
-        placement: "right",
-        waitForTargetTimeoutMs: 2000,
+        placement: "bottom",
       },
-    ],
-  };
-}
-
-// Deferred until creating is possible (deck-configure permission, unlocked).
-export function buildDashboardsCreateTour(): TourDefinition {
-  return {
-    id: "dashboards-create",
-    steps: [
       {
-        id: "create",
-        target: "#dashboards-create-button",
+        id: "new-report",
+        target: tourTarget("products-new-report"),
         title: t3({
-          en: "Create a dashboard",
-          fr: "Créer un tableau de bord",
-          pt: "Criar um painel",
+          en: "Create a report",
+          fr: "Créer un rapport",
+          pt: "Criar um relatório",
         }),
         body: t3({
-          en: "Give it a name and a web address, then add visualizations to it. It always shows the project's latest data, so the link stays current without you republishing.",
-          fr: "Donnez-lui un nom et une adresse web, puis ajoutez-y des visualisations. Il affiche toujours les données les plus récentes du projet : le lien reste à jour sans republication.",
-          pt: "Dê-lhe um nome e um endereço web e adicione-lhe visualizações. Mostra sempre os dados mais recentes do projeto, pelo que o link se mantém atualizado sem republicar.",
+          en: "The same for a report — a written document that carries figures inside the text.",
+          fr: "Idem pour un rapport — un document rédigé qui contient des figures au fil du texte.",
+          pt: "O mesmo para um relatório — um documento escrito que contém figuras ao longo do texto.",
+        }),
+        placement: "bottom",
+      },
+      {
+        id: "new-folder",
+        target: tourTarget("products-new-folder"),
+        title: t3({
+          en: "Organise with folders",
+          fr: "Organisez avec des dossiers",
+          pt: "Organize com pastas",
+        }),
+        body: t3({
+          en: "New folder adds one in the current location. Every folder tile or row has a menu — right-click it — to rename it, move it with Move into, or delete it. Deleting a folder never deletes what is inside: everything moves up one level.",
+          fr: "Nouveau dossier en ajoute un à l'emplacement actuel. Chaque carte ou ligne de dossier a un menu — clic droit — pour le renommer, le déplacer avec Déplacer dans, ou le supprimer. Supprimer un dossier ne supprime jamais son contenu : tout remonte d'un niveau.",
+          pt: "Nova pasta acrescenta uma na localização atual. Cada cartão ou linha de pasta tem um menu — clique com o botão direito — para mudar o nome, movê-la com Mover para dentro de, ou eliminá-la. Eliminar uma pasta nunca elimina o seu conteúdo: tudo sobe um nível.",
         }),
         placement: "bottom",
       },
@@ -1174,343 +907,45 @@ export function buildDashboardsCreateTour(): TourDefinition {
   };
 }
 
-// --------------------------------------------------------- Dashboard editor
-
-// Mirrors canConfigure() inside dashboard_editor.tsx. Step-level `when` runs
-// once when the tour starts, and the dashboard editor's content is still
-// loading then, so these gates must read state, never the DOM.
-const canConfigureDashboards = () =>
-  projectState.thisUserPermissions.can_configure_slide_decks &&
-  !projectState.isLocked;
-
-export function buildDashboardEditorIntroTour(): TourDefinition {
+// Deferred until the instance actually holds a product (entry-level `when` in
+// index.ts): held back without being marked seen, so it runs on the first
+// Products visit where a card exists, or merges into the intro run when
+// products are already there.
+export function buildProductsCardsTour(): TourDefinition {
   return {
-    id: "dashboard-editor-intro",
+    id: "products-cards",
     steps: [
       {
-        id: "intro",
-        target: tourTarget("dashboard-grid"),
+        id: "open-product",
+        target: tourTarget("products-item"),
         title: t3({
-          en: "Inside a dashboard",
-          fr: "Dans un tableau de bord",
-          pt: "Dentro de um painel",
+          en: "Open a product",
+          fr: "Ouvrir un produit",
+          pt: "Abrir um produto",
         }),
         body: t3({
-          en: "The items here are what visitors see on the dashboard's page, in this order. Drag one to move it — there's no save button, every change is live immediately.",
-          fr: "Les éléments présents ici sont ce que voient les visiteurs sur la page du tableau de bord, dans cet ordre. Faites-en glisser un pour le déplacer — il n'y a pas de bouton d'enregistrement, chaque modification est immédiate.",
-          pt: "Os elementos aqui são o que os visitantes vêem na página do painel, nesta ordem. Arraste um para o mover — não há botão de guardar, cada alteração é imediata.",
-        }),
-        placement: "top",
-        waitForTargetTimeoutMs: 15000,
-      },
-      {
-        id: "add-item",
-        target: "#dashboard-add-item-button",
-        title: t3({
-          en: "Add a visualization",
-          fr: "Ajouter une visualisation",
-          pt: "Adicionar uma visualização",
-        }),
-        body: t3({
-          en: "Pick any visualization from the project. If it's replicated across areas you can add just the one you chose, or the whole set as a group.",
-          fr: "Choisissez n'importe quelle visualisation du projet. Si elle est répliquée par zone, vous pouvez ajouter uniquement celle choisie ou tout l'ensemble en tant que groupe.",
-          pt: "Escolha qualquer visualização do projeto. Se estiver replicada por área, pode adicionar apenas a escolhida ou todo o conjunto como um grupo.",
+          en: "Click a card to open it. The icon says whether it is a deck or a report, and the caption names the results package it reads from — so you can always tell which numbers you are looking at.",
+          fr: "Cliquez sur une carte pour l'ouvrir. L'icône indique s'il s'agit d'une présentation ou d'un rapport, et la légende nomme le paquet de résultats dont elle se sert — vous savez ainsi toujours quels chiffres vous consultez.",
+          pt: "Clique num cartão para o abrir. O ícone indica se é uma apresentação ou um relatório, e a legenda nomeia o pacote de resultados de que se serve — assim sabe sempre que números está a ver.",
         }),
         placement: "bottom",
-        when: canConfigureDashboards,
-      },
-      {
-        id: "preview",
-        target: "#dashboard-preview-button",
-        title: t3({
-          en: "See the real page",
-          fr: "Voir la page réelle",
-          pt: "Ver a página real",
-        }),
-        body: t3({
-          en: "Preview opens the dashboard exactly as a visitor sees it, and Copy link beside it gives you the address to send them.",
-          fr: "Aperçu ouvre le tableau de bord tel que le voit un visiteur, et Copier le lien à côté vous donne l'adresse à envoyer.",
-          pt: "Pré-visualização abre o painel exatamente como um visitante o vê, e Copiar ligação ao lado dá-lhe o endereço para enviar.",
-        }),
-        placement: "bottom",
-      },
-      {
-        id: "settings",
-        target: "#dashboard-settings-button",
-        title: t3({
-          en: "Name, address and access",
-          fr: "Nom, adresse et accès",
-          pt: "Nome, endereço e acesso",
-        }),
-        body: t3({
-          en: "Settings holds the title, the web address, the page layout, logos, and — importantly — whether visitors need to log in. Click it now to look inside.",
-          fr: "Paramètres contient le titre, l'adresse web, la mise en page, les logos et — surtout — si les visiteurs doivent se connecter. Cliquez maintenant pour y jeter un œil.",
-          pt: "Definições contém o título, o endereço web, o layout da página, os logótipos e — sobretudo — se os visitantes precisam de iniciar sessão. Clique agora para ver.",
-        }),
-        placement: "bottom",
-        advanceOn: "click",
-        when: canConfigureDashboards,
-      },
-      {
-        id: "settings-general",
-        target: tourTarget("dashboard-settings-general"),
-        title: t3({
-          en: "Public or private",
-          fr: "Public ou privé",
-          pt: "Público ou privado",
-        }),
-        body: t3({
-          en: "The URL slug is the end of the dashboard's web address. Leave 'Require authentication' off and anyone with the link can view it — tick it and they'll need a platform login.",
-          fr: "Le slug d'URL constitue la fin de l'adresse web du tableau de bord. Laissez « Authentification requise » décochée et quiconque possède le lien pourra le consulter ; cochez-la et une connexion sera nécessaire.",
-          pt: "O slug do URL é o final do endereço web do painel. Deixe «Exigir autenticação» desativada e qualquer pessoa com o link poderá vê-lo; ative-a e será necessária uma conta na plataforma.",
-        }),
-        placement: "right",
-        waitForTargetTimeoutMs: 6000,
-        onTargetTimeout: "skip",
-        when: canConfigureDashboards,
-      },
-    ],
-  };
-}
-
-// Deferred until the dashboard actually has an item on screen.
-export function buildDashboardEditorItemsTour(): TourDefinition {
-  return {
-    id: "dashboard-editor-items",
-    steps: [
-      {
-        id: "item-card",
-        target: tourTarget("dashboard-item-card"),
-        title: t3({
-          en: "One item on the page",
-          fr: "Un élément de la page",
-          pt: "Um elemento da página",
-        }),
-        body: t3({
-          en: "Click an item to select it. Right-click to remove it from the dashboard — the visualization itself stays in the project.",
-          fr: "Cliquez sur un élément pour le sélectionner. Faites un clic droit pour le retirer du tableau de bord — la visualisation elle-même reste dans le projet.",
-          pt: "Clique num elemento para o selecionar. Clique com o botão direito para o remover do painel — a visualização em si permanece no projeto.",
-        }),
-        placement: "right",
         waitForTargetTimeoutMs: 2000,
       },
       {
-        id: "panel",
-        target: tourTarget("dashboard-panel"),
+        id: "product-actions",
+        target: tourTarget("products-item"),
         title: t3({
-          en: "The selected item",
-          fr: "L'élément sélectionné",
-          pt: "O elemento selecionado",
+          en: "Manage products",
+          fr: "Gérer les produits",
+          pt: "Gerir produtos",
         }),
         body: t3({
-          en: "With an item selected, this panel renames it, edits the visualization behind it, swaps it for another, or builds a new one. For a replicated group it also sets which area shows by default.",
-          fr: "Lorsqu'un élément est sélectionné, ce panneau permet de le renommer, de modifier la visualisation associée, de la remplacer ou d'en créer une nouvelle. Pour un groupe répliqué, il définit aussi la zone affichée par défaut.",
-          pt: "Com um elemento selecionado, este painel permite mudar-lhe o nome, editar a visualização subjacente, substituí-la ou criar uma nova. Para um grupo replicado, define também a área mostrada por predefinição.",
-        }),
-        placement: "right",
-      },
-    ],
-  };
-}
-
-// ------------------------------------------------------ Visualization editor
-
-function vizPanelStep(): TourStep {
-  return {
-    id: "panel",
-    target: "#VIZ_PANEL_ROOT",
-    title: t3({
-      en: "Three sets of controls",
-      fr: "Trois ensembles de réglages",
-      pt: "Três conjuntos de controlos",
-    }),
-    body: t3({
-      en: "Data decides what the numbers are, Presentation how they look, and Text the captions around them.",
-      fr: "Données définit les chiffres, Présentation leur apparence, et Texte les légendes qui les accompagnent.",
-      pt: "Dados define quais são os números, Apresentação o seu aspeto, e Texto as legendas que os acompanham.",
-    }),
-    placement: "right",
-  };
-}
-
-function vizPreviewStep(): TourStep {
-  return {
-    id: "preview",
-    target: tourTarget("viz-preview"),
-    title: t3({
-      en: "Live preview",
-      fr: "Aperçu en direct",
-      pt: "Pré-visualização em direto",
-    }),
-    body: t3({
-      en: "The figure redraws with every change, using the project's real data — this is exactly how it will look in decks, reports and dashboards.",
-      fr: "La figure se redessine à chaque modification, avec les données réelles du projet — c'est exactement son apparence dans les présentations, rapports et tableaux de bord.",
-      pt: "A figura é redesenhada a cada alteração, com os dados reais do projeto — é exatamente assim que aparecerá em apresentações, relatórios e painéis.",
-    }),
-    placement: "left",
-  };
-}
-
-export function buildVizEditorCreateTour(): TourDefinition {
-  return {
-    id: "viz-editor-create",
-    steps: [
-      {
-        id: "intro",
-        target: tourTarget("viz-editor-toolbar"),
-        title: t3({
-          en: "Building a new visualization",
-          fr: "Création d'une nouvelle visualisation",
-          pt: "A criar uma nova visualização",
-        }),
-        body: t3({
-          en: "You've picked a metric — now decide how to show it. Nothing is saved until you choose to save, so experiment freely.",
-          fr: "Vous avez choisi une métrique — décidez maintenant comment l'afficher. Rien n'est enregistré avant que vous ne le décidiez : expérimentez librement.",
-          pt: "Escolheu uma métrica — agora decida como a mostrar. Nada é guardado até que o decida, por isso experimente à vontade.",
+          en: "Right-click a product for its settings — name, folder, results package and area — or to duplicate or delete it. Use the selection circles to move or delete several at once.",
+          fr: "Faites un clic droit sur un produit pour ses paramètres — nom, dossier, paquet de résultats et zone — ou pour le dupliquer ou le supprimer. Utilisez les cercles de sélection pour en déplacer ou en supprimer plusieurs à la fois.",
+          pt: "Clique com o botão direito num produto para as suas definições — nome, pasta, pacote de resultados e área — ou para o duplicar ou eliminar. Utilize os círculos de seleção para mover ou eliminar vários ao mesmo tempo.",
         }),
         placement: "bottom",
-      },
-      vizPanelStep(),
-      {
-        id: "data",
-        target: tourTarget("viz-panel-data"),
-        title: t3({
-          en: "Start with the chart type",
-          fr: "Commencez par le type de graphique",
-          pt: "Comece pelo tipo de gráfico",
-        }),
-        body: t3({
-          en: "The metric is fixed, but Presentation type switches between a chart, a time series, a table and a map. Below it you can narrow the data down and choose how it's broken out.",
-          fr: "La métrique est fixe, mais Type de présentation permet de basculer entre graphique, série temporelle, tableau et carte. En dessous, vous pouvez restreindre les données et choisir leur ventilation.",
-          pt: "A métrica é fixa, mas Tipo de apresentação alterna entre gráfico, série temporal, tabela e mapa. Abaixo, pode restringir os dados e escolher como são desagregados.",
-        }),
-        placement: "right",
-      },
-      vizPreviewStep(),
-      {
-        id: "save",
-        target: "#viz-save-new-button",
-        title: t3({
-          en: "Save it to the project",
-          fr: "Enregistrez-la dans le projet",
-          pt: "Guarde-a no projeto",
-        }),
-        body: t3({
-          en: "Give it a name and it joins the Visualizations tab, ready to drop into decks, reports and dashboards.",
-          fr: "Donnez-lui un nom et elle rejoint l'onglet Visualisations, prête à être insérée dans les présentations, rapports et tableaux de bord.",
-          pt: "Dê-lhe um nome e passa a constar no separador Visualizações, pronta a inserir em apresentações, relatórios e painéis.",
-        }),
-        placement: "bottom",
-        when: () => document.querySelector("#viz-save-new-button") !== null,
-      },
-    ],
-  };
-}
-
-export function buildVizEditorEditTour(): TourDefinition {
-  return {
-    id: "viz-editor-edit",
-    steps: [
-      {
-        id: "intro",
-        target: tourTarget("viz-editor-toolbar"),
-        title: t3({
-          en: "Editing a visualization",
-          fr: "Modification d'une visualisation",
-          pt: "A editar uma visualização",
-        }),
-        body: t3({
-          en: "Changes here follow this visualization everywhere it's used — every deck, report and dashboard that includes it.",
-          fr: "Les modifications apportées ici suivent cette visualisation partout où elle est utilisée — chaque présentation, rapport et tableau de bord qui l'inclut.",
-          pt: "As alterações aqui acompanham esta visualização em todos os locais onde é usada — em cada apresentação, relatório e painel que a inclui.",
-        }),
-        placement: "bottom",
-      },
-      vizPanelStep(),
-      {
-        id: "data",
-        target: tourTarget("viz-panel-data"),
-        title: t3({ en: "Data", fr: "Données", pt: "Dados" }),
-        body: t3({
-          en: "Presentation type picks the chart form. 'Filter (subset)' narrows what's included — particular values, a time period, or specific groups — and 'Display (disaggregate)' chooses how the remaining data is broken out into series.",
-          fr: "Type de présentation choisit la forme du graphique. « Filtre (sous-ensemble) » restreint ce qui est inclus — certaines valeurs, une période, des groupes précis — et « Affichage (désagrégation) » choisit la ventilation des données restantes en séries.",
-          pt: "Tipo de apresentação escolhe a forma do gráfico. «Filtro (subconjunto)» restringe o que é incluído — determinados valores, um período, grupos específicos — e «Apresentação (desagregar)» escolhe como os restantes dados são divididos em séries.",
-        }),
-        placement: "right",
-      },
-      {
-        id: "open-style",
-        target: tourTarget("viz-tab-style"),
-        title: t3({
-          en: "Now how it looks",
-          fr: "Passons à l'apparence",
-          pt: "Agora o aspeto",
-        }),
-        body: t3({
-          en: "Click Presentation to carry on.",
-          fr: "Cliquez sur Présentation pour continuer.",
-          pt: "Clique em Apresentação para continuar.",
-        }),
-        placement: "bottom",
-        advanceOn: "click",
-      },
-      {
-        id: "style",
-        target: tourTarget("viz-panel-style"),
-        title: t3({
-          en: "Presentation",
-          fr: "Présentation",
-          pt: "Apresentação",
-        }),
-        body: t3({
-          en: "Colours, axis limits, labels, decimal places, sorting and legends live here, along with conditional formatting to colour values by how they compare to a target.",
-          fr: "Couleurs, limites d'axes, étiquettes, décimales, tri et légendes se trouvent ici, ainsi que la mise en forme conditionnelle pour colorer les valeurs selon leur écart à une cible.",
-          pt: "Cores, limites dos eixos, etiquetas, casas decimais, ordenação e legendas estão aqui, bem como a formatação condicional para colorir valores conforme se comparam com uma meta.",
-        }),
-        placement: "right",
-      },
-      {
-        id: "open-text",
-        target: tourTarget("viz-tab-text"),
-        title: t3({
-          en: "And the words",
-          fr: "Et les textes",
-          pt: "E os textos",
-        }),
-        body: t3({
-          en: "Click Text to carry on.",
-          fr: "Cliquez sur Texte pour continuer.",
-          pt: "Clique em Texto para continuar.",
-        }),
-        placement: "bottom",
-        advanceOn: "click",
-      },
-      {
-        id: "text",
-        target: tourTarget("viz-panel-text"),
-        title: t3({ en: "Captions", fr: "Légendes", pt: "Legendas" }),
-        body: t3({
-          en: "The caption, sub-caption and footnote travel with the figure wherever it appears. Tokens let you insert the current date range or replicant name automatically.",
-          fr: "La légende, la sous-légende et la note de bas de page accompagnent la figure partout où elle apparaît. Des jetons permettent d'insérer automatiquement la période ou le nom du réplicant.",
-          pt: "A legenda, a sublegenda e a nota de rodapé acompanham a figura onde quer que apareça. Existem marcadores para inserir automaticamente o período atual ou o nome do replicante.",
-        }),
-        placement: "right",
-      },
-      vizPreviewStep(),
-      {
-        id: "save",
-        target: tourTarget("viz-editor-toolbar"),
-        title: t3({
-          en: "Saving, and everything else",
-          fr: "Enregistrement, et le reste",
-          pt: "Guardar, e tudo o resto",
-        }),
-        body: t3({
-          en: "When someone else is editing with you, changes save as you make them. Otherwise Save, Save and close, and Save as new (which keeps the original) appear on the left as soon as you change something. On the right sit download, duplicate, rename and delete.",
-          fr: "Lorsque quelqu'un modifie en même temps que vous, les changements sont enregistrés au fur et à mesure. Sinon, Sauvegarder, Sauvegarder et quitter, et Sauver comme nouvelle (qui conserve l'original) apparaissent à gauche dès que vous modifiez quelque chose. À droite se trouvent télécharger, dupliquer, renommer et supprimer.",
-          pt: "Quando alguém está a editar consigo, as alterações são guardadas à medida que as faz. Caso contrário, Guardar, Guardar e fechar, e Guardar como nova (que mantém o original) aparecem à esquerda assim que altera algo. À direita estão descarregar, duplicar, mudar o nome e eliminar.",
-        }),
-        placement: "bottom",
+        waitForTargetTimeoutMs: 2000,
       },
     ],
   };
@@ -1518,17 +953,17 @@ export function buildVizEditorEditTour(): TourDefinition {
 
 // -------------------------------------------- Instance-level tabs
 
-// First-visit tours for the instance-level tabs (Projects / Data / Assets /
-// Users / Settings). Unlike the project tours above, their availability reads
-// instanceState only and their manager lives in the instance shell.
+// First-visit tours for the instance tabs (Products / Explore / Data /
+// Results / Assets / Users). Their availability reads instanceState only.
 
 // The nav renders twice (compact icons below xl, labelled buttons above); a
-// selector that matches both resolves to the visible one (roadtrip ≥ 0.10),
+// selector that matches both resolves to the visible one (roadtrip >= 0.10),
 // so a plain tourTarget() is enough.
 
 // The instance shell itself: navigation, language, release notes and where to
-// find help. Fires on the projects page (the landing tab), merging seamlessly
-// ahead of the projects tour on a brand-new user's first visit.
+// find help. Fires on the Products page (the landing tab), merging seamlessly
+// ahead of the products tours on a brand-new user's first visit.
+
 export function buildInstanceWelcomeTour(): TourDefinition {
   return {
     id: "instance-welcome",
@@ -1542,9 +977,9 @@ export function buildInstanceWelcomeTour(): TourDefinition {
           pt: "Bem-vindo ao FASTR",
         }),
         body: t3({
-          en: "This is your instance home. Use these tabs to move between projects, instance-wide data and shared assets — plus users and settings if you have those permissions.",
-          fr: "Voici l'accueil de votre instance. Utilisez ces onglets pour passer des projets aux données de l'instance et aux ressources partagées — ainsi qu'aux utilisateurs et aux paramètres si vous en avez les permissions.",
-          pt: "Esta é a página inicial da sua instância. Use estes separadores para alternar entre projetos, dados da instância e recursos partilhados — além de utilizadores e definições, se tiver essas permissões.",
+          en: "This is your instance home. Products holds the slide decks and reports you build, Explore is for looking at the numbers, and the remaining tabs cover instance-wide data, results packages, shared assets and users — whichever your permissions allow.",
+          fr: "Voici l'accueil de votre instance. Produits regroupe les présentations et les rapports que vous créez, Explorer sert à consulter les chiffres, et les autres onglets couvrent les données de l'instance, les paquets de résultats, les ressources partagées et les utilisateurs — selon vos permissions.",
+          pt: "Esta é a página inicial da sua instância. Produtos reúne as apresentações e os relatórios que cria, Explorar serve para ver os números, e os restantes separadores abrangem os dados da instância, os pacotes de resultados, os recursos partilhados e os utilizadores — consoante as suas permissões.",
         }),
         placement: "bottom",
       },
@@ -1599,116 +1034,6 @@ export function buildInstanceWelcomeTour(): TourDefinition {
           pt: "Atualize os seus dados ou termine a sessão aqui.",
         }),
         placement: "bottom",
-      },
-    ],
-  };
-}
-
-export function buildInstanceProjectsTour(): TourDefinition {
-  const isAdmin = () => instanceState.currentUserIsGlobalAdmin;
-  return {
-    id: "instance-projects-intro",
-    steps: [
-      {
-        id: "intro",
-        target: tourTarget("instance-projects-header"),
-        title: t3({ en: "Projects", fr: "Projets", pt: "Projetos" }),
-        body: t3({
-          en: "Everything in FASTR happens inside a project: each one gets its own data exports, modules, visualizations and documents.",
-          fr: "Tout dans FASTR se passe dans un projet : chacun dispose de ses propres exportations de données, modules, visualisations et documents.",
-          pt: "Tudo no FASTR acontece dentro de um projeto: cada um tem as suas próprias exportações de dados, módulos, visualizações e documentos.",
-        }),
-        placement: "bottom",
-      },
-      {
-        id: "grid",
-        target: tourTarget("instance-projects-grid"),
-        title: t3({
-          en: "One card per project",
-          fr: "Une carte par projet",
-          pt: "Um cartão por projeto",
-        }),
-        body: t3({
-          en: "Click a card to open that project. A lock icon means the project is read-only, and the caption shows when it was last worked on.",
-          fr: "Cliquez sur une carte pour ouvrir le projet. Une icône de cadenas signifie que le projet est en lecture seule, et la légende indique la dernière activité.",
-          pt: "Clique num cartão para abrir esse projeto. Um ícone de cadeado significa que o projeto é só de leitura, e a legenda mostra quando foi a última atividade.",
-        }),
-        placement: "top",
-      },
-      {
-        id: "sort",
-        target: tourTarget("instance-projects-sort"),
-        title: t3({
-          en: "Sorting projects",
-          fr: "Trier les projets",
-          pt: "Ordenar projetos",
-        }),
-        body: t3({
-          en: "Order the list by name or by most recent activity.",
-          fr: "Classez la liste par nom ou par activité la plus récente.",
-          pt: "Ordene a lista por nome ou pela atividade mais recente.",
-        }),
-        placement: "bottom",
-      },
-      {
-        id: "compare",
-        target: tourTarget("instance-projects-compare"),
-        when: isAdmin,
-        title: t3({
-          en: "Compare projects",
-          fr: "Comparer les projets",
-          pt: "Comparar projetos",
-        }),
-        body: t3({
-          en: "See every project's setup side by side — datasets, modules and activity — useful for spotting projects that are out of date.",
-          fr: "Visualisez la configuration de tous les projets côte à côte — jeux de données, modules et activité — pratique pour repérer les projets obsolètes.",
-          pt: "Veja a configuração de todos os projetos lado a lado — conjuntos de dados, módulos e atividade — útil para identificar projetos desatualizados.",
-        }),
-        placement: "bottom",
-        waitForTargetTimeoutMs: 2000,
-        onTargetTimeout: "skip",
-      },
-      {
-        id: "pending-deletions",
-        target: tourTarget("instance-projects-pending"),
-        when: () =>
-          instanceState.currentUserIsGlobalAdmin &&
-          instanceState.projects.some(
-            (proj) => proj.status === "pending_deletion",
-          ),
-        title: t3({
-          en: "Pending deletions",
-          fr: "Suppressions en attente",
-          pt: "Eliminações pendentes",
-        }),
-        body: t3({
-          en: "Deleting a project schedules it here first, so anything removed by mistake can still be restored before it's gone for good.",
-          fr: "La suppression d'un projet le place d'abord ici, afin que tout ce qui a été supprimé par erreur puisse encore être restauré avant de disparaître définitivement.",
-          pt: "Eliminar um projeto coloca-o primeiro aqui, para que algo removido por engano ainda possa ser restaurado antes de desaparecer definitivamente.",
-        }),
-        placement: "bottom",
-        waitForTargetTimeoutMs: 2000,
-        onTargetTimeout: "skip",
-      },
-      {
-        id: "create",
-        target: tourTarget("instance-projects-create"),
-        when: () =>
-          instanceState.currentUserIsGlobalAdmin ||
-          instanceState.currentUserPermissions.can_create_projects,
-        title: t3({
-          en: "Create a project",
-          fr: "Créer un projet",
-          pt: "Criar um projeto",
-        }),
-        body: t3({
-          en: "A new project only needs a name — you choose which datasets to export into it and which modules to enable afterwards.",
-          fr: "Un nouveau projet ne nécessite qu'un nom — vous choisissez ensuite les jeux de données à y exporter et les modules à activer.",
-          pt: "Um novo projeto só precisa de um nome — depois escolhe os conjuntos de dados a exportar e os módulos a ativar.",
-        }),
-        placement: "bottom",
-        waitForTargetTimeoutMs: 2000,
-        onTargetTimeout: "skip",
       },
     ],
   };
@@ -1866,9 +1191,9 @@ export function buildInstanceAssetsTour(): TourDefinition {
         target: tourTarget("instance-assets-header"),
         title: t3({ en: "Assets", fr: "Ressources", pt: "Recursos" }),
         body: t3({
-          en: "Shared files for the whole instance — logos, images, CSVs and documents that any project can use.",
-          fr: "Des fichiers partagés pour toute l'instance — logos, images, CSV et documents utilisables par tous les projets.",
-          pt: "Ficheiros partilhados para toda a instância — logótipos, imagens, CSV e documentos que qualquer projeto pode utilizar.",
+          en: "Shared files for the whole instance — logos, images, CSVs and documents that any product can use.",
+          fr: "Des fichiers partagés pour toute l'instance — logos, images, CSV et documents utilisables par tous les produits.",
+          pt: "Ficheiros partilhados para toda a instância — logótipos, imagens, CSV e documentos que qualquer produto pode utilizar.",
         }),
         placement: "bottom",
       },
@@ -1881,9 +1206,9 @@ export function buildInstanceAssetsTour(): TourDefinition {
           pt: "Carregar ficheiros",
         }),
         body: t3({
-          en: "Upload once, use anywhere: an uploaded logo can appear on dashboards, and an uploaded image can be dropped into any slide or report.",
-          fr: "Téléversez une fois, utilisez partout : un logo téléversé peut apparaître sur les tableaux de bord, et une image peut être insérée dans n'importe quelle diapositive ou rapport.",
-          pt: "Carregue uma vez, utilize em qualquer lugar: um logótipo carregado pode aparecer nos painéis, e uma imagem pode ser inserida em qualquer diapositivo ou relatório.",
+          en: "Upload once, use anywhere: an uploaded logo can appear on a deck's slides, and an uploaded image can be dropped into any slide or report.",
+          fr: "Téléversez une fois, utilisez partout : un logo téléversé peut apparaître sur les diapositives d'une présentation, et une image peut être insérée dans n'importe quelle diapositive ou rapport.",
+          pt: "Carregue uma vez, utilize em qualquer lugar: um logótipo carregado pode aparecer nos diapositivos de uma apresentação, e uma imagem pode ser inserida em qualquer diapositivo ou relatório.",
         }),
         placement: "bottom",
         waitForTargetTimeoutMs: 2000,

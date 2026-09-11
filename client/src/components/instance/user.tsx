@@ -1,7 +1,6 @@
 import {
   H_USERS,
   OtherUser,
-  type ProjectSummary,
   t3,
   TC,
   UserPermission,
@@ -20,14 +19,12 @@ import {
 } from "panther";
 import { For, Match, Show, Switch, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { ProjectPermissionForm } from "./project_permission_form.tsx";
 import { instanceState } from "~/state/instance/t1_store";
 
 type Props = {
   user: OtherUser;
   thisLoggedInUserEmail: string;
   close: () => void;
-  projects: ProjectSummary[];
 };
 
 function makeDefaultUserPermissions(): Record<UserPermission, boolean> {
@@ -148,16 +145,6 @@ export function User(p: Props) {
     );
 
     await deleteAction.click();
-  }
-
-  async function openProjectPermissions(
-    projectId: string | null,
-    projectLabel: string,
-  ) {
-    await openComponent({
-      element: ProjectPermissionForm,
-      props: { projectId, projectLabel, email: p.user.email },
-    });
   }
 
   return (
@@ -289,51 +276,6 @@ export function User(p: Props) {
                     </div>
                   )}
                 </Show>
-              </div>
-            </Card>
-          </Show>
-          <Show when={p.user.isGlobalAdmin === false}>
-            <Card
-              header={t3({
-                en: "Project permissions",
-                fr: "Permissions par projet",
-                pt: "Permissões do projeto",
-              })}
-            >
-              <div class="ui-spy-sm">
-                <div class="grid grid-cols-3 gap-2">
-                  {p.projects.map((project) => (
-                    <button
-                      type="button"
-                      class="ui-pad ui-hoverable-base-100 font-700 min-h-[60px] rounded border text-left text-sm"
-                      onClick={() =>
-                        openProjectPermissions(project.id, project.label)
-                      }
-                    >
-                      {project.label}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    class="ui-pad ui-hoverable-base-100 text-base-content-muted col-span-full min-h-[40px] rounded border text-left text-sm italic"
-                    onClick={() =>
-                      openProjectPermissions(
-                        null,
-                        t3({
-                          en: "New projects (default)",
-                          fr: "Nouveaux projets (défaut)",
-                          pt: "Novos projetos (predefinição)",
-                        }),
-                      )
-                    }
-                  >
-                    {t3({
-                      en: "New projects (default)",
-                      fr: "Nouveaux projets (défaut)",
-                      pt: "Novos projetos (predefinição)",
-                    })}
-                  </button>
-                </div>
               </div>
             </Card>
           </Show>

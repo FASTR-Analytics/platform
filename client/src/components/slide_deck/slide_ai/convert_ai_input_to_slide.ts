@@ -21,16 +21,13 @@ import { slideConfigSchema, getAllSlideFontVariants, PAGE_HEIGHT_DU, PAGE_WIDTH_
 import { buildStyleForSlide } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { buildFigureInputs } from "~/generate_visualization/mod";
 import { resolveFigureFromMetric } from "./resolve_figure_from_metric";
-import { resolveFigureFromVisualization } from "./resolve_figure_from_visualization";
 import { createIdGeneratorForLayout } from "~/components/slide_deck/_id_generation";
 
 /**
  * Convert AI input (blocks[]) to storage format (LayoutNode<ContentBlock>).
  *
  * Figures resolve under the caller's PackageScope: the deck the slide is
- * destined for (D3/D4). `from_visualization` blocks are the project
- * Visualizations tab's own path and take their pair from the project; step 9a
- * deletes that tab and the branch with it.
+ * destined for (D3/D4).
  */
 export async function convertAiInputToSlide(
   scope: PackageScope,
@@ -59,36 +56,14 @@ export async function convertAiInputToSlide(
       continue;
     }
 
-    // Handle figure input types
-    if (block.type === "from_visualization") {
-      try {
-        const figureBlock = await resolveFigureFromVisualization(block);
-        resolvedBlocks.push(figureBlock);
-      } catch (err) {
-        const errMsg = err instanceof Error ? err.message : String(err);
-        throw new Error(
-          `Failed to resolve visualization "${block.visualizationId}"${
-            block.replicant ? ` with replicant "${block.replicant}"` : ""
-          }. Check that the visualization exists and the replicant is valid. Original error: ${errMsg}`,
-        );
-      }
-    } else if (block.type === "from_metric") {
-      try {
-        const figureBlock = await resolveFigureFromMetric(
-          scope,
-          block,
-          metrics,
-        );
-        resolvedBlocks.push(figureBlock);
-      } catch (err) {
-        const errMsg = err instanceof Error ? err.message : String(err);
-        throw new Error(
-          `Failed to create figure from metric "${block.metricId}" with preset "${block.vizPresetId}": ${errMsg}`,
-        );
-      }
-      // } else if (block.type === "custom") {
-    } else {
-      throw new Error("Bad input figure type");
+    try {
+      const figureBlock = await resolveFigureFromMetric(scope, block, metrics);
+      resolvedBlocks.push(figureBlock);
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      throw new Error(
+        `Failed to create figure from metric "${block.metricId}" with preset "${block.vizPresetId}": ${errMsg}`,
+      );
     }
   }
 

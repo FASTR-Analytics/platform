@@ -12,7 +12,7 @@ const _REPORT_DETAIL_CACHE = createReactiveCache<
 >({
   name: "report_detail",
   uniquenessKeys: (params) => [params.productId],
-  instanceVersionKey: (params, ins) =>
+  versionKey: (params, ins) =>
     ins.lastUpdated.products[params.productId] ?? "unknown",
 });
 
