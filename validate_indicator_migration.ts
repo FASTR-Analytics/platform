@@ -6,9 +6,12 @@
 import { join } from "@std/path";
 import postgres, { type Sql } from "postgres";
 import {
+  analysedIndicatorIds,
+  type CommonIndicator,
   generateIndicatorId,
   isDhis2ShapedId,
   isSpecialIndicatorId,
+  POPULATION_TYPE_IDS,
   RESERVED_WORDS,
 } from "lib";
 
@@ -388,11 +391,31 @@ async function assertMigrated(sql: Sql, pre: PreState, lines: string[]): Promise
 
   // The analysed set after equals the set of commons before (the renamed
   // derived under its new id, plus the empty base under the special id).
+  // The set is ruling 3's, as the extract computes it (a checkbox on, a
+  // special, or reached by a checked derived), never the checkbox alone: a
+  // CSV raw kept under a special id lands with its checkbox off and is
+  // analysed regardless.
   const expectedAnalysed = new Set([
     ...pre.commons.map((c) => expected.renamedSpecials.get(c.id) ?? c.id),
     ...expected.renamedSpecials.keys(),
   ]);
-  const analysedAfter = new Set(post.filter((i) => i.include_in_analysis).map((i) => i.id));
+  const postCommons = post.map<CommonIndicator>((i) => ({
+    indicator_common_id: i.id,
+    indicator_common_label: i.label,
+    definition: i.type === "base"
+      ? { type: "base", dhis2_id: i.dhis2_id }
+      : i.type === "sum"
+      ? { type: "sum", members: JSON.parse(i.members ?? "[]") as string[] }
+      : { type: "derived", expression: i.expression ?? "" },
+    include_in_analysis: i.include_in_analysis,
+    format_as: "number",
+    thresholds: null,
+    sort_order: 0,
+  }));
+  const analysedAfter = new Set([
+    ...analysedIndicatorIds(postCommons, POPULATION_TYPE_IDS),
+    ...post.filter((i) => i.type === "derived" && i.include_in_analysis).map((i) => i.id),
+  ]);
   for (const id of expectedAnalysed) {
     if (!analysedAfter.has(id)) problems.push(`analysed set lost ${id}`);
   }
