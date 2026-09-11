@@ -876,6 +876,96 @@ paragraph can wrap differently; every other theme inlines a Google font and
 prints what the editor shows. A bundled font for the default theme would
 close that.
 
+**Real charts in the harness** (2026-09-11, Nick: "how do i give you the
+ability to test viz in the test harness"; then "look on the testing instance
+for figures"). A figure is self-contained: its stored `FigureBundle` (config,
+the queried rows, indicator metadata, localization) is everything
+`buildFigureInputs` needs, so a report's charts draw with no server, no
+database and no results package. The harness therefore needs only a report's
+`figures` column beside its body. Four FASTR reports with real bundles live
+on the `testing` instance (project `ecfc22be`, reports bb4/nx5/jms/7nc, three
+to five charts each, themes risograph, bauhaus and classic); a row of each is
+saved as `probe_real_<id>.json` (id, label, body, figures, images, config)
+and the probe page takes `?real=<id>`. In that mode the editor mounts the
+REAL charts through panther exactly as the app does (a raster cache and a
+size cache, the ink and the theme's chart palette), and the print document
+embeds the SAME rasters the PDF embeds (`cached.figureRaster`) with the
+theme's fonts inlined, as `buildReportPdfFromDetail` does. Without the
+inlining the print tab has no base URL, a bare `@import` falls back to system
+sans, and every line wraps differently: a harness that would have reported
+the product broken.
+
+Three product defects that only real, themed content could show, all fixed:
+
+- **Numerals.** The app sets `font-variant-numeric: tabular-nums` on
+  `html, body, #app` for its data tables, and it inherits into the live
+  preview, where print has proportional figures. In any font carrying both
+  sets (every theme with a web font) each line with digits measured wider in
+  Edit than in print and wrapped early: a two-column block stood three lines
+  taller. The surface now sets `font-variant-numeric: normal` on
+  `.cm-content`; the seam's footer and the contents page numbers ask for
+  tabular figures again for themselves, as the paged sheet does for print's
+  margin boxes. The default-theme corpus could not see this: system fonts
+  carry one set of digits, so the property is a no-op there.
+- **Heading lines.** CodeMirror puts a zero-width
+  `<img class="cm-widgetBuffer">` beside every inline widget. A replaced box
+  is laid out by its own margin box, and at CodeMirror's `text-top` its top
+  sits at the font's content-area top, which is ABOVE the strut whenever the
+  line's line-height is tighter than that content area. Every heading line
+  (line-height 1.2) therefore stood up to 2px taller than print's heading and
+  pushed the rest of the page down; prose lines, whose line-height is the
+  looser of the two, were never affected. The buffer is now aligned to the
+  line box (`vertical-align: top`), which keeps its place in the flow and its
+  purpose and can never grow the line.
+- **Repeated table headers.** The rows the editor draws after an in-table
+  seam took the plain cell border (1px) where print's cloned `thead` takes the
+  header's (2px), so a table's continuation ran a pixel high. The structure
+  sheet's header rule now names `tr.fm-page-gutter-repeat > th` too.
+
+And two figure defects. The editor boxed a chart from its drawn canvas's
+whole CSS pixels (`derivedFigureSizes`) even when the raster cache knew the
+exact aspect, half a pixel out over a page-wide figure: `figureSizeOf` now
+prefers the cache whenever the chart drew to that same aspect (within
+`sameAspect`), and keeps the drawn size for a chart the cache never measured
+or one that really drew to another shape. And the size cache itself rendered
+its probe at 200px wide and scaled the height up to the export width, where
+a chart's height is not linear in its width (an axis label or a legend wraps
+at one width and not another): its aspect came out about 0.3% off the raster
+the PDF embeds, a pixel over a page-wide figure, enough to move a block
+across a page boundary. It now renders at the raster's own width and takes
+the canvas's own dimensions, so the editor's figure box IS the PDF's.
+
+Verified with real charts: on the risograph report the glyph probe reads
+0.000px for every block and text row, its seven page starts equal print's,
+and its three figure boxes match print's to 0.00px (one to 0.03px). Two
+findings stay OPEN, both recorded here rather than half-fixed:
+
+- **A theme's own body typography never reaches the editor.** Three themes
+  set it (classic's `line-height: 1.7`, japanese's 1.85, artdeco's
+  `font-size: 1.06em`). `buildFastrReportCss` rewrites a theme's `body`
+  selector onto the scope root, but `livePreviewTheme` pins `font-size` and
+  `line-height` on `.cm-content`, so the theme's value never reaches a line:
+  the four real reports say it plainly: both classic-theme reports disagree
+  with their PDFs (14 editor pages against 17, and 7 against 9) while the
+  risograph and bauhaus ones, which set no body typography, agree exactly.
+  Letting the two inherit from the scope root (which would then carry the
+  document's base typography, as the shell gives print) is the shape of the
+  fix; tried once, it moved BOTH sides, so it needs its own pass and its own
+  sweep. Until then a themed report on one of those three themes shows the
+  right content on every page but not always the right page breaks.
+- **Two layouts while scrolling a report with real charts.** The risograph
+  report settles on the right pages and agrees with print, but the stability
+  sweep sees one intermediate layout as the charts re-mount and re-draw
+  (page 4 opening at line 34 before settling at 38). The emulated corpus is
+  clean on all thirty-six bodies, so this is specific to the live chart
+  mount, not to the page layout. The harness bodies stay emulated (a canvas that grows a beat
+after mounting) because they are the ones that cover page positions
+exhaustively; the real reports cover the chart path. One harness lesson
+recorded with them: a probe page restored from a backup can carry stale page
+geometry (its own `boxOf` rounded the column instead of taking the sheet less
+its margins, a pixel out in landscape only), so a "regression" in landscape
+was the harness, not the product.
+
 **Blank lines are space, and the editor's rhythm is print's.** One blank line
 separates blocks, as in any markdown; every further blank line is a line of
 empty space in the document, as Enter is in a word processor (the `fm_spaces`

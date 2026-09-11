@@ -550,7 +550,15 @@ function figureSizeOf(
   id: string,
   block: FigureBlock | undefined,
 ): { width: number; height: number } | undefined {
-  return derivedFigureSizes.get(id) ?? (block ? resolver.figureSize?.(id, block) : undefined);
+  const cached = block ? resolver.figureSize?.(id, block) : undefined;
+  const drawn = derivedFigureSizes.get(id);
+  if (drawn === undefined) return cached;
+  // The raster's aspect (the cache's) is exact; a drawn canvas's is whole
+  // CSS pixels, half a pixel off print's box over a page-wide figure. The
+  // drawn size is for a chart the cache never sized, or one that really drew
+  // to another shape, so the cache wins whenever the two agree.
+  if (cached !== undefined && sameAspect(cached, drawn)) return cached;
+  return drawn;
 }
 // The size a mount's drawn canvas gives, or undefined while it has not
 // drawn (no canvas, or a canvas still at the element's 300x150 default).
@@ -3232,6 +3240,13 @@ const livePreviewTheme = EditorView.theme({
   ".cm-content": {
     fontFamily: "var(--fm-font-body)",
     color: "var(--fm-ink)",
+    // KNOWN LIMIT: pinned, so a theme that sets its own body typography (the
+    // classic theme's 1.7 line-height, the japanese theme's 1.85, artdeco's
+    // 1.06em font size) does not reach the editor's lines and that document
+    // paginates on another rhythm than its PDF. Letting these inherit from
+    // the scope root (where buildFastrReportCss lands a theme's body rule)
+    // is the shape of the fix, but it moved BOTH sides when tried, so it
+    // needs its own pass.
     fontSize: "16px",
     lineHeight: "1.55",
     caretColor: "var(--fm-ink)",

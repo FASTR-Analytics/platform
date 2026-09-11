@@ -332,7 +332,6 @@ export type FigureSizeCache = {
   dispose: () => void;
 };
 
-const FIGURE_SIZE_PROBE_WIDTH_PX = 200;
 
 export function createFigureSizeCache(onReady: () => void): FigureSizeCache {
   // Content key → size, null while in flight, false when the figure failed.
@@ -346,15 +345,18 @@ export function createFigureSizeCache(onReady: () => void): FigureSizeCache {
       const style = new CustomFigureStyle(fi.style);
       await loadFontsWithTimeout(style.getFontsToRegister());
       if (disposed) return;
+      // At the RASTER's own width, so this box is the raster's box to the
+      // pixel: a chart's height is not linear in its width (an axis label or
+      // a legend wraps at one width and not another), and measuring at a
+      // narrow probe width and scaling up gave an aspect ~0.3% off the
+      // raster the PDF embeds, about a pixel over a page-wide figure, which
+      // is enough to move a block across a page boundary.
       const canvas = getFigureAsCanvas(
         figureInputsForDownload(fi, true, false),
-        FIGURE_SIZE_PROBE_WIDTH_PX,
+        FIGURE_EXPORT_WIDTH_PX,
       );
       if (canvas.width > 0 && canvas.height > 0) {
-        next = {
-          width: FIGURE_EXPORT_WIDTH_PX,
-          height: Math.round(FIGURE_EXPORT_WIDTH_PX * canvas.height / canvas.width),
-        };
+        next = { width: canvas.width, height: canvas.height };
       }
     } catch {
       next = false;
