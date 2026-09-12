@@ -7,7 +7,7 @@ in place by the steps below: the entity they introduced (the "source") is
 removed and its migration is rewritten under the same number. PLAN_A3 was
 deleted in the commit that added this file; its text is in git history.
 
-**Next step: Review 2.** Each session sets this line in its final commit. Its
+**Next step: Do 3.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N`; after step 4's review passes the
 file is deleted instead of advanced.
 
@@ -637,3 +637,6 @@ agent reads this section before its step.
 | 2026-09-12 | 2 | Step 2 reviewed: 1 finding (changes code: the delete confirmation string). Next step `Fix 2`. |
 | 2026-09-12 | 2 | Fix 2 (second), done by the reviewing agent at Tim's instruction (one session, two steps, as Fix 1 and the first Fix 2 were). `_delete_data.tsx:52` wraps the `createDeleteAction` confirmation in `t3` (en, fr, pt). Gates: `deno task typecheck` (server, client, `lint:systems`), `./validate_protocols` (0 tier-1, 0 new tier-2, 17 baselined), the plain-string scan of the surface at zero, every `createDeleteAction` confirmation in `client/src` wrapped in `t3`. Nothing else changed. |
 | 2026-09-12 | 2 | Step 2 fixed. |
+| 2026-09-12 | 2 | Review 2 of the second Fix 2, by a fresh agent. The tree was clean on `tim-branch`. The fix is one commit, `04d2e7ae`, touching `_delete_data.tsx` and this file, both in the Surface. The item is in the code: `_delete_data.tsx:51-56` passes `t3({ en, fr, pt })` to `createDeleteAction`, matching its two `err` siblings in the same function. Every `createDeleteAction` call in `client/src` now passes a `t3` call, a translation object literal, or a variable; none passes a plain string. The plain-string scan of the step-2 surface (named props and the confirmation argument) finds only the commented-out block at `dataset_items_holder.tsx:71`. Nothing else changed. |
+| 2026-09-12 | 2 | Review 2 of the second Fix 2, gates run by the reviewer, all green: `deno task typecheck` exit 0 (server, client, `lint:systems`); `deno task test` (93 passed, 0 failed); `./validate_protocols` (0 tier-1, 0 new tier-2, 17 baselined); the step-1 grep extended to `client/src` at zero with word boundaries; gate 2 word-boundary at zero outside migrations except the `is_default` comment at `run_query/virtual_defaults.ts:113` that gate 2 excludes; gate 1 at zero; the step-2 grep over the three surfaces at zero outside ruling 13's concepts (`credentialsSource` / `Dhis2RunCredentialsSource`, `run.source` / the ledger item's `source` / `sourceType`, `HmisCsvMappingParams` / `mappings`, the two `MappingsVersion` stamps). The boot: the dev database was at `086_indicators_one_table` (18 bases, 2 sums, 5 derived, 371,087 data rows, none of the old tables); Valkey was up in `valkey-local`; the server was started the way `./run` starts it, applied no migration (the JSON sweeps checked 0 transformed), listened on port 8000 after 7 s, answered `GET /` with 200, and was stopped; port 8000 is free. |
+| 2026-09-12 | 2 | Step 2 reviewed: pass. Next step `Do 3`. |
