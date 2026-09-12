@@ -71,7 +71,11 @@ export function DeleteData(
         ) {
           return {
             success: false,
-            err: "You must select at least one admin area",
+            err: t3({
+              en: "You must select at least one admin area",
+              fr: "Vous devez sélectionner au moins une zone administrative",
+              pt: "Tem de selecionar pelo menos uma área administrativa",
+            }),
           };
         }
 

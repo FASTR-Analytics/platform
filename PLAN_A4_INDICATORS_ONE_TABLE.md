@@ -7,7 +7,7 @@ in place by the steps below: the entity they introduced (the "source") is
 removed and its migration is rewritten under the same number. PLAN_A3 was
 deleted in the commit that added this file; its text is in git history.
 
-**Next step: Fix 2.** Each session sets this line in its final commit. Its
+**Next step: Review 2.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N`; after step 4's review passes the
 file is deleted instead of advanced.
 
@@ -629,3 +629,5 @@ agent reads this section before its step.
 | 2026-09-12 | 2 | **Review 2 finding, Fix 2 item (docs).** `SYSTEM_06_ingestion.md:395`: "fetched only while the By-source tab is showing" survived the paragraph this step rewrote two sentences later ("By indicator is the import ledger"). Step 3's gate greps SYSTEM_06 for "source" and would reach it; since a Fix 2 session runs anyway, rewrite it there as "By indicator tab". Line 89's "by-source union" (the progress JSON's two shapes) and lines 84 to 94's `source` column are ruling 13's second concept and stay for step 4. |
 | 2026-09-12 | 2 | Review 2 finding, no change asked. The step-2 grep is not at zero, as the Do session recorded: the remaining hits are `Dhis2RunCredentialsSource` / `credentialsSource`, `run.source` / the ledger item's `source` / `stagingResult.sourceType`, `HmisCsvMappingParams` / the `mappings` key, and `indicatorMappingsVersion` / `baseIndicatorMappingsVersion`, plus the `CommonIndicator` family under ruling 12. Tim's ruling 13 (2026-09-12) moves all of them to step 4, so the gate is read as "at zero outside ruling 13's concepts" for this step; step 4's gate closes it. |
 | 2026-09-12 | 2 | Step 2 reviewed: 4 findings (one changes code: the untranslated string; one doc line for the same Fix session; two recorded, no change asked). Next step `Fix 2`. |
+| 2026-09-12 | 2 | Fix 2, done by the reviewing agent at Tim's instruction (one session, two steps, as Fix 1 was). `_delete_data.tsx:74` is wrapped in `t3` (en, fr, pt); `SYSTEM_06_ingestion.md:395` reads "By indicator tab". Gates: `deno task typecheck` (server, client, `lint:systems`), `./validate_protocols` (0 tier-1, 0 new tier-2, 17 baselined), the plain-string scan of the surface at zero, `By-source` in SYSTEM_06 at zero. Nothing else changed. |
+| 2026-09-12 | 2 | Step 2 fixed. |

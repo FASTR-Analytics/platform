@@ -392,7 +392,7 @@ callback re-parses the new bytes).
   remounts the tab area, and a tab-owned query would refetch on every poll.
   The ledger is a full-table read, so it is a shell-level
   `createSignal<StateHolder>` + `createEffect` fetched only while the
-  By-source tab is showing (every switch to it, and every `refresh()` /
+  By indicator tab is showing (every switch to it, and every `refresh()` /
   toolbar refresh via a `ledgerVersion` signal; stale rows stay visible until
   fresh ones arrive). By indicator is the import ledger: import history
   pivoted by indicator (the ledger's key) with the dictionary's label beside
