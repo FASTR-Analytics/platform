@@ -49,7 +49,11 @@ export function DeleteData(
     const windowing = unwrap(tempWindowing);
 
     const deleteAction = createDeleteAction(
-      "Are you sure you want to delete this data?",
+      t3({
+        en: "Are you sure you want to delete this data?",
+        fr: "Voulez-vous vraiment supprimer ces données ?",
+        pt: "Tem a certeza de que pretende eliminar estes dados?",
+      }),
       async () => {
         if (
           !windowing.takeAllIndicators &&
