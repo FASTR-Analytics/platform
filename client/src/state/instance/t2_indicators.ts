@@ -7,7 +7,7 @@ import { createReactiveCache } from "../_infra/reactive_cache";
 // ============================================================================
 
 const _INDICATORS_CACHE = createReactiveCache<
-  { indicatorMappingsVersion: string },
+  { indicatorsVersion: string },
   InstanceIndicatorDetails
 >({
   // v2: payload gained definition/format_as/thresholds/sort_order (PLAN_1a).
@@ -19,20 +19,20 @@ const _INDICATORS_CACHE = createReactiveCache<
   // name, exactly as a server Valkey prefix would.
   name: "instance_indicators_v5",
   uniquenessKeys: () => ["indicators"],
-  versionKey: (params) => params.indicatorMappingsVersion,
+  versionKey: (params) => params.indicatorsVersion,
   pdsNotRequired: true,
 });
 
 export async function getIndicatorsFromCacheOrFetch(
-  indicatorMappingsVersion: string,
+  indicatorsVersion: string,
 ) {
   const { data, version } = await _INDICATORS_CACHE.get({
-    indicatorMappingsVersion,
+    indicatorsVersion,
   });
   if (data) return { success: true, data } as const;
 
   const promise = serverActions.getIndicators({});
-  _INDICATORS_CACHE.setPromise(promise, { indicatorMappingsVersion }, version);
+  _INDICATORS_CACHE.setPromise(promise, { indicatorsVersion }, version);
   return await promise;
 }
 

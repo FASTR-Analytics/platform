@@ -110,8 +110,8 @@ export type InstanceState = {
   // only when the extract-relevant rows (analysed base and sum indicators)
   // change, so editing a derived definition costs the HMIS datatable caches
   // nothing.
-  indicatorMappingsVersion: string;
-  baseIndicatorMappingsVersion: string;
+  indicatorsVersion: string;
+  baseIndicatorsVersion: string;
   hfaIndicatorsVersion: string;
 
   // Per-connection current user (populated by server in starting message,
@@ -150,8 +150,8 @@ export type InstanceIndicatorsSummary = {
     hmisIndicators: number;
     hfaIndicators: number;
   };
-  indicatorMappingsVersion: string;
-  baseIndicatorMappingsVersion: string;
+  indicatorsVersion: string;
+  baseIndicatorsVersion: string;
   hfaIndicatorsVersion: string;
 };
 

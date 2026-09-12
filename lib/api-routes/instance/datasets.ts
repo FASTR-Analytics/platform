@@ -165,7 +165,7 @@ export const datasetRouteRegistry = {
     method: "POST",
     body: z.object({
       versionId: z.number(),
-      baseIndicatorMappingsVersion: z.string(),
+      baseIndicatorsVersion: z.string(),
       structureSchema: structureSchemaSchema,
     }),
     response: {} as ItemsHolderDatasetHmisDisplay,

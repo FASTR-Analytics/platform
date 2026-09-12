@@ -458,7 +458,7 @@ export type ConflictDecisions = {
 export type ItemsHolderDatasetHmisDisplay = {
   structureSchema: StructureSchema;
   versionId: number | undefined;
-  indicatorMappingsVersion: string | undefined;
+  indicatorsVersion: string | undefined;
   vizItems: Record<string, string>[];
   periodBounds: PeriodBounds;
   indicatorLabelReplacements: Record<string, string>;

@@ -24,8 +24,8 @@ import {
 import { getCurrentDatasetHmisVersion } from "../instance/dataset_hmis.ts";
 import { assertNoRunningDatasetHmisImportRun } from "../instance/dataset_hmis_import_runs.ts";
 import {
-  getBaseIndicatorMappingsVersion,
-  getIndicatorMappingsVersion,
+  getBaseIndicatorsVersion,
+  getIndicatorsVersion,
 } from "../instance/instance.ts";
 import { escapeSqlString, tryCatchDatabaseAsync } from "./../utils.ts";
 
@@ -199,16 +199,16 @@ export async function computeDatasetHmisRunCapture(
       ? JSON.parse(structureLastUpdatedRow.config_json_value)
       : undefined;
 
-    const indicatorMappingsVersion = await getIndicatorMappingsVersion(mainDb);
-    const baseIndicatorMappingsVersion =
-      await getBaseIndicatorMappingsVersion(mainDb);
+    const indicatorsVersion = await getIndicatorsVersion(mainDb);
+    const baseIndicatorsVersion =
+      await getBaseIndicatorsVersion(mainDb);
 
     const info: DatasetHmisInfoInProject = {
       version,
       totalRows,
       structureLastUpdated,
-      indicatorMappingsVersion,
-      baseIndicatorMappingsVersion,
+      indicatorsVersion,
+      baseIndicatorsVersion,
     };
 
     if (onProgress) await onProgress(0.5, "Exporting data to CSV...");

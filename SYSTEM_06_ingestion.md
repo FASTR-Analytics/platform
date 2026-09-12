@@ -423,7 +423,7 @@ callback re-parses the new bytes).
 - Destructive data deletes require typing "yes please delete" in all three
   families.
 - Display caches: HMIS items keyed
-  `versionId_baseIndicatorMappingsVersion_structureLastUpdated`, with the
+  `versionId_baseIndicatorsVersion_structureLastUpdated`, with the
   HMIS schema hash in the uniqueness keys; one view, by the indicators that
   have rows (sums have no rows and do not appear; their totals are in
   packages), read from the ledger; HFA/ICEH use server-provided cache

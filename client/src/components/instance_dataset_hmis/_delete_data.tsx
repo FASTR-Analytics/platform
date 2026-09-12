@@ -23,7 +23,7 @@ export function DeleteData(
   p: EditorComponentProps<
     {
       hmisVersionId: number;
-      baseIndicatorMappingsVersion: string;
+      baseIndicatorsVersion: string;
       structureSchema: StructureSchema;
     },
     undefined
@@ -105,7 +105,7 @@ export function DeleteData(
         <div class="">
           <WindowingSelector
             hmisVersionId={p.hmisVersionId}
-            baseIndicatorMappingsVersion={p.baseIndicatorMappingsVersion}
+            baseIndicatorsVersion={p.baseIndicatorsVersion}
             tempWindowing={tempWindowing}
             setTempWindowing={setTempWindowing}
             includeOrDelete="delete"

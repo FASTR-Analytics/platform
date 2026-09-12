@@ -824,13 +824,12 @@ Every config mutation re-reads all configs and pushes one consolidated
   `instance_indicators_v5`, bumped when the payload became one table with
   `dhis2_id`, `members` and `include_in_analysis`). There are TWO
   indicator stamps, both MD5 over MAX(updated_at)+count of `indicators`
-  rows: `indicatorMappingsVersion` covers EVERY row and keys the indicator
-  manager, while `baseIndicatorMappingsVersion` counts only the analysed
-  base and sum rows and is what the HMIS datatable keys on, so editing a
-  derived definition costs that cache nothing. The stamp names predate
-  PLAN_A3 and are carried by the run manifest and dataset-info types
-  outside this system, so they keep "Mappings". `hfaIndicatorsVersion` and
-  `hfaCacheHash` are unchanged.
+  rows: `indicatorsVersion` covers EVERY row and keys the indicator
+  manager, while `baseIndicatorsVersion` counts only the analysed base and
+  sum rows and is what the HMIS datatable keys on, so editing a derived
+  definition costs that cache nothing. Both are stored in the project's
+  `datasets.info` JSON at capture (project migration 042 renamed the keys).
+  `hfaIndicatorsVersion` and `hfaCacheHash` are unchanged.
 - The indicator editor's expression palette (ruled;
   storage unchanged, the identifier inserted is the stored id): two
   "Insert …" pickers above the
@@ -867,7 +866,7 @@ Every config mutation re-reads all configs and pushes one consolidated
   indicator × month, the cheap answer), read once and again when the HMIS
   data version moves; the list renders without it and the column fills in
   when it arrives. A dictionary edit updates the judgement through the
-  ordinary `indicatorMappingsVersion` refetch. An
+  ordinary `indicatorsVersion` refetch. An
   uncomputable derived indicator shows the capture error translated into
   the interface language, and a banner above the table counts them. A
   second, separate note is shown when the flattened expression divides by a

@@ -289,7 +289,7 @@ type SharedDataForDisplay = {
 export async function getDatasetHmisItemsForDisplay(
   mainDb: Sql,
   versionId: number | undefined,
-  indicatorMappingsVersion: string | undefined,
+  indicatorsVersion: string | undefined,
   structureSchema: StructureSchema
 ): Promise<APIResponseWithData<ItemsHolderDatasetHmisDisplay>> {
   return await tryCatchDatabaseAsync(async () => {
@@ -346,7 +346,7 @@ export async function getDatasetHmisItemsForDisplay(
     return await getDatasetHmisItemsForDisplayByIndicator(
       mainDb,
       versionId,
-      indicatorMappingsVersion,
+      indicatorsVersion,
       sharedData
     );
   });
@@ -356,7 +356,7 @@ export async function getDatasetHmisItemsForDisplay(
 async function getDatasetHmisItemsForDisplayByIndicator(
   mainDb: Sql,
   versionId: number | undefined,
-  indicatorMappingsVersion: string | undefined,
+  indicatorsVersion: string | undefined,
   sharedData: SharedDataForDisplay
 ): Promise<APIResponseWithData<ItemsHolderDatasetHmisDisplay>> {
   return await tryCatchDatabaseAsync(async () => {
@@ -414,7 +414,7 @@ async function getDatasetHmisItemsForDisplayByIndicator(
     const ih: ItemsHolderDatasetHmisDisplay = {
       structureSchema: sharedData.structureSchema,
       versionId,
-      indicatorMappingsVersion,
+      indicatorsVersion,
       vizItems,
       indicatorLabelReplacements,
       indicators,

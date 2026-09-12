@@ -24,7 +24,7 @@ import { instanceState } from "~/state/instance/t1_store";
 
 type Props = {
   versionId: number;
-  baseIndicatorMappingsVersion: string;
+  baseIndicatorsVersion: string;
   structureSchema: StructureSchema;
 };
 
@@ -44,7 +44,7 @@ export function DatasetItemsHolder(p: Props) {
 
   async function attemptGetDatatable(
     versionId: number,
-    baseIndicatorMappingsVersion: string,
+    baseIndicatorsVersion: string,
   ) {
     setItemsHolder({
       status: "loading",
@@ -56,7 +56,7 @@ export function DatasetItemsHolder(p: Props) {
     });
     const res = await getDatasetHmisDisplayInfoFromCacheOrFetch(
       versionId,
-      baseIndicatorMappingsVersion,
+      baseIndicatorsVersion,
       p.structureSchema,
       instanceState.structureLastUpdated,
       instanceState.hmisImportRunActive,
@@ -79,7 +79,7 @@ export function DatasetItemsHolder(p: Props) {
   }
 
   createEffect(() => {
-    attemptGetDatatable(p.versionId, p.baseIndicatorMappingsVersion);
+    attemptGetDatatable(p.versionId, p.baseIndicatorsVersion);
   });
 
   return (

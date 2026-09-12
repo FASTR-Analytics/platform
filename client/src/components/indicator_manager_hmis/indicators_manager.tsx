@@ -72,7 +72,7 @@ export function IndicatorsManager(p: Props) {
 
   let indicatorsRequestId = 0;
   createEffect(async () => {
-    const version = instanceState.indicatorMappingsVersion;
+    const version = instanceState.indicatorsVersion;
     if (!version) {
       return;
     }

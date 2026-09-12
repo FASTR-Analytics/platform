@@ -78,9 +78,8 @@ export async function getHfaIndicatorsVersion(mainDb: Sql): Promise<string> {
 }
 
 // The full dictionary stamp: every indicator row, whatever its type. Keys
-// the indicator manager's cache and rides the SSE summary. The name predates
-// PLAN_A3 and is carried by the run manifest and dataset-info types.
-export async function getIndicatorMappingsVersion(
+// the indicator manager's cache and rides the SSE summary.
+export async function getIndicatorsVersion(
   mainDb: Sql,
 ): Promise<string> {
   const result = await mainDb<{ version: string | null }[]>`
@@ -96,7 +95,7 @@ export async function getIndicatorMappingsVersion(
 // (PLAN_1a §1.13), the analysed base and sum indicators (PLAN_A4 ruling
 // 11). Editing a derived definition does not move it, so the datatable
 // caches it keys never churn on a formula edit.
-export async function getBaseIndicatorMappingsVersion(
+export async function getBaseIndicatorsVersion(
   mainDb: Sql,
 ): Promise<string> {
   const result = await mainDb<{ version: string | null }[]>`
@@ -139,17 +138,17 @@ export async function getInstanceIndicatorsSummary(
         { count: number }[]
       >`SELECT COUNT(*) as count FROM hfa_indicators`
     )[0]?.count ?? 0;
-  const indicatorMappingsVersion = await getIndicatorMappingsVersion(mainDb);
-  const baseIndicatorMappingsVersion =
-    await getBaseIndicatorMappingsVersion(mainDb);
+  const indicatorsVersion = await getIndicatorsVersion(mainDb);
+  const baseIndicatorsVersion =
+    await getBaseIndicatorsVersion(mainDb);
   const hfaIndicatorsVersion = await getHfaIndicatorsVersion(mainDb);
   return {
     indicators: {
       hmisIndicators,
       hfaIndicators,
     },
-    indicatorMappingsVersion,
-    baseIndicatorMappingsVersion,
+    indicatorsVersion,
+    baseIndicatorsVersion,
     hfaIndicatorsVersion,
   };
 }
@@ -412,7 +411,7 @@ const projectSummaries = await getProjectsForUser(mainDb, globalUser);
     const users = await getInstanceUsers(mainDb);
 
     // Get cache version for indicators (includes counts to detect deletions)
-    const indicatorMappingsVersion = await getIndicatorMappingsVersion(mainDb);
+    const indicatorsVersion = await getIndicatorsVersion(mainDb);
 
     const instanceDetails: InstanceDetail = {
       instanceId: _INSTANCE_ID,
