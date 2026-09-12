@@ -156,9 +156,9 @@ export async function getStoredDhis2CredentialsDecrypted(
 // from the instance-wide row.
 export async function resolveDhis2Credentials(
   mainDb: Sql,
-  source: Dhis2CredentialsOrigin,
+  origin: Dhis2CredentialsOrigin,
 ): Promise<Dhis2Credentials> {
-  return source.kind === "inline"
-    ? source.credentials
+  return origin.kind === "inline"
+    ? origin.credentials
     : await getStoredDhis2CredentialsDecrypted(mainDb);
 }
