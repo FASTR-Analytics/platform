@@ -380,7 +380,7 @@ export function resolveRollingSelection(selection: {
 }
 
 // The fire path's selection input: the launch expands the indicators to
-// sources like a manual launch (PLAN_A3 ruling 7).
+// DHIS2 elements like a manual launch (PLAN_A3 ruling 7).
 export function resolveScheduleSelection(
   selection: Dhis2ScheduleSelection,
 ): Dhis2RunSelectionInput {

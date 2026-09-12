@@ -518,7 +518,7 @@ export type IndicatorMetadata = {
   // The HFA/ICEH category carrier; an HMIS indicator never sets it.
   group_label?: string;
   sort_order?: number;
-  // Common-indicator evaluation, stamped for HMIS dictionaries only
+  // Expression evaluation, stamped for HMIS dictionaries only
   // (PLAN_1a §1.5). `expression` is the FLATTENED formula: every identifier
   // in it is a base indicator id or a population type id, and
   // `slot_map` says which ingredient column of an indicator_values row
