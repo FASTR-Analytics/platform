@@ -90,8 +90,8 @@ history). Shape:
   a staging/integrating percentage), `run_stats` (DHIS2: classification +
   per-pair fetch stats; CSV: the staging diagnostics), `version_id`. A partial
   unique index allows at most one `running` row. The INSERT (or the
-  queued→running UPDATE) is the launch claim, shared by both sources; queued
-  rows of either source drain FIFO through the same scheduler tick. Inline
+  queued→running UPDATE) is the launch claim, shared by both routes; queued
+  rows of either route drain FIFO through the same scheduler tick. Inline
   credentials travel only in the worker message; stored credentials
   (`instance_dhis2_credentials`, instance-wide, password AES-GCM-encrypted
   with `DHIS2_CREDENTIALS_ENCRYPTION_KEY`) are decrypted only inside the
@@ -185,7 +185,7 @@ history). Shape:
   counts/staging_result are finalized at run end.
 - Shadow verification (`shadow_passed`) was removed. DVS-analytics
   divergence is normal on real servers, so the gate aborted healthy first
-  runs. dataValueSets is the source of truth; migration 063 dropped the
+  runs. dataValueSets is authoritative; migration 063 dropped the
   column; older `run_stats` blobs may still carry a `shadow` key.
 - Concurrency: the partial unique index is the whole story. CSV and DHIS2
   share the claim, so the old cross-table guard lattice is gone. Windowed
@@ -269,7 +269,7 @@ start.
   else `unknownIndicators`, whose `ids` is the full distinct set beside the
   ten-row sample) runs at staging, and the facility check again at
   integration (facilities can be deleted between phases; the facility FKs
-  are RESTRICT). The CSV mapping names the indicator column
+  are RESTRICT). The CSV wizard's Columns step names the indicator column
   `indicator_id`; the per-run staging tables carry that column.
 - CSV parsing goes through `getCsvStreamComponents`
   (`get_csv_components_streaming_fast.ts`): streaming, 2 MB chunks,
@@ -332,7 +332,7 @@ crash-truncation or an interrupted re-stage. Then:
   DELETE the pair's rows for the snapshotted facility scope, INSERT what DHIS2
   returned. DHIS2 is authoritative over the fetched scope. This is what removes
   phantom cells DHIS2 stopped reporting. Caveats unchanged: a CSV-origin
-  facility with a UID-shaped id is inside the scope (no per-row source marker
+  facility with a UID-shaped id is inside the scope (no per-row origin marker
   exists); DHIS2 staleness is trusted as ground truth.
 - Version records (`dataset_hmis_versions`): id = MAX+1 minted **inside** the
   writing transaction (CSV integrate leg; DHIS2 lazy mint; windowed deletes

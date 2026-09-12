@@ -65,7 +65,7 @@ retired DOC_IMPORT_PIPELINE.
 Boundaries: dataset stage→integrate is **S6** (it validates against S5's
 dictionaries and facilities); the DHIS2 HTTP adapter is **S7** (S5 calls it
 for org units); module runs that EXECUTE the HFA indicator R code and
-materialise common-indicator ingredients (m012) are **S8**; the query
+materialise indicator ingredients (m012) are **S8**; the query
 pipeline that joins facilities/geojson at render time, and applies each
 indicator's catalog expression after aggregation, is **S9**. Indicator
 DEFINITIONS (a base's DHIS2 id, a sum's members, derived expressions,
@@ -358,7 +358,7 @@ naming it rewritten, and an empty base inserted under the special id;
 every base created from a raw, so the first package after the migration
 analyses exactly the series the last one did; the data and ledger columns
 are renamed to `indicator_id`, the stored run, version, schedule and CSV
-JSON is rewritten, `is_default` and the two old tables go, and the id table
+JSON is rewritten, the old default flag and the two old tables go, and the id table
 (what each raw became) is raised as NOTICEs the app's runner suppresses.
 `./validate_indicator_migration <main dump>...` restores each dump into a
 throwaway container, applies the pending migrations the way the runner
@@ -383,11 +383,11 @@ shadowing, because they are interpolated as bare R symbols. Taxonomy:
 categories → sub-categories (real FKs) plus service categories stored as a
 JSON string array on the indicator (no FK; rename/delete integrity is
 maintained by jsonb rewrites in the service-category mutations).
-`lib/hfa_indicator_labels.ts` is the single label source
+`lib/hfa_indicator_labels.ts` is the single label authority
 (`composeHfaIndicatorLabel`, `getHfaIndicatorMeasure`).
 
 **HFA workbook import** (`hfa_indicators_xlsx_upload_form.tsx`) has two
-sources behind one flow: a picked `.xlsx`, or the **default indicator set**
+inputs behind one flow: a picked `.xlsx`, or the **default indicator set**
 fetched client-side from the FASTR resource hub
 (`fastr-resource-hub/hfa_default_indicators.xlsx`, raw GitHub, cache-busted
 like the prompt library). Both parse in the browser
@@ -444,7 +444,7 @@ hash the way the category label tables are. Without that, variant
 authoring is invisible to the SSE→cache triangle and to the project
 staleness stamp.
 
-**HFA R-code analysis has ONE source of truth**:
+**HFA R-code analysis has ONE home**:
 `lib/hfa_r_code_analysis.ts` (function whitelist, escaped-quote-safe
 string/comment stripping, identifier extraction), shared by the client
 editor validator and the server dependency analyzer
@@ -479,10 +479,10 @@ same `with()`. Filter-variable missingness stays an explicit branch, because
 `M10_hfa_response_status.csv` no longer share a denominator: a facility can
 hold a determinate 0 while its per-variable status reads `missing`.
 
-**Derived commons** are defined by an expression over other commons and
+**Derived indicators** are defined by an expression over other indicators and
 population terms. There is no separate id grammar: an identifier is written
 bare when it matches `^[a-z][a-z0-9_]*$` and `[in brackets]` otherwise, so
-every common id is usable regardless of charset. A population term is the
+every indicator id is usable regardless of charset. A population term is the
 population type's id written bare (`anc1 / population_total`).
 `RESERVED_WORDS` (`lib/types/indicators.ts`) is the union of the special
 ids, the six `POPULATION_TYPES` ids and the three function names.
@@ -501,9 +501,9 @@ reach the validator as a reserved word. `server/tests/indicator_id_test.ts`
 pins both. The
 same string is the ingredient id, the slot-map key, the person-years CSV
 `population_type` value and the manifest stamp's type. A population term is
-a leaf like a base common, takes an ordinary ingredient slot in
+a leaf like a base, takes an ordinary ingredient slot in
 first-appearance order, and counts toward the uniform 8-slot cap. The
-dictionary the resolver works from is the commons PLUS one `population`
+dictionary the resolver works from is the indicators PLUS one `population`
 entry per store type, at authoring (`checkDefinitionsResolve`; an unknown
 identifier's error lists the population ids) and at HMIS capture
 (`resolveCommonIndicatorCatalog`, which
@@ -538,12 +538,11 @@ those counts, evaluated after aggregation. Nothing non-additive is ever
 stored as data.* This is the ONE authoritative statement; S6/S8/S9 carry
 pointers only. Consequences that follow from it and are ruled with it:
 
-- Calculated indicators collapsed into common indicators (shipped 1.69.0).
-  A common indicator has a `type`:
+- Every indicator has a `type`:
   - `base`: its own rows at extract, and `sum`: its members' rows summed
     at extract; the only types m001/m002 ever see, and the only types the
     HMIS extract carries (the analysed ones, PLAN_A4 rulings 3 and 4).
-  - `derived`: an ARBITRARY expression over other commons, base or derived
+  - `derived`: an ARBITRARY expression over other indicators of any type
     (`+ - * /`, parentheses, literals, `abs`/`coalesce`/`nullif`; chained by
     substitution, cycles and depth rejected). Never negotiable down to
     numerator/denominator. It may divide by a population term
@@ -555,12 +554,12 @@ pointers only. Consequences that follow from it and are ruled with it:
     a value multiplier beside a display scale double-counted (10,000 ×
     per-10k), and the multipliers migrated from m008 were its DENOMINATOR
     fractions, so a migrated rate was off by 1/fraction², about 625× at
-    0.04); a `base` common is a count and is forced
-    to `number`, a `derived` one chooses freely.
+    0.04); a base or sum is a count and is forced
+    to `number`, a derived one chooses freely.
 
   **Generation decides what the numbers are made of; the query only
   aggregates and applies the formula.** At generation the expression is
-  FLATTENED to base commons, each base is assigned an ingredient slot, and
+  FLATTENED to bases and sums, each assigned an ingredient slot, and
   m012 materialises those slots as `ing1..ing8` on one row per indicator ×
   month × finest area. Any grouping re-sums the ingredients (always valid:
   they are additive counts) and the expression is applied AFTER aggregation,
@@ -590,10 +589,10 @@ pointers only. Consequences that follow from it and are ruled with it:
   capture, so a package stays standalone and an edit still means a new run.
   The authoring validator (`checkDefinitionsResolve`) enforces the same
   rules at the write boundary that capture enforces at the data boundary,
-  including on rows the write does not touch: repointing a common at a new
+  including on rows the write does not touch: repointing an indicator at a new
   expression is refused when it breaks a chain that runs through it.
 - Presentation fields (`format_as`, `thresholds`, `sort_order`) live on the
-  common indicator; `format_as` is DISPLAY, the `type` carries pipeline
+  indicator; `format_as` is DISPLAY, the `type` carries pipeline
   semantics: "percent" is not a pipeline property, "is a ratio of counts"
   is. `thresholds` is a general conditional-formatting rule
   (`ThresholdsRule` as JSON text, like every JSON column: cutoffs in STORED
@@ -645,9 +644,9 @@ ids (`population_total`, `population_u5`, `population_u1`,
 `{ en, fr, pt }` labels, fixed in code and read by the import, the formula
 resolver, the indicator editor and the page. The id is the one string every
 layer carries: the CSV `population_type` column, the formula identifier
-(a reserved word, "Derived commons" above), the ingredient id m012 joins on
+(a reserved word, "Derived indicators" above), the ingredient id m012 joins on
 and the manifest stamp. No table (migration 082 dropped `population_types`
-and the foreign key to it), so a common indicator formula is the same
+and the foreign key to it), so an indicator formula is the same
 contract on every instance and the only thing that varies per instance is
 whether a type has data. Migration 084 renamed the ids from their bare
 forms (`u5`, `total_population`, ...) in the store and in stored
@@ -832,10 +831,10 @@ Every config mutation re-reads all configs and pushes one consolidated
   PLAN_A3 and are carried by the run manifest and dataset-info types
   outside this system, so they keep "Mappings". `hfaIndicatorsVersion` and
   `hfaCacheHash` are unchanged.
-- The common-indicator editor's expression palette (ruled;
+- The indicator editor's expression palette (ruled;
   storage unchanged, the identifier inserted is the stored id): two
   "Insert …" pickers above the
-  formula box, indicators (label-searchable, commons only, never the one
+  formula box, indicators (label-searchable, every indicator but the one
   being edited) and populations (`POPULATION_TYPES`, with the coverage
   from T1 `populationCoverage`), insert the
   correctly WRITTEN identifier (`writeIdentifier`) at the caret; a live
@@ -925,7 +924,7 @@ Every config mutation re-reads all configs and pushes one consolidated
   HMIS staleness gate compares with `>`, HFA with strict inequality. Both
   read the same stamp.
 - A CSV-origin facility with a DHIS2-UID-shaped id falls inside S6's
-  DHIS2 scoped-delete scope: there is no per-row source marker on
+  DHIS2 scoped-delete scope: there is no per-row origin marker on
   facilities (also flagged in SYSTEM_06).
 - `hfa_indicator_code` is not independently hashed: code changes are
   visible to project staleness only because `saveHfaIndicatorFull` bumps

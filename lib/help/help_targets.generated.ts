@@ -116,31 +116,49 @@ export const HELP_TARGETS = {
     page: "admin-guide/data-hmis",
     anchor: { en: "csv-import-workflow", fr: "processus-dimportation-csv" },
     title: { en: "CSV import workflow", fr: "Processus d'importation CSV" },
-    summary: { en: "When importing from CSV, you'll work through four steps. 1. Upload your file. Select an existing CSV from your instance's assets, or upload a new one. 2. Map columns. Match your CSV columns to the…", fr: "Lors d'une importation à partir d'un fichier CSV, vous suivez quatre étapes. 1. Téléversez votre fichier. Sélectionnez un fichier CSV existant parmi les ressources de votre instance, ou téléversez-en…" },
+    summary: { en: "A CSV import has three steps: upload the file, match its columns to the four required fields, and launch. FASTR then stages the file and merges it into the dataset, or pauses for review when rows…", fr: "Une importation CSV comporte trois étapes : téléverser le fichier, associer ses colonnes aux quatre champs requis, puis lancer. FASTR prépare ensuite le fichier et le fusionne dans le jeu de données,…" },
   },
   "hmis-dhis2": {
     page: "admin-guide/data-hmis",
     anchor: { en: "dhis2-import-workflow", fr: "processus-dimportation-dhis2" },
     title: { en: "DHIS2 import workflow", fr: "Processus d'importation DHIS2" },
-    summary: { en: "1. Connect to DHIS2. Enter your server URL and credentials. FASTR validates the connection before proceeding. 2. Select indicators and periods. Choose which indicators to fetch from a table showing…", fr: "1. Connectez-vous à DHIS2. Saisissez l'URL de votre serveur et vos identifiants. FASTR valide la connexion avant de poursuivre. 2. Sélectionnez les indicateurs et les périodes. Choisissez les…" },
+    summary: { en: "A DHIS2 import fetches the values facilities reported, one indicator and month at a time, directly from your DHIS2 server. It has five steps. 1. Credentials. FASTR uses the instance's stored DHIS2…", fr: "Une importation DHIS2 récupère les valeurs rapportées par les établissements, un indicateur et un mois à la fois, directement depuis votre serveur DHIS2. Elle comporte cinq étapes. 1. Identifiants.…" },
   },
   "hmis-validation": {
     page: "admin-guide/data-hmis",
     anchor: { en: "validation-and-error-handling", fr: "validation-et-gestion-des-erreurs" },
     title: { en: "Validation and error handling", fr: "Validation et gestion des erreurs" },
-    summary: { en: "The staging process catches several types of issues: missing required fields, invalid numeric values, facilities not in your registry, and unmapped indicators. For each category, the summary shows…", fr: "Le processus de préparation détecte plusieurs types de problèmes : champs requis manquants, valeurs numériques invalides, établissements absents de votre registre et indicateurs sans correspondance.…" },
+    summary: { en: "For a CSV import, the staging results list every issue by category, with a count and sample rows. The categories are: rows with missing required fields, rows with invalid values, facilities not in…", fr: "Pour une importation CSV, les résultats de la préparation listent chaque problème par catégorie, avec un nombre et des exemples de lignes. Les catégories sont : lignes avec des champs requis…" },
   },
-  "ind-calculated": {
+  "ind-batch": {
+    page: "admin-guide/indicators",
+    anchor: { en: "batch-import", fr: "importation-groupée" },
+    title: { en: "Batch import", fr: "Importation groupée" },
+    summary: { en: "For instances with many indicators, Batch import from CSV uploads the whole list from one file, and Download CSV produces the same file from the current list, so you can edit the whole dictionary in…", fr: "Pour les instances comportant de nombreux indicateurs, Importation groupée depuis CSV téléverse toute la liste depuis un seul fichier, et Télécharger le CSV produit le même fichier à partir de la…" },
+  },
+  "ind-derived": {
     page: "admin-guide/indicators",
     anchor: { en: "derived-indicators", fr: "indicateurs-dérivés" },
     title: { en: "Derived indicators", fr: "Indicateurs dérivés" },
-    summary: { en: "Every common indicator has a type, chosen in the same editor. A base indicator is defined by the raw indicators mapped to it, which are summed. A derived indicator is defined by a formula over other…", fr: "Chaque indicateur commun possède un type, choisi dans le même éditeur. Un indicateur de base est défini par les indicateurs bruts qui lui sont associés, dont les valeurs sont additionnées. Un…" },
+    summary: { en: "A derived indicator is defined by a formula over other indicators, for example anc4 / anc1 for a coverage rate. It is computed after the data is aggregated, so a regional or annual figure is the…", fr: "Un indicateur dérivé est défini par une formule portant sur d'autres indicateurs, par exemple anc4 / anc1 pour un taux de couverture. Il est calculé après l'agrégation des données : un chiffre…" },
   },
-  "ind-common": {
+  "ind-dhis2-import": {
     page: "admin-guide/indicators",
-    anchor: { en: "common-indicators", fr: "indicateurs-communs" },
-    title: { en: "Common indicators", fr: "Indicateurs communs" },
-    summary: { en: "Common indicators are the standardized names analysts work with. A common indicator like \"ANC1 visits\" might map to different raw DHIS2 IDs in different countries. This abstraction means analysis…", fr: "Les indicateurs communs sont les noms standardisés avec lesquels les analystes travaillent. Un indicateur commun comme « visites de CPN1 » peut correspondre à différents identifiants DHIS2 bruts…" },
+    anchor: { en: "importing-from-dhis2", fr: "importer-depuis-dhis2" },
+    title: { en: "Importing from DHIS2", fr: "Importer depuis DHIS2" },
+    summary: { en: "Click Import from DHIS2 to add data elements from your DHIS2 server. FASTR uses the instance's stored connection; Change connection lets you use another one. Search by name, code or id. The results…", fr: "Cliquez sur Importer depuis DHIS2 pour ajouter des éléments de données depuis votre serveur DHIS2. FASTR utilise la connexion enregistrée de l'instance ; Modifier la connexion permet d'en utiliser…" },
+  },
+  "ind-include": {
+    page: "admin-guide/indicators",
+    anchor: { en: "include-in-analysis", fr: "inclure-dans-lanalyse" },
+    title: { en: "Include in analysis", fr: "Inclure dans l'analyse" },
+    summary: { en: "Every indicator has an Include in analysis checkbox. When it is on, every results package analyses the indicator: the data quality modules adjust it and it is available in visualizations. When it is…", fr: "Chaque indicateur possède une case à cocher Inclure dans l'analyse. Lorsqu'elle est cochée, chaque paquet de résultats analyse l'indicateur : les modules de qualité des données l'ajustent et il est…" },
+  },
+  "ind-list": {
+    page: "admin-guide/indicators",
+    anchor: { en: "the-indicator-list", fr: "la-liste-des-indicateurs" },
+    title: { en: "The indicator list", fr: "La liste des indicateurs" },
+    summary: { en: "The list shows every indicator with its id, label, type and definition. The Type column has four values: DHIS2 element is a count fetched from DHIS2. The Defined by column shows the DHIS2 id of the…", fr: "La liste affiche chaque indicateur avec son identifiant, son libellé, son type et sa définition. La colonne Type prend quatre valeurs : Élément DHIS2 est un comptage récupéré depuis DHIS2. La colonne…" },
   },
   "ind-r-code": {
     page: "admin-guide/indicators",

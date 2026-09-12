@@ -652,7 +652,7 @@ memoization fields (`inputKey` per module, content hashes per output file).
 (`RUN_MANIFEST_SCHEMA_VERSION`; v7 = the `population` stamp gained `active`
 (recomputed from its own type list) and the per-type `coverage` m012's
 intersection rule records, carried forward as null, transform block 5;
-v6 = the common-indicator restructure:
+v6 = the indicator restructure:
 `indicators[]` catalog entries gained `sort_order` (backfilled for legacy
 packages, and the read path's axis order now comes from it) plus the
 `type`/`expression`/`slot_map` evaluation fields, a new top-level
@@ -956,7 +956,7 @@ generation on every instance that does not collect one of the 14 seeded
 default indicators. Capture refuses only a derived whose flattened
 expression includes a base or sum with no rows. That rule is `judgeDerivedIndicator`
 (S5), and the indicator manager shows the same judgement before a run is
-generated; it judges mappings, not data, so a "computable" indicator can
+generated; it judges definitions, not data, so a "computable" indicator can
 still be absent from a package whose data never lets it evaluate.
 
 **Memoization needs no declared input class for the tables.** The literals
