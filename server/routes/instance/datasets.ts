@@ -154,7 +154,7 @@ defineRoute(
       dhis2Url = stored.url;
     }
     const res = await launchDatasetHmisDhis2ImportRun(c.var.mainDb, {
-      credentialsSource: body.credentials
+      credentialsOrigin: body.credentials
         ? { kind: "inline", credentials: body.credentials }
         : { kind: "stored" },
       dhis2Url,

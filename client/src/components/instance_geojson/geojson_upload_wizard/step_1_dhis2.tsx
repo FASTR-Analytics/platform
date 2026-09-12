@@ -1,4 +1,4 @@
-import { t3, type Dhis2Credentials, type Dhis2RunCredentialsSource } from "lib";
+import { t3, type Dhis2Credentials, type Dhis2CredentialsOrigin } from "lib";
 import {
   Button,
   StateHolderFormError,
@@ -45,7 +45,7 @@ export function Step1Dhis2(p: Props) {
 
   const connectAction = createFormAction(
     async () => {
-      let credentialsSource: Dhis2RunCredentialsSource;
+      let credentialsOrigin: Dhis2CredentialsOrigin;
       let connectionUrl: string;
       if (useInline() || !hasStored()) {
         const creds = inlineCredentials();
@@ -59,17 +59,17 @@ export function Step1Dhis2(p: Props) {
             }),
           };
         }
-        credentialsSource = { kind: "inline", credentials: creds };
+        credentialsOrigin = { kind: "inline", credentials: creds };
         connectionUrl = creds.url;
       } else {
-        credentialsSource = { kind: "stored" };
+        credentialsOrigin = { kind: "stored" };
         const s = infoQuery.state();
         connectionUrl = (s.status === "ready" && s.data.storedCredentials?.url) || "";
       }
 
-      const res = await serverActions.dhis2GetOrgUnitLevels({ credentialsSource });
+      const res = await serverActions.dhis2GetOrgUnitLevels({ credentialsOrigin });
       if (res.success) {
-        state.setDhis2CredentialsSource(credentialsSource);
+        state.setDhis2CredentialsOrigin(credentialsOrigin);
         state.setDhis2ConnectionUrl(connectionUrl);
         state.setDhis2Levels(res.data.levels);
         setConnected(true);

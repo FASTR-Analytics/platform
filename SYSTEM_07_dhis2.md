@@ -252,12 +252,12 @@ search / test connection) plus the naming step's save
 (`/indicators-dhis2/create`, S5), all guarded `can_configure_data`. The
 three search routes return the shaped items above: every data element
 with its eligibility verdict, every indicator with its decomposition. Bodies
-carry a `credentialsSource: Dhis2RunCredentialsSource` (`{ kind:
+carry a `credentialsOrigin: Dhis2CredentialsOrigin` (`{ kind:
 "stored" }` or `{ kind: "inline", credentials }`), resolved via
 S6's `resolveDhis2Credentials` at the top of each handler. This system
 never stores or reads the credentials table itself, only the resolved
 `Dhis2Credentials`. The geojson routes (`routes/instance/geojson_maps.ts`,
-owned by S5) follow the same `credentialsSource` shape; the session
+owned by S5) follow the same `credentialsOrigin` shape; the session
 caches there hash the *resolved* credentials, so stored and inline runs
 against the same DHIS2 key identically.
 
@@ -319,7 +319,7 @@ carry en/fr/pt.
 - **Decoupling: split-brained DHIS2 wire types.** `DHIS2PagedResponse`
   is defined twice with different shapes (generic
   `goal1_org_units_v2/types.ts` vs pager-only `lib/types/indicators.ts`,
-  which goal 2 uses). (`Dhis2Credentials`/`Dhis2RunCredentialsSource` now
+  which goal 2 uses). (`Dhis2Credentials`/`Dhis2CredentialsOrigin` now
   have one home (`lib/types/dhis2.ts`), resolved by PLAN_DHIS2_
   CREDENTIAL_STORE_CONSOLIDATION.)
 - Classify retries off `DHIS2FetchError.status` instead of message

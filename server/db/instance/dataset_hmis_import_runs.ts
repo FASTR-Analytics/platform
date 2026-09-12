@@ -18,7 +18,7 @@ import {
   type DatasetHmisImportRunProgress,
   type DatasetHmisImportRunStats,
   type DatasetHmisImportRunSummary,
-  type Dhis2RunCredentialsSource,
+  type Dhis2CredentialsOrigin,
   type Dhis2RunPair,
   type Dhis2RunSelection,
   type Dhis2RunSelectionInput,
@@ -271,17 +271,17 @@ async function spawnRunWorker(
   mainDb: Sql,
   args: {
     runId: number;
-    credentialsSource: Dhis2RunCredentialsSource;
+    credentialsOrigin: Dhis2CredentialsOrigin;
     selection: Dhis2RunSelection;
     onComplete?: () => void;
   },
 ): Promise<void> {
-  const { runId, credentialsSource, selection, onComplete } = args;
+  const { runId, credentialsOrigin, selection, onComplete } = args;
   let worker: Worker;
   try {
     worker = instantiateImportHmisDataDhis2Worker({
       runId,
-      credentialsSource,
+      credentialsOrigin,
       selection,
     });
     setWorker("hmis_dhis2_run", worker);
@@ -336,7 +336,7 @@ async function spawnRunWorker(
 export async function launchDatasetHmisDhis2ImportRun(
   mainDb: Sql,
   args: {
-    credentialsSource: Dhis2RunCredentialsSource;
+    credentialsOrigin: Dhis2CredentialsOrigin;
     // The URL recorded on the run row. For inline credentials this is
     // credentials.url; for stored, the stored url.
     dhis2Url: string;
@@ -347,7 +347,7 @@ export async function launchDatasetHmisDhis2ImportRun(
   },
 ): Promise<APIResponseWithData<{ runId: number }>> {
   return await tryCatchDatabaseAsync(async () => {
-    const { credentialsSource, dhis2Url, trigger, triggeredBy, onComplete } =
+    const { credentialsOrigin, dhis2Url, trigger, triggeredBy, onComplete } =
       args;
 
     const { selection, pairs } = await validateRunSelection(
@@ -379,7 +379,7 @@ export async function launchDatasetHmisDhis2ImportRun(
 
     // Inline credentials travel only in the worker message: never stored on
     // the run row; stored credentials are decrypted inside the worker (C3).
-    await spawnRunWorker(mainDb, { runId, credentialsSource, selection, onComplete });
+    await spawnRunWorker(mainDb, { runId, credentialsOrigin, selection, onComplete });
 
     return { success: true, data: { runId } };
   });
@@ -526,7 +526,7 @@ export async function launchQueuedDatasetHmisImportRun(
 
   await spawnRunWorker(mainDb, {
     runId: args.runId,
-    credentialsSource: { kind: "stored" },
+    credentialsOrigin: { kind: "stored" },
     selection: args.selection,
     onComplete: args.onComplete,
   });

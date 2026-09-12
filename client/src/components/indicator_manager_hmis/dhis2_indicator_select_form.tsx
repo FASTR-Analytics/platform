@@ -11,7 +11,7 @@ import {
   t3,
   type Dhis2DataElementSearchItem,
   type Dhis2IndicatorSearchItem,
-  type Dhis2RunCredentialsSource,
+  type Dhis2CredentialsOrigin,
   type DHIS2CategoryOptionCombo,
   type CommonIndicator,
 } from "lib";
@@ -43,7 +43,7 @@ import {
 
 type Props = EditorComponentProps<
   {
-    credentialsSource: Dhis2RunCredentialsSource;
+    credentialsOrigin: Dhis2CredentialsOrigin;
   },
   undefined
 >;
@@ -157,8 +157,8 @@ function kindClass(kind: SelectedItem["kind"]): string {
 }
 
 export function Dhis2IndicatorSelectForm(p: Props) {
-  const [credentialsSource, setCredentialsSource] = createSignal<Dhis2RunCredentialsSource>(
-    p.credentialsSource,
+  const [credentialsOrigin, setCredentialsOrigin] = createSignal<Dhis2CredentialsOrigin>(
+    p.credentialsOrigin,
   );
   const [tempSearchQuery, setTempSearchQuery] = createSignal<string>("");
   const [searchResults, setSearchResults] = createSignal<SearchResults>({
@@ -190,7 +190,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
     }
 
     const response = await serverActions.searchDhis2All({
-      credentialsSource: credentialsSource(),
+      credentialsOrigin: credentialsOrigin(),
       query,
       includeDataElements: true,
       includeIndicators: true,
@@ -229,7 +229,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
     ];
     if (missing.length > 0) {
       const res = await serverActions.searchDhis2All({
-        credentialsSource: credentialsSource(),
+        credentialsOrigin: credentialsOrigin(),
         query: missing.join(","),
         includeDataElements: true,
         includeIndicators: false,
@@ -321,7 +321,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
   const save = createButtonAction(
     async () => {
       return await serverActions.createIndicatorsFromDhis2({
-        credentialsSource: credentialsSource(),
+        credentialsOrigin: credentialsOrigin(),
         elements: namingInputFromState(naming).elements,
         indicators: naming.derived.map((row) => ({
           dhis2_id: row.key,
@@ -384,7 +384,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
   async function changeConnection() {
     const result = await openComponent({ element: Dhis2CredentialsForm, props: {} });
     if (!result) return;
-    setCredentialsSource({ kind: "inline", credentials: result.credentials });
+    setCredentialsOrigin({ kind: "inline", credentials: result.credentials });
   }
 
   function addButton(item: SelectedItem, refusal: string | undefined) {

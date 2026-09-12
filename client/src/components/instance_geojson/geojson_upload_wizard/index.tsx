@@ -1,4 +1,4 @@
-import { t3, type Dhis2RunCredentialsSource, type FacilityFamily } from "lib";
+import { t3, type Dhis2CredentialsOrigin, type FacilityFamily } from "lib";
 import { Match, Switch, createSignal } from "solid-js";
 import { Step0 } from "./step_0";
 import { Step1File } from "./step_1_file";
@@ -57,8 +57,8 @@ export type WizardState = {
   geoToAdmin: () => Record<string, string>;
   setGeoToAdmin: (mapping: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => void;
   // DHIS2 source state
-  dhis2CredentialsSource: () => Dhis2RunCredentialsSource | undefined;
-  setDhis2CredentialsSource: (c: Dhis2RunCredentialsSource | undefined) => void;
+  dhis2CredentialsOrigin: () => Dhis2CredentialsOrigin | undefined;
+  setDhis2CredentialsOrigin: (c: Dhis2CredentialsOrigin | undefined) => void;
   dhis2ConnectionUrl: () => string | undefined;
   setDhis2ConnectionUrl: (url: string | undefined) => void;
   dhis2Levels: () => Dhis2Level[];
@@ -87,8 +87,8 @@ export function GeoJsonUploadWizard(p: Props) {
   const [geoToAdmin, setGeoToAdminRaw] = createSignal<Record<string, string>>({});
 
   // DHIS2 source state
-  const [dhis2CredentialsSource, setDhis2CredentialsSource] = createSignal<
-    Dhis2RunCredentialsSource | undefined
+  const [dhis2CredentialsOrigin, setDhis2CredentialsOrigin] = createSignal<
+    Dhis2CredentialsOrigin | undefined
   >(undefined);
   const [dhis2ConnectionUrl, setDhis2ConnectionUrl] = createSignal<string | undefined>(undefined);
   const [dhis2Levels, setDhis2Levels] = createSignal<Dhis2Level[]>([]);
@@ -119,8 +119,8 @@ export function GeoJsonUploadWizard(p: Props) {
     setAdminAreaOptions,
     geoToAdmin,
     setGeoToAdmin,
-    dhis2CredentialsSource,
-    setDhis2CredentialsSource,
+    dhis2CredentialsOrigin,
+    setDhis2CredentialsOrigin,
     dhis2ConnectionUrl,
     setDhis2ConnectionUrl,
     dhis2Levels,

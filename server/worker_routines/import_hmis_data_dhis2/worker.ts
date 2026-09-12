@@ -38,7 +38,7 @@ import type {
   Dhis2Credentials,
   Dhis2FetchErrorKind,
   Dhis2PairFetchStat,
-  Dhis2RunCredentialsSource,
+  Dhis2CredentialsOrigin,
   Dhis2RunPair,
   Dhis2RunSelection,
   PeriodIndicatorStat,
@@ -90,7 +90,7 @@ const DVS_TIMEOUT_MS = 300_000;
 
 type RunWorkerMessage = {
   runId: number;
-  credentialsSource: Dhis2RunCredentialsSource;
+  credentialsOrigin: Dhis2CredentialsOrigin;
   selection: Dhis2RunSelection;
 };
 
@@ -128,7 +128,7 @@ async function run(std: RunWorkerMessage) {
   }
   alreadyRunning = true;
 
-  const { runId, credentialsSource, selection } = std;
+  const { runId, credentialsOrigin, selection } = std;
   const importDb = createBulkImportConnection("main");
   const mainDb = createWorkerReadConnection("main");
   const runStartedIso = new Date().toISOString();
@@ -359,7 +359,7 @@ async function run(std: RunWorkerMessage) {
     // throws, and the catch below fails the run loudly.
     const credentials: Dhis2Credentials = await resolveDhis2Credentials(
       mainDb,
-      credentialsSource,
+      credentialsOrigin,
     );
     const baseFetchOptions: FetchOptions = { dhis2Credentials: credentials };
 
@@ -367,7 +367,7 @@ async function run(std: RunWorkerMessage) {
     // but an admin can replace the stored connection in that window:
     // re-stamp the row with the URL this run will ACTUALLY fetch so run
     // history records the real source.
-    if (credentialsSource.kind === "stored") {
+    if (credentialsOrigin.kind === "stored") {
       await mainDb`
         UPDATE dataset_hmis_import_runs
         SET dhis2_url = ${credentials.url}

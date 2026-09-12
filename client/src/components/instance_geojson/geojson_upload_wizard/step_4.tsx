@@ -64,14 +64,14 @@ export function Step4(p: Props) {
         }
         return res;
       } else {
-        const credentialsSource = state.dhis2CredentialsSource();
+        const credentialsOrigin = state.dhis2CredentialsOrigin();
         const dhis2Level = state.selectedDhis2Level();
-        if (!credentialsSource || dhis2Level === null) {
+        if (!credentialsOrigin || dhis2Level === null) {
           return { success: false, err: "DHIS2 credentials or level not found" };
         }
 
         const res = await serverActions.dhis2SaveGeoJsonMap({
-          credentialsSource,
+          credentialsOrigin,
           dhis2Level,
           family: state.family,
           adminAreaLevel,

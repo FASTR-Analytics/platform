@@ -1,6 +1,6 @@
 // Cross-flow DHIS2 credential types (PLAN_DHIS2_CREDENTIAL_STORE_
 // CONSOLIDATION). Every DHIS2 flow (structure import, indicators, geojson,
-// HMIS data) sources credentials the same way: stored (instance-wide,
+// HMIS data) obtains credentials the same way: stored (instance-wide,
 // encrypted at rest) or inline (transient, never persisted).
 
 export type Dhis2Credentials = {
@@ -12,7 +12,7 @@ export type Dhis2Credentials = {
 // How a flow obtains credentials at fetch time. "inline" = supplied per
 // request/run (never persisted). "stored" = resolved from the encrypted
 // instance credentials, decrypted server-side at fetch time.
-export type Dhis2RunCredentialsSource =
+export type Dhis2CredentialsOrigin =
   | { kind: "inline"; credentials: Dhis2Credentials }
   | { kind: "stored" };
 

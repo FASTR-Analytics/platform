@@ -1,7 +1,7 @@
 import { Sql } from "postgres";
 import type {
   Dhis2Credentials,
-  Dhis2RunCredentialsSource,
+  Dhis2CredentialsOrigin,
   Dhis2StoredCredentialsInfo,
 } from "lib";
 import { _DHIS2_CREDENTIALS_ENCRYPTION_KEY } from "../../exposed_env_vars.ts";
@@ -156,7 +156,7 @@ export async function getStoredDhis2CredentialsDecrypted(
 // from the instance-wide row.
 export async function resolveDhis2Credentials(
   mainDb: Sql,
-  source: Dhis2RunCredentialsSource,
+  source: Dhis2CredentialsOrigin,
 ): Promise<Dhis2Credentials> {
   return source.kind === "inline"
     ? source.credentials

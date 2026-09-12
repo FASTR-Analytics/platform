@@ -2,7 +2,7 @@ import {
   analysedIdsWithData,
   t3,
   TC,
-  type Dhis2RunCredentialsSource,
+  type Dhis2CredentialsOrigin,
   INDICATOR_BATCH_FILE_COLUMNS,
   INDICATOR_BATCH_MEMBERS_SEPARATOR,
   type CommonIndicator,
@@ -150,9 +150,9 @@ export function IndicatorsManager(p: Props) {
 
   async function handleDhis2IndicatorSelect() {
     const infoRes = await serverActions.getInstanceDhis2CredentialsInfo({});
-    let credentialsSource: Dhis2RunCredentialsSource;
+    let credentialsOrigin: Dhis2CredentialsOrigin;
     if (infoRes.success && infoRes.data.storedCredentials) {
-      credentialsSource = { kind: "stored" };
+      credentialsOrigin = { kind: "stored" };
     } else {
       const result = await openComponent({
         element: Dhis2CredentialsForm,
@@ -161,12 +161,12 @@ export function IndicatorsManager(p: Props) {
       if (!result) {
         return;
       }
-      credentialsSource = { kind: "inline", credentials: result.credentials };
+      credentialsOrigin = { kind: "inline", credentials: result.credentials };
     }
 
     await openEditor({
       element: Dhis2IndicatorSelectForm,
-      props: { credentialsSource },
+      props: { credentialsOrigin },
     });
   }
 

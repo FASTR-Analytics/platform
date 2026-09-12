@@ -272,7 +272,7 @@ defineRoute(
   async (c, { body }) => {
     let credentials: Dhis2Credentials;
     try {
-      credentials = await resolveDhis2Credentials(c.var.mainDb, body.credentialsSource);
+      credentials = await resolveDhis2Credentials(c.var.mainDb, body.credentialsOrigin);
     } catch (error) {
       return c.json({
         success: false,
@@ -314,7 +314,7 @@ defineRoute(
     }
     let credentials: Dhis2Credentials;
     try {
-      credentials = await resolveDhis2Credentials(c.var.mainDb, body.credentialsSource);
+      credentials = await resolveDhis2Credentials(c.var.mainDb, body.credentialsOrigin);
     } catch (error) {
       return c.json({
         success: false,
@@ -412,7 +412,7 @@ defineRoute(
     }
     let credentials: Dhis2Credentials;
     try {
-      credentials = await resolveDhis2Credentials(c.var.mainDb, body.credentialsSource);
+      credentials = await resolveDhis2Credentials(c.var.mainDb, body.credentialsOrigin);
     } catch (error) {
       return c.json({
         success: false,

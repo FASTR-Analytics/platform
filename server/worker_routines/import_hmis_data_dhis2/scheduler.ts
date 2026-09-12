@@ -566,7 +566,7 @@ async function fireSchedule(
 
   const selection = resolveScheduleSelection(schedule.selection);
   const res = await launchDatasetHmisDhis2ImportRun(mainDb, {
-    credentialsSource: { kind: "stored" },
+    credentialsOrigin: { kind: "stored" },
     dhis2Url: stored.url,
     selection,
     trigger: "schedule",

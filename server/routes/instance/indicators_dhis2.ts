@@ -12,7 +12,7 @@ import {
   withDecompositions,
   withElementVerdicts,
 } from "../../dhis2/mod.ts";
-import { t3, type Dhis2Credentials, type Dhis2RunCredentialsSource } from "lib";
+import { t3, type Dhis2Credentials, type Dhis2CredentialsOrigin } from "lib";
 import {
   createIndicatorsFromDhis2,
   getInstanceIndicatorsSummary,
@@ -47,10 +47,10 @@ function dataElementIdOf(dhis2Id: string): string {
 
 async function resolveOrErr(
   mainDb: Sql,
-  credentialsSource: Dhis2RunCredentialsSource,
+  credentialsOrigin: Dhis2CredentialsOrigin,
 ): Promise<{ ok: true; credentials: Dhis2Credentials } | { ok: false; err: string }> {
   try {
-    return { ok: true, credentials: await resolveDhis2Credentials(mainDb, credentialsSource) };
+    return { ok: true, credentials: await resolveDhis2Credentials(mainDb, credentialsOrigin) };
   } catch (error) {
     return {
       ok: false,
@@ -69,7 +69,7 @@ defineRoute(
   log("searchDhis2Indicators"),
   async (c, { body }) => {
     try {
-      const resolved = await resolveOrErr(c.var.mainDb, body.credentialsSource);
+      const resolved = await resolveOrErr(c.var.mainDb, body.credentialsOrigin);
       if (!resolved.ok) {
         return c.json({ success: false, err: resolved.err });
       }
@@ -98,7 +98,7 @@ defineRoute(
   log("searchDhis2DataElements"),
   async (c, { body }) => {
     try {
-      const resolved = await resolveOrErr(c.var.mainDb, body.credentialsSource);
+      const resolved = await resolveOrErr(c.var.mainDb, body.credentialsOrigin);
       if (!resolved.ok) {
         return c.json({ success: false, err: resolved.err });
       }
@@ -132,7 +132,7 @@ defineRoute(
   log("searchDhis2All"),
   async (c, { body }) => {
     try {
-      const resolved = await resolveOrErr(c.var.mainDb, body.credentialsSource);
+      const resolved = await resolveOrErr(c.var.mainDb, body.credentialsOrigin);
       if (!resolved.ok) {
         return c.json({ success: false, err: resolved.err });
       }
@@ -173,7 +173,7 @@ defineRoute(
   log("createIndicatorsFromDhis2"),
   async (c, { body }) => {
     try {
-      const resolved = await resolveOrErr(c.var.mainDb, body.credentialsSource);
+      const resolved = await resolveOrErr(c.var.mainDb, body.credentialsOrigin);
       if (!resolved.ok) {
         return c.json({ success: false, err: resolved.err });
       }
@@ -242,7 +242,7 @@ defineRoute(
   log("testDhis2IndicatorsConnection"),
   async (c, { body }) => {
     try {
-      const resolved = await resolveOrErr(c.var.mainDb, body.credentialsSource);
+      const resolved = await resolveOrErr(c.var.mainDb, body.credentialsOrigin);
       if (!resolved.ok) {
         return c.json({ success: false, err: resolved.err });
       }

@@ -40,7 +40,7 @@ export function Dhis2CredentialsForm(
     };
 
     const testResult = await serverActions.testDhis2IndicatorsConnection({
-      credentialsSource: { kind: "inline", credentials: creds },
+      credentialsOrigin: { kind: "inline", credentials: creds },
     });
 
     if (!testResult.success) {
