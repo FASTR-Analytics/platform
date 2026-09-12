@@ -127,7 +127,7 @@ export type DBDatasetHmisImportRun = {
   id: number;
   trigger: "manual" | "schedule";
   triggered_by: string | null;
-  source: "dhis2" | "csv";
+  route: "dhis2" | "csv";
   dhis2_url: string | null;
   selection: string | null;
   csv_config: string | null;

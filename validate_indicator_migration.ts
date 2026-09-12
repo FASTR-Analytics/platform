@@ -527,7 +527,7 @@ async function assertMigrated(sql: Sql, pre: PreState, lines: string[]): Promise
   await scan("dataset_hmis_versions", "staging_result", pre.versionRows, (v) => {
     if (!isRecord(v)) return ["not an object"];
     const out: string[] = [];
-    if (v.sourceType === "deletion" && isRecord(v.windowing) && !Array.isArray(v.windowing.indicatorsToInclude)) {
+    if (v.kind === "deletion" && isRecord(v.windowing) && !Array.isArray(v.windowing.indicatorsToInclude)) {
       out.push("deletion windowing lacks indicatorsToInclude");
     }
     if (Array.isArray(v.failedFetches) && !v.failedFetches.every((f) => isRecord(f) && typeof f.indicatorId === "string")) {

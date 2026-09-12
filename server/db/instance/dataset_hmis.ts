@@ -241,7 +241,7 @@ export async function deleteAllDatasetHmisData(
           ${-deleteCount},
           0,
           ${JSON.stringify({
-            sourceType: "deletion",
+            kind: "deletion",
             windowing: windowing,
             rowsDeleted: deleteCount,
             dateImported: new Date().toISOString(),

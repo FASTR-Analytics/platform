@@ -246,7 +246,7 @@ async function run(std: RunWorkerMessage) {
 
   function buildRunStagingResult(totalPairs: number): DatasetDhis2StagingResult {
     return {
-      sourceType: "dhis2",
+      kind: "dhis2",
       dateImported: runStartedIso,
       totalIndicatorPeriodCombos: totalPairs,
       successfulFetches: succeededPairsCount,
@@ -366,7 +366,7 @@ async function run(std: RunWorkerMessage) {
     // For stored credentials the URL was read by the launcher moments ago,
     // but an admin can replace the stored connection in that window:
     // re-stamp the row with the URL this run will ACTUALLY fetch so run
-    // history records the real source.
+    // history records the real URL.
     if (credentialsOrigin.kind === "stored") {
       await mainDb`
         UPDATE dataset_hmis_import_runs

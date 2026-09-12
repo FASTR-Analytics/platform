@@ -215,7 +215,7 @@ export function DatasetHmisImports(p: Props) {
   }
 
   async function openRunDetail(run: DatasetHmisImportRunSummary) {
-    if (run.source === "csv") {
+    if (run.route === "csv") {
       await openEditor({ element: CsvRunDetail, props: { run } });
       return;
     }

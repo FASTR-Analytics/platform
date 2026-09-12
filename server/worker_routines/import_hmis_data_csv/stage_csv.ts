@@ -407,7 +407,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
   }
 
   return {
-    sourceType: "csv",
+    kind: "csv",
     dateImported,
     assetFileName: csvFileName,
     periodIndicatorStats,

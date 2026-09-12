@@ -13,14 +13,14 @@ export function ImportInformation(
     undefined
   >,
 ) {
-  const sourceType = () => p.version.stagingResult?.sourceType;
-  const isCSV = () => sourceType() === "csv";
+  const kind = () => p.version.stagingResult?.kind;
+  const isCSV = () => kind() === "csv";
   const csvResult = () =>
-    p.version.stagingResult?.sourceType === "csv"
+    p.version.stagingResult?.kind === "csv"
       ? (p.version.stagingResult as DatasetCsvStagingResult)
       : null;
   const dhis2Result = () =>
-    p.version.stagingResult?.sourceType === "dhis2"
+    p.version.stagingResult?.kind === "dhis2"
       ? (p.version.stagingResult as DatasetDhis2StagingResult)
       : null;
   // Only present for versions integrated via the scoped delete-then-insert

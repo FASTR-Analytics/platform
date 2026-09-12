@@ -44,7 +44,7 @@ export type PeriodIndicatorStat = {
 };
 
 export type DatasetCsvStagingResult = {
-  sourceType: "csv";
+  kind: "csv";
   dateImported: string;
   assetFileName: string;
   periodIndicatorStats: PeriodIndicatorStat[];
@@ -120,13 +120,13 @@ export type Dhis2PairFetchStat = {
 };
 
 // The staging_result stored on a DHIS2 run's version row, written once at run
-// end (slim: the version history UI needs only sourceType, dateImported,
+// end (slim: the version history UI needs only kind, dateImported,
 // failedFetches, dhis2RowsDeleted, and counts). Per-run instrumentation lives
 // in dataset_hmis_import_runs.run_stats, not here. The optional fields exist
 // only so version rows written by the pre-run (stage-then-integrate) code
 // still parse; the run worker never writes them.
 export type DatasetDhis2StagingResult = {
-  sourceType: "dhis2";
+  kind: "dhis2";
   dateImported: string;
   totalIndicatorPeriodCombos: number;
   successfulFetches: number;
@@ -181,7 +181,7 @@ export type DatasetHmisImportLedgerItem = {
   // bad CSV count is dropped and counted at staging.
   skippedValues: number;
   skippedValuesSample: DatasetHmisLedgerSkippedValue[];
-  source: "dhis2" | "csv" | "backfill";
+  route: "dhis2" | "csv" | "backfill";
   status: "ready" | "error";
   // Prefixed with the failure classification: "[permanent] …" (config error,
   // will fail again until fixed) or "[transient] …" (server health).
@@ -288,7 +288,7 @@ export type DatasetHmisImportRunSummary = {
   id: number;
   trigger: "manual" | "schedule";
   triggeredBy?: string;
-  source: "dhis2" | "csv";
+  route: "dhis2" | "csv";
   // DHIS2 runs only.
   dhis2Url?: string;
   selection?: Dhis2RunSelectionSummary;

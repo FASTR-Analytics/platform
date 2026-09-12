@@ -568,13 +568,13 @@ SET run_stats = (
     || jsonb_build_object('dhis2IndicatorIds',
          COALESCE(run_stats::jsonb -> 'classification' -> 'dhis2IndicatorIds', '[]'::jsonb)))
 )::text
-WHERE source = 'dhis2' AND run_stats IS NOT NULL AND jsonb_typeof(run_stats::jsonb) = 'object';
+WHERE run_stats IS NOT NULL AND jsonb_typeof(run_stats::jsonb) = 'object' AND NOT (run_stats::jsonb ? 'csvStagingResult');
 
 -- CSV run stats: the staging diagnostics.
 UPDATE dataset_hmis_import_runs
 SET run_stats = jsonb_set(run_stats::jsonb, '{csvStagingResult}',
   pg_temp.fastr_rewrite_csv_staging(run_stats::jsonb -> 'csvStagingResult'))::text
-WHERE source = 'csv' AND run_stats IS NOT NULL AND run_stats::jsonb ? 'csvStagingResult';
+WHERE run_stats IS NOT NULL AND run_stats::jsonb ? 'csvStagingResult';
 
 -- CSV configs: the mapping key.
 UPDATE dataset_hmis_import_runs

@@ -34,7 +34,7 @@ type IndicatorRollup = {
   monthsWithData: number;
   monthsInWindow: number;
   latestImportedAt: string | undefined;
-  latestRoute: DatasetHmisImportLedgerItem["source"] | undefined;
+  latestRoute: DatasetHmisImportLedgerItem["route"] | undefined;
   failedMonths: number;
   skippedValues: number;
   items: DatasetHmisImportLedgerItem[];
@@ -88,7 +88,7 @@ export function Dhis2TabByIndicator(p: Props) {
         }
         // No timestamp anywhere: either pre-ledger backfill data, or an
         // indicator that has only ever failed (never imported at all).
-        return item.items.some((i) => i.source === "backfill")
+        return item.items.some((i) => i.route === "backfill")
           ? importRouteLabel("backfill")
           : t3({
             en: "Never imported",
@@ -192,7 +192,7 @@ export function Dhis2TabByIndicator(p: Props) {
 // How a ledger row's data arrived: the DHIS2 importer, a CSV upload, or the
 // backfill that predates import tracking.
 export function importRouteLabel(
-  route: DatasetHmisImportLedgerItem["source"],
+  route: DatasetHmisImportLedgerItem["route"],
 ): string {
   if (route === "dhis2") {
     return "DHIS2";
@@ -244,7 +244,7 @@ function buildRollups(items: DatasetHmisImportLedgerItem[]): {
       let failedMonths = 0;
       let skippedValues = 0;
       let latestImportedAt: string | undefined;
-      let latestRoute: DatasetHmisImportLedgerItem["source"] | undefined;
+      let latestRoute: DatasetHmisImportLedgerItem["route"] | undefined;
       for (const item of indicatorItems) {
         if (item.nRecords > 0) {
           monthsWithData++;
@@ -258,7 +258,7 @@ function buildRollups(items: DatasetHmisImportLedgerItem[]): {
           (latestImportedAt === undefined || item.importedAt > latestImportedAt)
         ) {
           latestImportedAt = item.importedAt;
-          latestRoute = item.source;
+          latestRoute = item.route;
         }
       }
       return {

@@ -121,7 +121,7 @@ export function ImportLedgerIndicatorDetail(
     {
       key: "route",
       header: t3({ en: "Imported via", fr: "Importé via", pt: "Importado via" }),
-      render: (row) => (row.item ? importRouteLabel(row.item.source) : ""),
+      render: (row) => (row.item ? importRouteLabel(row.item.route) : ""),
     },
     {
       key: "importedAt",
@@ -138,7 +138,7 @@ export function ImportLedgerIndicatorDetail(
           // Backfill rows predate tracking; anything else with no timestamp
           // has never successfully imported: leave the cell empty rather
           // than implying a pre-tracking import.
-          return row.item.source === "backfill" ? importRouteLabel("backfill") : "";
+          return row.item.route === "backfill" ? importRouteLabel("backfill") : "";
         }
         return new Date(row.item.importedAt).toLocaleString();
       },

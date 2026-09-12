@@ -81,12 +81,12 @@ machinery died in Phase A; PLAN_DHIS2_IMPORTER's as-built record is in git
 history). Shape:
 
 - `dataset_hmis_import_runs` (main DB): one row per run, with trigger/user,
-  `source` (`dhis2|csv`), selection JSON (DHIS2: a window of INDICATORS with
+  `route` (`dhis2|csv`), selection JSON (DHIS2: a window of INDICATORS with
   its expansion to the elements it fetches, or explicit (indicator, month)
   pairs) or `csv_config` JSON (CSV: `{ fileName, filePin, mappings }`; the
-  source→fields pairing is enforced in code), status
+  route→fields pairing is enforced in code), status
   (`queued|running|needs_review|complete|error|cancelled`), pair counters
-  (DHIS2 only), throttled `progress` JSON (by-source union: in-flight pairs vs
+  (DHIS2 only), throttled `progress` JSON (by-route union: in-flight pairs vs
   a staging/integrating percentage), `run_stats` (DHIS2: classification +
   per-pair fetch stats; CSV: the staging diagnostics), `version_id`. A partial
   unique index allows at most one `running` row. The INSERT (or the

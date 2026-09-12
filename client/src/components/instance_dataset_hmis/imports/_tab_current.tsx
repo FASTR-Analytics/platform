@@ -109,7 +109,7 @@ export function Dhis2TabCurrent(p: Props) {
       >
         {(run) => (
           <Show
-            when={run().source === "csv"}
+            when={run().route === "csv"}
             fallback={
               <CollapsibleSection
                 defaultOpen

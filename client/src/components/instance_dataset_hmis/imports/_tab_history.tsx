@@ -26,11 +26,11 @@ export function statusLabel(status: DatasetHmisImportRunSummary["status"]): stri
 }
 
 export function importRouteLabel(run: DatasetHmisImportRunSummary): string {
-  return run.source === "csv" ? "CSV" : "DHIS2";
+  return run.route === "csv" ? "CSV" : "DHIS2";
 }
 
 export function selectionLabel(run: DatasetHmisImportRunSummary): string {
-  if (run.source === "csv") {
+  if (run.route === "csv") {
     return run.csvFileName ?? "";
   }
   if (!run.selection) {
@@ -90,7 +90,7 @@ export function Dhis2TabHistory(p: Props) {
       header: t3({ en: "Pairs (ok / failed / total)", fr: "Paires (ok / échec / total)", pt: "Pares (ok / falha / total)" }),
       alignH: "right",
       render: (run) =>
-        run.source === "csv" ? (
+        run.route === "csv" ? (
           ""
         ) : (
           <span>

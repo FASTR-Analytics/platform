@@ -33,7 +33,7 @@ function dedupePairs<T extends LedgerPair>(pairs: T[]): T[] {
 export async function upsertHmisLedgerPairsFromData(
   sql: Sql,
   pairs: LedgerPairWrite[],
-  source: "dhis2" | "csv",
+  route: "dhis2" | "csv",
   versionId: number,
 ): Promise<void> {
   const deduped = dedupePairs(pairs);
@@ -54,9 +54,9 @@ export async function upsertHmisLedgerPairsFromData(
   await sql`
     INSERT INTO dataset_hmis_import_ledger
       (indicator_id, period_id, n_records, sum_count, skipped_values, skipped_values_sample,
-       source, status, error, imported_at, version_id)
+       route, status, error, imported_at, version_id)
     SELECT s.indicator_id, s.period_id, agg.n, agg.sum, s.skipped_values, s.skipped_values_sample,
-      ${source}, 'ready', NULL, now(), ${versionId}
+      ${route}, 'ready', NULL, now(), ${versionId}
     FROM UNNEST(
       ${indicatorIds}::text[], ${periodIds}::int[], ${skippedValues}::int[], ${skippedSamples}::text[]
     ) AS s(indicator_id, period_id, skipped_values, skipped_values_sample)
@@ -71,7 +71,7 @@ export async function upsertHmisLedgerPairsFromData(
       sum_count = EXCLUDED.sum_count,
       skipped_values = EXCLUDED.skipped_values,
       skipped_values_sample = EXCLUDED.skipped_values_sample,
-      source = EXCLUDED.source,
+      route = EXCLUDED.route,
       status = 'ready',
       error = NULL,
       imported_at = EXCLUDED.imported_at,
@@ -80,7 +80,7 @@ export async function upsertHmisLedgerPairsFromData(
 }
 
 // Failed DHIS2 pairs: record the failure without touching the last
-// data-bearing counts / imported_at / source (no data changed). A pair that
+// data-bearing counts / imported_at / route (no data changed). A pair that
 // has never imported gets a zero-count 'error' row (imported_at NULL).
 export async function upsertHmisLedgerErrorPairs(
   sql: Sql,
@@ -105,7 +105,7 @@ export async function upsertHmisLedgerErrorPairs(
   await sql`
     INSERT INTO dataset_hmis_import_ledger
       (indicator_id, period_id, n_records, sum_count, skipped_values, skipped_values_sample,
-       source, status, error, imported_at, version_id)
+       route, status, error, imported_at, version_id)
     SELECT s.indicator_id, s.period_id, 0, 0, 0, '[]', 'dhis2', 'error', s.error, NULL, NULL
     FROM UNNEST(${indicatorIds}::text[], ${periodIds}::int[], ${errors}::text[])
       AS s(indicator_id, period_id, error)
@@ -118,7 +118,7 @@ export async function upsertHmisLedgerErrorPairs(
 
 // After a windowed/full deletion: re-count the affected pairs; pairs left with
 // no data lose their ledger row, surviving pairs keep their last-import
-// identity (source/imported_at/status) with corrected counts. Must run inside
+// identity (route/imported_at/status) with corrected counts. Must run inside
 // the deletion transaction.
 export async function reconcileHmisLedgerPairsAfterDelete(
   sql: Sql,
@@ -167,7 +167,7 @@ export async function getDatasetHmisImportLedgerItems(
         sum_count: string | number;
         skipped_values: number;
         skipped_values_sample: string;
-        source: "dhis2" | "csv" | "backfill";
+        route: "dhis2" | "csv" | "backfill";
         status: "ready" | "error";
         error: string | null;
         imported_at: string | Date | null;
@@ -175,7 +175,7 @@ export async function getDatasetHmisImportLedgerItems(
       }[]
     >`
       SELECT indicator_id, period_id, n_records, sum_count, skipped_values, skipped_values_sample,
-        source, status, error, imported_at, version_id
+        route, status, error, imported_at, version_id
       FROM dataset_hmis_import_ledger
       ORDER BY indicator_id, period_id
     `;
@@ -188,7 +188,7 @@ export async function getDatasetHmisImportLedgerItems(
       skippedValuesSample: parseJsonOrThrow<DatasetHmisLedgerSkippedValue[]>(
         r.skipped_values_sample,
       ),
-      source: r.source,
+      route: r.route,
       status: r.status,
       error: r.error ?? undefined,
       importedAt: r.imported_at

@@ -491,7 +491,7 @@ async function fireQueuedRun(
   // CSV fires need no stored-credential checks: the pinned asset (or the
   // surviving per-run staging table, for an integrate-anyway resume) is the
   // whole input.
-  if (queued.source === "csv") {
+  if (queued.route === "csv") {
     const launchedCsv = await launchQueuedDatasetHmisCsvImportRun(mainDb, {
       runId: queued.id,
       onComplete: async () => {
