@@ -27,7 +27,7 @@ const RETIRED_KEYS = [
   "raw_indicator_id",
   "indicator_raw_id",
   "rawIndicatorsToInclude",
-  "hmisIndicatorsToInclude",
+  "commonIndicatorsToInclude",
   "indicatorType",
   "unmappedIndicators",
   "indicatorCommonId",

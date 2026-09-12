@@ -101,7 +101,7 @@ ingredients (`SUM(col) FILTER (WHERE indicator_common_id = …)`) and a
 catalog-supplied expression, on qualifying fetches. Qualification is
 RO-level (`indicator_common_id` column + all-SUM values
 + no metric-wide PAE), while `formatAs: "indicator"` stays the metric-level
-formatting fact. Not built; PLAN_1_HMIS_INDICATOR_TYPES.md.)
+formatting fact. Not built; PLAN_1_COMMON_INDICATOR_TYPES.md, in git history.)
 
 **The replicant pin and the options/items split.** `getFiltersWithReplicant`
 appends

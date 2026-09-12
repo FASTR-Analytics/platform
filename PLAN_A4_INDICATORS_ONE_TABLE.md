@@ -7,7 +7,7 @@ in place by the steps below: the entity they introduced (the "source") is
 removed and its migration is rewritten under the same number. PLAN_A3 was
 deleted in the commit that added this file; its text is in git history.
 
-**Next step: Fix 4.** Each session sets this line in its final commit. Its
+**Next step: Review 4.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N`; after step 4's review passes the
 file is deleted instead of advanced.
 
@@ -669,3 +669,5 @@ agent reads this section before its step.
 | 2026-09-12 | 4 | Finding, no code change: two files outside the step's Surface, both recorded by the Do session as forced: `validate_indicator_migration.ts` (the `HmisIndicator` type import and the post-087 `kind` scan) and `server/db/migrations/project/042_dataset_info_stamp_names.sql` (the stamps are stored in the project database; the Surface lists instance migrations only). Accepted as forced by where the renamed names live; the Surface text is not rewritten. |
 | 2026-09-12 | 4 | Observation, not a finding: `deleteAllDatasetHmisData` writes a staging result with `kind: "deletion"` while `DatasetStagingResult` is the csv or dhis2 union; the mismatch predates the sweep (it was the same under `sourceType`). |
 | 2026-09-12 | 4 | Step 4 reviewed: 3 findings, 2 change code. Next step `Fix 4`. |
+| 2026-09-12 | 4 | Fix 4, by the Review 4 agent at Tim's instruction ("do it now"), one commit. `validate_indicator_migration.ts` 30 reads `commonIndicatorsToInclude` again; `SYSTEM_09_viz_query_cache.md` 104 points at `PLAN_1_COMMON_INDICATOR_TYPES.md`, in git history. Gates: `deno task typecheck` exit 0; `deno task test` 93 passed, 0 failed; `./validate_indicator_migration ~/wb-fastr-dev-main-before-086.sql.gz` PASS (the restored key is at zero in every scanned column); the inventory grep unchanged at 554 hits, the two renamed strings at zero. Nothing else touched. |
+| 2026-09-12 | 4 | Step 4 fixed. Next step `Review 4`. |
