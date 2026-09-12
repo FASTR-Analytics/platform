@@ -8,7 +8,7 @@ removed and its migration is rewritten under the same number. PLAN_A3 was
 deleted in the commit that added this file; its text is in git history.
 
 **Next step: Review 2.** Each session sets this line in its final commit. Its
-values are `Do N`, `Review N` and `Fix N`; after step 3's review passes the
+values are `Do N`, `Review N` and `Fix N`; after step 4's review passes the
 file is deleted instead of advanced.
 
 All work is on `tim-branch`.
@@ -70,7 +70,7 @@ the repo or a command in this plan is itself a finding. §8 has the rows
 the step should have produced. Each finding is one row in §8 with the file
 and line, followed by the closing row. The review ends with the **Next
 step** line set to `Do N+1` if there are no findings that change code, or
-`Fix N` if there are. After step 3's review passes, the reviewer deletes
+`Fix N` if there are. After step 4's review passes, the reviewer deletes
 this file in its last commit instead of setting the line. Then it stops.
 
 **A Fix session** is a Do session whose work list is the review's findings
@@ -110,7 +110,7 @@ Rules that bind every step:
 - **One thing per session.** Commit with a message that says why. Where a
   step says "several commits", each one is green on its own.
 - **Do not ship.** `./deploy_testing` ships the working tree. Nothing in
-  this plan ships before step 3's review passes (§7).
+  this plan ships before step 4's review passes (§7).
 
 Vocabulary is §2's. The word "source" does not exist in this plan except
 in §1, which describes what is being removed.
@@ -298,16 +298,37 @@ indicator's expression, never for the indicator.
     and in the editor. No screen, string, type, column, route key or file
     name says source, raw, common or mapping after step 2.
     `indicator_common_id` stays as a column and package key (§6).
+13. **The sweep (Tim, 2026-09-12).** Names that survived step 2 because
+    they mean something other than the removed entity, or because their
+    rename reaches outside a step's surface, are renamed in one sweep,
+    step 4, so that nothing in the three tiers says source, common or
+    mapping when this plan closes. Examples, not the whole list:
+    `Dhis2RunCredentialsSource` and the route body and worker-message key
+    `credentialsSource` (how a DHIS2 flow obtains credentials); `run.source`
+    on `dataset_hmis_import_runs`, the ledger item's `source` and
+    `stagingResult.sourceType` (the import route: dhis2, csv, backfill);
+    `HmisCsvMappingParams` and the `mappings` key of `csv_config` (CSV
+    column to field); `indicatorMappingsVersion` and
+    `baseIndicatorMappingsVersion` (the two dictionary stamps); the
+    `CommonIndicator` family (`CommonIndicator`, `CommonIndicatorDefinition`,
+    `CommonIndicatorType`, `COMMON_INDICATOR_TYPES`, `getCommonIndicators`,
+    `buildCommonIndicatorDictionary`, `resolveCommonIndicatorCatalog`,
+    `common_indicator_catalog.ts`, the catalog row type); `describeDhis2Source*`
+    survivors in docs; and the `hmisSources`-era words in SYSTEM prose. A
+    stored column or JSON key is renamed only with its migration and
+    transform (the lockstep rule); a key the run manifest carries is renamed
+    only with the manifest transform. `indicator_common_id` stays (§6).
 
 ## 4. Steps
 
-Three steps. A3's steps 1 to 3 are landed and are not redone.
+Four steps. A3's steps 1 to 3 are landed and are not redone.
 
 | Step | Name | The one thing it proves |
 | --- | --- | --- |
 | 1 | The table | one table, 086 rewritten, applied to the restored dev database with the analysed set unchanged |
 | 2 | The screens | every screen reads indicators, sums and derived indicators and no string says source |
 | 3 | Docs and close | the repo and the site read as written today |
+| 4 | The sweep | no name in lib, server, client or the docs says source, common or mapping except `indicator_common_id` and DHIS2's own field names |
 
 Format of each step: **Surface**, **Deliverable**, **Not in this step**,
 **Gates** (on top of the §0 floor), **Ends with**.
@@ -429,7 +450,7 @@ database and the manager, an import selection, the naming step, the
 datatable and the delete window exercised; recorded in §8 with what was
 done.
 
-**Ends with.** Several commits. Deployable with step 1 once step 3's
+**Ends with.** Several commits. Deployable with step 1 once step 4's
 review passes.
 
 ### Step 3: Docs and close
@@ -451,8 +472,44 @@ SYSTEM_06_ingestion.md SYSTEM_07_dhis2.md` at zero except DHIS2 API
 field names. `deno task build:help-buttons` leaves the tree unchanged when
 run twice.
 
-**Ends with.** One commit here and one in `wb-fastr-site`. The review
-that passes this step deletes this file in its last commit.
+**Ends with.** One commit here and one in `wb-fastr-site`.
+
+### Step 4: The sweep
+
+**Surface.** Every file in `lib/`, `server/`, `client/src/`, the SYSTEM and
+PROTOCOL_APP files, `server/db/migrations/instance/` for the migration the
+stored keys need, `server/runs/manifest_transform.ts` for a manifest key,
+and the harnesses under `server/tests/`.
+
+**Before building.** Take the inventory first and commit it as the first
+§8 row of the step: `grep -rniw "source\|sources\|common\|mapping\|mappings"
+lib server client/src SYSTEM_*.md PROTOCOL_APP_*.md` outside
+`server/db/migrations/**`, each hit classed as one of: the removed entity's
+word (rename), another concept carrying the word (rename, ruling 13),
+`indicator_common_id` (keep, §6), a DHIS2 API field name (keep), an English
+word that is not a name (keep, e.g. "the source of truth"). The classing is
+the step's work list; a hit in no class is a finding for Review 4.
+
+**Deliverable.** Ruling 13 whole. Every name in the rename classes renamed
+across the three tiers in one commit per concept (the credentials origin,
+the import route, the CSV columns, the dictionary stamps, the indicator
+type family, the doc survivors), each green on its own. A stored column or
+JSON key gets migration 087 with its transform block and forced skip-gate
+(PROTOCOL_APP_MIGRATIONS "Skip-Gate Gotcha"), and `validate_migrations`
+replays it; a manifest key gets its transform and the m012 parity fixture.
+SYSTEM_05, SYSTEM_06, SYSTEM_07 and SYSTEM_08 prose renamed with the code.
+
+**Not in this step.** `indicator_common_id` (§6). Behaviour: no screen,
+route, query or package changes what it does.
+
+**Gates.** The grep above at zero outside the keep classes, the class list
+in §8. `./validate_migrations` and `./validate_queries` if a stored key
+moved. `deno task test` with the m012 parity fixture changed only for
+renamed keys. The step-2 grep and gate 2 at zero with no exception left but
+DHIS2's field names.
+
+**Ends with.** Several commits. The review that passes this step deletes
+this file in its last commit.
 
 ## 5. Gates catalogue
 
@@ -513,7 +570,7 @@ there.
 ## 7. Rollout and rollback
 
 Everything here needs real infrastructure and is Tim's to trigger. Steps
-1 to 3 ship once, together, after step 3's review passes.
+1 to 4 ship once, together, after step 4's review passes.
 
 1. Take a fresh read-only dump of every `main` database and run
    `validate_indicator_migration` over all of them. There is nothing to
@@ -564,3 +621,4 @@ agent reads this section before its step.
 | 2026-09-11 | 2 | Decisions taken as built. (a) The manager's has-data signal is the import ledger (`getDatasetHmisImportLedger`, read once and again when `datasetVersions.hmis` moves); the set passed to `judgeDerivedIndicators` and to the editor is `analysedIdsWithData` over every non-derived row, so an unchecked derived is judged as it would be if checked; while the ledger loads the Status column is empty and the editor warns about no ingredient. (b) The ruling 3 notice is a live line under the formula, not a blocking dialog: it appears as the formula is typed and the save goes. (c) The naming step's row kind is fixed by the host, not by the id's shape: the DHIS2 select form feeds elements, the CSV hold feeds uploaded ids; an uploaded id is the file's and is not editable (only the label is), so a re-stage matches the rows; an element whose UID an indicator already carries reads "Already imported as" and is still posted, because the server's landing map needs it to rewrite a derived formula and creates nothing for it; one new id chosen for two rows is refused (the server refuses it too). (d) `Dhis2SourceRefusal`, `Dhis2SourceVerdict`, `describeDhis2SourceRefusal`, S7's `getDhis2SourceVerdict`, `withSourceVerdicts` and the file `source_eligibility.ts` (with its test) are renamed to the Element form: lib, S7, `db/instance/indicators.ts`, two tests, SYSTEM_05 and SYSTEM_07 prose and glob. Outside the Surface, forced by the step-2 grep on the client import and deferred to this step by the Do 1 log. (e) The dataset page heading "DATA SOURCE" is "DATASET" on all three dataset pages (`instance_dataset_hfa/index.tsx` and `instance_dataset_iceh/index.tsx` are outside the Surface, one string each, changed so the three siblings agree). (f) The Indicators card in `instance_data.tsx` repeated the indicator count under a "Sources" label; the block is removed. (g) The CSV wizard's second step is "Columns" and its local store is `columns`; the payload key `mappings` and `HmisCsvMappingParams` stay (stored `csv_config` JSON). (h) The Special badge, the reference list and the editor's error say a special may be a base or a sum (ruling 2 of A3 as `getSpecialIndicatorTypeIssue` implements it). (i) `_indicator_display.ts` (new, under the S5 glob) holds `indicatorTypeLabel` and `definedByText` for the manager and the picker. |
 | 2026-09-11 | 2 | **Step-2 grep, code wins, for Tim to rule on.** The case-insensitive grep over the three surfaces is not at zero. Every hit that names the removed entity is gone; what remains is four other concepts the word list also matches, none of which step 2 can rename inside its Surface: (1) `Dhis2RunCredentialsSource` and the route body and worker-message key `credentialsSource` (how a DHIS2 flow obtains credentials: inline or stored), 73 hits in 20 files across lib, the DHIS2 worker, the scheduler, the geojson wizard, SYSTEM_07 and PROTOCOL_APP_WORKER_ROUTINES; (2) `run.source`, the ledger item's `source` and `stagingResult.sourceType` (the import route: dhis2, csv, backfill), a `dataset_hmis_import_runs` column and stored version JSON, so a rename is a migration; (3) `HmisCsvMappingParams` and the `mappings` key of `csv_config` (CSV column to field), stored JSON; (4) `indicatorMappingsVersion` and `baseIndicatorMappingsVersion`, which SYSTEM_05 "Client state & wizard" rules keep their names (carried by the run manifest and dataset-info types). Ruling 12 also names types: the `CommonIndicator` family (`CommonIndicator`, `CommonIndicatorDefinition`, `getCommonIndicators`, `common_indicator_catalog.ts`, 164 hits in 28 files over lib, server, client and tests) still says "common"; no gate checks it and the rename is a three-tier sweep. |
 | 2026-09-11 | 2 | Step 2 built. |
+| 2026-09-12 | plan | Tim ruled on the two step-2 leftovers: rename everything, in one sweep, as a fourth step. Ruling 13 and Step 4 were written by the Do 2 session at his instruction; every "step 3" that meant "the last step" now says step 4 (§0, §4, §7). Next step stays `Review 2`. |
