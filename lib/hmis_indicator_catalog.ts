@@ -32,7 +32,7 @@ import {
 } from "./indicator_expression/mod.ts";
 import type { ThresholdsRule } from "./types/conditional_formatting.ts";
 import type {
-  CommonIndicator,
+  HmisIndicator,
   IndicatorFormat,
 } from "./types/indicators.ts";
 import { isPopulationTypeId } from "./types/population.ts";
@@ -43,7 +43,7 @@ import { isSpecialIndicatorId } from "./special_indicators.ts";
 // sum or a population type, in first-appearance order, no slot special. A
 // sum is carried as `base` (its own identifier as expression, one slot), so
 // the package format is unchanged by sums.
-export type CommonIndicatorCatalogRow = {
+export type HmisIndicatorCatalogRow = {
   indicator_common_id: string;
   indicator_common_label: string;
   type: "base" | "derived";
@@ -54,23 +54,23 @@ export type CommonIndicatorCatalogRow = {
   sort_order: number;
 };
 
-export class CommonIndicatorCatalogError extends Error {
+export class HmisIndicatorCatalogError extends Error {
   constructor(public readonly problems: string[]) {
     super(problems.join("\n"));
   }
 }
 
-type DictionaryInput = Pick<CommonIndicator, "indicator_common_id" | "definition">;
+type DictionaryInput = Pick<HmisIndicator, "indicator_common_id" | "definition">;
 
 // The dictionary every expression resolves against: the indicators, a sum
 // as a leaf like a base, plus one `population` leaf per store type. The
 // editor adds the definition being typed before it calls this.
-export function buildCommonIndicatorDictionary(
-  commons: DictionaryInput[],
+export function buildHmisIndicatorDictionary(
+  indicators: DictionaryInput[],
   populationTypeIds: string[],
 ): ExpressionDictionary {
   return buildExpressionDictionary([
-    ...commons.map((c) => ({
+    ...indicators.map((c) => ({
       id: c.indicator_common_id,
       type: c.definition.type === "derived" ? "derived" as const : "base" as const,
       expression: c.definition.type === "derived"
@@ -111,18 +111,18 @@ function resolveOrUndefined(
 // analysed themselves. A derived that does not resolve reaches nothing
 // here; capture refuses it with the reason.
 export function analysedIndicatorIds(
-  commons: CommonIndicator[],
+  indicators: HmisIndicator[],
   populationTypeIds: string[],
 ): Set<string> {
-  const dictionary = buildCommonIndicatorDictionary(commons, populationTypeIds);
+  const dictionary = buildHmisIndicatorDictionary(indicators, populationTypeIds);
   const analysed = new Set<string>();
-  for (const c of commons) {
+  for (const c of indicators) {
     if (c.definition.type === "derived") continue;
     if (c.include_in_analysis || isSpecialIndicatorId(c.indicator_common_id)) {
       analysed.add(c.indicator_common_id);
     }
   }
-  for (const c of commons) {
+  for (const c of indicators) {
     if (c.definition.type !== "derived" || !c.include_in_analysis) continue;
     const resolved = resolveOrUndefined(
       c.indicator_common_id,
@@ -140,12 +140,12 @@ export function analysedIndicatorIds(
 // with rows of its own, a sum with rows under any member. `idsWithRows` is
 // the set of indicator ids that have dataset_hmis rows.
 export function analysedIdsWithData(
-  commons: CommonIndicator[],
+  indicators: HmisIndicator[],
   analysed: Set<string>,
   idsWithRows: Set<string>,
 ): Set<string> {
   const withData = new Set<string>();
-  for (const c of commons) {
+  for (const c of indicators) {
     if (!analysed.has(c.indicator_common_id)) continue;
     if (c.definition.type === "base" && idsWithRows.has(c.indicator_common_id)) {
       withData.add(c.indicator_common_id);
@@ -207,13 +207,13 @@ export function judgeDerivedIndicator(
 // bases and sums have rows (the ledger, for the manager); the dictionary
 // alone cannot say.
 export function judgeDerivedIndicators(
-  commons: CommonIndicator[],
+  indicators: HmisIndicator[],
   populationTypeIds: string[],
   baseIdsInData: Set<string>,
 ): Map<string, DerivedIndicatorComputability> {
-  const dictionary = buildCommonIndicatorDictionary(commons, populationTypeIds);
+  const dictionary = buildHmisIndicatorDictionary(indicators, populationTypeIds);
   const judgements = new Map<string, DerivedIndicatorComputability>();
-  for (const c of commons) {
+  for (const c of indicators) {
     if (c.definition.type !== "derived") continue;
     judgements.set(
       c.indicator_common_id,
@@ -247,31 +247,31 @@ function describeComputabilityProblem(
 // off is in no package; a chain through it still resolves, since the
 // dictionary is the whole list. `populationTypeIds` is the store's
 // vocabulary: a population identifier resolves iff it names one.
-export function resolveCommonIndicatorCatalog(
-  commons: CommonIndicator[],
+export function resolveHmisIndicatorCatalog(
+  indicators: HmisIndicator[],
   baseIdsInData: Set<string>,
   populationTypeIds: string[],
-): CommonIndicatorCatalogRow[] {
-  const dictionary = buildCommonIndicatorDictionary(commons, populationTypeIds);
-  const analysed = analysedIndicatorIds(commons, populationTypeIds);
+): HmisIndicatorCatalogRow[] {
+  const dictionary = buildHmisIndicatorDictionary(indicators, populationTypeIds);
+  const analysed = analysedIndicatorIds(indicators, populationTypeIds);
 
   const problems: string[] = [];
-  const rows: CommonIndicatorCatalogRow[] = [];
+  const rows: HmisIndicatorCatalogRow[] = [];
 
-  for (const common of commons) {
+  for (const indicator of indicators) {
     const base: Omit<
-      CommonIndicatorCatalogRow,
+      HmisIndicatorCatalogRow,
       "type" | "expression" | "slot_map"
     > = {
-      indicator_common_id: common.indicator_common_id,
-      indicator_common_label: common.indicator_common_label,
-      format_as: common.format_as,
-      thresholds: common.thresholds,
-      sort_order: common.sort_order,
+      indicator_common_id: indicator.indicator_common_id,
+      indicator_common_label: indicator.indicator_common_label,
+      format_as: indicator.format_as,
+      thresholds: indicator.thresholds,
+      sort_order: indicator.sort_order,
     };
 
-    if (common.definition.type !== "derived") {
-      if (!analysed.has(common.indicator_common_id)) continue;
+    if (indicator.definition.type !== "derived") {
+      if (!analysed.has(indicator.indicator_common_id)) continue;
       // An analysed base or sum the extract cannot produce counts for
       // carries no expression and no slot map: it contributes no ingredient
       // row, m012 emits nothing for it, and a read yields NULL: the same
@@ -280,30 +280,30 @@ export function resolveCommonIndicatorCatalog(
       // special indicator as an empty base whether or not the country fills
       // it, so treating an empty base as an error would block generation
       // fleet-wide.
-      const hasData = baseIdsInData.has(common.indicator_common_id);
+      const hasData = baseIdsInData.has(indicator.indicator_common_id);
       rows.push({
         ...base,
         type: "base",
         expression: hasData
-          ? writeIdentifier(common.indicator_common_id)
+          ? writeIdentifier(indicator.indicator_common_id)
           : null,
         slot_map: hasData
-          ? buildIngredientSlotMap([common.indicator_common_id])
+          ? buildIngredientSlotMap([indicator.indicator_common_id])
           : null,
       });
       continue;
     }
 
-    if (!common.include_in_analysis) continue;
+    if (!indicator.include_in_analysis) continue;
     const judgement = judgeDerivedIndicator(
-      common.indicator_common_id,
-      common.definition.expression,
+      indicator.indicator_common_id,
+      indicator.definition.expression,
       dictionary,
       baseIdsInData,
     );
     if (judgement.kind !== "computable") {
       problems.push(
-        describeComputabilityProblem(common.indicator_common_id, judgement),
+        describeComputabilityProblem(indicator.indicator_common_id, judgement),
       );
       continue;
     }
@@ -317,7 +317,7 @@ export function resolveCommonIndicatorCatalog(
   }
 
   if (problems.length > 0) {
-    throw new CommonIndicatorCatalogError(problems);
+    throw new HmisIndicatorCatalogError(problems);
   }
   return rows;
 }
@@ -348,7 +348,7 @@ export function resolveCommonIndicatorCatalog(
 // (COUNTRY_ISO3, every parameter, every data-source path) is single-line for
 // the same reason.
 export function buildIndicatorIngredientsRLiteral(
-  catalog: CommonIndicatorCatalogRow[],
+  catalog: HmisIndicatorCatalogRow[],
 ): string {
   const rows: { indicatorId: string; slot: string; ingredientId: string }[] =
     [];
@@ -380,7 +380,7 @@ export function buildIndicatorIngredientsRLiteral(
 // R's precedence never re-associates anything, and m012 binds those three
 // functions and `/` to the evaluator's semantics before it evaluates.
 export function buildIndicatorExpressionsRLiteral(
-  catalog: CommonIndicatorCatalogRow[],
+  catalog: HmisIndicatorCatalogRow[],
 ): string {
   const rows: { indicatorId: string; expression: string }[] = [];
   for (const row of catalog) {
@@ -432,7 +432,7 @@ export function expandIndicatorSelection(
   populationTypeIds: string[],
 ): IndicatorSelectionExpansion {
   const byId = new Map(indicators.map((i) => [i.indicator_common_id, i]));
-  const dictionary = buildCommonIndicatorDictionary(
+  const dictionary = buildHmisIndicatorDictionary(
     indicators,
     populationTypeIds,
   );

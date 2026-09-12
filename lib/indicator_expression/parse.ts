@@ -2,11 +2,11 @@
 // Indicator expression grammar: tokenizer, parser, AST
 // =============================================================================
 //
-// The grammar a derived common indicator's definition is written in
+// The grammar a derived indicator's definition is written in
 // (PLAN_1a §1.3): `+ - * /`, parentheses, numeric literals, identifiers, and
 // the three calls `abs` / `coalesce` / `nullif`. An identifier names another
-// common indicator: bare when it matches BARE_IDENTIFIER_PATTERN, otherwise
-// written `[in brackets]` (common indicator ids may carry characters the bare
+// indicator: bare when it matches BARE_IDENTIFIER_PATTERN, otherwise
+// written `[in brackets]` (indicator ids may carry characters the bare
 // form cannot).
 //
 // Expressions are CATALOG DATA. They are parsed here, evaluated by

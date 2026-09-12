@@ -192,7 +192,7 @@ export type PackageGrounding = {
   // passes the instance calendar.
   calendar: InstanceCalendar;
   datasets: DatasetInProject[];
-  commonIndicators: { id: string; label: string }[];
+  hmisIndicators: { id: string; label: string }[];
   icehIndicators: { id: string; label: string }[];
   // The package's overall period range at its finest time grain (null = no
   // time-indexed results). Omitted when the caller cannot know it: the SPA
@@ -232,12 +232,12 @@ export function buildPackageGroundingSections(
     }
   }
 
-  if (grounding.commonIndicators.length > 0) {
+  if (grounding.hmisIndicators.length > 0) {
     sections.push("");
     sections.push(
-      `**Common indicators (${grounding.commonIndicators.length}):**`,
+      `**HMIS indicators (${grounding.hmisIndicators.length}):**`,
     );
-    for (const ind of grounding.commonIndicators) {
+    for (const ind of grounding.hmisIndicators) {
       sections.push(`- ${ind.id}: ${ind.label}`);
     }
   }

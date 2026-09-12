@@ -29,7 +29,7 @@ import { instantiateImportHmisDataDhis2Worker } from "../../worker_routines/impo
 import { instantiateImportHmisDataCsvWorker } from "../../worker_routines/import_hmis_data_csv/instantiate_worker.ts";
 import { dropHmisCsvStagingTables } from "../../worker_routines/import_hmis_data_csv/stage_csv.ts";
 import { resolveAssetFileOrThrow } from "./assets.ts";
-import { getCommonIndicators } from "./indicators.ts";
+import { getHmisIndicators } from "./indicators.ts";
 import {
   clearWorker,
   getWorker,
@@ -185,7 +185,7 @@ async function validateRunSelection(
   if (input.kind === "window") {
     const expansion = expandIndicatorSelection(
       input.indicatorIds,
-      await getCommonIndicators(mainDb),
+      await getHmisIndicators(mainDb),
       POPULATION_TYPE_IDS,
     );
     if (expansion.unknownIndicatorIds.length > 0) {

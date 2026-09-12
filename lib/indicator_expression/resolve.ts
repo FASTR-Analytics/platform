@@ -9,7 +9,7 @@
 //
 // Flattening is substitution: a `derived` ingredient is replaced by its own
 // expression, recursively, until the expression names nothing but leaves:
-// `base` commons and population types. Those leaves ARE the
+// `base` indicators and population types. Those leaves ARE the
 // ingredients that travel as ing1..ingN on a results row, which is why the
 // cap is measured AFTER flattening.
 //
@@ -51,7 +51,7 @@ export type ExpressionDictionary = Map<string, ExpressionDictionaryEntry>;
 export class IndicatorExpressionError extends Error {}
 
 export type ResolvedIndicatorExpression = {
-  // The flattened AST: every identifier is a `base` common indicator id or
+  // The flattened AST: every identifier is a `base` indicator id or
   // a population type id.
   ast: ExpressionNode;
   // Those leaf ids, in first-appearance order. This IS the slot order.
@@ -97,7 +97,7 @@ export function resolveIndicatorExpression(args: {
           throw new IndicatorExpressionError(
             `${describeChain(chain)} names ${
               JSON.stringify(node.name)
-            }, which is not a common indicator or a population type (${
+            }, which is not an indicator or a population type (${
               POPULATION_TYPE_IDS.join(", ")
             })`,
           );
@@ -150,12 +150,12 @@ export function resolveIndicatorExpression(args: {
   // A population-only expression would be a rate with no numerator.
   if (ingredientIds.every(isPopulationTypeId)) {
     throw new IndicatorExpressionError(
-      "An expression must use at least one common indicator",
+      "An expression must use at least one indicator",
     );
   }
   if (ingredientIds.length > maxIngredients) {
     throw new IndicatorExpressionError(
-      `This definition needs ${ingredientIds.length} source indicators, more than the ${maxIngredients} a results row can carry: ${
+      `This definition needs ${ingredientIds.length} ingredient indicators, more than the ${maxIngredients} a results row can carry: ${
         ingredientIds.join(", ")
       }`,
     );

@@ -13,7 +13,7 @@ import {
   type Dhis2IndicatorSearchItem,
   type Dhis2CredentialsOrigin,
   type DHIS2CategoryOptionCombo,
-  type CommonIndicator,
+  type HmisIndicator,
 } from "lib";
 import {
   FrameTop,
@@ -171,7 +171,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
     Set<string>
   >(new Set());
   const [phase, setPhase] = createSignal<"select" | "name">("select");
-  const [dictionary, setDictionary] = createSignal<CommonIndicator[]>([]);
+  const [dictionary, setDictionary] = createSignal<HmisIndicator[]>([]);
   const [naming, setNaming] = createStore<NamingState>(
     structuredClone(EMPTY_NAMING_STATE),
   );

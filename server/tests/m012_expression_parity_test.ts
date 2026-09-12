@@ -12,24 +12,24 @@
 import { assert, assertEquals } from "@std/assert";
 import { join } from "@std/path";
 import {
-  type CommonIndicator,
-  type CommonIndicatorCatalogRow,
+  type HmisIndicator,
+  type HmisIndicatorCatalogRow,
   evaluateIndicatorExpression,
   type ExpressionValues,
   parseIndicatorExpression,
   POPULATION_TYPE_IDS,
-  resolveCommonIndicatorCatalog,
+  resolveHmisIndicatorCatalog,
 } from "lib";
 import { getModuleDefinitionDetail } from "../module_loader/mod.ts";
 import { getScriptWithParameters } from "../server_only_funcs/get_script_with_parameters.ts";
 
 const POPULATION_TYPE = "population_u5";
 
-function common(
+function indicator(
   id: string,
-  definition: CommonIndicator["definition"],
+  definition: HmisIndicator["definition"],
   sortOrder: number,
-): CommonIndicator {
+): HmisIndicator {
   return {
     indicator_common_id: id,
     indicator_common_label: id,
@@ -45,23 +45,23 @@ function common(
 // row: a missing ingredient, a zero denominator, a nullif that fires, a
 // population the store does not cover, an ingredient with no rows at all,
 // and a coalesce that turns a missing ingredient into a kept row.
-const COMMONS: CommonIndicator[] = [
-  common("anc1", { type: "base", dhis2_id: null }, 1),
-  common("anc4", { type: "base", dhis2_id: null }, 2),
-  common("penta1", { type: "base", dhis2_id: null }, 3),
-  common("opd", { type: "base", dhis2_id: null }, 4),
-  common("anc4_rate", { type: "derived", expression: "anc4 / anc1" }, 5),
-  common("anc4_rate_fill", {
+const INDICATORS: HmisIndicator[] = [
+  indicator("anc1", { type: "base", dhis2_id: null }, 1),
+  indicator("anc4", { type: "base", dhis2_id: null }, 2),
+  indicator("penta1", { type: "base", dhis2_id: null }, 3),
+  indicator("opd", { type: "base", dhis2_id: null }, 4),
+  indicator("anc4_rate", { type: "derived", expression: "anc4 / anc1" }, 5),
+  indicator("anc4_rate_fill", {
     type: "derived",
     expression: "coalesce(anc4, 0) / anc1",
   }, 6),
-  common("anc1_not5", { type: "derived", expression: "nullif(anc1, 5)" }, 7),
-  common("anc1_per_1000_u5", {
+  indicator("anc1_not5", { type: "derived", expression: "nullif(anc1, 5)" }, 7),
+  indicator("anc1_per_1000_u5", {
     type: "derived",
     expression: `1000 * anc1 / ${POPULATION_TYPE}`,
   }, 8),
-  common("penta1_share", { type: "derived", expression: "penta1 / anc1" }, 9),
-  common("anc_gap", {
+  indicator("penta1_share", { type: "derived", expression: "penta1 / anc1" }, 9),
+  indicator("anc_gap", {
     type: "derived",
     expression: "-anc1 + abs(anc4 - anc1)",
   }, 10),
@@ -161,7 +161,7 @@ const cellKey = (indicator: string, aa2: string, period: number) =>
 // builds. A row exists in m012 only when at least one ingredient joined
 // (its inner join), and survives only when the expression over the sums is
 // a number.
-function expectedCells(catalog: CommonIndicatorCatalogRow[]): Set<string> {
+function expectedCells(catalog: HmisIndicatorCatalogRow[]): Set<string> {
   const sums = new Map<string, number>();
   for (const r of ADJUSTED) {
     const key = cellKey(r.indicator, r.aa2, r.period);
@@ -258,8 +258,8 @@ Deno.test({
     const detailRes = await getModuleDefinitionDetail("m012", "en", undefined);
     if (!detailRes.success) throw new Error(detailRes.err);
     const detail = detailRes.data;
-    const catalog = resolveCommonIndicatorCatalog(
-      COMMONS,
+    const catalog = resolveHmisIndicatorCatalog(
+      INDICATORS,
       BASE_IDS_IN_DATA,
       POPULATION_TYPE_IDS,
     );

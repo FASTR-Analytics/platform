@@ -56,7 +56,7 @@ const icehIndicatorRow = z.object({
   sort_order: z.number(),
 });
 
-// The seed order of the 14 commons every instance was created with before
+// The seed order of the 14 indicators every instance was created with before
 // the special-indicator list replaced that seed (PLAN_A3 ruling 5). FROZEN
 // here rather than read from the live list: the manifest transform backfills
 // immutable old packages from it, and the special list may change.
@@ -78,7 +78,7 @@ const LEGACY_SEED_ORDER: readonly string[] = [
 ];
 
 // The sort_order backfill rule for dictionaries that predate the column
-// (PLAN_1a §1.9): seeded commons keep the seed order, remaining base commons
+// (PLAN_1a §1.9): seeded indicators keep the seed order, remaining bases
 // follow alphabetically, and the migrated catalog rows keep their own order
 // at the end. Instance migration 079 applied the same rule to the live
 // dictionary; this applies it to a legacy package's input mirrors, whose
@@ -90,7 +90,7 @@ const LEGACY_SEED_ORDER: readonly string[] = [
 //
 // Nothing on the READ path consults this: axis order comes from the
 // package's own catalog, never from a hardcoded list.
-function backfillCommonIndicatorSortOrder(args: {
+function backfillHmisIndicatorSortOrder(args: {
   baseIds: string[];
   calculatedIdsInCatalogOrder: string[];
 }): Map<string, number> {
@@ -117,7 +117,7 @@ function backfillCommonIndicatorSortOrder(args: {
 // indicators.json has TWO writer formats and ONE reader contract (PLAN_1a
 // §1.10). v1 (pre-restructure packages): id + label only, with a separate
 // calculated_indicators_snapshot.json beside it. v2 (this release onwards):
-// the whole common dictionary, resolved: type, flattened expression, slot
+// the whole HMIS dictionary, resolved: type, flattened expression, slot
 // map, presentation and sort. The discriminator is the `type` field, which
 // only v2 rows carry, and v1 REJECTS a row carrying it (the z.never()),
 // so a drifted v2 row fails the union and raises RunInputRowSchemaError
@@ -187,12 +187,12 @@ export async function buildRunIndicatorCatalog(
   return catalog;
 }
 
-// The manifest's `commonIndicators` field (PLAN_1a §1.9): the instance's
-// common indicator dictionary as the project shell shows it. Derived HERE,
+// The manifest's `hmisIndicators` field (PLAN_1a §1.9): the instance's
+// HMIS indicator dictionary as the project shell shows it. Derived HERE,
 // once: at finalize from a v2 mirror, and by manifest transform block 4 from
 // a legacy package's v1 mirror, so the read path never opens a mirror again.
 // Label-sorted, matching the per-request derivation it replaces.
-export async function buildRunCommonIndicators(
+export async function buildRunHmisIndicators(
   readRows: RunInputRowsReader,
 ): Promise<{ id: string; label: string }[]> {
   const rows = await readRows("indicators.json", indicatorRow);
@@ -347,7 +347,7 @@ async function deriveIndicatorMetadata(
       sort_order: ci.sort_order,
     });
   }
-  const sortOrderById = backfillCommonIndicatorSortOrder({
+  const sortOrderById = backfillHmisIndicatorSortOrder({
     baseIds: metadata.map((m) => m.id),
     calculatedIdsInCatalogOrder: snapshot.map((ci) =>
       ci.calculated_indicator_id

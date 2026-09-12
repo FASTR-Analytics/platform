@@ -4,8 +4,8 @@ import {
   APIResponseWithData,
   buildExpressionDictionary,
   collectIdentifiers,
-  type CommonIndicator,
-  type CommonIndicatorDefinition,
+  type HmisIndicator,
+  type HmisIndicatorDefinition,
   describeDhis2ParseRefusal,
   describeDhis2ElementRefusal,
   describeNewIndicatorIdIssue,
@@ -21,7 +21,7 @@ import {
   type IndicatorNamingElement,
   type IndicatorNamingInput,
   type InstanceIndicatorDetails,
-  isCommonIndicatorType,
+  isHmisIndicatorType,
   isDhis2ShapedId,
   MAX_INDICATOR_EXPRESSION_INGREDIENTS,
   parseIndicatorExpression,
@@ -56,10 +56,10 @@ export type DBIndicatorCommon = {
   sort_order: number;
 };
 
-const COMMON_INDICATOR_COLUMNS =
+const INDICATOR_COLUMNS =
   `indicator_common_id, indicator_common_label, definition_type, expression, dhis2_id, members, include_in_analysis, format_as, thresholds, sort_order`;
 
-export function dbRowToCommonIndicator(row: DBIndicatorCommon): CommonIndicator {
+export function dbRowToHmisIndicator(row: DBIndicatorCommon): HmisIndicator {
   return {
     indicator_common_id: row.indicator_common_id,
     indicator_common_label: row.indicator_common_label,
@@ -77,7 +77,7 @@ function thresholdsToDb(thresholds: ThresholdsRule | null): string | null {
   return thresholds === null ? null : JSON.stringify(thresholds);
 }
 
-function dbRowToDefinition(row: DBIndicatorCommon): CommonIndicatorDefinition {
+function dbRowToDefinition(row: DBIndicatorCommon): HmisIndicatorDefinition {
   switch (row.definition_type) {
     case "base":
       return { type: "base", dhis2_id: row.dhis2_id };
@@ -89,14 +89,14 @@ function dbRowToDefinition(row: DBIndicatorCommon): CommonIndicatorDefinition {
 }
 
 type DefinitionFields = {
-  definition_type: CommonIndicatorDefinition["type"];
+  definition_type: HmisIndicatorDefinition["type"];
   expression: string | null;
   dhis2_id: string | null;
   members: string | null;
 };
 
 function definitionFields(
-  definition: CommonIndicatorDefinition,
+  definition: HmisIndicatorDefinition,
 ): DefinitionFields {
   switch (definition.type) {
     case "base":
@@ -126,7 +126,7 @@ function definitionFields(
 // `format_as` is display-only and the sole scale (PLAN_1c ruling 3). A base
 // and a sum are counts, so they are always numbers; a derived one chooses.
 function formatRuleError(
-  definition: CommonIndicatorDefinition,
+  definition: HmisIndicatorDefinition,
   formatAs: IndicatorFormat,
 ): string | undefined {
   return definition.type !== "derived" && formatAs !== "number"
@@ -134,7 +134,7 @@ function formatRuleError(
     : undefined;
 }
 
-function dhis2IdError(definition: CommonIndicatorDefinition): string | undefined {
+function dhis2IdError(definition: HmisIndicatorDefinition): string | undefined {
   return definition.type === "base" && definition.dhis2_id !== null &&
       !isDhis2ShapedId(definition.dhis2_id)
     ? `DHIS2 id ${
@@ -148,8 +148,8 @@ function dhis2IdError(definition: CommonIndicatorDefinition): string | undefined
 // dictionary's id → type.
 function membersRuleError(
   ownId: string,
-  definition: CommonIndicatorDefinition,
-  types: Map<string, CommonIndicatorDefinition["type"]>,
+  definition: HmisIndicatorDefinition,
+  types: Map<string, HmisIndicatorDefinition["type"]>,
 ): string | undefined {
   if (definition.type !== "sum") return undefined;
   if (definition.members.length === 0) {
@@ -201,13 +201,13 @@ async function loadExpressionDictionaryEntries(
 // READ OPERATIONS
 // =============================================================================
 
-export async function getCommonIndicators(
+export async function getHmisIndicators(
   mainDb: Sql,
-): Promise<CommonIndicator[]> {
+): Promise<HmisIndicator[]> {
   const rows = await mainDb.unsafe<DBIndicatorCommon[]>(
-    `SELECT ${COMMON_INDICATOR_COLUMNS} FROM indicators ORDER BY sort_order, indicator_common_id`,
+    `SELECT ${INDICATOR_COLUMNS} FROM indicators ORDER BY sort_order, indicator_common_id`,
   );
-  return rows.map(dbRowToCommonIndicator);
+  return rows.map(dbRowToHmisIndicator);
 }
 
 export async function getInstanceIndicatorDetails(
@@ -216,7 +216,7 @@ export async function getInstanceIndicatorDetails(
   return await tryCatchDatabaseAsync(async () => {
     return {
       success: true,
-      data: { indicators: await getCommonIndicators(mainDb) },
+      data: { indicators: await getHmisIndicators(mainDb) },
     };
   });
 }
@@ -234,7 +234,7 @@ export async function getInstanceIndicatorDetails(
 // produce.
 async function checkDefinitionsResolve(
   mainDb: Sql,
-  pendingDefinitions: Map<string, CommonIndicatorDefinition>,
+  pendingDefinitions: Map<string, HmisIndicatorDefinition>,
 ): Promise<string | undefined> {
   // The resolver reports an unknown population identifier itself, listing
   // the type ids: the store's types are ordinary dictionary entries.
@@ -390,9 +390,9 @@ function describeOwnedElsewhere(
 
 async function loadTypes(
   sql: Sql,
-): Promise<Map<string, CommonIndicatorDefinition["type"]>> {
+): Promise<Map<string, HmisIndicatorDefinition["type"]>> {
   const rows = await sql<
-    { indicator_common_id: string; definition_type: CommonIndicatorDefinition["type"] }[]
+    { indicator_common_id: string; definition_type: HmisIndicatorDefinition["type"] }[]
   >`SELECT indicator_common_id, definition_type FROM indicators`;
   return new Map(rows.map((r) => [r.indicator_common_id, r.definition_type]));
 }
@@ -404,7 +404,7 @@ async function loadTypes(
 export type NewIndicator = {
   indicator_common_id: string;
   indicator_common_label: string;
-  definition: CommonIndicatorDefinition;
+  definition: HmisIndicatorDefinition;
   include_in_analysis: boolean;
   format_as: IndicatorFormat;
   thresholds: ThresholdsRule | null;
@@ -569,7 +569,7 @@ async function planIndicatorNaming(
   mainDb: Sql,
   input: IndicatorNamingInput,
 ): Promise<NamingPlan> {
-  const existing = await getCommonIndicators(mainDb);
+  const existing = await getHmisIndicators(mainDb);
   const existingById = new Map(existing.map((i) => [i.indicator_common_id, i]));
   const ownerOfDhis2Id = new Map<string, string>();
   for (const i of existing) {
@@ -923,7 +923,7 @@ export async function updateIndicator(
   });
 }
 
-export async function reorderCommonIndicators(
+export async function reorderHmisIndicators(
   mainDb: Sql,
   order: string[],
 ): Promise<APIResponseNoData> {
@@ -1017,7 +1017,7 @@ type BatchRow = {
   row: number;
   id: string;
   label: string;
-  definition: CommonIndicatorDefinition;
+  definition: HmisIndicatorDefinition;
   include_in_analysis: boolean;
   format_as: IndicatorFormat;
   thresholds: ThresholdsRule | null;
@@ -1062,7 +1062,7 @@ export async function batchUploadIndicators(
     }
     const rows = parsed.rows;
 
-    const existing = await getCommonIndicators(mainDb);
+    const existing = await getHmisIndicators(mainDb);
     const existingById = new Map(existing.map((i) => [i.indicator_common_id, i]));
     const fileIds = new Set(rows.map((r) => r.id));
 
@@ -1087,7 +1087,7 @@ export async function batchUploadIndicators(
 
     // The dictionary the file leaves behind: the file's rows plus, on an
     // upsert, every existing row the file does not name.
-    const survivors = new Map<string, CommonIndicatorDefinition>();
+    const survivors = new Map<string, HmisIndicatorDefinition>();
     if (!replaceAllExisting) {
       for (const i of existing) survivors.set(i.indicator_common_id, i.definition);
     }
@@ -1298,7 +1298,7 @@ function parseBatchRows(
       return { ok: false, err: `row ${row}: ${id} appears more than once` };
     }
     seen.add(id);
-    if (!isCommonIndicatorType(type)) {
+    if (!isHmisIndicatorType(type)) {
       return { ok: false, err: `row ${row} (${id}): type must be base, sum or derived` };
     }
     const dhis2Id = cell("dhis2_id");
@@ -1319,7 +1319,7 @@ function parseBatchRows(
     if (type !== "base" && dhis2Id !== "") {
       return { ok: false, err: `row ${row} (${id}): only a base indicator has a DHIS2 id` };
     }
-    const definition: CommonIndicatorDefinition = type === "base"
+    const definition: HmisIndicatorDefinition = type === "base"
       ? { type: "base", dhis2_id: dhis2Id === "" ? null : dhis2Id }
       : type === "sum"
       ? { type: "sum", members }

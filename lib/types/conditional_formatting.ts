@@ -46,8 +46,8 @@ export type ThresholdBucket = { color: ColorKeyOrString; label?: string };
 
 // A thresholds rule on its own: cutoffs in STORED units, ascending; one more
 // bucket than cutoffs; `label` is plain text, optional (an unlabelled bucket
-// prints the derived wording, bucketLabels). This is what a common indicator
-// carries (CommonIndicator.thresholds) and what the figure-level source wraps.
+// prints the derived wording, bucketLabels). This is what an HMIS indicator
+// carries (HmisIndicator.thresholds) and what the figure-level source wraps.
 //   direction: the semantic direction, which decides the ONE boundary rule
 //   (thresholdBucketIndex) and the label inclusivity:
 //     "higher-is-better" (default) → lowest bucket is "< X", highest is "≥ X".

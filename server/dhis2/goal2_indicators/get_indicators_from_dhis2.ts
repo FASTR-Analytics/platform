@@ -6,7 +6,6 @@
  * - Fetch indicators
  * - Search for indicators by name/code
  * - Get indicator groups and group sets
- * - Map indicators to internal common indicators
  */
 
 import type {

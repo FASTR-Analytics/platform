@@ -5,7 +5,7 @@ import {
   type Dhis2CredentialsOrigin,
   INDICATOR_BATCH_FILE_COLUMNS,
   INDICATOR_BATCH_MEMBERS_SEPARATOR,
-  type CommonIndicator,
+  type HmisIndicator,
   type InstanceIndicatorDetails,
   isSpecialIndicatorId,
   judgeDerivedIndicators,
@@ -106,7 +106,7 @@ export function IndicatorsManager(p: Props) {
   });
 
   // The batch file (ruling 7): the download mirrors the upload.
-  function handleDownloadCsv(list: CommonIndicator[]) {
+  function handleDownloadCsv(list: HmisIndicator[]) {
     const rows = list.map((indicator) => [
       indicator.indicator_common_id,
       indicator.indicator_common_label,
@@ -235,9 +235,9 @@ type IndicatorStatus = {
 };
 
 function IndicatorsTable(p: {
-  indicators: CommonIndicator[];
+  indicators: HmisIndicator[];
   idsWithRows: Set<string> | undefined;
-  handleDownloadCsv: (indicators: CommonIndicator[]) => void;
+  handleDownloadCsv: (indicators: HmisIndicator[]) => void;
 }) {
   // The bases and sums the extract could produce counts for: a base by its
   // own rows, a sum by any member's. Over every non-derived row rather than
@@ -283,7 +283,7 @@ function IndicatorsTable(p: {
     }
     return statuses;
   });
-  const statusOf = (indicator: CommonIndicator) =>
+  const statusOf = (indicator: HmisIndicator) =>
     statuses().get(indicator.indicator_common_id);
   const uncomputableCount = createMemo(
     () => [...statuses().values()].filter((s) => s.problem !== undefined).length,
@@ -296,7 +296,7 @@ function IndicatorsTable(p: {
     });
   }
 
-  async function handleUpdateIndicator(indicator: CommonIndicator) {
+  async function handleUpdateIndicator(indicator: HmisIndicator) {
     await openComponent({
       element: EditIndicatorForm,
       props: {
@@ -309,7 +309,7 @@ function IndicatorsTable(p: {
 
   // The checkbox in the list (ruling 12): the same update as the editor,
   // with nothing else changed. The SSE stamp refetches the list.
-  async function setIncludeInAnalysis(indicator: CommonIndicator, on: boolean) {
+  async function setIncludeInAnalysis(indicator: HmisIndicator, on: boolean) {
     const res = await serverActions.updateIndicator({
       old_indicator_common_id: indicator.indicator_common_id,
       indicator: {
@@ -333,7 +333,7 @@ function IndicatorsTable(p: {
     });
   }
 
-  async function handleDeleteIndicators(selected: CommonIndicator[]) {
+  async function handleDeleteIndicators(selected: HmisIndicator[]) {
     const indicatorIds = selected.map((i) => i.indicator_common_id);
     const deleteAction = createDeleteAction(
       {
@@ -358,7 +358,7 @@ function IndicatorsTable(p: {
     await deleteAction.click();
   }
 
-  const columns: TableColumn<CommonIndicator>[] = [
+  const columns: TableColumn<HmisIndicator>[] = [
     {
       key: "indicator_common_id",
       header: t3({ en: "Indicator ID", fr: "ID de l'indicateur", pt: "ID do indicador" }),
@@ -450,7 +450,7 @@ function IndicatorsTable(p: {
     },
   ];
 
-  const allColumns = createMemo<TableColumn<CommonIndicator>[]>(() => {
+  const allColumns = createMemo<TableColumn<HmisIndicator>[]>(() => {
     if (!instanceState.currentUserIsGlobalAdmin) return columns;
     return [
       ...columns,
@@ -482,7 +482,7 @@ function IndicatorsTable(p: {
     ];
   });
 
-  const bulkActions = createMemo<BulkAction<CommonIndicator>[]>(() =>
+  const bulkActions = createMemo<BulkAction<HmisIndicator>[]>(() =>
     instanceState.currentUserIsGlobalAdmin
       ? [
           {

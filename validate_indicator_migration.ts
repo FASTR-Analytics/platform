@@ -7,7 +7,7 @@ import { join } from "@std/path";
 import postgres, { type Sql } from "postgres";
 import {
   analysedIndicatorIds,
-  type CommonIndicator,
+  type HmisIndicator,
   generateIndicatorId,
   isDhis2ShapedId,
   isSpecialIndicatorId,
@@ -27,7 +27,7 @@ const RETIRED_KEYS = [
   "raw_indicator_id",
   "indicator_raw_id",
   "rawIndicatorsToInclude",
-  "commonIndicatorsToInclude",
+  "hmisIndicatorsToInclude",
   "indicatorType",
   "unmappedIndicators",
   "indicatorCommonId",
@@ -399,7 +399,7 @@ async function assertMigrated(sql: Sql, pre: PreState, lines: string[]): Promise
     ...pre.commons.map((c) => expected.renamedSpecials.get(c.id) ?? c.id),
     ...expected.renamedSpecials.keys(),
   ]);
-  const postCommons = post.map<CommonIndicator>((i) => ({
+  const postCommons = post.map<HmisIndicator>((i) => ({
     indicator_common_id: i.id,
     indicator_common_label: i.label,
     definition: i.type === "base"

@@ -11,7 +11,7 @@ import {
   type Dhis2RunPairInput,
   type Dhis2RunSelectionInput,
   type Dhis2ScheduleRecurrence,
-  type CommonIndicator,
+  type HmisIndicator,
 } from "lib";
 import { recurrenceLabel } from "../_recurrence_label";
 import {
@@ -152,7 +152,7 @@ export function Dhis2Wizard(
     scheduleDefaults?.selection.indicatorIds ?? [],
   );
   const [dictionary, setDictionary] = createSignal<
-    CommonIndicator[] | undefined
+    HmisIndicator[] | undefined
   >(undefined);
   const nElements = createMemo<number | undefined>(() => {
     const d = dictionary();

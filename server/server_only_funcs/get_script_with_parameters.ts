@@ -2,7 +2,7 @@ import {
   buildIndicatorExpressionsRLiteral,
   buildIndicatorIngredientsRLiteral,
   populationTypesReferencedByCatalog,
-  type CommonIndicatorCatalogRow,
+  type HmisIndicatorCatalogRow,
   type HfaIndicator,
   type HfaIndicatorCode,
   type HfaIndicatorVariantCode,
@@ -31,7 +31,7 @@ export function getScriptWithParameters(
   hfaVariantCode?: HfaIndicatorVariantCode[],
   hfaSentinelRows?: HfaSentinelRow[],
   hfaTimePointOrder?: string[],
-  commonIndicatorCatalog?: CommonIndicatorCatalogRow[],
+  hmisIndicatorCatalog?: HmisIndicatorCatalogRow[],
 ): string {
   if (moduleDefinition.scriptGenerationType === "hfa") {
     if (!knownDatasetVariables) {
@@ -70,18 +70,18 @@ export function getScriptWithParameters(
   // no-op.
   str = str.replaceAll(
     "INDICATOR_INGREDIENTS",
-    buildIndicatorIngredientsRLiteral(commonIndicatorCatalog ?? [])
+    buildIndicatorIngredientsRLiteral(hmisIndicatorCatalog ?? [])
   );
   str = str.replaceAll(
     "INDICATOR_EXPRESSIONS",
-    buildIndicatorExpressionsRLiteral(commonIndicatorCatalog ?? [])
+    buildIndicatorExpressionsRLiteral(hmisIndicatorCatalog ?? [])
   );
   // Whether any formula names a population: the same derivation the capture
   // stamps into the manifest, so m012 can skip the person-years file and keep
   // the data at its own admin level when nothing needs it.
   str = str.replaceAll(
     "POPULATION_ACTIVE",
-    populationTypesReferencedByCatalog(commonIndicatorCatalog ?? []).length > 0
+    populationTypesReferencedByCatalog(hmisIndicatorCatalog ?? []).length > 0
       ? "TRUE"
       : "FALSE"
   );

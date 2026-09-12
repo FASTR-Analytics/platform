@@ -6,18 +6,18 @@ import {
   analysedIdsWithData,
   analysedIndicatorIds,
   APIResponseWithData,
-  type CommonIndicator,
-  CommonIndicatorCatalogError,
-  type CommonIndicatorCatalogRow,
+  type HmisIndicator,
+  HmisIndicatorCatalogError,
+  type HmisIndicatorCatalogRow,
   getEnabledOptionalFacilityColumns,
   StructureSchema,
   isValidPeriodId,
-  resolveCommonIndicatorCatalog,
+  resolveHmisIndicatorCatalog,
   throwIfErrWithData,
   type DatasetHmisInfoInProject,
   POPULATION_TYPE_IDS,
 } from "lib";
-import { getCommonIndicators } from "../instance/indicators.ts";
+import { getHmisIndicators } from "../instance/indicators.ts";
 import {
   getStructureSchema,
 } from "../instance/config.ts";
@@ -96,10 +96,10 @@ export type ProjectFacilityRow = {
 export type DatasetHmisRunCapture = {
   info: DatasetHmisInfoInProject;
   lastUpdated: string;
-  // The v2 `indicators.json` mirror: the WHOLE common dictionary, resolved.
-  // (v1 carried only the commons that had mappings, and a separate calculated
+  // The v2 `indicators.json` mirror: the WHOLE HMIS dictionary, resolved.
+  // (v1 carried only the indicators that had data, and a separate calculated
   // snapshot beside it.)
-  indicators: CommonIndicatorCatalogRow[];
+  indicators: HmisIndicatorCatalogRow[];
   facilities: ProjectFacilityRow[];
   // The extract's month range and the structure's finest admin level: what
   // the person-years expansion (prepare_inputs) needs to know which months
@@ -171,12 +171,12 @@ export async function computeDatasetHmisRunCapture(
 
     // The analysed set (PLAN_A4 ruling 3) decides what the extract carries;
     // the catalog below is built from the same list and the same set.
-    const commonIndicators = await getCommonIndicators(mainDb);
-    const analysed = analysedIndicatorIds(commonIndicators, POPULATION_TYPE_IDS);
+    const hmisIndicators = await getHmisIndicators(mainDb);
+    const analysed = analysedIndicatorIds(hmisIndicators, POPULATION_TYPE_IDS);
 
     const exportStatement = getDatasetHmisExportStatement(
       resStructureSchema.data,
-      commonIndicators,
+      hmisIndicators,
       analysed,
     );
 
@@ -230,20 +230,20 @@ COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADE
       ).map((r) => r.indicator_id),
     );
     const baseIdsInData = analysedIdsWithData(
-      commonIndicators,
+      hmisIndicators,
       analysed,
       idsWithRows,
     );
 
-    let indicators: CommonIndicatorCatalogRow[];
+    let indicators: HmisIndicatorCatalogRow[];
     try {
-      indicators = resolveCommonIndicatorCatalog(
-        commonIndicators,
+      indicators = resolveHmisIndicatorCatalog(
+        hmisIndicators,
         baseIdsInData,
         POPULATION_TYPE_IDS,
       );
     } catch (e) {
-      if (!(e instanceof CommonIndicatorCatalogError)) throw e;
+      if (!(e instanceof HmisIndicatorCatalogError)) throw e;
       return {
         success: false,
         err:
@@ -277,7 +277,7 @@ COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADE
 // these, computed downstream.
 function getDatasetHmisExportStatement(
   structureSchema: StructureSchema,
-  commons: CommonIndicator[],
+  indicators: HmisIndicator[],
   analysed: Set<string>,
 ): string {
   // Admin columns up to the HMIS registry's own depth: never a global max
@@ -293,10 +293,10 @@ function getDatasetHmisExportStatement(
     ids.length === 0
       ? "(SELECT NULL::text WHERE false)"
       : `(VALUES ${ids.map((id) => `('${escapeSqlString(id)}')`).join(", ")})`;
-  const analysedBases = commons
+  const analysedBases = indicators
     .filter((c) => c.definition.type === "base" && analysed.has(c.indicator_common_id))
     .map((c) => c.indicator_common_id);
-  const analysedSums = commons
+  const analysedSums = indicators
     .filter((c) => c.definition.type === "sum" && analysed.has(c.indicator_common_id))
     .map((c) => c.indicator_common_id);
 

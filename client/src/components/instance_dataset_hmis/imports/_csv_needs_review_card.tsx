@@ -1,7 +1,7 @@
 import {
   t3,
   type DatasetHmisImportRunSummary,
-  type CommonIndicator,
+  type HmisIndicator,
 } from "lib";
 import {
   AlertComponentProps,
@@ -189,7 +189,7 @@ function CsvUnknownIdsNamingForm(
   );
   // Seeded once, from the dictionary as loaded: the proposed ids are
   // generated against it, and the user's edits must not be re-seeded away.
-  const [indicators, setIndicators] = createSignal<CommonIndicator[]>();
+  const [indicators, setIndicators] = createSignal<HmisIndicator[]>();
   createEffect(() => {
     const s = dictionary.state();
     if (s.status !== "ready" || indicators() !== undefined) return;

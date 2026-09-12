@@ -53,7 +53,7 @@ export type ProjectDetail = {
   projectDatasets: DatasetInProject[];
   projectModules: InstalledModuleSummary[];
   metrics: MetricWithStatus[];
-  commonIndicators: { id: string; label: string }[];
+  hmisIndicators: { id: string; label: string }[];
   icehIndicators: { id: string; label: string; category: string }[];
   hfaTaxonomy: HfaTaxonomyForAI;
   visualizations: PresentationObjectSummary[];

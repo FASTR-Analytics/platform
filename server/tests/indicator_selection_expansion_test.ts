@@ -10,7 +10,7 @@
 
 import { assertEquals } from "@std/assert";
 import {
-  type CommonIndicator,
+  type HmisIndicator,
   type Dhis2RunSelection,
   expandIndicatorSelection,
   POPULATION_TYPE_IDS,
@@ -21,7 +21,7 @@ const ANC1_ELEMENT = "AbCdEfGhIj1";
 const ANC1_OPERAND = "AbCdEfGhIj1.CocAaaaaaa1";
 const ANC4_ELEMENT = "KlMnOpQrSt2";
 
-function base(id: string, dhis2Id: string | null): CommonIndicator {
+function base(id: string, dhis2Id: string | null): HmisIndicator {
   return {
     indicator_common_id: id,
     indicator_common_label: id,
@@ -33,7 +33,7 @@ function base(id: string, dhis2Id: string | null): CommonIndicator {
   };
 }
 
-function sum(id: string, members: string[]): CommonIndicator {
+function sum(id: string, members: string[]): HmisIndicator {
   return {
     indicator_common_id: id,
     indicator_common_label: id,
@@ -45,7 +45,7 @@ function sum(id: string, members: string[]): CommonIndicator {
   };
 }
 
-function derived(id: string, expression: string): CommonIndicator {
+function derived(id: string, expression: string): HmisIndicator {
   return {
     indicator_common_id: id,
     indicator_common_label: id,
@@ -57,7 +57,7 @@ function derived(id: string, expression: string): CommonIndicator {
   };
 }
 
-const DICTIONARY: CommonIndicator[] = [
+const DICTIONARY: HmisIndicator[] = [
   base("anc1_first", ANC1_ELEMENT),
   base("anc1_repeat", ANC1_OPERAND),
   sum("anc1", ["anc1_first", "anc1_repeat"]),

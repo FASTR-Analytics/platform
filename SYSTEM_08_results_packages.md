@@ -648,15 +648,17 @@ version stamps the generation consumed; the module and metric catalogs as the in
 (so existing parsers apply unchanged); pinned asset names + hashes; and the §3.7
 memoization fields (`inputKey` per module, content hashes per output file).
 
-**`manifestSchemaVersion` gates every read**, currently `7`
-(`RUN_MANIFEST_SCHEMA_VERSION`; v7 = the `population` stamp gained `active`
+**`manifestSchemaVersion` gates every read**, currently `8`
+(`RUN_MANIFEST_SCHEMA_VERSION`; v8 = the `commonIndicators` list renamed
+`hmisIndicators` (PLAN_A4 ruling 13), a key rename, transform block 6;
+v7 = the `population` stamp gained `active`
 (recomputed from its own type list) and the per-type `coverage` m012's
 intersection rule records, carried forward as null, transform block 5;
 v6 = the indicator restructure:
 `indicators[]` catalog entries gained `sort_order` (backfilled for legacy
 packages, and the read path's axis order now comes from it) plus the
 `type`/`expression`/`slot_map` evaluation fields, a new top-level
-`commonIndicators` list replaced the read path's per-request read of the
+`hmisIndicators` list replaced the read path's per-request read of the
 indicators mirror, `metrics[].catalog_expression_evaluation` is carried
 forward as null, and the `population` stamp (the person-years file
 a wizard generation wrote: admin level, population types, month range) is
@@ -908,7 +910,7 @@ does not. Its other two inputs are tables, not dataSources and not files:
 the app substitutes them into `script.R` as R `tribble` literals in place of
 the `INDICATOR_INGREDIENTS` and `INDICATOR_EXPRESSIONS` tokens
 (`buildIndicatorIngredientsRLiteral` and `buildIndicatorExpressionsRLiteral`
-in `lib/common_indicator_catalog.ts`), the same channel as `COUNTRY_ISO3`
+in `lib/hmis_indicator_catalog.ts`), the same channel as `COUNTRY_ISO3`
 and every module parameter. The ingredient table says which base or sum (or
 population type's person-years row) fills which slot of which indicator.
 The expression table carries each indicator's flattened expression rewritten

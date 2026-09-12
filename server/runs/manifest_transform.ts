@@ -19,10 +19,10 @@
 //   3. facilityColumnsConfig → per-family structureSchemaHmis/Hfa slots
 //      (schema v5): the structure family split (PLAN_2). Pure copy, no
 //      recompute, no parquet read.
-//   4. commonIndicators stamped from the package's own indicators mirror,
+//   4. hmisIndicators stamped from the package's own indicators mirror,
 //      metrics[].catalog_expression_evaluation defaulted to null, and the
 //      `population` stamp defaulted to null (schema v6), the
-//      common-indicator restructure (PLAN_1a §1.9) and the population store
+//      indicator restructure (PLAN_1a §1.9) and the population store
 //      (PLAN_1b), one release. Note what this
 //      block does NOT do: it never patches indicators[]. Block 1 recomputes
 //      that catalog unconditionally on every forced pass through
@@ -34,6 +34,9 @@
 //      population.coverage carried forward as null (schema v7): m012 works on
 //      the intersection of population and HMIS data, and the stamp records
 //      what a generation covered.
+//   6. the `commonIndicators` key dropped (schema v8): block 4 stamps the
+//      same list as `hmisIndicators` (PLAN_A4 ruling 13), so this is a key
+//      rename and nothing else.
 //
 // =============================================================================
 
@@ -47,7 +50,7 @@ import {
 import { z } from "zod";
 import { join } from "@std/path";
 import {
-  buildRunCommonIndicators,
+  buildRunHmisIndicators,
   buildRunIndicatorCatalog,
   runDirInputRowsReader,
   RunInputReadError,
@@ -148,7 +151,7 @@ async function transformRunManifest(
   }
   m.manifestSchemaVersion = 5;
 
-  // 4. commonIndicators + metrics[].catalog_expression_evaluation +
+  // 4. hmisIndicators + metrics[].catalog_expression_evaluation +
   //    population. The first is a recompute from the package's own indicators
   //    mirror through the SAME function finalize stamps with: it moves the
   //    last per-request mirror read off the read path. The other two are not
@@ -157,7 +160,7 @@ async function transformRunManifest(
   //    package was written is carried forward as null, never synthesized
   //    (a pre-1b package has no inputs/population.csv, and the stamp says
   //    so). All three are idempotent.
-  m.commonIndicators = await buildRunCommonIndicators(
+  m.hmisIndicators = await buildRunHmisIndicators(
     runDirInputRowsReader(runDir, z.array(z.string()).parse(m.inputFiles ?? [])),
   );
   if (Array.isArray(m.metrics)) {
@@ -188,6 +191,12 @@ async function transformRunManifest(
     }
   }
   m.manifestSchemaVersion = 7;
+
+  // 6. `commonIndicators` → `hmisIndicators` (PLAN_A4 ruling 13). Block 4
+  //    already stamps the list under its new name on every forced pass, so
+  //    the only work is dropping the legacy key. Idempotent.
+  delete m.commonIndicators;
+  m.manifestSchemaVersion = 8;
 
   const validated = runManifestSchema.parse(m);
   // The schema deliberately accepts ANY integer version: it has to, so a

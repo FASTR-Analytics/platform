@@ -11,16 +11,16 @@ import { assertEquals } from "@std/assert";
 import {
   analysedIdsWithData,
   analysedIndicatorIds,
-  type CommonIndicator,
+  type HmisIndicator,
   POPULATION_TYPE_IDS,
-  resolveCommonIndicatorCatalog,
+  resolveHmisIndicatorCatalog,
 } from "lib";
 
 function indicator(
   id: string,
-  definition: CommonIndicator["definition"],
+  definition: HmisIndicator["definition"],
   includeInAnalysis: boolean,
-): CommonIndicator {
+): HmisIndicator {
   return {
     indicator_common_id: id,
     indicator_common_label: id,
@@ -32,7 +32,7 @@ function indicator(
   };
 }
 
-const DICTIONARY: CommonIndicator[] = [
+const DICTIONARY: HmisIndicator[] = [
   indicator("on_base", { type: "base", dhis2_id: "AbCdEfGhIj1" }, true),
   indicator("off_base", { type: "base", dhis2_id: "KlMnOpQrSt2" }, false),
   indicator("penta1", { type: "base", dhis2_id: null }, false),
@@ -85,7 +85,7 @@ Deno.test("catalog: analysed bases and sums as base rows, checked derived only",
     analysed,
     new Set(["on_base", "member_a", "member_b", "reached_base", "penta1"]),
   );
-  const catalog = resolveCommonIndicatorCatalog(
+  const catalog = resolveHmisIndicatorCatalog(
     DICTIONARY,
     withData,
     POPULATION_TYPE_IDS,

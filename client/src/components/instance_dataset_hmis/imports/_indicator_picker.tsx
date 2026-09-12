@@ -1,4 +1,4 @@
-import { t3, type CommonIndicator } from "lib";
+import { t3, type HmisIndicator } from "lib";
 import {
   StateHolderWrapper,
   Table,
@@ -18,7 +18,7 @@ type Props = {
   // The dictionary the picker loaded, so the wizard can count the DHIS2
   // elements a selection expands to (the same expansion the server persists
   // at launch).
-  onDictionaryLoaded: (indicators: CommonIndicator[]) => void;
+  onDictionaryLoaded: (indicators: HmisIndicator[]) => void;
 };
 
 // The indicator multi-select shared by the run launcher and the schedule
@@ -41,7 +41,7 @@ export function Dhis2IndicatorPicker(p: Props) {
     }
   });
 
-  const tableColumns: TableColumn<CommonIndicator>[] = [
+  const tableColumns: TableColumn<HmisIndicator>[] = [
     {
       key: "indicator_common_id",
       header: t3({

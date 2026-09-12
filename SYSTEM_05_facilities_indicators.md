@@ -15,7 +15,7 @@ globs:
   - client/src/state/instance/t2_indicators.ts
   - client/src/state/instance/t2_population.ts
   - client/src/state/instance/t2_structure.ts
-  - lib/common_indicator_catalog.ts
+  - lib/hmis_indicator_catalog.ts
   - lib/traffic_light_rule.ts
   - lib/hfa_indicator_labels.ts
   - lib/hfa_r_code_analysis.ts
@@ -277,7 +277,7 @@ those fields per type. Every row has `include_in_analysis`: on means the
 extract carries it and every package analyses it; off means dictionary
 only, its data still imported and stored, still usable as a member or in
 a formula. The analysed set is stated once, in
-`analysedIndicatorIds` (`lib/common_indicator_catalog.ts`): a base or sum
+`analysedIndicatorIds` (`lib/hmis_indicator_catalog.ts`): a base or sum
 with its checkbox on, or a special, or one a derived with its checkbox on
 reaches through the resolver; sum membership alone puts nothing in the
 extract, and a derived with its checkbox off is in no package (a checked
@@ -506,7 +506,7 @@ first-appearance order, and counts toward the uniform 8-slot cap. The
 dictionary the resolver works from is the indicators PLUS one `population`
 entry per store type, at authoring (`checkDefinitionsResolve`; an unknown
 identifier's error lists the population ids) and at HMIS capture
-(`resolveCommonIndicatorCatalog`, which
+(`resolveHmisIndicatorCatalog`, which
 refuses the whole capture with a listing when any flattened ingredient
 indicator is absent from the data. Population coverage is recorded, not
 checked, by the person-years writer, S8 "population.csv"). A sum is a leaf
@@ -516,7 +516,7 @@ as expression). The same resolver expands a DHIS2 import's selected
 indicators to the elements it fetches (`expandIndicatorSelection`, S6).
 
 **Computability is defined in one place**: `judgeDerivedIndicator` in
-`lib/common_indicator_catalog.ts`. A derived indicator is computable when
+`lib/hmis_indicator_catalog.ts`. A derived indicator is computable when
 its expression resolves and every flattened ingredient that is not a
 population term is an analysed base or sum with rows
 (`analysedIdsWithData`: a base by its own rows, a sum by any member's).

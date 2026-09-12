@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { type CommonIndicatorDefinition, isCommonIndicatorType } from "lib";
+import { type HmisIndicatorDefinition, isHmisIndicatorType } from "lib";
 import {
   batchUploadIndicators,
   createIndicators,
@@ -7,7 +7,7 @@ import {
   getInstanceIndicatorDetails,
   getInstanceIndicatorsSummary,
   type NewIndicator,
-  reorderCommonIndicators,
+  reorderHmisIndicators,
   updateIndicator,
 } from "../../db/mod.ts";
 import { log } from "../../middleware/logging.ts";
@@ -24,8 +24,8 @@ export const routesIndicators = new Hono();
 // vocabulary available.
 function narrowIndicatorDefinition(
   raw: { type: string } & Record<string, unknown>,
-): CommonIndicatorDefinition {
-  if (!isCommonIndicatorType(raw.type)) {
+): HmisIndicatorDefinition {
+  if (!isHmisIndicatorType(raw.type)) {
     throw new Error(`Unknown indicator type: ${raw.type}`);
   }
   switch (raw.type) {
@@ -130,7 +130,7 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("reorderIndicators"),
   async (c, { body }) => {
-    const res = await reorderCommonIndicators(c.var.mainDb, body.order);
+    const res = await reorderHmisIndicators(c.var.mainDb, body.order);
     if (res.success) {
       notifyInstanceIndicatorsUpdated(
         await getInstanceIndicatorsSummary(c.var.mainDb),

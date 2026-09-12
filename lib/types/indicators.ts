@@ -13,7 +13,7 @@ import {
 // ============================================================================
 
 export type InstanceIndicatorDetails = {
-  indicators: CommonIndicator[];
+  indicators: HmisIndicator[];
 };
 
 // The one dictionary file (PLAN_A4 ruling 7): `dhis2_id` for a DHIS2
@@ -89,7 +89,7 @@ function getIdCharsetIssue(id: string): NewIndicatorIdIssue | undefined {
 // and at retype, where the id is not new but its type is.
 export function getSpecialIndicatorTypeIssue(
   id: string,
-  type: CommonIndicatorType,
+  type: HmisIndicatorType,
 ): "special_not_base" | undefined {
   return isSpecialIndicatorId(id) && type === "derived"
     ? "special_not_base"
@@ -98,7 +98,7 @@ export function getSpecialIndicatorTypeIssue(
 
 export function getNewIndicatorIdIssue(
   id: string,
-  type: CommonIndicatorType,
+  type: HmisIndicatorType,
 ): NewIndicatorIdIssue | undefined {
   const charsetIssue = getIdCharsetIssue(id);
   if (charsetIssue) {
@@ -133,7 +133,7 @@ export function describeNewIndicatorIdIssue(issue: NewIndicatorIdIssue): string 
 }
 
 // ============================================================================
-// Common indicator definitions
+// HMIS indicator definitions
 // ============================================================================
 
 // What an indicator IS (PLAN_A4 §2). Generation decides what the numbers
@@ -154,38 +154,38 @@ export function describeNewIndicatorIdIssue(issue: NewIndicatorIdIssue): string 
 //             POPULATION_TYPES in lib/types/population.ts, a reserved
 //             word); it is a leaf ingredient exactly like a base, carrying
 //             that population's person-years.
-export type CommonIndicatorDefinition =
+export type HmisIndicatorDefinition =
   | { type: "base"; dhis2_id: string | null }
   | { type: "sum"; members: string[] }
   | { type: "derived"; expression: string };
 
-export type CommonIndicatorType = CommonIndicatorDefinition["type"];
+export type HmisIndicatorType = HmisIndicatorDefinition["type"];
 
-export const COMMON_INDICATOR_TYPES: readonly CommonIndicatorType[] = [
+export const HMIS_INDICATOR_TYPES: readonly HmisIndicatorType[] = [
   "base",
   "sum",
   "derived",
 ] as const;
 
-export function isCommonIndicatorType(
+export function isHmisIndicatorType(
   value: string,
-): value is CommonIndicatorType {
-  return (COMMON_INDICATOR_TYPES as readonly string[]).includes(value);
+): value is HmisIndicatorType {
+  return (HMIS_INDICATOR_TYPES as readonly string[]).includes(value);
 }
 
-// A common indicator's presentation: its display format and, optionally, a
+// An HMIS indicator's presentation: its display format and, optionally, a
 // conditional-formatting rule (cutoffs in STORED units, buckets with colour and
 // label, direction). A figure whose CF source is `indicator` colours each value
 // by its own indicator's rule; null means the indicator is never coloured.
 // `include_in_analysis` on means the extract carries the indicator and m001
 // and m002 adjust it (the analysed set, PLAN_A4 ruling 3, stated once in
-// lib/common_indicator_catalog.ts); off means dictionary only: its data is
+// lib/hmis_indicator_catalog.ts); off means dictionary only: its data is
 // still imported and stored, and it is still usable as a member or in an
 // expression.
-export type CommonIndicator = {
+export type HmisIndicator = {
   indicator_common_id: string;
   indicator_common_label: string;
-  definition: CommonIndicatorDefinition;
+  definition: HmisIndicatorDefinition;
   include_in_analysis: boolean;
   format_as: IndicatorFormat;
   thresholds: ThresholdsRule | null;
@@ -512,20 +512,20 @@ export type IndicatorMetadata = {
   id: string;
   label: string;
   format_as?: IndicatorFormat;
-  // The indicator's own CF rule (common indicators only). The `indicator` CF
+  // The indicator's own CF rule (HMIS indicators only). The `indicator` CF
   // source resolves it per value through EffectiveIndicatorFacts.ruleForValue.
   thresholds?: ThresholdsRule;
-  // The HFA/ICEH category carrier; a common indicator never sets it.
+  // The HFA/ICEH category carrier; an HMIS indicator never sets it.
   group_label?: string;
   sort_order?: number;
   // Common-indicator evaluation, stamped for HMIS dictionaries only
   // (PLAN_1a §1.5). `expression` is the FLATTENED formula: every identifier
-  // in it is a base common indicator or a population type id, and
+  // in it is a base indicator id or a population type id, and
   // `slot_map` says which ingredient column of an indicator_values row
   // carries that ingredient's sum. A `base` indicator's expression is its own
   // single slot. Absent on every other family's catalog entries, and on a
-  // base common the extract has no counts for.
-  type?: CommonIndicatorType;
+  // base the extract has no counts for.
+  type?: HmisIndicatorType;
   expression?: string;
   slot_map?: Record<string, string>;
 };

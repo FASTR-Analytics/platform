@@ -12,7 +12,7 @@
 
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import {
-  type CommonIndicator,
+  type HmisIndicator,
   type Dhis2IndicatorDecomposition,
   type Dhis2ElementVerdict,
 } from "lib";
@@ -22,7 +22,7 @@ import {
   createIndicators,
   createIndicatorsFromDhis2,
   type Dhis2NamingElement,
-  getCommonIndicators,
+  getHmisIndicators,
 } from "../db/instance/indicators.ts";
 import { parseDhis2Indicator } from "../dhis2/goal2_indicators/decompose_indicator.ts";
 
@@ -116,9 +116,9 @@ async function seedDerived(id: string, expression: string): Promise<void> {
   assert(res.success, res.success ? "" : res.err);
 }
 
-async function dictionary(): Promise<Map<string, CommonIndicator>> {
+async function dictionary(): Promise<Map<string, HmisIndicator>> {
   return new Map(
-    (await getCommonIndicators(db)).map((i) => [i.indicator_common_id, i]),
+    (await getHmisIndicators(db)).map((i) => [i.indicator_common_id, i]),
   );
 }
 

@@ -96,12 +96,12 @@ timeseries config lacks it); `values` = the PAE's `ingredientValues` when the
 metric has a post-aggregation expression, else filtered `valueProps` ×
 `valueFunc`; roll-up dimension baked in via `getEffectiveRollupDimension`.
 (Target model, ruled in S5's "additivity principle": derived
-common indicators are evaluated by THIS mechanism with row-restricted
+HMIS indicators are evaluated by THIS mechanism with row-restricted
 ingredients (`SUM(col) FILTER (WHERE indicator_common_id = …)`) and a
 catalog-supplied expression, on qualifying fetches. Qualification is
 RO-level (`indicator_common_id` column + all-SUM values
 + no metric-wide PAE), while `formatAs: "indicator"` stays the metric-level
-formatting fact. Not built; PLAN_1_COMMON_INDICATOR_TYPES.md.)
+formatting fact. Not built; PLAN_1_HMIS_INDICATOR_TYPES.md.)
 
 **The replicant pin and the options/items split.** `getFiltersWithReplicant`
 appends

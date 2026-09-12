@@ -1,8 +1,8 @@
-import { t3, type CommonIndicator } from "lib";
+import { t3, type HmisIndicator } from "lib";
 
 // The Type column (PLAN_A4 ruling 12): what fills the indicator, not its
 // storage type. One derivation for the manager and the import picker.
-export function indicatorTypeLabel(indicator: CommonIndicator): string {
+export function indicatorTypeLabel(indicator: HmisIndicator): string {
   switch (indicator.definition.type) {
     case "base":
       return indicator.definition.dhis2_id === null
@@ -18,7 +18,7 @@ export function indicatorTypeLabel(indicator: CommonIndicator): string {
 // What the indicator is made of: the DHIS2 id of an element, the members of
 // a sum, the formula of a derived indicator. One derivation for display and
 // sort.
-export function definedByText(indicator: CommonIndicator): string {
+export function definedByText(indicator: HmisIndicator): string {
   switch (indicator.definition.type) {
     case "base":
       return indicator.definition.dhis2_id ?? "";

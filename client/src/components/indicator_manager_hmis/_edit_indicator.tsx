@@ -22,11 +22,11 @@ import {
   _CF_LIGHTER_GREEN,
   _CF_LIGHTER_RED,
   _CF_LIGHTER_YELLOW,
-  buildCommonIndicatorDictionary,
-  type CommonIndicator,
+  buildHmisIndicatorDictionary,
+  type HmisIndicator,
   collectIdentifiers,
-  type CommonIndicatorDefinition,
-  type CommonIndicatorType,
+  type HmisIndicatorDefinition,
+  type HmisIndicatorType,
   type DerivedIndicatorComputability,
   getLanguage,
   getNewIndicatorIdIssue,
@@ -75,7 +75,7 @@ function defaultIndicatorRule(formatAs: IndicatorFormat): ThresholdsRule {
   };
 }
 
-const TYPE_OPTIONS: { value: CommonIndicatorType; label: string }[] = [
+const TYPE_OPTIONS: { value: HmisIndicatorType; label: string }[] = [
   {
     value: "base",
     label: t3({
@@ -131,12 +131,12 @@ type LegendRow = {
 export function EditIndicatorForm(
   p: AlertComponentProps<
     {
-      indicators: CommonIndicator[];
+      indicators: HmisIndicator[];
       // The bases and sums that have rows, as the manager knows them from the
       // ledger; undefined while it is still loading, when no ingredient is
       // judged to be missing data.
       idsWithData: Set<string> | undefined;
-      existingIndicator?: CommonIndicator;
+      existingIndicator?: HmisIndicator;
     },
     undefined
   >,
@@ -151,7 +151,7 @@ export function EditIndicatorForm(
   const [indicatorLabel, setIndicatorLabel] = createSignal(
     existing?.indicator_common_label || "",
   );
-  const [type, setType] = createSignal<CommonIndicatorType>(
+  const [type, setType] = createSignal<HmisIndicatorType>(
     existing?.definition.type ?? "base",
   );
   const [dhis2Id, setDhis2Id] = createSignal(
@@ -182,7 +182,7 @@ export function EditIndicatorForm(
   const ownId = () => indicatorId().trim() || "__new__";
   const isSpecial = () => isSpecialIndicatorId(indicatorId().trim());
 
-  function currentDefinition(): CommonIndicatorDefinition {
+  function currentDefinition(): HmisIndicatorDefinition {
     switch (type()) {
       case "derived":
         return { type: "derived", expression: expression().trim() };
@@ -230,7 +230,7 @@ export function EditIndicatorForm(
     () => {
       const formula = expression().trim();
       if (type() !== "derived" || formula === "") return undefined;
-      const dictionary = buildCommonIndicatorDictionary(
+      const dictionary = buildHmisIndicatorDictionary(
         [
           ...otherIndicators(),
           {
@@ -536,7 +536,7 @@ export function EditIndicatorForm(
       <Select
         label={t3({ en: "Type", fr: "Type", pt: "Tipo" })}
         value={type()}
-        onChange={(v) => setType(v as CommonIndicatorType)}
+        onChange={(v) => setType(v as HmisIndicatorType)}
         options={TYPE_OPTIONS}
         fullWidth
       />

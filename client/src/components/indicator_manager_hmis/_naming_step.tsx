@@ -9,8 +9,8 @@
 // operands are taking. The host owns the state (a Solid store) and posts
 // the result; the server applies the same rules again.
 import {
-  type CommonIndicator,
-  type CommonIndicatorType,
+  type HmisIndicator,
+  type HmisIndicatorType,
   describeNewIndicatorIdIssue,
   generateIndicatorId,
   getNewIndicatorIdIssue,
@@ -72,7 +72,7 @@ export const EMPTY_NAMING_STATE: NamingState = {
   derived: [],
 };
 
-function ownersOfDhis2Ids(indicators: CommonIndicator[]): Map<string, string> {
+function ownersOfDhis2Ids(indicators: HmisIndicator[]): Map<string, string> {
   const owners = new Map<string, string>();
   for (const indicator of indicators) {
     if (
@@ -92,7 +92,7 @@ export function createNamingState(args: {
   elements: NamingElementCandidate[];
   uploadedIds: string[];
   derived: NamingDerivedCandidate[];
-  indicators: CommonIndicator[];
+  indicators: HmisIndicator[];
 }): NamingState {
   const owners = ownersOfDhis2Ids(args.indicators);
   const existingIds = new Set([
@@ -137,15 +137,15 @@ export function createNamingState(args: {
 // element's UID is assigned to it instead of creating a new indicator.
 export function namingAssignTarget(
   indicatorId: string,
-  indicators: CommonIndicator[],
-): CommonIndicator | undefined {
+  indicators: HmisIndicator[],
+): HmisIndicator | undefined {
   const target = indicators.find((i) => i.indicator_common_id === indicatorId);
   return target?.definition.type === "base" && target.definition.dhis2_id === null
     ? target
     : undefined;
 }
 
-function idIssueText(id: string, type: CommonIndicatorType): string | undefined {
+function idIssueText(id: string, type: HmisIndicatorType): string | undefined {
   const issue = getNewIndicatorIdIssue(id, type);
   return issue === undefined ? undefined : describeNewIndicatorIdIssue(issue);
 }
@@ -170,7 +170,7 @@ function chosenTwice(key: string, id: string): string {
 // user is. Empty means the save can go.
 export function namingIssues(
   state: NamingState,
-  indicators: CommonIndicator[],
+  indicators: HmisIndicator[],
 ): string[] {
   const existingIds = new Set(indicators.map((i) => i.indicator_common_id));
   const issues: string[] = [];
@@ -293,7 +293,7 @@ const FORMAT_LABELS: Record<IndicatorFormat, () => string> = {
 export function NamingStep(p: {
   state: NamingState;
   setState: SetStoreFunction<NamingState>;
-  indicators: CommonIndicator[];
+  indicators: HmisIndicator[];
 }) {
   const issues = createMemo(() => namingIssues(p.state, p.indicators));
 
