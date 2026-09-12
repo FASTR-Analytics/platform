@@ -97,7 +97,7 @@ async function run(payload: ImportHmisDataCsvWorkerPayload) {
         importDb,
         csvFilePath,
         csvFileName: config.fileName,
-        mappings: config.mappings,
+        columns: config.columns,
         runId,
         onProgress: (percent) => {
           writeProgress({ phase: "staging", percent }, false);
@@ -111,7 +111,7 @@ async function run(payload: ImportHmisDataCsvWorkerPayload) {
           `All rows were dropped during staging: ` +
             `${v?.invalidFacilities.rowsDropped ?? 0} with unknown facilities, ` +
             `${v?.unknownIndicators.rowsDropped ?? 0} with unknown indicators. ` +
-            `Check the column mappings and try again.`,
+            `Check the columns and try again.`,
         );
       }
 

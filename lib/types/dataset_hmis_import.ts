@@ -5,7 +5,7 @@ import type { Dhis2StoredCredentialsInfo } from "./dhis2.ts";
 // CSV Import Run Types (PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase A)
 // ============================================================================
 
-export type HmisCsvMappingParams = {
+export type HmisCsvColumns = {
   facility_id: string;
   indicator_id: string;
   period_id: string;
@@ -13,10 +13,10 @@ export type HmisCsvMappingParams = {
 };
 
 // What the wizard sends at launch: the input asset's fileName plus the
-// mappings. The server validates the asset exists and stamps the pin.
+// columns. The server validates the asset exists and stamps the pin.
 export type DatasetHmisCsvRunLaunchInput = {
   fileName: string;
-  mappings: HmisCsvMappingParams;
+  columns: HmisCsvColumns;
 };
 
 // The CSV launch payload stored in dataset_hmis_import_runs.csv_config. The
@@ -28,7 +28,7 @@ export type DatasetHmisCsvRunLaunchInput = {
 export type DatasetHmisCsvRunConfig = {
   fileName: string;
   filePin: AssetFilePin;
-  mappings: HmisCsvMappingParams;
+  columns: HmisCsvColumns;
   resumeFromStaging?: boolean;
 };
 

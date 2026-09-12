@@ -523,7 +523,7 @@ async function assertMigrated(sql: Sql, pre: PreState, lines: string[]): Promise
   await scan("dataset_hmis_import_runs", "progress", pre.runRows, (v) =>
     isRecord(v) && Array.isArray(v.activePairs) && !v.activePairs.every(isPair) ? ["activePairs lack indicatorId"] : []);
   await scan("dataset_hmis_import_runs", "csv_config", pre.runRows, (v) =>
-    isRecord(v) && isRecord(v.mappings) && typeof v.mappings.indicator_id !== "string" ? ["mappings lack indicator_id"] : []);
+    isRecord(v) && isRecord(v.columns) && typeof v.columns.indicator_id !== "string" ? ["columns lack indicator_id"] : []);
   await scan("dataset_hmis_versions", "staging_result", pre.versionRows, (v) => {
     if (!isRecord(v)) return ["not an object"];
     const out: string[] = [];

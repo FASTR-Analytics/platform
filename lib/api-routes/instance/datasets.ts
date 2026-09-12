@@ -102,12 +102,12 @@ const dhis2ScheduleFieldsSchema = z.object({
   recurrence: dhis2ScheduleRecurrenceSchema.optional(),
 });
 
-// Reuses the step-2 mappings shape verbatim (HmisCsvMappingParams). The file
+// Reuses the Columns step's shape verbatim (HmisCsvColumns). The file
 // is an instance asset named by fileName; the server stamps the byte pin at
 // launch validation (pins never travel in client bodies).
 const hmisCsvRunConfigSchema = z.object({
   fileName: z.string(),
-  mappings: z.object({
+  columns: z.object({
     facility_id: z.string(),
     indicator_id: z.string(),
     period_id: z.string(),

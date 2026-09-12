@@ -461,7 +461,7 @@ CREATE TABLE dataset_hmis_import_ledger (
 -- server/db/instance/dataset_hmis_import_runs.ts. Per-pair outcomes live
 -- in dataset_hmis_import_ledger; run_stats holds per-run instrumentation
 -- (DHIS2) or the CSV staging diagnostics. dhis2_url/selection are DHIS2-only;
--- csv_config ({ fileName, filePin, mappings } JSON) is CSV-only — the
+-- csv_config ({ fileName, filePin, columns } JSON) is CSV-only — the
 -- pairing is enforced in code at the write boundary.
 CREATE TABLE dataset_hmis_import_runs (
   id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,

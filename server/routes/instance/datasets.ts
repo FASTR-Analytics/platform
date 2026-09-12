@@ -371,7 +371,7 @@ defineRoute(
 //                         //
 /////////////////////////////
 
-// Stateless: parses headers from the named asset for the wizard's mappings
+// Stateless: parses headers from the named asset for the wizard's Columns
 // step: no pin check, the wizard always wants current bytes. Nothing is
 // persisted by this call.
 defineRoute(

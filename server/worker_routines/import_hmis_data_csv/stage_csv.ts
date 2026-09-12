@@ -7,7 +7,7 @@ import {
   parseCountValue,
   throwIfErrWithData,
   type DatasetCsvStagingResult,
-  type HmisCsvMappingParams,
+  type HmisCsvColumns,
   type PeriodIndicatorStat,
 } from "lib";
 import {
@@ -66,11 +66,11 @@ export async function stageHmisCsvIntoTables(args: {
   importDb: Sql;
   csvFilePath: string;
   csvFileName: string;
-  mappings: HmisCsvMappingParams;
+  columns: HmisCsvColumns;
   runId: number;
   onProgress: (percent: number) => void;
 }): Promise<DatasetCsvStagingResult> {
-  const { importDb, csvFilePath, csvFileName, mappings, runId, onProgress } =
+  const { importDb, csvFilePath, csvFileName, columns, runId, onProgress } =
     args;
   const names = hmisCsvStagingTableNames(runId);
 
@@ -78,24 +78,24 @@ export async function stageHmisCsvIntoTables(args: {
   throwIfErrWithData(resComponents);
   const { encodedHeaderToIndexMap, processRows } = resComponents.data;
 
-  const mappingsRecord = mappings as unknown as Record<string, string>;
+  const columnsRecord = columns as unknown as Record<string, string>;
   const headerIndexes = {
     periodId: getCsvColumnIndex(
       encodedHeaderToIndexMap,
-      mappingsRecord,
+      columnsRecord,
       "period_id",
     ),
     facilityId: getCsvColumnIndex(
       encodedHeaderToIndexMap,
-      mappingsRecord,
+      columnsRecord,
       "facility_id",
     ),
     indicatorId: getCsvColumnIndex(
       encodedHeaderToIndexMap,
-      mappingsRecord,
+      columnsRecord,
       "indicator_id",
     ),
-    count: getCsvColumnIndex(encodedHeaderToIndexMap, mappingsRecord, "count"),
+    count: getCsvColumnIndex(encodedHeaderToIndexMap, columnsRecord, "count"),
   } as const;
 
   const dateImported = new Date().toISOString();
@@ -205,7 +205,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
         `${missingFieldsCount} with missing required fields, ` +
         `${invalidPeriodCount} with invalid period format, ` +
         `${invalidCountCount} with invalid count values. ` +
-        `Check the column mappings and try again.`,
+        `Check the columns and try again.`,
     );
   }
 

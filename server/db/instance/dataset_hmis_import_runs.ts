@@ -543,15 +543,15 @@ async function validateCsvRunConfig(
   mainDb: Sql,
   input: DatasetHmisCsvRunLaunchInput,
 ): Promise<DatasetHmisCsvRunConfig> {
-  const mappings = input.mappings;
+  const columns = input.columns;
   for (const key of [
     "facility_id",
     "indicator_id",
     "period_id",
     "count",
   ] as const) {
-    if (!mappings[key]) {
-      throw new Error(`Missing column mapping for ${key}.`);
+    if (!columns[key]) {
+      throw new Error(`No column chosen for ${key}.`);
     }
   }
   const { pin } = await resolveAssetFileOrThrow(input.fileName, null);
@@ -563,7 +563,7 @@ async function validateCsvRunConfig(
       "No HMIS facilities found. Import HMIS facilities before importing data.",
     );
   }
-  return { fileName: input.fileName, filePin: pin, mappings: input.mappings };
+  return { fileName: input.fileName, filePin: pin, columns: input.columns };
 }
 
 // Spawns the CSV run worker for a row already claimed as 'running'. Reads

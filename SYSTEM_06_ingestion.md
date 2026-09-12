@@ -83,7 +83,7 @@ history). Shape:
 - `dataset_hmis_import_runs` (main DB): one row per run, with trigger/user,
   `route` (`dhis2|csv`), selection JSON (DHIS2: a window of INDICATORS with
   its expansion to the elements it fetches, or explicit (indicator, month)
-  pairs) or `csv_config` JSON (CSV: `{ fileName, filePin, mappings }`; the
+  pairs) or `csv_config` JSON (CSV: `{ fileName, filePin, columns }`; the
   route→fields pairing is enforced in code), status
   (`queued|running|needs_review|complete|error|cancelled`), pair counters
   (DHIS2 only), throttled `progress` JSON (by-route union: in-flight pairs vs

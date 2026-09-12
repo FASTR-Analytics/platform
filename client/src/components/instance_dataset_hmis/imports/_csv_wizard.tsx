@@ -3,7 +3,7 @@ import {
   t3,
   type DatasetHmisCsvRunLaunchInput,
   type DatasetHmisImportRunSummary,
-  type HmisCsvMappingParams,
+  type HmisCsvColumns,
 } from "lib";
 import {
   AlertComponentProps,
@@ -32,7 +32,7 @@ type StepKind = "upload" | "columns" | "review";
 
 const STEPS: StepKind[] = ["upload", "columns", "review"];
 
-const _HMIS_SQL_COL_NAMES: (keyof HmisCsvMappingParams)[] = [
+const _HMIS_SQL_COL_NAMES: (keyof HmisCsvColumns)[] = [
   "facility_id",
   "indicator_id",
   "period_id",
@@ -49,7 +49,7 @@ export function CsvWizard(
   const [fileName, setFileName] = createSignal<string>("");
   const [headers, setHeaders] = createSignal<string[]>([]);
   const [headersError, setHeadersError] = createSignal<string>("");
-  const [columns, setColumns] = createStore<HmisCsvMappingParams>({
+  const [columns, setColumns] = createStore<HmisCsvColumns>({
     facility_id: "",
     indicator_id: "",
     period_id: "",
@@ -144,7 +144,7 @@ export function CsvWizard(
       }
       const config: DatasetHmisCsvRunLaunchInput = {
         fileName: selected,
-        mappings: structuredClone(unwrap(columns)),
+        columns: structuredClone(unwrap(columns)),
       };
       if (runActive()) {
         return await serverActions.enqueueDatasetHmisCsvRun({ config });
