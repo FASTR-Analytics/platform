@@ -38,12 +38,15 @@ export function ImportLedgerIndicatorDetail(
     Dhis2RunPairInput[] | undefined
   >,
 ) {
+  // The indicator under the key, with the UID beside it for a DHIS2
+  // element; an Uploaded indicator's key is opaque and not shown (PLAN_A6
+  // ruling 1). The bare key only where no indicator carries it.
   const subheading = () => {
     if (p.indicator === undefined) return p.dataId;
     const name = indicatorNameText(p.indicator);
-    return p.indicator.indicator_common_id === p.dataId
-      ? name
-      : `${name} · ${p.dataId}`;
+    return p.indicator.definition.type === "dhis2_element"
+      ? `${name} · ${p.dataId}`
+      : name;
   };
   const itemsByPeriod = new Map<number, DatasetHmisImportLedgerItem>();
   for (const item of p.items) {

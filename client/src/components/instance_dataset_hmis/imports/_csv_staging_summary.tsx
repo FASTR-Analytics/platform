@@ -8,7 +8,8 @@ type Props = {
 
 // The CSV staging diagnostics render (relocated from the deleted attempt
 // wizard's review step): used by the needs_review card and the CSV run
-// detail.
+// detail. Rows under values skipped in the mapping step are a statistic,
+// never a validation issue: the user chose the skip (PLAN_A6 ruling 5).
 export function CsvStagingSummary(p: Props) {
   const totalRecords = () =>
     p.result.periodIndicatorStats.reduce(
@@ -56,6 +57,16 @@ export function CsvStagingSummary(p: Props) {
             <span class="text-base-content">{t3({ en: "Non-duplicate rows:", fr: "Lignes non dupliquées :", pt: "Linhas não duplicadas:" })}</span>
             <span class="font-mono">{toNum0(p.result.dedupedRowCount)}</span>
           </div>
+          <Show when={p.result.validation?.skippedByMapping}>
+            {(skipped) => (
+              <div class="flex justify-between">
+                <span class="text-base-content">
+                  {t3({ en: "Rows under values skipped in the mapping step:", fr: "Lignes sous des valeurs ignorées à l'étape de correspondance :", pt: "Linhas sob valores ignorados no passo de correspondência:" })}
+                </span>
+                <span class="font-mono">{toNum0(skipped().rowsDropped)}</span>
+              </div>
+            )}
+          </Show>
           <div class="flex justify-between">
             <span class="text-base-content">
               {t3({ en: "Final rows ready for integrating:", fr: "Lignes finales prêtes pour l'intégration :", pt: "Linhas finais prontas para integração:" })}
@@ -73,8 +84,7 @@ export function CsvStagingSummary(p: Props) {
           ((p.result.validation.missingRequiredFields?.rowsDropped || 0) > 0 ||
             (p.result.validation.invalidCounts?.rowsDropped || 0) > 0 ||
             (p.result.validation.invalidPeriods?.rowsDropped || 0) > 0 ||
-            (p.result.validation.invalidFacilities?.rowsDropped || 0) > 0 ||
-            (p.result.validation.skippedByMapping?.rowsDropped || 0) > 0)
+            (p.result.validation.invalidFacilities?.rowsDropped || 0) > 0)
             ? p.result.validation
             : undefined
         }
@@ -138,15 +148,6 @@ export function CsvStagingSummary(p: Props) {
                     </div>
                   </div>
                 </Show>
-              </Show>
-              <Show when={validation().skippedByMapping?.rowsDropped}>
-                <div class="flex justify-between">
-                  <span>{t3({ en: "Rows under values skipped in the mapping step:", fr: "Lignes sous des valeurs ignorées à l'étape de correspondance :", pt: "Linhas sob valores ignorados no passo de correspondência:" })}</span>
-                  <span class="font-mono">
-                    {toNum0(validation().skippedByMapping.rowsDropped)}{" "}
-                    {t3({ en: "rows dropped", fr: "lignes supprimées", pt: "linhas descartadas" })}
-                  </span>
-                </div>
               </Show>
             </div>
           </div>

@@ -48,6 +48,8 @@ type DataIdRollup = {
 // the History tab, different axis.
 export function Dhis2TabByIndicator(p: Props) {
   const indicatorOf = (item: DataIdRollup) => p.indicatorsByDataId.get(item.dataId);
+  const dhis2IdOf = (item: DataIdRollup) =>
+    indicatorOf(item)?.definition.type === "dhis2_element" ? item.dataId : undefined;
 
   const columns: TableColumn<DataIdRollup>[] = [
     {
@@ -67,14 +69,14 @@ export function Dhis2TabByIndicator(p: Props) {
       render: (item) => indicatorOf(item)?.indicator_common_label ?? "",
     },
     {
-      key: "dataId",
-      header: t3({
-        en: "DHIS2 id / File id",
-        fr: "Identifiant DHIS2 / du fichier",
-        pt: "ID DHIS2 / do ficheiro",
-      }),
+      // The key is shown only where it means something to a reader: a
+      // DHIS2 element's UID. An Uploaded indicator's key is opaque (PLAN_A6
+      // ruling 1).
+      key: "dhis2Id",
+      header: t3({ en: "DHIS2 id", fr: "Identifiant DHIS2", pt: "ID DHIS2" }),
       sortable: true,
-      render: (item) => <span class="font-mono">{item.dataId}</span>,
+      sortValue: (item) => dhis2IdOf(item) ?? "",
+      render: (item) => <span class="font-mono">{dhis2IdOf(item) ?? ""}</span>,
     },
     {
       key: "monthsWithData",

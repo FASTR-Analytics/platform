@@ -638,9 +638,9 @@ function ReferenceListModal(p: AlertComponentProps<{}, undefined>) {
           </div>
           <div class="text-xs">
             {t3({
-              en: "The analysis modules read these ids by name as counts, so they are always analysed. A new instance is seeded with each as an Uploaded indicator with no file id; an existing one adds or deletes them like any indicator. A special id can only be Uploaded, a DHIS2 element or a Sum.",
-              fr: "Les modules d'analyse lisent ces identifiants par leur nom comme des dénombrements ; ils sont donc toujours analysés. Une nouvelle instance est initialisée avec chacun comme indicateur téléversé sans identifiant du fichier ; une instance existante les ajoute ou les supprime comme tout indicateur. Un identifiant spécial ne peut être que téléversé, un élément DHIS2 ou une somme.",
-              pt: "Os módulos de análise leem estes IDs pelo nome como contagens, pelo que são sempre analisados. Uma nova instância é iniciada com cada um como indicador carregado sem ID do ficheiro; uma instância existente adiciona-os ou elimina-os como qualquer indicador. Um ID especial só pode ser carregado, um elemento DHIS2 ou uma soma.",
+              en: "The analysis modules read these ids by name as counts, so one is always analysed whenever it exists. Create, rename or delete them in this list like any indicator. A special id can only be Uploaded, a DHIS2 element or a Sum.",
+              fr: "Les modules d'analyse lisent ces identifiants par leur nom comme des dénombrements ; un tel indicateur est donc toujours analysé dès qu'il existe. Créez, renommez ou supprimez-les dans cette liste comme tout indicateur. Un identifiant spécial ne peut être que téléversé, un élément DHIS2 ou une somme.",
+              pt: "Os módulos de análise leem estes IDs pelo nome como contagens, pelo que um é sempre analisado sempre que existe. Crie, renomeie ou elimine-os nesta lista como qualquer indicador. Um ID especial só pode ser carregado, um elemento DHIS2 ou uma soma.",
             })}
           </div>
           <div class="grid grid-cols-[repeat(auto-fit,minmax(18rem,1fr))] gap-x-4 gap-y-1">

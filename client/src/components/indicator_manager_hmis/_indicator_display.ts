@@ -24,22 +24,22 @@ export function indicatorTypeWord(type: HmisIndicatorType): string {
   }
 }
 
-// What a screen calls the data id (ruling 13): "DHIS2 id" on a DHIS2
-// element, "File id" on an Uploaded indicator. A sum or a derived has none.
-export function dataIdLabel(type: HmisIndicatorType): string {
-  return type === "dhis2_element"
-    ? t3({ en: "DHIS2 id", fr: "Identifiant DHIS2", pt: "ID DHIS2" })
-    : t3({ en: "File id", fr: "Identifiant du fichier", pt: "ID do ficheiro" });
+// What a screen calls a DHIS2 element's data id. An Uploaded indicator's
+// key is opaque and never shown (PLAN_A6 ruling 1); a sum or a derived has
+// none.
+export function dhis2IdLabel(): string {
+  return t3({ en: "DHIS2 id", fr: "Identifiant DHIS2", pt: "ID DHIS2" });
 }
 
-// What the indicator is made of: the data id of an Uploaded or DHIS2
-// element, the members of a sum, the formula of a derived indicator. One
-// derivation for display and sort.
+// What the indicator is made of: the DHIS2 id of an element, the members
+// of a sum, the formula of a derived indicator; nothing for an Uploaded
+// indicator. One derivation for display and sort.
 export function definedByText(indicator: HmisIndicator): string {
   switch (indicator.definition.type) {
     case "uploaded":
+      return "";
     case "dhis2_element":
-      return definitionDataId(indicator.definition) ?? "";
+      return indicator.definition.data_id;
     case "sum":
       return indicator.definition.members.join(", ");
     case "derived":

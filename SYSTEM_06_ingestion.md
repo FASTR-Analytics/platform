@@ -415,9 +415,13 @@ callback re-parses the new bytes).
   toolbar refresh via a `ledgerVersion` signal; stale rows stay visible until
   fresh ones arrive). By indicator is the import ledger: import history
   pivoted by data id (the ledger's key), each row labelled through the
-  dictionary (indicator id and label beside a "DHIS2 id / File id"
-  column, blank where no indicator carries the key), click-through to a
-  per-month detail (`_ledger_indicator_detail.tsx`).
+  dictionary (indicator id and label beside a "DHIS2 id" column that shows
+  the key only under a DHIS2 element; an Uploaded indicator's key is opaque
+  and never shown, PLAN_A6 ruling 1), click-through to a per-month detail
+  (`_ledger_indicator_detail.tsx`, headed the same way). The staging
+  summary the hold and the run detail render lists rows under skipped
+  values as a statistic beside the row counts, never as a validation
+  issue.
   "Re-import this indicator" closes the detail with a pair list and "Retry
   failed pairs" hands the tab's pair list to the shell; both feed the
   wizard's `presetPairs` entry, the same contract as History → run detail

@@ -282,10 +282,12 @@ extract into one facility × month series that m001 and m002 adjust like
 any count; no sum inside a sum), and `derived` (`expression`, a formula
 over indicators of any type and population terms, evaluated by m012 after
 adjustment and aggregation). The four words are the code names' labels
-(`indicatorTypeWord`); on screen the data id is "DHIS2 id" on a DHIS2
-element and "File id" on an Uploaded indicator (`dataIdLabel`), and "data
-id" appears only in server error strings, which the client renders
-verbatim. Two generated columns nothing may write hold the two
+(`indicatorTypeWord`); on screen a DHIS2 element's data id is its "DHIS2
+id" (`dhis2IdLabel`), an Uploaded indicator's key is never shown (PLAN_A6
+ruling 1: the ledger's By indicator column, its detail header, the
+manager's Defined-by column and the DHIS2 wizard's picker show the DHIS2 id
+for an element and nothing for an Uploaded indicator), and "data id"
+appears only in server error strings, which the client renders verbatim. Two generated columns nothing may write hold the two
 facts read off the type: `has_rows` (Uploaded or DHIS2 element) and
 `is_count` (those plus Sum), the same predicates as lib's `hasRows` and
 `isCount`. `data_id` is `UNIQUE` (`indicators_data_id_key`) and required
@@ -964,22 +966,22 @@ Every config mutation re-reads all configs and pushes one consolidated
   warning under the formula, and a checked derived whose formula reaches an
   indicator with its checkbox off says so under the formula once and saves
   (ruling 3). Counts have no status. The Status column is
-  sortable. It is not in the CSV download, because that file mirrors the
-  batch-import headers.
+  sortable. It is not in the CSV download, which carries the dictionary's
+  authored fields.
 - The manager is one list with a Type column (DHIS2 element, Uploaded, Sum,
   Derived, `indicatorTypeLabel`), two columns read off the type ("Goes
   through analysis modules", `isCount`; "Raw count", `hasRows`), a
-  Defined-by column (the data id of an
-  Uploaded or DHIS2 element, the members, the formula; `definedByText`,
-  shared with the import picker), the include-in-analysis checkbox on every
-  row (an `updateIndicator` with nothing else changed; the SSE stamp
-  refetches the list) and the Special badge. The editor offers the four
-  types with a caption each and branches on the type: an Uploaded or DHIS2
-  element has the data id input ("File id" or "DHIS2 id"; locked while
-  the ledger reports rows under it or has not loaded; a DHIS2 element's
-  must be set and DHIS2-shaped, an Uploaded indicator's is any text or
-  empty; neither may be another indicator's), a sum a member picker over
-  the indicators that have rows (at least one), a derived the formula,
+  Defined-by column (the DHIS2 id of an element, the members, the formula,
+  nothing for an Uploaded indicator; `definedByText`, shared with the
+  import picker), the include-in-analysis checkbox on every row (an
+  `updateIndicator` with nothing else changed; the SSE stamp refetches the
+  list) and the Special badge. The editor offers the four types with a
+  caption each and branches on the type: a DHIS2 element has the DHIS2 id
+  input (locked while the ledger reports rows under it or has not loaded;
+  set, DHIS2-shaped and no other element's), an Uploaded indicator has no
+  definition input (its key is the server's, and the type's caption says
+  the CSV import's mapping step fills it), a sum a member picker over the
+  indicators that have rows (at least one), a derived the formula,
   palette and legend with the Format and conditional-formatting controls,
   which no other type shows; every type has the checkbox, and a count is
   saved as `number` with no rule. The id input is editable on every
@@ -988,11 +990,10 @@ Every config mutation re-reads all configs and pushes one consolidated
   live under the input when the typed id is special, a new or changed id
   that another indicator holds is refused live under the input and again
   on save (`idTakenError`), a changed id goes through the validator on
-  save, the server's other refusals render as the form error, and a typed
-  id that is another indicator's data id shows whose, the shadow ruling 6
-  names. A switch out
-  of the two types that have rows is refused in the form while the ledger
-  reports rows or a sum names the indicator, as the server refuses it.
+  save, and the server's other refusals render as the form error. A switch
+  out of the two types that have rows is refused in the form while the
+  ledger reports rows or a sum names the indicator, as the server refuses
+  it.
 - The structure wizard: server owns the step number (every save writes
   `step`; the client fetcher jumps the stepper on each silent refetch).
   Errors render as a dismissible banner over navigable steps (re-saving
