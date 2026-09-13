@@ -973,10 +973,13 @@ Every config mutation re-reads all configs and pushes one consolidated
   which no other type shows; every type has the checkbox, and a count is
   saved as `number` with no rule. The id input is editable on every
   existing indicator (a special's caption says the modules stop finding
-  the id): a changed id goes through the
-  validator and the taken check before the save, with the server's other
-  refusals rendered as the form error, and a typed id that is another
-  indicator's data id shows whose, the shadow ruling 6 names. A switch out
+  the id): the Special badge (`SpecialBadge`, shared with the list) appears
+  live under the input when the typed id is special, a new or changed id
+  that another indicator holds is refused live under the input and again
+  on save (`idTakenError`), a changed id goes through the validator on
+  save, the server's other refusals render as the form error, and a typed
+  id that is another indicator's data id shows whose, the shadow ruling 6
+  names. A switch out
   of the two types that have rows is refused in the form while the ledger
   reports rows or a sum names the indicator, as the server refuses it.
 - The structure wizard: server owns the step number (every save writes

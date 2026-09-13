@@ -62,6 +62,7 @@ import {
   populationCoverageSummary,
 } from "./_computability";
 import { dataIdLabel, indicatorTypeWord } from "./_indicator_display";
+import { SpecialBadge } from "./_special_badge";
 
 // The rule a fresh "Set" starts from: three traffic-light bands at 70 / 80 in
 // the indicator's own display units, labelled in the UI language.
@@ -414,12 +415,13 @@ export function EditIndicatorForm(
     }
   }
 
-  // The server's refusals of a rename (ruling 5), stated where the user is:
-  // the new id passes the validator and is not taken.
-  function renameError(): string | undefined {
-    if (existing === undefined || !renaming()) return undefined;
+  // One indicator carries one id: a new id (created, or renamed to) that
+  // another indicator holds is refused here before the server does, live
+  // under the input and again on save.
+  function idTakenError(): string | undefined {
+    if (existing !== undefined && !renaming()) return undefined;
     const id = indicatorId().trim();
-    if (p.indicators.some((c) => c.indicator_common_id === id)) {
+    if (id !== "" && p.indicators.some((c) => c.indicator_common_id === id)) {
       return t3({
         en: `Indicator ID "${id}" is already taken`,
         fr: `L'identifiant d'indicateur « ${id} » est déjà utilisé`,
@@ -517,9 +519,9 @@ export function EditIndicatorForm(
         };
       }
 
-      const renameErr = renameError();
-      if (renameErr) {
-        return { success: false, err: renameErr };
+      const takenErr = idTakenError();
+      if (takenErr) {
+        return { success: false, err: takenErr };
       }
 
       // A new id (created or renamed to) goes through the validator; an
@@ -683,10 +685,15 @@ export function EditIndicatorForm(
             autoFocus={mode === "create"}
             mono
           />
+          <Show when={isSpecial()}>
+            <div>
+              <SpecialBadge />
+            </div>
+          </Show>
           <Show when={idCaption()}>
             {(caption) => <div class="ui-text-caption text-xs">{caption()}</div>}
           </Show>
-          <Show when={renameError()}>
+          <Show when={idTakenError()}>
             {(err) => <div class="text-danger text-xs">{err()}</div>}
           </Show>
           <Show when={shadowNote()}>

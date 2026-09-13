@@ -58,6 +58,7 @@ import { definedByText, indicatorTypeLabel } from "./_indicator_display";
 import { BatchUploadForm } from "./batch_upload_form";
 import { Dhis2IndicatorSelectForm } from "./dhis2_indicator_select_form";
 import { SortIndicatorsModal } from "./sort_indicators_modal";
+import { SpecialBadge } from "./_special_badge";
 
 type Props = {
   backToInstance: () => void;
@@ -395,16 +396,7 @@ function IndicatorsTable(p: {
         <span class="ui-gap-sm flex items-center">
           <span class="font-mono">{indicator.indicator_common_id}</span>
           <Show when={isSpecialIndicatorId(indicator.indicator_common_id)}>
-            <span
-              class="bg-primary-subtle text-primary-subtle-content rounded px-2 py-0.5 text-xs"
-              title={t3({
-                en: "Read by name by the analysis modules and always analysed; must stay Uploaded, a DHIS2 element or a Sum",
-                fr: "Lu par son identifiant par les modules d'analyse et toujours analysé ; doit rester téléversé, un élément DHIS2 ou une somme",
-                pt: "Lido pelo seu ID pelos módulos de análise e sempre analisado; tem de permanecer carregado, um elemento DHIS2 ou uma soma",
-              })}
-            >
-              {t3({ en: "Special", fr: "Spécial", pt: "Especial" })}
-            </span>
+            <SpecialBadge />
           </Show>
         </span>
       ),
