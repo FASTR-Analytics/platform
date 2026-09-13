@@ -280,12 +280,14 @@ CREATE UNLOGGED TABLE ${names.raw} (
   onProgress(88);
 
   // Resolution (PLAN_A5 ruling 6): a file value is matched first against
-  // an indicator's data id, then against the id of an indicator that has
-  // rows and a data id, which it resolves to. A value that is one
-  // indicator's data id and another's indicator id is refused with both
-  // named. Everything else is unknown: it lands in the hold, where the
-  // naming step creates an Uploaded indicator for it or an existing
-  // Uploaded indicator with no data id adopts it.
+  // an indicator's data id, then against an indicator's id; it resolves
+  // through the id only when that indicator has rows and a data id. A value
+  // that is one indicator's data id and another's indicator id, whatever
+  // that other's type, is refused with both named: this is the shadow a
+  // rename leaves (the old name stays the key), and the file must not land
+  // silently under the renamed indicator. Everything else is unknown: it
+  // lands in the hold, where the naming step creates an Uploaded indicator
+  // for it or an existing Uploaded indicator with no data id adopts it.
   let indicatorValidation: {
     total: number;
     sample: { data_id: string; row_count: number }[];
@@ -299,11 +301,10 @@ CREATE UNLOGGED TABLE ${names.raw} (
         v.value,
         by_data.indicator_common_id AS data_owner,
         by_id.indicator_common_id AS id_owner,
-        COALESCE(by_data.data_id, by_id.data_id) AS data_id
+        COALESCE(by_data.data_id, CASE WHEN by_id.has_rows THEN by_id.data_id END) AS data_id
       FROM (SELECT DISTINCT data_id AS value FROM ${names.validFacilities}) v
       LEFT JOIN indicators by_data ON by_data.data_id = v.value
-      LEFT JOIN indicators by_id
-        ON by_id.indicator_common_id = v.value AND by_id.has_rows AND by_id.data_id IS NOT NULL
+      LEFT JOIN indicators by_id ON by_id.indicator_common_id = v.value
     `);
     const ambiguous = await importDb<
       { value: string; data_owner: string; id_owner: string }[]

@@ -70,7 +70,7 @@ for org units); module runs that EXECUTE the HFA indicator R code and
 materialise indicator ingredients (m012) are **S8**; the query
 pipeline that joins facilities/geojson at render time, and applies each
 indicator's catalog expression after aggregation, is **S9**. Indicator
-DEFINITIONS (a base's DHIS2 id, a sum's members, derived expressions,
+DEFINITIONS (an Uploaded or DHIS2 element's data id, a sum's members, derived expressions,
 population rates) are S5's dictionary, snapshotted into each package at
 capture. Projects never
 read this system live. Everything crosses into project DBs via attach-time snapshots
@@ -259,7 +259,9 @@ previously invisible to the weights UI).
 
 Three identity-space patterns. HFA and ICEH ids are immutable after
 create (server-enforced; the UIs disable the inputs). The HMIS indicator
-id is renamable (below); label edits are always safe everywhere.
+id is renamable through `updateIndicator` (below); the editor still
+disables the id input on update, so no screen renames yet (PLAN_A5 step
+2). Label edits are always safe everywhere.
 
 **HMIS** (PLAN_A5 §2): the data rows of `dataset_hmis` are facts keyed by
 `data_id`, what DHIS2 or the file called the series, and the dictionary,
@@ -275,10 +277,12 @@ always set and DHIS2-shaped by CHECK), `sum` (its members in
 extract into one facility × month series that m001 and m002 adjust like
 any count; no sum inside a sum), and `derived` (`expression`, a formula
 over indicators of any type and population terms, evaluated by m012 after
-adjustment and aggregation). Every screen says Uploaded, DHIS2 element,
-Sum and Derived; a DHIS2 element's data id is labelled "DHIS2 id" and an
-Uploaded indicator's "File id"; "data id" is a name for developers and the
-dictionary file only. Two generated columns nothing may write hold the two
+adjustment and aggregation). The four words are the code names' labels
+(`indicatorTypeLabel`); the editor's one data-id input is labelled "DHIS2
+id" for both types that have rows, with a placeholder for an Uploaded
+indicator, and "data id" appears in server error strings (PLAN_A5 step 2
+gives the Uploaded input its own "File id" label and takes "data id" off
+screen). Two generated columns nothing may write hold the two
 facts read off the type: `has_rows` (Uploaded or DHIS2 element) and
 `is_count` (those plus Sum), the same predicates as lib's `hasRows` and
 `isCount`. `data_id` is `UNIQUE` (`indicators_data_id_key`); the junction's
@@ -317,11 +321,15 @@ keep their pairs, which are data ids; figure configs in project databases
 are not rewritten. Refused: renaming a special (the module scripts read it
 by name), renaming to a reserved, taken or special-when-derived id.
 Switching Uploaded and DHIS2 element either way is allowed with rows and
-changes none (to DHIS2 element needs a DHIS2-shaped data id); any switch
-to or from Sum or Derived is refused with rows or while a sum names the
-indicator. The data id may be taken, changed or cleared while no rows
-exist under it, within the type's rule; with rows it is fixed, and the
-error says to rename the indicator instead. Deleting an indicator refuses
+changes none (to DHIS2 element needs a DHIS2-shaped data id); a switch
+from Uploaded or DHIS2 element to Sum or Derived is refused with rows or
+while a sum names the indicator (the only guard; a Sum or Derived has no
+rows and no sum names it, so a switch away from them needs none). The
+data id may be taken, changed or cleared through `updateIndicator` while
+no rows exist under it, within the type's rule; with rows it is fixed, and
+the error says to rename the indicator instead. The editor is stricter:
+it locks the input once a data id is set (PLAN_A5 step 2 relaxes it to
+the server's rule). Deleting an indicator refuses
 with a listing when it has data (a sum is data, so the dependency on its
 members is strict), when a surviving sum names it, or when another
 indicator's expression still needs the id; the expression guard is exact
@@ -344,9 +352,11 @@ since rows need a data id); any other existing id is refused; one
 indicator carries one data id, so two elements cannot share a new id; a
 UID some indicator already holds creates nothing. A file value the CSV
 hold could not resolve becomes an Uploaded indicator carrying the value as
-its data id, under the value as its id when it passes the validator,
-otherwise a generated id; when the chosen id names an existing Uploaded
-indicator with no data id, that indicator adopts the value instead. A
+its data id, under the id the hold posts (today the value itself,
+`namingInputFromState`; a value that fails the validator refuses the save,
+and PLAN_A5 step 2 proposes a generated id instead); when the chosen id
+names an existing Uploaded indicator with no data id, that indicator
+adopts the value instead. A
 DHIS2 indicator decomposes (S7) into DHIS2 elements for its operands and a
 derived `(numerator) / (denominator)` over their ids: its expression names
 each operand by `[data_id]` and the transaction rewrites every identifier
@@ -393,8 +403,10 @@ data id, by the same shape rule (a DHIS2-shaped raw under an id generated
 from its label by the PL/pgSQL restatement of `generateIndicatorId`,
 pinned to the lib by `server/tests/indicator_migration_test.ts`; another
 raw under its own id when it passes the validator, else a generated one);
-a common whose raws did not fold becomes a sum over the indicators they
-became, its members written to the junction; a derived row under a special
+a non-derived common whose raws did not fold becomes a sum over the
+indicators they became, its members written to the junction (a mapping
+onto a derived common contributed nothing to the old extract and is
+dropped with the table); a derived row under a special
 id is renamed to its suffix form (`anc1_2`), every expression naming it
 rewritten, and an Uploaded indicator with no data id inserted under the
 special id; `include_in_analysis` is TRUE for every row that was a common
@@ -677,11 +689,12 @@ ids. No UI, no mutations.
 ## HFA time points
 
 `hfa_time_points` (label PK, `period_id` yyyymm, `sort_order`,
-`imported_at`) gate HFA data uploads and key the weights. This is the ONE
-dictionary where renames genuinely work: every referencing table
-(`hfa_variables`, `hfa_variable_values`, `hfa_data`,
-`hfa_facility_weights`, `hfa_indicator_code`) FKs the label with
-`ON UPDATE CASCADE`. Deletion cascades data/variables/weights in a single
+`imported_at`) gate HFA data uploads and key the weights. Renames work by
+cascade alone here: every referencing table (`hfa_variables`,
+`hfa_variable_values`, `hfa_data`, `hfa_facility_weights`,
+`hfa_indicator_code`) FKs the label with `ON UPDATE CASCADE` (the HMIS
+indicator id renames through the junction's cascade plus explicit
+rewrites, above). Deletion cascades data/variables/weights in a single
 transactional DELETE (the cascades are the implementation: no explicit
 child deletes) but is RESTRICTed by indicator code, with a friendly
 pre-check. Creating a time point auto-carries indicator R code forward
@@ -914,11 +927,11 @@ Every config mutation re-reads all configs and pushes one consolidated
   the hold's unknown ids.
 - Computability in the manager is shown, never enforced. The list has a
   Status column fed by one `createMemo` over the loaded dictionary calling
-  `judgeDerivedIndicators` (lib) with the bases and sums that have rows
+  `judgeDerivedIndicators` (lib) with the counts that have rows
   (`analysedIdsWithData` over every non-derived row, so an unchecked
-  derived is judged as it would be if checked). Which indicators have rows
+  derived is judged as it would be if checked). Which data ids have rows
   comes from the import ledger (`getDatasetHmisImportLedger`, one row per
-  indicator × month, the cheap answer), read once and again when the HMIS
+  data id × month, the cheap answer), read once and again when the HMIS
   data version moves; the list renders without it and the column fills in
   when it arrives. A dictionary edit updates the judgement through the
   ordinary `indicatorsVersion` refetch. An
@@ -933,18 +946,21 @@ Every config mutation re-reads all configs and pushes one consolidated
   refuses the save, as before. A flattened ingredient with no data is only a
   warning under the formula, and a checked derived whose formula reaches an
   indicator with its checkbox off says so under the formula once and saves
-  (ruling 3). Base and sum indicators have no status. The Status column is
+  (ruling 3). Counts have no status. The Status column is
   sortable. It is not in the CSV download, because that file mirrors the
   batch-import headers.
 - The manager is one list with a Type column (DHIS2 element, Uploaded, Sum,
-  Derived, `indicatorTypeLabel`), a Defined-by column (the DHIS2 id, the
-  members, the formula; `definedByText`, shared with the import picker), the
-  include-in-analysis checkbox on every row (an `updateIndicator` with
-  nothing else changed; the SSE stamp refetches the list) and the Special
-  badge. The editor branches on the type: a base has a DHIS2 id input (empty
-  for an uploaded indicator; read-only once set), a sum a member picker over
-  the other bases (at least one), a derived the formula, palette and legend;
-  every type has the checkbox, and a base or sum is forced to `number`.
+  Derived, `indicatorTypeLabel`), a Defined-by column (the data id of an
+  Uploaded or DHIS2 element, the members, the formula; `definedByText`,
+  shared with the import picker), the include-in-analysis checkbox on every
+  row (an `updateIndicator` with nothing else changed; the SSE stamp
+  refetches the list) and the Special badge. The editor branches on the
+  type: an Uploaded or DHIS2 element has the data id input (labelled "DHIS2
+  id" for both; read-only once set; the DHIS2 shape and uniqueness checks
+  apply to both, stricter than the server for an Uploaded indicator until
+  PLAN_A5 step 2), a sum a member picker over the indicators that have rows
+  (at least one), a derived the formula, palette and legend; every type has
+  the checkbox, and a count is forced to `number`.
 - The structure wizard: server owns the step number (every save writes
   `step`; the client fetcher jumps the stepper on each silent refetch).
   Errors render as a dismissible banner over navigable steps (re-saving

@@ -4,7 +4,7 @@
 
 -- 1. source discriminator. Backfill via the default (every existing row is a
 --    DHIS2 run), then drop the default — inserts are explicit thereafter.
---    Guarded on the post-087 column name: on a fresh install the column
+--    Guarded on the post-086 column name: on a fresh install the column
 --    already exists as `route`, so nothing is added.
 DO $$
 BEGIN

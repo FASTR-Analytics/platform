@@ -345,12 +345,13 @@ export function writeIndicatorExpression(node: ExpressionNode): string {
 
 // One identifier renamed in an expression's TEXT, formatting kept: a bare
 // identifier stands alone between non-identifier characters, a bracketed
-// one is `[from]` exactly, and text inside other brackets is untouched. The
-// same rule instance migration 086 applies in SQL (fastr_rename_identifier).
-// An indicator rename rewrites every stored expression with this, so the
-// author's spacing and parentheses survive; the replacement is written as
-// the grammar requires (`writeIdentifier`), since the new id may not be
-// bare-shaped.
+// one is `[from]` exactly, and text inside other brackets is untouched.
+// Instance migration 086's fastr_rename_identifier is the same segment rule
+// for the one rename it makes (a special id to its bare suffix form), but
+// substitutes the new id raw; this one writes the replacement as the
+// grammar requires (`writeIdentifier`), since a renamed indicator's new id
+// may not be bare-shaped. An indicator rename rewrites every stored
+// expression with this, so the author's spacing and parentheses survive.
 export function renameIdentifierInExpression(
   source: string,
   from: string,

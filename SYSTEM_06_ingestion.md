@@ -156,8 +156,11 @@ history). Shape:
   recorded then), so an element assigned after enqueue is not in that run.
   A pair is `{ dataId, periodId }` everywhere: the run's pairs, progress,
   fetch stats and failed fetches, the version row's stats, and the ledger,
-  which is keyed by `data_id`; the client labels them through the
-  dictionary. A pairs selection (retry failed, re-import from the ledger)
+  which is keyed by `data_id`. The client's label maps are still keyed by
+  indicator id and looked up by data id, so a DHIS2 element's label is
+  blank in the run detail and the By indicator tab until PLAN_A5 step 2
+  labels pairs through the dictionary. A pairs selection (retry failed,
+  re-import from the ledger)
   names (data id, month) pairs; `validateRunSelection` checks each data id
   belongs to a DHIS2 element and resolves nothing. Pinned by
   `server/tests/indicator_selection_expansion_test.ts`.
@@ -406,8 +409,9 @@ callback re-parses the new bytes).
   By indicator tab is showing (every switch to it, and every `refresh()` /
   toolbar refresh via a `ledgerVersion` signal; stale rows stay visible until
   fresh ones arrive). By indicator is the import ledger: import history
-  pivoted by indicator (the ledger's key) with the dictionary's label beside
-  each id, click-through to a per-month detail
+  pivoted by data id (the ledger's key), with a label column that is filled
+  only where the data id equals an indicator id until PLAN_A5 step 2,
+  click-through to a per-month detail
   (`_ledger_indicator_detail.tsx`).
   "Re-import this indicator" closes the detail with a pair list and "Retry
   failed pairs" hands the tab's pair list to the shell; both feed the

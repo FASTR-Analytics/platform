@@ -696,7 +696,8 @@ indicator set (PLAN_A4 ruling 3: every analysed count and every derived
 with its checkbox on), resolved: type, flattened expression, slot map,
 presentation and sort. The row's `type` is the stored type under its code
 name (`uploaded`, `dhis2_element`, `sum`, `derived`); a package generated
-before PLAN_A5 carries `base` for every count, which both schemas accept
+before PLAN_A5 carries `base` for every count, which `indicatorRowV2` and
+the manifest's `runIndicatorMetadataSchema` both accept (`PACKAGE_INDICATOR_TYPES`)
 and nothing maps or reads (the display projection strips `type`), and no
 package file is rewritten for it. `server/runs/indicator_catalog.ts` is the only reader of either, at
 finalize and transform time only, and discriminates on the `type` field that

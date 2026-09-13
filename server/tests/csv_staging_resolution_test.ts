@@ -1,9 +1,10 @@
 // Pins PLAN_A5 ruling 6: CSV staging resolves a file value two ways. A value
 // that is an indicator's data id lands under it; otherwise a value that is
 // the id of an indicator with rows and a data id lands under that data id;
-// a value that is one indicator's data id and another's id is refused with
-// both named; an Uploaded indicator's own id with no data id (the adopt
-// case) and a value matching nothing are held as unknown. Runs the real
+// a value that is one indicator's data id and another's id, whatever that
+// other's type, is refused with both named; an Uploaded indicator's own id
+// with no data id (the adopt case) and a value matching nothing are held as
+// unknown. Runs the real
 // stage leg on a throwaway database built from _main_database.sql on the
 // dev postgres (the .env the test task loads), dropped afterwards.
 //
@@ -47,8 +48,10 @@ await db`
 
 // The dictionary every case stages against: an element (data id ELEMENT),
 // an Uploaded with a data id, an Uploaded with none, a sum and a derived,
-// plus the shadow of a rename: `old_name` is the data id of `renamed` and
-// the id of a later Uploaded indicator with rows.
+// plus two shadows of a rename: `old_name` is the data id of `renamed` and
+// the id of a later Uploaded indicator with a data id of its own;
+// `old_empty` is the data id of `renamed2` and the id of a later Uploaded
+// indicator with no data id.
 await db`
   INSERT INTO indicators (indicator_common_id, indicator_common_label, definition_type, data_id, expression)
   VALUES
@@ -58,7 +61,9 @@ await db`
     ('total', 'Total', 'sum', NULL, NULL),
     ('rate', 'Rate', 'derived', NULL, 'anc1 / opd'),
     ('renamed', 'Renamed', 'uploaded', 'old_name', NULL),
-    ('old_name', 'Newer', 'uploaded', 'NEWER_FILE', NULL)
+    ('old_name', 'Newer', 'uploaded', 'NEWER_FILE', NULL),
+    ('renamed2', 'Renamed 2', 'uploaded', 'old_empty', NULL),
+    ('old_empty', 'Newer, empty', 'uploaded', NULL, NULL)
 `;
 await db`UPDATE indicators SET format_as = 'percent' WHERE indicator_common_id = 'rate'`;
 await db`INSERT INTO indicator_sum_members (sum_id, member_id) VALUES ('total', 'anc1'), ('total', 'opd')`;
@@ -131,6 +136,14 @@ Deno.test("a value that is one indicator's data id and another's id is refused w
   const err = await assertRejects(() => stage(["old_name", "OPD_FILE"]));
   const message = err instanceof Error ? err.message : String(err);
   assertStringIncludes(message, '"old_name" is the data id of renamed and the id of old_name');
+  await db.unsafe(`DROP TABLE IF EXISTS ${hmisCsvStagingTableNames(runId).resolved}`);
+  await db.unsafe(`DROP TABLE IF EXISTS ${hmisCsvStagingTableNames(runId).validFacilities}`);
+});
+
+Deno.test("the shadow is refused even when the later indicator has no data id: nothing lands under the renamed one", async () => {
+  const err = await assertRejects(() => stage(["old_empty"]));
+  const message = err instanceof Error ? err.message : String(err);
+  assertStringIncludes(message, '"old_empty" is the data id of renamed2 and the id of old_empty');
   await db.unsafe(`DROP TABLE IF EXISTS ${hmisCsvStagingTableNames(runId).resolved}`);
   await db.unsafe(`DROP TABLE IF EXISTS ${hmisCsvStagingTableNames(runId).validFacilities}`);
 });
