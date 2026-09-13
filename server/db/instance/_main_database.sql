@@ -324,8 +324,9 @@ CREATE INDEX idx_facilities_hfa_facility_ownership ON facilities_hfa(facility_ow
 -- the type, and the predicates lib restates as hasRows and isCount.
 -- `include_in_analysis` off keeps an indicator dictionary-only: its data is
 -- still stored, and it is still usable as a member or in a formula.
--- `thresholds` is the indicator's own conditional-formatting rule as JSON
--- text (lib thresholdsRuleSchema), NULL when it has none. The indicator id
+-- `thresholds` is a derived indicator's own conditional-formatting rule as
+-- JSON text (lib thresholdsRuleSchema), NULL when it has none and always
+-- NULL on a count, which is also always formatted as a number. The indicator id
 -- is renamable (ON UPDATE CASCADE follows it into the junction); the data
 -- id is fixed once rows exist under it (the data FK has no update action).
 -- A new database is seeded with each special indicator as an Uploaded
@@ -362,6 +363,7 @@ CREATE TABLE indicators (
     OR data_id ~ '^[a-zA-Z][a-zA-Z0-9]{10}(\.[a-zA-Z][a-zA-Z0-9]{10})?$'
   ),
   CONSTRAINT indicators_count_format_check CHECK (NOT is_count OR format_as = 'number'),
+  CONSTRAINT indicators_count_thresholds_check CHECK (NOT is_count OR thresholds IS NULL),
   -- Required by the composite FK in indicator_sum_members; redundant with the PK otherwise.
   CONSTRAINT indicators_common_id_has_rows_key UNIQUE (indicator_common_id, has_rows)
 );

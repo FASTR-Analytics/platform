@@ -16,7 +16,7 @@ dictionary can change without a data row moving. Renaming an indicator,
 a migration that touches no data, and a worker that writes what it
 fetched all follow from that.
 
-**Next step: Do 3.** Each session sets this line in its final commit. Its
+**Next step: Review 2.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N`; after step 3's review passes the
 file is deleted instead of advanced.
 
@@ -342,7 +342,10 @@ file, never a label a screen shows.
    by `ON UPDATE CASCADE`), rewrites every derived `expression` that names
    the old id (the lib identifier renamer; whole identifiers and exact
    `[id]` only, as 086 does), and rewrites `indicatorIds` in every
-   schedule's selection.
+   schedule's selection. *(Tim, 2026-09-13: renaming from a special id is
+   allowed. It takes the id out of the module scripts' inputs exactly as
+   deleting the indicator does; the two rules that matter, a special is a
+   count and is always analysed, stay.)*
    Historical run rows (selections, pairs, progress, stats) and version
    rows are history and are not rewritten; the pairs they hold are data
    ids and stay valid. Figure configs in project databases are not
@@ -499,6 +502,17 @@ file, never a label a screen shows.
     drops it from those modules. Proposed: leave them out of scope here and
     record them as a SYSTEM_05 open item; the fix is in the modules or in
     the special list, not in this plan.
+16. **Format and conditional formatting belong to a derived indicator**
+    *(Tim, 2026-09-13)*. A count is always `number` with no rule:
+    `indicators_count_thresholds_check` beside the format check, 086 nulls
+    a count's rule before adding it, the API and the dictionary file refuse
+    one, and the editor shows the Format and rule controls only for a
+    derived. The package catalog row still carries both fields for every
+    indicator, so nothing downstream changes. The manager gains two columns
+    read off the type: "Goes through analysis modules" (`isCount`) and "Raw
+    count" (`hasRows`; Tim's word, the one place this plan's vocabulary
+    rule yields). The reference-list modal is a `ModalContainer` with one
+    Done button.
 
 ## 4. Steps
 
@@ -773,3 +787,6 @@ agent reads this section before its step.
 | 2026-09-13 | 2 | Review 2 gates, rerun by the reviewer, all green: `deno task typecheck` with `lint:systems`, `deno task test` (124 passed), `./validate_protocols` (0 tier-1, 0 new tier-2, 17 baselined), the boot (`main.ts` against the dev database: 20 run manifests checked and 0 transformed, 285 routes, dev-boot tests 124, listening on 8000). The key grep over the step 1 files plus `client/src` has exactly the survivors the Do session listed (the datatable's `indicator_id` series column, the editor's and naming step's typed or chosen id, the By indicator tab's resolved-id column key, the select form's create field); the words grep over `client/src` has `dhis2_id`, `dhis2Id` and `baseIndicatorsVersion` at zero and `base` only as tailwind tokens, `const base` and the English word; the "Base" grep over the two directories at zero; "data id" as a screen string at zero in both. The Do session's route exercise (`exercise_step2.ts`, found in its session scratchpad) rerun against the boot: every check passed, ALL OK (the rename with the sum's members and the derived's expression rewritten and the 890 ledger rows untouched, the four refusals, the two allowed switches, every ledger and run-detail data id resolving through the dictionary, the CSV hold naming both values, the restage adopting one and creating one, the datatable, the delete window, the dictionary back at 19 rows). The dev database keeps one more CSV run and the versions the import and the delete minted. |
 | 2026-09-13 | 2 | Observations, no change asked. (a) `client/src/components/indicator_manager_hmis/indicators_manager.tsx:252` spells the count predicate `c.definition.type !== "derived"` where ruling 2 names `isCount`; the same spelling Review 1 accepted in lib's `isCount` itself (its observation (d)), so the same treatment; Tim decides whether either is worth a change. (b) `client/src/components/instance_dataset_hmis/imports/_ledger_indicator_detail.tsx:183` offers "Re-import this indicator" on every row, an Uploaded indicator's file id included, which `validateRunSelection` refuses as not a DHIS2 element; the button predates A5 and A4 had the same for an uploaded id. (c) Process: the step's exercise gate ran from a script in the Do session's scratchpad, not the repo, so §0's "a gate the reviewer can run from a file in the repo" held only because that scratchpad survived; CLAUDE.md makes the browser verification Tim's own and never a plan item, so no harness is asked for; Tim decides whether the script becomes a root-level `validate_*` file (it depends on the dev database's dictionary and facility ids). (d) `_import_information.tsx:157` prints a version's per-stat data id raw, as the Do session recorded; the version view is outside the deliverable. |
 | 2026-09-13 | 2 | Step 2 reviewed: pass. Next step Do 3. |
+| 2026-09-13 | 2 | Fix 2 on Tim's instruction after Review 2, a departure from §0 (the work list is Tim's, not a review's): rulings 5 and 16 amended in §3 as above. The rename refusal for a special is gone: `renameError` in `indicators.ts` no longer takes the old id, the editor's id input is enabled on a special with a caption saying the modules stop finding the id, the Special tooltip and the reference-list text drop "cannot be renamed", `lib/special_indicators.ts` says renaming is allowed, and `indicator_rename_test` now asserts `penta1` renames to `penta_one`. Format and the rule are a derived indicator's: `countRuleError` (was `formatRuleError`) refuses a rule on a count at create and update, the dictionary file's parser refuses one per row and its first pass writes `thresholds = NULL` with the real value in the second pass (the new CHECK is per statement), `indicators_count_thresholds_check` in the base schema and in 086 after a null-out of any count's rule, the constraint in `validate_indicator_migration`'s list, one `indicator_schema_test` case (refused on `total`, accepted on `rate`), the editor's Format and rule controls inside the derived branch and `thresholds` posted as null for a count, the batch form's column text. The manager has the two type-fact columns after Type (`TypeFactCell`, a check icon) and the reference-list modal is a `ModalContainer` with a Done button. SYSTEM_05 rewritten at the rename, special, presentation-fields, manager and editor passages. |
+| 2026-09-13 | 2 | Fix 2 gates: `deno task typecheck` with `lint:systems`, `deno task test` (125 passed), `./validate_protocols` (0 new flags), `./validate_migrations`, `./validate_fresh_boot`, `./validate_indicator_migration` over `dev-main-1.72.1.sql` (11 raws, 9 folded, 2 new, 386,758 data and 890 ledger rows unchanged by checksum), the boot against the dev database and a route check that `anc1` renames and renames back with the ledger untouched and that a count with a rule is refused. No count on the dev database carried a rule; production was not checked, and 086's null-out covers it either way. |
+| 2026-09-13 | 2 | Step 2 fixed (Tim's list). Next step Review 2. |

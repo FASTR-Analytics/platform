@@ -529,6 +529,10 @@ UPDATE indicators
 SET definition_type = CASE WHEN data_id ~ '^[a-zA-Z][a-zA-Z0-9]{10}(\.[a-zA-Z][a-zA-Z0-9]{10})?$' THEN 'dhis2_element' ELSE 'uploaded' END
 WHERE definition_type = 'base';
 
+-- A count has no conditional-formatting rule (PLAN_A5 ruling 16): a rule a
+-- pre-A5 count carried is dropped before the CHECK below is added.
+UPDATE indicators SET thresholds = NULL WHERE is_count AND thresholds IS NOT NULL;
+
 -- ── 3. The four types' CHECKs, once every row satisfies them ────────────────
 
 DO $$
@@ -554,6 +558,10 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'indicators_count_format_check') THEN
     ALTER TABLE indicators ADD CONSTRAINT indicators_count_format_check
       CHECK (NOT is_count OR format_as = 'number');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'indicators_count_thresholds_check') THEN
+    ALTER TABLE indicators ADD CONSTRAINT indicators_count_thresholds_check
+      CHECK (NOT is_count OR thresholds IS NULL);
   END IF;
 END $$;
 

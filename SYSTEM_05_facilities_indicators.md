@@ -317,8 +317,9 @@ updates the row, rewrites every derived expression that names the old id
 the author's text otherwise kept, the same rule 086 carries in SQL) and
 every schedule's `indicatorIds`; run and version rows are history and
 keep their pairs, which are data ids; figure configs in project databases
-are not rewritten. Refused: renaming a special (the module scripts read it
-by name), renaming to a reserved, taken or special-when-derived id.
+are not rewritten. Renaming a special is allowed and takes the id out of
+the module scripts' inputs, as deleting it does. Refused: renaming to a
+reserved, taken or special-when-derived id.
 Switching Uploaded and DHIS2 element either way is allowed with rows and
 changes none (to DHIS2 element needs a DHIS2-shaped data id); a switch
 from Uploaded or DHIS2 element to Sum or Derived is refused with rows or
@@ -554,7 +555,8 @@ ids, the six `POPULATION_TYPES` ids and the three function names.
 a derived at create and at retype (`special_derived`,
 `getSpecialIndicatorTypeIssue`, applied by `updateIndicator`, the batch
 upload and the editor), because the module scripts read it as a count; a
-special may be Uploaded, a DHIS2 element or a Sum, and is never renamed.
+special may be Uploaded, a DHIS2 element or a Sum, and renames like any
+other indicator.
 Migration 084 guards stored ids against the population and function
 names, and 086 renames a derived special.
 Generated ids
@@ -659,11 +661,14 @@ pointers only. Consequences that follow from it and are ruled with it:
 - Presentation fields (`format_as`, `thresholds`, `sort_order`) live on the
   indicator; `format_as` is DISPLAY, the `type` carries pipeline
   semantics: "percent" is not a pipeline property, "is a ratio of counts"
-  is. `thresholds` is a general conditional-formatting rule
+  is. `thresholds` is a derived indicator's conditional-formatting rule
   (`ThresholdsRule` as JSON text, like every JSON column: cutoffs in STORED
   units, buckets with colour and optional label, direction.
   `thresholdsRuleSchema` validates it at the API boundary and on every
-  read), or NULL. The instance editor edits it with
+  read), or NULL; a count carries NULL, as it carries `number`
+  (`indicators_count_thresholds_check` beside
+  `indicators_count_format_check`; the API and the batch file refuse a
+  rule on a count, the editor hides the control). The instance editor edits it with
   the same `ThresholdsPanel` the figure CF editor uses, in display units
   (S10 owns how a figure consumes it as the `indicator` CF source). Legacy
   packages' `calculated_indicators_snapshot.json` traffic-light pairs are
@@ -951,7 +956,9 @@ Every config mutation re-reads all configs and pushes one consolidated
   sortable. It is not in the CSV download, because that file mirrors the
   batch-import headers.
 - The manager is one list with a Type column (DHIS2 element, Uploaded, Sum,
-  Derived, `indicatorTypeLabel`), a Defined-by column (the data id of an
+  Derived, `indicatorTypeLabel`), two columns read off the type ("Goes
+  through analysis modules", `isCount`; "Raw count", `hasRows`), a
+  Defined-by column (the data id of an
   Uploaded or DHIS2 element, the members, the formula; `definedByText`,
   shared with the import picker), the include-in-analysis checkbox on every
   row (an `updateIndicator` with nothing else changed; the SSE stamp
@@ -962,9 +969,11 @@ Every config mutation re-reads all configs and pushes one consolidated
   must be set and DHIS2-shaped, an Uploaded indicator's is any text or
   empty; neither may be another indicator's), a sum a member picker over
   the indicators that have rows (at least one), a derived the formula,
-  palette and legend; every type has the checkbox, and a count is forced
-  to `number`. The id input is editable on an existing indicator (disabled
-  on a special, which cannot be renamed): a changed id goes through the
+  palette and legend with the Format and conditional-formatting controls,
+  which no other type shows; every type has the checkbox, and a count is
+  saved as `number` with no rule. The id input is editable on every
+  existing indicator (a special's caption says the modules stop finding
+  the id): a changed id goes through the
   validator and the taken check before the save, with the server's other
   refusals rendered as the form error, and a typed id that is another
   indicator's data id shows whose, the shadow ruling 6 names. A switch out

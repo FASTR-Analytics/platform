@@ -19,8 +19,8 @@ export type InstanceIndicatorDetails = {
 // The one dictionary file (PLAN_A5 ruling 11): `type` in the four code
 // names, `data_id` for an Uploaded or DHIS2 element, `members`
 // semicolon-separated for a sum, `expression` for a derived,
-// `include_in_analysis` true/false, `thresholds` the rule as JSON text or
-// empty. The download mirrors the upload.
+// `include_in_analysis` true/false, `thresholds` a derived indicator's rule
+// as JSON text and empty otherwise. The download mirrors the upload.
 export const INDICATOR_BATCH_FILE_COLUMNS = [
   "indicator_id",
   "label",

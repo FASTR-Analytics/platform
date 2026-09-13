@@ -415,18 +415,10 @@ export function EditIndicatorForm(
   }
 
   // The server's refusals of a rename (ruling 5), stated where the user is:
-  // a special cannot be renamed; the new id passes the validator and is not
-  // taken.
+  // the new id passes the validator and is not taken.
   function renameError(): string | undefined {
     if (existing === undefined || !renaming()) return undefined;
     const id = indicatorId().trim();
-    if (existingIsSpecial) {
-      return t3({
-        en: `${existing.indicator_common_id} is a special indicator, which the analysis modules read by name, so it cannot be renamed`,
-        fr: `${existing.indicator_common_id} est un indicateur spécial, lu par son identifiant par les modules d'analyse, et ne peut donc pas être renommé`,
-        pt: `${existing.indicator_common_id} é um indicador especial, lido pelo seu ID pelos módulos de análise, pelo que não pode ser renomeado`,
-      });
-    }
     if (p.indicators.some((c) => c.indicator_common_id === id)) {
       return t3({
         en: `Indicator ID "${id}" is already taken`,
@@ -601,7 +593,7 @@ export function EditIndicatorForm(
         definition: currentDefinition(),
         include_in_analysis: includeInAnalysis(),
         format_as: effectiveFormatAs(),
-        thresholds: rule,
+        thresholds: type() === "derived" ? rule : null,
       };
 
       if (mode === "create") {
@@ -621,9 +613,9 @@ export function EditIndicatorForm(
     if (mode === "create") return undefined;
     if (existingIsSpecial) {
       return t3({
-        en: "A special indicator is read by name by the analysis modules and cannot be renamed.",
-        fr: "Un indicateur spécial est lu par son identifiant par les modules d'analyse et ne peut pas être renommé.",
-        pt: "Um indicador especial é lido pelo seu ID pelos módulos de análise e não pode ser renomeado.",
+        en: "The analysis modules read this id by name: renaming it takes it out of their inputs until a count carries the id again. Renaming rewrites every formula and import schedule that names it; its data stays where it is.",
+        fr: "Les modules d'analyse lisent cet identifiant par son nom : le renommer le retire de leurs entrées jusqu'à ce qu'un dénombrement porte à nouveau cet identifiant. Renommer réécrit chaque formule et chaque importation planifiée qui le nomme ; ses données restent en place.",
+        pt: "Os módulos de análise leem este ID pelo nome: renomeá-lo retira-o das suas entradas até uma contagem voltar a ter este ID. Renomear reescreve todas as fórmulas e importações agendadas que o nomeiam; os seus dados ficam onde estão.",
       });
     }
     return t3({
@@ -690,7 +682,6 @@ export function EditIndicatorForm(
             fullWidth
             autoFocus={mode === "create"}
             mono
-            disabled={existingIsSpecial}
           />
           <Show when={idCaption()}>
             {(caption) => <div class="ui-text-caption text-xs">{caption()}</div>}
@@ -949,51 +940,52 @@ export function EditIndicatorForm(
                 pt: "Marcado: todos os pacotes de resultados analisam este indicador. Desmarcado: apenas dicionário; os seus dados continuam a ser importados e guardados, e pode continuar a ser membro de uma soma ou usado numa fórmula.",
               })}
           </div>
-          <Select
-            label={t3({ en: "Format", fr: "Format", pt: "Formato" })}
-            value={effectiveFormatAs()}
-            onChange={setFormatAs}
-            options={FORMAT_OPTIONS}
-            disabled={type() !== "derived"}
-            fullWidth
-          />
-          <Select
-            label={t3({
-              en: "Conditional formatting rule",
-              fr: "Règle de mise en forme conditionnelle",
-              pt: "Regra de formatação condicional",
-            })}
-            value={thresholds() ? "on" : "off"}
-            onChange={(v) =>
-              setThresholds(
-                v === "on"
-                  ? (thresholds() ?? defaultIndicatorRule(effectiveFormatAs()))
-                  : null,
-              )
-            }
-            options={[
-              {
-                value: "off",
-                label: t3({ en: "None", fr: "Aucune", pt: "Nenhuma" }),
-              },
-              {
-                value: "on",
-                label: t3({ en: "Set", fr: "Définie", pt: "Definida" }),
-              },
-            ]}
-            fullWidth
-          />
-          <Show when={thresholds()}>
-            {(rule) => (
-              <ThresholdsPanel
-                cf={rule()}
-                onChange={setThresholds}
-                formatAs={effectiveFormatAs()}
-                decimalPlaces={0}
-                showLabels={true}
-                showPresets={false}
-              />
-            )}
+          <Show when={type() === "derived"}>
+            <Select
+              label={t3({ en: "Format", fr: "Format", pt: "Formato" })}
+              value={formatAs()}
+              onChange={setFormatAs}
+              options={FORMAT_OPTIONS}
+              fullWidth
+            />
+            <Select
+              label={t3({
+                en: "Conditional formatting rule",
+                fr: "Règle de mise en forme conditionnelle",
+                pt: "Regra de formatação condicional",
+              })}
+              value={thresholds() ? "on" : "off"}
+              onChange={(v) =>
+                setThresholds(
+                  v === "on"
+                    ? (thresholds() ?? defaultIndicatorRule(formatAs()))
+                    : null,
+                )
+              }
+              options={[
+                {
+                  value: "off",
+                  label: t3({ en: "None", fr: "Aucune", pt: "Nenhuma" }),
+                },
+                {
+                  value: "on",
+                  label: t3({ en: "Set", fr: "Définie", pt: "Definida" }),
+                },
+              ]}
+              fullWidth
+            />
+            <Show when={thresholds()}>
+              {(rule) => (
+                <ThresholdsPanel
+                  cf={rule()}
+                  onChange={setThresholds}
+                  formatAs={formatAs()}
+                  decimalPlaces={0}
+                  showLabels={true}
+                  showPresets={false}
+                />
+              )}
+            </Show>
           </Show>
         </div>
       </div>

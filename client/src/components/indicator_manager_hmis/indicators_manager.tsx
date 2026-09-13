@@ -6,8 +6,10 @@ import {
   type Dhis2CredentialsOrigin,
   INDICATOR_BATCH_FILE_COLUMNS,
   INDICATOR_BATCH_MEMBERS_SEPARATOR,
+  hasRows,
   type HmisIndicator,
   type InstanceIndicatorDetails,
+  isCount,
   isSpecialIndicatorId,
   judgeDerivedIndicators,
   POPULATION_TYPE_IDS,
@@ -17,11 +19,12 @@ import {
 } from "lib";
 import {
   AlertComponentProps,
-  AlertFormHolder,
   Button,
   Checkbox,
   FrameTop,
   HeadingBar,
+  Icon,
+  ModalContainer,
   getQueryStateFromApiResponse,
   StateHolderWrapper,
   Table,
@@ -34,7 +37,14 @@ import {
   type BulkAction,
   type StateHolder,
 } from "panther";
-import { For, Show, createEffect, createMemo, createSignal, on } from "solid-js";
+import {
+  For,
+  Show,
+  createEffect,
+  createMemo,
+  createSignal,
+  on,
+} from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { getIndicatorsFromCacheOrFetch } from "~/state/instance/t2_indicators";
@@ -90,7 +100,9 @@ export function IndicatorsManager(p: Props) {
   // the cheap answer (one row per data id × month), re-read when an import
   // mints a new data version. A display-only enrichment: the list renders
   // without it and the status column fills in when it arrives.
-  const ledger = createQuery(() => serverActions.getDatasetHmisImportLedger({}));
+  const ledger = createQuery(() =>
+    serverActions.getDatasetHmisImportLedger({}),
+  );
   createEffect(
     on(
       () => instanceState.datasetVersions.hmis,
@@ -180,10 +192,19 @@ export function IndicatorsManager(p: Props) {
           <HeadingBar
             tonal
             onBack={p.backToInstance}
-            heading={t3({ en: "HMIS INDICATORS", fr: "INDICATEURS", pt: "INDICADORES" })}
+            heading={t3({
+              en: "HMIS INDICATORS",
+              fr: "INDICATEURS",
+              pt: "INDICADORES",
+            })}
           >
             <div class="ui-gap-sm flex items-center">
-              <Button iconName="info" onClick={handleReference} outline onBackground="base-200">
+              <Button
+                iconName="info"
+                onClick={handleReference}
+                outline
+                onBackground="base-200"
+              >
                 {t3({
                   en: "Special indicators and reserved words",
                   fr: "Indicateurs spéciaux et mots réservés",
@@ -269,15 +290,17 @@ function IndicatorsTable(p: {
     );
     for (const [id, judgement] of judgements) {
       statuses.set(id, {
-        problem: judgement.kind === "computable"
-          ? undefined
-          : computabilityProblemText(judgement),
-        population: judgement.kind === "unresolvable"
-          ? undefined
-          : missingPopulationText(
-            judgement.resolved,
-            instanceState.populationCoverage,
-          ),
+        problem:
+          judgement.kind === "computable"
+            ? undefined
+            : computabilityProblemText(judgement),
+        population:
+          judgement.kind === "unresolvable"
+            ? undefined
+            : missingPopulationText(
+                judgement.resolved,
+                instanceState.populationCoverage,
+              ),
       });
     }
     return statuses;
@@ -285,7 +308,8 @@ function IndicatorsTable(p: {
   const statusOf = (indicator: HmisIndicator) =>
     statuses().get(indicator.indicator_common_id);
   const uncomputableCount = createMemo(
-    () => [...statuses().values()].filter((s) => s.problem !== undefined).length,
+    () =>
+      [...statuses().values()].filter((s) => s.problem !== undefined).length,
   );
 
   async function handleCreateIndicator() {
@@ -336,17 +360,18 @@ function IndicatorsTable(p: {
     const indicatorIds = selected.map((i) => i.indicator_common_id);
     const deleteAction = createDeleteAction(
       {
-        text: indicatorIds.length === 1
-          ? t3({
-            en: "Are you sure you want to delete this indicator?",
-            fr: "Êtes-vous sûr de vouloir supprimer cet indicateur ?",
-            pt: "Tem a certeza de que pretende eliminar este indicador?",
-          })
-          : t3({
-            en: "Are you sure you want to delete these indicators?",
-            fr: "Êtes-vous sûr de vouloir supprimer ces indicateurs ?",
-            pt: "Tem a certeza de que pretende eliminar estes indicadores?",
-          }),
+        text:
+          indicatorIds.length === 1
+            ? t3({
+                en: "Are you sure you want to delete this indicator?",
+                fr: "Êtes-vous sûr de vouloir supprimer cet indicateur ?",
+                pt: "Tem a certeza de que pretende eliminar este indicador?",
+              })
+            : t3({
+                en: "Are you sure you want to delete these indicators?",
+                fr: "Êtes-vous sûr de vouloir supprimer ces indicateurs ?",
+                pt: "Tem a certeza de que pretende eliminar estes indicadores?",
+              }),
         itemList: selected.map(
           (i) => `${i.indicator_common_id} ~ ${i.indicator_common_label}`,
         ),
@@ -360,7 +385,11 @@ function IndicatorsTable(p: {
   const columns: TableColumn<HmisIndicator>[] = [
     {
       key: "indicator_common_id",
-      header: t3({ en: "Indicator ID", fr: "ID de l'indicateur", pt: "ID do indicador" }),
+      header: t3({
+        en: "Indicator ID",
+        fr: "ID de l'indicateur",
+        pt: "ID do indicador",
+      }),
       sortable: true,
       render: (indicator) => (
         <span class="ui-gap-sm flex items-center">
@@ -369,9 +398,9 @@ function IndicatorsTable(p: {
             <span
               class="bg-primary-subtle text-primary-subtle-content rounded px-2 py-0.5 text-xs"
               title={t3({
-                en: "Read by name by the analysis modules and always analysed; must stay Uploaded, a DHIS2 element or a Sum, and cannot be renamed",
-                fr: "Lu par son identifiant par les modules d'analyse et toujours analysé ; doit rester téléversé, un élément DHIS2 ou une somme, et ne peut pas être renommé",
-                pt: "Lido pelo seu ID pelos módulos de análise e sempre analisado; tem de permanecer carregado, um elemento DHIS2 ou uma soma, e não pode ser renomeado",
+                en: "Read by name by the analysis modules and always analysed; must stay Uploaded, a DHIS2 element or a Sum",
+                fr: "Lu par son identifiant par les modules d'analyse et toujours analysé ; doit rester téléversé, un élément DHIS2 ou une somme",
+                pt: "Lido pelo seu ID pelos módulos de análise e sempre analisado; tem de permanecer carregado, um elemento DHIS2 ou uma soma",
               })}
             >
               {t3({ en: "Special", fr: "Spécial", pt: "Especial" })}
@@ -393,14 +422,34 @@ function IndicatorsTable(p: {
       render: (indicator) => <span>{indicatorTypeLabel(indicator)}</span>,
     },
     {
+      key: "goes_through_analysis_modules",
+      header: t3({
+        en: "Goes through analysis modules",
+        fr: "Passe par les modules d'analyse",
+        pt: "Passa pelos módulos de análise",
+      }),
+      sortable: true,
+      sortValue: (indicator) => (isCount(indicator.definition.type) ? 0 : 1),
+      render: (indicator) => <TypeFactCell when={isCount(indicator.definition.type)} />,
+    },
+    {
+      key: "is_raw_count",
+      header: t3({ en: "Raw count", fr: "Dénombrement brut", pt: "Contagem bruta" }),
+      sortable: true,
+      sortValue: (indicator) => (hasRows(indicator.definition.type) ? 0 : 1),
+      render: (indicator) => <TypeFactCell when={hasRows(indicator.definition.type)} />,
+    },
+    {
       key: "defined_by",
       header: t3({ en: "Defined by", fr: "Défini par", pt: "Definido por" }),
       sortable: true,
       sortValue: definedByText,
       render: (indicator) =>
-        indicator.definition.type === "derived"
-          ? <div class="font-mono">{indicator.definition.expression}</div>
-          : <div class="font-mono text-xs">{definedByText(indicator)}</div>,
+        indicator.definition.type === "derived" ? (
+          <div class="font-mono">{indicator.definition.expression}</div>
+        ) : (
+          <div class="font-mono text-xs">{definedByText(indicator)}</div>
+        ),
     },
     {
       key: "include_in_analysis",
@@ -438,9 +487,7 @@ function IndicatorsTable(p: {
                 )}
               </Show>
               <Show when={s().population}>
-                {(population) => (
-                  <div class="text-warning">{population()}</div>
-                )}
+                {(population) => <div class="text-warning">{population()}</div>}
               </Show>
             </div>
           )}
@@ -506,7 +553,11 @@ function IndicatorsTable(p: {
             iconName="download"
             intent="neutral"
           >
-            {t3({ en: "Download CSV", fr: "Télécharger le CSV", pt: "Transferir o CSV" })}
+            {t3({
+              en: "Download CSV",
+              fr: "Télécharger le CSV",
+              pt: "Transferir o CSV",
+            })}
           </Button>
           <Button
             onClick={handleSortIndicators}
@@ -554,7 +605,11 @@ function IndicatorsTable(p: {
             pt: "Nenhum indicador",
           })}
           bulkActions={bulkActions()}
-          selectionLabel={t3({ en: "indicator", fr: "indicateur", pt: "indicador" })}
+          selectionLabel={t3({
+            en: "indicator",
+            fr: "indicateur",
+            pt: "indicador",
+          })}
           fitTableToAvailableHeight
         />
       </div>
@@ -564,30 +619,49 @@ function IndicatorsTable(p: {
 
 // The reference list (PLAN_A3 ruling 5): the special ids the analysis
 // modules read by name, and every reserved word no indicator id may be.
+// The two facts the table reads off the type (PLAN_A5 §2): a count goes
+// through m001 and m002, and an Uploaded or DHIS2 element is the raw count
+// its own rows hold.
+function TypeFactCell(p: { when: boolean }) {
+  return (
+    <Show when={p.when}>
+      <Icon iconName="check" />
+    </Show>
+  );
+}
+
 function ReferenceListModal(p: AlertComponentProps<{}, undefined>) {
   return (
-    <AlertFormHolder
-      formId="indicator-reference"
-      header={t3({
+    <ModalContainer
+      width="xl"
+      title={t3({
         en: "Special indicators and reserved words",
         fr: "Indicateurs spéciaux et mots réservés",
         pt: "Indicadores especiais e palavras reservadas",
       })}
-      savingState={{ status: "ready" }}
-      saveFunc={async () => p.close(undefined)}
-      cancelFunc={() => p.close(undefined)}
-      width="xl"
+      rightButtons={
+        // eslint-disable-next-line jsx-key
+        [
+          <Button intent="primary" onClick={() => p.close(undefined)}>
+            {t3({ en: "Done", fr: "Terminé", pt: "Concluído" })}
+          </Button>,
+        ]
+      }
     >
       <div class="ui-spy text-sm">
         <div class="ui-spy-sm">
           <div class="font-700">
-            {t3({ en: "Special indicators", fr: "Indicateurs spéciaux", pt: "Indicadores especiais" })}
+            {t3({
+              en: "Special indicators",
+              fr: "Indicateurs spéciaux",
+              pt: "Indicadores especiais",
+            })}
           </div>
           <div class="text-xs">
             {t3({
-              en: "The analysis modules read these ids by name as counts, so they are always analysed and never renamed. A new instance is seeded with each as an Uploaded indicator with no file id; an existing one adds or deletes them like any indicator. A special id can only be Uploaded, a DHIS2 element or a Sum.",
-              fr: "Les modules d'analyse lisent ces identifiants par leur nom comme des dénombrements ; ils sont donc toujours analysés et jamais renommés. Une nouvelle instance est initialisée avec chacun comme indicateur téléversé sans identifiant du fichier ; une instance existante les ajoute ou les supprime comme tout indicateur. Un identifiant spécial ne peut être que téléversé, un élément DHIS2 ou une somme.",
-              pt: "Os módulos de análise leem estes IDs pelo nome como contagens, pelo que são sempre analisados e nunca renomeados. Uma nova instância é iniciada com cada um como indicador carregado sem ID do ficheiro; uma instância existente adiciona-os ou elimina-os como qualquer indicador. Um ID especial só pode ser carregado, um elemento DHIS2 ou uma soma.",
+              en: "The analysis modules read these ids by name as counts, so they are always analysed. A new instance is seeded with each as an Uploaded indicator with no file id; an existing one adds or deletes them like any indicator. A special id can only be Uploaded, a DHIS2 element or a Sum.",
+              fr: "Les modules d'analyse lisent ces identifiants par leur nom comme des dénombrements ; ils sont donc toujours analysés. Une nouvelle instance est initialisée avec chacun comme indicateur téléversé sans identifiant du fichier ; une instance existante les ajoute ou les supprime comme tout indicateur. Un identifiant spécial ne peut être que téléversé, un élément DHIS2 ou une somme.",
+              pt: "Os módulos de análise leem estes IDs pelo nome como contagens, pelo que são sempre analisados. Uma nova instância é iniciada com cada um como indicador carregado sem ID do ficheiro; uma instância existente adiciona-os ou elimina-os como qualquer indicador. Um ID especial só pode ser carregado, um elemento DHIS2 ou uma soma.",
             })}
           </div>
           <div class="grid grid-cols-[repeat(auto-fit,minmax(18rem,1fr))] gap-x-4 gap-y-1">
@@ -595,7 +669,9 @@ function ReferenceListModal(p: AlertComponentProps<{}, undefined>) {
               {(special) => (
                 <div>
                   <span class="font-mono">{special.id}</span>
-                  <span class="text-base-content-muted ml-2">{t3(special.label)}</span>
+                  <span class="text-base-content-muted ml-2">
+                    {t3(special.label)}
+                  </span>
                 </div>
               )}
             </For>
@@ -603,14 +679,20 @@ function ReferenceListModal(p: AlertComponentProps<{}, undefined>) {
         </div>
         <div class="ui-spy-sm">
           <div class="font-700">
-            {t3({ en: "Population terms", fr: "Termes de population", pt: "Termos de população" })}
+            {t3({
+              en: "Population terms",
+              fr: "Termes de population",
+              pt: "Termos de população",
+            })}
           </div>
           <div class="grid grid-cols-[repeat(auto-fit,minmax(18rem,1fr))] gap-x-4 gap-y-1">
             <For each={POPULATION_TYPE_IDS}>
               {(id) => (
                 <div>
                   <span class="font-mono">{id}</span>
-                  <span class="text-base-content-muted ml-2">{t3(populationTypeLabel(id))}</span>
+                  <span class="text-base-content-muted ml-2">
+                    {t3(populationTypeLabel(id))}
+                  </span>
                 </div>
               )}
             </For>
@@ -618,7 +700,11 @@ function ReferenceListModal(p: AlertComponentProps<{}, undefined>) {
         </div>
         <div class="ui-spy-sm">
           <div class="font-700">
-            {t3({ en: "Reserved words", fr: "Mots réservés", pt: "Palavras reservadas" })}
+            {t3({
+              en: "Reserved words",
+              fr: "Mots réservés",
+              pt: "Palavras reservadas",
+            })}
           </div>
           <div class="text-xs">
             {t3({
@@ -630,6 +716,6 @@ function ReferenceListModal(p: AlertComponentProps<{}, undefined>) {
           <div class="font-mono text-xs">{RESERVED_WORDS.join(", ")}</div>
         </div>
       </div>
-    </AlertFormHolder>
+    </ModalContainer>
   );
 }

@@ -346,6 +346,7 @@ async function assertMigrated(sql: Sql, pre: PreState, lines: string[]): Promise
       "indicators_fields_check",
       "indicators_element_shape_check",
       "indicators_count_format_check",
+      "indicators_count_thresholds_check",
       "dataset_hmis_import_runs_route_check",
       "dataset_hmis_import_ledger_route_check",
     ]

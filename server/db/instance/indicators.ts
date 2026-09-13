@@ -28,7 +28,6 @@ import {
   isCount,
   isDhis2ShapedId,
   isHmisIndicatorType,
-  isSpecialIndicatorId,
   MAX_INDICATOR_EXPRESSION_INGREDIENTS,
   parseIndicatorExpression,
   POPULATION_TYPE_IDS,
@@ -119,15 +118,22 @@ function definitionFields(
   };
 }
 
-// `format_as` is display-only and the sole scale (PLAN_1c ruling 3). A count
-// is always a number; a derived one chooses.
-function formatRuleError(
+// `format_as` is display-only and the sole scale (PLAN_1c ruling 3), and so
+// is `thresholds`. A count is always a number with no conditional-formatting
+// rule (the table's two count CHECKs); a derived one chooses both.
+function countRuleError(
   definition: HmisIndicatorDefinition,
   formatAs: IndicatorFormat,
+  thresholds: ThresholdsRule | null,
 ): string | undefined {
-  return isCount(definition.type) && formatAs !== "number"
-    ? "An Uploaded, DHIS2 element or Sum indicator is a count and is always formatted as a number"
-    : undefined;
+  if (!isCount(definition.type)) return undefined;
+  if (formatAs !== "number") {
+    return "An Uploaded, DHIS2 element or Sum indicator is a count and is always formatted as a number";
+  }
+  if (thresholds !== null) {
+    return "An Uploaded, DHIS2 element or Sum indicator is a count and has no conditional-formatting rule";
+  }
+  return undefined;
 }
 
 // A DHIS2 element's data id is DHIS2-shaped (the table's CHECK); an
@@ -449,7 +455,7 @@ async function checkIndicatorWrites(
         JSON.stringify(indicator.indicator_common_id)
       }: ${describeNewIndicatorIdIssue(idIssue)}`;
     }
-    const err = formatRuleError(indicator.definition, indicator.format_as) ??
+    const err = countRuleError(indicator.definition, indicator.format_as, indicator.thresholds) ??
       dataIdError(indicator.definition);
     if (err) {
       return `${indicator.indicator_common_id}: ${err}`;
@@ -823,19 +829,14 @@ export async function createIndicatorsFromDhis2(
 // UPDATE, RENAME (PLAN_A5 rulings 3, 4 and 5)
 // =============================================================================
 
-// Why a rename from `oldId` to `update.indicator_common_id` is refused; a
-// special id is read by the module scripts by name, so it never moves.
+// Why a rename to `update.indicator_common_id` is refused. Renaming from a
+// special id is allowed: it takes the id out of the module scripts' inputs,
+// exactly as deleting the indicator does (Tim, 2026-09-13).
 async function renameError(
   mainDb: Sql,
-  oldId: string,
   update: NewIndicator,
 ): Promise<string | undefined> {
   const newId = update.indicator_common_id;
-  if (isSpecialIndicatorId(oldId)) {
-    return `Indicator ID ${
-      JSON.stringify(oldId)
-    } is a special indicator id, which the analysis modules read by name, so it cannot be renamed.`;
-  }
   const idIssue = getNewIndicatorIdIssue(newId, update.definition.type);
   if (idIssue) {
     return `Invalid indicator ID ${JSON.stringify(newId)}: ${
@@ -872,7 +873,7 @@ export async function updateIndicator(
       ? { from: oldIndicatorId, to: newId }
       : undefined;
     if (rename !== undefined) {
-      const err = await renameError(mainDb, oldIndicatorId, update);
+      const err = await renameError(mainDb, update);
       if (err) return { success: false, err };
     }
 
@@ -885,7 +886,7 @@ export async function updateIndicator(
         }`,
       };
     }
-    const err = formatRuleError(update.definition, update.format_as) ??
+    const err = countRuleError(update.definition, update.format_as, update.thresholds) ??
       dataIdError(update.definition);
     if (err) {
       return { success: false, err };
@@ -1327,7 +1328,8 @@ export async function batchUploadIndicators(
       // row lands as Uploaded first and takes its definition in a second
       // pass. The first pass keeps a row's unchanged data id: the data FK
       // refuses clearing one that has rows, and every move that is not
-      // allowed was refused above.
+      // allowed was refused above. Every row is written as an Uploaded count
+      // here, so the format and the rule take their values in the second pass.
       for (const r of rows) {
         const dataId = definitionDataId(r.definition);
         await sql`
@@ -1338,7 +1340,7 @@ export async function batchUploadIndicators(
           )
           VALUES (
             ${r.id}, ${r.label}, 'uploaded', NULL, NULL, ${r.include_in_analysis},
-            'number', ${thresholdsToDb(r.thresholds)}, ${sortOrder++}, CURRENT_TIMESTAMP
+            'number', NULL, ${sortOrder++}, CURRENT_TIMESTAMP
           )
           ON CONFLICT (indicator_common_id) DO UPDATE SET
             indicator_common_label = EXCLUDED.indicator_common_label,
@@ -1347,7 +1349,7 @@ export async function batchUploadIndicators(
             data_id = CASE WHEN indicators.data_id = ${dataId} THEN indicators.data_id END,
             include_in_analysis = EXCLUDED.include_in_analysis,
             format_as = 'number',
-            thresholds = EXCLUDED.thresholds,
+            thresholds = NULL,
             updated_at = CURRENT_TIMESTAMP
         `;
         await sql`DELETE FROM indicator_sum_members WHERE sum_id = ${r.id}`;
@@ -1357,7 +1359,8 @@ export async function batchUploadIndicators(
         await sql`
           UPDATE indicators
           SET definition_type = ${d.definition_type}, expression = ${d.expression},
-            data_id = ${d.data_id}, format_as = ${r.format_as}
+            data_id = ${d.data_id}, format_as = ${r.format_as},
+            thresholds = ${thresholdsToDb(r.thresholds)}
           WHERE indicator_common_id = ${r.id}
         `;
         await writeMembers(sql, r.id, d.members);
@@ -1463,6 +1466,12 @@ function parseBatchRows(
       } catch {
         return { ok: false, err: `row ${row} (${id}): thresholds is not a valid rule` };
       }
+    }
+    if (isCount(type) && thresholds !== null) {
+      return {
+        ok: false,
+        err: `row ${row} (${id}): an Uploaded, DHIS2 element or Sum indicator is a count and has no conditional-formatting rule`,
+      };
     }
     rows.push({
       row,

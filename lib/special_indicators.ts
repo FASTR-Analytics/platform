@@ -8,8 +8,8 @@ import type { TranslatableString } from "./translate/types.ts";
 // and a derived under it would be silently ignored
 // (`getSpecialIndicatorTypeIssue`). A new database seeds each as an
 // Uploaded indicator with no data id; an existing instance gets nothing on
-// boot, and a team adds or deletes specials like any indicator. Renaming a
-// special is refused: the scripts read it by name.
+// boot, and a team adds, renames or deletes specials like any indicator;
+// renaming or deleting one takes the id out of the scripts' inputs.
 export const SPECIAL_INDICATORS: readonly {
   id: string;
   label: TranslatableString;

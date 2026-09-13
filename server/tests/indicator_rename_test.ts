@@ -2,8 +2,8 @@
 // transaction, rewriting the sums that name it (the junction follows by ON
 // UPDATE CASCADE), every derived expression that names it (text kept as
 // written) and every schedule's selection; run rows are history and stay;
-// a special id, a taken id and a reserved id are refused. The data id is
-// fixed once rows exist under it; Uploaded and DHIS2 element switch either
+// a taken id and a reserved id are refused, and a special id renames like
+// any other. The data id is fixed once rows exist under it; Uploaded and DHIS2 element switch either
 // way with rows. And the lib text renamer agrees with the SQL one 086
 // carries. Runs on a throwaway database built from _main_database.sql on
 // the dev postgres (the .env the test task loads), dropped afterwards.
@@ -165,13 +165,12 @@ Deno.test("rename: a new id that is not bare-shaped is written bracketed in expr
   assertEquals(d.get("chain")!.definition, { type: "derived", expression: "[Visits 1st] * 2 + visits_share" });
 });
 
-Deno.test("rename: a special id, a taken id and a reserved id are refused", async () => {
+Deno.test("rename: a taken id and a reserved id are refused; a special id renames like any other", async () => {
   await reset();
   const special = await createIndicators(db, [indicator("penta1", { type: "uploaded", data_id: null })]);
   assert(special.success, special.success ? "" : special.err);
   const fromSpecial = await rename("penta1", "penta_one");
-  assert(!fromSpecial.success);
-  assertStringIncludes(fromSpecial.err, "cannot be renamed");
+  assert(fromSpecial.success, fromSpecial.success ? "" : fromSpecial.err);
   const taken = await rename("visits", "visits_file");
   assert(!taken.success);
   assertStringIncludes(taken.err, "already taken");
@@ -183,7 +182,7 @@ Deno.test("rename: a special id, a taken id and a reserved id are refused", asyn
   assertStringIncludes(toSpecialDerived.err, "special indicator id");
   assertEquals(
     [...(await dictionary()).keys()].toSorted(),
-    ["chain", "penta1", "visits", "visits_all", "visits_file", "visits_share"],
+    ["chain", "penta_one", "visits", "visits_all", "visits_file", "visits_share"],
   );
 });
 

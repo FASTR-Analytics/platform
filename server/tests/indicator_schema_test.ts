@@ -237,6 +237,14 @@ Deno.test("the count format rule holds in the table", async () => {
   });
 });
 
+Deno.test("the count thresholds rule holds in the table", async () => {
+  await rolledBack(async (sql) => {
+    await refused(sql, () => sql`UPDATE indicators SET thresholds = '{}' WHERE indicator_common_id = 'total'`, "indicators_count_thresholds_check");
+    await sql`UPDATE indicators SET thresholds = '{}' WHERE indicator_common_id = 'rate'`;
+    assert(true);
+  });
+});
+
 Deno.test("cleanup: drop the throwaway database", async () => {
   await db.end();
   await admin.unsafe(`DROP DATABASE IF EXISTS ${dbName} WITH (FORCE)`);
