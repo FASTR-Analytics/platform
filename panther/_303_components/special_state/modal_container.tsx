@@ -13,7 +13,7 @@ export type ModalContainerWidth =
   | "2xl"
   | "3xl"
   | "4xl";
-export type ModalContainerHeight = "sm" | "md" | "lg";
+export type ModalContainerHeight = "sm" | "md" | "lg" | "xl";
 export type ModalContainerScroll = "content" | "page";
 
 type ModalContainerProps =
@@ -47,6 +47,7 @@ const HEIGHT_CLASSES: Record<ModalContainerHeight, string> = {
   sm: "h-[min(480px,var(--ui-modal-max-h))]",
   md: "h-[min(640px,var(--ui-modal-max-h))]",
   lg: "h-[min(800px,var(--ui-modal-max-h))]",
+  xl: "h-(--ui-modal-max-h)",
 };
 
 export function ModalContainer(p: ModalContainerProps) {

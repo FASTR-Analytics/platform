@@ -283,9 +283,11 @@
   /* ============================================= */
   /* Modal sizing                                  */
   /* ============================================= */
-  /* The dialog host (alert.tsx) pads by the gutter and is a size
-     container, so the max sizes measure the host's content box: inside
-     its scrollbar, which vw/vh would ignore. */
+  /* The dialog host (alert.tsx) is a size container and the modal
+     wrapper carries the gutter as margin on all sides, so the max sizes
+     measure the host's content box: inside its scrollbar, which vw/vh
+     would ignore. The gutter must not also be host padding: cq units
+     exclude padding, so it would be subtracted twice. */
 
   --ui-modal-gutter: 3rem;
   --ui-modal-max-w: calc(100cqw - 2 * var(--ui-modal-gutter));
