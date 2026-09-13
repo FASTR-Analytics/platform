@@ -52,6 +52,7 @@ receive it during sync.
 | `PROTOCOL_ALL_STRUCTURE.md`   | All   | File organization, imports, panther integration                         |
 | `PROTOCOL_ALL_SIZING.md`      | All   | Figure/page sizing: DUs, resolution, shrink-to-fit                      |
 | `PROTOCOL_ALL_TRANSLATION.md` | All   | TranslatableString, t3/resolveTS, language handling                     |
+| `PROTOCOL_ALL_PLANS.md`       | All   | Multi-session `PLAN_*.md` files: Do/Review/Fix cadence, step shape      |
 | `PROTOCOL_UI_SOLIDJS.md`      | UI    | Reactivity rules, component declaration, control flow                   |
 | `PROTOCOL_UI_STATE.md`        | UI    | createQuery, createAction*, StateHolderWrapper patterns                 |
 | `PROTOCOL_UI_STYLING.md`      | UI    | Color tokens, interactive state, spacing utilities, app theming         |
@@ -160,6 +161,7 @@ protocols/
 ├── PROTOCOL_ALL_STRUCTURE.md     → All modes
 ├── PROTOCOL_ALL_SIZING.md        → All modes
 ├── PROTOCOL_ALL_TRANSLATION.md   → All modes
+├── PROTOCOL_ALL_PLANS.md         → All modes
 ├── PROTOCOL_UI_SOLIDJS.md        → UI, Both
 ├── PROTOCOL_UI_STATE.md          → UI, Both
 ├── PROTOCOL_UI_STYLING.md        → UI, Both
