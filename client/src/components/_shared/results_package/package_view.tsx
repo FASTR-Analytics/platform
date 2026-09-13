@@ -1,21 +1,13 @@
 import { t3, type RunDetail, type RunListingItem } from "lib";
 import {
   Button,
-  Card,
+  CollapsibleSection,
   StateHolderWrapper,
   formatFileSize,
   getEditorWrapper,
   type StateHolder,
 } from "panther";
-import {
-  For,
-  Match,
-  Show,
-  Switch,
-  createEffect,
-  createSignal,
-  type JSX,
-} from "solid-js";
+import { For, Show, createEffect, createSignal, type JSX } from "solid-js";
 import { getRunDetailFromCacheOrFetch } from "~/state/instance/t2_runs";
 import { instanceState } from "~/state/instance/t1_store";
 import {
@@ -34,7 +26,8 @@ import { ViewScript } from "./view_script";
 // same component (Tim's ruling 2026-08-18: what a package contains is a
 // function of the runId alone, so it is read through one run-keyed mount and
 // rendered by one view). Header (label, pin, status, provenance) + the
-// per-module cards: settings, Script/Logs viewers, files with download.
+// per-module collapsible sections: settings, Script/Logs viewers, files
+// with download.
 //
 // The hosts add only their own chrome through the slots: the catalogue puts
 // pin/unpin/delete in `headerActions` and renders generating/failed runs
@@ -113,168 +106,180 @@ function ReadyModulesSection(p: {
     );
   });
 
-  const detailError = () => {
-    const d = detail();
-    return d.status === "error" ? d.err : undefined;
-  };
-
   // A ready run whose manifest cannot be read (unreadable bytes, or written
   // by a newer server on a mixed-version fleet) must not lose the
   // script/log viewers: they are exactly what diagnoses it. Fall back to
-  // the summary's module list, which lives in the DB row.
+  // the summary's module list, which lives in the DB row. Each viewer is
+  // offered only to a caller the server would let through (status.tsx).
   return (
-    <Switch>
-      <Match when={detailError()} keyed>
-        {(err) => (
-          <div class="ui-spy-sm">
-            <div class="text-danger text-sm">{err}</div>
-            <For each={p.run.summary?.moduleIds ?? []}>
-              {(moduleId) => (
-                <div class="ui-gap-sm flex items-center text-sm">
-                  <div class="w-64 truncate">{moduleLabel(moduleId)}</div>
-                  <ViewerButtons
-                    moduleId={moduleId}
-                    openViewer={p.openViewer}
-                  />
-                </div>
-              )}
-            </For>
-          </div>
-        )}
-      </Match>
-      <Match when={detailError() === undefined}>
-        <StateHolderWrapper state={detail()} noPad>
-          {(keyedDetail) => (
-            <div class="ui-spy">
-              <For each={keyedDetail.modules}>
-                {(mod) => (
-                  <ModuleCard
-                    runId={p.run.id}
-                    module={mod}
-                    openViewer={p.openViewer}
-                  />
-                )}
-              </For>
-            </div>
-          )}
-        </StateHolderWrapper>
-      </Match>
-    </Switch>
+    <StateHolderWrapper
+      state={detail()}
+      noPad
+      errorRenderer={(err) => (
+        <div class="ui-spy-sm">
+          <div class="text-danger text-sm">{err}</div>
+          <For each={p.run.summary?.moduleIds ?? []}>
+            {(moduleId) => (
+              <div class="ui-gap-sm flex items-center text-sm">
+                <div class="w-64 truncate">{moduleLabel(moduleId)}</div>
+                <Show when={canViewPackageContents()}>
+                  <Button
+                    size="sm"
+                    outline
+                    onClick={() => p.openViewer(ViewScript, moduleId)}
+                  >
+                    {t3({ en: "Script", fr: "Script", pt: "Script" })}
+                  </Button>
+                </Show>
+                <Show when={canViewPackageLogs()}>
+                  <Button
+                    size="sm"
+                    outline
+                    onClick={() => p.openViewer(ViewLogs, moduleId)}
+                  >
+                    {t3({ en: "Logs", fr: "Journaux", pt: "Registos" })}
+                  </Button>
+                </Show>
+              </div>
+            )}
+          </For>
+        </div>
+      )}
+    >
+      {(keyedDetail) => (
+        <div class="ui-spy">
+          <For each={keyedDetail.modules}>
+            {(mod) => (
+              <ModuleSection
+                runId={p.run.id}
+                module={mod}
+                openViewer={p.openViewer}
+              />
+            )}
+          </For>
+        </div>
+      )}
+    </StateHolderWrapper>
   );
 }
 
-// Script/Logs open the shared viewers; each is offered only to a caller the
-// server would let through (status.tsx helpers).
-export function ViewerButtons(p: { moduleId: string; openViewer: OpenViewer }) {
-  return (
-    <>
-      <Show when={canViewPackageContents()}>
-        <Button
-          size="sm"
-          outline
-          onClick={() => p.openViewer(ViewScript, p.moduleId)}
-        >
-          {t3({ en: "Script", fr: "Script", pt: "Script" })}
-        </Button>
-      </Show>
-      <Show when={canViewPackageLogs()}>
-        <Button
-          size="sm"
-          outline
-          onClick={() => p.openViewer(ViewLogs, p.moduleId)}
-        >
-          {t3({ en: "Logs", fr: "Journaux", pt: "Registos" })}
-        </Button>
-      </Show>
-    </>
-  );
-}
-
-function ModuleCard(p: {
+function ModuleSection(p: {
   runId: string;
   module: RunDetail["modules"][number];
   openViewer: OpenViewer;
 }) {
   return (
-    <Card
-      header={moduleLabel(p.module.moduleId)}
-      headerRight={
-        <div class="ui-gap-sm flex items-center">
-          <ViewerButtons
-            moduleId={p.module.moduleId}
-            openViewer={p.openViewer}
-          />
-        </div>
-      }
-      footer={
-        <Show
-          when={p.module.files.length > 0}
-          fallback={
-            <div class="text-base-content-muted text-sm">
-              {t3({
-                en: "No files",
-                fr: "Aucun fichier",
-                pt: "Nenhum ficheiro",
-              })}
-            </div>
-          }
-        >
-          <div class="ui-spy-sm">
-            <For each={p.module.files}>
-              {(file) => (
-                <div class="ui-gap-sm flex items-center">
-                  <div class="flex-1 truncate text-sm">{file.name}</div>
-                  <div class="ui-text-caption">
-                    {formatFileSize(file.sizeBytes, 1)}
-                  </div>
-                  <Button
-                    size="sm"
-                    outline
-                    iconName="download"
-                    href={runOutputFileHref(
-                      p.runId,
-                      p.module.moduleId,
-                      file.name,
-                    )}
-                    download={file.name}
-                  >
-                    {t3({
-                      en: "Download",
-                      fr: "Télécharger",
-                      pt: "Transferir",
-                    })}
-                  </Button>
-                </div>
-              )}
-            </For>
+    <CollapsibleSection title={moduleLabel(p.module.moduleId)}>
+      <div class="ui-pad ui-spy">
+        <div class="ui-spy-sm">
+          <div class="ui-text-caption font-700">
+            {t3({ en: "Settings", fr: "Paramètres", pt: "Definições" })}
           </div>
-        </Show>
-      }
-    >
-      <Show
-        when={p.module.settings.length > 0}
-        fallback={
-          <div class="text-base-content-muted text-sm">
+          <Show
+            when={p.module.settings.length > 0}
+            fallback={
+              <div class="text-base-content-muted text-sm">
+                {t3({
+                  en: "This module has no settings",
+                  fr: "Ce module n'a aucun paramètre",
+                  pt: "Este módulo não tem definições",
+                })}
+              </div>
+            }
+          >
+            <div class="ui-spy-sm">
+              <For each={p.module.settings}>
+                {(setting) => (
+                  <div class="text-sm">
+                    <span class="text-base-content-muted">{setting.label}</span>
+                    {`: ${setting.value}`}
+                  </div>
+                )}
+              </For>
+            </div>
+          </Show>
+        </div>
+        <div class="ui-spy-sm">
+          <div class="ui-text-caption font-700">
             {t3({
-              en: "No parameters configured",
-              fr: "Aucun paramètre configuré",
-              pt: "Nenhum parâmetro configurado",
+              en: "Script and logs",
+              fr: "Script et journaux",
+              pt: "Script e registos",
             })}
           </div>
-        }
-      >
-        <div class="ui-spy-sm">
-          <For each={p.module.settings}>
-            {(setting) => (
-              <div class="text-sm">
-                <span class="text-base-content-muted">{setting.label}</span>
-                {`: ${setting.value}`}
-              </div>
-            )}
-          </For>
+          <div class="ui-gap-sm flex items-center">
+            <Show when={canViewPackageContents()}>
+              <Button
+                size="sm"
+                outline
+                onClick={() => p.openViewer(ViewScript, p.module.moduleId)}
+              >
+                {t3({ en: "Script", fr: "Script", pt: "Script" })}
+              </Button>
+            </Show>
+            <Show when={canViewPackageLogs()}>
+              <Button
+                size="sm"
+                outline
+                onClick={() => p.openViewer(ViewLogs, p.module.moduleId)}
+              >
+                {t3({ en: "Logs", fr: "Journaux", pt: "Registos" })}
+              </Button>
+            </Show>
+          </div>
         </div>
-      </Show>
-    </Card>
+        <div class="ui-spy-sm">
+          <div class="ui-text-caption font-700">
+            {t3({
+              en: "Output files",
+              fr: "Fichiers de sortie",
+              pt: "Ficheiros de saída",
+            })}
+          </div>
+          <Show
+            when={p.module.files.length > 0}
+            fallback={
+              <div class="text-base-content-muted text-sm">
+                {t3({
+                  en: "No files",
+                  fr: "Aucun fichier",
+                  pt: "Nenhum ficheiro",
+                })}
+              </div>
+            }
+          >
+            <div class="ui-spy-sm">
+              <For each={p.module.files}>
+                {(file) => (
+                  <div class="ui-gap-sm flex items-center">
+                    <div class="flex-1 truncate text-sm">{file.name}</div>
+                    <div class="ui-text-caption">
+                      {formatFileSize(file.sizeBytes, 1)}
+                    </div>
+                    <Button
+                      size="sm"
+                      outline
+                      iconName="download"
+                      ariaLabel={t3({
+                        en: "Download",
+                        fr: "Télécharger",
+                        pt: "Transferir",
+                      })}
+                      href={runOutputFileHref(
+                        p.runId,
+                        p.module.moduleId,
+                        file.name,
+                      )}
+                      download={file.name}
+                    />
+                  </div>
+                )}
+              </For>
+            </div>
+          </Show>
+        </div>
+      </div>
+    </CollapsibleSection>
   );
 }
 
