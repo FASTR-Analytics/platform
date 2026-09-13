@@ -141,7 +141,7 @@ export function CsvStagingSummary(p: Props) {
               </Show>
               <Show when={validation().unknownIndicators?.rowsDropped}>
                 <div class="text-danger flex justify-between">
-                  <span>{t3({ en: "Unknown indicator ids (no indicator has them):", fr: "Identifiants d'indicateur inconnus (aucun indicateur ne les porte) :", pt: "IDs de indicador desconhecidos (nenhum indicador os tem):" })}</span>
+                  <span>{t3({ en: "Unknown values in the indicator column (no indicator has them as its file id or DHIS2 id, and no indicator with data has them as its id):", fr: "Valeurs inconnues dans la colonne d'indicateur (aucun indicateur ne les porte comme identifiant du fichier ou identifiant DHIS2, et aucun indicateur contenant des données ne les porte comme identifiant) :", pt: "Valores desconhecidos na coluna de indicador (nenhum indicador os tem como ID do ficheiro ou ID DHIS2, e nenhum indicador com dados os tem como ID):" })}</span>
                   <span class="font-mono">
                     {toNum0(validation().unknownIndicators.rowsDropped)}{" "}
                     {t3({ en: "rows dropped", fr: "lignes supprimées", pt: "linhas descartadas" })}
@@ -149,7 +149,7 @@ export function CsvStagingSummary(p: Props) {
                 </div>
                 <Show when={validation().unknownIndicators.sample?.length}>
                   <div class="text-base-content ml-4 text-sm">
-                    <div class="mb-1">{t3({ en: "Most frequent unknown ids:", fr: "Identifiants inconnus les plus fréquents :", pt: "IDs desconhecidos mais frequentes:" })}</div>
+                    <div class="mb-1">{t3({ en: "Most frequent unknown values:", fr: "Valeurs inconnues les plus fréquentes :", pt: "Valores desconhecidos mais frequentes:" })}</div>
                     <div class="font-mono">
                       {validation()
                         .unknownIndicators.sample.slice(0, 5)
@@ -165,7 +165,7 @@ export function CsvStagingSummary(p: Props) {
                   {(ids) => (
                     <div class="text-base-content ml-4 text-sm">
                       <div class="mb-1">
-                        {t3({ en: "All unknown ids", fr: "Tous les identifiants inconnus", pt: "Todos os IDs desconhecidos" })} ({ids.length}):
+                        {t3({ en: "All unknown values", fr: "Toutes les valeurs inconnues", pt: "Todos os valores desconhecidos" })} ({ids.length}):
                       </div>
                       <div class="max-h-40 overflow-auto font-mono text-xs break-all">
                         {ids.join(", ")}

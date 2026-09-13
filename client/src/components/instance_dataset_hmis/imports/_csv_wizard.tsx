@@ -39,6 +39,23 @@ const _HMIS_SQL_COL_NAMES: (keyof HmisCsvColumns)[] = [
   "count",
 ];
 
+// What the Columns step calls each of the file's four columns. The
+// indicator column holds what the file calls each series: an indicator's
+// file id or DHIS2 id, or the id of an indicator that has data (PLAN_A5
+// ruling 6).
+const COLUMN_LABELS: Record<keyof HmisCsvColumns, () => string> = {
+  facility_id: () =>
+    t3({ en: "Facility id", fr: "Identifiant de l'établissement", pt: "ID do estabelecimento" }),
+  data_id: () =>
+    t3({
+      en: "Indicator (file id, DHIS2 id or indicator id)",
+      fr: "Indicateur (identifiant du fichier, identifiant DHIS2 ou identifiant de l'indicateur)",
+      pt: "Indicador (ID do ficheiro, ID DHIS2 ou ID do indicador)",
+    }),
+  period_id: () => t3({ en: "Period (yyyymm)", fr: "Période (aaaamm)", pt: "Período (aaaamm)" }),
+  count: () => t3({ en: "Count", fr: "Valeur", pt: "Contagem" }),
+};
+
 // The CSV import wizard (PLAN_DHIS2_IMPORTER_CONSOLIDATION A7): a modal with
 // client-local state: the file input is an ordinary instance asset (uploaded
 // or picked), so nothing persists server-side before launch. Launch inserts a
@@ -219,7 +236,7 @@ export function CsvWizard(
           <div class="ui-spy-sm">
             {_HMIS_SQL_COL_NAMES.map((hmisSqlColName) => (
               <div class="flex items-center">
-                <div class="w-[40%] flex-none">{hmisSqlColName}</div>
+                <div class="w-[40%] flex-none">{COLUMN_LABELS[hmisSqlColName]()}</div>
                 <div class="flex-1">
                   <Select
                     options={getSelectOptions(headers())}
@@ -241,15 +258,15 @@ export function CsvWizard(
             </div>
             {_HMIS_SQL_COL_NAMES.map((hmisSqlColName) => (
               <div class="flex items-baseline">
-                <div class="w-56 flex-none">{hmisSqlColName}</div>
+                <div class="w-56 flex-none">{COLUMN_LABELS[hmisSqlColName]()}</div>
                 <div class="flex-1 font-mono">{columns[hmisSqlColName]}</div>
               </div>
             ))}
             <div>
               {t3({
-                en: "Staging validates every row (periods, counts, facilities, indicator ids). A fully clean file integrates automatically; dropped rows hold the import for your review before anything is merged, where unknown indicator ids can be turned into uploaded indicators and the file staged again.",
-                fr: "La préparation valide chaque ligne (périodes, valeurs, établissements, identifiants d'indicateur). Un fichier entièrement valide s'intègre automatiquement ; des lignes rejetées mettent l'importation en attente de votre vérification avant toute fusion, où les identifiants d'indicateur inconnus peuvent devenir des indicateurs téléversés et le fichier être préparé à nouveau.",
-                pt: "A preparação valida todas as linhas (períodos, valores, estabelecimentos, IDs de indicador). Um ficheiro totalmente válido integra-se automaticamente; linhas rejeitadas colocam a importação em espera para a sua revisão antes de qualquer fusão, onde os IDs de indicador desconhecidos podem tornar-se indicadores carregados e o ficheiro ser preparado de novo.",
+                en: "Staging validates every row (periods, counts, facilities, the indicator column). A value in the indicator column lands under the indicator whose file id or DHIS2 id it is, or under the indicator with data whose id it is. A fully clean file integrates automatically; dropped rows hold the import for your review before anything is merged, where unknown values can become Uploaded indicators, or be assigned to existing ones, and the file staged again.",
+                fr: "La préparation valide chaque ligne (périodes, valeurs, établissements, colonne d'indicateur). Une valeur de la colonne d'indicateur est rangée sous l'indicateur dont elle est l'identifiant du fichier ou l'identifiant DHIS2, ou sous l'indicateur contenant des données dont elle est l'identifiant. Un fichier entièrement valide s'intègre automatiquement ; des lignes rejetées mettent l'importation en attente de votre vérification avant toute fusion, où les valeurs inconnues peuvent devenir des indicateurs téléversés, ou être attribuées à des indicateurs existants, et le fichier être préparé à nouveau.",
+                pt: "A preparação valida todas as linhas (períodos, valores, estabelecimentos, coluna de indicador). Um valor da coluna de indicador fica sob o indicador de que é ID do ficheiro ou ID DHIS2, ou sob o indicador com dados de que é ID. Um ficheiro totalmente válido integra-se automaticamente; linhas rejeitadas colocam a importação em espera para a sua revisão antes de qualquer fusão, onde os valores desconhecidos podem tornar-se indicadores carregados, ou ser atribuídos a indicadores existentes, e o ficheiro ser preparado de novo.",
               })}
             </div>
             <Show when={queueNotice()} keyed>

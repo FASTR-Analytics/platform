@@ -1,10 +1,12 @@
 // Create/update one indicator. The form branches on what the indicator IS
-// (PLAN_A4 §2): a base is a count filled from DHIS2 (its `dhis2_id`) or by
-// CSV upload (none), a sum is the total of other bases, a derived one is a
-// formula over other indicators and population terms with a free display
-// format. Every indicator carries the include-in-analysis checkbox (ruling
-// 3). The palette below the formula inserts correctly written identifiers,
-// and the legend names every identifier the formula references.
+// (PLAN_A5 §2): an Uploaded indicator is a count filled by CSV upload under
+// its file id, a DHIS2 element a count the import fetches under its DHIS2
+// id, a sum the total of indicators that have rows, a derived one a formula
+// over other indicators and population terms with a free display format.
+// Every indicator carries the include-in-analysis checkbox. The id is
+// renamable (ruling 5); the data id is fixed once rows exist under it
+// (ruling 4). The palette below the formula inserts correctly written
+// identifiers, and the legend names every identifier the formula references.
 import {
   AlertComponentProps,
   AlertFormHolder,
@@ -29,6 +31,7 @@ import {
   hasRows,
   type HmisIndicatorDefinition,
   type HmisIndicatorType,
+  HMIS_INDICATOR_TYPES,
   type DerivedIndicatorComputability,
   getLanguage,
   getNewIndicatorIdIssue,
@@ -58,6 +61,7 @@ import {
   computabilityProblemText,
   populationCoverageSummary,
 } from "./_computability";
+import { dataIdLabel, indicatorTypeWord } from "./_indicator_display";
 
 // The rule a fresh "Set" starts from: three traffic-light bands at 70 / 80 in
 // the indicator's own display units, labelled in the UI language.
@@ -77,32 +81,39 @@ function defaultIndicatorRule(formatAs: IndicatorFormat): ThresholdsRule {
   };
 }
 
-const TYPE_OPTIONS: { value: HmisIndicatorType; label: string }[] = [
-  {
-    value: "uploaded",
-    label: t3({ en: "Uploaded", fr: "Téléversé", pt: "Carregado" }),
-  },
-  {
-    value: "dhis2_element",
-    label: t3({ en: "DHIS2 element", fr: "Élément DHIS2", pt: "Elemento DHIS2" }),
-  },
-  {
-    value: "sum",
-    label: t3({
-      en: "Sum: the total of other base indicators",
-      fr: "Somme : le total d'autres indicateurs de base",
-      pt: "Soma: o total de outros indicadores de base",
-    }),
-  },
-  {
-    value: "derived",
-    label: t3({
-      en: "Derived: a formula over other indicators and populations",
-      fr: "Dérivé : une formule sur d'autres indicateurs et des populations",
-      pt: "Derivado: uma fórmula sobre outros indicadores e populações",
-    }),
-  },
-];
+const TYPE_OPTIONS = HMIS_INDICATOR_TYPES.map((type) => ({
+  value: type,
+  label: indicatorTypeWord(type),
+}));
+
+function typeCaption(type: HmisIndicatorType): string {
+  switch (type) {
+    case "uploaded":
+      return t3({
+        en: "A monthly count filled by CSV upload. Its rows are stored under its file id.",
+        fr: "Un dénombrement mensuel rempli par téléversement CSV. Ses lignes sont conservées sous son identifiant du fichier.",
+        pt: "Uma contagem mensal preenchida por carregamento CSV. As suas linhas são guardadas sob o seu ID do ficheiro.",
+      });
+    case "dhis2_element":
+      return t3({
+        en: "A monthly count the DHIS2 import fetches. Its rows are stored under its DHIS2 id.",
+        fr: "Un dénombrement mensuel récupéré par l'importation DHIS2. Ses lignes sont conservées sous son identifiant DHIS2.",
+        pt: "Uma contagem mensal obtida pela importação DHIS2. As suas linhas são guardadas sob o seu ID DHIS2.",
+      });
+    case "sum":
+      return t3({
+        en: "The total of other Uploaded or DHIS2 element indicators, added per facility and month.",
+        fr: "Le total d'autres indicateurs téléversés ou éléments DHIS2, additionnés par établissement et par mois.",
+        pt: "O total de outros indicadores carregados ou elementos DHIS2, somados por estabelecimento e mês.",
+      });
+    case "derived":
+      return t3({
+        en: "A formula over other indicators and populations, computed after the data is aggregated.",
+        fr: "Une formule sur d'autres indicateurs et des populations, calculée après l'agrégation des données.",
+        pt: "Uma fórmula sobre outros indicadores e populações, calculada depois de os dados serem agregados.",
+      });
+  }
+}
 
 const FORMAT_OPTIONS = [
   { value: "number", label: t3({ en: "Number", fr: "Nombre", pt: "Número" }) },
@@ -134,9 +145,9 @@ export function EditIndicatorForm(
   p: AlertComponentProps<
     {
       indicators: HmisIndicator[];
-      // The bases and sums that have rows, as the manager knows them from the
+      // The counts that have rows, as the manager knows them from the
       // ledger; undefined while it is still loading, when no ingredient is
-      // judged to be missing data.
+      // judged to be missing data and a set data id is treated as fixed.
       idsWithData: Set<string> | undefined;
       existingIndicator?: HmisIndicator;
     },
@@ -156,11 +167,9 @@ export function EditIndicatorForm(
   const [type, setType] = createSignal<HmisIndicatorType>(
     existing?.definition.type ?? "uploaded",
   );
-  const [dhis2Id, setDhis2Id] = createSignal(
+  const [dataId, setDataId] = createSignal(
     existing === undefined ? "" : definitionDataId(existing.definition) ?? "",
   );
-  const dhis2IdLocked = existing !== undefined &&
-    definitionDataId(existing.definition) !== null;
   const [members, setMembers] = createSignal<string[]>(
     existing?.definition.type === "sum" ? existing.definition.members : [],
   );
@@ -176,12 +185,36 @@ export function EditIndicatorForm(
   const [thresholds, setThresholds] = createSignal<ThresholdsRule | null>(
     existing?.thresholds ?? null,
   );
-  // A base or sum is a count: its format is always a number.
+  // A count (Uploaded, DHIS2 element or Sum): its format is always a number.
   const effectiveFormatAs = (): IndicatorFormat =>
     type() === "derived" ? formatAs() : "number";
 
   const ownId = () => indicatorId().trim() || "__new__";
   const isSpecial = () => isSpecialIndicatorId(indicatorId().trim());
+  const existingIsSpecial = existing !== undefined &&
+    isSpecialIndicatorId(existing.indicator_common_id);
+  const renaming = () =>
+    existing !== undefined && indicatorId().trim() !== existing.indicator_common_id;
+
+  // Whether rows exist under the indicator's data id (ruling 4): the ledger's
+  // answer through idsWithData; while that is unknown, a set data id counts
+  // as having rows, since the server refuses the change either way.
+  const existingHasRows = (): boolean =>
+    existing !== undefined &&
+    definitionDataId(existing.definition) !== null &&
+    (p.idsWithData?.has(existing.indicator_common_id) ?? true);
+  const dataIdLocked = () => existingHasRows();
+
+  // The sums that name the indicator being edited: a switch out of the
+  // types that have rows is refused while one does (ruling 3).
+  const namingSums = createMemo(() =>
+    existing === undefined ? [] : p.indicators
+      .filter((c) =>
+        c.definition.type === "sum" &&
+        c.definition.members.includes(existing.indicator_common_id)
+      )
+      .map((c) => c.indicator_common_id)
+  );
 
   function currentDefinition(): HmisIndicatorDefinition {
     switch (type()) {
@@ -190,16 +223,18 @@ export function EditIndicatorForm(
       case "sum":
         return { type: "sum", members: members() };
       case "uploaded":
-        return { type: "uploaded", data_id: dhis2Id().trim() || null };
+        return { type: "uploaded", data_id: dataId().trim() || null };
       case "dhis2_element":
-        return { type: "dhis2_element", data_id: dhis2Id().trim() };
+        return { type: "dhis2_element", data_id: dataId().trim() };
     }
   }
 
   // The other indicators a formula or a member list may name: never the one
-  // being edited.
+  // being edited (under its stored id, whatever is typed in the id box).
   const otherIndicators = createMemo(() =>
-    p.indicators.filter((c) => c.indicator_common_id !== ownId()),
+    p.indicators.filter((c) =>
+      c.indicator_common_id !== (existing?.indicator_common_id ?? ownId())
+    ),
   );
 
   const memberOptions = createMemo(() =>
@@ -211,15 +246,32 @@ export function EditIndicatorForm(
       })),
   );
 
-  // Every DHIS2 id another indicator carries: one indicator carries one id,
-  // so typing one of these is refused here before the server does.
-  const dhis2IdOwners = createMemo(() => {
-    const owners = new Map<string, string>();
+  // Every data id another indicator carries: one indicator carries one, so
+  // typing one of these is refused here before the server does.
+  const dataIdOwners = createMemo(() => {
+    const owners = new Map<string, HmisIndicator>();
     for (const c of otherIndicators()) {
-      const dataId = definitionDataId(c.definition);
-      if (dataId !== null) owners.set(dataId, c.indicator_common_id);
+      const id = definitionDataId(c.definition);
+      if (id !== null) owners.set(id, c);
     }
     return owners;
+  });
+
+  // Ruling 6, said on screen: a typed indicator id that is another
+  // indicator's data id is the shadow a rename leaves. A file that says it
+  // lands under that other indicator, so this one can never receive a file
+  // that says its own id.
+  const shadowNote = createMemo<string | undefined>(() => {
+    const id = indicatorId().trim();
+    if (id === "") return undefined;
+    const owner = dataIdOwners().get(id);
+    if (owner === undefined) return undefined;
+    const what = dataIdLabel(owner.definition.type);
+    return t3({
+      en: `"${id}" is the ${what} of ${owner.indicator_common_id}. A file whose indicator column says "${id}" lands under ${owner.indicator_common_id}, so an indicator with this id can never receive a file that says its own id.`,
+      fr: `« ${id} » est l'${what} de ${owner.indicator_common_id}. Un fichier dont la colonne d'indicateur dit « ${id} » est rangé sous ${owner.indicator_common_id} ; un indicateur portant cet identifiant ne pourra donc jamais recevoir un fichier qui le nomme.`,
+      pt: `"${id}" é o ${what} de ${owner.indicator_common_id}. Um ficheiro cuja coluna de indicador diz "${id}" fica sob ${owner.indicator_common_id}, pelo que um indicador com este ID nunca poderá receber um ficheiro que diga o seu próprio ID.`,
+    });
   });
 
   // The same judgement capture makes, over the formula as typed: the editor
@@ -362,23 +414,83 @@ export function EditIndicatorForm(
     }
   }
 
-  function definitionError(): string | undefined {
-    if (hasRows(type())) {
-      const id = dhis2Id().trim();
-      if (id === "") return undefined;
-      if (!isDhis2ShapedId(id)) {
+  // The server's refusals of a rename (ruling 5), stated where the user is:
+  // a special cannot be renamed; the new id passes the validator and is not
+  // taken.
+  function renameError(): string | undefined {
+    if (existing === undefined || !renaming()) return undefined;
+    const id = indicatorId().trim();
+    if (existingIsSpecial) {
+      return t3({
+        en: `${existing.indicator_common_id} is a special indicator, which the analysis modules read by name, so it cannot be renamed`,
+        fr: `${existing.indicator_common_id} est un indicateur spécial, lu par son identifiant par les modules d'analyse, et ne peut donc pas être renommé`,
+        pt: `${existing.indicator_common_id} é um indicador especial, lido pelo seu ID pelos módulos de análise, pelo que não pode ser renomeado`,
+      });
+    }
+    if (p.indicators.some((c) => c.indicator_common_id === id)) {
+      return t3({
+        en: `Indicator ID "${id}" is already taken`,
+        fr: `L'identifiant d'indicateur « ${id} » est déjà utilisé`,
+        pt: `O ID de indicador "${id}" já está a ser utilizado`,
+      });
+    }
+    return undefined;
+  }
+
+  // The type switches the server refuses (ruling 3): out of the types that
+  // have rows while rows exist or while a sum names the indicator; into
+  // DHIS2 element without a DHIS2-shaped data id.
+  function typeSwitchError(): string | undefined {
+    if (existing === undefined) return undefined;
+    if (hasRows(existing.definition.type) && !hasRows(type())) {
+      if (existingHasRows()) {
         return t3({
-          en: `DHIS2 id "${id}" must be a data element UID (11 characters) or a UID.COC operand`,
-          fr: `L'identifiant DHIS2 « ${id} » doit être un UID d'élément de données (11 caractères) ou un opérande UID.COC`,
-          pt: `O ID DHIS2 "${id}" tem de ser um UID de elemento de dados (11 caracteres) ou um operando UID.COC`,
+          en: `${existing.indicator_common_id} has data, so it cannot become a ${indicatorTypeWord(type())}. Delete its data first.`,
+          fr: `${existing.indicator_common_id} contient des données et ne peut donc pas devenir ${indicatorTypeWord(type())}. Supprimez d'abord ses données.`,
+          pt: `${existing.indicator_common_id} tem dados, pelo que não pode tornar-se ${indicatorTypeWord(type())}. Elimine primeiro os seus dados.`,
         });
       }
-      const owner = dhis2IdOwners().get(id);
-      if (owner !== undefined) {
+      const sums = namingSums();
+      if (sums.length > 0) {
         return t3({
-          en: `DHIS2 id "${id}" already belongs to ${owner}. One indicator carries one DHIS2 id; make a sum or a derived indicator over ${owner} instead.`,
-          fr: `L'identifiant DHIS2 « ${id} » appartient déjà à ${owner}. Un indicateur porte un seul identifiant DHIS2 ; créez plutôt une somme ou un indicateur dérivé sur ${owner}.`,
-          pt: `O ID DHIS2 "${id}" já pertence a ${owner}. Um indicador tem um único ID DHIS2; crie antes uma soma ou um indicador derivado sobre ${owner}.`,
+          en: `${existing.indicator_common_id} is a member of ${sums.join(", ")}, so it cannot become a ${indicatorTypeWord(type())}. Remove it from those sums first.`,
+          fr: `${existing.indicator_common_id} est membre de ${sums.join(", ")} et ne peut donc pas devenir ${indicatorTypeWord(type())}. Retirez-le d'abord de ces sommes.`,
+          pt: `${existing.indicator_common_id} é membro de ${sums.join(", ")}, pelo que não pode tornar-se ${indicatorTypeWord(type())}. Remova-o primeiro dessas somas.`,
+        });
+      }
+    }
+    return undefined;
+  }
+
+  function definitionError(): string | undefined {
+    const switchErr = typeSwitchError();
+    if (switchErr !== undefined) return switchErr;
+    if (hasRows(type())) {
+      const id = dataId().trim();
+      if (type() === "dhis2_element") {
+        if (id === "") {
+          return t3({
+            en: "A DHIS2 element needs a DHIS2 id",
+            fr: "Un élément DHIS2 nécessite un identifiant DHIS2",
+            pt: "Um elemento DHIS2 precisa de um ID DHIS2",
+          });
+        }
+        if (!isDhis2ShapedId(id)) {
+          return t3({
+            en: `DHIS2 id "${id}" must be a data element UID (11 characters) or a UID.COC operand`,
+            fr: `L'identifiant DHIS2 « ${id} » doit être un UID d'élément de données (11 caractères) ou un opérande UID.COC`,
+            pt: `O ID DHIS2 "${id}" tem de ser um UID de elemento de dados (11 caracteres) ou um operando UID.COC`,
+          });
+        }
+      }
+      if (id === "") return undefined;
+      const owner = dataIdOwners().get(id);
+      if (owner !== undefined) {
+        const what = dataIdLabel(type());
+        return t3({
+          en: `${what} "${id}" already belongs to ${owner.indicator_common_id}. One indicator carries one; make a sum or a derived indicator over ${owner.indicator_common_id} instead.`,
+          fr: `L'${what} « ${id} » appartient déjà à ${owner.indicator_common_id}. Un indicateur n'en porte qu'un ; créez plutôt une somme ou un indicateur dérivé sur ${owner.indicator_common_id}.`,
+          pt: `O ${what} "${id}" já pertence a ${owner.indicator_common_id}. Um indicador tem um único; crie antes uma soma ou um indicador derivado sobre ${owner.indicator_common_id}.`,
         });
       }
       return undefined;
@@ -402,7 +514,7 @@ export function EditIndicatorForm(
       const id = indicatorId().trim();
       const label = indicatorLabel().trim();
 
-      if (mode === "create" && !id) {
+      if (!id) {
         return {
           success: false,
           err: t3({
@@ -413,7 +525,15 @@ export function EditIndicatorForm(
         };
       }
 
-      const idIssue = mode === "create"
+      const renameErr = renameError();
+      if (renameErr) {
+        return { success: false, err: renameErr };
+      }
+
+      // A new id (created or renamed to) goes through the validator; an
+      // existing id kept as it is only through the type rule (its charset
+      // is grandfathered).
+      const idIssue = mode === "create" || renaming()
         ? getNewIndicatorIdIssue(id, type())
         : getSpecialIndicatorTypeIssue(id, type());
       if (idIssue === "reserved") {
@@ -430,9 +550,9 @@ export function EditIndicatorForm(
         return {
           success: false,
           err: t3({
-            en: `"${id}" is a special indicator ID, which the analysis modules read as a count, so it can only be a base or sum indicator (special: ${SPECIAL_INDICATOR_IDS.join(", ")})`,
-            fr: `« ${id} » est un identifiant d'indicateur spécial, lu comme un dénombrement par les modules d'analyse, et ne peut donc être qu'un indicateur de base ou une somme (spéciaux : ${SPECIAL_INDICATOR_IDS.join(", ")})`,
-            pt: `"${id}" é um ID de indicador especial, lido como uma contagem pelos módulos de análise, pelo que só pode ser um indicador de base ou uma soma (especiais: ${SPECIAL_INDICATOR_IDS.join(", ")})`,
+            en: `"${id}" is a special indicator ID, which the analysis modules read as a count, so it can only be Uploaded, a DHIS2 element or a Sum (special: ${SPECIAL_INDICATOR_IDS.join(", ")})`,
+            fr: `« ${id} » est un identifiant d'indicateur spécial, lu comme un dénombrement par les modules d'analyse, et ne peut donc être que téléversé, un élément DHIS2 ou une somme (spéciaux : ${SPECIAL_INDICATOR_IDS.join(", ")})`,
+            pt: `"${id}" é um ID de indicador especial, lido como uma contagem pelos módulos de análise, pelo que só pode ser carregado, um elemento DHIS2 ou uma soma (especiais: ${SPECIAL_INDICATOR_IDS.join(", ")})`,
           }),
         };
       }
@@ -497,6 +617,49 @@ export function EditIndicatorForm(
     () => p.close(undefined),
   );
 
+  const idCaption = (): string | undefined => {
+    if (mode === "create") return undefined;
+    if (existingIsSpecial) {
+      return t3({
+        en: "A special indicator is read by name by the analysis modules and cannot be renamed.",
+        fr: "Un indicateur spécial est lu par son identifiant par les modules d'analyse et ne peut pas être renommé.",
+        pt: "Um indicador especial é lido pelo seu ID pelos módulos de análise e não pode ser renomeado.",
+      });
+    }
+    return t3({
+      en: "Renaming rewrites every formula and import schedule that names this indicator. Its data stays where it is, and results packages already generated keep the old id.",
+      fr: "Renommer réécrit chaque formule et chaque importation planifiée qui nomme cet indicateur. Ses données restent en place, et les paquets de résultats déjà générés conservent l'ancien identifiant.",
+      pt: "Renomear reescreve todas as fórmulas e importações agendadas que nomeiam este indicador. Os seus dados ficam onde estão, e os pacotes de resultados já gerados mantêm o ID antigo.",
+    });
+  };
+
+  const dataIdCaption = (): string => {
+    if (type() === "dhis2_element") {
+      return dataIdLocked()
+        ? t3({
+          en: "The DHIS2 data element or operand this indicator is fetched from. It is fixed while the indicator has data; rename the indicator to change its name.",
+          fr: "L'élément de données ou l'opérande DHIS2 dont cet indicateur est récupéré. Il est fixe tant que l'indicateur contient des données ; renommez l'indicateur pour changer son nom.",
+          pt: "O elemento de dados ou operando DHIS2 de onde este indicador é obtido. É fixo enquanto o indicador tiver dados; renomeie o indicador para mudar o seu nome.",
+        })
+        : t3({
+          en: "The DHIS2 data element UID or UID.COC operand the import fetches. Its rows are stored under this id.",
+          fr: "L'UID d'élément de données ou l'opérande UID.COC que l'importation récupère. Ses lignes sont conservées sous cet identifiant.",
+          pt: "O UID de elemento de dados ou o operando UID.COC que a importação obtém. As suas linhas são guardadas sob este ID.",
+        });
+    }
+    return dataIdLocked()
+      ? t3({
+        en: "The value the file's indicator column says for this indicator. It is fixed while the indicator has data; rename the indicator to change its name.",
+        fr: "La valeur que la colonne d'indicateur du fichier donne pour cet indicateur. Elle est fixe tant que l'indicateur contient des données ; renommez l'indicateur pour changer son nom.",
+        pt: "O valor que a coluna de indicador do ficheiro diz para este indicador. É fixo enquanto o indicador tiver dados; renomeie o indicador para mudar o seu nome.",
+      })
+      : t3({
+        en: "The value the file's indicator column says for this indicator; its rows are stored under it. Leave it empty until a file assigns one: the CSV import's review step assigns an unknown value to this indicator when you type its id there.",
+        fr: "La valeur que la colonne d'indicateur du fichier donne pour cet indicateur ; ses lignes sont conservées sous cette valeur. Laissez vide tant qu'aucun fichier n'en a attribué une : l'étape de vérification de l'importation CSV attribue une valeur inconnue à cet indicateur lorsque vous y saisissez son identifiant.",
+        pt: "O valor que a coluna de indicador do ficheiro diz para este indicador; as suas linhas são guardadas sob ele. Deixe vazio até um ficheiro atribuir um: o passo de revisão da importação CSV atribui um valor desconhecido a este indicador quando lá escreve o seu ID.",
+      });
+  };
+
   return (
     <AlertFormHolder
       formId="indicator-form"
@@ -519,15 +682,26 @@ export function EditIndicatorForm(
       width="xl"
     >
       <div class="ui-gap grid grid-cols-[repeat(auto-fit,minmax(16rem,1fr))]">
-        <Input
-          label={t3({ en: "Indicator ID", fr: "ID de l'indicateur", pt: "ID do indicador" })}
-          value={indicatorId()}
-          onChange={setIndicatorId}
-          fullWidth
-          autoFocus={mode === "create"}
-          mono
-          disabled={mode === "update"}
-        />
+        <div class="ui-spy-xs">
+          <Input
+            label={t3({ en: "Indicator ID", fr: "ID de l'indicateur", pt: "ID do indicador" })}
+            value={indicatorId()}
+            onChange={setIndicatorId}
+            fullWidth
+            autoFocus={mode === "create"}
+            mono
+            disabled={existingIsSpecial}
+          />
+          <Show when={idCaption()}>
+            {(caption) => <div class="ui-text-caption text-xs">{caption()}</div>}
+          </Show>
+          <Show when={renameError()}>
+            {(err) => <div class="text-danger text-xs">{err()}</div>}
+          </Show>
+          <Show when={shadowNote()}>
+            {(note) => <div class="text-warning text-xs">{note()}</div>}
+          </Show>
+        </div>
         <Input
           label={t3(TC.label)}
           value={indicatorLabel()}
@@ -535,13 +709,19 @@ export function EditIndicatorForm(
           fullWidth
         />
       </div>
-      <Select
-        label={t3({ en: "Type", fr: "Type", pt: "Tipo" })}
-        value={type()}
-        onChange={(v) => setType(v as HmisIndicatorType)}
-        options={TYPE_OPTIONS}
-        fullWidth
-      />
+      <div class="ui-spy-xs">
+        <Select
+          label={t3({ en: "Type", fr: "Type", pt: "Tipo" })}
+          value={type()}
+          onChange={(v) => setType(v as HmisIndicatorType)}
+          options={TYPE_OPTIONS}
+          fullWidth
+        />
+        <div class="ui-text-caption text-xs">{typeCaption(type())}</div>
+        <Show when={typeSwitchError()}>
+          {(err) => <div class="text-danger text-xs">{err()}</div>}
+        </Show>
+      </div>
 
       <div class="ui-gap grid grid-cols-[repeat(auto-fit,minmax(24rem,1fr))] items-start">
         <div class="ui-spy-sm">
@@ -551,31 +731,21 @@ export function EditIndicatorForm(
 
           <Show when={hasRows(type())}>
             <Input
-              label={t3({ en: "DHIS2 id", fr: "Identifiant DHIS2", pt: "ID DHIS2" })}
-              value={dhis2Id()}
-              onChange={setDhis2Id}
-              placeholder={t3({
-                en: "Empty for an uploaded indicator",
-                fr: "Vide pour un indicateur téléversé",
-                pt: "Vazio para um indicador carregado",
-              })}
-              disabled={dhis2IdLocked}
+              label={dataIdLabel(type())}
+              value={dataId()}
+              onChange={setDataId}
+              placeholder={type() === "uploaded"
+                ? t3({
+                  en: "Empty until a file assigns one",
+                  fr: "Vide tant qu'aucun fichier n'en attribue une",
+                  pt: "Vazio até um ficheiro atribuir um",
+                })
+                : undefined}
+              disabled={dataIdLocked()}
               mono
               fullWidth
             />
-            <div class="ui-text-caption text-xs">
-              {dhis2IdLocked
-                ? t3({
-                  en: "The DHIS2 data element or operand this indicator is fetched from. It cannot change once set.",
-                  fr: "L'élément de données ou l'opérande DHIS2 dont cet indicateur est récupéré. Il ne peut plus changer une fois défini.",
-                  pt: "O elemento de dados ou operando DHIS2 de onde este indicador é obtido. Não pode mudar depois de definido.",
-                })
-                : t3({
-                  en: "The DHIS2 data element UID or UID.COC operand the import fetches into this indicator. Leave it empty for an indicator filled by CSV upload, where the file's indicator id is this indicator's own id.",
-                  fr: "L'UID d'élément de données ou l'opérande UID.COC que l'importation récupère dans cet indicateur. Laissez vide pour un indicateur rempli par téléversement CSV, où l'identifiant d'indicateur du fichier est l'identifiant de cet indicateur.",
-                  pt: "O UID de elemento de dados ou o operando UID.COC que a importação obtém para este indicador. Deixe vazio para um indicador preenchido por carregamento CSV, em que o ID de indicador do ficheiro é o ID deste indicador.",
-                })}
-            </div>
+            <div class="ui-text-caption text-xs">{dataIdCaption()}</div>
           </Show>
 
           <Show when={type() === "sum"}>
@@ -585,17 +755,17 @@ export function EditIndicatorForm(
               values={members()}
               onChange={setMembers}
               placeholder={t3({
-                en: "Search base indicators...",
-                fr: "Rechercher des indicateurs de base...",
-                pt: "Pesquisar indicadores de base...",
+                en: "Search indicators...",
+                fr: "Rechercher des indicateurs...",
+                pt: "Pesquisar indicadores...",
               })}
               fullWidth
             />
             <div class="ui-text-caption text-xs">
               {t3({
-                en: "The members' counts are added per facility and month. Members are base indicators; a sum cannot contain a sum.",
-                fr: "Les dénombrements des membres sont additionnés par établissement et par mois. Les membres sont des indicateurs de base ; une somme ne peut pas contenir une somme.",
-                pt: "As contagens dos membros são somadas por estabelecimento e mês. Os membros são indicadores de base; uma soma não pode conter uma soma.",
+                en: "The members' counts are added per facility and month. Members are Uploaded or DHIS2 element indicators; a sum cannot contain a sum.",
+                fr: "Les dénombrements des membres sont additionnés par établissement et par mois. Les membres sont des indicateurs téléversés ou des éléments DHIS2 ; une somme ne peut pas contenir une somme.",
+                pt: "As contagens dos membros são somadas por estabelecimento e mês. Os membros são indicadores carregados ou elementos DHIS2; uma soma não pode conter uma soma.",
               })}
             </div>
           </Show>

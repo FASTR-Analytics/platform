@@ -1,4 +1,9 @@
-import { t3, type DatasetHmisImportRunSummary, type DatasetHmisScheduledImport } from "lib";
+import {
+  t3,
+  type DatasetHmisImportRunSummary,
+  type DatasetHmisScheduledImport,
+  type HmisIndicator,
+} from "lib";
 import { recurrenceLabel } from "./_recurrence_label";
 import {
   Button,
@@ -17,6 +22,8 @@ import { selectionLabel } from "./_tab_history";
 
 type Props = {
   runningRun: DatasetHmisImportRunSummary | undefined;
+  // The dictionary keyed by data id, to name the pairs in flight.
+  indicatorsByDataId: Map<string, HmisIndicator>;
   queuedRuns: DatasetHmisImportRunSummary[];
   needsReviewRuns: DatasetHmisImportRunSummary[];
   nextSchedule: DatasetHmisScheduledImport | undefined;
@@ -124,7 +131,11 @@ export function Dhis2TabCurrent(p: Props) {
                   </>
                 }
               >
-                <Dhis2RunView run={run()} onChanged={p.onChanged} />
+                <Dhis2RunView
+                  run={run()}
+                  indicatorsByDataId={p.indicatorsByDataId}
+                  onChanged={p.onChanged}
+                />
               </CollapsibleSection>
             }
           >

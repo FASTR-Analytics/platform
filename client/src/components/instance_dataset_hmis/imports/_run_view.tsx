@@ -1,4 +1,9 @@
-import { getCalendar, t3, type DatasetHmisImportRunSummary } from "lib";
+import {
+  getCalendar,
+  t3,
+  type DatasetHmisImportRunSummary,
+  type HmisIndicator,
+} from "lib";
 import {
   Button,
   FrameRight,
@@ -10,11 +15,21 @@ import {
 } from "panther";
 import { For, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
+import { indicatorNameText } from "~/components/indicator_manager_hmis/_indicator_display";
 
 type Props = {
   run: DatasetHmisImportRunSummary;
+  // The dictionary keyed by data id: a pair in flight is named by the
+  // indicator under its data id, or by the data id alone until the
+  // dictionary is ready.
+  indicatorsByDataId: Map<string, HmisIndicator>;
   onChanged: () => Promise<void>;
 };
+
+function pairName(dataId: string, byDataId: Map<string, HmisIndicator>): string {
+  const indicator = byDataId.get(dataId);
+  return indicator ? indicatorNameText(indicator) : dataId;
+}
 
 export function Dhis2RunView(p: Props) {
   const completedPairs = () => p.run.succeededPairs + p.run.failedPairs;
@@ -114,7 +129,7 @@ export function Dhis2RunView(p: Props) {
               <For each={dhis2Progress()?.activePairs ?? []}>
                 {(pair) => (
                   <div class="bg-base-200 rounded px-2 py-1">
-                    {pair.dataId} ·{" "}
+                    {pairName(pair.dataId, p.indicatorsByDataId)} ·{" "}
                     {formatPeriod(pair.periodId, "year-month", getCalendar())}
                   </div>
                 )}

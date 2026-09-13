@@ -1,17 +1,19 @@
-// The naming step (PLAN_A4 ruling 6), one component for both import paths.
-// A DHIS2 element or operand becomes a new base under an id
-// generateIndicatorId proposes and the user edits inline; typing the id of
-// an existing base that has no DHIS2 id assigns the UID to that base; any
-// other existing id is refused; an element whose UID already belongs to an
-// indicator is shown as imported and creates nothing. A CSV column id
-// becomes an uploaded base under the file's own id. A DHIS2 indicator that
-// decomposes is a derived row whose formula is previewed over the ids its
-// operands are taking. The host owns the state (a Solid store) and posts
-// the result; the server applies the same rules again.
+// The naming step (PLAN_A5 rulings 6 and 7), one component for both import
+// paths. A DHIS2 element or operand becomes a new DHIS2 element under an id
+// generateIndicatorId proposes and the user edits inline; a file value the
+// CSV hold could not resolve becomes a new Uploaded indicator carrying the
+// value as its file id, under the value itself when that passes the
+// validator and a generated id otherwise. In either case, typing the id of
+// an existing Uploaded indicator that has no data id assigns the value to
+// that indicator instead (the adopt row); any other existing id is refused;
+// a value some indicator already carries as its data id is shown as
+// imported and creates nothing. A DHIS2 indicator that decomposes is a
+// derived row whose formula is previewed over the ids its operands are
+// taking. The host owns the state (a Solid store) and posts the result; the
+// server applies the same rules again.
 import {
   definitionDataId,
   type HmisIndicator,
-  type HmisIndicatorType,
   describeNewIndicatorIdIssue,
   generateIndicatorId,
   getNewIndicatorIdIssue,
@@ -26,35 +28,33 @@ import {
 import { Input } from "panther";
 import { createMemo, For, Show } from "solid-js";
 import type { SetStoreFunction } from "solid-js/store";
+import { dataIdLabel } from "./_indicator_display";
 
 // A DHIS2 element or operand by its UID, with the name DHIS2 gives it.
 export type NamingElementCandidate = {
-  dhis2_id: string;
-  dhis2_label: string;
+  data_id: string;
+  data_label: string;
 };
 
 export type NamingDerivedCandidate = {
   // What the derived comes from (the DHIS2 indicator id): the host's key.
   key: string;
   label: string;
-  // Over dhis2_ids; the transaction rewrites it over the indicators.
+  // Over data ids; the transaction rewrites it over the indicators.
   expression: string;
   format_as: IndicatorFormat;
   note?: string;
 };
 
-export type NamingElementRow = NamingElementCandidate & {
+// One row per value the step names: a DHIS2 element's UID or a file value
+// (`data_id`, shown with `data_label`, the DHIS2 name or the value itself),
+// the indicator id chosen for it and its label.
+export type NamingValueRow = NamingElementCandidate & {
   indicator_id: string;
   label: string;
-  // The indicator that already carries this UID: the row creates nothing.
+  // The indicator that already carries this value as its data id: the row
+  // creates nothing.
   importedAs?: string;
-};
-
-// A CSV column id: the file's own id is the indicator's id, so only the
-// label is chosen.
-export type NamingUploadedRow = {
-  indicator_id: string;
-  label: string;
 };
 
 export type NamingDerivedRow = NamingDerivedCandidate & {
@@ -62,10 +62,12 @@ export type NamingDerivedRow = NamingDerivedCandidate & {
 };
 
 export type NamingState = {
-  elements: NamingElementRow[];
-  uploaded: NamingUploadedRow[];
+  elements: NamingValueRow[];
+  uploaded: NamingValueRow[];
   derived: NamingDerivedRow[];
 };
+
+type ValueKind = "elements" | "uploaded";
 
 export const EMPTY_NAMING_STATE: NamingState = {
   elements: [],
@@ -73,7 +75,7 @@ export const EMPTY_NAMING_STATE: NamingState = {
   derived: [],
 };
 
-function ownersOfDhis2Ids(indicators: HmisIndicator[]): Map<string, string> {
+function ownersOfDataIds(indicators: HmisIndicator[]): Map<string, string> {
   const owners = new Map<string, string>();
   for (const indicator of indicators) {
     const dataId = definitionDataId(indicator.definition);
@@ -82,56 +84,8 @@ function ownersOfDhis2Ids(indicators: HmisIndicator[]): Map<string, string> {
   return owners;
 }
 
-// Proposed ids are generated against the dictionary as it stands plus the
-// uploaded ids and every id proposed before, so two rows never collide by
-// default.
-export function createNamingState(args: {
-  elements: NamingElementCandidate[];
-  uploadedIds: string[];
-  derived: NamingDerivedCandidate[];
-  indicators: HmisIndicator[];
-}): NamingState {
-  const owners = ownersOfDhis2Ids(args.indicators);
-  const existingIds = new Set([
-    ...args.indicators.map((i) => i.indicator_common_id),
-    ...args.uploadedIds,
-  ]);
-  const elements = args.elements.map<NamingElementRow>((candidate) => {
-    const importedAs = owners.get(candidate.dhis2_id);
-    if (importedAs !== undefined) {
-      return {
-        ...candidate,
-        indicator_id: importedAs,
-        label: candidate.dhis2_label,
-        importedAs,
-      };
-    }
-    const indicatorId = generateIndicatorId({
-      label: candidate.dhis2_label,
-      fallbackId: candidate.dhis2_id,
-      existingIds,
-    });
-    existingIds.add(indicatorId);
-    return { ...candidate, indicator_id: indicatorId, label: candidate.dhis2_label };
-  });
-  const derived = args.derived.map<NamingDerivedRow>((candidate) => {
-    const indicatorId = generateIndicatorId({
-      label: candidate.label,
-      fallbackId: candidate.key,
-      existingIds,
-    });
-    existingIds.add(indicatorId);
-    return { ...candidate, indicator_id: indicatorId };
-  });
-  return {
-    elements,
-    uploaded: args.uploadedIds.map((id) => ({ indicator_id: id, label: id })),
-    derived,
-  };
-}
-
-// The existing base without a DHIS2 id that a typed id names, if any: the
-// element's UID is assigned to it instead of creating a new indicator.
+// The existing Uploaded indicator without a data id that a typed id names,
+// if any: the value is assigned to it instead of creating a new indicator.
 export function namingAssignTarget(
   indicatorId: string,
   indicators: HmisIndicator[],
@@ -142,8 +96,76 @@ export function namingAssignTarget(
     : undefined;
 }
 
-function idIssueText(id: string, type: HmisIndicatorType): string | undefined {
-  const issue = getNewIndicatorIdIssue(id, type);
+// A file value is its own indicator id when it passes the validator and is
+// free, or names an Uploaded indicator it can be assigned to (ruling 6);
+// otherwise the id is generated from it.
+function proposeUploadedId(
+  value: string,
+  indicators: HmisIndicator[],
+  existingIds: Set<string>,
+): string {
+  const free = !existingIds.has(value) ||
+    namingAssignTarget(value, indicators) !== undefined;
+  if (free && getNewIndicatorIdIssue(value, "uploaded") === undefined) {
+    return value;
+  }
+  return generateIndicatorId({ label: value, fallbackId: value, existingIds });
+}
+
+// Proposed ids are generated against the dictionary as it stands plus every
+// id proposed before, so two rows never collide by default.
+export function createNamingState(args: {
+  elements: NamingElementCandidate[];
+  uploadedValues: string[];
+  derived: NamingDerivedCandidate[];
+  indicators: HmisIndicator[];
+}): NamingState {
+  const owners = ownersOfDataIds(args.indicators);
+  const existingIds = new Set(args.indicators.map((i) => i.indicator_common_id));
+  const elements = args.elements.map<NamingValueRow>((candidate) => {
+    const importedAs = owners.get(candidate.data_id);
+    if (importedAs !== undefined) {
+      return {
+        ...candidate,
+        indicator_id: importedAs,
+        label: candidate.data_label,
+        importedAs,
+      };
+    }
+    const indicatorId = generateIndicatorId({
+      label: candidate.data_label,
+      fallbackId: candidate.data_id,
+      existingIds,
+    });
+    existingIds.add(indicatorId);
+    return { ...candidate, indicator_id: indicatorId, label: candidate.data_label };
+  });
+  const uploaded = args.uploadedValues.map<NamingValueRow>((value) => {
+    const importedAs = owners.get(value);
+    if (importedAs !== undefined) {
+      return { data_id: value, data_label: value, indicator_id: importedAs, label: value, importedAs };
+    }
+    const indicatorId = proposeUploadedId(value, args.indicators, existingIds);
+    existingIds.add(indicatorId);
+    return { data_id: value, data_label: value, indicator_id: indicatorId, label: value };
+  });
+  const derived = args.derived.map<NamingDerivedRow>((candidate) => {
+    const indicatorId = generateIndicatorId({
+      label: candidate.label,
+      fallbackId: candidate.key,
+      existingIds,
+    });
+    existingIds.add(indicatorId);
+    return { ...candidate, indicator_id: indicatorId };
+  });
+  return { elements, uploaded, derived };
+}
+
+function idIssueText(id: string, kind: ValueKind): string | undefined {
+  const issue = getNewIndicatorIdIssue(
+    id,
+    kind === "elements" ? "dhis2_element" : "uploaded",
+  );
   return issue === undefined ? undefined : describeNewIndicatorIdIssue(issue);
 }
 
@@ -157,9 +179,9 @@ function labelRequired(key: string): string {
 
 function chosenTwice(key: string, id: string): string {
   return `${key}: ${t3({
-    en: `"${id}" is chosen more than once; one indicator carries one DHIS2 id`,
-    fr: `« ${id} » est choisi plus d'une fois ; un indicateur porte un seul identifiant DHIS2`,
-    pt: `"${id}" é escolhido mais de uma vez; um indicador tem um único ID DHIS2`,
+    en: `"${id}" is chosen more than once; one indicator carries one DHIS2 id or file id`,
+    fr: `« ${id} » est choisi plus d'une fois ; un indicateur ne porte qu'un identifiant DHIS2 ou du fichier`,
+    pt: `"${id}" é escolhido mais de uma vez; um indicador tem um único ID DHIS2 ou do ficheiro`,
   })}`;
 }
 
@@ -172,57 +194,39 @@ export function namingIssues(
   const existingIds = new Set(indicators.map((i) => i.indicator_common_id));
   const issues: string[] = [];
   const chosen = new Set<string>();
-  for (const row of state.elements) {
-    if (row.importedAs !== undefined) continue;
-    const id = row.indicator_id.trim();
-    if (chosen.has(id)) {
-      issues.push(chosenTwice(row.dhis2_id, id));
+  const checkValueRows = (kind: ValueKind) => {
+    for (const row of state[kind]) {
+      if (row.importedAs !== undefined) continue;
+      const id = row.indicator_id.trim();
+      if (chosen.has(id)) {
+        issues.push(chosenTwice(row.data_id, id));
+      }
+      chosen.add(id);
+      if (namingAssignTarget(id, indicators) !== undefined) continue;
+      const issue = idIssueText(id, kind);
+      if (issue !== undefined) {
+        issues.push(`${row.data_id}: ${issue}`);
+      } else if (existingIds.has(id)) {
+        issues.push(
+          `${row.data_id}: ${t3({
+            en: `"${id}" already exists and cannot take this value: only an Uploaded indicator without a file id or DHIS2 id can be assigned one; choose another id`,
+            fr: `« ${id} » existe déjà et ne peut pas recevoir cette valeur : seul un indicateur téléversé sans identifiant du fichier ni identifiant DHIS2 peut s'en voir attribuer une ; choisissez un autre identifiant`,
+            pt: `"${id}" já existe e não pode receber este valor: só um indicador carregado sem ID do ficheiro nem ID DHIS2 pode receber um; escolha outro ID`,
+          })}`,
+        );
+      }
+      if (row.label.trim() === "") {
+        issues.push(labelRequired(row.data_id));
+      }
     }
-    chosen.add(id);
-    if (namingAssignTarget(id, indicators) !== undefined) continue;
-    const issue = idIssueText(id, "dhis2_element");
-    if (issue !== undefined) {
-      issues.push(`${row.dhis2_id}: ${issue}`);
-    } else if (existingIds.has(id)) {
-      issues.push(
-        `${row.dhis2_id}: ${t3({
-          en: `"${id}" already exists and is not an uploaded indicator, so it cannot take a DHIS2 id; choose another id`,
-          fr: `« ${id} » existe déjà et n'est pas un indicateur téléversé, il ne peut donc pas recevoir d'identifiant DHIS2 ; choisissez un autre identifiant`,
-          pt: `"${id}" já existe e não é um indicador carregado, pelo que não pode receber um ID DHIS2; escolha outro ID`,
-        })}`,
-      );
-    }
-    if (row.label.trim() === "") {
-      issues.push(labelRequired(row.dhis2_id));
-    }
-  }
-  for (const row of state.uploaded) {
-    const id = row.indicator_id;
-    if (chosen.has(id)) {
-      issues.push(chosenTwice(id, id));
-    }
-    chosen.add(id);
-    const issue = idIssueText(id, "uploaded");
-    if (issue !== undefined) {
-      issues.push(`${id}: ${issue}`);
-    } else if (existingIds.has(id)) {
-      issues.push(
-        `${id}: ${t3({
-          en: "already exists",
-          fr: "existe déjà",
-          pt: "já existe",
-        })}`,
-      );
-    }
-    if (row.label.trim() === "") {
-      issues.push(labelRequired(id));
-    }
-  }
+  };
+  checkValueRows("elements");
+  checkValueRows("uploaded");
   for (const row of state.derived) {
     const id = row.indicator_id.trim();
-    const issue = idIssueText(id, "derived");
+    const issue = getNewIndicatorIdIssue(id, "derived");
     if (issue !== undefined) {
-      issues.push(`${row.key}: ${issue}`);
+      issues.push(`${row.key}: ${describeNewIndicatorIdIssue(issue)}`);
     } else if (existingIds.has(id) || chosen.has(id)) {
       issues.push(
         `${row.key}: ${t3({
@@ -240,21 +244,19 @@ export function namingIssues(
   return issues;
 }
 
-// Every element is posted, an imported one included: the server needs its
-// UID in the landing map to rewrite a derived formula that names it, and
+// Every row is posted, an imported one included: the server needs its
+// value in the landing map to rewrite a derived formula that names it, and
 // creates nothing for it.
 export function namingInputFromState(state: NamingState): IndicatorNamingInput {
-  return {
-    elements: state.elements.map((row) => ({
-      data_id: row.dhis2_id,
+  const valueRows = (rows: NamingValueRow[]) =>
+    rows.map((row) => ({
+      data_id: row.data_id,
       indicator_id: row.indicator_id.trim(),
       label: row.label.trim(),
-    })),
-    uploaded: state.uploaded.map((row) => ({
-      data_id: row.indicator_id,
-      indicator_id: row.indicator_id,
-      label: row.label.trim(),
-    })),
+    }));
+  return {
+    elements: valueRows(state.elements),
+    uploaded: valueRows(state.uploaded),
     derived: state.derived.map((row) => ({
       indicator_id: row.indicator_id.trim(),
       label: row.label.trim(),
@@ -270,7 +272,7 @@ function previewExpression(row: NamingDerivedRow, state: NamingState): string {
   const landing: Record<string, string> = {};
   for (const element of state.elements) {
     const id = element.indicator_id.trim();
-    if (id !== "") landing[element.dhis2_id] = id;
+    if (id !== "") landing[element.data_id] = id;
   }
   try {
     return writeIndicatorExpression(
@@ -304,76 +306,12 @@ export function NamingStep(p: {
           </div>
           <div class="ui-text-caption text-xs">
             {t3({
-              en: "Each element becomes a new indicator under the id shown (edit it here; ids cannot change later). Type the id of an existing uploaded indicator to assign the DHIS2 id to that indicator instead.",
-              fr: "Chaque élément devient un nouvel indicateur sous l'identifiant affiché (modifiez-le ici ; les identifiants ne peuvent plus changer ensuite). Saisissez l'identifiant d'un indicateur téléversé existant pour lui attribuer l'identifiant DHIS2 à la place.",
-              pt: "Cada elemento torna-se um novo indicador com o ID mostrado (edite-o aqui; os IDs não podem mudar depois). Escreva o ID de um indicador carregado existente para lhe atribuir o ID DHIS2 em vez disso.",
+              en: "Each element becomes a new DHIS2 element indicator under the id shown (edit it here; the indicator can be renamed later). Type the id of an existing Uploaded indicator that has no file id to assign the DHIS2 id to that indicator instead.",
+              fr: "Chaque élément devient un nouvel indicateur élément DHIS2 sous l'identifiant affiché (modifiez-le ici ; l'indicateur pourra être renommé ensuite). Saisissez l'identifiant d'un indicateur téléversé existant sans identifiant du fichier pour lui attribuer l'identifiant DHIS2 à la place.",
+              pt: "Cada elemento torna-se um novo indicador elemento DHIS2 com o ID mostrado (edite-o aqui; o indicador pode ser renomeado depois). Escreva o ID de um indicador carregado existente sem ID do ficheiro para lhe atribuir o ID DHIS2 em vez disso.",
             })}
           </div>
-          <For each={p.state.elements}>
-            {(row, index) => {
-              const assignTarget = createMemo(() =>
-                row.importedAs === undefined
-                  ? namingAssignTarget(row.indicator_id.trim(), p.indicators)
-                  : undefined
-              );
-              return (
-                <div class="ui-pad-sm ui-spy-sm rounded border">
-                  <div class="ui-gap-sm flex items-baseline text-sm">
-                    <span class="font-mono">{row.dhis2_id}</span>
-                    <Show when={row.dhis2_label !== row.dhis2_id}>
-                      <span class="text-base-content-muted">{row.dhis2_label}</span>
-                    </Show>
-                  </div>
-                  <Show
-                    when={row.importedAs === undefined}
-                    fallback={
-                      <div class="text-sm">
-                        {t3({
-                          en: "Already imported as",
-                          fr: "Déjà importé sous",
-                          pt: "Já importado como",
-                        })}{" "}
-                        <span class="font-mono">{row.importedAs}</span>
-                      </div>
-                    }
-                  >
-                    <div class="ui-gap-sm grid grid-cols-2">
-                      <Input
-                        label={t3({
-                          en: "Indicator ID",
-                          fr: "ID de l'indicateur",
-                          pt: "ID do indicador",
-                        })}
-                        value={row.indicator_id}
-                        onChange={(v) => p.setState("elements", index(), "indicator_id", v)}
-                        mono
-                        fullWidth
-                      />
-                      <Input
-                        label={t3(TC.label)}
-                        value={assignTarget()?.indicator_common_label ?? row.label}
-                        onChange={(v) => p.setState("elements", index(), "label", v)}
-                        disabled={assignTarget() !== undefined}
-                        fullWidth
-                      />
-                    </div>
-                    <Show when={assignTarget()}>
-                      {(target) => (
-                        <div class="text-sm">
-                          {t3({
-                            en: "Assigns this DHIS2 id to the existing indicator",
-                            fr: "Attribue cet identifiant DHIS2 à l'indicateur existant",
-                            pt: "Atribui este ID DHIS2 ao indicador existente",
-                          })}{" "}
-                          <span class="font-mono">{target().indicator_common_id}</span>
-                        </div>
-                      )}
-                    </Show>
-                  </Show>
-                </div>
-              );
-            }}
-          </For>
+          <ValueRows kind="elements" state={p.state} setState={p.setState} indicators={p.indicators} />
         </div>
       </Show>
 
@@ -388,24 +326,12 @@ export function NamingStep(p: {
           </div>
           <div class="ui-text-caption text-xs">
             {t3({
-              en: "Each id is what the file says, so it is the indicator's own id and cannot change. Give each a label.",
-              fr: "Chaque identifiant est celui du fichier : c'est l'identifiant de l'indicateur et il ne peut pas changer. Donnez une étiquette à chacun.",
-              pt: "Cada ID é o que o ficheiro diz, pelo que é o ID do próprio indicador e não pode mudar. Dê uma etiqueta a cada um.",
+              en: "Each value the file's indicator column says becomes a new Uploaded indicator carrying it as its file id, under the id shown (edit it here; the indicator can be renamed later). Type the id of an existing Uploaded indicator that has no file id to assign the value to that indicator instead.",
+              fr: "Chaque valeur de la colonne d'indicateur du fichier devient un nouvel indicateur téléversé qui la porte comme identifiant du fichier, sous l'identifiant affiché (modifiez-le ici ; l'indicateur pourra être renommé ensuite). Saisissez l'identifiant d'un indicateur téléversé existant sans identifiant du fichier pour lui attribuer la valeur à la place.",
+              pt: "Cada valor da coluna de indicador do ficheiro torna-se um novo indicador carregado que o tem como ID do ficheiro, com o ID mostrado (edite-o aqui; o indicador pode ser renomeado depois). Escreva o ID de um indicador carregado existente sem ID do ficheiro para lhe atribuir o valor em vez disso.",
             })}
           </div>
-          <For each={p.state.uploaded}>
-            {(row, index) => (
-              <div class="ui-pad-sm ui-gap-sm grid grid-cols-2 items-end rounded border">
-                <div class="font-mono text-sm">{row.indicator_id}</div>
-                <Input
-                  label={t3(TC.label)}
-                  value={row.label}
-                  onChange={(v) => p.setState("uploaded", index(), "label", v)}
-                  fullWidth
-                />
-              </div>
-            )}
-          </For>
+          <ValueRows kind="uploaded" state={p.state} setState={p.setState} indicators={p.indicators} />
         </div>
       </Show>
 
@@ -475,5 +401,84 @@ export function NamingStep(p: {
         </div>
       </Show>
     </div>
+  );
+}
+
+// The rows of one kind: the value, the id chosen for it, its label, and
+// what the choice amounts to (a new indicator, an assignment to an existing
+// one, or nothing because the value is already imported).
+function ValueRows(p: {
+  kind: ValueKind;
+  state: NamingState;
+  setState: SetStoreFunction<NamingState>;
+  indicators: HmisIndicator[];
+}) {
+  const what = () => dataIdLabel(p.kind === "elements" ? "dhis2_element" : "uploaded");
+  return (
+    <For each={p.state[p.kind]}>
+      {(row, index) => {
+        const assignTarget = createMemo(() =>
+          row.importedAs === undefined
+            ? namingAssignTarget(row.indicator_id.trim(), p.indicators)
+            : undefined
+        );
+        return (
+          <div class="ui-pad-sm ui-spy-sm rounded border">
+            <div class="ui-gap-sm flex items-baseline text-sm">
+              <span class="font-mono">{row.data_id}</span>
+              <Show when={row.data_label !== row.data_id}>
+                <span class="text-base-content-muted">{row.data_label}</span>
+              </Show>
+            </div>
+            <Show
+              when={row.importedAs === undefined}
+              fallback={
+                <div class="text-sm">
+                  {t3({
+                    en: "Already imported as",
+                    fr: "Déjà importé sous",
+                    pt: "Já importado como",
+                  })}{" "}
+                  <span class="font-mono">{row.importedAs}</span>
+                </div>
+              }
+            >
+              <div class="ui-gap-sm grid grid-cols-2">
+                <Input
+                  label={t3({
+                    en: "Indicator ID",
+                    fr: "ID de l'indicateur",
+                    pt: "ID do indicador",
+                  })}
+                  value={row.indicator_id}
+                  onChange={(v) => p.setState(p.kind, index(), "indicator_id", v)}
+                  mono
+                  fullWidth
+                />
+                <Input
+                  label={t3(TC.label)}
+                  value={assignTarget()?.indicator_common_label ?? row.label}
+                  onChange={(v) => p.setState(p.kind, index(), "label", v)}
+                  disabled={assignTarget() !== undefined}
+                  fullWidth
+                />
+              </div>
+              <Show when={assignTarget()}>
+                {(target) => (
+                  <div class="text-sm">
+                    {t3({
+                      en: `Assigns this ${what()} to the existing indicator`,
+                      fr: `Attribue cet ${what()} à l'indicateur existant`,
+                      pt: `Atribui este ${what()} ao indicador existente`,
+                    })}{" "}
+                    <span class="font-mono">{target().indicator_common_id}</span>
+                  </div>
+                )}
+              </Show>
+            </Show>
+          </div>
+        );
+      }}
+    </For>
   );
 }

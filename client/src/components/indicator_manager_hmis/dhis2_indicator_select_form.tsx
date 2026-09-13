@@ -1,10 +1,10 @@
-// Import from DHIS2 (PLAN_A4 ruling 6, PLAN_A3 ruling 8): search elements
+// Import from DHIS2 (PLAN_A5 ruling 7, PLAN_A3 ruling 8): search elements
 // and indicators, refuse the ineligible ones in the list with the reason,
 // then name what the selection becomes and save it in one transaction. An
-// element or operand becomes an indicator carrying its DHIS2 id; a DHIS2
-// indicator is decomposed into its operands and a derived over the
-// indicators they become. The server re-reads every element and indicator
-// and judges them itself.
+// element or operand becomes a DHIS2 element indicator carrying its UID as
+// its DHIS2 id; a DHIS2 indicator is decomposed into its operands and a
+// derived over the indicators they become. The server re-reads every
+// element and indicator and judges them itself.
 import {
   describeDhis2ParseRefusal,
   describeDhis2ElementRefusal,
@@ -277,8 +277,8 @@ export function Dhis2IndicatorSelectForm(p: Props) {
     for (const item of items) {
       if (item.kind !== "indicator") {
         elements.set(itemId(item), {
-          dhis2_id: itemId(item),
-          dhis2_label: itemName(item),
+          data_id: itemId(item),
+          data_label: itemName(item),
         });
         continue;
       }
@@ -298,14 +298,14 @@ export function Dhis2IndicatorSelectForm(p: Props) {
     );
     for (const id of operandIds) {
       if (!elements.has(id)) {
-        elements.set(id, { dhis2_id: id, dhis2_label: labels.get(id) ?? id });
+        elements.set(id, { data_id: id, data_label: labels.get(id) ?? id });
       }
     }
     setDictionary(dictionaryRes.data.indicators);
     setNaming(
       createNamingState({
         elements: [...elements.values()],
-        uploadedIds: [],
+        uploadedValues: [],
         derived,
         indicators: dictionaryRes.data.indicators,
       }),

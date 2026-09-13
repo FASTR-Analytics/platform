@@ -259,9 +259,9 @@ previously invisible to the weights UI).
 
 Three identity-space patterns. HFA and ICEH ids are immutable after
 create (server-enforced; the UIs disable the inputs). The HMIS indicator
-id is renamable through `updateIndicator` (below); the editor still
-disables the id input on update, so no screen renames yet (PLAN_A5 step
-2). Label edits are always safe everywhere.
+id is renamable through `updateIndicator` (below) and through the
+editor's id input on an existing indicator. Label edits are always safe
+everywhere.
 
 **HMIS** (PLAN_A5 §2): the data rows of `dataset_hmis` are facts keyed by
 `data_id`, what DHIS2 or the file called the series, and the dictionary,
@@ -278,11 +278,10 @@ extract into one facility × month series that m001 and m002 adjust like
 any count; no sum inside a sum), and `derived` (`expression`, a formula
 over indicators of any type and population terms, evaluated by m012 after
 adjustment and aggregation). The four words are the code names' labels
-(`indicatorTypeLabel`); the editor's one data-id input is labelled "DHIS2
-id" for both types that have rows, with a placeholder for an Uploaded
-indicator, and "data id" appears in server error strings (PLAN_A5 step 2
-gives the Uploaded input its own "File id" label and takes "data id" off
-screen). Two generated columns nothing may write hold the two
+(`indicatorTypeWord`); on screen the data id is "DHIS2 id" on a DHIS2
+element and "File id" on an Uploaded indicator (`dataIdLabel`), and "data
+id" appears only in server error strings, which the client renders
+verbatim. Two generated columns nothing may write hold the two
 facts read off the type: `has_rows` (Uploaded or DHIS2 element) and
 `is_count` (those plus Sum), the same predicates as lib's `hasRows` and
 `isCount`. `data_id` is `UNIQUE` (`indicators_data_id_key`); the junction's
@@ -327,9 +326,9 @@ while a sum names the indicator (the only guard; a Sum or Derived has no
 rows and no sum names it, so a switch away from them needs none). The
 data id may be taken, changed or cleared through `updateIndicator` while
 no rows exist under it, within the type's rule; with rows it is fixed, and
-the error says to rename the indicator instead. The editor is stricter:
-it locks the input once a data id is set (PLAN_A5 step 2 relaxes it to
-the server's rule). Deleting an indicator refuses
+the error says to rename the indicator instead. The editor locks the
+input while the ledger reports rows under the data id, and while the
+ledger has not loaded. Deleting an indicator refuses
 with a listing when it has data (a sum is data, so the dependency on its
 members is strict), when a surviving sum names it, or when another
 indicator's expression still needs the id; the expression guard is exact
@@ -352,11 +351,12 @@ since rows need a data id); any other existing id is refused; one
 indicator carries one data id, so two elements cannot share a new id; a
 UID some indicator already holds creates nothing. A file value the CSV
 hold could not resolve becomes an Uploaded indicator carrying the value as
-its data id, under the id the hold posts (today the value itself,
-`namingInputFromState`; a value that fails the validator refuses the save,
-and PLAN_A5 step 2 proposes a generated id instead); when the chosen id
-names an existing Uploaded indicator with no data id, that indicator
-adopts the value instead. A
+its data id, under the id the hold proposes and the user may edit (the
+value itself when it passes the validator and is free or names an
+Uploaded indicator it can be assigned to, otherwise an id generated from
+it: `proposeUploadedId` in `_naming_step.tsx`); when the chosen id names
+an existing Uploaded indicator with no data id, that indicator adopts the
+value instead. A
 DHIS2 indicator decomposes (S7) into DHIS2 elements for its operands and a
 derived `(numerator) / (denominator)` over their ids: its expression names
 each operand by `[data_id]` and the transaction rewrites every identifier
@@ -911,20 +911,21 @@ Every config mutation re-reads all configs and pushes one consolidated
   caption whenever a population term is present.
 - The naming step's state is a Solid store the host owns
   (`createNamingState` seeds it once from the dictionary as loaded, so
-  the user's edits are never re-seeded away): one row per DHIS2 element
-  (proposed id and label editable inline; typing the id of an existing
-  uploaded indicator shows the assignment and takes that indicator's label;
-  an element whose UID an indicator already carries reads "Already imported
-  as" and is still posted, so a derived formula naming it rewrites, and the
-  server creates nothing for it), one row per CSV column id (the id is the
-  file's and fixed, only the label is chosen), and one per decomposed DHIS2
-  indicator with its formula previewed over the ids the elements are taking.
+  the user's edits are never re-seeded away): one row per value, a DHIS2
+  element's UID or a file value (`NamingValueRow`: proposed id and label
+  editable inline; typing the id of an existing Uploaded indicator with no
+  data id shows the assignment, "Assigns this DHIS2 id / File id to the
+  existing indicator", and takes that indicator's label; a value some
+  indicator already carries as its data id reads "Already imported as"
+  and is still posted, so a derived formula naming it rewrites, and the
+  server creates nothing for it), and one per decomposed DHIS2 indicator
+  with its formula previewed over the ids the elements are taking.
   `namingIssues` states every refusal the server would make (a reserved or
-  malformed id, an existing id that is not an uploaded indicator, one id
-  chosen for two elements, a missing label) and disables the save while any
-  stands; `namingInputFromState` is what the host posts. The DHIS2 select
-  form feeds it elements and operands; the CSV hold's third action feeds it
-  the hold's unknown ids.
+  malformed id, an existing id that cannot be assigned to, one id chosen
+  for two values, a missing label) and disables the save while any stands;
+  `namingInputFromState` is what the host posts. The DHIS2 select form
+  feeds it elements and operands; the CSV hold's third action feeds it the
+  hold's unknown values.
 - Computability in the manager is shown, never enforced. The list has a
   Status column fed by one `createMemo` over the loaded dictionary calling
   `judgeDerivedIndicators` (lib) with the counts that have rows
@@ -954,13 +955,21 @@ Every config mutation re-reads all configs and pushes one consolidated
   Uploaded or DHIS2 element, the members, the formula; `definedByText`,
   shared with the import picker), the include-in-analysis checkbox on every
   row (an `updateIndicator` with nothing else changed; the SSE stamp
-  refetches the list) and the Special badge. The editor branches on the
-  type: an Uploaded or DHIS2 element has the data id input (labelled "DHIS2
-  id" for both; read-only once set; the DHIS2 shape and uniqueness checks
-  apply to both, stricter than the server for an Uploaded indicator until
-  PLAN_A5 step 2), a sum a member picker over the indicators that have rows
-  (at least one), a derived the formula, palette and legend; every type has
-  the checkbox, and a count is forced to `number`.
+  refetches the list) and the Special badge. The editor offers the four
+  types with a caption each and branches on the type: an Uploaded or DHIS2
+  element has the data id input ("File id" or "DHIS2 id"; locked while
+  the ledger reports rows under it or has not loaded; a DHIS2 element's
+  must be set and DHIS2-shaped, an Uploaded indicator's is any text or
+  empty; neither may be another indicator's), a sum a member picker over
+  the indicators that have rows (at least one), a derived the formula,
+  palette and legend; every type has the checkbox, and a count is forced
+  to `number`. The id input is editable on an existing indicator (disabled
+  on a special, which cannot be renamed): a changed id goes through the
+  validator and the taken check before the save, with the server's other
+  refusals rendered as the form error, and a typed id that is another
+  indicator's data id shows whose, the shadow ruling 6 names. A switch out
+  of the two types that have rows is refused in the form while the ledger
+  reports rows or a sum names the indicator, as the server refuses it.
 - The structure wizard: server owns the step number (every save writes
   `step`; the client fetcher jumps the stepper on each silent refetch).
   Errors render as a dismissible banner over navigable steps (re-saving

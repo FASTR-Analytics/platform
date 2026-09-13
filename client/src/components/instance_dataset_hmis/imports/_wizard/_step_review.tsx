@@ -54,9 +54,9 @@ export function Dhis2StepReview(p: Props) {
           <div class="font-700">
             {toNum0(p.nPairs ?? 0)}{" "}
             {t3({
-              en: "(indicator, month) pairs",
-              fr: "paires (indicateur, mois)",
-              pt: "pares (indicador, mês)",
+              en: "(DHIS2 element, month) pairs",
+              fr: "paires (élément DHIS2, mois)",
+              pt: "pares (elemento DHIS2, mês)",
             })}
           </div>
         </Show>

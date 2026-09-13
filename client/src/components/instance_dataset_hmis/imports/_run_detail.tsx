@@ -21,6 +21,10 @@ import {
 } from "panther";
 import { Show, createMemo } from "solid-js";
 import { serverActions } from "~/server_actions";
+import {
+  indicatorsByDataId,
+  indicatorNameText,
+} from "~/components/indicator_manager_hmis/_indicator_display";
 import { ImportInformation } from "../_import_information";
 import { selectionLabel, statusLabel } from "./_tab_history";
 import { fetchDatasetHmisVersion } from "./_version_info";
@@ -63,19 +67,17 @@ export function Dhis2RunDetail(
       pt: "A carregar o detalhe da importação...",
     }),
   );
-  // Indicator labels are a display-only enrichment: degrade to blank until
-  // ready.
+  // The pairs carry data ids (PLAN_A5 ruling 9); the dictionary keyed by
+  // data id names them. A display-only enrichment: blank until ready.
   const indicators = createQuery(() => serverActions.getIndicators({}));
-  const indicatorLabels = createMemo((): Map<string, string> => {
+  const byDataId = createMemo(() => {
     const s = indicators.state();
-    if (s.status !== "ready") return new Map();
-    return new Map(
-      s.data.indicators.map((i): [string, string] => [
-        i.indicator_common_id,
-        `${i.indicator_common_label} (${i.indicator_common_id})`,
-      ]),
-    );
+    return s.status !== "ready" ? new Map() : indicatorsByDataId(s.data.indicators);
   });
+  const indicatorName = (dataId: string): string => {
+    const indicator = byDataId().get(dataId);
+    return indicator ? indicatorNameText(indicator) : "";
+  };
 
   const windowSelection = () =>
     p.run.selection?.kind === "window" ? p.run.selection : undefined;
@@ -83,15 +85,16 @@ export function Dhis2RunDetail(
   const failedPairColumns: TableColumn<Dhis2PairFetchStat & { key: string }>[] = [
     {
       key: "dataId",
-      header: t3({ en: "Indicator ID", fr: "ID de l'indicateur", pt: "ID do indicador" }),
+      header: t3({ en: "DHIS2 id", fr: "Identifiant DHIS2", pt: "ID DHIS2" }),
       sortable: true,
+      render: (s) => <span class="font-mono">{s.dataId}</span>,
     },
     {
-      key: "indicatorLabel",
+      key: "indicator",
       header: t3({ en: "Indicator", fr: "Indicateur", pt: "Indicador" }),
       sortable: true,
-      sortValue: (s) => indicatorLabels().get(s.dataId) ?? "",
-      render: (s) => indicatorLabels().get(s.dataId) ?? "",
+      sortValue: (s) => indicatorName(s.dataId),
+      render: (s) => indicatorName(s.dataId),
     },
     {
       key: "periodId",
@@ -283,9 +286,9 @@ export function Dhis2RunDetail(
                       <Show when={selection().uploadedIndicatorsDropped.length > 0}>
                         <div>
                           {t3({
-                            en: `Uploaded indicators, which have no DHIS2 id (${toNum0(selection().uploadedIndicatorsDropped.length)}):`,
-                            fr: `Indicateurs téléversés, sans identifiant DHIS2 (${toNum0(selection().uploadedIndicatorsDropped.length)}) :`,
-                            pt: `Indicadores carregados, sem ID DHIS2 (${toNum0(selection().uploadedIndicatorsDropped.length)}):`,
+                            en: `Uploaded indicators, which are not fetched from DHIS2 (${toNum0(selection().uploadedIndicatorsDropped.length)}):`,
+                            fr: `Indicateurs téléversés, qui ne sont pas récupérés depuis DHIS2 (${toNum0(selection().uploadedIndicatorsDropped.length)}) :`,
+                            pt: `Indicadores carregados, que não são obtidos do DHIS2 (${toNum0(selection().uploadedIndicatorsDropped.length)}):`,
                           })}{" "}
                           <span class="font-mono">{selection().uploadedIndicatorsDropped.join(", ")}</span>
                         </div>

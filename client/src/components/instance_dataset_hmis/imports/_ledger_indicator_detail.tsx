@@ -3,6 +3,7 @@ import {
   t3,
   type DatasetHmisImportLedgerItem,
   type Dhis2RunPairInput,
+  type HmisIndicator,
 } from "lib";
 import {
   Button,
@@ -14,6 +15,7 @@ import {
   toNum0,
   type TableColumn,
 } from "panther";
+import { indicatorNameText } from "~/components/indicator_manager_hmis/_indicator_display";
 import { importRouteLabel, type LedgerPeriodWindow } from "./_tab_by_indicator";
 
 type MonthRow = {
@@ -21,21 +23,28 @@ type MonthRow = {
   item: DatasetHmisImportLedgerItem | undefined;
 };
 
-// The per-indicator ledger surface: every month in the window with its
-// import status. Closes with a pair list when the user asks to re-import
-// the indicator; the shell feeds it to the wizard's presetPairs entry (same
-// contract as Dhis2RunDetail).
+// The per-data-id ledger surface: every month in the window with its
+// import status, headed by the indicator under that data id. Closes with a
+// pair list when the user asks to re-import it; the shell feeds it to the
+// wizard's presetPairs entry (same contract as Dhis2RunDetail).
 export function ImportLedgerIndicatorDetail(
   p: EditorComponentProps<
     {
-      indicatorId: string;
-      indicatorLabel: string | undefined;
+      dataId: string;
+      indicator: HmisIndicator | undefined;
       items: DatasetHmisImportLedgerItem[];
       window: LedgerPeriodWindow;
     },
     Dhis2RunPairInput[] | undefined
   >,
 ) {
+  const subheading = () => {
+    if (p.indicator === undefined) return p.dataId;
+    const name = indicatorNameText(p.indicator);
+    return p.indicator.indicator_common_id === p.dataId
+      ? name
+      : `${name} · ${p.dataId}`;
+  };
   const itemsByPeriod = new Map<number, DatasetHmisImportLedgerItem>();
   for (const item of p.items) {
     itemsByPeriod.set(item.periodId, item);
@@ -46,7 +55,7 @@ export function ImportLedgerIndicatorDetail(
 
   function reimportIndicator() {
     const pairs: Dhis2RunPairInput[] = enumerateMonthsDescending(p.window).map(
-      (periodId) => ({ dataId: p.indicatorId, periodId }),
+      (periodId) => ({ dataId: p.dataId, periodId }),
     );
     p.close(pairs);
   }
@@ -168,7 +177,7 @@ export function ImportLedgerIndicatorDetail(
             fr: "État des importations",
             pt: "Estado das importações",
           })}
-          subheading={p.indicatorLabel ? `${p.indicatorId} · ${p.indicatorLabel}` : p.indicatorId}
+          subheading={subheading()}
         >
           <div class="ui-gap-sm flex items-center">
             <Button iconName="databaseImport" onClick={reimportIndicator}>

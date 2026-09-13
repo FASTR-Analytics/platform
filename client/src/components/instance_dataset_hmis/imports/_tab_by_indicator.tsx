@@ -2,6 +2,7 @@ import {
   t3,
   type DatasetHmisImportLedgerItem,
   type Dhis2RunPairInput,
+  type HmisIndicator,
 } from "lib";
 import {
   Button,
@@ -19,18 +20,19 @@ type Props = {
   // Both reads are shell-owned (this tab is remounted on every silent
   // runs/scheduling fetch, so it must not own queries: see the shell).
   ledger: StateHolder<DatasetHmisImportLedgerItem[]>;
-  // The dictionary's label per indicator id, a display-only enrichment.
-  indicatorLabels: Map<string, string>;
+  // The dictionary keyed by data id, a display-only enrichment: a row whose
+  // data id no indicator carries shows blank indicator columns.
+  indicatorsByDataId: Map<string, HmisIndicator>;
   onOpenIndicator: (
-    indicatorId: string,
+    dataId: string,
     items: DatasetHmisImportLedgerItem[],
     window: LedgerPeriodWindow,
   ) => Promise<void>;
   onRetryFailedPairs: (pairs: Dhis2RunPairInput[]) => Promise<void>;
 };
 
-type IndicatorRollup = {
-  indicatorId: string;
+type DataIdRollup = {
+  dataId: string;
   monthsWithData: number;
   monthsInWindow: number;
   latestImportedAt: string | undefined;
@@ -40,23 +42,39 @@ type IndicatorRollup = {
   items: DatasetHmisImportLedgerItem[];
 };
 
-// Import history pivoted by indicator (the ledger's key): one row per
-// indicator across the dataset's period window, click-through to the
-// per-month detail. Same history as the History tab, different axis.
+// Import history pivoted by data id (the ledger's key, PLAN_A5 ruling 9):
+// one row per data id across the dataset's period window, labelled through
+// the dictionary, click-through to the per-month detail. Same history as
+// the History tab, different axis.
 export function Dhis2TabByIndicator(p: Props) {
-  const columns: TableColumn<IndicatorRollup>[] = [
+  const indicatorOf = (item: DataIdRollup) => p.indicatorsByDataId.get(item.dataId);
+
+  const columns: TableColumn<DataIdRollup>[] = [
     {
       key: "indicatorId",
       header: t3({ en: "Indicator ID", fr: "ID de l'indicateur", pt: "ID do indicador" }),
       sortable: true,
-      render: (item) => <span class="font-mono">{item.indicatorId}</span>,
+      sortValue: (item) => indicatorOf(item)?.indicator_common_id ?? "",
+      render: (item) => (
+        <span class="font-mono">{indicatorOf(item)?.indicator_common_id ?? ""}</span>
+      ),
     },
     {
       key: "label",
       header: t3({ en: "Label", fr: "Libellé", pt: "Etiqueta" }),
       sortable: true,
-      sortValue: (item) => p.indicatorLabels.get(item.indicatorId) ?? "",
-      render: (item) => p.indicatorLabels.get(item.indicatorId) ?? "",
+      sortValue: (item) => indicatorOf(item)?.indicator_common_label ?? "",
+      render: (item) => indicatorOf(item)?.indicator_common_label ?? "",
+    },
+    {
+      key: "dataId",
+      header: t3({
+        en: "DHIS2 id / File id",
+        fr: "Identifiant DHIS2 / du fichier",
+        pt: "ID DHIS2 / do ficheiro",
+      }),
+      sortable: true,
+      render: (item) => <span class="font-mono">{item.dataId}</span>,
     },
     {
       key: "monthsWithData",
@@ -86,8 +104,8 @@ export function Dhis2TabByIndicator(p: Props) {
             item.latestRoute ? importRouteLabel(item.latestRoute) : ""
           })`;
         }
-        // No timestamp anywhere: either pre-ledger backfill data, or an
-        // indicator that has only ever failed (never imported at all).
+        // No timestamp anywhere: either pre-ledger backfill data, or a data
+        // id that has only ever failed (never imported at all).
         return item.items.some((i) => i.route === "backfill")
           ? importRouteLabel("backfill")
           : t3({
@@ -170,7 +188,7 @@ export function Dhis2TabByIndicator(p: Props) {
             <Table
               data={rollups}
               columns={columns}
-              keyField="indicatorId"
+              keyField="dataId"
               noRowsMessage={t3({
                 en: "No imports recorded yet",
                 fr: "Aucune importation enregistrée pour le moment",
@@ -178,7 +196,7 @@ export function Dhis2TabByIndicator(p: Props) {
               })}
               onRowClick={(rollup) => {
                 if (window) {
-                  void p.onOpenIndicator(rollup.indicatorId, rollup.items, window);
+                  void p.onOpenIndicator(rollup.dataId, rollup.items, window);
                 }
               }}
             />
@@ -213,7 +231,7 @@ function countMonthsInclusive(min: number, max: number): number {
 }
 
 function buildRollups(items: DatasetHmisImportLedgerItem[]): {
-  rollups: IndicatorRollup[];
+  rollups: DataIdRollup[];
   window: LedgerPeriodWindow | undefined;
 } {
   if (items.length === 0) {
@@ -228,24 +246,24 @@ function buildRollups(items: DatasetHmisImportLedgerItem[]): {
   const window: LedgerPeriodWindow = { min, max };
   const monthsInWindow = countMonthsInclusive(min, max);
 
-  const byIndicator = new Map<string, DatasetHmisImportLedgerItem[]>();
+  const byDataId = new Map<string, DatasetHmisImportLedgerItem[]>();
   for (const item of items) {
-    const list = byIndicator.get(item.dataId);
+    const list = byDataId.get(item.dataId);
     if (list) {
       list.push(item);
     } else {
-      byIndicator.set(item.dataId, [item]);
+      byDataId.set(item.dataId, [item]);
     }
   }
 
-  const rollups = Array.from(byIndicator.entries()).map<IndicatorRollup>(
-    ([indicatorId, indicatorItems]) => {
+  const rollups = Array.from(byDataId.entries()).map<DataIdRollup>(
+    ([dataId, dataIdItems]) => {
       let monthsWithData = 0;
       let failedMonths = 0;
       let skippedValues = 0;
       let latestImportedAt: string | undefined;
       let latestRoute: DatasetHmisImportLedgerItem["route"] | undefined;
-      for (const item of indicatorItems) {
+      for (const item of dataIdItems) {
         if (item.nRecords > 0) {
           monthsWithData++;
         }
@@ -262,14 +280,14 @@ function buildRollups(items: DatasetHmisImportLedgerItem[]): {
         }
       }
       return {
-        indicatorId,
+        dataId,
         monthsWithData,
         monthsInWindow,
         latestImportedAt,
         latestRoute,
         failedMonths,
         skippedValues,
-        items: indicatorItems,
+        items: dataIdItems,
       };
     },
   );
@@ -278,7 +296,7 @@ function buildRollups(items: DatasetHmisImportLedgerItem[]): {
   rollups.sort(
     (a, b) =>
       b.failedMonths - a.failedMonths ||
-      a.indicatorId.localeCompare(b.indicatorId),
+      a.dataId.localeCompare(b.dataId),
   );
 
   return { rollups, window };

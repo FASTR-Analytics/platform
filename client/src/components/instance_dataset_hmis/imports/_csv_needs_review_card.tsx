@@ -34,10 +34,11 @@ type Props = {
 };
 
 // A CSV run holding in needs_review: staging dropped rows, so nothing was
-// merged. The user integrates the surviving rows anyway, turns the unknown
-// indicator ids into uploaded indicators and re-stages the same run
-// (PLAN_A4 ruling 6), or discards. The hold does NOT block other imports
-// (the slot was released).
+// merged. The user integrates the surviving rows anyway, names the values
+// the indicator column said that matched no indicator (new Uploaded
+// indicators, or an assignment to an existing one with no file id: PLAN_A5
+// ruling 6) and re-stages the same run, or discards. The hold does NOT
+// block other imports (the slot was released).
 export function CsvNeedsReviewCard(p: Props) {
   const detail = createQuery(
     () => serverActions.getDatasetHmisImportRunDetail({ run_id: p.run.id }),
@@ -48,7 +49,7 @@ export function CsvNeedsReviewCard(p: Props) {
     }),
   );
 
-  const unknownIds = createMemo<string[]>(() => {
+  const unknownValues = createMemo<string[]>(() => {
     const s = detail.state();
     return s.status === "ready"
       ? s.data.csvStagingResult?.validation?.unknownIndicators.ids ?? []
@@ -67,7 +68,7 @@ export function CsvNeedsReviewCard(p: Props) {
   async function createIndicatorsAndRestage() {
     const done = await openComponent({
       element: CsvUnknownIdsNamingForm,
-      props: { runId: p.run.id, indicatorIds: unknownIds() },
+      props: { runId: p.run.id, values: unknownValues() },
     });
     if (done) {
       await p.onChanged();
@@ -105,9 +106,9 @@ export function CsvNeedsReviewCard(p: Props) {
       </div>
       <div class="text-sm">
         {t3({
-          en: "Some rows were dropped during staging, so nothing has been merged yet. Review the results below, then integrate the surviving rows or discard the import. Rows with an unknown indicator id can become uploaded indicators: label them and the file is staged again. Other imports are not blocked while this waits.",
-          fr: "Des lignes ont été rejetées pendant la préparation, rien n'a donc encore été fusionné. Vérifiez les résultats ci-dessous, puis intégrez les lignes retenues ou abandonnez l'importation. Les lignes dont l'identifiant d'indicateur est inconnu peuvent devenir des indicateurs téléversés : étiquetez-les et le fichier est préparé à nouveau. Les autres importations ne sont pas bloquées pendant cette attente.",
-          pt: "Algumas linhas foram rejeitadas durante a preparação, pelo que nada foi ainda fundido. Reveja os resultados abaixo e depois integre as linhas retidas ou descarte a importação. As linhas com um ID de indicador desconhecido podem tornar-se indicadores carregados: dê-lhes uma etiqueta e o ficheiro é preparado de novo. As outras importações não ficam bloqueadas durante esta espera.",
+          en: "Some rows were dropped during staging, so nothing has been merged yet. Review the results below, then integrate the surviving rows or discard the import. A value in the indicator column that matches no indicator can become a new Uploaded indicator carrying it as its file id, or be assigned to an existing Uploaded indicator that has none: name them and the file is staged again. Other imports are not blocked while this waits.",
+          fr: "Des lignes ont été rejetées pendant la préparation, rien n'a donc encore été fusionné. Vérifiez les résultats ci-dessous, puis intégrez les lignes retenues ou abandonnez l'importation. Une valeur de la colonne d'indicateur qui ne correspond à aucun indicateur peut devenir un nouvel indicateur téléversé qui la porte comme identifiant du fichier, ou être attribuée à un indicateur téléversé existant qui n'en a pas : nommez-les et le fichier est préparé à nouveau. Les autres importations ne sont pas bloquées pendant cette attente.",
+          pt: "Algumas linhas foram rejeitadas durante a preparação, pelo que nada foi ainda fundido. Reveja os resultados abaixo e depois integre as linhas retidas ou descarte a importação. Um valor da coluna de indicador que não corresponde a nenhum indicador pode tornar-se um novo indicador carregado que o tem como ID do ficheiro, ou ser atribuído a um indicador carregado existente que não tem nenhum: dê-lhes nome e o ficheiro é preparado de novo. As outras importações não ficam bloqueadas durante esta espera.",
         })}
       </div>
       <StateHolderWrapper state={detail.state()} noPad>
@@ -140,7 +141,7 @@ export function CsvNeedsReviewCard(p: Props) {
             pt: "Integrar mesmo assim",
           })}
         </Button>
-        <Show when={unknownIds().length > 0}>
+        <Show when={unknownValues().length > 0}>
           <Button onClick={createIndicatorsAndRestage} intent="primary">
             {t3({
               en: "Create indicators for the unknown ids and re-stage",
@@ -157,11 +158,12 @@ export function CsvNeedsReviewCard(p: Props) {
   );
 }
 
-// The naming step over the hold's unknown ids: each becomes an uploaded
-// indicator under the file's own id (its label starts as the id). Saving
-// creates them and relaunches the run through the full stage leg.
+// The naming step over the hold's unknown values: each becomes an Uploaded
+// indicator carrying the value as its file id, or is assigned to an
+// existing Uploaded indicator with none. Saving creates them and relaunches
+// the run through the full stage leg.
 function CsvUnknownIdsNamingForm(
-  p: AlertComponentProps<{ runId: number; indicatorIds: string[] }, boolean>,
+  p: AlertComponentProps<{ runId: number; values: string[] }, boolean>,
 ) {
   const dictionary = createQuery(
     () => serverActions.getIndicators({}),
@@ -196,7 +198,7 @@ function CsvUnknownIdsNamingForm(
     setNaming(
       createNamingState({
         elements: [],
-        uploadedIds: p.indicatorIds,
+        uploadedValues: p.values,
         derived: [],
         indicators: s.data.indicators,
       }),

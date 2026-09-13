@@ -4,6 +4,7 @@ import {
   type DatasetHmisImportRunSummary,
   type DatasetHmisScheduledImport,
   type Dhis2RunPairInput,
+  type HmisIndicator,
 } from "lib";
 import {
   Button,
@@ -33,6 +34,10 @@ import {
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { Dhis2ManageConnection } from "~/components/_shared/dhis2_credentials/manage_connection";
+import {
+  indicatorsByDataId,
+  indicatorNameText,
+} from "~/components/indicator_manager_hmis/_indicator_display";
 import { CsvRunDetail } from "./_csv_run_detail";
 import { CsvWizard } from "./_csv_wizard";
 import { ImportLedgerIndicatorDetail } from "./_ledger_indicator_detail";
@@ -101,7 +106,7 @@ export function DatasetHmisImports(p: Props) {
 
   const [tab, setTab] = createSignal<TabId>("current");
 
-  // The ledger is a full-table read (one row per indicator × month), so it is
+  // The ledger is a full-table read (one row per data id × month), so it is
   // fetched only while the By-indicator tab is showing: on every switch to it
   // and on every refresh() while it is showing. Stale rows stay visible until
   // the fresh ones arrive (no loading flash on refetch).
@@ -136,20 +141,14 @@ export function DatasetHmisImports(p: Props) {
     void load();
   });
 
-  // Indicator labels are a display-only enrichment for the ledger: degrade
-  // to blank until ready rather than gating the table behind them.
+  // The dictionary keyed by data id labels the ledger, the run progress and
+  // the run detail, whose rows carry data ids (PLAN_A5 ruling 9). A
+  // display-only enrichment: blank until ready rather than gating the
+  // tables behind it.
   const indicators = createQuery(() => serverActions.getIndicators({}));
-  const indicatorLabels = createMemo((): Map<string, string> => {
+  const byDataId = createMemo((): Map<string, HmisIndicator> => {
     const s = indicators.state();
-    if (s.status !== "ready") {
-      return new Map();
-    }
-    return new Map(
-      s.data.indicators.map((i): [string, string] => [
-        i.indicator_common_id,
-        i.indicator_common_label,
-      ]),
-    );
+    return s.status !== "ready" ? new Map() : indicatorsByDataId(s.data.indicators);
   });
 
   let pollingIntervalId: ReturnType<typeof setInterval> | undefined;
@@ -237,18 +236,14 @@ export function DatasetHmisImports(p: Props) {
   }
 
   async function openIndicatorDetail(
-    indicatorId: string,
+    dataId: string,
     items: DatasetHmisImportLedgerItem[],
     periodWindow: LedgerPeriodWindow,
   ) {
+    const indicator = byDataId().get(dataId);
     const pairs = await openEditor({
       element: ImportLedgerIndicatorDetail,
-      props: {
-        indicatorId,
-        indicatorLabel: indicatorLabels().get(indicatorId),
-        items,
-        window: periodWindow,
-      },
+      props: { dataId, indicator, items, window: periodWindow },
     });
     if (pairs && pairs.length > 0) {
       await openWizard({
@@ -258,7 +253,7 @@ export function DatasetHmisImports(p: Props) {
           en: "Re-importing",
           fr: "Réimportation de",
           pt: "A reimportar",
-        })} ${indicatorId}:`,
+        })} ${indicator ? indicatorNameText(indicator) : dataId}:`,
       });
     }
   }
@@ -408,6 +403,7 @@ export function DatasetHmisImports(p: Props) {
                     <Match when={tab() === "current"}>
                       <Dhis2TabCurrent
                         runningRun={runningRunOf(keyedRuns)}
+                        indicatorsByDataId={byDataId()}
                         queuedRuns={queuedRunsOf(keyedRuns)}
                         needsReviewRuns={needsReviewRunsOf(keyedRuns)}
                         nextSchedule={nextScheduleOf(schedulingInfo.schedules)}
@@ -434,7 +430,7 @@ export function DatasetHmisImports(p: Props) {
                     <Match when={tab() === "by_indicator"}>
                       <Dhis2TabByIndicator
                         ledger={ledger()}
-                        indicatorLabels={indicatorLabels()}
+                        indicatorsByDataId={byDataId()}
                         onOpenIndicator={openIndicatorDetail}
                         onRetryFailedPairs={retryFailedPairs}
                       />

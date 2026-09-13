@@ -156,11 +156,12 @@ history). Shape:
   recorded then), so an element assigned after enqueue is not in that run.
   A pair is `{ dataId, periodId }` everywhere: the run's pairs, progress,
   fetch stats and failed fetches, the version row's stats, and the ledger,
-  which is keyed by `data_id`. The client's label maps are still keyed by
-  indicator id and looked up by data id, so a DHIS2 element's label is
-  blank in the run detail and the By indicator tab until PLAN_A5 step 2
-  labels pairs through the dictionary. A pairs selection (retry failed,
-  re-import from the ledger)
+  which is keyed by `data_id`. The client labels pairs through the
+  dictionary keyed by data id (`indicatorsByDataId`, S5): the running
+  run's pairs in flight, the run detail's failed and skipped pairs, the By
+  indicator tab and its per-month detail show the indicator under each
+  data id, or the data id alone where no indicator carries it. A pairs
+  selection (retry failed, re-import from the ledger)
   names (data id, month) pairs; `validateRunSelection` checks each data id
   belongs to a DHIS2 element and resolves nothing. Pinned by
   `server/tests/indicator_selection_expansion_test.ts`.
@@ -273,9 +274,10 @@ start.
 - Row-level validation counts and samples drops (on the run row); reference
   validation runs at staging, and the facility check again at integration
   (facilities can be deleted between phases; the facility FKs are
-  RESTRICT). The file's indicator column is `data_id` in the wizard's
-  Columns step and in every staging table, and each distinct value is
-  resolved once (PLAN_A5 ruling 6): a value that is an indicator's data id
+  RESTRICT). The file's indicator column is `data_id` in `HmisCsvColumns`
+  and in every staging table (the wizard's Columns step labels it
+  "Indicator (file id, DHIS2 id or indicator id)"), and each distinct
+  value is resolved once (PLAN_A5 ruling 6): a value that is an indicator's data id
   lands under it; otherwise a value that is the id of an indicator with
   rows and a data id lands under that data id (a file that speaks the
   indicator's name lands under its key); a value that is one indicator's
@@ -409,10 +411,10 @@ callback re-parses the new bytes).
   By indicator tab is showing (every switch to it, and every `refresh()` /
   toolbar refresh via a `ledgerVersion` signal; stale rows stay visible until
   fresh ones arrive). By indicator is the import ledger: import history
-  pivoted by data id (the ledger's key), with a label column that is filled
-  only where the data id equals an indicator id until PLAN_A5 step 2,
-  click-through to a per-month detail
-  (`_ledger_indicator_detail.tsx`).
+  pivoted by data id (the ledger's key), each row labelled through the
+  dictionary (indicator id and label beside a "DHIS2 id / File id"
+  column, blank where no indicator carries the key), click-through to a
+  per-month detail (`_ledger_indicator_detail.tsx`).
   "Re-import this indicator" closes the detail with a pair list and "Retry
   failed pairs" hands the tab's pair list to the shell; both feed the
   wizard's `presetPairs` entry, the same contract as History → run detail

@@ -86,8 +86,8 @@ export function IndicatorsManager(p: Props) {
     setIndicators(getQueryStateFromApiResponse(res));
   });
 
-  // Which indicators have rows, for the computability status: the ledger is
-  // the cheap answer (one row per indicator × month), re-read when an import
+  // Which data ids have rows, for the computability status: the ledger is
+  // the cheap answer (one row per data id × month), re-read when an import
   // mints a new data version. A display-only enrichment: the list renders
   // without it and the status column fills in when it arrives.
   const ledger = createQuery(() => serverActions.getDatasetHmisImportLedger({}));
@@ -106,7 +106,7 @@ export function IndicatorsManager(p: Props) {
     );
   });
 
-  // The batch file (ruling 7): the download mirrors the upload.
+  // The dictionary file (PLAN_A5 ruling 11): the download mirrors the upload.
   function handleDownloadCsv(list: HmisIndicator[]) {
     const rows = list.map((indicator) => [
       indicator.indicator_common_id,
@@ -238,10 +238,10 @@ function IndicatorsTable(p: {
   idsWithRows: Set<string> | undefined;
   handleDownloadCsv: (indicators: HmisIndicator[]) => void;
 }) {
-  // The bases and sums the extract could produce counts for: a base by its
-  // own rows, a sum by any member's. Over every non-derived row rather than
-  // the analysed set, so an unchecked derived is judged as it would be if
-  // it were checked.
+  // The counts the extract could produce values for: an Uploaded or DHIS2
+  // element by the rows under its data id, a sum by any member's. Over
+  // every count rather than the analysed set, so an unchecked derived is
+  // judged as it would be if it were checked.
   const idsWithData = createMemo<Set<string> | undefined>(() => {
     const rows = p.idsWithRows;
     if (rows === undefined) return undefined;
@@ -257,7 +257,7 @@ function IndicatorsTable(p: {
   });
 
   // The same judgement capture makes, over the dictionary the list shows.
-  // Bases and sums have no status: one without data is the ordinary case.
+  // Counts have no status: one without data is the ordinary case.
   const statuses = createMemo(() => {
     const statuses = new Map<string, IndicatorStatus>();
     const withData = idsWithData();
@@ -369,9 +369,9 @@ function IndicatorsTable(p: {
             <span
               class="bg-primary-subtle text-primary-subtle-content rounded px-2 py-0.5 text-xs"
               title={t3({
-                en: "Read by name by the analysis modules and always analysed; must stay a base or sum indicator",
-                fr: "Lu par son identifiant par les modules d'analyse et toujours analysé ; doit rester un indicateur de base ou une somme",
-                pt: "Lido pelo seu ID pelos módulos de análise e sempre analisado; tem de permanecer um indicador de base ou uma soma",
+                en: "Read by name by the analysis modules and always analysed; must stay Uploaded, a DHIS2 element or a Sum, and cannot be renamed",
+                fr: "Lu par son identifiant par les modules d'analyse et toujours analysé ; doit rester téléversé, un élément DHIS2 ou une somme, et ne peut pas être renommé",
+                pt: "Lido pelo seu ID pelos módulos de análise e sempre analisado; tem de permanecer carregado, um elemento DHIS2 ou uma soma, e não pode ser renomeado",
               })}
             >
               {t3({ en: "Special", fr: "Spécial", pt: "Especial" })}
@@ -585,9 +585,9 @@ function ReferenceListModal(p: AlertComponentProps<{}, undefined>) {
           </div>
           <div class="text-xs">
             {t3({
-              en: "The analysis modules read these ids by name as counts, so they are always analysed. A new instance is seeded with each as an empty base; an existing one adds or deletes them like any indicator. A special id can only be a base or sum indicator.",
-              fr: "Les modules d'analyse lisent ces identifiants par leur nom comme des dénombrements ; ils sont donc toujours analysés. Une nouvelle instance est initialisée avec chacun comme indicateur de base vide ; une instance existante les ajoute ou les supprime comme tout indicateur. Un identifiant spécial ne peut être qu'un indicateur de base ou une somme.",
-              pt: "Os módulos de análise leem estes IDs pelo nome como contagens, pelo que são sempre analisados. Uma nova instância é iniciada com cada um como indicador de base vazio; uma instância existente adiciona-os ou elimina-os como qualquer indicador. Um ID especial só pode ser um indicador de base ou uma soma.",
+              en: "The analysis modules read these ids by name as counts, so they are always analysed and never renamed. A new instance is seeded with each as an Uploaded indicator with no file id; an existing one adds or deletes them like any indicator. A special id can only be Uploaded, a DHIS2 element or a Sum.",
+              fr: "Les modules d'analyse lisent ces identifiants par leur nom comme des dénombrements ; ils sont donc toujours analysés et jamais renommés. Une nouvelle instance est initialisée avec chacun comme indicateur téléversé sans identifiant du fichier ; une instance existante les ajoute ou les supprime comme tout indicateur. Un identifiant spécial ne peut être que téléversé, un élément DHIS2 ou une somme.",
+              pt: "Os módulos de análise leem estes IDs pelo nome como contagens, pelo que são sempre analisados e nunca renomeados. Uma nova instância é iniciada com cada um como indicador carregado sem ID do ficheiro; uma instância existente adiciona-os ou elimina-os como qualquer indicador. Um ID especial só pode ser carregado, um elemento DHIS2 ou uma soma.",
             })}
           </div>
           <div class="grid grid-cols-[repeat(auto-fit,minmax(18rem,1fr))] gap-x-4 gap-y-1">
@@ -622,9 +622,9 @@ function ReferenceListModal(p: AlertComponentProps<{}, undefined>) {
           </div>
           <div class="text-xs">
             {t3({
-              en: "No indicator id may be one of these, however it is produced: the special ids (except as a base or sum), the population terms and the formula function names.",
-              fr: "Aucun identifiant d'indicateur ne peut être l'un de ceux-ci, quelle que soit la façon dont il est produit : les identifiants spéciaux (sauf comme indicateur de base ou somme), les termes de population et les noms de fonctions des formules.",
-              pt: "Nenhum ID de indicador pode ser um destes, seja como for produzido: os IDs especiais (exceto como base ou soma), os termos de população e os nomes das funções das fórmulas.",
+              en: "No indicator id may be one of these, however it is produced: the special ids (except as Uploaded, a DHIS2 element or a Sum), the population terms and the formula function names.",
+              fr: "Aucun identifiant d'indicateur ne peut être l'un de ceux-ci, quelle que soit la façon dont il est produit : les identifiants spéciaux (sauf comme indicateur téléversé, élément DHIS2 ou somme), les termes de population et les noms de fonctions des formules.",
+              pt: "Nenhum ID de indicador pode ser um destes, seja como for produzido: os IDs especiais (exceto como carregado, elemento DHIS2 ou soma), os termos de população e os nomes das funções das fórmulas.",
             })}
           </div>
           <div class="font-mono text-xs">{RESERVED_WORDS.join(", ")}</div>
