@@ -77,10 +77,8 @@ export function StepperChipsWithTitles(p: StepperChipsWithTitlesProps) {
 
   const rowClasses = (step: number) => {
     const status = p.stepper.getStepStatus(step);
-    const pad = labelFor(step)
-      ? "-my-1 -ml-1 -mr-2.5 py-1 pl-1 pr-2.5"
-      : "-m-1 p-1";
-    const base = `ui-focusable flex items-center gap-2 rounded-full ${pad}`;
+    const pad = labelFor(step) ? "-mx-3 -my-2 px-3 py-2" : "-m-2 p-2";
+    const base = `ui-focusable flex items-center gap-2 rounded ${pad}`;
     return status === "completed" || status === "available"
       ? `${base} ui-hoverable-base-100`
       : base;
