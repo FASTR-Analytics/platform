@@ -20,6 +20,7 @@ import {
 import {
   AlertComponentProps,
   Button,
+  Callout,
   Checkbox,
   FrameTop,
   HeadingBar,
@@ -414,11 +415,11 @@ function IndicatorsTable(p: {
       render: (indicator) => <span>{indicatorTypeLabel(indicator)}</span>,
     },
     {
-      key: "goes_through_analysis_modules",
+      key: "can_be_adjusted",
       header: t3({
-        en: "Goes through analysis modules",
-        fr: "Passe par les modules d'analyse",
-        pt: "Passa pelos módulos de análise",
+        en: "Can be adjusted",
+        fr: "Peut être ajusté",
+        pt: "Pode ser ajustado",
       }),
       sortable: true,
       sortValue: (indicator) => (isCount(indicator.definition.type) ? 0 : 1),
@@ -436,12 +437,14 @@ function IndicatorsTable(p: {
       header: t3({ en: "Defined by", fr: "Défini par", pt: "Definido por" }),
       sortable: true,
       sortValue: definedByText,
-      render: (indicator) =>
-        indicator.definition.type === "derived" ? (
-          <div class="font-mono">{indicator.definition.expression}</div>
-        ) : (
-          <div class="font-mono text-xs">{definedByText(indicator)}</div>
-        ),
+      render: (indicator) => (
+        <div
+          class="font-mono"
+          classList={{ "text-xs": indicator.definition.type !== "derived" }}
+        >
+          {definedByText(indicator)}
+        </div>
+      ),
     },
     {
       key: "include_in_analysis",
@@ -536,7 +539,7 @@ function IndicatorsTable(p: {
   return (
     <div class="flex h-full flex-col">
       <div class="ui-gap-sm flex items-center pb-4">
-        <div class="font-700 flex-1 text-xl">
+        <div class="ui-text-title flex-1">
           {t3({ en: "Indicators", fr: "Indicateurs", pt: "Indicadores" })}
         </div>
         <Show when={instanceState.currentUserIsGlobalAdmin}>
@@ -572,7 +575,7 @@ function IndicatorsTable(p: {
         </Show>
       </div>
       <Show when={uncomputableCount() > 0}>
-        <div class="bg-warning-subtle text-warning-subtle-content mb-4 flex-none rounded px-3 py-2 text-sm">
+        <Callout intent="warning" pad="sm" class="mb-4 flex-none">
           {uncomputableCount() === 1
             ? t3({
                 en: "1 derived indicator cannot be computed. Results cannot be generated until it is edited or removed, or the indicators it uses have data.",
@@ -584,7 +587,7 @@ function IndicatorsTable(p: {
                 fr: `${uncomputableCount()} indicateurs dérivés ne peuvent pas être calculés. Les résultats ne pourront pas être générés tant qu'ils ne sont pas modifiés ou supprimés, ou que les indicateurs qu'ils utilisent n'ont pas de données.`,
                 pt: `${uncomputableCount()} indicadores derivados não podem ser calculados. Os resultados não podem ser gerados até que sejam editados ou removidos, ou até que os indicadores que utilizam tenham dados.`,
               })}
-        </div>
+        </Callout>
       </Show>
       <div class="h-0 w-full flex-1">
         <Table
@@ -609,8 +612,6 @@ function IndicatorsTable(p: {
   );
 }
 
-// The reference list (PLAN_A3 ruling 5): the special ids the analysis
-// modules read by name, and every reserved word no indicator id may be.
 // The two facts the table reads off the type (PLAN_A5 §2): a count goes
 // through m001 and m002, and an Uploaded or DHIS2 element is the raw count
 // its own rows hold.
@@ -622,6 +623,8 @@ function TypeFactCell(p: { when: boolean }) {
   );
 }
 
+// The reference list (PLAN_A3 ruling 5): the special ids the analysis
+// modules read by name, and every reserved word no indicator id may be.
 function ReferenceListModal(p: AlertComponentProps<{}, undefined>) {
   return (
     <ModalContainer
@@ -631,14 +634,11 @@ function ReferenceListModal(p: AlertComponentProps<{}, undefined>) {
         fr: "Indicateurs spéciaux et mots réservés",
         pt: "Indicadores especiais e palavras reservadas",
       })}
-      rightButtons={
-        // eslint-disable-next-line jsx-key
-        [
-          <Button intent="primary" onClick={() => p.close(undefined)}>
-            {t3({ en: "Done", fr: "Terminé", pt: "Concluído" })}
-          </Button>,
-        ]
-      }
+      rightButtons={[
+        <Button intent="primary" onClick={() => p.close(undefined)}>
+          {t3({ en: "Done", fr: "Terminé", pt: "Concluído" })}
+        </Button>,
+      ]}
     >
       <div class="ui-spy text-sm">
         <div class="ui-spy-sm">

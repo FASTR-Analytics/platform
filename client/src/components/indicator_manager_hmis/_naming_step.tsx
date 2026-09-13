@@ -304,7 +304,7 @@ export function NamingStep(p: {
           <div class="font-700">
             {t3({ en: "DHIS2 elements", fr: "Éléments DHIS2", pt: "Elementos DHIS2" })}
           </div>
-          <div class="ui-text-caption text-xs">
+          <div class="ui-text-caption">
             {t3({
               en: "Each element becomes a new DHIS2 element indicator under the id shown (edit it here; the indicator can be renamed later). Type the id of an existing Uploaded indicator that has no file id to assign the DHIS2 id to that indicator instead.",
               fr: "Chaque élément devient un nouvel indicateur élément DHIS2 sous l'identifiant affiché (modifiez-le ici ; l'indicateur pourra être renommé ensuite). Saisissez l'identifiant d'un indicateur téléversé existant sans identifiant du fichier pour lui attribuer l'identifiant DHIS2 à la place.",
@@ -324,7 +324,7 @@ export function NamingStep(p: {
               pt: "Indicadores carregados",
             })}
           </div>
-          <div class="ui-text-caption text-xs">
+          <div class="ui-text-caption">
             {t3({
               en: "Each value the file's indicator column says becomes a new Uploaded indicator carrying it as its file id, under the id shown (edit it here; the indicator can be renamed later). Type the id of an existing Uploaded indicator that has no file id to assign the value to that indicator instead.",
               fr: "Chaque valeur de la colonne d'indicateur du fichier devient un nouvel indicateur téléversé qui la porte comme identifiant du fichier, sous l'identifiant affiché (modifiez-le ici ; l'indicateur pourra être renommé ensuite). Saisissez l'identifiant d'un indicateur téléversé existant sans identifiant du fichier pour lui attribuer la valeur à la place.",
@@ -344,7 +344,7 @@ export function NamingStep(p: {
               pt: "Indicadores derivados",
             })}
           </div>
-          <div class="ui-text-caption text-xs">
+          <div class="ui-text-caption">
             {t3({
               en: "Each DHIS2 indicator becomes a derived indicator whose formula is over the indicators its operands become.",
               fr: "Chaque indicateur DHIS2 devient un indicateur dérivé dont la formule porte sur les indicateurs que ses opérandes deviennent.",
@@ -396,7 +396,7 @@ export function NamingStep(p: {
       </Show>
 
       <Show when={issues().length > 0}>
-        <div class="ui-spy-xs text-danger text-xs">
+        <div class="ui-spy-sm text-danger text-xs">
           <For each={issues()}>{(issue) => <div>{issue}</div>}</For>
         </div>
       </Show>

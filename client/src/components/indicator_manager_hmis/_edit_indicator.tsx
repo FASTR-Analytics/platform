@@ -82,10 +82,14 @@ function defaultIndicatorRule(formatAs: IndicatorFormat): ThresholdsRule {
   };
 }
 
-const TYPE_OPTIONS = HMIS_INDICATOR_TYPES.map((type) => ({
-  value: type,
-  label: indicatorTypeWord(type),
-}));
+// Resolved per render, never at module scope: the language is set after the
+// module graph is evaluated, so a frozen label would always be English.
+function typeOptions() {
+  return HMIS_INDICATOR_TYPES.map((type) => ({
+    value: type,
+    label: indicatorTypeWord(type),
+  }));
+}
 
 function typeCaption(type: HmisIndicatorType): string {
   switch (type) {
@@ -116,21 +120,23 @@ function typeCaption(type: HmisIndicatorType): string {
   }
 }
 
-const FORMAT_OPTIONS = [
-  { value: "number", label: t3({ en: "Number", fr: "Nombre", pt: "Número" }) },
-  {
-    value: "percent",
-    label: t3({ en: "Percent", fr: "Pourcentage", pt: "Percentagem" }),
-  },
-  {
-    value: "rate_per_10k",
-    label: t3({
-      en: "Rate per 10,000",
-      fr: "Taux pour 10 000",
-      pt: "Taxa por 10 000",
-    }),
-  },
-];
+function formatOptions() {
+  return [
+    { value: "number", label: t3({ en: "Number", fr: "Nombre", pt: "Número" }) },
+    {
+      value: "percent",
+      label: t3({ en: "Percent", fr: "Pourcentage", pt: "Percentagem" }),
+    },
+    {
+      value: "rate_per_10k",
+      label: t3({
+        en: "Rate per 10,000",
+        fr: "Taux pour 10 000",
+        pt: "Taxa por 10 000",
+      }),
+    },
+  ];
+}
 
 type LegendRow = {
   identifier: string;
@@ -676,7 +682,7 @@ export function EditIndicatorForm(
       width="xl"
     >
       <div class="ui-gap grid grid-cols-[repeat(auto-fit,minmax(16rem,1fr))]">
-        <div class="ui-spy-xs">
+        <div class="ui-spy-sm">
           <Input
             label={t3({ en: "Indicator ID", fr: "ID de l'indicateur", pt: "ID do indicador" })}
             value={indicatorId()}
@@ -691,7 +697,7 @@ export function EditIndicatorForm(
             </div>
           </Show>
           <Show when={idCaption()}>
-            {(caption) => <div class="ui-text-caption text-xs">{caption()}</div>}
+            {(caption) => <div class="ui-text-caption">{caption()}</div>}
           </Show>
           <Show when={idTakenError()}>
             {(err) => <div class="text-danger text-xs">{err()}</div>}
@@ -707,15 +713,15 @@ export function EditIndicatorForm(
           fullWidth
         />
       </div>
-      <div class="ui-spy-xs">
+      <div class="ui-spy-sm">
         <Select
           label={t3({ en: "Type", fr: "Type", pt: "Tipo" })}
           value={type()}
           onChange={(v) => setType(v as HmisIndicatorType)}
-          options={TYPE_OPTIONS}
+          options={typeOptions()}
           fullWidth
         />
-        <div class="ui-text-caption text-xs">{typeCaption(type())}</div>
+        <div class="ui-text-caption">{typeCaption(type())}</div>
         <Show when={typeSwitchError()}>
           {(err) => <div class="text-danger text-xs">{err()}</div>}
         </Show>
@@ -743,7 +749,7 @@ export function EditIndicatorForm(
               mono
               fullWidth
             />
-            <div class="ui-text-caption text-xs">{dataIdCaption()}</div>
+            <div class="ui-text-caption">{dataIdCaption()}</div>
           </Show>
 
           <Show when={type() === "sum"}>
@@ -759,7 +765,7 @@ export function EditIndicatorForm(
               })}
               fullWidth
             />
-            <div class="ui-text-caption text-xs">
+            <div class="ui-text-caption">
               {t3({
                 en: "The members' counts are added per facility and month. Members are Uploaded or DHIS2 element indicators; a sum cannot contain a sum.",
                 fr: "Les dénombrements des membres sont additionnés par établissement et par mois. Les membres sont des indicateurs téléversés ou des éléments DHIS2 ; une somme ne peut pas contenir une somme.",
@@ -779,7 +785,7 @@ export function EditIndicatorForm(
                 mono
               />
             </div>
-            <div class="ui-text-caption text-xs">
+            <div class="ui-text-caption">
               {t3({
                 en: "Use + - * / and parentheses over other indicators and populations, e.g. anc4 / anc1 or anc4 / population_pregnancies. abs(), coalesce() and nullif() are available.",
                 fr: "Utilisez + - * / et des parenthèses sur d'autres indicateurs et des populations, par ex. anc4 / anc1 ou anc4 / population_pregnancies. abs(), coalesce() et nullif() sont disponibles.",
@@ -893,11 +899,10 @@ export function EditIndicatorForm(
                         <Show when={row.coverage}>
                           {(coverage) => (
                             <span
-                              class={
-                                coverage().empty
-                                  ? "text-danger"
-                                  : "text-base-content-muted"
-                              }
+                              classList={{
+                                "text-danger": coverage().empty,
+                                "text-base-content-muted": !coverage().empty,
+                              }}
                             >
                               {coverage().text}
                             </span>
@@ -907,7 +912,7 @@ export function EditIndicatorForm(
                     )}
                   </For>
                   <Show when={legendNamesPopulation()}>
-                    <div class="ui-text-caption text-xs">
+                    <div class="ui-text-caption">
                       {t3({
                         en: "A population term is person-years (annual population × months / 12), so a value divided by it is annualised: a monthly or quarterly value reads as a rate per year. Population figures come from the instance Population page.",
                         fr: "Un terme de population représente des personnes-années (population annuelle × mois / 12) : une valeur divisée par ce terme est donc annualisée, et une valeur mensuelle ou trimestrielle se lit comme un taux annuel. Les chiffres de population proviennent de la page Population de l'instance.",
@@ -934,7 +939,7 @@ export function EditIndicatorForm(
             checked={includeInAnalysis()}
             onChange={setIncludeInAnalysis}
           />
-          <div class="ui-text-caption text-xs">
+          <div class="ui-text-caption">
             {isSpecial()
               ? t3({
                 en: "A special indicator is always analysed: the analysis modules read it by name.",
@@ -952,7 +957,7 @@ export function EditIndicatorForm(
               label={t3({ en: "Format", fr: "Format", pt: "Formato" })}
               value={formatAs()}
               onChange={setFormatAs}
-              options={FORMAT_OPTIONS}
+              options={formatOptions()}
               fullWidth
             />
             <Select

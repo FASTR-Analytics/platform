@@ -50,14 +50,14 @@ export function SortIndicatorsModal(p: Props) {
       saveFunc={save.click}
       cancelFunc={() => p.close(undefined)}
     >
-      <div class="">
+      <div>
         <SortableList
           items={items()}
           onReorder={(ids) =>
             setItems((prev) => ids.map((id) => prev.find((i) => i.id === id)!))}
         >
           {(item) => (
-            <div class="bg-base-200 rounded px-3 py-2">
+            <div class="bg-base-200 ui-pad-sm rounded">
               <span class="ui-text-caption mr-2 font-mono">{item.id}</span>
               {item.label}
             </div>

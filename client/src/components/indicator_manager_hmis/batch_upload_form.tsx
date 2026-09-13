@@ -25,10 +25,6 @@ export function BatchUploadForm(p: Props) {
   const [replaceAllExisting, setReplaceAllExisting] =
     createSignal<boolean>(false);
 
-  function updateSelectedFileName(fileName: string) {
-    setSelectedFileName(fileName);
-  }
-
   const handleBatchUpload = createFormAction(
     async () => {
       const assetFileName = selectedFileName();
@@ -54,7 +50,7 @@ export function BatchUploadForm(p: Props) {
         if (!file) {
           return;
         }
-        updateSelectedFileName(file.name as string);
+        setSelectedFileName(file.name);
       },
     });
   });
@@ -90,7 +86,7 @@ export function BatchUploadForm(p: Props) {
           </div>
         </div>
 
-        <div class="">
+        <div>
           <Button id="select-csv-file-button" iconName="upload">
             {t3({ en: "Upload new CSV file", fr: "Téléverser un nouveau fichier CSV", pt: "Carregar um novo ficheiro CSV" })}
           </Button>
@@ -104,12 +100,12 @@ export function BatchUploadForm(p: Props) {
               instanceState.assets.filter((a) => a.isCsv).map((a) => a.fileName),
             )}
             value={selectedFileName()}
-            onChange={updateSelectedFileName}
+            onChange={setSelectedFileName}
             fullWidth
           />
         </div>
 
-        <div class="ui-spy-xs">
+        <div class="ui-spy-sm">
           <Checkbox
             label={t3({ en: "Replace the whole dictionary with this file", fr: "Remplacer tout le dictionnaire par ce fichier", pt: "Substituir todo o dicionário por este ficheiro" })}
             checked={replaceAllExisting()}
