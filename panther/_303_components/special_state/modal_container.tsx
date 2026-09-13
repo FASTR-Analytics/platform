@@ -60,13 +60,21 @@ export function ModalContainer(p: ModalContainerProps) {
       classList={{ "max-h-(--ui-modal-max-h)": scroll() === "content" }}
     >
       <Show when={p.title || p.topPanel}>
+        {
+          /* The header row's height floor is a form control's height, as in
+            HeadingBar: a title-only header is as tall as one holding
+            buttons or a stepper, so a modal that swaps between the two
+            (loading vs loaded) does not jump. It also matches the footer. */
+        }
         <div class="border-b px-6 py-5 leading-none">
-          <Show
-            when={p.topPanel}
-            fallback={<h2 class="ui-text-heading leading-none">{p.title}</h2>}
-          >
-            {p.topPanel}
-          </Show>
+          <div class="grid min-h-(--ui-form-height) items-center">
+            <Show
+              when={p.topPanel}
+              fallback={<h2 class="ui-text-heading leading-none">{p.title}</h2>}
+            >
+              {p.topPanel}
+            </Show>
+          </div>
         </div>
       </Show>
       <div
