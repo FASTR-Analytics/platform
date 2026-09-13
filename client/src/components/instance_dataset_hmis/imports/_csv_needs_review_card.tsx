@@ -1,31 +1,14 @@
+import { t3, type DatasetHmisImportRunSummary } from "lib";
 import {
-  t3,
-  type DatasetHmisImportRunSummary,
-  type HmisIndicator,
-} from "lib";
-import {
-  AlertComponentProps,
-  AlertFormHolder,
   Button,
   CollapsibleSection,
   StateHolderWrapper,
   createButtonAction,
   createDeleteAction,
-  createFormAction,
   createQuery,
-  openComponent,
 } from "panther";
-import { createEffect, createMemo, createSignal, Show } from "solid-js";
-import { createStore } from "solid-js/store";
+import { Show } from "solid-js";
 import { serverActions } from "~/server_actions";
-import {
-  createNamingState,
-  EMPTY_NAMING_STATE,
-  namingInputFromState,
-  namingIssues,
-  NamingStep,
-  type NamingState,
-} from "~/components/indicator_manager_hmis/_naming_step";
 import { CsvStagingSummary } from "./_csv_staging_summary";
 
 type Props = {
@@ -34,11 +17,9 @@ type Props = {
 };
 
 // A CSV run holding in needs_review: staging dropped rows, so nothing was
-// merged. The user integrates the surviving rows anyway, names the values
-// the indicator column said that matched no indicator (new Uploaded
-// indicators, or an assignment to an existing one with no file id: PLAN_A5
-// ruling 6) and re-stages the same run, or discards. The hold does NOT
-// block other imports (the slot was released).
+// merged. The user integrates the surviving rows anyway or discards
+// (PLAN_A6 ruling 6). The hold does NOT block other imports (the slot was
+// released).
 export function CsvNeedsReviewCard(p: Props) {
   const detail = createQuery(
     () => serverActions.getDatasetHmisImportRunDetail({ run_id: p.run.id }),
@@ -49,13 +30,6 @@ export function CsvNeedsReviewCard(p: Props) {
     }),
   );
 
-  const unknownValues = createMemo<string[]>(() => {
-    const s = detail.state();
-    return s.status === "ready"
-      ? s.data.csvStagingResult?.validation?.unknownIndicators.ids ?? []
-      : [];
-  });
-
   const integrateAnyway = createButtonAction(
     () =>
       serverActions.resolveDatasetHmisCsvReview({
@@ -64,16 +38,6 @@ export function CsvNeedsReviewCard(p: Props) {
       }),
     p.onChanged,
   );
-
-  async function createIndicatorsAndRestage() {
-    const done = await openComponent({
-      element: CsvUnknownIdsNamingForm,
-      props: { runId: p.run.id, values: unknownValues() },
-    });
-    if (done) {
-      await p.onChanged();
-    }
-  }
 
   async function attemptDiscard() {
     const discard = createDeleteAction(
@@ -106,9 +70,9 @@ export function CsvNeedsReviewCard(p: Props) {
       </div>
       <div class="text-sm">
         {t3({
-          en: "Some rows were dropped during staging, so nothing has been merged yet. Review the results below, then integrate the surviving rows or discard the import. A value in the indicator column that matches no indicator can become a new Uploaded indicator carrying it as its file id, or be assigned to an existing Uploaded indicator that has none: name them and the file is staged again. Other imports are not blocked while this waits.",
-          fr: "Des lignes ont été rejetées pendant la préparation, rien n'a donc encore été fusionné. Vérifiez les résultats ci-dessous, puis intégrez les lignes retenues ou abandonnez l'importation. Une valeur de la colonne d'indicateur qui ne correspond à aucun indicateur peut devenir un nouvel indicateur téléversé qui la porte comme identifiant du fichier, ou être attribuée à un indicateur téléversé existant qui n'en a pas : nommez-les et le fichier est préparé à nouveau. Les autres importations ne sont pas bloquées pendant cette attente.",
-          pt: "Algumas linhas foram rejeitadas durante a preparação, pelo que nada foi ainda fundido. Reveja os resultados abaixo e depois integre as linhas retidas ou descarte a importação. Um valor da coluna de indicador que não corresponde a nenhum indicador pode tornar-se um novo indicador carregado que o tem como ID do ficheiro, ou ser atribuído a um indicador carregado existente que não tem nenhum: dê-lhes nome e o ficheiro é preparado de novo. As outras importações não ficam bloqueadas durante esta espera.",
+          en: "Some rows were dropped during staging, so nothing has been merged yet. Review the results below, then integrate the surviving rows or discard the import. Other imports are not blocked while this waits.",
+          fr: "Des lignes ont été rejetées pendant la préparation, rien n'a donc encore été fusionné. Vérifiez les résultats ci-dessous, puis intégrez les lignes retenues ou abandonnez l'importation. Les autres importations ne sont pas bloquées pendant cette attente.",
+          pt: "Algumas linhas foram rejeitadas durante a preparação, pelo que nada foi ainda fundido. Reveja os resultados abaixo e depois integre as linhas retidas ou descarte a importação. As outras importações não ficam bloqueadas durante esta espera.",
         })}
       </div>
       <StateHolderWrapper state={detail.state()} noPad>
@@ -141,104 +105,10 @@ export function CsvNeedsReviewCard(p: Props) {
             pt: "Integrar mesmo assim",
           })}
         </Button>
-        <Show when={unknownValues().length > 0}>
-          <Button onClick={createIndicatorsAndRestage} intent="primary">
-            {t3({
-              en: "Create indicators for the unknown ids and re-stage",
-              fr: "Créer des indicateurs pour les identifiants inconnus et préparer à nouveau",
-              pt: "Criar indicadores para os IDs desconhecidos e preparar de novo",
-            })}
-          </Button>
-        </Show>
         <Button onClick={attemptDiscard} intent="danger" outline>
           {t3({ en: "Discard", fr: "Abandonner", pt: "Descartar" })}
         </Button>
       </div>
     </div>
-  );
-}
-
-// The naming step over the hold's unknown values: each becomes an Uploaded
-// indicator carrying the value as its file id, or is assigned to an
-// existing Uploaded indicator with none. Saving creates them and relaunches
-// the run through the full stage leg.
-function CsvUnknownIdsNamingForm(
-  p: AlertComponentProps<{ runId: number; values: string[] }, boolean>,
-) {
-  const dictionary = createQuery(
-    () => serverActions.getIndicators({}),
-    t3({
-      en: "Loading indicators...",
-      fr: "Chargement des indicateurs...",
-      pt: "A carregar os indicadores...",
-    }),
-  );
-
-  const save = createFormAction(
-    async (e: MouseEvent) => {
-      e.preventDefault();
-      return await serverActions.resolveDatasetHmisCsvReview({
-        runId: p.runId,
-        action: "restage",
-        naming: namingInputFromState(naming),
-      });
-    },
-    () => p.close(true),
-  );
-
-  const [naming, setNaming] = createStore<NamingState>(
-    structuredClone(EMPTY_NAMING_STATE),
-  );
-  // Seeded once, from the dictionary as loaded: the proposed ids are
-  // generated against it, and the user's edits must not be re-seeded away.
-  const [indicators, setIndicators] = createSignal<HmisIndicator[]>();
-  createEffect(() => {
-    const s = dictionary.state();
-    if (s.status !== "ready" || indicators() !== undefined) return;
-    setNaming(
-      createNamingState({
-        elements: [],
-        uploadedValues: p.values,
-        derived: [],
-        indicators: s.data.indicators,
-      }),
-    );
-    setIndicators(s.data.indicators);
-  });
-
-  const issues = createMemo(() => {
-    const list = indicators();
-    return list === undefined ? [] : namingIssues(naming, list);
-  });
-
-  return (
-    <AlertFormHolder
-      formId="csv-unknown-ids-naming"
-      header={t3({
-        en: "Create indicators for the unknown ids",
-        fr: "Créer des indicateurs pour les identifiants inconnus",
-        pt: "Criar indicadores para os IDs desconhecidos",
-      })}
-      savingState={save.state()}
-      saveFunc={save.click}
-      saveButtonText={t3({
-        en: "Create and re-stage",
-        fr: "Créer et préparer à nouveau",
-        pt: "Criar e preparar de novo",
-      })}
-      cancelFunc={() => p.close(undefined)}
-      disableSaveButton={indicators() === undefined || issues().length > 0}
-      width="2xl"
-    >
-      <StateHolderWrapper state={dictionary.state()} noPad>
-        {() => (
-          <Show when={indicators()} keyed>
-            {(list) => (
-              <NamingStep state={naming} setState={setNaming} indicators={list} />
-            )}
-          </Show>
-        )}
-      </StateHolderWrapper>
-    </AlertFormHolder>
   );
 }

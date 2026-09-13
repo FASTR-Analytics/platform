@@ -2,12 +2,14 @@ import { Sql } from "postgres";
 import { escapeSqlString } from "../../db/utils.ts";
 import {
   COUNT_CHECK_CONSTRAINT,
+  csvIndicatorValueFromCell,
   PERIOD_ID_CHECK_CONSTRAINT,
   isValidDatasetRow,
   parseCountValue,
   throwIfErrWithData,
   type DatasetCsvStagingResult,
   type HmisCsvColumns,
+  type HmisCsvMapping,
   type PeriodIndicatorStat,
 } from "lib";
 import {
@@ -26,7 +28,7 @@ export function hmisCsvStagingTableNames(runId: number): {
   raw: string;
   dedup: string;
   validFacilities: string;
-  resolved: string;
+  mapping: string;
   final: string;
 } {
   const id = Math.floor(runId);
@@ -34,7 +36,7 @@ export function hmisCsvStagingTableNames(runId: number): {
     raw: `uploaded_hmis_staging_raw_run_${id}`,
     dedup: `uploaded_hmis_staging_dedup_run_${id}`,
     validFacilities: `uploaded_hmis_staging_validfac_run_${id}`,
-    resolved: `uploaded_hmis_staging_resolved_run_${id}`,
+    mapping: `uploaded_hmis_staging_mapping_run_${id}`,
     final: `uploaded_hmis_data_staging_ready_for_integration_run_${id}`,
   };
 }
@@ -45,7 +47,7 @@ export async function dropHmisCsvStagingTables(
   args: { keepFinal: boolean },
 ): Promise<void> {
   const names = hmisCsvStagingTableNames(runId);
-  const toDrop = [names.raw, names.dedup, names.validFacilities, names.resolved];
+  const toDrop = [names.raw, names.dedup, names.validFacilities, names.mapping];
   if (!args.keepFinal) {
     toDrop.push(names.final);
   }
@@ -58,21 +60,32 @@ export async function dropHmisCsvStagingTables(
   }
 }
 
-// Stream the CSV into a raw table, dedup, validate facilities, resolve the
-// file's indicator column to data ids, and build the final staging table.
-// Never throws on dropped rows: the caller's clean-condition gate decides
-// what a nonzero drop count means. An ambiguous file value throws, so the
-// run fails loudly.
+// Stream the CSV into a raw table, dedup, validate facilities, look each
+// value of the indicator column up in the run's mapping, and build the
+// final staging table. Staging resolves nothing (PLAN_A6 ruling 2): a value
+// the mapping sends to a data id lands under it, a value it sends to null
+// is counted and dropped, and a value absent from the mapping throws, since
+// the scan and the launch pinned the same bytes and derived the values the
+// same way, so a gap is a defect. Never throws on dropped rows: the
+// caller's clean-condition gate decides what a nonzero drop count means.
 export async function stageHmisCsvIntoTables(args: {
   importDb: Sql;
   csvFilePath: string;
   csvFileName: string;
   columns: HmisCsvColumns;
+  mapping: HmisCsvMapping;
   runId: number;
   onProgress: (percent: number) => void;
 }): Promise<DatasetCsvStagingResult> {
-  const { importDb, csvFilePath, csvFileName, columns, runId, onProgress } =
-    args;
+  const {
+    importDb,
+    csvFilePath,
+    csvFileName,
+    columns,
+    mapping,
+    runId,
+    onProgress,
+  } = args;
   const names = hmisCsvStagingTableNames(runId);
 
   const resComponents = await getCsvStreamComponents(csvFilePath);
@@ -153,7 +166,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
 
       const periodId = row[headerIndexes.periodId];
       const facilityId = row[headerIndexes.facilityId];
-      const dataId = row[headerIndexes.dataId];
+      const dataId = csvIndicatorValueFromCell(row[headerIndexes.dataId] ?? "");
       // Numeric cleaning only: tolerate thousands separators / stray quotes
       const count = parseCountValue(
         (row[headerIndexes.count] ?? "").replace(/[,'"]/g, ""),
@@ -279,103 +292,61 @@ CREATE UNLOGGED TABLE ${names.raw} (
 
   onProgress(88);
 
-  // Resolution (PLAN_A5 ruling 6): a file value is matched first against
-  // an indicator's data id, then against an indicator's id; it resolves
-  // through the id only when that indicator has rows and a data id. A value
-  // that is one indicator's data id and another's indicator id, whatever
-  // that other's type, is refused with both named: this is the shadow a
-  // rename leaves (the old name stays the key), and the file must not land
-  // silently under the renamed indicator. Everything else is unknown: it
-  // lands in the hold, where the naming step creates an Uploaded indicator
-  // for it or an existing Uploaded indicator with no data id adopts it.
-  let indicatorValidation: {
-    total: number;
-    sample: { data_id: string; row_count: number }[];
-    ids: string[];
-    rowsDropped: number;
-  };
-  if (rowsAfterFacilityValidation > 0) {
-    await importDb.unsafe(`
-      CREATE UNLOGGED TABLE ${names.resolved} AS
-      SELECT
-        v.value,
-        by_data.indicator_common_id AS data_owner,
-        by_id.indicator_common_id AS id_owner,
-        COALESCE(by_data.data_id, CASE WHEN by_id.has_rows THEN by_id.data_id END) AS data_id
-      FROM (SELECT DISTINCT data_id AS value FROM ${names.validFacilities}) v
-      LEFT JOIN indicators by_data ON by_data.data_id = v.value
-      LEFT JOIN indicators by_id ON by_id.indicator_common_id = v.value
-    `);
-    const ambiguous = await importDb<
-      { value: string; data_owner: string; id_owner: string }[]
-    >`
-      SELECT value, data_owner, id_owner FROM ${importDb(names.resolved)}
-      WHERE data_owner IS NOT NULL AND id_owner IS NOT NULL AND data_owner <> id_owner
-      ORDER BY value
+  // The mapping: one row per value the wizard mapped, to its data id or
+  // NULL for skipped. Every value the file says must be in it.
+  await importDb.unsafe(`
+    CREATE UNLOGGED TABLE ${names.mapping} (
+      value TEXT PRIMARY KEY,
+      data_id TEXT
+    )
+  `);
+  const mappingEntries = Object.entries(mapping);
+  if (mappingEntries.length > 0) {
+    await importDb`
+      INSERT INTO ${importDb(names.mapping)} (value, data_id)
+      SELECT * FROM UNNEST(
+        ${mappingEntries.map(([value]) => value)}::text[],
+        ${mappingEntries.map(([, target]) => target)}::text[]
+      )
     `;
-    if (ambiguous.length > 0) {
-      throw new Error(
-        `The file's indicator column is ambiguous: ${
-          ambiguous.map((a) =>
-            `"${a.value}" is the data id of ${a.data_owner} and the id of ${a.id_owner}`
-          ).join("; ")
-        }. Rename one of the indicators or change the file's values.`,
-      );
-    }
-    const unknownIndicatorsSample = await importDb<
-      { data_id: string; row_count: number }[]
-    >`
-      SELECT t.data_id, COUNT(*)::INTEGER as row_count
-      FROM ${importDb(names.validFacilities)} t
-      JOIN ${importDb(names.resolved)} r ON r.value = t.data_id
-      WHERE r.data_id IS NULL
-      GROUP BY t.data_id
-      ORDER BY COUNT(*) DESC
-      LIMIT 10
-    `;
-    const unknownIndicatorsTotal = await importDb<{ total_invalid: number }[]>`
-      SELECT COUNT(*)::INTEGER as total_invalid
-      FROM ${importDb(names.resolved)}
-      WHERE data_id IS NULL
-    `;
-    const rowsDroppedByIndicator = await importDb<{ count: number }[]>`
-      SELECT COUNT(*)::INTEGER as count
-      FROM ${importDb(names.validFacilities)} t
-      JOIN ${importDb(names.resolved)} r ON r.value = t.data_id
-      WHERE r.data_id IS NULL
-    `;
-    // The whole set, not the sample: the needs_review hold names every one.
-    const unknownValues = await importDb<{ value: string }[]>`
-      SELECT value FROM ${importDb(names.resolved)}
-      WHERE data_id IS NULL
-      ORDER BY value
-    `;
-    indicatorValidation = {
-      total: unknownIndicatorsTotal[0]?.total_invalid || 0,
-      sample: unknownIndicatorsSample,
-      ids: unknownValues.map((r) => r.value),
-      rowsDropped: rowsDroppedByIndicator[0]?.count || 0,
-    };
-  } else {
-    indicatorValidation = { total: 0, sample: [], ids: [], rowsDropped: 0 };
   }
+  const unmapped = await importDb<{ value: string }[]>`
+    SELECT DISTINCT t.data_id AS value
+    FROM ${importDb(names.validFacilities)} t
+    LEFT JOIN ${importDb(names.mapping)} m ON m.value = t.data_id
+    WHERE m.value IS NULL
+    ORDER BY t.data_id
+    LIMIT 10
+  `;
+  if (unmapped.length > 0) {
+    throw new Error(
+      `The file says values the mapping does not name: ${
+        unmapped.map((r) => JSON.stringify(r.value)).join(", ")
+      }. Start the import again.`,
+    );
+  }
+  const skippedRows = await importDb<{ count: number }[]>`
+    SELECT COUNT(*)::INTEGER as count
+    FROM ${importDb(names.validFacilities)} t
+    JOIN ${importDb(names.mapping)} m ON m.value = t.data_id
+    WHERE m.data_id IS NULL
+  `;
+  const skippedByMapping = { rowsDropped: skippedRows[0]?.count || 0 };
 
-  // Final staging table.
+  // Final staging table: rows land under the data id the mapping names.
   let finalStagingCount = 0;
   if (rowsAfterFacilityValidation > 0) {
-    // Rows land under the data id their value resolved to.
     await importDb.unsafe(`
       CREATE UNLOGGED TABLE ${names.final} AS
       SELECT
         t.facility_id,
-        r.data_id,
+        m.data_id,
         t.period_id::INTEGER as period_id,
         t.count::INTEGER as count
       FROM ${names.validFacilities} t
-      JOIN ${names.resolved} r ON r.value = t.data_id
-      WHERE r.data_id IS NOT NULL
+      JOIN ${names.mapping} m ON m.value = t.data_id
+      WHERE m.data_id IS NOT NULL
     `);
-    await importDb.unsafe(`DROP TABLE ${names.resolved}`);
     const countRows = await importDb<{ count: number }[]>`
       SELECT COUNT(*)::int as count FROM ${importDb(names.final)}
     `;
@@ -395,6 +366,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
       )
     `);
   }
+  await importDb.unsafe(`DROP TABLE ${names.mapping}`);
   await importDb.unsafe(`DROP TABLE IF EXISTS ${names.validFacilities}`);
 
   onProgress(90);
@@ -443,7 +415,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
       invalidCounts: { rowsDropped: invalidCountCount },
       missingRequiredFields: { rowsDropped: missingFieldsCount },
       invalidFacilities: facilityValidation,
-      unknownIndicators: indicatorValidation,
+      skippedByMapping,
     },
   };
 }

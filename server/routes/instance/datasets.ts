@@ -28,20 +28,16 @@ import {
   resolveDatasetHfaReview,
   resolveDatasetHmisCsvReview,
   updateDatasetHmisScheduledImport,
-  applyIndicatorNaming,
   getInstanceDatasetsSummary,
-  getInstanceIndicatorsSummary,
 } from "../../db/mod.ts";
 import { getCsvDetails } from "../../server_only_funcs_csvs/get_csv_components.ts";
 import { getXlsxSheetNamesRaw } from "../../server_only_funcs_csvs/read_xlsx_raw.ts";
 import { scanHfaDuplicates } from "../../server_only_funcs_csvs/scan_hfa_rows.ts";
+import { scanHmisCsvIndicatorValues } from "../../worker_routines/import_hmis_data_csv/scan_indicator_values.ts";
 import { resolveAssetFileOrThrow } from "../../db/instance/assets.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
-import {
-  notifyInstanceDatasetsUpdated,
-  notifyInstanceIndicatorsUpdated,
-} from "../../task_management/notify_instance_updated.ts";
+import { notifyInstanceDatasetsUpdated } from "../../task_management/notify_instance_updated.ts";
 import { _FETCH_CACHE_DATASET_HFA_ITEMS } from "../caches/dataset.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { validateDhis2Connection } from "../../dhis2/mod.ts";
@@ -397,6 +393,31 @@ defineRoute(
   },
 );
 
+// Stateless: the distinct values of the indicator column with their row
+// counts, for the wizard's mapping step, and the pin of the bytes read,
+// which the launch passes back (PLAN_A6 ruling 4). Nothing is persisted.
+defineRoute(
+  routesDatasets,
+  "scanDatasetHmisCsvIndicatorValues",
+  requireGlobalPermission("can_configure_data"),
+  log("scanDatasetHmisCsvIndicatorValues"),
+  async (c, { body }) => {
+    try {
+      const { filePath, pin } = await resolveAssetFileOrThrow(body.fileName, null);
+      const values = await scanHmisCsvIndicatorValues({
+        csvFilePath: filePath,
+        columns: body.columns,
+      });
+      return c.json({ success: true, data: { pin, values } });
+    } catch (e) {
+      return c.json({
+        success: false,
+        err: e instanceof Error ? e.message : String(e),
+      });
+    }
+  },
+);
+
 defineRoute(
   routesDatasets,
   "launchDatasetHmisCsvRun",
@@ -448,19 +469,6 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("resolveDatasetHmisCsvReview"),
   async (c, { body }) => {
-    // The naming lands and is announced before the relaunch: a refused
-    // naming leaves the hold untouched, and a relaunch that is then refused
-    // (the asset's pin no longer matches) must not hide indicators that
-    // exist from the clients.
-    if (body.action === "restage" && body.naming) {
-      const named = await applyIndicatorNaming(c.var.mainDb, body.naming);
-      if (!named.success) {
-        return c.json(named);
-      }
-      notifyInstanceIndicatorsUpdated(
-        await getInstanceIndicatorsSummary(c.var.mainDb),
-      );
-    }
     const res = await resolveDatasetHmisCsvReview(c.var.mainDb, {
       runId: body.runId,
       action: body.action,

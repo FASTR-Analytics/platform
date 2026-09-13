@@ -311,7 +311,6 @@ export function Dhis2IndicatorSelectForm(p: Props) {
       setNaming(
         createNamingState({
           elements: [...elements.values()],
-          uploadedValues: [],
           derived,
           indicators: dictionaryRes.data.indicators,
         }),

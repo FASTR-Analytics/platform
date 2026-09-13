@@ -72,7 +72,7 @@ export const indicatorsDhis2RouteRegistry = {
         }),
       ),
     }),
-    response: {} as { created: number; assigned: number },
+    response: {} as { created: number },
   }),
   testDhis2IndicatorsConnection: route({
     path: "/indicators-dhis2/test-connection",

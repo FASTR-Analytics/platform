@@ -42,7 +42,7 @@ await db.file(SCHEMA_PATH);
 
 function indicator(
   id: string,
-  definition: HmisIndicator["definition"],
+  definition: NewIndicator["definition"],
 ): NewIndicator {
   return {
     indicator_common_id: id,
@@ -63,7 +63,7 @@ async function reset(): Promise<void> {
   await db`DELETE FROM indicators`;
   const res = await createIndicators(db, [
     indicator("visits", { type: "dhis2_element", data_id: ELEMENT }),
-    indicator("visits_file", { type: "uploaded", data_id: "VISITS_FILE" }),
+    indicator("visits_file", { type: "uploaded" }),
     indicator("visits_all", { type: "sum", members: ["visits", "visits_file"] }),
     indicator("visits_share", { type: "derived", expression: "visits / visits_all" }),
     indicator("chain", { type: "derived", expression: "[visits] * 2 + visits_share" }),
@@ -167,7 +167,7 @@ Deno.test("rename: a new id that is not bare-shaped is written bracketed in expr
 
 Deno.test("rename: a taken id and a reserved id are refused; a special id renames like any other", async () => {
   await reset();
-  const special = await createIndicators(db, [indicator("penta1", { type: "uploaded", data_id: null })]);
+  const special = await createIndicators(db, [indicator("penta1", { type: "uploaded" })]);
   assert(special.success, special.success ? "" : special.err);
   const fromSpecial = await rename("penta1", "penta_one");
   assert(fromSpecial.success, fromSpecial.success ? "" : fromSpecial.err);
@@ -186,7 +186,7 @@ Deno.test("rename: a taken id and a reserved id are refused; a special id rename
   );
 });
 
-Deno.test("data id: fixed once rows exist, free without; Uploaded and DHIS2 element switch either way with rows", async () => {
+Deno.test("data id: a DHIS2 id is fixed once rows exist; retyping keeps the key except Uploaded to DHIS2 element, which takes the UID", async () => {
   await reset();
   await seedRows(ELEMENT);
   const changed = await rename("visits", "visits", {
@@ -195,7 +195,7 @@ Deno.test("data id: fixed once rows exist, free without; Uploaded and DHIS2 elem
   assert(!changed.success);
   assertStringIncludes(changed.err, "Cannot change the DHIS2 id of an indicator that has data");
   const toUploaded = await rename("visits", "visits", {
-    definition: { type: "uploaded", data_id: ELEMENT },
+    definition: { type: "uploaded" },
   });
   assert(toUploaded.success, toUploaded.success ? "" : toUploaded.err);
   assertEquals((await dictionary()).get("visits")!.definition, { type: "uploaded", data_id: ELEMENT });
@@ -208,12 +208,15 @@ Deno.test("data id: fixed once rows exist, free without; Uploaded and DHIS2 elem
   });
   assert(!toSum.success);
   assertStringIncludes(toSum.err, "Cannot change the type of an indicator that has data");
-  // No rows under VISITS_FILE: its data id may change or clear, but a
-  // switch to DHIS2 element needs a DHIS2-shaped id.
-  const freed = await rename("visits_file", "visits_file", {
-    definition: { type: "uploaded", data_id: "VISITS_OTHER_FILE" },
+  // No rows under visits_file's key: an update keeps the key, a switch to
+  // DHIS2 element needs a DHIS2-shaped id that no other indicator holds.
+  const keyBefore = (await dictionary()).get("visits_file")!.definition;
+  const relabelled = await rename("visits_file", "visits_file", {
+    definition: { type: "uploaded" },
+    indicator_common_label: "Visits (file)",
   });
-  assert(freed.success, freed.success ? "" : freed.err);
+  assert(relabelled.success, relabelled.success ? "" : relabelled.err);
+  assertEquals((await dictionary()).get("visits_file")!.definition, keyBefore);
   const badShape = await rename("visits_file", "visits_file", {
     definition: { type: "dhis2_element", data_id: "VISITS_OTHER_FILE" },
   });

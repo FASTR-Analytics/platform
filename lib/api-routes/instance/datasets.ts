@@ -14,6 +14,7 @@ import {
 import type {
   DatasetHmisDetail,
   DatasetHmisImportLedgerItem,
+  HmisCsvIndicatorScan,
   DatasetHmisImportRunDetail,
   DatasetHmisImportRunSummary,
   DatasetHmisScheduledImport,
@@ -22,7 +23,6 @@ import type {
   ItemsHolderDatasetHmisDisplay,
 } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
-import { indicatorNamingInputSchema } from "./indicators.ts";
 
 const dhis2CredentialsSchema = z.object({
   url: z.string(),
@@ -102,17 +102,23 @@ const dhis2ScheduleFieldsSchema = z.object({
   recurrence: dhis2ScheduleRecurrenceSchema.optional(),
 });
 
-// Reuses the Columns step's shape verbatim (HmisCsvColumns). The file
-// is an instance asset named by fileName; the server stamps the byte pin at
-// launch validation (pins never travel in client bodies).
+const hmisCsvColumnsSchema = z.object({
+  facility_id: z.string(),
+  data_id: z.string(),
+  period_id: z.string(),
+  count: z.string(),
+});
+
+// The file is an instance asset named by fileName. `pin` is the pin the
+// scan returned: the launch refuses a file whose bytes no longer match it,
+// so the mapping always describes the file that is staged (PLAN_A6 ruling
+// 4). `mapping` is every distinct value the scan found, to a data id or to
+// null for skipped (ruling 3).
 const hmisCsvRunConfigSchema = z.object({
   fileName: z.string(),
-  columns: z.object({
-    facility_id: z.string(),
-    data_id: z.string(),
-    period_id: z.string(),
-    count: z.string(),
-  }),
+  pin: z.object({ size: z.number(), mtimeMs: z.number() }),
+  columns: hmisCsvColumnsSchema,
+  mapping: z.record(z.string(), z.string().nullable()),
 });
 
 const hfaRowFilterSchema = z.object({
@@ -249,6 +255,15 @@ export const datasetRouteRegistry = {
     body: z.object({ fileName: z.string() }),
     response: {} as { headers: string[] },
   }),
+  // Stateless: every distinct value in the file's indicator column with its
+  // row count, plus the pin of the bytes read, for the wizard's mapping
+  // step. Refuses above HMIS_CSV_MAX_DISTINCT_INDICATOR_VALUES values.
+  scanDatasetHmisCsvIndicatorValues: route({
+    path: "/datasets/hmis/csv-runs/scan-indicator-values",
+    method: "POST",
+    body: z.object({ fileName: z.string(), columns: hmisCsvColumnsSchema }),
+    response: {} as HmisCsvIndicatorScan,
+  }),
   launchDatasetHmisCsvRun: route({
     path: "/datasets/hmis/csv-runs",
     method: "POST",
@@ -263,16 +278,14 @@ export const datasetRouteRegistry = {
     body: z.object({ config: hmisCsvRunConfigSchema }),
     response: {} as { runId: number },
   }),
-  // "restage" relaunches the held run through the full stage leg, after
-  // saving the naming step in `naming` when one is given (PLAN_A4 ruling
-  // 6: the unknown ids become uploaded bases first).
+  // A needs_review hold offers two actions (PLAN_A6 ruling 6): integrate
+  // the surviving staged rows anyway, or discard the run.
   resolveDatasetHmisCsvReview: route({
     path: "/datasets/hmis/csv-runs/resolve-review",
     method: "POST",
     body: z.object({
       runId: z.number().int(),
-      action: z.enum(["integrate_anyway", "discard", "restage"]),
-      naming: indicatorNamingInputSchema.optional(),
+      action: z.enum(["integrate_anyway", "discard"]),
     }),
   }),
 

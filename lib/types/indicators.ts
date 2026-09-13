@@ -16,16 +16,18 @@ export type InstanceIndicatorDetails = {
   indicators: HmisIndicator[];
 };
 
-// The one dictionary file (PLAN_A5 ruling 11): `type` in the four code
-// names, `data_id` for an Uploaded or DHIS2 element, `members`
-// semicolon-separated for a sum, `expression` for a derived,
-// `include_in_analysis` true/false, `thresholds` a derived indicator's rule
-// as JSON text and empty otherwise. The download mirrors the upload.
-export const INDICATOR_BATCH_FILE_COLUMNS = [
+// The dictionary download (PLAN_A6 ruling 8): one CSV for the whole list,
+// `type` in the four code names, `dhis2_id` for a DHIS2 element and blank
+// for every other type (an Uploaded indicator's key is opaque and means
+// nothing to a reader), `members` semicolon-separated for a sum,
+// `expression` for a derived, `include_in_analysis` true/false,
+// `thresholds` a derived indicator's rule as JSON text and empty otherwise.
+// A download format only: nothing reads it back.
+export const INDICATOR_DOWNLOAD_FILE_COLUMNS = [
   "indicator_id",
   "label",
   "type",
-  "data_id",
+  "dhis2_id",
   "members",
   "expression",
   "include_in_analysis",
@@ -33,7 +35,7 @@ export const INDICATOR_BATCH_FILE_COLUMNS = [
   "thresholds",
 ] as const;
 
-export const INDICATOR_BATCH_MEMBERS_SEPARATOR = ";";
+export const INDICATOR_DOWNLOAD_MEMBERS_SEPARATOR = ";";
 
 // What a DHIS2 element's data id may be: a data element UID or an operand
 // `UID.UID`.
@@ -56,7 +58,7 @@ export type NewIndicatorIdIssue =
   | "special_derived";
 
 // The identifiers no indicator id may be, however the id is produced (typed,
-// generated, batch-uploaded, decomposed from DHIS2): the special ids (except
+// generated, decomposed from DHIS2): the special ids (except
 // as a count), the population type ids and the expression function names.
 // Instance migration 084 guards stored ids against the last two.
 export const RESERVED_WORDS: readonly string[] = [
@@ -66,8 +68,8 @@ export const RESERVED_WORDS: readonly string[] = [
 ];
 
 // Applies to NEWLY created ids only (never to existing stored ids). Commas,
-// semicolons, and colons corrupt the batch file's member list and the CSV
-// round-trip. Square brackets break the expression grammar's [quoted
+// semicolons, and colons corrupt the dictionary download's member list.
+// Square brackets break the expression grammar's [quoted
 // identifier] form, which has no escape (PLAN_1a §1.3). Instance migration
 // 079 guards stored ids the same way. Dots stay legal.
 function getIdCharsetIssue(id: string): NewIndicatorIdIssue | undefined {
@@ -139,16 +141,19 @@ export function describeNewIndicatorIdIssue(issue: NewIndicatorIdIssue): string 
 // HMIS indicator definitions
 // ============================================================================
 
-// What an indicator IS (PLAN_A5 §2). The data rows of dataset_hmis are
-// facts keyed by `data_id`, what DHIS2 or the file called the series; the
-// dictionary is a layer of names and types over them, and nothing in it
-// moves a row. Generation decides what the numbers are made of; the query
-// only aggregates and applies the formula.
+// What an indicator IS (PLAN_A5 §2, PLAN_A6 §2). The data rows of
+// dataset_hmis are facts keyed by `data_id`; the dictionary is a layer of
+// names and types over them, and nothing in it moves a row. Generation
+// decides what the numbers are made of; the query only aggregates and
+// applies the formula.
 //
 //   uploaded     : an additive monthly series filled by file. Its rows carry
-//                  its `data_id`, the value the file's indicator column
-//                  said; null until a file value has been assigned, and such
-//                  an indicator can receive no rows. A count: format `number`.
+//                  its `data_id`, an opaque key generated when the indicator
+//                  is created (`generateDataKey`, lib/indicator_id.ts), never
+//                  typed, never shown and never matched against a file value:
+//                  the CSV wizard maps each value the file's indicator column
+//                  says onto an indicator, and staging writes the rows under
+//                  that indicator's key. A count: format `number`.
 //   dhis2_element: an additive monthly series the DHIS2 import fetches. Its
 //                  rows carry its `data_id`, the data element UID or
 //                  `UID.COC` operand. A count; format `number`.
@@ -168,10 +173,17 @@ export function describeNewIndicatorIdIssue(issue: NewIndicatorIdIssue): string 
 // extract, every package and every figure, and it is renamable. The data id
 // is the key of the rows and is fixed once rows exist under it.
 export type HmisIndicatorDefinition =
-  | { type: "uploaded"; data_id: string | null }
+  | { type: "uploaded"; data_id: string }
   | { type: "dhis2_element"; data_id: string }
   | { type: "sum"; members: string[] }
   | { type: "derived"; expression: string };
+
+// What a client posts as a definition: the stored shape, except that an
+// Uploaded indicator carries no data id. Its key is generated at creation
+// and kept on update; no path accepts one from a client (PLAN_A6 ruling 1).
+export type HmisIndicatorDefinitionInput =
+  | { type: "uploaded" }
+  | Exclude<HmisIndicatorDefinition, { type: "uploaded" }>;
 
 export type HmisIndicatorType = HmisIndicatorDefinition["type"];
 
@@ -496,28 +508,14 @@ export function describeDhis2ParseRefusal(
 }
 
 // ============================================================================
-// The naming step (PLAN_A4 ruling 6)
+// The naming step (PLAN_A6 ruling 7)
 // ============================================================================
 
-// A DHIS2 element or operand the naming step imports (PLAN_A5 ruling 7): it
-// becomes a new DHIS2 element under `indicator_id` carrying `data_id`, or,
-// when `indicator_id` names an existing Uploaded indicator that has no data
-// id, sets that indicator's data id and makes it a DHIS2 element. Any other
+// A DHIS2 element or operand the naming step imports (PLAN_A6 ruling 7): it
+// becomes a new DHIS2 element under `indicator_id` carrying `data_id`. An
 // existing id is refused. A data id some indicator already holds creates
 // nothing.
 export type IndicatorNamingElement = {
-  data_id: string;
-  indicator_id: string;
-  label: string;
-};
-
-// A file value the naming step turns into an Uploaded indicator (ruling 6):
-// `data_id` is what the file said, `indicator_id` the id chosen for it. When
-// `indicator_id` names an existing Uploaded indicator with no data id, the
-// value is adopted: that indicator takes it as its data id and nothing is
-// created. Any other existing id is refused. A data id some indicator
-// already holds creates nothing.
-export type IndicatorNamingUploaded = {
   data_id: string;
   indicator_id: string;
   label: string;
@@ -535,7 +533,6 @@ export type IndicatorNamingDerived = {
 
 export type IndicatorNamingInput = {
   elements: IndicatorNamingElement[];
-  uploaded: IndicatorNamingUploaded[];
   derived: IndicatorNamingDerived[];
 };
 

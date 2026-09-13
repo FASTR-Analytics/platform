@@ -1,14 +1,11 @@
-// Pins the naming step's transaction (PLAN_A5 rulings 6 and 7): an element
-// becomes a new DHIS2 element under the chosen id, or an existing Uploaded
-// indicator with no data id takes its UID and becomes a DHIS2 element; any
-// other existing id is refused; an element whose UID some indicator already
-// holds creates nothing; a decomposed DHIS2 indicator becomes DHIS2 elements
-// for its operands and a derived over their ids; createIndicatorsFromDhis2
-// refuses a refused element or indicator and creates nothing. The CSV host
-// creates Uploaded indicators carrying the file value as data id, or an
-// existing Uploaded indicator with no data id adopts the value. Runs on a
-// throwaway database built from _main_database.sql on the dev postgres (the
-// .env the test task loads), dropped afterwards.
+// Pins the naming step's transaction (PLAN_A6 ruling 7): an element becomes
+// a new DHIS2 element under the chosen id; an existing id of any type is
+// refused; an element whose UID some indicator already holds creates
+// nothing; a decomposed DHIS2 indicator becomes DHIS2 elements for its
+// operands and a derived over their ids; createIndicatorsFromDhis2 refuses
+// a refused element or indicator and creates nothing. Runs on a throwaway
+// database built from _main_database.sql on the dev postgres (the .env the
+// test task loads), dropped afterwards.
 //
 //   deno test -A --env-file server/tests/indicator_naming_test.ts
 
@@ -25,6 +22,7 @@ import {
   createIndicatorsFromDhis2,
   type Dhis2NamingElement,
   getHmisIndicators,
+  type NewIndicator,
 } from "../db/instance/indicators.ts";
 import { parseDhis2Indicator } from "../dhis2/goal2_indicators/decompose_indicator.ts";
 
@@ -97,7 +95,7 @@ const RATE = {
 
 async function seed(
   id: string,
-  definition: HmisIndicator["definition"],
+  definition: NewIndicator["definition"],
 ): Promise<void> {
   const res = await createIndicators(db, [{
     indicator_common_id: id,
@@ -147,7 +145,7 @@ Deno.test("dhis2: a decomposed indicator creates its elements and the derived ov
     }],
   });
   assert(res.success, res.success ? "" : res.err);
-  assertEquals(res.data, { created: 4, assigned: 0 });
+  assertEquals(res.data, { created: 4 });
   const d = await dictionary();
   assertEquals([...d.keys()], ["anc4", "anc1", "anc1_repeat", "anc4_rate"]);
   assertEquals(d.get("anc4")!.definition, { type: "dhis2_element", data_id: ANC4_ELEMENT });
@@ -238,7 +236,7 @@ Deno.test("dhis2: an operand the naming step did not cover creates nothing", asy
 
 Deno.test("dhis2: a derived id already taken creates nothing, elements included", async () => {
   await reset();
-  await seed("anc4_rate", { type: "uploaded", data_id: null });
+  await seed("anc4_rate", { type: "uploaded" });
   const res = await createIndicatorsFromDhis2(db, {
     elements: [
       element(ANC4_ELEMENT, "anc4"),
@@ -277,9 +275,8 @@ Deno.test("dhis2: a derived under a special id is refused", async () => {
   assertEquals((await dictionary()).size, 0);
 });
 
-Deno.test("dhis2: operands assigned to empty Uploaded indicators or already imported rename the expression to them", async () => {
+Deno.test("dhis2: an operand already imported renames the expression to its indicator and creates nothing for it", async () => {
   await reset();
-  await seed("anc1", { type: "uploaded", data_id: null });
   await seed("first_visits", { type: "dhis2_element", data_id: ANC1_OPERAND });
   const res = await createIndicatorsFromDhis2(db, {
     elements: [
@@ -295,7 +292,7 @@ Deno.test("dhis2: operands assigned to empty Uploaded indicators or already impo
     }],
   });
   assert(res.success, res.success ? "" : res.err);
-  assertEquals(res.data, { created: 2, assigned: 1 });
+  assertEquals(res.data, { created: 3 });
   const d = await dictionary();
   assertEquals(d.get("anc1")!.definition, { type: "dhis2_element", data_id: ANC1_ELEMENT });
   assertEquals(d.get("first_visits")!.definition, {
@@ -309,37 +306,23 @@ Deno.test("dhis2: operands assigned to empty Uploaded indicators or already impo
   });
 });
 
-Deno.test("naming: assigning to an empty Uploaded indicator sets its data id, retypes it and keeps the rest", async () => {
-  await reset();
-  await seed("anc1", { type: "uploaded", data_id: null });
-  const res = await applyIndicatorNaming(db, {
-    elements: [{ data_id: ANC1_ELEMENT, indicator_id: "anc1", label: "ignored" }],
-    uploaded: [],
-    derived: [],
-  });
-  assert(res.success, res.success ? "" : res.err);
-  assertEquals(res.data, { created: 0, assigned: 1 });
-  const anc1 = (await dictionary()).get("anc1")!;
-  assertEquals(anc1.definition, { type: "dhis2_element", data_id: ANC1_ELEMENT });
-  assertEquals(anc1.indicator_common_label, "anc1");
-});
-
-Deno.test("naming: a taken id (an Uploaded with a data id, a DHIS2 element, a sum, a derived) is refused", async () => {
+Deno.test("naming: a taken id (an Uploaded, a DHIS2 element, a sum, a derived) is refused; nothing is assigned to", async () => {
   await reset();
   await seed("anc1", { type: "dhis2_element", data_id: ANC1_ELEMENT });
-  await seed("anc1_file", { type: "uploaded", data_id: "anc1_from_file" });
+  await seed("anc1_file", { type: "uploaded" });
   await seed("anc1_share", { type: "derived", expression: "anc1 / 2" });
   await seed("anc_all", { type: "sum", members: ["anc1"] });
   for (const taken of ["anc1", "anc1_file", "anc1_share", "anc_all"]) {
     const res = await applyIndicatorNaming(db, {
       elements: [{ data_id: ANC4_ELEMENT, indicator_id: taken, label: "x" }],
-      uploaded: [],
       derived: [],
     });
     assert(!res.success, taken);
-    assertStringIncludes(res.err, "already exists and cannot take");
+    assertStringIncludes(res.err, "already exists");
   }
-  assertEquals((await dictionary()).size, 4);
+  const d = await dictionary();
+  assertEquals(d.size, 4);
+  assertEquals(d.get("anc1_file")!.definition.type, "uploaded");
 });
 
 Deno.test("naming: a UID some indicator already holds is skipped and creates nothing", async () => {
@@ -347,82 +330,23 @@ Deno.test("naming: a UID some indicator already holds is skipped and creates not
   await seed("anc1", { type: "dhis2_element", data_id: ANC1_ELEMENT });
   const res = await applyIndicatorNaming(db, {
     elements: [{ data_id: ANC1_ELEMENT, indicator_id: "anc1_again", label: "x" }],
-    uploaded: [],
     derived: [],
   });
   assert(res.success, res.success ? "" : res.err);
-  assertEquals(res.data, { created: 0, assigned: 0 });
+  assertEquals(res.data, { created: 0 });
   assertEquals([...(await dictionary()).keys()], ["anc1"]);
-});
-
-Deno.test("csv host: an Uploaded indicator carries the file value as its data id", async () => {
-  await reset();
-  const res = await applyIndicatorNaming(db, {
-    elements: [],
-    uploaded: [{ data_id: "OPD_VISITS", indicator_id: "opd_csv", label: "OPD (file)" }],
-    derived: [],
-  });
-  assert(res.success, res.success ? "" : res.err);
-  assertEquals(res.data, { created: 1, assigned: 0 });
-  assertEquals((await dictionary()).get("opd_csv")!.definition, {
-    type: "uploaded",
-    data_id: "OPD_VISITS",
-  });
-});
-
-Deno.test("csv host: an existing Uploaded indicator with no data id adopts the value; any other existing id is refused", async () => {
-  await reset();
-  await seed("anc1", { type: "uploaded", data_id: null });
-  await seed("anc4", { type: "uploaded", data_id: "anc4_old" });
-  const adopt = await applyIndicatorNaming(db, {
-    elements: [],
-    uploaded: [{ data_id: "ANC1_FILE", indicator_id: "anc1", label: "ignored" }],
-    derived: [],
-  });
-  assert(adopt.success, adopt.success ? "" : adopt.err);
-  assertEquals(adopt.data, { created: 0, assigned: 1 });
-  assertEquals((await dictionary()).get("anc1")!.definition, {
-    type: "uploaded",
-    data_id: "ANC1_FILE",
-  });
-  const dup = await applyIndicatorNaming(db, {
-    elements: [],
-    uploaded: [{ data_id: "ANC4_FILE", indicator_id: "anc4", label: "x" }],
-    derived: [],
-  });
-  assert(!dup.success);
-  assertStringIncludes(dup.err, "already exists and cannot take");
-  assertEquals((await dictionary()).get("anc4")!.definition, {
-    type: "uploaded",
-    data_id: "anc4_old",
-  });
-});
-
-Deno.test("csv host: a value some indicator already holds creates nothing", async () => {
-  await reset();
-  await seed("anc4", { type: "uploaded", data_id: "ANC4_FILE" });
-  const res = await applyIndicatorNaming(db, {
-    elements: [],
-    uploaded: [{ data_id: "ANC4_FILE", indicator_id: "anc4_again", label: "x" }],
-    derived: [],
-  });
-  assert(res.success, res.success ? "" : res.err);
-  assertEquals(res.data, { created: 0, assigned: 0 });
-  assertEquals([...(await dictionary()).keys()], ["anc4"]);
 });
 
 Deno.test("naming: a reserved new id is refused, a special id is a count like any other", async () => {
   await reset();
   const reserved = await applyIndicatorNaming(db, {
     elements: [{ data_id: ANC1_ELEMENT, indicator_id: "population_total", label: "x" }],
-    uploaded: [],
     derived: [],
   });
   assert(!reserved.success);
   assertStringIncludes(reserved.err, "reserved word");
   const special = await applyIndicatorNaming(db, {
     elements: [{ data_id: ANC1_ELEMENT, indicator_id: "penta1", label: "Penta 1" }],
-    uploaded: [],
     derived: [],
   });
   assert(special.success, special.success ? "" : special.err);
@@ -433,7 +357,6 @@ Deno.test("naming: a derived naming a DHIS2 id that was not listed is refused", 
   await reset();
   const res = await applyIndicatorNaming(db, {
     elements: [{ data_id: ANC4_ELEMENT, indicator_id: "anc4", label: "ANC 4" }],
-    uploaded: [],
     derived: [{
       indicator_id: "anc4_rate",
       label: "ANC 4 rate",

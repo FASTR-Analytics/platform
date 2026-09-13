@@ -19,6 +19,7 @@ import {
   type DatasetHmisImportRunStats,
   type DatasetHmisImportRunSummary,
   type Dhis2CredentialsOrigin,
+  type HmisCsvMapping,
   type Dhis2RunPair,
   type Dhis2RunSelection,
   type Dhis2RunSelectionInput,
@@ -528,8 +529,42 @@ export async function launchQueuedDatasetHmisImportRun(
 // CSV IMPORT RUNS (PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase A)
 // ============================================================================
 
-// Validates the launch input and stamps the byte pin: the returned config is
-// what gets stored on the run row.
+// The mapping's server half (PLAN_A6 ruling 3): every target is the data
+// id of an indicator with rows, no two values map onto the same indicator,
+// and at least one value is mapped, since a run whose every value is
+// skipped would stage nothing.
+async function validateCsvMapping(
+  mainDb: Sql,
+  mapping: HmisCsvMapping,
+): Promise<void> {
+  const targets = Object.values(mapping).filter((t): t is string => t !== null);
+  if (targets.length === 0) {
+    throw new Error("Every value is skipped, so nothing would be imported.");
+  }
+  const seen = new Set<string>();
+  const twice = targets.filter((t) => seen.size === seen.add(t).size);
+  if (twice.length > 0) {
+    throw new Error(
+      `Two values are mapped onto the same indicator; one import maps one value onto an indicator: ${
+        [...new Set(twice)].join(", ")
+      }.`,
+    );
+  }
+  const rows = await mainDb<{ data_id: string }[]>`
+    SELECT data_id FROM indicators WHERE data_id = ANY(${targets}) AND has_rows
+  `;
+  const known = new Set(rows.map((r) => r.data_id));
+  const missing = targets.filter((t) => !known.has(t));
+  if (missing.length > 0) {
+    throw new Error(
+      `The mapping names indicators that do not exist or have no rows: ${missing.join(", ")}.`,
+    );
+  }
+}
+
+// Validates the launch input and pins the file: the pin the scan read must
+// still match the bytes, so the mapping describes the file that is staged
+// (ruling 4). The returned config is what gets stored on the run row.
 async function validateCsvRunConfig(
   mainDb: Sql,
   input: DatasetHmisCsvRunLaunchInput,
@@ -545,7 +580,8 @@ async function validateCsvRunConfig(
       throw new Error(`No column chosen for ${key}.`);
     }
   }
-  const { pin } = await resolveAssetFileOrThrow(input.fileName, null);
+  const { pin } = await resolveAssetFileOrThrow(input.fileName, input.pin);
+  await validateCsvMapping(mainDb, input.mapping);
   const [{ count }] = await mainDb<{ count: number }[]>`
     SELECT COUNT(*)::int AS count FROM facilities_hmis
   `;
@@ -554,7 +590,12 @@ async function validateCsvRunConfig(
       "No HMIS facilities found. Import HMIS facilities before importing data.",
     );
   }
-  return { fileName: input.fileName, filePin: pin, columns: input.columns };
+  return {
+    fileName: input.fileName,
+    filePin: pin,
+    columns: input.columns,
+    mapping: input.mapping,
+  };
 }
 
 // Spawns the CSV run worker for a row already claimed as 'running'. Reads
@@ -787,18 +828,15 @@ export async function launchQueuedDatasetHmisCsvImportRun(
   return true;
 }
 
-// needs_review resolution. "Integrate anyway" re-claims the slot (or queues
-// explicitly behind a running import, the §2 ruled change: a hold never
-// blocks the lane) and integrates the surviving staging table; "Restage"
-// re-claims or queues the same run through the full stage leg (the asset
-// is read again and its pin re-checked at spawn; the route has already
-// saved the naming step, if any, and told clients); "Discard" cancels and
-// drops the surviving staging table.
+// needs_review resolution (PLAN_A6 ruling 6). "Integrate anyway" re-claims
+// the slot (or queues explicitly behind a running import: a hold never
+// blocks the lane) and integrates the surviving staging table; "Discard"
+// cancels and drops the surviving staging table.
 export async function resolveDatasetHmisCsvReview(
   mainDb: Sql,
   args: {
     runId: number;
-    action: "integrate_anyway" | "discard" | "restage";
+    action: "integrate_anyway" | "discard";
     onComplete?: () => void;
   },
 ): Promise<APIResponseNoData> {
@@ -817,9 +855,6 @@ export async function resolveDatasetHmisCsvReview(
     if (row.status !== "needs_review") {
       throw new Error("This run is not waiting for review.");
     }
-    const { resumeFromStaging: _resume, ...config } = parseJsonOrThrow<
-      DatasetHmisCsvRunConfig
-    >(row.csv_config ?? "");
 
     if (args.action === "discard") {
       const updated = await mainDb`
@@ -835,12 +870,14 @@ export async function resolveDatasetHmisCsvReview(
       return { success: true };
     }
 
-    const nextConfig: DatasetHmisCsvRunConfig = args.action === "restage"
-      ? config
-      : { ...config, resumeFromStaging: true };
-    const progress: DatasetHmisImportRunProgress = args.action === "restage"
-      ? { phase: "staging", percent: 0 }
-      : { phase: "integrating", percent: 0 };
+    const nextConfig: DatasetHmisCsvRunConfig = {
+      ...parseJsonOrThrow<DatasetHmisCsvRunConfig>(row.csv_config ?? ""),
+      resumeFromStaging: true,
+    };
+    const progress: DatasetHmisImportRunProgress = {
+      phase: "integrating",
+      percent: 0,
+    };
 
     // Try to re-claim the slot directly; a unique violation (another import
     // running) queues the run instead: the tick fires it when free.

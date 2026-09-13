@@ -1,13 +1,14 @@
 import type { AssetFilePin } from "./assets.ts";
 import type { Dhis2StoredCredentialsInfo } from "./dhis2.ts";
+import { definitionDataId, hasRows, type HmisIndicator } from "./indicators.ts";
 
 // ============================================================================
 // CSV Import Run Types (PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase A)
 // ============================================================================
 
 // The file's columns as the wizard names them. `data_id` is the indicator
-// column: what a file value says is the data id the rows land under, or an
-// indicator id staging resolves to one (PLAN_A5 ruling 6).
+// column: the values it says are input to the wizard's mapping (below), not
+// ids the app resolves (PLAN_A6 §2).
 export type HmisCsvColumns = {
   facility_id: string;
   data_id: string;
@@ -15,23 +16,105 @@ export type HmisCsvColumns = {
   count: string;
 };
 
-// What the wizard sends at launch: the input asset's fileName plus the
-// columns. The server validates the asset exists and stamps the pin.
+// The wizard's mapping (PLAN_A6 ruling 3): every distinct value in the
+// file's indicator column, to the data id its rows land under, or to null
+// for a value the user skipped. Stored on the run row, never remembered
+// between imports: the next import maps again, seeded by auto-selection.
+export type HmisCsvMapping = Record<string, string | null>;
+
+// What the scan reads from the file before the mapping step: each distinct
+// value with its row count, sorted by descending row count, and the pin of
+// the bytes it read, which the launch passes back so a file swapped between
+// the scan and the launch is refused (ruling 4).
+export type HmisCsvIndicatorValue = { value: string; rowCount: number };
+
+export type HmisCsvIndicatorScan = {
+  pin: AssetFilePin;
+  values: HmisCsvIndicatorValue[];
+};
+
+// Above this many distinct values the scan refuses rather than truncating:
+// a mapping the user cannot complete is worse than a refusal, and that many
+// values almost always means the wrong column was chosen.
+export const HMIS_CSV_MAX_DISTINCT_INDICATOR_VALUES = 2000;
+
+// The one derivation of a mapping value from the file's indicator cell,
+// used by the scan and by the stage leg, so the mapping the wizard made is
+// complete by construction when the stage leg looks a value up.
+export function csvIndicatorValueFromCell(cell: string): string {
+  return cell.trim();
+}
+
+// Ruling 3's normalisation: lowercased, everything but letters and digits
+// stripped.
+export function normaliseIndicatorMatchKey(text: string): string {
+  return text.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+}
+
+// Auto-selection (ruling 3): a value matches an indicator with rows when it
+// equals that indicator's id under normalisation, or, for a DHIS2 element
+// only, when it exactly equals its data id (the UID). Nothing matches an
+// Uploaded indicator's key. A value that matches two indicators selects
+// neither, and two values that match the same indicator select nothing,
+// since one import may map one value onto an indicator: the user decides.
+export function autoSelectHmisCsvMapping(
+  values: string[],
+  indicators: HmisIndicator[],
+): HmisCsvMapping {
+  const byNormalisedId = new Map<string, HmisIndicator[]>();
+  const elementsByUid = new Map<string, HmisIndicator>();
+  for (const indicator of indicators) {
+    if (!hasRows(indicator.definition.type)) continue;
+    const key = normaliseIndicatorMatchKey(indicator.indicator_common_id);
+    byNormalisedId.set(key, [...(byNormalisedId.get(key) ?? []), indicator]);
+    if (indicator.definition.type === "dhis2_element") {
+      elementsByUid.set(indicator.definition.data_id, indicator);
+    }
+  }
+  const chosen = new Map<string, string>();
+  for (const value of values) {
+    const candidates = new Set<string>();
+    for (const i of byNormalisedId.get(normaliseIndicatorMatchKey(value)) ?? []) {
+      candidates.add(definitionDataId(i.definition)!);
+    }
+    const element = elementsByUid.get(value);
+    if (element !== undefined) candidates.add(definitionDataId(element.definition)!);
+    if (candidates.size === 1) chosen.set(value, [...candidates][0]);
+  }
+  const uses = new Map<string, number>();
+  for (const target of chosen.values()) {
+    uses.set(target, (uses.get(target) ?? 0) + 1);
+  }
+  const mapping: HmisCsvMapping = {};
+  for (const value of values) {
+    const target = chosen.get(value);
+    mapping[value] = target !== undefined && uses.get(target) === 1 ? target : null;
+  }
+  return mapping;
+}
+
+// What the wizard sends at launch: the input asset's fileName, the pin the
+// scan read, the columns and the mapping. The server refuses a file whose
+// bytes no longer match the pin, and checks every mapped target is an
+// indicator with rows, named by at most one value.
 export type DatasetHmisCsvRunLaunchInput = {
   fileName: string;
+  pin: AssetFilePin;
   columns: HmisCsvColumns;
+  mapping: HmisCsvMapping;
 };
 
 // The CSV launch payload stored in dataset_hmis_import_runs.csv_config. The
-// file is an instance asset named by fileName, byte-pinned at launch
-// validation (see AssetFilePin). resumeFromStaging marks a needs_review run
-// resolved with "Integrate anyway": the worker skips the stage leg and
-// integrates the surviving per-run staging table. A re-stage clears it, so
-// the run reads the asset again through the full stage leg.
+// file is an instance asset named by fileName, byte-pinned at the scan and
+// checked again at launch and at every deferred read (see AssetFilePin).
+// resumeFromStaging marks a needs_review run resolved with "Integrate
+// anyway": the worker skips the stage leg and integrates the surviving
+// per-run staging table.
 export type DatasetHmisCsvRunConfig = {
   fileName: string;
   filePin: AssetFilePin;
   columns: HmisCsvColumns;
+  mapping: HmisCsvMapping;
   resumeFromStaging?: boolean;
 };
 
@@ -77,18 +160,9 @@ export type DatasetCsvStagingResult = {
       }>;
       rowsDropped: number;
     };
-    // Rows whose file value resolved to no data id (PLAN_A5 ruling 6: not
-    // an indicator's data id, and not the id of an indicator that has rows
-    // and a data id). `ids` is the full distinct set, sorted, so a
-    // needs_review hold can name every one and re-stage; absent on results
-    // staged before it was recorded.
-    unknownIndicators: {
-      total: number;
-      sample: Array<{
-        data_id: string;
-        row_count: number;
-      }>;
-      ids?: string[];
+    // Rows whose file value the mapping sends to null (PLAN_A6 ruling 5):
+    // reported, never gating, since the user chose it at wizard time.
+    skippedByMapping: {
       rowsDropped: number;
     };
   };

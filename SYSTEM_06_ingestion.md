@@ -37,7 +37,7 @@ globs:
   - server/routes/instance/dhis2_credentials.ts
   - server/routes/instance/iceh.ts
   - server/server_only_funcs_csvs/**
-  - server/tests/csv_staging_resolution_test.ts
+  - server/tests/csv_mapping_staging_test.ts
   - server/tests/dhis2_skip_and_record_test.ts
   - server/tests/indicator_selection_expansion_test.ts
   - server/worker_routines/import_hfa_data_csv/**
@@ -84,8 +84,8 @@ history). Shape:
 - `dataset_hmis_import_runs` (main DB): one row per run, with trigger/user,
   `route` (`dhis2|csv`), selection JSON (DHIS2: a window of INDICATORS with
   its expansion to the elements it fetches, or explicit (data id, month)
-  pairs) or `csv_config` JSON (CSV: `{ fileName, filePin, columns }`; the
-  route→fields pairing is enforced in code), status
+  pairs) or `csv_config` JSON (CSV: `{ fileName, filePin, columns,
+  mapping }`; the route→fields pairing is enforced in code), status
   (`queued|running|needs_review|complete|error|cancelled`), pair counters
   (DHIS2 only), throttled `progress` JSON (by-route union: in-flight pairs vs
   a staging/integrating percentage), `run_stats` (DHIS2: classification +
@@ -99,30 +99,37 @@ history). Shape:
   worker via `resolveDhis2Credentials`; CSV fires need no credentials.
 - **CSV runs** (`import_hmis_data_csv/` worker, `"hmis"` worker key): the
   wizard is client-local: its file input is an ordinary instance asset
-  (uploaded or picked, S4), named by `fileName` in the launch payload and
-  byte-pinned at launch validation (S4's `AssetFilePin` +
-  `resolveAssetFileOrThrow`; every deferred read re-checks the pin, so an
-  overwrite while a run queues or holds fails loudly). Inputs persist after
-  the run.
+  (uploaded or picked, S4), named by `fileName` in the launch payload.
+  After the columns are chosen the wizard's Mapping step calls
+  `scanDatasetHmisCsvIndicatorValues` (stateless: `scan_indicator_values.ts`
+  streams the file and returns every distinct value of the indicator
+  column with its row count, sorted by descending count, plus the
+  `AssetFilePin` of the bytes it read; above
+  `HMIS_CSV_MAX_DISTINCT_INDICATOR_VALUES`, 2000, it refuses naming the
+  count and the column), and the user points each value at an indicator
+  that has rows or skips it, seeded by `autoSelectHmisCsvMapping` (lib).
+  The launch payload carries the scan's `pin` and the `mapping`
+  (`HmisCsvMapping`, every value to a data id or null, PLAN_A6 ruling 3);
+  `validateCsvRunConfig` passes the pin to `resolveAssetFileOrThrow` as the
+  expected pin, so a file swapped between the scan and the launch is
+  refused with "The file has changed", checks every target is the data id
+  of an indicator with rows, named by at most one value, and at least one
+  value mapped, and stores the mapping on the run row. Every deferred read
+  re-checks the pin, so an overwrite while a run queues or holds fails
+  loudly. Nothing about a mapping is remembered between imports. Inputs
+  persist after the run.
   The stage leg streams the CSV into **per-run staging tables**
   (`_run_{runId}` suffix), then gates: every validation drop counter zero AND
-  >0 rows staged → auto-integrate unattended; dropped rows → `needs_review`
-  with diagnostics on the run row, **releasing the running slot** (the
-  per-run table survives the hold; "Integrate anyway" re-claims, or queues;
-  "Discard" cancels and drops it; "Create indicators for the unknown ids
-  and re-stage" saves the naming step over the hold's full unknown-id set
-  through S5's `applyIndicatorNaming` in the route, which announces the
-  new indicators before relaunching the SAME run through the full stage
-  leg with the same claim-or-queue logic: `csv_config` without
-  `resumeFromStaging`, so the spawn reads the asset again and re-checks
-  its pin, and staging pre-drops the surviving table; a refused naming
-  leaves the hold untouched, and indicators that were created stay, and
-  are known to every client, even if the relaunch is refused); zero
-  staged rows → loud `error`. The
-  integrate leg is the old single-transaction CSV merge unchanged; the
-  version link and the `complete` flip land together as the transaction's
-  last statement (readers hide a running run's version; a committed one is
-  already complete).
+  >0 rows staged → auto-integrate unattended (rows under skipped values
+  are counted in `skippedByMapping` and never gate, PLAN_A6 ruling 5);
+  dropped rows → `needs_review` with diagnostics on the run row,
+  **releasing the running slot** (the per-run table survives the hold;
+  "Integrate anyway" re-claims, or queues; "Discard" cancels and drops it;
+  those are the hold's two actions, ruling 6); zero staged rows → loud
+  `error`. The integrate leg is the old single-transaction CSV merge
+  unchanged; the version link and the `complete` flip land together as the
+  transaction's last statement (readers hide a running run's version; a
+  committed one is already complete).
 - **Auto-pull (Phase 4, C4/C6)**: `dataset_hmis_scheduled_imports` (one-shot
   and recurring rows, rolling-window selection resolved at fire time) is
   fired by a ~60 s tick in main.ts (`import_hmis_data_dhis2/scheduler.ts`):
@@ -275,18 +282,16 @@ start.
   validation runs at staging, and the facility check again at integration
   (facilities can be deleted between phases; the facility FKs are
   RESTRICT). The file's indicator column is `data_id` in `HmisCsvColumns`
-  and in every staging table (the wizard's Columns step labels it
-  "Indicator (file id, DHIS2 id or indicator id)"), and each distinct
-  value is resolved once (PLAN_A5 ruling 6): a value that is an indicator's data id
-  lands under it; otherwise a value that is the id of an indicator with
-  rows and a data id lands under that data id (a file that speaks the
-  indicator's name lands under its key); a value that is one indicator's
-  data id and another's id fails the run with both named (the shadow a
-  rename leaves: the old name stays the key); everything else, an Uploaded
-  indicator's own id with no data id included, is `unknownIndicators`
-  (`data_id` samples, and `ids` the full distinct set), which the hold's
-  naming step creates or adopts (S5). Pinned by
-  `server/tests/csv_staging_resolution_test.ts` on the real stage leg.
+  and in every staging table, and staging resolves nothing (PLAN_A6 ruling
+  2): each cell's value is derived by `csvIndicatorValueFromCell` (trimmed,
+  the same derivation the scan uses) and looked up in the run's mapping,
+  loaded into a per-run mapping table; a value mapped to a data id lands
+  under it, a value mapped to null is counted in `skippedByMapping` and
+  dropped, and a value absent from the mapping fails the run naming it,
+  since the scan and the launch pinned the same bytes and a gap is a
+  defect, not a user state. Pinned by
+  `server/tests/csv_mapping_staging_test.ts` on the real stage leg and the
+  real scan.
 - CSV parsing goes through `getCsvStreamComponents`
   (`get_csv_components_streaming_fast.ts`): streaming, 2 MB chunks,
   quote-parity-aware chunk boundaries (quoted fields with embedded newlines
@@ -389,11 +394,9 @@ attention), that one button, and `Delete data` (HFA also `Manage time
 points`); no wizard shortcuts, no heading (ruled). The surface's toolbar owns
 the actions; no attempt cards anywhere. The runs query polls every 2 s while
 a run is active, needs_review runs render as Current cards with the staging
-diagnostics + Integrate anyway / Create indicators for the unknown ids and
-re-stage (S5's naming step in a modal, shown when the diagnostics carry
-the id set) / Discard, History rows click through to a run
-detail, and the wizard is a client-local modal (nothing persists before
-launch). Every wizard file slot is S4's `FileUploadSelector`: upload a new
+diagnostics + Integrate anyway / Discard, History rows click through to a
+run detail, and the wizard is a client-local modal (nothing persists
+before launch). Every wizard file slot is S4's `FileUploadSelector`: upload a new
 file or pick an existing instance asset; either way the wizard holds an asset
 `fileName`, which is what launch/parse payloads name. Selection re-parses via
 the slot's direct `onChange` callback (never an effect on the fileName
@@ -422,7 +425,13 @@ callback re-parses the new bytes).
   detail; accepted). Two wizards: DHIS2 (credentials/indicators/time/
   config/review; the indicators step picks from the one dictionary list and
   the review counts the DHIS2 elements the selection expands to) and CSV
-  (upload → columns → review), both with the launch-or-queue fork. A run
+  (upload → columns → mapping → review: the Mapping step lists every
+  distinct value of the indicator column with its row count and a
+  searchable picker over the indicators with rows, seeded by
+  auto-selection, with a Skip entry; counts of mapped, skipped and
+  undecided values; Next and the launch refuse while any value is undecided,
+  an indicator is chosen for two values, or every value is skipped), both
+  with the launch-or-queue fork. A run
   detail's
   Version row opens the version's `_import_information.tsx`. This replaced
   the "View previous imports" entry point (Phase D); the versions table and

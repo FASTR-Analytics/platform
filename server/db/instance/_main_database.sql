@@ -309,13 +309,14 @@ CREATE INDEX idx_facilities_hfa_facility_ownership ON facilities_hfa(facility_ow
 -- INDICATORS
 -- ============================================================================
 
--- The dictionary (PLAN_A5 §2). The data rows of dataset_hmis are facts
--- keyed by `data_id`, what DHIS2 or the file called the series; an
--- indicator is a name and a type over them, and nothing here moves a row.
--- Four types: `uploaded` (an additive monthly series filled by file; its
--- rows carry its `data_id`, the file's value, null until a file value has
--- been assigned), `dhis2_element` (a series the import fetches; `data_id`
--- is the data element UID or `UID.COC` operand, always set and
+-- The dictionary (PLAN_A5 §2, PLAN_A6 §2). The data rows of dataset_hmis
+-- are facts keyed by `data_id`; an indicator is a name and a type over
+-- them, and nothing here moves a row. Four types: `uploaded` (an additive
+-- monthly series filled by file; its rows carry its `data_id`, an opaque
+-- key generated when the indicator is created, `u_` plus a UUID, never
+-- typed and never matched against a file value: the CSV wizard maps each
+-- file value onto an indicator), `dhis2_element` (a series the import
+-- fetches; `data_id` is the data element UID or `UID.COC` operand,
 -- DHIS2-shaped), `sum` (the members in indicator_sum_members, summed from
 -- their rows at extract), `derived` (`expression`, a formula over
 -- indicators of any type and population terms, evaluated by m012 after
@@ -329,8 +330,7 @@ CREATE INDEX idx_facilities_hfa_facility_ownership ON facilities_hfa(facility_ow
 -- NULL on a count, which is also always formatted as a number. The indicator id
 -- is renamable (ON UPDATE CASCADE follows it into the junction); the data
 -- id is fixed once rows exist under it (the data FK has no update action).
--- A new database is seeded with each special indicator as an Uploaded
--- indicator with no data id; nothing marks them after.
+-- A new database has an empty dictionary.
 CREATE TABLE indicators (
   indicator_common_id text PRIMARY KEY NOT NULL,
   indicator_common_label text NOT NULL,
@@ -353,7 +353,7 @@ CREATE TABLE indicators (
     (definition_type IN ('uploaded', 'dhis2_element', 'sum')) STORED,
 
   CONSTRAINT indicators_fields_check CHECK (
-    (definition_type = 'uploaded'      AND expression IS NULL) OR
+    (definition_type = 'uploaded'      AND expression IS NULL AND data_id IS NOT NULL) OR
     (definition_type = 'dhis2_element' AND expression IS NULL AND data_id IS NOT NULL) OR
     (definition_type = 'sum'           AND expression IS NULL AND data_id IS NULL) OR
     (definition_type = 'derived'       AND expression IS NOT NULL AND data_id IS NULL)
@@ -498,7 +498,7 @@ CREATE TABLE dataset_hmis_import_ledger (
 -- server/db/instance/dataset_hmis_import_runs.ts. Per-pair outcomes live
 -- in dataset_hmis_import_ledger; run_stats holds per-run instrumentation
 -- (DHIS2) or the CSV staging diagnostics. dhis2_url/selection are DHIS2-only;
--- csv_config ({ fileName, filePin, columns } JSON) is CSV-only — the
+-- csv_config ({ fileName, filePin, columns, mapping } JSON) is CSV-only — the
 -- pairing is enforced in code at the write boundary.
 CREATE TABLE dataset_hmis_import_runs (
   id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,

@@ -1,7 +1,6 @@
 import { Hono } from "hono";
-import { type HmisIndicatorDefinition, isHmisIndicatorType } from "lib";
+import { type HmisIndicatorDefinitionInput, isHmisIndicatorType } from "lib";
 import {
-  batchUploadIndicators,
   createIndicators,
   deleteIndicators,
   getInstanceIndicatorDetails,
@@ -21,21 +20,17 @@ export const routesIndicators = new Hono();
 // body schema. The expression: its grammar, its indicators and its
 // population terms: is validated in the DB layer against the live
 // dictionary and the population store, because only there is the full
-// vocabulary available.
-function narrowIndicatorDefinition(
+// vocabulary available. An Uploaded indicator posts no data id, and one
+// posted anyway is dropped here: its key is the server's (PLAN_A6 ruling 1).
+export function narrowIndicatorDefinition(
   raw: { type: string } & Record<string, unknown>,
-): HmisIndicatorDefinition {
+): HmisIndicatorDefinitionInput {
   if (!isHmisIndicatorType(raw.type)) {
     throw new Error(`Unknown indicator type: ${raw.type}`);
   }
   switch (raw.type) {
     case "uploaded":
-      return {
-        type: "uploaded",
-        data_id: raw.data_id === null || raw.data_id === undefined
-          ? null
-          : String(raw.data_id),
-      };
+      return { type: "uploaded" };
     case "dhis2_element":
       return { type: "dhis2_element", data_id: String(raw.data_id) };
     case "sum":
@@ -150,27 +145,6 @@ defineRoute(
   log("deleteIndicators"),
   async (c, { body }) => {
     const res = await deleteIndicators(c.var.mainDb, body.indicator_common_ids);
-    if (res.success) {
-      notifyInstanceIndicatorsUpdated(
-        await getInstanceIndicatorsSummary(c.var.mainDb),
-      );
-    }
-    return c.json(res);
-  },
-);
-
-// POST /indicators/batch - Batch upload the dictionary file (PLAN_A5 ruling 11)
-defineRoute(
-  routesIndicators,
-  "batchUploadIndicators",
-  requireGlobalPermission("can_configure_data"),
-  log("batchUploadIndicators"),
-  async (c, { body }) => {
-    const res = await batchUploadIndicators(
-      c.var.mainDb,
-      body.asset_file_name,
-      body.replace_all_existing,
-    );
     if (res.success) {
       notifyInstanceIndicatorsUpdated(
         await getInstanceIndicatorsSummary(c.var.mainDb),

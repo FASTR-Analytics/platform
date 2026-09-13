@@ -1,5 +1,5 @@
-// Pins PLAN_A5 ruling 1: the dictionary's tables and constraints as
-// _main_database.sql declares them, fourteen cases each in its own rolled-back
+// Pins PLAN_A5 ruling 1 and PLAN_A6 ruling 1: the dictionary's tables and
+// constraints as _main_database.sql declares them, fourteen cases each in its own rolled-back
 // transaction on a throwaway database built from _main_database.sql on the
 // dev postgres (the .env the test task loads), dropped afterwards.
 //
@@ -45,8 +45,8 @@ async function rolledBack(fn: (sql: TransactionSql) => Promise<void>): Promise<v
   }
 }
 
-// An element with rows, an Uploaded with rows, an Uploaded with no data id,
-// a sum over the first two, and a derived.
+// An element with rows, an Uploaded with rows, an Uploaded with a key and
+// no rows, a sum over the first two, and a derived.
 async function seed(sql: TransactionSql): Promise<void> {
   await sql`
     INSERT INTO admin_areas_hmis_1 (admin_area_1) VALUES ('A1')
@@ -78,7 +78,7 @@ async function seed(sql: TransactionSql): Promise<void> {
     VALUES
       ('elem', 'Element', 'dhis2_element', ${ELEMENT}, NULL),
       ('up', 'Uploaded', 'uploaded', 'UP_FILE', NULL),
-      ('empty', 'Empty', 'uploaded', NULL, NULL),
+      ('empty', 'Empty', 'uploaded', 'u_empty', NULL),
       ('total', 'Total', 'sum', NULL, NULL),
       ('rate', 'Rate', 'derived', NULL, 'elem / up')
   `;
@@ -215,12 +215,17 @@ Deno.test("12: changing a data id that has rows is refused by the data FK", asyn
   });
 });
 
-Deno.test("13: changing one that has no rows is accepted", async () => {
+Deno.test("13: changing one that has no rows is accepted; an Uploaded indicator's key may not be NULL", async () => {
   await rolledBack(async (sql) => {
-    await sql`UPDATE indicators SET data_id = 'EMPTY_FILE' WHERE indicator_common_id = 'empty'`;
-    await sql`UPDATE indicators SET data_id = NULL WHERE indicator_common_id = 'empty'`;
+    await sql`UPDATE indicators SET data_id = 'u_other' WHERE indicator_common_id = 'empty'`;
     const row = await sql<{ data_id: string | null }[]>`SELECT data_id FROM indicators WHERE indicator_common_id = 'empty'`;
-    assertEquals(row[0].data_id, null);
+    assertEquals(row[0].data_id, "u_other");
+    await refused(sql, () => sql`UPDATE indicators SET data_id = NULL WHERE indicator_common_id = 'empty'`, "indicators_fields_check");
+    await refused(
+      sql,
+      () => sql`INSERT INTO indicators (indicator_common_id, indicator_common_label, definition_type) VALUES ('keyless', 'Keyless', 'uploaded')`,
+      "indicators_fields_check",
+    );
   });
 });
 

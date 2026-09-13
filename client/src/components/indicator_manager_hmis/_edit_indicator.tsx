@@ -29,7 +29,7 @@ import {
   collectIdentifiers,
   definitionDataId,
   hasRows,
-  type HmisIndicatorDefinition,
+  type HmisIndicatorDefinitionInput,
   type HmisIndicatorType,
   HMIS_INDICATOR_TYPES,
   type DerivedIndicatorComputability,
@@ -223,14 +223,14 @@ export function EditIndicatorForm(
       .map((c) => c.indicator_common_id)
   );
 
-  function currentDefinition(): HmisIndicatorDefinition {
+  function currentDefinition(): HmisIndicatorDefinitionInput {
     switch (type()) {
       case "derived":
         return { type: "derived", expression: expression().trim() };
       case "sum":
         return { type: "sum", members: members() };
       case "uploaded":
-        return { type: "uploaded", data_id: dataId().trim() || null };
+        return { type: "uploaded" };
       case "dhis2_element":
         return { type: "dhis2_element", data_id: dataId().trim() };
     }

@@ -40,3 +40,11 @@ export function generateIndicatorId(args: {
     if (!taken(candidate)) return candidate;
   }
 }
+
+// The opaque key an Uploaded indicator's rows carry (PLAN_A6 ruling 1):
+// generated when the indicator is created, never typed, never shown and
+// never matched against a file value. The `u_` prefix keeps a generated key
+// outside DHIS2_UID_PATTERN and DHIS2_OPERAND_PATTERN.
+export function generateDataKey(): string {
+  return `u_${crypto.randomUUID()}`;
+}

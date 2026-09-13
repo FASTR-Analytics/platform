@@ -1,11 +1,10 @@
 import {
-  definitionDataId,
   analysedIdsWithData,
   t3,
   TC,
   type Dhis2CredentialsOrigin,
-  INDICATOR_BATCH_FILE_COLUMNS,
-  INDICATOR_BATCH_MEMBERS_SEPARATOR,
+  INDICATOR_DOWNLOAD_FILE_COLUMNS,
+  INDICATOR_DOWNLOAD_MEMBERS_SEPARATOR,
   hasRows,
   type HmisIndicator,
   type InstanceIndicatorDetails,
@@ -56,7 +55,6 @@ import {
 } from "./_computability";
 import { EditIndicatorForm } from "./_edit_indicator";
 import { definedByText, indicatorTypeLabel } from "./_indicator_display";
-import { BatchUploadForm } from "./batch_upload_form";
 import { Dhis2IndicatorSelectForm } from "./dhis2_indicator_select_form";
 import { SortIndicatorsModal } from "./sort_indicators_modal";
 import { SpecialBadge } from "./_special_badge";
@@ -120,15 +118,18 @@ export function IndicatorsManager(p: Props) {
     );
   });
 
-  // The dictionary file (PLAN_A5 ruling 11): the download mirrors the upload.
+  // The dictionary download (PLAN_A6 ruling 8): the DHIS2 id of an element,
+  // blank for every other type.
   function handleDownloadCsv(list: HmisIndicator[]) {
     const rows = list.map((indicator) => [
       indicator.indicator_common_id,
       indicator.indicator_common_label,
       indicator.definition.type,
-      definitionDataId(indicator.definition) ?? "",
+      indicator.definition.type === "dhis2_element"
+        ? indicator.definition.data_id
+        : "",
       indicator.definition.type === "sum"
-        ? indicator.definition.members.join(INDICATOR_BATCH_MEMBERS_SEPARATOR)
+        ? indicator.definition.members.join(INDICATOR_DOWNLOAD_MEMBERS_SEPARATOR)
         : "",
       indicator.definition.type === "derived"
         ? indicator.definition.expression
@@ -139,7 +140,7 @@ export function IndicatorsManager(p: Props) {
     ]);
 
     const csvContent = [
-      INDICATOR_BATCH_FILE_COLUMNS.join(","),
+      INDICATOR_DOWNLOAD_FILE_COLUMNS.join(","),
       ...rows.map((row) =>
         row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(","),
       ),
@@ -152,13 +153,6 @@ export function IndicatorsManager(p: Props) {
     link.download = "indicators.csv";
     link.click();
     URL.revokeObjectURL(url);
-  }
-
-  async function handleBatchUpload() {
-    await openEditor({
-      element: BatchUploadForm,
-      props: {},
-    });
   }
 
   async function handleDhis2IndicatorSelect() {
@@ -219,13 +213,6 @@ export function IndicatorsManager(p: Props) {
                     en: "Import from DHIS2",
                     fr: "Importer depuis DHIS2",
                     pt: "Importar do DHIS2",
-                  })}
-                </Button>
-                <Button iconName="upload" onClick={handleBatchUpload}>
-                  {t3({
-                    en: "Batch import from CSV",
-                    fr: "Importation groupée depuis CSV",
-                    pt: "Importação em lote a partir de CSV",
                   })}
                 </Button>
               </Show>

@@ -39,9 +39,10 @@ import { integrateStagedHmisCsvData } from "./integrate_staged.ts";
 
 let alreadyRunning = false;
 
-// The HMIS CSV clean condition (the exact §9 rule): every validation drop
-// counter is zero AND at least one row staged. A missing validation block is
-// treated as error, never as clean.
+// The HMIS CSV clean condition (PLAN_A6 ruling 5): every validation drop
+// counter is zero AND at least one row staged. Rows skipped by the mapping
+// never gate: the user chose that at wizard time. A missing validation
+// block is treated as error, never as clean.
 function isCleanStaging(result: DatasetCsvStagingResult): boolean {
   const v = result.validation;
   if (!v) {
@@ -52,7 +53,6 @@ function isCleanStaging(result: DatasetCsvStagingResult): boolean {
     v.invalidCounts.rowsDropped === 0 &&
     v.missingRequiredFields.rowsDropped === 0 &&
     v.invalidFacilities.rowsDropped === 0 &&
-    v.unknownIndicators.rowsDropped === 0 &&
     result.finalStagingRowCount > 0
   );
 }
@@ -98,6 +98,7 @@ async function run(payload: ImportHmisDataCsvWorkerPayload) {
         csvFilePath,
         csvFileName: config.fileName,
         columns: config.columns,
+        mapping: config.mapping,
         runId,
         onProgress: (percent) => {
           writeProgress({ phase: "staging", percent }, false);
@@ -110,8 +111,8 @@ async function run(payload: ImportHmisDataCsvWorkerPayload) {
         throw new Error(
           `All rows were dropped during staging: ` +
             `${v?.invalidFacilities.rowsDropped ?? 0} with unknown facilities, ` +
-            `${v?.unknownIndicators.rowsDropped ?? 0} with unknown indicators. ` +
-            `Check the columns and try again.`,
+            `${v?.skippedByMapping.rowsDropped ?? 0} under values the mapping skipped. ` +
+            `Check the columns and the mapping and try again.`,
         );
       }
 

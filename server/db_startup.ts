@@ -1,11 +1,8 @@
 import {
   H_USERS,
   type InstanceConfigAdminAreaLabels,
-  SPECIAL_INDICATORS,
   type StructureSchema,
-  t3,
 } from "lib";
-import { escapeSqlString } from "./db/utils.ts";
 import {
   evictRunFromManifestCache,
   runDirPath,
@@ -61,8 +58,6 @@ export async function dbStartUp() {
 
     await sqlMain.unsafe(`
 ${getDefaultInstanceConfigInsertStatement()}
-
-${getSpecialIndicatorsInsertStatement()}
 
 ${userInserts}
 `);
@@ -386,23 +381,6 @@ VALUES
   ('structure_schema_hmis', '${JSON.stringify(structureSchemaValue)}'),
   ('structure_schema_hfa', '${JSON.stringify(structureSchemaValue)}'),
   ('admin_area_labels', '${JSON.stringify(adminAreaLabelsValue)}');
-`;
-}
-
-// A new database only: each special indicator as an Uploaded indicator with
-// no data id, labelled in the instance language. An existing instance gets
-// nothing on boot, and nothing marks the seeded rows after: a team deletes
-// a special like any indicator.
-function getSpecialIndicatorsInsertStatement(): string {
-  const valueRows = SPECIAL_INDICATORS.map((ind) => {
-    return `('${ind.id}', '${escapeSqlString(t3(ind.label))}', 'uploaded')`;
-  });
-
-  return `
-INSERT INTO indicators (indicator_common_id, indicator_common_label, definition_type)
-VALUES
-  ${valueRows.join(",\n  ")}
-ON CONFLICT (indicator_common_id) DO NOTHING;
 `;
 }
 

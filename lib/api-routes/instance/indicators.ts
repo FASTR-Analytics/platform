@@ -7,9 +7,11 @@ import { route } from "../route-utils.ts";
 // checked server-side against the live dictionary and the population store;
 // a sum's members are checked there against the live list: the shape check
 // here only says which fields each type carries. The count→number format
-// rule lives in the DB layer too, where the type is known.
+// rule lives in the DB layer too, where the type is known. An Uploaded
+// indicator posts no data id: its key is generated at creation and kept on
+// update (PLAN_A6 ruling 1).
 const indicatorDefinitionSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("uploaded"), data_id: z.string().nullable() }),
+  z.object({ type: z.literal("uploaded") }),
   z.object({ type: z.literal("dhis2_element"), data_id: z.string() }),
   z.object({ type: z.literal("sum"), members: z.array(z.string()) }),
   z.object({ type: z.literal("derived"), expression: z.string() }),
@@ -26,8 +28,8 @@ const indicatorItemSchema = z.object({
   thresholds: thresholdsRuleSchema.nullable(),
 });
 
-// The naming step's input (PLAN_A5 rulings 6 and 7): shared by the DHIS2
-// create route and the CSV re-stage action.
+// The naming step's input (PLAN_A6 ruling 7): the DHIS2 create route's
+// elements and the derived indicators over them.
 export const indicatorNamingElementSchema = z.object({
   data_id: z.string(),
   indicator_id: z.string(),
@@ -36,7 +38,6 @@ export const indicatorNamingElementSchema = z.object({
 
 export const indicatorNamingInputSchema = z.object({
   elements: z.array(indicatorNamingElementSchema),
-  uploaded: z.array(indicatorNamingElementSchema),
   derived: z.array(
     z.object({
       indicator_id: z.string(),
@@ -75,13 +76,5 @@ export const indicatorRouteRegistry = {
     path: "/indicators/reorder",
     method: "POST",
     body: z.object({ order: z.array(z.string()) }),
-  }),
-  batchUploadIndicators: route({
-    path: "/indicators/batch",
-    method: "POST",
-    body: z.object({
-      asset_file_name: z.string(),
-      replace_all_existing: z.boolean(),
-    }),
   }),
 } as const;

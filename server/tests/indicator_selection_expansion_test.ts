@@ -34,7 +34,7 @@ function element(id: string, dataId: string): HmisIndicator {
   };
 }
 
-function uploaded(id: string, dataId: string | null): HmisIndicator {
+function uploaded(id: string, dataId: string): HmisIndicator {
   return {
     indicator_common_id: id,
     indicator_common_label: id,
@@ -78,7 +78,7 @@ const DICTIONARY: HmisIndicator[] = [
   // A UID-shaped file id is still Uploaded: the type carries the intent.
   uploaded("anc4_csv", "UvWxYzAbCd9"),
   sum("anc4_all", ["anc4", "anc4_csv"]),
-  uploaded("opd", null),
+  uploaded("opd", "u_opd"),
   derived("anc4_rate", "anc4 / anc1"),
   derived("anc1_coverage", "anc1 / population_pregnancies"),
   derived("anc_chain", "anc4_rate * anc1_coverage"),

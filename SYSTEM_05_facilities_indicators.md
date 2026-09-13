@@ -48,6 +48,7 @@ globs:
   - server/routes/instance/structure.ts
   - server/server_only_funcs_importing/**
   - server/tests/indicator_analysed_set_test.ts
+  - server/tests/indicator_data_key_test.ts
   - server/tests/indicator_id_test.ts
   - server/tests/indicator_migration_test.ts
   - server/tests/indicator_naming_test.ts
@@ -263,16 +264,19 @@ id is renamable through `updateIndicator` (below) and through the
 editor's id input on an existing indicator. Label edits are always safe
 everywhere.
 
-**HMIS** (PLAN_A5 §2): the data rows of `dataset_hmis` are facts keyed by
-`data_id`, what DHIS2 or the file called the series, and the dictionary,
-`indicators` (`indicator_common_id`), is a layer of names and types over
-them. Nothing in the dictionary moves a data row. Four types, stored in
+**HMIS** (PLAN_A5 §2, PLAN_A6 §2): the data rows of `dataset_hmis` are
+facts keyed by `data_id`, and the dictionary, `indicators`
+(`indicator_common_id`), is a layer of names and types over them. Nothing
+in the dictionary moves a data row. Four types, stored in
 `definition_type` under these code names: `uploaded` (an additive monthly
-series filled by file; its rows carry its `data_id`, the value the file's
-indicator column said; null until a file value has been assigned, and such
-an indicator can receive no rows), `dhis2_element` (a series the DHIS2
+series filled by file; its rows carry its `data_id`, an opaque key
+generated when the indicator is created, `u_` plus a UUID
+(`generateDataKey`, `lib/indicator_id.ts`), never typed, never shown and
+never matched against a file value: the CSV wizard maps each value the
+file's indicator column says onto an indicator and staging writes the rows
+under that indicator's key, S6), `dhis2_element` (a series the DHIS2
 import fetches; `data_id` is the data element UID or `UID.COC` operand,
-always set and DHIS2-shaped by CHECK), `sum` (its members in
+DHIS2-shaped by CHECK), `sum` (its members in
 `indicator_sum_members`, summed from the rows under their data ids at
 extract into one facility × month series that m001 and m002 adjust like
 any count; no sum inside a sum), and `derived` (`expression`, a formula
@@ -284,7 +288,8 @@ id" appears only in server error strings, which the client renders
 verbatim. Two generated columns nothing may write hold the two
 facts read off the type: `has_rows` (Uploaded or DHIS2 element) and
 `is_count` (those plus Sum), the same predicates as lib's `hasRows` and
-`isCount`. `data_id` is `UNIQUE` (`indicators_data_id_key`); the junction's
+`isCount`. `data_id` is `UNIQUE` (`indicators_data_id_key`) and required
+on every Uploaded and DHIS2 element row (`indicators_fields_check`); the junction's
 member FK reaches `(indicator_common_id, has_rows)`, so a sum can name
 only an indicator with rows and retyping a member out of those is refused
 while a sum names it; the member FK is NO ACTION, checked per row at the
@@ -308,9 +313,13 @@ CRUD (`server/db/instance/indicators.ts`) writes `data_id`, the junction
 and `include_in_analysis` in the indicator's own transaction, with these
 pre-checks: every new id through the validator (a reserved word refused, a
 special id accepted for a count and refused for a derived), a DHIS2
-element's data id DHIS2-shaped, a data id held by no other indicator, a
-sum's members existing as indicators with rows, and every expression
-resolving against the dictionary the write would leave. `updateIndicator`
+element's data id DHIS2-shaped and held by no other indicator, a sum's
+members existing as indicators with rows, and every expression resolving
+against the dictionary the write would leave. The API's Uploaded
+definition carries no data id (`HmisIndicatorDefinitionInput`): the key is
+generated at insert and kept on update, and a key posted anyway is
+stripped by the route schema and dropped by the route's narrowing.
+`updateIndicator`
 accepts a new id (PLAN_A5 ruling 5): in the indicator's transaction it
 updates the row, rewrites every derived expression that names the old id
 (`renameIdentifierInExpression`, whole identifiers and exact `[id]` only,
@@ -322,16 +331,17 @@ rows are history and keep their pairs, which are data ids; figure configs
 in project databases are not rewritten. Renaming a special is allowed and
 takes the id out of the module scripts' inputs, as deleting it does.
 Refused: renaming to a reserved, taken or special-when-derived id.
-Switching Uploaded and DHIS2 element either way is allowed with rows and
-changes none (to DHIS2 element needs a DHIS2-shaped data id); a switch
-from Uploaded or DHIS2 element to Sum or Derived is refused with rows or
-while a sum names the indicator (the only guard; a Sum or Derived has no
-rows and no sum names it, so a switch away from them needs none). The
-data id may be taken, changed or cleared through `updateIndicator` while
-no rows exist under it, within the type's rule; with rows it is fixed, and
-the error says to rename the indicator instead. The editor locks the
-input while the ledger reports rows under the data id, and while the
-ledger has not loaded. Deleting an indicator refuses
+Retyping never changes the key, except Uploaded to DHIS2 element, which
+takes the typed UID and so is refused while rows exist under the old key;
+a DHIS2 element retyped to Uploaded keeps its UID as its key, with rows;
+a Sum or Derived retyped to Uploaded takes a generated key; a switch from
+Uploaded or DHIS2 element to Sum or Derived is refused with rows or while
+a sum names the indicator (the only guard; a Sum or Derived has no rows
+and no sum names it, so a switch away from them needs none). A DHIS2 id
+may change through `updateIndicator` while no rows exist under it; with
+rows it is fixed, and the error says to rename the indicator instead. The
+editor locks the input while the ledger reports rows under the data id,
+and while the ledger has not loaded. Deleting an indicator refuses
 with a listing when it has data (a sum is data, so the dependency on its
 members is strict), when a surviving sum names it, or when another
 indicator's expression still needs the id; the expression guard is exact
@@ -339,60 +349,64 @@ rather than a direct-reference scan: it re-resolves every surviving
 definition against the post-delete dictionary, so an id used only deep
 inside a chain blocks the delete too. Creates are all-or-nothing (one
 transaction; the failing item is named in the error). Pinned by
-`server/tests/indicator_schema_test.ts` (the constraints, fourteen cases)
-and `server/tests/indicator_rename_test.ts` (the rename, the data id rule,
-the type switches).
+`server/tests/indicator_schema_test.ts` (the constraints, fourteen cases),
+`server/tests/indicator_rename_test.ts` (the rename, the data id rule, the
+type switches) and `server/tests/indicator_data_key_test.ts` (the key:
+required, generated, unique, never accepted from a client, kept across
+retypes).
 
-Both import paths create indicators through one **naming step**
-(`applyIndicatorNaming`, PLAN_A5 rulings 6 and 7). A DHIS2 element or
+An import never creates an indicator (PLAN_A6 §2): the dictionary is
+authored in the manager, the Add indicator form for one and the DHIS2
+select form for many. The DHIS2 select form goes through the **naming
+step** (`applyIndicatorNaming`, PLAN_A6 ruling 7). A DHIS2 element or
 operand becomes a new DHIS2 element under the chosen id (proposed by
-`generateIndicatorId`, editable) carrying the UID as its data id, or, when
-the chosen id names an existing Uploaded indicator that has no data id,
-that indicator takes the UID and becomes a DHIS2 element (this is how a
-seeded special such as `anc1` becomes a DHIS2 element; it never has rows,
-since rows need a data id); any other existing id is refused; one
-indicator carries one data id, so two elements cannot share a new id; a
-UID some indicator already holds creates nothing. A file value the CSV
-hold could not resolve becomes an Uploaded indicator carrying the value as
-its data id, under the id the hold proposes and the user may edit (the
-value itself when it passes the validator and is free or names an
-Uploaded indicator it can be assigned to, otherwise an id generated from
-it: `proposeUploadedId` in `_naming_step.tsx`); when the chosen id names
-an existing Uploaded indicator with no data id, that indicator adopts the
-value instead. A
-DHIS2 indicator decomposes (S7) into DHIS2 elements for its operands and a
-derived `(numerator) / (denominator)` over their ids: its expression names
-each operand by `[data_id]` and the transaction rewrites every identifier
-to the indicator that element lands in (`renameIdentifiers`). Sums are not
-made in the naming step; they are made in the list. Everything the naming
-step creates has its checkbox on. Save from the DHIS2 select form posts to
-`/indicators-dhis2/create` (each DHIS2 indicator by its `uid`), which
-re-reads every element and indicator from DHIS2 and judges them itself
-(S7's verdict and decomposition, worded by `describeDhis2ElementRefusal` /
-`describeDhis2ParseRefusal`) before `createIndicatorsFromDhis2` calls
-`applyIndicatorNaming`, so a refused element or indicator creates nothing.
-Pinned by `server/tests/indicator_naming_test.ts` on a throwaway database
-built from `_main_database.sql`. A new database is seeded with the
-**special indicators**, `SPECIAL_INDICATORS` in `lib/special_indicators.ts`:
-the hand-kept list of count ids the registry module scripts read by
-literal id, each inserted as an Uploaded indicator with no data id,
-checkbox on; nothing marks them after, so an existing instance gets
-nothing on boot and a team adds or deletes specials like any indicator.
-`./validate_fresh_boot` boots an empty postgres through `dbStartUp` and
-asserts that seed. New ids are charset-checked (no `, ; : [ ]` because
-they corrupt the batch file's member list and the CSV round-trip);
-existing ids are grandfathered. The dictionary file is one CSV for the
-whole list (`INDICATOR_BATCH_FILE_COLUMNS`: `indicator_id, label, type,
-data_id, members, expression, include_in_analysis, format_as,
-thresholds`; `type` in the four code names, `members`
-semicolon-separated), which the manager's download mirrors; upsert keeps
-`sort_order`, replace deletes what the file does not name and refuses with
-a listing when that would remove an indicator with data or one a sum
-names, retype an indicator with data out of the types that have rows,
-retype one a sum names, or move a data id whose owner has data. The
-two-pass write lands every row as Uploaded first, keeping a row's
-unchanged data id (the data FK refuses clearing one that has rows), and
-gives each row its definition in the second pass.
+`generateIndicatorId`, editable) carrying the UID as its data id; an
+existing id of any type is refused; one indicator carries one data id, so
+two elements cannot share a new id; a UID some indicator already holds
+creates nothing. A DHIS2 indicator decomposes (S7) into DHIS2 elements for
+its operands and a derived `(numerator) / (denominator)` over their ids:
+its expression names each operand by `[data_id]` and the transaction
+rewrites every identifier to the indicator that element lands in
+(`renameIdentifiers`). Sums are not made in the naming step; they are made
+in the list. Everything the naming step creates has its checkbox on. Save
+from the DHIS2 select form posts to `/indicators-dhis2/create` (each DHIS2
+indicator by its `uid`), which re-reads every element and indicator from
+DHIS2 and judges them itself (S7's verdict and decomposition, worded by
+`describeDhis2ElementRefusal` / `describeDhis2ParseRefusal`) before
+`createIndicatorsFromDhis2` calls `applyIndicatorNaming`, so a refused
+element or indicator creates nothing. Pinned by
+`server/tests/indicator_naming_test.ts` on a throwaway database built from
+`_main_database.sql`. A new database has an empty dictionary (PLAN_A6
+ruling 10); the **special indicators**, `SPECIAL_INDICATORS` in
+`lib/special_indicators.ts`, stay a reserved list: the hand-kept count ids
+the registry module scripts read by literal id, which the manager's
+reference panel names, `getSpecialIndicatorTypeIssue` keeps a count, and
+`analysedIndicatorIds` analyses whenever one exists. A team creates them in
+the manager like any indicator. `./validate_fresh_boot` boots an empty
+postgres through `dbStartUp` and asserts the empty dictionary. New ids are
+charset-checked (no `, ; : [ ]` because they corrupt the dictionary
+download's member list and the expression grammar); existing ids are
+grandfathered. The dictionary download is one CSV for the whole list
+(`INDICATOR_DOWNLOAD_FILE_COLUMNS`: `indicator_id, label, type, dhis2_id,
+members, expression, include_in_analysis, format_as, thresholds`; `type`
+in the four code names, `dhis2_id` written for a DHIS2 element and blank
+for every other type, `members` semicolon-separated), a download format
+only: nothing reads it back (PLAN_A6 ruling 8 removed the batch upload).
+
+Instance migration 087 (`087_indicator_data_key.sql`, PLAN_A6 rulings 1,
+11, 12 and 13) gives every Uploaded row a key: a row whose `data_id` was
+NULL takes a generated `u_` key and its `updated_at` moves; a row that
+already held a file code keeps it as its key, no longer matched against
+anything (where such an indicator's id differs from its old file code, its
+country re-maps that value by hand each import, the accepted cost of
+ruling 3, measured per instance before rollout). The CHECK then requires
+a key on every Uploaded row. The CSV staging result's `validation` loses
+`unknownIndicators` and gains `skippedByMapping` where it is stored
+(`dataset_hmis_versions.staging_result` and `dataset_hmis_import_runs.
+run_stats -> 'csvStagingResult'`, each UPDATE gated on the old key), and
+every queued or held CSV run is cancelled with a stated reason, a held
+run's surviving staging table dropped, since their configs have no mapping
+and the hold's third action no longer exists.
 
 Instance migration 086 (`086_indicators_one_table.sql`, PLAN_A5 ruling 8)
 makes the switch on every instance in one transaction, with nothing
@@ -555,8 +569,8 @@ ids, the six `POPULATION_TYPES` ids and the three function names.
 `getNewIndicatorIdIssue(id, type)` refuses a new indicator under one
 (`reserved`), except a special id for a count; a special id is refused for
 a derived at create and at retype (`special_derived`,
-`getSpecialIndicatorTypeIssue`, applied by `updateIndicator`, the batch
-upload and the editor), because the module scripts read it as a count; a
+`getSpecialIndicatorTypeIssue`, applied by `updateIndicator` and the
+editor), because the module scripts read it as a count; a
 special may be Uploaded, a DHIS2 element or a Sum, and renames like any
 other indicator.
 Migration 084 guards stored ids against the population and function
@@ -591,8 +605,8 @@ population term is an analysed count with rows (`analysedIdsWithData`, by
 data id). The catalog builds its capture error from that judgement, and
 the indicator manager list and the editor show the same judgement over the
 set of counts they are given (see "Client state & wizard"). A count with
-no rows is never a problem on its own: a new database is seeded with every
-special indicator as one, and it reads as NULL. The dependency between a
+no rows is never a problem on its own: an Uploaded indicator has none
+until a file is mapped onto it, and it reads as NULL. The dependency between a
 derived indicator and the indicators its expression uses lives only in the
 expression text, not in a table, so no save or delete is blocked because
 of it (a sum's members are the one strict dependency): a derived indicator
@@ -669,8 +683,8 @@ pointers only. Consequences that follow from it and are ruled with it:
   `thresholdsRuleSchema` validates it at the API boundary and on every
   read), or NULL; a count carries NULL, as it carries `number`
   (`indicators_count_thresholds_check` beside
-  `indicators_count_format_check`; the API and the batch file refuse a
-  rule on a count, the editor hides the control). The instance editor edits it with
+  `indicators_count_format_check`; the API refuses a rule on a count, the
+  editor hides the control). The instance editor edits it with
   the same `ThresholdsPanel` the figure CF editor uses, in display units
   (S10 owns how a figure consumes it as the `indicator` CF source). Legacy
   packages' `calculated_indicators_snapshot.json` traffic-light pairs are
@@ -918,21 +932,16 @@ Every config mutation re-reads all configs and pushes one consolidated
   caption whenever a population term is present.
 - The naming step's state is a Solid store the host owns
   (`createNamingState` seeds it once from the dictionary as loaded, so
-  the user's edits are never re-seeded away): one row per value, a DHIS2
-  element's UID or a file value (`NamingValueRow`: proposed id and label
-  editable inline; typing the id of an existing Uploaded indicator with no
-  data id shows the assignment, "Assigns this DHIS2 id / File id to the
-  existing indicator", and takes that indicator's label; a value some
-  indicator already carries as its data id reads "Already imported as"
+  the user's edits are never re-seeded away): one row per DHIS2 element or
+  operand (`NamingValueRow`: proposed id and label editable inline; a UID
+  some indicator already carries as its data id reads "Already imported as"
   and is still posted, so a derived formula naming it rewrites, and the
   server creates nothing for it), and one per decomposed DHIS2 indicator
   with its formula previewed over the ids the elements are taking.
   `namingIssues` states every refusal the server would make (a reserved or
-  malformed id, an existing id that cannot be assigned to, one id chosen
-  for two values, a missing label) and disables the save while any stands;
-  `namingInputFromState` is what the host posts. The DHIS2 select form
-  feeds it elements and operands; the CSV hold's third action feeds it the
-  hold's unknown values.
+  malformed id, an existing id, one id chosen for two elements, a missing
+  label) and disables the save while any stands; `namingInputFromState` is
+  what the host posts. The DHIS2 select form is its only host.
 - Computability in the manager is shown, never enforced. The list has a
   Status column fed by one `createMemo` over the loaded dictionary calling
   `judgeDerivedIndicators` (lib) with the counts that have rows
