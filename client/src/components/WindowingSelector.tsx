@@ -33,7 +33,7 @@ import { PeriodSelector } from "./PeriodSelector";
 
 type Props<T extends DatasetHmisWindowing> = {
   hmisVersionId: number;
-  baseIndicatorsVersion: string;
+  countIndicatorsVersion: string;
   tempWindowing: T;
   setTempWindowing: SetStoreFunction<T>;
   structureSchema: StructureSchema;
@@ -54,7 +54,7 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
     () =>
       getDatasetHmisDisplayInfoFromCacheOrFetch(
         p.hmisVersionId,
-        p.baseIndicatorsVersion,
+        p.countIndicatorsVersion,
         p.structureSchema,
         instanceState.structureLastUpdated,
         instanceState.hmisImportRunActive,

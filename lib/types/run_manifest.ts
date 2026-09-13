@@ -3,7 +3,10 @@ import { structureColumnsSchema } from "./instance.ts";
 import { disaggregationOption } from "./_metric_installed.ts";
 import { thresholdsRuleSchema } from "./conditional_formatting.ts";
 import type { DatasetType } from "./datasets.ts";
-import type { IndicatorMetadata } from "./indicators.ts";
+import {
+  type IndicatorMetadata,
+  PACKAGE_INDICATOR_TYPES,
+} from "./indicators.ts";
 
 // The run manifest (PLAN_RESULTS_RUNS §2.2): written once by the finalize
 // step of a generation, the ONLY thing readers consult at query time. Precomputed, never probed: every fact the
@@ -25,7 +28,7 @@ import type { IndicatorMetadata } from "./indicators.ts";
 // 6: the indicator restructure (PLAN_1a) + the population store
 // (PLAN_1b, PLAN_1c), one release. indicators[] catalog entries gained
 // sort_order plus the type/expression/slot_map evaluation fields (type is
-// base | derived; a population term is an ordinary `population:<type>`
+// one of PACKAGE_INDICATOR_TYPES; a population term is an ordinary `population:<type>`
 // ingredient in the slot map, never a field of its own), a new top-level
 // `hmisIndicators` list replaced the read path's per-request read of the
 // indicators input mirror, and `population` stamps the person-years file a
@@ -166,7 +169,7 @@ export const runIndicatorMetadataSchema: z.ZodType<IndicatorMetadata> = z
     thresholds: thresholdsRuleSchema.optional(),
     group_label: z.string().optional(),
     sort_order: z.number().optional(),
-    type: z.enum(["base", "derived"]).optional(),
+    type: z.enum(PACKAGE_INDICATOR_TYPES).optional(),
     expression: z.string().optional(),
     slot_map: z.record(z.string(), z.string()).optional(),
   });

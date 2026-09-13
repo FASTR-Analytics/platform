@@ -9,11 +9,11 @@
 //
 // This is where "generation decides what the numbers are made of" happens: a
 // derived indicator's expression is FLATTENED here, so the row names nothing
-// but leaves, bases, sums and population types, and each of those is
-// assigned the ingredient column its value will travel in. Everything
-// downstream just sums columns and applies a formula. A sum is a leaf like a
-// base (its members are summed at extract, PLAN_A4 ruling 4), so the
-// resolver and the catalog treat it exactly as a base.
+// but leaves, counts (Uploaded, DHIS2 element, Sum) and population types,
+// and each of those is assigned the ingredient column its value will travel
+// in. Everything downstream just sums columns and applies a formula. A sum
+// is a leaf like any count (its members are summed at extract, PLAN_A4
+// ruling 4), so the resolver and the catalog never look inside one.
 //
 // =============================================================================
 
@@ -31,22 +31,26 @@ import {
   writeIndicatorExpression,
 } from "./indicator_expression/mod.ts";
 import type { ThresholdsRule } from "./types/conditional_formatting.ts";
-import type {
-  HmisIndicator,
-  IndicatorFormat,
+import {
+  definitionDataId,
+  hasRows,
+  type HmisIndicator,
+  type HmisIndicatorType,
+  type IndicatorFormat,
 } from "./types/indicators.ts";
 import { isPopulationTypeId } from "./types/population.ts";
 import { isSpecialIndicatorId } from "./special_indicators.ts";
 
 // One row of the v2 `indicators.json` mirror. `expression` is flattened and
-// `slot_map` names the ingredient column of each leaf it uses: a base, a
-// sum or a population type, in first-appearance order, no slot special. A
-// sum is carried as `base` (its own identifier as expression, one slot), so
-// the package format is unchanged by sums.
+// `slot_map` names the ingredient column of each leaf it uses: a count or a
+// population type, in first-appearance order, no slot special. A count's
+// expression is its own identifier, one slot; a sum is one slot like any
+// other count, so the package format is unchanged by sums. `type` is the
+// stored type under its code name (PLAN_A5 ruling 10).
 export type HmisIndicatorCatalogRow = {
   indicator_common_id: string;
   indicator_common_label: string;
-  type: "base" | "derived";
+  type: HmisIndicatorType;
   expression: string | null;
   slot_map: Record<string, string> | null;
   format_as: IndicatorFormat;
@@ -62,9 +66,9 @@ export class HmisIndicatorCatalogError extends Error {
 
 type DictionaryInput = Pick<HmisIndicator, "indicator_common_id" | "definition">;
 
-// The dictionary every expression resolves against: the indicators, a sum
-// as a leaf like a base, plus one `population` leaf per store type. The
-// editor adds the definition being typed before it calls this.
+// The dictionary every expression resolves against: every count as a leaf,
+// plus one `population` leaf per store type. The editor adds the definition
+// being typed before it calls this.
 export function buildHmisIndicatorDictionary(
   indicators: DictionaryInput[],
   populationTypeIds: string[],
@@ -72,7 +76,7 @@ export function buildHmisIndicatorDictionary(
   return buildExpressionDictionary([
     ...indicators.map((c) => ({
       id: c.indicator_common_id,
-      type: c.definition.type === "derived" ? "derived" as const : "base" as const,
+      type: c.definition.type === "derived" ? "derived" as const : "leaf" as const,
       expression: c.definition.type === "derived"
         ? c.definition.expression
         : null,
@@ -103,13 +107,13 @@ function resolveOrUndefined(
   }
 }
 
-// THE analysed set (PLAN_A4 ruling 3), stated once: a base or sum is in the
-// extract, and therefore in m001, m002 and every package, when its checkbox
-// is on, or it is a special, or a derived with its checkbox on reaches it
-// through the resolver. Sum membership alone puts nothing in the extract:
-// the sum is computed from its members' rows whether or not they are
-// analysed themselves. A derived that does not resolve reaches nothing
-// here; capture refuses it with the reason.
+// THE analysed set (PLAN_A4 ruling 3), stated once: a count (Uploaded,
+// DHIS2 element or Sum) is in the extract, and therefore in m001, m002 and
+// every package, when its checkbox is on, or it is a special, or a derived
+// with its checkbox on reaches it through the resolver. Sum membership alone
+// puts nothing in the extract: the sum is computed from its members' rows
+// whether or not they are analysed themselves. A derived that does not
+// resolve reaches nothing here; capture refuses it with the reason.
 export function analysedIndicatorIds(
   indicators: HmisIndicator[],
   populationTypeIds: string[],
@@ -136,24 +140,29 @@ export function analysedIndicatorIds(
   return analysed;
 }
 
-// The analysed bases and sums the extract can produce counts for: a base
-// with rows of its own, a sum with rows under any member. `idsWithRows` is
-// the set of indicator ids that have dataset_hmis rows.
+// The analysed counts the extract can produce values for: an Uploaded or
+// DHIS2 element whose data id has rows, a sum with rows under any member's
+// data id. `dataIdsWithRows` is the set of data ids that have dataset_hmis
+// rows (PLAN_A5 ruling 10).
 export function analysedIdsWithData(
   indicators: HmisIndicator[],
   analysed: Set<string>,
-  idsWithRows: Set<string>,
+  dataIdsWithRows: Set<string>,
 ): Set<string> {
+  const dataIdOf = new Map(
+    indicators.map((c) => [c.indicator_common_id, definitionDataId(c.definition)]),
+  );
+  const dataIdHasRows = (id: string) => {
+    const dataId = dataIdOf.get(id);
+    return dataId !== null && dataId !== undefined && dataIdsWithRows.has(dataId);
+  };
   const withData = new Set<string>();
   for (const c of indicators) {
     if (!analysed.has(c.indicator_common_id)) continue;
-    if (c.definition.type === "base" && idsWithRows.has(c.indicator_common_id)) {
+    if (hasRows(c.definition.type) && dataIdHasRows(c.indicator_common_id)) {
       withData.add(c.indicator_common_id);
     }
-    if (
-      c.definition.type === "sum" &&
-      c.definition.members.some((m) => idsWithRows.has(m))
-    ) {
+    if (c.definition.type === "sum" && c.definition.members.some(dataIdHasRows)) {
       withData.add(c.indicator_common_id);
     }
   }
@@ -162,7 +171,7 @@ export function analysedIdsWithData(
 
 // THE computability rule for a derived indicator, stated once: its
 // expression must resolve, and every flattened ingredient that is not a
-// population term must be an analysed base or sum with data. Capture refuses
+// population term must be an analysed count with data. Capture refuses
 // the run on any other answer; the indicator manager and editor show the
 // same answer. Whether the population store covers a population type is the
 // person-years expansion's check at prepare time (PLAN_1b ruling 6), not
@@ -180,7 +189,7 @@ export function judgeDerivedIndicator(
   ownId: string,
   expression: string,
   dictionary: ExpressionDictionary,
-  baseIdsInData: Set<string>,
+  idsWithData: Set<string>,
 ): DerivedIndicatorComputability {
   let resolved: ResolvedIndicatorExpression;
   try {
@@ -195,7 +204,7 @@ export function judgeDerivedIndicator(
     return { kind: "unresolvable", problem: e.message };
   }
   const missing = resolved.ingredientIds.filter((id) =>
-    !isPopulationTypeId(id) && !baseIdsInData.has(id)
+    !isPopulationTypeId(id) && !idsWithData.has(id)
   );
   return missing.length > 0
     ? { kind: "unmapped_ingredients", resolved, missing }
@@ -203,13 +212,13 @@ export function judgeDerivedIndicator(
 }
 
 // The rule over a whole dictionary as the client holds it: one judgement per
-// derived indicator. `baseIdsInData` is the caller's knowledge of which
-// bases and sums have rows (the ledger, for the manager); the dictionary
-// alone cannot say.
+// derived indicator. `idsWithData` is the caller's knowledge of which
+// counts have rows (`analysedIdsWithData` over the ledger, for the
+// manager); the dictionary alone cannot say.
 export function judgeDerivedIndicators(
   indicators: HmisIndicator[],
   populationTypeIds: string[],
-  baseIdsInData: Set<string>,
+  idsWithData: Set<string>,
 ): Map<string, DerivedIndicatorComputability> {
   const dictionary = buildHmisIndicatorDictionary(indicators, populationTypeIds);
   const judgements = new Map<string, DerivedIndicatorComputability>();
@@ -221,7 +230,7 @@ export function judgeDerivedIndicators(
         c.indicator_common_id,
         c.definition.expression,
         dictionary,
-        baseIdsInData,
+        idsWithData,
       ),
     );
   }
@@ -239,17 +248,17 @@ function describeComputabilityProblem(
   } not in the data (${missing.length === 1 ? "it has" : "they have"} no rows)`;
 }
 
-// The catalog is the analysed set (ruling 3): every analysed base and sum,
-// as `base` rows, and every derived with its checkbox on. `baseIdsInData`
-// is the subset of those that the extract can actually produce counts for.
-// An expression that reaches outside it would silently evaluate to NULL
+// The catalog is the analysed set (ruling 3): every analysed count under
+// its own type, and every derived with its checkbox on. `idsWithData` is
+// the subset of those that the extract can actually produce values for. An
+// expression that reaches outside it would silently evaluate to NULL
 // everywhere, so it fails the capture instead. A derived with its checkbox
 // off is in no package; a chain through it still resolves, since the
 // dictionary is the whole list. `populationTypeIds` is the store's
 // vocabulary: a population identifier resolves iff it names one.
 export function resolveHmisIndicatorCatalog(
   indicators: HmisIndicator[],
-  baseIdsInData: Set<string>,
+  idsWithData: Set<string>,
   populationTypeIds: string[],
 ): HmisIndicatorCatalogRow[] {
   const dictionary = buildHmisIndicatorDictionary(indicators, populationTypeIds);
@@ -259,7 +268,7 @@ export function resolveHmisIndicatorCatalog(
   const rows: HmisIndicatorCatalogRow[] = [];
 
   for (const indicator of indicators) {
-    const base: Omit<
+    const shared: Omit<
       HmisIndicatorCatalogRow,
       "type" | "expression" | "slot_map"
     > = {
@@ -272,18 +281,18 @@ export function resolveHmisIndicatorCatalog(
 
     if (indicator.definition.type !== "derived") {
       if (!analysed.has(indicator.indicator_common_id)) continue;
-      // An analysed base or sum the extract cannot produce counts for
-      // carries no expression and no slot map: it contributes no ingredient
-      // row, m012 emits nothing for it, and a read yields NULL: the same
-      // answer as any other missing ingredient (PLAN_1a §1.5). This is the
-      // ordinary case, not a failure: a new database is seeded with every
-      // special indicator as an empty base whether or not the country fills
-      // it, so treating an empty base as an error would block generation
-      // fleet-wide.
-      const hasData = baseIdsInData.has(indicator.indicator_common_id);
+      // An analysed count the extract cannot produce values for carries no
+      // expression and no slot map: it contributes no ingredient row, m012
+      // emits nothing for it, and a read yields NULL: the same answer as any
+      // other missing ingredient (PLAN_1a §1.5). This is the ordinary case,
+      // not a failure: a new database is seeded with every special indicator
+      // as an Uploaded indicator with no data id whether or not the country
+      // fills it, so treating an empty count as an error would block
+      // generation fleet-wide.
+      const hasData = idsWithData.has(indicator.indicator_common_id);
       rows.push({
-        ...base,
-        type: "base",
+        ...shared,
+        type: indicator.definition.type,
         expression: hasData
           ? writeIdentifier(indicator.indicator_common_id)
           : null,
@@ -299,7 +308,7 @@ export function resolveHmisIndicatorCatalog(
       indicator.indicator_common_id,
       indicator.definition.expression,
       dictionary,
-      baseIdsInData,
+      idsWithData,
     );
     if (judgement.kind !== "computable") {
       problems.push(
@@ -309,7 +318,7 @@ export function resolveHmisIndicatorCatalog(
     }
 
     rows.push({
-      ...base,
+      ...shared,
       type: "derived",
       expression: writeIndicatorExpression(judgement.resolved.ast),
       slot_map: buildIngredientSlotMap(judgement.resolved.ingredientIds),
@@ -326,7 +335,7 @@ export function resolveHmisIndicatorCatalog(
 // and m012, substituted into its script in place of the INDICATOR_INGREDIENTS
 // and INDICATOR_EXPRESSIONS tokens:
 //
-//   - the ingredient table says which base or sum (or population type's
+//   - the ingredient table says which count (or population type's
 //     person-years row) fills which slot column of which indicator; the
 //     module sums those columns to area x month;
 //   - the expression table says how each indicator's slots combine, as the
@@ -334,7 +343,7 @@ export function resolveHmisIndicatorCatalog(
 //     it per row and KEEPS ONLY THE ROWS THAT PRODUCE A NUMBER (the rule and
 //     the R semantics are stated once, in m012's script.R).
 //
-// A base with no data has no slot map and no expression: it is in neither
+// A count with no data has no slot map and no expression: it is in neither
 // table and the package carries no row for it. Both tables are sorted by
 // indicator id and NEVER left in catalog order: the literal lands in
 // `scriptText`, which `computeModuleKey` hashes, so catalog order would put
@@ -413,13 +422,14 @@ function rStringLiteral(value: string): string {
 // A DHIS2 import selects INDICATORS; what it fetches is expanded here, once,
 // where the selection is validated (launch, enqueue and the scheduler's fire
 // path), and the result is persisted on the run row. A sum expands to its
-// members; a derived flattens through the resolver to the bases and sums it
-// reaches, and a reached sum to its members. The bases with a dhis2_id
-// become fetch targets; population terms and uploaded bases (no dhis2_id)
-// are dropped and listed for the run detail. `unknownIndicatorIds` and
-// `unresolvable` are refusals the caller reports.
+// members; a derived flattens through the resolver to the counts it
+// reaches, and a reached sum to its members. The DHIS2 elements among them
+// contribute their data ids, in first-appearance order; population terms
+// and Uploaded indicators are dropped and listed for the run detail
+// (PLAN_A5 ruling 3). `unknownIndicatorIds` and `unresolvable` are refusals
+// the caller reports.
 export type IndicatorSelectionExpansion = {
-  elements: { indicatorId: string; dhis2Id: string }[];
+  dataIds: string[];
   populationTermsDropped: string[];
   uploadedIndicatorsDropped: string[];
   unknownIndicatorIds: string[];
@@ -474,28 +484,27 @@ export function expandIndicatorSelection(
       }
     }
   }
-  const baseIds: string[] = [];
+  const rowIds: string[] = [];
   for (const leafId of leafIds) {
     const leaf = byId.get(leafId);
     if (leaf?.definition.type === "sum") {
-      for (const member of leaf.definition.members) pushUnique(baseIds, member);
+      for (const member of leaf.definition.members) pushUnique(rowIds, member);
     } else {
-      pushUnique(baseIds, leafId);
+      pushUnique(rowIds, leafId);
     }
   }
-  const elements: { indicatorId: string; dhis2Id: string }[] = [];
+  const dataIds: string[] = [];
   const uploadedIndicatorsDropped: string[] = [];
-  for (const baseId of baseIds) {
-    const base = byId.get(baseId);
-    if (base?.definition.type !== "base") continue;
-    if (base.definition.dhis2_id === null) {
-      pushUnique(uploadedIndicatorsDropped, baseId);
-    } else {
-      elements.push({ indicatorId: baseId, dhis2Id: base.definition.dhis2_id });
+  for (const rowId of rowIds) {
+    const definition = byId.get(rowId)?.definition;
+    if (definition?.type === "uploaded") {
+      pushUnique(uploadedIndicatorsDropped, rowId);
+    } else if (definition?.type === "dhis2_element") {
+      pushUnique(dataIds, definition.data_id);
     }
   }
   return {
-    elements,
+    dataIds,
     populationTermsDropped,
     uploadedIndicatorsDropped,
     unknownIndicatorIds,

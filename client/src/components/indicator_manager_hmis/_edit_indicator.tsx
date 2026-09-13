@@ -25,6 +25,8 @@ import {
   buildHmisIndicatorDictionary,
   type HmisIndicator,
   collectIdentifiers,
+  definitionDataId,
+  hasRows,
   type HmisIndicatorDefinition,
   type HmisIndicatorType,
   type DerivedIndicatorComputability,
@@ -77,12 +79,12 @@ function defaultIndicatorRule(formatAs: IndicatorFormat): ThresholdsRule {
 
 const TYPE_OPTIONS: { value: HmisIndicatorType; label: string }[] = [
   {
-    value: "base",
-    label: t3({
-      en: "Base: a count filled from DHIS2 or by CSV upload",
-      fr: "De base : un dénombrement rempli depuis DHIS2 ou par téléversement CSV",
-      pt: "Base: uma contagem preenchida a partir do DHIS2 ou por carregamento CSV",
-    }),
+    value: "uploaded",
+    label: t3({ en: "Uploaded", fr: "Téléversé", pt: "Carregado" }),
+  },
+  {
+    value: "dhis2_element",
+    label: t3({ en: "DHIS2 element", fr: "Élément DHIS2", pt: "Elemento DHIS2" }),
   },
   {
     value: "sum",
@@ -152,14 +154,13 @@ export function EditIndicatorForm(
     existing?.indicator_common_label || "",
   );
   const [type, setType] = createSignal<HmisIndicatorType>(
-    existing?.definition.type ?? "base",
+    existing?.definition.type ?? "uploaded",
   );
   const [dhis2Id, setDhis2Id] = createSignal(
-    existing?.definition.type === "base" ? existing.definition.dhis2_id ?? "" : "",
+    existing === undefined ? "" : definitionDataId(existing.definition) ?? "",
   );
-  // Read-only once set (ruling 6): the data under the base was fetched for it.
-  const dhis2IdLocked = existing?.definition.type === "base" &&
-    existing.definition.dhis2_id !== null;
+  const dhis2IdLocked = existing !== undefined &&
+    definitionDataId(existing.definition) !== null;
   const [members, setMembers] = createSignal<string[]>(
     existing?.definition.type === "sum" ? existing.definition.members : [],
   );
@@ -188,8 +189,10 @@ export function EditIndicatorForm(
         return { type: "derived", expression: expression().trim() };
       case "sum":
         return { type: "sum", members: members() };
-      case "base":
-        return { type: "base", dhis2_id: dhis2Id().trim() || null };
+      case "uploaded":
+        return { type: "uploaded", data_id: dhis2Id().trim() || null };
+      case "dhis2_element":
+        return { type: "dhis2_element", data_id: dhis2Id().trim() };
     }
   }
 
@@ -201,7 +204,7 @@ export function EditIndicatorForm(
 
   const memberOptions = createMemo(() =>
     otherIndicators()
-      .filter((c) => c.definition.type === "base")
+      .filter((c) => hasRows(c.definition.type))
       .map((c) => ({
         value: c.indicator_common_id,
         label: `${c.indicator_common_label} (${c.indicator_common_id})`,
@@ -213,9 +216,8 @@ export function EditIndicatorForm(
   const dhis2IdOwners = createMemo(() => {
     const owners = new Map<string, string>();
     for (const c of otherIndicators()) {
-      if (c.definition.type === "base" && c.definition.dhis2_id !== null) {
-        owners.set(c.definition.dhis2_id, c.indicator_common_id);
-      }
+      const dataId = definitionDataId(c.definition);
+      if (dataId !== null) owners.set(dataId, c.indicator_common_id);
     }
     return owners;
   });
@@ -361,7 +363,7 @@ export function EditIndicatorForm(
   }
 
   function definitionError(): string | undefined {
-    if (type() === "base") {
+    if (hasRows(type())) {
       const id = dhis2Id().trim();
       if (id === "") return undefined;
       if (!isDhis2ShapedId(id)) {
@@ -424,7 +426,7 @@ export function EditIndicatorForm(
           }),
         };
       }
-      if (idIssue === "special_not_base") {
+      if (idIssue === "special_derived") {
         return {
           success: false,
           err: t3({
@@ -547,7 +549,7 @@ export function EditIndicatorForm(
             {t3({ en: "Definition", fr: "Définition", pt: "Definição" })}
           </div>
 
-          <Show when={type() === "base"}>
+          <Show when={hasRows(type())}>
             <Input
               label={t3({ en: "DHIS2 id", fr: "Identifiant DHIS2", pt: "ID DHIS2" })}
               value={dhis2Id()}

@@ -122,9 +122,9 @@ function indicatorRefusal(
   const refused = operands.find((o) => !o.verdict.accepted);
   if (refused !== undefined && !refused.verdict.accepted) {
     return `${t3({
-      en: `Operand ${refused.dhis2_id} cannot be imported:`,
-      fr: `L'opérande ${refused.dhis2_id} ne peut pas être importé :`,
-      pt: `O operando ${refused.dhis2_id} não pode ser importado:`,
+      en: `Operand ${refused.data_id} cannot be imported:`,
+      fr: `L'opérande ${refused.data_id} ne peut pas être importé :`,
+      pt: `O operando ${refused.data_id} não pode ser importado:`,
     })} ${t3(describeDhis2ElementRefusal(refused.verdict.refusal))}`;
   }
   return undefined;
@@ -284,7 +284,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
       }
       const { parse, operands } = item.indicator.decomposition;
       if (!parse.accepted) continue;
-      for (const operand of operands) operandIds.push(operand.dhis2_id);
+      for (const operand of operands) operandIds.push(operand.data_id);
       derived.push({
         key: item.indicator.id,
         label: item.indicator.name,
@@ -324,7 +324,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
         credentialsOrigin: credentialsOrigin(),
         elements: namingInputFromState(naming).elements,
         indicators: naming.derived.map((row) => ({
-          dhis2_id: row.key,
+          uid: row.key,
           indicator_id: row.indicator_id.trim(),
           label: row.label.trim(),
         })),

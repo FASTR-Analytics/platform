@@ -3,11 +3,13 @@ import type { TranslatableString } from "./translate/types.ts";
 // The HMIS count ids the registry module scripts read by name (m001 reads
 // the malaria trio, m004/m005 the immunization and postnatal ids, all three
 // the core set), with the labels a new database is seeded with. Hand-kept:
-// the scripts carry no declaration. A special id may exist only as a base,
-// because the scripts read it as a count and a derived under it would be
-// silently ignored (`getSpecialIndicatorTypeIssue`). A new database seeds
-// each as an empty base; an existing instance gets nothing on boot, and a
-// team adds or deletes specials like any base.
+// the scripts carry no declaration. A special id may exist only as a count
+// (Uploaded, DHIS2 element or Sum), because the scripts read it as a count
+// and a derived under it would be silently ignored
+// (`getSpecialIndicatorTypeIssue`). A new database seeds each as an
+// Uploaded indicator with no data id; an existing instance gets nothing on
+// boot, and a team adds or deletes specials like any indicator. Renaming a
+// special is refused: the scripts read it by name.
 export const SPECIAL_INDICATORS: readonly {
   id: string;
   label: TranslatableString;

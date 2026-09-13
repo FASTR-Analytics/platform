@@ -91,17 +91,17 @@ export async function getIndicatorsVersion(
   return result[0]?.version ?? "none";
 }
 
-// The base-only stamp: the rows an HMIS extract is actually built from
-// (PLAN_1a §1.13), the analysed base and sum indicators (PLAN_A4 ruling
-// 11). Editing a derived definition does not move it, so the datatable
-// caches it keys never churn on a formula edit.
-export async function getBaseIndicatorsVersion(
+// The count stamp: the rows an HMIS extract is actually built from
+// (PLAN_1a §1.13), the analysed counts (`is_count AND include_in_analysis`,
+// PLAN_A5 ruling 12). Editing a derived definition does not move it, so the
+// datatable caches it keys never churn on a formula edit.
+export async function getCountIndicatorsVersion(
   mainDb: Sql,
 ): Promise<string> {
   const result = await mainDb<{ version: string | null }[]>`
     SELECT MD5(
-      COALESCE((SELECT MAX(updated_at) FROM indicators WHERE definition_type <> 'derived' AND include_in_analysis)::text, '') || '|' ||
-      (SELECT COUNT(*) FROM indicators WHERE definition_type <> 'derived' AND include_in_analysis)::text
+      COALESCE((SELECT MAX(updated_at) FROM indicators WHERE is_count AND include_in_analysis)::text, '') || '|' ||
+      (SELECT COUNT(*) FROM indicators WHERE is_count AND include_in_analysis)::text
     ) as version
   `;
   return result[0]?.version ?? "none";
@@ -139,8 +139,7 @@ export async function getInstanceIndicatorsSummary(
       >`SELECT COUNT(*) as count FROM hfa_indicators`
     )[0]?.count ?? 0;
   const indicatorsVersion = await getIndicatorsVersion(mainDb);
-  const baseIndicatorsVersion =
-    await getBaseIndicatorsVersion(mainDb);
+  const countIndicatorsVersion = await getCountIndicatorsVersion(mainDb);
   const hfaIndicatorsVersion = await getHfaIndicatorsVersion(mainDb);
   return {
     indicators: {
@@ -148,7 +147,7 @@ export async function getInstanceIndicatorsSummary(
       hfaIndicators,
     },
     indicatorsVersion,
-    baseIndicatorsVersion,
+    countIndicatorsVersion,
     hfaIndicatorsVersion,
   };
 }

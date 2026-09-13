@@ -30,9 +30,9 @@ const dhis2CredentialsSchema = z.object({
   password: z.string(),
 });
 
-// A window selects indicators; the server expands them to the elements it
+// A window selects indicators; the server expands them to the data ids it
 // fetches at launch (PLAN_A4 ruling 5). A pairs selection names the
-// (indicator, month) pairs the ledger recorded: retries and re-imports.
+// (data id, month) pairs the ledger recorded: retries and re-imports.
 const dhis2RunSelectionSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("window"),
@@ -45,7 +45,7 @@ const dhis2RunSelectionSchema = z.discriminatedUnion("kind", [
     pairs: z
       .array(
         z.object({
-          indicatorId: z.string(),
+          dataId: z.string(),
           periodId: z.number().int(),
         }),
       )
@@ -109,7 +109,7 @@ const hmisCsvRunConfigSchema = z.object({
   fileName: z.string(),
   columns: z.object({
     facility_id: z.string(),
-    indicator_id: z.string(),
+    data_id: z.string(),
     period_id: z.string(),
     count: z.string(),
   }),
@@ -165,7 +165,7 @@ export const datasetRouteRegistry = {
     method: "POST",
     body: z.object({
       versionId: z.number(),
-      baseIndicatorsVersion: z.string(),
+      countIndicatorsVersion: z.string(),
       structureSchema: structureSchemaSchema,
     }),
     response: {} as ItemsHolderDatasetHmisDisplay,

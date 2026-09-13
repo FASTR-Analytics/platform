@@ -16,15 +16,16 @@ export type InstanceIndicatorDetails = {
   indicators: HmisIndicator[];
 };
 
-// The one dictionary file (PLAN_A4 ruling 7): `dhis2_id` for a DHIS2
-// element, `members` semicolon-separated for a sum, `expression` for a
-// derived, `include_in_analysis` true/false, `thresholds` the rule as JSON
-// text or empty. The download mirrors the upload.
+// The one dictionary file (PLAN_A5 ruling 11): `type` in the four code
+// names, `data_id` for an Uploaded or DHIS2 element, `members`
+// semicolon-separated for a sum, `expression` for a derived,
+// `include_in_analysis` true/false, `thresholds` the rule as JSON text or
+// empty. The download mirrors the upload.
 export const INDICATOR_BATCH_FILE_COLUMNS = [
   "indicator_id",
   "label",
   "type",
-  "dhis2_id",
+  "data_id",
   "members",
   "expression",
   "include_in_analysis",
@@ -34,7 +35,8 @@ export const INDICATOR_BATCH_FILE_COLUMNS = [
 
 export const INDICATOR_BATCH_MEMBERS_SEPARATOR = ";";
 
-// What a base's dhis2_id may be: a data element UID or an operand `UID.UID`.
+// What a DHIS2 element's data id may be: a data element UID or an operand
+// `UID.UID`.
 export const DHIS2_UID_PATTERN = /^[a-zA-Z][a-zA-Z0-9]{10}$/;
 export const DHIS2_OPERAND_PATTERN =
   /^([a-zA-Z][a-zA-Z0-9]{10})\.([a-zA-Z][a-zA-Z0-9]{10})$/;
@@ -51,11 +53,11 @@ export type NewIndicatorIdIssue =
   | "forbidden_chars"
   | "too_long"
   | "reserved"
-  | "special_not_base";
+  | "special_derived";
 
 // The identifiers no indicator id may be, however the id is produced (typed,
 // generated, batch-uploaded, decomposed from DHIS2): the special ids (except
-// as a base), the population type ids and the expression function names.
+// as a count), the population type ids and the expression function names.
 // Instance migration 084 guards stored ids against the last two.
 export const RESERVED_WORDS: readonly string[] = [
   ...SPECIAL_INDICATOR_IDS,
@@ -85,14 +87,15 @@ function getIdCharsetIssue(id: string): NewIndicatorIdIssue | undefined {
 }
 
 // A special id is read by the module scripts as a count, so it may exist
-// only as a base or a sum. Checked at create (inside getNewIndicatorIdIssue)
-// and at retype, where the id is not new but its type is.
+// only as Uploaded, a DHIS2 element or a Sum. Checked at create (inside
+// getNewIndicatorIdIssue) and at retype, where the id is not new but its
+// type is.
 export function getSpecialIndicatorTypeIssue(
   id: string,
   type: HmisIndicatorType,
-): "special_not_base" | undefined {
-  return isSpecialIndicatorId(id) && type === "derived"
-    ? "special_not_base"
+): "special_derived" | undefined {
+  return isSpecialIndicatorId(id) && !isCount(type)
+    ? "special_derived"
     : undefined;
 }
 
@@ -125,8 +128,8 @@ export function describeNewIndicatorIdIssue(issue: NewIndicatorIdIssue): string 
       return `must be at most ${INDICATOR_ID_MAX_LENGTH} characters`;
     case "reserved":
       return `is a reserved word (${RESERVED_WORDS.join(", ")})`;
-    case "special_not_base":
-      return `is a special indicator id, which the analysis modules read as a count, so it cannot be a derived indicator (special: ${
+    case "special_derived":
+      return `is a special indicator id, which the analysis modules read as a count, so it can only be Uploaded, a DHIS2 element or a Sum (special: ${
         SPECIAL_INDICATOR_IDS.join(", ")
       })`;
   }
@@ -136,33 +139,45 @@ export function describeNewIndicatorIdIssue(issue: NewIndicatorIdIssue): string 
 // HMIS indicator definitions
 // ============================================================================
 
-// What an indicator IS (PLAN_A4 §2). Generation decides what the numbers
-// are made of; the query only aggregates and applies the formula.
+// What an indicator IS (PLAN_A5 §2). The data rows of dataset_hmis are
+// facts keyed by `data_id`, what DHIS2 or the file called the series; the
+// dictionary is a layer of names and types over them, and nothing in it
+// moves a row. Generation decides what the numbers are made of; the query
+// only aggregates and applies the formula.
 //
-//   base   : an additive monthly series with rows in dataset_hmis. With a
-//             `dhis2_id` (a data element UID or `UID.COC` operand) the
-//             DHIS2 import fetches it; without one it is filled by CSV
-//             upload, where the file's indicator column value is the
-//             indicator's own id. A count: its format is always `number`.
-//   sum    : a list of base ids, `members`, summed from their rows at
-//             extract into one facility x month series, adjusted by m001
-//             and m002 like any base. A count; format `number`.
-//   derived: an arbitrary expression over indicators of any type (chained
-//             by substitution) and population terms, evaluated by m012
-//             after adjustment and aggregation. A population term is
-//             written as the type's id (`population_total`, one of
-//             POPULATION_TYPES in lib/types/population.ts, a reserved
-//             word); it is a leaf ingredient exactly like a base, carrying
-//             that population's person-years.
+//   uploaded     : an additive monthly series filled by file. Its rows carry
+//                  its `data_id`, the value the file's indicator column
+//                  said; null until a file value has been assigned, and such
+//                  an indicator can receive no rows. A count: format `number`.
+//   dhis2_element: an additive monthly series the DHIS2 import fetches. Its
+//                  rows carry its `data_id`, the data element UID or
+//                  `UID.COC` operand. A count; format `number`.
+//   sum          : a list of Uploaded or DHIS2 element ids, `members`,
+//                  summed from their rows at extract into one facility x
+//                  month series, adjusted by m001 and m002 like any count.
+//                  A count; format `number`.
+//   derived      : an arbitrary expression over indicators of any type
+//                  (chained by substitution) and population terms, evaluated
+//                  by m012 after adjustment and aggregation. A population
+//                  term is written as the type's id (`population_total`, one
+//                  of POPULATION_TYPES in lib/types/population.ts, a reserved
+//                  word); it is a leaf ingredient exactly like a count,
+//                  carrying that population's person-years.
+//
+// The indicator's id is its name: the key of member lists, expressions, the
+// extract, every package and every figure, and it is renamable. The data id
+// is the key of the rows and is fixed once rows exist under it.
 export type HmisIndicatorDefinition =
-  | { type: "base"; dhis2_id: string | null }
+  | { type: "uploaded"; data_id: string | null }
+  | { type: "dhis2_element"; data_id: string }
   | { type: "sum"; members: string[] }
   | { type: "derived"; expression: string };
 
 export type HmisIndicatorType = HmisIndicatorDefinition["type"];
 
 export const HMIS_INDICATOR_TYPES: readonly HmisIndicatorType[] = [
-  "base",
+  "uploaded",
+  "dhis2_element",
   "sum",
   "derived",
 ] as const;
@@ -172,6 +187,35 @@ export function isHmisIndicatorType(
 ): value is HmisIndicatorType {
   return (HMIS_INDICATOR_TYPES as readonly string[]).includes(value);
 }
+
+// The two predicates the database holds as generated columns, `has_rows`
+// and `is_count`, stated once more for lib and the client.
+export function hasRows(type: HmisIndicatorType): boolean {
+  return type === "uploaded" || type === "dhis2_element";
+}
+
+export function isCount(type: HmisIndicatorType): boolean {
+  return type !== "derived";
+}
+
+export function definitionDataId(
+  definition: HmisIndicatorDefinition,
+): string | null {
+  return definition.type === "uploaded" || definition.type === "dhis2_element"
+    ? definition.data_id
+    : null;
+}
+
+// The `type` a package's frozen catalog row may carry: the four code names
+// in every package generated from now on, and `base` in packages generated
+// before PLAN_A5, which are never rewritten (ruling 10). No read path
+// consumes it.
+export type PackageIndicatorType = HmisIndicatorType | "base";
+
+export const PACKAGE_INDICATOR_TYPES: readonly PackageIndicatorType[] = [
+  ...HMIS_INDICATOR_TYPES,
+  "base",
+] as const;
 
 // An HMIS indicator's presentation: its display format and, optionally, a
 // conditional-formatting rule (cutoffs in STORED units, buckets with colour and
@@ -296,8 +340,8 @@ export interface DHIS2CategoryCombo {
 // Element eligibility and indicator decomposition (PLAN_A3 rulings 6 and 8)
 // ============================================================================
 
-// Why a DHIS2 data element cannot fill a base: it must be an additive monthly
-// count by DHIS2's own metadata. `value` is what the metadata said; undefined
+// Why a DHIS2 data element cannot fill a DHIS2 element indicator: it must be
+// an additive monthly count by DHIS2's own metadata. `value` is what the metadata said; undefined
 // when the field was absent (a period type is absent when the element is in
 // no data set). `element_not_found` is for an operand whose element the
 // server no longer has.
@@ -315,11 +359,11 @@ export type Dhis2DataElementSearchItem = DHIS2DataElement & {
   verdict: Dhis2ElementVerdict;
 };
 
-// One `#{uid}` or `#{uid.coc}` term of a DHIS2 indicator formula. `dhis2_id`
-// is the term's id as a base's dhis2_id (`uid` or `uid.coc`), which is also
-// the identifier the decomposed expression names it by.
+// One `#{uid}` or `#{uid.coc}` term of a DHIS2 indicator formula. `data_id`
+// is the term's id as a DHIS2 element's data id (`uid` or `uid.coc`), which
+// is also the identifier the decomposed expression names it by.
 export type Dhis2ParsedOperand = {
-  dhis2_id: string;
+  data_id: string;
   data_element_id: string;
   category_option_combo_id?: string;
 };
@@ -335,8 +379,8 @@ export type Dhis2IndicatorParseRefusal =
   | { kind: "too_many_operands"; count: number; max: number };
 
 // A parsed DHIS2 indicator: its operands, the derived's expression in the
-// app's own grammar with each operand written as `[dhis2_id]` (the naming
-// step renames those identifiers to the base ids it creates), and the
+// app's own grammar with each operand written as `[data_id]` (the naming
+// step renames those identifiers to the indicator ids it creates), and the
 // display format its factor maps to. `note` is set when the factor is 1000,
 // which has no format of its own: the expression carries `* 1000` and the
 // derived is formatted as a number.
@@ -455,26 +499,32 @@ export function describeDhis2ParseRefusal(
 // The naming step (PLAN_A4 ruling 6)
 // ============================================================================
 
-// A DHIS2 element or operand the naming step imports: it becomes a new base
-// under `indicator_id` carrying `dhis2_id`, or, when `indicator_id` names an
-// existing base that has no dhis2_id, assigns the UID to that base. Any
-// other existing id is refused. A dhis2_id that already belongs to an
-// indicator creates nothing.
+// A DHIS2 element or operand the naming step imports (PLAN_A5 ruling 7): it
+// becomes a new DHIS2 element under `indicator_id` carrying `data_id`, or,
+// when `indicator_id` names an existing Uploaded indicator that has no data
+// id, sets that indicator's data id and makes it a DHIS2 element. Any other
+// existing id is refused. A data id some indicator already holds creates
+// nothing.
 export type IndicatorNamingElement = {
-  dhis2_id: string;
+  data_id: string;
   indicator_id: string;
   label: string;
 };
 
-// A CSV column id the naming step turns into an uploaded base: the id is
-// what the file says, so it is the indicator's own id.
+// A file value the naming step turns into an Uploaded indicator (ruling 6):
+// `data_id` is what the file said, `indicator_id` the id chosen for it. When
+// `indicator_id` names an existing Uploaded indicator with no data id, the
+// value is adopted: that indicator takes it as its data id and nothing is
+// created. Any other existing id is refused. A data id some indicator
+// already holds creates nothing.
 export type IndicatorNamingUploaded = {
+  data_id: string;
   indicator_id: string;
   label: string;
 };
 
 // A derived indicator authored over candidate elements: its expression names
-// each element by `[dhis2_id]`, and the transaction rewrites every identifier
+// each element by `[data_id]`, and the transaction rewrites every identifier
 // to the indicator that element lands in.
 export type IndicatorNamingDerived = {
   indicator_id: string;
@@ -520,12 +570,12 @@ export type IndicatorMetadata = {
   sort_order?: number;
   // Expression evaluation, stamped for HMIS dictionaries only
   // (PLAN_1a §1.5). `expression` is the FLATTENED formula: every identifier
-  // in it is a base indicator id or a population type id, and
+  // in it is a count indicator id or a population type id, and
   // `slot_map` says which ingredient column of an indicator_values row
-  // carries that ingredient's sum. A `base` indicator's expression is its own
-  // single slot. Absent on every other family's catalog entries, and on a
-  // base the extract has no counts for.
-  type?: HmisIndicatorType;
+  // carries that ingredient's sum. A count's expression is its own single
+  // slot. Absent on every other family's catalog entries, and on a count the
+  // extract has no rows for.
+  type?: PackageIndicatorType;
   expression?: string;
   slot_map?: Record<string, string>;
 };

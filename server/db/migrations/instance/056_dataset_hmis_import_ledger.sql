@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS dataset_hmis_import_ledger (
 -- ON CONFLICT DO NOTHING keeps this idempotent and never overwrites rows the
 -- integration writers have since maintained. Guarded on the pre-086 column
 -- name: on a fresh install the ledger already exists (the CREATE above is
--- skipped before its FK is resolved) and dataset_hmis carries source_id, so
+-- skipped before its FK is resolved) and dataset_hmis carries data_id, so
 -- the backfill is a no-op there.
 DO $$
 BEGIN

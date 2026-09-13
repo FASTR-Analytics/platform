@@ -26,6 +26,7 @@ import {
   type HfaIndicatorAggregation,
   type HfaIndicatorType,
   type IndicatorMetadata,
+  PACKAGE_INDICATOR_TYPES,
   type RunModule,
   type RunModuleIndicators,
   thresholdsRuleSchema,
@@ -129,10 +130,12 @@ const indicatorRowV1 = z.object({
   type: z.never().optional(),
 });
 
+// `type` is the stored type under its code name; `base` is what packages
+// generated before PLAN_A5 carry, accepted and never mapped (ruling 10).
 const indicatorRowV2 = z.object({
   indicator_common_id: z.string(),
   indicator_common_label: z.string(),
-  type: z.enum(["base", "derived"]),
+  type: z.enum(PACKAGE_INDICATOR_TYPES),
   expression: z.string().nullable(),
   slot_map: z.record(z.string(), z.string()).nullable(),
   format_as: z.enum(["percent", "number", "rate_per_10k"]),

@@ -161,7 +161,7 @@ export function Dhis2Wizard(
       selectedIndicators(),
       d,
       POPULATION_TYPE_IDS,
-    ).elements.length;
+    ).dataIds.length;
   });
 
   // Step 3: time.

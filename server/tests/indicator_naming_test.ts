@@ -1,20 +1,22 @@
-// Pins the naming step's transaction (PLAN_A4 ruling 6): an element becomes
-// a new base under the chosen id, or assigns its UID to an existing base
-// that has no dhis2_id; any other existing id is refused; an element whose
-// UID already belongs to an indicator creates nothing; a decomposed DHIS2
-// indicator becomes bases for its operands and a derived over their ids;
-// createIndicatorsFromDhis2 refuses a refused element or indicator and
-// creates nothing. Runs on a throwaway database built from
-// _main_database.sql on the dev postgres (the .env the test task loads),
-// dropped afterwards.
+// Pins the naming step's transaction (PLAN_A5 rulings 6 and 7): an element
+// becomes a new DHIS2 element under the chosen id, or an existing Uploaded
+// indicator with no data id takes its UID and becomes a DHIS2 element; any
+// other existing id is refused; an element whose UID some indicator already
+// holds creates nothing; a decomposed DHIS2 indicator becomes DHIS2 elements
+// for its operands and a derived over their ids; createIndicatorsFromDhis2
+// refuses a refused element or indicator and creates nothing. The CSV host
+// creates Uploaded indicators carrying the file value as data id, or an
+// existing Uploaded indicator with no data id adopts the value. Runs on a
+// throwaway database built from _main_database.sql on the dev postgres (the
+// .env the test task loads), dropped afterwards.
 //
 //   deno test -A --env-file server/tests/indicator_naming_test.ts
 
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import {
-  type HmisIndicator,
-  type Dhis2IndicatorDecomposition,
   type Dhis2ElementVerdict,
+  type Dhis2IndicatorDecomposition,
+  type HmisIndicator,
 } from "lib";
 import { getPgConnection } from "../db/postgres/connection_manager.ts";
 import {
@@ -56,16 +58,17 @@ const db = getPgConnection(dbName, { max: 2 });
 await db.file(SCHEMA_PATH);
 
 async function reset(): Promise<void> {
+  await db`DELETE FROM indicator_sum_members`;
   await db`DELETE FROM indicators`;
 }
 
 function element(
-  dhis2_id: string,
+  data_id: string,
   indicator_id: string,
-  label = `Label ${dhis2_id}`,
+  label = `Label ${data_id}`,
   verdict: Dhis2ElementVerdict = ACCEPTED,
 ): Dhis2NamingElement {
-  return { dhis2_id, indicator_id, label, verdict };
+  return { data_id, indicator_id, label, verdict };
 }
 
 function decomposition(
@@ -76,7 +79,7 @@ function decomposition(
   const operands = parse.accepted
     ? parse.operands.map((o) => ({
       ...o,
-      verdict: verdicts[o.dhis2_id] ?? ACCEPTED,
+      verdict: verdicts[o.data_id] ?? ACCEPTED,
     }))
     : [];
   return {
@@ -92,25 +95,16 @@ const RATE = {
   factor: 100,
 };
 
-async function seedBase(id: string, dhis2Id: string | null): Promise<void> {
+async function seed(
+  id: string,
+  definition: HmisIndicator["definition"],
+): Promise<void> {
   const res = await createIndicators(db, [{
     indicator_common_id: id,
     indicator_common_label: id,
-    definition: { type: "base", dhis2_id: dhis2Id },
+    definition,
     include_in_analysis: true,
-    format_as: "number",
-    thresholds: null,
-  }]);
-  assert(res.success, res.success ? "" : res.err);
-}
-
-async function seedDerived(id: string, expression: string): Promise<void> {
-  const res = await createIndicators(db, [{
-    indicator_common_id: id,
-    indicator_common_label: id,
-    definition: { type: "derived", expression },
-    include_in_analysis: true,
-    format_as: "percent",
+    format_as: definition.type === "derived" ? "percent" : "number",
     thresholds: null,
   }]);
   assert(res.success, res.success ? "" : res.err);
@@ -137,7 +131,7 @@ Deno.test("dhis2: a refused element creates nothing", async () => {
   assertEquals((await dictionary()).size, 0);
 });
 
-Deno.test("dhis2: a decomposed indicator creates its bases and the derived over them", async () => {
+Deno.test("dhis2: a decomposed indicator creates its elements and the derived over them", async () => {
   await reset();
   const res = await createIndicatorsFromDhis2(db, {
     elements: [
@@ -146,7 +140,7 @@ Deno.test("dhis2: a decomposed indicator creates its bases and the derived over 
       element(ANC1_OPERAND, "anc1_repeat", "ANC 1 repeat"),
     ],
     indicators: [{
-      dhis2_id: DHIS2_INDICATOR,
+      uid: DHIS2_INDICATOR,
       indicator_id: "anc4_rate",
       label: "ANC 4 rate",
       decomposition: decomposition(RATE),
@@ -156,12 +150,12 @@ Deno.test("dhis2: a decomposed indicator creates its bases and the derived over 
   assertEquals(res.data, { created: 4, assigned: 0 });
   const d = await dictionary();
   assertEquals([...d.keys()], ["anc4", "anc1", "anc1_repeat", "anc4_rate"]);
-  assertEquals(d.get("anc4")!.definition, { type: "base", dhis2_id: ANC4_ELEMENT });
+  assertEquals(d.get("anc4")!.definition, { type: "dhis2_element", data_id: ANC4_ELEMENT });
   assertEquals(d.get("anc4")!.indicator_common_label, "ANC 4");
-  assertEquals(d.get("anc1")!.definition, { type: "base", dhis2_id: ANC1_ELEMENT });
+  assertEquals(d.get("anc1")!.definition, { type: "dhis2_element", data_id: ANC1_ELEMENT });
   assertEquals(d.get("anc1_repeat")!.definition, {
-    type: "base",
-    dhis2_id: ANC1_OPERAND,
+    type: "dhis2_element",
+    data_id: ANC1_OPERAND,
   });
   assertEquals(d.get("anc4_rate")!.definition, {
     type: "derived",
@@ -194,7 +188,7 @@ Deno.test("dhis2: a refused operand creates nothing", async () => {
       element(ANC1_OPERAND, "anc1_repeat"),
     ],
     indicators: [{
-      dhis2_id: DHIS2_INDICATOR,
+      uid: DHIS2_INDICATOR,
       indicator_id: "anc4_rate",
       label: "ANC 4 rate",
       decomposition: decomposition(RATE, { [ANC1_OPERAND]: REFUSED }),
@@ -210,7 +204,7 @@ Deno.test("dhis2: a refused formula creates nothing", async () => {
   const res = await createIndicatorsFromDhis2(db, {
     elements: [element(ANC4_ELEMENT, "anc4")],
     indicators: [{
-      dhis2_id: DHIS2_INDICATOR,
+      uid: DHIS2_INDICATOR,
       indicator_id: "anc4_rate",
       label: "ANC 4 rate",
       decomposition: decomposition({
@@ -231,7 +225,7 @@ Deno.test("dhis2: an operand the naming step did not cover creates nothing", asy
   const res = await createIndicatorsFromDhis2(db, {
     elements: [element(ANC4_ELEMENT, "anc4")],
     indicators: [{
-      dhis2_id: DHIS2_INDICATOR,
+      uid: DHIS2_INDICATOR,
       indicator_id: "anc4_rate",
       label: "ANC 4 rate",
       decomposition: decomposition(RATE),
@@ -242,9 +236,9 @@ Deno.test("dhis2: an operand the naming step did not cover creates nothing", asy
   assertEquals((await dictionary()).size, 0);
 });
 
-Deno.test("dhis2: a derived id already taken creates nothing, bases included", async () => {
+Deno.test("dhis2: a derived id already taken creates nothing, elements included", async () => {
   await reset();
-  await seedBase("anc4_rate", null);
+  await seed("anc4_rate", { type: "uploaded", data_id: null });
   const res = await createIndicatorsFromDhis2(db, {
     elements: [
       element(ANC4_ELEMENT, "anc4"),
@@ -252,7 +246,7 @@ Deno.test("dhis2: a derived id already taken creates nothing, bases included", a
       element(ANC1_OPERAND, "anc1_repeat"),
     ],
     indicators: [{
-      dhis2_id: DHIS2_INDICATOR,
+      uid: DHIS2_INDICATOR,
       indicator_id: "anc4_rate",
       label: "ANC 4 rate",
       decomposition: decomposition(RATE),
@@ -272,7 +266,7 @@ Deno.test("dhis2: a derived under a special id is refused", async () => {
       element(ANC1_OPERAND, "anc1_repeat"),
     ],
     indicators: [{
-      dhis2_id: DHIS2_INDICATOR,
+      uid: DHIS2_INDICATOR,
       indicator_id: "penta1",
       label: "Penta 1 as a rate",
       decomposition: decomposition(RATE),
@@ -283,10 +277,10 @@ Deno.test("dhis2: a derived under a special id is refused", async () => {
   assertEquals((await dictionary()).size, 0);
 });
 
-Deno.test("dhis2: operands assigned to empty bases or already imported rename the expression to them", async () => {
+Deno.test("dhis2: operands assigned to empty Uploaded indicators or already imported rename the expression to them", async () => {
   await reset();
-  await seedBase("anc1", null);
-  await seedBase("first_visits", ANC1_OPERAND);
+  await seed("anc1", { type: "uploaded", data_id: null });
+  await seed("first_visits", { type: "dhis2_element", data_id: ANC1_OPERAND });
   const res = await createIndicatorsFromDhis2(db, {
     elements: [
       element(ANC4_ELEMENT, "anc4"),
@@ -294,7 +288,7 @@ Deno.test("dhis2: operands assigned to empty bases or already imported rename th
       element(ANC1_OPERAND, "whatever"),
     ],
     indicators: [{
-      dhis2_id: DHIS2_INDICATOR,
+      uid: DHIS2_INDICATOR,
       indicator_id: "anc4_rate",
       label: "ANC 4 rate",
       decomposition: decomposition(RATE),
@@ -303,10 +297,10 @@ Deno.test("dhis2: operands assigned to empty bases or already imported rename th
   assert(res.success, res.success ? "" : res.err);
   assertEquals(res.data, { created: 2, assigned: 1 });
   const d = await dictionary();
-  assertEquals(d.get("anc1")!.definition, { type: "base", dhis2_id: ANC1_ELEMENT });
+  assertEquals(d.get("anc1")!.definition, { type: "dhis2_element", data_id: ANC1_ELEMENT });
   assertEquals(d.get("first_visits")!.definition, {
-    type: "base",
-    dhis2_id: ANC1_OPERAND,
+    type: "dhis2_element",
+    data_id: ANC1_OPERAND,
   });
   assertEquals(d.has("whatever"), false);
   assertEquals(d.get("anc4_rate")!.definition, {
@@ -315,51 +309,44 @@ Deno.test("dhis2: operands assigned to empty bases or already imported rename th
   });
 });
 
-Deno.test("naming: assigning to an empty base sets its dhis2_id and keeps the rest", async () => {
+Deno.test("naming: assigning to an empty Uploaded indicator sets its data id, retypes it and keeps the rest", async () => {
   await reset();
-  await seedBase("anc1", null);
+  await seed("anc1", { type: "uploaded", data_id: null });
   const res = await applyIndicatorNaming(db, {
-    elements: [{ dhis2_id: ANC1_ELEMENT, indicator_id: "anc1", label: "ignored" }],
+    elements: [{ data_id: ANC1_ELEMENT, indicator_id: "anc1", label: "ignored" }],
     uploaded: [],
     derived: [],
   });
   assert(res.success, res.success ? "" : res.err);
   assertEquals(res.data, { created: 0, assigned: 1 });
   const anc1 = (await dictionary()).get("anc1")!;
-  assertEquals(anc1.definition, { type: "base", dhis2_id: ANC1_ELEMENT });
+  assertEquals(anc1.definition, { type: "dhis2_element", data_id: ANC1_ELEMENT });
   assertEquals(anc1.indicator_common_label, "anc1");
 });
 
-Deno.test("naming: a taken id (a base with a dhis2_id, a sum, a derived) is refused", async () => {
+Deno.test("naming: a taken id (an Uploaded with a data id, a DHIS2 element, a sum, a derived) is refused", async () => {
   await reset();
-  await seedBase("anc1", ANC1_ELEMENT);
-  await seedDerived("anc1_share", "anc1 / 2");
-  const sumRes = await createIndicators(db, [{
-    indicator_common_id: "anc_all",
-    indicator_common_label: "ANC all",
-    definition: { type: "sum", members: ["anc1"] },
-    include_in_analysis: true,
-    format_as: "number",
-    thresholds: null,
-  }]);
-  assert(sumRes.success, sumRes.success ? "" : sumRes.err);
-  for (const taken of ["anc1", "anc1_share", "anc_all"]) {
+  await seed("anc1", { type: "dhis2_element", data_id: ANC1_ELEMENT });
+  await seed("anc1_file", { type: "uploaded", data_id: "anc1_from_file" });
+  await seed("anc1_share", { type: "derived", expression: "anc1 / 2" });
+  await seed("anc_all", { type: "sum", members: ["anc1"] });
+  for (const taken of ["anc1", "anc1_file", "anc1_share", "anc_all"]) {
     const res = await applyIndicatorNaming(db, {
-      elements: [{ dhis2_id: ANC4_ELEMENT, indicator_id: taken, label: "x" }],
+      elements: [{ data_id: ANC4_ELEMENT, indicator_id: taken, label: "x" }],
       uploaded: [],
       derived: [],
     });
     assert(!res.success, taken);
     assertStringIncludes(res.err, "already exists and cannot take");
   }
-  assertEquals((await dictionary()).size, 3);
+  assertEquals((await dictionary()).size, 4);
 });
 
-Deno.test("naming: a UID that already belongs to an indicator is skipped and creates nothing", async () => {
+Deno.test("naming: a UID some indicator already holds is skipped and creates nothing", async () => {
   await reset();
-  await seedBase("anc1", ANC1_ELEMENT);
+  await seed("anc1", { type: "dhis2_element", data_id: ANC1_ELEMENT });
   const res = await applyIndicatorNaming(db, {
-    elements: [{ dhis2_id: ANC1_ELEMENT, indicator_id: "anc1_again", label: "x" }],
+    elements: [{ data_id: ANC1_ELEMENT, indicator_id: "anc1_again", label: "x" }],
     uploaded: [],
     derived: [],
   });
@@ -368,40 +355,73 @@ Deno.test("naming: a UID that already belongs to an indicator is skipped and cre
   assertEquals([...(await dictionary()).keys()], ["anc1"]);
 });
 
-Deno.test("naming: an uploaded base takes the file's id, and an existing id is refused", async () => {
+Deno.test("csv host: an Uploaded indicator carries the file value as its data id", async () => {
   await reset();
-  await seedBase("anc1", null);
   const res = await applyIndicatorNaming(db, {
     elements: [],
-    uploaded: [{ indicator_id: "opd_csv", label: "OPD (file)" }],
+    uploaded: [{ data_id: "OPD_VISITS", indicator_id: "opd_csv", label: "OPD (file)" }],
     derived: [],
   });
   assert(res.success, res.success ? "" : res.err);
   assertEquals(res.data, { created: 1, assigned: 0 });
   assertEquals((await dictionary()).get("opd_csv")!.definition, {
-    type: "base",
-    dhis2_id: null,
+    type: "uploaded",
+    data_id: "OPD_VISITS",
+  });
+});
+
+Deno.test("csv host: an existing Uploaded indicator with no data id adopts the value; any other existing id is refused", async () => {
+  await reset();
+  await seed("anc1", { type: "uploaded", data_id: null });
+  await seed("anc4", { type: "uploaded", data_id: "anc4_old" });
+  const adopt = await applyIndicatorNaming(db, {
+    elements: [],
+    uploaded: [{ data_id: "ANC1_FILE", indicator_id: "anc1", label: "ignored" }],
+    derived: [],
+  });
+  assert(adopt.success, adopt.success ? "" : adopt.err);
+  assertEquals(adopt.data, { created: 0, assigned: 1 });
+  assertEquals((await dictionary()).get("anc1")!.definition, {
+    type: "uploaded",
+    data_id: "ANC1_FILE",
   });
   const dup = await applyIndicatorNaming(db, {
     elements: [],
-    uploaded: [{ indicator_id: "anc1", label: "x" }],
+    uploaded: [{ data_id: "ANC4_FILE", indicator_id: "anc4", label: "x" }],
     derived: [],
   });
   assert(!dup.success);
-  assertStringIncludes(dup.err, "already exists");
+  assertStringIncludes(dup.err, "already exists and cannot take");
+  assertEquals((await dictionary()).get("anc4")!.definition, {
+    type: "uploaded",
+    data_id: "anc4_old",
+  });
 });
 
-Deno.test("naming: a reserved new id is refused, a special id is a base like any other", async () => {
+Deno.test("csv host: a value some indicator already holds creates nothing", async () => {
+  await reset();
+  await seed("anc4", { type: "uploaded", data_id: "ANC4_FILE" });
+  const res = await applyIndicatorNaming(db, {
+    elements: [],
+    uploaded: [{ data_id: "ANC4_FILE", indicator_id: "anc4_again", label: "x" }],
+    derived: [],
+  });
+  assert(res.success, res.success ? "" : res.err);
+  assertEquals(res.data, { created: 0, assigned: 0 });
+  assertEquals([...(await dictionary()).keys()], ["anc4"]);
+});
+
+Deno.test("naming: a reserved new id is refused, a special id is a count like any other", async () => {
   await reset();
   const reserved = await applyIndicatorNaming(db, {
-    elements: [{ dhis2_id: ANC1_ELEMENT, indicator_id: "population_total", label: "x" }],
+    elements: [{ data_id: ANC1_ELEMENT, indicator_id: "population_total", label: "x" }],
     uploaded: [],
     derived: [],
   });
   assert(!reserved.success);
   assertStringIncludes(reserved.err, "reserved word");
   const special = await applyIndicatorNaming(db, {
-    elements: [{ dhis2_id: ANC1_ELEMENT, indicator_id: "penta1", label: "Penta 1" }],
+    elements: [{ data_id: ANC1_ELEMENT, indicator_id: "penta1", label: "Penta 1" }],
     uploaded: [],
     derived: [],
   });
@@ -412,7 +432,7 @@ Deno.test("naming: a reserved new id is refused, a special id is a base like any
 Deno.test("naming: a derived naming a DHIS2 id that was not listed is refused", async () => {
   await reset();
   const res = await applyIndicatorNaming(db, {
-    elements: [{ dhis2_id: ANC4_ELEMENT, indicator_id: "anc4", label: "ANC 4" }],
+    elements: [{ data_id: ANC4_ELEMENT, indicator_id: "anc4", label: "ANC 4" }],
     uploaded: [],
     derived: [{
       indicator_id: "anc4_rate",

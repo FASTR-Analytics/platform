@@ -343,6 +343,32 @@ export function writeIndicatorExpression(node: ExpressionNode): string {
   }
 }
 
+// One identifier renamed in an expression's TEXT, formatting kept: a bare
+// identifier stands alone between non-identifier characters, a bracketed
+// one is `[from]` exactly, and text inside other brackets is untouched. The
+// same rule instance migration 086 applies in SQL (fastr_rename_identifier).
+// An indicator rename rewrites every stored expression with this, so the
+// author's spacing and parentheses survive; the replacement is written as
+// the grammar requires (`writeIdentifier`), since the new id may not be
+// bare-shaped.
+export function renameIdentifierInExpression(
+  source: string,
+  from: string,
+  to: string,
+): string {
+  const escaped = from.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const bare = new RegExp(`(?<![a-zA-Z0-9_])${escaped}(?![a-zA-Z0-9_])`, "g");
+  return source
+    .split(/(\[[^\]]*\])/)
+    .map((segment) => {
+      if (segment.startsWith("[")) {
+        return segment === `[${from}]` ? `[${to}]` : segment;
+      }
+      return segment.replace(bare, () => writeIdentifier(to));
+    })
+    .join("");
+}
+
 // The same AST with every identifier renamed through `mapping`. The catalog
 // uses it to rewrite a flattened expression from ingredient ids to the slot
 // columns m012 materialises, so the text m012 evaluates names `ing1..ing8`

@@ -171,12 +171,13 @@ export async function assertNoRunningDatasetHmisImportRun(
 }
 
 // Validates a selection + instance state shared by launch, enqueue and the
-// scheduler's fire path, and expands a window's indicators to the elements
-// the run fetches (PLAN_A4 ruling 5). The returned selection is what gets
-// stored on the run row and carried in the worker message, so nothing
-// downstream re-resolves: an element assigned after enqueue is not in that
-// run. A pairs selection names (indicator, month) pairs; each indicator's
-// dhis2_id is resolved here and persisted with the pair.
+// scheduler's fire path, and expands a window's indicators to the data ids
+// the run fetches (PLAN_A4 ruling 5, PLAN_A5 ruling 9). The returned
+// selection is what gets stored on the run row and carried in the worker
+// message, so nothing downstream re-resolves: an element assigned after
+// enqueue is not in that run. A pairs selection names (data id, month)
+// pairs; each data id must belong to a DHIS2 element, and nothing is
+// resolved.
 async function validateRunSelection(
   mainDb: Sql,
   input: Dhis2RunSelectionInput,
@@ -207,47 +208,37 @@ async function validateRunSelection(
       indicatorIds: input.indicatorIds,
       startPeriod: input.startPeriod,
       endPeriod: input.endPeriod,
-      elements: expansion.elements,
+      dataIds: expansion.dataIds,
       populationTermsDropped: expansion.populationTermsDropped,
       uploadedIndicatorsDropped: expansion.uploadedIndicatorsDropped,
     };
   } else {
-    const selectedIds = Array.from(
-      new Set(input.pairs.map((p) => p.indicatorId)),
+    const selectedDataIds = Array.from(
+      new Set(input.pairs.map((p) => p.dataId)),
     );
-    const rows = await mainDb<{ indicator_common_id: string; dhis2_id: string | null }[]>`
-      SELECT indicator_common_id, dhis2_id FROM indicators
-      WHERE indicator_common_id = ANY(${selectedIds})
+    const rows = await mainDb<{ data_id: string }[]>`
+      SELECT data_id FROM indicators
+      WHERE data_id = ANY(${selectedDataIds}) AND definition_type = 'dhis2_element'
     `;
-    const dhis2IdOf = new Map(rows.map((r) => [r.indicator_common_id, r.dhis2_id]));
-    const missing = selectedIds.filter((id) => !dhis2IdOf.has(id));
+    const elements = new Set(rows.map((r) => r.data_id));
+    const missing = selectedDataIds.filter((id) => !elements.has(id));
     if (missing.length > 0) {
       throw new Error(
-        `The following selected indicators do not exist: ${missing.join(", ")}.`,
-      );
-    }
-    const uploaded = selectedIds.filter((id) => dhis2IdOf.get(id) === null);
-    if (uploaded.length > 0) {
-      throw new Error(
-        `The following selected indicators have no DHIS2 id to fetch: ${uploaded.join(", ")}.`,
+        `The following data ids are not DHIS2 elements in the dictionary: ${missing.join(", ")}.`,
       );
     }
     selection = {
       kind: "pairs",
-      pairs: input.pairs.map((p) => ({
-        indicatorId: p.indicatorId,
-        dhis2Id: dhis2IdOf.get(p.indicatorId)!,
-        periodId: p.periodId,
-      })),
+      pairs: input.pairs.map((p) => ({ dataId: p.dataId, periodId: p.periodId })),
     };
   }
 
   const pairs = enumerateRunPairs(selection);
   if (pairs.length === 0) {
     throw new Error(
-      selection.kind === "window" && selection.elements.length === 0
+      selection.kind === "window" && selection.dataIds.length === 0
         ? "The selected indicators have no DHIS2 elements to fetch."
-        : "The selection contains no (indicator, month) pairs.",
+        : "The selection contains no (data id, month) pairs.",
     );
   }
 
@@ -546,7 +537,7 @@ async function validateCsvRunConfig(
   const columns = input.columns;
   for (const key of [
     "facility_id",
-    "indicator_id",
+    "data_id",
     "period_id",
     "count",
   ] as const) {
@@ -1050,13 +1041,13 @@ async function reconcileRunVersionRow(
   );
   const ledgerRows = await mainDb<
     {
-      indicator_id: string;
+      data_id: string;
       period_id: number;
       n_records: number;
       sum_count: string | number;
     }[]
   >`
-    SELECT indicator_id, period_id, n_records, sum_count
+    SELECT data_id, period_id, n_records, sum_count
     FROM dataset_hmis_import_ledger
     WHERE version_id = ${versionId}
   `;
@@ -1068,7 +1059,7 @@ async function reconcileRunVersionRow(
     failedFetches: [],
     periodIndicatorStats: ledgerRows.map((r) => ({
       periodId: r.period_id,
-      indicatorId: r.indicator_id,
+      dataId: r.data_id,
       nRecords: r.n_records,
       totalCount: Number(r.sum_count),
     })),
@@ -1113,10 +1104,10 @@ export async function markStaleRunningDatasetHmisImportRuns(
   return swept.length;
 }
 
-// Expands a stored run selection to its (indicator, month) pairs. A
-// window's elements are the ones persisted at validation (never the
-// dictionary as it stands now), and the enumeration mirrors the run worker
-// exactly: totals recorded at launch must equal the worker's work list.
+// Expands a stored run selection to its (data id, month) pairs. A window's
+// data ids are the ones persisted at validation (never the dictionary as it
+// stands now), and the enumeration mirrors the run worker exactly: totals
+// recorded at launch must equal the worker's work list.
 export function enumerateRunPairs(
   selection: Dhis2RunSelection,
 ): Dhis2RunPair[] {
@@ -1124,7 +1115,7 @@ export function enumerateRunPairs(
     const seen = new Set<string>();
     const pairs: Dhis2RunPair[] = [];
     for (const p of selection.pairs) {
-      const key = `${p.indicatorId}|${p.periodId}`;
+      const key = `${p.dataId}|${p.periodId}`;
       if (!seen.has(key) && isValidPeriodId(p.periodId)) {
         seen.add(key);
         pairs.push(p);
@@ -1146,14 +1137,14 @@ export function enumerateRunPairs(
     );
   }
   const pairs: Dhis2RunPair[] = [];
-  for (const element of selection.elements) {
+  for (const dataId of selection.dataIds) {
     for (
       let periodId = selection.startPeriod;
       periodId <= selection.endPeriod;
       periodId++
     ) {
       if (isValidPeriodId(periodId)) {
-        pairs.push({ ...element, periodId });
+        pairs.push({ dataId, periodId });
       }
     }
   }

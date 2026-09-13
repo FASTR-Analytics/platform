@@ -692,9 +692,13 @@ clauses, never case-by-case):
 **The indicators mirror has two writer formats and one reader contract.** v1
 (pre-restructure packages) carries id + label only, with a separate
 `calculated_indicators_snapshot.json` beside it; v2 carries the analysed
-indicator set (PLAN_A4 ruling 3: every analysed base and sum as a `base`
-row, every derived with its checkbox on), resolved: type, flattened
-expression, slot map, presentation and sort. `server/runs/indicator_catalog.ts` is the only reader of either, at
+indicator set (PLAN_A4 ruling 3: every analysed count and every derived
+with its checkbox on), resolved: type, flattened expression, slot map,
+presentation and sort. The row's `type` is the stored type under its code
+name (`uploaded`, `dhis2_element`, `sum`, `derived`); a package generated
+before PLAN_A5 carries `base` for every count, which both schemas accept
+and nothing maps or reads (the display projection strips `type`), and no
+package file is rewritten for it. `server/runs/indicator_catalog.ts` is the only reader of either, at
 finalize and transform time only, and discriminates on the `type` field that
 only v2 rows have (the v1 schema REJECTS a row carrying `type`, so a drifted
 v2 row fail-stops instead of silently dropping its expressions). The read
@@ -911,7 +915,7 @@ the app substitutes them into `script.R` as R `tribble` literals in place of
 the `INDICATOR_INGREDIENTS` and `INDICATOR_EXPRESSIONS` tokens
 (`buildIndicatorIngredientsRLiteral` and `buildIndicatorExpressionsRLiteral`
 in `lib/hmis_indicator_catalog.ts`), the same channel as `COUNTRY_ISO3`
-and every module parameter. The ingredient table says which base or sum (or
+and every module parameter. The ingredient table says which count (or
 population type's person-years row) fills which slot of which indicator.
 The expression table carries each indicator's flattened expression rewritten
 over the slot names `ing1..ing8`: the expression language's syntax is a
@@ -922,7 +926,7 @@ population, the HMIS depth otherwise, see "population.csv"), binds the
 person-years rows in under the population type id (the same id the
 ingredient table names wherever an expression's population term was
 assigned a slot; the script never tells a population ingredient from a
-base one), joins the ingredient
+count one), joins the ingredient
 table, and pivots each indicator's ingredients into `ing1..ing8` of
 `M12_indicator_values.csv`.
 
@@ -944,19 +948,19 @@ An ingredient no facility in an area ever reports, a zero denominator, a
 `nullif` that fires, and a month or area the population store does not
 cover all leave no row, and an indicator with no surviving row is absent
 from every figure and every filter and disaggregation list, exactly as an
-empty base is. Keeping such rows would let a coarser grouping
+count with no rows is. Keeping such rows would let a coarser grouping
 sum a numerator over cells its denominator never covers. A `coalesce` in
 the expression is honoured, because the expression decides, not the mere
 presence of a slot.
 
-**An ingredient with no data is not an error.** A base or sum with no rows
+**An ingredient with no data is not an error.** A count with no rows
 gets no slot map and no expression at capture and is in neither table, so
 it contributes no row. One whose rows are simply absent
 from this dataset leaves `NA` after the pivot, and the rule above drops the
 rows that cannot be evaluated without it. Failing instead would abort
 generation on every instance that does not collect one of the 14 seeded
 default indicators. Capture refuses only a derived whose flattened
-expression includes a base or sum with no rows. That rule is `judgeDerivedIndicator`
+expression includes a count with no rows. That rule is `judgeDerivedIndicator`
 (S5), and the indicator manager shows the same judgement before a run is
 generated; it judges definitions, not data, so a "computable" indicator can
 still be absent from a package whose data never lets it evaluate.

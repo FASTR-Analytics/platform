@@ -18,7 +18,7 @@ import {
 // Per-run staging tables (PLAN_DHIS2_IMPORTER_CONSOLIDATION A4): staging
 // output must survive a needs_review hold across other imports running in
 // between, so every table (the final ready-for-integration table plus the
-// three throwaway intermediates) carries a _run_{runId} suffix. Dropped on
+// four throwaway intermediates) carries a _run_{runId} suffix. Dropped on
 // integrate/discard/sweep: this is what makes releasing the single-running
 // slot on needs_review safe.
 
@@ -26,6 +26,7 @@ export function hmisCsvStagingTableNames(runId: number): {
   raw: string;
   dedup: string;
   validFacilities: string;
+  resolved: string;
   final: string;
 } {
   const id = Math.floor(runId);
@@ -33,6 +34,7 @@ export function hmisCsvStagingTableNames(runId: number): {
     raw: `uploaded_hmis_staging_raw_run_${id}`,
     dedup: `uploaded_hmis_staging_dedup_run_${id}`,
     validFacilities: `uploaded_hmis_staging_validfac_run_${id}`,
+    resolved: `uploaded_hmis_staging_resolved_run_${id}`,
     final: `uploaded_hmis_data_staging_ready_for_integration_run_${id}`,
   };
 }
@@ -43,7 +45,7 @@ export async function dropHmisCsvStagingTables(
   args: { keepFinal: boolean },
 ): Promise<void> {
   const names = hmisCsvStagingTableNames(runId);
-  const toDrop = [names.raw, names.dedup, names.validFacilities];
+  const toDrop = [names.raw, names.dedup, names.validFacilities, names.resolved];
   if (!args.keepFinal) {
     toDrop.push(names.final);
   }
@@ -56,12 +58,11 @@ export async function dropHmisCsvStagingTables(
   }
 }
 
-// The staging internals relocated from the old stage_hmis_data_csv worker:
-// stream the CSV into a raw table, dedup, validate facilities + indicators,
-// and build the final staging table. Semantics unchanged; only the table
-// names (per-run) and the progress transport (callback instead of attempt-row
-// writes) differ. Never throws on dropped rows: the caller's clean-condition
-// gate decides what a nonzero drop count means.
+// Stream the CSV into a raw table, dedup, validate facilities, resolve the
+// file's indicator column to data ids, and build the final staging table.
+// Never throws on dropped rows: the caller's clean-condition gate decides
+// what a nonzero drop count means. An ambiguous file value throws, so the
+// run fails loudly.
 export async function stageHmisCsvIntoTables(args: {
   importDb: Sql;
   csvFilePath: string;
@@ -90,10 +91,10 @@ export async function stageHmisCsvIntoTables(args: {
       columnsRecord,
       "facility_id",
     ),
-    indicatorId: getCsvColumnIndex(
+    dataId: getCsvColumnIndex(
       encodedHeaderToIndexMap,
       columnsRecord,
-      "indicator_id",
+      "data_id",
     ),
     count: getCsvColumnIndex(encodedHeaderToIndexMap, columnsRecord, "count"),
   } as const;
@@ -112,7 +113,7 @@ export async function stageHmisCsvIntoTables(args: {
   await importDb.unsafe(`
 CREATE UNLOGGED TABLE ${names.raw} (
   facility_id TEXT NOT NULL,
-  indicator_id TEXT NOT NULL,
+  data_id TEXT NOT NULL,
   period_id INTEGER NOT NULL ${PERIOD_ID_CHECK_CONSTRAINT},
   count INTEGER NOT NULL ${COUNT_CHECK_CONSTRAINT}
 )`);
@@ -130,7 +131,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
     if (rowBuffer.length === 0) return;
     const valuesClause = rowBuffer.join(",\n");
     await importDb.unsafe(
-      `INSERT INTO ${names.raw} (facility_id, indicator_id, period_id, count) VALUES ${valuesClause}`,
+      `INSERT INTO ${names.raw} (facility_id, data_id, period_id, count) VALUES ${valuesClause}`,
     );
     rowBuffer = [];
 
@@ -152,7 +153,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
 
       const periodId = row[headerIndexes.periodId];
       const facilityId = row[headerIndexes.facilityId];
-      const indicatorId = row[headerIndexes.indicatorId];
+      const dataId = row[headerIndexes.dataId];
       // Numeric cleaning only: tolerate thousands separators / stray quotes
       const count = parseCountValue(
         (row[headerIndexes.count] ?? "").replace(/[,'"]/g, ""),
@@ -161,7 +162,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
       const validation = isValidDatasetRow(
         periodId,
         facilityId,
-        indicatorId,
+        dataId,
         count,
       );
       if (!validation.isValid) {
@@ -180,7 +181,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
       }
 
       rowBuffer.push(
-        `('${escapeSqlString(facilityId)}','${escapeSqlString(indicatorId)}','${periodId}',${count})`,
+        `('${escapeSqlString(facilityId)}','${escapeSqlString(dataId)}','${periodId}',${count})`,
       );
 
       if (rowBuffer.length >= BUFFER_SIZE) {
@@ -210,7 +211,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
   }
 
   await importDb.unsafe(
-    `CREATE INDEX idx_staging_raw_run_${runId} ON ${names.raw} (indicator_id)`,
+    `CREATE INDEX idx_staging_raw_run_${runId} ON ${names.raw} (data_id)`,
   );
 
   // Deduplication: MAX(count) when duplicates exist.
@@ -218,18 +219,18 @@ CREATE UNLOGGED TABLE ${names.raw} (
   CREATE UNLOGGED TABLE ${names.dedup} AS
   SELECT
     facility_id,
-    indicator_id,
+    data_id,
     period_id,
     MAX(count) as count
   FROM ${names.raw}
-  GROUP BY facility_id, indicator_id, period_id
+  GROUP BY facility_id, data_id, period_id
   `);
   const dedupCount = await importDb<{ count: number }[]>`
     SELECT COUNT(*)::int as count FROM ${importDb(names.dedup)}
   `;
   await importDb.unsafe(`DROP TABLE ${names.raw}`);
   await importDb.unsafe(
-    `CREATE INDEX idx_staging_dedup_run_${runId} ON ${names.dedup} (indicator_id)`,
+    `CREATE INDEX idx_staging_dedup_run_${runId} ON ${names.dedup} (data_id)`,
   );
 
   onProgress(87);
@@ -278,59 +279,80 @@ CREATE UNLOGGED TABLE ${names.raw} (
 
   onProgress(88);
 
-  // Indicator validation: a row's indicator id must be a base indicator
-  // (data rows belong to bases; a sum or derived id is unknown here).
+  // Resolution (PLAN_A5 ruling 6): a file value is matched first against
+  // an indicator's data id, then against the id of an indicator that has
+  // rows and a data id, which it resolves to. A value that is one
+  // indicator's data id and another's indicator id is refused with both
+  // named. Everything else is unknown: it lands in the hold, where the
+  // naming step creates an Uploaded indicator for it or an existing
+  // Uploaded indicator with no data id adopts it.
   let indicatorValidation: {
     total: number;
-    sample: { indicator_id: string; row_count: number }[];
+    sample: { data_id: string; row_count: number }[];
     ids: string[];
     rowsDropped: number;
   };
   if (rowsAfterFacilityValidation > 0) {
-    const unknownIndicatorsSample = await importDb<
-      { indicator_id: string; row_count: number }[]
+    await importDb.unsafe(`
+      CREATE UNLOGGED TABLE ${names.resolved} AS
+      SELECT
+        v.value,
+        by_data.indicator_common_id AS data_owner,
+        by_id.indicator_common_id AS id_owner,
+        COALESCE(by_data.data_id, by_id.data_id) AS data_id
+      FROM (SELECT DISTINCT data_id AS value FROM ${names.validFacilities}) v
+      LEFT JOIN indicators by_data ON by_data.data_id = v.value
+      LEFT JOIN indicators by_id
+        ON by_id.indicator_common_id = v.value AND by_id.has_rows AND by_id.data_id IS NOT NULL
+    `);
+    const ambiguous = await importDb<
+      { value: string; data_owner: string; id_owner: string }[]
     >`
-      SELECT t.indicator_id, COUNT(*)::INTEGER as row_count
+      SELECT value, data_owner, id_owner FROM ${importDb(names.resolved)}
+      WHERE data_owner IS NOT NULL AND id_owner IS NOT NULL AND data_owner <> id_owner
+      ORDER BY value
+    `;
+    if (ambiguous.length > 0) {
+      throw new Error(
+        `The file's indicator column is ambiguous: ${
+          ambiguous.map((a) =>
+            `"${a.value}" is the data id of ${a.data_owner} and the id of ${a.id_owner}`
+          ).join("; ")
+        }. Rename one of the indicators or change the file's values.`,
+      );
+    }
+    const unknownIndicatorsSample = await importDb<
+      { data_id: string; row_count: number }[]
+    >`
+      SELECT t.data_id, COUNT(*)::INTEGER as row_count
       FROM ${importDb(names.validFacilities)} t
-      WHERE NOT EXISTS (
-        SELECT 1 FROM indicators i
-        WHERE i.indicator_common_id = t.indicator_id AND i.definition_type = 'base'
-      )
-      GROUP BY t.indicator_id
+      JOIN ${importDb(names.resolved)} r ON r.value = t.data_id
+      WHERE r.data_id IS NULL
+      GROUP BY t.data_id
       ORDER BY COUNT(*) DESC
       LIMIT 10
     `;
     const unknownIndicatorsTotal = await importDb<{ total_invalid: number }[]>`
-      SELECT COUNT(DISTINCT t.indicator_id)::INTEGER as total_invalid
-      FROM ${importDb(names.validFacilities)} t
-      WHERE NOT EXISTS (
-        SELECT 1 FROM indicators i
-        WHERE i.indicator_common_id = t.indicator_id AND i.definition_type = 'base'
-      )
+      SELECT COUNT(*)::INTEGER as total_invalid
+      FROM ${importDb(names.resolved)}
+      WHERE data_id IS NULL
     `;
     const rowsDroppedByIndicator = await importDb<{ count: number }[]>`
       SELECT COUNT(*)::INTEGER as count
       FROM ${importDb(names.validFacilities)} t
-      WHERE NOT EXISTS (
-        SELECT 1 FROM indicators i
-        WHERE i.indicator_common_id = t.indicator_id AND i.definition_type = 'base'
-      )
+      JOIN ${importDb(names.resolved)} r ON r.value = t.data_id
+      WHERE r.data_id IS NULL
     `;
-    // The whole set, not the sample: the needs_review hold offers to create
-    // an uploaded base for every one of them.
-    const unknownIndicatorIds = await importDb<{ indicator_id: string }[]>`
-      SELECT DISTINCT t.indicator_id
-      FROM ${importDb(names.validFacilities)} t
-      WHERE NOT EXISTS (
-        SELECT 1 FROM indicators i
-        WHERE i.indicator_common_id = t.indicator_id AND i.definition_type = 'base'
-      )
-      ORDER BY t.indicator_id
+    // The whole set, not the sample: the needs_review hold names every one.
+    const unknownValues = await importDb<{ value: string }[]>`
+      SELECT value FROM ${importDb(names.resolved)}
+      WHERE data_id IS NULL
+      ORDER BY value
     `;
     indicatorValidation = {
       total: unknownIndicatorsTotal[0]?.total_invalid || 0,
       sample: unknownIndicatorsSample,
-      ids: unknownIndicatorIds.map((r) => r.indicator_id),
+      ids: unknownValues.map((r) => r.value),
       rowsDropped: rowsDroppedByIndicator[0]?.count || 0,
     };
   } else {
@@ -340,33 +362,33 @@ CREATE UNLOGGED TABLE ${names.raw} (
   // Final staging table.
   let finalStagingCount = 0;
   if (rowsAfterFacilityValidation > 0) {
+    // Rows land under the data id their value resolved to.
     await importDb.unsafe(`
       CREATE UNLOGGED TABLE ${names.final} AS
       SELECT
         t.facility_id,
-        t.indicator_id,
+        r.data_id,
         t.period_id::INTEGER as period_id,
         t.count::INTEGER as count
       FROM ${names.validFacilities} t
-      WHERE EXISTS (
-        SELECT 1 FROM indicators i
-        WHERE i.indicator_common_id = t.indicator_id AND i.definition_type = 'base'
-      )
+      JOIN ${names.resolved} r ON r.value = t.data_id
+      WHERE r.data_id IS NOT NULL
     `);
+    await importDb.unsafe(`DROP TABLE ${names.resolved}`);
     const countRows = await importDb<{ count: number }[]>`
       SELECT COUNT(*)::int as count FROM ${importDb(names.final)}
     `;
     finalStagingCount = countRows[0]?.count || 0;
     if (finalStagingCount > 0) {
       await importDb.unsafe(
-        `CREATE INDEX idx_staging_final_run_${runId} ON ${names.final} (facility_id, indicator_id, period_id)`,
+        `CREATE INDEX idx_staging_final_run_${runId} ON ${names.final} (facility_id, data_id, period_id)`,
       );
     }
   } else {
     await importDb.unsafe(`
       CREATE UNLOGGED TABLE ${names.final} (
         facility_id TEXT,
-        indicator_id TEXT,
+        data_id TEXT,
         period_id INTEGER,
         count INTEGER
       )
@@ -382,24 +404,24 @@ CREATE UNLOGGED TABLE ${names.raw} (
     const periodIndicatorStatsRaw = await importDb<
       {
         period_id: number;
-        indicator_id: string;
+        data_id: string;
         n_records: number;
         total_count: string | number;
       }[]
     >`
   SELECT
     period_id,
-    indicator_id,
+    data_id,
     COUNT(*)::int as n_records,
     SUM(count) as total_count
   FROM ${importDb(names.final)}
-  GROUP BY period_id, indicator_id
-  ORDER BY period_id, indicator_id
+  GROUP BY period_id, data_id
+  ORDER BY period_id, data_id
   `;
     periodIndicatorStats = periodIndicatorStatsRaw.map<PeriodIndicatorStat>(
       (stat) => ({
         periodId: stat.period_id,
-        indicatorId: stat.indicator_id,
+        dataId: stat.data_id,
         nRecords: stat.n_records,
         totalCount: Number(stat.total_count),
       }),

@@ -117,8 +117,15 @@ BEGIN
       CHECK (definition_type IN ('base', 'derived'));
   END IF;
 
+  -- On a fresh install the type CHECK is already migration 086's, over the
+  -- four types, and the seeded rows are not `base`: this two-type CHECK is
+  -- only for a database that still has the two-type one.
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint WHERE conname = 'indicators_definition_fields_check'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'indicators_definition_type_check'
+      AND pg_get_constraintdef(oid) LIKE '%''uploaded''%'
   ) THEN
     ALTER TABLE indicators ADD CONSTRAINT indicators_definition_fields_check CHECK (
       (definition_type = 'base' AND expression IS NULL)

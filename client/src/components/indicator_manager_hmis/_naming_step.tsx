@@ -9,6 +9,7 @@
 // operands are taking. The host owns the state (a Solid store) and posts
 // the result; the server applies the same rules again.
 import {
+  definitionDataId,
   type HmisIndicator,
   type HmisIndicatorType,
   describeNewIndicatorIdIssue,
@@ -75,12 +76,8 @@ export const EMPTY_NAMING_STATE: NamingState = {
 function ownersOfDhis2Ids(indicators: HmisIndicator[]): Map<string, string> {
   const owners = new Map<string, string>();
   for (const indicator of indicators) {
-    if (
-      indicator.definition.type === "base" &&
-      indicator.definition.dhis2_id !== null
-    ) {
-      owners.set(indicator.definition.dhis2_id, indicator.indicator_common_id);
-    }
+    const dataId = definitionDataId(indicator.definition);
+    if (dataId !== null) owners.set(dataId, indicator.indicator_common_id);
   }
   return owners;
 }
@@ -140,7 +137,7 @@ export function namingAssignTarget(
   indicators: HmisIndicator[],
 ): HmisIndicator | undefined {
   const target = indicators.find((i) => i.indicator_common_id === indicatorId);
-  return target?.definition.type === "base" && target.definition.dhis2_id === null
+  return target?.definition.type === "uploaded" && target.definition.data_id === null
     ? target
     : undefined;
 }
@@ -183,7 +180,7 @@ export function namingIssues(
     }
     chosen.add(id);
     if (namingAssignTarget(id, indicators) !== undefined) continue;
-    const issue = idIssueText(id, "base");
+    const issue = idIssueText(id, "dhis2_element");
     if (issue !== undefined) {
       issues.push(`${row.dhis2_id}: ${issue}`);
     } else if (existingIds.has(id)) {
@@ -205,7 +202,7 @@ export function namingIssues(
       issues.push(chosenTwice(id, id));
     }
     chosen.add(id);
-    const issue = idIssueText(id, "base");
+    const issue = idIssueText(id, "uploaded");
     if (issue !== undefined) {
       issues.push(`${id}: ${issue}`);
     } else if (existingIds.has(id)) {
@@ -249,11 +246,12 @@ export function namingIssues(
 export function namingInputFromState(state: NamingState): IndicatorNamingInput {
   return {
     elements: state.elements.map((row) => ({
-      dhis2_id: row.dhis2_id,
+      data_id: row.dhis2_id,
       indicator_id: row.indicator_id.trim(),
       label: row.label.trim(),
     })),
     uploaded: state.uploaded.map((row) => ({
+      data_id: row.indicator_id,
       indicator_id: row.indicator_id,
       label: row.label.trim(),
     })),

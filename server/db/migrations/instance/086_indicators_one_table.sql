@@ -1,29 +1,39 @@
 -- ============================================================================
--- One table of indicators (PLAN_A4 ruling 10).
+-- One table of indicators, keyed by the data rows' own key (PLAN_A4 ruling
+-- 10, PLAN_A5 rulings 1 and 8).
 --
+-- The data rows of dataset_hmis are facts keyed by what DHIS2 or the file
+-- called the series; before this migration that column was
+-- indicator_raw_id, the raw's id. Nothing here moves a data or ledger row:
+-- the column is renamed data_id, and the dictionary becomes a layer over it.
 -- indicators_raw and indicator_mappings fold into indicators: a raw mapped
--- 1:1 to a common that has no other mapping, and whose id is DHIS2-shaped,
--- makes that common a DHIS2 element (dhis2_id = the raw id) and its data
--- rows move to the common's id. Every other raw becomes a base of its own:
--- DHIS2-shaped under an id generated from its label (PLAN_A3 ruling 10,
--- restated in PL/pgSQL below; lib/indicator_id.ts is the authority and
--- server/tests/indicator_migration_test.ts pins the two spellings), CSV
--- raws under their own id when it passes the validator, else a generated
--- one. A common whose raws did not fold becomes a sum over the bases they
--- became. A derived row under a special id is renamed to its suffix form and
--- an empty base is inserted under the special id. include_in_analysis is
--- TRUE for every row that was a common and FALSE for every base created from
--- a raw, so the first package after the migration analyses exactly the
--- series the last one did. dataset_hmis and the ledger keep their rows under
--- the renamed column indicator_id, every stored JSON shape is rewritten,
--- is_default goes, and the old tables are dropped last.
+-- to exactly one non-derived common that has no other mapping folds into
+-- it (the common takes data_id = the raw id and becomes a DHIS2 element
+-- when the id is DHIS2-shaped, Uploaded otherwise); every other raw becomes
+-- an indicator of its own with data_id = the raw id (a DHIS2 element or
+-- Uploaded by the same shape rule) under its own id when the raw id is not
+-- DHIS2-shaped and passes the validator, otherwise under an id generated
+-- from its label (PLAN_A3 ruling 10, restated in PL/pgSQL below;
+-- lib/indicator_id.ts is the authority and
+-- server/tests/indicator_migration_test.ts pins the two spellings). A
+-- common whose raws did not fold becomes a sum over the indicators they
+-- became, its members in indicator_sum_members. A derived row under a
+-- special id is renamed to its suffix form and an Uploaded indicator with
+-- no data id is inserted under the special id. include_in_analysis is TRUE
+-- for every row that was a common and FALSE for every indicator created
+-- from a raw, so the first package after the migration analyses exactly the
+-- series the last one did. Every stored JSON shape is rewritten, the run
+-- and ledger `source` columns become `route`, the staging result's
+-- `sourceType` becomes `kind`, the CSV config's `mappings` becomes
+-- `columns`, is_default goes, and the old tables are dropped last.
 --
 -- No guard fail-stops on data: nothing is resolved by hand. The whole file
 -- runs in one transaction (server/db/migrations/runner.ts).
 --
 -- Fresh replay (./validate_migrations): indicators_raw does not exist, every
 -- column add, rename and constraint is guarded, and every UPDATE matches no
--- row. ./validate_indicator_migration replays it over real dumps.
+-- row. ./validate_indicator_migration replays it over real dumps and
+-- asserts that no data or ledger row changed.
 -- ============================================================================
 
 -- ── The id generator, ruling 10 in PL/pgSQL ─────────────────────────────────
@@ -80,7 +90,7 @@ BEGIN
   END LOOP;
 END $f$;
 
--- The validator's charset rule for a CSV raw keeping its own id
+-- The validator's charset rule for a raw keeping its own id
 -- (lib getNewIndicatorIdIssue: non-empty, trimmed, no , ; : [ ], at most
 -- 128 characters). Reserved words are checked by the caller.
 CREATE FUNCTION pg_temp.fastr_id_charset_ok(p_id text) RETURNS boolean
@@ -91,6 +101,7 @@ $f$;
 -- Rename one identifier in an expression written in the app's grammar: a
 -- bare identifier stands alone between non-identifier characters; a
 -- bracketed one is `[id]` exactly. Text inside other brackets is untouched.
+-- lib renameIdentifierInExpression is the same rule in TypeScript.
 CREATE FUNCTION pg_temp.fastr_rename_identifier(p_expr text, p_old text, p_new text)
 RETURNS text LANGUAGE sql IMMUTABLE AS $f$
   SELECT COALESCE((
@@ -104,9 +115,9 @@ RETURNS text LANGUAGE sql IMMUTABLE AS $f$
   ), p_expr)
 $f$;
 
--- ── The id table: what each raw became ──────────────────────────────────────
--- Filled by the data move below, read by every stored-JSON rewriter, and
--- raised as NOTICEs at the end. Empty on a fresh replay.
+-- ── The id table: which indicator holds each raw id as its data id ──────────
+-- Filled by the dictionary move below, read by every stored-JSON rewriter,
+-- and raised as NOTICEs at the end. Empty on a fresh replay.
 
 CREATE TEMP TABLE fastr_raw_to_indicator (
   raw_id text PRIMARY KEY,
@@ -120,23 +131,27 @@ LANGUAGE sql STABLE AS $f$
   SELECT COALESCE((SELECT indicator_id FROM fastr_raw_to_indicator WHERE raw_id = p_raw_id), p_raw_id)
 $f$;
 
--- ── Stored-JSON rewriters (ruling 10) ───────────────────────────────────────
+-- ── Stored-JSON rewriters (rulings 8 and 9) ─────────────────────────────────
 -- Each takes the pre-086 shape and is a pass-through for anything else.
+-- Pairs, progress and stats are keyed by data id, which IS the raw id the
+-- old rows carried; only the key name changes.
 
--- Pair lists: { indicatorRawId, periodId, ... } →
--- { indicatorId, dhis2Id, periodId, ... }, the analytics-era `route` key
--- stripped.
+-- Pair lists: { indicatorRawId, periodId, ... } → { dataId, periodId, ... },
+-- the analytics-era `route` key stripped. The oldest version rows' work
+-- item history wrote the raw id under `indicatorId`; same key rename.
 CREATE FUNCTION pg_temp.fastr_rename_pairs(p jsonb) RETURNS jsonb
 LANGUAGE sql STABLE AS $f$
   SELECT CASE
     WHEN p IS NULL OR jsonb_typeof(p) <> 'array' THEN p
     ELSE COALESCE((
       SELECT jsonb_agg(
-        CASE WHEN e ? 'indicatorRawId'
-          THEN (e - 'indicatorRawId' - 'route')
-               || jsonb_build_object(
-                    'indicatorId', pg_temp.fastr_map_id(e ->> 'indicatorRawId'),
-                    'dhis2Id', e ->> 'indicatorRawId')
+        CASE
+          WHEN e ? 'indicatorRawId'
+            THEN (e - 'indicatorRawId' - 'route')
+                 || jsonb_build_object('dataId', e -> 'indicatorRawId')
+          WHEN e ? 'indicatorId'
+            THEN (e - 'indicatorId' - 'route')
+                 || jsonb_build_object('dataId', e -> 'indicatorId')
           ELSE e - 'route'
         END
         ORDER BY ord)
@@ -161,7 +176,7 @@ LANGUAGE sql STABLE AS $f$
 $f$;
 
 -- periodIndicatorStats: indicatorRawId (or the indicatorCommonId older CSV
--- code wrote) → indicatorId.
+-- code wrote, which was the file's own value) → dataId.
 CREATE FUNCTION pg_temp.fastr_rename_period_stats(p jsonb) RETURNS jsonb
 LANGUAGE sql STABLE AS $f$
   SELECT CASE
@@ -171,10 +186,10 @@ LANGUAGE sql STABLE AS $f$
         CASE
           WHEN e ? 'indicatorRawId'
             THEN (e - 'indicatorRawId' - 'indicatorCommonId')
-                 || jsonb_build_object('indicatorId', pg_temp.fastr_map_id(e ->> 'indicatorRawId'))
-          WHEN e ? 'indicatorCommonId' AND NOT (e ? 'indicatorId')
+                 || jsonb_build_object('dataId', e -> 'indicatorRawId')
+          WHEN e ? 'indicatorCommonId'
             THEN (e - 'indicatorCommonId')
-                 || jsonb_build_object('indicatorId', e -> 'indicatorCommonId')
+                 || jsonb_build_object('dataId', e -> 'indicatorCommonId')
           ELSE e
         END
         ORDER BY ord)
@@ -184,8 +199,7 @@ LANGUAGE sql STABLE AS $f$
 $f$;
 
 -- A CSV staging result: its period stats and the unmappedIndicators
--- diagnostics block, which becomes unknownIndicators with indicator_id
--- samples.
+-- diagnostics block, which becomes unknownIndicators with data_id samples.
 CREATE FUNCTION pg_temp.fastr_rewrite_csv_staging(p jsonb) RETURNS jsonb
 LANGUAGE sql STABLE AS $f$
   SELECT CASE
@@ -203,7 +217,7 @@ LANGUAGE sql STABLE AS $f$
               COALESCE((
                 SELECT jsonb_agg(
                   CASE WHEN s ? 'indicator_raw_id'
-                    THEN (s - 'indicator_raw_id') || jsonb_build_object('indicator_id', pg_temp.fastr_map_id(s ->> 'indicator_raw_id'))
+                    THEN (s - 'indicator_raw_id') || jsonb_build_object('data_id', s -> 'indicator_raw_id')
                     ELSE s
                   END
                   ORDER BY ord)
@@ -223,6 +237,7 @@ LANGUAGE sql STABLE AS $f$
     || CASE WHEN p ? 'failedFetches' THEN jsonb_build_object('failedFetches', pg_temp.fastr_rename_pairs(p -> 'failedFetches')) ELSE '{}'::jsonb END
     || CASE WHEN p ? 'periodIndicatorStats' THEN jsonb_build_object('periodIndicatorStats', pg_temp.fastr_rename_period_stats(p -> 'periodIndicatorStats')) ELSE '{}'::jsonb END
     || CASE WHEN p ? 'succeededWorkItems' THEN jsonb_build_object('succeededWorkItems', pg_temp.fastr_rename_pairs(p -> 'succeededWorkItems')) ELSE '{}'::jsonb END
+    || CASE WHEN p ? 'workItemHistory' THEN jsonb_build_object('workItemHistory', pg_temp.fastr_rename_pairs(p -> 'workItemHistory')) ELSE '{}'::jsonb END
     || CASE WHEN p ? 'pairFetchStats' THEN jsonb_build_object('pairFetchStats', pg_temp.fastr_rename_pair_stats(p -> 'pairFetchStats')) ELSE '{}'::jsonb END
 $f$;
 
@@ -266,7 +281,7 @@ BEGIN
 END $f$;
 
 -- A windowed-delete staging result: the windowing it recorded moves to
--- indicator ids (ruling 9).
+-- indicator ids (PLAN_A4 ruling 9).
 CREATE FUNCTION pg_temp.fastr_rewrite_deletion_staging(p jsonb) RETURNS jsonb
 LANGUAGE plpgsql STABLE AS $f$
 DECLARE
@@ -287,35 +302,74 @@ BEGIN
   RETURN jsonb_set(p, '{windowing}', v_w);
 END $f$;
 
--- ── 1. The three columns, the widened CHECK, is_default gone ────────────────
+-- ── 1. The columns and the junction; the old CHECKs go until the rows fit ───
 
-ALTER TABLE indicators ADD COLUMN IF NOT EXISTS dhis2_id text UNIQUE;
-ALTER TABLE indicators ADD COLUMN IF NOT EXISTS members text;
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'indicators' AND column_name = 'dhis2_id'
+  ) THEN
+    ALTER TABLE indicators RENAME COLUMN dhis2_id TO data_id;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'indicators_dhis2_id_key') THEN
+    ALTER TABLE indicators RENAME CONSTRAINT indicators_dhis2_id_key TO indicators_data_id_key;
+  END IF;
+END $$;
+
+ALTER TABLE indicators ADD COLUMN IF NOT EXISTS data_id text;
 ALTER TABLE indicators ADD COLUMN IF NOT EXISTS include_in_analysis boolean NOT NULL DEFAULT TRUE;
 ALTER TABLE indicators DROP COLUMN IF EXISTS is_default;
+ALTER TABLE indicators ALTER COLUMN definition_type DROP DEFAULT;
 
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'indicators_data_id_key') THEN
+    ALTER TABLE indicators ADD CONSTRAINT indicators_data_id_key UNIQUE (data_id);
+  END IF;
+END $$;
+
+ALTER TABLE indicators ADD COLUMN IF NOT EXISTS has_rows boolean
+  GENERATED ALWAYS AS (definition_type IN ('uploaded', 'dhis2_element')) STORED;
+ALTER TABLE indicators ADD COLUMN IF NOT EXISTS is_count boolean
+  GENERATED ALWAYS AS (definition_type IN ('uploaded', 'dhis2_element', 'sum')) STORED;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'indicators_common_id_has_rows_key') THEN
+    ALTER TABLE indicators ADD CONSTRAINT indicators_common_id_has_rows_key UNIQUE (indicator_common_id, has_rows);
+  END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS indicator_sum_members (
+  sum_id text NOT NULL
+    CONSTRAINT indicator_sum_members_sum_id_fkey
+    REFERENCES indicators(indicator_common_id) ON DELETE CASCADE ON UPDATE CASCADE,
+  member_id text NOT NULL,
+  member_has_rows boolean NOT NULL DEFAULT TRUE
+    CONSTRAINT indicator_sum_members_member_has_rows_check CHECK (member_has_rows),
+  CONSTRAINT indicator_sum_members_pkey PRIMARY KEY (sum_id, member_id),
+  CONSTRAINT indicator_sum_members_member_fkey
+    FOREIGN KEY (member_id, member_has_rows)
+    REFERENCES indicators(indicator_common_id, has_rows)
+    ON UPDATE CASCADE
+);
+
+-- The pre-086 CHECKs know only base and derived; they go now and the four
+-- types' CHECKs are added in step 3, after every row satisfies them.
+ALTER TABLE indicators DROP CONSTRAINT IF EXISTS indicators_definition_fields_check;
 DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint
     WHERE conname = 'indicators_definition_type_check'
-      AND pg_get_constraintdef(oid) LIKE '%''sum''%'
+      AND pg_get_constraintdef(oid) LIKE '%''uploaded''%'
   ) THEN
     ALTER TABLE indicators DROP CONSTRAINT IF EXISTS indicators_definition_type_check;
-    ALTER TABLE indicators DROP CONSTRAINT IF EXISTS indicators_definition_fields_check;
-    ALTER TABLE indicators ADD CONSTRAINT indicators_definition_type_check
-      CHECK (definition_type IN ('base', 'sum', 'derived'));
-    ALTER TABLE indicators ADD CONSTRAINT indicators_definition_fields_check CHECK (
-      (definition_type = 'base' AND expression IS NULL AND members IS NULL)
-      OR
-      (definition_type = 'sum' AND members IS NOT NULL AND expression IS NULL AND dhis2_id IS NULL)
-      OR
-      (definition_type = 'derived' AND expression IS NOT NULL AND members IS NULL AND dhis2_id IS NULL)
-    );
   END IF;
 END $$;
 
--- ── 2. The data move ────────────────────────────────────────────────────────
+-- ── 2. The dictionary move (no data row touched) ────────────────────────────
 
 DO $$
 DECLARE
@@ -350,43 +404,31 @@ BEGIN
     RETURN;
   END IF;
 
-  -- The old FKs to indicators_raw go first: the repoint below writes ids
-  -- that table never held. The base schema never named them, so they are
-  -- found through what they reference.
-  FOR r IN
-    SELECT c.conname, c.conrelid::regclass AS tbl
-    FROM pg_constraint c
-    WHERE c.contype = 'f'
-      AND c.confrelid = 'public.indicators_raw'::regclass
-      AND c.conrelid IN ('public.dataset_hmis'::regclass, 'public.dataset_hmis_import_ledger'::regclass)
-  LOOP
-    EXECUTE format('ALTER TABLE %s DROP CONSTRAINT %I', r.tbl, r.conname);
-  END LOOP;
-
   SELECT COALESCE(array_agg(indicator_common_id), ARRAY[]::text[]) INTO v_taken FROM indicators;
 
-  -- Fold: a raw mapped to exactly one base common, which has no other
-  -- mapping, and whose id is DHIS2-shaped. The common becomes a DHIS2
-  -- element under its own id.
+  -- Fold: a raw mapped to exactly one non-derived common, which has no
+  -- other mapping. The common takes the raw id as its data id under its own
+  -- indicator id.
   FOR r IN
     SELECT im.indicator_raw_id, im.indicator_common_id, ir.indicator_raw_label
     FROM indicator_mappings im
     JOIN indicators_raw ir ON ir.indicator_raw_id = im.indicator_raw_id
     JOIN indicators i ON i.indicator_common_id = im.indicator_common_id
-    WHERE i.definition_type = 'base'
-      AND ir.indicator_raw_id ~ v_dhis2_shape
+    WHERE i.definition_type <> 'derived'
       AND (SELECT COUNT(*) FROM indicator_mappings x WHERE x.indicator_raw_id = im.indicator_raw_id) = 1
       AND (SELECT COUNT(*) FROM indicator_mappings x WHERE x.indicator_common_id = im.indicator_common_id) = 1
     ORDER BY im.indicator_raw_id
   LOOP
     UPDATE indicators
-    SET dhis2_id = r.indicator_raw_id, updated_at = CURRENT_TIMESTAMP
+    SET data_id = r.indicator_raw_id,
+        definition_type = CASE WHEN r.indicator_raw_id ~ v_dhis2_shape THEN 'dhis2_element' ELSE 'uploaded' END,
+        updated_at = CURRENT_TIMESTAMP
     WHERE indicator_common_id = r.indicator_common_id;
     INSERT INTO fastr_raw_to_indicator (raw_id, indicator_id, raw_label, folded)
     VALUES (r.indicator_raw_id, r.indicator_common_id, r.indicator_raw_label, true);
   END LOOP;
 
-  -- Every other raw becomes a base of its own, checkbox off.
+  -- Every other raw becomes an indicator of its own, checkbox off.
   FOR r IN
     SELECT ir.indicator_raw_id, ir.indicator_raw_label
     FROM indicators_raw ir
@@ -408,38 +450,43 @@ BEGIN
     v_taken := v_taken || v_new_id;
     INSERT INTO indicators (
       indicator_common_id, indicator_common_label, definition_type, expression,
-      dhis2_id, members, include_in_analysis,
+      data_id, include_in_analysis,
       format_as, thresholds, sort_order, updated_at
     )
-    SELECT v_new_id, r.indicator_raw_label, 'base', NULL,
-           CASE WHEN r.indicator_raw_id ~ v_dhis2_shape THEN r.indicator_raw_id END, NULL, FALSE,
+    SELECT v_new_id, r.indicator_raw_label,
+           CASE WHEN r.indicator_raw_id ~ v_dhis2_shape THEN 'dhis2_element' ELSE 'uploaded' END,
+           NULL, r.indicator_raw_id, FALSE,
            'number', NULL, COALESCE(MAX(sort_order), 0) + 1, CURRENT_TIMESTAMP
     FROM indicators;
     INSERT INTO fastr_raw_to_indicator (raw_id, indicator_id, raw_label, folded)
     VALUES (r.indicator_raw_id, v_new_id, r.indicator_raw_label, false);
   END LOOP;
 
-  -- A base common whose raws did not fold becomes a sum over the bases they
-  -- became. (A folded common carries a dhis2_id and is excluded; a mapping
-  -- onto a derived contributed nothing to the old extract and is dropped
-  -- with the table, its raw now a base of its own.)
+  -- A non-derived common whose raws did not fold becomes a sum over the
+  -- indicators they became. (A folded common carries a data id and is
+  -- excluded; a mapping onto a derived contributed nothing to the old
+  -- extract and is dropped with the table, its raw now an indicator of its
+  -- own.)
   FOR r IN
-    SELECT i.indicator_common_id,
-           jsonb_agg(DISTINCT m.indicator_id) AS members
+    SELECT i.indicator_common_id
     FROM indicators i
-    JOIN indicator_mappings im ON im.indicator_common_id = i.indicator_common_id
-    JOIN fastr_raw_to_indicator m ON m.raw_id = im.indicator_raw_id
-    WHERE i.definition_type = 'base' AND i.dhis2_id IS NULL
-    GROUP BY i.indicator_common_id
+    WHERE i.definition_type = 'base' AND i.data_id IS NULL
+      AND EXISTS (SELECT 1 FROM indicator_mappings im WHERE im.indicator_common_id = i.indicator_common_id)
+    ORDER BY i.indicator_common_id
   LOOP
     UPDATE indicators
-    SET definition_type = 'sum', members = r.members::text, updated_at = CURRENT_TIMESTAMP
+    SET definition_type = 'sum', updated_at = CURRENT_TIMESTAMP
     WHERE indicator_common_id = r.indicator_common_id;
+    INSERT INTO indicator_sum_members (sum_id, member_id)
+    SELECT DISTINCT r.indicator_common_id, m.indicator_id
+    FROM indicator_mappings im
+    JOIN fastr_raw_to_indicator m ON m.raw_id = im.indicator_raw_id
+    WHERE im.indicator_common_id = r.indicator_common_id;
   END LOOP;
 
   -- A derived row under a special id: renamed to the suffix form, every
-  -- expression naming it rewritten, and an empty base inserted under the
-  -- special id, so no special is ever derived.
+  -- expression naming it rewritten, and an Uploaded indicator with no data
+  -- id inserted under the special id, so no special is ever derived.
   FOR r IN
     SELECT indicator_common_id, indicator_common_label
     FROM indicators
@@ -465,83 +512,161 @@ BEGIN
       AND expression <> pg_temp.fastr_rename_identifier(expression, r.indicator_common_id, v_new_id);
     INSERT INTO indicators (
       indicator_common_id, indicator_common_label, definition_type, expression,
-      dhis2_id, members, include_in_analysis,
+      data_id, include_in_analysis,
       format_as, thresholds, sort_order, updated_at
     )
-    SELECT r.indicator_common_id, r.indicator_common_label, 'base', NULL,
-           NULL, NULL, TRUE,
+    SELECT r.indicator_common_id, r.indicator_common_label, 'uploaded', NULL,
+           NULL, TRUE,
            'number', NULL, COALESCE(MAX(sort_order), 0) + 1, CURRENT_TIMESTAMP
     FROM indicators;
-    RAISE NOTICE '[086] derived special % renamed %, empty base % inserted', r.indicator_common_id, v_new_id, r.indicator_common_id;
+    RAISE NOTICE '[086] derived special % renamed %, Uploaded % with no data id inserted', r.indicator_common_id, v_new_id, r.indicator_common_id;
   END LOOP;
-
-  -- Data and ledger rows move to the indicator their raw became.
-  UPDATE dataset_hmis d
-  SET indicator_raw_id = m.indicator_id
-  FROM fastr_raw_to_indicator m
-  WHERE d.indicator_raw_id = m.raw_id AND m.indicator_id <> m.raw_id;
-
-  UPDATE dataset_hmis_import_ledger l
-  SET indicator_raw_id = m.indicator_id
-  FROM fastr_raw_to_indicator m
-  WHERE l.indicator_raw_id = m.raw_id AND m.indicator_id <> m.raw_id;
 END $$;
 
--- ── 3. Column renames (O(1): the primary key and the indexes follow) ────────
+-- Every row still typed `base` (a common with no mapping) is Uploaded with
+-- no data id. Guarded on the old type, so a second run matches nothing.
+UPDATE indicators
+SET definition_type = CASE WHEN data_id ~ '^[a-zA-Z][a-zA-Z0-9]{10}(\.[a-zA-Z][a-zA-Z0-9]{10})?$' THEN 'dhis2_element' ELSE 'uploaded' END
+WHERE definition_type = 'base';
+
+-- ── 3. The four types' CHECKs, once every row satisfies them ────────────────
 
 DO $$
 BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'indicators_definition_type_check') THEN
+    ALTER TABLE indicators ADD CONSTRAINT indicators_definition_type_check
+      CHECK (definition_type IN ('uploaded', 'dhis2_element', 'sum', 'derived'));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'indicators_fields_check') THEN
+    ALTER TABLE indicators ADD CONSTRAINT indicators_fields_check CHECK (
+      (definition_type = 'uploaded'      AND expression IS NULL) OR
+      (definition_type = 'dhis2_element' AND expression IS NULL AND data_id IS NOT NULL) OR
+      (definition_type = 'sum'           AND expression IS NULL AND data_id IS NULL) OR
+      (definition_type = 'derived'       AND expression IS NOT NULL AND data_id IS NULL)
+    );
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'indicators_element_shape_check') THEN
+    ALTER TABLE indicators ADD CONSTRAINT indicators_element_shape_check CHECK (
+      definition_type <> 'dhis2_element'
+      OR data_id ~ '^[a-zA-Z][a-zA-Z0-9]{10}(\.[a-zA-Z][a-zA-Z0-9]{10})?$'
+    );
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'indicators_count_format_check') THEN
+    ALTER TABLE indicators ADD CONSTRAINT indicators_count_format_check
+      CHECK (NOT is_count OR format_as = 'number');
+  END IF;
+END $$;
+
+-- ── 4. The data and ledger key: a column rename, no row touched ─────────────
+
+DO $$
+DECLARE
+  r RECORD;
+BEGIN
+  -- The old FKs to indicators_raw go first; the base schema never named
+  -- them, so they are found through what they reference.
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'indicators_raw'
+  ) THEN
+    FOR r IN
+      SELECT c.conname, c.conrelid::regclass AS tbl
+      FROM pg_constraint c
+      WHERE c.contype = 'f'
+        AND c.confrelid = 'public.indicators_raw'::regclass
+        AND c.conrelid IN ('public.dataset_hmis'::regclass, 'public.dataset_hmis_import_ledger'::regclass)
+    LOOP
+      EXECUTE format('ALTER TABLE %s DROP CONSTRAINT %I', r.tbl, r.conname);
+    END LOOP;
+  END IF;
+
   IF EXISTS (
     SELECT 1 FROM information_schema.columns
     WHERE table_schema = 'public' AND table_name = 'dataset_hmis' AND column_name = 'indicator_raw_id'
-  ) AND NOT EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_schema = 'public' AND table_name = 'dataset_hmis' AND column_name = 'indicator_id'
   ) THEN
-    ALTER TABLE dataset_hmis RENAME COLUMN indicator_raw_id TO indicator_id;
+    ALTER TABLE dataset_hmis RENAME COLUMN indicator_raw_id TO data_id;
   END IF;
-
   IF EXISTS (
     SELECT 1 FROM information_schema.columns
     WHERE table_schema = 'public' AND table_name = 'dataset_hmis_import_ledger' AND column_name = 'indicator_raw_id'
-  ) AND NOT EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_schema = 'public' AND table_name = 'dataset_hmis_import_ledger' AND column_name = 'indicator_id'
   ) THEN
-    ALTER TABLE dataset_hmis_import_ledger RENAME COLUMN indicator_raw_id TO indicator_id;
+    ALTER TABLE dataset_hmis_import_ledger RENAME COLUMN indicator_raw_id TO data_id;
+  END IF;
+
+  -- The indexes keep their definition and take the column's name.
+  ALTER INDEX IF EXISTS idx_dataset_hmis_indicator_period RENAME TO idx_dataset_hmis_data_id_period;
+  ALTER INDEX IF EXISTS idx_dataset_hmis_period_indicator RENAME TO idx_dataset_hmis_period_data_id;
+  ALTER INDEX IF EXISTS idx_dataset_hmis_indicator_id RENAME TO idx_dataset_hmis_data_id;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'dataset_hmis_data_id_fkey') THEN
+    ALTER TABLE dataset_hmis
+      ADD CONSTRAINT dataset_hmis_data_id_fkey
+      FOREIGN KEY (data_id) REFERENCES indicators(data_id) ON DELETE RESTRICT DEFERRABLE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'dataset_hmis_import_ledger_data_id_fkey') THEN
+    ALTER TABLE dataset_hmis_import_ledger
+      ADD CONSTRAINT dataset_hmis_import_ledger_data_id_fkey
+      FOREIGN KEY (data_id) REFERENCES indicators(data_id) ON DELETE CASCADE;
   END IF;
 END $$;
 
--- ── 4. Foreign keys under their _main_database.sql names ────────────────────
+-- ── 5. The import route: `source` becomes `route` on the run and ledger ─────
+-- tables, with their CHECKs, and the staging result's `sourceType` becomes
+-- `kind` (PLAN_A4 ruling 13). Every step is guarded.
 
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'dataset_hmis_indicator_id_fkey') THEN
-    ALTER TABLE dataset_hmis
-      ADD CONSTRAINT dataset_hmis_indicator_id_fkey
-      FOREIGN KEY (indicator_id) REFERENCES indicators(indicator_common_id) ON DELETE RESTRICT DEFERRABLE;
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'dataset_hmis_import_runs' AND column_name = 'source'
+  ) THEN
+    ALTER TABLE dataset_hmis_import_runs RENAME COLUMN source TO route;
   END IF;
-
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'dataset_hmis_import_ledger_indicator_id_fkey') THEN
+  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'dataset_hmis_import_runs_source_check') THEN
+    ALTER TABLE dataset_hmis_import_runs
+      RENAME CONSTRAINT dataset_hmis_import_runs_source_check TO dataset_hmis_import_runs_route_check;
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'dataset_hmis_import_ledger' AND column_name = 'source'
+  ) THEN
+    ALTER TABLE dataset_hmis_import_ledger RENAME COLUMN source TO route;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'dataset_hmis_import_ledger_source_check') THEN
     ALTER TABLE dataset_hmis_import_ledger
-      ADD CONSTRAINT dataset_hmis_import_ledger_indicator_id_fkey
-      FOREIGN KEY (indicator_id) REFERENCES indicators(indicator_common_id) ON DELETE CASCADE;
+      RENAME CONSTRAINT dataset_hmis_import_ledger_source_check TO dataset_hmis_import_ledger_route_check;
   END IF;
 END $$;
 
--- ── 5. Stored JSON (rulings 5 and 9) ────────────────────────────────────────
+UPDATE dataset_hmis_versions
+SET staging_result = (
+  (staging_result::jsonb - 'sourceType')
+  || jsonb_build_object('kind', staging_result::jsonb -> 'sourceType')
+)::text
+WHERE staging_result IS NOT NULL
+  AND jsonb_typeof(staging_result::jsonb) = 'object'
+  AND staging_result::jsonb ? 'sourceType';
+
+UPDATE dataset_hmis_import_runs
+SET run_stats = jsonb_set(run_stats::jsonb, '{csvStagingResult}',
+  ((run_stats::jsonb -> 'csvStagingResult') - 'sourceType')
+  || jsonb_build_object('kind', run_stats::jsonb -> 'csvStagingResult' -> 'sourceType'))::text
+WHERE run_stats IS NOT NULL
+  AND jsonb_typeof(run_stats::jsonb) = 'object'
+  AND jsonb_typeof(run_stats::jsonb -> 'csvStagingResult') = 'object'
+  AND run_stats::jsonb -> 'csvStagingResult' ? 'sourceType';
+
+-- ── 6. Stored JSON (rulings 8 and 9) ────────────────────────────────────────
 
 -- Run selections: a window selected raw ids; those are now the indicators
--- they became, with the fetched elements persisted beside them.
+-- they became, with the data ids the run fetched persisted beside them.
 UPDATE dataset_hmis_import_runs
 SET selection = (
   (selection::jsonb - 'rawIndicatorIds')
   || jsonb_build_object(
+       'kind', 'window',
        'indicatorIds', pg_temp.fastr_map_id_list(selection::jsonb -> 'rawIndicatorIds'),
-       'elements', COALESCE((
-         SELECT jsonb_agg(jsonb_build_object('indicatorId', pg_temp.fastr_map_id(r.id), 'dhis2Id', r.id) ORDER BY r.ord)
-         FROM jsonb_array_elements_text(selection::jsonb -> 'rawIndicatorIds') WITH ORDINALITY AS r(id, ord)
-       ), '[]'::jsonb),
+       'dataIds', COALESCE(selection::jsonb -> 'rawIndicatorIds', '[]'::jsonb),
        'populationTermsDropped', '[]'::jsonb,
        'uploadedIndicatorsDropped', '[]'::jsonb)
 )::text
@@ -576,25 +701,39 @@ SET run_stats = jsonb_set(run_stats::jsonb, '{csvStagingResult}',
   pg_temp.fastr_rewrite_csv_staging(run_stats::jsonb -> 'csvStagingResult'))::text
 WHERE run_stats IS NOT NULL AND run_stats::jsonb ? 'csvStagingResult';
 
--- CSV configs: the mapping key.
+-- CSV configs: `mappings` becomes `columns`, and the file's indicator
+-- column is `data_id`, since the file's values are data ids.
 UPDATE dataset_hmis_import_runs
-SET csv_config = jsonb_set(csv_config::jsonb, '{mappings}',
-  ((csv_config::jsonb -> 'mappings') - 'raw_indicator_id')
-  || jsonb_build_object('indicator_id', csv_config::jsonb -> 'mappings' -> 'raw_indicator_id'))::text
-WHERE csv_config IS NOT NULL AND csv_config::jsonb -> 'mappings' ? 'raw_indicator_id';
+SET csv_config = (
+  (csv_config::jsonb - 'mappings')
+  || jsonb_build_object('columns', csv_config::jsonb -> 'mappings')
+)::text
+WHERE csv_config IS NOT NULL
+  AND jsonb_typeof(csv_config::jsonb) = 'object'
+  AND csv_config::jsonb ? 'mappings';
 
--- Version rows: by the staging result's source type.
+UPDATE dataset_hmis_import_runs
+SET csv_config = jsonb_set(csv_config::jsonb, '{columns}',
+  ((csv_config::jsonb -> 'columns') - 'raw_indicator_id' - 'indicator_id')
+  || jsonb_build_object('data_id', COALESCE(
+       csv_config::jsonb -> 'columns' -> 'raw_indicator_id',
+       csv_config::jsonb -> 'columns' -> 'indicator_id')))::text
+WHERE csv_config IS NOT NULL
+  AND jsonb_typeof(csv_config::jsonb -> 'columns') = 'object'
+  AND (csv_config::jsonb -> 'columns' ? 'raw_indicator_id' OR csv_config::jsonb -> 'columns' ? 'indicator_id');
+
+-- Version rows: by the staging result's kind.
 UPDATE dataset_hmis_versions
 SET staging_result = pg_temp.fastr_rewrite_dhis2_staging(staging_result::jsonb)::text
-WHERE staging_result IS NOT NULL AND staging_result::jsonb ->> 'sourceType' = 'dhis2';
+WHERE staging_result IS NOT NULL AND staging_result::jsonb ->> 'kind' = 'dhis2';
 
 UPDATE dataset_hmis_versions
 SET staging_result = pg_temp.fastr_rewrite_csv_staging(staging_result::jsonb)::text
-WHERE staging_result IS NOT NULL AND staging_result::jsonb ->> 'sourceType' = 'csv';
+WHERE staging_result IS NOT NULL AND staging_result::jsonb ->> 'kind' = 'csv';
 
 UPDATE dataset_hmis_versions
 SET staging_result = pg_temp.fastr_rewrite_deletion_staging(staging_result::jsonb)::text
-WHERE staging_result IS NOT NULL AND staging_result::jsonb ->> 'sourceType' = 'deletion';
+WHERE staging_result IS NOT NULL AND staging_result::jsonb ->> 'kind' = 'deletion';
 
 -- Schedules: the raw ids become the ids of the indicators they became.
 UPDATE dataset_hmis_scheduled_imports
@@ -604,7 +743,7 @@ SET selection = (
 )::text
 WHERE selection IS NOT NULL AND selection::jsonb ? 'rawIndicatorIds';
 
--- ── 6. The id table, for the team that owned these elements ─────────────────
+-- ── 7. The id table, for the team that owned these elements ─────────────────
 -- The app's migration runner suppresses notices; ./validate_indicator_migration
 -- prints them.
 
@@ -613,12 +752,12 @@ DECLARE
   r RECORD;
 BEGIN
   FOR r IN SELECT raw_id, raw_label, indicator_id, folded FROM fastr_raw_to_indicator ORDER BY raw_id LOOP
-    RAISE NOTICE '[086] % (%) -> % %', r.raw_id, r.raw_label, r.indicator_id,
-      CASE WHEN r.folded THEN 'folded into the existing indicator' ELSE 'new base' END;
+    RAISE NOTICE '[086] % (%) -> data id of % %', r.raw_id, r.raw_label, r.indicator_id,
+      CASE WHEN r.folded THEN 'folded into the existing indicator' ELSE 'new indicator' END;
   END LOOP;
 END $$;
 
--- ── 7. The old tables ───────────────────────────────────────────────────────
+-- ── 8. The old tables ───────────────────────────────────────────────────────
 
 DROP TABLE IF EXISTS indicator_mappings;
 DROP TABLE IF EXISTS indicators_raw;

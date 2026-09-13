@@ -82,7 +82,7 @@ export function Dhis2RunDetail(
 
   const failedPairColumns: TableColumn<Dhis2PairFetchStat & { key: string }>[] = [
     {
-      key: "indicatorId",
+      key: "dataId",
       header: t3({ en: "Indicator ID", fr: "ID de l'indicateur", pt: "ID do indicador" }),
       sortable: true,
     },
@@ -90,8 +90,8 @@ export function Dhis2RunDetail(
       key: "indicatorLabel",
       header: t3({ en: "Indicator", fr: "Indicateur", pt: "Indicador" }),
       sortable: true,
-      sortValue: (s) => indicatorLabels().get(s.indicatorId) ?? "",
-      render: (s) => indicatorLabels().get(s.indicatorId) ?? "",
+      sortValue: (s) => indicatorLabels().get(s.dataId) ?? "",
+      render: (s) => indicatorLabels().get(s.dataId) ?? "",
     },
     {
       key: "periodId",
@@ -239,16 +239,16 @@ export function Dhis2RunDetail(
               keyedDetail.runStats?.classification.dhis2IndicatorIds ?? [];
             const failedPairStats = (keyedDetail.runStats?.pairFetchStats ?? [])
               .filter((s) => !s.success)
-              .map((s) => ({ ...s, key: `${s.indicatorId}|${s.periodId}` }));
+              .map((s) => ({ ...s, key: `${s.dataId}|${s.periodId}` }));
             const skippedPairStats = (keyedDetail.runStats?.pairFetchStats ?? [])
               .filter((s) => s.skippedValues > 0)
-              .map((s) => ({ ...s, key: `${s.indicatorId}|${s.periodId}` }));
+              .map((s) => ({ ...s, key: `${s.dataId}|${s.periodId}` }));
             const totalSkippedValues = skippedPairStats.reduce(
               (sum, s) => sum + s.skippedValues,
               0,
             );
             const retryPairs: Dhis2RunPairInput[] = failedPairStats.map((s) => ({
-              indicatorId: s.indicatorId,
+              dataId: s.dataId,
               periodId: s.periodId,
             }));
             const dropped = windowSelection();

@@ -389,17 +389,17 @@ VALUES
 `;
 }
 
-// A new database only: each special indicator as an empty base, labelled in
-// the instance language. An existing instance gets nothing on boot, and
-// nothing marks the seeded rows after: a team deletes a special like any
-// base.
+// A new database only: each special indicator as an Uploaded indicator with
+// no data id, labelled in the instance language. An existing instance gets
+// nothing on boot, and nothing marks the seeded rows after: a team deletes
+// a special like any indicator.
 function getSpecialIndicatorsInsertStatement(): string {
   const valueRows = SPECIAL_INDICATORS.map((ind) => {
-    return `('${ind.id}', '${escapeSqlString(t3(ind.label))}')`;
+    return `('${ind.id}', '${escapeSqlString(t3(ind.label))}', 'uploaded')`;
   });
 
   return `
-INSERT INTO indicators (indicator_common_id, indicator_common_label)
+INSERT INTO indicators (indicator_common_id, indicator_common_label, definition_type)
 VALUES
   ${valueRows.join(",\n  ")}
 ON CONFLICT (indicator_common_id) DO NOTHING;

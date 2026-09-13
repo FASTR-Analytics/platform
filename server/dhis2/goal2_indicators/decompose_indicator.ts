@@ -224,14 +224,14 @@ function tokenize(source: string): TokenizeResult {
 function parseOperand(inner: string): Dhis2ParsedOperand | undefined {
   const parts = inner.split(".");
   if (parts.length === 1 && UID_PATTERN.test(parts[0])) {
-    return { dhis2_id: parts[0], data_element_id: parts[0] };
+    return { data_id: parts[0], data_element_id: parts[0] };
   }
   if (
     parts.length === 2 && UID_PATTERN.test(parts[0]) &&
     UID_PATTERN.test(parts[1])
   ) {
     return {
-      dhis2_id: inner,
+      data_id: inner,
       data_element_id: parts[0],
       category_option_combo_id: parts[1],
     };
@@ -299,7 +299,7 @@ function parseTokens(tokens: Token[]): ParseResult {
       pos++;
       return {
         ok: true,
-        node: { kind: "identifier", name: token.operand.dhis2_id },
+        node: { kind: "identifier", name: token.operand.data_id },
       };
     }
     if (isPunct(token, "-")) {
@@ -328,8 +328,8 @@ function parseTokens(tokens: Token[]): ParseResult {
 function dedupeOperands(operands: Dhis2ParsedOperand[]): Dhis2ParsedOperand[] {
   const seen = new Set<string>();
   return operands.filter((o) => {
-    if (seen.has(o.dhis2_id)) return false;
-    seen.add(o.dhis2_id);
+    if (seen.has(o.data_id)) return false;
+    seen.add(o.data_id);
     return true;
   });
 }

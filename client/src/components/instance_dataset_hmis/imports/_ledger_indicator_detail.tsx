@@ -46,7 +46,7 @@ export function ImportLedgerIndicatorDetail(
 
   function reimportIndicator() {
     const pairs: Dhis2RunPairInput[] = enumerateMonthsDescending(p.window).map(
-      (periodId) => ({ indicatorId: p.indicatorId, periodId }),
+      (periodId) => ({ dataId: p.indicatorId, periodId }),
     );
     p.close(pairs);
   }

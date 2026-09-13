@@ -20,7 +20,7 @@ export function CsvStagingSummary(p: Props) {
     new Set(p.result.periodIndicatorStats.map((s) => s.periodId)).size;
 
   const uniqueIndicators = () =>
-    new Set(p.result.periodIndicatorStats.map((s) => s.indicatorId)).size;
+    new Set(p.result.periodIndicatorStats.map((s) => s.dataId)).size;
 
   return (
     <div class="ui-spy">
@@ -155,7 +155,7 @@ export function CsvStagingSummary(p: Props) {
                         .unknownIndicators.sample.slice(0, 5)
                         .map(
                           (unknown) =>
-                            `${unknown.indicator_id} (${toNum0(unknown.row_count)} ${t3({ en: "rows", fr: "lignes", pt: "linhas" })})`,
+                            `${unknown.data_id} (${toNum0(unknown.row_count)} ${t3({ en: "rows", fr: "lignes", pt: "linhas" })})`,
                         )
                         .join(", ")}
                     </div>

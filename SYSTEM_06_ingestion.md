@@ -37,6 +37,7 @@ globs:
   - server/routes/instance/dhis2_credentials.ts
   - server/routes/instance/iceh.ts
   - server/server_only_funcs_csvs/**
+  - server/tests/csv_staging_resolution_test.ts
   - server/tests/dhis2_skip_and_record_test.ts
   - server/tests/indicator_selection_expansion_test.ts
   - server/worker_routines/import_hfa_data_csv/**
@@ -139,29 +140,31 @@ history). Shape:
   and the outcome write silently consumes that occurrence, and
   rolling-window "current month" resolves from the server clock, not the
   schedule's timezone (≤hours of skew, self-correcting).
-- **Import selects indicators; the elements it fetches are expanded where
-  pairs are enumerated** (PLAN_A4 ruling 5). A window or schedule selection
-  carries `indicatorIds`; `validateRunSelection` (shared by launch, enqueue
-  and the scheduler's fire path) expands them with
+- **Import selects indicators; the data ids it fetches are expanded where
+  pairs are enumerated** (PLAN_A4 ruling 5, PLAN_A5 ruling 9). A window or
+  schedule selection carries `indicatorIds`; `validateRunSelection` (shared
+  by launch, enqueue and the scheduler's fire path) expands them with
   `expandIndicatorSelection` (lib, S5): a sum expands to its members, a
-  derived flattens through the resolver to the bases and sums it reaches,
-  the bases with a `dhis2_id` become fetch targets `{ indicatorId, dhis2Id }`,
-  and population terms and uploaded bases (no `dhis2_id`) are dropped and
+  derived flattens through the resolver to the counts it reaches, the DHIS2
+  elements among them contribute their data ids, and population terms and
+  Uploaded indicators (whatever their data id's shape) are dropped and
   listed (`populationTermsDropped`, `uploadedIndicatorsDropped`, shown in
   the run detail). The expansion is persisted on the run row's `selection`
-  as `elements` and carried in the worker message, so the worker fetches
-  `dhis2Id` and writes rows under `indicatorId` without re-resolving: a
-  queued run reuses its enqueue-time `elements` (its `total_pairs` was
+  as `dataIds` and carried in the worker message, so the worker fetches
+  each data id and writes rows under that same key without re-resolving: a
+  queued run reuses its enqueue-time `dataIds` (its `total_pairs` was
   recorded then), so an element assigned after enqueue is not in that run.
-  A pairs selection (retry failed, re-import from the ledger) names
-  (indicator, month) pairs; `validateRunSelection` resolves each
-  indicator's `dhis2_id` and refuses an uploaded base. The ledger is keyed
-  by `indicator_id`. Pinned by
+  A pair is `{ dataId, periodId }` everywhere: the run's pairs, progress,
+  fetch stats and failed fetches, the version row's stats, and the ledger,
+  which is keyed by `data_id`; the client labels them through the
+  dictionary. A pairs selection (retry failed, re-import from the ledger)
+  names (data id, month) pairs; `validateRunSelection` checks each data id
+  belongs to a DHIS2 element and resolves nothing. Pinned by
   `server/tests/indicator_selection_expansion_test.ts`.
-- The worker classifies every element (`dhis2_id`) of the run from DHIS2
-  metadata (dispatcher, `dispatch.ts`) and has one fetch route: bare data
-  elements + operands → dataValueSets country-pulls (the values facilities
-  reported, no DHIS2-side formula), one per base element × month selected by
+- The worker classifies every data id of the run from DHIS2 metadata
+  (dispatcher, `dispatch.ts`) and has one fetch route: bare data elements
+  + operands → dataValueSets country-pulls (the values facilities reported,
+  no DHIS2-side formula), one per data element × month selected by
   `period=<instance period id>` (an opaque token the DHIS2 server interprets
   in its own calendar, the same contract as DHIS2's own analytics `pe:`, and
   the app never converts calendars/dates; a calendar-configured server does
@@ -169,8 +172,8 @@ history). Shape:
   size/timeout. Every other id gets no fetch and a permanent ledger error:
   a DHIS2 indicator (a formula; the error names the DHIS2 indicator import
   in the indicator configuration, which decomposes it into data elements,
-  and its existing data stays), or a `dhis2_id` that matches no data
-  element or operand at all. The run detail lists both sets
+  and its existing data stays), or a data id that matches no data element
+  or operand at all. The run detail lists both sets
   (`classification.unknownIds` and `dhis2IndicatorIds`). A response containing any period other than the
   requested one fails the pull loudly (permanent). The evidence base
   (verdicts E1–E13, incl. the calendar finding and the sizing fact that DVS
@@ -265,12 +268,20 @@ start.
 - Escaping is uniform: `''`-doubling only (HFA via the shared `escapeSqlString`
   in `server/db/utils.ts`, HMIS/structure inline).
 - Row-level validation counts and samples drops (on the run row); reference
-  validation (facility exists; the row's indicator id is a base indicator,
-  else `unknownIndicators`, whose `ids` is the full distinct set beside the
-  ten-row sample) runs at staging, and the facility check again at
-  integration (facilities can be deleted between phases; the facility FKs
-  are RESTRICT). The CSV wizard's Columns step names the indicator column
-  `indicator_id`; the per-run staging tables carry that column.
+  validation runs at staging, and the facility check again at integration
+  (facilities can be deleted between phases; the facility FKs are
+  RESTRICT). The file's indicator column is `data_id` in the wizard's
+  Columns step and in every staging table, and each distinct value is
+  resolved once (PLAN_A5 ruling 6): a value that is an indicator's data id
+  lands under it; otherwise a value that is the id of an indicator with
+  rows and a data id lands under that data id (a file that speaks the
+  indicator's name lands under its key); a value that is one indicator's
+  data id and another's id fails the run with both named (the shadow a
+  rename leaves: the old name stays the key); everything else, an Uploaded
+  indicator's own id with no data id included, is `unknownIndicators`
+  (`data_id` samples, and `ids` the full distinct set), which the hold's
+  naming step creates or adopts (S5). Pinned by
+  `server/tests/csv_staging_resolution_test.ts` on the real stage leg.
 - CSV parsing goes through `getCsvStreamComponents`
   (`get_csv_components_streaming_fast.ts`): streaming, 2 MB chunks,
   quote-parity-aware chunk boundaries (quoted fields with embedded newlines
@@ -423,12 +434,14 @@ callback re-parses the new bytes).
 - Destructive data deletes require typing "yes please delete" in all three
   families.
 - Display caches: HMIS items keyed
-  `versionId_baseIndicatorsVersion_structureLastUpdated`, with the
+  `versionId_countIndicatorsVersion_structureLastUpdated`, with the
   HMIS schema hash in the uniqueness keys; one view, by the indicators that
-  have rows (sums have no rows and do not appear; their totals are in
-  packages), read from the ledger; HFA/ICEH use server-provided cache
-  hashes from the T1 SSE store. The delete-data window selects indicators
-  (`indicatorsToInclude`, stored under that name in deletion version rows).
+  have rows (the ledger's data ids joined to the dictionary and shown under
+  `indicator_common_id`; sums have no rows and do not appear, their totals
+  are in packages); HFA/ICEH use server-provided cache hashes from the T1
+  SSE store. The delete-data window selects indicators
+  (`indicatorsToInclude`, stored under that name in deletion version rows);
+  the rows deleted are those under the selected indicators' data ids.
 
 ## Run capture seam
 

@@ -6,6 +6,7 @@ import {
   analysedIdsWithData,
   analysedIndicatorIds,
   APIResponseWithData,
+  hasRows,
   type HmisIndicator,
   HmisIndicatorCatalogError,
   type HmisIndicatorCatalogRow,
@@ -24,7 +25,7 @@ import {
 import { getCurrentDatasetHmisVersion } from "../instance/dataset_hmis.ts";
 import { assertNoRunningDatasetHmisImportRun } from "../instance/dataset_hmis_import_runs.ts";
 import {
-  getBaseIndicatorsVersion,
+  getCountIndicatorsVersion,
   getIndicatorsVersion,
 } from "../instance/instance.ts";
 import { escapeSqlString, tryCatchDatabaseAsync } from "./../utils.ts";
@@ -200,15 +201,14 @@ export async function computeDatasetHmisRunCapture(
       : undefined;
 
     const indicatorsVersion = await getIndicatorsVersion(mainDb);
-    const baseIndicatorsVersion =
-      await getBaseIndicatorsVersion(mainDb);
+    const countIndicatorsVersion = await getCountIndicatorsVersion(mainDb);
 
     const info: DatasetHmisInfoInProject = {
       version,
       totalRows,
       structureLastUpdated,
       indicatorsVersion,
-      baseIndicatorsVersion,
+      countIndicatorsVersion,
     };
 
     if (onProgress) await onProgress(0.5, "Exporting data to CSV...");
@@ -217,29 +217,29 @@ export async function computeDatasetHmisRunCapture(
 COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADER true, FREEZE false)
 `);
 
-    // The mirror carries the analysed set: every analysed base and sum, and
-    // every derived with its checkbox on, resolved: a derived indicator's
-    // own row is what makes the package standalone. The extract is the
-    // analysed bases and sums, so those with rows are exactly the
-    // ingredients any expression may draw on.
-    const idsWithRows = new Set(
+    // The mirror carries the analysed set: every analysed count, and every
+    // derived with its checkbox on, resolved: a derived indicator's own row
+    // is what makes the package standalone. The extract is the analysed
+    // counts, so those with rows (by data id, PLAN_A5 ruling 10) are
+    // exactly the ingredients any expression may draw on.
+    const dataIdsWithRows = new Set(
       (
-        await mainDb<{ indicator_id: string }[]>`
-          SELECT DISTINCT indicator_id FROM dataset_hmis
+        await mainDb<{ data_id: string }[]>`
+          SELECT DISTINCT data_id FROM dataset_hmis
         `
-      ).map((r) => r.indicator_id),
+      ).map((r) => r.data_id),
     );
-    const baseIdsInData = analysedIdsWithData(
+    const idsWithData = analysedIdsWithData(
       hmisIndicators,
       analysed,
-      idsWithRows,
+      dataIdsWithRows,
     );
 
     let indicators: HmisIndicatorCatalogRow[];
     try {
       indicators = resolveHmisIndicatorCatalog(
         hmisIndicators,
-        baseIdsInData,
+        idsWithData,
         POPULATION_TYPE_IDS,
       );
     } catch (e) {
@@ -271,10 +271,11 @@ COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADE
   });
 }
 
-// The extract (PLAN_A4 ruling 4): every analysed base from its own rows and
-// every analysed sum as SUM(count) over its members' rows per facility x
-// month, all under indicator_common_id. Everything else is a formula over
-// these, computed downstream.
+// The extract (PLAN_A4 ruling 4, PLAN_A5 ruling 10): every analysed
+// Uploaded or DHIS2 element from the rows under its data id, and every
+// analysed sum as SUM(count) over the rows under its members' data ids, per
+// facility x month, all emitted under indicator_common_id. Everything else
+// is a formula over these, computed downstream.
 function getDatasetHmisExportStatement(
   structureSchema: StructureSchema,
   indicators: HmisIndicator[],
@@ -293,44 +294,45 @@ function getDatasetHmisExportStatement(
     ids.length === 0
       ? "(SELECT NULL::text WHERE false)"
       : `(VALUES ${ids.map((id) => `('${escapeSqlString(id)}')`).join(", ")})`;
-  const analysedBases = indicators
-    .filter((c) => c.definition.type === "base" && analysed.has(c.indicator_common_id))
+  const analysedWithRows = indicators
+    .filter((c) => hasRows(c.definition.type) && analysed.has(c.indicator_common_id))
     .map((c) => c.indicator_common_id);
   const analysedSums = indicators
     .filter((c) => c.definition.type === "sum" && analysed.has(c.indicator_common_id))
     .map((c) => c.indicator_common_id);
 
   const statement = `
-WITH analysed_bases(indicator_common_id) AS (
-  ${sqlList(analysedBases)}
+WITH analysed_with_rows(indicator_common_id) AS (
+  ${sqlList(analysedWithRows)}
 ),
 analysed_sums(indicator_common_id) AS (
   ${sqlList(analysedSums)}
 ),
 aggregated AS (
-  -- Step 1a: every analysed base from its own rows.
+  -- Step 1a: every analysed Uploaded or DHIS2 element from the rows under
+  -- its data id.
   SELECT
     d.facility_id,
-    d.indicator_id AS indicator_common_id,
+    i.indicator_common_id,
     d.period_id,
     d.count::bigint AS count
-  FROM dataset_hmis d
-  INNER JOIN analysed_bases b ON b.indicator_common_id = d.indicator_id
+  FROM analysed_with_rows a
+  INNER JOIN indicators i ON i.indicator_common_id = a.indicator_common_id
+  INNER JOIN dataset_hmis d ON d.data_id = i.data_id
   UNION ALL
-  -- Step 1b: every analysed sum over its members' rows.
+  -- Step 1b: every analysed sum over the rows under its members' data ids.
   SELECT
     d.facility_id,
-    i.indicator_common_id,
+    m.sum_id AS indicator_common_id,
     d.period_id,
     SUM(d.count)::bigint AS count
-  FROM indicators i
-  INNER JOIN analysed_sums s ON s.indicator_common_id = i.indicator_common_id
-  CROSS JOIN LATERAL jsonb_array_elements_text(i.members::jsonb) AS m(member_id)
-  INNER JOIN dataset_hmis d ON d.indicator_id = m.member_id
-  WHERE i.definition_type = 'sum'
+  FROM analysed_sums s
+  INNER JOIN indicator_sum_members m ON m.sum_id = s.indicator_common_id
+  INNER JOIN indicators mi ON mi.indicator_common_id = m.member_id
+  INNER JOIN dataset_hmis d ON d.data_id = mi.data_id
   GROUP BY
     d.facility_id,
-    i.indicator_common_id,
+    m.sum_id,
     d.period_id
 )
 -- Step 2: Final output with facility and period details

@@ -64,7 +64,7 @@ const EMPTY_INSTANCE_STATE: InstanceState = {
   populationCoverage: [],
   populationLastUpdated: undefined,
   indicatorsVersion: "",
-  baseIndicatorsVersion: "",
+  countIndicatorsVersion: "",
   hfaIndicatorsVersion: "",
   currentUserEmail: "",
   currentUserApproved: false,
@@ -211,8 +211,8 @@ export function updateInstanceIndicators(
   setInstanceState("indicators", reconcile(data.indicators));
   setInstanceState("indicatorsVersion", data.indicatorsVersion);
   setInstanceState(
-    "baseIndicatorsVersion",
-    data.baseIndicatorsVersion,
+    "countIndicatorsVersion",
+    data.countIndicatorsVersion,
   );
   setInstanceState("hfaIndicatorsVersion", data.hfaIndicatorsVersion);
 }

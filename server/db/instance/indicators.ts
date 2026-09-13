@@ -4,28 +4,35 @@ import {
   APIResponseWithData,
   buildExpressionDictionary,
   collectIdentifiers,
-  type HmisIndicator,
-  type HmisIndicatorDefinition,
-  describeDhis2ParseRefusal,
+  definitionDataId,
   describeDhis2ElementRefusal,
+  describeDhis2ParseRefusal,
   describeNewIndicatorIdIssue,
-  type Dhis2IndicatorDecomposition,
   type Dhis2ElementVerdict,
+  type Dhis2IndicatorDecomposition,
   type ExpressionDictionaryEntry,
   getNewIndicatorIdIssue,
   getSpecialIndicatorTypeIssue,
+  hasRows,
+  type HmisIndicator,
+  type HmisIndicatorDefinition,
+  type HmisIndicatorType,
   INDICATOR_BATCH_FILE_COLUMNS,
   INDICATOR_BATCH_MEMBERS_SEPARATOR,
   IndicatorExpressionError,
   type IndicatorFormat,
   type IndicatorNamingElement,
   type IndicatorNamingInput,
+  type IndicatorNamingUploaded,
   type InstanceIndicatorDetails,
-  isHmisIndicatorType,
+  isCount,
   isDhis2ShapedId,
+  isHmisIndicatorType,
+  isSpecialIndicatorId,
   MAX_INDICATOR_EXPRESSION_INGREDIENTS,
   parseIndicatorExpression,
   POPULATION_TYPE_IDS,
+  renameIdentifierInExpression,
   renameIdentifiers,
   resolveIndicatorExpression,
   t3,
@@ -37,27 +44,31 @@ import { tryCatchDatabaseAsync } from "./../utils.ts";
 import { resolveAssetFilePath } from "./assets.ts";
 import { readCsvFile } from "@timroberton/panther";
 
-// The stored shape of one indicator (PLAN_A4 ruling 1). `expression` is a
-// derived indicator's formula, `members` a sum's member ids as JSON text,
-// `dhis2_id` the element a DHIS2-fetched base carries; each NULL for the
-// other types (the table's CHECK). `thresholds` is the CF rule as JSON text
-// (every JSON column is text: JSON.parse on read, JSON.stringify on write:
-// SYSTEM_02), validated by the lib schema here.
+// The stored shape of one indicator (PLAN_A5 ruling 1). `expression` is a
+// derived indicator's formula, `data_id` the key an Uploaded or DHIS2
+// element indicator's rows carry; each NULL for the other types (the
+// table's CHECK). `members` is aggregated from indicator_sum_members,
+// ordered by member id, empty for every other type. `thresholds` is the CF
+// rule as JSON text (every JSON column is text: JSON.parse on read,
+// JSON.stringify on write: SYSTEM_02), validated by the lib schema here.
 export type DBIndicatorCommon = {
   indicator_common_id: string;
   indicator_common_label: string;
-  definition_type: "base" | "sum" | "derived";
+  definition_type: HmisIndicatorType;
   expression: string | null;
-  dhis2_id: string | null;
-  members: string | null;
+  data_id: string | null;
+  members: string[];
   include_in_analysis: boolean;
   format_as: IndicatorFormat;
   thresholds: string | null;
   sort_order: number;
 };
 
-const INDICATOR_COLUMNS =
-  `indicator_common_id, indicator_common_label, definition_type, expression, dhis2_id, members, include_in_analysis, format_as, thresholds, sort_order`;
+const INDICATOR_COLUMNS = `
+  i.indicator_common_id, i.indicator_common_label, i.definition_type, i.expression, i.data_id,
+  (SELECT COALESCE(array_agg(m.member_id ORDER BY m.member_id), ARRAY[]::text[])
+     FROM indicator_sum_members m WHERE m.sum_id = i.indicator_common_id) AS members,
+  i.include_in_analysis, i.format_as, i.thresholds, i.sort_order`;
 
 export function dbRowToHmisIndicator(row: DBIndicatorCommon): HmisIndicator {
   return {
@@ -79,77 +90,73 @@ function thresholdsToDb(thresholds: ThresholdsRule | null): string | null {
 
 function dbRowToDefinition(row: DBIndicatorCommon): HmisIndicatorDefinition {
   switch (row.definition_type) {
-    case "base":
-      return { type: "base", dhis2_id: row.dhis2_id };
+    case "uploaded":
+      return { type: "uploaded", data_id: row.data_id };
+    case "dhis2_element":
+      return { type: "dhis2_element", data_id: row.data_id! };
     case "sum":
-      return { type: "sum", members: JSON.parse(row.members!) as string[] };
+      return { type: "sum", members: row.members };
     case "derived":
       return { type: "derived", expression: row.expression! };
   }
 }
 
 type DefinitionFields = {
-  definition_type: HmisIndicatorDefinition["type"];
+  definition_type: HmisIndicatorType;
   expression: string | null;
-  dhis2_id: string | null;
-  members: string | null;
+  data_id: string | null;
+  members: string[];
 };
 
 function definitionFields(
   definition: HmisIndicatorDefinition,
 ): DefinitionFields {
-  switch (definition.type) {
-    case "base":
-      return {
-        definition_type: "base",
-        expression: null,
-        dhis2_id: definition.dhis2_id,
-        members: null,
-      };
-    case "sum":
-      return {
-        definition_type: "sum",
-        expression: null,
-        dhis2_id: null,
-        members: JSON.stringify(definition.members),
-      };
-    case "derived":
-      return {
-        definition_type: "derived",
-        expression: definition.expression,
-        dhis2_id: null,
-        members: null,
-      };
-  }
+  return {
+    definition_type: definition.type,
+    expression: definition.type === "derived" ? definition.expression : null,
+    data_id: definitionDataId(definition),
+    members: definition.type === "sum" ? definition.members : [],
+  };
 }
 
-// `format_as` is display-only and the sole scale (PLAN_1c ruling 3). A base
-// and a sum are counts, so they are always numbers; a derived one chooses.
+// `format_as` is display-only and the sole scale (PLAN_1c ruling 3). A count
+// is always a number; a derived one chooses.
 function formatRuleError(
   definition: HmisIndicatorDefinition,
   formatAs: IndicatorFormat,
 ): string | undefined {
-  return definition.type !== "derived" && formatAs !== "number"
-    ? "A base or sum indicator is a count and is always formatted as a number"
+  return isCount(definition.type) && formatAs !== "number"
+    ? "An Uploaded, DHIS2 element or Sum indicator is a count and is always formatted as a number"
     : undefined;
 }
 
-function dhis2IdError(definition: HmisIndicatorDefinition): string | undefined {
-  return definition.type === "base" && definition.dhis2_id !== null &&
-      !isDhis2ShapedId(definition.dhis2_id)
-    ? `DHIS2 id ${
-      JSON.stringify(definition.dhis2_id)
-    } must be a data element UID or a UID.COC operand`
-    : undefined;
+// A DHIS2 element's data id is DHIS2-shaped (the table's CHECK); an
+// Uploaded indicator's is whatever the file said, never blank.
+function dataIdError(definition: HmisIndicatorDefinition): string | undefined {
+  if (definition.type === "dhis2_element" && !isDhis2ShapedId(definition.data_id)) {
+    return `DHIS2 id ${
+      JSON.stringify(definition.data_id)
+    } must be a data element UID or a UID.COC operand`;
+  }
+  if (
+    definition.type === "uploaded" && definition.data_id !== null &&
+    definition.data_id.trim() !== definition.data_id
+  ) {
+    return `File id ${JSON.stringify(definition.data_id)} must not have leading or trailing whitespace`;
+  }
+  if (definition.type === "uploaded" && definition.data_id === "") {
+    return "A file id must not be empty; leave it unset instead";
+  }
+  return undefined;
 }
 
-// Sum members are bases only (PLAN_A4 ruling 2): each member must exist, as
-// a base, in the dictionary the write leaves behind. `types` is that
-// dictionary's id → type.
+// Sum members are indicators that have rows (PLAN_A5 ruling 2): each member
+// must exist, as Uploaded or a DHIS2 element, in the dictionary the write
+// leaves behind. `types` is that dictionary's id → type.
 function membersRuleError(
   ownId: string,
   definition: HmisIndicatorDefinition,
-  types: Map<string, HmisIndicatorDefinition["type"]>,
+  types: Map<string, HmisIndicatorType>,
 ): string | undefined {
   if (definition.type !== "sum") return undefined;
   if (definition.members.length === 0) {
@@ -164,29 +171,31 @@ function membersRuleError(
     if (type === undefined) {
       return `Member ${JSON.stringify(member)} does not exist`;
     }
-    if (type !== "base") {
-      return `Member ${JSON.stringify(member)} is not a base indicator (a sum's members are bases only)`;
+    if (!hasRows(type)) {
+      return `Member ${
+        JSON.stringify(member)
+      } is not an Uploaded or DHIS2 element indicator (a sum's members are indicators that have rows)`;
     }
   }
   return undefined;
 }
 
-// The live expression dictionary: every indicator (a sum as a leaf, like a
-// base), plus every population type under its own id.
+// The live expression dictionary: every count as a leaf, plus every
+// population type under its own id.
 async function loadExpressionDictionaryEntries(
   sql: Sql,
 ): Promise<ExpressionDictionaryEntry[]> {
   const stored = await sql<
     {
       indicator_common_id: string;
-      definition_type: "base" | "sum" | "derived";
+      definition_type: HmisIndicatorType;
       expression: string | null;
     }[]
   >`SELECT indicator_common_id, definition_type, expression FROM indicators`;
   return [
     ...stored.map((r) => ({
       id: r.indicator_common_id,
-      type: r.definition_type === "derived" ? "derived" as const : "base" as const,
+      type: r.definition_type === "derived" ? "derived" as const : "leaf" as const,
       expression: r.expression,
     })),
     ...POPULATION_TYPE_IDS.map((id) => ({
@@ -205,7 +214,7 @@ export async function getHmisIndicators(
   mainDb: Sql,
 ): Promise<HmisIndicator[]> {
   const rows = await mainDb.unsafe<DBIndicatorCommon[]>(
-    `SELECT ${INDICATOR_COLUMNS} FROM indicators ORDER BY sort_order, indicator_common_id`,
+    `SELECT ${INDICATOR_COLUMNS} FROM indicators i ORDER BY i.sort_order, i.indicator_common_id`,
   );
   return rows.map(dbRowToHmisIndicator);
 }
@@ -231,20 +240,29 @@ export async function getInstanceIndicatorDetails(
 // the user is; run capture enforces the same rules again where the data
 // is. `pendingDefinitions` overrides what the dictionary says about the rows
 // being written, so a cycle is judged against the state the write would
-// produce.
+// produce; `rename` is the id change the write makes, applied to the
+// dictionary and to every stored expression before anything is judged.
 async function checkDefinitionsResolve(
   mainDb: Sql,
   pendingDefinitions: Map<string, HmisIndicatorDefinition>,
+  rename?: { from: string; to: string },
 ): Promise<string | undefined> {
   // The resolver reports an unknown population identifier itself, listing
   // the type ids: the store's types are ordinary dictionary entries.
-  const entries = new Map<string, ExpressionDictionaryEntry>(
-    (await loadExpressionDictionaryEntries(mainDb)).map((e) => [e.id, e]),
-  );
+  const entries = new Map<string, ExpressionDictionaryEntry>();
+  for (const e of await loadExpressionDictionaryEntries(mainDb)) {
+    if (rename !== undefined && e.id === rename.from) continue;
+    entries.set(e.id, {
+      ...e,
+      expression: rename !== undefined && e.expression !== null
+        ? renameIdentifierInExpression(e.expression, rename.from, rename.to)
+        : e.expression,
+    });
+  }
   for (const [id, definition] of pendingDefinitions) {
     entries.set(id, {
       id,
-      type: definition.type === "derived" ? "derived" : "base",
+      type: definition.type === "derived" ? "derived" : "leaf",
       expression: definition.type === "derived" ? definition.expression : null,
     });
   }
@@ -317,26 +335,28 @@ async function expressionsBlockingRemoval(
   return blocked;
 }
 
-// Data never exists without its base (dataset_hmis.indicator_id RESTRICTs),
-// so removing or retyping a base with data is refused here, with the
-// counts, before the FK would.
+type WithData = { indicator_id: string; data_id: string; count: number };
+
+// Data never exists without the indicator that holds its key
+// (dataset_hmis.data_id RESTRICTs), so removing such an indicator,
+// retyping it out of the types that have rows, or moving its data id is
+// refused here, with the counts, before the FK would.
 async function indicatorsWithData(
   sql: Sql,
   indicatorIds: string[],
-): Promise<{ indicator_id: string; count: number }[]> {
+): Promise<WithData[]> {
   if (indicatorIds.length === 0) return [];
-  return await sql<{ indicator_id: string; count: number }[]>`
-    SELECT indicator_id, COUNT(*)::int AS count
-    FROM dataset_hmis
-    WHERE indicator_id = ANY(${indicatorIds})
-    GROUP BY indicator_id
-    ORDER BY indicator_id
+  return await sql<WithData[]>`
+    SELECT i.indicator_common_id AS indicator_id, i.data_id, COUNT(d.*)::int AS count
+    FROM indicators i
+    JOIN dataset_hmis d ON d.data_id = i.data_id
+    WHERE i.indicator_common_id = ANY(${indicatorIds})
+    GROUP BY i.indicator_common_id, i.data_id
+    ORDER BY i.indicator_common_id
   `;
 }
 
-function describeWithData(
-  rows: { indicator_id: string; count: number }[],
-): string {
+function describeWithData(rows: WithData[]): string {
   return rows.map((r) => `${r.indicator_id} (${r.count} records)`).join(", ");
 }
 
@@ -349,11 +369,9 @@ async function sumsNaming(
 ): Promise<{ sum_id: string; member_id: string }[]> {
   if (memberIds.length === 0) return [];
   const rows = await sql<{ sum_id: string; member_id: string }[]>`
-    SELECT i.indicator_common_id AS sum_id, m.member_id
-    FROM indicators i
-    CROSS JOIN LATERAL jsonb_array_elements_text(i.members::jsonb) AS m(member_id)
-    WHERE i.definition_type = 'sum' AND m.member_id = ANY(${memberIds})
-    ORDER BY i.indicator_common_id, m.member_id
+    SELECT sum_id, member_id FROM indicator_sum_members
+    WHERE member_id = ANY(${memberIds})
+    ORDER BY sum_id, member_id
   `;
   return rows.filter((r) => !ignoreSumIds.has(r.sum_id));
 }
@@ -364,35 +382,36 @@ function describeSumsNaming(
   return rows.map((r) => `${r.member_id} (in ${r.sum_id})`).join(", ");
 }
 
-// A dhis2_id belongs to exactly one base (the UNIQUE constraint). Reports
-// the ids in `dhis2Ids` that an indicator other than `ownerIds` carries.
-async function dhis2IdsOwnedElsewhere(
+// A data id belongs to exactly one indicator (the UNIQUE constraint).
+// Reports the ids in `dataIds` that an indicator other than `ownerIds`
+// holds.
+async function dataIdsOwnedElsewhere(
   sql: Sql,
-  dhis2Ids: string[],
+  dataIds: string[],
   ownerIds: Set<string>,
-): Promise<{ dhis2_id: string; indicator_id: string }[]> {
-  if (dhis2Ids.length === 0) return [];
-  const rows = await sql<{ dhis2_id: string; indicator_id: string }[]>`
-    SELECT dhis2_id, indicator_common_id AS indicator_id FROM indicators
-    WHERE dhis2_id = ANY(${dhis2Ids})
-    ORDER BY dhis2_id
+): Promise<{ data_id: string; indicator_id: string }[]> {
+  if (dataIds.length === 0) return [];
+  const rows = await sql<{ data_id: string; indicator_id: string }[]>`
+    SELECT data_id, indicator_common_id AS indicator_id FROM indicators
+    WHERE data_id = ANY(${dataIds})
+    ORDER BY data_id
   `;
   return rows.filter((r) => !ownerIds.has(r.indicator_id));
 }
 
 function describeOwnedElsewhere(
-  rows: { dhis2_id: string; indicator_id: string }[],
+  rows: { data_id: string; indicator_id: string }[],
 ): string {
-  return `A DHIS2 id belongs to exactly one indicator; these already belong to another: ${
-    rows.map((r) => `${r.dhis2_id} (${r.indicator_id})`).join(", ")
+  return `A data id belongs to exactly one indicator; these already belong to another: ${
+    rows.map((r) => `${r.data_id} (${r.indicator_id})`).join(", ")
   }.`;
 }
 
 async function loadTypes(
   sql: Sql,
-): Promise<Map<string, HmisIndicatorDefinition["type"]>> {
+): Promise<Map<string, HmisIndicatorType>> {
   const rows = await sql<
-    { indicator_common_id: string; definition_type: HmisIndicatorDefinition["type"] }[]
+    { indicator_common_id: string; definition_type: HmisIndicatorType }[]
   >`SELECT indicator_common_id, definition_type FROM indicators`;
   return new Map(rows.map((r) => [r.indicator_common_id, r.definition_type]));
 }
@@ -411,11 +430,11 @@ export type NewIndicator = {
 };
 
 // The pre-checks every create shares: each id through the validator (a
-// reserved word refused, a special id accepted for a base or sum and refused
-// for a derived), a dhis2_id DHIS2-shaped and owned by no other indicator,
-// the format rule, no id or dhis2_id twice or already taken, every member an
-// existing base, and every expression resolving against the dictionary the
-// write would leave.
+// reserved word refused, a special id accepted for a count and refused for
+// a derived), a DHIS2 element's data id DHIS2-shaped, no data id held by
+// another indicator, the format rule, no id or data id twice or already
+// taken, every member an existing indicator with rows, and every
+// expression resolving against the dictionary the write would leave.
 async function checkIndicatorWrites(
   mainDb: Sql,
   indicators: NewIndicator[],
@@ -431,7 +450,7 @@ async function checkIndicatorWrites(
       }: ${describeNewIndicatorIdIssue(idIssue)}`;
     }
     const err = formatRuleError(indicator.definition, indicator.format_as) ??
-      dhis2IdError(indicator.definition);
+      dataIdError(indicator.definition);
     if (err) {
       return `${indicator.indicator_common_id}: ${err}`;
     }
@@ -455,20 +474,19 @@ async function checkIndicatorWrites(
     }
   }
 
-  const dhis2Ids = indicators.flatMap((i) =>
-    i.definition.type === "base" && i.definition.dhis2_id !== null
-      ? [i.definition.dhis2_id]
-      : []
+  const dataIds = indicators.flatMap((i) => {
+    const dataId = definitionDataId(i.definition);
+    return dataId === null ? [] : [dataId];
+  });
+  const duplicateDataIds = dataIds.filter((id, index) =>
+    dataIds.indexOf(id) !== index
   );
-  const duplicateDhis2Ids = dhis2Ids.filter((id, index) =>
-    dhis2Ids.indexOf(id) !== index
-  );
-  if (duplicateDhis2Ids.length > 0) {
-    return `A DHIS2 id belongs to exactly one indicator; these appear more than once: ${
-      duplicateDhis2Ids.join(", ")
+  if (duplicateDataIds.length > 0) {
+    return `A data id belongs to exactly one indicator; these appear more than once: ${
+      duplicateDataIds.join(", ")
     }`;
   }
-  const owned = await dhis2IdsOwnedElsewhere(mainDb, dhis2Ids, new Set());
+  const owned = await dataIdsOwnedElsewhere(mainDb, dataIds, new Set());
   if (owned.length > 0) {
     return describeOwnedElsewhere(owned);
   }
@@ -492,6 +510,20 @@ async function checkIndicatorWrites(
   );
 }
 
+async function writeMembers(
+  sql: Sql,
+  sumId: string,
+  members: string[],
+): Promise<void> {
+  await sql`DELETE FROM indicator_sum_members WHERE sum_id = ${sumId}`;
+  if (members.length > 0) {
+    await sql`
+      INSERT INTO indicator_sum_members (sum_id, member_id)
+      SELECT ${sumId}, UNNEST(${members}::text[])
+    `;
+  }
+}
+
 // All-or-nothing: one failed item aborts the whole Postgres transaction
 // (every later statement fails with "transaction is aborted"), so per-item
 // catch-and-continue can never deliver partial success. The rethrow
@@ -511,18 +543,19 @@ async function insertIndicators(
       await sql`
         INSERT INTO indicators (
           indicator_common_id, indicator_common_label,
-          definition_type, expression, dhis2_id, members, include_in_analysis,
+          definition_type, expression, data_id, include_in_analysis,
           format_as, thresholds, sort_order, updated_at
         )
         VALUES (
           ${indicator.indicator_common_id}, ${indicator.indicator_common_label},
-          ${d.definition_type}, ${d.expression}, ${d.dhis2_id}, ${d.members},
+          ${d.definition_type}, ${d.expression}, ${d.data_id},
           ${indicator.include_in_analysis},
           ${indicator.format_as},
           ${thresholdsToDb(indicator.thresholds)},
           ${sortOrder++}, CURRENT_TIMESTAMP
         )
       `;
+      await writeMembers(sql, indicator.indicator_common_id, d.members);
     } catch (error) {
       throw new Error(
         `${indicator.indicator_common_id}: ${
@@ -549,102 +582,97 @@ export async function createIndicators(
 }
 
 // =============================================================================
-// THE NAMING STEP (PLAN_A4 ruling 6)
+// THE NAMING STEP (PLAN_A5 rulings 6 and 7)
 // =============================================================================
 
-type Assignment = { indicator_id: string; dhis2_id: string };
+// An existing Uploaded indicator with no data id takes the value as its
+// data id, and becomes a DHIS2 element when the value came from DHIS2.
+type Assignment = {
+  indicator_id: string;
+  data_id: string;
+  type: "uploaded" | "dhis2_element";
+};
 
 type NamingPlan =
   | { ok: true; indicators: NewIndicator[]; assignments: Assignment[] }
   | { ok: false; err: string };
 
-// What the naming step's choices amount to: a new base per element under
-// the chosen id, or the UID assigned to an existing base that has no
-// dhis2_id (this is how a seeded special becomes a DHIS2 element); any
-// other existing id refused; an element whose UID already belongs to an
-// indicator creates nothing; a new uploaded base per CSV column id; and each
-// derived with its expression rewritten from dhis2_ids to the indicators
-// those elements land in. Everything created is in the analysis.
+// What the naming step's choices amount to. A DHIS2 element or operand: a
+// new DHIS2 element under the chosen id, or, when the chosen id is an
+// existing Uploaded indicator with no data id, that indicator takes the
+// UID as its data id and becomes a DHIS2 element (this is how a seeded
+// special becomes a DHIS2 element); any other existing id is refused. A
+// file value: a new Uploaded indicator under the chosen id carrying the
+// value as its data id, or, when the chosen id is an existing Uploaded
+// indicator with no data id, that indicator adopts the value. A value some
+// indicator already holds as its data id creates nothing, and a derived's
+// expression is rewritten from data ids to the indicators those values
+// land in. Everything created is in the analysis.
 async function planIndicatorNaming(
   mainDb: Sql,
   input: IndicatorNamingInput,
 ): Promise<NamingPlan> {
   const existing = await getHmisIndicators(mainDb);
   const existingById = new Map(existing.map((i) => [i.indicator_common_id, i]));
-  const ownerOfDhis2Id = new Map<string, string>();
+  const ownerOfDataId = new Map<string, string>();
   for (const i of existing) {
-    if (i.definition.type === "base" && i.definition.dhis2_id !== null) {
-      ownerOfDhis2Id.set(i.definition.dhis2_id, i.indicator_common_id);
-    }
+    const dataId = definitionDataId(i.definition);
+    if (dataId !== null) ownerOfDataId.set(dataId, i.indicator_common_id);
   }
   const landing = new Map<string, string>();
   const indicators: NewIndicator[] = [];
   const assignments: Assignment[] = [];
   const newIds = new Set<string>();
-  for (const element of input.elements) {
-    if (landing.has(element.dhis2_id)) {
-      return {
-        ok: false,
-        err: `DHIS2 id ${element.dhis2_id} is listed more than once.`,
-      };
+
+  const place = (
+    row: IndicatorNamingElement | IndicatorNamingUploaded,
+    type: "uploaded" | "dhis2_element",
+  ): string | undefined => {
+    const what = type === "dhis2_element" ? "DHIS2 id" : "File id";
+    if (landing.has(row.data_id)) {
+      return `${what} ${row.data_id} is listed more than once.`;
     }
-    const owner = ownerOfDhis2Id.get(element.dhis2_id);
+    const owner = ownerOfDataId.get(row.data_id);
     if (owner !== undefined) {
-      landing.set(element.dhis2_id, owner);
-      continue;
+      landing.set(row.data_id, owner);
+      return undefined;
     }
-    const target = existingById.get(element.indicator_id);
+    const target = existingById.get(row.indicator_id);
     if (target !== undefined) {
-      if (target.definition.type !== "base" || target.definition.dhis2_id !== null) {
-        return {
-          ok: false,
-          err: `Indicator ${
-            JSON.stringify(element.indicator_id)
-          } already exists and cannot take ${element.dhis2_id}: only a base indicator without a DHIS2 id can be assigned one.`,
-        };
+      if (target.definition.type !== "uploaded" || target.definition.data_id !== null) {
+        return `Indicator ${
+          JSON.stringify(row.indicator_id)
+        } already exists and cannot take ${row.data_id}: only an Uploaded indicator without a file id can be assigned one.`;
       }
-      landing.set(element.dhis2_id, element.indicator_id);
-      assignments.push({
-        indicator_id: element.indicator_id,
-        dhis2_id: element.dhis2_id,
-      });
-      continue;
+      landing.set(row.data_id, row.indicator_id);
+      assignments.push({ indicator_id: row.indicator_id, data_id: row.data_id, type });
+      return undefined;
     }
-    if (newIds.has(element.indicator_id)) {
-      return {
-        ok: false,
-        err: `Indicator ${
-          JSON.stringify(element.indicator_id)
-        } is chosen for more than one DHIS2 id; one indicator carries one DHIS2 id. Create one indicator per element and a sum over them.`,
-      };
+    if (newIds.has(row.indicator_id)) {
+      return `Indicator ${
+        JSON.stringify(row.indicator_id)
+      } is chosen for more than one ${what}; one indicator carries one. Create one indicator per value and a sum over them.`;
     }
-    newIds.add(element.indicator_id);
-    landing.set(element.dhis2_id, element.indicator_id);
+    newIds.add(row.indicator_id);
+    landing.set(row.data_id, row.indicator_id);
     indicators.push({
-      indicator_common_id: element.indicator_id,
-      indicator_common_label: element.label,
-      definition: { type: "base", dhis2_id: element.dhis2_id },
+      indicator_common_id: row.indicator_id,
+      indicator_common_label: row.label,
+      definition: { type, data_id: row.data_id },
       include_in_analysis: true,
       format_as: "number",
       thresholds: null,
     });
+    return undefined;
+  };
+
+  for (const element of input.elements) {
+    const err = place(element, "dhis2_element");
+    if (err !== undefined) return { ok: false, err };
   }
   for (const uploaded of input.uploaded) {
-    if (existingById.has(uploaded.indicator_id) || newIds.has(uploaded.indicator_id)) {
-      return {
-        ok: false,
-        err: `Indicator ${JSON.stringify(uploaded.indicator_id)} already exists.`,
-      };
-    }
-    newIds.add(uploaded.indicator_id);
-    indicators.push({
-      indicator_common_id: uploaded.indicator_id,
-      indicator_common_label: uploaded.label,
-      definition: { type: "base", dhis2_id: null },
-      include_in_analysis: true,
-      format_as: "number",
-      thresholds: null,
-    });
+    const err = place(uploaded, "uploaded");
+    if (err !== undefined) return { ok: false, err };
   }
   for (const derived of input.derived) {
     let expression: string;
@@ -678,9 +706,10 @@ async function planIndicatorNaming(
   return { ok: true, indicators, assignments };
 }
 
-// Saves a naming step in one transaction: the new bases, the UIDs assigned
-// to existing bases, and the derived indicators over them. Every pre-check
-// of createIndicators applies, so either everything lands or nothing does.
+// Saves a naming step in one transaction: the new indicators, the data ids
+// assigned to existing Uploaded indicators, and the derived indicators
+// over them. Every pre-check of createIndicators applies, so either
+// everything lands or nothing does.
 export async function applyIndicatorNaming(
   mainDb: Sql,
   input: IndicatorNamingInput,
@@ -691,14 +720,8 @@ export async function applyIndicatorNaming(
       return { success: false, err: plan.err };
     }
     for (const a of plan.assignments) {
-      if (!isDhis2ShapedId(a.dhis2_id)) {
-        return {
-          success: false,
-          err: `DHIS2 id ${
-            JSON.stringify(a.dhis2_id)
-          } must be a data element UID or a UID.COC operand`,
-        };
-      }
+      const err = dataIdError({ type: a.type, data_id: a.data_id });
+      if (err) return { success: false, err };
     }
     const err = await checkIndicatorWrites(mainDb, plan.indicators);
     if (err) {
@@ -709,7 +732,7 @@ export async function applyIndicatorNaming(
       for (const a of plan.assignments) {
         await sql`
           UPDATE indicators
-          SET dhis2_id = ${a.dhis2_id}, updated_at = CURRENT_TIMESTAMP
+          SET data_id = ${a.data_id}, definition_type = ${a.type}, updated_at = CURRENT_TIMESTAMP
           WHERE indicator_common_id = ${a.indicator_id}
         `;
       }
@@ -729,7 +752,7 @@ export type Dhis2NamingElement = IndicatorNamingElement & {
 };
 
 export type Dhis2NamingIndicator = {
-  dhis2_id: string;
+  uid: string;
   indicator_id: string;
   label: string;
   decomposition: Dhis2IndicatorDecomposition;
@@ -739,17 +762,17 @@ export type Dhis2NamingIndicator = {
 // decompositions are the server's own, computed by the route against live
 // DHIS2 metadata, never the client's. A refused element or indicator
 // refuses the whole save; an accepted indicator becomes a derived over the
-// bases its operands land in.
+// DHIS2 elements its operands land in.
 export async function createIndicatorsFromDhis2(
   mainDb: Sql,
   input: { elements: Dhis2NamingElement[]; indicators: Dhis2NamingIndicator[] },
 ): Promise<APIResponseWithData<{ created: number; assigned: number }>> {
-  const named = new Set(input.elements.map((e) => e.dhis2_id));
+  const named = new Set(input.elements.map((e) => e.data_id));
   for (const element of input.elements) {
     if (!element.verdict.accepted) {
       return {
         success: false,
-        err: `${element.dhis2_id} cannot be imported: ${
+        err: `${element.data_id} cannot be imported: ${
           t3(describeDhis2ElementRefusal(element.verdict.refusal))
         }`,
       };
@@ -761,7 +784,7 @@ export async function createIndicatorsFromDhis2(
     if (!parse.accepted) {
       return {
         success: false,
-        err: `DHIS2 indicator ${indicator.dhis2_id} cannot be decomposed: ${
+        err: `DHIS2 indicator ${indicator.uid} cannot be decomposed: ${
           t3(describeDhis2ParseRefusal(parse.refusal))
         }`,
       };
@@ -770,15 +793,15 @@ export async function createIndicatorsFromDhis2(
       if (!operand.verdict.accepted) {
         return {
           success: false,
-          err: `DHIS2 indicator ${indicator.dhis2_id}: operand ${operand.dhis2_id} cannot be imported: ${
+          err: `DHIS2 indicator ${indicator.uid}: operand ${operand.data_id} cannot be imported: ${
             t3(describeDhis2ElementRefusal(operand.verdict.refusal))
           }`,
         };
       }
-      if (!named.has(operand.dhis2_id)) {
+      if (!named.has(operand.data_id)) {
         return {
           success: false,
-          err: `DHIS2 indicator ${indicator.dhis2_id}: operand ${operand.dhis2_id} was not named`,
+          err: `DHIS2 indicator ${indicator.uid}: operand ${operand.data_id} was not named`,
         };
       }
     }
@@ -796,45 +819,81 @@ export async function createIndicatorsFromDhis2(
   });
 }
 
-// Updates an indicator. Ids are immutable after creation (the id is the
-// column key in every results package). A base with data keeps its type and
-// its dhis2_id; a base a sum names keeps its type; a dhis2_id must not
-// belong to another indicator; a sum's members must be bases.
+// =============================================================================
+// UPDATE, RENAME (PLAN_A5 rulings 3, 4 and 5)
+// =============================================================================
+
+// Why a rename from `oldId` to `update.indicator_common_id` is refused; a
+// special id is read by the module scripts by name, so it never moves.
+async function renameError(
+  mainDb: Sql,
+  oldId: string,
+  update: NewIndicator,
+): Promise<string | undefined> {
+  const newId = update.indicator_common_id;
+  if (isSpecialIndicatorId(oldId)) {
+    return `Indicator ID ${
+      JSON.stringify(oldId)
+    } is a special indicator id, which the analysis modules read by name, so it cannot be renamed.`;
+  }
+  const idIssue = getNewIndicatorIdIssue(newId, update.definition.type);
+  if (idIssue) {
+    return `Invalid indicator ID ${JSON.stringify(newId)}: ${
+      describeNewIndicatorIdIssue(idIssue)
+    }`;
+  }
+  const taken = await mainDb<{ indicator_common_id: string }[]>`
+    SELECT indicator_common_id FROM indicators WHERE indicator_common_id = ${newId}
+  `;
+  if (taken.length > 0) {
+    return `Indicator ID ${JSON.stringify(newId)} is already taken.`;
+  }
+  return undefined;
+}
+
+// Updates an indicator, renaming it when the id differs. A rename rewrites
+// every derived expression that names the old id and every schedule's
+// selection in the same transaction (the junction follows by ON UPDATE
+// CASCADE); historical run and version rows are history and keep their
+// pairs, which are data ids and stay valid. Switching Uploaded and DHIS2
+// element either way is allowed with rows and changes none; any switch to
+// or from Sum or Derived is refused with rows or while a sum names the
+// indicator. The data id is fixed once rows exist under it; without rows it
+// may be taken, changed or cleared within the type's rule, and it must not
+// belong to another indicator.
 export async function updateIndicator(
   mainDb: Sql,
   oldIndicatorId: string,
   update: NewIndicator,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
-    if (oldIndicatorId !== update.indicator_common_id) {
-      return {
-        success: false,
-        err:
-          "Indicator IDs cannot be changed after creation. Create a new indicator instead.",
-      };
+    const newId = update.indicator_common_id;
+    const rename = oldIndicatorId !== newId
+      ? { from: oldIndicatorId, to: newId }
+      : undefined;
+    if (rename !== undefined) {
+      const err = await renameError(mainDb, oldIndicatorId, update);
+      if (err) return { success: false, err };
     }
 
-    const typeIssue = getSpecialIndicatorTypeIssue(
-      update.indicator_common_id,
-      update.definition.type,
-    );
+    const typeIssue = getSpecialIndicatorTypeIssue(newId, update.definition.type);
     if (typeIssue) {
       return {
         success: false,
-        err: `Indicator ID ${
-          JSON.stringify(update.indicator_common_id)
-        } ${describeNewIndicatorIdIssue(typeIssue)}`,
+        err: `Indicator ID ${JSON.stringify(newId)} ${
+          describeNewIndicatorIdIssue(typeIssue)
+        }`,
       };
     }
     const err = formatRuleError(update.definition, update.format_as) ??
-      dhis2IdError(update.definition);
+      dataIdError(update.definition);
     if (err) {
       return { success: false, err };
     }
 
     const current = (
-      await mainDb<{ definition_type: string; dhis2_id: string | null }[]>`
-        SELECT definition_type, dhis2_id FROM indicators
+      await mainDb<{ definition_type: HmisIndicatorType; data_id: string | null }[]>`
+        SELECT definition_type, data_id FROM indicators
         WHERE indicator_common_id = ${oldIndicatorId}
       `
     ).at(0);
@@ -843,21 +902,23 @@ export async function updateIndicator(
     }
 
     const types = await loadTypes(mainDb);
-    types.set(oldIndicatorId, update.definition.type);
-    const membersErr = membersRuleError(oldIndicatorId, update.definition, types);
+    types.delete(oldIndicatorId);
+    types.set(newId, update.definition.type);
+    const membersErr = membersRuleError(newId, update.definition, types);
     if (membersErr) {
       return { success: false, err: membersErr };
     }
 
     const definitionErr = await checkDefinitionsResolve(
       mainDb,
-      new Map([[oldIndicatorId, update.definition]]),
+      new Map([[newId, update.definition]]),
+      rename,
     );
     if (definitionErr) {
       return { success: false, err: definitionErr };
     }
 
-    if (current.definition_type === "base" && update.definition.type !== "base") {
+    if (hasRows(current.definition_type) && !hasRows(update.definition.type)) {
       const withData = await indicatorsWithData(mainDb, [oldIndicatorId]);
       if (withData.length > 0) {
         return {
@@ -878,24 +939,24 @@ export async function updateIndicator(
       }
     }
 
-    const nextDhis2Id = update.definition.type === "base"
-      ? update.definition.dhis2_id
-      : null;
-    if (current.dhis2_id !== null && nextDhis2Id !== current.dhis2_id) {
+    const nextDataId = definitionDataId(update.definition);
+    if (current.data_id !== null && nextDataId !== current.data_id) {
       const withData = await indicatorsWithData(mainDb, [oldIndicatorId]);
       if (withData.length > 0) {
         return {
           success: false,
-          err: `Cannot change the DHIS2 id of an indicator that has data: ${
+          err: `Cannot change the ${
+            current.definition_type === "dhis2_element" ? "DHIS2 id" : "file id"
+          } of an indicator that has data: ${
             describeWithData(withData)
-          }. Delete its data first.`,
+          }. Its data is keyed by it; rename the indicator instead.`,
         };
       }
     }
-    if (nextDhis2Id !== null) {
-      const owned = await dhis2IdsOwnedElsewhere(
+    if (nextDataId !== null && nextDataId !== current.data_id) {
+      const owned = await dataIdsOwnedElsewhere(
         mainDb,
-        [nextDhis2Id],
+        [nextDataId],
         new Set([oldIndicatorId]),
       );
       if (owned.length > 0) {
@@ -904,23 +965,60 @@ export async function updateIndicator(
     }
 
     const d = definitionFields(update.definition);
-    await mainDb`
-      UPDATE indicators
-      SET
-        indicator_common_label = ${update.indicator_common_label},
-        definition_type = ${d.definition_type},
-        expression = ${d.expression},
-        dhis2_id = ${d.dhis2_id},
-        members = ${d.members},
-        include_in_analysis = ${update.include_in_analysis},
-        format_as = ${update.format_as},
-        thresholds = ${thresholdsToDb(update.thresholds)},
-        updated_at = CURRENT_TIMESTAMP
-      WHERE indicator_common_id = ${oldIndicatorId}
-    `;
+    await mainDb.begin(async (sql) => {
+      await sql`
+        UPDATE indicators
+        SET
+          indicator_common_id = ${newId},
+          indicator_common_label = ${update.indicator_common_label},
+          definition_type = ${d.definition_type},
+          expression = ${d.expression},
+          data_id = ${d.data_id},
+          include_in_analysis = ${update.include_in_analysis},
+          format_as = ${update.format_as},
+          thresholds = ${thresholdsToDb(update.thresholds)},
+          updated_at = CURRENT_TIMESTAMP
+        WHERE indicator_common_id = ${oldIndicatorId}
+      `;
+      await writeMembers(sql, newId, d.members);
+      if (rename !== undefined) {
+        await renameReferences(sql, rename.from, rename.to);
+      }
+    });
 
     return { success: true };
   });
+}
+
+// Every derived expression naming the old id, and every schedule selection
+// listing it, rewritten to the new id.
+async function renameReferences(
+  sql: Sql,
+  from: string,
+  to: string,
+): Promise<void> {
+  const derived = await sql<{ indicator_common_id: string; expression: string }[]>`
+    SELECT indicator_common_id, expression FROM indicators
+    WHERE definition_type = 'derived' AND expression IS NOT NULL
+  `;
+  for (const row of derived) {
+    const rewritten = renameIdentifierInExpression(row.expression, from, to);
+    if (rewritten === row.expression) continue;
+    await sql`
+      UPDATE indicators
+      SET expression = ${rewritten}, updated_at = CURRENT_TIMESTAMP
+      WHERE indicator_common_id = ${row.indicator_common_id}
+    `;
+  }
+  await sql`
+    UPDATE dataset_hmis_scheduled_imports
+    SET selection = jsonb_set(
+      selection::jsonb, '{indicatorIds}',
+      (SELECT COALESCE(jsonb_agg(CASE WHEN id = ${from} THEN ${to} ELSE id END ORDER BY ord), '[]'::jsonb)
+       FROM jsonb_array_elements_text(selection::jsonb -> 'indicatorIds') WITH ORDINALITY AS t(id, ord))
+    )::text
+    WHERE selection::jsonb -> 'indicatorIds' ? ${from}
+  `;
 }
 
 export async function reorderHmisIndicators(
@@ -944,7 +1042,8 @@ export async function reorderHmisIndicators(
 
 // Deletes indicators. Refused with a listing when one still has data, a
 // surviving sum names it, or another indicator's expression still needs the
-// id. A special indicator is deleted like any base.
+// id. A special indicator is deleted like any other (ruling 14: the data
+// FKs stay, so data never outlives the indicator that holds its key).
 export async function deleteIndicators(
   mainDb: Sql,
   indicatorIds: string[],
@@ -1000,17 +1099,21 @@ export async function deleteIndicators(
       };
     }
 
-    await mainDb`
-      DELETE FROM indicators
-      WHERE indicator_common_id = ANY(${indicatorIds})
-    `;
+    // The member FK is NO ACTION, checked per row at the end of the
+    // statement in row order, so a sum deleted after one of its members in
+    // the same statement would refuse the member: the junction rows of the
+    // sums being deleted go first.
+    await mainDb.begin(async (sql) => {
+      await sql`DELETE FROM indicator_sum_members WHERE sum_id = ANY(${indicatorIds})`;
+      await sql`DELETE FROM indicators WHERE indicator_common_id = ANY(${indicatorIds})`;
+    });
 
     return { success: true };
   });
 }
 
 // =============================================================================
-// BATCH FILE (PLAN_A4 ruling 7)
+// BATCH FILE (PLAN_A5 ruling 11)
 // =============================================================================
 
 type BatchRow = {
@@ -1032,9 +1135,10 @@ const BATCH_FORMATS: readonly IndicatorFormat[] = [
 // One file, one row per indicator. Upsert keeps an existing row's
 // sort_order; replace deletes every indicator the file does not name.
 // Refused with a listing when the write would remove an indicator with data
-// or one a sum names, retype an indicator with data, or move a dhis2_id
-// between indicators when the old one has data. Every id goes through the
-// validator.
+// or one a sum names, retype an indicator with data out of the types that
+// have rows, retype one a sum names, or move a data id whose owner has
+// data. Every id goes through the validator; a DHIS2 element's data id
+// must be DHIS2-shaped.
 export async function batchUploadIndicators(
   mainDb: Sql,
   assetFileName: string,
@@ -1078,7 +1182,7 @@ export async function batchUploadIndicators(
           `row ${r.row} (${r.id}): ${describeNewIndicatorIdIssue(idIssue)}`,
         );
       }
-      const err = dhis2IdError(r.definition);
+      const err = dataIdError(r.definition);
       if (err) problems.push(`row ${r.row} (${r.id}): ${err}`);
     }
     if (problems.length > 0) {
@@ -1102,42 +1206,42 @@ export async function batchUploadIndicators(
 
     const fileOwner = new Map<string, string>();
     for (const r of rows) {
-      if (r.definition.type !== "base" || r.definition.dhis2_id === null) continue;
-      const other = fileOwner.get(r.definition.dhis2_id);
+      const dataId = definitionDataId(r.definition);
+      if (dataId === null) continue;
+      const other = fileOwner.get(dataId);
       if (other !== undefined) {
         return {
           success: false,
-          err: `A DHIS2 id belongs to exactly one indicator; ${r.definition.dhis2_id} is listed under ${other} and ${r.id}`,
+          err: `A data id belongs to exactly one indicator; ${dataId} is listed under ${other} and ${r.id}`,
         };
       }
-      fileOwner.set(r.definition.dhis2_id, r.id);
+      fileOwner.set(dataId, r.id);
     }
     const currentOwner = new Map<string, string>();
     for (const i of existing) {
-      if (i.definition.type === "base" && i.definition.dhis2_id !== null) {
-        currentOwner.set(i.definition.dhis2_id, i.indicator_common_id);
-      }
+      const dataId = definitionDataId(i.definition);
+      if (dataId !== null) currentOwner.set(dataId, i.indicator_common_id);
     }
     if (!replaceAllExisting) {
-      for (const [dhis2Id, owner] of fileOwner) {
-        const current = currentOwner.get(dhis2Id);
+      for (const [dataId, owner] of fileOwner) {
+        const current = currentOwner.get(dataId);
         if (current !== undefined && current !== owner && !fileIds.has(current)) {
           return {
             success: false,
-            err: `A DHIS2 id belongs to exactly one indicator; ${dhis2Id} already belongs to ${current} and the file lists it under ${owner}`,
+            err: `A data id belongs to exactly one indicator; ${dataId} already belongs to ${current} and the file lists it under ${owner}`,
           };
         }
       }
     }
-    // A dhis2_id that leaves its current owner (moved to another row, or
+    // A data id that leaves its current owner (moved to another row, or
     // dropped by the row that rewrites the owner) leaves that owner's data
-    // behind, so it is refused while the owner has data.
-    const moved = [...fileOwner].filter(([dhis2Id, owner]) => {
-      const current = currentOwner.get(dhis2Id);
+    // behind, so it is refused while the owner has data (ruling 4).
+    const moved = [...fileOwner].filter(([dataId, owner]) => {
+      const current = currentOwner.get(dataId);
       return current !== undefined && current !== owner;
     });
     const losingOwners = new Set(
-      moved.map(([dhis2Id]) => currentOwner.get(dhis2Id)!),
+      moved.map(([dataId]) => currentOwner.get(dataId)!),
     );
     const removedIndicatorIds = replaceAllExisting
       ? existing
@@ -1148,13 +1252,11 @@ export async function batchUploadIndicators(
     for (const r of rows) {
       const current = existingById.get(r.id);
       if (current === undefined) continue;
-      if (current.definition.type === "base" && r.definition.type !== "base") {
+      if (hasRows(current.definition.type) && !hasRows(r.definition.type)) {
         retyped.push(r.id);
       }
-      if (
-        current.definition.type === "base" && current.definition.dhis2_id !== null &&
-        (r.definition.type !== "base" || r.definition.dhis2_id !== current.definition.dhis2_id)
-      ) {
+      const currentDataId = definitionDataId(current.definition);
+      if (currentDataId !== null && definitionDataId(r.definition) !== currentDataId) {
         losingOwners.add(r.id);
       }
     }
@@ -1173,28 +1275,29 @@ export async function batchUploadIndicators(
         success: false,
         err: `The file would change the type of indicators that have data: ${
           describeWithData(retypedWithData)
-        }. Keep them as bases or delete their data first.`,
+        }. Keep them Uploaded or DHIS2 elements, or delete their data first.`,
       };
     }
     const losingWithData = await indicatorsWithData(mainDb, [...losingOwners]);
     if (losingWithData.length > 0) {
       return {
         success: false,
-        err: `The file would take the DHIS2 id away from indicators that have data: ${
+        err: `The file would take the data id away from indicators that have data: ${
           describeWithData(losingWithData)
-        }. Keep it under its current indicator or delete their data first.`,
+        }. A data id is fixed once rows exist under it; keep it under its current indicator or delete their data first.`,
       };
     }
-    const removedNamedBySums = [...survivors].flatMap(([id, d]) =>
+    const gone = new Set([...removedIndicatorIds, ...retyped]);
+    const goneNamedBySums = [...survivors].flatMap(([id, d]) =>
       d.type === "sum"
-        ? d.members.filter((m) => removedIndicatorIds.includes(m)).map((m) => `${m} (in ${id})`)
+        ? d.members.filter((m) => gone.has(m)).map((m) => `${m} (in ${id})`)
         : []
     );
-    if (removedNamedBySums.length > 0) {
+    if (goneNamedBySums.length > 0) {
       return {
         success: false,
-        err: `The file would remove indicators that a sum names: ${
-          removedNamedBySums.join(", ")
+        err: `The file would remove or retype indicators that a sum names: ${
+          goneNamedBySums.join(", ")
         }.`,
       };
     }
@@ -1205,7 +1308,7 @@ export async function batchUploadIndicators(
           SELECT COALESCE(MAX(sort_order), 0) + 1 AS next FROM indicators
         `
       )[0].next;
-      // A moved dhis2_id leaves its current owner before any row is written
+      // A moved data id leaves its current owner before any row is written
       // (the UNIQUE constraint is not deferrable), and removed rows go first
       // so a replace never trips on them. New rows sort after everything
       // that exists (CSV order preserved); an update keeps the row's place.
@@ -1214,45 +1317,50 @@ export async function batchUploadIndicators(
           DELETE FROM indicators WHERE indicator_common_id = ANY(${removedIndicatorIds})
         `;
       }
-      for (const [dhis2Id] of moved) {
+      for (const [dataId] of moved) {
         await sql`
-          UPDATE indicators SET dhis2_id = NULL, updated_at = CURRENT_TIMESTAMP
-          WHERE dhis2_id = ${dhis2Id}
+          UPDATE indicators SET definition_type = 'uploaded', data_id = NULL, updated_at = CURRENT_TIMESTAMP
+          WHERE data_id = ${dataId}
         `;
       }
       // Members and expressions may name rows later in the file, so every
-      // row lands as a base first and takes its definition in a second pass.
+      // row lands as Uploaded first and takes its definition in a second
+      // pass. The first pass keeps a row's unchanged data id: the data FK
+      // refuses clearing one that has rows, and every move that is not
+      // allowed was refused above.
       for (const r of rows) {
+        const dataId = definitionDataId(r.definition);
         await sql`
           INSERT INTO indicators (
             indicator_common_id, indicator_common_label, definition_type, expression,
-            dhis2_id, members, include_in_analysis,
+            data_id, include_in_analysis,
             format_as, thresholds, sort_order, updated_at
           )
           VALUES (
-            ${r.id}, ${r.label}, 'base', NULL, NULL, NULL, ${r.include_in_analysis},
+            ${r.id}, ${r.label}, 'uploaded', NULL, NULL, ${r.include_in_analysis},
             'number', ${thresholdsToDb(r.thresholds)}, ${sortOrder++}, CURRENT_TIMESTAMP
           )
           ON CONFLICT (indicator_common_id) DO UPDATE SET
             indicator_common_label = EXCLUDED.indicator_common_label,
-            definition_type = 'base',
+            definition_type = 'uploaded',
             expression = NULL,
-            dhis2_id = NULL,
-            members = NULL,
+            data_id = CASE WHEN indicators.data_id = ${dataId} THEN indicators.data_id END,
             include_in_analysis = EXCLUDED.include_in_analysis,
             format_as = 'number',
             thresholds = EXCLUDED.thresholds,
             updated_at = CURRENT_TIMESTAMP
         `;
+        await sql`DELETE FROM indicator_sum_members WHERE sum_id = ${r.id}`;
       }
       for (const r of rows) {
         const d = definitionFields(r.definition);
         await sql`
           UPDATE indicators
           SET definition_type = ${d.definition_type}, expression = ${d.expression},
-            dhis2_id = ${d.dhis2_id}, members = ${d.members}, format_as = ${r.format_as}
+            data_id = ${d.data_id}, format_as = ${r.format_as}
           WHERE indicator_common_id = ${r.id}
         `;
+        await writeMembers(sql, r.id, d.members);
       }
 
       // The file's expressions are checked against the dictionary the file
@@ -1285,7 +1393,7 @@ function parseBatchRows(
       (raw[key] ?? "").trim();
     const id = cell("indicator_id");
     const label = cell("label");
-    const type = cell("type") || "base";
+    const type = cell("type") || "uploaded";
     if (!id || !label) {
       return {
         ok: false,
@@ -1299,9 +1407,12 @@ function parseBatchRows(
     }
     seen.add(id);
     if (!isHmisIndicatorType(type)) {
-      return { ok: false, err: `row ${row} (${id}): type must be base, sum or derived` };
+      return {
+        ok: false,
+        err: `row ${row} (${id}): type must be uploaded, dhis2_element, sum or derived`,
+      };
     }
-    const dhis2Id = cell("dhis2_id");
+    const dataId = cell("data_id");
     const members = cell("members")
       .split(INDICATOR_BATCH_MEMBERS_SEPARATOR)
       .map((s) => s.trim())
@@ -1316,11 +1427,16 @@ function parseBatchRows(
     if (type !== "sum" && members.length > 0) {
       return { ok: false, err: `row ${row} (${id}): only a sum has members` };
     }
-    if (type !== "base" && dhis2Id !== "") {
-      return { ok: false, err: `row ${row} (${id}): only a base indicator has a DHIS2 id` };
+    if (!hasRows(type) && dataId !== "") {
+      return { ok: false, err: `row ${row} (${id}): only an Uploaded or DHIS2 element indicator has a data id` };
     }
-    const definition: HmisIndicatorDefinition = type === "base"
-      ? { type: "base", dhis2_id: dhis2Id === "" ? null : dhis2Id }
+    if (type === "dhis2_element" && dataId === "") {
+      return { ok: false, err: `row ${row} (${id}): a DHIS2 element needs a data id` };
+    }
+    const definition: HmisIndicatorDefinition = type === "uploaded"
+      ? { type: "uploaded", data_id: dataId === "" ? null : dataId }
+      : type === "dhis2_element"
+      ? { type: "dhis2_element", data_id: dataId }
       : type === "sum"
       ? { type: "sum", members }
       : { type: "derived", expression };
@@ -1333,8 +1449,11 @@ function parseBatchRows(
       return { ok: false, err: `row ${row} (${id}): format_as must be one of ${BATCH_FORMATS.join(", ")}` };
     }
     const format_as = formatCell as IndicatorFormat;
-    if (type !== "derived" && format_as !== "number") {
-      return { ok: false, err: `row ${row} (${id}): a base or sum indicator is a count and is always formatted as a number` };
+    if (isCount(type) && format_as !== "number") {
+      return {
+        ok: false,
+        err: `row ${row} (${id}): an Uploaded, DHIS2 element or Sum indicator is a count and is always formatted as a number`,
+      };
     }
     let thresholds: ThresholdsRule | null = null;
     const thresholdsCell = cell("thresholds");

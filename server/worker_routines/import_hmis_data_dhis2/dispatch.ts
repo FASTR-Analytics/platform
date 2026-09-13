@@ -15,51 +15,51 @@ import {
   getExistingMetadataIds,
 } from "../../dhis2/goal5_data_value_sets/mod.ts";
 
-// Dispatcher classification per dhis2_id. "dvs" is a data element or
+// Dispatcher classification per data id. "dvs" is a data element or
 // operand, fetched from dataValueSets: the values facilities reported, the
 // importer's only route. "unknown" gets no fetch and a permanent ledger
 // error: a DHIS2 indicator is a formula the importer never evaluates (it is
 // re-created through the decomposition importer), and anything else matches
 // no DHIS2 metadata at all.
 export type ElementRoute =
-  | { kind: "dvs"; baseElementId: string; coc: string | undefined }
+  | { kind: "dvs"; dataElementId: string; coc: string | undefined }
   | { kind: "unknown"; reason: "not_found" | "dhis2_indicator" };
 
 // Dynamic per run: DHIS2 metadata is the source of truth, no stored type
 // field to drift (robustness ruling).
 export async function classifyElements(
-  dhis2Ids: string[],
+  dataIds: string[],
   fetchOptions: FetchOptions,
 ): Promise<Map<string, ElementRoute>> {
-  const parsed = dhis2Ids.map((id) => {
+  const parsed = dataIds.map((id) => {
     const operandMatch = id.match(DHIS2_OPERAND_PATTERN);
     if (operandMatch) {
       return {
         id,
-        base: operandMatch[1] as string | undefined,
+        element: operandMatch[1] as string | undefined,
         coc: operandMatch[2] as string | undefined,
       };
     }
     if (DHIS2_UID_PATTERN.test(id)) {
-      return { id, base: id as string | undefined, coc: undefined };
+      return { id, element: id as string | undefined, coc: undefined };
     }
     // Not UID-shaped at all: cannot be a valid dx.
-    return { id, base: undefined, coc: undefined };
+    return { id, element: undefined, coc: undefined };
   });
 
-  const bases = parsed
-    .filter((p) => p.base !== undefined)
-    .map((p) => p.base as string);
-  const dataElementSet = bases.length
-    ? await getExistingMetadataIds("dataElements", bases, fetchOptions)
+  const elements = parsed
+    .filter((p) => p.element !== undefined)
+    .map((p) => p.element as string);
+  const dataElementSet = elements.length
+    ? await getExistingMetadataIds("dataElements", elements, fetchOptions)
     : new Set<string>();
 
   const indicatorCandidates = parsed
     .filter(
       (p) =>
-        p.base !== undefined &&
+        p.element !== undefined &&
         p.coc === undefined &&
-        !dataElementSet.has(p.base),
+        !dataElementSet.has(p.element),
     )
     .map((p) => p.id);
   const indicatorSet = indicatorCandidates.length
@@ -70,8 +70,8 @@ export async function classifyElements(
     .filter(
       (p) =>
         p.coc !== undefined &&
-        p.base !== undefined &&
-        dataElementSet.has(p.base),
+        p.element !== undefined &&
+        dataElementSet.has(p.element),
     )
     .map((p) => p.coc as string);
   const cocSet = cocCandidates.length
@@ -80,17 +80,17 @@ export async function classifyElements(
 
   const routes = new Map<string, ElementRoute>();
   for (const p of parsed) {
-    if (p.base === undefined) {
+    if (p.element === undefined) {
       routes.set(p.id, { kind: "unknown", reason: "not_found" });
     } else if (p.coc !== undefined) {
       routes.set(
         p.id,
-        dataElementSet.has(p.base) && cocSet.has(p.coc)
-          ? { kind: "dvs", baseElementId: p.base, coc: p.coc }
+        dataElementSet.has(p.element) && cocSet.has(p.coc)
+          ? { kind: "dvs", dataElementId: p.element, coc: p.coc }
           : { kind: "unknown", reason: "not_found" },
       );
-    } else if (dataElementSet.has(p.base)) {
-      routes.set(p.id, { kind: "dvs", baseElementId: p.base, coc: undefined });
+    } else if (dataElementSet.has(p.element)) {
+      routes.set(p.id, { kind: "dvs", dataElementId: p.element, coc: undefined });
     } else if (indicatorSet.has(p.id)) {
       routes.set(p.id, { kind: "unknown", reason: "dhis2_indicator" });
     } else {
@@ -100,8 +100,8 @@ export async function classifyElements(
   return routes;
 }
 
-export function pairKey(p: { indicatorId: string; periodId: number }): string {
-  return `${p.indicatorId}|${p.periodId}`;
+export function pairKey(p: { dataId: string; periodId: number }): string {
+  return `${p.dataId}|${p.periodId}`;
 }
 
 // Size/timeout never shrink on an identical retry: the caller splits by
@@ -154,7 +154,7 @@ export function describeFetchError(error: unknown): {
 export const SKIPPED_VALUES_SAMPLE_CAP = 10;
 
 export type DvsCoveredPair = {
-  indicatorId: string;
+  dataId: string;
   coc: string | undefined;
   periodId: number;
 };
@@ -178,14 +178,14 @@ export function parseNonNegativeInteger(raw: string): number | undefined {
   return Number.isInteger(n) && n >= 0 ? n : undefined;
 }
 
-// Client-side reduce of one dataValueSets pull (one base element, one month)
+// Client-side reduce of one dataValueSets pull (one data element, one month)
 // into every pair it covers: deleted values and facilities outside the run
 // scope are ignored; an operand's pair takes only its COC; accepted values
 // are summed per facility across COC×AOC, so the sum is a non-negative
 // integer by construction and nothing truncates. A skipped value is counted
 // on the pair with a capped sample, and the pair still integrates: failing
-// it would block the indicator-month for every facility in the country on one
-// facility's decimal, and the ledger has no per-facility grain, so
+// it would block the data id's month for every facility in the country on
+// one facility's decimal, and the ledger has no per-facility grain, so
 // skip-and-record is what keeps refresh alive and the anomaly visible.
 export function reduceDvsValues(
   values: DHIS2DataValue[],

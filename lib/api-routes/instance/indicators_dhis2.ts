@@ -62,9 +62,11 @@ export const indicatorsDhis2RouteRegistry = {
     body: z.object({
       credentialsOrigin: dhis2CredentialsOriginSchema,
       elements: z.array(indicatorNamingElementSchema),
+      // `uid` is the DHIS2 indicator's own UID; the derived it becomes is
+      // named `indicator_id`.
       indicators: z.array(
         z.object({
-          dhis2_id: z.string(),
+          uid: z.string(),
           indicator_id: z.string(),
           label: z.string(),
         }),

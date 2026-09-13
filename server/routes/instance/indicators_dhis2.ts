@@ -41,8 +41,8 @@ async function fetchByIds<T>(
   return results.flat();
 }
 
-function dataElementIdOf(dhis2Id: string): string {
-  return dhis2Id.split(".")[0];
+function dataElementIdOf(dataId: string): string {
+  return dataId.split(".")[0];
 }
 
 async function resolveOrErr(
@@ -165,7 +165,7 @@ defineRoute(
   },
 );
 
-// POST /indicators-dhis2/create - Save the naming step (PLAN_A4 ruling 6)
+// POST /indicators-dhis2/create - Save the naming step (PLAN_A5 ruling 7)
 defineRoute(
   routesIndicatorsDhis2,
   "createIndicatorsFromDhis2",
@@ -181,7 +181,7 @@ defineRoute(
       // The verdicts are the server's own reading of the live metadata: the
       // client's search results may be stale or edited.
       const elements = await fetchByIds(
-        body.elements.map((e) => dataElementIdOf(e.dhis2_id)),
+        body.elements.map((e) => dataElementIdOf(e.data_id)),
         (filter) =>
           getDataElementsFromDHIS2(options, { filter: [filter], paging: false }),
       );
@@ -189,7 +189,7 @@ defineRoute(
       const indicators = await withDecompositions(
         options,
         await fetchByIds(
-          body.indicators.map((i) => i.dhis2_id),
+          body.indicators.map((i) => i.uid),
           (filter) =>
             getIndicatorsFromDHIS2(options, { filter: [filter], paging: false }),
         ),
@@ -197,7 +197,7 @@ defineRoute(
       );
       const indicatorsById = new Map(indicators.map((i) => [i.id, i]));
       const missing = body.indicators
-        .map((i) => i.dhis2_id)
+        .map((i) => i.uid)
         .filter((id) => !indicatorsById.has(id));
       if (missing.length > 0) {
         return c.json({
@@ -210,12 +210,12 @@ defineRoute(
         elements: body.elements.map((e) => ({
           ...e,
           verdict: getDhis2OperandVerdict(
-            elementsById.get(dataElementIdOf(e.dhis2_id)),
+            elementsById.get(dataElementIdOf(e.data_id)),
           ),
         })),
         indicators: body.indicators.map((i) => ({
           ...i,
-          decomposition: indicatorsById.get(i.dhis2_id)!.decomposition,
+          decomposition: indicatorsById.get(i.uid)!.decomposition,
         })),
       });
       if (res.success) {

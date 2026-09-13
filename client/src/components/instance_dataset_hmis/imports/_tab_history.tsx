@@ -37,7 +37,7 @@ export function selectionLabel(run: DatasetHmisImportRunSummary): string {
     return "";
   }
   if (run.selection.kind === "window") {
-    const elements = `${toNum0(run.selection.elements.length)} ${t3({
+    const elements = `${toNum0(run.selection.dataIds.length)} ${t3({
       en: "DHIS2 elements",
       fr: "éléments DHIS2",
       pt: "elementos DHIS2",

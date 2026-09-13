@@ -1,5 +1,5 @@
 // Applies the pending instance migrations to each restored dump and asserts
-// PLAN_A4 §5 gate 5 over the result. Run through ./validate_indicator_migration,
+// PLAN_A5 §5 gate 5 over the result. Run through ./validate_indicator_migration,
 // which supplies the container, the restored databases and the env. Each
 // argument is `label=dbname`.
 
@@ -7,8 +7,9 @@ import { join } from "@std/path";
 import postgres, { type Sql } from "postgres";
 import {
   analysedIndicatorIds,
-  type HmisIndicator,
   generateIndicatorId,
+  type HmisIndicator,
+  type HmisIndicatorType,
   isDhis2ShapedId,
   isSpecialIndicatorId,
   POPULATION_TYPE_IDS,
@@ -22,10 +23,16 @@ const MIGRATIONS_DIR = new URL("./server/db/migrations/instance/", import.meta.u
 const RETIRED_KEYS = [
   "rawIndicatorIds",
   "indicatorRawId",
+  "indicatorId",
+  "dhis2Id",
+  "elements",
   "route",
   "computedIndicators",
   "raw_indicator_id",
   "indicator_raw_id",
+  "indicator_id",
+  "mappings",
+  "sourceType",
   "rawIndicatorsToInclude",
   "commonIndicatorsToInclude",
   "indicatorType",
@@ -148,11 +155,34 @@ type PreState = {
   sumsByCommon: Map<string, number>;
   sumsByRaw: Map<string, number>;
   dataRows: number;
+  dataChecksum: string;
   ledgerRows: number;
+  ledgerChecksum: string;
   runRows: number;
   versionRows: number;
   scheduleRows: number;
 };
+
+// One checksum over every data row (facility, key, period, count) and one
+// over every ledger row (key, period, records, sum): the proof that the
+// migration touched no row. `keyColumn` is the key's name before or after.
+async function dataChecksum(sql: Sql, keyColumn: string): Promise<string> {
+  const rows = await sql.unsafe<{ md5: string | null }[]>(`
+    SELECT md5(string_agg(facility_id || '|' || ${keyColumn} || '|' || period_id || '|' || count, ','
+      ORDER BY facility_id, ${keyColumn}, period_id)) AS md5
+    FROM dataset_hmis
+  `);
+  return rows[0].md5 ?? "empty";
+}
+
+async function ledgerChecksum(sql: Sql, keyColumn: string): Promise<string> {
+  const rows = await sql.unsafe<{ md5: string | null }[]>(`
+    SELECT md5(string_agg(${keyColumn} || '|' || period_id || '|' || n_records || '|' || sum_count, ','
+      ORDER BY ${keyColumn}, period_id)) AS md5
+    FROM dataset_hmis_import_ledger
+  `);
+  return rows[0].md5 ?? "empty";
+}
 
 async function readPreState(sql: Sql): Promise<PreState> {
   const commons = await sql<PreCommon[]>`
@@ -190,21 +220,24 @@ async function readPreState(sql: Sql): Promise<PreState> {
     sumsByCommon,
     sumsByRaw,
     dataRows: await count("dataset_hmis"),
+    dataChecksum: await dataChecksum(sql, "indicator_raw_id"),
     ledgerRows: await count("dataset_hmis_import_ledger"),
+    ledgerChecksum: await ledgerChecksum(sql, "indicator_raw_id"),
     runRows: await count("dataset_hmis_import_runs"),
     versionRows: await count("dataset_hmis_versions"),
     scheduleRows: await count("dataset_hmis_scheduled_imports"),
   };
 }
 
-// lib getNewIndicatorIdIssue's charset rule, as 086 restates it for a CSV
-// raw keeping its own id.
+// lib getNewIndicatorIdIssue's charset rule, as 086 restates it for a raw
+// keeping its own id.
 function charsetOk(id: string): boolean {
   return id !== "" && id.trim() === id && !/[,;:[\]]/.test(id) && id.length <= 128;
 }
 
 type Expected = {
-  // raw id → the indicator it becomes, and whether it folded.
+  // raw id → the indicator that holds it as its data id, and whether it
+  // folded into an existing common.
   rawTarget: Map<string, { id: string; folded: boolean }>;
   generatedIds: string[];
   // pre common id → sum members (the commons that become sums).
@@ -213,7 +246,7 @@ type Expected = {
   renamedSpecials: Map<string, string>;
 };
 
-// Ruling 10 restated over the pre-state, with lib's own generator, so the
+// Ruling 8 restated over the pre-state, with lib's own generator, so the
 // migration's PL/pgSQL is checked against the TypeScript spelling.
 function expectedOutcome(pre: PreState): Expected {
   const commonById = new Map(pre.commons.map((c) => [c.id, c]));
@@ -236,8 +269,7 @@ function expectedOutcome(pre: PreState): Expected {
     if (
       commons.length === 1 &&
       commonById.get(commons[0])?.type === "base" &&
-      (mappingsByCommon.get(commons[0]) ?? []).length === 1 &&
-      isDhis2ShapedId(raw.indicator_raw_id)
+      (mappingsByCommon.get(commons[0]) ?? []).length === 1
     ) {
       rawTarget.set(raw.indicator_raw_id, { id: commons[0], folded: true });
     }
@@ -285,10 +317,10 @@ function expectedOutcome(pre: PreState): Expected {
 type PostIndicator = {
   id: string;
   label: string;
-  type: "base" | "sum" | "derived";
+  type: HmisIndicatorType;
   expression: string | null;
-  dhis2_id: string | null;
-  members: string | null;
+  data_id: string | null;
+  members: string[];
   include_in_analysis: boolean;
 };
 
@@ -299,13 +331,25 @@ async function assertMigrated(sql: Sql, pre: PreState, lines: string[]): Promise
   if (await tableExists(sql, "indicators_raw")) problems.push("indicators_raw still exists");
   if (await tableExists(sql, "indicator_mappings")) problems.push("indicator_mappings still exists");
   if (await tableExists(sql, "indicator_sources")) problems.push("indicator_sources exists");
-  if (!(await columnExists(sql, "dataset_hmis", "indicator_id"))) problems.push("dataset_hmis.indicator_id missing");
-  if (!(await columnExists(sql, "dataset_hmis_import_ledger", "indicator_id"))) problems.push("ledger.indicator_id missing");
+  if (!(await tableExists(sql, "indicator_sum_members"))) problems.push("indicator_sum_members missing");
+  if (!(await columnExists(sql, "dataset_hmis", "data_id"))) problems.push("dataset_hmis.data_id missing");
+  if (!(await columnExists(sql, "dataset_hmis_import_ledger", "data_id"))) problems.push("ledger.data_id missing");
   if (await columnExists(sql, "indicators", "is_default")) problems.push("indicators.is_default still exists");
-  for (const column of ["dhis2_id", "members", "include_in_analysis"]) {
+  for (const column of ["data_id", "include_in_analysis", "has_rows", "is_count"]) {
     if (!(await columnExists(sql, "indicators", column))) problems.push(`indicators.${column} missing`);
   }
-  for (const name of ["dataset_hmis_indicator_id_fkey", "dataset_hmis_import_ledger_indicator_id_fkey", "indicators_dhis2_id_key"]) {
+  for (
+    const name of [
+      "dataset_hmis_data_id_fkey",
+      "dataset_hmis_import_ledger_data_id_fkey",
+      "indicators_data_id_key",
+      "indicators_fields_check",
+      "indicators_element_shape_check",
+      "indicators_count_format_check",
+      "dataset_hmis_import_runs_route_check",
+      "dataset_hmis_import_ledger_route_check",
+    ]
+  ) {
     if (!(await constraintExists(sql, name))) problems.push(`${name} missing`);
   }
   if (problems.length > 0) {
@@ -315,14 +359,18 @@ async function assertMigrated(sql: Sql, pre: PreState, lines: string[]): Promise
 
   const expected = expectedOutcome(pre);
   const post = await sql<PostIndicator[]>`
-    SELECT indicator_common_id AS id, indicator_common_label AS label,
-      definition_type AS type, expression, dhis2_id, members, include_in_analysis
-    FROM indicators
+    SELECT i.indicator_common_id AS id, i.indicator_common_label AS label,
+      i.definition_type AS type, i.expression, i.data_id,
+      (SELECT COALESCE(array_agg(m.member_id ORDER BY m.member_id), ARRAY[]::text[])
+         FROM indicator_sum_members m WHERE m.sum_id = i.indicator_common_id) AS members,
+      i.include_in_analysis
+    FROM indicators i
   `;
   const postById = new Map(post.map((i) => [i.id, i]));
   const preIds = new Set(pre.commons.map((c) => c.id));
 
-  // Every raw became exactly one indicator or folded into exactly one common.
+  // Every raw became exactly one indicator's data id, folded or new; the
+  // type is dhis2_element exactly where the data id is DHIS2-shaped.
   for (const raw of pre.raws) {
     const target = expected.rawTarget.get(raw.indicator_raw_id)!;
     const i = postById.get(target.id);
@@ -330,15 +378,17 @@ async function assertMigrated(sql: Sql, pre: PreState, lines: string[]): Promise
       problems.push(`raw ${raw.indicator_raw_id}: expected indicator ${target.id} missing`);
       continue;
     }
-    if (i.type !== "base") problems.push(`raw ${raw.indicator_raw_id}: ${target.id} is ${i.type}, not base`);
-    const expectedDhis2Id = isDhis2ShapedId(raw.indicator_raw_id) ? raw.indicator_raw_id : null;
-    if (i.dhis2_id !== expectedDhis2Id) {
-      problems.push(`raw ${raw.indicator_raw_id}: ${target.id} carries dhis2_id ${i.dhis2_id}, expected ${expectedDhis2Id}`);
+    if (i.data_id !== raw.indicator_raw_id) {
+      problems.push(`raw ${raw.indicator_raw_id}: ${target.id} carries data id ${i.data_id}`);
+    }
+    const expectedType = isDhis2ShapedId(raw.indicator_raw_id) ? "dhis2_element" : "uploaded";
+    if (i.type !== expectedType) {
+      problems.push(`raw ${raw.indicator_raw_id}: ${target.id} is ${i.type}, expected ${expectedType}`);
     }
     if (!target.folded) {
-      if (i.label !== raw.indicator_raw_label) problems.push(`new base ${target.id} label differs from raw label`);
-      if (preIds.has(target.id)) problems.push(`new base ${target.id} existed before`);
-      if (i.include_in_analysis) problems.push(`new base ${target.id} is in the analysis`);
+      if (i.label !== raw.indicator_raw_label) problems.push(`new indicator ${target.id} label differs from raw label`);
+      if (preIds.has(target.id)) problems.push(`new indicator ${target.id} existed before`);
+      if (i.include_in_analysis) problems.push(`new indicator ${target.id} is in the analysis`);
     } else if (!i.include_in_analysis) {
       problems.push(`folded common ${target.id} left the analysis`);
     }
@@ -350,9 +400,18 @@ async function assertMigrated(sql: Sql, pre: PreState, lines: string[]): Promise
     if (RESERVED_WORDS.includes(id)) problems.push(`generated id ${id} is a reserved word`);
     if (isSpecialIndicatorId(id)) problems.push(`generated id ${id} is a special id`);
   }
+  for (const i of post) {
+    if (i.type === "dhis2_element" && (i.data_id === null || !isDhis2ShapedId(i.data_id))) {
+      problems.push(`DHIS2 element ${i.id} has data id ${i.data_id}`);
+    }
+    if (i.type === "uploaded" && i.data_id !== null && isDhis2ShapedId(i.data_id)) {
+      problems.push(`Uploaded ${i.id} has a DHIS2-shaped data id ${i.data_id}`);
+    }
+  }
 
-  // Every common with mappings is a DHIS2 element or a sum over what its
-  // raws became; a common without mappings stays as it was.
+  // Every common with mappings is a DHIS2 element, an Uploaded indicator or
+  // a sum over what its raws became; a common without mappings is Uploaded
+  // with no data id; a derived stays derived.
   for (const c of pre.commons) {
     const renamed = expected.renamedSpecials.get(c.id);
     const i = postById.get(renamed ?? c.id);
@@ -364,19 +423,22 @@ async function assertMigrated(sql: Sql, pre: PreState, lines: string[]): Promise
     const members = expected.sums.get(c.id);
     if (members !== undefined) {
       if (i.type !== "sum") problems.push(`common ${c.id} should be a sum, is ${i.type}`);
-      else if (JSON.stringify(JSON.parse(i.members ?? "[]").toSorted()) !== JSON.stringify(members)) {
-        problems.push(`sum ${c.id}: members ${i.members}, expected ${JSON.stringify(members)}`);
+      else if (JSON.stringify(i.members) !== JSON.stringify(members)) {
+        problems.push(`sum ${c.id}: members ${JSON.stringify(i.members)}, expected ${JSON.stringify(members)}`);
       }
     } else if (c.type === "base") {
-      if (i.type !== "base") problems.push(`common ${c.id} should stay a base, is ${i.type}`);
+      const folded = [...expected.rawTarget.entries()].find(([, t]) => t.folded && t.id === c.id);
+      if (folded === undefined && (i.type !== "uploaded" || i.data_id !== null)) {
+        problems.push(`common ${c.id} should be Uploaded with no data id, is ${i.type} with ${i.data_id}`);
+      }
     } else if (i.type !== "derived") {
       problems.push(`derived ${c.id} should stay derived, is ${i.type}`);
     }
   }
   for (const [oldId, newId] of expected.renamedSpecials) {
-    const emptyBase = postById.get(oldId);
-    if (!emptyBase || emptyBase.type !== "base" || emptyBase.dhis2_id !== null || !emptyBase.include_in_analysis) {
-      problems.push(`special ${oldId}: no empty base in the analysis after the derived was renamed`);
+    const empty = postById.get(oldId);
+    if (!empty || empty.type !== "uploaded" || empty.data_id !== null || !empty.include_in_analysis) {
+      problems.push(`special ${oldId}: no Uploaded indicator with no data id in the analysis after the derived was renamed`);
     }
     if (!postById.has(newId)) problems.push(`renamed derived ${newId} missing`);
     for (const i of post) {
@@ -390,10 +452,10 @@ async function assertMigrated(sql: Sql, pre: PreState, lines: string[]): Promise
   }
 
   // The analysed set after equals the set of commons before (the renamed
-  // derived under its new id, plus the empty base under the special id).
-  // The set is ruling 3's, as the extract computes it (a checkbox on, a
-  // special, or reached by a checked derived), never the checkbox alone: a
-  // CSV raw kept under a special id lands with its checkbox off and is
+  // derived under its new id, plus the Uploaded indicator under the special
+  // id). The set is ruling 3's, as the extract computes it (a checkbox on,
+  // a special, or reached by a checked derived), never the checkbox alone:
+  // a raw kept under a special id lands with its checkbox off and is
   // analysed regardless.
   const expectedAnalysed = new Set([
     ...pre.commons.map((c) => expected.renamedSpecials.get(c.id) ?? c.id),
@@ -402,10 +464,12 @@ async function assertMigrated(sql: Sql, pre: PreState, lines: string[]): Promise
   const postCommons = post.map<HmisIndicator>((i) => ({
     indicator_common_id: i.id,
     indicator_common_label: i.label,
-    definition: i.type === "base"
-      ? { type: "base", dhis2_id: i.dhis2_id }
+    definition: i.type === "uploaded"
+      ? { type: "uploaded", data_id: i.data_id }
+      : i.type === "dhis2_element"
+      ? { type: "dhis2_element", data_id: i.data_id ?? "" }
       : i.type === "sum"
-      ? { type: "sum", members: JSON.parse(i.members ?? "[]") as string[] }
+      ? { type: "sum", members: i.members }
       : { type: "derived", expression: i.expression ?? "" },
     include_in_analysis: i.include_in_analysis,
     format_as: "number",
@@ -427,17 +491,17 @@ async function assertMigrated(sql: Sql, pre: PreState, lines: string[]): Promise
   const sumsAfter = new Map(
     (await sql<{ id: string; sum: string }[]>`
       SELECT id, COALESCE(SUM(sum), 0)::text AS sum FROM (
-        SELECT d.indicator_id AS id, SUM(d.count) AS sum
-        FROM dataset_hmis d
-        JOIN indicators i ON i.indicator_common_id = d.indicator_id AND i.definition_type = 'base'
-        GROUP BY d.indicator_id
-        UNION ALL
         SELECT i.indicator_common_id AS id, SUM(d.count) AS sum
         FROM indicators i
-        CROSS JOIN LATERAL jsonb_array_elements_text(i.members::jsonb) AS m(member_id)
-        JOIN dataset_hmis d ON d.indicator_id = m.member_id
-        WHERE i.definition_type = 'sum'
+        JOIN dataset_hmis d ON d.data_id = i.data_id
+        WHERE i.has_rows
         GROUP BY i.indicator_common_id
+        UNION ALL
+        SELECT m.sum_id AS id, SUM(d.count) AS sum
+        FROM indicator_sum_members m
+        JOIN indicators mi ON mi.indicator_common_id = m.member_id
+        JOIN dataset_hmis d ON d.data_id = mi.data_id
+        GROUP BY m.sum_id
       ) t GROUP BY id
     `).map((r) => [r.id, Number(r.sum)]),
   );
@@ -451,23 +515,27 @@ async function assertMigrated(sql: Sql, pre: PreState, lines: string[]): Promise
     if (before !== after) problems.push(`sum for ${target.id} (raw ${raw.indicator_raw_id}): ${before} before, ${after} after`);
   }
 
-  // Row counts and referential integrity.
+  // No data or ledger row changed: the same count and the same checksum
+  // over every row, before and after, and every key some indicator's data
+  // id.
   const count = async (table: string) =>
     Number((await sql.unsafe<{ n: string }[]>(`SELECT COUNT(*)::text AS n FROM ${table}`))[0].n);
   if ((await count("dataset_hmis")) !== pre.dataRows) problems.push("dataset_hmis row count changed");
   if ((await count("dataset_hmis_import_ledger")) !== pre.ledgerRows) problems.push("ledger row count changed");
+  if ((await dataChecksum(sql, "data_id")) !== pre.dataChecksum) problems.push("dataset_hmis rows changed (checksum)");
+  if ((await ledgerChecksum(sql, "data_id")) !== pre.ledgerChecksum) problems.push("ledger rows changed (checksum)");
   const orphans = await sql<{ n: string }[]>`
     SELECT COUNT(*)::text AS n FROM (
-      SELECT indicator_id FROM dataset_hmis
-      UNION ALL SELECT indicator_id FROM dataset_hmis_import_ledger
-    ) r WHERE NOT EXISTS (SELECT 1 FROM indicators i WHERE i.indicator_common_id = r.indicator_id)
+      SELECT data_id FROM dataset_hmis
+      UNION ALL SELECT data_id FROM dataset_hmis_import_ledger
+    ) r WHERE NOT EXISTS (SELECT 1 FROM indicators i WHERE i.data_id = r.data_id)
   `;
-  if (Number(orphans[0].n) !== 0) problems.push(`${orphans[0].n} data or ledger rows point at no indicator`);
+  if (Number(orphans[0].n) !== 0) problems.push(`${orphans[0].n} data or ledger rows carry no indicator's data id`);
 
   // Stored JSON.
   const isRecord = (v: unknown): v is Record<string, unknown> => v !== null && typeof v === "object";
   const isPair = (p: unknown) =>
-    isRecord(p) && typeof p.indicatorId === "string" && typeof p.dhis2Id === "string" && typeof p.periodId === "number";
+    isRecord(p) && typeof p.dataId === "string" && typeof p.periodId === "number";
   const scan = async (table: string, column: string, expectedRows: number, check: (v: unknown) => string[]) => {
     const rows = await sql.unsafe<{ id: number; value: string | null }[]>(
       `SELECT id, ${column} AS value FROM ${table} ORDER BY id`,
@@ -489,15 +557,15 @@ async function assertMigrated(sql: Sql, pre: PreState, lines: string[]): Promise
   await scan("dataset_hmis_import_runs", "selection", pre.runRows, (v) => {
     if (!isRecord(v)) return ["not an object"];
     if (v.kind === "window") {
-      const out = ["indicatorIds", "elements", "populationTermsDropped", "uploadedIndicatorsDropped"]
+      const out = ["indicatorIds", "dataIds", "populationTermsDropped", "uploadedIndicatorsDropped"]
         .filter((k) => !Array.isArray(v[k])).map((k) => `window selection lacks ${k}`);
-      if (Array.isArray(v.elements) && !v.elements.every((e) => isRecord(e) && typeof e.indicatorId === "string" && typeof e.dhis2Id === "string")) {
-        out.push("an element lacks indicatorId or dhis2Id");
+      if (Array.isArray(v.dataIds) && !v.dataIds.every((d) => typeof d === "string")) {
+        out.push("a data id is not a string");
       }
       return out;
     }
     if (v.kind === "pairs") {
-      return Array.isArray(v.pairs) && v.pairs.every(isPair) ? [] : ["pairs lack indicatorId, dhis2Id or periodId"];
+      return Array.isArray(v.pairs) && v.pairs.every(isPair) ? [] : ["pairs lack dataId or periodId"];
     }
     return [`unknown kind ${String(v.kind)}`];
   });
@@ -509,32 +577,36 @@ async function assertMigrated(sql: Sql, pre: PreState, lines: string[]): Promise
     }
     if (Array.isArray(v.pairFetchStats)) {
       for (const s of v.pairFetchStats) {
-        if (!isRecord(s) || typeof s.indicatorId !== "string" || typeof s.skippedValues !== "number") {
-          out.push("a pair stat lacks indicatorId or skippedValues");
+        if (!isRecord(s) || typeof s.dataId !== "string" || typeof s.skippedValues !== "number") {
+          out.push("a pair stat lacks dataId or skippedValues");
           break;
         }
       }
     }
-    if (isRecord(v.csvStagingResult) && isRecord(v.csvStagingResult.validation) && !isRecord(v.csvStagingResult.validation.unknownIndicators)) {
-      out.push("CSV staging result lacks unknownIndicators");
+    if (isRecord(v.csvStagingResult)) {
+      if (v.csvStagingResult.kind !== "csv") out.push("CSV staging result lacks kind");
+      if (isRecord(v.csvStagingResult.validation) && !isRecord(v.csvStagingResult.validation.unknownIndicators)) {
+        out.push("CSV staging result lacks unknownIndicators");
+      }
     }
     return out;
   });
   await scan("dataset_hmis_import_runs", "progress", pre.runRows, (v) =>
-    isRecord(v) && Array.isArray(v.activePairs) && !v.activePairs.every(isPair) ? ["activePairs lack indicatorId"] : []);
+    isRecord(v) && Array.isArray(v.activePairs) && !v.activePairs.every(isPair) ? ["activePairs lack dataId"] : []);
   await scan("dataset_hmis_import_runs", "csv_config", pre.runRows, (v) =>
-    isRecord(v) && isRecord(v.columns) && typeof v.columns.indicator_id !== "string" ? ["columns lack indicator_id"] : []);
+    isRecord(v) && (!isRecord(v.columns) || typeof v.columns.data_id !== "string") ? ["columns lack data_id"] : []);
   await scan("dataset_hmis_versions", "staging_result", pre.versionRows, (v) => {
     if (!isRecord(v)) return ["not an object"];
     const out: string[] = [];
+    if (typeof v.kind !== "string") out.push("staging result lacks kind");
     if (v.kind === "deletion" && isRecord(v.windowing) && !Array.isArray(v.windowing.indicatorsToInclude)) {
       out.push("deletion windowing lacks indicatorsToInclude");
     }
-    if (Array.isArray(v.failedFetches) && !v.failedFetches.every((f) => isRecord(f) && typeof f.indicatorId === "string")) {
-      out.push("failedFetches lack indicatorId");
+    if (Array.isArray(v.failedFetches) && !v.failedFetches.every((f) => isRecord(f) && typeof f.dataId === "string")) {
+      out.push("failedFetches lack dataId");
     }
-    if (Array.isArray(v.periodIndicatorStats) && !v.periodIndicatorStats.every((s) => isRecord(s) && typeof s.indicatorId === "string")) {
-      out.push("periodIndicatorStats lack indicatorId");
+    if (Array.isArray(v.periodIndicatorStats) && !v.periodIndicatorStats.every((s) => isRecord(s) && typeof s.dataId === "string")) {
+      out.push("periodIndicatorStats lack dataId");
     }
     return out;
   });
@@ -546,8 +618,8 @@ async function assertMigrated(sql: Sql, pre: PreState, lines: string[]): Promise
   if (pending.length > 0) problems.push(`${pending.length} migrations still pending after the run`);
 
   const folded = [...expected.rawTarget.values()].filter((t) => t.folded).length;
-  lines.push(`  ${pre.raws.length} raws: ${folded} folded, ${pre.raws.length - folded} new bases (${expected.generatedIds.length} generated ids), ${expected.sums.size} sums, ${expected.renamedSpecials.size} derived specials renamed`);
-  lines.push(`  ${pre.sumsByCommon.size} bases with data compared, ${pre.dataRows} data rows, ${pre.ledgerRows} ledger rows, ${pre.runRows} run rows, ${pre.versionRows} version rows, ${pre.scheduleRows} schedules parsed`);
+  lines.push(`  ${pre.raws.length} raws: ${folded} folded, ${pre.raws.length - folded} new indicators (${expected.generatedIds.length} generated ids), ${expected.sums.size} sums, ${expected.renamedSpecials.size} derived specials renamed`);
+  lines.push(`  ${pre.sumsByCommon.size} commons with data compared, ${pre.dataRows} data rows and ${pre.ledgerRows} ledger rows unchanged by checksum, ${pre.runRows} run rows, ${pre.versionRows} version rows, ${pre.scheduleRows} schedules parsed`);
   if (problems.length > 0) {
     lines.push(...problems.map((p) => `  ${p}`));
     return false;

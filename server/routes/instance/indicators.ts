@@ -29,13 +29,15 @@ function narrowIndicatorDefinition(
     throw new Error(`Unknown indicator type: ${raw.type}`);
   }
   switch (raw.type) {
-    case "base":
+    case "uploaded":
       return {
-        type: "base",
-        dhis2_id: raw.dhis2_id === null || raw.dhis2_id === undefined
+        type: "uploaded",
+        data_id: raw.data_id === null || raw.data_id === undefined
           ? null
-          : String(raw.dhis2_id),
+          : String(raw.data_id),
       };
+    case "dhis2_element":
+      return { type: "dhis2_element", data_id: String(raw.data_id) };
     case "sum":
       return {
         type: "sum",
@@ -157,7 +159,7 @@ defineRoute(
   },
 );
 
-// POST /indicators/batch - Batch upload the dictionary file (PLAN_A4 ruling 7)
+// POST /indicators/batch - Batch upload the dictionary file (PLAN_A5 ruling 11)
 defineRoute(
   routesIndicators,
   "batchUploadIndicators",

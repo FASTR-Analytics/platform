@@ -46,10 +46,10 @@ function indicator(
 // population the store does not cover, an ingredient with no rows at all,
 // and a coalesce that turns a missing ingredient into a kept row.
 const INDICATORS: HmisIndicator[] = [
-  indicator("anc1", { type: "base", dhis2_id: null }, 1),
-  indicator("anc4", { type: "base", dhis2_id: null }, 2),
-  indicator("penta1", { type: "base", dhis2_id: null }, 3),
-  indicator("opd", { type: "base", dhis2_id: null }, 4),
+  indicator("anc1", { type: "uploaded", data_id: "anc1" }, 1),
+  indicator("anc4", { type: "uploaded", data_id: "anc4" }, 2),
+  indicator("penta1", { type: "uploaded", data_id: "penta1" }, 3),
+  indicator("opd", { type: "uploaded", data_id: "opd" }, 4),
   indicator("anc4_rate", { type: "derived", expression: "anc4 / anc1" }, 5),
   indicator("anc4_rate_fill", {
     type: "derived",
@@ -67,8 +67,8 @@ const INDICATORS: HmisIndicator[] = [
   }, 10),
 ];
 
-// `opd` and `penta1` have no rows.
-const BASE_IDS_IN_DATA = new Set(["anc1", "anc4", "penta1"]);
+// `opd` has no rows; `penta1` has rows but none in the fixture's dataset.
+const IDS_WITH_DATA = new Set(["anc1", "anc4", "penta1"]);
 
 type AdjustedRow = {
   facility: string;
@@ -260,7 +260,7 @@ Deno.test({
     const detail = detailRes.data;
     const catalog = resolveHmisIndicatorCatalog(
       INDICATORS,
-      BASE_IDS_IN_DATA,
+      IDS_WITH_DATA,
       POPULATION_TYPE_IDS,
     );
     const script = getScriptWithParameters(

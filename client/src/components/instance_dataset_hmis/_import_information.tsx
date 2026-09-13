@@ -154,7 +154,7 @@ export function ImportInformation(
                     <div class="truncate">
                       {stat.periodId || `Period ${index() + 1}`}
                     </div>
-                    <div class="truncate">{stat.indicatorId}</div>
+                    <div class="truncate">{stat.dataId}</div>
                     <div class="truncate">{toNum0(stat.nRecords)}</div>
                     <div class="truncate">{toNum0(stat.totalCount)}</div>
                   </div>

@@ -27,7 +27,7 @@ const _DATASET_HMIS_DISPLAY_INFO_CACHE = createReactiveCache<
   {
     structureSchema: StructureSchema;
     versionId: number;
-    baseIndicatorsVersion: string;
+    countIndicatorsVersion: string;
     structureLastUpdated: string | undefined;
   },
   ItemsHolderDatasetHmisDisplay
@@ -43,7 +43,7 @@ const _DATASET_HMIS_DISPLAY_INFO_CACHE = createReactiveCache<
   // the admin tree without any other key moving; the undefined case (no
   // structure yet) is guarded with an explicit token
   versionKey: (params, _pds) =>
-    `${params.versionId}_${params.baseIndicatorsVersion}_${
+    `${params.versionId}_${params.countIndicatorsVersion}_${
       params.structureLastUpdated ?? "no-structure"
     }`,
   pdsNotRequired: true,
@@ -51,7 +51,7 @@ const _DATASET_HMIS_DISPLAY_INFO_CACHE = createReactiveCache<
 
 export async function getDatasetHmisDisplayInfoFromCacheOrFetch(
   versionId: number,
-  baseIndicatorsVersion: string,
+  countIndicatorsVersion: string,
   structureSchema: StructureSchema,
   structureLastUpdated: string | undefined,
   hmisImportRunActive: boolean,
@@ -62,7 +62,7 @@ export async function getDatasetHmisDisplayInfoFromCacheOrFetch(
   if (hmisImportRunActive) {
     return await serverActions.getDatasetHmisDisplayInfo({
       versionId,
-      baseIndicatorsVersion,
+      countIndicatorsVersion,
       structureSchema,
     });
   }
@@ -70,7 +70,7 @@ export async function getDatasetHmisDisplayInfoFromCacheOrFetch(
   const { data, version } = await _DATASET_HMIS_DISPLAY_INFO_CACHE.get({
     structureSchema,
     versionId,
-    baseIndicatorsVersion,
+    countIndicatorsVersion,
     structureLastUpdated,
   });
 
@@ -80,7 +80,7 @@ export async function getDatasetHmisDisplayInfoFromCacheOrFetch(
 
   const newPromise = serverActions.getDatasetHmisDisplayInfo({
     versionId,
-    baseIndicatorsVersion,
+    countIndicatorsVersion,
     structureSchema,
   });
 
@@ -89,7 +89,7 @@ export async function getDatasetHmisDisplayInfoFromCacheOrFetch(
     {
       structureSchema,
       versionId,
-      baseIndicatorsVersion,
+      countIndicatorsVersion,
       structureLastUpdated,
     },
     version,

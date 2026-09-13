@@ -1,4 +1,5 @@
 import {
+  definitionDataId,
   analysedIdsWithData,
   t3,
   TC,
@@ -101,7 +102,7 @@ export function IndicatorsManager(p: Props) {
     const s = ledger.state();
     if (s.status !== "ready") return undefined;
     return new Set(
-      s.data.filter((item) => item.nRecords > 0).map((item) => item.indicatorId),
+      s.data.filter((item) => item.nRecords > 0).map((item) => item.dataId),
     );
   });
 
@@ -111,9 +112,7 @@ export function IndicatorsManager(p: Props) {
       indicator.indicator_common_id,
       indicator.indicator_common_label,
       indicator.definition.type,
-      indicator.definition.type === "base"
-        ? indicator.definition.dhis2_id ?? ""
-        : "",
+      definitionDataId(indicator.definition) ?? "",
       indicator.definition.type === "sum"
         ? indicator.definition.members.join(INDICATOR_BATCH_MEMBERS_SEPARATOR)
         : "",

@@ -119,7 +119,7 @@ export async function integrateStagedHmisCsvData(args: {
       FROM ${sql(stagingTableName)} agg
       WHERE
         dt.facility_id = agg.facility_id
-        AND dt.indicator_id = agg.indicator_id
+        AND dt.data_id = agg.data_id
         AND dt.period_id = agg.period_id
     `;
     rowsUpdated = updateResult.count;
@@ -130,7 +130,7 @@ export async function integrateStagedHmisCsvData(args: {
         SELECT 1
         FROM ${sql(datasetTableName)} dt
         WHERE dt.facility_id = agg.facility_id
-          AND dt.indicator_id = agg.indicator_id
+          AND dt.data_id = agg.data_id
           AND dt.period_id = agg.period_id
           AND dt.version_id = ${versionId}
       )
@@ -140,10 +140,10 @@ export async function integrateStagedHmisCsvData(args: {
 
     const insertResult = await sql`
       INSERT INTO ${sql(datasetTableName)}
-      (facility_id, indicator_id, period_id, count, version_id)
+      (facility_id, data_id, period_id, count, version_id)
       SELECT
         facility_id,
-        indicator_id,
+        data_id,
         period_id,
         count,
         ${versionId}::INTEGER as version_id
@@ -164,13 +164,13 @@ export async function integrateStagedHmisCsvData(args: {
     // Import ledger in the same transaction: the ledger can never disagree
     // with the data.
     const touchedPairs = (
-      await sql<{ indicator_id: string; period_id: number }[]>`
-        SELECT DISTINCT indicator_id, period_id
+      await sql<{ data_id: string; period_id: number }[]>`
+        SELECT DISTINCT data_id, period_id
         FROM ${sql(datasetTableName)}
         WHERE version_id = ${versionId}
       `
     ).map((r) => ({
-      indicatorId: r.indicator_id,
+      dataId: r.data_id,
       periodId: r.period_id,
     }));
 

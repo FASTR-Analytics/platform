@@ -34,7 +34,7 @@ const STEPS: StepKind[] = ["upload", "columns", "review"];
 
 const _HMIS_SQL_COL_NAMES: (keyof HmisCsvColumns)[] = [
   "facility_id",
-  "indicator_id",
+  "data_id",
   "period_id",
   "count",
 ];
@@ -51,7 +51,7 @@ export function CsvWizard(
   const [headersError, setHeadersError] = createSignal<string>("");
   const [columns, setColumns] = createStore<HmisCsvColumns>({
     facility_id: "",
-    indicator_id: "",
+    data_id: "",
     period_id: "",
     count: "",
   });
@@ -65,7 +65,7 @@ export function CsvWizard(
     setHeadersError("");
     setColumns({
       facility_id: "",
-      indicator_id: "",
+      data_id: "",
       period_id: "",
       count: "",
     });

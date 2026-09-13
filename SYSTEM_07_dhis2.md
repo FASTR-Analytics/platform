@@ -111,8 +111,8 @@ endpoints, and merges deduped by id. The data-element field list carries
 can see the element's period type.
 
 **Element eligibility** (`goal2_indicators/element_eligibility.ts`, pure;
-PLAN_A3 ruling 6). A DHIS2 data element may fill a base indicator (be its
-`dhis2_id`) only when DHIS2's own metadata says it is an additive monthly
+PLAN_A3 ruling 6). A DHIS2 data element may fill a DHIS2 element indicator
+(be its data id) only when DHIS2's own metadata says it is an additive monthly
 count: `aggregationType` is `SUM`; `valueType` is `NUMBER` (the DHIS2
 editor's default, which most real count elements carry; integrality is
 enforced per value at import by S6's skip-and-record), `INTEGER`,
@@ -150,10 +150,10 @@ refusal with the token it stopped at). A blacklist would miss the next
 form DHIS2 adds. The accepted result's `expression` is written in the
 app's own grammar through `writeIndicatorExpression`, fully
 parenthesised as `((numerator) / (denominator))`, with each operand as
-the bracket-quoted identifier `[dhis2_id]` (`[uid]` or `[uid.coc]`),
+the bracket-quoted identifier `[data_id]` (`[uid]` or `[uid.coc]`),
 so it re-parses with `parseIndicatorExpression` and the naming step can
-rename those identifiers to the base ids the elements land in with
-`renameIdentifiers`. Operands are deduped by `dhis2_id` in first-
+rename those identifiers to the indicator ids the elements land in with
+`renameIdentifiers`. Operands are deduped by `data_id` in first-
 appearance order across numerator then denominator.
 
 **Search-result shaping** (`goal2_indicators/attach_verdicts.ts`).

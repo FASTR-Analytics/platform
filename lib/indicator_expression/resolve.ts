@@ -9,7 +9,7 @@
 //
 // Flattening is substitution: a `derived` ingredient is replaced by its own
 // expression, recursively, until the expression names nothing but leaves:
-// `base` indicators and population types. Those leaves ARE the
+// count indicators (`leaf`) and population types. Those leaves ARE the
 // ingredients that travel as ing1..ingN on a results row, which is why the
 // cap is measured AFTER flattening.
 //
@@ -37,12 +37,14 @@ export const MAX_INDICATOR_EXPRESSION_DEPTH = 8;
 // limits put a legitimate expression orders of magnitude below it.
 export const MAX_INDICATOR_EXPRESSION_NODES = 1000;
 
-// `population` entries are the store's types under their own id
-// (POPULATION_TYPE_IDS, reserved words): leaves, like `base`.
+// `leaf` is any count indicator (Uploaded, DHIS2 element or Sum: the
+// resolver never looks inside one); `population` entries are the store's
+// types under their own id (POPULATION_TYPE_IDS, reserved words), leaves
+// too.
 export type ExpressionDictionaryEntry = {
   id: string;
-  type: "base" | "derived" | "population";
-  // `derived`: the expression. `base` and `population`: null.
+  type: "leaf" | "derived" | "population";
+  // `derived`: the expression. `leaf` and `population`: null.
   expression: string | null;
 };
 
@@ -51,8 +53,8 @@ export type ExpressionDictionary = Map<string, ExpressionDictionaryEntry>;
 export class IndicatorExpressionError extends Error {}
 
 export type ResolvedIndicatorExpression = {
-  // The flattened AST: every identifier is a `base` indicator id or
-  // a population type id.
+  // The flattened AST: every identifier is a count indicator id or a
+  // population type id.
   ast: ExpressionNode;
   // Those leaf ids, in first-appearance order. This IS the slot order.
   ingredientIds: string[];
@@ -102,7 +104,7 @@ export function resolveIndicatorExpression(args: {
             })`,
           );
         }
-        if (entry.type === "base" || entry.type === "population") {
+        if (entry.type === "leaf" || entry.type === "population") {
           return node;
         }
         if (chain.includes(node.name)) {

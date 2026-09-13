@@ -129,7 +129,8 @@ export async function deleteAllDatasetHmisData(
     conditions.push(`period_id >= ${windowing.start}`);
     conditions.push(`period_id <= ${windowing.end}`);
 
-    // Indicator filtering (PLAN_A4 ruling 9)
+    // Indicator filtering (PLAN_A4 ruling 9): the window selects
+    // indicators; the rows deleted are those under their data ids.
     if (
       !windowing.takeAllIndicators &&
       windowing.indicatorsToInclude.length > 0
@@ -137,7 +138,9 @@ export async function deleteAllDatasetHmisData(
       const indicatorList = windowing.indicatorsToInclude
         .map((id) => `'${escapeSqlString(id)}'`)
         .join(", ");
-      conditions.push(`indicator_id IN (${indicatorList})`);
+      conditions.push(
+        `data_id IN (SELECT data_id FROM indicators WHERE indicator_common_id IN (${indicatorList}) AND data_id IS NOT NULL)`,
+      );
     }
 
     // Build admin area facility subquery: AA3 takes priority over AA2
@@ -170,16 +173,16 @@ export async function deleteAllDatasetHmisData(
 
     await mainDb.begin(async (sql) => {
       // Captured before the DELETE so the ledger reconcile below knows which
-      // (indicator, period) pairs to re-count: a facility-scoped deletion
-      // can leave a pair partially populated.
+      // (data id, period) pairs to re-count: a facility-scoped deletion can
+      // leave a pair partially populated.
       const affectedPairs = (
-        await sql.unsafe<{ indicator_id: string; period_id: number }[]>(`
-          SELECT DISTINCT indicator_id, period_id
+        await sql.unsafe<{ data_id: string; period_id: number }[]>(`
+          SELECT DISTINCT data_id, period_id
           FROM dataset_hmis
           WHERE ${whereClause}
         `)
       ).map((r) => ({
-        indicatorId: r.indicator_id,
+        dataId: r.data_id,
         periodId: r.period_id,
       }));
 
@@ -192,14 +195,14 @@ export async function deleteAllDatasetHmisData(
         ? []
         : (
             await sql.unsafe<
-              { indicator_id: string; period_id: number }[]
+              { data_id: string; period_id: number }[]
             >(`
-              SELECT indicator_id, period_id
+              SELECT data_id, period_id
               FROM dataset_hmis_import_ledger
               WHERE ${conditions.join(" AND ")}
             `)
           ).map((r) => ({
-            indicatorId: r.indicator_id,
+            dataId: r.data_id,
             periodId: r.period_id,
           }));
 
@@ -365,22 +368,26 @@ async function getDatasetHmisItemsForDisplayByIndicator(
     // inside every integration/deletion transaction, so it always agrees.
     // n_records > 0 keeps display behavior identical: zero-count "checked,
     // empty" and error-only pairs are checklist information, not data cells.
-    // One view, by the indicators that have rows (PLAN_A4 ruling 8): sums
+    // One view, by the indicators that have rows (PLAN_A4 ruling 8): the
+    // ledger's data ids labelled through the dictionary, under the
+    // indicator's id (`indicator_common_id`, the datatable's series). Sums
     // have no rows and do not appear.
     const vizItems = await mainDb<Record<string, string>[]>`
-      SELECT n_records::bigint AS count, sum_count AS sum, indicator_id, period_id
-      FROM dataset_hmis_import_ledger
-      WHERE n_records > 0
+      SELECT l.n_records::bigint AS count, l.sum_count AS sum,
+        i.indicator_common_id, l.period_id
+      FROM dataset_hmis_import_ledger l
+      INNER JOIN indicators i ON i.data_id = l.data_id
+      WHERE l.n_records > 0
     `;
 
     const indicators = await mainDb<
       { indicator_common_id: string; indicator_common_label: string }[]
     >`
-      SELECT DISTINCT l.indicator_id AS indicator_common_id, i.indicator_common_label
+      SELECT DISTINCT i.indicator_common_id, i.indicator_common_label
       FROM dataset_hmis_import_ledger l
-      INNER JOIN indicators i ON l.indicator_id = i.indicator_common_id
+      INNER JOIN indicators i ON i.data_id = l.data_id
       WHERE l.n_records > 0
-      ORDER BY l.indicator_id
+      ORDER BY i.indicator_common_id
     `.then((results) =>
       results.map<{ value: string; label: string }>((row) => ({
         value: row.indicator_common_id,

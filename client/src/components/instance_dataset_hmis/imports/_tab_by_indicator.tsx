@@ -135,7 +135,7 @@ export function Dhis2TabByIndicator(p: Props) {
     const failedPairs: Dhis2RunPairInput[] = items
       .filter((item) => item.status === "error")
       .map((item) => ({
-        indicatorId: item.indicatorId,
+        dataId: item.dataId,
         periodId: item.periodId,
       }));
     void p.onRetryFailedPairs(failedPairs);
@@ -230,11 +230,11 @@ function buildRollups(items: DatasetHmisImportLedgerItem[]): {
 
   const byIndicator = new Map<string, DatasetHmisImportLedgerItem[]>();
   for (const item of items) {
-    const list = byIndicator.get(item.indicatorId);
+    const list = byIndicator.get(item.dataId);
     if (list) {
       list.push(item);
     } else {
-      byIndicator.set(item.indicatorId, [item]);
+      byIndicator.set(item.dataId, [item]);
     }
   }
 

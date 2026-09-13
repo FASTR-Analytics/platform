@@ -85,7 +85,7 @@ Deno.test("generator: the stem is capped at 64 before the suffix", () => {
   );
 });
 
-Deno.test("generator: every output passes the validator as a base", () => {
+Deno.test("generator: every output passes the validator as a count", () => {
   for (
     const label of [
       "Consultation prénatale 1",
@@ -96,7 +96,7 @@ Deno.test("generator: every output passes the validator as a base", () => {
       "anc1",
     ]
   ) {
-    assertEquals(getNewIndicatorIdIssue(generate(label), "base"), undefined);
+    assertEquals(getNewIndicatorIdIssue(generate(label), "uploaded"), undefined);
   }
 });
 
@@ -109,23 +109,23 @@ Deno.test("reserved words: the union of specials, population types and function 
   assertEquals(new Set(RESERVED_WORDS).size, RESERVED_WORDS.length);
 });
 
-Deno.test("validator: a reserved word is refused for a base and for a derived", () => {
+Deno.test("validator: a reserved word is refused for a count and for a derived", () => {
   for (const word of [...POPULATION_TYPE_IDS, ...EXPRESSION_FUNCTION_NAMES]) {
-    assertEquals(getNewIndicatorIdIssue(word, "base"), "reserved");
+    assertEquals(getNewIndicatorIdIssue(word, "uploaded"), "reserved");
     assertEquals(getNewIndicatorIdIssue(word, "derived"), "reserved");
   }
 });
 
-Deno.test("validator: a special id is accepted as a base or sum and refused as a derived, at create and at retype", () => {
+Deno.test("validator: a special id is accepted as a count or sum and refused as a derived, at create and at retype", () => {
   for (const id of SPECIAL_INDICATOR_IDS) {
-    assertEquals(getNewIndicatorIdIssue(id, "base"), undefined);
+    assertEquals(getNewIndicatorIdIssue(id, "uploaded"), undefined);
     assertEquals(getNewIndicatorIdIssue(id, "sum"), undefined);
-    assertEquals(getNewIndicatorIdIssue(id, "derived"), "special_not_base");
-    assertEquals(getSpecialIndicatorTypeIssue(id, "base"), undefined);
+    assertEquals(getNewIndicatorIdIssue(id, "derived"), "special_derived");
+    assertEquals(getSpecialIndicatorTypeIssue(id, "uploaded"), undefined);
     assertEquals(getSpecialIndicatorTypeIssue(id, "sum"), undefined);
     assertEquals(
       getSpecialIndicatorTypeIssue(id, "derived"),
-      "special_not_base",
+      "special_derived",
     );
   }
   assertEquals(getSpecialIndicatorTypeIssue("anc4_rate", "derived"), undefined);
@@ -133,22 +133,22 @@ Deno.test("validator: a special id is accepted as a base or sum and refused as a
 
 Deno.test("validator: an ordinary id passes for either type", () => {
   assertEquals(getNewIndicatorIdIssue("anc4_rate", "derived"), undefined);
-  assertEquals(getNewIndicatorIdIssue("Penta 1 (DPT)", "base"), undefined);
+  assertEquals(getNewIndicatorIdIssue("Penta 1 (DPT)", "uploaded"), undefined);
 });
 
 Deno.test("validator: the charset rule for either kind", () => {
-  assertEquals(getNewIndicatorIdIssue("", "base"), "empty");
-  assertEquals(getNewIndicatorIdIssue(" anc", "base"), "untrimmed");
-  assertEquals(getNewIndicatorIdIssue("a,b", "base"), "forbidden_chars");
+  assertEquals(getNewIndicatorIdIssue("", "uploaded"), "empty");
+  assertEquals(getNewIndicatorIdIssue(" anc", "uploaded"), "untrimmed");
+  assertEquals(getNewIndicatorIdIssue("a,b", "uploaded"), "forbidden_chars");
   assertEquals(getNewIndicatorIdIssue("a;b", "derived"), "forbidden_chars");
   assertEquals(getNewIndicatorIdIssue("a:b", "derived"), "forbidden_chars");
-  assertEquals(getNewIndicatorIdIssue("[a]", "base"), "forbidden_chars");
+  assertEquals(getNewIndicatorIdIssue("[a]", "uploaded"), "forbidden_chars");
   assertEquals(
-    getNewIndicatorIdIssue("x".repeat(INDICATOR_ID_MAX_LENGTH + 1), "base"),
+    getNewIndicatorIdIssue("x".repeat(INDICATOR_ID_MAX_LENGTH + 1), "uploaded"),
     "too_long",
   );
   assertEquals(
-    getNewIndicatorIdIssue("x".repeat(INDICATOR_ID_MAX_LENGTH), "base"),
+    getNewIndicatorIdIssue("x".repeat(INDICATOR_ID_MAX_LENGTH), "uploaded"),
     undefined,
   );
 });

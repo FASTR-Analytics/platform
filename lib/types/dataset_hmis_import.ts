@@ -5,9 +5,12 @@ import type { Dhis2StoredCredentialsInfo } from "./dhis2.ts";
 // CSV Import Run Types (PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase A)
 // ============================================================================
 
+// The file's columns as the wizard names them. `data_id` is the indicator
+// column: what a file value says is the data id the rows land under, or an
+// indicator id staging resolves to one (PLAN_A5 ruling 6).
 export type HmisCsvColumns = {
   facility_id: string;
-  indicator_id: string;
+  data_id: string;
   period_id: string;
   count: string;
 };
@@ -36,9 +39,11 @@ export type DatasetHmisCsvRunConfig = {
 // Staging Result Types
 // ============================================================================
 
+// Keyed by data id, the key of the rows; the client labels it through the
+// dictionary.
 export type PeriodIndicatorStat = {
   periodId: number;
-  indicatorId: string;
+  dataId: string;
   nRecords: number;
   totalCount: number;
 };
@@ -72,14 +77,15 @@ export type DatasetCsvStagingResult = {
       }>;
       rowsDropped: number;
     };
-    // Rows whose indicator id is no base indicator. `ids` is the full
-    // distinct set, sorted, so a needs_review hold can turn every one into
-    // an uploaded base and re-stage (PLAN_A4 ruling 6); absent on results
+    // Rows whose file value resolved to no data id (PLAN_A5 ruling 6: not
+    // an indicator's data id, and not the id of an indicator that has rows
+    // and a data id). `ids` is the full distinct set, sorted, so a
+    // needs_review hold can name every one and re-stage; absent on results
     // staged before it was recorded.
     unknownIndicators: {
       total: number;
       sample: Array<{
-        indicator_id: string;
+        data_id: string;
         row_count: number;
       }>;
       ids?: string[];
@@ -93,15 +99,15 @@ export type DatasetCsvStagingResult = {
 // health (5xx/timeout): a later re-run may succeed.
 export type Dhis2FetchErrorKind = "permanent" | "transient";
 
-// Per-(indicator, period) fetch instrumentation, so slowness reports arrive
+// Per-(data id, period) fetch instrumentation, so slowness reports arrive
 // with their own data. Lives in the run's run_stats blob. One entry per pair
 // that reached a fetch: ids the dispatcher refused (classification.unknownIds
 // and dhis2IndicatorIds) never fetch and appear only there and in the ledger.
-// One dataValueSets pull covers every pair sharing its base element and
+// One dataValueSets pull covers every pair sharing its data element and
 // month: each covered pair carries the covering pull's request count and
 // wall time (duplicated, not divided).
 export type Dhis2PairFetchStat = {
-  indicatorId: string;
+  dataId: string;
   periodId: number;
   success: boolean;
   requests: number;
@@ -131,7 +137,7 @@ export type DatasetDhis2StagingResult = {
   totalIndicatorPeriodCombos: number;
   successfulFetches: number;
   failedFetches: Array<{
-    indicatorId: string;
+    dataId: string;
     periodId: number;
     error: string;
     errorKind?: Dhis2FetchErrorKind;
@@ -143,11 +149,11 @@ export type DatasetDhis2StagingResult = {
   // The run that minted this version.
   runId?: number;
   // Legacy fields (pre-run version rows only).
-  succeededWorkItems?: Array<{ indicatorId: string; periodId: number }>;
+  succeededWorkItems?: Array<{ dataId: string; periodId: number }>;
   fetchedFacilityIds?: string[];
   pairFetchStats?: Dhis2PairFetchStat[];
   workItemHistory?: Array<{
-    indicatorId: string;
+    dataId: string;
     periodId: number;
     success: boolean;
     rowsStaged: number;
@@ -167,11 +173,11 @@ export type DatasetStagingResult =
 
 export type DatasetHmisLedgerSkippedValue = { facilityId: string; value: string };
 
-// One row per (indicator, month): the latest import state of that pair
+// One row per (data id, month): the latest import state of that pair
 // (PLAN_DHIS2_IMPORTER WS-B). status 'error' keeps the last data-bearing
 // counts untouched: the error describes the most recent failed attempt.
 export type DatasetHmisImportLedgerItem = {
-  indicatorId: string;
+  dataId: string;
   periodId: number;
   nRecords: number;
   sumCount: number;
@@ -196,19 +202,21 @@ export type DatasetHmisImportLedgerItem = {
 // DHIS2 Import Run Types (PLAN_DHIS2_IMPORTER Phase 3: C1/C2 + dispatcher)
 // ============================================================================
 
-// What a DHIS2 run fetches for one base: the element or operand `dhis2Id`,
-// whose values are written under `indicatorId`. Resolved once, where the
-// selection is validated, and persisted on the run row and in the worker
-// message, so the worker never re-resolves (PLAN_A4 ruling 5).
-export type Dhis2FetchTarget = { indicatorId: string; dhis2Id: string };
+// What a DHIS2 run fetches: a DHIS2 element's data id, the element or
+// operand DHIS2 knows it by, whose values are written under that same key
+// (PLAN_A5 ruling 9). Resolved once, where the selection is validated, and
+// persisted on the run row and in the worker message, so the worker never
+// re-resolves.
+export type Dhis2FetchTarget = { dataId: string };
 
-// A pair is one base × one month: the unit the importer fetches and
+// A pair is one data id × one month: the unit the importer fetches and
 // integrates, and the grain of the ledger.
 export type Dhis2RunPair = Dhis2FetchTarget & { periodId: number };
 
 // What a launch, enqueue or schedule fire selects: INDICATORS over a month
-// window, or explicit (indicator, month) pairs (retry failed, re-import
-// from the ledger). The server resolves each pair's dhis2Id at validation.
+// window, or explicit (data id, month) pairs (retry failed, re-import from
+// the ledger, which is keyed by data id). The server checks each pair's
+// data id belongs to a DHIS2 element at validation and resolves nothing.
 export type Dhis2WindowSelectionInput = {
   kind: "window";
   indicatorIds: string[];
@@ -216,7 +224,7 @@ export type Dhis2WindowSelectionInput = {
   endPeriod: number;
 };
 
-export type Dhis2RunPairInput = { indicatorId: string; periodId: number };
+export type Dhis2RunPairInput = { dataId: string; periodId: number };
 
 export type Dhis2PairSelectionInput = {
   kind: "pairs";
@@ -229,13 +237,13 @@ export type Dhis2RunSelectionInput =
 
 // The expansion of a window selection's indicators to what a DHIS2 run
 // fetches (`expandIndicatorSelection`, lib): a sum expands to its members,
-// a derived flattens through the resolver to the bases it reaches, and the
-// bases with a dhis2_id become fetch targets. Population terms and uploaded
-// bases (no dhis2_id) are dropped and listed. Persisted on the run row and
+// a derived flattens through the resolver to the counts it reaches, and the
+// DHIS2 elements among them contribute their data ids. Population terms and
+// Uploaded indicators are dropped and listed. Persisted on the run row and
 // carried in the worker message, so the worker and the history tab never
 // re-resolve: an element assigned after enqueue is not in that run.
 export type Dhis2SelectionExpansion = {
-  elements: Dhis2FetchTarget[];
+  dataIds: string[];
   populationTermsDropped: string[];
   uploadedIndicatorsDropped: string[];
 };
@@ -277,7 +285,7 @@ export type DatasetHmisImportRunProgress =
 
 // The summary projection of a run's selection: window selections pass
 // through unchanged (the history label shows the indicator count with the
-// element count beside it); explicit pair lists collapse to a count (a
+// data id count beside it); explicit pair lists collapse to a count (a
 // retry-failed selection can carry ~1,440 pairs: the runs list is polled
 // every 2 s and must stay small).
 export type Dhis2RunSelectionSummary =
@@ -325,10 +333,10 @@ export type DatasetHmisImportRunStats = {
   classification: {
     dvsBareElements: number;
     dvsOperands: number;
-    // dhis2_ids that are no data element or operand in DHIS2: permanent
+    // data ids that are no data element or operand in DHIS2: permanent
     // ledger errors without any fetch.
     unknownIds: string[];
-    // dhis2_ids that are DHIS2 indicators (formulas): permanent ledger
+    // data ids that are DHIS2 indicators (formulas): permanent ledger
     // errors naming the decomposition importer, no fetch, existing data
     // kept.
     dhis2IndicatorIds: string[];
