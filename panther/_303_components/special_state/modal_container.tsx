@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { type JSX, Show } from "solid-js";
+import { children, type JSX, Show } from "solid-js";
 
 export type ModalContainerWidth =
   | "sm"
@@ -21,6 +21,7 @@ type ModalContainerProps =
     children: JSX.Element;
     width?: ModalContainerWidth;
     title?: string;
+    subtitle?: string;
     topPanel?: JSX.Element;
     leftButtons?: JSX.Element;
     rightButtons?: JSX.Element;
@@ -54,25 +55,41 @@ export function ModalContainer(p: ModalContainerProps) {
   const widthClass = () => WIDTH_CLASSES[p.width ?? "md"];
   const heightClass = () => p.height ? HEIGHT_CLASSES[p.height] : "";
   const scroll = () => p.scroll ?? "content";
+  // Resolved once: a JSX prop is a getter that builds fresh elements on
+  // every read.
+  const topPanel = children(() => p.topPanel);
+  const hasTopPanel = () => topPanel.toArray().length > 0;
   return (
     <div
       class={`flex flex-col ${widthClass()} ${heightClass()}`}
       classList={{ "max-h-(--ui-modal-max-h)": scroll() === "content" }}
     >
-      <Show when={p.title || p.topPanel}>
+      <Show when={p.title || hasTopPanel()}>
         {
-          /* The header row's height floor is a form control's height, as in
-            HeadingBar: a title-only header is as tall as one holding
-            buttons or a stepper, so a modal that swaps between the two
-            (loading vs loaded) does not jump. It also matches the footer. */
+          /* A topPanel header is floored at a form control's height, as in
+            HeadingBar, so a header whose controls come and go (a stepper
+            that appears once loaded) does not jump. A title-only header
+            keeps its natural height. */
         }
         <div class="border-b px-6 py-5 leading-none">
-          <div class="grid min-h-(--ui-form-height) items-center">
+          <div
+            class="grid items-center"
+            classList={{ "min-h-(--ui-form-height)": hasTopPanel() }}
+          >
             <Show
-              when={p.topPanel}
-              fallback={<h2 class="ui-text-heading leading-none">{p.title}</h2>}
+              when={hasTopPanel()}
+              fallback={
+                <div>
+                  <h2 class="ui-text-heading leading-none">{p.title}</h2>
+                  <Show when={p.subtitle}>
+                    <div class="text-base-content-muted mt-2 text-sm leading-tight">
+                      {p.subtitle}
+                    </div>
+                  </Show>
+                </div>
+              }
             >
-              {p.topPanel}
+              {topPanel()}
             </Show>
           </div>
         </div>
