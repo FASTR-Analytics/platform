@@ -281,6 +281,17 @@
   --ui-heading-bar-tonal-fg: var(--color-base-content);
 
   /* ============================================= */
+  /* Modal sizing                                  */
+  /* ============================================= */
+  /* The dialog host (alert.tsx) pads by the gutter and is a size
+     container, so the max sizes measure the host's content box: inside
+     its scrollbar, which vw/vh would ignore. */
+
+  --ui-modal-gutter: 3rem;
+  --ui-modal-max-w: calc(100cqw - 2 * var(--ui-modal-gutter));
+  --ui-modal-max-h: calc(100cqh - 2 * var(--ui-modal-gutter));
+
+  /* ============================================= */
   /* App-level markdown (--md-*)                   */
   /* ============================================= */
   /* Defaults for HTML-rendered markdown (MARKDOWN_BASE_STYLES). Contract:
