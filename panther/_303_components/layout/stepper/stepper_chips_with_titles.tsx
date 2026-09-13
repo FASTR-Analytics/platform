@@ -54,7 +54,7 @@ export function StepperChipsWithTitles(p: StepperChipsWithTitlesProps) {
       case "current":
         return `${base} border-primary bg-primary text-primary-content`;
       case "completed":
-        return `${base} bg-base-200 text-base-content`;
+        return `${base} bg-base-300 text-base-content`;
       case "available":
         return `${base} border-primary bg-base-100 text-primary`;
       case "locked":
@@ -77,16 +77,20 @@ export function StepperChipsWithTitles(p: StepperChipsWithTitlesProps) {
 
   const rowClasses = (step: number) => {
     const status = p.stepper.getStepStatus(step);
-    const base = "flex items-center gap-2";
-    if (status === "completed" || status === "available") {
-      return `${base} ui-hoverable-base-100 rounded`;
-    }
-    if (status === "locked") return base;
-    return base;
+    const pad = labelFor(step)
+      ? "-my-1 -ml-1 -mr-2.5 py-1 pl-1 pr-2.5"
+      : "-m-1 p-1";
+    const base = `ui-focusable flex items-center gap-2 rounded-full ${pad}`;
+    return status === "completed" || status === "available"
+      ? `${base} ui-hoverable-base-100`
+      : base;
   };
 
   return (
-    <nav class="flex flex-wrap items-center gap-x-6 gap-y-2">
+    <nav
+      class="flex flex-wrap items-center gap-x-6 gap-y-2"
+      aria-label="Progress"
+    >
       <For each={p.visibleSteps ?? p.stepper.getAllSteps()}>
         {(step) => {
           const stepIndex = step - p.stepper.minStep + 1;
