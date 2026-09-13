@@ -344,8 +344,8 @@ speed: atomicity holds).
 
 **HMIS (CSV)** first verifies the per-run staging table exists AND that its
 `COUNT(*)` equals the recorded `finalStagingRowCount`. The table and the
-recorded diagnostics are separate artifacts that desynchronize on
-crash-truncation or an interrupted re-stage. Then:
+recorded diagnostics are separate artifacts that desynchronize when a
+Postgres crash truncates the UNLOGGED table. Then:
 
 - **Merge**: UPDATE matched rows → DELETE matched from staging → INSERT
   remainder. Absent cells keep their prior value (by design).

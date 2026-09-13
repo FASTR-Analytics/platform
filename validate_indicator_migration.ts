@@ -16,6 +16,9 @@ import {
   RESERVED_WORDS,
 } from "lib";
 
+// 087 keys every Uploaded row that 086 left without a data id.
+const isGeneratedDataKey = (key: string | null): boolean => key !== null && key.startsWith("u_");
+
 const MIGRATIONS_DIR = new URL("./server/db/migrations/instance/", import.meta.url)
   .pathname;
 
@@ -408,11 +411,14 @@ async function assertMigrated(sql: Sql, pre: PreState, lines: string[]): Promise
     if (i.type === "uploaded" && i.data_id !== null && isDhis2ShapedId(i.data_id)) {
       problems.push(`Uploaded ${i.id} has a DHIS2-shaped data id ${i.data_id}`);
     }
+    if (i.type !== "derived" && i.type !== "sum" && i.data_id === null) {
+      problems.push(`${i.type} ${i.id} has no data id after 087`);
+    }
   }
 
   // Every common with mappings is a DHIS2 element, an Uploaded indicator or
   // a sum over what its raws became; a common without mappings is Uploaded
-  // with no data id; a derived stays derived.
+  // under a key 087 generated; a derived stays derived.
   for (const c of pre.commons) {
     const renamed = expected.renamedSpecials.get(c.id);
     const i = postById.get(renamed ?? c.id);
@@ -429,8 +435,8 @@ async function assertMigrated(sql: Sql, pre: PreState, lines: string[]): Promise
       }
     } else if (c.type === "base") {
       const folded = [...expected.rawTarget.entries()].find(([, t]) => t.folded && t.id === c.id);
-      if (folded === undefined && (i.type !== "uploaded" || i.data_id !== null)) {
-        problems.push(`common ${c.id} should be Uploaded with no data id, is ${i.type} with ${i.data_id}`);
+      if (folded === undefined && (i.type !== "uploaded" || !isGeneratedDataKey(i.data_id))) {
+        problems.push(`common ${c.id} should be Uploaded under a generated key, is ${i.type} with ${i.data_id}`);
       }
     } else if (i.type !== "derived") {
       problems.push(`derived ${c.id} should stay derived, is ${i.type}`);
@@ -438,8 +444,8 @@ async function assertMigrated(sql: Sql, pre: PreState, lines: string[]): Promise
   }
   for (const [oldId, newId] of expected.renamedSpecials) {
     const empty = postById.get(oldId);
-    if (!empty || empty.type !== "uploaded" || empty.data_id !== null || !empty.include_in_analysis) {
-      problems.push(`special ${oldId}: no Uploaded indicator with no data id in the analysis after the derived was renamed`);
+    if (!empty || empty.type !== "uploaded" || !isGeneratedDataKey(empty.data_id) || !empty.include_in_analysis) {
+      problems.push(`special ${oldId}: no Uploaded indicator under a generated key in the analysis after the derived was renamed`);
     }
     if (!postById.has(newId)) problems.push(`renamed derived ${newId} missing`);
     for (const i of post) {
@@ -466,7 +472,7 @@ async function assertMigrated(sql: Sql, pre: PreState, lines: string[]): Promise
     indicator_common_id: i.id,
     indicator_common_label: i.label,
     definition: i.type === "uploaded"
-      ? { type: "uploaded", data_id: i.data_id }
+      ? { type: "uploaded", data_id: i.data_id ?? "" }
       : i.type === "dhis2_element"
       ? { type: "dhis2_element", data_id: i.data_id ?? "" }
       : i.type === "sum"
@@ -586,8 +592,8 @@ async function assertMigrated(sql: Sql, pre: PreState, lines: string[]): Promise
     }
     if (isRecord(v.csvStagingResult)) {
       if (v.csvStagingResult.kind !== "csv") out.push("CSV staging result lacks kind");
-      if (isRecord(v.csvStagingResult.validation) && !isRecord(v.csvStagingResult.validation.unknownIndicators)) {
-        out.push("CSV staging result lacks unknownIndicators");
+      if (isRecord(v.csvStagingResult.validation) && !isRecord(v.csvStagingResult.validation.skippedByMapping)) {
+        out.push("CSV staging result lacks skippedByMapping");
       }
     }
     return out;

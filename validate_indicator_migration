@@ -15,7 +15,7 @@
 # JSON row parses under the new shapes; a second run does nothing; and it
 # prints the id table 086 raises as NOTICEs. Companion to
 # ./validate_migrations (the fresh replay) and ./validate_fresh_boot (the
-# seed).
+# empty dictionary).
 #
 #   ./validate_indicator_migration ~/wb-fastr-dev-main-before-086.sql.gz ...
 

@@ -285,10 +285,9 @@ export function resolveHmisIndicatorCatalog(
       // expression and no slot map: it contributes no ingredient row, m012
       // emits nothing for it, and a read yields NULL: the same answer as any
       // other missing ingredient (PLAN_1a §1.5). This is the ordinary case,
-      // not a failure: a new database is seeded with every special indicator
-      // as an Uploaded indicator with no data id whether or not the country
-      // fills it, so treating an empty count as an error would block
-      // generation fleet-wide.
+      // not a failure: a special may exist as an Uploaded indicator before
+      // any file has been mapped onto it, so treating an empty count as an
+      // error would block generation fleet-wide.
       const hasData = idsWithData.has(indicator.indicator_common_id);
       rows.push({
         ...shared,

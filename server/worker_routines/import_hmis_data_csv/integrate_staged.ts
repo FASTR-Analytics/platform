@@ -34,9 +34,9 @@ export async function integrateStagedHmisCsvData(args: {
   }
 
   // The staging table and the recorded staging result are separate artifacts
-  // that can desynchronize (UNLOGGED table truncated by a Postgres crash, a
-  // killed re-stage). Integration only proceeds when the table holds exactly
-  // the rows the recorded result describes.
+  // that can desynchronize (an UNLOGGED table is truncated by a Postgres
+  // crash). Integration only proceeds when the table holds exactly the rows
+  // the recorded result describes.
   const stagingRowCount = await importDb<{ count: string | number }[]>`
     SELECT COUNT(*) as count FROM ${importDb(stagingTableName)}
   `;
@@ -45,7 +45,7 @@ export async function integrateStagedHmisCsvData(args: {
   if (actualRows !== recordedRows) {
     throw new Error(
       `Staging table holds ${actualRows} rows but the staging result recorded ${recordedRows}. ` +
-        `The staged data no longer matches what was reviewed (interrupted re-stage or database crash). ` +
+        `The staged data no longer matches what was reviewed (database crash). ` +
         `Start the import again.`,
     );
   }
