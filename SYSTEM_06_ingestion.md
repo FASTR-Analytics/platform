@@ -66,7 +66,7 @@ owned by S8). DHIS2 fetching/retry is S7.
 Every import is a background Web Worker over a run row, no attempt row
 anywhere: `import_hmis_data_csv` (CSV: stages into per-run tables, gates,
 integrates), `import_hmis_data_dhis2` (DHIS2: fetches AND integrates per
-(indicator, month) pair; no staged-review step), `import_hfa_data_csv`
+(data id, month) pair; no staged-review step), `import_hfa_data_csv`
 (CSV + XLSForm), `import_iceh_data` (zip of results_csv.csv +
 indicators.xlsx; stages in memory). The client HTTP-polls the run row
 (HMIS-DHIS2 also the ledger); there is **no SSE for import progress**: the
@@ -83,7 +83,7 @@ history). Shape:
 
 - `dataset_hmis_import_runs` (main DB): one row per run, with trigger/user,
   `route` (`dhis2|csv`), selection JSON (DHIS2: a window of INDICATORS with
-  its expansion to the elements it fetches, or explicit (indicator, month)
+  its expansion to the elements it fetches, or explicit (data id, month)
   pairs) or `csv_config` JSON (CSV: `{ fileName, filePin, columns }`; the
   route→fields pairing is enforced in code), status
   (`queued|running|needs_review|complete|error|cancelled`), pair counters
@@ -299,7 +299,7 @@ start.
   the pair's ledger row carries `skipped_values` and a sample of at most 10
   `{ facilityId, value }` (migration 085), the run detail and the
   By-indicator tab show the count, and the pair integrates and stays
-  `ready`. Failing the pair would block an indicator-month for every
+  `ready`. Failing the pair would block a data id's month for every
   facility in the country on one facility's decimal, and the ledger has no
   per-facility grain. Accepted values are summed per facility across
   COC×AOC (operands restricted to their COC first), so the stored count is

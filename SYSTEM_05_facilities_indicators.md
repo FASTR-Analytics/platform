@@ -314,12 +314,14 @@ resolving against the dictionary the write would leave. `updateIndicator`
 accepts a new id (PLAN_A5 ruling 5): in the indicator's transaction it
 updates the row, rewrites every derived expression that names the old id
 (`renameIdentifierInExpression`, whole identifiers and exact `[id]` only,
-the author's text otherwise kept, the same rule 086 carries in SQL) and
-every schedule's `indicatorIds`; run and version rows are history and
-keep their pairs, which are data ids; figure configs in project databases
-are not rewritten. Renaming a special is allowed and takes the id out of
-the module scripts' inputs, as deleting it does. Refused: renaming to a
-reserved, taken or special-when-derived id.
+the author's text otherwise kept, the new id written as the grammar
+requires; 086's `fastr_rename_identifier` is the same segment rule for
+its one rename, a derived special to its suffix form, and substitutes
+the new id raw) and every schedule's `indicatorIds`; run and version
+rows are history and keep their pairs, which are data ids; figure configs
+in project databases are not rewritten. Renaming a special is allowed and
+takes the id out of the module scripts' inputs, as deleting it does.
+Refused: renaming to a reserved, taken or special-when-derived id.
 Switching Uploaded and DHIS2 element either way is allowed with rows and
 changes none (to DHIS2 element needs a DHIS2-shaped data id); a switch
 from Uploaded or DHIS2 element to Sum or Derived is refused with rows or

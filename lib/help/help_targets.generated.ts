@@ -122,7 +122,7 @@ export const HELP_TARGETS = {
     page: "admin-guide/data-hmis",
     anchor: { en: "dhis2-import-workflow", fr: "processus-dimportation-dhis2" },
     title: { en: "DHIS2 import workflow", fr: "Processus d'importation DHIS2" },
-    summary: { en: "A DHIS2 import fetches the values facilities reported, one indicator and month at a time, directly from your DHIS2 server. It has five steps. 1. Credentials. FASTR uses the instance's stored DHIS2…", fr: "Une importation DHIS2 récupère les valeurs rapportées par les établissements, un indicateur et un mois à la fois, directement depuis votre serveur DHIS2. Elle comporte cinq étapes. 1. Identifiants.…" },
+    summary: { en: "A DHIS2 import fetches the values facilities reported, one DHIS2 element and month at a time, directly from your DHIS2 server. It has five steps. 1. Credentials. FASTR uses the instance's stored…", fr: "Une importation DHIS2 récupère les valeurs rapportées par les établissements, un élément DHIS2 et un mois à la fois, directement depuis votre serveur DHIS2. Elle comporte cinq étapes. 1.…" },
   },
   "hmis-validation": {
     page: "admin-guide/data-hmis",

@@ -948,7 +948,7 @@ What this means for a user: what the package cannot compute, nobody sees.
 An ingredient no facility in an area ever reports, a zero denominator, a
 `nullif` that fires, and a month or area the population store does not
 cover all leave no row, and an indicator with no surviving row is absent
-from every figure and every filter and disaggregation list, exactly as an
+from every figure and every filter and disaggregation list, exactly as a
 count with no rows is. Keeping such rows would let a coarser grouping
 sum a numerator over cells its denominator never covers. A `coalesce` in
 the expression is honoured, because the expression decides, not the mere
