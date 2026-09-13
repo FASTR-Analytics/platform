@@ -1,5 +1,6 @@
 # Instance data
 _example_instance_dir*
+download_data
 secrets/
 
 # Environment files
