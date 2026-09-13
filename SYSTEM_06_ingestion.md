@@ -160,7 +160,7 @@ history). Shape:
   as `dataIds` and carried in the worker message, so the worker fetches
   each data id and writes rows under that same key without re-resolving: a
   queued run reuses its enqueue-time `dataIds` (its `total_pairs` was
-  recorded then), so an element assigned after enqueue is not in that run.
+  recorded then), so an element added after enqueue is not in that run.
   A pair is `{ dataId, periodId }` everywhere: the run's pairs, progress,
   fetch stats and failed fetches, the version row's stats, and the ledger,
   which is keyed by `data_id`. The client labels pairs through the

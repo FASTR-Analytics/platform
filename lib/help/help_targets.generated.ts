@@ -116,7 +116,7 @@ export const HELP_TARGETS = {
     page: "admin-guide/data-hmis",
     anchor: { en: "csv-import-workflow", fr: "processus-dimportation-csv" },
     title: { en: "CSV import workflow", fr: "Processus d'importation CSV" },
-    summary: { en: "A CSV import has three steps: upload the file, match its columns to the four required fields, and launch. FASTR then stages the file and merges it into the dataset, or pauses for review when rows…", fr: "Une importation CSV comporte trois étapes : téléverser le fichier, associer ses colonnes aux quatre champs requis, puis lancer. FASTR prépare ensuite le fichier et le fusionne dans le jeu de données,…" },
+    summary: { en: "A CSV import has four steps: upload the file, match its columns to the four required fields, map the values in the indicator column to your indicators, and launch. FASTR then stages the file and…", fr: "Une importation CSV comporte quatre étapes : téléverser le fichier, associer ses colonnes aux quatre champs requis, associer les valeurs de la colonne indicateur à vos indicateurs, puis lancer. FASTR…" },
   },
   "hmis-dhis2": {
     page: "admin-guide/data-hmis",
@@ -129,12 +129,6 @@ export const HELP_TARGETS = {
     anchor: { en: "validation-and-error-handling", fr: "validation-et-gestion-des-erreurs" },
     title: { en: "Validation and error handling", fr: "Validation et gestion des erreurs" },
     summary: { en: "For a CSV import, the staging results list every issue by category, with a count and sample rows. The categories are: rows with missing required fields, rows with invalid values, facilities not in…", fr: "Pour une importation CSV, les résultats de la préparation listent chaque problème par catégorie, avec un nombre et des exemples de lignes. Les catégories sont : lignes avec des champs requis…" },
-  },
-  "ind-batch": {
-    page: "admin-guide/indicators",
-    anchor: { en: "batch-import", fr: "importation-groupée" },
-    title: { en: "Batch import", fr: "Importation groupée" },
-    summary: { en: "For instances with many indicators, Batch import from CSV uploads the whole list from one file, and Download CSV produces the same file from the current list, so you can edit the whole dictionary in…", fr: "Pour les instances comportant de nombreux indicateurs, Importation groupée depuis CSV téléverse toute la liste depuis un seul fichier, et Télécharger le CSV produit le même fichier à partir de la…" },
   },
   "ind-derived": {
     page: "admin-guide/indicators",
