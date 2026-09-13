@@ -437,7 +437,10 @@ callback re-parses the new bytes).
   an indicator is chosen for two values, or every value is skipped), both
   with the launch-or-queue fork. A run
   detail's
-  Version row opens the version's `_import_information.tsx`. This replaced
+  Version row opens the version's `_import_information.tsx`, whose
+  period-indicator list labels each data id through the dictionary and
+  shows the key only under a DHIS2 element (its raw-metadata dump is the
+  stored JSON as is). This replaced
   the "View previous imports" entry point (Phase D); the versions table and
   detail view are unchanged.
 - **HFA** (`instance_dataset_hfa/imports/`): Current card + History table, no

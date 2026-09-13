@@ -1,9 +1,22 @@
-import { DatasetHmisVersion,
+import {
   DatasetCsvStagingResult,
-  DatasetDhis2StagingResult, t3 } from "lib";
-import { Button, EditorComponentProps, FrameTop, HeadingBar, toNum0 } from "panther";
-import { Show, For } from "solid-js";
-import { CollapsibleSection } from "panther";
+  DatasetDhis2StagingResult,
+  DatasetHmisVersion,
+  type HmisIndicator,
+  t3,
+} from "lib";
+import {
+  Button,
+  CollapsibleSection,
+  createQuery,
+  EditorComponentProps,
+  FrameTop,
+  HeadingBar,
+  toNum0,
+} from "panther";
+import { createMemo, For, Show } from "solid-js";
+import { serverActions } from "~/server_actions";
+import { indicatorsByDataId } from "~/components/indicator_manager_hmis/_indicator_display";
 
 export function ImportInformation(
   p: EditorComponentProps<
@@ -27,6 +40,23 @@ export function ImportInformation(
   // path: legacy DHIS2 versions (merge-integrated) have real nRowsUpdated
   // counts instead, and must keep displaying them.
   const dhis2RowsDeleted = () => dhis2Result()?.dhis2RowsDeleted;
+
+  // The period stats are keyed by data id; each row is labelled through the
+  // dictionary and shows the key only under a DHIS2 element (PLAN_A6 ruling
+  // 1). A display-only enrichment: the bare key stands in until the
+  // dictionary arrives, and stays where no indicator carries the key.
+  const indicators = createQuery(() => serverActions.getIndicators({}));
+  const byDataId = createMemo((): Map<string, HmisIndicator> => {
+    const s = indicators.state();
+    return s.status === "ready" ? indicatorsByDataId(s.data.indicators) : new Map();
+  });
+  const statLabel = (dataId: string): string => {
+    const indicator = byDataId().get(dataId);
+    if (indicator === undefined) return dataId;
+    return indicator.definition.type === "dhis2_element"
+      ? `${indicator.indicator_common_id} · ${dataId}`
+      : indicator.indicator_common_id;
+  };
 
   return (
     <FrameTop
@@ -154,7 +184,7 @@ export function ImportInformation(
                     <div class="truncate">
                       {stat.periodId || `Period ${index() + 1}`}
                     </div>
-                    <div class="truncate">{stat.dataId}</div>
+                    <div class="truncate">{statLabel(stat.dataId)}</div>
                     <div class="truncate">{toNum0(stat.nRecords)}</div>
                     <div class="truncate">{toNum0(stat.totalCount)}</div>
                   </div>

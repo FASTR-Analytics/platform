@@ -256,12 +256,15 @@ export function EditIndicatorForm(
       })),
   );
 
-  // Every DHIS2 id another element carries: one indicator carries one, so
-  // typing one of these is refused here before the server does.
-  const dhis2IdOwners = createMemo(() => {
+  // Every data id another indicator carries, whatever its type (a DHIS2
+  // element retyped to Uploaded keeps its UID as its key): one indicator
+  // carries one, so typing one of these as a DHIS2 id is refused here
+  // before the server does.
+  const dataIdOwners = createMemo(() => {
     const owners = new Map<string, HmisIndicator>();
     for (const c of otherIndicators()) {
-      if (c.definition.type === "dhis2_element") owners.set(c.definition.data_id, c);
+      const id = definitionDataId(c.definition);
+      if (id !== null) owners.set(id, c);
     }
     return owners;
   });
@@ -466,7 +469,7 @@ export function EditIndicatorForm(
           pt: `O ID DHIS2 "${id}" tem de ser um UID de elemento de dados (11 caracteres) ou um operando UID.COC`,
         });
       }
-      const owner = dhis2IdOwners().get(id);
+      const owner = dataIdOwners().get(id);
       if (owner !== undefined) {
         return t3({
           en: `DHIS2 id "${id}" already belongs to ${owner.indicator_common_id}. One indicator carries one; make a sum or a derived indicator over ${owner.indicator_common_id} instead.`,

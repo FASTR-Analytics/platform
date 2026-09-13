@@ -238,7 +238,8 @@ export function CsvWizard(
   const isLastStep = () => currentStepKind() === "review";
 
   // The scan runs when the Mapping step is entered with nothing loaded and
-  // no refusal showing (a refusal waits for the user's retry).
+  // no refusal showing; a refusal waits for the user's retry, which only
+  // clears it, so this effect is the one caller.
   createEffect(() => {
     const step = currentStepKind();
     const loaded = mappingInputs() !== undefined;
@@ -400,10 +401,7 @@ export function CsvWizard(
             skippedCount={skippedCount()}
             unresolvedCount={unresolvedCount()}
             onChoose={(value, choice) => setMapping(value, choice)}
-            onRetry={() => {
-              setMappingError("");
-              void loadMappingInputs();
-            }}
+            onRetry={() => setMappingError("")}
           />
         </Show>
 

@@ -978,7 +978,8 @@ Every config mutation re-reads all configs and pushes one consolidated
   list) and the Special badge. The editor offers the four types with a
   caption each and branches on the type: a DHIS2 element has the DHIS2 id
   input (locked while the ledger reports rows under it or has not loaded;
-  set, DHIS2-shaped and no other element's), an Uploaded indicator has no
+  set, DHIS2-shaped and no other indicator's data id, whatever its type),
+  an Uploaded indicator has no
   definition input (its key is the server's, and the type's caption says
   the CSV import's mapping step fills it), a sum a member picker over the
   indicators that have rows (at least one), a derived the formula,
