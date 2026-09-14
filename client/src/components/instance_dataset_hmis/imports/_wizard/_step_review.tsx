@@ -2,6 +2,7 @@ import { t3, type Dhis2SelectionDescription } from "lib";
 import { Button, toNum0 } from "panther";
 import { For, Show } from "solid-js";
 import { dhis2IdLabel } from "~/components/indicator_manager_hmis/_indicator_display";
+import { IdListLine } from "./_id_list_line";
 
 type Props = {
   connectionSummary: string;
@@ -90,6 +91,34 @@ export function Dhis2StepReview(p: Props) {
   );
 }
 
+function uploadedNotFetchedSummary(n: number): string {
+  return n === 1
+    ? t3({
+        en: "1 indicator of type Uploaded is not fetched, because a DHIS2 import cannot fetch it",
+        fr: "1 indicateur de type Téléversé n'est pas récupéré, car une importation DHIS2 ne peut pas le récupérer",
+        pt: "1 indicador do tipo Carregado não é obtido, porque uma importação DHIS2 não o pode obter",
+      })
+    : t3({
+        en: `${n} indicators of type Uploaded are not fetched, because a DHIS2 import cannot fetch them`,
+        fr: `${n} indicateurs de type Téléversé ne sont pas récupérés, car une importation DHIS2 ne peut pas les récupérer`,
+        pt: `${n} indicadores do tipo Carregado não são obtidos, porque uma importação DHIS2 não os pode obter`,
+      });
+}
+
+function populationNotFetchedSummary(n: number): string {
+  return n === 1
+    ? t3({
+        en: "1 population figure is not fetched, because it comes from the Population page, not DHIS2",
+        fr: "1 valeur de population n'est pas récupérée, car elle provient de la page Population et non de DHIS2",
+        pt: "1 valor de população não é obtido, porque provém da página População e não do DHIS2",
+      })
+    : t3({
+        en: `${n} population figures are not fetched, because they come from the Population page, not DHIS2`,
+        fr: `${n} valeurs de population ne sont pas récupérées, car elles proviennent de la page Population et non de DHIS2`,
+        pt: `${n} valores de população não são obtidos, porque provêm da página População e não do DHIS2`,
+      });
+}
+
 // The covered elements, one row per DHIS2 element indicator the selection
 // reaches, then the dropped parts with the reason each is not fetched.
 function SelectionDescription(p: { description: Dhis2SelectionDescription }) {
@@ -128,28 +157,16 @@ function SelectionDescription(p: { description: Dhis2SelectionDescription }) {
           </tbody>
         </table>
       </div>
-      <Show when={p.description.uploadedDropped.length > 0}>
-        <div>
-          {t3({
-            en: "Not fetched, because a DHIS2 import cannot fetch an Uploaded indicator:",
-            fr: "Non récupérés, car une importation DHIS2 ne peut pas récupérer un indicateur téléversé :",
-            pt: "Não obtidos, porque uma importação DHIS2 não pode obter um indicador carregado:",
-          })}{" "}
-          <span class="font-mono">{p.description.uploadedDropped.join(", ")}</span>
-        </div>
-      </Show>
-      <Show when={p.description.populationTermsDropped.length > 0}>
-        <div>
-          {t3({
-            en: "Not fetched, because population terms come from the Population page, not DHIS2:",
-            fr: "Non récupérés, car les termes de population proviennent de la page Population et non de DHIS2 :",
-            pt: "Não obtidos, porque os termos de população provêm da página População e não do DHIS2:",
-          })}{" "}
-          <span class="font-mono">
-            {p.description.populationTermsDropped.join(", ")}
-          </span>
-        </div>
-      </Show>
+      <IdListLine
+        ids={p.description.uploadedDropped}
+        summary={uploadedNotFetchedSummary(p.description.uploadedDropped.length)}
+      />
+      <IdListLine
+        ids={p.description.populationTermsDropped}
+        summary={populationNotFetchedSummary(
+          p.description.populationTermsDropped.length,
+        )}
+      />
       <For each={p.description.unresolvable}>
         {(u) => (
           <div class="text-danger">

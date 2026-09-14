@@ -286,9 +286,9 @@ export function Dhis2RunDetail(
                       <Show when={selection().uploadedIndicatorsDropped.length > 0}>
                         <div>
                           {t3({
-                            en: `Uploaded indicators, which are not fetched from DHIS2 (${toNum0(selection().uploadedIndicatorsDropped.length)}):`,
-                            fr: `Indicateurs téléversés, qui ne sont pas récupérés depuis DHIS2 (${toNum0(selection().uploadedIndicatorsDropped.length)}) :`,
-                            pt: `Indicadores carregados, que não são obtidos do DHIS2 (${toNum0(selection().uploadedIndicatorsDropped.length)}):`,
+                            en: `Indicators of type Uploaded, which are not fetched from DHIS2 (${toNum0(selection().uploadedIndicatorsDropped.length)}):`,
+                            fr: `Indicateurs de type Téléversé, qui ne sont pas récupérés depuis DHIS2 (${toNum0(selection().uploadedIndicatorsDropped.length)}) :`,
+                            pt: `Indicadores do tipo Carregado, que não são obtidos do DHIS2 (${toNum0(selection().uploadedIndicatorsDropped.length)}):`,
                           })}{" "}
                           <span class="font-mono">{selection().uploadedIndicatorsDropped.join(", ")}</span>
                         </div>

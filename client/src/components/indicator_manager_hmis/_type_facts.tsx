@@ -70,9 +70,9 @@ function indicatorTypeFacts(type: HmisIndicatorType): TypeFacts {
     case "sum":
       return {
         source: t3({
-          en: "The total of its members, DHIS2 element or Uploaded indicators, added per facility and month.",
-          fr: "Le total de ses membres, des éléments DHIS2 ou des indicateurs téléversés, additionnés par établissement et par mois.",
-          pt: "O total dos seus membros, elementos DHIS2 ou indicadores carregados, somados por estabelecimento e mês.",
+          en: "The total of its members, indicators of type DHIS2 element or Uploaded, added per facility and month.",
+          fr: "Le total de ses membres, des indicateurs de type Élément DHIS2 ou Téléversé, additionnés par établissement et par mois.",
+          pt: "O total dos seus membros, indicadores do tipo Elemento DHIS2 ou Carregado, somados por estabelecimento e mês.",
         }),
         adjustment: adjustedText(),
         rows: t3({

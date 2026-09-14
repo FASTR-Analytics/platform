@@ -675,9 +675,9 @@ export function EditIndicatorForm(
           <Show when={type() === "uploaded"}>
             <div class="ui-text-caption">
               {t3({
-                en: "An Uploaded indicator has no definition to author. FASTR gives it an internal identifier that CSV imports write to; you never see or type it.",
-                fr: "Un indicateur téléversé n'a pas de définition à rédiger. FASTR lui attribue un identifiant interne dans lequel les importations CSV écrivent ; vous ne le voyez ni ne le saisissez jamais.",
-                pt: "Um indicador carregado não tem definição para redigir. O FASTR atribui-lhe um identificador interno no qual as importações CSV escrevem; nunca o vê nem o digita.",
+                en: "An indicator of type Uploaded has no definition to author. FASTR gives it an internal identifier that CSV imports write to; you never see or type it.",
+                fr: "Un indicateur de type Téléversé n'a pas de définition à rédiger. FASTR lui attribue un identifiant interne dans lequel les importations CSV écrivent ; vous ne le voyez ni ne le saisissez jamais.",
+                pt: "Um indicador do tipo Carregado não tem definição para redigir. O FASTR atribui-lhe um identificador interno no qual as importações CSV escrevem; nunca o vê nem o digita.",
               })}
             </div>
           </Show>
@@ -709,9 +709,9 @@ export function EditIndicatorForm(
             />
             <div class="ui-text-caption">
               {t3({
-                en: "The members' counts are added per facility and month. Members are DHIS2 element or Uploaded indicators; a sum cannot contain a sum.",
-                fr: "Les dénombrements des membres sont additionnés par établissement et par mois. Les membres sont des éléments DHIS2 ou des indicateurs téléversés ; une somme ne peut pas contenir une somme.",
-                pt: "As contagens dos membros são somadas por estabelecimento e mês. Os membros são elementos DHIS2 ou indicadores carregados; uma soma não pode conter uma soma.",
+                en: "The members' counts are added per facility and month. Members are indicators of type DHIS2 element or Uploaded; a sum cannot contain a sum.",
+                fr: "Les dénombrements des membres sont additionnés par établissement et par mois. Les membres sont des indicateurs de type Élément DHIS2 ou Téléversé ; une somme ne peut pas contenir une somme.",
+                pt: "As contagens dos membros são somadas por estabelecimento e mês. Os membros são indicadores do tipo Elemento DHIS2 ou Carregado; uma soma não pode conter uma soma.",
               })}
             </div>
           </Show>

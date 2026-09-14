@@ -1,6 +1,7 @@
 import { t3, type HmisIndicator } from "lib";
-import { For, Show } from "solid-js";
+import { Show } from "solid-js";
 import { Dhis2IndicatorPicker } from "../_indicator_picker";
+import { IdListLine } from "./_id_list_line";
 import type { Dhis2SeedDrop } from "./index";
 
 type Props = {
@@ -13,21 +14,39 @@ type Props = {
   refusal: string | undefined;
 };
 
-function seedDropText(drop: Dhis2SeedDrop): string {
-  return drop.reason === "uploaded"
+function uploadedDropSummary(n: number): string {
+  return n === 1
     ? t3({
-        en: "is an Uploaded indicator, which a DHIS2 import cannot fetch",
-        fr: "est un indicateur téléversé, qu'une importation DHIS2 ne peut pas récupérer",
-        pt: "é um indicador carregado, que uma importação DHIS2 não pode obter",
+        en: "1 indicator of type Uploaded was left out of the selection, because a DHIS2 import cannot fetch it",
+        fr: "1 indicateur de type Téléversé a été exclu de la sélection, car une importation DHIS2 ne peut pas le récupérer",
+        pt: "1 indicador do tipo Carregado foi excluído da seleção, porque uma importação DHIS2 não o pode obter",
       })
     : t3({
-        en: "is no longer in the indicator list",
-        fr: "ne figure plus dans la liste des indicateurs",
-        pt: "já não consta da lista de indicadores",
+        en: `${n} indicators of type Uploaded were left out of the selection, because a DHIS2 import cannot fetch them`,
+        fr: `${n} indicateurs de type Téléversé ont été exclus de la sélection, car une importation DHIS2 ne peut pas les récupérer`,
+        pt: `${n} indicadores do tipo Carregado foram excluídos da seleção, porque uma importação DHIS2 não os pode obter`,
+      });
+}
+
+function unknownDropSummary(n: number): string {
+  return n === 1
+    ? t3({
+        en: "1 indicator was left out of the selection, because it is no longer in the indicator list",
+        fr: "1 indicateur a été exclu de la sélection, car il ne figure plus dans la liste des indicateurs",
+        pt: "1 indicador foi excluído da seleção, porque já não consta da lista de indicadores",
+      })
+    : t3({
+        en: `${n} indicators were left out of the selection, because they are no longer in the indicator list`,
+        fr: `${n} indicateurs ont été exclus de la sélection, car ils ne figurent plus dans la liste des indicateurs`,
+        pt: `${n} indicadores foram excluídos da seleção, porque já não constam da lista de indicadores`,
       });
 }
 
 export function Dhis2StepIndicators(p: Props) {
+  const idsWithReason = (reason: Dhis2SeedDrop["reason"]) =>
+    p.seedDrops.filter((d) => d.reason === reason).map((d) => d.id);
+  const uploadedDrops = () => idsWithReason("uploaded");
+  const unknownDrops = () => idsWithReason("unknown");
   return (
     <div class="ui-spy">
       <div class="font-700 text-base">
@@ -44,23 +63,16 @@ export function Dhis2StepIndicators(p: Props) {
           pt: "Um elemento DHIS2 é obtido pelo seu ID DHIS2; uma soma obtém os elementos DHIS2 entre os seus membros; um indicador derivado obtém os elementos DHIS2 que a sua fórmula utiliza. O passo de revisão lista-os.",
         })}
       </div>
-      <Show when={p.seedDrops.length > 0}>
-        <div class="text-warning text-sm">
-          {t3({
-            en: "Left out of the selection:",
-            fr: "Exclus de la sélection :",
-            pt: "Excluídos da seleção:",
-          })}{" "}
-          <For each={p.seedDrops}>
-            {(drop, i) => (
-              <>
-                {i() > 0 ? "; " : ""}
-                <span class="font-mono">{drop.id}</span> {seedDropText(drop)}
-              </>
-            )}
-          </For>
-        </div>
-      </Show>
+      <IdListLine
+        ids={uploadedDrops()}
+        summary={uploadedDropSummary(uploadedDrops().length)}
+        class="text-warning text-sm"
+      />
+      <IdListLine
+        ids={unknownDrops()}
+        summary={unknownDropSummary(unknownDrops().length)}
+        class="text-warning text-sm"
+      />
       <Dhis2IndicatorPicker
         selectedIds={p.selectedIds}
         setSelectedIds={p.setSelectedIds}
