@@ -510,3 +510,60 @@ export function expandIndicatorSelection(
     unresolvable,
   };
 }
+
+// The expansion as the wizard shows it before launch (PLAN_A7 ruling 4):
+// each fetched data id joined to the DHIS2-element indicator that carries
+// it, so the Review can list the covered elements, plus the dropped parts
+// under the expansion's names. A thin read of `expandIndicatorSelection`;
+// the server keeps calling that directly.
+export type Dhis2SelectionElement = {
+  dataId: string;
+  indicatorId: string;
+  label: string;
+};
+
+export type Dhis2SelectionDescription = {
+  elements: Dhis2SelectionElement[];
+  uploadedDropped: string[];
+  populationTermsDropped: string[];
+  unresolvable: { id: string; problem: string }[];
+  unknownIndicatorIds: string[];
+};
+
+type DescriptionInput = Pick<
+  HmisIndicator,
+  "indicator_common_id" | "indicator_common_label" | "definition"
+>;
+
+export function describeDhis2Selection(
+  indicatorIds: string[],
+  indicators: DescriptionInput[],
+  populationTypeIds: string[],
+): Dhis2SelectionDescription {
+  const expansion = expandIndicatorSelection(
+    indicatorIds,
+    indicators,
+    populationTypeIds,
+  );
+  const elementByDataId = new Map<string, DescriptionInput>();
+  for (const indicator of indicators) {
+    if (indicator.definition.type !== "dhis2_element") continue;
+    if (!elementByDataId.has(indicator.definition.data_id)) {
+      elementByDataId.set(indicator.definition.data_id, indicator);
+    }
+  }
+  return {
+    elements: expansion.dataIds.flatMap((dataId) => {
+      const indicator = elementByDataId.get(dataId);
+      return indicator === undefined ? [] : [{
+        dataId,
+        indicatorId: indicator.indicator_common_id,
+        label: indicator.indicator_common_label,
+      }];
+    }),
+    uploadedDropped: expansion.uploadedIndicatorsDropped,
+    populationTermsDropped: expansion.populationTermsDropped,
+    unresolvable: expansion.unresolvable,
+    unknownIndicatorIds: expansion.unknownIndicatorIds,
+  };
+}

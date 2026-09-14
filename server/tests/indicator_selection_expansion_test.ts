@@ -13,6 +13,7 @@ import { assertEquals } from "@std/assert";
 import {
   type HmisIndicator,
   type Dhis2RunSelection,
+  describeDhis2Selection,
   expandIndicatorSelection,
   POPULATION_TYPE_IDS,
 } from "lib";
@@ -25,7 +26,7 @@ const ANC4_ELEMENT = "KlMnOpQrSt2";
 function element(id: string, dataId: string): HmisIndicator {
   return {
     indicator_common_id: id,
-    indicator_common_label: id,
+    indicator_common_label: `${id} label`,
     definition: { type: "dhis2_element", data_id: dataId },
     include_in_analysis: true,
     format_as: "number",
@@ -143,6 +144,64 @@ Deno.test("expansion: an unresolvable derived is reported, not thrown", () => {
   );
   assertEquals(e.dataIds, []);
   assertEquals(e.unresolvable.map((u) => u.id), ["broken"]);
+});
+
+// The wizard's read of the same expansion (PLAN_A7 ruling 4): each data id
+// joined to its DHIS2-element indicator, the dropped parts passed through.
+Deno.test("description: one element is one row with its label", () => {
+  const d = describeDhis2Selection(["anc4"], DICTIONARY, POPULATION_TYPE_IDS);
+  assertEquals(d.elements, [
+    { dataId: ANC4_ELEMENT, indicatorId: "anc4", label: "anc4 label" },
+  ]);
+  assertEquals(d.uploadedDropped, []);
+  assertEquals(d.populationTermsDropped, []);
+  assertEquals(d.unresolvable, []);
+  assertEquals(d.unknownIndicatorIds, []);
+});
+
+Deno.test("description: a sum lists its members", () => {
+  const d = describeDhis2Selection(["anc1"], DICTIONARY, POPULATION_TYPE_IDS);
+  assertEquals(d.elements.map((e) => e.indicatorId), ["anc1_first", "anc1_repeat"]);
+  assertEquals(d.elements.map((e) => e.dataId), [ANC1_ELEMENT, ANC1_OPERAND]);
+});
+
+Deno.test("description: a derived through a sum lists every element once, in expansion order", () => {
+  const d = describeDhis2Selection(
+    ["anc4_rate", "anc1_first"],
+    DICTIONARY,
+    POPULATION_TYPE_IDS,
+  );
+  assertEquals(d.elements.map((e) => e.indicatorId), [
+    "anc4",
+    "anc1_first",
+    "anc1_repeat",
+  ]);
+});
+
+Deno.test("description: a sum with an Uploaded member lists the element and drops the member", () => {
+  const d = describeDhis2Selection(["anc4_all"], DICTIONARY, POPULATION_TYPE_IDS);
+  assertEquals(d.elements.map((e) => e.indicatorId), ["anc4"]);
+  assertEquals(d.uploadedDropped, ["anc4_csv"]);
+});
+
+Deno.test("description: a population term is dropped and named", () => {
+  const d = describeDhis2Selection(
+    ["anc1_coverage"],
+    DICTIONARY,
+    POPULATION_TYPE_IDS,
+  );
+  assertEquals(d.elements.map((e) => e.indicatorId), ["anc1_first", "anc1_repeat"]);
+  assertEquals(d.populationTermsDropped, ["population_pregnancies"]);
+});
+
+Deno.test("description: an unresolvable derived has no elements and is named", () => {
+  const d = describeDhis2Selection(
+    ["broken"],
+    [...DICTIONARY, derived("broken", "anc1 / missing_indicator")],
+    POPULATION_TYPE_IDS,
+  );
+  assertEquals(d.elements, []);
+  assertEquals(d.unresolvable.map((u) => u.id), ["broken"]);
 });
 
 Deno.test("queued run: pairs come from the persisted data ids, not the dictionary", () => {
