@@ -145,7 +145,7 @@ export function EditIndicatorForm(
     existing?.indicator_common_label || "",
   );
   const [type, setType] = createSignal<HmisIndicatorType>(
-    existing?.definition.type ?? "uploaded",
+    existing?.definition.type ?? "dhis2_element",
   );
   // The DHIS2 id input only: an Uploaded indicator's key is the server's.
   const [dataId, setDataId] = createSignal(
