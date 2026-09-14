@@ -13,9 +13,12 @@ dashboards from those packages. One instance per country.
   the area you touch before changing it.
 - `PROTOCOL_APP_*.md` are recipes, one per task: routes, workers, migrations,
   AI tool schemas, query-rig cases, client state, UI conventions, help
-  buttons, and the verification loop
+  buttons, plans ([PROTOCOL_APP_PLANS.md](PROTOCOL_APP_PLANS.md)), and the
+  verification loop
   ([PROTOCOL_APP_DEVELOPMENT.md](PROTOCOL_APP_DEVELOPMENT.md)).
-- `panther/protocols/` holds the cross-project conventions those build on.
+- `panther/protocols/` holds the cross-project conventions those build on,
+  including how a multi-session plan is written and run
+  ([PROTOCOL_ALL_PLANS.md](panther/protocols/PROTOCOL_ALL_PLANS.md)).
 - `PLAN_*.md` files are open work.
 - Setup is in [README.md](README.md), tasks in `deno.json`, and every
   environment variable in `.env.example`.
