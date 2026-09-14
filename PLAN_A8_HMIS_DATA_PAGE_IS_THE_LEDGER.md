@@ -12,7 +12,7 @@ as follow-ons and not done here: a heat map by admin area, which needs a
 server read the ledger cannot give, and hover on the line graph, which is
 panther work.
 
-**Next step: Review 2.** Each session sets this line in its final commit. Its
+**Next step: Do 3.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N`; after step 3's review passes the
 file is deleted instead of advanced.
 
@@ -405,3 +405,33 @@ Append-only, newest last.
 - Step 2, floor: `./run` was not started (Tim's dev server on 8000 and
   3000); the running Vite server transformed the three changed modules.
 - Step 2 built.
+- Step 2, review finding, surface: `index.tsx` lines 80-84 (`figureType:
+  "line"`, `heatMapAxis: "month"`) is outside step 2's Surface, which names
+  only `dataset_items_holder.tsx`, `_presence_heat_map.tsx`, SYSTEM_06 and
+  this file. The code is right and stays: step 1 moved the `vizConfig` store
+  to the page (ruling 10), so the store literal in `index.tsx` is the only
+  construction site of the `VizConfig` type this step redefines, and the two
+  lines are compelled by the deliverable. The plan's surface list is what was
+  wrong, and the two-things rule leaves it as written. The finding is that the
+  Do session appended no row recording the deviation.
+- Step 2, review: the floor is green at `a50c16d5` (`deno task typecheck`
+  including `lint:systems` at 872 files, `deno task test` 133 passed,
+  `./validate_protocols` 0 tier-1 / 0 new tier-2 / 17 baselined), both step 2
+  gates are at zero and step 1's three stay at zero. `./run` was again not
+  started (Tim's dev server holds 8000 and 3000); the running Vite server
+  returned 200 for `_presence_heat_map.tsx`.
+- Step 2, review: the heat map checked against the server payload
+  (`server/db/instance/dataset_hmis.ts` lines 375-420). It reads
+  `indicator_common_id` and `period_id` from `vizItems` and `min`/`max` from
+  `periodBounds`, which are the columns and the keys the route returns.
+  `period_id` is `integer` in the ledger (`_main_database.sql` line 482), so
+  the driver yields a number where the row type says string; the `Number(...)`
+  in `filled()` is right either way. The month enumeration carries across a
+  year boundary correctly, the year rollup fills a cell where any month of the
+  year has records (ruling 3), and the rows are the multi-select's indicators
+  (ruling 5) over `filteredVizItems()`, so the filter applies to both figures.
+  The props are read under `p.` inside memos and JSX, so the axis and the
+  filter track. `getCalendar()` returns only `gregorian` or `ethiopian`, never
+  `ethiopian-to-gregorian`, so `formatPeriod`'s year shift cannot fire and the
+  year group headers agree with the cell titles. No defect found.
+- Step 2 reviewed: 1 finding.
