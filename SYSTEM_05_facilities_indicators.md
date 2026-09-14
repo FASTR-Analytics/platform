@@ -1011,8 +1011,11 @@ Every config mutation re-reads all configs and pushes one consolidated
   out of the two types that have rows is refused in the form while the
   ledger reports rows or a sum names the indicator, as the server refuses
   it.
-- The list's bulk actions, for global admins: Delete, and "Import HMIS
-  data from DHIS2", which opens the DHIS2 import wizard (S6) as a modal
+- The list's bulk actions, for global admins: "Include in analysis" and
+  "Exclude from analysis", which set the flag on every selected row in one
+  call (`setIndicatorsIncludeInAnalysis`; excluding a special is refused
+  naming it, since a special is analysed whatever its flag says); Delete;
+  and "Import HMIS data from DHIS2", which opens the DHIS2 import wizard (S6) as a modal
   over the manager with the selected rows preselected; the wizard fetches
   its own data, launches, queues or schedules as it does from the imports
   view, and on a result the manager shows a notice naming HMIS data,

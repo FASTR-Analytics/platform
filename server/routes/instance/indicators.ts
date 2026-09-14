@@ -7,6 +7,7 @@ import {
   getInstanceIndicatorsSummary,
   type NewIndicator,
   reorderHmisIndicators,
+  setIndicatorsIncludeInAnalysis,
   updateIndicator,
 } from "../../db/mod.ts";
 import { log } from "../../middleware/logging.ts";
@@ -110,6 +111,27 @@ defineRoute(
       c.var.mainDb,
       body.old_indicator_common_id,
       indicator,
+    );
+    if (res.success) {
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
+    }
+    return c.json(res);
+  },
+);
+
+// POST /indicators/include-in-analysis - Set the flag on many indicators
+defineRoute(
+  routesIndicators,
+  "setIndicatorsIncludeInAnalysis",
+  requireGlobalPermission("can_configure_data"),
+  log("setIndicatorsIncludeInAnalysis"),
+  async (c, { body }) => {
+    const res = await setIndicatorsIncludeInAnalysis(
+      c.var.mainDb,
+      body.indicator_common_ids,
+      body.include_in_analysis,
     );
     if (res.success) {
       notifyInstanceIndicatorsUpdated(

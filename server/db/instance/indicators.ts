@@ -26,6 +26,7 @@ import {
   type InstanceIndicatorDetails,
   isCount,
   isDhis2ShapedId,
+  isSpecialIndicatorId,
   MAX_INDICATOR_EXPRESSION_INGREDIENTS,
   parseIndicatorExpression,
   POPULATION_TYPE_IDS,
@@ -998,6 +999,52 @@ export async function reorderHmisIndicators(
 // surviving sum names it, or another indicator's expression still needs the
 // id. A special indicator is deleted like any other (ruling 14: the data
 // FKs stay, so data never outlives the indicator that holds its key).
+// The include-in-analysis flag over many rows at once, the list's bulk
+// action. A special is analysed whatever its flag says
+// (`analysedIndicatorIds`) and the editor keeps it on, so excluding one is
+// refused here rather than stored as a flag nothing reads.
+export async function setIndicatorsIncludeInAnalysis(
+  mainDb: Sql,
+  indicatorIds: string[],
+  includeInAnalysis: boolean,
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    if (indicatorIds.length === 0) {
+      return { success: true };
+    }
+    if (!includeInAnalysis) {
+      const specials = indicatorIds.filter(isSpecialIndicatorId);
+      if (specials.length > 0) {
+        return {
+          success: false,
+          err: `Special indicators are always analysed and cannot be excluded: ${
+            specials.join(", ")
+          }`,
+        };
+      }
+    }
+    const found = await mainDb<{ indicator_common_id: string }[]>`
+      SELECT indicator_common_id FROM indicators
+      WHERE indicator_common_id = ANY(${indicatorIds})
+    `;
+    const foundIds = new Set(found.map((row) => row.indicator_common_id));
+    const notFoundIds = indicatorIds.filter((id) => !foundIds.has(id));
+    if (notFoundIds.length > 0) {
+      return {
+        success: false,
+        err: `Indicators not found: ${notFoundIds.join(", ")}`,
+      };
+    }
+    await mainDb`
+      UPDATE indicators
+      SET include_in_analysis = ${includeInAnalysis}, updated_at = CURRENT_TIMESTAMP
+      WHERE indicator_common_id = ANY(${indicatorIds})
+        AND include_in_analysis <> ${includeInAnalysis}
+    `;
+    return { success: true };
+  });
+}
+
 export async function deleteIndicators(
   mainDb: Sql,
   indicatorIds: string[],

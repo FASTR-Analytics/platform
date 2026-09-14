@@ -77,4 +77,12 @@ export const indicatorRouteRegistry = {
     method: "POST",
     body: z.object({ order: z.array(z.string()) }),
   }),
+  setIndicatorsIncludeInAnalysis: route({
+    path: "/indicators/include-in-analysis",
+    method: "POST",
+    body: z.object({
+      indicator_common_ids: z.array(z.string()),
+      include_in_analysis: z.boolean(),
+    }),
+  }),
 } as const;

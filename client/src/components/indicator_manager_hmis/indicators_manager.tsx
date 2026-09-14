@@ -29,6 +29,7 @@ import {
   TableColumn,
   getEditorWrapper,
   openComponent,
+  createButtonAction,
   createDeleteAction,
   createQuery,
   type BulkAction,
@@ -60,8 +61,8 @@ import {
   definedByText,
   formatText,
   indicatorTypeLabel,
-} from "./_indicator_display";
   matchesIndicatorSearch,
+} from "./_indicator_display";
 import { Dhis2IndicatorSelectForm } from "./dhis2_indicator_select_form";
 import { SortIndicatorsModal } from "./sort_indicators_modal";
 import { SpecialBadge } from "./_special_badge";
@@ -323,12 +324,12 @@ function IndicatorsTable(p: {
   });
   const statusOf = (indicator: HmisIndicator) =>
     statuses().get(indicator.indicator_common_id);
-  const uncomputableCount = createMemo(
 
   const [search, setSearch] = createSignal("");
   const visibleIndicators = createMemo(() =>
     p.indicators.filter((i) => matchesIndicatorSearch(i, search())),
   );
+  const uncomputableCount = createMemo(
     () =>
       [...statuses().values()].filter((s) => s.problem !== undefined).length,
   );
@@ -393,6 +394,17 @@ function IndicatorsTable(p: {
           pt: "A importação foi agendada. Acompanhe-a em Dados HMIS, Importações, Futuro.",
         });
   }
+
+  // The flag over the selected rows; the list refreshes through the
+  // indicatorsVersion push. A special cannot be excluded, and the server
+  // refuses the whole action naming it, so the user sees which row blocked.
+  const setIncludeInAnalysis = createButtonAction(
+    (selected: HmisIndicator[], include: boolean) =>
+      serverActions.setIndicatorsIncludeInAnalysis({
+        indicator_common_ids: selected.map((i) => i.indicator_common_id),
+        include_in_analysis: include,
+      }),
+  );
 
   async function handleDeleteIndicators(selected: HmisIndicator[]) {
     const indicatorIds = selected.map((i) => i.indicator_common_id);
@@ -553,6 +565,26 @@ function IndicatorsTable(p: {
             onClick: handleImportFromDhis2,
           },
           {
+            label: t3({
+              en: "Include in analysis",
+              fr: "Inclure dans l'analyse",
+              pt: "Incluir na análise",
+            }),
+            intent: "neutral",
+            outline: true,
+            onClick: (selected) => setIncludeInAnalysis.click(selected, true),
+          },
+          {
+            label: t3({
+              en: "Exclude from analysis",
+              fr: "Exclure de l'analyse",
+              pt: "Excluir da análise",
+            }),
+            intent: "neutral",
+            outline: true,
+            onClick: (selected) => setIncludeInAnalysis.click(selected, false),
+          },
+          {
             label: t3(TC.delete),
             intent: "danger",
             outline: true,
@@ -567,6 +599,20 @@ function IndicatorsTable(p: {
       <div class="ui-gap-sm flex items-center pb-4">
         <div class="ui-text-title flex-1">
           {t3({ en: "Indicators", fr: "Indicateurs", pt: "Indicadores" })}
+        </div>
+        <div class="w-80">
+          <Input
+            value={search()}
+            onChange={setSearch}
+            searchIcon
+            clearable
+            fullWidth
+            placeholder={t3({
+              en: "Search indicators",
+              fr: "Rechercher des indicateurs",
+              pt: "Pesquisar indicadores",
+            })}
+          />
         </div>
         <Show when={instanceState.currentUserIsGlobalAdmin}>
           <Button
@@ -600,20 +646,6 @@ function IndicatorsTable(p: {
           </Button>
         </Show>
       </div>
-        <div class="w-80">
-          <Input
-            value={search()}
-            onChange={setSearch}
-            searchIcon
-            clearable
-            fullWidth
-            placeholder={t3({
-              en: "Search indicators",
-              fr: "Rechercher des indicateurs",
-              pt: "Pesquisar indicadores",
-            })}
-          />
-        </div>
       <Show when={importNotice()}>
         {(notice) => (
           <Callout intent="success" pad="sm" class="mb-4 flex-none">
