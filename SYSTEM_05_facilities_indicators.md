@@ -970,6 +970,12 @@ Every config mutation re-reads all configs and pushes one consolidated
   (ruling 3). Counts have no status. The Status column is
   sortable. It is not in the CSV download, which carries the dictionary's
   authored fields.
+- Both indicator tables, the manager's and the import picker's, carry a
+  search box: every typed word must appear in the id, label, type word or
+  definition (`matchesIndicatorSearch`); the caller filters the rows
+  before the table, which has no search of its own. A controlled
+  selection survives filtering, and the header checkbox acts on the
+  visible rows.
 - The manager is one list with a Type column (DHIS2 element, Uploaded, Sum,
   Derived, `indicatorTypeLabel`), a Defined-by column (the DHIS2 id of an
   element, the members, the formula, nothing for an Uploaded indicator;

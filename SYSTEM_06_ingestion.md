@@ -432,7 +432,8 @@ callback re-parses the new bytes).
   (a cancelled wizard lands on the tab, not back in the detail, same as run
   detail; accepted). Two wizards: DHIS2 (credentials/indicators/time/
   config/review; the Indicators step picks from the dictionary list
-  without its Uploaded rows, which a DHIS2 import cannot fetch, and
+  without its Uploaded rows, which a DHIS2 import cannot fetch, over a
+  search box and a selected count (S5), and
   refuses Next, with the reason under the table, while the selection
   expands to no DHIS2 element or a selected derived does not resolve; the
   Review keeps the indicator and element counts and lists the covered

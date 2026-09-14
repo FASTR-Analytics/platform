@@ -56,13 +56,6 @@ export function Dhis2StepIndicators(p: Props) {
           pt: "Selecionar os indicadores a importar",
         })}
       </div>
-      <div class="text-sm">
-        {t3({
-          en: "A DHIS2 element is fetched by its DHIS2 id; a sum fetches the DHIS2 elements among its members; a derived indicator fetches the DHIS2 elements its formula includes. The review step lists them.",
-          fr: "Un élément DHIS2 est récupéré par son identifiant DHIS2 ; une somme récupère ceux de ses membres qui sont des éléments DHIS2 ; un indicateur dérivé récupère les éléments DHIS2 que sa formule utilise. L'étape de vérification les liste.",
-          pt: "Um elemento DHIS2 é obtido pelo seu ID DHIS2; uma soma obtém os elementos DHIS2 entre os seus membros; um indicador derivado obtém os elementos DHIS2 que a sua fórmula utiliza. O passo de revisão lista-os.",
-        })}
-      </div>
       <IdListLine
         ids={uploadedDrops()}
         summary={uploadedDropSummary(uploadedDrops().length)}

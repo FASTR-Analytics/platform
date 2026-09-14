@@ -71,6 +71,26 @@ export function formatText(indicator: HmisIndicator): string {
     : "";
 }
 
+// The search over an indicator list, shared by the manager and the import
+// picker: every typed word must appear in the id, label, type word or
+// definition, case-insensitive.
+export function matchesIndicatorSearch(
+  indicator: HmisIndicator,
+  query: string,
+): boolean {
+  const words = query.toLowerCase().split(/\s+/).filter((w) => w !== "");
+  if (words.length === 0) return true;
+  const haystack = [
+    indicator.indicator_common_id,
+    indicator.indicator_common_label,
+    indicatorTypeLabel(indicator),
+    definedByText(indicator),
+  ]
+    .join(" ")
+    .toLowerCase();
+  return words.every((w) => haystack.includes(w));
+}
+
 // How an import surface names an indicator it reached through a data id.
 export function indicatorNameText(indicator: HmisIndicator): string {
   return `${indicator.indicator_common_label} (${indicator.indicator_common_id})`;

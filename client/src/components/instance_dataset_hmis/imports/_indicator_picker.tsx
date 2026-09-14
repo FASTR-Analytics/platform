@@ -1,15 +1,17 @@
 import { t3, type HmisIndicator } from "lib";
 import {
+  Input,
   StateHolderWrapper,
   Table,
   createQuery,
   type TableColumn,
 } from "panther";
-import { createEffect } from "solid-js";
+import { createEffect, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 import {
   definedByText,
   indicatorTypeLabel,
+  matchesIndicatorSearch,
 } from "~/components/indicator_manager_hmis/_indicator_display";
 
 type Props = {
@@ -62,44 +64,72 @@ export function Dhis2IndicatorPicker(p: Props) {
       header: t3({ en: "Type", fr: "Type", pt: "Tipo" }),
       sortable: true,
       sortValue: indicatorTypeLabel,
-      render: indicatorTypeLabel,
+      render: (item) => (
+        <span class="whitespace-nowrap">{indicatorTypeLabel(item)}</span>
+      ),
     },
     {
       key: "defined_by",
       header: t3({ en: "Defined by", fr: "Défini par", pt: "Definido por" }),
-      render: (item) => <span class="font-mono text-xs">{definedByText(item)}</span>,
+      render: (item) => (
+        <span class="font-mono text-xs">{definedByText(item)}</span>
+      ),
       sortable: true,
       sortValue: definedByText,
     },
   ];
 
   const selectedKeysSet = () => new Set(p.selectedIds());
+  const [search, setSearch] = createSignal("");
 
   return (
     <StateHolderWrapper state={indicators.state()} noPad>
       {(keyedIndicators) => (
-        <Table
-          data={keyedIndicators.indicators.filter(
-            (i) => i.definition.type !== "uploaded",
-          )}
-          columns={tableColumns}
-          keyField="indicator_common_id"
-          selectedKeys={selectedKeysSet}
-          setSelectedKeys={(keys) =>
-            p.setSelectedIds(Array.from(keys) as string[])
-          }
-          selectionLabel={t3({
-            en: "indicator",
-            fr: "indicateur",
-            pt: "indicador",
-          })}
-          tableContentMaxHeight="500px"
-          noRowsMessage={t3({
-            en: "No indicators available",
-            fr: "Aucun indicateur disponible",
-            pt: "Nenhum indicador disponível",
-          })}
-        />
+        <div class="ui-spy">
+          <div class="ui-gap flex items-center justify-between">
+            <div class="w-80">
+              <Input
+                value={search()}
+                onChange={setSearch}
+                searchIcon
+                clearable
+                fullWidth
+                placeholder={t3({
+                  en: "Search indicators",
+                  fr: "Rechercher des indicateurs",
+                  pt: "Pesquisar indicadores",
+                })}
+              />
+            </div>
+            <div class="text-sm">
+              {p.selectedIds().length}{" "}
+              {t3({
+                en: "selected",
+                fr: "sélectionné(s)",
+                pt: "selecionado(s)",
+              })}
+            </div>
+          </div>
+          <Table
+            data={keyedIndicators.indicators.filter(
+              (i) =>
+                i.definition.type !== "uploaded" &&
+                matchesIndicatorSearch(i, search()),
+            )}
+            columns={tableColumns}
+            keyField="indicator_common_id"
+            selectedKeys={selectedKeysSet}
+            setSelectedKeys={(keys) =>
+              p.setSelectedIds(Array.from(keys) as string[])
+            }
+            tableContentMaxHeight="500px"
+            noRowsMessage={t3({
+              en: "No indicators match",
+              fr: "Aucun indicateur ne correspond",
+              pt: "Nenhum indicador corresponde",
+            })}
+          />
+        </div>
       )}
     </StateHolderWrapper>
   );

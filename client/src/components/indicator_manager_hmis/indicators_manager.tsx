@@ -21,6 +21,7 @@ import {
   FrameTop,
   HeadingBar,
   Icon,
+  Input,
   ModalContainer,
   getQueryStateFromApiResponse,
   StateHolderWrapper,
@@ -60,6 +61,7 @@ import {
   formatText,
   indicatorTypeLabel,
 } from "./_indicator_display";
+  matchesIndicatorSearch,
 import { Dhis2IndicatorSelectForm } from "./dhis2_indicator_select_form";
 import { SortIndicatorsModal } from "./sort_indicators_modal";
 import { SpecialBadge } from "./_special_badge";
@@ -322,6 +324,11 @@ function IndicatorsTable(p: {
   const statusOf = (indicator: HmisIndicator) =>
     statuses().get(indicator.indicator_common_id);
   const uncomputableCount = createMemo(
+
+  const [search, setSearch] = createSignal("");
+  const visibleIndicators = createMemo(() =>
+    p.indicators.filter((i) => matchesIndicatorSearch(i, search())),
+  );
     () =>
       [...statuses().values()].filter((s) => s.problem !== undefined).length,
   );
@@ -441,7 +448,9 @@ function IndicatorsTable(p: {
       header: t3({ en: "Type", fr: "Type", pt: "Tipo" }),
       sortable: true,
       sortValue: indicatorTypeLabel,
-      render: (indicator) => <span>{indicatorTypeLabel(indicator)}</span>,
+      render: (indicator) => (
+        <span class="whitespace-nowrap">{indicatorTypeLabel(indicator)}</span>
+      ),
     },
     {
       key: "defined_by",
@@ -591,6 +600,20 @@ function IndicatorsTable(p: {
           </Button>
         </Show>
       </div>
+        <div class="w-80">
+          <Input
+            value={search()}
+            onChange={setSearch}
+            searchIcon
+            clearable
+            fullWidth
+            placeholder={t3({
+              en: "Search indicators",
+              fr: "Rechercher des indicateurs",
+              pt: "Pesquisar indicadores",
+            })}
+          />
+        </div>
       <Show when={importNotice()}>
         {(notice) => (
           <Callout intent="success" pad="sm" class="mb-4 flex-none">
@@ -623,14 +646,18 @@ function IndicatorsTable(p: {
       </Show>
       <div class="h-0 w-full flex-1">
         <Table
-          data={p.indicators}
+          data={visibleIndicators()}
           columns={allColumns()}
           keyField="indicator_common_id"
-          noRowsMessage={t3({
-            en: "No indicators",
-            fr: "Aucun indicateur",
-            pt: "Nenhum indicador",
-          })}
+          noRowsMessage={
+            search() === ""
+              ? t3({ en: "No indicators", fr: "Aucun indicateur", pt: "Nenhum indicador" })
+              : t3({
+                  en: "No indicators match",
+                  fr: "Aucun indicateur ne correspond",
+                  pt: "Nenhum indicador corresponde",
+                })
+          }
           bulkActions={bulkActions()}
           selectionLabel={t3({
             en: "indicator",

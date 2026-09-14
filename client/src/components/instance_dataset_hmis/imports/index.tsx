@@ -42,7 +42,10 @@ import { CsvRunDetail } from "./_csv_run_detail";
 import { CsvWizard } from "./_csv_wizard";
 import { ImportLedgerIndicatorDetail } from "./_ledger_indicator_detail";
 import { Dhis2RunDetail } from "./_run_detail";
-import { Dhis2TabByIndicator, type LedgerPeriodWindow } from "./_tab_by_indicator";
+import {
+  Dhis2TabByIndicator,
+  type LedgerPeriodWindow,
+} from "./_tab_by_indicator";
 import { Dhis2TabCurrent } from "./_tab_current";
 import { Dhis2TabFuture, visibleFutureSchedules } from "./_tab_future";
 import { Dhis2TabHistory } from "./_tab_history";
@@ -52,21 +55,29 @@ type Props = EditorComponentProps<{}, undefined>;
 
 type TabId = "current" | "future" | "history" | "by_indicator";
 
-function runningRunOf(items: DatasetHmisImportRunSummary[]): DatasetHmisImportRunSummary | undefined {
+function runningRunOf(
+  items: DatasetHmisImportRunSummary[],
+): DatasetHmisImportRunSummary | undefined {
   return items.find((r) => r.status === "running");
 }
 
-function queuedRunsOf(items: DatasetHmisImportRunSummary[]): DatasetHmisImportRunSummary[] {
+function queuedRunsOf(
+  items: DatasetHmisImportRunSummary[],
+): DatasetHmisImportRunSummary[] {
   return items.filter((r) => r.status === "queued").sort((a, b) => a.id - b.id);
 }
 
-function needsReviewRunsOf(items: DatasetHmisImportRunSummary[]): DatasetHmisImportRunSummary[] {
+function needsReviewRunsOf(
+  items: DatasetHmisImportRunSummary[],
+): DatasetHmisImportRunSummary[] {
   return items
     .filter((r) => r.status === "needs_review")
     .sort((a, b) => a.id - b.id);
 }
 
-function attentionSchedulesOf(schedules: DatasetHmisScheduledImport[]): DatasetHmisScheduledImport[] {
+function attentionSchedulesOf(
+  schedules: DatasetHmisScheduledImport[],
+): DatasetHmisScheduledImport[] {
   return schedules.filter(
     (s) =>
       s.lastOutcome === "refused" ||
@@ -75,10 +86,15 @@ function attentionSchedulesOf(schedules: DatasetHmisScheduledImport[]): DatasetH
   );
 }
 
-function nextScheduleOf(schedules: DatasetHmisScheduledImport[]): DatasetHmisScheduledImport | undefined {
+function nextScheduleOf(
+  schedules: DatasetHmisScheduledImport[],
+): DatasetHmisScheduledImport | undefined {
   const enabled = schedules.filter((s) => s.enabled);
   const oneShots = enabled
-    .filter((s): s is DatasetHmisScheduledImport & { runAt: string } => s.kind === "one_shot" && s.runAt !== undefined)
+    .filter(
+      (s): s is DatasetHmisScheduledImport & { runAt: string } =>
+        s.kind === "one_shot" && s.runAt !== undefined,
+    )
     .sort((a, b) => a.runAt.localeCompare(b.runAt));
   return oneShots[0] ?? enabled.find((s) => s.kind === "recurring");
 }
@@ -97,11 +113,19 @@ export function DatasetHmisImports(p: Props) {
 
   const runs = createQuery(
     () => serverActions.getDatasetHmisImportRuns({}),
-    t3({ en: "Loading DHIS2 imports...", fr: "Chargement des importations DHIS2...", pt: "A carregar as importações DHIS2..." }),
+    t3({
+      en: "Loading DHIS2 imports...",
+      fr: "Chargement des importations DHIS2...",
+      pt: "A carregar as importações DHIS2...",
+    }),
   );
   const scheduling = createQuery(
     () => serverActions.getDatasetHmisDhis2Scheduling({}),
-    t3({ en: "Loading DHIS2 imports...", fr: "Chargement des importations DHIS2...", pt: "A carregar as importações DHIS2..." }),
+    t3({
+      en: "Loading DHIS2 imports...",
+      fr: "Chargement des importations DHIS2...",
+      pt: "A carregar as importações DHIS2...",
+    }),
   );
 
   const [tab, setTab] = createSignal<TabId>("current");
@@ -110,7 +134,9 @@ export function DatasetHmisImports(p: Props) {
   // fetched only while the By-indicator tab is showing: on every switch to it
   // and on every refresh() while it is showing. Stale rows stay visible until
   // the fresh ones arrive (no loading flash on refetch).
-  const [ledger, setLedger] = createSignal<StateHolder<DatasetHmisImportLedgerItem[]>>({
+  const [ledger, setLedger] = createSignal<
+    StateHolder<DatasetHmisImportLedgerItem[]>
+  >({
     status: "loading",
     msg: t3({
       en: "Loading import status...",
@@ -148,7 +174,9 @@ export function DatasetHmisImports(p: Props) {
   const indicators = createQuery(() => serverActions.getIndicators({}));
   const byDataId = createMemo((): Map<string, HmisIndicator> => {
     const s = indicators.state();
-    return s.status !== "ready" ? new Map() : indicatorsByDataId(s.data.indicators);
+    return s.status !== "ready"
+      ? new Map()
+      : indicatorsByDataId(s.data.indicators);
   });
 
   let pollingIntervalId: ReturnType<typeof setInterval> | undefined;
@@ -307,10 +335,17 @@ export function DatasetHmisImports(p: Props) {
         label: t3({ en: "Future", fr: "À venir", pt: "Futuro" }),
         badge: futureCount > 0 ? futureCount : undefined,
       },
-      { id: "history", label: t3({ en: "History", fr: "Historique", pt: "Histórico" }) },
+      {
+        id: "history",
+        label: t3({ en: "History", fr: "Historique", pt: "Histórico" }),
+      },
       {
         id: "by_indicator",
-        label: t3({ en: "By indicator", fr: "Par indicateur", pt: "Por indicador" }),
+        label: t3({
+          en: "By indicator",
+          fr: "Par indicateur",
+          pt: "Por indicador",
+        }),
       },
     ];
   }
@@ -322,17 +357,22 @@ export function DatasetHmisImports(p: Props) {
           <HeadingBar
             tonal
             onBack={() => p.close(undefined)}
-            heading={t3({ en: "Imports", fr: "Importations", pt: "Importações" })}
+            heading={t3({
+              en: "Imports",
+              fr: "Importations",
+              pt: "Importações",
+            })}
           >
             <div class="ui-gap-sm flex flex-none items-center">
               <Button
                 onClick={() => openWizard({ kind: "new" })}
                 iconName="databaseImport"
               >
-                {t3({ en: "New DHIS2 import", fr: "Nouvelle importation DHIS2", pt: "Nova importação DHIS2" })}
-              </Button>
-              <Button onClick={openCsvWizard} iconName="upload" outline onBackground="base-200">
-                {t3({ en: "Upload CSV file", fr: "Téléverser un fichier CSV", pt: "Carregar um ficheiro CSV" })}
+                {t3({
+                  en: "New DHIS2 import",
+                  fr: "Nouvelle importation DHIS2",
+                  pt: "Nova importação DHIS2",
+                })}
               </Button>
               <Button
                 onClick={openManageConnection}
@@ -341,7 +381,23 @@ export function DatasetHmisImports(p: Props) {
                 iconName="settings"
                 disabled={!schedulingReady()}
               >
-                {t3({ en: "Manage connection", fr: "Gérer la connexion", pt: "Gerir ligação" })}
+                {t3({
+                  en: "Manage connection",
+                  fr: "Gérer la connexion",
+                  pt: "Gerir ligação",
+                })}
+              </Button>
+              <Button
+                onClick={openCsvWizard}
+                iconName="upload"
+                outline
+                onBackground="base-200"
+              >
+                {t3({
+                  en: "Upload CSV file",
+                  fr: "Téléverser un fichier CSV",
+                  pt: "Carregar um ficheiro CSV",
+                })}
               </Button>
               <Button
                 iconName="refresh"
@@ -360,7 +416,11 @@ export function DatasetHmisImports(p: Props) {
             <StateHolderWrapper state={scheduling.state()} noPad>
               {(schedulingInfo) => (
                 <div class="ui-pad ui-spy h-full w-full overflow-auto">
-                  <Show when={attentionSchedulesOf(schedulingInfo.schedules).length > 0}>
+                  <Show
+                    when={
+                      attentionSchedulesOf(schedulingInfo.schedules).length > 0
+                    }
+                  >
                     <div class="border-danger bg-danger-subtle ui-pad ui-spy-sm rounded border">
                       <div class="font-700">
                         {t3({
@@ -369,23 +429,39 @@ export function DatasetHmisImports(p: Props) {
                           pt: "Uma importação agendada precisa de atenção",
                         })}
                       </div>
-                      <For each={attentionSchedulesOf(schedulingInfo.schedules)}>
+                      <For
+                        each={attentionSchedulesOf(schedulingInfo.schedules)}
+                      >
                         {(s) => (
                           <div class="text-sm">
                             <span class="font-700">
                               <Switch>
                                 <Match when={s.lastOutcome === "missed"}>
-                                  {t3({ en: "Missed", fr: "Manquée", pt: "Falhada" })}
+                                  {t3({
+                                    en: "Missed",
+                                    fr: "Manquée",
+                                    pt: "Falhada",
+                                  })}
                                 </Match>
                                 <Match when={s.lastOutcome === "refused"}>
-                                  {t3({ en: "Refused", fr: "Refusée", pt: "Recusada" })}
+                                  {t3({
+                                    en: "Refused",
+                                    fr: "Refusée",
+                                    pt: "Recusada",
+                                  })}
                                 </Match>
                                 <Match when={true}>
-                                  {t3({ en: "Run failed", fr: "Importation en échec", pt: "Importação falhou" })}
+                                  {t3({
+                                    en: "Run failed",
+                                    fr: "Importation en échec",
+                                    pt: "Importação falhou",
+                                  })}
                                 </Match>
                               </Switch>
                             </span>
-                            {s.lastFiredAt ? ` (${new Date(s.lastFiredAt).toLocaleString()})` : ""}
+                            {s.lastFiredAt
+                              ? ` (${new Date(s.lastFiredAt).toLocaleString()})`
+                              : ""}
                             {s.lastError ? ` — ${s.lastError}` : ""}
                           </div>
                         )}
@@ -393,7 +469,11 @@ export function DatasetHmisImports(p: Props) {
                     </div>
                   </Show>
 
-                  <TabsNavigation items={tabItems()} value={tab()} onChange={setTab} />
+                  <TabsNavigation
+                    items={tabItems()}
+                    value={tab()}
+                    onChange={setTab}
+                  />
 
                   <Switch>
                     <Match when={tab() === "current"}>
@@ -410,7 +490,9 @@ export function DatasetHmisImports(p: Props) {
                     <Match when={tab() === "future"}>
                       <Dhis2TabFuture
                         schedules={schedulingInfo.schedules}
-                        onEdit={(schedule) => openWizard({ kind: "editSchedule", schedule })}
+                        onEdit={(schedule) =>
+                          openWizard({ kind: "editSchedule", schedule })
+                        }
                         onChanged={refresh}
                       />
                     </Match>
@@ -418,7 +500,8 @@ export function DatasetHmisImports(p: Props) {
                       <Dhis2TabHistory
                         runs={keyedRuns.filter(
                           (r) =>
-                            r.status !== "queued" && r.status !== "needs_review",
+                            r.status !== "queued" &&
+                            r.status !== "needs_review",
                         )}
                         onOpenRun={openRunDetail}
                       />

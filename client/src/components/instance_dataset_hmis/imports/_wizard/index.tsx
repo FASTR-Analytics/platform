@@ -147,7 +147,7 @@ export function Dhis2Wizard(
       loadingRenderer={(msg) => (
         <ModalContainer
           height="lg"
-          width="2xl"
+          width="3xl"
           topPanel={
             <div class="flex items-center justify-between">
               <div class="font-700 text-lg">{t3(DHIS2_DATA_IMPORT_TITLE)}</div>
@@ -162,7 +162,7 @@ export function Dhis2Wizard(
       errorRenderer={(err) => (
         <ModalContainer
           height="lg"
-          width="2xl"
+          width="3xl"
           topPanel={
             <div class="flex items-center justify-between">
               <div class="font-700 text-lg">{t3(DHIS2_DATA_IMPORT_TITLE)}</div>
@@ -653,7 +653,7 @@ function Dhis2WizardInner(p: InnerProps) {
   return (
     <ModalContainer
       height="lg"
-      width="2xl"
+      width="3xl"
       noContentPadding
       topPanel={
         <div class="flex items-center justify-between">
