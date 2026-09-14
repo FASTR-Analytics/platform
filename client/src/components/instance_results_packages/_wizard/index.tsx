@@ -25,11 +25,7 @@ import { createStore, unwrap } from "solid-js/store";
 import { getModuleParameterInvalidMsg } from "~/components/_shared/module_parameter_inputs";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
-import {
-  buildModuleGraph,
-  familiesOf,
-  isOfferable,
-} from "./_module_graph";
+import { buildModuleGraph, familiesOf, isOfferable } from "./_module_graph";
 import { StepConfirm } from "./_step_confirm";
 import { StepData } from "./_step_data";
 import { StepModules } from "./_step_modules";
@@ -81,14 +77,23 @@ export function ResultsPackageWizard(
     <StateHolderWrapper
       state={query.state()}
       loadingRenderer={(msg) => (
-        <ModalContainer width="2xl" title={t3(HEADING)}>
+        <ModalContainer
+          width="2xl"
+          height="lg"
+          topPanel={
+            <div class="ui-text-heading leading-none">{t3(HEADING)}</div>
+          }
+        >
           <LoadingIndicator msg={msg} noPad />
         </ModalContainer>
       )}
       errorRenderer={(err) => (
         <ModalContainer
           width="2xl"
-          title={t3(HEADING)}
+          height="lg"
+          topPanel={
+            <div class="ui-text-heading leading-none">{t3(HEADING)}</div>
+          }
           rightButtons={
             <Button onClick={() => p.close(undefined)} outline>
               {t3(TC.cancel)}
@@ -124,7 +129,9 @@ function WizardInner(p: InnerProps) {
     if (!instanceState.datasetsWithData.includes(family)) {
       return false;
     }
-    return family !== "hmis" || instanceState.datasetVersions.hmis !== undefined;
+    return (
+      family !== "hmis" || instanceState.datasetVersions.hmis !== undefined
+    );
   };
   const [families, setFamilies] = createStore<RunGenerationStep1Result>({
     hmis: p.defaults.step1?.hmis === true && available("hmis"),
@@ -173,17 +180,18 @@ function WizardInner(p: InnerProps) {
     return ids;
   });
   const chosen = createMemo(() =>
-    p.options.modules.filter((o) => chosenIds().has(o.id))
+    p.options.modules.filter((o) => chosenIds().has(o.id)),
   );
   const chosenParamsValid = createMemo(() =>
     chosen().every((o) =>
-      o.parameters.every((param) =>
-        getModuleParameterInvalidMsg(
-          param,
-          paramValues[o.id][param.replacementString],
-        ) === undefined
-      )
-    )
+      o.parameters.every(
+        (param) =>
+          getModuleParameterInvalidMsg(
+            param,
+            paramValues[o.id][param.replacementString],
+          ) === undefined,
+      ),
+    ),
   );
 
   // Step 3: confirm.
@@ -222,7 +230,11 @@ function WizardInner(p: InnerProps) {
   const stepLabels = [
     t3({ en: "Data", fr: "Données", pt: "Dados" }),
     t3({ en: "Modules", fr: "Modules", pt: "Módulos" }),
-    t3({ en: "Confirm and launch", fr: "Confirmer et lancer", pt: "Confirmar e iniciar" }),
+    t3({
+      en: "Confirm and launch",
+      fr: "Confirmer et lancer",
+      pt: "Confirmar e iniciar",
+    }),
   ];
 
   const launch = createFormAction(
@@ -263,6 +275,7 @@ function WizardInner(p: InnerProps) {
   return (
     <ModalContainer
       width="2xl"
+      height="lg"
       topPanel={
         <div class="flex items-center justify-between">
           <div class="font-700 text-lg">{t3(HEADING)}</div>

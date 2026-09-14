@@ -92,9 +92,7 @@ export function WhatsNewModal(
     <ModalContainer
       width="lg"
       scroll="content"
-      topPanel={
-        <div class="font-700 text-base-content text-xl">{rt(p.post.title)}</div>
-      }
+      title={rt(p.post.title)}
       leftButtons={
         // eslint-disable-next-line jsx-key
         [
@@ -494,11 +492,7 @@ export function WhatsNewFeedModal(
     <ModalContainer
       width="md"
       scroll="content"
-      topPanel={
-        <div class="font-700 text-base-content text-xl">
-          {t3({ en: "What's New", fr: "Nouveautés", pt: "Novidades" })}
-        </div>
-      }
+      title={t3({ en: "What's New", fr: "Nouveautés", pt: "Novidades" })}
       rightButtons={
         // eslint-disable-next-line jsx-key
         [

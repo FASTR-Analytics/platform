@@ -60,10 +60,10 @@ export function StepData(p: Props) {
           {(row) => (
             <Checkbox
               label={
-                <span class="ui-gap-sm flex items-center">
+                <span>
                   <span>{row.label}</span>
                   <Show when={!p.available(row.family)}>
-                    <span class="text-base-content-muted text-sm">
+                    <span class="text-base-content-faint ml-2 text-sm italic">
                       {notAvailableNote}
                     </span>
                   </Show>

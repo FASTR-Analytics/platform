@@ -27,11 +27,7 @@ export function OrganisationModal(p: AlertComponentProps<void, undefined>) {
   return (
     <ModalContainer
       width="sm"
-      topPanel={
-        <div class="font-700 text-base-content text-xl">
-          {t3({ en: "Your organisation", fr: "Votre organisation", pt: "A sua organização" })}
-        </div>
-      }
+      title={t3({ en: "Your organisation", fr: "Votre organisation", pt: "A sua organização" })}
       leftButtons={
         // eslint-disable-next-line jsx-key
         [

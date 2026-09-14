@@ -72,7 +72,7 @@ export function PruneResultsPackages(
   return (
     <ModalContainer
       width="md"
-      topPanel={<div class="font-700 text-lg">{t3(HEADING)}</div>}
+      title={t3(HEADING)}
       rightButtons={
         <Switch>
           <Match when={phase() === "confirm"}>
