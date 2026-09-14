@@ -30,6 +30,16 @@ the plan: `Do N` builds step N; `Review N` reviews it; `Fix N` builds the work
 list a review left. Steps alternate Do and Review, and the line moves on only
 when a review passes. A session never does two of these.
 
+**Who runs a session.** Do and Fix sessions may be one agent throughout or a
+fresh agent each time, which is a cost choice: one warm context reads the plan
+once, at the price of surface creep across steps. A Review session is always a
+context that did not produce the code it reviews, the re-review after a Fix
+included, because an agent reviewing its own step re-reads its own intentions
+rather than the diff, which deletes the review while leaving the build-log row
+that says one happened. Write the plan for the fresh agent either way: a context
+that runs out mid-plan is ordinary rather than exceptional, and the **Next
+step** line and the build log are what let the next one resume.
+
 **Session start.** Confirm the branch the plan names, and confirm the tree is
 clean. Sessions are serial, so a dirty tree means another session did not
 finish: stop and say so. Never create a branch. Every session ends with a
@@ -43,9 +53,9 @@ and ends when the step's gates and the floor are green, the build log has the
 rows the step produced plus its closing row, the **Next step** line says
 `Review N`, and the last commit is made. Then it stops.
 
-**A Review session** is a fresh agent that did not write the code. It lists the
-step's commits (`git log` from the commit that last set the **Next step** line
-to `Do N` or `Fix N`) and checks four things:
+**A Review session** runs in a context that did not write the code (above). It
+lists the step's commits (`git log` from the commit that last set the **Next
+step** line to `Do N` or `Fix N`) and checks four things:
 
 1. Nothing outside the step's Surface changed. Diff the stat against the surface
    list; every file outside it is a finding.
