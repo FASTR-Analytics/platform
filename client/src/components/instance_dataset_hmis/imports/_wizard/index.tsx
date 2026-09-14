@@ -1,5 +1,5 @@
 import {
-  expandIndicatorSelection,
+  describeDhis2Selection,
   getCalendar,
   POPULATION_TYPE_IDS,
   t3,
@@ -11,6 +11,7 @@ import {
   type Dhis2RunPairInput,
   type Dhis2RunSelectionInput,
   type Dhis2ScheduleRecurrence,
+  type Dhis2SelectionDescription,
   type HmisIndicator,
 } from "lib";
 import { recurrenceLabel } from "../_recurrence_label";
@@ -145,23 +146,40 @@ export function Dhis2Wizard(
     password: "",
   });
 
-  // Step 2: indicators. The dictionary the picker loads lets the review
-  // count the DHIS2 elements the selection expands to, with the same lib
-  // function the server persists the expansion with at launch.
+  // Step 2: indicators. The dictionary the picker loads lets the wizard
+  // describe what the selection expands to (the DHIS2 elements fetched and
+  // the parts dropped) with the same lib expansion the server persists at
+  // launch; the step refuses Next while nothing would be fetched or a
+  // derived does not resolve (PLAN_A7 rulings 3 and 5).
   const [selectedIndicators, setSelectedIndicators] = createSignal<string[]>(
     scheduleDefaults?.selection.indicatorIds ?? [],
   );
   const [dictionary, setDictionary] = createSignal<
     HmisIndicator[] | undefined
   >(undefined);
-  const nElements = createMemo<number | undefined>(() => {
+  const description = createMemo<Dhis2SelectionDescription | undefined>(() => {
     const d = dictionary();
     if (isPreset || d === undefined) return undefined;
-    return expandIndicatorSelection(
-      selectedIndicators(),
-      d,
-      POPULATION_TYPE_IDS,
-    ).dataIds.length;
+    return describeDhis2Selection(selectedIndicators(), d, POPULATION_TYPE_IDS);
+  });
+  const indicatorsRefusal = createMemo<string | undefined>(() => {
+    const d = description();
+    if (d === undefined || selectedIndicators().length === 0) return undefined;
+    if (d.unresolvable.length > 0) {
+      return `${t3({
+        en: "A selected derived indicator's formula does not resolve:",
+        fr: "La formule d'un indicateur dérivé sélectionné ne se résout pas :",
+        pt: "A fórmula de um indicador derivado selecionado não se resolve:",
+      })} ${d.unresolvable.map((u) => `${u.id} (${u.problem})`).join("; ")}`;
+    }
+    if (d.elements.length === 0) {
+      return t3({
+        en: "The selected indicators have no DHIS2 elements to fetch.",
+        fr: "Les indicateurs sélectionnés n'ont aucun élément DHIS2 à récupérer.",
+        pt: "Os indicadores selecionados não têm elementos DHIS2 a obter.",
+      });
+    }
+    return undefined;
   });
 
   // Step 3: time.
@@ -293,7 +311,10 @@ export function Dhis2Wizard(
         credentials().username !== "" &&
         credentials().password !== ""
       : true,
-    indicatorsValid: selectedIndicators().length > 0,
+    indicatorsValid:
+      selectedIndicators().length > 0 &&
+      description() !== undefined &&
+      indicatorsRefusal() === undefined,
     timeValid: computeTimeValid(),
     configValid: computeConfigValid(),
   }));
@@ -391,9 +412,9 @@ export function Dhis2Wizard(
     if (isPreset)
       return p.entry.kind === "presetPairs" ? p.entry.pairs.length : 0;
     if (timeChoice() === "recurring") return undefined;
-    const elements = nElements();
-    if (elements === undefined) return undefined;
-    return elements * getNMonths(startPeriod(), endPeriod());
+    const d = description();
+    if (d === undefined) return undefined;
+    return d.elements.length * getNMonths(startPeriod(), endPeriod());
   });
 
   const queueNotice = () =>
@@ -597,6 +618,7 @@ export function Dhis2Wizard(
             selectedIds={selectedIndicators}
             setSelectedIds={setSelectedIndicators}
             onDictionaryLoaded={setDictionary}
+            refusal={indicatorsRefusal()}
           />
         </Show>
         <Show when={currentStepKind() === "time"}>
@@ -648,7 +670,7 @@ export function Dhis2Wizard(
           <Dhis2StepReview
             connectionSummary={connectionSummary()}
             nIndicators={isPreset ? undefined : selectedIndicators().length}
-            nElements={nElements()}
+            description={description()}
             timeSummary={timeSummary()}
             windowSummary={windowSummary()}
             nPairs={nPairs()}

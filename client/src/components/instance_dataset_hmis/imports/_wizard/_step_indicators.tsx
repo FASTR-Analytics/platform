@@ -1,10 +1,13 @@
 import { t3, type HmisIndicator } from "lib";
+import { Show } from "solid-js";
 import { Dhis2IndicatorPicker } from "../_indicator_picker";
 
 type Props = {
   selectedIds: () => string[];
   setSelectedIds: (ids: string[]) => void;
   onDictionaryLoaded: (indicators: HmisIndicator[]) => void;
+  // Why the step refuses Next (PLAN_A7 ruling 5); undefined when it does not.
+  refusal: string | undefined;
 };
 
 export function Dhis2StepIndicators(p: Props) {
@@ -19,9 +22,9 @@ export function Dhis2StepIndicators(p: Props) {
       </div>
       <div class="text-sm">
         {t3({
-          en: "A DHIS2 element is fetched by its DHIS2 id; a sum fetches its members; a derived indicator fetches the indicators its formula uses. Uploaded indicators are not fetched.",
-          fr: "Un élément DHIS2 est récupéré par son identifiant DHIS2 ; une somme récupère ses membres ; un indicateur dérivé récupère les indicateurs que sa formule utilise. Les indicateurs téléversés ne sont pas récupérés.",
-          pt: "Um elemento DHIS2 é obtido pelo seu ID DHIS2; uma soma obtém os seus membros; um indicador derivado obtém os indicadores que a sua fórmula utiliza. Os indicadores carregados não são obtidos.",
+          en: "A DHIS2-element indicator fetches its DHIS2 element; a sum fetches the DHIS2 elements among its members; a derived indicator fetches the DHIS2 elements its formula reaches. The review step lists them.",
+          fr: "Un indicateur élément DHIS2 récupère son élément DHIS2 ; une somme récupère les éléments DHIS2 parmi ses membres ; un indicateur dérivé récupère les éléments DHIS2 que sa formule atteint. L'étape de vérification les liste.",
+          pt: "Um indicador elemento DHIS2 obtém o seu elemento DHIS2; uma soma obtém os elementos DHIS2 entre os seus membros; um indicador derivado obtém os elementos DHIS2 que a sua fórmula alcança. O passo de revisão lista-os.",
         })}
       </div>
       <Dhis2IndicatorPicker
@@ -29,6 +32,9 @@ export function Dhis2StepIndicators(p: Props) {
         setSelectedIds={p.setSelectedIds}
         onDictionaryLoaded={p.onDictionaryLoaded}
       />
+      <Show when={p.refusal}>
+        <div class="text-danger text-sm">{p.refusal}</div>
+      </Show>
     </div>
   );
 }

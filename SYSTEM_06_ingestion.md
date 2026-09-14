@@ -170,7 +170,11 @@ history). Shape:
   data id, or the data id alone where no indicator carries it. A pairs
   selection (retry failed, re-import from the ledger)
   names (data id, month) pairs; `validateRunSelection` checks each data id
-  belongs to a DHIS2 element and resolves nothing. Pinned by
+  belongs to a DHIS2 element and resolves nothing. The client reads the
+  same expansion before launch through `describeDhis2Selection` (lib), a
+  thin wrapper that joins each data id to the DHIS2-element indicator
+  carrying it and passes the dropped lists through; the wizard renders it,
+  the server never calls it. Both pinned by
   `server/tests/indicator_selection_expansion_test.ts`.
 - The worker classifies every data id of the run from DHIS2 metadata
   (dispatcher, `dispatch.ts`) and has one fetch route: bare data elements
@@ -427,8 +431,16 @@ callback re-parses the new bytes).
   wizard's `presetPairs` entry, the same contract as History → run detail
   (a cancelled wizard lands on the tab, not back in the detail, same as run
   detail; accepted). Two wizards: DHIS2 (credentials/indicators/time/
-  config/review; the indicators step picks from the one dictionary list and
-  the review counts the DHIS2 elements the selection expands to) and CSV
+  config/review; the Indicators step picks from the dictionary list
+  without its Uploaded rows, which a DHIS2 import cannot fetch, and
+  refuses Next, with the reason under the table, while the selection
+  expands to no DHIS2 element or a selected derived does not resolve; the
+  Review keeps the indicator and element counts and lists the covered
+  elements, one row per DHIS2-element indicator with its DHIS2 id, in
+  expansion order, followed by the dropped parts, Uploaded members and
+  population terms, each with the reason it is not fetched, all from
+  `describeDhis2Selection` over the dictionary the picker loaded; a
+  preset-pairs run skips the Indicators step and shows no list) and CSV
   (upload → columns → mapping → review: the Mapping step lists every
   distinct value of the indicator column with its row count and a
   searchable picker over the indicators with rows, seeded by

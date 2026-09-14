@@ -15,15 +15,16 @@ import {
 type Props = {
   selectedIds: () => string[];
   setSelectedIds: (ids: string[]) => void;
-  // The dictionary the picker loaded, so the wizard can count the DHIS2
-  // elements a selection expands to (the same expansion the server persists
-  // at launch).
+  // The whole dictionary the picker loaded, Uploaded rows included, so the
+  // wizard can describe what a selection expands to (the same expansion the
+  // server persists at launch, which names the Uploaded parts it drops).
   onDictionaryLoaded: (indicators: HmisIndicator[]) => void;
 };
 
 // The indicator multi-select shared by the run launcher and the schedule
 // editor (PLAN_A4 ruling 5): an import selects indicators; the server
-// expands them to the DHIS2 elements it fetches.
+// expands them to the DHIS2 elements it fetches. An Uploaded indicator is
+// never fetched, so it is not offered (PLAN_A7 ruling 1).
 export function Dhis2IndicatorPicker(p: Props) {
   const indicators = createQuery(
     () => serverActions.getIndicators({}),
@@ -78,7 +79,9 @@ export function Dhis2IndicatorPicker(p: Props) {
     <StateHolderWrapper state={indicators.state()} noPad>
       {(keyedIndicators) => (
         <Table
-          data={keyedIndicators.indicators}
+          data={keyedIndicators.indicators.filter(
+            (i) => i.definition.type !== "uploaded",
+          )}
           columns={tableColumns}
           keyField="indicator_common_id"
           selectedKeys={selectedKeysSet}
