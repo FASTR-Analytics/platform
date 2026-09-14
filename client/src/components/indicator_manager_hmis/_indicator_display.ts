@@ -3,6 +3,7 @@ import {
   t3,
   type HmisIndicator,
   type HmisIndicatorType,
+  type IndicatorFormat,
 } from "lib";
 
 // The Type column (PLAN_A5 ruling 2): the stored type under its word. One
@@ -45,6 +46,29 @@ export function definedByText(indicator: HmisIndicator): string {
     case "derived":
       return indicator.definition.expression;
   }
+}
+
+export function indicatorFormatWord(format: IndicatorFormat): string {
+  switch (format) {
+    case "number":
+      return t3({ en: "Number", fr: "Nombre", pt: "Número" });
+    case "percent":
+      return t3({ en: "Percent", fr: "Pourcentage", pt: "Percentagem" });
+    case "rate_per_10k":
+      return t3({
+        en: "Rate per 10,000",
+        fr: "Taux pour 10 000",
+        pt: "Taxa por 10 000",
+      });
+  }
+}
+
+// The Format column: a derived indicator's authored format, nothing for a
+// count, which is always a number.
+export function formatText(indicator: HmisIndicator): string {
+  return indicator.definition.type === "derived"
+    ? indicatorFormatWord(indicator.format_as)
+    : "";
 }
 
 // How an import surface names an indicator it reached through a data id.

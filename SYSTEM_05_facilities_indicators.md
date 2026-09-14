@@ -969,22 +969,30 @@ Every config mutation re-reads all configs and pushes one consolidated
   sortable. It is not in the CSV download, which carries the dictionary's
   authored fields.
 - The manager is one list with a Type column (DHIS2 element, Uploaded, Sum,
-  Derived, `indicatorTypeLabel`), two columns read off the type ("Goes
-  through analysis modules", `isCount`; "Raw count", `hasRows`), a
-  Defined-by column (the DHIS2 id of an element, the members, the formula,
-  nothing for an Uploaded indicator; `definedByText`, shared with the
-  import picker), the include-in-analysis checkbox on every row (an
-  `updateIndicator` with nothing else changed; the SSE stamp refetches the
-  list) and the Special badge. The editor offers the four types with a
-  caption each and branches on the type: a DHIS2 element has the DHIS2 id
+  Derived, `indicatorTypeLabel`), a Defined-by column (the DHIS2 id of an
+  element, the members, the formula, nothing for an Uploaded indicator;
+  `definedByText`, shared with the import picker), a Format column (a
+  derived indicator's Number, Percent or Rate per 10,000; blank for a
+  count, which is always a number; `formatText`), a read-only
+  include-in-analysis tick (the flag is edited in the modal only) and the
+  Special badge. The two facts the type implies (a count is adjusted by the
+  data quality modules, `isCount`; an Uploaded or DHIS2 element holds rows
+  of its own, `hasRows`) are not columns: the Indicator types button opens
+  a modal that states each type's source, adjustment and rows
+  (`IndicatorTypesModal`, `_type_facts.tsx`), and the editor shows the same
+  three lines under the type selector (`TypeFactsList`). The editor offers
+  the four types and branches on the type: a DHIS2 element has the DHIS2 id
   input (locked while the ledger reports rows under it or has not loaded;
   set, DHIS2-shaped and no other indicator's data id, whatever its type),
   an Uploaded indicator has no
-  definition input (its key is the server's, and the type's caption says
-  the CSV import's mapping step fills it), a sum a member picker over the
+  definition input (its key is the server's; the Definition heading carries
+  a caption saying so, and the type's facts say the CSV import's mapping
+  step fills it), a sum a member picker over the
   indicators that have rows (at least one), a derived the formula,
   palette and legend with the Format and conditional-formatting controls,
-  which no other type shows; every type has the checkbox, and a count is
+  which no other type shows; every type has the checkbox (on and disabled
+  for a special, whose flag saves as true and whose list tick reads as on
+  whatever is stored, matching `analysedIndicatorIds`), and a count is
   saved as `number` with no rule. The id input is editable on every
   existing indicator (a special's caption says the modules stop finding
   the id): the Special badge (`SpecialBadge`, shared with the list) appears

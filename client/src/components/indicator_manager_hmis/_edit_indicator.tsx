@@ -57,13 +57,18 @@ import {
   writeIdentifier,
 } from "lib";
 import { ThresholdsPanel } from "~/components/visualization/conditional_formatting_editor";
+import { TypeFactsList } from "./_type_facts";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import {
   computabilityProblemText,
   populationCoverageSummary,
 } from "./_computability";
-import { dhis2IdLabel, indicatorTypeWord } from "./_indicator_display";
+import {
+  dhis2IdLabel,
+  indicatorFormatWord,
+  indicatorTypeWord,
+} from "./_indicator_display";
 import { SpecialBadge } from "./_special_badge";
 
 // The rule a fresh "Set" starts from: three traffic-light bands at 70 / 80 in
@@ -93,51 +98,17 @@ function typeOptions() {
   }));
 }
 
-function typeCaption(type: HmisIndicatorType): string {
-  switch (type) {
-    case "uploaded":
-      return t3({
-        en: "A monthly count filled by CSV import: the import's mapping step points each value the file says at the indicator it belongs to.",
-        fr: "Un dénombrement mensuel rempli par importation CSV : l'étape de correspondance de l'importation associe chaque valeur du fichier à l'indicateur auquel elle appartient.",
-        pt: "Uma contagem mensal preenchida por importação CSV: o passo de correspondência da importação associa cada valor do ficheiro ao indicador a que pertence.",
-      });
-    case "dhis2_element":
-      return t3({
-        en: "A monthly count the DHIS2 import fetches. Its rows are stored under its DHIS2 id.",
-        fr: "Un dénombrement mensuel récupéré par l'importation DHIS2. Ses lignes sont conservées sous son identifiant DHIS2.",
-        pt: "Uma contagem mensal obtida pela importação DHIS2. As suas linhas são guardadas sob o seu ID DHIS2.",
-      });
-    case "sum":
-      return t3({
-        en: "The total of other Uploaded or DHIS2 element indicators, added per facility and month.",
-        fr: "Le total d'autres indicateurs téléversés ou éléments DHIS2, additionnés par établissement et par mois.",
-        pt: "O total de outros indicadores carregados ou elementos DHIS2, somados por estabelecimento e mês.",
-      });
-    case "derived":
-      return t3({
-        en: "A formula over other indicators and populations, computed after the data is aggregated.",
-        fr: "Une formule sur d'autres indicateurs et des populations, calculée après l'agrégation des données.",
-        pt: "Uma fórmula sobre outros indicadores e populações, calculada depois de os dados serem agregados.",
-      });
-  }
-}
+const INDICATOR_FORMATS: readonly IndicatorFormat[] = [
+  "number",
+  "percent",
+  "rate_per_10k",
+];
 
 function formatOptions() {
-  return [
-    { value: "number", label: t3({ en: "Number", fr: "Nombre", pt: "Número" }) },
-    {
-      value: "percent",
-      label: t3({ en: "Percent", fr: "Pourcentage", pt: "Percentagem" }),
-    },
-    {
-      value: "rate_per_10k",
-      label: t3({
-        en: "Rate per 10,000",
-        fr: "Taux pour 10 000",
-        pt: "Taxa por 10 000",
-      }),
-    },
-  ];
+  return INDICATOR_FORMATS.map((value) => ({
+    value,
+    label: indicatorFormatWord(value),
+  }));
 }
 
 type LegendRow = {
@@ -535,9 +506,9 @@ export function EditIndicatorForm(
         return {
           success: false,
           err: t3({
-            en: `"${id}" is a special indicator ID, which the analysis modules read as a count, so it can only be Uploaded, a DHIS2 element or a Sum (special: ${SPECIAL_INDICATOR_IDS.join(", ")})`,
-            fr: `« ${id} » est un identifiant d'indicateur spécial, lu comme un dénombrement par les modules d'analyse, et ne peut donc être que téléversé, un élément DHIS2 ou une somme (spéciaux : ${SPECIAL_INDICATOR_IDS.join(", ")})`,
-            pt: `"${id}" é um ID de indicador especial, lido como uma contagem pelos módulos de análise, pelo que só pode ser carregado, um elemento DHIS2 ou uma soma (especiais: ${SPECIAL_INDICATOR_IDS.join(", ")})`,
+            en: `"${id}" is a special indicator ID, which the analysis modules read as a count, so it can only be a DHIS2 element, Uploaded or a Sum (special: ${SPECIAL_INDICATOR_IDS.join(", ")})`,
+            fr: `« ${id} » est un identifiant d'indicateur spécial, lu comme un dénombrement par les modules d'analyse, et ne peut donc être qu'un élément DHIS2, téléversé ou une somme (spéciaux : ${SPECIAL_INDICATOR_IDS.join(", ")})`,
+            pt: `"${id}" é um ID de indicador especial, lido como uma contagem pelos módulos de análise, pelo que só pode ser um elemento DHIS2, carregado ou uma soma (especiais: ${SPECIAL_INDICATOR_IDS.join(", ")})`,
           }),
         };
       }
@@ -584,7 +555,7 @@ export function EditIndicatorForm(
         indicator_common_id: id,
         indicator_common_label: label,
         definition: currentDefinition(),
-        include_in_analysis: includeInAnalysis(),
+        include_in_analysis: isSpecial() || includeInAnalysis(),
         format_as: effectiveFormatAs(),
         thresholds: type() === "derived" ? rule : null,
       };
@@ -689,7 +660,7 @@ export function EditIndicatorForm(
           options={typeOptions()}
           fullWidth
         />
-        <div class="ui-text-caption">{typeCaption(type())}</div>
+        <TypeFactsList type={type()} />
         <Show when={typeSwitchError()}>
           {(err) => <div class="text-danger text-xs">{err()}</div>}
         </Show>
@@ -700,6 +671,16 @@ export function EditIndicatorForm(
           <div class="font-700 text-base-content text-sm">
             {t3({ en: "Definition", fr: "Définition", pt: "Definição" })}
           </div>
+
+          <Show when={type() === "uploaded"}>
+            <div class="ui-text-caption">
+              {t3({
+                en: "An Uploaded indicator has no definition to author. FASTR gives it an internal identifier that CSV imports write to; you never see or type it.",
+                fr: "Un indicateur téléversé n'a pas de définition à rédiger. FASTR lui attribue un identifiant interne dans lequel les importations CSV écrivent ; vous ne le voyez ni ne le saisissez jamais.",
+                pt: "Um indicador carregado não tem definição para redigir. O FASTR atribui-lhe um identificador interno no qual as importações CSV escrevem; nunca o vê nem o digita.",
+              })}
+            </div>
+          </Show>
 
           <Show when={type() === "dhis2_element"}>
             <Input
@@ -728,9 +709,9 @@ export function EditIndicatorForm(
             />
             <div class="ui-text-caption">
               {t3({
-                en: "The members' counts are added per facility and month. Members are Uploaded or DHIS2 element indicators; a sum cannot contain a sum.",
-                fr: "Les dénombrements des membres sont additionnés par établissement et par mois. Les membres sont des indicateurs téléversés ou des éléments DHIS2 ; une somme ne peut pas contenir une somme.",
-                pt: "As contagens dos membros são somadas por estabelecimento e mês. Os membros são indicadores carregados ou elementos DHIS2; uma soma não pode conter uma soma.",
+                en: "The members' counts are added per facility and month. Members are DHIS2 element or Uploaded indicators; a sum cannot contain a sum.",
+                fr: "Les dénombrements des membres sont additionnés par établissement et par mois. Les membres sont des éléments DHIS2 ou des indicateurs téléversés ; une somme ne peut pas contenir une somme.",
+                pt: "As contagens dos membros são somadas por estabelecimento e mês. Os membros são elementos DHIS2 ou indicadores carregados; uma soma não pode conter uma soma.",
               })}
             </div>
           </Show>
@@ -897,15 +878,16 @@ export function EditIndicatorForm(
               fr: "Inclure dans l'analyse",
               pt: "Incluir na análise",
             })}
-            checked={includeInAnalysis()}
+            checked={isSpecial() || includeInAnalysis()}
             onChange={setIncludeInAnalysis}
+            disabled={isSpecial()}
           />
           <div class="ui-text-caption">
             {isSpecial()
               ? t3({
-                en: "A special indicator is always analysed: the analysis modules read it by name.",
-                fr: "Un indicateur spécial est toujours analysé : les modules d'analyse le lisent par son identifiant.",
-                pt: "Um indicador especial é sempre analisado: os módulos de análise leem-no pelo ID.",
+                en: "A special indicator is always analysed.",
+                fr: "Un indicateur spécial est toujours analysé.",
+                pt: "Um indicador especial é sempre analisado.",
               })
               : t3({
                 en: "On: every results package analyses this indicator. Off: dictionary only; its data is still imported and stored, and it can still be a member of a sum or used in a formula.",

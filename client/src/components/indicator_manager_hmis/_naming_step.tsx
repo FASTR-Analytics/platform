@@ -21,6 +21,7 @@ import {
   writeIndicatorExpression,
 } from "lib";
 import { Input } from "panther";
+import { indicatorFormatWord } from "./_indicator_display";
 import { createMemo, For, Show } from "solid-js";
 import type { SetStoreFunction } from "solid-js/store";
 
@@ -226,13 +227,6 @@ function previewExpression(row: NamingDerivedRow, state: NamingState): string {
   }
 }
 
-const FORMAT_LABELS: Record<IndicatorFormat, () => string> = {
-  number: () => t3({ en: "Number", fr: "Nombre", pt: "Número" }),
-  percent: () => t3({ en: "Percent", fr: "Pourcentage", pt: "Percentagem" }),
-  rate_per_10k: () =>
-    t3({ en: "Rate per 10,000", fr: "Taux pour 10 000", pt: "Taxa por 10 000" }),
-};
-
 export function NamingStep(p: {
   state: NamingState;
   setState: SetStoreFunction<NamingState>;
@@ -306,7 +300,7 @@ export function NamingStep(p: {
                   </span>{" "}
                   <span class="font-mono">{previewExpression(row, p.state)}</span>
                   <span class="text-base-content-muted ml-3">
-                    {FORMAT_LABELS[row.format_as]()}
+                    {indicatorFormatWord(row.format_as)}
                   </span>
                 </div>
                 <Show when={row.note}>

@@ -5,10 +5,8 @@ import {
   type Dhis2CredentialsOrigin,
   INDICATOR_DOWNLOAD_FILE_COLUMNS,
   INDICATOR_DOWNLOAD_MEMBERS_SEPARATOR,
-  hasRows,
   type HmisIndicator,
   type InstanceIndicatorDetails,
-  isCount,
   isSpecialIndicatorId,
   judgeDerivedIndicators,
   POPULATION_TYPE_IDS,
@@ -20,7 +18,6 @@ import {
   AlertComponentProps,
   Button,
   Callout,
-  Checkbox,
   FrameTop,
   HeadingBar,
   Icon,
@@ -30,7 +27,6 @@ import {
   Table,
   TableColumn,
   getEditorWrapper,
-  openAlert,
   openComponent,
   createDeleteAction,
   createQuery,
@@ -54,10 +50,15 @@ import {
   missingPopulationText,
 } from "./_computability";
 import { EditIndicatorForm } from "./_edit_indicator";
-import { definedByText, indicatorTypeLabel } from "./_indicator_display";
+import {
+  definedByText,
+  formatText,
+  indicatorTypeLabel,
+} from "./_indicator_display";
 import { Dhis2IndicatorSelectForm } from "./dhis2_indicator_select_form";
 import { SortIndicatorsModal } from "./sort_indicators_modal";
 import { SpecialBadge } from "./_special_badge";
+import { IndicatorTypesModal } from "./_type_facts";
 
 type Props = {
   backToInstance: () => void;
@@ -65,8 +66,9 @@ type Props = {
 
 // The dictionary as one list (PLAN_A4 §2): every row is an indicator, the
 // Type column says what fills it (DHIS2 element, Uploaded, Sum, Derived),
-// every row has the include-in-analysis checkbox, and a special indicator
-// (one the analysis modules read by name) carries a badge.
+// and a special indicator (one the analysis modules read by name) carries
+// a badge. Every field, including include-in-analysis, is edited in the
+// modal.
 export function IndicatorsManager(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
 
@@ -129,7 +131,9 @@ export function IndicatorsManager(p: Props) {
         ? indicator.definition.data_id
         : "",
       indicator.definition.type === "sum"
-        ? indicator.definition.members.join(INDICATOR_DOWNLOAD_MEMBERS_SEPARATOR)
+        ? indicator.definition.members.join(
+            INDICATOR_DOWNLOAD_MEMBERS_SEPARATOR,
+          )
         : "",
       indicator.definition.type === "derived"
         ? indicator.definition.expression
@@ -177,6 +181,10 @@ export function IndicatorsManager(p: Props) {
     });
   }
 
+  async function handleTypes() {
+    await openComponent({ element: IndicatorTypesModal, props: {} });
+  }
+
   async function handleReference() {
     await openComponent({ element: ReferenceListModal, props: {} });
   }
@@ -195,6 +203,18 @@ export function IndicatorsManager(p: Props) {
             })}
           >
             <div class="ui-gap-sm flex items-center">
+              <Button
+                iconName="info"
+                onClick={handleTypes}
+                outline
+                onBackground="base-200"
+              >
+                {t3({
+                  en: "Indicator types",
+                  fr: "Types d'indicateurs",
+                  pt: "Tipos de indicadores",
+                })}
+              </Button>
               <Button
                 iconName="info"
                 onClick={handleReference}
@@ -319,25 +339,6 @@ function IndicatorsTable(p: {
     });
   }
 
-  // The checkbox in the list (ruling 12): the same update as the editor,
-  // with nothing else changed. The SSE stamp refetches the list.
-  async function setIncludeInAnalysis(indicator: HmisIndicator, on: boolean) {
-    const res = await serverActions.updateIndicator({
-      old_indicator_common_id: indicator.indicator_common_id,
-      indicator: {
-        indicator_common_id: indicator.indicator_common_id,
-        indicator_common_label: indicator.indicator_common_label,
-        definition: indicator.definition,
-        include_in_analysis: on,
-        format_as: indicator.format_as,
-        thresholds: indicator.thresholds,
-      },
-    });
-    if (!res.success) {
-      await openAlert({ text: res.err, intent: "danger" });
-    }
-  }
-
   async function handleSortIndicators() {
     await openComponent({
       element: SortIndicatorsModal,
@@ -402,24 +403,6 @@ function IndicatorsTable(p: {
       render: (indicator) => <span>{indicatorTypeLabel(indicator)}</span>,
     },
     {
-      key: "can_be_adjusted",
-      header: t3({
-        en: "Can be adjusted",
-        fr: "Peut être ajusté",
-        pt: "Pode ser ajustado",
-      }),
-      sortable: true,
-      sortValue: (indicator) => (isCount(indicator.definition.type) ? 0 : 1),
-      render: (indicator) => <TypeFactCell when={isCount(indicator.definition.type)} />,
-    },
-    {
-      key: "is_raw_count",
-      header: t3({ en: "Raw count", fr: "Dénombrement brut", pt: "Contagem bruta" }),
-      sortable: true,
-      sortValue: (indicator) => (hasRows(indicator.definition.type) ? 0 : 1),
-      render: (indicator) => <TypeFactCell when={hasRows(indicator.definition.type)} />,
-    },
-    {
       key: "defined_by",
       header: t3({ en: "Defined by", fr: "Défini par", pt: "Definido por" }),
       sortable: true,
@@ -434,6 +417,13 @@ function IndicatorsTable(p: {
       ),
     },
     {
+      key: "format_as",
+      header: t3({ en: "Format", fr: "Format", pt: "Formato" }),
+      sortable: true,
+      sortValue: formatText,
+      render: (indicator) => <span>{formatText(indicator)}</span>,
+    },
+    {
       key: "include_in_analysis",
       header: t3({
         en: "Include in analysis",
@@ -441,15 +431,8 @@ function IndicatorsTable(p: {
         pt: "Incluir na análise",
       }),
       sortable: true,
-      sortValue: (indicator) => (indicator.include_in_analysis ? 0 : 1),
-      render: (indicator) => (
-        <Checkbox
-          label=""
-          checked={indicator.include_in_analysis}
-          onChange={(on) => void setIncludeInAnalysis(indicator, on)}
-          disabled={!instanceState.currentUserIsGlobalAdmin}
-        />
-      ),
+      sortValue: (indicator) => (isAnalysedFlag(indicator) ? 0 : 1),
+      render: (indicator) => <TickCell when={isAnalysedFlag(indicator)} />,
     },
     {
       key: "status",
@@ -599,10 +582,17 @@ function IndicatorsTable(p: {
   );
 }
 
-// The two facts the table reads off the type (PLAN_A5 §2): a count goes
-// through m001 and m002, and an Uploaded or DHIS2 element is the raw count
-// its own rows hold.
-function TypeFactCell(p: { when: boolean }) {
+// The flag as the analysed set reads it (`analysedIndicatorIds`): a special
+// is analysed whatever its stored flag says, and the editor keeps it on.
+function isAnalysedFlag(indicator: HmisIndicator): boolean {
+  return (
+    indicator.include_in_analysis ||
+    isSpecialIndicatorId(indicator.indicator_common_id)
+  );
+}
+
+// A read-only tick for the include-in-analysis flag, edited in the modal.
+function TickCell(p: { when: boolean }) {
   return (
     <Show when={p.when}>
       <Icon iconName="check" />
@@ -615,7 +605,7 @@ function TypeFactCell(p: { when: boolean }) {
 function ReferenceListModal(p: AlertComponentProps<{}, undefined>) {
   return (
     <ModalContainer
-      width="xl"
+      width="4xl"
       title={t3({
         en: "Special indicators and reserved words",
         fr: "Indicateurs spéciaux et mots réservés",
@@ -638,12 +628,12 @@ function ReferenceListModal(p: AlertComponentProps<{}, undefined>) {
           </div>
           <div class="text-xs">
             {t3({
-              en: "The analysis modules read these ids by name as counts, so one is always analysed whenever it exists. Create, rename or delete them in this list like any indicator. A special id can only be Uploaded, a DHIS2 element or a Sum.",
-              fr: "Les modules d'analyse lisent ces identifiants par leur nom comme des dénombrements ; un tel indicateur est donc toujours analysé dès qu'il existe. Créez, renommez ou supprimez-les dans cette liste comme tout indicateur. Un identifiant spécial ne peut être que téléversé, un élément DHIS2 ou une somme.",
-              pt: "Os módulos de análise leem estes IDs pelo nome como contagens, pelo que um é sempre analisado sempre que existe. Crie, renomeie ou elimine-os nesta lista como qualquer indicador. Um ID especial só pode ser carregado, um elemento DHIS2 ou uma soma.",
+              en: "The analysis modules read these ids by name as counts, so one is always analysed whenever it exists. Create, rename or delete them in this list like any indicator. A special id can only be a DHIS2 element, Uploaded or a Sum.",
+              fr: "Les modules d'analyse lisent ces identifiants par leur nom comme des dénombrements ; un tel indicateur est donc toujours analysé dès qu'il existe. Créez, renommez ou supprimez-les dans cette liste comme tout indicateur. Un identifiant spécial ne peut être qu'un élément DHIS2, téléversé ou une somme.",
+              pt: "Os módulos de análise leem estes IDs pelo nome como contagens, pelo que um é sempre analisado sempre que existe. Crie, renomeie ou elimine-os nesta lista como qualquer indicador. Um ID especial só pode ser um elemento DHIS2, carregado ou uma soma.",
             })}
           </div>
-          <div class="grid grid-cols-[repeat(auto-fit,minmax(18rem,1fr))] gap-x-4 gap-y-1">
+          <div class="grid grid-cols-[repeat(auto-fit,minmax(28rem,1fr))] gap-x-4 gap-y-1">
             <For each={SPECIAL_INDICATORS}>
               {(special) => (
                 <div>
@@ -687,9 +677,9 @@ function ReferenceListModal(p: AlertComponentProps<{}, undefined>) {
           </div>
           <div class="text-xs">
             {t3({
-              en: "No indicator id may be one of these, however it is produced: the special ids (except as Uploaded, a DHIS2 element or a Sum), the population terms and the formula function names.",
-              fr: "Aucun identifiant d'indicateur ne peut être l'un de ceux-ci, quelle que soit la façon dont il est produit : les identifiants spéciaux (sauf comme indicateur téléversé, élément DHIS2 ou somme), les termes de population et les noms de fonctions des formules.",
-              pt: "Nenhum ID de indicador pode ser um destes, seja como for produzido: os IDs especiais (exceto como carregado, elemento DHIS2 ou soma), os termos de população e os nomes das funções das fórmulas.",
+              en: "No indicator id may be one of these, however it is produced: the special ids (except as a DHIS2 element, Uploaded or a Sum), the population terms and the formula function names.",
+              fr: "Aucun identifiant d'indicateur ne peut être l'un de ceux-ci, quelle que soit la façon dont il est produit : les identifiants spéciaux (sauf comme élément DHIS2, indicateur téléversé ou somme), les termes de population et les noms de fonctions des formules.",
+              pt: "Nenhum ID de indicador pode ser um destes, seja como for produzido: os IDs especiais (exceto como elemento DHIS2, carregado ou soma), os termos de população e os nomes das funções das fórmulas.",
             })}
           </div>
           <div class="font-mono text-xs">{RESERVED_WORDS.join(", ")}</div>

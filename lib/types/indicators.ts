@@ -131,7 +131,7 @@ export function describeNewIndicatorIdIssue(issue: NewIndicatorIdIssue): string 
     case "reserved":
       return `is a reserved word (${RESERVED_WORDS.join(", ")})`;
     case "special_derived":
-      return `is a special indicator id, which the analysis modules read as a count, so it can only be Uploaded, a DHIS2 element or a Sum (special: ${
+      return `is a special indicator id, which the analysis modules read as a count, so it can only be a DHIS2 element, Uploaded or a Sum (special: ${
         SPECIAL_INDICATOR_IDS.join(", ")
       })`;
   }
@@ -188,8 +188,8 @@ export type HmisIndicatorDefinitionInput =
 export type HmisIndicatorType = HmisIndicatorDefinition["type"];
 
 export const HMIS_INDICATOR_TYPES: readonly HmisIndicatorType[] = [
-  "uploaded",
   "dhis2_element",
+  "uploaded",
   "sum",
   "derived",
 ] as const;
