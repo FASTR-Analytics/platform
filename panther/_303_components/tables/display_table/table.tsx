@@ -142,6 +142,11 @@ export function Table<
   // Check if selection should be enabled
   const enableSelection = () =>
     !!(p.bulkActions && p.bulkActions.length > 0) || isControlled();
+  // The bar exists for the bulk actions; a controlled table without any
+  // clears its selection with the header checkbox.
+  const showBulkActionBar = () =>
+    !!(p.bulkActions && p.bulkActions.length > 0) &&
+    selectedItems().length > 0;
 
   const padding = createMemo(() =>
     getPaddingClasses(p.paddingX || "normal", p.paddingY || "normal")
@@ -162,7 +167,7 @@ export function Table<
         ? "flex h-full w-full flex-col"
         : "w-full"}
     >
-      <Show when={enableSelection() && selectedItems().length > 0}>
+      <Show when={showBulkActionBar()}>
         <div class="ui-pad ui-gap bg-base-100 mb-4 flex items-center rounded border">
           <span class="font-700 flex-none text-sm">
             {selectedItems().length}{" "}
