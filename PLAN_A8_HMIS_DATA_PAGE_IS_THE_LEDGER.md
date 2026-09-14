@@ -12,7 +12,7 @@ as follow-ons and not done here: a heat map by admin area, which needs a
 server read the ledger cannot give, and hover on the line graph, which is
 panther work.
 
-**Next step: Review 1.** Each session sets this line in its final commit. Its
+**Next step: Do 2.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N`; after step 3's review passes the
 file is deleted instead of advanced.
 
@@ -376,3 +376,16 @@ Append-only, newest last.
   held ports 8000 and 3000; the running Vite server transformed every
   changed module (HTTP 200) and the server answered on 8000.
 - Step 1 built.
+- Step 1, review: the floor is green at `b861f7db` (`deno task typecheck`
+  including `lint:systems` at 871 files, `deno task test` 133 passed,
+  `./validate_protocols` 0 tier-1 / 0 new tier-2 / 17 baselined) and both
+  step gates are at zero. `./run` was again not started (Tim's dev server
+  holds 8000 and 3000); the running Vite server returned 200 for
+  `index.tsx` and `_ledger_table.tsx`.
+- Step 1, review: ruling 13 checked against the server payload. The
+  `vizItems` SELECT at `server/db/instance/dataset_hmis.ts` line 377
+  yields `count`, `sum`, `indicator_common_id`, `period_id`, and
+  `indicators[].value` and the keys of `indicatorLabelReplacements` are
+  `indicator_common_id`, so the three client keys, the filter and the
+  label replacements now agree.
+- Step 1 reviewed: pass.
