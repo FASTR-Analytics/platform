@@ -12,7 +12,7 @@ as follow-ons and not done here: a heat map by admin area, which needs a
 server read the ledger cannot give, and hover on the line graph, which is
 panther work.
 
-**Next step: Do 2.** Each session sets this line in its final commit. Its
+**Next step: Review 2.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N`; after step 3's review passes the
 file is deleted instead of advanced.
 
@@ -389,3 +389,19 @@ Append-only, newest last.
   `indicator_common_id`, so the three client keys, the filter and the
   label replacements now agree.
 - Step 1 reviewed: pass.
+- Step 2, ruling 4: the grid is a `<table>` rather than a `<div>` grid,
+  because a table aligns the sticky label column and the period columns
+  without a computed column count; the month header groups months under
+  their year (one `th` with `colSpan` per year) so the axis stays readable
+  at cell width. Colour is `bg-success` for a filled cell and
+  `border-base-300` for an empty one.
+- Step 2, ruling 5: the columns are enumerated from the display info's
+  `periodBounds` rather than the filtered rows, so the period axis is the
+  same whatever indicators are selected.
+- Step 2, choice: the radio is labelled "Figure" with "Line graph" and
+  "Heat map"; the count-or-sum radio shows only for the line graph, the
+  "Periods" radio ("By month" / "By year") only for the heat map. The
+  `tableCells` style entry went with the table branch.
+- Step 2, floor: `./run` was not started (Tim's dev server on 8000 and
+  3000); the running Vite server transformed the three changed modules.
+- Step 2 built.

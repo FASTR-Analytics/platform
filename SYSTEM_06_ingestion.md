@@ -413,7 +413,13 @@ callback re-parses the new bytes).
   the ledger rows); the tab bodies are renders over it, so a tab switch is
   never a fetch. Visualization is `dataset_items_holder.tsx`'s
   `DatasetDisplayPresentation` over the display cache below, its rows read
-  under `indicator_common_id`, the server column. Ledger is
+  under `indicator_common_id`, the server column: one figure at a time by
+  a radio, the panther timeseries line graph (count or sum of records per
+  indicator and month) or the presence heat map
+  (`_presence_heat_map.tsx`, a DOM table of indicator × month or year,
+  a cell filled where the indicator has a record in the period, hover from
+  the cell's title; no figure package and no server call), with the
+  indicator multi-select applied to both. Ledger is
   `_ledger_table.tsx`: the import ledger pivoted by data id (its key),
   each row labelled through the T2 indicators cache (indicator id and
   label beside a "DHIS2 id" column that shows the key only under a DHIS2

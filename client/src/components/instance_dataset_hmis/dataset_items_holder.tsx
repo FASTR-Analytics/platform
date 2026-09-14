@@ -12,17 +12,18 @@ import {
   RadioGroup,
   StateHolder,
   StateHolderWrapper,
-  getSelectOptionsWithFirstCapital,
   toNum0,
   type CustomFigureStyleOptions,
 } from "panther";
 import { Show, createMemo } from "solid-js";
 import type { SetStoreFunction } from "solid-js/store";
+import { PresenceHeatMap, type HeatMapAxis } from "./_presence_heat_map";
 
 export type VizConfig = {
   value: "count" | "sum";
-  figureType: "table" | "chart";
+  figureType: "line" | "heat_map";
   indicators: string[];
+  heatMapAxis: HeatMapAxis;
 };
 
 type Props = {
@@ -49,7 +50,6 @@ export function DatasetDisplayPresentation(p: Props) {
     const jsonArray = filteredVizItems();
 
     const value = p.vizConfig.value;
-    const figureType = p.vizConfig.figureType;
 
     const showLegend =
       p.vizConfig.indicators.length > 0 && p.vizConfig.indicators.length < 6;
@@ -76,56 +76,39 @@ export function DatasetDisplayPresentation(p: Props) {
             color: showLegend ? 666 : { key: "base300" },
           },
         },
-        tableCells: {
-          textFormatter: (info) => toNum0(info.value),
-        },
       },
     };
 
-    const figureData: FigureInputs =
-      figureType === "chart"
-        ? {
-            figureType: "timeseries",
-            data: {
-              jsonArray,
-              jsonDataConfig: {
-                valueProps: [value],
-                periodProp: "period_id",
-                periodType: "year-month",
-                seriesProp: "indicator_common_id",
-                labelReplacements: p.displayItems.indicatorLabelReplacements,
-                yScaleAxisLabel:
-                  value === "count"
-                    ? t3({
-                        en: "Number of records",
-                        fr: "Nombre d'enregistrements",
-                        pt: "Número de registos",
-                      })
-                    : t3({
-                        en: "Number of service counts",
-                        fr: "Nombre de prestations de services",
-                        pt: "Número de prestações de serviços",
-                      }),
-              },
-            },
-            style,
-          }
-        : {
-            figureType: "table",
-            data: {
-              jsonArray,
-              jsonDataConfig: {
-                valueProps: [value],
-                colProp: "indicator_common_id",
-                rowProp: "period_id",
-                sort: { col: "by-label", row: "by-label" },
-                labelReplacements: p.displayItems.indicatorLabelReplacements,
-              },
-            },
-            style,
-          };
+    const figureData: FigureInputs = {
+      figureType: "timeseries",
+      data: {
+        jsonArray,
+        jsonDataConfig: {
+          valueProps: [value],
+          periodProp: "period_id",
+          periodType: "year-month",
+          seriesProp: "indicator_common_id",
+          labelReplacements: p.displayItems.indicatorLabelReplacements,
+          yScaleAxisLabel:
+            value === "count"
+              ? t3({
+                  en: "Number of records",
+                  fr: "Nombre d'enregistrements",
+                  pt: "Número de registos",
+                })
+              : t3({
+                  en: "Number of service counts",
+                  fr: "Nombre de prestations de services",
+                  pt: "Número de prestações de serviços",
+                }),
+        },
+      },
+      style,
+    };
     return { status: "ready", data: figureData };
   });
+
+  const isLine = () => p.vizConfig.figureType === "line";
 
   return (
     <FrameLeftResizable
@@ -134,34 +117,72 @@ export function DatasetDisplayPresentation(p: Props) {
       panelChildren={
         <div class="ui-pad ui-spy h-full w-full">
           <RadioGroup
-            label={t3({ en: "Value", fr: "Valeur", pt: "Valor" })}
+            label={t3({ en: "Figure", fr: "Figure", pt: "Figura" })}
             options={[
               {
-                value: "count",
+                value: "line",
                 label: t3({
-                  en: "Number of records",
-                  fr: "Nombre d'enregistrements",
-                  pt: "Número de registos",
+                  en: "Line graph",
+                  fr: "Graphique linéaire",
+                  pt: "Gráfico de linhas",
                 }),
               },
               {
-                value: "sum",
+                value: "heat_map",
                 label: t3({
-                  en: "Number of service counts",
-                  fr: "Nombre de prestations de services",
-                  pt: "Número de prestações de serviços",
+                  en: "Heat map",
+                  fr: "Carte de chaleur",
+                  pt: "Mapa de calor",
                 }),
               },
             ]}
-            value={p.vizConfig.value}
-            onChange={(v) => p.setVizConfig("value", v as "count" | "sum")}
-          />
-          <RadioGroup
-            label={t3({ en: "Format", fr: "Format", pt: "Formato" })}
-            options={getSelectOptionsWithFirstCapital(["chart", "table"])}
             value={p.vizConfig.figureType}
-            onChange={(v) => p.setVizConfig("figureType", v as "table" | "chart")}
+            onChange={(v) =>
+              p.setVizConfig("figureType", v as VizConfig["figureType"])
+            }
           />
+          <Show when={isLine()}>
+            <RadioGroup
+              label={t3({ en: "Value", fr: "Valeur", pt: "Valor" })}
+              options={[
+                {
+                  value: "count",
+                  label: t3({
+                    en: "Number of records",
+                    fr: "Nombre d'enregistrements",
+                    pt: "Número de registos",
+                  }),
+                },
+                {
+                  value: "sum",
+                  label: t3({
+                    en: "Number of service counts",
+                    fr: "Nombre de prestations de services",
+                    pt: "Número de prestações de serviços",
+                  }),
+                },
+              ]}
+              value={p.vizConfig.value}
+              onChange={(v) => p.setVizConfig("value", v as "count" | "sum")}
+            />
+          </Show>
+          <Show when={!isLine()}>
+            <RadioGroup
+              label={t3({ en: "Periods", fr: "Périodes", pt: "Períodos" })}
+              options={[
+                {
+                  value: "month",
+                  label: t3({ en: "By month", fr: "Par mois", pt: "Por mês" }),
+                },
+                {
+                  value: "year",
+                  label: t3({ en: "By year", fr: "Par année", pt: "Por ano" }),
+                },
+              ]}
+              value={p.vizConfig.heatMapAxis}
+              onChange={(v) => p.setVizConfig("heatMapAxis", v as HeatMapAxis)}
+            />
+          </Show>
           <MultiSelectSearch
             label={t3({
               en: "Indicators",
@@ -189,16 +210,26 @@ export function DatasetDisplayPresentation(p: Props) {
             </span>
           }
         >
-          <StateHolderWrapper state={figureInputs()}>
-            {(keyedInputs) => {
-              return (
-                <FigureHolder
-                  figureInputs={keyedInputs}
-                  height={p.vizConfig.figureType === "chart" ? "flex" : "ideal"}
-                />
-              );
-            }}
-          </StateHolderWrapper>
+          <Show
+            when={isLine()}
+            fallback={
+              <PresenceHeatMap
+                vizItems={filteredVizItems()}
+                indicators={p.displayItems.indicators
+                  .map((ind) => ind.value)
+                  .filter((id) => p.vizConfig.indicators.includes(id))}
+                labelReplacements={p.displayItems.indicatorLabelReplacements}
+                periodBounds={p.displayItems.periodBounds}
+                axis={p.vizConfig.heatMapAxis}
+              />
+            }
+          >
+            <StateHolderWrapper state={figureInputs()}>
+              {(keyedInputs) => (
+                <FigureHolder figureInputs={keyedInputs} height="flex" />
+              )}
+            </StateHolderWrapper>
+          </Show>
         </Show>
       </div>
     </FrameLeftResizable>
