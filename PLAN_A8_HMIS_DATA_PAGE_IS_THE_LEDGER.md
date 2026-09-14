@@ -12,7 +12,7 @@ as follow-ons and not done here: a heat map by admin area, which needs a
 server read the ledger cannot give, and hover on the line graph, which is
 panther work.
 
-**Next step: Do 3.** Each session sets this line in its final commit. Its
+**Next step: Review 3.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N`; after step 3's review passes the
 file is deleted instead of advanced.
 
@@ -435,3 +435,29 @@ Append-only, newest last.
   `ethiopian-to-gregorian`, so `formatPeriod`'s year shift cannot fire and the
   year group headers agree with the cell titles. No defect found.
 - Step 2 reviewed: 1 finding.
+- Step 3, fact: the ledger table lists every data id with a ledger row,
+  including one whose DHIS2 imports only ever failed ("Never imported"),
+  so the site says "every indicator that FASTR has tried to import", not
+  "every indicator with rows" as §4 step 3 puts it.
+- Step 3, fact: `skipped_values` counts DHIS2 facility values left out at
+  the last import (`_main_database.sql` line 477), so the site describes
+  the column as DHIS2-only.
+- Step 3, fact: the per-month detail offers "Re-import this indicator" for
+  an Uploaded indicator too, which fetches from DHIS2 and cannot succeed.
+  Ruling 6 keeps the detail unchanged, so the site says the button is for
+  a DHIS2 element and the code is left as it is; a SYSTEM_06 open item or
+  a later plan decides it.
+- Step 3, choice: the site's new section is "Viewing the data", with
+  Visualization and Ledger subsections, placed first on the page; the
+  sentence opening "Starting an import" no longer repeats the navigation.
+  An independent writing review ran over both pages and its findings were
+  applied.
+- Step 3: `SYSTEM_05_facilities_indicators.md` line 287 names the HMIS
+  Data page's Ledger table (logged in step 1).
+- Step 3, gates: both site pages have no "By indicator" or "Par
+  indicateur"; `deno task build:help-buttons` leaves the tree unchanged;
+  the site's `./verify-help-tags.ts` passes with 43 targets; the floor is
+  green.
+- Step 3 built. The site commit is "HMIS docs: the data page's
+  Visualization and Ledger tabs, and three import tabs" in
+  `wb-fastr-site` on `main`.

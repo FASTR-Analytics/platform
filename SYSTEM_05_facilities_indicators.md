@@ -284,7 +284,7 @@ over indicators of any type and population terms, evaluated by m012 after
 adjustment and aggregation). The four words are the code names' labels
 (`indicatorTypeWord`); on screen a DHIS2 element's data id is its "DHIS2
 id" (`dhis2IdLabel`), an Uploaded indicator's key is never shown (PLAN_A6
-ruling 1: the ledger's By indicator column, its detail header, the
+ruling 1: the HMIS Data page's Ledger table, its detail header, the
 manager's Defined-by column and the DHIS2 wizard's picker show the DHIS2 id
 for an element and nothing for an Uploaded indicator), and "data id"
 appears only in server error strings, which the client renders verbatim. Two generated columns nothing may write hold the two
