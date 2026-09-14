@@ -90,16 +90,16 @@ export function Dhis2StepReview(p: Props) {
   );
 }
 
-// The covered elements, one row per DHIS2-element indicator the selection
+// The covered elements, one row per DHIS2 element indicator the selection
 // reaches, then the dropped parts with the reason each is not fetched.
 function SelectionDescription(p: { description: Dhis2SelectionDescription }) {
   return (
     <div class="ui-spy-sm text-sm">
       <div class="font-700">
         {t3({
-          en: "DHIS2 elements this import fetches",
-          fr: "Éléments DHIS2 que cette importation récupère",
-          pt: "Elementos DHIS2 que esta importação obtém",
+          en: "DHIS2 element indicators this import fetches",
+          fr: "Indicateurs éléments DHIS2 que cette importation récupère",
+          pt: "Indicadores elemento DHIS2 que esta importação obtém",
         })}
       </div>
       <div class="max-h-64 overflow-auto rounded border">

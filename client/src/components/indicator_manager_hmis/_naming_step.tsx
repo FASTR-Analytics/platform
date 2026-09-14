@@ -342,9 +342,9 @@ function ElementRows(p: {
             fallback={
               <div class="text-sm">
                 {t3({
-                  en: "Already imported as",
-                  fr: "Déjà importé sous",
-                  pt: "Já importado como",
+                  en: "Already added as",
+                  fr: "Déjà ajouté sous",
+                  pt: "Já adicionado como",
                 })}{" "}
                 <span class="font-mono">{row.importedAs}</span>
               </div>

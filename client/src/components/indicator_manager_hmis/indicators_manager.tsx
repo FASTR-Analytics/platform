@@ -235,9 +235,9 @@ export function IndicatorsManager(p: Props) {
               <Show when={instanceState.currentUserIsGlobalAdmin}>
                 <Button iconName="import" onClick={handleDhis2IndicatorSelect}>
                   {t3({
-                    en: "Import from DHIS2",
-                    fr: "Importer depuis DHIS2",
-                    pt: "Importar do DHIS2",
+                    en: "Add indicators from DHIS2",
+                    fr: "Ajouter des indicateurs depuis DHIS2",
+                    pt: "Adicionar indicadores do DHIS2",
                   })}
                 </Button>
               </Show>

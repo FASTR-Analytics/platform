@@ -1,5 +1,6 @@
-// Import from DHIS2 (PLAN_A5 ruling 7, PLAN_A3 ruling 8): search elements
-// and indicators, refuse the ineligible ones in the list with the reason,
+// Add indicators from DHIS2 (PLAN_A5 ruling 7, PLAN_A3 ruling 8): search
+// data elements and DHIS2 indicators, refuse the ineligible ones in the
+// list with the reason,
 // then name what the selection becomes and save it in one transaction. An
 // element or operand becomes a DHIS2 element indicator carrying its UID as
 // its DHIS2 id; a DHIS2 indicator is decomposed into its operands and a
@@ -105,9 +106,9 @@ function itemName(item: SelectedItem): string {
 function elementRefusal(de: Dhis2DataElementSearchItem): string | undefined {
   if (de.verdict.accepted) return undefined;
   return `${t3({
-    en: "Cannot be imported:",
-    fr: "Ne peut pas être importé :",
-    pt: "Não pode ser importado:",
+    en: "Cannot be added:",
+    fr: "Ne peut pas être ajouté :",
+    pt: "Não pode ser adicionado:",
   })} ${t3(describeDhis2ElementRefusal(de.verdict.refusal))}`;
 }
 
@@ -125,9 +126,9 @@ function indicatorRefusal(
   const refused = operands.find((o) => !o.verdict.accepted);
   if (refused !== undefined && !refused.verdict.accepted) {
     return `${t3({
-      en: `Operand ${refused.data_id} cannot be imported:`,
-      fr: `L'opérande ${refused.data_id} ne peut pas être importé :`,
-      pt: `O operando ${refused.data_id} não pode ser importado:`,
+      en: `Operand ${refused.data_id} cannot be added:`,
+      fr: `L'opérande ${refused.data_id} ne peut pas être ajouté :`,
+      pt: `O operando ${refused.data_id} não pode ser adicionado:`,
     })} ${t3(describeDhis2ElementRefusal(refused.verdict.refusal))}`;
   }
   return undefined;
@@ -416,9 +417,9 @@ export function Dhis2IndicatorSelectForm(p: Props) {
           tonal
           heading={phase() === "select"
             ? t3({
-              en: "DHIS2 indicator selection",
-              fr: "Sélection d'indicateurs DHIS2",
-              pt: "Seleção de indicadores DHIS2",
+              en: "Add indicators from DHIS2",
+              fr: "Ajouter des indicateurs depuis DHIS2",
+              pt: "Adicionar indicadores do DHIS2",
             })
             : t3({
               en: "Name the new indicators",

@@ -12,7 +12,7 @@ server already expands a selection of indicators to the DHIS2 elements
 it fetches, and A7 puts that expansion in front of the user before launch
 instead of after.
 
-**Next step: Review 2.** Each session sets this line in its final commit. Its
+**Next step: Review 3.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N`; after step 4's review passes the
 file is deleted instead of advanced.
 
@@ -488,3 +488,26 @@ first Do session added it, as PROTOCOL_ALL_PLANS.md requires one.
 - Step 2: the imports view's Manage connection button keeps its
   `schedulingReady` gate; only the New import gate was in the surface.
 - Step 2 built. One commit.
+- Step 2 reviewed: 2 findings, neither changing code. The step's grep gate
+  on the manager file returns zero, not the import as the row above said,
+  because the literal lives only in the wizard module; the gate text is
+  wrong and the design stands. `_step_indicators.tsx` was changed for the
+  seed-drop line the Deliverable mandates but is missing from step 2's
+  Surface list. The reviewer also saw step 3's uncommitted edits in the
+  tree, because this plan ran in one session with reviews as subagents.
+- Step 3: Tim overruled §2 "Words" and ruling 9 in chat before Do 3, in
+  favour of the term table he had drafted: the type stays "DHIS2 element"
+  (the Type column, `indicatorTypeWord`, counts, the type facts, pair
+  labels); "DHIS2 element indicator", unhyphenated, is used only in
+  running prose where a bare element could be read as DHIS2's object
+  (step captions, review headings, help text); "data element" is DHIS2's
+  own object and stays (the search form, the UID-shape error, the run
+  detail's classification); "DHIS2 indicator" stays DHIS2's formula
+  object. The sweep therefore touched two wizard strings and the two
+  names of ruling 8, and no type string. Step 1's caption and review
+  heading were rewritten to the unhyphenated form.
+- Step 3: the select form's "Cannot be imported" refusals and the naming
+  step's "Already imported as" said "import" for adding indicators, the
+  confusion ruling 8 removes, so they now say "added". The naming row's
+  field keeps its code name `importedAs` (§6, no stored or code rename).
+- Step 3 built. One commit.

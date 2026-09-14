@@ -39,9 +39,9 @@ export function Dhis2StepIndicators(p: Props) {
       </div>
       <div class="text-sm">
         {t3({
-          en: "A DHIS2-element indicator fetches its DHIS2 element; a sum fetches the DHIS2 elements among its members; a derived indicator fetches the DHIS2 elements its formula includes. The review step lists them.",
-          fr: "Un indicateur élément DHIS2 récupère son élément DHIS2 ; une somme récupère les éléments DHIS2 parmi ses membres ; un indicateur dérivé récupère les éléments DHIS2 que sa formule utilise. L'étape de vérification les liste.",
-          pt: "Um indicador elemento DHIS2 obtém o seu elemento DHIS2; uma soma obtém os elementos DHIS2 entre os seus membros; um indicador derivado obtém os elementos DHIS2 que a sua fórmula utiliza. O passo de revisão lista-os.",
+          en: "A DHIS2 element indicator fetches its data element; a sum fetches the DHIS2 element indicators among its members; a derived indicator fetches the DHIS2 element indicators its formula includes. The review step lists them.",
+          fr: "Un indicateur élément DHIS2 récupère son élément de données ; une somme récupère les indicateurs éléments DHIS2 parmi ses membres ; un indicateur dérivé récupère les indicateurs éléments DHIS2 que sa formule utilise. L'étape de vérification les liste.",
+          pt: "Um indicador elemento DHIS2 obtém o seu elemento de dados; uma soma obtém os indicadores elemento DHIS2 entre os seus membros; um indicador derivado obtém os indicadores elemento DHIS2 que a sua fórmula utiliza. O passo de revisão lista-os.",
         })}
       </div>
       <Show when={p.seedDrops.length > 0}>

@@ -359,7 +359,9 @@ retypes).
 
 An import never creates an indicator (PLAN_A6 §2): the dictionary is
 authored in the manager, the Add indicator form for one and the DHIS2
-select form for many. The DHIS2 select form goes through the **naming
+select form ("Add indicators from DHIS2", the manager's button and the
+form's heading; distinct from the data import, "Import HMIS data from
+DHIS2") for many. The DHIS2 select form goes through the **naming
 step** (`applyIndicatorNaming`, PLAN_A6 ruling 7). A DHIS2 element or
 operand becomes a new DHIS2 element under the chosen id (proposed by
 `generateIndicatorId`, editable) carrying the UID as its data id; an
@@ -936,7 +938,7 @@ Every config mutation re-reads all configs and pushes one consolidated
   (`createNamingState` seeds it once from the dictionary as loaded, so
   the user's edits are never re-seeded away): one row per DHIS2 element or
   operand (`NamingValueRow`: proposed id and label editable inline; a UID
-  some indicator already carries as its data id reads "Already imported as"
+  some indicator already carries as its data id reads "Already added as"
   and is still posted, so a derived formula naming it rewrites, and the
   server creates nothing for it), and one per decomposed DHIS2 indicator
   with its formula previewed over the ids the elements are taking.
