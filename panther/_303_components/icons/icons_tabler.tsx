@@ -122,6 +122,17 @@ function ArrowsDiagonalMinimize2Icon(p: { class?: string }) {
   );
 }
 
+function ArrowsUpDownIcon(p: { class?: string }) {
+  return (
+    <TablerWrapper class={p.class}>
+      <path d="M7 3l0 18" />
+      <path d="M10 6l-3 -3l-3 3" />
+      <path d="M20 18l-3 3l-3 -3" />
+      <path d="M17 21l0 -18" />
+    </TablerWrapper>
+  );
+}
+
 function BackspaceIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
@@ -355,6 +366,26 @@ function FileIcon(p: { class?: string }) {
     <TablerWrapper class={p.class}>
       <path d="M14 3v4a1 1 0 0 0 1 1h4" />
       <path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" />
+    </TablerWrapper>
+  );
+}
+
+function FilterIcon(p: { class?: string }) {
+  return (
+    <TablerWrapper class={p.class}>
+      <path d="M4 4h16v2.172a2 2 0 0 1 -.586 1.414l-4.414 4.414v7l-6 2v-8.5l-4.48 -4.928a2 2 0 0 1 -.52 -1.345v-2.227" />
+    </TablerWrapper>
+  );
+}
+
+function FilterFilledIcon(p: { class?: string }) {
+  return (
+    <TablerWrapper class={p.class}>
+      <path
+        d="M20 3h-16a1 1 0 0 0 -1 1v2.227l.008 .223a3 3 0 0 0 .772 1.795l4.22 4.641v8.114a1 1 0 0 0 1.316 .949l6 -2l.108 -.043a1 1 0 0 0 .576 -.906v-6.586l4.121 -4.12a3 3 0 0 0 .879 -2.123v-2.171a1 1 0 0 0 -1 -1z"
+        fill="currentColor"
+        stroke="none"
+      />
     </TablerWrapper>
   );
 }
@@ -908,6 +939,7 @@ export const _ICON_MAP_TABLER: Record<IconName, IconComponent> = {
   arrowsDiagonal2: ArrowsDiagonal2Icon,
   arrowsDiagonalMinimize: ArrowsDiagonalMinimizeIcon,
   arrowsDiagonalMinimize2: ArrowsDiagonalMinimize2Icon,
+  arrowsUpDown: ArrowsUpDownIcon,
   backspace: BackspaceIcon,
   badge: BadgeIcon,
   bell: BellIcon,
@@ -933,6 +965,8 @@ export const _ICON_MAP_TABLER: Record<IconName, IconComponent> = {
   eyeOff: EyeOffIcon,
   eraser: EraserIcon,
   file: FileIcon,
+  filter: FilterIcon,
+  filterFilled: FilterFilledIcon,
   folder: FolderIcon,
   gripVertical: GripVerticalIcon,
   help: HelpIcon,

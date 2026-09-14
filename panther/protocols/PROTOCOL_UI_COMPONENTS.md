@@ -95,12 +95,18 @@ const columns: TableColumn<Row>[] = [
     sortable: true,
     render: (item) => <span class="font-mono">{item.id}</span>,
   },
+  {
+    key: "status",
+    header: t3({ en: "Status", fr: "Statut" }),
+    filterable: true,
+  },
 ];
 <Table columns={columns} data={rows()} />;
 ```
 
-**Why:** `Table` provides sorting/selection/rendering consistently; bespoke
-tables re-solve those and diverge.
+**Why:** `Table` provides sorting, per-column filtering (`filterable` in the
+column config), selection and rendering consistently; bespoke tables re-solve
+those and diverge.
 
 ### Modals & editors
 
@@ -130,7 +136,8 @@ duplicate that and miss edge cases.
 - **Layout:** `FrameTop`, `FrameLeft` / `FrameRight` / `FrameBottom` (+
   resizable variants), `HeadingBar`, `Tabs`, `Stepper`, collapsible sections.
 - **Display:** `Badge`, `Card`, `EmptyState`.
-- **Data:** `Table` (sortable/selectable), `FigureHolder`, `PageHolder`.
+- **Data:** `Table` (sortable/filterable/selectable), `FigureHolder`,
+  `PageHolder`.
 - **State/feedback:** `StateHolderWrapper`, `StateHolderFormError`, editor/alert
   helpers, loading/progress indicators.
 

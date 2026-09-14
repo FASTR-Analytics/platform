@@ -6,6 +6,7 @@
 export { Table } from "./table.tsx";
 export type {
   BulkAction,
+  FilterConfig,
   SortConfig,
   TableColumn,
   TableGroup,

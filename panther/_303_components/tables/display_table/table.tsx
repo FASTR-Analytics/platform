@@ -16,23 +16,63 @@ import { t3 } from "../../deps.ts";
 import type {
   AnyRow,
   BulkAction,
+  FilterConfig,
   ProcessedData,
   SortConfig,
   TableColumn,
   TableProps,
 } from "./types.ts";
 import {
+  filterData,
   getCellAlignment,
   getPaddingClasses,
   groupData,
   sortData,
 } from "./helpers.ts";
+import { ColumnFilter } from "./column_filter.tsx";
+import { HeaderGlyph } from "./header_glyph.tsx";
 import { Button, Checkbox } from "../../form_inputs/mod.ts";
 import { EmptyState } from "../../display/mod.ts";
 
 // ============================================================================
 // Main Table Component
 // ============================================================================
+
+// Shared by every control in a header cell so they are the same height.
+const HEADER_BUTTON =
+  "inline-flex items-center gap-1 rounded px-1.5 py-1 uppercase ui-hoverable-base-200 ui-focusable";
+
+function getHeaderJustify(alignH?: TableColumn<unknown>["alignH"]): string {
+  switch (alignH) {
+    case "center":
+      return "justify-center";
+    case "right":
+      return "justify-end";
+    default:
+      return "justify-start";
+  }
+}
+
+// Pulls the row's edge element back by the button's own padding so the label
+// text (left) or the trailing glyph (right) sits exactly over the cell content
+// below it. The edge element on the right is the filter button when present.
+function getHeaderEdgeMargins(
+  alignH: TableColumn<unknown>["alignH"],
+  filterable: boolean,
+): { label: string; filter: string } {
+  switch (alignH) {
+    case "center":
+      return { label: "", filter: "" };
+    case "right":
+      return filterable
+        ? { label: "", filter: "-mr-1.5" }
+        : { label: "-mr-1.5", filter: "" };
+    default:
+      return { label: "-ml-1.5", filter: "" };
+  }
+}
+
+const EMPTY_EXCLUDED: ReadonlySet<string> = new Set();
 
 export function Table<
   T extends AnyRow,
@@ -59,15 +99,41 @@ export function Table<
     }
   };
 
-  // Compute selection states
+  const [filters, setFilters] = createSignal<FilterConfig>(
+    p.defaultFilters ?? new Map(),
+  );
+  const visibleRows = createMemo(() =>
+    filterData(p.data, filters(), p.columns)
+  );
+
+  const replaceFilters = (next: FilterConfig) => {
+    setFilters(next);
+    p.onFilterChange?.(next);
+  };
+
+  const updateFilter = (key: string, excluded: ReadonlySet<string>) => {
+    const next = new Map(filters());
+    if (excluded.size === 0) {
+      next.delete(key);
+    } else {
+      next.set(key, excluded);
+    }
+    replaceFilters(next);
+  };
+
+  // A selected row hidden by a filter stays selected, so the header checkbox
+  // reflects visible rows by membership, not by comparing counts.
   const allSelected = createMemo(() => {
     const selected = selectedKeys();
-    return selected.size > 0 && selected.size === p.data.length;
+    const rows = visibleRows();
+    return rows.length > 0 &&
+      rows.every((item) => selected.has(item[p.keyField]));
   });
 
   const someSelected = createMemo(() => {
     const selected = selectedKeys();
-    return selected.size > 0 && selected.size < p.data.length;
+    return !allSelected() &&
+      visibleRows().some((item) => selected.has(item[p.keyField]));
   });
 
   // Process data with sorting and grouping
@@ -76,10 +142,10 @@ export function Table<
     const group = p.groups?.find((g) => g.key === currentGroup);
 
     if (group) {
-      return groupData(p.data, group, sortConfig(), p.columns);
+      return groupData(visibleRows(), group, sortConfig(), p.columns);
     }
 
-    const sorted = sortData(p.data, sortConfig(), p.columns);
+    const sorted = sortData(visibleRows(), sortConfig(), p.columns);
     return {
       isGrouped: false,
       groups: [],
@@ -116,12 +182,16 @@ export function Table<
   };
 
   const toggleSelectAll = () => {
-    if (allSelected()) {
-      setSelectedKeys(new Set());
-    } else {
-      const allKeys = p.data.map((item) => item[p.keyField]);
-      setSelectedKeys(new Set(allKeys));
+    const next = new Set(selectedKeys());
+    const deselect = allSelected();
+    for (const item of visibleRows()) {
+      if (deselect) {
+        next.delete(item[p.keyField]);
+      } else {
+        next.add(item[p.keyField]);
+      }
     }
+    setSelectedKeys(next);
   };
 
   // Get selected items
@@ -250,40 +320,62 @@ export function Table<
                   </th>
                 </Show>
                 <For each={p.columns}>
-                  {(column) => (
-                    <th
-                      class={`${padding().px} py-3 ${
-                        getCellAlignment(
-                          column.alignH,
-                        )
-                      } font-700 text-base-content text-xs uppercase tracking-wider ${
-                        column.sortable
-                          ? "ui-hoverable-base-200 ui-focusable"
-                          : ""
-                      }`}
-                      style={{ width: column.width }}
-                      tabindex={column.sortable ? "0" : undefined}
-                      aria-sort={column.sortable
-                        ? (sortConfig()?.key === column.key
-                          ? (sortConfig()?.direction === "asc"
-                            ? "ascending"
-                            : "descending")
-                          : "none")
-                        : undefined}
-                      onClick={() => handleSort(column)}
-                      onKeyDown={(evt) => {
-                        if (evt.key === "Enter" || evt.key === " ") {
-                          evt.preventDefault();
-                          handleSort(column);
-                        }
-                      }}
-                    >
-                      <span class="inline-flex items-center gap-1">
-                        {column.header}
-                        <SortIcon column={column} sortConfig={sortConfig} />
-                      </span>
-                    </th>
-                  )}
+                  {(column) => {
+                    const margins = () =>
+                      getHeaderEdgeMargins(column.alignH, !!column.filterable);
+                    return (
+                      <th
+                        class={`${padding().px} py-2 font-700 text-base-content text-xs uppercase tracking-wider`}
+                        style={{ width: column.width }}
+                        aria-sort={column.sortable
+                          ? (sortConfig()?.key === column.key
+                            ? (sortConfig()?.direction === "asc"
+                              ? "ascending"
+                              : "descending")
+                            : "none")
+                          : undefined}
+                      >
+                        <div
+                          class={`flex items-stretch gap-0.5 ${
+                            getHeaderJustify(column.alignH)
+                          }`}
+                        >
+                          <Show
+                            when={column.sortable}
+                            fallback={
+                              <span class={`px-1.5 py-1 ${margins().label}`}>
+                                {column.header}
+                              </span>
+                            }
+                          >
+                            <button
+                              type="button"
+                              class={`${HEADER_BUTTON} ${margins().label}`}
+                              onClick={() => handleSort(column)}
+                            >
+                              {column.header}
+                              <SortIcon
+                                column={column}
+                                sortConfig={sortConfig}
+                              />
+                            </button>
+                          </Show>
+                          <Show when={column.filterable}>
+                            <ColumnFilter
+                              column={column}
+                              data={p.data}
+                              excluded={filters().get(column.key) ??
+                                EMPTY_EXCLUDED}
+                              onChange={(next) =>
+                                updateFilter(column.key, next)}
+                              scrollContainer={() => scrollContainerRef}
+                              class={`${HEADER_BUTTON} ${margins().filter}`}
+                            />
+                          </Show>
+                        </div>
+                      </th>
+                    );
+                  }}
                 </For>
               </tr>
             </thead>
@@ -302,6 +394,33 @@ export function Table<
                             pt: "Sem dados disponíveis",
                           })}
                       />
+                    </td>
+                  </tr>
+                </Match>
+                <Match when={visibleRows().length === 0}>
+                  <tr>
+                    <td
+                      colspan={p.columns.length + (enableSelection() ? 1 : 0)}
+                    >
+                      <EmptyState
+                        title={t3({
+                          en: "No rows match the current filters",
+                          fr: "Aucune ligne ne correspond aux filtres",
+                          pt: "Nenhuma linha corresponde aos filtros",
+                        })}
+                      >
+                        <Button
+                          intent="neutral"
+                          outline
+                          onClick={() => replaceFilters(new Map())}
+                        >
+                          {t3({
+                            en: "Clear filters",
+                            fr: "Effacer les filtres",
+                            pt: "Limpar filtros",
+                          })}
+                        </Button>
+                      </EmptyState>
                     </td>
                   </tr>
                 </Match>
@@ -357,11 +476,13 @@ function SortIcon<T>(p: SortIconProps<T>) {
 
   return (
     <Show when={p.column.sortable}>
-      <span class="text-base-content ml-1 inline-block">
-        <span classList={{ "opacity-40": !isActive() }}>
-          {isActive() ? (isAsc() ? "↑" : "↓") : "↕"}
-        </span>
-      </span>
+      <HeaderGlyph
+        class="ml-1"
+        muted={!isActive()}
+        iconName={isActive()
+          ? (isAsc() ? "arrowUp" : "arrowDown")
+          : "arrowsUpDown"}
+      />
     </Show>
   );
 }
