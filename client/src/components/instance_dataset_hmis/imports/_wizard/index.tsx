@@ -145,7 +145,15 @@ export function Dhis2Wizard(
     <StateHolderWrapper
       state={query.state()}
       loadingRenderer={(msg) => (
-        <ModalContainer width="2xl" title={t3(DHIS2_DATA_IMPORT_TITLE)}>
+        <ModalContainer
+          height="lg"
+          width="2xl"
+          topPanel={
+            <div class="flex items-center justify-between">
+              <div class="font-700 text-lg">{t3(DHIS2_DATA_IMPORT_TITLE)}</div>
+            </div>
+          }
+        >
           <div class="min-h-[24rem]">
             <LoadingIndicator msg={msg} noPad />
           </div>
@@ -153,8 +161,13 @@ export function Dhis2Wizard(
       )}
       errorRenderer={(err) => (
         <ModalContainer
+          height="lg"
           width="2xl"
-          title={t3(DHIS2_DATA_IMPORT_TITLE)}
+          topPanel={
+            <div class="flex items-center justify-between">
+              <div class="font-700 text-lg">{t3(DHIS2_DATA_IMPORT_TITLE)}</div>
+            </div>
+          }
           rightButtons={
             <Button onClick={() => p.close(undefined)} outline>
               {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
@@ -217,9 +230,9 @@ function Dhis2WizardInner(p: InnerProps) {
       ? (p.entry.indicatorIds ?? [])
       : (scheduleDefaults?.selection.indicatorIds ?? []),
   );
-  const [dictionary, setDictionary] = createSignal<
-    HmisIndicator[] | undefined
-  >(undefined);
+  const [dictionary, setDictionary] = createSignal<HmisIndicator[] | undefined>(
+    undefined,
+  );
   // A seeded selection (the manager's rows, a stored schedule) may name ids
   // the picker does not list: an Uploaded indicator, or one no longer in the
   // dictionary. They are dropped once, when the dictionary first arrives,
@@ -293,11 +306,13 @@ function Dhis2WizardInner(p: InnerProps) {
       : { dateTime: "", timezone: getLocalTimezone() },
   );
   const recurrenceDefaults = scheduleDefaults?.recurrence;
-  const [recurKind, setRecurKind] = createSignal<Dhis2ScheduleRecurrence["kind"]>(
-    recurrenceDefaults?.kind ?? "weekly",
-  );
+  const [recurKind, setRecurKind] = createSignal<
+    Dhis2ScheduleRecurrence["kind"]
+  >(recurrenceDefaults?.kind ?? "weekly");
   const [firstRunDate, setFirstRunDate] = createSignal<string>(
-    recurrenceDefaults?.kind === "weekly" ? recurrenceDefaults.firstRunDate : "",
+    recurrenceDefaults?.kind === "weekly"
+      ? recurrenceDefaults.firstRunDate
+      : "",
   );
   const [everyNWeeks, setEveryNWeeks] = createSignal<string>(
     recurrenceDefaults?.kind === "weekly"
@@ -305,7 +320,9 @@ function Dhis2WizardInner(p: InnerProps) {
       : "1",
   );
   const [nth, setNth] = createSignal<string>(
-    recurrenceDefaults?.kind === "monthly" ? String(recurrenceDefaults.nth) : "1",
+    recurrenceDefaults?.kind === "monthly"
+      ? String(recurrenceDefaults.nth)
+      : "1",
   );
   const [monthlyWeekday, setMonthlyWeekday] = createSignal<string>(
     recurrenceDefaults?.kind === "monthly"
@@ -373,7 +390,8 @@ function Dhis2WizardInner(p: InnerProps) {
     const nMonths = parseInt(everyNMonths()) || 1;
     return {
       kind: "monthly",
-      nth: nth() === "last" ? "last" : ((parseInt(nth()) || 1) as 1 | 2 | 3 | 4),
+      nth:
+        nth() === "last" ? "last" : ((parseInt(nth()) || 1) as 1 | 2 | 3 | 4),
       weekday: parseInt(monthlyWeekday()) || 0,
       everyNMonths: nMonths,
       // Phase is irrelevant at monthly cadence: any anchor gives the same
@@ -634,6 +652,7 @@ function Dhis2WizardInner(p: InnerProps) {
 
   return (
     <ModalContainer
+      height="lg"
       width="2xl"
       noContentPadding
       topPanel={
