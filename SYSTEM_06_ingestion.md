@@ -306,8 +306,9 @@ start.
   NUMBER-typed "12.0" counts as 12); anything else (fractional, negative,
   blank, non-numeric) is **skipped and recorded**, never fails the pair:
   the pair's ledger row carries `skipped_values` and a sample of at most 10
-  `{ facilityId, value }` (migration 085), the run detail and the
-  By-indicator tab show the count, and the pair integrates and stays
+  `{ facilityId, value }` (migration 085), the run detail and the HMIS
+  Data page's Ledger tab (its Skipped values column) show the count, and
+  the pair integrates and stays
   `ready`. Failing the pair would block a data id's month for every
   facility in the country on one facility's decimal, and the ledger has no
   per-facility grain. Accepted values are summed per facility across

@@ -12,7 +12,7 @@ as follow-ons and not done here: a heat map by admin area, which needs a
 server read the ledger cannot give, and hover on the line graph, which is
 panther work.
 
-**Next step: Fix 3.** Each session sets this line in its final commit. Its
+**Next step: Review 3.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N`; after step 3's review passes the
 file is deleted instead of advanced.
 
@@ -484,3 +484,18 @@ Append-only, newest last.
   neither site page has an em-dash. The rest of the new section matches
   the code and its en/fr labels.
 - Step 3 reviewed: 2 findings.
+- Fix 3, finding 1: `SYSTEM_06_ingestion.md` line 310 names the HMIS Data
+  page's Ledger tab and its Skipped values column.
+- Fix 3, finding 2: the code wins. The sidebar holding Imports and Delete
+  data renders under `instanceState.currentUserIsGlobalAdmin`
+  (`instance_dataset_hmis/index.tsx` line 293, and the same gate on the
+  HFA and ICEH pages), so both site pages now say a global administrator
+  sees the Imports button, the wording `admin-guide/indicators.md` already
+  uses for the same wizard.
+- Fix 3, fact for Tim: the gate predates A8 and is narrower than the
+  server. The HMIS import routes require `can_configure_data`
+  (`server/routes/instance/datasets.ts`, e.g. `launchDatasetHmisDhis2Run`),
+  and `instance_data.tsx` treats `can_configure_data` as able to configure
+  data, so such a user who is not a global admin can open the page but
+  has no Imports button. Out of this plan's scope; not changed.
+- Step 3 fixed.
