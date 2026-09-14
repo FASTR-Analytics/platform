@@ -12,7 +12,7 @@ server already expands a selection of indicators to the DHIS2 elements
 it fetches, and A7 puts that expansion in front of the user before launch
 instead of after.
 
-**Next step: Review 1.** Each session sets this line in its final commit. Its
+**Next step: Review 2.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N`; after step 4's review passes the
 file is deleted instead of advanced.
 
@@ -461,3 +461,30 @@ to rehearse.
    Review lists the elements the run detail then reports as fetched.
 2. Rollback is the previous image. A run launched under A7 stores the
    same `selection` shape as one launched before it.
+
+## 8. Build log
+
+Append-only, newest last. The plan was written without this section; the
+first Do session added it, as PROTOCOL_ALL_PLANS.md requires one.
+
+- Step 1 built. Two commits plus a wording fix Tim asked for in the
+  Indicators step's caption ("its formula includes", not "reaches").
+- Step 1 reviewed: 1 finding. `_step_review.tsx` named the population
+  source "the population store", which no screen calls it; the run detail
+  says "the Population page". Two further notes were closed by step 2
+  (unknown and Uploaded ids seeded from a stored schedule passed the step
+  until ruling 12 landed).
+- Step 1 fixed: the Review's population sentence now matches the run
+  detail.
+- Step 2: the string of ruling 8 lives once, as `DHIS2_DATA_IMPORT_TITLE`
+  exported from the wizard module and imported by the manager, so the
+  wizard's title already says "Import HMIS data from DHIS2" (step 3's
+  deliverable, landed early because the loading and error frames share the
+  title with the inner modal). The step's grep gate on the manager file
+  therefore finds the constant's import, not the literal.
+- Step 2: `Dhis2SeedDrop` is exported from the wizard module and imported
+  by `_step_indicators.tsx` as a type, so the two files import each other;
+  a type-only import is erased and the cycle is harmless.
+- Step 2: the imports view's Manage connection button keeps its
+  `schedulingReady` gate; only the New import gate was in the surface.
+- Step 2 built. One commit.

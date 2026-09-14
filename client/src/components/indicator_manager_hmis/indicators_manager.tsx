@@ -46,6 +46,11 @@ import { instanceState } from "~/state/instance/t1_store";
 import { getIndicatorsFromCacheOrFetch } from "~/state/instance/t2_indicators";
 import { Dhis2CredentialsForm } from "../forms_editors/dhis2_credentials_form";
 import {
+  DHIS2_DATA_IMPORT_TITLE,
+  Dhis2Wizard,
+  type Dhis2WizardResult,
+} from "../instance_dataset_hmis/imports/_wizard";
+import {
   computabilityProblemText,
   missingPopulationText,
 } from "./_computability";
@@ -346,6 +351,42 @@ function IndicatorsTable(p: {
     });
   }
 
+  // The DHIS2 data import for the rows in front of you (PLAN_A7 ruling 11):
+  // the same wizard the imports view opens, preselected with the selection,
+  // fetching its own data. It launches, queues or schedules as it does
+  // there; the notice says where to follow the run.
+  const [importNotice, setImportNotice] = createSignal<
+    Dhis2WizardResult | undefined
+  >(undefined);
+  async function handleImportFromDhis2(selected: HmisIndicator[]) {
+    const res = await openComponent({
+      element: Dhis2Wizard,
+      props: {
+        entry: {
+          kind: "new",
+          indicatorIds: selected.map((i) => i.indicator_common_id),
+        },
+      },
+    });
+    if (!res) return;
+    setImportNotice(res);
+    return "CLEAR_SELECTION";
+  }
+
+  function importNoticeText(result: Dhis2WizardResult): string {
+    return result.landedTab === "current"
+      ? t3({
+          en: "The import has been started. Follow it under HMIS data, Imports, Current.",
+          fr: "L'importation a été lancée. Suivez-la sous Données HMIS, Importations, En cours.",
+          pt: "A importação foi iniciada. Acompanhe-a em Dados HMIS, Importações, Atual.",
+        })
+      : t3({
+          en: "The import has been scheduled. Follow it under HMIS data, Imports, Future.",
+          fr: "L'importation a été planifiée. Suivez-la sous Données HMIS, Importations, À venir.",
+          pt: "A importação foi agendada. Acompanhe-a em Dados HMIS, Importações, Futuro.",
+        });
+  }
+
   async function handleDeleteIndicators(selected: HmisIndicator[]) {
     const indicatorIds = selected.map((i) => i.indicator_common_id);
     const deleteAction = createDeleteAction(
@@ -497,6 +538,12 @@ function IndicatorsTable(p: {
     instanceState.currentUserIsGlobalAdmin
       ? [
           {
+            label: t3(DHIS2_DATA_IMPORT_TITLE),
+            intent: "primary",
+            outline: true,
+            onClick: handleImportFromDhis2,
+          },
+          {
             label: t3(TC.delete),
             intent: "danger",
             outline: true,
@@ -544,6 +591,21 @@ function IndicatorsTable(p: {
           </Button>
         </Show>
       </div>
+      <Show when={importNotice()}>
+        {(notice) => (
+          <Callout intent="success" pad="sm" class="mb-4 flex-none">
+            <div class="ui-gap-sm flex items-center">
+              <div class="flex-1">{importNoticeText(notice())}</div>
+              <Button
+                onClick={() => setImportNotice(undefined)}
+                iconName="x"
+                intent="success"
+                size="sm"
+              />
+            </div>
+          </Callout>
+        )}
+      </Show>
       <Show when={uncomputableCount() > 0}>
         <Callout intent="warning" pad="sm" class="mb-4 flex-none">
           {uncomputableCount() === 1

@@ -1003,6 +1003,14 @@ Every config mutation re-reads all configs and pushes one consolidated
   out of the two types that have rows is refused in the form while the
   ledger reports rows or a sum names the indicator, as the server refuses
   it.
+- The list's bulk actions, for global admins: Delete, and "Import HMIS
+  data from DHIS2", which opens the DHIS2 import wizard (S6) as a modal
+  over the manager with the selected rows preselected; the wizard fetches
+  its own data, launches, queues or schedules as it does from the imports
+  view, and on a result the manager shows a notice naming HMIS data,
+  Imports and the tab the wizard landed on (Current or Future). Nothing is
+  carried between pages: the dataset sidebar's running and queued flags
+  come from the SSE summary.
 - The structure wizard: server owns the step number (every save writes
   `step`; the client fetcher jumps the stepper on each silent refetch).
   Errors render as a dismissible banner over navigable steps (re-saving

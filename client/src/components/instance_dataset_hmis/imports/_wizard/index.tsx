@@ -3,26 +3,27 @@ import {
   getCalendar,
   POPULATION_TYPE_IDS,
   t3,
-  type DatasetHmisImportRunSummary,
   type DatasetHmisScheduledImport,
   type DatasetHmisScheduledImportFields,
   type Dhis2Credentials,
-  type Dhis2ImportSchedulingInfo,
   type Dhis2RunPairInput,
   type Dhis2RunSelectionInput,
   type Dhis2ScheduleRecurrence,
   type Dhis2SelectionDescription,
   type HmisIndicator,
+  type InstanceDhis2CredentialsInfo,
 } from "lib";
 import { recurrenceLabel } from "../_recurrence_label";
 import {
   AlertComponentProps,
   Button,
+  LoadingIndicator,
   ModalContainer,
-  Query,
   StateHolderFormError,
+  StateHolderWrapper,
   StepperChipsWithTitles,
   createFormAction,
+  createQuery,
   getLocalTimezone,
   getStepper,
   utcMsToZonedDateTime,
@@ -33,24 +34,33 @@ import {
 } from "panther";
 import { Show, createMemo, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
+import { instanceState } from "~/state/instance/t1_store";
 import { Dhis2StepConfig } from "./_step_config";
 import { Dhis2StepCredentials } from "~/components/_shared/dhis2_credentials/step_credentials";
 import { Dhis2StepIndicators } from "./_step_indicators";
 import { Dhis2StepReview } from "./_step_review";
 import { Dhis2StepTime, type Dhis2WizardTimeChoice } from "./_step_time";
 
+// `new` may carry a selection to preselect (the indicator manager's bulk
+// action, PLAN_A7 ruling 12); the imports view passes none.
 export type Dhis2WizardEntry =
-  | { kind: "new" }
+  | { kind: "new"; indicatorIds?: string[] }
   | { kind: "editSchedule"; schedule: DatasetHmisScheduledImport }
   | { kind: "presetPairs"; pairs: Dhis2RunPairInput[]; label: string };
 
-export type Dhis2WizardProps = {
-  entry: Dhis2WizardEntry;
-  runsQuery: Query<DatasetHmisImportRunSummary[]>;
-  schedulingQuery: Query<Dhis2ImportSchedulingInfo>;
-};
+export type Dhis2WizardProps = { entry: Dhis2WizardEntry };
 
 export type Dhis2WizardResult = { landedTab: "current" | "future" };
+
+// The wizard's title, and the name of every action that opens it.
+export const DHIS2_DATA_IMPORT_TITLE = {
+  en: "Import HMIS data from DHIS2",
+  fr: "Importer les données HMIS depuis DHIS2",
+  pt: "Importar dados HMIS do DHIS2",
+};
+
+// Why a seeded id was left out of the selection when the dictionary loaded.
+export type Dhis2SeedDrop = { id: string; reason: "uploaded" | "unknown" };
 
 type StepKind = "credentials" | "indicators" | "time" | "config" | "review";
 
@@ -117,11 +127,58 @@ function currentYearMonth(): string {
 // The one wizard for every way a DHIS2 import gets configured: ad hoc run,
 // queue, one-shot future run, recurring schedule (PLAN_DHIS2_IMPORTER_UI_REVISION
 // §3). A modal (Add-visualization pattern), not a full-screen editor: short,
-// transient configure-and-submit, opened from the imports listing and
-// dismissed straight back to it.
+// transient configure-and-submit, dismissed straight back to its host. It
+// fetches what it needs itself (the results-package wizard's shape), so the
+// imports view and the indicator manager hand it the entry and nothing else.
 export function Dhis2Wizard(
   p: AlertComponentProps<Dhis2WizardProps, Dhis2WizardResult>,
 ) {
+  const query = createQuery(
+    () => serverActions.getInstanceDhis2CredentialsInfo({}),
+    t3({
+      en: "Loading DHIS2 connection...",
+      fr: "Chargement de la connexion DHIS2...",
+      pt: "A carregar a ligação DHIS2...",
+    }),
+  );
+  return (
+    <StateHolderWrapper
+      state={query.state()}
+      loadingRenderer={(msg) => (
+        <ModalContainer width="2xl" title={t3(DHIS2_DATA_IMPORT_TITLE)}>
+          <div class="min-h-[24rem]">
+            <LoadingIndicator msg={msg} noPad />
+          </div>
+        </ModalContainer>
+      )}
+      errorRenderer={(err) => (
+        <ModalContainer
+          width="2xl"
+          title={t3(DHIS2_DATA_IMPORT_TITLE)}
+          rightButtons={
+            <Button onClick={() => p.close(undefined)} outline>
+              {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
+            </Button>
+          }
+        >
+          <div class="text-danger">{err}</div>
+        </ModalContainer>
+      )}
+    >
+      {(info) => (
+        <Dhis2WizardInner entry={p.entry} info={info} close={p.close} />
+      )}
+    </StateHolderWrapper>
+  );
+}
+
+type InnerProps = {
+  entry: Dhis2WizardEntry;
+  info: InstanceDhis2CredentialsInfo;
+  close: (v: Dhis2WizardResult | undefined) => void;
+};
+
+function Dhis2WizardInner(p: InnerProps) {
   const isPreset = p.entry.kind === "presetPairs";
   const isEditSchedule = p.entry.kind === "editSchedule";
   const scheduleDefaults =
@@ -131,20 +188,24 @@ export function Dhis2Wizard(
   const calendar = getCalendar();
   const periods = getMinMaxPeriods(calendar);
 
-  function schedulingData(): Dhis2ImportSchedulingInfo | undefined {
-    const s = p.schedulingQuery.state();
-    return s.status === "ready" ? s.data : undefined;
-  }
-
-  // Step 1: credentials.
+  // Step 1: credentials. The info is held here and refreshed by the step's
+  // own save, never by refetching the outer query: the wrapper keys its
+  // ready branch on the data object, and a remount would wipe the
+  // selection of a user who came back through "Back to step 1".
+  const [credentialsInfo, setCredentialsInfo] =
+    createSignal<InstanceDhis2CredentialsInfo>(p.info);
   const [editingCreds, setEditingCreds] = createSignal<boolean>(
-    !schedulingData()?.storedCredentials,
+    !p.info.storedCredentials,
   );
   const [credentials, setCredentials] = createSignal<Dhis2Credentials>({
-    url: schedulingData()?.storedCredentials?.url ?? "",
+    url: p.info.storedCredentials?.url ?? "",
     username: "",
     password: "",
   });
+  async function refreshCredentialsInfo() {
+    const res = await serverActions.getInstanceDhis2CredentialsInfo({});
+    if (res.success) setCredentialsInfo(res.data);
+  }
 
   // Step 2: indicators. The dictionary the picker loads lets the wizard
   // describe what the selection expands to (the DHIS2 elements fetched and
@@ -152,11 +213,42 @@ export function Dhis2Wizard(
   // launch; the step refuses Next while nothing would be fetched or a
   // derived does not resolve (PLAN_A7 rulings 3 and 5).
   const [selectedIndicators, setSelectedIndicators] = createSignal<string[]>(
-    scheduleDefaults?.selection.indicatorIds ?? [],
+    p.entry.kind === "new"
+      ? (p.entry.indicatorIds ?? [])
+      : (scheduleDefaults?.selection.indicatorIds ?? []),
   );
   const [dictionary, setDictionary] = createSignal<
     HmisIndicator[] | undefined
   >(undefined);
+  // A seeded selection (the manager's rows, a stored schedule) may name ids
+  // the picker does not list: an Uploaded indicator, or one no longer in the
+  // dictionary. They are dropped once, when the dictionary first arrives,
+  // and the step says which and why (PLAN_A7 ruling 12).
+  const [seedDrops, setSeedDrops] = createSignal<Dhis2SeedDrop[]>([]);
+  let seedChecked = false;
+  function handleDictionaryLoaded(loaded: HmisIndicator[]) {
+    setDictionary(loaded);
+    if (seedChecked) return;
+    seedChecked = true;
+    const byId = new Map(loaded.map((i) => [i.indicator_common_id, i]));
+    const drops: Dhis2SeedDrop[] = [];
+    const kept = selectedIndicators().filter((id) => {
+      const indicator = byId.get(id);
+      if (indicator === undefined) {
+        drops.push({ id, reason: "unknown" });
+        return false;
+      }
+      if (indicator.definition.type === "uploaded") {
+        drops.push({ id, reason: "uploaded" });
+        return false;
+      }
+      return true;
+    });
+    if (drops.length > 0) {
+      setSelectedIndicators(kept);
+      setSeedDrops(drops);
+    }
+  }
   const description = createMemo<Dhis2SelectionDescription | undefined>(() => {
     const d = dictionary();
     if (isPreset || d === undefined) return undefined;
@@ -256,7 +348,7 @@ export function Dhis2Wizard(
   );
 
   const hasStoredCredentials = () =>
-    schedulingData()?.storedCredentials !== undefined;
+    credentialsInfo().storedCredentials !== undefined;
 
   // The stored-credentials gate applies whenever the server will actually
   // check it: createDatasetHmisDhis2Schedule always checks it (any kind), but
@@ -359,13 +451,11 @@ export function Dhis2Wizard(
 
   const credentialsStepIndex = steps.indexOf("credentials");
 
-  // Live run state: the shell's own 2 s poll keeps runsQuery.state() fresh;
-  // reading it here (never a snapshot captured at open) is what makes the
-  // Start-vs-Queue fork honest at both render and submit time.
-  const runActive = createMemo(() => {
-    const s = p.runsQuery.state();
-    return s.status === "ready" && s.data.some((r) => r.status === "running");
-  });
+  // Live run state from the SSE summary, which the server pushes at launch,
+  // enqueue, scheduler fire and completion: read here (never a snapshot
+  // captured at open) so the Start-vs-Queue fork is honest at both render
+  // and submit time, in every host.
+  const runActive = () => instanceState.hmisImportRunActive;
   const isImmediateFlow = () => isPreset || timeChoice() === "now";
   const willQueue = createMemo(() => isImmediateFlow() && runActive());
   // Queued fires always use the stored connection (enqueueDatasetHmisDhis2Run
@@ -379,7 +469,7 @@ export function Dhis2Wizard(
         ? `${t3({ en: "Inline (this run only):", fr: "En ligne (cette importation uniquement) :", pt: "Direta (apenas esta importação):" })} ${credentials().url}`
         : t3({ en: "Not set", fr: "Non défini", pt: "Não definido" });
     }
-    const stored = schedulingData()?.storedCredentials;
+    const stored = credentialsInfo().storedCredentials;
     return stored
       ? `${t3({ en: "Stored:", fr: "Enregistrée :", pt: "Guardada:" })} ${stored.url}`
       : t3({ en: "Not set", fr: "Non défini", pt: "Não definido" });
@@ -538,8 +628,6 @@ export function Dhis2Wizard(
           });
     },
     async () => {
-      await p.runsQuery.silentFetch();
-      await p.schedulingQuery.silentFetch();
       p.close({ landedTab: isImmediateFlow() ? "current" : "future" });
     },
   );
@@ -550,13 +638,7 @@ export function Dhis2Wizard(
       noContentPadding
       topPanel={
         <div class="flex items-center justify-between">
-          <div class="font-700 text-lg">
-            {t3({
-              en: "Import from DHIS2",
-              fr: "Importation depuis DHIS2",
-              pt: "Importação a partir do DHIS2",
-            })}
-          </div>
+          <div class="font-700 text-lg">{t3(DHIS2_DATA_IMPORT_TITLE)}</div>
           <StepperChipsWithTitles stepper={stepper} labels={stepLabels} />
         </div>
       }
@@ -595,17 +677,13 @@ export function Dhis2Wizard(
       <div class="ui-pad min-h-[24rem]">
         <Show when={currentStepKind() === "credentials"}>
           <Dhis2StepCredentials
-            storedCredentials={schedulingData()?.storedCredentials}
-            encryptionKeyConfigured={
-              schedulingData()?.encryptionKeyConfigured ?? true
-            }
+            storedCredentials={credentialsInfo().storedCredentials}
+            encryptionKeyConfigured={credentialsInfo().encryptionKeyConfigured}
             editing={editingCreds}
             setEditing={setEditingCreds}
             credentials={credentials}
             setCredentials={setCredentials}
-            onSaved={async () => {
-              await p.schedulingQuery.silentFetch();
-            }}
+            onSaved={refreshCredentialsInfo}
             unsavedEditorHint={t3({
               en: "You can also continue without saving — these credentials will only be used for this run.",
               fr: "Vous pouvez aussi continuer sans enregistrer — ces identifiants ne seront utilisés que pour cette importation.",
@@ -617,7 +695,8 @@ export function Dhis2Wizard(
           <Dhis2StepIndicators
             selectedIds={selectedIndicators}
             setSelectedIds={setSelectedIndicators}
-            onDictionaryLoaded={setDictionary}
+            onDictionaryLoaded={handleDictionaryLoaded}
+            seedDrops={seedDrops()}
             refusal={indicatorsRefusal()}
           />
         </Show>

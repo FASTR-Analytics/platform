@@ -194,7 +194,7 @@ export function DatasetHmisImports(p: Props) {
   async function openWizard(entry: Dhis2WizardEntry) {
     const res = await openComponent({
       element: Dhis2Wizard,
-      props: { entry, runsQuery: runs, schedulingQuery: scheduling },
+      props: { entry },
     });
     if (res) {
       setTab(res.landedTab);
@@ -278,9 +278,6 @@ export function DatasetHmisImports(p: Props) {
     await refresh();
   }
 
-  // The wizard reads schedulingQuery.state() to seed its initial signals
-  // (stored-connection toggle, credentials prefill): the New-import button
-  // waits for readiness so it never seeds from "not loaded yet".
   const schedulingReady = () => scheduling.state().status === "ready";
 
   function tabItems(): ListItem<TabId>[] {
@@ -331,7 +328,6 @@ export function DatasetHmisImports(p: Props) {
               <Button
                 onClick={() => openWizard({ kind: "new" })}
                 iconName="databaseImport"
-                disabled={!schedulingReady()}
               >
                 {t3({ en: "New DHIS2 import", fr: "Nouvelle importation DHIS2", pt: "Nova importação DHIS2" })}
               </Button>

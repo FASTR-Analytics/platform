@@ -447,7 +447,22 @@ callback re-parses the new bytes).
   auto-selection, with a Skip entry; counts of mapped, skipped and
   undecided values; Next and the launch refuse while any value is undecided,
   an indicator is chosen for two values, or every value is skipped), both
-  with the launch-or-queue fork. A run
+  with the launch-or-queue fork. The DHIS2 wizard has two hosts, the
+  imports view and the indicator manager's "Import HMIS data from DHIS2"
+  bulk action (S5), and takes only its entry from either: it fetches the
+  stored connection itself (`getInstanceDhis2CredentialsInfo`, the
+  results-package wizard's shape: an outer query whose loading and error
+  frames draw the modal at the wizard's width and title, an inner component
+  seeded from the data, which refreshes the info through the credentials
+  step's own save rather than the outer query, whose remount would wipe
+  the selection), and reads the Start-vs-Queue fork from the SSE summary's
+  `hmisImportRunActive`, live in every host. A `new` entry may carry
+  `indicatorIds` to preselect; every seeded selection (those ids, or a
+  stored schedule's) drops the ids the picker does not list, Uploaded
+  indicators and ids no longer in the dictionary, once when the dictionary
+  first loads, and the Indicators step names each with its reason above
+  the table. The imports view's `refresh()` on the wizard's result is what
+  refetches its runs and schedules after a launch. A run
   detail's
   Version row opens the version's `_import_information.tsx`, whose
   period-indicator list labels each data id through the dictionary and
@@ -528,6 +543,9 @@ dataset version stamps the manifest records. No project table is written.
   (`dataset_*_import_runs.ts`) still live in `server/db/instance/` and spawn
   Web Workers (the directory lie survived the consolidation; the fixed
   staging-table names did not).
+- The CSV wizard still takes the imports view's `runsQuery` for its
+  Start-vs-Queue fork; the DHIS2 wizard reads the SSE summary's
+  `hmisImportRunActive` instead and takes nothing from its host.
 - **Decoupling: dual CSV parsers.** papaparse vs panther `parseCSV`; evaluate
   consuming panther's `_100_csv`/`_232_csv` (panther's modules are whole-string
   today. Adoption would mean adding streaming there first).
