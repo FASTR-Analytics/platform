@@ -12,7 +12,7 @@ as follow-ons and not done here: a heat map by admin area, which needs a
 server read the ledger cannot give, and hover on the line graph, which is
 panther work.
 
-**Next step: Review 3.** Each session sets this line in its final commit. Its
+**Next step: Fix 3.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N`; after step 3's review passes the
 file is deleted instead of advanced.
 
@@ -461,3 +461,26 @@ Append-only, newest last.
 - Step 3 built. The site commit is "HMIS docs: the data page's
   Visualization and Ledger tabs, and three import tabs" in
   `wb-fastr-site` on `main`.
+- Step 3, review finding: `SYSTEM_06_ingestion.md` line 310 still says
+  "the run detail and the By-indicator tab show the count" of skipped
+  values. That tab no longer exists; the count is in the HMIS Data page's
+  Ledger table (`_ledger_table.tsx`, "Skipped values" column). The file is
+  in step 3's Surface for exactly this kind of sentence.
+- Step 3, review finding: `wb-fastr-site/src/content/docs/admin-guide/data-hmis.md`
+  line 53 and its `fr/` twin line 53, a sentence this step rewrote, say the
+  sidebar's **Imports** button shows "If your account has permission to
+  configure data". The code shows the whole sidebar (Imports and Delete
+  data) only under `instanceState.currentUserIsGlobalAdmin`
+  (`client/src/components/instance_dataset_hmis/index.tsx` line 293), so a
+  user with `can_configure_data` who is not a global admin sees the page
+  with no Imports button. The site sentence must match the code's gate.
+- Step 3, review: the floor is green at `3c91841e` (`deno task typecheck`
+  including `lint:systems`, `deno task test` 133 passed,
+  `./validate_protocols` 0 tier-1 / 0 new tier-2 / 17 baselined); step 3's
+  grep gate is at zero, `deno task build:help-buttons` leaves the tree
+  unchanged, and steps 1 and 2's gates stay at zero. `./run` was not
+  started (Tim's dev server holds 8000 and 3000); the running Vite server
+  returned 200 for `index.tsx`. Both commits stay within the Surface, and
+  neither site page has an em-dash. The rest of the new section matches
+  the code and its en/fr labels.
+- Step 3 reviewed: 2 findings.
