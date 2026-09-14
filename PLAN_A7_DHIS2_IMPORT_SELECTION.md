@@ -12,7 +12,7 @@ server already expands a selection of indicators to the DHIS2 elements
 it fetches, and A7 puts that expansion in front of the user before launch
 instead of after.
 
-**Next step: Review 3.** Each session sets this line in its final commit. Its
+**Next step: Review 4.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N`; after step 4's review passes the
 file is deleted instead of advanced.
 
@@ -511,3 +511,17 @@ first Do session added it, as PROTOCOL_ALL_PLANS.md requires one.
   confusion ruling 8 removes, so they now say "added". The naming row's
   field keeps its code name `importedAs` (§6, no stored or code rename).
 - Step 3 built. One commit.
+- Step 3 reviewed: 4 findings. The run detail's DHIS2-indicator note
+  still called adding indicators an "import"; the Indicators caption and
+  the Review heading said "DHIS2 element indicators" where "DHIS2
+  elements" (the type) is exact and matches the site text; the naming
+  step's heading called DHIS2's objects "DHIS2 elements" while the search
+  results call them "Data element"; one lib comment kept the hyphen.
+- Step 3 fixed. One commit.
+- Step 4: the site text was run through a writing review; it flagged
+  "does not resolve" (now "refers to an indicator FASTR cannot find"),
+  "population terms" (now "population figures used in a formula") and
+  "DHIS2 element indicators" (now "DHIS2 elements"), plus French grammar.
+  The app's Indicators caption and Review heading were aligned to the
+  same wording in Fix 3.
+- Step 4 built. One commit here, one in wb-fastr-site.

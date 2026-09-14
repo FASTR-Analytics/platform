@@ -138,9 +138,9 @@ export const HELP_TARGETS = {
   },
   "ind-dhis2-import": {
     page: "admin-guide/indicators",
-    anchor: { en: "importing-from-dhis2", fr: "importer-depuis-dhis2" },
-    title: { en: "Importing from DHIS2", fr: "Importer depuis DHIS2" },
-    summary: { en: "Click Import from DHIS2 to add data elements from your DHIS2 server. FASTR uses the instance's stored connection; Change connection lets you use another one. Search by name, code or id. The results…", fr: "Cliquez sur Importer depuis DHIS2 pour ajouter des éléments de données depuis votre serveur DHIS2. FASTR utilise la connexion enregistrée de l'instance ; Modifier la connexion permet d'en utiliser…" },
+    anchor: { en: "adding-indicators-from-dhis2", fr: "ajouter-des-indicateurs-depuis-dhis2" },
+    title: { en: "Adding indicators from DHIS2", fr: "Ajouter des indicateurs depuis DHIS2" },
+    summary: { en: "Click Add indicators from DHIS2 to add data elements from your DHIS2 server to the list as DHIS2 elements. FASTR uses the instance's stored connection; Change connection lets you use another one.…", fr: "Cliquez sur Ajouter des indicateurs depuis DHIS2 pour ajouter des éléments de données de votre serveur DHIS2 à la liste, sous forme d'éléments DHIS2. FASTR utilise la connexion enregistrée de…" },
   },
   "ind-include": {
     page: "admin-guide/indicators",
