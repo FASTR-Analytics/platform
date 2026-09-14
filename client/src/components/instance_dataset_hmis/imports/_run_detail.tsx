@@ -339,9 +339,9 @@ export function Dhis2RunDetail(
                     </div>
                     <div class="text-sm">
                       {t3({
-                        en: "These IDs are DHIS2 indicators (formulas). The importer reads only data elements and operands, so every selected month failed without a fetch and will keep failing; existing data is kept. Re-create each one through the DHIS2 indicator import in the indicator configuration, which decomposes the formula into its data elements.",
-                        fr: "Ces ID sont des indicateurs DHIS2 (des formules). L'importation ne lit que les éléments de données et les opérandes : chaque mois sélectionné a échoué sans récupération et continuera d'échouer ; les données existantes sont conservées. Recréez chacun d'eux via l'import d'indicateurs DHIS2 dans la configuration des indicateurs, qui décompose la formule en ses éléments de données.",
-                        pt: "Estes IDs são indicadores DHIS2 (fórmulas). A importação lê apenas elementos de dados e operandos, pelo que todos os meses selecionados falharam sem obtenção e continuarão a falhar; os dados existentes são mantidos. Recrie cada um através da importação de indicadores DHIS2 na configuração dos indicadores, que decompõe a fórmula nos seus elementos de dados.",
+                        en: "These IDs are DHIS2 indicators (formulas). The importer reads only data elements and operands, so every selected month failed without a fetch and will keep failing; existing data is kept. Re-create each one with Add indicators from DHIS2 in the indicator list, which decomposes the formula into its data elements.",
+                        fr: "Ces ID sont des indicateurs DHIS2 (des formules). L'importation ne lit que les éléments de données et les opérandes : chaque mois sélectionné a échoué sans récupération et continuera d'échouer ; les données existantes sont conservées. Recréez chacun d'eux avec Ajouter des indicateurs depuis DHIS2 dans la liste des indicateurs, qui décompose la formule en ses éléments de données.",
+                        pt: "Estes IDs são indicadores DHIS2 (fórmulas). A importação lê apenas elementos de dados e operandos, pelo que todos os meses selecionados falharam sem obtenção e continuarão a falhar; os dados existentes são mantidos. Recrie cada um com Adicionar indicadores do DHIS2 na lista de indicadores, que decompõe a fórmula nos seus elementos de dados.",
                       })}
                     </div>
                     <div class="text-sm font-mono">{dhis2IndicatorIds.join(", ")}</div>

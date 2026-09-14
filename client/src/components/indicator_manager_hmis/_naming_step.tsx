@@ -239,7 +239,7 @@ export function NamingStep(p: {
       <Show when={p.state.elements.length > 0}>
         <div class="ui-spy-sm">
           <div class="font-700">
-            {t3({ en: "DHIS2 elements", fr: "Éléments DHIS2", pt: "Elementos DHIS2" })}
+            {t3({ en: "Data elements", fr: "Éléments de données", pt: "Elementos de dados" })}
           </div>
           <div class="ui-text-caption">
             {t3({

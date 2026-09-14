@@ -512,7 +512,7 @@ export function expandIndicatorSelection(
 }
 
 // The expansion as the wizard shows it before launch (PLAN_A7 ruling 4):
-// each fetched data id joined to the DHIS2-element indicator that carries
+// each fetched data id joined to the DHIS2 element indicator that carries
 // it, so the Review can list the covered elements, plus the dropped parts
 // under the expansion's names. A thin read of `expandIndicatorSelection`;
 // the server keeps calling that directly.
