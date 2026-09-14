@@ -17,8 +17,8 @@ import { Show } from "solid-js";
 export type LedgerPeriodWindow = { min: number; max: number };
 
 type Props = {
-  // Both reads are shell-owned (this tab is remounted on every silent
-  // runs/scheduling fetch, so it must not own queries: see the shell).
+  // Both reads are page-owned (PLAN_A8 ruling 10): the table is a render
+  // over state that survives a tab switch.
   ledger: StateHolder<DatasetHmisImportLedgerItem[]>;
   // The dictionary keyed by data id, a display-only enrichment: a row whose
   // data id no indicator carries shows blank indicator columns.
@@ -42,11 +42,10 @@ type DataIdRollup = {
   items: DatasetHmisImportLedgerItem[];
 };
 
-// Import history pivoted by data id (the ledger's key, PLAN_A5 ruling 9):
-// one row per data id across the dataset's period window, labelled through
-// the dictionary, click-through to the per-month detail. Same history as
-// the History tab, different axis.
-export function Dhis2TabByIndicator(p: Props) {
+// The import ledger pivoted by data id (its key, PLAN_A5 ruling 9): one row
+// per data id across the dataset's period window, labelled through the
+// dictionary, click-through to the per-month detail.
+export function LedgerTable(p: Props) {
   const indicatorOf = (item: DataIdRollup) => p.indicatorsByDataId.get(item.dataId);
   const dhis2IdOf = (item: DataIdRollup) =>
     indicatorOf(item)?.definition.type === "dhis2_element" ? item.dataId : undefined;

@@ -407,30 +407,37 @@ the slot's direct `onChange` callback (never an effect on the fileName
 signal: re-uploading the same name leaves the signal unchanged, and only the
 callback re-parses the new bytes).
 
-- **HMIS** (`instance_dataset_hmis/imports/`): Current / Future / History /
-  By indicator tabs (SSE summary fields as the wake-up signal, routed through
-  the shell's `refresh()`). The shell owns every read. The tabs are
+- **HMIS** (`instance_dataset_hmis/`): the HMIS Data page has two tabs,
+  Visualization and Ledger (PLAN_A8). The page owns every read and the
+  view state (the tab, the display-info holder, the `vizConfig` store and
+  the ledger rows); the tab bodies are renders over it, so a tab switch is
+  never a fetch. Visualization is `dataset_items_holder.tsx`'s
+  `DatasetDisplayPresentation` over the display cache below, its rows read
+  under `indicator_common_id`, the server column. Ledger is
+  `_ledger_table.tsx`: the import ledger pivoted by data id (its key),
+  each row labelled through the T2 indicators cache (indicator id and
+  label beside a "DHIS2 id" column that shows the key only under a DHIS2
+  element; an Uploaded indicator's key is opaque and never shown, PLAN_A6
+  ruling 1), click-through to a per-month detail
+  (`_ledger_indicator_detail.tsx`, headed the same way). The ledger is a
+  full-table read, a page-level `createSignal<StateHolder>` + `createEffect`
+  fetched on mount and again on `datasetVersions.hmis` or
+  `hmisImportRunActive`; stale rows stay visible until fresh ones arrive.
+  "Re-import this indicator" closes the detail with a pair list and "Retry
+  failed pairs" hands the table's pair list to the page; both open the
+  DHIS2 wizard's `presetPairs` entry from the page, and a result shows a
+  dismissible notice pointing at Imports (the manager's `importNotice`
+  shape). The imports view (`instance_dataset_hmis/imports/`) has Current /
+  Future / History tabs (SSE summary fields as the wake-up signal, routed
+  through the shell's `refresh()`). The shell owns every read. The tabs are
   stateless: panther's `StateHolderWrapper` keys its ready branch on the data
   object, so every silent runs/scheduling fetch (the 2 s poll included)
   remounts the tab area, and a tab-owned query would refetch on every poll.
-  The ledger is a full-table read, so it is a shell-level
-  `createSignal<StateHolder>` + `createEffect` fetched only while the
-  By indicator tab is showing (every switch to it, and every `refresh()` /
-  toolbar refresh via a `ledgerVersion` signal; stale rows stay visible until
-  fresh ones arrive). By indicator is the import ledger: import history
-  pivoted by data id (the ledger's key), each row labelled through the
-  dictionary (indicator id and label beside a "DHIS2 id" column that shows
-  the key only under a DHIS2 element; an Uploaded indicator's key is opaque
-  and never shown, PLAN_A6 ruling 1), click-through to a per-month detail
-  (`_ledger_indicator_detail.tsx`, headed the same way). The staging
-  summary the hold and the run detail render lists rows under skipped
-  values as a statistic beside the row counts, never as a validation
-  issue.
-  "Re-import this indicator" closes the detail with a pair list and "Retry
-  failed pairs" hands the tab's pair list to the shell; both feed the
-  wizard's `presetPairs` entry, the same contract as History → run detail
-  (a cancelled wizard lands on the tab, not back in the detail, same as run
-  detail; accepted). Two wizards: DHIS2 (credentials/indicators/time/
+  The staging summary the hold and the run detail render lists rows under
+  skipped values as a statistic beside the row counts, never as a
+  validation issue. A run detail's failed pairs feed the wizard's
+  `presetPairs` entry from the shell (a cancelled wizard lands on the tab,
+  not back in the detail; accepted). Two wizards: DHIS2 (credentials/indicators/time/
   config/review; the Indicators step picks from the dictionary list
   without its Uploaded rows, which a DHIS2 import cannot fetch, over a
   search box and a selected count (S5), and
@@ -448,9 +455,10 @@ callback re-parses the new bytes).
   auto-selection, with a Skip entry; counts of mapped, skipped and
   undecided values; Next and the launch refuse while any value is undecided,
   an indicator is chosen for two values, or every value is skipped), both
-  with the launch-or-queue fork. The DHIS2 wizard has two hosts, the
-  imports view and the indicator manager's "Import HMIS data from DHIS2"
-  bulk action (S5), and takes only its entry from either: it fetches the
+  with the launch-or-queue fork. The DHIS2 wizard has three hosts, the
+  imports view, the HMIS Data page's Ledger tab and the indicator manager's
+  "Import HMIS data from DHIS2" bulk action (S5), and takes only its entry
+  from any of them: it fetches the
   stored connection itself (`getInstanceDhis2CredentialsInfo`, the
   results-package wizard's shape: an outer query whose loading and error
   frames draw the modal at the wizard's width and title, an inner component

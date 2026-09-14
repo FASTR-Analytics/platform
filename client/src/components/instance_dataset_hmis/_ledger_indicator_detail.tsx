@@ -16,7 +16,7 @@ import {
   type TableColumn,
 } from "panther";
 import { indicatorNameText } from "~/components/indicator_manager_hmis/_indicator_display";
-import { importRouteLabel, type LedgerPeriodWindow } from "./_tab_by_indicator";
+import { importRouteLabel, type LedgerPeriodWindow } from "./_ledger_table";
 
 type MonthRow = {
   periodId: number;
@@ -25,7 +25,7 @@ type MonthRow = {
 
 // The per-data-id ledger surface: every month in the window with its
 // import status, headed by the indicator under that data id. Closes with a
-// pair list when the user asks to re-import it; the shell feeds it to the
+// pair list when the user asks to re-import it; the page feeds it to the
 // wizard's presetPairs entry (same contract as Dhis2RunDetail).
 export function ImportLedgerIndicatorDetail(
   p: EditorComponentProps<

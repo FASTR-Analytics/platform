@@ -1,8 +1,9 @@
 # PLAN A8: the HMIS Data page has a Visualization tab and a Ledger tab
 
-Status: DRAFT. Written 2026-09-14 from Tim's rulings in discussion. The
-rulings marked *(proposed)* in §3 are the drafter's and stand unless Tim
-overrules them in §3 before `Do 1`. Follows PLAN_A7, closed 2026-09-14 at
+Status: APPROVED 2026-09-14, after a review against the code that found
+ruling 13. Written 2026-09-14 from Tim's rulings in discussion. The
+rulings marked *(proposed)* in §3 are the drafter's and stand, Tim having
+read them before `Do 1`. Follows PLAN_A7, closed 2026-09-14 at
 `8f7ef29d`. A8 gives the HMIS Data page two tabs: Visualization, the
 existing line graph plus a new presence heat map, and Ledger, the By
 indicator table moved out of the imports view. It changes no route, no
@@ -11,7 +12,7 @@ as follow-ons and not done here: a heat map by admin area, which needs a
 server read the ledger cannot give, and hover on the line graph, which is
 panther work.
 
-**Next step: Do 1.** Each session sets this line in its final commit. Its
+**Next step: Review 1.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N`; after step 3's review passes the
 file is deleted instead of advanced.
 
@@ -28,7 +29,7 @@ and "Display caches"); [SYSTEM_05](SYSTEM_05_facilities_indicators.md)
 (`DatasetDisplayPresentation`, the `vizConfig` store and the
 `figureInputs` memo);
 `client/src/components/instance_dataset_hmis/imports/index.tsx` (the
-ledger signal, `openIndicatorDetail`, `retryFailedPairs`);
+ledger signal at lines 134-165, `openIndicatorDetail`, `retryFailedPairs`);
 `client/src/components/instance_dataset_hmis/imports/_tab_by_indicator.tsx`;
 `client/src/components/instance_dataset_hmis/imports/_ledger_indicator_detail.tsx`;
 `client/src/components/indicator_manager_hmis/indicators_manager.tsx`
@@ -78,7 +79,7 @@ the other view of the same data.
 - **The By indicator tab** of the imports view
   (`imports/_tab_by_indicator.tsx`) reads the same ledger through the
   shell's `getDatasetHmisImportLedger` (`imports/index.tsx` lines
-  109-142): one row per data id with months with data, last import and
+  134-165): one row per data id with months with data, last import and
   route, failed months and skipped values, a per-month detail
   (`_ledger_indicator_detail.tsx`) and two actions that open the DHIS2
   wizard with preset pairs ("Re-import this indicator", "Retry failed
@@ -170,7 +171,7 @@ primitives, and this plan does not touch panther.
    its detail and its two actions, columns, default sort and the DHIS2-id
    rule unchanged. (Tim.)
 7. **The page owns the ledger read** *(proposed)*: a signal-and-effect in
-   the imports shell's shape (`imports/index.tsx` lines 113-142), fetched
+   the imports shell's shape (`imports/index.tsx` lines 134-165), fetched
    once when the page mounts and refetched on
    `instanceState.datasetVersions.hmis` and
    `instanceState.hmisImportRunActive` (deferred), never on a tab switch.
@@ -200,12 +201,23 @@ primitives, and this plan does not touch panther.
     the page's two tabs and the imports view's three; the site's HMIS data
     page gains a section on viewing the data and stops naming a By
     indicator tab under imports.
+13. **The explorer reads `vizItems` rows under `indicator_common_id`.**
+    PLAN_A5 step 1 (`728ec361`) renamed the server column from
+    `indicator_id` to `indicator_common_id` (`dataset_hmis.ts` line 377)
+    and left the client on `indicator_id`
+    (`dataset_items_holder.tsx` lines 113, 164 and 188), so today every
+    row's series is undefined and deselecting one indicator filters out
+    all rows. The fix is the three client keys, in step 1, when the
+    holder is already being split; the server payload stays as it is
+    (ruling 9). (Found in the pre-`Do 1` review; Tim confirmed the
+    explorer is broken.)
 
 ## 4. Steps
 
 ### Step 1: The Ledger tab
 
 **Surface.** `client/src/components/instance_dataset_hmis/index.tsx`;
+`client/src/components/instance_dataset_hmis/dataset_items_holder.tsx`;
 `client/src/components/instance_dataset_hmis/_ledger_table.tsx` (moved
 from `imports/_tab_by_indicator.tsx`);
 `client/src/components/instance_dataset_hmis/_ledger_indicator_detail.tsx`
@@ -223,17 +235,19 @@ fed by a page-owned read (ruling 7) and labelled through the T2
 indicators cache (ruling 11), with the detail opened through the page's
 `openEditor` and the two actions opening the wizard with a notice on a
 result (ruling 8). The tab, the ledger rows and the explorer's holder are
-page state (ruling 10); in this step the explorer's own fetch and
-`vizConfig` may stay inside `dataset_items_holder.tsx` only if the body
-stays mounted across tab switches, otherwise they move up now. The imports view has three tabs, no ledger
+page state (ruling 10); the tab bodies mount under a `Switch`, so the
+explorer's fetch and `vizConfig` move up to the page in this step and
+the holder becomes presentational, and its three `indicator_id` keys
+become `indicator_common_id` (ruling 13). The imports view has three tabs, no ledger
 signal, no `ledgerVersion`, and `refresh()` refetches runs and scheduling
 only; `byDataId` stays for Current and the run detail. SYSTEM_06's HMIS
 Client bullet says where the ledger view lives and what refetches it.
 
-**Not in this step.** Any change inside the explorer (step 2). The site
-(step 3).
+**Not in this step.** Any change inside the explorer beyond the split
+and ruling 13 (step 2). The site (step 3).
 
 **Gates.** The floor. `grep -rn "by_indicator\|Dhis2TabByIndicator\|ledgerVersion" client/src`
+at zero. `grep -c '"indicator_id"' client/src/components/instance_dataset_hmis/dataset_items_holder.tsx`
 at zero.
 
 **Ends with.** One commit.
@@ -244,10 +258,7 @@ at zero.
 `client/src/components/instance_dataset_hmis/_presence_heat_map.tsx` (new);
 `SYSTEM_06_ingestion.md` prose; this file.
 
-**Deliverable.** The display-info fetch and the `vizConfig` store move
-up to the page if step 1 left them in the holder (ruling 10), the holder
-becoming a presentational component over the holder state and the store.
-The `vizConfig` store's `figureType` becomes `"line" |
+**Deliverable.** The `vizConfig` store's `figureType` becomes `"line" |
 "heat_map"` with the radio relabelled; the table branch of the
 `figureInputs` memo is gone (ruling 2); the heat map component takes the
 filtered `vizItems`, the label replacements and a `"month" | "year"`
@@ -341,3 +352,27 @@ cache or a stored JSON shape, so there is nothing to back up.
 ## 8. Build log
 
 Append-only, newest last.
+
+- Step 1, ruling 10: the explorer's fetch and `vizConfig` moved up to the
+  page in this step (the tab bodies mount under a `Switch`, so leaving them
+  in the holder would reset the selection on every switch). The store's
+  `indicators` is set to every indicator each time display info arrives,
+  as the old remount did.
+- Step 1, ruling 7: the ledger effect is `on([datasetVersions.hmis,
+  hmisImportRunActive])` without `defer`, so the mount fetch and the
+  refetches are one effect.
+- Step 1, ruling 8: the notice has the manager's two variants (started →
+  Current, scheduled → Future), with "HMIS data, Imports" shortened to
+  "Imports" since the reader is on the page.
+- Step 1, choice: the tabs render outside the page's "No data" guard, which
+  now wraps only the Visualization body, so Ledger and "Retry failed pairs"
+  stay reachable when every pair of an import failed and no version exists.
+- Step 1, ruling 13: the three `indicator_id` keys in
+  `dataset_items_holder.tsx` are `indicator_common_id`.
+- Step 1, fact: `SYSTEM_05_facilities_indicators.md` line 287 still names
+  "the ledger's By indicator column"; the file is step 3's surface, so it
+  waits for step 3.
+- Step 1, floor: `./run` was not started because Tim's dev server already
+  held ports 8000 and 3000; the running Vite server transformed every
+  changed module (HTTP 200) and the server answered on 8000.
+- Step 1 built.

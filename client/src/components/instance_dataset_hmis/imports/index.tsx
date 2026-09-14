@@ -1,9 +1,7 @@
 import {
   t3,
-  type DatasetHmisImportLedgerItem,
   type DatasetHmisImportRunSummary,
   type DatasetHmisScheduledImport,
-  type Dhis2RunPairInput,
   type HmisIndicator,
 } from "lib";
 import {
@@ -17,7 +15,6 @@ import {
   getEditorWrapper,
   openComponent,
   type ListItem,
-  type StateHolder,
 } from "panther";
 import {
   For,
@@ -34,18 +31,10 @@ import {
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { Dhis2ManageConnection } from "~/components/_shared/dhis2_credentials/manage_connection";
-import {
-  indicatorsByDataId,
-  indicatorNameText,
-} from "~/components/indicator_manager_hmis/_indicator_display";
+import { indicatorsByDataId } from "~/components/indicator_manager_hmis/_indicator_display";
 import { CsvRunDetail } from "./_csv_run_detail";
 import { CsvWizard } from "./_csv_wizard";
-import { ImportLedgerIndicatorDetail } from "./_ledger_indicator_detail";
 import { Dhis2RunDetail } from "./_run_detail";
-import {
-  Dhis2TabByIndicator,
-  type LedgerPeriodWindow,
-} from "./_tab_by_indicator";
 import { Dhis2TabCurrent } from "./_tab_current";
 import { Dhis2TabFuture, visibleFutureSchedules } from "./_tab_future";
 import { Dhis2TabHistory } from "./_tab_history";
@@ -53,7 +42,7 @@ import { Dhis2Wizard, type Dhis2WizardEntry } from "./_wizard";
 
 type Props = EditorComponentProps<{}, undefined>;
 
-type TabId = "current" | "future" | "history" | "by_indicator";
+type TabId = "current" | "future" | "history";
 
 function runningRunOf(
   items: DatasetHmisImportRunSummary[],
@@ -99,10 +88,10 @@ function nextScheduleOf(
   return oneShots[0] ?? enabled.find((s) => s.kind === "recurring");
 }
 
-// The unified imports surface: a thin tab shell (Current / Future / History
-// / By indicator) plus one wizard per import kind (DHIS2 runs, CSV file
-// runs).
-// The shell owns all data plumbing (the runs, scheduling, ledger and
+// The unified imports surface: a thin tab shell (Current / Future / History)
+// plus one wizard per import kind (DHIS2 runs, CSV file runs). The ledger
+// view is the HMIS Data page's Ledger tab (PLAN_A8).
+// The shell owns all data plumbing (the runs, scheduling and
 // indicator-label reads, the poll loop, the SSE wake-up effect) so a run
 // keeps progressing even while the user sits on a different tab. Nothing
 // under the two StateHolderWrappers may own a query: their ready branch is
@@ -130,45 +119,8 @@ export function DatasetHmisImports(p: Props) {
 
   const [tab, setTab] = createSignal<TabId>("current");
 
-  // The ledger is a full-table read (one row per data id × month), so it is
-  // fetched only while the By-indicator tab is showing: on every switch to it
-  // and on every refresh() while it is showing. Stale rows stay visible until
-  // the fresh ones arrive (no loading flash on refetch).
-  const [ledger, setLedger] = createSignal<
-    StateHolder<DatasetHmisImportLedgerItem[]>
-  >({
-    status: "loading",
-    msg: t3({
-      en: "Loading import status...",
-      fr: "Chargement de l'état des importations...",
-      pt: "A carregar o estado das importações...",
-    }),
-  });
-  const [ledgerVersion, setLedgerVersion] = createSignal(0);
-  createEffect(() => {
-    ledgerVersion();
-    const showing = tab() === "by_indicator";
-    if (!showing) {
-      return;
-    }
-    const controller = new AbortController();
-    onCleanup(() => controller.abort());
-    async function load() {
-      const res = await serverActions.getDatasetHmisImportLedger({});
-      if (controller.signal.aborted) {
-        return;
-      }
-      setLedger(
-        res.success
-          ? { status: "ready", data: res.data }
-          : { status: "error", err: res.err },
-      );
-    }
-    void load();
-  });
-
-  // The dictionary keyed by data id labels the ledger, the run progress and
-  // the run detail, whose rows carry data ids (PLAN_A5 ruling 9). A
+  // The dictionary keyed by data id labels the run progress and the run
+  // detail, whose rows carry data ids (PLAN_A5 ruling 9). A
   // display-only enrichment: blank until ready rather than gating the
   // tables behind it.
   const indicators = createQuery(() => serverActions.getIndicators({}));
@@ -216,7 +168,6 @@ export function DatasetHmisImports(p: Props) {
   async function refresh() {
     await runs.silentFetch();
     await scheduling.silentFetch();
-    setLedgerVersion((v) => v + 1);
   }
 
   async function openWizard(entry: Dhis2WizardEntry) {
@@ -263,41 +214,6 @@ export function DatasetHmisImports(p: Props) {
     }
   }
 
-  async function openIndicatorDetail(
-    dataId: string,
-    items: DatasetHmisImportLedgerItem[],
-    periodWindow: LedgerPeriodWindow,
-  ) {
-    const indicator = byDataId().get(dataId);
-    const pairs = await openEditor({
-      element: ImportLedgerIndicatorDetail,
-      props: { dataId, indicator, items, window: periodWindow },
-    });
-    if (pairs && pairs.length > 0) {
-      await openWizard({
-        kind: "presetPairs",
-        pairs,
-        label: `${t3({
-          en: "Re-importing",
-          fr: "Réimportation de",
-          pt: "A reimportar",
-        })} ${indicator ? indicatorNameText(indicator) : dataId}:`,
-      });
-    }
-  }
-
-  async function retryFailedPairs(pairs: Dhis2RunPairInput[]) {
-    await openWizard({
-      kind: "presetPairs",
-      pairs,
-      label: t3({
-        en: "Retrying all failed pairs:",
-        fr: "Nouvelle tentative pour toutes les paires en échec :",
-        pt: "Nova tentativa para todos os pares falhados:",
-      }),
-    });
-  }
-
   async function openManageConnection() {
     await openComponent({
       element: Dhis2ManageConnection,
@@ -338,14 +254,6 @@ export function DatasetHmisImports(p: Props) {
       {
         id: "history",
         label: t3({ en: "History", fr: "Historique", pt: "Histórico" }),
-      },
-      {
-        id: "by_indicator",
-        label: t3({
-          en: "By indicator",
-          fr: "Par indicateur",
-          pt: "Por indicador",
-        }),
       },
     ];
   }
@@ -404,7 +312,6 @@ export function DatasetHmisImports(p: Props) {
                 onClick={async () => {
                   await runs.fetch();
                   await scheduling.silentFetch();
-                  setLedgerVersion((v) => v + 1);
                 }}
               />
             </div>
@@ -504,14 +411,6 @@ export function DatasetHmisImports(p: Props) {
                             r.status !== "needs_review",
                         )}
                         onOpenRun={openRunDetail}
-                      />
-                    </Match>
-                    <Match when={tab() === "by_indicator"}>
-                      <Dhis2TabByIndicator
-                        ledger={ledger()}
-                        indicatorsByDataId={byDataId()}
-                        onOpenIndicator={openIndicatorDetail}
-                        onRetryFailedPairs={retryFailedPairs}
                       />
                     </Match>
                   </Switch>

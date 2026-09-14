@@ -3,7 +3,6 @@ import {
   getAbcQualScale,
   getCalendar,
   t3,
-  type StructureSchema,
 } from "lib";
 import {
   FigureInputs,
@@ -17,111 +16,43 @@ import {
   toNum0,
   type CustomFigureStyleOptions,
 } from "panther";
-import { Show, createEffect, createMemo, createSignal } from "solid-js";
-import { createStore } from "solid-js/store";
-import { getDatasetHmisDisplayInfoFromCacheOrFetch } from "~/state/instance/t2_datasets";
-import { instanceState } from "~/state/instance/t1_store";
+import { Show, createMemo } from "solid-js";
+import type { SetStoreFunction } from "solid-js/store";
+
+export type VizConfig = {
+  value: "count" | "sum";
+  figureType: "table" | "chart";
+  indicators: string[];
+};
 
 type Props = {
-  versionId: number;
-  countIndicatorsVersion: string;
-  structureSchema: StructureSchema;
+  displayItems: ItemsHolderDatasetHmisDisplay;
+  vizConfig: VizConfig;
+  setVizConfig: SetStoreFunction<VizConfig>;
 };
 
 // One view, by the indicators that have rows (PLAN_A4 ruling 8): sums have
-// no rows and do not appear; their totals are in packages.
-export function DatasetItemsHolder(p: Props) {
-  const [itemsHolder, setItemsHolder] = createSignal<
-    StateHolder<ItemsHolderDatasetHmisDisplay>
-  >({
-    status: "loading",
-    msg: t3({
-      en: "Fetching data...",
-      fr: "Récupération des données...",
-      pt: "A obter dados...",
-    }),
-  });
-
-  async function attemptGetDatatable(
-    versionId: number,
-    countIndicatorsVersion: string,
-  ) {
-    setItemsHolder({
-      status: "loading",
-      msg: t3({
-        en: "Fetching data...",
-        fr: "Récupération des données...",
-        pt: "A obter dados...",
-      }),
-    });
-    const res = await getDatasetHmisDisplayInfoFromCacheOrFetch(
-      versionId,
-      countIndicatorsVersion,
-      p.structureSchema,
-      instanceState.structureLastUpdated,
-      instanceState.hmisImportRunActive,
-    );
-    if (res.success === false) {
-      setItemsHolder({ status: "error", err: res.err });
-      return;
-    }
-    // if (res.data.vizItems.length === 0) {
-    //   setItemsHolder({
-    //     status: "error",
-    //     err: "There is no data to display. Import some data.",
-    //   });
-    //   return;
-    // }
-    setItemsHolder({
-      status: "ready",
-      data: res.data,
-    });
-  }
-
-  createEffect(() => {
-    attemptGetDatatable(p.versionId, p.countIndicatorsVersion);
-  });
-
-  return (
-    <StateHolderWrapper state={itemsHolder()}>
-      {(keyedDatasetItems) => {
-        return (
-          <DatasetDisplayPresentation displayItems={keyedDatasetItems} />
-        );
-      }}
-    </StateHolderWrapper>
-  );
-}
-
-type DatasetDisplayPresentationProps = {
-  displayItems: ItemsHolderDatasetHmisDisplay;
-};
-
-function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
-  const [vizConfig, setVizConfig] = createStore({
-    value: "count" as "count" | "sum",
-    figureType: "chart" as "table" | "chart",
-    indicators: p.displayItems.indicators.map((ind) => ind.value),
-  });
-
+// no rows and do not appear; their totals are in packages. The page owns
+// the fetch and the store (PLAN_A8 ruling 10); this is the render over them.
+export function DatasetDisplayPresentation(p: Props) {
   const filteredVizItems = createMemo(() => {
-    const indicatorsToVizualize = vizConfig.indicators;
+    const indicatorsToVizualize = p.vizConfig.indicators;
     if (p.displayItems.indicators.length === indicatorsToVizualize.length) {
       return p.displayItems.vizItems;
     }
-    return p.displayItems.vizItems.filter((row) => {
-      return indicatorsToVizualize?.includes(row["indicator_id"]) ?? true;
-    });
+    return p.displayItems.vizItems.filter((row) =>
+      indicatorsToVizualize.includes(row["indicator_common_id"]),
+    );
   });
 
   const figureInputs = createMemo<StateHolder<FigureInputs>>(() => {
     const jsonArray = filteredVizItems();
 
-    const value = vizConfig.value;
-    const figureType = vizConfig.figureType;
+    const value = p.vizConfig.value;
+    const figureType = p.vizConfig.figureType;
 
     const showLegend =
-      vizConfig.indicators.length > 0 && vizConfig.indicators.length < 6;
+      p.vizConfig.indicators.length > 0 && p.vizConfig.indicators.length < 6;
 
     const style: CustomFigureStyleOptions = {
       surrounds: {
@@ -161,7 +92,7 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
                 valueProps: [value],
                 periodProp: "period_id",
                 periodType: "year-month",
-                seriesProp: "indicator_id",
+                seriesProp: "indicator_common_id",
                 labelReplacements: p.displayItems.indicatorLabelReplacements,
                 yScaleAxisLabel:
                   value === "count"
@@ -185,7 +116,7 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
               jsonArray,
               jsonDataConfig: {
                 valueProps: [value],
-                colProp: "indicator_id",
+                colProp: "indicator_common_id",
                 rowProp: "period_id",
                 sort: { col: "by-label", row: "by-label" },
                 labelReplacements: p.displayItems.indicatorLabelReplacements,
@@ -222,14 +153,14 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
                 }),
               },
             ]}
-            value={vizConfig.value}
-            onChange={(v) => setVizConfig("value", v as "count" | "sum")}
+            value={p.vizConfig.value}
+            onChange={(v) => p.setVizConfig("value", v as "count" | "sum")}
           />
           <RadioGroup
             label={t3({ en: "Format", fr: "Format", pt: "Formato" })}
             options={getSelectOptionsWithFirstCapital(["chart", "table"])}
-            value={vizConfig.figureType}
-            onChange={(v) => setVizConfig("figureType", v as "table" | "chart")}
+            value={p.vizConfig.figureType}
+            onChange={(v) => p.setVizConfig("figureType", v as "table" | "chart")}
           />
           <MultiSelectSearch
             label={t3({
@@ -238,8 +169,8 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
               pt: "Indicadores",
             })}
             options={p.displayItems.indicators}
-            values={vizConfig.indicators}
-            onChange={(v) => setVizConfig("indicators", v)}
+            values={p.vizConfig.indicators}
+            onChange={(v) => p.setVizConfig("indicators", v)}
             fullWidth
           />
         </div>
@@ -247,7 +178,7 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
     >
       <div class="ui-pad h-full w-full overflow-auto">
         <Show
-          when={vizConfig.indicators.length > 0}
+          when={p.vizConfig.indicators.length > 0}
           fallback={
             <span class="text-sm">
               {t3({
@@ -263,7 +194,7 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
               return (
                 <FigureHolder
                   figureInputs={keyedInputs}
-                  height={vizConfig.figureType === "chart" ? "flex" : "ideal"}
+                  height={p.vizConfig.figureType === "chart" ? "flex" : "ideal"}
                 />
               );
             }}
