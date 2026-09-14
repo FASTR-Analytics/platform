@@ -844,6 +844,26 @@
     @apply outline-none focus:outline-none focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2;
   }
 
+  /* Text whose weight toggles with state — public. The child span and a
+     hidden bold copy share one grid cell, so the cell always has the bold
+     size and a weight change never reflows siblings or adds a wrap line.
+     Size, colour and weight classes go on the wrapper so the copy inherits
+     them. Rendered by StableWeightText, which keeps data-text in sync. */
+  .ui-stable-weight {
+    display: inline-grid;
+    user-select: none;
+  }
+  .ui-stable-weight > span,
+  .ui-stable-weight::after {
+    grid-area: 1 / 1;
+  }
+  .ui-stable-weight::after {
+    content: attr(data-text);
+    font-weight: 700;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
   /* ============================================= */
   /* Intent Color Utilities                        */
   /* ============================================= */

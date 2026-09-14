@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { For } from "solid-js";
+import { StableWeightText } from "../../display/stable_weight_text.tsx";
 import type { Stepper } from "./get_stepper.ts";
 
 type StepperLabeledBreadcrumbProps = {
@@ -79,7 +80,7 @@ export function StepperLabeledBreadcrumb(p: StepperLabeledBreadcrumbProps) {
                 ? "step"
                 : undefined}
             >
-              {labelFor(step)}
+              <StableWeightText text={labelFor(step)} />
             </button>
           )}
         </For>

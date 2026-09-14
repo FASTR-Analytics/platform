@@ -92,6 +92,7 @@ export {
   openConfirm,
   Select,
   Slider,
+  StableWeightText,
   Table,
   TextArea,
 } from "../_303_components/mod.ts";

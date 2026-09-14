@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-09-14T07:03:40.090Z",
-  "pantherGitCommit": "270fbd3",
-  "pantherGitDirty": false,
+  "timestamp": "2026-09-14T11:34:24.273Z",
+  "pantherGitCommit": "563120d",
+  "pantherGitDirty": true,
   "mode": "both",
   "configName": "wb-fastr",
   "protocols": [
@@ -18,5 +18,6 @@
     "PROTOCOL_UI_COMPONENTS.md",
     "PROTOCOL_UI_STRUCTURE.md",
     "PROTOCOL_UI_AI_CHAT.md"
-  ]
+  ],
+  "exclude": []
 }

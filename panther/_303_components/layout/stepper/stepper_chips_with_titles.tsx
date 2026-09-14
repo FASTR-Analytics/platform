@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { For, Show } from "solid-js";
+import { StableWeightText } from "../../display/stable_weight_text.tsx";
 import type { Stepper } from "./get_stepper.ts";
 
 type StepperChipsWithTitlesProps = {
@@ -104,7 +105,9 @@ export function StepperChipsWithTitles(p: StepperChipsWithTitlesProps) {
             >
               <span class={chipClasses(step)}>{stepIndex}</span>
               <Show when={labelFor(step)}>
-                {(label) => <span class={labelClasses(step)}>{label()}</span>}
+                {(label) => (
+                  <StableWeightText class={labelClasses(step)} text={label()} />
+                )}
               </Show>
             </button>
           );

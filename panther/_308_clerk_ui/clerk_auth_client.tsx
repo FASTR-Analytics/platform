@@ -16,12 +16,21 @@
 // freshness machinery here. The server side judges it with _115's session
 // provider; the pair resolves the same person to the same identityKey.
 
-import { Clerk, createSignal, Match, onMount, Show, Switch } from "./deps.ts";
-import type { JSX } from "./deps.ts";
+import { createSignal, Match, onMount, Show, Switch } from "./deps.ts";
+import type { Clerk, JSX } from "./deps.ts";
 
+type ClerkInstance = InstanceType<typeof Clerk>;
 // clerk-js exports no resource types; the signed-in user's shape is derived
 // from the Clerk instance itself.
-type UserResource = NonNullable<InstanceType<typeof Clerk>["user"]>;
+type UserResource = NonNullable<ClerkInstance["user"]>;
+
+// clerk-js is ~3 MB and declares no sideEffects flag, so a static import lands
+// in every ui consumer's bundle whether or not the app ever constructs a
+// client. The dynamic import keeps it in its own chunk, fetched on first
+// construction, which for a Clerk app is at module load anyway.
+function loadClerk(publishableKey: string): Promise<ClerkInstance> {
+  return import("@clerk/clerk-js").then((m) => new m.Clerk(publishableKey));
+}
 
 export type ClerkUiUser = {
   id: string;
@@ -58,22 +67,22 @@ function mapUser(user: UserResource | null | undefined): ClerkUiUser | null {
 export function createClerkAuthClient(
   config: { publishableKey: string },
 ): ClerkAuthClient {
-  const clerk = config.publishableKey ? new Clerk(config.publishableKey) : null;
+  const clerk = config.publishableKey ? loadClerk(config.publishableKey) : null;
   const [user, setUser] = createSignal<ClerkUiUser | null>(null);
 
   async function getHeaders(): Promise<Record<string, string>> {
-    const token = await clerk?.session?.getToken();
+    const token = await (await clerk)?.session?.getToken();
     return token ? { Authorization: `Bearer ${token}` } : {};
   }
 
   async function signOut(): Promise<void> {
-    await clerk?.signOut();
+    await (await clerk)?.signOut();
   }
 
   function SignInCard() {
     let el!: HTMLDivElement;
-    onMount(() => {
-      clerk?.mountSignIn(el);
+    onMount(async () => {
+      (await clerk)?.mountSignIn(el);
     });
     return (
       <div class="flex h-full items-center justify-center">
@@ -88,9 +97,10 @@ export function createClerkAuthClient(
       if (clerk === null) {
         return;
       }
-      await clerk.load();
-      setUser(mapUser(clerk.user));
-      clerk.addListener((e) => setUser(mapUser(e.user)));
+      const instance = await clerk;
+      await instance.load();
+      setUser(mapUser(instance.user));
+      instance.addListener((e) => setUser(mapUser(e.user)));
       setLoaded(true);
     });
     return (
