@@ -141,9 +141,9 @@ function SelectionDescription(p: { description: Dhis2SelectionDescription }) {
       <Show when={p.description.populationTermsDropped.length > 0}>
         <div>
           {t3({
-            en: "Not fetched, because a population term comes from the population store:",
-            fr: "Non récupérés, car un terme de population provient du registre de population :",
-            pt: "Não obtidos, porque um termo de população provém do registo de população:",
+            en: "Not fetched, because population terms come from the Population page, not DHIS2:",
+            fr: "Non récupérés, car les termes de population proviennent de la page Population et non de DHIS2 :",
+            pt: "Não obtidos, porque os termos de população provêm da página População e não do DHIS2:",
           })}{" "}
           <span class="font-mono">
             {p.description.populationTermsDropped.join(", ")}
