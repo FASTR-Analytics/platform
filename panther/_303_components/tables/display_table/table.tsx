@@ -343,14 +343,20 @@ export function Table<
                           <Show
                             when={column.sortable}
                             fallback={
-                              <span class={`px-1.5 py-1 ${margins().label}`}>
+                              <span
+                                class={`px-1.5 py-1 ${
+                                  getCellAlignment(column.alignH)
+                                } ${margins().label}`}
+                              >
                                 {column.header}
                               </span>
                             }
                           >
                             <button
                               type="button"
-                              class={`${HEADER_BUTTON} ${margins().label}`}
+                              class={`${HEADER_BUTTON} ${
+                                getCellAlignment(column.alignH)
+                              } ${margins().label}`}
                               onClick={() => handleSort(column)}
                             >
                               {column.header}
