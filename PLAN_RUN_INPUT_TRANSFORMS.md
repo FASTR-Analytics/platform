@@ -1,8 +1,8 @@
 # PLAN: run input transforms, the input mirrors move to the transformed-forward side
 
-Status: OPEN. Rulings agreed (Tim, 2026-09-15). Not started.
+Status: OPEN. Rulings agreed (Tim, 2026-09-15). Steps 1 and 2 built.
 
-**Next step: Do 1.**
+**Next step: Review 2.**
 
 Branch: `tim-branch`. Repos: this app only.
 
@@ -526,3 +526,12 @@ Append-only, newest last.
 | 2026-09-15 | plan | Ruling 3 widened to the manifest's rule (rename or recompute from package files and app code, never the database). |
 | 2026-09-15 | plan | Review before `Do 1`, every claim verified: release 1.73.0 exists and is never rolled (§1, §7); rulings 11 to 13 added (parse before write and mirrors before manifest, shared read and persist helpers, rewrites reported in the sweep line); `indicator_catalog.ts`, `db_startup.ts` and `lib/types/indicators.ts` join step 1's surface for the two stale comments, the helpers and the sweep line; the no-write assertion is the absence of `.v10.json` retained copies; the dev packages are all v1, so `./run` proves only the stamp; step 2 amends the bold doctrine sentence; the §1 line reference is 82. |
 | 2026-09-15 | plan | Second review, verified: two "rename only" leftovers aligned with ruling 3; the manifest no-op guard (line 285, not 232 as the review said) gates the manifest write alone, stated; the reader overlay is an optional argument so `build_run_package.ts` stays outside the surface. |
+| 2026-09-15 | 1 | Built on `main`, not `tim-branch`: `tim-branch` is behind `main` and does not hold the plan file, and the standing rule commits to the current branch. |
+| 2026-09-15 | 1 | `server/tests/run_input_transform_test.ts` added to SYSTEM_08's file manifest: test files are listed by name, not by a glob, so `lint:systems` needed the entry. The step's surface said no manifest edit. |
+| 2026-09-15 | 1 | The shared read helper is `readRunInputJson` (returns bytes and parsed JSON, so the stage's byte guard needs no second read); the shared persist helper is `persistPackageFile` (path, retain label, stored and next bytes; the retained copy sits beside the file as `<stem>.v{n}.json`). |
+| 2026-09-15 | 1 | The sweep evicts the manifest cache when a mirror was rewritten as well as when the manifest was, so the rule in §4 that a later change must not leave a rewritten mirror unserved holds on the cache side too. |
+| 2026-09-15 | 1 | `./run` (server only, under a 120 s alarm): first boot `9 checked, 8 transformed, 0 input mirrors rewritten, 0 unreadable`; all nine dev packages at v10 afterwards, the ninth having been current before the boot. Second boot `9 checked, 0 transformed, 0 input mirrors rewritten`. |
+| 2026-09-15 | 1 | Step 1 built. Commit `40bc7c8e`. |
+| 2026-09-15 | 2 | §1's per-instance breakdown (6 + 3 + 1 + 1 + 1) sums to twelve while the count says eleven; the protocol section states eleven, the count the plan's first log row verified, without the breakdown. |
+| 2026-09-15 | 2 | Steps 1 and 2 built in one session on Tim's instruction ("implement"), so step 1 was not reviewed before step 2 was written. `Review 2` covers both steps' commits, from `078d1543`. |
+| 2026-09-15 | 2 | Step 2 built. |
