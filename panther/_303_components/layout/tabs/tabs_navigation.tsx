@@ -24,7 +24,8 @@ type TabsNavigationProps<T extends string = string, M = never> = DataAttrs & {
   // By default the strip carries ui-pad-x so it can be a FrameTop panel or
   // sit under a HeadingBar bare, with the first label at the content edge.
   // noPad is for a strip inside padded content (a ui-pad / ui-spy stack, a
-  // modal body), where the parent's padding is the inset.
+  // modal body): the parent's padding is the inset and the stack's spacing is
+  // the room above the label, so the tabs keep only their bottom padding.
   noPad?: boolean;
   // Stops the rail at the strip's pad-x instead of running it to the panel
   // edge. Nothing to do with noPad: the rail already ends there.
@@ -62,7 +63,12 @@ export function TabsNavigation<T extends string = string, M = never>(
       // pixel onto the rail so the underline sits on the line.
       const baseClasses =
         "ui-focusable relative -mb-px flex items-center justify-center ui-gap-sm font-700 cursor-pointer select-none";
-      const sizeClasses = isSmall() ? "ui-pad-y-sm text-sm" : "ui-pad-y";
+      const padClasses = hasPadX()
+        ? isSmall() ? "ui-pad-y-sm" : "ui-pad-y"
+        : isSmall()
+        ? "ui-pad-b-sm"
+        : "ui-pad-b";
+      const sizeClasses = `${padClasses} ${isSmall() ? "text-sm" : ""}`;
 
       if (isActive(id)) {
         return `${baseClasses} ${sizeClasses} text-primary ${
