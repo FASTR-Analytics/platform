@@ -449,6 +449,8 @@ function IndicatorsTable(p: {
       header: t3({ en: "Type", fr: "Type", pt: "Tipo" }),
       sortable: true,
       sortValue: indicatorTypeLabel,
+      filterable: true,
+      filterValue: indicatorTypeLabel,
       render: (indicator) => (
         <span class="whitespace-nowrap">{indicatorTypeLabel(indicator)}</span>
       ),
@@ -472,6 +474,8 @@ function IndicatorsTable(p: {
       header: t3({ en: "Format", fr: "Format", pt: "Formato" }),
       sortable: true,
       sortValue: formatText,
+      filterable: true,
+      filterValue: formatText,
       render: (indicator) => <span>{formatText(indicator)}</span>,
     },
     {
@@ -483,6 +487,11 @@ function IndicatorsTable(p: {
       }),
       sortable: true,
       sortValue: (indicator) => (isAnalysedFlag(indicator) ? 0 : 1),
+      filterable: true,
+      filterValue: (indicator) =>
+        isAnalysedFlag(indicator)
+          ? t3({ en: "Yes", fr: "Oui", pt: "Sim" })
+          : t3({ en: "No", fr: "Non", pt: "Não" }),
       render: (indicator) => <TickCell when={isAnalysedFlag(indicator)} />,
     },
     {
