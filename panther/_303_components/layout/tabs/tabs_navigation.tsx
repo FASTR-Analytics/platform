@@ -18,14 +18,16 @@ type TabsNavigationProps<T extends string = string, M = never> = DataAttrs & {
   onChange: (value: T) => void;
   tabLabelFormatter?: (item: ListItem<T, M>) => string;
   vertical?: boolean;
-  // Horizontal only. A primary strip is a panel edge (FrameTop panel or
-  // directly under a HeadingBar): it carries the content inset, paints its
-  // surface and owns its bottom border. Use `secondary` for a strip inside
-  // padded content: it takes the surrounding inset and surface and steps
-  // down in size and colour.
-  secondary?: boolean;
-  // Primary only. Stops the rail at the content inset instead of running it
-  // to the panel edge, so the strip no longer draws the panel's boundary.
+  // The three below are horizontal only. The strip is pure geometry: it
+  // paints no surface of its own and never puts space below the rail.
+  size?: "sm";
+  // By default the strip carries ui-pad-x so it can be a FrameTop panel or
+  // sit under a HeadingBar bare, with the first label at the content edge.
+  // noPad is for a strip inside padded content (a ui-pad / ui-spy stack, a
+  // modal body), where the parent's padding is the inset.
+  noPad?: boolean;
+  // Stops the rail at the strip's pad-x instead of running it to the panel
+  // edge. Nothing to do with noPad: the rail already ends there.
   insetRail?: boolean;
 
   // Collapsible functionality (vertical only)
@@ -41,6 +43,8 @@ export function TabsNavigation<T extends string = string, M = never>(
   const isVertical = () => p.vertical === true;
   const isCollapsed = () => p.collapsed === true && isVertical();
   const isCollapsible = () => p.collapsible === true && isVertical();
+  const isSmall = () => p.size === "sm";
+  const hasPadX = () => p.noPad !== true;
 
   const isActive = (id: T) => id === p.value;
 
@@ -58,18 +62,16 @@ export function TabsNavigation<T extends string = string, M = never>(
       // pixel onto the rail so the underline sits on the line.
       const baseClasses =
         "ui-focusable relative -mb-px flex items-center justify-center ui-gap-sm font-700 cursor-pointer select-none";
-      const sizeClasses = p.secondary ? "ui-pad-y-sm text-sm" : "ui-pad-y";
+      const sizeClasses = isSmall() ? "ui-pad-y-sm text-sm" : "ui-pad-y";
 
       if (isActive(id)) {
-        return `${baseClasses} ${sizeClasses} ${
-          p.secondary
-            ? "shadow-[inset_0_-2px_0_0_var(--color-primary)] text-base-content"
-            : "shadow-[inset_0_-3px_0_0_var(--color-primary)] text-primary"
+        return `${baseClasses} ${sizeClasses} text-primary ${
+          isSmall()
+            ? "shadow-[inset_0_-2px_0_0_var(--color-primary)]"
+            : "shadow-[inset_0_-3px_0_0_var(--color-primary)]"
         }`;
       }
-      return `${baseClasses} ${sizeClasses} hover:text-primary ${
-        p.secondary ? "text-base-content-muted" : "text-base-content"
-      }`;
+      return `${baseClasses} ${sizeClasses} text-base-content hover:text-primary`;
     } else {
       const gapClass = isCollapsed() ? "" : "gap-[0.75em]";
       const justifyClass = isCollapsed() ? "justify-center" : "justify-between";
@@ -93,26 +95,20 @@ export function TabsNavigation<T extends string = string, M = never>(
   const formatter = (item: ListItem<T, M>) =>
     (p.tabLabelFormatter ?? labelString)(item);
 
-  // Horizontal: a primary strip is a panel edge, so it carries the content
-  // inset (ui-pad-x; the first label aligns with content below whether or
-  // not a consumer wraps it) and paints its surface. A secondary strip sits
-  // inside padded content, so it carries neither: the content's inset and
-  // surface are already there. The rail is the border-b of the strip, or of
-  // the row when it must stop at the inset; each tab's -mb-px pulls its
-  // underline down onto that line either way.
-  const railOnRow = () => !p.secondary && p.insetRail === true;
+  // Horizontal: the rail is the border-b of the strip (running through its
+  // pad-x to the panel edge) or of the row (stopping at the pad-x); each
+  // tab's -mb-px pulls its underline down onto that line either way.
+  const railOnRow = () => hasPadX() && p.insetRail === true;
 
   const containerClasses = () =>
     !isVertical()
-      ? `w-full ${railOnRow() ? "" : "border-b"} ${
-        p.secondary ? "" : "ui-pad-x bg-base-100"
-      }`
+      ? `w-full ${railOnRow() ? "" : "border-b"} ${hasPadX() ? "ui-pad-x" : ""}`
       : "bg-base-100 flex w-full flex-col h-full";
 
   const rowClasses = () =>
     !isVertical()
       ? `flex ${railOnRow() ? "border-b" : ""} ${
-        p.secondary ? "ui-gap" : "ui-gap-lg"
+        isSmall() ? "ui-gap" : "ui-gap-lg"
       }`
       : "flex-1 overflow-y-auto";
 

@@ -40,11 +40,13 @@ theme, `ui-*` utilities, sizing utilities, and sentence case see
    list is the source of truth. Inside the kit, a component's own attributes are
    always written after `{...dataAttrs}`, so they win on a key collision.
 10. **Horizontal `TabsNavigation` is placed, not wrapped**: as a `FrameTop`
-    `panelChildren` or directly under a `HeadingBar`, pass it bare; it owns its
-    inset, surface and bottom border. Inside padded content pass `secondary`.
-    Never wrap the strip in a padding `<div>`, and never put a `Callout` or
-    other content above a primary strip; a notice goes below the rail as the
-    first block of content.
+    `panelChildren` or directly under a `HeadingBar`, pass it bare; it carries
+    its own `ui-pad-x` and bottom border. Inside padded content pass `noPad`;
+    `size="sm"` is a separate choice about weight, not placement. Never wrap the
+    strip in a padding `<div>` (the one exception is `ui-pad-x` around a `noPad`
+    strip, which is the same as `insetRail`), and never put a `Callout` or other
+    content above a panel strip; a notice goes below the rail as the first block
+    of content.
 
 ## Do / Don't
 

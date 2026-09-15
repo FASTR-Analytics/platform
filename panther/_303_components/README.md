@@ -100,10 +100,10 @@ Complete form control library. Size via `size="sm"`, never ad-hoc classes.
 Frames: `FrameTop`, `FrameLeft`, `FrameRight`, `FrameBottom`, plus
 `FrameLeftResizable`, `FrameRightResizable`, `FrameThreeColumnResizable`. Side
 frames own their panel/content divider (never add that edge's border yourself).
-Horizontal `TabsNavigation` is a `FrameTop` panel in its own right (inset,
-surface and bottom border are its own; no wrapper); inside padded content pass
-`secondary`. Steppers: `StepperNavigation`, `StepperLabeledBreadcrumb`,
-`StepperChipsWithTitles`, and friends.
+Horizontal `TabsNavigation` is a `FrameTop` panel in its own right (it carries
+its own `ui-pad-x` and bottom border; no wrapper); inside padded content pass
+`noPad`; `size="sm"` is independent of placement. Steppers: `StepperNavigation`,
+`StepperLabeledBreadcrumb`, `StepperChipsWithTitles`, and friends.
 
 `SelectList` / `TabsNavigation` / `ButtonGroup` share one `items`/`value`/
 `onChange` contract (swap = rename); `EditableList` adds add/delete/reorder; the
