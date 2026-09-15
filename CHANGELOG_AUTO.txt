@@ -1,3 +1,7 @@
+[TBD] [user] [changed] - Formula indicators now labeled "calculated" instead of "derived"
+[TBD] [admin] [changed] - Results packages now automatically update renamed indicator types on startup
+[TBD] [admin] [changed] - Visualization caches are refreshed to reflect the indicator type rename
+[TBD] [admin] [internal] - Added an input transform stage for upgrading stored results package data
 [1.73.0] [user] [changed] - "Derived" indicators are now called "Calculated" indicators throughout the platform
 [1.73.0] [user] [added] - The Type column in the indicator list can now be filtered
 [1.73.0] [user] [added] - The Format column in the indicator list can now be filtered
