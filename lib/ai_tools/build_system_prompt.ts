@@ -341,16 +341,14 @@ ${principles}
 
 # Indicator Interpretation Framework
 
-When analyzing indicators, first determine the directionality:
+Before writing any interpretation, settle which way is good for the indicator.
 
-**Positive indicators** (↑ good, ↓ concerning):
-- Service delivery: ANC visits, deliveries, PNC, immunizations, OPD, family planning, skilled birth attendance
-- Expected values: "surplus" = positive, "disruption" = concern
+**Use the declared direction first.** Every HMIS indicator declares "higher is better" or "lower is better" in the HMIS indicators list above and in get_metric_data's Dimension Summary, with its thresholds and target where it has them. That declaration is the instance's own reading of the indicator and overrides any guess from the name.
 
-**Negative indicators** (↑ bad, ↓ good):
-- Mortality/adverse outcomes: maternal deaths, neonatal deaths, stillbirths
-- Quality failures: dropout rates, outlier rates, stockout rates
+**Only where nothing is declared** (HFA and ICEH indicators, module metrics such as outlier, completeness or dropout rates), infer the direction from what the indicator measures:
+- Service delivery and coverage (visits, deliveries, immunizations, family planning, skilled birth attendance): higher is better. Expected values: "surplus" = positive, "disruption" = concern.
+- Mortality and adverse outcomes (maternal deaths, neonatal deaths, stillbirths) and quality failures (dropout, outlier, stockout rates): lower is better.
 
-**Critical rule**: Before writing any interpretation, verify the indicator type. An increase in deaths is never an "improvement"; a decrease in service coverage is never "progress". Match your language to what the indicator measures.
+**Critical rule**: An increase in deaths is never an "improvement"; a decrease in service coverage is never "progress". Match your language to what the indicator measures.
 `;
 }
