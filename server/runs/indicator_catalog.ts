@@ -27,6 +27,7 @@ import {
   type HfaIndicatorType,
   type IndicatorMetadata,
   PACKAGE_INDICATOR_TYPES,
+  type RunHmisIndicator,
   type RunModule,
   type RunModuleIndicators,
   thresholdsRuleSchema,
@@ -195,16 +196,34 @@ export async function buildRunIndicatorCatalog(
   return catalog;
 }
 
-// The manifest's `hmisIndicators` field (PLAN_1a §1.9): the instance's
-// HMIS indicator dictionary as the project shell shows it. Derived HERE,
-// once: at finalize from a v2 mirror, and by manifest transform block 4 from
-// a legacy package's v1 mirror, so the read path never opens a mirror again.
-// Label-sorted, matching the per-request derivation it replaces.
+// The manifest's `hmisIndicators` field (PLAN_1a §1.9; the shape is
+// documented once, on runHmisIndicatorSchema). Derived HERE, once: at
+// finalize from a v2 mirror, and by manifest transform block 4 from an
+// existing package's mirror, so the read path never opens a mirror again.
 export async function buildRunHmisIndicators(
   readRows: RunInputRowsReader,
-): Promise<{ id: string; label: string }[]> {
+): Promise<RunHmisIndicator[]> {
   const rows = await readRows("indicators.json", indicatorRow);
-  return rows
+  if (rows.length > 0 && "type" in rows[0]) {
+    return (rows as z.infer<typeof indicatorRowV2>[])
+      .toSorted(
+        (a, b) =>
+          a.sort_order - b.sort_order ||
+          a.indicator_common_id.localeCompare(b.indicator_common_id),
+      )
+      .map((row) => ({
+        id: row.indicator_common_id,
+        label: row.indicator_common_label,
+        format_as: row.format_as,
+        ...(row.direction === undefined ? {} : { direction: row.direction }),
+        ...(row.target == null ? {} : { target: row.target }),
+        ...(row.thresholds === null ? {} : { thresholds: row.thresholds }),
+        ...(row.type === "derived" && row.expression !== null
+          ? { expression: row.expression }
+          : {}),
+      }));
+  }
+  return (rows as z.infer<typeof indicatorRowV1>[])
     .flatMap((row) =>
       row.indicator_common_id && row.indicator_common_label
         ? [{ id: row.indicator_common_id, label: row.indicator_common_label }]

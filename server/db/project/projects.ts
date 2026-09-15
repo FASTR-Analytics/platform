@@ -11,6 +11,7 @@ import {
   type ProjectPermission,
   type ProjectUser,
   type ProjectUserRoleType,
+  type RunHmisIndicator,
 } from "lib";
 import { Sql } from "postgres";
 import {
@@ -73,7 +74,7 @@ export async function getProjectDetail(
     let projectModules: InstalledModuleSummary[] = [];
     let metrics: MetricWithStatus[] = [];
     let datasetsInProject: DatasetInProject[] = [];
-    let hmisIndicators: { id: string; label: string }[] = [];
+    let hmisIndicators: RunHmisIndicator[] = [];
     let icehIndicators: { id: string; label: string; category: string }[] = [];
     let hfaTaxonomy = EMPTY_HFA_TAXONOMY;
     if (rawProject.run_id !== null) {

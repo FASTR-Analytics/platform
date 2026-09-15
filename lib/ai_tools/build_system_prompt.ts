@@ -3,7 +3,9 @@ import type { DatasetInProject } from "../types/datasets_in_project.ts";
 import type { InstanceState } from "../types/instance_sse.ts";
 import type { InstanceCalendar } from "../types/instance.ts";
 import type { PeriodBounds } from "../types/presentation_objects.ts";
+import type { RunHmisIndicator } from "../types/run_manifest.ts";
 import { inferPeriodFormatFromValue } from "../types/_metric_installed.ts";
+import { describeIndicatorFacts } from "./format_metric_data_for_ai.ts";
 import type { InfoCatalogTopic } from "./info_catalog.ts";
 
 // The shared halves of the AI system prompt: what both surfaces (the SPA
@@ -192,7 +194,7 @@ export type PackageGrounding = {
   // passes the instance calendar.
   calendar: InstanceCalendar;
   datasets: DatasetInProject[];
-  hmisIndicators: { id: string; label: string }[];
+  hmisIndicators: RunHmisIndicator[];
   icehIndicators: { id: string; label: string }[];
   // The package's overall period range at its finest time grain (null = no
   // time-indexed results). Omitted when the caller cannot know it: the SPA
@@ -235,10 +237,10 @@ export function buildPackageGroundingSections(
   if (grounding.hmisIndicators.length > 0) {
     sections.push("");
     sections.push(
-      `**HMIS indicators (${grounding.hmisIndicators.length}):**`,
+      `**HMIS indicators (${grounding.hmisIndicators.length}):** id: label [format; direction; thresholds in display units; target] = formula over counts and population types (computed indicators only). Read every value against its declared direction.`,
     );
     for (const ind of grounding.hmisIndicators) {
-      sections.push(`- ${ind.id}: ${ind.label}`);
+      sections.push(describeHmisIndicatorForPrompt(ind));
     }
   }
 
@@ -263,6 +265,18 @@ export function buildPackageGroundingSections(
     );
   }
   return sections;
+}
+
+// One prompt line per HMIS indicator: the facts the package declares for
+// it, nothing for a fact it lacks, so a legacy package prints `id: label`.
+function describeHmisIndicatorForPrompt(ind: RunHmisIndicator): string {
+  const facts = [
+    ...(ind.format_as ? [ind.format_as] : []),
+    ...describeIndicatorFacts(ind),
+  ];
+  const factText = facts.length > 0 ? ` [${facts.join("; ")}]` : "";
+  const formula = ind.expression ? ` = ${ind.expression}` : "";
+  return `- ${ind.id}: ${ind.label}${factText}${formula}`;
 }
 
 // ── Data coverage: the instance's facility registries ──

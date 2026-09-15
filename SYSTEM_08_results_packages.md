@@ -648,8 +648,12 @@ version stamps the generation consumed; the module and metric catalogs as the in
 (so existing parsers apply unchanged); pinned asset names + hashes; and the §3.7
 memoization fields (`inputKey` per module, content hashes per output file).
 
-**`manifestSchemaVersion` gates every read**, currently `8`
-(`RUN_MANIFEST_SCHEMA_VERSION`; v8 = the `commonIndicators` list renamed
+**`manifestSchemaVersion` gates every read**, currently `9`
+(`RUN_MANIFEST_SCHEMA_VERSION`; v9 = `hmisIndicators` entries carry the
+indicator's format, direction, target, thresholds and, for a derived
+indicator, its flattened expression, in dictionary order, for the AI
+copilot's grounding; block 4's recompute writes the shape and transform
+block 7 only stamps; v8 = the `commonIndicators` list renamed
 `hmisIndicators` (PLAN_A4 ruling 13), a key rename, transform block 6;
 v7 = the `population` stamp gained `active`
 (recomputed from its own type list) and the per-type `coverage` m012's

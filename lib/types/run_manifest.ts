@@ -41,7 +41,12 @@ import {
 // refused any shortfall and recorded nothing). Manifest transform block 5.
 // 8: the `commonIndicators` list is `hmisIndicators` (PLAN_A4 ruling 13), a
 // key rename and nothing else. Manifest transform block 6.
-export const RUN_MANIFEST_SCHEMA_VERSION = 8;
+// 9: `hmisIndicators` entries carry the indicator's interpretation facts
+// (format, direction, target, thresholds, a derived indicator's flattened
+// expression) in dictionary order, so the AI copilot's grounding states what
+// each indicator measures and what a good value is. Block 4's recompute
+// produces the new shape; block 7 only stamps.
+export const RUN_MANIFEST_SCHEMA_VERSION = 9;
 
 // Typed against DatasetType so the enum cannot drift from the union.
 export const runDatasetFamilySchema: z.ZodType<DatasetType> = z.enum([
@@ -182,15 +187,31 @@ export const runModuleIndicatorsSchema = z.object({
 });
 export type RunModuleIndicators = z.infer<typeof runModuleIndicatorsSchema>;
 
-// The instance's HMIS indicator dictionary as the project shell shows it
-// (id + label, label-sorted). Stamped at finalize from the run's own
+// The package's HMIS indicator dictionary as a reader needs it: the AI
+// copilot's grounding (lib/ai_tools/build_system_prompt.ts) and the project
+// state that carries it there. Stamped at finalize from the run's own
 // indicators mirror, and by manifest transform block 4 for older packages.
 // Before v6 the read path re-opened that mirror on every request; this field
 // is that derivation moved to where every other package fact already lives:
 // SYSTEM_08's "the read path parses the manifest only".
+//
+// The facts are the indicator's own (HmisIndicator, lib/types/indicators.ts):
+// format, direction, target in stored units, the CF rule. `expression` is a
+// derived indicator's FLATTENED formula over count ids and population type
+// ids, the catalog row's, carried because it says what the indicator
+// measures; a count has none. A package whose mirror predates a fact has no
+// key for it. Entries are in dictionary order (sort_order); a legacy v1
+// mirror has no order and its entries are label-sorted. The indicator's
+// type (Uploaded, DHIS2 element, Sum, Derived) is deliberately absent: where
+// the rows came from is an implementation detail no reader needs.
 export const runHmisIndicatorSchema = z.object({
   id: z.string(),
   label: z.string(),
+  format_as: z.enum(["percent", "number", "rate_per_10k"]).optional(),
+  direction: z.enum(["higher-is-better", "lower-is-better"]).optional(),
+  target: z.number().optional(),
+  thresholds: thresholdsRuleSchema.optional(),
+  expression: z.string().optional(),
 });
 export type RunHmisIndicator = z.infer<typeof runHmisIndicatorSchema>;
 

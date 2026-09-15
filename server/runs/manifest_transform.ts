@@ -37,6 +37,9 @@
 //   6. the `commonIndicators` key dropped (schema v8): block 4 stamps the
 //      same list as `hmisIndicators` (PLAN_A4 ruling 13), so this is a key
 //      rename and nothing else.
+//   7. hmisIndicators entries carry the interpretation facts (schema v9):
+//      block 4's recompute already writes the new shape on every forced
+//      pass, so this block only stamps.
 //
 // =============================================================================
 
@@ -197,6 +200,12 @@ async function transformRunManifest(
   //    the only work is dropping the legacy key. Idempotent.
   delete m.commonIndicators;
   m.manifestSchemaVersion = 8;
+
+  // 7. hmisIndicators entries gained format_as, direction, target, thresholds
+  //    and a derived indicator's expression, in dictionary order. Block 4
+  //    recomputes the list through the same function finalize stamps with,
+  //    so the shape is already current here; the stamp is the whole block.
+  m.manifestSchemaVersion = 9;
 
   const validated = runManifestSchema.parse(m);
   // The schema deliberately accepts ANY integer version: it has to, so a
