@@ -134,7 +134,10 @@ const indicatorRowV1 = z.object({
 // `type` is the stored type under its code name; `base` is what packages
 // generated before PLAN_A5 carry, accepted and never mapped (ruling 10).
 // `direction`, `target` and `expected_low_counts` are absent from every
-// mirror written before they existed, and a mirror is never rewritten.
+// mirror written before they existed: a mirror's rows are never rewritten.
+// Its vocabulary is brought current by the input stage
+// (input_transform.ts) before any block reads it, so this schema names the
+// current vocabulary only.
 const indicatorRowV2 = z.object({
   indicator_common_id: z.string(),
   indicator_common_label: z.string(),
@@ -440,29 +443,44 @@ function describeIssues(issues: z.ZodIssue[]): string {
   return rest > 0 ? `${shown} (+${rest} more)` : shown;
 }
 
+// The one place a mirror's bytes are read and parsed as JSON, for the rows
+// reader below and for the input transform stage, so RunInputReadError is
+// raised from one place. Row validation is the caller's.
+export async function readRunInputJson(
+  runDir: string,
+  fileName: string,
+): Promise<{ bytes: string; json: unknown }> {
+  let bytes: string;
+  try {
+    bytes = await Deno.readTextFile(runInputFilePath(runDir, fileName));
+  } catch (e) {
+    throw new RunInputReadError(fileName, errorText(e));
+  }
+  try {
+    return { bytes, json: JSON.parse(bytes) };
+  } catch (e) {
+    throw new RunInputReadError(fileName, `not valid JSON: ${errorText(e)}`);
+  }
+}
+
 // A reader over a package directory on disk: the writer's tmp dir or an
 // existing package. `inputFiles` is the manifest's own list, so a mirror the
-// package does not carry is skipped without a stat.
+// package does not carry is skipped without a stat. `rewritten` is the
+// transform's overlay, keyed by file name: a mirror the input stage rewrote
+// is served from memory, because its bytes land only after the manifest
+// parses. Rows from either source pass the same schema.
 export function runDirInputRowsReader(
   runDir: string,
   inputFiles: string[],
+  rewritten: ReadonlyMap<string, unknown> = new Map(),
 ): RunInputRowsReader {
   return async <T>(fileName: string, rowSchema: z.ZodType<T>) => {
     if (!inputFiles.includes(`inputs/${fileName}`)) {
       return [] as T[];
     }
-    let raw: string;
-    try {
-      raw = await Deno.readTextFile(runInputFilePath(runDir, fileName));
-    } catch (e) {
-      throw new RunInputReadError(fileName, errorText(e));
-    }
-    let json: unknown;
-    try {
-      json = JSON.parse(raw);
-    } catch (e) {
-      throw new RunInputReadError(fileName, `not valid JSON: ${errorText(e)}`);
-    }
+    const json = rewritten.has(fileName)
+      ? rewritten.get(fileName)
+      : (await readRunInputJson(runDir, fileName)).json;
     const rows = z.array(rowSchema).safeParse(json);
     if (!rows.success) {
       throw new RunInputRowSchemaError(fileName, rows.error.issues);

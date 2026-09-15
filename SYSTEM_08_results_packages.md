@@ -27,6 +27,7 @@ globs:
   - server/server_only_types/**
   - server/task_management/mod.ts
   - server/tests/m012_expression_parity_test.ts
+  - server/tests/run_input_transform_test.ts
   - server/worker_routines/generate_run/**
   - server/worker_routines/instantiate_worker_generic.ts
   - server/worker_routines/worker_contract.ts
@@ -591,7 +592,9 @@ Four invariants, in the order they matter:
 
 1. **Immutable.** A generation builds in `runs/.tmp-<runId>/` and atomically
    renames at finalize, so a crashed generation leaves no readable package and
-   no published file is ever rewritten. A handled FAILURE also renames the
+   no published file is ever rewritten. Immutability covers outputs: scripts,
+   logs, raw CSVs, parquet and assets. The manifest and the input mirrors are
+   descriptors and are transformed forward (below). A handled FAILURE also renames the
    partial workspace into `runs/<runId>`, deliberately without a
    `manifest.json`, so it is never a readable package (ruled): the catalog row (`failed` + `errorDetail`) is the error
    record, the ready-only gates (attach picker + its UPDATE, the reuse
@@ -699,7 +702,9 @@ clauses, never case-by-case):
 indicator set (PLAN_A4 ruling 3: every analysed count and every calculated
 with its checkbox on), resolved: type, flattened expression, slot map,
 presentation and sort. The row's `type` is the stored type under its code
-name (`uploaded`, `dhis2_element`, `sum`, `calculated`); a package generated
+name (`uploaded`, `dhis2_element`, `sum`, `calculated`); a package written
+while the formula type was named `derived` was brought to `calculated` by
+input block 1 (manifest version 10); a package generated
 before PLAN_A5 carries `base` for every count, which `indicatorRowV2` and
 the manifest's `runIndicatorMetadataSchema` both accept (`PACKAGE_INDICATOR_TYPES`)
 and nothing maps or reads (the display projection strips `type`), and no
@@ -710,16 +715,23 @@ v2 row fail-stops instead of silently dropping its expressions). The read
 path never opens the indicators mirror. The ICEH and HFA snapshot readers
 still open theirs per request (see the mirror-tolerance open item below).
 Invariant 1's immutability covers package
-**outputs**; the manifest is a derived descriptor and **is transformed forward
-in place** (`server/runs/manifest_transform.ts`), because a schema change would
+**outputs**. The manifest is a derived descriptor and **is transformed forward
+in place** (`server/runs/manifest_transform.ts`), and an input mirror's
+**vocabulary** is transformed forward by the input stage that runs before the
+manifest blocks (`server/runs/input_transform.ts`): a stored enum value or key
+name is a fact of the code that wrote it, so it follows the code; a row's facts
+are never invented or dropped. Both exist because a schema change would
 otherwise orphan every existing package and regenerating mints a new `runId`.
-Blocks may only recompute from files already in the package and may never invent
-provenance. The authoring rules, the failure policy and the add-a-block
-checklist are in
+Manifest blocks may only recompute from files already in the package and may
+never invent provenance; input blocks rename, or recompute from files already
+in the package, and never invent either. The authoring rules, the failure
+policy and the add-a-block checklists are in
 [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md) § "Run Manifest
-Transforms". Consequences for this format: whatever a block reads can never be
-dropped from the package, a transformed package additionally carries its
-pre-transform `manifest.v{n}.json`, and a package written by a _newer_ server is
+Transforms" and § "Run Input Transforms". Consequences for this format:
+whatever a block reads can never be dropped from the package, a transformed
+package additionally carries its pre-transform `manifest.v{n}.json`, a
+transformed mirror additionally carries its pre-transform
+`inputs/<name>.v{n}.json`, and a package written by a _newer_ server is
 refused as unavailable rather than served with its additions silently stripped.
 Input mirrors sit in that same failure table (two rows of their own, owned by
 PROTOCOL_APP_MIGRATIONS): unavailable BYTES are operational and degrade the
@@ -727,7 +739,7 @@ package, a row-schema mismatch is drift and fail-stops.
 
 The transform is also what lets the read path shrink. Target state:
 
-> **The read path parses the manifest only. Input mirrors are raw provenance.**
+> **The read path parses the manifest only. Input mirrors are provenance in the app's current vocabulary.**
 
 Every catalog moved into the manifest removes a file from the read path's compat
 surface, which is the argument `run_manifest.ts`'s header already makes, subject

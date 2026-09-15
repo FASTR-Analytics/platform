@@ -156,6 +156,7 @@ async function runRunManifestTransforms(mainDb: Sql): Promise<void> {
 SELECT id FROM runs WHERE status NOT IN ('generating', 'failed')
 `;
   let transformed = 0;
+  let rewrittenInputs = 0;
   let unreadable = 0;
   let future = 0;
   const failures: { runId: string; error: Error }[] = [];
@@ -173,9 +174,12 @@ SELECT id FROM runs WHERE status NOT IN ('generating', 'failed')
         console.warn(
           `  ! run ${id}: manifest schema version ${outcome.version} was written by a newer server — package unavailable here`,
         );
-      } else if (outcome.transformed) {
-        transformed++;
-        evictRunFromManifestCache(id);
+      } else {
+        if (outcome.transformed) transformed++;
+        rewrittenInputs += outcome.rewrittenInputs.length;
+        if (outcome.transformed || outcome.rewrittenInputs.length > 0) {
+          evictRunFromManifestCache(id);
+        }
       }
     } catch (err) {
       failures.push({
@@ -186,7 +190,7 @@ SELECT id FROM runs WHERE status NOT IN ('generating', 'failed')
   }
 
   console.log(
-    `[migration] Run manifests ${rows.length} checked, ${transformed} transformed, ${unreadable} unreadable, ${future} from a newer server`,
+    `[migration] Run manifests ${rows.length} checked, ${transformed} transformed, ${rewrittenInputs} input mirrors rewritten, ${unreadable} unreadable, ${future} from a newer server`,
   );
 
   if (failures.length > 0) {

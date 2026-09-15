@@ -46,7 +46,10 @@ import {
 // expression) in dictionary order, so the AI copilot's grounding states what
 // each indicator measures and what a good value is. Block 4's recompute
 // produces the new shape; block 7 only stamps.
-export const RUN_MANIFEST_SCHEMA_VERSION = 9;
+// 10: the indicators mirror's `derived` rows read `calculated` (input block
+// 1, server/runs/input_transform.ts); the manifest's own shape is unchanged
+// and block 8 only stamps.
+export const RUN_MANIFEST_SCHEMA_VERSION = 10;
 
 // Typed against DatasetType so the enum cannot drift from the union.
 export const runDatasetFamilySchema: z.ZodType<DatasetType> = z.enum([
