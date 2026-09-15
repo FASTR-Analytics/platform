@@ -374,14 +374,7 @@ function formatItemsAsMarkdown(
               : undefined;
             const notes = [
               ...(format ? [format] : []),
-              ...(meta?.thresholds
-                ? [formatIndicatorThresholds(meta.thresholds, meta.format_as ?? "number")]
-                : meta?.direction
-                ? [meta.direction.replaceAll("-", " ")]
-                : []),
-              ...(meta?.target !== undefined
-                ? [`target ${formatIndicatorValue(meta.target, meta.format_as ?? "number")}`]
-                : []),
+              ...(meta ? describeIndicatorFacts(meta) : []),
             ];
             if (meta?.label && meta.label !== val) {
               return notes.length > 0
@@ -443,18 +436,41 @@ function formatItemsAsMarkdown(
 }
 
 // A stored value in DISPLAY units, a percent with its sign.
-function formatIndicatorValue(value: number, formatAs: IndicatorFormat): string {
+export function formatIndicatorValue(value: number, formatAs: IndicatorFormat): string {
   const scaled = scaleValueForFormat(value, formatAs);
   return formatAs === "percent" ? `${scaled}%` : String(scaled);
 }
 
-// "higher is better; On track ≥ 80%; Progress needed ≥ 70%; Not on track
-// < 70%" from the indicator's own CF rule: every bucket, best first, with the
-// bound that admits it under THE boundary rule (thresholdBucketIndex: an
-// authored label gets its operator and cutoff appended; an unlabelled bucket
-// prints the derived wording, which already carries them). Cutoffs are
-// printed in DISPLAY units: percent points, counts per 10,000, while the
-// CSV prints percent values as 0-1 fractions, so the unit is spelled out.
+// The interpretation facts an indicator declares, for a model reading its
+// values: direction, then thresholds, then target. Direction is stated on its
+// own, whatever the rule: a rule symmetric around zero prints "within"
+// wording with no better side, yet which side is good is still the
+// indicator's fact. A package written before the indicator carried its own
+// direction has it only in the rule's key.
+export function describeIndicatorFacts(
+  meta: Pick<IndicatorMetadata, "format_as" | "thresholds" | "direction" | "target">,
+): string[] {
+  const formatAs = meta.format_as ?? "number";
+  const direction = meta.direction ?? meta.thresholds?.direction;
+  return [
+    ...(direction ? [direction.replaceAll("-", " ")] : []),
+    ...(meta.thresholds
+      ? [formatIndicatorThresholds(meta.thresholds, formatAs)]
+      : []),
+    ...(meta.target !== undefined
+      ? [`target ${formatIndicatorValue(meta.target, formatAs)}`]
+      : []),
+  ];
+}
+
+// "On track ≥ 80%; Progress needed ≥ 70%; Not on track < 70%" from the
+// indicator's own CF rule: every bucket, best first, with the bound that
+// admits it under THE boundary rule (thresholdBucketIndex: an authored label
+// gets its operator and cutoff appended; an unlabelled bucket prints the
+// derived wording, which already carries them). Cutoffs are printed in
+// DISPLAY units: percent points, counts per 10,000, while the CSV prints
+// percent values as 0-1 fractions, so the unit is spelled out. The direction
+// is not restated here: describeIndicatorFacts prints it once.
 export function formatIndicatorThresholds(
   rule: ThresholdsRule,
   formatAs: IndicatorFormat,
@@ -482,10 +498,7 @@ export function formatIndicatorThresholds(
     : formatAs === "rate_per_10k"
     ? " (per 10,000)"
     : "";
-  const head = symmetric
-    ? []
-    : [direction === "lower-is-better" ? "lower is better" : "higher is better"];
-  return [...head, bands.join("; ") + unit].join("; ");
+  return bands.join("; ") + unit;
 }
 
 // Ids that DECLARE a format, bucketed by it, in first-seen format order. Ids
