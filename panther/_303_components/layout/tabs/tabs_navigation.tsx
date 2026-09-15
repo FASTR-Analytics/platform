@@ -24,6 +24,9 @@ type TabsNavigationProps<T extends string = string, M = never> = DataAttrs & {
   // padded content: it takes the surrounding inset and surface and steps
   // down in size and colour.
   secondary?: boolean;
+  // Primary only. Stops the rail at the content inset instead of running it
+  // to the panel edge, so the strip no longer draws the panel's boundary.
+  insetRail?: boolean;
 
   // Collapsible functionality (vertical only)
   collapsible?: boolean;
@@ -53,7 +56,7 @@ export function TabsNavigation<T extends string = string, M = never>(
       // rail via the -mb-px on the row, so the active primary border sits on
       // the rail and the inactive transparent border lets it show through.
       const baseClasses =
-        "ui-focusable relative flex items-center justify-center ui-gap-sm font-700 cursor-pointer select-none border-b-2";
+        "ui-focusable relative -mb-px flex items-center justify-center ui-gap-sm font-700 cursor-pointer select-none border-b-2";
       const sizeClasses = p.secondary ? "ui-pad-y-sm text-sm" : "ui-pad-y";
 
       if (isActive(id)) {
@@ -91,17 +94,23 @@ export function TabsNavigation<T extends string = string, M = never>(
   // inset (ui-pad-x; the first label aligns with content below whether or
   // not a consumer wraps it) and paints its surface. A secondary strip sits
   // inside padded content, so it carries neither: the content's inset and
-  // surface are already there. The row is a flex with the gap between tabs,
-  // and -mb-px pulls it down over the strip's border-b so each tab's
-  // border-b-2 paints on the rail.
+  // surface are already there. The rail is the border-b of the strip, or of
+  // the row when it must stop at the inset; each tab's -mb-px pulls its own
+  // border-b-2 down over that line either way.
+  const railOnRow = () => !p.secondary && p.insetRail === true;
+
   const containerClasses = () =>
     !isVertical()
-      ? `w-full border-b ${p.secondary ? "" : "ui-pad-x bg-base-100"}`
+      ? `w-full ${railOnRow() ? "" : "border-b"} ${
+        p.secondary ? "" : "ui-pad-x bg-base-100"
+      }`
       : "bg-base-100 flex w-full flex-col h-full";
 
   const rowClasses = () =>
     !isVertical()
-      ? `-mb-px flex ${p.secondary ? "ui-gap" : "ui-gap-lg"}`
+      ? `flex ${railOnRow() ? "border-b" : ""} ${
+        p.secondary ? "ui-gap" : "ui-gap-lg"
+      }`
       : "flex-1 overflow-y-auto";
 
   const getDotClasses = (intent: Intent) => {
