@@ -336,8 +336,9 @@ disappears over near-black surfaces). Palette swaps must land on `:root`
 Usable from app code:
 
 - **Spacing/density:** `ui-pad`, `ui-pad-sm`, `ui-pad-lg`, `ui-pad-x`,
-  `ui-pad-x-sm`, `ui-pad-x-lg`, `ui-gap`, `ui-gap-sm`, `ui-gap-lg`, `ui-spy`,
-  `ui-spy-sm`, `ui-spy-lg`
+  `ui-pad-x-sm`, `ui-pad-x-lg`, `ui-pad-y`, `ui-pad-y-sm`, `ui-pad-y-lg`, and
+  one-sided `ui-pad-{t,b,l,r}`, `-sm`, `-lg`, `ui-gap`, `ui-gap-sm`,
+  `ui-gap-lg`, `ui-spy`, `ui-spy-sm`, `ui-spy-lg`
 - **Form density:** `ui-form-pad`, `ui-form-pad-sm`, `ui-form-text-size`,
   `ui-form-text-size-sm`, `ui-icon-only-correction`,
   `ui-icon-only-correction-sm`

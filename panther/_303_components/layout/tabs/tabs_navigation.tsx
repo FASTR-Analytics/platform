@@ -18,6 +18,12 @@ type TabsNavigationProps<T extends string = string, M = never> = DataAttrs & {
   onChange: (value: T) => void;
   tabLabelFormatter?: (item: ListItem<T, M>) => string;
   vertical?: boolean;
+  // Horizontal only. A primary strip is a panel edge (FrameTop panel or
+  // directly under a HeadingBar): it carries the content inset, paints its
+  // surface and owns its bottom border. Use `secondary` for a strip inside
+  // padded content: it takes the surrounding inset and surface and steps
+  // down in size and colour.
+  secondary?: boolean;
 
   // Collapsible functionality (vertical only)
   collapsible?: boolean;
@@ -41,20 +47,23 @@ export function TabsNavigation<T extends string = string, M = never>(
 
   const getTabClasses = (id: T) => {
     if (!isVertical()) {
-      // Horizontal tabs render their own bottom border, which overlaps the
-      // container's continuous underline (see containerClasses + rowClasses
-      // below for the -mb-px trick). Active tab covers with primary; inactive
-      // tab is transparent so the container line shows through — producing a
-      // single clean rail across the whole tab strip. The inactive arm needs
-      // bg-clip-padding: the family's opaque rest bg would otherwise paint
-      // under the transparent border strip and hide the rail.
+      // A tab label is a text-only interactive: no hover surface, text colour
+      // carries the hover. The underline hugs the label (no horizontal
+      // padding; tabs are spaced by the strip's gap) and overlaps the strip's
+      // rail via the -mb-px on the row, so the active primary border sits on
+      // the rail and the inactive transparent border lets it show through.
       const baseClasses =
-        "ui-focusable relative flex items-center justify-center ui-gap-sm ui-pad font-700 cursor-pointer select-none border-b-2";
+        "ui-focusable relative flex items-center justify-center ui-gap-sm font-700 cursor-pointer select-none border-b-2";
+      const sizeClasses = p.secondary ? "ui-pad-y-sm text-sm" : "ui-pad-y";
 
       if (isActive(id)) {
-        return `${baseClasses} border-primary text-primary bg-base-100`;
+        return `${baseClasses} ${sizeClasses} border-primary ${
+          p.secondary ? "text-base-content" : "text-primary"
+        }`;
       }
-      return `${baseClasses} ui-hoverable-base-100 bg-clip-padding border-transparent text-base-content hover:text-primary hover:border-primary/40`;
+      return `${baseClasses} ${sizeClasses} border-transparent hover:text-primary ${
+        p.secondary ? "text-base-content-muted" : "text-base-content"
+      }`;
     } else {
       const gapClass = isCollapsed() ? "" : "gap-[0.75em]";
       const justifyClass = isCollapsed() ? "justify-center" : "justify-between";
@@ -78,16 +87,22 @@ export function TabsNavigation<T extends string = string, M = never>(
   const formatter = (item: ListItem<T, M>) =>
     (p.tabLabelFormatter ?? labelString)(item);
 
+  // Horizontal: a primary strip is a panel edge, so it carries the content
+  // inset (ui-pad-x; the first label aligns with content below whether or
+  // not a consumer wraps it) and paints its surface. A secondary strip sits
+  // inside padded content, so it carries neither: the content's inset and
+  // surface are already there. The row is a flex with the gap between tabs,
+  // and -mb-px pulls it down over the strip's border-b so each tab's
+  // border-b-2 paints on the rail.
   const containerClasses = () =>
     !isVertical()
-      ? "bg-base-100 w-full border-b"
+      ? `w-full border-b ${p.secondary ? "" : "ui-pad-x bg-base-100"}`
       : "bg-base-100 flex w-full flex-col h-full";
 
-  // Horizontal: -mb-px pulls the tab row up 1px so each tab's border-b-2
-  // sits on top of the container's border-b — continuous underline with
-  // the active tab's primary border overlaying it.
   const rowClasses = () =>
-    !isVertical() ? "-mb-px flex" : "flex-1 overflow-y-auto";
+    !isVertical()
+      ? `-mb-px flex ${p.secondary ? "ui-gap" : "ui-gap-lg"}`
+      : "flex-1 overflow-y-auto";
 
   const getDotClasses = (intent: Intent) => {
     const base = "h-2 w-2 rounded-full flex-none";

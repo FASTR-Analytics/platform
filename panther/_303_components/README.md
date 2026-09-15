@@ -100,7 +100,9 @@ Complete form control library. Size via `size="sm"`, never ad-hoc classes.
 Frames: `FrameTop`, `FrameLeft`, `FrameRight`, `FrameBottom`, plus
 `FrameLeftResizable`, `FrameRightResizable`, `FrameThreeColumnResizable`. Side
 frames own their panel/content divider (never add that edge's border yourself).
-Steppers: `StepperNavigation`, `StepperLabeledBreadcrumb`,
+Horizontal `TabsNavigation` is a `FrameTop` panel in its own right (inset,
+surface and bottom border are its own; no wrapper); inside padded content pass
+`secondary`. Steppers: `StepperNavigation`, `StepperLabeledBreadcrumb`,
 `StepperChipsWithTitles`, and friends.
 
 `SelectList` / `TabsNavigation` / `ButtonGroup` share one `items`/`value`/
@@ -173,8 +175,9 @@ and `onFilterChange` persist the unchecked values.
 surface for app code:
 
 - **Spacing/density** — `ui-pad`, `ui-pad-sm`, `ui-pad-lg`, `ui-pad-x`,
-  `ui-pad-x-sm`, `ui-pad-x-lg`, `ui-gap`, `ui-gap-sm`, `ui-gap-lg`, `ui-spy`,
-  `ui-spy-sm`, `ui-spy-lg`
+  `ui-pad-x-sm`, `ui-pad-x-lg`, `ui-pad-y`, `ui-pad-y-sm`, `ui-pad-y-lg`, and
+  one-sided `ui-pad-{t,b,l,r}`, `-sm`, `-lg`, `ui-gap`, `ui-gap-sm`,
+  `ui-gap-lg`, `ui-spy`, `ui-spy-sm`, `ui-spy-lg`
 - **Form density** — `ui-form-pad`, `ui-form-pad-sm`, `ui-form-text-size`,
   `ui-form-text-size-sm`, `ui-icon-only-correction`,
   `ui-icon-only-correction-sm`

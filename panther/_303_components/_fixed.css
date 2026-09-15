@@ -590,6 +590,70 @@
   padding-inline: var(--ui-pad-lg-x);
 }
 
+/* ---- Pad — vertical only ---- */
+
+@utility ui-pad-y-sm { /* = py-2 */
+  padding-block: var(--ui-pad-sm-y);
+}
+
+@utility ui-pad-y { /* = py-4 */
+  padding-block: var(--ui-pad-y);
+}
+
+@utility ui-pad-y-lg { /* = py-6 */
+  padding-block: var(--ui-pad-lg-y);
+}
+
+/* ---- Pad — one side ---- */
+
+@utility ui-pad-t-sm { /* = pt-2 */
+  padding-block-start: var(--ui-pad-sm-y);
+}
+
+@utility ui-pad-t { /* = pt-4 */
+  padding-block-start: var(--ui-pad-y);
+}
+
+@utility ui-pad-t-lg { /* = pt-6 */
+  padding-block-start: var(--ui-pad-lg-y);
+}
+
+@utility ui-pad-b-sm { /* = pb-2 */
+  padding-block-end: var(--ui-pad-sm-y);
+}
+
+@utility ui-pad-b { /* = pb-4 */
+  padding-block-end: var(--ui-pad-y);
+}
+
+@utility ui-pad-b-lg { /* = pb-6 */
+  padding-block-end: var(--ui-pad-lg-y);
+}
+
+@utility ui-pad-l-sm { /* = pl-2 */
+  padding-inline-start: var(--ui-pad-sm-x);
+}
+
+@utility ui-pad-l { /* = pl-4 */
+  padding-inline-start: var(--ui-pad-x);
+}
+
+@utility ui-pad-l-lg { /* = pl-8 */
+  padding-inline-start: var(--ui-pad-lg-x);
+}
+
+@utility ui-pad-r-sm { /* = pr-2 */
+  padding-inline-end: var(--ui-pad-sm-x);
+}
+
+@utility ui-pad-r { /* = pr-4 */
+  padding-inline-end: var(--ui-pad-x);
+}
+
+@utility ui-pad-r-lg { /* = pr-8 */
+  padding-inline-end: var(--ui-pad-lg-x);
+}
+
 /* ---- Gap — symmetric x/y ---- */
 /* If an app ever needs asymmetric gap, use raw gap-x-N / gap-y-N at the
    call site. */

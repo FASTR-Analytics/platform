@@ -39,6 +39,12 @@ theme, `ui-*` utilities, sizing utilities, and sentence case see
    silently dropped (TypeScript exempts hyphenated JSX attribute names), so this
    list is the source of truth. Inside the kit, a component's own attributes are
    always written after `{...dataAttrs}`, so they win on a key collision.
+10. **Horizontal `TabsNavigation` is placed, not wrapped**: as a `FrameTop`
+    `panelChildren` or directly under a `HeadingBar`, pass it bare; it owns its
+    inset, surface and bottom border. Inside padded content pass `secondary`.
+    Never wrap the strip in a padding `<div>`, and never put a `Callout` or
+    other content above a primary strip; a notice goes below the rail as the
+    first block of content.
 
 ## Do / Don't
 
@@ -134,7 +140,8 @@ duplicate that and miss edge cases.
 - **Form:** `Button`, `Input`, `TextArea`, `Select`, `MultiSelect`, `Checkbox`
   (incl. `indeterminate`), `RadioGroup`, `Slider`, `ButtonGroup`, `FileInput`.
 - **Layout:** `FrameTop`, `FrameLeft` / `FrameRight` / `FrameBottom` (+
-  resizable variants), `HeadingBar`, `Tabs`, `Stepper`, collapsible sections.
+  resizable variants), `HeadingBar`, `TabsNavigation`, `Stepper`, collapsible
+  sections.
 - **Display:** `Badge`, `Card`, `EmptyState`.
 - **Data:** `Table` (sortable/filterable/selectable), `FigureHolder`,
   `PageHolder`.
