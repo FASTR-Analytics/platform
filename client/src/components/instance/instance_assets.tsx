@@ -142,8 +142,8 @@ function AssetFileSystem(p: {
     nonEmptyTypes().map((type) => ({
       id: type,
       label: t3(FILE_TYPE_LABELS[type]),
-      iconName: "folder",
-      badge: grouped().get(type)?.length ?? 0,
+      // iconName: "folder",
+      // badge: grouped().get(type)?.length ?? 0,
     })),
   );
 
@@ -163,20 +163,16 @@ function AssetFileSystem(p: {
       {(active) => (
         <FrameTop
           panelChildren={
-            <div class="ui-pad-x h-full w-full">
-              <TabsNavigation
-                data-tour="instance-assets-tabs"
-                items={tabItems()}
-                value={active()}
-                onChange={setSelectedType}
-              />
-            </div>
+            <TabsNavigation
+              data-tour="instance-assets-tabs"
+              items={tabItems()}
+              value={active()}
+              onChange={setSelectedType}
+              insetRail
+            />
           }
         >
-          <div
-            class="ui-pad h-full w-full overflow-auto"
-            data-tour="instance-assets-list"
-          >
+          <div class="ui-pad h-full w-full" data-tour="instance-assets-list">
             <AssetTable
               files={grouped().get(active()) ?? []}
               currentUserEmail={p.currentUserEmail}

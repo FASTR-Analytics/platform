@@ -240,7 +240,6 @@ export default function Instance(p: Props) {
                       value={tab()}
                       onChange={setTab}
                       items={compactNavItems()}
-                      itemWidth="50px"
                     />
                   </div>
                   <div class="hidden flex-1 justify-center xl:flex">
@@ -249,7 +248,6 @@ export default function Instance(p: Props) {
                       value={tab()}
                       onChange={setTab}
                       items={wideNavItems()}
-                      itemWidth={getLanguage() === "en" ? "115px" : "140px"}
                     />
                   </div>
                 </Show>

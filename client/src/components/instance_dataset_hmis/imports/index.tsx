@@ -353,6 +353,8 @@ export function DatasetHmisImports(p: Props) {
                   </Show>
 
                   <TabsNavigation
+                    noPad
+                    // size="sm"
                     items={tabItems()}
                     value={tab()}
                     onChange={setTab}
