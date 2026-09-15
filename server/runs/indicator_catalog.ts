@@ -134,10 +134,9 @@ const indicatorRowV1 = z.object({
 // `type` is the stored type under its code name; `base` is what packages
 // generated before PLAN_A5 carry, accepted and never mapped (ruling 10).
 // `direction`, `target` and `expected_low_counts` are absent from every
-// mirror written before they existed: a mirror's rows are never rewritten.
-// Its vocabulary is brought current by the input stage
-// (input_transform.ts) before any block reads it, so this schema names the
-// current vocabulary only.
+// mirror written before they existed and are never backfilled: the input
+// stage (input_transform.ts) only renames values a row already carries, so
+// this schema names the current vocabulary and those three stay optional.
 const indicatorRowV2 = z.object({
   indicator_common_id: z.string(),
   indicator_common_label: z.string(),

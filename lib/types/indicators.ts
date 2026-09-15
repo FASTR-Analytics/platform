@@ -226,11 +226,10 @@ export function definitionDataId(
     : null;
 }
 
-// The `type` a package's frozen catalog row may carry: the four code names
-// in every package generated from now on, and `base` in packages generated
-// before PLAN_A5, whose `base` rows are never resolved (ruling 10) though a
-// mirror's vocabulary is otherwise brought current by the input stage
-// (server/runs/input_transform.ts). No read path consumes it.
+// The `type` a package's frozen catalog row may carry: the four code names,
+// plus `base` for counts in packages generated before PLAN_A5, which no
+// transform resolves because the real type lives only in the live
+// dictionary. No read path consumes it.
 export type PackageIndicatorType = HmisIndicatorType | "base";
 
 export const PACKAGE_INDICATOR_TYPES: readonly PackageIndicatorType[] = [

@@ -651,8 +651,10 @@ version stamps the generation consumed; the module and metric catalogs as the in
 (so existing parsers apply unchanged); pinned asset names + hashes; and the §3.7
 memoization fields (`inputKey` per module, content hashes per output file).
 
-**`manifestSchemaVersion` gates every read**, currently `9`
-(`RUN_MANIFEST_SCHEMA_VERSION`; v9 = `hmisIndicators` entries carry the
+**`manifestSchemaVersion` gates every read**, currently `10`
+(`RUN_MANIFEST_SCHEMA_VERSION`; v10 = the indicators mirror's `derived` rows
+read `calculated`, input block 1; the manifest's own shape is unchanged and
+transform block 8 only stamps; v9 = `hmisIndicators` entries carry the
 indicator's format, direction, target, thresholds and, for a calculated
 indicator, its flattened expression, in dictionary order, for the AI
 copilot's grounding; block 4's recompute writes the shape and transform
@@ -702,9 +704,7 @@ clauses, never case-by-case):
 indicator set (PLAN_A4 ruling 3: every analysed count and every calculated
 with its checkbox on), resolved: type, flattened expression, slot map,
 presentation and sort. The row's `type` is the stored type under its code
-name (`uploaded`, `dhis2_element`, `sum`, `calculated`); a package written
-while the formula type was named `derived` was brought to `calculated` by
-input block 1 (manifest version 10); a package generated
+name (`uploaded`, `dhis2_element`, `sum`, `calculated`); a package generated
 before PLAN_A5 carries `base` for every count, which `indicatorRowV2` and
 the manifest's `runIndicatorMetadataSchema` both accept (`PACKAGE_INDICATOR_TYPES`)
 and nothing maps or reads (the display projection strips `type`), and no
@@ -739,7 +739,7 @@ package, a row-schema mismatch is drift and fail-stops.
 
 The transform is also what lets the read path shrink. Target state:
 
-> **The read path parses the manifest only. Input mirrors are provenance in the app's current vocabulary.**
+> **The read path parses the manifest only. Input mirrors are provenance, never a read-path input.**
 
 Every catalog moved into the manifest removes a file from the read path's compat
 surface, which is the argument `run_manifest.ts`'s header already makes, subject

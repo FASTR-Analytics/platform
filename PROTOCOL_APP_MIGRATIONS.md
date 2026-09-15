@@ -341,7 +341,9 @@ structurally by the launch concurrency guard), `backfillSourceProjectId`, and
 
 - [ ] Append the block at the end, numbered, idempotent, precondition-checked
 - [ ] Add it to the `TRANSFORM BLOCKS:` list in the file header
-- [ ] Bump `RUN_MANIFEST_SCHEMA_VERSION` and update the Zod schema
+- [ ] Bump `RUN_MANIFEST_SCHEMA_VERSION` and update the Zod schema; add the
+      version to the history in `lib/types/run_manifest.ts` and to the
+      `manifestSchemaVersion` paragraph in `SYSTEM_08_results_packages.md`
 - [ ] Recompute only: check every field you touch against the list in 1
 - [ ] Bump `PO_CACHE_VERSION` and the `_PO_DETAIL_CACHE` key prefix in
       `server/routes/caches/visualizations.ts`. The first three PO caches key on
@@ -369,8 +371,8 @@ It exists because the strict row schemas in `server/runs/indicator_catalog.ts`
 fail-stop boot on a value they no longer name, and without a forward transform
 renaming a stored vocabulary means either a legacy value accepted forever in
 the reader or a hand edit on every host. Input block 1 is the worked example:
-the formula indicator type was renamed from `derived` to `calculated`, and the
-block rewrites every `derived` row of `inputs/indicators.json`.
+it rewrites every `derived` row of `inputs/indicators.json` to `calculated`,
+the formula indicator type's current code name.
 
 **The rule is the manifest's own: rename or recompute, never invent, and
 never read outside the package.** An input block is a pure function of the
@@ -386,8 +388,8 @@ projection strips it.
 **Versioning.** There is no second version integer. An input block names the
 manifest version that first carries it; that version's manifest block is the
 stamp, and is allowed to be only a stamp (manifest blocks 7 and 8 are the
-precedents). The forced-gate corollary applies unchanged: a mirror fix
-requires a `RUN_MANIFEST_SCHEMA_VERSION` bump to reach existing packages.
+precedents). The forced-gate corollary applies: a mirror fix requires a
+`RUN_MANIFEST_SCHEMA_VERSION` bump to reach existing packages.
 
 **Writing.** Transform in memory, parse, then persist, for both files. The
 stage returns pending writes and nothing lands until `runManifestSchema.parse`
@@ -409,14 +411,13 @@ over the manifest, then start the previous image. A rewrite is reported: the
 `ok` outcome names the mirrors rewritten in `rewrittenInputs`, and the boot
 sweep line in `db_startup.ts` counts them beside the manifests transformed.
 
-**Failure policy.** The two input-mirror rows of the table above are unchanged
-and the stage raises the same two classes. Bytes unavailable or not JSON:
-`RunInputReadError` from `readRunInputJson`, the `unreadable` outcome, the
-package degrades and boot proceeds. A block that throws for any other reason
-is a code defect and fails boot. A mirror the stage leaves in a shape the row
-schema rejects is drift and fails boot through `RunInputRowSchemaError`
-exactly as before: the stage does not validate, the readers do, after the
-stage.
+**Failure policy.** The stage raises the two classes of the table's
+input-mirror rows. Bytes unavailable or not JSON: `RunInputReadError` from
+`readRunInputJson`, the `unreadable` outcome, the package degrades and boot
+proceeds. A block that throws for any other reason is a code defect and fails
+boot. A mirror the stage leaves in a shape the row schema rejects is drift and
+fails boot through `RunInputRowSchemaError`: the stage does not validate, the
+readers do, after the stage.
 
 ### Checklist for adding an input block
 
@@ -426,7 +427,8 @@ stage.
 - [ ] Add it to the `INPUT TRANSFORM BLOCKS:` list in that file's header
 - [ ] Bump `RUN_MANIFEST_SCHEMA_VERSION`; add a manifest block that stamps it
       (and does nothing else if the manifest's shape is unchanged); add the
-      version to the history in `lib/types/run_manifest.ts`
+      version to the history in `lib/types/run_manifest.ts` and to the
+      `manifestSchemaVersion` paragraph in `SYSTEM_08_results_packages.md`
 - [ ] Update the strict row schema in `indicator_catalog.ts` and its enum in
       `lib` to the new vocabulary in the same commit; never add the old value
       to a reader

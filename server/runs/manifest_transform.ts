@@ -109,10 +109,6 @@ async function transformRunManifest(
   const m = structuredClone(manifest);
   const inputFiles = z.array(z.string()).parse(m.inputFiles ?? []);
 
-  // ─── INPUT TRANSFORM STAGE ─────────────────────────────────────────────
-  // The mirrors' vocabulary is brought current first (input_transform.ts,
-  // behind this same version gate). A rewritten mirror is served to the
-  // blocks from memory: nothing touches disk until the manifest parses.
   const pendingInputs = await transformRunInputs(runDir, inputFiles);
   const readRows = runDirInputRowsReader(
     runDir,
@@ -327,12 +323,9 @@ export async function transformRunManifestFile(
     ? `v${storedVersion}`
     : "vx";
 
-  // The manifest has parsed, so the rewritten mirrors land now, before the
-  // manifest: a crash between the two leaves a current mirror beside an old
-  // manifest, which the next forced pass repairs. The reverse order would
-  // stamp the new version over a mirror still in the old vocabulary, and no
-  // later pass revisits a current manifest. The manifest's no-op guard below
-  // gates the manifest write alone, never these.
+  // Mirrors first, manifest second: the order and its reason are in
+  // PROTOCOL_APP_MIGRATIONS.md § "Run Input Transforms". The manifest's no-op
+  // guard below gates the manifest write alone, never these.
   for (const write of pendingInputs) {
     await persistPackageFile({
       path: write.path,

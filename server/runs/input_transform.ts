@@ -50,12 +50,8 @@ export async function transformRunInputs(
 
   // ─── INPUT TRANSFORM BLOCKS ────────────────────────────────────────────
   // New blocks go HERE, at the end, numbered sequentially, never reordered.
-  // Each checks its own precondition and is idempotent. A block renames a
-  // value or a key, or recomputes a field from files already in the package;
-  // it never adds a fact those files do not hold, fills a null, drops a row,
-  // or reads the database or live instance state. Blocks run only on a forced
-  // manifest pass, so a fix requires a RUN_MANIFEST_SCHEMA_VERSION bump to
-  // reach existing packages.
+  // Each checks its own precondition and is idempotent. The rule a block must
+  // satisfy is in PROTOCOL_APP_MIGRATIONS.md § "Run Input Transforms".
 
   // 1. indicators.json `type` "derived" → "calculated". The stored value is
   //    the formula type's code name when the package was written, and the

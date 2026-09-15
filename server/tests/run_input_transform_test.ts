@@ -1,7 +1,6 @@
 // Pins the input transform stage through its one public entry point,
 // transformRunManifestFile, over a scratch package on disk: the version gate
-// and the stage-before-blocks order are what it proves, not the stage alone
-// (PLAN_RUN_INPUT_TRANSFORMS ruling 10).
+// and the stage-before-blocks order are what it proves, not the stage alone.
 //
 //   deno test -A --env-file server/tests/run_input_transform_test.ts
 
