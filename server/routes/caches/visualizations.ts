@@ -84,7 +84,10 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // the run id IS the provenance; "18" entries carry the old shape.
 // "20" (2026-09-15): IndicatorMetadataDisplay gained `direction` and
 // `target`, which po_items carries; "19" entries lack them.
-const PO_CACHE_VERSION = "20";
+// "21" (2026-09-15): manifest schema v9 (hmisIndicators entries carry the
+// interpretation facts). No cached payload reads that list; the bump is the
+// protocol's per-block rule (PROTOCOL_APP_MIGRATIONS, manifest checklist).
+const PO_CACHE_VERSION = "21";
 
 // The immutable run id replaces the data-version dimensions (PLAN_RESULTS_RUNS
 // §2.5): it is the uniqueness scope for the three data caches: two projects
@@ -129,8 +132,10 @@ export const _PO_DETAIL_CACHE = new TimCacheC<
   // which decides how the client compiles the fetch config, and v8 entries
   // carry it as absent. v10: the PO config's `cfMode` enum gained
   // "indicator" and lost `specialScorecardTable` (PLAN_1d): a v9 payload
-  // embeds the pre-transform config.
->("po_detail_v10", {
+  // embeds the pre-transform config. v11: manifest schema v9 (hmisIndicators
+  // entries carry the interpretation facts); the payload does not embed that
+  // list, the bump is the protocol's per-block rule.
+>("po_detail_v11", {
   uniquenessHashFromParams: (params) =>
     [params.projectId, params.presentationObjectId].join("|"),
   versionHashFromParams: (params) =>
