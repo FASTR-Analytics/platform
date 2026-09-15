@@ -11,6 +11,7 @@
 // ============================================================================
 
 import { _INSTANCE_CALENDAR } from "../../exposed_env_vars.ts";
+import { NO_STORED_DHIS2_CONNECTION } from "lib";
 import type { Sql } from "postgres";
 import {
   claimScheduledImportOccurrence,
@@ -557,7 +558,7 @@ async function fireSchedule(
     await recordScheduledImportOutcome(mainDb, schedule.id, {
       outcome: "refused",
       error:
-        "No stored DHIS2 credentials. Save credentials in the DHIS2 imports view.",
+        NO_STORED_DHIS2_CONNECTION.en,
       disable,
     });
     await notifyDatasets(mainDb);
@@ -566,7 +567,6 @@ async function fireSchedule(
 
   const selection = resolveScheduleSelection(schedule.selection);
   const res = await launchDatasetHmisDhis2ImportRun(mainDb, {
-    credentialsOrigin: { kind: "stored" },
     dhis2Url: stored.url,
     selection,
     trigger: "schedule",

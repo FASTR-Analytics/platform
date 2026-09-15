@@ -1,5 +1,5 @@
 import { t3, type Dhis2SelectionDescription } from "lib";
-import { Button, toNum0 } from "panther";
+import { toNum0 } from "panther";
 import { For, Show } from "solid-js";
 import { dhis2IdLabel } from "~/components/indicator_manager_hmis/_indicator_display";
 import { IdListLine } from "./_id_list_line";
@@ -14,8 +14,6 @@ type Props = {
   windowSummary: string;
   nPairs: number | undefined; // undefined when a recurring window can't be sized ahead of fire time
   queueNotice: string | undefined;
-  queueBlockedReason: string | undefined;
-  onBackToCredentials: () => void;
 };
 
 // Pure summary: the submit button itself lives in the wizard controller's
@@ -76,15 +74,6 @@ export function Dhis2StepReview(p: Props) {
       <Show when={p.queueNotice}>
         <div class="bg-base-200 ui-pad text-sm rounded border">
           {p.queueNotice}
-        </div>
-      </Show>
-
-      <Show when={p.queueBlockedReason}>
-        <div class="border-danger bg-danger-subtle ui-pad ui-spy-sm rounded border text-sm">
-          {p.queueBlockedReason}
-          <Button onClick={p.onBackToCredentials} intent="danger" size="sm">
-            {t3({ en: "Back to step 1", fr: "Retour à l'étape 1", pt: "Voltar ao passo 1" })}
-          </Button>
         </div>
       </Show>
     </div>

@@ -2,7 +2,6 @@
 system: 5
 name: Facilities & Indicators
 globs:
-  - client/src/components/forms_editors/dhis2_credentials_form.tsx
   - client/src/components/forms_editors/edit_hfa_indicator.tsx
   - client/src/components/indicator_manager_hfa/**
   - client/src/components/indicator_manager_hmis/**
@@ -1036,9 +1035,9 @@ Every config mutation re-reads all configs and pushes one consolidated
   route resolve the password from the encrypted store at fetch time
   (`getStructureDhis2ResolvedCredentials`), refusing loudly if the stored
   connection's URL has changed since step 1 was confirmed. The client
-  panel shows the stored connection and links to the shared manage-
-  connection modal to replace it. There is no per-attempt credential
-  editor. A successful integrate also reports geojson `area_id`s orphaned
+  panel shows the stored connection and, when none is stored, points to
+  the Data page's DHIS2 connection card, the only place a connection is
+  set, replaced or deleted. A successful integrate also reports geojson `area_id`s orphaned
   by the import in the step-4 summary.
 - Permissions: reads are `can_view_data` (incl. the CSV exports);
   mutations `can_configure_data`; config mutations
@@ -1094,8 +1093,7 @@ Every config mutation re-reads all configs and pushes one consolidated
   (lon/lat range, polygonal types, non-unique match values). (The
   plaintext-sessionStorage credentials item is resolved: the
   sessionStorage cache was deleted by PLAN_DHIS2_CREDENTIAL_STORE_
-  CONSOLIDATION; geojson now defaults to the encrypted stored connection
-  with an inline one-off override.)
+  CONSOLIDATION; geojson now uses only the encrypted stored connection.)
 - `pt` is missing across most of this system's t3 literals (indicator
   managers, structure viewers, wizards), part of the batch-by-batch PT
   rollout.

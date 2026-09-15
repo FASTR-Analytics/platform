@@ -27,7 +27,7 @@ import {
   createWorkerReadConnection,
   enumerateRunPairs,
   finalizeInterruptedDatasetHmisRunVersion,
-  resolveDhis2Credentials,
+  getStoredDhis2CredentialsDecrypted,
   HMIS_DHIS2_RUN_SCOPE_TABLE_NAME,
   upsertHmisLedgerErrorPairs,
   upsertHmisLedgerPairsFromData,
@@ -39,7 +39,6 @@ import type {
   Dhis2Credentials,
   Dhis2FetchErrorKind,
   Dhis2PairFetchStat,
-  Dhis2CredentialsOrigin,
   Dhis2RunPair,
   Dhis2RunSelection,
   PeriodIndicatorStat,
@@ -91,7 +90,6 @@ const DVS_TIMEOUT_MS = 300_000;
 
 type RunWorkerMessage = {
   runId: number;
-  credentialsOrigin: Dhis2CredentialsOrigin;
   selection: Dhis2RunSelection;
 };
 
@@ -129,7 +127,7 @@ async function run(std: RunWorkerMessage) {
   }
   alreadyRunning = true;
 
-  const { runId, credentialsOrigin, selection } = std;
+  const { runId, selection } = std;
   const importDb = createBulkImportConnection("main");
   const mainDb = createWorkerReadConnection("main");
   const runStartedIso = new Date().toISOString();
@@ -354,27 +352,22 @@ async function run(std: RunWorkerMessage) {
       throw new Error(`Run ${runId} is not in 'running' state`);
     }
 
-    // Stored credentials are read + decrypted HERE, in the worker (C3 ruling:
+    // Credentials are read + decrypted HERE, in the worker (C3 ruling:
     // decrypt only at fetch time: the host and the scheduler tick never see
     // the plaintext password). A missing row or a changed encryption key
     // throws, and the catch below fails the run loudly.
-    const credentials: Dhis2Credentials = await resolveDhis2Credentials(
-      mainDb,
-      credentialsOrigin,
-    );
+    const credentials: Dhis2Credentials =
+      await getStoredDhis2CredentialsDecrypted(mainDb);
     const baseFetchOptions: FetchOptions = { dhis2Credentials: credentials };
 
-    // For stored credentials the URL was read by the launcher moments ago,
-    // but an admin can replace the stored connection in that window:
-    // re-stamp the row with the URL this run will ACTUALLY fetch so run
-    // history records the real URL.
-    if (credentialsOrigin.kind === "stored") {
-      await mainDb`
-        UPDATE dataset_hmis_import_runs
-        SET dhis2_url = ${credentials.url}
-        WHERE id = ${runId} AND status = 'running'
-      `;
-    }
+    // The launcher read the URL moments ago, but an admin can replace the
+    // stored connection in that window: re-stamp the row with the URL this
+    // run will ACTUALLY fetch so run history records the real URL.
+    await mainDb`
+      UPDATE dataset_hmis_import_runs
+      SET dhis2_url = ${credentials.url}
+      WHERE id = ${runId} AND status = 'running'
+    `;
 
     const facilities = await mainDb<{ facility_id: string }[]>`
       SELECT facility_id FROM facilities_hmis

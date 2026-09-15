@@ -1,29 +1,25 @@
 import {
   describeDhis2Selection,
   getCalendar,
+  NO_STORED_DHIS2_CONNECTION,
   POPULATION_TYPE_IDS,
   t3,
   type DatasetHmisScheduledImport,
   type DatasetHmisScheduledImportFields,
-  type Dhis2Credentials,
   type Dhis2RunPairInput,
   type Dhis2RunSelectionInput,
   type Dhis2ScheduleRecurrence,
   type Dhis2SelectionDescription,
   type HmisIndicator,
-  type InstanceDhis2CredentialsInfo,
 } from "lib";
 import { recurrenceLabel } from "../_recurrence_label";
 import {
   AlertComponentProps,
   Button,
-  LoadingIndicator,
   ModalContainer,
   StateHolderFormError,
-  StateHolderWrapper,
   StepperChipsWithTitles,
   createFormAction,
-  createQuery,
   getLocalTimezone,
   getStepper,
   utcMsToZonedDateTime,
@@ -36,7 +32,6 @@ import { Show, createMemo, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { Dhis2StepConfig } from "./_step_config";
-import { Dhis2StepCredentials } from "~/components/_shared/dhis2_credentials/step_credentials";
 import { Dhis2StepIndicators } from "./_step_indicators";
 import { Dhis2StepReview } from "./_step_review";
 import { Dhis2StepTime, type Dhis2WizardTimeChoice } from "./_step_time";
@@ -62,16 +57,10 @@ export const DHIS2_DATA_IMPORT_TITLE = {
 // Why a seeded id was left out of the selection when the dictionary loaded.
 export type Dhis2SeedDrop = { id: string; reason: "uploaded" | "unknown" };
 
-type StepKind = "credentials" | "indicators" | "time" | "config" | "review";
+type StepKind = "indicators" | "time" | "config" | "review";
 
-const FULL_STEPS: StepKind[] = [
-  "credentials",
-  "indicators",
-  "time",
-  "config",
-  "review",
-];
-const PRESET_STEPS: StepKind[] = ["credentials", "time", "review"];
+const FULL_STEPS: StepKind[] = ["indicators", "time", "config", "review"];
+const PRESET_STEPS: StepKind[] = ["time", "review"];
 
 function getNMonths(startPeriod: number, endPeriod: number): number {
   const startYear = Math.floor(startPeriod / 100);
@@ -128,66 +117,35 @@ function currentYearMonth(): string {
 // queue, one-shot future run, recurring schedule (PLAN_DHIS2_IMPORTER_UI_REVISION
 // §3). A modal (Add-visualization pattern), not a full-screen editor: short,
 // transient configure-and-submit, dismissed straight back to its host. It
-// fetches what it needs itself (the results-package wizard's shape), so the
-// imports view and the indicator manager hand it the entry and nothing else.
+// reads what it needs itself, so the imports view and the indicator manager
+// hand it the entry and nothing else.
 export function Dhis2Wizard(
   p: AlertComponentProps<Dhis2WizardProps, Dhis2WizardResult>,
 ) {
-  const query = createQuery(
-    () => serverActions.getInstanceDhis2CredentialsInfo({}),
-    t3({
-      en: "Loading DHIS2 connection...",
-      fr: "Chargement de la connexion DHIS2...",
-      pt: "A carregar a ligação DHIS2...",
-    }),
-  );
   return (
-    <StateHolderWrapper
-      state={query.state()}
-      loadingRenderer={(msg) => (
+    <Show
+      when={instanceState.dhis2ConnectionUrl}
+      fallback={
         <ModalContainer
-          height="lg"
-          width="3xl"
-          topPanel={
-            <div class="flex items-center justify-between">
-              <div class="font-700 text-lg">{t3(DHIS2_DATA_IMPORT_TITLE)}</div>
-            </div>
-          }
-        >
-          <div class="min-h-[24rem]">
-            <LoadingIndicator msg={msg} noPad />
-          </div>
-        </ModalContainer>
-      )}
-      errorRenderer={(err) => (
-        <ModalContainer
-          height="lg"
-          width="3xl"
-          topPanel={
-            <div class="flex items-center justify-between">
-              <div class="font-700 text-lg">{t3(DHIS2_DATA_IMPORT_TITLE)}</div>
-            </div>
-          }
+          width="md"
+          title={t3(DHIS2_DATA_IMPORT_TITLE)}
           rightButtons={
             <Button onClick={() => p.close(undefined)} outline>
-              {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
+              {t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
             </Button>
           }
         >
-          <div class="text-danger">{err}</div>
+          <div class="text-danger">{t3(NO_STORED_DHIS2_CONNECTION)}</div>
         </ModalContainer>
-      )}
+      }
     >
-      {(info) => (
-        <Dhis2WizardInner entry={p.entry} info={info} close={p.close} />
-      )}
-    </StateHolderWrapper>
+      <Dhis2WizardInner entry={p.entry} close={p.close} />
+    </Show>
   );
 }
 
 type InnerProps = {
   entry: Dhis2WizardEntry;
-  info: InstanceDhis2CredentialsInfo;
   close: (v: Dhis2WizardResult | undefined) => void;
 };
 
@@ -201,26 +159,7 @@ function Dhis2WizardInner(p: InnerProps) {
   const calendar = getCalendar();
   const periods = getMinMaxPeriods(calendar);
 
-  // Step 1: credentials. The info is held here and refreshed by the step's
-  // own save, never by refetching the outer query: the wrapper keys its
-  // ready branch on the data object, and a remount would wipe the
-  // selection of a user who came back through "Back to step 1".
-  const [credentialsInfo, setCredentialsInfo] =
-    createSignal<InstanceDhis2CredentialsInfo>(p.info);
-  const [editingCreds, setEditingCreds] = createSignal<boolean>(
-    !p.info.storedCredentials,
-  );
-  const [credentials, setCredentials] = createSignal<Dhis2Credentials>({
-    url: p.info.storedCredentials?.url ?? "",
-    username: "",
-    password: "",
-  });
-  async function refreshCredentialsInfo() {
-    const res = await serverActions.getInstanceDhis2CredentialsInfo({});
-    if (res.success) setCredentialsInfo(res.data);
-  }
-
-  // Step 2: indicators. The dictionary the picker loads lets the wizard
+  // Indicators step. The dictionary the picker loads lets the wizard
   // describe what the selection expands to (the DHIS2 elements fetched and
   // the parts dropped) with the same lib expansion the server persists at
   // launch; the step refuses Next while nothing would be fetched or a
@@ -287,7 +226,7 @@ function Dhis2WizardInner(p: InnerProps) {
     return undefined;
   });
 
-  // Step 3: time.
+  // Time step.
   const [timeChoice, setTimeChoice] = createSignal<Dhis2WizardTimeChoice>(
     isPreset
       ? "now"
@@ -347,7 +286,7 @@ function Dhis2WizardInner(p: InnerProps) {
       Intl.DateTimeFormat().resolvedOptions().timeZone,
   );
 
-  // Step 4: config.
+  // Config step.
   const [startPeriod, setStartPeriod] = createSignal<number>(
     scheduleDefaults?.selection.kind === "explicit_range"
       ? scheduleDefaults.selection.startPeriod
@@ -363,16 +302,6 @@ function Dhis2WizardInner(p: InnerProps) {
       ? scheduleDefaults.selection.monthsBack
       : 12,
   );
-
-  const hasStoredCredentials = () =>
-    credentialsInfo().storedCredentials !== undefined;
-
-  // The stored-credentials gate applies whenever the server will actually
-  // check it: createDatasetHmisDhis2Schedule always checks it (any kind), but
-  // updateDatasetHmisDhis2Schedule only re-checks for kind "one_shot":
-  // editing an existing recurring schedule's time/day is not a re-arm
-  // gesture and isn't gated server-side (datasets.ts updateDatasetHmisDhis2Schedule).
-  const gateApplies = () => !isEditSchedule || timeChoice() === "later";
 
   function buildRecurrence(): Dhis2ScheduleRecurrence {
     const base = { startTime: startTime(), timezone: timezone() };
@@ -403,7 +332,6 @@ function Dhis2WizardInner(p: InnerProps) {
 
   function computeTimeValid(): boolean {
     if (timeChoice() === "now") return true;
-    if (gateApplies() && !hasStoredCredentials()) return false;
     if (timeChoice() === "later") return runAtZoned().dateTime !== "";
     if (startTime() === "") return false;
     if (recurKind() === "weekly") return firstRunDate() !== "";
@@ -416,11 +344,6 @@ function Dhis2WizardInner(p: InnerProps) {
   }
 
   const stepperData = createMemo(() => ({
-    credsValid: editingCreds()
-      ? credentials().url !== "" &&
-        credentials().username !== "" &&
-        credentials().password !== ""
-      : true,
     indicatorsValid:
       selectedIndicators().length > 0 &&
       description() !== undefined &&
@@ -435,8 +358,6 @@ function Dhis2WizardInner(p: InnerProps) {
     maxStep: steps.length - 1,
     getValidation: (step, data) => {
       const kind = steps[step];
-      if (kind === "credentials")
-        return { canGoPrev: false, canGoNext: data.credsValid };
       if (kind === "indicators")
         return { canGoPrev: true, canGoNext: data.indicatorsValid };
       if (kind === "time")
@@ -451,11 +372,6 @@ function Dhis2WizardInner(p: InnerProps) {
   const isLastStep = () => currentStepKind() === "review";
 
   const STEP_LABEL: Record<StepKind, string> = {
-    credentials: t3({
-      en: "Credentials",
-      fr: "Identifiants",
-      pt: "Credenciais",
-    }),
     indicators: t3({ en: "Indicators", fr: "Indicateurs", pt: "Indicadores" }),
     time: t3({ en: "Time", fr: "Heure", pt: "Hora" }),
     config: t3({ en: "Config", fr: "Configuration", pt: "Configuração" }),
@@ -467,8 +383,6 @@ function Dhis2WizardInner(p: InnerProps) {
   };
   const stepLabels = steps.map((k) => STEP_LABEL[k]);
 
-  const credentialsStepIndex = steps.indexOf("credentials");
-
   // Live run state from the SSE summary, which the server pushes at launch,
   // enqueue, scheduler fire and completion: read here (never a snapshot
   // captured at open) so the Start-vs-Queue fork is honest at both render
@@ -476,22 +390,8 @@ function Dhis2WizardInner(p: InnerProps) {
   const runActive = () => instanceState.hmisImportRunActive;
   const isImmediateFlow = () => isPreset || timeChoice() === "now";
   const willQueue = createMemo(() => isImmediateFlow() && runActive());
-  // Queued fires always use the stored connection (enqueueDatasetHmisDhis2Run
-  // never accepts inline credentials): resolving to Queue with unsaved
-  // inline credentials can't proceed.
-  const queueBlocked = createMemo(() => willQueue() && editingCreds());
 
-  const connectionSummary = () => {
-    if (editingCreds()) {
-      return credentials().url
-        ? `${t3({ en: "Inline (this run only):", fr: "En ligne (cette importation uniquement) :", pt: "Direta (apenas esta importação):" })} ${credentials().url}`
-        : t3({ en: "Not set", fr: "Non défini", pt: "Não definido" });
-    }
-    const stored = credentialsInfo().storedCredentials;
-    return stored
-      ? `${t3({ en: "Stored:", fr: "Enregistrée :", pt: "Guardada:" })} ${stored.url}`
-      : t3({ en: "Not set", fr: "Non défini", pt: "Não definido" });
-  };
+  const connectionSummary = () => instanceState.dhis2ConnectionUrl ?? "";
 
   const timeSummary = () => {
     if (isPreset || timeChoice() === "now") {
@@ -534,15 +434,6 @@ function Dhis2WizardInner(p: InnerProps) {
         })
       : undefined;
 
-  const queueBlockedReason = () =>
-    queueBlocked()
-      ? t3({
-          en: "Queued imports always run with the stored connection — save one, or wait for the current import to finish and start immediately with inline credentials.",
-          fr: "Les importations en file d'attente utilisent toujours la connexion enregistrée — enregistrez-en une, ou attendez la fin de l'importation en cours pour démarrer immédiatement avec des identifiants en ligne.",
-          pt: "As importações em fila utilizam sempre a ligação guardada — guarde uma, ou aguarde que a importação atual termine para iniciar de imediato com credenciais diretas.",
-        })
-      : undefined;
-
   const ctaLabel = () => {
     if (isImmediateFlow()) {
       return willQueue()
@@ -574,32 +465,11 @@ function Dhis2WizardInner(p: InnerProps) {
     if (willQueue()) {
       return await serverActions.enqueueDatasetHmisDhis2Run({ selection });
     }
-    if (!editingCreds()) {
-      return await serverActions.launchDatasetHmisDhis2Run({ selection });
-    }
-    const creds = credentials();
-    if (!creds.url || !creds.username || !creds.password) {
-      return {
-        success: false as const,
-        err: t3({
-          en: "All DHIS2 connection fields are required",
-          fr: "Tous les champs de connexion DHIS2 sont requis",
-          pt: "Todos os campos de ligação DHIS2 são obrigatórios",
-        }),
-      };
-    }
-    return await serverActions.launchDatasetHmisDhis2Run({
-      credentials: creds,
-      selection,
-    });
+    return await serverActions.launchDatasetHmisDhis2Run({ selection });
   }
 
   const submit = createFormAction(
     async () => {
-      if (queueBlocked()) {
-        return { success: false, err: queueBlockedReason() ?? "" };
-      }
-
       if (isPreset) {
         const pairs = p.entry.kind === "presetPairs" ? p.entry.pairs : [];
         return await launchOrQueueNow({ kind: "pairs", pairs });
@@ -683,7 +553,6 @@ function Dhis2WizardInner(p: InnerProps) {
           >
             <Button
               onClick={submit.click}
-              disabled={queueBlocked()}
               state={submit.state()}
               intent="success"
             >
@@ -694,22 +563,6 @@ function Dhis2WizardInner(p: InnerProps) {
       }
     >
       <div class="ui-pad min-h-[24rem]">
-        <Show when={currentStepKind() === "credentials"}>
-          <Dhis2StepCredentials
-            storedCredentials={credentialsInfo().storedCredentials}
-            encryptionKeyConfigured={credentialsInfo().encryptionKeyConfigured}
-            editing={editingCreds}
-            setEditing={setEditingCreds}
-            credentials={credentials}
-            setCredentials={setCredentials}
-            onSaved={refreshCredentialsInfo}
-            unsavedEditorHint={t3({
-              en: "You can also continue without saving — these credentials will only be used for this run.",
-              fr: "Vous pouvez aussi continuer sans enregistrer — ces identifiants ne seront utilisés que pour cette importation.",
-              pt: "Também pode continuar sem guardar — estas credenciais serão utilizadas apenas para esta importação.",
-            })}
-          />
-        </Show>
         <Show when={currentStepKind() === "indicators"}>
           <Dhis2StepIndicators
             selectedIds={selectedIndicators}
@@ -744,11 +597,6 @@ function Dhis2WizardInner(p: InnerProps) {
             setStartTime={setStartTime}
             timezone={timezone}
             setTimezone={setTimezone}
-            gateApplies={gateApplies()}
-            hasStoredCredentials={hasStoredCredentials()}
-            onBackToCredentials={() =>
-              stepper.setCurrentStep(credentialsStepIndex)
-            }
           />
         </Show>
         <Show when={currentStepKind() === "config"}>
@@ -773,10 +621,6 @@ function Dhis2WizardInner(p: InnerProps) {
             windowSummary={windowSummary()}
             nPairs={nPairs()}
             queueNotice={queueNotice()}
-            queueBlockedReason={queueBlockedReason()}
-            onBackToCredentials={() =>
-              stepper.setCurrentStep(credentialsStepIndex)
-            }
           />
           <StateHolderFormError state={submit.state()} />
         </Show>

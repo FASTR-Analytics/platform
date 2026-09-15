@@ -18,7 +18,6 @@ import {
   type DatasetHmisImportRunProgress,
   type DatasetHmisImportRunStats,
   type DatasetHmisImportRunSummary,
-  type Dhis2CredentialsOrigin,
   type HmisCsvMapping,
   type Dhis2RunPair,
   type Dhis2RunSelection,
@@ -263,17 +262,15 @@ async function spawnRunWorker(
   mainDb: Sql,
   args: {
     runId: number;
-    credentialsOrigin: Dhis2CredentialsOrigin;
     selection: Dhis2RunSelection;
     onComplete?: () => void;
   },
 ): Promise<void> {
-  const { runId, credentialsOrigin, selection, onComplete } = args;
+  const { runId, selection, onComplete } = args;
   let worker: Worker;
   try {
     worker = instantiateImportHmisDataDhis2Worker({
       runId,
-      credentialsOrigin,
       selection,
     });
     setWorker("hmis_dhis2_run", worker);
@@ -328,9 +325,7 @@ async function spawnRunWorker(
 export async function launchDatasetHmisDhis2ImportRun(
   mainDb: Sql,
   args: {
-    credentialsOrigin: Dhis2CredentialsOrigin;
-    // The URL recorded on the run row. For inline credentials this is
-    // credentials.url; for stored, the stored url.
+    // The stored connection's URL, recorded on the run row.
     dhis2Url: string;
     selection: Dhis2RunSelectionInput;
     trigger: "manual" | "schedule";
@@ -339,8 +334,7 @@ export async function launchDatasetHmisDhis2ImportRun(
   },
 ): Promise<APIResponseWithData<{ runId: number }>> {
   return await tryCatchDatabaseAsync(async () => {
-    const { credentialsOrigin, dhis2Url, trigger, triggeredBy, onComplete } =
-      args;
+    const { dhis2Url, trigger, triggeredBy, onComplete } = args;
 
     const { selection, pairs } = await validateRunSelection(
       mainDb,
@@ -369,9 +363,8 @@ export async function launchDatasetHmisDhis2ImportRun(
     `;
     const runId = inserted[0].id;
 
-    // Inline credentials travel only in the worker message: never stored on
-    // the run row; stored credentials are decrypted inside the worker (C3).
-    await spawnRunWorker(mainDb, { runId, credentialsOrigin, selection, onComplete });
+    // The stored credentials are decrypted inside the worker (C3).
+    await spawnRunWorker(mainDb, { runId, selection, onComplete });
 
     return { success: true, data: { runId } };
   });
@@ -380,8 +373,7 @@ export async function launchDatasetHmisDhis2ImportRun(
 // C6: queue, not concurrent execution: a queued row is inert (no claim, no
 // worker) until the ~60 s scheduler tick drains it FIFO through
 // launchQueuedDatasetHmisImportRun once the import slot is free. Queued fires
-// are unattended, so they require stored credentials (a prompted plaintext
-// credential must never be persisted to survive until the queue drains).
+// are unattended and, like every run, use the stored credentials.
 export async function enqueueDatasetHmisImportRun(
   mainDb: Sql,
   args: {
@@ -518,7 +510,6 @@ export async function launchQueuedDatasetHmisImportRun(
 
   await spawnRunWorker(mainDb, {
     runId: args.runId,
-    credentialsOrigin: { kind: "stored" },
     selection: args.selection,
     onComplete: args.onComplete,
   });

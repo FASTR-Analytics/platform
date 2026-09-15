@@ -8,15 +8,14 @@ import {
   searchAllIndicatorsAndDataElements,
   searchDataElementsFromDHIS2,
   searchIndicatorsFromDHIS2,
-  testIndicatorsConnection,
   withDecompositions,
   withElementVerdicts,
 } from "../../dhis2/mod.ts";
-import { t3, type Dhis2Credentials, type Dhis2CredentialsOrigin } from "lib";
+import type { Dhis2Credentials } from "lib";
 import {
   createIndicatorsFromDhis2,
   getInstanceIndicatorsSummary,
-  resolveDhis2Credentials,
+  getStoredDhis2CredentialsDecrypted,
 } from "../../db/mod.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
@@ -47,10 +46,9 @@ function dataElementIdOf(dataId: string): string {
 
 async function resolveOrErr(
   mainDb: Sql,
-  credentialsOrigin: Dhis2CredentialsOrigin,
 ): Promise<{ ok: true; credentials: Dhis2Credentials } | { ok: false; err: string }> {
   try {
-    return { ok: true, credentials: await resolveDhis2Credentials(mainDb, credentialsOrigin) };
+    return { ok: true, credentials: await getStoredDhis2CredentialsDecrypted(mainDb) };
   } catch (error) {
     return {
       ok: false,
@@ -69,7 +67,7 @@ defineRoute(
   log("searchDhis2Indicators"),
   async (c, { body }) => {
     try {
-      const resolved = await resolveOrErr(c.var.mainDb, body.credentialsOrigin);
+      const resolved = await resolveOrErr(c.var.mainDb);
       if (!resolved.ok) {
         return c.json({ success: false, err: resolved.err });
       }
@@ -98,7 +96,7 @@ defineRoute(
   log("searchDhis2DataElements"),
   async (c, { body }) => {
     try {
-      const resolved = await resolveOrErr(c.var.mainDb, body.credentialsOrigin);
+      const resolved = await resolveOrErr(c.var.mainDb);
       if (!resolved.ok) {
         return c.json({ success: false, err: resolved.err });
       }
@@ -132,7 +130,7 @@ defineRoute(
   log("searchDhis2All"),
   async (c, { body }) => {
     try {
-      const resolved = await resolveOrErr(c.var.mainDb, body.credentialsOrigin);
+      const resolved = await resolveOrErr(c.var.mainDb);
       if (!resolved.ok) {
         return c.json({ success: false, err: resolved.err });
       }
@@ -173,7 +171,7 @@ defineRoute(
   log("createIndicatorsFromDhis2"),
   async (c, { body }) => {
     try {
-      const resolved = await resolveOrErr(c.var.mainDb, body.credentialsOrigin);
+      const resolved = await resolveOrErr(c.var.mainDb);
       if (!resolved.ok) {
         return c.json({ success: false, err: resolved.err });
       }
@@ -226,34 +224,6 @@ defineRoute(
       return c.json(res);
     } catch (error) {
       console.error("Error creating indicators from DHIS2:", error);
-      return c.json({
-        success: false,
-        err: error instanceof Error ? error.message : "Unknown error occurred",
-      });
-    }
-  },
-);
-
-// POST /indicators-dhis2/test-connection - Test DHIS2 connection
-defineRoute(
-  routesIndicatorsDhis2,
-  "testDhis2IndicatorsConnection",
-  requireGlobalPermission("can_configure_data"),
-  log("testDhis2IndicatorsConnection"),
-  async (c, { body }) => {
-    try {
-      const resolved = await resolveOrErr(c.var.mainDb, body.credentialsOrigin);
-      if (!resolved.ok) {
-        return c.json({ success: false, err: resolved.err });
-      }
-      const result = await testIndicatorsConnection({ dhis2Credentials: resolved.credentials });
-
-      if (!result.success) {
-        return c.json({ success: false, err: t3(result.message) });
-      }
-      return c.json({ success: true, data: result.details ?? {} });
-    } catch (error) {
-      console.error("Error testing DHIS2 connection:", error);
       return c.json({
         success: false,
         err: error instanceof Error ? error.message : "Unknown error occurred",

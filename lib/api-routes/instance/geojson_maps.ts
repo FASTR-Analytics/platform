@@ -10,17 +10,6 @@ type Dhis2FeatureContext = {
   parentName: string | null;
 };
 
-const dhis2CredentialsSchema = z.object({
-  url: z.string(),
-  username: z.string(),
-  password: z.string(),
-});
-
-const dhis2CredentialsOriginSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("inline"), credentials: dhis2CredentialsSchema }),
-  z.object({ kind: z.literal("stored") }),
-]);
-
 const facilityFamilySchema = z.enum(["hmis", "hfa"]);
 const familyLevelParamsSchema = z.object({
   family: facilityFamilySchema,
@@ -90,7 +79,6 @@ export const geojsonMapRouteRegistry = {
   dhis2GetOrgUnitLevels: route({
     path: "/geojson-maps/dhis2/levels",
     method: "POST",
-    body: z.object({ credentialsOrigin: dhis2CredentialsOriginSchema }),
     response: {} as {
       levels: Array<{ level: number; name: string; orgUnitCount: number }>;
     },
@@ -99,7 +87,6 @@ export const geojsonMapRouteRegistry = {
     path: "/geojson-maps/dhis2/analyze",
     method: "POST",
     body: z.object({
-      credentialsOrigin: dhis2CredentialsOriginSchema,
       dhis2Level: z.number(),
     }),
     response: {} as {
@@ -114,7 +101,6 @@ export const geojsonMapRouteRegistry = {
     path: "/geojson-maps/dhis2/save",
     method: "POST",
     body: z.object({
-      credentialsOrigin: dhis2CredentialsOriginSchema,
       dhis2Level: z.number(),
       family: facilityFamilySchema,
       adminAreaLevel: adminAreaLevelSchema,

@@ -40,8 +40,7 @@ import { requireGlobalPermission } from "../../middleware/mod.ts";
 import { notifyInstanceDatasetsUpdated } from "../../task_management/notify_instance_updated.ts";
 import { _FETCH_CACHE_DATASET_HFA_ITEMS } from "../caches/dataset.ts";
 import { defineRoute } from "../route-helpers.ts";
-import { validateDhis2Connection } from "../../dhis2/mod.ts";
-import { t3 } from "lib";
+import { NO_STORED_DHIS2_CONNECTION } from "lib";
 
 export const routesDatasets = new Hono();
 
@@ -128,32 +127,15 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("launchDatasetHmisDhis2Run"),
   async (c, { body }) => {
-    // Absent credentials = use the stored instance credentials (Phase 4 C3).
-    // Stored launches skip pre-validation: validating would decrypt the
-    // password in the host, and decryption is worker-only; bad stored
-    // credentials fail the run loudly within seconds.
-    let dhis2Url: string;
-    if (body.credentials) {
-      const validation = await validateDhis2Connection(body.credentials);
-      if (!validation.valid) {
-        return c.json({ success: false, err: t3(validation.message) });
-      }
-      dhis2Url = body.credentials.url;
-    } else {
-      const stored = await getStoredDhis2CredentialsInfo(c.var.mainDb);
-      if (!stored) {
-        return c.json({
-          success: false,
-          err: "No stored DHIS2 credentials — enter credentials or save them first.",
-        });
-      }
-      dhis2Url = stored.url;
+    // No pre-validation: validating would decrypt the password in the host,
+    // and decryption is worker-only; bad stored credentials fail the run
+    // loudly within seconds.
+    const stored = await getStoredDhis2CredentialsInfo(c.var.mainDb);
+    if (!stored) {
+      return c.json({ success: false, err: NO_STORED_DHIS2_CONNECTION.en });
     }
     const res = await launchDatasetHmisDhis2ImportRun(c.var.mainDb, {
-      credentialsOrigin: body.credentials
-        ? { kind: "inline", credentials: body.credentials }
-        : { kind: "stored" },
-      dhis2Url,
+      dhis2Url: stored.url,
       selection: body.selection,
       trigger: "manual",
       triggeredBy: c.var.globalUser?.email ?? "unknown",
@@ -187,7 +169,7 @@ defineRoute(
     if (!stored) {
       return c.json({
         success: false,
-        err: "Queued imports need stored DHIS2 credentials — save credentials first.",
+        err: NO_STORED_DHIS2_CONNECTION.en,
       });
     }
     const res = await enqueueDatasetHmisImportRun(c.var.mainDb, {
@@ -266,12 +248,12 @@ defineRoute(
   },
 );
 
-// Schedules fire with {kind: "stored"} credentials, so they cannot be
-// created or re-enabled before the instance has stored credentials.
+// Schedules fire unattended, so they cannot be created or re-enabled
+// before the instance has stored credentials.
 async function assertUnattendedReady(mainDb: Sql): Promise<string | null> {
   const stored = await getStoredDhis2CredentialsInfo(mainDb);
   if (!stored) {
-    return "Scheduled imports need stored DHIS2 credentials — save credentials first.";
+    return NO_STORED_DHIS2_CONNECTION.en;
   }
   return null;
 }

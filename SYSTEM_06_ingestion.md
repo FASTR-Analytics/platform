@@ -92,11 +92,11 @@ history). Shape:
   per-pair fetch stats; CSV: the staging diagnostics), `version_id`. A partial
   unique index allows at most one `running` row. The INSERT (or the
   queued→running UPDATE) is the launch claim, shared by both routes; queued
-  rows of either route drain FIFO through the same scheduler tick. Inline
-  credentials travel only in the worker message; stored credentials
-  (`instance_dhis2_credentials`, instance-wide, password AES-GCM-encrypted
-  with `DHIS2_CREDENTIALS_ENCRYPTION_KEY`) are decrypted only inside the
-  worker via `resolveDhis2Credentials`; CSV fires need no credentials.
+  rows of either route drain FIFO through the same scheduler tick. Every
+  DHIS2 run uses the stored credentials (`instance_dhis2_credentials`,
+  instance-wide, password AES-GCM-encrypted with
+  `DHIS2_CREDENTIALS_ENCRYPTION_KEY`), decrypted only inside the worker via
+  `getStoredDhis2CredentialsDecrypted`; CSV fires need no credentials.
 - **CSV runs** (`import_hmis_data_csv/` worker, `"hmis"` worker key): the
   wizard is client-local: its file input is an ordinary instance asset
   (uploaded or picked, S4), named by `fileName` in the launch payload.
@@ -444,7 +444,7 @@ callback re-parses the new bytes).
   skipped values as a statistic beside the row counts, never as a
   validation issue. A run detail's failed pairs feed the wizard's
   `presetPairs` entry from the shell (a cancelled wizard lands on the tab,
-  not back in the detail; accepted). Two wizards: DHIS2 (credentials/indicators/time/
+  not back in the detail; accepted). Two wizards: DHIS2 (indicators/time/
   config/review; the Indicators step picks from the dictionary list
   without its Uploaded rows, which a DHIS2 import cannot fetch, over a
   search box and a selected count (S5), and
@@ -465,13 +465,10 @@ callback re-parses the new bytes).
   with the launch-or-queue fork. The DHIS2 wizard has three hosts, the
   imports view, the HMIS Data page's Ledger tab and the indicator manager's
   "Import HMIS data from DHIS2" bulk action (S5), and takes only its entry
-  from any of them: it fetches the
-  stored connection itself (`getInstanceDhis2CredentialsInfo`, the
-  results-package wizard's shape: an outer query whose loading and error
-  frames draw the modal at the wizard's width and title, an inner component
-  seeded from the data, which refreshes the info through the credentials
-  step's own save rather than the outer query, whose remount would wipe
-  the selection), and reads the Start-vs-Queue fork from the SSE summary's
+  from any of them: it reads the
+  stored connection's URL from the SSE summary's `dhis2ConnectionUrl`,
+  shows a notice pointing to the Data page's DHIS2 connection card instead
+  of the steps while none is stored, and reads the Start-vs-Queue fork from the SSE summary's
   `hmisImportRunActive`, live in every host. A `new` entry may carry
   `indicatorIds` to preselect; every seeded selection (those ids, or a
   stored schedule's) drops the ids the picker does not list, Uploaded

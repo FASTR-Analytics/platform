@@ -6,7 +6,7 @@ import {
   getAdminAreaOptionsForLevel,
   saveGeoJsonMap,
   deleteGeoJsonMap,
-  resolveDhis2Credentials,
+  getStoredDhis2CredentialsDecrypted,
 } from "../../db/mod.ts";
 import { resolveAssetFilePath } from "../../db/instance/assets.ts";
 import { log } from "../../middleware/logging.ts";
@@ -269,10 +269,10 @@ defineRoute(
   "dhis2GetOrgUnitLevels",
   requireGlobalPermission("can_configure_data"),
   log("dhis2GetOrgUnitLevels"),
-  async (c, { body }) => {
+  async (c) => {
     let credentials: Dhis2Credentials;
     try {
-      credentials = await resolveDhis2Credentials(c.var.mainDb, body.credentialsOrigin);
+      credentials = await getStoredDhis2CredentialsDecrypted(c.var.mainDb);
     } catch (error) {
       return c.json({
         success: false,
@@ -314,7 +314,7 @@ defineRoute(
     }
     let credentials: Dhis2Credentials;
     try {
-      credentials = await resolveDhis2Credentials(c.var.mainDb, body.credentialsOrigin);
+      credentials = await getStoredDhis2CredentialsDecrypted(c.var.mainDb);
     } catch (error) {
       return c.json({
         success: false,
@@ -412,7 +412,7 @@ defineRoute(
     }
     let credentials: Dhis2Credentials;
     try {
-      credentials = await resolveDhis2Credentials(c.var.mainDb, body.credentialsOrigin);
+      credentials = await getStoredDhis2CredentialsDecrypted(c.var.mainDb);
     } catch (error) {
       return c.json({
         success: false,

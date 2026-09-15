@@ -40,7 +40,7 @@ import {
 import { escapeSqlString, tryCatchDatabaseAsync } from "./../utils.ts";
 import { DBStructureUploadAttempt } from "./_main_database_types.ts";
 import { getStructureSchema } from "./config.ts";
-import { resolveDhis2Credentials } from "./instance_dhis2_credentials.ts";
+import { getStoredDhis2CredentialsDecrypted } from "./instance_dhis2_credentials.ts";
 import { toNum0 } from "@timroberton/panther";
 
 async function getRawUA(
@@ -407,7 +407,7 @@ export async function getStructureDhis2ResolvedCredentials(
     const snapshot = JSON.parse(
       rawUA.step_1_result
     ) as StructureDhis2ConnectionSnapshot;
-    const credentials = await resolveDhis2Credentials(mainDb, { kind: "stored" });
+    const credentials = await getStoredDhis2CredentialsDecrypted(mainDb);
     if (credentials.url !== snapshot.url) {
       return {
         success: false,

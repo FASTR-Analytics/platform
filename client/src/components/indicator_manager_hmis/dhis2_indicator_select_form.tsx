@@ -12,7 +12,6 @@ import {
   t3,
   type Dhis2DataElementSearchItem,
   type Dhis2IndicatorSearchItem,
-  type Dhis2CredentialsOrigin,
   type DHIS2CategoryOptionCombo,
   type HmisIndicator,
 } from "lib";
@@ -28,12 +27,10 @@ import {
   type EditorComponentProps,
   type Intent,
   createButtonAction,
-  openComponent,
 } from "panther";
 import { batch, createMemo, createSignal, Match, Show, Switch, For } from "solid-js";
 import { createStore } from "solid-js/store";
 import { serverActions } from "~/server_actions";
-import { Dhis2CredentialsForm } from "../forms_editors/dhis2_credentials_form";
 import {
   createNamingState,
   namingInputFromState,
@@ -45,12 +42,7 @@ import {
   type NamingState,
 } from "./_naming_step";
 
-type Props = EditorComponentProps<
-  {
-    credentialsOrigin: Dhis2CredentialsOrigin;
-  },
-  undefined
->;
+type Props = EditorComponentProps<{}, undefined>;
 
 type SelectedItem =
   | { kind: "element"; element: Dhis2DataElementSearchItem }
@@ -161,9 +153,6 @@ function kindIntent(kind: SelectedItem["kind"]): Intent {
 }
 
 export function Dhis2IndicatorSelectForm(p: Props) {
-  const [credentialsOrigin, setCredentialsOrigin] = createSignal<Dhis2CredentialsOrigin>(
-    p.credentialsOrigin,
-  );
   const [tempSearchQuery, setTempSearchQuery] = createSignal<string>("");
   const [searchResults, setSearchResults] = createSignal<SearchResults>({
     indicators: [],
@@ -194,7 +183,6 @@ export function Dhis2IndicatorSelectForm(p: Props) {
     }
 
     const response = await serverActions.searchDhis2All({
-      credentialsOrigin: credentialsOrigin(),
       query,
       includeDataElements: true,
       includeIndicators: true,
@@ -235,7 +223,6 @@ export function Dhis2IndicatorSelectForm(p: Props) {
     ];
     if (missing.length > 0) {
       const res = await serverActions.searchDhis2All({
-        credentialsOrigin: credentialsOrigin(),
         query: missing.join(","),
         includeDataElements: true,
         includeIndicators: false,
@@ -328,7 +315,6 @@ export function Dhis2IndicatorSelectForm(p: Props) {
   const save = createButtonAction(
     async () => {
       return await serverActions.createIndicatorsFromDhis2({
-        credentialsOrigin: credentialsOrigin(),
         elements: namingInputFromState(naming).elements,
         indicators: naming.derived.map((row) => ({
           uid: row.key,
@@ -388,12 +374,6 @@ export function Dhis2IndicatorSelectForm(p: Props) {
     );
   }
 
-  async function changeConnection() {
-    const result = await openComponent({ element: Dhis2CredentialsForm, props: {} });
-    if (!result) return;
-    setCredentialsOrigin({ kind: "inline", credentials: result.credentials });
-  }
-
   function addButton(item: SelectedItem, refusal: string | undefined) {
     const id = itemId(item);
     return (
@@ -430,9 +410,6 @@ export function Dhis2IndicatorSelectForm(p: Props) {
         >
           <Switch>
             <Match when={phase() === "select"}>
-              <Button onClick={changeConnection} outline onBackground="base-200" iconName="settings">
-                {t3({ en: "Change connection", fr: "Modifier la connexion", pt: "Alterar a ligação" })}
-              </Button>
               <Button
                 onClick={toNaming.click}
                 state={toNaming.state()}

@@ -18,7 +18,7 @@ import {
   getStructureUploadStatus,
   listAdminArea2s,
   setStructureRecodes,
-  resolveDhis2Credentials,
+  getStoredDhis2CredentialsDecrypted,
   structureStep0_SetSourceType,
   structureStep1Csv_UploadFile,
   structureStep1Dhis2_ConfirmConnection,
@@ -432,7 +432,7 @@ defineRoute(
   async (c, { params }) => {
     let credentials: Dhis2Credentials;
     try {
-      credentials = await resolveDhis2Credentials(c.var.mainDb, { kind: "stored" });
+      credentials = await getStoredDhis2CredentialsDecrypted(c.var.mainDb);
     } catch (error) {
       return c.json({
         success: false,

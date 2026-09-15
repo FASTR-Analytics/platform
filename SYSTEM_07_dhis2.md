@@ -95,7 +95,7 @@ Endpoints are grouped by goal, each folder with a `mod.ts` barrel;
 | --- | --- | --- |
 | `common/` | fetcher + retry + validation | `fetchFromDHIS2`, `getDHIS2`, `withRetry`, `validateDhis2Connection` |
 | `goal1_org_units_v2/` | org-unit hierarchy metadata | `getOrgUnitMetadata` (levels + counts + roots, parallel), `testDHIS2Connection` |
-| `goal2_indicators/` | indicator / data-element discovery, element eligibility, indicator decomposition | `get/search{Indicators,DataElements}FromDHIS2`, `searchAllIndicatorsAndDataElements`, `testIndicatorsConnection`, `getDhis2ElementVerdict`, `parseDhis2Indicator`, `withElementVerdicts`, `withDecompositions` |
+| `goal2_indicators/` | indicator / data-element discovery, element eligibility, indicator decomposition | `get/search{Indicators,DataElements}FromDHIS2`, `searchAllIndicatorsAndDataElements`, `getDhis2ElementVerdict`, `parseDhis2Indicator`, `withElementVerdicts`, `withDecompositions` |
 | `goal4_geojson/` | boundary import for maps | `fetchOrgUnitsMetadataForLevel`, `fetchGeometryCountForLevel`, `fetchOrgUnitsGeoJsonForLevel`, session caches |
 | `goal5_data_value_sets/` | reported values + metadata id-existence | `getDataValueSetsFromDHIS2`, `getExistingMetadataIds`, `getOrgUnitIdsAtLevel` |
 
@@ -224,10 +224,9 @@ fetcher's 120 s):
    401/403/**302** → `bad_credentials` (the manual redirect is the
    point: a 302 here IS an auth failure); other non-OK → `server_error`.
 
-`testDHIS2Connection` (goal 1) and `testIndicatorsConnection` (goal 2)
-compose validation with sample queries and return
-`{ success, message: TranslatableString, details? }` (org-unit/level or
-element/group counts, DHIS2 version).
+`testDHIS2Connection` (goal 1) composes validation with sample queries and
+returns `{ success, message: TranslatableString, details? }` (org-unit/level
+counts, DHIS2 version).
 
 The layering:
 
@@ -237,39 +236,35 @@ public helpers (validateDhis2Connection, test fns)  → return { valid } / { suc
 routes                                              → catch → APIResponse envelope
 ```
 
-Validation runs on the user-triggered test/confirm/launch routes
-(structure test-connection, S6's `launchDatasetHmisDhis2Run`, geojson
-analyze + cache-miss save, indicator test), so bad credentials fail once
-with one localized message. The bulk paths themselves (HMIS import run
+Validation runs on the user-triggered save/confirm routes (S6's
+`saveInstanceDhis2Credentials`, structure confirm, geojson levels,
+analyze and cache-miss save), so bad credentials fail once with one
+localized message. The bulk paths themselves (HMIS import run
 worker, S5 structure stager) do NOT re-validate: a credential revoked
 between launch and run surfaces as retry exhaustion inside the job.
 
 ## The route file and client credentials UX
 
 `routes/instance/indicators_dhis2.ts` is the system's only route file:
-four POST routes (search indicators / search data elements / combined
-search / test connection) plus the naming step's save
+three POST search routes (indicators / data elements / combined) plus the naming step's save
 (`/indicators-dhis2/create`, S5), all guarded `can_configure_data`. The
 three search routes return the shaped items above: every data element
 with its eligibility verdict, every indicator with its decomposition. Bodies
-carry a `credentialsOrigin: Dhis2CredentialsOrigin` (`{ kind:
-"stored" }` or `{ kind: "inline", credentials }`), resolved via
-S6's `resolveDhis2Credentials` at the top of each handler. This system
+carry no credentials: each handler reads the stored connection through
+S6's `getStoredDhis2CredentialsDecrypted`. This system
 never stores or reads the credentials table itself, only the resolved
 `Dhis2Credentials`. The geojson routes (`routes/instance/geojson_maps.ts`,
-owned by S5) follow the same `credentialsOrigin` shape; the session
-caches there hash the *resolved* credentials, so stored and inline runs
-against the same DHIS2 key identically.
+owned by S5) do the same; the session caches there hash the resolved
+credentials, so replacing the stored connection misses the cache.
 
-`Dhis2CredentialsEditor.tsx` is the shared credentials widget: plain
+`Dhis2CredentialsEditor.tsx` is the credentials widget: plain
 url/username/password inputs with a show/hide toggle, no persistence of
-its own. Callers default to `{ kind: "stored" }` when the instance has a
-saved connection (fetched via `getInstanceDhis2CredentialsInfo`) and
-fall back to the editor (wrapped by `dhis2_credentials_form.tsx` or the
-shared `_shared/dhis2_credentials/` components) only as a one-off,
-never-persisted override. Callers test the connection before treating
-inline credentials as usable. All user-facing strings in this system
-carry en/fr/pt.
+its own. Its one caller is the manage-connection modal
+(`_shared/dhis2_credentials/manage_connection.tsx`), opened only from the
+Data page's DHIS2 connection card: the one place a connection is set,
+replaced or deleted. Every other DHIS2 flow uses the stored connection
+and, when none is stored, points to that card. All user-facing strings in
+this system carry en/fr/pt.
 
 ## Consumers
 
@@ -319,8 +314,8 @@ carry en/fr/pt.
 - **Decoupling: split-brained DHIS2 wire types.** `DHIS2PagedResponse`
   is defined twice with different shapes (generic
   `goal1_org_units_v2/types.ts` vs pager-only `lib/types/indicators.ts`,
-  which goal 2 uses). (`Dhis2Credentials`/`Dhis2CredentialsOrigin` now
-  have one home (`lib/types/dhis2.ts`), resolved by PLAN_DHIS2_
+  which goal 2 uses). (`Dhis2Credentials` now
+  has one home (`lib/types/dhis2.ts`), resolved by PLAN_DHIS2_
   CREDENTIAL_STORE_CONSOLIDATION.)
 - Classify retries off `DHIS2FetchError.status` instead of message
   substrings, and decide whether the exhaustion error should preserve

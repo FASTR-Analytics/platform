@@ -76,8 +76,8 @@ mounts plus the `/d/:slug` SPA-HTML in root `main.ts` (the actual auth
 boundary), `routes/project/emails.ts`, `server/utils/id_generation.ts`
 (hardcodes 7 tables, Open item). Lib: slide/report/dashboard types incl.
 `buildPublicDashboardBundle` and `buildReportPreview`. Custody wrinkle: the
-`_shared/**` glob also carries `dhis2_credentials/` (all consumers are
-S5/S6/S7 surfaces, documented in SYSTEM_07) and `sort_control.tsx`
+`_shared/**` glob also carries `dhis2_credentials/` (its one consumer is
+S6's Data page card, documented in SYSTEM_07) and `sort_control.tsx`
 (shell furniture, flagged in SYSTEM_14); the three logo files are genuinely
 S12's (Open item: settle the manifest).
 
@@ -400,7 +400,7 @@ deliveries returns `success: false` (the form shows the error instead of
 - **`overwrite` on `updateReportBody` is dead**: always sent `true`,
   ignored by the DB fn; wire the hard-reject mode or drop it.
 - **`_shared/**` custody**: `dhis2_credentials/` is consumed only by
-  S5/S6/S7 surfaces and documented by S7; `sort_control.tsx` is shell
+  S6's Data page card and documented by S7; `sort_control.tsx` is shell
   furniture (SYSTEM_14 flag). Settle via manifest move or a §4.1 exception
   row.
 - **Type casts on mutation bodies**: `body as any` ×5 in the dashboards

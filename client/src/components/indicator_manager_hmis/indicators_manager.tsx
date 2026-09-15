@@ -2,13 +2,13 @@ import {
   analysedIdsWithData,
   t3,
   TC,
-  type Dhis2CredentialsOrigin,
   INDICATOR_DOWNLOAD_FILE_COLUMNS,
   INDICATOR_DOWNLOAD_MEMBERS_SEPARATOR,
   type HmisIndicator,
   type InstanceIndicatorDetails,
   isSpecialIndicatorId,
   judgeDerivedIndicators,
+  NO_STORED_DHIS2_CONNECTION,
   POPULATION_TYPE_IDS,
   populationTypeLabel,
   RESERVED_WORDS,
@@ -29,6 +29,7 @@ import {
   TableColumn,
   getEditorWrapper,
   openComponent,
+  openAlert,
   createButtonAction,
   createDeleteAction,
   createQuery,
@@ -46,7 +47,6 @@ import {
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { getIndicatorsFromCacheOrFetch } from "~/state/instance/t2_indicators";
-import { Dhis2CredentialsForm } from "../forms_editors/dhis2_credentials_form";
 import {
   DHIS2_DATA_IMPORT_TITLE,
   Dhis2Wizard,
@@ -168,25 +168,11 @@ export function IndicatorsManager(p: Props) {
   }
 
   async function handleDhis2IndicatorSelect() {
-    const infoRes = await serverActions.getInstanceDhis2CredentialsInfo({});
-    let credentialsOrigin: Dhis2CredentialsOrigin;
-    if (infoRes.success && infoRes.data.storedCredentials) {
-      credentialsOrigin = { kind: "stored" };
-    } else {
-      const result = await openComponent({
-        element: Dhis2CredentialsForm,
-        props: {},
-      });
-      if (!result) {
-        return;
-      }
-      credentialsOrigin = { kind: "inline", credentials: result.credentials };
+    if (!instanceState.dhis2ConnectionUrl) {
+      await openAlert({ text: t3(NO_STORED_DHIS2_CONNECTION) });
+      return;
     }
-
-    await openEditor({
-      element: Dhis2IndicatorSelectForm,
-      props: { credentialsOrigin },
-    });
+    await openEditor({ element: Dhis2IndicatorSelectForm, props: {} });
   }
 
   async function handleTypes() {

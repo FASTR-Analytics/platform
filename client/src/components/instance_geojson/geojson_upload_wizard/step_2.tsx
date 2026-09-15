@@ -74,9 +74,8 @@ export function Step2(p: Props) {
 
   const analyzeAction = createFormAction(
     async () => {
-      const credentialsOrigin = state.dhis2CredentialsOrigin();
       const dhis2Level = state.selectedDhis2Level();
-      if (!credentialsOrigin || dhis2Level === null) {
+      if (dhis2Level === null) {
         return { success: false, err: "Select a DHIS2 level" };
       }
 
@@ -93,7 +92,6 @@ export function Step2(p: Props) {
 
       // Analyze DHIS2 GeoJSON
       const analyzeRes = await serverActions.dhis2AnalyzeGeoJson({
-        credentialsOrigin,
         dhis2Level,
       });
       if (!analyzeRes.success) {

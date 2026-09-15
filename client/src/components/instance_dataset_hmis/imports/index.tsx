@@ -30,7 +30,6 @@ import {
 } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
-import { Dhis2ManageConnection } from "~/components/_shared/dhis2_credentials/manage_connection";
 import { indicatorsByDataId } from "~/components/indicator_manager_hmis/_indicator_display";
 import { CsvRunDetail } from "./_csv_run_detail";
 import { CsvWizard } from "./_csv_wizard";
@@ -214,16 +213,6 @@ export function DatasetHmisImports(p: Props) {
     }
   }
 
-  async function openManageConnection() {
-    await openComponent({
-      element: Dhis2ManageConnection,
-      props: {},
-    });
-    await refresh();
-  }
-
-  const schedulingReady = () => scheduling.state().status === "ready";
-
   function tabItems(): ListItem<TabId>[] {
     const runsState = runs.state();
     const schedulingState = scheduling.state();
@@ -280,19 +269,6 @@ export function DatasetHmisImports(p: Props) {
                   en: "New DHIS2 import",
                   fr: "Nouvelle importation DHIS2",
                   pt: "Nova importação DHIS2",
-                })}
-              </Button>
-              <Button
-                onClick={openManageConnection}
-                outline
-                onBackground="base-200"
-                iconName="settings"
-                disabled={!schedulingReady()}
-              >
-                {t3({
-                  en: "Manage connection",
-                  fr: "Gérer la connexion",
-                  pt: "Gerir ligação",
                 })}
               </Button>
               <Button

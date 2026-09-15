@@ -122,7 +122,7 @@ export const HELP_TARGETS = {
     page: "admin-guide/data-hmis",
     anchor: { en: "dhis2-import-workflow", fr: "processus-dimportation-dhis2" },
     title: { en: "DHIS2 import workflow", fr: "Processus d'importation DHIS2" },
-    summary: { en: "A DHIS2 import fetches the values facilities reported, one DHIS2 element and month at a time, directly from your DHIS2 server. It has five steps. 1. Credentials. FASTR uses the instance's stored…", fr: "Une importation DHIS2 récupère les valeurs rapportées par les établissements, un élément DHIS2 et un mois à la fois, directement depuis votre serveur DHIS2. Elle comporte cinq étapes. 1.…" },
+    summary: { en: "A DHIS2 import fetches the values facilities reported, one DHIS2 element and month at a time, directly from your DHIS2 server. It uses the instance's stored DHIS2 connection, which is set in the…", fr: "Une importation DHIS2 récupère les valeurs rapportées par les établissements, un élément DHIS2 et un mois à la fois, directement depuis votre serveur DHIS2. Elle utilise la connexion DHIS2…" },
   },
   "hmis-validation": {
     page: "admin-guide/data-hmis",
@@ -140,7 +140,7 @@ export const HELP_TARGETS = {
     page: "admin-guide/indicators",
     anchor: { en: "adding-indicators-from-dhis2", fr: "ajouter-des-indicateurs-depuis-dhis2" },
     title: { en: "Adding indicators from DHIS2", fr: "Ajouter des indicateurs depuis DHIS2" },
-    summary: { en: "Click Add indicators from DHIS2 to add data elements from your DHIS2 server to the list as DHIS2 elements. FASTR uses the instance's stored connection; Change connection lets you use another one.…", fr: "Cliquez sur Ajouter des indicateurs depuis DHIS2 pour ajouter des éléments de données de votre serveur DHIS2 à la liste, sous forme d'éléments DHIS2. FASTR utilise la connexion enregistrée de…" },
+    summary: { en: "Click Add indicators from DHIS2 to add data elements from your DHIS2 server to the list as DHIS2 elements. FASTR uses the instance's stored DHIS2 connection, which is set in the DHIS2 connection card…", fr: "Cliquez sur Ajouter des indicateurs depuis DHIS2 pour ajouter des éléments de données de votre serveur DHIS2 à la liste, sous forme d'éléments DHIS2. FASTR utilise la connexion DHIS2 enregistrée de…" },
   },
   "ind-include": {
     page: "admin-guide/indicators",

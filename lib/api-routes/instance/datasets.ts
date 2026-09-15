@@ -24,12 +24,6 @@ import type {
 } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
-const dhis2CredentialsSchema = z.object({
-  url: z.string(),
-  username: z.string(),
-  password: z.string(),
-});
-
 // A window selects indicators; the server expands them to the data ids it
 // fetches at launch (PLAN_A4 ruling 5). A pairs selection names the
 // (data id, month) pairs the ledger recorded: retries and re-imports.
@@ -183,12 +177,10 @@ export const datasetRouteRegistry = {
   }),
 
   // DHIS2 import runs (per-pair fetch+integrate; PLAN_DHIS2_IMPORTER Phase 3)
-  // credentials absent = use the stored instance credentials (Phase 4 C3).
   launchDatasetHmisDhis2Run: route({
     path: "/datasets/hmis/dhis2-runs",
     method: "POST",
     body: z.object({
-      credentials: dhis2CredentialsSchema.optional(),
       selection: dhis2RunSelectionSchema,
     }),
     response: {} as { runId: number },
