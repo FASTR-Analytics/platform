@@ -59,13 +59,14 @@ import {
 import { EditIndicatorForm } from "./_edit_indicator";
 import {
   definedByText,
-  formatText,
   indicatorTypeLabel,
   matchesIndicatorSearch,
 } from "./_indicator_display";
 import { Dhis2IndicatorSelectForm } from "./dhis2_indicator_select_form";
 import { SortIndicatorsModal } from "./sort_indicators_modal";
 import { SpecialBadge } from "./_special_badge";
+import { IndicatorTypeBadge } from "./_type_badge";
+import { WrapOnUnderscore } from "./_wrap_on_underscore";
 import { IndicatorTypesModal } from "./_type_facts";
 
 type Props = {
@@ -224,15 +225,6 @@ export function IndicatorsManager(p: Props) {
                   pt: "Indicadores especiais e palavras reservadas",
                 })}
               </Button>
-              <Show when={instanceState.currentUserIsGlobalAdmin}>
-                <Button iconName="import" onClick={handleDhis2IndicatorSelect}>
-                  {t3({
-                    en: "Add indicators from DHIS2",
-                    fr: "Ajouter des indicateurs depuis DHIS2",
-                    pt: "Adicionar indicadores do DHIS2",
-                  })}
-                </Button>
-              </Show>
             </div>
           </HeadingBar>
         }
@@ -245,6 +237,7 @@ export function IndicatorsManager(p: Props) {
                   indicators={keyedIndicators.indicators}
                   idsWithRows={idsWithRows()}
                   handleDownloadCsv={handleDownloadCsv}
+                  handleDhis2IndicatorSelect={handleDhis2IndicatorSelect}
                 />
               </div>
             )}
@@ -264,6 +257,7 @@ function IndicatorsTable(p: {
   indicators: HmisIndicator[];
   idsWithRows: Set<string> | undefined;
   handleDownloadCsv: (indicators: HmisIndicator[]) => void;
+  handleDhis2IndicatorSelect: () => void;
 }) {
   // The counts the extract could produce values for: an Uploaded or DHIS2
   // element by the rows under its data id, a sum by any member's. Over
@@ -432,7 +426,9 @@ function IndicatorsTable(p: {
       sortable: true,
       render: (indicator) => (
         <span class="ui-gap-sm flex items-center">
-          <span class="font-mono">{indicator.indicator_common_id}</span>
+          <span class="font-mono">
+            <WrapOnUnderscore text={indicator.indicator_common_id} />
+          </span>
           <Show when={isSpecialIndicatorId(indicator.indicator_common_id)}>
             <SpecialBadge />
           </Show>
@@ -443,6 +439,9 @@ function IndicatorsTable(p: {
       key: "indicator_common_label",
       header: t3(TC.label),
       sortable: true,
+      render: (indicator) => (
+        <WrapOnUnderscore text={indicator.indicator_common_label} />
+      ),
     },
     {
       key: "type",
@@ -452,7 +451,7 @@ function IndicatorsTable(p: {
       filterable: true,
       filterValue: indicatorTypeLabel,
       render: (indicator) => (
-        <span class="whitespace-nowrap">{indicatorTypeLabel(indicator)}</span>
+        <IndicatorTypeBadge type={indicator.definition.type} />
       ),
     },
     {
@@ -461,30 +460,14 @@ function IndicatorsTable(p: {
       sortable: true,
       sortValue: definedByText,
       render: (indicator) => (
-        <div
-          class="font-mono"
-          classList={{ "text-xs": indicator.definition.type !== "calculated" }}
-        >
-          {definedByText(indicator)}
+        <div class="font-mono text-xs">
+          <WrapOnUnderscore text={definedByText(indicator)} />
         </div>
       ),
     },
     {
-      key: "format_as",
-      header: t3({ en: "Format", fr: "Format", pt: "Formato" }),
-      sortable: true,
-      sortValue: formatText,
-      filterable: true,
-      filterValue: formatText,
-      render: (indicator) => <span>{formatText(indicator)}</span>,
-    },
-    {
       key: "include_in_analysis",
-      header: t3({
-        en: "Include in analysis",
-        fr: "Inclure dans l'analyse",
-        pt: "Incluir na análise",
-      }),
+      header: t3({ en: "Include", fr: "Inclure", pt: "Incluir" }),
       sortable: true,
       sortValue: (indicator) => (isAnalysedFlag(indicator) ? 0 : 1),
       filterable: true,
@@ -596,7 +579,8 @@ function IndicatorsTable(p: {
     <div class="flex h-full flex-col">
       <div class="ui-gap-sm flex items-center pb-4">
         <div class="ui-text-title flex-1">
-          {t3({ en: "Indicators", fr: "Indicateurs", pt: "Indicadores" })}
+          {t3({ en: "Indicators", fr: "Indicateurs", pt: "Indicadores" })} (
+          {p.indicators.length})
         </div>
         <div class="w-80">
           <Input
@@ -618,11 +602,7 @@ function IndicatorsTable(p: {
             iconName="download"
             intent="neutral"
           >
-            {t3({
-              en: "Download CSV",
-              fr: "Télécharger le CSV",
-              pt: "Transferir o CSV",
-            })}
+            {t3({ en: "Download", fr: "Télécharger", pt: "Transferir" })}
           </Button>
           <Button
             onClick={handleSortIndicators}
@@ -632,15 +612,22 @@ function IndicatorsTable(p: {
             {t3({ en: "Sort", fr: "Trier", pt: "Ordenar" })}
           </Button>
           <Button
+            onClick={p.handleDhis2IndicatorSelect}
+            iconName="import"
+            intent="primary"
+          >
+            {t3({
+              en: "Add from DHIS2",
+              fr: "Ajouter depuis DHIS2",
+              pt: "Adicionar do DHIS2",
+            })}
+          </Button>
+          <Button
             onClick={handleCreateIndicator}
             iconName="plus"
             intent="primary"
           >
-            {t3({
-              en: "Create indicator",
-              fr: "Créer un indicateur",
-              pt: "Criar indicador",
-            })}
+            {t3({ en: "Create new", fr: "Créer", pt: "Criar" })}
           </Button>
         </Show>
       </div>
@@ -694,6 +681,7 @@ function IndicatorsTable(p: {
             fr: "indicateur",
             pt: "indicador",
           })}
+          paddingY="compact"
           fitTableToAvailableHeight
         />
       </div>

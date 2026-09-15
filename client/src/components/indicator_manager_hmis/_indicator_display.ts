@@ -63,14 +63,6 @@ export function indicatorFormatWord(format: IndicatorFormat): string {
   }
 }
 
-// The Format column: a calculated indicator's authored format, nothing for a
-// count, which is always a number.
-export function formatText(indicator: HmisIndicator): string {
-  return indicator.definition.type === "calculated"
-    ? indicatorFormatWord(indicator.format_as)
-    : "";
-}
-
 // The search over an indicator list, shared by the manager and the import
 // picker: every typed word must appear in the id, label, type word or
 // definition, case-insensitive.

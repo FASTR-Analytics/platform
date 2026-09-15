@@ -13,6 +13,7 @@ import {
   type TableColumn,
 } from "panther";
 import { Show } from "solid-js";
+import { WrapOnUnderscore } from "~/components/indicator_manager_hmis/_wrap_on_underscore";
 
 export type LedgerPeriodWindow = { min: number; max: number };
 
@@ -65,7 +66,7 @@ export function LedgerTable(p: Props) {
       sortValue: (item) => indicatorOf(item)?.indicator_common_id ?? "",
       render: (item) => (
         <span class="font-mono">
-          {indicatorOf(item)?.indicator_common_id ?? ""}
+          <WrapOnUnderscore text={indicatorOf(item)?.indicator_common_id ?? ""} />
         </span>
       ),
     },
@@ -74,7 +75,9 @@ export function LedgerTable(p: Props) {
       header: t3({ en: "Label", fr: "Libellé", pt: "Etiqueta" }),
       sortable: true,
       sortValue: (item) => indicatorOf(item)?.indicator_common_label ?? "",
-      render: (item) => indicatorOf(item)?.indicator_common_label ?? "",
+      render: (item) => (
+        <WrapOnUnderscore text={indicatorOf(item)?.indicator_common_label ?? ""} />
+      ),
     },
     {
       // The key is shown only where it means something to a reader: a

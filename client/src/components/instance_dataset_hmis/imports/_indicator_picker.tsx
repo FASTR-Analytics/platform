@@ -13,6 +13,8 @@ import {
   indicatorTypeLabel,
   matchesIndicatorSearch,
 } from "~/components/indicator_manager_hmis/_indicator_display";
+import { IndicatorTypeBadge } from "~/components/indicator_manager_hmis/_type_badge";
+import { WrapOnUnderscore } from "~/components/indicator_manager_hmis/_wrap_on_underscore";
 
 type Props = {
   selectedIds: () => string[];
@@ -53,26 +55,32 @@ export function Dhis2IndicatorPicker(p: Props) {
         pt: "ID do indicador",
       }),
       sortable: true,
+      render: (item) => (
+        <span class="font-mono">
+          <WrapOnUnderscore text={item.indicator_common_id} />
+        </span>
+      ),
     },
     {
       key: "indicator_common_label",
       header: t3({ en: "Label", fr: "Libellé", pt: "Etiqueta" }),
       sortable: true,
+      render: (item) => <WrapOnUnderscore text={item.indicator_common_label} />,
     },
     {
       key: "type",
       header: t3({ en: "Type", fr: "Type", pt: "Tipo" }),
       sortable: true,
       sortValue: indicatorTypeLabel,
-      render: (item) => (
-        <span class="whitespace-nowrap">{indicatorTypeLabel(item)}</span>
-      ),
+      render: (item) => <IndicatorTypeBadge type={item.definition.type} />,
     },
     {
       key: "defined_by",
       header: t3({ en: "Defined by", fr: "Défini par", pt: "Definido por" }),
       render: (item) => (
-        <span class="font-mono text-xs">{definedByText(item)}</span>
+        <span class="font-mono text-xs">
+          <WrapOnUnderscore text={definedByText(item)} />
+        </span>
       ),
       sortable: true,
       sortValue: definedByText,
@@ -85,8 +93,21 @@ export function Dhis2IndicatorPicker(p: Props) {
   return (
     <StateHolderWrapper state={indicators.state()} noPad>
       {(keyedIndicators) => (
-        <div class="ui-spy">
+        <div class="ui-spy-sm">
           <div class="ui-gap flex items-center justify-between">
+            <div class="font-700 text-lg">
+              {p.selectedIds().length === 1
+                ? t3({
+                    en: "1 selected indicator",
+                    fr: "1 indicateur sélectionné",
+                    pt: "1 indicador selecionado",
+                  })
+                : t3({
+                    en: `${p.selectedIds().length} selected indicators`,
+                    fr: `${p.selectedIds().length} indicateurs sélectionnés`,
+                    pt: `${p.selectedIds().length} indicadores selecionados`,
+                  })}
+            </div>
             <div class="w-80">
               <Input
                 value={search()}
@@ -101,14 +122,6 @@ export function Dhis2IndicatorPicker(p: Props) {
                 })}
               />
             </div>
-            <div class="text-sm">
-              {p.selectedIds().length}{" "}
-              {t3({
-                en: "selected",
-                fr: "sélectionné(s)",
-                pt: "selecionado(s)",
-              })}
-            </div>
           </div>
           <Table
             data={keyedIndicators.indicators.filter(
@@ -122,6 +135,7 @@ export function Dhis2IndicatorPicker(p: Props) {
             setSelectedKeys={(keys) =>
               p.setSelectedIds(Array.from(keys) as string[])
             }
+            paddingY="compact"
             tableContentMaxHeight="500px"
             noRowsMessage={t3({
               en: "No indicators match",
