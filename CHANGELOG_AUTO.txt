@@ -1,3 +1,11 @@
+[TBD] [user] [changed] - "Derived" indicators are now called "Calculated" indicators throughout the platform
+[TBD] [user] [added] - The Type column in the indicator list can now be filtered
+[TBD] [user] [added] - The Format column in the indicator list can now be filtered
+[TBD] [user] [added] - The Analysed column in the indicator list can now be filtered
+[TBD] [admin] [changed] - "Derived" indicators are now called "Calculated" indicators throughout the interface
+[TBD] [admin] [added] - Indicator list Type column is now filterable
+[TBD] [admin] [added] - Indicator list Format column is now filterable
+[TBD] [admin] [added] - Indicator list Include in Analysis column is now filterable
 [TBD] [user] [changed] - Results package modules now use collapsible sections instead of cards
 [TBD] [user] [changed] - Module output files show a download icon button instead of a text button
 [TBD] [user] [changed] - Script and log viewers now display a tonal heading bar
