@@ -1,29 +1,29 @@
-[TBD] [user] [added] - Indicator count now shown next to the "Indicators" heading
-[TBD] [user] [added] - Indicator types now displayed as color-coded badges
-[TBD] [user] [added] - Long indicator IDs and labels now wrap neatly instead of overflowing
-[TBD] [user] [added] - "Add from DHIS2" button moved into the indicators table toolbar
-[TBD] [user] [added] - Selected indicator count shown prominently in DHIS2 picker
-[TBD] [user] [changed] - "Download CSV" button shortened to "Download"
-[TBD] [user] [changed] - "Create indicator" button shortened to "Create new"
-[TBD] [user] [changed] - "Include in analysis" column header shortened to "Include"
-[TBD] [user] [changed] - Indicator table rows are now more compact
-[TBD] [user] [changed] - "Add from DHIS2" button now visible to all users, not just admins
-[TBD] [user] [changed] - Format column removed from the indicators table
-[TBD] [admin] [changed] - Indicator type now shown as colored badges
-[TBD] [admin] [changed] - Long indicator IDs and labels wrap neatly at underscores
-[TBD] [admin] [changed] - Indicator table displays total indicator count in heading
-[TBD] [admin] [changed] - "Add from DHIS2" button moved into the indicator table toolbar
-[TBD] [admin] [changed] - "Add from DHIS2" button now visible to all admins, not just global admins
-[TBD] [admin] [changed] - Format column removed from indicator table
-[TBD] [admin] [changed] - "Include in analysis" column header shortened to "Include"
-[TBD] [admin] [changed] - Download and Create buttons use shorter labels
-[TBD] [admin] [changed] - Indicator table rows are more compact
-[TBD] [admin] [changed] - DHIS2 indicator picker shows selected count more prominently
-[TBD] [admin] [changed] - DHIS2 indicator picker table rows are more compact
-[TBD] [user] [changed] - Formula indicators now labeled "calculated" instead of "derived"
-[TBD] [admin] [changed] - Results packages now automatically update renamed indicator types on startup
-[TBD] [admin] [changed] - Visualization caches are refreshed to reflect the indicator type rename
-[TBD] [admin] [internal] - Added an input transform stage for upgrading stored results package data
+[1.73.1] [user] [added] - Indicator count now shown next to the "Indicators" heading
+[1.73.1] [user] [added] - Indicator types now displayed as color-coded badges
+[1.73.1] [user] [added] - Long indicator IDs and labels now wrap neatly instead of overflowing
+[1.73.1] [user] [added] - "Add from DHIS2" button moved into the indicators table toolbar
+[1.73.1] [user] [added] - Selected indicator count shown prominently in DHIS2 picker
+[1.73.1] [user] [changed] - "Download CSV" button shortened to "Download"
+[1.73.1] [user] [changed] - "Create indicator" button shortened to "Create new"
+[1.73.1] [user] [changed] - "Include in analysis" column header shortened to "Include"
+[1.73.1] [user] [changed] - Indicator table rows are now more compact
+[1.73.1] [user] [changed] - "Add from DHIS2" button now visible to all users, not just admins
+[1.73.1] [user] [changed] - Format column removed from the indicators table
+[1.73.1] [admin] [changed] - Indicator type now shown as colored badges
+[1.73.1] [admin] [changed] - Long indicator IDs and labels wrap neatly at underscores
+[1.73.1] [admin] [changed] - Indicator table displays total indicator count in heading
+[1.73.1] [admin] [changed] - "Add from DHIS2" button moved into the indicator table toolbar
+[1.73.1] [admin] [changed] - "Add from DHIS2" button now visible to all admins, not just global admins
+[1.73.1] [admin] [changed] - Format column removed from indicator table
+[1.73.1] [admin] [changed] - "Include in analysis" column header shortened to "Include"
+[1.73.1] [admin] [changed] - Download and Create buttons use shorter labels
+[1.73.1] [admin] [changed] - Indicator table rows are more compact
+[1.73.1] [admin] [changed] - DHIS2 indicator picker shows selected count more prominently
+[1.73.1] [admin] [changed] - DHIS2 indicator picker table rows are more compact
+[1.73.1] [user] [changed] - Formula indicators now labeled "calculated" instead of "derived"
+[1.73.1] [admin] [changed] - Results packages now automatically update renamed indicator types on startup
+[1.73.1] [admin] [changed] - Visualization caches are refreshed to reflect the indicator type rename
+[1.73.1] [admin] [internal] - Added an input transform stage for upgrading stored results package data
 [1.73.0] [user] [changed] - "Derived" indicators are now called "Calculated" indicators throughout the platform
 [1.73.0] [user] [added] - The Type column in the indicator list can now be filtered
 [1.73.0] [user] [added] - The Format column in the indicator list can now be filtered
