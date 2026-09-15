@@ -1,44 +1,44 @@
-[TBD] [user] [changed] - "Derived" indicators are now called "Calculated" indicators throughout the platform
-[TBD] [user] [added] - The Type column in the indicator list can now be filtered
-[TBD] [user] [added] - The Format column in the indicator list can now be filtered
-[TBD] [user] [added] - The Analysed column in the indicator list can now be filtered
-[TBD] [admin] [changed] - "Derived" indicators are now called "Calculated" indicators throughout the interface
-[TBD] [admin] [added] - Indicator list Type column is now filterable
-[TBD] [admin] [added] - Indicator list Format column is now filterable
-[TBD] [admin] [added] - Indicator list Include in Analysis column is now filterable
-[TBD] [user] [changed] - Results package modules now use collapsible sections instead of cards
-[TBD] [user] [changed] - Module output files show a download icon button instead of a text button
-[TBD] [user] [changed] - Script and log viewers now display a tonal heading bar
-[TBD] [user] [added] - Indicator editor now supports four types: Uploaded, DHIS2 element, Sum, and Derived
-[TBD] [user] [added] - Indicators can now be renamed with automatic formula and schedule updates
-[TBD] [user] [added] - New "Include in analysis" checkbox on each indicator
-[TBD] [user] [added] - New "Expected low counts" option for count indicators
-[TBD] [user] [added] - Direction setting (higher/lower is better) added to indicator editor
-[TBD] [user] [added] - Target value field added for derived indicators
-[TBD] [user] [added] - Special indicator badge shown for indicators used by analysis modules
-[TBD] [user] [added] - Indicator types reference modal explaining each type
-[TBD] [user] [added] - DHIS2 import naming step lets you review and edit proposed indicator IDs
-[TBD] [user] [changed] - DHIS2 connection management simplified to a single connection per instance
-[TBD] [user] [removed] - Removed option to enter temporary DHIS2 credentials for a single session
-[TBD] [user] [changed] - Computability warnings now say "has no data" instead of "has no mapped raw indicator"
-[TBD] [user] [changed] - Module parameter inputs now use a wider layout on medium screens
-[TBD] [user] [fixed] - Modal titles now display consistently across help, email, and permissions dialogs
-[TBD] [admin] [changed] - Indicator system simplified: raw and common indicators merged into a single unified indicator model
-[TBD] [admin] [added] - New indicator types: Uploaded, DHIS2 element, Sum, and Derived replace the old raw/common split
-[TBD] [admin] [added] - Indicators can now be renamed, with automatic rewriting of formulas and import schedules
-[TBD] [admin] [added] - Include in analysis toggle added to each indicator
-[TBD] [admin] [added] - Expected low counts option for count indicators to improve data quality adjustment
-[TBD] [admin] [added] - Direction setting (higher/lower is better) added per indicator
-[TBD] [admin] [added] - Target value can now be set on derived indicators
-[TBD] [admin] [added] - Special indicator badge shown for indicators read by analysis modules
-[TBD] [admin] [added] - Indicator type facts modal explains what each type entails
-[TBD] [admin] [added] - DHIS2 import naming step lets you choose indicator IDs when importing from DHIS2
-[TBD] [admin] [changed] - Results package modules now shown as collapsible sections instead of cards
-[TBD] [admin] [changed] - DHIS2 connection management simplified to a single connection editor
-[TBD] [admin] [removed] - Removed one-off DHIS2 credential override form; all flows use the stored connection
-[TBD] [admin] [changed] - Module parameter inputs now use a wider layout on medium screens
-[TBD] [admin] [changed] - Computability warnings now say "has no data" instead of "has no mapped raw indicator"
-[TBD] [admin] [internal] - Script and log viewers now use tonal heading bar styling
+[1.73.0] [user] [changed] - "Derived" indicators are now called "Calculated" indicators throughout the platform
+[1.73.0] [user] [added] - The Type column in the indicator list can now be filtered
+[1.73.0] [user] [added] - The Format column in the indicator list can now be filtered
+[1.73.0] [user] [added] - The Analysed column in the indicator list can now be filtered
+[1.73.0] [admin] [changed] - "Derived" indicators are now called "Calculated" indicators throughout the interface
+[1.73.0] [admin] [added] - Indicator list Type column is now filterable
+[1.73.0] [admin] [added] - Indicator list Format column is now filterable
+[1.73.0] [admin] [added] - Indicator list Include in Analysis column is now filterable
+[1.73.0] [user] [changed] - Results package modules now use collapsible sections instead of cards
+[1.73.0] [user] [changed] - Module output files show a download icon button instead of a text button
+[1.73.0] [user] [changed] - Script and log viewers now display a tonal heading bar
+[1.73.0] [user] [added] - Indicator editor now supports four types: Uploaded, DHIS2 element, Sum, and Derived
+[1.73.0] [user] [added] - Indicators can now be renamed with automatic formula and schedule updates
+[1.73.0] [user] [added] - New "Include in analysis" checkbox on each indicator
+[1.73.0] [user] [added] - New "Expected low counts" option for count indicators
+[1.73.0] [user] [added] - Direction setting (higher/lower is better) added to indicator editor
+[1.73.0] [user] [added] - Target value field added for derived indicators
+[1.73.0] [user] [added] - Special indicator badge shown for indicators used by analysis modules
+[1.73.0] [user] [added] - Indicator types reference modal explaining each type
+[1.73.0] [user] [added] - DHIS2 import naming step lets you review and edit proposed indicator IDs
+[1.73.0] [user] [changed] - DHIS2 connection management simplified to a single connection per instance
+[1.73.0] [user] [removed] - Removed option to enter temporary DHIS2 credentials for a single session
+[1.73.0] [user] [changed] - Computability warnings now say "has no data" instead of "has no mapped raw indicator"
+[1.73.0] [user] [changed] - Module parameter inputs now use a wider layout on medium screens
+[1.73.0] [user] [fixed] - Modal titles now display consistently across help, email, and permissions dialogs
+[1.73.0] [admin] [changed] - Indicator system simplified: raw and common indicators merged into a single unified indicator model
+[1.73.0] [admin] [added] - New indicator types: Uploaded, DHIS2 element, Sum, and Derived replace the old raw/common split
+[1.73.0] [admin] [added] - Indicators can now be renamed, with automatic rewriting of formulas and import schedules
+[1.73.0] [admin] [added] - Include in analysis toggle added to each indicator
+[1.73.0] [admin] [added] - Expected low counts option for count indicators to improve data quality adjustment
+[1.73.0] [admin] [added] - Direction setting (higher/lower is better) added per indicator
+[1.73.0] [admin] [added] - Target value can now be set on derived indicators
+[1.73.0] [admin] [added] - Special indicator badge shown for indicators read by analysis modules
+[1.73.0] [admin] [added] - Indicator type facts modal explains what each type entails
+[1.73.0] [admin] [added] - DHIS2 import naming step lets you choose indicator IDs when importing from DHIS2
+[1.73.0] [admin] [changed] - Results package modules now shown as collapsible sections instead of cards
+[1.73.0] [admin] [changed] - DHIS2 connection management simplified to a single connection editor
+[1.73.0] [admin] [removed] - Removed one-off DHIS2 credential override form; all flows use the stored connection
+[1.73.0] [admin] [changed] - Module parameter inputs now use a wider layout on medium screens
+[1.73.0] [admin] [changed] - Computability warnings now say "has no data" instead of "has no mapped raw indicator"
+[1.73.0] [admin] [internal] - Script and log viewers now use tonal heading bar styling
 [1.72.1] [user] [changed] - XLSForm upload option now only appears for HFA imports
 [1.72.1] [admin] [changed] - XLSForm upload option now only appears for HFA imports
 [1.72.1] [admin] [fixed] - Server rejects XLSForm files submitted for non-HFA imports
