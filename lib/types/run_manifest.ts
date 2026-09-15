@@ -167,6 +167,8 @@ export const runIndicatorMetadataSchema: z.ZodType<IndicatorMetadata> = z
     label: z.string(),
     format_as: z.enum(["percent", "number", "rate_per_10k"]).optional(),
     thresholds: thresholdsRuleSchema.optional(),
+    direction: z.enum(["higher-is-better", "lower-is-better"]).optional(),
+    target: z.number().optional(),
     group_label: z.string().optional(),
     sort_order: z.number().optional(),
     type: z.enum(PACKAGE_INDICATOR_TYPES).optional(),

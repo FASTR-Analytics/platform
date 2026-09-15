@@ -47,9 +47,11 @@ import {
   POPULATION_TYPE_IDS,
   populationTypeLabel,
   RESERVED_WORDS,
+  scaleValueForFormat,
   SPECIAL_INDICATOR_IDS,
   t3,
   TC,
+  type ThresholdDirection,
   type ThresholdsRule,
   thresholdsRuleSchema,
   trafficLightLabels,
@@ -111,6 +113,40 @@ function formatOptions() {
   }));
 }
 
+function directionOptions() {
+  return [
+    {
+      value: "higher-is-better",
+      label: t3({ en: "Higher is better", fr: "Plus élevé = meilleur", pt: "Mais alto é melhor" }),
+    },
+    {
+      value: "lower-is-better",
+      label: t3({ en: "Lower is better", fr: "Plus bas = meilleur", pt: "Mais baixo é melhor" }),
+    },
+  ];
+}
+
+// The target is typed in the indicator's display units (80 for 80%) and
+// stored in stored units, like the rule's cutoffs. Empty means none.
+function targetToText(
+  target: number | null,
+  formatAs: IndicatorFormat,
+): string {
+  return target === null ? "" : String(scaleValueForFormat(target, formatAs));
+}
+
+function textToTarget(
+  text: string,
+  formatAs: IndicatorFormat,
+): number | null | "invalid" {
+  const trimmed = text.trim();
+  if (trimmed === "") return null;
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed)
+    ? unscaleValueForFormat(parsed, formatAs)
+    : "invalid";
+}
+
 type LegendRow = {
   identifier: string;
   kind: "indicator" | "population";
@@ -165,6 +201,17 @@ export function EditIndicatorForm(
   const [formatAs, setFormatAs] = createSignal(existing?.format_as ?? "number");
   const [thresholds, setThresholds] = createSignal<ThresholdsRule | null>(
     existing?.thresholds ?? null,
+  );
+  const [direction, setDirection] = createSignal<ThresholdDirection>(
+    existing?.direction ?? "higher-is-better",
+  );
+  const [targetText, setTargetText] = createSignal(
+    existing === undefined
+      ? ""
+      : targetToText(existing.target, existing.format_as),
+  );
+  const [expectedLowCounts, setExpectedLowCounts] = createSignal(
+    existing?.expected_low_counts ?? false,
   );
   // A count (Uploaded, DHIS2 element or Sum): its format is always a number.
   const effectiveFormatAs = (): IndicatorFormat =>
@@ -551,6 +598,20 @@ export function EditIndicatorForm(
         };
       }
 
+      const target = type() === "derived"
+        ? textToTarget(targetText(), formatAs())
+        : null;
+      if (target === "invalid") {
+        return {
+          success: false,
+          err: t3({
+            en: "The target must be a number, or empty for none",
+            fr: "La cible doit être un nombre, ou vide pour aucune",
+            pt: "A meta tem de ser um número, ou vazia para nenhuma",
+          }),
+        };
+      }
+
       const indicator = {
         indicator_common_id: id,
         indicator_common_label: label,
@@ -558,6 +619,9 @@ export function EditIndicatorForm(
         include_in_analysis: isSpecial() || includeInAnalysis(),
         format_as: effectiveFormatAs(),
         thresholds: type() === "derived" ? rule : null,
+        direction: direction(),
+        target,
+        expected_low_counts: type() !== "derived" && expectedLowCounts(),
       };
 
       if (mode === "create") {
@@ -895,12 +959,54 @@ export function EditIndicatorForm(
                 pt: "Marcado: todos os pacotes de resultados analisam este indicador. Desmarcado: apenas dicionário; os seus dados continuam a ser importados e guardados, e pode continuar a ser membro de uma soma ou usado numa fórmula.",
               })}
           </div>
+          <Show when={type() !== "derived"}>
+            <Checkbox
+              label={t3({
+                en: "Expected low counts",
+                fr: "Faibles dénombrements attendus",
+                pt: "Contagens baixas esperadas",
+              })}
+              checked={expectedLowCounts()}
+              onChange={setExpectedLowCounts}
+            />
+            <div class="ui-text-caption">
+              {t3({
+                en: "On: this indicator's monthly facility counts are expected to be small, which the adjustment modules will take into account.",
+                fr: "Coché : les dénombrements mensuels par établissement de cet indicateur devraient être faibles, ce dont les modules d'ajustement tiendront compte.",
+                pt: "Marcado: as contagens mensais por estabelecimento deste indicador deverão ser pequenas, o que os módulos de ajustamento terão em conta.",
+              })}
+            </div>
+          </Show>
+          <Select
+            label={t3({ en: "Direction", fr: "Direction", pt: "Direção" })}
+            value={direction()}
+            onChange={(v) => setDirection(v as ThresholdDirection)}
+            options={directionOptions()}
+            fullWidth
+          />
+          <div class="ui-text-caption">
+            {t3({
+              en: "Whether a higher value is better or worse. The conditional-formatting rule follows it.",
+              fr: "Indique si une valeur plus élevée est meilleure ou pire. La règle de mise en forme conditionnelle la suit.",
+              pt: "Se um valor mais alto é melhor ou pior. A regra de formatação condicional segue-a.",
+            })}
+          </div>
           <Show when={type() === "derived"}>
             <Select
               label={t3({ en: "Format", fr: "Format", pt: "Formato" })}
               value={formatAs()}
               onChange={setFormatAs}
               options={formatOptions()}
+              fullWidth
+            />
+            <Input
+              label={formatAs() === "percent"
+                ? t3({ en: "Target (%)", fr: "Cible (%)", pt: "Meta (%)" })
+                : formatAs() === "rate_per_10k"
+                ? t3({ en: "Target (per 10,000)", fr: "Cible (pour 10 000)", pt: "Meta (por 10 000)" })
+                : t3({ en: "Target", fr: "Cible", pt: "Meta" })}
+              value={targetText()}
+              onChange={setTargetText}
               fullWidth
             />
             <Select
@@ -938,6 +1044,7 @@ export function EditIndicatorForm(
                   decimalPlaces={0}
                   showLabels={true}
                   showPresets={false}
+                  showDirection={false}
                 />
               )}
             </Show>

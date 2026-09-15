@@ -37,6 +37,9 @@ function indicator(
     include_in_analysis: true,
     format_as: "number",
     thresholds: null,
+    direction: "higher-is-better",
+    target: null,
+    expected_low_counts: false,
     sort_order: sortOrder,
   };
 }

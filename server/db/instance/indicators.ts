@@ -34,6 +34,7 @@ import {
   renameIdentifiers,
   resolveIndicatorExpression,
   t3,
+  type ThresholdDirection,
   type ThresholdsRule,
   thresholdsRuleSchema,
   writeIndicatorExpression,
@@ -57,6 +58,9 @@ export type DBIndicatorCommon = {
   include_in_analysis: boolean;
   format_as: IndicatorFormat;
   thresholds: string | null;
+  direction: ThresholdDirection;
+  target: number | null;
+  expected_low_counts: boolean;
   sort_order: number;
 };
 
@@ -64,7 +68,8 @@ const INDICATOR_COLUMNS = `
   i.indicator_common_id, i.indicator_common_label, i.definition_type, i.expression, i.data_id,
   (SELECT COALESCE(array_agg(m.member_id ORDER BY m.member_id), ARRAY[]::text[])
      FROM indicator_sum_members m WHERE m.sum_id = i.indicator_common_id) AS members,
-  i.include_in_analysis, i.format_as, i.thresholds, i.sort_order`;
+  i.include_in_analysis, i.format_as, i.thresholds, i.direction, i.target,
+  i.expected_low_counts, i.sort_order`;
 
 export function dbRowToHmisIndicator(row: DBIndicatorCommon): HmisIndicator {
   return {
@@ -76,12 +81,23 @@ export function dbRowToHmisIndicator(row: DBIndicatorCommon): HmisIndicator {
     thresholds: row.thresholds === null
       ? null
       : thresholdsRuleSchema.parse(JSON.parse(row.thresholds)),
+    direction: row.direction,
+    target: row.target,
+    expected_low_counts: row.expected_low_counts,
     sort_order: row.sort_order,
   };
 }
 
-function thresholdsToDb(thresholds: ThresholdsRule | null): string | null {
-  return thresholds === null ? null : JSON.stringify(thresholds);
+// The rule's `direction` key is the indicator's direction (HmisIndicator,
+// lib/types/indicators.ts): written from the column, whatever the client
+// posted.
+function thresholdsToDb(
+  thresholds: ThresholdsRule | null,
+  direction: ThresholdDirection,
+): string | null {
+  return thresholds === null
+    ? null
+    : JSON.stringify({ ...thresholds, direction });
 }
 
 function dbRowToDefinition(row: DBIndicatorCommon): HmisIndicatorDefinition {
@@ -128,19 +144,30 @@ function inputDataId(definition: HmisIndicatorDefinitionInput): string | null {
 }
 
 // `format_as` is display-only and the sole scale (PLAN_1c ruling 3), and so
-// is `thresholds`. A count is always a number with no conditional-formatting
-// rule (the table's two count CHECKs); a derived one chooses both.
-function countRuleError(
-  definition: HmisIndicatorDefinitionInput,
-  formatAs: IndicatorFormat,
-  thresholds: ThresholdsRule | null,
+// are `thresholds` and `target`. A count is always a number with no
+// conditional-formatting rule and no target (the table's three count
+// CHECKs); a derived one chooses all three. `expected_low_counts` is a
+// count's fact only: a derived indicator is never adjusted (the derived
+// CHECK).
+function typeRuleError(
+  indicator: Pick<
+    NewIndicator,
+    "definition" | "format_as" | "thresholds" | "target" | "expected_low_counts"
+  >,
 ): string | undefined {
-  if (!isCount(definition.type)) return undefined;
-  if (formatAs !== "number") {
+  if (!isCount(indicator.definition.type)) {
+    return indicator.expected_low_counts
+      ? "A Derived indicator is never adjusted, so it cannot expect low counts"
+      : undefined;
+  }
+  if (indicator.format_as !== "number") {
     return "An Uploaded, DHIS2 element or Sum indicator is a count and is always formatted as a number";
   }
-  if (thresholds !== null) {
+  if (indicator.thresholds !== null) {
     return "An Uploaded, DHIS2 element or Sum indicator is a count and has no conditional-formatting rule";
+  }
+  if (indicator.target !== null) {
+    return "An Uploaded, DHIS2 element or Sum indicator is a count and has no target";
   }
   return undefined;
 }
@@ -433,6 +460,9 @@ export type NewIndicator = {
   include_in_analysis: boolean;
   format_as: IndicatorFormat;
   thresholds: ThresholdsRule | null;
+  direction: ThresholdDirection;
+  target: number | null;
+  expected_low_counts: boolean;
 };
 
 // The pre-checks every create shares: each id through the validator (a
@@ -456,8 +486,7 @@ async function checkIndicatorWrites(
         JSON.stringify(indicator.indicator_common_id)
       }: ${describeNewIndicatorIdIssue(idIssue)}`;
     }
-    const err = countRuleError(indicator.definition, indicator.format_as, indicator.thresholds) ??
-      dataIdError(indicator.definition);
+    const err = typeRuleError(indicator) ?? dataIdError(indicator.definition);
     if (err) {
       return `${indicator.indicator_common_id}: ${err}`;
     }
@@ -551,14 +580,17 @@ async function insertIndicators(
         INSERT INTO indicators (
           indicator_common_id, indicator_common_label,
           definition_type, expression, data_id, include_in_analysis,
-          format_as, thresholds, sort_order, updated_at
+          format_as, thresholds, direction, target, expected_low_counts,
+          sort_order, updated_at
         )
         VALUES (
           ${indicator.indicator_common_id}, ${indicator.indicator_common_label},
           ${d.definition_type}, ${d.expression}, ${d.data_id},
           ${indicator.include_in_analysis},
           ${indicator.format_as},
-          ${thresholdsToDb(indicator.thresholds)},
+          ${thresholdsToDb(indicator.thresholds, indicator.direction)},
+          ${indicator.direction}, ${indicator.target},
+          ${indicator.expected_low_counts},
           ${sortOrder++}, CURRENT_TIMESTAMP
         )
       `;
@@ -650,6 +682,9 @@ async function planIndicatorNaming(
       include_in_analysis: true,
       format_as: "number",
       thresholds: null,
+      direction: "higher-is-better",
+      target: null,
+      expected_low_counts: false,
     });
   }
   for (const derived of input.derived) {
@@ -679,6 +714,9 @@ async function planIndicatorNaming(
       include_in_analysis: true,
       format_as: derived.format_as,
       thresholds: null,
+      direction: "higher-is-better",
+      target: null,
+      expected_low_counts: false,
     });
   }
   return { ok: true, indicators };
@@ -838,8 +876,7 @@ export async function updateIndicator(
         }`,
       };
     }
-    const err = countRuleError(update.definition, update.format_as, update.thresholds) ??
-      dataIdError(update.definition);
+    const err = typeRuleError(update) ?? dataIdError(update.definition);
     if (err) {
       return { success: false, err };
     }
@@ -931,7 +968,10 @@ export async function updateIndicator(
           data_id = ${d.data_id},
           include_in_analysis = ${update.include_in_analysis},
           format_as = ${update.format_as},
-          thresholds = ${thresholdsToDb(update.thresholds)},
+          thresholds = ${thresholdsToDb(update.thresholds, update.direction)},
+          direction = ${update.direction},
+          target = ${update.target},
+          expected_low_counts = ${update.expected_low_counts},
           updated_at = CURRENT_TIMESTAMP
         WHERE indicator_common_id = ${oldIndicatorId}
       `;

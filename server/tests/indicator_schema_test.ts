@@ -250,6 +250,24 @@ Deno.test("the count thresholds rule holds in the table", async () => {
   });
 });
 
+Deno.test("the count target rule holds in the table", async () => {
+  await rolledBack(async (sql) => {
+    await refused(sql, () => sql`UPDATE indicators SET target = 0.8 WHERE indicator_common_id = 'total'`, "indicators_count_target_check");
+    await sql`UPDATE indicators SET target = 0.8 WHERE indicator_common_id = 'rate'`;
+    assert(true);
+  });
+});
+
+Deno.test("the derived low-counts rule and the direction vocabulary hold in the table", async () => {
+  await rolledBack(async (sql) => {
+    await refused(sql, () => sql`UPDATE indicators SET expected_low_counts = TRUE WHERE indicator_common_id = 'rate'`, "indicators_derived_low_counts_check");
+    await sql`UPDATE indicators SET expected_low_counts = TRUE WHERE indicator_common_id = 'total'`;
+    await refused(sql, () => sql`UPDATE indicators SET direction = 'up' WHERE indicator_common_id = 'rate'`, "indicators_direction_check");
+    await sql`UPDATE indicators SET direction = 'lower-is-better' WHERE indicator_common_id = 'elem'`;
+    assert(true);
+  });
+});
+
 Deno.test("cleanup: drop the throwaway database", async () => {
   await db.end();
   await admin.unsafe(`DROP DATABASE IF EXISTS ${dbName} WITH (FORCE)`);

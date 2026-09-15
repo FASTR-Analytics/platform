@@ -31,6 +31,9 @@ function element(id: string, dataId: string): HmisIndicator {
     include_in_analysis: true,
     format_as: "number",
     thresholds: null,
+    direction: "higher-is-better",
+    target: null,
+    expected_low_counts: false,
     sort_order: 0,
   };
 }
@@ -43,6 +46,9 @@ function uploaded(id: string, dataId: string): HmisIndicator {
     include_in_analysis: true,
     format_as: "number",
     thresholds: null,
+    direction: "higher-is-better",
+    target: null,
+    expected_low_counts: false,
     sort_order: 0,
   };
 }
@@ -55,6 +61,9 @@ function sum(id: string, members: string[]): HmisIndicator {
     include_in_analysis: true,
     format_as: "number",
     thresholds: null,
+    direction: "higher-is-better",
+    target: null,
+    expected_low_counts: false,
     sort_order: 0,
   };
 }
@@ -67,6 +76,9 @@ function derived(id: string, expression: string): HmisIndicator {
     include_in_analysis: true,
     format_as: "percent",
     thresholds: null,
+    direction: "higher-is-better",
+    target: null,
+    expected_low_counts: false,
     sort_order: 0,
   };
 }

@@ -344,6 +344,11 @@ CREATE TABLE indicators (
     CONSTRAINT indicators_format_as_check
     CHECK (format_as IN ('percent', 'number', 'rate_per_10k')),
   thresholds text,  -- JSON: ThresholdsRule (nullable)
+  direction text NOT NULL DEFAULT 'higher-is-better'
+    CONSTRAINT indicators_direction_check
+    CHECK (direction IN ('higher-is-better', 'lower-is-better')),
+  target double precision,
+  expected_low_counts boolean NOT NULL DEFAULT FALSE,
   sort_order integer NOT NULL DEFAULT 0,
   updated_at timestamptz DEFAULT CURRENT_TIMESTAMP,
 
@@ -364,6 +369,8 @@ CREATE TABLE indicators (
   ),
   CONSTRAINT indicators_count_format_check CHECK (NOT is_count OR format_as = 'number'),
   CONSTRAINT indicators_count_thresholds_check CHECK (NOT is_count OR thresholds IS NULL),
+  CONSTRAINT indicators_count_target_check CHECK (NOT is_count OR target IS NULL),
+  CONSTRAINT indicators_derived_low_counts_check CHECK (is_count OR NOT expected_low_counts),
   -- Required by the composite FK in indicator_sum_members; redundant with the PK otherwise.
   CONSTRAINT indicators_common_id_has_rows_key UNIQUE (indicator_common_id, has_rows)
 );

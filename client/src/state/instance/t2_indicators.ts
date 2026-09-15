@@ -14,11 +14,12 @@ const _INDICATORS_CACHE = createReactiveCache<
   // v3: thresholds became a CF rule and group_label went (PLAN_1d). v4: one
   // list of count and derived indicators (PLAN_A3). v5: one table, the
   // definition carrying members, include_in_analysis (PLAN_A4). v6: the
-  // four types, the definition carrying data_id (PLAN_A5).
+  // four types, the definition carrying data_id (PLAN_A5). v7: direction,
+  // target and expected_low_counts.
   // The name is the client's cache-prefix lever: the version hash cannot
   // invalidate a pure shape change, so a changed payload shape bumps the
   // name, exactly as a server Valkey prefix would.
-  name: "instance_indicators_v6",
+  name: "instance_indicators_v7",
   uniquenessKeys: () => ["indicators"],
   versionKey: (params) => params.indicatorsVersion,
   pdsNotRequired: true,

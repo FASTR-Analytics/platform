@@ -132,6 +132,8 @@ const indicatorRowV1 = z.object({
 
 // `type` is the stored type under its code name; `base` is what packages
 // generated before PLAN_A5 carry, accepted and never mapped (ruling 10).
+// `direction`, `target` and `expected_low_counts` are absent from every
+// mirror written before they existed, and a mirror is never rewritten.
 const indicatorRowV2 = z.object({
   indicator_common_id: z.string(),
   indicator_common_label: z.string(),
@@ -140,6 +142,9 @@ const indicatorRowV2 = z.object({
   slot_map: z.record(z.string(), z.string()).nullable(),
   format_as: z.enum(["percent", "number", "rate_per_10k"]),
   thresholds: thresholdsRuleSchema.nullable(),
+  direction: z.enum(["higher-is-better", "lower-is-better"]).optional(),
+  target: z.number().nullable().optional(),
+  expected_low_counts: z.boolean().optional(),
   sort_order: z.number(),
 });
 
@@ -301,6 +306,8 @@ async function deriveIndicatorMetadata(
         label: row.indicator_common_label,
         format_as: row.format_as,
         ...(row.thresholds === null ? {} : { thresholds: row.thresholds }),
+        ...(row.direction === undefined ? {} : { direction: row.direction }),
+        ...(row.target == null ? {} : { target: row.target }),
         sort_order: row.sort_order,
         type: row.type,
         ...(row.expression === null ? {} : { expression: row.expression }),
@@ -346,6 +353,9 @@ async function deriveIndicatorMetadata(
         ci.format_as,
         _INSTANCE_LANGUAGE,
       ),
+      direction: ci.threshold_direction === "lower_is_better"
+        ? "lower-is-better"
+        : "higher-is-better",
       group_label: ci.group_label,
       sort_order: ci.sort_order,
     });

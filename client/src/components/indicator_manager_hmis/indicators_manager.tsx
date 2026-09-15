@@ -149,6 +149,9 @@ export function IndicatorsManager(p: Props) {
       String(indicator.include_in_analysis),
       indicator.format_as,
       indicator.thresholds ? JSON.stringify(indicator.thresholds) : "",
+      indicator.direction,
+      indicator.target === null ? "" : String(indicator.target),
+      String(indicator.expected_low_counts),
     ]);
 
     const csvContent = [

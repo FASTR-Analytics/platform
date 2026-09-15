@@ -82,7 +82,9 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // "19" (2026-09-04): the write-only freshness pair (moduleLastRun,
 // datasetsVersion) left every data payload (PLAN_RESULTS_RUNS ruling 4):
 // the run id IS the provenance; "18" entries carry the old shape.
-const PO_CACHE_VERSION = "19";
+// "20" (2026-09-15): IndicatorMetadataDisplay gained `direction` and
+// `target`, which po_items carries; "19" entries lack them.
+const PO_CACHE_VERSION = "20";
 
 // The immutable run id replaces the data-version dimensions (PLAN_RESULTS_RUNS
 // §2.5): it is the uniqueness scope for the three data caches: two projects

@@ -376,6 +376,11 @@ function formatItemsAsMarkdown(
               ...(format ? [format] : []),
               ...(meta?.thresholds
                 ? [formatIndicatorThresholds(meta.thresholds, meta.format_as ?? "number")]
+                : meta?.direction
+                ? [meta.direction.replaceAll("-", " ")]
+                : []),
+              ...(meta?.target !== undefined
+                ? [`target ${formatIndicatorValue(meta.target, meta.format_as ?? "number")}`]
                 : []),
             ];
             if (meta?.label && meta.label !== val) {
@@ -437,6 +442,12 @@ function formatItemsAsMarkdown(
   return lines.join("\n");
 }
 
+// A stored value in DISPLAY units, a percent with its sign.
+function formatIndicatorValue(value: number, formatAs: IndicatorFormat): string {
+  const scaled = scaleValueForFormat(value, formatAs);
+  return formatAs === "percent" ? `${scaled}%` : String(scaled);
+}
+
 // "higher is better; On track ≥ 80%; Progress needed ≥ 70%; Not on track
 // < 70%" from the indicator's own CF rule: every bucket, best first, with the
 // bound that admits it under THE boundary rule (thresholdBucketIndex: an
@@ -448,10 +459,7 @@ export function formatIndicatorThresholds(
   rule: ThresholdsRule,
   formatAs: IndicatorFormat,
 ): string {
-  const fmt = (v: number) => {
-    const scaled = scaleValueForFormat(v, formatAs);
-    return formatAs === "percent" ? `${scaled}%` : String(scaled);
-  };
+  const fmt = (v: number) => formatIndicatorValue(v, formatAs);
   const labels = bucketLabels(rule, fmt, "en");
   const direction = rule.direction ?? "higher-is-better";
   const symmetric = isSymmetricAroundZero(rule.cutoffs);

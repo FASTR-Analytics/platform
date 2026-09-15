@@ -54,6 +54,9 @@ function toNewIndicator(raw: Record<string, unknown>): NewIndicator {
     include_in_analysis: Boolean(raw.include_in_analysis),
     format_as: raw.format_as as NewIndicator["format_as"],
     thresholds: (raw.thresholds ?? null) as NewIndicator["thresholds"],
+    direction: raw.direction as NewIndicator["direction"],
+    target: (raw.target ?? null) as NewIndicator["target"],
+    expected_low_counts: Boolean(raw.expected_low_counts),
   };
 }
 

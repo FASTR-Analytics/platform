@@ -26,6 +26,9 @@ const indicatorItemSchema = z.object({
   include_in_analysis: z.boolean(),
   format_as: z.enum(["percent", "number", "rate_per_10k"]),
   thresholds: thresholdsRuleSchema.nullable(),
+  direction: z.enum(["higher-is-better", "lower-is-better"]),
+  target: z.number().nullable(),
+  expected_low_counts: z.boolean(),
 });
 
 // The naming step's input (PLAN_A6 ruling 7): the DHIS2 create route's

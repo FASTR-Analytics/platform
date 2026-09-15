@@ -29,6 +29,9 @@ function indicator(
     include_in_analysis: includeInAnalysis,
     format_as: definition.type === "derived" ? "percent" : "number",
     thresholds: null,
+    direction: "higher-is-better",
+    target: null,
+    expected_low_counts: false,
     sort_order: 0,
   };
 }

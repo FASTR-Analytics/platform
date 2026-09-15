@@ -391,10 +391,12 @@ charset-checked (no `, ; : [ ]` because they corrupt the dictionary
 download's member list and the expression grammar); existing ids are
 grandfathered. The dictionary download is one CSV for the whole list
 (`INDICATOR_DOWNLOAD_FILE_COLUMNS`: `indicator_id, label, type, dhis2_id,
-members, expression, include_in_analysis, format_as, thresholds`; `type`
-in the four code names, `dhis2_id` written for a DHIS2 element and blank
-for every other type, `members` semicolon-separated), a download format
-only: nothing reads it back (PLAN_A6 ruling 8 removed the batch upload).
+members, expression, include_in_analysis, format_as, thresholds,
+direction, target, expected_low_counts`; `type` in the four code names,
+`dhis2_id` written for a DHIS2 element and blank for every other type,
+`members` semicolon-separated, `target` in stored units), a download
+format only: nothing reads it back (PLAN_A6 ruling 8 removed the batch
+upload).
 
 Instance migration 087 (`087_indicator_data_key.sql`, PLAN_A6 rulings 1,
 11, 12 and 13) gives every Uploaded row a key: a row whose `data_id` was
@@ -693,6 +695,26 @@ pointers only. Consequences that follow from it and are ruled with it:
   packages' `calculated_indicators_snapshot.json` traffic-light pairs are
   converted into rules at derive time by `lib/traffic_light_rule.ts`, the
   same conversion migration 079 ran on the dictionary.
+- Three more facts sit beside them (migration 088). `direction` is THE
+  direction of the indicator, on any type: `higher-is-better` (the
+  default) or `lower-is-better` (`indicators_direction_check`). The rule's own `direction` key is written
+  from it on every save (`thresholdsToDb`; the server overwrites whatever
+  a client posts, and the instance editor's `ThresholdsPanel` hides the
+  direction control, `showDirection`), so the two cannot disagree; 088
+  started every row at the default and dropped the key from every stored
+  rule. `target` is a number in STORED units
+  on a derived indicator only, NULL for none (`indicators_count_target_check`;
+  the editor takes it in display units; the manager list shows none of the
+  three, the editor and the download do). `expected_low_counts` marks a count whose facility-month values
+  are expected to be small, for the adjustment modules; FALSE on every
+  derived indicator (`indicators_derived_low_counts_check`). The three
+  reach the catalog row and the v2 `indicators.json` mirror (optional in
+  its row schema: older mirrors lack them and are never rewritten);
+  `direction` and `target` go on to `IndicatorMetadata` as optional facts
+  any family may declare (HMIS declares them today; HFA and ICEH declare
+  neither), the manifest catalog and the stored figure bundle (cache
+  prefix "20"). `expected_low_counts` stops at the mirror: it is a
+  generation input, not a display fact, and no module reads it yet.
 - DHIS2 percent indicators are never imported as values. The importer
   decomposes `numerator`/`denominator` (already on `DHIS2Indicator`) into
   data-element operands → DHIS2 elements carrying them as `data_id`, and

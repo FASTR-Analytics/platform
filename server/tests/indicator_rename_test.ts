@@ -51,6 +51,9 @@ function indicator(
     include_in_analysis: true,
     format_as: definition.type === "derived" ? "percent" : "number",
     thresholds: null,
+    direction: "higher-is-better",
+    target: null,
+    expected_low_counts: false,
   };
 }
 
@@ -132,6 +135,9 @@ async function rename(
     include_in_analysis: current.include_in_analysis,
     format_as: current.format_as,
     thresholds: current.thresholds,
+    direction: current.direction,
+    target: current.target,
+    expected_low_counts: current.expected_low_counts,
     ...patch,
   });
 }

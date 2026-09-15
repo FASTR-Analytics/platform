@@ -104,6 +104,9 @@ async function seed(
     include_in_analysis: true,
     format_as: definition.type === "derived" ? "percent" : "number",
     thresholds: null,
+    direction: "higher-is-better",
+    target: null,
+    expected_low_counts: false,
   }]);
   assert(res.success, res.success ? "" : res.err);
 }

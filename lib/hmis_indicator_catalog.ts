@@ -30,7 +30,10 @@ import {
   writeIdentifier,
   writeIndicatorExpression,
 } from "./indicator_expression/mod.ts";
-import type { ThresholdsRule } from "./types/conditional_formatting.ts";
+import type {
+  ThresholdDirection,
+  ThresholdsRule,
+} from "./types/conditional_formatting.ts";
 import {
   definitionDataId,
   hasRows,
@@ -46,7 +49,10 @@ import { isSpecialIndicatorId } from "./special_indicators.ts";
 // population type, in first-appearance order, no slot special. A count's
 // expression is its own identifier, one slot; a sum is one slot like any
 // other count, so the package format is unchanged by sums. `type` is the
-// stored type under its code name (PLAN_A5 ruling 10).
+// stored type under its code name (PLAN_A5 ruling 10). `direction`,
+// `target` and `expected_low_counts` are the indicator's own (HmisIndicator,
+// lib/types/indicators.ts); a package generated before they existed has no
+// key for them.
 export type HmisIndicatorCatalogRow = {
   indicator_common_id: string;
   indicator_common_label: string;
@@ -55,6 +61,9 @@ export type HmisIndicatorCatalogRow = {
   slot_map: Record<string, string> | null;
   format_as: IndicatorFormat;
   thresholds: ThresholdsRule | null;
+  direction: ThresholdDirection;
+  target: number | null;
+  expected_low_counts: boolean;
   sort_order: number;
 };
 
@@ -276,6 +285,9 @@ export function resolveHmisIndicatorCatalog(
       indicator_common_label: indicator.indicator_common_label,
       format_as: indicator.format_as,
       thresholds: indicator.thresholds,
+      direction: indicator.direction,
+      target: indicator.target,
+      expected_low_counts: indicator.expected_low_counts,
       sort_order: indicator.sort_order,
     };
 

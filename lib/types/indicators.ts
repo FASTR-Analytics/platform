@@ -1,6 +1,9 @@
 import { capitalizeFirstLetter } from "@timroberton/panther";
 import type { TranslatableString } from "../translate/types.ts";
-import type { ThresholdsRule } from "./conditional_formatting.ts";
+import type {
+  ThresholdDirection,
+  ThresholdsRule,
+} from "./conditional_formatting.ts";
 import { EXPRESSION_FUNCTION_NAMES } from "../indicator_expression/parse.ts";
 import { POPULATION_TYPE_IDS } from "./population.ts";
 import {
@@ -21,8 +24,10 @@ export type InstanceIndicatorDetails = {
 // for every other type (an Uploaded indicator's key is opaque and means
 // nothing to a reader), `members` semicolon-separated for a sum,
 // `expression` for a derived, `include_in_analysis` true/false,
-// `thresholds` a derived indicator's rule as JSON text and empty otherwise.
-// A download format only: nothing reads it back.
+// `thresholds` a derived indicator's rule as JSON text and empty otherwise,
+// `direction` the direction code or empty, `target` in stored units or
+// empty, `expected_low_counts` true/false. A download format only: nothing
+// reads it back.
 export const INDICATOR_DOWNLOAD_FILE_COLUMNS = [
   "indicator_id",
   "label",
@@ -33,6 +38,9 @@ export const INDICATOR_DOWNLOAD_FILE_COLUMNS = [
   "include_in_analysis",
   "format_as",
   "thresholds",
+  "direction",
+  "target",
+  "expected_low_counts",
 ] as const;
 
 export const INDICATOR_DOWNLOAD_MEMBERS_SEPARATOR = ";";
@@ -231,8 +239,16 @@ export const PACKAGE_INDICATOR_TYPES: readonly PackageIndicatorType[] = [
 
 // An HMIS indicator's presentation: its display format and, optionally, a
 // conditional-formatting rule (cutoffs in STORED units, buckets with colour and
-// label, direction). A figure whose CF source is `indicator` colours each value
+// label). A figure whose CF source is `indicator` colours each value
 // by its own indicator's rule; null means the indicator is never coloured.
+// `direction` is THE direction of the indicator: whether a higher value is
+// better or worse, higher by default. The rule's own `direction` key is
+// written from it on every save (the server overwrites whatever a client
+// posts), so the two cannot disagree. `target` is a
+// number in STORED units, on a derived indicator only, like the rule; null
+// means none. `expected_low_counts` marks a count whose facility-month
+// values are expected to be small, for the adjustment modules; always false
+// on a derived indicator, which is never adjusted.
 // `include_in_analysis` on means the extract carries the indicator and m001
 // and m002 adjust it (the analysed set, PLAN_A4 ruling 3, stated once in
 // lib/hmis_indicator_catalog.ts); off means dictionary only: its data is
@@ -245,6 +261,9 @@ export type HmisIndicator = {
   include_in_analysis: boolean;
   format_as: IndicatorFormat;
   thresholds: ThresholdsRule | null;
+  direction: ThresholdDirection;
+  target: number | null;
+  expected_low_counts: boolean;
   sort_order: number;
 };
 
@@ -562,6 +581,13 @@ export type IndicatorMetadata = {
   // The indicator's own CF rule (HMIS indicators only). The `indicator` CF
   // source resolves it per value through EffectiveIndicatorFacts.ruleForValue.
   thresholds?: ThresholdsRule;
+  // Whether a higher value is better or worse; absent when the family does
+  // not declare it. Declared by HMIS indicators today; any family may
+  // declare it.
+  direction?: ThresholdDirection;
+  // A target value in STORED units (a fraction for a percent); absent when
+  // none is set. Declared by HMIS derived indicators today.
+  target?: number;
   // The HFA/ICEH category carrier; an HMIS indicator never sets it.
   group_label?: string;
   sort_order?: number;

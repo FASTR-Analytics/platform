@@ -60,6 +60,9 @@ function indicator(
     include_in_analysis: true,
     format_as: definition.type === "derived" ? "percent" : "number",
     thresholds: null,
+    direction: "higher-is-better",
+    target: null,
+    expected_low_counts: false,
   };
 }
 
@@ -144,6 +147,9 @@ Deno.test("no path accepts a client-supplied Uploaded key: the route schema stri
       include_in_analysis: true,
       format_as: "number",
       thresholds: null,
+      direction: "higher-is-better",
+      target: null,
+      expected_low_counts: false,
     }],
   });
   assertEquals(parsed.indicators[0].definition, { type: "uploaded" });
