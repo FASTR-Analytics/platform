@@ -130,11 +130,11 @@ export const HELP_TARGETS = {
     title: { en: "Validation and error handling", fr: "Validation et gestion des erreurs" },
     summary: { en: "For a CSV import, the staging results list every issue by category, with a count and sample rows. The categories are: rows with missing required fields, rows with invalid values, facilities not in…", fr: "Pour une importation CSV, les résultats de la préparation listent chaque problème par catégorie, avec un nombre et des exemples de lignes. Les catégories sont : lignes avec des champs requis…" },
   },
-  "ind-derived": {
+  "ind-calculated": {
     page: "admin-guide/indicators",
-    anchor: { en: "derived-indicators", fr: "indicateurs-dérivés" },
-    title: { en: "Derived indicators", fr: "Indicateurs dérivés" },
-    summary: { en: "A derived indicator is defined by a formula over other indicators, for example anc4 / anc1 for a coverage rate. It is computed after the data is aggregated, so a regional or annual figure is the…", fr: "Un indicateur dérivé est défini par une formule portant sur d'autres indicateurs, par exemple anc4 / anc1 pour un taux de couverture. Il est calculé après l'agrégation des données : un chiffre…" },
+    anchor: { en: "calculated-indicators", fr: "indicateurs-calculés" },
+    title: { en: "Calculated indicators", fr: "Indicateurs calculés" },
+    summary: { en: "A calculated indicator is defined by a formula over other indicators, for example anc4 / anc1 for a coverage rate. It is computed after the data is aggregated, so a regional or annual figure is the…", fr: "Un indicateur calculé est défini par une formule portant sur d'autres indicateurs, par exemple anc4 / anc1 pour un taux de couverture. Il est calculé après l'agrégation des données : un chiffre…" },
   },
   "ind-dhis2-import": {
     page: "admin-guide/indicators",

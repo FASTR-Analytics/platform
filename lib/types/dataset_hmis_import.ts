@@ -311,7 +311,7 @@ export type Dhis2RunSelectionInput =
 
 // The expansion of a window selection's indicators to what a DHIS2 run
 // fetches (`expandIndicatorSelection`, lib): a sum expands to its members,
-// a derived flattens through the resolver to the counts it reaches, and the
+// a calculated flattens through the resolver to the counts it reaches, and the
 // DHIS2 elements among them contribute their data ids. Population terms and
 // Uploaded indicators are dropped and listed. Persisted on the run row and
 // carried in the worker message, so the worker and the history tab never

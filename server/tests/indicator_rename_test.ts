@@ -1,6 +1,6 @@
 // Pins PLAN_A5 rulings 4 and 5: updateIndicator renames an indicator in one
 // transaction, rewriting the sums that name it (the junction follows by ON
-// UPDATE CASCADE), every derived expression that names it (text kept as
+// UPDATE CASCADE), every calculated expression that names it (text kept as
 // written) and every schedule's selection; run rows are history and stay;
 // a taken id and a reserved id are refused, and a special id renames like
 // any other. The data id is fixed once rows exist under it; Uploaded and DHIS2 element switch either
@@ -49,7 +49,7 @@ function indicator(
     indicator_common_label: `Label ${id}`,
     definition,
     include_in_analysis: true,
-    format_as: definition.type === "derived" ? "percent" : "number",
+    format_as: definition.type === "calculated" ? "percent" : "number",
     thresholds: null,
     direction: "higher-is-better",
     target: null,
@@ -68,8 +68,8 @@ async function reset(): Promise<void> {
     indicator("visits", { type: "dhis2_element", data_id: ELEMENT }),
     indicator("visits_file", { type: "uploaded" }),
     indicator("visits_all", { type: "sum", members: ["visits", "visits_file"] }),
-    indicator("visits_share", { type: "derived", expression: "visits / visits_all" }),
-    indicator("chain", { type: "derived", expression: "[visits] * 2 + visits_share" }),
+    indicator("visits_share", { type: "calculated", expression: "visits / visits_all" }),
+    indicator("chain", { type: "calculated", expression: "[visits] * 2 + visits_share" }),
   ]);
   assert(res.success, res.success ? "" : res.err);
   await db`
@@ -151,8 +151,8 @@ Deno.test("rename: members, expressions and schedule selections rewritten in one
   assertEquals(d.has("visits"), false);
   assertEquals(d.get("first_visits")!.definition, { type: "dhis2_element", data_id: ELEMENT });
   assertEquals(d.get("visits_all")!.definition, { type: "sum", members: ["first_visits", "visits_file"] });
-  assertEquals(d.get("visits_share")!.definition, { type: "derived", expression: "first_visits / visits_all" });
-  assertEquals(d.get("chain")!.definition, { type: "derived", expression: "[first_visits] * 2 + visits_share" });
+  assertEquals(d.get("visits_share")!.definition, { type: "calculated", expression: "first_visits / visits_all" });
+  assertEquals(d.get("chain")!.definition, { type: "calculated", expression: "[first_visits] * 2 + visits_share" });
   const schedule = await db<{ selection: string }[]>`SELECT selection FROM dataset_hmis_scheduled_imports`;
   assertEquals(JSON.parse(schedule[0].selection).indicatorIds, ["first_visits", "visits_all"]);
   const run = await db<{ selection: string }[]>`SELECT selection FROM dataset_hmis_import_runs`;
@@ -167,8 +167,8 @@ Deno.test("rename: a new id that is not bare-shaped is written bracketed in expr
   const res = await rename("visits", "Visits 1st");
   assert(res.success, res.success ? "" : res.err);
   const d = await dictionary();
-  assertEquals(d.get("visits_share")!.definition, { type: "derived", expression: "[Visits 1st] / visits_all" });
-  assertEquals(d.get("chain")!.definition, { type: "derived", expression: "[Visits 1st] * 2 + visits_share" });
+  assertEquals(d.get("visits_share")!.definition, { type: "calculated", expression: "[Visits 1st] / visits_all" });
+  assertEquals(d.get("chain")!.definition, { type: "calculated", expression: "[Visits 1st] * 2 + visits_share" });
 });
 
 Deno.test("rename: a taken id and a reserved id are refused; a special id renames like any other", async () => {
@@ -183,9 +183,9 @@ Deno.test("rename: a taken id and a reserved id are refused; a special id rename
   const reserved = await rename("visits", "population_total");
   assert(!reserved.success);
   assertStringIncludes(reserved.err, "reserved word");
-  const toSpecialDerived = await rename("visits_share", "penta3");
-  assert(!toSpecialDerived.success);
-  assertStringIncludes(toSpecialDerived.err, "special indicator id");
+  const toSpecialCalculated = await rename("visits_share", "penta3");
+  assert(!toSpecialCalculated.success);
+  assertStringIncludes(toSpecialCalculated.err, "special indicator id");
   assertEquals(
     [...(await dictionary()).keys()].toSorted(),
     ["chain", "penta_one", "visits", "visits_all", "visits_file", "visits_share"],
@@ -234,7 +234,7 @@ Deno.test("data id: a DHIS2 id is fixed once rows exist; retyping keeps the key 
   assert(!takenDataId.success);
   assertStringIncludes(takenDataId.err, "belongs to exactly one indicator");
   const namedBySum = await rename("visits_file", "visits_file", {
-    definition: { type: "derived", expression: "visits * 2" },
+    definition: { type: "calculated", expression: "visits * 2" },
     format_as: "percent",
   });
   assert(!namedBySum.success);

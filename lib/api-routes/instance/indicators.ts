@@ -14,7 +14,7 @@ const indicatorDefinitionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("uploaded") }),
   z.object({ type: z.literal("dhis2_element"), data_id: z.string() }),
   z.object({ type: z.literal("sum"), members: z.array(z.string()) }),
-  z.object({ type: z.literal("derived"), expression: z.string() }),
+  z.object({ type: z.literal("calculated"), expression: z.string() }),
 ]);
 
 // The rule's shape rules (ascending cutoffs, one more bucket than cutoffs,
@@ -32,7 +32,7 @@ const indicatorItemSchema = z.object({
 });
 
 // The naming step's input (PLAN_A6 ruling 7): the DHIS2 create route's
-// elements and the derived indicators over them.
+// elements and the calculated indicators over them.
 export const indicatorNamingElementSchema = z.object({
   data_id: z.string(),
   indicator_id: z.string(),
@@ -41,7 +41,7 @@ export const indicatorNamingElementSchema = z.object({
 
 export const indicatorNamingInputSchema = z.object({
   elements: z.array(indicatorNamingElementSchema),
-  derived: z.array(
+  calculated: z.array(
     z.object({
       indicator_id: z.string(),
       label: z.string(),

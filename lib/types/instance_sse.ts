@@ -109,7 +109,7 @@ export type InstanceState = {
   // ANY indicator changes and keys the indicator manager; the count one
   // moves only when the extract-relevant rows (the analysed counts:
   // Uploaded, DHIS2 element and Sum with the checkbox on) change, so editing
-  // a derived definition costs the HMIS datatable caches nothing.
+  // a calculated definition costs the HMIS datatable caches nothing.
   indicatorsVersion: string;
   countIndicatorsVersion: string;
   hfaIndicatorsVersion: string;

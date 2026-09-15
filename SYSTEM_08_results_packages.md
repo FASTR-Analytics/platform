@@ -650,7 +650,7 @@ memoization fields (`inputKey` per module, content hashes per output file).
 
 **`manifestSchemaVersion` gates every read**, currently `9`
 (`RUN_MANIFEST_SCHEMA_VERSION`; v9 = `hmisIndicators` entries carry the
-indicator's format, direction, target, thresholds and, for a derived
+indicator's format, direction, target, thresholds and, for a calculated
 indicator, its flattened expression, in dictionary order, for the AI
 copilot's grounding; block 4's recompute writes the shape and transform
 block 7 only stamps; v8 = the `commonIndicators` list renamed
@@ -696,10 +696,10 @@ clauses, never case-by-case):
 **The indicators mirror has two writer formats and one reader contract.** v1
 (pre-restructure packages) carries id + label only, with a separate
 `calculated_indicators_snapshot.json` beside it; v2 carries the analysed
-indicator set (PLAN_A4 ruling 3: every analysed count and every derived
+indicator set (PLAN_A4 ruling 3: every analysed count and every calculated
 with its checkbox on), resolved: type, flattened expression, slot map,
 presentation and sort. The row's `type` is the stored type under its code
-name (`uploaded`, `dhis2_element`, `sum`, `derived`); a package generated
+name (`uploaded`, `dhis2_element`, `sum`, `calculated`); a package generated
 before PLAN_A5 carries `base` for every count, which `indicatorRowV2` and
 the manifest's `runIndicatorMetadataSchema` both accept (`PACKAGE_INDICATOR_TYPES`)
 and nothing maps or reads (the display projection strips `type`), and no
@@ -964,8 +964,8 @@ it contributes no row. One whose rows are simply absent
 from this dataset leaves `NA` after the pivot, and the rule above drops the
 rows that cannot be evaluated without it. Failing instead would abort
 generation on every instance that does not collect one of the 14 seeded
-default indicators. Capture refuses only a derived whose flattened
-expression includes a count with no rows. That rule is `judgeDerivedIndicator`
+default indicators. Capture refuses only a calculated whose flattened
+expression includes a count with no rows. That rule is `judgeCalculatedIndicator`
 (S5), and the indicator manager shows the same judgement before a run is
 generated; it judges definitions, not data, so a "computable" indicator can
 still be absent from a package whose data never lets it evaluate.

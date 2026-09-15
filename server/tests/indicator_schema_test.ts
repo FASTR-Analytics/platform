@@ -46,7 +46,7 @@ async function rolledBack(fn: (sql: TransactionSql) => Promise<void>): Promise<v
 }
 
 // An element with rows, an Uploaded with rows, an Uploaded with a key and
-// no rows, a sum over the first two, and a derived.
+// no rows, a sum over the first two, and a calculated.
 async function seed(sql: TransactionSql): Promise<void> {
   await sql`
     INSERT INTO admin_areas_hmis_1 (admin_area_1) VALUES ('A1')
@@ -80,7 +80,7 @@ async function seed(sql: TransactionSql): Promise<void> {
       ('up', 'Uploaded', 'uploaded', 'UP_FILE', NULL),
       ('empty', 'Empty', 'uploaded', 'u_empty', NULL),
       ('total', 'Total', 'sum', NULL, NULL),
-      ('rate', 'Rate', 'derived', NULL, 'elem / up')
+      ('rate', 'Rate', 'calculated', NULL, 'elem / up')
   `;
   await sql`UPDATE indicators SET format_as = 'percent' WHERE indicator_common_id = 'rate'`;
   await sql`
@@ -122,7 +122,7 @@ Deno.test("2: a sum over a sum is refused by the FK", async () => {
   });
 });
 
-Deno.test("3: a sum over a derived is refused by the FK", async () => {
+Deno.test("3: a sum over a calculated is refused by the FK", async () => {
   await rolledBack(async (sql) => {
     await sql`INSERT INTO indicators (indicator_common_id, indicator_common_label, definition_type) VALUES ('s2', 'S2', 'sum')`;
     await refused(sql, () => sql`INSERT INTO indicator_sum_members (sum_id, member_id) VALUES ('s2', 'rate')`, "indicator_sum_members_member_fkey");
@@ -155,12 +155,12 @@ Deno.test("5: renaming a member cascades into the junction and touches no data r
   });
 });
 
-Deno.test("6: retyping a member to derived while a sum names it is refused (has_rows flips)", async () => {
+Deno.test("6: retyping a member to calculated while a sum names it is refused (has_rows flips)", async () => {
   await rolledBack(async (sql) => {
     await sql`DELETE FROM dataset_hmis WHERE data_id = 'UP_FILE'`;
     await refused(
       sql,
-      () => sql`UPDATE indicators SET definition_type = 'derived', data_id = NULL, expression = 'elem * 2' WHERE indicator_common_id = 'up'`,
+      () => sql`UPDATE indicators SET definition_type = 'calculated', data_id = NULL, expression = 'elem * 2' WHERE indicator_common_id = 'up'`,
       "indicator_sum_members_member_has_rows_check",
     );
   });
@@ -258,9 +258,9 @@ Deno.test("the count target rule holds in the table", async () => {
   });
 });
 
-Deno.test("the derived low-counts rule and the direction vocabulary hold in the table", async () => {
+Deno.test("the calculated low-counts rule and the direction vocabulary hold in the table", async () => {
   await rolledBack(async (sql) => {
-    await refused(sql, () => sql`UPDATE indicators SET expected_low_counts = TRUE WHERE indicator_common_id = 'rate'`, "indicators_derived_low_counts_check");
+    await refused(sql, () => sql`UPDATE indicators SET expected_low_counts = TRUE WHERE indicator_common_id = 'rate'`, "indicators_calculated_low_counts_check");
     await sql`UPDATE indicators SET expected_low_counts = TRUE WHERE indicator_common_id = 'total'`;
     await refused(sql, () => sql`UPDATE indicators SET direction = 'up' WHERE indicator_common_id = 'rate'`, "indicators_direction_check");
     await sql`UPDATE indicators SET direction = 'lower-is-better' WHERE indicator_common_id = 'elem'`;

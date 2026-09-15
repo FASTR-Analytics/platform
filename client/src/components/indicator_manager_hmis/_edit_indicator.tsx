@@ -3,7 +3,7 @@
 // import, whose mapping step points file values at it (its key is the
 // server's and never shown), a DHIS2 element a count the import fetches
 // under its DHIS2 id, a sum the total of indicators that have rows, a
-// derived one a formula over other indicators and population terms with a
+// calculated one a formula over other indicators and population terms with a
 // free display format. Every indicator carries the include-in-analysis
 // checkbox. The id is renamable (ruling 5); a DHIS2 id is fixed once rows
 // exist under it (ruling 4). The palette below the formula inserts
@@ -34,7 +34,7 @@ import {
   type HmisIndicatorDefinitionInput,
   type HmisIndicatorType,
   HMIS_INDICATOR_TYPES,
-  type DerivedIndicatorComputability,
+  type CalculatedIndicatorComputability,
   getLanguage,
   getNewIndicatorIdIssue,
   getSpecialIndicatorTypeIssue,
@@ -42,7 +42,7 @@ import {
   isDhis2ShapedId,
   isPopulationTypeId,
   isSpecialIndicatorId,
-  judgeDerivedIndicator,
+  judgeCalculatedIndicator,
   parseIndicatorExpression,
   POPULATION_TYPE_IDS,
   populationTypeLabel,
@@ -191,7 +191,7 @@ export function EditIndicatorForm(
     existing?.definition.type === "sum" ? existing.definition.members : [],
   );
   const [expression, setExpression] = createSignal(
-    existing?.definition.type === "derived"
+    existing?.definition.type === "calculated"
       ? existing.definition.expression
       : "",
   );
@@ -215,7 +215,7 @@ export function EditIndicatorForm(
   );
   // A count (Uploaded, DHIS2 element or Sum): its format is always a number.
   const effectiveFormatAs = (): IndicatorFormat =>
-    type() === "derived" ? formatAs() : "number";
+    type() === "calculated" ? formatAs() : "number";
 
   const ownId = () => indicatorId().trim() || "__new__";
   const isSpecial = () => isSpecialIndicatorId(indicatorId().trim());
@@ -246,8 +246,8 @@ export function EditIndicatorForm(
 
   function currentDefinition(): HmisIndicatorDefinitionInput {
     switch (type()) {
-      case "derived":
-        return { type: "derived", expression: expression().trim() };
+      case "calculated":
+        return { type: "calculated", expression: expression().trim() };
       case "sum":
         return { type: "sum", members: members() };
       case "uploaded":
@@ -293,21 +293,21 @@ export function EditIndicatorForm(
   // not cycle, and the flattened set must fit the ingredient slots a results
   // row carries: those refuse the save. A flattened ingredient with no data
   // is only a warning here, since data can come later.
-  const judgement = createMemo<DerivedIndicatorComputability | undefined>(
+  const judgement = createMemo<CalculatedIndicatorComputability | undefined>(
     () => {
       const formula = expression().trim();
-      if (type() !== "derived" || formula === "") return undefined;
+      if (type() !== "calculated" || formula === "") return undefined;
       const dictionary = buildHmisIndicatorDictionary(
         [
           ...otherIndicators(),
           {
             indicator_common_id: ownId(),
-            definition: { type: "derived", expression: formula },
+            definition: { type: "calculated", expression: formula },
           },
         ],
         POPULATION_TYPE_IDS,
       );
-      return judgeDerivedIndicator(
+      return judgeCalculatedIndicator(
         ownId(),
         formula,
         dictionary,
@@ -317,7 +317,7 @@ export function EditIndicatorForm(
   );
 
   const expressionError = createMemo<string | undefined>(() => {
-    if (type() !== "derived") return undefined;
+    if (type() !== "calculated") return undefined;
     if (expression().trim() === "") {
       return t3({
         en: "A formula is required",
@@ -339,7 +339,7 @@ export function EditIndicatorForm(
     })}`;
   });
 
-  // Ruling 3: a checked derived indicator reaches every indicator its
+  // Ruling 3: a checked calculated indicator reaches every indicator its
   // formula flattens to, checked or not. Said here, once; the save goes.
   const unanalysedReached = createMemo<string[]>(() => {
     const j = judgement();
@@ -374,7 +374,7 @@ export function EditIndicatorForm(
   // the formula does not parse (the error above says why).
   const legend = createMemo<LegendRow[]>(() => {
     const formula = expression().trim();
-    if (type() !== "derived" || formula === "") return [];
+    if (type() !== "calculated" || formula === "") return [];
     let ids: string[];
     try {
       ids = collectIdentifiers(parseIndicatorExpression(formula));
@@ -490,9 +490,9 @@ export function EditIndicatorForm(
       const owner = dataIdOwners().get(id);
       if (owner !== undefined) {
         return t3({
-          en: `DHIS2 id "${id}" already belongs to ${owner.indicator_common_id}. One indicator carries one; make a sum or a derived indicator over ${owner.indicator_common_id} instead.`,
-          fr: `L'identifiant DHIS2 « ${id} » appartient déjà à ${owner.indicator_common_id}. Un indicateur n'en porte qu'un ; créez plutôt une somme ou un indicateur dérivé sur ${owner.indicator_common_id}.`,
-          pt: `O ID DHIS2 "${id}" já pertence a ${owner.indicator_common_id}. Um indicador tem um único; crie antes uma soma ou um indicador derivado sobre ${owner.indicator_common_id}.`,
+          en: `DHIS2 id "${id}" already belongs to ${owner.indicator_common_id}. One indicator carries one; make a sum or a calculated indicator over ${owner.indicator_common_id} instead.`,
+          fr: `L'identifiant DHIS2 « ${id} » appartient déjà à ${owner.indicator_common_id}. Un indicateur n'en porte qu'un ; créez plutôt une somme ou un indicateur calculé sur ${owner.indicator_common_id}.`,
+          pt: `O ID DHIS2 "${id}" já pertence a ${owner.indicator_common_id}. Um indicador tem um único; crie antes uma soma ou um indicador calculado sobre ${owner.indicator_common_id}.`,
         });
       }
       return undefined;
@@ -506,7 +506,7 @@ export function EditIndicatorForm(
         })
         : undefined;
     }
-    if (type() === "derived") return expressionError();
+    if (type() === "calculated") return expressionError();
     return undefined;
   }
 
@@ -549,7 +549,7 @@ export function EditIndicatorForm(
           }),
         };
       }
-      if (idIssue === "special_derived") {
+      if (idIssue === "special_calculated") {
         return {
           success: false,
           err: t3({
@@ -598,7 +598,7 @@ export function EditIndicatorForm(
         };
       }
 
-      const target = type() === "derived"
+      const target = type() === "calculated"
         ? textToTarget(targetText(), formatAs())
         : null;
       if (target === "invalid") {
@@ -618,10 +618,10 @@ export function EditIndicatorForm(
         definition: currentDefinition(),
         include_in_analysis: isSpecial() || includeInAnalysis(),
         format_as: effectiveFormatAs(),
-        thresholds: type() === "derived" ? rule : null,
+        thresholds: type() === "calculated" ? rule : null,
         direction: direction(),
         target,
-        expected_low_counts: type() !== "derived" && expectedLowCounts(),
+        expected_low_counts: type() !== "calculated" && expectedLowCounts(),
       };
 
       if (mode === "create") {
@@ -780,7 +780,7 @@ export function EditIndicatorForm(
             </div>
           </Show>
 
-          <Show when={type() === "derived"}>
+          <Show when={type() === "calculated"}>
             <div ref={formulaHolder}>
               <TextArea
                 label={t3({ en: "Formula", fr: "Formule", pt: "Fórmula" })}
@@ -959,7 +959,7 @@ export function EditIndicatorForm(
                 pt: "Marcado: todos os pacotes de resultados analisam este indicador. Desmarcado: apenas dicionário; os seus dados continuam a ser importados e guardados, e pode continuar a ser membro de uma soma ou usado numa fórmula.",
               })}
           </div>
-          <Show when={type() !== "derived"}>
+          <Show when={type() !== "calculated"}>
             <Checkbox
               label={t3({
                 en: "Expected low counts",
@@ -991,7 +991,7 @@ export function EditIndicatorForm(
               pt: "Se um valor mais alto é melhor ou pior. A regra de formatação condicional segue-a.",
             })}
           </div>
-          <Show when={type() === "derived"}>
+          <Show when={type() === "calculated"}>
             <Select
               label={t3({ en: "Format", fr: "Format", pt: "Formato" })}
               value={formatAs()}

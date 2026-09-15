@@ -93,7 +93,7 @@ export async function getIndicatorsVersion(
 
 // The count stamp: the rows an HMIS extract is actually built from
 // (PLAN_1a §1.13), the analysed counts (`is_count AND include_in_analysis`,
-// PLAN_A5 ruling 12). Editing a derived definition does not move it, so the
+// PLAN_A5 ruling 12). Editing a calculated definition does not move it, so the
 // datatable caches it keys never churn on a formula edit.
 export async function getCountIndicatorsVersion(
   mainDb: Sql,

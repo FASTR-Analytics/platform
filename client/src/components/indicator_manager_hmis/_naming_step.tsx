@@ -3,7 +3,7 @@
 // generateIndicatorId proposes and the user edits inline; an existing id
 // is refused; a UID some indicator already carries as its data id is shown
 // as imported and creates nothing. A DHIS2 indicator that decomposes is a
-// derived row whose formula is previewed over the ids its operands are
+// calculated row whose formula is previewed over the ids its operands are
 // taking. The host owns the state (a Solid store) and posts the result; the
 // server applies the same rules again.
 import {
@@ -31,8 +31,8 @@ export type NamingElementCandidate = {
   data_label: string;
 };
 
-export type NamingDerivedCandidate = {
-  // What the derived comes from (the DHIS2 indicator id): the host's key.
+export type NamingCalculatedCandidate = {
+  // What the calculated comes from (the DHIS2 indicator id): the host's key.
   key: string;
   label: string;
   // Over data ids; the transaction rewrites it over the indicators.
@@ -52,18 +52,18 @@ export type NamingValueRow = NamingElementCandidate & {
   importedAs?: string;
 };
 
-export type NamingDerivedRow = NamingDerivedCandidate & {
+export type NamingCalculatedRow = NamingCalculatedCandidate & {
   indicator_id: string;
 };
 
 export type NamingState = {
   elements: NamingValueRow[];
-  derived: NamingDerivedRow[];
+  calculated: NamingCalculatedRow[];
 };
 
 export const EMPTY_NAMING_STATE: NamingState = {
   elements: [],
-  derived: [],
+  calculated: [],
 };
 
 function ownersOfDataIds(indicators: HmisIndicator[]): Map<string, string> {
@@ -79,7 +79,7 @@ function ownersOfDataIds(indicators: HmisIndicator[]): Map<string, string> {
 // id proposed before, so two rows never collide by default.
 export function createNamingState(args: {
   elements: NamingElementCandidate[];
-  derived: NamingDerivedCandidate[];
+  calculated: NamingCalculatedCandidate[];
   indicators: HmisIndicator[];
 }): NamingState {
   const owners = ownersOfDataIds(args.indicators);
@@ -102,7 +102,7 @@ export function createNamingState(args: {
     existingIds.add(indicatorId);
     return { ...candidate, indicator_id: indicatorId, label: candidate.data_label };
   });
-  const derived = args.derived.map<NamingDerivedRow>((candidate) => {
+  const calculated = args.calculated.map<NamingCalculatedRow>((candidate) => {
     const indicatorId = generateIndicatorId({
       label: candidate.label,
       fallbackId: candidate.key,
@@ -111,7 +111,7 @@ export function createNamingState(args: {
     existingIds.add(indicatorId);
     return { ...candidate, indicator_id: indicatorId };
   });
-  return { elements, derived };
+  return { elements, calculated };
 }
 
 function idIssueText(id: string): string | undefined {
@@ -167,9 +167,9 @@ export function namingIssues(
       issues.push(labelRequired(row.data_id));
     }
   }
-  for (const row of state.derived) {
+  for (const row of state.calculated) {
     const id = row.indicator_id.trim();
-    const issue = getNewIndicatorIdIssue(id, "derived");
+    const issue = getNewIndicatorIdIssue(id, "calculated");
     if (issue !== undefined) {
       issues.push(`${row.key}: ${describeNewIndicatorIdIssue(issue)}`);
     } else if (existingIds.has(id) || chosen.has(id)) {
@@ -190,7 +190,7 @@ export function namingIssues(
 }
 
 // Every row is posted, an imported one included: the server needs its
-// value in the landing map to rewrite a derived formula that names it, and
+// value in the landing map to rewrite a calculated formula that names it, and
 // creates nothing for it.
 export function namingInputFromState(state: NamingState): IndicatorNamingInput {
   const valueRows = (rows: NamingValueRow[]) =>
@@ -201,7 +201,7 @@ export function namingInputFromState(state: NamingState): IndicatorNamingInput {
     }));
   return {
     elements: valueRows(state.elements),
-    derived: state.derived.map((row) => ({
+    calculated: state.calculated.map((row) => ({
       indicator_id: row.indicator_id.trim(),
       label: row.label.trim(),
       expression: row.expression,
@@ -212,7 +212,7 @@ export function namingInputFromState(state: NamingState): IndicatorNamingInput {
 
 // The formula as the transaction will store it, over the ids the elements
 // are taking; the raw formula while an id is still blank or unparseable.
-function previewExpression(row: NamingDerivedRow, state: NamingState): string {
+function previewExpression(row: NamingCalculatedRow, state: NamingState): string {
   const landing: Record<string, string> = {};
   for (const element of state.elements) {
     const id = element.indicator_id.trim();
@@ -252,23 +252,23 @@ export function NamingStep(p: {
         </div>
       </Show>
 
-      <Show when={p.state.derived.length > 0}>
+      <Show when={p.state.calculated.length > 0}>
         <div class="ui-spy-sm">
           <div class="font-700">
             {t3({
-              en: "Derived indicators",
-              fr: "Indicateurs dérivés",
-              pt: "Indicadores derivados",
+              en: "Calculated indicators",
+              fr: "Indicateurs calculés",
+              pt: "Indicadores calculados",
             })}
           </div>
           <div class="ui-text-caption">
             {t3({
-              en: "Each DHIS2 indicator becomes a derived indicator whose formula is over the indicators its operands become.",
-              fr: "Chaque indicateur DHIS2 devient un indicateur dérivé dont la formule porte sur les indicateurs que ses opérandes deviennent.",
-              pt: "Cada indicador DHIS2 torna-se um indicador derivado cuja fórmula é sobre os indicadores em que os seus operandos se tornam.",
+              en: "Each DHIS2 indicator becomes a calculated indicator whose formula is over the indicators its operands become.",
+              fr: "Chaque indicateur DHIS2 devient un indicateur calculé dont la formule porte sur les indicateurs que ses opérandes deviennent.",
+              pt: "Cada indicador DHIS2 torna-se um indicador calculado cuja fórmula é sobre os indicadores em que os seus operandos se tornam.",
             })}
           </div>
-          <For each={p.state.derived}>
+          <For each={p.state.calculated}>
             {(row, index) => (
               <div class="ui-pad-sm ui-spy-sm rounded border">
                 <div class="ui-gap-sm flex items-baseline text-sm">
@@ -283,14 +283,14 @@ export function NamingStep(p: {
                       pt: "ID do indicador",
                     })}
                     value={row.indicator_id}
-                    onChange={(v) => p.setState("derived", index(), "indicator_id", v)}
+                    onChange={(v) => p.setState("calculated", index(), "indicator_id", v)}
                     mono
                     fullWidth
                   />
                   <Input
                     label={t3(TC.label)}
                     value={row.label}
-                    onChange={(v) => p.setState("derived", index(), "label", v)}
+                    onChange={(v) => p.setState("calculated", index(), "label", v)}
                     fullWidth
                   />
                 </div>

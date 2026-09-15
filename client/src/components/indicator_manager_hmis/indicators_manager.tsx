@@ -7,7 +7,7 @@ import {
   type HmisIndicator,
   type InstanceIndicatorDetails,
   isSpecialIndicatorId,
-  judgeDerivedIndicators,
+  judgeCalculatedIndicators,
   NO_STORED_DHIS2_CONNECTION,
   POPULATION_TYPE_IDS,
   populationTypeLabel,
@@ -73,7 +73,7 @@ type Props = {
 };
 
 // The dictionary as one list (PLAN_A4 §2): every row is an indicator, the
-// Type column says what fills it (DHIS2 element, Uploaded, Sum, Derived),
+// Type column says what fills it (DHIS2 element, Uploaded, Sum, Calculated),
 // and a special indicator (one the analysis modules read by name) carries
 // a badge. Every field, including include-in-analysis, is edited in the
 // modal.
@@ -143,7 +143,7 @@ export function IndicatorsManager(p: Props) {
             INDICATOR_DOWNLOAD_MEMBERS_SEPARATOR,
           )
         : "",
-      indicator.definition.type === "derived"
+      indicator.definition.type === "calculated"
         ? indicator.definition.expression
         : "",
       String(indicator.include_in_analysis),
@@ -267,7 +267,7 @@ function IndicatorsTable(p: {
 }) {
   // The counts the extract could produce values for: an Uploaded or DHIS2
   // element by the rows under its data id, a sum by any member's. Over
-  // every count rather than the analysed set, so an unchecked derived is
+  // every count rather than the analysed set, so an unchecked calculated is
   // judged as it would be if it were checked.
   const idsWithData = createMemo<Set<string> | undefined>(() => {
     const rows = p.idsWithRows;
@@ -276,7 +276,7 @@ function IndicatorsTable(p: {
       p.indicators,
       new Set(
         p.indicators
-          .filter((c) => c.definition.type !== "derived")
+          .filter((c) => c.definition.type !== "calculated")
           .map((c) => c.indicator_common_id),
       ),
       rows,
@@ -289,7 +289,7 @@ function IndicatorsTable(p: {
     const statuses = new Map<string, IndicatorStatus>();
     const withData = idsWithData();
     if (withData === undefined) return statuses;
-    const judgements = judgeDerivedIndicators(
+    const judgements = judgeCalculatedIndicators(
       p.indicators,
       POPULATION_TYPE_IDS,
       withData,
@@ -461,7 +461,7 @@ function IndicatorsTable(p: {
       render: (indicator) => (
         <div
           class="font-mono"
-          classList={{ "text-xs": indicator.definition.type !== "derived" }}
+          classList={{ "text-xs": indicator.definition.type !== "calculated" }}
         >
           {definedByText(indicator)}
         </div>
@@ -654,14 +654,14 @@ function IndicatorsTable(p: {
         <Callout intent="warning" pad="sm" class="mb-4 flex-none">
           {uncomputableCount() === 1
             ? t3({
-                en: "1 derived indicator cannot be computed. Results cannot be generated until it is edited or removed, or the indicators it uses have data.",
-                fr: "1 indicateur dérivé ne peut pas être calculé. Les résultats ne pourront pas être générés tant qu'il n'est pas modifié ou supprimé, ou que les indicateurs qu'il utilise n'ont pas de données.",
-                pt: "1 indicador derivado não pode ser calculado. Os resultados não podem ser gerados até que seja editado ou removido, ou até que os indicadores que utiliza tenham dados.",
+                en: "1 calculated indicator cannot be computed. Results cannot be generated until it is edited or removed, or the indicators it uses have data.",
+                fr: "1 indicateur calculé ne peut pas être évalué. Les résultats ne pourront pas être générés tant qu'il n'est pas modifié ou supprimé, ou que les indicateurs qu'il utilise n'ont pas de données.",
+                pt: "1 indicador calculado não pode ser avaliado. Os resultados não podem ser gerados até que seja editado ou removido, ou até que os indicadores que utiliza tenham dados.",
               })
             : t3({
-                en: `${uncomputableCount()} derived indicators cannot be computed. Results cannot be generated until they are edited or removed, or the indicators they use have data.`,
-                fr: `${uncomputableCount()} indicateurs dérivés ne peuvent pas être calculés. Les résultats ne pourront pas être générés tant qu'ils ne sont pas modifiés ou supprimés, ou que les indicateurs qu'ils utilisent n'ont pas de données.`,
-                pt: `${uncomputableCount()} indicadores derivados não podem ser calculados. Os resultados não podem ser gerados até que sejam editados ou removidos, ou até que os indicadores que utilizam tenham dados.`,
+                en: `${uncomputableCount()} calculated indicators cannot be computed. Results cannot be generated until they are edited or removed, or the indicators they use have data.`,
+                fr: `${uncomputableCount()} indicateurs calculés ne peuvent pas être évalués. Les résultats ne pourront pas être générés tant qu'ils ne sont pas modifiés ou supprimés, ou que les indicateurs qu'ils utilisent n'ont pas de données.`,
+                pt: `${uncomputableCount()} indicadores calculados não podem ser avaliados. Os resultados não podem ser gerados até que sejam editados ou removidos, ou até que os indicadores que utilizam tenham dados.`,
               })}
         </Callout>
       </Show>

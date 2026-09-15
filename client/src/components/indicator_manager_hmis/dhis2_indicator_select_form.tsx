@@ -4,7 +4,7 @@
 // then name what the selection becomes and save it in one transaction. An
 // element or operand becomes a DHIS2 element indicator carrying its UID as
 // its DHIS2 id; a DHIS2 indicator is decomposed into its operands and a
-// derived over the indicators they become. The server re-reads every
+// calculated over the indicators they become. The server re-reads every
 // element and indicator and judges them itself.
 import {
   describeDhis2ParseRefusal,
@@ -37,7 +37,7 @@ import {
   namingIssues,
   NamingStep,
   EMPTY_NAMING_STATE,
-  type NamingDerivedCandidate,
+  type NamingCalculatedCandidate,
   type NamingElementCandidate,
   type NamingState,
 } from "./_naming_step";
@@ -266,7 +266,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
     }
     const elements = new Map<string, NamingElementCandidate>();
     const operandIds: string[] = [];
-    const derived: NamingDerivedCandidate[] = [];
+    const calculated: NamingCalculatedCandidate[] = [];
     for (const item of items) {
       if (item.kind !== "indicator") {
         elements.set(itemId(item), {
@@ -278,7 +278,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
       const { parse, operands } = item.indicator.decomposition;
       if (!parse.accepted) continue;
       for (const operand of operands) operandIds.push(operand.data_id);
-      derived.push({
+      calculated.push({
         key: item.indicator.id,
         label: item.indicator.name,
         expression: parse.expression,
@@ -299,7 +299,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
       setNaming(
         createNamingState({
           elements: [...elements.values()],
-          derived,
+          calculated,
           indicators: dictionaryRes.data.indicators,
         }),
       );
@@ -316,7 +316,7 @@ export function Dhis2IndicatorSelectForm(p: Props) {
     async () => {
       return await serverActions.createIndicatorsFromDhis2({
         elements: namingInputFromState(naming).elements,
-        indicators: naming.derived.map((row) => ({
+        indicators: naming.calculated.map((row) => ({
           uid: row.key,
           indicator_id: row.indicator_id.trim(),
           label: row.label.trim(),

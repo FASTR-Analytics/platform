@@ -12,7 +12,7 @@ const _INDICATORS_CACHE = createReactiveCache<
 >({
   // v2: payload gained definition/format_as/thresholds/sort_order (PLAN_1a).
   // v3: thresholds became a CF rule and group_label went (PLAN_1d). v4: one
-  // list of count and derived indicators (PLAN_A3). v5: one table, the
+  // list of count and calculated indicators (PLAN_A3). v5: one table, the
   // definition carrying members, include_in_analysis (PLAN_A4). v6: the
   // four types, the definition carrying data_id (PLAN_A5). v7: direction,
   // target and expected_low_counts.

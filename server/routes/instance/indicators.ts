@@ -39,8 +39,8 @@ export function narrowIndicatorDefinition(
         type: "sum",
         members: (raw.members as unknown[]).map((m) => String(m)),
       };
-    case "derived":
-      return { type: "derived", expression: String(raw.expression) };
+    case "calculated":
+      return { type: "calculated", expression: String(raw.expression) };
   }
 }
 

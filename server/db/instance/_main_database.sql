@@ -318,14 +318,14 @@ CREATE INDEX idx_facilities_hfa_facility_ownership ON facilities_hfa(facility_ow
 -- file value onto an indicator), `dhis2_element` (a series the import
 -- fetches; `data_id` is the data element UID or `UID.COC` operand,
 -- DHIS2-shaped), `sum` (the members in indicator_sum_members, summed from
--- their rows at extract), `derived` (`expression`, a formula over
+-- their rows at extract), `calculated` (`expression`, a formula over
 -- indicators of any type and population terms, evaluated by m012 after
 -- adjustment; a population type is named by its id, a reserved word, with
 -- no FK). `has_rows` and `is_count` are generated: the two facts read off
 -- the type, and the predicates lib restates as hasRows and isCount.
 -- `include_in_analysis` off keeps an indicator dictionary-only: its data is
 -- still stored, and it is still usable as a member or in a formula.
--- `thresholds` is a derived indicator's own conditional-formatting rule as
+-- `thresholds` is a calculated indicator's own conditional-formatting rule as
 -- JSON text (lib thresholdsRuleSchema), NULL when it has none and always
 -- NULL on a count, which is also always formatted as a number. The indicator id
 -- is renamable (ON UPDATE CASCADE follows it into the junction); the data
@@ -336,7 +336,7 @@ CREATE TABLE indicators (
   indicator_common_label text NOT NULL,
   definition_type text NOT NULL
     CONSTRAINT indicators_definition_type_check
-    CHECK (definition_type IN ('uploaded', 'dhis2_element', 'sum', 'derived')),
+    CHECK (definition_type IN ('uploaded', 'dhis2_element', 'sum', 'calculated')),
   data_id text CONSTRAINT indicators_data_id_key UNIQUE,
   expression text,
   include_in_analysis boolean NOT NULL DEFAULT TRUE,
@@ -361,7 +361,7 @@ CREATE TABLE indicators (
     (definition_type = 'uploaded'      AND expression IS NULL AND data_id IS NOT NULL) OR
     (definition_type = 'dhis2_element' AND expression IS NULL AND data_id IS NOT NULL) OR
     (definition_type = 'sum'           AND expression IS NULL AND data_id IS NULL) OR
-    (definition_type = 'derived'       AND expression IS NOT NULL AND data_id IS NULL)
+    (definition_type = 'calculated'    AND expression IS NOT NULL AND data_id IS NULL)
   ),
   CONSTRAINT indicators_element_shape_check CHECK (
     definition_type <> 'dhis2_element'
@@ -370,7 +370,7 @@ CREATE TABLE indicators (
   CONSTRAINT indicators_count_format_check CHECK (NOT is_count OR format_as = 'number'),
   CONSTRAINT indicators_count_thresholds_check CHECK (NOT is_count OR thresholds IS NULL),
   CONSTRAINT indicators_count_target_check CHECK (NOT is_count OR target IS NULL),
-  CONSTRAINT indicators_derived_low_counts_check CHECK (is_count OR NOT expected_low_counts),
+  CONSTRAINT indicators_calculated_low_counts_check CHECK (is_count OR NOT expected_low_counts),
   -- Required by the composite FK in indicator_sum_members; redundant with the PK otherwise.
   CONSTRAINT indicators_common_id_has_rows_key UNIQUE (indicator_common_id, has_rows)
 );

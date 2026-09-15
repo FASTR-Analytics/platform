@@ -218,7 +218,7 @@ COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADE
 `);
 
     // The mirror carries the analysed set: every analysed count, and every
-    // derived with its checkbox on, resolved: a derived indicator's own row
+    // calculated with its checkbox on, resolved: a calculated indicator's own row
     // is what makes the package standalone. The extract is the analysed
     // counts, so those with rows (by data id, PLAN_A5 ruling 10) are
     // exactly the ingredients any expression may draw on.

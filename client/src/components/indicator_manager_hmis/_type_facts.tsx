@@ -82,7 +82,7 @@ function indicatorTypeFacts(type: HmisIndicatorType): TypeFacts {
         }),
         format: countFormatText(),
       };
-    case "derived":
+    case "calculated":
       return {
         source: t3({
           en: "A formula over other indicators and populations.",
@@ -154,9 +154,9 @@ export function IndicatorTypesModal(p: AlertComponentProps<{}, undefined>) {
       <div class="ui-spy text-sm">
         <div class="text-xs">
           {t3({
-            en: "The Type column says what fills an indicator. The three counts are adjusted by the data quality modules; a derived indicator is a formula computed afterwards.",
-            fr: "La colonne Type indique ce qui alimente un indicateur. Les trois dénombrements sont ajustés par les modules de qualité des données ; un indicateur dérivé est une formule calculée ensuite.",
-            pt: "A coluna Tipo indica o que preenche um indicador. As três contagens são ajustadas pelos módulos de qualidade dos dados; um indicador derivado é uma fórmula calculada depois.",
+            en: "The Type column says what fills an indicator. The three counts are adjusted by the data quality modules; a calculated indicator is a formula computed afterwards.",
+            fr: "La colonne Type indique ce qui alimente un indicateur. Les trois dénombrements sont ajustés par les modules de qualité des données ; un indicateur calculé est une formule calculée ensuite.",
+            pt: "A coluna Tipo indica o que preenche um indicador. As três contagens são ajustadas pelos módulos de qualidade dos dados; um indicador calculado é uma fórmula calculada depois.",
           })}
         </div>
         <For each={HMIS_INDICATOR_TYPES}>

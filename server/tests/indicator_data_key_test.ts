@@ -4,7 +4,7 @@
 // a client (the route schema strips it, the route narrowing drops it, an
 // update keeps the stored key); retyping keeps the key except Uploaded to
 // DHIS2 element, which takes the typed UID and needs no rows under the old
-// key; a retype from Sum or Derived to Uploaded generates a key. Runs on a
+// key; a retype from Sum or Calculated to Uploaded generates a key. Runs on a
 // throwaway database built from _main_database.sql on the dev postgres (the
 // .env the test task loads), dropped afterwards.
 //
@@ -58,7 +58,7 @@ function indicator(
     indicator_common_label: label,
     definition,
     include_in_analysis: true,
-    format_as: definition.type === "derived" ? "percent" : "number",
+    format_as: definition.type === "calculated" ? "percent" : "number",
     thresholds: null,
     direction: "higher-is-better",
     target: null,
@@ -194,18 +194,18 @@ Deno.test("retyping keeps the key: a DHIS2 element made Uploaded keeps its UID, 
   assertEquals((await dictionary()).get("opd")!.definition, { type: "dhis2_element", data_id: "KlMnOpQrSt2" });
 });
 
-Deno.test("a retype from Sum or Derived to Uploaded generates a key", async () => {
+Deno.test("a retype from Sum or Calculated to Uploaded generates a key", async () => {
   await reset();
   const created = await createIndicators(db, [
     indicator("anc1", { type: "dhis2_element", data_id: ELEMENT }),
     indicator("total", { type: "sum", members: ["anc1"] }),
-    indicator("share", { type: "derived", expression: "anc1 / 2" }),
+    indicator("share", { type: "calculated", expression: "anc1 / 2" }),
   ]);
   assert(created.success, created.success ? "" : created.err);
   const fromSum = await updateIndicator(db, "total", indicator("total", { type: "uploaded" }));
   assert(fromSum.success, fromSum.success ? "" : fromSum.err);
-  const fromDerived = await updateIndicator(db, "share", indicator("share", { type: "uploaded" }));
-  assert(fromDerived.success, fromDerived.success ? "" : fromDerived.err);
+  const fromCalculated = await updateIndicator(db, "share", indicator("share", { type: "uploaded" }));
+  assert(fromCalculated.success, fromCalculated.success ? "" : fromCalculated.err);
   const d = await dictionary();
   assertMatch(keyOf(d.get("total")!), KEY_SHAPE);
   assertMatch(keyOf(d.get("share")!), KEY_SHAPE);

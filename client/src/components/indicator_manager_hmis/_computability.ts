@@ -1,9 +1,9 @@
 // The manager list and the editor state the shared computability judgement
-// (`judgeDerivedIndicator` in lib) in the UI language. Display only: a
-// derived indicator that cannot be computed today is a normal state while a
+// (`judgeCalculatedIndicator` in lib) in the UI language. Display only: a
+// calculated indicator that cannot be computed today is a normal state while a
 // country is still importing data, so nothing here blocks a save.
 import {
-  type DerivedIndicatorComputability,
+  type CalculatedIndicatorComputability,
   isPopulationTypeId,
   type PopulationCoverage,
   populationTypeLabel,
@@ -13,7 +13,7 @@ import {
 } from "lib";
 
 export function computabilityProblemText(
-  judgement: Exclude<DerivedIndicatorComputability, { kind: "computable" }>,
+  judgement: Exclude<CalculatedIndicatorComputability, { kind: "computable" }>,
 ): string {
   const prefix = t3({
     en: "Cannot be computed",

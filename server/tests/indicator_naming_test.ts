@@ -2,7 +2,7 @@
 // a new DHIS2 element under the chosen id; an existing id of any type is
 // refused; an element whose UID some indicator already holds creates
 // nothing; a decomposed DHIS2 indicator becomes DHIS2 elements for its
-// operands and a derived over their ids; createIndicatorsFromDhis2 refuses
+// operands and a calculated over their ids; createIndicatorsFromDhis2 refuses
 // a refused element or indicator and creates nothing. Runs on a throwaway
 // database built from _main_database.sql on the dev postgres (the .env the
 // test task loads), dropped afterwards.
@@ -102,7 +102,7 @@ async function seed(
     indicator_common_label: id,
     definition,
     include_in_analysis: true,
-    format_as: definition.type === "derived" ? "percent" : "number",
+    format_as: definition.type === "calculated" ? "percent" : "number",
     thresholds: null,
     direction: "higher-is-better",
     target: null,
@@ -132,7 +132,7 @@ Deno.test("dhis2: a refused element creates nothing", async () => {
   assertEquals((await dictionary()).size, 0);
 });
 
-Deno.test("dhis2: a decomposed indicator creates its elements and the derived over them", async () => {
+Deno.test("dhis2: a decomposed indicator creates its elements and the calculated over them", async () => {
   await reset();
   const res = await createIndicatorsFromDhis2(db, {
     elements: [
@@ -159,7 +159,7 @@ Deno.test("dhis2: a decomposed indicator creates its elements and the derived ov
     data_id: ANC1_OPERAND,
   });
   assertEquals(d.get("anc4_rate")!.definition, {
-    type: "derived",
+    type: "calculated",
     expression: "(anc4 / (anc1 + anc1_repeat))",
   });
   assertEquals(d.get("anc4_rate")!.format_as, "percent");
@@ -237,7 +237,7 @@ Deno.test("dhis2: an operand the naming step did not cover creates nothing", asy
   assertEquals((await dictionary()).size, 0);
 });
 
-Deno.test("dhis2: a derived id already taken creates nothing, elements included", async () => {
+Deno.test("dhis2: a calculated id already taken creates nothing, elements included", async () => {
   await reset();
   await seed("anc4_rate", { type: "uploaded" });
   const res = await createIndicatorsFromDhis2(db, {
@@ -258,7 +258,7 @@ Deno.test("dhis2: a derived id already taken creates nothing, elements included"
   assertEquals([...(await dictionary()).keys()], ["anc4_rate"]);
 });
 
-Deno.test("dhis2: a derived under a special id is refused", async () => {
+Deno.test("dhis2: a calculated under a special id is refused", async () => {
   await reset();
   const res = await createIndicatorsFromDhis2(db, {
     elements: [
@@ -304,21 +304,21 @@ Deno.test("dhis2: an operand already imported renames the expression to its indi
   });
   assertEquals(d.has("whatever"), false);
   assertEquals(d.get("anc4_rate")!.definition, {
-    type: "derived",
+    type: "calculated",
     expression: "(anc4 / (anc1 + first_visits))",
   });
 });
 
-Deno.test("naming: a taken id (an Uploaded, a DHIS2 element, a sum, a derived) is refused; nothing is assigned to", async () => {
+Deno.test("naming: a taken id (an Uploaded, a DHIS2 element, a sum, a calculated) is refused; nothing is assigned to", async () => {
   await reset();
   await seed("anc1", { type: "dhis2_element", data_id: ANC1_ELEMENT });
   await seed("anc1_file", { type: "uploaded" });
-  await seed("anc1_share", { type: "derived", expression: "anc1 / 2" });
+  await seed("anc1_share", { type: "calculated", expression: "anc1 / 2" });
   await seed("anc_all", { type: "sum", members: ["anc1"] });
   for (const taken of ["anc1", "anc1_file", "anc1_share", "anc_all"]) {
     const res = await applyIndicatorNaming(db, {
       elements: [{ data_id: ANC4_ELEMENT, indicator_id: taken, label: "x" }],
-      derived: [],
+      calculated: [],
     });
     assert(!res.success, taken);
     assertStringIncludes(res.err, "already exists");
@@ -333,7 +333,7 @@ Deno.test("naming: a UID some indicator already holds is skipped and creates not
   await seed("anc1", { type: "dhis2_element", data_id: ANC1_ELEMENT });
   const res = await applyIndicatorNaming(db, {
     elements: [{ data_id: ANC1_ELEMENT, indicator_id: "anc1_again", label: "x" }],
-    derived: [],
+    calculated: [],
   });
   assert(res.success, res.success ? "" : res.err);
   assertEquals(res.data, { created: 0 });
@@ -344,23 +344,23 @@ Deno.test("naming: a reserved new id is refused, a special id is a count like an
   await reset();
   const reserved = await applyIndicatorNaming(db, {
     elements: [{ data_id: ANC1_ELEMENT, indicator_id: "population_total", label: "x" }],
-    derived: [],
+    calculated: [],
   });
   assert(!reserved.success);
   assertStringIncludes(reserved.err, "reserved word");
   const special = await applyIndicatorNaming(db, {
     elements: [{ data_id: ANC1_ELEMENT, indicator_id: "penta1", label: "Penta 1" }],
-    derived: [],
+    calculated: [],
   });
   assert(special.success, special.success ? "" : special.err);
   assertEquals([...(await dictionary()).keys()], ["penta1"]);
 });
 
-Deno.test("naming: a derived naming a DHIS2 id that was not listed is refused", async () => {
+Deno.test("naming: a calculated naming a DHIS2 id that was not listed is refused", async () => {
   await reset();
   const res = await applyIndicatorNaming(db, {
     elements: [{ data_id: ANC4_ELEMENT, indicator_id: "anc4", label: "ANC 4" }],
-    derived: [{
+    calculated: [{
       indicator_id: "anc4_rate",
       label: "ANC 4 rate",
       expression: `[${ANC4_ELEMENT}] / [${ANC1_ELEMENT}]`,

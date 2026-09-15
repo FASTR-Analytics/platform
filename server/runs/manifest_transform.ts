@@ -202,7 +202,7 @@ async function transformRunManifest(
   m.manifestSchemaVersion = 8;
 
   // 7. hmisIndicators entries gained format_as, direction, target, thresholds
-  //    and a derived indicator's expression, in dictionary order. Block 4
+  //    and a calculated indicator's expression, in dictionary order. Block 4
   //    recomputes the list through the same function finalize stamps with,
   //    so the shape is already current here; the stamp is the whole block.
   m.manifestSchemaVersion = 9;

@@ -218,7 +218,7 @@ export async function buildRunHmisIndicators(
         ...(row.direction === undefined ? {} : { direction: row.direction }),
         ...(row.target == null ? {} : { target: row.target }),
         ...(row.thresholds === null ? {} : { thresholds: row.thresholds }),
-        ...(row.type === "derived" && row.expression !== null
+        ...(row.type === "calculated" && row.expression !== null
           ? { expression: row.expression }
           : {}),
       }));

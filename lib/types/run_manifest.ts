@@ -42,7 +42,7 @@ import {
 // 8: the `commonIndicators` list is `hmisIndicators` (PLAN_A4 ruling 13), a
 // key rename and nothing else. Manifest transform block 6.
 // 9: `hmisIndicators` entries carry the indicator's interpretation facts
-// (format, direction, target, thresholds, a derived indicator's flattened
+// (format, direction, target, thresholds, a calculated indicator's flattened
 // expression) in dictionary order, so the AI copilot's grounding states what
 // each indicator measures and what a good value is. Block 4's recompute
 // produces the new shape; block 7 only stamps.
@@ -197,12 +197,12 @@ export type RunModuleIndicators = z.infer<typeof runModuleIndicatorsSchema>;
 //
 // The facts are the indicator's own (HmisIndicator, lib/types/indicators.ts):
 // format, direction, target in stored units, the CF rule. `expression` is a
-// derived indicator's FLATTENED formula over count ids and population type
+// calculated indicator's FLATTENED formula over count ids and population type
 // ids, the catalog row's, carried because it says what the indicator
 // measures; a count has none. A package whose mirror predates a fact has no
 // key for it. Entries are in dictionary order (sort_order); a legacy v1
 // mirror has no order and its entries are label-sorted. The indicator's
-// type (Uploaded, DHIS2 element, Sum, Derived) is deliberately absent: where
+// type (Uploaded, DHIS2 element, Sum, Calculated) is deliberately absent: where
 // the rows came from is an implementation detail no reader needs.
 export const runHmisIndicatorSchema = z.object({
   id: z.string(),

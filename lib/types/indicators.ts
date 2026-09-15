@@ -23,8 +23,8 @@ export type InstanceIndicatorDetails = {
 // `type` in the four code names, `dhis2_id` for a DHIS2 element and blank
 // for every other type (an Uploaded indicator's key is opaque and means
 // nothing to a reader), `members` semicolon-separated for a sum,
-// `expression` for a derived, `include_in_analysis` true/false,
-// `thresholds` a derived indicator's rule as JSON text and empty otherwise,
+// `expression` for a calculated, `include_in_analysis` true/false,
+// `thresholds` a calculated indicator's rule as JSON text and empty otherwise,
 // `direction` the direction code or empty, `target` in stored units or
 // empty, `expected_low_counts` true/false. A download format only: nothing
 // reads it back.
@@ -63,7 +63,7 @@ export type NewIndicatorIdIssue =
   | "forbidden_chars"
   | "too_long"
   | "reserved"
-  | "special_derived";
+  | "special_calculated";
 
 // The identifiers no indicator id may be, however the id is produced (typed,
 // generated, decomposed from DHIS2): the special ids (except
@@ -103,9 +103,9 @@ function getIdCharsetIssue(id: string): NewIndicatorIdIssue | undefined {
 export function getSpecialIndicatorTypeIssue(
   id: string,
   type: HmisIndicatorType,
-): "special_derived" | undefined {
+): "special_calculated" | undefined {
   return isSpecialIndicatorId(id) && !isCount(type)
-    ? "special_derived"
+    ? "special_calculated"
     : undefined;
 }
 
@@ -138,7 +138,7 @@ export function describeNewIndicatorIdIssue(issue: NewIndicatorIdIssue): string 
       return `must be at most ${INDICATOR_ID_MAX_LENGTH} characters`;
     case "reserved":
       return `is a reserved word (${RESERVED_WORDS.join(", ")})`;
-    case "special_derived":
+    case "special_calculated":
       return `is a special indicator id, which the analysis modules read as a count, so it can only be a DHIS2 element, Uploaded or a Sum (special: ${
         SPECIAL_INDICATOR_IDS.join(", ")
       })`;
@@ -169,7 +169,7 @@ export function describeNewIndicatorIdIssue(issue: NewIndicatorIdIssue): string 
 //                  summed from their rows at extract into one facility x
 //                  month series, adjusted by m001 and m002 like any count.
 //                  A count; format `number`.
-//   derived      : an arbitrary expression over indicators of any type
+//   calculated      : an arbitrary expression over indicators of any type
 //                  (chained by substitution) and population terms, evaluated
 //                  by m012 after adjustment and aggregation. A population
 //                  term is written as the type's id (`population_total`, one
@@ -184,7 +184,7 @@ export type HmisIndicatorDefinition =
   | { type: "uploaded"; data_id: string }
   | { type: "dhis2_element"; data_id: string }
   | { type: "sum"; members: string[] }
-  | { type: "derived"; expression: string };
+  | { type: "calculated"; expression: string };
 
 // What a client posts as a definition: the stored shape, except that an
 // Uploaded indicator carries no data id. Its key is generated at creation
@@ -199,7 +199,7 @@ export const HMIS_INDICATOR_TYPES: readonly HmisIndicatorType[] = [
   "dhis2_element",
   "uploaded",
   "sum",
-  "derived",
+  "calculated",
 ] as const;
 
 export function isHmisIndicatorType(
@@ -215,7 +215,7 @@ export function hasRows(type: HmisIndicatorType): boolean {
 }
 
 export function isCount(type: HmisIndicatorType): boolean {
-  return type !== "derived";
+  return type !== "calculated";
 }
 
 export function definitionDataId(
@@ -245,10 +245,10 @@ export const PACKAGE_INDICATOR_TYPES: readonly PackageIndicatorType[] = [
 // better or worse, higher by default. The rule's own `direction` key is
 // written from it on every save (the server overwrites whatever a client
 // posts), so the two cannot disagree. `target` is a
-// number in STORED units, on a derived indicator only, like the rule; null
+// number in STORED units, on a calculated indicator only, like the rule; null
 // means none. `expected_low_counts` marks a count whose facility-month
 // values are expected to be small, for the adjustment modules; always false
-// on a derived indicator, which is never adjusted.
+// on a calculated indicator, which is never adjusted.
 // `include_in_analysis` on means the extract carries the indicator and m001
 // and m002 adjust it (the analysed set, PLAN_A4 ruling 3, stated once in
 // lib/hmis_indicator_catalog.ts); off means dictionary only: its data is
@@ -409,12 +409,12 @@ export type Dhis2IndicatorParseRefusal =
   | { kind: "syntax"; side: "numerator" | "denominator"; term: string }
   | { kind: "too_many_operands"; count: number; max: number };
 
-// A parsed DHIS2 indicator: its operands, the derived's expression in the
+// A parsed DHIS2 indicator: its operands, the calculated's expression in the
 // app's own grammar with each operand written as `[data_id]` (the naming
 // step renames those identifiers to the indicator ids it creates), and the
 // display format its factor maps to. `note` is set when the factor is 1000,
 // which has no format of its own: the expression carries `* 1000` and the
-// derived is formatted as a number.
+// calculated is formatted as a number.
 export type Dhis2IndicatorParse =
   | {
     accepted: true;
@@ -540,10 +540,10 @@ export type IndicatorNamingElement = {
   label: string;
 };
 
-// A derived indicator authored over candidate elements: its expression names
+// A calculated indicator authored over candidate elements: its expression names
 // each element by `[data_id]`, and the transaction rewrites every identifier
 // to the indicator that element lands in.
-export type IndicatorNamingDerived = {
+export type IndicatorNamingCalculated = {
   indicator_id: string;
   label: string;
   expression: string;
@@ -552,7 +552,7 @@ export type IndicatorNamingDerived = {
 
 export type IndicatorNamingInput = {
   elements: IndicatorNamingElement[];
-  derived: IndicatorNamingDerived[];
+  calculated: IndicatorNamingCalculated[];
 };
 
 export interface DHIS2PagedResponse {
@@ -586,7 +586,7 @@ export type IndicatorMetadata = {
   // declare it.
   direction?: ThresholdDirection;
   // A target value in STORED units (a fraction for a percent); absent when
-  // none is set. Declared by HMIS derived indicators today.
+  // none is set. Declared by HMIS calculated indicators today.
   target?: number;
   // The HFA/ICEH category carrier; an HMIS indicator never sets it.
   group_label?: string;

@@ -65,7 +65,7 @@ export async function dropHmisCsvStagingTables(
 // final staging table. Staging resolves nothing (PLAN_A6 ruling 2): a value
 // the mapping sends to a data id lands under it, a value it sends to null
 // is counted and dropped, and a value absent from the mapping throws, since
-// the scan and the launch pinned the same bytes and derived the values the
+// the scan and the launch pinned the same bytes and calculated the values the
 // same way, so a gap is a defect. Never throws on dropped rows: the
 // caller's clean-condition gate decides what a nonzero drop count means.
 export async function stageHmisCsvIntoTables(args: {

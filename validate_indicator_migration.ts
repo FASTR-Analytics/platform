@@ -411,7 +411,7 @@ async function assertMigrated(sql: Sql, pre: PreState, lines: string[]): Promise
     if (i.type === "uploaded" && i.data_id !== null && isDhis2ShapedId(i.data_id)) {
       problems.push(`Uploaded ${i.id} has a DHIS2-shaped data id ${i.data_id}`);
     }
-    if (i.type !== "derived" && i.type !== "sum" && i.data_id === null) {
+    if (i.type !== "calculated" && i.type !== "sum" && i.data_id === null) {
       problems.push(`${i.type} ${i.id} has no data id after 087`);
     }
   }
@@ -438,8 +438,8 @@ async function assertMigrated(sql: Sql, pre: PreState, lines: string[]): Promise
       if (folded === undefined && (i.type !== "uploaded" || !isGeneratedDataKey(i.data_id))) {
         problems.push(`common ${c.id} should be Uploaded under a generated key, is ${i.type} with ${i.data_id}`);
       }
-    } else if (i.type !== "derived") {
-      problems.push(`derived ${c.id} should stay derived, is ${i.type}`);
+    } else if (i.type !== "calculated") {
+      problems.push(`derived ${c.id} should be calculated, is ${i.type}`);
     }
   }
   for (const [oldId, newId] of expected.renamedSpecials) {
@@ -449,13 +449,13 @@ async function assertMigrated(sql: Sql, pre: PreState, lines: string[]): Promise
     }
     if (!postById.has(newId)) problems.push(`renamed derived ${newId} missing`);
     for (const i of post) {
-      if (i.type === "derived" && i.expression !== null && new RegExp(`(?<![a-zA-Z0-9_])${oldId}(?![a-zA-Z0-9_])`).test(i.expression)) {
+      if (i.type === "calculated" && i.expression !== null && new RegExp(`(?<![a-zA-Z0-9_])${oldId}(?![a-zA-Z0-9_])`).test(i.expression)) {
         problems.push(`derived ${i.id} still names ${oldId}: ${i.expression}`);
       }
     }
   }
   for (const i of post) {
-    if (i.type === "derived" && isSpecialIndicatorId(i.id)) problems.push(`derived under special id ${i.id}`);
+    if (i.type === "calculated" && isSpecialIndicatorId(i.id)) problems.push(`derived under special id ${i.id}`);
   }
 
   // The analysed set after equals the set of commons before (the renamed
@@ -477,7 +477,7 @@ async function assertMigrated(sql: Sql, pre: PreState, lines: string[]): Promise
       ? { type: "dhis2_element", data_id: i.data_id ?? "" }
       : i.type === "sum"
       ? { type: "sum", members: i.members }
-      : { type: "derived", expression: i.expression ?? "" },
+      : { type: "calculated", expression: i.expression ?? "" },
     include_in_analysis: i.include_in_analysis,
     format_as: "number",
     thresholds: null,
@@ -485,7 +485,7 @@ async function assertMigrated(sql: Sql, pre: PreState, lines: string[]): Promise
   }));
   const analysedAfter = new Set([
     ...analysedIndicatorIds(postCommons, POPULATION_TYPE_IDS),
-    ...post.filter((i) => i.type === "derived" && i.include_in_analysis).map((i) => i.id),
+    ...post.filter((i) => i.type === "calculated" && i.include_in_analysis).map((i) => i.id),
   ]);
   for (const id of expectedAnalysed) {
     if (!analysedAfter.has(id)) problems.push(`analysed set lost ${id}`);

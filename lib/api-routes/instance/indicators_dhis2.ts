@@ -47,7 +47,7 @@ export const indicatorsDhis2RouteRegistry = {
     method: "POST",
     body: z.object({
       elements: z.array(indicatorNamingElementSchema),
-      // `uid` is the DHIS2 indicator's own UID; the derived it becomes is
+      // `uid` is the DHIS2 indicator's own UID; the calculated it becomes is
       // named `indicator_id`.
       indicators: z.array(
         z.object({

@@ -163,7 +163,7 @@ function Dhis2WizardInner(p: InnerProps) {
   // describe what the selection expands to (the DHIS2 elements fetched and
   // the parts dropped) with the same lib expansion the server persists at
   // launch; the step refuses Next while nothing would be fetched or a
-  // derived does not resolve (PLAN_A7 rulings 3 and 5).
+  // calculated does not resolve (PLAN_A7 rulings 3 and 5).
   const [selectedIndicators, setSelectedIndicators] = createSignal<string[]>(
     p.entry.kind === "new"
       ? (p.entry.indicatorIds ?? [])
@@ -211,9 +211,9 @@ function Dhis2WizardInner(p: InnerProps) {
     if (d === undefined || selectedIndicators().length === 0) return undefined;
     if (d.unresolvable.length > 0) {
       return `${t3({
-        en: "A selected derived indicator's formula does not resolve:",
-        fr: "La formule d'un indicateur dérivé sélectionné ne se résout pas :",
-        pt: "A fórmula de um indicador derivado selecionado não se resolve:",
+        en: "A selected calculated indicator's formula does not resolve:",
+        fr: "La formule d'un indicateur calculé sélectionné ne se résout pas :",
+        pt: "A fórmula de um indicador calculado selecionado não se resolve:",
       })} ${d.unresolvable.map((u) => `${u.id} (${u.problem})`).join("; ")}`;
     }
     if (d.elements.length === 0) {

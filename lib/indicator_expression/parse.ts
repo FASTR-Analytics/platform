@@ -2,7 +2,7 @@
 // Indicator expression grammar: tokenizer, parser, AST
 // =============================================================================
 //
-// The grammar a derived indicator's definition is written in
+// The grammar a calculated indicator's definition is written in
 // (PLAN_1a §1.3): `+ - * /`, parentheses, numeric literals, identifiers, and
 // the three calls `abs` / `coalesce` / `nullif`. An identifier names another
 // indicator: bare when it matches BARE_IDENTIFIER_PATTERN, otherwise

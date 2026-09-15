@@ -93,7 +93,7 @@ the query pipeline the data tools call is **S9**.
    **Interpretation context rides the grounding and the shared reads, not
    extra tools**: `buildPackageGroundingSections` lists every HMIS indicator
    of the package with its format, direction, thresholds, target and, for a
-   derived indicator, its flattened formula (the manifest's `hmisIndicators`,
+   calculated indicator, its flattened formula (the manifest's `hmisIndicators`,
    in dictionary order; the indicator's type is deliberately absent, an
    implementation detail no reader needs), and `get_metric_data` fetches
    value info beside the items and states the metric's full period coverage

@@ -109,30 +109,30 @@ Deno.test("reserved words: the union of specials, population types and function 
   assertEquals(new Set(RESERVED_WORDS).size, RESERVED_WORDS.length);
 });
 
-Deno.test("validator: a reserved word is refused for a count and for a derived", () => {
+Deno.test("validator: a reserved word is refused for a count and for a calculated", () => {
   for (const word of [...POPULATION_TYPE_IDS, ...EXPRESSION_FUNCTION_NAMES]) {
     assertEquals(getNewIndicatorIdIssue(word, "uploaded"), "reserved");
-    assertEquals(getNewIndicatorIdIssue(word, "derived"), "reserved");
+    assertEquals(getNewIndicatorIdIssue(word, "calculated"), "reserved");
   }
 });
 
-Deno.test("validator: a special id is accepted as a count or sum and refused as a derived, at create and at retype", () => {
+Deno.test("validator: a special id is accepted as a count or sum and refused as a calculated, at create and at retype", () => {
   for (const id of SPECIAL_INDICATOR_IDS) {
     assertEquals(getNewIndicatorIdIssue(id, "uploaded"), undefined);
     assertEquals(getNewIndicatorIdIssue(id, "sum"), undefined);
-    assertEquals(getNewIndicatorIdIssue(id, "derived"), "special_derived");
+    assertEquals(getNewIndicatorIdIssue(id, "calculated"), "special_calculated");
     assertEquals(getSpecialIndicatorTypeIssue(id, "uploaded"), undefined);
     assertEquals(getSpecialIndicatorTypeIssue(id, "sum"), undefined);
     assertEquals(
-      getSpecialIndicatorTypeIssue(id, "derived"),
-      "special_derived",
+      getSpecialIndicatorTypeIssue(id, "calculated"),
+      "special_calculated",
     );
   }
-  assertEquals(getSpecialIndicatorTypeIssue("anc4_rate", "derived"), undefined);
+  assertEquals(getSpecialIndicatorTypeIssue("anc4_rate", "calculated"), undefined);
 });
 
 Deno.test("validator: an ordinary id passes for either type", () => {
-  assertEquals(getNewIndicatorIdIssue("anc4_rate", "derived"), undefined);
+  assertEquals(getNewIndicatorIdIssue("anc4_rate", "calculated"), undefined);
   assertEquals(getNewIndicatorIdIssue("Penta 1 (DPT)", "uploaded"), undefined);
 });
 
@@ -140,8 +140,8 @@ Deno.test("validator: the charset rule for either kind", () => {
   assertEquals(getNewIndicatorIdIssue("", "uploaded"), "empty");
   assertEquals(getNewIndicatorIdIssue(" anc", "uploaded"), "untrimmed");
   assertEquals(getNewIndicatorIdIssue("a,b", "uploaded"), "forbidden_chars");
-  assertEquals(getNewIndicatorIdIssue("a;b", "derived"), "forbidden_chars");
-  assertEquals(getNewIndicatorIdIssue("a:b", "derived"), "forbidden_chars");
+  assertEquals(getNewIndicatorIdIssue("a;b", "calculated"), "forbidden_chars");
+  assertEquals(getNewIndicatorIdIssue("a:b", "calculated"), "forbidden_chars");
   assertEquals(getNewIndicatorIdIssue("[a]", "uploaded"), "forbidden_chars");
   assertEquals(
     getNewIndicatorIdIssue("x".repeat(INDICATOR_ID_MAX_LENGTH + 1), "uploaded"),

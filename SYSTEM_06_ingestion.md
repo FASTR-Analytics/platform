@@ -152,7 +152,7 @@ history). Shape:
   schedule selection carries `indicatorIds`; `validateRunSelection` (shared
   by launch, enqueue and the scheduler's fire path) expands them with
   `expandIndicatorSelection` (lib, S5): a sum expands to its members, a
-  derived flattens through the resolver to the counts it reaches, the DHIS2
+  calculated flattens through the resolver to the counts it reaches, the DHIS2
   elements among them contribute their data ids, and population terms and
   Uploaded indicators (whatever their data id's shape) are dropped and
   listed (`populationTermsDropped`, `uploadedIndicatorsDropped`, shown in
@@ -452,7 +452,7 @@ callback re-parses the new bytes).
   without its Uploaded rows, which a DHIS2 import cannot fetch, over a
   search box and a selected count (S5), and
   refuses Next, with the reason under the table, while the selection
-  expands to no DHIS2 element or a selected derived does not resolve; the
+  expands to no DHIS2 element or a selected calculated does not resolve; the
   Review keeps the indicator and element counts and lists the covered
   elements, one row per DHIS2 element indicator with its DHIS2 id, in
   expansion order, followed by the dropped parts, Uploaded members and

@@ -8,7 +8,7 @@
 // after generation cannot change what a package computes (PLAN_1a §1.10).
 //
 // This is where "generation decides what the numbers are made of" happens: a
-// derived indicator's expression is FLATTENED here, so the row names nothing
+// calculated indicator's expression is FLATTENED here, so the row names nothing
 // but leaves, counts (Uploaded, DHIS2 element, Sum) and population types,
 // and each of those is assigned the ingredient column its value will travel
 // in. Everything downstream just sums columns and applies a formula. A sum
@@ -85,8 +85,8 @@ export function buildHmisIndicatorDictionary(
   return buildExpressionDictionary([
     ...indicators.map((c) => ({
       id: c.indicator_common_id,
-      type: c.definition.type === "derived" ? "derived" as const : "leaf" as const,
-      expression: c.definition.type === "derived"
+      type: c.definition.type === "calculated" ? "calculated" as const : "leaf" as const,
+      expression: c.definition.type === "calculated"
         ? c.definition.expression
         : null,
     })),
@@ -118,10 +118,10 @@ function resolveOrUndefined(
 
 // THE analysed set (PLAN_A4 ruling 3), stated once: a count (Uploaded,
 // DHIS2 element or Sum) is in the extract, and therefore in m001, m002 and
-// every package, when its checkbox is on, or it is a special, or a derived
+// every package, when its checkbox is on, or it is a special, or a calculated
 // with its checkbox on reaches it through the resolver. Sum membership alone
 // puts nothing in the extract: the sum is computed from its members' rows
-// whether or not they are analysed themselves. A derived that does not
+// whether or not they are analysed themselves. A calculated that does not
 // resolve reaches nothing here; capture refuses it with the reason.
 export function analysedIndicatorIds(
   indicators: HmisIndicator[],
@@ -130,13 +130,13 @@ export function analysedIndicatorIds(
   const dictionary = buildHmisIndicatorDictionary(indicators, populationTypeIds);
   const analysed = new Set<string>();
   for (const c of indicators) {
-    if (c.definition.type === "derived") continue;
+    if (c.definition.type === "calculated") continue;
     if (c.include_in_analysis || isSpecialIndicatorId(c.indicator_common_id)) {
       analysed.add(c.indicator_common_id);
     }
   }
   for (const c of indicators) {
-    if (c.definition.type !== "derived" || !c.include_in_analysis) continue;
+    if (c.definition.type !== "calculated" || !c.include_in_analysis) continue;
     const resolved = resolveOrUndefined(
       c.indicator_common_id,
       c.definition.expression,
@@ -178,14 +178,14 @@ export function analysedIdsWithData(
   return withData;
 }
 
-// THE computability rule for a derived indicator, stated once: its
+// THE computability rule for a calculated indicator, stated once: its
 // expression must resolve, and every flattened ingredient that is not a
 // population term must be an analysed count with data. Capture refuses
 // the run on any other answer; the indicator manager and editor show the
 // same answer. Whether the population store covers a population type is the
 // person-years expansion's check at prepare time (PLAN_1b ruling 6), not
 // this one.
-export type DerivedIndicatorComputability =
+export type CalculatedIndicatorComputability =
   | { kind: "computable"; resolved: ResolvedIndicatorExpression }
   | {
     kind: "unmapped_ingredients";
@@ -194,12 +194,12 @@ export type DerivedIndicatorComputability =
   }
   | { kind: "unresolvable"; problem: string };
 
-export function judgeDerivedIndicator(
+export function judgeCalculatedIndicator(
   ownId: string,
   expression: string,
   dictionary: ExpressionDictionary,
   idsWithData: Set<string>,
-): DerivedIndicatorComputability {
+): CalculatedIndicatorComputability {
   let resolved: ResolvedIndicatorExpression;
   try {
     resolved = resolveIndicatorExpression({
@@ -221,21 +221,21 @@ export function judgeDerivedIndicator(
 }
 
 // The rule over a whole dictionary as the client holds it: one judgement per
-// derived indicator. `idsWithData` is the caller's knowledge of which
+// calculated indicator. `idsWithData` is the caller's knowledge of which
 // counts have rows (`analysedIdsWithData` over the ledger, for the
 // manager); the dictionary alone cannot say.
-export function judgeDerivedIndicators(
+export function judgeCalculatedIndicators(
   indicators: HmisIndicator[],
   populationTypeIds: string[],
   idsWithData: Set<string>,
-): Map<string, DerivedIndicatorComputability> {
+): Map<string, CalculatedIndicatorComputability> {
   const dictionary = buildHmisIndicatorDictionary(indicators, populationTypeIds);
-  const judgements = new Map<string, DerivedIndicatorComputability>();
+  const judgements = new Map<string, CalculatedIndicatorComputability>();
   for (const c of indicators) {
-    if (c.definition.type !== "derived") continue;
+    if (c.definition.type !== "calculated") continue;
     judgements.set(
       c.indicator_common_id,
-      judgeDerivedIndicator(
+      judgeCalculatedIndicator(
         c.indicator_common_id,
         c.definition.expression,
         dictionary,
@@ -248,7 +248,7 @@ export function judgeDerivedIndicators(
 
 function describeComputabilityProblem(
   ownId: string,
-  judgement: Exclude<DerivedIndicatorComputability, { kind: "computable" }>,
+  judgement: Exclude<CalculatedIndicatorComputability, { kind: "computable" }>,
 ): string {
   if (judgement.kind === "unresolvable") return judgement.problem;
   const { missing } = judgement;
@@ -258,10 +258,10 @@ function describeComputabilityProblem(
 }
 
 // The catalog is the analysed set (ruling 3): every analysed count under
-// its own type, and every derived with its checkbox on. `idsWithData` is
+// its own type, and every calculated with its checkbox on. `idsWithData` is
 // the subset of those that the extract can actually produce values for. An
 // expression that reaches outside it would silently evaluate to NULL
-// everywhere, so it fails the capture instead. A derived with its checkbox
+// everywhere, so it fails the capture instead. A calculated with its checkbox
 // off is in no package; a chain through it still resolves, since the
 // dictionary is the whole list. `populationTypeIds` is the store's
 // vocabulary: a population identifier resolves iff it names one.
@@ -291,7 +291,7 @@ export function resolveHmisIndicatorCatalog(
       sort_order: indicator.sort_order,
     };
 
-    if (indicator.definition.type !== "derived") {
+    if (indicator.definition.type !== "calculated") {
       if (!analysed.has(indicator.indicator_common_id)) continue;
       // An analysed count the extract cannot produce values for carries no
       // expression and no slot map: it contributes no ingredient row, m012
@@ -315,7 +315,7 @@ export function resolveHmisIndicatorCatalog(
     }
 
     if (!indicator.include_in_analysis) continue;
-    const judgement = judgeDerivedIndicator(
+    const judgement = judgeCalculatedIndicator(
       indicator.indicator_common_id,
       indicator.definition.expression,
       dictionary,
@@ -330,7 +330,7 @@ export function resolveHmisIndicatorCatalog(
 
     rows.push({
       ...shared,
-      type: "derived",
+      type: "calculated",
       expression: writeIndicatorExpression(judgement.resolved.ast),
       slot_map: buildIngredientSlotMap(judgement.resolved.ingredientIds),
     });
@@ -433,7 +433,7 @@ function rStringLiteral(value: string): string {
 // A DHIS2 import selects INDICATORS; what it fetches is expanded here, once,
 // where the selection is validated (launch, enqueue and the scheduler's fire
 // path), and the result is persisted on the run row. A sum expands to its
-// members; a derived flattens through the resolver to the counts it
+// members; a calculated flattens through the resolver to the counts it
 // reaches, and a reached sum to its members. The DHIS2 elements among them
 // contribute their data ids, in first-appearance order; population terms
 // and Uploaded indicators are dropped and listed for the run detail
@@ -470,7 +470,7 @@ export function expandIndicatorSelection(
       pushUnique(unknownIndicatorIds, id);
       continue;
     }
-    if (indicator.definition.type !== "derived") {
+    if (indicator.definition.type !== "calculated") {
       pushUnique(leafIds, id);
       continue;
     }

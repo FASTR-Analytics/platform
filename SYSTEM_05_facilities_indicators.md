@@ -70,7 +70,7 @@ for org units); module runs that EXECUTE the HFA indicator R code and
 materialise indicator ingredients (m012) are **S8**; the query
 pipeline that joins facilities/geojson at render time, and applies each
 indicator's catalog expression after aggregation, is **S9**. Indicator
-DEFINITIONS (an Uploaded or DHIS2 element's data id, a sum's members, derived expressions,
+DEFINITIONS (an Uploaded or DHIS2 element's data id, a sum's members, calculated expressions,
 population rates) are S5's dictionary, snapshotted into each package at
 capture. Projects never
 read this system live. Everything crosses into project DBs via attach-time snapshots
@@ -278,7 +278,7 @@ import fetches; `data_id` is the data element UID or `UID.COC` operand,
 DHIS2-shaped by CHECK), `sum` (its members in
 `indicator_sum_members`, summed from the rows under their data ids at
 extract into one facility × month series that m001 and m002 adjust like
-any count; no sum inside a sum), and `derived` (`expression`, a formula
+any count; no sum inside a sum), and `calculated` (`expression`, a formula
 over indicators of any type and population terms, evaluated by m012 after
 adjustment and aggregation). The four words are the code names' labels
 (`indicatorTypeWord`); on screen a DHIS2 element's data id is its "DHIS2
@@ -304,16 +304,16 @@ every package analyses it; off means dictionary only, its data still
 imported and stored, still usable as a member or in a formula. The
 analysed set is stated once, in `analysedIndicatorIds`
 (`lib/hmis_indicator_catalog.ts`): a count with its checkbox on, or a
-special, or one a derived with its checkbox on reaches through the
-resolver; sum membership alone puts nothing in the extract, and a derived
-with its checkbox off is in no package (a checked derived that reaches an
+special, or one a calculated with its checkbox on reaches through the
+resolver; sum membership alone puts nothing in the extract, and a calculated
+with its checkbox off is in no package (a checked calculated that reaches an
 unchecked indicator is saved and generated regardless). A count "has
 data" by its data id (`analysedIdsWithData`: an Uploaded or DHIS2 element
 whose data id has rows, a sum with rows under any member's data id). The
 CRUD (`server/db/instance/indicators.ts`) writes `data_id`, the junction
 and `include_in_analysis` in the indicator's own transaction, with these
 pre-checks: every new id through the validator (a reserved word refused, a
-special id accepted for a count and refused for a derived), a DHIS2
+special id accepted for a count and refused for a calculated), a DHIS2
 element's data id DHIS2-shaped and held by no other indicator, a sum's
 members existing as indicators with rows, and every expression resolving
 against the dictionary the write would leave. The API's Uploaded
@@ -322,22 +322,22 @@ generated at insert and kept on update, and a key posted anyway is
 stripped by the route schema and dropped by the route's narrowing.
 `updateIndicator`
 accepts a new id (PLAN_A5 ruling 5): in the indicator's transaction it
-updates the row, rewrites every derived expression that names the old id
+updates the row, rewrites every calculated expression that names the old id
 (`renameIdentifierInExpression`, whole identifiers and exact `[id]` only,
 the author's text otherwise kept, the new id written as the grammar
 requires; 086's `fastr_rename_identifier` is the same segment rule for
-its one rename, a derived special to its suffix form, and substitutes
+its one rename, a calculated special to its suffix form, and substitutes
 the new id raw) and every schedule's `indicatorIds`; run and version
 rows are history and keep their pairs, which are data ids; figure configs
 in project databases are not rewritten. Renaming a special is allowed and
 takes the id out of the module scripts' inputs, as deleting it does.
-Refused: renaming to a reserved, taken or special-when-derived id.
+Refused: renaming to a reserved, taken or special-when-calculated id.
 Retyping never changes the key, except Uploaded to DHIS2 element, which
 takes the typed UID and so is refused while rows exist under the old key;
 a DHIS2 element retyped to Uploaded keeps its UID as its key, with rows;
-a Sum or Derived retyped to Uploaded takes a generated key; a switch from
-Uploaded or DHIS2 element to Sum or Derived is refused with rows or while
-a sum names the indicator (the only guard; a Sum or Derived has no rows
+a Sum or Calculated retyped to Uploaded takes a generated key; a switch from
+Uploaded or DHIS2 element to Sum or Calculated is refused with rows or while
+a sum names the indicator (the only guard; a Sum or Calculated has no rows
 and no sum names it, so a switch away from them needs none). A DHIS2 id
 may change through `updateIndicator` while no rows exist under it; with
 rows it is fixed, and the error says to rename the indicator instead. The
@@ -367,7 +367,7 @@ operand becomes a new DHIS2 element under the chosen id (proposed by
 existing id of any type is refused; one indicator carries one data id, so
 two elements cannot share a new id; a UID some indicator already holds
 creates nothing. A DHIS2 indicator decomposes (S7) into DHIS2 elements for
-its operands and a derived `(numerator) / (denominator)` over their ids:
+its operands and a calculated `(numerator) / (denominator)` over their ids:
 its expression names each operand by `[data_id]` and the transaction
 rewrites every identifier to the indicator that element lands in
 (`renameIdentifiers`). Sums are not made in the naming step; they are made
@@ -417,7 +417,7 @@ Instance migration 086 (`086_indicators_one_table.sql`, PLAN_A5 ruling 8)
 makes the switch on every instance in one transaction, with nothing
 resolved by hand and **no data or ledger row touched**: the data and
 ledger key column is renamed `data_id` and keeps its values, which were
-the raw ids. A raw mapped to exactly one non-derived common, which has no
+the raw ids. A raw mapped to exactly one non-calculated common, which has no
 other mapping, folds (the common takes the raw id as its data id and
 becomes a DHIS2 element when the id is DHIS2-shaped, Uploaded otherwise);
 every other raw becomes an indicator of its own with the raw id as its
@@ -425,10 +425,10 @@ data id, by the same shape rule (a DHIS2-shaped raw under an id generated
 from its label by the PL/pgSQL restatement of `generateIndicatorId`,
 pinned to the lib by `server/tests/indicator_migration_test.ts`; another
 raw under its own id when it passes the validator, else a generated one);
-a non-derived common whose raws did not fold becomes a sum over the
+a non-calculated common whose raws did not fold becomes a sum over the
 indicators they became, its members written to the junction (a mapping
-onto a derived common contributed nothing to the old extract and is
-dropped with the table); a derived row under a special
+onto a calculated common contributed nothing to the old extract and is
+dropped with the table); a calculated row under a special
 id is renamed to its suffix form (`anc1_2`), every expression naming it
 rewritten, and an Uploaded indicator with no data id inserted under the
 special id; `include_in_analysis` is TRUE for every row that was a common
@@ -448,7 +448,7 @@ runner does, prints that id table, and asserts the outcome (every raw
 became exactly one indicator's data id, folded or new; generated ids
 unique, bare, unreserved, non-special and equal to what the lib generates;
 the type `dhis2_element` exactly where the data id is DHIS2-shaped; no
-derived under a special id; every common with mappings a DHIS2 element, an
+calculated under a special id; every common with mappings a DHIS2 element, an
 Uploaded indicator or a sum over what its raws became; the analysed set
 after equal to the commons before; the extract's per-indicator sums
 identical; the data and ledger tables with the same row count and the
@@ -564,7 +564,7 @@ same `with()`. Filter-variable missingness stays an explicit branch, because
 `M10_hfa_response_status.csv` no longer share a denominator: a facility can
 hold a determinate 0 while its per-variable status reads `missing`.
 
-**Derived indicators** are defined by an expression over other indicators and
+**Calculated indicators** are defined by an expression over other indicators and
 population terms. There is no separate id grammar: an identifier is written
 bare when it matches `^[a-z][a-z0-9_]*$` and `[in brackets]` otherwise, so
 every indicator id is usable regardless of charset. A population term is the
@@ -573,13 +573,13 @@ population type's id written bare (`anc1 / population_total`).
 ids, the six `POPULATION_TYPES` ids and the three function names.
 `getNewIndicatorIdIssue(id, type)` refuses a new indicator under one
 (`reserved`), except a special id for a count; a special id is refused for
-a derived at create and at retype (`special_derived`,
+a calculated at create and at retype (`special_calculated`,
 `getSpecialIndicatorTypeIssue`, applied by `updateIndicator` and the
 editor), because the module scripts read it as a count; a
 special may be Uploaded, a DHIS2 element or a Sum, and renames like any
 other indicator.
 Migration 084 guards stored ids against the population and function
-names, and 086 renames a derived special.
+names, and 086 renames a calculated special.
 Generated ids
 (`generateIndicatorId`, `lib/indicator_id.ts`: NFKD-fold, lowercase,
 non-alphanumeric runs to `_`, `i_` on a leading digit, a 64 cap, then
@@ -603,8 +603,8 @@ identifier as expression, one slot). The same resolver expands a DHIS2
 import's selected indicators to the data ids it fetches
 (`expandIndicatorSelection`, S6).
 
-**Computability is defined in one place**: `judgeDerivedIndicator` in
-`lib/hmis_indicator_catalog.ts`. A derived indicator is computable when
+**Computability is defined in one place**: `judgeCalculatedIndicator` in
+`lib/hmis_indicator_catalog.ts`. A calculated indicator is computable when
 its expression resolves and every flattened ingredient that is not a
 population term is an analysed count with rows (`analysedIdsWithData`, by
 data id). The catalog builds its capture error from that judgement, and
@@ -612,9 +612,9 @@ the indicator manager list and the editor show the same judgement over the
 set of counts they are given (see "Client state & wizard"). A count with
 no rows is never a problem on its own: an Uploaded indicator has none
 until a file is mapped onto it, and it reads as NULL. The dependency between a
-derived indicator and the indicators its expression uses lives only in the
+calculated indicator and the indicators its expression uses lives only in the
 expression text, not in a table, so no save or delete is blocked because
-of it (a sum's members are the one strict dependency): a derived indicator
+of it (a sum's members are the one strict dependency): a calculated indicator
 that cannot be computed yet is a normal state while a country is still
 filling its counts.
 
@@ -630,7 +630,7 @@ pointers only. Consequences that follow from it and are ruled with it:
     extract, and `sum`: the rows under its members' data ids summed at
     extract; the only types m001/m002 ever see, and the only types the
     HMIS extract carries (the analysed ones, PLAN_A4 rulings 3 and 4).
-  - `derived`: an ARBITRARY expression over other indicators of any type
+  - `calculated`: an ARBITRARY expression over other indicators of any type
     (`+ - * /`, parentheses, literals, `abs`/`coalesce`/`nullif`; chained by
     substitution, cycles and depth rejected). Never negotiable down to
     numerator/denominator. It may divide by a population term
@@ -643,7 +643,7 @@ pointers only. Consequences that follow from it and are ruled with it:
     per-10k), and the multipliers migrated from m008 were its DENOMINATOR
     fractions, so a migrated rate was off by 1/fraction², about 625× at
     0.04); an Uploaded, DHIS2 element or Sum is a count and is forced
-    to `number` (the table's CHECK), a derived one chooses freely.
+    to `number` (the table's CHECK), a calculated one chooses freely.
 
   **Generation decides what the numbers are made of; the query only
   aggregates and applies the formula.** At generation the expression is
@@ -654,7 +654,7 @@ pointers only. Consequences that follow from it and are ruled with it:
   which is what makes the result exact at every grouping. Expressions are
   CATALOG DATA evaluated by a pure TypeScript evaluator
   (`lib/indicator_expression/`), never emitted as SQL, never accepted from
-  the wire. Query-time synthesis of derived indicators was evaluated and
+  the wire. Query-time synthesis of calculated indicators was evaluated and
   REJECTED in every variant (ruled, each evaluated against code; do
   not re-litigate): request-shape inference and declared-hosting fetchConfig
   fields; a flat one-entry-per-indicator series catalog with an id-only wire
@@ -682,7 +682,7 @@ pointers only. Consequences that follow from it and are ruled with it:
 - Presentation fields (`format_as`, `thresholds`, `sort_order`) live on the
   indicator; `format_as` is DISPLAY, the `type` carries pipeline
   semantics: "percent" is not a pipeline property, "is a ratio of counts"
-  is. `thresholds` is a derived indicator's conditional-formatting rule
+  is. `thresholds` is a calculated indicator's conditional-formatting rule
   (`ThresholdsRule` as JSON text, like every JSON column: cutoffs in STORED
   units, buckets with colour and optional label, direction.
   `thresholdsRuleSchema` validates it at the API boundary and on every
@@ -703,11 +703,11 @@ pointers only. Consequences that follow from it and are ruled with it:
   direction control, `showDirection`), so the two cannot disagree; 088
   started every row at the default and dropped the key from every stored
   rule. `target` is a number in STORED units
-  on a derived indicator only, NULL for none (`indicators_count_target_check`;
+  on a calculated indicator only, NULL for none (`indicators_count_target_check`;
   the editor takes it in display units; the manager list shows none of the
   three, the editor and the download do). `expected_low_counts` marks a count whose facility-month values
   are expected to be small, for the adjustment modules; FALSE on every
-  derived indicator (`indicators_derived_low_counts_check`). The three
+  calculated indicator (`indicators_calculated_low_counts_check`). The three
   reach the catalog row and the v2 `indicators.json` mirror (optional in
   its row schema: older mirrors lack them and are never rewritten);
   `direction` and `target` go on to `IndicatorMetadata` as optional facts
@@ -718,7 +718,7 @@ pointers only. Consequences that follow from it and are ruled with it:
 - DHIS2 percent indicators are never imported as values. The importer
   decomposes `numerator`/`denominator` (already on `DHIS2Indicator`) into
   data-element operands → DHIS2 elements carrying them as `data_id`, and
-  authors the indicator as a `derived` (S7 parses; the naming step
+  authors the indicator as a `calculated` (S7 parses; the naming step
   creates);
   a yearly denominator DE is refused (the population store is written by
   hand). Expressions it cannot decompose (`R{}`, `OUG{}`, `C{}`, program
@@ -757,7 +757,7 @@ ids (`population_total`, `population_u5`, `population_u1`,
 `{ en, fr, pt }` labels, fixed in code and read by the import, the formula
 resolver, the indicator editor and the page. The id is the one string every
 layer carries: the CSV `population_type` column, the formula identifier
-(a reserved word, "Derived indicators" above), the ingredient id m012 joins on
+(a reserved word, "Calculated indicators" above), the ingredient id m012 joins on
 and the manifest stamp. No table (migration 082 dropped `population_types`
 and the foreign key to it), so an indicator formula is the same
 contract on every instance and the only thing that varies per instance is
@@ -939,7 +939,7 @@ Every config mutation re-reads all configs and pushes one consolidated
   MAX(updated_at)+count of `indicators` rows: `indicatorsVersion` covers
   EVERY row and keys the indicator manager, while `countIndicatorsVersion`
   counts only the analysed counts (`is_count AND include_in_analysis`) and
-  is what the HMIS datatable keys on, so editing a derived definition costs
+  is what the HMIS datatable keys on, so editing a calculated definition costs
   that cache nothing. Both are stored in the project's `datasets.info` JSON
   at capture (project migration 042 renamed the keys; old manifests keep
   the earlier name in `datasets[].info`, which nothing reads).
@@ -960,7 +960,7 @@ Every config mutation re-reads all configs and pushes one consolidated
   the user's edits are never re-seeded away): one row per DHIS2 element or
   operand (`NamingValueRow`: proposed id and label editable inline; a UID
   some indicator already carries as its data id reads "Already added as"
-  and is still posted, so a derived formula naming it rewrites, and the
+  and is still posted, so a calculated formula naming it rewrites, and the
   server creates nothing for it), and one per decomposed DHIS2 indicator
   with its formula previewed over the ids the elements are taking.
   `namingIssues` states every refusal the server would make (a reserved or
@@ -969,15 +969,15 @@ Every config mutation re-reads all configs and pushes one consolidated
   what the host posts. The DHIS2 select form is its only host.
 - Computability in the manager is shown, never enforced. The list has a
   Status column fed by one `createMemo` over the loaded dictionary calling
-  `judgeDerivedIndicators` (lib) with the counts that have rows
-  (`analysedIdsWithData` over every non-derived row, so an unchecked
-  derived is judged as it would be if checked). Which data ids have rows
+  `judgeCalculatedIndicators` (lib) with the counts that have rows
+  (`analysedIdsWithData` over every non-calculated row, so an unchecked
+  calculated is judged as it would be if checked). Which data ids have rows
   comes from the import ledger (`getDatasetHmisImportLedger`, one row per
   data id × month, the cheap answer), read once and again when the HMIS
   data version moves; the list renders without it and the column fills in
   when it arrives. A dictionary edit updates the judgement through the
   ordinary `indicatorsVersion` refetch. An
-  uncomputable derived indicator shows the capture error translated into
+  uncomputable calculated indicator shows the capture error translated into
   the interface language, and a banner above the table counts them. A
   second, separate note is shown when the flattened expression divides by a
   population type that has no rows at all in the store (from T1
@@ -986,7 +986,7 @@ Every config mutation re-reads all configs and pushes one consolidated
   generation, not checked here (S8 "population.csv"). The editor runs the same judgement over
   the formula as typed over the same set. A formula that does not resolve
   refuses the save, as before. A flattened ingredient with no data is only a
-  warning under the formula, and a checked derived whose formula reaches an
+  warning under the formula, and a checked calculated whose formula reaches an
   indicator with its checkbox off says so under the formula once and saves
   (ruling 3). Counts have no status. The Status column is
   sortable. It is not in the CSV download, which carries the dictionary's
@@ -998,10 +998,10 @@ Every config mutation re-reads all configs and pushes one consolidated
   selection survives filtering, and the header checkbox acts on the
   visible rows.
 - The manager is one list with a Type column (DHIS2 element, Uploaded, Sum,
-  Derived, `indicatorTypeLabel`), a Defined-by column (the DHIS2 id of an
+  Calculated, `indicatorTypeLabel`), a Defined-by column (the DHIS2 id of an
   element, the members, the formula, nothing for an Uploaded indicator;
   `definedByText`, shared with the import picker), a Format column (a
-  derived indicator's Number, Percent or Rate per 10,000; blank for a
+  calculated indicator's Number, Percent or Rate per 10,000; blank for a
   count, which is always a number; `formatText`), a read-only
   include-in-analysis tick (the flag is edited in the modal only) and the
   Special badge. The two facts the type implies (a count is adjusted by the
@@ -1017,7 +1017,7 @@ Every config mutation re-reads all configs and pushes one consolidated
   definition input (its key is the server's; the Definition heading carries
   a caption saying so, and the type's facts say the CSV import's mapping
   step fills it), a sum a member picker over the
-  indicators that have rows (at least one), a derived the formula,
+  indicators that have rows (at least one), a calculated the formula,
   palette and legend with the Format and conditional-formatting controls,
   which no other type shows; every type has the checkbox (on and disabled
   for a special, whose flag saves as true and whose list tick reads as on

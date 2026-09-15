@@ -1,8 +1,8 @@
 // Pins PLAN_A4 ruling 3, the analysed set (analysedIndicatorIds in lib): a
 // count (Uploaded, DHIS2 element or Sum) is analysed when its checkbox is
-// on, or it is a special, or a derived with its checkbox on reaches it
+// on, or it is a special, or a calculated with its checkbox on reaches it
 // through the resolver; sum membership alone puts nothing in the extract; a
-// derived with its checkbox off is left out of the catalog. And PLAN_A5
+// calculated with its checkbox off is left out of the catalog. And PLAN_A5
 // ruling 10's shape: the catalog row carries the stored type, and "with
 // data" is judged by data id.
 //
@@ -27,7 +27,7 @@ function indicator(
     indicator_common_label: id,
     definition,
     include_in_analysis: includeInAnalysis,
-    format_as: definition.type === "derived" ? "percent" : "number",
+    format_as: definition.type === "calculated" ? "percent" : "number",
     thresholds: null,
     direction: "higher-is-better",
     target: null,
@@ -46,13 +46,13 @@ const DICTIONARY: HmisIndicator[] = [
   indicator("off_sum", { type: "sum", members: ["member_a"] }, false),
   indicator("reached_uploaded", { type: "uploaded", data_id: "file_reached" }, false),
   indicator("reached_sum", { type: "sum", members: ["member_b"] }, false),
-  indicator("on_derived", { type: "derived", expression: "reached_uploaded / reached_sum" }, true),
-  indicator("off_derived", { type: "derived", expression: "off_element / 2" }, false),
-  indicator("chain_link", { type: "derived", expression: "penta1 + off_sum" }, false),
-  indicator("on_chain", { type: "derived", expression: "chain_link / population_u5" }, true),
+  indicator("on_calculated", { type: "calculated", expression: "reached_uploaded / reached_sum" }, true),
+  indicator("off_calculated", { type: "calculated", expression: "off_element / 2" }, false),
+  indicator("chain_link", { type: "calculated", expression: "penta1 + off_sum" }, false),
+  indicator("on_chain", { type: "calculated", expression: "chain_link / population_u5" }, true),
 ];
 
-Deno.test("analysed: on, special, reached by a checked derived (through a chain); not by a sum alone", () => {
+Deno.test("analysed: on, special, reached by a checked calculated (through a chain); not by a sum alone", () => {
   const analysed = analysedIndicatorIds(DICTIONARY, POPULATION_TYPE_IDS);
   assertEquals(
     [...analysed].toSorted(),
@@ -68,7 +68,7 @@ Deno.test("analysed: on, special, reached by a checked derived (through a chain)
   // Members of analysed sums are not analysed themselves.
   assertEquals(analysed.has("member_a"), false);
   assertEquals(analysed.has("member_b"), false);
-  // A derived with its checkbox off reaches nothing.
+  // A calculated with its checkbox off reaches nothing.
   assertEquals(analysed.has("off_element"), false);
 });
 
@@ -88,7 +88,7 @@ Deno.test("with data: by the rows under the data id, a sum by any member's data 
   );
 });
 
-Deno.test("catalog: analysed counts under their stored type, checked derived only", () => {
+Deno.test("catalog: analysed counts under their stored type, checked calculated only", () => {
   const analysed = analysedIndicatorIds(DICTIONARY, POPULATION_TYPE_IDS);
   const withData = analysedIdsWithData(
     DICTIONARY,
@@ -109,8 +109,8 @@ Deno.test("catalog: analysed counts under their stored type, checked derived onl
       ["off_sum", "sum"],
       ["reached_uploaded", "uploaded"],
       ["reached_sum", "sum"],
-      ["on_derived", "derived"],
-      ["on_chain", "derived"],
+      ["on_calculated", "calculated"],
+      ["on_chain", "calculated"],
     ],
   );
   // off_sum's members have rows, so it carries its one slot.

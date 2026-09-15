@@ -39,7 +39,7 @@ const NAME_PATTERN = /^[A-Za-z][A-Za-z0-9_]*(:[A-Za-z][A-Za-z0-9_]*)?/;
 
 // The factors DHIS2 indicator types carry and the display format each maps
 // to. 1000 has no format of its own, so the expression carries the scaling
-// and the derived is a number (a rate_per_1k format is an Open item).
+// and the calculated is a number (a rate_per_1k format is an Open item).
 const FACTOR_FORMATS: Record<number, IndicatorFormat> = {
   1: "number",
   100: "percent",

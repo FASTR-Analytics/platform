@@ -5,7 +5,7 @@ import type { TranslatableString } from "./translate/types.ts";
 // the core set), with the labels the manager's reference panel shows.
 // Hand-kept: the scripts carry no declaration. A special id may exist only
 // as a count (Uploaded, DHIS2 element or Sum), because the scripts read it
-// as a count and a derived under it would be silently ignored
+// as a count and a calculated under it would be silently ignored
 // (`getSpecialIndicatorTypeIssue`). Nothing creates one: a team adds,
 // renames or deletes specials in the manager like any indicator, and
 // renaming or deleting one takes the id out of the scripts' inputs.

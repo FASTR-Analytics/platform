@@ -53,19 +53,19 @@ const INDICATORS: HmisIndicator[] = [
   indicator("anc4", { type: "uploaded", data_id: "anc4" }, 2),
   indicator("penta1", { type: "uploaded", data_id: "penta1" }, 3),
   indicator("opd", { type: "uploaded", data_id: "opd" }, 4),
-  indicator("anc4_rate", { type: "derived", expression: "anc4 / anc1" }, 5),
+  indicator("anc4_rate", { type: "calculated", expression: "anc4 / anc1" }, 5),
   indicator("anc4_rate_fill", {
-    type: "derived",
+    type: "calculated",
     expression: "coalesce(anc4, 0) / anc1",
   }, 6),
-  indicator("anc1_not5", { type: "derived", expression: "nullif(anc1, 5)" }, 7),
+  indicator("anc1_not5", { type: "calculated", expression: "nullif(anc1, 5)" }, 7),
   indicator("anc1_per_1000_u5", {
-    type: "derived",
+    type: "calculated",
     expression: `1000 * anc1 / ${POPULATION_TYPE}`,
   }, 8),
-  indicator("penta1_share", { type: "derived", expression: "penta1 / anc1" }, 9),
+  indicator("penta1_share", { type: "calculated", expression: "penta1 / anc1" }, 9),
   indicator("anc_gap", {
-    type: "derived",
+    type: "calculated",
     expression: "-anc1 + abs(anc4 - anc1)",
   }, 10),
 ];

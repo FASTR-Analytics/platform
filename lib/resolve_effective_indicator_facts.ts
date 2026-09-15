@@ -259,7 +259,7 @@ function unanimousFormat(
 
 // The indicator-dimension values a figure actually puts on display. Candidates
 // come ONLY from indicator dimensions (INDICATOR_DISAGGREGATION_OPTIONS): a
-// derived indicator named `anc1` must not collide with a `source_indicator`
+// calculated indicator named `anc1` must not collide with a `source_indicator`
 // value that happens to share the id.
 //
 // `undefined` means an indicator dimension is on display but could not be

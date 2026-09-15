@@ -2,7 +2,7 @@
 // Catalog-expression evaluation: the read path's post-aggregation step
 // =============================================================================
 //
-// The engine aggregates a derived indicator's additive ingredients with SUM
+// The engine aggregates a calculated indicator's additive ingredients with SUM
 // and returns them as ing1..ingN columns. This turns each such row into the
 // single `value` the figure layer expects, by applying that indicator's OWN
 // expression from the run catalog (PLAN_1a §0: expression-over-sums, never

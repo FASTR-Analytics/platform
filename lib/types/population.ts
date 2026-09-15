@@ -1,6 +1,6 @@
 // The instance population store (SYSTEM_05 "Population store"): annual
 // counts per admin area × year × population type at the population level.
-// A derived HMIS indicator names a type by its id, a bare identifier and
+// A calculated HMIS indicator names a type by its id, a bare identifier and
 // a reserved word (`anc1 / population_total`); at run capture every
 // referenced type is expanded into monthly person-years
 // (lib/population_person_years.ts).

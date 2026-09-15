@@ -42,7 +42,7 @@ import {
 import { tryCatchDatabaseAsync } from "./../utils.ts";
 
 // The stored shape of one indicator (PLAN_A5 ruling 1, PLAN_A6 ruling 1).
-// `expression` is a derived indicator's formula, `data_id` the key an
+// `expression` is a calculated indicator's formula, `data_id` the key an
 // Uploaded or DHIS2 element indicator's rows carry (a generated opaque key
 // or the UID); each NULL for the other types (the table's CHECK). `members` is aggregated from indicator_sum_members,
 // ordered by member id, empty for every other type. `thresholds` is the CF
@@ -108,8 +108,8 @@ function dbRowToDefinition(row: DBIndicatorCommon): HmisIndicatorDefinition {
       return { type: "dhis2_element", data_id: row.data_id! };
     case "sum":
       return { type: "sum", members: row.members };
-    case "derived":
-      return { type: "derived", expression: row.expression! };
+    case "calculated":
+      return { type: "calculated", expression: row.expression! };
   }
 }
 
@@ -123,14 +123,14 @@ type DefinitionFields = {
 // The columns a posted definition writes. An Uploaded indicator's key is
 // the one the row already holds, whatever type it held it under, or a
 // generated one when it holds none (a create, or a retype from Sum or
-// Derived); a DHIS2 element's is the typed UID (PLAN_A6 ruling 1).
+// Calculated); a DHIS2 element's is the typed UID (PLAN_A6 ruling 1).
 function definitionFields(
   definition: HmisIndicatorDefinitionInput,
   currentDataId: string | null,
 ): DefinitionFields {
   return {
     definition_type: definition.type,
-    expression: definition.type === "derived" ? definition.expression : null,
+    expression: definition.type === "calculated" ? definition.expression : null,
     data_id: definition.type === "uploaded"
       ? currentDataId ?? generateDataKey()
       : inputDataId(definition),
@@ -146,8 +146,8 @@ function inputDataId(definition: HmisIndicatorDefinitionInput): string | null {
 // `format_as` is display-only and the sole scale (PLAN_1c ruling 3), and so
 // are `thresholds` and `target`. A count is always a number with no
 // conditional-formatting rule and no target (the table's three count
-// CHECKs); a derived one chooses all three. `expected_low_counts` is a
-// count's fact only: a derived indicator is never adjusted (the derived
+// CHECKs); a calculated one chooses all three. `expected_low_counts` is a
+// count's fact only: a calculated indicator is never adjusted (the calculated
 // CHECK).
 function typeRuleError(
   indicator: Pick<
@@ -157,7 +157,7 @@ function typeRuleError(
 ): string | undefined {
   if (!isCount(indicator.definition.type)) {
     return indicator.expected_low_counts
-      ? "A Derived indicator is never adjusted, so it cannot expect low counts"
+      ? "A Calculated indicator is never adjusted, so it cannot expect low counts"
       : undefined;
   }
   if (indicator.format_as !== "number") {
@@ -228,7 +228,7 @@ async function loadExpressionDictionaryEntries(
   return [
     ...stored.map((r) => ({
       id: r.indicator_common_id,
-      type: r.definition_type === "derived" ? "derived" as const : "leaf" as const,
+      type: r.definition_type === "calculated" ? "calculated" as const : "leaf" as const,
       expression: r.expression,
     })),
     ...POPULATION_TYPE_IDS.map((id) => ({
@@ -295,13 +295,13 @@ async function checkDefinitionsResolve(
   for (const [id, definition] of pendingDefinitions) {
     entries.set(id, {
       id,
-      type: definition.type === "derived" ? "derived" : "leaf",
-      expression: definition.type === "derived" ? definition.expression : null,
+      type: definition.type === "calculated" ? "calculated" : "leaf",
+      expression: definition.type === "calculated" ? definition.expression : null,
     });
   }
   const dictionary = buildExpressionDictionary([...entries.values()]);
   for (const [id, definition] of pendingDefinitions) {
-    if (definition.type !== "derived") continue;
+    if (definition.type !== "calculated") continue;
     try {
       resolveIndicatorExpression({
         ownId: id,
@@ -318,7 +318,7 @@ async function checkDefinitionsResolve(
   // repointing an indicator at a new expression invalidates every chain
   // that runs through it.
   for (const entry of entries.values()) {
-    if (entry.type !== "derived" || pendingDefinitions.has(entry.id)) continue;
+    if (entry.type !== "calculated" || pendingDefinitions.has(entry.id)) continue;
     try {
       resolveIndicatorExpression({
         ownId: entry.id,
@@ -352,7 +352,7 @@ async function expressionsBlockingRemoval(
   const dictionary = buildExpressionDictionary(survivors);
   const blocked: string[] = [];
   for (const survivor of survivors) {
-    if (survivor.type !== "derived") continue;
+    if (survivor.type !== "calculated") continue;
     try {
       resolveIndicatorExpression({
         ownId: survivor.id,
@@ -467,7 +467,7 @@ export type NewIndicator = {
 
 // The pre-checks every create shares: each id through the validator (a
 // reserved word refused, a special id accepted for a count and refused for
-// a derived), a DHIS2 element's data id DHIS2-shaped and held by no other
+// a calculated), a DHIS2 element's data id DHIS2-shaped and held by no other
 // indicator, the format rule, no id or DHIS2 id twice or already taken,
 // every member an existing indicator with rows, and every expression
 // resolving against the dictionary the write would leave. An Uploaded
@@ -631,7 +631,7 @@ type NamingPlan =
 // What the naming step's choices amount to. A DHIS2 element or operand
 // becomes a new DHIS2 element under the chosen id; an existing id is
 // refused. A UID some indicator already holds creates nothing, and a
-// derived's expression is rewritten from UIDs to the indicators those
+// calculated's expression is rewritten from UIDs to the indicators those
 // elements land in. Everything created is in the analysis.
 async function planIndicatorNaming(
   mainDb: Sql,
@@ -687,15 +687,15 @@ async function planIndicatorNaming(
       expected_low_counts: false,
     });
   }
-  for (const derived of input.derived) {
+  for (const calculated of input.calculated) {
     let expression: string;
     try {
-      const node = parseIndicatorExpression(derived.expression);
+      const node = parseIndicatorExpression(calculated.expression);
       const unnamed = collectIdentifiers(node).filter((id) => !landing.has(id));
       if (unnamed.length > 0) {
         return {
           ok: false,
-          err: `${derived.indicator_id}: its formula names DHIS2 ids that were not named: ${
+          err: `${calculated.indicator_id}: its formula names DHIS2 ids that were not named: ${
             unnamed.join(", ")
           }`,
         };
@@ -705,14 +705,14 @@ async function planIndicatorNaming(
       );
     } catch (e) {
       if (!(e instanceof IndicatorExpressionError)) throw e;
-      return { ok: false, err: `${derived.indicator_id}: ${e.message}` };
+      return { ok: false, err: `${calculated.indicator_id}: ${e.message}` };
     }
     indicators.push({
-      indicator_common_id: derived.indicator_id,
-      indicator_common_label: derived.label,
-      definition: { type: "derived", expression },
+      indicator_common_id: calculated.indicator_id,
+      indicator_common_label: calculated.label,
+      definition: { type: "calculated", expression },
       include_in_analysis: true,
-      format_as: derived.format_as,
+      format_as: calculated.format_as,
       thresholds: null,
       direction: "higher-is-better",
       target: null,
@@ -723,7 +723,7 @@ async function planIndicatorNaming(
 }
 
 // Saves a naming step in one transaction: the new DHIS2 elements and the
-// derived indicators over them. Every pre-check of createIndicators
+// calculated indicators over them. Every pre-check of createIndicators
 // applies, so either everything lands or nothing does.
 export async function applyIndicatorNaming(
   mainDb: Sql,
@@ -757,7 +757,7 @@ export type Dhis2NamingIndicator = {
 // The DHIS2 select form's save (rulings 6 and 8): the verdicts and
 // decompositions are the server's own, computed by the route against live
 // DHIS2 metadata, never the client's. A refused element or indicator
-// refuses the whole save; an accepted indicator becomes a derived over the
+// refuses the whole save; an accepted indicator becomes a calculated over the
 // DHIS2 elements its operands land in.
 export async function createIndicatorsFromDhis2(
   mainDb: Sql,
@@ -774,7 +774,7 @@ export async function createIndicatorsFromDhis2(
       };
     }
   }
-  const derived: IndicatorNamingInput["derived"] = [];
+  const calculated: IndicatorNamingInput["calculated"] = [];
   for (const indicator of input.indicators) {
     const { parse, operands } = indicator.decomposition;
     if (!parse.accepted) {
@@ -801,7 +801,7 @@ export async function createIndicatorsFromDhis2(
         };
       }
     }
-    derived.push({
+    calculated.push({
       indicator_id: indicator.indicator_id,
       label: indicator.label,
       expression: parse.expression,
@@ -810,7 +810,7 @@ export async function createIndicatorsFromDhis2(
   }
   return await applyIndicatorNaming(mainDb, {
     elements: input.elements.map(({ verdict: _verdict, ...element }) => element),
-    derived,
+    calculated,
   });
 }
 
@@ -842,13 +842,13 @@ async function renameError(
 }
 
 // Updates an indicator, renaming it when the id differs. A rename rewrites
-// every derived expression that names the old id and every schedule's
+// every calculated expression that names the old id and every schedule's
 // selection in the same transaction (the junction follows by ON UPDATE
 // CASCADE); historical run and version rows are history and keep their
 // pairs, which are data ids and stay valid. Retyping never changes the key,
 // except Uploaded to DHIS2 element, which takes the typed UID and so needs
 // no rows under the old key; a DHIS2 element retyped to Uploaded keeps its
-// UID as its key. Any switch to Sum or Derived is refused with rows or
+// UID as its key. Any switch to Sum or Calculated is refused with rows or
 // while a sum names the indicator. A DHIS2 id is fixed once rows exist
 // under it; without rows it may change within the type's rule, and it must
 // not belong to another indicator (PLAN_A6 ruling 1).
@@ -985,18 +985,18 @@ export async function updateIndicator(
   });
 }
 
-// Every derived expression naming the old id, and every schedule selection
+// Every calculated expression naming the old id, and every schedule selection
 // listing it, rewritten to the new id.
 async function renameReferences(
   sql: Sql,
   from: string,
   to: string,
 ): Promise<void> {
-  const derived = await sql<{ indicator_common_id: string; expression: string }[]>`
+  const calculated = await sql<{ indicator_common_id: string; expression: string }[]>`
     SELECT indicator_common_id, expression FROM indicators
-    WHERE definition_type = 'derived' AND expression IS NOT NULL
+    WHERE definition_type = 'calculated' AND expression IS NOT NULL
   `;
-  for (const row of derived) {
+  for (const row of calculated) {
     const rewritten = renameIdentifierInExpression(row.expression, from, to);
     if (rewritten === row.expression) continue;
     await sql`

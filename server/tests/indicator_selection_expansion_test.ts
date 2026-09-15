@@ -1,7 +1,7 @@
 // Pins PLAN_A4 ruling 5 and PLAN_A5 ruling 3: an import selects indicators
 // and the expansion to the data ids it fetches happens once, at validation
 // (expandIndicatorSelection in lib), and is then persisted on the run row.
-// A sum expands to its members' data ids, a derived through the resolver
+// A sum expands to its members' data ids, a calculated through the resolver
 // to the DHIS2 elements it reaches, Uploaded indicators and population
 // terms are dropped and counted, and the worker and every later reader
 // enumerate pairs from that stored list (enumerateRunPairs), never from the
@@ -68,11 +68,11 @@ function sum(id: string, members: string[]): HmisIndicator {
   };
 }
 
-function derived(id: string, expression: string): HmisIndicator {
+function calculated(id: string, expression: string): HmisIndicator {
   return {
     indicator_common_id: id,
     indicator_common_label: id,
-    definition: { type: "derived", expression },
+    definition: { type: "calculated", expression },
     include_in_analysis: true,
     format_as: "percent",
     thresholds: null,
@@ -92,9 +92,9 @@ const DICTIONARY: HmisIndicator[] = [
   uploaded("anc4_csv", "UvWxYzAbCd9"),
   sum("anc4_all", ["anc4", "anc4_csv"]),
   uploaded("opd", "u_opd"),
-  derived("anc4_rate", "anc4 / anc1"),
-  derived("anc1_coverage", "anc1 / population_pregnancies"),
-  derived("anc_chain", "anc4_rate * anc1_coverage"),
+  calculated("anc4_rate", "anc4 / anc1"),
+  calculated("anc1_coverage", "anc1 / population_pregnancies"),
+  calculated("anc_chain", "anc4_rate * anc1_coverage"),
 ];
 
 Deno.test("expansion: a DHIS2 element is its data id", () => {
@@ -111,7 +111,7 @@ Deno.test("expansion: a sum expands to its members' data ids", () => {
   assertEquals(e.dataIds, [ANC1_ELEMENT, ANC1_OPERAND]);
 });
 
-Deno.test("expansion: a derived flattens to the elements it reaches, through a sum, once each", () => {
+Deno.test("expansion: a calculated flattens to the elements it reaches, through a sum, once each", () => {
   const e = expandIndicatorSelection(
     ["anc4_rate", "anc1_first"],
     DICTIONARY,
@@ -136,7 +136,7 @@ Deno.test("expansion: an Uploaded indicator is dropped and counted, whatever its
   assertEquals(e.uploadedIndicatorsDropped, ["anc4_csv", "opd"]);
 });
 
-Deno.test("expansion: a chain through derived indicators reaches every leaf", () => {
+Deno.test("expansion: a chain through calculated indicators reaches every leaf", () => {
   const e = expandIndicatorSelection(["anc_chain"], DICTIONARY, POPULATION_TYPE_IDS);
   assertEquals(e.dataIds, [ANC4_ELEMENT, ANC1_ELEMENT, ANC1_OPERAND]);
   assertEquals(e.populationTermsDropped, ["population_pregnancies"]);
@@ -148,10 +148,10 @@ Deno.test("expansion: unknown ids are reported", () => {
   assertEquals(e.unknownIndicatorIds, ["nope"]);
 });
 
-Deno.test("expansion: an unresolvable derived is reported, not thrown", () => {
+Deno.test("expansion: an unresolvable calculated is reported, not thrown", () => {
   const e = expandIndicatorSelection(
     ["broken"],
-    [...DICTIONARY, derived("broken", "anc1 / missing_indicator")],
+    [...DICTIONARY, calculated("broken", "anc1 / missing_indicator")],
     POPULATION_TYPE_IDS,
   );
   assertEquals(e.dataIds, []);
@@ -177,7 +177,7 @@ Deno.test("description: a sum lists its members", () => {
   assertEquals(d.elements.map((e) => e.dataId), [ANC1_ELEMENT, ANC1_OPERAND]);
 });
 
-Deno.test("description: a derived through a sum lists every element once, in expansion order", () => {
+Deno.test("description: a calculated through a sum lists every element once, in expansion order", () => {
   const d = describeDhis2Selection(
     ["anc4_rate", "anc1_first"],
     DICTIONARY,
@@ -206,10 +206,10 @@ Deno.test("description: a population term is dropped and named", () => {
   assertEquals(d.populationTermsDropped, ["population_pregnancies"]);
 });
 
-Deno.test("description: an unresolvable derived has no elements and is named", () => {
+Deno.test("description: an unresolvable calculated has no elements and is named", () => {
   const d = describeDhis2Selection(
     ["broken"],
-    [...DICTIONARY, derived("broken", "anc1 / missing_indicator")],
+    [...DICTIONARY, calculated("broken", "anc1 / missing_indicator")],
     POPULATION_TYPE_IDS,
   );
   assertEquals(d.elements, []);

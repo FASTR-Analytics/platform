@@ -20,20 +20,20 @@ export function indicatorTypeWord(type: HmisIndicatorType): string {
       return t3({ en: "DHIS2 element", fr: "Élément DHIS2", pt: "Elemento DHIS2" });
     case "sum":
       return t3({ en: "Sum", fr: "Somme", pt: "Soma" });
-    case "derived":
-      return t3({ en: "Derived", fr: "Dérivé", pt: "Derivado" });
+    case "calculated":
+      return t3({ en: "Calculated", fr: "Calculé", pt: "Calculado" });
   }
 }
 
 // What a screen calls a DHIS2 element's data id. An Uploaded indicator's
-// key is opaque and never shown (PLAN_A6 ruling 1); a sum or a derived has
+// key is opaque and never shown (PLAN_A6 ruling 1); a sum or a calculated has
 // none.
 export function dhis2IdLabel(): string {
   return t3({ en: "DHIS2 id", fr: "Identifiant DHIS2", pt: "ID DHIS2" });
 }
 
 // What the indicator is made of: the DHIS2 id of an element, the members
-// of a sum, the formula of a derived indicator; nothing for an Uploaded
+// of a sum, the formula of a calculated indicator; nothing for an Uploaded
 // indicator. One derivation for display and sort.
 export function definedByText(indicator: HmisIndicator): string {
   switch (indicator.definition.type) {
@@ -43,7 +43,7 @@ export function definedByText(indicator: HmisIndicator): string {
       return indicator.definition.data_id;
     case "sum":
       return indicator.definition.members.join(", ");
-    case "derived":
+    case "calculated":
       return indicator.definition.expression;
   }
 }
@@ -63,10 +63,10 @@ export function indicatorFormatWord(format: IndicatorFormat): string {
   }
 }
 
-// The Format column: a derived indicator's authored format, nothing for a
+// The Format column: a calculated indicator's authored format, nothing for a
 // count, which is always a number.
 export function formatText(indicator: HmisIndicator): string {
-  return indicator.definition.type === "derived"
+  return indicator.definition.type === "calculated"
     ? indicatorFormatWord(indicator.format_as)
     : "";
 }

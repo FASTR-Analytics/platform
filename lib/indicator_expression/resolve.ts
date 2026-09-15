@@ -7,7 +7,7 @@
 // editor states them where the user is, capture enforces them where the data
 // is (PLAN_1a §1.2).
 //
-// Flattening is substitution: a `derived` ingredient is replaced by its own
+// Flattening is substitution: a `calculated` ingredient is replaced by its own
 // expression, recursively, until the expression names nothing but leaves:
 // count indicators (`leaf`) and population types. Those leaves ARE the
 // ingredients that travel as ing1..ingN on a results row, which is why the
@@ -25,10 +25,10 @@ import { isPopulationTypeId, POPULATION_TYPE_IDS } from "../types/population.ts"
 // The results object carries eight ingredient slots (PLAN_1a §1.5).
 export const MAX_INDICATOR_EXPRESSION_INGREDIENTS = 8;
 
-// Substitution depth: how many `derived`-on-`derived` links a chain may have.
+// Substitution depth: how many `calculated`-on-`calculated` links a chain may have.
 export const MAX_INDICATOR_EXPRESSION_DEPTH = 8;
 
-// Flattened SIZE: substitution is multiplicative (each derived link expands at
+// Flattened SIZE: substitution is multiplicative (each calculated link expands at
 // every occurrence), and neither the depth cap nor the ingredient cap bounds
 // the tree: the ingredient count is deduplicated, so a chain of wide
 // expressions can flatten to megabytes carrying ONE ingredient. The flattened
@@ -43,8 +43,8 @@ export const MAX_INDICATOR_EXPRESSION_NODES = 1000;
 // too.
 export type ExpressionDictionaryEntry = {
   id: string;
-  type: "leaf" | "derived" | "population";
-  // `derived`: the expression. `leaf` and `population`: null.
+  type: "leaf" | "calculated" | "population";
+  // `calculated`: the expression. `leaf` and `population`: null.
   expression: string | null;
 };
 
@@ -121,7 +121,7 @@ export function resolveIndicatorExpression(args: {
         }
         if (entry.expression === null) {
           throw new IndicatorExpressionError(
-            `${JSON.stringify(node.name)} is derived but has no expression`,
+            `${JSON.stringify(node.name)} is calculated but has no expression`,
           );
         }
         return substitute(
