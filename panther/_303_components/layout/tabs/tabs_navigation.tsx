@@ -52,19 +52,22 @@ export function TabsNavigation<T extends string = string, M = never>(
     if (!isVertical()) {
       // A tab label is a text-only interactive: no hover surface, text colour
       // carries the hover. The underline hugs the label (no horizontal
-      // padding; tabs are spaced by the strip's gap) and overlaps the strip's
-      // rail via the -mb-px on the row, so the active primary border sits on
-      // the rail and the inactive transparent border lets it show through.
+      // padding; tabs are spaced by the strip's gap). It is an inset shadow,
+      // like the vertical mode's side accent, so it paints over the bottom of
+      // the padding instead of adding to it; -mb-px overlaps the tab's bottom
+      // pixel onto the rail so the underline sits on the line.
       const baseClasses =
-        "ui-focusable relative -mb-px flex items-center justify-center ui-gap-sm font-700 cursor-pointer select-none border-b-2";
+        "ui-focusable relative -mb-px flex items-center justify-center ui-gap-sm font-700 cursor-pointer select-none";
       const sizeClasses = p.secondary ? "ui-pad-y-sm text-sm" : "ui-pad-y";
 
       if (isActive(id)) {
-        return `${baseClasses} ${sizeClasses} border-primary ${
-          p.secondary ? "text-base-content" : "text-primary"
+        return `${baseClasses} ${sizeClasses} ${
+          p.secondary
+            ? "shadow-[inset_0_-2px_0_0_var(--color-primary)] text-base-content"
+            : "shadow-[inset_0_-3px_0_0_var(--color-primary)] text-primary"
         }`;
       }
-      return `${baseClasses} ${sizeClasses} border-transparent hover:text-primary ${
+      return `${baseClasses} ${sizeClasses} hover:text-primary ${
         p.secondary ? "text-base-content-muted" : "text-base-content"
       }`;
     } else {
@@ -95,8 +98,8 @@ export function TabsNavigation<T extends string = string, M = never>(
   // not a consumer wraps it) and paints its surface. A secondary strip sits
   // inside padded content, so it carries neither: the content's inset and
   // surface are already there. The rail is the border-b of the strip, or of
-  // the row when it must stop at the inset; each tab's -mb-px pulls its own
-  // border-b-2 down over that line either way.
+  // the row when it must stop at the inset; each tab's -mb-px pulls its
+  // underline down onto that line either way.
   const railOnRow = () => !p.secondary && p.insetRail === true;
 
   const containerClasses = () =>
