@@ -1,3 +1,25 @@
+[TBD] [user] [added] - Indicator count now shown next to the "Indicators" heading
+[TBD] [user] [added] - Indicator types now displayed as color-coded badges
+[TBD] [user] [added] - Long indicator IDs and labels now wrap neatly instead of overflowing
+[TBD] [user] [added] - "Add from DHIS2" button moved into the indicators table toolbar
+[TBD] [user] [added] - Selected indicator count shown prominently in DHIS2 picker
+[TBD] [user] [changed] - "Download CSV" button shortened to "Download"
+[TBD] [user] [changed] - "Create indicator" button shortened to "Create new"
+[TBD] [user] [changed] - "Include in analysis" column header shortened to "Include"
+[TBD] [user] [changed] - Indicator table rows are now more compact
+[TBD] [user] [changed] - "Add from DHIS2" button now visible to all users, not just admins
+[TBD] [user] [changed] - Format column removed from the indicators table
+[TBD] [admin] [changed] - Indicator type now shown as colored badges
+[TBD] [admin] [changed] - Long indicator IDs and labels wrap neatly at underscores
+[TBD] [admin] [changed] - Indicator table displays total indicator count in heading
+[TBD] [admin] [changed] - "Add from DHIS2" button moved into the indicator table toolbar
+[TBD] [admin] [changed] - "Add from DHIS2" button now visible to all admins, not just global admins
+[TBD] [admin] [changed] - Format column removed from indicator table
+[TBD] [admin] [changed] - "Include in analysis" column header shortened to "Include"
+[TBD] [admin] [changed] - Download and Create buttons use shorter labels
+[TBD] [admin] [changed] - Indicator table rows are more compact
+[TBD] [admin] [changed] - DHIS2 indicator picker shows selected count more prominently
+[TBD] [admin] [changed] - DHIS2 indicator picker table rows are more compact
 [TBD] [user] [changed] - Formula indicators now labeled "calculated" instead of "derived"
 [TBD] [admin] [changed] - Results packages now automatically update renamed indicator types on startup
 [TBD] [admin] [changed] - Visualization caches are refreshed to reflect the indicator type rename
