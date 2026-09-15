@@ -393,10 +393,13 @@ the client display cache and the results-run capture staleness hash).
 ## Client
 
 One imports surface per family, opened from a single `Imports` button in the
-dataset page's admin sidebar. The sidebar is the seam between the viewer
-and the imports layer: the SSE status flags (HMIS only: running / queued /
-attention), that one button, and `Delete data` (HFA also `Manage time
-points`); no wizard shortcuts, no heading (ruled). The surface's toolbar owns
+dataset page's admin controls, the seam between the viewer and the imports
+layer: that one button and `Delete data`, with no wizard shortcuts (ruled).
+HMIS puts them in the page's heading bar beside an "Import running" badge
+from the SSE `hmisImportRunActive` flag; the queued count and the
+scheduled-import attention flag show only inside the imports view (Current
+tab badge, attention banner). HFA and ICEH keep them in an admin sidebar
+with no heading (HFA also `Manage time points`). The surface's toolbar owns
 the actions; no attempt cards anywhere. The runs query polls every 2 s while
 a run is active, needs_review runs render as Current cards with the staging
 diagnostics + Integrate anyway / Discard, History rows click through to a

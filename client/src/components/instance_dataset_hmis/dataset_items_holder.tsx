@@ -14,6 +14,8 @@ import {
   StateHolderWrapper,
   toNum0,
   type CustomFigureStyleOptions,
+  FrameTop,
+  ButtonGroup,
 } from "panther";
 import { Show, createMemo } from "solid-js";
 import type { SetStoreFunction } from "solid-js/store";
@@ -111,89 +113,103 @@ export function DatasetDisplayPresentation(p: Props) {
   const isLine = () => p.vizConfig.figureType === "line";
 
   return (
-    <FrameLeftResizable
-      startingWidth={300}
-      maxWidth={800}
+    <FrameTop
+      // startingWidth={300}
+      // maxWidth={800}
       panelChildren={
-        <div class="ui-pad ui-spy h-full w-full">
-          <RadioGroup
-            label={t3({ en: "Figure", fr: "Figure", pt: "Figura" })}
-            options={[
-              {
-                value: "line",
-                label: t3({
-                  en: "Line graph",
-                  fr: "Graphique linéaire",
-                  pt: "Gráfico de linhas",
-                }),
-              },
-              {
-                value: "heat_map",
-                label: t3({
-                  en: "Heat map",
-                  fr: "Carte de chaleur",
-                  pt: "Mapa de calor",
-                }),
-              },
-            ]}
-            value={p.vizConfig.figureType}
-            onChange={(v) =>
-              p.setVizConfig("figureType", v as VizConfig["figureType"])
-            }
-          />
-          <Show when={isLine()}>
-            <RadioGroup
-              label={t3({ en: "Value", fr: "Valeur", pt: "Valor" })}
-              options={[
+        <div class="ui-pad ui-gap flex h-full w-full flex-wrap items-end">
+          <div class="max-w-[600px] min-w-[300px] flex-1">
+            <MultiSelectSearch
+              label={t3({
+                en: "Indicators",
+                fr: "Indicateurs",
+                pt: "Indicadores",
+              })}
+              options={p.displayItems.indicators}
+              values={p.vizConfig.indicators}
+              onChange={(v) => p.setVizConfig("indicators", v)}
+              fullWidth
+            />
+          </div>
+          <div class="ui-gap flex">
+            <ButtonGroup
+              label={t3({ en: "Figure", fr: "Figure", pt: "Figura" })}
+              items={[
                 {
-                  value: "count",
+                  id: "line",
                   label: t3({
-                    en: "Number of records",
-                    fr: "Nombre d'enregistrements",
-                    pt: "Número de registos",
+                    en: "Line graph",
+                    fr: "Graphique linéaire",
+                    pt: "Gráfico de linhas",
                   }),
                 },
                 {
-                  value: "sum",
+                  id: "heat_map",
                   label: t3({
-                    en: "Number of service counts",
-                    fr: "Nombre de prestations de services",
-                    pt: "Número de prestações de serviços",
+                    en: "Heat map",
+                    fr: "Carte de chaleur",
+                    pt: "Mapa de calor",
                   }),
                 },
               ]}
-              value={p.vizConfig.value}
-              onChange={(v) => p.setVizConfig("value", v as "count" | "sum")}
+              value={p.vizConfig.figureType}
+              onChange={(v) =>
+                p.setVizConfig("figureType", v as VizConfig["figureType"])
+              }
             />
-          </Show>
-          <Show when={!isLine()}>
-            <RadioGroup
-              label={t3({ en: "Periods", fr: "Périodes", pt: "Períodos" })}
-              options={[
-                {
-                  value: "month",
-                  label: t3({ en: "By month", fr: "Par mois", pt: "Por mês" }),
-                },
-                {
-                  value: "year",
-                  label: t3({ en: "By year", fr: "Par année", pt: "Por ano" }),
-                },
-              ]}
-              value={p.vizConfig.heatMapAxis}
-              onChange={(v) => p.setVizConfig("heatMapAxis", v as HeatMapAxis)}
-            />
-          </Show>
-          <MultiSelectSearch
-            label={t3({
-              en: "Indicators",
-              fr: "Indicateurs",
-              pt: "Indicadores",
-            })}
-            options={p.displayItems.indicators}
-            values={p.vizConfig.indicators}
-            onChange={(v) => p.setVizConfig("indicators", v)}
-            fullWidth
-          />
+            <Show when={isLine()}>
+              <ButtonGroup
+                label={t3({ en: "Value", fr: "Valeur", pt: "Valor" })}
+                items={[
+                  {
+                    id: "count",
+                    label: t3({
+                      en: "Records",
+                      fr: "Enregistrements",
+                      pt: "Registos",
+                    }),
+                  },
+                  {
+                    id: "sum",
+                    label: t3({
+                      en: "Service counts",
+                      fr: "Prestations de services",
+                      pt: "Prestações de serviços",
+                    }),
+                  },
+                ]}
+                value={p.vizConfig.value}
+                onChange={(v) => p.setVizConfig("value", v as "count" | "sum")}
+              />
+            </Show>
+            <Show when={!isLine()}>
+              <ButtonGroup
+                label={t3({ en: "Periods", fr: "Périodes", pt: "Períodos" })}
+                items={[
+                  {
+                    id: "month",
+                    label: t3({
+                      en: "By month",
+                      fr: "Par mois",
+                      pt: "Por mês",
+                    }),
+                  },
+                  {
+                    id: "year",
+                    label: t3({
+                      en: "By year",
+                      fr: "Par année",
+                      pt: "Por ano",
+                    }),
+                  },
+                ]}
+                value={p.vizConfig.heatMapAxis}
+                onChange={(v) =>
+                  p.setVizConfig("heatMapAxis", v as HeatMapAxis)
+                }
+              />
+            </Show>
+          </div>
         </div>
       }
     >
@@ -232,6 +248,6 @@ export function DatasetDisplayPresentation(p: Props) {
           </Show>
         </Show>
       </div>
-    </FrameLeftResizable>
+    </FrameTop>
   );
 }

@@ -6,9 +6,9 @@ import {
   type ItemsHolderDatasetHmisDisplay,
 } from "lib";
 import {
+  Badge,
   Button,
   Callout,
-  FrameRight,
   FrameTop,
   HeadingBar,
   StateHolderWrapper,
@@ -285,134 +285,108 @@ export function InstanceDatasetHmis(p: Props) {
               fr: "Données HMIS",
               pt: "Dados HMIS",
             })}
-          />
-        }
-      >
-        <FrameRight
-          panelChildren={
+          >
             <Show when={instanceState.currentUserIsGlobalAdmin}>
-              <div class="ui-pad ui-spy flex h-full max-w-64 flex-col overflow-auto">
-                <Show when={instanceState.hmisScheduledImportAttention}>
-                  <div class="ui-pad border-danger bg-danger-subtle rounded border text-sm">
-                    {t3({
-                      en: "A scheduled DHIS2 import needs attention.",
-                      fr: "Une importation DHIS2 planifiée nécessite votre attention.",
-                      pt: "Uma importação DHIS2 agendada precisa de atenção.",
-                    })}
-                  </div>
-                </Show>
+              <div class="ui-gap-sm flex items-center">
                 <Show when={instanceState.hmisImportRunActive}>
-                  <div class="ui-pad bg-base-200 rounded border text-sm">
+                  <Badge intent="neutral">
                     {t3({
-                      en: "An import is running — see Imports for progress.",
-                      fr: "Une importation est en cours — voir Importations pour la progression.",
-                      pt: "Há uma importação em curso — ver Importações para o progresso.",
+                      en: "Import running",
+                      fr: "Importation en cours",
+                      pt: "Importação em curso",
                     })}
-                  </div>
+                  </Badge>
                 </Show>
-                <Show when={instanceState.hmisImportRunsQueued > 0}>
-                  <div class="ui-pad bg-base-200 rounded border text-sm">
-                    {instanceState.hmisImportRunsQueued}{" "}
-                    {t3({
-                      en: "import(s) queued.",
-                      fr: "importation(s) en file d'attente.",
-                      pt: "importação(ões) em fila.",
-                    })}
-                  </div>
-                </Show>
-                <div class="">
+                <Button onClick={openImports} iconName="databaseImport">
+                  {t3({
+                    en: "Imports",
+                    fr: "Importations",
+                    pt: "Importações",
+                  })}
+                </Button>
+                <Show when={instanceState.hmisNVersions > 0}>
                   <Button
-                    onClick={openImports}
-                    iconName="databaseImport"
-                    fullWidth
+                    onClick={deleteData}
+                    intent="danger"
+                    iconName="trash"
+                    outline
+                    onBackground="base-200"
                   >
                     {t3({
-                      en: "Imports",
-                      fr: "Importations",
-                      pt: "Importações",
+                      en: "Delete data",
+                      fr: "Supprimer les données",
+                      pt: "Eliminar os dados",
                     })}
                   </Button>
-                </div>
-                <Show when={instanceState.hmisNVersions > 0}>
-                  <div class="">
-                    <Button
-                      onClick={deleteData}
-                      intent="danger"
-                      iconName="trash"
-                      outline
-                      fullWidth
-                    >
-                      {t3({
-                        en: "Delete data",
-                        fr: "Supprimer les données",
-                        pt: "Eliminar os dados",
-                      })}
-                    </Button>
-                  </div>
                 </Show>
               </div>
             </Show>
-          }
-        >
-          <div class="flex h-full w-full flex-col">
-            <div class="ui-pad ui-spy-sm flex-none">
-              <Show when={importNotice()}>
-                {(notice) => (
-                  <Callout intent="success" pad="sm">
-                    <div class="ui-gap-sm flex items-center">
-                      <div class="flex-1">{importNoticeText(notice())}</div>
-                      <Button
-                        onClick={() => setImportNotice(undefined)}
-                        iconName="x"
-                        intent="success"
-                        size="sm"
-                      />
-                    </div>
-                  </Callout>
-                )}
-              </Show>
-              <TabsNavigation items={tabItems} value={tab()} onChange={setTab} />
-            </div>
-            <div class="min-h-0 w-full flex-1">
-              <Switch>
-                <Match when={tab() === "visualization"}>
-                  <Show
-                    when={instanceState.datasetVersions.hmis !== undefined}
-                    fallback={
-                      <div class="ui-pad">
-                        {t3({
-                          en: "No data",
-                          fr: "Aucune donnée",
-                          pt: "Sem dados",
-                        })}
-                      </div>
-                    }
-                  >
-                    <StateHolderWrapper state={itemsHolder()}>
-                      {(keyedDatasetItems) => (
-                        <DatasetDisplayPresentation
-                          displayItems={keyedDatasetItems}
-                          vizConfig={vizConfig}
-                          setVizConfig={setVizConfig}
-                        />
-                      )}
-                    </StateHolderWrapper>
-                  </Show>
-                </Match>
-                <Match when={tab() === "ledger"}>
-                  <div class="ui-pad h-full w-full overflow-auto">
-                    <LedgerTable
-                      ledger={ledger()}
-                      indicatorsByDataId={byDataId()}
-                      onOpenIndicator={openIndicatorDetail}
-                      onRetryFailedPairs={retryFailedPairs}
+          </HeadingBar>
+        }
+      >
+        <div class="flex h-full w-full flex-col">
+          <TabsNavigation
+            items={tabItems}
+            value={tab()}
+            onChange={setTab}
+            insetRail
+          />
+          <Show when={importNotice()}>
+            {(notice) => (
+              <div class="ui-pad flex-none pb-0">
+                <Callout intent="success" pad="sm">
+                  <div class="ui-gap-sm flex items-center">
+                    <div class="flex-1">{importNoticeText(notice())}</div>
+                    <Button
+                      onClick={() => setImportNotice(undefined)}
+                      iconName="x"
+                      intent="success"
+                      size="sm"
                     />
                   </div>
-                </Match>
-              </Switch>
-            </div>
+                </Callout>
+              </div>
+            )}
+          </Show>
+          <div class="min-h-0 w-full flex-1">
+            <Switch>
+              <Match when={tab() === "visualization"}>
+                <Show
+                  when={instanceState.datasetVersions.hmis !== undefined}
+                  fallback={
+                    <div class="ui-pad">
+                      {t3({
+                        en: "No data",
+                        fr: "Aucune donnée",
+                        pt: "Sem dados",
+                      })}
+                    </div>
+                  }
+                >
+                  <StateHolderWrapper state={itemsHolder()}>
+                    {(keyedDatasetItems) => (
+                      <DatasetDisplayPresentation
+                        displayItems={keyedDatasetItems}
+                        vizConfig={vizConfig}
+                        setVizConfig={setVizConfig}
+                      />
+                    )}
+                  </StateHolderWrapper>
+                </Show>
+              </Match>
+              <Match when={tab() === "ledger"}>
+                <div class="ui-pad h-full w-full">
+                  <LedgerTable
+                    ledger={ledger()}
+                    indicatorsByDataId={byDataId()}
+                    onOpenIndicator={openIndicatorDetail}
+                    onRetryFailedPairs={retryFailedPairs}
+                  />
+                </div>
+              </Match>
+            </Switch>
           </div>
-        </FrameRight>
+        </div>
       </FrameTop>
     </EditorWrapper>
   );

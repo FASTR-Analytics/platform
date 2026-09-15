@@ -225,9 +225,9 @@ export function Dhis2TabFuture(p: Props) {
       <Match when={visible().length === 0}>
         <div class="text-sm">
           {t3({
-            en: "No scheduled imports yet — create one from the wizard's Time step (Later or Recurring).",
-            fr: "Aucune importation planifiée pour le moment — créez-en une depuis l'étape Heure de l'assistant (Plus tard ou Récurrente).",
-            pt: "Ainda não há importações agendadas — crie uma no passo Hora do assistente (Mais tarde ou Recorrente).",
+            en: "No scheduled imports. To schedule one, click New DHIS2 import and, when asked when to run it, choose Once, at a set time or Recurring.",
+            fr: "Aucune importation planifiée. Pour en planifier une, cliquez sur Nouvelle importation DHIS2 et, quand on vous demande quand l'exécuter, choisissez Une fois, à une heure donnée ou Récurrente.",
+            pt: "Não há importações agendadas. Para agendar uma, clique em Nova importação DHIS2 e, quando for perguntado quando a executar, escolha Uma vez, a uma hora definida ou Recorrente.",
           })}
         </div>
       </Match>

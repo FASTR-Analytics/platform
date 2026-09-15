@@ -60,7 +60,7 @@ export function PresenceHeatMap(p: Props) {
   const labelOf = (id: string) => p.labelReplacements[id] ?? id;
 
   return (
-    <div class="h-full w-full overflow-auto">
+    <div class="w-full overflow-x-auto">
       <table class="border-separate border-spacing-0 text-xs">
         <thead>
           <tr class="h-5">
@@ -70,7 +70,7 @@ export function PresenceHeatMap(p: Props) {
               fallback={
                 <For each={columns()}>
                   {(col) => (
-                    <th class="font-400 pb-1 text-center align-bottom">
+                    <th class="font-400 px-2 pb-1 text-center align-bottom">
                       {col.title}
                     </th>
                   )}
@@ -104,7 +104,9 @@ export function PresenceHeatMap(p: Props) {
                   {(col) => (
                     <td class="p-px">
                       <div
-                        class={`h-4 w-4 rounded-sm border ${
+                        class={`h-4 rounded-sm border ${
+                          p.axis === "year" ? "w-full min-w-4" : "w-4"
+                        } ${
                           filled().has(`${id}|${col.key}`)
                             ? "bg-success border-success"
                             : "border-base-300"

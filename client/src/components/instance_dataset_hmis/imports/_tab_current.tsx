@@ -40,7 +40,11 @@ export function Dhis2TabCurrent(p: Props) {
     },
     {
       key: "startedAt",
-      header: t3({ en: "Queued at", fr: "Mise en file le", pt: "Em fila desde" }),
+      header: t3({
+        en: "Queued at",
+        fr: "Mise en file le",
+        pt: "Em fila desde",
+      }),
       render: (run) => new Date(run.startedAt).toLocaleString(),
     },
     {
@@ -86,9 +90,13 @@ export function Dhis2TabCurrent(p: Props) {
       <Show
         when={p.runningRun}
         fallback={
-          <div class="ui-pad ui-spy-sm rounded border">
+          <div class="ui-spy">
             <div class="text-sm">
-              {t3({ en: "No imports running.", fr: "Aucune importation en cours.", pt: "Nenhuma importação em curso." })}
+              {t3({
+                en: "No imports running.",
+                fr: "Aucune importation en cours.",
+                pt: "Nenhuma importação em curso.",
+              })}
             </div>
             <Show when={p.nextSchedule} keyed>
               {(next) => (
@@ -104,12 +112,20 @@ export function Dhis2TabCurrent(p: Props) {
                       ? recurrenceLabel(next.recurrence)
                       : ""}
                   {" — "}
-                  {t3({ en: "see the Future tab", fr: "voir l'onglet À venir", pt: "ver o separador Futuro" })}
+                  {t3({
+                    en: "see the Future tab",
+                    fr: "voir l'onglet À venir",
+                    pt: "ver o separador Futuro",
+                  })}
                 </div>
               )}
             </Show>
             <Button onClick={p.onNewImport} iconName="databaseImport">
-              {t3({ en: "New import", fr: "Nouvelle importation", pt: "Nova importação" })}
+              {t3({
+                en: "New import",
+                fr: "Nouvelle importation",
+                pt: "Nova importação",
+              })}
             </Button>
           </div>
         }
@@ -123,10 +139,19 @@ export function Dhis2TabCurrent(p: Props) {
                 boldHeader
                 title={
                   <>
-                    {t3({ en: "Import in progress", fr: "Importation en cours", pt: "Importação em curso" })}{" "}
-                    <span class="text-sm font-400">
-                      — {toNum0(run().succeededPairs + run().failedPairs)} / {toNum0(run().totalPairs)}{" "}
-                      {t3({ en: "pairs done", fr: "paires traitées", pt: "pares concluídos" })}
+                    {t3({
+                      en: "Import in progress",
+                      fr: "Importation en cours",
+                      pt: "Importação em curso",
+                    })}{" "}
+                    <span class="font-400 text-sm">
+                      — {toNum0(run().succeededPairs + run().failedPairs)} /{" "}
+                      {toNum0(run().totalPairs)}{" "}
+                      {t3({
+                        en: "pairs done",
+                        fr: "paires traitées",
+                        pt: "pares concluídos",
+                      })}
                     </span>
                   </>
                 }
@@ -142,7 +167,11 @@ export function Dhis2TabCurrent(p: Props) {
             <CollapsibleSection
               defaultOpen
               boldHeader
-              title={t3({ en: "CSV import in progress", fr: "Importation CSV en cours", pt: "Importação CSV em curso" })}
+              title={t3({
+                en: "CSV import in progress",
+                fr: "Importation CSV en cours",
+                pt: "Importação CSV em curso",
+              })}
             >
               <CsvRunView run={run()} onChanged={p.onChanged} />
             </CollapsibleSection>
@@ -153,7 +182,11 @@ export function Dhis2TabCurrent(p: Props) {
       <Show when={p.queuedRuns.length > 0}>
         <div class="ui-spy-sm">
           <div class="font-700 text-lg">
-            {t3({ en: "Queued imports", fr: "Importations en file d'attente", pt: "Importações em fila" })}
+            {t3({
+              en: "Queued imports",
+              fr: "Importations en file d'attente",
+              pt: "Importações em fila",
+            })}
           </div>
           <div class="text-sm">
             {t3({
@@ -166,7 +199,11 @@ export function Dhis2TabCurrent(p: Props) {
             data={p.queuedRuns}
             columns={queuedColumns}
             keyField="id"
-            noRowsMessage={t3({ en: "No queued imports", fr: "Aucune importation en file d'attente", pt: "Nenhuma importação em fila" })}
+            noRowsMessage={t3({
+              en: "No queued imports",
+              fr: "Aucune importation en file d'attente",
+              pt: "Nenhuma importação em fila",
+            })}
           />
         </div>
       </Show>
@@ -174,7 +211,11 @@ export function Dhis2TabCurrent(p: Props) {
       <Show when={p.runningRun}>
         <div>
           <Button onClick={p.onNewImport} outline iconName="plus">
-            {t3({ en: "Queue another import", fr: "Mettre une autre importation en file d'attente", pt: "Colocar outra importação em fila" })}
+            {t3({
+              en: "Queue another import",
+              fr: "Mettre une autre importation en file d'attente",
+              pt: "Colocar outra importação em fila",
+            })}
           </Button>
         </div>
       </Show>

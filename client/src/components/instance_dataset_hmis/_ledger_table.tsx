@@ -46,18 +46,27 @@ type DataIdRollup = {
 // per data id across the dataset's period window, labelled through the
 // dictionary, click-through to the per-month detail.
 export function LedgerTable(p: Props) {
-  const indicatorOf = (item: DataIdRollup) => p.indicatorsByDataId.get(item.dataId);
+  const indicatorOf = (item: DataIdRollup) =>
+    p.indicatorsByDataId.get(item.dataId);
   const dhis2IdOf = (item: DataIdRollup) =>
-    indicatorOf(item)?.definition.type === "dhis2_element" ? item.dataId : undefined;
+    indicatorOf(item)?.definition.type === "dhis2_element"
+      ? item.dataId
+      : undefined;
 
   const columns: TableColumn<DataIdRollup>[] = [
     {
       key: "indicatorId",
-      header: t3({ en: "Indicator ID", fr: "ID de l'indicateur", pt: "ID do indicador" }),
+      header: t3({
+        en: "Indicator ID",
+        fr: "ID de l'indicateur",
+        pt: "ID do indicador",
+      }),
       sortable: true,
       sortValue: (item) => indicatorOf(item)?.indicator_common_id ?? "",
       render: (item) => (
-        <span class="font-mono">{indicatorOf(item)?.indicator_common_id ?? ""}</span>
+        <span class="font-mono">
+          {indicatorOf(item)?.indicator_common_id ?? ""}
+        </span>
       ),
     },
     {
@@ -110,10 +119,10 @@ export function LedgerTable(p: Props) {
         return item.items.some((i) => i.route === "backfill")
           ? importRouteLabel("backfill")
           : t3({
-            en: "Never imported",
-            fr: "Jamais importé",
-            pt: "Nunca importado",
-          });
+              en: "Never imported",
+              fr: "Jamais importé",
+              pt: "Nunca importado",
+            });
       },
     },
     {
@@ -168,7 +177,7 @@ export function LedgerTable(p: Props) {
           (item) => item.status === "error",
         ).length;
         return (
-          <div class="ui-spy-sm">
+          <div class="ui-spy-sm h-full w-full">
             <Show when={failedCount > 0}>
               <div class="">
                 <Button
@@ -200,6 +209,7 @@ export function LedgerTable(p: Props) {
                   void p.onOpenIndicator(rollup.dataId, rollup.items, window);
                 }
               }}
+              fitTableToAvailableHeight
             />
           </div>
         );
@@ -296,8 +306,7 @@ function buildRollups(items: DatasetHmisImportLedgerItem[]): {
   // "What needs attention" floats up by default; every column stays sortable.
   rollups.sort(
     (a, b) =>
-      b.failedMonths - a.failedMonths ||
-      a.dataId.localeCompare(b.dataId),
+      b.failedMonths - a.failedMonths || a.dataId.localeCompare(b.dataId),
   );
 
   return { rollups, window };
