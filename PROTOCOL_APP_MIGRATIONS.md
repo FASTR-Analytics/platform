@@ -368,11 +368,9 @@ stage has not seen.
 It exists because the strict row schemas in `server/runs/indicator_catalog.ts`
 fail-stop boot on a value they no longer name, and without a forward transform
 renaming a stored vocabulary means either a legacy value accepted forever in
-the reader or a hand edit on every host. The worked example is the `derived`
-to `calculated` rename of the formula indicator type (2026-09-15): input
-block 1 rewrites every `derived` row of `inputs/indicators.json`, and it
-reached eleven production packages across four running instances and one
-dormant runs directory.
+the reader or a hand edit on every host. Input block 1 is the worked example:
+the formula indicator type was renamed from `derived` to `calculated`, and the
+block rewrites every `derived` row of `inputs/indicators.json`.
 
 **The rule is the manifest's own: rename or recompute, never invent, and
 never read outside the package.** An input block is a pure function of the
